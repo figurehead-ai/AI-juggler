@@ -37,29 +37,45 @@ fn reset_words(window: &str) -> &'static str {
 }
 
 /// The fullest window of an account now: `(window, used %, resets at,
-/// whether that percentage is an estimate)`.
+/// whether that percentage is an estimate)`. Out of room, the window that
+/// keeps it out longest and when it has room again (0.4.4, `room_back`:
+/// out on both windows, Needs you and the tiles gave two times).
 fn fullest(
     display: &crate::features::quota::QuotaDisplayInfo,
 ) -> Option<(&'static str, Option<f64>, Option<i64>, bool)> {
-    [
+    let estimate = |window: &crate::features::quota::WindowDisplay| {
+        window.percentage.is_some()
+            && !matches!(window.badge.as_deref(), Some("measured" | "computed"))
+    };
+    let slots = [
         ("five_hour", &display.five_hour),
         ("weekly", &display.weekly),
-    ]
-    .into_iter()
-    .filter_map(|(slot, window)| window.as_ref().map(|window| (slot, window)))
-    .max_by(|a, b| {
-        let used = |w: &crate::features::quota::WindowDisplay| w.percentage.unwrap_or(-1.0);
-        used(a.1).total_cmp(&used(b.1))
-    })
-    .map(|(slot, window)| {
-        (
+    ];
+    if let Some(back) = &display.room_back
+        && let Some((slot, Some(window))) = slots.iter().find(|(slot, _)| *slot == back.window)
+    {
+        return Some((
             window_words(slot),
             window.percentage,
-            window.resets_at_ms,
-            window.percentage.is_some()
-                && !matches!(window.badge.as_deref(), Some("measured" | "computed")),
-        )
-    })
+            back.at_ms,
+            estimate(window),
+        ));
+    }
+    slots
+        .into_iter()
+        .filter_map(|(slot, window)| window.as_ref().map(|window| (slot, window)))
+        .max_by(|a, b| {
+            let used = |w: &crate::features::quota::WindowDisplay| w.percentage.unwrap_or(-1.0);
+            used(a.1).total_cmp(&used(b.1))
+        })
+        .map(|(slot, window)| {
+            (
+                window_words(slot),
+                window.percentage,
+                window.resets_at_ms,
+                estimate(window),
+            )
+        })
 }
 
 fn live_sessions_on(storage: &Storage, account_id: &str) -> u32 {

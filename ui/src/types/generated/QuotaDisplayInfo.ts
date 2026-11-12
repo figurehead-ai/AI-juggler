@@ -3,6 +3,7 @@ import type { CreditsDisplay } from "./CreditsDisplay";
 import type { ForecastDisplay } from "./ForecastDisplay";
 import type { ModelWeekDisplay } from "./ModelWeekDisplay";
 import type { RenewalDisplay } from "./RenewalDisplay";
+import type { RoomBackDisplay } from "./RoomBackDisplay";
 import type { WindowDisplay } from "./WindowDisplay";
 
 /**
@@ -59,4 +60,10 @@ model_weeks: Array<ModelWeekDisplay>,
  * isn't measured may only not be read yet (the 0.2 walk, F6). Set
  * by the commands that show it.
  */
-history_reading: boolean, };
+history_reading: boolean, 
+/**
+ * 0.4.4: out of room, when it has room again: the latest reset among
+ * its used-up windows ([`juggler_core::quota::room_back`]), the one
+ * time every surface gives. `None` when no window is used up.
+ */
+room_back: RoomBackDisplay | null, };

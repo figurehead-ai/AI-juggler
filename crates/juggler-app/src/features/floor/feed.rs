@@ -616,11 +616,17 @@ fn read_usage(
             left_pct: tightest
                 .and_then(|w| w.percentage)
                 .map(|used| (100.0 - used).clamp(0.0, 100.0) as f32),
-            resets_ms: tightest.and_then(|w| w.resets_at_ms),
-            out: windows
-                .into_iter()
-                .flatten()
-                .any(|w| w.state == "exhausted"),
+            // 0.4.4: out, when it has room again (the later reset when out
+            // on both windows), as every other surface says it.
+            resets_ms: shown
+                .room_back
+                .as_ref()
+                .map_or_else(|| tightest.and_then(|w| w.resets_at_ms), |back| back.at_ms),
+            out: shown.room_back.is_some()
+                || windows
+                    .into_iter()
+                    .flatten()
+                    .any(|w| w.state == "exhausted"),
         };
         inputs
             .folder_names

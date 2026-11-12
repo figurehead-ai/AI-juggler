@@ -323,3 +323,81 @@ fn a_renewal_line_names_the_account_and_a_lone_folder_itself() {
         ]
     );
 }
+
+/// 0.4.4: an Account out on both windows has room again only when the
+/// later of them resets. Its five-hour window is used up until two hours
+/// from now and its week (99.6% used: "0% left") until three days from
+/// now: Needs you says the week and its reset, never the five hours', as
+/// every other surface does (`QuotaDisplayInfo::room_back`).
+#[test]
+fn an_account_out_on_both_windows_is_out_until_the_later_reset() {
+    let dir = tempfile::tempdir().unwrap();
+    let state = app_state(dir.path());
+    let work = folder(&state, "Work Max", Some("subject-a"));
+    let now = Timestamp::now().millis();
+    let five = now + 2 * 3_600_000;
+    let week = now + 3 * 86_400_000;
+    for (kind, used, reset) in [
+        (WindowKind::FiveHour, 100.0, five),
+        (WindowKind::Weekly { anchor_ms: None }, 99.6, week),
+    ] {
+        state
+            .storage
+            .lock()
+            .unwrap()
+            .usage()
+            .insert_sample(
+                &work,
+                kind,
+                &QuotaSample {
+                    ts: now - 60_000,
+                    used_pct: used,
+                    resets_at: Some(reset),
+                    confidence: Confidence::Measured,
+                    held_until: None,
+                },
+            )
+            .unwrap();
+    }
+    sources::quota_pass(&state, &[low(&work)]);
+    let open = needs(&state);
+    assert_eq!(open.len(), 1);
+    assert!(
+        open[0].detail.ends_with("0% of its weekly window left"),
+        "{}",
+        open[0].detail
+    );
+    assert_eq!(open[0].facts.window.as_deref(), Some("weekly"));
+    assert_eq!(open[0].facts.resets_at_ms, Some(week));
+    // The one answer, as every screen reads it (the lab's shape too: both
+    // at 100%, `qa_scenario_seed`'s `room_used` and `week_used`).
+    let account = commands::find_account_arc(&state, &work).unwrap();
+    let back = |state: &Arc<AppState>| {
+        juggler_app::features::quota::quota_display_inner(
+            &state.storage.lock().unwrap(),
+            &account,
+            Timestamp::now().millis(),
+        )
+        .room_back
+        .map(|back| (back.window, back.at_ms))
+    };
+    assert_eq!(back(&state), Some(("weekly".to_owned(), Some(week))));
+    state
+        .storage
+        .lock()
+        .unwrap()
+        .usage()
+        .insert_sample(
+            &work,
+            WindowKind::Weekly { anchor_ms: None },
+            &QuotaSample {
+                ts: now - 30_000,
+                used_pct: 100.0,
+                resets_at: Some(week),
+                confidence: Confidence::Measured,
+                held_until: None,
+            },
+        )
+        .unwrap();
+    assert_eq!(back(&state), Some(("weekly".to_owned(), Some(week))));
+}

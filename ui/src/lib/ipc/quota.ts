@@ -103,6 +103,18 @@ export interface QuotaDisplayData {
    * real limit shown beside the all-models windows; it limits that model
    * alone, so it never ranks the account. */
   model_weeks?: ModelWeekDisplay[];
+  /** 0.4.4: out of room, when it has room again: the latest reset among
+   * its used-up windows (`juggler_core::quota::room_back`), the one time
+   * every surface gives; `null` when no window is used up. */
+  room_back?: RoomBack | null;
+}
+
+/** When an account out of room has room again, and the window that keeps
+ * it out longest. `at_ms` is `null` only when a used-up window's reset
+ * truly isn't known. */
+export interface RoomBack {
+  window: "five_hour" | "weekly";
+  at_ms: number | null;
 }
 
 /** A weekly limit on one model only, by the model's name ("Fable"). */

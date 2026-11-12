@@ -589,6 +589,84 @@ pub fn reading_window_ended(sample: &QuotaSample, kind: WindowKind, now_ms: i64)
     }
 }
 
+/// A window used up: no whole percent left (what every screen rounds to
+/// "0% left").
+#[must_use]
+pub fn used_up(used_pct: f64) -> bool {
+    (100.0 - used_pct).round() <= 0.0
+}
+
+/// One window's part in when an Account out of room has room again
+/// ([`room_back`]).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct WindowRoom {
+    /// Used up now.
+    pub used_up: bool,
+    /// Its reset, when known.
+    pub resets_at: Option<i64>,
+    /// The latest it can reset: its reading's time plus the window's
+    /// length (a five-hour window read at 2 PM has reset by 7 PM), when
+    /// read.
+    pub ends_by: Option<i64>,
+}
+
+/// When an Account out of room has room again.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct RoomBack {
+    /// The window that keeps it out longest (its index among those given).
+    pub window: usize,
+    /// When it has room again; `None` when a used-up window's reset isn't
+    /// known and may come after every known one.
+    pub at: Option<i64>,
+}
+
+/// 0.4.4: when an Account out of room has room again, the one answer
+/// every surface gives (a persona lab's Account, out on both windows, read
+/// "resets 7:06 PM" on its tiles, "resets Sun 5:06 PM" in Needs you): the
+/// latest reset among its used-up windows, since it can't work until the
+/// last of them resets. "Not known" only when a used-up window's reset
+/// isn't known and that window may end after the latest known one. `None`
+/// when no window is used up.
+#[must_use]
+pub fn room_back(windows: &[WindowRoom]) -> Option<RoomBack> {
+    let out = || windows.iter().enumerate().filter(|(_, w)| w.used_up);
+    let latest = out()
+        .filter_map(|(at, w)| w.resets_at.map(|reset| (at, reset)))
+        .max_by_key(|(_, reset)| *reset);
+    let unknown = out().find(|(_, w)| {
+        w.resets_at.is_none()
+            && !matches!((w.ends_by, latest), (Some(end), Some((_, reset))) if end <= reset)
+    });
+    match (unknown, latest) {
+        (Some((window, _)), _) => Some(RoomBack { window, at: None }),
+        (None, Some((window, reset))) => Some(RoomBack {
+            window,
+            at: Some(reset),
+        }),
+        (None, None) => None,
+    }
+}
+
+impl WindowReading {
+    /// This reading's part in [`room_back`], as window `kind`: used up when
+    /// the vendor says it's spent, or a reading of it rounds to 0% left.
+    #[must_use]
+    pub fn room(&self, kind: WindowKind) -> WindowRoom {
+        let used = match self.state {
+            QuotaState::Exhausted => true,
+            QuotaState::Tracking | QuotaState::Stale => self.percentage.is_some_and(used_up),
+            _ => false,
+        };
+        WindowRoom {
+            used_up: used,
+            resets_at: self.resets_at,
+            ends_by: self
+                .measured_at
+                .map(|at| at.saturating_add(kind.width_ms())),
+        }
+    }
+}
+
 /// Where a window's reset time came from. There is no "estimated":
 /// a reset time is known or absent (D-06).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]

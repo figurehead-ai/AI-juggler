@@ -13,7 +13,7 @@ import type { JSX } from "react";
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import type { QuotaDisplayData, WindowDisplay } from "../lib/ipc/quota";
 import { READING_LIMITS } from "../lib/history-reading";
-import { asOfWords, limitWindows, measured, resetWords, usedTokensWords, windowView } from "../lib/quotaWindow";
+import { asOfWords, limitWindows, measured, usedTokensWords, windowView } from "../lib/quotaWindow";
 import { resetsLead, resetsWords } from "../lib/time-words";
 import { LOW_LEFT, rankByRoom } from "../lib/room";
 import { usingCredits, usingCreditsWords, type CreditsCover } from "../lib/credits";
@@ -73,37 +73,50 @@ function sessionFallback(
   return reading;
 }
 
+/** One of an account's two windows, as the runway names it. */
+type Slot = { key: "five_hour" | "weekly"; label: string; phrase: string; window: WindowDisplay | null | undefined };
+/** The runway's line, and the window its figure and reset come from. */
+export type Runway = { left: number | null; words: string; resets: string | null; resetsAtMs?: number | null; credits?: CreditsCover | null; window?: WindowDisplay };
+
+/** The runway from the measured windows (`known`, at least one): the
+ * tighter one's figure. 0.4.4: out on more than one window, it has room
+ * again only when the last of them resets. The backend's one answer
+ * (`room_back`) says which and when (a lab's tiles said 7:06 PM, its
+ * notice Sun 5:06 PM); a reading without it (an older one) goes by the
+ * tighter window. */
+function measuredRun(display: QuotaDisplayData | undefined, known: Array<Slot & { window: WindowDisplay & { percentage: number } }>): Runway {
+  const tightest = known.reduce((a, b) => (a.window.percentage >= b.window.percentage ? a : b));
+  const left = Math.max(0, Math.round(100 - tightest.window.percentage));
+  const back = left === 0 ? display?.room_back : undefined;
+  const holding = (back && known.find((entry) => entry.key === back.window)) || tightest;
+  const resetsAtMs = back ? back.at_ms : (holding.window.resets_at_ms ?? null);
+  const words = resetsAtMs != null ? resetsWords(resetsAtMs) : null;
+  const credits = usingCredits(display);
+  return {
+    left,
+    words: credits ? usingCreditsWords(credits, display?.credits?.as_of_ms) : `${left}% left ${holding.phrase}${modelWeekNote(display, left)}`,
+    resets: words ? `${holding.label} ${words}` : null,
+    resetsAtMs,
+    credits,
+    window: holding.window,
+  };
+}
+
 /** Home's one line for an account: % left of the tighter measured window,
  * else the newest session's own reading, else why there is none. A window
  * used up while its credits carry the work on says so ("Using credits ·
- * 14,150 left", 0.3.2), never only "0% left". */
-export function runwayOf(
-  display: QuotaDisplayData | undefined,
-  sessions: InstanceInfo[] = [],
-): { left: number | null; words: string; resets: string | null; resetsAtMs?: number | null; credits?: CreditsCover | null } {
+ * 14,150 left", 0.3.2), never only "0% left". Out of room, its reset is
+ * when it has room again (`measuredRun`). */
+export function runwayOf(display: QuotaDisplayData | undefined, sessions: InstanceInfo[] = []): Runway {
   // A tool that doesn't report its limits, or has no source: its reason,
   // never a window's numbers.
   if (display?.unavailable_reason) return { left: null, words: display.unavailable_reason, resets: null };
-  const windows: Array<{ label: string; phrase: string; window: WindowDisplay | null | undefined }> = [
-    { label: "5-hour window", phrase: "in the 5-hour window", window: display?.five_hour },
-    { label: "Week", phrase: "this week", window: display?.weekly },
+  const windows: Slot[] = [
+    { key: "five_hour", label: "5-hour window", phrase: "in the 5-hour window", window: display?.five_hour },
+    { key: "weekly", label: "Week", phrase: "this week", window: display?.weekly },
   ];
-  const known = windows.filter((entry): entry is (typeof windows)[number] & { window: WindowDisplay & { percentage: number } } =>
-    measured(entry.window),
-  );
-  if (known.length > 0) {
-    const tightest = known.reduce((a, b) => (a.window.percentage >= b.window.percentage ? a : b));
-    const left = Math.max(0, Math.round(100 - tightest.window.percentage));
-    const words = resetWords(tightest.window);
-    const credits = usingCredits(display);
-    return {
-      left,
-      words: credits ? usingCreditsWords(credits, display?.credits?.as_of_ms) : `${left}% left ${tightest.phrase}${modelWeekNote(display, left)}`,
-      resets: words ? `${tightest.label} ${words}` : null,
-      resetsAtMs: tightest.window.resets_at_ms ?? null,
-      credits,
-    };
-  }
+  const known = windows.filter((entry): entry is Slot & { window: WindowDisplay & { percentage: number } } => measured(entry.window));
+  if (known.length > 0) return measuredRun(display, known);
   const reading = sessionFallback(display, sessions);
   if (reading) {
     const left = Math.max(0, Math.round(100 - reading.used_percentage));

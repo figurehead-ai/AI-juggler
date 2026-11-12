@@ -102,8 +102,13 @@ export function LimitDialog({
   const accounts = useSubscriptions();
   // The reset the session recorded, else its Account's window's, as
   // Home's runway and the room notice read it (walk K3: the notice said
-  // "resets at 9:06 PM", this dialog "isn't known yet").
-  const resetAt = session.quota?.resets_at_ms ?? (session.account_id ? roomOfProfile(session.account_id, accounts, displays).resetsAtMs : null);
+  // "resets at 9:06 PM", this dialog "isn't known yet"). 0.4.4: its
+  // Account out on another window too has room again only when the later
+  // resets, so the later of the two.
+  const room = session.account_id ? roomOfProfile(session.account_id, accounts, displays) : null;
+  const own = session.quota?.resets_at_ms ?? null;
+  const back = room && room.left === 0 && !room.credits ? room.resetsAtMs : null;
+  const resetAt = own !== null && back !== null ? Math.max(own, back) : (own ?? room?.resetsAtMs ?? null);
   // 0.3: an interactive tool stays open at its limit (rule `limit_hit`).
   const stillOpen = session.attention?.rule === "limit_hit";
   // D-62: the limit is the Account's (its folders share it), so it's named
