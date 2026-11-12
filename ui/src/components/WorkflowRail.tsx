@@ -430,7 +430,7 @@ export function InstanceBoard({
           </p>
         )}
         {showLocal && !byProject && (loading && sessions.length === 0 ? <RowPlaceholders shape="rail" rows={4} label="Loading sessions" /> :
-          <PlaceBoard sessions={sessions} projects={projects} snooze={snooze} now={now} selectedId={selectedId} onSelect={onSelect} query={query} scroll={{ top: scrollTop, height: viewportH, box: scrollRef.current }} density={effectiveDensity} cueSlot={cueSlot} />
+          <PlaceBoard sessions={sessions} projects={projects} accounts={accounts} snooze={snooze} now={now} selectedId={selectedId} onSelect={onSelect} query={query} scroll={{ top: scrollTop, height: viewportH, box: scrollRef.current }} density={effectiveDensity} cueSlot={cueSlot} />
         )}
         {byProject && <>
         {showLocal && order && <NeedsYouSection rows={order.needs} sessions={sessions} selectedId={selectedId} density={effectiveDensity} now={now} renderRow={boardRow} />}
