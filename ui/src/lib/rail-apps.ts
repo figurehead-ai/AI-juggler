@@ -13,6 +13,7 @@
  * Pure, so the grouping and order are unit-tested.
  */
 import type { KnownPlaceInfo } from "./ipc/places";
+import type { AppModel } from "./apps";
 import type { PlaceOfferInfo } from "../types/generated/PlaceOfferInfo";
 import { appName, cliAppKey, cliAppWord, desktopAppKey, desktopAppWord, desktopProfile } from "./app-name";
 import { tools } from "./tools";
@@ -170,10 +171,15 @@ export function idleApps({
   openKeys,
   known,
   idle,
+  cliApps = [],
 }: {
   openKeys: ReadonlySet<string>;
   known: readonly KnownPlaceInfo[];
   idle: ReadonlyMap<string, RailItem[]>;
+  /** D-100: the Apps list's CLI Apps, so Inactive apps is the same set as
+   * Accounts' Apps that aren't running (one whose sessions the window
+   * hasn't read, older ones, too). */
+  cliApps?: readonly Pick<AppModel, "railKey" | "name" | "app" | "profile" | "appId" | "tool" | "folder">[];
 }): IdleApp[] {
   const out: IdleApp[] = [];
   const desktop = new Set<string>();
@@ -222,6 +228,10 @@ export function idleApps({
       tool,
       sessions,
     });
+  }
+  for (const app of cliApps) {
+    if (openKeys.has(app.railKey) || out.some((one) => one.key === app.railKey)) continue;
+    out.push({ key: app.railKey, kind: "cli", name: app.name, app: app.app, profile: app.profile, appId: app.appId, lastMs: 0, appPid: null, placeId: null, cannotStart: null, accountId: app.folder?.id ?? null, tool: app.tool, sessions: [] });
   }
   return out.sort((a, b) => b.lastMs - a.lastMs || a.name.localeCompare(b.name));
 }

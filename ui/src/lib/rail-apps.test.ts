@@ -14,6 +14,7 @@ import type { ConversationInfo, PlaceInfo } from "./ipc/conversations";
 import type { KnownPlaceInfo } from "./ipc/places";
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import { cliAppKey } from "./app-name";
+import type { AppModel } from "./apps";
 
 const NOW = new Date(2026, 10, 1, 15, 0, 0).getTime();
 const H = 3_600_000;
@@ -384,5 +385,22 @@ describe("ADR-0032 a shared folder", () => {
     const test = known("aij-test", { id: "app:claude-app:/t", account_id: "dot-claude" });
     expect(appByFolder([def, test]).get("|dot-claude")).toBe(knownKey(def));
     expect(appByFolder([known("A", { account_id: "s" }), known("B", { account_id: "s" })]).get("|s")).toBeUndefined();
+  });
+});
+
+describe("ADR-0032 the rail's Apps are the Apps list", () => {
+  it("Open now ∪ Inactive apps is every App of Accounts' list, each once, a CLI App with no session read included", () => {
+    const places = [known("Work", { id: "app:claude-app:/p/Work", app_pid: 7 }), known("Lab", { id: "app:claude-app:/p/Lab" })];
+    const cli = (folder: string, label: string) => ({ railKey: cliAppKey("claude-code", folder, label), name: `Claude Code CLI · ${label}`, app: "Claude Code CLI", profile: label, appId: "claude-code", tool: "claude-code", folder: { id: folder } }) as unknown as AppModel;
+    const cliApps = [cli("a1", "Work Max"), cli("old", "Default")];
+    const rows = [talk("live", { places: [place("Work")], app: "app:claude-app:/p/Work" }), past("x", 3)];
+    const out = buildLines({ items: itemsOf(rows), view: DEFAULT_VIEW, query: parseQuery(""), now: NOW, toggled: new Set(["idle#all"]), frozen: null, known: places, cliApps }).lines;
+    const open = out.filter((line) => line.kind === "header").map((line) => (line.kind === "header" ? line.group.key : ""));
+    const inactive = out.filter((line) => line.kind === "idle").map((line) => (line.kind === "idle" ? line.app.key : ""));
+    const all = [...places.map(knownKey), ...cliApps.map((app) => app.railKey)];
+    expect([...open, ...inactive].sort()).toEqual([...all].sort());
+    expect(new Set([...open, ...inactive]).size).toBe(open.length + inactive.length);
+    const head = out.find((line) => line.kind === "section" && line.id === "idle");
+    expect(head && head.kind === "section" ? head.count : -1).toBe(inactive.length);
   });
 });

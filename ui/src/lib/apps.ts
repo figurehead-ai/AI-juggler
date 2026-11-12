@@ -167,8 +167,10 @@ function useStoredApps(): StoredAppInfo[] | null {
   return useSharedRead(STORED_APPS, { maxAgeMs: 5_000 }) ?? null;
 }
 
+const NO_FOLDERS: readonly AccountInfo[] = [];
+
 /** Every App, joined (`null` until the places are read). */
-export function useApps(folders: readonly AccountInfo[]): AppModel[] | null {
+export function useApps(folders: readonly AccountInfo[] = NO_FOLDERS): AppModel[] | null {
   const stored = useStoredApps();
   const places = useKnownPlaces();
   return useMemo(

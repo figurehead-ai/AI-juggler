@@ -24,6 +24,7 @@ import { arrangeGroup, arrangeGroups, foldKey, lensOf, type OrderMode } from "./
 import { isSearching, matches, type RailQuery, type RailView } from "./rail-view";
 import type { NoticeInfo } from "./ipc/notices";
 import type { KnownPlaceInfo } from "./ipc/places";
+import type { AppModel } from "./apps";
 import { nestRows } from "./rail-tree";
 import { appByConversation, appByFolder, appKeyOf, IDLE_APPS_SHOWN, idleApps, idleSessionsByApp, knownAppWord, knownKey, offeredLines, RECENT_INLINE, runningGroups, type IdleApp, type OfferLine } from "./rail-apps";
 import { appName, desktopProfile } from "./app-name";
@@ -135,6 +136,7 @@ export interface LineInputs {
   /** D-64: the desktop apps remembered (the App grouping's inactive apps,
    * and where a desktop app's past sessions were last open). */
   known?: readonly KnownPlaceInfo[];
+  cliApps?: readonly AppModel[]; // D-100: each not open is in Inactive apps, its sessions read or not
   /** AJ-E3204: an App (by its rail key) kept off the rail by its own
    * Settings. By App only; its sessions that need you still show. */
   offRail?: (key: string) => boolean;
@@ -154,7 +156,7 @@ export interface OrderInputs {
 
 const YOURS: OrderInputs = { mode: "yours", rows: new Map(), groups: [], folded: new Set() };
 
-export function buildLines({ items, view, query, now, toggled, frozen, accountOf, poolOf, order = YOURS, others = [], known = [], offRail = () => false, offers = [] }: LineInputs): Lines {
+export function buildLines({ items, view, query, now, toggled, frozen, accountOf, poolOf, order = YOURS, others = [], known = [], offRail = () => false, offers = [], cliApps = [] }: LineInputs): Lines {
   const searching = isSearching(query);
   const filtering = searching || Object.keys(view.only).length > 0;
   const shown = items.filter((item) => matches(item, view.only, query, accountOf, poolOf));
@@ -282,7 +284,7 @@ export function buildLines({ items, view, query, now, toggled, frozen, accountOf
     // While a search or filter is on, only the apps with something that
     // matches; one with something open isn't inactive, whatever it hides.
     const openKeys = new Set([...items.filter(openNow).map((item) => theirs(item).place.key), ...known.filter((place) => place.app_pid !== null).map(knownKey)]);
-    const every = idleApps({ openKeys, known, idle });
+    const every = idleApps({ openKeys, known, idle, cliApps });
     lines.push(...offeredLines(filtering ? [] : offers, known, [...groups.map((group) => group.key), ...every.map((app) => app.key)])); // D-100
     for (const app of every) if (off(app.key) && !offOpen.has(app.key)) offOpen.set(app.key, { key: app.key, short: app.profile ?? app.app, name: app.name, open: 0 });
     const resting = every.filter((app) => !off(app.key) && (!filtering || app.sessions.length > 0));
