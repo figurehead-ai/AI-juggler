@@ -228,7 +228,7 @@ export function buildLines({ items, view, query, now, toggled, frozen, accountOf
   // D-100: Open now shows only what's open; an open App keeps just its
   // pinned ended rows (its others: "Show recent", History, its page).
   const pinnedUnder = (key: string) => {
-    for (const { item, depth, parent } of nestRows((idle.get(key) ?? []).filter((item) => item.pinned))) lines.push({ kind: "past", item, depth, parent: parent?.title ?? null, app: key });
+    for (const { item, depth, parent } of nestRows((idle.get(key) ?? []).filter((row) => row.pinned))) lines.push({ kind: "past", item, depth, parent: parent?.title ?? null, app: key });
   };
   const stable = order.mode !== "latest";
   const arranged = new Map<string, RailItem[]>();

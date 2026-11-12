@@ -143,14 +143,6 @@ fn folder_short(
         .filter(|label| !label.contains('@'))
 }
 
-/// `words` with its first letter lower-cased ("0% of …" stays as is).
-fn lower_first(words: &str) -> String {
-    let mut chars = words.chars();
-    chars.next().map_or_else(String::new, |first| {
-        first.to_lowercase().chain(chars).collect()
-    })
-}
-
 /// A window's percentage used, and whether it is an estimate.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct Used {
@@ -190,7 +182,7 @@ pub fn low_notice_read(
         None => format!("Its {window} window is running low"),
     };
     let detail = match &subject.short {
-        Some(_) => format!("{} · {}", subject.name, lower_first(&detail)),
+        Some(_) => format!("{} · {}", subject.name, lowercase_first(&detail)),
         None => detail,
     };
     NewNotice {
@@ -1467,10 +1459,8 @@ mod tests {
     #[test]
     fn a_masked_account_is_said_by_its_folders_name() {
         let subject = QuotaSubject {
-            id: "sub".into(),
-            name: "Bookauth · l…@bookauth.com".into(),
-            folder: "f".into(),
             short: Some("bookauth-luka".into()),
+            ..lone("sub", "Bookauth · l…@bookauth.com")
         };
         let out = low_notice(&subject, "weekly", Some(100.0), None, 0, true);
         assert_eq!(out.title, "bookauth-luka has run out of room");

@@ -168,7 +168,7 @@ describe("every rail element opens a page here (place lens)", () => {
     expect(view.queryByTestId("rail-also-inactive")).toBeNull();
     expect(row(list, "c:claude-work/outside-8")).toBeNull();
     expect(within(view.getByTestId("place-board")).queryAllByTestId("rail-recent")).toHaveLength(0);
-    fireEvent.contextMenu(header(list, "app|claude-app|Work")!);
+    fireEvent.contextMenu(header(list, "app|claude-app|Work"));
     expect(view.getByTestId("place-header-menu-recent").textContent).toBe("Show recent");
     fireEvent.keyDown(document.activeElement ?? document.body, { key: "Escape" });
     // History › opens History.
