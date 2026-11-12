@@ -6,7 +6,7 @@
  * `resetsWords`: the system's own clock, today / tomorrow / the weekday.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { clock, dateWords, resetsLead, resetsWords, sessionWhen, whenWords } from "./time-words";
+import { clock, dateWords, pastWhen, resetsLead, resetsWords, sessionWhen, whenWords } from "./time-words";
 import { outOfRoomConsequence, outOfRoomWords } from "./room";
 import { resetWords, windowView } from "./quotaWindow";
 import { windowDisplay } from "./wire";
@@ -69,6 +69,25 @@ describe("a reset, by its day", () => {
 
   it("defaults now to the clock", () => {
     expect(resetsWords(TOMORROW)).toBe(resetsWords(TOMORROW, NOW));
+  });
+});
+
+describe("a time gone by, by its day (P3: \"Finished 4:22 PM\" on one that ended days ago)", () => {
+  const YESTERDAY = new Date(2026, 9, 27, 16, 22).getTime();
+  const MONDAY = new Date(2026, 9, 26, 16, 22).getTime();
+  const LAST_MONTH = new Date(2026, 8, 30, 16, 22).getTime();
+  const LAST_YEAR = new Date(2025, 9, 28, 16, 22).getTime();
+  it("today: the time alone", () => {
+    expect(pastWhen(new Date(2026, 9, 28, 9, 5).getTime(), NOW)).toBe(time(new Date(2026, 9, 28, 9, 5).getTime()));
+  });
+  it("yesterday, then the weekday within the week, then its date, then its year", () => {
+    expect(pastWhen(YESTERDAY, NOW)).toBe(`yesterday ${time(YESTERDAY)}`);
+    expect(pastWhen(MONDAY, NOW)).toBe(`${weekday(MONDAY)} ${time(MONDAY)}`);
+    expect(pastWhen(LAST_MONTH, NOW)).toBe(`${new Date(LAST_MONTH).toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" })} ${time(LAST_MONTH)}`);
+    expect(pastWhen(LAST_YEAR, NOW)).toContain("2025");
+  });
+  it("over a day old, never the time alone", () => {
+    for (const at of [YESTERDAY, MONDAY, LAST_MONTH, LAST_YEAR]) expect(pastWhen(at, NOW)).not.toBe(clock(at));
   });
 });
 

@@ -9,7 +9,7 @@
 import { useEffect, useState } from "react";
 import { conversationsLastMessages } from "./ipc/conversations";
 import { hasLiveBackend } from "./bridge";
-import { clock, daysAhead } from "./time-words";
+import { pastWhen } from "./time-words";
 import { tellingBranch } from "./project-words";
 import { appShortName, sessionAppWords } from "./app-name";
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
@@ -36,18 +36,12 @@ export function firstWords(text: string, max = 8): string | null {
   return cut ? `${out}…` : out;
 }
 
-/** When it started, in a few words, as `whenWords` says a time to come
- * but looking back: "started 1:14 AM" today, "started yesterday 1:14
- * AM", "started Thu 1:14 AM" within the week, and with its date from a
- * week back ("started Thu, Oct 23 1:14 AM"; its year when not this
- * one's). */
+/** When it started, in a few words (`pastWhen`): "started 1:14 AM"
+ * today, "started yesterday 1:14 AM", "started Thu 1:14 AM" within the
+ * week, and with its date from a week back ("started Thu, Oct 23 1:14
+ * AM"; its year when not this one's). */
 export function startedWords(ms: number, now: number): string {
-  const days = -daysAhead(ms, now);
-  if (days <= 0) return `started ${clock(ms)}`;
-  if (days === 1) return `started yesterday ${clock(ms)}`;
-  const sameYear = new Date(ms).getFullYear() === new Date(now).getFullYear();
-  const day = new Date(ms).toLocaleDateString([], days < 7 ? { weekday: "short" } : { weekday: "short", month: "short", day: "numeric", ...(sameYear ? {} : { year: "numeric" }) });
-  return `started ${day} ${clock(ms)}`;
+  return `started ${pastWhen(ms, now)}`;
 }
 
 /** What an untitled session is told apart by (D-96): its folder (or

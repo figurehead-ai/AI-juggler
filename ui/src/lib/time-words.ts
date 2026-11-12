@@ -85,7 +85,7 @@ export function clock(ms: number): string {
 
 /** Whole calendar days from `now`'s day to `ms`'s (0 today, 1 tomorrow;
  * -1 yesterday: `startedWords` looks back by it). */
-export function daysAhead(ms: number, now: number): number {
+function daysAhead(ms: number, now: number): number {
   const start = (at: number) => {
     const day = new Date(at);
     day.setHours(0, 0, 0, 0);
@@ -105,6 +105,20 @@ export function whenWords(ms: number, now: number = Date.now()): string {
   if (days === 0) return clock(ms);
   if (days === 1) return `${clock(ms)} tomorrow`;
   const day = new Date(ms).toLocaleDateString([], days > 1 && days < 7 ? { weekday: "short" } : { weekday: "short", month: "short", day: "numeric" });
+  return `${day} ${clock(ms)}`;
+}
+
+/** A time gone by, by its day — `whenWords` looking back, the one rule
+ * every "started" and "ended" time is written by: "4:22 PM" today,
+ * "yesterday 4:22 PM", "Thu 4:22 PM" within the week, and with its date
+ * from a week back ("Thu, Oct 23 4:22 PM"; its year when not this one's).
+ * P3 (the D3 persona walk): "Finished 4:22 PM" on one that ended days ago. */
+export function pastWhen(ms: number, now: number = Date.now()): string {
+  const days = -daysAhead(ms, now);
+  if (days <= 0) return clock(ms);
+  if (days === 1) return `yesterday ${clock(ms)}`;
+  const sameYear = new Date(ms).getFullYear() === new Date(now).getFullYear();
+  const day = new Date(ms).toLocaleDateString([], days < 7 ? { weekday: "short" } : { weekday: "short", month: "short", day: "numeric", ...(sameYear ? {} : { year: "numeric" }) });
   return `${day} ${clock(ms)}`;
 }
 

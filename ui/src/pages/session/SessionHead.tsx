@@ -10,7 +10,7 @@ import { ProfileBadge, markPlace } from "../../components/PlaceMarks";
 import { AppIconTile } from "../../components/AppIcon";
 import { IconGoTo } from "../../components/icons-actions";
 import { ToolMark } from "../../components/ToolMark";
-import { ago, agoWords, clock } from "../../lib/time-words";
+import { ago, agoWords, pastWhen } from "../../lib/time-words";
 import type { SubscriptionInfo } from "../../lib/subscriptions";
 import { AccountMenu, sessionAppMark } from "./AccountMenu";
 import { appWords, INACTIVE_WHERE, type SessionModel } from "./model";
@@ -91,8 +91,9 @@ const TONES: Record<ChipTone, string> = {
 export function SessionChips({ model, account, now }: { model: SessionModel; account: SubscriptionInfo | undefined; now: number }): JSX.Element {
   const since = model.live && model.state.since !== null ? ` · ${ago(model.state.since, now)}` : "";
   // One of AI Juggler's that ended: when, in the chip ("Ended 02:03"),
-  // the one place the page says it (the 0.4 review, 46).
-  const ended = !model.live && !model.opening && !model.inactive && model.sessionId !== null && model.state.since !== null ? ` ${clock(model.state.since)}` : "";
+  // the one place the page says it (the 0.4 review, 46); with its day
+  // once it isn't today's ("Finished Thu 4:22 PM", P3).
+  const ended = !model.live && !model.opening && !model.inactive && model.sessionId !== null && model.state.since !== null ? ` ${pastWhen(model.state.since, now)}` : "";
   return (
     <>
       <span
