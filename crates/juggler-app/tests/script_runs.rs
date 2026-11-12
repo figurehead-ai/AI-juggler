@@ -34,7 +34,7 @@ use juggler_core::model::{
 use juggler_core::storage::{App, cli_app_id, desktop_app_id};
 
 /// The Claude app profile's instance folder (never read: a name in a row).
-const PROFILE_DIR: &str = "/Users/you/Library/Application Support/ClaudeProfiles/Lab";
+const PROFILE_DIR: &str = "/Users/you/Library/Application Support/ClaudeProfiles/lab";
 
 /// A Claude Code folder a Claude app profile holds, and a Codex home the
 /// Codex app holds, both brought in where they are; nothing run yet.
@@ -57,7 +57,7 @@ fn world() -> World {
     let root = dir.path().canonicalize().unwrap();
     let repo = root.join("Dev/shop");
     std::fs::create_dir_all(repo.join(".git")).unwrap();
-    let claude_dir = root.join("ClaudeCodeProfiles/Lab");
+    let claude_dir = root.join("ClaudeCodeProfiles/lab");
     let transcripts = claude_dir
         .join("projects")
         .join(repo.to_string_lossy().replace(['/', '.'], "-"));
