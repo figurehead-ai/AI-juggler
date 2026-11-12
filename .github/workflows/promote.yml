@@ -66,7 +66,7 @@ jobs:
       ref: ${{ steps.check.outputs.ref }}
       scanned: ${{ steps.scanned.outputs.on }}
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
           ref: main
@@ -190,7 +190,7 @@ jobs:
       image: mcr.microsoft.com/playwright:v1.64.1-noble@sha256:47b510dd9230bf0b9bfc9b20102241e577ea7a99334ab4c3ca19f19770e9b8ea
       options: --ipc=host
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
           ref: ${{ needs.check.outputs.ref }}
@@ -236,7 +236,7 @@ jobs:
         run: |
           [ "$SHARDS" = success ] \
             || { echo "::error::an accessibility shard failed ($SHARDS) — see its log and the a11y-shard-* artifacts"; exit 1; }
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         if: needs.check.outputs.scanned == ''
         with:
           persist-credentials: false
@@ -267,7 +267,7 @@ jobs:
     # The approval: the environment requires the maintainer.
     environment: ${{ inputs.channel }}
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
           ref: main
