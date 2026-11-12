@@ -42,6 +42,9 @@ RUNNER_ONLY = (
     # The runner's system packages, bounded and retried; locally the
     # Mac needs none of them.
     "./scripts/ci/apt_install.sh",
+    # Trims a profile folder to its dependencies before a cache is saved
+    # (main only); nothing to do locally.
+    "./scripts/ci/cache_keep_deps.sh",
     # The RC's version stamp (it reads the pull request's branch).
     "./scripts/ci/rc_version.sh",
     "df -h",

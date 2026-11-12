@@ -45,6 +45,7 @@ jobs:
   refs:
     name: sweep refs
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     outputs:
       base: ${{ steps.resolve.outputs.base }}
       head: ${{ steps.resolve.outputs.head }}
@@ -148,6 +149,7 @@ jobs:
     name: sweep report
     needs: render
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     container:
       image: mcr.microsoft.com/playwright:v1.64.1-noble@sha256:47b510dd9230bf0b9bfc9b20102241e577ea7a99334ab4c3ca19f19770e9b8ea
       options: --ipc=host
