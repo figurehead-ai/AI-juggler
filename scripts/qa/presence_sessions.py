@@ -24,6 +24,14 @@ lab runs. This reads the same accessibility lines and checks, read-only:
    profile and the Dev build's Lab CLI App only. On 2026-11-12 the
    maintainer moved the 62 our labs had left out of two profiles; one more
    is a failed gate.
+5. **Scripts' runs and Codex (0.4.3, D-102).** A script's run (`claude -p`:
+   first entrypoint `sdk-cli` or `sdk-py`; `codex exec`) is in no App's
+   count, as neither tool's own picker lists it. Each Codex thread a Codex
+   surface lists (`state_5.sqlite`: source `cli` or `vscode`, not
+   archived) is in one App by its originator: the Codex app's count plus
+   Codex CLI's is the store's listed total, and Codex CLI's is the
+   threads no desktop originator started. The store is opened read-only
+   (or a copy is read); nothing in it is written.
 
 Nothing here clicks, types or writes outside the report.
 """
@@ -33,12 +41,19 @@ from __future__ import annotations
 import json
 import mmap
 import re
+import shutil
 import sqlite3
+import subprocess
+import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
 
 HOME = Path.home()
 DESKTOP_ENTRYPOINTS = (b'"entrypoint":"claude-desktop"', b'"entrypoint":"sdk-ts"')
+# D-102: a transcript whose first entrypoint is one of these is a script's run.
+SCRIPT_ENTRYPOINTS = ("sdk-cli", "sdk-py")
+# D-102: the sources of a Codex thread a Codex surface lists.
+CODEX_LISTED_SOURCES = ("cli", "vscode")
 LAB_ROOTS = (str(HOME / "lab") + "/", str(HOME / "Dev/aij-"))
 # The folders our tests may use: the sanctioned test profile's.
 SANCTIONED = ("aij-test",)
@@ -165,14 +180,111 @@ def started_by_desktop(path: Path) -> bool:
         return False
 
 
+def first_entrypoint(path: Path) -> str | None:
+    """The first `entrypoint` a transcript's lines name (D-102)."""
+    try:
+        with path.open(errors="replace") as handle:
+            for n, line in enumerate(handle):
+                if n > 400:
+                    break
+                if '"entrypoint"' in line:
+                    return json.loads(line).get("entrypoint")
+    except (OSError, ValueError):
+        return None
+    return None
+
+
 def cli_records(state_dir: Path, held: set[str], own: dict[str, str | None]) -> Records:
     """A Claude Code CLI App's sessions: its folder's transcripts no desktop
-    app started and no profile's records hold, and AI Juggler's own
-    sessions on its folder that no such transcript is (`own`: session id
-    → its conversation's id)."""
-    terminal = {sid for sid, path in transcripts(state_dir).items() if sid not in held and not started_by_desktop(path)}
+    app started, no profile's records hold and no script ran (D-102), and
+    AI Juggler's own sessions on its folder that no such transcript is
+    (`own`: session id → its conversation's id; AI Juggler's runs are
+    `sdk-cli` too, and counted as its sessions)."""
+    terminal = {
+        sid
+        for sid, path in transcripts(state_dir).items()
+        if sid not in held and not started_by_desktop(path) and first_entrypoint(path) not in SCRIPT_ENTRYPOINTS
+    }
     n = len(terminal) + sum(1 for conversation in own.values() if conversation not in terminal)
     return Records(listed=n, shown=n)
+
+
+def script_runs(state_dir: Path) -> int:
+    """How many of a Claude Code folder's transcripts a script ran (D-102)."""
+    return sum(1 for path in transcripts(state_dir).values() if first_entrypoint(path) in SCRIPT_ENTRYPOINTS)
+
+
+def rollout_originator(path: Path) -> str | None:
+    """A Codex rollout's originator, from its first line (`session_meta`);
+    a compressed one's first line through `zstd`, never the whole file."""
+    try:
+        if path.name.endswith(".zst"):
+            with subprocess.Popen(["zstd", "-dcq", str(path)], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL) as proc:
+                first = proc.stdout.readline() if proc.stdout else b""
+                proc.kill()
+        else:
+            with path.open("rb") as handle:
+                first = handle.readline()
+        return json.loads(first).get("payload", {}).get("originator")
+    except (OSError, ValueError, AttributeError):
+        return None
+
+
+def codex_store(home: Path) -> Path | None:
+    """The Codex home's thread store (`state_<n>.sqlite`, the newest)."""
+    found = sorted(home.glob("state_*.sqlite"), key=lambda path: int(re.sub(r"\D", "", path.stem) or 0))
+    return found[-1] if found else None
+
+
+def codex_threads(store: Path) -> list[tuple[str | None, str]]:
+    """Each listed thread's originator (`None` when the table has none) and
+    rollout path, read-only: the store opened `mode=ro`, else (a closed WAL
+    store has no shared memory to read through) a copy of it."""
+    has = "select name from pragma_table_info('threads') where name = 'originator'"
+    query = "select {originator}, rollout_path from threads where source in ({sources}) and archived = 0"
+    sources = ", ".join(f"'{source}'" for source in CODEX_LISTED_SOURCES)
+
+    def read(db: sqlite3.Connection) -> list[tuple[str | None, str]]:
+        originator = "originator" if db.execute(has).fetchone() else "null"
+        return list(db.execute(query.format(originator=originator, sources=sources)))
+
+    try:
+        db = sqlite3.connect(f"{store.as_uri()}?mode=ro", uri=True)
+        try:
+            return read(db)
+        finally:
+            db.close()
+    except sqlite3.OperationalError:
+        pass
+    with tempfile.TemporaryDirectory(prefix="codex-listed-") as tmp:
+        copy = Path(tmp) / store.name
+        for suffix in ("", "-wal"):
+            if Path(f"{store}{suffix}").exists():
+                shutil.copyfile(f"{store}{suffix}", f"{copy}{suffix}")
+        db = sqlite3.connect(copy)
+        try:
+            return read(db)
+        finally:
+            db.close()
+
+
+def codex_listed(home: Path) -> tuple[int, int]:
+    """0.4.3 (D-102): the threads a Codex surface lists (source `cli` or
+    `vscode`, not archived; a subagent's has another source), as (the Codex
+    app's: an originator naming desktop, the rest: Codex CLI's), from the
+    `threads` table's originator, else each rollout's first line."""
+    store = codex_store(home)
+    if store is None:
+        return 0, 0
+    desktop = other = 0
+    for originator, rollout in codex_threads(store):
+        if originator is None:
+            originator = rollout_originator(Path(rollout))
+        if "desktop" in (originator or "").lower():
+            desktop += 1
+        else:
+            other += 1
+    return desktop, other
 
 
 def own_sessions(db: sqlite3.Connection) -> dict[str, dict[str, str | None]]:
@@ -266,8 +378,54 @@ def known_apps(db: sqlite3.Connection, desktop_names: dict[str, str]) -> list[Kn
     return out
 
 
-def check(rail: list[RailApp], apps: list[KnownApp], out: set[str], leftovers: int, own: dict[str, dict[str, str | None]] | None = None) -> tuple[list[str], list[str]]:
-    """The lines to print and the problems: unfold, records, Out marks, labs."""
+def drawn_count(app: RailApp) -> int | None:
+    """How many sessions the rail says an App has: its "Show all N" when
+    drawn; an Inactive App's "N sessions"; else the rows under an unfolded
+    App with nothing open (a header with no fold has none). `None`: not
+    drawn (folded, or something open in it)."""
+    if app.show_all is not None:
+        return app.show_all
+    if app.section == "idle" and app.sessions is not None:
+        return app.sessions
+    if app.foldable and app.folded:
+        return None
+    if app.section == "open" and not app.nothing_open:
+        return None
+    return app.rows
+
+
+def codex_problems(rail: list[RailApp], apps: list[KnownApp], codex: dict[str, tuple[int, int]]) -> tuple[list[str], list[str]]:
+    """D-102: each Codex home's listed threads (`codex`: folder → (the
+    Codex app's, the rest)) against the rail: the Codex app's count plus
+    Codex CLI's Inactive "N sessions" is the total, Codex CLI's the rest
+    (alone when the Codex app's count isn't drawn)."""
+    lines: list[str] = []
+    problems: list[str] = []
+    for folder, (desktop, other) in sorted(codex.items()):
+        named = {(app.kind, app.name) for app in apps if app.tool == "codex" and app.folder == folder}
+        app = next((one for one in rail if ("desktop", one.name) in named), None)
+        cli = next((one for one in rail if ("cli", one.name) in named and one.section == "idle"), None)
+        app_count = drawn_count(app) if app else None
+        cli_count = (cli.sessions or 0) if cli else None
+        lines.append(f"  codex store: {desktop} by the Codex app + {other} others = {desktop + other} listed; rail: app={app_count} cli={cli_count}")
+        if cli_count is not None and cli_count != other:
+            problems.append(f"Codex CLI says {cli_count} sessions, the Codex store lists {other} not the Codex app's: {cli.name}")  # type: ignore[union-attr]
+        if app_count is not None and cli_count is not None and app_count + cli_count != desktop + other:
+            problems.append(f"the Codex app's {app_count} and Codex CLI's {cli_count} aren't the store's {desktop + other} listed threads")
+    return lines, problems
+
+
+def check(
+    rail: list[RailApp],
+    apps: list[KnownApp],
+    out: set[str],
+    leftovers: int,
+    own: dict[str, dict[str, str | None]] | None = None,
+    codex: dict[str, tuple[int, int]] | None = None,
+) -> tuple[list[str], list[str]]:
+    """The lines to print and the problems: unfold, records, Out marks,
+    labs, and (D-102) each Codex home's listed threads (`codex`, from
+    [`codex_listed`] by folder)."""
     by_name = {app.name: app for app in apps}
     # A profile's records hold its own folder's copy only: a switch copies
     # a conversation into another folder under the same id.
@@ -312,7 +470,8 @@ def check(rail: list[RailApp], apps: list[KnownApp], out: set[str], leftovers: i
                 problems.append(f"Show all says {shown.show_all}, its records hold {mine.listed}: {shown.name}")
     if leftovers:
         problems.append(f"{leftovers} new transcript(s) of a lab run in a real profile's folder")
-    return lines, problems
+    more_lines, more = codex_problems(rail, apps, codex or {})
+    return lines + more_lines, problems + more
 
 
 def selftest() -> None:
@@ -342,7 +501,61 @@ def selftest() -> None:
     assert not check(folded_idle, [], set(), 0)[1]
     _, problems = check(parse_rail(old), [east], {"f-east"}, 2)
     assert any("no Out mark" in p for p in problems) and any("lab run" in p for p in problems), problems
+    selftest_d102()
     print("presence_sessions: selftest passed")
+
+
+def selftest_d102() -> None:
+    """D-102: a Codex store's listed threads (each kind, the store closed in
+    WAL mode, with and without an originator column), scripts' runs out of
+    a CLI App's records, and the rail's Codex counts against the store."""
+    kinds = [  # source, originator, archived: listed by a Codex surface?
+        ("vscode", "Codex Desktop", 0), ("vscode", "codex_work_desktop", 0), ("vscode", "ai_juggler", 0), ("cli", "codex_cli_rs", 0),
+        ("exec", "codex_exec", 0), ('{"subagent":{"thread_spawn":{"parent_thread_id":"p"}}}', "Codex Desktop", 0), ("vscode", "Codex Desktop", 1),
+    ]
+    with tempfile.TemporaryDirectory() as tmp:
+        for with_column in (True, False):
+            home = Path(tmp) / f"codex-{with_column}"
+            home.mkdir()
+            db = sqlite3.connect(home / "state_5.sqlite")
+            db.execute("pragma journal_mode=wal")
+            db.execute(f"create table threads (id text, rollout_path text, source text, archived integer{', originator text' if with_column else ''})")
+            for n, (source, originator, archived) in enumerate(kinds):
+                rollout = home / f"rollout-{n}.jsonl"
+                rollout.write_text(json.dumps({"type": "session_meta", "payload": {"id": f"t{n}", "originator": originator}}) + "\n")
+                row = (f"t{n}", str(rollout), source, archived) + ((originator,) if with_column else ())
+                db.execute(f"insert into threads values ({', '.join('?' * len(row))})", row)
+            db.commit()
+            db.execute("pragma wal_checkpoint(truncate)")
+            db.close()
+            # As Codex leaves it closed: no shared memory to read through.
+            for suffix in ("-wal", "-shm"):
+                Path(f"{home}/state_5.sqlite{suffix}").unlink(missing_ok=True)
+            assert codex_listed(home) == (2, 2), (with_column, codex_listed(home))
+        assert codex_listed(Path(tmp)) == (0, 0), "no store"
+        folder = Path(tmp) / "claude"
+        (folder / "projects/-w").mkdir(parents=True)
+        for sid, entry in (("term", "cli"), ("run", "sdk-cli"), ("py", "sdk-py"), ("ours", "sdk-cli")):
+            (folder / f"projects/-w/{sid}.jsonl").write_text(json.dumps({"type": "user", "sessionId": sid, "entrypoint": entry}) + "\n")
+        assert script_runs(folder) == 3
+        assert cli_records(folder, set(), {"s-1": "ours"}).listed == 2, "the terminal's and AI Juggler's own, once"
+    codex_apps = [KnownApp("Codex app", "desktop", "codex", "f-codex", None, None), KnownApp("Codex CLI · Codex home", "cli", "codex", "f-codex", None, None)]
+
+    def rail(cli_sessions: int, app_folded: bool) -> list[RailApp]:
+        return parse_rail([
+            ("AXButton", "Open now 1", ""), ("AXButton", f"{'Unfold' if app_folded else 'Fold'} Codex app", ""), ("AXButton", "Codex app, nothing open", ""),
+            *([] if app_folded else [("AXButton", f"Ended, T{n}, proj · {n} d ago", "") for n in (1, 2, 3)] + [("AXButton", "Show all 15", "")]),
+            ("AXButton", "Inactive apps 1", ""), ("AXButton", "Unfold Codex CLI · Codex home", ""),
+            ("AXButton", f"Codex CLI · Codex home, CLI app, 2 d ago · {cli_sessions} sessions", ""),
+        ])
+
+    store = {"f-codex": (15, 33)}
+    assert not check(rail(33, False), codex_apps, set(), 0, None, store)[1]
+    _, problems = check(rail(92, False), codex_apps, set(), 0, None, store)
+    assert len(problems) == 2 and "says 92 sessions" in problems[0] and "aren't the store's 48" in problems[1], problems
+    _, problems = check(rail(92, True), codex_apps, set(), 0, None, store)
+    assert len(problems) == 1 and "says 92 sessions" in problems[0], "the app's count not drawn: Codex CLI's alone"
+    assert not check(rail(33, True), codex_apps, set(), 0, None, store)[1]
 
 
 if __name__ == "__main__":

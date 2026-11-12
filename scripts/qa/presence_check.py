@@ -17,7 +17,8 @@ Open now names a desktop App that isn't running, when an App is in both
 sections, or when Inactive apps says "Running". 0.4.3: and when what an
 App unfolds to, its session counts or its Out mark disagree with the apps'
 own records and the Accounts' readings, or a lab run wrote into a real
-profile's folder (`presence_sessions.py`). Run it with the rail grouped by
+profile's folder (`presence_sessions.py`); (D-102) when the Codex app's and
+Codex CLI's counts aren't the Codex store's listed threads. Run it with the rail grouped by
 App, Open now unfolded and every App in it unfolded.
 
     python3 scripts/qa/presence_check.py --pid <Dev build pid> [--data DIR] [--record FILE] [--since YYYY-MM-DD]
@@ -124,7 +125,7 @@ def recorded(lines, running, want_open, shown_open, inactive, counts, names) -> 
         f"your running Apps: {len(want_open)}",
         f"Open now shows: {len(shown_open)} desktop App(s), counted {counts.get('open', '?')}",
         f"Inactive apps shows: {len(inactive)} named on screen",
-    ] + [line for line in lines if line.startswith(("FAIL", "PASS", "(", "  open: ", "  idle: "))]
+    ] + [line for line in lines if line.startswith(("FAIL", "PASS", "(", "  open: ", "  idle: ", "  codex store: "))]
     return anonymize("\n".join(out), names) + "\n"
 
 
@@ -193,11 +194,16 @@ def main() -> int:
     known = presence_sessions.known_apps(db, mine)
     since = time.mktime(time.strptime(args.since, "%Y-%m-%d")) if args.since else 0.0
     leftovers = presence_sessions.lab_leftovers([app.state_dir for app in known if app.state_dir], since)
-    shown, more = presence_sessions.check(drawn, known, presence_sessions.out_accounts(db, int(time.time() * 1000)), leftovers, presence_sessions.own_sessions(db))
+    # 0.4.3 (D-102): each Codex home's listed threads, read-only from its store.
+    homes = {app.folder: app.state_dir for app in known if app.tool == "codex" and app.folder and app.state_dir}
+    codex = {folder: presence_sessions.codex_listed(home) for folder, home in homes.items()}
+    shown, more = presence_sessions.check(
+        drawn, known, presence_sessions.out_accounts(db, int(time.time() * 1000)), leftovers, presence_sessions.own_sessions(db), codex
+    )
     lines += ["each App as drawn:", *shown]
     problems += more
     lines += [f"FAIL {p}" for p in problems] or [
-        "PASS Open now is exactly your running Apps; none is in two sections; each unfolds to its own records; every Out Account marked; no lab run in a real profile"
+        "PASS Open now is exactly your running Apps; none is in two sections; each unfolds to its own records; every Out Account marked; no lab run in a real profile; Codex counts are the store's listed threads"
     ]
     report = "\n".join(lines)
     print(report)
