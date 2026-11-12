@@ -464,10 +464,10 @@ fn every_app_has_one_name_that_says_desktop_or_cli() {
     assert_eq!(
         name(Naming {
             instance_dir: Some(luka),
-            folder_label: Some("bookauth-luka"),
+            folder_label: Some("acme-luka"),
             ..base
         }),
-        "Claude app · bookauth-luka"
+        "Claude app · acme-luka"
     );
     // The default instance: no profile, whatever its folder is called.
     assert_eq!(
@@ -500,12 +500,12 @@ fn every_app_has_one_name_that_says_desktop_or_cli() {
         id: "cli:x",
         desktop: false,
         app: "Claude Code",
-        folder_label: Some("bookauth-luka"),
+        folder_label: Some("acme-luka"),
         ..base
     });
     assert_eq!(
         (cli.label.as_str(), cli.desktop),
-        ("Claude Code CLI · bookauth-luka", false)
+        ("Claude Code CLI · acme-luka", false)
     );
     assert_eq!(
         name(Naming {

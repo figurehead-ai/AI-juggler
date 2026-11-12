@@ -88,7 +88,7 @@ pub struct AppIdentity {
     /// name when another desktop App shares that folder), none for the
     /// app's default instance; a CLI App's folder name.
     pub profile: Option<String>,
-    /// "Claude app · bookauth-luka", or the name the user gave it.
+    /// "Claude app · acme-luka", or the name the user gave it.
     pub label: String,
 }
 

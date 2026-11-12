@@ -38,5 +38,5 @@ preview at 1280×800, rail 264 px, dark; the real profile names and the
 two marks were put into the fixture header's DOM (the preview has no
 fixture with both).
 
-- `rail-header-264-long-nochips-dark.png`: an earlier capture, "bookauth-personal-max" with no marks: whole.
-- `rail-header-264-olivia-whole-dark.png`: "bookauth-olivia" with ⚠ 1 and the Out icon: whole (92 of 92 px); "bookauth-anela" below it, whole; the app words wrapped away.
+- `rail-header-264-long-nochips-dark.png`: an earlier capture, "acme-personal-max" with no marks: whole.
+- `rail-header-264-olivia-whole-dark.png`: "acme-olivia" with ⚠ 1 and the Out icon: whole (92 of 92 px); "acme-anela" below it, whole; the app words wrapped away.

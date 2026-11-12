@@ -11,8 +11,8 @@ On the installed 0.4.1 beta (2026-11-11), against `ps` at the same moment
 
 - Open now held four Apps. Two running profiles sat under **Inactive apps**
   as "Running · 2 min ago", and Codex sat there as "8 h ago".
-- The same Account showed twice: "Claude app · bookauth-anela" under Open
-  now, and "Claude Code · bookauth-anela" under Inactive apps. Nothing said
+- The same Account showed twice: "Claude app · acme-anela" under Open
+  now, and "Claude Code · acme-anela" under Inactive apps. Nothing said
   one is the desktop app and the other the terminal tool.
 - A terminal session ("Jive CLI") was filed under the Claude **app**
   profile's group.
@@ -40,8 +40,8 @@ The causes, from the code:
 4. **The App lens nests sessions by relation** (`nestRows`: a session
    under the one it was started from), across Apps, inside an App's
    "Last 3 inactive".
-5. **Labels name the tool, not the kind.** "Claude Code · bookauth-anela"
-   and "Claude app · bookauth-anela" are two Apps on one Account (the
+5. **Labels name the tool, not the kind.** "Claude Code · acme-anela"
+   and "Claude app · acme-anela" are two Apps on one Account (the
    entity model allows many), but nothing says desktop or terminal.
 
 ## Decision
@@ -101,8 +101,8 @@ its snapshot. Nothing else decides what runs or who owns a session.
   Project, Account by Account. In the App lens, "Last N inactive" lists
   only that App's own sessions (by the backend's owner), newest first. A
   family nests only among one App's own sessions (rc4's search rule).
-- **Labels say the kind.** A desktop App reads "Claude app · bookauth-anela",
-  a CLI App "Claude Code (terminal) · bookauth-anela". The kind also
+- **Labels say the kind.** A desktop App reads "Claude app · acme-anela",
+  a CLI App "Claude Code (terminal) · acme-anela". The kind also
   shows as an icon on the header. Two Apps on one Account never look the
   same.
 
@@ -185,7 +185,7 @@ its snapshot. Nothing else decides what runs or who owns a session.
 - `added` is 0 on every row: Apps count as the user's by their folder
   link (`is_users`: CLI, added, a folder, kept alive or named), so
   nothing keys off `added` alone.
-- The CLI Apps "Claude Code · bookauth-luka" and "· bookauth-anela" hold
+- The CLI Apps "Claude Code · acme-luka" and "· acme-anela" hold
   real terminal sessions (luka: 33 `cli`, 20 `sdk-cli`; anela: 3 and 6;
   aij-test: 4 and 4), every one run by agents in `~/lab/*` or
   `~/Dev/aij-*`; the profiles' own sessions are `claude-desktop`.

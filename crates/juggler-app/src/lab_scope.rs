@@ -272,7 +272,7 @@ mod tests {
 /// The real-accounts rule (ADR-0032 evidence, 2026-11-11): QA runs never
 /// start a tool on the user's own tool folders. Agents' labs ran the
 /// Claude CLI on two real profiles' folders (`ClaudeCodeProfiles/
-/// bookauth-luka` and `-anela`), which made "CLI" Apps of them on the
+/// acme-luka` and `-anela`), which made "CLI" Apps of them on the
 /// user's screens. A lab may use only the sanctioned test profile's
 /// folder (`ClaudeCodeProfiles/aij-test`), AI Juggler Dev's own managed
 /// folders, or a folder under a throwaway lab home; this says why any
@@ -306,7 +306,7 @@ mod real_folder_tests {
     fn a_lab_never_runs_a_tool_on_the_users_own_folders() {
         let home = Path::new("/Users/you");
         let profiles = home.join("Library/Application Support/ClaudeCodeProfiles");
-        assert!(refuses_real_folder(&profiles.join("bookauth-luka"), home).is_some());
+        assert!(refuses_real_folder(&profiles.join("acme-luka"), home).is_some());
         assert!(refuses_real_folder(&home.join(".claude"), home).is_some());
         assert!(refuses_real_folder(&home.join(".codex"), home).is_some());
         assert!(refuses_real_folder(&profiles.join("aij-test"), home).is_none());
