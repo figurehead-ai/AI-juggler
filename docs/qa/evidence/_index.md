@@ -3,6 +3,7 @@
 | Task | Verdicts | Last date | Manifest |
 |---|---|---|---|
 | 0.4.1-ui-fixes | (directory without manifest — add one) | — | — |
+| AJ-0.4.2-presence | PASS2 | 2026-11-11 | [manifest](AJ-0.4.2-presence/manifest.md) |
 | AJ-E1001 | PASS7 | 2026-10-18 | [manifest](AJ-E1001/manifest.md) |
 | AJ-E1002 | PASS8 | 2026-10-18 | [manifest](AJ-E1002/manifest.md) |
 | AJ-E1003 | PASS7 | 2026-10-18 | [manifest](AJ-E1003/manifest.md) |
