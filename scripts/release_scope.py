@@ -295,6 +295,8 @@ def run(args: list[str]) -> int:
         print(__doc__)
         return 2
     mode, version = args
+    # A rebuilt release branch (release/X.Y.Z-<word>, D-101) is X.Y.Z.
+    version = re.sub(r"^(\d+\.\d+\.\d+)-[a-z0-9-]+$", r"\1", version)
     minor = ".".join(version.split(".")[:2])
     parts = version.split(".")
     # A patch is held to the patches up to it; a minor alone, or a Stable
