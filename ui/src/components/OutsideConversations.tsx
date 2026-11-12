@@ -14,7 +14,9 @@ import { appOfConversation } from "../lib/app-of";
 import type { JSX } from "react";
 import { useActionHost, useItemMenu } from "./ItemMenu";
 import { stateChip } from "./indicator";
-import { conversationTitle, outside, useConversations } from "../lib/conversations";
+import { conversationTitle, outside } from "../lib/conversations";
+import { matches, parseQuery } from "../lib/rail-view";
+import type { AccountOf } from "../lib/rail-places";
 import type { ConversationInfo } from "../lib/ipc/conversations";
 import type { ProjectInfo } from "../types/generated/ProjectInfo";
 import type { ChipFilters, RowGroup } from "../lib/railview";
@@ -49,18 +51,42 @@ function stateTone(conversation: ConversationInfo): string {
 }
 
 
-/** Which outside conversations the rail's filters let through: all of
- * them unfiltered, the live ones under "Running", the ended ones under
- * "Ended", none under any other filter (they have no attention state,
- * and the tool/account/project/search filters are the sessions'). */
-export type OutsideScope = "all" | "live" | "ended" | "none";
+/** Which outside conversations the rail's filters let through: the open
+ * ones unfiltered, the live ones under "Running", the ended ones under
+ * "Ended". 0.4.4: searched or narrowed (`found`), every open one that
+ * matches, one that asks you too (no Needs you leads a narrowed board),
+ * as AI Juggler's own show (`narrowOutside` says which match). */
+export type OutsideScope = "all" | "found" | "live" | "ended" | "none";
 
 export function outsideScope(filters: ChipFilters, query: string): OutsideScope {
-  if (query.trim() !== "" || filters.provider !== null || filters.account !== null || filters.project !== null) return "none";
-  if (filters.chips.length === 0) return "all";
+  const narrowed = query.trim() !== "" || filters.provider !== null || filters.account !== null || filters.project !== null;
+  if (filters.chips.length === 0) return narrowed ? "found" : "all";
   if (filters.chips.length === 1 && filters.chips[0] === "running") return "live";
   if (filters.chips.length === 1 && filters.chips[0] === "ended") return "ended";
   return "none";
+}
+
+/** The live ones each scope shows under a project (`ended` shows none live). */
+const LIVE_SHOWN: Record<OutsideScope, (conversation: ConversationInfo) => boolean> = {
+  all: openNow,
+  found: (conversation) => conversation.live && !conversation.background,
+  live: (conversation) => conversation.live,
+  ended: () => false,
+  none: () => false,
+};
+
+/** 0.4.4: other apps' sessions narrowed as the board narrows AI Juggler's
+ * own: Only › Project, Only › Account (`account`, its name) and the
+ * search's words, by the rail's one rule (`matches`, the App lens's). */
+export function narrowOutside(all: ConversationInfo[], filters: ChipFilters, text: string, projects: ProjectInfo[], account: string | undefined, accountOf: AccountOf): ConversationInfo[] {
+  const query = parseQuery(text);
+  const nameOf = (id: string | null) => projects.find((project) => project.id === id)?.name ?? null;
+  return all.filter((conversation) => {
+    if (filters.project !== null && conversation.project_id !== filters.project) return false;
+    if (filters.account !== null && conversation.account_id !== filters.account) return false;
+    if (filters.provider !== null && conversation.tool !== filters.provider) return false;
+    return matches(conversationItem(conversation, nameOf, null), account === undefined ? {} : { account }, query, accountOf);
+  });
 }
 
 /** What the rail shows of one project's outside conversations: the open
@@ -68,10 +94,8 @@ export function outsideScope(filters: ChipFilters, query: string): OutsideScope 
  * filter every live one, under the Ended filter the newest few ended and
  * how many more there are. */
 export function railSlice(all: ConversationInfo[], projectId: string, scope: OutsideScope = "all"): { shown: ConversationInfo[]; more: number } {
-  if (scope === "none") return { shown: [], more: 0 };
   const mine = outside(all).filter((conversation) => conversation.project_id === projectId);
-  if (scope === "all") return { shown: mine.filter(openNow), more: 0 };
-  if (scope === "live") return { shown: mine.filter((conversation) => conversation.live), more: 0 };
+  if (scope !== "ended") return { shown: mine.filter(LIVE_SHOWN[scope]), more: 0 };
   const ended = mine.filter((conversation) => !conversation.live);
   return { shown: ended.slice(0, RECENT_SHOWN), more: ended.length - Math.min(ended.length, RECENT_SHOWN) };
 }
@@ -82,8 +106,7 @@ export function railSlice(all: ConversationInfo[], projectId: string, scope: Out
 export function withOutsideGroups(groups: RowGroup[], all: ConversationInfo[], projects: ProjectInfo[], scope: OutsideScope = "all"): RowGroup[] {
   if (scope === "none" || scope === "ended") return groups;
   const have = new Set(groups.map((group) => group.id));
-  const open = scope === "all" ? openNow : (conversation: ConversationInfo) => conversation.live;
-  const live = new Set(outside(all).filter(open).map((conversation) => conversation.project_id));
+  const live = new Set(outside(all).filter(LIVE_SHOWN[scope]).map((conversation) => conversation.project_id));
   const extra = projects
     .filter((project) => !have.has(project.id) && live.has(project.id))
     .map((project) => ({ id: project.id, label: project.name, rollup: "", rows: [] }));
@@ -172,21 +195,23 @@ export function ConversationRow({
   );
 }
 
-/** One project's outside conversations, as the rail shows them. */
+/** One project's outside conversations, as the rail shows them (`all`:
+ * the board's, narrowed as it is). */
 export function OutsideRows({
+  all,
   projectId,
   selectedId,
   density,
   now,
   scope,
 }: {
+  all: ConversationInfo[];
   projectId: string;
   selectedId: string | null;
   density: "comfortable" | "compact";
   now: number;
   scope: OutsideScope;
 }): JSX.Element | null {
-  const { all } = useConversations();
   const host = useActionHost();
   const onOpen = (conversation: ConversationInfo) => host.openConversation?.(conversation);
   const onMore = host.openProjectById ? () => host.openProjectById!(projectId) : undefined;
