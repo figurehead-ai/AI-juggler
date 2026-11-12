@@ -172,6 +172,7 @@ mod tests {
             handoff_link: None,
             handoff_record: None,
             session_link: None,
+            default_folder: None,
         }
     }
 

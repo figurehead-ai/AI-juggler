@@ -5,9 +5,10 @@
  */
 import { describe, expect, it } from "vitest";
 import { conversationItem, sessionItem } from "./rail-items";
-import { appByConversation, appByFolder, appKeyOf, idleApps, idleSessionsByApp, knownKey, recentWords } from "./rail-apps";
+import { appByConversation, appByFolder, appKeyOf, idleApps, idleSessionsByApp, knownKey, offeredLines, recentWords } from "./rail-apps";
+import type { PlaceOfferInfo } from "../types/generated/PlaceOfferInfo";
 import { appOfConversation } from "./app-of";
-import { buildLines, foldSections, type Line } from "./rail-lines";
+import { buildLines, foldSections, type Line, type SectionId } from "./rail-lines";
 import { DEFAULT_VIEW, parseQuery } from "./rail-view";
 import type { ConversationInfo, PlaceInfo } from "./ipc/conversations";
 import type { KnownPlaceInfo } from "./ipc/places";
@@ -123,13 +124,12 @@ describe("D-64 the rail grouped by App", () => {
   const rows = [talk("w1"), past("w2", 1), past("w3", 2), past("w4", 3), past("w5", 4), past("c1", 2, { account_id: "a2", account_label: "Personal" })];
   const places = [known("Work", { recent: ["claude-code/w2", "claude-code/w3", "claude-code/w4", "claude-code/w5"], app_pid: 11 }), known("Lab")];
 
-  it("an open app's inactive sessions wait behind its Last 3; the apps with nothing open follow Open now", () => {
+  it("an open app lists only what's open (D-100: its others are in Show recent); the apps with nothing open follow Open now", () => {
     const built = lines(rows, places);
     expect(kinds(built.lines)).toEqual([
       "section:open:1",
       "header:app|claude-app|Work",
       "row:c:a1/w1",
-      "recent:4",
       "section:idle:2",
       "idle:cli|claude-code|a2",
       "idle:app|claude-app|Lab",
@@ -139,16 +139,12 @@ describe("D-64 the rail grouped by App", () => {
     expect(built.also.inactive).toBe(0);
   });
 
-  it("a click shows the last 3 under the app, and an inactive app's under it", () => {
+  it("an inactive app's last 3 show under it on a click; an open app never lists its inactive ones (D-100)", () => {
     const built = lines(rows, places, ["app|claude-app|Work#recent", "cli|claude-code|a2#recent"]);
     expect(kinds(built.lines)).toEqual([
       "section:open:1",
       "header:app|claude-app|Work",
       "row:c:a1/w1",
-      "recent:4",
-      "past:c:a1/w2",
-      "past:c:a1/w3",
-      "past:c:a1/w4",
       "section:idle:2",
       "idle:cli|claude-code|a2",
       "past:c:a2/c1",
@@ -238,9 +234,155 @@ describe("AJ-E3206 a desktop session AI Juggler started", () => {
     // No profile on its folder: its folder's CLI App, open and ended alike
     // (the ended one sat in Inactive apps, the open one in a group apart).
     const cli = cliAppKey("claude-code", "a1", "Work");
-    expect(kinds2(items, [])).toEqual(["section:open:1", `header:${cli}`, "row:s:open", "recent:1", "also"]);
+    // D-100: the ended one is reached from its header's Show recent.
+    expect(kinds2(items, [])).toEqual(["section:open:1", `header:${cli}`, "row:s:open", "also"]);
     // One profile on its folder: that profile's, never also an inactive app.
     const work = known("Work", { account_id: "a1" });
-    expect(kinds2(items, [work])).toEqual(["section:open:1", `header:${knownKey(work)}`, "row:s:open", "recent:1", "also"]);
+    expect(kinds2(items, [work])).toEqual(["section:open:1", `header:${knownKey(work)}`, "row:s:open", "also"]);
+  });
+});
+
+/**
+ * ADR-0032 (D-100): the rail shows what runs. Open now is every App that
+ * runs, sessions or not; Inactive apps every known App that doesn't; no
+ * App is in both; a session is under the App the backend says owns it.
+ */
+describe("ADR-0032 presence: the rail matches what runs", () => {
+  const sections = (out: Line[]) => {
+    const open = new Set<string>();
+    const inactive = new Set<string>();
+    let at: SectionId | null = null;
+    for (const line of out) {
+      if (line.kind === "section") at = line.id;
+      else if (line.kind === "header" && at === "open") open.add(line.group.key);
+      else if (line.kind === "idle") inactive.add(line.app.key);
+    }
+    return { open, inactive };
+  };
+  const running = (instance: string, pid: number, over: Partial<KnownPlaceInfo> = {}) => known(instance, { id: `app:claude-app:/p/${instance}`, app_pid: pid, ...over });
+
+  it("an App that runs with nothing open in it is in Open now, saying so, never in Inactive apps", () => {
+    const places = [running("East", 41), running("West", 42), known("Gone")];
+    const out = lines([], places).lines;
+    const { open, inactive } = sections(out);
+    expect([...open].sort()).toEqual(["app|claude-app|East", "app|claude-app|West"]);
+    expect([...inactive]).toEqual(["app|claude-app|Gone"]);
+    const header = out.find((line) => line.kind === "header" && line.group.key === "app|claude-app|East");
+    expect(header && header.kind === "header" ? header.folded : null).toBe("East · nothing open");
+    // By App, Open now counts the Apps open.
+    expect(kinds(out)[0]).toBe("section:open:2");
+  });
+
+  it("each App is in exactly one section, and Open now's Apps are exactly the running ones", () => {
+    const places = [running("A", 1), running("B", 2), known("C"), known("D", { id: "app:claude-app:/p/D" })];
+    const rows = [talk("live-a", { places: [place("A")], app: "app:claude-app:/p/A" }), past("old", 5, { app: "app:claude-app:/p/D" })];
+    const { open, inactive } = sections(lines(rows, places).lines);
+    for (const key of open) expect(inactive.has(key)).toBe(false);
+    expect(open).toEqual(new Set(places.filter((p) => p.app_pid !== null).map(knownKey)));
+    expect(inactive).toEqual(new Set(places.filter((p) => p.app_pid === null).map(knownKey)));
+  });
+
+  it("a session is under the App the backend names: a terminal one on a profile's folder is its CLI App's, never the profile's", () => {
+    const places = [running("South", 7, { account_id: "a1", profile: "South" })];
+    const terminal: PlaceInfo = { app: "", shown: "", app_id: null, profile: null, instance: null, pid: 90, kind: null, app_pid: null, label: "" };
+    // "Jive CLI" (2026-11-11): open with no recognised terminal on its chain.
+    const jive = talk("jive", { places: [terminal], app: "cli:a1" });
+    const out = lines([jive], places).lines;
+    const row = out.find((line) => line.kind === "row" && line.item.key === "c:a1/jive");
+    expect(row && row.kind === "row" ? row.group.key : null).toBe(cliAppKey("claude-code", "a1", "Work Max"));
+    // The profile still shows, open with nothing in it.
+    expect(sections(out).open.has("app|claude-app|South")).toBe(true);
+    // And its CLI App's name says CLI, so the two never read as one.
+    const header = out.find((line) => line.kind === "header" && line.group.key.startsWith("cli|"));
+    expect(header && header.kind === "header" ? header.group.place?.app : null).toBe("Claude Code CLI");
+  });
+
+  it("pins never mean open: an ended pinned session shows pinned under its App, which stays Inactive", () => {
+    const places = [known("Work", { id: "app:claude-app:/p/Work" })];
+    const items = itemsOf([past("jive", 22, { app: "app:claude-app:/p/Work" })]).map((item) => ({ ...item, pinned: true }));
+    const out = buildLines({ items, view: DEFAULT_VIEW, query: parseQuery(""), now: NOW, toggled: new Set(), frozen: null, known: places }).lines;
+    const { open, inactive } = sections(out);
+    expect(open.size).toBe(0);
+    expect([...inactive]).toEqual(["app|claude-app|Work"]);
+    // Shown under it without unfolding its "Last inactive".
+    expect(out.some((line) => line.kind === "past" && line.item.key === "c:a1/jive")).toBe(true);
+  });
+
+  it("an ended session is under the App the backend last saw it in, whatever its folder", () => {
+    const places = [known("Work", { id: "app:claude-app:/p/Work", account_id: "a1" })];
+    const items = itemsOf([past("in-app", 2, { app: "app:claude-app:/p/Work" }), past("in-term", 3, { app: "cli:a1", started_in: "claude-app" })]);
+    const idle = idleSessionsByApp(items, appByConversation(places), appByFolder(places));
+    expect(idle.get("app|claude-app|Work")!.map((item) => item.key)).toEqual(["c:a1/in-app"]);
+    expect(idle.get("cli|claude-code|a1")!.map((item) => item.key)).toEqual(["c:a1/in-term"]);
+  });
+});
+
+/**
+ * ADR-0032 Amendment 1 (D-84, D-100): three exclusive states. Open now is
+ * the user's Apps that run, "Running, not added" the apps found running
+ * that the user hasn't added (Add), Inactive apps the user's that don't;
+ * every App is in exactly one.
+ */
+describe("ADR-0032 Running, not added", () => {
+  const running = (instance: string, pid: number, over: Partial<KnownPlaceInfo> = {}) => known(instance, { id: `app:claude-app:/p/${instance}`, app_pid: pid, ...over });
+  const offer = (id: string, isRunning = true): PlaceOfferInfo => ({ id, label: `Claude app · ${id.split("/").pop()}`, running: isRunning });
+  const build = (rows: ConversationInfo[], places: KnownPlaceInfo[], offers: PlaceOfferInfo[], query = "") =>
+    buildLines({ items: itemsOf(rows), view: DEFAULT_VIEW, query: parseQuery(query), now: NOW, toggled: new Set(), frozen: null, known: places, offers }).lines;
+  /** Each App's sections, by its id (an offer's, a known App's, a CLI App's `cli:<folder>`). */
+  const where = (out: Line[], places: KnownPlaceInfo[]) => {
+    const idOf = (key: string) => places.find((one) => knownKey(one) === key)?.id ?? (key.startsWith("cli|") ? `cli:${key.split("|")[2]}` : key);
+    const out_ = new Map<string, SectionId[]>();
+    const add = (id: string, at: SectionId) => out_.set(id, [...(out_.get(id) ?? []), at]);
+    let at: SectionId | null = null;
+    for (const line of out) {
+      if (line.kind === "section") at = line.id;
+      else if (line.kind === "header" && at === "open") add(idOf(line.group.key), "open");
+      else if (line.kind === "offer") add(line.offer.id, "offered");
+      else if (line.kind === "idle") add(idOf(line.app.key), "idle");
+    }
+    return out_;
+  };
+
+  it("lists each running offer once, between Open now and Inactive apps, and every App is in exactly one section", () => {
+    const places = [running("Work", 7), known("Gone", { id: "app:claude-app:/p/Gone" })];
+    const offers = [
+      offer("app:claude-app:/p/aij-test"),
+      offer("app:claude-app:/p/aij-test"), // twice from the backend: once here
+      offer("app:claude-app:/p/Work"), // the user's own: Open now has it
+      offer("app:claude-app:/p/Gone"), // the user's own, not running: Inactive has it
+      offer("app:claude-app:/p/asleep", false), // not running: not here
+      offer("cli:a1"), // a CLI App the rail shows already (its session is open)
+    ];
+    const out = build([talk("t1", { places: [], app: "cli:a1" })], places, offers);
+    const sections = where(out, places);
+    for (const [id, at] of sections) expect({ id, at }).toEqual({ id, at: [at[0]] });
+    expect(sections.get("app:claude-app:/p/aij-test")).toEqual(["offered"]);
+    expect(sections.get("app:claude-app:/p/Work")).toEqual(["open"]);
+    expect(sections.get("app:claude-app:/p/Gone")).toEqual(["idle"]);
+    expect(sections.get("cli:a1")).toEqual(["open"]);
+    expect(sections.has("app:claude-app:/p/asleep")).toBe(false);
+    // In order: Open now, then Running, not added (its count), then Inactive apps.
+    const heads = out.flatMap((line) => (line.kind === "section" ? [`${line.id}:${line.count}`] : []));
+    expect(heads).toEqual(["open:2", "offered:1", "idle:1"]);
+  });
+
+  it("has no section when nothing runs unadded, and none while a search is on", () => {
+    expect(build([], [], [offer("app:claude-app:/p/x", false)]).some((line) => line.kind === "section" && line.id === "offered")).toBe(false);
+    expect(build([], [], [offer("app:claude-app:/p/x")], "nothing").some((line) => line.kind === "offer")).toBe(false);
+  });
+
+  it("offeredLines on its own: by id, the running ones, minus the user's", () => {
+    const places = [known("Mine", { id: "app:claude-app:/p/Mine" })];
+    const out = offeredLines([offer("app:claude-app:/p/Mine"), offer("cli:f9"), offer("cli:f1")], places, ["cli|claude-code|f1"]);
+    expect(out.map((line) => (line.kind === "offer" ? line.offer.id : `section:${line.count}`))).toEqual(["section:1", "cli:f9"]);
+  });
+});
+
+describe("ADR-0032 a shared folder", () => {
+  it("is its app's default instance's when exactly one is; otherwise no one's", () => {
+    const def = known("Default", { id: "app:claude-app:/d", instance: null, account_id: "dot-claude" });
+    const test = known("aij-test", { id: "app:claude-app:/t", account_id: "dot-claude" });
+    expect(appByFolder([def, test]).get("|dot-claude")).toBe(knownKey(def));
+    expect(appByFolder([known("A", { account_id: "s" }), known("B", { account_id: "s" })]).get("|s")).toBeUndefined();
   });
 });

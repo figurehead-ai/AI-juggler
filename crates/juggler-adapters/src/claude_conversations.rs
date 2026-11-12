@@ -98,7 +98,7 @@ pub fn read_conversation_quick(path: &Path) -> Option<ConversationSummary> {
 }
 
 /// The `entrypoint` Claude Code writes for a session the Claude app runs.
-const DESKTOP_ENTRYPOINT: &str = "claude-desktop";
+const DESKTOP_ENTRYPOINTS: [&str; 2] = ["claude-desktop", "sdk-ts"];
 
 /// What a transcript's lines (all, or its two ends) say.
 fn summary_of(lines_in: impl Iterator<Item = String>, path: &Path) -> Option<ConversationSummary> {
@@ -133,8 +133,13 @@ fn summary_of(lines_in: impl Iterator<Item = String>, path: &Path) -> Option<Con
             summary.git_branch = Some(branch.to_owned());
         }
         // Claude Code records where it runs on every line: the Claude app's
-        // Code tab is `claude-desktop`.
-        if summary.started_in.is_none() && str_of("entrypoint") == Some(DESKTOP_ENTRYPOINT) {
+        // Code tab is `claude-desktop`, and the app's own Agent SDK runs
+        // (`sdk-ts`) are the app's too (ADR-0032: on the maintainer's Mac
+        // they're only ever in the app profiles' folders). A terminal is
+        // `cli`; a script's `claude -p` is `sdk-cli`: a CLI App's.
+        if summary.started_in.is_none()
+            && str_of("entrypoint").is_some_and(|entry| DESKTOP_ENTRYPOINTS.contains(&entry))
+        {
             summary.started_in = Some(crate::claude_live::CLAUDE_APP_HOST.to_owned());
         }
         if let Some(at) = str_of("timestamp").and_then(timestamp_ms) {

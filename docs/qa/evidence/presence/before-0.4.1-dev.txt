@@ -1,0 +1,11 @@
+presence-check (ADR-0032)
+running desktop apps (ps): 7
+your running Apps: 6
+Open now shows: 3
+Inactive apps shows: 2
+FAIL runs but isn't in Open now: App 1
+FAIL runs but isn't in Open now: App 2
+FAIL runs but isn't in Open now: App 3
+FAIL runs but is under Inactive apps: App 1
+FAIL runs but is under Inactive apps: App 2
+FAIL Inactive apps says Running

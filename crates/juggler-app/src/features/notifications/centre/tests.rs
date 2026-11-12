@@ -32,6 +32,7 @@ fn quota(account: &str, left: i64, resets: i64) -> NewNotice {
             id: account.to_owned(),
             name: account.to_owned(),
             folder: account.to_owned(),
+            short: None,
         },
         "5-hour",
         Some((100 - left) as f64),

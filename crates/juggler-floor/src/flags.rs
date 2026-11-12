@@ -153,6 +153,10 @@ pub struct FlagAsk {
     /// Its width once others join it ("12 WAITING"): it grows to this
     /// when there's room, and says only the count when there isn't.
     pub joined_w: f32,
+    /// A name flag's narrower forms, widest first (its profile alone, cut,
+    /// its badge alone): tried in turn before it's left out, so a room
+    /// keeps a name at every size (0.4.2 review).
+    pub narrower: Vec<f32>,
     /// What needs you (`None`: a name flag, never counted).
     pub need: Option<Need>,
     /// How many it stands for.
@@ -173,6 +177,8 @@ pub enum Slot {
     Placed {
         /// `(x, y, w, h)`.
         rect: [f32; 4],
+        /// Which form it stands in: 0 its own, `n` its `n`th narrower one.
+        form: usize,
         /// What it stands for in all.
         total: u32,
         /// How many flags joined it.
@@ -221,12 +227,6 @@ fn grow(
     }
 }
 
-/// The pole's lengths a flag tries, shortest first: `rise`, then a row
-/// higher each time, up to three rows.
-fn heights(rise: f32, row: f32) -> [f32; 4] {
-    [rise, rise + row, rise + 2.0 * row, rise + 3.0 * row]
-}
-
 /// Places `asks`: what needs you first (by [`Need`]'s order, then nearer
 /// the bottom of the screen), name flags last. Each stands straight over
 /// its anchor (only kept on screen at the edges) on a pole of `rise` or
@@ -253,41 +253,32 @@ pub fn place_flags(
     });
     let mut slots = vec![Slot::Dropped; asks.len()];
     let mut placed: Vec<(usize, [f32; 4])> = Vec::new();
+    let room = Room {
+        taken,
+        screen,
+        gap,
+        rise,
+    };
     for n in order {
         let a = &asks[n];
         let (w, h) = a.size;
-        let x = (a.anchor.0 - w / 2.0)
-            .clamp(gap, (screen.0 - w - gap).max(gap))
-            .round();
-        let above = heights(rise, h + gap).map(|pole| (a.anchor.1 - pole - h).round());
-        let below = heights(rise, h + gap).map(|pole| (a.anchor.1 + pole).round());
-        let tries = above
-            .into_iter()
-            .chain(below.into_iter().filter(|_| a.hang));
-        // (a flag wider than the screen never fits: the overlay cuts its
-        // words to the screen first)
-        let fits = |r: &[f32; 4]| {
-            let grown = [r[0] - gap, r[1] - gap, r[2] + 2.0 * gap, r[3] + 2.0 * gap];
-            r[0] >= gap - 0.5
-                && r[0] + r[2] <= screen.0 - gap + 0.5
-                && r[1] >= gap
-                && r[1] + r[3] <= screen.1 - gap
-                && !a.keep_out.iter().any(|p| crate::overlay::meets(&grown, p))
-                && taken.iter().all(|t| clear(r, t, gap))
-                && placed.iter().all(|(_, p)| clear(r, p, gap))
-        };
-        let spot = tries.map(|y| [x, y, w, h]).find(|r| fits(r));
-        if let Some(rect) = spot {
+        let others: Vec<[f32; 4]> = placed.iter().map(|(_, r)| *r).collect();
+        // a name first stands in its smallest form, so every room gets
+        // one; the pass after grows each as far as it fits (0.4.2 review:
+        // a room with no name is worse than a short one)
+        let smallest = a.narrower.len();
+        if let Some((form, rect)) = spot(a, smallest..=smallest, &others, room, f32::MAX) {
             placed.push((n, rect));
             slots[n] = Slot::Placed {
                 rect,
+                form,
                 total: a.count,
                 joined: 0,
             };
             continue;
         }
         if a.need.is_none() {
-            continue; // a name: it comes back closer
+            continue; // a name with no room even for its badge: its room's hover says it
         }
         // no room: join the nearest flag that needs you, grown to say
         // "N WAITING" where that's clear of the rest
@@ -302,6 +293,7 @@ pub fn place_flags(
                 rect,
                 total,
                 joined,
+                ..
             } = &mut slots[m]
             {
                 *rect = placed[p].1;
@@ -313,6 +305,9 @@ pub fn place_flags(
         }
         // nothing to join: the first clear row straight over it (or under
         // it, where it may hang), however far; never over another flag
+        let x = (a.anchor.0 - w / 2.0)
+            .clamp(gap, (screen.0 - w - gap).max(gap))
+            .round();
         let row = h + gap;
         let rows = ((screen.1 / row).ceil() as usize).max(1);
         let far = (0..rows)
@@ -322,10 +317,14 @@ pub fn place_flags(
                     .map(|r| (a.anchor.1 + rise + r as f32 * row).round())
                     .filter(|_| a.hang),
             );
-        if let Some(rect) = far.map(|y| [x, y, w, h]).find(|r| fits(r)) {
+        if let Some(rect) = far
+            .map(|y| [x, y, w, h])
+            .find(|r| fits(a, r, &others, (taken, screen, gap)))
+        {
             placed.push((n, rect));
             slots[n] = Slot::Placed {
                 rect,
+                form: 0,
                 total: a.count,
                 joined: 0,
             };
@@ -333,7 +332,132 @@ pub fn place_flags(
         // else no room on the screen at all: left out (the overlay
         // counts it)
     }
+    grow_names(asks, &mut placed, &mut slots, room);
     slots
+}
+
+/// Where flags may stand: clear of `taken`, on `screen`, `gap` apart, on
+/// poles of `rise` and up.
+#[derive(Clone, Copy)]
+struct Room<'a> {
+    taken: &'a [[f32; 4]],
+    screen: (f32, f32),
+    gap: f32,
+    rise: f32,
+}
+
+/// Each placed name, first stood in its smallest form, grows to the
+/// widest form that fits where the rest stand, never on a longer pole.
+fn grow_names(
+    asks: &[FlagAsk],
+    placed: &mut [(usize, [f32; 4])],
+    slots: &mut [Slot],
+    room: Room<'_>,
+) {
+    // each name grows to the widest form that fits where the rest stand
+    for p in 0..placed.len() {
+        let (n, _) = placed[p];
+        let Slot::Placed { form, .. } = slots[n] else {
+            continue;
+        };
+        if asks[n].need.is_some() || form == 0 {
+            continue;
+        }
+        let others: Vec<[f32; 4]> = placed
+            .iter()
+            .enumerate()
+            .filter(|(q, _)| *q != p)
+            .map(|(_, (_, r))| *r)
+            .collect();
+        // never on a longer pole than it stands on: a name stays by its room
+        let pole = pole_of(&asks[n], &placed[p].1);
+        if let Some((wider, rect)) = spot(&asks[n], 0..=form - 1, &others, room, pole) {
+            placed[p].1 = rect;
+            if let Slot::Placed {
+                rect: r, form: f, ..
+            } = &mut slots[n]
+            {
+                *r = rect;
+                *f = wider;
+            }
+        }
+    }
+}
+
+/// How long `a`'s pole is to a flag at `r`: up to it, or down to one
+/// hanging below.
+fn pole_of(a: &FlagAsk, r: &[f32; 4]) -> f32 {
+    if r[1] >= a.anchor.1 {
+        r[1] - a.anchor.1
+    } else {
+        a.anchor.1 - (r[1] + r[3])
+    }
+}
+
+/// `r` is free for `a`: on screen, off its keep-outs, clear of what's
+/// taken and of `others` by `gap`.
+fn fits(
+    a: &FlagAsk,
+    r: &[f32; 4],
+    others: &[[f32; 4]],
+    (taken, screen, gap): (&[[f32; 4]], (f32, f32), f32),
+) -> bool {
+    let grown = [r[0] - gap, r[1] - gap, r[2] + 2.0 * gap, r[3] + 2.0 * gap];
+    r[0] >= gap - 0.5
+        && r[0] + r[2] <= screen.0 - gap + 0.5
+        && r[1] >= gap
+        && r[1] + r[3] <= screen.1 - gap
+        && !a.keep_out.iter().any(|p| crate::overlay::meets(&grown, p))
+        && taken.iter().all(|t| clear(r, t, gap))
+        && others.iter().all(|o| clear(r, o, gap))
+}
+
+/// The first free place for `a` in one of `forms` (0 its own size, `n` its
+/// `n`th narrower one), widest first: centred over its anchor, and a name
+/// also slid left or right as far as its pole still stands under it
+/// (straight up, never aside); on a pole of `rise` or more rows (a name
+/// climbs further than a need), or hanging under it where it may.
+fn spot(
+    a: &FlagAsk,
+    forms: std::ops::RangeInclusive<usize>,
+    others: &[[f32; 4]],
+    room: Room<'_>,
+    longest: f32,
+) -> Option<(usize, [f32; 4])> {
+    let Room {
+        taken,
+        screen,
+        gap,
+        rise,
+    } = room;
+    let h = a.size.1;
+    let rows = if a.need.is_none() { 8 } else { 4 };
+    let poles: Vec<f32> = (0..rows).map(|n| rise + n as f32 * (h + gap)).collect();
+    let above = poles.iter().map(|pole| (a.anchor.1 - pole - h).round());
+    let below = poles
+        .iter()
+        .map(|pole| (a.anchor.1 + pole).round())
+        .filter(|_| a.hang);
+    let ys: Vec<f32> = above
+        .chain(below)
+        .filter(|y| pole_of(a, &[0.0, *y, 0.0, h]) <= longest + 0.5)
+        .collect();
+    forms.into_iter().find_map(|form| {
+        let w = if form == 0 {
+            a.size.0
+        } else {
+            *a.narrower.get(form - 1)?
+        };
+        let slid = [a.anchor.0 - 2.0 * gap, a.anchor.0 - w + 2.0 * gap];
+        let xs: Vec<f32> = std::iter::once(a.anchor.0 - w / 2.0)
+            .chain(slid.into_iter().filter(|_| a.need.is_none()))
+            .map(|x| x.clamp(gap, (screen.0 - w - gap).max(gap)).round())
+            .collect();
+        ys.iter()
+            .flat_map(|y| xs.iter().map(move |x| [*x, *y, w, h]))
+            .find(|r| fits(a, r, others, (taken, screen, gap)))
+            .map(|r| (form, r))
+    })
 }
 
 #[cfg(test)]
@@ -365,6 +489,7 @@ mod tests {
             anchor: (x, y),
             size: (80.0, 14.0),
             joined_w: 0.0,
+            narrower: Vec::new(),
             need,
             count,
             keep_out: Vec::new(),
@@ -444,10 +569,13 @@ mod tests {
         // every count is somewhere
         let (asked, shown) = counts(&asks, &slots);
         assert_eq!(asked, shown, "no count lost");
-        // straight over its anchor: never aside
+        // straight over its anchor: never aside (a need centred; a name
+        // may slide as far as its pole still stands under it)
         for (s, a) in slots.iter().zip(&asks) {
             if let Slot::Placed { rect, .. } = s {
-                assert!((rect[0] + rect[2] / 2.0 - a.anchor.0).abs() <= 1.0);
+                let over = rect[0] <= a.anchor.0 && a.anchor.0 <= rect[0] + rect[2];
+                let centred = (rect[0] + rect[2] / 2.0 - a.anchor.0).abs() <= 1.0;
+                assert!(centred || (a.need.is_none() && over), "{rect:?} {a:?}");
                 assert!(rect[1] + rect[3] <= a.anchor.1, "above its place");
             }
         }
@@ -507,7 +635,8 @@ mod tests {
                 let anchor = asks[*i].anchor;
                 // straight over its place, or grown from there for
                 // those that joined it (its pole still under it)
-                let grown = matches!(slots[*i], Slot::Placed { joined, .. } if joined > 0);
+                let grown = matches!(slots[*i], Slot::Placed { joined, .. } if joined > 0)
+                    || asks[*i].need.is_none();
                 assert!(
                     (a[0] + a[2] / 2.0 - anchor.0).abs() <= 1.0
                         || a[0] <= 2.5
@@ -584,6 +713,41 @@ mod tests {
         let taken = [[0.0, 0.0, 640.0, 70.0], [440.0, 70.0, 100.0, 30.0]];
         let slots = place_flags(&asks, &taken, (640.0, 400.0), 2.0, 12.0);
         assert!((width(&slots[0]) - 80.0).abs() < 0.5, "kept: {slots:?}");
+    }
+
+    #[test]
+    fn a_name_with_no_room_takes_a_narrower_form_before_it_is_left_out() {
+        // a 300-wide name over a spot with a 120-wide gap: it stands in its
+        // second form (the profile alone), straight over its place
+        let mut name = ask(320.0, 300.0, None, 0);
+        name.size = (300.0, 14.0);
+        name.narrower = vec![110.0, 60.0, 20.0];
+        let taken = [
+            [0.0, 0.0, 640.0, 230.0],
+            [0.0, 230.0, 258.0, 70.0],
+            [382.0, 230.0, 258.0, 70.0],
+        ];
+        let slots = place_flags(&[name.clone()], &taken, (640.0, 400.0), 2.0, 12.0);
+        let Some(Slot::Placed { rect, form, .. }) = slots.first().copied() else {
+            unreachable!("{slots:?}");
+        };
+        assert_eq!(form, 1, "{rect:?}");
+        assert!((rect[0] + rect[2] / 2.0 - 320.0).abs() <= 1.0);
+        // with room for only its badge: the badge
+        let taken = [
+            [0.0, 0.0, 640.0, 230.0],
+            [0.0, 230.0, 300.0, 70.0],
+            [340.0, 230.0, 300.0, 70.0],
+        ];
+        let slots = place_flags(&[name.clone()], &taken, (640.0, 400.0), 2.0, 12.0);
+        assert!(
+            matches!(slots[0], Slot::Placed { form: 3, .. }),
+            "{slots:?}"
+        );
+        // and only when not even that fits is it left out
+        let taken = [[0.0, 0.0, 640.0, 400.0]];
+        let slots = place_flags(&[name], &taken, (640.0, 400.0), 2.0, 12.0);
+        assert_eq!(slots[0], Slot::Dropped);
     }
 
     #[test]

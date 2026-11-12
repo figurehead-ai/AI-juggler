@@ -21,6 +21,7 @@ import { HomeScreen } from "../screens/Home";
 import { ConversationPage, PoolPage, SessionPanel } from "../lazyParts";
 import type { Selection } from "./selection";
 import type { Shell } from "./use-shell";
+import { CLEAN_UP_VIEW } from "../lib/landing";
 
 /** Home's scroll position, kept between visits (lib/scroll-memory). */
 type Extra = { homeScroll: (element: HTMLDivElement | null) => (() => void) | undefined };
@@ -49,7 +50,7 @@ const PAGES: Partial<Record<Selection["kind"], PageEntry>> = {
           onAccountsChanged={shell.accountsChanged}
           onChanged={() => void shell.refresh()}
           thisMac={shell.thisMacInfo}
-          onOpenCleanup={() => shell.setGlobal("cleanup")}
+          onOpenCleanup={() => shell.openOn("cleanup", CLEAN_UP_VIEW)}
           onOpenThisMac={() => shell.setGlobal("thismac")}
         />
       </ScreenBoundary>

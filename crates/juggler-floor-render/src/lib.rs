@@ -114,8 +114,8 @@ impl Look {
 pub struct Extras<'a> {
     /// How to move the view, in this system's words.
     pub hint: &'a str,
-    /// The overload alert's words, while it's on.
-    pub alert: Option<&'a str>,
+    /// This Mac's alert, while one is on: the overlay's chip.
+    pub alert: Option<overlay::MacAlert<'a>>,
     /// The pointer, device pixels.
     pub mouse: Option<(f32, f32)>,
     /// AJ-E3517: the hover card open now.
@@ -373,7 +373,6 @@ impl Renderer {
             floors: &floors,
             size,
             t: live.t,
-            alert: live.alert,
             hover: ring,
             moving: &self.moving,
             lights: &drawn.lights,

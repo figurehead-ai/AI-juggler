@@ -16,6 +16,8 @@ import { providerDisplayName } from "../../lib/providers";
 import { AppIcon } from "../AppIcon";
 import { ProjectMark } from "../ProjectMark";
 import { PlaceMark } from "../PlaceMarks";
+import { AppKindBadge } from "../AppKindBadge";
+import { appKindWords } from "../../lib/app-kind";
 import { ToolMark } from "../ToolMark";
 import { sessionTitle } from "../ManageWork";
 import { ActionOption, CommandOption } from "../PaletteActions";
@@ -120,10 +122,12 @@ export function RowView({ entry }: { entry: PaletteRow }): JSX.Element {
       return (
         <>
           <PlaceMark place={{ key: app.railKey, app: app.app, appId: app.appId, kind: app.kind === "desktop" ? "desktop" : null, profile: app.profile, appPid: app.place?.app_pid ?? null, host: null }} size={16} ring="var(--color-surface)" />
+          {/* D-100: Desktop or CLI, by icon beside its icon and by word. */}
+          <AppKindBadge kind={app.kind} decorative />
           <span className="min-w-0 shrink truncate">
             <Highlighted text={app.name} ranges={entry.ranges} />
           </span>
-          <Muted testId="goto-app-state">{entry.open ? "open now" : "not running"}</Muted>
+          <Muted testId="goto-app-state">{`${appKindWords(app.kind).word} · ${entry.open ? "open now" : "not running"}`}</Muted>
           <End>Open</End>
         </>
       );

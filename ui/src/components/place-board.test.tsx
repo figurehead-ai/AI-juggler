@@ -87,7 +87,7 @@ describe("the rail by place", () => {
     // one); the Claude app's profiles are Apps of their own.
     expect(names).toEqual(["cli|claude-code|claude-work", "app|codex-app|", "app|claude-app|Personal", "app|claude-app|Work"]);
     expect(headers(view.getByTestId("place-board")).map((h) => within(h).getByTestId("place-open").getAttribute("aria-label"))).toEqual([
-      "Open Claude Code · Work Max",
+      "Open Claude Code CLI · Work Max",
       "Open ChatGPT",
       "Open Claude app · Personal",
       "Open Claude app · Work Max",
@@ -128,7 +128,7 @@ describe("the rail by place", () => {
     const view = board([]);
     await view.findByTestId("rail-open-now");
     const cli = headers(view.getByTestId("place-board")).find((h) => h.dataset.place === "cli|claude-code|claude-work")!;
-    fireEvent.click(within(cli).getByRole("button", { name: /^Open Claude Code · Work Max/ }));
+    fireEvent.click(within(cli).getByRole("button", { name: /^Open Claude Code CLI · Work Max/ }));
     expect(spy).toHaveBeenCalledWith(5100);
     // ⌘1–9: the place in that position.
     // (By name: ChatGPT app, Claude app · Personal, Claude app · Work Max, …)

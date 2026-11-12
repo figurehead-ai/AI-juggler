@@ -394,7 +394,7 @@ const MANAGE = {
   ...allStatuses,
   accounts: [
     ...allStatuses.accounts,
-    { id: "claude-max", provider: "claude-code", label: "personal-max", plan: "max-5x", login_state: "logged_in", in_place: false, import_source_path: "/Users/you/Library/Application Support/ClaudeCodeProfiles/max" },
+    { id: "claude-max", provider: "claude-code", label: "acme-max", plan: "max-5x", login_state: "logged_in", in_place: false, import_source_path: "/Users/you/Library/Application Support/ClaudeCodeProfiles/max" },
   ],
 };
 for (const theme of THEMES) {
@@ -402,8 +402,8 @@ for (const theme of THEMES) {
   test(`account menu — ${cell}`, async ({ page }) => {
     await open(page, theme, "comfortable", VIEWPORTS[0], MANAGE);
     await goTo(page, "Accounts");
-    await page.getByRole("button", { name: "App actions for Claude Code · personal-max", exact: true }).click();
-    await expect(page.getByRole("menu", { name: "Actions for personal-max" })).toBeVisible();
+    await page.getByRole("button", { name: "App actions for Claude Code CLI · acme-max", exact: true }).click();
+    await expect(page.getByRole("menu", { name: "Actions for acme-max" })).toBeVisible();
     await page.mouse.move(0, 0);
     await settle(page);
     await expect.soft(page).toHaveScreenshot(`account-menu-${cell}.png`, SCREEN);
@@ -412,7 +412,7 @@ for (const theme of THEMES) {
   test(`remove account — a copy — ${cell}`, async ({ page }) => {
     await open(page, theme, "comfortable", VIEWPORTS[0], MANAGE);
     await goTo(page, "Accounts");
-    await page.getByRole("button", { name: "App actions for Claude Code · personal-max", exact: true }).click();
+    await page.getByRole("button", { name: "App actions for Claude Code CLI · acme-max", exact: true }).click();
     await page.getByRole("menuitem", { name: "Remove…" }).click();
     await expect(page.getByTestId("remove-account")).toHaveAttribute("data-kind", "copy");
     await page.mouse.move(0, 0);
@@ -421,7 +421,7 @@ for (const theme of THEMES) {
   });
 }
 
-// AJ-E1502: a named, pinned session leads its group, a pinned project's
+// AJ-E1502: a named, pinned session stays under its App (D-100: after the open rows), a pinned project's
 // group leads the rail; a project's row menu. AJ-E2104: by place (the
 // default), the pinned session stays under its place once ended, first
 // and marked; in the Project lens, the pinned project still leads.
@@ -443,14 +443,17 @@ for (const theme of THEMES) {
     // it): the mark is on the line, the row's other child.
     await expect(rail.locator("[data-rail-row]").filter({ has: page.locator('[data-instance-id="sess-6"]') }).getByTestId("pin-mark")).toBeVisible();
     await expect(pinned).toHaveAccessibleName(/^Ended, the login fix, pinned, /);
-    // In Open now, its app's first row (D-62: AI Juggler's sessions are
-    // their CLI app's) — not folded into "Also: n ended today".
-    const lead = await page.getByTestId("place-board").evaluate((board) => {
+    // Under its App in Open now (D-62: AI Juggler's sessions are their CLI
+    // app's), not folded away; D-100: a pin never means open, so the ended
+    // row follows its App's open rows, before the next App's header.
+    const place = await page.getByTestId("place-board").evaluate((board) => {
       const lines = [...board.querySelectorAll<HTMLElement>('[data-testid="place-header"], [data-rail-item]')];
       const row = lines.findIndex((line) => line.dataset.instanceId === "sess-6");
-      return row > 0 && lines[row - 1]?.dataset.testid === "place-header" ? "sess-6" : null;
+      const header = lines.map((line) => line.dataset.testid).lastIndexOf("place-header", row);
+      const next = lines[row + 1];
+      return header >= 0 && row - header > 1 && (next === undefined || next.dataset.testid === "place-header") ? "after its open rows" : null;
     });
-    expect(lead, "the pinned session leads its place").toBe("sess-6");
+    expect(place, "the pinned ended session sits under its App, after the open rows").toBe("after its open rows");
     await page.mouse.move(0, 0);
     await settle(page);
     await expect.soft(rail).toHaveScreenshot(`rail-pins-${cell}.png`, SCREEN);

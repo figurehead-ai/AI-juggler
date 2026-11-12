@@ -16,6 +16,16 @@
 //! 4. removing the monitor (it must be the object adding returned: it is,
 //!    kept in this crate's registry).
 //!
+//! ADR-0032 (D-100) added two, for presence (an app launched or quit shows
+//! within 2 s):
+//!
+//! 5. reading `AppKit`'s two workspace notification names (extern statics
+//!    it defines and never changes);
+//! 6. observing them with a block (no object filter, no queue: delivered
+//!    on the thread that posts them; the block is `Send + Sync`, never
+//!    reads the notification, and only calls the caller's own function).
+//!    The observers live as long as the app, so none is ever removed.
+//!
 //! What this crate is NOT: a general unsafe escape hatch. It exists so the
 //! workspace law `unsafe_code = "forbid"` stays absolute everywhere else;
 //! it doesn't inherit the workspace lint baseline (see `Cargo.toml`). Any
@@ -27,7 +37,7 @@
 //! Must not know: the Floor's scene, storage or anything but input and
 //! visibility events: it is an audited shim.
 #![deny(missing_docs, unsafe_op_in_unsafe_fn)]
-#![cfg_attr(target_os = "macos", allow(unsafe_code))] // ADR-0026: the four audited calls
+#![cfg_attr(target_os = "macos", allow(unsafe_code))] // ADR-0026, ADR-0032: the six audited calls
 
 use raw_window_handle::HasWindowHandle;
 
@@ -203,6 +213,16 @@ pub fn front_beside(
 #[must_use]
 pub fn reduce_motion() -> bool {
     imp::reduce_motion()
+}
+
+/// ADR-0032: calls `on_change` whenever any app launches or quits, for
+/// the rest of the app's life (the caller reads what runs then).
+///
+/// # Errors
+///
+/// [`Error::Unsupported`], with why, where it can't yet.
+pub fn watch_apps(on_change: impl Fn() + Send + Sync + 'static) -> Result<(), Error> {
+    imp::watch_apps(on_change)
 }
 
 /// Whether the Floor's window can read its events on this system.
@@ -539,6 +559,36 @@ mod imp {
     pub(super) fn reduce_motion() -> bool {
         objc2_app_kit::NSWorkspace::sharedWorkspace().accessibilityDisplayShouldReduceMotion()
     }
+
+    pub(super) fn watch_apps(on_change: impl Fn() + Send + Sync + 'static) -> Result<(), Error> {
+        use objc2_app_kit::{
+            NSWorkspace, NSWorkspaceDidLaunchApplicationNotification,
+            NSWorkspaceDidTerminateApplicationNotification,
+        };
+        let center = NSWorkspace::sharedWorkspace().notificationCenter();
+        let on_change = std::sync::Arc::new(on_change);
+        // SAFETY (audit 5): AppKit's own constant names, read only.
+        let names = unsafe {
+            [
+                NSWorkspaceDidLaunchApplicationNotification,
+                NSWorkspaceDidTerminateApplicationNotification,
+            ]
+        };
+        for name in names {
+            let tell = std::sync::Arc::clone(&on_change);
+            let block = block2::RcBlock::new(
+                move |_note: std::ptr::NonNull<objc2_foundation::NSNotification>| tell(),
+            );
+            // SAFETY (audit 6): no object or queue; the block is Send + Sync
+            // and never reads the notification.
+            let token = unsafe {
+                center.addObserverForName_object_queue_usingBlock(Some(name), None, None, &block)
+            };
+            // Observed for the app's whole life: never removed.
+            std::mem::forget(token);
+        }
+        Ok(())
+    }
 }
 
 #[cfg(not(target_os = "macos"))]
@@ -574,6 +624,10 @@ mod imp {
         raise: impl FnOnce(),
     ) -> Result<(), Error> {
         raise();
+        Err(Error::Unsupported(WHY))
+    }
+
+    pub(super) fn watch_apps(_on_change: impl Fn() + Send + Sync + 'static) -> Result<(), Error> {
         Err(Error::Unsupported(WHY))
     }
 

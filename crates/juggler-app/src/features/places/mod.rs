@@ -20,6 +20,10 @@ pub mod book;
 pub mod commands;
 pub mod handoff;
 pub mod keep;
+mod link;
+#[cfg(test)]
+use link::folder_for_profile;
+use link::link_its_folder;
 pub mod open_session;
 pub mod profiles;
 pub mod start;
@@ -72,7 +76,13 @@ pub struct Places {
     /// it changes their files: keep alive, Open, Restart and the automation
     /// watch leave them alone until the move lets go ([`MoveHold`]).
     moving: Mutex<HashSet<String>>,
+    /// ADR-0032: the desktop Apps running at the last reconcile, and when
+    /// it ran: the window hears a change at once, and a full look runs at
+    /// least every [`RECONCILE_EVERY_MS`].
+    pub(crate) presence: Mutex<(std::collections::BTreeSet<String>, i64)>,
 }
+
+pub use crate::features::presence::watch::{RECONCILE_EVERY_MS, reconcile, running_at_last_look};
 
 /// ADR-0031: holds `ids` closed for a move while it lives: nothing in AI
 /// Juggler starts them or writes their records meanwhile.
@@ -128,7 +138,7 @@ impl std::fmt::Debug for Places {
     }
 }
 
-fn changed(state: &Arc<AppState>) {
+pub(crate) fn changed(state: &Arc<AppState>) {
     // AJ-E3102: which App a session is in may have moved.
     crate::features::relations::changed(state, crate::features::relations::Change::PlacesChanged);
     if let Some(tell) = state.places.on_change.get() {
@@ -228,6 +238,29 @@ pub fn observe(state: &Arc<AppState>, running: &[RunningApp], entries: &[LiveEnt
         }
     }
     let found = profiles::after_scan(state, &hosts, &home, now);
+    // ADR-0032: an app that runs one instance on its tool's own folder
+    // (the Codex app in ChatGPT.app, `~/.codex`) is the App of the Account
+    // that holds that folder, as a profile is its folder's (D-84: only an
+    // Account the user has already; nothing is brought in here).
+    let single: Vec<String> = with_book(state, |book| {
+        book.places
+            .iter()
+            .filter(|(_, place)| place.instance_dir.is_none() && place.account_id.is_none())
+            .map(|(id, _)| id.clone())
+            .collect()
+    })
+    .unwrap_or_default();
+    let mut linked = false;
+    for id in single {
+        let first_look = state
+            .places
+            .looked
+            .lock()
+            .is_ok_and(|mut looked| looked.insert(id.clone()));
+        if first_look {
+            linked |= link_its_folder(state, &id, false);
+        }
+    }
     let moved = state.places.watch.lock().is_ok_and(|mut watch| {
         let before = watch.known();
         for app in running {
@@ -252,7 +285,7 @@ pub fn observe(state: &Arc<AppState>, running: &[RunningApp], entries: &[LiveEnt
         after != was
     });
     let recorded = read_records(state);
-    if changed_book || found || moved || recorded {
+    if changed_book || found || moved || recorded || linked {
         changed(state);
     }
 }
@@ -363,30 +396,41 @@ fn in_folder(folder: &str, key: &str) -> String {
     format!("{folder}{IN_FOLDER}{key}")
 }
 
-/// rc22 (A3): of `(App, its folder)` pairs, each folder exactly one App
-/// holds → that App. A desktop profile's Claude Code folder (brought in
-/// when it was added) is where its Code sessions run: they are that
-/// profile's, not a terminal's (the rail's `|<folder>` rule,
-/// `lib/rail-apps.ts`'s `appByFolder`). A folder two profiles share
-/// names neither.
+/// rc22 (A3): of `(App, its folder, it's its app's default instance)`
+/// triples, each folder exactly one App holds → that App. A desktop
+/// profile's Claude Code folder (brought in when it was added) is where its
+/// Code sessions run: they are that profile's, not a terminal's (the rail's
+/// `|<folder>` rule, `lib/rail-apps.ts`'s `appByFolder`). A folder two
+/// profiles share names neither, unless exactly one of them is its app's
+/// default instance (ADR-0032: a test profile linked to `~/.claude` beside
+/// the default Claude app filed the default's own sessions under a CLI App,
+/// "Claude Code CLI · Default", on the real data): the default instance
+/// uses the tool's default folder, so it's that folder's.
 #[must_use]
 pub fn sole_holders<'a>(
-    apps: impl IntoIterator<Item = (&'a str, Option<&'a str>)>,
+    apps: impl IntoIterator<Item = (&'a str, Option<&'a str>, bool)>,
 ) -> std::collections::BTreeMap<String, String> {
-    let mut held: std::collections::BTreeMap<String, Option<String>> =
+    let mut held: std::collections::BTreeMap<String, Vec<(&'a str, bool)>> =
         std::collections::BTreeMap::new();
-    for (app, folder) in apps {
+    for (app, folder, default) in apps {
         let Some(folder) = folder else { continue };
-        held.entry(folder.to_owned())
-            .and_modify(|one| {
-                if one.as_deref() != Some(app) {
-                    *one = None;
-                }
-            })
-            .or_insert_with(|| Some(app.to_owned()));
+        let holders = held.entry(folder.to_owned()).or_default();
+        if !holders.iter().any(|(one, _)| *one == app) {
+            holders.push((app, default));
+        }
     }
     held.into_iter()
-        .filter_map(|(folder, app)| Some((folder, app?)))
+        .filter_map(|(folder, holders)| {
+            if let [(app, _)] = holders.as_slice() {
+                return Some((folder, (*app).to_owned()));
+            }
+            let mut defaults = holders.iter().filter(|(_, default)| *default);
+            let (app, _) = defaults.next()?;
+            defaults
+                .next()
+                .is_none()
+                .then(|| (folder, (*app).to_owned()))
+        })
         .collect()
 }
 
@@ -426,9 +470,13 @@ impl DesktopApps {
         Self {
             apps: users().map(|(id, _)| (*id).clone()).collect(),
             by_session,
-            by_folder: sole_holders(
-                users().map(|(id, place)| (id.as_str(), place.account_id.as_deref())),
-            ),
+            by_folder: sole_holders(users().map(|(id, place)| {
+                (
+                    id.as_str(),
+                    place.account_id.as_deref(),
+                    place.instance.is_none() && place.instance_dir.is_some(),
+                )
+            })),
         }
     }
 }
@@ -446,9 +494,13 @@ pub fn desktop_apps(state: &Arc<AppState>) -> DesktopApps {
 ///    (`launched_in`, stored at launch), while that is one of the user's;
 /// 2. a conversation another app ran (`key`: `<tool>/<id>`, `folder` the
 ///    folder its files are in): the profile whose own records hold it;
-/// 3. unless it ran in a terminal (`in_terminal`): the one profile that
-///    holds its folder;
+/// 3. one its tool says a desktop app started (`in_terminal` false): the
+///    one profile that holds its folder;
 /// 4. its folder's CLI App.
+///
+/// ADR-0032: for an ended session only. An open one is the App its
+/// process runs in (`features::presence::live_owner`); the conversation
+/// list carries the answer (`ConversationInfo::app`).
 #[must_use]
 pub fn app_of(
     desktop: &DesktopApps,
@@ -570,8 +622,19 @@ pub fn spawn(app: tauri::AppHandle, state: Arc<AppState>) {
     let _ = state.places.on_change.set(Box::new(move || {
         app.emit_event(AppEvent::PlacesChanged, ());
     }));
+    // ADR-0032: an app launching or quitting shows at once; the 2 s tick
+    // looks in full every 5 s at most (CLIs, and the safety net).
+    let launched = Arc::clone(&state);
+    let _ = juggler_window_events::watch_apps(move || {
+        let state = Arc::clone(&launched);
+        // Off AppKit's thread: the look reads the process table.
+        std::thread::spawn(move || {
+            reconcile(&state, crate::commands::now_millis(), true);
+        });
+    });
     crate::ticks::every("keep-alive", std::time::Duration::from_secs(2), move || {
         tick(&state);
+        reconcile(&state, crate::commands::now_millis(), false);
     });
 }
 
@@ -881,105 +944,6 @@ pub fn answer_offer(state: &Arc<AppState>, id: &str, add: bool) -> AppResult<()>
     }
     changed(state);
     Ok(())
-}
-
-/// The folder discovery found under a profile's own `name` (the profile
-/// launcher's convention).
-fn folder_for_profile<'a>(
-    name: &str,
-    found: &'a [juggler_adapter::environment::DiscoveredInstall],
-) -> Option<&'a juggler_adapter::environment::DiscoveredInstall> {
-    found
-        .iter()
-        .find(|one| one.path.file_name().and_then(|n| n.to_str()) == Some(name))
-}
-
-/// The go sitting (2026-11-07, finding 1): a profile added after first
-/// run listed none of its sessions, because the folder its tool writes
-/// them to (the profile launcher's `ClaudeCodeProfiles/<name>` beside the
-/// app's `ClaudeProfiles/<name>`) was never brought in. With the same
-/// yes, the folder discovery finds under the profile's own name is
-/// brought in where it is, as first run does (in place, never copied),
-/// unless an Account holds it already; either way it's the profile's
-/// folder from then on. That link is what tells the folder's tool sign-in
-/// apart (the profile signs in inside its app, never in a terminal: the
-/// rerun's "needs its sign-in" came from a folder brought in unlinked) and
-/// gives the App page its Account. Only one an Account holds already
-/// unless `may_bring_in` (Add's yes). Nothing when none matches; a
-/// failure never fails the add. Returns whether the link is new.
-fn link_its_folder(state: &Arc<AppState>, id: &str, may_bring_in: bool) -> bool {
-    let Some((app_id, name)) = with_book(state, |book| {
-        book.places.get(id).and_then(|place| {
-            let name = place
-                .instance_dir
-                .as_deref()?
-                .file_name()?
-                .to_str()?
-                .to_owned();
-            Some((place.app_id.clone(), name))
-        })
-    })
-    .ok()
-    .flatten() else {
-        return false;
-    };
-    let canonical =
-        |path: &std::path::Path| std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
-    let accounts = crate::commands::lock_storage_arc(state)
-        .ok()
-        .and_then(|storage| storage.accounts().list().ok())
-        .unwrap_or_default();
-    for harness in state.registry.ids() {
-        let Some(adapter) = state.registry.get(&harness) else {
-            continue;
-        };
-        if !adapter.host_apps().iter().any(|host| host.id == app_id) {
-            continue;
-        }
-        let installs = adapter.scan_environment();
-        let Some(found) = folder_for_profile(&name, &installs) else {
-            continue;
-        };
-        let held = accounts
-            .iter()
-            .find(|account| canonical(&account.state_dir) == canonical(&found.path))
-            .map(|account| account.id.as_str().to_owned());
-        let account = held.or_else(|| {
-            if !may_bring_in {
-                return None;
-            }
-            crate::features::account::import::account_import_mode_impl(
-                state,
-                harness.as_str(),
-                &found.path.to_string_lossy(),
-                &name,
-                crate::features::account::import::ImportRequest {
-                    origin: Some(found.origin.as_str().to_owned()),
-                    in_place: true,
-                    ..crate::features::account::import::ImportRequest::default()
-                },
-            )
-            .map_err(|why| {
-                tracing::warn!(
-                    place = id,
-                    "the added profile's folder wasn't brought in: {why}"
-                );
-            })
-            .ok()
-            .map(|done| done.account.id.as_str().to_owned())
-        });
-        return account.is_some_and(|account| {
-            with_book(state, |book| {
-                book.places.get_mut(id).is_some_and(|place| {
-                    let new = place.account_id.as_deref() != Some(account.as_str());
-                    place.account_id = Some(account);
-                    new
-                })
-            })
-            .unwrap_or(false)
-        });
-    }
-    false
 }
 
 /// Forgets `id` (it's remembered again the next time it runs).

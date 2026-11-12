@@ -483,7 +483,7 @@ mod tests {
         ];
         let pid_dirs = BTreeMap::from([
             (14, PathBuf::from(format!("{profiles}/work-a"))),
-            (15, PathBuf::from(format!("{profiles}/personal-max/"))),
+            (15, PathBuf::from(format!("{profiles}/acme-max/"))),
         ]);
         with_folders(&mut processes, &shapes(), &pid_dirs);
         let map = classify(&processes, &shapes(), home);
@@ -492,7 +492,7 @@ mod tests {
             ["desktop"]
         );
         assert_eq!(
-            in_use_for(&map, &format!("{profiles}/personal-max"), home),
+            in_use_for(&map, &format!("{profiles}/acme-max"), home),
             ["desktop"]
         );
         assert!(

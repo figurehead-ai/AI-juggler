@@ -1,4 +1,4 @@
-<!-- captures: 677108992172 -->
+<!-- captures: d2eae6531c7e -->
 # 77-menus: every row menu, the palette's action list and a submenu
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design passes.
@@ -16,3 +16,7 @@ The menus share one pattern: a small header naming the object, icon rows grouped
 ## 0.4.1 (E21, 2026-11-07): re-shot
 
 What changed, each looked at: every menu reads "Continue in another app…" (was "Continue on another account…", a6756c0e1); a project's menu, from the Projects screen and the rail alike, is the one shared list (Open its page, Open in Finder, New session here, Copy path, Rename…, Pin to top, Change its mark…, Set its app…, Compare rules and servers…, Forget…, 5485a076c). The header's ‹ › and the rail's App headers are other 0.4.1 work.
+
+## 0.4.2 (2026-11-12): the fixture renamed
+
+Only the captures that showed the old fixture folder name were re-shot: the copy, its menu header and its row now read "acme-max". Nothing else on these screens moved; the critique above stands.

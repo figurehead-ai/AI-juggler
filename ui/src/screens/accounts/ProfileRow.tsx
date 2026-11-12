@@ -10,6 +10,7 @@ import { AppIcon } from "../../components/AppIcon";
 import type { AppRef } from "../../lib/app-of";
 import { useState, type JSX } from "react";
 import { CliAppMark } from "../../components/PlaceMarks";
+import { AppKindBadge } from "../../components/AppKindBadge";
 import { ToolMark } from "../../components/ToolMark";
 import { Button, Chip } from "../../components/primitives";
 import { useItemMenu } from "../../components/ItemMenu";
@@ -80,8 +81,10 @@ export function ProfileRow(props: ProfileRowProps): JSX.Element {
       <div className="group flex flex-wrap items-center gap-3 px-5 py-3" {...menu.triggerProps}>
         {/* D-62 (AJ-E3206 req. 2): one mark per App, as everywhere: its
             app's icon with its profile's dot, never initials. */}
-        <span className="inline-flex shrink-0" data-testid="profile-app-mark">
+        <span className="inline-flex shrink-0 items-center gap-1" data-testid="profile-app-mark">
           <CliAppMark tool={account.provider} folderId={account.id} folder={account.label} size={24} ring="var(--color-surface)" />
+          {/* D-100: a CLI App, beside its icon. */}
+          <AppKindBadge kind="cli" />
         </span>
         <div className="flex min-w-0 flex-1 flex-col">
           <span className="flex min-w-0 items-center gap-2">

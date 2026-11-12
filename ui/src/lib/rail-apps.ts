@@ -13,16 +13,22 @@
  * Pure, so the grouping and order are unit-tested.
  */
 import type { KnownPlaceInfo } from "./ipc/places";
-import { appName, cliAppKey, desktopAppKey, desktopAppWord, desktopProfile } from "./app-name";
-import { toolSpec, tools } from "./tools";
+import type { AppModel } from "./apps";
+import type { PlaceOfferInfo } from "../types/generated/PlaceOfferInfo";
+import { appName, cliAppKey, cliAppWord, desktopAppKey, desktopAppWord, desktopProfile } from "./app-name";
+import { tools } from "./tools";
 import { openNow, type RailItem } from "./rail-items";
+import type { RailGroup } from "./rail-places";
+
+/** D-100: what Inactive apps needs of a CLI App of the Apps list. */
+export type CliAppFacts = Pick<AppModel, "railKey" | "name" | "app" | "profile" | "appId" | "tool"> & { folder: { id: string } | null };
 
 /** One app with nothing open. */
 export interface IdleApp {
   /** The App's key, as the rail's groups key it. */
   key: string;
   kind: "desktop" | "cli";
-  /** "Claude app · b-luka", "Claude Code · Work Max". */
+  /** "Claude app · b-east", "Claude Code · Work Max". */
   name: string;
   /** Its app ("Claude app", "Claude Code") and profile or folder, as a
    * place's header shows them. */
@@ -93,37 +99,48 @@ export function appOfConversation(byConversation: ReadonlyMap<string, string>, f
  * guessed, and the backend (`places::app_of`) counted elsewhere. */
 export function appByFolder(known: readonly KnownPlaceInfo[]): Map<string, string> {
   const out = new Map<string, string>();
-  const linked = new Map<string, string[]>();
+  const linked = new Map<string, KnownPlaceInfo[]>();
   for (const place of known) {
     out.set(`@${place.id}`, knownKey(place));
     if (place.account_id === null) continue;
-    linked.set(place.account_id, [...(linked.get(place.account_id) ?? []), knownKey(place)]);
+    linked.set(place.account_id, [...(linked.get(place.account_id) ?? []), place]);
   }
   // 0.4.1: a folder only one desktop profile runs on (`|<folder>`): its
   // sessions are that profile's, closed or not (a closed Claude app
   // profile's Code sessions fell to the folder's CLI App, with no Open).
-  for (const [folder, keys] of linked) if (new Set(keys).size === 1) out.set(`|${folder}`, keys[0]!);
+  // ADR-0032: shared, the one that's its app's default instance, when one
+  // is (the backend's `sole_holders`).
+  for (const [folder, places] of linked) {
+    const keys = [...new Set(places.map(knownKey))];
+    const defaults = [...new Set(places.filter((place) => place.instance === null).map(knownKey))];
+    const one = keys.length === 1 ? keys[0] : defaults.length === 1 ? defaults[0] : undefined;
+    if (one) out.set(`|${folder}`, one);
+  }
   return out;
 }
 
 /** The App an item belongs to, in the backend's order (`places::app_of`,
  * `fixtures/session-apps.json`): an open one where it's open; AI
  * Juggler's desktop session, the profile it was launched in; another
- * app's, the profile whose records hold it; unless it ran in a terminal,
- * the one profile on its folder; else its folder's CLI App. */
+ * app's, the profile whose records hold it; one its tool says a desktop
+ * app started, the one profile on its folder; else its folder's CLI App.
+ * ADR-0032: a conversation the backend gave an App (`app`) is that App's,
+ * first and always. */
 export function appKeyOf(item: RailItem, byConversation: ReadonlyMap<string, string>, byFolder: ReadonlyMap<string, string> = new Map()): string {
   const conversation = item.conversation;
+  // ADR-0032 (D-100): the backend says whose it is (its process while it's
+  // open, where it was last seen when it isn't); nothing here guesses.
+  const owner = conversation?.app;
+  if (conversation && owner) {
+    if (owner.startsWith("app:")) return byFolder.get(`@${owner}`) ?? item.place.key;
+    return item.place.key.startsWith("cli|") ? item.place.key : cliAppKey(conversation.tool, conversation.account_id, conversation.account_label);
+  }
   if (conversation && !openNow(item)) {
     const desktop = appOfConversation(byConversation, conversation.account_id, `${conversation.tool}/${conversation.id}`);
     if (desktop) return desktop;
     // Its tool says a desktop app started it: not a terminal's.
     const started = conversation.started_in ? byFolder.get(`|${conversation.account_id}`) : undefined;
     if (started) return started;
-  }
-  // Open, but not seen in a terminal: the one profile on its folder.
-  if (conversation && openNow(item) && item.place.key.startsWith("cli|") && item.place.kind !== "terminal") {
-    const alone = byFolder.get(`|${conversation.account_id}`);
-    if (alone) return alone;
   }
   // A desktop session AI Juggler started: the profile it was launched in,
   // else the one profile on its folder, else its folder's CLI App.
@@ -157,10 +174,15 @@ export function idleApps({
   openKeys,
   known,
   idle,
+  cliApps = [],
 }: {
   openKeys: ReadonlySet<string>;
   known: readonly KnownPlaceInfo[];
   idle: ReadonlyMap<string, RailItem[]>;
+  /** D-100: the Apps list's CLI Apps, so Inactive apps is the same set as
+   * Accounts' Apps that aren't running (one whose sessions the window
+   * hasn't read, older ones, too). */
+  cliApps?: readonly CliAppFacts[];
 }): IdleApp[] {
   const out: IdleApp[] = [];
   const desktop = new Set<string>();
@@ -193,7 +215,7 @@ export function idleApps({
     const first = sessions[0];
     if (!first || openKeys.has(key) || desktop.has(key) || !key.startsWith("cli|")) continue;
     const tool = first.conversation?.tool ?? first.session?.provider ?? null;
-    const app = tool ? toolSpec(tool).display_name : first.place.app;
+    const app = tool ? cliAppWord(tool) : first.place.app;
     out.push({
       key,
       kind: "cli",
@@ -210,6 +232,10 @@ export function idleApps({
       sessions,
     });
   }
+  for (const app of cliApps) {
+    if (openKeys.has(app.railKey) || out.some((one) => one.key === app.railKey)) continue;
+    out.push({ key: app.railKey, kind: "cli", name: app.name, app: app.app, profile: app.profile, appId: app.appId, lastMs: 0, appPid: null, placeId: null, cannotStart: null, accountId: app.folder?.id ?? null, tool: app.tool, sessions: [] });
+  }
   return out.sort((a, b) => b.lastMs - a.lastMs || a.name.localeCompare(b.name));
 }
 
@@ -223,4 +249,47 @@ export const IDLE_APPS_SHOWN = 6;
 export function recentWords(count: number): string {
   const shown = Math.min(count, RECENT_INLINE);
   return shown === 1 ? "Last inactive" : `Last ${shown} inactive`;
+}
+
+/** ADR-0032 (D-100): the groups of the Apps that run with nothing open in
+ * them (none of `have`), each its header alone, so Open now is exactly
+ * the Apps that run; an App kept off the rail (`off`) isn't one. */
+export function runningGroups(known: readonly KnownPlaceInfo[], have: ReadonlySet<string>, off: (key: string) => boolean): RailGroup[] {
+  const out: RailGroup[] = [];
+  for (const place of known) {
+    const key = knownKey(place);
+    if (place.app_pid === null || have.has(key) || off(key) || out.some((group) => group.key === key)) continue;
+    const app = knownAppWord(place);
+    out.push({ key, label: app, place: { key, app, appId: place.app_id, kind: "desktop", profile: desktopProfile(place.instance, place.profile), appPid: place.app_pid, host: null }, accountId: null, poolId: null, items: [] });
+  }
+  return out;
+}
+
+/** ADR-0032 Amendment 1 (D-84, D-100): the rail's "Running, not added"
+ * section, between Open now and Inactive apps: its head, then one line
+ * per app an adapter recognises running that the user hasn't added. */
+export type OfferLine = { kind: "section"; id: "offered"; count: number } | { kind: "offer"; offer: PlaceOfferInfo };
+
+/** An offer's App id (`app:<app>:<folder>`, `cli:<folder>`) as the App
+ * the user has would carry it: a desktop App's id, a CLI App's
+ * `cli:<folder>` from its rail key (`cli|<tool>|<folder>`). */
+function idOfRailKey(key: string): string | null {
+  const [kind, , folder] = key.split("|");
+  return kind === "cli" && folder ? `cli:${folder}` : null;
+}
+
+/** "Running, not added": each running offer once, by its id, unless the
+ * user has it already (a known App's id, or a CLI App in Open now or
+ * Inactive apps by its folder): an App is in exactly one of Open now,
+ * Running not added and Inactive apps. None, no section. */
+export function offeredLines(offers: readonly PlaceOfferInfo[], known: readonly KnownPlaceInfo[], shownKeys: Iterable<string>): OfferLine[] {
+  const taken = new Set<string>(known.map((place) => place.id));
+  for (const key of shownKeys) {
+    const id = idOfRailKey(key);
+    if (id) taken.add(id);
+  }
+  const seen = new Set<string>();
+  const running = offers.filter((offer) => offer.running && !taken.has(offer.id) && !seen.has(offer.id) && Boolean(seen.add(offer.id)));
+  if (running.length === 0) return [];
+  return [{ kind: "section", id: "offered", count: running.length }, ...running.map((offer) => ({ kind: "offer" as const, offer }))];
 }

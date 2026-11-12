@@ -64,6 +64,7 @@ function useDebounced(value: string, ms: number): string {
 }
 
 export function ProcessesView({
+  view: landed,
   sessionId = null,
   sessionIds,
   onOpenSession,
@@ -73,6 +74,8 @@ export function ProcessesView({
   height,
   testId = "processes-view",
 }: {
+  /** 0.4.2: the view a link named; else the one last chosen. */
+  view?: ViewId;
   /** Only this session (a session's Processes tab). */
   sessionId?: string | null;
   /** D-62: only these sessions (an App's Processes tab, its open ones). */
@@ -86,7 +89,7 @@ export function ProcessesView({
 }): JSX.Element {
   const embedded = sessionId !== null || sessionIds !== undefined;
   const scope = sessionIds?.join("\n") ?? "";
-  const [view, setView] = useState<ViewId>(() => (embedded ? "running" : savedView()));
+  const [view, setView] = useState<ViewId>(() => (embedded ? "running" : (landed ?? savedView())));
   const [search, setSearch] = useState("");
   /** An alert's "Show it": the process to focus once its row shows. */
   const [finding, setFinding] = useState<number | null>(null);

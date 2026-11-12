@@ -48,7 +48,7 @@ The credits work reads well in its new home. In switch-credits the list sits in 
 
 ## 0.3.4
 
-One new capture, switch-setup (dark, light), from the maintainer's report. personal-max read "Ready: same tools set up", then the switch refused it ("hasn't been set up"). Codex was also suggested over a Claude account with room. The family's other captures weren't re-taken.
+One new capture, switch-setup (dark, light), from the maintainer's report. acme-max read "Ready: same tools set up", then the switch refused it ("hasn't been set up"). Codex was also suggested over a Claude account with room. The family's other captures weren't re-taken.
 
 **switch-setup.** The same "Continue on another account · Now on Work Max" dialog. Lab (70% left, the session's own tool) is first, with the violet Suggested outline. Codex has 100% left but is second, with its amber Beta badge and "Doesn't carry: Subagents' work". Personal is last and held back. Its card keeps the "Continues exactly · Proven" badge, then the reason in three plain lines: the terminal Claude Code's first-run setup isn't done there, sessions in the Claude app don't do it (the maintainer's case: accounts used every day through the Claude app), and what to do. Under the card, "Start a session on Personal ›" in the link colour opens New session already on that account. The card is greyed only by its muted name, never red: nothing is wrong with the account, it needs one step. Axe is clean in both themes.
 

@@ -93,14 +93,14 @@ describe("a switch request goes to the session it names, never the page on scree
     vi.useFakeTimers();
     const shown = vi.fn();
     const picked = vi.fn();
-    const { rerender } = render(<List took={shown} id="conversation:olivia:coordinator" />);
-    focusHandoverSoon("conversation:olivia:manuscript");
+    const { rerender } = render(<List took={shown} id="conversation:north:coordinator" />);
+    focusHandoverSoon("conversation:north:manuscript");
     await act(async () => {
       vi.runAllTimers();
     });
     expect(shown).not.toHaveBeenCalled();
     // The picked conversation's page mounts a moment later and takes it.
-    rerender(<List took={picked} id="conversation:olivia:manuscript" />);
+    rerender(<List took={picked} id="conversation:north:manuscript" />);
     await act(async () => {
       vi.runAllTimers();
     });

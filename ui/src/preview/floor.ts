@@ -58,7 +58,7 @@ export function previewFloor(): FloorSnapshot {
       { id: "acct:home", label: "Home", left_pct: 0, resets_ms: NOW + 80 * MIN, last_used_ms: NOW - 6 * MIN, out: true },
     ],
     pools: [{ id: "pool-default:shop", name: "shop", sealed: false, sessions: ["s:p1", "s:p2"] }],
-    machine: { load: 0.42, alert_since_ms: null, alert: null, room: "Plenty of room" },
+    machine: { load: 0.42, alert_since_ms: null, alert: null, room: "Plenty of room", alert_kind: null, alert_critical: false },
     notices: 3,
     needs: 4,
   };

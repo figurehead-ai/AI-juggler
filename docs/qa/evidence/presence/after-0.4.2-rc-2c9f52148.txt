@@ -1,0 +1,6 @@
+presence-check (ADR-0032)
+running desktop apps (ps): 7
+your running Apps: 7
+Open now shows: 7
+Inactive apps shows: 4
+PASS Open now is exactly your running Apps; none is in two sections

@@ -14,7 +14,7 @@ import { processesCounts, processesSnapshot, onProcessesChanged, type ProcessCou
 import { RemoteCleanup } from "../../components/RemoteCleanup";
 import { RulesPanel } from "./RulesPanel";
 import { ProcessesView } from "./ProcessesView";
-import type { Choice } from "./Toolbar";
+import type { Choice, ViewId } from "./Toolbar";
 
 function Tally({ value, label, tone, testId }: { value: number; label: string; tone: "warning" | "danger" | "neutral"; testId: string }): JSX.Element {
   const color = value === 0 ? "text-muted" : tone === "danger" ? "text-danger" : tone === "warning" ? "text-warning" : "text-ink";
@@ -42,11 +42,14 @@ export function useProcessCounts(): ProcessCountsInfo | null {
 }
 
 export function ProcessesScreen({
+  view,
   onOpenSession,
   onOpenConversation,
   accounts,
   projects,
 }: {
+  /** 0.4.2: the view a link named ("to clean up": Needs attention). */
+  view?: ViewId;
   onOpenSession?: (id: string) => void;
   onOpenConversation?: (accountId: string, id: string) => void;
   accounts?: Choice[];
@@ -87,7 +90,7 @@ export function ProcessesScreen({
         <Tally value={counts?.zombies ?? 0} label="waiting for their parent" tone="neutral" testId="tally-zombies" />
         <Tally value={counts?.processes ?? 0} label={`running in ${counts?.sessions ?? 0} sessions`} tone="neutral" testId="tally-running" />
       </div>
-      <ProcessesView onOpenSession={onOpenSession} onOpenConversation={onOpenConversation} accounts={accounts} projects={projects} />
+      <ProcessesView view={view} onOpenSession={onOpenSession} onOpenConversation={onOpenConversation} accounts={accounts} projects={projects} />
       <RulesPanel />
       {/* AJ-E707: what a paired Mac left behind, cleaned there (shows only
           with a paired Mac). */}

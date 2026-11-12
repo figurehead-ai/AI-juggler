@@ -66,7 +66,7 @@ pub fn finish_first_run(state: &Arc<AppState>, target: &Account) -> AppResult<bo
 
 /// 0.3.4: what would stop a launch on `target` (its tool's own check),
 /// for the switch's target list, so a target a switch would refuse is
-/// never offered as ready (the maintainer's walk: personal-max read
+/// never offered as ready (the maintainer's walk: acme-max read
 /// "Ready", then the switch said it wasn't set up). Read-only.
 #[must_use]
 pub fn launch_blocker(state: &Arc<AppState>, target: &Account) -> Option<NotReady> {

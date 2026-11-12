@@ -237,7 +237,7 @@ describe("AJ-E2502 R3 — the bell", () => {
     expect(screen.queryByTestId("bell-count")).toBeNull();
     cleanup();
     resetNotices();
-    setSeam("__AIJ_NOTICES__", { app: [quota({ id: 1 }), quota({ id: 2, title: "Mia is almost out of room", target: { ...target, account_id: "acct-mia" } })], earlier: [notice({ id: 3, unread: true })] });
+    setSeam("__AIJ_NOTICES__", { app: [quota({ id: 1 }), quota({ id: 2, title: "West is almost out of room", target: { ...target, account_id: "acct-west" } })], earlier: [notice({ id: 3, unread: true })] });
     resetNoticeStandIn();
     render(<NotificationBell sessions={[]} />);
     expect((await screen.findByTestId("bell-count")).textContent).toBe("2");

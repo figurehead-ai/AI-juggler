@@ -209,6 +209,12 @@ elif [ "$MODE" = light ]; then
     TESTS="$(echo "$touched" | tr '\n' ',' | sed 's/,$//')"
     packages=()
     for name in "$@"; do packages+=(-p "$name"); done
+    # juggler-app's tests run juggler-adapters' fake harnesses (binaries),
+    # which cargo builds only when that package is tested itself: with
+    # juggler-app alone changed, 190 of its tests found no fake-harness.
+    case " $* " in
+      *" juggler-app "*) step "test helpers (the fake harnesses)" cargo build -q -p juggler-adapters --bins ;;
+    esac
     step "tests (the $# changed packages)" cargo nextest run --no-fail-fast "${packages[@]}"
     step "no fixture or app left running" ./scripts/leaked_fixtures.sh
   fi

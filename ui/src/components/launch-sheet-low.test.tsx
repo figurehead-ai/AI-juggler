@@ -1,7 +1,7 @@
 /**
  * D-97 (amends D-31), in the New session sheet: the usual App, guessed
  * from history, on a Low Account gives way to the App with room and the
- * sentence says why in the Low mark's words ("— Claude Code · Work Max is
+ * sentence says why in the Low mark's words ("— Claude Code CLI · Work Max is
  * almost out (5% left)", "about" for an estimate); an App the user picked
  * and a project's "Always use" stand, warned, the other offered; with no
  * other App that has room, the usual one stays, warned. The pure rule's
@@ -72,7 +72,7 @@ describe("a Low usual App gives way (D-97)", () => {
   it("the App used here, almost out: room picks Side and the sentence says why, as the Low mark does", async () => {
     seam({ __AIJ_QUOTA_DISPLAY__: [display("claude-work", 5), display("claude-side", 80)] });
     const { launchSpy } = mountSheet();
-    await waitFor(() => expect(sentence()).toBe("Start in api on Claude Code · Side — Claude Code · Work Max is almost out (5% left)"));
+    await waitFor(() => expect(sentence()).toBe("Start in api on Claude Code CLI · Side — Claude Code CLI · Work Max is almost out (5% left)"));
     expect(screen.queryByTestId("launch-low")).toBeNull();
     fireEvent.keyDown(window, { key: "Enter", metaKey: true });
     await waitFor(() => expect(launchSpy).toHaveBeenCalledWith("p-3", "/Users/dev/api", undefined));
@@ -81,7 +81,7 @@ describe("a Low usual App gives way (D-97)", () => {
   it("an estimated Low says about", async () => {
     seam({ __AIJ_QUOTA_DISPLAY__: [display("claude-work", 5, "estimated"), display("claude-side", 80)] });
     mountSheet();
-    await waitFor(() => expect(sentence()).toBe("Start in api on Claude Code · Side — Claude Code · Work Max is almost out (about 5% left)"));
+    await waitFor(() => expect(sentence()).toBe("Start in api on Claude Code CLI · Side — Claude Code CLI · Work Max is almost out (about 5% left)"));
   });
 
   it("the user's pick on a Low Account stands, warned, the App with room offered", async () => {
@@ -89,8 +89,8 @@ describe("a Low usual App gives way (D-97)", () => {
     const { launchSpy } = mountSheet({ account: "claude-work" });
     const note = await screen.findByTestId("launch-low");
     expect(note.textContent).toContain("has only 5% left");
-    expect(sentence()).toBe("Start in api on Claude Code · Work Max");
-    expect(screen.getByTestId("launch-use-roomier").textContent).toBe("Use Claude Code · Side (80% left)");
+    expect(sentence()).toBe("Start in api on Claude Code CLI · Work Max");
+    expect(screen.getByTestId("launch-use-roomier").textContent).toBe("Use Claude Code CLI · Side (80% left)");
     fireEvent.keyDown(window, { key: "Enter", metaKey: true });
     await waitFor(() => expect(launchSpy).toHaveBeenCalledWith("p-1", "/Users/dev/api", undefined));
   });
@@ -99,7 +99,7 @@ describe("a Low usual App gives way (D-97)", () => {
     seam({ __AIJ_QUOTA_DISPLAY__: [display("claude-work", 5), display("claude-side", 80)] });
     mountSheet({ projects: withDefault("claude-work") });
     expect(await screen.findByTestId("launch-low")).toBeTruthy();
-    expect(sentence()).toBe("Start in api on Claude Code · Work Max — your default here");
+    expect(sentence()).toBe("Start in api on Claude Code CLI · Work Max — your default here");
     expect(screen.getByTestId("launch-use-roomier")).toBeTruthy();
   });
 
@@ -107,15 +107,15 @@ describe("a Low usual App gives way (D-97)", () => {
     seam({ __AIJ_QUOTA_DISPLAY__: [display("claude-work", 15), display("claude-side", 80)] });
     mountSheet();
     expect(await screen.findByTestId("launch-low")).toBeTruthy();
-    expect(sentence()).toBe("Start in api on Claude Code · Work Max — used here before");
-    expect(screen.getByTestId("launch-use-roomier").textContent).toBe("Use Claude Code · Side (80% left)");
+    expect(sentence()).toBe("Start in api on Claude Code CLI · Work Max — used here before");
+    expect(screen.getByTestId("launch-use-roomier").textContent).toBe("Use Claude Code CLI · Side (80% left)");
   });
 
   it("with no other App that has room, the usual one stays and is warned", async () => {
     seam({ __AIJ_QUOTA_DISPLAY__: [display("claude-work", 5), display("claude-side", 3)] });
     mountSheet();
     expect(await screen.findByTestId("launch-low")).toBeTruthy();
-    expect(sentence()).toBe("Start in api on Claude Code · Work Max — used here before");
+    expect(sentence()).toBe("Start in api on Claude Code CLI · Work Max — used here before");
   });
 
 });

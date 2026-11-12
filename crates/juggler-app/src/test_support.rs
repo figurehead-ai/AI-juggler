@@ -101,5 +101,6 @@ pub(crate) fn claude_app_host(bundle_id: Option<&str>) -> juggler_adapter::live:
         handoff_link: None,
         handoff_record: None,
         session_link: None,
+        default_folder: None,
     }
 }

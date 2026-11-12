@@ -55,7 +55,7 @@ let rows: AccountInfo[];
 beforeEach(() => {
   rows = [
     account("acc-own", "Mine", { in_place: true, import_source_path: "/Users/you/.claude" }),
-    account("acc-copy", "personal-max", { import_source_path: "/Users/you/ClaudeCodeProfiles/max" }),
+    account("acc-copy", "acme-max", { import_source_path: "/Users/you/ClaudeCodeProfiles/max" }),
   ];
   vi.spyOn(bridge, "accountsList").mockImplementation(async () => rows.map((row) => ({ ...row })));
   vi.spyOn(bridgeLaunch, "launchRecipesList").mockResolvedValue([]);
@@ -108,7 +108,7 @@ describe("AJ-E1501 the account card's menu", () => {
     const view = mount();
     fireEvent.click((await openMenu(view, 1)).querySelector("[data-testid='action-rename']")!);
     const input = view.getByTestId("rename-account-label") as HTMLInputElement;
-    expect(input.value).toBe("personal-max");
+    expect(input.value).toBe("acme-max");
 
     fireEvent.change(input, { target: { value: "mine" } });
     fireEvent.click(view.getByTestId("rename-account-save"));
@@ -120,7 +120,7 @@ describe("AJ-E1501 the account card's menu", () => {
     await waitFor(() => expect(view.queryByTestId("rename-account")).toBeNull());
     expect(rename).toHaveBeenLastCalledWith("acc-copy", "Max (personal)", "Max");
     await waitFor(() =>
-      expect([...view.container.querySelectorAll("[data-testid='account-label']")].map((n) => n.textContent)).toEqual(["Claude Code · Mine", "Claude Code · Max (personal)"]),
+      expect([...view.container.querySelectorAll("[data-testid='account-label']")].map((n) => n.textContent)).toEqual(["Claude Code CLI · Mine", "Claude Code CLI · Max (personal)"]),
     );
     expect(view.getByTestId("accounts-notice").textContent).toBe("Renamed to Max (personal).");
     expect(view.onAccountsChanged).toHaveBeenCalled();
@@ -135,7 +135,7 @@ describe("AJ-E1501 the account card's menu", () => {
     fireEvent.click((await openMenu(view, 0)).querySelector("[data-testid='action-default']")!);
     await waitFor(() => expect(view.getByTestId("account-default")).toBeTruthy());
     expect(setDefault).toHaveBeenCalledWith("acc-own");
-    expect(view.getByTestId("accounts-notice").textContent).toContain("New sessions start with Claude Code · Mine");
+    expect(view.getByTestId("accounts-notice").textContent).toContain("New sessions start with Claude Code CLI · Mine");
     const menu = await openMenu(view, 0);
     expect(menu.querySelector("[data-testid='action-default']")!.textContent).toBe("Stop being the default");
   });
@@ -154,11 +154,11 @@ describe("AJ-E1501 the remove sheet", () => {
     expect(view.queryByTestId("remove-folder-trash")).toBeNull();
     fireEvent.click(view.getByTestId("remove-account-confirm"));
     await waitFor(() => expect(remove).toHaveBeenCalledWith("acc-own", "keep"));
-    await waitFor(() => expect(view.getByTestId("accounts-notice").textContent).toBe("Removed Claude Code · Mine. Your folder wasn't touched."));
+    await waitFor(() => expect(view.getByTestId("accounts-notice").textContent).toBe("Removed Claude Code CLI · Mine. Your folder wasn't touched."));
   });
 
   it("a copy: keep its folder by default, or move it to the Trash when chosen", async () => {
-    const remove = vi.spyOn(bridge, "accountRemove").mockResolvedValue({ id: "acc-copy", label: "personal-max", folder: "trashed" });
+    const remove = vi.spyOn(bridge, "accountRemove").mockResolvedValue({ id: "acc-copy", label: "acme-max", folder: "trashed" });
     const view = mount();
     fireEvent.click((await openMenu(view, 1)).querySelector("[data-testid='action-remove']")!);
     expect(view.getByTestId("remove-account").dataset.kind).toBe("copy");
@@ -166,7 +166,7 @@ describe("AJ-E1501 the remove sheet", () => {
     fireEvent.click(view.getByTestId("remove-folder-trash"));
     fireEvent.click(view.getByTestId("remove-account-confirm"));
     await waitFor(() => expect(remove).toHaveBeenCalledWith("acc-copy", "trash"));
-    await waitFor(() => expect(view.getByTestId("accounts-notice").textContent).toBe("Removed Claude Code · personal-max. Its folder is in the Trash."));
+    await waitFor(() => expect(view.getByTestId("accounts-notice").textContent).toBe("Removed Claude Code CLI · acme-max. Its folder is in the Trash."));
   });
 
   it("open sessions keep the account: they are named and there is no Remove button", async () => {

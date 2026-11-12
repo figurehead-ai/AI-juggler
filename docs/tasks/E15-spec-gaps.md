@@ -29,7 +29,7 @@
 
 ### AJ-E1501 Manage accounts: rename, remove, set default | Status: DONE-EVIDENCED | Priority P0 | Effort M | Depends: AJ-E1024
 **Goal**: An account can be renamed, removed, and made the default, without leaving AI Juggler.
-**User story**: As a user who brought in five setups, I tidy them up: rename "personal-max" to "Max (personal)", remove the one I no longer use, and pick which account new sessions start with.
+**User story**: As a user who brought in five setups, I tidy them up: rename "acme-max" to "Max (personal)", remove the one I no longer use, and pick which account new sessions start with.
 **Requirements**:
 1. Rename SHALL change the account's label (and the plan, when the user gives one) everywhere it shows, with no restart. Duplicate labels are refused in words.
 2. Remove SHALL forget an account used where it is and never touch its folder. For a copy, it asks: keep the copy's folder, or move it to the Trash.

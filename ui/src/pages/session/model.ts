@@ -50,6 +50,9 @@ export type SessionModel = {
   startedIn?: string | null;
   /** rc22 (A3): the desktop App AI Juggler launched it in, stored at launch. */
   appId?: string | null;
+  /** ADR-0032 (D-100): the App the backend says it belongs to (a
+   * conversation's `app`): its chip names that one, nothing else does. */
+  owner?: string | null;
   /** rc30: why it ended, when its ending says ("AI Juggler quit while it
    * ran", "exit code 1"): beside its state chip. */
   endedWhy?: string | null;
@@ -82,6 +85,7 @@ function asReported(c: ConversationInfo): SessionModel {
     conversationId: c.id,
     sessionId: c.session_id,
     startedIn: c.started_in,
+    owner: c.app ?? null,
     switchSource: switchSourceOf(c),
     live: c.live,
     state: {

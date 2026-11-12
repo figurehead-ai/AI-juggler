@@ -12,4 +12,9 @@ id: string,
 /**
  * `Claude app · aij-test`.
  */
-label: string, };
+label: string, 
+/**
+ * ADR-0032 (D-100): it runs now (the process table says): the rail's
+ * "Running, not added", with Add.
+ */
+running: boolean, };

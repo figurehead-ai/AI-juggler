@@ -343,7 +343,7 @@ for (const theme of ["dark", "light"] as const) {
   });
 }
 
-// 0.3.4, the maintainer's report: personal-max read "Ready", then the
+// 0.3.4, the maintainer's report: acme-max read "Ready", then the
 // switch said it wasn't set up; and Codex was suggested over a Claude
 // account with room. Now: the same tool first while one has room; a
 // target the switch would refuse is held back, saying why, with a way to
