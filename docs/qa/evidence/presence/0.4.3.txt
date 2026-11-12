@@ -1,17 +1,18 @@
 presence-check (ADR-0032)
-running desktop apps (ps): 7 (desktop)
-your running Apps: 7
-Open now shows: 7 desktop App(s), counted 7
-Inactive apps shows: 3 named on screen
-  open: App 13: fold=True rows=5 pinned=1 last=2 all=None count=None out=False  records=27/7 shown
-  open: App 7: fold=True rows=3 pinned=0 last=3 all=None count=None out=False  records=19/15 shown
-  open: App 10: fold=True rows=1 pinned=1 last=None all=None count=None out=True  records=1/1 shown
-  open: App 11: fold=True rows=1 pinned=0 last=None all=None count=None out=True  records=1/1 shown
-  open: App 12: fold=True rows=1 pinned=0 last=None all=None count=None out=True  records=1/1 shown
-  open: App 14: fold=True rows=2 pinned=0 last=2 all=None count=None out=False  records=4/4 shown
-  open: App 16: fold=True rows=3 pinned=0 last=None all=15 count=None out=False
-  idle: App 15: fold=folded rows=0 pinned=0 last=None all=None count=92 out=False
-  idle: App 9: fold=False rows=0 pinned=0 last=None all=None count=None out=False
+running desktop apps (ps): 6 (desktop)
+your running Apps: 6
+Open now shows: 6 desktop App(s), counted 6
+Inactive apps shows: 4 named on screen
+  open: App 12: fold=True rows=5 pinned=1 last=None all=None count=None out=False  records=27/7 shown
+  open: App 7: fold=True rows=3 pinned=0 last=None all=None count=None out=False  records=19/15 shown
+  open: App 9: fold=True rows=1 pinned=1 last=None all=None count=None out=True  records=1/1 shown
+  open: App 10: fold=True rows=1 pinned=0 last=None all=None count=None out=True  records=1/1 shown
+  open: App 13: fold=True rows=2 pinned=0 last=None all=None count=None out=False  records=4/4 shown
+  open: App 15: fold=True rows=3 pinned=0 last=None all=15 count=None out=False
+  idle: App 11: fold=folded rows=0 pinned=0 last=None all=None count=1 out=True  records=1/1 shown
+  idle: App 14: fold=folded rows=0 pinned=0 last=None all=None count=33 out=False
+  idle: App 8: fold=False rows=0 pinned=0 last=None all=None count=None out=False
   idle: App 6: fold=False rows=0 pinned=0 last=None all=None count=1 out=False  records=1/1 shown
-(Recorded 2026-11-12 on the 0.4.3 Dev build, release mode, built from b39637cf5, by pid, on an act-free copy of the installed data (scripts/qa/act_free_copy.sh) seeded with the installed app's saved conversation list, so the reader-version invalidation is part of the run: the CLI Apps that list kept from 0.4.2 left Inactive apps, and the Codex CLI counts what a fresh read counts. The lab terminal runs had been moved out of two profiles by the maintainer that day. Process ledger 0 -> 0; one child besides its own watcher, Claude Code's --version (tool detection). Needs you folded so Open now's Apps are drawn; every App in it unfolded.)
-PASS Open now is exactly your running Apps; none is in two sections; each unfolds to its own records; every Out Account marked; no lab run in a real profile
+  codex store: 15 by the App 15 + 33 others = 48 listed; rail: app=15 cli=33
+(Recorded 2026-11-12 on the 0.4.3 Dev build, release mode, built from 3f1d00222, by pid, on an act-free copy of the installed data (scripts/qa/act_free_copy.sh) seeded with the installed app's saved conversation list. D-102 holds: script runs are in no App, the Codex app and Codex CLI list the 48 threads Codex lists between them (15 + 33), the test profile is no longer linked to the default folder. One profile had been quit since the morning's runs: it is under Inactive apps with its record and its Out mark. Process ledger 0 -> 0; one child besides its own watcher, Claude Code's --version. Needs you folded so Open now's Apps are drawn; every App in it unfolded.)
+PASS Open now is exactly your running Apps; none is in two sections; each unfolds to its own records; every Out Account marked; no lab run in a real profile; Codex counts are the store's listed threads
