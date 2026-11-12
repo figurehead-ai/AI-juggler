@@ -46,30 +46,28 @@ if [ -z "$resolution" ]; then
   out="${HAPPO_OUT:-${TMPDIR:-/tmp}/happo-$head}"
   mkdir -p "$out"
   happo "$compare/results" -o "$out/results.json"
-  # Every image URL in the results, saved under its own name for review.
-  python3 - "$out/results.json" > "$out/urls.txt" <<'PY'
-import json, sys
-seen = set()
-def walk(value, path=""):
-    if isinstance(value, dict):
-        for k, v in value.items():
-            walk(v, f"{path}/{k}")
-    elif isinstance(value, list):
-        for i, v in enumerate(value):
-            walk(v, f"{path}/{i}")
-    elif isinstance(value, str) and value.startswith("https://") and (".png" in value or "image" in path.lower() or path.endswith("/url")):
-        if value not in seen:
-            seen.add(value)
-            print(value)
-print(f"{len(seen)} image(s)", file=sys.stderr)
+  # Each diff's before and after (a screenshot, or an accessibility
+  # tree), named by component, variant and target, for review. Happo gives
+  # them as paths on its own host.
+  python3 - "$out/results.json" "${api%/api}" > "$out/urls.txt" <<'PY'
+import json, re, sys
+results, host = json.load(open(sys.argv[1])), sys.argv[2]
+for n, pair in enumerate(results.get("diffs", []), 1):
+    for side, snap in zip(("before", "after"), pair):
+        url = snap.get("url") or ""
+        if url.startswith("/"):
+            url = host + url
+        name = re.sub(r"[^A-Za-z0-9._-]+", "-", f"{n:02d}-{snap.get('component')}-{snap.get('variant')}-{snap.get('target')}-{side}")
+        ext = ".json" if url.split("?")[0].endswith(".json") else ".png"
+        print(f"{name}{ext}\t{url}")
+print(f"{len(results.get('diffs', []))} diff(s), {len(results.get('unchanged', []))} unchanged", file=sys.stderr)
 PY
   n=0
-  while IFS= read -r url; do
+  while IFS=$'\t' read -r name url; do
     n=$((n + 1))
-    name="$(printf '%04d-%s' "$n" "$(basename "${url%%\?*}")")"
-    happo "$url" -o "$out/$name" || echo "happo-resolve: couldn't fetch image $n" >&2
+    happo "$url" -o "$out/$name" || echo "happo-resolve: couldn't fetch $name" >&2
   done < "$out/urls.txt"
-  echo "happo-resolve: $n image(s) and results.json in $out; look at every one, then run again with --resolve success|failure"
+  echo "happo-resolve: $n file(s) and results.json in $out; look at every one, then run again with --resolve success|failure"
   exit 0
 fi
 
