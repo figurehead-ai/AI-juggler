@@ -41,3 +41,4 @@ fixture with both).
 - `rail-header-264-long-nochips-dark.png`: "bookauth-personal-max", no marks: whole.
 - `rail-header-264-long-chips-dark.png`: the same with ⚠ 1 and Out: "book…al-max".
 - `rail-header-264-luka-chips-dark.png`: "bookauth-luka" with ⚠ 1 and Out: "book…th-luka".
+- `rail-header-264-olivia-chips-dark.png`: the longest real profile name, "bookauth-olivia", with ⚠ 1 and Out in the 264 px rail: "book…h-olivia"; "bookauth-luka" below it, whole. Open now lists only what's open (no "Last N inactive" under an open App, D-100).

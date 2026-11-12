@@ -74,7 +74,9 @@ export function sessionAppName(row: { kind: string; provider: string; account_la
 /** A session's App by its row, in its two parts ([`sessionAppName`]). */
 export function sessionAppWords(row: { kind: string; provider: string; account_label: string }): AppWords {
   const own = row.kind === "desktop" ? toolSpec(row.provider).desktop_app : null;
-  const app = own ? desktopAppWord(own, row.provider) : cliAppWord(row.provider);
+  // A desktop session is never a CLI App's, even for a tool with no desktop
+  // app of its own on record (the review: "fake-desktop CLI · Fake Desk").
+  const app = own ? desktopAppWord(own, row.provider) : row.kind === "desktop" ? toolSpec(row.provider).display_name : cliAppWord(row.provider);
   return { app, profile: row.account_label || null };
 }
 

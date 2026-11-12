@@ -42,6 +42,7 @@ export function PlaceHeader({
   children,
   keepAlive = null,
   onNew,
+  onRecent,
   onRestart,
   roomOf,
   onWarm,
@@ -73,6 +74,9 @@ export function PlaceHeader({
   keepAlive?: { on: boolean; toggle: () => void } | null;
   /** 0.3.4: a CLI app: New session on its folder. */
   onNew?: () => void;
+  /** D-100: its sessions that aren't open (its page's Sessions): Open now
+   * no longer lists them under it. */
+  onRecent?: () => void;
   /** D-71: a running desktop app: Restart…, after its confirm. */
   onRestart?: () => void;
 }): JSX.Element {
@@ -208,6 +212,11 @@ export function PlaceHeader({
           {onNew && (
             <MenuItem onClick={run(onNew)} testId="place-header-menu-new">
               New session
+            </MenuItem>
+          )}
+          {onRecent && (
+            <MenuItem onClick={run(onRecent)} testId="place-header-menu-recent">
+              Show recent
             </MenuItem>
           )}
           {onRestart && (

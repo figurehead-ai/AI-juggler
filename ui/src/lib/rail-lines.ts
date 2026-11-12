@@ -225,12 +225,10 @@ export function buildLines({ items, view, query, now, toggled, frozen, accountOf
   const grouped = groupItems(open, by, accountOf, poolOf); // ADR-0032: + every running App:
   if (apps && !filtering) grouped.push(...runningGroups(known, new Set(grouped.map((group) => group.key)), off));
   const groups = arrangeGroups(grouped, order.mode, order.groups);
-  const pastUnder = (key: string) => {
-    const sessions = idle.get(key) ?? [], last = past(key, sessions);
-    if (sessions.length === 0) return;
-    lines.push({ kind: "recent", app: key, count: sessions.length, open: last.open });
-    for (const { item, depth, parent } of last.rows) lines.push({ kind: "past", item, depth, parent, app: key });
-    rows += last.rows.length;
+  // D-100: Open now shows only what's open; an open App keeps just its
+  // pinned ended rows (its others: "Show recent", History, its page).
+  const pinnedUnder = (key: string) => {
+    for (const { item, depth, parent } of nestRows((idle.get(key) ?? []).filter((item) => item.pinned))) lines.push({ kind: "past", item, depth, parent: parent?.title ?? null, app: key });
   };
   const stable = order.mode !== "latest";
   const arranged = new Map<string, RailItem[]>();
@@ -267,7 +265,7 @@ export function buildLines({ items, view, query, now, toggled, frozen, accountOf
     // An App open with nothing in it: its header, saying so.
     if (folded || group.items.length === 0) {
       lines.push({ kind: "header", group, folded: quietWords(group), needs: needsHere, digit });
-      pastUnder(group.key);
+      pinnedUnder(group.key);
       return;
     }
     lines.push({ kind: "header", group, folded: null, needs: needsHere, digit });
@@ -278,7 +276,7 @@ export function buildLines({ items, view, query, now, toggled, frozen, accountOf
     for (const { item, depth, parent } of nestRows(drawn)) lines.push({ kind: "row", item, group, depth, parent: parent?.title ?? null });
     rows += drawn.length;
     if (fold.hidden > 0) lines.push({ kind: "more", group, quiet: fold.hidden, words: fold.words });
-    pastUnder(group.key);
+    pinnedUnder(group.key);
   });
   if (apps) {
     // While a search or filter is on, only the apps with something that
