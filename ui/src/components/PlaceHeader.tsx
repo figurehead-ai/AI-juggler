@@ -123,24 +123,25 @@ export function PlaceHeader({
               <AppKindBadge kind={appKindOfKey(place.key)} />
             </>
           ))}
-          {/* D-100 (the 0.4.2 review): the App's own name gives way last.
-              Its secondary words (its app's word, a folded App's summary)
-              sit beside it in one line that wraps away: each shows whole
-              or not at all (the kind mark beside the icon already says
-              Desktop or CLI), and only a name that alone doesn't fit is
-              cut, at its end, its full name on hover. */}
           {place?.profile && <ProfileBadge app={place.key} name={place.profile} size={6} />}
-          <span className="ml-0.5 flex h-[18px] min-w-0 flex-1 flex-wrap items-center gap-x-[3px] overflow-hidden" data-testid="place-name-line">
-            <span className="min-w-0 max-w-full truncate text-label font-semibold leading-[18px] text-ink" data-testid={place?.profile ? "place-profile" : undefined} title={name}>
-              {place?.profile ?? label}
-            </span>
+          {/* D-100 (the 0.4.2 review): the App's own name gives way last.
+              It takes its own width (cut, at its end, its full name on
+              hover, only when nothing else is left to give); its secondary
+              words (its app's word, a folded App's summary) take what's
+              left, each whole or wrapped out of sight (the kind mark
+              already says Desktop or CLI); the marks after it give way
+              first, to their icon. */}
+          <span className="ml-0.5 min-w-0 truncate text-label font-semibold leading-[18px] text-ink" data-testid={place?.profile ? "place-profile" : undefined} title={name}>
+            {place?.profile ?? label}
+          </span>
+          <span className="flex h-[18px] min-w-0 flex-1 basis-0 flex-wrap items-center gap-x-[3px] overflow-hidden" data-testid="place-name-line">
             {place?.profile && <span className="whitespace-nowrap text-label leading-[18px] text-muted" data-testid="place-app-word">{label}</span>}
             {folded !== null && needs === 0 && <span className="whitespace-nowrap text-label leading-[18px] text-muted">{folded.slice(folded.indexOf("·") + 1).trim()}</span>}
           </span>
           {/* What the amber count is, on the chip itself (the review of
               0.1.4: an unexplained "1"): the Needs you mark and a tooltip. */}
           {needs > 0 && (
-            <span title={`${needs} here ${needs === 1 ? "needs" : "need"} you: ${needs === 1 ? "it's" : "they're"} at the top, under Needs you`} className="inline-flex shrink-0 items-center gap-0.5 rounded-full bg-warning-soft px-1.5 text-label font-semibold leading-[18px] tabular-nums text-warning" data-testid="place-needs">
+            <span title={`${needs} here ${needs === 1 ? "needs" : "need"} you: ${needs === 1 ? "it's" : "they're"} at the top, under Needs you`} className="inline-flex min-w-[20px] shrink-[1000] items-center gap-0.5 overflow-hidden rounded-full bg-warning-soft px-1 text-label font-semibold leading-[18px] tabular-nums text-warning" data-testid="place-needs">
               <IconAlert width={10} height={10} aria-hidden="true" />
               {needs}
             </span>
@@ -148,7 +149,7 @@ export function PlaceHeader({
           {/* 0.4.1: out of room or low, its mark; the count steps aside
               for it (its rows show what's open; the name above keeps it),
               so the profile's name keeps its room. */}
-          {room ?? (folded === null && <span className="shrink-0 text-label tabular-nums text-muted" title={`${count} open here`}>{count}</span>)}
+          {room ?? (folded === null && <span className="min-w-0 shrink-[1000] overflow-hidden text-label tabular-nums text-muted" title={`${count} open here`}>{count}</span>)}
         </span>
       </button>
       {arrange?.enabled && (
