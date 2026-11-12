@@ -27,18 +27,16 @@ names), 1280×800 at 2×, for the design critique.
 
 ## The rail header keeps the App's name (0.4.2 review, D-100)
 
-The profile is what tells one App from another, so in the 264 px rail the
-app word gives way whole first, the compact marks (the amber count,
-"Out") keep their few letters, and the name is cut in the middle
-(`MiddleName`: its first four letters and its end), never at the end:
-"bookauth-luka" with both marks reads "book…th-luka", where an end cut
-read "bookauth-l…" and hid the part that differs. Whole whenever it
-fits; the full name is its hover title. Captured in the Vite preview at
-1280×800, rail 264 px, dark; the long names and the two marks were put
-into the fixture header's DOM to reach the worst case (the preview has no
+The profile is what tells one App from another. In the 264 px rail the
+header gives way in this order: its secondary words (its app's word, a
+folded App's summary) drop out whole, wrapping out of a one-line box;
+the Out/Low mark is its icon alone; and only a name that alone doesn't
+fit is cut, at its end, its full name on hover. (An earlier attempt with
+flex-shrink weights and a middle cut still cut the names on the real Mac:
+"book…h-anela", while "Cl… no…" kept room.) Captured in the Vite
+preview at 1280×800, rail 264 px, dark; the real profile names and the
+two marks were put into the fixture header's DOM (the preview has no
 fixture with both).
 
-- `rail-header-264-long-nochips-dark.png`: "bookauth-personal-max", no marks: whole.
-- `rail-header-264-long-chips-dark.png`: the same with ⚠ 1 and Out: "book…al-max".
-- `rail-header-264-luka-chips-dark.png`: "bookauth-luka" with ⚠ 1 and Out: "book…th-luka".
-- `rail-header-264-olivia-chips-dark.png`: the longest real profile name, "bookauth-olivia", with ⚠ 1 and Out in the 264 px rail: "book…h-olivia"; "bookauth-luka" below it, whole. Open now lists only what's open (no "Last N inactive" under an open App, D-100).
+- `rail-header-264-long-nochips-dark.png`: an earlier capture, "bookauth-personal-max" with no marks: whole.
+- `rail-header-264-olivia-whole-dark.png`: "bookauth-olivia" with ⚠ 1 and the Out icon: whole (92 of 92 px); "bookauth-anela" below it, whole; the app words wrapped away.
