@@ -19,8 +19,6 @@ const TerminalView = lazyNamed(() => import("./TerminalView"), "TerminalView", t
 // The verified stop sheet loads when a Stop is chosen (lazy-load rule).
 const OwnSessionOverview = lazyNamed(() => import("../pages/session/OwnOverview"), "OwnSessionOverview");
 const DrivenPanel = lazyNamed(() => import("../pages/session/DrivenPanel"), "DrivenPanel");
-// P2: an ended terminal session's pane (its conversation's reader with it).
-const EndedTerminal = lazyNamed(() => import("../pages/session/EndedTerminal"), "EndedTerminal");
 const OwnSessionUsage = lazyNamed(() => import("../pages/session/OwnUsage"), "OwnSessionUsage");
 import { DesktopPreview } from "./DesktopPreview";
 import { ProcessesView } from "../screens/processes/ProcessesView";
@@ -43,6 +41,7 @@ import { cliAppName } from "../lib/app-name";
 import { SessionAppLink } from "../pages/session/AccountMenu";
 import { fromInstance } from "../pages/session/model";
 import { OwnTerminalOverview } from "../pages/session/OwnTerminalOverview";
+import { SessionTerminal } from "../pages/session/SessionTerminal";
 import { RemoteTabBody, type RemoteContext } from "./RemoteTabs";
 import { launchSettingsName } from "../lib/account-words";
 import { memorySize } from "../lib/compact";
@@ -507,7 +506,7 @@ function InstanceOverview(props: PanelProps) {
                 {session.runtime?.fell_back && <p className="text-meta text-ink-2" data-testid="runtime-fell-back">{`In its terminal: ${session.runtime.fell_back}.`}</p>}
                 {/* P2: ended, its terminal only when output was kept to
                     replay; else its conversation, or why there's none. */}
-                {live ? terminalCard : <EndedTerminal session={session} terminal={terminalCard} now={props.now} />}
+                <SessionTerminal session={session} live={live} terminal={terminalCard} now={props.now} />
               </div>
             )
           }

@@ -7,7 +7,7 @@
  */
 import { cleanup, fireEvent, render } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { EndedTerminal } from "./EndedTerminal";
+import { SessionTerminal } from "./SessionTerminal";
 import type { InstanceInfo } from "../../types/generated/InstanceInfo";
 
 const NOW = 1_800_000_000_000;
@@ -37,14 +37,14 @@ const terminal = <div data-testid="instance-terminal" />;
 describe("an ended terminal session's main pane (P2)", () => {
   it("with its output kept: the terminal, replayed, and the line that says so", async () => {
     keep(["sess-old"]);
-    const view = render(<EndedTerminal session={ended()} terminal={terminal} now={NOW} />);
+    const view = render(<SessionTerminal session={ended()} live={false} terminal={terminal} now={NOW} />);
     await view.findByTestId("ended-terminal-kept");
     expect(view.getByTestId("instance-terminal")).toBeTruthy();
     expect(view.container.textContent).toContain("scrollback replayed");
   });
 
   it("none kept, with a conversation: its conversation, never an empty terminal under \"replayed\"", async () => {
-    const view = render(<EndedTerminal session={ended({ conversation_id: "c-login" })} terminal={terminal} now={NOW} />);
+    const view = render(<SessionTerminal session={ended({ conversation_id: "c-login" })} live={false} terminal={terminal} now={NOW} />);
     await view.findByTestId("ended-terminal-conversation");
     expect(view.queryByTestId("instance-terminal")).toBeNull();
     expect(view.getByTestId("last-messages")).toBeTruthy();
@@ -56,7 +56,7 @@ describe("an ended terminal session's main pane (P2)", () => {
     const opened = vi.fn();
     const listen = (event: Event) => opened(event instanceof CustomEvent ? event.detail : null);
     window.addEventListener("aij:open-screen", listen);
-    const view = render(<EndedTerminal session={ended()} terminal={terminal} now={NOW} />);
+    const view = render(<SessionTerminal session={ended()} live={false} terminal={terminal} now={NOW} />);
     await view.findByTestId("ended-terminal-none");
     expect(view.queryByTestId("instance-terminal")).toBeNull();
     expect(view.container.textContent).toContain("No output was kept");
@@ -67,9 +67,21 @@ describe("an ended terminal session's main pane (P2)", () => {
     window.removeEventListener("aij:open-screen", listen);
   });
 
-  it("asks before it shows anything: no terminal under a claim while it isn't known", () => {
-    const view = render(<EndedTerminal session={ended()} terminal={terminal} now={NOW} />);
-    expect(view.getByTestId("ended-terminal-asking").getAttribute("aria-busy")).toBe("true");
+  it("while it's asked, the terminal stays and claims nothing", () => {
+    const view = render(<SessionTerminal session={ended()} live={false} terminal={terminal} now={NOW} />);
+    expect(view.getByTestId("ended-terminal-asking")).toBeTruthy();
+    expect(view.getByTestId("instance-terminal")).toBeTruthy();
     expect(view.container.textContent).toBe("");
+  });
+
+  it("running, its terminal alone; ending as you watch, the same terminal stays (never rebuilt)", async () => {
+    keep(["sess-old"]);
+    const view = render(<SessionTerminal session={ended({ status: "running" })} live terminal={terminal} now={NOW} />);
+    const shown = view.getByTestId("instance-terminal");
+    expect(view.container.textContent).not.toContain("replayed");
+    view.rerender(<SessionTerminal session={ended()} live={false} terminal={terminal} now={NOW} />);
+    await view.findByTestId("ended-terminal-kept");
+    expect(view.getByTestId("instance-terminal")).toBe(shown);
+    expect(view.container.textContent).toContain("scrollback replayed");
   });
 });

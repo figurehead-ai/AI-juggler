@@ -1,13 +1,15 @@
 /**
- * P2 (the D3 persona walk) — the main pane of a session AI Juggler ran in
- * its terminal, once it has ended. A terminal's output is kept in memory
- * only while AI Juggler runs, so one reopened days later, or after a
- * restart, showed an empty terminal under "scrollback replayed".
+ * P2 (the D3 persona walk) — the main pane of a session AI Juggler runs in
+ * its terminal. A terminal's output is kept in memory only while AI
+ * Juggler runs, so one reopened days later, or after a restart, showed an
+ * empty terminal under "scrollback replayed".
  *
- * Now it shows what there is: the terminal, replayed, and that line only
- * when output was kept; else its conversation, read from the tool's own
- * transcript as every session's page shows it; else (no conversation
- * either) that nothing was kept, and History's search to find it.
+ * Running, its terminal. Ended, what there is: the terminal, replayed,
+ * and that line only when output was kept; else its conversation, read
+ * from the tool's own transcript as every session's page shows it; else
+ * (no conversation either) that nothing was kept, and History's search.
+ * The terminal stays mounted while it ends and while that's asked (one
+ * that ends as you watch is never rebuilt).
  */
 import { useEffect, useState, type JSX, type ReactNode } from "react";
 import { Button, Card } from "../../components/primitives";
@@ -18,10 +20,12 @@ import type { InstanceInfo } from "../../types/generated/InstanceInfo";
 import { LastMessages } from "./LastMessages";
 import { fromInstance } from "./model";
 
-/** Whether `id`'s terminal kept output to replay; `null` while asked. */
-function useKept(id: string): boolean | null {
+/** Whether `id`'s terminal kept output to replay; `null` while asked
+ * (and for no `id`: one still running). */
+function useKept(id: string | null): boolean | null {
   const [answer, setAnswer] = useState<{ id: string; kept: boolean } | null>(null);
   useEffect(() => {
+    if (id === null) return undefined;
     let alive = true;
     void terminalKept(id).then((kept) => {
       if (alive) setAnswer({ id, kept });
@@ -38,14 +42,13 @@ function searchHistory(words: string): void {
   window.dispatchEvent(new CustomEvent("aij:open-screen", { detail: { id: "history", query: words } }));
 }
 
-export function EndedTerminal({ session, terminal, now }: { session: InstanceInfo; terminal: ReactNode; now: number }): JSX.Element {
-  const kept = useKept(session.id);
-  if (kept === null) return <div className="min-h-[280px] flex-1" aria-busy="true" data-testid="ended-terminal-asking" />;
-  if (kept) {
+export function SessionTerminal({ session, live, terminal, now }: { session: InstanceInfo; live: boolean; terminal: ReactNode; now: number }): JSX.Element {
+  const kept = useKept(live ? null : session.id);
+  if (live || kept !== false) {
     return (
-      <div className="flex min-h-0 flex-1 flex-col gap-2" data-testid="ended-terminal-kept">
+      <div className="flex min-h-0 flex-1 flex-col gap-2" data-testid={live ? undefined : kept ? "ended-terminal-kept" : "ended-terminal-asking"}>
         {terminal}
-        <p className="text-meta text-ink-2">{`ran ${since(session.started_at_ms, now)} · scrollback replayed`}</p>
+        {!live && kept && <p className="text-meta text-ink-2">{`ran ${since(session.started_at_ms, now)} · scrollback replayed`}</p>}
       </div>
     );
   }
