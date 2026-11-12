@@ -359,7 +359,7 @@ jobs:
       # requests' build-macos caches, 12.1 GB, and none of main's).
       - name: Save the Cargo cache (main only)
         if: steps.cargo-cache.outputs.cache-hit != 'true' && github.ref == 'refs/heads/main'
-        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
             ~/.cargo/registry/index
@@ -436,7 +436,7 @@ jobs:
         run: ./scripts/ci/cache_keep_deps.sh target/debug
       - name: Save the Cargo cache (the dependencies, main only)
         if: steps.cargo-cache.outputs.cache-hit != 'true' && github.ref == 'refs/heads/main'
-        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
             ~/.cargo/registry/index
@@ -610,7 +610,7 @@ jobs:
         run: ./scripts/ci/cache_keep_deps.sh target/debug
       - name: Save the Cargo cache (main only)
         if: steps.cargo-cache.outputs.cache-hit != 'true' && github.ref == 'refs/heads/main'
-        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
             ~/.cargo/registry/index
@@ -1059,7 +1059,7 @@ jobs:
         run: ./scripts/ci/cache_keep_deps.sh target/debug target/x86_64-apple-darwin/debug
       - name: Save the Cargo cache (main only)
         if: steps.cargo-cache.outputs.cache-hit != 'true' && github.ref == 'refs/heads/main'
-        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
             ~/.cargo/registry/index
@@ -1172,7 +1172,7 @@ jobs:
         run: ./scripts/ci/cache_keep_deps.sh target/release
       - name: Save the Cargo cache (release, main only)
         if: steps.cargo-cache.outputs.cache-hit != 'true' && github.ref == 'refs/heads/main'
-        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
             ~/.cargo/registry/index
@@ -1251,7 +1251,7 @@ jobs:
         run: ./scripts/ci/cache_keep_deps.sh target/debug
       - name: Save the Cargo cache (main only)
         if: steps.cargo-cache.outputs.cache-hit != 'true' && github.ref == 'refs/heads/main'
-        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
             ~/.cargo/registry/index
