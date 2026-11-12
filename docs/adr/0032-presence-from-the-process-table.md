@@ -188,6 +188,20 @@ its snapshot. Nothing else decides what runs or who owns a session.
      check fails on a lab run's transcript made there since 0.4.3.
    - The real-Mac check reads what each App unfolds to, its counts
      against its records, and the Out marks (`presence_sessions.py`).
+   - The saved conversation index is stamped with every tool's
+     conversation reader version: a change in what a reader reads (0.4.2's
+     `started_in`) reads every file again, never keeps old answers.
+   - A Claude session is its transcript's file (a fork's file starts with
+     its parent's lines), as Claude Code resumes it.
+   - Searching and filtering read each session as its owner App's, and a
+     running App with a match in its past joins Open now.
+   - What runs shows whatever its archive marks; archived and unlisted
+     sessions are left out once ended.
+   - Owed (0.4.4 or a ruling): Codex app vs Codex CLI against the Codex
+     store both list (48 threads, AI Juggler's own runs among them);
+     `codex exec` and `claude -p` runs no tool lists; a profile's learned
+     folder link that its own records contradict; limit hits credited
+     across moved conversations; the project board's search.
 
 ### Evidence (the maintainer's Mac, read-only, 2026-11-11)
 
