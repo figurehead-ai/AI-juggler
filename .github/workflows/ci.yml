@@ -34,6 +34,13 @@ concurrency:
   cancel-in-progress: true
 
 env:
+  # AJ-E2020 R4 (D-99 point 4), for every job's Rust build: CI builds each
+  # checkout afresh, so incremental state is only cache weight and time;
+  # line tables keep a panic's file and line at a fraction of full debug
+  # info's build time and size. The test build and the jobs that read its
+  # cache set "0" (the archive every partition downloads, below).
+  CARGO_INCREMENTAL: "0"
+  CARGO_PROFILE_DEV_DEBUG: line-tables-only
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: short
   # A full run: every gate must run and pass, none may be skipped as
@@ -674,8 +681,6 @@ jobs:
     if: needs.plan.outputs.tested == '' && contains(fromJSON(needs.plan.outputs.jobs || '[]'), 'coverage')
     runs-on: ubuntu-latest
     timeout-minutes: 60
-    env:
-      CARGO_PROFILE_DEV_DEBUG: line-tables-only
     steps:
       - name: Free runner disk
         run: |
@@ -968,6 +973,10 @@ jobs:
     needs: plan
     if: needs.plan.outputs.tested == '' && contains(fromJSON(needs.plan.outputs.jobs || '[]'), 'build-macos')
     runs-on: macos-latest
+    env:
+      # R4: the debug info stays in the object files; no dsymutil pass
+      # after each link (the release candidate's release profile has none).
+      CARGO_PROFILE_DEV_SPLIT_DEBUGINFO: unpacked
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
@@ -980,8 +989,8 @@ jobs:
             ~/.cargo/registry/cache
             ~/.cargo/git/db
             target
-          key: ${{ runner.os }}-${{ github.job }}-cargo-${{ hashFiles('**/Cargo.lock', 'rust-toolchain.toml') }}
-          restore-keys: ${{ runner.os }}-${{ github.job }}-cargo-
+          key: ${{ runner.os }}-${{ github.job }}-cargo-lt-${{ hashFiles('**/Cargo.lock', 'rust-toolchain.toml') }}
+          restore-keys: ${{ runner.os }}-${{ github.job }}-cargo-lt-
       - name: Add x86_64 target
         run: rustup target add x86_64-apple-darwin
       - name: Build (native arm64)
@@ -1128,8 +1137,8 @@ jobs:
             ~/.cargo/registry/cache
             ~/.cargo/git/db
             target
-          key: ${{ runner.os }}-${{ github.job }}-cargo-${{ hashFiles('**/Cargo.lock', 'rust-toolchain.toml') }}
-          restore-keys: ${{ runner.os }}-${{ github.job }}-cargo-
+          key: ${{ runner.os }}-${{ github.job }}-cargo-lt-${{ hashFiles('**/Cargo.lock', 'rust-toolchain.toml') }}
+          restore-keys: ${{ runner.os }}-${{ github.job }}-cargo-lt-
       # Cross-platform readiness §5.1: the tests compile here too, not only
       # the app (a Unix-only test must say `#![cfg(unix)]`).
       - name: Check every target (tests included)
@@ -1154,8 +1163,8 @@ jobs:
             ~/.cargo/registry/cache
             ~/.cargo/git/db
             target
-          key: ${{ runner.os }}-${{ github.job }}-cargo-${{ hashFiles('**/Cargo.lock', 'rust-toolchain.toml') }}
-          restore-keys: ${{ runner.os }}-${{ github.job }}-cargo-
+          key: ${{ runner.os }}-${{ github.job }}-cargo-lt-${{ hashFiles('**/Cargo.lock', 'rust-toolchain.toml') }}
+          restore-keys: ${{ runner.os }}-${{ github.job }}-cargo-lt-
       # Cross-platform readiness §5.1: the tests compile on Windows too (a
       # Unix-only test must say `#![cfg(unix)]`); running them comes with
       # the Windows seams (§5.4).
