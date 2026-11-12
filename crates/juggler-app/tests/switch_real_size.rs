@@ -129,7 +129,7 @@ fn lab(work: &Path, megabytes: u64) -> Lab {
         juggler_app::features::account::create_account(
             &state,
             CLAUDE_CODE_ID,
-            "personal-max",
+            "acme-max",
             None,
         )
         .unwrap(),

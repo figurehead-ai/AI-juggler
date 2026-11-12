@@ -887,7 +887,7 @@ fn a_transcript_too_large_for_memory_travels_whole_and_byte_identical() {
     assert!(carried.bytes.is_empty());
     let scratch = bundle.scratch.as_ref().unwrap().path().to_path_buf();
     let outcome = adapter()
-        .install_bundle(&bundle, &account(b.path(), "personal-max"))
+        .install_bundle(&bundle, &account(b.path(), "acme-max"))
         .unwrap();
     assert!(!outcome.forked);
     assert_eq!(
@@ -910,7 +910,7 @@ fn a_transcript_too_large_for_memory_travels_whole_and_byte_identical() {
     // Switched there a second time: it forks, line by line, its turns all
     // there under the new id.
     let again = adapter()
-        .install_bundle(&bundle, &account(b.path(), "personal-max"))
+        .install_bundle(&bundle, &account(b.path(), "acme-max"))
         .unwrap_or_else(|error| panic!("a second switch forks: {error}"));
     assert!(again.forked);
     let forked_id = again.reference.native_id.clone().unwrap();
@@ -1008,7 +1008,7 @@ fn a_conversation_and_its_side_sessions_switch_together_through_the_pipeline() {
         &adapter(),
         &parent,
         &family,
-        &account(b.path(), "personal-max"),
+        &account(b.path(), "acme-max"),
         FreezeChoice::StopNowAndSwitch,
         Mechanism::Transplant,
         None,
@@ -1058,7 +1058,7 @@ fn a_member_that_cant_be_placed_takes_the_whole_switch_back() {
         &adapter(),
         &parent,
         &[fine, blocked],
-        &account(b.path(), "personal-max"),
+        &account(b.path(), "acme-max"),
         FreezeChoice::StopNowAndSwitch,
         Mechanism::Transplant,
         None,

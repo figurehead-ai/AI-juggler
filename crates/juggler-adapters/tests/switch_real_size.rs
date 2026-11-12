@@ -125,7 +125,7 @@ fn the_maintainers_switch_at_its_real_size_completes() {
         .unwrap_or(800);
     let work = tempfile::tempdir().unwrap();
     let a = work.path().join("default");
-    let b = work.path().join("personal-max");
+    let b = work.path().join("acme-max");
     let clock = Instant::now();
     let main = seed(&a, megabytes);
     let size = std::fs::metadata(&main).unwrap().len();
@@ -151,7 +151,7 @@ fn the_maintainers_switch_at_its_real_size_completes() {
             path: main.clone(),
             native_id: Some(SESSION.to_owned()),
         },
-        &account(&b, "personal-max"),
+        &account(&b, "acme-max"),
         FreezeChoice::StopNowAndSwitch,
         Mechanism::Transplant,
         &mut |install| {
@@ -257,7 +257,7 @@ fn a_switch_to_a_nearly_full_disk_stops_before_filling_it() {
     let main = seed(&a, 40);
     let (before, _) = sha256_file(&main, None).unwrap();
     let disk = SmallDisk::new(work.path(), 64);
-    let b = disk.mount.join("personal-max");
+    let b = disk.mount.join("acme-max");
     std::fs::create_dir_all(&b).unwrap();
     let failure = pipeline::execute(
         &ClaudeCodeAdapter::new(),
@@ -265,13 +265,13 @@ fn a_switch_to_a_nearly_full_disk_stops_before_filling_it() {
             path: main.clone(),
             native_id: Some(SESSION.to_owned()),
         },
-        &account(&b, "personal-max"),
+        &account(&b, "acme-max"),
         FreezeChoice::StopNowAndSwitch,
         Mechanism::Transplant,
         &mut |_| panic!("nothing starts when the copy can't be made"),
     )
     .expect_err("a nearly full disk stops the switch");
-    let words = failure.words("Default", "personal-max");
+    let words = failure.words("Default", "acme-max");
     println!("{failure}\n{words}");
     assert!(words.contains("isn't enough free disk space"), "{words}");
     assert!(words.contains("GB more"), "it says how much: {words}");

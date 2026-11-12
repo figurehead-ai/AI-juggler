@@ -1,4 +1,4 @@
-     Running unittests src/lib.rs (/Users/farukbrbovic/Dev/AIJuggler-shared-target/debug/deps/juggler_agentbridge-06eb3c0fb31de732)
+     Running unittests src/lib.rs (/Users/you/Dev/AIJuggler-shared-target/debug/deps/juggler_agentbridge-06eb3c0fb31de732)
 test wire::tests::only_the_tools_name_calls ... ok
 test hook::tests::a_note_is_printed_only_where_it_adds_context_and_never_decides ... ok
 test wire::tests::a_message_names_its_recipient_and_nothing_else ... ok
@@ -20,9 +20,9 @@ test cli::tests::serving_answers_each_request_on_its_own_line ... ok
 test mcp::tests::the_tools_and_one_resource_and_which_ones_write ... ok
 test plugin::tests::elsewhere_it_serves_the_tools_and_each_call_says_why_not ... ok
 test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
-     Running unittests src/main.rs (/Users/farukbrbovic/Dev/AIJuggler-shared-target/debug/deps/juggler_agent-b1736d31fc52b8db)
+     Running unittests src/main.rs (/Users/you/Dev/AIJuggler-shared-target/debug/deps/juggler_agent-b1736d31fc52b8db)
 test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
-     Running tests/bridge.rs (/Users/farukbrbovic/Dev/AIJuggler-shared-target/debug/deps/bridge-22adf8a15f7abd06)
+     Running tests/bridge.rs (/Users/you/Dev/AIJuggler-shared-target/debug/deps/bridge-22adf8a15f7abd06)
 test the_ledger_knows_the_bridge_as_an_mcp_server_and_never_cleans_it_up ... ok
 test what_agents_reach_has_no_path_to_a_session_a_setting_or_a_secret ... ok
 test nothing_is_added_before_the_question_is_answered ... ok
@@ -36,11 +36,11 @@ test the_command_line_reads_the_key_from_its_environment_only ... ok
 test the_task_commands_go_through_the_real_binary_and_the_level ... ok
 test a_fake_tool_speaks_mcp_to_the_real_binary_through_the_app_launch ... ok
 test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.12s
-     Running tests/plugin.rs (/Users/farukbrbovic/Dev/AIJuggler-shared-target/debug/deps/plugin-b47a53d069773ea1)
+     Running tests/plugin.rs (/Users/you/Dev/AIJuggler-shared-target/debug/deps/plugin-b47a53d069773ea1)
 test the_plugins_manifests_are_what_claude_code_reads_and_hold_no_secret ... ok
 test installed_in_a_fixture_home_it_runs_the_bridge_and_says_why_not ... ok
 test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.12s
-     Running tests/reports.rs (/Users/farukbrbovic/Dev/AIJuggler-shared-target/debug/deps/reports-8214788e4f732ef0)
+     Running tests/reports.rs (/Users/you/Dev/AIJuggler-shared-target/debug/deps/reports-8214788e4f732ef0)
 test the_hook_command_is_silent_and_never_fails ... ok
 test a_report_with_a_stranger_key_is_refused ... ok
 test the_tools_own_hooks_make_the_state_exact ... ok

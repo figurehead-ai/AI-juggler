@@ -1,5 +1,5 @@
 //! A quota alert in plain words (D-25 amendment AJ-E1025; wireframe 27):
-//! "Mia has 7% left in its 5-hour window, until it resets in 1 h 10 min" —
+//! "West has 7% left in its 5-hour window, until it resets in 1 h 10 min" —
 //! never a window id (`five_hour`), a tier tag ("(Measured)") or a
 //! session's id. The numbers ride along so this Mac's banner can say the
 //! reset in local time and offer Hand over and Queue for the reset.
@@ -275,7 +275,7 @@ mod tests {
         reset_in_min: Option<i64>,
     ) -> AlertQuotaInfo {
         AlertQuotaInfo {
-            account_label: "Mia".to_owned(),
+            account_label: "West".to_owned(),
             window: window.to_owned(),
             left_pct: left,
             estimate: false,
@@ -309,7 +309,7 @@ mod tests {
         );
         assert_eq!(
             text,
-            "Mia has 7% left in its 5-hour window, until it resets in 1 h 10 min"
+            "West has 7% left in its 5-hour window, until it resets in 1 h 10 min"
         );
     }
 
@@ -322,7 +322,7 @@ mod tests {
                 {
                     let text = quota_alert_words(kind, &quota(window, left, minutes, reset), NOW);
                     assert!(plain(&text), "an alert names an internal id or tag");
-                    assert!(text.starts_with("Mia "), "an alert leads with the account");
+                    assert!(text.starts_with("West "), "an alert leads with the account");
                 }
             }
         }
@@ -350,7 +350,7 @@ mod tests {
                 &quota("weekly", Some(0.0), None, Some(45)),
                 NOW
             ),
-            "Mia has used up its weekly window; it resets in 45 min"
+            "West has used up its weekly window; it resets in 45 min"
         );
         assert_eq!(
             quota_alert_words(
@@ -358,7 +358,7 @@ mod tests {
                 &quota("five_hour", None, Some(40.0), None),
                 NOW
             ),
-            "Mia has about 40 min of work left in its 5-hour window"
+            "West has about 40 min of work left in its 5-hour window"
         );
     }
 
@@ -373,7 +373,7 @@ mod tests {
         };
         assert_eq!(
             quota_alert_words("actionable", &estimated, NOW),
-            "Mia has about 7% left in its 5-hour window, until it resets in 1 h 10 min"
+            "West has about 7% left in its 5-hour window, until it resets in 1 h 10 min"
         );
         assert!(!quota_alert_words("actionable", &measured, NOW).contains("about"));
         // Time to empty is a forecast: it always says "about".

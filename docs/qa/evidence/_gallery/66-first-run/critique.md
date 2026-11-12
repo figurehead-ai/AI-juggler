@@ -1,4 +1,4 @@
-<!-- captures: c4426d90eb6e -->
+<!-- captures: 71b782973696 -->
 # 66-first-run: the first-run steps (bring in accounts, sign in, computer access, Figurehead account) and Home right after them
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design fixes.
@@ -18,3 +18,7 @@ The flow keeps a clean shape: stepper, large heading, content, and one primary b
 ## 0.4.1 rc31 (2026-11-10)
 
 figurehead-1280x800-dark is removed: first run has three steps since D-97 2 (4049d6c56), Bring in your apps, Sign in where needed and Computer access, and no longer captures a Figurehead account step (Settings offers it). The other captures here were taken before D-97 and are not retaken in this round; the gate's own baselines (`ui/tests/visual/__baselines__/linux/gallery/66-first-run/`) show three.
+
+## 0.4.2 (2026-11-12): the fixture renamed
+
+Only the captures that showed the old fixture folder name were re-shot: the copy, its menu header and its row now read "acme-max". Nothing else on these screens moved; the critique above stands.
