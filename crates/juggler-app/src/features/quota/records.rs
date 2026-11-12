@@ -210,9 +210,11 @@ pub(crate) fn read_claude_records(
 }
 
 /// Once per profile: the limit hits in the last week's transcripts, which
-/// a pass read before hits were kept (`files`: the profile's transcripts).
+/// a pass read before hits were kept (`files`: the profile's transcripts),
+/// each the folder's it was spent on (`spent`: a moved conversation's, the
+/// one it left).
 pub(crate) fn look_back_for_hits(
-    account: &str,
+    (account, spent): (&str, &crate::features::handover::moved_lines::SpentOn<'_>),
     files: &[PathBuf],
     now_ms: i64,
     state: &mut RecordsState,
@@ -230,7 +232,10 @@ pub(crate) fn look_back_for_hits(
             claude_limits::limit_hits_in(path)
                 .into_iter()
                 .filter(|(_, sample)| now_ms.saturating_sub(sample.ts) <= HITS_LOOKBACK_MS)
-                .map(|(kind, sample)| (account.to_owned(), kind, sample, UsageSource::ApiRetry)),
+                .filter_map(|(kind, sample)| {
+                    let on = spent.folder(account, path, sample.ts)?;
+                    Some((on, kind, sample, UsageSource::ApiRetry))
+                }),
         );
     }
 }
@@ -354,8 +359,9 @@ mod tests {
         .unwrap();
         let mut state = RecordsState::default();
         let mut out = SourcedBatch::default();
+        let spent = crate::features::handover::moved_lines::SpentOn::none();
         look_back_for_hits(
-            "acc",
+            ("acc", &spent),
             std::slice::from_ref(&path),
             now,
             &mut state,
@@ -368,7 +374,7 @@ mod tests {
         );
         assert_eq!(out.windows[0].3, UsageSource::ApiRetry);
         out = SourcedBatch::default();
-        look_back_for_hits("acc", &[path], now, &mut state, &mut out);
+        look_back_for_hits(("acc", &spent), &[path], now, &mut state, &mut out);
         assert!(out.windows.is_empty(), "once");
     }
 }

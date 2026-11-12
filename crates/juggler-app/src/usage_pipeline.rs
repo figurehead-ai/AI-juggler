@@ -268,6 +268,9 @@ pub fn ingest_pass(state: &Arc<AppState>, tick: u32) {
     // Claude's own limit records, on their slower cadence.
     let instances =
         crate::features::quota::records::due_instances(state, &mut ingest.app_instances, tick);
+    // 0.4.4: a limit hit in a moved conversation is the folder's it was
+    // written in (the move journal), not the one it sits in now.
+    let spent = crate::features::handover::moved_lines::SpentOn::new(state, &accounts);
 
     for account in &accounts {
         let account_id = account.id.as_str().to_owned();
@@ -290,7 +293,7 @@ pub fn ingest_pass(state: &Arc<AppState>, tick: u32) {
                     &mut ingest,
                     &mut store_batch,
                     &mut sample_batch,
-                    instances.as_deref(),
+                    (instances.as_deref(), &spent),
                 );
             }
             "codex" if rereading || tick.is_multiple_of(FILE_SCAN_EVERY) => {
@@ -602,7 +605,9 @@ fn session_chunks(
 }
 
 /// Claude: spool tail every pass; transcript scan every file-scan cadence;
-/// its own limit records (`records`) when `instances` is given.
+/// its own limit records (`records`) when `instances` is given. A limit
+/// hit in a transcript is the folder's it was spent on (`spent`: a moved
+/// conversation's, the one it left).
 fn ingest_claude(
     account: &str,
     dir: &Path,
@@ -610,7 +615,10 @@ fn ingest_claude(
     ingest: &mut IngestState,
     store: &mut Vec<juggler_core::quota::UsageEvent>,
     samples: &mut SampleBatch,
-    instances: Option<&[PathBuf]>,
+    (instances, spent): (
+        Option<&[PathBuf]>,
+        &crate::features::handover::moved_lines::SpentOn<'_>,
+    ),
 ) {
     use juggler_core::quota::UsageSource;
     // The status line spool in AI Juggler's own folder: AI Juggler's
@@ -662,9 +670,11 @@ fn ingest_claude(
             store,
         );
         for (kind, sample) in outcome.samples {
-            samples
-                .windows
-                .push((account.to_owned(), kind, sample, UsageSource::ApiRetry));
+            if let Some(on) = spent.folder(account, path, sample.ts) {
+                samples
+                    .windows
+                    .push((on, kind, sample, UsageSource::ApiRetry));
+            }
         }
     }
     if let Some(instances) = instances {
@@ -675,7 +685,11 @@ fn ingest_claude(
             .records;
         let now_ms = juggler_core::model::Timestamp::now().millis();
         crate::features::quota::records::look_back_for_hits(
-            account, &files, now_ms, records, samples,
+            (account, spent),
+            &files,
+            now_ms,
+            records,
+            samples,
         );
         crate::features::quota::records::read_claude_records(
             account, dir, instances, records, samples,
