@@ -7,8 +7,8 @@
 # (docs/releases/X.Y.Z.md on main) pass the notes check, the
 # accessibility gate passed on the exact commit it was built from (a scan
 # CI already ran on that tree counts; otherwise it runs here), and
-# the D-24 requirements hold: the build is 3+ days old (real use as AI
-# Juggler Nightly) and no `blocker` issue is open.
+# the D-24 requirements as D-99 amends them hold: no `blocker` issue is
+# open (beta promotes the tested nightly; its days of use are on beta).
 # Stable also needs: the accessibility gate run here again, on the
 # commit, whatever CI ran; 14+ days on beta, no open `blocker`, the beta gate
 # (docs/qa/gate-beta.md, AJ-E807) signed, a CHANGELOG section, and the

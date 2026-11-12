@@ -7,7 +7,7 @@ travels **nightly → beta → stable**:
 | Channel | Who it's for | How a build gets there |
 |---|---|---|
 | **Nightly** | People who want the newest code and accept rough edges. Installed as its own app, **AI Juggler Nightly** | `nightly.yml` builds `main` every day something that ships has changed. No approval |
-| **Beta** | Newer features, a little less tested | `promote.yml`, once the build has had **3+ days of real use** as AI Juggler Nightly and **no `blocker` issue is open** (D-24), with the maintainer's approval (the `beta` environment) |
+| **Beta** | Newer features, a little less tested | `promote.yml`, the tested nightly, with no rebuild, once **no `blocker` issue is open** (D-24 as D-99 amends it: the days of real use happen on beta), with the maintainer's approval (the `beta` environment) |
 | **Stable** | Well-tested releases for everyday work | `promote.yml`, a deliberate release: only a version that has been on beta **14+ days** with **no open `blocker`**, once the beta gate is signed and the minor's whole roadmap scope is done or deferred (D-99), with the maintainer's approval (the `stable` environment) |
 
 **What counts as a blocker** (label the issue `blocker`): data loss, an
@@ -458,8 +458,8 @@ fails on one of them, re-run its failed jobs from the run page.
    release candidate runs it.
 6. **Run Promote** (`workflow_dispatch`): version `X.Y.Z`, channel `beta`.
    It checks the build, the notes and the D-24 requirements
-   (`scripts/promotion_rules.py`: 3+ days since the build was published, no
-   open `blocker`), that usage statistics are collected for the version
+   (`scripts/promotion_rules.py`: the build exists and no `blocker` is
+   open; D-99 moved D-24's days of use from nightly to beta), that usage statistics are collected for the version
    (`scripts/stats_config_check.py`: the stats service's config,
    `https://stats.figurehead.ai/v1/config.json`, has `enabled: true` and
    the version is within `min_app_version` and `max_app_version`, by

@@ -4,7 +4,8 @@ Installed by `just hooks` (`git config core.hooksPath scripts/hooks`).
 
 | Hook | What it checks |
 |---|---|
-| `pre-commit` | The staged changes' added lines and paths hold no denylisted real name (`private_terms.py staged`). |
+| `pre-commit` | The staged changes' added lines and paths hold no denylisted real name (`private_terms.py staged`); then each staged Rust file is formatted with rustfmt and re-staged (a file with unstaged edits is only checked). |
+| `post-commit` | The index keeps the formatted copy pre-commit wrote, so the working tree and the commit agree. |
 | `commit-msg` | The commit message holds none (`private_terms.py message`). |
 | `pre-push` | Every outgoing commit's added lines, paths and message hold none (`private_terms.py push`); and a push to `main` or `release/*` is of a commit `scripts/preflight.sh` passed. |
 
