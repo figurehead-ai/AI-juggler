@@ -271,9 +271,13 @@ func main(_ args: [String]) {
     switch verb {
     case "click":
         let chain = ancestors(element(at: n(1), n(2)))
-        let role = attr(chain[0], "AXRole") as? String ?? ""
-        if ["AXTextField", "AXTextArea", "AXComboBox", "AXSearchField"].contains(role) {
-            AXUIElementSetAttributeValue(chain[0], "AXFocused" as CFString, kCFBooleanTrue)
+        // The element under the point can be a text field's own part (its
+        // placeholder's text): the field is then up the chain, and a click
+        // there puts the cursor in it, as a mouse click does (the 0.4.3
+        // persona D3: the rail's search box "took no typing").
+        let fields = ["AXTextField", "AXTextArea", "AXComboBox", "AXSearchField"]
+        if let field = chain.prefix(3).first(where: { fields.contains(attr($0, "AXRole") as? String ?? "") }) {
+            AXUIElementSetAttributeValue(field, "AXFocused" as CFString, kCFBooleanTrue)
         } else if let target = chain.first(where: { actions($0).contains("AXPress") }) {
             AXUIElementPerformAction(target, "AXPress" as CFString)
         } else {
