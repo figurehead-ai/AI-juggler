@@ -399,6 +399,7 @@ fn marks(
                             anchor: foot,
                             size: (0.0, 0.0), // sized where it's drawn: flags()
                             joined_w: 0.0,
+                            narrower: Vec::new(),
                             need: Some(need),
                             count: 1,
                             keep_out: Vec::new(),
@@ -565,10 +566,14 @@ fn area_flags(
                 anchor: foot,
                 size: (0.0, 0.0), // sized where it's drawn: flags()
                 joined_w: 0.0,
+                narrower: Vec::new(),
                 need,
                 count: if need.is_some() { total } else { 0 },
                 keep_out,
-                hang: building,
+                // in the building, above is the next floor; a name with
+                // no room above (a room at the back, under the tabs) hangs
+                // under it rather than go unnamed (0.4.2 review)
+                hang: building || need.is_none(),
             },
             FlagBody {
                 // what needs you, else (a name flag) Desktop or CLI, by
@@ -606,7 +611,7 @@ fn flags(
     // off
     let side = (SIDE * k).min(screen.0 / 8.0).round();
     let room = screen.0 - 2.0 * side - 4.0 * k;
-    let asks: Vec<(FlagAsk, FlagBody)> = asks
+    let asks: Vec<(FlagAsk, Vec<FlagBody>)> = asks
         .iter()
         .map(|(a, body)| {
             let mut body = body.clone();
@@ -616,7 +621,15 @@ fn flags(
             if a.need.is_some() {
                 a.joined_w = o.text_w(&format!("{all} WAITING"), k) + pad(body.icon, k);
             }
-            (a, body)
+            // a name shrinks before it's left out (0.4.2 review: a room
+            // with no name is worse than a short one)
+            let forms = if a.need.is_none() {
+                name_forms(o, &body, k)
+            } else {
+                vec![body]
+            };
+            a.narrower = forms[1..].iter().map(|f| flag_w(o, f, k)).collect();
+            (a, forms)
         })
         .collect();
     let asks = asks.as_slice();
@@ -655,13 +668,15 @@ fn flags(
             );
         }
     }
-    for ((a, body), slot) in asks.iter().zip(&slots) {
+    for ((a, forms), slot) in asks.iter().zip(&slots) {
         match slot {
             Slot::Placed {
                 rect,
+                form,
                 total,
                 joined,
             } => {
+                let body = &forms[(*form).min(forms.len() - 1)];
                 if a.need.is_some() {
                     shown += total;
                 }
@@ -711,10 +726,12 @@ fn place_inside(
         .map(|slot| match slot {
             Slot::Placed {
                 rect,
+                form,
                 total,
                 joined,
             } => Slot::Placed {
                 rect: [rect[0] + side, rect[1], rect[2], rect[3]],
+                form,
                 total,
                 joined,
             },
@@ -812,6 +829,10 @@ fn pad(icon: Option<Icon>, k: f32) -> f32 {
 
 /// A flag's width: its words, its name after them and its padding.
 fn flag_w(o: &Out<'_>, body: &FlagBody, k: f32) -> f32 {
+    // its badge alone: the edge, the badge, a margin
+    if body.words.is_empty() && body.name.is_empty() && body.icon.is_some() {
+        return 16.0 * k;
+    }
     o.text_w(&body.words, k)
         + if body.name.is_empty() {
             0.0
@@ -819,6 +840,38 @@ fn flag_w(o: &Out<'_>, body: &FlagBody, k: f32) -> f32 {
             o.text_w(&body.name, k) + 5.0 * k
         }
         + pad(body.icon, k)
+}
+
+/// A name flag's forms, widest first: its whole name; its profile alone
+/// (the part after its last " · ", as the rail shortens an App); that cut
+/// to a few letters; its badge alone. Each narrower than the one before.
+fn name_forms(o: &Out<'_>, body: &FlagBody, k: f32) -> Vec<FlagBody> {
+    let short = body
+        .words
+        .rsplit(" · ")
+        .next()
+        .unwrap_or(&body.words)
+        .to_owned();
+    let cut: String = if short.chars().count() > 6 {
+        format!("{}..", short.chars().take(5).collect::<String>().trim_end())
+    } else {
+        short.clone()
+    };
+    let mut forms = vec![body.clone()];
+    for words in [short, cut, String::new()] {
+        let form = FlagBody {
+            words,
+            name: String::new(),
+            ..body.clone()
+        };
+        if forms
+            .last()
+            .is_some_and(|last| flag_w(o, &form, k) < flag_w(o, last, k))
+        {
+            forms.push(form);
+        }
+    }
+    forms
 }
 
 /// Cuts a flag to `room`: its name goes first, then its words lose
