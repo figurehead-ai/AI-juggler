@@ -1,0 +1,111 @@
+id = "PL1"
+title = "Persona lab: what runs, and what each App holds"
+epic = "E33"
+decisions = ["D-100", "D-102", "D-84"]
+layers = ["L4"]
+exercises = ["persona walk (AJ-E3307)", "Open now", "Inactive apps", "out of room", "the Codex app and Codex CLI", "scripts' runs"]
+needs = ["lab"]
+
+# ADR-0032's consequence: persona labs add "an App open with no session"
+# and "Codex in ChatGPT.app". The six shapes 0.4.3's rail fix is about, in
+# a bare lab HOME (no replica: every count is the scenario's own):
+#
+# 1. app-personal: a Claude app profile running with no session at all.
+#    Its Claude Code folder holds only three `claude -p` runs (D-102: they
+#    make no App and are in no count; History has them).
+# 2. app-work: running, five past Code-tab sessions, nothing open.
+# 3. The Codex app on the lab's ~/.codex, with four threads it started;
+#    Codex CLI's three on the same folder, and one `codex exec` run (D-102:
+#    in neither App). This Mac's own ChatGPT.app runs it, but a build on a
+#    lab's HOME sees only the lab's processes (AJ-E3306), so in the lab it
+#    reads closed: under Inactive apps, its count the store's. The lab never
+#    starts or quits ChatGPT.
+# 4. app-client: the third profile, closed, two past sessions.
+# 5. cc-terminal: a CLI-only App, four past terminal sessions, no process.
+# 6. Work and Client are out (the week used up too, so they stay out past
+#    the five-hour reset and the walk needn't start within two hours).
+#
+# `lab_scenario.sh start-apps PL1` starts app-personal and app-work on
+# their lab folders (each shows Claude's sign-in window: never type or
+# click in it); `stop-apps` or teardown quits them.
+[setup]
+replica = false
+projects = ["web", "api"]
+
+[[setup.apps]]
+id = "app-personal"
+tool = "claude-desktop"
+account = "Personal"
+profile = "personal"
+running = true
+script_runs = 3
+
+[[setup.apps]]
+id = "app-work"
+tool = "claude-desktop"
+account = "Work"
+profile = "work"
+running = true
+past = 5
+room_used = 100
+week_used = 100
+
+[[setup.apps]]
+id = "codex-app"
+tool = "codex-app"
+account = "ChatGPT"
+profile = "default"
+past = 4
+
+[[setup.apps]]
+id = "codex-cli"
+tool = "codex"
+account = "ChatGPT"
+folder_of = "codex-app"
+past = 3
+script_runs = 1
+
+[[setup.apps]]
+id = "app-client"
+tool = "claude-desktop"
+account = "Client"
+profile = "client"
+running = false
+past = 2
+room_used = 100
+week_used = 100
+
+[[setup.apps]]
+id = "cc-terminal"
+tool = "claude-code"
+account = "Personal"
+profile = "terminal"
+past = 4
+
+[[steps]]
+do = "Group the rail by App; unfold Open now"
+expect = "Open now holds exactly Claude app · personal and Claude app · work; nothing of the lab's is under Running, not added"
+
+[[steps]]
+do = "Look at Claude app · personal"
+expect = "Its header reads nothing open, with no chevron and no row under it; no Claude Code CLI · personal App anywhere; its three claude -p runs are in History only"
+
+[[steps]]
+do = "Unfold Claude app · work"
+expect = "Its last 3 sessions, then Show all 5; its header carries the Out mark with when it resets"
+
+[[steps]]
+do = "Look under Inactive apps"
+expect = "Claude app · client (2 sessions, Out), Codex app (4 sessions), Claude Code CLI · Personal · terminal (4 sessions) and Codex CLI · default (3 sessions); none says Running"
+
+[[steps]]
+do = "Unfold Codex app, then Codex CLI · default"
+expect = "The Codex app's are the 4 threads it started, Codex CLI's the 3 a terminal started; neither lists the codex exec run (History has it)"
+
+[[steps]]
+do = "Open Home's apps, then Accounts"
+expect = "The Out mark on work's and client's tiles and on Work's and Client's Apps rows; Personal and ChatGPT have none"
+
+[[steps]]
+do = "Run scripts/qa/presence_check.py --pid <the build> --home <the lab>"
+expect = "PASS: Open now is exactly the running Apps, each unfolds to its own records, every Out Account is marked, the Codex counts are the store's"
