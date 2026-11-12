@@ -6,8 +6,8 @@
 //! which of the user's sessions were open in it.
 //!
 //! Recorded from the live view's full process scan (at most once a
-//! minute). At most [`MAX`] places; one not seen for [`FORGET_MS`] is
-//! forgotten, unless the user keeps it alive.
+//! minute). At most [`MAX`] places; an offer (D-84: seen running, never
+//! added) not seen for [`FORGET_MS`] is forgotten, never the user's App.
 
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
@@ -22,7 +22,8 @@ pub const KEY: &str = "places.known";
 pub const RESERVED_PREFIX: &str = "places.";
 /// Places remembered at most.
 pub const MAX: usize = 32;
-/// Forgotten after this long unseen (90 days), unless kept alive.
+/// An offer is forgotten after this long unseen (90 days); the user's
+/// App never is ([`KnownPlace::kept`]).
 pub const FORGET_MS: i64 = 90 * 24 * 60 * 60 * 1000;
 /// "Last seen" moves in steps this long (an hour), so a running app
 /// doesn't rewrite the book every scan.
@@ -114,6 +115,14 @@ impl KnownPlace {
             || self.name.clone(),
             |profile| format!("{} · {profile}", self.name),
         )
+    }
+
+    /// D-84: the user's App (added, imported, on one of their Accounts,
+    /// named or kept alive): theirs until they remove it, so tidying never
+    /// forgets it. Only an offer (seen running, never added) is forgotten.
+    #[must_use]
+    pub const fn kept(&self) -> bool {
+        self.users || self.keep_alive
     }
 
     /// Kept alive and watching (not paused).
@@ -267,16 +276,17 @@ impl Book {
         place.conversations.len() != before || over > 0
     }
 
-    /// Forgets places unseen for [`FORGET_MS`] that aren't kept alive.
+    /// Forgets the offers unseen for [`FORGET_MS`]; the user's Apps stay
+    /// ([`KnownPlace::kept`]: 0.4.4, an App the user added was forgotten
+    /// after 90 days without running, its row and name with it).
     pub fn tidy(&mut self, now_ms: i64) {
-        self.places.retain(|_, place| {
-            place.keep_alive || now_ms.saturating_sub(place.seen_ms) < FORGET_MS
-        });
+        self.places
+            .retain(|_, place| place.kept() || now_ms.saturating_sub(place.seen_ms) < FORGET_MS);
     }
 
-    /// Room for one more: below [`MAX`], or the place seen longest ago
-    /// that isn't kept alive forgotten (one only found beside another
-    /// first). `false` when all are kept alive.
+    /// Room for one more: below [`MAX`], or the offer seen longest ago
+    /// forgotten (one only found beside another first). `false` when all
+    /// are the user's Apps ([`KnownPlace::kept`]).
     fn make_room(&mut self) -> bool {
         if self.places.len() < MAX {
             return true;
@@ -284,7 +294,7 @@ impl Book {
         let oldest = self
             .places
             .iter()
-            .filter(|(_, place)| !place.keep_alive)
+            .filter(|(_, place)| !place.kept())
             .min_by_key(|(_, place)| (!place.found, place.seen_ms))
             .map(|(id, _)| id.clone());
         oldest.is_some_and(|id| self.places.remove(&id).is_some())
@@ -439,6 +449,49 @@ mod tests {
         book.places.get_mut(&kept).unwrap().keep_alive = true;
         book.tidy(FORGET_MS + 1_000);
         assert_eq!(book.places.keys().collect::<Vec<_>>(), [&kept]);
+    }
+
+    /// D-84: an App the user added (or imported, or on one of their
+    /// Accounts) is theirs until they remove it: tidying never forgets it,
+    /// however long it hasn't run, and never to make room. Only an offer
+    /// (seen running, never added) is forgotten.
+    #[test]
+    fn tidying_forgets_only_offers_never_the_users_apps() {
+        let mut book = Book::default();
+        let home = Path::new("/Users/you");
+        let dir = |n: usize| format!("/Users/you/Profiles/p{n}");
+        let id = |n: usize| place_id("claude-app", Some(Path::new(&dir(n))));
+        for at in 0..MAX {
+            book.observe(
+                &[running(Some(&dir(at)), true)],
+                &[],
+                &hosts(),
+                home,
+                i64::try_from(at).unwrap(),
+            );
+        }
+        // p0, the oldest, is the user's App; the rest are offers.
+        book.places.get_mut(&id(0)).unwrap().users = true;
+        book.observe(&[running(Some(&dir(MAX)), true)], &[], &hosts(), home, 100);
+        assert_eq!(book.places.len(), MAX);
+        assert!(book.places.contains_key(&id(0)), "the user's App stays");
+        assert!(!book.places.contains_key(&id(1)), "the oldest offer goes");
+        book.tidy(FORGET_MS + 1_000);
+        assert_eq!(
+            book.places.keys().collect::<Vec<_>>(),
+            [&id(0)],
+            "90 days unseen: the user's App stays, the offers go"
+        );
+        // A book of the user's Apps alone has no room to take an offer.
+        let mut full = Book::default();
+        for at in 0..MAX {
+            full.observe(&[running(Some(&dir(at)), true)], &[], &hosts(), home, 1);
+        }
+        for place in full.places.values_mut() {
+            place.users = true;
+        }
+        assert!(!full.observe(&[running(Some(&dir(MAX)), true)], &[], &hosts(), home, 2,));
+        assert_eq!(full.places.len(), MAX);
     }
 
     #[test]
