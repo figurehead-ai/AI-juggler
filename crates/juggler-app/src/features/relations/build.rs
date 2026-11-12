@@ -158,7 +158,8 @@ fn outside(state: &Arc<AppState>) -> AppResult<Part> {
             [
                 (EntityKind::Project, facet.project.clone()),
                 (EntityKind::Folder, Some(facet.folder.clone())),
-                (EntityKind::App, Some(facet.app.clone())),
+                // 0.4.3: none for one its desktop App's records don't list.
+                (EntityKind::App, facet.app.clone()),
                 (
                     EntityKind::Subscription,
                     signed_in.get(&facet.folder).cloned(),

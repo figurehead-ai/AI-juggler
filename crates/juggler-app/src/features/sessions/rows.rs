@@ -132,6 +132,7 @@ pub(super) struct Candidate {
 pub(super) struct Belongs {
     pub(super) project: Option<String>,
     pub(super) folder: Option<String>,
+    /// Its App; "" for a conversation in none (0.4.3, `app_unlisted`).
     pub(super) app: String,
     pub(super) machine: String,
     pub(super) tool: String,
@@ -648,7 +649,13 @@ fn conversation_candidate(
     here: &str,
 ) -> Option<Candidate> {
     // ADR-0032: its App as the list gives it, never worked out again.
-    let app = conversation.owner(&narrow.desktop);
+    // 0.4.3: none ("") when its desktop App's own records don't list it:
+    // History shows it, no App filter offers or keeps it (the index's rule).
+    let app = if conversation.app_unlisted {
+        String::new()
+    } else {
+        conversation.owner(&narrow.desktop)
+    };
     if !in_project(query, conversation.project_id.as_deref())
         || query
             .account_id

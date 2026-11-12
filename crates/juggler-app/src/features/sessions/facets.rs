@@ -82,7 +82,10 @@ pub fn sessions_facets_impl(
         *projects
             .entry(of.project.clone().unwrap_or_default())
             .or_insert(0) += 1;
-        *apps.entry(of.app.clone()).or_insert(0) += 1;
+        // 0.4.3: "" is in no App (its desktop App's records don't list it).
+        if !of.app.is_empty() {
+            *apps.entry(of.app.clone()).or_insert(0) += 1;
+        }
         *machines.entry(of.machine.clone()).or_insert(0) += 1;
         // "" is "No account": a folder no sign-in was read for.
         let account = of.folder.as_ref().and_then(|folder| signed_in.get(folder));

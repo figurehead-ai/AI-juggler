@@ -23,8 +23,11 @@ pub struct Facet {
     /// Its project, when its folder is in one.
     pub project: Option<String>,
     /// The App it's in: the desktop App it was last seen open in, else
-    /// its folder's CLI App.
-    pub app: String,
+    /// its folder's CLI App. 0.4.3: none when that App is a desktop app
+    /// whose own records don't list it
+    /// ([`ConversationInfo::app_unlisted`]): no App's list or count has it,
+    /// so a profile's equal the app's own records.
+    pub app: Option<String>,
     /// Open now.
     pub live: bool,
     /// Archived in AI Juggler (0.4.1), and not open.
@@ -58,7 +61,7 @@ impl ByRelation {
             if conversation.session_id.is_some() {
                 continue;
             }
-            let app = conversation.owner(desktop);
+            let app = (!conversation.app_unlisted).then(|| conversation.owner(desktop));
             let at = index.facets.len();
             if let Some(project) = &conversation.project_id {
                 index
@@ -67,7 +70,9 @@ impl ByRelation {
                     .or_default()
                     .push(at);
             }
-            index.by_app.entry(app.clone()).or_default().push(at);
+            if let Some(app) = &app {
+                index.by_app.entry(app.clone()).or_default().push(at);
+            }
             index
                 .by_tool
                 .entry(conversation.tool.clone())
@@ -161,6 +166,7 @@ mod tests {
             subtask_count: None,
             app_archived: false,
             archived_here: false,
+            app_unlisted: false,
             resume_refusal: None,
         }
     }
@@ -218,5 +224,25 @@ mod tests {
         assert_eq!(ids(index.of_folder("work").collect()), ["c-1", "c-2"]);
         assert_eq!(index.of_project("p-2").count(), 0);
         assert_eq!(index.facets()[0].last_ms, 5);
+    }
+
+    /// 0.4.3: one its desktop App's own records don't list is in no App;
+    /// its project, folder and tool still have it (History lists it).
+    #[test]
+    fn one_its_desktop_apps_records_dont_list_is_in_no_app() {
+        let profile = "app:claude-app:/p/Lab";
+        let mut listed = conversation("c-1", "lab", Some("p-1"));
+        listed.app = Some(profile.into());
+        let mut gone = conversation("c-2", "lab", Some("p-1"));
+        gone.app = Some(profile.into());
+        gone.app_unlisted = true;
+        let index = ByRelation::of([listed, gone], &DesktopApps::default());
+        let ids = |rows: Vec<&Facet>| rows.iter().map(|f| f.id.clone()).collect::<Vec<_>>();
+        assert_eq!(ids(index.of_app(profile).collect()), ["c-1"]);
+        assert_eq!(index.of_app("cli:lab").count(), 0, "nor its CLI App");
+        assert_eq!(index.facets()[1].app, None);
+        assert_eq!(ids(index.of_project("p-1").collect()), ["c-1", "c-2"]);
+        assert_eq!(ids(index.of_folder("lab").collect()), ["c-1", "c-2"]);
+        assert_eq!(ids(index.of_tool("claude-code").collect()), ["c-1", "c-2"]);
     }
 }

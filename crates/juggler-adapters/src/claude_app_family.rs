@@ -56,8 +56,8 @@ impl juggler_adapter::live::HostFamily for ClaudeAppFamily {
         records_folder_of(instance_dir, conversation)
     }
 
-    fn conversations(&self, instance_dir: &Path) -> Vec<juggler_adapter::live::HostRecord> {
-        conversations(instance_dir)
+    fn conversations(&self, instance_dir: &Path) -> Option<Vec<juggler_adapter::live::HostRecord>> {
+        Some(conversations(instance_dir))
     }
 
     fn place(
@@ -81,6 +81,9 @@ struct Shape {
     /// Epoch ms; a value of another shape is left out, never guessed.
     #[serde(default)]
     last_activity_at: Option<serde_json::Value>,
+    /// 0.4.3: the app archived it (a value of another shape: not).
+    #[serde(default)]
+    is_archived: Option<serde_json::Value>,
 }
 
 #[derive(serde::Deserialize)]
@@ -112,12 +115,13 @@ fn records(instance_dir: &Path) -> HashMap<String, (PathBuf, Shape)> {
 }
 
 /// Every conversation the app instance at `instance_dir` has a record
-/// of, with the app's title for it, the most recently active last (one
-/// without a time first, by id). A conversation with two records (the
-/// app's and one it imported) is listed once, where it was active last.
+/// of, with the app's title for it and whether it archived it, the most
+/// recently active last (one without a time first, by id). A
+/// conversation with two records (the app's and one it imported) is
+/// listed once, as its record active last says.
 #[must_use]
 pub fn conversations(instance_dir: &Path) -> Vec<juggler_adapter::live::HostRecord> {
-    let mut all: Vec<(i64, String, Option<String>)> = records(instance_dir)
+    let mut all: Vec<(i64, String, Option<String>, bool)> = records(instance_dir)
         .into_values()
         .filter_map(|(_, shape)| {
             let at = shape
@@ -126,7 +130,12 @@ pub fn conversations(instance_dir: &Path) -> Vec<juggler_adapter::live::HostReco
                 .and_then(serde_json::Value::as_i64)
                 .unwrap_or(0);
             let title = shape.title.filter(|title| !title.trim().is_empty());
-            Some((at, shape.cli_session_id?, title))
+            let archived = shape
+                .is_archived
+                .as_ref()
+                .and_then(serde_json::Value::as_bool)
+                .unwrap_or(false);
+            Some((at, shape.cli_session_id?, title, archived))
         })
         .collect();
     all.sort();
@@ -134,8 +143,14 @@ pub fn conversations(instance_dir: &Path) -> Vec<juggler_adapter::live::HostReco
     let mut out: Vec<juggler_adapter::live::HostRecord> = all
         .into_iter()
         .rev()
-        .filter(|(_, id, _)| seen.insert(id.clone()))
-        .map(|(_, id, title)| juggler_adapter::live::HostRecord { id, title })
+        .filter(|(_, id, _, _)| seen.insert(id.clone()))
+        .map(
+            |(_, id, title, archived)| juggler_adapter::live::HostRecord {
+                id,
+                title,
+                archived,
+            },
+        )
         .collect();
     out.reverse();
     out
@@ -469,6 +484,52 @@ mod tests {
         );
         // The app's own name for each, as its sidebar shows it.
         assert_eq!(got[2].title.as_deref(), Some("Title s-new"));
+        assert!(got.iter().all(|r| !r.archived), "none says archived");
+    }
+
+    /// 0.4.3: a closed profile's archived sessions showed as not archived
+    /// (only an open app's were read). A record says it; a conversation
+    /// with two records goes by the one active last, as its title does.
+    #[test]
+    fn a_records_archived_flag_is_read_and_the_latest_of_two_wins() {
+        let (_tmp, folder) = app();
+        let at = |local: &str, cli: &str, ms: i64, archived: &str| {
+            std::fs::write(
+                folder.join(format!("{local}.json")),
+                format!(
+                    r#"{{"sessionId":"{local}","cliSessionId":"{cli}","title":"{local}","isArchived":{archived},"lastActivityAt":{ms}}}"#
+                ),
+            )
+            .unwrap();
+        };
+        at("local_a", "s-put-away", 1000, "true");
+        at("local_b", "s-shown", 2000, "false");
+        // Archived in the app's own record, shown in the copy it imported later.
+        at("local_c", "s-twice", 3000, "true");
+        at("local_d", "s-twice", 4000, "false");
+        // Put away again in a later record.
+        at("local_e", "s-back", 5000, "false");
+        at("local_f", "s-back", 6000, "true");
+        // A flag of another shape is no flag, and the record still counts.
+        at("local_g", "s-odd", 7000, "\"yes\"");
+        let instance = folder.ancestors().nth(3).unwrap();
+        let got: Vec<(String, bool, Option<String>)> = super::conversations(instance)
+            .into_iter()
+            .map(|r| (r.id, r.archived, r.title))
+            .collect();
+        let row = |id: &str, archived: bool, title: &str| {
+            (id.to_owned(), archived, Some(title.to_owned()))
+        };
+        assert_eq!(
+            got,
+            [
+                row("s-put-away", true, "local_a"),
+                row("s-shown", false, "local_b"),
+                row("s-twice", false, "local_d"),
+                row("s-back", true, "local_f"),
+                row("s-odd", false, "local_g"),
+            ]
+        );
     }
 
     #[test]

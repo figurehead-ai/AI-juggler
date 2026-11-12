@@ -324,3 +324,94 @@ fn a_linked_profiles_records_name_its_sessions_as_the_app_does() {
         None
     );
 }
+
+/// 0.4.3: a profile on the real Mac had 3 records but about 40 transcripts
+/// its app wrote; every one counted as its. The record index says which
+/// conversations each linked profile's own records list (and archive),
+/// for its folder's copy only, and which profiles were read: one read
+/// with no records lists nothing; an unlinked one isn't read.
+#[test]
+fn the_record_index_is_what_the_linked_profiles_records_list() {
+    let root = tempfile::tempdir().unwrap();
+    let state = state(root.path());
+    let record = |dir: &Path, local: &str, cli: &str, archived: bool| {
+        std::fs::write(
+            dir.join("claude-code-sessions/acct/org")
+                .join(format!("{local}.json")),
+            format!(
+                r#"{{"sessionId":"{local}","cliSessionId":"{cli}","isArchived":{archived},"lastActivityAt":1}}"#
+            ),
+        )
+        .unwrap();
+    };
+    let profile = |name: &str| {
+        let dir = root.path().join("ClaudeProfiles").join(name);
+        std::fs::create_dir_all(dir.join("claude-code-sessions/acct/org")).unwrap();
+        dir
+    };
+    let (lab, empty, loose) = (profile("Lab"), profile("Empty"), profile("Loose"));
+    record(&lab, "local_a", "s-1", false);
+    record(&lab, "local_b", "s-2", true);
+    record(&loose, "local_c", "s-3", false);
+    let place = |dir: &Path, folder: Option<&str>| book::KnownPlace {
+        app_id: "claude-app".into(),
+        name: "Claude app".into(),
+        instance: dir.file_name().map(|n| n.to_string_lossy().into_owned()),
+        bundle: PathBuf::new(),
+        exe: PathBuf::new(),
+        given: None,
+        instance_dir: Some(dir.to_path_buf()),
+        account_id: folder.map(str::to_owned),
+        conversations: Vec::new(),
+        seen_ms: 1,
+        keep_alive: false,
+        paused: None,
+        found: false,
+        users: true,
+        declined: false,
+    };
+    let id = |dir: &Path| book::place_id("claude-app", Some(dir));
+    with_book(&state, |book| {
+        book.places.insert(id(&lab), place(&lab, Some("f-lab")));
+        book.places
+            .insert(id(&empty), place(&empty, Some("f-empty")));
+        book.places.insert(id(&loose), place(&loose, None));
+    })
+    .unwrap();
+    // Already looked for a folder this run: none is linked here.
+    state.places.looked.lock().unwrap().insert(id(&loose));
+    assert!(read_records(&state));
+    let index = record_index(&state);
+    assert!(index.read(&id(&lab)));
+    assert!(index.read(&id(&empty)), "read: its app lists nothing");
+    assert!(
+        !index.read(&id(&loose)),
+        "unlinked: its copies aren't known"
+    );
+    assert!(index.listed("f-lab", "claude-code/s-1"));
+    assert!(!index.archived("f-lab", "claude-code/s-1"));
+    assert!(index.listed("f-lab", "claude-code/s-2"));
+    assert!(index.archived("f-lab", "claude-code/s-2"));
+    assert!(
+        !index.listed("f-other", "claude-code/s-1"),
+        "another folder's copy"
+    );
+    assert!(!index.listed("f-lab", "claude-code/s-3"));
+    // Its lists leave out what its records don't list; another App's never.
+    assert!(!index.leaves_out(&id(&lab), "f-lab", "claude-code/s-1"));
+    assert!(index.leaves_out(&id(&lab), "f-lab", "claude-code/s-9"));
+    assert!(index.leaves_out(&id(&empty), "f-empty", "claude-code/s-1"));
+    assert!(!index.leaves_out(&id(&loose), "f-lab", "claude-code/s-9"));
+    assert!(!index.leaves_out("cli:f-lab", "f-lab", "claude-code/s-9"));
+
+    // Read again, the same: no change.
+    assert!(!read_records(&state));
+    // Archived back in the app, then deleted there: each is a change.
+    record(&lab, "local_b", "s-2", false);
+    assert!(read_records(&state));
+    assert!(!record_index(&state).archived("f-lab", "claude-code/s-2"));
+    std::fs::remove_file(lab.join("claude-code-sessions/acct/org/local_a.json")).unwrap();
+    assert!(read_records(&state));
+    assert!(!record_index(&state).listed("f-lab", "claude-code/s-1"));
+    assert!(record_index(&state).leaves_out(&id(&lab), "f-lab", "claude-code/s-1"));
+}

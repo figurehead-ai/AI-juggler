@@ -314,7 +314,8 @@ fn sides(state: &Arc<AppState>, session_id: &str, target_profile_id: &str) -> Ap
             };
             family
                 .conversations(dir)
-                .iter()
+                .into_iter()
+                .flatten()
                 .any(|r| r.id == conversation)
         });
     let target_place = source_place

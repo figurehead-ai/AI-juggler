@@ -26,6 +26,8 @@ use link::folder_for_profile;
 use link::link_its_folder;
 pub mod open_session;
 pub mod profiles;
+mod records;
+pub use records::{RecordIndex, record_index};
 pub mod start;
 mod store;
 
@@ -69,6 +71,9 @@ pub struct Places {
     /// (`<folder>` [`IN_FOLDER`] `<tool>/<id>` → the app's title), read
     /// with its records: a row names a closed one as the app does.
     titles: Mutex<std::collections::HashMap<String, String>>,
+    /// 0.4.3: which conversations the linked profiles' own records list
+    /// (read with their records, [`RecordIndex`]).
+    records: Mutex<Arc<RecordIndex>>,
     /// The unlinked profiles already looked for a folder for, this run
     /// (the look scans for folders: once each, not every minute).
     looked: Mutex<HashSet<String>>,
@@ -317,6 +322,7 @@ fn read_records(state: &Arc<AppState>) -> bool {
     };
     let mut changed = false;
     let mut titles = std::collections::HashMap::new();
+    let mut index = RecordIndex::default();
     for (id, app_id, dir, unlinked) in places {
         let first_look = unlinked
             && state
@@ -344,16 +350,21 @@ fn read_records(state: &Arc<AppState>) -> bool {
             if !adapter.host_apps().iter().any(|host| host.id == app_id) {
                 continue;
             }
-            let records = family.conversations(&dir);
+            let Some(records) = family.conversations(&dir) else {
+                break;
+            };
             let keys: Vec<String> = records
                 .iter()
                 .map(|record| book::conversation_key(harness.as_str(), &record.id))
                 .collect();
             if let Some(folder) = &folder {
+                index.read.insert(id.clone());
                 for (key, record) in keys.iter().zip(&records) {
+                    let key = in_folder(folder, key);
                     if let Some(title) = &record.title {
-                        titles.insert(in_folder(folder, key), title.clone());
+                        titles.insert(key.clone(), title.clone());
                     }
+                    index.list(key, record.archived);
                 }
             }
             if !keys.is_empty() {
@@ -365,6 +376,12 @@ fn read_records(state: &Arc<AppState>) -> bool {
     if let Ok(mut kept) = state.places.titles.lock() {
         changed |= *kept != titles;
         *kept = titles;
+    }
+    if let Ok(mut kept) = state.places.records.lock()
+        && **kept != index
+    {
+        *kept = Arc::new(index);
+        changed = true;
     }
     changed
 }
@@ -497,6 +514,11 @@ pub fn desktop_apps(state: &Arc<AppState>) -> DesktopApps {
 /// 3. one its tool says a desktop app started (`in_terminal` false): the
 ///    one profile that holds its folder;
 /// 4. its folder's CLI App.
+///
+/// 0.4.3: owning is not listing. A desktop App whose own records were read
+/// lists and counts only what they list ([`RecordIndex::leaves_out`]);
+/// one of its ended sessions they don't list is still its here (History's
+/// chip) but in no App's list.
 ///
 /// ADR-0032: for an ended session only. An open one is the App its
 /// process runs in (`features::presence::live_owner`); the conversation

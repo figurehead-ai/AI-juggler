@@ -469,6 +469,8 @@ pub struct HostRecord {
     pub id: String,
     /// What the app calls it (its sidebar's name), when it has one.
     pub title: Option<String>,
+    /// 0.4.3: the app archived it (its sidebar hides it).
+    pub archived: bool,
 }
 
 /// ADR-0028: a desktop app that keeps who started which session in its own
@@ -483,9 +485,11 @@ pub trait HostFamily: Send + Sync {
     /// Every conversation the app instance at `instance_dir` keeps a
     /// record of, the most recently active last. Read whether the app
     /// runs or not: a closed profile's sessions are its own as much as an
-    /// open one's.
-    fn conversations(&self, _instance_dir: &Path) -> Vec<HostRecord> {
-        Vec::new()
+    /// open one's. 0.4.3: `None` when the app keeps no such list (its
+    /// Apps then list every session of theirs AI Juggler finds); a list,
+    /// even an empty one, is the app's whole say.
+    fn conversations(&self, _instance_dir: &Path) -> Option<Vec<HostRecord>> {
+        None
     }
 
     /// The folder holding the target instance's record of

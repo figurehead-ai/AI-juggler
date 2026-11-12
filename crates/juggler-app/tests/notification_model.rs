@@ -557,6 +557,7 @@ fn theirs(id: &str, app: &str, app_id: &str, state: Option<&str>) -> Conversatio
         subtask_count: None,
         app_archived: false,
         archived_here: false,
+        app_unlisted: false,
         resume_refusal: None,
     }
 }
