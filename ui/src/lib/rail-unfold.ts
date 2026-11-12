@@ -40,6 +40,28 @@ export function unfoldLines(group: RailGroup, sessions: readonly RailItem[], sea
   return out;
 }
 
+/** 0.4.4 (ADR-0032 amendment 2): by Account, its ended pinned sessions
+ * under it, as by App: after its open rows in Open now. */
+export function pinnedLines(key: string, pinned: readonly RailItem[]): Line[] {
+  return nestRows(pinned).map(({ item, depth, parent }) => ({ kind: "past", item, depth, parent: parent?.title ?? null, app: key }));
+}
+
+/** 0.4.4: by Account, the Accounts with nothing open but an ended pinned
+ * session (pins never mean open, so never in Open now): "Pinned", each
+ * one's header ("nothing open"), then its pinned rows, as an App that
+ * isn't running keeps its pinned ones under it in Inactive apps. `rest`'s
+ * groups hold those pinned sessions; folded (`folded`), its header only. */
+export function pinnedSection(rest: readonly RailGroup[], folded: (key: string) => boolean): Line[] {
+  if (rest.length === 0) return [];
+  const out: Line[] = [{ kind: "section", id: "pinned", count: rest.reduce((sum, group) => sum + group.items.length, 0) }];
+  for (const group of rest) {
+    const shut = folded(group.key);
+    out.push({ kind: "header", group: { ...group, items: [] }, folded: shut ? `${group.label} · ${group.items.length} pinned` : null, needs: 0, digit: null, foldable: true, recent: null });
+    if (!shut) out.push(...pinnedLines(group.key, group.items));
+  }
+  return out;
+}
+
 /** Unfolding the group shows a row: an open one, or one of `under`. */
 export function unfoldsToARow(group: RailGroup, under: readonly Line[]): boolean {
   return group.items.length > 0 || under.some((line) => line.kind === "past");

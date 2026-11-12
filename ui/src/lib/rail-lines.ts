@@ -25,11 +25,11 @@ import { isSearching, matches, type RailQuery, type RailView } from "./rail-view
 import type { NoticeInfo } from "./ipc/notices";
 import type { KnownPlaceInfo } from "./ipc/places";
 import { nestRows } from "./rail-tree";
-import { inactiveLines, unfoldLines, unfoldsToARow } from "./rail-unfold";
+import { inactiveLines, pinnedLines, pinnedSection, unfoldLines, unfoldsToARow } from "./rail-unfold";
 import { appFolderOf, IDLE_APPS_SHOWN, idleApps, idleSessionsByApp, knownKey, offeredLines, ownersOf, runningGroups, type CliAppFacts, type IdleApp, type OfferLine } from "./rail-apps";
 import { appName } from "./app-name";
 
-export type SectionId = "needs" | "open" | "offered" | "idle";
+export type SectionId = "needs" | "open" | "offered" | "idle" | "pinned";
 
 export type Line =
   | { kind: "section"; id: SectionId; count: number }
@@ -190,6 +190,8 @@ export function buildLines({ items, view, query, now, toggled, frozen, accountOf
   }
   const inactive = apps ? [] : shown.filter((item) => item.inactive && item.need === null && !item.pinned).sort((a, b) => b.lastMs - a.lastMs);
   const idle = apps ? idleSessionsByApp(shown, byConversation, byFolder) : new Map<string, RailItem[]>();
+  // 0.4.4: by Account, an ended pinned session is under its Account (as by App, `idleSessionsByApp`'s rule).
+  const pins = groupItems(by === "account" ? shown.filter((item) => item.pinned && !openNow(item) && !item.archived && item.need === null).sort((a, b) => b.lastMs - a.lastMs) : [], by, accountOf);
   const grouped = groupItems(open, by, accountOf, poolOf); // ADR-0032: + every running App:
   // 0.4.3: searching or filtering, a running App with a match in its past.
   if (apps) grouped.push(...runningGroups(known, new Set(grouped.map((group) => group.key)), off).filter((group) => !filtering || (idle.get(group.key)?.length ?? 0) > 0));
@@ -229,7 +231,7 @@ export function buildLines({ items, view, query, now, toggled, frozen, accountOf
     const fold = arrangeGroup(group, order.mode, order.rows, want("quiet") || searching || toggled.has(`${group.key}#all`));
     arranged.set(group.key, fold.all);
     // 0.4.3: a fold only when unfolding shows a row; folded, nothing under it.
-    const under = apps ? unfoldLines(group, idle.get(group.key) ?? [], searching, toggled) : [];
+    const under = apps ? unfoldLines(group, idle.get(group.key) ?? [], searching, toggled) : pinnedLines(group.key, pins.find((one) => one.key === group.key)?.items ?? []);
     const foldable = unfoldsToARow(group, under);
     if (folded && foldable) {
       lines.push({ kind: "header", group, folded: quietWords(group), needs: needsHere, digit, foldable, recent: null });
@@ -249,6 +251,10 @@ export function buildLines({ items, view, query, now, toggled, frozen, accountOf
     lines.push(...under);
     rows += under.filter((line) => line.kind === "past").length;
   });
+  // 0.4.4: by Account, one with nothing open keeps its pinned ones in Pinned (pins never mean open).
+  const pinned = pinnedSection(pins.filter((group) => !groups.some((one) => one.key === group.key)), (key) => (stable ? order.folded.has(foldKey(lensOf(by), key)) && !searching : toggled.has(key)));
+  lines.push(...pinned);
+  rows += pinned.filter((line) => line.kind === "past").length;
   if (apps) {
     // While a search or filter is on, only the apps with something that
     // matches; one with something open isn't inactive, whatever it hides.

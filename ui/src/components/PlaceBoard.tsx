@@ -300,7 +300,7 @@ export function PlaceBoard({ sessions, projects, accounts, snooze, now, selected
             folded={line.folded}
             // Your order and Name remember a fold; Latest activity's is this visit's.
             onToggle={() => (stable ? toggleFold(orderLens, group.key) : toggle(group.key))}
-            arrange={arrangeOf("group", group.key, group.key)}
+            arrange={built.groups.includes(group) ? arrangeOf("group", group.key, group.key) : null} /* 0.4.4: Pinned's Accounts aren't Open now's to arrange */
             onOpen={opens ? () => openPlace(group) : undefined}
             openWords={lens === "pool" ? "Open its page" : groupClosed(known, group) ? "Start" : undefined}
             onPage={pageOf(group)} onWarm={lens === "pool" && group.poolId !== null ? () => void warmPool(group.poolId!) : undefined}

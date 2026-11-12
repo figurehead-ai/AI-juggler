@@ -106,6 +106,8 @@ interface Expectation {
   open?: string[];
   offered?: string[];
   idle?: string[];
+  /** By Account (0.4.4): the Accounts with nothing open but a pinned session. */
+  pinned?: string[];
   /** Section heads' counts; `null`: no such head. */
   counts?: Partial<Record<SectionId, number | null>>;
   /** What sits under each key, top to bottom (session ids). */
@@ -321,11 +323,11 @@ function invariants(row: MatrixRow, built: Lines, seen: Seen): void {
 const sorted = (list: readonly string[] | undefined) => [...(list ?? [])].sort();
 
 function sectionsMatch(want: Expectation, seen: Seen): void {
-  for (const id of ["open", "offered", "idle"] as const) {
+  for (const id of ["open", "offered", "idle", "pinned"] as const) {
     const keys = want[id];
     if (keys !== undefined) expect(sorted(seen.sections.get(id)), `${id} holds`).toEqual(sorted(keys));
   }
-  for (const id of ["needs", "open", "offered", "idle"] as const) {
+  for (const id of ["needs", "open", "offered", "idle", "pinned"] as const) {
     const count = want.counts?.[id];
     if (count !== undefined) expect(seen.counts.get(id) ?? null, `${id}'s head`).toBe(count);
   }

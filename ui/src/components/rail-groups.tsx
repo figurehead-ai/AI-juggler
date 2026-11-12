@@ -34,7 +34,7 @@ export function readClosedSections(): ReadonlySet<SectionId> {
     const raw = localStorage.getItem(CLOSED_SECTIONS_KEY);
     if (raw === null) return new Set(CLOSED_BY_DEFAULT);
     const ids = JSON.parse(raw) as unknown;
-    return new Set(Array.isArray(ids) ? ids.filter((id): id is SectionId => id === "needs" || id === "open" || id === "offered" || id === "idle") : CLOSED_BY_DEFAULT);
+    return new Set(Array.isArray(ids) ? ids.filter((id): id is SectionId => id === "needs" || id === "open" || id === "offered" || id === "idle" || id === "pinned") : CLOSED_BY_DEFAULT);
   } catch {
     return new Set(CLOSED_BY_DEFAULT);
   }
