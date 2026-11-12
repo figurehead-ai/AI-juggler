@@ -4,7 +4,7 @@
  */
 import AxeBuilder from "@axe-core/playwright";
 import { type Page } from "@playwright/test";
-import { expect, gate, test } from "./axe-gallery";
+import { expect, gate, test } from "./happo";
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { allStatuses, honestEmpty, openFilters, type FixtureSet } from "./fixtures";
@@ -57,10 +57,15 @@ async function axeClean(page: Page, what: string) {
 for (const theme of ["dark", "light"] as const) {
   for (const vp of VIEWPORTS) {
     for (const state of STATES) {
-      test(`home — ${state.name} — ${vp.name} — ${theme}`, gate("67-home"), async ({ page }) => {
+      test(`home — ${state.name} — ${vp.name} — ${theme}`, gate("67-home"), async ({ page, happoScreenshot }) => {
         await seed(page, state.fixture, theme, vp);
         await expect(page.getByRole("main")).toContainText(state.expect);
         await page.screenshot({ path: resolve(OUT, `${state.name}-${vp.name}-${theme}.png`) });
+        // Happo renders each state at its own targets' sizes (happo.config.ts),
+        // so one viewport's page is enough.
+        if (vp.name === "1280x800") {
+          await happoScreenshot(page.locator("body"), { component: "Home", variant: `${state.name}-${theme}` });
+        }
         await axeClean(page, `home ${state.name}`);
       });
     }
