@@ -41,3 +41,4 @@ fixture with both).
 - `rail-header-264-long-nochips-dark.png`: "acme-acme-max", no marks: whole.
 - `rail-header-264-long-chips-dark.png`: the same with ⚠ 1 and Out: "book…al-max".
 - `rail-header-264-east-chips-dark.png`: "acme-east" with ⚠ 1 and Out: "acme-east".
+- `rail-header-264-north-chips-dark.png`: the longest real profile name, "acme-north", with ⚠ 1 and Out in the 264 px rail: "acme-north"; "acme-east" below it, whole. Open now lists only what's open (no "Last N inactive" under an open App, D-100).
