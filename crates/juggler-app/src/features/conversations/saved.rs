@@ -229,7 +229,7 @@ mod tests {
             now, before,
             "a reader's new version invalidates the saved index"
         );
-        for (tool, version) in [("claude-code", 3), ("codex", 2)] {
+        for (tool, version) in [("claude-code", 4), ("codex", 3)] {
             let adapter = state
                 .registry
                 .get(&juggler_core::HarnessId::new(tool))

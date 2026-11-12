@@ -24,7 +24,7 @@ pub struct Facet {
     pub project: Option<String>,
     /// The App it's in: the desktop App it was last seen open in, else
     /// its folder's CLI App. 0.4.3: none when that App is a desktop app
-    /// whose own records don't list it
+    /// whose own records don't list it, or (D-102) it's a script's run
     /// ([`ConversationInfo::app_unlisted`]): no App's list or count has it,
     /// so a profile's equal the app's own records.
     pub app: Option<String>,

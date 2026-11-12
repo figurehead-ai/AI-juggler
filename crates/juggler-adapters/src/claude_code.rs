@@ -705,9 +705,10 @@ impl ToolTranscripts for ClaudeCodeAdapter {
         crate::claude_conversations::read_conversation(path)
     }
     /// 2: who started it (`started_in`, ADR-0032 amendment 6, 0.4.2); 3: a
-    /// session's id is its file's name (a fork, 0.4.3).
+    /// session's id is its file's name (a fork, 0.4.3); 4: a script's run
+    /// (`by_script`, `claude -p`: 0.4.3, D-102).
     fn conversation_reader_version(&self) -> u32 {
-        3
+        4
     }
     fn read_conversation_quick(
         &self,

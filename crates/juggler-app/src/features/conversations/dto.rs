@@ -81,8 +81,9 @@ pub struct ConversationInfo {
     #[ts(as = "Option<bool>", optional)]
     pub archived_here: bool,
     /// 0.4.3: its App is a desktop app whose own records no longer list
-    /// it (deleted in the app, or never in its sidebar): it's left out of
-    /// that App's lists and counts; History still has it.
+    /// it (deleted in the app, or never in its sidebar), or (D-102) it's a
+    /// script's run (`claude -p`, `codex exec`) AI Juggler didn't start:
+    /// it's left out of every App's lists and counts; History still has it.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     #[ts(as = "Option<bool>", optional)]
     pub app_unlisted: bool,

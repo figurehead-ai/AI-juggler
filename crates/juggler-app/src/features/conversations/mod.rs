@@ -1466,6 +1466,7 @@ mod tests {
             cwd: None,
             git_branch: None,
             started_in: None,
+            by_script: false,
             title: None,
             opening: None,
             started_ms: Some(started),

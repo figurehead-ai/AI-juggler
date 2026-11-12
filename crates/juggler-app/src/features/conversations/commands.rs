@@ -115,13 +115,20 @@ pub fn list_indexed(state: &Arc<AppState>) -> AppResult<Vec<ConversationInfo>> {
                 &summary.id,
             );
             let app = owner(state, &mut hosts, &desktop, &conversation, live.as_ref());
-            // 0.4.3: closed, and its desktop App's own records don't list it.
-            info.app_unlisted = live.is_none()
+            // 0.4.3: closed, and its desktop App's own records don't list it;
+            // (D-102) or a script's run, open or closed.
+            info.app_unlisted = (live.is_none()
                 && marks.unlisted(
                     &app,
                     &conversation.account_id,
                     &conversation.tool,
                     &summary.id,
+                ))
+                || marks.script_only(
+                    summary,
+                    info.session_id.is_some(),
+                    &conversation.account_id,
+                    &conversation.tool,
                 );
             info.app = Some(app);
             if let Some(entry) = &live {
@@ -278,6 +285,28 @@ impl Marks {
 
     fn here(&self, account: &str, id: &str) -> bool {
         self.here.contains(&super::archive::key_of(account, id))
+    }
+
+    /// 0.4.3 (D-102): a script's run (`claude -p`, `codex exec`) is History
+    /// only, as its tool's own pickers leave it out: no App lists or counts
+    /// it, so none makes or keeps a CLI App. Kept: one AI Juggler ran
+    /// (`ours`, an AI Juggler session is on it: its own Claude sessions run
+    /// as `claude -p` and count once, as that session), and one a desktop
+    /// App's own records list in `folder` (the Claude app adopted it: its
+    /// sidebar has it).
+    fn script_only(
+        &self,
+        summary: &juggler_adapter::conversation::ConversationSummary,
+        ours: bool,
+        folder: &str,
+        tool: &str,
+    ) -> bool {
+        summary.by_script
+            && !ours
+            && !self.records.listed(
+                folder,
+                &crate::features::places::book::conversation_key(tool, &summary.id),
+            )
     }
 }
 

@@ -110,6 +110,32 @@ fn is_session_id(text: &str) -> bool {
 /// The `entrypoint` Claude Code writes for a session the Claude app runs.
 const DESKTOP_ENTRYPOINTS: [&str; 2] = ["claude-desktop", "sdk-ts"];
 
+/// 0.4.3 (D-102): the first `entrypoint` of a script's run (`claude -p`,
+/// the Python Agent SDK). `claude --resume` lists no session that starts
+/// so; neither does AI Juggler outside History.
+const SCRIPT_ENTRYPOINTS: [&str; 2] = ["sdk-cli", "sdk-py"];
+
+/// What a line's `entrypoint` says of where its session runs. Claude Code
+/// records it on every line: the Claude app's Code tab is
+/// `claude-desktop`, and the app's own Agent SDK runs (`sdk-ts`) are the
+/// app's too (ADR-0032: on the maintainer's Mac they're only ever in the
+/// app profiles' folders). A terminal is `cli`; a script's `claude -p` is
+/// `sdk-cli`: History only (0.4.3, D-102), told by the first line that
+/// says (`seen`: a later resume in a terminal doesn't make it a session
+/// `claude --resume` lists).
+fn note_entrypoint(summary: &mut ConversationSummary, seen: &mut bool, entry: Option<&str>) {
+    let Some(entry) = entry else {
+        return;
+    };
+    if !*seen {
+        *seen = true;
+        summary.by_script = SCRIPT_ENTRYPOINTS.contains(&entry);
+    }
+    if summary.started_in.is_none() && DESKTOP_ENTRYPOINTS.contains(&entry) {
+        summary.started_in = Some(crate::claude_live::CLAUDE_APP_HOST.to_owned());
+    }
+}
+
 /// What a transcript's lines (all, or its two ends) say.
 fn summary_of(lines_in: impl Iterator<Item = String>, path: &Path) -> Option<ConversationSummary> {
     let mut summary = ConversationSummary::default();
@@ -119,6 +145,7 @@ fn summary_of(lines_in: impl Iterator<Item = String>, path: &Path) -> Option<Con
     let mut usage: HashMap<String, TokenCounts> = HashMap::new();
     let mut unnamed = 0_u64;
     let mut lines = 0_u64;
+    let mut entry_seen = false;
     for line in lines_in {
         let Ok(value) = serde_json::from_str::<serde_json::Value>(&line) else {
             continue; // a damaged or half-written line
@@ -142,16 +169,7 @@ fn summary_of(lines_in: impl Iterator<Item = String>, path: &Path) -> Option<Con
         if let Some(branch) = str_of("gitBranch").filter(|branch| !branch.is_empty()) {
             summary.git_branch = Some(branch.to_owned());
         }
-        // Claude Code records where it runs on every line: the Claude app's
-        // Code tab is `claude-desktop`, and the app's own Agent SDK runs
-        // (`sdk-ts`) are the app's too (ADR-0032: on the maintainer's Mac
-        // they're only ever in the app profiles' folders). A terminal is
-        // `cli`; a script's `claude -p` is `sdk-cli`: a CLI App's.
-        if summary.started_in.is_none()
-            && str_of("entrypoint").is_some_and(|entry| DESKTOP_ENTRYPOINTS.contains(&entry))
-        {
-            summary.started_in = Some(crate::claude_live::CLAUDE_APP_HOST.to_owned());
-        }
+        note_entrypoint(&mut summary, &mut entry_seen, str_of("entrypoint"));
         if let Some(at) = str_of("timestamp").and_then(timestamp_ms) {
             summary.started_ms = Some(summary.started_ms.map_or(at, |first| first.min(at)));
             summary.last_ms = Some(summary.last_ms.map_or(at, |last| last.max(at)));
@@ -275,6 +293,47 @@ mod tests {
             summary.started_in.as_deref(),
             Some(crate::claude_live::CLAUDE_APP_HOST)
         );
+    }
+
+    /// 0.4.3 (D-102): a script's run (`claude -p`: its first entrypoint
+    /// `sdk-cli`; the Python SDK's `sdk-py`) says so, whatever later lines
+    /// say; a terminal's, the Claude app's and one with none don't.
+    #[test]
+    fn a_scripts_run_is_told_by_its_first_entrypoint() {
+        let dir = tempfile::tempdir().unwrap();
+        let line = |entry: Option<&str>| {
+            let entry =
+                entry.map_or_else(String::new, |entry| format!(r#""entrypoint":"{entry}","#));
+            format!(
+                r#"{{"type":"user","sessionId":"s-1","cwd":"/w/proj",{entry}"timestamp":"2026-10-21T10:00:00.000Z","message":{{"role":"user","content":"tidy the logs"}}}}"#
+            )
+        };
+        let mut n = 0;
+        let mut read = |entries: &[Option<&str>]| {
+            n += 1;
+            let lines: Vec<String> = entries.iter().map(|entry| line(*entry)).collect();
+            let refs: Vec<&str> = lines.iter().map(String::as_str).collect();
+            read_conversation(&write(
+                dir.path(),
+                &format!("projects/-w-proj/r{n}.jsonl"),
+                &refs,
+            ))
+            .unwrap()
+            .by_script
+        };
+        assert!(read(&[Some("sdk-cli")]));
+        assert!(read(&[Some("sdk-py")]));
+        assert!(
+            read(&[None, Some("sdk-cli"), Some("cli")]),
+            "the first that says"
+        );
+        assert!(
+            !read(&[Some("cli"), Some("sdk-cli")]),
+            "a terminal's, resumed by a script"
+        );
+        assert!(!read(&[Some("claude-desktop")]));
+        assert!(!read(&[Some("sdk-ts")]), "the Claude app's own SDK runs");
+        assert!(!read(&[None]));
     }
 
     /// 0.4.3: a fork's file starts with its parent's lines (their
