@@ -162,12 +162,13 @@ describe("every rail element opens a page here (place lens)", () => {
     fireEvent.click(within(header(list, "app|claude-app|Personal")).getByTestId("rail-fold"));
     expect(row(list, "c:claude-personal/outside-4")).toBeNull();
 
-    // D-100: Open now shows only what's open: an open App's inactive
-    // sessions aren't listed under it ("Last n inactive" is gone from Open
-    // now); its header's menu has Show recent, its page's Sessions.
+    // 0.4.3 (D-64): an open App's inactive sessions wait behind its "Last
+    // n inactive", folded (Open now leads with what's open); a click shows
+    // them under it, in place. Its header's menu still has Show recent.
     expect(view.queryByTestId("rail-also-inactive")).toBeNull();
     expect(row(list, "c:claude-work/outside-8")).toBeNull();
-    expect(within(view.getByTestId("place-board")).queryAllByTestId("rail-recent")).toHaveLength(0);
+    const recent = within(view.getByTestId("place-board")).getAllByTestId("rail-recent");
+    expect(recent.every((link) => link.getAttribute("aria-expanded") === "false")).toBe(true);
     fireEvent.contextMenu(header(list, "app|claude-app|Work"));
     expect(view.getByTestId("place-header-menu-recent").textContent).toBe("Show recent");
     fireEvent.keyDown(document.activeElement ?? document.body, { key: "Escape" });

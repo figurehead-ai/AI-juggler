@@ -137,7 +137,7 @@ describe("AJ-E3206 a CLI App wears one colour on every surface", () => {
     expect(edgeOf(place)).toBe(work);
     const idle = render(
       <RailIdleApp
-        app={{ key: place.key, kind: "cli", name: "Claude Code · Work Max", app: "Claude Code", profile: WORK.label, appId: null, lastMs: NOW, appPid: null, placeId: null, cannotStart: null, accountId: WORK.id, tool: "claude-code", sessions: [] }}
+        app={{ key: place.key, kind: "cli", name: "Claude Code · Work Max", app: "Claude Code", profile: WORK.label, appId: null, lastMs: NOW, appPid: null, placeId: null, cannotStart: null, accountId: WORK.id, folder: WORK.id, tool: "claude-code", sessions: [] }}
         open={false}
         onToggle={() => {}}
         now={NOW}
@@ -190,7 +190,7 @@ describe("AJ-E3206 a desktop App wears one colour on every surface", () => {
     cleanup();
     const idle = render(
       <RailIdleApp
-        app={{ key: place.key, kind: "desktop", name: "Claude app · Work Max", app: "Claude app", profile: "Work Max", appId: "claude-app", lastMs: NOW, appPid: null, placeId: WORK_APP.id, cannotStart: null, accountId: null, tool: null, sessions: [] }}
+        app={{ key: place.key, kind: "desktop", name: "Claude app · Work Max", app: "Claude app", profile: "Work Max", appId: "claude-app", lastMs: NOW, appPid: null, placeId: WORK_APP.id, cannotStart: null, accountId: null, folder: null, tool: null, sessions: [] }}
         open={false}
         onToggle={() => {}}
         now={NOW}

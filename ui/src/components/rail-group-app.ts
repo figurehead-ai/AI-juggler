@@ -33,9 +33,21 @@ export function openGroupApp(known: KnownPlaceInfo): void {
   placesOpen(known.id).then(showGoTo, (cause) => showToast({ id: "go-to", message: errorText(cause) }));
 }
 
-/** D-100: an App's sessions that aren't open, which Open now no longer
- * lists under it: its page's Sessions tab (grouped by App). */
+/** A rail App group's App id (its page), grouped by App. 0.4.3: by its own
+ * folder (an App with nothing open has no row to ask). */
+export function appPageOfGroup(lens: string, group: RailGroup, places: readonly KnownPlaceInfo[] | null): string | null {
+  return lens === "place" && group.place ? appIdOfRailKey(group.place.key, group.accountId ?? group.items[0]?.accountId ?? null, places) : null;
+}
+
+/** App `app`'s page on its Sessions tab. */
+export function openAppSessions(app: string): void {
+  openOnTab("app", "sessions");
+  openApp(app);
+}
+
+/** D-100: an App's sessions that aren't open: its page's Sessions tab
+ * (grouped by App); its header menu's "Show recent". */
 export function recentOfGroup(lens: string, group: RailGroup, places: readonly KnownPlaceInfo[] | null): (() => void) | undefined {
-  const app = lens === "place" && group.place ? appIdOfRailKey(group.place.key, group.items[0]?.accountId ?? null, places) : null;
-  return app ? () => (openOnTab("app", "sessions"), openApp(app)) : undefined;
+  const app = appPageOfGroup(lens, group, places);
+  return app ? () => openAppSessions(app) : undefined;
 }

@@ -46,7 +46,11 @@ export function PlaceHeader({
   onRestart,
   roomOf,
   onWarm,
+  foldable = true,
 }: {
+  /** 0.4.3: unfolding it shows a row; when it wouldn't, no fold (a
+   * chevron that opened nothing was the 0.4.2 rail's dead end). */
+  foldable?: boolean;
   /** X2: pointed at or focused, what opening it reads ahead (a pool's
    * members and canvas, `warmPool`). */
   onWarm?: () => void;
@@ -81,6 +85,9 @@ export function PlaceHeader({
   onRestart?: () => void;
 }): JSX.Element {
   const name = [label, place?.profile].filter(Boolean).join(" · ");
+  // ADR-0032: an App that runs with nothing open in it says so, folded or
+  // not (its last ones may show under it, 0.4.3).
+  const empty = count === 0 && folded === null;
   const mark = useRoomMark(roomOf);
   const room = mark ? <RoomChip mark={mark} iconOnly testId="place-room" /> : null;
   const [menu, setMenu] = useState<MenuAt | null>(null);
@@ -107,7 +114,7 @@ export function PlaceHeader({
       data-place={place?.key}
       data-order-head={arrange?.group}
     >
-      <FoldButton open={folded === null} label={name} onToggle={onToggle} />
+      {foldable ? <FoldButton open={folded === null} label={name} onToggle={onToggle} /> : <span aria-hidden="true" className="w-6 shrink-0" data-testid="place-no-fold" />}
       <button
         type="button"
         onClick={onPage ?? onToggle}
@@ -117,7 +124,8 @@ export function PlaceHeader({
         title={onPage ? `Open ${name}'s page` : undefined}
         className="relative flex min-h-6 min-w-0 flex-1 items-center gap-1.5 rounded-md px-1 py-1 text-left outline-none hover:bg-surface/60 focus-visible:ring-1 focus-visible:ring-accent/60"
       >
-        <span className="sr-only">{folded ?? `${name}, ${count} open${needs > 0 ? `, ${needs} need you` : ""}`}</span>
+        {/* 0.4.3: its Out or low mark in its name too (the mark itself is drawn aria-hidden). */}
+        <span className="sr-only">{[folded ?? `${name}, ${empty ? "nothing open" : `${count} open`}${needs > 0 ? `, ${needs} need you` : ""}`, mark?.title].filter(Boolean).join(", ")}</span>
         <span aria-hidden="true" className="flex min-w-0 flex-1 items-center gap-[3px]">
           {/* D-100: its kind beside its icon (a window, or >_), never over it. */}
           {children ?? (place && (
@@ -140,6 +148,7 @@ export function PlaceHeader({
           <span ref={extra} className="flex h-[18px] min-w-0 flex-1 basis-0 items-center gap-x-[3px] overflow-hidden" data-testid="place-name-line">
             {place?.profile && <span className="shrink-0 whitespace-nowrap text-label leading-[18px] text-muted" data-testid="place-app-word">{label}</span>}
             {folded !== null && needs === 0 && <span className="shrink-0 whitespace-nowrap text-label leading-[18px] text-muted">{folded.slice(folded.indexOf("·") + 1).trim()}</span>}
+            {empty && <span className="shrink-0 whitespace-nowrap text-label leading-[18px] text-muted" data-testid="place-nothing-open">nothing open</span>}
           </span>
           {/* What the amber count is, on the chip itself (the review of
               0.1.4: an unexplained "1"): the Needs you mark and a tooltip. */}
@@ -152,7 +161,7 @@ export function PlaceHeader({
           {/* 0.4.1: out of room or low, its mark; the count steps aside
               for it (its rows show what's open; the name above keeps it),
               so the profile's name keeps its room. */}
-          {room ?? (folded === null && <span className="min-w-0 shrink-[1000] overflow-hidden text-label tabular-nums text-muted" title={`${count} open here`}>{count}</span>)}
+          {room ?? (folded === null && !empty && <span className="min-w-0 shrink-[1000] overflow-hidden text-label tabular-nums text-muted" title={`${count} open here`}>{count}</span>)}
         </span>
       </button>
       {arrange?.enabled && (
@@ -217,9 +226,11 @@ export function PlaceHeader({
               </span>
             </MenuItem>
           )}
-          <MenuItem onClick={run(onToggle)} testId="place-header-menu-fold">
-            {folded === null ? "Fold" : "Unfold"}
-          </MenuItem>
+          {foldable && (
+            <MenuItem onClick={run(onToggle)} testId="place-header-menu-fold">
+              {folded === null ? "Fold" : "Unfold"}
+            </MenuItem>
+          )}
         </RowMenu>
       )}
     </div>

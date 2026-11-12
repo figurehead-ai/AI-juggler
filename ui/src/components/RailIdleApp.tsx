@@ -29,6 +29,8 @@ import { RECENT_INLINE, type IdleApp } from "../lib/rail-apps";
 import { askRestart } from "./RestartApp";
 import { hasLiveBackend } from "../lib/bridge";
 import { useRelationCounts } from "../lib/relation-counts";
+import { RoomChip, useRoomMark } from "./RoomChip";
+import { RailLink } from "./PlaceBoardParts";
 
 /** A running desktop app restarts (after the confirm) from its row too. */
 const restartable = (app: IdleApp): boolean => app.kind === "desktop" && app.appPid !== null && app.placeId !== null;
@@ -60,9 +62,31 @@ export function idleWords(app: IdleApp, now: number, count: number | null = app.
  * counts them (the backend's relation counts), not the recent ones the
  * rail has loaded; `null` until read. The design preview counts its own. */
 function useAppCount(app: IdleApp, page: string | null): number | null {
+  return usePageCount(page, app.sessions.length);
+}
+
+function usePageCount(page: string | null, loaded: number): number | null {
   const related = useRelationCounts(page !== null ? "app" : null, page);
-  if (!hasLiveBackend()) return app.sessions.length;
+  if (!hasLiveBackend()) return loaded;
   return related?.sessions.all ?? null;
+}
+
+/** An inactive App's page: a desktop App's own id, a CLI App's by its folder. */
+export function idleAppPage(app: IdleApp): string | null {
+  return app.kind === "desktop" ? app.placeId : app.accountId ? cliAppId(app.accountId) : null;
+}
+
+/** 0.4.3: under an App's last ones, "Show all N": N as its page counts
+ * them (walk K1), the read ones until known; a click opens its page's
+ * Sessions (D-64: the full list is on the App's page). */
+export function RailShowAll({ page, loaded, onOpen }: { page: string | null; loaded: number; onOpen: (page: string) => void }): JSX.Element | null {
+  const count = usePageCount(page, loaded) ?? loaded;
+  if (page === null) return null;
+  return (
+    <RailLink onClick={() => onOpen(page)} testId="rail-show-all">
+      {`Show all ${count}`}
+    </RailLink>
+  );
 }
 
 export function RailIdleApp({
@@ -97,7 +121,8 @@ export function RailIdleApp({
     );
   };
   // D-62: its name opens its App page, as an open App's header does.
-  const page = app.kind === "desktop" ? app.placeId : app.accountId ? cliAppId(app.accountId) : null;
+  const page = idleAppPage(app);
+  const mark = useRoomMark(app.folder);
   const openPage = page !== null ? () => openApp(page) : null;
   const when = idleWords(app, now, useAppCount(app, page));
   const run = (action: () => void) => () => (setMenu(null), action());
@@ -130,7 +155,7 @@ export function RailIdleApp({
         title={openPage ? `Open ${app.name}'s page` : undefined}
         className="relative flex min-h-10 min-w-0 flex-1 flex-col justify-center gap-0.5 rounded-md px-1 py-0.5 text-left outline-none hover:bg-surface/60 focus-visible:ring-1 focus-visible:ring-accent/60"
       >
-        <span className="sr-only">{[app.name, appKindWords(app.kind).name, when].filter(Boolean).join(", ")}</span>
+        <span className="sr-only">{[app.name, appKindWords(app.kind).name, when, mark?.title].filter(Boolean).join(", ")}</span>
         <span aria-hidden="true" className="flex min-w-0 items-center gap-1">
           <AppIcon appId={app.appId} appPid={app.appPid} name={app.app} size={16} />
           <AppKindBadge kind={app.kind} />
@@ -146,6 +171,14 @@ export function RailIdleApp({
           {[appKindWords(app.kind).word, when].filter(Boolean).join(" · ")}
         </span>
       </button>
+      {/* 0.4.3: its Account out or low, as an Open now App's header marks it
+          (spec 11 rule 6: one mark wherever the App appears). */}
+      {mark && (
+        // Its words are in the row's name (above); drawn once, as the header's.
+        <span aria-hidden="true" className="flex shrink-0">
+          <RoomChip mark={mark} iconOnly testId="rail-idle-room" />
+        </span>
+      )}
       <button
         type="button"
         onClick={act}
