@@ -79,6 +79,7 @@ def rail(pid: int) -> tuple[list[str], list[str], str]:
     out = subprocess.run(["swift", str(HERE / "ax_texts.swift"), str(pid)], capture_output=True, text=True)
     if out.returncode != 0:
         sys.exit(f"presence-check: couldn't read the rail: {out.stderr.strip()}")
+    counts: dict[str, int] = {}
     open_now: list[str] = []
     inactive: list[str] = []
     inactive_words = ""
@@ -86,6 +87,8 @@ def rail(pid: int) -> tuple[list[str], list[str], str]:
     for line in out.stdout.splitlines():
         role, label, value = (line.split("\t") + ["", ""])[:3]
         words = label or value
+        if m := re.match(r"^Open now (\d+)", words):
+            counts["open"] = int(m.group(1))
         if re.match(r"^Open now\b", words):
             at = "open"
         elif re.match(r"^Inactive apps\b", words):
@@ -97,7 +100,7 @@ def rail(pid: int) -> tuple[list[str], list[str], str]:
             (open_now if at == "open" else inactive).append(m.group(1))
         elif at == "idle":
             inactive_words += " " + words
-    return open_now, inactive, inactive_words
+    return open_now, inactive, inactive_words, counts
 
 
 def main() -> int:
@@ -109,7 +112,7 @@ def main() -> int:
 
     running = running_ids()
     mine = users_apps(args.data)
-    open_now, inactive, inactive_words = rail(args.pid)
+    open_now, inactive, inactive_words, counts = rail(args.pid)
     desktop_words = ("Claude app", "Codex app")
     shown_open = {name for name in open_now if name.startswith(desktop_words)}
     want_open = {mine[i] for i in running if i in mine}
@@ -121,9 +124,19 @@ def main() -> int:
         f"Open now shows:    {sorted(shown_open)}",
         f"Inactive apps shows: {sorted(inactive) or '(folded)'}",
     ]
+    # The rail draws only the rows on screen; its heading counts them all.
+    # By App, Open now counts every App open: the user's running ones and
+    # the CLI Apps with a session open (named on screen when drawn).
+    shown_cli = {name for name in open_now if not name.startswith(desktop_words)}
     problems = []
+    if "open" in counts and counts["open"] < len(want_open):
+        problems.append(f"Open now counts {counts['open']}, fewer than your {len(want_open)} running Apps")
+    if len(shown_open) + len(shown_cli) < counts.get("open", 0):
+        lines.append(f"(Open now {counts['open']}: {counts['open'] - len(shown_open) - len(shown_cli)} below the visible rows, checked by count)")
+    seen_all = len(shown_open) + len(shown_cli) >= counts.get("open", 0)
     for name in sorted(want_open - shown_open):
-        problems.append(f"runs but isn't in Open now: {name}")
+        if seen_all:
+            problems.append(f"runs but isn't in Open now: {name}")
     for name in sorted(shown_open - want_open):
         problems.append(f"in Open now but not running: {name}")
     for name in sorted(set(open_now) & set(inactive)):

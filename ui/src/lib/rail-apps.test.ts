@@ -272,7 +272,7 @@ describe("ADR-0032 presence: the rail matches what runs", () => {
     expect([...open].sort()).toEqual(["app|claude-app|Luka", "app|claude-app|Mia"]);
     expect([...inactive]).toEqual(["app|claude-app|Gone"]);
     const header = out.find((line) => line.kind === "header" && line.group.key === "app|claude-app|Luka");
-    expect(header && header.kind === "header" ? header.folded : null).toBe("Luka");
+    expect(header && header.kind === "header" ? header.folded : null).toBe("Luka · nothing open");
     // By App, Open now counts the Apps open.
     expect(kinds(out)[0]).toBe("section:open:2");
   });

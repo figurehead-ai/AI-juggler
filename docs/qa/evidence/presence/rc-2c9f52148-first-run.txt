@@ -1,0 +1,15 @@
+presence-check (ADR-0032)
+running desktop apps (ps): 7
+  app:claude-app:~/Library/Application Support/Claude
+  app:claude-app:~/Library/Application Support/ClaudeProfiles/b-anela
+  app:claude-app:~/Library/Application Support/ClaudeProfiles/b-luka
+  app:claude-app:~/Library/Application Support/ClaudeProfiles/b-mia
+  app:claude-app:~/Library/Application Support/ClaudeProfiles/b-olivia
+  app:claude-app:~/Library/Application Support/ClaudeProfiles/personal-max
+  app:codex-app:
+your running Apps: ['Claude app', 'Claude app · Account B', 'Claude app · Account C', 'Claude app · Account D', 'Claude app · Account E', 'Claude app · Account F', 'Codex app']
+Open now shows:    ['Claude app', 'Claude app · Account B', 'Claude app · Account C', 'Claude app · Account D', 'Claude app · Account E', 'Claude app · Account F']
+Inactive apps shows: (folded)
+FAIL runs but isn't in Open now: Codex app
+
+(Recorded on the 0.4.2 RC 2c9f52148 at its first start: the Codex app, linked to ~/.codex on that first scan, stayed out of every list until a restart; fixed in places/link.rs, which now marks a newly linked App the user's at once. After a restart the same RC passed: Open now 7 = the 7 running Apps.)
