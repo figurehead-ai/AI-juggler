@@ -22,8 +22,11 @@ import { outside, useConversations } from "../lib/conversations";
  * at any time (0.1.5: its summaries, not the sessions the app holds
  * now); until that answer comes, what the working set says, so the tab
  * doesn't blink. */
-function useProjectHasUsage(projectId: string, sessions: InstanceInfo[]): boolean {
+function useProjectHasUsage(projectId: string, sessions: InstanceInfo[]): { has: boolean; ran: number } {
   const { all: conversations } = useConversations();
+  // How many sessions it has had, so an empty tab never says "once a
+  // session has run" beside 14 that did (the 0.4.3 persona walk R3).
+  const ran = sessions.filter((s) => s.project_id === projectId).length + outside(conversations).filter((c) => c.project_id === projectId).length;
   const used = (t: { input: number; output: number } | null | undefined) => !!t && t.input + t.output > 0;
   const meanwhile = sessions.some((s) => s.project_id === projectId && used(s.tokens)) || outside(conversations).some((c) => c.project_id === projectId && used(c.tokens));
   const result = useCached<UsageHistoryInfo>(
@@ -32,11 +35,11 @@ function useProjectHasUsage(projectId: string, sessions: InstanceInfo[]): boolea
     60_000,
   );
   const summary = result.current ? result.data : null;
-  return summary ? summary.totals.messages > 0 || summary.session_count > 0 || meanwhile : meanwhile;
+  return { has: summary ? summary.totals.messages > 0 || summary.session_count > 0 || meanwhile : meanwhile, ran };
 }
 
 export function ProjectUsage({ projectId, sessions = [] }: { projectId: string; sessions?: InstanceInfo[] }): JSX.Element {
-  const hasUsage = useProjectHasUsage(projectId, sessions);
+  const { has: hasUsage, ran } = useProjectHasUsage(projectId, sessions);
   const [range, setRange] = useRange("project");
   const [accounts, setAccounts] = useState<AccountInfo[]>([]);
   useEffect(() => {
@@ -53,7 +56,9 @@ export function ProjectUsage({ projectId, sessions = [] }: { projectId: string; 
     return (
       <div className="flex w-full max-w-content flex-col gap-grid" data-testid="project-usage">
         <p className="rounded-lg border border-dashed border-hairline px-3 py-4 text-meta text-ink-2" data-testid="project-usage-empty">
-          No usage in this project yet. It shows here once a session in its folder has run.
+          {ran > 0
+            ? `No token use is recorded in the files of its ${ran === 1 ? "session" : `${ran} sessions`}. It shows here once a session records some.`
+            : "No usage in this project yet. It shows here once a session in its folder has run."}
         </p>
       </div>
     );

@@ -103,7 +103,7 @@ const props = {
   onNew: () => {},
 };
 
-function shell(selection: InspectorSelection, data = {}) {
+function shell(selection: InspectorSelection, data = {}, over: Partial<typeof props> = {}) {
   return render(
     <RightInspector
       selection={selection}
@@ -116,6 +116,7 @@ function shell(selection: InspectorSelection, data = {}) {
         ...data,
       }}
       {...props}
+      {...over}
     />,
   );
 }
@@ -158,10 +159,18 @@ describe("AJ-E1533 one page model: each type's header and its own tabs", () => {
   });
 
   it("a project's Usage tab with nothing measured says so in one line (AJ-E2805 R2)", async () => {
-    const { container, findByTestId, queryByTestId } = shell({ kind: "project", id: "proj-1" });
+    const { container, findByTestId, queryByTestId } = shell({ kind: "project", id: "proj-1" }, {}, { sessions: [] });
     fireEvent.click(container.querySelector("#page-tab-usage")!);
     expect((await findByTestId("project-usage-empty")).textContent).toBe("No usage in this project yet. It shows here once a session in its folder has run.");
     expect(queryByTestId("project-usage-dashboard")).toBeNull();
+  });
+
+  it("a project whose sessions recorded no token use says that, never \"once a session has run\" (the 0.4.3 persona walk R3)", async () => {
+    const { container, findByTestId } = shell({ kind: "project", id: "proj-1" });
+    fireEvent.click(container.querySelector("#page-tab-usage")!);
+    const words = (await findByTestId("project-usage-empty")).textContent ?? "";
+    expect(words).toBe("No token use is recorded in the files of its session. It shows here once a session records some.");
+    expect(words).not.toContain("has run");
   });
 
   it("a project's page opens on the tab you last chose on one, the new tabs too (AJ-E1534, AJ-E2805 R5)", () => {
