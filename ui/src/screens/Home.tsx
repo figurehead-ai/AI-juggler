@@ -85,7 +85,6 @@ export function needOf(session: InstanceInfo): Need | null {
   return (session.needs_attention as Need | null) ?? null;
 }
 
-
 /** What's wrong, in a sentence, and the one action. A limit is the
  * Account's (D-62), so it's named by the Account (`accounts`, as read);
  * a folder in none keeps its own name. */
