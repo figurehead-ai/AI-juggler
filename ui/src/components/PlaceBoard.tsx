@@ -31,9 +31,8 @@ import { useClosedSections } from "./rail-groups";
 import { buildLines, foldSections, lineHeights, lineKey, offsetOf, shownOrder, VIRTUALISE_AT, windowOf, type Line } from "../lib/rail-lines";
 import { headerActions, keepAliveOf } from "./place-actions";
 import { recentWords } from "../lib/rail-apps";
-import { groupApp, groupClosed, openGroupApp } from "./rail-group-app";
+import { groupApp, recentOfGroup, groupClosed, openGroupApp } from "./rail-group-app";
 import { appIdOfRailKey, openApp } from "../lib/apps";
-import { openOnTab } from "../pages/registry";
 import { openAccount } from "../lib/accounts-page";
 import { accountOfProfile, cachedSubscriptions } from "../lib/subscriptions";
 import { renamedPlaces, type RailGroup } from "../lib/rail-places";
@@ -162,11 +161,6 @@ export function PlaceBoard({ sessions, projects, snooze, now, selectedId, onSele
     return id !== null && host.openAccountById ? () => host.openAccountById!(id) : undefined;
   };
   const knownOf = (group: RailGroup) => groupApp(lens, group, places); // 0.4.1: by key, running or not
-  // D-100: an App's sessions that aren't open: its page's Sessions tab.
-  const recentOf = (group: RailGroup): (() => void) | undefined => {
-    const app = lens === "place" && group.place ? appIdOfRailKey(group.place.key, group.items[0]?.accountId ?? null, places) : null;
-    return app ? () => (openOnTab("app", "sessions"), openApp(app)) : undefined;
-  };
   const openPlace = (group: RailGroup) => {
     // A pool's header (and its ⌘ digit) opens the pool's page.
     if (group.poolId !== null) {
@@ -310,7 +304,7 @@ export function PlaceBoard({ sessions, projects, snooze, now, selectedId, onSele
             openWords={lens === "pool" ? "Open its page" : groupClosed(known, group) ? "Start" : undefined}
             onPage={pageOf(group)} onWarm={lens === "pool" && group.poolId !== null ? () => void warmPool(group.poolId!) : undefined}
             shortcut={line.digit ?? undefined}
-            onRecent={recentOf(group)}
+            onRecent={recentOfGroup(lens, group, places)}
             onNew={lens === "place" && group.key.startsWith("cli|") ? () => window.dispatchEvent(new CustomEvent("aij:new-session", { detail: { accountId: group.items[0]?.accountId ?? null } })) : undefined}
             {...headerActions(known, group)} roomOf={lens === "pool" ? null : group.items[0]?.accountId}
           >
