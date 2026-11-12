@@ -86,7 +86,8 @@ export function parseOrder(raw: string | null): RailOrder {
     // 0.4.3: a desktop App's fold kept before 0.4.3 came from 0.4.2's dead
     // chevron (its header drew folded either way, and each click flipped
     // the record): the click meant "show me", so it's dropped, once.
-    const folded = keys(value.folded, MAX_FOLDED).filter((key) => (value as { v?: unknown }).v === 2 || !key.startsWith("place:app|"));
+    const desktopFold = foldKey("place", "app|");
+    const folded = keys(value.folded, MAX_FOLDED).filter((key) => (value as { v?: unknown }).v === 2 || !key.startsWith(desktopFold));
     return { mode, rows: keys(value.rows, MAX_ROWS), groups, folded, pins: keys(value.pins, MAX_ROWS), seen, v: 2 };
   } catch {
     return EMPTY_ORDER;
