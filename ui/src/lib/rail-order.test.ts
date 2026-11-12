@@ -238,11 +238,16 @@ describe("Needs you mirrors Open now; each list counts a session once", () => {
 
 describe("the record: read guarded, kept, pruned", () => {
   it("round-trips, and junk is the defaults", () => {
-    const order: RailOrder = { mode: "latest", rows: ["s:1", "c:acct/2"], groups: { place: ["ai-juggler"], account: [], pool: ["pool:p"] }, folded: ["place:x"], pins: ["c:acct/2"], seen: { "s:1": TODAY, "c:acct/2": TODAY } };
+    const order: RailOrder = { mode: "latest", rows: ["s:1", "c:acct/2"], groups: { place: ["ai-juggler"], account: [], pool: ["pool:p"] }, folded: ["place:x", "place:app|claude-app|b-east"], pins: ["c:acct/2"], seen: { "s:1": TODAY, "c:acct/2": TODAY }, v: 2 };
     expect(parseOrder(JSON.stringify(order))).toEqual(order);
     expect(parseOrder(null)).toEqual(EMPTY_ORDER);
     expect(parseOrder("{nope")).toEqual(EMPTY_ORDER);
     expect(parseOrder("[1]")).toEqual(EMPTY_ORDER);
+    // 0.4.3: a desktop App's fold kept before 0.4.3 was a click on 0.4.2's
+    // dead chevron (meant to show it): dropped once; the rest stay.
+    const old = { ...order, v: undefined, folded: ["place:x", "place:app|claude-app|b-east", "place:app|codex-app|"] };
+    expect(parseOrder(JSON.stringify(old)).folded).toEqual(["place:x"]);
+    expect(parseOrder(JSON.stringify(parseOrder(JSON.stringify({ ...old, v: 2 })))).folded).toEqual(old.folded);
     expect(parseOrder(JSON.stringify({ mode: "random", rows: ["a", 3, "a", "x".repeat(500)], seen: { a: "today", b: 2.5, c: 4 } }))).toEqual({ ...EMPTY_ORDER, rows: ["a"], seen: { c: 4 } });
   });
 
