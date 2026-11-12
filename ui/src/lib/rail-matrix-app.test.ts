@@ -27,23 +27,23 @@ const recent = (app: { key: string }) => `${app.key}#recent`;
 const ROWS: MatrixRow[] = [
   // 1. Running, with open sessions and past ones.
   {
-    name: "1a running, 1 open + 5 past: its open row, then Last 3 inactive folded (D-64)",
+    name: "1a running, 1 open + 5 past: its open row, its past ones a '+5 recent' count on its header (0.4.3: no row of their own)",
     lens: "place", apps: [EAST], talks: [open("o1", EAST), ...pasts("p", EAST, 5)],
     expect: {
       open: [EAST.key], idle: [], counts: { open: 1, idle: null, offered: null },
-      under: { [EAST.key]: ["o1"] }, links: { [EAST.key]: ["Last 3 inactive"] }, foldable: { [EAST.key]: true }, folder: { [EAST.key]: "f-east" },
+      under: { [EAST.key]: ["o1"] }, links: { [EAST.key]: ["+5 recent"] }, foldable: { [EAST.key]: true }, folder: { [EAST.key]: "f-east" },
     },
   },
   {
     name: "1b running, 1 open + 5 past, Last 3 clicked: the 3 newest, then Show all (amendment 8)",
     lens: "place", apps: [EAST], talks: [open("o1", EAST), ...pasts("p", EAST, 5)], toggled: [recent(EAST)],
-    expect: { open: [EAST.key], under: { [EAST.key]: ["o1", "p1", "p2", "p3"] }, links: { [EAST.key]: ["Last 3 inactive", "Show all"] } },
+    expect: { open: [EAST.key], under: { [EAST.key]: ["o1", "p1", "p2", "p3"] }, links: { [EAST.key]: ['+5 recent', "Show all"] } },
   },
   {
     // ASSUMED: "Show all" only when the App has more than the 3 shown (D-64: the full list is on its page).
     name: "1c running, 1 open + 2 past, clicked: both, no Show all",
     lens: "place", apps: [EAST], talks: [open("o1", EAST), ...pasts("p", EAST, 2)], toggled: [recent(EAST)],
-    expect: { open: [EAST.key], under: { [EAST.key]: ["o1", "p1", "p2"] }, links: { [EAST.key]: ["Last 2 inactive"] } },
+    expect: { open: [EAST.key], under: { [EAST.key]: ["o1", "p1", "p2"] }, links: { [EAST.key]: ["+2 recent"] } },
   },
   // 2. Running, only past sessions.
   {
@@ -88,9 +88,9 @@ const ROWS: MatrixRow[] = [
   },
   // 5. CLI-only Apps.
   {
-    name: "5a CLI App with an open session: in Open now, its open row, Last 2 inactive, its folder's Out mark",
+    name: "5a CLI App with an open session: in Open now, its open row, '+2 recent', its folder's Out mark",
     lens: "place", apps: [CLI], talks: [open("c0", CLI), ...pasts("c", CLI, 2)],
-    expect: { open: [CLI.key], idle: [], counts: { open: 1 }, under: { [CLI.key]: ["c0"] }, links: { [CLI.key]: ["Last 2 inactive"] }, folder: { [CLI.key]: "f-cli" } },
+    expect: { open: [CLI.key], idle: [], counts: { open: 1 }, under: { [CLI.key]: ["c0"] }, links: { [CLI.key]: ["+2 recent"] }, folder: { [CLI.key]: "f-cli" } },
   },
   {
     name: "5b CLI App with only past sessions: in Inactive apps; clicked, its own",
@@ -126,7 +126,7 @@ const ROWS: MatrixRow[] = [
     lens: "place", apps: [CODEX, CODEX_CLI], talks: [past("x0", CODEX, 3), open("y1", CODEX_CLI), past("y2", CODEX_CLI, 1)],
     expect: {
       open: [CODEX.key, CODEX_CLI.key], idle: [], counts: { open: 2 },
-      under: { [CODEX.key]: ["x0"], [CODEX_CLI.key]: ["y1"] }, links: { [CODEX_CLI.key]: ["Last inactive"] },
+      under: { [CODEX.key]: ["x0"], [CODEX_CLI.key]: ["y1"] }, links: { [CODEX_CLI.key]: ["+1 recent"] },
     },
   },
   // The Out mark: the App's own folder, never a session's (amendment 8, UX spec §5 rule 6).

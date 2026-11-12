@@ -44,7 +44,7 @@ const itemsOf = (rows: ConversationInfo[]) => rows.map((row) => conversationItem
 const lines = (rows: ConversationInfo[], places: KnownPlaceInfo[], toggled: string[] = []) =>
   buildLines({ items: itemsOf(rows), view: DEFAULT_VIEW, query: parseQuery(""), now: NOW, toggled: new Set(toggled), frozen: null, known: places });
 const kinds = (out: Line[]) =>
-  out.map((line) => (line.kind === "section" ? `section:${line.id}:${line.count}` : line.kind === "header" ? `header:${line.group.key}` : line.kind === "past" ? `past:${line.item.key}` : line.kind === "recent" ? `recent:${line.count}` : line.kind));
+  out.map((line) => (line.kind === "section" ? `section:${line.id}:${line.count}` : line.kind === "header" ? `header:${line.group.key}` : line.kind === "past" ? `past:${line.item.key}` : line.kind));
 
 describe("0.4.3 a running App unfolds to its sessions", () => {
   // 0.4.3 (the maintainer's 0.4.2 test: three running profiles read
@@ -94,9 +94,9 @@ describe("0.4.3 a running App unfolds to its sessions", () => {
       out.forEach((line, at) => {
         if (line.kind !== "header" || !line.foldable || line.folded !== null) return;
         const next = out[at + 1];
-        expect(next && (next.kind === "row" || next.kind === "past" || next.kind === "recent"), `${line.group.key} unfolds to a row`).toBe(true);
+        expect(next && (next.kind === "row" || next.kind === "past"), `${line.group.key} unfolds to a row`).toBe(true);
       });
-      for (const line of out) if (line.kind === "header" && !line.foldable) expect(out[out.indexOf(line) + 1]?.kind).not.toMatch(/^(row|past|recent)$/);
+      for (const line of out) if (line.kind === "header" && !line.foldable) expect(out[out.indexOf(line) + 1]?.kind).not.toMatch(/^(row|past)$/);
     }
   });
 

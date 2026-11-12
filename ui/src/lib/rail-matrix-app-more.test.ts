@@ -41,14 +41,14 @@ const ROWS: MatrixRow[] = [
     expect: { open: [], idle: [SOUTH.key], counts: { open: null, idle: 1 }, under: { [SOUTH.key]: ["s2"] } },
   },
   {
-    name: "7b pinned ended session of a running App with one open: open row, the pin, then Last 2 inactive",
+    name: "7b pinned ended session of a running App with one open: open row, the pin, then '+2 recent' on its header",
     lens: "place", apps: [EAST], talks: [open("o1", EAST), ...pasts("p", EAST, 3)], pins: ["p2"],
-    expect: { open: [EAST.key], under: { [EAST.key]: ["o1", "p2"] }, links: { [EAST.key]: ["Last 2 inactive"] } },
+    expect: { open: [EAST.key], under: { [EAST.key]: ["o1", "p2"] }, links: { [EAST.key]: ["+2 recent"] } },
   },
   {
     name: "7c … Last 2 clicked: open, pinned, then the rest newest first, no Show all",
     lens: "place", apps: [EAST], talks: [open("o1", EAST), ...pasts("p", EAST, 3)], pins: ["p2"], toggled: [recent(EAST)],
-    expect: { under: { [EAST.key]: ["o1", "p2", "p1", "p3"] }, links: { [EAST.key]: ["Last 2 inactive"] } },
+    expect: { under: { [EAST.key]: ["o1", "p2", "p1", "p3"] }, links: { [EAST.key]: ["+2 recent"] } },
   },
   {
     name: "7d pinned past session of a running App with nothing open: the pin first, then its last 3, then Show all",
@@ -155,21 +155,21 @@ const ROWS: MatrixRow[] = [
   },
   // Filter (the View's Only): the Apps with a match, each match under its own App (ASSUMED, as a search).
   {
-    name: "F1 Only project api: the open App's api row and its api past one behind Last inactive; the closed App's api one; no others",
+    name: "F1 Only project api: the open App's api row and its api past one behind '+1 recent'; the closed App's api one; no others",
     lens: "place", only: { project: "api" }, apps: [EAST, SOUTH, NORTH],
     talks: [
       open("o1", EAST, { project_id: "p-api" }), open("o2", EAST, { project_id: "p-web" }), past("p1", EAST, 1, { project_id: "p-api" }), past("p2", EAST, 2, { project_id: "p-web" }),
       past("s1", SOUTH, 1, { project_id: "p-api" }), past("s2", SOUTH, 2, { project_id: "p-web" }),
     ],
     toggled: [recent(SOUTH)],
-    expect: { open: [EAST.key], idle: [SOUTH.key], counts: { open: 1, idle: 1 }, under: { [EAST.key]: ["o1"], [SOUTH.key]: ["s1"] }, links: { [EAST.key]: ["Last inactive"] } },
+    expect: { open: [EAST.key], idle: [SOUTH.key], counts: { open: 1, idle: 1 }, under: { [EAST.key]: ["o1"], [SOUTH.key]: ["s1"] }, links: { [EAST.key]: ["+1 recent"] } },
   },
   {
     // ASSUMED: Only › App is one App (D-62), whose sessions are the ones the backend names it owner of (ADR-0032 §1).
     // FIXED (0.4.3): items are their owner App's before Only › App reads them.
-    name: "F2 Only app East (open + 2 past): its open row and Last 2 inactive",
+    name: "F2 Only app East (open + 2 past): its open row and '+2 recent'",
     lens: "place", only: { app: "Claude app · East" }, apps: [EAST, WEST], talks: [open("o1", EAST), ...pasts("p", EAST, 2), open("w1", WEST)],
-    expect: { open: [EAST.key], counts: { open: 1 }, under: { [EAST.key]: ["o1"] }, links: { [EAST.key]: ["Last 2 inactive"] } },
+    expect: { open: [EAST.key], counts: { open: 1 }, under: { [EAST.key]: ["o1"] }, links: { [EAST.key]: ["+2 recent"] } },
   },
   {
     // ASSUMED as F2; FIXED (0.4.3).

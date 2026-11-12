@@ -47,7 +47,12 @@ export function PlaceHeader({
   roomOf,
   onWarm,
   foldable = true,
+  recent = null,
 }: {
+  /** 0.4.3: an App with something open: its past ones' count, shown on
+   * hover and focus ("+3 recent", muted, as its count); a click shows them
+   * under it, in place, and it stays shown while they do. */
+  recent?: { count: number; open: boolean; onToggle: () => void } | null;
   /** 0.4.3: unfolding it shows a row; when it wouldn't, no fold (a
    * chevron that opened nothing was the 0.4.2 rail's dead end). */
   foldable?: boolean;
@@ -171,6 +176,19 @@ export function PlaceHeader({
         <span className={arrange.dragging ? "" : "w-0 overflow-hidden opacity-0 transition-opacity group-focus-within/head:w-auto group-focus-within/head:opacity-100 group-hover/head:w-auto group-hover/head:opacity-100 motion-reduce:transition-none"}>
           <Grip arrange={arrange} label={name} />
         </span>
+      )}
+      {recent && (
+        <button
+          type="button"
+          onClick={recent.onToggle}
+          aria-expanded={recent.open}
+          data-rail-nav
+          title={recent.open ? `Hide ${name}'s recent sessions` : `Show ${name}'s ${recent.count} recent ${recent.count === 1 ? "session" : "sessions"} here`}
+          data-testid="place-recent"
+          className={(recent.open ? "flex" : "hidden focus-visible:flex group-hover/head:flex group-has-[:focus-visible]/head:flex") + " h-6 shrink-0 items-center rounded-md px-1 text-label tabular-nums text-muted outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60"}
+        >
+          +{recent.count} recent
+        </button>
       )}
       {onOpen && (
         <button

@@ -248,13 +248,6 @@ export const RECENT_INLINE = 3;
 /** How many inactive apps show before "Show N more". */
 export const IDLE_APPS_SHOWN = 6;
 
-/** "Last 3 inactive" (D-64), or fewer when it has fewer; one is "Last
- * inactive", not "Last 1 inactive" (design review #70). */
-export function recentWords(count: number): string {
-  const shown = Math.min(count, RECENT_INLINE);
-  return shown === 1 ? "Last inactive" : `Last ${shown} inactive`;
-}
-
 /** ADR-0032 (D-100): the groups of the Apps that run with nothing open in
  * them (none of `have`), so Open now is exactly the Apps that run; an App
  * kept off the rail (`off`) isn't one. 0.4.3: each carries its App's own

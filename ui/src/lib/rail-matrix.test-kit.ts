@@ -12,7 +12,7 @@
 import { expect } from "vitest";
 import { buildLines, type Line, type Lines, type SectionId } from "./rail-lines";
 import { itemsOf } from "./rail-items";
-import { recentWords, type CliAppFacts } from "./rail-apps";
+import type { CliAppFacts } from "./rail-apps";
 import { DEFAULT_VIEW, parseQuery, type RailView } from "./rail-view";
 import type { AccountOf } from "./rail-places";
 import type { OrderMode } from "./rail-order";
@@ -209,6 +209,8 @@ function enter(line: Line, walk: Walk): void {
       walk.at = line.group.key;
       walk.seen.headers.set(line.group.key, line);
       if (walk.section) push(walk.seen.sections, walk.section, line.group.key);
+      // 0.4.3: an App with something open counts its past ones on its header.
+      if (line.recent) link(walk, `+${line.recent.count} recent`);
       return;
     case "idle":
       walk.at = line.app.key;
@@ -233,9 +235,6 @@ function under(line: Line, walk: Walk): void {
     case "row":
     case "past":
       drawn(walk, line.item, line.depth);
-      return;
-    case "recent":
-      link(walk, recentWords(line.count));
       return;
     case "all":
       link(walk, "Show all");

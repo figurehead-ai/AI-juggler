@@ -35,14 +35,14 @@ export type Line =
   | { kind: "section"; id: SectionId; count: number }
   | { kind: "need"; item: RailItem }
   | { kind: "notice"; notice: NoticeInfo }
-  | { kind: "header"; group: RailGroup; folded: string | null; needs: number; digit: number | null; foldable: boolean } // 0.4.3: unfolds to a row
+  /** 0.4.3: `foldable`: unfolding shows a row; `recent`: an App with
+   * something open, its past ones' count, on its header (shown in place). */
+  | { kind: "header"; group: RailGroup; folded: string | null; needs: number; digit: number | null; foldable: boolean; recent: { count: number; open: boolean } | null }
   | { kind: "row"; item: RailItem; group: RailGroup; depth?: number; parent?: string | null }
   | { kind: "more"; group: RailGroup; quiet: number; words: "quiet" | "more" }
   | { kind: "also" }
   | { kind: "label"; id: "ended" | "inactive"; count: number }
   | { kind: "plain"; item: RailItem }
-  /** D-64: an app's "Last 3 inactive" (`app`: its key). */
-  | { kind: "recent"; app: string; count: number; open: boolean }
   /** D-64: one of an app's last inactive sessions, under it. */
   | { kind: "past"; item: RailItem; app: string; depth?: number; parent?: string | null }
   /** D-64: an app with nothing open. */
@@ -64,7 +64,6 @@ export const LINE_HEIGHT: Record<Line["kind"], number> = {
   also: 36,
   label: 26,
   plain: 42,
-  recent: 26,
   past: 42,
   idle: 46,
   "idle-more": 26,
@@ -262,10 +261,13 @@ export function buildLines({ items, view, query, now, toggled, frozen, accountOf
     const under = apps ? unfoldLines(group, idle.get(group.key) ?? [], searching, toggled) : [];
     const foldable = unfoldsToARow(group, under);
     if (folded && foldable) {
-      lines.push({ kind: "header", group, folded: quietWords(group), needs: needsHere, digit, foldable });
+      lines.push({ kind: "header", group, folded: quietWords(group), needs: needsHere, digit, foldable, recent: null });
       return;
     }
-    lines.push({ kind: "header", group, folded: null, needs: needsHere, digit, foldable });
+    // 0.4.3: an App with something open keeps its past ones to a count on
+    // its header (no row of its own); a click shows them here.
+    const before = apps && !searching && group.items.length > 0 ? (idle.get(group.key) ?? []).filter((item) => !item.pinned).length : 0;
+    lines.push({ kind: "header", group, folded: null, needs: needsHere, digit, foldable, recent: before > 0 ? { count: before, open: toggled.has(`${group.key}#recent`) } : null });
     // Latest activity re-sorts, so it holds still under the pointer; the
     // other orders never move a row by themselves.
     const drawn = stable ? fold.shown : keep(`group:${group.key}`, fold.shown);
@@ -347,8 +349,6 @@ export function lineKey(line: Line, index: number): string {
       return `${line.kind}:${line.group.key}`;
     case "past":
       return `past:${line.app}:${line.item.key}`;
-    case "recent":
-      return `recent:${line.app}`;
     case "idle":
       return `idle:${line.app.key}`;
     case "all": return `all:${line.app}`;

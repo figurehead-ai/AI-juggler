@@ -162,13 +162,16 @@ describe("every rail element opens a page here (place lens)", () => {
     fireEvent.click(within(header(list, "app|claude-app|Personal")).getByTestId("rail-fold"));
     expect(row(list, "c:claude-personal/outside-4")).toBeNull();
 
-    // 0.4.3 (D-64): an open App's inactive sessions wait behind its "Last
-    // n inactive", folded (Open now leads with what's open); a click shows
-    // them under it, in place. Its header's menu still has Show recent.
+    // 0.4.3: Open now leads with what's open; an open App's inactive
+    // sessions are a count on its header ("+n recent", no row of their
+    // own), a click shows them under it, in place. Its menu still has
+    // Show recent. Never the words "Last n inactive".
     expect(view.queryByTestId("rail-also-inactive")).toBeNull();
     expect(row(list, "c:claude-work/outside-8")).toBeNull();
-    const recent = within(view.getByTestId("place-board")).getAllByTestId("rail-recent");
-    expect(recent.every((link) => link.getAttribute("aria-expanded") === "false")).toBe(true);
+    const recent = within(view.getByTestId("place-board")).getAllByTestId("place-recent")[0]!;
+    expect(recent.getAttribute("aria-expanded")).toBe("false");
+    expect(recent.textContent).toMatch(/^\+\d+ recent$/);
+    expect(view.queryByText(/Last \d* ?inactive/)).toBeNull();
     fireEvent.contextMenu(header(list, "app|claude-app|Work"));
     expect(view.getByTestId("place-header-menu-recent").textContent).toBe("Show recent");
     fireEvent.keyDown(document.activeElement ?? document.body, { key: "Escape" });

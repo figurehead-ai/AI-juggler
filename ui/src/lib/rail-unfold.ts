@@ -4,10 +4,12 @@
  * with a chevron that unfolded nothing, their sessions only in a menu).
  *
  * Under its open rows: its pinned ended ones, then its last ones (D-64):
- * at once when nothing is open in it (they're all it has), else behind
- * "Last 3 inactive"; then "Show all" (its page) when it has more. While
- * searching, every match. Its header has a fold only when this, or an
- * open row, gives it a row to show (`unfoldsToARow`).
+ * at once when nothing is open in it (they're all it has), else only once
+ * its header's "+N recent" is clicked (no row of its own: the maintainer,
+ * 0.4.1, on a "Last N inactive" row under every App); then "Show all"
+ * (its page) when it has more. While searching, every match. Its header
+ * has a fold only when this, or an open row, gives it a row to show
+ * (`unfoldsToARow`).
  *
  * Pure, so the order and the invariants are unit-tested.
  */
@@ -32,10 +34,7 @@ export function unfoldLines(group: RailGroup, sessions: readonly RailItem[], sea
   const rest = sessions.filter((item) => !item.pinned);
   pastRows(sessions.filter((item) => item.pinned));
   if (rest.length === 0) return out;
-  const atOnce = group.items.length === 0;
-  const unfolded = atOnce || toggled.has(`${key}#recent`);
-  if (!atOnce) out.push({ kind: "recent", app: key, count: rest.length, open: unfolded });
-  if (!unfolded) return out;
+  if (group.items.length > 0 && !toggled.has(`${key}#recent`)) return out;
   pastRows(rest.slice(0, RECENT_INLINE));
   if (rest.length > RECENT_INLINE) out.push({ kind: "all", app: key, count: sessions.length, group, idle: null });
   return out;
@@ -43,7 +42,7 @@ export function unfoldLines(group: RailGroup, sessions: readonly RailItem[], sea
 
 /** Unfolding the group shows a row: an open one, or one of `under`. */
 export function unfoldsToARow(group: RailGroup, under: readonly Line[]): boolean {
-  return group.items.length > 0 || under.some((line) => line.kind === "past" || line.kind === "recent");
+  return group.items.length > 0 || under.some((line) => line.kind === "past");
 }
 
 /** An Inactive apps row's lines under it: its last ones, unfolded by a

@@ -5,7 +5,7 @@
  */
 import { describe, expect, it } from "vitest";
 import { conversationItem, sessionItem } from "./rail-items";
-import { appByConversation, appByFolder, appKeyOf, idleApps, idleSessionsByApp, knownKey, offeredLines, recentWords } from "./rail-apps";
+import { appByConversation, appByFolder, appKeyOf, idleApps, idleSessionsByApp, knownKey, offeredLines } from "./rail-apps";
 import type { PlaceOfferInfo } from "../types/generated/PlaceOfferInfo";
 import { appOfConversation } from "./app-of";
 import { buildLines, foldSections, type Line, type SectionId } from "./rail-lines";
@@ -49,10 +49,8 @@ const kinds = (out: Line[]) =>
     line.kind === "section"
       ? `section:${line.id}:${line.count}`
       : line.kind === "header"
-        ? `header:${line.group.key}`
-        : line.kind === "recent"
-          ? `recent:${line.count}`
-          : line.kind === "idle"
+        ? `header:${line.group.key}${line.recent ? `+${line.recent.count}` : ""}`
+        : line.kind === "idle"
             ? `idle:${line.app.key}`
             : line.kind === "row" || line.kind === "past" || line.kind === "plain" || line.kind === "need"
               ? `${line.kind}:${line.item.key}`
@@ -114,23 +112,18 @@ describe("D-64 an app's sessions that aren't open belong to it", () => {
     ]);
   });
 
-  it("says how many it shows", () => {
-    expect(recentWords(9)).toBe("Last 3 inactive");
-    expect(recentWords(2)).toBe("Last 2 inactive");
-  });
 });
 
 describe("D-64 the rail grouped by App", () => {
   const rows = [talk("w1"), past("w2", 1), past("w3", 2), past("w4", 3), past("w5", 4), past("c1", 2, { account_id: "a2", account_label: "Personal" })];
   const places = [known("Work", { recent: ["claude-code/w2", "claude-code/w3", "claude-code/w4", "claude-code/w5"], app_pid: 11 }), known("Lab")];
 
-  it("an open app lists what's open, then its Last 3 inactive folded (0.4.3, D-64); the apps with nothing open follow Open now", () => {
+  it("an open app lists what's open, its past ones a count on its header (0.4.3: no row of their own); the apps with nothing open follow Open now", () => {
     const built = lines(rows, places);
     expect(kinds(built.lines)).toEqual([
       "section:open:1",
-      "header:app|claude-app|Work",
+      "header:app|claude-app|Work+4",
       "row:c:a1/w1",
-      "recent:4",
       "section:idle:2",
       "idle:cli|claude-code|a2",
       "idle:app|claude-app|Lab",
@@ -144,9 +137,8 @@ describe("D-64 the rail grouped by App", () => {
     const built = lines(rows, places, ["app|claude-app|Work#recent", "cli|claude-code|a2#recent"]);
     expect(kinds(built.lines)).toEqual([
       "section:open:1",
-      "header:app|claude-app|Work",
+      "header:app|claude-app|Work+4",
       "row:c:a1/w1",
-      "recent:4",
       "past:c:a1/w2",
       "past:c:a1/w3",
       "past:c:a1/w4",
@@ -240,11 +232,11 @@ describe("AJ-E3206 a desktop session AI Juggler started", () => {
     // No profile on its folder: its folder's CLI App, open and ended alike
     // (the ended one sat in Inactive apps, the open one in a group apart).
     const cli = cliAppKey("claude-code", "a1", "Work");
-    // 0.4.3: the ended one under its own App, behind Last inactive.
-    expect(kinds2(items, [])).toEqual(["section:open:1", `header:${cli}`, "row:s:open", "recent:1", "also"]);
+    // 0.4.3: the ended one its own App's, counted on its header.
+    expect(kinds2(items, [])).toEqual(["section:open:1", `header:${cli}+1`, "row:s:open", "also"]);
     // One profile on its folder: that profile's, never also an inactive app.
     const work = known("Work", { account_id: "a1" });
-    expect(kinds2(items, [work])).toEqual(["section:open:1", `header:${knownKey(work)}`, "row:s:open", "recent:1", "also"]);
+    expect(kinds2(items, [work])).toEqual(["section:open:1", `header:${knownKey(work)}+1`, "row:s:open", "also"]);
   });
 });
 
