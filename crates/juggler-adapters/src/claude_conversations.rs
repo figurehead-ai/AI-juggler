@@ -97,6 +97,16 @@ pub fn read_conversation_quick(path: &Path) -> Option<ConversationSummary> {
     Some(summary)
 }
 
+/// A Claude Code session id (a UUID: 8-4-4-4-12 hex digits), as its
+/// transcript's file is named.
+fn is_session_id(text: &str) -> bool {
+    let parts: Vec<&str> = text.split('-').collect();
+    parts.iter().map(|part| part.len()).eq([8, 4, 4, 4, 12])
+        && parts
+            .iter()
+            .all(|part| part.chars().all(|c| c.is_ascii_hexdigit()))
+}
+
 /// The `entrypoint` Claude Code writes for a session the Claude app runs.
 const DESKTOP_ENTRYPOINTS: [&str; 2] = ["claude-desktop", "sdk-ts"];
 
@@ -181,6 +191,17 @@ fn summary_of(lines_in: impl Iterator<Item = String>, path: &Path) -> Option<Con
     if lines == 0 {
         return None;
     }
+    // 0.4.3: a session is its file, as Claude Code resumes it: a fork's
+    // file starts with lines copied from its parent (the parent's
+    // `sessionId`), so three files of one family read as one row and the
+    // app's own list had one more than AI Juggler.
+    if let Some(stem) = path
+        .file_stem()
+        .map(|stem| stem.to_string_lossy())
+        .filter(|stem| is_session_id(stem))
+    {
+        summary.id = stem.into_owned();
+    }
     if summary.id.is_empty() {
         summary.id = path.file_stem()?.to_string_lossy().into_owned();
     }
@@ -254,6 +275,40 @@ mod tests {
             summary.started_in.as_deref(),
             Some(crate::claude_live::CLAUDE_APP_HOST)
         );
+    }
+
+    /// 0.4.3: a fork's file starts with its parent's lines (their
+    /// `sessionId` is the parent's): the session is its file, as Claude
+    /// Code resumes it, so a family of three is three rows. A file not
+    /// named as a session keeps the id its lines give.
+    #[test]
+    fn a_fork_is_its_own_file_not_its_parents_lines() {
+        let dir = tempfile::tempdir().unwrap();
+        let parent = "11111111-2222-4333-8444-555555555555";
+        let fork = "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee";
+        let line = |id: &str| {
+            format!(
+                r#"{{"type":"user","sessionId":"{id}","cwd":"/w/proj","timestamp":"2026-10-21T10:00:00.000Z","message":{{"role":"user","content":"go"}}}}"#
+            )
+        };
+        let copied = line(parent);
+        let own = line(fork);
+        let path = write(
+            dir.path(),
+            &format!("projects/-w-proj/{fork}.jsonl"),
+            &[copied.as_str(), own.as_str()],
+        );
+        assert_eq!(read_conversation(&path).unwrap().id, fork);
+        assert_eq!(
+            read_conversation_quick(&path).map_or_else(|| fork.to_owned(), |summary| summary.id),
+            fork
+        );
+        let named = write(
+            dir.path(),
+            "projects/-w-proj/notes.jsonl",
+            &[copied.as_str()],
+        );
+        assert_eq!(read_conversation(&named).unwrap().id, parent);
     }
 
     #[test]
