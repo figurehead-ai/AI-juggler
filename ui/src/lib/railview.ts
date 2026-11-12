@@ -58,6 +58,14 @@ function waitingMs(row: InstanceInfo, now: number): number {
   return row.last_activity_ms !== null ? Math.max(0, now - row.last_activity_ms) : 0;
 }
 
+/** Two rows of one rank: one waiting on you, the longest wait first; the
+ * rest the latest activity first, as every list in the app (the D3
+ * persona walk, P1: a project's ended sessions listed oldest first). */
+function peerOrder(a: InstanceInfo, b: InstanceInfo, now: number): number {
+  if (severityRank(a) <= 3) return waitingMs(b, now) - waitingMs(a, now);
+  return (b.last_activity_ms ?? b.started_at_ms) - (a.last_activity_ms ?? a.started_at_ms);
+}
+
 /** AJ-E411 Req.5: the account-expiry tie-break rank for a session row. */
 function expiryTieBreak(row: InstanceInfo, accounts: AccountInfo[], now: number): number {
   const account = accounts.find((entry) => entry.id === row.account_id);
@@ -124,7 +132,8 @@ export function sortSessions(
   switch (mode) {
     case "needs":
       // Failed > QuotaBlocked > WaitingUser (wait desc) > Stuck > Running
-      // > rest; snoozed sink below unsnoozed peers (Req.1/Req.6).
+      // > rest (each newest first); snoozed sink below unsnoozed peers
+      // (Req.1/Req.6).
       // AJ-E411 Req.5: account expiry joins ONLY at <= 7 days and ONLY
       // as a tie-break below the live attention states — it never
       // outranks a blocked agent (severityRank already ordered those).
@@ -132,7 +141,7 @@ export function sortSessions(
         (a, b) =>
           severityRank(a) - severityRank(b) ||
           snoozed(a) - snoozed(b) ||
-          waitingMs(b, now) - waitingMs(a, now) ||
+          peerOrder(a, b, now) ||
           expiryTieBreak(a, accounts, now) - expiryTieBreak(b, accounts, now) ||
           a.id.localeCompare(b.id),
       );
