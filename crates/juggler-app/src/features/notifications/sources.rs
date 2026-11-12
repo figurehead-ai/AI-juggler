@@ -94,6 +94,11 @@ pub struct QuotaSubject {
     /// from; a switch back, one to return to): see [`acting_folder`]. The
     /// notice's `target.account_id`.
     pub folder: String,
+    /// D-100 (the 0.4.2 review): when its name is a masked address
+    /// ("Bookauth · l…@bookauth.com"), the acting folder's own name
+    /// ("bookauth-luka"), said first; the address goes whole on the
+    /// second line (a masked address wrapped across a title read broken).
+    pub short: Option<String>,
 }
 
 /// The notice for an account running out of room, from its quota now
@@ -120,6 +125,32 @@ pub fn low_notice(
     )
 }
 
+/// D-100: a masked address names the Account ("Bookauth · l…@…"): the
+/// acting folder's own name leads instead, when it isn't one too.
+fn folder_short(
+    storage: &juggler_core::storage::Storage,
+    name: &str,
+    folder: &str,
+) -> Option<String> {
+    if !name.contains('@') {
+        return None;
+    }
+    storage
+        .accounts()
+        .get(&juggler_core::model::AccountId::new(folder.to_owned()))
+        .ok()
+        .map(|account| account.label)
+        .filter(|label| !label.contains('@'))
+}
+
+/// `words` with its first letter lower-cased ("0% of …" stays as is).
+fn lower_first(words: &str) -> String {
+    let mut chars = words.chars();
+    chars.next().map_or_else(String::new, |first| {
+        first.to_lowercase().chain(chars).collect()
+    })
+}
+
 /// A window's percentage used, and whether it is an estimate.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct Used {
@@ -144,7 +175,7 @@ pub fn low_notice_read(
         pct: used,
         estimate,
     } = used;
-    let label = &subject.name;
+    let label = subject.short.as_deref().unwrap_or(&subject.name);
     // Clamped to 0–100 first: the cast can't truncate.
     #[allow(clippy::cast_possible_truncation)]
     let left = used.map(|used| (100.0 - used).clamp(0.0, 100.0).round() as i64);
@@ -157,6 +188,10 @@ pub fn low_notice_read(
         Some(left) if estimate => format!("About {left}% of its {window} window left"),
         Some(left) => format!("{left}% of its {window} window left"),
         None => format!("Its {window} window is running low"),
+    };
+    let detail = match &subject.short {
+        Some(_) => format!("{} · {}", subject.name, lower_first(&detail)),
+        None => detail,
     };
     NewNotice {
         key: format!("quota:{}", subject.id),
@@ -430,10 +465,12 @@ impl AccountPass<'_> {
         let sessions = live
             .iter()
             .fold(0_u32, |sum, open| sum.saturating_add(*open));
+        let folder = folders[acting_folder(&live, reading)].to_owned();
         let subject = QuotaSubject {
             id: id.to_owned(),
+            short: folder_short(self.storage, &group.name, &folder),
             name: group.name.clone(),
-            folder: folders[acting_folder(&live, reading)].to_owned(),
+            folder,
         };
         if carrying && !used.is_some_and(crate::features::quota::used_up) {
             // Its window reset: no longer on its credits.
@@ -1321,6 +1358,7 @@ mod tests {
             id: id.to_owned(),
             name: name.to_owned(),
             folder: id.to_owned(),
+            short: None,
         }
     }
 
@@ -1332,6 +1370,7 @@ mod tests {
             id: "acct:anthropic:1".to_owned(),
             name: "Claude Max 20x".to_owned(),
             folder: "claude-work".to_owned(),
+            short: None,
         };
         let low = low_notice(&subject, "5-hour", Some(93.0), Some(5), 3, false);
         assert_eq!(low.title, "Claude Max 20x is almost out of room");
@@ -1420,6 +1459,25 @@ mod tests {
             source: "A tool".to_owned(),
             stale: false,
         }
+    }
+
+    /// D-100 (the 0.4.2 review): a masked address never leads, and never
+    /// wraps across a title: the folder's own name leads, the address goes
+    /// whole on the second line.
+    #[test]
+    fn a_masked_account_is_said_by_its_folders_name() {
+        let subject = QuotaSubject {
+            id: "sub".into(),
+            name: "Bookauth · l…@bookauth.com".into(),
+            folder: "f".into(),
+            short: Some("bookauth-luka".into()),
+        };
+        let out = low_notice(&subject, "weekly", Some(100.0), None, 0, true);
+        assert_eq!(out.title, "bookauth-luka has run out of room");
+        assert_eq!(
+            out.detail,
+            "Bookauth · l…@bookauth.com · 0% of its weekly window left"
+        );
     }
 
     /// The maintainer's report (0.3.2): "has run out of room · 0% of its
