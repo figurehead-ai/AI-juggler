@@ -86,14 +86,19 @@ export function roomMarkOfProfile(
   return roomMarkOf(display, theirs, now);
 }
 
+/** An Account's mark as the top bar counts it, and Accounts' "Out"
+ * filter shows it: signed in, by its own reading; `null` otherwise. */
+export function accountMark(account: SubscriptionInfo, displays: readonly QuotaDisplayData[], now: number = Date.now()): RoomMark | null {
+  return account.state === "signed_in" ? roomMarkOf(accountDisplay(account, [...displays]), [], now) : null;
+}
+
 /** How many Accounts are out, and how many low (the top bar's count):
  * each Account once, whichever of its folders the readings came from. */
 export function roomCounts(accounts: readonly SubscriptionInfo[] | null, displays: readonly QuotaDisplayData[], now: number = Date.now()): { out: number; low: number } {
   let out = 0;
   let low = 0;
   for (const account of accounts ?? []) {
-    if (account.state !== "signed_in") continue;
-    const mark = roomMarkOf(accountDisplay(account, [...displays]), [], now);
+    const mark = accountMark(account, displays, now);
     if (mark?.kind === "out") out += 1;
     else if (mark?.kind === "low") low += 1;
   }

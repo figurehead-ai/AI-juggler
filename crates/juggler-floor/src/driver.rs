@@ -142,8 +142,6 @@ pub enum Input {
     Key(Key),
     /// The company changed (a new snapshot is in the scene).
     Changed,
-    /// The overload alert went on or off.
-    Alert(bool),
 }
 
 /// What the render thread should do after an input.
@@ -260,8 +258,6 @@ pub struct Driver {
     pub mouse: Option<(f32, f32)>,
     /// What was played with, and when (seconds).
     pub clicked: HashMap<u32, f32>,
-    /// The overload alert is on.
-    pub alert: bool,
     /// The floor switcher's chips, from the last frame.
     pub chips: Vec<Chip>,
     /// The areas, in order (Tab).
@@ -332,7 +328,6 @@ impl Driver {
             hover: 0,
             mouse: None,
             clicked: HashMap::new(),
-            alert: false,
             chips: Vec::new(),
             areas: Vec::new(),
             waiting: Vec::new(),
@@ -375,9 +370,10 @@ impl Driver {
         (fps > 0).then(|| Duration::from_secs_f64(1.0 / f64::from(fps)))
     }
 
-    /// Something keeps it ticking: an animation in view, or the alert.
+    /// Something keeps it ticking: an animation in view (a Mac alert
+    /// never does: it's a still chip).
     fn ticking(&self) -> bool {
-        (self.animating || self.alert) && self.period().is_some()
+        self.animating && self.period().is_some()
     }
 
     /// When to wake next (`None`: only for input).
@@ -518,10 +514,6 @@ impl Driver {
             }
             Input::Key(key) => self.key(key, now),
             Input::Changed => self.dirty = true,
-            Input::Alert(on) => {
-                self.dirty |= on != self.alert;
-                self.alert = on;
-            }
         }
         None
     }
@@ -1271,14 +1263,6 @@ mod tests {
         assert!(d.hand, "over a floor tab");
         assert_eq!(d.tab_at(10.0, 10.0), Some(Some(1)));
         assert_eq!(d.tab_at(60.0, 10.0), None);
-    }
-
-    #[test]
-    fn the_alert_keeps_it_ticking_even_at_rest() {
-        let mut d = driver(Motion::Calm);
-        run(&mut d, 0, 100, false);
-        d.input(Input::Alert(true), Duration::from_millis(100), &mut Office);
-        assert!(run(&mut d, 100, 5100, false) >= 18);
     }
 
     #[test]

@@ -27,6 +27,13 @@ Only the Stable promotion is gated (D-99, from 0.4.1): everywhere else the
 scope is reported, never enforced, because a release is built and tried on
 nightly and beta while its scope is still open.
 
+Presence (ADR-0032, D-100) is the exception, on every channel from 0.4.2:
+`check x.y.z` fails unless docs/qa/evidence/presence/x.y.z.txt ends in a
+PASS line, the report `scripts/qa/presence_check.py --record` writes on
+the real Mac (the rail's Open now is exactly the Apps that run, none in
+two sections). The rail matching reality is the trust foundation; a
+release isn't tried without it.
+
 Usage:
     release_scope.py report 0.4      # the list, exit 0
     release_scope.py check 0.4.1     # the list, exit 0 (report only, D-99)
@@ -60,6 +67,25 @@ DEFERRED = re.compile(r"^\*\*Deferred \((D-\d+)\):\*\*(.*)$", re.M)
 
 
 EVIDENCE = ROOT / "docs/qa/evidence"
+# ADR-0032: the first release the real-Mac presence check gates.
+PRESENCE_FROM = (0, 4, 2)
+
+
+def presence(version: str) -> str | None:
+    """Why `version` has no passing real-Mac presence report (None: it has
+    one, or it's older than the gate)."""
+    parts = version.split(".")
+    if len(parts) != 3 or not all(part.isdigit() for part in parts):
+        return None
+    if tuple(int(part) for part in parts) < PRESENCE_FROM:
+        return None
+    report = EVIDENCE / "presence" / f"{version}.txt"
+    if not report.exists():
+        return f"no real-Mac presence report (docs/qa/evidence/presence/{version}.txt); run scripts/qa/presence_check.py --record"
+    lines = [line for line in report.read_text(encoding="utf-8").splitlines() if line.strip()]
+    if not lines or not lines[-1].startswith("PASS"):
+        return f"the presence report doesn't pass: {lines[-1] if lines else 'empty'}"
+    return None
 REQS: dict[str, int] = {}
 
 
@@ -222,8 +248,18 @@ def selftest() -> int:
         known = {"AJ-E9": ("made up", "TODO", "9")}
         return known, {"AJ-E9"}, ["AJ-E9"], {}, [], [], {}
 
+    saved = EVIDENCE
     try:
         scope = fake
+        EVIDENCE = pathlib.Path(tempfile.mkdtemp())
+        (EVIDENCE / "presence").mkdir()
+        # ADR-0032: no report fails every channel; a failing one too.
+        for text, want in [(None, 1), ("presence-check\nFAIL runs but isn't in Open now: X\n", 1)]:
+            if text is not None:
+                (EVIDENCE / "presence" / "9.9.1.txt").write_text(text, encoding="utf-8")
+            with contextlib.redirect_stdout(io.StringIO()):
+                assert run(["check", "9.9.1", "--channel", "beta"]) == want, text
+        (EVIDENCE / "presence" / "9.9.1.txt").write_text("presence-check\nPASS Open now is exactly your running Apps\n", encoding="utf-8")
         for argv, want in [
             (["report", "9.9"], 0),
             (["check", "9.9.1"], 0),
@@ -237,6 +273,7 @@ def selftest() -> int:
             assert "OPEN      AJ-E9" in out.getvalue(), (argv, out.getvalue())
     finally:
         scope = real
+        EVIDENCE = saved
     print("release-scope selftest: OK")
     return 0
 
@@ -258,6 +295,8 @@ def run(args: list[str]) -> int:
         print(__doc__)
         return 2
     mode, version = args
+    # A rebuilt release branch (release/X.Y.Z-<word>, D-101) is X.Y.Z.
+    version = re.sub(r"^(\d+\.\d+\.\d+)-[a-z0-9-]+$", r"\1", version)
     minor = ".".join(version.split(".")[:2])
     parts = version.split(".")
     # A patch is held to the patches up to it; a minor alone, or a Stable
@@ -282,6 +321,12 @@ def run(args: list[str]) -> int:
         print(f"  UNKNOWN   {t}: named in the roadmap, no task header in docs/tasks")
     for row in unchecked:
         print(f"  UNCHECKED row '{row[:60]}': names no task, so nothing proves it")
+    # ADR-0032: the rail must match what runs, on every channel.
+    unseen = presence(version) if mode == "check" else None
+    if unseen:
+        print(f"  PRESENCE  {unseen}")
+        print("release_scope: the rail isn't proven to match what runs on the real Mac (ADR-0032).")
+        return 1
     failed = bool(open_ or missing or unchecked or weak)
     if mode == "check" and failed:
         if channel != "stable":

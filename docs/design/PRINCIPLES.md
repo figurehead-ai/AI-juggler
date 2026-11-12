@@ -170,7 +170,7 @@ Every claim below was checked on the linked page on 2026-10-30.
 
 **Here.**
 - *Don't:* New session opened from the top bar starts with **no folder** (`screens/NewSession.tsx:51`, `initialDirectory` is `null`). The footer says nothing until you pick one (`:460`). The stated pick is buried in a card among 14 others (`:325-341`).
-- *Do:* "Start in **jive-code-graph** on **bookauth-luka**", with "used last here" beside it and ⌘↩ to start.
+- *Do:* "Start in **jive-code-graph** on **acme-east**", with "used last here" beside it and ⌘↩ to start.
 
 **Check.**
 - Can the user tell what will happen without reading anything but one line?
@@ -534,8 +534,8 @@ That's about 14 equal boxes before Customise and about 21 after. Three of the fo
 > **Start in jive-code-graph**
 > ~/Dev/jive-code-graph · worked here 12 min ago · [Change folder]
 >
-> **Claude Code · bookauth-luka** · *used last here*
-> Account Luka Max · 58% left · resets 20:52 · [Change app]
+> **Claude Code · acme-east** · *used last here*
+> Account East Max · 58% left · resets 20:52 · [Change app]
 >
 > More options: runs in its terminal · this Mac ▸
 >
@@ -565,7 +565,7 @@ That's about 14 equal boxes before Customise and about 21 after. Three of the fo
 
 **One step away: Change app.** The picker is grouped by **Account**:
 - One header row per Account: its name, plan and one room meter, "58% left · resets 20:52". Unknown room is silent, with one footnote for the group.
-- Under each Account, its **Apps** (Claude Code · bookauth-luka, Codex · ~/.codex). Launch settings show only when an App has more than one.
+- Under each Account, its **Apps** (Claude Code · acme-east, Codex · ~/.codex). Launch settings show only when an App has more than one.
 - Sections:
   1. **Suggested**: the pick, plus the most-room Account if that's a different one, with the reason.
   2. **Used in jive-code-graph**.
@@ -623,7 +623,7 @@ The picker states replace area 1's content. There are no other boxes.
 
 - **Cache.**
   - Opens from the cached projects, launch settings and room (memory: Local cache ruling, Instant and paged), so the stated choice is there on the first frame.
-  - Fresh reads refresh in the background. **The pick never jumps under the cursor.** If a fresh read would change it, a quiet line says "bookauth-mia now has more room · Use it".
+  - Fresh reads refresh in the background. **The pick never jumps under the cursor.** If a fresh read would change it, a quiet line says "acme-west now has more room · Use it".
   - Room older than 5 minutes says "as of 12 min ago".
 
 - **Handovers.** Choosing one under More options:

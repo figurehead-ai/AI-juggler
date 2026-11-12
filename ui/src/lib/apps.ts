@@ -13,13 +13,13 @@
 import { useEffect, useMemo } from "react";
 import { sharedRead, useSharedRead, whenForgotten, type SharedRead } from "./shared-read";
 import type { AccountInfo } from "../types/generated/AccountInfo";
-import { appName, cliAppId, cliAppKey, desktopProfile } from "./app-name";
+import { appName, cliAppId, cliAppKey, cliAppWord, desktopProfile } from "./app-name";
 import { appOfTool } from "./app-of";
 import { APPS_CHANGED, appsList, type StoredAppInfo } from "./ipc/apps";
 import type { KnownPlaceInfo } from "./ipc/places";
 import { useKnownPlaces } from "./places";
 import { knownAppWord, knownKey } from "./rail-apps";
-import { toolSpec } from "./tools";
+
 import { hasLiveBackend } from "./bridge";
 import { appSlot } from "./marks";
 
@@ -85,7 +85,8 @@ export function appsOf({
   for (const folder of cliFolders(folders, places, byId, listed)) {
     const id = cliAppId(folder.id);
     const row = byId.get(id);
-    const app = toolSpec(folder.provider).display_name;
+    // ADR-0032: a CLI App says so ("Claude Code CLI · Work").
+    const app = cliAppWord(folder.provider);
     const defaultName = appName(app, folder.label);
     out.push({
       id,
@@ -166,14 +167,23 @@ function useStoredApps(): StoredAppInfo[] | null {
   return useSharedRead(STORED_APPS, { maxAgeMs: 5_000 }) ?? null;
 }
 
+const NO_FOLDERS: readonly AccountInfo[] = [];
+
 /** Every App, joined (`null` until the places are read). */
-export function useApps(folders: readonly AccountInfo[]): AppModel[] | null {
+export function useApps(folders: readonly AccountInfo[] = NO_FOLDERS): AppModel[] | null {
   const stored = useStoredApps();
   const places = useKnownPlaces();
   return useMemo(
     () => (places === null ? null : appsOf({ stored: stored ?? [], places, folders, listed: hasLiveBackend() })),
     [stored, places, folders],
   );
+}
+
+/** D-100: the Apps list's CLI Apps (the rail's Inactive apps lists each
+ * not open, as Accounts lists them). */
+export function useCliApps(folders?: readonly AccountInfo[]): AppModel[] {
+  const apps = useApps(folders);
+  return useMemo(() => (apps ?? []).filter((app) => app.kind === "cli"), [apps]);
 }
 
 /** Opens App `id`'s page. */

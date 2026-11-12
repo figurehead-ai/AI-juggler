@@ -6,6 +6,8 @@
 import type { JSX } from "react";
 import { cliAppId, cliAppName } from "../lib/app-name";
 import { GLOBAL_NAV, type GlobalId } from "../lib/nav";
+import { CLEAN_UP_VIEW, landedOn } from "../lib/landing";
+import { accountsFilterOf } from "../lib/accounts-filter";
 import { ScreenBoundary, ScrollingScreen } from "../components/ScreenBoundary";
 import { ProfilesScreen } from "../screens/Profiles";
 import { FleetScreen, History, NavScreen, ProcessesScreen, SettingsScreen, ThisMacPage, UsageScreen } from "../lazyParts";
@@ -29,6 +31,9 @@ export const SCREENS: Partial<Record<GlobalId, ScreenEntry>> = {
   cleanup: (shell) => (
     <ScrollingScreen key="cleanup" screen="cleanup" label="Processes">
       <ProcessesScreen
+        // 0.4.2: "to clean up" lands on Needs attention (lib/landing).
+        key={landedOn(shell.landing, "cleanup") ?? ""}
+        view={landedOn(shell.landing, "cleanup") === CLEAN_UP_VIEW ? CLEAN_UP_VIEW : undefined}
         onOpenSession={shell.selectSession}
         onOpenConversation={(accountId, id) => shell.openPage({ kind: "conversation", accountId, id, projectId: null })}
         accounts={shell.accounts.map((account) => ({ id: account.id, label: cliAppName(account.provider, account.label) }))}
@@ -40,6 +45,8 @@ export const SCREENS: Partial<Record<GlobalId, ScreenEntry>> = {
     <ScrollingScreen key="accounts" screen="accounts" label="Accounts">
       <ProfilesScreen
         key={shell.accountsNonce}
+        filter={accountsFilterOf(landedOn(shell.landing, "accounts"))}
+        onFilter={(next) => shell.setLanding(next ? { id: "accounts", filter: next } : null)}
         knownAccounts={shell.loaded ? shell.accounts : null}
         knownProfiles={shell.loaded ? shell.profiles : null}
         sessions={shell.sessions}
@@ -74,7 +81,7 @@ export const SCREENS: Partial<Record<GlobalId, ScreenEntry>> = {
   // AJ-E3104: a page with its own tabs, which scroll themselves.
   thismac: (shell) => (
     <ScreenBoundary key="thismac" screen="this-mac-page" label="This Mac">
-      <ThisMacPage sessions={shell.railSessions} projects={shell.projects} accounts={shell.accounts} now={shell.now} onOpenSession={shell.selectSession} onOpenProject={shell.selectProject} onOpenCleanup={() => shell.setGlobal("cleanup")} />
+      <ThisMacPage sessions={shell.railSessions} projects={shell.projects} accounts={shell.accounts} now={shell.now} onOpenSession={shell.selectSession} onOpenProject={shell.selectProject} onOpenCleanup={() => shell.openOn("cleanup", CLEAN_UP_VIEW)} />
     </ScreenBoundary>
   ),
   // Settings › Privacy, a frame from now (lib/nav's redirect).

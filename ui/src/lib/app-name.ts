@@ -50,8 +50,16 @@ export function appShortName(words: AppWords): string {
 }
 
 /** A CLI App: tool `tool` on the folder labelled `folder`. */
+/** ADR-0032 (D-100): a CLI App's word says it's the terminal tool
+ * ("Claude Code CLI"), so it never reads as the desktop App on the same
+ * Account ("Claude app"). */
+export function cliAppWord(tool: string): string {
+  const name = toolSpec(tool).display_name || tool || "";
+  return name === "" || name.endsWith(" CLI") ? name : `${name} CLI`;
+}
+
 export function cliAppName(tool: string, folder: string | null | undefined): string {
-  return appName(toolSpec(tool).display_name, folder);
+  return appName(cliAppWord(tool), folder);
 }
 
 /** A session's App by its full name, from its row alone: a desktop
@@ -66,7 +74,9 @@ export function sessionAppName(row: { kind: string; provider: string; account_la
 /** A session's App by its row, in its two parts ([`sessionAppName`]). */
 export function sessionAppWords(row: { kind: string; provider: string; account_label: string }): AppWords {
   const own = row.kind === "desktop" ? toolSpec(row.provider).desktop_app : null;
-  const app = own ? desktopAppWord(own, row.provider) : toolSpec(row.provider).display_name;
+  // A desktop session is never a CLI App's, even for a tool with no desktop
+  // app of its own on record (the review: "fake-desktop CLI · Fake Desk").
+  const app = own ? desktopAppWord(own, row.provider) : row.kind === "desktop" ? toolSpec(row.provider).display_name : cliAppWord(row.provider);
   return { app, profile: row.account_label || null };
 }
 

@@ -45,6 +45,8 @@ RUNNER_ONLY = (
     # Trims a profile folder to its dependencies before a cache is saved
     # (main only); nothing to do locally.
     "./scripts/ci/cache_keep_deps.sh",
+    # The RC's version stamp (it reads the pull request's branch).
+    "./scripts/ci/rc_version.sh",
     "df -h",
     "free=",
     "sudo ",

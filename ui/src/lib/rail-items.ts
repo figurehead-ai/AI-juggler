@@ -18,7 +18,7 @@ import type { ProjectInfo } from "../types/generated/ProjectInfo";
 import type { ConversationInfo } from "./ipc/conversations";
 import { conversationTitle } from "./conversations";
 import { appOfTool } from "./app-of";
-import { cliAppKey, desktopAppKey, desktopAppWord, desktopProfile, hostWords, ownDesktopAppKey } from "./app-name";
+import { cliAppKey, cliAppWord, desktopAppKey, desktopAppWord, desktopProfile, hostWords, ownDesktopAppKey } from "./app-name";
 import { toolSpec } from "./tools";
 import { shortName, tellFactsApart } from "./session-titles";
 import { waitingSince, type NeedRow } from "./waiting";
@@ -69,7 +69,7 @@ export function placeWords(place: RailPlace): string[] {
 /** The CLI App tool `tool` runs on the folder `accountId` (labelled
  * `folder`), its window in `host`. */
 export function cliPlace(tool: string, accountId: string | null, folder: string, host: { name: string | null; kind: string | null; pid: number | null }): RailPlace {
-  return { key: cliAppKey(tool, accountId, folder), app: toolSpec(tool).display_name, appId: appOfTool(tool).appId, kind: host.kind, profile: folder || null, appPid: host.pid, host: host.name };
+  return { key: cliAppKey(tool, accountId, folder), app: cliAppWord(tool), appId: appOfTool(tool).appId, kind: host.kind, profile: folder || null, appPid: host.pid, host: host.name };
 }
 
 /** A session's App, by the key its rail row and every mark of it use (a
@@ -376,11 +376,11 @@ export function needOfAttention(attention: string | null | undefined): Need | nu
 
 /** Open now: open and interactive. A session that needs you stays in its
  * place here too, its state in amber; Needs you lists it as well, as a
- * shortcut (D-47, which replaced "not in Needs you"). A pinned session
- * stays where the user put it, under its place, once it has ended too
- * (AJ-E1502; Ended today leaves it out, so it is never in neither). */
+ * shortcut (D-47, which replaced "not in Needs you"). ADR-0032 (D-100):
+ * pins never mean open. An ended pinned session stays pinned under its App
+ * (shown there without unfolding, wherever the App is: Open now or
+ * Inactive apps), but it never puts its App in Open now. */
 export function openNow(item: RailItem): boolean {
-  if (item.pinned) return true;
   return item.live && !item.background && item.state !== "ended";
 }
 

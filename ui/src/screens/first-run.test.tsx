@@ -50,7 +50,7 @@ const SCAN = {
   installs: [
     found("/Users/you/.claude", "vendor-default"),
     found(`${PROFILES}/work-a`, "manager-tool", { last_used_secs: NOW - 60 }),
-    found(`${PROFILES}/personal-max`, "manager-tool"),
+    found(`${PROFILES}/acme-max`, "manager-tool"),
     found("/Users/you/.claude-old", "home-pattern", { login: "logged_out", last_used_secs: NOW - 90 * 86_400 }),
     found(`${PROFILES}/already`, "manager-tool", { managed: true }),
   ],

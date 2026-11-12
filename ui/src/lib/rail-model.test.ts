@@ -117,8 +117,8 @@ describe("one state vocabulary (AJ-E2104 Req.3, AJ-E2107)", () => {
 
   it("AI Juggler's own sessions are their CLI App, their window AI Juggler's (D-62); a snoozed one waits in it", () => {
     const item = sessionItem(own("s", { status: "waiting_user" }), none, true);
-    expect([item.place.app, item.place.profile, item.place.kind, item.place.host]).toEqual(["Claude Code", "Work Max", "own", "AI Juggler"]);
-    expect(placeWords(item.place)).toEqual(["Claude Code", "Work Max"]);
+    expect([item.place.app, item.place.profile, item.place.kind, item.place.host]).toEqual(["Claude Code CLI", "Work Max", "own", "AI Juggler"]);
+    expect(placeWords(item.place)).toEqual(["Claude Code CLI", "Work Max"]);
     expect(item.need).toBeNull();
   });
 
@@ -152,10 +152,10 @@ describe("places (AJ-E2104 Req.1, Req.4, Req.6)", () => {
     // A CLI App is its tool and folder: AI Juggler's session and the one
     // in Terminal on the same folder are one App; the Claude app's
     // profiles are Apps of their own.
-    expect(groups.map((group) => `${group.label}|${group.place?.profile ?? ""}`)).toEqual(["Claude Code|Work Max", "Claude app|Personal", "Claude app|Work"]);
+    expect(groups.map((group) => `${group.label}|${group.place?.profile ?? ""}`)).toEqual(["Claude Code CLI|Work Max", "Claude app|Personal", "Claude app|Work"]);
     expect(groups[0]!.items.map((item) => item.key)).toEqual(["s:aj", "c:a1/t1"]);
     const terminal = groups[0]!.items[1]!;
-    expect(placeWords(terminal.place)).toEqual(["Claude Code", "Work Max", "in Terminal"]);
+    expect(placeWords(terminal.place)).toEqual(["Claude Code CLI", "Work Max", "in Terminal"]);
     // A row's state changing never moves its place.
     const again = groupItems(items().map((item) => ({ ...item, state: "idle" as const })), "place");
     expect(again.map((group) => group.key)).toEqual(groups.map((group) => group.key));
@@ -201,9 +201,10 @@ describe("places (AJ-E2104 Req.1, Req.4, Req.6)", () => {
     expect(foldGroup(many, true).quiet).toBe(0);
   });
 
-  it("a pinned session keeps its place: under its place once ended, leading it, never folded away (AJ-E1502)", () => {
+  it("a pinned session keeps its place: under its App once ended, leading it, never folded away (AJ-E1502), but never open (ADR-0032)", () => {
     const pin = sessionItem(own("pin", { status: "finished", pinned: true, last_activity_ms: NOW - 9_000_000 }), none, false);
-    expect(openNow(pin)).toBe(true);
+    // ADR-0032 (D-100): pins never mean open.
+    expect(openNow(pin)).toBe(false);
     expect(endedToday(pin, NOW)).toBe(false);
     // D-47: a pinned one that asks stays in its place, and Needs you lists it.
     const asks = sessionItem(own("ask", { status: "waiting_user", pinned: true }), none, false);
@@ -313,7 +314,7 @@ describe("the maintainer's review of 0.1.4: the way out, and folding in place", 
   it("Go to it names the desktop App, or the terminal a CLI session is in; AI Juggler's own terminal session has none (its page is where it runs)", () => {
     expect(goToWhere(conversationItem(talk("c"), none, null))).toBe("Claude app · Work");
     expect(goToWhere(conversationItem(talk("t", { places: [place("Terminal", "Work")] }), none, null))).toBe("Terminal");
-    expect(goToWhere(conversationItem(talk("bare", { places: [] }), none, null))).toBe("Claude Code · Work Max");
+    expect(goToWhere(conversationItem(talk("bare", { places: [] }), none, null))).toBe("Claude Code CLI · Work Max");
     const row = { id: "s", status: "running", needs_attention: null, account_id: "a1", account_label: "Work Max", project_id: null, kind: "terminal", started_at_ms: NOW, last_activity_ms: NOW } as unknown as InstanceInfo;
     expect(goToWhere(sessionItem(row, none, false))).toBeNull();
     expect(goToWhere(sessionItem({ ...row, kind: "desktop" }, none, false))).toBe("its app · Work Max");

@@ -1,4 +1,4 @@
-<!-- captures: 2a3d370b5244 -->
+<!-- captures: cf690d5612f5 -->
 # 75-account-manage: renaming and removing accounts on the Accounts page
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design passes.
@@ -11,4 +11,8 @@ The Accounts page (default, account-menu, renamed-accounts) separates its accoun
 
 - renamed-accounts-1280x800 (both themes): the profile monogram for "Max (personal)" is "M(", a bracket taken as a letter.
 - default-1280x800, account-menu-1280x800, renamed-accounts-1280x800: the page is captured scrolled, so the top card's header is cut under the app header (only "m…@example.com" shows).
-- account-menu-1280x800: the menu covers its own card's row, so it is not obvious which account it belongs to beyond its small "personal-max" header.
+- account-menu-1280x800: the menu covers its own card's row, so it is not obvious which account it belongs to beyond its small "acme-max" header.
+
+## 0.4.2 (2026-11-12): the fixture renamed
+
+Only the captures that showed the old fixture folder name were re-shot: the copy, its menu header and its row now read "acme-max". Nothing else on these screens moved; the critique above stands.

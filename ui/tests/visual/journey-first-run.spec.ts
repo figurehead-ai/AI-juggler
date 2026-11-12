@@ -43,7 +43,7 @@ const SCAN = {
     install(`${PROFILES}/work-b`, "manager-tool", "Work b", 0),
     install(`${PROFILES}/work-c`, "manager-tool", "Work c", 1),
     install(`${PROFILES}/client`, "manager-tool", "Client", 3),
-    install(`${PROFILES}/personal-max`, "manager-tool", "Personal", 0),
+    install(`${PROFILES}/acme-max`, "manager-tool", "Personal", 0),
   ],
   probes: [
     { label: "Your standard setup (~/.claude)", health: "ok", detail: "1 found", reason: null },

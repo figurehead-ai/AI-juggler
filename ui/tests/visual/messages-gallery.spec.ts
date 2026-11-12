@@ -150,12 +150,20 @@ async function axe(page: Page, what: string) {
 }
 
 async function poolMessages(page: Page) {
+  // The rail's Needs you fills in from the backend's count after the first
+  // paint (F2): a group opened before then scrolled the rail, and the rows
+  // that arrived above were held behind a "5 new above" pill (the flaky
+  // 93-messages capture). Wait for it, then show the rail from its top.
+  await expect(page.getByTestId("rail-needs-you")).toHaveText(/Needs you\s*\d/);
   await groupBy(page, "Pool");
   await openRailGroup(page, "Checkout redesign", page.getByTestId("pool-page"));
   await expect(page.getByTestId("pool-page")).toBeVisible();
   await page.getByTestId("pool-panel-messages").click();
   await expect(page.getByTestId("thread-view")).toBeVisible();
   await expect(page.getByTestId("message-bubble")).toHaveCount(5);
+  const held = page.getByTestId("rail-new-above");
+  if (await held.isVisible()) await held.click();
+  await expect(held).toHaveCount(0);
 }
 
 for (const theme of ["dark", "light"] as const) {

@@ -2696,7 +2696,7 @@ side by side): "Yes let's go with new graphics".
 
 **Ruling.** The 0.4 completion session's design call, on the maintainer's
 finding (reported in 0.3, again in 0.4): a session page's top banner
-("Bookauth has run out of room … Continue “Jive CLI” in another app") was
+("Acme has run out of room … Continue “Jive CLI” in another app") was
 about another session's account, and its Continue was nearly clicked for
 the session on the page. The maintainer's wish: remove it, rely on the
 bell.
@@ -2887,3 +2887,27 @@ Each ships with tests that fail without it and a design critique; the M2, D2 and
 
 - Effective: point 1 with 0.4.1 (the nightly, beta and Stable workflows are changed to match, and RELEASING.md); points 2 to 5 after the 0.4.1 merge. Planned work: AJ-E2020, filed under 0.5 in the roadmap so no 0.4.x scope check requires it.
 - Sources: `docs/research/release-speed.md`.
+
+
+### D-100 Presence is the process table: Open now, Running not added, Inactive; one owner per session — SETTLED (2026-11-11)
+
+**Ruling.** The maintainer, 2026-11-11, testing 0.4.1 on beta (Open now didn't match the apps open, a repeat complaint): "active and inactive apps, sessions and subsessions must match reality 100%. This is the trust foundation." The design, reviewed by the coordinating session and recorded as ruled:
+
+> Presence is the process table and OS launch events: Open now = running added Apps; Running, not added = offered with Add; Inactive = added, not running; each App exactly once; pins never mean open; one owner per session; each lens groups by its own entity; Desktop and CLI are distinguished by text and icon badge everywhere.
+
+- One backend reconciler (`features::presence`) decides what runs and who owns a session; every surface reads it. A live session belongs to the App its process runs in; an ended one to the App it was last seen in, else the one its tool's own record of who started it names (`entrypoint`, `originator`), else its folder's CLI App.
+- Launch and quit show within 2 s (`NSWorkspace` notifications; a full reconcile every 5 s at most).
+- A read-only real-Mac check (`scripts/qa/presence_check.py`) compares `ps` with the rail; from 0.4.2 every release check fails without its passing report (`scripts/release_scope.py`).
+- **Amends:** D-64 ("nothing open" means not running, not "no open session"), D-62 (labels say Desktop or CLI), D-84 (unchanged: running but not added is offered, never added).
+- Sources: `docs/adr/0032-presence-from-the-process-table.md` (its evidence section has the real-Mac facts).
+
+### D-101 No real person's data in the public repository: scrubbed history, a private denylist, a public pattern check — SETTLED (2026-11-12)
+
+**Ruling.** The maintainer, 2026-11-12, after 0.4.2's reports and captures carried real profile names, a home folder and an address to the public repository: rebuild the release branch without them (no force-push: a new branch, the old one closed and deleted), scrub the names repo-wide, and guard against a repeat.
+
+- The 0.4.2 branch was replayed with every real name, home folder and address replaced by generic ones (acme-*, /Users/you, example.com); the tree is the old tip's exactly but for that scrub. Fixtures use generic names only.
+- **Before it leaves the Mac:** `scripts/hooks/` (pre-commit, commit-msg, pre-push) check the staged lines, the message and every outgoing commit against a denylist kept outside the repository (`~/.config/ai-juggler/private-terms`, never committed).
+- **On every pull request:** `scripts/private_data_lint.py` fails on a home folder, a Claude profile folder or an address that isn't a placeholder, by pattern, so no real name has to live in the repository to be caught.
+- **Recorders anonymize by default:** whatever records a run on a real setup writes through `scripts/qa/anonymize.py` (Apps as "App N", `~`, `<profile>`, `x…@example.com`), each with a self-test that a real-looking name and path never reach its output.
+- Captures of the real Mac stay local; a capture in the repository comes from fixtures or is redacted (`scripts/qa/check_captures.py`).
+- Sources: `scripts/hooks/README.md`.

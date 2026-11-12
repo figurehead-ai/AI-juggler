@@ -83,7 +83,7 @@ export function Banner({
   actions?: BannerAction[];
   /** Shown as × when given. */
   onDismiss?: () => void;
-  /** The close's name for screen readers ("Close the banner about Mia"). */
+  /** The close's name for screen readers ("Close the banner about West"). */
   dismissLabel?: string;
   /** Its own live region: `alert` for what stops work. None when the
    * region it sits in already speaks (the notification band). */

@@ -195,7 +195,7 @@ fn a_session_started_in_a_closed_profile_is_that_profiles() {
     };
     with_book(&state, |book| {
         book.places
-            .insert("anela".into(), place("b-anela", Some("f-anela"), true));
+            .insert("south".into(), place("b-south", Some("f-south"), true));
         book.places
             .insert("twin-1".into(), place("b-twin", Some("f-twin"), true));
         book.places
@@ -203,11 +203,11 @@ fn a_session_started_in_a_closed_profile_is_that_profiles() {
         book.places
             .insert("offer".into(), place("b-offer", Some("f-offer"), false));
         assert_eq!(
-            book.users_place_on("claude-app", "f-anela"),
-            Some(&"anela".to_owned())
+            book.users_place_on("claude-app", "f-south"),
+            Some(&"south".to_owned())
         );
         assert_eq!(
-            book.users_place_on("codex-app", "f-anela"),
+            book.users_place_on("codex-app", "f-south"),
             None,
             "another app"
         );

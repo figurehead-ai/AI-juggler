@@ -14,6 +14,7 @@ import { NeedRow, PlaceHeader, edgeOf, type Arrangeable } from "./PlaceRows";
 import { SessionRow } from "./row/SessionRow";
 import { AlsoLine, Chevron, RailLink, RailSearchFoundNothing, SectionHead, scrollerOf, stepPastEdge } from "./PlaceBoardParts";
 import { RailIdleApp } from "./RailIdleApp";
+import { RailOfferRow, usePlaceOffers } from "./PlaceOffers";
 import { RailOrderMenu } from "./RailOrderMenu";
 import { useArrange } from "./rail-arrange";
 import { LINE_KEY, useHoldStill } from "./rail-hold";
@@ -30,8 +31,8 @@ import { useClosedSections } from "./rail-groups";
 import { buildLines, foldSections, lineHeights, lineKey, offsetOf, shownOrder, VIRTUALISE_AT, windowOf, type Line } from "../lib/rail-lines";
 import { headerActions, keepAliveOf } from "./place-actions";
 import { recentWords } from "../lib/rail-apps";
-import { groupApp, groupClosed, openGroupApp } from "./rail-group-app";
-import { appIdOfRailKey, openApp } from "../lib/apps";
+import { groupApp, recentOfGroup, groupClosed, openGroupApp } from "./rail-group-app";
+import { appIdOfRailKey, openApp, useApps, useCliApps } from "../lib/apps";
 import { openAccount } from "../lib/accounts-page";
 import { accountOfProfile, cachedSubscriptions } from "../lib/subscriptions";
 import { renamedPlaces, type RailGroup } from "../lib/rail-places";
@@ -53,6 +54,7 @@ import type { ProjectInfo } from "../types/generated/ProjectInfo";
 interface BoardProps {
   sessions: InstanceInfo[];
   projects: ProjectInfo[];
+  accounts?: Parameters<typeof useApps>[0]; // D-100: for the Apps list (Inactive apps = Accounts' not running)
   snooze: SnoozeState;
   now: number;
   selectedId: string | null;
@@ -66,7 +68,7 @@ interface BoardProps {
   cueSlot?: HTMLElement | null;
 }
 
-export function PlaceBoard({ sessions, projects, snooze, now, selectedId, onSelect, query, scroll, density = "comfortable", cueSlot = null }: BoardProps): JSX.Element {
+export function PlaceBoard({ sessions, projects, accounts, snooze, now, selectedId, onSelect, query, scroll, density = "comfortable", cueSlot = null }: BoardProps): JSX.Element {
   const compact = density === "compact";
   const heights = lineHeights(compact);
   // Settings › Desktop apps: an app turned off leaves its count.
@@ -111,8 +113,11 @@ export function PlaceBoard({ sessions, projects, snooze, now, selectedId, onSele
   );
   // The apps remembered (0.3.3 Keep alive, D-64 inactive apps); AJ-E3204: the ones kept off.
   const places = useKnownPlaces();
+  const cliApps = useCliApps(accounts);
   const { offRail, openOffRail } = useOffRail(places);
-  const built = buildLines({ items, view, query: parsed, now, toggled, frozen, accountOf, poolOf, order: orderInputs, others, known: places ?? [], offRail });
+  const offers = usePlaceOffers(); // D-100: Running, not added; an Add that failed says why
+  useEffect(() => void (offers.note && showToast({ id: "place-offer", message: offers.note })), [offers.note]);
+  const built = buildLines({ items, view, query: parsed, now, toggled, frozen, accountOf, poolOf, order: orderInputs, others, known: places ?? [], offRail, offers: offers.offers ?? [], cliApps });
   const stable = order.mode !== "latest";
   // New rows and places join the end of the record; gone ones are pruned.
   const groupKeys = built.groups.map((group) => group.key).join("\n");
@@ -301,6 +306,7 @@ export function PlaceBoard({ sessions, projects, snooze, now, selectedId, onSele
             openWords={lens === "pool" ? "Open its page" : groupClosed(known, group) ? "Start" : undefined}
             onPage={pageOf(group)} onWarm={lens === "pool" && group.poolId !== null ? () => void warmPool(group.poolId!) : undefined}
             shortcut={line.digit ?? undefined}
+            onRecent={recentOfGroup(lens, group, places)}
             onNew={lens === "place" && group.key.startsWith("cli|") ? () => window.dispatchEvent(new CustomEvent("aij:new-session", { detail: { accountId: group.items[0]?.accountId ?? null } })) : undefined}
             {...headerActions(known, group)} roomOf={lens === "pool" ? null : group.items[0]?.accountId}
           >
@@ -335,18 +341,12 @@ export function PlaceBoard({ sessions, projects, snooze, now, selectedId, onSele
         return <SessionRow item={line.item} density={compact ? "compact" : "cozy"} within={{ app: true }} edge={edgeOf(line.item.place)} selected={selectedId === (line.item.session?.id ?? line.item.conversation?.id)} onSelect={onSelect} now={now} subagents={view.show.subagents} depth={line.depth} parent={line.parent} />;
       case "idle": {
         const known = line.app.placeId !== null ? (places?.find((place) => place.id === line.app.placeId) ?? null) : null;
-        return (
-          <RailIdleApp
-            app={line.app}
-            open={line.open}
-            onToggle={() => toggle(`${line.app.key}#recent`)}
-            now={now}
-            keepAlive={keepAliveOf(known)}
-          />
-        );
+        return <RailIdleApp app={line.app} open={line.open} onToggle={() => toggle(`${line.app.key}#recent`)} now={now} keepAlive={keepAliveOf(known)} />;
       }
       case "idle-more":
         return <RailLink onClick={() => toggle("idle#all")} testId="rail-idle-more">{`Show ${line.hidden} more`}</RailLink>;
+      case "offer":
+        return <RailOfferRow offer={line.offer} onAdd={() => offers.answer(line.offer, true)} />;
       case "also":
         return <AlsoLine also={built.also} hidden={hidden} offRail={built.offRail} openApp={openOffRail} />;
       case "label":

@@ -306,7 +306,7 @@ fn scan_finds_other_manager_tools_profile_roots() {
     // one non-config child that must be filtered.
     let root = work.path().join("ClaudeCodeProfiles");
     let profile_a = existing_setup(&root, "client-a");
-    existing_setup(&root, "personal-max");
+    existing_setup(&root, "acme-max");
     std::fs::create_dir_all(root.join("not-a-profile")).unwrap();
 
     let found = scan_claude_environment(&home, None, &[root], &logged_in_probe);

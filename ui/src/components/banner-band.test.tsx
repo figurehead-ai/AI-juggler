@@ -22,13 +22,13 @@ import { SessionNotices } from "./SessionNotices";
 import { resetToasts } from "./Toast";
 
 const seams = window as never as { __AIJ_NOTICES__?: unknown; __AIJ_RESET_QUEUE__?: unknown; __AIJ_FLEET_REMOTE__?: unknown };
-const target = { session_id: null, conversation_id: null, account_id: "acc-mia", project_id: null, page: null, task_id: null, pool_id: null };
-const facts = { window: "5-hour", resets_at_ms: Date.now() + 70 * 60_000, sessions: 1, version: null, channel: null, attempt: null, tries: null, account: "Mia" };
+const target = { session_id: null, conversation_id: null, account_id: "acc-west", project_id: null, page: null, task_id: null, pool_id: null };
+const facts = { window: "5-hour", resets_at_ms: Date.now() + 70 * 60_000, sessions: 1, version: null, channel: null, attempt: null, tries: null, account: "West" };
 const quota = (id: number, account: string, name: string) => ({ id, kind: "quota", needs: true, title: `${name} is almost out of room`, detail: "7% of its 5-hour window left", project_id: null, project: null, target: { ...target, account_id: account }, facts: { ...facts, account: name }, action: "hand-over", meter: 7, created_ms: Date.now() - id, unread: true, subject: `n:${id}`, snoozed: false, snoozed_until_ms: null, muted: false, dismissed: false });
-const LIVE = { id: "s-1", account_id: "acc-mia", status: "running", started_at_ms: 1, last_activity_ms: 2, git_branch: "login-flow", cwd: "/w/app" } as unknown as InstanceInfo;
+const LIVE = { id: "s-1", account_id: "acc-west", status: "running", started_at_ms: 1, last_activity_ms: 2, git_branch: "login-flow", cwd: "/w/app" } as unknown as InstanceInfo;
 
-/** Mia's session's page: its own notices. */
-const page = () => render(<SessionNotices accountId="acc-mia" switchKey="s-1" reminderKey="s-1" parkedId="s-1" sessions={[LIVE]} />);
+/** West's session's page: its own notices. */
+const page = () => render(<SessionNotices accountId="acc-west" switchKey="s-1" reminderKey="s-1" parkedId="s-1" sessions={[LIVE]} />);
 
 beforeEach(() => {
   resetToasts();
@@ -45,8 +45,8 @@ afterEach(() => {
 
 describe("D-87 the band over a page", () => {
   it("never shows an account's or a session's notice, nor a due reminder", async () => {
-    seams.__AIJ_NOTICES__ = { app: [quota(1, "acc-mia", "Mia"), quota(2, "acc-work", "Work")] };
-    seams.__AIJ_RESET_QUEUE__ = [{ id: "rq-s-1", session: "s-1", account: "acc-mia", resume_at_ms: Date.now() - 1, state: "ready" }];
+    seams.__AIJ_NOTICES__ = { app: [quota(1, "acc-west", "West"), quota(2, "acc-work", "Work")] };
+    seams.__AIJ_RESET_QUEUE__ = [{ id: "rq-s-1", session: "s-1", account: "acc-west", resume_at_ms: Date.now() - 1, state: "ready" }];
     render(<NotificationRegion />);
     await waitFor(() => expect(screen.getByTestId("notification-region")).toBeTruthy());
     await act(async () => new Promise((done) => setTimeout(done, 20)));
@@ -71,12 +71,12 @@ describe("D-87 the band over a page", () => {
 
 describe("D-87 a session's page: its own notices, inline", () => {
   it("its own account, in its words, whose Continue opens its own switch; never another account's", async () => {
-    seams.__AIJ_NOTICES__ = { app: [quota(1, "acc-mia", "Mia"), quota(2, "acc-work", "Work")] };
+    seams.__AIJ_NOTICES__ = { app: [quota(1, "acc-west", "West"), quota(2, "acc-work", "Work")] };
     const opened = vi.spyOn(focus, "focusHandoverSoon").mockImplementation(() => undefined);
     page();
     const own = await screen.findByTestId("session-notice-quota");
     expect(screen.getAllByTestId("session-notice-quota")).toHaveLength(1);
-    expect(own.textContent).toContain("This session's account, Mia, is almost out of room");
+    expect(own.textContent).toContain("This session's account, West, is almost out of room");
     expect(own.textContent).not.toContain("Work");
     expect(screen.getByTestId("session-notice-hand-over").textContent).toBe("Continue this session in another app…");
     fireEvent.click(screen.getByTestId("session-notice-hand-over"));
@@ -86,13 +86,13 @@ describe("D-87 a session's page: its own notices, inline", () => {
 
   it("another account's session's page shows nothing of it", async () => {
     seams.__AIJ_NOTICES__ = { app: [quota(2, "acc-work", "Work")] };
-    render(<SessionNotices accountId="acc-mia" switchKey="s-1" reminderKey="s-1" parkedId="s-1" sessions={[LIVE]} />);
+    render(<SessionNotices accountId="acc-west" switchKey="s-1" reminderKey="s-1" parkedId="s-1" sessions={[LIVE]} />);
     await act(async () => new Promise((done) => setTimeout(done, 20)));
     expect(screen.queryByTestId("session-notices")).toBeNull();
   });
 
   it("a close hides it in the same frame; a refused one comes back", async () => {
-    seams.__AIJ_NOTICES__ = { app: [quota(1, "acc-mia", "Mia")] };
+    seams.__AIJ_NOTICES__ = { app: [quota(1, "acc-west", "West")] };
     let refuse!: (cause: unknown) => void;
     vi.spyOn(notices, "notificationsDismiss").mockReturnValue(new Promise<NoticeSummaryInfo>((_, no) => (refuse = no)));
     page();
@@ -106,7 +106,7 @@ describe("D-87 a session's page: its own notices, inline", () => {
   });
 
   it("snooze hides it at once too", async () => {
-    seams.__AIJ_NOTICES__ = { app: [quota(1, "acc-mia", "Mia")] };
+    seams.__AIJ_NOTICES__ = { app: [quota(1, "acc-west", "West")] };
     vi.spyOn(notices, "notificationsSnooze").mockReturnValue(new Promise<NoticeSummaryInfo>(() => {}));
     page();
     await screen.findByTestId("session-notice-quota");
@@ -115,7 +115,7 @@ describe("D-87 a session's page: its own notices, inline", () => {
   });
 
   it("its reminder shows nothing while it waits, and once due; another session's never", async () => {
-    const later = { id: "rq-later", session: "s-1", account: "acc-mia", resume_at_ms: Date.now() + 3_600_000, state: "queued" };
+    const later = { id: "rq-later", session: "s-1", account: "acc-west", resume_at_ms: Date.now() + 3_600_000, state: "queued" };
     seams.__AIJ_RESET_QUEUE__ = [later, { ...later, id: "rq-s-2", session: "s-2", state: "ready" }];
     page();
     await act(async () => new Promise((done) => setTimeout(done, 20)));

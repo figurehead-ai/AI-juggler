@@ -158,6 +158,15 @@ jobs:
           ./scripts/terminology_lint.sh
           python3 scripts/plain_words_lint.py --selftest
           python3 scripts/plain_words_lint.py
+      - name: No real person's data in the public repository (D-101)
+        run: |
+          python3 scripts/private_data_lint.py --selftest
+          python3 scripts/private_data_lint.py
+          python3 scripts/hooks/private_terms.py --selftest
+          python3 scripts/qa/anonymize.py --selftest
+          python3 scripts/qa/presence_check.py --selftest
+          python3 scripts/png_metadata_lint.py --selftest
+          python3 scripts/png_metadata_lint.py
       - name: Every link in the public docs resolves (the 0.1 checklist, 8.8)
         run: python3 scripts/docs_links_check.py
       - name: AI Juggler's own helpers start with only what they need (AJ-E2010)
@@ -1038,6 +1047,10 @@ jobs:
             target
           key: ${{ runner.os }}-rc-release-cargo-${{ hashFiles('**/Cargo.lock', 'rust-toolchain.toml') }}
           restore-keys: ${{ runner.os }}-rc-release-cargo-
+      - name: The version it ships as (stamped; bundle_check holds the app to it)
+        env:
+          HEAD_REF: ${{ github.head_ref || github.ref_name }}
+        run: ./scripts/ci/rc_version.sh
       - name: Build AI Juggler Dev (as `just app`; checks the bundle)
         run: ./scripts/build_dev_app.sh
       - name: The app, for walks

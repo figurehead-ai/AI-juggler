@@ -67,7 +67,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.getByTestId("first-run-fresh").screenshot({ path: resolve(OUT, `open-${theme}.png`) });
     await axeClean(page, "the settings line, open");
     // Another account: Personal has nothing to copy, and says so.
-    await pick(page, line.getByRole("button", { name: /^Account to copy the settings from/ }), "Personal");
+    await pick(page, line.getByRole("button", { name: /^App to copy the settings from/ }), "Personal");
     await expect(line).toContainText("Personal has no settings to copy");
     await page.getByTestId("first-run-fresh").screenshot({ path: resolve(OUT, `nothing-${theme}.png`) });
   });
@@ -97,7 +97,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/");
     await goTo(page, "Accounts");
-    await page.getByRole("button", { name: "App actions for Claude Code · Personal", exact: true }).click();
+    await page.getByRole("button", { name: "App actions for Claude Code CLI · Personal", exact: true }).click();
     await page.getByRole("menuitem", { name: "Copy settings from…" }).click();
     const sheet = page.getByRole("dialog", { name: "Copy settings into Personal" });
     await expect(sheet.getByRole("button", { name: "Copy 3 settings" })).toBeVisible();

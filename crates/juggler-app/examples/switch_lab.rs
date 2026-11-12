@@ -57,6 +57,26 @@ fn main() -> ExitCode {
     let Some(pick) = targets.iter().find(|row| row.account_label == target) else {
         return fail("no such target");
     };
+    // The real-accounts rule (ADR-0032 evidence): this lab ran `claude` on
+    // two real profiles' folders; only a lab's own folder is a target.
+    let folder = state.storage.lock().ok().and_then(|storage| {
+        storage
+            .accounts()
+            .get(&juggler_core::model::AccountId::new(
+                pick.account_id.clone(),
+            ))
+            .ok()
+            .map(|account| account.state_dir)
+    });
+    let home = juggler_platform::user::home().unwrap_or_default();
+    match folder {
+        None => return fail("the target's folder couldn't be read"),
+        Some(folder) => {
+            if let Some(why) = juggler_app::lab_scope::refuses_real_folder(&folder, &home) {
+                return fail(&format!("refused: {why}"));
+            }
+        }
+    }
     let Ok(preflight) = juggler_app::features::switch::preflight::switch_preflight_impl(
         &state,
         &source,

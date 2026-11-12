@@ -2,7 +2,7 @@
 //! id per pixel, banded sunlight for a painted look, point lights, glow
 //! and the cutaway of walls between the camera and the room), the post
 //! pass (hard-edged upscale, outlines, the hovered thing outlined, sky,
-//! the red-alert wash, a soft vignette) and the overlay. In Full
+//! a soft vignette) and the overlay. In Full
 //! resolution (D-80) the scene is at device pixels: textures sharp-
 //! bilinear, edges smoothed, outlines as wide as Pixel art's look.
 
@@ -438,7 +438,6 @@ fn seen(q: vec2<i32>, skyc: vec3<f32>) -> vec3<f32> {
     c = mix(c, k * k * (3.0 - 2.0 * k), 0.22);
     c = max(mix(vec3<f32>(luma(c)), c, 1.1), vec3<f32>(0.0));
   }
-  if (p.b.y > 0.5) { c = mix(c, vec3<f32>(0.95, 0.12, 0.1), 0.1 + 0.07 * sin(p.b.x * 3.1416)); }
   let uv = fc.xy / p.c.xy;
   let v = smoothstep(0.95, 0.4, length((uv - vec2<f32>(0.5)) * vec2<f32>(1.0, 0.8)));
   c = c * mix(0.72, 1.0, v);

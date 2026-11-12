@@ -14,11 +14,9 @@
  * Open now's order is the one picked (`rail-order.ts`): Your order by
  * default, where nothing moves by itself.
  *
- * D-64 (0.3.4): grouped by App, the rail is about apps. An open app's
- * sessions that aren't open sit under it, behind "Last 3 inactive"; the
- * apps with nothing open follow in "Inactive apps", most recently used
- * first, each with its last 3 behind a click (`rail-apps.ts`). The full
- * list is the app's page (0.4) and History.
+ * D-64, ADR-0032 (D-100): by App, Open now holds the running Apps (each
+ * one's past sessions behind "Last 3 inactive"), "Running, not added" the
+ * apps found running (Add), "Inactive apps" the rest; each App in one.
  */
 import { cliPlace, endedToday, needsYou, openNow, OWN_APP, type RailItem } from "./rail-items";
 import { frozenOrder, groupItems, isQuiet, NO_POOL, quietWords, type AccountOf, type GroupBy, type PoolOf, type RailGroup } from "./rail-places";
@@ -27,10 +25,10 @@ import { isSearching, matches, type RailQuery, type RailView } from "./rail-view
 import type { NoticeInfo } from "./ipc/notices";
 import type { KnownPlaceInfo } from "./ipc/places";
 import { nestRows } from "./rail-tree";
-import { appByConversation, appByFolder, appKeyOf, IDLE_APPS_SHOWN, idleApps, idleSessionsByApp, knownAppWord, knownKey, RECENT_INLINE, type IdleApp } from "./rail-apps";
+import { appByConversation, appByFolder, appKeyOf, IDLE_APPS_SHOWN, idleApps, idleSessionsByApp, knownAppWord, knownKey, offeredLines, RECENT_INLINE, runningGroups, type CliAppFacts, type IdleApp, type OfferLine } from "./rail-apps";
 import { appName, desktopProfile } from "./app-name";
 
-export type SectionId = "needs" | "open" | "idle";
+export type SectionId = "needs" | "open" | "offered" | "idle";
 
 export type Line =
   | { kind: "section"; id: SectionId; count: number }
@@ -49,7 +47,9 @@ export type Line =
   /** D-64: an app with nothing open. */
   | { kind: "idle"; app: IdleApp; open: boolean }
   /** D-64: "Show n more" inactive apps. */
-  | { kind: "idle-more"; hidden: number };
+  | { kind: "idle-more"; hidden: number }
+  /** D-100: an app running that the user hasn't added (Add). */
+  | Extract<OfferLine, { kind: "offer" }>;
 
 export const LINE_HEIGHT: Record<Line["kind"], number> = {
   section: 30,
@@ -65,6 +65,7 @@ export const LINE_HEIGHT: Record<Line["kind"], number> = {
   past: 42,
   idle: 46,
   "idle-more": 26,
+  offer: 34,
 };
 
 /** Compact (AJ-E403, §2.2: rail rows 32 px): a row is one line, a
@@ -134,9 +135,12 @@ export interface LineInputs {
   /** D-64: the desktop apps remembered (the App grouping's inactive apps,
    * and where a desktop app's past sessions were last open). */
   known?: readonly KnownPlaceInfo[];
+  cliApps?: readonly CliAppFacts[]; // D-100: each not open is in Inactive apps, its sessions read or not
   /** AJ-E3204: an App (by its rail key) kept off the rail by its own
    * Settings. By App only; its sessions that need you still show. */
   offRail?: (key: string) => boolean;
+  /** D-100: the apps found running, not added (`places_offers`). */
+  offers?: Parameters<typeof offeredLines>[0];
 }
 
 export interface OrderInputs {
@@ -151,7 +155,7 @@ export interface OrderInputs {
 
 const YOURS: OrderInputs = { mode: "yours", rows: new Map(), groups: [], folded: new Set() };
 
-export function buildLines({ items, view, query, now, toggled, frozen, accountOf, poolOf, order = YOURS, others = [], known = [], offRail = () => false }: LineInputs): Lines {
+export function buildLines({ items, view, query, now, toggled, frozen, accountOf, poolOf, order = YOURS, others = [], known = [], offRail = () => false, offers = [], cliApps = [] }: LineInputs): Lines {
   const searching = isSearching(query);
   const filtering = searching || Object.keys(view.only).length > 0;
   const shown = items.filter((item) => matches(item, view.only, query, accountOf, poolOf));
@@ -159,19 +163,15 @@ export function buildLines({ items, view, query, now, toggled, frozen, accountOf
   const keep = (list: string, rows: RailItem[]) => (frozen?.has(list) ? frozenOrder(rows, frozen.get(list)!, (item) => item.key) : rows);
 
   const needs = keep("needs", needsYou(shown));
-  // 0.4.1: an open session not seen in a terminal, on a folder only one
-  // desktop profile runs on, is that profile's (its group has the
-  // profile's Start, Restart and Keep alive), not the folder's CLI App.
+  // 0.4.1: an open session on a folder only one desktop profile runs on
+  // is that profile's (its Start, Restart, Keep alive), not its CLI App's.
   const byFolder = appByFolder(known);
   const byConversation = appByConversation(known);
   const ofKey = new Map(known.map((place) => [knownKey(place), place]));
   const theirs = (item: RailItem): RailItem => {
     // A desktop session AI Juggler started: in the App its ended ones are
-    // under (`appKeyOf`: the profile it was launched in, else the one
-    // profile on its folder, else its folder's CLI App), so an App's open
-    // and past sessions are one group (rc23: the CLI App of a folder no
-    // profile runs on held its past ones in Inactive apps, its open one
-    // sat in a group of its own).
+    // under (`appKeyOf`), so an App's open and past sessions are one group
+    // (rc23: a CLI App's past ones and its open one sat apart).
     if (item.session && item.place.kind === "own" && item.place.key.startsWith("app|")) {
       const key = appKeyOf(item, byConversation, byFolder);
       if (key === item.place.key) return item;
@@ -179,11 +179,20 @@ export function buildLines({ items, view, query, now, toggled, frozen, accountOf
       if (place) return { ...item, place: { ...item.place, key, app: knownAppWord(place), appId: place.app_id, profile: desktopProfile(place.instance, place.profile) } };
       return { ...item, place: cliPlace(item.session.provider, item.session.account_id, item.session.account_label, { name: OWN_APP, kind: "own", pid: null }) };
     }
-    if (!item.conversation || !item.place.key.startsWith("cli|") || item.place.kind === "terminal") return item;
-    const key = byFolder.get(`|${item.conversation.account_id}`);
-    const place = key ? ofKey.get(key) : undefined;
-    if (!key || !place) return item;
-    return { ...item, place: { key, app: knownAppWord(place), appId: place.app_id, kind: "desktop", profile: desktopProfile(place.instance, place.profile), appPid: place.app_pid, host: null } };
+    // ADR-0032 (D-100): a conversation is under the App the backend says
+    // it belongs to (`appKeyOf` reads it); a terminal, an editor or tmux
+    // is a detail of a CLI App's row, never a desktop App's.
+    const conversation = item.conversation;
+    if (!conversation) return item;
+    const key = appKeyOf(item, byConversation, byFolder);
+    if (key === item.place.key) return item;
+    const place = ofKey.get(key);
+    if (place) return { ...item, place: { key, app: knownAppWord(place), appId: place.app_id, kind: "desktop", profile: desktopProfile(place.instance, place.profile), appPid: place.app_pid, host: null } };
+    if (key.startsWith("cli|")) {
+      const first = conversation.places?.[0];
+      return { ...item, place: cliPlace(conversation.tool, conversation.account_id, conversation.account_label, { name: first?.app || null, kind: first?.kind ?? null, pid: first?.app_pid ?? null }) };
+    }
+    return item;
   };
   const openAll = shown.filter((item) => openNow(item) || (want("background") && item.background && item.need === null)).map(theirs);
   const ended = shown.filter((item) => endedToday(item, now, want("archived"))).sort((a, b) => b.lastMs - a.lastMs);
@@ -205,14 +214,23 @@ export function buildLines({ items, view, query, now, toggled, frozen, accountOf
   }
   const inactive = apps ? [] : shown.filter((item) => item.inactive && item.need === null && !item.pinned).sort((a, b) => b.lastMs - a.lastMs);
   const idle = apps ? idleSessionsByApp(shown, byConversation, byFolder) : new Map<string, RailItem[]>();
-  // Its last ones, under an app: unfolded by a click, and while searching
-  // every one that matches (rc4 walk: a search for a family of four showed
-  // three, as the last three). Each sits under the one it was started from.
+  // Its last ones, under an app: unfolded by a click; searching, every one
+  // that matches (rc4 walk). Each sits under the one it was started from.
   const past = (key: string, sessions: readonly RailItem[]) => {
-    const open = searching || toggled.has(`${key}#recent`);
-    return { open, rows: open ? nestRows(searching ? sessions : sessions.slice(0, RECENT_INLINE)) : [] };
+    const unfolded = searching || toggled.has(`${key}#recent`);
+    // ADR-0032: this App's own; its pinned ones always show (never open).
+    const pinned = sessions.filter((item) => item.pinned);
+    const listed = unfolded ? (searching ? sessions : [...pinned, ...sessions.filter((item) => !item.pinned).slice(0, RECENT_INLINE)]) : pinned;
+    return { open: unfolded, rows: nestRows(listed).map(({ item, depth, parent }) => ({ item, depth, parent: parent?.title ?? null })) };
   };
-  const groups = arrangeGroups(groupItems(open, by, accountOf, poolOf), order.mode, order.groups);
+  const grouped = groupItems(open, by, accountOf, poolOf); // ADR-0032: + every running App:
+  if (apps && !filtering) grouped.push(...runningGroups(known, new Set(grouped.map((group) => group.key)), off));
+  const groups = arrangeGroups(grouped, order.mode, order.groups);
+  // D-100: Open now shows only what's open; an open App keeps just its
+  // pinned ended rows (its others: "Show recent", History, its page).
+  const pinnedUnder = (key: string) => {
+    for (const { item, depth, parent } of nestRows((idle.get(key) ?? []).filter((row) => row.pinned))) lines.push({ kind: "past", item, depth, parent: parent?.title ?? null, app: key });
+  };
   const stable = order.mode !== "latest";
   const arranged = new Map<string, RailItem[]>();
   const groupKey = (item: RailItem): string => {
@@ -232,7 +250,8 @@ export function buildLines({ items, view, query, now, toggled, frozen, accountOf
     for (const notice of rest) lines.push({ kind: "notice", notice });
     rows += needs.length + rest.length;
   }
-  if (groups.length > 0) lines.push({ kind: "section", id: "open", count: open.length });
+  // By App, Open now counts the Apps open; otherwise the sessions.
+  if (groups.length > 0) lines.push({ kind: "section", id: "open", count: apps ? groups.length : open.length });
   groups.forEach((group, index) => {
     const needsHere = needs.filter((item) => groupKey(item) === group.key).length;
     const digit = index < 9 ? index + 1 : null;
@@ -244,8 +263,10 @@ export function buildLines({ items, view, query, now, toggled, frozen, accountOf
       : isQuiet(group) && !want("quiet") && !searching ? !toggled.has(group.key) : toggled.has(group.key);
     const fold = arrangeGroup(group, order.mode, order.rows, want("quiet") || searching || toggled.has(`${group.key}#all`));
     arranged.set(group.key, fold.all);
-    if (folded) {
+    // An App open with nothing in it: its header, saying so.
+    if (folded || group.items.length === 0) {
       lines.push({ kind: "header", group, folded: quietWords(group), needs: needsHere, digit });
+      pinnedUnder(group.key);
       return;
     }
     lines.push({ kind: "header", group, folded: null, needs: needsHere, digit });
@@ -256,20 +277,14 @@ export function buildLines({ items, view, query, now, toggled, frozen, accountOf
     for (const { item, depth, parent } of nestRows(drawn)) lines.push({ kind: "row", item, group, depth, parent: parent?.title ?? null });
     rows += drawn.length;
     if (fold.hidden > 0) lines.push({ kind: "more", group, quiet: fold.hidden, words: fold.words });
-    const sessions = idle.get(group.key) ?? [];
-    if (sessions.length > 0) {
-      const last = past(group.key, sessions);
-      lines.push({ kind: "recent", app: group.key, count: sessions.length, open: last.open });
-      for (const { item, depth, parent } of last.rows) lines.push({ kind: "past", item, depth, parent: parent?.title ?? null, app: group.key });
-      rows += last.rows.length;
-    }
+    pinnedUnder(group.key);
   });
   if (apps) {
     // While a search or filter is on, only the apps with something that
-    // matches.
-    // An app with something open isn't inactive, whatever a search hides.
-    const openKeys = new Set(items.filter(openNow).map((item) => theirs(item).place.key));
-    const every = idleApps({ openKeys, known, idle });
+    // matches; one with something open isn't inactive, whatever it hides.
+    const openKeys = new Set([...items.filter(openNow).map((item) => theirs(item).place.key), ...known.filter((place) => place.app_pid !== null).map(knownKey)]);
+    const every = idleApps({ openKeys, known, idle, cliApps });
+    lines.push(...offeredLines(filtering ? [] : offers, known, [...groups.map((group) => group.key), ...every.map((app) => app.key)])); // D-100
     for (const app of every) if (off(app.key) && !offOpen.has(app.key)) offOpen.set(app.key, { key: app.key, short: app.profile ?? app.app, name: app.name, open: 0 });
     const resting = every.filter((app) => !off(app.key) && (!filtering || app.sessions.length > 0));
     if (resting.length > 0) {
@@ -279,7 +294,7 @@ export function buildLines({ items, view, query, now, toggled, frozen, accountOf
       for (const app of drawn) {
         const last = past(app.key, app.sessions);
         lines.push({ kind: "idle", app, open: last.open });
-        for (const { item, depth, parent } of last.rows) lines.push({ kind: "past", item, depth, parent: parent?.title ?? null, app: app.key });
+        for (const { item, depth, parent } of last.rows) lines.push({ kind: "past", item, depth, parent, app: app.key });
         rows += 1 + last.rows.length;
       }
       if (drawn.length < resting.length) lines.push({ kind: "idle-more", hidden: resting.length - drawn.length });
@@ -340,6 +355,8 @@ export function lineKey(line: Line, index: number): string {
       return `recent:${line.app}`;
     case "idle":
       return `idle:${line.app.key}`;
+    case "offer":
+      return `offer:${line.offer.id}`;
     default:
       return `${line.kind}:${"id" in line ? line.id : index}`;
   }

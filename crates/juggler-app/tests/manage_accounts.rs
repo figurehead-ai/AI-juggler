@@ -195,7 +195,7 @@ fn audit_actions(state: &Arc<AppState>, id: &str) -> Vec<(String, String)> {
 fn rename_changes_the_label_everywhere_and_refuses_a_duplicate() {
     let work = tempfile::tempdir().unwrap();
     let state = app_state(work.path());
-    seed(&state, "acc-max", "personal-max", None);
+    seed(&state, "acc-max", "acme-max", None);
     seed(&state, "acc-work", "Work", None);
     session(
         &state,
@@ -216,7 +216,7 @@ fn rename_changes_the_label_everywhere_and_refuses_a_duplicate() {
             .merge_history(
                 &project.id,
                 &ProjectHistory {
-                    accounts: vec!["personal-max".into(), "Work".into()],
+                    accounts: vec!["acme-max".into(), "Work".into()],
                     native_sessions: 3,
                     last_used_ms: None,
                 },
@@ -262,7 +262,7 @@ fn rename_changes_the_label_everywhere_and_refuses_a_duplicate() {
         [
             (
                 "rename".to_owned(),
-                "«personal-max» → «Max (personal)»".to_owned()
+                "«acme-max» → «Max (personal)»".to_owned()
             ),
             ("plan".to_owned(), "none → max-20x".to_owned()),
         ]

@@ -7,6 +7,7 @@
 import { useState, type JSX, type PointerEvent, type ReactNode } from "react";
 
 import { AppIcon } from "../../components/AppIcon";
+import { AppKindBadge } from "../../components/AppKindBadge";
 import { appOfSession } from "../../lib/app-of";
 import { IconGrip } from "../../components/icons-places";
 import { IconPlus, IconRemove } from "../../components/icons-actions";
@@ -118,6 +119,8 @@ export function Palette({
                   >
                     <IconGrip width={14} height={14} className="shrink-0 text-faint" aria-hidden="true" />
                     <AppIcon {...appOfSession(session)} size={16} />
+                    {/* D-100: its App's kind, Desktop or CLI, beside the icon. */}
+                    <AppKindBadge kind={session.kind === "desktop" ? "desktop" : "cli"} />
                     <span className="flex min-w-0 flex-1 flex-col">
                       <span className="truncate text-meta text-ink">{named(session)}</span>
                       <span className="truncate text-label text-faint">{[projectOf(session), session.account_label].filter(Boolean).join(" · ")}</span>

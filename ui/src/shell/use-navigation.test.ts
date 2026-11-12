@@ -34,3 +34,21 @@ it("goes back to the session from its App page, then to Home, and forward again"
   expect(result.current.selection).toEqual({ kind: "app", id: "cli:work" });
   expect(result.current.canForward).toBe(true);
 });
+
+it("0.4.2: a link's view (Accounts' Out filter) is kept by its id while its screen is open, and dropped when it isn't", () => {
+  const { result } = renderHook(() => useNavigation());
+  const open = (detail: unknown) => act(() => void window.dispatchEvent(new CustomEvent("aij:open-screen", { detail })));
+  // The top bar's count: Accounts, filtered (the shell opens the screen on the same event).
+  open({ id: "accounts", filter: "out" });
+  act(() => result.current.setGlobal("accounts"));
+  expect(result.current.landing).toEqual({ id: "accounts", filter: "out" });
+  // Accounts opened any other way: unfiltered.
+  open({ id: "accounts" });
+  expect(result.current.landing).toBeNull();
+  // From the top bar's own click, then another screen: dropped.
+  act(() => result.current.openOn("cleanup", "attention"));
+  expect(result.current.global).toBe("cleanup");
+  expect(result.current.landing).toEqual({ id: "cleanup", filter: "attention" });
+  act(() => result.current.setGlobal("usage"));
+  expect(result.current.landing).toBeNull();
+});

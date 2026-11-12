@@ -141,10 +141,15 @@ pub fn current(state: &Arc<AppState>) -> AppResult<Arc<FloorSnapshot>> {
         start(state, app.clone());
     }
     let kept = state.floor.last.read().ok().and_then(|last| last.clone());
-    match kept {
-        Some(snapshot) => Ok(snapshot),
-        None => rebuild(state),
+    if let Some(snapshot) = kept {
+        return Ok(snapshot);
     }
+    // the first snapshot: what runs is looked at now, not at the places
+    // tick's first reconcile (up to 2 s after start), so a running App's
+    // office is lit from the first frame (ADR-0032)
+    let now = juggler_core::model::Timestamp::now().millis();
+    crate::features::places::reconcile(state, now, true);
+    rebuild(state)
 }
 
 /// Marks the snapshot stale: the next pass rebuilds it (a change the
@@ -178,6 +183,8 @@ fn differs(a: &FloorSnapshot, b: &FloorSnapshot) -> Option<&'static str> {
     if !near(a.machine.load, b.machine.load, 0.1)
         || a.machine.alert_since_ms != b.machine.alert_since_ms
         || a.machine.alert != b.machine.alert
+        || a.machine.alert_kind != b.machine.alert_kind
+        || a.machine.alert_critical != b.machine.alert_critical
     {
         return Some("machine");
     }

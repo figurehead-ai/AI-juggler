@@ -4,7 +4,6 @@ import { useState } from "react";
 import { Button, Card } from "../components/primitives";
 import { Field, Input, Modal } from "../components/form";
 import { IconProfiles } from "../components/icons";
-import { LoginQueueCard } from "../components/LoginQueueCard";
 import { launchTitle } from "../lib/account-words";
 import { cliAppName } from "../lib/app-name";
 import { useConversations } from "../lib/conversations";
@@ -12,7 +11,7 @@ import { BetaMatrix } from "../components/BetaMatrix";
 import { accountAdvice } from "../components/HomeRunway";
 import { useAccountManage } from "./AccountManage";
 import { ActionHostProvider } from "../components/ItemMenu";
-import { ownSignIn, providerDisplayName, supportsInPlace, reportsLimits } from "../lib/providers";
+import { supportsInPlace, reportsLimits } from "../lib/providers";
 import { withLiveLabels } from "../lib/subscriptions";
 import { useAccountsData, useToolCapabilities } from "./accounts/useAccountsData";
 import { useQuotaDisplays } from "../lib/kept-reads";
@@ -20,6 +19,9 @@ import { AccountCard } from "./accounts/AccountCard";
 import { AppsSection } from "./accounts/AppsSection";
 import { deleteProfile } from "../lib/ipc/manage";
 import { AccountsViewSwitch, useAccountsView } from "./accounts/AccountsView";
+import { LoginModal } from "./accounts/LoginModal";
+import { FilteredNone, OutFilterChip, outTarget } from "./accounts/OutFilter";
+import { accountRoom, accountsShown, filterWord, type AccountsFilter } from "../lib/accounts-filter";
 import { createProfile, launchSession } from "../lib/ipc/launch";
 import { pickDirectory } from "../lib/ipc/project-folders";
 import type { AccountInfo } from "../types/generated/AccountInfo";
@@ -41,6 +43,8 @@ export { placementWords } from "./accounts/UseOriginal";
  */
 
 export function ProfilesScreen({
+  filter = null,
+  onFilter,
   openTerminal,
   onInspectAccount,
   sessions = [],
@@ -50,6 +54,10 @@ export function ProfilesScreen({
   knownAccounts = null,
   knownProfiles = null,
 }: {
+  /** 0.4.2: the filter it opened with ("out": the top bar's count), by
+   * its id; `onFilter(null)` clears it. */
+  filter?: AccountsFilter | null;
+  onFilter?: (next: AccountsFilter | null) => void;
   /** 0.3.4: the app's own lists, kept current by it (`null` before its
    * first read): the screen opens on them instead of reading them again. */
   knownAccounts?: AccountInfo[] | null;
@@ -115,7 +123,10 @@ export function ProfilesScreen({
     );
   }
   // D-62: where to start new work, by Account, as Home's Runway says it.
-  const summary = accountAdvice(accounts, subscriptions, displays, sessions).words;
+  const advice = accountAdvice(accounts, subscriptions, displays, sessions);
+  const summary = advice.words;
+  // 0.4.2: an out Account's best action: New session on the one with room.
+  const target = outTarget(advice.best);
   // Every profile under its account; one the grouping missed (just added)
   // stands alone until the next read.
   const grouped = subscriptions
@@ -128,6 +139,11 @@ export function ProfilesScreen({
       rows: [a],
     });
   }
+  // 0.4.2: out Accounts first; with the Out (or Low) filter, only them
+  // (and the Accounts tab, whichever was last chosen).
+  const roomOf = (group: (typeof grouped)[number]) => accountRoom(group.sub, displays);
+  const shown = accountsShown(grouped, roomOf, filter);
+  const shownView = filter ? "accounts" : view;
 
   return (
     <div className="mx-auto flex w-full max-w-content flex-col gap-5">
@@ -159,20 +175,27 @@ export function ProfilesScreen({
       </p>
 
       {accounts.length > 0 && (
-        <AccountsViewSwitch view={view} onChange={choose} accounts={grouped.length} apps={apps?.length ?? null} />
+        <div className="flex flex-wrap items-center gap-2">
+          {/* A filter shows Accounts: Apps clears it; × clears it and stays on Accounts. */}
+          <AccountsViewSwitch view={shownView} onChange={(next) => (choose(next), next === "apps" && onFilter?.(null))} accounts={grouped.length} apps={apps?.length ?? null} />
+          {filter && <OutFilterChip word={filterWord(filter)} count={shown.length} onClear={() => (choose("accounts"), onFilter?.(null))} />}
+        </div>
       )}
       {accounts.length === 0 ? (
         <EmptyAccounts onFind={onFindApps ?? onAddAccounts} onAdd={onAddAccounts} />
-      ) : view === "apps" ? (
+      ) : filter && shown.length === 0 ? (
+        <FilteredNone word={filterWord(filter)} />
+      ) : shownView === "apps" ? (
         <ActionHostProvider host={{ ...accountManage.host, signIn: setLoginFor }}>
           <AppsSection apps={apps} subscriptions={subscriptions} sessions={sessions} conversations={conversations} now={Date.now()} />
         </ActionHostProvider>
       ) : (
         <ActionHostProvider host={{ ...accountManage.host, signIn: setLoginFor }}>
           <div className="grid grid-cols-1 items-start gap-grid 2xl:grid-cols-2">
-            {grouped.map(({ sub, rows }) => (
+            {shown.map(({ sub, rows }) => (
               <AccountCard
                 key={sub.key}
+                out={accountRoom(sub, displays) === "out" ? target : undefined}
                 subscription={sub}
                 apps={apps ?? undefined}
                 toolWords={new Set(grouped.map((group) => group.sub.tool)).size > 1}
@@ -352,36 +375,3 @@ export function NewProfileModal({
     </Modal>
   );
 }
-
-function LoginModal({
-  account,
-  openTerminal,
-  onClose,
-}: {
-  account: AccountInfo;
-  openTerminal: (id: string, title: string) => void;
-  onClose: () => void;
-}) {
-  return (
-    <Modal
-      title={`Log in · ${cliAppName(account.provider, account.label)}`}
-      subtitle={`${ownSignIn(account.provider)}, opened for you — AI Juggler never sees your credentials.`}
-      onClose={onClose}
-    >
-      {/* AJ-E308 Req.3: the ONE shared queue card — no alerts, no
-          unhandled rejections; polls and auto-detects. */}
-      <LoginQueueCard
-        accountId={account.id}
-        label={account.label}
-        providerName={providerDisplayName(account.provider)}
-        initialState={account.login_state}
-        onSpawned={(terminalId) => {
-          openTerminal(terminalId, `Sign in · ${cliAppName(account.provider, account.label)}`);
-          onClose();
-        }}
-        onDone={onClose}
-      />
-    </Modal>
-  );
-}
-

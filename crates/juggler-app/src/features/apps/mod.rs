@@ -106,8 +106,25 @@ pub fn profile_of_folder(apps: &[App]) -> BTreeMap<String, String> {
     crate::features::places::sole_holders(
         apps.iter()
             .filter(|app| app.kind == "desktop" && !app.hidden && app.is_users())
-            .map(|app| (app.id.as_str(), app.folder_id.as_deref())),
+            .map(|app| {
+                (
+                    app.id.as_str(),
+                    app.folder_id.as_deref(),
+                    default_instance(app),
+                )
+            }),
     )
+}
+
+/// Whether a stored desktop App is its app's default instance: one with an
+/// instance folder whose launch record names no instance of its own.
+fn default_instance(app: &App) -> bool {
+    app.instance_dir.is_some()
+        && app
+            .launch_json
+            .as_deref()
+            .and_then(|json| serde_json::from_str::<serde_json::Value>(json).ok())
+            .is_some_and(|ran| ran.get("instance").is_some_and(serde_json::Value::is_null))
 }
 
 /// rc22 (A3): the profiles' folders whose CLI App something counts

@@ -382,7 +382,7 @@ describe("AJ-E1503 snooze with Undo", () => {
     );
     fireEvent.click(screen.getAllByRole("button", { name: /^Session actions for / })[0]!);
     fireEvent.click(screen.getByRole("menuitem", { name: "Snooze for an hour" }));
-    expect(screen.getByTestId("toast").textContent).toContain("Snoozed Claude Code · Work Max for 1 h.");
+    expect(screen.getByTestId("toast").textContent).toContain("Snoozed Claude Code CLI · Work Max for 1 h.");
     // D-49: the snooze is the backend's (here its stand-in), by subject.
     const snoozed = async () => (await notificationsSnoozes({ cursor: null, limit: 50 })).items.map((row) => row.subject);
     await waitFor(async () => expect(await snoozed()).toContain("s:sess-1"));

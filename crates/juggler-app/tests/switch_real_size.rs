@@ -126,13 +126,8 @@ fn lab(work: &Path, megabytes: u64) -> Lab {
     );
     let b = set_up::set_up(
         &state,
-        juggler_app::features::account::create_account(
-            &state,
-            CLAUDE_CODE_ID,
-            "personal-max",
-            None,
-        )
-        .unwrap(),
+        juggler_app::features::account::create_account(&state, CLAUDE_CODE_ID, "acme-max", None)
+            .unwrap(),
     );
     let profile_a =
         juggler_app::features::profile::create_profile(&state, &a.id, "Main", None, None).unwrap();

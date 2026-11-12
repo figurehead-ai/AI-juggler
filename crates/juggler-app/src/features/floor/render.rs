@@ -531,7 +531,6 @@ impl Running {
         let place = super::light::place();
         open_step("renderer", opened);
         let mut driver = Driver::new(world.scene.frame_size(), size, settings.motion_now());
-        driver.alert = world.snapshot.machine.alert_since_ms.is_some();
         if let Some(floor) = world.scene.neediest_floor() {
             driver.show_floor(floor);
         }
@@ -693,11 +692,8 @@ impl Running {
             scene: &w.scene,
             scale: self.driver.size.2,
         };
-        self.driver.input(
-            Input::Alert(snapshot.machine.alert_since_ms.is_some()),
-            now,
-            &mut picks,
-        );
+        // the Mac chip may have come or gone: one redraw (it never ticks)
+        self.driver.input(Input::Changed, now, &mut picks);
         self.driver.input(Input::Changed, now, &mut picks);
         w.snapshot = snapshot;
     }
@@ -757,7 +753,6 @@ impl Running {
             clicked: d.clicked.clone(),
             lamps_off: std::collections::HashSet::new(),
             hover: d.hover,
-            alert: d.alert,
             load: w.snapshot.machine.load,
             eye: [0.0; 3],
             walkers: d.motion.walkers(),
@@ -767,7 +762,15 @@ impl Running {
         };
         let extras = Extras {
             hint: juggler_window_events::hint(),
-            alert: w.snapshot.machine.alert.as_deref().filter(|_| d.alert),
+            alert: w
+                .snapshot
+                .machine
+                .alert_since_ms
+                .and(w.snapshot.machine.alert_kind.as_deref())
+                .map(|kind| juggler_floor::overlay::MacAlert {
+                    kind,
+                    critical: w.snapshot.machine.alert_critical,
+                }),
             mouse: d.mouse,
             card: self.card.as_ref(),
             opened: d.opened_at(now),

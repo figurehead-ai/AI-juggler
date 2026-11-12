@@ -122,7 +122,8 @@
       "live": true,
       "place": "unnamed",
       "started_in": null,
-      "app": "app:claude-app:/p/Work"
+      "app": "cli:work",
+      "why": "ADR-0032: open with no desktop app on its process chain, it is its CLI App's, never the profile on its folder (the Jive CLI filing, 2026-11-11)"
     },
     {
       "id": "c-w-open-term",

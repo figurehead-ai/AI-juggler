@@ -267,8 +267,8 @@ describe("0.3.5 never 'here in AI Juggler'", () => {
   });
 
   it("reads a conversation's key back as switchSourceOf writes it", () => {
-    const key = switchSourceOf({ session_id: null, account_id: "claude-luka", id: "abc:def" });
-    expect(parseSourceKey(key)).toEqual({ accountId: "claude-luka", id: "abc:def" });
+    const key = switchSourceOf({ session_id: null, account_id: "claude-east", id: "abc:def" });
+    expect(parseSourceKey(key)).toEqual({ accountId: "claude-east", id: "abc:def" });
     expect(parseSourceKey("sess-1")).toBeNull();
   });
 });

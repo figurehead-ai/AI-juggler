@@ -27,6 +27,12 @@ pub struct ConversationInfo {
     /// tool's record), so one the app ran is that app's when it isn't open.
     #[ts(optional = nullable)]
     pub started_in: Option<String>,
+    /// ADR-0032 (D-100): the App it belongs to (`app:<host>:<instance>`
+    /// or `cli:<folder>`), as `features::presence` decides it: open, the
+    /// App its process runs in; closed, the one it was last seen in. Every
+    /// list, count and the rail group by this, and nothing else decides it.
+    #[ts(optional = nullable)]
+    pub app: Option<String>,
     /// 0.3.9: the conversation it was started from, when its app records
     /// one (a Claude app side session): the rail draws it under that one,
     /// as the app's sidebar does.
@@ -91,6 +97,23 @@ pub struct ConversationInfo {
 }
 
 impl ConversationInfo {
+    /// ADR-0032: the App it belongs to, as the list decided it
+    /// ([`Self::app`]); a row made without one (a test's) by `app_of`.
+    #[must_use]
+    pub fn owner(&self, desktop: &crate::features::places::DesktopApps) -> String {
+        self.app.clone().unwrap_or_else(|| {
+            crate::features::places::app_of(
+                desktop,
+                None,
+                Some(&self.account_id),
+                Some(&crate::features::places::book::conversation_key(
+                    &self.tool, &self.id,
+                )),
+                self.in_a_terminal(),
+            )
+        })
+    }
+
     /// It ran in a terminal: open now, its first place is one; closed,
     /// no desktop app started it (its tool's files say which did,
     /// `started_in`). It's its folder's CLI App's, whichever desktop App
@@ -111,7 +134,10 @@ impl ConversationInfo {
 #[must_use]
 pub fn ran_in_a_terminal(live: bool, place_kind: Option<&str>, started_in: Option<&str>) -> bool {
     if live {
-        place_kind == Some("terminal")
+        // ADR-0032: open, only a desktop app on its process's chain makes
+        // it a desktop App's; a terminal, an editor, tmux or no app at all
+        // is a CLI session's detail.
+        place_kind != Some("desktop")
     } else {
         started_in.is_none()
     }

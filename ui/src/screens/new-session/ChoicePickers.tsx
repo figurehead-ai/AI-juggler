@@ -107,7 +107,7 @@ export function AppPicker({
       value: recipe.account_id,
       label: data.appNameOf(recipe),
       // Not signed in: no account is in use, so none is named (the rc12
-      // walk: "f…@bookauth.com · Not signed in").
+      // walk: "f…@example.com · Not signed in").
       hint: (kind === "blocked" ? [room] : [account, room]).filter(Boolean).join(" · ") || undefined,
       empty: kind === "blocked",
       icon: IconTerminal,

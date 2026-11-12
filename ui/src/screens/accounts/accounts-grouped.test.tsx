@@ -108,7 +108,7 @@ describe("AJ-E2109 the Accounts screen", () => {
     expect(cards.map((card) => card.querySelector("[data-testid='account-name']")?.textContent)).toEqual(["Acme", "Claude Max", "Not signed in"]);
     expect(cards[0]!.querySelector("[data-testid='account-line']")?.textContent).toBe("o…@work.com · Team");
     // D-62: each row is an App, named by its tool and folder.
-    expect(within(cards[0]!).getAllByTestId("account-label").map((n) => n.textContent)).toEqual(["Claude Code · Work", "Claude Code · Work 2", "Claude Code · Client"]);
+    expect(within(cards[0]!).getAllByTestId("account-label").map((n) => n.textContent)).toEqual(["Claude Code CLI · Work", "Claude Code CLI · Work 2", "Claude Code CLI · Client"]);
     expect(within(cards[0]!).getByTestId("account-profiles-count").textContent).toBe("3 apps share this account");
     // One runway per account, none for profiles that aren't signed in.
     expect(within(cards[0]!).getAllByTestId("account-runway")).toHaveLength(1);

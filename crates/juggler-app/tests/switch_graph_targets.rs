@@ -294,7 +294,7 @@ fn switch_targets_come_in_the_rankings_order() {
     assert_eq!(preflight.target_account, second.id);
 }
 
-/// 0.3.4, the maintainer's walk: personal-max read "Ready", then the
+/// 0.3.4, the maintainer's walk: acme-max read "Ready", then the
 /// switch refused it ("hasn't been set up"). A target the switch's own
 /// launch check would refuse is held back in the list, with its words
 /// and a way to finish its setup, and never suggested.
