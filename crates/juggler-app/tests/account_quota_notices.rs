@@ -20,6 +20,7 @@ use juggler_adapters::ClaudeCodeAdapter;
 use juggler_app::commands;
 use juggler_app::features::alerts::dto::AlertEventInfo;
 use juggler_app::features::notifications::{centre, sources};
+use juggler_app::features::quota::RoomWindow;
 use juggler_app::features::subscriptions;
 use juggler_app::state::AppState;
 use juggler_core::model::{Confidence, Timestamp};
@@ -381,7 +382,7 @@ fn an_account_out_on_both_windows_is_out_until_the_later_reset() {
         .room_back
         .map(|back| (back.window, back.at_ms))
     };
-    assert_eq!(back(&state), Some(("weekly".to_owned(), Some(week))));
+    assert_eq!(back(&state), Some((RoomWindow::Weekly, Some(week))));
     state
         .storage
         .lock()
@@ -399,5 +400,5 @@ fn an_account_out_on_both_windows_is_out_until_the_later_reset() {
             },
         )
         .unwrap();
-    assert_eq!(back(&state), Some(("weekly".to_owned(), Some(week))));
+    assert_eq!(back(&state), Some((RoomWindow::Weekly, Some(week))));
 }

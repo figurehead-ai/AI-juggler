@@ -263,13 +263,23 @@ pub struct QuotaDisplayInfo {
 #[derive(Clone, PartialEq, Eq, Debug, serde::Serialize, ts_rs::TS)]
 #[ts(export, export_to = "../../../ui/src/types/generated/")]
 pub struct RoomBackDisplay {
-    /// `five_hour` or `weekly`.
-    #[ts(type = "\"five_hour\" | \"weekly\"")]
-    pub window: String,
+    /// The window that keeps it out longest.
+    pub window: RoomWindow,
     /// When, epoch ms; `None` only when a used-up window's reset truly
     /// isn't known (it may come after every known one).
     #[ts(type = "number | null")]
     pub at_ms: Option<i64>,
+}
+
+/// One of an account's two windows, as [`RoomBackDisplay`] names it.
+#[derive(Clone, Copy, PartialEq, Eq, Debug, serde::Serialize, ts_rs::TS)]
+#[serde(rename_all = "snake_case")]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
+pub enum RoomWindow {
+    /// The five-hour window.
+    FiveHour,
+    /// The week.
+    Weekly,
 }
 
 /// A weekly limit on one model only ("This week · Fable only"). It limits
@@ -827,13 +837,16 @@ pub fn quota_display_inner(
     };
     // Each window shown, as the one rule reads it (a window the plan
     // doesn't report never keeps it out).
-    let rooms: Vec<(&str, quota::WindowRoom)> = [
-        five_hour
-            .as_ref()
-            .map(|_| ("five_hour", evaluation.five_hour.room(WindowKind::FiveHour))),
+    let rooms: Vec<(RoomWindow, quota::WindowRoom)> = [
+        five_hour.as_ref().map(|_| {
+            (
+                RoomWindow::FiveHour,
+                evaluation.five_hour.room(WindowKind::FiveHour),
+            )
+        }),
         weekly.as_ref().map(|_| {
             (
-                "weekly",
+                RoomWindow::Weekly,
                 evaluation
                     .weekly
                     .room(WindowKind::Weekly { anchor_ms: anchor }),
@@ -846,7 +859,7 @@ pub fn quota_display_inner(
     let room_back = quota::room_back(&rooms.iter().map(|(_, room)| *room).collect::<Vec<_>>())
         .and_then(|back| {
             Some(RoomBackDisplay {
-                window: rooms.get(back.window)?.0.to_owned(),
+                window: rooms.get(back.window)?.0,
                 at_ms: back.at,
             })
         });

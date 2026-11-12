@@ -43,6 +43,7 @@ fn reset_words(window: &str) -> &'static str {
 fn fullest(
     display: &crate::features::quota::QuotaDisplayInfo,
 ) -> Option<(&'static str, Option<f64>, Option<i64>, bool)> {
+    use crate::features::quota::RoomWindow;
     let estimate = |window: &crate::features::quota::WindowDisplay| {
         window.percentage.is_some()
             && !matches!(window.badge.as_deref(), Some("measured" | "computed"))
@@ -52,7 +53,10 @@ fn fullest(
         ("weekly", &display.weekly),
     ];
     if let Some(back) = &display.room_back
-        && let Some((slot, Some(window))) = slots.iter().find(|(slot, _)| *slot == back.window)
+        && let Some((slot, Some(window))) = slots.get(match back.window {
+            RoomWindow::FiveHour => 0,
+            RoomWindow::Weekly => 1,
+        })
     {
         return Some((
             window_words(slot),
