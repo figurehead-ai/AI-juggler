@@ -177,10 +177,9 @@ its snapshot. Nothing else decides what runs or who owns a session.
      in no App's list or count (`app_unlisted`). On the maintainer's main
      profile records and desktop transcripts match one to one; on two
      others, the extra desktop transcripts were all lab runs.
-   - A running App in Open now unfolds to its sessions: open ones, pinned
-     ones, then its last ones (D-64; at once when nothing is open in it),
-     then "Show all". A header has a fold only when unfolding shows a
-     row; folded, nothing shows under it.
+   - A running App in Open now unfolds to its sessions (as amendment 9
+     words it). A header has a fold only when unfolding shows a row;
+     folded, nothing shows under it.
    - The Out or low mark is the App's own Account's (its folder), on
      every surface, never a session's; the header's and the row's names
      say it.
@@ -197,11 +196,25 @@ its snapshot. Nothing else decides what runs or who owns a session.
      running App with a match in its past joins Open now.
    - What runs shows whatever its archive marks; archived and unlisted
      sessions are left out once ended.
-   - Owed (0.4.4 or a ruling): Codex app vs Codex CLI against the Codex
-     store both list (48 threads, AI Juggler's own runs among them);
-     `codex exec` and `claude -p` runs no tool lists; a profile's learned
-     folder link that its own records contradict; limit hits credited
-     across moved conversations; the project board's search.
+   - Owed (0.4.4): limit hits credited across moved conversations; the
+     project board's search. (The Codex, script-run and folder-link
+     questions were ruled in D-102: amendment 9.)
+
+9. **What each surface lists (D-102, 0.4.3).**
+   - Codex: a thread is one App's, by `originator` (the Codex app's
+     "…desktop", else Codex CLI's), and each App lists only threads a
+     Codex surface lists (interactive, not archived, not a subagent's);
+     the two counts add up to the store's listed threads.
+   - Script runs (`claude -p`, `sdk-cli`; `codex exec`) are History only:
+     no App counts them, none exists for them alone. This replaces
+     amendment 6's `sdk-cli` and `codex_exec` rule.
+   - A profile's folder link that its own records contradict is linked by
+     them (its own folder by the launcher's name, else the Account folder
+     holding them; unlinked when its folder isn't an Account).
+   - The App lens: an App with something open shows its open and pinned
+     rows, its past ones a "+N recent" on its header; one with nothing open
+     unfolds to its last 3, then "Show all". No "Last N inactive" rows
+     (this replaces amendment 8's "behind D-64's Last 3 inactive").
 
 ### Evidence (the maintainer's Mac, read-only, 2026-11-11)
 

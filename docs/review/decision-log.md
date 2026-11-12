@@ -2911,3 +2911,14 @@ Each ships with tests that fail without it and a design critique; the M2, D2 and
 - **Recorders anonymize by default:** whatever records a run on a real setup writes through `scripts/qa/anonymize.py` (Apps as "App N", `~`, `<profile>`, `x…@example.com`), each with a self-test that a real-looking name and path never reach its output.
 - Captures of the real Mac stay local; a capture in the repository comes from fixtures or is redacted (`scripts/qa/check_captures.py`).
 - Sources: `scripts/hooks/README.md`.
+
+### D-102 An App lists what its own surface lists, and nothing appears twice — SETTLED (2026-11-12)
+
+**Ruling.** The coordinating session, 2026-11-12, deciding the design calls the 0.4.3 audit raised (the maintainer, testing 0.4.2: "get this left navbar fully working, and well researched from multiple angles"). The rule throughout: an App lists what its own surface lists, and nothing appears twice.
+
+- **Codex.** Each thread goes to one App by who started it (`originator`): the Codex app's ("…desktop"), else Codex CLI's. Each lists only threads a Codex surface lists (interactive, not archived, not a subagent's): the Codex app's count and Codex CLI's add up to the store's listed threads (48 on the maintainer's Mac), no thread in both. A test and the real-Mac check hold it.
+- **Script runs** (`claude -p`, entrypoint `sdk-cli`; `codex exec`) are History only, as both tools' own pickers have them: never counted in an App, never making or keeping a CLI App by themselves. AI Juggler's own sessions are the user's, not scripts.
+- **A profile's folder link follows its own records.** A link learned from sessions the profile once ran on another folder (the test profile on the default folder) is corrected in 0.4.3: the same class of presence bug as the rest.
+- **The App lens's past sessions** (design call on the first 0.4.3 screens): an App with nothing open unfolds to its last 3, then "Show all N" when it has more; an App with something open shows only its open and pinned rows, its past ones a muted "+N recent" on its header (on hover and focus; a click shows them in place), with its menu's Show recent, its page and History. Never the words "Last N inactive" in the App lens (the maintainer's complaint on 0.4.1).
+- **Amends:** D-64 (the "Last 3 inactive" link), ADR-0032 amendment 6 (`sdk-cli` and `codex_exec` were a CLI App's).
+- Sources: `docs/adr/0032-presence-from-the-process-table.md` (amendments 8 and 9); the evidence in `docs/qa/evidence/presence/0.4.3.txt`.
