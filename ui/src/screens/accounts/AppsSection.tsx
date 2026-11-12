@@ -86,7 +86,7 @@ export function AppsSection({
 
 /** Its line after its kind: what it's doing, then its Account ("Last
  * used 2 h ago in ~/lab/aj-processes · on Work"). */
-export function appLine(row: AccountApp, account: string | null, now: number): string {
+function appLine(row: AccountApp, account: string | null, now: number): string {
   const { app } = row;
   const on = account ? `on ${account}` : app.kind === "cli" && app.folder && !signedIn(app.folder.login_state) ? "not signed in" : "account not known yet";
   return [stateWords(row, now), on].join(" · ");
