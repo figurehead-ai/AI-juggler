@@ -18,10 +18,12 @@ lab runs. This reads the same accessibility lines and checks, read-only:
 3. **Out marks.** Every App whose Account is out (its latest measured
    five-hour or weekly reading at 100%) says so in its name on the rail
    (the header's, the Inactive row's), and none whose Account has room.
-4. **Our labs stay out.** No transcript made since `since` in a real
-   profile's folder runs in a lab folder (`~/lab/`, `~/Dev/aij-`): our
-   tests and walks use the sanctioned test profile and the Dev build's Lab
-   CLI App only.
+4. **Our labs stay out (a release gate).** No terminal transcript (`cli`,
+   `sdk-cli`) in a real profile's folder runs in a lab folder (`~/lab/`,
+   `~/Dev/aij-`), however old: our tests and walks use the sanctioned test
+   profile and the Dev build's Lab CLI App only. On 2026-11-12 the
+   maintainer moved the 62 our labs had left out of two profiles; one more
+   is a failed gate.
 
 Nothing here clicks, types or writes outside the report.
 """
@@ -202,9 +204,13 @@ def out_accounts(db: sqlite3.Connection, now_ms: int) -> set[str]:
     return out_folders | {folder for folder, sub in subs.items() if sub in out_subs}
 
 
-def lab_leftovers(state_dirs: list[Path], since: float) -> int:
-    """Transcripts made since `since` in a real profile's folder that run
-    in a lab folder: our tests on a real Account."""
+TERMINAL_ENTRYPOINTS = ("cli", "sdk-cli")
+
+
+def lab_leftovers(state_dirs: list[Path], since: float = 0.0) -> int:
+    """Terminal transcripts (`cli`, `sdk-cli`) in a real profile's folder
+    that run in a lab folder: our tests on a real Account. `since` (epoch
+    s, default always) counts only those made after it."""
     count = 0
     for state_dir in state_dirs:
         if state_dir.name in SANCTIONED:
@@ -213,11 +219,18 @@ def lab_leftovers(state_dirs: list[Path], since: float) -> int:
             try:
                 if path.stat().st_birthtime < since:
                     continue
+                cwd = entry = None
                 with path.open(errors="replace") as handle:
-                    cwd = next((json.loads(line).get("cwd") for line in handle if '"cwd"' in line), None)
-            except (OSError, ValueError, StopIteration):
+                    for n, line in enumerate(handle):
+                        if n > 400 or (cwd and entry):
+                            break
+                        if '"cwd"' in line or '"entrypoint"' in line:
+                            value = json.loads(line)
+                            cwd = cwd or value.get("cwd")
+                            entry = entry or value.get("entrypoint")
+            except (OSError, ValueError):
                 continue
-            if cwd and cwd.startswith(LAB_ROOTS):
+            if entry in TERMINAL_ENTRYPOINTS and cwd and cwd.startswith(LAB_ROOTS):
                 count += 1
     return count
 

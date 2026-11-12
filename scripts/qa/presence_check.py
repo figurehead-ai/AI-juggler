@@ -147,7 +147,7 @@ def main() -> int:
     parser.add_argument("--pid", type=int, required=True, help="the AI Juggler build's pid (by pid only)")
     parser.add_argument("--data", type=Path, default=HOME / "Library/Application Support/AI Juggler Dev")
     parser.add_argument("--record", type=Path, help="write the report here too")
-    parser.add_argument("--since", default="2026-11-12", help="lab runs in a real profile's folder count from this day (0.4.3)")
+    parser.add_argument("--since", default=None, help="count lab runs in a real profile's folder only from this day (default: all, the release gate)")
     args = parser.parse_args()
 
     running = running_ids()
@@ -188,13 +188,13 @@ def main() -> int:
     # 0.4.3: what each unfolds to, its counts and its Out mark.
     db = sqlite3.connect(f"file:{args.data / 'juggler.sqlite'}?mode=ro", uri=True)
     known = presence_sessions.known_apps(db, mine)
-    since = time.mktime(time.strptime(args.since, "%Y-%m-%d"))
+    since = time.mktime(time.strptime(args.since, "%Y-%m-%d")) if args.since else 0.0
     leftovers = presence_sessions.lab_leftovers([app.state_dir for app in known if app.state_dir], since)
     shown, more = presence_sessions.check(drawn, known, presence_sessions.out_accounts(db, int(time.time() * 1000)), leftovers, presence_sessions.own_sessions(db))
     lines += ["each App as drawn:", *shown]
     problems += more
     lines += [f"FAIL {p}" for p in problems] or [
-        "PASS Open now is exactly your running Apps; none is in two sections; each unfolds to its own records; every Out Account marked"
+        "PASS Open now is exactly your running Apps; none is in two sections; each unfolds to its own records; every Out Account marked; no lab run in a real profile"
     ]
     report = "\n".join(lines)
     print(report)
