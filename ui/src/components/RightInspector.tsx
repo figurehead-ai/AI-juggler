@@ -19,6 +19,8 @@ const TerminalView = lazyNamed(() => import("./TerminalView"), "TerminalView", t
 // The verified stop sheet loads when a Stop is chosen (lazy-load rule).
 const OwnSessionOverview = lazyNamed(() => import("../pages/session/OwnOverview"), "OwnSessionOverview");
 const DrivenPanel = lazyNamed(() => import("../pages/session/DrivenPanel"), "DrivenPanel");
+// P2: an ended terminal session's pane (its conversation's reader with it).
+const EndedTerminal = lazyNamed(() => import("../pages/session/EndedTerminal"), "EndedTerminal");
 const OwnSessionUsage = lazyNamed(() => import("../pages/session/OwnUsage"), "OwnSessionUsage");
 import { DesktopPreview } from "./DesktopPreview";
 import { ProcessesView } from "../screens/processes/ProcessesView";
@@ -481,6 +483,11 @@ function InstanceOverview(props: PanelProps) {
     // A terminal's session: the page every session has (its terminal the
     // main pane, the side column beside it).
     if (!isDesktop) {
+      const terminalCard = (
+        <Card className="min-h-[280px] flex-1 overflow-hidden bg-[#05070b] p-0">
+          <TerminalView id={terminalId} title={terminalTitle ?? session.account_label} status={session.status} rule={session.attention?.rule ?? null} />
+        </Card>
+      );
       return (
         <OwnTerminalOverview
           session={session}
@@ -498,10 +505,9 @@ function InstanceOverview(props: PanelProps) {
             ) : (
               <div className="flex min-h-0 flex-1 flex-col gap-2">
                 {session.runtime?.fell_back && <p className="text-meta text-ink-2" data-testid="runtime-fell-back">{`In its terminal: ${session.runtime.fell_back}.`}</p>}
-                <Card className="min-h-[280px] flex-1 overflow-hidden bg-[#05070b] p-0">
-                  <TerminalView id={terminalId} title={terminalTitle ?? session.account_label} status={session.status} rule={session.attention?.rule ?? null} />
-                </Card>
-                {!live && <p className="text-meta text-ink-2">{`ran ${since(session.started_at_ms, Date.now())} · scrollback replayed`}</p>}
+                {/* P2: ended, its terminal only when output was kept to
+                    replay; else its conversation, or why there's none. */}
+                {live ? terminalCard : <EndedTerminal session={session} terminal={terminalCard} now={props.now} />}
               </div>
             )
           }
