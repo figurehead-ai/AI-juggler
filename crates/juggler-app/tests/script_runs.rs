@@ -273,10 +273,11 @@ impl World {
         for account in
             juggler_app::features::subscriptions::list_with_apps_impl(&self.state).unwrap()
         {
+            // Plain words only: CodeQL reads an Account's name or an App id
+            // in a message as logged secrets.
             assert!(
                 !account.apps.unwrap_or_default().iter().any(|app| app == id),
-                "{} lists {id}",
-                account.display_name
+                "an Account lists the App"
             );
         }
     }
@@ -286,7 +287,7 @@ impl World {
             .unwrap()
             .into_iter()
             .find(|row| row.id == id)
-            .unwrap_or_else(|| panic!("{id} isn't listed"))
+            .expect("the conversation is listed")
     }
 }
 
@@ -303,14 +304,20 @@ fn a_folder_with_only_script_runs_has_no_cli_app() {
     let mcp = w.rollout(2, r#""mcp""#, "codex_mcp", false);
     w.read();
     let (claude_cli, codex_cli) = (cli_app_id(&w.claude), cli_app_id(&w.codex));
-    for id in ["run-1", "run-2", exec.as_str(), mcp.as_str()] {
-        assert!(w.row(id).app_unlisted, "{id}: History only");
+    for (n, id) in ["run-1", "run-2", exec.as_str(), mcp.as_str()]
+        .into_iter()
+        .enumerate()
+    {
+        assert!(w.row(id).app_unlisted, "script run {n}: History only");
     }
     assert_eq!(w.page(None).len(), 4, "History has all four");
-    for cli in [&claude_cli, &codex_cli] {
-        assert_eq!(w.count(EntityKind::App, cli), 0, "{cli}");
-        assert!(w.page(Some(cli)).is_empty(), "{cli}");
-        assert!(!w.apps().contains(cli), "{cli}: {:?}", w.apps());
+    for (n, cli) in [&claude_cli, &codex_cli].into_iter().enumerate() {
+        assert_eq!(w.count(EntityKind::App, cli), 0, "CLI App {n} counts none");
+        assert!(w.page(Some(cli)).is_empty(), "CLI App {n} lists none");
+        assert!(
+            !w.apps().contains(cli),
+            "CLI App {n} isn't in the Apps list"
+        );
         w.no_account_lists(cli);
     }
     for (folder, n) in [(&w.claude, 2), (&w.codex, 2)] {
@@ -322,9 +329,12 @@ fn a_folder_with_only_script_runs_has_no_cli_app() {
     w.transcript("term-1", "cli");
     let ours = w.rollout(3, r#""vscode""#, "ai_juggler", false);
     w.read();
-    for (cli, id) in [(&claude_cli, "term-1"), (&codex_cli, ours.as_str())] {
-        assert!(w.apps().contains(cli), "{cli}: {:?}", w.apps());
-        assert_eq!(w.count(EntityKind::App, cli), 1, "{cli}");
+    for (n, (cli, id)) in [(&claude_cli, "term-1"), (&codex_cli, ours.as_str())]
+        .into_iter()
+        .enumerate()
+    {
+        assert!(w.apps().contains(cli), "CLI App {n} is in the Apps list");
+        assert_eq!(w.count(EntityKind::App, cli), 1, "CLI App {n} counts one");
         assert_eq!(w.page(Some(cli)), BTreeSet::from([id.to_owned()]));
     }
 }
@@ -348,7 +358,7 @@ fn ai_juggler_s_own_claude_session_is_kept_and_counted_once() {
         "AI Juggler's own run is the user's session"
     );
     assert!(w.row("script-1").app_unlisted);
-    assert!(w.apps().contains(&cli), "{:?}", w.apps());
+    assert!(w.apps().contains(&cli), "the CLI App is in the Apps list");
     assert_eq!(w.count(EntityKind::App, &cli), 1, "once, as its session");
     assert_eq!(w.page(Some(&cli)), BTreeSet::from(["s-ours".to_owned()]));
     assert_eq!(

@@ -612,19 +612,31 @@ fn a_desktop_profiles_sessions_are_exactly_its_own_records() {
     let row = |id: &str| rows.iter().find(|row| row.id == id).unwrap();
     let cli = cli_app_id(&id);
     for kept in ["kept", "kept-archived", "adopted"] {
-        assert_eq!(row(kept).app.as_deref(), Some(profile.as_str()), "{kept}");
-        assert!(!row(kept).app_unlisted, "{kept}");
+        assert_eq!(
+            row(kept).app.as_deref(),
+            Some(profile.as_str()),
+            "a recorded one: the profile's"
+        );
+        assert!(!row(kept).app_unlisted, "a recorded one: listed");
     }
     assert!(row("kept-archived").app_archived, "the app archived it");
     assert!(!row("kept").app_archived);
     for gone in ["gone-1", "gone-2", "gone-3", "gone-4"] {
         // Still the profile's (History's chip), only not in its lists.
-        assert_eq!(row(gone).app.as_deref(), Some(profile.as_str()), "{gone}");
-        assert!(row(gone).app_unlisted, "{gone}");
+        assert_eq!(
+            row(gone).app.as_deref(),
+            Some(profile.as_str()),
+            "an unrecorded one: the profile's"
+        );
+        assert!(row(gone).app_unlisted, "an unrecorded one: in no App");
     }
     for term in ["term-1", "term-2"] {
-        assert_eq!(row(term).app.as_deref(), Some(cli.as_str()), "{term}");
-        assert!(!row(term).app_unlisted, "{term}");
+        assert_eq!(
+            row(term).app.as_deref(),
+            Some(cli.as_str()),
+            "a terminal one: the CLI App's"
+        );
+        assert!(!row(term).app_unlisted, "a terminal one: listed");
     }
 
     // Every App count and the App's Sessions list: its 3 records.
