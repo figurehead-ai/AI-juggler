@@ -8,7 +8,7 @@
  * names). No captures: a layout check only.
  */
 import { expect, test, type Page } from "@playwright/test";
-import { allStatuses, expectRail, terminalDrawn } from "./fixtures";
+import { allStatuses, expectRail, openRailList, openRailSession, terminalDrawn } from "./fixtures";
 
 async function seed(page: Page, width: number, height: number) {
   await page.addInitScript((fixture) => {
@@ -86,3 +86,25 @@ test("the chip's name holds while the title gives way, folded at 1024 px", async
   const name = await shownOf(page, "Work Max");
   expect(name.shown, "Work Max is cut off in the chip").toBeGreaterThanOrEqual(name.width - 0.5);
 });
+
+// D-100 (0.4.4): with the list open at 1024 px, an ended session's four
+// actions left its name and chips 96 px: "Keep th…" and an App chip that
+// read nothing. The actions go down a line instead, their hints clear of
+// the facts under them.
+test("an ended session's actions go down a line before its names are cut, at 1024 px with the list open", async ({ page }) => {
+  await seed(page, 1024, 680);
+  await openRailList(page);
+  await openRailSession(page, "sess-8");
+  await expect(page.getByTestId("header-relaunch-hint")).toBeVisible();
+  const whole = (id: string) => page.getByTestId(id).evaluate((node) => node.scrollWidth <= node.clientWidth);
+  expect(await whole("page-name"), "the session's name is cut").toBe(true);
+  expect(await whole("session-app-short"), "the App's name is cut").toBe(true);
+  const box = async (id: string) => (await page.getByTestId(id).boundingBox())!;
+  const chips = await box("page-chips");
+  const relaunch = await box("header-relaunch");
+  expect(relaunch.y, "the actions sit below the chips").toBeGreaterThanOrEqual(chips.y + chips.height);
+  const hint = await box("header-relaunch-hint");
+  const facts = await box("page-facts");
+  expect(hint.y + hint.height, "the hint prints over the facts").toBeLessThanOrEqual(facts.y);
+});
+

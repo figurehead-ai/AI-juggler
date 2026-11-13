@@ -104,3 +104,27 @@ it("with room, all of it whole, as before", () => {
   expect(drawn(view.getByTestId("row"))).toBe(`Stopped with an error ${pastWhen(YESTERDAY, NOW)}Claude Code CLI · Work`);
   expect(view.getByTestId("session-app-chip").textContent).toBe("Claude Code CLI · Work");
 });
+
+// 0.4.4 (D-100): at 1024 px an ended session's four actions left its
+// chips 96 px and the App chip read nothing; no step fits that. The room
+// the chips sit in hears what they need at their last step, the same at
+// every width, and a page header moves its actions down a line for it.
+it("tells the room it sits in what it needs with all it can leave out left out, at any width", () => {
+  const words = "Stopped with an error";
+  const name = "Work";
+  for (const width of [2000, 40 * CHAR, 10 * CHAR]) {
+    room = width;
+    const view = render(
+      <div data-give-way-room="" data-testid="room">
+        <div data-testid="row">
+          <SessionChips model={ended} account={undefined} now={NOW} />
+        </div>
+      </div>,
+    );
+    expect(view.getByTestId("room").style.getPropertyValue("--give-way-need"), `at ${width}`).toBe(`${(words + name).length * CHAR}px`);
+    // Telling it moved nothing: the row keeps the step its width takes.
+    expect(gone(view, "session-app-word-part"), `at ${width}`).toBe(width < (words + ` ${pastDay(YESTERDAY, NOW)}Claude Code CLI · ${name}`).length * CHAR);
+    cleanup();
+  }
+});
+

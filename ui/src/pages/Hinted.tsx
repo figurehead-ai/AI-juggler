@@ -2,6 +2,8 @@
  * An action with a one-line hint under it, in the hint's style; laid out
  * of the row's flow, so the buttons beside it keep their line (a page
  * header's Relaunch "Fresh conversation", Resume "Same conversation").
+ * Where the actions go down a line, the header gives its hint room
+ * (`data-hint`; PageShell's `useActionsBelow`).
  */
 import type { JSX, ReactNode } from "react";
 
@@ -14,7 +16,7 @@ export function Hinted({ hint, testId, children }: { hint: string | null; testId
     <span className="flex flex-col items-center">
       {children}
       <span className="pointer-events-none h-0 w-0 min-w-full">
-        <span className="relative top-1 block text-center text-label leading-tight text-muted" data-testid={testId}>
+        <span className="relative top-1 block text-center text-label leading-tight text-muted" data-hint="" data-testid={testId}>
           {hint}
         </span>
       </span>

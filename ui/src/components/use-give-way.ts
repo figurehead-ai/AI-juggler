@@ -10,7 +10,8 @@
  * holds fits unshrunk, again whenever its width or its words change, or
  * a font lands. A part left out carries `data-gone`, its own classes
  * saying how (hidden; or read, not seen). What still doesn't fit at the
- * last step shrinks as its classes say: the name last.
+ * last step shrinks as its classes say: the name last. The room it sits
+ * in, when marked, hears what it needs at its last step (`tellRoom`).
  */
 import { useLayoutEffect, type RefObject } from "react";
 
@@ -46,11 +47,33 @@ function giveWay(row: HTMLElement): void {
   let step = 0;
   take(parts, step);
   const room = row.getBoundingClientRect().width;
+  let need = unshrunk(row);
   // A hundredth of a pixel: what layout rounds, never a cut letter.
-  while (step < last && unshrunk(row) > room + 0.01) {
+  while (step < last && need > room + 0.01) {
     step += 1;
     take(parts, step);
+    need = unshrunk(row);
   }
+  tellRoom(row, parts, step, last, need);
+}
+
+/** Says what `row` needs with all it can leave out left out to the room
+ * it sits in (`data-give-way-room`, as `--give-way-need`): a page header
+ * moves its actions down a line before a name is cut (D-100, 0.4.4: the
+ * App chip read nothing at 1024 px beside an ended session's four
+ * actions). Not its room's own width: the same at every width, so the
+ * room never sways between a line and two. */
+function tellRoom(row: HTMLElement, parts: readonly HTMLElement[], step: number, last: number, need: number): void {
+  const room = row.closest<HTMLElement>("[data-give-way-room]");
+  if (!room) return;
+  let atLast = need;
+  if (step < last) {
+    take(parts, last);
+    atLast = unshrunk(row);
+    take(parts, step);
+  }
+  const words = `${Math.ceil(atLast)}px`;
+  if (room.style.getPropertyValue("--give-way-need") !== words) room.style.setProperty("--give-way-need", words);
 }
 
 /** Keeps the row `inRow` sits in (its parent: the chips' line) at its
