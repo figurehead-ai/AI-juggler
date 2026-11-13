@@ -584,9 +584,8 @@ test("inspector — Quality tab View as table", async ({ page }) => {
 // chip on the Accounts screen. Dates are pinned relative to T0 so the
 // tiers are deterministic.
 function renewalDate(daysFromT0: number): string {
-  const target = new Date(T0 + daysFromT0 * 86_400_000);
-  const pad = (value: number) => String(value).padStart(2, "0");
-  return `${target.getFullYear()}-${pad(target.getMonth() + 1)}-${pad(target.getDate())}`;
+  // The fixture's own day (`toISOString`): UTC's, as the pages' zone is.
+  return new Date(T0 + daysFromT0 * 86_400_000).toISOString().slice(0, 10);
 }
 
 async function seedRenewalPage(
@@ -648,73 +647,81 @@ async function openWorkAppSettings(page: import("@playwright/test").Page) {
   await expect(page.getByTestId("app-settings")).toBeVisible();
 }
 
-// The renewal each tier puts on the Account's header (lib/renewal.ts): a
-// date further off in its words, 7 days or fewer as its ⚠/⛔ chip
-// (AJ-E411); `null`: no date, so no renewal at all — never a guess, D-12.
-for (const [name, days, words, chip] of [
-  ["date-only", 20, /Renews (?!in |tomorrow)\S/, null],
-  ["countdown", 10, "Renews in 10 days", null],
-  ["warning", 6, "⚠ Renews in 6 days", "warning"],
-  ["danger", 0, "⛔ Renewal date passed", "danger"],
-  ["unknown", null, null, null],
-] as const) {
-  test(`renewal — Account Overview ${name} state`, async ({ page }) => {
-    await seedRenewalPage(page, { width: 1440, height: 900 }, days);
+// AJ-E411 (0.4.4): the renewal captures read the same on any Mac. Its
+// date field writes a day in the browser's own order (en-US here, as in
+// CI's container: "10/19/2024"), and the days to it count in one zone
+// (the fixture's day is UTC's; west of UTC-6 it read a day early).
+test.describe(() => {
+  test.use({ locale: "en-US", timezoneId: "UTC" });
+
+  // The renewal each tier puts on the Account's header (lib/renewal.ts): a
+  // date further off in its words, 7 days or fewer as its ⚠/⛔ chip
+  // (AJ-E411); `null`: no date, so no renewal at all — never a guess, D-12.
+  for (const [name, days, words, chip] of [
+    ["date-only", 20, /Renews (?!in |tomorrow)\S/, null],
+    ["countdown", 10, "Renews in 10 days", null],
+    ["warning", 6, "⚠ Renews in 6 days", "warning"],
+    ["danger", 0, "⛔ Renewal date passed", "danger"],
+    ["unknown", null, null, null],
+  ] as const) {
+    test(`renewal — Account Overview ${name} state`, async ({ page }) => {
+      await seedRenewalPage(page, { width: 1440, height: 900 }, days);
+      await openWorkAccount(page);
+      // D-62 (AJ-E3205 req. 1): the Account's header says its renewal, on
+      // every tab; its Overview leads with its limits.
+      const facts = page.getByTestId("page-facts");
+      const tier = page.getByTestId("page-header").getByTestId("renewal-chip");
+      if (words === null) await expect(page.getByTestId("page-header")).not.toContainText(/Renew/);
+      else if (chip === null) {
+        await expect(facts).toContainText(words);
+        await expect(tier).toHaveCount(0);
+      } else {
+        await expect(tier).toHaveAttribute("data-tier", chip);
+        await expect(tier).toContainText(words);
+        await expect(facts).not.toContainText(/Renew/);
+      }
+      await expect(page.getByTestId("page-header")).toBeInViewport();
+      await page.screenshot({ path: resolve(GALLERY, `11-renewal/account-${name}-1440x900.png`) });
+    });
+  }
+
+  /** The Account's Settings tab: its renewal date, entered by you. */
+  async function openRenewalEditor(page: import("@playwright/test").Page) {
     await openWorkAccount(page);
-    // D-62 (AJ-E3205 req. 1): the Account's header says its renewal, on
-    // every tab; its Overview leads with its limits.
-    const facts = page.getByTestId("page-facts");
-    const tier = page.getByTestId("page-header").getByTestId("renewal-chip");
-    if (words === null) await expect(page.getByTestId("page-header")).not.toContainText(/Renew/);
-    else if (chip === null) {
-      await expect(facts).toContainText(words);
-      await expect(tier).toHaveCount(0);
-    } else {
-      await expect(tier).toHaveAttribute("data-tier", chip);
-      await expect(tier).toContainText(words);
-      await expect(facts).not.toContainText(/Renew/);
-    }
-    await expect(page.getByTestId("page-header")).toBeInViewport();
-    await page.screenshot({ path: resolve(GALLERY, `11-renewal/account-${name}-1440x900.png`) });
+    await page.getByRole("tablist", { name: "Account tabs" }).getByRole("tab", { name: /^Settings/ }).click();
+    await expect(page.getByTestId("account-renewal-row")).toBeVisible();
+    await expect(page.getByTestId("account-renewal-input")).toHaveAttribute("data-value", renewalDate(6));
+    await expect(page.getByTestId("page-header").getByTestId("renewal-chip")).toContainText("Renews in 6 days");
+  }
+
+  test("renewal — editor with helper text (1440x900 + 1280x800)", gate("11-renewal"), async ({ page }) => {
+    await seedRenewalPage(page, { width: 1440, height: 900 }, 6);
+    await openRenewalEditor(page);
+    // Said once, for the whole account (AJ-E3202 req. 4).
+    await expect(page.getByText("Entered by you, once for the whole account and every app on it: AI Juggler doesn't read your billing.")).toBeVisible();
+    await frameOn(page.getByTestId("account-settings-tab"));
+    await expect(page.getByTestId("account-renewal-row")).toBeInViewport();
+    await page.screenshot({ path: resolve(GALLERY, "11-renewal/editor-1440x900.png") });
   });
-}
 
-/** The Account's Settings tab: its renewal date, entered by you. */
-async function openRenewalEditor(page: import("@playwright/test").Page) {
-  await openWorkAccount(page);
-  await page.getByRole("tablist", { name: "Account tabs" }).getByRole("tab", { name: /^Settings/ }).click();
-  await expect(page.getByTestId("account-renewal-row")).toBeVisible();
-  await expect(page.getByTestId("account-renewal-input")).toHaveAttribute("data-value", renewalDate(6));
-  await expect(page.getByTestId("page-header").getByTestId("renewal-chip")).toContainText("Renews in 6 days");
-}
+  test("renewal — editor at 1280x800", async ({ page }) => {
+    await seedRenewalPage(page, { width: 1280, height: 800 }, 6);
+    await openRenewalEditor(page);
+    await frameOn(page.getByTestId("account-settings-tab"));
+    await expect(page.getByTestId("account-renewal-row")).toBeInViewport();
+    await page.screenshot({ path: resolve(GALLERY, "11-renewal/editor-1280x800.png") });
+  });
 
-test("renewal — editor with helper text (1440x900 + 1280x800)", gate("11-renewal"), async ({ page }) => {
-  await seedRenewalPage(page, { width: 1440, height: 900 }, 6);
-  await openRenewalEditor(page);
-  // Said once, for the whole account (AJ-E3202 req. 4).
-  await expect(page.getByText("Entered by you, once for the whole account and every app on it: AI Juggler doesn't read your billing.")).toBeVisible();
-  await frameOn(page.getByTestId("account-settings-tab"));
-  await expect(page.getByTestId("account-renewal-row")).toBeInViewport();
-  await page.screenshot({ path: resolve(GALLERY, "11-renewal/editor-1440x900.png") });
-});
-
-test("renewal — editor at 1280x800", async ({ page }) => {
-  await seedRenewalPage(page, { width: 1280, height: 800 }, 6);
-  await openRenewalEditor(page);
-  await frameOn(page.getByTestId("account-settings-tab"));
-  await expect(page.getByTestId("account-renewal-row")).toBeInViewport();
-  await page.screenshot({ path: resolve(GALLERY, "11-renewal/editor-1280x800.png") });
-});
-
-test("renewal — Accounts row chip at <= 7 days (and none for unknown)", async ({ page }) => {
-  await seedRenewalPage(page, { width: 1440, height: 900 }, 6, { accountsList: true });
-  await goTo(page, "Accounts");
-  // The card's chip (not the polite announcer, which says it too).
-  const chip = page.getByTestId("account-card").getByText("Renews in 6 days").first();
-  await expect(chip).toBeVisible();
-  await frameOn(chip, { gap: 160 }); // its card around it
-  await expect(chip).toBeInViewport();
-  await page.screenshot({ path: resolve(GALLERY, "11-renewal/accounts-row-chip-1440x900.png") });
+  test("renewal — Accounts row chip at <= 7 days (and none for unknown)", async ({ page }) => {
+    await seedRenewalPage(page, { width: 1440, height: 900 }, 6, { accountsList: true });
+    await goTo(page, "Accounts");
+    // The card's chip (not the polite announcer, which says it too).
+    const chip = page.getByTestId("account-card").getByText("Renews in 6 days").first();
+    await expect(chip).toBeVisible();
+    await frameOn(chip, { gap: 160 }); // its card around it
+    await expect(chip).toBeInViewport();
+    await page.screenshot({ path: resolve(GALLERY, "11-renewal/accounts-row-chip-1440x900.png") });
+  });
 });
 
 // AJ-E412 running-model captures: I-03 plain vs drift (sess-8 carries
