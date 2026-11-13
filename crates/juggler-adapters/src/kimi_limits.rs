@@ -143,6 +143,13 @@ mod tests {
         .into_bytes()
     }
 
+    /// The vendor's quota error, saying `message`.
+    fn quota_exhausted(message: &str) -> Vec<u8> {
+        ended(&format!(
+            r#"{{"code":"provider.api_error","message":"{message}","name":"APIProviderQuotaExhaustedError","details":{{"statusCode":429}},"retryable":false}}"#
+        ))
+    }
+
     #[test]
     fn the_quota_error_names_its_window_by_the_vendors_words() {
         for (message, window) in [
@@ -159,9 +166,7 @@ mod tests {
                 WindowKind::Monthly,
             ),
         ] {
-            let line = ended(&format!(
-                r#"{{"code":"provider.api_error","message":"{message}","name":"APIProviderQuotaExhaustedError","details":{{"statusCode":429}},"retryable":false}}"#
-            ));
+            let line = quota_exhausted(message);
             assert_eq!(hit_in(&line), Some(Some(window)), "{message}");
         }
     }
@@ -200,9 +205,7 @@ mod tests {
             "您的额度已用完",
             "You have reached your usage limit",
         ] {
-            let line = ended(&format!(
-                r#"{{"code":"provider.api_error","message":"{message}","name":"APIProviderQuotaExhaustedError","details":{{"statusCode":429}},"retryable":false}}"#
-            ));
+            let line = quota_exhausted(message);
             assert_eq!(hit_in(&line), Some(None), "{message}");
         }
     }
