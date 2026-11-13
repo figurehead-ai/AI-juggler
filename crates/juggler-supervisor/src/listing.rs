@@ -3,7 +3,7 @@
 //! view's own roots). Split from `live_stats` (its size budget); the
 //! measuring is unchanged.
 //!
-//! AJ-E805 (0.4.5, idle CPU; D-108): where the system lists every process
+//! AJ-E805 (0.4.5, idle CPU; D-110): where the system lists every process
 //! in one call (`juggler_proc_list`), the listing reads only the processes
 //! of the watched trees (ours, the observed tools'), not all of them:
 //! `sysinfo` reads each process's arguments on every refresh whatever it

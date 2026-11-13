@@ -2942,7 +2942,7 @@ Each ships with tests that fail without it and a design critique; the M2, D2 and
 - **Amends:** D-102 ("Show all N" → "All N sessions ›"; the caption), D-97 (New session's default when a repo has its own Account).
 - Sources: `docs/qa/0.4-walks/personas/runs-0.4.3.md`; the R5 list in the coordinating session's notes.
 
-### D-108 The process table is listed in one system call — a fifth audited unsafe shim — SETTLED (2026-11-13)
+### D-110 The process table is listed in one system call — a fifth audited unsafe shim — SETTLED (2026-11-13)
 
 - Decision: `crates/juggler-proc-list`: one `sysctl(CTL_KERN, KERN_PROC,
   KERN_PROC_ALL)` read (the call `ps` makes) listing every process's pid,
@@ -2983,3 +2983,5 @@ Each ships with tests that fail without it and a design critique; the M2, D2 and
   (ADR-0032 promises launch and quit within 2 s).
 - Sources: `docs/qa/evidence/AJ-E805/idle-0.4.5.md` (the 0.4.5 follow-up's
   profile and numbers).
+- Number: first recorded as D-108 (commit messages a040caa4a to
+  ba4f8c2c3); release/0.5 had already taken D-104 to D-109.

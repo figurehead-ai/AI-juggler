@@ -95,7 +95,7 @@ fn a_tree_we_did_not_start_is_measured_without_touching_it() {
     assert!(!collector.observed_snapshot().contains_key(&root));
 }
 
-/// AJ-E805 (0.4.5, idle CPU; D-108): a listing reads the watched trees'
+/// AJ-E805 (0.4.5, idle CPU; D-110): a listing reads the watched trees'
 /// processes, not every process on the Mac. It read all of them (about
 /// 850 on the reference Mac) every 4 s, arguments and all: a fifth of the
 /// app's idle CPU in the lab.
@@ -144,7 +144,7 @@ fn a_listing_reads_the_watched_trees_not_every_process() {
     child.wait().unwrap();
 }
 
-/// AJ-E805 (0.4.5, idle CPU; D-108): after its first, a full scan reads
+/// AJ-E805 (0.4.5, idle CPU; D-110): after its first, a full scan reads
 /// whole only the processes that are new since; every process's memory is
 /// still there for This Mac's other apps. It read every process on the
 /// Mac whole (arguments and all) every 10 s.

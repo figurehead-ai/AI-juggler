@@ -1,5 +1,5 @@
 //! Every process on this Mac, listed cheaply: its pid, its parent, when it
-//! started, its short name and whether it is a zombie (decision D-108,
+//! started, its short name and whether it is a zombie (decision D-110,
 //! 2026-11-13, AJ-E805's idle CPU).
 //!
 //! WHY: `sysinfo` reads a process's arguments and environment
@@ -47,7 +47,7 @@
 #![deny(missing_docs, unsafe_op_in_unsafe_fn)]
 #![cfg_attr(
     target_os = "macos",
-    allow(unsafe_code, reason = "D-108: the four audited blocks")
+    allow(unsafe_code, reason = "D-110: the four audited blocks")
 )]
 
 /// One process, as the kernel lists it.

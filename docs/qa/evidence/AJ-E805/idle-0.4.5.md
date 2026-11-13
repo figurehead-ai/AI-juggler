@@ -224,9 +224,9 @@ on change events are, with sessions at work, and they ran while hidden.
 
 | Commit | What | Guard |
 |---|---|---|
-| a040caa4a | **D-108**, `juggler-proc-list`: one `sysctl(KERN_PROC_ALL)` (the call `ps` makes) lists every process's pid, parent, start time, name and zombie state, never its arguments; the record layout checks itself on every read. `procs::table` (presence's look, the live view, the places) keeps its table: arguments read once per process (same pid, start and name), parents as listed now, everything again every 60 s | `procs::tests::a_read_after_the_first_reads_only_what_is_new`; the shim's tests against `ps` and a real zombie |
+| a040caa4a | **D-110**, `juggler-proc-list`: one `sysctl(KERN_PROC_ALL)` (the call `ps` makes) lists every process's pid, parent, start time, name and zombie state, never its arguments; the record layout checks itself on every read. `procs::table` (presence's look, the live view, the places) keeps its table: arguments read once per process (same pid, start and name), parents as listed now, everything again every 60 s | `procs::tests::a_read_after_the_first_reads_only_what_is_new`; the shim's tests against `ps` and a real zombie |
 | 00ba04023 | The collector's listing reads only the watched trees' processes (it read all of them every 4 s); zombies from the same listing (no `/bin/ps`) | `tests/observed.rs::a_listing_reads_the_watched_trees_not_every_process` |
-| bc4ee5a90 | The full scan reads whole only new processes and ours; This Mac's other apps' memory from `juggler_proc_list::resident` (D-108: four audited `unsafe` blocks in all); every process whole once a minute | `tests/observed.rs::a_full_scan_reads_the_new_processes_not_every_one` |
+| bc4ee5a90 | The full scan reads whole only new processes and ours; This Mac's other apps' memory from `juggler_proc_list::resident` (D-110: four audited `unsafe` blocks in all); every process whole once a minute | `tests/observed.rs::a_full_scan_reads_the_new_processes_not_every_one` |
 | fda9495f1 | `ToolTranscripts::conversation_roots` (ADR-0019; Claude Code's `projects`, Codex's, Kimi's and Grok's `sessions`) and `conversations::gate` on their file events: a known file that changed is read alone, anything else new lists its Account again, an Account whose tool names no folder every pass, everything on the first pass, a lost track and every 5 min; `conversations::pass` split from `mod.rs` | `gate::tests::a_pass_reads_what_changed_and_sweeps_rarely`, `pass::tests::a_scoped_pass_reads_only_what_it_names`, each adapter's roots hold its files |
 | c40005044, 499f805fc | `ConversationIndex::all_where`: the live refresh, the working list (`conversations_list`, Needs you), the session titles and the first-read check copy only what they use | `commands::tests::the_working_set_from_its_candidates_is_the_whole_lists` |
 | 0f8dac45f | The usage pipeline: a pass on file events reads only the files they named (spelled as the Accounts' folders are); the records' 15 s cadence still walks everything | `usage_pipeline::gate::tests::a_pass_on_events_reads_the_files_they_named` |
@@ -335,8 +335,9 @@ rehearsal; it didn't recur in the three runs after.
 - **Not measured:** the IPC counts on the after build (the hidden window's
   reads are held by `shown-window.test.ts`, and its web content fell from
   0.9–1.4 % to 0.3–0.4 % hidden); the installed beta beyond `ps`.
-- **D-108's number:** release/0.5 runs to D-107; this branch's log skips
-  D-104 to D-107 until the two meet.
+- **D-110's number:** first recorded as D-108 (the commit messages from
+  a040caa4a to ba4f8c2c3 say so); release/0.5 had already taken D-104 to
+  D-109, so the shim is D-110, and this branch's log skips D-104 to D-109.
 - **The shared Mac quit three lab runs:** another process pressed the hidden
   lab window's close button through the accessibility API (the system log:
   `performClick:` then `windowShouldClose:`, nobody at the window), and
