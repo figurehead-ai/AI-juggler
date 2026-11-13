@@ -1483,7 +1483,10 @@ fn needs_you_reads_the_session_rows_only_when_they_changed() {
     // A stored change (the database's own stamp moves): read again.
     {
         let storage = state.storage.lock().unwrap();
-        let mut record = storage.sessions().get(&SessionId::new(id.as_str())).unwrap();
+        let mut record = storage
+            .sessions()
+            .get(&SessionId::new(id.as_str()))
+            .unwrap();
         record.status = SessionStatus::WaitingUser;
         storage.sessions().update(&record).unwrap();
     }
