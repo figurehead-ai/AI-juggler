@@ -258,13 +258,22 @@ const fn code(name: &[u8; 4]) -> u32 {
 }
 
 /// `kCoreEventClass`.
-#[cfg_attr(not(target_os = "macos"), allow(dead_code, reason = "macOS only"))]
+#[cfg_attr(
+    not(target_os = "macos"),
+    allow(dead_code, reason = "read by the AppKit handler only")
+)]
 const CORE_EVENT_CLASS: u32 = code(b"aevt");
 /// `kAEQuitApplication`.
-#[cfg_attr(not(target_os = "macos"), allow(dead_code, reason = "macOS only"))]
+#[cfg_attr(
+    not(target_os = "macos"),
+    allow(dead_code, reason = "read by the AppKit handler only")
+)]
 const QUIT_APPLICATION: u32 = code(b"quit");
 /// `keyAEQuitReason`: why the system asks the app to quit.
-#[cfg_attr(not(target_os = "macos"), allow(dead_code, reason = "macOS only"))]
+#[cfg_attr(
+    not(target_os = "macos"),
+    allow(dead_code, reason = "read by the AppKit handler only")
+)]
 const QUIT_REASON: u32 = code(b"why?");
 
 /// A quit event's answer: one that carries a reason (`keyAEQuitReason`,
@@ -292,7 +301,10 @@ pub trait QuitEvents {
 
 /// Answers one event with `reason` for `app`: asks it, or tells it the
 /// app terminates (the caller then terminates).
-#[cfg_attr(not(target_os = "macos"), allow(dead_code, reason = "macOS only"))]
+#[cfg_attr(
+    not(target_os = "macos"),
+    allow(dead_code, reason = "read by the AppKit handler only")
+)]
 fn answer(reason: Option<u32>, app: &dyn QuitEvents) -> QuitAnswer {
     let answer = quit_answer(reason, app.quitting());
     match answer {
