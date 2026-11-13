@@ -46,10 +46,33 @@ same id), so the rehearsal runs on Dev-identity builds of the same commits.
 Cleanup: no process left, nothing mounted, the scratch folder deleted; the
 two provenance records kept.
 
-## Next
+## The rehearsal on Dev-identity builds: PASS (2026-11-13, 10:3x)
 
-The same rehearsal on CI's release-profile Dev builds (`rc-dev-app`) of the
-two commits: the same code under the Dev identity (its own bundle id, data
-folder, lock, keychain items, port and single-instance socket). 0.4.3's,
-`rc-b281d3ee6fdf` (`b281d3ee6`, the same tree as `v0.4.3`), is already on
-this Mac; 0.4.4's is `rc-dev-app-0d2f9268b…` (26 MB, run 43391684003).
+The same code under the Dev identity (`ai.figurehead.juggler.dev`: its own
+data folder, lock, keychain items, port and single-instance socket), from
+CI's release-profile builds: 0.4.3 = `rc-b281d3ee6fdf` (`b281d3ee6`, the
+same tree as `v0.4.3`), 0.4.4 = `rc-dev-app-0d2f9268b…` (run 43391684003,
+fetched with `scripts/qa/fetch_rc.sh` on the maintainer's yes). Both are
+ad-hoc signed (the RC's own signature); the signed DMGs' artefacts are
+verified above. Run only once no Dev-identity app was running (a watcher
+waited for another session's Dev build to quit), each launch from a scratch
+copy with a throwaway `HOME`, opened as a double-click, timed to the main
+window's title and quit by `scripts/qa/cold_start_probe.swift`.
+
+Starting data: the load fixture (10 Accounts, 50 Instances, 20 Projects,
+schema 52), as a user's data folder.
+
+| Step | Window came | Quit | Schema | Instances / Projects / Accounts |
+|---|---|---|---|---|
+| start | — | `last-run` clean | 52 | 50 / 20 / 10 |
+| 0.4.3 opens it | yes, 2.3 s | clean | 52 | 50 / 20 / 10 |
+| 0.4.4 opens 0.4.3's data (the update) | yes, 3.4 s | clean | 52 | 50 / 20 / 10 |
+| 0.4.3 opens 0.4.4's data (going back) | yes, 1.6 s | clean | 52 | 50 / 20 / 10 |
+
+`PRAGMA integrity_check`: ok. No `before-v` copy was made (no migration
+between the two, as expected). The times include a busy Mac (a preflight
+ran beside it). Cleanup: no process left (the ledger back to the
+maintainer's two), the scratch copies and home deleted.
+
+So for 0.4.3 ↔ 0.4.4 the documented way back ("install the previous
+`.dmg` over the newer one") keeps the data, in both directions.
