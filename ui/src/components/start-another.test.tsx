@@ -113,7 +113,7 @@ describe("start another (D-96 F)", () => {
     cleanup();
     mountSheet({ projects: PROJECTS.map((row) => ({ ...row, accounts_used: ["Side", "Work Max"] })), dir: at.dir, after: at.after });
     // web's history names both; the App chosen for api is kept over it.
-    expect(sentence()).toBe("Start in web on Claude Code CLI · Side — as you chose for api");
+    expect(sentence()).toBe("Start in web on Claude Code CLI · Side — as you chose for api; 2 accounts worked here");
   });
 
   it("D-103.7: the next repo's own Account wins over the App kept from the start before", () => {
@@ -132,7 +132,7 @@ describe("start another (D-96 F)", () => {
     seam({ __AIJ_QUOTA_DISPLAY__: [display("claude-side", 0), display("claude-work", 80)] });
     mountSheet({ projects: PROJECTS.map((row) => ({ ...row, accounts_used: ["Side", "Work Max"] })), dir: web, after: { roots: [api], name: "api", app: "claude-side" } });
     expect(await screen.findByTestId("launch-out-of-room")).toBeTruthy();
-    expect(sentence()).toBe("Start in web on Claude Code CLI · Side — as you chose for api");
+    expect(sentence()).toBe("Start in web on Claude Code CLI · Side — as you chose for api; 2 accounts worked here");
     expect(screen.getByTestId("launch-use-roomier").textContent).toBe("Use Claude Code CLI · Work Max (80% left)");
   });
 

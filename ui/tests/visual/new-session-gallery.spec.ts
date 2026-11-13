@@ -134,7 +134,7 @@ async function shoot(page: Page, name: string, theme: string, clip?: { x: number
 for (const theme of ["dark", "light"] as const) {
   test(`N1 the usual, made and said — ${theme}`, async ({ page }) => {
     await open(page, theme);
-    await expect(sentence(page)).toHaveText("Start in web-shop on Claude Code CLI · Work Max — used here before");
+    await expect(sentence(page)).toHaveText("Start in web-shop on Claude Code CLI · Work Max — used here before; 2 accounts worked here");
     await expect(page.getByTestId("launch-runway")).toContainText("58% left");
     await expect(page.getByTestId("launch-now")).toBeFocused();
     await shoot(page, "usual", theme);
@@ -230,7 +230,7 @@ for (const theme of ["dark", "light"] as const) {
     await shoot(page, "start-another", theme, { x: 640, y: 560, width: 640, height: 240 });
     await page.keyboard.press("Enter");
     // Opened on the next project, the App kept and said so, Start focused.
-    await expect(sentence(page)).toHaveText("Start in payments-api on Claude Code CLI · Personal — as you chose for web-shop");
+    await expect(sentence(page)).toHaveText("Start in payments-api on Claude Code CLI · Personal — as you chose for web-shop; 2 accounts worked here");
     await expect(page.getByTestId("launch-now")).toBeFocused();
     await shoot(page, "start-another-next", theme);
   });

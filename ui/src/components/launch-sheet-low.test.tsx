@@ -74,7 +74,8 @@ describe("a Low usual App gives way (D-97)", () => {
   it("the App used here, almost out: room picks Side and the sentence says why, as the Low mark does", async () => {
     seam({ __AIJ_QUOTA_DISPLAY__: [display("claude-work", 5), display("claude-side", 80)] });
     const { launchSpy } = mountSheet();
-    await waitFor(() => expect(sentence()).toBe("Start in api on Claude Code CLI · Side — Claude Code CLI · Work Max is almost out (5% left)"));
+    // Its Account named once read (the App's name until then); two Accounts ran here, said (D-103.7).
+    await waitFor(() => expect(sentence()).toMatch(/^Start in api on Claude Code CLI · Side — .+ is almost out \(5% left\); 2 accounts worked here$/));
     expect(screen.queryByTestId("launch-low")).toBeNull();
     fireEvent.keyDown(window, { key: "Enter", metaKey: true });
     await waitFor(() => expect(launchSpy).toHaveBeenCalledWith("p-3", "/Users/dev/api", undefined));
@@ -83,7 +84,7 @@ describe("a Low usual App gives way (D-97)", () => {
   it("an estimated Low says about", async () => {
     seam({ __AIJ_QUOTA_DISPLAY__: [display("claude-work", 5, "estimated"), display("claude-side", 80)] });
     mountSheet();
-    await waitFor(() => expect(sentence()).toBe("Start in api on Claude Code CLI · Side — Claude Code CLI · Work Max is almost out (about 5% left)"));
+    await waitFor(() => expect(sentence()).toMatch(/^Start in api on Claude Code CLI · Side — .+ is almost out \(about 5% left\); 2 accounts worked here$/));
   });
 
   it("the user's pick on a Low Account stands, warned, the App with room offered", async () => {
@@ -109,7 +110,7 @@ describe("a Low usual App gives way (D-97)", () => {
     seam({ __AIJ_QUOTA_DISPLAY__: [display("claude-work", 15), display("claude-side", 80)] });
     mountSheet();
     expect(await screen.findByTestId("launch-low")).toBeTruthy();
-    expect(sentence()).toBe("Start in api on Claude Code CLI · Work Max — used here before");
+    expect(sentence()).toBe("Start in api on Claude Code CLI · Work Max — used here before; 2 accounts worked here");
     expect(screen.getByTestId("launch-use-roomier").textContent).toBe("Use Claude Code CLI · Side (80% left)");
   });
 
@@ -127,7 +128,7 @@ describe("a Low usual App gives way (D-97)", () => {
     seam({ __AIJ_QUOTA_DISPLAY__: [display("claude-work", 5), display("claude-side", 3)] });
     mountSheet();
     expect(await screen.findByTestId("launch-low")).toBeTruthy();
-    expect(sentence()).toBe("Start in api on Claude Code CLI · Work Max — used here before");
+    expect(sentence()).toBe("Start in api on Claude Code CLI · Work Max — used here before; 2 accounts worked here");
   });
 
 });

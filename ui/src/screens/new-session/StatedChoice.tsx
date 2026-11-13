@@ -125,10 +125,12 @@ export function StatedChoice({
 
 const LINK = "rounded font-medium text-accent-hi underline-offset-2 outline-none hover:underline focus-visible:ring-1 focus-visible:ring-accent/60";
 
-/** D-103.7: on the repo's own Account (the only one that ever ran
- * there), the binding in one click, "Always start client-a on Client A";
- * it names the App instead when its Account has others here (the binding
- * is the App's, as Change app's "Always use for" is). */
+/** D-103.7: a repo with no binding offers it in one click, "Always start
+ * client-a on Client A": on its own Account (the only one that ever ran
+ * there), and, where several ran there (the R2 re-walk's trap: it opened
+ * on the agency's), on whichever App is chosen now, following Change
+ * app. It names the App instead when its Account has others here (the
+ * binding is the App's, as Change app's "Always use for" is). */
 function BindingOffer({
   app,
   folder,
@@ -143,7 +145,8 @@ function BindingOffer({
   onAlways?: (folderId: string | null) => void;
 }): JSX.Element | null {
   const project = folder?.project;
-  if (app?.why !== "own-account" || !project || !onAlways) return null;
+  if (!app || !project || !onAlways || project.default_account_id) return null;
+  if (app.why !== "own-account" && data.ranHere.length < 2) return null;
   const key = data.accountKeyOf(app.recipe.account_id);
   const alone = ranked.filter((row) => data.accountKeyOf(row.recipe.account_id) === key).length <= 1;
   const name = (alone ? data.accountNameOf(app.recipe.account_id) : null) ?? data.appNameOf(app.recipe);
@@ -170,10 +173,20 @@ function Unbroken({ words }: { words: string }): JSX.Element {
   );
 }
 
+/** The why, and, where several Accounts ran in the repo and none is
+ * bound, how many (D-103.7, the R2 re-walk: "— the last you used here; 3
+ * accounts worked here"), so a hurried Return isn't taken for the
+ * repo's own. */
+function whyOf(app: AppChoice, data: NewSessionData, now: number, after: string | null | undefined): string | null {
+  const said = reasonOf(app, data, now, after);
+  const several = data.ranHere.length;
+  return said && several > 1 && app.why !== "project-default" ? `${said}; ${several} accounts worked here` : said;
+}
+
 /** D-96 E: room picked over the App it would have opened on, as its
  * Account stands now ("Work is almost out (5% left)"); `null` once that
  * one has room again (the why is then the most room's). */
-function whyOf(app: AppChoice, data: NewSessionData, now: number, after: string | null | undefined): string | null {
+function reasonOf(app: AppChoice, data: NewSessionData, now: number, after: string | null | undefined): string | null {
   // The rc27 walk: the App history pointed to can't start; this one can.
   if (app.passedOver) return passedOverWords(data.appNameOf(app.passedOver));
   const skipped = app.skipped;
