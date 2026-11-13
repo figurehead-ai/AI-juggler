@@ -231,8 +231,15 @@ body {
   animation: welcome-rise 700ms cubic-bezier(0.2, 0.7, 0.2, 1) 1 both;
 }
 
+/* 0.4.5 (AJ-E805, idle CPU): a live dot breathes three times when it
+ * shows or its state changes, then rests. Looping for ever, the header's
+ * This Mac dot kept the window drawing every frame while nothing changed:
+ * about 16 % of a core in the web view's processes, and the app's own
+ * display link besides. A dot breathes again when its element is new (its
+ * key changes) or the class comes back. ui/tests/visual/idle.spec.ts holds
+ * the window to no endless animation at rest. */
 .dot-live {
-  animation: breathe 2.4s var(--ease-out-soft) infinite;
+  animation: breathe 2.4s var(--ease-out-soft) 3;
 }
 
 /*

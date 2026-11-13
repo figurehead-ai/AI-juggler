@@ -16,7 +16,7 @@ import { TerminalToolbar, type TerminalConnection } from "./TerminalToolbar";
 import { TerminalFoot } from "./TerminalFoot";
 import { Button } from "./primitives";
 import { processGone } from "../lib/session-process";
-import { followCaret, holdInput } from "../lib/terminal-caret";
+import { blinkWhileUsed, followCaret, holdInput } from "../lib/terminal-caret";
 import { usePageKeys } from "../lib/terminal-page-keys";
 import { fitSize } from "../lib/terminal-fit";
 
@@ -167,6 +167,7 @@ export function TerminalView({
     const follow = () => setScrolledUp(term.buffer.active.viewportY < term.buffer.active.baseY);
     const scrolled = term.onScroll(follow);
     const written = term.onWriteParsed(follow);
+    blinkWhileUsed(term); // its listeners and timer go with the terminal
     term.textarea?.setAttribute("aria-describedby", hintId);
     holdInput(term, goneRef.current);
     const caret = term.textarea ? followCaret(term.textarea, term, () => !goneRef.current && !document.querySelector('[aria-modal="true"]')) : null;
