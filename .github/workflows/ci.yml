@@ -422,7 +422,7 @@ jobs:
         run: |
           cargo nextest run --archive-file "$RUNNER_TEMP/nextest.tar.zst" --workspace-remap . -E 'test(/export_bindings/)' --no-tests=warn
           ./scripts/ts_types_fresh.sh
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: nextest-archive
           path: ${{ runner.temp }}/nextest.tar.zst
@@ -512,7 +512,7 @@ jobs:
           if [ -n "$TESTS" ]; then filter=(-E "$TESTS" --no-tests=pass); echo "Only: $TESTS"; fi
           cargo-nextest nextest run --archive-file "$RUNNER_TEMP/nextest.tar.zst" --workspace-remap . --extract-to . --extract-overwrite --partition "slice:$PARTITION/6" --profile ci --no-fail-fast "${filter[@]}"
           ./scripts/leaked_fixtures.sh
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
           name: junit-tests-${{ matrix.partition }}
@@ -619,7 +619,7 @@ jobs:
           key: ${{ steps.cargo-cache.outputs.cache-primary-key }}
       - name: The frames, to look at
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: floor-gallery
           path: floor-gallery/
@@ -726,7 +726,7 @@ jobs:
       - name: Coverage (baseline artifact)
         continue-on-error: true
         run: cargo llvm-cov --workspace --lcov --output-path lcov.info
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
           name: coverage-lcov
@@ -805,7 +805,7 @@ jobs:
         run: pnpm exec playwright test -c playwright.regression.config.ts --shard="$SHARD/4" --reporter=list,blob
       - name: Report (merged by `visual`)
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: visual-blob-${{ matrix.shard }}
           path: ui/blob-report/
@@ -813,7 +813,7 @@ jobs:
           if-no-files-found: ignore
       - name: Triptychs (baseline, current, diff)
         if: failure()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: visual-triptychs-${{ matrix.shard }}
           path: ui/test-results/
@@ -872,7 +872,7 @@ jobs:
         run: python3 scripts/visual_summary.py ui/test-results/visual-gate.json >> "$GITHUB_STEP_SUMMARY"
       - name: The whole report
         if: always() && env.RAN == 'true'
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: visual-report
           path: ui/playwright-report/
@@ -933,7 +933,7 @@ jobs:
         run: ./scripts/a11y_gate.sh --fully-parallel --shard="$SHARD/6"
       - name: Scans
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: a11y-shard-${{ matrix.shard }}
           path: docs/qa/evidence/AJ-E804/
@@ -1160,7 +1160,7 @@ jobs:
       - name: First open after an update brings the main window (rc8)
         run: ./scripts/qa/first_open_window_check.sh "$APP" "$RUNNER_TEMP/v49/juggler.sqlite"
       # Only a release candidate that passed its checks is there to walk.
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: rc-dev-app-${{ env.REF }}
           path: ${{ runner.temp }}/rc/
