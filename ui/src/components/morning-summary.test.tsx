@@ -61,7 +61,7 @@ describe("AJ-E1004 morning summary", () => {
     expect(names[2]).not.toBe(names[3]);
     // The name leads; its App follows.
     const first = container.querySelector<HTMLButtonElement>("[data-testid='summary-row']")!;
-    expect(first.textContent!.indexOf("Add retries")).toBeLessThan(first.textContent!.indexOf("Claude Code"));
+    expect(first.textContent.indexOf("Add retries")).toBeLessThan(first.textContent.indexOf("Claude Code"));
   });
 
   it("orders by severity, names leftovers, says tokens only when known, opens a row", async () => {
@@ -116,7 +116,7 @@ describe("AJ-E1004 morning summary", () => {
     };
     const { container } = render(<MorningSummary onOpenSession={() => undefined} />);
     await waitFor(() => expect(container.querySelectorAll("[data-testid='summary-row']").length).toBe(2));
-    const apps = [...container.querySelectorAll("[data-testid='summary-app']")].map((el) => el.textContent!.replace(/^· /, ""));
+    const apps = [...container.querySelectorAll("[data-testid='summary-app']")].map((el) => el.textContent.replace(/^· /, ""));
     expect(apps).toEqual(["Claude app · Work · Work Max", "Claude Code CLI · Work · work"]);
   });
 
