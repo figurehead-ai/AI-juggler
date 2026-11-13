@@ -183,7 +183,7 @@
   "jscpd:lines": 7
  },
  "crates/juggler-adapters/src/codex.rs": {
-  "jscpd:lines": 90
+  "jscpd:lines": 81
  },
  "crates/juggler-adapters/src/codex_appserver/asks.rs": {
   "jscpd:lines": 7
@@ -240,7 +240,7 @@
   "jscpd:lines": 20
  },
  "crates/juggler-adapters/src/grok_build.rs": {
-  "jscpd:lines": 292
+  "jscpd:lines": 282
  },
  "crates/juggler-adapters/src/grok_environment.rs": {
   "jscpd:lines": 17
@@ -258,7 +258,7 @@
   "jscpd:lines": 18
  },
  "crates/juggler-adapters/src/kimi_code.rs": {
-  "jscpd:lines": 187
+  "jscpd:lines": 168
  },
  "crates/juggler-adapters/src/kimi_environment.rs": {
   "jscpd:lines": 17
