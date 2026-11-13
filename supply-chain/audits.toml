@@ -11,6 +11,9 @@ with no transport, integration, session, log or metric code. Reviewed for
 safe-to-deploy: build.rs only defines cfg aliases (no network, no code
 generation); environment reads only in apply_defaults and init, which AI
 Juggler never calls; no process, socket or file access in the code built.
+Checked again by the coordinating session the same day against the source
+(no unsafe; std::env only in defaults.rs; crash_sentry.rs builds
+ClientOptions::new() with default_integrations off and never init).
 """
 
 [[audits.sentry-core]]
@@ -24,6 +27,9 @@ projection in futures.rs; the other (macros.rs) is inside release_name!,
 which AI Juggler doesn't use. Worker threads exist only behind
 release-health, logs and metrics, which are off. No file, socket, process
 or environment access.
+Checked again by the coordinating session the same day against the source
+(three unsafe mentions: the Pin projection, the release_name! static and a
+doc comment).
 """
 
 [[audits.sentry-types]]
