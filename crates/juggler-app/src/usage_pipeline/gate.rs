@@ -18,8 +18,13 @@
 //!   rollouts too: a late or lost event (ADR-0024: events are hints)
 //!   delays a change by that much at most;
 //! - the stores read by time (a tool's database, not a file tree) on their
-//!   own cadence, as before, while such an account exists;
+//!   own cadence, as before, while an account has one (the first store
+//!   pass after the accounts change finds out);
 //! - where the system's events can't be heard, every pass, as before.
+//!
+//! What it watches is every account's own folder and AI Juggler's spools,
+//! whatever the tool: which files in them a tool's usage is in is the
+//! pipeline's to say, not the gate's (ADR-0019).
 
 use std::collections::BTreeSet;
 use std::path::PathBuf;
@@ -34,9 +39,18 @@ use crate::state::AppState;
 /// Asked for a pass at the next second (an account's folder moved).
 static SOON: AtomicBool = AtomicBool::new(false);
 
+/// A tool's store read by time answered (some account has one).
+static STORE_SEEN: AtomicBool = AtomicBool::new(false);
+
 /// Runs a pass at the next second, whatever changed.
 pub(crate) fn soon() {
     SOON.store(true, Ordering::Release);
+}
+
+/// An account's tool keeps its usage in a store read by time: the stores'
+/// cadence goes on.
+pub(crate) fn saw_a_store() {
+    STORE_SEEN.store(true, Ordering::Release);
 }
 
 /// What one pass reads.
@@ -70,19 +84,15 @@ impl Due {
     }
 }
 
-/// The kinds of account there are (what a pass can have to read).
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-struct Kinds {
-    stores: bool,
-    zcode: bool,
-}
-
 /// Decides each second whether a pass runs, from the file events heard
 /// since the last one and the cadences above.
 pub(crate) struct Gate {
     wake: FolderWake,
     woke: Arc<AtomicBool>,
-    kinds: Kinds,
+    /// The folders watched for the accounts known at the last pass.
+    roots: BTreeSet<PathBuf>,
+    /// A store pass ran since the accounts last changed.
+    stores_probed: bool,
 }
 
 impl Gate {
@@ -94,27 +104,34 @@ impl Gate {
         Self {
             wake: FolderWake::trees(move |_| heard.store(true, Ordering::Release)),
             woke,
-            kinds: Kinds::default(),
+            roots: BTreeSet::new(),
+            stores_probed: false,
         }
     }
 
     /// What the pass at `tick` reads, or `None` when none is due.
-    pub fn due(&self, tick: u32) -> Option<Due> {
+    pub fn due(&mut self, tick: u32) -> Option<Due> {
         let every = Due::every(tick);
         if !self.wake.hears_the_system() {
             return Some(every);
         }
         let woke = self.woke.swap(false, Ordering::AcqRel) | SOON.swap(false, Ordering::AcqRel);
-        decide(
+        let stores = !self.stores_probed || STORE_SEEN.load(Ordering::Acquire);
+        let due = decide(
             tick,
             woke,
             crate::features::quota::records::will_be_due(tick),
-            self.kinds,
-        )
+            stores,
+        );
+        if due.is_some_and(|due| due.stores) {
+            self.stores_probed = true;
+        }
+        due
     }
 
-    /// Watches what the accounts' passes read, from now on (after each
-    /// pass: a new account's folders are watched within a cadence).
+    /// Watches every account's folder and AI Juggler's spools from now on
+    /// (after each pass: a new account is watched within a cadence, and
+    /// its store, if it has one, is looked for again).
     pub fn watch(&mut self, state: &Arc<AppState>) {
         let accounts = state
             .storage
@@ -122,46 +139,31 @@ impl Gate {
             .ok()
             .and_then(|storage| storage.accounts().list().ok())
             .unwrap_or_default();
-        let mut roots = BTreeSet::from([state.overlays_dir()]);
-        let mut kinds = Kinds::default();
-        for account in &accounts {
-            let dir = &account.state_dir;
-            if dir.as_os_str().is_empty() {
-                continue;
-            }
-            match account.harness.as_str() {
-                "claude-code" => {
-                    roots.insert(dir.join("projects"));
-                }
-                "codex" => {
-                    roots.insert(dir.join("sessions"));
-                }
-                "zcode" => kinds.zcode = true,
-                _ => kinds.stores = true,
-            }
+        let roots: BTreeSet<PathBuf> = std::iter::once(state.overlays_dir())
+            .chain(accounts.into_iter().map(|account| account.state_dir))
+            .filter(|root| !root.as_os_str().is_empty() && root.is_dir())
+            .collect();
+        if roots != self.roots {
+            self.stores_probed = false;
+            self.wake.watch(&roots);
+            self.roots = roots;
         }
-        // A folder that isn't there yet (an account with no transcript) is
-        // tried again after the next pass; its first files are read on the
-        // records' cadence until then.
-        let roots: BTreeSet<PathBuf> = roots.into_iter().filter(|root| root.is_dir()).collect();
-        self.wake.watch(&roots);
-        self.kinds = kinds;
     }
 }
 
 /// The gate's rule (pure): what the pass at `tick` reads, given whether
 /// a watched file changed since the last pass, whether Claude's records
-/// are due, and which kinds of account exist.
-fn decide(tick: u32, woke: bool, records: bool, kinds: Kinds) -> Option<Due> {
+/// are due, and whether a store read by time may exist.
+fn decide(tick: u32, woke: bool, records: bool, stores: bool) -> Option<Due> {
     let every = Due::every(tick);
     let files = woke || records;
     let due = Due {
         claude: files,
         codex: files,
-        stores: kinds.stores && every.stores,
-        zcode: kinds.zcode && every.zcode,
+        stores: stores && every.stores,
+        zcode: every.zcode,
     };
-    (due.claude || due.stores || due.zcode).then_some(due)
+    (files || due.stores).then_some(due)
 }
 
 #[cfg(test)]
@@ -171,45 +173,36 @@ mod tests {
     use super::*;
     use crate::features::quota::records::RECORDS_EVERY;
 
-    /// The idle rule: with nothing written and only Claude and Codex
-    /// accounts, a pass runs on the records' cadence only (it ran every
-    /// second, listing every transcript, AJ-E805).
+    /// The idle rule: with nothing written and no store read by time, a
+    /// pass runs on the records' cadence only (it ran every second,
+    /// listing every transcript, AJ-E805).
     #[test]
     fn a_quiet_mac_runs_a_pass_only_on_the_records_cadence() {
-        let quiet = Kinds::default();
         let passes: Vec<u32> = (2..=60)
             .filter(|tick| {
-                decide(*tick, false, tick.is_multiple_of(RECORDS_EVERY), quiet).is_some()
+                decide(*tick, false, tick.is_multiple_of(RECORDS_EVERY), false).is_some()
             })
             .collect();
         assert_eq!(passes, vec![15, 30, 45, 60]);
     }
 
-    /// A write under a watched tree is read at the next pass, Codex's
-    /// rollouts with Claude's transcripts.
+    /// A write under a watched folder is read at the next pass, every
+    /// tool's files with it.
     #[test]
     fn a_write_is_read_at_the_next_pass() {
-        let due = decide(7, true, false, Kinds::default()).unwrap();
+        let due = decide(7, true, false, false).unwrap();
         assert!(due.claude && due.codex);
         assert!(!due.stores && !due.zcode);
     }
 
-    /// A store read by time keeps its own cadence (its database isn't a
-    /// tree the events cover), without reading the transcripts with it.
+    /// A store read by time keeps its own cadence (a database isn't a tree
+    /// the events cover), without reading the files with it.
     #[test]
     fn a_store_keeps_its_cadence() {
-        let stores = Kinds {
-            stores: true,
-            zcode: false,
-        };
-        let due = decide(FILE_SCAN_EVERY, false, false, stores).unwrap();
+        let due = decide(FILE_SCAN_EVERY, false, false, true).unwrap();
         assert!(due.stores && !due.claude && !due.codex);
-        assert!(decide(FILE_SCAN_EVERY + 1, false, false, stores).is_none());
-        let zcode = Kinds {
-            stores: false,
-            zcode: true,
-        };
-        assert!(decide(ZCODE_EVERY, false, false, zcode).is_some_and(|due| due.zcode));
+        assert!(decide(FILE_SCAN_EVERY + 1, false, false, true).is_none());
+        assert!(decide(FILE_SCAN_EVERY, false, false, false).is_none());
     }
 
     /// Before the gate (and where events can't be heard): Claude every

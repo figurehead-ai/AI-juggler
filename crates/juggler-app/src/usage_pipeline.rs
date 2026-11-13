@@ -329,7 +329,6 @@ fn ingest_pass_due(state: &Arc<AppState>, tick: u32, due: gate::Due) {
             }
             // ADR-0019 §2: a tool whose usage sits in a store read by time
             // (a database) reads it through its adapter.
-            "claude-code" | "codex" | "zcode" => {}
             _ if rereading || due.stores => {
                 if let Some(adapter) = state.registry.get(&account.harness) {
                     ingest_store(adapter.as_ref(), account, &mut ingest, &mut store_batch);
@@ -860,6 +859,7 @@ fn ingest_store(
     let Some(read) = adapter.usage_since(account, since) else {
         return;
     };
+    gate::saw_a_store();
     match read {
         Ok(events) => {
             let latest = events.iter().map(|event| event.ts).max();
