@@ -147,7 +147,11 @@ fn inspect_walk(
         let name = entry.file_name();
         let name = name.to_string_lossy().into_owned();
         let top_level = dir == root;
-        if layout.skips(&name, top_level) || layout.kept_back(&name, top_level).is_some() {
+        let kept_back = entry
+            .path()
+            .strip_prefix(root)
+            .is_ok_and(|relative| layout.kept_back(relative).is_some());
+        if layout.skips(&name, top_level) || kept_back {
             continue;
         }
         // As the copy treats them: a linked file counts at its content's
@@ -527,7 +531,11 @@ fn estimate_bytes(layout: &Layout, dir: &Path) -> u64 {
             let name = entry.file_name();
             let name = name.to_string_lossy().into_owned();
             let top_level = depth == 0;
-            if layout.skips(&name, top_level) || layout.kept_back(&name, top_level).is_some() {
+            let kept_back = entry
+                .path()
+                .strip_prefix(dir)
+                .is_ok_and(|relative| layout.kept_back(relative).is_some());
+            if layout.skips(&name, top_level) || kept_back {
                 continue;
             }
             let Ok(meta) = entry.metadata() else { continue };
@@ -606,7 +614,7 @@ fn collect_files(
         };
         let top_level = relative.components().count() == 1;
         // Kept back first (Codex's `auth.json`): never copied, linked or not.
-        if let Some(why) = layout.kept_back(&name, top_level) {
+        if let Some(why) = layout.kept_back(&relative) {
             acc.skipped.push(format!("{} ({why})", relative.display()));
             continue;
         }
