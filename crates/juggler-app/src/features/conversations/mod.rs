@@ -182,6 +182,11 @@ fn store(
         .lock()
         .map_err(|_| AppError::StatePoisoned)?;
     let before = files.get(path);
+    note_placed(
+        &state.conversations,
+        before.and_then(|entry| entry.conversation.as_ref()),
+        conversation.as_ref(),
+    );
     let counted_at = if complete {
         Some(std::time::Instant::now())
     } else {
@@ -205,6 +210,26 @@ fn store(
         crate::features::relations::Change::ConversationsIndex,
     );
     Ok(())
+}
+
+/// AJ-E805 (round 3): what one read did to the folders ([`Placed`]): a
+/// conversation new to the index or in another folder changes them; one
+/// that only went on is touched.
+fn note_placed(index: &ConversationIndex, was: Option<&Conversation>, now: Option<&Conversation>) {
+    let (Some(was), Some(now)) = (was, now) else {
+        if was.is_some() || now.is_some() {
+            index.placed_changed();
+        }
+        return;
+    };
+    if was.folder != now.folder || was.summary.id != now.summary.id {
+        index.placed_changed();
+    } else if let (Some(folder), Some(at)) = (&now.folder, now.summary.last_ms)
+        && was.summary.last_ms.is_none_or(|before| at > before)
+        && let Ok(mut placed) = index.placed.lock()
+    {
+        placed.touched.push((folder.clone(), at));
+    }
 }
 
 /// A quick read (a changed file's start and end) counts no tokens: until
@@ -262,6 +287,20 @@ pub struct ConversationIndex {
     build: list_build::Progress,
     /// AJ-E805: which files the background pass reads (made at its first).
     gate: Mutex<Option<gate::Gate>>,
+    /// AJ-E805 (round 3): what the reads since the projects were last
+    /// brought up to date did to the conversations' folders.
+    placed: Mutex<Placed>,
+}
+
+/// What reads did to the index's folders since [`ConversationIndex::take_placed`].
+#[derive(Debug, Default, PartialEq, Eq)]
+pub struct Placed {
+    /// A conversation came, went, or changed folder: the projects are
+    /// worked out again (`projects_backfill_impl`).
+    pub changed: bool,
+    /// Known conversations that only went on (lines appended): each one's
+    /// folder and its newest activity, for its project's last use.
+    pub touched: Vec<(PathBuf, i64)>,
 }
 
 impl ConversationIndex {
@@ -271,6 +310,22 @@ impl ConversationIndex {
     pub fn forget_under(&self, folder: &std::path::Path) {
         if let Ok(mut files) = self.files.lock() {
             files.retain(|path, _| !path.starts_with(folder));
+        }
+    }
+
+    /// What reads did to the folders since the last call ([`Placed`]),
+    /// and nothing since.
+    pub fn take_placed(&self) -> Placed {
+        self.placed
+            .lock()
+            .map(|mut placed| std::mem::take(&mut *placed))
+            .unwrap_or_default()
+    }
+
+    /// A conversation came, went or moved folder (see [`Placed`]).
+    fn placed_changed(&self) {
+        if let Ok(mut placed) = self.placed.lock() {
+            placed.changed = true;
         }
     }
 
@@ -689,9 +744,17 @@ pub fn tick_with(
             }
         }
     };
+    // New folders become projects without the UI asking; lines appended
+    // to known conversations move only their projects' last use (AJ-E805:
+    // the whole backfill, a copy and a placing of every conversation and a
+    // write of every project, ran on every pass while sessions worked).
     if files_changed {
-        // New folders become projects without the UI asking.
-        crate::features::projects::backfill::projects_backfill_impl(state)?;
+        let placed = state.conversations.take_placed();
+        if placed.changed {
+            crate::features::projects::backfill::projects_backfill_impl(state)?;
+        } else if !placed.touched.is_empty() {
+            crate::features::projects::backfill::touch_last_used(state, &placed.touched)?;
+        }
     }
     let live_changed = update_live(state)?;
     Ok(files_changed || live_changed)

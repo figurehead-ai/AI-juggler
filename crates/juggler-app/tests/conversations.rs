@@ -100,6 +100,85 @@ fn conversations_outside_ai_juggler_are_listed_resumable_and_continued_safely() 
     assert!(conversations::continue_impl(&state, &account_id, "nope").is_err());
 }
 
+/// AJ-E805 (round 3): a pass that only read lines appended to known
+/// conversations moves their projects' last use and nothing more: it ran
+/// the whole projects backfill (every conversation on the Mac placed,
+/// every project written) after every pass while sessions worked. A new
+/// conversation still brings the backfill, and with it a new folder's
+/// project.
+#[test]
+fn appended_lines_move_a_projects_last_use_and_only_new_conversations_backfill() {
+    const C_1: &str = "1c1c1c1c-0000-4000-8000-0000000000a1";
+    const C_2: &str = "1c1c1c1c-0000-4000-8000-0000000000a2";
+    let work = tempfile::tempdir().unwrap();
+    let root = work.path().canonicalize().unwrap();
+    let app = root.join("Dev/app");
+    let other = root.join("Dev/other");
+    for repo in [&app, &other] {
+        std::fs::create_dir_all(repo.join(".git")).unwrap();
+    }
+    let config = root.join("setup");
+    transcript(&config, &app, C_1, "Fix the login test");
+    let mut registry = AdapterRegistry::new();
+    registry.register(Arc::new(ClaudeCodeAdapter::with_bin("/bin/true")));
+    let state = Arc::new(AppState::init_with_registry(root.join("app-data"), registry).unwrap());
+    import_in_place(&state, &config, "Work");
+    let project = |name: &str| {
+        juggler_app::features::projects::list::projects_list_impl(&state)
+            .unwrap()
+            .into_iter()
+            .find(|p| p.name == name)
+    };
+    conversations::tick(&state).unwrap();
+    let first = project("app").expect("a new conversation's folder is a project");
+    // The project goes (as the user's Forget would leave it): only the
+    // backfill makes it again.
+    {
+        let storage = state.storage.lock().unwrap();
+        let id = juggler_core::model::ProjectId::new(first.id.clone());
+        assert!(storage.projects().delete_if_unused(&id).unwrap());
+    }
+    // A line appended an hour later.
+    let file = config
+        .join("projects")
+        .join(app.to_string_lossy().replace(['/', '.'], "-"))
+        .join(format!("{C_1}.jsonl"));
+    let mut text = std::fs::read_to_string(&file).unwrap();
+    text.push_str(&format!(
+        "{{\"type\":\"assistant\",\"sessionId\":\"{C_1}\",\"cwd\":\"{}\",\"timestamp\":\"2026-10-21T11:00:00.000Z\",\"message\":{{\"role\":\"assistant\",\"content\":\"Done.\"}}}}\n",
+        app.display()
+    ));
+    std::fs::write(&file, text).unwrap();
+    assert!(
+        conversations::tick(&state).unwrap(),
+        "the pass read the line"
+    );
+    assert!(
+        project("app").is_none(),
+        "lines appended to a known conversation run no backfill"
+    );
+    // A new conversation, in a new folder: the backfill runs.
+    transcript(&config, &other, C_2, "Tidy imports");
+    conversations::tick(&state).unwrap();
+    assert!(project("other").is_some(), "a new folder becomes a project");
+    let again = project("app").expect("the backfill placed every conversation");
+    // A later line moves the project's last use, without a backfill.
+    let mut text = std::fs::read_to_string(&file).unwrap();
+    text.push_str(&format!(
+        "{{\"type\":\"user\",\"sessionId\":\"{C_1}\",\"cwd\":\"{}\",\"timestamp\":\"2026-10-21T12:00:00.000Z\",\"message\":{{\"role\":\"user\",\"content\":\"And the logout.\"}}}}\n",
+        app.display()
+    ));
+    std::fs::write(&file, text).unwrap();
+    conversations::tick(&state).unwrap();
+    let moved = project("app").unwrap();
+    assert!(
+        moved.history_last_used_ms > again.history_last_used_ms,
+        "{:?} after {:?}",
+        moved.history_last_used_ms,
+        again.history_last_used_ms
+    );
+}
+
 /// QA batch 8: a first pass over a heavy setup took minutes, and nothing
 /// read as running until it ended. The newest files are read first, and
 /// a long pass reports as it goes (here after every file).

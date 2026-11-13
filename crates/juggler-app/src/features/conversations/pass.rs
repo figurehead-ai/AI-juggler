@@ -284,6 +284,7 @@ fn forget_unseen(
     let forgot = files.len() != before;
     drop(files);
     if forgot {
+        state.conversations.placed_changed();
         crate::features::relations::changed(
             state,
             crate::features::relations::Change::ConversationsIndex,

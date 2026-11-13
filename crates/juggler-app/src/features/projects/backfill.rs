@@ -117,6 +117,44 @@ pub fn projects_backfill_with(
     Ok(enriched)
 }
 
+/// AJ-E805 (round 3): known conversations that only went on (`touched`:
+/// each one's folder and newest activity) move their projects' last use,
+/// and nothing else: the backfill above places every conversation on the
+/// Mac and writes every project, and ran after every pass that read an
+/// appended line (31 busy samples in 20 s on a grown lab with 10 sessions
+/// at work). A folder with no project yet is left to the backfill.
+///
+/// # Errors
+///
+/// Storage errors.
+pub fn touch_last_used(state: &Arc<AppState>, touched: &[(PathBuf, i64)]) -> AppResult<()> {
+    use std::collections::BTreeMap;
+
+    let homes = lock_storage_arc(state)?.projects().worktree_homes()?;
+    // Placed outside the storage lock: it reads the folders.
+    let mut latest: BTreeMap<PathBuf, i64> = BTreeMap::new();
+    for (folder, at) in touched {
+        let root = juggler_core::storage::project_root_with(folder, &homes);
+        let newest = latest.entry(root).or_insert(*at);
+        *newest = (*newest).max(*at);
+    }
+    let storage = lock_storage_arc(state)?;
+    for (root, at) in latest {
+        let Some(project) = storage.projects().by_root(&root)? else {
+            continue;
+        };
+        if project.history.last_used_ms.is_some_and(|was| was >= at) {
+            continue;
+        }
+        let history = juggler_core::model::ProjectHistory {
+            last_used_ms: Some(at),
+            ..project.history
+        };
+        storage.projects().merge_history(&project.id, &history)?;
+    }
+    Ok(())
+}
+
 /// The `origin` remote of the repository at `root`, normalised to
 /// `host/owner/name` (scheme, user, port and `.git` dropped; lowercased),
 /// so clones of one repository group together. Reads only `.git/config`
