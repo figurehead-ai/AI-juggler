@@ -136,6 +136,12 @@ pub fn tray_clicked<R: tauri::Runtime>(app: &tauri::AppHandle<R>, id: &str) {
         app.emit_event(AppEvent::FloorOpenRequest, ());
         return;
     }
+    // D-112: Quit asks as ⌘Q does (D-111's rules; it brings the window
+    // forward itself when it asks).
+    if click == TrayClick::Quit {
+        let _ = crate::quit::request(app);
+        return;
+    }
     // D-112: the menu-bar item is a way back to a window a close hid.
     crate::main_window::bring_forward(app);
     match click {
@@ -148,7 +154,7 @@ pub fn tray_clicked<R: tauri::Runtime>(app: &tauri::AppHandle<R>, id: &str) {
         TrayClick::Notice(id) => {
             app.emit_event(AppEvent::NotificationsOpen, Some(id));
         }
-        TrayClick::Open | TrayClick::Floor => {}
+        TrayClick::Open | TrayClick::Floor | TrayClick::Quit => {}
     }
 }
 

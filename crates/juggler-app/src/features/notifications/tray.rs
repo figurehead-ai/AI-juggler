@@ -1,7 +1,9 @@
 //! AJ-E2501 (§4.17) — the menu-bar item: the same count as the bell and
 //! the badge beside its icon, and a menu of what needs the user and what
-//! is open now, with Open AI Juggler and New session…. A line opens its
-//! notice in AI Juggler; nothing here acts on a session by itself.
+//! is open now, with Open AI Juggler and New session…, and Quit last
+//! (D-112: closing the window keeps AI Juggler running here; Quit asks
+//! as ⌘Q does). A line opens its notice in AI Juggler; nothing here acts
+//! on a session by itself.
 //!
 //! [`build`] is plain data (tested); [`apply`] draws it with Tauri's
 //! tray API, the same on every desktop system (Windows and Linux show the
@@ -22,6 +24,8 @@ pub const NEW_SESSION_ID: &str = "tray:new-session";
 pub const CENTRE_ID: &str = "tray:centre";
 /// A notice's line: `tray:notice:<id>`.
 pub const NOTICE_PREFIX: &str = "tray:notice:";
+/// Quit, the menu's last line (D-112).
+pub const QUIT_ID: &str = "tray:quit";
 
 /// One line of the menu.
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
@@ -146,6 +150,11 @@ pub fn build(count: u32, needs: &[NoticeInfo], open: &OpenNowInput, now: i64) ->
         id: crate::features::floor::window::MENU_ID.to_owned(),
         text: "The Floor".to_owned(),
     });
+    lines.push(TrayLine::Separator);
+    lines.push(TrayLine::Item {
+        id: QUIT_ID.to_owned(),
+        text: crate::quit::quit_words(),
+    });
     TrayMenu {
         title: (count > 0).then(|| count.to_string()),
         tooltip: match count {
@@ -170,6 +179,8 @@ pub enum TrayClick {
     Notice(i64),
     /// Open the Floor (ADR-0026).
     Floor,
+    /// Quit, asking first while sessions are live, as ⌘Q does (D-112).
+    Quit,
 }
 
 /// The click a menu id stands for.
@@ -180,6 +191,7 @@ pub fn click_of(id: &str) -> Option<TrayClick> {
         NEW_SESSION_ID => Some(TrayClick::NewSession),
         CENTRE_ID => Some(TrayClick::Centre),
         crate::features::floor::window::MENU_ID => Some(TrayClick::Floor),
+        QUIT_ID => Some(TrayClick::Quit),
         _ => id
             .strip_prefix(NOTICE_PREFIX)
             .and_then(|id| id.parse().ok())
@@ -339,6 +351,8 @@ mod tests {
                 "[tray:open] Open AI Juggler",
                 "[tray:new-session] New session…",
                 "[floor:open] The Floor",
+                "---",
+                "[tray:quit] Quit AI Juggler",
             ]
         );
     }
@@ -409,6 +423,7 @@ mod tests {
             }
         }
         assert_eq!(click_of("tray:notice:42"), Some(TrayClick::Notice(42)));
+        assert_eq!(click_of(QUIT_ID), Some(TrayClick::Quit));
         assert_eq!(click_of("tray:line:0"), None);
         assert_eq!(click_of("tray:notice:x"), None);
     }
