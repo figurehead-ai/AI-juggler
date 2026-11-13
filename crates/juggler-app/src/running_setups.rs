@@ -310,6 +310,47 @@ pub fn uses_folder(tool: &RunningTool, path: &str, home: &Path) -> bool {
     tool.config_dir.as_deref() == Some(normalized(path, home).as_path())
 }
 
+/// Each Account's label with its folders (its own and the one it was
+/// brought in from) as the running tools name theirs, each normalised once
+/// by `normalize` ([`normalized`] in the app). AJ-E805: This Mac's 5 s
+/// reading normalised every Account's folders again for each running tool,
+/// and `canonicalize` walks every component of a path: about 240 walks a
+/// reading with ten sessions open, the largest part of its CPU.
+#[must_use]
+pub fn account_folders(
+    accounts: &[juggler_core::model::Account],
+    normalize: impl Fn(&str) -> PathBuf,
+) -> Vec<(String, Vec<PathBuf>)> {
+    accounts
+        .iter()
+        .map(|account| {
+            let folders = std::iter::once(account.state_dir.to_string_lossy().into_owned())
+                .chain(account.import_source_path.clone())
+                .map(|path| normalize(&path))
+                .collect();
+            (account.label.clone(), folders)
+        })
+        .collect()
+}
+
+/// The label of the first Account (of [`account_folders`]) whose folders
+/// hold the one `tool` uses.
+#[must_use]
+pub fn account_of(tool: &RunningTool, folders: &[(String, Vec<PathBuf>)]) -> Option<String> {
+    let dir = tool.config_dir.as_deref()?;
+    folders
+        .iter()
+        .find(|(_, held)| held.iter().any(|folder| folder == dir))
+        .map(|(label, _)| label.clone())
+}
+
+/// `path` normalised as the running tools' folders are, for
+/// [`account_folders`].
+#[must_use]
+pub fn normalized_folder(path: &str, home: &Path) -> PathBuf {
+    normalized(path, home)
+}
+
 /// Sets each process's folder from the session files that name its pid
 /// (`pid_dirs`, already matched by start time), and a desktop app's from
 /// the first session it runs that has one.
@@ -610,6 +651,77 @@ mod tool_roots {
         assert!(
             !uses_folder(&roots[0], "~/.claude", home),
             "a desktop window with no session names no folder"
+        );
+    }
+
+    /// AJ-E805: an Account's folders are normalised once a reading, not
+    /// once for each running tool (`canonicalize` walks the path); the
+    /// first Account holding a tool's folder names it, by its own folder or
+    /// the one it was brought in from.
+    #[test]
+    fn each_accounts_folders_are_normalised_once_whatever_runs() {
+        let home = Path::new("/Users/you");
+        let account = |label: &str, dir: &str, from: Option<&str>| juggler_core::model::Account {
+            id: juggler_core::model::AccountId::new(label),
+            harness: juggler_core::model::HarnessId::new("claude-code"),
+            label: label.to_owned(),
+            plan: None,
+            state_dir: PathBuf::from(dir),
+            cleanup_opt_in: false,
+            renewal_date: None,
+            preview_opt_in: false,
+            import_source_path: from.map(str::to_owned),
+            import_origin: None,
+            imported_at: None,
+            in_place: false,
+        };
+        let accounts: Vec<_> = (0..12)
+            .map(|n| {
+                account(
+                    &format!("A{n}"),
+                    &format!("/data/a{n}"),
+                    (n == 7).then_some("~/.claude-work/"),
+                )
+            })
+            .collect();
+        let calls = std::cell::Cell::new(0_u32);
+        let folders = account_folders(&accounts, |path| {
+            calls.set(calls.get() + 1);
+            PathBuf::from(path.replace('~', "/Users/you").trim_end_matches('/'))
+        });
+        let mut processes: Vec<ProcFacts> = (0..10)
+            .map(|n| {
+                proc(
+                    100 + n,
+                    1,
+                    "claude",
+                    "/Users/you/.local/bin/claude",
+                    Some(&format!("/data/a{n}")),
+                )
+            })
+            .collect();
+        processes.push(proc(
+            200,
+            1,
+            "claude",
+            "/Users/you/.local/bin/claude",
+            Some("/Users/you/.claude-work"),
+        ));
+        let running = tools(&processes, &shapes(), home);
+        let named: Vec<Option<String>> = running
+            .iter()
+            .map(|tool| account_of(tool, &folders))
+            .collect();
+        assert_eq!(
+            calls.get(),
+            13,
+            "12 Accounts' folders and one brought in from, once each"
+        );
+        assert_eq!(named.len(), 11);
+        assert_eq!(named[0].as_deref(), Some("A0"));
+        assert!(
+            named.contains(&Some("A7".to_owned())),
+            "by the folder it came from: {named:?}"
         );
     }
 }

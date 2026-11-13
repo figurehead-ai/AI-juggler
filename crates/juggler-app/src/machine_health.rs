@@ -1150,25 +1150,6 @@ pub fn assemble(
     }
 }
 
-/// The Account whose folder a running tool uses (its managed folder or
-/// the folder it was brought in from).
-fn account_for(
-    tool: &RunningTool,
-    accounts: &[juggler_core::model::Account],
-    home: &std::path::Path,
-) -> Option<String> {
-    accounts
-        .iter()
-        .find(|account| {
-            crate::running_setups::uses_folder(tool, &account.state_dir.to_string_lossy(), home)
-                || account
-                    .import_source_path
-                    .as_deref()
-                    .is_some_and(|source| crate::running_setups::uses_folder(tool, source, home))
-        })
-        .map(|account| account.label.clone())
-}
-
 /// Every tree This Mac shows: our live sessions' and the observed tools'.
 fn tree_inputs(
     state: &Arc<AppState>,
@@ -1189,6 +1170,14 @@ fn tree_inputs(
         .map(|(session, ctx)| (session.as_str().to_string(), ctx))
         .collect();
     let home = juggler_platform::user::home().unwrap_or_default();
+    // Each Account's folders normalised once, only when a tool runs.
+    let folders = if tools.is_empty() {
+        Vec::new()
+    } else {
+        crate::running_setups::account_folders(accounts, |path| {
+            crate::running_setups::normalized_folder(path, &home)
+        })
+    };
     let roots: std::collections::HashMap<String, u32> = state
         .supervisor
         .live_roots()
@@ -1238,7 +1227,7 @@ fn tree_inputs(
                     who: tool.who.clone(),
                 }),
                 tool: Some(tool.tool.clone()),
-                account_label: account_for(tool, accounts, &home),
+                account_label: crate::running_setups::account_of(tool, &folders),
                 stats: tree.stats,
                 ring: tree.ring.iter().copied().collect(),
                 hog_rules: Vec::new(),
