@@ -193,6 +193,20 @@ describe("AJ-E2109 the Accounts screen", () => {
     expect(screen.queryByTestId("account-profiles-count")).toBeNull();
   });
 
+  it("D-103.4: where its tool has no check, How it's measured › opens the card's own fold, never Measure", async () => {
+    vi.spyOn(bridgeAccounts, "accountsList").mockResolvedValue([profile("w1", "Work")]);
+    vi.spyOn(subs, "subscriptionsList").mockResolvedValue([account("work", ["w1"])]);
+    vi.spyOn(probe, "probeStatus").mockResolvedValue({ offered: false, state: "off", last_run_ms: null, last_outcome: null });
+    render(<ProfilesScreen openTerminal={() => {}} onAddAccounts={() => {}} onInspectAccount={() => {}} />);
+    await waitFor(() => expect(screen.getByTestId("account-unmeasured").textContent).toBe("Not measured yet ▸·How it's measured › — Claude Max"));
+    expect(screen.queryByTestId("measure-limits-run")).toBeNull();
+    fireEvent.click(screen.getByTestId("measure-limits-how-open"));
+    // The one fold, opened from either: the words once.
+    expect(screen.getByTestId("account-unmeasured-why").textContent).toContain("No current reading.");
+    expect(screen.getByTestId("account-unmeasured-fold").getAttribute("aria-expanded")).toBe("true");
+    expect(screen.queryByTestId("measure-limits-how-words")).toBeNull();
+  });
+
   it("Measure its limits on an Account's card measures here, opening nothing (0.4.4)", async () => {
     vi.spyOn(bridgeAccounts, "accountsList").mockResolvedValue([profile("w1", "Work")]);
     vi.spyOn(subs, "subscriptionsList").mockResolvedValue([account("work", ["w1"], { account_id: "acct:work" })]);

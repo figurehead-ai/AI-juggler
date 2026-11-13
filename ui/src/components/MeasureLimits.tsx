@@ -8,9 +8,12 @@
  *   again, so the reading shows where the button was; a failure says why;
  * - turned off for it: says so, with the way to turn it on (its App's
  *   settings, where it was turned off);
- * - a tool with no such check: no button, and how its limits will come.
+ * - D-103.4: a tool with no such check never offers "Measure its limits":
+ *   the line reads "How it's measured ›", which opens where its limits
+ *   come from (the words the Accounts card folds, `unmeasuredWords`), in
+ *   place or in the caller's own fold (`how`).
  */
-import { useEffect, useRef, useState, type JSX } from "react";
+import { useEffect, useId, useRef, useState, type JSX } from "react";
 import { Button } from "./primitives";
 import { rememberTab } from "../pages/registry";
 import { openApp } from "../lib/apps";
@@ -19,6 +22,25 @@ import { errorText } from "../lib/bridge";
 import { probeRun, probeStatus, type ProbeStatusInfo } from "../lib/ipc/probe";
 import { quotaDisplays } from "../lib/kept-reads";
 import { providerDisplayName } from "../lib/providers";
+import { toolSpec } from "../lib/tools";
+
+/** Why an account has no reading now, and where one comes from: its
+ * tool's own records (the desktop app's meter while it runs, a limit hit),
+ * never a dead end (the maintainer's third report). */
+export function unmeasuredWords(tool: string): string {
+  const spec = toolSpec(tool);
+  // Only a tool whose app keeps a meter AI Juggler reads says so (the
+  // Codex app's limits come in Codex's own records).
+  const app = spec.desktop_app && spec.supports.app_meter ? `the ${spec.desktop_app} app's meter while it's open on this account` : null;
+  const name = providerDisplayName(tool);
+  return app
+    ? `No current reading. Limits come from ${app}, and from ${name} when it hits a limit.`
+    : `No current reading. Limits come from ${name}'s own records when it reports them.`;
+}
+
+/** A caller that shows where limits come from itself (the Accounts
+ * card's fold, a Next steps row): whether it's open, and the toggle. */
+type HowShown = { open: boolean; onToggle: () => void };
 
 /** How an ask ended, in words (`ProbeStatusInfo.last_outcome`). */
 export function probeOutcome(outcome: string | null, tool: string): string {
@@ -67,6 +89,7 @@ export function MeasureLimits({
   look = "link",
   onMeasured,
   readAgainMs = READ_AGAIN_MS,
+  how,
 }: {
   /** The account's folders (one on an App's or folder's page). */
   folders: readonly string[];
@@ -79,6 +102,8 @@ export function MeasureLimits({
   /** After each read again: a page reading its own limits reads them too. */
   onMeasured?: () => void;
   readAgainMs?: readonly number[];
+  /** With no check: the caller shows the words, this only toggles them. */
+  how?: HowShown;
 }): JSX.Element | null {
   const [door, setDoor] = useState<Door | null | undefined>(undefined);
   const [measuring, setMeasuring] = useState(false);
@@ -96,13 +121,7 @@ export function MeasureLimits({
   }, [key]);
   const toolName = providerDisplayName(tool);
   if (door === undefined) return null;
-  if (door === null) {
-    return (
-      <span className="text-label text-muted" data-testid="measure-limits-how">
-        They show once a session on it reports them.
-      </span>
-    );
-  }
+  if (door === null) return <HowMeasured tool={tool} name={name} look={look} how={how} />;
   if (door.status.state !== "on") {
     return (
       <span className="text-label text-muted" data-testid="measure-limits-off">
@@ -156,6 +175,34 @@ export function MeasureLimits({
         <output className={`text-label ${said.problem ? "text-warning" : "text-muted"}`} data-testid="measure-limits-said">
           {said.words}
         </output>
+      )}
+    </span>
+  );
+}
+
+/** D-103.4: no check for this tool, so nothing to measure here: "How it's
+ * measured ›" opens where its limits come from. */
+function HowMeasured({ tool, name, look, how }: { tool: string; name: string; look: "button" | "link"; how?: HowShown }): JSX.Element {
+  const [mine, setMine] = useState(false);
+  const id = useId();
+  const open = how ? how.open : mine;
+  const toggle = how ? how.onToggle : () => setMine(!mine);
+  const label = "How it's measured";
+  return (
+    <span className="inline-flex flex-wrap items-baseline gap-x-2 gap-y-1" data-testid="measure-limits-how">
+      {look === "button" ? (
+        <Button size="sm" variant="secondary" aria-expanded={open} aria-controls={how ? undefined : id} aria-label={`${label} — ${name}`} onClick={toggle} data-testid="measure-limits-how-open">
+          {label}
+        </Button>
+      ) : (
+        <button type="button" aria-expanded={open} aria-controls={how ? undefined : id} onClick={toggle} className={`text-label ${LINK}`} data-testid="measure-limits-how-open">
+          {label} ›<span className="sr-only"> — {name}</span>
+        </button>
+      )}
+      {!how && open && (
+        <span id={id} className="basis-full text-label text-muted" data-testid="measure-limits-how-words">
+          {unmeasuredWords(tool)}
+        </span>
       )}
     </span>
   );

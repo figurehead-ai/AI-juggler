@@ -65,6 +65,19 @@ describe("D-97 Home's Next steps", () => {
     await waitFor(() => expect(within(next).getAllByRole("button", { name: /^Measure its limits — / })).toHaveLength(2));
   });
 
+  it("D-103.4: an Account whose tool has no check offers How it's measured, opening where its limits come from under the row", async () => {
+    rememberFound({ ...SCAN, not_set_up: [] });
+    // No ask offered for either folder: nothing to measure here.
+    setSeam("__AIJ_PROBE__", {});
+    const view = renderHome();
+    const next = await view.findByTestId("home-next");
+    await waitFor(() => expect(within(next).getAllByRole("button", { name: /^How it's measured — / })).toHaveLength(2));
+    expect(within(next).queryAllByRole("button", { name: /^Measure its limits/ })).toHaveLength(0);
+    const row = within(next).getAllByTestId("home-next-measure")[0]!;
+    fireEvent.click(within(row).getByRole("button", { name: /^How it's measured — / }));
+    expect(within(row).getByTestId("measure-limits-how-words").textContent).toMatch(/^No current reading\. Limits come from /);
+  });
+
   it("leaves a measured Account out, and goes once a session has run", async () => {
     setSeam("__AIJ_QUOTA_DISPLAY__", ["work", "personal"].map((id) => ({ account: id, five_hour: { percentage: 30, state: "measured", resets_at_ms: null }, weekly: { percentage: 20, state: "measured", resets_at_ms: null } })));
     rememberFound({ ...SCAN, not_set_up: [] });

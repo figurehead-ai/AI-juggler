@@ -2,8 +2,8 @@
  * 0.4.4 (main's finding): "Measure its limits" only opened a page. It now
  * measures where it is, through D-39's ask (the tool's own usage check):
  * on, it asks and reads the limits again; turned off, it says so with the
- * way to turn it on; a tool with no such check gets no button, and says
- * how its limits will come.
+ * way to turn it on; a tool with no such check never offers to measure:
+ * "How it's measured ›" opens where its limits come from (D-103.4).
  */
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -86,10 +86,31 @@ describe("Measure its limits", () => {
     expect(run).not.toHaveBeenCalled();
   });
 
-  it("a tool with no such check: no button, and how its limits will come", async () => {
+  it("D-103.4: a tool with no such check never says Measure: How it's measured › opens where its limits come from", async () => {
     statuses({});
+    const run = vi.spyOn(probe, "probeRun");
     render(<MeasureLimits folders={["codex-work"]} tool="codex" name="Work" />);
-    expect((await screen.findByTestId("measure-limits-how")).textContent).toBe("They show once a session on it reports them.");
-    expect(screen.queryByRole("button")).toBeNull();
+    const how = await screen.findByTestId("measure-limits-how-open");
+    expect(how.textContent).toBe("How it's measured › — Work");
+    expect(screen.queryByText(/Measure its limits/)).toBeNull();
+    expect(how.getAttribute("aria-expanded")).toBe("false");
+    fireEvent.click(how);
+    expect(how.getAttribute("aria-expanded")).toBe("true");
+    expect(screen.getByTestId("measure-limits-how-words").textContent).toBe("No current reading. Limits come from Codex's own records when it reports them.");
+    fireEvent.click(how);
+    expect(screen.queryByTestId("measure-limits-how-words")).toBeNull();
+    expect(run).not.toHaveBeenCalled();
+  });
+
+  it("as Home's Next steps' button, and in a caller's own fold (how): it only toggles it", async () => {
+    statuses({});
+    const toggle = vi.fn();
+    render(<MeasureLimits look="button" folders={["codex-work"]} tool="codex" name="Work" how={{ open: true, onToggle: toggle }} />);
+    const how = await screen.findByRole("button", { name: "How it's measured — Work" });
+    expect(how.getAttribute("aria-expanded")).toBe("true");
+    // The caller shows the words.
+    expect(screen.queryByTestId("measure-limits-how-words")).toBeNull();
+    fireEvent.click(how);
+    expect(toggle).toHaveBeenCalledOnce();
   });
 });

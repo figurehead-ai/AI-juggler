@@ -64,12 +64,16 @@ it("turned off for it, says so with the way to turn it on", async () => {
   expect((await screen.findByTestId("measure-limits-off")).textContent).toContain("is off here · Turn on ›");
 });
 
-it("where the tool has no such check, says how they come instead", async () => {
+it("where the tool has no such check (D-103.4): How it's measured ›, opening where they come from", async () => {
   vi.spyOn(quota, "quotaDisplay").mockResolvedValue(unread());
   probeIs(false, "off");
   render(<AccountLimits account={folder} now={NOW} measure />);
-  expect((await screen.findByTestId("measure-limits-how")).textContent).toBe("They show once a session on it reports them.");
+  const how = await screen.findByTestId("measure-limits-how-open");
+  expect(how.textContent).toBe(`How it's measured › — ${folder.label}`);
   expect(screen.queryByTestId("measure-limits-run")).toBeNull();
+  expect(screen.getByTestId("account-limits-measure").textContent).not.toContain("Measure its limits");
+  fireEvent.click(how);
+  expect(screen.getByTestId("measure-limits-how-words").textContent).toMatch(/^No current reading\. Limits come from /);
 });
 
 it("without a door (the App page's own limits) shows none", async () => {

@@ -8,17 +8,18 @@
  *   installed: sign in to add it"), opening Add an app for that tool —
  *   its found step, or a fresh App and its sign-in (lib/found-tools);
  * - each signed-in Account whose limits aren't measured, with "Measure
- *   its limits", which opens the Account, where they're measured (the
- *   Runway card's own door).
+ *   its limits", measuring in place (`MeasureLimits`); where its tool
+ *   has no check, "How it's measured", opening where its limits come
+ *   from under the row (D-103.4).
  *
  * Rows as Home's other lists draw them (the Parked card's); the card
  * goes once a session has run or nothing is left on it.
  */
-import { useMemo, type JSX } from "react";
+import { useMemo, useState, type JSX } from "react";
 import { AccountAvatar } from "./Avatar";
 import { Button } from "./primitives";
 import { SectionTitle } from "./SectionTitle";
-import { MeasureLimits } from "./MeasureLimits";
+import { MeasureLimits, unmeasuredWords } from "./MeasureLimits";
 import { ToolMark } from "./ToolMark";
 import { accountGroups, groupRunway } from "./HomeRunway";
 import { signedIn } from "../lib/bridge";
@@ -77,22 +78,33 @@ export function HomeNext({
             </Button>
           </li>
         ))}
-        {unmeasured.map((group) => {
-          const first = group.profiles[0]!;
-          return (
-            <li key={`measure-${group.key}`} className={ROW} data-testid="home-next-measure">
-              <AccountAvatar tone={group.subscription?.state === "signed_in" ? "colour" : "neutral"} account={group.subscription ?? { folder: first.id }} label={group.name} size={16} />
-              <span className="min-w-0 flex-1 basis-48 text-body text-ink">
-                {group.name}: <span className="text-ink-2">its limits aren't measured yet</span>
-              </span>
-              {/* 0.4.4: it measures here (the tool's own check), not a page. */}
-              <span className="ml-auto">
-                <MeasureLimits look="button" folders={group.profiles.map((profile) => profile.id)} tool={first.provider} name={group.name} />
-              </span>
-            </li>
-          );
-        })}
+        {unmeasured.map((group) => (
+          <MeasureRow key={`measure-${group.key}`} group={group} />
+        ))}
       </ul>
     </section>
+  );
+}
+
+/** An Account whose limits aren't measured: measured here (the tool's own
+ * check, 0.4.4), or, with none, where they come from, under the row. */
+function MeasureRow({ group }: { group: ReturnType<typeof accountGroups>[number] }): JSX.Element {
+  const [how, setHow] = useState(false);
+  const first = group.profiles[0]!;
+  return (
+    <li className={ROW} data-testid="home-next-measure">
+      <AccountAvatar tone={group.subscription?.state === "signed_in" ? "colour" : "neutral"} account={group.subscription ?? { folder: first.id }} label={group.name} size={16} />
+      <span className="min-w-0 flex-1 basis-48 text-body text-ink">
+        {group.name}: <span className="text-ink-2">its limits aren't measured yet</span>
+      </span>
+      <span className="ml-auto">
+        <MeasureLimits look="button" folders={group.profiles.map((profile) => profile.id)} tool={first.provider} name={group.name} how={{ open: how, onToggle: () => setHow(!how) }} />
+      </span>
+      {how && (
+        <span className="basis-full pl-[30px] text-label text-muted" data-testid="measure-limits-how-words">
+          {unmeasuredWords(first.provider)}
+        </span>
+      )}
+    </li>
   );
 }

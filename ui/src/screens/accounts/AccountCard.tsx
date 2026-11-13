@@ -12,7 +12,7 @@ import { useState, type JSX } from "react";
 import { useItemMenu } from "../../components/ItemMenu";
 import { RenameAccountSheet } from "../../pages/subscription/AccountSettings";
 import { Card } from "../../components/primitives";
-import { MeasureLimits } from "../../components/MeasureLimits";
+import { MeasureLimits, unmeasuredWords } from "../../components/MeasureLimits";
 import { runwayOf } from "../../components/AccountRunway";
 import { nothingRead, RunwayPanel } from "../../components/usage/Runway";
 import { useWeekByProfile } from "../../components/usage/RunwayCards";
@@ -68,23 +68,10 @@ export function openOn(profileId: string, sessions: InstanceInfo[], conversation
   return { count: own.length + elsewhere.length, apps: [...apps.values()] };
 }
 
-/** Why an account has no reading now, and where one comes from: its
- * tool's own records (the desktop app's meter while it runs, a limit hit),
- * never a dead end (the maintainer's third report). */
-export function unmeasuredWords(tool: string): string {
-  const spec = toolSpec(tool);
-  // Only a tool whose app keeps a meter AI Juggler reads says so (the
-  // Codex app's limits come in Codex's own records).
-  const app = spec.desktop_app && spec.supports.app_meter ? `the ${spec.desktop_app} app's meter while it's open on this account` : null;
-  const name = providerDisplayName(tool);
-  return app
-    ? `No current reading. Limits come from ${app}, and from ${name} when it hits a limit.`
-    : `No current reading. Limits come from ${name}'s own records when it reports them.`;
-}
-
 /** "Not measured yet ▸ · Measure its limits ›": the unknown said once;
  * where limits come from folds behind it (the 0.4 review, 63). 0.4.4: it
- * measures here (`MeasureLimits`), not a page. */
+ * measures here (`MeasureLimits`), not a page; where its tool has no
+ * check, "How it's measured ›" opens the same fold (D-103.4). */
 function Unmeasured({ tool, folders, name }: { tool: string; folders: readonly string[]; name: string }): JSX.Element {
   const [why, setWhy] = useState(false);
   return (
@@ -96,7 +83,7 @@ function Unmeasured({ tool, folders, name }: { tool: string; folders: readonly s
         {folders.length > 0 && (
           <>
             <span aria-hidden="true">·</span>
-            <MeasureLimits folders={folders} tool={tool} name={name} />
+            <MeasureLimits folders={folders} tool={tool} name={name} how={{ open: why, onToggle: () => setWhy(!why) }} />
           </>
         )}
       </p>
