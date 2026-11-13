@@ -325,8 +325,9 @@ pub(crate) fn read(
         state.cpu.note_all(&state.table, at);
         return Listed::of_table(&state.table);
     };
+    // The fallback's table, from a listing that failed before: dropped.
     if !state.table.processes().is_empty() {
-        state.table = sysinfo::System::new();
+        drop(std::mem::take(&mut state.table));
     }
     if !(ours.is_empty() && observed.is_empty()) {
         zombies.replace(zombies_of(&all));

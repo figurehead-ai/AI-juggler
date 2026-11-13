@@ -9,5 +9,4 @@ crates/juggler-app/src/features/processes/stop.rs 1
 crates/juggler-app/src/link.rs 3
 crates/juggler-supervisor/src/cpu_since.rs 1
 crates/juggler-supervisor/src/lib.rs 1
-crates/juggler-supervisor/src/live_stats.rs 1
 crates/juggler-supervisor/src/machine.rs 7  # the machine sampler: the seam This Mac reads
