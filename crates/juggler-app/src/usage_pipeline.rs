@@ -17,12 +17,19 @@
 //! Juggler's own managed dirs (test-pinned in the adapters crate).
 //! Offsets + health persist in the settings KV as one JSON blob, so a
 //! restart resumes exactly where the spool was consumed.
+//!
+//! 0.4.5 (AJ-E805): a pass runs when what it reads changed, or on its
+//! slower cadences ([`gate`]), and writes the blob only when it changed.
 
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use crate::state::AppState;
+
+mod gate;
+
+use gate::soon as pass_soon;
 
 /// Spool cadence: every pass (event→engine ≤2 s budget).
 const PASS_EVERY_MS: u64 = 1_000;
@@ -166,12 +173,17 @@ type CompactionCheck = (String, std::collections::BTreeSet<String>);
 pub fn spawn(state: Arc<AppState>) {
     std::thread::spawn(move || {
         let mut tick = 0u32;
+        let mut gate = gate::Gate::new();
         loop {
             tick = tick.wrapping_add(1);
             let pass_started = std::time::Instant::now();
-            ingest_pass(&state, tick);
-            // Stored costs made with older prices are priced again.
-            reprice_stored(&state);
+            // 0.4.5: only when what it reads changed, or on its cadences.
+            if let Some(due) = gate.due(tick) {
+                ingest_pass_due(&state, tick, due);
+                // Stored costs made with older prices are priced again.
+                reprice_stored(&state);
+                gate.watch(&state);
+            }
             std::thread::sleep(pause_after(pass_started.elapsed()));
         }
     });
@@ -246,8 +258,14 @@ fn start_first_read(state: &Arc<AppState>, ingest: &mut IngestState) -> bool {
     first
 }
 
-/// One ingest pass (public for tests): accounts → sources → store.
+/// One ingest pass (public for tests): accounts → sources → store, each
+/// source on the cadence it had before the gate.
 pub fn ingest_pass(state: &Arc<AppState>, tick: u32) {
+    ingest_pass_due(state, tick, gate::Due::every(tick));
+}
+
+/// One ingest pass reading what `due` says (and everything on a re-read).
+fn ingest_pass_due(state: &Arc<AppState>, tick: u32, due: gate::Due) {
     let _span = tracing::info_span!("usage ingest", tick).entered();
     if switch_in_progress(state) {
         return;
@@ -255,7 +273,7 @@ pub fn ingest_pass(state: &Arc<AppState>, tick: u32) {
     let Some((accounts, dirty)) = accounts_to_read(state) else {
         return;
     };
-    let mut ingest = load_state(state);
+    let (mut ingest, saved) = load_state_as_saved(state);
     let rereading = ingest.reread < REREAD_VERSION || dirty;
     let first = start_first_read(state, &mut ingest);
     if rereading {
@@ -280,7 +298,7 @@ pub fn ingest_pass(state: &Arc<AppState>, tick: u32) {
             continue;
         }
         match harness.as_str() {
-            "claude-code" => {
+            "claude-code" if rereading || due.claude => {
                 // ADR-0018: an account's capture lives in AI Juggler's own
                 // folder, a copy's as an in-place one's; its folder is
                 // never written.
@@ -296,7 +314,7 @@ pub fn ingest_pass(state: &Arc<AppState>, tick: u32) {
                     (instances.as_deref(), &spent),
                 );
             }
-            "codex" if rereading || tick.is_multiple_of(FILE_SCAN_EVERY) => {
+            "codex" if rereading || due.codex => {
                 ingest_codex(
                     &account_id,
                     &dir,
@@ -306,12 +324,13 @@ pub fn ingest_pass(state: &Arc<AppState>, tick: u32) {
                     (&mut credits_batch, &mut checks),
                 );
             }
-            "zcode" if tick.is_multiple_of(ZCODE_EVERY) => {
+            "zcode" if due.zcode => {
                 ingest_zcode(&account_id, &dir, &mut ingest, &mut store_batch);
             }
             // ADR-0019 §2: a tool whose usage sits in a store read by time
             // (a database) reads it through its adapter.
-            _ if rereading || tick.is_multiple_of(FILE_SCAN_EVERY) => {
+            "claude-code" | "codex" | "zcode" => {}
+            _ if rereading || due.stores => {
                 if let Some(adapter) = state.registry.get(&account.harness) {
                     ingest_store(adapter.as_ref(), account, &mut ingest, &mut store_batch);
                 }
@@ -361,9 +380,7 @@ pub fn ingest_pass(state: &Arc<AppState>, tick: u32) {
         }
         save_credits(&storage, &credits_batch);
         forget_duplicated_compactions(&storage, &mut ingest, &checks);
-        if let Ok(blob) = serde_json::to_string(&ingest) {
-            let _ = storage.app_settings().set(INGEST_STATE_KEY, &blob);
-        }
+        save_if_changed(&storage, &ingest, saved.as_deref());
     }
     // D-39 (off until ruled): ask the tool itself for profiles whose own
     // records are old.
@@ -1036,21 +1053,41 @@ pub fn forget_account_offsets(state: &Arc<AppState>, account: &str) {
     if let (Ok(storage), Ok(blob)) = (state.storage.lock(), serde_json::to_string(&ingest)) {
         let _ = storage.app_settings().set(INGEST_STATE_KEY, &blob);
     }
+    pass_soon();
+}
+
+/// Writes the pipeline state when it differs from what was saved (0.4.5:
+/// every pass wrote it, changed or not).
+fn save_if_changed(
+    storage: &juggler_core::storage::Storage,
+    ingest: &IngestState,
+    saved: Option<&str>,
+) {
+    if let Ok(blob) = serde_json::to_string(ingest)
+        && saved != Some(blob.as_str())
+    {
+        let _ = storage.app_settings().set(INGEST_STATE_KEY, &blob);
+    }
 }
 
 /// Reads the persisted state (missing/corrupt ⇒ fresh — worst case a
 /// one-time full re-tail whose duplicates the store dedupes).
 fn load_state(state: &Arc<AppState>) -> IngestState {
+    load_state_as_saved(state).0
+}
+
+/// [`load_state`], with the blob as it was saved (a pass writes it back
+/// only when it changed).
+fn load_state_as_saved(state: &Arc<AppState>) -> (IngestState, Option<String>) {
     let Ok(storage) = state.storage.lock() else {
-        return IngestState::default();
+        return (IngestState::default(), None);
     };
-    storage
-        .app_settings()
-        .get(INGEST_STATE_KEY)
-        .ok()
-        .flatten()
-        .and_then(|blob| serde_json::from_str(&blob).ok())
-        .unwrap_or_default()
+    let saved = storage.app_settings().get(INGEST_STATE_KEY).ok().flatten();
+    let ingest = saved
+        .as_deref()
+        .and_then(|blob| serde_json::from_str(blob).ok())
+        .unwrap_or_default();
+    (ingest, saved)
 }
 
 /// The files under `root` (at most [`MAX_WALK_DEPTH`] folders down) that
