@@ -1,6 +1,8 @@
 import { act, cleanup, fireEvent, render, renderHook, waitFor } from "@testing-library/react";
+import { Suspense } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { SwitchFlow, showSwitchUndoToast } from "./SwitchFlow";
+import { noteSwitchOpener } from "../lib/handover-focus";
 import { resetToasts, ToastHost } from "./Toast";
 import { closeReportBug, useReportBug } from "../lib/report-bug";
 import type { PreflightInfoData } from "../lib/ipc/switch-preflight";
@@ -348,6 +350,46 @@ describe("leaving the switch", () => {
     expect(document.activeElement).toBe(view.getByTestId("switch-close"));
     fireEvent.keyDown(window, { key: "Tab", shiftKey: true });
     expect(document.activeElement).toBe(confirm);
+  });
+
+  // 0.4.4 (the a11y gate, CI runs 43340145489 and 43380090535): the
+  // switch read what opened Continue on another account while it
+  // rendered, once. A render React set aside (a part still loading)
+  // spent it, the one kept read the terminal that had taken focus in the
+  // meantime, and Esc put the keyboard in the terminal.
+  it("Esc gives the keyboard back to what opened Continue…, though a render was set aside and a terminal took focus meanwhile", async () => {
+    const opener = document.createElement("button");
+    opener.textContent = "Working, feat/read-model";
+    const terminal = document.createElement("textarea");
+    document.body.append(opener, terminal);
+    let release = () => {};
+    const loading = new Promise<void>((done) => (release = done));
+    let loaded = false;
+    function StillLoading(): null {
+      if (!loaded) throw loading;
+      return null;
+    }
+    Object.assign(window, { __AIJ_SWITCH_PREFLIGHT__: WIZARD });
+    opener.focus();
+    noteSwitchOpener(opener);
+    const view = render(
+      <Suspense fallback={null}>
+        <SwitchFlow sessionId="sess-1" targetProfileId="p-1" targetLabel="Personal" onClose={() => {}} onSwitched={() => {}} />
+        <StillLoading />
+      </Suspense>,
+    );
+    // The page's terminal finishes loading and takes focus.
+    terminal.focus();
+    loaded = true;
+    await act(async () => {
+      release();
+      await loading;
+    });
+    await waitFor(() => expect(view.getByTestId("switch-wizard")).toBeTruthy());
+    fireEvent.keyDown(window, { key: "Escape" });
+    await waitFor(() => expect(document.activeElement).toBe(opener));
+    opener.remove();
+    terminal.remove();
   });
 
   it("waits while the copy runs: Esc says it's finishing, and there's no close", async () => {

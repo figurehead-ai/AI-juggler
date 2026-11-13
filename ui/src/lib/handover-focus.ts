@@ -11,7 +11,7 @@
  * moment ago takes it when it mounts. When no session's page is open,
  * the asker hears so (`focusHandover` returns false) and says why.
  */
-import { useEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef, type RefObject } from "react";
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import type { ConversationInfo } from "./ipc/conversations";
 
@@ -149,8 +149,22 @@ export function noteSwitchOpener(element: Element | null): void {
 }
 
 /** The opener noted a moment ago, once; else null. */
-export function takeSwitchOpener(): Element | null {
+function takeSwitchOpener(): Element | null {
   const noted = switchOpener;
   switchOpener = null;
   return noted && Date.now() - noted.at < PENDING_MS && noted.element.isConnected ? noted.element : null;
+}
+
+/** What a switch's Cancel gives the keyboard back to: the opener noted
+ * above, else what had focus as the switch opened. Taken when it mounts,
+ * never while it renders: a render React sets aside (a part still
+ * loading) spent it, and the one kept read the terminal that had taken
+ * focus meanwhile (0.4.4, the a11y gate's keyboard walk). Before any
+ * effect of the switch moves focus into it. */
+export function useSwitchInvoker(): RefObject<Element | null> {
+  const invoker = useRef<Element | null>(null);
+  useLayoutEffect(() => {
+    if (invoker.current === null) invoker.current = takeSwitchOpener() ?? document.activeElement;
+  }, []);
+  return invoker;
 }
