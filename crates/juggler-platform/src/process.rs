@@ -81,26 +81,48 @@ pub fn alive(pid: u32) -> bool {
 /// It is gone already, or this system has no such request (the caller
 /// kills it instead).
 pub fn terminate(child: &std::process::Child) -> std::io::Result<()> {
+    ask_to_end(
+        child.id(),
+        "not a child's process",
+        "asking a process to end",
+    )
+}
+
+/// SIGTERM to `pid` on Unix, never to 0 or 1 (the caller's group or
+/// init): `not_one` refuses those, `unsupported` names the request where
+/// the system has none.
+pub(crate) fn ask_to_end(pid: u32, not_one: &str, unsupported: &str) -> std::io::Result<()> {
     #[cfg(unix)]
     {
         use nix::sys::signal::{Signal, kill};
         use nix::unistd::Pid;
-        let pid = i32::try_from(child.id())
+        let _ = unsupported;
+        let pid = i32::try_from(pid)
             .ok()
             .filter(|pid| *pid > 1)
-            .ok_or_else(|| std::io::Error::other("not a child's process"))?;
+            .ok_or_else(|| std::io::Error::other(not_one.to_owned()))?;
         kill(Pid::from_raw(pid), Signal::SIGTERM).map_err(std::io::Error::from)
     }
     #[cfg(not(unix))]
     {
-        let _ = child;
-        Err(crate::unsupported("asking a process to end"))
+        let _ = (pid, not_one);
+        Err(crate::unsupported(unsupported))
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn never_asks_the_group_or_init_to_end() {
+        for pid in [0, 1, u32::MAX] {
+            let error = ask_to_end(pid, "not that one", "ending").expect_err("refused");
+            if cfg!(unix) {
+                assert_eq!(error.to_string(), "not that one");
+            }
+        }
+    }
 
     #[test]
     fn this_process_is_alive_and_no_pid_isnt() {

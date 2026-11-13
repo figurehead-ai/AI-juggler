@@ -251,21 +251,7 @@ pub fn session_since() -> Option<i64> {
 ///
 /// The process is gone or isn't this user's, or this system can't yet.
 pub fn quit(pid: u32) -> std::io::Result<()> {
-    #[cfg(unix)]
-    {
-        use nix::sys::signal::{Signal, kill};
-        use nix::unistd::Pid;
-        let pid = i32::try_from(pid)
-            .ok()
-            .filter(|pid| *pid > 1)
-            .ok_or_else(|| std::io::Error::other("that isn't an app's process"))?;
-        kill(Pid::from_raw(pid), Signal::SIGTERM).map_err(std::io::Error::from)
-    }
-    #[cfg(not(unix))]
-    {
-        let _ = pid;
-        Err(crate::unsupported("quitting an app"))
-    }
+    crate::process::ask_to_end(pid, "that isn't an app's process", "quitting an app")
 }
 
 /// The version an app bundle says it is (macOS: `CFBundleShortVersionString`
