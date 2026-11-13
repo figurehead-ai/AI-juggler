@@ -857,6 +857,9 @@ impl ToolTranscripts for CodexAdapter {
             path,
         })
     }
+    fn conversation_roots(&self, state_dir: &Path) -> Vec<PathBuf> {
+        crate::codex_conversations::conversation_roots(state_dir)
+    }
     fn conversation_files(&self, state_dir: &Path) -> Vec<PathBuf> {
         crate::codex_conversations::conversation_files(state_dir)
     }

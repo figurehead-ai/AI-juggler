@@ -642,6 +642,12 @@ fn the_adapter_describes_codex_and_hands_its_calls_on() {
     .unwrap();
     let files = adapter.conversation_files(&home);
     assert_eq!(files, vec![rollout.clone()]);
+    // AJ-E805: the folder its file events are heard in holds it.
+    let roots = adapter.conversation_roots(&home);
+    assert!(
+        roots.iter().any(|root| rollout.starts_with(root)),
+        "{roots:?}"
+    );
     let full = adapter.read_conversation(&rollout).unwrap();
     assert_eq!(full.id, "019a1b2c-0000-7000-8000-00000000c0de");
     // A small rollout is read whole: no quick read for it.

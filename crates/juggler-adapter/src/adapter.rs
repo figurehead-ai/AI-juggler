@@ -706,6 +706,17 @@ pub trait ToolTranscripts: ToolIdentity {
         let _ = state_dir;
         Vec::new()
     }
+    /// 0.4.5 (AJ-E805): the folders under `state_dir` that hold every file
+    /// [`crate::ToolTranscripts::conversation_files`] lists, each with
+    /// everything under it: AI Juggler hears the system's file events there
+    /// and reads again only what changed, rather than looking at every file
+    /// on a timer. Names folders only; reads nothing. Default: none (the
+    /// list looks at this tool's files on every pass, as before).
+    #[must_use]
+    fn conversation_roots(&self, state_dir: &Path) -> Vec<std::path::PathBuf> {
+        let _ = state_dir;
+        Vec::new()
+    }
     /// 0.4.3: the version of what [`crate::ToolTranscripts::read_conversation`]
     /// reads from a file. Bump it whenever a summary would say something
     /// else of an unchanged file (a new field, a changed rule): AI

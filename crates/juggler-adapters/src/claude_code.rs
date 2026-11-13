@@ -695,6 +695,9 @@ impl ToolTranscripts for ClaudeCodeAdapter {
     ) -> Option<Box<dyn juggler_adapter::SubagentReader>> {
         crate::claude_subagents::reader(scope)
     }
+    fn conversation_roots(&self, state_dir: &Path) -> Vec<PathBuf> {
+        crate::claude_conversations::conversation_roots(state_dir)
+    }
     fn conversation_files(&self, state_dir: &Path) -> Vec<PathBuf> {
         crate::claude_conversations::conversation_files(state_dir)
     }

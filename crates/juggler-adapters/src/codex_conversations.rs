@@ -9,6 +9,12 @@ use juggler_core::time::timestamp_ms;
 
 use crate::codex_transcript::{RolloutParser, thread_id_from_name};
 
+/// The folder every rollout is under: `sessions`.
+#[must_use]
+pub fn conversation_roots(home: &Path) -> Vec<PathBuf> {
+    vec![home.join("sessions")]
+}
+
 /// Every `sessions/*/*/*/rollout-*.jsonl` under `home`.
 #[must_use]
 pub fn conversation_files(home: &Path) -> Vec<PathBuf> {

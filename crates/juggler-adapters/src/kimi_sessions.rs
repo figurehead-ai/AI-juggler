@@ -73,6 +73,12 @@ pub fn index(home: &Path) -> Vec<IndexLine> {
         .unwrap_or_default()
 }
 
+/// The folder every session's record is under.
+#[must_use]
+pub fn conversation_roots(home: &Path) -> Vec<PathBuf> {
+    vec![home.join(SESSIONS_DIR)]
+}
+
 /// Every session's record in the home (`sessions/<key>/<id>/state.json`).
 #[must_use]
 pub fn conversation_files(home: &Path) -> Vec<PathBuf> {

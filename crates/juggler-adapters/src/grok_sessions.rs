@@ -100,6 +100,12 @@ fn has_parent(summary: &serde_json::Value) -> bool {
         })
 }
 
+/// The folder every session's record is under.
+#[must_use]
+pub fn conversation_roots(home: &Path) -> Vec<PathBuf> {
+    vec![home.join(SESSIONS_DIR)]
+}
+
 /// Every top-level session's record in the home.
 #[must_use]
 pub fn conversation_files(home: &Path) -> Vec<PathBuf> {

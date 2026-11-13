@@ -13,10 +13,12 @@ pub mod by_relation;
 pub mod commands;
 pub mod dto;
 pub mod feed;
+pub mod gate;
 pub mod goto;
 pub mod last_messages;
 pub mod list_build;
 pub mod live;
+mod pass;
 pub mod places;
 pub mod procs;
 pub mod saved;
@@ -258,6 +260,8 @@ pub struct ConversationIndex {
     background: std::sync::atomic::AtomicBool,
     /// How far the first build is, and whether its last pass failed.
     build: list_build::Progress,
+    /// AJ-E805: which files the background pass reads (made at its first).
+    gate: Mutex<Option<gate::Gate>>,
 }
 
 impl ConversationIndex {
@@ -599,11 +603,23 @@ pub fn tick_with(
     let accounts = lock_storage_arc(state)?.accounts().list()?;
     let files_changed = {
         let _pass = state.conversations.hold_pass();
-        refresh_with(state, &accounts, every, &|| {
+        let progress = || {
             if update_live(state).is_ok() {
                 progress();
             }
-        })?
+        };
+        match pass::plan(state, &accounts) {
+            gate::Plan::Whole => refresh_with(state, &accounts, every, &progress)?,
+            gate::Plan::Some(scope) if scope.is_empty() => false,
+            gate::Plan::Some(scope) => {
+                let changed =
+                    pass::refresh_files(state, &accounts, every, &progress, Some(&scope))?;
+                if changed {
+                    saved::save_soon(state);
+                }
+                changed
+            }
+        }
     };
     if files_changed {
         // New folders become projects without the UI asking.
@@ -909,7 +925,7 @@ fn refresh_with(
     // again. The last index, saved, is restored first: only what changed
     // since is read.
     saved::restore_once(state);
-    let changed = refresh_files(state, accounts, every, progress)?;
+    let changed = pass::refresh_files(state, accounts, every, progress, None)?;
     state
         .conversations
         .first_done
@@ -918,172 +934,6 @@ fn refresh_with(
         saved::save_soon(state);
     }
     Ok(changed)
-}
-
-fn refresh_files(
-    state: &Arc<AppState>,
-    accounts: &[juggler_core::model::Account],
-    every: std::time::Duration,
-    progress: &dyn Fn(),
-) -> AppResult<bool> {
-    let mut seen: Vec<PathBuf> = Vec::new();
-    let mut changed_any = false;
-    // Every account's files, listed first (cheap), then read newest
-    // first: a running session's file is among the newest.
-    let mut found = Vec::new();
-    let mut report = Reporter::new(every, progress);
-    for account in accounts {
-        let Some(adapter) = state.registry.get(&account.harness) else {
-            continue;
-        };
-        // AJ-E1602: a tool that keeps every conversation in one store
-        // gives them in one read; each is read again only once it changed.
-        for stored in adapter.stored_conversations(&account.state_dir) {
-            seen.push(stored.key.clone());
-            let changed = u64::try_from(stored.changed_ms)
-                .ok()
-                .map(|ms| std::time::UNIX_EPOCH + std::time::Duration::from_millis(ms));
-            let unchanged = state
-                .conversations
-                .files
-                .lock()
-                .map_err(|_| AppError::StatePoisoned)?
-                .get(&stored.key)
-                .is_some_and(|entry| entry.modified == changed);
-            if !unchanged {
-                store(
-                    state,
-                    account,
-                    &stored.key,
-                    0,
-                    changed,
-                    Some(stored.summary),
-                    true,
-                )?;
-                changed_any = true;
-                report.read();
-            }
-        }
-        for path in adapter.conversation_files(&account.state_dir) {
-            let Ok(meta) = std::fs::metadata(&path) else {
-                continue;
-            };
-            found.push((
-                account,
-                std::sync::Arc::clone(&adapter),
-                path,
-                meta.len(),
-                meta.modified().ok(),
-            ));
-        }
-    }
-    found.sort_by_key(|entry| std::cmp::Reverse(entry.4));
-    // So far `seen` holds the stored ones, read above.
-    list_build::started(state, seen.len() + found.len(), seen.len());
-    // Two rounds, newest first (QA batch 10: one Mac's Codex rollouts were
-    // 6.6 GB, and reading each whole kept everything from showing for over
-    // a minute). First every new or changed file's quick read (its start
-    // and end) where its tool has one, so the list and what's live come
-    // within seconds; then the whole of each file read quickly, for its
-    // tokens. A file read whole in the first round is complete.
-    let mut later = Vec::new();
-    for (account, adapter, path, len, modified) in &found {
-        report.maybe();
-        state.conversations.build.step();
-        seen.push(path.clone());
-        let entry = state
-            .conversations
-            .files
-            .lock()
-            .map_err(|_| AppError::StatePoisoned)?
-            .get(path)
-            .map(|entry| {
-                (
-                    entry.len == *len && entry.modified == *modified,
-                    entry.complete,
-                )
-            });
-        match entry {
-            Some((true, true)) => continue,
-            Some((true, false)) => {
-                later.push((account, adapter, path, len, modified));
-                continue;
-            }
-            _ => {}
-        }
-        // Read outside the lock: a big transcript never holds up a reader.
-        let (summary, complete) = match guarded(|| adapter.read_conversation_quick(path)) {
-            Some(summary) => {
-                later.push((account, adapter, path, len, modified));
-                (Some(summary), false)
-            }
-            None => (guarded(|| adapter.read_conversation(path)), true),
-        };
-        store(state, account, path, *len, *modified, summary, complete)?;
-        changed_any = true;
-        report.read();
-    }
-    // The list is whole now (the long round only counts tokens).
-    list_build::listed(state);
-    // What's listed and live, at once, before the long round.
-    report.flush();
-    let now = std::time::Instant::now();
-    for (account, adapter, path, len, modified) in later {
-        if !whole_read_due(*len, counted_at(state, path)?, now) {
-            continue;
-        }
-        report.maybe();
-        let summary = guarded(|| adapter.read_conversation(path));
-        store(state, account, path, *len, *modified, summary, true)?;
-        changed_any = true;
-        report.read();
-    }
-    Ok(forget_unseen(state, seen)? || changed_any)
-}
-
-/// One transcript's read; one whose reader panics reads as unreadable
-/// (the panic is still kept as a crash report), so one odd file never
-/// stops the pass, and with it the first build, on every tick.
-fn guarded<T>(read: impl FnOnce() -> Option<T>) -> Option<T> {
-    std::panic::catch_unwind(std::panic::AssertUnwindSafe(read))
-        .ok()
-        .flatten()
-}
-
-/// When `path` was last read whole, if it was.
-fn counted_at(
-    state: &Arc<AppState>,
-    path: &std::path::Path,
-) -> AppResult<Option<std::time::Instant>> {
-    Ok(state
-        .conversations
-        .files
-        .lock()
-        .map_err(|_| AppError::StatePoisoned)?
-        .get(path)
-        .and_then(|entry| entry.counted_at))
-}
-
-/// Forgets every file a pass didn't see (gone from its folder); whether
-/// any was.
-fn forget_unseen(state: &Arc<AppState>, seen: Vec<PathBuf>) -> AppResult<bool> {
-    let mut files = state
-        .conversations
-        .files
-        .lock()
-        .map_err(|_| AppError::StatePoisoned)?;
-    let before = files.len();
-    let seen: std::collections::HashSet<PathBuf> = seen.into_iter().collect();
-    files.retain(|path, _| seen.contains(path));
-    let forgot = files.len() != before;
-    drop(files);
-    if forgot {
-        crate::features::relations::changed(
-            state,
-            crate::features::relations::Change::ConversationsIndex,
-        );
-    }
-    Ok(forgot)
 }
 
 /// The title the conversation `id` on `account_id` shows under, when the

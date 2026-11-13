@@ -15,6 +15,12 @@ use juggler_core::time::timestamp_ms;
 /// The longest title kept.
 const TITLE_MAX: usize = 80;
 
+/// The folder every conversation is under: `projects`.
+#[must_use]
+pub fn conversation_roots(state_dir: &Path) -> Vec<PathBuf> {
+    vec![state_dir.join("projects")]
+}
+
 /// Every `projects/*/*.jsonl` under `state_dir`.
 #[must_use]
 pub fn conversation_files(state_dir: &Path) -> Vec<PathBuf> {
@@ -468,7 +474,9 @@ mod tests {
             ),
             (10, 5, 100)
         );
-        assert_eq!(conversation_files(dir.path()), vec![path]);
+        assert_eq!(conversation_files(dir.path()), vec![path.clone()]);
+        // AJ-E805: the folder its file events are heard in holds it.
+        assert!(path.starts_with(&conversation_roots(dir.path())[0]));
     }
 
     #[test]
