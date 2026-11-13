@@ -12,6 +12,7 @@ use std::time::{Duration, Instant};
 use juggler_adapter::HarnessAdapter;
 use juggler_adapter::runtime::{Connection, DrivenLaunch, DrivenRuntime, Runtime, Transport};
 use juggler_core::model::{Profile, SessionId};
+use juggler_core::storage::Storage;
 use sha2::{Digest, Sha256};
 
 use super::driver::{Driver, Meta};
@@ -200,6 +201,28 @@ fn try_driven(
     })
 }
 
+/// `read` over the store, for `row`'s start.
+fn with_storage<T>(
+    state: &AppState,
+    row: &NewSession<'_>,
+    read: impl FnOnce(&Storage) -> T,
+) -> Result<T, Unstarted> {
+    let storage = state
+        .storage
+        .lock()
+        .map_err(|_| Unstarted::of(row.id, AppError::StatePoisoned))?;
+    Ok(read(&storage))
+}
+
+/// The runtime `plan`'s profile was set to, if any, and whether Beta
+/// features are on.
+fn runtime_choice(storage: &Storage, plan: &Plan<'_>) -> (Option<Runtime>, bool) {
+    let choice = settings::profile_choices(storage)
+        .get(plan.profile.id.as_str())
+        .copied();
+    (choice, settings::beta_on(storage))
+}
+
 /// Starts `row`'s session in the runtime its plan picks; the terminal
 /// launch `terminal` is the fallback (and what runs for a terminal plan).
 /// Called by the one path,
@@ -224,19 +247,12 @@ pub(crate) fn start(
         // all, never in a terminal that can't start.
         Err(none) => return start_driven_only(state, adapter, row, plan, &none),
     };
-    let (profile_choice, beta, trust) = {
-        let storage = state
-            .storage
-            .lock()
-            .map_err(|_| Unstarted::of(row.id, AppError::StatePoisoned))?;
+    let ((profile_choice, beta), trust) = with_storage(state, row, |storage| {
         (
-            settings::profile_choices(&storage)
-                .get(plan.profile.id.as_str())
-                .copied(),
-            settings::beta_on(&storage),
-            super::trust::apply_to(&storage, adapter, row.account, &mut terminal),
+            runtime_choice(storage, plan),
+            super::trust::apply_to(storage, adapter, row.account, &mut terminal),
         )
-    };
+    })?;
     let mut session = row.id.clone();
     let fell_back = match settings::plan(adapter.driven(), plan.requested, profile_choice, beta) {
         settings::Plan::Terminal(why) => why,
@@ -297,18 +313,7 @@ fn start_driven_only(
         );
         Unstarted::of(row.id, AppError::Refused(words))
     };
-    let (profile_choice, beta) = {
-        let storage = state
-            .storage
-            .lock()
-            .map_err(|_| Unstarted::of(row.id, AppError::StatePoisoned))?;
-        (
-            settings::profile_choices(&storage)
-                .get(plan.profile.id.as_str())
-                .copied(),
-            settings::beta_on(&storage),
-        )
-    };
+    let (profile_choice, beta) = with_storage(state, row, |storage| runtime_choice(storage, plan))?;
     let Some(driven) = adapter.driven() else {
         return Err(refused(None));
     };

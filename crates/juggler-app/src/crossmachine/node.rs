@@ -277,9 +277,16 @@ pub(crate) fn launch_here(
     transcript: Option<TranscriptRef>,
     moment: &str,
 ) -> AppResult<(SessionId, u32)> {
-    launch_with(
-        state, profile, account, project, mode, transcript, moment, None,
-    )
+    let launch = Launch {
+        profile,
+        account,
+        project,
+        mode,
+        transcript,
+        moment,
+        history: None,
+    };
+    launch_with(state, launch)
 }
 
 /// AJ-E1605 R3: a new session on `account` that starts with `history` in
@@ -297,32 +304,40 @@ pub(crate) fn import_here(
     history: juggler_adapter::runtime::ImportedHistory,
     moment: &str,
 ) -> AppResult<(SessionId, u32)> {
-    launch_with(
-        state,
+    let launch = Launch {
         profile,
         account,
         project,
-        &juggler_adapter::LaunchMode::Interactive,
-        None,
+        mode: &juggler_adapter::LaunchMode::Interactive,
+        transcript: None,
         moment,
-        Some(history),
-    )
+        history: Some(history),
+    };
+    launch_with(state, launch)
 }
 
-#[allow(
-    clippy::too_many_arguments,
-    reason = "launch_here's arguments and the history an import adds"
-)]
-fn launch_with(
-    state: &Arc<AppState>,
-    profile: &juggler_core::model::LaunchRecipe,
-    account: &juggler_core::model::Account,
-    project: &juggler_core::model::ProjectRecord,
-    mode: &juggler_adapter::LaunchMode,
+/// What [`launch_here`] and [`import_here`] start: `launch_here`'s
+/// arguments and the history an import adds.
+struct Launch<'a> {
+    profile: &'a juggler_core::model::LaunchRecipe,
+    account: &'a juggler_core::model::Account,
+    project: &'a juggler_core::model::ProjectRecord,
+    mode: &'a juggler_adapter::LaunchMode,
     transcript: Option<TranscriptRef>,
-    moment: &str,
+    moment: &'a str,
     history: Option<juggler_adapter::runtime::ImportedHistory>,
-) -> AppResult<(SessionId, u32)> {
+}
+
+fn launch_with(state: &Arc<AppState>, launch: Launch<'_>) -> AppResult<(SessionId, u32)> {
+    let Launch {
+        profile,
+        account,
+        project,
+        mode,
+        transcript,
+        moment,
+        history,
+    } = launch;
     // The profile's model goes in as `claude --model` (the adapter's
     // launch spec); settings.json is never rewritten (ADR-0018 §3).
     let adapter = state
