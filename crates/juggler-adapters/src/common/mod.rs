@@ -14,6 +14,8 @@
 pub(crate) mod bridge_sample;
 pub(crate) mod driven;
 pub(crate) mod home;
+#[cfg(test)]
+pub(crate) mod inventory_sample;
 pub(crate) mod jsonl;
 pub(crate) mod layout;
 pub(crate) mod prelude;

@@ -626,8 +626,7 @@ pub fn set_up(
                 ));
             }
             let file = dir.join("settings.json");
-            crate::config_edit::set(&file, ConfigFormat::Json, entries)
-                .map_err(AdapterError::Unsupported)?;
+            let undo = crate::config_edit::set_undoably(file, ConfigFormat::Json, entries)?;
             // A status line that runs a script in the other account's folder
             // keeps running it from there.
             let note = from
@@ -642,20 +641,7 @@ pub fn set_up(
                 .map(|_| "it runs a script from the other account's folder".to_owned());
             Ok(Applied {
                 summary: format!("Set the {}", item.kind.words()),
-                // Each value's fingerprint, never the value itself.
-                undo: Undo::RemoveSetting {
-                    file,
-                    format: ConfigFormat::Json,
-                    entries: entries
-                        .iter()
-                        .map(|(key, value)| {
-                            (
-                                key.clone(),
-                                crate::config_edit::fingerprint(ConfigFormat::Json, value),
-                            )
-                        })
-                        .collect(),
-                },
+                undo,
                 note,
             })
         }
@@ -960,14 +946,7 @@ pub(crate) fn mcp_json_item(
 }
 
 fn item(kind: ItemKind, name: &str, detail: Detail) -> Item {
-    Item {
-        tool: CLAUDE_CODE_ID.to_owned(),
-        kind,
-        name: name.to_owned(),
-        scope: Scope::User,
-        detail,
-        origin: Origin::Own,
-    }
+    Item::own(CLAUDE_CODE_ID, kind, name, detail)
 }
 
 /// A Codex prompt's `$1…$9` (1-based) as a Claude command's `$0…$8`.

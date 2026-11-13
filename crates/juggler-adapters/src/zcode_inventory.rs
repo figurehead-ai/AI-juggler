@@ -26,8 +26,7 @@ use std::path::{Path, PathBuf};
 
 use juggler_adapter::error::AdapterError;
 use juggler_adapter::inventory::{
-    Applied, ConfigFormat, Detail, Item, ItemKind, McpServer, McpTransport, Scope, SetUp, Undo,
-    Value,
+    Applied, ConfigFormat, Detail, Item, ItemKind, McpServer, McpTransport, Scope, SetUp, Value,
 };
 
 use crate::inventory_files::children;
@@ -288,31 +287,16 @@ fn add_mcp(home_tree: &Path, name: &str, server: &McpServer) -> Result<Applied, 
     }
     let key = crate::config_edit::json_pointer(&["mcp", "servers", name]);
     let value = zcode_entry(server).to_string();
-    crate::config_edit::set(&file, ConfigFormat::Json, &[(key.clone(), value.clone())])
-        .map_err(AdapterError::Unsupported)?;
+    let undo = crate::config_edit::set_undoably(file, ConfigFormat::Json, &[(key, value)])?;
     Ok(Applied {
         summary: format!("Added the MCP server {name} to ZCode, for every ZCode App"),
-        undo: Undo::RemoveSetting {
-            file,
-            format: ConfigFormat::Json,
-            entries: vec![(
-                key,
-                crate::config_edit::fingerprint(ConfigFormat::Json, &value),
-            )],
-        },
+        undo,
         note: None,
     })
 }
 
 fn item(kind: ItemKind, name: &str, detail: Detail) -> Item {
-    Item {
-        tool: ZCODE_ID.to_owned(),
-        kind,
-        name: name.to_owned(),
-        scope: Scope::User,
-        detail,
-        origin: juggler_adapter::inventory::Origin::Own,
-    }
+    Item::own(ZCODE_ID, kind, name, detail)
 }
 
 /// `ZCode`'s home tree for `home` (the user's home folder): `~/.zcode`.
@@ -373,24 +357,10 @@ mod tests {
         std::fs::create_dir_all(file.parent().unwrap()).unwrap();
         let before = "{\n  \"theme\": \"dark\",\n  \"mcp\": {\n    \"servers\": {\n      \"mine\": {\"command\": \"mine\"}\n    }\n  }\n}\n";
         std::fs::write(&file, before).unwrap();
-        let item = Item {
-            tool: "other-tool".into(),
-            kind: ItemKind::McpServer,
-            name: "events".into(),
-            scope: Scope::User,
-            detail: Detail::Mcp(McpServer {
-                transport: McpTransport::Stdio {
-                    command: "npx".into(),
-                    args: vec!["events-mcp".into()],
-                    env: vec![
-                        ("TOKEN".into(), Value::Secret),
-                        ("REGION".into(), Value::Literal("eu".into())),
-                    ],
-                },
-                oauth: false,
-            }),
-            origin: juggler_adapter::inventory::Origin::Own,
-        };
+        let item = crate::common::inventory_sample::events_server(vec![(
+            "REGION".into(),
+            Value::Literal("eu".into()),
+        )]);
         assert!(matches!(can_set_up(&item), SetUp::NeedsYou(note) if note.contains("TOKEN")));
         let applied = set_up(tree, &item).unwrap();
         let names: Vec<String> = inventory(tree).into_iter().map(|i| i.name).collect();
@@ -402,16 +372,7 @@ mod tests {
         );
         assert!(written.contains("\"REGION\""), "{written}");
         assert!(set_up(tree, &item).is_err(), "never over one it has");
-        let (undo_file, format, entries) = match applied.undo {
-            Undo::RemoveSetting {
-                file,
-                format,
-                entries,
-            } => Some((file, format, entries)),
-            _ => None,
-        }
-        .unwrap();
-        crate::config_edit::remove(&undo_file, format, &entries).unwrap();
+        crate::common::inventory_sample::undo_setting(applied);
         assert_eq!(std::fs::read_to_string(&file).unwrap(), before);
     }
 
