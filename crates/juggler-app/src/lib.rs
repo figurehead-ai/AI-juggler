@@ -969,7 +969,6 @@ pub fn run() {
             }
         })
         .on_window_event(|window, event| {
-            use tauri::Manager;
             // AJ-E2003: a folder dropped onto a window counts as chosen.
             if let tauri::WindowEvent::DragDrop(tauri::DragDropEvent::Drop { paths, .. }) = event {
                 picked::record_dropped(paths);
@@ -978,20 +977,9 @@ pub fn run() {
                 features::floor::window::on_window_event(window, event);
                 return;
             }
-            if let tauri::WindowEvent::CloseRequested { api, .. } = event
-                && window.label() == "main"
-                && quit::request(window.app_handle())
-            {
-                api.prevent_close();
-            }
-            // AJ-E1510: no system notification while AI Juggler is in front.
-            if let tauri::WindowEvent::Focused(focused) = event
-                && window.label() == "main"
-            {
-                window
-                    .state::<Arc<state::AppState>>()
-                    .notifier
-                    .set_in_front(*focused);
+            // D-112: its close hides it; AJ-E1510: its focus.
+            if window.label() == main_window::MAIN {
+                main_window::on_window_event(window, event);
             }
         })
         .invoke_handler(app_commands!(tauri_handler))
@@ -1124,6 +1112,11 @@ pub fn run() {
             tauri::RunEvent::ExitRequested { .. } | tauri::RunEvent::Exit
         ) {
             features::places::keep::stand_down();
+        }
+        // D-112: a click on the Dock icon brings a hidden window back.
+        #[cfg(target_os = "macos")]
+        if let tauri::RunEvent::Reopen { .. } = event {
+            main_window::reopened(app);
         }
         if let tauri::RunEvent::Exit = event {
             // AJ-E1509: quit as asked — the run is clean and the
