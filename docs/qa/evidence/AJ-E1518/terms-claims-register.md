@@ -118,6 +118,8 @@ from each adapter's `terms_note` (the test
   - The table's rows 1 and 2.
 - **Codex**: "Its sessions run through your own Codex's app-server, with your own sign-in: OpenAI lets a local or open-source app do that, never a commercial or hosted service."
   - The table's row 3.
+- **ZCode**: "Its sessions run on ZCode's own engine, started the way ZCode's desktop app starts it; AI Juggler hands it no credential."
+  - ZCode's section above (its User Agreement and the GLM Coding Plan policy); the runtime is the engine's own `app-server`, run as ZCode's desktop app runs it (AJ-E1605 round 3, `docs/research/zcode.md` § E).
 
 ## What AI Juggler does with them
 

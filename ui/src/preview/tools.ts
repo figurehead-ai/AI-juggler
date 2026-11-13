@@ -225,5 +225,11 @@ export const PREVIEW_TOOLS: ToolSpecInfo[] = [
       "AI_JUGGLER_ZCODE_ENGINE",
     ],
     supports: { in_place: false, limits: false, app_meter: false, thread_link: false, agent_tools: false, resume: true },
+    runtime: {
+      label: "ZCode's app server",
+      beta: false,
+      terms_note:
+        "Its sessions run on ZCode's own engine, started the way ZCode's desktop app starts it; AI Juggler hands it no credential.",
+    },
   },
 ];
