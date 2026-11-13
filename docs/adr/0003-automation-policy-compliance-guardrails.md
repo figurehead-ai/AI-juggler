@@ -1,7 +1,7 @@
 # ADR-0003: Automation policy & compliance guardrails
 
 **Status:** Accepted
-**Date:** 2026-10-12 (revised after review round 2; widened 2026-10-22 for AJ-E1509, points 3 and 5; amended 2026-10-25 for D-40, points 7 and 8)
+**Date:** 2026-10-12 (revised after review round 2; widened 2026-10-22 for AJ-E1509, points 3 and 5; amended 2026-10-25 for D-40, points 7 and 8; quitting's gap closed 2026-11-13, D-112 and D-113)
 **Deciders:** maintainer
 
 ## Context
@@ -43,3 +43,7 @@ ADR-0022 lets AI Juggler drive a session through the tool's own protocol: Codex'
 
 7. **The binary is the user's own, unmodified, and signed in through its own flow.** AI Juggler bundles no SDK, reads no token, sets no credential variable and names itself honestly (`clientInfo.name` `ai_juggler`; no Claude Code entrypoint or header is spoofed). No launch drops a tool's own permission prompts: the flags that would (`--dangerously-skip-permissions`, `--yolo`, a bypass mode and the like) are refused for every runtime (`FORBIDDEN_ARGS`).
 8. **Answers are always the user's (ADR-0022 decision 5).** A driven session's approvals and questions reach the user with the tool's own options, the tool's own "always allow" rules among them. AI Juggler carries the user's click to the tool and records it in the account log. It never answers by itself, on a timer or in bulk. This amends D-28 to "never by itself". The guardrail suite tests it (`crates/juggler-app/tests/runtime_guardrails.rs`).
+
+## Note, 2026-11-13 — quitting asks while sessions run (D-112, D-113)
+
+Quitting AI Juggler ends the terminal sessions it holds, so point 2 covers it: it happens on the user's answer. The gap was the Dock's Quit (and Activity Monitor's, a script's `quit`): macOS sent it past the menu, and it quit without the sheet. Since 0.4.5 AI Juggler answers the quit Apple event itself, and one without a reason asks as ⌘Q and the menu-bar item's Quit do. The close button only hides the window. Logging out, restarting and shutting down still quit at once: the system is ending the session, and nobody may be there to answer.
