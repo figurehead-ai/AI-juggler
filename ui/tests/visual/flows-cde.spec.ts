@@ -200,8 +200,11 @@ test("flow (e): launch in 1 click; Profile never a sheet noun; verdict words not
   await expect(preselected).not.toContainText("%");
   await page.getByTestId("launch-now").click();
   await expect(page.getByText("Preview mode — no backend connected.")).toBeVisible();
-  // The D-02/D-10 noun law: "Profile" never names a sheet thing.
+  // The D-02/D-10 noun law: "Profile" never names a sheet thing. The
+  // sheet uses today's noun (D-35/D-62): what it starts on is an App,
+  // said as "Change app" beside it (launch settings moved into More
+  // options with AJ-E3207, named there only when an App has several).
   const sheetText = await page.getByTestId("new-session-sheet").innerText();
   expect(sheetText).not.toMatch(/\bProfile\b/);
-  expect(sheetText).toContain("launch settings");
+  expect(sheetText).toContain("Change app");
 });
