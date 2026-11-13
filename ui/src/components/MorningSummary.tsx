@@ -13,6 +13,12 @@
  * longest first; an ended one says when it ended. The last summary is
  * kept, so Home opened again paints it at once and reads behind it (it
  * popped in a second or two later, pushing Home down).
+ *
+ * 0.4.5 (persona D3): every row leads with the session's own name, by the
+ * rule every list names sessions ([`namesApart`]: its name, its
+ * conversation's title or first ask, its branch, else "<folder> ·
+ * started …", alike ones told apart); its App follows. The rows named
+ * only their App, so fifty of them read alike.
  */
 import { useState, type JSX } from "react";
 import { overnightSummary, overnightSummarySeen } from "../lib/ipc/park";
@@ -22,6 +28,7 @@ import { summaryHeadline } from "../lib/ended-how";
 import type { OvernightSummaryInfo } from "../types/generated/OvernightSummaryInfo";
 import type { SummaryRowInfo } from "../types/generated/SummaryRowInfo";
 import { sessionAppName } from "../lib/app-name";
+import { namesApart } from "../lib/session-titles";
 import { pastWhen } from "../lib/time-words";
 
 /** Rows a group shows before "Show all". */
@@ -81,7 +88,7 @@ export function whenLine(row: SummaryRowInfo, now: number): string | null {
   return last ? `last change ${since(last.at_ms)}` : null;
 }
 
-function Row({ row, now, onOpen }: { row: SummaryRowInfo; now: number; onOpen: (id: string) => void }): JSX.Element {
+function Row({ row, name, now, onOpen }: { row: SummaryRowInfo; name: string; now: number; onOpen: (id: string) => void }): JSX.Element {
   const when = whenLine(row, now);
   return (
     <li>
@@ -92,8 +99,9 @@ function Row({ row, now, onOpen }: { row: SummaryRowInfo; now: number; onOpen: (
         data-testid="summary-row"
         data-group={row.group}
       >
+        <span className="font-medium text-ink" data-testid="summary-name">{name}</span>
         {/* Its App by its full name (the 0.4 review). */}
-        <span className="font-medium text-ink">{sessionAppName(row)}</span>
+        <span className="text-muted" data-testid="summary-app">· {sessionAppName(row)}</span>
         {row.project && <span className="text-muted">· {row.project}</span>}
         <span className="text-ink">· {row.detail ? `${row.words} · ${row.detail}` : row.words}</span>
         <span className="flex-1" />
@@ -124,6 +132,8 @@ export function MorningSummary({ onOpenSession, now }: { onOpenSession: (id: str
   const [open, setOpen] = useState<ReadonlySet<string>>(() => new Set());
   if (!summary || summary.rows.length === 0) return null;
   const headline = summaryHeadline(summary.counts);
+  const at = now ?? summary.generated_ms;
+  const names = namesApart(summary.rows.map((row) => ({ ...row, id: row.session_id })), at);
   return (
     <section
       aria-labelledby="summary-title"
@@ -164,7 +174,7 @@ export function MorningSummary({ onOpenSession, now }: { onOpenSession: (id: str
             </p>
             <ul className="flex flex-col gap-1" aria-label={group.title}>
               {(open.has(group.id) ? rows : rows.slice(0, SHOWN)).map((row) => (
-                <Row key={row.session_id} row={row} now={now ?? summary.generated_ms} onOpen={onOpenSession} />
+                <Row key={row.session_id} row={row} name={names.get(row.session_id) ?? ""} now={at} onOpen={onOpenSession} />
               ))}
             </ul>
             {/* Walk K1: a long night is a few rows and the rest a click

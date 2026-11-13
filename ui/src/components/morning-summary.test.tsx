@@ -25,6 +25,9 @@ const row = (id: string, group: string, words: string, over: Partial<SummaryRowI
   detail: null,
   tokens: null,
   leftovers: 0,
+  git_branch: null,
+  cwd: "/Users/dev/repos/storefront",
+  started_at_ms: 1_800_000_000_000 - 3 * 3_600_000,
   ...over,
 });
 
@@ -35,6 +38,32 @@ beforeEach(() => {
 });
 
 describe("AJ-E1004 morning summary", () => {
+  it("leads every row with the session's own name, alike ones told apart, then its App (0.4.5, persona D3)", async () => {
+    w().__AIJ_SUMMARY__ = {
+      since_ms: 1_800_000_000_000 - 8 * 3_600_000,
+      generated_ms: 1_800_000_000_000,
+      rows: [
+        row("s1", "finished", "Finished", { title: "Add retries with backoff to the webhook client" }),
+        row("s2", "finished", "Finished", { label: "Billing spike", title: "Rename the billing models" }),
+        row("s3", "finished", "Finished", { started_at_ms: 1_800_000_000_000 - 2 * 3_600_000 }),
+        row("s4", "finished", "Finished", { started_at_ms: 1_800_000_000_000 - 2 * 3_600_000 }),
+      ],
+      counts: { finished: 4 },
+      leftovers: 0,
+    };
+    const { container } = render(<MorningSummary onOpenSession={() => undefined} />);
+    await waitFor(() => expect(container.querySelector("[data-testid='morning-summary']")).not.toBeNull());
+    const names = Array.from(container.querySelectorAll("[data-testid='summary-name']")).map((n) => n.textContent);
+    expect(names[0]).toBe("Add retries with backoff to the webhook client");
+    expect(names[1]).toBe("Billing spike");
+    // Two untitled ones from one folder at one time: told apart, never alike.
+    expect(names[2]).toMatch(/^storefront · started .+/);
+    expect(names[2]).not.toBe(names[3]);
+    // The name leads; its App follows.
+    const first = container.querySelector<HTMLButtonElement>("[data-testid='summary-row']")!;
+    expect(first.textContent!.indexOf("Add retries")).toBeLessThan(first.textContent!.indexOf("Claude Code"));
+  });
+
   it("orders by severity, names leftovers, says tokens only when known, opens a row", async () => {
     w().__AIJ_SUMMARY__ = {
       since_ms: 1_800_000_000_000 - 8 * 3_600_000,
@@ -87,8 +116,8 @@ describe("AJ-E1004 morning summary", () => {
     };
     const { container } = render(<MorningSummary onOpenSession={() => undefined} />);
     await waitFor(() => expect(container.querySelectorAll("[data-testid='summary-row']").length).toBe(2));
-    const names = [...container.querySelectorAll("[data-testid='summary-row']")].map((el) => el.firstElementChild!.textContent);
-    expect(names).toEqual(["Claude app · Work · Work Max", "Claude Code CLI · Work · work"]);
+    const apps = [...container.querySelectorAll("[data-testid='summary-app']")].map((el) => el.textContent!.replace(/^· /, ""));
+    expect(apps).toEqual(["Claude app · Work · Work Max", "Claude Code CLI · Work · work"]);
   });
 
   it("shows five rows a group, the rest a click away (walk K1)", async () => {

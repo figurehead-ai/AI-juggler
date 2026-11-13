@@ -77,6 +77,24 @@ pub struct SummaryRowInfo {
     /// Processes it left behind (E5 inventory: still running after it
     /// closed).
     pub leftovers: u32,
+    /// What it is named by, as every other list names a session (the UI's
+    /// `shortName`, `naming::short_name`): the name the user gave it,
+    /// its conversation's title (the tool's own, else its first ask), its
+    /// branch, its folder and when it started. 0.4.5, persona D3: the
+    /// summary heading Home named no session, only its App, so fifty
+    /// rows read alike.
+    #[ts(optional)]
+    pub label: Option<String>,
+    /// Its conversation's title (see `label`).
+    #[ts(optional)]
+    pub title: Option<String>,
+    /// Its git branch (see `label`).
+    pub git_branch: Option<String>,
+    /// Its working folder (see `label`).
+    pub cwd: String,
+    /// When it started, epoch ms (see `label`).
+    #[ts(type = "number")]
+    pub started_at_ms: i64,
 }
 
 /// The summary.
@@ -285,6 +303,11 @@ pub fn overnight_summary_impl(
                 detail: row.ending.as_ref().and_then(|ending| ending.detail.clone()),
                 tokens: row.tokens.as_ref().map(|t| t.input + t.output),
                 leftovers: leftovers_by.get(&row.id).copied().unwrap_or(0),
+                label: row.label.clone(),
+                title: row.title.clone(),
+                git_branch: row.git_branch.clone(),
+                cwd: row.cwd.clone(),
+                started_at_ms: row.started_at_ms,
             },
         ));
     }
