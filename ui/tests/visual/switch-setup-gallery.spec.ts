@@ -20,7 +20,7 @@ import { type Page } from "@playwright/test";
 import { expect, gate, test } from "./axe-gallery";
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
-import { allStatuses, expectRail, openSwitch, switchRows, openWorkMaxSession } from "./fixtures";
+import { allStatuses, expectRail, openSwitch, switchRows, openRailSession } from "./fixtures";
 import { EXAMPLE_SETUP, EXAMPLE_SETUP_NOTES, EXAMPLE_SETUP_READY, EXAMPLE_SETUP_UNUSED } from "../../src/preview/switch-setup";
 import { EXAMPLE_DESTINATIONS_DESKTOP, EXAMPLE_DESTINATIONS_NO_DESKTOP } from "../../src/preview/switch-destinations";
 
@@ -65,7 +65,7 @@ async function openWith(page: Page, theme: "dark" | "light", setup: unknown, pre
   await page.setViewportSize(size);
   await page.goto("/");
   await expectRail(page);
-  await openWorkMaxSession(page);
+  await openRailSession(page, "sess-4");
   await openSwitch(page);
   await switchRows(page).first().click();
   await expect(page.getByTestId("switch-flow")).toBeVisible();
