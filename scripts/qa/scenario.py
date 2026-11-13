@@ -37,6 +37,7 @@ A scenario file (TOML, the subset below) says:
                                     # conversation (true: a few turns in its
                                     # tool's own format, replica.py's writer)
                                     # with its title and said (its second ask),
+                                    # or first_ask (untitled: named by that ask),
                                     # days_ago (N: started N days back),
                                     # leftover (true: a real bounded process its
                                     # ended session left behind, in the ledger)

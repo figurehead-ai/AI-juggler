@@ -1098,7 +1098,7 @@ fn seed_lab(seed: &Value, data: PathBuf, home: &std::path::Path) -> (Arc<AppStat
                     said: None,
                     ago_minutes: *ago_minutes,
                     // Every third of each App's (they take turns).
-                    titled: (n / terminal.len()) % 3 == 0,
+                    titled: (n / terminal.len()).is_multiple_of(3),
                 },
                 account,
                 &mut notes,
@@ -1334,10 +1334,12 @@ fn lab_conversation(
         state,
         &LabTalk {
             id,
-            topic: session["title"].as_str(),
+            // `first_ask` (0.4.5): an untitled one, named by what it was
+            // first asked (a session Claude Code never titled).
+            topic: session["title"].as_str().or(session["first_ask"].as_str()),
             said: session["said"].as_str(),
             ago_minutes,
-            titled: true,
+            titled: session["title"].is_string(),
         },
         account,
         notes,
