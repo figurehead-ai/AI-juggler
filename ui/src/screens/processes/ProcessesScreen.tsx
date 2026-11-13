@@ -32,7 +32,7 @@ export function useProcessCounts(): ProcessCountsInfo | null {
     let alive = true;
     const read = () => void processesCounts().then((next) => alive && setCounts(next), () => undefined);
     read();
-    const stop = onProcessesChanged((counts) => alive && setCounts(counts));
+    const stop = onProcessesChanged((next) => alive && setCounts(next));
     return () => {
       alive = false;
       stop();

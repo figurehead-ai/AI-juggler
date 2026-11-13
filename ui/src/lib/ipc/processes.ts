@@ -156,23 +156,30 @@ export async function processesSnapshot(): Promise<ProcessSnapshotInfo> {
  * shows: AJ-E805); returns the disposer. In the preview, a
  * `aij:processes-changed` window event stands in. */
 export function onProcessesChanged(on: (counts: ProcessCountsInfo) => void): () => void {
-  return onProcessEvent(PROCESSES_CHANGED, (change: ProcessGraphChangedInfo) => on(change.counts), on);
+  return (
+    previewCounts(on) ??
+    listenWhileShown<ProcessGraphChangedInfo>(PROCESSES_CHANGED, (change) => on(change.counts), countsAgain(on))
+  );
 }
 
 /** Calls `on` with the counts when one moves (the top bar's count): the
  * graph changes on nearly every 2 s tick while sessions work, and a
  * window that listens to it is sent each (AJ-E805). */
 export function onProcessCounts(on: (counts: ProcessCountsInfo) => void): () => void {
-  return onProcessEvent(PROCESS_COUNTS, on, on);
+  return previewCounts(on) ?? listenWhileShown<ProcessCountsInfo>(PROCESS_COUNTS, on, countsAgain(on));
 }
 
-function onProcessEvent<T>(event: string, heard: (payload: T) => void, on: (counts: ProcessCountsInfo) => void): () => void {
-  if (!hasLiveBackend()) {
-    const handler = (event: Event) => on((event as CustomEvent<ProcessGraphChangedInfo>).detail.counts);
-    window.addEventListener("aij:processes-changed", handler);
-    return () => window.removeEventListener("aij:processes-changed", handler);
-  }
-  return listenWhileShown<T>(event, heard, () => void processesCounts().then(on, () => undefined));
+/** The counts read again (a window that shows again catches up). */
+function countsAgain(on: (counts: ProcessCountsInfo) => void): () => void {
+  return () => void processesCounts().then(on, () => undefined);
+}
+
+/** In the preview, the `aij:processes-changed` window event; live, `null`. */
+function previewCounts(on: (counts: ProcessCountsInfo) => void): (() => void) | null {
+  if (hasLiveBackend()) return null;
+  const handler = (message: Event) => on((message as CustomEvent<ProcessGraphChangedInfo>).detail.counts);
+  window.addEventListener("aij:processes-changed", handler);
+  return () => window.removeEventListener("aij:processes-changed", handler);
 }
 
 /** Reveal folder: the session's folder in Finder (the one the backend

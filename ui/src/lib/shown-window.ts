@@ -105,9 +105,10 @@ export function coalesced(run: () => void, everyMs = 1000): { ask: () => void; s
  * GPU process at 0.3–0.4 % of a core, drawing nothing). While the window
  * is hidden the page holds no listener for the event, so the backend
  * sends it nothing; when it shows, it listens again and then runs
- * `caughtUp` once, to read what it may have missed. Returns the stop.
+ * `caughtUp` once, to read what it may have missed (it may hand that to
+ * `heard`, which it is given). Returns the stop.
  */
-export function listenWhileShown<T>(event: string, heard: (payload: T) => void, caughtUp: () => void): () => void {
+export function listenWhileShown<T>(event: string, heard: (payload: T) => void, caughtUp: (heard: (payload: T) => void) => void): () => void {
   let unlisten: (() => void) | null = null;
   // The listen under way, by number (0: none); a stop or a hide meanwhile
   // makes it stop as soon as it lands.
@@ -131,7 +132,7 @@ export function listenWhileShown<T>(event: string, heard: (payload: T) => void, 
     unlisten = null;
   };
   // Read after the listener is in place: a change after the read is heard.
-  const onVisibility = () => (windowShown() ? attach(caughtUp) : detach());
+  const onVisibility = () => (windowShown() ? attach(() => caughtUp(heard)) : detach());
   document.addEventListener("visibilitychange", onVisibility);
   if (windowShown()) attach();
   return () => {

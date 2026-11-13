@@ -30,7 +30,7 @@ function fitting(box: HTMLElement, kids: readonly HTMLElement[]): Set<HTMLElemen
 
 /** The box's words as they are now: what decides what fits, besides its width. */
 function wordsOf(box: HTMLElement): string {
-  return Array.from(box.children, (child) => `${(child as HTMLElement).dataset.fit ?? ""}:${child.textContent ?? ""}`).join("\n");
+  return Array.from(box.children, (child) => `${child instanceof HTMLElement ? (child.dataset.fit ?? "") : ""}:${child.textContent ?? ""}`).join("\n");
 }
 
 /** Each child shown again, measured, and the ones that don't fit left out. */
