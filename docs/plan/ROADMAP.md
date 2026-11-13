@@ -113,8 +113,9 @@ switch, to 0.4.1.
 
 **Intent.** Bring the tools people use next, let work move between
 people as easily as between accounts, and make AI Juggler a macOS
-release people can rely on. Planned work that starts only after the
-first Stable, a 0.4.x (D-85); 0.5 ships to Beta first, then to Stable
+release people can rely on. It may start before the first Stable, a
+0.4.x, and 0.4.x fixes preempt it (D-103, amending D-85); the order is
+[0.5-order.md](0.5-order.md). 0.5 ships to Beta first, then to Stable
 under D-24.
 
 | Area | Tasks |

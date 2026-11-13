@@ -2922,3 +2922,13 @@ Each ships with tests that fail without it and a design critique; the M2, D2 and
 - **The App lens's past sessions** (design call on the first 0.4.3 screens): an App with nothing open unfolds to its last 3, then "Show all N" when it has more; an App with something open shows only its open and pinned rows, its past ones a muted "+N recent" on its header (on hover and focus; a click shows them in place), with its menu's Show recent, its page and History. Never the words "Last N inactive" in the App lens (the maintainer's complaint on 0.4.1).
 - **Amends:** D-64 (the "Last 3 inactive" link), ADR-0032 amendment 6 (`sdk-cli` and `codex_exec` were a CLI App's).
 - Sources: `docs/adr/0032-presence-from-the-process-table.md` (amendments 8 and 9); the evidence in `docs/qa/evidence/presence/0.4.3.txt`.
+
+### D-103 0.5 work may start before the first Stable; 0.4.x fixes preempt it — SETTLED (2026-11-12)
+
+**Ruling.** The maintainer, 2026-11-12, with 0.4.4 finishing: "if you run out of things to work, you can start working on 0.5 version as planned".
+
+- **0.5 may start now**, on `release/0.5` cut from `main`, in the order of `docs/plan/0.5-order.md`, while 0.4.x is still on its way to the first Stable.
+- **0.4.x preempts it.** A 0.4.x finding (a bug in a shipped 0.4, a walk's or a persona's finding, a release step) is taken before any 0.5 work, and 0.5 work never holds a 0.4.x release back (no shared branch, no shared CI wait).
+- **The first Stable is still a 0.4.x.** D-85's other points stand: Stable comes when 0.4.x is tested, validated and fixed; 0.5 ships to Beta first and to Stable under D-24.
+- **Amends:** D-85 ("no 0.5 feature work starts until 0.4.x is fully tested, validated and fixed").
+- Sources: `docs/plan/0.5-order.md`.
