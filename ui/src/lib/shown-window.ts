@@ -61,6 +61,17 @@ export function everyWhileShown(run: () => void, everyMs: number, { unfocusedTim
   };
 }
 
+/** D-112: runs `run` each time the window comes back on screen (shown
+ * again after a close hid it, restored, or uncovered); never while it's
+ * hidden, and not at once. Returns the stop. */
+export function whenShownAgain(run: () => void): () => void {
+  const onVisibility = () => {
+    if (windowShown()) run();
+  };
+  document.addEventListener("visibilitychange", onVisibility);
+  return () => document.removeEventListener("visibilitychange", onVisibility);
+}
+
 /**
  * 0.4.5 (AJ-E805, round 3): a read asked for on every change event runs
  * at most once per `everyMs`. The first ask after a quiet spell runs at

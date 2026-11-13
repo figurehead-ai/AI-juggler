@@ -531,6 +531,9 @@ macro_rules! app_commands {
             Write quit::app_quit,
             Write quit::app_quit_ack,
             Write quit::app_quit_cancel,
+            // D-112: the toast the first close that hid the window owes.
+            Read  main_window::app_close_note_due,
+            Write main_window::app_close_note_told,
             Read  settings_policy::session_prefs_get,
             Write settings_policy::session_prefs_set,
             Read  features::tools::commands::tools_catalog,

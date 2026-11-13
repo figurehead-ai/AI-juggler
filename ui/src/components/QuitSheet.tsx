@@ -1,8 +1,8 @@
 /**
  * AJ-E1503 Req.3 — quitting with live sessions says how many are running
- * and what quitting does to them, before anything happens. ⌘Q and the
- * window's close button ask the backend; with nothing live it quits at
- * once and this sheet never shows.
+ * and what quitting does to them, before anything happens. ⌘Q asks the
+ * backend; with nothing live it quits at once and this sheet never shows.
+ * The window's close button and ⌘W only hide the window (D-112).
  *
  * A terminal session ends when AI Juggler quits (its terminal lives in
  * this app); a desktop session keeps running on its own. Quit anyway,
