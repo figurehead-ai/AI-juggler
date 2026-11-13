@@ -169,6 +169,12 @@ struct IngestState {
 /// are still there.
 type CompactionCheck = (String, std::collections::BTreeSet<String>);
 
+/// Each account's newest credits snapshot, as a pass reads them.
+type Credits = Vec<(String, juggler_adapters::CreditsSnapshot)>;
+
+/// The files a pass's file events named (AJ-E805, [`gate`]).
+type Named = std::collections::BTreeSet<PathBuf>;
+
 /// Spawns the pipeline thread (called once from app setup).
 pub fn spawn(state: Arc<AppState>) {
     std::thread::spawn(move || {
@@ -179,7 +185,7 @@ pub fn spawn(state: Arc<AppState>) {
             let pass_started = std::time::Instant::now();
             // 0.4.5: only when what it reads changed, or on its cadences.
             if let Some(due) = gate.due(tick) {
-                ingest_pass_due(&state, tick, due);
+                ingest_pass_due(&state, tick, due, gate.named().as_ref());
                 // Stored costs made with older prices are priced again.
                 reprice_stored(&state);
                 gate.watch(&state);
@@ -261,11 +267,13 @@ fn start_first_read(state: &Arc<AppState>, ingest: &mut IngestState) -> bool {
 /// One ingest pass (public for tests): accounts → sources → store, each
 /// source on the cadence it had before the gate.
 pub fn ingest_pass(state: &Arc<AppState>, tick: u32) {
-    ingest_pass_due(state, tick, gate::Due::every(tick));
+    ingest_pass_due(state, tick, gate::Due::every(tick), None);
 }
 
-/// One ingest pass reading what `due` says (and everything on a re-read).
-fn ingest_pass_due(state: &Arc<AppState>, tick: u32, due: gate::Due) {
+/// One ingest pass reading what `due` says (and everything on a re-read):
+/// of the transcripts and rollouts, only the files `named` names when it
+/// names any (the gate's file events), else every one.
+fn ingest_pass_due(state: &Arc<AppState>, tick: u32, due: gate::Due, named: Option<&Named>) {
     let _span = tracing::info_span!("usage ingest", tick).entered();
     if switch_in_progress(state) {
         return;
@@ -275,6 +283,7 @@ fn ingest_pass_due(state: &Arc<AppState>, tick: u32, due: gate::Due) {
     };
     let (mut ingest, saved) = load_state_as_saved(state);
     let rereading = ingest.reread < REREAD_VERSION || dirty;
+    let named = named.filter(|_| !rereading);
     let first = start_first_read(state, &mut ingest);
     if rereading {
         ingest.read_again();
@@ -311,7 +320,7 @@ fn ingest_pass_due(state: &Arc<AppState>, tick: u32, due: gate::Due) {
                     &mut ingest,
                     &mut store_batch,
                     &mut sample_batch,
-                    (instances.as_deref(), &spent),
+                    (instances.as_deref(), &spent, named),
                 );
             }
             "codex" if rereading || due.codex => {
@@ -321,7 +330,7 @@ fn ingest_pass_due(state: &Arc<AppState>, tick: u32, due: gate::Due) {
                     &mut ingest,
                     &mut store_batch,
                     &mut sample_batch,
-                    (&mut credits_batch, &mut checks),
+                    (&mut credits_batch, &mut checks, named),
                 );
             }
             "zcode" if due.zcode => {
@@ -631,9 +640,10 @@ fn ingest_claude(
     ingest: &mut IngestState,
     store: &mut Vec<juggler_core::quota::UsageEvent>,
     samples: &mut SampleBatch,
-    (instances, spent): (
+    (instances, spent, named): (
         Option<&[PathBuf]>,
         &crate::features::handover::moved_lines::SpentOn<'_>,
+        Option<&Named>,
     ),
 ) {
     use juggler_core::quota::UsageSource;
@@ -671,9 +681,14 @@ fn ingest_claude(
     }
     // Transcripts: <dir>/projects/**/*.jsonl, offset-tracked.
     let projects = dir.join("projects");
-    let mut files = Vec::new();
-    let _ = collect_files(&projects, &mut files, is_jsonl);
-    forget_missing(ingest, account, &projects, &files);
+    let files = if let Some(named) = named {
+        named_files(named, &projects, is_jsonl)
+    } else {
+        let mut files = Vec::new();
+        let _ = collect_files(&projects, &mut files, is_jsonl);
+        forget_missing(ingest, account, &projects, &files);
+        files
+    };
     // Limit hits ride in the transcripts: Claude Code's own record of a
     // window running out, with the vendor's reset.
     for path in &files {
@@ -722,19 +737,21 @@ fn ingest_codex(
     ingest: &mut IngestState,
     store: &mut Vec<juggler_core::quota::UsageEvent>,
     samples: &mut SampleBatch,
-    (credits, checks): (
-        &mut Vec<(String, juggler_adapters::CreditsSnapshot)>,
-        &mut Vec<CompactionCheck>,
-    ),
+    (credits, checks, named): (&mut Credits, &mut Vec<CompactionCheck>, Option<&Named>),
 ) {
     let sessions = dir.join("sessions");
+    let rollout = juggler_adapters::codex::is_rollout_file;
     let mut files = Vec::new();
-    let complete = collect_files(
-        &sessions,
-        &mut files,
-        juggler_adapters::codex::is_rollout_file,
-    );
-    forget_missing(ingest, account, &sessions, &files);
+    // A pass on file events reads the rollouts they named, and checks no
+    // compaction (that needs every rollout listed).
+    let complete = if let Some(named) = named {
+        files = named_files(named, &sessions, rollout);
+        false
+    } else {
+        let complete = collect_files(&sessions, &mut files, rollout);
+        forget_missing(ingest, account, &sessions, &files);
+        complete
+    };
     // Only from a whole listing with rollouts in it: an empty, missing or
     // unreadable folder would make every thread look gone, and the check
     // is made once. Left for a pass that reads them.
@@ -1088,6 +1105,17 @@ fn load_state_as_saved(state: &Arc<AppState>) -> (IngestState, Option<String>) {
         .and_then(|blob| serde_json::from_str(blob).ok())
         .unwrap_or_default();
     (ingest, saved)
+}
+
+/// Of the files the gate's events `named`, those under `root` that `keep`
+/// picks out and are still there (AJ-E805: a pass on file events reads
+/// only them, not every file under `root`).
+fn named_files(named: &Named, root: &Path, keep: fn(&Path) -> bool) -> Vec<PathBuf> {
+    named
+        .iter()
+        .filter(|path| path.starts_with(root) && keep(path) && path.is_file())
+        .cloned()
+        .collect()
 }
 
 /// The files under `root` (at most [`MAX_WALK_DEPTH`] folders down) that

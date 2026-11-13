@@ -25,13 +25,20 @@
 //! What it watches is every account's own folder and AI Juggler's spools,
 //! whatever the tool: which files in them a tool's usage is in is the
 //! pipeline's to say, not the gate's (ADR-0019).
+//!
+//! A pass that only file events asked for reads only the files they named
+//! ([`Gate::named`]: AJ-E805's follow-up, with sessions at work it walked
+//! every transcript of every account every second; on the grown lab, 4,800
+//! of them, the backend's largest cost under load). A pass on the records'
+//! cadence, after a lost track, or where events can't be heard walks
+//! everything, as before.
 
 use std::collections::BTreeSet;
-use std::path::PathBuf;
-use std::sync::Arc;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex};
 
-use juggler_adapters::folder_wake::FolderWake;
+use juggler_adapters::folder_wake::{FolderWake, Woke};
 
 use super::{FILE_SCAN_EVERY, ZCODE_EVERY};
 use crate::state::AppState;
@@ -84,28 +91,66 @@ impl Due {
     }
 }
 
+/// More changed paths than this between two passes walks everything.
+const HEARD_MAX: usize = 4096;
+
+/// What the system's events said since the last pass.
+#[derive(Debug, Default)]
+struct Heard {
+    paths: BTreeSet<PathBuf>,
+    /// Something changed whose paths weren't all kept (a lost track, too
+    /// many): walk everything.
+    lost: bool,
+}
+
+impl Heard {
+    fn woke(&self) -> bool {
+        self.lost || !self.paths.is_empty()
+    }
+}
+
+fn hear(heard: &Mutex<Heard>, woke: Woke) {
+    let Ok(mut heard) = heard.lock() else {
+        return;
+    };
+    match woke {
+        Woke::Rescan => heard.lost = true,
+        Woke::Paths(paths) => {
+            heard.paths.extend(paths);
+            if heard.paths.len() > HEARD_MAX {
+                heard.paths.clear();
+                heard.lost = true;
+            }
+        }
+    }
+}
+
 /// Decides each second whether a pass runs, from the file events heard
 /// since the last one and the cadences above.
 pub(crate) struct Gate {
     wake: FolderWake,
-    woke: Arc<AtomicBool>,
-    /// The folders watched for the accounts known at the last pass.
-    roots: BTreeSet<PathBuf>,
+    heard: Arc<Mutex<Heard>>,
+    /// The folders watched for the accounts known at the last pass: each
+    /// as the system names it, and as the accounts spell it.
+    roots: BTreeSet<(PathBuf, PathBuf)>,
     /// A store pass ran since the accounts last changed.
     stores_probed: bool,
+    /// The files the events named, for a pass only they asked for.
+    named: Option<BTreeSet<PathBuf>>,
 }
 
 impl Gate {
     /// A gate on the system's file events (nothing watched until
     /// [`Gate::watch`]).
     pub fn new() -> Self {
-        let woke = Arc::new(AtomicBool::new(false));
-        let heard = Arc::clone(&woke);
+        let heard = Arc::new(Mutex::new(Heard::default()));
+        let into = Arc::clone(&heard);
         Self {
-            wake: FolderWake::trees(move |_| heard.store(true, Ordering::Release)),
-            woke,
+            wake: FolderWake::trees(move |woke| hear(&into, woke)),
+            heard,
             roots: BTreeSet::new(),
             stores_probed: false,
+            named: None,
         }
     }
 
@@ -115,18 +160,26 @@ impl Gate {
         if !self.wake.hears_the_system() {
             return Some(every);
         }
-        let woke = self.woke.swap(false, Ordering::AcqRel) | SOON.swap(false, Ordering::AcqRel);
+        let heard = self
+            .heard
+            .lock()
+            .map(|mut heard| std::mem::take(&mut *heard))
+            .unwrap_or_default();
+        let soon = SOON.swap(false, Ordering::AcqRel);
+        let records = crate::features::quota::records::will_be_due(tick);
         let stores = !self.stores_probed || STORE_SEEN.load(Ordering::Acquire);
-        let due = decide(
-            tick,
-            woke,
-            crate::features::quota::records::will_be_due(tick),
-            stores,
-        );
+        let due = decide(tick, heard.woke() || soon, records, stores);
         if due.is_some_and(|due| due.stores) {
             self.stores_probed = true;
         }
+        self.named = named(records || soon, &heard, &self.roots);
         due
+    }
+
+    /// The files the last [`Gate::due`]'s events named, when only they
+    /// asked for its pass (`None`: walk everything).
+    pub fn named(&mut self) -> Option<BTreeSet<PathBuf>> {
+        self.named.take()
     }
 
     /// Watches every account's folder and AI Juggler's spools from now on
@@ -139,16 +192,52 @@ impl Gate {
             .ok()
             .and_then(|storage| storage.accounts().list().ok())
             .unwrap_or_default();
-        let roots: BTreeSet<PathBuf> = std::iter::once(state.overlays_dir())
+        let roots: BTreeSet<(PathBuf, PathBuf)> = std::iter::once(state.overlays_dir())
             .chain(accounts.into_iter().map(|account| account.state_dir))
             .filter(|root| !root.as_os_str().is_empty() && root.is_dir())
+            .map(|root| {
+                (
+                    std::fs::canonicalize(&root).unwrap_or_else(|_| root.clone()),
+                    root,
+                )
+            })
             .collect();
         if roots != self.roots {
             self.stores_probed = false;
-            self.wake.watch(&roots);
+            self.wake
+                .watch(&roots.iter().map(|(real, _)| real.clone()).collect());
             self.roots = roots;
         }
     }
+}
+
+/// The files a pass reads when only the events `heard` asked for it:
+/// theirs alone, as the accounts spell them; `None` (walk everything) on
+/// the records' cadence or an ask (`walk`), or after a lost track.
+fn named(
+    walk: bool,
+    heard: &Heard,
+    roots: &BTreeSet<(PathBuf, PathBuf)>,
+) -> Option<BTreeSet<PathBuf>> {
+    (!walk && !heard.lost).then(|| {
+        heard
+            .paths
+            .iter()
+            .filter_map(|path| spelled(roots, path))
+            .collect()
+    })
+}
+
+/// `path` (as the system names it) as the account's folder spells it:
+/// the offsets are kept by that spelling (`/tmp`, not `/private/tmp`).
+fn spelled(roots: &BTreeSet<(PathBuf, PathBuf)>, path: &Path) -> Option<PathBuf> {
+    roots.iter().find_map(|(real, spelled)| {
+        let rest = path
+            .strip_prefix(real)
+            .or_else(|_| path.strip_prefix(spelled))
+            .ok()?;
+        Some(spelled.join(rest))
+    })
 }
 
 /// The gate's rule (pure): what the pass at `tick` reads, given whether
@@ -203,6 +292,37 @@ mod tests {
         assert!(due.stores && !due.claude && !due.codex);
         assert!(decide(FILE_SCAN_EVERY + 1, false, false, true).is_none());
         assert!(decide(FILE_SCAN_EVERY, false, false, false).is_none());
+    }
+
+    /// AJ-E805: a pass only events asked for reads the files they named,
+    /// spelled as the account's folder is (its offsets' keys); the records'
+    /// cadence, an ask or a lost track walks everything. With sessions at
+    /// work, every event walked every transcript of every account.
+    #[test]
+    fn a_pass_on_events_reads_the_files_they_named() {
+        let roots = BTreeSet::from([(
+            PathBuf::from("/private/tmp/lab/.claude"),
+            PathBuf::from("/tmp/lab/.claude"),
+        )]);
+        let heard = Heard {
+            paths: BTreeSet::from([
+                PathBuf::from("/private/tmp/lab/.claude/projects/p/a.jsonl"),
+                PathBuf::from("/elsewhere/b.jsonl"),
+            ]),
+            lost: false,
+        };
+        assert_eq!(
+            named(false, &heard, &roots),
+            Some(BTreeSet::from([PathBuf::from(
+                "/tmp/lab/.claude/projects/p/a.jsonl"
+            )]))
+        );
+        assert_eq!(named(true, &heard, &roots), None, "the records' cadence");
+        let lost = Heard {
+            lost: true,
+            ..Heard::default()
+        };
+        assert_eq!(named(false, &lost, &roots), None, "a lost track");
     }
 
     /// Before the gate (and where events can't be heard): Claude every
