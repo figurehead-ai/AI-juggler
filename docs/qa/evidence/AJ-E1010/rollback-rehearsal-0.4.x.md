@@ -19,34 +19,37 @@ Database schema: no change between 0.4.3 and 0.4.4 (no migration in
 `crates/juggler-core/src/storage/` between the tags), so the documented way
 back is "install the previous `.dmg` over the newer one".
 
-## The run: not completed
+## The run: not completed, and why (expected behaviour)
 
-Each build was opened with `open -n --env AIJ_NO_RESTORE=1 --env
-HOME=<throwaway>` from the scratch copy, never from `/Applications`, beside
-the maintainer's running AI Juggler (left untouched). The keychain is off
-for a run whose `HOME` isn't the user's (`juggler_platform::keychain::off`),
-the hand-over socket is per data folder, and no login item is registered on
-a first launch: checked in the code before running.
+Each build was opened from the scratch copy (`open -n --env AIJ_NO_RESTORE=1
+--env HOME=<throwaway>`), never from `/Applications`, while the maintainer's
+installed AI Juggler was running. Each launch ran about half a second and
+exited; its crash watchdog started it again three times; the direct run
+exited 0 at once. No crash report.
 
-- 0.4.3 on a fresh throwaway home opened its data (schema 52, `juggler.lock`,
-  `last-run`, the app log) but exited about half a second after each start;
-  its crash watchdog started it again three times (`crash-relaunches`), then
-  stopped. No macOS crash report was written. The main window never showed.
-- The next launches (0.4.4 over that data, then 0.4.3 again) logged nothing
-  in the throwaway data folder; the binary run directly with the throwaway
-  `HOME` exited 0 at once and created no file in it.
-- The maintainer's own data was not opened: its `app.log` (last written
-  2026-11-12 17:35) has no "test run" line, and its `last-run` is unchanged.
+**Cause, confirmed in the code:** `tauri-plugin-single-instance` (2.5.5,
+`crates/juggler-app/src/lib.rs`, `single_instance::init(|app, …|
+main_window::bring_forward(app))`) is keyed by the bundle id: its socket is
+a fixed path under `/tmp` named from `ai.figurehead.juggler`
+(`platform_impl/macos.rs`, `socket_path`). A second instance with the same
+bundle id hands over to the running one and exits, whatever its `HOME`; the
+running one brings its window forward. So these launches were handed to the
+maintainer's own AI Juggler, whose window came forward each time. Expected
+behaviour, not a bug. The maintainer's data was not opened (its `app.log`
+has no "test run" line; `last-run` unchanged).
 
-So the production edition doesn't stay up when launched from a scratch copy
-with a throwaway `HOME` beside the running AI Juggler, and the rehearsal
-can't be done this way. Cleanup: no process left, nothing mounted, the
-scratch folder deleted; the two provenance records were kept.
+**Rule since:** no production-identity build is launched while the installed
+app runs. No supported override gives a release build another single-instance
+identity (the socket follows the signed bundle id; the edition comes from the
+same id), so the rehearsal runs on Dev-identity builds of the same commits.
+
+Cleanup: no process left, nothing mounted, the scratch folder deleted; the
+two provenance records kept.
 
 ## Next
 
-Rehearse on CI's release-profile Dev builds of the two commits (`rc-dev-app`,
-`scripts/qa/fetch_rc.sh`): the same code, its own bundle id, data folder,
-lock, keychain items and port, as the release-candidate checks already run.
-The short-lived production run above is a lead for the 0.4.x line (why a
-production build exits at once from a scratch copy with another `HOME`).
+The same rehearsal on CI's release-profile Dev builds (`rc-dev-app`) of the
+two commits: the same code under the Dev identity (its own bundle id, data
+folder, lock, keychain items, port and single-instance socket). 0.4.3's,
+`rc-b281d3ee6fdf` (`b281d3ee6`, the same tree as `v0.4.3`), is already on
+this Mac; 0.4.4's is `rc-dev-app-0d2f9268b…` (26 MB, run 43391684003).
