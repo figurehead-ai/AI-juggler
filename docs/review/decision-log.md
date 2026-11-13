@@ -3060,3 +3060,29 @@ Each ships with tests that fail without it and a design critique; the M2, D2 and
 - Sources: `crates/juggler-app/src/lib.rs` (the window's close),
   `crates/juggler-app/src/quit.rs`, E15's AJ-E1503 note, the quitting
   docs page.
+
+### D-113 A quit Apple event without a reason asks first; logout, restart and shutdown never do — SETTLED (2026-11-13)
+
+- Decision (the coordinating session's call, 0.4.5): AI Juggler installs
+  its own handler for the quit Apple event (`kCoreEventClass` /
+  `kAEQuitApplication`) through `NSAppleEventManager`, in the audited
+  `juggler-window-events` crate (one more audited unsafe block,
+  documented as ADR-0026's are). An event that carries `keyAEQuitReason`
+  (log out, restart, shut down), or one that arrives while AI Juggler is
+  already quitting, terminates at once and never asks. One without a
+  reason (the Dock's Quit, Activity Monitor's Quit, an AppleScript `quit`)
+  goes through the quit request: the window comes forward with the sheet
+  under D-111's rules, and with nothing live it quits at once. If the
+  handler can't be installed, AI Juggler logs it and quits as before;
+  it never ends up unable to quit.
+- Why: since D-112 the close button only hides the window, so the Dock's
+  Quit becomes an obvious way to quit, and it ended terminal sessions
+  without the sheet (tao's app delegate has no
+  `applicationShouldTerminate:`). That was ADR-0003's gap. A handler of
+  our own replaces nothing in tao, so it survives tao upgrades; patching
+  tao's delegate class would not.
+- Consequence: scripts and test teardowns that quit a Dev build with an
+  AppleScript `quit` now meet the sheet when sessions are live; they end
+  the app by pid (TERM, which quits as asked) instead.
+- Sources: `crates/juggler-window-events`, `crates/juggler-app/src/quit.rs`,
+  ADR-0003's gap note.
