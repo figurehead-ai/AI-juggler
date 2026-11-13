@@ -2968,7 +2968,7 @@ Each ships with tests that fail without it and a design critique; the M2, D2 and
   resident memory, the record `sysinfo` takes it from: the collector's
   full scan measures This Mac's other apps with it, reading only new
   processes whole).
-  `libc` has no `kinfo_proc`, so the six fields read are taken at their
+  `libc` has no `kinfo_proc`, so the seven fields read are taken at their
   offsets in its fixed 64-bit layout, and every read checks itself (a
   record size other than 648 bytes, or a listing without this process
   under its own parent, is no listing: the callers read the table as

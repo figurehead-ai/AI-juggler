@@ -17,7 +17,7 @@
 //! HOW: one `sysctl(CTL_KERN, KERN_PROC, KERN_PROC_ALL)`, the call `ps`
 //! makes: the kernel's `kinfo_proc` record of every process, whoever owns
 //! it, zombies too (`proc_pidinfo` refuses both). `libc` has no
-//! `kinfo_proc`, so the four fields read are taken at their offsets in its
+//! `kinfo_proc`, so the fields read are taken at their offsets in its
 //! fixed 64-bit layout (`macos::LAYOUT`), and every read checks itself:
 //! a record size other than the layout's, or a listing in which this
 //! process isn't found under its own parent, is no listing (`None`, and
@@ -64,7 +64,8 @@ pub struct Listed {
     pub start_micros: u64,
     /// Its short name (the kernel's `p_comm`: the program's file name, up to 16 bytes).
     pub name: String,
-    /// It has ended and waits for its parent to collect it.
+    /// It has ended, or is ending (the kernel's `P_WEXIT`), and waits for
+    /// its parent to collect it: not a running process any more.
     pub zombie: bool,
 }
 
@@ -111,6 +112,8 @@ mod macos {
         pub start_secs: usize,
         /// `kp_proc.p_starttime.tv_usec` (`i32`).
         pub start_micros: usize,
+        /// `kp_proc.p_flag` (`i32`).
+        pub flag: usize,
         /// `kp_proc.p_stat` (one byte).
         pub stat: usize,
         /// `kp_proc.p_pid` (`i32`).
@@ -126,6 +129,7 @@ mod macos {
         size: 648,
         start_secs: 0,
         start_micros: 8,
+        flag: 32,
         stat: 36,
         pid: 40,
         comm: 243,
@@ -134,6 +138,8 @@ mod macos {
 
     /// The kernel's zombie state (`SZOMB` in `sys/proc.h`).
     const ZOMBIE: u8 = 5;
+    /// The kernel's "working on exiting" flag (`P_WEXIT` in `sys/proc.h`).
+    const EXITING: i32 = 0x0000_2000;
     /// `MAXCOMLEN + 1`.
     const COMM: usize = 17;
 
@@ -204,7 +210,8 @@ mod macos {
             start_secs: u64::try_from(i64_at(record, LAYOUT.start_secs)?).ok()?,
             start_micros: u64::try_from(i32_at(record, LAYOUT.start_micros)?).ok()?,
             name: String::from_utf8_lossy(&comm).into_owned(),
-            zombie: *record.get(LAYOUT.stat)? == ZOMBIE,
+            zombie: *record.get(LAYOUT.stat)? == ZOMBIE
+                || i32_at(record, LAYOUT.flag)? & EXITING != 0,
         })
     }
 

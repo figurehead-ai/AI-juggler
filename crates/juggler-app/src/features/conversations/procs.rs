@@ -165,8 +165,15 @@ impl Kept {
         for (identity, listed) in listing {
             let mut process = match fresh.remove(&listed.pid) {
                 // Read just now: the same process the listing saw (a pid
-                // reused in between is read again next time).
-                Some(process) if process.start == i64::try_from(listed.start_secs).ok() => process,
+                // reused in between is read again next time; `sysinfo`
+                // reads no start time for another user's process).
+                Some(process)
+                    if process.start.is_none_or(|start| {
+                        Some(start) == i64::try_from(listed.start_secs).ok()
+                    }) =>
+                {
+                    process
+                }
                 Some(_) => continue,
                 None => match self.table.remove(&listed.pid) {
                     Some((known, process)) if known == identity => process,
@@ -326,6 +333,26 @@ mod tests {
         }
         assert_eq!(asked, vec![vec![10, 11], vec![12], vec![10], vec![10, 11]]);
         assert_eq!(kept.reads, 6);
+    }
+
+    /// The real read: a process started after a read is in the next table
+    /// with its program and arguments, and gone from it once it ends.
+    #[test]
+    fn a_process_started_since_is_read_with_its_arguments() {
+        let _ = table();
+        let mut child = std::process::Command::new("/bin/sleep")
+            .arg("30")
+            .spawn()
+            .unwrap();
+        let pid = child.id();
+        let found = table()
+            .remove(&pid)
+            .expect("the new process is in the table");
+        assert_eq!(found.args, ["/bin/sleep", "30"]);
+        assert_eq!(found.ppid, Some(std::process::id()));
+        child.kill().unwrap();
+        child.wait().unwrap();
+        assert!(!table().contains_key(&pid));
     }
 
     #[test]
