@@ -51,11 +51,14 @@ export function RowSubagents({ item, words, onSelect }: { item: RailItem; words:
  * when it has no page (a folder no project holds). */
 export function RowProject({ item, rest, whole = false }: { item: RailItem; rest: string; whole?: boolean }): JSX.Element {
   const host = useActionHost();
-  // `whole`: the rest (a time) stays whole and the project gives way —
-  // "ai-jug… · 3 h ago", never "ai-juggler · 3 …" (0.3.2). The project
-  // keeps 2.5ch of the line, the time the rest. The two numbers must match
-  // (and the project no side margins): the time's cap is measured against
-  // the line as wide as both need.
+  // `whole`: the rest (a short time: "3 h ago", "viewed 3 h ago") stays
+  // whole and the project gives way, down to 2.5ch — "ai-jug… · 3 h ago",
+  // never "ai-juggler · 3 …" (0.3.2). 0.4.5 (persona D3's walk, "api · 2
+  // d a…" with room to spare): the time was capped at a percentage of a
+  // line sized by its own content, so beside a project narrower than 2.5ch
+  // the cap equalled the time's own width and the app's WebKit, rounding,
+  // cut it. The time no longer shrinks at all (the rail's widths hold it:
+  // a11y's "no row overflows its width").
   const fit = whole ? "min-w-[2.5ch] shrink" : "-mx-0.5 px-0.5 max-w-[65%] shrink-0";
   const id = item.projectId;
   const linked = item.project !== null && id !== null && !!host.openProjectById;
@@ -84,7 +87,7 @@ export function RowProject({ item, rest, whole = false }: { item: RailItem; rest
       {rest && (
         // With no project beside it, the time has the line to itself (it
         // read "1 …" under a cap measured against a project).
-        <span aria-hidden="true" className={(whole && item.project ? "min-w-0 max-w-[calc(100%-2.5ch)] shrink-0" : "min-w-0") + " truncate whitespace-pre"}>
+        <span aria-hidden="true" data-testid="row-when" className={(whole && item.project ? "shrink-0" : "min-w-0 truncate") + " whitespace-pre"}>
           {item.project ? ` · ${rest}` : rest}
         </span>
       )}
