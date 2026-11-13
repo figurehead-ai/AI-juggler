@@ -113,7 +113,7 @@ for (const theme of ["dark", "light"] as const) {
     await expect(page.getByTestId("switch-setup")).toHaveCount(0);
     const details = page.getByTestId("switch-details");
     if ((await details.getAttribute("open")) === null) await details.locator(":scope > summary").click();
-    await expect(details).toContainText("Personal already has 3 of the 3 things this account has set up.");
+    await expect(details).toContainText("Personal already has 3 of the 3 things this app has set up.");
     await page.getByTestId("switch-oneclick").screenshot({ path: resolve(OUT, `nothing-missing-${theme}.png`) });
     await axeClean(page, "nothing missing");
   });
