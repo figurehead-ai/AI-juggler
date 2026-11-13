@@ -4,9 +4,9 @@
  * backend reads them from each tool's own files and says when they
  * change (`conversations://changed`).
  */
-import { channel, call, withoutStream, listen } from "./transport";
+import { channel, call, withoutStream } from "./transport";
 import { hasLiveBackend, refused } from "../bridge";
-import { whileShown } from "../shown-window";
+import { listenWhileShown } from "../shown-window";
 import type { LaunchResult } from "../../types/generated/LaunchResult";
 import type { ListBuildInfo } from "../../types/generated/ListBuildInfo";
 import type { ConversationInfo } from "../../types/generated/ConversationInfo";
@@ -227,20 +227,9 @@ export function onConversationsChanged(handler: (change: ConversationsChange) =>
     window.addEventListener(PREVIEW_CHANGED, preview);
     return () => window.removeEventListener(PREVIEW_CHANGED, preview);
   }
-  let stop: (() => void) | null = null;
-  let disposed = false;
-  // AJ-E805: heard while the window is hidden, once when it shows again
-  // (the files changing outweighs only which are open).
-  const shown = whileShown<ConversationsChange>(handler, (was, now) => (was === "index" || now === "index" ? "index" : "live"));
-  void listen<ConversationsChange | null>("conversations://changed", (event) => shown.heard(event.payload === "live" ? "live" : "index")).then((unlisten) => {
-    if (disposed) unlisten();
-    else stop = unlisten;
-  });
-  return () => {
-    disposed = true;
-    shown.stop();
-    stop?.();
-  };
+  // AJ-E805: not heard while the window is hidden; when it shows, read
+  // again as if the files changed (that outweighs only which are open).
+  return listenWhileShown<ConversationsChange | null>("conversations://changed", (payload) => handler(payload === "live" ? "live" : "index"), () => handler("index"));
 }
 
 /** What a page asks for (AJ-E2108): the last turns, the ones `before` a

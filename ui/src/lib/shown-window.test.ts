@@ -1,5 +1,28 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { everyWhileShown, nextDelay, whileShown } from "./shown-window";
+import { coalesced, everyWhileShown, nextDelay } from "./shown-window";
+
+/** The backend's events as the page subscribes to them (one list of the
+ * listeners in place). */
+const live: string[] = [];
+const handlers = new Map<number, { event: string; handler: (message: { payload: unknown }) => void }>();
+let nextId = 0;
+const emit = (event: string, payload: unknown) => {
+  for (const entry of handlers.values()) if (entry.event === event) entry.handler({ payload });
+};
+vi.mock("./ipc/transport", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./ipc/transport")>()),
+  listen: (event: string, handler: (message: { payload: unknown }) => void) => {
+    const id = ++nextId;
+    return Promise.resolve().then(() => {
+      handlers.set(id, { event, handler });
+      live.push(event);
+      return () => {
+        if (!handlers.delete(id)) return;
+        live.splice(live.indexOf(event), 1);
+      };
+    });
+  },
+}));
 import { keepIfSame, same } from "./same";
 
 const setHidden = (hidden: boolean) => {
@@ -39,6 +62,34 @@ describe("the window's own polling", () => {
   });
 });
 
+describe("a read asked for on every change (AJ-E805, round 3)", () => {
+  // With 10 sessions at work the window read each list on every event;
+  // a burst now makes one read at once and at most one more a second.
+  it("runs the first ask at once and a burst's others once, a second later", () => {
+    vi.useFakeTimers();
+    const run = vi.fn();
+    const reads = coalesced(run, 1000);
+    reads.ask();
+    expect(run).toHaveBeenCalledTimes(1);
+    for (let i = 0; i < 9; i += 1) {
+      vi.advanceTimersByTime(100);
+      reads.ask();
+    }
+    expect(run).toHaveBeenCalledTimes(1);
+    vi.advanceTimersByTime(100);
+    expect(run).toHaveBeenCalledTimes(2);
+    vi.advanceTimersByTime(5000);
+    expect(run).toHaveBeenCalledTimes(2);
+    // After a quiet spell, at once again.
+    reads.ask();
+    expect(run).toHaveBeenCalledTimes(3);
+    reads.ask();
+    reads.stop();
+    vi.advanceTimersByTime(5000);
+    expect(run).toHaveBeenCalledTimes(3);
+  });
+});
+
 describe("an equal answer changes nothing", () => {
   it("compares the backend's answers by value", () => {
     expect(same({ a: [1, { b: "x" }], c: null }, { c: null, a: [1, { b: "x" }] })).toBe(true);
@@ -52,27 +103,46 @@ describe("an equal answer changes nothing", () => {
 });
 
 describe("a backend event while the window is hidden (AJ-E805)", () => {
-  // With 10 sessions at work, the hidden window read its lists again about
-  // 90 times a minute: now an event waits until it shows, once.
-  it("runs at once when shown, and once, merged, when shown again", () => {
-    const seen: string[] = [];
-    const shown = whileShown<string>((value) => seen.push(value), (was, now) => (was === "index" || now === "index" ? "index" : "live"));
-    shown.heard("live");
-    expect(seen).toEqual(["live"]);
+  // Every event reaches the page as a script WebKit runs at foreground
+  // priority: a hidden window's processes were raised and dropped for each
+  // one (about 60 a minute with 10 sessions at work). Hidden, the page
+  // holds no listener, so the backend sends it nothing; shown, it listens
+  // again and then reads what it missed, once.
+  it("holds no listener while hidden and catches up once it listens again", async () => {
+    // The setup file loaded this module with the real transport: again,
+    // with the stand-in above.
+    vi.resetModules();
+    const { listenWhileShown } = await import("./shown-window");
+    const heard: string[] = [];
+    let caught = 0;
+    const stop = listenWhileShown<string>("conversations://changed", (payload) => heard.push(payload), () => (caught += 1));
+    await vi.waitFor(() => expect(live).toEqual(["conversations://changed"]));
+    emit("conversations://changed", "live");
+    expect(heard).toEqual(["live"]);
     setHidden(true);
-    shown.heard("live");
-    shown.heard("index");
-    shown.heard("live");
-    expect(seen).toEqual(["live"]);
+    expect(live).toEqual([]);
+    emit("conversations://changed", "index");
+    expect(heard).toEqual(["live"]);
+    expect(caught).toBe(0);
     setHidden(false);
-    expect(seen).toEqual(["live", "index"]);
+    await vi.waitFor(() => expect(caught).toBe(1));
+    expect(live).toEqual(["conversations://changed"]);
+    emit("conversations://changed", "index");
+    expect(heard).toEqual(["live", "index"]);
+    // Hidden and shown again before the listen lands: one listener, one catch-up.
     setHidden(true);
     setHidden(false);
-    expect(seen).toEqual(["live", "index"]);
     setHidden(true);
-    shown.heard("live");
-    shown.stop();
     setHidden(false);
-    expect(seen).toEqual(["live", "index"]);
+    await vi.waitFor(() => expect(caught).toBe(2));
+    await Promise.resolve();
+    expect(live).toEqual(["conversations://changed"]);
+    stop();
+    expect(live).toEqual([]);
+    setHidden(true);
+    setHidden(false);
+    await Promise.resolve();
+    expect(caught).toBe(2);
+    expect(live).toEqual([]);
   });
 });

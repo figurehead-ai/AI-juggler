@@ -8,6 +8,7 @@
  * the backend's Needs you).
  */
 import { call, listen } from "./transport";
+import { listenWhileShown } from "../shown-window";
 import { hasLiveBackend } from "../bridge";
 import { pageOf, type Page, type PageRequest } from "../paged";
 import type { NeedSnoozeInfo } from "../../types/generated/NeedSnoozeInfo";
@@ -251,7 +252,8 @@ export function onNoticesChanged(handler: (summary: NoticeSummaryInfo) => void):
     s.listeners.add(handler);
     return () => s.listeners.delete(handler);
   }
-  return listened<NoticeSummaryInfo>(NOTICES_CHANGED, handler);
+  // AJ-E805: not heard while the window is hidden; read once when it shows.
+  return listenWhileShown<NoticeSummaryInfo>(NOTICES_CHANGED, handler, () => void notificationsSummary().then(handler, () => undefined));
 }
 
 /** The menu-bar item asked to open a notice (an id) or the centre (null). */

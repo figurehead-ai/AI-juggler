@@ -4,7 +4,7 @@
  * starts it again when it stops. The backend says when they change
  * (`places-changed`). The preview and tests set `window.__AIJ_PLACES__`.
  */
-import { call, listen } from "./transport";
+import { call } from "./transport";
 import { hasLiveBackend } from "../bridge";
 import { previewFolders } from "./accounts";
 import type { GoToOutcomeInfo } from "../../types/generated/GoToOutcomeInfo";
@@ -12,7 +12,7 @@ import type { KnownPlaceInfo } from "../../types/generated/KnownPlaceInfo";
 import type { FindProfilesInfo } from "../../types/generated/FindProfilesInfo";
 import type { PlaceOfferInfo } from "../../types/generated/PlaceOfferInfo";
 import { previewHooks } from "../preview-hooks";
-import { whileShown } from "../shown-window";
+import { listenWhileShown } from "../shown-window";
 
 export type { FindProfilesInfo, KnownPlaceInfo };
 
@@ -166,29 +166,17 @@ export async function placesProfilesSet(on: boolean): Promise<FindProfilesInfo> 
   return info;
 }
 
-/** Calls `on` whenever a place changes (heard while the window is
- * hidden, once when it shows again: AJ-E805); returns the unsubscribe. */
+/** Calls `on` whenever a place changes: this page's own changes, and the
+ * backend's while the window can be seen (read again once when it shows:
+ * AJ-E805); returns the unsubscribe. */
 export function onPlacesChanged(on: () => void): () => void {
-  const shown = whileShown<null>(() => on());
-  const heard = () => shown.heard(null);
+  const heard = () => on();
   window.addEventListener(PLACES_CHANGED, heard);
-  let stop: (() => void) | null = null;
-  let gone = false;
-  if (hasLiveBackend()) {
-    // A subscription that can't be made (no event bridge, as in a test
-    // whose backend is mocked live) only means no live refresh: it is
-    // never an unhandled error (History reads the places since 0.4.1).
-    void listen<null>(PLACES_CHANGED, heard).then(
-      (unlisten) => {
-        if (gone) unlisten();
-        else stop = unlisten;
-      },
-      () => undefined,
-    );
-  }
+  // A subscription that can't be made (no event bridge, as in a test
+  // whose backend is mocked live) only means no live refresh: it is
+  // never an unhandled error (History reads the places since 0.4.1).
+  const stop = hasLiveBackend() ? listenWhileShown<null>(PLACES_CHANGED, heard, heard) : null;
   return () => {
-    gone = true;
-    shown.stop();
     window.removeEventListener(PLACES_CHANGED, heard);
     stop?.();
   };

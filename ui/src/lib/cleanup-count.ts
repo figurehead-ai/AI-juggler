@@ -12,7 +12,7 @@ export function useCleanupCount(): number {
   useEffect(() => {
     let alive = true;
     void processesCounts().then((counts) => alive && setCount(counts.to_clean), () => undefined);
-    const stop = onProcessesChanged((change) => alive && setCount(change.counts.to_clean));
+    const stop = onProcessesChanged((counts) => alive && setCount(counts.to_clean));
     return () => {
       alive = false;
       stop();

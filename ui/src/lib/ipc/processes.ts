@@ -8,7 +8,8 @@
  * in `preview/processes`, so the page, its filters and its sheets work in
  * the dev preview and the gallery.
  */
-import { call, listen } from "./transport";
+import { call } from "./transport";
+import { listenWhileShown } from "../shown-window";
 import { hasLiveBackend } from "../bridge";
 import { portInventory, type PortInventoryInfo } from "./kill";
 import type { KillExecuteData, KillVerifyData } from "../../components/KillSheet";
@@ -148,24 +149,17 @@ export async function processesSnapshot(): Promise<ProcessSnapshotInfo> {
   return call("processes_snapshot");
 }
 
-/** Calls `on` each time the graph changes; returns the disposer. In the
- * preview, a `aij:processes-changed` window event stands in. */
-export function onProcessesChanged(on: (change: ProcessGraphChangedInfo) => void): () => void {
+/** Calls `on` with the counts each time the graph changes, while the
+ * window can be seen (read once when it shows: AJ-E805); returns the
+ * disposer. In the preview, a `aij:processes-changed` window event
+ * stands in. */
+export function onProcessesChanged(on: (counts: ProcessCountsInfo) => void): () => void {
   if (!hasLiveBackend()) {
-    const handler = (event: Event) => on((event as CustomEvent<ProcessGraphChangedInfo>).detail);
+    const handler = (event: Event) => on((event as CustomEvent<ProcessGraphChangedInfo>).detail.counts);
     window.addEventListener("aij:processes-changed", handler);
     return () => window.removeEventListener("aij:processes-changed", handler);
   }
-  let disposed = false;
-  let stop: (() => void) | null = null;
-  void listen<ProcessGraphChangedInfo>(PROCESSES_CHANGED, (event) => on(event.payload)).then((unlisten) => {
-    if (disposed) unlisten();
-    else stop = unlisten;
-  });
-  return () => {
-    disposed = true;
-    stop?.();
-  };
+  return listenWhileShown<ProcessGraphChangedInfo>(PROCESSES_CHANGED, (change) => on(change.counts), () => void processesCounts().then(on, () => undefined));
 }
 
 /** Reveal folder: the session's folder in Finder (the one the backend

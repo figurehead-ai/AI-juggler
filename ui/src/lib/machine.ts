@@ -47,15 +47,11 @@ export function useThisMac(refreshKey?: unknown): ThisMacInfo | null {
   }, [hasLiveBackend() ? 0 : refreshKey]);
   useEffect(() => {
     if (!hasLiveBackend()) return;
-    let unlisten: (() => void) | null = null;
     let alive = true;
-    void onThisMac((payload) => alive && setInfo(payload)).then((stop) => {
-      if (alive) unlisten = stop;
-      else stop();
-    });
+    const stop = onThisMac((payload) => alive && setInfo(payload));
     return () => {
       alive = false;
-      unlisten?.();
+      stop();
     };
   }, []);
   return info;
