@@ -18,7 +18,7 @@
 //! makes: the kernel's `kinfo_proc` record of every process, whoever owns
 //! it, zombies too (`proc_pidinfo` refuses both). `libc` has no
 //! `kinfo_proc`, so the four fields read are taken at their offsets in its
-//! fixed 64-bit layout ([`macos::LAYOUT`]), and every read checks itself:
+//! fixed 64-bit layout (`macos::LAYOUT`), and every read checks itself:
 //! a record size other than the layout's, or a listing in which this
 //! process isn't found under its own parent, is no listing (`None`, and
 //! the callers read the table their old way).
