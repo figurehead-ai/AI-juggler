@@ -2923,7 +2923,7 @@ Each ships with tests that fail without it and a design critique; the M2, D2 and
 - **Amends:** D-64 (the "Last 3 inactive" link), ADR-0032 amendment 6 (`sdk-cli` and `codex_exec` were a CLI App's).
 - Sources: `docs/adr/0032-presence-from-the-process-table.md` (amendments 8 and 9); the evidence in `docs/qa/evidence/presence/0.4.3.txt`.
 
-### D-103 0.5 work may start before the first Stable; 0.4.x fixes preempt it — SETTLED (2026-11-12)
+### D-104 0.5 work may start before the first Stable; 0.4.x fixes preempt it — SETTLED (2026-11-12)
 
 **Ruling.** The maintainer, 2026-11-12, with 0.4.4 finishing: "if you run out of things to work, you can start working on 0.5 version as planned".
 
