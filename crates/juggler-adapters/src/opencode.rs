@@ -53,7 +53,7 @@ use juggler_adapter::launch::ENV_UNSET;
 use juggler_adapter::prelude::*;
 use juggler_adapter::{
     AdapterError, Capabilities, DiscoveryReport, EnvMap, InstallStatus, LaunchMode, LaunchSpec,
-    SessionEvent, SessionWatcher, VerificationStatus,
+    SessionWatcher, VerificationStatus,
 };
 use juggler_core::model::{Account, HarnessId, Profile};
 
@@ -697,11 +697,10 @@ impl ToolInventory for OpenCodeAdapter {
 
 impl ToolTranscripts for OpenCodeAdapter {
     fn watcher(&self, transcript_root: &Path) -> Result<Box<dyn SessionWatcher>, AdapterError> {
-        Ok(Box::new(DbWatcher {
-            db: transcript_root.join(DB_FILE),
-            seen: std::collections::BTreeMap::new(),
-            pending: std::collections::VecDeque::new(),
-        }))
+        Ok(Box::new(crate::common::sqlite::StoreWatcher::new(
+            transcript_root.join(DB_FILE),
+            crate::opencode_store::session_changes,
+        )))
     }
     /// The session that ran in `cwd` from `opencode.db` (read-only);
     /// its link is `<db>#<id>` (see `opencode_store`).
@@ -895,43 +894,5 @@ impl OpenCodeAdapter {
                     .map(|home| home.join(".config").join("opencode"))
             })
             .flatten()
-    }
-}
-
-/// Polls `opencode.db` for sessions: a new id is `Discovered`, a newer
-/// `time_updated` is `MessageAppended`. Read-only; an unreadable file
-/// yields nothing (watching degrades, never crashes).
-struct DbWatcher {
-    db: PathBuf,
-    seen: std::collections::BTreeMap<String, i64>,
-    pending: std::collections::VecDeque<SessionEvent>,
-}
-
-impl SessionWatcher for DbWatcher {
-    fn poll(
-        &mut self,
-        _timeout: std::time::Duration,
-    ) -> Result<Option<SessionEvent>, AdapterError> {
-        if self.pending.is_empty()
-            && let Ok(sessions) = crate::opencode_store::sessions(&self.db)
-        {
-            for session in sessions.into_iter().rev() {
-                let transcript_path = crate::opencode_store::session_ref(&self.db, &session.id);
-                match self.seen.insert(session.id.clone(), session.updated_ms) {
-                    None => self.pending.push_back(SessionEvent::Discovered {
-                        native_id: session.id,
-                        transcript_path,
-                    }),
-                    Some(before) if before < session.updated_ms => {
-                        self.pending.push_back(SessionEvent::MessageAppended {
-                            native_id: session.id,
-                            transcript_path,
-                        });
-                    }
-                    Some(_) => {}
-                }
-            }
-        }
-        Ok(self.pending.pop_front())
     }
 }

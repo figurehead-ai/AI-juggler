@@ -79,26 +79,41 @@ pub fn zcode_credits(
 /// Reads the WHOLE `model_usage` table (completed rows only) from the
 /// vendor DB, read-only and never written beside (`open_tool_store`:
 /// the log joined while `ZCode` runs, `immutable` when it is closed, where
-/// a plain read-only open failed). Full-table each pass is
-/// the deliberate choice: rows carry no vendor uuid, so the stable
-/// `rowid` is the dedupe key and completeness — not a high-water mark
-/// — keeps ids honest. A day is ~1k rows; the read is <10 ms.
+/// a plain read-only open failed). Rows carry no vendor uuid, so the
+/// stable `rowid` is the dedupe key. A day is ~1k rows; the read is
+/// <10 ms.
 ///
 /// # Errors
 ///
 /// Returns a message when the DB cannot be opened or the table is
 /// missing (never a partial/invented read).
 pub fn zcode_events(account: &str, db_path: &Path) -> Result<Vec<UsageEvent>, String> {
+    zcode_events_since(account, db_path, 0)
+}
+
+/// [`zcode_events`] for the rows started at or after `since_ms` (epoch
+/// ms; 0 for all): what the usage pipeline reads each pass through the
+/// adapter (`ToolQuota::usage_since`), the `zcode:<rowid>` keys making a
+/// row read twice count once.
+///
+/// # Errors
+///
+/// As [`zcode_events`].
+pub fn zcode_events_since(
+    account: &str,
+    db_path: &Path,
+    since_ms: i64,
+) -> Result<Vec<UsageEvent>, String> {
     let conn = crate::common::sqlite::open_tool_store(db_path, "ZCode")?;
     let mut stmt = conn
         .prepare(
             "SELECT rowid, model_id, input_tokens, output_tokens,
                     cache_creation_input_tokens, cache_read_input_tokens, started_at
-             FROM model_usage WHERE status = 'completed'",
+             FROM model_usage WHERE status = 'completed' AND started_at >= ?1",
         )
         .map_err(|error| format!("zcode model_usage query: {error}"))?;
     let rows = stmt
-        .query_map([], |row| {
+        .query_map([since_ms], |row| {
             Ok((
                 row.get::<_, i64>(0)?,
                 row.get::<_, String>(1)?,

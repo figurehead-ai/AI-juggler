@@ -106,6 +106,8 @@ pub mod tool_summary;
 pub mod transcript;
 pub mod transcript_tail;
 mod transcript_watcher;
+pub mod zcode;
+pub mod zcode_sessions;
 pub mod zcode_usage;
 
 pub use activity::{ActivityLog, ActivityTail};
@@ -131,6 +133,7 @@ pub use transcript::{
     parse_any, read_bounded, read_session_file, records_compaction, session_file_sha256,
     session_lines, transcript_tokens,
 };
+pub use zcode::{ZCODE_ID, ZCodeAdapter, zcode_spec};
 pub mod fake_desktop;
 #[cfg(test)]
 mod stream_equivalence;

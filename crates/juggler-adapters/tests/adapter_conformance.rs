@@ -15,6 +15,7 @@ mod grok_fixture;
 mod kimi_fixture;
 mod opencode_fixture;
 mod subagent_fixture;
+mod zcode_fixture;
 
 use std::path::{Path, PathBuf};
 
@@ -22,7 +23,7 @@ use conformance::{Sandbox, Subject, UsageSubject};
 use juggler_adapter::HarnessAdapter;
 use juggler_adapters::{
     ClaudeCodeAdapter, CodexAdapter, FakeHarnessAdapter, GrokBuildAdapter, KimiCodeAdapter,
-    OpenCodeAdapter,
+    OpenCodeAdapter, ZCodeAdapter,
 };
 use juggler_core::quota::{UsageEvent, UsageSource};
 use opencode_fixture::Line;
@@ -673,10 +674,90 @@ impl Subject for Grok {
     }
 }
 
+// ZCode (AJ-E1605): its engine run on Node.js, sessions and usage from
+// the App's own store (`<tree>/cli/db/db.sqlite`); bringing a setup in is
+// Req.5, not built yet, so it claims none.
+
+struct ZCode;
+
+impl Subject for ZCode {
+    fn adapter(&self, sandbox: &Sandbox) -> Box<dyn HarnessAdapter> {
+        let engine = zcode_fixture::app(&sandbox.bin.join("Applications"), "dev.zcode.app");
+        Box::new(
+            ZCodeAdapter::with_engine(engine)
+                .with_node(sandbox.stub("node", "0.16.9"))
+                .with_home(&sandbox.home),
+        )
+    }
+
+    fn write_session(&self, state_dir: &Path, cwd: &Path, n: u32) -> String {
+        let id = format!("sess_kit{n:04}");
+        // A sub-agent's session in the same folder is never the one.
+        zcode_fixture::add_session(state_dir, &id, cwd);
+        id
+    }
+
+    fn seed_source(&self, _sandbox: &Sandbox, _canary: &str) -> Option<PathBuf> {
+        None
+    }
+
+    fn credential_files(&self) -> &'static [&'static str] {
+        &["v2/credentials.json"]
+    }
+
+    fn session_record(&self, state_dir: &Path, id: &str) -> Option<PathBuf> {
+        Some(juggler_adapters::zcode_sessions::session_ref(
+            &zcode_fixture::db(state_dir),
+            id,
+        ))
+    }
+
+    fn usage(&self) -> Option<&dyn UsageSubject> {
+        Some(&ZCodeUsage)
+    }
+
+    fn sandboxed_default(&self) -> bool {
+        true
+    }
+}
+
+struct ZCodeUsage;
+
+impl UsageSubject for ZCodeUsage {
+    fn seed(&self, state_dir: &Path) {
+        let conn = zcode_fixture::create(state_dir);
+        let at = 1_792_580_400_000; // 2026-10-21
+        zcode_fixture::usage(&conn, "mu_1", "GLM-5.3", "completed", at + 10, 1000);
+        zcode_fixture::usage(&conn, "mu_2", "GLM-5.3-Flash", "completed", at + 20, 400);
+        // Still streaming: its counts may grow, so it isn't read yet.
+        zcode_fixture::usage(&conn, "mu_3", "GLM-5.3", "streaming", at + 30, 50);
+    }
+
+    /// What the usage pipeline runs: the adapter's store read.
+    fn read(&self, account: &str, state_dir: &Path) -> Vec<UsageEvent> {
+        let adapter = ZCodeAdapter::new();
+        let mut record = conformance::account(&adapter, state_dir);
+        record.id = juggler_core::model::AccountId::new(account);
+        adapter
+            .usage_since(&record, 0)
+            .expect("ZCode reads its usage from its store")
+            .unwrap()
+    }
+
+    fn source(&self) -> UsageSource {
+        UsageSource::Sqlite
+    }
+
+    fn distinct_messages(&self) -> usize {
+        2
+    }
+}
+
 conformance!(claude_code, Claude);
 conformance!(grok_build, Grok);
 conformance!(kimi_code, Kimi);
 conformance!(opencode_v1, OpenCode(Line::V1));
 conformance!(opencode_v2, OpenCode(Line::V2));
 conformance!(codex, Codex);
+conformance!(zcode, ZCode);
 conformance!(fake, Fake);

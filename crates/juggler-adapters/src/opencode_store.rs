@@ -185,18 +185,21 @@ pub fn stored_conversations(db: &Path) -> Vec<juggler_adapter::conversation::Sto
 /// The link reference for a session: `<db>#<id>` (see module docs).
 #[must_use]
 pub fn session_ref(db: &Path, id: &str) -> PathBuf {
-    let mut text = db.as_os_str().to_owned();
-    text.push("#");
-    text.push(id);
-    PathBuf::from(text)
+    crate::common::sqlite::store_ref(db, id)
 }
 
 /// The session id inside a [`session_ref`], if `path` is one.
 #[must_use]
 pub fn session_of_ref(path: &Path) -> Option<String> {
-    let text = path.to_string_lossy();
-    let (db, id) = text.rsplit_once('#')?;
-    (db.ends_with(DB_FILE) && !id.is_empty()).then(|| id.to_owned())
+    crate::common::sqlite::store_ref_parts(path, DB_FILE).map(|(_, id)| id)
+}
+
+/// Every session's id and last change, newest first, for the watcher.
+pub(crate) fn session_changes(db: &Path) -> Result<Vec<(String, i64)>, String> {
+    Ok(sessions(db)?
+        .into_iter()
+        .map(|session| (session.id, session.updated_ms))
+        .collect())
 }
 
 /// How an assistant message stands, as OpenCode's own turn loop reads it
@@ -302,10 +305,8 @@ fn session_exists(conn: &Connection, id: &str) -> bool {
 /// other path.
 #[must_use]
 pub fn last_turn_of_ref(reference: &Path) -> Option<TailTurn> {
-    let id = session_of_ref(reference)?;
-    let text = reference.to_string_lossy();
-    let (db, _) = text.rsplit_once('#')?;
-    last_turn(Path::new(db), &id)
+    let (db, id) = crate::common::sqlite::store_ref_parts(reference, DB_FILE)?;
+    last_turn(&db, &id)
 }
 
 /// The one top-level session that ran in `cwd`, created at or after

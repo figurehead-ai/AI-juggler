@@ -74,6 +74,82 @@ pub(crate) fn open_tool_store(db: &Path, tool: &str) -> Result<Connection, Strin
     Ok(conn)
 }
 
+/// The link to one session a tool keeps in its store: `<db>#<id>`, a
+/// path no file has, unique per session, so readers that open transcript
+/// files find nothing to misread and "already linked" checks compare
+/// sessions (AJ-E1602; `OpenCode`'s and `ZCode`'s stores).
+pub(crate) fn store_ref(db: &Path, id: &str) -> std::path::PathBuf {
+    let mut text = db.as_os_str().to_owned();
+    text.push("#");
+    text.push(id);
+    std::path::PathBuf::from(text)
+}
+
+/// The store and the session id inside a [`store_ref`], when `path` is one
+/// to a store file named `file`.
+pub(crate) fn store_ref_parts(path: &Path, file: &str) -> Option<(std::path::PathBuf, String)> {
+    let text = path.to_string_lossy();
+    let (db, id) = text.rsplit_once('#')?;
+    (db.ends_with(file) && !id.is_empty()).then(|| (std::path::PathBuf::from(db), id.to_owned()))
+}
+
+/// Each session in a store, `(id, last changed in epoch ms)`, newest
+/// first; an error when the store can't be read this time.
+pub(crate) type StoreSessions = fn(&Path) -> Result<Vec<(String, i64)>, String>;
+
+/// Polls a tool's store for its sessions: a new id is `Discovered`, a
+/// newer change time is `MessageAppended`, each linked by [`store_ref`].
+/// Read-only; an unreadable store yields nothing (watching degrades,
+/// never crashes).
+pub(crate) struct StoreWatcher {
+    db: std::path::PathBuf,
+    list: StoreSessions,
+    seen: std::collections::BTreeMap<String, i64>,
+    pending: std::collections::VecDeque<juggler_adapter::SessionEvent>,
+}
+
+impl StoreWatcher {
+    /// A watcher of the store at `db`, read by `list`.
+    pub(crate) fn new(db: std::path::PathBuf, list: StoreSessions) -> Self {
+        Self {
+            db,
+            list,
+            seen: std::collections::BTreeMap::new(),
+            pending: std::collections::VecDeque::new(),
+        }
+    }
+}
+
+impl juggler_adapter::SessionWatcher for StoreWatcher {
+    fn poll(
+        &mut self,
+        _timeout: std::time::Duration,
+    ) -> Result<Option<juggler_adapter::SessionEvent>, juggler_adapter::AdapterError> {
+        use juggler_adapter::SessionEvent;
+        if self.pending.is_empty()
+            && let Ok(sessions) = (self.list)(&self.db)
+        {
+            for (id, changed_ms) in sessions.into_iter().rev() {
+                let transcript_path = store_ref(&self.db, &id);
+                match self.seen.insert(id.clone(), changed_ms) {
+                    None => self.pending.push_back(SessionEvent::Discovered {
+                        native_id: id,
+                        transcript_path,
+                    }),
+                    Some(before) if before < changed_ms => {
+                        self.pending.push_back(SessionEvent::MessageAppended {
+                            native_id: id,
+                            transcript_path,
+                        });
+                    }
+                    Some(_) => {}
+                }
+            }
+        }
+        Ok(self.pending.pop_front())
+    }
+}
+
 #[cfg(test)]
 #[allow(
     clippy::disallowed_methods,

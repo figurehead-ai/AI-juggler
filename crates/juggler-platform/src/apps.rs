@@ -19,6 +19,10 @@
 //!   running with no window and no place in the apps the system knows: it
 //!   can't be brought forward or sent a link, and starting a second one on
 //!   the same profile folder risks its data. [`quit`] asks it to end.
+//!
+//! - [`install_folders`], [`installed_app`], [`resources_of`] (AJ-E1605):
+//!   where an app the user installed is, by its name, and the folder it
+//!   keeps its own files in (a tool whose engine ships inside its app).
 
 use std::path::Path;
 
@@ -289,6 +293,38 @@ pub fn bundle_version(bundle: &std::path::Path) -> Option<String> {
     .then(|| version.to_owned())
 }
 
+/// The folders this system installs apps in, for the user whose home is
+/// `home` (AJ-E1605): on macOS `/Applications`, then `~/Applications`.
+/// None yet on other systems.
+#[must_use]
+pub fn install_folders(home: Option<&std::path::Path>) -> Vec<std::path::PathBuf> {
+    if !cfg!(target_os = "macos") {
+        return Vec::new();
+    }
+    let mut folders = vec![std::path::PathBuf::from("/Applications")];
+    folders.extend(home.map(|home| home.join("Applications")));
+    folders
+}
+
+/// The app called `name` (as the system shows it) installed in `folder`:
+/// on macOS its bundle, `<folder>/<name>.app`, when it is there. `None`
+/// on other systems yet.
+#[must_use]
+pub fn installed_app(folder: &std::path::Path, name: &str) -> Option<std::path::PathBuf> {
+    if !cfg!(target_os = "macos") {
+        return None;
+    }
+    let app = folder.join(format!("{name}.app"));
+    app.is_dir().then_some(app)
+}
+
+/// The folder an installed app keeps its own files in (macOS: its
+/// bundle's `Contents/Resources`).
+#[must_use]
+pub fn resources_of(app: &std::path::Path) -> std::path::PathBuf {
+    app.join("Contents").join("Resources")
+}
+
 #[cfg(target_os = "macos")]
 mod mac {
     use objc2_foundation::{NSAppleEventDescriptor, NSAppleEventSendOptions, NSString};
@@ -359,6 +395,22 @@ mod mac {
 mod tests {
     use super::*;
     use std::path::PathBuf;
+
+    #[test]
+    fn an_app_is_found_by_its_name_in_the_install_folders() {
+        let tmp = tempfile::tempdir().unwrap();
+        let home = tmp.path().join("home");
+        assert_eq!(
+            install_folders(Some(&home)),
+            [PathBuf::from("/Applications"), home.join("Applications")]
+        );
+        let folder = tmp.path().join("Apps");
+        assert_eq!(installed_app(&folder, "Tool"), None);
+        std::fs::create_dir_all(folder.join("Tool.app/Contents/Resources")).unwrap();
+        let app = installed_app(&folder, "Tool").unwrap();
+        assert_eq!(app, folder.join("Tool.app"));
+        assert!(resources_of(&app).is_dir());
+    }
 
     #[test]
     fn a_bundles_version_is_read_from_its_xml_plist() {

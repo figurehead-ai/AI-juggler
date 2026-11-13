@@ -64,6 +64,9 @@ pub use environment::{
 };
 pub use error::AdapterError;
 pub use identity::IdentityProbe;
+/// AJ-E1605: where an installed app is, for a tool whose engine ships
+/// inside its app.
+pub use juggler_platform::apps;
 /// The OS seam for files only this user can read, for adapters that write
 /// a tool's own records (ADR-0028).
 pub use juggler_platform::private_fs;
