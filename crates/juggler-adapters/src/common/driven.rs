@@ -56,6 +56,31 @@ pub fn over_stdio(
     }
 }
 
+/// A driven launch made from the tool's terminal launch (its binary,
+/// isolation and folder; a resume of [`DrivenLaunch::resume`] or a new
+/// session), serving its protocol with `args` over stdio, with the Launch
+/// settings' model.
+///
+/// # Errors
+///
+/// An id that reads as an option; the terminal launch's own errors.
+pub fn serving(
+    tool: &dyn ToolLaunch,
+    account: &Account,
+    profile: &Profile,
+    cwd: &Path,
+    launch: &DrivenLaunch,
+    args: &[&str],
+) -> Result<DrivenSpec, AdapterError> {
+    let spec = tool.launch_spec(account, profile, cwd, &launch_mode(launch)?)?;
+    Ok(over_stdio(
+        spec,
+        args.iter().map(|arg| (*arg).to_owned()).collect(),
+        launch.resume.clone(),
+        profile.settings_overlay.model.clone(),
+    ))
+}
+
 /// The tool's own terminal resume of `of`'s conversation, after the driver
 /// lets go at a turn boundary: one writer at a time.
 ///

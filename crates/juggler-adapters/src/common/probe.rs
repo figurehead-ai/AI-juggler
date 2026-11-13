@@ -1,9 +1,65 @@
 //! AJ-E2016: asking an installed tool its version, the one way every
 //! adapter whose tool reports it with `--version` does.
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
-use juggler_adapter::InstallStatus;
+use juggler_adapter::{DiscoveryReport, InstallStatus, VerificationStatus};
+use juggler_core::model::HarnessId;
+
+/// The binary a test pinned, else the file an override variable `var`
+/// names (tests, dev).
+pub(crate) fn pinned_bin(pinned: Option<&PathBuf>, var: &str) -> Option<PathBuf> {
+    pinned.cloned().or_else(|| {
+        std::env::var_os(var)
+            .map(PathBuf::from)
+            .filter(|path| path.is_file())
+    })
+}
+
+/// What a discovery found, unverified: no version has been run live yet.
+pub(crate) fn unverified_report(
+    adapter: HarnessId,
+    binary: Option<PathBuf>,
+    install: InstallStatus,
+    notes: Vec<String>,
+) -> DiscoveryReport {
+    DiscoveryReport {
+        adapter,
+        install,
+        verification: VerificationStatus::Unverified,
+        binary,
+        notes,
+    }
+}
+
+/// The discovery of a tool that is one binary: not found (saying where it
+/// was `looked` for) unless `bin` is a file, else its version from
+/// `version` (its failure as it is), with `note`.
+pub(crate) fn discover_bin(
+    adapter: HarnessId,
+    bin: Option<PathBuf>,
+    looked: &str,
+    version: impl FnOnce(&Path) -> Result<String, InstallStatus>,
+    note: &str,
+) -> DiscoveryReport {
+    let Some(bin) = bin.filter(|bin| bin.is_file()) else {
+        return unverified_report(
+            adapter,
+            None,
+            InstallStatus::NotFound,
+            vec![looked.to_owned()],
+        );
+    };
+    match version(&bin) {
+        Ok(version) => unverified_report(
+            adapter,
+            Some(bin),
+            InstallStatus::Installed { version },
+            vec![note.to_owned()],
+        ),
+        Err(failed) => unverified_report(adapter, Some(bin), failed, Vec::new()),
+    }
+}
 
 /// The first word of `stdout`'s first line that starts with a digit, a
 /// leading `v` dropped: a version, whatever name or build surrounds it.

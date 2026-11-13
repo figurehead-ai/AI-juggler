@@ -201,6 +201,26 @@ pub trait Subject {
         let _ = (state_dir, cwd);
         None
     }
+
+    /// AJ-E1608: what an account's Launch settings must hold before the
+    /// tool starts in it at all (Muse Code's own API key: its subscription
+    /// sign-in is one per Mac, so any other account runs on a key). Every
+    /// launch the kit builds carries it; a key is never an isolation
+    /// variable. Default: nothing.
+    fn launch_env(&self) -> BTreeMap<String, String> {
+        BTreeMap::new()
+    }
+}
+
+/// [`profile`] with what the subject's accounts need to start at all
+/// ([`Subject::launch_env`]) beside `env`.
+pub fn subject_profile(
+    subject: &dyn Subject,
+    account: &Account,
+    mut env: BTreeMap<String, String>,
+) -> Profile {
+    env.extend(subject.launch_env());
+    profile(account, env)
 }
 
 /// AJ-E1605 R3: whether the tool's only runtime is driven (its app ships
@@ -711,7 +731,7 @@ pub fn pins_env_after_overrides(subject: &dyn Subject) {
     for folder in &folders {
         let account = account(adapter.as_ref(), folder);
         let overrides = hostile_overrides(adapter.as_ref());
-        let recipe = profile(&account, overrides.clone());
+        let recipe = subject_profile(subject, &account, overrides.clone());
         let pins = expected_pins(adapter.as_ref(), folder);
         for mode in all_modes("kit-session-1") {
             let spec = match launch(adapter.as_ref(), &account, &recipe, &sandbox.project, &mode) {
@@ -805,7 +825,7 @@ pub fn refuses_option_like_resume_ids(subject: &dyn Subject) {
     let dir = sandbox.account_dir("a");
     adapter.prepare_account(&dir).unwrap();
     let account = account(adapter.as_ref(), &dir);
-    let recipe = profile(&account, BTreeMap::new());
+    let recipe = subject_profile(subject, &account, BTreeMap::new());
     let resume = |id: &str| {
         driven_launch(
             adapter.as_ref(),
@@ -913,7 +933,7 @@ pub fn finds_and_resumes_sessions(subject: &dyn Subject) {
     let spec = driven_launch(
         adapter.as_ref(),
         &account,
-        &profile(&account, BTreeMap::new()),
+        &subject_profile(subject, &account, BTreeMap::new()),
         &sandbox.project,
         &LaunchMode::Resume {
             session_id: first.clone(),
@@ -1031,7 +1051,7 @@ pub fn adds_the_agent_bridge_honestly(subject: &dyn Subject) {
     let account = account(adapter.as_ref(), &dir);
     let mut env = BTreeMap::new();
     env.insert("JUGGLER_AGENT_TOKEN".to_owned(), KEY_CANARY.to_owned());
-    let recipe = profile(&account, env);
+    let recipe = subject_profile(subject, &account, env);
     let launch_dir = sandbox
         .accounts
         .parent()
@@ -1181,7 +1201,7 @@ pub fn adds_the_agent_bridge_honestly(subject: &dyn Subject) {
     if let Ok(spec) = launch(
         adapter.as_ref(),
         &their_account,
-        &profile(&their_account, BTreeMap::new()),
+        &subject_profile(subject, &their_account, BTreeMap::new()),
         &sandbox.project,
         &LaunchMode::Interactive,
     ) {
@@ -1221,7 +1241,7 @@ pub fn leaves_the_agent_tools_out_honestly(subject: &dyn Subject) {
     let account = account(adapter.as_ref(), &dir);
     let mut env = BTreeMap::new();
     env.insert("JUGGLER_AGENT_TOKEN".to_owned(), KEY_CANARY.to_owned());
-    let recipe = profile(&account, env);
+    let recipe = subject_profile(subject, &account, env);
     let bridge = BridgeLaunch {
         program: sandbox.bin.join("juggler-agent"),
         server: "juggler".into(),
@@ -1322,7 +1342,7 @@ pub fn leaves_the_agent_tools_out_honestly(subject: &dyn Subject) {
     if let Ok(spec) = launch(
         adapter.as_ref(),
         &their_account,
-        &profile(&their_account, BTreeMap::new()),
+        &subject_profile(subject, &their_account, BTreeMap::new()),
         &sandbox.project,
         &LaunchMode::Interactive,
     ) {
@@ -1352,7 +1372,7 @@ pub fn runs_both_runtimes_honestly(subject: &dyn Subject) {
     let dir = sandbox.account_dir("a");
     adapter.prepare_account(&dir).unwrap();
     let account = account(adapter.as_ref(), &dir);
-    let recipe = profile(&account, hostile_overrides(adapter.as_ref()));
+    let recipe = subject_profile(subject, &account, hostile_overrides(adapter.as_ref()));
     let pins = expected_pins(adapter.as_ref(), &dir);
     let keeps_rules = |what: &str, spec: &juggler_adapter::LaunchSpec| {
         assert!(
@@ -1511,7 +1531,7 @@ pub fn keeps_the_tools_own_option_rules(subject: &dyn Subject) {
     let dir = sandbox.account_dir("a");
     adapter.prepare_account(&dir).unwrap();
     let account = account(adapter.as_ref(), &dir);
-    let recipe = profile(&account, BTreeMap::new());
+    let recipe = subject_profile(subject, &account, BTreeMap::new());
     subject.trust(&dir, &sandbox.project);
     let mut launches: Vec<(String, Vec<String>)> = Vec::new();
     for mode in all_modes("kit-session-1") {
@@ -1567,7 +1587,7 @@ pub fn adds_state_reports_honestly(subject: &dyn Subject) {
     let account = account(adapter.as_ref(), &dir);
     let mut env = BTreeMap::new();
     env.insert("JUGGLER_REPORT_TOKEN".to_owned(), KEY_CANARY.to_owned());
-    let recipe = profile(&account, env);
+    let recipe = subject_profile(subject, &account, env);
     let overlays = sandbox.accounts.parent().unwrap().join("overlays");
     let launch_dir = overlays.join("runtime/kit-session");
     let launch = ReportsLaunch {

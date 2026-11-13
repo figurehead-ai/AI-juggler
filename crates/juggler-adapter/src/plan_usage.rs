@@ -29,4 +29,7 @@ pub struct PlanReading {
     pub windows: Vec<(WindowKind, QuotaSample)>,
     /// The parts of a window it broke down.
     pub parts: Vec<PlanPart>,
+    /// The plan's name as the tool prints it (Muse Code's `tierName`), when
+    /// it said.
+    pub plan: Option<String>,
 }

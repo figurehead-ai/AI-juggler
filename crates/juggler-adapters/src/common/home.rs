@@ -19,6 +19,23 @@ use juggler_adapter::AdapterError;
 /// transcript/cache bulk; the wizard offers a fresh account instead.
 pub const MAX_IMPORT_BYTES: u64 = 2 * 1024 * 1024 * 1024; // 2 GiB
 
+/// Makes each of `dirs` (an account's own folders) owner-only.
+///
+/// # Errors
+///
+/// [`AdapterError::AccountDir`] naming the folder that couldn't be made.
+pub(crate) fn make_private_dirs(
+    dirs: impl IntoIterator<Item = PathBuf>,
+) -> Result<(), AdapterError> {
+    for dir in dirs {
+        create_private_dir(&dir).map_err(|error| AdapterError::AccountDir {
+            message: error.to_string(),
+            path: dir,
+        })?;
+    }
+    Ok(())
+}
+
 /// Walk ceiling for size estimation (bounds pathological trees).
 const MAX_WALK_ENTRIES: usize = 20_000;
 

@@ -13,6 +13,7 @@ use juggler_adapter::ToolQuota;
 mod conformance;
 mod grok_fixture;
 mod kimi_fixture;
+mod muse_fixture;
 mod opencode_fixture;
 mod subagent_fixture;
 mod zcode_fixture;
@@ -23,7 +24,7 @@ use conformance::{Sandbox, Subject, UsageSubject};
 use juggler_adapter::HarnessAdapter;
 use juggler_adapters::{
     ClaudeCodeAdapter, CodexAdapter, FakeHarnessAdapter, GrokBuildAdapter, KimiCodeAdapter,
-    OpenCodeAdapter, ZCodeAdapter,
+    MuseAdapter, OpenCodeAdapter, ZCodeAdapter,
 };
 use juggler_core::quota::{UsageEvent, UsageSource};
 use opencode_fixture::Line;
@@ -805,7 +806,63 @@ impl UsageSubject for ZCodeUsage {
     }
 }
 
+// Muse Code (AJ-E1608): Meta's `muse`, each account a home of its own,
+// sessions from Muse's own index, driven over `muse serve`. Its
+// subscription sign-in is one per Mac (the Keychain), so an account other
+// than the user's own runs on its own API key from its Launch settings;
+// no copy is offered (the sign-in can't move), only the user's own setup
+// where it is.
+
+struct Muse;
+
+impl Subject for Muse {
+    fn adapter(&self, sandbox: &Sandbox) -> Box<dyn HarnessAdapter> {
+        Box::new(
+            MuseAdapter::with_bin(sandbox.stub("muse", "Muse Code 1.4.13 (1.4.13-R6996.1)"))
+                .with_home(&sandbox.home),
+        )
+    }
+
+    fn write_session(&self, state_dir: &Path, cwd: &Path, n: u32) -> String {
+        let id = format!("01a1d5e2-0000-7000-8000-00000000000{n}");
+        muse_fixture::add_session(state_dir, &id, cwd, "kit session");
+        id
+    }
+
+    fn seed_source(&self, _sandbox: &Sandbox, _canary: &str) -> Option<PathBuf> {
+        None
+    }
+
+    fn credential_files(&self) -> &'static [&'static str] {
+        &["auth.json"]
+    }
+
+    fn session_record(&self, state_dir: &Path, id: &str) -> Option<PathBuf> {
+        Some(juggler_adapters::muse_sessions::session_ref(
+            &muse_fixture::index(state_dir),
+            id,
+        ))
+    }
+
+    fn usage(&self) -> Option<&dyn UsageSubject> {
+        None
+    }
+
+    fn sandboxed_default(&self) -> bool {
+        true
+    }
+
+    fn launch_env(&self) -> std::collections::BTreeMap<String, String> {
+        [(
+            juggler_adapters::muse::ENV_API_KEY.to_owned(),
+            "kit-made-up-meta-key".to_owned(),
+        )]
+        .into()
+    }
+}
+
 conformance!(claude_code, Claude);
+conformance!(muse_code, Muse);
 conformance!(grok_build, Grok);
 conformance!(kimi_code, Kimi);
 conformance!(opencode_v1, OpenCode(Line::V1));
