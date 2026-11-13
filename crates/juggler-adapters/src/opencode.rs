@@ -46,20 +46,9 @@
 
 pub mod service;
 
-use std::path::{Path, PathBuf};
+use crate::common::prelude::*;
 
-use juggler_adapter::environment::{DiscoveredInstall, ImportOutcome, LoginProbe};
-use juggler_adapter::launch::ENV_UNSET;
-use juggler_adapter::prelude::*;
-use juggler_adapter::{
-    AdapterError, Capabilities, DiscoveryReport, EnvMap, InstallStatus, LaunchMode, LaunchSpec,
-    SessionWatcher, VerificationStatus,
-};
-use juggler_core::model::{Account, HarnessId, Profile};
-
-use crate::claude_code::{
-    LoginState, existing, find_on_path, home_dir, is_managed_dir, prepare_managed_dir_for,
-};
+use crate::claude_code::{existing, find_on_path, is_managed_dir};
 use crate::opencode_environment::{managed_config_dir, managed_data_dir, managed_state_dir};
 use crate::opencode_store::DB_FILE;
 
@@ -283,22 +272,6 @@ impl OpenCodeAdapter {
             notes,
         }
     }
-
-    /// The pinned variables plus every removed one, for a launch or the
-    /// sign-in flow.
-    fn isolation_env(&self, state_dir: &Path) -> EnvMap {
-        let mut env = EnvMap::new();
-        for (key, value) in self.pinned_env(state_dir) {
-            env.insert(
-                key.to_owned(),
-                value.unwrap_or_else(|| ENV_UNSET.to_owned()),
-            );
-        }
-        for key in UNSET {
-            env.insert((*key).to_owned(), ENV_UNSET.to_owned());
-        }
-        env
-    }
 }
 
 /// The data folder of an account folder, from the account's own record:
@@ -368,14 +341,7 @@ fn classify_kinds(kinds: &[String]) -> LoginState {
 }
 
 fn scan_probe(data_dir: &Path) -> LoginProbe {
-    match opencode_login_state(data_dir) {
-        LoginState::SignedIn | LoginState::ApiKey => LoginProbe::LoggedIn,
-        LoginState::Partial
-        | LoginState::Expired
-        | LoginState::SsoPending
-        | LoginState::LoggedOut
-        | LoginState::Unknown => LoginProbe::LoggedOut,
-    }
+    opencode_login_state(data_dir).probe()
 }
 
 /// `{"model": "<model>"}` merged into any inline settings the launch
@@ -448,13 +414,9 @@ impl ToolDiscovery for OpenCodeAdapter {
         )
     }
     fn scan_environment(&self) -> Vec<DiscoveredInstall> {
-        let Some(home) = self.user_home() else {
-            return Vec::new();
-        };
-        let xdg = std::env::var_os(ENV_DATA_HOME)
-            .filter(|value| !value.is_empty())
-            .map(PathBuf::from);
-        crate::opencode_environment::scan_opencode_environment(&home, xdg.as_deref(), &scan_probe)
+        crate::common::home::scan_home(self.user_home(), ENV_DATA_HOME, |home, env| {
+            crate::opencode_environment::scan_opencode_environment(home, env, &scan_probe)
+        })
     }
     fn vendor_default_dir(&self) -> Option<PathBuf> {
         self.default_data_dir()
@@ -482,11 +444,7 @@ impl ToolSignIn for OpenCodeAdapter {
                 }
             })?;
         }
-        Ok(self
-            .pinned_env(state_dir)
-            .into_iter()
-            .filter_map(|(key, value)| Some((key.to_owned(), value?)))
-            .collect())
+        Ok(self.pinned_set_env(state_dir))
     }
     fn login_state(&self, state_dir: &Path) -> LoginState {
         opencode_login_state(&self.data_dir(state_dir))

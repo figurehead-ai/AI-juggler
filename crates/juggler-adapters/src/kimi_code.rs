@@ -40,18 +40,9 @@
 //! ([`crate::kimi_usage`]); only for an account signed in with its
 //! membership.
 
-use std::path::{Path, PathBuf};
+use crate::common::prelude::*;
 
-use juggler_adapter::environment::{DiscoveredInstall, ImportOutcome, LoginProbe};
-use juggler_adapter::launch::ENV_UNSET;
-use juggler_adapter::prelude::*;
-use juggler_adapter::{
-    AdapterError, Capabilities, DiscoveryReport, EnvMap, InstallStatus, LaunchMode, LaunchSpec,
-    SessionWatcher, VerificationStatus,
-};
-use juggler_core::model::{Account, HarnessId, Profile};
-
-use crate::claude_code::{LoginState, existing, find_on_path, home_dir, prepare_managed_dir_for};
+use crate::claude_code::{existing, find_on_path};
 
 /// Provider id: `kimi-code` (not `kimi`: the archived Python CLI was
 /// called that too).
@@ -190,19 +181,6 @@ impl KimiCodeAdapter {
             notes,
         }
     }
-
-    /// The pinned home for a launch or the sign-in flow.
-    fn isolation_env(&self, state_dir: &Path) -> EnvMap {
-        self.pinned_env(state_dir)
-            .into_iter()
-            .map(|(key, value)| {
-                (
-                    key.to_owned(),
-                    value.unwrap_or_else(|| ENV_UNSET.to_owned()),
-                )
-            })
-            .collect()
-    }
 }
 
 /// Sign-in state of a Kimi Code home, from which sign-in files are there
@@ -218,14 +196,7 @@ pub fn kimi_login_state(home: &Path) -> LoginState {
 }
 
 fn scan_probe(home: &Path) -> LoginProbe {
-    match kimi_login_state(home) {
-        LoginState::SignedIn | LoginState::ApiKey => LoginProbe::LoggedIn,
-        LoginState::Partial
-        | LoginState::Expired
-        | LoginState::SsoPending
-        | LoginState::LoggedOut
-        | LoginState::Unknown => LoginProbe::LoggedOut,
-    }
+    kimi_login_state(home).probe()
 }
 
 /// `kimi` subcommands that aren't a session: its server, sign-in and
@@ -322,13 +293,9 @@ impl ToolDiscovery for KimiCodeAdapter {
         )
     }
     fn scan_environment(&self) -> Vec<DiscoveredInstall> {
-        let Some(home) = self.user_home() else {
-            return Vec::new();
-        };
-        let env_override = std::env::var_os(ENV_HOME)
-            .filter(|value| !value.is_empty())
-            .map(PathBuf::from);
-        crate::kimi_environment::scan_kimi_environment(&home, env_override.as_deref(), &scan_probe)
+        crate::common::home::scan_home(self.user_home(), ENV_HOME, |home, env| {
+            crate::kimi_environment::scan_kimi_environment(home, env, &scan_probe)
+        })
     }
     fn vendor_default_dir(&self) -> Option<PathBuf> {
         self.default_home()
@@ -344,11 +311,7 @@ impl ToolDiscovery for KimiCodeAdapter {
 impl ToolSignIn for KimiCodeAdapter {
     fn prepare_account(&self, state_dir: &Path) -> Result<EnvMap, AdapterError> {
         prepare_managed_dir_for(state_dir, KIMI_CODE_ID)?;
-        Ok(self
-            .pinned_env(state_dir)
-            .into_iter()
-            .filter_map(|(key, value)| Some((key.to_owned(), value?)))
-            .collect())
+        Ok(self.pinned_set_env(state_dir))
     }
     fn login_state(&self, state_dir: &Path) -> LoginState {
         kimi_login_state(state_dir)

@@ -22,7 +22,7 @@
 //!   - A settings file with a key written in it (`config.toml`'s
 //!     providers, `mcp.json`, `tui.toml`): never copied, named.
 
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use juggler_adapter::environment::{
     DiscoveredInstall, ImportOutcome, InstallOrigin, LoginProbe, SourceInspect,
@@ -89,20 +89,10 @@ pub fn scan_kimi_environment(
     env_override: Option<&Path>,
     login_probe: &dyn Fn(&Path) -> LoginProbe,
 ) -> Vec<DiscoveredInstall> {
-    let mut candidates: Vec<(PathBuf, InstallOrigin)> =
-        vec![(home.join(".kimi-code"), InstallOrigin::VendorDefault)];
-    if let Some(path) = env_override {
-        candidates.push((path.to_path_buf(), InstallOrigin::EnvOverride));
-    }
-    if let Ok(entries) = std::fs::read_dir(home) {
-        for entry in entries.flatten() {
-            let name = entry.file_name();
-            let Some(name) = name.to_str() else { continue };
-            if name.starts_with(".kimi-code") && name != ".kimi-code" {
-                candidates.push((entry.path(), InstallOrigin::HomePattern));
-            }
-        }
-    }
+    let mut candidates = home::default_candidates(home, ".kimi-code", env_override);
+    candidates.extend(home::home_variants(home, &|name| {
+        name.starts_with(".kimi-code") && name != ".kimi-code"
+    }));
     home::installs_from(&KIMI_LAYOUT, candidates, login_probe, &origin_notes)
 }
 
@@ -147,7 +137,7 @@ pub fn import_kimi_home(
     login_probe: &dyn Fn(&Path) -> LoginProbe,
     degraded: bool,
 ) -> Result<ImportOutcome, juggler_adapter::AdapterError> {
-    let mut outcome = home::import_with_layout(
+    let outcome = home::import_with_layout(
         &KIMI_LAYOUT,
         source,
         dest,
@@ -155,16 +145,7 @@ pub fn import_kimi_home(
         home::MAX_IMPORT_BYTES,
         &[],
     )?;
-    if let Err(error) = crate::settings_keys::keep_back_keyed(dest, SETTINGS, &mut outcome.skipped)
-    {
-        let _ = std::fs::remove_dir_all(dest);
-        return Err(juggler_adapter::AdapterError::AccountDir {
-            path: dest.to_path_buf(),
-            message: format!("couldn't finish the copy — the partial copy was removed ({error})"),
-        });
-    }
-    outcome.degraded = degraded;
-    Ok(outcome)
+    home::finish_copy(dest, dest, SETTINGS, outcome, degraded)
 }
 
 fn origin_notes(origin: InstallOrigin, login: LoginProbe) -> Vec<String> {

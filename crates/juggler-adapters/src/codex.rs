@@ -29,19 +29,9 @@
 //! always runs through the vendor's own `codex login` in a guided
 //! terminal.
 
-use std::path::{Path, PathBuf};
+use crate::common::prelude::*;
 
-use juggler_adapter::environment::{DiscoveredInstall, ImportOutcome, LoginProbe};
-use juggler_adapter::prelude::*;
-use juggler_adapter::{
-    AdapterError, Capabilities, DiscoveryReport, EnvMap, InstallStatus, LaunchMode, LaunchSpec,
-    SessionWatcher, VerificationStatus,
-};
-use juggler_core::model::{Account, HarnessId, Profile};
-
-use crate::claude_code::{
-    LoginState, existing, find_on_path, home_dir, home_relative, prepare_managed_dir_for,
-};
+use crate::claude_code::{existing, find_on_path, home_relative};
 
 /// Provider id: `codex`.
 pub const CODEX_ID: &str = "codex";
@@ -536,16 +526,10 @@ impl ToolDiscovery for CodexAdapter {
     /// AJ-E1302: `~/.codex`, `$CODEX_HOME` and `~/.codex*` homes —
     /// metadata only (the sign-in probe reads field names, never values).
     fn scan_environment(&self) -> Vec<DiscoveredInstall> {
-        let Some(home) = self.home.clone().or_else(home_dir) else {
-            return Vec::new();
-        };
-        let env_override = std::env::var_os(ENV_CODEX_HOME)
-            .filter(|value| !value.is_empty())
-            .map(PathBuf::from);
-        crate::codex_environment::scan_codex_environment(
-            &home,
-            env_override.as_deref(),
-            &scan_probe,
+        crate::common::home::scan_home(
+            self.home.clone().or_else(home_dir),
+            ENV_CODEX_HOME,
+            |home, env| crate::codex_environment::scan_codex_environment(home, env, &scan_probe),
         )
     }
     /// `~/.codex` under the same home the launch rule uses (`with_home`

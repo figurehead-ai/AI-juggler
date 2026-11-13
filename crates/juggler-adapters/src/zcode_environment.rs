@@ -33,15 +33,14 @@
 //!   - A settings file with a key written in it (`v2/provider_config.json`
 //!     with a provider's key, `v2/setting.json`): never copied, named.
 
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use juggler_adapter::AdapterError;
 use juggler_adapter::environment::{
     DiscoveredInstall, ImportOutcome, InstallOrigin, LoginProbe, SourceInspect,
 };
 
-use crate::common::home;
-use crate::common::layout::Layout;
+use crate::common::{home, layout::Layout};
 use crate::zcode::{TREE_NAME, ZCODE_ID};
 
 /// The settings files checked for a key before a copy keeps them.
@@ -119,20 +118,10 @@ pub fn scan_zcode_environment(
     env_override: Option<&Path>,
     login_probe: &dyn Fn(&Path) -> LoginProbe,
 ) -> Vec<DiscoveredInstall> {
-    let mut candidates: Vec<(PathBuf, InstallOrigin)> =
-        vec![(home.join(TREE_NAME), InstallOrigin::VendorDefault)];
-    if let Some(path) = env_override {
-        candidates.push((path.to_path_buf(), InstallOrigin::EnvOverride));
-    }
-    if let Ok(entries) = std::fs::read_dir(home) {
-        for entry in entries.flatten() {
-            let name = entry.file_name();
-            let Some(name) = name.to_str() else { continue };
-            if name.starts_with(".zcode-") {
-                candidates.push((entry.path(), InstallOrigin::HomePattern));
-            }
-        }
-    }
+    let mut candidates = home::default_candidates(home, TREE_NAME, env_override);
+    candidates.extend(home::home_variants(home, &|name| {
+        name.starts_with(".zcode-")
+    }));
     home::installs_from(&ZCODE_LAYOUT, candidates, login_probe, &origin_notes)
 }
 
@@ -188,21 +177,9 @@ pub fn import_zcode_tree(
     login_probe: &dyn Fn(&Path) -> LoginProbe,
     degraded: bool,
 ) -> Result<ImportOutcome, AdapterError> {
-    if dest.exists() {
-        return Err(AdapterError::AccountDir {
-            path: dest.to_path_buf(),
-            message: "destination already exists".to_owned(),
-        });
-    }
+    home::refuse_existing(dest)?;
     let tree = crate::zcode::tree_of(dest);
-    let removed_with = |error: String| {
-        let _ = std::fs::remove_dir_all(dest);
-        AdapterError::AccountDir {
-            path: dest.to_path_buf(),
-            message: format!("couldn't finish the copy — the partial copy was removed ({error})"),
-        }
-    };
-    let mut outcome = match home::import_with_layout(
+    let outcome = match home::import_with_layout(
         &ZCODE_LAYOUT,
         source,
         &tree,
@@ -222,15 +199,8 @@ pub fn import_zcode_tree(
     };
     // The App folder is AI Juggler's (its marker), as `prepare_account`
     // leaves it.
-    if let Err(error) = home::prepare_managed_dir_for(dest, ZCODE_ID) {
-        return Err(removed_with(error.to_string()));
-    }
-    if let Err(error) = crate::settings_keys::keep_back_keyed(&tree, SETTINGS, &mut outcome.skipped)
-    {
-        return Err(removed_with(error.to_string()));
-    }
-    outcome.degraded = degraded;
-    Ok(outcome)
+    home::prepare_managed_dir_for(dest, ZCODE_ID).map_err(|error| home::undo_copy(dest, &error))?;
+    home::finish_copy(dest, &tree, SETTINGS, outcome, degraded)
 }
 
 fn origin_notes(origin: InstallOrigin, login: LoginProbe) -> Vec<String> {

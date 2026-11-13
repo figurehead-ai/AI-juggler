@@ -22,6 +22,109 @@ pub const MAX_IMPORT_BYTES: u64 = 2 * 1024 * 1024 * 1024; // 2 GiB
 /// Walk ceiling for size estimation (bounds pathological trees).
 const MAX_WALK_ENTRIES: usize = 20_000;
 
+/// The folder the environment variable `var` names, when it is set and
+/// not empty (a scan's override).
+fn env_dir(var: &str) -> Option<PathBuf> {
+    std::env::var_os(var)
+        .filter(|value| !value.is_empty())
+        .map(PathBuf::from)
+}
+
+/// A tool's `scan` of the user's `home` (nothing without one), the folder
+/// its variable `var` names as the override.
+pub(crate) fn scan_home(
+    home: Option<PathBuf>,
+    var: &str,
+    scan: impl FnOnce(&Path, Option<&Path>) -> Vec<DiscoveredInstall>,
+) -> Vec<DiscoveredInstall> {
+    let Some(home) = home else {
+        return Vec::new();
+    };
+    scan(&home, env_dir(var).as_deref())
+}
+
+/// A scan's first candidates: the tool's default folder `home/<default>`
+/// and the folder its environment variable names, when set.
+pub(crate) fn default_candidates(
+    home: &Path,
+    default: &str,
+    env_override: Option<&Path>,
+) -> Vec<(PathBuf, InstallOrigin)> {
+    let mut candidates = vec![(home.join(default), InstallOrigin::VendorDefault)];
+    if let Some(path) = env_override {
+        candidates.push((path.to_path_buf(), InstallOrigin::EnvOverride));
+    }
+    candidates
+}
+
+/// The folders directly in `home` whose name `is_variant` takes (other
+/// setups of the tool, made by hand or by other tools), as candidates.
+pub(crate) fn home_variants(
+    home: &Path,
+    is_variant: &dyn Fn(&str) -> bool,
+) -> Vec<(PathBuf, InstallOrigin)> {
+    let Ok(entries) = std::fs::read_dir(home) else {
+        return Vec::new();
+    };
+    entries
+        .flatten()
+        .filter(|entry| entry.file_name().to_str().is_some_and(is_variant))
+        .map(|entry| (entry.path(), InstallOrigin::HomePattern))
+        .collect()
+}
+
+/// Refuses a copy into a `dest` that is already there (none of it is the
+/// copy's to remove).
+///
+/// # Errors
+///
+/// [`AdapterError::AccountDir`] when `dest` exists.
+pub(crate) fn refuse_existing(dest: &Path) -> Result<(), AdapterError> {
+    if dest.exists() {
+        return Err(AdapterError::AccountDir {
+            path: dest.to_path_buf(),
+            message: "destination already exists".to_string(),
+        });
+    }
+    Ok(())
+}
+
+/// What a copy into `dest` that couldn't finish says (its caller removes
+/// the partial copy).
+pub(crate) fn unfinished_copy(dest: &Path, error: &dyn std::fmt::Display) -> AdapterError {
+    AdapterError::AccountDir {
+        path: dest.to_path_buf(),
+        message: format!("couldn't finish the copy — the partial copy was removed ({error})"),
+    }
+}
+
+/// Removes the partial copy at `dest` (all of it is the copy's) and says
+/// why the copy couldn't finish.
+pub(crate) fn undo_copy(dest: &Path, error: &dyn std::fmt::Display) -> AdapterError {
+    let _ = std::fs::remove_dir_all(dest);
+    unfinished_copy(dest, error)
+}
+
+/// A copy's last step: any of `settings` (paths in the copied `tree`)
+/// with a key written in it is held back and named; `degraded` is
+/// recorded. When that can't finish, the copy at `dest` is removed.
+///
+/// # Errors
+///
+/// [`AdapterError::AccountDir`] once the partial copy is removed.
+pub(crate) fn finish_copy(
+    dest: &Path,
+    tree: &Path,
+    settings: &[&str],
+    mut outcome: ImportOutcome,
+    degraded: bool,
+) -> Result<ImportOutcome, AdapterError> {
+    crate::settings_keys::keep_back_keyed(tree, settings, &mut outcome.skipped)
+        .map_err(|error| undo_copy(dest, &error))?;
+    outcome.degraded = degraded;
+    Ok(outcome)
+}
+
 /// Turns candidate paths into discovered installs: canonical, deduped,
 /// config-only, metadata-only, most useful first. Shared by every
 /// Provider's scan.
@@ -222,12 +325,7 @@ pub(crate) fn import_with_layout(
             "this folder is already managed by AI Juggler — launch it from Profiles instead of importing".to_string(),
         ));
     }
-    if dest.exists() {
-        return Err(AdapterError::AccountDir {
-            path: dest.to_path_buf(),
-            message: "destination already exists".to_string(),
-        });
-    }
+    refuse_existing(dest)?;
 
     // Collect first, copy second: fail before writing anything when the
     // tree exceeds the ceiling.
@@ -810,5 +908,44 @@ pub(crate) fn restrict_to_owner(path: &Path) -> std::io::Result<()> {
     {
         let _ = path;
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_scan_starts_at_the_default_and_the_override_then_the_variants() {
+        let home = tempfile::tempdir().unwrap();
+        for name in [".tool", ".tool-work", ".tool.json", ".other"] {
+            std::fs::create_dir(home.path().join(name)).unwrap();
+        }
+        let first = default_candidates(home.path(), ".tool", Some(Path::new("/elsewhere")));
+        assert_eq!(
+            first,
+            [
+                (home.path().join(".tool"), InstallOrigin::VendorDefault),
+                (PathBuf::from("/elsewhere"), InstallOrigin::EnvOverride),
+            ]
+        );
+        let variants = home_variants(home.path(), &|name| name.starts_with(".tool-"));
+        assert_eq!(
+            variants,
+            [(home.path().join(".tool-work"), InstallOrigin::HomePattern)]
+        );
+        assert!(scan_home(None, "AI_JUGGLER_NO_SUCH_VAR", |_, _| unreachable!()).is_empty());
+    }
+
+    #[test]
+    fn a_copy_never_lands_on_a_folder_that_is_there_and_an_unfinished_one_goes() {
+        let dir = tempfile::tempdir().unwrap();
+        assert!(refuse_existing(dir.path()).is_err());
+        let dest = dir.path().join("copy");
+        refuse_existing(&dest).unwrap();
+        std::fs::create_dir(&dest).unwrap();
+        let error = undo_copy(&dest, &"disk full");
+        assert!(!dest.exists(), "the partial copy is removed");
+        assert!(error.to_string().contains("disk full"), "{error}");
     }
 }

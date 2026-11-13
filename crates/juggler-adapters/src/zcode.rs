@@ -88,18 +88,7 @@
 //! settings (the model is the App's own choice, kept in its tree's
 //! `v2/provider_config.json`, so each App keeps its own); the agent tools.
 
-use std::path::{Path, PathBuf};
-
-use juggler_adapter::environment::{DiscoveredInstall, ImportOutcome, LoginProbe};
-use juggler_adapter::launch::ENV_UNSET;
-use juggler_adapter::prelude::*;
-use juggler_adapter::{
-    AdapterError, Capabilities, DiscoveryReport, EnvMap, InstallStatus, LaunchMode, LaunchSpec,
-    SessionWatcher, VerificationStatus,
-};
-use juggler_core::model::{Account, HarnessId, Profile};
-
-use crate::claude_code::{LoginState, home_dir, prepare_managed_dir_for};
+use crate::common::prelude::*;
 
 /// Provider id: `zcode`.
 pub const ZCODE_ID: &str = "zcode";
@@ -162,13 +151,7 @@ pub const NO_TERMINAL: &str = "ZCode's app ships no terminal UI (only the deskto
 /// digit, a leading `v` dropped.
 #[must_use]
 pub fn parse_version(stdout: &str) -> Option<String> {
-    stdout
-        .lines()
-        .next()?
-        .split_whitespace()
-        .map(|word| word.strip_prefix('v').unwrap_or(word))
-        .find(|word| word.starts_with(|c: char| c.is_ascii_digit()))
-        .map(str::to_owned)
+    crate::common::probe::first_version_word(stdout)
 }
 
 /// The `ZCode` tree of an App's folder: the folder itself when it is a
@@ -418,21 +401,6 @@ impl ZCodeAdapter {
             notes,
         }
     }
-
-    /// The pinned variables plus every removed one.
-    fn isolation_env(&self, state_dir: &Path) -> EnvMap {
-        let mut env = EnvMap::new();
-        for (key, value) in self.pinned_env(state_dir) {
-            env.insert(
-                key.to_owned(),
-                value.unwrap_or_else(|| ENV_UNSET.to_owned()),
-            );
-        }
-        for key in UNSET {
-            env.insert((*key).to_owned(), ENV_UNSET.to_owned());
-        }
-        env
-    }
 }
 
 /// Engine commands that aren't a session (`zcode --help`, 0.16.9).
@@ -586,17 +554,9 @@ impl ToolDiscovery for ZCodeAdapter {
         )
     }
     fn scan_environment(&self) -> Vec<DiscoveredInstall> {
-        let Some(home) = self.user_home() else {
-            return Vec::new();
-        };
-        let env_override = std::env::var_os(ENV_STORAGE_DIR)
-            .filter(|value| !value.is_empty())
-            .map(PathBuf::from);
-        crate::zcode_environment::scan_zcode_environment(
-            &home,
-            env_override.as_deref(),
-            &scan_probe,
-        )
+        crate::common::home::scan_home(self.user_home(), ENV_STORAGE_DIR, |home, env| {
+            crate::zcode_environment::scan_zcode_environment(home, env, &scan_probe)
+        })
     }
     fn vendor_default_dir(&self) -> Option<PathBuf> {
         self.default_tree()
@@ -620,11 +580,7 @@ impl ToolSignIn for ZCodeAdapter {
                 message: error.to_string(),
             }
         })?;
-        Ok(self
-            .pinned_env(state_dir)
-            .into_iter()
-            .filter_map(|(key, value)| Some((key.to_owned(), value?)))
-            .collect())
+        Ok(self.pinned_set_env(state_dir))
     }
     fn login_state(&self, state_dir: &Path) -> LoginState {
         zcode_login_state(state_dir)
@@ -661,14 +617,7 @@ impl ToolSignIn for ZCodeAdapter {
 
 /// Whether a tree found by the scan is signed in (its file's presence).
 fn scan_probe(dir: &Path) -> LoginProbe {
-    match zcode_login_state(dir) {
-        LoginState::SignedIn | LoginState::ApiKey => LoginProbe::LoggedIn,
-        LoginState::Partial
-        | LoginState::Expired
-        | LoginState::SsoPending
-        | LoginState::LoggedOut
-        | LoginState::Unknown => LoginProbe::LoggedOut,
-    }
+    zcode_login_state(dir).probe()
 }
 
 impl ToolLaunch for ZCodeAdapter {

@@ -398,6 +398,37 @@ pub trait ToolLaunch: ToolIdentity {
             .map(|key| (*key, value.clone()))
             .collect()
     }
+    /// The environment a launch (or the sign-in flow) gets for
+    /// `state_dir`: each [`crate::ToolLaunch::pinned_env`] variable set,
+    /// or removed ([`crate::launch::ENV_UNSET`]) where it runs unset, every
+    /// [`crate::ToolLaunch::launch_unset_keys`] one removed, and every
+    /// [`crate::ToolLaunch::launch_fixed_env`] one set. A launch adds it
+    /// after the Launch settings' overrides, so none of them reaches these.
+    #[must_use]
+    fn isolation_env(&self, state_dir: &Path) -> EnvMap {
+        let unset = || crate::launch::ENV_UNSET.to_owned();
+        let mut env: EnvMap = self
+            .pinned_env(state_dir)
+            .into_iter()
+            .map(|(key, value)| (key.to_owned(), value.unwrap_or_else(unset)))
+            .collect();
+        for key in self.launch_unset_keys() {
+            env.insert((*key).to_owned(), unset());
+        }
+        for (key, value) in self.launch_fixed_env() {
+            env.insert((*key).to_owned(), (*value).to_owned());
+        }
+        env
+    }
+    /// The pinned variables that are set for `state_dir` (what preparing
+    /// an account folder hands back; one that runs unset is left out).
+    #[must_use]
+    fn pinned_set_env(&self, state_dir: &Path) -> EnvMap {
+        self.pinned_env(state_dir)
+            .into_iter()
+            .filter_map(|(key, value)| Some((key.to_owned(), value?)))
+            .collect()
+    }
     /// The arguments that resume conversation `conversation_id` from a
     /// terminal, after [`crate::ToolDiscovery::shell_command`] (AJ-E1537's Copy
     /// resume command). `None` when the tool can't resume from a
