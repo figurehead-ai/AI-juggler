@@ -859,9 +859,12 @@ mod tests {
     #[test]
     fn cmd_q_with_nothing_live_quits() {
         assert_eq!(
-            leaving(Leave::Quit, false, &mut QuitGate::default(), || plan_of(
-                &[]
-            )),
+            leaving(
+                Leave::Quit,
+                false,
+                &mut QuitGate::default(),
+                || plan_of(&[])
+            ),
             Leaving::Quit
         );
     }

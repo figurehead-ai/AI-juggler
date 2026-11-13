@@ -457,7 +457,11 @@ mod tests {
         hide_on_close(&window, &waiting);
         assert_eq!(*window.0.borrow(), ["leave full screen"]);
         resized(&window, &waiting);
-        assert_eq!(*window.0.borrow(), ["leave full screen"], "still full screen");
+        assert_eq!(
+            *window.0.borrow(),
+            ["leave full screen"],
+            "still full screen"
+        );
         window.2.set(false);
         resized(&window, &waiting);
         assert_eq!(*window.0.borrow(), ["leave full screen", "hide"]);
@@ -496,7 +500,10 @@ mod tests {
         next_run.closed();
         assert!(!next_run.due(&storage), "nor does one in a later run");
         assert_eq!(
-            storage.app_settings().get(CLOSE_NOTE_TOLD_KEY).expect("read"),
+            storage
+                .app_settings()
+                .get(CLOSE_NOTE_TOLD_KEY)
+                .expect("read"),
             Some("1".to_owned())
         );
     }
