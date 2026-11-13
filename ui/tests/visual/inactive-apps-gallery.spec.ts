@@ -1,11 +1,12 @@
 /**
  * 0.3.4 (D-64) gallery: grouped by App, the rail is about apps (the
  * maintainer: a Claude app that quit overnight vanished from the rail;
- * "23 inactive" listed sessions from all over the place). Under each open
- * app, "Last 3 inactive"; after Open now, "Inactive apps" (desktop and
- * CLI) with Start, Bring forward or New session, each unfolding its last
- * ones; its menu; Home's tiles for every closed app. Both themes, axe 0
- * critical/serious on each.
+ * "23 inactive" listed sessions from all over the place). An open App
+ * keeps its past ones to "+N recent" on its header, shown in place on a
+ * click (D-102); after Open now, "Inactive apps" (desktop and CLI) with
+ * Start, Bring forward or New session, each unfolding its last 3 under
+ * "Recent" (D-103.1), then "All N sessions ›" (D-103.2); its menu; Home's
+ * tiles for every closed app. Both themes, axe 0 critical/serious on each.
  */
 import { type Page } from "@playwright/test";
 import { mkdirSync } from "node:fs";
@@ -27,8 +28,9 @@ const PROJECTS = [
   { id: "proj-payments", root: "/Users/you/Dev/payments-api", name: "payments-api", last_activity_ms: T0, active_instance: null, accounts_used: [], instance_count: 0, history_sessions: 0, history_last_used_ms: null, repo: null, missing: false },
 ];
 
-/** The places desktop, plus a CLI app with nothing open: two sessions on
- * the Side project folder, ended yesterday and two days ago. */
+/** The places desktop, plus a CLI app with nothing open: four sessions
+ * on the Side project folder, ended from yesterday to four days ago (more
+ * than the 3 it unfolds to, so "All 4 sessions ›" shows). */
 function conversations() {
   const rows = placesConversations(T0);
   const ended = (id: string, title: string, hours: number) => ({
@@ -44,7 +46,13 @@ function conversations() {
     viewed_ms: null,
     last_activity_ms: T0 - hours * H,
   });
-  return [...rows, ended("side-1", "Sketch the landing page", 20), ended("side-2", "Try the new chart library", 50)];
+  return [
+    ...rows,
+    ended("side-1", "Sketch the landing page", 20),
+    ended("side-2", "Try the new chart library", 50),
+    ended("side-3", "Price the hosting plans", 75),
+    ended("side-4", "Draft the onboarding email", 98),
+  ];
 }
 
 test.beforeAll(() => mkdirSync(OUT, { recursive: true }));
@@ -91,9 +99,10 @@ async function toInactive(page: Page) {
 }
 
 for (const theme of ["dark", "light"] as const) {
-  test(`the rail: an open app's Last 3 inactive, then Inactive apps — ${theme}`, async ({ page }) => {
+  test(`the rail: an open App's +N recent on its header, then Inactive apps — ${theme}`, async ({ page }) => {
     await seed(page, theme);
-    await expect(page.getByTestId("rail-recent").first()).toBeVisible();
+    // D-102: an App with something open counts its past ones on its header (shown on hover and focus).
+    await expect(page.getByTestId("place-recent").first()).toBeAttached();
     const head = await toInactive(page);
     await expect(head).toContainText("Inactive apps");
     const apps = page.getByTestId("rail-idle-app");
@@ -103,17 +112,28 @@ for (const theme of ["dark", "light"] as const) {
     await shoot(page, "rail-inactive-apps", theme);
   });
 
-  test(`the rail: Last 3 unfolded under an open app and an inactive one — ${theme}`, async ({ page }) => {
+  test(`the rail: an open App's recent ones in place, and an inactive one's last 3 under Recent, then All N sessions — ${theme}`, async ({ page }) => {
     await seed(page, theme);
     // Once the remembered apps are in (their groups keyed as Apps), so
     // the unfold isn't kept under a key that's about to change.
     await expect(page.getByTestId("rail-inactive-apps")).toBeVisible();
-    const recent = page.getByTestId("rail-recent").first();
+    // "+N recent" shows on hover and focus; a click shows them in place.
+    const header = page.getByTestId("place-header").filter({ has: page.getByTestId("place-recent") }).first();
+    await header.hover();
+    const recent = header.getByTestId("place-recent");
     await recent.click();
     await expect(recent).toHaveAttribute("aria-expanded", "true");
     await toInactive(page);
     await page.getByTestId("rail-idle-app").filter({ hasText: "Side project" }).getByTestId("rail-fold").click();
-    await expect(page.locator('[data-conversation-id="side-1"]').first()).toBeVisible();
+    // D-103.1: nothing is open in it, so its last 3 sit under "Recent";
+    // D-103.2: then the link to all of them, on its page.
+    await expect(page.getByTestId("rail-recent-caption")).toHaveText("Recent");
+    await expect(page.locator('[data-conversation-id="side-3"]').first()).toBeVisible();
+    await expect(page.locator('[data-conversation-id="side-4"]')).toHaveCount(0);
+    const all = page.getByTestId("rail-all-sessions");
+    await expect(all).toHaveText("All 4 sessions ›");
+    // The rail's list only scrolls, to the link under them.
+    await all.scrollIntoViewIfNeeded();
     await shoot(page, "rail-last-3", theme);
   });
 

@@ -37,6 +37,8 @@ Usage:
   replica.py live  --home DIR --harness PATH --desktop PATH
                    [--claude N] [--codex N] [--pressure-mb N] [--minutes N]
   replica.py truth --home DIR
+  replica.py conversation --folder DIR --cwd DIR --session ID [--entrypoint E] [--app-record DIR] [...]
+  replica.py codex-thread --home DIR --cwd DIR --thread ID --originator O --source S [...]
   replica.py selftest
 """
 from __future__ import annotations
@@ -272,17 +274,21 @@ def claude_settings(own_status_line: bool) -> dict:
 
 
 def claude_line(kind: str, cwd: str, session: str, branch: str, parent: str | None, at: dt.datetime,
-                rng: random.Random, text: str = "", model: str = "") -> tuple[dict, str]:
+                rng: random.Random, text: str = "", model: str = "", entrypoint: str | None = None) -> tuple[dict, str]:
     uid = str(uuid.UUID(int=rng.getrandbits(128)))
     base = {"parentUuid": parent, "isSidechain": False, "userType": "external", "cwd": cwd,
             "sessionId": session, "version": "2.1.296", "gitBranch": branch, "uuid": uid, "timestamp": iso(at)}
+    # Where Claude Code says it runs, on every line it writes (`cli`, the
+    # Claude app's `claude-desktop`, a script's `sdk-cli`).
+    if entrypoint:
+        base["entrypoint"] = entrypoint
     if kind == "user":
         base.update({"type": "user", "message": {"role": "user", "content": text}})
     else:
         inp = rng.randint(800, 60000)
         base.update({"type": "assistant", "message": {
             "id": f"msg_{uid[:12]}", "type": "message", "role": "assistant", "model": model,
-            "content": [{"type": "text", "text": "Done. Replica reply."}], "stop_reason": "end_turn",
+            "content": [{"type": "text", "text": text or "Done. Replica reply."}], "stop_reason": "end_turn",
             "usage": {"input_tokens": inp // 10, "cache_creation_input_tokens": rng.randint(0, 4000),
                       "cache_read_input_tokens": inp, "output_tokens": rng.randint(40, 3000),
                       "service_tier": "standard"}}})
@@ -291,7 +297,8 @@ def claude_line(kind: str, cwd: str, session: str, branch: str, parent: str | No
 
 def write_claude_conversation(folder: Path, cwd: str, branch: str, start: dt.datetime, rng: random.Random,
                               session: str | None = None, turns: int | None = None,
-                              topic: str | None = None, said: str | None = None) -> tuple[str, dt.datetime, int, str]:
+                              topic: str | None = None, said: str | None = None,
+                              entrypoint: str | None = None) -> tuple[str, dt.datetime, int, str]:
     session = session or str(uuid.UUID(int=rng.getrandbits(128)))
     topic = topic or rng.choice(TOPICS)
     model = rng.choice(MODELS_CLAUDE)
@@ -301,10 +308,18 @@ def write_claude_conversation(folder: Path, cwd: str, branch: str, start: dt.dat
     lines = [json.dumps({"type": "summary", "summary": topic, "leafUuid": "leaf"})]
     for turn in range(turns if turns is not None else rng.randint(2, 18)):
         line, parent = claude_line("user", cwd, session, branch, parent, at, rng,
-                                   text=topic if turn == 0 else (said if turn == 1 and said else "Keep going."))
+                                   text=topic if turn == 0 else (said if turn == 1 and said else "Keep going."),
+                                   entrypoint=entrypoint)
         lines.append(json.dumps(line))
         at += dt.timedelta(seconds=rng.randint(5, 240))
-        line, parent = claude_line("assistant", cwd, session, branch, parent, at, rng, model=model)
+        # A reply that reads as one to what was asked (the 0.4.3 persona
+        # walk M7 read "Done. Replica reply." back); no randomness drawn,
+        # so every other part of a fixture stays as it was.
+        reply = (f"On \u201c{topic}\u201d: I read the code it touches first. Here's what's going on, "
+                 "and the change I'd make." if turn == 0 else
+                 "Done: the change is in and the tests pass. Next I'd check the edge cases.")
+        line, parent = claude_line("assistant", cwd, session, branch, parent, at, rng, text=reply, model=model,
+                                   entrypoint=entrypoint)
         usage = line["message"]["usage"]
         tokens += usage["input_tokens"] + usage["output_tokens"]
         lines.append(json.dumps(line))
@@ -315,17 +330,26 @@ def write_claude_conversation(folder: Path, cwd: str, branch: str, start: dt.dat
 
 
 def codex_rollout(folder: Path, cwd: str, start: dt.datetime, rng: random.Random,
-                  used: tuple[float, float]) -> tuple[str, dt.datetime, int, str]:
-    thread = str(uuid.UUID(int=rng.getrandbits(128)))
-    topic = rng.choice(TOPICS)
+                  used: tuple[float, float] | None, *, thread: str | None = None, topic: str | None = None,
+                  turns: int | None = None, originator: str = "codex_cli_rs",
+                  source: str | None = None) -> tuple[str, dt.datetime, int, str, Path]:
+    """A thread's rollout as Codex writes it. Who started it is its first
+    line's `originator` (Codex CLI's `codex_cli_rs`, the Codex app's
+    `Codex Desktop`, `codex exec`'s `codex_exec`) and, when given, from
+    where its `source` (`cli`, `vscode`, `exec`); `used` is the rate
+    limits its token counts report (`None`: none reported)."""
+    thread = thread or str(uuid.UUID(int=rng.getrandbits(128)))
+    topic = topic or rng.choice(TOPICS)
     day = folder / "sessions" / f"{start:%Y}" / f"{start:%m}" / f"{start:%d}"
     day.mkdir(parents=True, exist_ok=True)
     path = day / f"rollout-{start:%Y-%m-%dT%H-%M-%S}-{thread}.jsonl"
     at, tokens = start, 0
-    lines = [{"timestamp": iso(at), "type": "session_meta", "payload": {
-        "id": thread, "cwd": cwd, "cli_version": "0.160.0", "originator": "codex_cli_rs",
-        "history_mode": "paginated"}}]
-    for turn in range(rng.randint(2, 12)):
+    meta = {"id": thread, "cwd": cwd, "cli_version": "0.160.0", "originator": originator,
+            "history_mode": "paginated"}
+    if source:
+        meta.update({"timestamp": iso(at), "source": source, "model_provider": "openai", "git": {"branch": "main"}})
+    lines = [{"timestamp": iso(at), "type": "session_meta", "payload": meta}]
+    for turn in range(turns if turns is not None else rng.randint(2, 12)):
         at += dt.timedelta(seconds=rng.randint(10, 600))
         lines.append({"timestamp": iso(at), "type": "turn_context",
                       "payload": {"cwd": cwd, "model": rng.choice(MODELS_CODEX)}})
@@ -341,13 +365,13 @@ def codex_rollout(folder: Path, cwd: str, start: dt.datetime, rng: random.Random
         resets = int((at + dt.timedelta(hours=rng.randint(1, 5))).timestamp())
         lines.append({"timestamp": iso(at), "type": "event_msg", "payload": {
             "type": "token_count", "info": {"total_token_usage": usage, "last_token_usage": usage},
-            "rate_limits": {
+            "rate_limits": None if used is None else {
                 "primary": {"used_percent": used[0], "window_minutes": 300, "resets_at": resets},
                 "secondary": {"used_percent": used[1], "window_minutes": 10080, "resets_at": resets + 400000},
             }}})
     path.write_text("\n".join(json.dumps(line) for line in lines) + "\n")
     touch(path, at)
-    return thread, at, tokens, topic
+    return thread, at, tokens, topic, path
 
 
 def pad_newest_rollout(home: Path, truth: dict, mb: int) -> None:
@@ -433,7 +457,7 @@ def build(args: argparse.Namespace) -> None:
         for _ in range(rng.randint(15, 40)):
             project, cwd, _branch = cwd_pick(codex=True)
             start = now - dt.timedelta(days=rng.uniform(0.02, args.days))
-            thread, last, tokens, topic = codex_rollout(folder, cwd, start, rng, used)
+            thread, last, tokens, topic, _ = codex_rollout(folder, cwd, start, rng, used)
             truth["conversations"].append({"tool": "codex", "account": label, "project": project, "cwd": cwd,
                                            "id": thread, "title": topic, "last": iso(last), "tokens": tokens})
             account["conversations"] += 1
@@ -652,25 +676,128 @@ def live(args: argparse.Namespace) -> None:
     stop()
 
 
-def conversation(args: argparse.Namespace) -> None:
-    """A lab session's conversation (the 0.4 scenario seeder, `conversation =
-    true`): a few harmless turns in Claude Code's own format, in the App's
-    folder (`<folder>/projects/<cwd>/<session>.jsonl`), ended a minute ago
-    (or `--ago-minutes` before that). `--topic` is its title and first ask,
-    `--said` its second (persona D3: a session found by its title or by
-    what was said). Only under a lab's or the replica's folder."""
-    folder = Path(args.folder)
+def lab_only(folder: Path) -> None:
+    """The lab writers write only under a lab's or the replica's folder."""
     if "aij-lab" not in str(folder) and "aij-replica" not in str(folder):
         sys.exit(f"replica: {folder} isn't a lab's folder — refusing")
+
+
+def write_app_record(records: Path, session: str, cwd: str, title: str, created: dt.datetime,
+                     ended: dt.datetime, turns: int) -> Path:
+    """The Claude app's own record of a Code-tab session, as its Code tab
+    keeps one in the profile (`<profile>/claude-code-sessions/<account>/
+    <org>/local_<id>.json`): the conversation it runs (`cliSessionId`), its
+    folder, the app's title for it, when it was made and last active, not
+    archived, and the empty lists a record starts with."""
+    local = f"local_{uuid.uuid5(uuid.NAMESPACE_URL, f'aij-lab-record:{session}')}"
+
+    def ms(at: dt.datetime) -> int:
+        return int(at.timestamp() * 1000)
+
+    record = {
+        "sessionId": local, "cliSessionId": session, "cwd": cwd, "originCwd": cwd, "title": title,
+        "createdAt": ms(created), "lastActivityAt": ms(ended), "lastFocusedAt": ms(ended), "isArchived": False,
+        "completedTurns": turns, "model": MODELS_CLAUDE[0], "effort": "medium", "permissionMode": "default",
+        "fromCliTranscript": False, "adoptedFromOtherSurface": False, "steeredByRemoteClient": False,
+        "peerMessaged": False, "alwaysAllowedReasons": [], "gitAnchors": [], "peerReceipts": [], "prs": [],
+        "publishedArtifacts": [], "remoteMcpServersConfig": [], "sessionPermissionUpdates": [],
+        "shellFolders": [], "sideSessionNotes": [], "writtenBranches": [],
+    }
+    path = records / f"{local}.json"
+    write_json(path, record)
+    touch(path, ended)
+    return path
+
+
+def conversation(args: argparse.Namespace) -> None:
+    """A lab session's conversation (the 0.4 scenario seeder, `conversation =
+    true`; `past` and `script_runs` on a Claude App): a few harmless turns
+    in Claude Code's own format, in the App's folder
+    (`<folder>/projects/<cwd>/<session>.jsonl`), ended a minute ago (or
+    `--ago-minutes` before that). `--topic` is its title and first ask,
+    `--said` its second (persona D3: a session found by its title or by
+    what was said). `--entrypoint` is where Claude Code says it ran (`cli`,
+    `claude-desktop`, a script's `sdk-cli`); `--app-record DIR` adds the
+    Claude app's own record of it in DIR (a profile's
+    `claude-code-sessions/<account>/<org>`), as a Code-tab session has.
+    Only under a lab's or the replica's folder."""
+    folder = Path(args.folder)
+    lab_only(folder)
+    if args.app_record:
+        lab_only(Path(args.app_record))
     rng = random.Random(args.session)
     ended = dt.datetime.now(dt.timezone.utc) - dt.timedelta(minutes=1 + args.ago_minutes)
     start = ended - dt.timedelta(minutes=9 + 2 * args.turns)
     session, _, _, topic = write_claude_conversation(folder / "projects", args.cwd, "main", start, rng,
                                                      session=args.session, turns=args.turns,
-                                                     topic=args.topic, said=args.said)
+                                                     topic=args.topic, said=args.said, entrypoint=args.entrypoint)
     path = folder / "projects" / claude_dir_name(args.cwd) / f"{session}.jsonl"
     touch(path, ended)
-    print(json.dumps({"path": str(path), "session": session, "topic": topic}))
+    written = {"path": str(path), "session": session, "topic": topic}
+    if args.app_record:
+        record = write_app_record(Path(args.app_record), session, args.cwd, topic, start, ended, args.turns)
+        written["record"] = str(record)
+    print(json.dumps(written))
+
+
+# Codex's thread store (`state_<n>.sqlite`'s `threads`), its columns as
+# Codex 0.160 keeps them (indexes, triggers and references left out).
+CODEX_THREADS = """create table if not exists threads (
+    id TEXT PRIMARY KEY, rollout_path TEXT NOT NULL, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL,
+    source TEXT NOT NULL, model_provider TEXT NOT NULL, cwd TEXT NOT NULL, title TEXT NOT NULL,
+    sandbox_policy TEXT NOT NULL, approval_mode TEXT NOT NULL, tokens_used INTEGER NOT NULL DEFAULT 0,
+    has_user_event INTEGER NOT NULL DEFAULT 0, archived INTEGER NOT NULL DEFAULT 0, archived_at INTEGER,
+    git_sha TEXT, git_branch TEXT, git_origin_url TEXT, cli_version TEXT NOT NULL DEFAULT '',
+    first_user_message TEXT NOT NULL DEFAULT '', agent_nickname TEXT, agent_role TEXT,
+    memory_mode TEXT NOT NULL DEFAULT 'enabled', model TEXT, reasoning_effort TEXT, agent_path TEXT,
+    created_at_ms INTEGER, updated_at_ms INTEGER, thread_source TEXT, preview TEXT NOT NULL DEFAULT '',
+    recency_at INTEGER NOT NULL DEFAULT 0, recency_at_ms INTEGER NOT NULL DEFAULT 0,
+    history_mode TEXT NOT NULL DEFAULT 'legacy', name TEXT, is_pinned INTEGER NOT NULL DEFAULT 0,
+    thread_section_id TEXT, section_position INTEGER, section_entered_at_ms INTEGER, project_id TEXT,
+    originator TEXT, daybreak_enabled BOOLEAN, creator_user_id TEXT, creator_account_id TEXT,
+    attached_thread_parent_id TEXT)"""
+
+
+def codex_thread(args: argparse.Namespace) -> None:
+    """A lab's Codex thread (the 0.4 scenario seeder's `past` and
+    `script_runs` on a Codex App): its rollout in the Codex home `--home`,
+    as Codex writes one, started by `--originator` from `--source` (Codex
+    CLI: `codex_cli_rs`, `cli`; the Codex app: `Codex Desktop`, `vscode`;
+    `codex exec`: `codex_exec`, `exec`), ended a minute ago (or
+    `--ago-minutes` before that), reporting no rate limits; and its row in
+    the home's thread store (`state_5.sqlite`, kept in WAL mode, as Codex
+    keeps it), which Codex's own surfaces list from. Only under a lab's or
+    the replica's folder."""
+    import sqlite3
+
+    home = Path(args.home)
+    lab_only(home)
+    rng = random.Random(args.thread)
+    ended = dt.datetime.now(dt.timezone.utc) - dt.timedelta(minutes=1 + args.ago_minutes)
+    start = ended - dt.timedelta(minutes=10 * args.turns)
+    thread, last, tokens, topic, path = codex_rollout(
+        home, args.cwd, start, rng, None, thread=args.thread, topic=args.topic, turns=args.turns,
+        originator=args.originator, source=args.source)
+    db = sqlite3.connect(home / "state_5.sqlite")
+    try:
+        db.execute("pragma journal_mode=wal")
+        db.execute(CODEX_THREADS)
+        made, done = int(start.timestamp()), int(last.timestamp())
+        row = {
+            "id": thread, "rollout_path": str(path), "created_at": made, "updated_at": done, "source": args.source,
+            "model_provider": "openai", "cwd": args.cwd, "title": topic,
+            "sandbox_policy": json.dumps({"type": "workspace-write"}), "approval_mode": "on-request",
+            "tokens_used": tokens, "has_user_event": 1, "git_branch": "main", "cli_version": "0.160.0",
+            "first_user_message": topic, "model": MODELS_CODEX[0], "created_at_ms": made * 1000,
+            "updated_at_ms": done * 1000, "preview": topic, "recency_at": done, "recency_at_ms": done * 1000,
+            "history_mode": "paginated", "originator": args.originator,
+        }
+        db.execute(f"insert or replace into threads ({', '.join(row)}) values ({', '.join('?' * len(row))})",
+                   list(row.values()))
+        db.commit()
+    finally:
+        db.close()
+    print(json.dumps({"path": str(path), "thread": thread, "topic": topic}))
 
 
 def selftest() -> None:
@@ -721,7 +848,48 @@ def selftest() -> None:
         except SystemExit:
             pass
         assert (real / "keep.txt").read_text() == "mine"
+        lab_writers(Path(tmp))
     print("replica selftest: OK")
+
+
+def lab_writers(tmp: Path) -> None:
+    """The lab writers (the 0.4 scenario seeder's): a Code-tab session says
+    so on every line and has the Claude app's record of it; a Codex
+    thread's first line and its store row say who started it; neither
+    writes outside a lab."""
+    import contextlib
+    import io
+    import sqlite3
+
+    lab = tmp / "aij-lab-writers"
+    out = io.StringIO()
+    with contextlib.redirect_stdout(out):
+        conversation(argparse.Namespace(
+            folder=str(lab / "code"), cwd=str(lab / "repos/web"), session="0a1b2c3d-0000-4000-8000-000000000001",
+            turns=2, topic="Fix the flaky login test", said=None, ago_minutes=60, entrypoint="claude-desktop",
+            app_record=str(lab / "profile/claude-code-sessions/acct/org")))
+        for n, (originator, source) in enumerate((("Codex Desktop", "vscode"), ("codex_exec", "exec"))):
+            codex_thread(argparse.Namespace(
+                home=str(lab / "codex"), cwd=str(lab / "repos/web"), thread=f"0a1b2c3d-0000-4000-8000-00000000001{n}",
+                originator=originator, source=source, turns=2, topic=None, ago_minutes=0))
+    written = [json.loads(line) for line in out.getvalue().splitlines()]
+    lines = [json.loads(line) for line in Path(written[0]["path"]).read_text().splitlines()]
+    assert all(line.get("entrypoint") == "claude-desktop" for line in lines if line["type"] in ("user", "assistant"))
+    record = json.loads(Path(written[0]["record"]).read_text())
+    assert record["cliSessionId"] == written[0]["session"] and record["sessionId"] == Path(written[0]["record"]).stem
+    assert record["title"] == "Fix the flaky login test" and record["isArchived"] is False
+    first = json.loads(Path(written[1]["path"]).read_text().splitlines()[0])
+    assert first["payload"]["originator"] == "Codex Desktop" and first["payload"]["source"] == "vscode"
+    db = sqlite3.connect(lab / "codex" / "state_5.sqlite")
+    rows = sorted(db.execute("select source, originator, archived from threads"))
+    db.close()
+    assert rows == [("exec", "codex_exec", 0), ("vscode", "Codex Desktop", 0)], rows
+    try:
+        conversation(argparse.Namespace(folder=str(tmp / "someone"), cwd="/", session="x", turns=1, topic=None,
+                                        said=None, ago_minutes=0, entrypoint=None, app_record=None))
+        raise AssertionError("a folder outside a lab was written")
+    except SystemExit:
+        pass
 
 
 def main() -> None:
@@ -752,6 +920,17 @@ def main() -> None:
     c.add_argument("--topic", help="its title and first ask (default: one of the replica's)")
     c.add_argument("--said", help="its second ask, for a search of what was said")
     c.add_argument("--ago-minutes", type=int, default=0, help="how long before now it ended")
+    c.add_argument("--entrypoint", help="where Claude Code says it ran: cli, claude-desktop, sdk-cli")
+    c.add_argument("--app-record", help="also the Claude app's record of it, in this records folder")
+    x = sub.add_parser("codex-thread", help="a lab's Codex thread: its rollout and its row in the thread store")
+    x.add_argument("--home", required=True, help="the Codex home")
+    x.add_argument("--cwd", required=True)
+    x.add_argument("--thread", required=True, help="its id")
+    x.add_argument("--originator", required=True, help="who started it: codex_cli_rs, Codex Desktop, codex_exec")
+    x.add_argument("--source", required=True, help="from where: cli, vscode, exec")
+    x.add_argument("--turns", type=int, default=2)
+    x.add_argument("--topic", help="its first ask (default: one of the replica's)")
+    x.add_argument("--ago-minutes", type=int, default=0, help="how long before now it ended")
     t = sub.add_parser("truth")
     t.add_argument("--home", required=True)
     sub.add_parser("selftest")
@@ -762,6 +941,8 @@ def main() -> None:
         live(args)
     elif args.command == "conversation":
         conversation(args)
+    elif args.command == "codex-thread":
+        codex_thread(args)
     elif args.command == "selftest":
         selftest()
     else:

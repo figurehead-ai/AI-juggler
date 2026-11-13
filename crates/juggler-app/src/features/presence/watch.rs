@@ -31,11 +31,31 @@ pub fn reconcile(state: &Arc<AppState>, now: i64, force: bool) -> bool {
         crate::features::presence::running(&procs::table(), &hosts, &home)
             .into_keys()
             .collect();
-    let moved = state.places.presence.lock().is_ok_and(|mut last| {
+    saw(state, running, now)
+}
+
+/// What a look at `now` found `running`: kept for the next, and the
+/// window told when the set changed. D-103.5: an App that stopped since
+/// the last look was last seen running at that look, written once, as it
+/// stops (a running one's time moves only by the hour, with the full
+/// scan). Returns whether the set changed.
+pub(crate) fn saw(
+    state: &Arc<AppState>,
+    running: std::collections::BTreeSet<String>,
+    now: i64,
+) -> bool {
+    let Ok((moved, gone, last_ms)) = state.places.presence.lock().map(|mut last| {
+        let gone: Vec<String> = last.0.difference(&running).cloned().collect();
         let moved = last.0 != running;
+        let last_ms = last.1;
         *last = (running, now);
-        moved
-    });
+        (moved, gone, last_ms)
+    }) else {
+        return false;
+    };
+    if !gone.is_empty() {
+        let _ = crate::features::places::with_book(state, |book| book.note_stopped(&gone, last_ms));
+    }
     if moved {
         crate::features::places::changed(state);
     }

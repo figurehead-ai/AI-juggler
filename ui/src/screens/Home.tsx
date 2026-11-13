@@ -33,7 +33,7 @@ import { sessionLabel } from "../lib/stop";
 import { matches, type KeyLike } from "../lib/shortcuts";
 import { RowPlaceholders } from "../components/Placeholder";
 import { Welcome } from "../components/Welcome";
-
+import { useKnownPlaces } from "../lib/places";
 import { HomeRecent } from "../components/HomeRecent";
 import { isSessionNeed, needsHeading } from "../lib/home-needs";
 import { HomeExtras } from "../components/HomeExtras";
@@ -84,7 +84,6 @@ export function needOf(session: InstanceInfo): Need | null {
   if ((NEEDS as readonly string[]).includes(session.status)) return session.status as Need;
   return (session.needs_attention as Need | null) ?? null;
 }
-
 
 /** What's wrong, in a sentence, and the one action. A limit is the
  * Account's (D-62), so it's named by the Account (`accounts`, as read);
@@ -301,6 +300,7 @@ export function HomeScreen({
   // AJ-E2105: the rail's own list (its Needs you, its places), with the
   // apps turned off in Settings left out.
   const { conversations, hidden: hiddenApps } = useShownConversations();
+  const known = useKnownPlaces(); // ADR-0032: Needs you names each session by the App that owns it
   const items = useMemo(
     () => itemsOf({ sessions: sessions.filter((s) => !s.parked), conversations, projects, seen, snoozed: (row) => isSnoozed(row, snooze, now), needOf: needsNow.needOf }),
     [sessions, conversations, projects, seen, snooze, now, needsNow.needOf],
@@ -378,7 +378,7 @@ export function HomeScreen({
     return <Welcome onFindAccounts={onAddAccounts} onFreshAccount={onFreshAccount ?? onAddAccounts} />;
   }
 
-  const allNeeds = homeNeedsOf(needsNow.rows, items, accounts, sessions, thisMac, now);
+  const allNeeds = homeNeedsOf(needsNow.rows, items, accounts, sessions, thisMac, now, known ?? []);
   // The heading counts the rows it sits over (the 0.2 walk, F4: "2
   // sessions need you" over four rows): the backend's needs Home lists,
   // and the caps, agents' messages and tasks with their own rows.
@@ -390,7 +390,7 @@ export function HomeScreen({
     // its folders show it.
     runOut: [...new Set(runway.filter((r) => r.left === 0 && !r.credits).map((r) => accountNameOf(subscriptions, r.account.id, r.account.label)))],
     running: items.some((item) => item.live && item.state === "working") || items.some(openNow),
-    anything: sessions.length + conversations.length > 0,
+    anything: sessions.length + conversations.length > 0, known: needsNow.known,
   });
   const openCount = items.filter(openNow).length;
   const sessionsWords = (count: number, what: string) => `${count} ${what} ${count === 1 ? "session" : "sessions"}`;
@@ -413,13 +413,11 @@ export function HomeScreen({
     const what = row.credits ? row.words : `${row.left}% left`;
     return { left: row.left, words: shown ? what : `${whose} · ${what}` };
   };
-  // Few needs: Pick up where you left off moves up into the left column (the 0.4 design review, 39).
-  const fewNeeds = allNeeds.length + capNeeds.caps.length + messageNeeds.length + taskNeeds.length <= 2;
   const recentArea = <HomeRecent recent={recent} total={review.length} shown={RECENT_SHOWN} showAll={showAll} onShowAll={() => setShowAll((open) => !open)} projects={projects} now={now} busy={busy} onOpen={onOpenSession} onReviewed={(session) => void act(session, "reviewed")} onReviewAll={() => void reviewAll()} />;
   // AJ-E2018: the cards themselves are a registry (screens/home-cards).
   const cards: HomeCardContext = {
     sessions, conversations, accounts, projects, subscriptions, now, items, allNeeds, capNeeds, messageNeeds, taskNeeds,
-    parked, recent, quota, quotaKnown, ledgerDegraded, fewNeeds, recentArea, busy, actionKeysAria: actionKeys.aria,
+    parked, recent, quota, quotaKnown, ledgerDegraded, needsKnown: needsNow.known, recentArea, busy, actionKeysAria: actionKeys.aria,
     signingIn, signInError, runwayFor, act, startSignIn, onOpenSession, onNewSession, onLimit, onChanged, onOpenThisMac, onOpenCleanup,
   };
 
@@ -438,7 +436,7 @@ export function HomeScreen({
           {/* AJ-E403 Req.6: the legend's Home surface. */}
           <LegendPopover className="shrink-0" placement="below" />
         </div>
-        <HomeExtras shown={sessionNeeds > 0 && otherNeeds > 0} needs={allNeeds} more={{ caps: capNeeds.caps.map(capTitle), messages: messageNeeds.length, tasks: taskNeeds.length }} />
+        <HomeExtras pending={!needsNow.known} shown={sessionNeeds > 0 && otherNeeds > 0} needs={allNeeds} more={{ caps: capNeeds.caps.map(capTitle), messages: messageNeeds.length, tasks: taskNeeds.length }} />
         {counts.length > 0 && (
           <p className="flex flex-wrap items-center gap-x-1.5 text-body text-ink-2" data-testid="home-counts">
             {counts.map((part, index) => (

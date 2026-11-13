@@ -466,15 +466,26 @@ export async function openSwitch(page: import("@playwright/test").Page): Promise
   await expect(page.getByTestId("continue-dialog")).toBeVisible();
 }
 
-/** Opens the first Work Max session the rail lists, as the specs did
- * before D-62 named the app's header "Claude Code · Work Max": a row
- * ("…, on Work Max") in the list, else an icon of the folded rail
- * ("Claude provider, Work Max, …"). Never the app's header. */
-export async function openWorkMaxSession(page: import("@playwright/test").Page): Promise<void> {
-  const row = page.getByRole("button", { name: /\bon Work Max\b/ });
-  const icon = page.getByRole("button", { name: /, Work Max, |· Claude Code · Work Max/ });
-  await expect(row.or(icon).first()).toBeVisible();
-  await ((await row.count()) > 0 ? row : icon).first().click();
+/**
+ * Opens the session `id` from the rail: its row in the list, or its icon
+ * in the folded column (which shows only what's open, so an ended one
+ * needs openRailList there first). Never the app's header.
+ *
+ * A spec names the session it is about. "The first Work Max row" was a
+ * different session per lens and per width (sess-8 in a wide Project
+ * lens, sess-4 in the App lens and the folded column), and what an ended
+ * session's page shows changed in 0.4.4 (D-103.3: its switch card stays
+ * folded and looks for room only once opened; D-103.11: its conversation
+ * when its output wasn't kept, not a terminal). allStatuses' Work Max
+ * sessions: sess-2 is working, sess-4 probably stuck (both live: a
+ * terminal, the switch list at once), sess-8 stopped with an error
+ * (ended: Relaunch, a worktree's removal; the model-drift fixture).
+ */
+export async function openRailSession(page: import("@playwright/test").Page, id: string): Promise<void> {
+  const button = page.getByTestId("rail").locator(`button[data-instance-id="${id}"]`).first();
+  await expect(button).toBeVisible();
+  await button.click();
+  await expect(button).toHaveAttribute("aria-current", "true");
 }
 
 /** The ranked rows of the switch list, wherever it shows: the dialog

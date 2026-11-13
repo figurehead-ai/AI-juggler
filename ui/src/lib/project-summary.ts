@@ -1,8 +1,9 @@
 /**
  * 0.3 (the redesign, §3) — a project in a few facts, the same on the
  * Projects screen, a project's page header and its Overview: what needs
- * you there (from the backend's Needs you, D-49), its sessions open and
- * working (AI Juggler's and other apps'), and its open tasks.
+ * you there (from the backend's Needs you, D-49), its sessions (all of
+ * them, and those open and working: AI Juggler's and other apps'), and
+ * its open tasks.
  */
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import type { ConversationInfo } from "./ipc/conversations";
@@ -11,7 +12,7 @@ import type { TaskCounts } from "./ipc/tasks";
 import type { PillTone } from "../components/Pill";
 import { isActiveStatus } from "../components/indicator";
 import { appOfConversation, appOfSession } from "./app-of";
-import { liveOutside } from "./conversations";
+import { liveOutside, outside } from "./conversations";
 import { sessionState } from "./rail-items";
 
 /** What waits on you in one project, by kind of need. */
@@ -101,6 +102,35 @@ export function conversationWorking(conversation: ConversationInfo): boolean {
 export function openWords(open: ProjectOpen | undefined): string {
   if (!open || open.open === 0) return "Nothing open";
   return open.working > 0 ? `${open.working} working · ${open.open} open` : `${open.open} open`;
+}
+
+/** P6 (the R3 persona walk: "Sessions" counted only the open ones, its
+ * tab all 14): every session of each project, as its Sessions tab counts
+ * them in the design preview (AI Juggler's and other apps'); the app
+ * reads the backend's count. */
+export function sessionsByProject(sessions: InstanceInfo[], conversations: ConversationInfo[]): Map<string, number> {
+  const out = new Map<string, number>();
+  for (const { project_id: id } of [...sessions, ...outside(conversations)]) if (id) out.set(id, (out.get(id) ?? 0) + 1);
+  return out;
+}
+
+/** A project's sessions, all of them, then how many are open: "14 · 3
+ * open" (the dot says some work), "14", "2 working · 2 open" when all
+ * are, "None yet"; while the count is read, what's open. */
+export function sessionsWords(total: number | null, open: ProjectOpen | undefined): string {
+  const now = open?.open ?? 0;
+  if (total === null) return now > 0 ? openWords(open) : "…";
+  const all = Math.max(total, now);
+  if (all === 0) return "None yet";
+  if (now === 0) return String(all);
+  return now === all ? openWords(open) : `${all} · ${now} open`;
+}
+
+/** The same in full, for its tooltip: "14 sessions · 2 working · 3 open". */
+export function sessionsTitle(total: number | null, open: ProjectOpen | undefined): string | undefined {
+  if (total === null) return undefined;
+  const all = Math.max(total, open?.open ?? 0);
+  return `${all} ${all === 1 ? "session" : "sessions"} · ${openWords(open).toLowerCase()}`;
 }
 
 /** The open work, counted: every open task, ready and in review. */

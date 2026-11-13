@@ -8,6 +8,9 @@
  * session that came from another Mac, the way back (AJ-E708: with any
  * divergence that waits for you). Suggest-only: every move is a click.
  * 0.3: Save handover… under them, ending with Reveal in Finder.
+ * D-103.3: an ended session's card stays quiet: no search for room (and
+ * no teaser from one) until it's opened or the dialog is; its account's
+ * notice is one quiet line under the title instead.
  */
 import { useEffect, useMemo, useRef, useState, type JSX } from "react";
 import { createPortal } from "react-dom";
@@ -17,6 +20,8 @@ import { RemoteSwitchTargets } from "./RemoteSwitchTargets";
 import { CrossMachineSwitchFlow } from "./CrossMachineSwitchFlow";
 import { CrossMachineSwitchBack } from "./CrossMachineSwitchBack";
 import { SaveHandover } from "./HandoverView";
+import { AccountRoomLine, ContinueSummary } from "./ContinueSummary";
+import { statusLive } from "../lib/session-process";
 import { ContinueDialog } from "./ContinueDialog";
 import { cliAppName } from "../lib/app-name";
 import { fleetDivergences, fleetSwitchBackPlan, fleetSwitchTargets } from "../lib/ipc/fleet-switch";
@@ -93,15 +98,6 @@ export function HandoverSection({
   // the list opens: a live session's first turn left every target greyed
   // "hasn't started a conversation yet" until a relaunch.
   const turn = `${session.conversation_id ?? ""}|${sessionState(session).state}`;
-  useEffect(() => {
-    let alive = true;
-    switchTargets(instanceId)
-      .then((next) => alive && setRows(next))
-      .catch(() => alive && setRows((now) => now ?? []));
-    return () => {
-      alive = false;
-    };
-  }, [instanceId, session.status, turn, dialog, switchOpen]);
   const [remoteTargets, setRemoteTargets] = useState<RemoteSwitchTargetInfo[]>([]);
   const [backPlan, setBackPlan] = useState<FleetSwitchBackPlanInfo | null>(null);
   const [divergence, setDivergence] = useState<DivergenceRecordInfo | null>(null);
@@ -125,6 +121,18 @@ export function HandoverSection({
   }, [instanceId, session.status, crossTick]);
   const suggestions = switchBackSuggestions.filter((suggestion) => suggestion.session_id === session.id);
   const open = switchOpen || Boolean(backPlan) || suggestions.length > 0;
+  // D-103.3: an ended one looks for room only once it's opened.
+  const quiet = !statusLive(session.status) && !open && !dialog;
+  useEffect(() => {
+    let alive = true;
+    if (!quiet)
+      switchTargets(instanceId)
+        .then((next) => alive && setRows(next))
+        .catch(() => alive && setRows((now) => now ?? []));
+    return () => {
+      alive = false;
+    };
+  }, [instanceId, session.status, turn, dialog, switchOpen, quiet]);
   const list = (
     <div className="mt-3 flex flex-col gap-2">
       {/* AJ-E207 Req.3: the reset-trigger suggestion — suggested,
@@ -196,12 +204,7 @@ export function HandoverSection({
         className="group"
         data-testid="handover-section"
       >
-        <summary className="-m-1 flex cursor-pointer list-none items-center justify-between gap-2 rounded p-1 text-section font-semibold text-ink outline-none focus-visible:ring-1 focus-visible:ring-accent/60 [&::-webkit-details-marker]:hidden">
-          Continue in another app
-          <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-muted transition-transform group-open:rotate-90 motion-reduce:transition-none">
-            <path d="M9 6l6 6-6 6" />
-          </svg>
-        </summary>
+        <ContinueSummary />
         {dialog ? (
           <p className="mt-3 text-meta text-ink-2" data-testid="handover-in-dialog">
             Choosing in the dialog…
@@ -210,10 +213,14 @@ export function HandoverSection({
           list
         )}
       </details>
-      {!open && (
-        <p className="text-meta leading-[1.5] text-ink-2" data-testid="handover-teaser">
-          {handoverTeaser(targets)}
-        </p>
+      {quiet ? (
+        <AccountRoomLine accountId={session.account_id} />
+      ) : (
+        !open && (
+          <p className="text-meta leading-[1.5] text-ink-2" data-testid="handover-teaser">
+            {handoverTeaser(targets)}
+          </p>
+        )
       )}
       {/* 0.3: save its handover, beside the switch actions. */}
       <SaveHandover sessionId={session.id} />

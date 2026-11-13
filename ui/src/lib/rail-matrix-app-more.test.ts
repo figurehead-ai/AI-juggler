@@ -36,9 +36,9 @@ const ORDERED = [
 const ROWS: MatrixRow[] = [
   // 7. Pinned, archived, unlisted.
   {
-    name: "7a pinned ended session of a closed App: the App stays Inactive, the pin shows under it unclicked",
+    name: "7a pinned ended session of a closed App: the App stays Inactive, the pin shows under it unclicked (no Recent over a pin)",
     lens: "place", apps: [SOUTH], talks: pasts("s", SOUTH, 3), pins: ["s2"],
-    expect: { open: [], idle: [SOUTH.key], counts: { open: null, idle: 1 }, under: { [SOUTH.key]: ["s2"] } },
+    expect: { open: [], idle: [SOUTH.key], counts: { open: null, idle: 1 }, under: { [SOUTH.key]: ["s2"] }, recent: [] },
   },
   {
     name: "7b pinned ended session of a running App with one open: open row, the pin, then '+2 recent' on its header",
@@ -46,14 +46,14 @@ const ROWS: MatrixRow[] = [
     expect: { open: [EAST.key], under: { [EAST.key]: ["o1", "p2"] }, links: { [EAST.key]: ["+2 recent"] } },
   },
   {
-    name: "7c … Last 2 clicked: open, pinned, then the rest newest first, no Show all",
+    name: "7c … Last 2 clicked: open, pinned, then the rest newest first, no All N sessions link",
     lens: "place", apps: [EAST], talks: [open("o1", EAST), ...pasts("p", EAST, 3)], pins: ["p2"], toggled: [recent(EAST)],
     expect: { under: { [EAST.key]: ["o1", "p2", "p1", "p3"] }, links: { [EAST.key]: ["+2 recent"] } },
   },
   {
-    name: "7d pinned past session of a running App with nothing open: the pin first, then its last 3, then Show all",
+    name: "7d pinned past session of a running App with nothing open: the pin first, then Recent over its last 3, then All N sessions ›",
     lens: "place", apps: [WEST], talks: pasts("w", WEST, 5), pins: ["w4"],
-    expect: { open: [WEST.key], under: { [WEST.key]: ["w4", "w1", "w2", "w3"] }, links: { [WEST.key]: ["Show all"] } },
+    expect: { open: [WEST.key], under: { [WEST.key]: ["w4", "w1", "w2", "w3"] }, links: { [WEST.key]: ["All 5 sessions ›"] }, recent: [WEST.key] },
   },
   {
     name: "7e archived (in its app, or here) and unlisted past sessions: never listed, never counted",
@@ -143,9 +143,9 @@ const ROWS: MatrixRow[] = [
   },
   {
     // FIXED (0.4.3): a running App with a past match joins Open now while searching.
-    name: "S4 search: a running App with nothing open, its past session matches: in Open now, the match under it",
+    name: "S4 search: a running App with nothing open, its past session matches: in Open now, the match under it (a match, not Recent)",
     lens: "place", query: "fix", apps: [WEST], talks: [past("w1", WEST, 1, { title: "Fix build" }), past("w2", WEST, 2, { title: "Notes" })],
-    expect: { open: [WEST.key], counts: { open: 1 }, under: { [WEST.key]: ["w1"] } },
+    expect: { open: [WEST.key], counts: { open: 1 }, under: { [WEST.key]: ["w1"] }, recent: [] },
   },
   {
     // FIXED (0.4.3), as S4.

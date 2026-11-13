@@ -11,6 +11,8 @@
 #   scripts/qa/lab_scenario.sh open  P1 [--home …]   # AI Juggler Dev on the lab
 #   scripts/qa/lab_scenario.sh bridge P1 [--home …]  # its backend + the read-only bridge
 #   scripts/qa/lab_scenario.sh lab-bridge P1 [--home …]  # the same, with the lab write mode (ADR-0027)
+#   scripts/qa/lab_scenario.sh start-apps PL1 [--home …] # its running Claude app profiles, as Open starts them
+#   scripts/qa/lab_scenario.sh stop-apps PL1 [--home …]  # quits them (teardown does too)
 #   scripts/qa/lab_scenario.sh teardown P1 [--home …]
 #
 # --import brings the replica's setups in where they are first (as
@@ -20,7 +22,7 @@
 set -euo pipefail
 root="$(cd "$(dirname "$0")/../.." && pwd)"
 cmd="${1:-}"; id="${2:-}"
-[ -n "$cmd" ] && [ -n "$id" ] || { sed -n '2,14p' "$0"; exit 2; }
+[ -n "$cmd" ] && [ -n "$id" ] || { sed -n '2,16p' "$0"; exit 2; }
 shift 2
 lab="/tmp/aij-lab-$(echo "$id" | tr '[:upper:]' '[:lower:]')"
 import=0
@@ -50,9 +52,11 @@ case "$cmd" in
   setup)
     [ -e "$lab" ] && { echo "lab-scenario: $lab exists — tear it down first" >&2; exit 1; }
     python3 -I "$root/scripts/qa/scenario.py" seed "$id" > /dev/null # the scenario exists
-    if python3 -I "$root/scripts/qa/scenario.py" seed "$id" | grep -q '"first_run": true'; then
-      # A persona's first run (AJ-E3307): only the folders its brief names,
-      # never the replica's heavy Mac (its accounts would contradict it).
+    seed_json="$(python3 -I "$root/scripts/qa/scenario.py" seed "$id")"
+    if echo "$seed_json" | grep -q '"first_run": true' || echo "$seed_json" | grep -q '"replica": false'; then
+      # A persona's first run (AJ-E3307), or a lab whose counts are all its
+      # own (PL1): only the folders its scenario names, never the replica's
+      # heavy Mac (its accounts and sessions would contradict them).
       mkdir -p "$lab"
     else
       python3 -I "$root/scripts/replica.py" build --home "$lab"
@@ -111,8 +115,23 @@ case "$cmd" in
     (cd "$root" && HOME="$lab" AIJ_DEV_BRIDGE=1 AIJ_LAB_BRIDGE=1 "$root/scripts/qa/lab_env.sh" cargo run -q --offline -p juggler-app --features lab-bridge) &
     echo "lab-scenario: the lab's backend (LAB WRITE MODE) is starting (pid $!); its page: HOME=$lab python3 scripts/dev_bridge_url.py"
     ;;
+  start-apps)
+    # PL1: the Claude app profiles its scenario says run, started on their
+    # lab folders with the launch settings the seeder stored, as AI
+    # Juggler's Open starts them (each shows Claude's sign-in window: never
+    # type or click in it).
+    [ -d "$data" ] || { echo "lab-scenario: $lab isn't set up" >&2; exit 1; }
+    python3 -I "$root/scripts/qa/lab_apps.py" start --home "$lab"
+    ;;
+  stop-apps)
+    [ -d "$lab" ] || { echo "lab-scenario: nothing at $lab"; exit 0; }
+    python3 -I "$root/scripts/qa/lab_apps.py" stop --home "$lab"
+    ;;
   teardown)
     [ -d "$lab" ] || { echo "lab-scenario: nothing at $lab"; exit 0; }
+    # The lab's Claude app instances first, by their --user-data-dir under
+    # the lab: asked to quit, with their helpers.
+    python3 -I "$root/scripts/qa/lab_apps.py" stop --home "$lab" || true
     pids="$(lsof -t +D "$lab" 2>/dev/null | sort -u || true)"
     for pid in $pids; do
       [ "$pid" = "$$" ] && continue
@@ -124,5 +143,5 @@ case "$cmd" in
     rm -rf "$lab"
     echo "lab-scenario: $lab removed; nothing of it runs"
     ;;
-  *) sed -n '2,14p' "$0"; exit 2 ;;
+  *) sed -n '2,16p' "$0"; exit 2 ;;
 esac

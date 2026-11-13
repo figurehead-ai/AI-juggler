@@ -175,6 +175,23 @@ describe("a line arriving above the one under the pointer", () => {
     expect(view.getByTestId("rail-new-above").textContent).toBe("1 new above");
   });
 
+  it("P9: holds it in a tall rail with only a few lines (the spacer below makes room past the empty space)", () => {
+    // The 0.4.1 gallery: two Apps' worth of lines in an 800 px rail; the
+    // late notice moved them ~90 px, the spacer below (twice its height)
+    // still short of the rail's empty space, so nothing could scroll.
+    const few: Line[] = [{ key: "header:codex", h: 32 }, { key: "row:b", h: 44 }];
+    for (const nested of [false, true]) {
+      const view = render(<Board lines={few} nested={nested} />);
+      const was = topOf(view, "header:codex");
+      fireEvent.pointerMove(view.getByText("header:codex"));
+      view.rerender(<Board lines={[...NOTICE, ...few]} nested={nested} />);
+      expect(topOf(view, "header:codex"), nested ? "nested" : "flat").toBe(was);
+      expect(view.getByTestId("box").scrollTop).toBe(94 + BAR);
+      expect(view.getByTestId("rail-new-above").textContent).toBe("1 new above");
+      cleanup();
+    }
+  });
+
   it("scrolls the box that scrolls, past one that grows with its content (the rail's list in the rail)", () => {
     const view = render(<Board lines={HEADERS} nested />);
     const was = topOf(view, "header:codex");

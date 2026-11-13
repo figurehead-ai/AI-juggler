@@ -9,9 +9,13 @@
 pub mod alert_words;
 pub mod capture;
 pub mod commands;
+pub mod past_hits;
 pub mod probe;
 pub(crate) mod records;
 pub mod sources;
+
+/// A window used up (no whole percent left): the core's one rule.
+pub use juggler_core::quota::used_up;
 
 use crate::features::launch::epoch_today;
 use crate::features::sessions::read_model::confidence_name;
@@ -249,6 +253,34 @@ pub struct QuotaDisplayInfo {
     /// isn't measured may only not be read yet (the 0.2 walk, F6). Set
     /// by the commands that show it.
     pub history_reading: bool,
+    /// 0.4.4: out of room, when it has room again: the latest reset among
+    /// its used-up windows ([`juggler_core::quota::room_back`]), the one
+    /// time every surface gives. `None` when no window is used up.
+    pub room_back: Option<RoomBackDisplay>,
+}
+
+/// When an account out of room has room again, and the window that keeps
+/// it out longest.
+#[derive(Clone, PartialEq, Eq, Debug, serde::Serialize, ts_rs::TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
+pub struct RoomBackDisplay {
+    /// The window that keeps it out longest.
+    pub window: RoomWindow,
+    /// When, epoch ms; `None` only when a used-up window's reset truly
+    /// isn't known (it may come after every known one).
+    #[ts(type = "number | null")]
+    pub at_ms: Option<i64>,
+}
+
+/// One of an account's two windows, as [`RoomBackDisplay`] names it.
+#[derive(Clone, Copy, PartialEq, Eq, Debug, serde::Serialize, ts_rs::TS)]
+#[serde(rename_all = "snake_case")]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
+pub enum RoomWindow {
+    /// The five-hour window.
+    FiveHour,
+    /// The week.
+    Weekly,
 }
 
 /// A weekly limit on one model only ("This week · Fable only"). It limits
@@ -316,13 +348,6 @@ impl CreditsCover {
             Self::Probably => None,
         }
     }
-}
-
-/// A window used up: no whole percent left (what every screen rounds to
-/// "0% left").
-#[must_use]
-pub fn used_up(used_pct: f64) -> bool {
-    (100.0 - used_pct).round() <= 0.0
 }
 
 /// A balance rounded to a whole number, with thousands separators
@@ -811,8 +836,37 @@ pub fn quota_display_inner(
             })
             .collect()
     };
+    // Each window shown, as the one rule reads it (a window the plan
+    // doesn't report never keeps it out).
+    let rooms: Vec<(RoomWindow, quota::WindowRoom)> = [
+        five_hour.as_ref().map(|_| {
+            (
+                RoomWindow::FiveHour,
+                evaluation.five_hour.room(WindowKind::FiveHour),
+            )
+        }),
+        weekly.as_ref().map(|_| {
+            (
+                RoomWindow::Weekly,
+                evaluation
+                    .weekly
+                    .room(WindowKind::Weekly { anchor_ms: anchor }),
+            )
+        }),
+    ]
+    .into_iter()
+    .flatten()
+    .collect();
+    let room_back = quota::room_back(&rooms.iter().map(|(_, room)| *room).collect::<Vec<_>>())
+        .and_then(|back| {
+            Some(RoomBackDisplay {
+                window: rooms.get(back.window)?.0,
+                at_ms: back.at,
+            })
+        });
     QuotaDisplayInfo {
         account: account_id.to_owned(),
+        room_back,
         five_hour,
         five_hour_omitted_reason: five_hour_reason,
         weekly,

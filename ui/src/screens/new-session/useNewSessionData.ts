@@ -4,7 +4,9 @@
  * Account's runway and the Accounts as Home last read them (lib/kept-
  * reads, lib/subscriptions). The choice shows in the first frame; the
  * fresh reads only add to it. Room is the Account's: two Apps on one
- * plan share it (`accountDisplay`).
+ * plan share it (`accountDisplay`). D-103.7: which Accounts ever ran in
+ * the project, from the backend's count by Account (every session there),
+ * what the app holds until it answers.
  */
 import { useEffect, useMemo, useState } from "react";
 import { launchRecipesList } from "../../lib/ipc/launch";
@@ -21,6 +23,10 @@ import { launchRoom } from "../../lib/launch-pick";
 import { machineAdvice } from "../../lib/ipc/this-mac";
 import type { MachineAdviceInfo } from "../../lib/machine";
 import type { Room } from "../../lib/new-session-choice";
+import { accountsRanHere } from "../../lib/new-session-history";
+import { hasLiveBackend } from "../../lib/bridge";
+import { useRelatedCounts, useRelationCounts } from "../../lib/relation-counts";
+import type { ProjectInfo } from "../../types/generated/ProjectInfo";
 
 export interface NewSessionData {
   /** `null` until known (never while the app holds some). */
@@ -42,20 +48,27 @@ export interface NewSessionData {
   verdictOf: (folderId: string) => "ok" | "tight" | "no" | undefined;
   /** This Mac's room for a launch settings' session. */
   adviceOf: (recipeId: string) => MachineAdviceInfo | undefined;
+  /** D-103.7: the Accounts (`accountKeyOf`'s keys) that ever ran in the
+   * project; `ranHereKnown` once the backend's count has answered (in the
+   * design preview, at once: what it holds is all there is). */
+  ranHere: string[];
+  ranHereKnown: boolean;
 }
 
 export function useNewSessionData({
   folders,
   sessions,
   kept,
-  projectId,
+  project,
 }: {
   folders: readonly AccountInfo[];
   sessions: readonly InstanceInfo[];
   /** The launch settings the app already holds. */
   kept?: readonly LaunchRecipeInfo[];
-  projectId: string | undefined;
+  /** The project it opens on, if any. */
+  project: ProjectInfo | null;
 }): NewSessionData {
+  const projectId = project?.id;
   const [recipes, setRecipes] = useState<LaunchRecipeInfo[] | null>(() => (kept && kept.length > 0 ? [...kept] : null));
   useEffect(() => {
     let alive = true;
@@ -83,6 +96,11 @@ export function useNewSessionData({
     };
   }, [projectId]);
 
+  // D-103.7: the project's sessions by Account, and in all, as its page counts them.
+  const live = hasLiveBackend();
+  const byAccount = useRelatedCounts(live && project ? "project" : null, projectId, "subscription");
+  const total = useRelationCounts(live && project ? "project" : null, projectId)?.sessions.all;
+
   const [advice, setAdvice] = useState<Map<string, MachineAdviceInfo>>(new Map());
   useEffect(() => {
     let alive = true;
@@ -105,6 +123,10 @@ export function useNewSessionData({
       const members = new Set(accountOf(folderId)?.profiles.map((profile) => profile.id) ?? [folderId]);
       return sessions.filter((row) => row.account_id !== null && members.has(row.account_id));
     };
+    const accountKeyOf = (folderId: string) => accountOf(folderId)?.key ?? folderId;
+    // The backend's Accounts are stored ids; New session's are the list's keys.
+    const keyOfStored = (id: string) => subscriptions?.find((row) => row.account_id === id)?.key ?? id;
+    const counted = byAccount && total !== undefined ? { byAccount: new Map([...byAccount].map(([id, n]) => [keyOfStored(id), n])), total } : null;
     return {
       recipes,
       roomKnown: known,
@@ -114,7 +136,7 @@ export function useNewSessionData({
       },
       displayOf,
       sessionsOf,
-      accountKeyOf: (folderId: string) => accountOf(folderId)?.key ?? folderId,
+      accountKeyOf,
       accountNameOf: (folderId: string) => {
         const account = accountOf(folderId);
         return account && account.state === "signed_in" ? accountName(account) : null;
@@ -122,6 +144,8 @@ export function useNewSessionData({
       appNameOf: (recipe: LaunchRecipeInfo) => apps?.find((app) => app.id === cliAppId(recipe.account_id))?.name ?? cliAppName(recipe.provider, recipe.account_label),
       verdictOf: (folderId: string) => ranked.find((row) => row.account === folderId)?.admission ?? undefined,
       adviceOf: (recipeId: string) => advice.get(recipeId),
+      ranHere: accountsRanHere({ project, sessions, recipes: recipes ?? [], accountOf: accountKeyOf, counted }),
+      ranHereKnown: !live || !project || counted !== null,
     };
-  }, [recipes, known, displays, subscriptions, apps, sessions, ranked, advice]);
+  }, [recipes, known, displays, subscriptions, apps, sessions, ranked, advice, project, live, byAccount, total]);
 }

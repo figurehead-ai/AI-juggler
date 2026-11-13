@@ -8,11 +8,12 @@
  * bell and the notification centre, never in a band over a page: a band
  * over one session's page about another session's account was nearly
  * clicked for the session on the page.
+ * D-103.3: an ended session's page stays quiet: its account's notice is
+ * one quiet line under "Continue in another app" there instead.
  */
 import { useEffect, useState, type JSX } from "react";
 import { Banner } from "./Banner";
-import { usePagedList } from "../lib/paged";
-import { notificationsDismiss, notificationsPage, type NoticeInfo } from "../lib/ipc/notices";
+import { notificationsDismiss } from "../lib/ipc/notices";
 import { acted } from "../lib/notices-store";
 import { useNoticeActions } from "../lib/notice-actions";
 import { quotaDetail, secondOf } from "../lib/notice-words";
@@ -20,30 +21,13 @@ import { resetQueueDismiss, resetQueueList, type ResetQueueRow } from "../lib/ip
 import { parkedDismiss, parkedOffers, parkedResume } from "../lib/ipc/park";
 import type { ParkedOfferInfo } from "../types/generated/ParkedOfferInfo";
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
-import { accountOfProfile, useSubscriptions, type SubscriptionInfo } from "../lib/subscriptions";
+import { ownTitle, useOwnRoomNotices } from "../lib/own-room-notices";
 import { focusHandoverSoon } from "../lib/handover-focus";
 import { useSwitchNotYet } from "../lib/switch-not-yet";
 
-/** Whether folders `a` and `b` share their room: the same folder, or two
- * folders of one Account (D-62). */
-function sameRoom(subscriptions: readonly SubscriptionInfo[] | null, a: string | null | undefined, b: string | null | undefined): boolean {
-  if (!a || !b) return false;
-  if (a === b) return true;
-  const of = (id: string) => (subscriptions ? accountOfProfile(subscriptions, id)?.account_id : undefined);
-  const left = of(a);
-  return left !== undefined && left !== null && left === of(b);
-}
-
-/** This session's account in words: "This session's account, Work Max,
- * is almost out of room". */
-function ownTitle(notice: NoticeInfo): string {
-  const name = notice.facts.account;
-  const out = notice.meter !== null && notice.meter <= 0;
-  return `This session's account${name ? `, ${name},` : ""} ${out ? "is out of room" : "is almost out of room"}`;
-}
-
 export function SessionNotices({
   accountId,
+  quiet = false,
   switchKey,
   reminderKey,
   parkedId,
@@ -51,6 +35,9 @@ export function SessionNotices({
 }: {
   /** The folder the session runs on. */
   accountId: string | null;
+  /** D-103.3: it has ended; its account's notice is ContinueOn's quiet
+   * line, not a notice here. */
+  quiet?: boolean;
   /** The key its switch list answers to (focusHandoverSoon). */
   switchKey: string;
   /** Its reminder's key in the reset queue (a session's id, or `conv:` and
@@ -60,11 +47,10 @@ export function SessionNotices({
   parkedId: string | null;
   sessions: InstanceInfo[];
 }): JSX.Element | null {
-  const subscriptions = useSubscriptions(0, accountId !== null);
   const actions = useNoticeActions(sessions);
   // rc33 M4: greyed with the switch's own reason when it would refuse.
   const notYet = useSwitchNotYet(switchKey);
-  const banners = usePagedList<NoticeInfo>("notices:banners", (request) => notificationsPage("banners", request), { keyOf: (row) => String(row.id) });
+  const own = useOwnRoomNotices(quiet ? null : accountId);
   const [queue, setQueue] = useState<ResetQueueRow[]>([]);
   const [offers, setOffers] = useState<ParkedOfferInfo[]>([]);
   const [hidden, setHidden] = useState<ReadonlySet<string>>(() => new Set());
@@ -91,9 +77,9 @@ export function SessionNotices({
     );
   };
   const items: JSX.Element[] = [];
-  for (const notice of banners.items) {
+  for (const notice of own) {
     const key = `notice-${notice.id}`;
-    if (hidden.has(key) || !sameRoom(subscriptions, notice.target.account_id, accountId)) continue;
+    if (hidden.has(key)) continue;
     const second = secondOf(notice);
     items.push(
       <Banner

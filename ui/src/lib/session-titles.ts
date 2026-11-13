@@ -3,15 +3,15 @@
  * all read "Untitled session · payments-api"): the first words of the
  * last thing you asked it, read from the end of its transcript (already
  * redacted, and only while Last messages is on), else its telling branch,
- * else its facts: folder · App · when it started (D-96). Read once per conversation, after Home
- * has painted, and kept for the window's life only.
+ * else its facts: its folder and when it started (D-96, D-103.8). Read
+ * once per conversation, after Home has painted, and kept for the window's
+ * life only.
  */
 import { useEffect, useState } from "react";
 import { conversationsLastMessages } from "./ipc/conversations";
 import { hasLiveBackend } from "./bridge";
-import { clock, daysAhead } from "./time-words";
+import { pastWhen } from "./time-words";
 import { tellingBranch } from "./project-words";
-import { appShortName, sessionAppWords } from "./app-name";
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
 
 /** The first few words of what was asked: its first line, cut before a
@@ -36,56 +36,40 @@ export function firstWords(text: string, max = 8): string | null {
   return cut ? `${out}…` : out;
 }
 
-/** When it started, in a few words, as `whenWords` says a time to come
- * but looking back: "started 1:14 AM" today, "started yesterday 1:14
- * AM", "started Thu 1:14 AM" within the week, and with its date from a
- * week back ("started Thu, Oct 23 1:14 AM"; its year when not this
- * one's). */
+/** When it started, in a few words (`pastWhen`): "started 1:14 AM"
+ * today, "started yesterday 1:14 AM", "started Thu 1:14 AM" within the
+ * week, and with its date from a week back ("started Thu, Oct 23 1:14
+ * AM"; its year when not this one's). */
 export function startedWords(ms: number, now: number): string {
-  const days = -daysAhead(ms, now);
-  if (days <= 0) return `started ${clock(ms)}`;
-  if (days === 1) return `started yesterday ${clock(ms)}`;
-  const sameYear = new Date(ms).getFullYear() === new Date(now).getFullYear();
-  const day = new Date(ms).toLocaleDateString([], days < 7 ? { weekday: "short" } : { weekday: "short", month: "short", day: "numeric", ...(sameYear ? {} : { year: "numeric" }) });
-  return `started ${day} ${clock(ms)}`;
+  return `started ${pastWhen(ms, now)}`;
 }
 
 /** What an untitled session is told apart by (D-96): its folder (or
- * project), its App, and when it started. A list whose rows sit under one
- * of them (the processes tree, under its App) leaves it `null`. */
+ * project) and when it started. Never its App or Account (D-103.8): its
+ * row says which in its chip or on its second line. */
 export interface SessionFacts {
   folder: string | null;
-  app: string | null;
   startedMs: number | null;
 }
 
-/** D-96 (persona D2): an untitled session's name, by its facts — "billing
- * · Work · started 1:14 AM", "billing · Work · started yesterday 9:02
- * PM", never "Untitled session · billing", which two sessions in one
- * folder share. "Session started 1:14 AM" when only the time is known;
- * "Untitled session" when nothing is; an App label that is an email is
- * left out (D-33). */
+/** D-96 (persona D2), D-103.8: an untitled session's name, by its facts —
+ * "billing · started 1:14 AM", "billing · started yesterday 9:02 PM" (its
+ * day as `pastWhen` says it), never "Untitled session · billing", which
+ * two sessions in one folder share, and never its Account (persona R2:
+ * "client-b · Client A · client-a · started 4:46 PM" said it twice, and
+ * the rail's width cut it off). "Session started 1:14 AM" when only the
+ * time is known; "Untitled session" when nothing is. */
 export function untitledName(facts: SessionFacts, now: number): string {
-  const { folder, app: named, startedMs } = facts;
-  const lead = folder || null;
-  const when = startedMs != null && startedMs > 0 ? startedWords(startedMs, now) : null;
-  // D-33: an App is never named by an email.
-  const app = named && !named.includes("@") ? named : null;
-  const parts = [lead, app, when].filter((part): part is string => part !== null);
-  if (parts.length === 0) return "Untitled session";
-  return lead === null && app === null ? `Session ${when}` : parts.join(" · ");
-}
-
-/** A session's App in the short words a name has room for: its profile,
- * else its app ("Work", "ChatGPT"; `appShortName`). */
-export function sessionAppShort(row: { kind: string; provider: string; account_label: string }): string {
-  return appShortName(sessionAppWords(row));
+  const lead = facts.folder || null;
+  const when = facts.startedMs != null && facts.startedMs > 0 ? startedWords(facts.startedMs, now) : null;
+  if (lead === null) return when === null ? "Untitled session" : `Session ${when}`;
+  return when === null ? lead : `${lead} · ${when}`;
 }
 
 /** Names that would read alike, told apart the way a pool's cards are:
  * "(1)", "(2)" by when each started (then by key), so the same minute in
- * the same folder on the same App still reads as two. Rows whose names
- * differ are left as they are. */
+ * the same folder still reads as two. Rows whose names differ are left as
+ * they are. */
 export function tellApart<T>(rows: readonly T[], name: (row: T) => string, order: (row: T) => [number, string]): Map<T, string> {
   const groups = new Map<string, T[]>();
   for (const row of rows) groups.set(name(row), [...(groups.get(name(row)) ?? []), row]);
@@ -182,7 +166,12 @@ export function folderName(cwd: string | null | undefined): string {
  * no branch that says what the work was. Its name has its start time in
  * it already. */
 export function namedByFacts(session: { label?: string | null; title?: string | null; git_branch?: string | null }): boolean {
-  return !session.label && !session.title && tellingBranch(session.git_branch) === null;
+  return !given(session.label) && !given(session.title) && tellingBranch(session.git_branch) === null;
+}
+
+/** `text` unless it's blank (the backend's rule: "  " names nothing). */
+function given(text: string | null | undefined): string | null {
+  return text?.trim() ? text : null;
 }
 
 /** A list's rows with the names its facts-named rows share told apart
@@ -201,19 +190,22 @@ export function tellFactsApart<T extends { key: string; title: string; startMs: 
  * (the rail, Needs you, a pool's canvas, its list and its messages, the
  * session's header, the palette): its label, else its title's first
  * words, else a branch that says what the work was ("fix/limits"), else
- * its facts (D-96: "billing · Work · started 1:14 AM") — never the whole
+ * its facts (D-96, D-103.8: "billing · started 1:14 AM") — never the whole
  * first prompt, never "main" (the rc7 and rc12 walks), never "Untitled
  * session · <folder>" (persona D2). The member card's name (`card_name`)
- * and the backend's `naming::short_name` are the same rule. */
-export function shortName(session: Pick<InstanceInfo, "label" | "title" | "git_branch" | "cwd" | "account_label" | "kind" | "provider" | "started_at_ms">, now: number = Date.now()): string {
-  if (session.label) return session.label;
-  if (session.title) return firstWords(session.title) ?? session.title;
-  return tellingBranch(session.git_branch) ?? untitledName({ folder: folderName(session.cwd) || null, app: sessionAppShort(session), startedMs: session.started_at_ms }, now);
+ * and the backend's `naming::short_name` are the same rule, held to it by
+ * one file of cases both run (`fixtures/session-names.json`). */
+export function shortName(session: Pick<InstanceInfo, "label" | "title" | "git_branch" | "cwd" | "started_at_ms">, now: number = Date.now()): string {
+  const label = given(session.label);
+  if (label) return label;
+  const title = given(session.title);
+  if (title) return firstWords(title) ?? title;
+  return tellingBranch(session.git_branch) ?? untitledName({ folder: folderName(session.cwd) || null, startedMs: session.started_at_ms }, now);
 }
 
 /** Sessions named in a sentence by the one short-name rule
- * ([`shortName`]), each once: "fix/limits and billing · Work · started
- * 1:14 AM"; two untitled ones that read alike are told apart as the rail
+ * ([`shortName`]), each once: "fix/limits and billing · started 1:14
+ * AM"; two untitled ones that read alike are told apart as the rail
  * does ([`namesApart`]). The worktree question says who is working in a folder
  * this way (the rc27 pool pass: "Account G, Account G are already working
  * in web" named the App twice and no session). */

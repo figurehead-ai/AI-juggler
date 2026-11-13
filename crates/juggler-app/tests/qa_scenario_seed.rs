@@ -65,17 +65,21 @@ fn dir_of(state: &Arc<AppState>, id: &str) -> PathBuf {
         .state_dir
 }
 
-/// A lab's room: folder `id`'s 5-hour window `used`% full, as its tool's
-/// own statusline would have said a minute ago, resetting in two hours
-/// (`room_used` on a scenario App; walk A5's "out of room").
-fn lab_room(state: &Arc<AppState>, id: &str, used: f64) {
+/// A lab's room: folder `id`'s `window` `used`% full, as its tool's own
+/// statusline would have said a minute ago, the five-hour window resetting
+/// in two hours, the week in three days.
+fn lab_room(state: &Arc<AppState>, id: &str, window: juggler_core::quota::WindowKind, used: f64) {
     use juggler_core::model::Confidence;
     use juggler_core::quota::{QuotaSample, UsageSource, WindowKind};
     let now = Timestamp::now().millis();
+    let resets = match window {
+        WindowKind::FiveHour => 2 * 3_600_000,
+        WindowKind::Weekly { .. } => 3 * 24 * 3_600_000,
+    };
     let sample = QuotaSample {
         ts: now - 60_000,
         used_pct: used,
-        resets_at: Some(now + 2 * 3_600_000),
+        resets_at: Some(now + resets),
         confidence: Confidence::Measured,
         held_until: None,
     };
@@ -84,13 +88,318 @@ fn lab_room(state: &Arc<AppState>, id: &str, used: f64) {
         .lock()
         .unwrap()
         .usage()
-        .insert_sourced_samples(&[(
-            id.to_owned(),
-            WindowKind::FiveHour,
-            sample,
-            UsageSource::Statusline,
-        )])
+        .insert_sourced_samples(&[(id.to_owned(), window, sample, UsageSource::Statusline)])
         .unwrap();
+}
+
+/// `room_used` (% of the five-hour window: walk A5's "out of room") and
+/// `week_used` (% of the week: PL1's out for days, past any five-hour
+/// reset, so a walk needn't start within two hours of its setup) on
+/// scenario App `app`: folder `id`'s readings ([`lab_room`]).
+fn seed_room(state: &Arc<AppState>, app: &Value, id: &str) {
+    use juggler_core::quota::WindowKind;
+    if let Some(used) = app["room_used"].as_f64() {
+        lab_room(state, id, WindowKind::FiveHour, used);
+    }
+    if let Some(used) = app["week_used"].as_f64() {
+        lab_room(state, id, WindowKind::Weekly { anchor_ms: None }, used);
+    }
+}
+
+/// The scenario Account App `app` is signed in to: its `account`, unless
+/// it says `signed_in = false`.
+fn signed_in(app: &Value) -> Option<&str> {
+    app["account"]
+        .as_str()
+        .filter(|name| !name.is_empty() && app["signed_in"].as_bool() != Some(false))
+}
+
+/// Runs the replica's lab writer (`scripts/replica.py`, isolated) with
+/// `args`: what it says it wrote.
+fn replica(args: &[std::ffi::OsString]) -> Value {
+    let out = std::process::Command::new("python3")
+        .arg("-I")
+        .arg(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../scripts/replica.py"
+        ))
+        .args(args)
+        .output()
+        .unwrap();
+    assert!(
+        out.status.success(),
+        "replica.py {}: {}",
+        args.first()
+            .map_or_else(String::new, |verb| verb.to_string_lossy().into_owned()),
+        String::from_utf8_lossy(&out.stderr)
+    );
+    serde_json::from_slice(&out.stdout).unwrap()
+}
+
+/// Who started a lab session, in its tool's own words: what decides its
+/// App (ADR-0032 amendment 9, D-102).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum StartedBy {
+    /// The Claude app's Code tab, with the app's own record of it.
+    ClaudeApp,
+    /// The Codex app.
+    CodexApp,
+    /// A terminal: Claude Code's or Codex CLI's.
+    Terminal,
+    /// A script's run: `claude -p`, `codex exec` (History only, D-102).
+    Script,
+}
+
+impl StartedBy {
+    /// What `tool` writes for a session started so, as the replica's writer
+    /// takes it: Claude Code's `entrypoint` on every line; Codex's
+    /// `originator` and `source` in a thread's first line. `None`: not a
+    /// way `tool` starts one.
+    fn written_as(self, tool: &str) -> Option<&'static [&'static str]> {
+        Some(match (tool, self) {
+            ("claude-code", Self::ClaudeApp) => &["--entrypoint", "claude-desktop"],
+            ("claude-code", Self::Terminal) => &["--entrypoint", "cli"],
+            ("claude-code", Self::Script) => &["--entrypoint", "sdk-cli"],
+            ("codex", Self::CodexApp) => &["--originator", "Codex Desktop", "--source", "vscode"],
+            ("codex", Self::Terminal) => &["--originator", "codex_cli_rs", "--source", "cli"],
+            ("codex", Self::Script) => &["--originator", "codex_exec", "--source", "exec"],
+            _ => return None,
+        })
+    }
+}
+
+/// Where a scenario App's past sessions are written (PL1): its tool, who
+/// its own surface is, its folder and, for a Claude app profile, the
+/// folder its records are in.
+struct Surface<'a> {
+    tool: &'a str,
+    own: StartedBy,
+    folder: PathBuf,
+    records: Option<PathBuf>,
+}
+
+/// `past = N` and `script_runs = N` on scenario App `app` (PL1, 0.4.3's
+/// rail): N sessions its own surface started and N scripts' runs, in its
+/// tool's own format in its `surface`'s folder, by the replica's writers
+/// (`replica.py conversation`, `codex-thread`): a Code-tab session with
+/// the Claude app's record of it, a terminal's transcript, a Codex thread
+/// with its row in the thread store. One a day back from yesterday (a
+/// script's two hours before), over the scenario's projects (`cwds`).
+/// Only in a folder inside one of `lab`: never an adopted real folder.
+fn lab_past(
+    app: &Value,
+    surface: &Surface<'_>,
+    cwds: &[PathBuf],
+    lab: &[&std::path::Path],
+    notes: &mut Vec<String>,
+) {
+    let id = app["id"].as_str().unwrap();
+    let wanted = [
+        (surface.own, app["past"].as_u64().unwrap_or(0), "past"),
+        (
+            StartedBy::Script,
+            app["script_runs"].as_u64().unwrap_or(0),
+            "script",
+        ),
+    ];
+    if wanted.iter().all(|(_, count, _)| *count == 0) {
+        return;
+    }
+    if !lab.iter().any(|root| surface.folder.starts_with(root)) {
+        notes.push(format!(
+            "{id}: its folder isn't the lab's; no past sessions written there"
+        ));
+        return;
+    }
+    for (by, count, kind) in wanted {
+        if count == 0 {
+            continue;
+        }
+        let Some(origin) = by.written_as(surface.tool) else {
+            notes.push(format!(
+                "{id}: no lab {kind} sessions for {} yet; it has none",
+                surface.tool
+            ));
+            continue;
+        };
+        for n in 0..count {
+            let session = lab_uuid(&format!("{id}-{kind}-{n}"));
+            let cwd = &cwds[usize::try_from(n).unwrap() % cwds.len()];
+            let ago = (n + 1) * 24 * 60 + if by == StartedBy::Script { 120 } else { 0 };
+            let mut args: Vec<std::ffi::OsString> = if surface.tool == "codex" {
+                vec![
+                    "codex-thread".into(),
+                    "--home".into(),
+                    surface.folder.clone().into(),
+                    "--thread".into(),
+                ]
+            } else {
+                vec![
+                    "conversation".into(),
+                    "--folder".into(),
+                    surface.folder.clone().into(),
+                    "--session".into(),
+                ]
+            };
+            args.extend([
+                session.into(),
+                "--cwd".into(),
+                cwd.into(),
+                "--ago-minutes".into(),
+                ago.to_string().into(),
+            ]);
+            args.extend(origin.iter().map(Into::into));
+            if let (StartedBy::ClaudeApp, Some(records)) = (by, &surface.records) {
+                args.extend(["--app-record".into(), records.clone().into()]);
+            }
+            replica(&args);
+        }
+        notes.push(match by {
+            StartedBy::Script => {
+                format!("{id}: scripts' runs in its folder: {count} (History only, D-102)")
+            }
+            StartedBy::ClaudeApp => format!(
+                "{id}: {count} past sessions in its Code tab (its records and their transcripts)"
+            ),
+            StartedBy::CodexApp => format!("{id}: {count} past threads the Codex app started"),
+            StartedBy::Terminal => {
+                format!("{id}: {count} past sessions a terminal started in its folder")
+            }
+        });
+    }
+}
+
+/// The desktop app `host` (the host registry's id) as its tool's adapter
+/// declares it, and that tool.
+fn host_app(state: &Arc<AppState>, host: &str) -> Option<(String, juggler_adapter::live::HostApp)> {
+    state.registry.ids().into_iter().find_map(|tool| {
+        let found = state
+            .registry
+            .get(&tool)?
+            .host_apps()
+            .into_iter()
+            .find(|app| app.id == host)?;
+        Some((tool.as_str().to_owned(), found))
+    })
+}
+
+/// D-84: desktop App `app_id` (host `host` running `tool`, in `instance`
+/// when it runs several), added by the user, on folder `folder_id`, with
+/// how Open starts it (`launch`).
+fn add_desktop_app(
+    state: &Arc<AppState>,
+    app_id: &str,
+    tool: &str,
+    host: &str,
+    instance: Option<&std::path::Path>,
+    folder_id: &str,
+    launch: &Value,
+) {
+    let now = Timestamp::now().millis();
+    let storage = state.storage.lock().unwrap();
+    storage
+        .apps()
+        .put_desktop(&juggler_core::storage::App {
+            id: app_id.to_owned(),
+            kind: "desktop".to_owned(),
+            tool: tool.to_owned(),
+            host_app_id: Some(host.to_owned()),
+            instance_dir: instance.map(|dir| dir.to_string_lossy().into_owned()),
+            folder_id: Some(folder_id.to_owned()),
+            label: None,
+            hidden: false,
+            keep_alive: false,
+            paused_json: None,
+            launch_json: Some(launch.to_string()),
+            sessions_json: None,
+            first_seen: now,
+            last_seen: now,
+            added: true,
+        })
+        .unwrap();
+    storage.apps().add(app_id).unwrap();
+}
+
+/// PL1 (ADR-0032's "Codex in ChatGPT.app"): `tool = "codex-app"`, the
+/// Codex app, which runs one instance on Codex's own folder (its host's
+/// `default_folder`, `~/.codex`): that folder in the lab's HOME, with its
+/// settings and a lab sign-in on its `account`, brought in where it is
+/// (as Add brings it in), and the desktop App on it, added. This Mac's own
+/// ChatGPT.app is what runs it: the lab never starts or quits one, and a
+/// build on the lab's HOME doesn't see it (AJ-E3306: only the lab's
+/// processes), so in a lab it reads closed. Its Codex CLI App is the
+/// product's own on that folder (a `codex` App with `folder_of` writes its
+/// threads). The folder's id and launch settings, and the App's id.
+fn seed_codex_app(
+    state: &Arc<AppState>,
+    app: &Value,
+    home: &std::path::Path,
+    account_names: &mut HashMap<String, String>,
+    notes: &mut Vec<String>,
+) -> Option<(String, String, String)> {
+    let id = app["id"].as_str().unwrap();
+    let Some((tool, host)) = host_app(state, "codex-app") else {
+        notes.push(format!("{id}: this build knows no Codex app; left out"));
+        return None;
+    };
+    let folder = home.join(host.default_folder.as_deref()?);
+    std::fs::create_dir_all(&folder).unwrap();
+    // A used Codex home has its settings.
+    if !folder.join("config.toml").exists() {
+        std::fs::write(folder.join("config.toml"), "model = \"gpt-5-codex\"\n").unwrap();
+    }
+    if let Some(name) = signed_in(app) {
+        lab_sign_in_for(&tool, &folder, name);
+    }
+    let label = app["profile"].as_str().unwrap_or(id);
+    let account = juggler_app::features::account::import::account_import_mode_impl(
+        state,
+        &tool,
+        &folder.to_string_lossy(),
+        label,
+        juggler_app::features::account::import::ImportRequest {
+            in_place: true,
+            ..Default::default()
+        },
+    )
+    .map_err(|error| {
+        notes.push(format!(
+            "{id}: its Codex folder can't be brought in ({error}); left out"
+        ))
+    })
+    .ok()?
+    .account;
+    if let Some(name) = signed_in(app) {
+        account_names.insert(account.id.clone(), name.to_owned());
+    }
+    seed_room(state, app, &account.id);
+    let app_id = juggler_app::features::places::book::place_id(&host.id, None);
+    let bundle = PathBuf::from("/Applications").join(&host.bundle);
+    let exe = bundle
+        .join("Contents/MacOS")
+        .join(host.bundle.trim_end_matches(".app"));
+    // As a look at what runs names it ("Codex app"; the Dock says ChatGPT).
+    let launch = serde_json::json!({
+        "name": host.shown_name(),
+        "instance": null,
+        "bundle": bundle,
+        "exe": exe,
+        "given": null,
+    });
+    add_desktop_app(state, &app_id, &tool, &host.id, None, &account.id, &launch);
+    notes.push(format!(
+        "{id}: the Codex app is this Mac's own {} (the lab never starts or quits it); a build on the lab's HOME sees only the lab's processes (AJ-E3306), so there it reads closed",
+        host.bundle
+    ));
+    let recipe = state
+        .storage
+        .lock()
+        .unwrap()
+        .profiles()
+        .list_by_account(&juggler_core::model::AccountId::new(account.id.clone()))
+        .unwrap()
+        .remove(0);
+    Some((account.id, recipe.id.to_string(), app_id))
 }
 
 /// A lab sign-in for a Claude Code folder on scenario Account `name`:
@@ -375,15 +684,38 @@ fn seed_lab(seed: &Value, data: PathBuf, home: &std::path::Path) -> (Arc<AppStat
     // on its `account` (unless `signed_in = false`), and the Account its
     // name.
     let mut account_names: HashMap<String, String> = HashMap::new();
-    fn signed_in(app: &Value) -> Option<&str> {
-        app["account"]
-            .as_str()
-            .filter(|name| !name.is_empty() && app["signed_in"].as_bool() != Some(false))
-    }
+    // PL1: where an App's past sessions ran (the scenario's projects), and
+    // the folders a lab writes them in (its HOME and data folder only).
+    let cwds: Vec<PathBuf> = match names.iter().filter_map(Value::as_str).collect::<Vec<_>>() {
+        none if none.is_empty() => vec![home.to_path_buf()],
+        some => some
+            .iter()
+            .map(|name| home.join("repos").join(name))
+            .collect(),
+    };
+    let data_dir = state.data_dir.clone();
+    let lab_roots = [home, data_dir.as_path()];
     let adopt = std::env::var("AIJ_LAB_ADOPT").ok();
     let mut adopted_once = false;
     for app in seed["apps"].as_array().cloned().unwrap_or_default() {
         let (id, tool) = (app["id"].as_str().unwrap(), app["tool"].as_str().unwrap());
+        if tool == "codex-app" {
+            if let Some((folder, recipe, app_id)) =
+                seed_codex_app(&state, &app, home, &mut account_names, &mut notes)
+            {
+                let found = juggler_app::commands::find_account_arc(&state, &folder).unwrap();
+                let surface = Surface {
+                    tool: found.harness.as_str(),
+                    own: StartedBy::CodexApp,
+                    folder: found.state_dir.clone(),
+                    records: None,
+                };
+                lab_past(&app, &surface, &cwds, &lab_roots, &mut notes);
+                desktop_apps.insert(id.to_owned(), app_id);
+                recipes.insert(id.to_owned(), (folder, recipe));
+            }
+            continue;
+        }
         if tool == "claude-desktop" {
             // D-84: an App because the user added it. A Claude app profile:
             // its folder under the lab's ClaudeProfiles, the Claude Code
@@ -435,9 +767,7 @@ fn seed_lab(seed: &Value, data: PathBuf, home: &std::path::Path) -> (Arc<AppStat
                 lab_sign_in(&dir_of(&state, &account.id), name);
                 account_names.insert(account.id.clone(), name.to_owned());
             }
-            if let Some(used) = app["room_used"].as_f64() {
-                lab_room(&state, &account.id, used);
-            }
+            seed_room(&state, &app, &account.id);
             let dir = home
                 .join("Library/Application Support/ClaudeProfiles")
                 .join(profile);
@@ -451,34 +781,33 @@ fn seed_lab(seed: &Value, data: PathBuf, home: &std::path::Path) -> (Arc<AppStat
                 "exe": bundle.join("Contents/MacOS/Claude"),
                 "given": dir,
             });
-            let now = Timestamp::now().millis();
-            {
-                let storage = state.storage.lock().unwrap();
-                storage
-                    .apps()
-                    .put_desktop(&juggler_core::storage::App {
-                        id: app_id.clone(),
-                        kind: "desktop".to_owned(),
-                        tool: "claude-code".to_owned(),
-                        host_app_id: Some("claude-app".to_owned()),
-                        instance_dir: Some(dir.to_string_lossy().into_owned()),
-                        folder_id: Some(account.id.clone()),
-                        label: None,
-                        hidden: false,
-                        keep_alive: false,
-                        paused_json: None,
-                        launch_json: Some(launch.to_string()),
-                        sessions_json: None,
-                        first_seen: now,
-                        last_seen: now,
-                        added: true,
-                    })
-                    .unwrap();
-                storage.apps().add(&app_id).unwrap();
-            }
+            add_desktop_app(
+                &state,
+                &app_id,
+                "claude-code",
+                "claude-app",
+                Some(&dir),
+                &account.id,
+                &launch,
+            );
+            // PL1: its Code tab's past sessions (the app's records in the
+            // profile, their transcripts in its Claude Code folder), and
+            // scripts' runs in that folder.
+            let who = slug(app["account"].as_str().unwrap_or(id));
+            let surface = Surface {
+                tool: "claude-code",
+                own: StartedBy::ClaudeApp,
+                folder: code.clone(),
+                records: Some(
+                    juggler_adapters::claude_live::app_root(&dir)
+                        .join(format!("lab-account-{who}"))
+                        .join(format!("lab-org-{who}")),
+                ),
+            };
+            lab_past(&app, &surface, &cwds, &lab_roots, &mut notes);
             if app["running"].as_bool() == Some(true) {
                 notes.push(format!(
-                    "{id}: seeded closed; the walk opens it (Open starts the Claude app on its lab folder)"
+                    "{id}: seeded closed; `lab_scenario.sh start-apps` starts the Claude app on its lab folders (or the walk opens it)"
                 ));
             }
             // Its launch settings: the one the import made.
@@ -492,6 +821,39 @@ fn seed_lab(seed: &Value, data: PathBuf, home: &std::path::Path) -> (Arc<AppStat
                 .remove(0);
             desktop_apps.insert(id.to_owned(), app_id);
             recipes.insert(id.to_owned(), (account.id, recipe.id.to_string()));
+            continue;
+        }
+        // PL1: `folder_of = "<App>"`: on that App's folder (Codex CLI on
+        // the Codex app's `~/.codex`), with its launch settings; nothing
+        // new is made or signed in. An App listed before it
+        // (`scenario.py check`).
+        if let Some(other) = app["folder_of"].as_str() {
+            let Some((folder, recipe)) = recipes.get(other).cloned() else {
+                notes.push(format!(
+                    "{id}: on the folder of {other}, which isn't seeded; left out"
+                ));
+                continue;
+            };
+            let found = juggler_app::commands::find_account_arc(&state, &folder).unwrap();
+            assert_eq!(
+                found.harness.as_str(),
+                tool,
+                "{id}: {other}'s folder isn't {tool}'s"
+            );
+            if let Some(name) = signed_in(&app) {
+                account_names
+                    .entry(folder.clone())
+                    .or_insert_with(|| name.to_owned());
+            }
+            seed_room(&state, &app, &folder);
+            let surface = Surface {
+                tool,
+                own: StartedBy::Terminal,
+                folder: dir_of(&state, &folder),
+                records: None,
+            };
+            lab_past(&app, &surface, &cwds, &lab_roots, &mut notes);
+            recipes.insert(id.to_owned(), (folder, recipe));
             continue;
         }
         // A tool with no Account (OpenCode in P8) is named by its profile
@@ -559,9 +921,16 @@ fn seed_lab(seed: &Value, data: PathBuf, home: &std::path::Path) -> (Arc<AppStat
             panic!("{problem}");
         }
         // Its room, on an adopted App too (P1 step 6: the Codex writer).
-        if let Some(used) = app["room_used"].as_f64() {
-            lab_room(&state, &account.id, used);
-        }
+        seed_room(&state, &app, &account.id);
+        // PL1: the sessions a terminal started in its folder, and scripts'
+        // runs (never in an adopted real folder: `lab_past` checks).
+        let surface = Surface {
+            tool,
+            own: StartedBy::Terminal,
+            folder: dir_of(&state, &account.id),
+            records: None,
+        };
+        lab_past(&app, &surface, &cwds, &lab_roots, &mut notes);
         let profile =
             juggler_app::features::profile::create_profile(&state, &account.id, "Main", None, None)
                 .unwrap();
@@ -931,48 +1300,28 @@ fn lab_conversation(
         return;
     }
     let native = lab_uuid(id);
-    let out = std::process::Command::new("python3")
-        .arg("-I")
-        .arg(concat!(
-            env!("CARGO_MANIFEST_DIR"),
-            "/../../scripts/replica.py"
-        ))
-        .args(["conversation", "--folder"])
-        .arg(&dir)
-        .arg("--cwd")
-        .arg(&record.cwd)
-        .args(["--session", &native])
-        // Persona D3: its title and what was said, and when it ended (a
-        // session from `days_ago` ended half an hour after it started).
-        .args(
-            session["title"]
-                .as_str()
-                .map(|title| ["--topic", title])
-                .into_iter()
-                .flatten(),
-        )
-        .args(
-            session["said"]
-                .as_str()
-                .map(|said| ["--said", said])
-                .into_iter()
-                .flatten(),
-        )
-        .args([
-            "--ago-minutes".to_owned(),
-            session["days_ago"]
-                .as_u64()
-                .map_or(0, |days| (days * 24 * 60).saturating_sub(30))
-                .to_string(),
-        ])
-        .output()
-        .unwrap();
-    assert!(
-        out.status.success(),
-        "replica.py conversation: {}",
-        String::from_utf8_lossy(&out.stderr)
-    );
-    let written: Value = serde_json::from_slice(&out.stdout).unwrap();
+    let mut args: Vec<std::ffi::OsString> = vec![
+        "conversation".into(),
+        "--folder".into(),
+        dir.into(),
+        "--cwd".into(),
+        record.cwd.clone().into(),
+        "--session".into(),
+        native.clone().into(),
+    ];
+    // Persona D3: its title and what was said, and when it ended (a
+    // session from `days_ago` ended half an hour after it started).
+    if let Some(title) = session["title"].as_str() {
+        args.extend(["--topic".into(), title.into()]);
+    }
+    if let Some(said) = session["said"].as_str() {
+        args.extend(["--said".into(), said.into()]);
+    }
+    let ago = session["days_ago"]
+        .as_u64()
+        .map_or(0, |days| (days * 24 * 60).saturating_sub(30));
+    args.extend(["--ago-minutes".into(), ago.to_string().into()]);
+    let written = replica(&args);
     let path = PathBuf::from(written["path"].as_str().unwrap());
     let mut linked = record;
     linked.conversation = Some(juggler_core::model::ConversationId::new(native.as_str()));
@@ -1698,14 +2047,20 @@ fn scenario_seed(id: &str) -> Value {
 
 /// Scenario `seed` seeded in a fresh lab (kept alive by the returned dir).
 fn seeded(seed: &Value, name: &str) -> (tempfile::TempDir, Arc<AppState>) {
+    let (lab, state, _) = seeded_with_notes(seed, name);
+    (lab, state)
+}
+
+/// [`seeded`], and the notes the seeder gave.
+fn seeded_with_notes(seed: &Value, name: &str) -> (tempfile::TempDir, Arc<AppState>, Vec<String>) {
     let lab = tempfile::Builder::new()
         .prefix(&format!("aij-lab-{name}-"))
         .tempdir_in(env!("CARGO_TARGET_TMPDIR"))
         .unwrap();
     let home = lab.path().join("home");
     std::fs::create_dir_all(&home).unwrap();
-    let (state, _) = seed_lab(seed, lab.path().join("data"), &home);
-    (lab, state)
+    let (state, notes) = seed_lab(seed, lab.path().join("data"), &home);
+    (lab, state, notes)
 }
 
 /// Why the switch refuses a session with nothing to carry yet
@@ -1944,4 +2299,357 @@ fn pr3s_week_of_sessions_spans_seven_days() {
         .map(|row| (now - row.started_at.millis()) / (24 * 3_600_000))
         .collect();
     assert_eq!(days.len(), 7);
+}
+
+/// What the real-Mac check's own readers (`scripts/qa/presence_sessions.py`)
+/// make of a seeded lab: `expr`, a Python expression over `ps` (that
+/// module), `Path`, `db` (the lab's AI Juggler database, read-only) and
+/// `a` (`paths`), printed as JSON. The lab is seeded for that check to pass
+/// on it (PL1).
+fn presence_reads(state: &Arc<AppState>, paths: &[&std::path::Path], expr: &str) -> Value {
+    let script = format!(
+        "import json, sqlite3, sys, time\nfrom pathlib import Path\nsys.path.insert(0, sys.argv[1])\n\
+         import presence_sessions as ps\ndb = sqlite3.connect(Path(sys.argv[2]).as_uri() + '?mode=ro', uri=True)\n\
+         a = [Path(p) for p in sys.argv[3:]]\nprint(json.dumps({expr}))\n"
+    );
+    let out = std::process::Command::new("python3")
+        .args(["-I", "-c", &script])
+        .arg(concat!(env!("CARGO_MANIFEST_DIR"), "/../../scripts/qa"))
+        .arg(state.data_dir.join("juggler.sqlite"))
+        .args(paths)
+        .output()
+        .unwrap();
+    assert!(
+        out.status.success(),
+        "presence_sessions: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    serde_json::from_slice(&out.stdout).unwrap()
+}
+
+/// Every conversation in a Claude Code folder, as the adapter reads it.
+fn claude_read(
+    folder: &std::path::Path,
+) -> Vec<juggler_adapter::conversation::ConversationSummary> {
+    juggler_adapters::claude_conversations::conversation_files(folder)
+        .iter()
+        .map(|path| juggler_adapters::claude_conversations::read_conversation(path).unwrap())
+        .collect()
+}
+
+/// The folder of the scenario App labelled `label` (its Account folder).
+fn folder_labelled(state: &Arc<AppState>, label: &str) -> PathBuf {
+    state
+        .storage
+        .lock()
+        .unwrap()
+        .accounts()
+        .list()
+        .unwrap()
+        .into_iter()
+        .find(|account| account.label == label)
+        .unwrap_or_else(|| panic!("a folder labelled {label}"))
+        .state_dir
+}
+
+/// PL1: `past` and `script_runs` on a Claude app profile and on a Claude
+/// Code App are written as Claude writes them. The profile's past sessions
+/// are its Code tab's: the app's own records, each with a transcript that
+/// says `claude-desktop` in its folder; a terminal's say `cli`; a script's
+/// run says `sdk-cli` and has no record (D-102: History only). The
+/// real-Mac check counts them the same way.
+#[test]
+fn a_claude_apps_past_and_scripts_runs_are_written_as_claude_writes_them() {
+    let seed = serde_json::json!({"projects": ["web", "api"], "apps": [
+        {"id": "app-work", "tool": "claude-desktop", "account": "Work", "profile": "work", "past": 2, "script_runs": 1},
+        {"id": "cc", "tool": "claude-code", "account": "Personal", "profile": "terminal", "past": 3, "script_runs": 1},
+    ]});
+    let (lab, state) = seeded(&seed, "past");
+    let home = lab.path().join("home");
+    let profile = home.join("Library/Application Support/ClaudeProfiles/work");
+    let code = home.join("Library/Application Support/ClaudeCodeProfiles/work");
+    let records = juggler_adapters::claude_app_family::conversations(&profile);
+    assert_eq!(records.len(), 2, "two Code-tab records");
+    assert!(
+        records
+            .iter()
+            .all(|record| record.title.is_some() && !record.archived)
+    );
+    let in_code = claude_read(&code);
+    assert_eq!(in_code.len(), 3);
+    for record in &records {
+        let session = in_code
+            .iter()
+            .find(|one| one.id == record.id)
+            .expect("its transcript");
+        assert_eq!(
+            session.started_in.as_deref(),
+            Some(juggler_adapters::claude_live::CLAUDE_APP_HOST)
+        );
+        assert!(!session.by_script);
+        assert!(
+            session
+                .cwd
+                .as_ref()
+                .is_some_and(|cwd| cwd.starts_with(home.join("repos")))
+        );
+    }
+    let script = in_code
+        .iter()
+        .find(|one| one.by_script)
+        .expect("a script's run");
+    assert!(
+        records.iter().all(|record| record.id != script.id),
+        "no record of it"
+    );
+    let terminal = folder_labelled(&state, "Personal · terminal");
+    let in_terminal = claude_read(&terminal);
+    assert_eq!(
+        in_terminal
+            .iter()
+            .filter(|one| !one.by_script && one.started_in.is_none())
+            .count(),
+        3
+    );
+    assert_eq!(in_terminal.iter().filter(|one| one.by_script).count(), 1);
+    // The real-Mac check: the profile's records 2, the terminal's 3 (the
+    // script's runs in neither).
+    let read = presence_reads(
+        &state,
+        &[&profile, &code, &terminal],
+        "[ps.desktop_records(a[0], a[1])[0].listed, ps.cli_records(a[2], set(), {}).listed, ps.script_runs(a[1]), ps.script_runs(a[2])]",
+    );
+    assert_eq!(read, serde_json::json!([2, 3, 1, 1]));
+}
+
+/// PL1 (ADR-0032's "Codex in ChatGPT.app"): `tool = "codex-app"` is the
+/// Codex app on the lab HOME's `~/.codex` (its host's own folder), brought
+/// in where it is and signed in; a `codex` App with `folder_of` is Codex
+/// CLI on that same folder. Their threads say who started them (the Codex
+/// app's "Codex Desktop", Codex CLI's `codex_cli_rs`, `codex exec`'s
+/// `codex_exec`), and the store lists the two Apps' threads and not the
+/// script's run (D-102), as the real-Mac check reads it.
+#[test]
+fn the_codex_app_and_codex_cli_share_the_labs_codex_folder() {
+    let seed = serde_json::json!({"projects": ["web"], "apps": [
+        {"id": "codex-app", "tool": "codex-app", "account": "ChatGPT", "profile": "default", "past": 2},
+        {"id": "codex-cli", "tool": "codex", "account": "ChatGPT", "folder_of": "codex-app", "past": 1, "script_runs": 1},
+    ]});
+    let (lab, state) = seeded(&seed, "codex");
+    let codex = lab.path().join("home/.codex");
+    let folders: Vec<_> = state
+        .storage
+        .lock()
+        .unwrap()
+        .accounts()
+        .list()
+        .unwrap()
+        .into_iter()
+        .filter(|account| account.harness.as_str() == "codex")
+        .collect();
+    assert_eq!(folders.len(), 1, "one Codex folder for both Apps");
+    assert_eq!(folders[0].state_dir, codex);
+    assert!(matches!(
+        juggler_adapters::codex::probe_codex_identity(&codex),
+        juggler_adapter::IdentityProbe::SignedIn { ref subject, .. } if subject == "lab-account-chatgpt"
+    ));
+    let app_id = juggler_app::features::places::book::place_id("codex-app", None);
+    let app = state
+        .storage
+        .lock()
+        .unwrap()
+        .apps()
+        .get(&app_id)
+        .unwrap()
+        .expect("the Codex app's App");
+    assert_eq!(
+        (app.kind.as_str(), app.host_app_id.as_deref()),
+        ("desktop", Some("codex-app"))
+    );
+    assert_eq!(app.folder_id.as_deref(), Some(folders[0].id.as_str()));
+    assert!(app.added && app.is_users());
+    let launch: Value = serde_json::from_str(app.launch_json.as_deref().unwrap()).unwrap();
+    assert_eq!(
+        launch["exe"],
+        "/Applications/ChatGPT.app/Contents/MacOS/ChatGPT"
+    );
+    assert_eq!(
+        launch["name"], "Codex app",
+        "as a look at what runs names it"
+    );
+    let threads: Vec<_> = juggler_adapters::codex_conversations::conversation_files(&codex)
+        .iter()
+        .map(|path| juggler_adapters::codex_conversations::read_conversation(path).unwrap())
+        .collect();
+    assert_eq!(threads.len(), 4);
+    let by_app = threads
+        .iter()
+        .filter(|one| {
+            one.started_in.as_deref() == Some(juggler_adapters::codex_live::CODEX_APP_HOST)
+        })
+        .count();
+    let by_cli = threads
+        .iter()
+        .filter(|one| one.started_in.is_none() && !one.by_script)
+        .count();
+    let scripts = threads.iter().filter(|one| one.by_script).count();
+    assert_eq!((by_app, by_cli, scripts), (2, 1, 1));
+    // Codex CLI launches with the one folder's settings: none are added.
+    let recipes = state
+        .storage
+        .lock()
+        .unwrap()
+        .profiles()
+        .list_by_account(&juggler_core::model::AccountId::new(
+            folders[0].id.as_str().to_owned(),
+        ))
+        .unwrap();
+    assert_eq!(recipes.len(), 1);
+    // The store, as the real-Mac check reads it: the Codex app's 2, the
+    // rest 1 (the script's run is listed by no Codex surface).
+    let read = presence_reads(&state, &[&codex], "ps.codex_listed(a[0])");
+    assert_eq!(read, serde_json::json!([2, 1]));
+}
+
+/// PL1: `week_used = 100` keeps an Account out for days (its week resets
+/// in three), past the five-hour window's reset in two hours, so a walk
+/// started later still sees it out; the real-Mac check reads it as out.
+#[test]
+fn week_used_keeps_an_account_out_past_the_five_hour_reset() {
+    let seed = serde_json::json!({"apps": [
+        {"id": "cc-work", "tool": "claude-code", "account": "Work", "profile": "work", "room_used": 100, "week_used": 100},
+        {"id": "cc-personal", "tool": "claude-code", "account": "Personal", "profile": "personal", "room_used": 30},
+    ]});
+    let (_lab, state) = seeded(&seed, "week");
+    let work = folder_labelled(&state, "Work · work");
+    // Its readings, as the real-Mac check reads the database: its folder's
+    // id, then each window's use and reset, five-hour first.
+    let read = presence_reads(
+        &state,
+        &[&work],
+        "[db.execute('select id from accounts where state_dir = ?', [str(a[0])]).fetchone()[0], \
+          list(db.execute('select q.window, q.used_pct, q.resets_at - ? from quota_samples q \
+            join accounts f on f.id = q.account where f.state_dir = ? order by q.window', \
+            [int(time.time() * 1000), str(a[0])]))]",
+    );
+    let id = read[0].as_str().unwrap().to_owned();
+    let windows = read[1].as_array().unwrap();
+    assert_eq!(windows.len(), 2, "{windows:?}");
+    assert_eq!(
+        (&windows[0][0], &windows[0][1]),
+        (&serde_json::json!("five_hour"), &serde_json::json!(100.0))
+    );
+    assert!(windows[0][2].as_i64().unwrap() < 3 * 3_600_000);
+    assert_eq!(
+        (&windows[1][0], &windows[1][1]),
+        (&serde_json::json!("weekly"), &serde_json::json!(100.0))
+    );
+    assert!(
+        windows[1][2].as_i64().unwrap() > 2 * 24 * 3_600_000,
+        "out for days"
+    );
+    // Out five hours from now, as the check reads it: the week's reading.
+    let read = presence_reads(
+        &state,
+        &[],
+        "sorted(ps.out_accounts(db, int(time.time() * 1000) + 5 * 3600 * 1000))",
+    );
+    assert_eq!(read, serde_json::json!([id]));
+}
+
+/// The PL1 lab as its scenario file seeds it: the six shapes 0.4.3's rail
+/// fix is about, every count as the real-Mac check's own readers make it,
+/// so `presence_check.py` passes on the lab once the rail shows them.
+#[test]
+fn pl1s_lab_holds_the_six_shapes() {
+    let seed = scenario_seed("PL1");
+    assert_eq!(
+        seed["replica"], false,
+        "a bare HOME: every count is the scenario's"
+    );
+    let (lab, state, notes) = seeded_with_notes(&seed, "pl1");
+    let home = lab.path().join("home");
+    let profile = |name: &str| {
+        home.join("Library/Application Support/ClaudeProfiles")
+            .join(name)
+    };
+    let code = |name: &str| {
+        home.join("Library/Application Support/ClaudeCodeProfiles")
+            .join(name)
+    };
+    // Three Claude app profiles and the Codex app, each an added App on
+    // its own folder.
+    let desktop: Vec<juggler_core::storage::App> = state
+        .storage
+        .lock()
+        .unwrap()
+        .apps()
+        .list()
+        .unwrap()
+        .into_iter()
+        .filter(|app| app.kind == "desktop")
+        .collect();
+    let mut hosts: Vec<_> = desktop
+        .iter()
+        .map(|app| app.host_app_id.clone().unwrap())
+        .collect();
+    hosts.sort();
+    assert_eq!(
+        hosts,
+        ["claude-app", "claude-app", "claude-app", "codex-app"]
+    );
+    assert!(
+        desktop
+            .iter()
+            .all(|app| app.added && app.folder_id.is_some())
+    );
+    let terminal = folder_labelled(&state, "Personal · terminal");
+    let read = presence_reads(
+        &state,
+        &[
+            &profile("personal"),
+            &code("personal"),
+            &profile("work"),
+            &code("work"),
+            &profile("client"),
+            &code("client"),
+            &terminal,
+            &home.join(".codex"),
+        ],
+        "{'records': [ps.desktop_records(a[i], a[i + 1])[0].listed for i in (0, 2, 4)], \
+          'personal_scripts': ps.script_runs(a[1]), \
+          'terminal': ps.cli_records(a[6], set(), {}).listed, \
+          'codex': ps.codex_listed(a[7]), \
+          'out': sorted(label for (label,) in db.execute('select label from accounts where id in (%s)' % ','.join('?' * len(o)), list(o))) \
+              if (o := ps.out_accounts(db, int(time.time() * 1000) + 5 * 3600 * 1000)) else []}",
+    );
+    assert_eq!(
+        read,
+        serde_json::json!({
+            // 1: personal, none; 2: work, five; 4: client, two.
+            "records": [0, 5, 2],
+            // 1, D-102: personal's folder holds only scripts' runs.
+            "personal_scripts": 3,
+            // 5: the CLI-only App's terminal sessions.
+            "terminal": 4,
+            // 3: the Codex app's 4, Codex CLI's 3 (`codex exec` in neither).
+            "codex": [4, 3],
+            // 6: Work and Client out, past the five-hour reset.
+            "out": ["client", "work"],
+        })
+    );
+    // What a walker needs to know: start-apps starts the two running
+    // profiles; the Codex app is this Mac's own.
+    for (id, word) in [
+        ("app-personal", "start-apps"),
+        ("app-work", "start-apps"),
+        ("codex-app", "this Mac's own"),
+    ] {
+        assert!(
+            notes
+                .iter()
+                .any(|note| note.starts_with(&format!("{id}: ")) && note.contains(word)),
+            "{id}: {notes:?}"
+        );
+    }
 }

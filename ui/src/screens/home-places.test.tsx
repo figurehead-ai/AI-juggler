@@ -142,18 +142,21 @@ describe("Home, desktop first", () => {
     expect(goToConversation).toHaveBeenCalledTimes(2);
     // AI Juggler's own session: its page is where it runs, so no ↗.
     // Named by the shared short name (never "main", the rc12 walk; D-96:
-    // by its facts, folder · App · when it started).
-    const own_ = [...needs.querySelectorAll<HTMLElement>("[data-home-item]")].find((item) => /ai-juggler · Work Max · started /.test(item.textContent ?? ""))!;
+    // by its facts, folder · when it started; D-103.8: never its Account).
+    const own_ = [...needs.querySelectorAll<HTMLElement>("[data-home-item]")].find((item) => /ai-juggler · started /.test(item.textContent ?? ""))!;
     expect(own_).toBeTruthy();
     expect(within(own_).queryByRole("button", { name: /^Go to it/ })).toBeNull();
   });
 
   it("Runway by account: each with its profiles; the way to measure one that isn't", async () => {
+    // 0.4.4: Measure its limits asks the tool here (D-39), when it's on.
+    seams().__AIJ_PROBE__ = { "claude-personal": { offered: true, state: "on", last_run_ms: null, last_outcome: null } };
     const view = home([], []);
     const rows = await view.findAllByTestId("home-runway-account");
     expect(rows[0]!.textContent).toContain("Apps: Claude Code CLI · Work Max");
     expect(rows[1]!.textContent).toContain("Not measured yet");
-    expect(within(rows[1]!).getByRole("button", { name: /^Measure its limits/ })).toBeTruthy();
+    // Read again: the rows are drawn anew once the readings answer.
+    await waitFor(() => expect(within(view.getAllByTestId("home-runway-account")[1]!).getByRole("button", { name: /^Measure its limits/ })).toBeTruthy());
   });
 
   it("Runway by account groups the profiles signed in to one account", async () => {

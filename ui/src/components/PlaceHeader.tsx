@@ -145,15 +145,16 @@ export function PlaceHeader({
               hover, only when nothing else is left to give); its secondary
               words (its app's word, a folded App's summary) take what's
               left, each whole or hidden (the kind mark
-              already says Desktop or CLI); the marks after it give way
-              first, to their icon. */}
+              already says Desktop or CLI), "nothing open" before the app
+              word; the marks after it give way first, to their icon. */}
           <span className="ml-0.5 min-w-0 truncate text-label font-semibold leading-[18px] text-ink" data-testid={place?.profile ? "place-profile" : undefined} title={name}>
             {place?.profile ?? label}
           </span>
           <span ref={extra} className="flex h-[18px] min-w-0 flex-1 basis-0 items-center gap-x-[3px] overflow-hidden" data-testid="place-name-line">
             {place?.profile && <span className="shrink-0 whitespace-nowrap text-label leading-[18px] text-muted" data-testid="place-app-word">{label}</span>}
             {folded !== null && needs === 0 && <span className="shrink-0 whitespace-nowrap text-label leading-[18px] text-muted">{folded.slice(folded.indexOf("·") + 1).trim()}</span>}
-            {empty && <span className="shrink-0 whitespace-nowrap text-label leading-[18px] text-muted" data-testid="place-nothing-open">nothing open</span>}
+            {/* 0.4.4: placed first, so it wins over the app word (the kind mark and icon say the app). */}
+            {empty && <span className="shrink-0 whitespace-nowrap text-label leading-[18px] text-muted" data-testid="place-nothing-open" data-fit="first">nothing open</span>}
           </span>
           {/* What the amber count is, on the chip itself (the review of
               0.1.4: an unexplained "1"): the Needs you mark and a tooltip. */}

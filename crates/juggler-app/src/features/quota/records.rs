@@ -63,15 +63,32 @@ pub(crate) struct RecordsState {
     pub hits_looked_back: bool,
 }
 
+/// Asked to read the records at the next pass rather than at their
+/// cadence (0.4.4: "Measure its limits" asked the tool itself, whose
+/// answer is in its own state file now, to show where the button was).
+static READ_SOON: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+/// Reads the records at the next pass (about a second).
+pub(crate) fn read_soon() {
+    READ_SOON.store(true, std::sync::atomic::Ordering::Release);
+}
+
+/// Whether the records are due at pass `tick`: every [`RECORDS_EVERY`]
+/// passes, the first, and the one after [`read_soon`].
+fn due(tick: u32) -> bool {
+    READ_SOON.swap(false, std::sync::atomic::Ordering::AcqRel)
+        || tick.is_multiple_of(RECORDS_EVERY)
+        || tick == 1
+}
+
 /// The app instance folders to look in when the records are due this pass
-/// (every [`RECORDS_EVERY`] passes, and the first); `None` otherwise.
+/// ([`due`]); `None` otherwise.
 pub(crate) fn due_instances(
     state: &crate::state::AppState,
     known: &mut BTreeSet<String>,
     tick: u32,
 ) -> Option<Vec<PathBuf>> {
-    (tick.is_multiple_of(RECORDS_EVERY) || tick == 1)
-        .then(|| app_instances(&state.registry, known, tick))
+    due(tick).then(|| app_instances(&state.registry, known, tick))
 }
 
 /// The app instance folders to look in: the tools' own apps' default
@@ -193,9 +210,11 @@ pub(crate) fn read_claude_records(
 }
 
 /// Once per profile: the limit hits in the last week's transcripts, which
-/// a pass read before hits were kept (`files`: the profile's transcripts).
+/// a pass read before hits were kept (`files`: the profile's transcripts),
+/// each the folder's it was spent on (`spent`: a moved conversation's, the
+/// one it left).
 pub(crate) fn look_back_for_hits(
-    account: &str,
+    (account, spent): (&str, &crate::features::handover::moved_lines::SpentOn<'_>),
     files: &[PathBuf],
     now_ms: i64,
     state: &mut RecordsState,
@@ -213,7 +232,10 @@ pub(crate) fn look_back_for_hits(
             claude_limits::limit_hits_in(path)
                 .into_iter()
                 .filter(|(_, sample)| now_ms.saturating_sub(sample.ts) <= HITS_LOOKBACK_MS)
-                .map(|(kind, sample)| (account.to_owned(), kind, sample, UsageSource::ApiRetry)),
+                .filter_map(|(kind, sample)| {
+                    let on = spent.folder(account, path, sample.ts)?;
+                    Some((on, kind, sample, UsageSource::ApiRetry))
+                }),
         );
     }
 }
@@ -221,6 +243,16 @@ pub(crate) fn look_back_for_hits(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// 0.4.4: after the tool was asked ("Measure its limits"), the records
+    /// are read at the next pass, once; otherwise at their cadence.
+    #[test]
+    fn asked_now_the_records_are_read_at_the_next_pass_once() {
+        assert!(due(1) && due(RECORDS_EVERY) && !due(2));
+        read_soon();
+        assert!(due(2), "the next pass reads them");
+        assert!(!due(3), "once");
+    }
 
     const T0: i64 = 1_792_000_000_000;
 
@@ -327,8 +359,9 @@ mod tests {
         .unwrap();
         let mut state = RecordsState::default();
         let mut out = SourcedBatch::default();
+        let spent = crate::features::handover::moved_lines::SpentOn::none();
         look_back_for_hits(
-            "acc",
+            ("acc", &spent),
             std::slice::from_ref(&path),
             now,
             &mut state,
@@ -341,7 +374,7 @@ mod tests {
         );
         assert_eq!(out.windows[0].3, UsageSource::ApiRetry);
         out = SourcedBatch::default();
-        look_back_for_hits("acc", &[path], now, &mut state, &mut out);
+        look_back_for_hits(("acc", &spent), &[path], now, &mut state, &mut out);
         assert!(out.windows.is_empty(), "once");
     }
 }

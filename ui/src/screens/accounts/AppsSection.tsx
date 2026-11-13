@@ -28,6 +28,7 @@ import { itemsOf } from "../../lib/rail-items";
 import { useSeen } from "../../lib/seen";
 import { accountNameOf, type SubscriptionInfo } from "../../lib/subscriptions";
 import { agoWords } from "../../lib/time-words";
+import { placeWords } from "../../lib/places";
 import { homeRelative } from "../../lib/project-words";
 import { AppKindBadge } from "../../components/AppKindBadge";
 import { ProfileRoomChip } from "../../components/RoomChip";
@@ -58,6 +59,9 @@ export function stateWords(row: AccountApp, now: number): string {
   if (open > 0) return `${open} open`;
   if (running(app)) return "Running, nothing open";
   if (app.place?.found) return "Found, never opened here";
+  // D-103.5: a closed desktop App reads as Home's tile and its page do:
+  // "Closed · last open 12 min ago".
+  if (app.kind === "desktop" && app.place) return placeWords(app.place, now);
   // D-100: a CLI App says where it was last used ("in ~/lab/aj-processes"):
   // the maintainer's are agents' lab runs on a profile's folder.
   if (sessions > 0 && lastMs > 0) return [`Last used ${agoWords(lastMs, now)}`, app.kind === "cli" && row.lastCwd ? `in ${homeRelative(row.lastCwd)}` : null].filter(Boolean).join(" ");

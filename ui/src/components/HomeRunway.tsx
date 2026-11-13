@@ -10,11 +10,11 @@
  * design review, 42); unknown room is one line, never also a "—".
  */
 import { RoomChip } from "./RoomChip";
+import { MeasureLimits } from "./MeasureLimits";
 import { roomMarkFrom } from "../lib/room-mark";
 import type { JSX } from "react";
 import { AccountAvatar } from "./Avatar";
 import { SectionTitle } from "./SectionTitle";
-import { useActionHost } from "./ItemMenu";
 import { signedIn } from "../lib/bridge";
 import type { AccountInfo } from "../types/generated/AccountInfo";
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
@@ -95,7 +95,6 @@ function RunwayApps({ named }: { named: string[] | null }): JSX.Element | null {
 }
 
 export function HomeRunway({ accounts, quota, quotaKnown = true, sessions }: { accounts: AccountInfo[]; quota: QuotaDisplayData[]; quotaKnown?: boolean; sessions: InstanceInfo[] }): JSX.Element {
-  const host = useActionHost();
   const subscriptions = useSubscriptions();
   const apps = useApps(accounts);
   const lineOf = (group: AccountGroup): RunwayLine => groupRunway(group, quota, sessions);
@@ -158,13 +157,10 @@ export function HomeRunway({ accounts, quota, quotaKnown = true, sessions }: { a
               ) : (
                 <span className="flex flex-wrap items-baseline gap-x-2 text-label text-muted">
                 {row.words}
-                {(row.words.startsWith("Not measured") || row.words.startsWith("Last reading")) && <button
-                  type="button"
-                  onClick={() => (group.subscription?.account_id ? openAccount(group.subscription.account_id) : host.openAccount?.(first))}
-                  className="self-start rounded text-label text-accent-hi outline-none hover:underline focus-visible:ring-1 focus-visible:ring-accent/60"
-                >
-                  Measure its limits ›<span className="sr-only"> — {group.name}</span>
-                </button>}
+                {/* 0.4.4: it measures here (the tool's own check), not a page. */}
+                {(row.words.startsWith("Not measured") || row.words.startsWith("Last reading")) && (
+                  <MeasureLimits folders={group.profiles.map((profile) => profile.id)} tool={first.provider} name={group.name} />
+                )}
                 </span>
               )}
             </div>

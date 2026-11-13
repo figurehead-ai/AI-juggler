@@ -324,6 +324,10 @@ impl AppState {
         let fresh = !data_dir.join("juggler.sqlite").exists();
         let storage = Storage::open_watched(&data_dir.join("juggler.sqlite"), watch)?;
         crate::updates::note_install(&storage, fresh);
+        // D-103.10: once, after the upgrade and before anything reads
+        // usage, limit hits an earlier version credited to the wrong
+        // Account go back to the one each happened on.
+        let _ = crate::features::quota::past_hits::once_at_start(&storage, &data_dir, &registry);
         // An Account that never had launch settings starts with "Main".
         if let Err(error) = crate::features::profile::ensure_defaults(&storage) {
             tracing::warn!("default launch settings weren't made: {error}");

@@ -70,11 +70,15 @@ describe("a live process is live, whatever it says", () => {
     expect(onStop).toHaveBeenCalledWith(session);
   });
 
-  it.each(["stopped", "finished", "failed", "quota_blocked"])("%s: replayed, and no Stop", (status) => {
+  it.each(["stopped", "finished", "failed", "quota_blocked"])("%s: replayed (when its output was kept, P2), and no Stop", async (status) => {
     // quota_blocked here ended at its limit (0.4.1 baseline pass: it
     // offered Stop beside a terminal that said Ended).
     const session = row(status, status === "quota_blocked" ? endedAtLimit : {});
-    expect(inspector(session).container.textContent).toContain("scrollback replayed");
+    Object.assign(window, { __AIJ_TERMINAL_KEPT__: [session.id] });
+    const page = inspector(session);
+    await page.findByTestId("ended-terminal-kept");
+    expect(page.container.textContent).toContain("scrollback replayed");
+    Object.assign(window, { __AIJ_TERMINAL_KEPT__: undefined });
     cleanup();
     render(<InspectorStop session={session} onStop={() => {}} />);
     expect(screen.queryByTestId("inspector-stop")).toBeNull();

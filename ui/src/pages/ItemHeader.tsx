@@ -1,6 +1,6 @@
 /**
  * AJ-E1533 — each item type's identity header on its page (pages/
- * PageShell's PageHeader): its mark and name, its parent as the crumb,
+ * PageHeader): its mark and name, its parent as the crumb,
  * its state, two or three facts, and its actions with its ⋯ menu.
  */
 import { keysOf } from "../lib/shortcuts";
@@ -8,7 +8,7 @@ import { focusHandover } from "../lib/handover-focus";
 import { useSwitchNotYet } from "../lib/switch-not-yet";
 import { WhyButton } from "../components/WhyTip";
 import type { ReactNode } from "react";
-import { PageHeader, type Crumb } from "./PageShell";
+import { PageHeader, type Crumb } from "./PageHeader";
 import type { PageKind } from "./registry";
 import { ProjectFacts } from "./ProjectPage";
 import { Button, Chip, type ChipTone } from "../components/primitives";

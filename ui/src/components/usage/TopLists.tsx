@@ -124,12 +124,12 @@ export function TopProjects({ data, busy, className = "" }: { data: UsageHistory
 }
 
 /** A session's name: its title, else its facts by the one short-name rule
- * (D-96: "billing · Work · started 1:14 AM"; its App is the row's
- * profile). */
-export function sessionName(row: UsageSessionInfo, projects: Map<string, string>, app: string | null = null, now: number = Date.now()): string {
+ * (D-96, D-103.8: "billing · started 1:14 AM"; its App is the row's
+ * profile column, never in its name). */
+export function sessionName(row: UsageSessionInfo, projects: Map<string, string>, now: number = Date.now()): string {
   if (row.title?.trim()) return row.title.trim();
   const project = row.project_id ? (projects.get(row.project_id) ?? null) : null;
-  return untitledName({ folder: project, app, startedMs: row.first_ms }, now);
+  return untitledName({ folder: project, startedMs: row.first_ms }, now);
 }
 
 export function SessionRow({ row, projects, labels, total }: { row: UsageSessionInfo; projects: Map<string, string>; labels: Map<string, string>; total: number }): JSX.Element {
@@ -138,7 +138,7 @@ export function SessionRow({ row, projects, labels, total }: { row: UsageSession
   const conversation = row.session_id ? null : all.find((entry) => entry.account_id === row.profile && entry.id === row.id);
   const open = row.session_id ? () => host.openSessionById?.(row.session_id!) : conversation ? () => host.openConversation?.(conversation) : null;
   const profile = labels.get(row.profile) ?? "An app";
-  const name = sessionName(row, projects, labels.get(row.profile) ?? null);
+  const name = sessionName(row, projects);
   const where = [row.project_id ? projects.get(row.project_id) : null, whenWords(row.last_ms)].filter(Boolean).join(" · ");
   return (
     <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,11.5rem)_5rem_4.5rem] items-center gap-3 px-2.5 py-2 hover:bg-surface-2" data-testid="top-session">

@@ -2923,6 +2923,25 @@ Each ships with tests that fail without it and a design critique; the M2, D2 and
 - **Amends:** D-64 (the "Last 3 inactive" link), ADR-0032 amendment 6 (`sdk-cli` and `codex_exec` were a CLI App's).
 - Sources: `docs/adr/0032-presence-from-the-process-table.md` (amendments 8 and 9); the evidence in `docs/qa/evidence/presence/0.4.3.txt`.
 
+### D-103 The 0.4.3 persona batch's design items (R5), built in 0.4.4 — SETTLED (2026-11-12, design call, main)
+
+**Ruling.** The coordinating session, 2026-11-12, deciding by the goal the eleven items under 4 from the 0.4.3 persona batch (AJ-E3307 R5; scores in `docs/qa/0.4-walks/personas/runs-0.4.3.md`). All go into 0.4.4 before its baselines, as one release; each is cited by its own number (D-103.1 to D-103.11).
+
+- **D-103.1** **Recent, not open.** An App with nothing open shows a muted "Recent" caption above its last 3 ended rows (D6, twice: "work nothing open" above three rows read as a contradiction).
+- **D-103.2** **"All N sessions ›"** is the link under them (was "Show all N"; M7 guessed what it hid).
+- **D-103.3** **Reading an ended session stays quiet.** Its Account's out notice is one quiet line under "Continue in…"; the search for room starts only when you choose Continue (M7, twice).
+- **D-103.4** **"Measure its limits" only where a check exists** (D-39's probe, measuring in place); elsewhere the line reads "How it's measured ›".
+- **D-103.5** **"Closed · last open 12 min ago"** on an App that isn't running (was "Not running · seen this hour").
+- **D-103.6** **Home's Needs you has a skeleton until the needs load**, gone when there are none: nothing moves when they arrive (P9's Home part).
+- **D-103.7** **A repo's own Account is New session's default**: the one bound to it, or the only one that ever ran there; "the last you used here" only when there is none. The binding is offered in the dialog itself (R2, P4).
+- **D-103.8** **An untitled session reads "<repo> · started 4:46 PM"**; its Account is its chip or second line, never in its name (R2's "client-b · Client A · client-a", P5, P10, D3's 32 rows alike).
+- **D-103.9** **Sessions per Account when no tokens are measured**: a project's "Who did the work" falls back to them (R3, P7).
+- **D-103.10** **Past limit hits are repaired** to the Account they happened on, through the app's own migration (idempotent; before/after counts in the presence report; tests on act-free copies only).
+- **D-103.11** **0.4.4's own design calls stand:** an ended session shows its kept output, else its conversation, else "No output was kept" with Search History (P2); by Account, a pinned ended session with nothing open sits under "Pinned"; "nothing open" wins over the app word, the name giving way last (D-100).
+
+- **Amends:** D-102 ("Show all N" → "All N sessions ›"; the caption), D-97 (New session's default when a repo has its own Account).
+- Sources: `docs/qa/0.4-walks/personas/runs-0.4.3.md`; the R5 list in the coordinating session's notes.
+
 ### D-104 0.5 work may start before the first Stable; 0.4.x fixes preempt it — SETTLED (2026-11-12)
 
 **Ruling.** The maintainer, 2026-11-12, with 0.4.4 finishing: "if you run out of things to work, you can start working on 0.5 version as planned".

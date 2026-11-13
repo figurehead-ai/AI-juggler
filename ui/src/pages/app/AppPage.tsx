@@ -20,7 +20,8 @@ import { ProfileBadge } from "../../components/ProfileBadge";
 import { Button } from "../../components/primitives";
 import { showToast } from "../../components/Toast";
 import { useActionHost } from "../../components/ItemMenu";
-import { PageHeader, PageShell } from "../PageShell";
+import { PageShell } from "../PageShell";
+import { PageHeader } from "../PageHeader";
 import { pageTabs } from "../registry";
 import { RelatedList } from "../../components/RelatedList";
 import type { Teach } from "../../components/related/RelatedEmpty";
@@ -313,7 +314,8 @@ function AppAction({ app, restart }: { app: AppModel; restart: { open: number; w
 
 /** E31 (AJ-E3103 Req.3): an App with no session yet says what would show
  * and how it comes: a CLI App's sessions start here or in a terminal on
- * its folder; a desktop App's show once AI Juggler sees it open them. */
+ * its folder; a desktop App's are the ones its app lists (0.4.3), so an
+ * empty one is empty, never "not seen yet" (0.4.3 persona D6). */
 function appTeach(app: AppModel): Teach {
   if (app.kind === "cli" && app.folder) {
     const folder = app.folder.id;
@@ -323,5 +325,5 @@ function appTeach(app: AppModel): Teach {
       action: { label: "New session", onClick: () => window.dispatchEvent(new CustomEvent("aij:new-session", { detail: { accountId: folder } })) },
     };
   }
-  return { title: `No sessions in ${app.name} yet`, body: `Sessions you open in ${app.app} show up here once AI Juggler has seen them, what needs you first.` };
+  return { title: `No sessions in ${app.name} yet`, body: `${app.app} lists none for it. Sessions you start there show up here, what needs you first.` };
 }

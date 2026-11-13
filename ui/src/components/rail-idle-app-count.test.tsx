@@ -56,6 +56,17 @@ describe("an inactive App's session count in the rail", () => {
     expect(invoke).toHaveBeenCalledWith("relations_counts", { entities: [{ kind: "app", id: "app:claude-app:/p/Work" }] });
   });
 
+  it("D-103.2: under its last ones, \"All N sessions ›\" with its App page's count; a click opens that page", async () => {
+    const { RailAllSessions } = await import("./RailIdleApp");
+    const onOpen = vi.fn();
+    render(<RailAllSessions page="app:claude-app:/p/Work" loaded={67} onOpen={onOpen} />);
+    // The ones read until its page's count is known, then that count.
+    expect(screen.getByTestId("rail-all-sessions").textContent).toBe("All 67 sessions ›");
+    await waitFor(() => expect(screen.getByTestId("rail-all-sessions").textContent).toBe("All 333 sessions ›"));
+    screen.getByTestId("rail-all-sessions").click();
+    expect(onOpen).toHaveBeenCalledWith("app:claude-app:/p/Work");
+  });
+
   it("a CLI App asks for its folder's App", async () => {
     const { RailIdleApp } = await import("./RailIdleApp");
     const { cliAppId } = await import("../lib/app-name");

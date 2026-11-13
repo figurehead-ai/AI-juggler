@@ -85,7 +85,7 @@ export function clock(ms: number): string {
 
 /** Whole calendar days from `now`'s day to `ms`'s (0 today, 1 tomorrow;
  * -1 yesterday: `startedWords` looks back by it). */
-export function daysAhead(ms: number, now: number): number {
+function daysAhead(ms: number, now: number): number {
   const start = (at: number) => {
     const day = new Date(at);
     day.setHours(0, 0, 0, 0);
@@ -106,6 +106,35 @@ export function whenWords(ms: number, now: number = Date.now()): string {
   if (days === 1) return `${clock(ms)} tomorrow`;
   const day = new Date(ms).toLocaleDateString([], days > 1 && days < 7 ? { weekday: "short" } : { weekday: "short", month: "short", day: "numeric" });
   return `${day} ${clock(ms)}`;
+}
+
+/** A time gone by, by its day — `whenWords` looking back, the one rule
+ * every "started" and "ended" time is written by: "4:22 PM" today,
+ * "yesterday 4:22 PM", "Thu 4:22 PM" within the week, and with its date
+ * from a week back ("Thu, Oct 23 4:22 PM"; its year when not this one's).
+ * P3 (the D3 persona walk): "Finished 4:22 PM" on one that ended days ago. */
+export function pastWhen(ms: number, now: number = Date.now()): string {
+  const day = pastDayWords(ms, now, true);
+  return day === null ? clock(ms) : `${day} ${clock(ms)}`;
+}
+
+/** `pastWhen` where room is short, its day alone: "4:22 PM" today (its
+ * clock is its day), "yesterday", "Thu" within the week, then its date
+ * ("Oct 23"; its year when not this one's). 0.4.4: the session header's
+ * state chip gives way to it before its App's name does (D-100). */
+export function pastDay(ms: number, now: number = Date.now()): string {
+  return pastDayWords(ms, now, false) ?? clock(ms);
+}
+
+/** A past time's day, `null` today; from a week back its date, with its
+ * weekday when `weekday`. */
+function pastDayWords(ms: number, now: number, weekday: boolean): string | null {
+  const days = -daysAhead(ms, now);
+  if (days <= 0) return null;
+  if (days === 1) return "yesterday";
+  const sameYear = new Date(ms).getFullYear() === new Date(now).getFullYear();
+  if (days < 7) return new Date(ms).toLocaleDateString([], { weekday: "short" });
+  return new Date(ms).toLocaleDateString([], { ...(weekday ? { weekday: "short" } : {}), month: "short", day: "numeric", ...(sameYear ? {} : { year: "numeric" }) });
 }
 
 /** When a limit resets: "resets at 3:10 PM", "resets at 8:00 AM

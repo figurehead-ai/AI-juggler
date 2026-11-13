@@ -103,8 +103,9 @@ for (const r of ROWS) {
     // The usual, made and said for this history (N1, N4).
     // Walk K4: a project's history names who worked there, not who was last.
     if (r.history === "none") await expect(sentence).not.toContainText(/the last you used here|used here before/);
-    // D-97: a usual App out of room or low gives way, said with its room.
-    else await expect(sentence).toContainText(/Start in web-shop on Claude Code CLI · (Work Max|Personal) — (used here before|.+ is (almost out|out of room))/);
+    // D-97: a usual App out of room or low gives way, said with its room;
+    // D-103.7: the repo's own Account (the only one that ran there) stands.
+    else await expect(sentence).toContainText(/Start in web-shop on Claude Code CLI · (Work Max|Personal) — (used here before|the only account used here|.+ is (almost out|out of room))/);
 
     // The folder.
     const folderName = r.folder === "project" ? "web-shop" : r.folder === "worktree" ? "feat-checkout" : "notes";

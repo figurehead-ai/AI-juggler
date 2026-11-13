@@ -13,7 +13,7 @@ import { poolRename, poolSetAccess, type PoolInfo } from "../../lib/ipc/pools";
 import { LEVELS, setPools } from "../../lib/pools";
 import { Picker, Segmented } from "../../components/controls";
 import { Chip } from "../../components/primitives";
-import { CrumbButton } from "../PageShell";
+import { CrumbButton } from "../PageHeader";
 
 export type Panel = "tasks" | "messages" | null;
 export type Mode = "canvas" | "list";

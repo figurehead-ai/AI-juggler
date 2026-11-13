@@ -191,7 +191,8 @@ export function sessionCandidates(input: {
     const full = agentTools.has(session.provider) && !agentToolsWhy(session.account_id) && !switchedOffWhy(input.bridge, session.account_id, project);
     const reach: Reach = full ? "full" : "shell";
     const base = { ref: memberRef("session", session.id), kind: "session" as const, label: apart.get(session) ?? input.nameOf(session), reach, lastMs };
-    const detail = `${projectName(project)} · ${state.word}`;
+    // D-103.8: its Account on this line, never in its name (as the canvas's Add a session says it).
+    const detail = `${projectName(project)} · ${session.account_label} · ${state.word}`;
     const group = !ended ? "open" : now - lastMs < 7 * DAY ? "recent" : "all";
     if (!inScope(draft, project)) {
       return { ...base, detail, group, blocked: `Works in ${projectName(project)}, not in this pool's projects.`, fix: { label: `Add ${projectName(project)}`, action: "scope", arg: project ?? "" } };

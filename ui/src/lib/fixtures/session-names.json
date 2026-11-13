@@ -1,0 +1,17 @@
+{
+  "about": "D-96, D-103.8: a session's short name. Its label, else its title's first words, else a branch that says what the work was, else its facts: its folder and when it started, never its App or Account. Read by crates/juggler-core (naming.rs tests) and ui/src/lib/session-titles.test.ts; both must agree. `{started}` is each side's own words for when it started (\"started 1:14 AM\"); `byFacts`: named by its facts.",
+  "cases": [
+    { "label": "Writer", "title": "Lab check", "branch": "main", "folder": "web", "started": true, "name": "Writer", "byFacts": false },
+    { "label": "  ", "title": "Fix the login test.", "branch": null, "folder": "web", "started": true, "name": "Fix the login test", "byFacts": false },
+    { "label": null, "title": "write the word lab to lab.txt and then list the folder", "branch": "main", "folder": "web", "started": true, "name": "write the word lab to lab.txt and then…", "byFacts": false },
+    { "label": null, "title": "Good. Keep the old shortcuts working; the test key is •••", "branch": null, "folder": "web", "started": true, "name": "Keep the old shortcuts working", "byFacts": false },
+    { "label": null, "title": null, "branch": "fix/limits", "folder": "web", "started": true, "name": "fix/limits", "byFacts": false },
+    { "label": null, "title": null, "branch": "main", "folder": "web", "started": true, "name": "web · {started}", "byFacts": true },
+    { "label": null, "title": null, "branch": "Master", "folder": "client-b", "started": true, "name": "client-b · {started}", "byFacts": true },
+    { "label": null, "title": "  ", "branch": "HEAD", "folder": "billing", "started": true, "name": "billing · {started}", "byFacts": true },
+    { "label": null, "title": null, "branch": "  ", "folder": "billing", "started": true, "name": "billing · {started}", "byFacts": true },
+    { "label": null, "title": null, "branch": null, "folder": null, "started": true, "name": "Session {started}", "byFacts": true },
+    { "label": null, "title": null, "branch": null, "folder": "billing", "started": false, "name": "billing", "byFacts": true },
+    { "label": null, "title": null, "branch": null, "folder": null, "started": false, "name": "Untitled session", "byFacts": true }
+  ]
+}

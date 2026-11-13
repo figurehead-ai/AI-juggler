@@ -753,3 +753,33 @@ fn every_accounts_apps_are_the_apps_list_on_its_folders() {
         assert!(got == want, "an Account's Apps differ from the reference");
     }
 }
+
+/// D-103.5: "Closed · last open 12 min ago" is right to within a presence
+/// look: the look that finds an App gone writes the look before as when it
+/// last ran, once; while it runs nothing is written; an App never seen
+/// running keeps its time.
+#[test]
+fn an_app_that_stops_was_last_seen_at_the_last_look_that_saw_it() {
+    use crate::features::presence::watch::saw;
+    use std::collections::BTreeSet;
+    let root = tempfile::tempdir().unwrap();
+    let (state, work, chat) = state_with_places(root.path());
+    let seen = |id: &str| with_book(&state, |book| book.places[id].seen_ms).unwrap();
+    let t0 = 1_800_000_000_000;
+    let runs = BTreeSet::from([work.clone()]);
+    for at in [t0, t0 + 5_000, t0 + 10_000] {
+        saw(&state, runs.clone(), at);
+    }
+    assert_eq!(seen(&work), 1, "running: nothing written");
+    assert!(
+        saw(&state, BTreeSet::new(), t0 + 15_000),
+        "the window hears it"
+    );
+    assert_eq!(seen(&work), t0 + 10_000, "last seen at the look before");
+    saw(&state, BTreeSet::new(), t0 + 20_000);
+    assert_eq!(seen(&work), t0 + 10_000, "once");
+    assert_eq!(seen(&chat), 1, "never seen running: unchanged");
+    // Kept: the book read again from storage says the same.
+    *state.places.book.lock().unwrap() = None;
+    assert_eq!(seen(&work), t0 + 10_000);
+}

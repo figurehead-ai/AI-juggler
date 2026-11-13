@@ -33,11 +33,17 @@ export async function terminalResize(id: string, cols: number, rows: number): Pr
   return resizeTerminal(id, { cols, rows });
 }
 
+/** The design preview's seams for its terminals. */
+type Seams = { __AIJ_TERMINAL_KILL_CALLS__?: string[]; __AIJ_TERMINAL_KEPT__?: string[] };
+function seams(): Seams {
+  return window as unknown as Seams;
+}
+
 /** Stops a terminal's process (graceful ladder). */
 export async function terminalKill(id: string): Promise<void> {
   if (!hasBackend) {
     // AJ-E1503: the seam that proves a held stop is (or isn't) sent.
-    const w = window as unknown as { __AIJ_TERMINAL_KILL_CALLS__?: string[] };
+    const w = seams();
     w.__AIJ_TERMINAL_KILL_CALLS__ = [...(w.__AIJ_TERMINAL_KILL_CALLS__ ?? []), id];
     return;
   }
@@ -47,6 +53,20 @@ export async function terminalKill(id: string): Promise<void> {
 /** The retained output tail (base64) for replay on panel reopen. */
 export async function terminalSnapshot(id: string): Promise<string> {
   return call("terminal_snapshot", { id });
+}
+
+/** P2: whether an ended session's terminal kept output to replay. The
+ * tail is kept in memory while AI Juggler runs, so one that ended before
+ * it last started has none (its snapshot is refused or empty). The
+ * design preview keeps none, but for the ids its seam names
+ * (`__AIJ_TERMINAL_KEPT__`). */
+export async function terminalKept(id: string): Promise<boolean> {
+  if (!hasBackend) return (seams().__AIJ_TERMINAL_KEPT__ ?? []).includes(id);
+  try {
+    return (await terminalSnapshot(id)).length > 0;
+  } catch {
+    return false;
+  }
 }
 
 /** Live output stream for one terminal (base64 chunks). */

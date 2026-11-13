@@ -12,6 +12,7 @@ import { useState, type JSX } from "react";
 import { useItemMenu } from "../../components/ItemMenu";
 import { RenameAccountSheet } from "../../pages/subscription/AccountSettings";
 import { Card } from "../../components/primitives";
+import { MeasureLimits, unmeasuredWords } from "../../components/MeasureLimits";
 import { runwayOf } from "../../components/AccountRunway";
 import { nothingRead, RunwayPanel } from "../../components/usage/Runway";
 import { useWeekByProfile } from "../../components/usage/RunwayCards";
@@ -67,37 +68,22 @@ export function openOn(profileId: string, sessions: InstanceInfo[], conversation
   return { count: own.length + elsewhere.length, apps: [...apps.values()] };
 }
 
-/** Why an account has no reading now, and where one comes from: its
- * tool's own records (the desktop app's meter while it runs, a limit hit),
- * never a dead end (the maintainer's third report). */
-export function unmeasuredWords(tool: string): string {
-  const spec = toolSpec(tool);
-  // Only a tool whose app keeps a meter AI Juggler reads says so (the
-  // Codex app's limits come in Codex's own records).
-  const app = spec.desktop_app && spec.supports.app_meter ? `the ${spec.desktop_app} app's meter while it's open on this account` : null;
-  const name = providerDisplayName(tool);
-  return app
-    ? `No current reading. Limits come from ${app}, and from ${name} when it hits a limit.`
-    : `No current reading. Limits come from ${name}'s own records when it reports them.`;
-}
-
 /** "Not measured yet ▸ · Measure its limits ›": the unknown said once;
- * where limits come from folds behind it (the 0.4 review, 63). */
-function Unmeasured({ tool, onMeasure }: { tool: string; onMeasure?: () => void }): JSX.Element {
+ * where limits come from folds behind it (the 0.4 review, 63). 0.4.4: it
+ * measures here (`MeasureLimits`), not a page; where its tool has no
+ * check, "How it's measured ›" opens the same fold (D-103.4). */
+function Unmeasured({ tool, folders, name }: { tool: string; folders: readonly string[]; name: string }): JSX.Element {
   const [why, setWhy] = useState(false);
-  const link = "rounded text-ink underline decoration-hairline underline-offset-2 outline-none hover:decoration-ink focus-visible:ring-1 focus-visible:ring-accent/60";
   return (
     <div className="flex flex-col gap-1 text-meta text-ink-2" data-testid="account-unmeasured">
       <p className="flex flex-wrap items-center gap-x-1.5">
         <button type="button" aria-expanded={why} onClick={() => setWhy(!why)} className="rounded font-medium text-ink-2 outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60" data-testid="account-unmeasured-fold">
           Not measured yet <span aria-hidden="true">{why ? "▾" : "▸"}</span>
         </button>
-        {onMeasure && (
+        {folders.length > 0 && (
           <>
             <span aria-hidden="true">·</span>
-            <button type="button" onClick={onMeasure} className={link} data-testid="account-measure">
-              Measure its limits ›
-            </button>
+            <MeasureLimits folders={folders} tool={tool} name={name} how={{ open: why, onToggle: () => setWhy(!why) }} />
           </>
         )}
       </p>
@@ -240,8 +226,7 @@ export function AccountCard(props: AccountCardProps): JSX.Element {
           ) : props.reportsLimits(sub.tool) ? (
             <>
               {/* Nothing measured: said once, in one line, with no dial (the 0.4 review, 50 and 79). */}
-              {/* AJ-E3205 R3: an Account's door opens the Account, where its limits and how to measure them are. */}
-              {quiet && <Unmeasured tool={sub.tool} onMeasure={sub.account_id ? () => openAccount(sub.account_id!) : profiles[0] && props.onInspect ? () => props.onInspect!(profiles[0]!.id) : undefined} />}
+              {quiet && <Unmeasured tool={sub.tool} folders={profiles.map((p) => p.id)} name={name} />}
               <RunwayPanel
                 display={display}
                 limitsProfile={display && !unmeasured ? display.account : null}

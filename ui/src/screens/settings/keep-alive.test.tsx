@@ -51,8 +51,11 @@ describe("the words for a place", () => {
   it("says running, down, kept alive or paused, and why", () => {
     expect(placeWords(place({ app_pid: 10 }), NOW)).toBe("Running");
     expect(placeWords(place({ app_pid: 10, keep_alive: true }), NOW)).toBe("Running · kept alive");
-    expect(placeWords(place({}), NOW)).toBe("Not running · seen 2 h ago");
-    expect(placeWords(place({ keep_alive: true }), NOW)).toBe("Not running · keep alive starts it");
+    // D-103.5: closed, with when it was last open in the ago-words.
+    expect(placeWords(place({}), NOW)).toBe("Closed · last open 2 h ago");
+    expect(placeWords(place({ seen_ms: NOW - 12 * 60_000 }), NOW)).toBe("Closed · last open 12 min ago");
+    expect(placeWords(place({ seen_ms: NOW - 3 * 86_400_000 }), NOW)).toBe("Closed · last open 3 d ago");
+    expect(placeWords(place({ keep_alive: true }), NOW)).toBe("Closed · keep alive starts it");
     expect(placeWords(place({ keep_alive: true, paused: "it stopped 3 times in 10 minutes" }), NOW)).toBe("Keep alive paused: it stopped 3 times in 10 minutes");
     // 0.3.8: running on with no window after macOS restarted its display.
     expect(placeWords(place({ app_pid: 10, lost: true, keep_alive: true }), NOW)).toBe("Lost its window when the system restarted the display");
@@ -136,7 +139,7 @@ describe("Home: an app that isn't running", () => {
     // 0.3.4 (D-64): every remembered app that's closed has a tile, the
     // kept-alive one first.
     const [tile, other] = screen.getAllByTestId("home-app-closed");
-    expect(tile!.textContent).toContain("Not running · keep alive starts it");
+    expect(tile!.textContent).toContain("Closed · keep alive starts it");
     expect(other!.textContent).toContain("b-off");
     expect(within(other!).getByRole("button", { name: "Start Claude app · b-off" })).toBeTruthy();
     fireEvent.click(within(tile!).getByRole("button", { name: "Start Claude app · b-lab" }));

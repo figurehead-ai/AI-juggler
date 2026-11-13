@@ -6,7 +6,8 @@
  * resets Sun 6:00 AM"; colour, icon and word together, never colour
  * alone. Low (at or under 25% left, the one rule that keeps an account
  * from being suggested, `lib/room`) gets the calmer amber "Low · 12%
- * left". Read from the one runway every screen reads (`runwayOf`):
+ * left". Read from the one runway every screen reads (`runwayOf`; out on
+ * both windows, the later reset, 0.4.4):
  * measured or computed windows only, an estimate says "about"; an
  * account whose credits carry its work on past a used-up window is not
  * out (`lib/credits`).
@@ -14,9 +15,8 @@
 import { runwayOf } from "../components/AccountRunway";
 import { accountDisplay, accountOfProfile, type SubscriptionInfo } from "./subscriptions";
 import { LOW_LEFT } from "./room";
-import { measured } from "./quotaWindow";
 import { whenWords } from "./time-words";
-import type { QuotaDisplayData } from "./ipc/quota";
+import type { QuotaDisplayData, WindowDisplay } from "./ipc/quota";
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
 
 export interface RoomMark {
@@ -33,11 +33,11 @@ export interface RoomMark {
   resetsAtMs: number | null;
 }
 
-/** Whether the reading the runway uses is an estimate: the tighter
- * measured window's own badge, else the session reading's confidence. */
-function estimated(display: QuotaDisplayData | undefined, sessions: readonly InstanceInfo[]): boolean {
-  const windows = [display?.five_hour, display?.weekly].filter(measured);
-  if (windows.length > 0) return windows.reduce((a, b) => (a.percentage >= b.percentage ? a : b)).badge === "estimated";
+/** Whether the reading the runway uses is an estimate: the badge of the
+ * window it reads (the one that keeps it out longest, when out), else the
+ * session reading's confidence. */
+function estimated(window: WindowDisplay | undefined, sessions: readonly InstanceInfo[]): boolean {
+  if (window) return window.badge === "estimated";
   const newest = [...sessions].filter((s) => s.quota != null).sort((a, b) => (b.last_activity_ms ?? b.started_at_ms) - (a.last_activity_ms ?? a.started_at_ms))[0];
   return newest?.quota?.confidence === "estimated";
 }
@@ -47,7 +47,7 @@ function estimated(display: QuotaDisplayData | undefined, sessions: readonly Ins
 export function roomMarkOf(display: QuotaDisplayData | undefined, sessions: readonly InstanceInfo[] = [], now: number = Date.now()): RoomMark | null {
   const run = runwayOf(display, [...sessions]);
   if (run.left === null || run.credits) return null;
-  return roomMarkFrom(run.left, run.resetsAtMs ?? null, estimated(display, sessions), now);
+  return roomMarkFrom(run.left, run.resetsAtMs ?? null, estimated(run.window, sessions), now);
 }
 
 /** The mark for `left` % left (resetting at `resetsAtMs`), `about` when

@@ -1,13 +1,15 @@
 /**
  * 0.3 (the redesign, §3) — Projects: every project the same way, the
  * most recently worked first — its name and folder, what needs you there,
- * its sessions working and open, its open tasks (ready, in review) and
- * this week's tokens. Searchable by name or folder; a page at a time.
+ * its sessions (all, then working and open), its open tasks (ready, in
+ * review) and this week's tokens. Searchable by name or folder; a page at
+ * a time.
  * Each row opens the project's page; New project (⌘⇧N) is on the title.
  *
  * Instant: the projects the window already holds draw at once; the needs
- * (Needs you's own list), the tasks (one call for the page shown) and the
- * tokens (this week's usage summary, read once) fill in as they come.
+ * (Needs you's own list), the tasks and the sessions' counts (one call
+ * each for the page shown) and the tokens (this week's usage summary,
+ * read once) fill in as they come.
  */
 import { useEffect, useMemo, useRef, useState, type JSX, type KeyboardEvent } from "react";
 import { Page } from "../../components/Page";
@@ -18,7 +20,9 @@ import { useUsageHistory } from "../../components/usage/useUsage";
 import { useBackendNeeds } from "../../lib/needs-you";
 import { useConversations } from "../../lib/conversations";
 import { lastWorked } from "../../lib/project-words";
-import { needsByProject, openByProject } from "../../lib/project-summary";
+import { needsByProject, openByProject, sessionsByProject } from "../../lib/project-summary";
+import { useProjectsRelationCounts } from "../../lib/relation-counts";
+import { hasLiveBackend } from "../../lib/bridge";
 import { onTasksChanged, type TaskCounts } from "../../lib/ipc/tasks";
 import { tasksProjectCounts } from "../../lib/ipc/tasks-across";
 import { keysOf } from "../../lib/palette-commands";
@@ -71,6 +75,11 @@ export function ProjectsScreen({ projects, sessions, loading, now, onNewProject 
   const { all: conversations } = useConversations();
   const byNeeds = useMemo(() => needsByProject(needs.rows), [needs.rows]);
   const byOpen = useMemo(() => openByProject(sessions, conversations), [sessions, conversations]);
+  // P6: all of each one's sessions, as its Sessions tab counts them (the
+  // backend's counts; the design preview counts what it holds).
+  const counted = useProjectsRelationCounts(page.map((project) => project.id));
+  const held = useMemo(() => (hasLiveBackend() ? null : sessionsByProject(sessions, conversations)), [sessions, conversations]);
+  const totalOf = (id: string): number | null => (held ? (held.get(id) ?? 0) : counted ? (counted.get(id)?.sessions.all ?? 0) : null);
   const week = useUsageHistory("7d", "profile", {}, 0);
   const tokens = useMemo(() => new Map((week.data?.by_project ?? []).map((share) => [share.key, share.io])), [week.data]);
   useEffect(() => setPages(1), [words]);
@@ -137,6 +146,7 @@ export function ProjectsScreen({ projects, sessions, loading, now, onNewProject 
                 now={now}
                 needs={byNeeds.get(project.id)}
                 open={byOpen.get(project.id)}
+                total={totalOf(project.id)}
                 tasks={tasks.get(project.id) ?? null}
                 tokens={week.data ? (tokens.get(project.id) ?? 0) : null}
                 onOpen={() => host.openProjectById?.(project.id)}

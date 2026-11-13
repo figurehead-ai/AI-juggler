@@ -14,13 +14,15 @@ import { placeWords, type Need, type RailItem } from "./rail-items";
 import { readSnooze, forgetSnooze, type SnoozeState } from "./railview";
 import type { AccountInfo } from "../types/generated/AccountInfo";
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
-import { notificationsPage, notificationsSnooze, notificationsSnoozes, standInNeedsPage, type NeedSnoozeInfo, type NoticeInfo } from "./ipc/notices";
+import { notificationsPage, notificationsSnooze, notificationsSnoozes, standInNeedsKnown, standInNeedsPage, type NeedSnoozeInfo, type NoticeInfo } from "./ipc/notices";
 import { acted, useNoticeSummary } from "./notices-store";
 import { usePagedList, MAX_PAGE } from "./paged";
 import { quotaDetail } from "./notice-words";
 import { openOnAccount } from "./handover-focus";
 import { waitingSince } from "./waiting";
 import type { ConversationInfo } from "./ipc/conversations";
+import type { KnownPlaceInfo } from "./ipc/places";
+import { ownersOf } from "./rail-apps";
 
 /** The kinds that are a session's (the rail's Needs you shows them). */
 const SESSION_KINDS = new Set<string>(["asks", "stuck", "limit", "failed", "review"]);
@@ -41,6 +43,10 @@ export interface BackendNeeds {
   needOf: ReadonlyMap<string, Need>;
   /** The first read hasn't answered yet. */
   loading: boolean;
+  /** D-103.6: the needs are known (the first read answered with them):
+   * until then Home's Needs you holds its place, so nothing moves when
+   * they arrive. */
+  known: boolean;
 }
 
 /** The backend's Needs you, kept current by its events. */
@@ -50,12 +56,16 @@ export function useBackendNeeds(): BackendNeeds {
   // NY1 (rc32): a session archived here leaves at once, not when the
   // list is read again
   const archived = useSyncExternalStore(subscribeArchived, archivedHere);
+  // D-103.6: read on every render (the preview's first tick moves the
+  // summary, which renders this again, not always the rows); a summary
+  // that counts none says so before the list answers.
+  const known = standInNeedsKnown() && (!list.loading || summary?.count === 0);
   return useMemo(() => {
     const rows = withoutArchived(list.items.filter((row) => !row.snoozed), archived);
     const needOf = new Map<string, Need>();
     for (const row of rows) if (SESSION_KINDS.has(row.kind)) needOf.set(row.subject, row.kind as Need);
-    return { rows, count: summary?.count ?? rows.length, subjects: new Set(rows.map((row) => row.subject)), needOf, loading: list.loading };
-  }, [list.items, list.loading, summary?.count, archived]);
+    return { rows, count: summary?.count ?? rows.length, subjects: new Set(rows.map((row) => row.subject)), needOf, loading: list.loading, known };
+  }, [list.items, list.loading, summary?.count, archived, known]);
 }
 
 /** The busiest live session on an account (a hand-over starts there). */
@@ -65,9 +75,12 @@ export function liveOn(sessions: InstanceInfo[], accountId: string | null | unde
 
 /** Home's rows for the backend's list: a session's need shows its rail
  * item (its place, its words); the rest say what the backend said. Caps,
- * agents' messages and tasks have their own rows (their own controls). */
-export function homeNeedsOf(rows: NoticeInfo[], items: RailItem[], accounts: AccountInfo[], sessions: InstanceInfo[], thisMac: ThisMacInfo | null, now: number): HomeNeed[] {
-  const byKey = new Map(items.map((item) => [item.key, item]));
+ * agents' messages and tasks have their own rows (their own controls).
+ * ADR-0032 (0.4.4): a session is named by the App that owns it, as the
+ * rail's Needs you names it (`ownersOf`, given the remembered `known`). */
+export function homeNeedsOf(rows: NoticeInfo[], items: RailItem[], accounts: AccountInfo[], sessions: InstanceInfo[], thisMac: ThisMacInfo | null, now: number, known: readonly KnownPlaceInfo[] = []): HomeNeed[] {
+  const { theirs } = ownersOf(known);
+  const byKey = new Map(items.map((item) => [item.key, theirs(item)]));
   const out: HomeNeed[] = [];
   for (const row of rows) {
     const kind = HOME_KIND[row.kind];

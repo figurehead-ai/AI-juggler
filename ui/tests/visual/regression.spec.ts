@@ -17,7 +17,7 @@
  */
 import { type Page } from "@playwright/test";
 import { expect, GATE_NOW, settle, test } from "./axe-gallery";
-import { allStatuses, expectRail, goTo, NARROW_RAIL_PX, openRailList, projectLens, railViewAs, settingsPane, terminalDrawn, openWorkMaxSession } from "./fixtures";
+import { allStatuses, expectRail, goTo, NARROW_RAIL_PX, openRailList, projectLens, railViewAs, settingsPane, terminalDrawn, openRailSession } from "./fixtures";
 import { placesConversations } from "../../src/preview/places";
 
 /** The instant the harness pins the clock to (axe-gallery.ts). */
@@ -164,7 +164,7 @@ for (const theme of THEMES) {
       test(`inspector — Instance overview — ${cell}`, async ({ page }) => {
         await open(page, theme, density, vp);
         await expectRail(page); // F14: below 1100 px the rail folds to its icons
-        await openWorkMaxSession(page);
+        await openRailSession(page, "sess-4");
         // AJ-E1533: a session's page opens on its body: its terminal, its Overview.
         await expect(page.getByTestId("page-tab-terminal")).toHaveAttribute("aria-selected", "true");
         // The terminal loads on first use (#173): a slow runner shot its
@@ -179,7 +179,7 @@ for (const theme of THEMES) {
       test(`inspector — tool view — ${cell}`, async ({ page }) => {
         await open(page, theme, density, vp);
         await expectRail(page);
-        await openWorkMaxSession(page);
+        await openRailSession(page, "sess-4");
         // The session names its tool once, in its App chip (the 0.4
         // review, 46): the tool's door is on its App's page.
         await page.getByTestId("session-account-menu").click();

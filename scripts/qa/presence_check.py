@@ -19,14 +19,25 @@ App unfolds to, its session counts or its Out mark disagree with the apps'
 own records and the Accounts' readings, or a lab run wrote into a real
 profile's folder (`presence_sessions.py`); (D-102) when the Codex app's and
 Codex CLI's counts aren't the Codex store's listed threads. Run it with the rail grouped by
-App, Open now unfolded and every App in it unfolded.
+App, Open now unfolded and every App in it unfolded. 0.4.4 (D-103.10): it
+prints what the one-time pass that gives past limit hits back to the
+Account each happened on counted, and fails when hits stay on the wrong
+Account after it.
 
-    python3 scripts/qa/presence_check.py --pid <Dev build pid> [--data DIR] [--record FILE] [--since YYYY-MM-DD]
+    python3 scripts/qa/presence_check.py --pid <Dev build pid> [--home DIR] [--data DIR] [--record FILE] [--since YYYY-MM-DD]
+
+On a lab (`scripts/qa/lab_scenario.sh`, the build started with its HOME),
+`--home <the lab>`: the build's data folder and the Claude app's default
+instance are the lab's, the apps' records and Codex threads are read where
+the lab's data says they are, and only the lab's own processes run for it,
+as the build sees them (AJ-E3306): this Mac's own apps (its ChatGPT.app
+too) aren't the lab's.
 """
 
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import re
 import sqlite3
@@ -46,21 +57,66 @@ CLAUDE_DEFAULT = HOME / "Library/Application Support/Claude"
 HERE = Path(__file__).resolve().parent
 
 
-def running_ids() -> set[str]:
-    """The App ids of the desktop apps running, as the backend keys them."""
-    out = subprocess.run(["ps", "-axww", "-o", "pid=,args="], capture_output=True, text=True, check=True).stdout
-    ids: set[str] = set()
+def processes() -> list[tuple[int, int, str]]:
+    """Every process: its pid, its parent's and its command line."""
+    out = subprocess.run(["ps", "-axww", "-o", "pid=,ppid=,args="], capture_output=True, text=True, check=True).stdout
+    rows = []
     for line in out.splitlines():
-        args = line.strip().split(" ", 1)[1] if " " in line.strip() else ""
+        parts = line.split(None, 2)
+        if len(parts) >= 2 and parts[0].isdigit() and parts[1].isdigit():
+            rows.append((int(parts[0]), int(parts[1]), parts[2] if len(parts) > 2 else ""))
+    return rows
+
+
+def lab_only(rows: list[tuple[int, int, str]], lab: Path, build: int) -> list[tuple[int, int, str]]:
+    """AJ-E3306 (`crates/juggler-app/src/lab_scope.rs`): a build on a lab's
+    HOME sees only the lab's processes: one whose program or an argument
+    names a path in the lab, or one the build started. This Mac's own apps
+    run beside the lab, but not for it."""
+    bare = str(lab).removeprefix("/private")
+    spellings = (bare, f"/private{bare}")
+    parent = {pid: ppid for pid, ppid, _ in rows}
+
+    def descends(pid: int | None) -> bool:
+        for _ in range(64):
+            if pid == build:
+                return True
+            pid = parent.get(pid or 0)
+            if not pid:
+                return False
+        return False
+
+    def names_lab(args: str) -> bool:
+        # As the build reads each argument: one starting with the lab's path,
+        # or naming it after an `=` (a joined command line: after a space).
+        return any(args.startswith(s) or f"={s}" in args or f" {s}" in args for s in spellings)
+
+    return [row for row in rows if descends(row[0]) or names_lab(row[2])]
+
+
+def other_home(home: Path) -> bool:
+    """`home` isn't this user's own (the user record's): a lab's."""
+    import pwd
+
+    own = pwd.getpwuid(os.getuid()).pw_dir
+    return os.path.realpath(home) != os.path.realpath(own)
+
+
+def running_ids(claude_default: Path = CLAUDE_DEFAULT, rows: list[tuple[int, int, str]] | None = None) -> set[str]:
+    """The App ids of the desktop apps running (in `rows`, else every
+    process), as the backend keys them (`claude_default`: the Claude app's
+    default instance under the HOME the build runs with)."""
+    ids: set[str] = set()
+    for _, _, args in processes() if rows is None else rows:
         if args == CHATGPT_MAIN or args.startswith(CHATGPT_MAIN + " "):
             ids.add("app:codex-app:")
         elif args == CLAUDE_MAIN or args.startswith(CLAUDE_MAIN + " "):
             m = re.search(r"--user-data-dir[= ](.+?)(?= --|$)", args)
-            ids.add(f"app:claude-app:{m.group(1) if m else CLAUDE_DEFAULT}")
+            ids.add(f"app:claude-app:{m.group(1) if m else claude_default}")
     return ids
 
 
-def users_apps(data: Path) -> dict[str, str]:
+def users_apps(data: Path, claude_default: Path = CLAUDE_DEFAULT) -> dict[str, str]:
     """Each of the user's desktop Apps (id → its name on the rail)."""
     db = sqlite3.connect(f"file:{data / 'juggler.sqlite'}?mode=ro", uri=True)
     labels = dict(db.execute("select id, label from accounts"))
@@ -76,7 +132,7 @@ def users_apps(data: Path) -> dict[str, str]:
         # As the rail names it: an instance's profile is its Account's
         # name, else its folder's; the default instance and an app that
         # runs one instance have none.
-        default = instance and Path(instance) == CLAUDE_DEFAULT
+        default = instance and Path(instance) == claude_default
         profile = (labels.get(folder) or Path(instance).name) if instance and not default else None
         names[app_id] = label or (f"{word} · {profile}" if profile else word)
     return names
@@ -114,6 +170,32 @@ def rail(pid: int) -> tuple[list[str], list[str], str, dict[str, int], list[pres
     return open_now, inactive, inactive_words, counts, drawn
 
 
+PAST_HITS_KEY = "limits.past_hits_given_back"
+PAST_HITS = "  limit hits given back (D-103.10): "
+
+
+def past_hits(db: sqlite3.Connection) -> tuple[str, int]:
+    """D-103.10: the counts the build kept when it gave limit hits an
+    earlier version credited to the wrong Account back to the one each
+    happened on (once, at its first start), and how many stayed wrong."""
+    try:
+        row = db.execute("select value from app_settings where key = ?", (PAST_HITS_KEY,)).fetchone()
+    except sqlite3.Error:
+        row = None
+    if not row:
+        return PAST_HITS + "not run on this data yet (a build before 0.4.4)", 0
+    try:
+        c = json.loads(row[0])
+        words = (
+            f"{c['wrong_before']} on the wrong Account before, {c['wrong_after']} after; "
+            f"{c['moved']} moved, {c['cleared']} cleared (their Account is gone), "
+            f"{c['left']} left where they happened"
+        )
+        return PAST_HITS + words, int(c["wrong_after"])
+    except (ValueError, KeyError, TypeError):
+        return PAST_HITS + "its record can't be read", 0
+
+
 def recorded(lines, running, want_open, shown_open, inactive, counts, names) -> str:
     """The report as written into the repository, which is public: it
     names no App, no profile, no path and no address (each App is
@@ -125,7 +207,7 @@ def recorded(lines, running, want_open, shown_open, inactive, counts, names) -> 
         f"your running Apps: {len(want_open)}",
         f"Open now shows: {len(shown_open)} desktop App(s), counted {counts.get('open', '?')}",
         f"Inactive apps shows: {len(inactive)} named on screen",
-    ] + [line for line in lines if line.startswith(("FAIL", "PASS", "(", "  open: ", "  idle: ", "  codex store: "))]
+    ] + [line for line in lines if line.startswith(("FAIL", "PASS", "(", "  open: ", "  idle: ", "  codex store: ", PAST_HITS))]
     return anonymize("\n".join(out), names) + "\n"
 
 
@@ -139,6 +221,32 @@ def selftest() -> int:
     for leaked in ("jane" + "doe", "janecorp", "b-jane"):
         assert leaked not in text, f"{leaked!r} reached the record:\n{text}"
     assert "App 1" in text, text
+    # D-103.10: the past-hits line reaches the record, and a hit still on
+    # the wrong Account after the pass is a failure.
+    db = sqlite3.connect(":memory:")
+    assert past_hits(db) == (PAST_HITS + "not run on this data yet (a build before 0.4.4)", 0)
+    db.execute("create table app_settings (key text primary key, value text)")
+    counts = {"wrong_before": 3, "moved": 2, "cleared": 1, "left": 4, "wrong_after": 0}
+    db.execute("insert into app_settings values (?, ?)", (PAST_HITS_KEY, json.dumps(counts)))
+    line, wrong = past_hits(db)
+    assert wrong == 0 and "3 on the wrong Account before, 0 after; 2 moved, 1 cleared" in line, line
+    assert line in recorded([line], running, {app}, set(), [], {}, [app]), "kept in the record"
+    # On a lab, only the lab's processes run for the build (AJ-E3306).
+    lab = Path("/tmp/aij-lab-z1")
+    rows = [
+        (10, 1, f"{CLAUDE_MAIN} --user-data-dir=/tmp/aij-lab-z1/Library/Application Support/ClaudeProfiles/work"),
+        (11, 1, f"{CLAUDE_MAIN} --user-data-dir={home}/Library/Application Support/ClaudeProfiles/b-work"),
+        (12, 1, CHATGPT_MAIN),
+        (13, 1, "/private/tmp/aij-lab-z1/bin/tool --x"),
+        (20, 1, "juggler-app"),
+        (21, 20, "/usr/local/bin/claude --resume x"),
+        (22, 1, "/usr/bin/sleep 5"),
+    ]
+    assert [row[0] for row in lab_only(rows, lab, 20)] == [10, 13, 20, 21], lab_only(rows, lab, 20)
+    assert running_ids(Path("/x"), lab_only(rows, lab, 20)) == {
+        "app:claude-app:/tmp/aij-lab-z1/Library/Application Support/ClaudeProfiles/work"
+    }
+    assert running_ids(Path("/x"), rows) >= {"app:codex-app:"}, "on the user's own home, every process"
     print("presence_check: selftest passed")
     return 0
 
@@ -146,21 +254,30 @@ def selftest() -> int:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--pid", type=int, required=True, help="the AI Juggler build's pid (by pid only)")
-    parser.add_argument("--data", type=Path, default=HOME / "Library/Application Support/AI Juggler Dev")
+    parser.add_argument("--home", type=Path, default=HOME, help="the HOME the build runs with (a lab's: lab_scenario.sh)")
+    parser.add_argument("--data", type=Path, help="its data folder (default: AI Juggler Dev's under --home)")
     parser.add_argument("--record", type=Path, help="write the report here too")
     parser.add_argument("--since", default=None, help="count lab runs in a real profile's folder only from this day (default: all, the release gate)")
     args = parser.parse_args()
+    home = args.home.expanduser()
+    args.data = args.data or home / "Library/Application Support/AI Juggler Dev"
+    claude_default = home / "Library/Application Support/Claude"
 
-    running = running_ids()
-    mine = users_apps(args.data)
+    rows = processes()
+    lab = other_home(home)
+    if lab:
+        rows = lab_only(rows, home, args.pid)
+    running = running_ids(claude_default, rows)
+    mine = users_apps(args.data, claude_default)
     open_now, inactive, inactive_words, counts, drawn = rail(args.pid)
     desktop_words = ("Claude app", "Codex app")
     shown_open = {name for name in open_now if name.startswith(desktop_words)}
     want_open = {mine[i] for i in running if i in mine}
     lines = [
         "presence-check (ADR-0032)",
+        *(["(a lab: only its own processes count, as the build sees them, AJ-E3306)"] if lab else []),
         f"running desktop apps (ps): {len(running)}",
-        *[f"  {i.replace(str(HOME), '~')}{'' if i in mine else '  (not one of your Apps)'}" for i in sorted(running)],
+        *[f"  {i.replace(str(home), '~').replace(str(HOME), '~')}{'' if i in mine else '  (not one of your Apps)'}" for i in sorted(running)],
         f"your running Apps: {sorted(want_open)}",
         f"Open now shows:    {sorted(shown_open)}",
         f"Inactive apps shows: {sorted(inactive) or '(folded)'}",
@@ -202,8 +319,12 @@ def main() -> int:
     )
     lines += ["each App as drawn:", *shown]
     problems += more
+    hits_line, hits_wrong = past_hits(db)
+    lines.append(hits_line)
+    if hits_wrong:
+        problems.append(f"{hits_wrong} limit hit(s) still on an Account they didn't happen on after the one-time pass (D-103.10)")
     lines += [f"FAIL {p}" for p in problems] or [
-        "PASS Open now is exactly your running Apps; none is in two sections; each unfolds to its own records; every Out Account marked; no lab run in a real profile; Codex counts are the store's listed threads"
+        "PASS Open now is exactly your running Apps; none is in two sections; each unfolds to its own records; every Out Account marked; no lab run in a real profile; Codex counts are the store's listed threads; no past limit hit left on the wrong Account"
     ]
     report = "\n".join(lines)
     print(report)

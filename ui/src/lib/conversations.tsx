@@ -6,7 +6,6 @@
  */
 import { keepIfSame } from "./same";
 import { folderName, untitledName } from "./session-titles";
-import { toolSpec } from "./tools";
 import { tellingBranch } from "./project-words";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type JSX, type ReactNode } from "react";
 import { conversationsBuildAgain, conversationsBuilding, conversationsGet, conversationsList, onConversationsChanged, type ConversationInfo } from "./ipc/conversations";
@@ -121,9 +120,8 @@ export function liveOutside(all: ConversationInfo[], accountId?: string): Conver
 
 /** A conversation's title on screen, by the one short-name rule: its own,
  * else a branch that says what the work was (never a bare "main"), else
- * its facts (D-96: "billing · Work · started 1:14 AM"). */
+ * its facts (D-96, D-103.8: "billing · started 1:14 AM"). */
 export function conversationTitle(conversation: ConversationInfo, now: number = Date.now()): string {
   if (conversation.title) return conversation.title;
-  const app = conversation.account_label || toolSpec(conversation.tool).display_name;
-  return tellingBranch(conversation.git_branch) ?? untitledName({ folder: folderName(conversation.cwd) || null, app, startedMs: conversation.started_ms }, now);
+  return tellingBranch(conversation.git_branch) ?? untitledName({ folder: folderName(conversation.cwd) || null, startedMs: conversation.started_ms }, now);
 }

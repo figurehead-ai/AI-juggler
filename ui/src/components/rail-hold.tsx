@@ -190,6 +190,19 @@ export function useHoldStill(
     });
   };
 
+  /** The spacer below that lets `box` scroll `by` further: past its empty
+   * space too, when the list is shorter than the box. P9 (the 0.4.1
+   * gallery): a few lines in a tall rail, the spacer at twice the new
+   * line's height still left nothing to scroll, and the line under the
+   * pointer moved ~90 px. */
+  const roomFor = (box: HTMLElement, by: number): number => {
+    const pad = bottomPad.current;
+    if (!pad) return 0;
+    // Where the list's lines end, in the box's scrolled space.
+    const end = pad.getBoundingClientRect().top - box.getBoundingClientRect().top + box.scrollTop;
+    return box.scrollTop + by + box.clientHeight - end;
+  };
+
   const hold = () => {
     const was = anchor.current;
     if (!inside() || !root.current) return;
@@ -206,7 +219,7 @@ export function useHoldStill(
       if (give > 0) setPads({ top: pads.current.top - give, bottom: pads.current.bottom });
       let rest = scrollAcross(list, delta - give);
       for (let tries = 0; tries < 2 && rest > 0.5; tries += 1) {
-        setPads({ top: pads.current.top, bottom: pads.current.bottom + rest });
+        setPads({ top: pads.current.top, bottom: Math.max(pads.current.bottom + rest, ...list.map((box) => roomFor(box, rest))) });
         rest = scrollAcross(list, rest);
       }
       const added = [...keysAbove(line)].filter((key) => !was.above.has(key) && COUNTED.test(key));

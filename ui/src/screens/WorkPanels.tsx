@@ -98,11 +98,6 @@ export function SessionPanel({
           </button>
         )}
         <div className="ml-auto flex items-center gap-2">
-          {session && !live && !isLoginTerminal && (
-            <span className="text-label text-muted">
-              ran {since(session.started_at_ms)} · scrollback replayed
-            </span>
-          )}
           {live && terminalId && (
             <Button
               size="sm"

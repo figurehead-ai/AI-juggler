@@ -7,7 +7,9 @@
  * usual App's Account out of room (N5). D-96 (0.4.1): the usual skipped
  * because its Account is almost out says so (E, also at 800×600), and
  * after a start "Start another: <next project>" opens it there, keeping
- * the App chosen (F). Both themes, axe 0 critical/serious on each.
+ * the App chosen (F). D-103.7 (0.4.4): a repo only one Account ever ran
+ * in opens on it, said so, with the binding offered in one click. Both
+ * themes, axe 0 critical/serious on each.
  */
 import { type Page } from "@playwright/test";
 import { mkdirSync } from "node:fs";
@@ -87,6 +89,9 @@ const ROOM = [room("claude-work", 58, 3 * H + 52 * MIN), room("claude-personal",
 // D-96 E: Work almost out, and no history to go by: room picks Personal.
 const WORK_LOW = [room("claude-work", 5, 1 * H + 20 * MIN), room("claude-personal", 82, 2 * H), room("codex-home", 40, 4 * H)];
 const NO_HISTORY = PROJECTS.map((row) => ({ ...row, accounts_used: [] }));
+// Two Accounts ran in payments-api: no own Account, so the App chosen
+// before is kept there (D-96 F; D-103.7 when only one ran there).
+const MIXED = PROJECTS.map((row) => (row.name === "payments-api" ? { ...row, accounts_used: ["Personal", "~/.codex"] } : row));
 const OUT_OF_ROOM = [room("claude-work", 0, 1 * H + 20 * MIN), room("claude-personal", 82, 2 * H), room("codex-home", 40, 4 * H)];
 
 test.beforeAll(() => mkdirSync(OUT, { recursive: true }));
@@ -129,7 +134,7 @@ async function shoot(page: Page, name: string, theme: string, clip?: { x: number
 for (const theme of ["dark", "light"] as const) {
   test(`N1 the usual, made and said — ${theme}`, async ({ page }) => {
     await open(page, theme);
-    await expect(sentence(page)).toHaveText("Start in web-shop on Claude Code CLI · Work Max — used here before");
+    await expect(sentence(page)).toHaveText("Start in web-shop on Claude Code CLI · Work Max — used here before; 2 accounts worked here");
     await expect(page.getByTestId("launch-runway")).toContainText("58% left");
     await expect(page.getByTestId("launch-now")).toBeFocused();
     await shoot(page, "usual", theme);
@@ -148,7 +153,19 @@ for (const theme of ["dark", "light"] as const) {
     await shoot(page, "change-folder", theme);
     await page.getByTestId("change-folder-search").fill("pay");
     await page.keyboard.press("Enter");
-    await expect(sentence(page)).toHaveText("Start in payments-api on Codex CLI · ~/.codex — used here before");
+    await expect(sentence(page)).toHaveText("Start in payments-api on Codex CLI · ~/.codex — the only account used here");
+  });
+
+  // D-103.7 (persona R2): only Codex's Account ever ran in payments-api:
+  // it opens there, said so, and the binding is one click away.
+  test(`D-103.7 a repo's own Account — ${theme}`, async ({ page }) => {
+    await open(page, theme);
+    await page.getByTestId("change-folder").click();
+    await page.getByTestId("change-folder-search").fill("pay");
+    await page.keyboard.press("Enter");
+    await expect(sentence(page)).toHaveText("Start in payments-api on Codex CLI · ~/.codex — the only account used here");
+    await expect(page.getByTestId("launch-always")).toHaveText(/^Always start payments-api on /);
+    await shoot(page, "own-account", theme);
   });
 
   test(`N2 Change app — ${theme}`, async ({ page }) => {
@@ -197,7 +214,7 @@ for (const theme of ["dark", "light"] as const) {
   });
 
   test(`D-96 F start another — ${theme}`, async ({ page }) => {
-    await open(page, theme, { launches: true });
+    await open(page, theme, { launches: true, projects: MIXED });
     // Personal chosen for web-shop, then started with ⌘↩.
     await page.getByTestId("change-app").click();
     await page.getByTestId("change-app-claude-personal").click();
@@ -213,7 +230,7 @@ for (const theme of ["dark", "light"] as const) {
     await shoot(page, "start-another", theme, { x: 640, y: 560, width: 640, height: 240 });
     await page.keyboard.press("Enter");
     // Opened on the next project, the App kept and said so, Start focused.
-    await expect(sentence(page)).toHaveText("Start in payments-api on Claude Code CLI · Personal — as you chose for web-shop");
+    await expect(sentence(page)).toHaveText("Start in payments-api on Claude Code CLI · Personal — as you chose for web-shop; 2 accounts worked here");
     await expect(page.getByTestId("launch-now")).toBeFocused();
     await shoot(page, "start-another-next", theme);
   });

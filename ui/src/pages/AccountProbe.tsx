@@ -11,13 +11,7 @@ import { showToast } from "../components/Toast";
 import { errorText } from "../lib/bridge";
 import { agoWords } from "../lib/quotaWindow";
 import { probeRun, probeStatus, probeTurnOff, probeTurnOn, type ProbeStatusInfo } from "../lib/ipc/probe";
-
-const OUTCOME: Record<string, string> = {
-  ran: "it answered",
-  failed: "Claude Code couldn't check (signed out, or offline)",
-  timed_out: "it took too long and was stopped",
-  not_started: "Claude Code couldn't be started",
-};
+import { probeOutcome } from "../components/MeasureLimits";
 
 export function AccountProbe({ accountId }: { accountId: string }): JSX.Element | null {
   const [status, setStatus] = useState<ProbeStatusInfo | null>(null);
@@ -41,7 +35,7 @@ export function AccountProbe({ accountId }: { accountId: string }): JSX.Element 
     }
   };
   const last =
-    status.last_run_ms != null ? `Last asked ${agoWords(status.last_run_ms)}: ${OUTCOME[status.last_outcome ?? ""] ?? "done"}.` : null;
+    status.last_run_ms != null ? `Last asked ${agoWords(status.last_run_ms)}: ${probeOutcome(status.last_outcome, "Claude Code")}.` : null;
 
   return (
     <Card className="flex flex-col gap-2 p-4" data-testid="account-probe">

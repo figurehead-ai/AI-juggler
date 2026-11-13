@@ -560,6 +560,27 @@ pub fn limit_hits_in(path: &Path) -> Vec<(WindowKind, QuotaSample)> {
     out
 }
 
+/// The limit hits in the transcript at `path`, or in every transcript
+/// under it (a folder a move renamed: a conversation's sub-agents), each
+/// with its file.
+#[must_use]
+pub fn limit_hits_at(path: &Path) -> Vec<(PathBuf, WindowKind, QuotaSample)> {
+    let mut files = Vec::new();
+    if path.is_dir() {
+        crate::claude_code::collect_jsonl(path, &mut files, 0);
+    } else if path.is_file() {
+        files.push(path.to_path_buf());
+    }
+    files
+        .into_iter()
+        .flat_map(|file| {
+            limit_hits_in(&file)
+                .into_iter()
+                .map(move |(kind, hit)| (file.clone(), kind, hit))
+        })
+        .collect()
+}
+
 /// D-39 (needs the maintainer's ruling; off until then): the arguments
 /// that run Claude Code's own `/usage` headless. It is a local command (no
 /// model call), keeps no transcript, starts no MCP server and runs no
