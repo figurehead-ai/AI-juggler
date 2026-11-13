@@ -1,32 +1,34 @@
 //! AJ-E1503 Req.3 — quitting with live sessions says so first.
 //!
-//! ⌘Q (the app menu's own Quit item) and closing the window ask the
-//! backend; with nothing live AI Juggler quits at once, otherwise the
-//! window is told how many sessions are live and what quitting does to
-//! them. A terminal session runs on a terminal this app holds, so it ends
+//! ⌘Q (the app menu's own Quit item) asks the backend; with nothing live
+//! AI Juggler quits at once, otherwise the window is told how many
+//! sessions are live and what quitting does to them. D-112 (0.4.5): the
+//! main window's close button and ⌘W never quit: they hide the window
+//! ([`leaving`]; `main_window.rs` hides it), and every session keeps
+//! running. A terminal session runs on a terminal this app holds, so it ends
 //! when AI Juggler quits; a desktop session (its own app) or a session
 //! re-adopted after a crash keeps running. The user picks Quit anyway,
 //! Stop them first (a clean stop of each, then quit) or Cancel. Nothing is
 //! stopped without that click (ADR-0003).
 //!
 //! Two fallbacks keep a quit from ever doing nothing (the webview hung,
-//! still loading, or never showing the sheet): a second ⌘Q or close
-//! while a request waits quits anyway, as macOS apps do; and the window
+//! still loading, or never showing the sheet): a second ⌘Q while a
+//! request waits quits anyway, as macOS apps do; and the window
 //! acknowledges the request when its sheet is up — without that within
 //! [`ACK_WINDOW`] of the window showing, AI Juggler quits as if Quit
 //! anyway was chosen.
 //!
 //! D-111 (0.4.5): the ack window starts only once the main window shows
 //! (a request brings it forward). A request whose window never shows (a
-//! close pressed on a hidden window by something other than the person,
-//! an accessibility client, a script; a test's hidden launch) never quits
-//! by the timer: live sessions would end with nobody having seen the
-//! sheet (ADR-0003). It waits, logged; the sheet comes up when the window
-//! shows, and a second ⌘Q or close still quits. Every path is logged, so
-//! a quit nobody chose can be told apart afterwards.
-//! Logging out and shutting down never ask: macOS sends those as
-//! `terminate:`, past the menu, and nothing here prevents
-//! `RunEvent::ExitRequested`.
+//! test's hidden launch; before D-112, a close pressed on a hidden window
+//! by something other than the person, an accessibility client, a
+//! script) never quits by the timer: live sessions would end with nobody
+//! having seen the sheet (ADR-0003). It waits, logged; the sheet comes up
+//! when the window shows, and a second ⌘Q still quits. Every path is
+//! logged, so a quit nobody chose can be told apart afterwards.
+//! Logging out, shutting down and the Dock's Quit never ask: macOS sends
+//! those as `terminate:`, past the menu, and the app delegate answers it
+//! without asking (no `RunEvent::ExitRequested` comes first).
 
 // Tauri command signatures take State by value (as in commands.rs).
 #![allow(clippy::needless_pass_by_value)]
@@ -88,13 +90,13 @@ pub enum AfterWait {
     /// if Quit anyway was chosen.
     Quit,
     /// The window never showed: nobody saw the sheet, so nothing quits;
-    /// the request keeps waiting (a second ⌘Q or close still quits).
+    /// the request keeps waiting (a second ⌘Q still quits).
     Wait,
     /// Answered, cancelled, or a later request: nothing to do.
     Done,
 }
 
-/// What a request (⌘Q or close) does.
+/// What a quit request (⌘Q) does.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum RequestAction {
     /// Quit now (nothing live, or a second request while one waits).
@@ -110,7 +112,7 @@ pub enum RequestAction {
 }
 
 impl QuitGate {
-    /// A ⌘Q or close with this plan.
+    /// A ⌘Q with this plan.
     #[must_use]
     pub fn request(&mut self, plan: QuitPlanInfo) -> RequestAction {
         if self.pending.is_some() {
@@ -180,15 +182,6 @@ fn quit_now(app: &tauri::AppHandle) {
     app.exit(0);
 }
 
-/// The main window is on screen: shown and not minimised (a hidden app's
-/// windows aren't visible).
-fn main_window_shown(app: &tauri::AppHandle) -> bool {
-    app.get_webview_window(crate::main_window::MAIN)
-        .is_some_and(|window| {
-            window.is_visible().unwrap_or(false) && !window.is_minimized().unwrap_or(true)
-        })
-}
-
 /// Waits up to [`SHOW_WINDOW`] for the main window to show; true once it
 /// has. A short bounded look (the window answers no event when shown by
 /// another app's hand).
@@ -196,7 +189,7 @@ fn wait_until_shown(app: &tauri::AppHandle) -> bool {
     let step = Duration::from_millis(100);
     let mut waited = Duration::ZERO;
     loop {
-        if main_window_shown(app) {
+        if crate::main_window::on_screen(app) {
             return true;
         }
         if waited >= SHOW_WINDOW {
@@ -462,8 +455,65 @@ pub fn quitting() -> bool {
     QUITTING.load(Ordering::SeqCst)
 }
 
-/// ⌘Q or the window's close button: quit now, or ask the window.
-/// Returns true when the request was turned into a question.
+/// How the person asked the main window to go (D-112).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Leave {
+    /// Its close button, or ⌘W (the Window menu's Close Window).
+    Close,
+    /// ⌘Q (the app menu's Quit).
+    Quit,
+}
+
+/// What a [`Leave`] does.
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub enum Leaving {
+    /// AI Juggler is on its way out: the close goes through, nothing asks.
+    Through,
+    /// The main window hides; nothing quits and every session keeps
+    /// running, live or not (D-112).
+    Hide,
+    /// Quit now: nothing live, or a second ⌘Q while one waits.
+    Quit,
+    /// Show the sheet; quit anyway if request `id` isn't acknowledged
+    /// within [`ACK_WINDOW`] of the window showing.
+    Ask {
+        /// The request's number (its timer checks it).
+        id: u64,
+        /// What the sheet says.
+        plan: QuitPlanInfo,
+    },
+}
+
+/// What `how` does while `quitting` or not: a close hides the window and
+/// never reaches the quit request, whatever is live; a Quit asks `gate`
+/// with the `plan` (read only for a Quit).
+pub fn leaving(
+    how: Leave,
+    quitting: bool,
+    gate: &mut QuitGate,
+    plan: impl FnOnce() -> QuitPlanInfo,
+) -> Leaving {
+    if quitting {
+        return Leaving::Through;
+    }
+    match how {
+        Leave::Close => Leaving::Hide,
+        Leave::Quit => match gate.request(plan()) {
+            RequestAction::Quit => Leaving::Quit,
+            RequestAction::Ask { id, plan } => Leaving::Ask { id, plan },
+        },
+    }
+}
+
+/// The main window's close button or ⌘W: true when it hides the window
+/// (D-112), false on the way out (the close goes through).
+#[must_use]
+pub fn close_hides() -> bool {
+    leaving(Leave::Close, quitting(), &mut gate(), QuitPlanInfo::default) == Leaving::Hide
+}
+
+/// ⌘Q: quit now, or ask the window. Returns true when the request was
+/// turned into a question.
 #[must_use]
 pub fn request(app: &tauri::AppHandle) -> bool {
     if quitting() {
@@ -472,9 +522,11 @@ pub fn request(app: &tauri::AppHandle) -> bool {
     let state = app.state::<Arc<AppState>>();
     let plan = quit_plan_impl(state.inner());
     let live = plan.live;
-    let action = gate().request(plan);
-    match action {
-        RequestAction::Quit => {
+    // Not on the way out (above); the gate's lock ends with this line.
+    let answer = leaving(Leave::Quit, false, &mut gate(), || plan);
+    match answer {
+        Leaving::Through | Leaving::Hide => false,
+        Leaving::Quit => {
             tracing::info!(
                 live,
                 "quit requested: quitting now (nothing live, or asked twice)"
@@ -482,7 +534,7 @@ pub fn request(app: &tauri::AppHandle) -> bool {
             quit_now(app);
             false
         }
-        RequestAction::Ask { id, plan } => {
+        Leaving::Ask { id, plan } => {
             tracing::info!(live, "quit requested: asking first");
             crate::main_window::bring_forward(app);
             app.emit_event(AppEvent::QuitRequested, plan);
@@ -501,7 +553,7 @@ pub fn request(app: &tauri::AppHandle) -> bool {
                         quit_now(&app);
                     }
                     AfterWait::Wait => tracing::warn!(
-                        "quit: the window didn't show, so nobody saw the sheet; nothing quits (a second Quit or close still quits)"
+                        "quit: the window didn't show, so nobody saw the sheet; nothing quits (a second Quit still quits)"
                     ),
                     AfterWait::Done => {}
                 }
@@ -678,8 +730,8 @@ mod tests {
         sessions: Vec::new(),
     };
 
-    /// Fallback (a): a second ⌘Q or close while the sheet is pending
-    /// quits anyway; after Cancel the next one asks again.
+    /// Fallback (a): a second ⌘Q while the sheet is pending quits
+    /// anyway; after Cancel the next one asks again.
     #[test]
     fn a_second_request_while_one_waits_quits_anyway() {
         let mut gate = QuitGate::default();
@@ -735,10 +787,11 @@ mod tests {
         );
     }
 
-    /// D-111: a close pressed on a hidden window (by an accessibility
-    /// client, a script) with sessions live, its sheet never answered:
-    /// nothing quits, and the request still waits, so a second ⌘Q or
-    /// close quits as before.
+    /// D-111: a request whose window never showed (a test's hidden
+    /// launch; before D-112, a close pressed on a hidden window by an
+    /// accessibility client or a script) with sessions live, its sheet
+    /// never answered: nothing quits, and the request still waits, so a
+    /// second ⌘Q quits as before.
     #[test]
     fn a_hidden_window_with_live_sessions_never_quits_unanswered() {
         let mut gate = QuitGate::default();
@@ -751,13 +804,81 @@ mod tests {
         );
     }
 
-    /// D-111: with nothing live, a close or ⌘Q quits at once, shown or
-    /// hidden (the gate never asks the window).
+    /// D-111: with nothing live, ⌘Q quits at once, shown or hidden (the
+    /// gate never asks the window).
     #[test]
     fn a_hidden_window_with_nothing_live_quits_at_once() {
         assert_eq!(
             QuitGate::default().request(plan_of(&[])),
             RequestAction::Quit
+        );
+    }
+
+    /// D-112: the close button and ⌘W hide the window, with sessions live
+    /// or none: nothing quits, no sheet, and no quit request is left
+    /// waiting (a later ⌘Q asks, never "asked twice: quit").
+    #[test]
+    fn a_close_hides_and_never_quits_even_with_nothing_live() {
+        for plan in [plan_of(&[]), ONE] {
+            let mut gate = QuitGate::default();
+            assert_eq!(
+                leaving(Leave::Close, false, &mut gate, || plan.clone()),
+                Leaving::Hide
+            );
+            assert_eq!(
+                leaving(Leave::Close, false, &mut gate, || plan.clone()),
+                Leaving::Hide,
+                "a second close hides too"
+            );
+            assert!(
+                matches!(
+                    leaving(Leave::Quit, false, &mut gate, || ONE),
+                    Leaving::Ask { .. }
+                ),
+                "the closes left no request waiting"
+            );
+        }
+    }
+
+    /// On the way out the closing window goes through, and a ⌘Q then
+    /// asks nothing.
+    #[test]
+    fn on_the_way_out_a_close_goes_through() {
+        let mut gate = QuitGate::default();
+        assert_eq!(
+            leaving(Leave::Close, true, &mut gate, || ONE),
+            Leaving::Through
+        );
+        assert_eq!(
+            leaving(Leave::Quit, true, &mut gate, || ONE),
+            Leaving::Through
+        );
+    }
+
+    /// ⌘Q with nothing live quits at once (D-112 keeps D-111's rules).
+    #[test]
+    fn cmd_q_with_nothing_live_quits() {
+        assert_eq!(
+            leaving(Leave::Quit, false, &mut QuitGate::default(), || plan_of(
+                &[]
+            )),
+            Leaving::Quit
+        );
+    }
+
+    /// ⌘Q with live sessions shows the sheet, with what quitting does to
+    /// them; a second ⌘Q while it waits quits anyway.
+    #[test]
+    fn cmd_q_with_live_sessions_asks() {
+        let mut gate = QuitGate::default();
+        let asked = leaving(Leave::Quit, false, &mut gate, || ONE);
+        assert!(
+            matches!(&asked, Leaving::Ask { plan, .. } if *plan == ONE),
+            "asks, with what quitting does: {asked:?}"
+        );
+        assert_eq!(
+            leaving(Leave::Quit, false, &mut gate, || ONE),
+            Leaving::Quit
         );
     }
 
