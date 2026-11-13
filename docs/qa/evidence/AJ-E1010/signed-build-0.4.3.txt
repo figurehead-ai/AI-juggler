@@ -1,0 +1,31 @@
+AJ-E1010 R1: the signed artefacts of a real beta build, verified read-only.
+2026-11-13, claude-opus. Nothing was installed, launched, quit or replaced.
+
+1. The installed AI Juggler (the beta channel's build), /Applications/AI Juggler.app
+   CFBundleShortVersionString: 0.4.3
+   CFBundleIdentifier: ai.figurehead.juggler
+   codesign --verify --deep --strict --verbose=2:
+     --validated: .../Contents/MacOS/juggler-agent (each helper validated)
+     valid on disk
+     satisfies its Designated Requirement
+   spctl --assess --type execute -vv:
+     accepted
+     source=Notarized Developer ID
+     origin=Developer ID Application: <the project's team>
+   xcrun stapler validate: The validate action worked!
+   codesign -dv: flags=0x10000(runtime) (hardened runtime), Timestamp=Nov 12, 2026 (secure timestamp)
+
+2. The beta channel's update feed (release `beta-channel`, asset latest.json)
+   version: 0.4.3
+   darwin-aarch64 and darwin-x86_64: AI-Juggler-0.4.3-universal.app.tar.gz, a minisign signature
+   (beta promotion run 43304684626 pointed the channel at the nightly's own release; nothing rebuilt)
+
+3. The build that made them: nightly run 43298877205, job "build / sign main"
+   notarization: status: Accepted (app and dmg); The staple and validate action worked!
+   "updater signature OK: AI-Juggler-0.4.3-universal.app.tar.gz"
+     (scripts/updater_sig_check.py against the app's public updater key, before publishing)
+   spctl on the runner: the .app and AI-Juggler-0.4.3-universal.dmg accepted, source=Notarized Developer ID
+
+Not covered here: the rollback rehearsal on real signed builds (R2), which needs the
+0.4.2 and 0.4.3 DMGs downloaded and run against a throwaway HOME; waiting for the
+maintainer's yes.
