@@ -3008,3 +3008,30 @@ Each ships with tests that fail without it and a design critique; the M2, D2 and
   profile and numbers).
 - Number: first recorded as D-108 (commit messages a040caa4a to
   ba4f8c2c3); release/0.5 had already taken D-104 to D-109.
+
+### D-111 A quit request's ack timer starts once the window shows; a hidden window's unanswered request never quits — SETTLED (2026-11-13)
+
+- Decision (the coordinating session's design call, 0.4.5): closing the
+  main window or ⌘Q with live sessions brings the window forward and
+  shows the quit sheet (AJ-E1503). The [`ACK_WINDOW`] fallback (quit as
+  if Quit anyway when the sheet never answers) now starts only once the
+  main window is shown and not minimised. A request whose window never
+  shows within `SHOW_WINDOW` doesn't quit: it is logged and keeps
+  waiting, the sheet comes up when the window shows, and a second ⌘Q or
+  close still quits. Unchanged: with nothing live, a close or ⌘Q quits at
+  once; logging out and shutting down never ask. Every path is logged
+  (quit at once, asked, a shown window never answered, the window never
+  showed).
+- Why: something other than the person (an accessibility client, a
+  script) can press a hidden window's close button. With sessions live,
+  the old timer could quit unanswered, ending terminal sessions nobody
+  chose to stop (ADR-0003, always-on). The timer is for a hung webview in
+  a shown window, and that case still quits.
+- Found: the idle-CPU labs (AJ-E805) saw lab windows' close buttons
+  pressed by an outside accessibility client (11:31:45, 12:30:48,
+  16:42:52 and three in round 2). The 16:42:52 case quit 12 ms after the
+  press, on the nothing-live path: the lab's sessions weren't AI
+  Juggler's (its supervision log was empty). That is the designed path.
+  The live-sessions case is what this closes. No quit path wrote a log
+  line, so the incident could only be told from the system log.
+- Sources: `crates/juggler-app/src/quit.rs` and its tests.
