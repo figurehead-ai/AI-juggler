@@ -708,7 +708,7 @@
   "jscpd:lines": 15
  },
  "crates/lib/ipc/app-lifecycle.ts": {
-  "jscpd:lines": 31
+  "jscpd:lines": 14
  },
  "crates/lib/ipc/backup.ts": {
   "jscpd:lines": 27
@@ -720,25 +720,13 @@
   "jscpd:lines": 33
  },
  "crates/lib/ipc/floor.ts": {
-  "jscpd:lines": 38
- },
- "crates/lib/ipc/instances.ts": {
-  "jscpd:lines": 58
- },
- "crates/lib/ipc/messages.ts": {
-  "jscpd:lines": 20
- },
- "crates/lib/ipc/processes.ts": {
-  "jscpd:lines": 13
+  "jscpd:lines": 25
  },
  "crates/lib/ipc/settings.ts": {
   "jscpd:lines": 16
  },
  "crates/lib/ipc/switchSetup.ts": {
   "jscpd:lines": 14
- },
- "crates/lib/ipc/tasks.ts": {
-  "jscpd:lines": 20
  },
  "crates/lib/ipc/updates.ts": {
   "jscpd:lines": 11
@@ -1178,7 +1166,7 @@
   "knip:types": 1
  },
  "ui/src/lib/roving.ts": {
-  "knip:exports": 2
+  "knip:exports": 1
  },
  "ui/src/lib/scroll-memory.ts": {
   "knip:exports": 1

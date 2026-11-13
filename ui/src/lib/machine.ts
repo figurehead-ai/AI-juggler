@@ -34,7 +34,7 @@ export type { ThisMacInfo, ToolTreeInfo, OverloadAlertInfo };
  * preview has no events, so callers pass something that changes with
  * the sessions on screen.
  */
-export function useThisMac(refreshKey?: unknown): ThisMacInfo | null {
+function useThisMac(refreshKey?: unknown): ThisMacInfo | null {
   const [info, setInfo] = useState<ThisMacInfo | null>(null);
   useEffect(() => {
     let alive = true;
