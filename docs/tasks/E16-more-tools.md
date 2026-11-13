@@ -63,7 +63,7 @@
 **Research basis**: `opencode.md`.
 **Handover note**: The maintainer chooses v1, v2 or both; default both.
 
-### AJ-E1603 Kimi Code CLI | Status: IN-PROGRESS (Req.1, 2 and 4 evidenced; Req.3 ruled, D-106: research then build; live check pending, AJ-E1612) | Priority P0 | Effort M | Depends: AJ-E1521
+### AJ-E1603 Kimi Code CLI | Status: IN-PROGRESS (R1, R2 and R4 evidenced; R3 built 2026-11-13 under D-106 and evidenced on fixtures — limit hits keyless, the windows from `kimi web` attached or started briefly, labelled experimental; the monthly window's display and the website's privacy line left; live check pending, AJ-E1612) | Priority P0 | Effort M | Depends: AJ-E1521
 **Goal**: Kimi Code runs with separate accounts and real quota windows.
 **User story**: As a Kimi member, I see my 5-hour, 7-day and monthly windows and juggle Kimi accounts.
 **Requirements**:
