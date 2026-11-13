@@ -25,8 +25,9 @@ pub const MAX: usize = 32;
 /// An offer is forgotten after this long unseen (90 days); the user's
 /// App never is ([`KnownPlace::kept`]).
 pub const FORGET_MS: i64 = 90 * 24 * 60 * 60 * 1000;
-/// "Last seen" moves in steps this long (an hour), so a running app
-/// doesn't rewrite the book every scan.
+/// "Last seen" moves in steps this long (an hour) while an app runs, so
+/// it doesn't rewrite the book every scan; the look that finds it gone
+/// sets it to the look before ([`Book::note_stopped`]).
 const SEEN_STEP_MS: i64 = 60 * 60 * 1000;
 /// Sessions remembered per place (the newest): a profile's own records
 /// list every session it keeps, so room for a heavy one's.
@@ -65,7 +66,8 @@ pub struct KnownPlace {
     /// `tool/id` of the sessions seen open in it, newest last.
     #[serde(default)]
     pub conversations: Vec<String>,
-    /// When it was last seen running, epoch ms (to the hour).
+    /// When it was last seen running, epoch ms: to the hour while it
+    /// runs, to the presence look once it has stopped.
     pub seen_ms: i64,
     /// Keep alive: start it again when it stops.
     #[serde(default)]
@@ -256,6 +258,23 @@ impl Book {
         }
         self.tidy(now_ms);
         *self != before
+    }
+
+    /// D-103.5: the places in `gone` (running at the last presence look,
+    /// not at this one) were last seen running at that look (`last_ms`),
+    /// not at the hour step's last mark, so "Closed · last open 12 min
+    /// ago" is right to within a look. Returns whether the book changed.
+    pub fn note_stopped(&mut self, gone: &[String], last_ms: i64) -> bool {
+        let mut changed = false;
+        for id in gone {
+            if let Some(place) = self.places.get_mut(id)
+                && place.seen_ms < last_ms
+            {
+                place.seen_ms = last_ms;
+                changed = true;
+            }
+        }
+        changed
     }
 
     /// The conversations place `id`'s own records list (`tool/id` keys,
