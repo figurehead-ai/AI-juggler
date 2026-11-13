@@ -13,8 +13,8 @@ exactly that.
 | 4 | Accessibility | a11y gate green on measured evidence (keyboard-complete core loop, contrast, no colour-only signals) | AJ-E804 |
 | 5 | Performance | Perf gate green on measured evidence (rail <300 ms @50 rows; inspector <200 ms; 60 fps with 20 streaming terminals) | AJ-E805 |
 | 6 | Fleet security review | STRIDE review passed (pairing, transport, replay, identity theft, malicious peer) | AJ-E710 |
-| 7 | Gate sign-off | Maintainer-signed gate report; every gate claim links its evidence path | AJ-E807 |
-| 8 | Unsigned-gate closure | No TODO gate, no deselected check, no re-threshold without a recorded quality decision | AJ-E806/E807 |
+| 7 | Sign-off | The maintainer's Stable approval, recorded with every scope task's evidence link (D-109) | AJ-E807 |
+| 8 | Gate closure | No TODO gate, no deselected check, no re-threshold without a recorded quality decision | AJ-E806/E807 |
 
 ## Gate 1 for Claude Code and Codex: live versus fixtures (2026-11-07, AJ-E1305)
 

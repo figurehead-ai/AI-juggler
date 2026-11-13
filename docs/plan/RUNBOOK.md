@@ -65,7 +65,7 @@ data or vendor credentials. Each week the maintainer fills
 `docs/qa/evidence/AJ-E809/runs.csv` (format: `run-sheet.md`), runs
 `python3 scripts/dogfood_report.py`, files every friction note as a task
 within 48 hours and commits the week. Agents may tally the sheets and
-file the tasks the report lists. After four weeks the beta gate packet
-(`just gate-packet`) reads the report for criteria B2 and B3. Plan,
+file the tasks the report lists. After four weeks the report is the
+evidence for beta-exit criteria 2 and 3 (`docs/qa/beta-exit.md`). Plan,
 cohort, consent list and scripted tasks:
 `docs/qa/evidence/AJ-E809/programme.md`.

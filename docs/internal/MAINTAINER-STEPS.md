@@ -163,7 +163,8 @@ rollback all work before any user depends on them.
       nightly make a second version first).
 
 Stable comes later: **Promote** with channel `stable` only accepts a
-version that was on beta, and only once the beta gate is signed (Part 5).
+version that was on beta, and only once the minor's whole roadmap scope is
+done or deferred. Your approval of it is the release's sign-off (Part 5).
 
 ### 8. Measurements on your Mac (AJ-E805, 20 min)
 
@@ -276,19 +277,22 @@ fills the gate.
 
 ---
 
-## Part 5 — Signing the gates (AJ-E807)
+## Part 5 — Signing off a release (D-109, AJ-E807)
 
-**Why:** a signature records that you reviewed the evidence at a
-specific commit. The beta update feed doesn't move until the beta gate
-is signed.
+**Why:** your sign-off records that you reviewed a release at a specific
+commit. It is the **Approve** click on a Stable promotion, nothing more:
+GitHub keeps who approved, when and in which run, and Promote writes a
+sign-off record from it, with the roadmap scope's result and a link to
+each task's evidence (attached to the release as `signoff-X.Y.Z.md` and
+shown in the run's summary).
 
-- [ ] For M0, M1, M3, E5 and E7: read the gate file in `docs/qa/`. If
-      you accept it, fill its **Sign-off** table: Decision `APPROVED`,
-      Reviewer (your name), Date (`YYYY-MM-DD`), Commit (the current
-      `main` commit). `git rev-parse --short origin/main` prints it.
-- [ ] Beta: run `just gate-packet`, read `docs/qa/gate-beta.md`, and sign
-      it only when every criterion is PASS. `just gate-signed` confirms
-      the signature is complete.
+- [ ] When you promote a version to Stable (**Actions → Promote**,
+      channel `stable`), read the run's summary first: the D-24 checks,
+      the accessibility gate and the roadmap scope. The run stops before
+      asking you while anything in the scope is open. Then click
+      **Review deployments → Approve**.
+- [ ] Nothing else to sign. The old gate files (`docs/qa/gate-*.md`) are
+      history; an agent copies each record into `docs/qa/signoffs/`.
 
 ---
 

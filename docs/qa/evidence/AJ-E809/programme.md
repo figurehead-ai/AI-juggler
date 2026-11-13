@@ -5,8 +5,8 @@ runs four weeks with real developers on their own machines and
 accounts. The maintainer runs it; agents only tally the run sheets.
 Each run is one row in [`runs.csv`](runs.csv) (format in
 [`run-sheet.md`](run-sheet.md)). `scripts/dogfood_report.py` turns the
-rows into [`report.md`](report.md), which the beta gate packet reads
-(criteria B2 and B3).
+rows into [`report.md`](report.md), the evidence for beta-exit criteria
+2 and 3 (`docs/qa/beta-exit.md`).
 
 ## Cohort (Req.1)
 
@@ -84,8 +84,8 @@ runs here show the demand.
 3. Friday: `python3 scripts/dogfood_report.py`, then commit `runs.csv`
    and `report.md` with the week in the message. File the friction
    tasks, and post the week's numbers where the cohort can see them.
-4. After week 4: rebuild the beta gate packet (`just gate-packet`). B2
-   and B3 read this report.
+4. After week 4: this report is the evidence for beta-exit criteria 2
+   and 3 (`docs/qa/beta-exit.md`).
 
 The live runs listed in [`docs/qa/dogfood-backlog.md`](../../dogfood-backlog.md)
 ride the same sessions, and their evidence goes to each task's own

@@ -133,7 +133,7 @@ under D-24.
 | A pool line's own talk rule set from the member before its first message (the role pair covers it until then) | AJ-E3010 |
 | The 10-account, 50-session load proof; a cold start budget on the release build | AJ-E805 |
 | Updates and release integrity finished | AJ-E1010 |
-| The gate packet signed | AJ-E807 |
+| Each release's sign-off recorded from the Stable approval (D-109) | AJ-E807 |
 | Release speed: beta promotes the tested nightly, CI builds once and tests what changed (D-99; planned after 0.4.1) | AJ-E2020 |
 
 Accessibility stays proven by the automated gates on every release

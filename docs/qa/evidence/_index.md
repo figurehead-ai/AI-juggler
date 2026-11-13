@@ -345,7 +345,7 @@
 | AJ-E804 | PASS6 | 2026-10-19 | [manifest](AJ-E804/manifest.md) |
 | AJ-E805 | FAIL1 PASS17 | 2026-11-13 | [manifest](AJ-E805/manifest.md) |
 | AJ-E806 | PASS4 | 2026-10-23 | [manifest](AJ-E806/manifest.md) |
-| AJ-E807 | PASS7 | 2026-10-19 | [manifest](AJ-E807/manifest.md) |
+| AJ-E807 | PASS6 | 2026-11-13 | [manifest](AJ-E807/manifest.md) |
 | AJ-E808 | PASS7 | 2026-11-07 | [manifest](AJ-E808/manifest.md) |
 | AJ-E809 | PASS4 | 2026-10-19 | [manifest](AJ-E809/manifest.md) |
 | AJ-E810 | PASS5 | 2026-10-18 | [manifest](AJ-E810/manifest.md) |

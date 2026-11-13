@@ -8,7 +8,7 @@ travels **nightly → beta → stable**:
 |---|---|---|
 | **Nightly** | People who want the newest code and accept rough edges. Installed as its own app, **AI Juggler Nightly** | `nightly.yml` builds `main` every day something that ships has changed. No approval |
 | **Beta** | Newer features, a little less tested | `promote.yml`, the tested nightly, with no rebuild, once **no `blocker` issue is open** (D-24 as D-99 amends it: the days of real use happen on beta), with the maintainer's approval (the `beta` environment) |
-| **Stable** | Well-tested releases for everyday work | `promote.yml`, a deliberate release: only a version that has been on beta **14+ days** with **no open `blocker`**, once the beta gate is signed and the minor's whole roadmap scope is done or deferred (D-99), with the maintainer's approval (the `stable` environment) |
+| **Stable** | Well-tested releases for everyday work | `promote.yml`, a deliberate release: only a version that has been on beta **14+ days** with **no open `blocker`**, once the minor's whole roadmap scope is done or deferred (D-99), with the maintainer's approval (the `stable` environment), which is the release's sign-off and is recorded (D-109) |
 
 **What counts as a blocker** (label the issue `blocker`): data loss, an
 Instance running on the wrong account, stopping a process AI Juggler
@@ -489,9 +489,6 @@ also needs:
 
 - the version has been on beta for 14+ days (counted from the annotated
   `beta/vX.Y.Z` tag's date) and no `blocker` issue is open;
-- the beta gate is signed (`docs/qa/gate-beta.md`, AJ-E807; build it with
-  `just gate-packet`, review it, fill in its Sign-off section, check with
-  `just gate-signed`);
 - a `## [X.Y.Z]` section in `CHANGELOG.md` for contributors;
 - the minor's whole roadmap scope (`docs/plan/ROADMAP.md`, every patch
   sub-section included) done and proven, or deferred by a decision:
@@ -503,6 +500,23 @@ also needs:
 
 Approving makes it GitHub's **Latest** release (the website's download
 button uses it) and tags it `stable/vX.Y.Z`.
+
+**The approval is the release's sign-off** (D-109, AJ-E807). Once the
+channel has moved, Promote's `record` job writes the sign-off record with
+`scripts/signoff_record.py`: the version, the commit, who approved and
+when, the run, `release_scope.py check X.Y.Z --channel stable`'s result
+with every task's state and a link to its evidence manifest, and the
+review inputs (the accessibility gate, the visual gallery delta since the
+previous Stable, the measured performance table, the unresolved items).
+It is attached to the release as `signoff-X.Y.Z.md` and shown in the
+run's summary. The repository doesn't let Actions open pull requests (and
+one opened with the workflow's token would start no CI), so the record
+reaches the repository through the release branch:
+`python3 scripts/signoff_record.py pull X.Y.Z` copies it into
+`docs/qa/signoffs/X.Y.Z.md` to commit there. The dry run, which reads a
+past Promote run and promotes, uploads and commits nothing:
+`python3 scripts/signoff_record.py rehearse --repo OWNER/NAME --run RUN_ID --version X.Y.Z --environment beta --out DIR`.
+The old milestone gate files (`docs/qa/gate-*.md`) are history.
 
 **Usage statistics** (only once they are switched on): register `X.Y.Z` as a
 known version in Figurehead's usage-statistics configuration when it reaches
