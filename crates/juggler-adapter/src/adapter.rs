@@ -892,6 +892,38 @@ pub trait ToolQuota: ToolIdentity {
         let _ = path;
         Vec::new()
     }
+    /// AJ-E1603: the limit hit an open session holds, read by the adapter
+    /// from the session's linked transcript `transcript` itself, for a
+    /// tool whose record of hits isn't in that file's tail (Kimi Code's
+    /// versioned event logs beside its record). `None`: the caller reads
+    /// the tail with [`crate::ToolQuota::limit_hit`]. `Some(None)`: no hit
+    /// holds. Default: `None`.
+    #[must_use]
+    fn session_limit_hit(&self, transcript: &Path) -> Option<Option<crate::live::LimitHit>> {
+        let _ = transcript;
+        None
+    }
+    /// D-106: whether [`crate::ToolQuota::plan_usage`] is offered for the
+    /// account at `state_dir` (its sign-in is one the tool's service
+    /// reports on). Reads which files are there, never a secret; starts
+    /// nothing. Default: `false`.
+    #[must_use]
+    fn plan_usage_offered(&self, state_dir: &Path) -> bool {
+        let _ = state_dir;
+        false
+    }
+    /// D-106: asks the tool's own service for the account's plan usage
+    /// now, bounded in time (it may start the tool's server briefly and
+    /// stops it before returning). Called only on the usage cadence or
+    /// when the user asks, never in a loop. `None`: not offered.
+    /// `Some(Err)`: unknown this time, in plain words (never a secret).
+    fn plan_usage(
+        &self,
+        account: &Account,
+    ) -> Option<Result<crate::plan_usage::PlanReading, String>> {
+        let _ = account;
+        None
+    }
 }
 
 /// AJ-E2016: Sessions running now: their processes, live and app session files, and what a session's tail says.

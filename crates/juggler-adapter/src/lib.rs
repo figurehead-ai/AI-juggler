@@ -34,6 +34,7 @@ pub mod launch;
 pub mod live;
 pub mod memory;
 pub mod moving;
+pub mod plan_usage;
 pub mod readiness;
 pub mod registry;
 pub mod reports;
