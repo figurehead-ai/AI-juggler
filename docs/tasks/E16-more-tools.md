@@ -97,7 +97,7 @@
 **Research basis**: `grok.md`.
 **Handover note**: —
 
-### AJ-E1605 ZCode | Status: IN-PROGRESS (rounds 1–2 built 2026-11-13: R1–R5, R7 and R6's ZCode-to-pack half on fixtures, the kit 15 of 15; a pack into ZCode has no route (its terminal takes no first message, research § D); the live check AJ-E1612 left) | Priority P1 | Effort L | Depends: AJ-E1521
+### AJ-E1605 ZCode | Status: IN-PROGRESS (rounds 1–3 built 2026-11-13: ZCode.app ships no terminal UI, so round 3 runs it driven over its engine's own app-server on the app's own runtime; R1–R7 on fixtures and a stand-in app-server, limit hits from its store, a pack into ZCode by its own import proven live with no sign-in; sending a turn, the provider-headers reply and the reset's zone UNPROVEN until AJ-E1612) | Priority P1 | Effort L | Depends: AJ-E1521
 **Goal**: ZCode, promised in the README and SPEC, ships.
 **User story**: As a GLM subscriber, I juggle ZCode with my other tools.
 **Requirements** (SPEC §4.3; numbered 2026-11-13 after re-checking the research on the installed app, desktop 3.15.3 / engine 0.16.9):
