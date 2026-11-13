@@ -128,8 +128,8 @@ const NAME_CHARS: usize = 60;
 
 /// The first words of what was asked, one line: its first line that says
 /// something (a line of only paths or pasted keys says nothing:
-/// [`says_nothing`]), whitespace collapsed, cut before a redaction mark or
-/// a word that looks like a key ([`token_like`]), its first clause past a
+/// `says_nothing`), whitespace collapsed, cut before a redaction mark or
+/// a word that looks like a key (`token_like`), its first clause past a
 /// short opener ("Good.", "OK, thanks."), at most 60 characters cut at a
 /// word, "…" when cut short; `None` when nothing is left (rc7 walk: pool
 /// members and senders were named by the whole first prompt). A colon
