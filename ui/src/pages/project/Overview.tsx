@@ -6,18 +6,17 @@
  */
 import { useEffect, useMemo, useState, type JSX, type ReactNode } from "react";
 import { ChartBody, Legend, Section } from "../../components/charts/ChartCard";
-import { Donut } from "../../components/charts/Donut";
 import { StatTile } from "../../components/charts/StatTile";
 import { TimeChart } from "../../components/charts/TimeChart";
 import { Timeline } from "../../components/charts/Timeline";
 import { short } from "../../components/charts/scale";
 import { seriesColor } from "../../components/charts/colors";
 import { GRID, SPAN } from "../../components/usage/Dashboard";
-import { IconChart, IconDonut, IconPlay, IconRoute, IconTokens, IconUser, Segmented } from "../../components/usage/controls";
+import { IconChart, IconPlay, IconRoute, IconUser, Segmented } from "../../components/usage/controls";
 import { IconTasks } from "../../components/icons-places";
 import { openTasks, taskWords, type ProjectOpen } from "../../lib/project-summary";
 import { useProjectTasks } from "./useProjectTasks";
-import { chartSeries, shareItems, useUsageHistory } from "../../components/usage/useUsage";
+import { chartSeries, useUsageHistory } from "../../components/usage/useUsage";
 import { SwitchGraph } from "../../components/SwitchGraph";
 import { switchGraphOverview } from "../../lib/ipc/switch-targets";
 import { bucketWords, tickWords, weekend } from "../../lib/usage/range";
@@ -26,7 +25,7 @@ import { lastWorked } from "../../lib/project-words";
 import type { ProjectInfo } from "../../types/generated/ProjectInfo";
 import type { Row } from "../SessionsList";
 import { CheckoutCallout, OpenSessions } from "./Callouts";
-import { newTokens } from "../../lib/usage/tokens";
+import { ranWithin, WeekTokensTile, WhoDidTheWork } from "./WhoDidTheWork";
 
 export function ProjectOverviewView({
   project,
@@ -62,9 +61,6 @@ export function ProjectOverviewView({
   const data = month.data;
   const cut = month.cut;
   const series = useMemo(() => (data && data.edges_ms.length === cut.edges.length ? chartSeries(data, split, "tokens") : []), [data, split, cut.edges.length]);
-  const who = data ? shareItems(data.by_profile, "profile") : [];
-  const io = data ? newTokens(data.totals.tokens) : 0;
-  const weekIo = week.data ? newTokens(week.data.totals.tokens) : null;
   const live = rows.filter((row) => row.live);
   const needs = live.filter((row) => row.railState === "asks_you").length;
   const taskCounts = useProjectTasks(project.id);
@@ -93,7 +89,7 @@ export function ProjectOverviewView({
           note={<span data-testid="tile-tasks-note">{taskWords(taskCounts)}</span>}
           testId="tile-tasks"
         />
-        <StatTile label="New tokens this week" icon={<IconTokens width={15} height={15} />} value={weekIo} unit="tokens" before={week.data ? newTokens(week.data.previous.tokens) : null} period="last week" trend={daily} holdSpace={week.data === null} testId="tile-week-tokens" />
+        <WeekTokensTile week={week.data} trend={daily} rows={rows} now={now} />
         <StatTile
           label="Apps used"
           icon={<IconUser width={15} height={15} />}
@@ -126,15 +122,11 @@ export function ProjectOverviewView({
           }
         >
           <Legend label="Series" items={series.map((entry) => ({ key: entry.key, label: entry.label, color: entry.color, value: short(entry.values.reduce((a, b) => a + b, 0), "tokens") }))} />
-          <ChartBody empty={data === null || empty} emptyWords={data === null ? "Reading usage…" : "No usage here in the last 30 days"} height={240} table={{ columns: [], rows: [] }} showTable={false} caption="">
+          <ChartBody empty={data === null || empty} emptyWords={activityEmpty(data, ranWithin(rows, now, 30))} height={240} table={{ columns: [], rows: [] }} showTable={false} caption="">
             <TimeChart edges={cut.edges} series={series} unit="tokens" height={240} label={`Tokens per day on ${project.name}`} bucketWords={words} tickWords={tickWords(cut.step)} shade={weekend(cut.step)} />
           </ChartBody>
         </Section>
-        <Section title="Who did the work" icon={<IconDonut />} sub="last 30 days" testId="project-who">
-          <ChartBody empty={data === null || empty} emptyWords={data === null ? "Reading usage…" : "No usage yet"} height={168} table={{ columns: [], rows: [] }} showTable={false} caption="">
-            <Donut items={who} unit="tokens" label={`Tokens on ${project.name} by app`} centre={{ value: short(io, "tokens"), words: "tokens" }} />
-          </ChartBody>
-        </Section>
+        <WhoDidTheWork project={project} data={data} rows={rows} />
         <OpenSessions projectId={project.id} rows={rows} onAll={onAllSessions} onOpenSession={onOpenSession} className="@min-[1400px]:col-span-2" />
         <CheckoutCallout project={project} sharedBy={sharedBy} />
         {accounts}
@@ -143,6 +135,13 @@ export function ProjectOverviewView({
       </div>
     </div>
   );
+}
+
+/** The activity chart with nothing on it: never "no usage" beside
+ * sessions that ran (D-103.9). */
+function activityEmpty(data: ReturnType<typeof useUsageHistory>["data"], ran: number): string {
+  if (data === null) return "Reading usage…";
+  return ran > 0 ? `No token use is recorded in the files of its ${ran === 1 ? "session" : `${ran} sessions`} in the last 30 days` : "No usage here in the last 30 days";
 }
 
 /** How the work travelled: who worked here day by day, and each move. */

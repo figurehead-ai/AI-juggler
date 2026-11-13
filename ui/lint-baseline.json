@@ -1928,9 +1928,6 @@
  "src/pages/project/Callouts.tsx": {
   "eslint(complexity)": 1
  },
- "src/pages/project/Overview.tsx": {
-  "eslint(complexity)": 1
- },
  "src/pages/project/checkout.test.tsx": {
   "typescript(no-unnecessary-type-assertion)": 3,
   "typescript(no-unsafe-type-assertion)": 8

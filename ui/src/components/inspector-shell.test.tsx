@@ -171,6 +171,8 @@ describe("AJ-E1533 one page model: each type's header and its own tabs", () => {
     const words = (await findByTestId("project-usage-empty")).textContent ?? "";
     expect(words).toBe("No token use is recorded in the files of its session. It shows here once a session records some.");
     expect(words).not.toContain("has run");
+    // D-103.9: who did the work, as sessions per Account.
+    expect((await findByTestId("project-usage-who")).textContent).toMatch(/^Who did the work: .+ · 1 session$/);
   });
 
   it("a project's page opens on the tab you last chose on one, the new tabs too (AJ-E1534, AJ-E2805 R5)", () => {
