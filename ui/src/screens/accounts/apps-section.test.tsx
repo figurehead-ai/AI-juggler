@@ -90,6 +90,14 @@ describe("D-100 a CLI App says what it is", () => {
     expect(stateWords({ ...row(app("d"), 0, 3, 8 * HOUR), lastCwd: "/Users/someone/x" }, 10 * HOUR)).toBe("Last used 2 h ago");
   });
 
+  it("D-103.5: a closed desktop App says so, and when it was last open", () => {
+    const place: KnownPlaceInfo = {
+      id: "place-d", app_id: "claude-app", app: "Claude app", instance: null, profile: "d", label: "Claude app · d",
+      app_pid: null, lost: false, keep_alive: false, paused: null, account_id: null, seen_ms: 10 * HOUR - 12 * 60_000, cannot_start: null, recent: [], found: false,
+    };
+    expect(stateWords(row(app("d", { place }), 0, 3, 8 * HOUR), 10 * HOUR)).toBe("Closed · last open 12 min ago");
+  });
+
   it("each row shows its kind, by icon and word, before its line", () => {
     const cli = app("cli:a1", { kind: "cli", app: "Claude Code CLI", name: "Claude Code CLI · work", profile: "work" });
     render(<AppsSection apps={[app("desk", { profile: "work" }), cli]} subscriptions={[]} sessions={[]} conversations={[]} now={0} />);

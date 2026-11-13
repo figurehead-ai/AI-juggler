@@ -65,7 +65,7 @@ async function shoot(page: Page, name: string, theme: string) {
 for (const theme of ["dark", "light"] as const) {
   test(`Home: a kept-alive profile that's down, and one kept alive running — ${theme}`, async ({ page }) => {
     await seed(page, theme);
-    await expect(page.getByTestId("home-app-closed").first()).toContainText("Not running · keep alive starts it");
+    await expect(page.getByTestId("home-app-closed").first()).toContainText("Closed · keep alive starts it");
     await expect(page.getByTestId("home-app-kept-mark")).toHaveText("kept alive");
     await shoot(page, "home-kept", theme);
   });
