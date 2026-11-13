@@ -76,3 +76,5 @@ implements its half.
 
 Crash reports (AJ-E1107) are sent by Sentry's own SDK, behind D-19's Never / Ask / Always setting and AI Juggler's scrubber (`before_send`), with `send_default_pii = false` and no automatic integrations. The rejection of a third-party SDK above stands for usage statistics.
 
+As built (2026-11-13): `sentry` pinned exactly with no default features (4 crates), used in one file (`crates/juggler-app/src/crash_sentry.rs`) and never set up globally. The SDK builds and prepares the event; the envelope goes over the app's own HTTPS client, because the SDK's transports send from a background thread and report nothing back, which can't keep a report until Sentry took it. Native minidumps are not built (the plan and its cost are in `docs/qa/evidence/AJ-E1107/manifest.md`).
+

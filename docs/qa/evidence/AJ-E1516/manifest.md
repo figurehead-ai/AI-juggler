@@ -2,7 +2,9 @@
 
 Task: `docs/tasks/E15-spec-gaps.md` AJ-E1516 (the crash report sender and native crash dumps). Status: **DONE-EVIDENCED** (IN-REVIEW until the release PR). 2026-10-23, claude-opus.
 
-The service and its address are the maintainer's step. No build has the address, so no build has a sender, and the Privacy page still says "This version has nowhere to send them."
+The service and its address are the maintainer's step. No build has the address, so no build has a sender.
+
+**Since D-108 (2026-11-13, AJ-E1107 R5):** the service is Sentry. `drain` no longer posts the stored JSON: each queued report goes as the event Sentry's SDK builds from it (`crash_sentry.rs`, scrubbed again in `before_send`, the event the Ask preview shows), to Sentry's envelope endpoint, over the same HTTPS client and with the same keep-until-taken, 4xx and daily-limit rules. The tests below were renamed or extended accordingly (`each_queued_report_goes_as_its_sentry_event_and_is_then_removed`, `a_seeded_crash_leaves_scrubbed_through_the_sdk`); `docs/qa/evidence/AJ-E1107/manifest.md` has the details.
 
 ## Done
 
