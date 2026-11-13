@@ -343,7 +343,7 @@ Every check starts with an allowlist that may only shrink.
 **Research basis**: the engineering guide (IPC).
 **Handover note**: —
 
-### AJ-E2020 Release speed: promote the tested nightly, build CI once, test only what changed | Status: IN-PROGRESS (R1, R3, R4, R5 evidenced: the full CI run 27 min against 43; R2 shown by three probe runs, waits on the one-check ruleset; R6 the Happo amendment) | Priority P1 | Effort L | Depends: AJ-E2019
+### AJ-E2020 Release speed: promote the tested nightly, build CI once, test only what changed | Status: IN-PROGRESS (R1 to R5 evidenced: the full CI run 27 min against 43, three probe runs, main requires verify alone; R6 the Happo amendment) | Priority P1 | Effort L | Depends: AJ-E2019
 **Goal**: A release is the promotion of a tested build, and a pull request's CI builds once and runs only what its change touches.
 **User story**: As the maintainer, I ship a beta without a rebuild or a full re-walk, and a UI-only or Rust-only fix doesn't wait on the other half of CI.
 **Requirements**:

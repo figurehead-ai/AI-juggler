@@ -1,7 +1,7 @@
 # Evidence manifest — AJ-E2020
 
 Task: `docs/tasks/E20-engineering-and-security.md` AJ-E2020, release speed (P1). Ruling: D-99.
-Status: **IN-PROGRESS**. R1, R3, R4 and R5 pass; R2 waits on the one-check ruleset (the maintainer's setting) and R6 on the Happo amendment. 2026-11-13, claude-opus.
+Status: **IN-PROGRESS**. R1 to R5 pass; R6 waits on the Happo amendment. 2026-11-13, claude-opus.
 
 Run ids are GitHub Actions runs of figurehead-ai/AI-juggler
 (`https://github.com/figurehead-ai/AI-juggler/actions/runs/<id>`). Durations
@@ -30,19 +30,19 @@ the runs; every verdict below was checked again on Opus against the API
 | UI-only (`ui/src/lib/window-title.ts`) | 43403942121 | tests (build) and slices (`juggler-app`, `juggler-agentbridge`), ui, visual shards, a11y shards, rc-dev-app | build-macos, build-linux, build-windows, static (Rust), dev-bridge, coverage, floor-gallery | FAIL: one gallery capture (agent-tools question, dark, 6 415 px) that passed in 43403799722 on the same UI code, a flaky capture; it also shows `verify` failing when a filtered-in job fails | 44 min |
 | Rust-only (`crates/juggler-vm-stats`) | 43403953672 | static (Rust), tests (build) and slices, dev-bridge, coverage, build-macos, build-linux, build-windows, rc-dev-app | ui, visual shards, a11y shards, floor-gallery | PASS | 42 min |
 
-Each matches `scripts/ci_scope.py BASE HEAD` for its change. What R2 still lacks is main's ruleset requiring `verify` alone.
+Each matches `scripts/ci_scope.py BASE HEAD` for its change; since 2026-11-13 main's ruleset requires `verify` alone (below).
 
 **R5, the critical path.** release/0.5's draft release pull request (#231), a full run, run **43403799722**: **27 min** wall-clock, all green, against a median of 43.1 min before (the five full runs above). `rc-dev-app` 21.2 min and `rc-v49` 24.8 min ran side by side, then `rc-first-open` 1.6 min uploaded `rc-dev-app-<commit>`. `rc-v49`'s own cache isn't saved until the change reaches main (caches save on main only), so 24.8 min is its cold time. The UI-only and Rust-only probes, on main's `ci.yml` with the two builds one after the other, took 42 and 44 min.
 
 | Requirement | Proof | Verdict | Date | Reviewer |
 |---|---|---|---|---|
 | R2 (runs) | 43403933817, 43403942121, 43403953672: each change kind ran its expected jobs and left out the rest; the aggregate passed and failed as it should | PARTIAL (the ruleset) | 2026-11-13 | claude-opus |
+| R2 (one required check) | Main's ruleset "main protection" (25344214) requires `verify` alone since 2026-11-13 (updated 12:19 UTC; before: verify, ui, build-macos, build-linux, build-windows, visual; deletion, non-fast-forward and pull_request rules unchanged). Changed by the coordinating session on the maintainer's approval ("A, go ahead and change it"); checked with `gh api repos/figurehead-ai/AI-juggler/rules/branches/main` | PASS | 2026-11-13 | claude-opus |
 | R5 (after) | 43403799722: 27 min against a 43.1 min median, the release builds side by side | PASS | 2026-11-13 | claude-opus |
 
 ## What closes it
 
-1. R2: the ruleset requires `verify` alone (the maintainer's click).
-2. R5, after it reaches main: the cache total under 10 GB a day later, and `rc-v49` warm.
-3. R6: the requirement's text amended to Happo (with the ruling's D-number), and either Happo takes over the visual gate's screens (the PNGs leave git) or this requirement is narrowed by the maintainer.
+1. R5, after it reaches main: the cache total under 10 GB a day later, and `rc-v49` warm.
+2. R6: the requirement's text amended to Happo (with the ruling's D-number), and either Happo takes over the visual gate's screens (the PNGs leave git) or this requirement is narrowed by the maintainer.
 
 Last updated: 2026-11-13.
