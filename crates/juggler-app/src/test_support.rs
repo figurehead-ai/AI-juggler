@@ -42,6 +42,27 @@ pub(crate) fn bare_state(data: std::path::PathBuf) -> std::sync::Arc<crate::stat
     )
 }
 
+/// The Claude Code setup at `config` brought in where it is, as Account
+/// `label` (the conversations tests' own setup).
+pub(crate) fn claude_in_place(
+    state: &std::sync::Arc<crate::state::AppState>,
+    config: &std::path::Path,
+    label: &str,
+) -> crate::features::account::dto::AccountInfo {
+    crate::features::account::import::account_import_mode_impl(
+        state,
+        juggler_adapters::CLAUDE_CODE_ID,
+        &config.to_string_lossy(),
+        label,
+        crate::features::account::import::ImportRequest {
+            in_place: true,
+            ..crate::features::account::import::ImportRequest::default()
+        },
+    )
+    .expect("the setup brought in")
+    .account
+}
+
 /// A plain Account: not imported, no plan, nothing opted in.
 pub(crate) fn account(
     id: &str,

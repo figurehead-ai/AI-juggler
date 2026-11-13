@@ -43,6 +43,60 @@ impl Woke {
     }
 }
 
+/// AJ-E805 (0.4.5): what a watch's events said since it was last taken:
+/// the paths they named, or that anything may have changed. The
+/// conversation list's and the usage pipeline's gates read only what their
+/// events named, and everything after a lost track.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct Heard {
+    /// The paths the events named.
+    pub paths: BTreeSet<PathBuf>,
+    /// The system lost track ([`Woke::Rescan`]), or more paths changed than
+    /// are kept ([`Heard::MAX`]): anything may have changed.
+    pub lost: bool,
+}
+
+impl Heard {
+    /// The most paths kept between two takes.
+    pub const MAX: usize = 4096;
+
+    /// Notes one wake-up.
+    pub fn note(&mut self, woke: Woke) {
+        match woke {
+            Woke::Rescan => self.lost = true,
+            Woke::Paths(paths) => {
+                self.paths.extend(paths);
+                if self.paths.len() > Self::MAX {
+                    self.paths.clear();
+                    self.lost = true;
+                }
+            }
+        }
+    }
+
+    /// Something was heard.
+    #[must_use]
+    pub fn any(&self) -> bool {
+        self.lost || !self.paths.is_empty()
+    }
+
+    /// What was heard since the last take, emptied.
+    #[must_use]
+    pub fn take(heard: &Mutex<Self>) -> Self {
+        heard
+            .lock()
+            .map(|mut heard| std::mem::take(&mut *heard))
+            .unwrap_or_default()
+    }
+}
+
+/// Notes `woke` into `heard`.
+fn note_into(heard: &Mutex<Heard>, woke: Woke) {
+    if let Ok(mut heard) = heard.lock() {
+        heard.note(woke);
+    }
+}
+
 /// The callback a watch wakes.
 type OnChange = Arc<Mutex<Box<dyn Fn(Woke) + Send>>>;
 
@@ -124,6 +178,25 @@ impl FolderWake {
             recursive: true,
             ..Self::new(on_change)
         }
+    }
+
+    /// A [`FolderWake::trees`] watch keeping what its events said, to take
+    /// with [`Heard::take`].
+    #[must_use]
+    pub fn trees_heard() -> (Self, Arc<Mutex<Heard>>) {
+        let heard = Arc::new(Mutex::new(Heard::default()));
+        let into = Arc::clone(&heard);
+        (Self::trees(move |woke| note_into(&into, woke)), heard)
+    }
+
+    /// A [`FolderWake::by_hand`] watch keeping what its hand says, as
+    /// [`FolderWake::trees_heard`] keeps the system's.
+    #[must_use]
+    pub fn by_hand_heard() -> (Self, Hand, Arc<Mutex<Heard>>) {
+        let heard = Arc::new(Mutex::new(Heard::default()));
+        let into = Arc::clone(&heard);
+        let (wake, hand) = Self::by_hand(move |woke| note_into(&into, woke));
+        (wake, hand, heard)
     }
 
     /// Whether the system's file events can wake it (`false`: its

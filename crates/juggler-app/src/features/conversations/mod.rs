@@ -307,18 +307,11 @@ impl ConversationIndex {
     /// [`AppError::StatePoisoned`] when the index's lock is poisoned.
     pub fn all(&self) -> AppResult<Vec<Conversation>> {
         let files = self.files.lock().map_err(|_| AppError::StatePoisoned)?;
-        let mut out = merged(
+        Ok(newest_first(merged(
             files
                 .values()
                 .filter_map(|entry| entry.conversation.clone()),
-        );
-        out.sort_by(|a, b| {
-            b.summary
-                .last_ms
-                .cmp(&a.summary.last_ms)
-                .then_with(|| a.path.cmp(&b.path))
-        });
-        Ok(out)
+        )))
     }
 
     /// Whether the index holds any conversation (without copying them).
@@ -356,7 +349,7 @@ impl ConversationIndex {
                 )
             })
             .collect();
-        let mut out = merged(
+        Ok(newest_first(merged(
             conversations()
                 .filter(|c| {
                     kept.contains(&(
@@ -366,14 +359,7 @@ impl ConversationIndex {
                     ))
                 })
                 .cloned(),
-        );
-        out.sort_by(|a, b| {
-            b.summary
-                .last_ms
-                .cmp(&a.summary.last_ms)
-                .then_with(|| a.path.cmp(&b.path))
-        });
-        Ok(out)
+        )))
     }
 
     /// 0.4.3: the list has been read whole once since the start (what a
@@ -566,6 +552,17 @@ impl ConversationIndex {
             .map(|(key, (_, title, folder))| (key, (title, folder)))
             .collect()
     }
+}
+
+/// Newest activity first (then by file, so the order holds still).
+fn newest_first(mut conversations: Vec<Conversation>) -> Vec<Conversation> {
+    conversations.sort_by(|a, b| {
+        b.summary
+            .last_ms
+            .cmp(&a.summary.last_ms)
+            .then_with(|| a.path.cmp(&b.path))
+    });
+    conversations
 }
 
 /// One conversation per `(account, tool, id)`. A resumed or forked thread

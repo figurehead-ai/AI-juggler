@@ -149,7 +149,7 @@ pub(crate) fn full_scan(
         .filter(|process| !process.zombie)
         .map(|process| (process.pid, process))
         .collect();
-    let mut pids: Vec<u32> = listed
+    let pids: Vec<u32> = listed
         .values()
         .filter(|listed| {
             table
@@ -166,17 +166,31 @@ pub(crate) fn full_scan(
         )
         .chain(ours.iter().copied())
         .collect();
-    pids.sort_unstable();
-    pids.dedup();
-    let targets: Vec<sysinfo::Pid> = pids.into_iter().map(sysinfo::Pid::from_u32).collect();
-    table.refresh_processes_specifics(ProcessesToUpdate::Some(&targets), true, kind);
-    cpu.note(table, &targets, at);
-    cpu.forget_gone(table);
+    let read = refresh_these(table, cpu, pids, kind, at);
     let resident = listed
         .keys()
         .filter_map(|pid| Some((*pid, juggler_proc_list::resident(*pid)?)))
         .collect();
-    (targets.len() as u64, Some(resident))
+    (read, Some(resident))
+}
+
+/// Reads `pids` into `table` (`kind`; each once; a gone one dropped), notes
+/// their CPU time (`at`: just before) and forgets the gone ones' in `cpu`;
+/// how many it read.
+fn refresh_these(
+    table: &mut sysinfo::System,
+    cpu: &mut CpuSince,
+    mut pids: Vec<u32>,
+    kind: sysinfo::ProcessRefreshKind,
+    at: std::time::Instant,
+) -> u64 {
+    pids.sort_unstable();
+    pids.dedup();
+    let targets: Vec<sysinfo::Pid> = pids.into_iter().map(sysinfo::Pid::from_u32).collect();
+    table.refresh_processes_specifics(sysinfo::ProcessesToUpdate::Some(&targets), true, kind);
+    cpu.note(table, &targets, at);
+    cpu.forget_gone(table);
+    targets.len() as u64
 }
 
 /// Whether `held` (read earlier) is the process the listing names: the
@@ -229,13 +243,7 @@ pub(crate) fn read(
             })
             .map(|(pid, _)| pid.as_u32()),
     );
-    pids.sort_unstable();
-    pids.dedup();
-    let targets: Vec<sysinfo::Pid> = pids.into_iter().map(sysinfo::Pid::from_u32).collect();
-    table.refresh_processes_specifics(ProcessesToUpdate::Some(&targets), true, kind);
-    cpu.note(table, &targets, at);
-    cpu.forget_gone(table);
-    listed.read = targets.len() as u64;
+    listed.read = refresh_these(table, cpu, pids, kind, at);
     listed
 }
 

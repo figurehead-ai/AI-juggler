@@ -20,26 +20,15 @@
 //!   (ADR-0024: events are hints; a late or lost one delays a change by
 //!   that much at most).
 
-use std::collections::{BTreeMap, BTreeSet, HashSet};
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
-use juggler_adapters::folder_wake::{FolderWake, Woke};
+use juggler_adapters::folder_wake::{FolderWake, Heard};
 
 /// The longest between two passes that look at every file anyway.
 pub const SWEEP_EVERY: Duration = Duration::from_secs(300);
-
-/// More changed paths than this between two passes reads everything.
-const HEARD_MAX: usize = 10_000;
-
-/// What the system's events said since the last pass.
-#[derive(Debug, Default)]
-struct Heard {
-    paths: HashSet<PathBuf>,
-    /// The system lost track (or too much changed to keep): read it all.
-    lost: bool,
-}
 
 /// What one pass reads.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -93,29 +82,12 @@ impl std::fmt::Debug for Gate {
     }
 }
 
-fn hear(heard: &Mutex<Heard>, woke: Woke) {
-    let Ok(mut heard) = heard.lock() else {
-        return;
-    };
-    match woke {
-        Woke::Rescan => heard.lost = true,
-        Woke::Paths(paths) => {
-            heard.paths.extend(paths);
-            if heard.paths.len() > HEARD_MAX {
-                heard.paths.clear();
-                heard.lost = true;
-            }
-        }
-    }
-}
-
 impl Gate {
     /// A gate on the system's file events.
     #[must_use]
     pub fn new() -> Self {
-        let heard = Arc::new(Mutex::new(Heard::default()));
-        let into = Arc::clone(&heard);
-        Self::with(FolderWake::trees(move |woke| hear(&into, woke)), heard)
+        let (wake, heard) = FolderWake::trees_heard();
+        Self::with(wake, heard)
     }
 
     fn with(wake: FolderWake, heard: Arc<Mutex<Heard>>) -> Self {
@@ -131,9 +103,7 @@ impl Gate {
     /// A gate that hears only its hand (the tests' events).
     #[cfg(test)]
     pub(crate) fn by_hand() -> (Self, juggler_adapters::folder_wake::Hand) {
-        let heard = Arc::new(Mutex::new(Heard::default()));
-        let into = Arc::clone(&heard);
-        let (wake, hand) = FolderWake::by_hand(move |woke| hear(&into, woke));
+        let (wake, hand, heard) = FolderWake::by_hand_heard();
         (Self::with(wake, heard), hand)
     }
 
@@ -146,11 +116,7 @@ impl Gate {
         now: Instant,
     ) -> Plan {
         let moved = self.watch(accounts);
-        let heard = self
-            .heard
-            .lock()
-            .map(|mut heard| std::mem::take(&mut *heard))
-            .unwrap_or_default();
+        let heard = Heard::take(&self.heard);
         let due = self
             .swept_at
             .is_none_or(|at| now.saturating_duration_since(at) >= SWEEP_EVERY);
@@ -240,6 +206,7 @@ mod tests {
     #![allow(clippy::unwrap_used, clippy::panic, reason = "test code")]
 
     use super::*;
+    use juggler_adapters::folder_wake::Woke;
 
     fn at(t0: Instant, secs: u64) -> Instant {
         t0 + Duration::from_secs(secs)

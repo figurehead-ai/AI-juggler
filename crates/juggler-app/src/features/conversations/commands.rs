@@ -1030,17 +1030,7 @@ mod tests {
         let state = Arc::new(
             crate::state::AppState::init_with_registry(root.join("app-data"), registry).unwrap(),
         );
-        crate::features::account::import::account_import_mode_impl(
-            &state,
-            juggler_adapters::CLAUDE_CODE_ID,
-            config.to_str().unwrap(),
-            "Work",
-            crate::features::account::import::ImportRequest {
-                in_place: true,
-                ..crate::features::account::import::ImportRequest::default()
-            },
-        )
-        .unwrap();
+        crate::test_support::claude_in_place(&state, &config, "Work");
         state.conversations.set_live_model(LiveModel {
             started: vec![StartedLink {
                 tool: "claude-code".into(),

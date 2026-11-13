@@ -38,7 +38,7 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
-use juggler_adapters::folder_wake::{FolderWake, Woke};
+use juggler_adapters::folder_wake::{FolderWake, Heard};
 
 use super::{FILE_SCAN_EVERY, ZCODE_EVERY};
 use crate::state::AppState;
@@ -91,40 +91,6 @@ impl Due {
     }
 }
 
-/// More changed paths than this between two passes walks everything.
-const HEARD_MAX: usize = 4096;
-
-/// What the system's events said since the last pass.
-#[derive(Debug, Default)]
-struct Heard {
-    paths: BTreeSet<PathBuf>,
-    /// Something changed whose paths weren't all kept (a lost track, too
-    /// many): walk everything.
-    lost: bool,
-}
-
-impl Heard {
-    fn woke(&self) -> bool {
-        self.lost || !self.paths.is_empty()
-    }
-}
-
-fn hear(heard: &Mutex<Heard>, woke: Woke) {
-    let Ok(mut heard) = heard.lock() else {
-        return;
-    };
-    match woke {
-        Woke::Rescan => heard.lost = true,
-        Woke::Paths(paths) => {
-            heard.paths.extend(paths);
-            if heard.paths.len() > HEARD_MAX {
-                heard.paths.clear();
-                heard.lost = true;
-            }
-        }
-    }
-}
-
 /// Decides each second whether a pass runs, from the file events heard
 /// since the last one and the cadences above.
 pub(crate) struct Gate {
@@ -143,10 +109,9 @@ impl Gate {
     /// A gate on the system's file events (nothing watched until
     /// [`Gate::watch`]).
     pub fn new() -> Self {
-        let heard = Arc::new(Mutex::new(Heard::default()));
-        let into = Arc::clone(&heard);
+        let (wake, heard) = FolderWake::trees_heard();
         Self {
-            wake: FolderWake::trees(move |woke| hear(&into, woke)),
+            wake,
             heard,
             roots: BTreeSet::new(),
             stores_probed: false,
@@ -160,15 +125,11 @@ impl Gate {
         if !self.wake.hears_the_system() {
             return Some(every);
         }
-        let heard = self
-            .heard
-            .lock()
-            .map(|mut heard| std::mem::take(&mut *heard))
-            .unwrap_or_default();
+        let heard = Heard::take(&self.heard);
         let soon = SOON.swap(false, Ordering::AcqRel);
         let records = crate::features::quota::records::will_be_due(tick);
         let stores = !self.stores_probed || STORE_SEEN.load(Ordering::Acquire);
-        let due = decide(tick, heard.woke() || soon, records, stores);
+        let due = decide(tick, heard.any() || soon, records, stores);
         if due.is_some_and(|due| due.stores) {
             self.stores_probed = true;
         }

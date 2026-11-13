@@ -690,7 +690,7 @@
   "jscpd:lines": 13
  },
  "crates/juggler-supervisor/src/live_stats.rs": {
-  "jscpd:lines": 87
+  "jscpd:lines": 67
  },
  "crates/juggler-supervisor/src/machine.rs": {
   "jscpd:lines": 20
@@ -708,7 +708,7 @@
   "jscpd:lines": 15
  },
  "crates/lib/ipc/app-lifecycle.ts": {
-  "jscpd:lines": 34
+  "jscpd:lines": 31
  },
  "crates/lib/ipc/backup.ts": {
   "jscpd:lines": 27
@@ -723,7 +723,7 @@
   "jscpd:lines": 38
  },
  "crates/lib/ipc/instances.ts": {
-  "jscpd:lines": 140
+  "jscpd:lines": 58
  },
  "crates/lib/ipc/messages.ts": {
   "jscpd:lines": 20

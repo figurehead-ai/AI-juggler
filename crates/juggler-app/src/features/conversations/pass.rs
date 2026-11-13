@@ -348,18 +348,7 @@ mod tests {
             "/bin/true",
         )));
         let state = Arc::new(AppState::init_with_registry(root.join("data"), registry).unwrap());
-        let account = crate::features::account::import::account_import_mode_impl(
-            &state,
-            juggler_adapters::CLAUDE_CODE_ID,
-            config.to_str().unwrap(),
-            "Work",
-            crate::features::account::import::ImportRequest {
-                in_place: true,
-                ..crate::features::account::import::ImportRequest::default()
-            },
-        )
-        .unwrap()
-        .account;
+        let account = crate::test_support::claude_in_place(&state, &config, "Work");
         let accounts = state.storage.lock().unwrap().accounts().list().unwrap();
         let every = std::time::Duration::ZERO;
         refresh_files(&state, &accounts, every, &|| {}, None).unwrap();
