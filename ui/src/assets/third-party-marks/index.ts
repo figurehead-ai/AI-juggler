@@ -27,4 +27,5 @@ export const MARKS: Record<string, MarkEntry> = {
   kimi: { owner: "Moonshot AI", allowed: false },
   grok: { owner: "xAI", allowed: false },
   zcode: { owner: "Z.ai", allowed: false },
+  muse: { owner: "Meta", allowed: false },
 };

@@ -1,7 +1,7 @@
 /**
  * AJ-E1525: the tools catalog the preview and the tests run on, matching
  * what the adapters' specs serve (crates/juggler-adapters claude_code.rs,
- * codex.rs, opencode.rs, kimi_code.rs, grok_build.rs and zcode.rs `*_spec()`). Preview data only — the app reads
+ * codex.rs, opencode.rs, kimi_code.rs, grok_build.rs, zcode.rs and muse.rs `*_spec()`). Preview data only — the app reads
  * `tools_catalog`. Tests can swap it through `window.__AIJ_TOOLS__`.
  */
 import type { ToolSpecInfo } from "../types/generated/ToolSpecInfo";
@@ -230,6 +230,52 @@ export const PREVIEW_TOOLS: ToolSpecInfo[] = [
       beta: false,
       terms_note:
         "Its sessions run on ZCode's own engine, started the way ZCode's desktop app starts it; AI Juggler hands it no credential.",
+    },
+  },
+  {
+    id: "muse-code",
+    display_name: "Muse Code",
+    short_name: "Muse",
+    vendor: "Meta",
+    mark: "muse",
+    vendor_mark: null,
+    install_url: "https://dev.meta.ai/docs/muse-code/",
+    install_command: "curl -fsSL https://dev.meta.ai/install.sh | sh",
+    sign_in_own: "Muse Code's own sign-in",
+    sign_in_short: "Muse Code's",
+    same_as: "as when you run Muse Code yourself",
+    desktop_app: null,
+    kinds: ["cli"],
+    rules_files: ["AGENTS.md"],
+    scan_hint: "Looks for your own Muse Code setup. Nothing is changed.",
+    setup_groups: [{ id: "muse-code", title: "Muse Code", path_contains: null, origin: null, shows_install: true }],
+    default_label: "Muse Code",
+    flow: { first_run: true, primary: false },
+    terms: {
+      name: "Meta Model API Terms of Service",
+      url: "https://dev.meta.ai/legal/terms-of-service",
+      accounts:
+        "Meta's Model API terms say a subscription's credential is for use only with its coding harness, an API key is never shared, and rate limits and usage quotas are never evaded.",
+      checked: "2026-11-13",
+    },
+    home_env: [
+      "HOME",
+      "XDG_CONFIG_HOME",
+      "XDG_DATA_HOME",
+      "CODEX_HOME",
+      "CLAUDE_CONFIG_DIR",
+      "MUSE_NO_AUTO_UPDATE",
+      "TBH_CREDENTIAL_BACKEND",
+      "MUSE_AUTH_PATH",
+      "MUSE_PROJECTS_HOME",
+      "AI_JUGGLER_MUSE_BIN",
+    ],
+    supports: { in_place: true, limits: true, app_meter: false, thread_link: false, agent_tools: false, resume: true },
+    runtime: {
+      label: "Muse's session server",
+      beta: false,
+      terms_note:
+        "Its sessions run through your own Muse Code's session server (muse serve), with that account's own sign-in: Meta's SDK is made for that, and AI Juggler never takes Muse's credential.",
     },
   },
 ];

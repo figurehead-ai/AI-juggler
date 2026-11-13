@@ -117,7 +117,9 @@ fn perform(state: &Arc<AppState>, ask: &Ask) -> &'static str {
     }
 }
 
-/// Keeps the windows a tool's service named as readings from it.
+/// Keeps the windows a tool's service named as readings from it, and the
+/// plan's name it printed on an account that names none yet (the user's
+/// own word is never replaced).
 fn keep(
     state: &Arc<AppState>,
     account_id: &str,
@@ -135,8 +137,16 @@ fn keep(
             )
         })
         .collect();
-    let kept = lock_storage_arc(state)
-        .is_ok_and(|storage| storage.usage().insert_sourced_samples(&rows).is_ok());
+    let kept = lock_storage_arc(state).is_ok_and(|storage| {
+        if let Some(plan) = &reading.plan
+            && let Ok(mut account) = storage.accounts().get(&AccountId::new(account_id))
+            && account.plan.is_none()
+        {
+            account.plan = Some(juggler_core::model::PlanTier::new(plan.clone()));
+            let _ = storage.accounts().update(&account);
+        }
+        storage.usage().insert_sourced_samples(&rows).is_ok()
+    });
     if kept { "ran" } else { "failed" }
 }
 

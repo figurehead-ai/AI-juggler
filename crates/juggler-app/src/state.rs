@@ -573,6 +573,9 @@ fn registry_with(claude: juggler_adapters::ClaudeCodeAdapter) -> AdapterRegistry
     // (its adapter reads it from its store), and switching from it waits
     // for the live check (AJ-E1612).
     registry.register(std::sync::Arc::new(juggler_adapters::ZCodeAdapter::new()));
+    // AJ-E1608: Meta's Muse Code, driven over `muse serve`. No handover
+    // support yet, so nothing is switched to or from it.
+    registry.register(std::sync::Arc::new(juggler_adapters::MuseAdapter::new()));
     registry
 }
 
