@@ -956,8 +956,9 @@ pub fn run() {
         .manage(app_state)
         // 0.3.5 (ADR-0024, T2): the conversations pages follow.
         .manage(Arc::new(features::conversations::feed::Feeds::default()))
-        // AJ-E1503: ⌘Q and the close button ask first while sessions
-        // are live (the predefined Quit item would quit without asking).
+        // AJ-E1503: ⌘Q asks first while sessions are live (the
+        // predefined Quit item would quit without asking); D-112: the
+        // close button hides the window (main_window.rs).
         .menu(quit::app_menu)
         .on_menu_event(|app, event| {
             if event.id() == quit::QUIT_MENU_ID {

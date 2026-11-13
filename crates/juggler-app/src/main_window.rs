@@ -17,8 +17,10 @@
 //! empty Space behind). The first close that hides it is told once, the
 //! next time the window is on screen ([`CloseNote`]).
 
-// Tauri command signatures take State by value (as in commands.rs).
-#![allow(clippy::needless_pass_by_value)]
+#![allow(
+    clippy::needless_pass_by_value,
+    reason = "Tauri command signatures take State by value"
+)]
 
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
