@@ -27,7 +27,8 @@ mod zcode_fixture;
 use std::path::{Path, PathBuf};
 
 use juggler_adapter::launch::ENV_UNSET;
-use juggler_adapter::{AdapterError, InstallStatus, LaunchMode};
+use juggler_adapter::runtime::{DrivenLaunch, DrivenRuntime, ImportedHistory, Runtime, Transport};
+use juggler_adapter::{AdapterError, Capabilities, InstallStatus, LaunchMode, ToolRuntime};
 use juggler_adapters::zcode::{isolation_took, parse_version, session_process};
 use juggler_adapters::{LoginState, ZCODE_ID, ZCodeAdapter};
 use juggler_core::model::{Account, AccountId, HarnessId, Profile, ProfileId, SettingsOverlay};
@@ -66,13 +67,17 @@ fn profile(env: &[(&str, &str)]) -> Profile {
     }
 }
 
-/// A `node` stand-in that prints `version` only when asked the engine's
-/// `version` (its second word), as `node <engine> version` does.
-fn node(dir: &Path, version: &str) -> PathBuf {
-    let path = dir.join("node");
+/// A stand-in for the app's own runtime (`ZCode.app/Contents/MacOS/ZCode`)
+/// that prints `version` only when run as Node.js and asked the engine's
+/// `version` (its second word), as `ELECTRON_RUN_AS_NODE=1 ZCode <engine>
+/// version` does.
+fn runtime(path: &Path, version: &str) -> PathBuf {
+    let path = path.to_path_buf();
     write(
         &path,
-        &format!("#!/bin/sh\nif [ \"$2\" = version ]; then echo {version:?}; else exit 3; fi\n"),
+        &format!(
+            "#!/bin/sh\nif [ \"$ELECTRON_RUN_AS_NODE\" = 1 ] && [ \"$2\" = version ]; then echo {version:?}; else exit 3; fi\n"
+        ),
     );
     #[cfg(unix)]
     {
@@ -102,13 +107,14 @@ fn files(dir: &Path) -> std::collections::BTreeMap<PathBuf, Vec<u8>> {
     out
 }
 
-/// A sandbox: a home, an Applications folder with `ZCode.app`, a `node`.
+/// A sandbox: a home, an Applications folder with `ZCode.app` and its
+/// runtime stand-in.
 struct World {
     _root: tempfile::TempDir,
     base: PathBuf,
     home: PathBuf,
     engine: PathBuf,
-    node: PathBuf,
+    runtime: PathBuf,
 }
 
 impl World {
@@ -119,20 +125,24 @@ impl World {
         let apps = base.join("Applications");
         std::fs::create_dir_all(&home).unwrap();
         let engine = zcode_fixture::app(&apps, "dev.zcode.app");
-        let node = node(&base.join("bin"), "0.16.9");
+        let runtime = runtime(&apps.join("ZCode.app/Contents/MacOS/ZCode"), "0.16.9");
         Self {
             _root: root,
             base,
             home,
             engine,
-            node,
+            runtime,
         }
     }
 
+    /// The adapter on the app's own runtime, found in its bundle.
     fn adapter(&self) -> ZCodeAdapter {
-        ZCodeAdapter::with_engine(&self.engine)
-            .with_node(&self.node)
-            .with_home(&self.home)
+        ZCodeAdapter::with_engine(&self.engine).with_home(&self.home)
+    }
+
+    fn builtin(&self) -> PathBuf {
+        self.base
+            .join("Applications/ZCode.app/Contents/Resources/config/provider/zcode-builtin.json")
     }
 }
 
@@ -152,7 +162,6 @@ fn zcode_is_found_by_its_app_bundle_and_versioned_by_its_engine() {
             world.base.join("nowhere"),
             world.base.join("Applications"),
         ])
-        .with_node(&world.node)
         .with_home(&world.home);
     assert_eq!(adapter.locate().as_deref(), Some(world.engine.as_path()));
     let found = adapter.discover();
@@ -162,7 +171,7 @@ fn zcode_is_found_by_its_app_bundle_and_versioned_by_its_engine() {
         InstallStatus::Installed {
             version: "0.16.9".into()
         },
-        "node <engine> version"
+        "ELECTRON_RUN_AS_NODE=1 <app runtime> <engine> version"
     );
     assert_eq!(
         found.verification,
@@ -179,16 +188,21 @@ fn zcode_is_found_by_its_app_bundle_and_versioned_by_its_engine() {
     std::fs::create_dir_all(other.join("ZCode.app/Contents/Resources")).unwrap();
     let elsewhere = ZCodeAdapter::new()
         .with_app_dirs(vec![other.clone()])
-        .with_node(&world.node)
         .with_home(&world.home);
     assert_eq!(elsewhere.locate(), None);
     assert_eq!(elsewhere.discover().install, InstallStatus::NotFound);
 
-    // An engine its Node.js can't run reports the failure.
-    let broken = ZCodeAdapter::with_engine(&world.engine).with_node("/nonexistent/node");
+    // A runtime that can't run it, or none, reports the failure; no
+    // Node.js of the user's is looked for.
+    let broken = ZCodeAdapter::with_engine(&world.engine).with_runtime("/nonexistent/ZCode");
     assert!(matches!(
         broken.discover().install,
         InstallStatus::Failed { .. }
+    ));
+    std::fs::remove_file(&world.runtime).unwrap();
+    assert!(matches!(
+        world.adapter().discover().install,
+        InstallStatus::Failed { message } if message.contains("no runtime")
     ));
 }
 
@@ -230,7 +244,7 @@ fn each_app_has_its_own_tree_and_zcodes_own_runs_with_the_variables_unset() {
 
     // Pinned after hostile overrides; inherited movers removed.
     let spec = adapter
-        .launch_spec(
+        .driven_spec(
             &account(&a),
             &profile(&[
                 ("ZCODE_STORAGE_DIR", "/elsewhere"),
@@ -241,9 +255,10 @@ fn each_app_has_its_own_tree_and_zcodes_own_runs_with_the_variables_unset() {
                 ("KEEP", "kept"),
             ]),
             &world.base,
-            &LaunchMode::Interactive,
+            &fresh(None),
         )
-        .unwrap();
+        .unwrap()
+        .launch;
     assert_eq!(spec.env.get("ZCODE_STORAGE_DIR"), Some(&tree));
     assert_eq!(spec.env.get("ZCODE_DATA_BASE_DIR"), Some(&base));
     assert_eq!(spec.env.get("ZCODE_SESSION_DB_PATH"), Some(&store));
@@ -260,13 +275,14 @@ fn each_app_has_its_own_tree_and_zcodes_own_runs_with_the_variables_unset() {
         "HOME is never moved (git identity, SSH keys)"
     );
     let default_spec = adapter
-        .launch_spec(
+        .driven_spec(
             &account(&default),
             &profile(&[("ZCODE_STORAGE_DIR", "/elsewhere")]),
             &world.base,
-            &LaunchMode::Interactive,
+            &fresh(None),
         )
-        .unwrap();
+        .unwrap()
+        .launch;
     for key in [
         "ZCODE_STORAGE_DIR",
         "ZCODE_DATA_BASE_DIR",
@@ -279,12 +295,21 @@ fn each_app_has_its_own_tree_and_zcodes_own_runs_with_the_variables_unset() {
         );
     }
 
-    // The copyable line names the engine and keeps the same rules.
-    let line =
-        juggler_adapter::adapter::shell_snippet(&adapter, &a, &std::collections::BTreeMap::new())
-            .unwrap();
-    assert!(line.contains("ZCODE_SESSION_DB_PATH="), "{line}");
-    assert!(line.contains("-u ZCODE_SESSION_DB "), "{line}");
+    // No terminal UI: no copyable line to type.
+    assert_eq!(
+        juggler_adapter::adapter::shell_snippet(&adapter, &a, &std::collections::BTreeMap::new()),
+        None
+    );
+}
+
+/// A driven launch: new, resumed or importing `history`.
+fn fresh(resume: Option<&str>) -> DrivenLaunch {
+    DrivenLaunch {
+        socket: PathBuf::from("/nowhere/kit.sock"),
+        resume: resume.map(str::to_owned),
+        fresh_id: "0b1c2d3e-0000-4000-8000-0000000000aa".into(),
+        history: None,
+    }
 }
 
 #[test]
@@ -301,51 +326,21 @@ fn the_launch_check_refuses_an_app_whose_tree_the_engine_did_not_write() {
 }
 
 #[test]
-fn launches_run_the_engine_on_node_and_resume_by_session_id() {
+fn sessions_run_driven_on_the_apps_own_runtime_and_no_terminal_is_offered() {
     let world = World::new();
     let adapter = world.adapter();
     let a = world.base.join("accounts/a");
     adapter.prepare_account(&a).unwrap();
     let project = world.base.join("work");
-    let launch =
-        |mode: &LaunchMode| adapter.launch_spec(&account(&a), &profile(&[]), &project, mode);
     let engine = world.engine.to_string_lossy().into_owned();
+    let builtin = world.builtin().to_string_lossy().into_owned();
 
-    let fresh = launch(&LaunchMode::Interactive).unwrap();
-    assert_eq!(fresh.program, world.node);
-    assert_eq!(fresh.args, std::slice::from_ref(&engine));
-    assert!(fresh.needs_pty);
-    assert_eq!(fresh.cwd, project);
-
-    let resumed = launch(&LaunchMode::Resume {
-        session_id: "sess_0a1b".into(),
-        delta_prompt: None,
-    })
-    .unwrap();
-    assert_eq!(
-        resumed.args,
-        [engine.clone(), "--resume".into(), "sess_0a1b".into()]
-    );
-    assert_eq!(
-        adapter.resume_args("sess_0a1b"),
-        Some(vec!["--resume".into(), "sess_0a1b".into()])
-    );
-    assert_eq!(adapter.resume_args("-c"), None);
-    for id in ["", "-c", "--continue"] {
-        assert!(matches!(
-            launch(&LaunchMode::Resume {
-                session_id: id.into(),
-                delta_prompt: None,
-            }),
-            Err(AdapterError::InvalidLaunch(_))
-        ));
-    }
-    // Not offered yet, each saying so: a message on resume, a first
-    // message, a run without a terminal (its -p defaults to yolo).
+    // Every terminal launch refuses, saying why: the app ships no TUI.
     for mode in [
+        LaunchMode::Interactive,
         LaunchMode::Resume {
             session_id: "sess_0a1b".into(),
-            delta_prompt: Some("go on".into()),
+            delta_prompt: None,
         },
         LaunchMode::Primed {
             prompt: "hello".into(),
@@ -355,15 +350,144 @@ fn launches_run_the_engine_on_node_and_resume_by_session_id() {
             prompt: "hello".into(),
         },
     ] {
-        assert!(
-            matches!(launch(&mode), Err(AdapterError::Unsupported(_))),
-            "{mode:?}"
-        );
+        match adapter.launch_spec(&account(&a), &profile(&[]), &project, &mode) {
+            Err(AdapterError::Unsupported(why)) => assert!(why.contains("no terminal UI"), "{why}"),
+            other => panic!("{mode:?}: {other:?}"),
+        }
     }
+    assert_eq!(adapter.resume_args("sess_0a1b"), None);
+    assert!(!adapter.capabilities().contains(Capabilities::HEADLESS));
     assert!(
-        !adapter
+        adapter
             .capabilities()
-            .contains(juggler_adapter::Capabilities::HEADLESS)
+            .contains(Capabilities::PROTOCOL_SERVER)
+    );
+    let driven = adapter.driven().expect("driven is its runtime");
+    assert!(!driven.terminal_ui());
+    assert!(driven.imports_history());
+    assert_eq!(driven.default_runtime(), Runtime::Driven);
+    assert_eq!(driven.unavailable(), None);
+
+    // The server, as the desktop app starts it, on the app's runtime.
+    let new = driven
+        .driven_spec(&account(&a), &profile(&[]), &project, &fresh(None))
+        .unwrap();
+    assert_eq!(new.launch.program, world.runtime);
+    assert_eq!(
+        new.launch.args,
+        [engine.clone(), "app-server".into(), "--stdio".into()]
+    );
+    assert!(!new.launch.needs_pty);
+    assert_eq!(new.launch.cwd, project);
+    assert_eq!(new.transport, Transport::Stdio);
+    assert_eq!(new.native_id, None, "the engine names a new session");
+    assert_eq!(
+        new.launch
+            .env
+            .get("ELECTRON_RUN_AS_NODE")
+            .map(String::as_str),
+        Some("1")
+    );
+    assert_eq!(
+        new.launch.env.get("ZCODE_BUILTIN_PROVIDER_CONFIG_FILE"),
+        Some(&builtin)
+    );
+    assert!(!new.launch.env.contains_key("ZCODE_APP_VERSION"));
+    // An override can't move the runtime's mode or the provider settings.
+    let hostile = driven
+        .driven_spec(
+            &account(&a),
+            &profile(&[
+                ("ELECTRON_RUN_AS_NODE", "0"),
+                ("ZCODE_BUILTIN_PROVIDER_CONFIG_FILE", "/elsewhere.json"),
+            ]),
+            &project,
+            &fresh(None),
+        )
+        .unwrap();
+    assert_eq!(
+        hostile
+            .launch
+            .env
+            .get("ELECTRON_RUN_AS_NODE")
+            .map(String::as_str),
+        Some("1")
+    );
+    assert_eq!(
+        hostile.launch.env.get("ZCODE_BUILTIN_PROVIDER_CONFIG_FILE"),
+        Some(&builtin)
+    );
+
+    // A resume names the session over the protocol, never as an option.
+    let resumed = driven
+        .driven_spec(
+            &account(&a),
+            &profile(&[]),
+            &project,
+            &fresh(Some("sess_0a1b")),
+        )
+        .unwrap();
+    assert_eq!(resumed.native_id.as_deref(), Some("sess_0a1b"));
+    assert_eq!(resumed.launch.args, new.launch.args);
+    for id in ["", "-c", "--continue"] {
+        assert!(matches!(
+            driven.driven_spec(&account(&a), &profile(&[]), &project, &fresh(Some(id))),
+            Err(AdapterError::InvalidLaunch(_))
+        ));
+    }
+    // A pack's conversation comes in under an id of the engine's shape.
+    let history = ImportedHistory {
+        title: "Handover".into(),
+        turns: vec![("user".into(), "the brief".into())],
+    };
+    let imported = driven
+        .driven_spec(
+            &account(&a),
+            &profile(&[]),
+            &project,
+            &DrivenLaunch {
+                history: Some(history.clone()),
+                ..fresh(None)
+            },
+        )
+        .unwrap();
+    assert_eq!(
+        imported.native_id.as_deref(),
+        Some("sess_0b1c2d3e-0000-4000-8000-0000000000aa")
+    );
+    assert_eq!(imported.history, Some(history.clone()));
+    // Not on a resume.
+    let not = driven
+        .driven_spec(
+            &account(&a),
+            &profile(&[]),
+            &project,
+            &DrivenLaunch {
+                history: Some(history),
+                ..fresh(Some("sess_0a1b"))
+            },
+        )
+        .unwrap();
+    assert_eq!(not.history, None);
+    // No terminal view either.
+    assert!(matches!(
+        driven.terminal_view(
+            &account(&a),
+            &profile(&[]),
+            &project,
+            &juggler_adapter::runtime::ViewOf {
+                native_id: "sess_0a1b".into(),
+                socket: None,
+            },
+        ),
+        Err(AdapterError::Unsupported(_))
+    ));
+    // Without the app's provider settings, it says so.
+    std::fs::remove_file(world.builtin()).unwrap();
+    assert!(
+        driven
+            .unavailable()
+            .is_some_and(|why| why.contains("provider settings"))
     );
 }
 
@@ -392,7 +516,11 @@ fn the_sign_in_probe_sees_the_file_never_its_contents_and_login_runs_in_the_tree
     assert_eq!(adapter.login_state(&a), LoginState::LoggedOut);
 
     let login = adapter.login_spec(&a).unwrap();
-    assert_eq!(login.program, world.node);
+    assert_eq!(login.program, world.runtime);
+    assert_eq!(
+        login.env.get("ELECTRON_RUN_AS_NODE").map(String::as_str),
+        Some("1")
+    );
     assert_eq!(
         login.args,
         [world.engine.to_string_lossy().into_owned(), "login".into()]

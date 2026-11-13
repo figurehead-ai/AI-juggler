@@ -1,8 +1,9 @@
 //! AJ-E1605 integration: ZCode is a registered Provider — listed with its
-//! spec, an App gets its own tree and passes the isolation checklist, its
-//! copyable line pins the tree, and its sessions become projects with the
-//! store left unchanged. Synthetic files and a stand-in `node` only; no
-//! `ZCode` runs and no real `~/.zcode` is opened.
+//! spec, an App gets its own tree and passes the isolation checklist, it
+//! offers no copyable terminal line (its app ships no terminal UI), and
+//! its sessions become projects with the store left unchanged. Synthetic
+//! files and a stand-in runtime only; no `ZCode` runs and no real
+//! `~/.zcode` is opened.
 
 #![allow(
     clippy::unwrap_used,
@@ -23,9 +24,9 @@ use juggler_adapter::AdapterRegistry;
 use juggler_adapters::{ZCODE_ID, ZCodeAdapter};
 use juggler_app::state::AppState;
 
-fn node(dir: &Path) -> PathBuf {
+fn runtime(dir: &Path) -> PathBuf {
     use std::os::unix::fs::PermissionsExt;
-    let path = dir.join("bin/node");
+    let path = dir.join("bin/ZCode");
     std::fs::create_dir_all(path.parent().unwrap()).unwrap();
     std::fs::write(&path, "#!/bin/sh\necho '0.16.9'\n").unwrap();
     std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755)).unwrap();
@@ -37,7 +38,7 @@ fn app_state(dir: &Path) -> Arc<AppState> {
     let mut registry = AdapterRegistry::new();
     registry.register(Arc::new(
         ZCodeAdapter::with_engine(engine)
-            .with_node(node(dir))
+            .with_runtime(runtime(dir))
             .with_home(dir.join("home")),
     ));
     Arc::new(AppState::init_with_registry(dir.join("app-data"), registry).unwrap())
@@ -73,7 +74,7 @@ fn state_dir_of(state: &AppState, id: &str) -> PathBuf {
 }
 
 #[test]
-fn zcode_is_listed_isolated_and_its_shell_line_pins_its_tree() {
+fn zcode_is_listed_isolated_and_offers_no_terminal_line() {
     let registry = juggler_app::state::default_registry();
     let spec = registry
         .get(&juggler_core::model::HarnessId::new(ZCODE_ID))
@@ -95,27 +96,8 @@ fn zcode_is_listed_isolated_and_its_shell_line_pins_its_tree() {
         None,
     )
     .unwrap();
-    let snippet = expert.shell_snippet.unwrap();
-    for key in [
-        "ZCODE_STORAGE_DIR",
-        "ZCODE_DATA_BASE_DIR",
-        "ZCODE_SESSION_DB_PATH",
-    ] {
-        assert!(snippet.contains(&format!("{key}=")), "{snippet}");
-    }
-    assert!(snippet.contains("-u ZCODE_SESSION_DB "), "{snippet}");
-    // No `zcode` is on a PATH: where the user's PATH is known, the line
-    // names the engine by its path instead.
-    let line = juggler_adapter::adapter::snippet_program(
-        "zcode",
-        Some(std::ffi::OsStr::new("/usr/bin:/bin")),
-        || {
-            Some(PathBuf::from(
-                "/Apps/ZCode.app/Contents/Resources/glm/zcode.cjs",
-            ))
-        },
-    );
-    assert_eq!(line, "'/Apps/ZCode.app/Contents/Resources/glm/zcode.cjs'");
+    // No terminal UI: no line to type (round 3).
+    assert_eq!(expert.shell_snippet, None);
 }
 
 #[test]

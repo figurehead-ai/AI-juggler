@@ -11,11 +11,14 @@
 //! `~/Applications`; `juggler_adapter::apps`), found by its name and by its
 //! engine in its own files: a bundle that holds `ZCode`'s engine where
 //! `ZCode` keeps it is taken as `ZCode`'s (the bundle id isn't read). The
-//! engine is
-//! `Contents/Resources/glm/zcode.cjs`. The app ships no Node.js of its
-//! own, so the engine runs on a `node` from the user's PATH or Homebrew's
-//! folders; its version is what `node <engine> version` prints.
-//! `AI_JUGGLER_ZCODE_ENGINE` names another engine file (tests, dev).
+//! engine is `Contents/Resources/glm/zcode.cjs`, and it runs on the app's
+//! own runtime in Node.js mode, as the desktop app runs it
+//! (`ELECTRON_RUN_AS_NODE=1 <app>/Contents/MacOS/ZCode <engine> …`; round 3,
+//! checked live 2026-11-13): no Node.js of the user's is needed. Its
+//! version is what `version` prints under that runtime.
+//! `AI_JUGGLER_ZCODE_ENGINE` names another engine file (tests, dev); the
+//! runtime and the provider settings are then the ones of the app bundle
+//! it lies in.
 //!
 //! Isolation without moving `HOME` (Req.2; a moved `HOME` would take the
 //! user's git identity and SSH keys away from `ZCode`'s shell tools). An
@@ -30,11 +33,20 @@
 //!   follows the home folder, not `ZCODE_STORAGE_DIR`: without it every
 //!   App's sessions and usage would land in the user's own store).
 //!
-//! All three are pinned after Launch-settings overrides; `ZCODE_SESSION_DB`
-//! (another name for the store's path) and an inherited
+//! All three are pinned after Launch-settings overrides, and so is
+//! `ZCODE_BUILTIN_PROVIDER_CONFIG_FILE`: the app's own built-in provider
+//! settings (`Contents/Resources/config/provider/zcode-builtin.json`),
+//! without which the engine refuses to start a session (it looks for them
+//! beside itself, where the app doesn't keep them). The engine then copies
+//! them into the App's tree (`v2/runtime/provider/…`), in a folder named
+//! after its own build constant (`0.0.0-dev` in this build: no variable
+//! sets it; `ZCODE_APP_VERSION` only labels the engine's telemetry, so AI
+//! Juggler leaves it unset rather than pass for the desktop app).
+//! `ZCODE_SESSION_DB` (another name for the store's path) and an inherited
 //! `ZCODE_PERSONAL_PROVIDER_CONFIG_FILE` (would point every App at one
-//! provider file) are removed from every launch. `ZCode`'s own `~/.zcode`
-//! runs with all three unset, as a plain `zcode` does. These variables were
+//! provider file; unset, it is the App's own `v2/provider_config.json`) are
+//! removed from every launch. `ZCode`'s own `~/.zcode` runs with the three
+//! tree variables unset, as the desktop app does. These variables were
 //! found in the engine's own code (0.16.9), not in Z.ai's docs, so a launch
 //! check ([`isolation_took`]) confirms the engine wrote inside the App's
 //! tree, and the app can refuse an App where it didn't. What the engine
@@ -50,24 +62,30 @@
 //! logs or model-call records ([`crate::zcode_environment`]).
 //!
 //! Sessions (Req.3) come from the tree's store, read-only
-//! ([`crate::zcode_sessions`]); `--resume <sess_…>` reopens one, `-c` the
-//! folder's latest. A running engine is recognised by its command line.
+//! ([`crate::zcode_sessions`]). A running engine is recognised by its
+//! command line.
+//!
+//! **No terminal (round 3).** The app ships no terminal UI (`Cannot find
+//! package '@zcode/tui'`, checked live): its engine runs only as the
+//! desktop app runs it, `app-server --stdio`. So AI Juggler runs `ZCode`
+//! sessions driven over that protocol ([`crate::zcode_appserver`]), and
+//! every terminal launch refuses with the reason ([`NO_TERMINAL`]).
 //!
 //! Usage (Req.4): Computed credits from the store's `model_usage`, per
 //! session and per App; its limits are the plan's caps the user enters
 //! (`LIMITS_FROM_PLAN_CAPS`): the engine records no pool (it never asks
-//! Z.ai for one; the desktop app does).
+//! Z.ai for one; the desktop app does). A call refused at the plan's limit
+//! is a limit hit, with its window and reset ([`crate::zcode_limits`]).
 //!
 //! Packs (Req.6): a session's chat is read from the store for a pack
-//! ([`crate::zcode_sessions::turns`]). A pack can't start a `ZCode`
-//! session: its terminal takes no first message.
+//! ([`crate::zcode_sessions::turns`]); a pack comes into `ZCode` through its
+//! own import (`session/create` with `importedHistory`, no model call;
+//! [`crate::zcode_appserver`]).
 //!
 //! Not offered (each checked in the engine's code, 0.16.9, round-2
-//! addendum): runs without a terminal (`-p` skips `ZCode`'s permission
-//! prompts by default, `--mode yolo`); a first message (the terminal's
-//! options are parsed strictly and none is one; its prompt starts empty;
-//! no variable fills it); a model from Launch settings (no option or
-//! variable: the model is the App's own choice, kept in its tree's
+//! addendum): runs without a terminal or AI Juggler (`-p` skips `ZCode`'s
+//! permission prompts by default, `--mode yolo`); a model from Launch
+//! settings (the model is the App's own choice, kept in its tree's
 //! `v2/provider_config.json`, so each App keeps its own); the agent tools.
 
 use std::path::{Path, PathBuf};
@@ -81,7 +99,7 @@ use juggler_adapter::{
 };
 use juggler_core::model::{Account, HarnessId, Profile};
 
-use crate::claude_code::{LoginState, existing, find_on_path, home_dir, prepare_managed_dir_for};
+use crate::claude_code::{LoginState, home_dir, prepare_managed_dir_for};
 
 /// Provider id: `zcode`.
 pub const ZCODE_ID: &str = "zcode";
@@ -110,6 +128,15 @@ const ENV_SESSION_DB: &str = "ZCODE_SESSION_DB";
 const ENV_PROVIDER_CONFIG: &str = "ZCODE_PERSONAL_PROVIDER_CONFIG_FILE";
 /// Optional test/dev override for the engine's path.
 const ENV_ENGINE_OVERRIDE: &str = "AI_JUGGLER_ZCODE_ENGINE";
+/// The app's built-in provider settings, which the engine needs to start
+/// a session and can't find by itself inside the app.
+pub const ENV_BUILTIN_PROVIDER_CONFIG: &str = "ZCODE_BUILTIN_PROVIDER_CONFIG_FILE";
+/// Runs the app's own runtime as Node.js (Electron's own variable).
+pub const ENV_RUN_AS_NODE: &str = "ELECTRON_RUN_AS_NODE";
+/// The app's own program, which runs the engine.
+const RUNTIME_NAME: &str = "ZCode";
+/// The built-in provider settings inside the app's own files.
+const BUILTIN_IN_APP: &str = "config/provider/zcode-builtin.json";
 
 const PINNED: &[&str] = &[ENV_STORAGE_DIR, ENV_DATA_BASE_DIR, ENV_SESSION_DB_PATH];
 const ISOLATION: &[&str] = &[
@@ -119,12 +146,16 @@ const ISOLATION: &[&str] = &[
     ENV_SESSION_DB,
     ENV_PROVIDER_CONFIG,
     ENV_ENGINE_OVERRIDE,
+    ENV_BUILTIN_PROVIDER_CONFIG,
+    ENV_RUN_AS_NODE,
 ];
 /// Removed from every launch (see the module docs).
 const UNSET: &[&str] = &[ENV_SESSION_DB, ENV_PROVIDER_CONFIG];
+/// Set on every run of the engine: the app's runtime runs it as Node.js.
+const FIXED: &[(&str, &str)] = &[(ENV_RUN_AS_NODE, "1")];
 
-/// Why AI Juggler doesn't start `ZCode` without a terminal.
-const NO_HEADLESS: &str = "ZCode's runs without a terminal (-p) skip its permission prompts unless told otherwise, so AI Juggler doesn't start them until they're checked live";
+/// Why no `ZCode` session starts in a terminal.
+pub const NO_TERMINAL: &str = "ZCode's app ships no terminal UI (only the desktop app's server), so its sessions run in AI Juggler without a terminal";
 
 /// `zcode version` prints the bare version (`0.16.9`); `--version` may put
 /// the name first. The first word of the first line that starts with a
@@ -187,17 +218,44 @@ pub fn zcode_login_state(state_dir: &Path) -> LoginState {
     }
 }
 
+/// What runs `ZCode`'s engine: the engine, the app's own runtime and the
+/// app's built-in provider settings.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Install {
+    /// The engine (`zcode.cjs`).
+    pub engine: PathBuf,
+    /// The app's own program, run as Node.js.
+    pub runtime: PathBuf,
+    /// The app's built-in provider settings.
+    pub builtin: PathBuf,
+}
+
+impl Install {
+    /// The variables every run of the engine gets: the runtime as Node.js
+    /// and the provider settings.
+    #[must_use]
+    pub fn env(&self) -> Vec<(&'static str, String)> {
+        vec![
+            (ENV_RUN_AS_NODE, "1".to_owned()),
+            (
+                ENV_BUILTIN_PROVIDER_CONFIG,
+                self.builtin.to_string_lossy().into_owned(),
+            ),
+        ]
+    }
+}
+
 /// Adapter for `ZCode`.
 #[derive(Debug, Clone, Default)]
 pub struct ZCodeAdapter {
     engine: Option<PathBuf>,
-    node: Option<PathBuf>,
+    runtime: Option<PathBuf>,
     home: Option<PathBuf>,
     app_dirs: Option<Vec<PathBuf>>,
 }
 
 impl ZCodeAdapter {
-    /// Creates the adapter, resolving the engine and Node.js at call time.
+    /// Creates the adapter, resolving the app at call time.
     #[must_use]
     pub fn new() -> Self {
         Self::default()
@@ -212,10 +270,11 @@ impl ZCodeAdapter {
         }
     }
 
-    /// The adapter running the engine on `node` (tests/fixtures).
+    /// The adapter running the engine on `runtime` instead of the app's
+    /// own (tests/fixtures).
     #[must_use]
-    pub fn with_node(mut self, node: impl Into<PathBuf>) -> Self {
-        self.node = Some(node.into());
+    pub fn with_runtime(mut self, runtime: impl Into<PathBuf>) -> Self {
+        self.runtime = Some(runtime.into());
         self
     }
 
@@ -272,26 +331,77 @@ impl ZCodeAdapter {
             .find(|engine| engine.is_file())
     }
 
-    /// The Node.js the engine runs on: the user's PATH, then Homebrew's.
-    fn resolve_node(&self) -> Option<PathBuf> {
-        if let Some(node) = &self.node {
-            return Some(node.clone());
-        }
-        find_on_path("node")
-            .or_else(|| existing(&["/opt/homebrew/bin/node", "/usr/local/bin/node"]))
+    /// The engine, the runtime and the provider settings of the app the
+    /// engine lies in (the runtime override first).
+    fn resolve(&self) -> Option<Install> {
+        let engine = self.resolve_engine()?;
+        let app = juggler_adapter::apps::bundle_of(&engine);
+        let runtime = self.runtime.clone().or_else(|| {
+            app.as_deref()
+                .map(|app| juggler_adapter::apps::executable_of(app, RUNTIME_NAME))
+        })?;
+        let builtin = app
+            .as_deref()
+            .map(|app| juggler_adapter::apps::resources_of(app).join(BUILTIN_IN_APP))?;
+        Some(Install {
+            engine,
+            runtime,
+            builtin,
+        })
     }
 
-    /// Node.js and the engine, or why a launch can't start.
-    fn require_program(&self) -> Result<(PathBuf, PathBuf), AdapterError> {
-        let engine = self.resolve_engine().ok_or_else(|| {
-            AdapterError::InvalidLaunch("ZCode not found; run discovery for details".into())
-        })?;
-        let node = self.resolve_node().ok_or_else(|| {
-            AdapterError::InvalidLaunch(
-                "ZCode runs on Node.js, which wasn't found; run discovery for details".into(),
-            )
-        })?;
-        Ok((node, engine))
+    /// The app's engine, runtime and settings, or why a run can't start.
+    ///
+    /// # Errors
+    ///
+    /// [`AdapterError::InvalidLaunch`] in words.
+    pub fn require_install(&self) -> Result<Install, AdapterError> {
+        let install = self
+            .resolve()
+            .filter(|install| install.engine.is_file())
+            .ok_or_else(|| {
+                AdapterError::InvalidLaunch("ZCode not found; run discovery for details".into())
+            })?;
+        if !install.runtime.is_file() {
+            return Err(AdapterError::InvalidLaunch(format!(
+                "ZCode's app has no runtime at {}; reinstall ZCode",
+                install.runtime.display()
+            )));
+        }
+        if !install.builtin.is_file() {
+            return Err(AdapterError::InvalidLaunch(format!(
+                "ZCode's app has no provider settings at {}; reinstall ZCode",
+                install.builtin.display()
+            )));
+        }
+        Ok(install)
+    }
+
+    /// One run of the engine with `args`, for the App at `state_dir`: the
+    /// app's runtime, Launch-settings overrides first, isolation LAST
+    /// (AJ-E309), piped (the driven runtime and its helpers).
+    pub(crate) fn engine_spec(
+        &self,
+        state_dir: &Path,
+        overrides: &EnvMap,
+        cwd: &Path,
+        args: &[&str],
+    ) -> Result<LaunchSpec, AdapterError> {
+        let install = self.require_install()?;
+        let mut env: EnvMap = overrides.clone();
+        env.extend(self.isolation_env(state_dir));
+        for (key, value) in install.env() {
+            env.insert(key.to_owned(), value);
+        }
+        let mut all = vec![install.engine.to_string_lossy().into_owned()];
+        all.extend(args.iter().map(|arg| (*arg).to_owned()));
+        Ok(LaunchSpec {
+            program: install.runtime,
+            args: all,
+            env,
+            cwd: cwd.to_path_buf(),
+            needs_pty: false,
+        })
     }
 
     fn report(
@@ -427,6 +537,8 @@ impl ToolIdentity for ZCodeAdapter {
             | Capabilities::TRANSCRIPT_WATCH
             | Capabilities::USAGE_TOKENS
             | Capabilities::LIMITS_FROM_PLAN_CAPS
+            | Capabilities::LIMIT_HITS
+            | Capabilities::PROTOCOL_SERVER
     }
     fn verified_against(&self) -> &'static [&'static str] {
         VERIFIED_AGAINST
@@ -446,18 +558,22 @@ impl ToolDiscovery for ZCodeAdapter {
                 vec!["looked for the ZCode app where apps are installed".into()],
             );
         };
-        let Some(node) = self.resolve_node() else {
-            return self.report(
-                Some(engine),
-                InstallStatus::Failed {
-                    message: "ZCode runs on Node.js, which its app doesn't include, and none was found on PATH, in /opt/homebrew/bin or in /usr/local/bin".into(),
-                },
-                Vec::new(),
-            );
+        let install = match self.require_install() {
+            Ok(install) => install,
+            Err(error) => {
+                return self.report(
+                    Some(engine),
+                    InstallStatus::Failed {
+                        message: error.to_string(),
+                    },
+                    Vec::new(),
+                );
+            }
         };
-        let version = match crate::common::probe::version_with(
-            &node,
+        let version = match crate::common::probe::version_with_env(
+            &install.runtime,
             [engine.as_os_str(), "version".as_ref()],
+            FIXED,
             parse_version,
         ) {
             Ok(version) => version,
@@ -485,10 +601,9 @@ impl ToolDiscovery for ZCodeAdapter {
     fn vendor_default_dir(&self) -> Option<PathBuf> {
         self.default_tree()
     }
-    /// `ZCode` puts no `zcode` on the PATH: the copyable line names the
-    /// engine by its path (it starts itself on the user's `node`).
+    /// None: the app ships no terminal UI to type a line for.
     fn shell_command(&self) -> Option<&'static str> {
-        Some("zcode")
+        None
     }
     fn resolved_binary(&self) -> Option<PathBuf> {
         self.resolve_engine()
@@ -557,69 +672,26 @@ fn scan_probe(dir: &Path) -> LoginProbe {
 }
 
 impl ToolLaunch for ZCodeAdapter {
+    /// Refused, every mode: the app ships no terminal UI ([`NO_TERMINAL`]);
+    /// its sessions run driven ([`crate::zcode_appserver`]).
     fn launch_spec(
         &self,
-        account: &Account,
-        profile: &Profile,
-        cwd: &Path,
-        mode: &LaunchMode,
+        _account: &Account,
+        _profile: &Profile,
+        _cwd: &Path,
+        _mode: &LaunchMode,
     ) -> Result<LaunchSpec, AdapterError> {
-        let (node, engine) = self.require_program()?;
-        // A resumed session continues work that lives in `cwd`.
-        let effective_cwd = match mode {
-            LaunchMode::Resume { .. } => cwd.to_path_buf(),
-            _ => profile
-                .default_cwd
-                .clone()
-                .unwrap_or_else(|| cwd.to_path_buf()),
-        };
-        // Launch-settings overrides first, isolation LAST (AJ-E309).
-        let mut env: EnvMap = profile.settings_overlay.env.clone();
-        env.extend(self.isolation_env(&account.state_dir));
-        let mut args: Vec<String> = vec![engine.to_string_lossy().into_owned()];
-        match mode {
-            LaunchMode::Interactive => {}
-            LaunchMode::Resume {
-                session_id,
-                delta_prompt,
-            } => {
-                crate::codex::refuse_option_like(session_id)?;
-                if delta_prompt.is_some() {
-                    return Err(AdapterError::Unsupported(
-                        "ZCode can't be given a message as it resumes yet".into(),
-                    ));
-                }
-                args.extend(["--resume".into(), session_id.clone()]);
-            }
-            // Its terminal takes no first message.
-            LaunchMode::Primed { .. } => {
-                return Err(AdapterError::Unsupported(
-                    "ZCode can't be started with a first message yet".into(),
-                ));
-            }
-            LaunchMode::Headless { .. } => {
-                return Err(AdapterError::Unsupported(NO_HEADLESS.into()));
-            }
-        }
-        Ok(LaunchSpec {
-            program: node,
-            args,
-            env,
-            cwd: effective_cwd,
-            needs_pty: true,
-        })
+        Err(AdapterError::Unsupported(NO_TERMINAL.into()))
     }
-    /// `ZCode`'s own `zcode login` (Z.ai's sign-in in the browser) in this
-    /// App's tree.
+    /// `ZCode`'s own `login` (Z.ai's sign-in in the browser) in this
+    /// App's tree, on the app's runtime. Not yet run (AJ-E1612).
     fn login_spec(&self, state_dir: &Path) -> Result<LaunchSpec, AdapterError> {
-        let (node, engine) = self.require_program()?;
-        Ok(LaunchSpec {
-            program: node,
-            args: vec![engine.to_string_lossy().into_owned(), "login".into()],
-            env: self.isolation_env(state_dir),
-            cwd: state_dir.to_path_buf(),
-            needs_pty: true,
-        })
+        let mut spec = self.engine_spec(state_dir, &EnvMap::new(), state_dir, &["login"])?;
+        spec.needs_pty = true;
+        Ok(spec)
+    }
+    fn launch_fixed_env(&self) -> &'static [(&'static str, &'static str)] {
+        FIXED
     }
     fn isolation_env_keys(&self) -> &'static [&'static str] {
         ISOLATION
@@ -648,11 +720,6 @@ impl ToolLaunch for ZCodeAdapter {
                 text(&crate::zcode_sessions::db_of(&tree)),
             ),
         ]
-    }
-    /// `zcode --resume <sess_…>` reopens it.
-    fn resume_args(&self, conversation_id: &str) -> Option<Vec<String>> {
-        crate::codex::refuse_option_like(conversation_id).ok()?;
-        Some(vec!["--resume".into(), conversation_id.to_owned()])
     }
 }
 
@@ -762,6 +829,20 @@ impl ToolQuota for ZCodeAdapter {
             since_ms,
         ))
     }
+    /// A session's hit is in the App's store, not a transcript's tail
+    /// ([`Self::session_limit_hit`]).
+    fn limit_hit(&self, _tail: &str) -> Option<juggler_adapter::live::LimitHit> {
+        None
+    }
+    /// From the session's own `model_usage` rows: its last call refused
+    /// at the plan's limit, with Z.ai's window and reset
+    /// ([`crate::zcode_limits`]).
+    fn session_limit_hit(
+        &self,
+        transcript: &Path,
+    ) -> Option<Option<juggler_adapter::live::LimitHit>> {
+        crate::zcode_limits::session_limit_hit(transcript)
+    }
 }
 
 impl ToolLive for ZCodeAdapter {
@@ -780,7 +861,13 @@ impl ToolHandover for ZCodeAdapter {
     }
 }
 
-impl ToolRuntime for ZCodeAdapter {}
+/// Round 3: the engine's app-server is `ZCode`'s only runtime
+/// ([`crate::zcode_appserver`]).
+impl ToolRuntime for ZCodeAdapter {
+    fn driven(&self) -> Option<&dyn juggler_adapter::runtime::DrivenRuntime> {
+        Some(self)
+    }
+}
 
 /// ADR-0019: `ZCode`, described as data.
 #[must_use]

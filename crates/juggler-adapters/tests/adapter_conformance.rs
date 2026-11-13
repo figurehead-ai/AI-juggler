@@ -701,7 +701,8 @@ impl Subject for Grok {
     }
 }
 
-// ZCode (AJ-E1605): its engine run on Node.js, sessions and usage from
+// ZCode (AJ-E1605): its engine run on its app's own runtime and driven
+// over its app-server (round 3: no terminal UI ships), sessions and usage from
 // the App's own store (`<tree>/cli/db/db.sqlite`); a tree brought in is
 // `~/.zcode` where it is, or a copy without its sign-in or store.
 
@@ -712,7 +713,7 @@ impl Subject for ZCode {
         let engine = zcode_fixture::app(&sandbox.bin.join("Applications"), "dev.zcode.app");
         Box::new(
             ZCodeAdapter::with_engine(engine)
-                .with_node(sandbox.stub("node", "0.16.9"))
+                .with_runtime(sandbox.stub("ZCode", "0.16.9"))
                 .with_home(&sandbox.home),
         )
     }
@@ -749,6 +750,26 @@ impl Subject for ZCode {
 
     fn sandboxed_default(&self) -> bool {
         true
+    }
+
+    /// AJ-E1605 R3: a session whose last call Z.ai refused at the 5-hour
+    /// limit, and one that was answered after such a refusal (every value
+    /// made up; the message's shape as measured).
+    fn limit_records(&self, state_dir: &Path, cwd: &Path) -> Option<(PathBuf, PathBuf)> {
+        zcode_fixture::add_session(state_dir, "sess_hit", cwd);
+        zcode_fixture::add_session(state_dir, "sess_on", cwd);
+        let conn = zcode_fixture::create(state_dir);
+        // 2026-10-21 10:00 UTC; the reset 18:30 UTC+8 is 10:30 UTC.
+        let at = 1_792_576_800_000;
+        let message = zcode_fixture::five_hour("2026-10-21 18:30:00");
+        zcode_fixture::refused(&conn, "mu_hit", "sess_hit", at, "rate_limited", &message);
+        zcode_fixture::refused(&conn, "mu_was", "sess_on", at, "rate_limited", &message);
+        zcode_fixture::answered(&conn, "mu_on", "sess_on", at + 60_000);
+        let db = zcode_fixture::db(state_dir);
+        Some((
+            juggler_adapters::zcode_sessions::session_ref(&db, "sess_hit"),
+            juggler_adapters::zcode_sessions::session_ref(&db, "sess_on"),
+        ))
     }
 }
 

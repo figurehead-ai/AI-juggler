@@ -110,8 +110,10 @@ pub mod transcript;
 pub mod transcript_tail;
 mod transcript_watcher;
 pub mod zcode;
+pub mod zcode_appserver;
 pub mod zcode_environment;
 pub mod zcode_inventory;
+pub mod zcode_limits;
 pub mod zcode_sessions;
 pub mod zcode_usage;
 

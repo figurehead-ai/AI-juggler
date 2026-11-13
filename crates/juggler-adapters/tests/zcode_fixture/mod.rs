@@ -15,7 +15,8 @@ use std::path::{Path, PathBuf};
 use rusqlite::{Connection, params};
 
 /// A made-up Z.ai app bundle (`ZCode.app`, `dev.zcode.app`) in `dir`, with
-/// an engine file; returns the engine's path.
+/// an engine file and the built-in provider settings (no runtime: a test
+/// names its stand-in); returns the engine's path.
 pub fn app(dir: &Path, bundle_id: &str) -> PathBuf {
     let app = dir.join("ZCode.app");
     write(
@@ -28,6 +29,10 @@ pub fn app(dir: &Path, bundle_id: &str) -> PathBuf {
     );
     let engine = app.join("Contents/Resources/glm/zcode.cjs");
     write(&engine, "#!/usr/bin/env node\n\"use strict\";\n");
+    write(
+        &app.join("Contents/Resources/config/provider/zcode-builtin.json"),
+        r#"{"providers":[]}"#,
+    );
     engine
 }
 
@@ -65,7 +70,8 @@ pub fn create(state_dir: &Path) -> Connection {
              output_tokens INTEGER NOT NULL DEFAULT 0, reasoning_tokens INTEGER NOT NULL DEFAULT 0,
              cache_creation_input_tokens INTEGER NOT NULL DEFAULT 0,
              cache_read_input_tokens INTEGER NOT NULL DEFAULT 0,
-             computed_total_tokens INTEGER, duration_ms INTEGER);
+             computed_total_tokens INTEGER, duration_ms INTEGER, error_type TEXT,
+             error_code TEXT, error_message TEXT);
          CREATE TABLE IF NOT EXISTS message (
              id TEXT PRIMARY KEY, session_id TEXT NOT NULL, time_created INTEGER NOT NULL,
              time_updated INTEGER NOT NULL, data TEXT NOT NULL, sequence INTEGER);
@@ -173,6 +179,37 @@ pub fn usage(conn: &Connection, id: &str, model: &str, status: &str, at: i64, in
         params![id, model, status, at, input],
     )
     .unwrap();
+}
+
+/// A model call of `session` Z.ai refused (`status = 'error'`), with
+/// `kind` and Z.ai's `message` as the engine records them.
+pub fn refused(conn: &Connection, id: &str, session: &str, at: i64, kind: &str, message: &str) {
+    conn.execute(
+        "INSERT INTO model_usage (id, session_id, provider_id, model_id, status, started_at,
+             error_type, error_message)
+         VALUES (?1, ?2, 'zai', 'GLM-5.3', 'error', ?3, ?4, ?5)",
+        params![id, session, at, kind, message],
+    )
+    .unwrap();
+}
+
+/// A completed model call of `session`.
+pub fn answered(conn: &Connection, id: &str, session: &str, at: i64) {
+    conn.execute(
+        "INSERT INTO model_usage (id, session_id, provider_id, model_id, status, started_at,
+             input_tokens, output_tokens)
+         VALUES (?1, ?2, 'zai', 'GLM-5.3', 'completed', ?3, 100, 10)",
+        params![id, session, at],
+    )
+    .unwrap();
+}
+
+/// Z.ai's 5-hour refusal, as measured (`[1308][…][<request id>]`; the
+/// id made up), resetting at `reset` (`YYYY-MM-DD HH:MM:SS`, UTC+8).
+pub fn five_hour(reset: &str) -> String {
+    format!(
+        "[1308][Usage limit reached for 5 hour. Your limit will reset at {reset}][0123456789abcdef0123456789abcd]"
+    )
 }
 
 /// A tree's settings as `ZCode` leaves them (every value made up): the
