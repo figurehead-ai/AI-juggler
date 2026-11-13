@@ -39,7 +39,7 @@ export function probeOutcome(outcome: string | null, tool: string): string {
 /** After the tool answered, its limits are read again after these waits
  * (ms): the answer is in its own state file, which AI Juggler reads at its
  * next pass (about a second). */
-export const READ_AGAIN_MS: readonly number[] = [1_000, 2_000, 4_000];
+const READ_AGAIN_MS: readonly number[] = [1_000, 2_000, 4_000];
 
 /** Where to ask: the first of the account's folders it's on for, else
  * the first it's offered on (turned off there), else none. */
