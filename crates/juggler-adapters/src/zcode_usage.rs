@@ -1,6 +1,13 @@
 //! AJ-E2016: `ZCode`'s usage, as credits (spec §6, Req.4 passive), moved out
 //! of `quota_ingest.rs`: the published per-model multipliers, the peak
 //! window, one row's credits, and the read of its `model_usage` table.
+//!
+//! AJ-E1605 Req.4: each event names its session, so usage adds up per
+//! session as per account ([`session_totals`] for the conversations
+//! list). Credits are always Computed (the published formula over the
+//! engine's own token counts); the plan's 5-hour and weekly pools are the
+//! caps the user enters, never read: the engine keeps no record of them
+//! (research `docs/research/zcode.md`, the 2026-11-13 round-2 addendum).
 
 use std::path::Path;
 
@@ -108,7 +115,8 @@ pub fn zcode_events_since(
     let mut stmt = conn
         .prepare(
             "SELECT rowid, model_id, input_tokens, output_tokens,
-                    cache_creation_input_tokens, cache_read_input_tokens, started_at
+                    cache_creation_input_tokens, cache_read_input_tokens, started_at,
+                    session_id
              FROM model_usage WHERE status = 'completed' AND started_at >= ?1",
         )
         .map_err(|error| format!("zcode model_usage query: {error}"))?;
@@ -122,12 +130,13 @@ pub fn zcode_events_since(
                 row.get::<_, i64>(4)?,
                 row.get::<_, i64>(5)?,
                 row.get::<_, i64>(6)?,
+                row.get::<_, Option<String>>(7)?,
             ))
         })
         .map_err(|error| format!("zcode model_usage rows: {error}"))?;
     let mut events = Vec::new();
     for row in rows {
-        let (rowid, model, input, output, cache_creation, cache_read, started_at) =
+        let (rowid, model, input, output, cache_creation, cache_read, started_at, session) =
             row.map_err(|error| format!("zcode row: {error}"))?;
         #[allow(
             clippy::cast_sign_loss,
@@ -149,7 +158,9 @@ pub fn zcode_events_since(
         );
         events.push(UsageEvent {
             account: account.to_owned(),
-            session: None,
+            // The `ZCode` session the call was made in (`sess_…`): per
+            // session, as per account.
+            session: session.filter(|id| !id.is_empty()),
             ts: started_at,
             model: Some(model),
             tokens: TokenCounts {
@@ -172,4 +183,59 @@ pub fn zcode_events_since(
         });
     }
     Ok(events)
+}
+
+/// Every session's tokens, summed over its completed `model_usage` rows
+/// (reasoning inside the output, as in each event)
+/// (its own calls; a sub-agent's are under the sub-agent's session), read
+/// as [`zcode_events`] reads them. For the conversations list: a session
+/// with no row isn't in the map (its tokens unknown, never zero).
+///
+/// # Errors
+///
+/// As [`zcode_events`].
+pub fn session_totals(
+    db_path: &Path,
+) -> Result<std::collections::HashMap<String, TokenCounts>, String> {
+    let conn = crate::common::sqlite::open_tool_store(db_path, "ZCode")?;
+    let mut stmt = conn
+        .prepare(
+            "SELECT session_id, SUM(MAX(input_tokens, 0)), SUM(MAX(output_tokens, 0)),
+                    SUM(MAX(cache_creation_input_tokens, 0)),
+                    SUM(MAX(cache_read_input_tokens, 0))
+             FROM model_usage WHERE status = 'completed' GROUP BY session_id",
+        )
+        .map_err(|error| format!("zcode model_usage totals: {error}"))?;
+    let rows = stmt
+        .query_map([], |row| {
+            Ok((
+                row.get::<_, Option<String>>(0)?,
+                row.get::<_, i64>(1)?,
+                row.get::<_, i64>(2)?,
+                row.get::<_, i64>(3)?,
+                row.get::<_, i64>(4)?,
+            ))
+        })
+        .map_err(|error| format!("zcode model_usage totals: {error}"))?;
+    let mut totals = std::collections::HashMap::new();
+    for row in rows {
+        let (session, input, output, cache_creation, cache_read) =
+            row.map_err(|error| format!("zcode totals row: {error}"))?;
+        let Some(session) = session.filter(|id| !id.is_empty()) else {
+            continue;
+        };
+        let count = |value: i64| u64::try_from(value).unwrap_or(0);
+        totals.insert(
+            session,
+            TokenCounts {
+                input: count(input),
+                output: count(output),
+                cache_read: count(cache_read),
+                cache_write: count(cache_creation),
+                // Counted in the output, as the events count it.
+                reasoning: 0,
+            },
+        );
+    }
+    Ok(totals)
 }

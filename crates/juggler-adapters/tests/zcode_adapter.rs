@@ -16,6 +16,7 @@
 
 use juggler_adapter::ToolDiscovery;
 use juggler_adapter::ToolIdentity;
+use juggler_adapter::ToolInventory;
 use juggler_adapter::ToolLaunch;
 use juggler_adapter::ToolLive;
 use juggler_adapter::ToolQuota;
@@ -612,6 +613,279 @@ fn usage_is_read_from_the_apps_own_store() {
     let later = adapter.usage_since(&record, at + 1).unwrap().unwrap();
     assert_eq!(later.len(), 1, "only rows started since");
     assert_eq!(later[0].tokens.input, 400);
+    // Req.4: Computed by the published formula, per session as per account:
+    // (fresh × 6.9 + cached × 1.7 + output × 24) / 10 000, half off-peak.
+    let first = all.iter().find(|event| event.ts == at).unwrap();
+    let raw = (970.0 * 6.9 + 30.0 * 1.7 + 120.0 * 24.0) / 10_000.0;
+    let expected = if juggler_adapters::zcode_usage::zcode_is_peak(at) {
+        raw
+    } else {
+        raw * 0.5
+    };
+    assert!((first.credits.unwrap() - expected).abs() < 1e-9);
+    assert_eq!(first.confidence, juggler_core::model::Confidence::Computed);
+    assert!(
+        all.iter()
+            .all(|event| event.session.as_deref() == Some("sess_use"))
+    );
+    // The conversations list carries each session's own tokens; one with
+    // no usage shows none (never invented).
+    {
+        let conn = zcode_fixture::create(&a);
+        zcode_fixture::add(&conn, &Row::plain("sess_use", Path::new("/w"), at));
+        zcode_fixture::add(&conn, &Row::plain("sess_idle", Path::new("/w"), at));
+    }
+    let listed = adapter.stored_conversations(&a);
+    let tokens = |id: &str| {
+        listed
+            .iter()
+            .find(|c| c.summary.id == id)
+            .unwrap()
+            .summary
+            .tokens
+    };
+    assert_eq!(tokens("sess_use").input, 1400, "two completed rows");
+    assert_eq!(tokens("sess_use").output, 240);
+    assert_eq!(tokens("sess_use").cache_read, 60);
+    assert_eq!(
+        tokens("sess_idle"),
+        juggler_core::model::TokenCounts::default()
+    );
+}
+
+/// Req.5 (ADR-0018): `~/.zcode` is used where it is and never written; any
+/// other tree comes in as a copy into the App's own tree that takes its
+/// settings and plugins, never the sign-in, the store, logs, model-call
+/// records or each session's files, nor a settings file with a key in it;
+/// what the engine reads from the home folder for every App isn't copied.
+#[test]
+fn a_tree_is_used_in_place_or_copied_without_its_sign_in_store_or_logs() {
+    let world = World::new();
+    let adapter = world.adapter();
+    let own = world.home.join(".zcode");
+    zcode_fixture::settings(&own);
+    zcode_fixture::sign_in(&own, "made-up-token");
+    zcode_fixture::add_session(&own, "sess_old", Path::new("/w"));
+    let beta = world.home.join(".zcode-beta");
+    zcode_fixture::settings(&beta);
+    write(
+        &beta.join("v2/provider_config.json"),
+        r#"{"providers":{"custom":{"apiKey":"made-up-key-0123456789abcdef"}}}"#,
+    );
+    let before = (files(&own), files(&beta));
+
+    // The scan finds both, the default first.
+    let found = adapter.scan_environment();
+    let paths: Vec<&Path> = found.iter().map(|install| install.path.as_path()).collect();
+    assert_eq!(paths, [own.as_path(), beta.as_path()]);
+    assert_eq!(
+        found[0].login,
+        juggler_adapter::environment::LoginProbe::LoggedIn
+    );
+
+    // Where it is: the default only.
+    assert!(adapter.can_use_in_place());
+    adapter.adopt_account(&own).unwrap();
+    assert!(matches!(
+        adapter.adopt_account(&beta),
+        Err(AdapterError::AccountDir { .. })
+    ));
+
+    // A copy of the default, into the App's own tree.
+    let dest = world.base.join("accounts/copy");
+    let outcome = adapter.import_account(&own, &dest).unwrap();
+    let tree = dest.join(".zcode");
+    let copied = files(&tree);
+    let names: Vec<String> = copied
+        .keys()
+        .map(|path| path.to_string_lossy().into_owned())
+        .collect();
+    for kept in [
+        "v2/setting.json",
+        "v2/provider_config.json",
+        "cli/plugins/data/notes/state.json",
+    ] {
+        assert!(names.iter().any(|name| name == kept), "{kept}: {names:?}");
+    }
+    for left in [
+        "credentials.json",
+        "db.sqlite",
+        "cli/log/",
+        "cli/rollout/",
+        "tasks-index.sqlite",
+        "cli/config.json",
+        "AGENTS.md",
+        "skills/",
+    ] {
+        assert!(
+            !names.iter().any(|name| name.contains(left)),
+            "{left} was copied: {names:?}"
+        );
+    }
+    assert!(
+        !copied
+            .values()
+            .any(|bytes| bytes.windows(13).any(|w| w == b"made-up-token"))
+    );
+    assert!(
+        outcome
+            .skipped
+            .iter()
+            .any(|line| line.contains("your sign-in"))
+    );
+    assert_eq!(
+        adapter.login_state(&dest),
+        LoginState::LoggedOut,
+        "it signs in once"
+    );
+    let isolated = adapter.pinned_env(&dest);
+    assert!(
+        isolated.iter().all(|(_, value)| value.is_some()),
+        "{isolated:?}"
+    );
+
+    // A key written in a settings file stays behind, named.
+    let dest = world.base.join("accounts/beta");
+    let outcome = adapter.import_account(&beta, &dest).unwrap();
+    assert!(!dest.join(".zcode/v2/provider_config.json").exists());
+    assert!(
+        outcome
+            .skipped
+            .iter()
+            .any(|line| line.contains("provider_config.json"))
+    );
+    // A folder that isn't ZCode's is refused, and nothing is made.
+    let empty = world.base.join("not-zcode");
+    std::fs::create_dir_all(&empty).unwrap();
+    let dest = world.base.join("accounts/none");
+    assert!(adapter.import_account(&empty, &dest).is_err());
+    assert!(!dest.exists());
+    assert_eq!(
+        (files(&own), files(&beta)),
+        before,
+        "the originals are unchanged"
+    );
+}
+
+/// Req.5: every App lists and sets up the one set the engine reads, in the
+/// home folder's `~/.zcode`, whichever App asks; the App's own tree is
+/// never where they go.
+#[test]
+fn every_app_shares_the_rules_skills_and_servers_in_the_home_folder() {
+    let world = World::new();
+    let adapter = world.adapter();
+    let own = world.home.join(".zcode");
+    zcode_fixture::settings(&own);
+    let app = world.base.join("accounts/a");
+    adapter.prepare_account(&app).unwrap();
+    let names = |state_dir: &Path| -> Vec<String> {
+        adapter
+            .inventory(state_dir, None)
+            .into_iter()
+            .map(|item| item.name)
+            .collect()
+    };
+    assert_eq!(names(&app), ["files", "release", "AGENTS.md"]);
+    assert_eq!(names(&app), names(&own));
+    let item = juggler_adapter::inventory::Item {
+        tool: "claude-code".into(),
+        kind: juggler_adapter::inventory::ItemKind::McpServer,
+        name: "docs".into(),
+        scope: juggler_adapter::inventory::Scope::User,
+        detail: juggler_adapter::inventory::Detail::Mcp(juggler_adapter::inventory::McpServer {
+            transport: juggler_adapter::inventory::McpTransport::Http {
+                url: "https://docs.example/mcp".into(),
+                headers: Vec::new(),
+            },
+            oauth: false,
+        }),
+        origin: juggler_adapter::inventory::Origin::Own,
+    };
+    adapter.set_up(&app, None, &item).unwrap();
+    assert!(names(&own).contains(&"docs".to_owned()));
+    assert!(!app.join(".zcode/cli/config.json").exists());
+}
+
+/// Req.6: what a ZCode session gives a pack — its chat, read-only from
+/// the store: user and assistant text in order, a message's text parts
+/// joined, tool calls, reasoning and synthetic text left out; a record in
+/// another shape is refused whole; any other link is the caller's to read.
+#[test]
+fn a_sessions_turns_come_from_the_store_for_a_handover() {
+    let world = World::new();
+    let adapter = world.adapter();
+    let a = world.base.join("accounts/a");
+    adapter.prepare_account(&a).unwrap();
+    let at = 1_792_580_400_000;
+    {
+        let conn = zcode_fixture::create(&a);
+        zcode_fixture::add(&conn, &Row::plain("sess_1", Path::new("/w"), at));
+        zcode_fixture::message(
+            &conn,
+            "sess_1",
+            "msg_1",
+            "user",
+            at,
+            &[
+                r#"{"type":"text","text":"Fix the cart total"}"#,
+                r#"{"type":"text","text":"<system-reminder>","synthetic":true}"#,
+            ],
+        );
+        zcode_fixture::message(
+            &conn,
+            "sess_1",
+            "msg_2",
+            "assistant",
+            at + 10,
+            &[
+                r#"{"type":"reasoning","text":"thinking"}"#,
+                r#"{"type":"tool","tool":"read","state":{}}"#,
+                r#"{"type":"text","text":"Found it in cart.ts."}"#,
+                r#"{"type":"text","text":"Fixed."}"#,
+            ],
+        );
+        zcode_fixture::message(
+            &conn,
+            "sess_1",
+            "msg_3",
+            "assistant",
+            at + 20,
+            &[r#"{"type":"tool","tool":"bash","state":{}}"#],
+        );
+        zcode_fixture::message(
+            &conn,
+            "sess_2",
+            "msg_4",
+            "user",
+            at,
+            &[r#"{"type":"text","text":"another session"}"#],
+        );
+    }
+    let db = zcode_fixture::db(&a);
+    let before = std::fs::read(&db).unwrap();
+    let reference = juggler_adapters::zcode_sessions::session_ref(&db, "sess_1");
+    let turns = adapter.conversation_turns(&reference).unwrap();
+    let said: Vec<(&str, &str)> = turns.iter().map(|t| (t.role, t.text.as_str())).collect();
+    assert_eq!(
+        said,
+        [
+            ("user", "Fix the cart total"),
+            ("assistant", "Found it in cart.ts.\n\nFixed."),
+        ]
+    );
+    assert_eq!(std::fs::read(&db).unwrap(), before, "read-only");
+    assert_eq!(adapter.conversation_turns(Path::new("/w/a.jsonl")), None);
+    // A changed shape (a message without its role) is refused whole.
+    {
+        let conn = zcode_fixture::create(&a);
+        conn.execute(
+            "INSERT INTO message (id, session_id, time_created, time_updated, data)
+             VALUES ('msg_9', 'sess_1', ?1, ?1, '{\"author\":\"user\"}')",
+            [at + 30],
+        )
+        .unwrap();
+    }
+    assert_eq!(adapter.conversation_turns(&reference), None);
 }
 
 #[test]

@@ -93,13 +93,14 @@ pub fn session_ref(db: &Path, id: &str) -> PathBuf {
 
 /// The account's conversations for the index (AJ-E1529), keyed by
 /// [`session_ref`]; their folders become projects. Nothing when the store
-/// can't be read. Tokens aren't read per session yet (Req.4), so they are
-/// unknown here, never claimed.
+/// can't be read. Each carries its tokens, summed from its own
+/// `model_usage` rows (Req.4); a session without any shows none.
 #[must_use]
 pub fn stored_conversations(db: &Path) -> Vec<juggler_adapter::conversation::StoredConversation> {
     let Ok(sessions) = sessions(db) else {
         return Vec::new();
     };
+    let mut totals = crate::zcode_usage::session_totals(db).unwrap_or_default();
     sessions
         .into_iter()
         .map(
@@ -115,7 +116,7 @@ pub fn stored_conversations(db: &Path) -> Vec<juggler_adapter::conversation::Sto
                     opening: juggler_adapter::conversation::title_from(&session.title, 120),
                     started_ms: Some(session.created_ms),
                     last_ms: Some(session.updated_ms),
-                    tokens: juggler_core::model::TokenCounts::default(),
+                    tokens: totals.remove(&session.id).unwrap_or_default(),
                     id: session.id,
                 },
             },
@@ -142,4 +143,107 @@ pub fn locate(
         .filter(|(reference, _)| !taken.contains(reference));
     let first = found.next()?;
     found.next().is_none().then_some(first)
+}
+
+/// One turn of a session as a handover reads it: who spoke and what they
+/// said (its text parts, joined), oldest first.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ZCodeTurn {
+    /// `user` or `assistant`.
+    pub role: &'static str,
+    /// The turn's text.
+    pub text: String,
+    /// When the message was created, epoch ms.
+    pub at_ms: i64,
+}
+
+/// The turns of session `id` (AJ-E1605 Req.6), read-only from its
+/// `message` and `part` rows (engine 0.16.9: a message's `data` is a JSON
+/// object with its `role`; a part's is one with its `type`, and a text
+/// part's `text`). Tool calls, reasoning and the engine's own synthetic
+/// text are left out; a message with no text is no turn.
+///
+/// # Errors
+///
+/// A plain message when the store can't be read, or when a row isn't in
+/// the shape read on 0.16.9 (a message without a role, a text part
+/// without its text): a changed format is refused whole, never half read.
+pub fn turns(db: &Path, id: &str) -> Result<Vec<ZCodeTurn>, String> {
+    let conn = crate::common::sqlite::open_tool_store(db, "ZCode")?;
+    let mut stmt = conn
+        .prepare(
+            "SELECT m.id, m.time_created, m.data, p.data
+             FROM message m LEFT JOIN part p ON p.message_id = m.id
+             WHERE m.session_id = ?1
+             ORDER BY m.time_created, m.rowid, p.time_created, p.rowid",
+        )
+        .map_err(|error| format!("zcode message query: {error}"))?;
+    let rows = stmt
+        .query_map([id], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, i64>(1)?,
+                row.get::<_, String>(2)?,
+                row.get::<_, Option<String>>(3)?,
+            ))
+        })
+        .map_err(|error| format!("zcode message rows: {error}"))?;
+    let changed =
+        |what: &str| format!("ZCode's {what} isn't in the shape AI Juggler reads (engine 0.16.9)");
+    let mut out: Vec<ZCodeTurn> = Vec::new();
+    let mut current: Option<String> = None;
+    for row in rows {
+        let (message, at_ms, data, part) = row.map_err(|error| format!("zcode row: {error}"))?;
+        let message_data: serde_json::Value =
+            serde_json::from_str(&data).map_err(|_| changed("message record"))?;
+        let role = match message_data.get("role").and_then(serde_json::Value::as_str) {
+            Some("user") => "user",
+            Some("assistant") => "assistant",
+            // Another speaker (the engine's own notes): no turn of the chat.
+            Some(_) => continue,
+            None => return Err(changed("message record")),
+        };
+        let text = match part {
+            None => None,
+            Some(part) => {
+                let part: serde_json::Value =
+                    serde_json::from_str(&part).map_err(|_| changed("message part"))?;
+                match part.get("type").and_then(serde_json::Value::as_str) {
+                    Some("text") => {
+                        let text = part
+                            .get("text")
+                            .and_then(serde_json::Value::as_str)
+                            .ok_or_else(|| changed("text part"))?;
+                        let synthetic = part.get("synthetic").and_then(serde_json::Value::as_bool)
+                            == Some(true);
+                        (!synthetic && !text.trim().is_empty()).then(|| text.to_owned())
+                    }
+                    Some(_) => None,
+                    None => return Err(changed("message part")),
+                }
+            }
+        };
+        let Some(text) = text else {
+            continue;
+        };
+        match out.last_mut() {
+            Some(last) if current.as_deref() == Some(message.as_str()) => {
+                last.text.push_str("\n\n");
+                last.text.push_str(&text);
+            }
+            _ => {
+                out.push(ZCodeTurn { role, text, at_ms });
+                current = Some(message);
+            }
+        }
+    }
+    Ok(out)
+}
+
+/// [`turns`] for a session's link (`<db>#<id>`); `None` for a link that
+/// isn't one, or a store that can't be read in the shape read on 0.16.9.
+#[must_use]
+pub fn turns_of_ref(reference: &Path) -> Option<Vec<ZCodeTurn>> {
+    let (db, id) = crate::common::sqlite::store_ref_parts(reference, DB_FILE)?;
+    turns(&db, &id).ok()
 }

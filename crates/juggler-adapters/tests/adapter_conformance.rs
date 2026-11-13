@@ -675,8 +675,8 @@ impl Subject for Grok {
 }
 
 // ZCode (AJ-E1605): its engine run on Node.js, sessions and usage from
-// the App's own store (`<tree>/cli/db/db.sqlite`); bringing a setup in is
-// Req.5, not built yet, so it claims none.
+// the App's own store (`<tree>/cli/db/db.sqlite`); a tree brought in is
+// `~/.zcode` where it is, or a copy without its sign-in or store.
 
 struct ZCode;
 
@@ -697,8 +697,12 @@ impl Subject for ZCode {
         id
     }
 
-    fn seed_source(&self, _sandbox: &Sandbox, _canary: &str) -> Option<PathBuf> {
-        None
+    fn seed_source(&self, sandbox: &Sandbox, canary: &str) -> Option<PathBuf> {
+        let source = sandbox.home.join(".zcode");
+        zcode_fixture::settings(&source);
+        zcode_fixture::sign_in(&source, canary);
+        zcode_fixture::add_session(&source, "sess_old", &sandbox.project);
+        Some(source)
     }
 
     fn credential_files(&self) -> &'static [&'static str] {

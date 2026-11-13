@@ -65,7 +65,14 @@ pub fn create(state_dir: &Path) -> Connection {
              output_tokens INTEGER NOT NULL DEFAULT 0, reasoning_tokens INTEGER NOT NULL DEFAULT 0,
              cache_creation_input_tokens INTEGER NOT NULL DEFAULT 0,
              cache_read_input_tokens INTEGER NOT NULL DEFAULT 0,
-             computed_total_tokens INTEGER, duration_ms INTEGER);",
+             computed_total_tokens INTEGER, duration_ms INTEGER);
+         CREATE TABLE IF NOT EXISTS message (
+             id TEXT PRIMARY KEY, session_id TEXT NOT NULL, time_created INTEGER NOT NULL,
+             time_updated INTEGER NOT NULL, data TEXT NOT NULL, sequence INTEGER);
+         CREATE TABLE IF NOT EXISTS part (
+             id TEXT PRIMARY KEY, message_id TEXT NOT NULL, session_id TEXT NOT NULL,
+             time_created INTEGER NOT NULL, time_updated INTEGER NOT NULL, data TEXT NOT NULL,
+             sequence INTEGER);",
     )
     .unwrap();
     conn
@@ -131,6 +138,32 @@ pub fn add_session(state_dir: &Path, id: &str, cwd: &Path) {
     );
 }
 
+/// One message of `session` as the engine records it (0.16.9: its `data`
+/// holds its role; each part's, its type and a text part's text), with
+/// `parts` as each part's JSON.
+pub fn message(conn: &Connection, session: &str, id: &str, role: &str, at: i64, parts: &[&str]) {
+    conn.execute(
+        "INSERT INTO message (id, session_id, time_created, time_updated, data)
+         VALUES (?1, ?2, ?3, ?3, ?4)",
+        params![
+            id,
+            session,
+            at,
+            format!(r#"{{"role":"{role}","time":{{"created":{at}}}}}"#)
+        ],
+    )
+    .unwrap();
+    for (n, part) in parts.iter().enumerate() {
+        let at = at + i64::try_from(n).unwrap();
+        conn.execute(
+            "INSERT INTO part (id, message_id, session_id, time_created, time_updated, data)
+             VALUES (?1, ?2, ?3, ?4, ?4, ?5)",
+            params![format!("{id}_p{n}"), id, session, at, part],
+        )
+        .unwrap();
+    }
+}
+
 /// A `model_usage` row.
 pub fn usage(conn: &Connection, id: &str, model: &str, status: &str, at: i64, input: i64) {
     conn.execute(
@@ -140,6 +173,44 @@ pub fn usage(conn: &Connection, id: &str, model: &str, status: &str, at: i64, in
         params![id, model, status, at, input],
     )
     .unwrap();
+}
+
+/// A tree's settings as `ZCode` leaves them (every value made up): the
+/// user settings with a server, the desktop app's preferences and its
+/// provider choice, a plugin, rules and a skill, a log and a model-call
+/// record.
+pub fn settings(tree: &Path) {
+    write(
+        &tree.join("cli/config.json"),
+        r#"{"mcp":{"servers":{"files":{"command":"npx","args":["files-mcp"]}}}}"#,
+    );
+    write(&tree.join("v2/setting.json"), r#"{"memoryEnabled":true}"#);
+    write(
+        &tree.join("v2/provider_config.json"),
+        r#"{"modelSelection":{"providerId":"zai","modelId":"GLM-5.3"}}"#,
+    );
+    write(&tree.join("cli/plugins/data/notes/state.json"), "{}");
+    write(
+        &tree.join("AGENTS.md"),
+        "# Rules
+",
+    );
+    write(
+        &tree.join("skills/release/SKILL.md"),
+        "# Release
+",
+    );
+    write(
+        &tree.join("cli/log/zcode-2026-11-13.jsonl"),
+        "{}
+",
+    );
+    write(
+        &tree.join("cli/rollout/model-io-sess_old.jsonl"),
+        "{}
+",
+    );
+    write(&tree.join("v2/tasks-index.sqlite"), "made-up");
 }
 
 /// A sign-in file holding `canary` (made up).

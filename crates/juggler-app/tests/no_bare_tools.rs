@@ -195,6 +195,7 @@ const SIGN_IN_CONSTANTS: &[&str] = &[
     "GROK_MCP_AUTH",
     "KIMI_MEMBERSHIP",
     "ZCODE_CREDENTIALS",
+    "ZCODE_SIGN_IN_PATH",
 ];
 
 /// Its reads: each streams `auth.json` into a presence-only shape (for

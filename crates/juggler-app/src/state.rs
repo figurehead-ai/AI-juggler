@@ -569,7 +569,9 @@ fn registry_with(claude: juggler_adapters::ClaudeCodeAdapter) -> AdapterRegistry
     ));
     // AJ-E1605: ZCode, through the engine inside its app. No handover
     // support, and its terminal takes no first message, so nothing is
-    // switched to or from it yet.
+    // switched to it; a ZCode session's chat goes into a saved handover
+    // (its adapter reads it from its store), and switching from it waits
+    // for the live check (AJ-E1612).
     registry.register(std::sync::Arc::new(juggler_adapters::ZCodeAdapter::new()));
     registry
 }

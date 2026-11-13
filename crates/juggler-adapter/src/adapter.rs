@@ -769,6 +769,18 @@ pub trait ToolTranscripts: ToolIdentity {
         let _ = state_dir;
         Vec::new()
     }
+    /// AJ-E1605 Req.6: the turns of the conversation at `transcript` (its
+    /// link), for a handover, when this tool keeps them its own way (a
+    /// store, not a Claude Code or Codex transcript file): who spoke and
+    /// what they said, oldest first, read-only. `None` (the default): the
+    /// caller reads the link as a transcript file. An adapter that reads
+    /// them also answers `None` when the record isn't in the shape it
+    /// knows (never a half-read conversation).
+    #[must_use]
+    fn conversation_turns(&self, transcript: &Path) -> Option<Vec<crate::handover::TurnText>> {
+        let _ = transcript;
+        None
+    }
     /// Creates a watcher over the account's transcript root.
     ///
     /// # Errors

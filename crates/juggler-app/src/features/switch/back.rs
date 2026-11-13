@@ -334,6 +334,40 @@ pub(crate) fn transcript_side(
     Some(turns_of(juggler_adapters::parse_any(&bytes)))
 }
 
+/// AJ-E1605 Req.6: the user/assistant turns of the conversation at
+/// `path` (its link) for a pack: read by its tool's adapter when the tool
+/// keeps them its own way (a store: `ZCode`), else parsed as a transcript
+/// file ([`transcript_side`]). Empty when neither reads it.
+pub(crate) fn conversation_turns(
+    state: &AppState,
+    harness: &juggler_core::model::HarnessId,
+    path: &std::path::Path,
+) -> Vec<juggler_handover::pack::IrTurn> {
+    let own = state
+        .registry
+        .get(harness)
+        .and_then(|adapter| juggler_adapter::ToolTranscripts::conversation_turns(&*adapter, path));
+    match own {
+        Some(turns) => turns
+            .into_iter()
+            .map(|turn| juggler_handover::pack::IrTurn {
+                uuid: turn.uuid,
+                role: if turn.role == "user" {
+                    juggler_handover::pack::IrRole::User
+                } else {
+                    juggler_handover::pack::IrRole::Assistant
+                },
+                text: turn.text,
+                at_ms: None,
+                tokens: None,
+            })
+            .collect(),
+        None => transcript_side(path)
+            .map(|(_, turns)| turns)
+            .unwrap_or_default(),
+    }
+}
+
 /// A parsed transcript's uuid set and user/assistant turns, in file order.
 pub(crate) fn turns_of(
     parsed: juggler_adapters::claude_transcript::ParsedTranscript,
@@ -1341,8 +1375,73 @@ pub fn switch_back_suggestions_impl(
 }
 
 #[cfg(test)]
+#[path = "../../../../juggler-adapters/tests/zcode_fixture/mod.rs"]
+mod zcode_fixture;
+
+#[cfg(test)]
 mod tests {
     use super::date_compact_from_millis;
+    use super::zcode_fixture;
+
+    /// AJ-E1605 Req.6: a pack takes a `ZCode` session's chat from its store,
+    /// through its adapter; any other tool's link is still read as its
+    /// transcript file.
+    #[test]
+    fn a_packs_turns_come_from_the_tools_own_store_or_its_transcript_file() {
+        use juggler_handover::pack::IrRole;
+        let work = tempfile::tempdir().unwrap();
+        let mut registry = juggler_adapter::AdapterRegistry::new();
+        registry.register(std::sync::Arc::new(juggler_adapters::ZCodeAdapter::new()));
+        let state =
+            crate::state::AppState::init_with_registry(work.path().join("data"), registry).unwrap();
+        let app = work.path().join("zcode-app");
+        {
+            let conn = zcode_fixture::create(&app);
+            zcode_fixture::add(
+                &conn,
+                &zcode_fixture::Row::plain("sess_1", std::path::Path::new("/w"), 1),
+            );
+            zcode_fixture::message(
+                &conn,
+                "sess_1",
+                "msg_1",
+                "user",
+                1,
+                &[r#"{"type":"text","text":"Fix the cart"}"#],
+            );
+            zcode_fixture::message(
+                &conn,
+                "sess_1",
+                "msg_2",
+                "assistant",
+                2,
+                &[r#"{"type":"text","text":"Fixed."}"#],
+            );
+        }
+        let reference =
+            juggler_adapters::zcode_sessions::session_ref(&zcode_fixture::db(&app), "sess_1");
+        let zcode = juggler_core::model::HarnessId::new(juggler_adapters::ZCODE_ID);
+        let turns = super::conversation_turns(&state, &zcode, &reference);
+        let said: Vec<(IrRole, &str)> = turns.iter().map(|t| (t.role, t.text.as_str())).collect();
+        assert_eq!(
+            said,
+            [
+                (IrRole::User, "Fix the cart"),
+                (IrRole::Assistant, "Fixed.")
+            ]
+        );
+        // A tool the registry reads no other way: its transcript file.
+        let file = work.path().join("t.jsonl");
+        std::fs::write(
+            &file,
+            "{\"type\":\"user\",\"uuid\":\"u1\",\"message\":{\"role\":\"user\",\"content\":\"hello\"}}\n",
+        )
+        .unwrap();
+        let claude = juggler_core::model::HarnessId::new("claude-code");
+        let turns = super::conversation_turns(&state, &claude, &file);
+        assert_eq!(turns.len(), 1);
+        assert_eq!(turns[0].text, "hello");
+    }
 
     #[test]
     fn date_compact_matches_known_civil_dates() {

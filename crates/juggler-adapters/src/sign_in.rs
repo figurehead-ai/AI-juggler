@@ -38,6 +38,8 @@ pub(crate) const KIMI_MEMBERSHIP: &str = "kimi-code.json";
 pub(crate) const ZCODE_CREDENTIALS: &str = "credentials.json";
 /// The folder of `ZCode`'s tree that holds it.
 const ZCODE_SIGN_IN_DIR: &str = "v2";
+/// Its path in the tree, for the copy rules' lists (a copy never takes it).
+pub(crate) const ZCODE_SIGN_IN_PATH: &str = "v2/credentials.json";
 
 /// A provider's sign-in file in a config folder, when it's file-based:
 /// presence and size only, never its contents.
@@ -261,4 +263,18 @@ struct IdShape {
 #[serde(default)]
 struct IdTokens {
     account_id: Option<String>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The copy rules' path is the file the probe looks at.
+    #[test]
+    fn zcodes_sign_in_path_is_the_probed_file() {
+        assert_eq!(
+            Path::new(ZCODE_SIGN_IN_PATH),
+            Path::new(ZCODE_SIGN_IN_DIR).join(ZCODE_CREDENTIALS)
+        );
+    }
 }

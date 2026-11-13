@@ -312,25 +312,25 @@ pub fn validation_matrix() -> Vec<PairCell> {
             "claude-code",
             "zcode",
             FidelityLabel::F0,
-            "Z Code takes handover notes only, until starting it from a story is proven",
+            "Z Code's terminal takes no first message, so a switch can't start it from a story",
         ),
         (
             "zcode",
             "claude-code",
             FidelityLabel::F1,
-            "Reading Z Code sessions isn't built yet",
+            "A Z Code session's chat is read for a saved handover; switching from it waits for the live check",
         ),
         (
             "codex",
             "zcode",
             FidelityLabel::F0,
-            "Z Code support isn't built yet; it takes handover notes only",
+            "Z Code's terminal takes no first message, so a switch can't start it from a story",
         ),
         (
             "zcode",
             "codex",
             FidelityLabel::F1,
-            "Reading Z Code sessions isn't built yet",
+            "A Z Code session's chat is read for a saved handover; switching from it waits for the live check",
         ),
     ] {
         rows.push(PairCell {

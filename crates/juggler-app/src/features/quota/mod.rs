@@ -923,14 +923,24 @@ pub(crate) fn adapter_has(harness: &str, capability: juggler_adapter::Capabiliti
     adapter_capabilities(harness).is_some_and(|caps| caps.contains(capability))
 }
 
-/// True unless `harness` is a registered tool whose adapter declares no
-/// limits feed (`USAGE_QUOTA_FEED`) — what `providers_capabilities`
-/// reports as `reports_limits`. A tool with no adapter here (`ZCode`'s
-/// computed credits) keeps its own rules.
+/// True unless `harness` is a registered tool whose adapter declares
+/// neither a limits feed (`USAGE_QUOTA_FEED`) nor limits from its plan's
+/// caps (`LIMITS_FROM_PLAN_CAPS`: `ZCode`'s credits, computed against the
+/// caps the user enters) — what `providers_capabilities` reports as
+/// `reports_limits`. A tool with no adapter here keeps its own rules.
 #[must_use]
 pub fn reports_limits(harness: &str) -> bool {
-    adapter_capabilities(harness)
-        .is_none_or(|caps| caps.contains(juggler_adapter::Capabilities::USAGE_QUOTA_FEED))
+    adapter_capabilities(harness).is_none_or(shows_limits)
+}
+
+/// Whether a tool with these capabilities has limit windows to show: it
+/// reports them, or its plan's caps (entered by the user) stand for them.
+#[must_use]
+pub fn shows_limits(caps: juggler_adapter::Capabilities) -> bool {
+    caps.intersects(
+        juggler_adapter::Capabilities::USAGE_QUOTA_FEED
+            | juggler_adapter::Capabilities::LIMITS_FROM_PLAN_CAPS,
+    )
 }
 
 /// Which windows the tool reported in the last week (a Measured sample

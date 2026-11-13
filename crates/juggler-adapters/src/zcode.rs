@@ -21,8 +21,8 @@
 //! user's git identity and SSH keys away from `ZCode`'s shell tools). An
 //! App's tree is `<account>/.zcode`, and each launch pins
 //!
-//! - `ZCODE_STORAGE_DIR` = the tree (the engine's `storage.dir`: plugins,
-//!   skills, its per-session working files);
+//! - `ZCODE_STORAGE_DIR` = the tree (the engine's `storage.dir`: plugins
+//!   and its per-session working files);
 //! - `ZCODE_DATA_BASE_DIR` = the account folder (the sign-in is then
 //!   `<account>/.zcode/v2/credentials.json`);
 //! - `ZCODE_SESSION_DB_PATH` = `<tree>/cli/db/db.sqlite` (the engine's
@@ -37,21 +37,42 @@
 //! runs with all three unset, as a plain `zcode` does. These variables were
 //! found in the engine's own code (0.16.9), not in Z.ai's docs, so a launch
 //! check ([`isolation_took`]) confirms the engine wrote inside the App's
-//! tree, and the app can refuse an App where it didn't. One file stays
-//! shared: the engine reads its user settings from `~/.zcode/cli/config.json`
-//! whatever these say (MCP servers, hooks; on the live checklist).
+//! tree, and the app can refuse an App where it didn't. What the engine
+//! reads from the home folder stays shared by every App, whatever these
+//! say: its user settings `~/.zcode/cli/config.json` (MCP servers, hooks),
+//! its rules `~/.zcode/AGENTS.md` and its skills `~/.zcode/skills/`
+//! (`os.homedir()` or `HOME` in its own code; no variable moves them short
+//! of `HOME`, research round-2 addendum). Rules, skills and servers are
+//! therefore one set for every App ([`crate::zcode_inventory`]).
+//!
+//! Bringing a tree in (Req.5, ADR-0018): `ZCode`'s own `~/.zcode` where it
+//! is, or a copy into the App's tree that never takes its sign-in, store,
+//! logs or model-call records ([`crate::zcode_environment`]).
 //!
 //! Sessions (Req.3) come from the tree's store, read-only
 //! ([`crate::zcode_sessions`]); `--resume <sess_…>` reopens one, `-c` the
 //! folder's latest. A running engine is recognised by its command line.
 //!
-//! Not offered yet: runs without a terminal (`-p` skips `ZCode`'s
-//! permission prompts by default, `--mode yolo`), a first message (its
-//! terminal takes none), a model from Launch settings (its terminal has no
-//! model option; `ZCode`'s own choice stands), and the agent tools.
+//! Usage (Req.4): Computed credits from the store's `model_usage`, per
+//! session and per App; its limits are the plan's caps the user enters
+//! (`LIMITS_FROM_PLAN_CAPS`): the engine records no pool (it never asks
+//! Z.ai for one; the desktop app does).
+//!
+//! Packs (Req.6): a session's chat is read from the store for a pack
+//! ([`crate::zcode_sessions::turns`]). A pack can't start a `ZCode`
+//! session: its terminal takes no first message.
+//!
+//! Not offered (each checked in the engine's code, 0.16.9, round-2
+//! addendum): runs without a terminal (`-p` skips `ZCode`'s permission
+//! prompts by default, `--mode yolo`); a first message (the terminal's
+//! options are parsed strictly and none is one; its prompt starts empty;
+//! no variable fills it); a model from Launch settings (no option or
+//! variable: the model is the App's own choice, kept in its tree's
+//! `v2/provider_config.json`, so each App keeps its own); the agent tools.
 
 use std::path::{Path, PathBuf};
 
+use juggler_adapter::environment::{DiscoveredInstall, ImportOutcome, LoginProbe};
 use juggler_adapter::launch::ENV_UNSET;
 use juggler_adapter::prelude::*;
 use juggler_adapter::{
@@ -402,7 +423,10 @@ impl ToolIdentity for ZCodeAdapter {
         zcode_spec()
     }
     fn capabilities(&self) -> Capabilities {
-        Capabilities::RESUME | Capabilities::TRANSCRIPT_WATCH | Capabilities::USAGE_TOKENS
+        Capabilities::RESUME
+            | Capabilities::TRANSCRIPT_WATCH
+            | Capabilities::USAGE_TOKENS
+            | Capabilities::LIMITS_FROM_PLAN_CAPS
     }
     fn verified_against(&self) -> &'static [&'static str] {
         VERIFIED_AGAINST
@@ -445,6 +469,19 @@ impl ToolDiscovery for ZCodeAdapter {
             vec!["ZCode — built from engine 0.16.9's own code; not yet checked live".into()],
         )
     }
+    fn scan_environment(&self) -> Vec<DiscoveredInstall> {
+        let Some(home) = self.user_home() else {
+            return Vec::new();
+        };
+        let env_override = std::env::var_os(ENV_STORAGE_DIR)
+            .filter(|value| !value.is_empty())
+            .map(PathBuf::from);
+        crate::zcode_environment::scan_zcode_environment(
+            &home,
+            env_override.as_deref(),
+            &scan_probe,
+        )
+    }
     fn vendor_default_dir(&self) -> Option<PathBuf> {
         self.default_tree()
     }
@@ -476,6 +513,46 @@ impl ToolSignIn for ZCodeAdapter {
     }
     fn login_state(&self, state_dir: &Path) -> LoginState {
         zcode_login_state(state_dir)
+    }
+    fn import_account(&self, source: &Path, dest: &Path) -> Result<ImportOutcome, AdapterError> {
+        crate::zcode_environment::import_zcode_tree(source, dest, &scan_probe, false)
+    }
+    fn import_account_degraded(
+        &self,
+        source: &Path,
+        dest: &Path,
+    ) -> Result<ImportOutcome, AdapterError> {
+        crate::zcode_environment::import_zcode_tree(source, dest, &scan_probe, true)
+    }
+    fn inspect_source(
+        &self,
+        source: &Path,
+    ) -> Result<juggler_adapter::environment::SourceInspect, AdapterError> {
+        crate::zcode_environment::inspect_zcode_source(source, &scan_probe)
+    }
+    /// `ZCode`'s own `~/.zcode` only (ADR-0018; see
+    /// [`crate::zcode_environment`]).
+    fn can_use_in_place(&self) -> bool {
+        true
+    }
+    fn adopt_account(&self, source: &Path) -> Result<ImportOutcome, AdapterError> {
+        crate::zcode_environment::adopt_zcode_tree(
+            source,
+            self.default_tree().as_deref(),
+            &scan_probe,
+        )
+    }
+}
+
+/// Whether a tree found by the scan is signed in (its file's presence).
+fn scan_probe(dir: &Path) -> LoginProbe {
+    match zcode_login_state(dir) {
+        LoginState::SignedIn | LoginState::ApiKey => LoginProbe::LoggedIn,
+        LoginState::Partial
+        | LoginState::Expired
+        | LoginState::SsoPending
+        | LoginState::LoggedOut
+        | LoginState::Unknown => LoginProbe::LoggedOut,
     }
 }
 
@@ -579,9 +656,40 @@ impl ToolLaunch for ZCodeAdapter {
     }
 }
 
-// AJ-E1605 Req.5: rules, skills and MCP servers join later.
 impl ToolConfig for ZCodeAdapter {}
-impl ToolInventory for ZCodeAdapter {}
+
+/// AJ-E1605 Req.5: the engine reads its MCP servers, skills and rules
+/// from the user's home folder whatever tree an App runs in, so every App
+/// lists, and sets up into, the one set in `~/.zcode`
+/// ([`crate::zcode_inventory`]).
+impl ToolInventory for ZCodeAdapter {
+    fn inventory(
+        &self,
+        _state_dir: &Path,
+        _project: Option<&Path>,
+    ) -> Vec<juggler_adapter::inventory::Item> {
+        self.default_tree()
+            .map(|tree| crate::zcode_inventory::inventory(&tree))
+            .unwrap_or_default()
+    }
+    fn can_set_up(
+        &self,
+        item: &juggler_adapter::inventory::Item,
+    ) -> juggler_adapter::inventory::SetUp {
+        crate::zcode_inventory::can_set_up(item)
+    }
+    fn set_up(
+        &self,
+        _state_dir: &Path,
+        _project: Option<&Path>,
+        item: &juggler_adapter::inventory::Item,
+    ) -> Result<juggler_adapter::inventory::Applied, AdapterError> {
+        let tree = self.default_tree().ok_or_else(|| {
+            AdapterError::Unsupported("your home folder isn't known, so nothing was set up".into())
+        })?;
+        crate::zcode_inventory::set_up(&tree, item)
+    }
+}
 
 impl ToolTranscripts for ZCodeAdapter {
     fn watcher(&self, transcript_root: &Path) -> Result<Box<dyn SessionWatcher>, AdapterError> {
@@ -611,6 +719,23 @@ impl ToolTranscripts for ZCodeAdapter {
         state_dir: &Path,
     ) -> Vec<juggler_adapter::conversation::StoredConversation> {
         crate::zcode_sessions::stored_conversations(&db_path_of(state_dir))
+    }
+    /// A session's turns from the store (`<db>#<id>`), for a handover
+    /// (Req.6; [`crate::zcode_sessions::turns`]).
+    fn conversation_turns(
+        &self,
+        transcript: &Path,
+    ) -> Option<Vec<juggler_adapter::handover::TurnText>> {
+        crate::zcode_sessions::turns_of_ref(transcript).map(|turns| {
+            turns
+                .into_iter()
+                .map(|turn| juggler_adapter::handover::TurnText {
+                    uuid: None,
+                    role: turn.role,
+                    text: turn.text,
+                })
+                .collect()
+        })
     }
     fn subagent_support(&self) -> juggler_adapter::SubagentSupport {
         juggler_adapter::SubagentSupport::NotSupported(

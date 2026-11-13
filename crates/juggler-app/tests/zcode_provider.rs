@@ -140,3 +140,40 @@ fn its_sessions_become_projects_and_the_store_is_left_unchanged() {
         "nothing in the tree changed"
     );
 }
+
+/// AJ-E1605 Req.4: ZCode's limits are its plan's caps, which the user
+/// enters; what it used is computed from its own store. Every surface
+/// says the same thing: the provider list shows its limit rows, and the
+/// Usage screen shows the 5-hour and weekly windows, never "doesn't
+/// report its limits", and never a Measured badge.
+#[test]
+fn its_limits_are_the_plans_caps_and_never_claimed_read() {
+    let work = tempfile::tempdir().unwrap();
+    let state = app_state(work.path());
+    let caps = juggler_app::features::providers::providers_capabilities_impl(&state);
+    let zcode = caps.iter().find(|c| c.provider == ZCODE_ID).unwrap();
+    assert!(zcode.reports_limits, "its limit rows are shown");
+    let created =
+        juggler_app::features::account::create_account(&state, ZCODE_ID, "ZCode", None).unwrap();
+    let dir = state_dir_of(&state, &created.id);
+    let conn = zcode_fixture::create(&dir);
+    let at = 1_792_580_400_000; // 2026-10-21
+    zcode_fixture::usage(&conn, "mu_1", "GLM-5.3", "completed", at + 10, 1000);
+    drop(conn);
+    let storage = state.storage.lock().unwrap();
+    let account = storage
+        .accounts()
+        .list()
+        .unwrap()
+        .into_iter()
+        .find(|a| a.id.as_str() == created.id)
+        .unwrap();
+    let display =
+        juggler_app::features::quota::quota_display_inner(&storage, &account, at + 60_000);
+    assert_eq!(display.unavailable_reason, None);
+    let five = display.five_hour.expect("the 5-hour window is shown");
+    let week = display.weekly.expect("the weekly window is shown");
+    for window in [&five, &week] {
+        assert_ne!(window.badge.as_deref(), Some("Measured"), "{window:?}");
+    }
+}
