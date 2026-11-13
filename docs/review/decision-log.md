@@ -2963,3 +2963,14 @@ Each ships with tests that fail without it and a design critique; the M2, D2 and
 - **Amends:** AJ-E1609's handover note (no track-only fallback), AJ-E1613's goal, requirement 1 and guardrail (consumer plans no longer track-only).
 - Sources: the three research notes above; the coordinating session's relay of the maintainer's two messages, 2026-11-13.
 
+### D-106 Kimi usage on by default, with one honest privacy exception; undocumented routes researched before any gap — SETTLED (2026-11-13)
+
+**Ruling.** The maintainer, 2026-11-13, on AJ-E1603 R3 (reading `kimi web`'s usage needs the home's `server.token`, which the Privacy page's "reads no tokens" contradicts): option C, Kimi usage on by default, with one honest exception line on the Privacy page. And a standing order, in their words: "have you tried researching undocumented ways, we've done many undocumented implementations across different tools, why stop here. That should be your standing order."
+
+- **Research first, keyless preferred.** Before building the `server.token` route, look for an undocumented usage source that needs no key (a `/usage` or `/status` command in the interactive CLI; quota fields in Kimi's session or wire records, logs or `server/instances/`; headers the CLI records; an unauthenticated route of `kimi web`; the app bundle's own code). Each finding is sourced, tested on fixtures and guarded by a format check, because undocumented routes change.
+- **If no keyless source works,** the `server.token` route: the key is read only to ask Kimi's own local server on 127.0.0.1, never stored, logged, copied (a bring-in still leaves it) or sent anywhere else; the usage shows labelled experimental.
+- **The Privacy page** (README § privacy, `docs/guide/trust.md`, SPEC §8 and the website's page) gains one plain exception line naming exactly what is read and where it goes, with the build; the "reads no tokens" and "no requests to AI providers" promises change only for that case, by name.
+- **Standing order, every tool:** before calling a capability a gap or asking for a ruling (usage, sessions, titles, reply routes), an undocumented-route research pass is run and its findings recorded; every adapter brief carries that step.
+- **Amends:** AJ-E1603 R3 ("labelled experimental" stands; the source is decided by the research pass).
+- Sources: the coordinating session's relay of the maintainer's words, 2026-11-13.
+

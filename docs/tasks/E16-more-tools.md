@@ -62,13 +62,13 @@
 **Research basis**: `opencode.md`.
 **Handover note**: The maintainer chooses v1, v2 or both; default both.
 
-### AJ-E1603 Kimi Code CLI | Status: IN-PROGRESS (Req.1, 2 and 4 evidenced; Req.3's usage source awaits the maintainer's ruling; live check pending, AJ-E1612) | Priority P0 | Effort M | Depends: AJ-E1521
+### AJ-E1603 Kimi Code CLI | Status: IN-PROGRESS (Req.1, 2 and 4 evidenced; Req.3 ruled, D-106: research then build; live check pending, AJ-E1612) | Priority P0 | Effort M | Depends: AJ-E1521
 **Goal**: Kimi Code runs with separate accounts and real quota windows.
 **User story**: As a Kimi member, I see my 5-hour, 7-day and monthly windows and juggle Kimi accounts.
 **Requirements**:
 1. Discover `kimi`, and isolate each account with `KIMI_CODE_HOME`. Never set `KIMI_CODE_IDENTITY_*`.
 2. Sessions come from the documented layout and `session_index.jsonl`.
-3. Usage comes from `kimi web`'s usage endpoint where it is available, labelled experimental.
+3. Usage on by default (D-106): from an undocumented source that needs no key if the research pass finds one (sourced, fixture-tested, format-guarded), else `kimi web`'s usage endpoint on 127.0.0.1 with the home's `server.token`, read for that request only and never stored, logged, copied or sent elsewhere; labelled experimental; the Privacy page names the exception.
 4. Interactive use only on subscription accounts: no headless runs and no auto-restart, as the guidelines require.
 **UI/UX reasoning**: Like Codex.
 **Performance budget**: as Codex.
