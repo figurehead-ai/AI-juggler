@@ -20,6 +20,7 @@ import { singleFlight, useLiveDeltas, type Freshness } from "../lib/live-deltas"
 import { withMarks } from "../lib/palette";
 import { withFolderMarks } from "../lib/marks";
 import { keepIfSame } from "../lib/same";
+import { coalesced } from "../lib/shown-window";
 import { useWithSelected } from "../lib/session-lookup";
 import { staleSubscriptions } from "../lib/subscriptions";
 import type { AccountInfo } from "../types/generated/AccountInfo";
@@ -137,15 +138,18 @@ export function useAppData(selection: Selection, openPage: (next: Selection) => 
   }, [refresh]);
 
   // Day one: the REAL project history from imported transcripts (an idempotent
-  // scan); AJ-E1529: again when the files change (not when only what's open did).
+  // scan); AJ-E1529: again when the files change (not when only what's open
+  // did), and when sessions change. AJ-E805: a burst of either reads the
+  // lists at once, then at most once a second.
   useEffect(() => {
     void projectsBackfill().then(() => void refresh());
-    return onConversationsChanged((change) => change === "index" && void refresh());
-  }, [refresh]);
-
-  useEffect(() => {
     void refresh();
-    return onSessionsUpdated(() => void refresh());
+    const reads = coalesced(() => void refresh());
+    const stops = [onConversationsChanged((change) => change === "index" && reads.ask()), onSessionsUpdated(reads.ask)];
+    return () => {
+      reads.stop();
+      stops.forEach((stop) => stop());
+    };
   }, [refresh]);
 
   // AJ-E402/E401: the 5 s resource and 30 s quota ticks, merged by id.
