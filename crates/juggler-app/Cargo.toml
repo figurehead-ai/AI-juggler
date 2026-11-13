@@ -64,6 +64,11 @@ juggler-stats = { version = "0.4.0", path = "../juggler-stats", optional = true 
 thread-priority = { version = "3.1.1", optional = true }
 juggler-supervisor = { version = "0.4.0", path = "../juggler-supervisor" }
 getrandom = { workspace = true }
+# D-108 (AJ-E1107 R5): crash reports go to Sentry through its SDK. No
+# default features: no transport (reports go over the app's own HTTPS
+# client, juggler-account's ureq + rustls), no integrations that read the
+# OS, environment, files or debug images, no sessions. Pinned exactly.
+sentry = { version = "=0.49.5", default-features = false }
 prost = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }

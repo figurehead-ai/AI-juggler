@@ -95,7 +95,11 @@ dashboard". With it ticked, the weekly report goes to your account
 Crash reports have their own setting: never (the default), ask (you see
 the report and choose), or always. They are scrubbed on your Mac first:
 your home folder becomes `~`, and no user name, environment or URLs are
-included.
+included. They go to Sentry, the crash-report service, through Sentry's
+own SDK with its automatic data collection off (D-108): with ask, only the
+reports you chose to send, exactly as the preview showed them; with
+always, each one as it's kept; with never, nothing. Usage statistics don't
+use Sentry.
 
 ## A sample report
 

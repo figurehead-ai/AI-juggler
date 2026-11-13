@@ -1,4 +1,38 @@
 
 # cargo-vet audits file
 
-[audits]
+[[audits.sentry]]
+who = "claude-opus for AI Juggler"
+criteria = "safe-to-deploy"
+version = "0.49.5"
+notes = """
+D-108 crash reports. Built with default-features = false: the client only,
+with no transport, integration, session, log or metric code. Reviewed for
+safe-to-deploy: build.rs only defines cfg aliases (no network, no code
+generation); environment reads only in apply_defaults and init, which AI
+Juggler never calls; no process, socket or file access in the code built.
+"""
+
+[[audits.sentry-core]]
+who = "claude-opus for AI Juggler"
+criteria = "safe-to-deploy"
+version = "0.49.5"
+notes = """
+D-108 crash reports, as built (the client feature only). Reviewed for
+safe-to-deploy: one unsafe block in the code built, a standard Pin
+projection in futures.rs; the other (macros.rs) is inside release_name!,
+which AI Juggler doesn't use. Worker threads exist only behind
+release-health, logs and metrics, which are off. No file, socket, process
+or environment access.
+"""
+
+[[audits.sentry-types]]
+who = "claude-opus for AI Juggler"
+criteria = "safe-to-deploy"
+delta = "0.30.0 -> 0.49.5"
+notes = """
+D-108 crash reports. Delta from the imported 0.30.0 audit, reviewed for
+safe-to-deploy: protocol types, DSN parsing and serde only; no unsafe. The
+only file access is Envelope::from_path, a read its caller asks for, which
+AI Juggler never calls. No network, process or environment access.
+"""

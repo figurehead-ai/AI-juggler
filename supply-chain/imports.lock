@@ -578,6 +578,12 @@ criteria = "safe-to-deploy"
 version = "0.8.12"
 notes = "No unsafe usage (forbidden) or ambient capabilities"
 
+[[audits.embark-studios.audits.sentry-types]]
+who = "Johan Andersson <opensource@embark-studios.com>"
+criteria = "safe-to-deploy"
+version = "0.30.0"
+notes = "Type definitions. No unsafe usage, can read files but only based on user-provided paths, no other ambient capabilities"
+
 [[audits.embark-studios.audits.thiserror]]
 who = "Johan Andersson <opensource@embark-studios.com>"
 criteria = "safe-to-deploy"
@@ -1608,6 +1614,13 @@ version = "0.9.12"
 notes = """
 Unsafe blocks are to call FFI functions, and to pass strings and callback functions through FFI boundary, which are inherently unsafe.
 """
+aggregated-from = "https://raw.githubusercontent.com/mozilla-firefox/firefox/main/supply-chain/audits.toml"
+
+[[audits.mozilla.audits.debugid]]
+who = "Gabriele Svelto <gsvelto@mozilla.com>"
+criteria = "safe-to-deploy"
+version = "0.8.0"
+notes = "This crates was written by Sentry and I've fully audited it as Firefox crash reporting machinery relies on it."
 aggregated-from = "https://raw.githubusercontent.com/mozilla-firefox/firefox/main/supply-chain/audits.toml"
 
 [[audits.mozilla.audits.document-features]]

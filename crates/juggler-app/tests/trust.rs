@@ -7,7 +7,8 @@
 //! - where the network can be reached from, and which addresses;
 //! - that the window reaches only the app;
 //! - that no tool is pointed at another address;
-//! - that crash reports have nowhere to go;
+//! - that crash reports have nowhere to go, and go only through one file's
+//!   use of Sentry's SDK, with its defaults off;
 //! - that no switch starts by itself.
 
 // Test crates are pragmatic by policy (QUALITY.md §2).
@@ -637,6 +638,71 @@ fn crash_reports_have_nowhere_to_go() {
             !code_only(&text).contains("service_address"),
             "{} uses the crash reporting address",
             path.display()
+        );
+    }
+}
+
+/// D-108: Sentry's SDK is used in one file (`crash_sentry.rs`), never set
+/// up globally (no `sentry::init`, hub or scope, so it captures nothing by
+/// itself), with no transport, integrations or sessions of its own and
+/// our scrubber as `before_send`; and the crate is pinned with its default
+/// features off, so none of the SDK's data collection is built in.
+#[test]
+fn only_one_file_uses_sentrys_sdk_and_without_its_defaults() {
+    for (path, text) in shipped("juggler-app") {
+        let code = code_only(&text);
+        let uses = code
+            .match_indices("sentry::")
+            .any(|(at, _)| !code[..at].ends_with("crash_"));
+        assert_eq!(
+            uses,
+            path.ends_with("crash_sentry.rs"),
+            "{} uses Sentry's SDK",
+            path.display()
+        );
+    }
+    let sdk = code_only(&product(&read("crates/juggler-app/src/crash_sentry.rs")));
+    for global in [
+        "sentry::init",
+        "Hub::",
+        "bind_client",
+        "configure_scope",
+        "with_scope",
+        "capture_",
+        "add_integration",
+        "options.transport",
+    ] {
+        assert!(!sdk.contains(global), "crash_sentry.rs uses {global}");
+    }
+    for option in [
+        "options.dsn = None;",
+        "options.default_integrations = false;",
+        "options.integrations = Vec::new();",
+        "options.send_default_pii = false;",
+        "options.server_name = None;",
+        "options.attach_stacktrace = false;",
+        "options.auto_session_tracking = false;",
+        "options.before_send = Some(Arc::new(move |event| scrubbed(event, &identity)));",
+    ] {
+        assert!(sdk.contains(option), "crash_sentry.rs lacks {option}");
+    }
+    // The dependency: exact, no default features, no features added.
+    let manifest = read("crates/juggler-app/Cargo.toml");
+    let line = manifest
+        .lines()
+        .find(|line| line.starts_with("sentry ="))
+        .expect("the sentry dependency");
+    assert!(line.contains(r#"version = "=0."#), "{line}");
+    assert!(line.contains("default-features = false"), "{line}");
+    assert!(!line.contains("features = ["), "{line}");
+    for name in workspace_crates() {
+        if name == "juggler-app" {
+            continue;
+        }
+        let other = read(&format!("crates/{name}/Cargo.toml"));
+        assert!(
+            !other.lines().any(|line| line.starts_with("sentry")),
+            "{name} depends on Sentry's SDK"
         );
     }
 }
