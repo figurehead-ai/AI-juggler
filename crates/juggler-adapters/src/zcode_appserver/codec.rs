@@ -27,6 +27,7 @@ use std::collections::BTreeMap;
 use juggler_adapter::AdapterError;
 use juggler_adapter::runtime::book::{AskBook, OpenAsk};
 use juggler_adapter::runtime::events::bounded;
+use juggler_adapter::runtime::session::{LineAndEvents, LineCodec};
 use juggler_adapter::runtime::{
     Approval, ApprovalKind, AskAnswer, AskId, AskOption, Choice, ErrorCategory, ImportedHistory,
     ItemKind, ItemSummary, LiveStatusWord, OptionEffect, Question, QuestionPart, RuntimeEvent,
@@ -267,22 +268,6 @@ impl Codec {
         let resolved = RuntimeEvent::AskResolved { id: ask.clone() };
         self.book.note(&resolved);
         Ok((rpc::answer(&pending.request, result), vec![resolved]))
-    }
-
-    /// What one message means: events for the session, and replies.
-    pub fn incoming(&mut self, message: Incoming) -> (Vec<RuntimeEvent>, Vec<Value>) {
-        let (events, replies) = match message {
-            Incoming::Response { id, result } => (self.response(id, result), Vec::new()),
-            Incoming::Request { id, method, params } => self.engine_request(id, &method, &params),
-            Incoming::Notification { method, params } if method == methods::EVENT => {
-                (self.event(&params), Vec::new())
-            }
-            Incoming::Notification { .. } => (Vec::new(), Vec::new()),
-        };
-        for event in &events {
-            self.book.note(event);
-        }
-        (events, replies)
     }
 
     fn response(&mut self, id: i64, result: Result<Value, String>) -> Vec<RuntimeEvent> {
@@ -594,6 +579,60 @@ impl Codec {
                 .unwrap_or_default(),
             _ => Vec::new(),
         }
+    }
+}
+
+impl Codec {
+    /// What one message means: events for the session, and replies.
+    pub fn incoming(&mut self, message: Incoming) -> (Vec<RuntimeEvent>, Vec<Value>) {
+        let (events, replies) = match message {
+            Incoming::Response { id, result } => (self.response(id, result), Vec::new()),
+            Incoming::Request { id, method, params } => self.engine_request(id, &method, &params),
+            Incoming::Notification { method, params } if method == methods::EVENT => {
+                (self.event(&params), Vec::new())
+            }
+            Incoming::Notification { .. } => (Vec::new(), Vec::new()),
+        };
+        for event in &events {
+            self.book.note(event);
+        }
+        (events, replies)
+    }
+}
+
+impl LineCodec for Codec {
+    fn native_id(&self) -> Option<String> {
+        self.handshake.session.clone()
+    }
+
+    fn turn_running(&self) -> bool {
+        self.running
+    }
+
+    fn take_line(&mut self, line: &str) -> (Vec<RuntimeEvent>, Vec<Value>) {
+        rpc::message(line, &mut self.unknown).map_or_else(Default::default, |m| self.incoming(m))
+    }
+
+    fn turn(&mut self, input: TurnInput) -> Result<LineAndEvents, AdapterError> {
+        Ok((self.send(&input)?, Vec::new()))
+    }
+
+    fn stop(&mut self) -> Option<Value> {
+        Codec::stop(self)
+    }
+
+    fn answer(&mut self, ask: &AskId, answer: &AskAnswer) -> Result<LineAndEvents, AdapterError> {
+        Codec::answer(self, ask, answer)
+    }
+
+    /// The model is the App's own choice in `ZCode` (its tree's provider
+    /// settings), not one AI Juggler sets. (The engine reports no plan
+    /// limits over its protocol either: a refusal at the limit arrives as
+    /// a rate-limit error.)
+    fn set_model(&mut self, _model: &str) -> Result<(Option<Value>, RuntimeEvent), AdapterError> {
+        Err(AdapterError::Unsupported(
+            "ZCode keeps the model as this App's own choice: change it in ZCode".into(),
+        ))
     }
 }
 

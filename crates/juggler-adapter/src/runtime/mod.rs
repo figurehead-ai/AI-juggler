@@ -23,6 +23,8 @@
 pub mod book;
 pub mod events;
 pub mod lines;
+pub mod pipe;
+pub mod session;
 pub mod typed;
 
 use std::io::{BufRead, Write};
@@ -319,9 +321,7 @@ pub trait DrivenSession: Send {
     /// [`AdapterError::Unsupported`] where the tool has no steering.
     fn steer(&mut self, input: TurnInput) -> Result<(), AdapterError> {
         let _ = input;
-        Err(AdapterError::Unsupported(
-            "this tool can't add to a running turn".into(),
-        ))
+        Err(cannot::steer())
     }
 
     /// Interrupts the running turn.
@@ -353,9 +353,7 @@ pub trait DrivenSession: Send {
     ///
     /// [`AdapterError::Unsupported`] where the tool can't list them.
     fn list_models(&mut self) -> Result<(), AdapterError> {
-        Err(AdapterError::Unsupported(
-            "this tool doesn't list its models".into(),
-        ))
+        Err(cannot::list_models())
     }
 
     /// Compacts the conversation.
@@ -364,9 +362,7 @@ pub trait DrivenSession: Send {
     ///
     /// [`AdapterError::Unsupported`] where the tool can't.
     fn compact(&mut self) -> Result<(), AdapterError> {
-        Err(AdapterError::Unsupported(
-            "this tool can't compact from AI Juggler".into(),
-        ))
+        Err(cannot::compact())
     }
 
     /// What the tool last reported about its limits, and asks it again
@@ -383,6 +379,30 @@ pub trait DrivenSession: Send {
     ///
     /// The write's error.
     fn release(self: Box<Self>, how: Release) -> Result<ReleaseOutcome, AdapterError>;
+}
+
+/// What a tool without one of [`DrivenSession`]'s optional calls answers
+/// (its defaults' words, for a codec that offers the same calls).
+pub mod cannot {
+    use crate::error::AdapterError;
+
+    /// No [`super::DrivenSession::steer`].
+    #[must_use]
+    pub fn steer() -> AdapterError {
+        AdapterError::Unsupported("this tool can't add to a running turn".into())
+    }
+
+    /// No [`super::DrivenSession::list_models`].
+    #[must_use]
+    pub fn list_models() -> AdapterError {
+        AdapterError::Unsupported("this tool doesn't list its models".into())
+    }
+
+    /// No [`super::DrivenSession::compact`].
+    #[must_use]
+    pub fn compact() -> AdapterError {
+        AdapterError::Unsupported("this tool can't compact from AI Juggler".into())
+    }
 }
 
 /// The options an approval offers, by id: an answer naming another is

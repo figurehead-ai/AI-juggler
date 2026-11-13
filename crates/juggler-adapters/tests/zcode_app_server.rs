@@ -20,7 +20,7 @@ use juggler_adapter::runtime::{
     AskAnswer, Connection, DrivenSession, ErrorCategory, ImportedHistory, OptionEffect, PartAnswer,
     RuntimeEvent, TurnEnd, TurnInput,
 };
-use juggler_adapters::zcode_appserver::session::{Open, ZCodeSession};
+use juggler_adapters::zcode_appserver::session::{Open, connect};
 use serde_json::{Value, json};
 
 const SESSION: &str = "sess_0a1b";
@@ -79,7 +79,7 @@ fn start(open: Open<'_>) -> (Box<dyn DrivenSession>, Engine) {
         writer: Box::new(ours),
     };
     let cwd = "/work/cart";
-    let session = ZCodeSession::connect(io, cwd, open).unwrap();
+    let session = connect(io, cwd, open).unwrap();
     (Box::new(session), Engine { seen, say })
 }
 
@@ -523,7 +523,7 @@ fn live_import() {
         writer: Box::new(child.stdin.take().unwrap()),
     };
     let id = spec.native_id.clone().unwrap();
-    let opened = ZCodeSession::connect(
+    let opened = connect(
         io,
         &spec.launch.cwd.to_string_lossy(),
         Open::Import {

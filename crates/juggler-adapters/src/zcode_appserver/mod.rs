@@ -40,7 +40,7 @@ use juggler_adapter::runtime::{
 use juggler_core::model::{Account, Profile};
 
 use crate::zcode::{NO_TERMINAL, ZCodeAdapter};
-use session::{Open, ZCodeSession};
+use session::Open;
 
 /// The engine's arguments for its server.
 pub const SERVER_ARGS: &[&str] = &["app-server", "--stdio"];
@@ -133,7 +133,7 @@ impl DrivenRuntime for ZCodeAdapter {
             (None, Some(id)) => Open::Resume(id),
             _ => Open::New,
         };
-        Ok(Box::new(ZCodeSession::connect(io, &cwd, open)?))
+        Ok(Box::new(session::connect(io, &cwd, open)?))
     }
 
     /// None: the app ships no terminal UI.

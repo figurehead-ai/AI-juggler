@@ -2,6 +2,8 @@
 //! is mostly data plus a few small impls. Nothing here names a tool.
 //!
 //! - [`layout`]: what differs between tools' config homes.
+//! - [`driven`]: the terminal launch a driven runtime starts from and
+//!   resumes in.
 //! - [`home`]: scanning, inspecting, copying and adopting a config home.
 //! - [`jsonl`]: reading a file one bounded line at a time.
 //! - [`probe`]: asking an installed tool its version.
@@ -9,6 +11,7 @@
 
 #[cfg(test)]
 pub(crate) mod bridge_sample;
+pub(crate) mod driven;
 pub(crate) mod home;
 pub(crate) mod jsonl;
 pub(crate) mod layout;

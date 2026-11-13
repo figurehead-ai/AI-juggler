@@ -37,9 +37,9 @@ use std::path::{Path, PathBuf};
 
 use juggler_adapter::runtime::{
     Connection, DrivenLaunch, DrivenRuntime, DrivenSession, DrivenSpec, Maturity, Runtime,
-    TerminalView, Transport, ViewOf,
+    TerminalView, ViewOf,
 };
-use juggler_adapter::{AdapterError, InstallStatus, LaunchMode};
+use juggler_adapter::{AdapterError, InstallStatus};
 use juggler_core::model::{Account, Profile};
 
 use crate::codex::CodexAdapter;
@@ -167,30 +167,14 @@ impl DrivenRuntime for CodexAdapter {
         cwd: &Path,
         launch: &DrivenLaunch,
     ) -> Result<DrivenSpec, AdapterError> {
-        if let Some(id) = &launch.resume {
-            crate::codex::refuse_option_like(id)?;
-        }
-        let mode = launch
-            .resume
-            .as_ref()
-            .map_or(LaunchMode::Interactive, |id| LaunchMode::Resume {
-                session_id: id.clone(),
-                delta_prompt: None,
-            });
-        let mut spec = self.launch_spec(account, profile, cwd, &mode)?;
-        spec.args = vec![
-            "app-server".to_owned(),
-            "--listen".to_owned(),
-            "stdio://".to_owned(),
-        ];
-        spec.needs_pty = false;
-        Ok(DrivenSpec {
-            launch: spec,
-            transport: Transport::Stdio,
-            native_id: launch.resume.clone(),
-            model: profile.settings_overlay.model.clone(),
-            history: None,
-        })
+        let mode = crate::common::driven::launch_mode(launch)?;
+        let spec = self.launch_spec(account, profile, cwd, &mode)?;
+        let args = ["app-server", "--listen", "stdio://"]
+            .map(str::to_owned)
+            .to_vec();
+        let model = profile.settings_overlay.model.clone();
+        let resume = launch.resume.clone();
+        Ok(crate::common::driven::over_stdio(spec, args, resume, model))
     }
 
     fn connect(
@@ -199,7 +183,7 @@ impl DrivenRuntime for CodexAdapter {
         spec: &DrivenSpec,
         account: &Account,
     ) -> Result<Box<dyn DrivenSession>, AdapterError> {
-        let session = session::CodexSession::connect(
+        let session = session::connect(
             io,
             &account.state_dir,
             &spec.launch.cwd,
@@ -218,13 +202,7 @@ impl DrivenRuntime for CodexAdapter {
         cwd: &Path,
         of: &ViewOf,
     ) -> Result<TerminalView, AdapterError> {
-        crate::codex::refuse_option_like(&of.native_id)?;
-        let mode = LaunchMode::Resume {
-            session_id: of.native_id.clone(),
-            delta_prompt: None,
-        };
-        self.launch_spec(account, profile, cwd, &mode)
-            .map(TerminalView::AfterRelease)
+        crate::common::driven::terminal_resume(self, account, profile, cwd, of)
     }
 }
 
