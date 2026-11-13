@@ -19,7 +19,7 @@
 //! restart resumes exactly where the spool was consumed.
 //!
 //! 0.4.5 (AJ-E805): a pass runs when what it reads changed, or on its
-//! slower cadences ([`gate`]), and writes the blob only when it changed.
+//! slower cadences (`gate`), and writes the blob only when it changed.
 
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
