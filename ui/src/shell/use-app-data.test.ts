@@ -11,7 +11,7 @@ import { useAppData } from "./use-app-data";
 afterEach(cleanup);
 
 it("an equal answer keeps each list's identity", async () => {
-  const { result } = renderHook(() => useAppData({ kind: "home" }, () => {}));
+  const { result } = renderHook(() => useAppData({ kind: "none" }, () => {}));
   await waitFor(() => expect(result.current.loaded).toBe(true));
   const { projects, sessions, accounts, profiles, freshness } = result.current;
   await act(async () => {
