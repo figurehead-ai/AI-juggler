@@ -12,6 +12,7 @@ import { HomeNext } from "../components/HomeNext";
 import { HomeRunway } from "../components/HomeRunway";
 import { MorningSummary } from "../components/MorningSummary";
 import { ProjectMark } from "../components/ProjectMark";
+import { RowPlaceholders } from "../components/Placeholder";
 import { SectionTitle } from "../components/SectionTitle";
 import { SmootherCard } from "../components/SmootherCard";
 import { showToast } from "../components/Toast";
@@ -51,6 +52,8 @@ export interface HomeCardContext {
   quotaKnown: boolean;
   ledgerDegraded: boolean;
   fewNeeds: boolean;
+  /** D-103.6: the needs have loaded (until then Needs you holds its place). */
+  needsKnown: boolean;
   /** "Pick up where you left off", drawn by Home (it holds its state). */
   recentArea: ReactNode;
   busy: string | null;
@@ -120,8 +123,12 @@ const HOME_CARDS: readonly HomeCard[] = [
   {
     id: "needs",
     area: "left",
+    // D-103.6: its skeleton until the needs load, gone when there are none,
+    // so nothing under it moves when they arrive.
     render: (ctx) =>
-      needsCount(ctx) > 0 && (
+      !ctx.needsKnown ? (
+        <RowPlaceholders shape="need" rows={1} label="Loading what needs you" />
+      ) : needsCount(ctx) > 0 && (
         <HomeNeeds
           needs={ctx.allNeeds}
           now={ctx.now}

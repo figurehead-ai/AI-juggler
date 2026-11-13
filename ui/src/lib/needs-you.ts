@@ -14,7 +14,7 @@ import { placeWords, type Need, type RailItem } from "./rail-items";
 import { readSnooze, forgetSnooze, type SnoozeState } from "./railview";
 import type { AccountInfo } from "../types/generated/AccountInfo";
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
-import { notificationsPage, notificationsSnooze, notificationsSnoozes, standInNeedsPage, type NeedSnoozeInfo, type NoticeInfo } from "./ipc/notices";
+import { notificationsPage, notificationsSnooze, notificationsSnoozes, standInNeedsKnown, standInNeedsPage, type NeedSnoozeInfo, type NoticeInfo } from "./ipc/notices";
 import { acted, useNoticeSummary } from "./notices-store";
 import { usePagedList, MAX_PAGE } from "./paged";
 import { quotaDetail } from "./notice-words";
@@ -43,6 +43,10 @@ export interface BackendNeeds {
   needOf: ReadonlyMap<string, Need>;
   /** The first read hasn't answered yet. */
   loading: boolean;
+  /** D-103.6: the needs are known (the first read answered with them):
+   * until then Home's Needs you holds its place, so nothing moves when
+   * they arrive. */
+  known: boolean;
 }
 
 /** The backend's Needs you, kept current by its events. */
@@ -52,12 +56,16 @@ export function useBackendNeeds(): BackendNeeds {
   // NY1 (rc32): a session archived here leaves at once, not when the
   // list is read again
   const archived = useSyncExternalStore(subscribeArchived, archivedHere);
+  // D-103.6: read on every render (the preview's first tick moves the
+  // summary, which renders this again, not always the rows); a summary
+  // that counts none says so before the list answers.
+  const known = standInNeedsKnown() && (!list.loading || summary?.count === 0);
   return useMemo(() => {
     const rows = withoutArchived(list.items.filter((row) => !row.snoozed), archived);
     const needOf = new Map<string, Need>();
     for (const row of rows) if (SESSION_KINDS.has(row.kind)) needOf.set(row.subject, row.kind as Need);
-    return { rows, count: summary?.count ?? rows.length, subjects: new Set(rows.map((row) => row.subject)), needOf, loading: list.loading };
-  }, [list.items, list.loading, summary?.count, archived]);
+    return { rows, count: summary?.count ?? rows.length, subjects: new Set(rows.map((row) => row.subject)), needOf, loading: list.loading, known };
+  }, [list.items, list.loading, summary?.count, archived, known]);
 }
 
 /** The busiest live session on an account (a hand-over starts there). */

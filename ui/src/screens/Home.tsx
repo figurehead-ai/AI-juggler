@@ -390,7 +390,7 @@ export function HomeScreen({
     // its folders show it.
     runOut: [...new Set(runway.filter((r) => r.left === 0 && !r.credits).map((r) => accountNameOf(subscriptions, r.account.id, r.account.label)))],
     running: items.some((item) => item.live && item.state === "working") || items.some(openNow),
-    anything: sessions.length + conversations.length > 0,
+    anything: sessions.length + conversations.length > 0, known: needsNow.known,
   });
   const openCount = items.filter(openNow).length;
   const sessionsWords = (count: number, what: string) => `${count} ${what} ${count === 1 ? "session" : "sessions"}`;
@@ -419,7 +419,7 @@ export function HomeScreen({
   // AJ-E2018: the cards themselves are a registry (screens/home-cards).
   const cards: HomeCardContext = {
     sessions, conversations, accounts, projects, subscriptions, now, items, allNeeds, capNeeds, messageNeeds, taskNeeds,
-    parked, recent, quota, quotaKnown, ledgerDegraded, fewNeeds, recentArea, busy, actionKeysAria: actionKeys.aria,
+    parked, recent, quota, quotaKnown, ledgerDegraded, fewNeeds, needsKnown: needsNow.known, recentArea, busy, actionKeysAria: actionKeys.aria,
     signingIn, signInError, runwayFor, act, startSignIn, onOpenSession, onNewSession, onLimit, onChanged, onOpenThisMac, onOpenCleanup,
   };
 

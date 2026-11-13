@@ -41,13 +41,14 @@ export interface NoticeSeed {
 const BANNER_KINDS = new Set(["quota"]);
 
 
-type Stand = { synced: NoticeInfo[]; keys: Map<string, NoticeInfo>; app: NoticeInfo[]; earlier: NoticeInfo[]; mutes: NoticeMuteInfo[]; snoozes: Map<string, number | null>; quiet: string | null; next: number; listeners: Set<(summary: NoticeSummaryInfo) => void> };
+/** `ticked`: the preview's Needs you has been worked out once (D-103.6). */
+type Stand = { synced: NoticeInfo[]; ticked: boolean; keys: Map<string, NoticeInfo>; app: NoticeInfo[]; earlier: NoticeInfo[]; mutes: NoticeMuteInfo[]; snoozes: Map<string, number | null>; quiet: string | null; next: number; listeners: Set<(summary: NoticeSummaryInfo) => void> };
 let stand: Stand | null = null;
 
 function standIn(): Stand {
   if (stand) return stand;
   const seed = (window as unknown as { __AIJ_NOTICES__?: NoticeSeed }).__AIJ_NOTICES__ ?? {};
-  stand = { synced: [], keys: new Map(), app: structuredClone(seed.app ?? []), earlier: structuredClone(seed.earlier ?? []), mutes: structuredClone(seed.mutes ?? []), snoozes: new Map(), quiet: seed.quiet_until ?? null, next: 10_000, listeners: new Set() };
+  stand = { synced: [], ticked: false, keys: new Map(), app: structuredClone(seed.app ?? []), earlier: structuredClone(seed.earlier ?? []), mutes: structuredClone(seed.mutes ?? []), snoozes: new Map(), quiet: seed.quiet_until ?? null, next: 10_000, listeners: new Set() };
   return stand;
 }
 
@@ -145,10 +146,18 @@ export function standInNeedsPage(limit: number): Page<NoticeInfo> | null {
   return hasLiveBackend() ? null : pageOf(openRows(standIn()), { cursor: null, limit });
 }
 
+/** D-103.6: whether Needs you is known yet. The backend keeps it in its
+ * storage, so its first read has it; the preview's stand-in has it once
+ * its first tick worked it out (until then Home holds its place). */
+export function standInNeedsKnown(): boolean {
+  return hasLiveBackend() || standIn().ticked;
+}
+
 /** The preview's stand-in for the backend's tick: Needs you now (the
  * live app works it out in the backend, D-49; nothing sends it there). */
 export function standInNeeds(needs: StandInNeed[]): NoticeSummaryInfo {
   const s = standIn();
+  s.ticked = true;
   const keys = new Map<string, NoticeInfo>();
   s.synced = needs.map((need, index) => {
     const kept = s.keys.get(need.key);

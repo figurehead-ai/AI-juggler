@@ -7,7 +7,7 @@
  */
 import type { JSX } from "react";
 
-export type PlaceholderShape = "rail" | "home" | "card";
+export type PlaceholderShape = "rail" | "home" | "card" | "need";
 
 function Bar({ className }: { className: string }): JSX.Element {
   return <span className={`block rounded bg-skeleton ${className}`} />;
@@ -54,6 +54,29 @@ function CardRow({ index }: { index: number }): JSX.Element {
   );
 }
 
+/** D-103.6: Home's Needs you with its first need, as large: its mark, its
+ * title, why and what it asks, then its buttons. */
+function NeedRow(): JSX.Element {
+  return (
+    <div className="flex flex-col gap-3 rounded-xl border border-hairline bg-surface p-4">
+      <span className="flex items-start gap-3">
+        <span className="size-8 shrink-0 rounded-lg bg-skeleton" />
+        <span className="flex min-w-0 flex-1 flex-col gap-2 py-1">
+          <Bar className="h-3.5 w-1/2" />
+          <Bar className="h-2.5 w-2/3" />
+          <Bar className="h-2.5 w-2/5" />
+        </span>
+      </span>
+      <span className="flex items-center gap-2">
+        <Bar className="h-7 w-32 rounded-lg" />
+        <Bar className="h-7 w-44 rounded-lg" />
+      </span>
+    </div>
+  );
+}
+
+const ROWS: Record<PlaceholderShape, (props: { index: number }) => JSX.Element> = { rail: RailRow, home: HomeRow, card: CardRow, need: NeedRow };
+
 /** `rows` placeholders of one shape, announced once as loading. */
 export function RowPlaceholders({
   shape,
@@ -65,7 +88,7 @@ export function RowPlaceholders({
   /** What is loading ("Loading sessions"). */
   label: string;
 }): JSX.Element {
-  const Row = shape === "rail" ? RailRow : shape === "home" ? HomeRow : CardRow;
+  const Row = ROWS[shape];
   return (
     <div
       role="status"
