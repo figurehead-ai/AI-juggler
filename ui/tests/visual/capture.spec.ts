@@ -3274,6 +3274,10 @@ for (const theme of THEMES) {
       await expect(page.getByTestId("beta-matrix-row").first()).toContainText(
         "Beta — not proven yet",
       );
+      // Ten rows are taller than the screen: the matrix's top (its summary
+      // line) in view, not its middle, so no sentence is cut.
+      await page.getByTestId("beta-matrix").evaluate((matrix) => matrix.scrollIntoView({ block: "start" }));
+      await page.evaluate(() => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))));
       await page.screenshot({
         path: resolve(GALLERY, `33-beta/matrix-default-${vp.name}-${theme}.png`),
       });

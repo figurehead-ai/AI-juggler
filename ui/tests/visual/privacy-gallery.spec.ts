@@ -9,6 +9,7 @@ import { expect, gate, test } from "./axe-gallery";
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { allStatuses, goTo, settingsPane } from "./fixtures";
+import { PREVIEW_TOOLS } from "../../src/preview/tools";
 
 const OUT = resolve(process.cwd(), "../docs/qa/evidence/_gallery/84-privacy");
 
@@ -62,8 +63,8 @@ for (const theme of ["dark", "light"] as const) {
     // The tools' terms, at the end.
     const terms = page.getByTestId("privacy-terms");
     await terms.scrollIntoViewIfNeeded();
-    // 0.2: Claude Code, Codex and the new tools (OpenCode, Kimi, Gemini).
-    await expect(page.getByTestId("privacy-terms-row")).toHaveCount(5);
+    // One row per tool in the catalog that has terms (a new tool adds one).
+    await expect(page.getByTestId("privacy-terms-row")).toHaveCount(PREVIEW_TOOLS.filter((tool) => tool.terms !== null).length);
     // Painted where it scrolled to, not mid-scroll.
     await expect(page.getByTestId("privacy-terms-row").last()).toBeInViewport();
     await page.evaluate(() => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))));
