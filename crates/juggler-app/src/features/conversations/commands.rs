@@ -26,6 +26,47 @@ pub fn list_impl(state: &Arc<AppState>) -> AppResult<Vec<ConversationInfo>> {
     ))
 }
 
+/// The window's working set ([`working`] of [`list_impl`]), made from
+/// the conversations that can be in it alone (open, idle in an app, or
+/// active in the last [`RECENT_MS`]): AJ-E805, the list and Needs you
+/// made every conversation on the Mac into a row on each change, and
+/// every 5 s, to keep a few hundred.
+///
+/// # Errors
+///
+/// As [`list_impl`].
+pub fn working_impl(state: &Arc<AppState>, now_ms: i64) -> AppResult<Vec<ConversationInfo>> {
+    super::read_if_cold(state)?;
+    let index = &state.conversations;
+    let open: Vec<super::live::Live> = index
+        .live_keys()
+        .into_iter()
+        .chain(index.inactive_keys())
+        .collect();
+    let open: std::collections::HashSet<(&str, &str, &str)> = open
+        .iter()
+        .map(|(account, tool, id)| (account.as_str(), tool.as_str(), id.as_str()))
+        .collect();
+    let rows = rows_of(
+        state,
+        index.all_where(|c| {
+            c.summary
+                .last_ms
+                .or(c.summary.started_ms)
+                .is_some_and(|at| at >= now_ms - RECENT_MS)
+                || open.contains(&(
+                    c.account_id.as_str(),
+                    c.tool.as_str(),
+                    c.summary.id.as_str(),
+                ))
+        })?,
+    )?;
+    Ok(working(
+        crate::features::subagents::count::counted_conversations(state, rows),
+        now_ms,
+    ))
+}
+
 /// [`list_impl`]'s rows as the index has them now, without reading any
 /// file or counting subagents (AJ-E3102: the relation counts are made
 /// from these, so they and the lists agree).
@@ -34,6 +75,14 @@ pub fn list_impl(state: &Arc<AppState>) -> AppResult<Vec<ConversationInfo>> {
 ///
 /// Storage errors; a poisoned lock.
 pub fn list_indexed(state: &Arc<AppState>) -> AppResult<Vec<ConversationInfo>> {
+    rows_of(state, state.conversations.all()?)
+}
+
+/// `conversations` as the list's rows.
+fn rows_of(
+    state: &Arc<AppState>,
+    conversations: Vec<super::Conversation>,
+) -> AppResult<Vec<ConversationInfo>> {
     let ListInputs {
         labels,
         folders,
@@ -46,9 +95,7 @@ pub fn list_indexed(state: &Arc<AppState>) -> AppResult<Vec<ConversationInfo>> {
     let marks = Marks::read(state);
     let desktop = crate::features::places::desktop_apps(state);
     let mut hosts: HashMap<String, Vec<String>> = HashMap::new();
-    let rows = state
-        .conversations
-        .all()?
+    let rows = conversations
         .into_iter()
         .map(|conversation| {
             let summary = &conversation.summary;
@@ -448,7 +495,7 @@ pub async fn conversations_list(
     state: tauri::State<'_, Arc<AppState>>,
 ) -> AppResult<Vec<ConversationInfo>> {
     crate::ipc::blocking(state.inner(), "the conversations", |state| {
-        Ok(working(list_impl(state)?, crate::commands::now_millis()))
+        working_impl(state, crate::commands::now_millis())
     })
     .await
 }
@@ -870,6 +917,83 @@ mod tests {
         assert!(
             ids.contains(&"week-0") && !ids.contains(&"week-250") && !ids.contains(&"last-month")
         );
+    }
+
+    /// AJ-E805: the working set made from its candidates alone (open, idle
+    /// in an app, active this week) is the one made from every
+    /// conversation: the list and Needs you made every conversation on the
+    /// Mac into a row, on each change and every 5 s, to keep a few hundred.
+    #[test]
+    fn the_working_set_from_its_candidates_is_the_whole_lists() {
+        let dir = tempfile::tempdir().unwrap();
+        let state = crate::test_support::bare_state(dir.path().join("data"));
+        let now = crate::commands::now_millis();
+        let day = crate::features::sessions::read_model::DAY_MS;
+        let add = |path: String, id: &str, last: i64| {
+            let summary = juggler_adapter::conversation::ConversationSummary {
+                id: id.to_owned(),
+                started_ms: Some(last - 1),
+                last_ms: Some(last),
+                ..juggler_adapter::conversation::ConversationSummary::default()
+            };
+            let conversation = super::super::Conversation {
+                summary,
+                account_id: "a".to_owned(),
+                tool: "t".to_owned(),
+                path: std::path::PathBuf::from(&path),
+                folder: None,
+            };
+            state.conversations.files.lock().unwrap().insert(
+                std::path::PathBuf::from(path),
+                super::super::Entry {
+                    len: 1,
+                    modified: None,
+                    conversation: Some(conversation),
+                    complete: true,
+                    counted_at: None,
+                },
+            );
+        };
+        for n in 0..30 {
+            add(format!("/x/today-{n}"), &format!("today-{n}"), now - n);
+        }
+        for n in 0..250 {
+            add(
+                format!("/x/week-{n}"),
+                &format!("week-{n}"),
+                now - day - 1 - n * 1000,
+            );
+        }
+        for n in 0..80 {
+            add(
+                format!("/x/old-{n}"),
+                &format!("old-{n}"),
+                now - 3 * RECENT_MS - n,
+            );
+        }
+        // A thread in two files: its old one gives its start.
+        add("/x/thread-1".to_owned(), "thread", now - 2 * RECENT_MS);
+        add("/x/thread-2".to_owned(), "thread", now - 1000);
+        // An old one idle in an app's sidebar.
+        state.conversations.inactive.lock().unwrap().insert((
+            "a".to_owned(),
+            "t".to_owned(),
+            "old-3".to_owned(),
+        ));
+        let key =
+            |c: &ConversationInfo| (c.id.clone(), c.started_ms, c.last_activity_ms, c.inactive);
+        let whole: Vec<_> = working(list_impl(&state).unwrap(), now)
+            .iter()
+            .map(key)
+            .collect();
+        let fast: Vec<_> = working_impl(&state, now).unwrap().iter().map(key).collect();
+        assert_eq!(fast, whole);
+        assert!(fast.iter().any(|row| row.0 == "old-3" && row.3));
+        assert!(
+            fast.iter()
+                .any(|row| row.0 == "thread" && row.1 == Some(now - 2 * RECENT_MS - 1))
+        );
+        assert_eq!(fast.len(), 30 + RECENT + 2, "{}", fast.len());
     }
 
     /// 0.3.9 (the maintainer's walk of 2026-11-04): a Claude app side

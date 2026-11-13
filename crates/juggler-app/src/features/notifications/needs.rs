@@ -664,8 +664,7 @@ fn read_sources(state: &Arc<AppState>, now: i64) -> NeedSources {
         through_app,
         sessions: crate::features::sessions::list::instances_shared_snapshot(state)
             .unwrap_or_default(),
-        conversations: crate::features::conversations::commands::list_impl(state)
-            .map(|all| crate::features::conversations::commands::working(all, now))
+        conversations: crate::features::conversations::commands::working_impl(state, now)
             .unwrap_or_default(),
         accounts: state.notifier.sign_ins(now, SIGN_INS_FRESH_MS, || {
             crate::features::account::accounts_info(state).unwrap_or_default()

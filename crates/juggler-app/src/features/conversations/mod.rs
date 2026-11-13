@@ -321,6 +321,51 @@ impl ConversationIndex {
         Ok(out)
     }
 
+    /// AJ-E805: [`Self::all`]'s conversations for which `keep` holds of
+    /// any of their files (a thread's other files with them), without
+    /// copying the rest: the live refresh every 2 s and the working list
+    /// copied, merged and sorted every conversation on the Mac.
+    ///
+    /// # Errors
+    ///
+    /// [`AppError::StatePoisoned`] when the index's lock is poisoned.
+    pub fn all_where(&self, keep: impl Fn(&Conversation) -> bool) -> AppResult<Vec<Conversation>> {
+        let files = self.files.lock().map_err(|_| AppError::StatePoisoned)?;
+        let conversations = || {
+            files
+                .values()
+                .filter_map(|entry| entry.conversation.as_ref())
+        };
+        let kept: std::collections::HashSet<(&str, &str, &str)> = conversations()
+            .filter(|c| keep(c))
+            .map(|c| {
+                (
+                    c.account_id.as_str(),
+                    c.tool.as_str(),
+                    c.summary.id.as_str(),
+                )
+            })
+            .collect();
+        let mut out = merged(
+            conversations()
+                .filter(|c| {
+                    kept.contains(&(
+                        c.account_id.as_str(),
+                        c.tool.as_str(),
+                        c.summary.id.as_str(),
+                    ))
+                })
+                .cloned(),
+        );
+        out.sort_by(|a, b| {
+            b.summary
+                .last_ms
+                .cmp(&a.summary.last_ms)
+                .then_with(|| a.path.cmp(&b.path))
+        });
+        Ok(out)
+    }
+
     /// 0.4.3: the list has been read whole once since the start (what a
     /// folder holds can be told from it).
     #[must_use]
@@ -417,6 +462,16 @@ impl ConversationIndex {
             live.get(&(account.to_owned(), tool.to_owned(), id.to_owned()))
                 .cloned()
         })
+    }
+
+    /// Every conversation in a running app's sidebar with no process on
+    /// it, `(account, tool, id)`.
+    #[must_use]
+    pub fn inactive_keys(&self) -> Vec<live::Live> {
+        self.inactive
+            .lock()
+            .map(|inactive| inactive.iter().cloned().collect())
+            .unwrap_or_default()
     }
 
     /// Whether `account`'s `(tool, id)` is in a running app's sidebar with
@@ -654,7 +709,21 @@ fn update_live(state: &Arc<AppState>) -> AppResult<bool> {
         .lock()
         .map_err(|_| AppError::StatePoisoned)?
         .clone();
-    let all = state.conversations.all()?;
+    // Only the conversations something is open on (or idle in an app).
+    let open: std::collections::HashSet<(&str, &str)> = model
+        .entries
+        .iter()
+        .map(|entry| (entry.tool.as_str(), entry.session_id.as_str()))
+        .chain(
+            model
+                .inactive
+                .iter()
+                .map(|(tool, id)| (tool.as_str(), id.as_str())),
+        )
+        .collect();
+    let all = state
+        .conversations
+        .all_where(|c| open.contains(&(c.tool.as_str(), c.summary.id.as_str())))?;
     let mut now = live::live_entries(&all, &model);
     // AJ-E2107: a terminal session's tail can say it waits on the user;
     // a session its tool records no state for takes its tail's last turn.
