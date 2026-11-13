@@ -1432,6 +1432,9 @@ fn spawn_read_model_ticks(
         // AJ-E2401: the Processes view's graph, from what the tick just
         // read (no scan of its own); the page hears of changes.
         if let Some(change) = features::processes::tick(&processes_state) {
+            if processes_state.processes.counts_moved(&change.counts) {
+                processes_app.emit_event(AppEvent::ProcessCounts, change.counts.clone());
+            }
             processes_app.emit_event(AppEvent::ProcessesChanged, change);
         }
         detect_running_models(&processes_app, &processes_state, None);

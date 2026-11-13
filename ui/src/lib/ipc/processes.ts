@@ -44,6 +44,8 @@ export type {
 
 /** The event the backend sends when the graph changed. */
 export const PROCESSES_CHANGED = "processes://changed";
+/** AJ-E805: the counts alone, told only when one moves. */
+export const PROCESS_COUNTS = "processes://counts";
 
 /** A query with every filter off (the page's default). */
 export function processQuery(over: Partial<ProcessQueryInput> = {}): ProcessQueryInput {
@@ -149,17 +151,28 @@ export async function processesSnapshot(): Promise<ProcessSnapshotInfo> {
   return call("processes_snapshot");
 }
 
-/** Calls `on` with the counts each time the graph changes, while the
- * window can be seen (read once when it shows: AJ-E805); returns the
- * disposer. In the preview, a `aij:processes-changed` window event
- * stands in. */
+/** Calls `on` with the counts each time the graph changes (the Processes
+ * page, which shows it), while the window can be seen (read once when it
+ * shows: AJ-E805); returns the disposer. In the preview, a
+ * `aij:processes-changed` window event stands in. */
 export function onProcessesChanged(on: (counts: ProcessCountsInfo) => void): () => void {
+  return onProcessEvent(PROCESSES_CHANGED, (change: ProcessGraphChangedInfo) => on(change.counts), on);
+}
+
+/** Calls `on` with the counts when one moves (the top bar's count): the
+ * graph changes on nearly every 2 s tick while sessions work, and a
+ * window that listens to it is sent each (AJ-E805). */
+export function onProcessCounts(on: (counts: ProcessCountsInfo) => void): () => void {
+  return onProcessEvent(PROCESS_COUNTS, on, on);
+}
+
+function onProcessEvent<T>(event: string, heard: (payload: T) => void, on: (counts: ProcessCountsInfo) => void): () => void {
   if (!hasLiveBackend()) {
     const handler = (event: Event) => on((event as CustomEvent<ProcessGraphChangedInfo>).detail.counts);
     window.addEventListener("aij:processes-changed", handler);
     return () => window.removeEventListener("aij:processes-changed", handler);
   }
-  return listenWhileShown<ProcessGraphChangedInfo>(PROCESSES_CHANGED, (change) => on(change.counts), () => void processesCounts().then(on, () => undefined));
+  return listenWhileShown<T>(event, heard, () => void processesCounts().then(on, () => undefined));
 }
 
 /** Reveal folder: the session's folder in Finder (the one the backend

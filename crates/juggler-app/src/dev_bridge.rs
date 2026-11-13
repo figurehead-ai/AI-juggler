@@ -65,6 +65,7 @@ pub const FORWARDED_EVENTS: &[&str] = &[
     // counts went stale.
     AppEvent::NotificationsChanged.name(),
     AppEvent::ProcessesChanged.name(),
+    AppEvent::ProcessCounts.name(),
     AppEvent::RuntimeChanged.name(),
     AppEvent::TasksChanged.name(),
     AppEvent::MessagesChanged.name(),

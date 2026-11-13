@@ -95,6 +95,8 @@ pub struct Processes {
     inner: Mutex<Inner>,
     graph: RwLock<Arc<Graph>>,
     version: AtomicU64,
+    /// The counts last told on their own ([`Processes::counts_moved`]).
+    told: Mutex<Option<dto::ProcessCountsInfo>>,
 }
 
 /// What changed, for the page (the [`EVENT_CHANGED`] payload).
@@ -109,6 +111,24 @@ pub struct ProcessGraphChangedInfo {
 }
 
 impl Processes {
+    /// Whether `counts` differ from the counts last told this way (and
+    /// remembers them). AJ-E805: the graph changes on nearly every 2 s
+    /// tick while sessions work (their processes' CPU); the top bar's count
+    /// follows `processes://counts`, told only when a count moves, so with
+    /// the Processes page closed nothing listens to the graph's event and
+    /// the window is sent nothing (each event is a script the page runs:
+    /// about 18 a minute).
+    pub fn counts_moved(&self, counts: &dto::ProcessCountsInfo) -> bool {
+        let Ok(mut told) = self.told.lock() else {
+            return true;
+        };
+        if told.as_ref() == Some(counts) {
+            return false;
+        }
+        *told = Some(counts.clone());
+        true
+    }
+
     /// The graph as last built (empty before the first tick).
     #[must_use]
     pub fn graph(&self) -> Arc<Graph> {
