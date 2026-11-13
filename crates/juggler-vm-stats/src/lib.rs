@@ -113,3 +113,4 @@ mod tests {
         assert_eq!(super::compressor_pages(), None);
     }
 }
+// CI probe (AJ-E2020 R2): a Rust-only change; never merged.
