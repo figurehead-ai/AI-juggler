@@ -1702,10 +1702,10 @@ fn an_app_signing_in_to_another_account_moves_its_open_session_between_account_p
 
     // P5 step 4: the pool says who left, and why; the one it joined says
     // so too; the pools it stayed in say nothing.
-    // D-96: an untitled member by its facts — folder · App · when it
-    // started (where the system can say a time).
+    // D-96, D-103.8: an untitled member by its facts — folder · when it
+    // started (its App and Account beside it, never in its name).
     let lead = format!(
-        "«{} · work",
+        "«{} · started ",
         dir.path().file_name().unwrap().to_str().unwrap()
     );
     let said = |pool: &str| -> Vec<String> {
