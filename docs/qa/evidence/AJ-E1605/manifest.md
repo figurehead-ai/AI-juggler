@@ -1,10 +1,11 @@
 # Evidence manifest — AJ-E1605
 
 Task: `docs/tasks/E16-more-tools.md` AJ-E1605 (ZCode). Status:
-**IN-PROGRESS** — round 1 (R1, R2, R3, R7) evidenced on fixtures and stand-in
-programs; R4's labels, R5 (rules, skills, MCP and bring-in) and R6 (packs)
-are not built yet; the live run on a spare account is the maintainer's
-(AJ-E1612). 2026-11-13, reviewer claude-opus.
+**IN-PROGRESS** — round 1 (R1, R2, R3, R7) and round 2 (R4, R5, R6's
+ZCode-to-pack half) evidenced on fixtures and stand-in programs; a pack into
+ZCode has no route in the engine (step 0: its terminal takes no first
+message); the live run on a spare account is the maintainer's (AJ-E1612).
+2026-11-13, reviewer claude-opus.
 
 ## Basis
 
@@ -21,6 +22,14 @@ store (`storage.sessionDbPath`) follows the home folder, not
 `~/.zcode/cli/config.json` stays shared by every App (no variable moves it;
 on the live checklist).
 
+Round 2 (the D-106 undocumented-route pass first, research § D): the
+engine reads its user settings, rules and skills from the home folder for
+every App (`os.homedir()`/`HOME` in its own code), so servers, skills and
+rules are one shared set, listed and set up in `~/.zcode` and said to be for
+every App; it has no option or variable for a first message or a model,
+and keeps no record of the plan's pools (the billing routes are only in its
+endpoint table; nothing calls them). Each finding is sourced in § D.
+
 ## Requirements
 
 | Claim / Req ID | Command / fixture / live step (exact) | Threshold | Observed | Verdict | Commit SHA | Date | Reviewer |
@@ -32,9 +41,15 @@ on the live checklist).
 | R2 the variables honoured by a real engine run (sessions, sign-in and usage land in the App's tree; the shared user config's effect) | live, on a spare account: AJ-E1612 | — | — | UNPROVEN | branch head | 2026-11-13 | claude-opus |
 | R3 sessions from `<tree>/cli/db/db.sqlite`, read-only (a closed WAL store opened `immutable`, left byte for byte, nothing written beside it): interactive, not archived, not a sub-agent's; title, folder, times; found for a launch (never a guess between two); resumed `--resume <sess_…>`; a running engine recognised by its command line, helpers (`app-server`, `doctor`, `version`, `login`, …) not; their folders become projects | `zcode_adapter::{sessions_come_from_the_store_read_only_and_byte_for_byte_unchanged, launches_run_the_engine_on_node_and_resume_by_session_id, a_running_engine_is_a_session_and_its_helpers_are_not}`; kit `zcode::finds_and_resumes_sessions`; `zcode_provider::its_sessions_become_projects_and_the_store_is_left_unchanged` | pass | pass | PASS | branch head | 2026-11-13 | claude-opus |
 | R3 against a store a real engine wrote | live: AJ-E1612 | — | — | UNPROVEN | branch head | 2026-11-13 | claude-opus |
-| R4 usage Computed per session and account, its labels, the plan's caps set by the user | NOT YET: this round only moved the existing `model_usage` read behind the adapter (`usage_since`, the App's own store; `zcode_adapter::usage_is_read_from_the_apps_own_store`, kit `zcode::labels_usage_honestly`) | — | — | NOT YET | branch head | 2026-11-13 | claude-opus |
-| R5 rules, skills and MCP in the sync; bring-in in place or as a copy without the sign-in, store, logs or rollouts | NOT YET (the kit's `zcode::copies_no_credentials` holds that every bring-in refuses for now) | — | — | NOT YET | branch head | 2026-11-13 | claude-opus |
-| R6 packs both ways with Claude Code and Codex | NOT YET | — | — | NOT YET | branch head | 2026-11-13 | claude-opus |
+| R4 usage Computed per session and per App: each completed `model_usage` row × the published multipliers (GLM-5.3 6.9/1.7/24, GLM-5.3-Flash 2.3/0.56/8), half off-peak; each event names its session (`sess_…`); the conversations list carries each session's own tokens (none when it has no row, never zero); an unknown model carries no credits and is Estimated | `zcode_adapter::usage_is_read_from_the_apps_own_store`; `quota_ingest::zcode_events_compute_credits_with_peak_and_offpeak`; kit `zcode::labels_usage_honestly` | pass | pass | PASS | branch head | 2026-11-13 | claude-opus |
+| R4 the 5-hour and weekly pools are the plan's caps the user enters, never claimed read: ZCode declares `LIMITS_FROM_PLAN_CAPS`, so the provider list shows its limit rows and the Usage screen its two windows (not "doesn't report its limits", the round-1 regression), never a Measured badge; no local source of the pools exists (step 0, research § D) | `zcode_provider::its_limits_are_the_plans_caps_and_never_claimed_read`; kit `zcode::reads_limit_hits_honestly` (no limit hits claimed) | pass | pass | PASS | branch head | 2026-11-13 | claude-opus |
+| R4 credits against a store a real engine wrote; the multipliers still the published ones | live: AJ-E1612 | — | — | UNPROVEN | branch head | 2026-11-13 | claude-opus |
+| R5 rules, skills and MCP join the sync: `~/.zcode/cli/config.json` `mcp.servers` (the engine's own spellings read as it reads them; disabled ones left out), `~/.zcode/skills/<name>/SKILL.md`, `~/.zcode/AGENTS.md`; one set for every App (the engine reads them from the home folder), and every verdict says so; a server from another tool added beside the rest and undone only while unchanged; a secret never written (left out of `env`, the user told to provide it; a header's: not set up) | `zcode_inventory` unit tests (3); `zcode_adapter::every_app_shares_the_rules_skills_and_servers_in_the_home_folder` | pass | pass | PASS | branch head | 2026-11-13 | claude-opus |
+| R5 bring-in (ADR-0018): ZCode's own `~/.zcode` used where it is, unwritten (any other tree refused in place, with why); a copy into the App's tree takes its settings and plugins, never `v2/credentials.json`, the database (`cli/db/`, any `*.sqlite`/`*.db`), logs, model-call records (`cli/rollout/`, `cli/debug/`) or each session's files (`cli/exec/`, …), nor a settings file with a key in it; what every App reads from the home folder isn't copied; the original byte for byte unchanged; the scan finds `~/.zcode`, `$ZCODE_STORAGE_DIR` and `~/.zcode-*` | `zcode_adapter::a_tree_is_used_in_place_or_copied_without_its_sign_in_store_or_logs`; kit `zcode::copies_no_credentials` (now with a seeded tree and a canary sign-in); `sign_in::tests::zcodes_sign_in_path_is_the_probed_file`; `no_bare_tools` | pass | pass | PASS | branch head | 2026-11-13 | claude-opus |
+| R5 a server set up in `~/.zcode` reaching a managed App's engine; a copied App signing in on its own | live: AJ-E1612 | — | — | UNPROVEN | branch head | 2026-11-13 | claude-opus |
+| R6 what a ZCode session gives a pack: its user and assistant text from the store, in order, read-only (tool calls, reasoning and synthetic text left out; a record in another shape refused whole), through a new adapter seam (`ToolTranscripts::conversation_turns`) that the app's pack staging asks before reading a transcript file | `zcode_adapter::a_sessions_turns_come_from_the_store_for_a_handover`; `juggler-app` lib `features::switch::back::tests::a_packs_turns_come_from_the_tools_own_store_or_its_transcript_file` | pass | pass | PASS | branch head | 2026-11-13 | claude-opus |
+| R6 what a pack carries into a ZCode session (from Claude Code or Codex) | no route: ZCode's terminal takes no first message (step 0, research § D), so a switch can't start it from a pack; the fidelity register says so (claude-code→zcode, codex→zcode stay F0) | — | — | BLOCKED (no route in engine 0.16.9) | branch head | 2026-11-13 | claude-opus |
+| R6 switching from ZCode (a replay into Claude Code or Codex) and every pair unvalidated until the live check | live: AJ-E1612 | — | — | UNPROVEN | branch head | 2026-11-13 | claude-opus |
 | R7 ADR-0019: ZCode is data (its spec; its terms in AJ-E1518's register, read 2026-11-13; its letter mark), registered with no new tool-id literal outside its adapter (the usage pipeline's own ZCode branch removed); shown in Add account, first run and its page from its spec alone | `zcode_adapter::the_spec_describes_zcode_as_data`; `trust::every_tool_names_its_terms_and_the_preview_matches`; `just tool-literals`; `zcode_provider::zcode_is_listed_isolated_and_its_shell_line_pins_its_tree` | pass | pass | PASS | branch head | 2026-11-13 | claude-opus |
 | R7 it passes the kit (AJ-E1521) | `cargo test -p juggler-adapters --test adapter_conformance zcode` — 15 of 15 | 15 pass | 15 pass | PASS | branch head | 2026-11-13 | claude-opus |
 | R7 the screens with ZCode in them, looked at | not captured this round (the preview catalog carries ZCode; no visual baseline was regenerated) | — | — | UNPROVEN | branch head | 2026-11-13 | claude-opus |
@@ -43,8 +58,13 @@ on the live checklist).
 
 - Runs without a terminal: ZCode's `-p` defaults to `--mode yolo` (skips its
   permission prompts), so a headless launch is refused until checked live.
-- A first message, or a message on resume: its terminal takes none.
-- A model from Launch settings: its terminal has no model option; ZCode's
-  own choice stands.
+- A first message, or a message on resume: its terminal takes none (step
+  0: strict options, none for it; no variable; its prompt starts empty), so
+  no pack starts a ZCode session.
+- A model from Launch settings: no option or variable (step 0); the model
+  is each App's own choice, kept in its tree's `v2/provider_config.json`.
+- Per-App MCP servers, hooks, rules or skills: the engine reads them from
+  the home folder (step 0); only a moved `HOME` would separate them.
+- The plan's pools read from anywhere: the engine never asks for them.
 - Its sub-agents: "not supported" with the reason; the agent tools; the
   desktop app per App.
