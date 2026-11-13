@@ -305,3 +305,23 @@ All searches on 2026-10-21.
 - **S9: Desktop App shell launcher binary.** The Homebrew `antigravity` cask has no `binary` stanza. Corpus grep for App CLI flags (`antigravity --`, `open -a`) found nothing.
 - **S10: Google confirming VS Code lineage.** Corpus grep for `VS Code fork`, `fork`, `Windsurf`, `Code - OSS` in blog and docs found nothing. Secondary confirmation came from Thoughtworks Radar (fetched). Visual Studio Magazine returned 403.
 - **S11: App / IDE headless or non-interactive mode.** Corpus grep for `headless` and `--print` outside `/docs/cli/` found only ADC "headless" auth, Remote Control daemon and Scheduled Tasks, with no App print mode.
+
+## Terms, re-read 2026-11-13
+
+Read for the maintainer's ruling (a Sonnet draft; each quote below checked against its page on Opus the same day). **The ruling:** D-105 gives this tool full support on every plan; this section keeps the vendor's own wording on record beside it.
+
+### What the terms say
+Source: official FAQ, https://antigravity.google/docs/faq.md
+- "Using third-party software, tools, or services to access Antigravity is a violation of our" Terms of Service (account suspension possible). FAQ heading (via search): "Why can't I use third-party software (such as Claude Code, OpenClaw, or OpenCode) with my Antigravity login?"
+- Headless: "Antigravity CLI headless mode (`agy -p`) is intended for direct scripting and CI workflows." and wrapping `agy` in third-party coding agents/applications "or automating account rotation, is not supported under consumer plans." Google suggests Gemini Enterprise or AI Studio API keys for third-party agents.
+- Workspace: "Your Workspace administrator must explicitly provision Antigravity for your account." Enterprise: "Enterprise accounts, such as Google Workspace and Gemini Enterprise accounts, are managed by your organization." No separate Workspace/Enterprise third-party wording found (NOT FOUND).
+- Staff forum reply (not terms; 2026-10-07): running the unmodified `agy` binary locally headless is compliant; Section 6 "prohibits extracting, intercepting, or reusing Antigravity OAuth tokens or session credentials"; keep runs sequential/low concurrency. https://discuss.ai.google.dev/t/can-a-local-ai-coordinator-launch-the-official-antigravity-cli-with-subscription-sign-in/186246 . Other staff replies in similar threads reportedly say wrapping in third-party agents is not permitted; informal and conflicting.
+- `agy -p /usage --output-format json`: NOT FOUND in docs. `/usage` is an interactive slash command (quota); `agy -p` has a JSON envelope per third-party guides with per-run usage only.
+- Home folder: data lives in `~/.gemini/antigravity-cli/` (settings.json). No documented env var or flag moving it: NOT FOUND. A third-party tool overrides `HOME` per profile (undocumented workaround). Official settings page redirect, not read: https://antigravity.google/docs/settings?tab=cli
+
+### What it meant for AI Juggler, before the ruling
+(a) Launching the interactive CLI per account: UNCLEAR to RISKY on consumer plans: FAQ says wrapping in third-party applications and account rotation are unsupported; our per-account launch with HOME override resembles both. Workspace/Enterprise: admin-provisioned, terms silent.
+(b) Reading local sessions and usage: UNCLEAR (no rule found; files are local).
+(c) Headless runs: ALLOWED when direct scripting by the user; NOT supported if wrapped inside a third-party app on consumer plans.
+
+**The recommendation then:** track-only for consumer (AI Pro/Ultra) accounts; build launch/switch for API-key or Workspace/Enterprise accounts only.

@@ -116,11 +116,11 @@
 **Research basis**: `zcode.md`; SPEC §4.3.
 **Handover note**: Re-verify the research (it is from Stage 1) before building.
 
-### AJ-E1606 Kiro CLI | Status: TODO | Priority P1 | Effort M | Depends: AJ-E1521
+### AJ-E1606 Kiro CLI | Status: TODO (ruled, D-105) | Priority P1 | Effort M | Depends: AJ-E1521
 **Goal**: Kiro CLI runs with separate profiles, within Kiro's terms.
 **User story**: As a Kiro Pro user with work and personal profiles, I juggle both.
 **Requirements**:
-1. Before building: confirm that supervising the interactive CLI is allowed, given the pricing FAQ's ban on "third-party automation harnesses". Record the ruling, or ask Kiro.
+1. Ruled (D-105, 2026-11-13): full support on every plan; the vendor's wording on "third-party automation harnesses" is kept in `kiro.md` § Terms. Build against Kiro CLI V3 (`kiro-cli`; V2 behind `--v2`).
 2. Isolate with `KIRO_HOME`, the documented way to keep work and personal apart. Sessions come through `kiro-cli acp` (list, load, fork), read-only. Usage is the monthly credit pool, with per-turn metering.
 **UI/UX reasoning**: Like Codex.
 **Performance budget**: as Codex.
@@ -163,12 +163,12 @@
 **Research basis**: `muse-code.md`.
 **Handover note**: —
 
-### AJ-E1609 Cursor CLI (conditional) | Status: TODO | Priority P2 | Effort L | Depends: AJ-E1521
+### AJ-E1609 Cursor CLI | Status: TODO (ruled, D-105) | Priority P2 | Effort L | Depends: AJ-E1521
 **Goal**: Cursor's CLI runs where accounts can be kept apart and the terms allow it.
 **User story**: As a Cursor user, I run Cursor agent sessions beside the rest.
 **Requirements**:
-1. A maintainer ruling on the Acceptable Use Policy ("automated or non-human means") first.
-2. The goal is subscription accounts (legacy Pro, Pro+ and Ultra, and the X Subscription). Per-account isolation goes through a per-account `HOME`, or `CURSOR_API_KEY` for key accounts, chosen after a live test. Sessions and resume through `agent` with `--resume` and `stream-json`. Usage is unknown for individuals.
+1. Ruled (D-105, 2026-11-13): full support on every plan, subscription and key accounts alike; the Acceptable Use Policy's wording is kept in `cursor.md` § Terms.
+2. The goal is subscription accounts (the plans Cursor sells now, under the X Subscription since 2026-10-12, and the legacy ones). Per-account isolation goes through a per-account `HOME`, or `CURSOR_API_KEY` for key accounts, chosen after a live test. Sessions and resume through `agent` with `--resume` and `stream-json`. Usage is unknown for individuals.
 **UI/UX reasoning**: Like Codex; a note on the X Subscription pool shared with Grok.
 **Performance budget**: as Codex.
 **Quality gates**: the conformance kit.
@@ -176,20 +176,20 @@
 **Visual testing**: the tool view.
 **Files to touch**: `crates/juggler-adapters/src/cursor*.rs`.
 **Research basis**: `cursor.md`.
-**Handover note**: If the ruling is no, this becomes track-only inside AJ-E1610.
+**Handover note**: D-105 ruled full support; no track-only fallback.
 
-### AJ-E1613 Antigravity on work plans | Status: TODO | Priority P2 | Effort L | Depends: AJ-E1521
-**Goal**: Antigravity runs as a full tool for Workspace and Enterprise accounts, where the terms allow it, and stays track-only on Google AI consumer plans.
+### AJ-E1613 Antigravity | Status: TODO (ruled, D-105) | Priority P2 | Effort L | Depends: AJ-E1521
+**Goal**: Antigravity runs as a full tool on every plan: Google AI consumer plans, Workspace and Enterprise (D-105).
 **User story**: As a user with an Antigravity work subscription, I juggle it like my other tools.
 **Requirements**:
-1. Before building: read the Workspace and Enterprise terms for Antigravity and record whether supervising `agy` is allowed. Consumer plans (Google AI Pro and Ultra) stay track-only, because the FAQ says wrapping isn't supported there.
-2. The account kind is decided by the plan the account reports. Usage comes from `agy -p /usage --output-format json` (it spends no quota).
-3. Isolation: no env var moves the CLI's home, so a per-account `HOME` is tested live first.
-**UI/UX reasoning**: Consumer accounts show as track-only with one plain line explaining why.
+1. Ruled (D-105, 2026-11-13): full support on every plan, consumer ones included; the FAQ's wording is kept in `antigravity.md` § Terms.
+2. The plan the account reports is shown, never used to limit it. Usage: `/usage` is an interactive command; a sanctioned non-interactive reading is to be found first (`agy -p /usage --output-format json` wasn't found documented, 2026-11-13).
+3. Isolation: no documented variable moves the CLI's home (`~/.gemini/antigravity-cli/`), so a per-account `HOME` is tested live first.
+**UI/UX reasoning**: Like Codex.
 **Performance budget**: as Codex.
-**Quality gates**: the conformance kit; a guardrail that consumer accounts are never launched through AI Juggler.
+**Quality gates**: the conformance kit; a guardrail that no Antigravity token or session credential is ever read, copied or reused (the vendor's own concern, D-105).
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E1613/manifest.md`.
-**Visual testing**: the tool view for both kinds of account.
+**Visual testing**: the tool view.
 **Files to touch**: `crates/juggler-adapters/src/antigravity*.rs`.
 **Research basis**: `antigravity.md`.
 **Handover note**: The maintainer pointed out (2026-10-21) that Muse, Cursor, Antigravity and Kiro all have subscriptions; the aim is subscription accounts wherever terms and isolation allow.

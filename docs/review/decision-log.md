@@ -2951,3 +2951,15 @@ Each ships with tests that fail without it and a design critique; the M2, D2 and
 - **The first Stable is still a 0.4.x.** D-85's other points stand: Stable comes when 0.4.x is tested, validated and fixed; 0.5 ships to Beta first and to Stable under D-24.
 - **Amends:** D-85 ("no 0.5 feature work starts until 0.4.x is fully tested, validated and fixed").
 - Sources: `docs/plan/0.5-order.md`.
+
+### D-105 Kiro, Cursor and Antigravity get full support on every plan — SETTLED (2026-11-13)
+
+**Ruling.** The maintainer, 2026-11-13, on the terms notes for AJ-E1606 (Kiro), AJ-E1609 (Cursor) and AJ-E1613 (Antigravity): "we are not wrapping the tools, since they are desktop apps, Openning the app does not count as automated control of it. I don't see any term violations the way I interpert it. OS system can reopen the app on load, does that mean OS should never reopen the app. Also bringing app into focus is still fine." And, the same day, correcting a first reading that kept prompts off for these three: "don't limit anything, on those tools, the way we build AI juggler we specifically designed it where we are not automating the way they don't want people. What they don't want is someone using their tokens and agent and wrapping it as something else, that is the abuse they are protecting against."
+
+- **Full support on every plan,** Antigravity's consumer plans included: AI Juggler opens each tool's own app or CLI for the right account, reopens it (Keep alive, at login), brings it into focus, reads its own files for sessions and usage, and offers everything it offers for the other tools: pools, the reply box, switching (a first prompt included).
+- **No track-only plan kind and no "never sends prompts" guardrail** for these three. Each requirement's "ruling first" step is met by this entry.
+- **A tool's own guideline still applies where it has one** (as Kimi's interactive-only rule on subscription accounts, AJ-E1603), decided per tool from its own documented rules, not from this entry.
+- **The vendors' own wording stays on record** beside the ruling, in `docs/research/kiro.md`, `cursor.md` and `antigravity.md` (§ "Terms, re-read 2026-11-13"): Kiro's FAQ bars "third-party automation harnesses … that route requests outside of Kiro's native interfaces"; Cursor's Acceptable Use Policy (updated 2026-08-11) bars access "through automated or non-human means"; Antigravity's FAQ calls using third-party software to access it "a violation of our Terms of Service" and says wrapping `agy` "is not supported under consumer plans". The maintainer's reading: AI Juggler runs each tool's own unmodified app or CLI for the user, under the user's own sign-in, and never reuses a tool's tokens or agent as something else.
+- **Amends:** AJ-E1609's handover note (no track-only fallback), AJ-E1613's goal, requirement 1 and guardrail (consumer plans no longer track-only).
+- Sources: the three research notes above; the coordinating session's relay of the maintainer's two messages, 2026-11-13.
+
