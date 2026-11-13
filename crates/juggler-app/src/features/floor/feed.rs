@@ -179,7 +179,6 @@ fn seat_name(
         branch,
         &juggler_core::naming::Facts {
             folder: Some(folder),
-            app: None,
             started: started.as_deref(),
         },
     )

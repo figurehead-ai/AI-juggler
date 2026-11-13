@@ -111,7 +111,8 @@ fn place_of(row: &InstanceInfo, projects: &HashMap<String, String>) -> (String, 
 
 /// A session's name as its rail row says it: the shared short name (the
 /// rc15 cleanup: Needs you said "“main” stopped with an error"); untitled,
-/// its facts (D-96: "“billing · Work · started 1:14 AM” needs your reply").
+/// its facts (D-96, D-103.8: "“billing · started 1:14 AM” needs your
+/// reply"), its Account in the notice's detail, never in its name.
 fn session_name(row: &InstanceInfo, now_ms: i64) -> String {
     let folder = folder(Some(&row.cwd));
     let started = started_words(Some(row.started_at_ms), now_ms);
@@ -121,7 +122,6 @@ fn session_name(row: &InstanceInfo, now_ms: i64) -> String {
         row.git_branch.as_deref(),
         &juggler_core::naming::Facts {
             folder: folder.as_deref(),
-            app: Some(row.account_label.as_str()),
             started: started.as_deref(),
         },
     )
@@ -137,7 +137,6 @@ fn conversation_name(c: &ConversationInfo, now_ms: i64) -> String {
         c.git_branch.as_deref(),
         &juggler_core::naming::Facts {
             folder: folder.as_deref(),
-            app: Some(c.account_label.as_str()),
             started: started.as_deref(),
         },
     )

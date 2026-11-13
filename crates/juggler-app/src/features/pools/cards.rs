@@ -329,8 +329,8 @@ fn is_live(status: &str) -> bool {
 /// members and senders read as the whole first prompt), else a branch
 /// that says what the work was; never one that names no work (the 7b
 /// walk: a task's holder and author read "main"): untitled, its facts —
-/// folder · App · when it started (D-96: "web · Work · started 1:14 AM").
-/// The canvas's `nameOf` is the same rule.
+/// folder · when it started (D-96, D-103.8: "web · started 1:14 AM"; its
+/// profile is the card's place line). The canvas's `nameOf` is the same rule.
 fn card_name(
     label: Option<&str>,
     title: Option<&str>,
@@ -370,7 +370,6 @@ pub(super) fn name_of(row: &InstanceInfo) -> String {
         row.git_branch.as_deref(),
         &juggler_core::naming::Facts {
             folder: Some(&folder),
-            app: Some(row.account_label.as_str()),
             started: started.as_deref(),
         },
     )
@@ -519,13 +518,13 @@ mod tests {
     fn an_untitled_member_on_main_is_named_by_its_facts() {
         let web = juggler_core::naming::Facts {
             folder: Some("web"),
-            app: Some("Work"),
             started: Some("started 1:14 AM"),
         };
-        // D-96: never "Untitled session · web", which two in one folder share.
+        // D-96: never "Untitled session · web", which two in one folder
+        // share; D-103.8: never its Account (the card's place line says it).
         assert_eq!(
             card_name(None, None, Some("main"), &web),
-            "web · Work · started 1:14 AM"
+            "web · started 1:14 AM"
         );
         assert_eq!(
             card_name(None, None, Some("fix/limits"), &web),

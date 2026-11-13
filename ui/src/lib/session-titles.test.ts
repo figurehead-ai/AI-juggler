@@ -13,6 +13,7 @@ import { recentRows } from "../components/HomeRecent";
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import type { ProjectInfo } from "../types/generated/ProjectInfo";
 import { handoverTeaser } from "../components/HandoverSection";
+import cases from "./fixtures/session-names.json";
 
 const NOW = new Date(2026, 9, 25, 15, 0, 0).getTime();
 
@@ -94,6 +95,17 @@ describe("an untitled session's name, by its facts", () => {
     expect(rows.map((row) => apart.get(row))).toEqual([`billing · started ${clock(at)} (2)`, `billing · started ${clock(at)} (1)`, "Ship it"]);
     expect(namedByFacts(rows[0]!)).toBe(true);
     expect(namedByFacts(rows[2]!)).toBe(false);
+  });
+});
+
+/** D-103.8: the backend names a session by the same rule, from the same
+ * cases (`crates/juggler-core/src/naming.rs`'s tests). */
+describe("the backend and the window name a session the same way", () => {
+  const at = new Date(2026, 9, 25, 1, 14, 0).getTime();
+  it.each(cases.cases)("$name", (c) => {
+    const row = { label: c.label ?? undefined, title: c.title ?? undefined, git_branch: c.branch, cwd: c.folder ? `/Users/you/Dev/${c.folder}` : "", started_at_ms: c.started ? at : 0 };
+    expect(shortName(row, NOW)).toBe(c.name.replace("{started}", startedWords(at, NOW)));
+    expect(namedByFacts(row)).toBe(c.byFacts);
   });
 });
 

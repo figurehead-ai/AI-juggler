@@ -166,7 +166,12 @@ export function folderName(cwd: string | null | undefined): string {
  * no branch that says what the work was. Its name has its start time in
  * it already. */
 export function namedByFacts(session: { label?: string | null; title?: string | null; git_branch?: string | null }): boolean {
-  return !session.label && !session.title && tellingBranch(session.git_branch) === null;
+  return !given(session.label) && !given(session.title) && tellingBranch(session.git_branch) === null;
+}
+
+/** `text` unless it's blank (the backend's rule: "  " names nothing). */
+function given(text: string | null | undefined): string | null {
+  return text?.trim() ? text : null;
 }
 
 /** A list's rows with the names its facts-named rows share told apart
@@ -188,10 +193,13 @@ export function tellFactsApart<T extends { key: string; title: string; startMs: 
  * its facts (D-96, D-103.8: "billing · started 1:14 AM") — never the whole
  * first prompt, never "main" (the rc7 and rc12 walks), never "Untitled
  * session · <folder>" (persona D2). The member card's name (`card_name`)
- * and the backend's `naming::short_name` are the same rule. */
+ * and the backend's `naming::short_name` are the same rule, held to it by
+ * one file of cases both run (`fixtures/session-names.json`). */
 export function shortName(session: Pick<InstanceInfo, "label" | "title" | "git_branch" | "cwd" | "started_at_ms">, now: number = Date.now()): string {
-  if (session.label) return session.label;
-  if (session.title) return firstWords(session.title) ?? session.title;
+  const label = given(session.label);
+  if (label) return label;
+  const title = given(session.title);
+  if (title) return firstWords(title) ?? title;
   return tellingBranch(session.git_branch) ?? untitledName({ folder: folderName(session.cwd) || null, startedMs: session.started_at_ms }, now);
 }
 
