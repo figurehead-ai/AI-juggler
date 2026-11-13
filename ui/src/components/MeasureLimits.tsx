@@ -187,15 +187,17 @@ function HowMeasured({ tool, name, look, how }: { tool: string; name: string; lo
   const id = useId();
   const open = how ? how.open : mine;
   const toggle = how ? how.onToggle : () => setMine(!mine);
+  // It names the words only while they're there (its own, not a caller's).
+  const controls = !how && open ? id : undefined;
   const label = "How it's measured";
   return (
     <span className="inline-flex flex-wrap items-baseline gap-x-2 gap-y-1" data-testid="measure-limits-how">
       {look === "button" ? (
-        <Button size="sm" variant="secondary" aria-expanded={open} aria-controls={how ? undefined : id} aria-label={`${label} — ${name}`} onClick={toggle} data-testid="measure-limits-how-open">
+        <Button size="sm" variant="secondary" aria-expanded={open} aria-controls={controls} aria-label={`${label} — ${name}`} onClick={toggle} data-testid="measure-limits-how-open">
           {label}
         </Button>
       ) : (
-        <button type="button" aria-expanded={open} aria-controls={how ? undefined : id} onClick={toggle} className={`text-label ${LINK}`} data-testid="measure-limits-how-open">
+        <button type="button" aria-expanded={open} aria-controls={controls} onClick={toggle} className={`text-label ${LINK}`} data-testid="measure-limits-how-open">
           {label} ›<span className="sr-only"> — {name}</span>
         </button>
       )}
