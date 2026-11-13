@@ -344,3 +344,164 @@ rehearsal; it didn't recur in the three runs after.
   with no session of its own running the build quit as asked (AJ-E1503).
   Those runs' readings after that moment were dropped and the conditions
   run again.
+
+## Round 3, the same day: the hidden window's processes, the shown window's page, the walks
+
+Round 2 left two conditions over the budget: shown with 10 working
+(2.0–2.3 %) and hidden after a show (2.1–2.3 %, the web content and GPU
+process busy with nothing on screen, cause unknown).
+
+### Method
+
+As round 2, with these differences:
+
+- **Builds.** "Before": a476f8e5b, built at 8c3eb0430 (its D-110 rename
+  only: the same code). "After": 4d7c215d5. The Dev edition's release
+  build, copied out of the shared target before it was measured.
+- **Lab.** PD3 with the replica, imported, set up fresh (342 transcripts,
+  12 Accounts). *Working*: `replica.py live --claude 7 --codex 3
+  --no-desktop`. *Quiet*: the same ten, each resuming an existing
+  conversation of its Account and writing nothing (a copy of `replica.py`
+  in /tmp with `--idle` for all, never committed).
+- **Launch and reading.** `open -g -n --env HOME=<lab>`, by pid, quit by
+  bundle id. Each run: 75 s, 180 s shown, the app hidden through System
+  Events, 15 s, 180 s hidden; `ps -o time=` every 30 s. A B A B A B per
+  condition, one build at a time. The load average was 9–71 (other
+  builds on the Mac; the first pair at 45–71).
+- **Window.** "Shown" is what WebKit counts as visible: the window on
+  screen, uncovered (93–100 %) or under another window (0 %: WebKit's page
+  stays visible). `open -j` ("never shown") put the window on screen under
+  another window in this series (0 % uncovered), so those rows are shown,
+  covered; a page hidden throughout now does what a page hidden after a
+  show does (below), which the hidden rows measure.
+- **No `sample`.** On this build it needs the developer-tools
+  authorization (an lldb attach raised that password prompt once; it was
+  dismissed, no password entered). Instead: per-thread CPU from
+  `proc_pidinfo(PROC_PIDTHREADINFO)` over 30–60 s, the system log of the
+  build's pid (`log show --predicate 'processID == …'`, WebKit's own
+  trace), and measurement-only builds (never committed) counting each
+  command and event per 10 s and, in the page, timer, rAF and MessagePort
+  callbacks, DOM mutations by the nearest named element, the running
+  animations and the visibility state.
+
+### What was found
+
+1. **Close is quit.** The window's close button asks `quit::request`
+   (`lib.rs`, `on_window_event`): AI Juggler quits, or shows the quit sheet
+   while its own sessions are live; Cancel leaves the window shown. No
+   window is left hidden by a close: hidden means ⌘H, minimised or on
+   another Space.
+2. **Shown, then hidden: every backend event woke three processes.** After
+   the hide the page knew it was hidden (`visibilityState` hidden, 2 timer
+   callbacks a minute, no rAF), but the backend's events kept coming: a
+   Tauri event is a script the web view runs (`WebPage::
+   runJavaScriptInFrameInScriptWorld`), and WebKit runs one as a
+   foreground activity. In a hidden page each one raised the web content,
+   GPU and networking processes to the foreground and dropped them back:
+   with 10 working, hidden, about 60 scripts, 57 foreground assertions and
+   340 throttle-state changes a minute; shown, none. Most were
+   `processes://changed` (about 18 a minute: the graph moves on nearly
+   every 2 s tick while sessions work) and `machine://this-mac` (12).
+3. **Shown with 10 working: the page rewrote itself.** With nothing
+   changing on screen, about 2,000 attribute writes a minute (the rail's
+   roving marks, set again after every render of the rail) and 400 style
+   writes (an App header's fitted words: each shown, measured and hidden
+   again after every render, a layout and a repaint each); the whole app
+   rendered again on each 5 s This Mac reading (the shell's state); the
+   top bar's count took every `processes://changed`; each list was read
+   again on every change.
+4. **The backend's walks.** The conversation pass ran the whole projects
+   backfill after any changed file (every conversation placed, every
+   project written); the usage pipeline's 15 s records cadence listed
+   every transcript.
+
+### The fixes
+
+| Commit | What | Guard |
+|---|---|---|
+| 58c3e6607 | `listenWhileShown` (`ui/src/lib/shown-window.ts`): while the window is hidden the page holds no listener for a change event, so Tauri runs nothing in it; when it shows it listens again, then reads what it missed. Sessions, their resource and quota ticks, conversations, places, This Mac, processes, the notification summary, messages, tasks, driven sessions; it replaces `whileShown` and the copied listen-and-dispose code. Events that ask the window to act (quit sheet, go to, open) and terminal output are heard as before | `shown-window.test.ts` (no listener while hidden; one listener and one catch-up after a hide and show) |
+| 4b3e719e2 | `coalesced()`: a list read on every change reads at once, then at most once a second; the relation counts, the shell's lists, the conversation list and a related list read through it (two copies of a 250 ms settle timer go) | `shown-window.test.ts`; `relation-counts.test.tsx` (the first change reads at once) |
+| 31bbbd7d7 | The projects backfill runs when a conversation comes, goes or moves folder (`Placed`); lines appended move only their project's last use (`touch_last_used`) | `tests/conversations.rs::appended_lines_move_a_projects_last_use_and_only_new_conversations_backfill` (fails without it) |
+| d5b64a04e | `rove()` writes a control's mark only when it lacks it; `useFitWhole` fits when the words change or the box changes width | `lib/roving.test.ts`, `place-header-fit.test.tsx` (both fail on the old code) |
+| fe6ec46f9 | `processes://counts` (`AppEvent::ProcessCounts`): the top bar's count, sent only when a count moves; the graph's event has listeners only while the Processes page is open | `tests/processes.rs::the_top_bars_count_is_told_only_when_a_count_moves`; `lib/cleanup-count.test.tsx` (fails on the old wiring) |
+| c86afe174 | `ThisMacProvider`: This Mac's reading draws what reads it, not the whole app | `lib/this-mac-provider.test.tsx` |
+| 4d7c215d5 | The usage pipeline walks every transcript first, when asked, after a lost track or a change of the accounts watched, and every 5 min (`SWEEP_EVERY`); the records' cadence reads the records alone | `usage_pipeline::gate::tests::the_records_cadence_walks_nothing_and_the_sweep_walks_everything` |
+
+The measurement-only builds after the first two fixes: hidden after a
+show, the web content 0.73 → 0.05 % and the GPU process 0.32 → 0.00 %;
+shown with 10 working, DOM writes about 2,400 → 70 a minute and the GPU
+process 0.41 → 0.04 % (instrumented, so higher than the rows below).
+
+### Results
+
+Medians of three 180 s readings per build, interleaved (A B A B A B; the
+last quiet pair ran again as B A after its stand-ins were stopped by
+mistake mid-run, and those readings were dropped), % of one core.
+
+| Live, condition | Build | `juggler-app` | web content | GPU | **All three** (min–max) | Load (1 min) |
+|---|---|---|---|---|---|---|
+| 10 working, shown | before | 1.27 | 0.95 | 0.31 | **2.53** (2.22–6.09) | 17–45 |
+| | after | 1.24 | 0.67 | 0.10 | **2.03** (1.58–2.04) | 10–48 |
+| 10 working, shown under another window (`open -j`, 0 % uncovered) | before | 1.52 | 1.02 | 0.36 | **2.92** (2.46–3.01) | 10–11 |
+| | after | 1.33 | 0.70 | 0.11 | **2.14** (1.99–2.32) | 9–12 |
+| 10 working, hidden after a show | before | 1.28 | 0.62 | 0.30 | **2.20** (1.92–3.23) | 12–71 |
+| | after | 1.23 | 0.02 | 0.00 | **1.25** (1.15–1.42) | 9–22 |
+| 10 quiet, shown | before | 1.07 | 0.79 | 0.34 | **2.20** (2.06–2.32) | 6–13 |
+| | after | 0.93 | 0.42 | 0.01 | **1.62** (1.31–1.68) | 11–14 |
+| 10 quiet, hidden after a show | before | 1.06 | 0.73 | 0.33 | **2.13** (1.87–2.17) | 5–11 |
+| | after | 0.88 | 0.05 | 0.02 | **0.94** (0.94–0.96) | 10–17 |
+
+- **The budget (under 2 % for the three, 10 live) is met hidden after a
+  show** (1.25 working, 0.94 quiet; round 2's open cause) and **shown with
+  10 quiet** (1.62). A window hidden from its start holds no listener
+  either, so it reads as hidden after a show.
+- **It is not met shown with 10 working: 2.03 % (2.14 under another
+  window)**, against 2.53 and 2.92 before. The web content fell by a
+  third and the GPU process by two thirds; `juggler-app` is now most of it
+  (1.2–1.3 %), unchanged by these fixes but for the walks.
+- **`juggler-app` by thread** (after, 10 working, shown, 45 s at load
+  10–16; `proc_pidinfo`): the 2 s `processes` tick 0.33 %, the 5 s
+  `resources` tick (Needs you, This Mac, the resource emission) 0.19,
+  `live-sessions` 0.10, `keep-alive` 0.05, the main thread 0.04, the
+  unnamed threads (the usage pipeline's among them) 0.04 (0.18–0.38
+  before 4d7c215d5), IPC workers 0.03 (0.26 before 4b3e719e2), the 15 s
+  `conversations` pass 0.11–0.36 when it falls in the window.
+- **Two quits of hidden lab windows**, outside the table: a
+  measurement-only run (11:31:45) and a first trial of the before build
+  (12:30:48), each in its hidden half: dropped, not chased (round 2's
+  cause).
+
+### Presence (ADR-0032)
+
+`scripts/qa/presence_check.py` on the PL1 lab with the final build
+(4d7c215d5), three times: **PASS** before the start, after it and after
+the quit, each time. How long after `ps` showed the change the rail's
+Open now did (its accessibility tree read every ~0.1 s, one read
+included): **launch 0.70, 0.21 and 0.83 s; quit 0.15 and 0.38 s** (the
+first run's quit wasn't timed: the timer missed Open now leaving the rail;
+its check passed). ADR-0032: within 2 s.
+
+### Open
+
+- **Shown with 10 working is still over the budget (2.0–2.1 %).** What is
+  left, largest first:
+  - the `processes` tick (0.33 %): the observed tools' trees read through
+    `sysinfo` with their arguments, and the Processes graph built every
+    2 s whether or not its page is open. Taking their CPU time from
+    `proc_taskinfo` (`pti_total_user`/`pti_total_system`, in the record
+    `resident` reads) needs Mach's timebase on Apple silicon (the fields
+    are ticks, not nanoseconds): `mach_timebase_info`, a new unsafe call,
+    or `hw.tbfrequency`. Not done: the brief allows no new unsafe block.
+    Building the graph only while its page is open needs its counts (the
+    top bar) and sightings (leftovers, Needs you) split from the rest.
+  - Needs you's 5 s read (in the 0.19 % `resources` tick), window or not
+    (D-49): change-driven, with each time-dependent input (snoozes ending,
+    the working list's recency, sign-ins' 30 s check, the started words'
+    day change, budgets' month) scheduled at its next deadline. Not done.
+  - the shown page's renders on each change (the web content 0.4–0.7 %):
+    each This Mac reading still draws every rail row (`useHeavyNote`
+    reads the whole context), and each conversation change reads and
+    draws the rail.
+- **Not measured:** the grown lab; a window hidden from its start (`open
+  -j` left it on screen under another window); the installed beta beyond
+  `ps`.
