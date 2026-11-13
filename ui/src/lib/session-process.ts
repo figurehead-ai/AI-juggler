@@ -16,6 +16,12 @@ export function processGone(status: string | undefined, rule: string | null | un
 /** The statuses of a session that may still have its process. */
 const ACTIVE = new Set(["starting", "running", "waiting_user", "stuck", "quota_blocked"]);
 
+/** Whether a session is live by its status (its page's model, D-103.3:
+ * an ended one's page stays quiet; one at its limit is still live). */
+export function statusLive(status: string): boolean {
+  return ACTIVE.has(status);
+}
+
 /**
  * Whether a session's process still runs: what Stop, "Go to it", the
  * "scrollback replayed" line and the terminal all read, so they never

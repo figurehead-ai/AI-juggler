@@ -1,5 +1,5 @@
 import { focusHandover } from "../lib/handover-focus";
-import { processRunning } from "../lib/session-process";
+import { processRunning, statusLive } from "../lib/session-process";
 import { SessionNotices } from "./SessionNotices";
 import { ToolChip } from "./ToolMark";
 import { PageShell } from "../pages/PageShell";
@@ -92,6 +92,13 @@ export type InspectorData = {
    * tab bodies; every value source-labelled). */
   remote?: RemoteContext | null;
 };
+
+/** A session's own notices on its page (D-87); quiet once it has ended
+ * (D-103.3: its account's notice is a line under Continue there). */
+function OwnNotices({ id, sessions }: { id: string; sessions: InstanceInfo[] }) {
+  const session = sessions.find((s) => s.id === id);
+  return <SessionNotices accountId={session?.account_id ?? null} quiet={session !== undefined && !statusLive(session.status)} switchKey={id} reminderKey={id} parkedId={id} sessions={sessions} />;
+}
 
 /** The registry's page type for an inspector selection. */
 function pageKindOf(kind: InspectorKind, remote: RemoteContext | null): PageKind {
@@ -213,7 +220,7 @@ export function RightInspector({
       kind={page}
       subject={selection.id}
       switchKey={page === "session" ? selection.id : undefined}
-      notice={page === "session" ? <SessionNotices accountId={sessions.find((s) => s.id === selection.id)?.account_id ?? null} switchKey={selection.id} reminderKey={selection.id} parkedId={selection.id} sessions={sessions} /> : undefined}
+      notice={page === "session" ? <OwnNotices id={selection.id} sessions={sessions} /> : undefined}
       tabsKnown={page !== "session" || remote !== null || sessionTabs.known}
       emptyTabs={page === "session" && sessionTabs.counts?.pools === 0 ? ["pools"] : undefined}
       tabs={tabs}

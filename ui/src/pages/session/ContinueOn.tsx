@@ -9,6 +9,11 @@
  * and continues on the other account, on Desktop or the CLI, while it
  * stays open in its app.
  * 0.3: Save handover… at its foot, ending with Reveal in Finder.
+ * D-103.3: reading an ended session stays quiet. The card is folded, as
+ * a terminal session's is: its account's notice one quiet line under its
+ * title, and the search for room starts only when the user opens it (or
+ * ⌘⇧H, the header's or the bell's Continue), never on opening the page. A
+ * live one lists its apps at once, as before.
  */
 import { RoomChip } from "../../components/RoomChip";
 import { roomMarkFrom } from "../../lib/room-mark";
@@ -30,6 +35,7 @@ import { CardTitle } from "./CardTitle";
 import { toolSpec } from "../../lib/tools";
 import { SaveHandover } from "../../components/HandoverView";
 import { ContinueDialog } from "../../components/ContinueDialog";
+import { AccountRoomLine, ContinueSummary } from "../../components/ContinueSummary";
 
 /** A target App (D-62: a tool on one of its folders), as the page shows
  * it. */
@@ -166,18 +172,24 @@ export function ContinueOn({
   // session starts from "Looking for room…".
   const turn = `${model.conversationId ?? ""}|${model.state.working ? "working" : "still"}`;
   const asked = useRef<string | null>(null);
+  // D-103.3: an ended one searches only once the user opens it.
+  const quiet = !model.live;
+  const [chosen, setChosen] = useState(false);
+  const searching = !quiet || chosen || dialog;
   useEffect(() => {
     let alive = true;
-    if (asked.current !== source) setRows(null);
-    asked.current = source;
-    switchTargets(source).then(
-      (next) => alive && setRows(next),
-      () => alive && setRows((now) => now ?? []),
-    );
+    if (searching) {
+      if (asked.current !== source) setRows(null);
+      asked.current = source;
+      switchTargets(source).then(
+        (next) => alive && setRows(next),
+        () => alive && setRows((now) => now ?? []),
+      );
+    }
     return () => {
       alive = false;
     };
-  }, [source, turn, dialog]);
+  }, [source, turn, dialog, searching]);
   // The one order by room, with Home's "Best for new work" as Suggested
   // (the 0.2 walk, F1).
   const targets = useMemo(
@@ -296,16 +308,27 @@ export function ContinueOn({
     )}
     </>
   );
+  const shown = dialog ? (
+    <p className="text-meta text-ink-2" data-testid="continue-in-dialog">
+      Choosing in the dialog…
+    </p>
+  ) : (
+    list
+  );
   return (
     <Card className="flex flex-col gap-3 p-5" data-testid="continue-on">
-      <CardTitle>Continue in another app</CardTitle>
-      {dialog ? (
-        <p className="text-meta text-ink-2" data-testid="continue-in-dialog">
-          Choosing in the dialog…
-        </p>
+      {quiet ? (
+        <details open={chosen} onToggle={(event) => setChosen(event.currentTarget.open)} className="group" data-testid="continue-fold">
+          <ContinueSummary />
+          {chosen && <div className="mt-3 flex flex-col gap-3">{shown}</div>}
+        </details>
       ) : (
-        list
+        <>
+          <CardTitle>Continue in another app</CardTitle>
+          {shown}
+        </>
       )}
+      {quiet && !chosen && <AccountRoomLine accountId={model.profileId} />}
       {/* 0.3: save its handover, beside the switch actions (a session
           another app runs is only read for it). */}
       <SaveHandover sessionId={source} />
