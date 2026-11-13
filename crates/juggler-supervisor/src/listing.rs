@@ -9,14 +9,23 @@
 //! `sysinfo` reads each process's arguments on every refresh whatever it
 //! is asked, and the listing every 4 s was a fifth of the app's idle CPU
 //! in the lab. The zombies come from the same call (no `/bin/ps`).
+//!
+//! AJ-E805 round 4 (D-110's fifth block): the observed trees are measured
+//! from the kernel's task record (`juggler_proc_list::task`: memory and
+//! CPU time), not through `sysinfo`, which read each of their processes'
+//! arguments again at every listing (the Claude app's ~300 processes on a
+//! busy Mac). A process new to the collector's table is read whole there
+//! once (its program's name for the row, its command line for its role);
+//! after that, a listing reads its task record alone.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use crate::cpu_since::CpuSince;
 use crate::live_stats::{
-    CollectorWork, ObservedRoot, ObservedTree, TreeSample, observed_sums, parents_map,
-    push_ring_sample, tree_rows,
+    CollectorWork, ObservedRoot, ObservedTree, ProcessRow, TreeSample, observed_sums, parents_map,
+    push_ring_sample,
 };
+use crate::rows::{Rows, TableRows, tree_rows};
 use crate::zombies::{Zombie, Zombies};
 
 /// What one listing found: each process's children and start time (no
@@ -29,6 +38,8 @@ pub(crate) struct Listed {
     starts: HashMap<u32, u64>,
     /// How many processes the listing read.
     pub(crate) read: u64,
+    /// Of them, read whole (program and arguments).
+    pub(crate) whole: u64,
 }
 
 impl Listed {
@@ -50,6 +61,7 @@ impl Listed {
     fn of_table(table: &sysinfo::System) -> Self {
         Self {
             read: table.processes().len() as u64,
+            whole: table.processes().len() as u64,
             children: parents_map(table),
             starts: table
                 .processes()
@@ -207,50 +219,177 @@ fn same_process(held: &sysinfo::Process, listed: &juggler_proc_list::Listed) -> 
                 .is_some_and(named))
 }
 
-/// Reads the listing `table` (CPU and memory) and says what it found.
-/// Where the system lists every process in one call, only the processes
-/// under `roots` (the watched trees' roots) are read, the ones gone since
-/// (or reused) dropped, and the zombies taken from the same listing;
-/// elsewhere every process is read, as before.
+/// One process of an observed tree, as a listing measured it: what the
+/// system's listing names, its program's name, and its task record.
+#[derive(Debug, Clone)]
+struct Measured {
+    ppid: u32,
+    start_secs: u64,
+    name: String,
+    resident: u64,
+    cpu_ns: u64,
+}
+
+/// What the listings keep between reads.
+#[derive(Debug, Default)]
+pub(crate) struct ListingState {
+    /// Where the system lists every process in one call: the last
+    /// listing's measures of the observed trees, by pid. `None` elsewhere.
+    measured: Option<HashMap<u32, Measured>>,
+    /// Elsewhere: every process, read through `sysinfo` at each listing.
+    table: sysinfo::System,
+    /// What the reads saw of each process's CPU time.
+    cpu: CpuSince,
+}
+
+impl ListingState {
+    /// The last listing's rows, as the observed trees are built from them.
+    pub(crate) fn rows(&self) -> Box<dyn Rows + '_> {
+        match &self.measured {
+            Some(measured) => Box::new(MeasuredRows {
+                measured,
+                cpu: &self.cpu,
+                now_secs: std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .map_or(0, |since| since.as_secs()),
+            }),
+            None => Box::new(TableRows {
+                system: &self.table,
+                cpu: &self.cpu,
+            }),
+        }
+    }
+}
+
+/// A listing's measures, as rows: no executable or command line (those are
+/// the collector's table's, [`crate::LiveStatsCollector::process_briefs`]).
+struct MeasuredRows<'a> {
+    measured: &'a HashMap<u32, Measured>,
+    cpu: &'a CpuSince,
+    now_secs: u64,
+}
+
+impl Rows for MeasuredRows<'_> {
+    fn holds(&self, pid: u32) -> bool {
+        self.measured.contains_key(&pid)
+    }
+
+    fn row(&self, pid: u32) -> Option<ProcessRow> {
+        let measured = self.measured.get(&pid)?;
+        Some(ProcessRow {
+            pid,
+            parent_pid: (measured.ppid != 0).then_some(measured.ppid),
+            name: measured.name.clone(),
+            cpu_pct: self.cpu.pct_of(pid, measured.start_secs),
+            rss_bytes: measured.resident,
+            age_ms: self
+                .now_secs
+                .saturating_sub(measured.start_secs)
+                .saturating_mul(1000),
+            child_count: 0,
+            depth: 0,
+            start_time: i64::try_from(measured.start_secs).unwrap_or_default(),
+            exe: None,
+            cmd: None,
+            zombie: false,
+            cpu_time_ms: measured.cpu_ns / 1_000_000,
+        })
+    }
+}
+
+/// Reads the listing and says what it found. Where the system lists every
+/// process in one call: each process's parent and start time (`ours`'s
+/// trees' new processes are found from them), the zombies, and the
+/// processes under `observed` measured from their task records; a process
+/// new to the collector's `table` is read whole there first, once.
+/// Elsewhere every process is read through `sysinfo`, as before.
 pub(crate) fn read(
-    table: &mut sysinfo::System,
-    cpu: &mut CpuSince,
-    roots: &[u32],
+    state: &mut ListingState,
+    (table, cpu): (&mut sysinfo::System, &mut CpuSince),
+    ours: &[u32],
+    observed: &[u32],
     zombies: &mut Zombies,
 ) -> Listed {
-    use sysinfo::{ProcessRefreshKind, ProcessesToUpdate};
-    let kind = ProcessRefreshKind::nothing()
-        .without_tasks()
-        .with_cpu()
-        .with_memory();
+    use sysinfo::{ProcessRefreshKind, ProcessesToUpdate, UpdateKind};
     let at = std::time::Instant::now();
     let Some(all) = juggler_proc_list::list() else {
-        table.refresh_processes_specifics(ProcessesToUpdate::All, true, kind);
-        cpu.note_all(table, at);
-        return Listed::of_table(table);
+        state.measured = None;
+        state.table.refresh_processes_specifics(
+            ProcessesToUpdate::All,
+            true,
+            ProcessRefreshKind::nothing()
+                .without_tasks()
+                .with_cpu()
+                .with_memory(),
+        );
+        state.cpu.note_all(&state.table, at);
+        return Listed::of_table(&state.table);
     };
-    if !roots.is_empty() {
+    if !state.table.processes().is_empty() {
+        state.table = sysinfo::System::new();
+    }
+    if !(ours.is_empty() && observed.is_empty()) {
         zombies.replace(zombies_of(&all));
     }
     let mut listed = Listed::of_list(&all);
-    let mut pids = listed.under(roots);
-    pids.extend(
-        table
-            .processes()
-            .iter()
-            .filter(|(pid, process)| {
-                listed.starts.get(&pid.as_u32()) != Some(&process.start_time())
-            })
-            .map(|(pid, _)| pid.as_u32()),
-    );
-    listed.read = refresh_these(table, cpu, pids, kind, at);
+    let under: HashSet<u32> = listed.under(observed).into_iter().collect();
+    let found: Vec<&juggler_proc_list::Listed> = all
+        .iter()
+        .filter(|process| !process.zombie && under.contains(&process.pid))
+        .collect();
+    let new: Vec<u32> = found
+        .iter()
+        .filter(|process| {
+            table
+                .process(sysinfo::Pid::from_u32(process.pid))
+                .is_none_or(|held| !same_process(held, process))
+        })
+        .map(|process| process.pid)
+        .collect();
+    if !new.is_empty() {
+        let whole = ProcessRefreshKind::nothing()
+            .without_tasks()
+            .with_cpu()
+            .with_memory()
+            .with_exe(UpdateKind::Always)
+            .with_cmd(UpdateKind::Always);
+        listed.whole = refresh_these(table, cpu, new, whole, at);
+    }
+    let mut measured = HashMap::with_capacity(found.len());
+    for process in found {
+        let Some(task) = juggler_proc_list::task(process.pid) else {
+            continue; // gone since, or not this user's to read
+        };
+        let name = table
+            .process(sysinfo::Pid::from_u32(process.pid))
+            .filter(|held| held.start_time() == process.start_secs)
+            .map_or_else(
+                || process.name.clone(),
+                |held| held.name().to_string_lossy().into_owned(),
+            );
+        state
+            .cpu
+            .note_reading(process.pid, process.start_secs, task.cpu_ns, at);
+        measured.insert(
+            process.pid,
+            Measured {
+                ppid: process.ppid,
+                start_secs: process.start_secs,
+                name,
+                resident: task.resident,
+                cpu_ns: task.cpu_ns,
+            },
+        );
+    }
+    state.cpu.keep_only(|pid| measured.contains_key(&pid));
+    listed.read = measured.len() as u64;
+    state.measured = Some(measured);
     listed
 }
 
 /// One listing's read, as the observed trees are measured from it.
 pub(crate) struct Listing<'a> {
-    pub(crate) system: &'a sysinfo::System,
-    pub(crate) cpu: &'a CpuSince,
+    pub(crate) rows: &'a dyn Rows,
     pub(crate) parents: &'a HashMap<u32, Vec<u32>>,
     pub(crate) supervised: &'a std::collections::HashSet<u32>,
     pub(crate) sampled: bool,
@@ -270,15 +409,14 @@ impl Listing<'_> {
         let mut reused = Vec::new();
         for pinned in roots {
             let root = pinned.pid;
-            let process = self.system.process(sysinfo::Pid::from_u32(root));
-            let alive =
-                process.is_some_and(|process| process.status() != sysinfo::ProcessStatus::Zombie);
+            let process = self.rows.row(root);
+            let alive = process.as_ref().is_some_and(|process| !process.zombie);
             // The pid now names another process: never measure it as the
             // tool (and stop watching it until the next scan).
-            let same = process.is_none_or(|process| {
-                pinned.start_time.is_none_or(|started| {
-                    i64::try_from(process.start_time()).is_ok_and(|now| now == started)
-                })
+            let same = process.as_ref().is_none_or(|process| {
+                pinned
+                    .start_time
+                    .is_none_or(|started| process.start_time == started)
             });
             if !same {
                 reused.push(root);
@@ -287,7 +425,7 @@ impl Listing<'_> {
                 trees.remove(&root);
                 continue;
             }
-            let (rows, _) = tree_rows(self.system, self.cpu, self.parents, root, self.zombies);
+            let (rows, _) = tree_rows(self.rows, self.parents, root, self.zombies);
             work.targeted_observed += rows.len() as u64;
             // A supervised subtree never also counts as observed.
             let mut stats = observed_sums(&rows, self.supervised);

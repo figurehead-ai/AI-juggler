@@ -144,6 +144,79 @@ fn a_listing_reads_the_watched_trees_not_every_process() {
     child.wait().unwrap();
 }
 
+/// AJ-E805 round 4 (D-110's task read): once an observed tree's processes
+/// are known, a listing measures them from the kernel's task record alone
+/// (memory and CPU time), never reading their arguments again; their CPU
+/// still reads. Through `sysinfo`, every listing read each of them whole
+/// (the Claude app's ~300 processes, every 4 s).
+#[cfg(target_os = "macos")]
+#[test]
+fn a_known_trees_listing_reads_no_process_whole_again() {
+    let mut child = std::process::Command::new("/bin/sh")
+        .args([
+            "-c",
+            &format!(
+                "bash -c 'while [ $SECONDS -lt {} ]; do :; done' & sleep 30 & wait",
+                fixtures::FIXTURE_LIFETIME_SECS
+            ),
+        ])
+        .process_group(0)
+        .spawn()
+        .unwrap();
+    let root = child.id();
+    let mut reaper = fixtures::Reaper::default();
+    reaper.group(root);
+    let supervisor = Supervisor::new();
+    let mut collector = LiveStatsCollector::new();
+    collector.set_observed_roots(vec![ObservedRoot {
+        pid: root,
+        start_time: None,
+    }]);
+    let known = |collector: &LiveStatsCollector| {
+        collector
+            .observed_snapshot()
+            .get(&root)
+            .is_some_and(|tree| tree.stats.child_count >= 2)
+    };
+    let mut tick = 0_i64;
+    while !(known(&collector) && collector.work().listings >= 2) && tick < 20 {
+        tick += 1;
+        collector.tick(&supervisor, tick * 2_000);
+        std::thread::sleep(std::time::Duration::from_millis(100));
+    }
+    assert!(known(&collector), "the tree is measured from the listing");
+    let before = collector.work();
+    for _ in 0..6 {
+        tick += 1;
+        collector.tick(&supervisor, tick * 2_000);
+        std::thread::sleep(std::time::Duration::from_millis(400));
+    }
+    let after = collector.work();
+    let listings = after.listings - before.listings;
+    let measured = after.listed_read - before.listed_read;
+    assert!(
+        listings >= 2 && measured >= 3 * listings,
+        "{listings} listings measured {measured}"
+    );
+    assert_eq!(
+        after.listed_whole, before.listed_whole,
+        "{listings} listings of a known tree read processes whole"
+    );
+    let tree = collector.observed_snapshot().get(&root).cloned().unwrap();
+    let busiest = tree
+        .rows
+        .iter()
+        .filter_map(|row| row.cpu_pct)
+        .fold(0.0_f64, f64::max);
+    assert!(
+        busiest > 30.0,
+        "the busy helper reads busy, from its task record: {:?}",
+        tree.rows
+    );
+    drop(reaper);
+    let _ = child.wait();
+}
+
 /// AJ-E805 (0.4.5, idle CPU; D-110): after its first, a full scan reads
 /// whole only the processes that are new since; every process's memory is
 /// still there for This Mac's other apps. It read every process on the

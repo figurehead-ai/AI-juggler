@@ -27,6 +27,7 @@ pub mod machine;
 pub mod orphans;
 pub mod ports;
 pub mod ring;
+mod rows;
 pub mod stats;
 mod stop_guard;
 pub mod supervisor;

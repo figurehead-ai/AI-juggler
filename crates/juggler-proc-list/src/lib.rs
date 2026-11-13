@@ -430,7 +430,10 @@ mod tests {
         assert_eq!(super::macos::timebase(), Some(theirs));
         // Ticks to nanoseconds: a second's ticks are a second; no overflow
         // past `u64`'s nanoseconds.
-        assert_eq!(super::macos::nanos(u128::from(theirs), theirs), 1_000_000_000);
+        assert_eq!(
+            super::macos::nanos(u128::from(theirs), theirs),
+            1_000_000_000
+        );
         assert_eq!(super::macos::nanos(u128::MAX / 2_000_000_000, 1), u64::MAX);
     }
 
@@ -458,7 +461,12 @@ mod tests {
                 .unwrap(),
         );
         let pid = child.0.id();
-        let read = || (Instant::now(), super::task(pid).expect("the child's task").cpu_ns);
+        let read = || {
+            (
+                Instant::now(),
+                super::task(pid).expect("the child's task").cpu_ns,
+            )
+        };
         std::thread::sleep(Duration::from_millis(300));
         let (from_at, from_ns) = read();
         std::thread::sleep(Duration::from_millis(1_500));
@@ -480,7 +488,9 @@ mod tests {
         let theirs = String::from_utf8_lossy(&out.stdout)
             .trim()
             .split(':')
-            .fold(0.0, |total, part| total * 60.0 + part.parse::<f64>().unwrap());
+            .fold(0.0, |total, part| {
+                total * 60.0 + part.parse::<f64>().unwrap()
+            });
         assert!(
             (ours - theirs).abs() < 0.1 + theirs * 0.05,
             "ours {ours} s, ps {theirs} s"

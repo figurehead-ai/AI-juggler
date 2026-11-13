@@ -2960,14 +2960,16 @@ Each ships with tests that fail without it and a design critique; the M2, D2 and
   never lists on a Mac come from the same read (no more `/bin/ps`).
 - As with D-17, D-26 and D-27, the carve-out is a new, isolated crate that
   does NOT inherit the workspace lint baseline; `unsafe_code = "forbid"`
-  stays absolute everywhere else. It holds exactly four `unsafe` blocks
+  stays absolute everywhere else. It holds exactly five `unsafe` blocks
   (the `sysctl` asking the records' size, and the one reading them into a
   byte buffer; zeroing a `proc_taskinfo`, and the `proc_pidinfo` filling
-  it), each with a SAFETY note, under `#![deny(unsafe_op_in_unsafe_fn)]`,
-  behind two safe functions: `list`, and `resident` (one process's
-  resident memory, the record `sysinfo` takes it from: the collector's
-  full scan measures This Mac's other apps with it, reading only new
-  processes whole).
+  it; `sysctlbyname("hw.tbfrequency")`, read once per run and cached),
+  each with a SAFETY note, under `#![deny(unsafe_op_in_unsafe_fn)]`,
+  behind two safe functions: `list`, and `task` (one process's resident
+  memory and CPU time, the record `sysinfo` takes them from: the
+  collector's full scan measures This Mac's other apps with it, reading
+  only new processes whole, and each listing measures the observed tools'
+  trees with it, reading only new processes whole too).
   `libc` has no `kinfo_proc`, so the seven fields read are taken at their
   offsets in its fixed 64-bit layout, and every read checks itself (a
   record size other than 648 bytes, or a listing without this process
@@ -2975,6 +2977,22 @@ Each ships with tests that fail without it and a design critique; the M2, D2 and
   before). Off macOS it is a safe stub that lists nothing. Its tests hold
   it to `ps` (this process's parent, name, memory and the count) and to a
   real zombie.
+- Amended 2026-11-13 (AJ-E805 round 4, the maintainer's call; unshipped,
+  so in place): the fifth block. Round 3's per-thread reading put the 2
+  s `processes` tick first among the app's costs with 10 sessions at
+  work (0.33 % of a core), and in it the observed tools' trees read
+  through `sysinfo` at every listing (every 4 s), each process's
+  arguments with them (`KERN_PROCARGS2`, twice, whatever is asked).
+  Their CPU time is in the same `proc_taskinfo` record `resident`
+  already read (`pti_total_user` + `pti_total_system`), but counted in
+  Mach time units: nanoseconds on an Intel Mac, 24 MHz ticks on Apple
+  silicon (unconverted, a busy process reads 42 times too low). The
+  conversion takes the timebase the kernel names; `hw.tbfrequency`
+  (ticks a second) was chosen over `mach_timebase_info` (also one unsafe
+  call, and deprecated in `libc`) as one more `sysctl`, the shape the
+  crate already holds. Its tests hold it to `/usr/sbin/sysctl -n
+  hw.tbfrequency`, and a busy child's CPU time to the wall clock and to
+  `ps` (the unconverted reading fails them).
 - Rejected: `proc_listallpids` with `proc_pidinfo(PROC_PIDTBSDINFO)` per
   pid (the kernel refuses it for other users' processes and for zombies:
   678 of 872 listed); keeping `sysinfo`'s table between reads alone

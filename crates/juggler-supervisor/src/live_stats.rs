@@ -12,6 +12,7 @@ use juggler_core::model::SessionId;
 use crate::cpu_since::CpuSince;
 use crate::lifecycle::LifecycleEvent;
 use crate::listing::Listing;
+use crate::rows::{TableRows, tree_rows};
 use crate::stats::LiveProcessStats;
 use crate::supervisor::{OUTPUT_RETENTION_AFTER_EXIT_MS, Supervisor};
 
@@ -271,12 +272,11 @@ pub struct LiveStatsCollector {
     observed_extra: HashMap<u32, ObservedTree>,
     /// What the ticks have done so far (the monitoring budget's measure).
     work: CollectorWork,
-    /// The listing (see [`LIST_EVERY`]): every process's parent, start time,
-    /// CPU and memory, read every 2nd tick. Kept apart from `system`: each
-    /// table's CPU deltas are over its own refresh interval.
-    listing: sysinfo::System,
-    /// What the listing's refreshes saw of each process's CPU time.
-    listing_cpu: CpuSince,
+    /// The listing (see [`LIST_EVERY`]): every process's parent and start
+    /// time, and the watched trees' CPU and memory, read every 2nd tick.
+    /// Kept apart from `system`: each table's CPU deltas are over its own
+    /// refresh interval.
+    listing: crate::listing::ListingState,
     /// The listing has been read twice: its CPU deltas are real.
     listing_sampled: bool,
     /// AJ-E2401: the zombies `sysinfo` doesn't list on a Mac, read every
@@ -314,6 +314,11 @@ pub struct CollectorWork {
     /// where the system lists every process in one call; every one
     /// elsewhere).
     pub listed_read: u64,
+    /// Of them, read whole (their program and arguments): where the
+    /// system lists every process in one call, only those new to the
+    /// collector's table; the rest are measured from the kernel's task
+    /// record alone (AJ-E805, D-110).
+    pub listed_whole: u64,
     /// New descendants those listings found: processes a tree started
     /// since the last full scan, counted at once.
     pub discovered: u64,
@@ -409,8 +414,7 @@ impl Default for LiveStatsCollector {
             observed_extra_roots: Vec::new(),
             observed_extra: HashMap::new(),
             work: CollectorWork::default(),
-            listing: sysinfo::System::new(),
-            listing_cpu: CpuSince::default(),
+            listing: crate::listing::ListingState::default(),
             listing_sampled: false,
             zombies: crate::zombies::Zombies::default(),
             resident: HashMap::new(),
@@ -997,23 +1001,26 @@ impl LiveStatsCollector {
         self.resident = resident.unwrap_or_default();
     }
 
-    /// Reads the listing (see [`crate::listing::read`]): the processes of
-    /// our trees (`ours`) and of the observed ones.
+    /// Reads the listing (see [`crate::listing::read`]): every process's
+    /// parent and start time (our trees' new processes, `ours`), and the
+    /// observed trees measured.
     fn refresh_listing(&mut self, ours: &[u32]) -> crate::listing::Listed {
         self.work.listings += 1;
-        let roots: Vec<u32> = ours
+        let observed: Vec<u32> = self
+            .observed_roots
             .iter()
-            .copied()
-            .chain(self.observed_roots.iter().map(|root| root.pid))
-            .chain(self.observed_extra_roots.iter().map(|root| root.pid))
+            .chain(&self.observed_extra_roots)
+            .map(|root| root.pid)
             .collect();
         let listed = crate::listing::read(
             &mut self.listing,
-            &mut self.listing_cpu,
-            &roots,
+            (&mut self.system, &mut self.cpu),
+            ours,
+            &observed,
             &mut self.zombies,
         );
         self.work.listed_read += listed.read;
+        self.work.listed_whole += listed.whole;
         listed
     }
 
@@ -1080,7 +1087,11 @@ impl LiveStatsCollector {
                     .insert((*session).clone(), LiveProcessStats::dead());
                 continue;
             }
-            let (rows, stats) = tree_rows(&self.system, &self.cpu, parents, *root, &self.zombies);
+            let table = TableRows {
+                system: &self.system,
+                cpu: &self.cpu,
+            };
+            let (rows, stats) = tree_rows(&table, parents, *root, &self.zombies);
             tree.rows = rows;
             push_ring_sample(
                 &mut tree.ring,
@@ -1227,9 +1238,9 @@ impl LiveStatsCollector {
             .collect();
         let sampled = self.listing_sampled;
         self.listing_sampled = true;
+        let rows = self.listing.rows();
         let listing = Listing {
-            system: &self.listing,
-            cpu: &self.listing_cpu,
+            rows: rows.as_ref(),
             parents,
             supervised: &supervised,
             sampled,
@@ -1393,102 +1404,6 @@ pub fn observed_sums<S: std::hash::BuildHasher>(
     stats
 }
 
-/// Per-process rows (root first, breadth-first over descendants) plus
-/// the tree aggregate, read from a table the caller already refreshed.
-pub(crate) fn tree_rows(
-    system: &sysinfo::System,
-    cpu_since: &CpuSince,
-    parents: &HashMap<u32, Vec<u32>>,
-    root: u32,
-    zombies: &crate::zombies::Zombies,
-) -> (Vec<ProcessRow>, LiveProcessStats) {
-    let mut rows = Vec::new();
-    let mut cpu = 0.0_f64;
-    let mut rss = 0_u64;
-    let mut child_count = 0_u32;
-    let mut seen: std::collections::HashSet<u32> = std::collections::HashSet::new();
-    let mut queue: std::collections::VecDeque<(u32, u8)> =
-        std::collections::VecDeque::from([(root, 0)]);
-    while let Some((pid, depth)) = queue.pop_front() {
-        if !seen.insert(pid) {
-            continue; // ppid cycles must not loop forever
-        }
-        let children = parents.get(&pid).cloned().unwrap_or_default();
-        let Some(process) = system.process(sysinfo::Pid::from_u32(pid)) else {
-            queue.extend(children.into_iter().map(|child| (child, depth + 1)));
-            continue;
-        };
-        let age_ms = process.run_time().saturating_mul(1000);
-        let parent_pid = process.parent().map(sysinfo::Pid::as_u32);
-        rows.push(ProcessRow {
-            pid,
-            parent_pid,
-            name: process.name().to_string_lossy().into_owned(),
-            cpu_pct: cpu_since.pct(process),
-            rss_bytes: process.memory(),
-            age_ms,
-            child_count: u32::try_from(children.len()).unwrap_or(u32::MAX),
-            depth,
-            start_time: i64::try_from(process.start_time()).unwrap_or_default(),
-            exe: process.exe().map(|exe| exe.to_string_lossy().into_owned()),
-            cmd: (!process.cmd().is_empty()).then(|| {
-                process
-                    .cmd()
-                    .iter()
-                    .map(|part| part.to_string_lossy())
-                    .collect::<Vec<_>>()
-                    .join(" ")
-            }),
-            // A Mac's `sysinfo` keeps a process it knew that has since
-            // finished as if it ran: `ps` says it's a zombie.
-            zombie: process.status() == sysinfo::ProcessStatus::Zombie
-                || zombies.get(pid, parent_pid).is_some(),
-            cpu_time_ms: process.accumulated_cpu_time(),
-        });
-        // The zombies it hasn't collected, which `sysinfo` doesn't list.
-        for zombie in zombies.children_of(pid) {
-            if system.process(sysinfo::Pid::from_u32(zombie.pid)).is_none()
-                && seen.insert(zombie.pid)
-            {
-                rows.push(zombie_row(zombie, depth + 1));
-            }
-        }
-        cpu += cpu_since.pct(process).unwrap_or(0.0);
-        rss += process.memory();
-        if pid != root {
-            child_count += 1;
-        }
-        queue.extend(children.into_iter().map(|child| (child, depth + 1)));
-    }
-    (
-        rows,
-        LiveProcessStats {
-            child_count,
-            cpu_pct: Some(cpu),
-            rss_bytes: rss,
-        },
-    )
-}
-
-/// A zombie's row: no memory, no CPU, nothing under it.
-fn zombie_row(zombie: &crate::zombies::Zombie, depth: u8) -> ProcessRow {
-    ProcessRow {
-        pid: zombie.pid,
-        parent_pid: Some(zombie.ppid),
-        name: zombie.name.clone(),
-        cpu_pct: None,
-        rss_bytes: 0,
-        age_ms: 0,
-        child_count: 0,
-        depth,
-        start_time: zombie.start_time,
-        exe: None,
-        cmd: None,
-        zombie: true,
-        cpu_time_ms: 0,
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::{
@@ -1602,9 +1517,11 @@ mod tests {
         let mut system = crate::new_system();
         system.refresh_processes(sysinfo::ProcessesToUpdate::All, true);
         let table = super::process_table(&system);
-        let (rows, _) = super::tree_rows(
-            &system,
-            &crate::cpu_since::CpuSince::default(),
+        let (rows, _) = crate::rows::tree_rows(
+            &crate::rows::TableRows {
+                system: &system,
+                cpu: &crate::cpu_since::CpuSince::default(),
+            },
             &table.parents,
             me,
             &zombies,
