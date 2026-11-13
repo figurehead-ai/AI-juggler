@@ -25,3 +25,4 @@ export function useWindowTitle(screen: string): void {
       });
   }, [screen]);
 }
+// CI probe (AJ-E2020 R2): a UI-only change; never merged.
