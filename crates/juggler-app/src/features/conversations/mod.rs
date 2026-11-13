@@ -321,6 +321,16 @@ impl ConversationIndex {
         Ok(out)
     }
 
+    /// Whether the index holds any conversation (without copying them).
+    ///
+    /// # Errors
+    ///
+    /// [`AppError::StatePoisoned`] when the index's lock is poisoned.
+    pub fn holds_any(&self) -> AppResult<bool> {
+        let files = self.files.lock().map_err(|_| AppError::StatePoisoned)?;
+        Ok(files.values().any(|entry| entry.conversation.is_some()))
+    }
+
     /// AJ-E805: [`Self::all`]'s conversations for which `keep` holds of
     /// any of their files (a thread's other files with them), without
     /// copying the rest: the live refresh every 2 s and the working list
@@ -610,9 +620,15 @@ pub fn titled(
     state: &Arc<AppState>,
     mut rows: Vec<crate::features::sessions::dto::InstanceInfo>,
 ) -> AppResult<Vec<crate::features::sessions::dto::InstanceInfo>> {
+    // AJ-E805: only these rows' conversations (Needs you reads the rows
+    // every 5 s; this copied every conversation on the Mac each time).
+    let wanted: std::collections::HashSet<(&str, &str)> = rows
+        .iter()
+        .filter_map(|row| Some((row.account_id.as_deref()?, row.conversation_id.as_deref()?)))
+        .collect();
     let titles: HashMap<(String, String), String> = state
         .conversations
-        .all()?
+        .all_where(|c| wanted.contains(&(c.account_id.as_str(), c.summary.id.as_str())))?
         .into_iter()
         .filter_map(|c| Some(((c.account_id, c.summary.id), c.summary.title?)))
         .collect();
@@ -958,7 +974,7 @@ pub fn refresh_impl(state: &Arc<AppState>) -> AppResult<bool> {
 /// As [`refresh_impl`].
 pub fn read_if_cold(state: &Arc<AppState>) -> AppResult<()> {
     saved::restore_once(state);
-    if !state.conversations.all()?.is_empty() {
+    if state.conversations.holds_any()? {
         return Ok(());
     }
     // The app's background pass reads them once the window has painted,
