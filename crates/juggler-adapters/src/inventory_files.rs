@@ -169,6 +169,26 @@ fn unreachable_entries(from: &Path, depth: usize) -> Vec<String> {
     out
 }
 
+/// The members of the JSON (or JSONC) object at `key` in the file at
+/// `path`, by name in order; none when the file, the key or the object
+/// isn't there.
+pub(crate) fn json_members(path: &Path, key: &str) -> Vec<(String, serde_json::Value)> {
+    let mut members: Vec<(String, serde_json::Value)> = std::fs::read_to_string(path)
+        .ok()
+        .and_then(|text| juggler_adapter::jsonc::parse(&text).ok())
+        .and_then(|value| {
+            value
+                .get(key)
+                .and_then(serde_json::Value::as_object)
+                .cloned()
+        })
+        .unwrap_or_default()
+        .into_iter()
+        .collect();
+    members.sort_by(|a, b| a.0.cmp(&b.0));
+    members
+}
+
 /// `dir`'s entries (folders when `dirs`, else files), by name, sorted,
 /// hidden ones and `.trash` left out.
 pub(crate) fn children(dir: &Path, dirs: bool) -> Vec<(String, PathBuf)> {

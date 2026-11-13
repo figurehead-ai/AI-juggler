@@ -10,6 +10,7 @@ use juggler_adapter::runtime::session::LineSession;
 
 use super::codec::Codec;
 use super::rpc;
+use crate::common::rpc_codec::same_folder;
 
 /// How long the server has to answer `initialize`.
 pub const INITIALIZE_WAIT: Duration = Duration::from_secs(10);
@@ -18,11 +19,6 @@ pub const THREAD_WAIT: Duration = Duration::from_secs(30);
 
 /// A driven Codex session: app-server's connection with Codex's codec.
 pub type CodexSession = LineSession<Codec>;
-
-fn same_folder(a: &Path, b: &Path) -> bool {
-    let canonical = |p: &Path| p.canonicalize().unwrap_or_else(|_| p.to_path_buf());
-    canonical(a) == canonical(b)
-}
 
 /// The handshake: `initialize` (refusing a server on another
 /// `CODEX_HOME`), then the thread, then a first limits read.

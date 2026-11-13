@@ -29,13 +29,14 @@ use juggler_adapter::runtime::book::{AskBook, OpenAsk};
 use juggler_adapter::runtime::events::bounded;
 use juggler_adapter::runtime::session::{LineAndEvents, LineCodec};
 use juggler_adapter::runtime::{
-    Approval, ApprovalKind, AskAnswer, AskId, AskOption, Choice, ErrorCategory, ImportedHistory,
-    ItemKind, ItemSummary, LiveStatusWord, OptionEffect, Question, QuestionPart, RuntimeEvent,
-    TurnEnd, TurnInput,
+    Approval, ApprovalKind, AskAnswer, AskId, AskOption, ErrorCategory, ImportedHistory, ItemKind,
+    ItemSummary, LiveStatusWord, OptionEffect, Question, QuestionPart, RuntimeEvent, TurnEnd,
+    TurnInput,
 };
 use serde_json::{Value, json};
 
 use crate::codex_appserver::rpc::{self, Incoming};
+use crate::common::rpc_codec::{Outbox, choices, error, text, waiting};
 
 /// The engine's methods AI Juggler calls.
 pub mod methods {
@@ -130,8 +131,7 @@ pub struct Handshake {
 /// The codec's state.
 #[derive(Debug, Default)]
 pub struct Codec {
-    next: i64,
-    asked: BTreeMap<i64, Asked>,
+    outbox: Outbox<Asked>,
     /// The handshake.
     pub handshake: Handshake,
     book: AskBook,
@@ -148,9 +148,7 @@ pub struct Codec {
 
 impl Codec {
     fn request(&mut self, method: &str, params: Value, what: Asked) -> Value {
-        self.next += 1;
-        self.asked.insert(self.next, what);
-        rpc::request(self.next, method, params)
+        rpc::request(self.outbox.note(what), method, params)
     }
 
     /// `session/create`.
@@ -271,7 +269,7 @@ impl Codec {
     }
 
     fn response(&mut self, id: i64, result: Result<Value, String>) -> Vec<RuntimeEvent> {
-        let what = self.asked.remove(&id).unwrap_or(Asked::Other);
+        let what = self.outbox.answered(id).unwrap_or(Asked::Other);
         match (what, result) {
             (Asked::Open, Ok(value)) => {
                 let id = value
@@ -405,24 +403,19 @@ impl Codec {
                 questions: BTreeMap::new(),
             },
         );
-        vec![
-            RuntimeEvent::ApprovalRequested {
-                approval: Approval {
-                    id: AskId(ask),
-                    kind: approval_kind(&tool),
-                    summary: bounded(&summary(&tool, params.get("input"))),
-                    reason: params
-                        .get("reason")
-                        .and_then(Value::as_str)
-                        .filter(|reason| !reason.is_empty())
-                        .map(bounded),
-                    options,
-                },
+        waiting(RuntimeEvent::ApprovalRequested {
+            approval: Approval {
+                id: AskId(ask),
+                kind: approval_kind(&tool),
+                summary: bounded(&summary(&tool, params.get("input"))),
+                reason: params
+                    .get("reason")
+                    .and_then(Value::as_str)
+                    .filter(|reason| !reason.is_empty())
+                    .map(bounded),
+                options,
             },
-            RuntimeEvent::State {
-                status: LiveStatusWord::Waiting,
-            },
-        ]
+        })
     }
 
     fn question(&mut self, id: Value, params: &Value) -> Vec<RuntimeEvent> {
@@ -440,19 +433,7 @@ impl Codec {
                 id: part_id,
                 header: bounded(&text(part, "header")),
                 question: bounded(&question),
-                choices: part
-                    .get("options")
-                    .and_then(Value::as_array)
-                    .into_iter()
-                    .flatten()
-                    .map(|choice| Choice {
-                        label: bounded(&text(choice, "label")),
-                        description: choice
-                            .get("description")
-                            .and_then(Value::as_str)
-                            .map(bounded),
-                    })
-                    .collect(),
+                choices: choices(part),
                 multi: part.get("multiSelect").and_then(Value::as_bool) == Some(true),
                 free_text: true,
                 secret: false,
@@ -479,17 +460,12 @@ impl Codec {
                 questions,
             },
         );
-        vec![
-            RuntimeEvent::QuestionAsked {
-                question: Question {
-                    id: AskId(ask),
-                    parts,
-                },
+        waiting(RuntimeEvent::QuestionAsked {
+            question: Question {
+                id: AskId(ask),
+                parts,
             },
-            RuntimeEvent::State {
-                status: LiveStatusWord::Waiting,
-            },
-        ]
+        })
     }
 
     fn event(&mut self, params: &Value) -> Vec<RuntimeEvent> {
@@ -647,14 +623,6 @@ fn ended(outcome: TurnEnd, mut before: Vec<RuntimeEvent>) -> Vec<RuntimeEvent> {
     before
 }
 
-fn error(category: ErrorCategory, message: &str) -> RuntimeEvent {
-    RuntimeEvent::Error {
-        category,
-        message: bounded(message),
-        will_retry: false,
-    }
-}
-
 /// An engine error's category: a plan-limit refusal (Z.ai's own message,
 /// [`crate::zcode_limits::read_message`], or the engine's
 /// `rate_limited`), a sign-in failure, or anything else.
@@ -678,14 +646,6 @@ pub fn categorize(kind: &str, message: &str) -> ErrorCategory {
     } else {
         ErrorCategory::Other
     }
-}
-
-fn text(value: &Value, key: &str) -> String {
-    value
-        .get(key)
-        .and_then(Value::as_str)
-        .unwrap_or_default()
-        .to_owned()
 }
 
 fn approval_kind(tool: &str) -> ApprovalKind {

@@ -21,7 +21,7 @@ use juggler_adapter::inventory::{
     Applied, ConfigFormat, Detail, Item, ItemKind, McpServer, McpTransport, Scope, SetUp,
 };
 
-use crate::inventory_files::{children, secret_names};
+use crate::inventory_files::{children, json_members, secret_names};
 use crate::kimi_code::KIMI_CODE_ID;
 
 /// The servers' file in a home.
@@ -31,25 +31,12 @@ pub const MCP_FILE: &str = "mcp.json";
 #[must_use]
 pub fn inventory(home: &Path) -> Vec<Item> {
     let mut items = Vec::new();
-    let servers = std::fs::read_to_string(home.join(MCP_FILE))
-        .ok()
-        .and_then(|text| juggler_adapter::jsonc::parse(&text).ok())
-        .and_then(|value| {
-            value
-                .get("mcpServers")
-                .and_then(serde_json::Value::as_object)
-                .cloned()
-        })
-        .unwrap_or_default();
-    let mut names: Vec<&String> = servers.keys().collect();
-    names.sort();
-    for name in names {
-        let entry = &servers[name];
+    for (name, entry) in json_members(&home.join(MCP_FILE), "mcpServers") {
         if entry.get("disabled").and_then(serde_json::Value::as_bool) != Some(true) {
             items.push(crate::claude_inventory::mcp_json_item(
                 KIMI_CODE_ID,
-                name,
-                entry,
+                &name,
+                &entry,
                 Scope::User,
             ));
         }

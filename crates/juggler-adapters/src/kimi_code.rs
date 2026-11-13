@@ -349,14 +349,6 @@ impl ToolLaunch for KimiCodeAdapter {
         mode: &LaunchMode,
     ) -> Result<LaunchSpec, AdapterError> {
         let bin = self.require_bin()?;
-        // A resumed session continues work that lives in `cwd`.
-        let effective_cwd = match mode {
-            LaunchMode::Resume { .. } => cwd.to_path_buf(),
-            _ => profile
-                .default_cwd
-                .clone()
-                .unwrap_or_else(|| cwd.to_path_buf()),
-        };
         // Launch-settings overrides first, isolation LAST (AJ-E309).
         let mut env: EnvMap = profile.settings_overlay.env.clone();
         env.extend(self.isolation_env(&account.state_dir));
@@ -400,7 +392,7 @@ impl ToolLaunch for KimiCodeAdapter {
             program: bin,
             args,
             env,
-            cwd: effective_cwd,
+            cwd: crate::common::launch::launch_cwd(profile, cwd, mode),
             needs_pty: !matches!(mode, LaunchMode::Headless { .. }),
         })
     }

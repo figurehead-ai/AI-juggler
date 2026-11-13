@@ -467,27 +467,8 @@ pub fn session_process(
     if !runs_it || at > 1 {
         return None;
     }
-    let mut rest = args[at + 1..].iter();
-    while let Some(arg) = rest.next() {
-        if arg == "--" {
-            break;
-        }
-        if VALUE_OPTIONS.contains(&arg.as_str()) {
-            rest.next();
-            continue;
-        }
-        if arg.starts_with('-') {
-            if HELPER_FLAGS.contains(&arg.as_str()) {
-                return None;
-            }
-            continue;
-        }
-        // The first word is its command.
-        if HELPERS.contains(&arg.as_str()) {
-            return None;
-        }
-        break;
-    }
+    // The first word is its command.
+    crate::common::launch::session_command(&args[at + 1..], VALUE_OPTIONS, HELPER_FLAGS, HELPERS)?;
     Some(juggler_adapter::conversation::SessionProcess {
         resumes: juggler_adapter::conversation::value_after(args, &["--resume"]),
     })
