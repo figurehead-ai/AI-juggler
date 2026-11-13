@@ -28,20 +28,9 @@ pub fn db_of(tree: &Path) -> PathBuf {
     tree.join("cli").join("db").join(DB_FILE)
 }
 
-/// One `ZCode` session, as the list and the linker need it.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ZCodeSession {
-    /// `ZCode`'s session id (`sess_…`).
-    pub id: String,
-    /// Its title (may be empty).
-    pub title: String,
-    /// The folder it ran in.
-    pub directory: String,
-    /// Created, epoch ms.
-    pub created_ms: i64,
-    /// Last updated, epoch ms.
-    pub updated_ms: i64,
-}
+/// One `ZCode` session, as the list and the linker need it (`ZCode`'s
+/// store is a fork of `OpenCode`'s).
+pub type ZCodeSession = crate::common::sqlite::StoreSession;
 
 /// Every session `ZCode`'s own list shows (interactive, not archived, not
 /// a sub-agent's), newest first.
@@ -79,10 +68,7 @@ pub fn sessions(db: &Path) -> Result<Vec<ZCodeSession>, String> {
 
 /// Every session's id and last change, newest first, for the watcher.
 pub(crate) fn session_changes(db: &Path) -> Result<Vec<(String, i64)>, String> {
-    Ok(sessions(db)?
-        .into_iter()
-        .map(|session| (session.id, session.updated_ms))
-        .collect())
+    sessions(db).map(crate::common::sqlite::changes)
 }
 
 /// The link reference for a session: `<db>#<id>`.
@@ -103,24 +89,10 @@ pub fn stored_conversations(db: &Path) -> Vec<juggler_adapter::conversation::Sto
     let mut totals = crate::zcode_usage::session_totals(db).unwrap_or_default();
     sessions
         .into_iter()
-        .map(
-            |session| juggler_adapter::conversation::StoredConversation {
-                key: session_ref(db, &session.id),
-                changed_ms: session.updated_ms,
-                summary: juggler_adapter::conversation::ConversationSummary {
-                    cwd: (!session.directory.is_empty()).then(|| PathBuf::from(&session.directory)),
-                    git_branch: None,
-                    started_in: None,
-                    by_script: false,
-                    title: juggler_adapter::conversation::prompt_title(&session.title, 120),
-                    opening: juggler_adapter::conversation::title_from(&session.title, 120),
-                    started_ms: Some(session.created_ms),
-                    last_ms: Some(session.updated_ms),
-                    tokens: totals.remove(&session.id).unwrap_or_default(),
-                    id: session.id,
-                },
-            },
-        )
+        .map(|session| {
+            let tokens = totals.remove(&session.id).unwrap_or_default();
+            session.into_stored(db, tokens)
+        })
         .collect()
 }
 
@@ -134,15 +106,7 @@ pub fn locate(
     since_ms: i64,
     taken: &[PathBuf],
 ) -> Option<(PathBuf, String)> {
-    let mut found = sessions(db)
-        .ok()?
-        .into_iter()
-        .filter(|session| session.created_ms >= since_ms.saturating_sub(2_000))
-        .filter(|session| crate::claude_code::same_folder(&session.directory, cwd))
-        .map(|session| (session_ref(db, &session.id), session.id))
-        .filter(|(reference, _)| !taken.contains(reference));
-    let first = found.next()?;
-    found.next().is_none().then_some(first)
+    crate::common::sqlite::locate_one(db, cwd, since_ms, taken, sessions(db).ok()?)
 }
 
 /// One turn of a session as a handover reads it: who spoke and what they

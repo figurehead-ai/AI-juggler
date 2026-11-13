@@ -93,6 +93,83 @@ pub(crate) fn store_ref_parts(path: &Path, file: &str) -> Option<(std::path::Pat
     (db.ends_with(file) && !id.is_empty()).then(|| (std::path::PathBuf::from(db), id.to_owned()))
 }
 
+/// One session in a tool's SQLite store (`OpenCode`'s schema and `ZCode`'s
+/// fork of it), as the index and the launch locator read it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct StoreSession {
+    /// The tool's session id.
+    pub id: String,
+    /// Its title (may be empty).
+    pub title: String,
+    /// The folder it ran in.
+    pub directory: String,
+    /// Created, epoch ms.
+    pub created_ms: i64,
+    /// Last updated, epoch ms.
+    pub updated_ms: i64,
+}
+
+impl StoreSession {
+    /// The session as the conversation index keeps it, keyed by
+    /// [`store_ref`]; its folder becomes a project.
+    pub(crate) fn into_stored(
+        self,
+        db: &Path,
+        tokens: juggler_core::model::TokenCounts,
+    ) -> juggler_adapter::conversation::StoredConversation {
+        use juggler_adapter::conversation::{
+            ConversationSummary, StoredConversation, prompt_title, title_from,
+        };
+        StoredConversation {
+            key: store_ref(db, &self.id),
+            changed_ms: self.updated_ms,
+            summary: ConversationSummary {
+                cwd: (!self.directory.is_empty())
+                    .then(|| std::path::PathBuf::from(&self.directory)),
+                git_branch: None,
+                started_in: None,
+                by_script: false,
+                title: prompt_title(&self.title, 120),
+                opening: title_from(&self.title, 120),
+                started_ms: Some(self.created_ms),
+                last_ms: Some(self.updated_ms),
+                tokens,
+                id: self.id,
+            },
+        }
+    }
+}
+
+/// Each session's id and last change, in `sessions`' order (the watcher's
+/// list).
+pub(crate) fn changes(sessions: impl IntoIterator<Item = StoreSession>) -> Vec<(String, i64)> {
+    sessions
+        .into_iter()
+        .map(|session| (session.id, session.updated_ms))
+        .collect()
+}
+
+/// The one session of `sessions` in the store `db` that ran in `cwd`,
+/// created at or after `since_ms` (two seconds' slack), and not already
+/// linked (`taken`): its [`store_ref`] and id. Two candidates is an
+/// honest `None`, never a guess.
+pub(crate) fn locate_one(
+    db: &Path,
+    cwd: &Path,
+    since_ms: i64,
+    taken: &[std::path::PathBuf],
+    sessions: impl IntoIterator<Item = StoreSession>,
+) -> Option<(std::path::PathBuf, String)> {
+    let mut found = sessions
+        .into_iter()
+        .filter(|session| session.created_ms >= since_ms.saturating_sub(2_000))
+        .filter(|session| crate::claude_code::same_folder(&session.directory, cwd))
+        .map(|session| (store_ref(db, &session.id), session.id))
+        .filter(|(reference, _)| !taken.contains(reference));
+    let first = found.next()?;
+    found.next().is_none().then_some(first)
+}
+
 /// Each session in a store, `(id, last changed in epoch ms)`, newest
 /// first; an error when the store can't be read this time.
 pub(crate) type StoreSessions = fn(&Path) -> Result<Vec<(String, i64)>, String>;

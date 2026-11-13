@@ -61,6 +61,19 @@ pub struct OpenCodeSession {
     pub archived: bool,
 }
 
+impl OpenCodeSession {
+    /// What the index and the linker read of it.
+    fn listed(self) -> crate::common::sqlite::StoreSession {
+        crate::common::sqlite::StoreSession {
+            id: self.id,
+            title: self.title,
+            directory: self.directory,
+            created_ms: self.created_ms,
+            updated_ms: self.updated_ms,
+        }
+    }
+}
+
 /// Opens `db` read-only, waiting briefly for a writer, never writing
 /// beside it (`common::sqlite::open_tool_store`: the log joined while
 /// OpenCode runs, the file `immutable` when it is closed).
@@ -161,24 +174,10 @@ pub fn stored_conversations(db: &Path) -> Vec<juggler_adapter::conversation::Sto
     sessions
         .into_iter()
         .filter(|session| session.parent_id.is_none() && !session.archived)
-        .map(
-            |session| juggler_adapter::conversation::StoredConversation {
-                key: session_ref(db, &session.id),
-                changed_ms: session.updated_ms,
-                summary: juggler_adapter::conversation::ConversationSummary {
-                    cwd: (!session.directory.is_empty()).then(|| PathBuf::from(&session.directory)),
-                    git_branch: None,
-                    started_in: None,
-                    by_script: false,
-                    title: juggler_adapter::conversation::prompt_title(&session.title, 120),
-                    opening: juggler_adapter::conversation::title_from(&session.title, 120),
-                    started_ms: Some(session.created_ms),
-                    last_ms: Some(session.updated_ms),
-                    tokens: session.tokens,
-                    id: session.id,
-                },
-            },
-        )
+        .map(|session| {
+            let tokens = session.tokens;
+            session.listed().into_stored(db, tokens)
+        })
         .collect()
 }
 
@@ -196,10 +195,10 @@ pub fn session_of_ref(path: &Path) -> Option<String> {
 
 /// Every session's id and last change, newest first, for the watcher.
 pub(crate) fn session_changes(db: &Path) -> Result<Vec<(String, i64)>, String> {
-    Ok(sessions(db)?
-        .into_iter()
-        .map(|session| (session.id, session.updated_ms))
-        .collect())
+    let sessions = sessions(db)?;
+    Ok(crate::common::sqlite::changes(
+        sessions.into_iter().map(OpenCodeSession::listed),
+    ))
 }
 
 /// How an assistant message stands, as OpenCode's own turn loop reads it
@@ -319,16 +318,12 @@ pub fn locate(
     since_ms: i64,
     taken: &[PathBuf],
 ) -> Option<(PathBuf, String)> {
-    let mut found = sessions(db)
+    let top_level = sessions(db)
         .ok()?
         .into_iter()
         .filter(|session| session.parent_id.is_none())
-        .filter(|session| session.created_ms >= since_ms.saturating_sub(2_000))
-        .filter(|session| crate::claude_code::same_folder(&session.directory, cwd))
-        .map(|session| (session_ref(db, &session.id), session.id))
-        .filter(|(reference, _)| !taken.contains(reference));
-    let first = found.next()?;
-    found.next().is_none().then_some(first)
+        .map(OpenCodeSession::listed);
+    crate::common::sqlite::locate_one(db, cwd, since_ms, taken, top_level)
 }
 
 /// A JSON number as a token count (OpenCode stores finite numbers).
