@@ -15,8 +15,8 @@ description = "Audited process listing shim (D-110): every process's pid, parent
 # `unsafe` blocks (the `sysctl(KERN_PROC_ALL)` asking how much room the
 # records take, and the one reading them into a byte buffer; zeroing one
 # `proc_taskinfo`, and `proc_pidinfo` filling it; and, once per run,
-# `sysctlbyname("hw.tbfrequency")`, the timebase the record's CPU times
-# are counted in), each with its SAFETY note, behind two safe functions.
+# `mach_timebase_info`, the ratio the record's CPU times are counted in),
+# each with its SAFETY note, behind two safe functions.
 # macOS-only: elsewhere the crate is a safe stub that lists nothing (its
 # callers read the process table as before).
 [target.'cfg(target_os = "macos")'.dependencies]

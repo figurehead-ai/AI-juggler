@@ -2963,7 +2963,7 @@ Each ships with tests that fail without it and a design critique; the M2, D2 and
   stays absolute everywhere else. It holds exactly five `unsafe` blocks
   (the `sysctl` asking the records' size, and the one reading them into a
   byte buffer; zeroing a `proc_taskinfo`, and the `proc_pidinfo` filling
-  it; `sysctlbyname("hw.tbfrequency")`, read once per run and cached),
+  it; `mach_timebase_info`, read once per run and cached),
   each with a SAFETY note, under `#![deny(unsafe_op_in_unsafe_fn)]`,
   behind two safe functions: `list`, and `task` (one process's resident
   memory and CPU time, the record `sysinfo` takes them from: the
@@ -2978,21 +2978,26 @@ Each ships with tests that fail without it and a design critique; the M2, D2 and
   it to `ps` (this process's parent, name, memory and the count) and to a
   real zombie.
 - Amended 2026-11-13 (AJ-E805 round 4, the maintainer's call; unshipped,
-  so in place): the fifth block. Round 3's per-thread reading put the 2
-  s `processes` tick first among the app's costs with 10 sessions at
+  so in place): the fifth block. Round 3's per-thread reading put the
+  2 s `processes` tick first among the app's costs with 10 sessions at
   work (0.33 % of a core), and in it the observed tools' trees read
   through `sysinfo` at every listing (every 4 s), each process's
   arguments with them (`KERN_PROCARGS2`, twice, whatever is asked).
   Their CPU time is in the same `proc_taskinfo` record `resident`
   already read (`pti_total_user` + `pti_total_system`), but counted in
   Mach time units: nanoseconds on an Intel Mac, 24 MHz ticks on Apple
-  silicon (unconverted, a busy process reads 42 times too low). The
-  conversion takes the timebase the kernel names; `hw.tbfrequency`
-  (ticks a second) was chosen over `mach_timebase_info` (also one unsafe
-  call, and deprecated in `libc`) as one more `sysctl`, the shape the
-  crate already holds. Its tests hold it to `/usr/sbin/sysctl -n
-  hw.tbfrequency`, and a busy child's CPU time to the wall clock and to
-  `ps` (the unconverted reading fails them).
+  silicon (unconverted, a busy process reads 42 times too low). They're
+  converted with Mach's own ratio, `mach_timebase_info` (125/3 ns a tick
+  on Apple silicon, 1/1 on Intel), called once per run and cached;
+  `libc` marks it deprecated in favour of the `mach2` crate, and the
+  call allows that with its reason rather than add a dependency or a
+  hand-written declaration (`libc`'s is the audited one).
+  `hw.tbfrequency` was tried first and dropped at review: Mach's ratio
+  is the conversion's own definition. Its tests hold the conversion at
+  both ratios (a pure function, so both run on any Mac), this Mac's
+  ratio to the kernel's tick rate (`sysctl -n hw.tbfrequency`), and a
+  busy child's CPU time to the wall clock and to `ps` (the unconverted
+  reading fails them).
 - Rejected: `proc_listallpids` with `proc_pidinfo(PROC_PIDTBSDINFO)` per
   pid (the kernel refuses it for other users' processes and for zombies:
   678 of 872 listed); keeping `sysinfo`'s table between reads alone

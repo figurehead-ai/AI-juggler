@@ -30,16 +30,16 @@
 //! tools' trees (the Claude app's ~300 processes on a busy Mac) at every
 //! listing. The record's CPU times are in Mach time units: nanoseconds on
 //! an Intel Mac, 24 MHz ticks on Apple silicon. They're converted with
-//! the timebase the kernel names, `hw.tbfrequency` (ticks a second), read
-//! once.
+//! Mach's own timebase (`mach_timebase_info`: 125/3 nanoseconds a tick on
+//! Apple silicon, 1/1 on Intel), read once.
 //!
 //! THE AUDIT: five `unsafe` blocks, each with its SAFETY note: the
 //! `sysctl` asking how many bytes the records take (a null buffer: nothing
 //! written), and the `sysctl` writing them into a byte buffer whose size
 //! the kernel is told; zeroing one `proc_taskinfo`, and `proc_pidinfo`
-//! writing into it at its size; `sysctlbyname("hw.tbfrequency")` writing
-//! into an eight-byte buffer it is told the size of, once per run. Reading
-//! the fields is safe code.
+//! writing into it at its size; `mach_timebase_info` writing its two
+//! integers into a live record, once per run. Reading the fields is safe
+//! code.
 //!
 //! Nothing here reads a process's arguments, environment, files or the
 //! contents of its memory.
@@ -113,6 +113,17 @@ pub fn task(pid: u32) -> Option<Task> {
         let _ = pid;
         None
     }
+}
+
+/// Mach time `ticks` in nanoseconds, at `numer`/`denom` nanoseconds a
+/// tick (Apple silicon 125/3, Intel 1/1); past `u64`, `u64::MAX`.
+#[cfg_attr(
+    not(target_os = "macos"),
+    allow(dead_code, reason = "macOS's task read")
+)]
+fn nanos(ticks: u128, numer: u32, denom: u32) -> u64 {
+    let nanos = ticks * u128::from(numer) / u128::from(denom.max(1));
+    u64::try_from(nanos).unwrap_or(u64::MAX)
 }
 
 #[cfg(target_os = "macos")]
@@ -233,7 +244,7 @@ mod macos {
 
     pub(super) fn task(pid: u32) -> Option<super::Task> {
         let pid = libc::c_int::try_from(pid).ok()?;
-        let ticks_a_second = timebase()?;
+        let (numer, denom) = timebase()?;
         // SAFETY: an all-zero `proc_taskinfo` is a valid value (plain
         // integers).
         let mut info: libc::proc_taskinfo = unsafe { std::mem::zeroed() };
@@ -251,47 +262,27 @@ mod macos {
         let ticks = u128::from(info.pti_total_user) + u128::from(info.pti_total_system);
         Some(super::Task {
             resident: info.pti_resident_size,
-            cpu_ns: nanos(ticks, ticks_a_second),
+            cpu_ns: super::nanos(ticks, numer, denom),
         })
     }
 
-    /// Mach time `ticks` in nanoseconds, at `ticks_a_second`.
-    pub(super) fn nanos(ticks: u128, ticks_a_second: u64) -> u64 {
-        let nanos = ticks * 1_000_000_000 / u128::from(ticks_a_second.max(1));
-        u64::try_from(nanos).unwrap_or(u64::MAX)
-    }
-
-    /// Mach time's ticks a second (`hw.tbfrequency`: 24 MHz on Apple
-    /// silicon, 1 GHz, i.e. nanoseconds, on Intel), read once; `None` when
-    /// the kernel doesn't say (then no CPU time is read).
-    pub(super) fn timebase() -> Option<u64> {
-        static TIMEBASE: std::sync::OnceLock<Option<u64>> = std::sync::OnceLock::new();
+    /// Mach time's nanoseconds a tick, as `(numer, denom)`
+    /// (`mach_timebase_info`), read once; `None` when the kernel doesn't
+    /// say (then no CPU time is read).
+    #[allow(
+        deprecated,
+        reason = "libc points Mach calls at the mach2 crate; this one call is \
+                  the whole need, and libc's own declaration is the audited one"
+    )]
+    pub(super) fn timebase() -> Option<(u32, u32)> {
+        static TIMEBASE: std::sync::OnceLock<Option<(u32, u32)>> = std::sync::OnceLock::new();
         *TIMEBASE.get_or_init(|| {
-            let mut value = [0_u8; 8];
-            let mut size: libc::size_t = value.len();
-            // SAFETY: the name is a NUL-terminated C string; `value` holds
-            // eight live bytes and `size` tells the kernel so: it writes at
-            // most that many and sets `size` to how many it wrote (failing,
-            // writing nothing usable, when the value is larger). Nothing is
-            // kept past the call; nothing is set (a null new value).
-            let read = unsafe {
-                libc::sysctlbyname(
-                    c"hw.tbfrequency".as_ptr(),
-                    value.as_mut_ptr().cast(),
-                    &raw mut size,
-                    std::ptr::null_mut(),
-                    0,
-                )
-            };
-            if read != 0 {
-                return None;
-            }
-            let value = match size {
-                8 => u64::from_ne_bytes(value),
-                4 => u64::from(u32::from_ne_bytes(value[..4].try_into().ok()?)),
-                _ => return None,
-            };
-            (value > 0).then_some(value)
+            let mut info = libc::mach_timebase_info { numer: 0, denom: 0 };
+            // SAFETY: `info` is a live `mach_timebase_info` (two `u32`s),
+            // the record the call fills; it writes nothing else and keeps
+            // nothing past the call.
+            let read = unsafe { libc::mach_timebase_info(&raw mut info) };
+            (read == 0 && info.numer > 0 && info.denom > 0).then_some((info.numer, info.denom))
         })
     }
 
@@ -418,23 +409,37 @@ mod tests {
         assert_eq!(super::task(pid), None, "gone");
     }
 
-    /// The timebase is the one the kernel names (`sysctl hw.tbfrequency`).
+    /// Ticks to nanoseconds at each Mac's ratio: Apple silicon's 24 MHz
+    /// tick is 125/3 ns, Intel's is a nanosecond; past `u64`, saturated.
+    #[test]
+    fn mach_ticks_are_converted_at_each_macs_ratio() {
+        assert_eq!(super::nanos(24_000_000, 125, 3), 1_000_000_000);
+        assert_eq!(super::nanos(3, 125, 3), 125);
+        assert_eq!(super::nanos(1_000_000_000, 1, 1), 1_000_000_000);
+        assert_eq!(super::nanos(7, 1, 1), 7);
+        assert_eq!(super::nanos(u128::MAX / 200, 125, 3), u64::MAX);
+        assert_eq!(super::nanos(5, 1, 0), 5, "a zero denominator reads as one");
+    }
+
+    /// This Mac's timebase is Mach's (`mach_timebase_info`), and agrees
+    /// with the tick rate the kernel names (`sysctl hw.tbfrequency`).
     #[test]
     #[cfg(target_os = "macos")]
-    fn the_timebase_is_as_sysctl_says() {
+    fn the_timebase_agrees_with_the_kernels_tick_rate() {
+        let (numer, denom) = super::macos::timebase().expect("Mach's timebase");
         let out = std::process::Command::new("/usr/sbin/sysctl")
             .args(["-n", "hw.tbfrequency"])
             .output()
             .unwrap();
-        let theirs: u64 = String::from_utf8_lossy(&out.stdout).trim().parse().unwrap();
-        assert_eq!(super::macos::timebase(), Some(theirs));
-        // Ticks to nanoseconds: a second's ticks are a second; no overflow
-        // past `u64`'s nanoseconds.
+        let ticks_a_second: u64 = String::from_utf8_lossy(&out.stdout).trim().parse().unwrap();
         assert_eq!(
-            super::macos::nanos(u128::from(theirs), theirs),
-            1_000_000_000
+            super::nanos(u128::from(ticks_a_second), numer, denom),
+            1_000_000_000,
+            "{numer}/{denom} ns a tick at {ticks_a_second} ticks a second"
         );
-        assert_eq!(super::macos::nanos(u128::MAX / 2_000_000_000, 1), u64::MAX);
+        if cfg!(target_arch = "aarch64") {
+            assert_eq!((numer, denom), (125, 3));
+        }
     }
 
     /// A busy child's CPU time, read through [`super::task`], grows with
