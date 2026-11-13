@@ -11,7 +11,7 @@
  * the word took the room at the rail's default 264 px. One left out takes
  * no room, so the rest close up.
  */
-import { useLayoutEffect, type RefObject } from "react";
+import { useEffect, useLayoutEffect, useRef, type RefObject } from "react";
 
 /** The children of `box` that fit, by the rule above. */
 function fitting(box: HTMLElement, kids: readonly HTMLElement[]): Set<HTMLElement> {
@@ -28,21 +28,49 @@ function fitting(box: HTMLElement, kids: readonly HTMLElement[]): Set<HTMLElemen
   return keep;
 }
 
+/** The box's words as they are now: what decides what fits, besides its width. */
+function wordsOf(box: HTMLElement): string {
+  return Array.from(box.children, (child) => `${(child as HTMLElement).dataset.fit ?? ""}:${child.textContent ?? ""}`).join("\n");
+}
+
+/** Each child shown again, measured, and the ones that don't fit left out. */
+function fit(box: HTMLElement): void {
+  const kids = Array.from(box.children).filter((child): child is HTMLElement => child instanceof HTMLElement);
+  // Each measured at its own width (the box's own width never depends on them: it grows from 0).
+  for (const kid of kids) kid.style.display = "";
+  const keep = fitting(box, kids);
+  for (const kid of kids) if (!keep.has(kid)) kid.style.display = "none";
+}
+
+/** Fits `ref`'s words when they change and when the box changes width.
+ * 0.4.5 (AJ-E805): it fitted them after every render, each time showing
+ * every word, measuring them and hiding them again (an App's header
+ * renders with every change: about 400 style writes a minute with 10
+ * sessions at work, and the header drawn again for each). */
 export function useFitWhole(ref: RefObject<HTMLElement | null>): void {
+  const kept = useRef<{ box: HTMLElement; words: string; watch: ResizeObserver | null } | null>(null);
   useLayoutEffect(() => {
     const box = ref.current;
-    if (!box) return undefined;
-    const fit = () => {
-      const kids = Array.from(box.children).filter((child): child is HTMLElement => child instanceof HTMLElement);
-      // Each measured at its own width (the box's own width never depends on them: it grows from 0).
-      for (const kid of kids) kid.style.display = "";
-      const keep = fitting(box, kids);
-      for (const kid of kids) if (!keep.has(kid)) kid.style.display = "none";
-    };
-    fit();
-    if (typeof ResizeObserver === "undefined") return undefined;
-    const watch = new ResizeObserver(fit);
-    watch.observe(box);
-    return () => watch.disconnect();
+    if (kept.current && kept.current.box !== box) {
+      kept.current.watch?.disconnect();
+      kept.current = null;
+    }
+    if (!box) return;
+    const words = wordsOf(box);
+    if (kept.current?.words === words) return;
+    fit(box);
+    if (kept.current) kept.current.words = words;
+    else {
+      const watch = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(() => fit(box));
+      watch?.observe(box);
+      kept.current = { box, words, watch };
+    }
   });
+  useEffect(
+    () => () => {
+      kept.current?.watch?.disconnect();
+      kept.current = null;
+    },
+    [],
+  );
 }
