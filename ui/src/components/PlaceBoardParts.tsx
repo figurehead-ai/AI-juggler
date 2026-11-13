@@ -51,7 +51,7 @@ export function RailLink({ onClick, testId, expanded, children }: { onClick: () 
  * where the rows' link under them does. */
 export function RailCaption({ children }: { children: string }): JSX.Element {
   return (
-    <p className="ml-3 flex h-[22px] items-end px-2.5 text-label font-medium text-muted" data-testid="rail-recent">
+    <p className="ml-3 flex h-[22px] items-end px-2.5 text-label font-medium text-muted" data-testid="rail-recent-caption">
       {children}
     </p>
   );
