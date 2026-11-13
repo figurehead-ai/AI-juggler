@@ -155,3 +155,191 @@ Presence (ADR-0032) is unchanged at HEAD: its process reads are as before.
   window (a release build's web view can't be inspected; the read-only
   bridge's debug backend wasn't run); the Floor's renderer (its window
   wasn't opened; it draws only while open).
+
+## Follow-up, the same day: the process table, the conversation list, the window's reads
+
+The first round left the budget unmet: under 2 % of one core for the app,
+its web content and its GPU process together, with 10 live sessions.
+
+### Method
+
+As above, with these differences:
+
+- **Builds.** "Before": the Dev edition's release build at 41a202078 (the
+  first round, a5e47246c included). "After": the same at 91897b9a2 (this
+  work; after it, docs, f0929c546's refactor and ba4f8c2c3's presence fix
+  only), and where a row says so at bc4ee5a90 (the same less 3b37420b6's
+  window change) or fda9495f1. Symbols kept.
+- **Labs.** PD3 with the replica, imported, set up fresh: 342 transcripts,
+  12 Accounts. **Grown lab:** a second such lab, each Claude transcript
+  cloned 15 times (`cp -c`), 4,848 in all. Each build ran on the same lab
+  folders, before first.
+- **Launch.** `open -g -n --env HOME=<lab>`: behind the front app, never
+  activated, nobody touching it; then by pid only. The web content, GPU and
+  networking processes are the WebKit processes whose responsible pid is
+  the app's (`responsibility_get_pid_responsible_for_pid`).
+- **Reading.** `ps -o time=` every 30 s; the mean over 180 s (120 s on the
+  grown lab), the window shown 75 s after launch (150 s grown), then hidden
+  through System Events by pid. Before each reading, the window's uncovered
+  share from the window server (98–100 %) and the load average (4–11: the
+  Mac ran other builds throughout, and This Mac read "Under pressure" for
+  part of the before runs, which moves the shown figures by a few tenths).
+- **Live sessions.** *Working*: `replica.py live --claude 7 --codex 3
+  --no-desktop`. *Quiet*: ten stand-ins each resuming an existing
+  conversation of its Account and writing nothing (`--idle`). On the grown
+  lab, 10 working too, hidden (the first round didn't measure it).
+- **Profiles.** `sample <pid> 20 1` after each reading; busy samples per
+  thread, waits left out (`mach_msg`, `__psynch_cvwait`, `kevent`,
+  `semaphore_timedwait`, sleeps, idle workqueue threads).
+- **IPC.** A measurement-only build of the before commit (never committed)
+  counting each command the window invoked, per minute, on the grown lab.
+
+### The profile, ranked (before)
+
+Busy samples in 20 s at 1 ms, by thread and what it ran. Small lab hidden
+at rest (401 in all) and with 10 working (311); grown lab hidden at rest
+(727) and with 10 working (834).
+
+| Cause | Small, rest | Small, 10 working | Grown, rest | Grown, 10 working |
+|---|---|---|---|---|
+| **The process table** (the collector's thread and presence's): the 2 s collector's listing every 4 s and full scan every 10 s, presence's look every 5 s, the live view's every 60 s, each `sysinfo` reading every process (about 850) with its arguments (`KERN_PROCARGS2` twice: 72 % of a read) | 216 | 154 | 226 | 166 |
+| **Copies of the whole conversation index**: the live refresh's `all()` every 2 s, Needs you's working list and session titles every 5 s | 8 | 10 | 186 | 138 |
+| **The conversation list's 15 s pass** (a listing and two `stat`s per transcript) | 8 | 18 | 68 | 117 |
+| **The window's list reads on every change**, hidden or not (IPC workers; the web content 0.9–1.4 % and GPU 0.3–0.4 % while hidden) | — | ~20 | — | ~96 |
+| **Needs you's 5 s read** besides the copies (sessions' rows, their branches, Accounts, budgets) | 26 | 21 | 76 | 63 |
+| **The usage pipeline** (the records' 15 s cadence walks every transcript; under load, every event did) | 14 | 14 | 71 | 26 |
+| JavaScriptCore's allocator scavenger, in the app process | 78 | 11 | 20 | — |
+| The tool-version check, once a day (it loads the system's trust store) | — | — | — | 97 |
+
+**IPC per minute (before, grown lab).** At rest: shown 16–17
+(`fleet_remote` 10–11, `link_status` 3, `alerts_tick` 2: the window's own
+polls, already stopped while hidden), hidden 2 (`alerts_tick`, by design).
+With 10 working: hidden 74–90 and shown 88–89, all on change events:
+`relations_counts` 24–36, `conversations_list` 8–10, and the shell's lists
+(`accounts_list`, `instances_list`, `launch_recipes_list`, `projects_list`,
+`switch_back_suggestions`) 8 each. No UI timer is a cost at rest; the reads
+on change events are, with sessions at work, and they ran while hidden.
+
+### The fixes
+
+| Commit | What | Guard |
+|---|---|---|
+| a040caa4a | **D-108**, `juggler-proc-list`: one `sysctl(KERN_PROC_ALL)` (the call `ps` makes) lists every process's pid, parent, start time, name and zombie state, never its arguments; the record layout checks itself on every read. `procs::table` (presence's look, the live view, the places) keeps its table: arguments read once per process (same pid, start and name), parents as listed now, everything again every 60 s | `procs::tests::a_read_after_the_first_reads_only_what_is_new`; the shim's tests against `ps` and a real zombie |
+| 00ba04023 | The collector's listing reads only the watched trees' processes (it read all of them every 4 s); zombies from the same listing (no `/bin/ps`) | `tests/observed.rs::a_listing_reads_the_watched_trees_not_every_process` |
+| bc4ee5a90 | The full scan reads whole only new processes and ours; This Mac's other apps' memory from `juggler_proc_list::resident` (D-108: four audited `unsafe` blocks in all); every process whole once a minute | `tests/observed.rs::a_full_scan_reads_the_new_processes_not_every_one` |
+| fda9495f1 | `ToolTranscripts::conversation_roots` (ADR-0019; Claude Code's `projects`, Codex's, Kimi's and Grok's `sessions`) and `conversations::gate` on their file events: a known file that changed is read alone, anything else new lists its Account again, an Account whose tool names no folder every pass, everything on the first pass, a lost track and every 5 min; `conversations::pass` split from `mod.rs` | `gate::tests::a_pass_reads_what_changed_and_sweeps_rarely`, `pass::tests::a_scoped_pass_reads_only_what_it_names`, each adapter's roots hold its files |
+| c40005044, 499f805fc | `ConversationIndex::all_where`: the live refresh, the working list (`conversations_list`, Needs you), the session titles and the first-read check copy only what they use | `commands::tests::the_working_set_from_its_candidates_is_the_whole_lists` |
+| 0f8dac45f | The usage pipeline: a pass on file events reads only the files they named (spelled as the Accounts' folders are); the records' 15 s cadence still walks everything | `usage_pipeline::gate::tests::a_pass_on_events_reads_the_files_they_named` |
+| 8fed5f260 | The window: a sessions, conversations or places event heard while hidden reloads once, when it shows (`whileShown`) | `shown-window.test.ts` |
+| 3b37420b6 | The shell's lists keep their identity when the answer is equal: no redraw | `use-app-data.test.ts` (fails without it) |
+| f0929c546 | No copied code: `folder_wake::Heard` shared by both gates, one sort, one targeted read | the debt baseline |
+| ba4f8c2c3 | Presence: a process the kernel is exiting (`P_WEXIT`) is gone at once (a quit showed 2.2 s late); another user's processes stay in the table as before | `procs::tests::a_process_started_since_is_read_with_its_arguments`; the presence check below |
+
+### Results
+
+| Lab, condition | Build | `juggler-app` | web content | GPU | All three |
+|---|---|---|---|---|---|
+| PD3 + replica, shown, 0 live | before | 1.69 | 1.23 | 0.74 | **3.66** |
+| | after (91897b9a2) | 0.83 | 0.59 | 0.03 | **1.45** |
+| Hidden, 0 live | before | 1.49 | 0.89 | 0.26 | **2.63** |
+| | after (91897b9a2) | 0.82 | 0.40 | 0.01 | **1.22** |
+| Hidden, 10 working | before | 2.09 | 1.37 | 0.44 | **3.91** |
+| | after (bc4ee5a90) | 0.99 | 0.35 | 0.00 | **1.34** |
+| | after (91897b9a2), shown first | 1.14 | 0.64 | 0.32 | **2.11** |
+| Shown, 10 working | before | 2.20 | 1.80 | 1.00 | **5.01** |
+| | after (bc4ee5a90) | 0.97 | 0.76 | 0.28 | **2.01** |
+| | after (91897b9a2) | 1.08 | 0.93 | 0.32 | **2.32** |
+| Hidden, 10 quiet | before | 1.61 | 0.85 | 0.33 | **2.79** |
+| | after (bc4ee5a90), 5 of 6 readings | 0.96 | 0.37 | 0.00 | **1.33** |
+| | after (91897b9a2), shown first | 1.20 | 0.70 | 0.44 | **2.34** |
+| **Grown**, shown, 0 live | before | 2.50 | 0.61 | 0.02 | **3.12** |
+| | after (fda9495f1, the first build after) | 1.32 | 0.81 | 0.02 | **2.15** |
+| | after (91897b9a2) | 1.11 | 1.00 | 0.21 | **2.31** |
+| **Grown**, hidden, 0 live | before | 2.87 | 0.42 | 0.01 | **3.30** |
+| | after (91897b9a2) | 1.16 | 0.45 | 0.00 | **1.60** |
+| **Grown**, hidden, 10 working | before | 3.99 | 1.39 | 0.32 | **5.71** |
+| | after (91897b9a2) | 1.45 | 0.41 | 0.01 | **1.86** |
+
+- **`juggler-app` itself** reads 0.8–1.5 % in every condition after
+  (1.5–4.0 % before): about half at rest, a third or less with sessions
+  at work and on the grown lab.
+- **The budget (under 2 % for the three, 10 live sessions)** is met hidden
+  with 10 working or quiet when the window was hidden throughout (1.3 %),
+  at rest (1.2–1.6 %), and on the grown lab hidden with 10 working
+  (1.9 %). It is **not met with the window shown and 10 sessions working:
+  2.0–2.3 %** (5.0 before; a third run at load 12–16, not in the table,
+  read 3.1), and not after the window was shown with sessions at work
+  and then hidden (2.1–2.3 %): the web content and GPU process stay at
+  0.6–0.7 % and 0.3–0.4 % hidden. Pausing every animation while hidden was
+  tried, measured no change at load 12–16 and was dropped; that cause is
+  open.
+- **The shared Mac moves these figures:** the window opened on the main
+  display in some runs and on the second display in others (the build
+  restores it where it was; `uncovered` names the place), the load average
+  ran 4–16, and This Mac read "Under pressure" for part of the before
+  runs. The bc4ee5a90 and 91897b9a2 rows differ in that way, not in code
+  that runs while hidden (3b37420b6 changes only what the window draws).
+- **Profiles after** (busy samples in 20 s; before in brackets): small lab
+  hidden at rest 151–157 (401), its largest the collector (65–70: the full
+  scan's own reads and the observed trees' listing) and Needs you's 5 s
+  read (31); grown lab hidden at rest 176 (727), with 10 working 301 (834).
+  Presence's look fell from 56 to 9–11, the conversation list's pass from
+  68–117 to under 5 at rest, the live refresh's copies from 106 to under
+  5.
+
+### Presence (ADR-0032)
+
+`scripts/qa/presence_check.py` on the PL1 lab (`lab_scenario.sh setup
+PL1`: two Claude app profiles started and quit with `lab_apps.py`, the
+real Claude.app on lab folders, never touched), with the final build
+(ba4f8c2c3), twice: **PASS** before the start, after it and after the
+quit, each time. How long after `ps` showed the change the rail did (the
+accessibility tree polled every ~0.1 s, one read included): **launch
+0.51 s and 0.38 s, quit 0.89 s and 0.36 s** (ADR-0032: within 2 s). The
+before build: 0.85 s and 0.13 s.
+
+The build before ba4f8c2c3 (91897b9a2) showed a quit 2.17 s late: the
+system's quit notification asks for a look at once, and the listing still
+named the process while the kernel was exiting it. ba4f8c2c3 reads an
+exiting process (`P_WEXIT`) as gone. One earlier run of that build also
+failed outright (Open now empty for a minute with both profiles running)
+while another session was using the Dev edition's bundle id for a
+rehearsal; it didn't recur in the three runs after.
+
+### Open
+
+- **Needs you's 5 s read** is now the backend's largest cost at rest
+  (20–50 busy samples in 20 s): the session rows with their branches
+  (`.git/HEAD` per session), the Accounts, budgets, messages and tasks,
+  window or not (D-49). Worked out on change rather than every 5 s, it
+  would go.
+- **The usage pipeline's 15 s records cadence** still walks every
+  transcript (57 busy samples in 20 s on the grown lab at rest, about
+  0.3 % of a core at 4,800 transcripts): the bound the first round chose
+  for a late or lost event. Reading the Claude app's records alone on that
+  cadence, and the transcripts on events with a longer sweep, would remove
+  it.
+- **The observed tools' trees** (the Claude app's ~300 processes on a busy
+  Mac) are still read through `sysinfo` at each listing, arguments
+  included; a CPU-time read beside `resident` in the shim would make them
+  cheap too. The Processes view's graph is also worked out every 2 s
+  whether or not the page is open (12–14 samples).
+- **With sessions at work and the window shown**, the window still reads
+  its lists on each change (about 80 calls a minute before; not counted
+  after); it no longer redraws when an answer is equal (3b37420b6), but the
+  reads aren't coalesced (`relations_counts` the most). The projects
+  backfill also runs after every pass that changed a file (31 samples on
+  the grown lab with 10 working).
+- JavaScriptCore's allocator scavenger in the app process varies between
+  runs (7–78 samples) and wasn't traced to a cause.
+- **Not measured:** the IPC counts on the after build (the hidden window's
+  reads are held by `shown-window.test.ts`, and its web content fell from
+  0.9–1.4 % to 0.3–0.4 % hidden); the installed beta beyond `ps`.
+- **D-108's number:** release/0.5 runs to D-107; this branch's log skips
+  D-104 to D-107 until the two meet.
+- **The shared Mac quit three lab runs:** another process pressed the hidden
+  lab window's close button through the accessibility API (the system log:
+  `performClick:` then `windowShouldClose:`, nobody at the window), and
+  with no session of its own running the build quit as asked (AJ-E1503).
+  Those runs' readings after that moment were dropped and the conditions
+  run again.
