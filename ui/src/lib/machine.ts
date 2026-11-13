@@ -71,6 +71,13 @@ export function resourceLine(cpu: number | null, rss: number | null, helpers: nu
  * provides its one subscription here. */
 export const ThisMacContext = createContext<ThisMacInfo | null>(null);
 
+/** This Mac as given (a test, the preview), else the app's one
+ * subscription (AJ-E805). */
+export function useThisMacInfo(given?: ThisMacInfo | null): ThisMacInfo | null {
+  const shown = useContext(ThisMacContext);
+  return given === undefined ? shown : given;
+}
+
 /** The app's one This Mac subscription, given to what reads it. AJ-E805:
  * it was the shell's state, so each 5 s reading (while an AI tool runs)
  * drew the whole app again, the rail included; now only what reads This

@@ -25,9 +25,9 @@ import { useKeys } from "../lib/use-keys";
 import { useResource } from "../lib/use-resource";
 import { focusHandoverSoon } from "../lib/handover-focus";
 import { instancesMarkReviewed } from "../lib/ipc/review";
-import { useCallback, useContext, useEffect, useMemo, useRef, useState, type JSX, type KeyboardEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type JSX, type KeyboardEvent } from "react";
 import { runwayOf } from "../components/AccountRunway";
-import { ThisMacContext, type ThisMacInfo } from "../lib/machine";
+import { useThisMacInfo, type ThisMacInfo } from "../lib/machine";
 import { LegendPopover } from "../components/LegendPopover";
 import { sessionLabel } from "../lib/stop";
 import { matches, type KeyLike } from "../lib/shortcuts";
@@ -149,9 +149,7 @@ export function HomeScreen({
   /** AJ-E1528: the This Mac page. */
   onOpenThisMac?: () => void;
 }): JSX.Element {
-  // AJ-E805: This Mac from the app's one subscription, unless given.
-  const shownMac = useContext(ThisMacContext);
-  const thisMac = given === undefined ? shownMac : given;
+  const thisMac = useThisMacInfo(given);
   const actionKeys = useKeys("home-action");
   // 0.0.11 walk (Q3): a tool without a limits feed says so in its row.
   // The runways kept from the last read (any screen's) show at once; read
