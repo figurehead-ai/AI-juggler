@@ -40,8 +40,9 @@ describe("Measure its limits", () => {
     answer(status({ last_run_ms: 1, last_outcome: "ran" }));
     await waitFor(() => expect(measured).toHaveBeenCalledTimes(2));
     expect(refresh).toHaveBeenCalledTimes(2);
-    // Still shown (the reading isn't in yet): it says so, calmly.
-    expect((await screen.findByTestId("measure-limits-said")).textContent).toBe("Claude Code answered; its limits show here once they're in.");
+    // Still shown after the re-reads: it answered with no limits; it says
+    // so and how they'll come, never an open-ended wait (0.4.4 walk M6).
+    expect((await screen.findByTestId("measure-limits-said")).textContent).toBe("Claude Code answered without limits for this account; it may not be signed in with a plan. They also show once a session on it reports them.");
     expect(screen.getByTestId("measure-limits-run").hasAttribute("disabled")).toBe(false);
   });
 

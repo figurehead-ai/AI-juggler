@@ -149,8 +149,10 @@ export function MeasureLimits({
         await quotaDisplays.refresh();
         onMeasured?.();
       }
-      // Still here: the reading hasn't come in yet.
-      if (alive.current) setSaid({ words: `${toolName} answered; its limits show here once they're in.`, problem: false });
+      // Still here after the re-reads: it answered with no limits for this
+      // account. Say so and how they'll come, never a wait with no end
+      // (the 0.4.4 persona walk M6: "answered" and then nothing).
+      if (alive.current) setSaid({ words: `${toolName} answered without limits for this account; it may not be signed in with a plan. They also show once a session on it reports them.`, problem: false });
     } catch (cause) {
       if (alive.current) setSaid({ words: `Couldn't measure: ${errorText(cause)}`, problem: true });
     } finally {
