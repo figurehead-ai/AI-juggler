@@ -10,6 +10,7 @@ import type { InstanceResourcesInfo } from "../../types/generated/InstanceResour
 import type { QualitySignalsInfo } from "../../types/generated/QualitySignalsInfo";
 import type { StatsInfo } from "../../types/generated/StatsInfo";
 import { previewHooks } from "../preview-hooks";
+import { whileShown } from "../shown-window";
 
 export async function instancesList(): Promise<InstanceInfo[]> {
   if (!hasBackend) {
@@ -45,14 +46,16 @@ export async function dashboardStats(): Promise<StatsInfo> {
   return call("dashboard_stats");
 }
 
-/** The sessions changed (no payload: read the lists again). */
+/** The sessions changed (no payload: read the lists again); heard while
+ * the window is hidden, once when it shows again (AJ-E805). */
 export function onSessionsUpdated(handler: () => void): () => void {
   if (!hasBackend) {
     return () => {};
   }
   let unlisten: (() => void) | null = null;
   let disposed = false;
-  listen<null>(EVENTS.sessionsUpdated, () => handler())
+  const shown = whileShown<null>(() => handler());
+  listen<null>(EVENTS.sessionsUpdated, () => shown.heard(null))
     .then((stop) => {
       if (disposed) {
         stop();
@@ -65,6 +68,7 @@ export function onSessionsUpdated(handler: () => void): () => void {
     });
   return () => {
     disposed = true;
+    shown.stop();
     unlisten?.();
   };
 }

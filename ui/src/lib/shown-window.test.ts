@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { everyWhileShown, nextDelay } from "./shown-window";
+import { everyWhileShown, nextDelay, whileShown } from "./shown-window";
 import { keepIfSame, same } from "./same";
 
 const setHidden = (hidden: boolean) => {
@@ -48,5 +48,31 @@ describe("an equal answer changes nothing", () => {
     expect(keepIfSame(was, [{ id: "s1", state: "working" }])).toBe(was);
     const next = [{ id: "s1", state: "asks" }];
     expect(keepIfSame(was, next)).toBe(next);
+  });
+});
+
+describe("a backend event while the window is hidden (AJ-E805)", () => {
+  // With 10 sessions at work, the hidden window read its lists again about
+  // 90 times a minute: now an event waits until it shows, once.
+  it("runs at once when shown, and once, merged, when shown again", () => {
+    const seen: string[] = [];
+    const shown = whileShown<string>((value) => seen.push(value), (was, now) => (was === "index" || now === "index" ? "index" : "live"));
+    shown.heard("live");
+    expect(seen).toEqual(["live"]);
+    setHidden(true);
+    shown.heard("live");
+    shown.heard("index");
+    shown.heard("live");
+    expect(seen).toEqual(["live"]);
+    setHidden(false);
+    expect(seen).toEqual(["live", "index"]);
+    setHidden(true);
+    setHidden(false);
+    expect(seen).toEqual(["live", "index"]);
+    setHidden(true);
+    shown.heard("live");
+    shown.stop();
+    setHidden(false);
+    expect(seen).toEqual(["live", "index"]);
   });
 });

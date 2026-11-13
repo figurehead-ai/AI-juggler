@@ -12,6 +12,7 @@ import type { KnownPlaceInfo } from "../../types/generated/KnownPlaceInfo";
 import type { FindProfilesInfo } from "../../types/generated/FindProfilesInfo";
 import type { PlaceOfferInfo } from "../../types/generated/PlaceOfferInfo";
 import { previewHooks } from "../preview-hooks";
+import { whileShown } from "../shown-window";
 
 export type { FindProfilesInfo, KnownPlaceInfo };
 
@@ -165,16 +166,19 @@ export async function placesProfilesSet(on: boolean): Promise<FindProfilesInfo> 
   return info;
 }
 
-/** Calls `on` whenever a place changes; returns the unsubscribe. */
+/** Calls `on` whenever a place changes (heard while the window is
+ * hidden, once when it shows again: AJ-E805); returns the unsubscribe. */
 export function onPlacesChanged(on: () => void): () => void {
-  window.addEventListener(PLACES_CHANGED, on);
+  const shown = whileShown<null>(() => on());
+  const heard = () => shown.heard(null);
+  window.addEventListener(PLACES_CHANGED, heard);
   let stop: (() => void) | null = null;
   let gone = false;
   if (hasLiveBackend()) {
     // A subscription that can't be made (no event bridge, as in a test
     // whose backend is mocked live) only means no live refresh: it is
     // never an unhandled error (History reads the places since 0.4.1).
-    void listen<null>(PLACES_CHANGED, () => on()).then(
+    void listen<null>(PLACES_CHANGED, heard).then(
       (unlisten) => {
         if (gone) unlisten();
         else stop = unlisten;
@@ -184,7 +188,8 @@ export function onPlacesChanged(on: () => void): () => void {
   }
   return () => {
     gone = true;
-    window.removeEventListener(PLACES_CHANGED, on);
+    shown.stop();
+    window.removeEventListener(PLACES_CHANGED, heard);
     stop?.();
   };
 }

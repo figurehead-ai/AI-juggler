@@ -6,6 +6,7 @@
  */
 import { channel, call, withoutStream, listen } from "./transport";
 import { hasLiveBackend, refused } from "../bridge";
+import { whileShown } from "../shown-window";
 import type { LaunchResult } from "../../types/generated/LaunchResult";
 import type { ListBuildInfo } from "../../types/generated/ListBuildInfo";
 import type { ConversationInfo } from "../../types/generated/ConversationInfo";
@@ -228,12 +229,16 @@ export function onConversationsChanged(handler: (change: ConversationsChange) =>
   }
   let stop: (() => void) | null = null;
   let disposed = false;
-  void listen<ConversationsChange | null>("conversations://changed", (event) => handler(event.payload === "live" ? "live" : "index")).then((unlisten) => {
+  // AJ-E805: heard while the window is hidden, once when it shows again
+  // (the files changing outweighs only which are open).
+  const shown = whileShown<ConversationsChange>(handler, (was, now) => (was === "index" || now === "index" ? "index" : "live"));
+  void listen<ConversationsChange | null>("conversations://changed", (event) => shown.heard(event.payload === "live" ? "live" : "index")).then((unlisten) => {
     if (disposed) unlisten();
     else stop = unlisten;
   });
   return () => {
     disposed = true;
+    shown.stop();
     stop?.();
   };
 }

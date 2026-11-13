@@ -58,3 +58,32 @@ export function everyWhileShown(run: () => void, everyMs: number, { unfocusedTim
     window.removeEventListener("blur", schedule);
   };
 }
+
+/**
+ * 0.4.5 (AJ-E805): a backend event's handler that runs only while the
+ * window can be seen. Heard while it's hidden, it runs once when the
+ * window shows again, with what those events said merged by `merge` (the
+ * latest, by default). With 10 sessions at work, the hidden window read
+ * its lists again about 90 times a minute (each a read of every
+ * conversation), and drew them, for nobody.
+ */
+export function whileShown<T>(handler: (value: T) => void, merge: (was: T, now: T) => T = (_was, now) => now): { heard: (value: T) => void; stop: () => void } {
+  let pending: { value: T } | null = null;
+  const onVisibility = () => {
+    if (pending === null || !windowShown()) return;
+    const { value } = pending;
+    pending = null;
+    handler(value);
+  };
+  if (typeof document !== "undefined") document.addEventListener("visibilitychange", onVisibility);
+  return {
+    heard: (value) => {
+      if (windowShown()) handler(value);
+      else pending = pending === null ? { value } : { value: merge(pending.value, value) };
+    },
+    stop: () => {
+      pending = null;
+      if (typeof document !== "undefined") document.removeEventListener("visibilitychange", onVisibility);
+    },
+  };
+}
