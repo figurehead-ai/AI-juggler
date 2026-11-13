@@ -567,6 +567,10 @@ fn registry_with(claude: juggler_adapters::ClaudeCodeAdapter) -> AdapterRegistry
     registry.register(std::sync::Arc::new(
         juggler_adapters::GrokBuildAdapter::new(),
     ));
+    // AJ-E1605: ZCode, through the engine inside its app. No handover
+    // support, and its terminal takes no first message, so nothing is
+    // switched to or from it yet.
+    registry.register(std::sync::Arc::new(juggler_adapters::ZCodeAdapter::new()));
     registry
 }
 

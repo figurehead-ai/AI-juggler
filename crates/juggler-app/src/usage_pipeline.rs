@@ -7,9 +7,9 @@
 //!   wrapper re-ensured idempotently each pass) + transcript `usage`
 //!   lines (Measured tokens), offset-tracked per file.
 //! - Codex: rollout `token_usage_record` lines (Measured tokens).
-//! - `ZCode`: `model_usage` via read-only SQLite (Computed credits).
 //! - A tool that keeps its usage in a store read by time (OpenCode's
-//!   `opencode.db`): through its adapter's `usage_since`, read-only.
+//!   `opencode.db`, `ZCode`'s `model_usage` as Computed credits): through
+//!   its adapter's `usage_since`, read-only.
 //! - Gemini: NO source exists at any grade (AJ-E605) — nothing to
 //!   tail; the absence is a typed decision, not an omission.
 //!
@@ -28,8 +28,6 @@ use crate::state::AppState;
 const PASS_EVERY_MS: u64 = 1_000;
 /// Transcript/rollout scan cadence: every 4th pass (~4 s).
 const FILE_SCAN_EVERY: u32 = 4;
-/// `ZCode` SQLite re-read cadence: every 15th pass (~15 s).
-const ZCODE_EVERY: u32 = 15;
 /// The persisted offsets+health blob's settings key.
 const INGEST_STATE_KEY: &str = "usage_ingest_state";
 /// Per account: the newest credits snapshot (JSON) its tool reported (Codex,
@@ -305,9 +303,6 @@ pub fn ingest_pass(state: &Arc<AppState>, tick: u32) {
                     &mut sample_batch,
                     (&mut credits_batch, &mut checks),
                 );
-            }
-            "zcode" if tick.is_multiple_of(ZCODE_EVERY) => {
-                ingest_zcode(&account_id, &dir, &mut ingest, &mut store_batch);
             }
             // ADR-0019 §2: a tool whose usage sits in a store read by time
             // (a database) reads it through its adapter.
@@ -766,34 +761,6 @@ fn ingest_codex(
     }
 }
 
-/// `ZCode`: the whole `model_usage` table, read-only; the store's
-/// uuid dedupe (`zcode:<rowid>`) makes the full read idempotent.
-fn ingest_zcode(
-    account: &str,
-    dir: &Path,
-    ingest: &mut IngestState,
-    store: &mut Vec<juggler_core::quota::UsageEvent>,
-) {
-    let db = dir.join(".zcode").join("cli").join("db").join("db.sqlite");
-    if !db.exists() {
-        return;
-    }
-    match juggler_adapters::zcode_events(account, &db) {
-        Ok(events) => {
-            let latest = events.iter().map(|event| event.ts).max();
-            let count = events.len();
-            store.extend(events);
-            if let Some(latest) = latest {
-                record_health(ingest, account, "sqlite", Some(latest), 0, "");
-            }
-            let _ = count;
-        }
-        Err(error) => {
-            record_health(ingest, account, "sqlite", None, 0, &error);
-        }
-    }
-}
-
 /// Reads one file's next slice: its path, account, offset and carry.
 type Tail = fn(&Path, &str, u64, &juggler_adapters::RolloutCarry) -> juggler_adapters::TailOutcome;
 
@@ -974,7 +941,6 @@ fn record_health(
             "statusline" => ("claude-code", "quota_feed"),
             "transcript" => ("claude-code", "transcript"),
             "rollout" => ("codex", "transcript"),
-            "sqlite" => ("zcode", "transcript"),
             _ => ("other", "transcript"),
         };
         crate::usage_stats::count(
@@ -997,7 +963,7 @@ fn record_health(
 pub struct SourceHealthInfo {
     /// Account id (storage string form).
     pub account: String,
-    /// Source name (`statusline` | `transcript` | `rollout` | `sqlite`).
+    /// Source name (`statusline` | `transcript` | `rollout` | `store`).
     pub source: String,
     /// Last ingested event time, epoch ms, when any.
     #[ts(type = "number | null")]

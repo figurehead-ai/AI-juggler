@@ -65,6 +65,20 @@ Subscription docs on docs.x.ai.
 | One weekly usage pool is shared by Grok's products and Grok in Cursor on the X Subscription | docs.x.ai/grok/faq, docs.x.ai/x-subscription/usage-limits · 2026-10-21 | Verified-primary | "one shared weekly usage pool" across Chat, Imagine, Voice and Build, and Grok models in Cursor |
 | No one-account-per-person rule | x.ai/legal/terms-of-service · 2026-10-21 | Negative-evidence | Not found by this search (research NE-7) |
 
+## ZCode (Z.ai)
+
+Read on the vendor's own sites on 2026-11-13 (AJ-E1605): ZCode's User
+Agreement (`ZCode用户协议`, Chinese, updated 2026-06-15; research
+`docs/research/zcode.md` §A3 read it first on 2026-10-12) and the GLM
+Coding Plan's Usage Policy on docs.z.ai (no date shown).
+
+| Claim | Source · accessed | Label | Evidence |
+|---|---|---|---|
+| Accounts registered or used improperly as several may be frozen or closed | zcode.z.ai/cn/terms (§3.2) · 2026-11-13 | Verified-primary | "如有证据证明…您存在不当注册或不当使用多个ZCode账户的情形，ZCode可采取冻结或关闭账户…" (if you improperly register or use several ZCode accounts, ZCode may freeze or close them) |
+| A GLM Coding Plan may not be shared | docs.z.ai/devpack/usage-policy · 2026-11-13 | Verified-primary | "Account sharing or multi-user access is prohibited." |
+| A GLM Coding Plan may be used only in officially supported tools | docs.z.ai/devpack/usage-policy · 2026-11-13 | Verified-primary | "GLM Coding Plan may only be used within officially supported tools and products." |
+| No one-account-per-person rule | zcode.z.ai/cn/terms, docs.z.ai/devpack/usage-policy · 2026-11-13 | Negative-evidence | Not found by this search: both read in full; only *improper* use of several accounts is named |
+
 ## What Add account says
 
 Word for word, from each adapter's `terms` (the test
@@ -80,6 +94,8 @@ Word for word, from each adapter's `terms` (the test
   - The Kimi Code table's rows 1 and 2.
 - **Grok Build**, linking xAI's Terms of Service: "xAI's Terms of Service say not to share an account, and its usage pool is shared with Cursor and Grok on the X Subscription."
   - The Grok Build table's rows 1 and 2.
+- **ZCode**, linking ZCode's User Agreement: "ZCode's User Agreement lets it freeze or close accounts registered or used improperly as several, and Z.ai's GLM Coding Plan policy says not to share an account."
+  - The ZCode table's rows 1 and 2.
 
 ## How a tool's sessions run (D-40)
 

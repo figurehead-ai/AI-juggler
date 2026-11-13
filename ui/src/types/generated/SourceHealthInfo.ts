@@ -11,7 +11,7 @@ export type SourceHealthInfo = {
  */
 account: string, 
 /**
- * Source name (`statusline` | `transcript` | `rollout` | `sqlite`).
+ * Source name (`statusline` | `transcript` | `rollout` | `store`).
  */
 source: string, 
 /**

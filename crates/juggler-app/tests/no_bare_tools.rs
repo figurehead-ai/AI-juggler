@@ -180,6 +180,7 @@ const SIGN_IN_FILES: &[&str] = &[
     "\"mcp-auth.json\"",
     "\"kimi-code.json\"",
     "\"mcp_credentials.json\"",
+    "\"credentials.json\"",
 ];
 
 /// The module that owns them, and its name constants.
@@ -193,6 +194,7 @@ const SIGN_IN_CONSTANTS: &[&str] = &[
     "GROK_AUTH",
     "GROK_MCP_AUTH",
     "KIMI_MEMBERSHIP",
+    "ZCODE_CREDENTIALS",
 ];
 
 /// Its reads: each streams `auth.json` into a presence-only shape (for

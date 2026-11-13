@@ -33,6 +33,7 @@ guidelines decide.
 | `opencode` | Anomaly | OpenCode (tool) | simple-icons 16.35.0 (`opencode`) | CC0-1.0 | Not checked yet | **No** — letter mark until checked | 2026-10-24 |
 | `kimi` | Moonshot AI | Kimi Code (tool) | not looked for | — | Not checked yet | **No** — letter mark until checked | 2026-10-24 |
 | `grok` | xAI | Grok Build (tool) | not looked for | — | Not checked yet | **No** — letter mark until checked | 2026-10-24 |
+| `zcode` | Z.ai | ZCode (tool) | not looked for | — | Not checked yet | **No** — letter mark until checked | 2026-11-13 |
 
 Tools coming in E16 (Gemini CLI, OpenCode, …) get a row here when their
 ToolSpec names a mark; simple-icons 16.35.0 has `googlegemini` and

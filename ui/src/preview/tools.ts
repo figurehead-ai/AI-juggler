@@ -1,7 +1,7 @@
 /**
  * AJ-E1525: the tools catalog the preview and the tests run on, matching
  * what the adapters' specs serve (crates/juggler-adapters claude_code.rs,
- * codex.rs, opencode.rs, kimi_code.rs and grok_build.rs `*_spec()`). Preview data only — the app reads
+ * codex.rs, opencode.rs, kimi_code.rs, grok_build.rs and zcode.rs `*_spec()`). Preview data only — the app reads
  * `tools_catalog`. Tests can swap it through `window.__AIJ_TOOLS__`.
  */
 import type { ToolSpecInfo } from "../types/generated/ToolSpecInfo";
@@ -189,5 +189,41 @@ export const PREVIEW_TOOLS: ToolSpecInfo[] = [
       "GROK_CURSOR_SKILLS_ENABLED",
     ],
     supports: { in_place: true, limits: false, app_meter: false, thread_link: false, agent_tools: true, resume: true },
+  },
+  {
+    id: "zcode",
+    display_name: "ZCode",
+    short_name: "ZCode",
+    vendor: "Z.ai",
+    mark: "zcode",
+    vendor_mark: null,
+    install_url: "https://zcode.z.ai/",
+    install_command: null,
+    sign_in_own: "ZCode's own sign-in",
+    sign_in_short: "ZCode's",
+    same_as: "as when you run ZCode yourself",
+    desktop_app: null,
+    kinds: ["cli"],
+    rules_files: ["AGENTS.md"],
+    scan_hint: "Looks for ZCode on this computer. Nothing is changed.",
+    setup_groups: [{ id: "zcode", title: "ZCode", path_contains: null, origin: null, shows_install: true }],
+    default_label: "ZCode",
+    flow: { first_run: true, primary: false },
+    terms: {
+      name: "ZCode's User Agreement",
+      url: "https://zcode.z.ai/cn/terms",
+      accounts:
+        "ZCode's User Agreement lets it freeze or close accounts registered or used improperly as several, and Z.ai's GLM Coding Plan policy says not to share an account.",
+      checked: "2026-11-13",
+    },
+    home_env: [
+      "ZCODE_STORAGE_DIR",
+      "ZCODE_DATA_BASE_DIR",
+      "ZCODE_SESSION_DB_PATH",
+      "ZCODE_SESSION_DB",
+      "ZCODE_PERSONAL_PROVIDER_CONFIG_FILE",
+      "AI_JUGGLER_ZCODE_ENGINE",
+    ],
+    supports: { in_place: false, limits: false, app_meter: false, thread_link: false, agent_tools: false, resume: true },
   },
 ];
