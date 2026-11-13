@@ -130,3 +130,5 @@ P1 (newest first) holds in the rail's "Ended today". Fixed on the way: "ended Th
 | | 2 rail search "login" | 5 | 4 | 4 | 4 | one hit at once |
 | | 3 its page | 5 | 4 | 4 | 4 | the conversation, folder, branch and account in one place |
 | | solved | partly | | | | found in 3 steps (run 1: 5); no file list or diff of what changed |
+
+**For 0.4.5** (decided by the coordinating session, 2026-11-12; not widened into 0.4.4): D3's first screen stays 2 / 2 / 2 / 2 while the lab's sessions are untitled. An untitled session's name falls back to the first words of its first prompt, as `claude --resume` and Codex's picker show it. "<repo> · started …" applies only when there is none.
