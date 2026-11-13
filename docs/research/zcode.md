@@ -103,3 +103,11 @@ Append-only per the task law; supersedes nothing above.
 - Tier table re-checked 2026-10-15 (docs.z.ai/devpack/overview): unchanged since the 2026-07-30 revision (Lite 2,000/10,000; Pro 12,000/60,000; Max 28,000/140,000).
 - NEW formula detail since §A1: MCP tool calls (Web Search / Web Reader / Zread) each bill at an output multiplier of 1.2 — the recomputation script does not model these; AJ-E607 must treat sessions using MCP tools as slightly under-counted (or extend the script from tool_usage rows).
 - Cap-entry wording inputs for AJ-E610 (vendor spellings): tiers "Lite", "Pro", "Max"; caps "credits per 5 hours" and "weekly credits"; burn badge "Computed"; pool badge "Estimate" until caps entered.
+
+## C. Re-checked 2026-11-13 (before building AJ-E1605)
+
+- **[V-L]** Desktop 3.15.3 (`CFBundleShortVersionString`), engine still 0.16.9 (`node …/zcode.cjs version`, run in a throwaway `HOME`; it wrote nothing there). Commands and flags as B1, plus `--workflow-mode`, `--target-replace`, `--force-mcs`, `--memory-bench`, `--mode guarded`.
+- **[V-L]** The app ships no Node.js of its own (`Contents/MacOS/ZCode` is Electron; no `node` in the bundle); `zcode doctor` reports the Node it runs on (`node-bundle` artifact).
+- **[V-L]** The engine reads `ZCODE_STORAGE_DIR` (default `~/.zcode`; the beta build sets `~/.zcode-beta`) for `cli/` and its other state, and `ZCODE_DATA_BASE_DIR` (default the home folder) for `<base>/.zcode/v2/credentials.json` and its telemetry state: strings in `zcode.cjs`. Together they give an account its own tree without moving `HOME`. Not documented by Z.ai; the adapter checks them at launch.
+- **[V-L]** `cli/db/db.sqlite` (schema read with `immutable=1`): tables `session` (`id`, `parent_id`, `directory`, `title`, `version`, `time_created`, `time_updated`, `time_archived`, `task_type`, …), `message`, `part`, `model_usage` (`session_id`, `provider_id`, `model_id`, `status`, `started_at`, `input_tokens`, `output_tokens`, `reasoning_tokens`, `cache_creation_input_tokens`, `cache_read_input_tokens`, …), `turn_usage`, `tool_usage`, `todo`, workflow tables. With ZCode closed there is no `-wal` beside it, and a plain read-only open fails ("unable to open database file"): a reader must open it `immutable` then, as the OpenCode store does.
+

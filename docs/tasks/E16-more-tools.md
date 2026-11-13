@@ -96,13 +96,20 @@
 **Research basis**: `grok.md`.
 **Handover note**: —
 
-### AJ-E1605 ZCode | Status: TODO | Priority P1 | Effort L | Depends: AJ-E1521
+### AJ-E1605 ZCode | Status: IN-PROGRESS (requirements numbered and the research re-checked, 2026-11-13) | Priority P1 | Effort L | Depends: AJ-E1521
 **Goal**: ZCode, promised in the README and SPEC, ships.
 **User story**: As a GLM subscriber, I juggle ZCode with my other tools.
-**Requirements**: as SPEC §4.3. The bundled engine runs with an isolated `HOME`. Sessions are read from its SQLite database. Credit burn is computed from `model_usage` and the published formula. Resume, and packs both ways (unvalidated until live).
+**Requirements** (SPEC §4.3; numbered 2026-11-13 after re-checking the research on the installed app, desktop 3.15.3 / engine 0.16.9):
+1. Discover ZCode by its app bundle (`ZCode.app`, `dev.zcode.app`, in `/Applications` or `~/Applications`): its engine `Contents/Resources/glm/zcode.cjs`, run by a Node.js the engine accepts (`zcode doctor`); the version from `zcode version`, never claimed verified.
+2. Isolate each account in its own `.zcode` tree without moving `HOME` (a moved `HOME` would take the user's git identity and SSH keys away from ZCode's own shell tools): `ZCODE_STORAGE_DIR=<account>/.zcode` and `ZCODE_DATA_BASE_DIR=<account>` (its sign-in then lives at `<account>/.zcode/v2/credentials.json`). The default `~/.zcode` runs with both unset. Both variables are the engine's own (the beta build uses the first), not documented: a launch check confirms the engine wrote inside the account's tree, and the adapter refuses the account otherwise. The sign-in probe sees whether that file exists, never its contents.
+3. Sessions from `<tree>/cli/db/db.sqlite`, read-only and never written beside (the write-ahead log joined while ZCode runs, the file opened `immutable` when it doesn't): `session` rows that are interactive, not archived and not a sub-agent's (`parent_id` empty), with title, folder and times; resumed with `--resume <sess_…>`, the folder's latest with `-c`; a running engine recognised by its own command line.
+4. Usage **Computed**: `model_usage` tokens × the published credit formula (per-model multipliers, peak and off-peak), per session and account; the 5-hour and weekly pools are the plan's caps the user sets, never claimed read (no public endpoint).
+5. Rules, skills and MCP join the sync (`AGENTS.md`, `skills/`, `cli/config.json` `mcp.servers`); bring-in uses a tree in place or makes a copy that never takes `v2/credentials.json`, the database, logs or rollouts.
+6. Packs both ways with Claude Code and Codex through the handover engine, marked unvalidated until the live check (AJ-E1612).
+7. ADR-0019: ZCode is data (its spec, its terms in AJ-E1518's register, its letter mark); no tool id outside its adapter; it passes the conformance kit (AJ-E1521); it shows in Add account, first run and its page.
 **UI/UX reasoning**: Like Codex.
 **Performance budget**: SQLite reads within the session budget.
-**Quality gates**: the conformance kit; credit-formula fixtures.
+**Quality gates**: the conformance kit; credit-formula fixtures; a fixture database without a write-ahead log opens and is left byte-for-byte unchanged.
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E1605/manifest.md`.
 **Visual testing**: the tool view and usage.
 **Files to touch**: `crates/juggler-adapters/src/zcode*.rs`.
