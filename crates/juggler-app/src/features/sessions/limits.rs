@@ -14,8 +14,10 @@
 //!   [`Capabilities::LIMIT_HITS`]: the tool's own record of the limit its
 //!   last turn stopped at, read from its transcript's tail
 //!   ([`juggler_adapter::ToolQuota::limit_hit`]), only when the file
-//!   changed. Looked at on the heuristic tick, when its output moves, and at
-//!   once when its hooks say a turn failed.
+//!   changed (or by the adapter itself, for a tool whose hits aren't in that
+//!   tail: [`juggler_adapter::ToolQuota::session_limit_hit`]). Looked at on
+//!   the heuristic tick, when its output moves, and at once when its hooks
+//!   say a turn failed.
 //! - **A driven session**: its runtime's own word, a rate-limit error the
 //!   tool won't retry; a new turn clears it.
 //!
@@ -171,7 +173,8 @@ fn window_words(window: Option<WindowKind>) -> &'static str {
     match window {
         Some(WindowKind::FiveHour) => "5-hour limit",
         Some(WindowKind::Weekly { .. }) => "weekly limit",
-        _ => "usage limit",
+        Some(WindowKind::Monthly) => "monthly limit",
+        None => "usage limit",
     }
 }
 
@@ -276,9 +279,12 @@ pub fn check(state: &Arc<AppState>, session: &SessionId) -> bool {
     let (Some(adapter), Some(path)) = (facts.adapter, facts.transcript) else {
         return false;
     };
-    let hit = state
-        .limits
-        .tail_hit(session.as_str(), &path, |tail| adapter.limit_hit(tail));
+    // A tool whose hits aren't in its transcript's tail reads them itself.
+    let hit = adapter.session_limit_hit(&path).unwrap_or_else(|| {
+        state
+            .limits
+            .tail_hit(session.as_str(), &path, |tail| adapter.limit_hit(tail))
+    });
     let hit_holds = hit
         .as_ref()
         .is_some_and(|hit| holds(hit, facts.started_ms, now));

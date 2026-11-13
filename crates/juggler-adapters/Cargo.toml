@@ -20,6 +20,10 @@ memchr = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 sha2 = { workspace = true }
+# AJ-E1603 R3: the per-run secret of a self-started `kimi web`, and the
+# server token held only for its one request.
+getrandom = { workspace = true }
+zeroize = { workspace = true }
 toml = { workspace = true }
 # AJ-E1508: one setting set and taken out of a config.toml, the rest kept.
 toml_edit = "0.25.17"
@@ -44,6 +48,11 @@ path = "src/bin/fake_desktop.rs"
 [[bin]]
 name = "fake-codex"
 path = "src/bin/fake_codex.rs"
+
+# AJ-E1603 R3: a stand-in for Kimi Code's `kimi web` (tests only).
+[[bin]]
+name = "fake-kimi"
+path = "src/bin/fake_kimi.rs"
 
 # AJ-E2308: a stand-in for Claude Code's headless stream-json (tests only).
 [[bin]]

@@ -577,6 +577,33 @@ impl Subject for Kimi {
     fn sandboxed_default(&self) -> bool {
         true
     }
+
+    /// AJ-E1603 R3: a turn that failed at the 5-hour limit, as Kimi Code
+    /// writes it in the event log (every value invented), then a turn
+    /// that completed.
+    fn limit_tails(&self) -> Option<(String, String)> {
+        let hit = kimi_fixture::record(
+            "turn.ended",
+            1_792_580_460_000,
+            serde_json::json!({
+                "agentId": "main", "turnId": 1, "reason": "failed",
+                "error": {"code": "provider.api_error",
+                    "message": "You've reached your 5-hour usage limit. kit",
+                    "name": "APIProviderQuotaExhaustedError",
+                    "details": {"statusCode": 429}, "retryable": false},
+            }),
+        );
+        let done = kimi_fixture::record(
+            "turn.ended",
+            1_792_580_500_000,
+            serde_json::json!({"agentId": "main", "turnId": 2, "reason": "completed"}),
+        );
+        let meta = kimi_fixture::WIRE_META;
+        Some((
+            format!("{meta}\n{hit}\n"),
+            format!("{meta}\n{hit}\n{done}\n"),
+        ))
+    }
 }
 
 struct KimiUsage;

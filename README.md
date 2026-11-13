@@ -128,7 +128,7 @@ with [What's open, and getting to it](./docs/guide/whats-open.md).
 | **Codex** (the `codex` command) | Sessions, usage, limits, starting sessions, switching (beta) |
 | **OpenCode** (the `opencode` command, 1.x and 2.x) | Beta, not yet checked live: sessions, usage (tokens, and its own cost estimate), starting sessions, rules and MCP servers |
 | **Grok Build** (the `grok` command) | Beta, not yet checked live: sessions, starting sessions (your Claude and Cursor setups stay out of it), rules and MCP servers; its usage isn't read yet |
-| **Kimi Code** (the `kimi` command, 2.x) | Beta, not yet checked live: sessions, starting sessions (never by itself on a Kimi plan, which is for interactive use only), rules, skills and MCP servers; its usage isn't read yet |
+| **Kimi Code** (the `kimi` command, 2.x) | Beta, not yet checked live: sessions, starting sessions (never by itself on a Kimi plan, which is for interactive use only), rules, skills and MCP servers; its 5-hour and weekly limits from Kimi Code's own server (experimental), and which limit a turn stopped at |
 | **Claude app** (desktop) | Its open sessions are shown under each of its profiles, with Go to it; This Mac measures its memory and CPU |
 | **Codex app** (desktop) | Its open threads are shown, with Go to it |
 | **Through another service**: OpenCode Go and Kimi, on Claude Code and Codex | Beta, not yet checked live: an account whose key you paste once (kept in the macOS Keychain), with a Claude Code or Codex profile pointed at the address the service publishes. Its usage is an estimate (OpenCode Go) or unknown (Kimi), and switching to it is never a proven one-click switch |
@@ -161,7 +161,13 @@ does, even when you open the app from Finder.
 
 It checks only whether a sign-in exists. It never reads the passwords,
 tokens or API keys your tools keep, and never opens the tools' Keychain
-items. The one key it holds is one you give it: for an account added
+items, with one exception: to show a Kimi Code account's limits
+(experimental), AI Juggler asks Kimi Code's own local server, `kimi web`,
+starting it briefly if it isn't running and stopping it at once. That
+server asks Moonshot's account service with your Kimi sign-in, and may
+refresh that sign-in. When AI Juggler uses a `kimi web` you already run,
+it reads that home's `server.token` for that one request, sends it only to
+that server on 127.0.0.1, and never keeps, logs or copies it. The one key it holds is one you give it: for an account added
 through another service, kept in AI Juggler's own Keychain item and handed
 only to that account's sessions when they start.
 
@@ -209,8 +215,10 @@ only to that account's sessions when they start.
   crash reports on, it also looks through macOS's own crash reports for AI
   Juggler's, and keeps only what failed and where.
 
-AI Juggler makes no requests to Anthropic, OpenAI or any other AI provider,
-and sets no proxy for your tools. It points a tool at another address only
+AI Juggler makes no requests to Anthropic, OpenAI or any other AI provider
+(the one exception: Kimi Code's own local server, asked for a Kimi Code
+account's limits, asks Moonshot, as above), and sets no proxy for your
+tools. It points a tool at another address only
 for an account you add through another service, and only at the address
 that service publishes.
 

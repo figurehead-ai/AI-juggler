@@ -1,6 +1,7 @@
 //! AJ-E1603 integration: Kimi Code is a registered Provider — listed, an
 //! Account gets its own home and passes the isolation checklist, its
-//! limits say honestly they aren't read, its sessions are listed and
+//! limits wait for `kimi web` until it reports them and then show the
+//! windows it named, labelled experimental (R3, D-106), its sessions are listed and
 //! become projects, its default home is used where it is unwritten, and a
 //! membership account that crashes is never started again by itself
 //! (its plans are for interactive use only). Synthetic files only.
@@ -76,7 +77,7 @@ fn kimi_code_is_a_listed_provider() {
 }
 
 #[test]
-fn a_kimi_account_has_its_own_home_and_its_limits_say_they_arent_read() {
+fn a_kimi_account_has_its_own_home_and_its_limits_wait_for_kimi_web() {
     let work = tempfile::tempdir().unwrap();
     let state = app_state(work.path());
     let created =
@@ -109,10 +110,122 @@ fn a_kimi_account_has_its_own_home_and_its_limits_say_they_arent_read() {
         .unwrap();
     let display =
         juggler_app::features::quota::quota_display_inner(&storage, &account, 1_792_580_400_000);
+    assert_eq!(display.unavailable_reason, None);
+    assert!(display.five_hour.is_none() && display.weekly.is_none());
     assert_eq!(
-        display.unavailable_reason.as_deref(),
-        Some("Kimi Code doesn't report its limits to AI Juggler yet")
+        display.five_hour_omitted_reason.as_deref(),
+        Some("Kimi Code hasn't reported its limits yet — they show after you use Kimi Code")
     );
+}
+
+/// A stand-in for the user's own `kimi web` on 127.0.0.1: answers healthz
+/// and the usage, and returns the requests it got.
+fn kimi_web(usage: &'static str) -> (u16, std::thread::JoinHandle<Vec<String>>) {
+    use std::io::{Read, Write};
+    let listener = std::net::TcpListener::bind(("127.0.0.1", 0)).unwrap();
+    let port = listener.local_addr().unwrap().port();
+    let handle = std::thread::spawn(move || {
+        let mut seen = Vec::new();
+        for _ in 0..2 {
+            let (mut stream, _) = listener.accept().unwrap();
+            let mut raw = Vec::new();
+            let mut buffer = [0_u8; 2048];
+            while !raw.windows(4).any(|w| w == b"\r\n\r\n") {
+                let read = stream.read(&mut buffer).unwrap();
+                if read == 0 {
+                    break;
+                }
+                raw.extend_from_slice(&buffer[..read]);
+            }
+            let request = String::from_utf8(raw).unwrap();
+            let body = if request.starts_with("GET /api/v1/healthz ") {
+                r#"{"code":0,"data":{"ok":true}}"#
+            } else {
+                usage
+            };
+            let answer = format!(
+                "HTTP/1.1 200 OK\r\nContent-Length: {}\r\n\r\n{body}",
+                body.len()
+            );
+            stream.write_all(answer.as_bytes()).unwrap();
+            seen.push(request);
+        }
+        seen
+    });
+    (port, handle)
+}
+
+#[test]
+fn measure_now_reads_the_windows_from_kimi_web_labelled_experimental() {
+    let work = tempfile::tempdir().unwrap();
+    let state = app_state(work.path());
+    let created =
+        juggler_app::features::account::create_account(&state, KIMI_CODE_ID, "Kimi", None).unwrap();
+    let dir = state.accounts_dir().join(KIMI_CODE_ID).join(&created.id);
+    // A membership sign-in, and the user's own `kimi web` running for it.
+    kimi_fixture::sign_in_membership(&dir, "made-up-sign-in");
+    let (port, server) = kimi_web(
+        r#"{"code":0,"data":{"kind":"ok","quota":{"usages":{"limit5h":{"usedRatio":0.42,"resetAt":"2030-01-01T00:00:00Z"},"monthTotal":{"usedRatio":0.2},"monthCode":{"usedRatio":0.1}},"extraUsage":null}}}"#,
+    );
+    let now = juggler_core::model::Timestamp::now().millis();
+    kimi_fixture::write(
+        &dir.join("server/instances/01TEST.json"),
+        &format!(
+            r#"{{"server_id":"01TEST","pid":{},"host":"127.0.0.1","port":{port},"started_at":1,"heartbeat_at":{now}}}"#,
+            std::process::id()
+        ),
+    );
+    kimi_fixture::write(&dir.join("server.token"), "made-up-server-token\n");
+
+    let status = juggler_app::features::quota::probe::run_now_impl(&state, &created.id).unwrap();
+    assert!(status.offered);
+    assert_eq!(status.last_outcome.as_deref(), Some("ran"));
+    let seen = server.join().unwrap();
+    assert!(seen[1].contains("Authorization: Bearer made-up-server-token\r\n"));
+
+    let storage = state.storage.lock().unwrap();
+    let account = storage
+        .accounts()
+        .list()
+        .unwrap()
+        .into_iter()
+        .find(|a| a.id.as_str() == created.id)
+        .unwrap();
+    let display =
+        juggler_app::features::quota::quota_display_inner(&storage, &account, now + 1_000);
+    let five = display.five_hour.expect("the 5-hour window it named");
+    assert_eq!(five.percentage.map(f64::round), Some(42.0));
+    assert_eq!(five.source.as_deref(), Some("local_server"));
+    assert_eq!(
+        five.source_words.as_deref(),
+        Some("Kimi Code's own local server (experimental)")
+    );
+    // The week it left out isn't there, and isn't guessed.
+    assert!(display.weekly.is_none());
+    assert_eq!(
+        display.weekly_omitted_reason.as_deref(),
+        Some("Kimi Code reports no weekly limit for this account")
+    );
+    // The month is kept as its own window.
+    let month = storage
+        .usage()
+        .samples_since(&created.id, juggler_core::quota::WindowKind::Monthly, 0)
+        .unwrap();
+    assert_eq!(month.len(), 1);
+    assert!((month[0].used_pct - 20.0).abs() < 1e-9);
+}
+
+#[test]
+fn an_api_key_account_is_never_asked() {
+    let work = tempfile::tempdir().unwrap();
+    let state = app_state(work.path());
+    let created =
+        juggler_app::features::account::create_account(&state, KIMI_CODE_ID, "Kimi", None).unwrap();
+    let dir = state.accounts_dir().join(KIMI_CODE_ID).join(&created.id);
+    kimi_fixture::sign_in_api_key(&dir);
+    let status = juggler_app::features::quota::probe::status_impl(&state, &created.id).unwrap();
+    assert!(!status.offered);
+    assert!(juggler_app::features::quota::probe::run_now_impl(&state, &created.id).is_err());
 }
 
 #[test]

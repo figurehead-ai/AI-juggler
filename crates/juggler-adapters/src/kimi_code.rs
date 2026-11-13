@@ -32,10 +32,13 @@
 //! exact tokens, and whether an open session works, waits on the user or
 //! idles; its session locks say which are open
 //! ([`crate::kimi_sessions::wire`]). Read-only observation: nothing is
-//! sent to a session. The plan's quota isn't read: its only documented
-//! source is `kimi web`'s local server, reached with a token from the home
-//! and answering from Moonshot's servers — outside what AI Juggler reads
-//! or sends today (the maintainer's ruling).
+//! sent to a session. A turn that failed at the plan's limit says which
+//! window ran out ([`crate::kimi_limits`], keyless). The plan's windows
+//! themselves (5-hour, weekly, monthly) come from Kimi Code's own local
+//! server, `kimi web` (D-106, labelled experimental): the user's own when
+//! it runs, else one started briefly for the request and stopped at once
+//! ([`crate::kimi_usage`]); only for an account signed in with its
+//! membership.
 
 use std::path::{Path, PathBuf};
 
@@ -273,6 +276,11 @@ impl ToolIdentity for KimiCodeAdapter {
             | Capabilities::USAGE_TOKENS
             // Its session locks name the process that holds each one.
             | Capabilities::SESSION_PROCESS_RECORDED
+            // AJ-E1603 R3: a turn failed at the limit, from its event log.
+            | Capabilities::LIMIT_HITS
+            // D-106: the windows `kimi web` reports, and only those.
+            | Capabilities::USAGE_QUOTA_FEED
+            | Capabilities::LIMIT_WINDOWS_REPORTED
     }
     fn verified_against(&self) -> &'static [&'static str] {
         VERIFIED_AGAINST
@@ -548,6 +556,48 @@ impl ToolQuota for KimiCodeAdapter {
             &account.state_dir,
             since_ms,
         )))
+    }
+    /// A tail of one event log that opens with its version line; the app
+    /// reads a session's hit with [`Self::session_limit_hit`].
+    fn limit_hit(&self, tail: &str) -> Option<juggler_adapter::live::LimitHit> {
+        crate::kimi_sessions::wire::limit_hit_in_tail(tail)
+    }
+    /// From every agent's event log beside the session's record (its
+    /// transcript), read whole: the log's version is on its first line.
+    fn session_limit_hit(
+        &self,
+        transcript: &Path,
+    ) -> Option<Option<juggler_adapter::live::LimitHit>> {
+        crate::kimi_sessions::wire::session_limit_hit(transcript)
+    }
+    fn limit_hits_at(
+        &self,
+        path: &Path,
+    ) -> Vec<(
+        PathBuf,
+        juggler_core::quota::WindowKind,
+        juggler_core::quota::QuotaSample,
+    )> {
+        crate::kimi_sessions::wire::limit_hits_at(path)
+    }
+    /// Only an account signed in with its Kimi membership: `kimi web`
+    /// reports a membership's plan; an API key's account gets no call.
+    fn plan_usage_offered(&self, state_dir: &Path) -> bool {
+        kimi_login_state(state_dir) == LoginState::SignedIn
+    }
+    /// `kimi web`'s usage, attached or started for the request (not an
+    /// agent run: the interactive-only rule is for sessions).
+    fn plan_usage(
+        &self,
+        account: &Account,
+    ) -> Option<Result<juggler_adapter::plan_usage::PlanReading, String>> {
+        self.plan_usage_offered(&account.state_dir).then(|| {
+            crate::kimi_usage::usage(
+                self.resolve_bin().as_deref(),
+                &account.state_dir,
+                crate::kimi_usage::RunLimits::default(),
+            )
+        })
     }
 }
 

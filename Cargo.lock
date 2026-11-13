@@ -2897,6 +2897,7 @@ dependencies = [
 name = "juggler-adapters"
 version = "0.4.0"
 dependencies = [
+ "getrandom 0.4.3",
  "juggler-adapter",
  "juggler-core",
  "juggler-handover",
@@ -2910,6 +2911,7 @@ dependencies = [
  "tempfile",
  "toml 1.1.8+spec-1.1.0",
  "toml_edit 0.25.17+spec-1.1.0",
+ "zeroize",
  "zstd",
 ]
 

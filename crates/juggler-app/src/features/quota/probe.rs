@@ -14,6 +14,13 @@
 //!   the profile is in use (usage in the last hour) and its newest reading
 //!   is older than that; or once when asked ("Measure now").
 //! - A run's output is never kept or logged: only whether it ran.
+//! - D-106 (AJ-E1603 R3): a tool with no usage command but a service of
+//!   its own that reports the plan (Kimi Code's `kimi web`,
+//!   [`juggler_adapter::ToolQuota::plan_usage`]) is asked the same way, on
+//!   the same cadence and settings: the adapter asks (attaching to the
+//!   user's server, or starting one briefly and stopping it before it
+//!   returns) and the windows it names are kept as Measured readings from
+//!   the tool's local server. Only the readings are kept, never the answer.
 
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, OnceLock};
@@ -69,21 +76,68 @@ fn setting_on(state: &Arc<AppState>, key: &str) -> AppResult<bool> {
         .is_none_or(|value| value != "off"))
 }
 
-/// The probe for an account, when it is ruled on and its tool has one.
-fn spec_for(
-    state: &Arc<AppState>,
-    account_id: &str,
-) -> AppResult<Option<juggler_adapter::LaunchSpec>> {
+/// How a tool is asked for an account's limits.
+enum Ask {
+    /// Its own usage command, run headless; the answer lands in its
+    /// records.
+    Command(juggler_adapter::LaunchSpec),
+    /// D-106: its own service, asked by its adapter; the answer comes back.
+    Service(juggler_adapter::SharedAdapter, juggler_core::model::Account),
+}
+
+/// The ask for an account, when it is ruled on and its tool has one.
+fn spec_for(state: &Arc<AppState>, account_id: &str) -> AppResult<Option<Ask>> {
     if !setting_on(state, ALLOWED_KEY)? {
         return Ok(None);
     }
     let account = lock_storage_arc(state)?
         .accounts()
         .get(&AccountId::new(account_id))?;
-    Ok(state
-        .registry
-        .get(&account.harness)
-        .and_then(|adapter| adapter.limits_probe_spec(&account.state_dir)))
+    let Some(adapter) = state.registry.get(&account.harness) else {
+        return Ok(None);
+    };
+    if let Some(spec) = adapter.limits_probe_spec(&account.state_dir) {
+        return Ok(Some(Ask::Command(spec)));
+    }
+    Ok(adapter
+        .plan_usage_offered(&account.state_dir)
+        .then(|| Ask::Service(adapter, account)))
+}
+
+/// Asks once: `ran`, `failed`, `timed_out` or `not_started`.
+fn perform(state: &Arc<AppState>, ask: &Ask) -> &'static str {
+    match ask {
+        Ask::Command(spec) => run(spec, TIMEOUT),
+        Ask::Service(adapter, account) => match adapter.plan_usage(account) {
+            Some(Ok(reading)) => keep(state, account.id.as_str(), &reading),
+            // Why, in words, is the adapter's; only that it failed is kept.
+            Some(Err(_)) => "failed",
+            None => "not_started",
+        },
+    }
+}
+
+/// Keeps the windows a tool's service named as readings from it.
+fn keep(
+    state: &Arc<AppState>,
+    account_id: &str,
+    reading: &juggler_adapter::plan_usage::PlanReading,
+) -> &'static str {
+    let rows: Vec<_> = reading
+        .windows
+        .iter()
+        .map(|(kind, sample)| {
+            (
+                account_id.to_owned(),
+                *kind,
+                *sample,
+                juggler_core::quota::UsageSource::LocalServer,
+            )
+        })
+        .collect();
+    let kept = lock_storage_arc(state)
+        .is_ok_and(|storage| storage.usage().insert_sourced_samples(&rows).is_ok());
+    if kept { "ran" } else { "failed" }
 }
 
 /// Where the account's probe stands (read-only).
@@ -112,7 +166,7 @@ pub fn status_impl(state: &Arc<AppState>, account_id: &str) -> AppResult<ProbeSt
 ///
 /// Refused when not offered; storage failures.
 pub fn turn_on_impl(state: &Arc<AppState>, account_id: &str) -> AppResult<ProbeStatusInfo> {
-    let Some(spec) = spec_for(state, account_id)? else {
+    let Some(ask) = spec_for(state, account_id)? else {
         return Err(AppError::Refused(
             "asking the tool for its limits isn't available".into(),
         ));
@@ -120,7 +174,7 @@ pub fn turn_on_impl(state: &Arc<AppState>, account_id: &str) -> AppResult<ProbeS
     lock_storage_arc(state)?
         .app_settings()
         .set(&account_key(account_id), "on")?;
-    record(account_id, run(&spec, TIMEOUT));
+    record(account_id, perform(state, &ask));
     status_impl(state, account_id)
 }
 
@@ -142,14 +196,14 @@ pub fn turn_off_impl(state: &Arc<AppState>, account_id: &str) -> AppResult<Probe
 ///
 /// Refused when it isn't on; storage failures.
 pub fn run_now_impl(state: &Arc<AppState>, account_id: &str) -> AppResult<ProbeStatusInfo> {
-    let spec = spec_for(state, account_id)?;
-    let Some(spec) = spec.filter(|_| setting_on(state, &account_key(account_id)).unwrap_or(false))
+    let ask = spec_for(state, account_id)?;
+    let Some(ask) = ask.filter(|_| setting_on(state, &account_key(account_id)).unwrap_or(false))
     else {
         return Err(AppError::Refused(
             "it isn't turned on for this profile".into(),
         ));
     };
-    record(account_id, run(&spec, TIMEOUT));
+    record(account_id, perform(state, &ask));
     status_impl(state, account_id)
 }
 
@@ -254,12 +308,13 @@ pub(crate) fn tick(state: &Arc<AppState>, accounts: &[juggler_core::model::Accou
     let Some(id) = due else {
         return;
     };
-    let Ok(Some(spec)) = spec_for(state, &id) else {
+    let Ok(Some(ask)) = spec_for(state, &id) else {
         return;
     };
     RUNNING.store(true, std::sync::atomic::Ordering::Release);
+    let state = Arc::clone(state);
     std::thread::spawn(move || {
-        record(&id, run(&spec, TIMEOUT));
+        record(&id, perform(&state, &ask));
         RUNNING.store(false, std::sync::atomic::Ordering::Release);
     });
 }
