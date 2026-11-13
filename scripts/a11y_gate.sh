@@ -4,6 +4,8 @@
 #     solid canvas so contrast is really evaluated;
 #   - keyboard-only traversals of the six core flows;
 #   - 200 % zoom and reduced-motion captures of rail, inspector, wizard;
+#   - the rail's Apps with nothing open: Inactive apps, an App's last 3
+#     under "Recent", then "All N sessions ›" (D-103.1/.2);
 #   - the measured contrast table.
 # Extra arguments go to Playwright (the release workflow passes
 # `--shard=i/n`; each shard sets A11Y_SKIP_SUMMARY=1 and one final job
@@ -20,6 +22,7 @@ AJ_AXE_GALLERY=1 AJ_A11Y_EVIDENCE=1 pnpm exec playwright test \
   tests/visual/keyboard-flows.spec.ts \
   tests/visual/zoom-motion.spec.ts \
   tests/visual/contrast.spec.ts \
+  tests/visual/inactive-apps-gallery.spec.ts \
   "$@"
 tests=$?
 summary=0
