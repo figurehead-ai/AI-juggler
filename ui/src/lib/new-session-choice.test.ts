@@ -10,7 +10,8 @@ import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import type { LaunchRecipeInfo } from "../types/generated/LaunchRecipeInfo";
 import type { ProjectInfo } from "../types/generated/ProjectInfo";
 import { GIVE_WAY_LEFT, LOW_LEFT } from "./room";
-import { appGroups, appWhyWords, appsByRoom, chooseApp, chooseFolder, folderGroups, folderWhyWords, nextFolder, passedOverWords, poolProject, skippedWords, type Room, type UsedSession } from "./new-session-choice";
+import { appGroups, appWhyWords, appsByRoom, chooseApp, chooseFolder, folderGroups, folderWhyWords, nextFolder, passedOverWords, poolProject, skippedWords, type Room } from "./new-session-choice";
+import type { UsedSession } from "./new-session-history";
 
 const T0 = 1_800_000_000_000;
 

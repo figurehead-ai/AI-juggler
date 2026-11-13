@@ -3,8 +3,9 @@
  * from history, on a Low Account gives way to the App with room and the
  * sentence says why in the Low mark's words ("— Claude Code CLI · Work Max is
  * almost out (5% left)", "about" for an estimate); an App the user picked
- * and a project's "Always use" stand, warned, the other offered; with no
- * other App that has room, the usual one stays, warned. The pure rule's
+ * and a project's "Always use" stand, warned, the other offered; so does
+ * the repo's own Account, the only one that ever ran there (D-103.7); with
+ * no other App that has room, the usual one stays, warned. The pure rule's
  * cases are `lib/new-session-choice.test.ts`; out of room is
  * `launch-sheet.test.tsx` (N5).
  */
@@ -37,7 +38,8 @@ const project = (name: string, at: number, used: string[]): ProjectInfo => ({
   instance_count: 0,
   missing: false,
 });
-const PROJECTS = [project("api", Date.now() - 12 * 60_000, ["Work Max"]), project("web", Date.now() - 86_400_000, ["Side"])];
+// Both Accounts ran in api: which one is a guess (D-103.7: no own Account).
+const PROJECTS = [project("api", Date.now() - 12 * 60_000, ["Side", "Work Max"]), project("web", Date.now() - 86_400_000, ["Side"])];
 
 /** One Account's reading, as the quota seam hands it over. */
 const display = (account: string, left: number, badge = "measured") => ({
@@ -109,6 +111,16 @@ describe("a Low usual App gives way (D-97)", () => {
     expect(await screen.findByTestId("launch-low")).toBeTruthy();
     expect(sentence()).toBe("Start in api on Claude Code CLI · Work Max — used here before");
     expect(screen.getByTestId("launch-use-roomier").textContent).toBe("Use Claude Code CLI · Side (80% left)");
+  });
+
+  it("D-103.7: the repo's own Account, almost out, stands, warned, the App with room offered", async () => {
+    seam({ __AIJ_QUOTA_DISPLAY__: [display("claude-work", 5), display("claude-side", 80)] });
+    const { launchSpy } = mountSheet({ projects: [project("api", Date.now() - 12 * 60_000, ["Work Max"])] });
+    expect(await screen.findByTestId("launch-low")).toBeTruthy();
+    expect(sentence()).toBe("Start in api on Claude Code CLI · Work Max — the only account used here");
+    expect(screen.getByTestId("launch-use-roomier").textContent).toBe("Use Claude Code CLI · Side (80% left)");
+    fireEvent.keyDown(window, { key: "Enter", metaKey: true });
+    await waitFor(() => expect(launchSpy).toHaveBeenCalledWith("p-1", "/Users/dev/api", undefined));
   });
 
   it("with no other App that has room, the usual one stays and is warned", async () => {

@@ -14,22 +14,26 @@
  * launch settings unless the user picks others):
  * 1. the one the user chose (in the sheet, or the door that opened it);
  * 2. this project's default (the user's "Always use for <project>", in
- *    Change app or on the project page); else the App the user chose for
- *    the start just before ("Start another", D-96 F); else the user's
+ *    Change app, on the project page or offered in the sheet); else its
+ *    own Account, the only one that ever ran there (D-103.7, R2: a
+ *    client's repo opened on the agency's); else the App the user chose
+ *    for the start just before ("Start another", D-96 F); else the user's
  *    default; else the App used last in this folder;
  * 3. with no history here: the App used last anywhere; else the one with
  *    the most room (D-45: the user's own sheet may suggest by room); else
  *    the only one; else the first that can start.
  *
  * An App the user chose (step 1, and step 2 up to the user's default)
- * stands even when it can't start: it's said and another offered. One
+ * and the repo's own Account's stand even when they can't start: it's
+ * said and another offered (never another Account by itself). One
  * only guessed from history (used here, last anywhere) that can't start
  * (not signed in) is passed over while another can, and the why says so
  * ("— Claude Code · aij-test isn't signed in", the rc27 walk: the first
  * default was an App that couldn't start).
  *
- * Room never moves the user's own choice (D-31): an App from step 1 or
- * step 2 up to the user's default, out of room or low, stands; the sheet
+ * Room never moves the user's own choice (D-31) or the repo's own
+ * Account: an App from step 1 or step 2 up to the user's default, out of
+ * room or low, stands; the sheet
  * says so and offers the App with the most room on another Account, which
  * the user may take. Two Apps on one Account share its room, so the offer
  * is never the same Account. A guess (used here, last anywhere) whose
@@ -42,10 +46,10 @@
  */
 import { signedIn } from "./bridge";
 import type { AccountInfo } from "../types/generated/AccountInfo";
-import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import type { LaunchRecipeInfo } from "../types/generated/LaunchRecipeInfo";
 import type { ProjectInfo } from "../types/generated/ProjectInfo";
 import { recentProjects, TOP } from "./pickers";
+import { lastAnywhere, lastHere, ownApp, usedHere, type UsedSession } from "./new-session-history";
 import { GIVE_WAY_LEFT, outOfRoomWords, rankByRoom, roomKind, type RoomKind } from "./room";
 import { whenWords } from "./time-words";
 
@@ -60,7 +64,7 @@ export interface FolderChoice {
   why: FolderWhy;
 }
 
-export type AppWhy = "chosen" | "project-default" | "kept" | "your-default" | "last-here" | "used-here" | "last-anywhere" | "most-room" | "only" | "first";
+export type AppWhy = "chosen" | "project-default" | "own-account" | "kept" | "your-default" | "last-here" | "used-here" | "last-anywhere" | "most-room" | "only" | "first";
 
 /** An Account's room, as Home's runway reads it. */
 export interface Room {
@@ -89,12 +93,10 @@ export interface AppChoice {
   passedOver?: LaunchRecipeInfo | null;
 }
 
-/** The steps that are the user's own choice: they stand even when the
- * App can't start (said, and another offered). */
-const USERS_OWN = new Set<AppWhy>(["chosen", "project-default", "kept", "your-default"]);
-
-/** What New session reads of a session to know which App was used last. */
-export type UsedSession = Pick<InstanceInfo, "account_id" | "project_id" | "started_at_ms">;
+/** The steps that are the user's own choice, and the repo's own Account
+ * (D-103.7): they stand even when the App can't start or has no room
+ * (said, and another offered). */
+const USERS_OWN = new Set<AppWhy>(["chosen", "project-default", "own-account", "kept", "your-default"]);
 
 export interface AppInputs {
   recipes: readonly LaunchRecipeInfo[];
@@ -113,6 +115,9 @@ export interface AppInputs {
   roomOf: (folderId: string) => Room;
   /** The Account folder `folderId` belongs to (its own id when unknown). */
   accountOf?: (folderId: string) => string;
+  /** The Accounts (`accountOf`'s keys) that ever ran in the project
+   * (`accountsRanHere`); its own when there's one (D-103.7). */
+  ranHere?: readonly string[] | null;
 }
 
 /** When a project was last worked in, here or in the tool's history. */
@@ -192,34 +197,6 @@ export function appsByRoom(inputs: Pick<AppInputs, "recipes" | "folders" | "room
   ).map((row) => ({ recipe: row.item, kind: row.kind, suggested: row.suggested }));
 }
 
-/** The App used last in `project`: AI Juggler's newest session there. */
-function lastHere(apps: readonly LaunchRecipeInfo[], project: ProjectInfo | null, sessions: readonly UsedSession[]): LaunchRecipeInfo | undefined {
-  if (!project) return undefined;
-  return lastAnywhere(
-    apps,
-    sessions.filter((row) => row.project_id === project.id),
-  );
-}
-
-/** An App the project's history says was used there. Walk K4 (AJ-E3306):
- * `accounts_used` is a set (the backend sorts it by name,
- * `projects/list.rs`), so it never says which was used last; its last
- * name was said as "the last you used here". The pick stays the one it
- * was (the last by name: steady, and an out-of-room one is still said and
- * another offered, D-31); only the claim is what the history holds. */
-function usedHere(apps: readonly LaunchRecipeInfo[], project: ProjectInfo | null): LaunchRecipeInfo | undefined {
-  return [...(project?.accounts_used ?? [])]
-    .reverse()
-    .map((label) => apps.find((recipe) => recipe.account_label === label))
-    .find((recipe) => recipe !== undefined);
-}
-
-/** The App of the session started last anywhere. */
-function lastAnywhere(apps: readonly LaunchRecipeInfo[], sessions: readonly UsedSession[]): LaunchRecipeInfo | undefined {
-  const newest = [...sessions].filter((row) => apps.some((recipe) => recipe.account_id === row.account_id)).sort((a, b) => (b.started_at_ms ?? 0) - (a.started_at_ms ?? 0))[0];
-  return newest ? apps.find((recipe) => recipe.account_id === newest.account_id) : undefined;
-}
-
 /** The App it opens on, and why; `null` when there's none. */
 export function chooseApp(inputs: AppInputs): AppChoice | null {
   const apps = appRecipes(inputs.recipes);
@@ -227,9 +204,12 @@ export function chooseApp(inputs: AppInputs): AppChoice | null {
   const ranked = appsByRoom(inputs);
   const of = (id: string | null | undefined) => (id ? apps.find((recipe) => recipe.account_id === id) : undefined);
   const startable = apps.filter((recipe) => canStart(inputs.folders, recipe.account_id));
+  const accountOf = inputs.accountOf ?? ((id: string) => id);
+  const own = ownApp(apps, { ...inputs, accountOf, canStart: (id) => canStart(inputs.folders, id) });
   const candidates: Array<[LaunchRecipeInfo | undefined, AppWhy]> = [
     [of(inputs.chosen), "chosen"],
     [of(inputs.project?.default_account_id), "project-default"],
+    [own, "own-account"],
     [of(inputs.kept), "kept"],
     [of(inputs.folders.find((folder) => folder.is_default)?.id), "your-default"],
     // Above: the user's own, kept when it can't start (said, another
@@ -249,7 +229,6 @@ export function chooseApp(inputs: AppInputs): AppChoice | null {
   const passedOver = candidates.slice(0, candidates.findIndex(stands)).find(([found]) => found !== undefined)?.[0] ?? null;
   const room = inputs.roomOf(recipe.account_id);
   const kind = roomKind(room.left, canStart(inputs.folders, recipe.account_id), room.credits);
-  const accountOf = inputs.accountOf ?? ((id: string) => id);
   const mine = accountOf(recipe.account_id);
   // Another Account's App with room; else, when the usual can't go on, one
   // whose room isn't measured, offered as such (walk N5: nothing was offered
@@ -319,6 +298,8 @@ export function appWhyWords(why: AppWhy, after?: string | null): string | null {
     case "project-default":
       // The user said so ("Always use for web", or the project page).
       return "your default here";
+    case "own-account":
+      return "the only account used here";
     case "your-default":
       return "your default";
     case "last-here":

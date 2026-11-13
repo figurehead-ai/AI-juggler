@@ -3,8 +3,9 @@
  * another: <next project>": the next project worked in, none started in
  * this run; taken, it opens there with the usual-choice rule run again
  * for that folder (room checked again, D-31 kept), and the App the user
- * chose kept, after the project's own "Always use". ⌘↩ starts it as it
- * did the first.
+ * chose kept, after the project's own "Always use" and its own Account
+ * (D-103.7: never carried into another Account's repo). ⌘↩ starts it as
+ * it did the first.
  */
 import { act, cleanup, fireEvent, render, renderHook, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -94,7 +95,7 @@ describe("start another (D-96 F)", () => {
 
   it("opened there, the usual-choice rule runs for that folder, and ⌘↩ starts it", async () => {
     const { launchSpy } = mountSheet({ dir: web, after: { roots: [api], name: "api", app: null }, onStartAnother: () => {} });
-    expect(sentence()).toBe("Start in web on Claude Code CLI · Side — used here before");
+    expect(sentence()).toBe("Start in web on Claude Code CLI · Side — the only account used here");
     fireEvent.keyDown(window, { key: "Enter", metaKey: true });
     await waitFor(() => expect(launchSpy).toHaveBeenCalledWith("p-3", web, undefined));
     // Both started: nothing left to offer.
@@ -110,9 +111,15 @@ describe("start another (D-96 F)", () => {
     const at = again.mock.calls[0]![0];
     expect(at.after.app).toBe("claude-side");
     cleanup();
-    mountSheet({ projects: PROJECTS.map((row) => ({ ...row, accounts_used: ["Work Max"] })), dir: at.dir, after: at.after });
-    // web's history says Work Max; the App chosen for api is kept over it.
+    mountSheet({ projects: PROJECTS.map((row) => ({ ...row, accounts_used: ["Side", "Work Max"] })), dir: at.dir, after: at.after });
+    // web's history names both; the App chosen for api is kept over it.
     expect(sentence()).toBe("Start in web on Claude Code CLI · Side — as you chose for api");
+  });
+
+  it("D-103.7: the next repo's own Account wins over the App kept from the start before", () => {
+    mountSheet({ projects: PROJECTS.map((row) => ({ ...row, accounts_used: ["Work Max"] })), dir: web, after: { roots: [api], name: "api", app: "claude-side" } });
+    // Only Work Max ever ran in web: Side, chosen for api, isn't carried over.
+    expect(sentence()).toBe("Start in web on Claude Code CLI · Work Max — the only account used here");
   });
 
   it("“Always use for web” still wins over the kept App", () => {
@@ -123,7 +130,7 @@ describe("start another (D-96 F)", () => {
 
   it("room is checked again for the next: the kept App now out is kept, warned and the other offered (D-31)", async () => {
     seam({ __AIJ_QUOTA_DISPLAY__: [display("claude-side", 0), display("claude-work", 80)] });
-    mountSheet({ dir: web, after: { roots: [api], name: "api", app: "claude-side" } });
+    mountSheet({ projects: PROJECTS.map((row) => ({ ...row, accounts_used: ["Side", "Work Max"] })), dir: web, after: { roots: [api], name: "api", app: "claude-side" } });
     expect(await screen.findByTestId("launch-out-of-room")).toBeTruthy();
     expect(sentence()).toBe("Start in web on Claude Code CLI · Side — as you chose for api");
     expect(screen.getByTestId("launch-use-roomier").textContent).toBe("Use Claude Code CLI · Work Max (80% left)");

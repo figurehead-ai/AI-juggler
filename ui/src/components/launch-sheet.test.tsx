@@ -80,7 +80,7 @@ describe("N1 the usual, made and said", () => {
   it("opens with the folder and App chosen in its first frame, said in one sentence with why", () => {
     mountSheet();
     // No wait: the launch settings the app holds make the choice at once.
-    expect(sentence()).toBe("Start in api on Claude Code CLI · Work Max — used here before");
+    expect(sentence()).toBe("Start in api on Claude Code CLI · Work Max — the only account used here");
     expect(screen.getByTestId("launch-preselected").textContent).toContain("~/api");
     expect(screen.getByTestId("launch-preselected").textContent).toContain("worked here 12 min ago");
     expect(screen.getByTestId("launch-now").textContent).toContain("Start in api");
@@ -116,7 +116,7 @@ describe("N2 change it, one step away", () => {
     mountSheet();
     fireEvent.click(screen.getByTestId("change-folder"));
     fireEvent.click(await screen.findByTestId("change-folder-/Users/dev/web"));
-    await waitFor(() => expect(sentence()).toBe("Start in web on Claude Code CLI · Side — used here before"));
+    await waitFor(() => expect(sentence()).toBe("Start in web on Claude Code CLI · Side — the only account used here"));
     expect(screen.getByTestId("launch-now").textContent).toContain("Start in web");
   });
 
@@ -166,7 +166,7 @@ describe("Always use for a project", () => {
     const setSpy = vi.spyOn(bridgeModuleAccounts, "projectSetDefaultAccount").mockResolvedValue();
     const reload = vi.fn();
     const first = mountSheet({ onProjectsChanged: reload });
-    expect(sentence()).toBe("Start in api on Claude Code CLI · Work Max — used here before");
+    expect(sentence()).toBe("Start in api on Claude Code CLI · Work Max — the only account used here");
     openApps();
     fireEvent.click(await screen.findByTestId("change-app-claude-side"));
     await waitFor(() => expect(sentence()).toBe("Start in api on Claude Code CLI · Side"));
@@ -193,7 +193,7 @@ describe("Always use for a project", () => {
     expect(clear.textContent).toBe("No default for apiBack to the usual choice");
     fireEvent.click(clear);
     await waitFor(() => expect(setSpy).toHaveBeenCalledWith("proj-api", null));
-    await waitFor(() => expect(sentence()).toBe("Start in api on Claude Code CLI · Work Max — used here before"));
+    await waitFor(() => expect(sentence()).toBe("Start in api on Claude Code CLI · Work Max — the only account used here"));
   });
 
   it("the default out of room: kept and said, the App with room offered, never switched (D-31)", async () => {
@@ -207,7 +207,7 @@ describe("Always use for a project", () => {
 
   it("a default whose App was removed: the usual choice, and nothing to clear", async () => {
     mountSheet({ projects: withDefault("claude-gone") });
-    expect(sentence()).toBe("Start in api on Claude Code CLI · Work Max — used here before");
+    expect(sentence()).toBe("Start in api on Claude Code CLI · Work Max — the only account used here");
     openApps();
     expect(await screen.findByTestId("change-app-always:set")).toBeTruthy();
     expect(screen.queryByTestId("change-app-always:clear")).toBeNull();
@@ -286,9 +286,12 @@ describe("N4 first time", () => {
 });
 
 describe("N5 the usual is out of room", () => {
+  // Both Accounts ran in api: its App is a guess (D-103.7: no own Account).
+  const shared = PROJECTS.map((row) => (row.name === "api" ? { ...row, accounts_used: ["Side", "Work Max"] } : row));
+
   it("D-97: gives way to the App with room before you start, and says why", async () => {
     w().__AIJ_QUOTA_DISPLAY__ = [display("claude-work", 0), display("claude-side", 80)];
-    const { launchSpy } = mountSheet();
+    const { launchSpy } = mountSheet({ projects: shared });
     await waitFor(() => expect(sentence()).toMatch(/^Start in api on Claude Code CLI · Side — Claude Code CLI · Work Max is out of room until \S/));
     // The choice has room: nothing to warn about below.
     expect(screen.queryByTestId("launch-out-of-room")).toBeNull();
@@ -296,12 +299,22 @@ describe("N5 the usual is out of room", () => {
     await waitFor(() => expect(launchSpy).toHaveBeenCalledWith("p-3", "/Users/dev/api", undefined));
   });
 
+  it("D-103.7: the repo's own Account out of room stays, warned, the App with room offered; never switched", async () => {
+    w().__AIJ_QUOTA_DISPLAY__ = [display("claude-work", 0), display("claude-side", 80)];
+    const { launchSpy } = mountSheet();
+    expect(await screen.findByTestId("launch-out-of-room")).toBeTruthy();
+    expect(sentence()).toBe("Start in api on Claude Code CLI · Work Max — the only account used here");
+    expect(screen.getByTestId("launch-use-roomier").textContent).toBe("Use Claude Code CLI · Side (80% left)");
+    fireEvent.click(screen.getByTestId("launch-now"));
+    await waitFor(() => expect(launchSpy).toHaveBeenCalledWith("p-1", "/Users/dev/api", undefined));
+  });
+
   it("with no other App that has room, it stays: said before you start, the unmeasured one offered", async () => {
     w().__AIJ_QUOTA_DISPLAY__ = [display("claude-work", 0)];
     const { launchSpy } = mountSheet();
     const note = await screen.findByTestId("launch-out-of-room");
     expect(note.textContent).toMatch(/ is out of room until .+: a session there would stop at its limit at once\./);
-    expect(sentence()).toBe("Start in api on Claude Code CLI · Work Max — used here before");
+    expect(sentence()).toBe("Start in api on Claude Code CLI · Work Max — the only account used here");
     expect(screen.getByTestId("launch-use-roomier").textContent).toBe("Use Claude Code CLI · Side (its room isn't measured)");
     // Still the user's: Start goes where it said.
     fireEvent.click(screen.getByTestId("launch-now"));

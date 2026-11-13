@@ -3,8 +3,11 @@
  * web-shop on Claude Code · Work — the last you used here"; from the
  * project's history alone, "— used here before"; picked by room over an
  * App that's almost out, "— Work is almost out (5% left)", D-96 E), then the
- * folder and the App's Account each on a line with its Change link. Room
- * is said once, for the Account; unknown room says nothing. Below, only
+ * folder and the App's Account each on a line with its Change link. A
+ * repo whose own Account it opened on (the only one that ever ran there,
+ * D-103.7) offers the binding in one click: "Always start client-a on
+ * Client A". Room is said once, for the Account; unknown room says
+ * nothing. Below, only
  * what's true now and changes the decision: out of room or low (with the
  * App that has room, offered, never taken), not signed in, a tight
  * verdict, this Mac short of memory.
@@ -12,6 +15,7 @@
 import type { JSX, ReactNode } from "react";
 import { Button } from "../../components/primitives";
 import { IconProjects } from "../../components/icons";
+import { IconStar } from "../../components/icons-actions";
 import { AccountAvatar } from "../../components/Avatar";
 import { runwayOf } from "../../components/AccountRunway";
 import { MachineAdviceLine } from "../../components/MachineAdvice";
@@ -112,9 +116,43 @@ export function StatedChoice({
         >
           {app ? <AccountWords app={app} data={data} /> : <NoApp loading={data.recipes === null} onAddApp={onAddApp} />}
         </Line>
+        <BindingOffer app={app} folder={folder} data={data} ranked={ranked} onAlways={onAlways} />
       </div>
       {app && appName && <Notes app={app} appName={appName} data={data} now={now} onApp={onApp} onSignIn={onSignIn} sessionName={sessionName} />}
     </section>
+  );
+}
+
+const LINK = "rounded font-medium text-accent-hi underline-offset-2 outline-none hover:underline focus-visible:ring-1 focus-visible:ring-accent/60";
+
+/** D-103.7: on the repo's own Account (the only one that ever ran
+ * there), the binding in one click, "Always start client-a on Client A";
+ * it names the App instead when its Account has others here (the binding
+ * is the App's, as Change app's "Always use for" is). */
+function BindingOffer({
+  app,
+  folder,
+  data,
+  ranked,
+  onAlways,
+}: {
+  app: AppChoice | null;
+  folder: FolderChoice | null;
+  data: NewSessionData;
+  ranked: ReturnType<typeof appsByRoom>;
+  onAlways?: (folderId: string | null) => void;
+}): JSX.Element | null {
+  const project = folder?.project;
+  if (app?.why !== "own-account" || !project || !onAlways) return null;
+  const key = data.accountKeyOf(app.recipe.account_id);
+  const alone = ranked.filter((row) => data.accountKeyOf(row.recipe.account_id) === key).length <= 1;
+  const name = (alone ? data.accountNameOf(app.recipe.account_id) : null) ?? data.appNameOf(app.recipe);
+  return (
+    <Line icon={<IconStar width={13} height={13} />} change={null}>
+      <button type="button" onClick={() => onAlways(app.recipe.account_id)} className={LINK} data-testid="launch-always">
+        Always start {project.name} on {name}
+      </button>
+    </Line>
   );
 }
 
@@ -305,12 +343,7 @@ function lowerFirst(words: string): string {
  * "(its room isn't measured)" when that's all that's known. */
 function OfferButton({ other, left, onUse }: { other: string; left: number | null; onUse: () => void }): JSX.Element {
   return (
-    <button
-      type="button"
-      onClick={onUse}
-      className="rounded font-medium text-accent-hi underline-offset-2 outline-none hover:underline focus-visible:ring-1 focus-visible:ring-accent/60"
-      data-testid="launch-use-roomier"
-    >
+    <button type="button" onClick={onUse} className={LINK} data-testid="launch-use-roomier">
       Use {other}
       {left !== null ? ` (${left}% left)` : " (its room isn't measured)"}
     </button>
