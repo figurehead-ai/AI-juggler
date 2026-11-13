@@ -298,14 +298,17 @@ def claude_line(kind: str, cwd: str, session: str, branch: str, parent: str | No
 def write_claude_conversation(folder: Path, cwd: str, branch: str, start: dt.datetime, rng: random.Random,
                               session: str | None = None, turns: int | None = None,
                               topic: str | None = None, said: str | None = None,
-                              entrypoint: str | None = None) -> tuple[str, dt.datetime, int, str]:
+                              entrypoint: str | None = None, titled: bool = True) -> tuple[str, dt.datetime, int, str]:
     session = session or str(uuid.UUID(int=rng.getrandbits(128)))
     topic = topic or rng.choice(TOPICS)
     model = rng.choice(MODELS_CLAUDE)
     path = folder / claude_dir_name(cwd) / f"{session}.jsonl"
     path.parent.mkdir(parents=True, exist_ok=True)
     at, parent, tokens = start, None, 0
-    lines = [json.dumps({"type": "summary", "summary": topic, "leafUuid": "leaf"})]
+    # `titled=False`: no title line, as a short session Claude Code never
+    # titled (its name then comes from its first ask, as `claude --resume`
+    # shows it).
+    lines = [json.dumps({"type": "summary", "summary": topic, "leafUuid": "leaf"})] if titled else []
     for turn in range(turns if turns is not None else rng.randint(2, 18)):
         line, parent = claude_line("user", cwd, session, branch, parent, at, rng,
                                    text=topic if turn == 0 else (said if turn == 1 and said else "Keep going."),
@@ -716,7 +719,8 @@ def conversation(args: argparse.Namespace) -> None:
     (`<folder>/projects/<cwd>/<session>.jsonl`), ended a minute ago (or
     `--ago-minutes` before that). `--topic` is its title and first ask,
     `--said` its second (persona D3: a session found by its title or by
-    what was said). `--entrypoint` is where Claude Code says it ran (`cli`,
+    what was said); `--untitled` leaves the title out, so `--topic` is
+    only its first ask. `--entrypoint` is where Claude Code says it ran (`cli`,
     `claude-desktop`, a script's `sdk-cli`); `--app-record DIR` adds the
     Claude app's own record of it in DIR (a profile's
     `claude-code-sessions/<account>/<org>`), as a Code-tab session has.
@@ -730,7 +734,8 @@ def conversation(args: argparse.Namespace) -> None:
     start = ended - dt.timedelta(minutes=9 + 2 * args.turns)
     session, _, _, topic = write_claude_conversation(folder / "projects", args.cwd, "main", start, rng,
                                                      session=args.session, turns=args.turns,
-                                                     topic=args.topic, said=args.said, entrypoint=args.entrypoint)
+                                                     topic=args.topic, said=args.said, entrypoint=args.entrypoint,
+                                                     titled=not args.untitled)
     path = folder / "projects" / claude_dir_name(args.cwd) / f"{session}.jsonl"
     touch(path, ended)
     written = {"path": str(path), "session": session, "topic": topic}
@@ -867,12 +872,20 @@ def lab_writers(tmp: Path) -> None:
         conversation(argparse.Namespace(
             folder=str(lab / "code"), cwd=str(lab / "repos/web"), session="0a1b2c3d-0000-4000-8000-000000000001",
             turns=2, topic="Fix the flaky login test", said=None, ago_minutes=60, entrypoint="claude-desktop",
-            app_record=str(lab / "profile/claude-code-sessions/acct/org")))
+            app_record=str(lab / "profile/claude-code-sessions/acct/org"), untitled=False))
         for n, (originator, source) in enumerate((("Codex Desktop", "vscode"), ("codex_exec", "exec"))):
             codex_thread(argparse.Namespace(
                 home=str(lab / "codex"), cwd=str(lab / "repos/web"), thread=f"0a1b2c3d-0000-4000-8000-00000000001{n}",
                 originator=originator, source=source, turns=2, topic=None, ago_minutes=0))
+        conversation(argparse.Namespace(
+            folder=str(lab / "term"), cwd=str(lab / "repos/api"), session="0a1b2c3d-0000-4000-8000-000000000002",
+            turns=2, topic="Tidy the settings page", said=None, ago_minutes=0, entrypoint=None, app_record=None,
+            untitled=True))
     written = [json.loads(line) for line in out.getvalue().splitlines()]
+    # Untitled: no title line; the topic is only its first ask.
+    bare = [json.loads(line) for line in Path(written[3]["path"]).read_text().splitlines()]
+    assert all(line["type"] != "summary" for line in bare), bare[0]
+    assert bare[0]["type"] == "user" and "Tidy the settings page" in json.dumps(bare[0]["message"]), bare[0]
     lines = [json.loads(line) for line in Path(written[0]["path"]).read_text().splitlines()]
     assert all(line.get("entrypoint") == "claude-desktop" for line in lines if line["type"] in ("user", "assistant"))
     record = json.loads(Path(written[0]["record"]).read_text())
@@ -886,7 +899,8 @@ def lab_writers(tmp: Path) -> None:
     assert rows == [("exec", "codex_exec", 0), ("vscode", "Codex Desktop", 0)], rows
     try:
         conversation(argparse.Namespace(folder=str(tmp / "someone"), cwd="/", session="x", turns=1, topic=None,
-                                        said=None, ago_minutes=0, entrypoint=None, app_record=None))
+                                        said=None, ago_minutes=0, entrypoint=None, app_record=None,
+                                        untitled=False))
         raise AssertionError("a folder outside a lab was written")
     except SystemExit:
         pass
@@ -919,6 +933,7 @@ def main() -> None:
     c.add_argument("--turns", type=int, default=3)
     c.add_argument("--topic", help="its title and first ask (default: one of the replica's)")
     c.add_argument("--said", help="its second ask, for a search of what was said")
+    c.add_argument("--untitled", action="store_true", help="no title line: --topic is only its first ask")
     c.add_argument("--ago-minutes", type=int, default=0, help="how long before now it ended")
     c.add_argument("--entrypoint", help="where Claude Code says it ran: cli, claude-desktop, sdk-cli")
     c.add_argument("--app-record", help="also the Claude app's record of it, in this records folder")

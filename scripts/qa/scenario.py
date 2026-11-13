@@ -42,6 +42,8 @@ A scenario file (TOML, the subset below) says:
                                     # ended session left behind, in the ledger)
     ended_sessions = 50             # N ended sessions over the terminal Apps,
     ended_over_days = 7             # every 37 min back, or spread over N days
+    ended_conversations = true      # each a short conversation in its tool's own
+                                    # format, its first ask varied (persona D3)
     [[setup.pools]]                 # name, template, scope, sealed
     [[setup.members]]               # pool, kind, ref, role, level
 

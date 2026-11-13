@@ -16,6 +16,9 @@ needs = ["lab"]
 [setup]
 projects = ["api", "web", "billing", "infra"]
 ended_sessions = 52
+# 0.4.5: each says what it was for (its first ask; two in three of the
+# Claude Code ones untitled, named by that ask as `claude --resume` shows).
+ended_conversations = true
 
 [[setup.apps]]
 id = "cc-work"
