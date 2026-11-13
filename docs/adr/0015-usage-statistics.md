@@ -71,3 +71,8 @@ implements its half.
   checks the two copies before each release.
 - Most of what the maintainer would like to know (anything about code
   or projects) stays unknowable by design. That is the point.
+
+## Amendment (D-108, 2026-11-13)
+
+Crash reports (AJ-E1107) are sent by Sentry's own SDK, behind D-19's Never / Ask / Always setting and AI Juggler's scrubber (`before_send`), with `send_default_pii = false` and no automatic integrations. The rejection of a third-party SDK above stands for usage statistics.
+

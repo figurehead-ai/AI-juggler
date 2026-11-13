@@ -2986,3 +2986,17 @@ Each ships with tests that fail without it and a design critique; the M2, D2 and
 - **Amends:** AJ-E1612 and AJ-E1701 R2 ("spare accounts"); MAINTAINER-STEPS steps 16 and 17.
 - Sources: the coordinating session's relay of the maintainer's words, 2026-11-13.
 
+### D-108 Crash reports go to Sentry, through its SDK, behind D-19's setting and our scrubber — SETTLED (2026-11-13)
+
+**Ruling.** The maintainer, 2026-11-13, on AJ-E1107 and AJ-E1516: "I don't mind using Sentry" and "If we are going to use sentry than using sentry SDK is fine".
+
+- **Sentry receives crash reports,** sent by Sentry's own Rust SDK. This amends ADR-0015's rejection of a third-party SDK **for crash reports only**; usage statistics are unchanged (their own closed schema, no SDK).
+- **D-19 stands:** the Never / Ask / Always setting and the scrubbing on the Mac. The SDK sends only what the user agreed to: nothing on Never, a full read-only preview first on Ask.
+- **Every event passes through AI Juggler's own scrubber** in `before_send`, so the scrub corpus tests keep gating what leaves the Mac.
+- **`send_default_pii = false`:** no server name, no user, no IP; AI Juggler's own breadcrumbs only; no automatic integration that reads the environment, URLs or files.
+- **The address** (the DSN) comes from `AI_JUGGLER_CRASH_ENDPOINT` at compile time, in release builds only; debug builds never send.
+- **Wording:** `SECURITY.md`'s "never sent automatically" (already wrong under D-19's Always) and the Privacy pages are corrected with the build.
+- **The account:** the project is MIT and public; the maintainer creates the Sentry account and applies for Sentry's sponsored open-source plan. AJ-E1107 R5 waits for the secret.
+- **Amends:** ADR-0015 (the rejected "third-party analytics SDK" does not cover crash reports); AJ-E1107 R5.
+- Sources: the coordinating session's relay of the maintainer's words, 2026-11-13.
+
