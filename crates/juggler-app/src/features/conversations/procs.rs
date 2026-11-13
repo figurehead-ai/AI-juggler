@@ -7,8 +7,6 @@
 
 use std::collections::HashMap;
 use std::path::PathBuf;
-use std::sync::Mutex;
-use std::time::{Duration, Instant};
 
 use sysinfo::{Pid, ProcessRefreshKind, ProcessesToUpdate, System, UpdateKind};
 
@@ -57,75 +55,19 @@ fn proc_of(pid: Pid, process: &sysinfo::Process) -> Proc {
     }
 }
 
-/// What a read between two whole reads asks for: the executable and the
-/// arguments of a process not read before only (a reused pid is a new
-/// process: its start time differs). Never the environment either.
-#[must_use]
-pub fn new_ones_kind() -> ProcessRefreshKind {
-    ProcessRefreshKind::nothing()
-        .without_tasks()
-        .with_exe(UpdateKind::OnlyIfNotSet)
-        .with_cmd(UpdateKind::OnlyIfNotSet)
-}
-
-/// How often [`table`] asks again for every process's executable and
-/// arguments: a process that became another program in place (`exec`)
-/// keeps its pid and start time, and shows as that program within this.
-pub const WHOLE_EVERY: Duration = Duration::from_secs(60);
-
-/// 0.4.5 (AJ-E805, idle CPU): the table kept between reads. Presence reads
-/// it every 5 s (ADR-0032), keep alive and the live view besides, and each
-/// read asked the OS for the executable and arguments of every process on
-/// the Mac (two calls each, for some 850 processes), most of them read the
-/// same 5 s before. Now a read lists every process (its parent and start
-/// time come with the list) and asks for the rest only for the new ones,
-/// and for every one each [`WHOLE_EVERY`].
-struct Kept {
-    system: System,
-    whole_at: Option<Instant>,
-}
-
-static KEPT: Mutex<Option<Kept>> = Mutex::new(None);
-
-/// Every process on this Mac, as it is now.
+/// Every process on this Mac (the full scan: at most once a minute).
 #[must_use]
 pub fn table() -> Table {
-    let mut table: Table = if let Ok(mut kept) = KEPT.lock() {
-        let kept = kept.get_or_insert_with(|| Kept {
-            system: System::new(),
-            whole_at: None,
-        });
-        let now = Instant::now();
-        let whole = kept
-            .whole_at
-            .is_none_or(|at| now.duration_since(at) >= WHOLE_EVERY);
-        let kind = if whole {
-            refresh_kind()
-        } else {
-            new_ones_kind()
-        };
-        kept.system
-            .refresh_processes_specifics(ProcessesToUpdate::All, true, kind);
-        if whole {
-            kept.whole_at = Some(now);
-        }
-        listed(&kept.system)
-    } else {
-        let mut system = System::new();
-        system.refresh_processes_specifics(ProcessesToUpdate::All, true, refresh_kind());
-        listed(&system)
-    };
-    // ADR-0027: a lab's write mode sees only the lab's processes.
-    crate::lab_scope::keep(&mut table);
-    table
-}
-
-fn listed(system: &System) -> Table {
-    system
+    let mut system = System::new();
+    system.refresh_processes_specifics(ProcessesToUpdate::All, true, refresh_kind());
+    let mut table: Table = system
         .processes()
         .iter()
         .map(|(pid, process)| (pid.as_u32(), proc_of(*pid, process)))
-        .collect()
+        .collect();
+    // ADR-0027: a lab's write mode sees only the lab's processes.
+    crate::lab_scope::keep(&mut table);
+    table
 }
 
 /// Only these processes, as they are now (liveness and start times; a
@@ -166,8 +108,6 @@ pub fn ancestors(table: &Table, pid: u32) -> Vec<&Proc> {
 
 #[cfg(test)]
 mod tests {
-    #![allow(clippy::unwrap_used, clippy::expect_used, reason = "test code")]
-
     use super::*;
 
     /// The guardrail (D-37): the process read never asks for
@@ -178,32 +118,6 @@ mod tests {
         assert_eq!(kind.environ(), UpdateKind::Never);
         assert_eq!(kind.exe(), UpdateKind::Always);
         assert_eq!(kind.cmd(), UpdateKind::Always);
-        let between = new_ones_kind();
-        assert_eq!(between.environ(), UpdateKind::Never);
-        assert_eq!(between.exe(), UpdateKind::OnlyIfNotSet);
-        assert_eq!(between.cmd(), UpdateKind::OnlyIfNotSet);
-    }
-
-    /// 0.4.5: the kept table still sees a process start and end between
-    /// two reads, with its arguments (a new pid is read in full).
-    #[test]
-    fn the_kept_table_sees_a_new_process_and_its_end() {
-        let _ = table();
-        let mut child = std::process::Command::new("/bin/sleep")
-            .arg("30")
-            .spawn()
-            .unwrap();
-        let pid = child.id();
-        let seen = table();
-        let process = seen.get(&pid).expect("a new process is in the next read");
-        assert!(
-            process.args.iter().any(|arg| arg == "30"),
-            "{:?}",
-            process.args
-        );
-        let _ = child.kill();
-        let _ = child.wait();
-        assert!(!table().contains_key(&pid), "an ended one is gone");
     }
 
     #[test]
