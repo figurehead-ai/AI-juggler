@@ -2960,17 +2960,21 @@ Each ships with tests that fail without it and a design critique; the M2, D2 and
   never lists on a Mac come from the same read (no more `/bin/ps`).
 - As with D-17, D-26 and D-27, the carve-out is a new, isolated crate that
   does NOT inherit the workspace lint baseline; `unsafe_code = "forbid"`
-  stays absolute everywhere else. It holds exactly two `unsafe` blocks
+  stays absolute everywhere else. It holds exactly four `unsafe` blocks
   (the `sysctl` asking the records' size, and the one reading them into a
-  byte buffer), each with a SAFETY note, under
-  `#![deny(unsafe_op_in_unsafe_fn)]`, behind one safe function (`list`).
+  byte buffer; zeroing a `proc_taskinfo`, and the `proc_pidinfo` filling
+  it), each with a SAFETY note, under `#![deny(unsafe_op_in_unsafe_fn)]`,
+  behind two safe functions: `list`, and `resident` (one process's
+  resident memory, the record `sysinfo` takes it from: the collector's
+  full scan measures This Mac's other apps with it, reading only new
+  processes whole).
   `libc` has no `kinfo_proc`, so the six fields read are taken at their
   offsets in its fixed 64-bit layout, and every read checks itself (a
   record size other than 648 bytes, or a listing without this process
   under its own parent, is no listing: the callers read the table as
   before). Off macOS it is a safe stub that lists nothing. Its tests hold
-  it to `ps` (this process's parent and name, the count) and to a real
-  zombie.
+  it to `ps` (this process's parent, name, memory and the count) and to a
+  real zombie.
 - Rejected: `proc_listallpids` with `proc_pidinfo(PROC_PIDTBSDINFO)` per
   pid (the kernel refuses it for other users' processes and for zombies:
   678 of 872 listed); keeping `sysinfo`'s table between reads alone

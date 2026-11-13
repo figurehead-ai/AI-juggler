@@ -116,6 +116,83 @@ pub(crate) fn read_zombies(zombies: &mut Zombies, watched: bool, now_secs: i64) 
     }
 }
 
+/// The full scan: every process's program, command line, CPU and memory
+/// into `table`. Where the system lists cheaply and not `whole`, only the
+/// processes it doesn't hold yet (or holds for an earlier process: another
+/// start time or program name) and `ours` are read whole, the ones gone are
+/// dropped, and every process's resident memory is read on its own (This
+/// Mac's other apps), which it returns with how many it read whole.
+/// Elsewhere, or `whole`, every process is read, as before (`None`). `sysinfo` reads each process's
+/// arguments on every refresh: the full scan read all of them every 10 s
+/// (AJ-E805).
+pub(crate) fn full_scan(
+    table: &mut sysinfo::System,
+    cpu: &mut CpuSince,
+    ours: &[u32],
+    whole: bool,
+) -> (u64, Option<HashMap<u32, u64>>) {
+    use sysinfo::{ProcessRefreshKind, ProcessesToUpdate, UpdateKind};
+    let kind = ProcessRefreshKind::nothing()
+        .without_tasks()
+        .with_cpu()
+        .with_memory()
+        .with_exe(UpdateKind::Always)
+        .with_cmd(UpdateKind::Always);
+    let at = std::time::Instant::now();
+    let Some(all) = juggler_proc_list::list().filter(|_| !whole) else {
+        table.refresh_processes_specifics(ProcessesToUpdate::All, true, kind);
+        cpu.note_all(table, at);
+        return (table.processes().len() as u64, None);
+    };
+    let listed: HashMap<u32, &juggler_proc_list::Listed> = all
+        .iter()
+        .filter(|process| !process.zombie)
+        .map(|process| (process.pid, process))
+        .collect();
+    let mut pids: Vec<u32> = listed
+        .values()
+        .filter(|listed| {
+            table
+                .process(sysinfo::Pid::from_u32(listed.pid))
+                .is_none_or(|held| !same_process(held, listed))
+        })
+        .map(|listed| listed.pid)
+        .chain(
+            table
+                .processes()
+                .keys()
+                .map(|pid| pid.as_u32())
+                .filter(|pid| !listed.contains_key(pid)),
+        )
+        .chain(ours.iter().copied())
+        .collect();
+    pids.sort_unstable();
+    pids.dedup();
+    let targets: Vec<sysinfo::Pid> = pids.into_iter().map(sysinfo::Pid::from_u32).collect();
+    table.refresh_processes_specifics(ProcessesToUpdate::Some(&targets), true, kind);
+    cpu.note(table, &targets, at);
+    cpu.forget_gone(table);
+    let resident = listed
+        .keys()
+        .filter_map(|pid| Some((*pid, juggler_proc_list::resident(*pid)?)))
+        .collect();
+    (targets.len() as u64, Some(resident))
+}
+
+/// Whether `held` (read earlier) is the process the listing names: the
+/// same start time (`sysinfo` reads none for another user's process), and
+/// its program's name the kernel's short name (a process that replaced
+/// itself with another program keeps its pid and start time).
+fn same_process(held: &sysinfo::Process, listed: &juggler_proc_list::Listed) -> bool {
+    let named = |name: &std::ffi::OsStr| name.to_string_lossy().starts_with(&listed.name);
+    (held.start_time() == listed.start_secs || held.start_time() == 0)
+        && (named(held.name())
+            || held
+                .exe()
+                .and_then(std::path::Path::file_name)
+                .is_some_and(named))
+}
+
 /// Reads the listing `table` (CPU and memory) and says what it found.
 /// Where the system lists every process in one call, only the processes
 /// under `roots` (the watched trees' roots) are read, the ones gone since

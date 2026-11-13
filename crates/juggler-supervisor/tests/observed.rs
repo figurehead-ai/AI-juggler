@@ -144,6 +144,36 @@ fn a_listing_reads_the_watched_trees_not_every_process() {
     child.wait().unwrap();
 }
 
+/// AJ-E805 (0.4.5, idle CPU; D-108): after its first, a full scan reads
+/// whole only the processes that are new since; every process's memory is
+/// still there for This Mac's other apps. It read every process on the
+/// Mac whole (arguments and all) every 10 s.
+#[cfg(target_os = "macos")]
+#[test]
+fn a_full_scan_reads_the_new_processes_not_every_one() {
+    let supervisor = Supervisor::new();
+    let mut collector = LiveStatsCollector::new();
+    for tick in 1..=4 {
+        collector.tick(&supervisor, i64::from(tick) * 2_000);
+    }
+    let before = collector.work();
+    collector.tick(&supervisor, 10_000);
+    let after = collector.work();
+    assert_eq!(
+        after.full_scans,
+        before.full_scans + 1,
+        "tick 5 is a full scan"
+    );
+    let read = after.full_read - before.full_read;
+    let others = collector.other_processes();
+    assert!(
+        read < 60 && others.len() > 20,
+        "a full scan read {read} whole; {} other processes measured",
+        others.len()
+    );
+    assert!(others.iter().all(|process| process.rss_bytes > 0));
+}
+
 /// Review of #68: a helper of an observed tree is refreshed on EVERY tick,
 /// not only on full scans. `sysinfo` divides a process's CPU delta since
 /// its own last refresh by the time since the last refresh call, so a

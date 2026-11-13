@@ -5,16 +5,17 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
-description = "Audited process listing shim (D-108): every process's pid, parent, start time, short name and whether it is a zombie, without its arguments"
+description = "Audited process listing shim (D-108): every process's pid, parent, start time, short name and whether it is a zombie, and one process's resident memory, without its arguments"
 
 # D-108 (2026-11-13): the fifth carve-out from the workspace lint
 # baseline, made like D-17's juggler-scap-init, D-26's juggler-login-item,
 # D-27's juggler-vm-stats and ADR-0026's juggler-window-events. By NOT
 # inheriting `[lints] workspace = true`, `unsafe_code = "forbid"` does not
-# apply here; every other crate keeps it. The crate holds exactly two
+# apply here; every other crate keeps it. The crate holds exactly four
 # `unsafe` blocks (the `sysctl(KERN_PROC_ALL)` asking how much room the
-# records take, and the one reading them into a byte buffer), each with
-# its SAFETY note, behind one safe function.
+# records take, and the one reading them into a byte buffer; zeroing one
+# `proc_taskinfo`, and `proc_pidinfo` filling it), each with its SAFETY
+# note, behind two safe functions.
 # macOS-only: elsewhere the crate is a safe stub that lists nothing (its
 # callers read the process table as before).
 [target.'cfg(target_os = "macos")'.dependencies]

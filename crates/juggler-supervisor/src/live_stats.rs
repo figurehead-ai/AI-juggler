@@ -196,6 +196,10 @@ pub fn push_ring_sample(ring: &mut std::collections::VecDeque<TreeSample>, sampl
 const FULL_SCAN_EVERY: u32 = 5;
 /// Warmup full-scan ticks after collector creation.
 const WARMUP_FULL_TICKS: u32 = 3;
+/// AJ-E805: every this many ticks (one full scan in six, 60 s) every
+/// process is read whole, whatever the listing says: the net under what
+/// it can't tell apart.
+const WHOLE_SCAN_EVERY: u32 = FULL_SCAN_EVERY * 6;
 /// Every this many ticks, one read of every process with its parent, start
 /// time, CPU and memory (the listing): it finds the new processes of our
 /// sessions' trees (P16) and is where the other tools' trees (the Claude
@@ -278,6 +282,10 @@ pub struct LiveStatsCollector {
     /// AJ-E2401: the zombies `sysinfo` doesn't list on a Mac, read every
     /// full scan while a tree is watched ([`crate::zombies`]).
     zombies: crate::zombies::Zombies,
+    /// AJ-E805: each process's resident memory at the last full scan,
+    /// read on its own where the system lists cheaply (empty elsewhere:
+    /// the table's own reading).
+    resident: HashMap<u32, u64>,
 }
 
 /// What the collector's ticks have done: the monitoring budget (AJ-E1410)
@@ -298,6 +306,10 @@ pub struct CollectorWork {
     /// Listings: every process's parent and start time, and the watched
     /// trees' CPU and memory, every 2nd tick.
     pub listings: u64,
+    /// Processes the full scans read whole (AJ-E805: the new ones and
+    /// ours where the system lists every process in one call, every one
+    /// each minute and elsewhere).
+    pub full_read: u64,
     /// Processes the listings read (AJ-E805: the watched trees' alone
     /// where the system lists every process in one call; every one
     /// elsewhere).
@@ -401,6 +413,7 @@ impl Default for LiveStatsCollector {
             listing_cpu: CpuSince::default(),
             listing_sampled: false,
             zombies: crate::zombies::Zombies::default(),
+            resident: HashMap::new(),
         }
     }
 }
@@ -432,7 +445,8 @@ impl LiveStatsCollector {
         self.work.last_tick_ms = now_ms;
         if full {
             self.work.full_scans += 1;
-            self.refresh_all();
+            let ours: Vec<u32> = roots.iter().map(|(_, pid, _)| *pid).collect();
+            self.refresh_all(&ours);
             // The zombies, while any tree is watched.
             let watched = !(roots.is_empty()
                 && self.observed_roots.is_empty()
@@ -966,20 +980,21 @@ impl LiveStatsCollector {
         }
     }
 
-    fn refresh_all(&mut self) {
-        use sysinfo::{ProcessRefreshKind, ProcessesToUpdate};
-        let at = std::time::Instant::now();
-        self.system.refresh_processes_specifics(
-            ProcessesToUpdate::All,
-            true,
-            ProcessRefreshKind::nothing()
-                .without_tasks()
-                .with_cpu()
-                .with_memory()
-                .with_exe(sysinfo::UpdateKind::Always)
-                .with_cmd(sysinfo::UpdateKind::Always),
+    /// The full scan (see [`crate::listing::full_scan`]): our trees'
+    /// processes read whole each time, every process read whole every
+    /// [`WHOLE_SCAN_EVERY`] ticks.
+    fn refresh_all(&mut self, ours: &[u32]) {
+        let mut ours: Vec<u32> = ours.to_vec();
+        ours.extend(
+            self.trees
+                .values()
+                .flat_map(|tree| tree.rows.iter().map(|row| row.pid)),
         );
-        self.cpu.note_all(&self.system, at);
+        let whole = self.ticks <= WARMUP_FULL_TICKS || self.ticks.is_multiple_of(WHOLE_SCAN_EVERY);
+        let (read, resident) =
+            crate::listing::full_scan(&mut self.system, &mut self.cpu, &ours, whole);
+        self.work.full_read += read;
+        self.resident = resident.unwrap_or_default();
     }
 
     /// Reads the listing (see [`crate::listing::read`]): the processes of
@@ -1180,14 +1195,21 @@ impl LiveStatsCollector {
             )
             .chain(std::iter::once(std::process::id()))
             .collect();
+        let rss = |process: &sysinfo::Process| {
+            let pid = process.pid().as_u32();
+            self.resident
+                .get(&pid)
+                .copied()
+                .unwrap_or_else(|| process.memory())
+        };
         self.system
             .processes()
             .values()
-            .filter(|process| !tools.contains(&process.pid().as_u32()) && process.memory() > 0)
+            .filter(|process| !tools.contains(&process.pid().as_u32()) && rss(process) > 0)
             .map(|process| ProcessMemory {
                 name: process.name().to_string_lossy().into_owned(),
                 exe: process.exe().map(std::path::Path::to_path_buf),
-                rss_bytes: process.memory(),
+                rss_bytes: rss(process),
             })
             .collect()
     }

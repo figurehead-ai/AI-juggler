@@ -23,12 +23,19 @@
 //! process isn't found under its own parent, is no listing (`None`, and
 //! the callers read the table their old way).
 //!
-//! THE AUDIT: two `unsafe` blocks, each with its SAFETY note: the
+//! [`resident`] reads one process's resident memory
+//! (`proc_pidinfo(PROC_PIDTASKINFO)`, the record `sysinfo` takes it from,
+//! without the arguments `sysinfo` reads with it): This Mac's other apps
+//! are measured from it on every full scan.
+//!
+//! THE AUDIT: four `unsafe` blocks, each with its SAFETY note: the
 //! `sysctl` asking how many bytes the records take (a null buffer: nothing
 //! written), and the `sysctl` writing them into a byte buffer whose size
-//! the kernel is told. Reading the fields is safe code over those bytes.
+//! the kernel is told; zeroing one `proc_taskinfo`, and `proc_pidinfo`
+//! writing into it at its size. Reading the fields is safe code.
 //!
-//! Nothing here reads a process's arguments, environment, memory or files.
+//! Nothing here reads a process's arguments, environment, files or the
+//! contents of its memory.
 //!
 //! What this crate is NOT: a general unsafe escape hatch. It exists so the
 //! workspace law `unsafe_code = "forbid"` stays absolute for every other
@@ -40,7 +47,7 @@
 #![deny(missing_docs, unsafe_op_in_unsafe_fn)]
 #![cfg_attr(
     target_os = "macos",
-    allow(unsafe_code, reason = "D-108: the two audited blocks")
+    allow(unsafe_code, reason = "D-108: the four audited blocks")
 )]
 
 /// One process, as the kernel lists it.
@@ -71,6 +78,22 @@ pub fn list() -> Option<Vec<Listed>> {
     }
     #[cfg(not(target_os = "macos"))]
     {
+        None
+    }
+}
+
+/// The resident memory of `pid`, bytes. `None` when it's gone, isn't this
+/// user's to read (the kernel refuses another user's), and on other
+/// systems.
+#[must_use]
+pub fn resident(pid: u32) -> Option<u64> {
+    #[cfg(target_os = "macos")]
+    {
+        macos::resident(pid)
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        let _ = pid;
         None
     }
 }
@@ -185,6 +208,22 @@ mod macos {
         })
     }
 
+    pub(super) fn resident(pid: u32) -> Option<u64> {
+        let pid = libc::c_int::try_from(pid).ok()?;
+        // SAFETY: an all-zero `proc_taskinfo` is a valid value (plain
+        // integers).
+        let mut info: libc::proc_taskinfo = unsafe { std::mem::zeroed() };
+        let size = libc::c_int::try_from(std::mem::size_of::<libc::proc_taskinfo>()).ok()?;
+        // SAFETY: `info` is a live `proc_taskinfo` and the kernel is told
+        // its size, so it writes at most that much; it returns how many
+        // bytes it wrote (anything else: nothing usable). Nothing is kept
+        // past the call.
+        let wrote = unsafe {
+            libc::proc_pidinfo(pid, libc::PROC_PIDTASKINFO, 0, (&raw mut info).cast(), size)
+        };
+        (wrote == size).then_some(info.pti_resident_size)
+    }
+
     pub(super) fn list() -> Option<Vec<Listed>> {
         let bytes = records()?;
         let (records, rest) = bytes.as_chunks::<{ LAYOUT.size }>();
@@ -281,9 +320,35 @@ mod tests {
         assert!(super::list().unwrap().iter().all(|p| p.pid != pid));
     }
 
+    /// This process's resident memory is what `ps` says (within its
+    /// rounding and what moved between the two reads); a gone pid has none.
+    #[test]
+    #[cfg(target_os = "macos")]
+    fn this_process_resident_memory_is_as_ps_says() {
+        let ours = super::resident(std::process::id()).expect("our own task info");
+        let out = std::process::Command::new("/bin/ps")
+            .args(["-o", "rss=", "-p", &std::process::id().to_string()])
+            .output()
+            .unwrap();
+        let theirs: u64 = String::from_utf8_lossy(&out.stdout)
+            .trim()
+            .parse::<u64>()
+            .unwrap()
+            * 1024;
+        assert!(
+            ours.abs_diff(theirs) < theirs / 4 + 4 * 1024 * 1024,
+            "ours {ours}, ps {theirs}"
+        );
+        let mut child = std::process::Command::new("/usr/bin/true").spawn().unwrap();
+        let pid = child.id();
+        child.wait().unwrap();
+        assert_eq!(super::resident(pid), None, "gone");
+    }
+
     #[test]
     #[cfg(not(target_os = "macos"))]
     fn elsewhere_it_lists_nothing() {
         assert_eq!(super::list(), None);
+        assert_eq!(super::resident(1), None);
     }
 }
