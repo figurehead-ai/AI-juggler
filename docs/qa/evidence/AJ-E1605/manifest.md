@@ -2,10 +2,22 @@
 
 Task: `docs/tasks/E16-more-tools.md` AJ-E1605 (ZCode). Status:
 **IN-PROGRESS** — round 1 (R1, R2, R3, R7) and round 2 (R4, R5, R6's
-ZCode-to-pack half) evidenced on fixtures and stand-in programs; a pack into
-ZCode has no route in the engine (step 0: its terminal takes no first
-message); the live run on a spare account is the maintainer's (AJ-E1612).
-2026-11-13, reviewer claude-opus.
+ZCode-to-pack half) evidenced on fixtures and stand-in programs only.
+
+**Correction, 2026-11-13 (claude-opus, checked live in a throwaway home, no
+sign-in, no prompt):** the interactive launch rounds 1 and 2 built (`node
+<engine>` with no command, Interactive and Resume) **cannot run with the real
+engine**. First it fails "cannot locate the built-in provider config" (it
+needs `ZCODE_BUILTIN_PROVIDER_CONFIG_FILE`); with that set, under `node` and
+under ZCode's own Electron (`ELECTRON_RUN_AS_NODE=1`), it fails "Cannot find
+package '@zcode/tui'": ZCode.app doesn't ship the terminal UI (only the
+standalone build has it, and that isn't distributed). ZCode's desktop runs the
+engine only as `app-server --stdio`. So every row below that rests on a
+terminal launch (R2's launch and launch check, R3's resume, the stand-in
+launches) proves the adapter's logic on fixtures, not a working ZCode
+session. Round 3 moves ZCode to a driven runtime over its own app-server
+(research § E). The live run is AJ-E1612's, in a separate lab profile
+(D-107).
 
 ## Basis
 
