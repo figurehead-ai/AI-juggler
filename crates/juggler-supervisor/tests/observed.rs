@@ -95,6 +95,55 @@ fn a_tree_we_did_not_start_is_measured_without_touching_it() {
     assert!(!collector.observed_snapshot().contains_key(&root));
 }
 
+/// AJ-E805 (0.4.5, idle CPU; D-108): a listing reads the watched trees'
+/// processes, not every process on the Mac. It read all of them (about
+/// 850 on the reference Mac) every 4 s, arguments and all: a fifth of the
+/// app's idle CPU in the lab.
+#[cfg(target_os = "macos")]
+#[test]
+fn a_listing_reads_the_watched_trees_not_every_process() {
+    let mut child = std::process::Command::new("/bin/sh")
+        .args(["-c", "sleep 30 & sleep 30 & wait"])
+        .process_group(0)
+        .spawn()
+        .unwrap();
+    let root = child.id();
+    let mut reaper = fixtures::Reaper::default();
+    reaper.group(root);
+    let supervisor = Supervisor::new();
+    let mut collector = LiveStatsCollector::new();
+    collector.set_observed_roots(vec![ObservedRoot {
+        pid: root,
+        start_time: None,
+    }]);
+    let mut measured = false;
+    for tick in 0..20 {
+        collector.tick(&supervisor, i64::from(tick) * 2_000);
+        measured = collector
+            .observed_snapshot()
+            .get(&root)
+            .is_some_and(|tree| tree.stats.child_count >= 2);
+        if measured && collector.work().listings >= 2 {
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(100));
+    }
+    assert!(measured, "the tree is measured from the listing");
+    let work = collector.work();
+    let ps = std::process::Command::new("/bin/ps")
+        .args(["-ax", "-o", "pid="])
+        .output()
+        .unwrap();
+    let everyone = String::from_utf8_lossy(&ps.stdout).lines().count() as u64;
+    let per_listing = work.listed_read / work.listings.max(1);
+    assert!(
+        per_listing < 20 && everyone > 100,
+        "a listing read {per_listing} processes, the Mac runs {everyone}"
+    );
+    child.kill().unwrap();
+    child.wait().unwrap();
+}
+
 /// Review of #68: a helper of an observed tree is refreshed on EVERY tick,
 /// not only on full scans. `sysinfo` divides a process's CPU delta since
 /// its own last refresh by the time since the last refresh call, so a

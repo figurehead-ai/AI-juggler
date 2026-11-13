@@ -3150,6 +3150,7 @@ dependencies = [
  "juggler-adapter",
  "juggler-adapters",
  "juggler-core",
+ "juggler-proc-list",
  "juggler-vm-stats",
  "netstat2",
  "nix 0.31.3",

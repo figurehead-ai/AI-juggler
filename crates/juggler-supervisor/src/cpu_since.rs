@@ -53,6 +53,14 @@ impl CpuSince {
         }
     }
 
+    /// Forgets the processes `system` no longer holds (after a targeted
+    /// refresh dropped the ones gone).
+    pub fn forget_gone(&mut self, system: &sysinfo::System) {
+        let processes = system.processes();
+        self.seen
+            .retain(|pid, _| processes.contains_key(&sysinfo::Pid::from_u32(*pid)));
+    }
+
     /// Notes every process after a full refresh (`at`: just before it),
     /// and forgets the ones gone.
     pub fn note_all(&mut self, system: &sysinfo::System, at: Instant) {

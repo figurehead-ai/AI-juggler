@@ -18,6 +18,9 @@ portable-pty = "0.9.0"
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 sysinfo = { workspace = true }
+# D-108 (AJ-E805): the collector lists every process cheaply (a stub off
+# macOS: the table is read as before).
+juggler-proc-list = { version = "0.4.0", path = "../juggler-proc-list" }
 thiserror = { workspace = true }
 
 [dev-dependencies]
