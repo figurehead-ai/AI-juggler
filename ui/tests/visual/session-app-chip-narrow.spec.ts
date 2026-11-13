@@ -2,9 +2,10 @@
  * 0.4.1 (walk A3): a session page's App chip keeps the part that tells
  * Apps apart. At the minimum window (1024×680), folded, the chip sits on
  * the title's line; it read "Claude Code · …", the profile cut off. The
- * tool word gives way first ("… · Work Max", its mark beside), the title
- * truncates before the name does, and the chip's accessible name and
- * tooltip carry the App's full name. No captures: a layout check only.
+ * tool word gives way first, whole (0.4.4, D-100: "Work Max", its mark
+ * beside), the title truncates before the name does, and the chip's
+ * accessible name and tooltip carry the App's full name (D-100's CLI
+ * names). No captures: a layout check only.
  */
 import { expect, test, type Page } from "@playwright/test";
 import { allStatuses, expectRail, terminalDrawn } from "./fixtures";
@@ -64,8 +65,8 @@ for (const folded of [true, false]) {
     expect(name.width).toBeGreaterThan(20);
     expect(name.shown, "Work Max is cut off in the chip").toBeGreaterThanOrEqual(name.width - 0.5);
     // Its accessible name and tooltip: the App's full name.
-    await expect(page.getByRole("button", { name: "Open Claude Code · Work Max's page", exact: true })).toBeVisible();
-    await expect(page.getByTestId("session-app-page")).toHaveAttribute("title", /^Claude Code · Work Max\b/);
+    await expect(page.getByRole("button", { name: "Open Claude Code CLI · Work Max's page", exact: true })).toBeVisible();
+    await expect(page.getByTestId("session-app-page")).toHaveAttribute("title", /^Claude Code CLI · Work Max\b/);
   });
 }
 
