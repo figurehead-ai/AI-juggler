@@ -195,13 +195,14 @@
 **Research basis**: `antigravity.md`.
 **Handover note**: The maintainer pointed out (2026-10-21) that Muse, Cursor, Antigravity and Kiro all have subscriptions; the aim is subscription accounts wherever terms and isolation allow.
 
-### AJ-E1610 Desktop apps, track-only | Status: TODO | Priority P1 | Effort M | Depends: AJ-E413, AJ-E414
-**Goal**: Every AI desktop app on the Mac shows up in AI Juggler, so its windows can be found.
-**User story**: As a user with the Claude app, Cursor, Kiro IDE and Antigravity open, I see them in This Mac and the rail, and jump to the right window.
-**Requirements**:
-1. Detect, by bundle id: the Claude app, Cursor, Kiro IDE, Antigravity and Antigravity IDE, OpenCode desktop, Kimi Code desktop and Hermes.
-2. Track their windows and focus the right one (the existing desktop contract, AJ-E413–E415). Read their sessions only where they're stored in a documented place.
-3. Never launch them with altered accounts, and never touch their sign-in.
+### AJ-E1610 Desktop apps: open, keep alive, focus, and reply where a route exists | Status: TODO | Priority P1 | Effort M | Depends: AJ-E413, AJ-E414
+**Goal**: Every AI desktop app on the Mac shows up in AI Juggler as an App, opens, stays alive and comes into focus like every other App, and takes replies and shows its sessions wherever a sanctioned route exists (D-105, D-66, D-106).
+**User story**: As a user with the Claude app, Cursor, Kiro IDE and Antigravity open, I see them in This Mac and the rail, open or keep each one running, jump to the right window, and answer their sessions from AI Juggler where the app allows it.
+**Requirements** (rewritten 2026-11-13 against D-105, D-66 and D-106; "track-only" was the old default):
+1. Detect, by bundle id: the Claude app, Cursor, Kiro IDE, Antigravity and Antigravity IDE, OpenCode desktop, Kimi Code desktop and Hermes; each is an App (offered when seen running, added only by the user, D-84).
+2. Open, Keep alive and focus, as every App (D-105: opening, reopening and focusing are using the app, not wrapping it): the existing desktop contract (AJ-E413–E415) and Keep alive; a profile per account only where the app itself supports one (an Electron app's `--user-data-dir`, for example), found by requirement 3's pass; the sign-in is never read, copied or touched. Kiro, Cursor and Antigravity's apps get the same full support as their CLIs (D-105).
+3. Before anything is called track-only, an undocumented-route research pass per app (D-106's standing order), sourced in the research notes: where its sessions are stored, and any reply or read route — a local server, a URL scheme or deep link, IPC, an app-server or agent-server mode (as ZCode's engine has), an MCP or extension surface.
+4. Sessions read, and replies offered, through every route requirement 3 finds sound (D-66: any sanctioned way to reply into a desktop app's sessions, through its adapter, re-checked every release); where none is found, the app is track-only for that part, and its page says why in one line.
 **UI/UX reasoning**: The desktop path finally reaches users (ADR-0007's promise).
 **Performance budget**: within This Mac's tick budget.
 **Quality gates**: bundle-id fixtures; the read-only guardrail.

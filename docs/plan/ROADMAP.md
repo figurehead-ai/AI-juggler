@@ -120,7 +120,7 @@ under D-24.
 
 | Area | Tasks |
 |---|---|
-| ZCode, Kiro CLI, Hermes Agent, Muse, Cursor CLI, Antigravity on work plans; the desktop apps, track-only | AJ-E1605…AJ-E1610, AJ-E1613 |
+| ZCode, Kiro CLI, Hermes Agent, Muse, Cursor CLI, Antigravity (every plan, D-105); the desktop apps opened, kept alive and focused, with replies wherever a route exists (D-66) | AJ-E1605…AJ-E1610, AJ-E1613 |
 | Kimi Code's and Grok Build's usage finished | AJ-E1603, AJ-E1604 |
 | Every new tool checked live on spare accounts | AJ-E1612 |
 | The Claude Code plugin published | AJ-E1905 (waits on D-43 point 6) |

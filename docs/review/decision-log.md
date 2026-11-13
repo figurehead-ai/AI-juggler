@@ -3000,3 +3000,14 @@ Each ships with tests that fail without it and a design critique; the M2, D2 and
 - **Amends:** ADR-0015 (the rejected "third-party analytics SDK" does not cover crash reports); AJ-E1107 R5.
 - Sources: the coordinating session's relay of the maintainer's words, 2026-11-13.
 
+### D-109 A release's sign-off is the Stable approval on GitHub, recorded automatically; the old gate files are history — SETTLED (2026-11-13)
+
+**Ruling.** The maintainer, 2026-11-13, answering the coordinating session's option A: "A, go ahead". What was found first: none of the six gate files (M0, M1, M3, E5, E7, beta) is signed; `gate-beta.md` is four weeks stale (50 FAIL); MAINTAINER-STEPS Part 5 says the beta feed doesn't move until the beta gate is signed, which is false (no CI step runs `gate-signed`; 0.4.1 to 0.4.4 went to beta without it).
+
+- **The sign-off is the maintainer's GitHub approval of the `stable` environment** in the Promote workflow: GitHub records the reviewer, the date and the commit, which meets AJ-E807 R4.
+- **An automatic record:** on a stable promotion, the Promote workflow writes a sign-off record into the repository through its normal pull-request or merge route (never a force-push): the version, the commit, the date and the approving reviewer (read from the run's approval through the API), and the result of `release_scope.py check <version> --channel stable` with links to the evidence manifests. Proven with a dry-run or rehearsal mode that promotes nothing.
+- **The old gate files** (`docs/qa/gates/`) get a header note, replaced by D-109, and stay as history; `gate-packet` and `gate-signed` are retired or repointed at the new record.
+- **Docs:** MAINTAINER-STEPS Part 5 (and its false feed claim), QUALITY.md §8, EPICS' gate section and AJ-E807's text and evidence follow it. The maintainer's only step is the Stable click they already make.
+- **Amends:** AJ-E807 R4 and its per-milestone signing; MAINTAINER-STEPS Part 5.
+- Sources: the coordinating session's findings and relay of the maintainer's answer, 2026-11-13.
+
