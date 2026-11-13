@@ -13,7 +13,17 @@
 //! still loading, or never showing the sheet): a second ⌘Q or close
 //! while a request waits quits anyway, as macOS apps do; and the window
 //! acknowledges the request when its sheet is up — without that within
-//! [`ACK_WINDOW`], AI Juggler quits as if Quit anyway was chosen.
+//! [`ACK_WINDOW`] of the window showing, AI Juggler quits as if Quit
+//! anyway was chosen.
+//!
+//! D-111 (0.4.5): the ack window starts only once the main window shows
+//! (a request brings it forward). A request whose window never shows (a
+//! close pressed on a hidden window by something other than the person,
+//! an accessibility client, a script; a test's hidden launch) never quits
+//! by the timer: live sessions would end with nobody having seen the
+//! sheet (ADR-0003). It waits, logged; the sheet comes up when the window
+//! shows, and a second ⌘Q or close still quits. Every path is logged, so
+//! a quit nobody chose can be told apart afterwards.
 //! Logging out and shutting down never ask: macOS sends those as
 //! `terminate:`, past the menu, and nothing here prevents
 //! `RunEvent::ExitRequested`.
@@ -48,8 +58,13 @@ pub const EVENT_REPORT_BUG: &str = AppEvent::ReportBug.name();
 /// must not ask again.
 static QUITTING: AtomicBool = AtomicBool::new(false);
 
-/// How long the window has to show the sheet before the quit goes ahead.
+/// How long a shown window has to show the sheet before the quit goes
+/// ahead.
 pub const ACK_WINDOW: Duration = Duration::from_secs(3);
+
+/// How long a request waits for the main window to show (it brings it
+/// forward) before the ack window would start.
+pub const SHOW_WINDOW: Duration = Duration::from_secs(3);
 
 /// A quit request waiting on the sheet.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -64,6 +79,19 @@ struct Pending {
 pub struct QuitGate {
     pending: Option<Pending>,
     next_id: u64,
+}
+
+/// What the ack window's end does to a waiting request.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum AfterWait {
+    /// The window showed and its sheet never answered (it hung): quit as
+    /// if Quit anyway was chosen.
+    Quit,
+    /// The window never showed: nobody saw the sheet, so nothing quits;
+    /// the request keeps waiting (a second ⌘Q or close still quits).
+    Wait,
+    /// Answered, cancelled, or a later request: nothing to do.
+    Done,
 }
 
 /// What a request (⌘Q or close) does.
@@ -116,11 +144,23 @@ impl QuitGate {
         self.pending = None;
     }
 
-    /// [`ACK_WINDOW`] after request `id`: true when it should quit now
-    /// (still waiting, never acknowledged).
+    /// The ack window's end for request `id`, its window `shown` or not
+    /// (D-111): quit only when a shown window never answered.
     #[must_use]
-    pub fn timed_out(&self, id: u64) -> bool {
-        matches!(self.pending, Some(Pending { id: waiting, acknowledged: false }) if waiting == id)
+    pub fn after_ack_window(&self, id: u64, shown: bool) -> AfterWait {
+        match self.pending {
+            Some(Pending {
+                id: waiting,
+                acknowledged: false,
+            }) if waiting == id => {
+                if shown {
+                    AfterWait::Quit
+                } else {
+                    AfterWait::Wait
+                }
+            }
+            _ => AfterWait::Done,
+        }
     }
 }
 
@@ -138,6 +178,33 @@ fn gate() -> std::sync::MutexGuard<'static, QuitGate> {
 fn quit_now(app: &tauri::AppHandle) {
     QUITTING.store(true, Ordering::SeqCst);
     app.exit(0);
+}
+
+/// The main window is on screen: shown and not minimised (a hidden app's
+/// windows aren't visible).
+fn main_window_shown(app: &tauri::AppHandle) -> bool {
+    app.get_webview_window(crate::main_window::MAIN)
+        .is_some_and(|window| {
+            window.is_visible().unwrap_or(false) && !window.is_minimized().unwrap_or(true)
+        })
+}
+
+/// Waits up to [`SHOW_WINDOW`] for the main window to show; true once it
+/// has. A short bounded look (the window answers no event when shown by
+/// another app's hand).
+fn wait_until_shown(app: &tauri::AppHandle) -> bool {
+    let step = Duration::from_millis(100);
+    let mut waited = Duration::ZERO;
+    loop {
+        if main_window_shown(app) {
+            return true;
+        }
+        if waited >= SHOW_WINDOW {
+            return false;
+        }
+        std::thread::sleep(step);
+        waited += step;
+    }
 }
 
 /// The system's quit signals (TERM at log out, restart and shut down, or
@@ -404,22 +471,39 @@ pub fn request(app: &tauri::AppHandle) -> bool {
     }
     let state = app.state::<Arc<AppState>>();
     let plan = quit_plan_impl(state.inner());
+    let live = plan.live;
     let action = gate().request(plan);
     match action {
         RequestAction::Quit => {
+            tracing::info!(
+                live,
+                "quit requested: quitting now (nothing live, or asked twice)"
+            );
             quit_now(app);
             false
         }
         RequestAction::Ask { id, plan } => {
+            tracing::info!(live, "quit requested: asking first");
             crate::main_window::bring_forward(app);
             app.emit_event(AppEvent::QuitRequested, plan);
             let app = app.clone();
             std::thread::spawn(move || {
-                // One wait for the sheet's acknowledgement, not a poll.
-                std::thread::sleep(ACK_WINDOW);
-                let timed_out = gate().timed_out(id);
-                if timed_out {
-                    quit_now(&app);
+                // D-111: the ack window starts once the window shows.
+                let shown = wait_until_shown(&app);
+                if shown {
+                    std::thread::sleep(ACK_WINDOW);
+                }
+                match gate().after_ack_window(id, shown) {
+                    AfterWait::Quit => {
+                        tracing::warn!(
+                            "quit: the shown window never answered its sheet; quitting as if Quit anyway"
+                        );
+                        quit_now(&app);
+                    }
+                    AfterWait::Wait => tracing::warn!(
+                        "quit: the window didn't show, so nobody saw the sheet; nothing quits (a second Quit or close still quits)"
+                    ),
+                    AfterWait::Done => {}
                 }
             });
             true
@@ -611,33 +695,69 @@ mod tests {
         );
     }
 
-    /// Fallback (b): unacknowledged after the window, it quits; once the
-    /// sheet acknowledges, the timer leaves it to the person; a stale
-    /// timer never quits a later request.
+    /// Fallback (b): a shown window whose sheet never answered (a hung
+    /// webview) quits after the window; once the sheet acknowledges, the
+    /// timer leaves it to the person; a stale timer never quits a later
+    /// request.
     #[test]
-    fn an_unacknowledged_request_quits_after_the_window() {
+    fn a_shown_window_that_never_answers_quits_after_the_window() {
         let mut gate = QuitGate::default();
         let id = asked(gate.request(ONE));
-        assert!(gate.timed_out(id), "no sheet: quit as if Quit anyway");
+        assert_eq!(
+            gate.after_ack_window(id, true),
+            AfterWait::Quit,
+            "shown, no sheet: quit as if Quit anyway"
+        );
 
         let mut gate = QuitGate::default();
         let id = asked(gate.request(ONE));
         gate.acknowledge();
-        assert!(!gate.timed_out(id), "the sheet is up: the person decides");
+        assert_eq!(
+            gate.after_ack_window(id, true),
+            AfterWait::Done,
+            "the sheet is up: the person decides"
+        );
 
         let mut gate = QuitGate::default();
         let first = asked(gate.request(ONE));
         gate.cancel();
         let second = asked(gate.request(ONE));
-        assert!(
-            !gate.timed_out(first),
+        assert_eq!(
+            gate.after_ack_window(first, true),
+            AfterWait::Done,
             "the cancelled request's timer is stale"
         );
-        assert!(gate.timed_out(second));
+        assert_eq!(gate.after_ack_window(second, true), AfterWait::Quit);
         assert_eq!(
             QuitGate::default().request(QuitPlanInfo::default()),
             RequestAction::Quit,
             "nothing live"
+        );
+    }
+
+    /// D-111: a close pressed on a hidden window (by an accessibility
+    /// client, a script) with sessions live, its sheet never answered:
+    /// nothing quits, and the request still waits, so a second ⌘Q or
+    /// close quits as before.
+    #[test]
+    fn a_hidden_window_with_live_sessions_never_quits_unanswered() {
+        let mut gate = QuitGate::default();
+        let id = asked(gate.request(ONE));
+        assert_eq!(gate.after_ack_window(id, false), AfterWait::Wait);
+        assert_eq!(
+            gate.request(ONE),
+            RequestAction::Quit,
+            "a second request while it waits still quits"
+        );
+    }
+
+    /// D-111: with nothing live, a close or ⌘Q quits at once, shown or
+    /// hidden (the gate never asks the window).
+    #[test]
+    fn a_hidden_window_with_nothing_live_quits_at_once() {
+        assert_eq!(
+            QuitGate::default().request(plan_of(&[])),
+            RequestAction::Quit
         );
     }
 
