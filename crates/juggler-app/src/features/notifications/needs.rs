@@ -655,6 +655,79 @@ fn month_start(now: i64, offset_hours: i64) -> i64 {
     (day - dom) * 86_400_000 - offset
 }
 
+/// How long Needs you keeps AI Juggler's session rows while nothing they
+/// are made from has told of a change: the net under a time window that
+/// moved (an ended session leaving the working set) or a write that told
+/// no one.
+pub const ROWS_SWEEP_MS: i64 = 60_000;
+
+/// AI Juggler's session rows as Needs you last read them from storage,
+/// with where their sources stood then.
+#[derive(Clone, Debug)]
+pub struct KeptRows {
+    events: crate::features::relations::Snapshot,
+    stored: Option<juggler_core::storage::StoredStamps>,
+    at_ms: i64,
+    pub(super) rows: Vec<InstanceInfo>,
+}
+
+impl KeptRows {
+    /// Whether nothing they are made from moved since (the sessions, their
+    /// Accounts and launch settings, the projects: the change stamps and
+    /// the database's own) and the sweep isn't due.
+    fn fresh(
+        &self,
+        events: &crate::features::relations::Snapshot,
+        stored: Option<&juggler_core::storage::StoredStamps>,
+        now: i64,
+    ) -> bool {
+        use crate::features::relations::Source;
+        now - self.at_ms < ROWS_SWEEP_MS
+            && stored.is_some_and(|stored| Some(stored) == self.stored.as_ref())
+            && !crate::features::relations::stamps::moved(
+                &[Source::Sessions, Source::Folders, Source::Projects],
+                &self.events,
+                events,
+            )
+    }
+}
+
+/// AI Juggler's sessions as Needs you reads them (D-49): their rows are read
+/// from storage again only when a change was told of the sessions, their
+/// Accounts or the projects ([`KeptRows::fresh`]), or every
+/// [`ROWS_SWEEP_MS`]; what moves on its own (titles, the tools' runtime
+/// words, subagent counts, resume refusals) is joined fresh every time.
+/// AJ-E805 (round 4): the whole read ran every 5 s, 3 ms with nothing
+/// changed, the largest part of Needs you's CPU.
+pub fn session_rows(state: &Arc<AppState>, now: i64) -> Vec<InstanceInfo> {
+    let events = state.relations.snapshot();
+    let stored = crate::features::relations::stored_now(state).ok();
+    let read = || {
+        let records = crate::features::sessions::read_model::working_records(
+            &*crate::commands::lock_storage_arc(state).ok()?,
+        )
+        .ok()?;
+        // Needs you reads no resource figure: no live stats.
+        let rows = crate::features::sessions::list::stored_rows(
+            state,
+            records,
+            &crate::features::sessions::read_model::LiveStatsMap::new(),
+        )
+        .ok()?;
+        Some(KeptRows {
+            events,
+            stored,
+            at_ms: now,
+            rows,
+        })
+    };
+    state
+        .notifier
+        .session_rows(|kept| kept.fresh(&events, stored.as_ref(), now), read)
+        .and_then(|rows| crate::features::sessions::list::joined(state, rows).ok())
+        .unwrap_or_default()
+}
+
 /// Reads the sources now (the storage lock is held only to read).
 fn read_sources(state: &Arc<AppState>, now: i64) -> NeedSources {
     let clock = state.notifier.clock();
@@ -662,8 +735,7 @@ fn read_sources(state: &Arc<AppState>, now: i64) -> NeedSources {
     let through_app = crate::features::places::handoff::folders_signed_in_through_apps(state);
     let mut sources = NeedSources {
         through_app,
-        sessions: crate::features::sessions::list::instances_shared_snapshot(state)
-            .unwrap_or_default(),
+        sessions: session_rows(state, now),
         conversations: crate::features::conversations::commands::working_impl(state, now)
             .unwrap_or_default(),
         accounts: state.notifier.sign_ins(now, SIGN_INS_FRESH_MS, || {
