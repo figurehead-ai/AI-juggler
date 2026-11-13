@@ -4878,6 +4878,9 @@ for (const theme of THEMES) {
       await expect(page.getByTestId("rail-identity").first()).toBeVisible();
       await openRailSession(page, "sess-8"); // a Work Max session's identity line
       await expect(page.getByTestId("instance-identity")).toBeVisible();
+      // D-100 (0.4.4): beside P3's longer ended time, the App's name stays whole (it was "· W").
+      await expect(page.getByTestId("session-app-short")).toHaveText("Work Max");
+      expect(await page.getByTestId("session-app-short").evaluate((name) => name.scrollWidth <= name.clientWidth)).toBe(true);
       await page.screenshot({ path: resolve(GALLERY, `51-identity/rail-and-chip-${vp.name}-${theme}.png`) });
       // AJ-E1533: relaunch an ended Work Max session from its page header.
       await page.locator('[data-instance-id="sess-6"]').first().click(); // finished

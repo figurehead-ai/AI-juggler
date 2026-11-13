@@ -4,13 +4,14 @@
  * the chips (its state, its Account menu), where it runs, and Go to it.
  * One set for every kind of session.
  */
-import { useEffect, type JSX } from "react";
+import { useEffect, useRef, type JSX } from "react";
 import { Button, type ChipTone } from "../../components/primitives";
 import { ProfileBadge, markPlace } from "../../components/PlaceMarks";
 import { AppIconTile } from "../../components/AppIcon";
 import { IconGoTo } from "../../components/icons-actions";
 import { ToolMark } from "../../components/ToolMark";
-import { ago, agoWords, pastWhen } from "../../lib/time-words";
+import { ago, agoWords, pastDay, pastWhen } from "../../lib/time-words";
+import { useGiveWay } from "../../components/use-give-way";
 import type { SubscriptionInfo } from "../../lib/subscriptions";
 import { AccountMenu, sessionAppMark } from "./AccountMenu";
 import { appWords, INACTIVE_WHERE, type SessionModel } from "./model";
@@ -93,22 +94,44 @@ export function SessionChips({ model, account, now }: { model: SessionModel; acc
   // One of AI Juggler's that ended: when, in the chip ("Ended 02:03"),
   // the one place the page says it (the 0.4 review, 46); with its day
   // once it isn't today's ("Finished Thu 4:22 PM", P3).
-  const ended = !model.live && !model.opening && !model.inactive && model.sessionId !== null && model.state.since !== null ? ` ${pastWhen(model.state.since, now)}` : "";
+  const endedAt = !model.live && !model.opening && !model.inactive && model.sessionId !== null && !model.state.asks && model.state.tone !== "accent" ? model.state.since : null;
+  // D-100 (0.4.4): where the row is short, the time gives way first, to
+  // its day ("yesterday"), then the App's tool word, then the time, then
+  // why it ended; the App's name last (it was cut to "· W" at 1280 px).
+  // What's left out stays read, and on hover.
+  const state = useRef<HTMLSpanElement | null>(null);
+  useGiveWay(state);
+  const ended = endedAt === null ? null : pastWhen(endedAt, now);
+  const day = endedAt === null ? null : pastDay(endedAt, now);
+  const shorter = day !== ended;
   return (
     <>
       <span
+        ref={state}
         data-testid="session-state-chip"
         data-tone={model.state.tone}
+        title={ended === null ? undefined : `${model.state.words} ${ended}`}
         className={"inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-2.5 py-0.5 text-meta font-semibold leading-5 " + TONES[model.state.tone]}
       >
         {model.live && <span aria-hidden="true" className={"size-2 rounded-full bg-current " + (model.state.working ? "motion-safe:animate-pulse" : "")} />}
-        {model.state.words}
-        {model.state.asks || model.state.tone === "accent" ? since : ended}
+        <span>
+          {model.state.words}
+          {model.state.asks || model.state.tone === "accent" ? since : null}
+          {ended !== null && (
+            <span data-give-at={shorter ? 1 : 3} data-testid="session-ended-at" className="data-gone:sr-only">
+              {` ${ended}`}
+            </span>
+          )}
+          {/* Its day alone, drawn, not read (the words above are). */}
+          {ended !== null && shorter && (
+            <span aria-hidden="true" data-give-from="1" data-give-at="3" data-day={` ${day}`} data-testid="session-ended-day" className="before:content-[attr(data-day)] data-gone:hidden" />
+          )}
+        </span>
       </span>
       {/* rc30: why it ended, beside how ("Ended with AI Juggler" read
           alone, its reason nowhere). */}
       {model.endedWhy && (
-        <span data-testid="session-ended-why" className="min-w-0 truncate text-meta text-ink-2" title={model.endedWhy}>
+        <span data-testid="session-ended-why" data-give-at="4" className="min-w-0 truncate text-meta text-ink-2 data-gone:sr-only" title={model.endedWhy}>
           {model.endedWhy}
         </span>
       )}

@@ -6,7 +6,7 @@
  * `resetsWords`: the system's own clock, today / tomorrow / the weekday.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { clock, dateWords, pastWhen, resetsLead, resetsWords, sessionWhen, whenWords } from "./time-words";
+import { clock, dateWords, pastDay, pastWhen, resetsLead, resetsWords, sessionWhen, whenWords } from "./time-words";
 import { outOfRoomConsequence, outOfRoomWords } from "./room";
 import { resetWords, windowView } from "./quotaWindow";
 import { windowDisplay } from "./wire";
@@ -88,6 +88,15 @@ describe("a time gone by, by its day (P3: \"Finished 4:22 PM\" on one that ended
   });
   it("over a day old, never the time alone", () => {
     for (const at of [YESTERDAY, MONDAY, LAST_MONTH, LAST_YEAR]) expect(pastWhen(at, NOW)).not.toBe(clock(at));
+  });
+  it("where room is short, its day alone (today its time): the header's state chip gives way to it (0.4.4)", () => {
+    expect(pastDay(new Date(2026, 9, 28, 9, 5).getTime(), NOW)).toBe(time(new Date(2026, 9, 28, 9, 5).getTime()));
+    expect(pastDay(YESTERDAY, NOW)).toBe("yesterday");
+    expect(pastDay(MONDAY, NOW)).toBe(weekday(MONDAY));
+    expect(pastDay(LAST_MONTH, NOW)).toBe(new Date(LAST_MONTH).toLocaleDateString([], { month: "short", day: "numeric" }));
+    expect(pastDay(LAST_YEAR, NOW)).toContain("2025");
+    // The same day as the full form says, its clock left out.
+    for (const at of [YESTERDAY, MONDAY, LAST_MONTH, LAST_YEAR]) expect(pastWhen(at, NOW)).toContain(pastDay(at, NOW));
   });
 });
 
