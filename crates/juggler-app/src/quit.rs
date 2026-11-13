@@ -177,7 +177,7 @@ fn gate() -> std::sync::MutexGuard<'static, QuitGate> {
         .unwrap_or_else(std::sync::PoisonError::into_inner)
 }
 
-fn quit_now(app: &tauri::AppHandle) {
+fn quit_now<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
     QUITTING.store(true, Ordering::SeqCst);
     app.exit(0);
 }
@@ -185,7 +185,7 @@ fn quit_now(app: &tauri::AppHandle) {
 /// Waits up to [`SHOW_WINDOW`] for the main window to show; true once it
 /// has. A short bounded look (the window answers no event when shown by
 /// another app's hand).
-fn wait_until_shown(app: &tauri::AppHandle) -> bool {
+fn wait_until_shown<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> bool {
     let step = Duration::from_millis(100);
     let mut waited = Duration::ZERO;
     loop {
@@ -512,10 +512,10 @@ pub fn close_hides() -> bool {
     leaving(Leave::Close, quitting(), &mut gate(), QuitPlanInfo::default) == Leaving::Hide
 }
 
-/// ⌘Q: quit now, or ask the window. Returns true when the request was
-/// turned into a question.
+/// ⌘Q or the menu-bar item's Quit: quit now, or ask the window. Returns
+/// true when the request was turned into a question.
 #[must_use]
-pub fn request(app: &tauri::AppHandle) -> bool {
+pub fn request<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> bool {
     if quitting() {
         return false;
     }
@@ -576,6 +576,13 @@ pub async fn app_quit_cancel() {
     gate().cancel();
 }
 
+/// The Quit item's words, in the app menu and the menu-bar item's menu:
+/// "Quit" and this edition's name.
+#[must_use]
+pub fn quit_words() -> String {
+    format!("Quit {}", crate::edition::current().app_name())
+}
+
 /// The app menu with its Quit item asking first (the rest is Tauri's
 /// default menu).
 ///
@@ -585,13 +592,7 @@ pub async fn app_quit_cancel() {
 pub fn app_menu(app: &tauri::AppHandle) -> tauri::Result<tauri::menu::Menu<tauri::Wry>> {
     use tauri::menu::{Menu, MenuItem, MenuItemKind};
     let menu = Menu::default(app)?;
-    let quit = MenuItem::with_id(
-        app,
-        QUIT_MENU_ID,
-        format!("Quit {}", crate::edition::current().app_name()),
-        true,
-        Some("CmdOrCtrl+Q"),
-    )?;
+    let quit = MenuItem::with_id(app, QUIT_MENU_ID, quit_words(), true, Some("CmdOrCtrl+Q"))?;
     // ADR-0026: Window › The Floor (⌘⇧M, which also brings the main
     // window back from the Floor).
     let floor = MenuItem::with_id(
