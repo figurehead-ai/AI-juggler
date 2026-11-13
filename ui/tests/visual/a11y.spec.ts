@@ -2425,7 +2425,7 @@ for (const theme of ["dark", "light"] as const) {
     );
     const sheet = page.getByRole("dialog", { name: "Quit AI Juggler?" });
     await expect(sheet).toBeVisible();
-    await expect(page.getByTestId("quit-anyway")).toBeFocused();
+    await expect(page.getByTestId("quit-cancel")).toBeFocused(); // D-113: the safe choice is the default
     // Tab stays inside the sheet.
     for (let i = 0; i < 6; i += 1) await page.keyboard.press("Tab");
     expect(await sheet.evaluate((node) => node.contains(document.activeElement))).toBe(true);

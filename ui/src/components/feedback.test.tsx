@@ -287,7 +287,8 @@ describe("AJ-E1503 quit warning", () => {
     });
     expect(screen.getByTestId("quit-running").textContent).toBe("3 sessions are running.");
     expect(screen.getByRole("dialog", { name: "Quit AI Juggler?" })).toBeTruthy();
-    expect(document.activeElement).toBe(screen.getByTestId("quit-anyway"));
+    // D-113: Cancel is the default; a stray Return never ends sessions.
+    expect(document.activeElement).toBe(screen.getByTestId("quit-cancel"));
     // Shown: acknowledged (else Rust quits after 3 s); nothing quit yet.
     await waitFor(() => expect(seams().__AIJ_QUIT_CALLS__).toEqual(["ack"]));
     await act(async () => {

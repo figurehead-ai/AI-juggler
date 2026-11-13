@@ -131,13 +131,16 @@ export function QuitSheet(): JSX.Element | null {
         )}
         {error && <p className="text-warning">{error}</p>}
         <div className="flex flex-wrap justify-end gap-2">
-          <Button size="sm" variant="ghost" disabled={busy !== null} onClick={cancel}>
+          {/* 0.4.5 (D-113): Cancel is the default. The Dock's Quit and a
+              script's quit bring this sheet up too, so a stray Return must
+              never end sessions (a destructive choice is never the default). */}
+          <Button size="sm" variant="ghost" disabled={busy !== null} onClick={cancel} data-autofocus data-testid="quit-cancel">
             Cancel
           </Button>
           <Button size="sm" variant="secondary" disabled={busy !== null} onClick={() => void quit(true)} data-testid="quit-stop-first">
             {one ? "Stop it first" : "Stop them first"}
           </Button>
-          <Button size="sm" variant="primary" disabled={busy !== null} onClick={() => void quit(false)} data-autofocus data-testid="quit-anyway">
+          <Button size="sm" variant="primary" disabled={busy !== null} onClick={() => void quit(false)} data-testid="quit-anyway">
             Quit anyway
           </Button>
         </div>
