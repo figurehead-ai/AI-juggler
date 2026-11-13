@@ -46,15 +46,18 @@ export function MachineStatusLine({ minimal, onOpen, short = false }: { minimal:
   // label-content-name-mismatch).
   const spoken = shown === words ? undefined : `${name} · ${shown}`;
   const dot = status ? status.dot : "bg-faint";
+  // The level, by which the dot breathes when it changes, then rests
+  // (styles.css).
+  const breath = status?.level ?? "unsampled";
   if (minimal) {
     return (
-      <div className="flex justify-center py-2" title={words} data-testid="machine-status-dot" data-level={status?.level ?? "unsampled"}>
+      <div className="flex justify-center py-2" title={words} data-testid="machine-status-dot" data-level={breath}>
         {onOpen ? (
           <button type="button" onClick={onOpen} aria-label={words} className="flex size-6 items-center justify-center rounded-md outline-none hover:bg-surface/60 focus-visible:ring-1 focus-visible:ring-accent/60">
-            <span aria-hidden="true" className={`dot-live size-1.5 rounded-full ${dot}`} />
+            <span key={breath} aria-hidden="true" className={`dot-live size-1.5 rounded-full ${dot}`} />
           </button>
         ) : (
-          <span className={`dot-live size-1.5 rounded-full ${dot}`} aria-label={words} role="img" />
+          <span key={breath} className={`dot-live size-1.5 rounded-full ${dot}`} aria-label={words} role="img" />
         )}
       </div>
     );
@@ -64,7 +67,7 @@ export function MachineStatusLine({ minimal, onOpen, short = false }: { minimal:
       {/* whose room it is: the computer's, not an Account's (AJ-E3514: "Plenty
           of room" beside "1 account low" read as a contradiction) */}
       <IconComputer aria-hidden="true" className="size-3.5 shrink-0" />
-      <span aria-hidden="true" className={`dot-live size-2 shrink-0 rounded-full ${dot}`} />
+      <span key={breath} aria-hidden="true" className={`dot-live size-2 shrink-0 rounded-full ${dot}`} />
       {/* The readability bar: meta 13 px, in ink at 80 % (7:1 or better). */}
       {/* In the top bar (short) a bar too narrow for its words keeps the
           dot alone, its words in the title and spoken name: cut, it read
@@ -73,11 +76,11 @@ export function MachineStatusLine({ minimal, onOpen, short = false }: { minimal:
     </>
   );
   return onOpen ? (
-    <button type="button" onClick={onOpen} title={why ?? (shown !== words || short ? words : undefined)} aria-label={spoken} className="flex min-h-6 min-w-0 shrink items-center gap-2 rounded-md text-left text-muted outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60" data-testid="machine-status" data-level={status?.level ?? "unsampled"}>
+    <button type="button" onClick={onOpen} title={why ?? (shown !== words || short ? words : undefined)} aria-label={spoken} className="flex min-h-6 min-w-0 shrink items-center gap-2 rounded-md text-left text-muted outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60" data-testid="machine-status" data-level={breath}>
       {line}
     </button>
   ) : (
-    <span className="flex min-w-0 shrink items-center gap-2 text-muted" title={why} data-testid="machine-status" data-level={status?.level ?? "unsampled"}>
+    <span className="flex min-w-0 shrink items-center gap-2 text-muted" title={why} data-testid="machine-status" data-level={breath}>
       {line}
     </span>
   );

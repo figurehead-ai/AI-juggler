@@ -93,7 +93,7 @@ export function LastMessages({
         <h3 className="min-w-0 max-w-full truncate text-section font-semibold text-ink">{title}</h3>
         {following && (
           <span className="inline-flex items-center gap-1.5 text-label font-medium text-live" data-testid="last-messages-live" title="Following along while it runs">
-            <span aria-hidden="true" className="size-1.5 rounded-full bg-current motion-safe:animate-pulse" />
+            <span aria-hidden="true" className="dot-live size-1.5 rounded-full bg-current" />
             Live
           </span>
         )}
