@@ -709,19 +709,24 @@ fn ingest_claude(
         }
     }
     if let Some(instances) = instances {
+        // The look back is made from a walk (it needs every transcript);
+        // a pass of named files only leaves it for the next one.
+        let walked = named.is_none();
         let records = &mut ingest
             .offsets
             .entry(account.to_owned())
             .or_default()
             .records;
         let now_ms = juggler_core::model::Timestamp::now().millis();
-        crate::features::quota::records::look_back_for_hits(
-            (account, spent),
-            &files,
-            now_ms,
-            records,
-            samples,
-        );
+        if walked {
+            crate::features::quota::records::look_back_for_hits(
+                (account, spent),
+                &files,
+                now_ms,
+                records,
+                samples,
+            );
+        }
         crate::features::quota::records::read_claude_records(
             account, dir, instances, records, samples,
         );

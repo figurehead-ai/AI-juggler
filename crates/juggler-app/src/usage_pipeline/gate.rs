@@ -29,9 +29,12 @@
 //! A pass that only file events asked for reads only the files they named
 //! ([`Gate::named`]: AJ-E805's follow-up, with sessions at work it walked
 //! every transcript of every account every second; on the grown lab, 4,800
-//! of them, the backend's largest cost under load). A pass on the records'
-//! cadence, after a lost track, or where events can't be heard walks
-//! everything, as before.
+//! of them, the backend's largest cost under load). Round 3: the records'
+//! cadence no longer walks them either (it listed every transcript every
+//! 15 s, about 0.3 % of a core at 4,800): a pass walks everything first,
+//! after an ask, a lost track or a change of the accounts watched, and on
+//! the [`SWEEP_EVERY`] sweep (a write whose event never came is read
+//! within it), and where events can't be heard, as before.
 
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
@@ -42,6 +45,11 @@ use juggler_adapters::folder_wake::{FolderWake, Heard};
 
 use super::{FILE_SCAN_EVERY, ZCODE_EVERY};
 use crate::state::AppState;
+
+/// How often (passes, a second each) a pass walks every transcript and
+/// rollout although no event asked: the bound for a write whose event
+/// never came (5 min, as the conversation list's sweep).
+pub(crate) const SWEEP_EVERY: u32 = 300;
 
 /// Asked for a pass at the next second (an account's folder moved).
 static SOON: AtomicBool = AtomicBool::new(false);
@@ -103,6 +111,8 @@ pub(crate) struct Gate {
     stores_probed: bool,
     /// The files the events named, for a pass only they asked for.
     named: Option<BTreeSet<PathBuf>>,
+    /// The accounts watched changed: the next pass walks everything.
+    walk_next: bool,
 }
 
 impl Gate {
@@ -116,6 +126,7 @@ impl Gate {
             roots: BTreeSet::new(),
             stores_probed: false,
             named: None,
+            walk_next: true,
         }
     }
 
@@ -133,7 +144,10 @@ impl Gate {
         if due.is_some_and(|due| due.stores) {
             self.stores_probed = true;
         }
-        self.named = named(records || soon, &heard, &self.roots);
+        // A change of the accounts watched is walked at the next pass that runs.
+        let reads_files = due.is_some_and(|due| due.claude || due.codex);
+        let asked = soon || (reads_files && std::mem::take(&mut self.walk_next));
+        self.named = named(walks(tick, asked), &heard, &self.roots);
         due
     }
 
@@ -165,6 +179,7 @@ impl Gate {
             .collect();
         if roots != self.roots {
             self.stores_probed = false;
+            self.walk_next = true;
             self.wake
                 .watch(&roots.iter().map(|(real, _)| real.clone()).collect());
             self.roots = roots;
@@ -172,9 +187,16 @@ impl Gate {
     }
 }
 
+/// Whether the pass at `tick` walks every file (pure): the first, one
+/// `asked` (an ask, or the accounts watched changed) and the sweep's.
+/// Claude's records' cadence reads the records alone.
+fn walks(tick: u32, asked: bool) -> bool {
+    asked || tick <= 1 || tick.is_multiple_of(SWEEP_EVERY)
+}
+
 /// The files a pass reads when only the events `heard` asked for it:
-/// theirs alone, as the accounts spell them; `None` (walk everything) on
-/// the records' cadence or an ask (`walk`), or after a lost track.
+/// theirs alone, as the accounts spell them; `None` (walk everything) when
+/// the pass walks ([`walks`]), or after a lost track.
 fn named(
     walk: bool,
     heard: &Heard,
@@ -222,6 +244,19 @@ mod tests {
 
     use super::*;
     use crate::features::quota::records::RECORDS_EVERY;
+
+    /// Round 3 (AJ-E805): the records' cadence reads the records alone;
+    /// every transcript is walked first, when asked, and every 5 min (the
+    /// records' cadence walked every one every 15 s).
+    #[test]
+    fn the_records_cadence_walks_nothing_and_the_sweep_walks_everything() {
+        let walked: Vec<u32> = (1..=SWEEP_EVERY * 2)
+            .filter(|tick| walks(*tick, false))
+            .collect();
+        assert_eq!(walked, vec![1, SWEEP_EVERY, SWEEP_EVERY * 2]);
+        assert!(!walks(RECORDS_EVERY, false), "the records' own pass");
+        assert!(walks(RECORDS_EVERY + 1, true), "an ask, or new accounts");
+    }
 
     /// The idle rule: with nothing written and no store read by time, a
     /// pass runs on the records' cadence only (it ran every second,
@@ -278,7 +313,7 @@ mod tests {
                 "/tmp/lab/.claude/projects/p/a.jsonl"
             )]))
         );
-        assert_eq!(named(true, &heard, &roots), None, "the records' cadence");
+        assert_eq!(named(true, &heard, &roots), None, "a walk");
         let lost = Heard {
             lost: true,
             ..Heard::default()
