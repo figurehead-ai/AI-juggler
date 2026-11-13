@@ -506,6 +506,10 @@ fn live_import() {
         .stdin(std::process::Stdio::piped())
         .stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::null());
+    // Its own process group, as the supervisor spawns every tool: the
+    // engine starts plugin hosts (its bundled official plugins) that can
+    // outlive it, and the whole group is reaped below.
+    std::os::unix::process::CommandExt::process_group(&mut command, 0);
     for (key, value) in &spec.launch.env {
         if value == juggler_adapter::launch::ENV_UNSET {
             command.env_remove(key);
@@ -543,6 +547,35 @@ fn live_import() {
         let _ = child.wait();
     }
     println!("server ended by itself: {ended}");
+    // Reap the rest of its group (the engine's plugin hosts, its bundled
+    // official plugins, are in it), then nothing of the group may remain.
+    let pgid = child.id().to_string();
+    let group = format!("-{pgid}");
+    let _ = std::process::Command::new("/bin/kill")
+        .args(["-TERM", "--", &group])
+        .status();
+    // poll: a bounded wait (5 s) for the group to go.
+    let mut left = String::new();
+    for _ in 0..50 {
+        let out = std::process::Command::new("/usr/bin/pgrep")
+            .args(["-g", &pgid])
+            .output()
+            .unwrap();
+        left = String::from_utf8_lossy(&out.stdout).trim().to_owned();
+        if left.is_empty() {
+            break;
+        }
+        std::thread::sleep(Duration::from_millis(100));
+    }
+    if !left.is_empty() {
+        let _ = std::process::Command::new("/bin/kill")
+            .args(["-KILL", "--", &group])
+            .status();
+    }
+    assert!(
+        left.is_empty(),
+        "the engine's process group outlived the run: {left}"
+    );
     assert_eq!(opened.unwrap().as_deref(), Some(id.as_str()));
 
     // The store, read immutable: the session, its two messages and parts.
