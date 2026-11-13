@@ -2,7 +2,9 @@
 //! D-93) is credited to the Account it happened on, by the move journal.
 //! A move renames the conversation's history into the target's folder,
 //! whole; read there, a hit from before the move made the target read as
-//! out of room the moment the user moved to it to carry on.
+//! out of room the moment the user moved to it to carry on. And (D-103.10)
+//! the hits an earlier version stored on the wrong Account go back, once,
+//! at start. Every test runs on a throwaway data folder.
 
 #![allow(
     clippy::unwrap_used,
@@ -19,8 +21,11 @@ use std::sync::Arc;
 use juggler_adapter::AdapterRegistry;
 use juggler_adapter::moving::{MovePlan, MoveRequest, MoveSide, MoveStep, NotesChoice};
 use juggler_adapters::{CLAUDE_CODE_ID, ClaudeCodeAdapter};
+use juggler_app::features::handover::moved_lines::Moves;
+use juggler_app::features::quota::past_hits::{self, Outcome, RECORD_KEY};
 use juggler_app::state::AppState;
 use juggler_app::usage_pipeline;
+use juggler_core::quota::UsageSource;
 use juggler_handover::moving::{FORMAT, Manifest, Phase, VERSION};
 
 const MIN: i64 = 60_000;
@@ -46,6 +51,15 @@ fn iso(ms: i64) -> String {
     let mo = if mp < 10 { mp + 3 } else { mp - 9 };
     let y = yoe + era * 400 + i64::from(mo <= 2);
     format!("{y:04}-{mo:02}-{d:02}T{h:02}:{m:02}:{s:02}Z")
+}
+
+/// The app on the data folder `data`, as it starts.
+fn start(data: &Path) -> Arc<AppState> {
+    let mut registry = AdapterRegistry::new();
+    registry.register(Arc::new(
+        ClaudeCodeAdapter::with_bin("/bin/true").with_overlays_root(data.join("overlays")),
+    ));
+    Arc::new(AppState::init_with_registry(data.to_path_buf(), registry).unwrap())
 }
 
 /// A Claude profile used where it is, signed in as `subject`.
@@ -155,12 +169,7 @@ fn five_hour(state: &Arc<AppState>, id: &str) -> Option<(String, Option<i64>)> {
 #[test]
 fn a_hit_before_a_move_is_the_accounts_it_moved_from() {
     let dir = tempfile::tempdir().unwrap();
-    let data = dir.path().join("app-data");
-    let mut registry = AdapterRegistry::new();
-    registry.register(Arc::new(
-        ClaudeCodeAdapter::with_bin("/bin/true").with_overlays_root(data.join("overlays")),
-    ));
-    let state = Arc::new(AppState::init_with_registry(data, registry).unwrap());
+    let state = start(&dir.path().join("app-data"));
     let (work, work_dir) = profile(&state, dir.path(), "work", "acct-w");
     let (side, side_dir) = profile(&state, dir.path(), "side", "acct-s");
     let from = work_dir.join("projects/-w-p/s-1.jsonl");
@@ -204,12 +213,7 @@ fn a_hit_before_a_move_is_the_accounts_it_moved_from() {
 #[test]
 fn an_undone_or_unapplied_move_leaves_a_hit_where_it_is_read() {
     let dir = tempfile::tempdir().unwrap();
-    let data = dir.path().join("app-data");
-    let mut registry = AdapterRegistry::new();
-    registry.register(Arc::new(
-        ClaudeCodeAdapter::with_bin("/bin/true").with_overlays_root(data.join("overlays")),
-    ));
-    let state = Arc::new(AppState::init_with_registry(data, registry).unwrap());
+    let state = start(&dir.path().join("app-data"));
     let (work, work_dir) = profile(&state, dir.path(), "work", "acct-w");
     let (side, side_dir) = profile(&state, dir.path(), "side", "acct-s");
     let from = work_dir.join("projects/-w-p/s-1.jsonl");
@@ -240,5 +244,201 @@ fn an_undone_or_unapplied_move_leaves_a_hit_where_it_is_read() {
     assert_ne!(
         five_hour(&state, &work).map(|(state, _)| state).as_deref(),
         Some("exhausted")
+    );
+}
+
+/// As a version before 0.4.4 stored them: every hit in `file` on
+/// `account`, the one whose folder it was read in.
+fn stored_where_read(state: &Arc<AppState>, account: &str, file: &Path) {
+    let hits: Vec<_> = juggler_adapters::claude_limits::limit_hits_in(file)
+        .into_iter()
+        .map(|(kind, hit)| (account.to_owned(), kind, hit, UsageSource::ApiRetry))
+        .collect();
+    let storage = state.storage.lock().unwrap();
+    storage.usage().insert_sourced_samples(&hits).unwrap();
+}
+
+/// The Accounts holding each hit in `file`, in its order.
+fn holders(state: &Arc<AppState>, file: &Path) -> Vec<Vec<String>> {
+    let storage = state.storage.lock().unwrap();
+    juggler_adapters::claude_limits::limit_hits_in(file)
+        .iter()
+        .map(|(kind, hit)| storage.usage().limit_hit_holders(*kind, hit).unwrap())
+        .collect()
+}
+
+fn give_back(state: &Arc<AppState>) -> Outcome {
+    let storage = state.storage.lock().unwrap();
+    past_hits::give_back(&storage, &Moves::read(state), &state.registry).unwrap()
+}
+
+/// A stored reading, whole: its Account, window and instant, the span it
+/// held and its source.
+type Reading = (String, String, i64, Option<i64>, Option<String>);
+
+/// Every stored reading.
+fn readings(state: &Arc<AppState>) -> Vec<Reading> {
+    let storage = state.storage.lock().unwrap();
+    let mut stmt = storage
+        .raw_conn()
+        .prepare(
+            "SELECT q.account, q.window, q.ts, q.last_seen, s.source FROM quota_samples q
+             LEFT JOIN quota_sample_sources s
+               ON s.account = q.account AND s.window = q.window AND s.ts = q.ts
+             ORDER BY 1, 2, 3",
+        )
+        .unwrap();
+    stmt.query_map([], |row| {
+        Ok((
+            row.get(0)?,
+            row.get(1)?,
+            row.get(2)?,
+            row.get(3)?,
+            row.get(4)?,
+        ))
+    })
+    .unwrap()
+    .map(Result::unwrap)
+    .collect()
+}
+
+#[test]
+fn past_hits_go_back_to_the_account_they_happened_on_and_again_changes_nothing() {
+    let dir = tempfile::tempdir().unwrap();
+    let state = start(&dir.path().join("app-data"));
+    let (work, work_dir) = profile(&state, dir.path(), "work", "acct-w");
+    let (side, side_dir) = profile(&state, dir.path(), "side", "acct-s");
+    let from = work_dir.join("projects/-w-p/s-1.jsonl");
+    let to = side_dir.join("projects/-w-p/s-1.jsonl");
+    journal(
+        &state,
+        "m-1",
+        [(&work, &work_dir), (&side, &side_dir)],
+        (&from, &to),
+        now() - 10 * MIN,
+        Phase::Committed,
+    );
+    // The moved conversation: Work's hit from before the move, and Side's
+    // own after it. Another of Side's, never moved, with its own hit.
+    let work_reset = (now() + 2 * HOUR) / 1000 * 1000;
+    let side_reset = (now() + 3 * HOUR) / 1000 * 1000;
+    std::fs::write(
+        &to,
+        [
+            hit(now() - 30 * MIN, work_reset),
+            hit(now() - 5 * MIN, side_reset),
+        ]
+        .join("\n")
+            + "\n",
+    )
+    .unwrap();
+    let other = side_dir.join("projects/-w-p/s-2.jsonl");
+    std::fs::write(&other, hit(now() - 40 * MIN, side_reset) + "\n").unwrap();
+    // As 0.4.3 stored them: all three Side's.
+    stored_where_read(&state, &side, &to);
+    stored_where_read(&state, &side, &other);
+    assert_eq!(holders(&state, &to), [[side.as_str()], [side.as_str()]]);
+
+    let outcome = give_back(&state);
+    assert_eq!(
+        outcome,
+        Outcome {
+            wrong_before: 1,
+            moved: 1,
+            left: 1,
+            ..Outcome::default()
+        }
+    );
+    assert_eq!(
+        holders(&state, &to),
+        [[work.as_str()], [side.as_str()]],
+        "Work's hit is Work's"
+    );
+    assert_eq!(
+        holders(&state, &other),
+        [[side.as_str()]],
+        "not moved: it stays"
+    );
+    assert_eq!(
+        five_hour(&state, &work),
+        Some(("exhausted".to_owned(), Some(work_reset)))
+    );
+
+    // Again: it finds nothing held wrongly and changes nothing.
+    let after = readings(&state);
+    assert_eq!(
+        give_back(&state),
+        Outcome {
+            left: 2,
+            ..Outcome::default()
+        }
+    );
+    assert_eq!(readings(&state), after);
+    // At start it runs once: this data's first start ran it and kept it.
+    let storage = state.storage.lock().unwrap();
+    assert!(storage.app_settings().get(RECORD_KEY).unwrap().is_some());
+    assert_eq!(
+        past_hits::once_at_start(&storage, &state.data_dir, &state.registry),
+        None
+    );
+}
+
+#[test]
+fn at_start_a_hit_whose_account_is_gone_is_no_ones_and_the_counts_are_kept() {
+    let dir = tempfile::tempdir().unwrap();
+    let data = dir.path().join("app-data");
+    let state = start(&data);
+    let (side, side_dir) = profile(&state, dir.path(), "side", "acct-s");
+    // The journal names an Account that is no longer there.
+    let gone_dir = dir.path().join("ClaudeCodeProfiles/gone");
+    let from = gone_dir.join("projects/-w-p/s-1.jsonl");
+    let to = side_dir.join("projects/-w-p/s-1.jsonl");
+    journal(
+        &state,
+        "m-1",
+        [("acct-gone", &gone_dir), (&side, &side_dir)],
+        (&from, &to),
+        now() - 10 * MIN,
+        Phase::Committed,
+    );
+    let reset = (now() + 2 * HOUR) / 1000 * 1000;
+    std::fs::write(&to, hit(now() - 30 * MIN, reset) + "\n").unwrap();
+    stored_where_read(&state, &side, &to);
+    assert_eq!(
+        five_hour(&state, &side),
+        Some(("exhausted".to_owned(), Some(reset)))
+    );
+    // A 0.4.3 database, opened by 0.4.4: nothing kept yet.
+    state
+        .storage
+        .lock()
+        .unwrap()
+        .app_settings()
+        .set(RECORD_KEY, "")
+        .unwrap();
+    drop(state);
+
+    let state = start(&data);
+    assert_eq!(holders(&state, &to), [Vec::<String>::new()], "never Side's");
+    assert_ne!(
+        five_hour(&state, &side).map(|(state, _)| state).as_deref(),
+        Some("exhausted"),
+        "Side has room"
+    );
+    let kept = state
+        .storage
+        .lock()
+        .unwrap()
+        .app_settings()
+        .get(RECORD_KEY)
+        .unwrap()
+        .unwrap();
+    assert_eq!(
+        serde_json::from_str::<Outcome>(&kept).unwrap(),
+        Outcome {
+            wrong_before: 1,
+            cleared: 1,
+            ..Outcome::default()
+        }
     );
 }

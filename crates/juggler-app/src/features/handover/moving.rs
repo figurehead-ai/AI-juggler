@@ -261,7 +261,7 @@ impl MoveSystem for Real {
     }
 }
 
-pub(crate) fn moves_dir(state: &Arc<AppState>) -> PathBuf {
+fn moves_dir(state: &Arc<AppState>) -> PathBuf {
     state.data_dir.join(juggler_handover::moving::FOLDER)
 }
 

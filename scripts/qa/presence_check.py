@@ -19,7 +19,10 @@ App unfolds to, its session counts or its Out mark disagree with the apps'
 own records and the Accounts' readings, or a lab run wrote into a real
 profile's folder (`presence_sessions.py`); (D-102) when the Codex app's and
 Codex CLI's counts aren't the Codex store's listed threads. Run it with the rail grouped by
-App, Open now unfolded and every App in it unfolded.
+App, Open now unfolded and every App in it unfolded. 0.4.4 (D-103.10): it
+prints what the one-time pass that gives past limit hits back to the
+Account each happened on counted, and fails when hits stay on the wrong
+Account after it.
 
     python3 scripts/qa/presence_check.py --pid <Dev build pid> [--home DIR] [--data DIR] [--record FILE] [--since YYYY-MM-DD]
 
@@ -34,6 +37,7 @@ too) aren't the lab's.
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import re
 import sqlite3
@@ -166,6 +170,32 @@ def rail(pid: int) -> tuple[list[str], list[str], str, dict[str, int], list[pres
     return open_now, inactive, inactive_words, counts, drawn
 
 
+PAST_HITS_KEY = "limits.past_hits_given_back"
+PAST_HITS = "  limit hits given back (D-103.10): "
+
+
+def past_hits(db: sqlite3.Connection) -> tuple[str, int]:
+    """D-103.10: the counts the build kept when it gave limit hits an
+    earlier version credited to the wrong Account back to the one each
+    happened on (once, at its first start), and how many stayed wrong."""
+    try:
+        row = db.execute("select value from app_settings where key = ?", (PAST_HITS_KEY,)).fetchone()
+    except sqlite3.Error:
+        row = None
+    if not row:
+        return PAST_HITS + "not run on this data yet (a build before 0.4.4)", 0
+    try:
+        c = json.loads(row[0])
+        words = (
+            f"{c['wrong_before']} on the wrong Account before, {c['wrong_after']} after; "
+            f"{c['moved']} moved, {c['cleared']} cleared (their Account is gone), "
+            f"{c['left']} left where they happened"
+        )
+        return PAST_HITS + words, int(c["wrong_after"])
+    except (ValueError, KeyError, TypeError):
+        return PAST_HITS + "its record can't be read", 0
+
+
 def recorded(lines, running, want_open, shown_open, inactive, counts, names) -> str:
     """The report as written into the repository, which is public: it
     names no App, no profile, no path and no address (each App is
@@ -177,7 +207,7 @@ def recorded(lines, running, want_open, shown_open, inactive, counts, names) -> 
         f"your running Apps: {len(want_open)}",
         f"Open now shows: {len(shown_open)} desktop App(s), counted {counts.get('open', '?')}",
         f"Inactive apps shows: {len(inactive)} named on screen",
-    ] + [line for line in lines if line.startswith(("FAIL", "PASS", "(", "  open: ", "  idle: ", "  codex store: "))]
+    ] + [line for line in lines if line.startswith(("FAIL", "PASS", "(", "  open: ", "  idle: ", "  codex store: ", PAST_HITS))]
     return anonymize("\n".join(out), names) + "\n"
 
 
@@ -191,6 +221,16 @@ def selftest() -> int:
     for leaked in ("jane" + "doe", "janecorp", "b-jane"):
         assert leaked not in text, f"{leaked!r} reached the record:\n{text}"
     assert "App 1" in text, text
+    # D-103.10: the past-hits line reaches the record, and a hit still on
+    # the wrong Account after the pass is a failure.
+    db = sqlite3.connect(":memory:")
+    assert past_hits(db) == (PAST_HITS + "not run on this data yet (a build before 0.4.4)", 0)
+    db.execute("create table app_settings (key text primary key, value text)")
+    counts = {"wrong_before": 3, "moved": 2, "cleared": 1, "left": 4, "wrong_after": 0}
+    db.execute("insert into app_settings values (?, ?)", (PAST_HITS_KEY, json.dumps(counts)))
+    line, wrong = past_hits(db)
+    assert wrong == 0 and "3 on the wrong Account before, 0 after; 2 moved, 1 cleared" in line, line
+    assert line in recorded([line], running, {app}, set(), [], {}, [app]), "kept in the record"
     # On a lab, only the lab's processes run for the build (AJ-E3306).
     lab = Path("/tmp/aij-lab-z1")
     rows = [
@@ -279,8 +319,12 @@ def main() -> int:
     )
     lines += ["each App as drawn:", *shown]
     problems += more
+    hits_line, hits_wrong = past_hits(db)
+    lines.append(hits_line)
+    if hits_wrong:
+        problems.append(f"{hits_wrong} limit hit(s) still on an Account they didn't happen on after the one-time pass (D-103.10)")
     lines += [f"FAIL {p}" for p in problems] or [
-        "PASS Open now is exactly your running Apps; none is in two sections; each unfolds to its own records; every Out Account marked; no lab run in a real profile; Codex counts are the store's listed threads"
+        "PASS Open now is exactly your running Apps; none is in two sections; each unfolds to its own records; every Out Account marked; no lab run in a real profile; Codex counts are the store's listed threads; no past limit hit left on the wrong Account"
     ]
     report = "\n".join(lines)
     print(report)

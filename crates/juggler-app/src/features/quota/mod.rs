@@ -9,6 +9,7 @@
 pub mod alert_words;
 pub mod capture;
 pub mod commands;
+pub mod past_hits;
 pub mod probe;
 pub(crate) mod records;
 pub mod sources;
