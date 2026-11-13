@@ -35,6 +35,11 @@ pub fn conversation_files(state_dir: &Path) -> Vec<PathBuf> {
 /// messages this one (its own route between sessions): never the user's.
 const SESSION_MESSAGE: &str = "Another Claude session sent a message:";
 
+/// What Claude Code writes as a user turn when you stop it mid-answer
+/// ("[Request interrupted by user]", "… for tool use]"): not something
+/// asked, and `claude --resume` never lists a session by it.
+const INTERRUPTED: &str = "[Request interrupted by user";
+
 /// A user message's first text, whoever wrote it.
 fn first_text(message: &serde_json::Value) -> Option<&str> {
     match message.get("content")? {
@@ -50,10 +55,22 @@ fn first_text(message: &serde_json::Value) -> Option<&str> {
 
 /// A user message's title: from its plain string, or its first text block
 /// that has one ([`prompt_title`]: never AI Juggler's words, never an
-/// image note). Tool results, the CLI's own command echoes (a tag) and a
-/// message from another session aren't the user asking anything.
+/// image note). Tool results, the CLI's own command echoes and slash
+/// commands (a tag: `<command-name>`, `<local-command-stdout>`,
+/// `<local-command-caveat>`, `<system-reminder>`, `<bash-input>`), an
+/// interruption and a message from another session aren't the user
+/// asking anything: as `claude --resume` picks a session's first prompt.
 fn ask_title(message: &serde_json::Value) -> Option<String> {
     let content = message.get("content")?;
+    // A turn that carries a tool's output is the tool's, whatever text
+    // rides along.
+    if let serde_json::Value::Array(blocks) = content
+        && blocks.iter().any(|block| {
+            block.get("type").and_then(serde_json::Value::as_str) == Some("tool_result")
+        })
+    {
+        return None;
+    }
     let texts: Vec<&str> = match content {
         serde_json::Value::String(text) => vec![text.as_str()],
         serde_json::Value::Array(blocks) => blocks
@@ -65,7 +82,10 @@ fn ask_title(message: &serde_json::Value) -> Option<String> {
     };
     texts.into_iter().find_map(|text| {
         let trimmed = text.trim_start();
-        if trimmed.starts_with('<') || trimmed.starts_with(SESSION_MESSAGE) {
+        if trimmed.starts_with('<')
+            || trimmed.starts_with(SESSION_MESSAGE)
+            || trimmed.starts_with(INTERRUPTED)
+        {
             return None;
         }
         prompt_title(text, TITLE_MAX)
@@ -136,10 +156,58 @@ fn note_entrypoint(summary: &mut ConversationSummary, seen: &mut bool, entry: Op
     }
 }
 
+/// Whether a user line is Claude Code's own, not the user's: a note it
+/// adds (`isMeta`: a skill's instructions, "Caveat: …", "Your response
+/// was cut off…") or the summary a compacted session goes on from
+/// (`isCompactSummary`: "This session is being continued from a previous
+/// conversation…"). `claude --resume` skips both for a first prompt.
+fn tools_own(value: &serde_json::Value) -> bool {
+    ["isMeta", "isCompactSummary"]
+        .iter()
+        .any(|key| value.get(key).and_then(serde_json::Value::as_bool) == Some(true))
+}
+
+/// The names Claude Code keeps for a session, the latest of each: what
+/// `claude --resume` and the Claude app list it by, before its first
+/// prompt (0.4.5, Claude Code 2.1: `custom-title` is `/rename` or the
+/// Claude app's name for it, `ai-title` one it made; `summary` is an
+/// older version's).
+#[derive(Default)]
+struct ToolTitles {
+    custom: Option<String>,
+    ai: Option<String>,
+    summary: Option<String>,
+}
+
+impl ToolTitles {
+    /// Takes a line's title, when it is one; `true` when it was.
+    fn take(&mut self, kind: Option<&str>, value: &serde_json::Value) -> bool {
+        let (slot, key) = match kind {
+            Some("custom-title") => (&mut self.custom, "customTitle"),
+            Some("ai-title") => (&mut self.ai, "aiTitle"),
+            Some("summary") => (&mut self.summary, "summary"),
+            _ => return false,
+        };
+        if let Some(title) = value
+            .get(key)
+            .and_then(serde_json::Value::as_str)
+            .and_then(|text| prompt_title(text, TITLE_MAX))
+        {
+            *slot = Some(title);
+        }
+        true
+    }
+
+    /// The one `claude --resume` shows first.
+    fn best(self) -> Option<String> {
+        self.custom.or(self.ai).or(self.summary)
+    }
+}
+
 /// What a transcript's lines (all, or its two ends) say.
 fn summary_of(lines_in: impl Iterator<Item = String>, path: &Path) -> Option<ConversationSummary> {
     let mut summary = ConversationSummary::default();
-    let mut tool_title: Option<String> = None;
+    let mut tool_titles = ToolTitles::default();
     let mut first_ask: Option<String> = None;
     let mut opening: Option<String> = None;
     let mut usage: HashMap<String, TokenCounts> = HashMap::new();
@@ -152,8 +220,7 @@ fn summary_of(lines_in: impl Iterator<Item = String>, path: &Path) -> Option<Con
         };
         lines += 1;
         let str_of = |key: &str| value.get(key).and_then(serde_json::Value::as_str);
-        if str_of("type") == Some("summary") {
-            tool_title = str_of("summary").and_then(|text| prompt_title(text, TITLE_MAX));
+        if tool_titles.take(str_of("type"), &value) {
             continue;
         }
         if summary.id.is_empty()
@@ -186,7 +253,9 @@ fn summary_of(lines_in: impl Iterator<Item = String>, path: &Path) -> Option<Con
                 if opening.is_none() {
                     opening = first_text(message).and_then(|text| title_from(text, TITLE_MAX));
                 }
-                first_ask = ask_title(message);
+                if !tools_own(&value) {
+                    first_ask = ask_title(message);
+                }
             }
             Some("assistant") => {
                 if let Some(counts) = message.get("usage").map(counts_of) {
@@ -223,7 +292,7 @@ fn summary_of(lines_in: impl Iterator<Item = String>, path: &Path) -> Option<Con
     if summary.id.is_empty() {
         summary.id = path.file_stem()?.to_string_lossy().into_owned();
     }
-    summary.title = tool_title.or(first_ask);
+    summary.title = tool_titles.best().or(first_ask);
     summary.opening = opening;
     for counts in usage.values() {
         summary.tokens.input += counts.input;
@@ -418,6 +487,127 @@ mod tests {
             read_conversation(&path).unwrap().title.as_deref(),
             Some("Add pagination")
         );
+    }
+
+    /// 0.4.5: an untitled session is named by its first prompt as
+    /// `claude --resume` lists it: Claude Code's own notes (a skill's
+    /// instructions, a caveat, a compacted session's summary), slash
+    /// commands and their output, an interruption and a tool's output are
+    /// skipped (the real transcripts: "This session is being continued…"
+    /// and "Base directory for this skill…" named sessions before).
+    #[test]
+    fn the_first_prompt_is_the_one_claude_resume_lists() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = write(
+            dir.path(),
+            "projects/-w/p.jsonl",
+            &[
+                r#"{"type":"user","sessionId":"s","isMeta":true,"message":{"role":"user","content":"Caveat: The messages below were generated by the user while running local commands."}}"#,
+                r#"{"type":"user","sessionId":"s","message":{"role":"user","content":"<command-name>/model</command-name>\n<command-message>model</command-message>\n<command-args>opus</command-args>"}}"#,
+                r#"{"type":"user","sessionId":"s","message":{"role":"user","content":"<local-command-stdout>Set model to opus</local-command-stdout>"}}"#,
+                r#"{"type":"user","sessionId":"s","isCompactSummary":true,"message":{"role":"user","content":"This session is being continued from a previous conversation that ran out of context."}}"#,
+                r#"{"type":"user","sessionId":"s","isMeta":true,"message":{"role":"user","content":[{"type":"text","text":"Base directory for this skill: /w/.claude/skills/x"}]}}"#,
+                r#"{"type":"user","sessionId":"s","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"t1","content":"ok"},{"type":"text","text":"a note the tool's turn carries"}]}}"#,
+                r#"{"type":"user","sessionId":"s","message":{"role":"user","content":[{"type":"text","text":"[Request interrupted by user for tool use]"}]}}"#,
+                r#"{"type":"user","sessionId":"s","message":{"role":"user","content":"Make   the cart total\nround to cents"}}"#,
+                r#"{"type":"user","sessionId":"s","message":{"role":"user","content":"and then ship it"}}"#,
+            ],
+        );
+        let summary = read_conversation(&path).unwrap();
+        assert_eq!(summary.title.as_deref(), Some("Make the cart total"));
+        // How it opens is still its first message, whoever wrote it.
+        assert!(
+            summary
+                .opening
+                .as_deref()
+                .is_some_and(|opening| opening.starts_with("Caveat: ")),
+            "{:?}",
+            summary.opening
+        );
+        // Only commands and a tool's output: no first prompt, its facts
+        // name it.
+        let none = write(
+            dir.path(),
+            "projects/-w/q.jsonl",
+            &[
+                r#"{"type":"user","sessionId":"q","message":{"role":"user","content":"<command-name>/clear</command-name>"}}"#,
+                r#"{"type":"user","sessionId":"q","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"t1","content":"done"}]}}"#,
+            ],
+        );
+        assert_eq!(read_conversation(&none).unwrap().title, None);
+        // A long one is one line, cut.
+        let long = write(
+            dir.path(),
+            "projects/-w/r.jsonl",
+            &[&format!(
+                r#"{{"type":"user","sessionId":"r","message":{{"role":"user","content":"{}"}}}}"#,
+                "Migrate every billing webhook handler to the new queue ".repeat(3)
+            )],
+        );
+        let title = read_conversation(&long).unwrap().title.unwrap();
+        assert!(
+            title.chars().count() <= TITLE_MAX + 1 && title.ends_with('…'),
+            "{title}"
+        );
+        assert_eq!(
+            juggler_core::naming::short_name(
+                None,
+                Some(&title),
+                None,
+                &juggler_core::naming::Facts::default()
+            ),
+            "Migrate every billing webhook handler to the new queue…"
+        );
+        // A bare path or a pasted key is no prompt to name it by: the next
+        // one is.
+        let pasted = write(
+            dir.path(),
+            "projects/-w/t.jsonl",
+            &[
+                r#"{"type":"user","sessionId":"t","message":{"role":"user","content":"/Users/you/Downloads/brief.md"}}"#,
+                r#"{"type":"user","sessionId":"t","message":{"role":"user","content":"Summarise the brief"}}"#,
+            ],
+        );
+        assert_eq!(
+            read_conversation(&pasted).unwrap().title.as_deref(),
+            Some("Summarise the brief")
+        );
+    }
+
+    /// 0.4.5: the name Claude Code keeps for a session (`/rename`, or the
+    /// Claude app's own; else one it made) is its title, as `claude
+    /// --resume` and the app list it: Claude Code 2.1 writes no `summary`
+    /// lines.
+    #[test]
+    fn the_name_claude_code_keeps_titles_it_the_latest_first() {
+        let dir = tempfile::tempdir().unwrap();
+        let ask = r#"{"type":"user","sessionId":"s","message":{"role":"user","content":"why does login fail?"}}"#;
+        let ai = r#"{"type":"ai-title","sessionId":"s","aiTitle":"Login failure on Safari"}"#;
+        let custom = |name: &str| {
+            format!(r#"{{"type":"custom-title","sessionId":"s","customTitle":"{name}"}}"#)
+        };
+        let (first, renamed) = (
+            custom("Billing move: first"),
+            custom("Billing move: rehearsal"),
+        );
+        let title = |name: &str, lines: &[&str]| {
+            read_conversation(&write(
+                dir.path(),
+                &format!("projects/-w/{name}.jsonl"),
+                lines,
+            ))
+            .unwrap()
+            .title
+        };
+        assert_eq!(
+            title("a", &[ask, ai, &first, &renamed]).as_deref(),
+            Some("Billing move: rehearsal")
+        );
+        assert_eq!(
+            title("b", &[ask, ai]).as_deref(),
+            Some("Login failure on Safari")
+        );
+        assert_eq!(title("c", &[ask]).as_deref(), Some("why does login fail?"));
     }
 
     #[test]

@@ -522,6 +522,65 @@ mod tests {
         );
     }
 
+    /// 0.4.5: an untitled thread is named by its first prompt, as `codex
+    /// resume` lists it: past the context Codex injects, one line, never
+    /// a pasted key or a bare path (the next prompt names it then), and
+    /// none at all when there's no prompt.
+    #[test]
+    fn a_rollout_is_named_by_its_first_prompt() {
+        let dir = tempfile::tempdir().unwrap();
+        let meta = r#"{"timestamp":"2026-11-13T08:00:00.000Z","type":"session_meta","payload":{"id":"019a7c11-2b3c-7d4e-8f5a-6b7c8d9e0f1a","cwd":"/w/shop","originator":"codex_cli_rs","source":"cli"}}"#;
+        let user = |text: &str| {
+            format!(
+                r#"{{"timestamp":"2026-11-13T08:00:01.000Z","type":"response_item","payload":{{"type":"message","role":"user","content":[{{"type":"input_text","text":{}}}]}}}}"#,
+                serde_json::Value::from(text)
+            )
+        };
+        let rollout = |name: &str, lines: &[String]| {
+            let path = dir.path().join(format!(
+                "rollout-2026-11-13T08-00-00-019a7c11-2b3c-7d4e-8f5a-6b7c8d9e0f1a-{name}.jsonl"
+            ));
+            let mut all = vec![meta.to_owned()];
+            all.extend_from_slice(lines);
+            std::fs::write(&path, all.join("\n")).unwrap();
+            read_conversation(&path).unwrap()
+        };
+        let context = user("<environment_context>\n  <cwd>/w/shop</cwd>\n</environment_context>");
+        let named = rollout(
+            "a",
+            &[
+                user("# AGENTS.md instructions for /w/shop"),
+                context.clone(),
+                user("/Users/you/Downloads/cart.csv"),
+                user("Round   the cart total\nto cents, then run the tests"),
+            ],
+        );
+        assert_eq!(named.title.as_deref(), Some("Round the cart total"));
+        assert_eq!(
+            juggler_core::naming::short_name(
+                None,
+                named.title.as_deref(),
+                None,
+                &juggler_core::naming::Facts::default()
+            ),
+            "Round the cart total"
+        );
+        let unnamed = rollout("b", &[context, user("sk-test-0123456789abcdefXYZ")]);
+        assert_eq!(unnamed.title, None);
+        assert_eq!(
+            juggler_core::naming::short_name(
+                None,
+                unnamed.title.as_deref(),
+                None,
+                &juggler_core::naming::Facts {
+                    folder: Some("shop"),
+                    started: Some("started 8:00 AM")
+                }
+            ),
+            "shop · started 8:00 AM"
+        );
+    }
+
     /// The 0.1.5 review: a Codex app thread was titled with the block the
     /// app injects (`<external_codex_apps_…>`).
     #[test]

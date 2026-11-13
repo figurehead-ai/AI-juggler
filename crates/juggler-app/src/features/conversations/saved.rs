@@ -229,7 +229,9 @@ mod tests {
             now, before,
             "a reader's new version invalidates the saved index"
         );
-        for (tool, version) in [("claude-code", 4), ("codex", 3)] {
+        // 0.4.5: a first prompt titles an untitled one (claude-code 5,
+        // codex 4), so every saved summary is read again once.
+        for (tool, version) in [("claude-code", 5), ("codex", 4)] {
             let adapter = state
                 .registry
                 .get(&juggler_core::HarnessId::new(tool))

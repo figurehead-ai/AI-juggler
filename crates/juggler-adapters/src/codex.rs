@@ -867,9 +867,11 @@ impl ToolTranscripts for CodexAdapter {
         crate::codex_conversations::read_conversation(path)
     }
     /// 2: who started it (`started_in`, ADR-0032 amendment 6, 0.4.2); 3: a
-    /// script's run (`by_script`, `codex exec`: 0.4.3, D-102).
+    /// script's run (`by_script`, `codex exec`: 0.4.3, D-102); 4: a title
+    /// from its first prompt is one line, never a pasted key or a bare
+    /// path (0.4.5).
     fn conversation_reader_version(&self) -> u32 {
-        3
+        4
     }
     fn read_conversation_quick(
         &self,
