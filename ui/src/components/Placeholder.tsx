@@ -7,7 +7,7 @@
  */
 import type { JSX } from "react";
 
-export type PlaceholderShape = "rail" | "home" | "card" | "need";
+export type PlaceholderShape = "rail" | "home" | "card";
 
 function Bar({ className }: { className: string }): JSX.Element {
   return <span className={`block rounded bg-skeleton ${className}`} />;
@@ -54,28 +54,7 @@ function CardRow({ index }: { index: number }): JSX.Element {
   );
 }
 
-/** D-103.6: Home's Needs you with its first need, as large: its mark, its
- * title, why and what it asks, then its buttons. */
-function NeedRow(): JSX.Element {
-  return (
-    <div className="flex flex-col gap-3 rounded-xl border border-hairline bg-surface p-4">
-      <span className="flex items-start gap-3">
-        <span className="size-8 shrink-0 rounded-lg bg-skeleton" />
-        <span className="flex min-w-0 flex-1 flex-col gap-2 py-1">
-          <Bar className="h-3.5 w-1/2" />
-          <Bar className="h-2.5 w-2/3" />
-          <Bar className="h-2.5 w-2/5" />
-        </span>
-      </span>
-      <span className="flex items-center gap-2">
-        <Bar className="h-7 w-32 rounded-lg" />
-        <Bar className="h-7 w-44 rounded-lg" />
-      </span>
-    </div>
-  );
-}
-
-const ROWS: Record<PlaceholderShape, (props: { index: number }) => JSX.Element> = { rail: RailRow, home: HomeRow, card: CardRow, need: NeedRow };
+const ROWS: Record<PlaceholderShape, (props: { index: number }) => JSX.Element> = { rail: RailRow, home: HomeRow, card: CardRow };
 
 /** `rows` placeholders of one shape, announced once as loading. */
 export function RowPlaceholders({
@@ -103,5 +82,54 @@ export function RowPlaceholders({
         </div>
       ))}
     </div>
+  );
+}
+
+/** A text line's box (`1lh` of its type), so a placeholder line is as
+ * tall as the line it stands in for. */
+function Line({ text, className }: { text: string; className: string }): JSX.Element {
+  return (
+    <span className={`flex h-[1lh] items-center ${text}`}>
+      <Bar className={className} />
+    </span>
+  );
+}
+
+/** D-103.6: Home's Needs you while it loads, as large as the card: its
+ * first need (mark, title, why, what it asks; its buttons), the rest one
+ * line each. `height`: the card's last height, so the same needs arriving
+ * move nothing. */
+export function NeedsPlaceholder({ rows, height, label }: { rows: number; height: number | null; label: string }): JSX.Element {
+  return (
+    <output aria-label={label} aria-busy="true" data-testid="placeholder-need" data-rows={rows} className="flex flex-col motion-safe:animate-pulse">
+      <div aria-hidden="true" className="flex flex-col gap-3 overflow-hidden rounded-xl border border-hairline bg-surface p-4" style={height ? { height } : undefined}>
+        <span className="flex items-start gap-3">
+          <span className="size-8 shrink-0 rounded-lg bg-skeleton" />
+          <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+            <Line text="text-section" className="h-3.5 w-1/2" />
+            <Line text="text-xs" className="h-2.5 w-2/3" />
+            <Line text="text-meta" className="h-2.5 w-2/5" />
+          </span>
+        </span>
+        <span className="flex items-center gap-2">
+          <Bar className="h-7 w-32 rounded-lg" />
+          <Bar className="h-7 w-44 rounded-lg" />
+        </span>
+        {rows > 1 && (
+          <span className="flex flex-col border-t border-hairline/60 pt-1">
+            {Array.from({ length: rows - 1 }, (_, index) => (
+              <span key={index} className="flex items-center gap-2.5 py-2">
+                <span className="size-6 shrink-0 rounded-md bg-skeleton" />
+                <span className="flex min-w-0 flex-1 flex-col">
+                  <Line text="text-meta" className={`h-2.5 ${index % 2 === 0 ? "w-1/3" : "w-2/5"}`} />
+                  <Line text="text-label" className="h-2 w-2/3" />
+                </span>
+                <Bar className="h-7 w-24 rounded-lg" />
+              </span>
+            ))}
+          </span>
+        )}
+      </div>
+    </output>
   );
 }

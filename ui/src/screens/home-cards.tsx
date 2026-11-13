@@ -12,7 +12,8 @@ import { HomeNext } from "../components/HomeNext";
 import { HomeRunway } from "../components/HomeRunway";
 import { MorningSummary } from "../components/MorningSummary";
 import { ProjectMark } from "../components/ProjectMark";
-import { RowPlaceholders } from "../components/Placeholder";
+import { HomeNeedsPlace } from "../components/HomeNeedsPlace";
+import { fewNeedsNow } from "../lib/needs-place";
 import { SectionTitle } from "../components/SectionTitle";
 import { SmootherCard } from "../components/SmootherCard";
 import { showToast } from "../components/Toast";
@@ -51,7 +52,6 @@ export interface HomeCardContext {
   quota: QuotaDisplayData[];
   quotaKnown: boolean;
   ledgerDegraded: boolean;
-  fewNeeds: boolean;
   /** D-103.6: the needs have loaded (until then Needs you holds its place). */
   needsKnown: boolean;
   /** "Pick up where you left off", drawn by Home (it holds its state). */
@@ -123,12 +123,10 @@ const HOME_CARDS: readonly HomeCard[] = [
   {
     id: "needs",
     area: "left",
-    // D-103.6: its skeleton until the needs load, gone when there are none,
-    // so nothing under it moves when they arrive.
-    render: (ctx) =>
-      !ctx.needsKnown ? (
-        <RowPlaceholders shape="need" rows={1} label="Loading what needs you" />
-      ) : needsCount(ctx) > 0 && (
+    // D-103.6: its skeleton, sized from the last look, until the needs
+    // load; gone when there are none: nothing under it moves when they arrive.
+    render: (ctx) => (
+      <HomeNeedsPlace known={ctx.needsKnown} rows={needsCount(ctx)}>
         <HomeNeeds
           needs={ctx.allNeeds}
           now={ctx.now}
@@ -146,12 +144,14 @@ const HOME_CARDS: readonly HomeCard[] = [
           {ctx.signingIn && <p className="text-meta text-ink-2" role="status">Finish signing in in the terminal that opened; this clears by itself when you're done.{ctx.signInError ? ` ${ctx.signInError}` : ""}</p>}
           <CapNeedItems caps={ctx.capNeeds.caps} accounts={ctx.accounts} projects={ctx.projects} onSeen={ctx.capNeeds.reload} />
         </HomeNeeds>
-      ),
+      </HomeNeedsPlace>
+    ),
   },
   { id: "parked", area: "left", render: (ctx) => ctx.parked.length > 0 && <ParkedCard ctx={ctx} /> },
   { id: "runway", area: "right", render: (ctx) => <HomeRunway accounts={ctx.accounts} quota={ctx.quota} quotaKnown={ctx.quotaKnown} sessions={ctx.sessions} /> },
-  // Few needs: Pick up where you left off moves up into the left column (the 0.4 design review, 39).
-  { id: "recent", area: (ctx) => (ctx.fewNeeds ? "left" : "right"), render: (ctx) => ctx.recentArea },
+  // Few needs: Pick up where you left off moves up into the left column
+  // (the 0.4 design review, 39); before they load, as many as last time.
+  { id: "recent", area: (ctx) => (fewNeedsNow(ctx.needsKnown, needsCount(ctx)) ? "left" : "right"), render: (ctx) => ctx.recentArea },
   // The optional access, once and quietly at the foot (the review of
   // 0.1.4: it took the top of Home until answered).
   { id: "smoother", area: "foot", render: () => <SmootherCard variant="reminder" /> },

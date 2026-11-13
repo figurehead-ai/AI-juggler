@@ -15,6 +15,8 @@ import { resetNoticeStandIn, standInNeeds } from "../lib/ipc/notices";
 import { applySummary, resetNotices } from "../lib/notices-store";
 import { forgetPaged } from "../lib/paged";
 import { previewNeedsOf } from "../preview/needs";
+import { EXTRAS_PLACE, NEEDS_PLACE, fewNeedsNow, keptShape } from "../lib/needs-place";
+import { keep } from "../lib/local-store";
 import type { AccountInfo } from "../types/generated/AccountInfo";
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import { account, instance, setSeam } from "../test/fixtures";
@@ -74,6 +76,34 @@ describe("D-103.6 Home's Needs you while the needs load", () => {
     await waitFor(() => expect(view.queryByTestId("placeholder-need")).toBeNull());
     expect(view.queryByTestId("home-needs")).toBeNull();
     expect(view.getByTestId("home-heading").textContent).not.toBe("Checking what needs you…");
+  });
+
+  it("sized from the last look: as many rows as last time, as tall as the card was", () => {
+    keep(NEEDS_PLACE, JSON.stringify({ rows: 3, height: 260 }));
+    keep(EXTRAS_PLACE, JSON.stringify({ rows: 2, height: 25 }));
+    const view = home([ASKING]);
+    const skeleton = view.getByTestId("placeholder-need");
+    expect(skeleton.dataset.rows).toBe("3");
+    expect(skeleton.querySelector<HTMLElement>("[aria-hidden]")?.style.height).toBe("260px");
+    // The heading's line of more things keeps its place too.
+    expect(view.getByTestId("home-extras-place").style.height).toBe("25px");
+    // Three last time: "Pick up where you left off" stays where it was.
+    expect(fewNeedsNow(false, 0)).toBe(false);
+  });
+
+  it("none last time: no block at all, only the heading", () => {
+    keep(NEEDS_PLACE, JSON.stringify({ rows: 0, height: 0 }));
+    const view = home([]);
+    expect(view.queryByTestId("placeholder-need")).toBeNull();
+    expect(view.getByTestId("home-heading").textContent).toBe("Checking what needs you…");
+    expect(fewNeedsNow(false, 0)).toBe(true);
+  });
+
+  it("keeps what it showed for the next look", async () => {
+    const view = home([ASKING]);
+    needsArrive([ASKING]);
+    await waitFor(() => expect(view.getByTestId("home-needs")).toBeTruthy());
+    expect(keptShape(NEEDS_PLACE)?.rows).toBe(1);
   });
 
   it("the heading counts what is known, and is calm only once the needs are", () => {

@@ -413,13 +413,11 @@ export function HomeScreen({
     const what = row.credits ? row.words : `${row.left}% left`;
     return { left: row.left, words: shown ? what : `${whose} · ${what}` };
   };
-  // Few needs: Pick up where you left off moves up into the left column (the 0.4 design review, 39).
-  const fewNeeds = allNeeds.length + capNeeds.caps.length + messageNeeds.length + taskNeeds.length <= 2;
   const recentArea = <HomeRecent recent={recent} total={review.length} shown={RECENT_SHOWN} showAll={showAll} onShowAll={() => setShowAll((open) => !open)} projects={projects} now={now} busy={busy} onOpen={onOpenSession} onReviewed={(session) => void act(session, "reviewed")} onReviewAll={() => void reviewAll()} />;
   // AJ-E2018: the cards themselves are a registry (screens/home-cards).
   const cards: HomeCardContext = {
     sessions, conversations, accounts, projects, subscriptions, now, items, allNeeds, capNeeds, messageNeeds, taskNeeds,
-    parked, recent, quota, quotaKnown, ledgerDegraded, fewNeeds, needsKnown: needsNow.known, recentArea, busy, actionKeysAria: actionKeys.aria,
+    parked, recent, quota, quotaKnown, ledgerDegraded, needsKnown: needsNow.known, recentArea, busy, actionKeysAria: actionKeys.aria,
     signingIn, signInError, runwayFor, act, startSignIn, onOpenSession, onNewSession, onLimit, onChanged, onOpenThisMac, onOpenCleanup,
   };
 
@@ -438,7 +436,7 @@ export function HomeScreen({
           {/* AJ-E403 Req.6: the legend's Home surface. */}
           <LegendPopover className="shrink-0" placement="below" />
         </div>
-        <HomeExtras shown={sessionNeeds > 0 && otherNeeds > 0} needs={allNeeds} more={{ caps: capNeeds.caps.map(capTitle), messages: messageNeeds.length, tasks: taskNeeds.length }} />
+        <HomeExtras pending={!needsNow.known} shown={sessionNeeds > 0 && otherNeeds > 0} needs={allNeeds} more={{ caps: capNeeds.caps.map(capTitle), messages: messageNeeds.length, tasks: taskNeeds.length }} />
         {counts.length > 0 && (
           <p className="flex flex-wrap items-center gap-x-1.5 text-body text-ink-2" data-testid="home-counts">
             {counts.map((part, index) => (
