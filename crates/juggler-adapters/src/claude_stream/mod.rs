@@ -170,6 +170,7 @@ impl DrivenRuntime for ClaudeCodeAdapter {
             transport: Transport::Stdio,
             native_id: Some(id),
             model: profile.settings_overlay.model.clone(),
+            history: None,
         })
     }
 

@@ -79,6 +79,7 @@ impl DrivenRuntime for FakeHarnessAdapter {
             transport: Transport::Stdio,
             native_id: Some(id),
             model: None,
+            history: None,
         })
     }
 

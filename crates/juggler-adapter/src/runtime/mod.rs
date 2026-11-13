@@ -108,6 +108,21 @@ pub struct DrivenLaunch {
     /// A fresh id AI Juggler picked (a UUID), for a tool that lets the
     /// caller name a new conversation; a tool that names its own ignores it.
     pub fresh_id: String,
+    /// A conversation the new session starts with (a pack's), for a tool
+    /// that [imports history](DrivenRuntime::imports_history); ignored on a
+    /// resume and by every other tool.
+    pub history: Option<ImportedHistory>,
+}
+
+/// A conversation a new driven session starts with, taken in by the
+/// tool's own import (no model call): its title and its turns, oldest
+/// first, as text.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ImportedHistory {
+    /// Its title.
+    pub title: String,
+    /// Its turns: the role (`user` or `assistant`) and the text.
+    pub turns: Vec<(String, String)>,
 }
 
 /// Everything needed to start one driven session. Produced by adapters;
@@ -124,6 +139,9 @@ pub struct DrivenSpec {
     /// The model to start with, for a tool that takes it over its protocol
     /// rather than as a flag (the profile's launch settings).
     pub model: Option<String>,
+    /// The conversation a new session starts with ([`DrivenLaunch::history`]),
+    /// for a tool that imports it at the start.
+    pub history: Option<ImportedHistory>,
 }
 
 /// A connected transport: what the codec reads and writes.
@@ -202,6 +220,23 @@ pub trait DrivenRuntime: Send + Sync {
     /// Whether its sessions take more input into a running turn
     /// ([`DrivenSession::steer`]). Default: no.
     fn steers(&self) -> bool {
+        false
+    }
+
+    /// Whether the tool has a terminal UI to fall back to (AJ-E1605 R3).
+    /// `false`: driven is its only runtime (`ZCode`'s app ships no terminal
+    /// UI); its [`crate::ToolLaunch::launch_spec`] refuses with the reason,
+    /// [`DrivenRuntime::terminal_view`] too, and the app starts its
+    /// sessions driven or not at all. Default: `true`.
+    fn terminal_ui(&self) -> bool {
+        true
+    }
+
+    /// Whether a new session can be started with a conversation already
+    /// in it ([`DrivenLaunch::history`]), taken in by the tool's own import
+    /// with no model call (AJ-E1605 R3: `ZCode`'s `importedHistory`).
+    /// Default: no.
+    fn imports_history(&self) -> bool {
         false
     }
 

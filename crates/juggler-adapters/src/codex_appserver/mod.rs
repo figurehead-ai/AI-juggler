@@ -189,6 +189,7 @@ impl DrivenRuntime for CodexAdapter {
             transport: Transport::Stdio,
             native_id: launch.resume.clone(),
             model: profile.settings_overlay.model.clone(),
+            history: None,
         })
     }
 

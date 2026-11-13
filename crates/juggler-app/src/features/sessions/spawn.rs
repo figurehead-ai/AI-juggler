@@ -87,9 +87,53 @@ pub(crate) enum Runs<'a> {
         resume: Option<String>,
         /// The user's choice for this session, when they made one.
         requested: Option<Runtime>,
-        /// The terminal launch.
-        terminal: LaunchSpec,
+        /// The terminal launch, or why the tool has none (AJ-E1605 R3).
+        terminal: Terminal,
+        /// A conversation the new session starts with, for a tool that
+        /// imports one (a pack's).
+        history: Option<juggler_adapter::runtime::ImportedHistory>,
     },
+}
+
+/// A planned run's terminal launch, or why the tool has none.
+pub(crate) type Terminal = Result<LaunchSpec, NoTerminal>;
+
+/// A tool whose only runtime is driven (`ZCode`'s app ships no terminal
+/// UI): its folder, and its adapter's reason, said when it can't be
+/// driven.
+#[derive(Clone, Debug)]
+pub(crate) struct NoTerminal {
+    /// The folder the session works in.
+    pub cwd: PathBuf,
+    /// Why there is no terminal, in the adapter's words.
+    pub why: String,
+}
+
+/// `launch` as a planned run's terminal: its error kept as the reason
+/// when the tool's only runtime is driven and it refused for that
+/// ([`juggler_adapter::runtime::DrivenRuntime::terminal_ui`]); any other
+/// error stays an error.
+///
+/// # Errors
+///
+/// `launch`'s error, unless it is that refusal.
+pub(crate) fn planned_terminal(
+    adapter: &dyn HarnessAdapter,
+    cwd: &std::path::Path,
+    launch: AppResult<LaunchSpec>,
+) -> AppResult<Terminal> {
+    match launch {
+        Ok(spec) => Ok(Ok(spec)),
+        Err(AppError::Adapter(juggler_adapter::AdapterError::Unsupported(why)))
+            if adapter.driven().is_some_and(|driven| !driven.terminal_ui()) =>
+        {
+            Ok(Err(NoTerminal {
+                cwd: cwd.to_path_buf(),
+                why,
+            }))
+        }
+        Err(error) => Err(error),
+    }
 }
 
 /// What started.
@@ -177,6 +221,7 @@ pub(crate) fn start_session(
             resume,
             requested,
             terminal,
+            history,
         } => crate::features::runtime::launch::start(
             state,
             adapter.as_ref(),
@@ -185,6 +230,7 @@ pub(crate) fn start_session(
                 profile,
                 resume,
                 requested,
+                history,
             },
             terminal,
         ),

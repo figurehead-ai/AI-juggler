@@ -267,12 +267,16 @@ fn come_back(
 ) -> AppResult<SessionId> {
     let started = (|| {
         let (record, profile, account) = super::commands::owner(state, session.as_str())?;
-        let terminal = crate::features::launch::resume_gate::resume_spec(
-            state,
-            &account,
-            &profile,
+        let terminal = crate::features::sessions::spawn::planned_terminal(
+            crate::features::launch::resume_gate::adapter_of(state, &account)?.as_ref(),
             &record.cwd,
-            native_id,
+            crate::features::launch::resume_gate::resume_spec(
+                state,
+                &account,
+                &profile,
+                &record.cwd,
+                native_id,
+            ),
         )?;
         // The one path: its own row is starting again before its process
         // does (intent before spawn), then the runtime.
@@ -293,6 +297,7 @@ fn come_back(
                 resume: Some(native_id.to_owned()),
                 requested: Some(Runtime::Driven),
                 terminal,
+                history: None,
             },
         )?;
         if started.session != *session {

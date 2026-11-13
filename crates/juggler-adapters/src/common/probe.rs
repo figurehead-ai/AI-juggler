@@ -27,6 +27,21 @@ where
     I: IntoIterator<Item = S>,
     S: AsRef<std::ffi::OsStr>,
 {
+    version_with_env(program, args, &[], parse)
+}
+
+/// [`version_with`] with `env` set for the run (AJ-E1605: `ZCode`'s app
+/// runs its engine only with `ELECTRON_RUN_AS_NODE=1`).
+pub(crate) fn version_with_env<I, S>(
+    program: &Path,
+    args: I,
+    env: &[(&str, &str)],
+    parse: impl Fn(&str) -> Option<String>,
+) -> Result<String, InstallStatus>
+where
+    I: IntoIterator<Item = S>,
+    S: AsRef<std::ffi::OsStr>,
+{
     let args: Vec<std::ffi::OsString> = args
         .into_iter()
         .map(|arg| arg.as_ref().to_owned())
@@ -38,6 +53,7 @@ where
         .unwrap_or_default();
     let output = juggler_adapter::user_path::command(program)
         .args(&args)
+        .envs(env.iter().copied())
         .output()
         .map_err(|error| InstallStatus::Failed {
             message: error.to_string(),

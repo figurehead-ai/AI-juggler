@@ -97,7 +97,7 @@ pub fn resume_spec(
     launch_spec(adapter.as_ref(), account, profile, cwd, &mode)
 }
 
-fn adapter_of(
+pub(crate) fn adapter_of(
     state: &Arc<AppState>,
     account: &Account,
 ) -> AppResult<juggler_adapter::SharedAdapter> {

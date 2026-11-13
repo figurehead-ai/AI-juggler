@@ -1065,7 +1065,7 @@ pub fn fleet_switch_cancel_impl(state: &Arc<AppState>, machine_id: &str) -> bool
 mod failure;
 use failure::{CrossFailure, Direction};
 mod node;
-pub(crate) use node::{launch_here, launch_refusal, refuse, take_handover_here};
+pub(crate) use node::{import_here, launch_here, launch_refusal, refuse, take_handover_here};
 
 /// Why a destination that was offered isn't available now: the same
 /// order the destinations list says it in (offline first, then the

@@ -325,6 +325,23 @@ pub fn resources_of(app: &std::path::Path) -> std::path::PathBuf {
     app.join("Contents").join("Resources")
 }
 
+/// An installed app's own program, `name` (macOS: its bundle's
+/// `Contents/MacOS/<name>`). AJ-E1605: `ZCode` runs its engine on it.
+#[must_use]
+pub fn executable_of(app: &std::path::Path, name: &str) -> std::path::PathBuf {
+    app.join("Contents").join("MacOS").join(name)
+}
+
+/// The app bundle a file of an app lies in (macOS: the nearest folder
+/// above it named `*.app`); `None` when it isn't in one.
+#[must_use]
+pub fn bundle_of(file: &std::path::Path) -> Option<std::path::PathBuf> {
+    file.ancestors()
+        .skip(1)
+        .find(|dir| dir.extension().is_some_and(|ext| ext == "app"))
+        .map(std::path::Path::to_path_buf)
+}
+
 #[cfg(target_os = "macos")]
 mod mac {
     use objc2_foundation::{NSAppleEventDescriptor, NSAppleEventSendOptions, NSString};

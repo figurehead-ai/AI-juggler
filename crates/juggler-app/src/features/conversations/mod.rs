@@ -1367,15 +1367,19 @@ pub fn continue_impl(
     id: &str,
 ) -> AppResult<crate::features::launch::dto::LaunchResult> {
     use juggler_core::model::{ConversationId, SessionId};
-    let (
-        ContinueTarget {
-            account,
-            profile,
-            project,
-            cwd,
-        },
-        spec,
-    ) = continue_launch(state, account_id, id)?;
+    let ContinueTarget {
+        account,
+        profile,
+        project,
+        cwd,
+    } = continue_target(state, account_id, id)?;
+    // rc21: the one check every resume asks, in the gate's launch; a tool
+    // with no terminal UI resumes driven (AJ-E1605 R3).
+    let spec = crate::features::sessions::spawn::planned_terminal(
+        crate::features::launch::resume_gate::adapter_of(state, &account)?.as_ref(),
+        &cwd,
+        crate::features::launch::resume_gate::resume_spec(state, &account, &profile, &cwd, id),
+    )?;
     let session = SessionId::new(format!("sess-{}", crate::ids::unique_suffix()));
     // The one path: the row first (ADR-0010 §1), then the bridge (AJ-E1704,
     // D-30: continued in AI Juggler, it gets the agent tools) and the
@@ -1392,7 +1396,17 @@ pub fn continue_impl(
             transcript_ref: None,
             origin: "resume",
         },
-        crate::features::sessions::spawn::Runs::Terminal(spec),
+        match spec {
+            Ok(spec) => crate::features::sessions::spawn::Runs::Terminal(spec),
+            // AJ-E1605 R3: a tool with no terminal UI continues it driven.
+            Err(none) => crate::features::sessions::spawn::Runs::Planned {
+                profile: &profile,
+                resume: Some(id.to_owned()),
+                requested: Some(juggler_adapter::Runtime::Driven),
+                terminal: Err(none),
+                history: None,
+            },
+        },
     )?;
     Ok(crate::features::launch::dto::LaunchResult {
         session_id: session.to_string(),
