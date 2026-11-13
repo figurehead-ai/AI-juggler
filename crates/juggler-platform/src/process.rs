@@ -48,9 +48,66 @@ pub fn helper(program: impl AsRef<OsStr>) -> Command {
     command
 }
 
+/// Whether process `pid` is there (it may be another user's): a signal-0
+/// probe on Unix. `false` for pid 0 and anything a pid can't be. Other
+/// systems can't tell yet and answer `false`.
+#[must_use]
+pub fn alive(pid: u32) -> bool {
+    #[cfg(unix)]
+    {
+        use nix::errno::Errno;
+        use nix::sys::signal::kill;
+        use nix::unistd::Pid;
+        let Some(pid) = i32::try_from(pid).ok().filter(|pid| *pid > 0) else {
+            return false;
+        };
+        match kill(Pid::from_raw(pid), None) {
+            Ok(()) | Err(Errno::EPERM) => true,
+            Err(_) => false,
+        }
+    }
+    #[cfg(not(unix))]
+    {
+        let _ = pid;
+        false
+    }
+}
+
+/// Asks a child AI Juggler started to end (SIGTERM on Unix, so it can let
+/// go of what it holds); the caller waits, then kills it if it hasn't.
+///
+/// # Errors
+///
+/// It is gone already, or this system has no such request (the caller
+/// kills it instead).
+pub fn terminate(child: &std::process::Child) -> std::io::Result<()> {
+    #[cfg(unix)]
+    {
+        use nix::sys::signal::{Signal, kill};
+        use nix::unistd::Pid;
+        let pid = i32::try_from(child.id())
+            .ok()
+            .filter(|pid| *pid > 1)
+            .ok_or_else(|| std::io::Error::other("not a child's process"))?;
+        kill(Pid::from_raw(pid), Signal::SIGTERM).map_err(std::io::Error::from)
+    }
+    #[cfg(not(unix))]
+    {
+        let _ = child;
+        Err(crate::unsupported("asking a process to end"))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn this_process_is_alive_and_no_pid_isnt() {
+        assert!(alive(std::process::id()));
+        assert!(!alive(0));
+        assert!(!alive(u32::MAX));
+    }
 
     #[test]
     fn a_helper_sees_only_the_allowlist_and_the_system_path() {
