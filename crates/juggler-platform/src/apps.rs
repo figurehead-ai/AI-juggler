@@ -403,10 +403,16 @@ mod tests {
     fn an_app_is_found_by_its_name_in_the_install_folders() {
         let tmp = tempfile::tempdir().unwrap();
         let home = tmp.path().join("home");
-        assert_eq!(
-            install_folders(Some(&home)),
-            [PathBuf::from("/Applications"), home.join("Applications")]
-        );
+        // Where macOS installs apps; no such folders elsewhere yet.
+        let expected: Vec<PathBuf> = if cfg!(target_os = "macos") {
+            vec![PathBuf::from("/Applications"), home.join("Applications")]
+        } else {
+            Vec::new()
+        };
+        assert_eq!(install_folders(Some(&home)), expected);
+        if !cfg!(target_os = "macos") {
+            return;
+        }
         let folder = tmp.path().join("Apps");
         assert_eq!(installed_app(&folder, "Tool"), None);
         std::fs::create_dir_all(folder.join("Tool.app/Contents/Resources")).unwrap();

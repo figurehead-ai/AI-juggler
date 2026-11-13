@@ -28,8 +28,13 @@ use std::path::{Path, PathBuf};
 
 use juggler_adapter::launch::ENV_UNSET;
 use juggler_adapter::runtime::{DrivenLaunch, DrivenRuntime, ImportedHistory, Runtime, Transport};
-use juggler_adapter::{AdapterError, Capabilities, InstallStatus, LaunchMode, ToolRuntime};
-use juggler_adapters::zcode::{isolation_took, parse_version, session_process};
+use juggler_adapter::{AdapterError, Capabilities, LaunchMode, ToolRuntime};
+use juggler_adapters::zcode::{isolation_took, session_process};
+// Only the macOS discovery test uses these (install folders are a macOS seam).
+#[cfg(target_os = "macos")]
+use juggler_adapter::InstallStatus;
+#[cfg(target_os = "macos")]
+use juggler_adapters::zcode::parse_version;
 use juggler_adapters::{LoginState, ZCODE_ID, ZCodeAdapter};
 use juggler_core::model::{Account, AccountId, HarnessId, Profile, ProfileId, SettingsOverlay};
 use zcode_fixture::{Row, write};
