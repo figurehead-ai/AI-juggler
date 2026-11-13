@@ -128,7 +128,7 @@
 | AJ-E1902 | FAIL2 PASS8 | 2026-10-28 | [manifest](AJ-E1902/manifest.md) |
 | AJ-E1903 | PASS7 | 2026-10-27 | [manifest](AJ-E1903/manifest.md) |
 | AJ-E1904 | PASS4 UNPROVEN1 | 2026-10-26 | [manifest](AJ-E1904/manifest.md) |
-| AJ-E1905 | PASS4 UNPROVEN2 | 2026-10-26 | [manifest](AJ-E1905/manifest.md) |
+| AJ-E1905 | PASS7 | 2026-11-13 | [manifest](AJ-E1905/manifest.md) |
 | AJ-E1906 | FAIL1 PASS5 UNPROVEN1 | 2026-10-26 | [manifest](AJ-E1906/manifest.md) |
 | AJ-E1907 | PASS4 | 2026-11-07 | [manifest](AJ-E1907/manifest.md) |
 | AJ-E2001 | PASS4 | 2026-11-06 | [manifest](AJ-E2001/manifest.md) |

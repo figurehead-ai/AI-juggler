@@ -120,6 +120,7 @@ release-selftest:
     python3 scripts/stats_config_check.py --selftest
     python3 scripts/apple_retry.py --selftest
     python3 scripts/updater_sig_check.py --selftest
+    python3 scripts/plugin_package.py --selftest
     python3 scripts/release_scope.py --selftest
     python3 scripts/release_scope.py report 0.4 >/dev/null
 

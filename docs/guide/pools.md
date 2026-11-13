@@ -251,6 +251,34 @@ Juggler never reads it). Offline, or without `gh`, the link still opens and
 the task says it couldn't look it up. Nothing is looked up or synced by
 itself.
 
+### The Claude Code plugin
+
+You don't need it: a session AI Juggler starts for a pool already has the
+pool's tools. The optional **AI Juggler** plugin for Claude Code adds the
+same tools and a skill that teaches an agent to take, work and give back a
+pool's tasks.
+
+It works only while AI Juggler runs, and only in sessions AI Juggler
+started. In any other session each tool says why it can't help (the
+session wasn't started by AI Juggler, or AI Juggler isn't running), so it
+never acts for a session AI Juggler doesn't know. The plugin holds no key
+and reads none.
+
+To add it, in Claude Code:
+
+```
+/plugin marketplace add figurehead-ai/AI-juggler
+/plugin install ai-juggler --marketplace figurehead-ai/AI-juggler
+```
+
+That serves the plugin as it is on the main branch, where each release
+lands. To keep it at the version of your AI Juggler, add the marketplace
+at that release's tag instead, for example
+`figurehead-ai/AI-juggler#v0.5.0`. Each release also carries the plugin
+as a zip (`AI-Juggler-Claude-Code-plugin-X.Y.Z.zip`, in the release's
+checksums), which `claude --plugin-dir` loads for one session. To remove
+it, `/plugin uninstall ai-juggler`.
+
 ## Your other Macs
 
 **Include my paired Macs** on a pool's Agent access tab lets the pool span

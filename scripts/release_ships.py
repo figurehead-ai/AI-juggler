@@ -80,6 +80,7 @@ RULES: tuple[tuple[str, bool, str], ...] = (
     ("scripts/cargo_auditable_runner.sh", True, "builds the app with its dependency list embedded"),
     ("scripts/js_sbom.py", True, "writes the interface's bill of materials the release carries"),
     ("scripts/bundle_check.py", True, "checks every helper the release ships is inside the .app"),
+    ("scripts/plugin_package.py", True, "packages the Claude Code plugin each release carries (AJ-E1905)"),
     # Everything else is for people, CI and the gates.
     ("docs/**", False, "documentation, including docs/releases (a version's notes, picked up by its build)"),
     (".github/**", False, "CI, the other workflows, issue and PR templates, Dependabot"),
@@ -87,7 +88,8 @@ RULES: tuple[tuple[str, bool, str], ...] = (
     ("fuzz/**", False, "fuzz targets: never part of the app"),
     ("supply-chain/**", False, "cargo-vet's audits and imports: a CI gate's records"),
     ("clippy.toml", False, "the linter's settings: they change warnings, never the build"),
-    ("plugins/**", False, "the Claude Code plugin: users get it from this repository's plugin marketplace, not from the app's build"),
+    ("plugins/**", True, "the Claude Code plugin: each release carries it as a zip beside the app (AJ-E1905, D-73)"),
+    (".claude-plugin/**", False, "the plugin marketplace Claude Code reads from this repository; it serves plugins/ as it is on the branch"),
     ("stats/**", False, "the usage-statistics schema: the app has juggler-stats' generated copy, which a gate keeps equal"),
     ("justfile", False, "developer tasks"),
     ("deny.toml", False, "cargo-deny's policy (a CI gate)"),

@@ -90,7 +90,7 @@
 **Handover note**: —
 *Built 2026-10-25* (`docs/qa/evidence/AJ-E1904/manifest.md`): a task's holder is its member ref (the Work item once it has one), so nothing needs carrying at a switch; `task_sessions` links each session that worked it, and the Switch Graph's nodes show it (`switch_graph.rs` unchanged).
 
-### AJ-E1905 A Claude Code plugin | Status: IN-PROGRESS (built and tested; published with 0.5, D-73) | Priority P2 | Effort S | Depends: AJ-E1902
+### AJ-E1905 A Claude Code plugin | Status: IN-PROGRESS (packaged with every release from 0.5, D-73; proven when the first 0.5 nightly publishes it) | Priority P2 | Effort S | Depends: AJ-E1902
 **Goal**: Claude Code users can add the bridge and a task skill in one step, even outside AI Juggler's launches.
 **User story**: As a Claude Code user, I install the plugin, and my sessions can read and update the pool's tasks.
 **Requirements**:

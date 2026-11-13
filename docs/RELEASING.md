@@ -87,6 +87,14 @@ build a third locally. They install next to each other and share nothing:
 | **AI Juggler Nightly** | `ai.figurehead.juggler.nightly` | `AI Juggler Nightly` | Nightly | `AI-Juggler-Nightly-X.Y.Z-universal.*`, `latest-nightly.json` |
 | **AI Juggler Dev** | `ai.figurehead.juggler.dev` | `AI Juggler Dev` | never | built by `just dev` / `just app` |
 
+Every release also carries `AI-Juggler-Claude-Code-plugin-X.Y.Z.zip`, the
+optional Claude Code plugin at that version (AJ-E1905, D-73): the nightly's
+release job writes it with `scripts/plugin_package.py` (reproducible, in
+`SHA256SUMS.txt` and the build provenance). The repository's root
+`.claude-plugin/marketplace.json` serves the same folder to
+`/plugin marketplace add figurehead-ai/AI-juggler`; the user guide is
+[Pools › The Claude Code plugin](guide/pools.md#the-claude-code-plugin).
+
 Each edition also has its own Keychain items, Fleet port (47821, 47822,
 47823) and single-instance lock, and the Nightly and Dev icons carry a band
 with their name. The edition comes from the bundle identifier
