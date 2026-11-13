@@ -13,7 +13,7 @@ Pass: every step does what it promised; nothing under 4; feedback ≤ 100 ms; no
 |---|---|---|---|---|---|---|---|---|---|
 | 1 | Group the rail by App; unfold Open now | Open now holds exactly Claude app · personal and Claude app · work; nothing of the lab's is under Running, not added |  |  |  |  |  |  |  |
 | 2 | Look at Claude app · personal | Its header reads nothing open, with no chevron and no row under it; no Claude Code CLI · personal App anywhere; its three claude -p runs are in History only |  |  |  |  |  |  |  |
-| 3 | Unfold Claude app · work | Its last 3 sessions, then Show all 5; its header carries the Out mark with when it resets |  |  |  |  |  |  |  |
+| 3 | Unfold Claude app · work | Recent, then its last 3 sessions, then All 5 sessions ›; its header carries the Out mark with when it resets |  |  |  |  |  |  |  |
 | 4 | Look under Inactive apps | Claude app · client (2 sessions, Out), Codex app (4 sessions), Claude Code CLI · Personal · terminal (4 sessions) and Codex CLI · default (3 sessions); none says Running |  |  |  |  |  |  |  |
 | 5 | Unfold Codex app, then Codex CLI · default | The Codex app's are the 4 threads it started, Codex CLI's the 3 a terminal started; neither lists the codex exec run (History has it) |  |  |  |  |  |  |  |
 | 6 | Open Home's apps, then Accounts | The Out mark on work's and client's tiles and on Work's and Client's Apps rows; Personal and ChatGPT have none |  |  |  |  |  |  |  |

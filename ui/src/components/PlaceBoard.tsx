@@ -13,7 +13,7 @@ import { useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState, type
 import { NeedRow, PlaceHeader, edgeOf, type Arrangeable } from "./PlaceRows";
 import { SessionRow } from "./row/SessionRow";
 import { AlsoLine, Chevron, RailCaption, RailLink, RailSearchFoundNothing, SectionHead, scrollerOf, stepPastEdge } from "./PlaceBoardParts";
-import { idleAppPage, RailIdleApp, RailShowAll } from "./RailIdleApp";
+import { idleAppPage, RailAllSessions, RailIdleApp } from "./RailIdleApp";
 import { RailOfferRow, usePlaceOffers } from "./PlaceOffers";
 import { RailOrderMenu } from "./RailOrderMenu";
 import { useArrange } from "./rail-arrange";
@@ -337,7 +337,7 @@ export function PlaceBoard({ sessions, projects, accounts, snooze, now, selected
       case "more":
         return <RailLink onClick={() => toggle(`${line.group.key}#all`)} testId="rail-more-quiet">{`+${line.quiet} ${line.words}`}</RailLink>;
       case "recent": return <RailCaption>Recent</RailCaption>; // D-103.1: an App with nothing open
-      case "all": return <RailShowAll page={line.group ? appPageOfGroup(lens, line.group, places) : line.idle ? idleAppPage(line.idle) : null} loaded={line.count} onOpen={openAppSessions} />; // 0.4.3 (D-64): its page
+      case "all": return <RailAllSessions page={line.group ? appPageOfGroup(lens, line.group, places) : line.idle ? idleAppPage(line.idle) : null} loaded={line.count} onOpen={openAppSessions} />; // 0.4.3 (D-64): its page
       case "idle": {
         const known = line.app.placeId !== null ? (places?.find((place) => place.id === line.app.placeId) ?? null) : null;
         return <RailIdleApp app={line.app} open={line.open} onToggle={() => toggle(`${line.app.key}#recent`)} now={now} keepAlive={keepAliveOf(known)} />;

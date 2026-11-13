@@ -8,8 +8,8 @@
  * "Recent" (D-103.1: "nothing open" above three rows read as a
  * contradiction), else only once its header's "+N recent" is clicked (no
  * row of its own: the maintainer, 0.4.1, on a "Last N inactive" row under
- * every App); then "Show all" (its page) when it has more. While
- * searching, every match. Its header has a fold only when this, or an
+ * every App); then "All N sessions ›" (its page, D-103.2) when it has
+ * more. While searching, every match. Its header has a fold only when this, or an
  * open row, gives it a row to show (`unfoldsToARow`).
  *
  * Pure, so the order and the invariants are unit-tested.
@@ -73,7 +73,7 @@ export function unfoldsToARow(group: RailGroup, under: readonly Line[]): boolean
  * click, under "Recent" as Open now's (D-103.1: nothing is open in it);
  * searching, every one that matches (rc4 walk), each under the one it was
  * started from; its pinned ones always (ADR-0032: never open). 0.4.3:
- * then "Show all", as Open now's. */
+ * then "All N sessions ›", as Open now's. */
 export function inactiveLines(app: IdleApp, searching: boolean, toggled: ReadonlySet<string>): { open: boolean; lines: Line[] } {
   const open = searching || toggled.has(`${app.key}#recent`);
   const past = (rows: readonly RailItem[]): Line[] => nestRows(rows).map(({ item, depth, parent }) => ({ kind: "past", item, depth, parent: parent?.title ?? null, app: app.key }));

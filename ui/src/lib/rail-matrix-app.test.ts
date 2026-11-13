@@ -6,10 +6,11 @@
  * or not; Running, not added; Inactive = the user's Apps not running; each
  * App in exactly one; a row under the App the backend names), amendment 8
  * (a running App unfolds to its open, pinned, then last ones, at once when
- * nothing is open in it, then "Show all"; a fold only when unfolding shows
- * a row; the Out mark is the App's own folder), D-103.1 (an App with
- * nothing open, running or not, shows "Recent" over its last ones). Checks
- * shared by every row are in `rail-matrix.test-kit.ts` (`invariants`).
+ * nothing is open in it, then "All N sessions ›", D-103.2; a fold only
+ * when unfolding shows a row; the Out mark is the App's own folder),
+ * D-103.1 (an App with nothing open, running or not, shows "Recent" over
+ * its last ones). Checks shared by every row are in
+ * `rail-matrix.test-kit.ts` (`invariants`).
  */
 import { describe, it } from "vitest";
 import { check, claudeApp, cliApp, codexApp, open, past, pasts, type MatrixRow } from "./rail-matrix.test-kit";
@@ -36,27 +37,27 @@ const ROWS: MatrixRow[] = [
     },
   },
   {
-    name: "1b running, 1 open + 5 past, Last 3 clicked: the 3 newest, then Show all (amendment 8), no Recent: something is open (D-103.1)",
+    name: "1b running, 1 open + 5 past, Last 3 clicked: the 3 newest, then All N sessions › (amendment 8), no Recent: something is open (D-103.1)",
     lens: "place", apps: [EAST], talks: [open("o1", EAST), ...pasts("p", EAST, 5)], toggled: [recent(EAST)],
-    expect: { open: [EAST.key], under: { [EAST.key]: ["o1", "p1", "p2", "p3"] }, links: { [EAST.key]: ['+5 recent', "Show all"] }, recent: [] },
+    expect: { open: [EAST.key], under: { [EAST.key]: ["o1", "p1", "p2", "p3"] }, links: { [EAST.key]: ['+5 recent', "All 5 sessions ›"] }, recent: [] },
   },
   {
-    // ASSUMED: "Show all" only when the App has more than the 3 shown (D-64: the full list is on its page).
-    name: "1c running, 1 open + 2 past, clicked: both, no Show all",
+    // ASSUMED: "All N sessions ›" only when the App has more than the 3 shown (D-64: the full list is on its page).
+    name: "1c running, 1 open + 2 past, clicked: both, no All N sessions link",
     lens: "place", apps: [EAST], talks: [open("o1", EAST), ...pasts("p", EAST, 2)], toggled: [recent(EAST)],
     expect: { open: [EAST.key], under: { [EAST.key]: ["o1", "p1", "p2"] }, links: { [EAST.key]: ["+2 recent"] } },
   },
   // 2. Running, only past sessions.
   {
-    name: "2a running, nothing open, 5 past: in Open now, its last 3 at once under Recent (D-103.1), then Show all",
+    name: "2a running, nothing open, 5 past: in Open now, its last 3 at once under Recent (D-103.1), then All N sessions ›",
     lens: "place", apps: [WEST], talks: pasts("w", WEST, 5),
     expect: {
       open: [WEST.key], idle: [], counts: { open: 1, idle: null },
-      under: { [WEST.key]: ["w1", "w2", "w3"] }, links: { [WEST.key]: ["Show all"] }, recent: [WEST.key], foldable: { [WEST.key]: true }, folder: { [WEST.key]: "f-west" },
+      under: { [WEST.key]: ["w1", "w2", "w3"] }, links: { [WEST.key]: ["All 5 sessions ›"] }, recent: [WEST.key], foldable: { [WEST.key]: true }, folder: { [WEST.key]: "f-west" },
     },
   },
   {
-    name: "2b running, nothing open, 2 past: both at once under Recent, no Show all (ASSUMED as 1c)",
+    name: "2b running, nothing open, 2 past: both at once under Recent, no All N sessions link (ASSUMED as 1c)",
     lens: "place", apps: [WEST], talks: pasts("w", WEST, 2),
     expect: { open: [WEST.key], under: { [WEST.key]: ["w1", "w2"] }, links: { [WEST.key]: [] }, recent: [WEST.key], foldable: { [WEST.key]: true } },
   },
@@ -73,12 +74,12 @@ const ROWS: MatrixRow[] = [
     expect: { open: [], idle: [SOUTH.key], counts: { open: null, idle: 1 }, under: { [SOUTH.key]: [] }, links: { [SOUTH.key]: [] }, recent: [] },
   },
   {
-    name: "4b closed, 5 past, clicked: its 3 newest under Recent (D-103.1: nothing open in it either), then Show all",
+    name: "4b closed, 5 past, clicked: its 3 newest under Recent (D-103.1: nothing open in it either), then All N sessions ›",
     lens: "place", apps: [SOUTH], talks: pasts("s", SOUTH, 5), toggled: [recent(SOUTH)],
-    expect: { idle: [SOUTH.key], under: { [SOUTH.key]: ["s1", "s2", "s3"] }, links: { [SOUTH.key]: ["Show all"] }, recent: [SOUTH.key] },
+    expect: { idle: [SOUTH.key], under: { [SOUTH.key]: ["s1", "s2", "s3"] }, links: { [SOUTH.key]: ["All 5 sessions ›"] }, recent: [SOUTH.key] },
   },
   {
-    name: "4c closed, 2 past, clicked: both, no Show all (ASSUMED as 1c)",
+    name: "4c closed, 2 past, clicked: both, no All N sessions link (ASSUMED as 1c)",
     lens: "place", apps: [SOUTH], talks: pasts("s", SOUTH, 2), toggled: [recent(SOUTH)],
     expect: { idle: [SOUTH.key], under: { [SOUTH.key]: ["s1", "s2"] }, links: { [SOUTH.key]: [] } },
   },

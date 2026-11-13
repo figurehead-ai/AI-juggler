@@ -46,14 +46,14 @@ const ROWS: MatrixRow[] = [
     expect: { open: [EAST.key], under: { [EAST.key]: ["o1", "p2"] }, links: { [EAST.key]: ["+2 recent"] } },
   },
   {
-    name: "7c … Last 2 clicked: open, pinned, then the rest newest first, no Show all",
+    name: "7c … Last 2 clicked: open, pinned, then the rest newest first, no All N sessions link",
     lens: "place", apps: [EAST], talks: [open("o1", EAST), ...pasts("p", EAST, 3)], pins: ["p2"], toggled: [recent(EAST)],
     expect: { under: { [EAST.key]: ["o1", "p2", "p1", "p3"] }, links: { [EAST.key]: ["+2 recent"] } },
   },
   {
-    name: "7d pinned past session of a running App with nothing open: the pin first, then Recent over its last 3, then Show all",
+    name: "7d pinned past session of a running App with nothing open: the pin first, then Recent over its last 3, then All N sessions ›",
     lens: "place", apps: [WEST], talks: pasts("w", WEST, 5), pins: ["w4"],
-    expect: { open: [WEST.key], under: { [WEST.key]: ["w4", "w1", "w2", "w3"] }, links: { [WEST.key]: ["Show all"] }, recent: [WEST.key] },
+    expect: { open: [WEST.key], under: { [WEST.key]: ["w4", "w1", "w2", "w3"] }, links: { [WEST.key]: ["All 5 sessions ›"] }, recent: [WEST.key] },
   },
   {
     name: "7e archived (in its app, or here) and unlisted past sessions: never listed, never counted",

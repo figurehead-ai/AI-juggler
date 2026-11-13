@@ -112,7 +112,7 @@ interface Expectation {
   counts?: Partial<Record<SectionId, number | null>>;
   /** What sits under each key, top to bottom (session ids). */
   under?: Record<string, string[]>;
-  /** The link lines under each key ("+5 recent", "Show all", "+2 more"). */
+  /** The link lines under each key ("+5 recent", "All 5 sessions ›", "+2 more"). */
   links?: Record<string, string[]>;
   /** D-103.1: the keys whose last ones sit under a "Recent" caption. */
   recent?: string[];
@@ -196,7 +196,7 @@ function drawn(walk: Walk, item: Parameters<typeof idOfItem>[0], depth: number |
   push(walk.seen.drawnUnder, id, walk.at);
 }
 
-/** A link line ("+5 recent", "Show all", "+2 more") under the App or Account above it. */
+/** A link line ("+5 recent", "All 5 sessions ›", "+2 more") under the App or Account above it. */
 function link(walk: Walk, words: string): void {
   if (walk.at !== null) push(walk.seen.links, walk.at, words);
 }
@@ -246,7 +246,7 @@ function under(line: Line, walk: Walk): void {
       if (walk.at !== null) walk.seen.recent.add(walk.at);
       return;
     case "all":
-      link(walk, "Show all");
+      link(walk, `All ${line.count} sessions ›`);
       return;
     case "more":
       link(walk, `+${line.quiet} ${line.words}`);

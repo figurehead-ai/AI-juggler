@@ -49,7 +49,7 @@ const kinds = (out: Line[]) =>
 describe("0.4.3 a running App unfolds to its sessions", () => {
   // 0.4.3 (the maintainer's 0.4.2 test: three running profiles read
   // "nothing open" with a chevron that unfolded nothing, none marked Out).
-  it("a running App with nothing open unfolds to its last 3 at once, pinned first, then Recent over its last ones (D-103.1), then Show all; never a dead chevron", () => {
+  it("a running App with nothing open unfolds to its last 3 at once, pinned first, then Recent over its last ones (D-103.1), then All N sessions ›; never a dead chevron", () => {
     const places = [running("East", 41, { account_id: "a1" }), running("West", 42, { account_id: "a9" })];
     const ended = [1, 2, 3, 4, 5].map((n) => past(`e${n}`, n, { app: "app:claude-app:/p/East" }));
     const items = itemsOf(ended).map((item) => (item.key === "c:a1/e5" ? { ...item, pinned: true } : item));

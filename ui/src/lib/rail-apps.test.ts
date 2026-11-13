@@ -133,7 +133,7 @@ describe("D-64 the rail grouped by App", () => {
     expect(built.also.inactive).toBe(0);
   });
 
-  it("an app's last 3 show under it on a click, an open app's after what's open, then Show all (0.4.3); Recent only over a closed one's (D-103.1)", () => {
+  it("an app's last 3 show under it on a click, an open app's after what's open, then All N sessions › (0.4.3); Recent only over a closed one's (D-103.1)", () => {
     const built = lines(rows, places, ["app|claude-app|Work#recent", "cli|claude-code|a2#recent"]);
     expect(kinds(built.lines)).toEqual([
       "section:open:1",

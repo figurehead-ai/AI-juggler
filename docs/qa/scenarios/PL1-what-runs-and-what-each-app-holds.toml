@@ -92,7 +92,7 @@ expect = "Its header reads nothing open, with no chevron and no row under it; no
 
 [[steps]]
 do = "Unfold Claude app · work"
-expect = "Its last 3 sessions, then Show all 5; its header carries the Out mark with when it resets"
+expect = "Recent, then its last 3 sessions, then All 5 sessions ›; its header carries the Out mark with when it resets"
 
 [[steps]]
 do = "Look under Inactive apps"

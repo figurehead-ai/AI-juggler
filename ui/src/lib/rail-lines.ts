@@ -51,7 +51,7 @@ export type Line =
   | { kind: "idle-more"; hidden: number }
   /** D-103.1: "Recent" over the last ones of an App with nothing open. */
   | { kind: "recent"; app: string }
-  /** 0.4.3: "Show all" under an App's last ones (`count`: those read). */
+  /** 0.4.3, D-103.2: "All N sessions ›" under an App's last ones (`count`: those read). */
   | { kind: "all"; app: string; count: number; group: RailGroup | null; idle: IdleApp | null }
   /** D-100: an app running that the user hasn't added (Add). */
   | Extract<OfferLine, { kind: "offer" }>;
