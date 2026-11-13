@@ -3035,3 +3035,28 @@ Each ships with tests that fail without it and a design critique; the M2, D2 and
   The live-sessions case is what this closes. No quit path wrote a log
   line, so the incident could only be told from the system log.
 - Sources: `crates/juggler-app/src/quit.rs` and its tests.
+
+### D-112 The close button hides the main window; ⌘Q quits — SETTLED (2026-11-13)
+
+- Decision (the coordinating session's design call, 0.4.5, an always-on
+  fix): the main window's close button and ⌘W hide the window. Nothing
+  quits, the quit sheet never shows, and every session keeps running.
+  ⌘Q, the tray's Quit and the Dock's Quit (where it reaches the app) go
+  through the quit request, with its sheet and D-111's rules. A click on
+  the Dock icon, the tray or a second launch shows the hidden window. The
+  first time a close hides the window, AI Juggler says once, as a toast:
+  "AI Juggler keeps running in the menu bar. ⌘Q quits." It's shown when the
+  window is next on screen (a hidden window can't show it), and recorded
+  so it never shows again on that install. The Floor's window keeps its
+  own close handling.
+- Why: AI Juggler is meant to stay running (always-on), and the tray and
+  the Dock bring it back. A close that quit, with nothing live, ended it
+  for anything that pressed the button, an accessibility client among
+  them (D-111's lab incidents). Neither the maintainer's rulings nor SPEC
+  say close must quit; E15 recorded AJ-E1503's "⌘Q and the close button
+  ask first" only as built.
+- Supersedes: the close-button half of AJ-E1503 Req.3 (its ⌘Q half
+  stands).
+- Sources: `crates/juggler-app/src/lib.rs` (the window's close),
+  `crates/juggler-app/src/quit.rs`, E15's AJ-E1503 note, the quitting
+  docs page.
