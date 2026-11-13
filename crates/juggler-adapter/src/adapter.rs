@@ -736,6 +736,24 @@ pub trait ToolTranscripts: ToolIdentity {
         let _ = path;
         None
     }
+    /// 0.4.5 (AJ-E805): a reader for the conversation file at `path` that
+    /// reads it as it grows ([`crate::transcript_read`]): the one reader AI
+    /// Juggler's conversation list and usage reading both take from, handed
+    /// only the lines written since its last read. `account` is the account
+    /// its usage is counted under. `None` (the default): the tool's file
+    /// isn't an append-only log (a record rewritten whole, or a store);
+    /// [`crate::ToolTranscripts::read_conversation`] reads it whole each
+    /// time it changes. A tool that gives one reads
+    /// [`crate::ToolTranscripts::read_conversation`] through it too.
+    #[must_use]
+    fn transcript_reader(
+        &self,
+        path: &Path,
+        account: &str,
+    ) -> Option<Box<dyn crate::transcript_read::TranscriptReader>> {
+        let _ = (path, account);
+        None
+    }
     /// QA batch 10: a quick read of a large conversation file, from its
     /// start and end only (`conversation::file_ends`): its id, folder,
     /// branch, first and last activity and, when the start has it, its

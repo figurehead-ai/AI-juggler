@@ -962,19 +962,8 @@ fn take_token_count(value: &serde_json::Value, outcome: &mut TailOutcome) -> boo
     true
 }
 
-/// Codex's credits, as its own rollout reports them (no value is read
-/// anywhere else; `auth.json` is never opened).
-#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
-pub struct CreditsSnapshot {
-    /// When Codex wrote it, epoch ms.
-    pub ts: i64,
-    /// The plan has credits at all.
-    pub has_credits: bool,
-    /// Credits are unlimited.
-    pub unlimited: bool,
-    /// The balance as Codex wrote it (a string in its protocol).
-    pub balance: Option<String>,
-}
+// Codex's credits: one transcript reader's figure (0.4.5, AJ-E805).
+pub use juggler_adapter::transcript_read::CreditsSnapshot;
 
 /// The limit readings on one Codex `token_count` line: `rate_limits`
 /// `{limit_id, primary, secondary, credits}`, each window
@@ -1097,19 +1086,12 @@ pub fn tail_transcript(path: &Path, account: &str, offset: u64) -> TailOutcome {
     })
 }
 
-/// Fix batch 5: Codex's compressed rollouts (`.jsonl.zst`), read as a
-/// stream (split from this file: the size budget).
-mod compressed;
-
 /// Convenience: [`tail_jsonl`] with the Codex rollout parser; `carry` is
 /// the previous pass's [`TailOutcome::carry`] for this file. A compressed
 /// rollout (`rollout-*.jsonl.zst`: Codex compresses older ones) is read
-/// once instead, as a stream (see `read_compressed_rollout`).
+/// whole instead, as a stream ([`crate::transcript_follow`]).
 #[must_use]
 pub fn tail_rollout(path: &Path, account: &str, offset: u64, carry: &RolloutCarry) -> TailOutcome {
-    if crate::transcript::is_compressed(path) {
-        return compressed::read_compressed_rollout(path, account, offset);
-    }
     tail_jsonl(path, offset, carry, |bytes, carry| {
         rollout_events_after(account, bytes, carry)
     })
