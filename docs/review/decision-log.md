@@ -2974,3 +2974,14 @@ Each ships with tests that fail without it and a design critique; the M2, D2 and
 - **Amends:** AJ-E1603 R3 ("labelled experimental" stands; the source is decided by the research pass).
 - Sources: the coordinating session's relay of the maintainer's words, 2026-11-13.
 
+### D-107 Live checks use the maintainer's existing accounts in separate lab profiles; the maintainer only signs in — SETTLED (2026-11-13)
+
+**Ruling.** The maintainer, 2026-11-13, restating earlier rulings: "you can use my existing accounts but create separate profiles". Never "spare accounts" again.
+
+- **Live checks** (AJ-E1612 for every new tool, AJ-E1701's bridge spike, and the like) run on the maintainer's existing accounts, each tool in **a separate lab profile or home** made for the lab (`KIMI_CODE_HOME`, `ZCODE_*`, `KIRO_HOME`, a per-account `HOME`…) under a throwaway lab project, set up through AI Juggler Dev. A tool's real home is never touched.
+- **The maintainer's part is the sign-ins only,** batched: each lab profile signed in once, all tools in one sitting, from one line per tool saying where.
+- **Agents drive every step** with guarded keystrokes (the frontmost and topmost check), one or two tools at a time, small tasks only; the evidence is recorded and every process reaped (the ledger back to 0).
+- **A tool not installed** is listed with what installing it needs; installing waits for the maintainer's yes.
+- **Amends:** AJ-E1612 and AJ-E1701 R2 ("spare accounts"); MAINTAINER-STEPS steps 16 and 17.
+- Sources: the coordinating session's relay of the maintainer's words, 2026-11-13.
+

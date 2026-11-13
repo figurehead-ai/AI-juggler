@@ -9,8 +9,9 @@
 > `grok.md`, `kiro.md`, `hermes.md`, `muse-code.md`, `cursor.md`,
 > `antigravity.md`, `zcode.md`), labelled per the evidence standard and
 > accessed 2026-10-21. Nothing was run live. Every adapter's final proof
-> includes a short live run on a spare account, which is the maintainer's
-> step (AJ-E1612).
+> includes a short live run in a separate lab profile on the maintainer's
+> existing accounts (D-107, AJ-E1612): agents drive it, the maintainer only
+> signs each lab profile in.
 >
 > **Law for every task here:**
 > - **Pass the conformance kit (AJ-E1521)** before merging: isolation, no
@@ -225,9 +226,9 @@
 **Research basis**: SPEC §10; EPICS M5-3.
 **Handover note**: —
 
-### AJ-E1612 Live checks on spare accounts | Status: TODO | Priority P0 | Effort M | Depends: AJ-E1601..AJ-E1609
-**Goal**: Each new tool is proven live once, on accounts that don't matter.
-**User story**: As the maintainer, I run a short script per tool on a spare account, and the evidence records what really happened.
+### AJ-E1612 Live checks in separate lab profiles | Status: TODO | Priority P0 | Effort M | Depends: AJ-E1601..AJ-E1609
+**Goal**: Each new tool is proven live once, on the maintainer's existing accounts in separate lab profiles (D-107).
+**User story**: As the maintainer, I sign each tool's lab profile in once, all tools in one sitting; agents run the checklists and the evidence records what really happened.
 **Requirements**: For each tool, a checklist covering: sign-in stays separate across two homes, a session starts and resumes, usage is read, and quota exhaustion is seen. The captures go to `docs/research/evidence/`.
 **UI/UX reasoning**: n/a.
 **Performance budget**: n/a.
@@ -236,4 +237,4 @@
 **Visual testing**: n/a.
 **Files to touch**: `docs/research/evidence/`, `docs/internal/MAINTAINER-STEPS.md`.
 **Research basis**: the evidence standard, rule 3.
-**Handover note**: The maintainer's step: agents prepare the checklists; the maintainer runs them.
+**Handover note**: D-107: agents set up a separate profile or home per tool (`KIMI_CODE_HOME`, `ZCODE_*`, `KIRO_HOME`, a per-account `HOME`…) under a throwaway lab project in AI Juggler Dev, never the tool's real home; the maintainer signs them in, in one sitting; agents drive every step with guarded keystrokes, 1–2 tools at a time, reap every process. A tool not installed is listed with what installing it needs; installing waits for the maintainer's yes.

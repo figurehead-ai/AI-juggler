@@ -43,7 +43,7 @@
 **User story**: As the maintainer, I rule on D-28 to D-33 (ruled 2026-10-24), and I see the bridge load in Claude Code and Codex without prompts.
 **Requirements**:
 1. ADR-0020 "Agent bridge", plus D-28–D-33 in the decision log, as the maintainer rules them (the plan doc has the recommendations).
-2. A spike on spare accounts:
+2. A spike in separate lab profiles on the maintainer's existing accounts (D-107):
    - `--mcp-config` loads in Claude Code without an approval prompt;
    - Codex's `-c mcp_servers.*` with `env_vars` passes the token;
    - a hook from a `--settings` file adds a turn note.
@@ -55,7 +55,7 @@
 **Visual testing**: n/a.
 **Files to touch**: `docs/adr/0020-agent-bridge.md`, `docs/review/decision-log.md`.
 **Research basis**: `pools-messaging-tasks.md` §2–3.
-**Handover note**: The live part of the spike needs spare accounts, which is the maintainer's step.
+**Handover note**: The live part runs in separate lab profiles on the maintainer's existing accounts (D-107): agents set them up and drive the spike; the maintainer only signs them in.
 *2026-10-25:* ADR-0020 is written with AJ-E1704 (Req.1's ADR; D-28 to D-33 were already in the log). Req.2 stays open: MAINTAINER-STEPS §17.
 
 ### AJ-E1702 Pools, the default pool, roles and permissions | Status: DONE-EVIDENCED (IN-REVIEW until the release PR) | Priority P0 | Effort M | Depends: —
