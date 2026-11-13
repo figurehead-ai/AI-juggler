@@ -112,7 +112,7 @@ dot on screen), so its window wasn't seen.
 | Commit | What |
 |---|---|
 | 72e0a57ae | `live_stats_of` takes the 2 s tick's stats while under 3 s old; a caller with no tick running still samples |
-| 17bad9b4a | `usage_pipeline::gate`: a pass runs on file events under the trees it reads (a recursive `FolderWake::trees`), on Claude's limit-record cadence (15 s: the bound for a late or lost event) and the stores' own; the offsets blob is written only when it changed; where events can't be heard, the old cadence |
+| 17bad9b4a, a5e47246c | `usage_pipeline::gate`: a pass runs on file events under the accounts' folders and AI Juggler's spools (a recursive `FolderWake::trees`), on Claude's limit-record cadence (15 s: the bound for a late or lost event) and, while an account has one, the stores' own; the offsets blob is written only when it changed; where events can't be heard, the old cadence. a5e47246c makes the gate tool-agnostic (ADR-0019): it watches each account's folder rather than tool-named subfolders and learns from the pipeline whether a store exists; measured with 17bad9b4a's version, the same at rest |
 | 7596f947b | `.dot-live` breathes three times, then rests (the This Mac dot again when its level changes); the session page's Live mark and the switcher's dot likewise; an app icon out of view waits still; a terminal's cursor blinks for 10 s after its last key or output |
 | df2caecfb, reverted by a99736df8 | a process table kept between presence reads: no change measured (52 vs 49 busy samples in 30 s); sysinfo reads every process's arguments on every refresh whatever it is asked |
 
