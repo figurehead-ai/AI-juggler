@@ -103,8 +103,8 @@ and the [security guidelines](./docs/engineering/SECURITY-GUIDELINES.md)):
   service, through Sentry's own SDK with its automatic data collection
   off: with Ask, only after you've read the whole report and chosen Send;
   with Always, without asking. Never, the default, sends nothing, and
-  `DO_NOT_TRACK` forces Never. Until a release build is given Sentry's
-  address, reports you choose to send stay on your Mac.
+  `DO_NOT_TRACK` forces Never. Release builds carry Sentry's address; a
+  development build never sends.
 - **Signed updates only**, verified before they're installed.
 - **Fleet** uses mutual TLS with a key per Mac and a pairing code you
   confirm. Your Macs talk directly, with no relay, and credentials never

@@ -114,7 +114,7 @@ with [What's open, and getting to it](./docs/guide/whats-open.md).
 | Backups, and going back to an earlier version | Works |
 | Switching a conversation to another account or tool | Beta: checked live between Claude Code accounts, between Codex accounts, and between Claude Code and Codex, both ways; every pair still says "Not proven yet" |
 | A switch prepared while an account runs low, so it's ready when the limit comes | Beta: new in 0.1 |
-| Crash reports to Sentry, scrubbed on your Mac (off unless you choose; Ask shows each one first) | Built; kept on your Mac until a release build has Sentry's address |
+| Crash reports to Sentry, scrubbed on your Mac (off unless you choose; Ask shows each one first) | Built; release builds carry Sentry's address (from 0.5) |
 | Fleet: your other Macs in one window: their sessions, starting a session on one, usage by machine | Beta: checked with two copies on one Mac, not yet across two Macs ([guide](./docs/guide/fleet.md)) |
 | OpenCode, Kimi Code and Grok Build | Beta: built from their source and docs, not yet checked live |
 | More tools (ZCode, Kiro and others) | Planned |
@@ -214,8 +214,8 @@ only to that account's sessions when they start.
 - Crash reports, only if you turn them on: scrubbed on your Mac, then sent
   to Sentry, the crash-report service. With Ask, each one only after you've
   read it and chosen Send; with Always, without asking. Never, the default,
-  sends nothing. This version keeps them on your Mac until its release
-  build has Sentry's address. With crash reports on, it also looks through
+  sends nothing. Release builds carry Sentry's address; a development
+  build never sends. With crash reports on, it also looks through
   macOS's own crash reports for AI Juggler's, and keeps only what failed
   and where.
 

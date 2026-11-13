@@ -421,14 +421,14 @@
         },
         {
           "id": "crash-reports",
-          "text": "Crash reports are off until you choose. When on, each is scrubbed on your Mac first, with names, paths, links and keys taken out, and goes only to Sentry: with Ask, only after you've read the whole report and chosen Send; with Always, without asking. This version keeps them on your Mac until its release build has Sentry's address.",
+          "text": "Crash reports are off until you choose. When on, each is scrubbed on your Mac first, with names, paths, links and keys taken out, and goes only to Sentry: with Ask, only after you've read the whole report and chosen Send; with Always, without asking. Release builds carry Sentry's address; a development build never sends.",
           "tests": [
             "crates/juggler-app/src/crash.rs::a_seeded_crash_is_scrubbed_before_it_is_kept",
             "crates/juggler-app/src/crash_sentry.rs::a_seeded_crash_reaches_the_sdks_envelope_scrubbed",
             "crates/juggler-app/src/crash_sentry.rs::the_preview_is_exactly_the_event_that_goes",
             "crates/juggler-app/src/crash_send.rs::a_report_waiting_for_the_users_answer_is_never_sent",
             "crates/juggler-app/src/crash_send.rs::never_sends_nothing_and_reads_nothing",
-            "crates/juggler-app/tests/trust.rs::crash_reports_have_nowhere_to_go",
+            "crates/juggler-app/tests/trust.rs::crash_reports_address_reaches_only_the_release_build",
             "crates/juggler-app/tests/trust.rs::the_crash_sender_is_built_only_with_an_address",
             "crates/juggler-app/tests/trust.rs::only_one_file_uses_sentrys_sdk_and_without_its_defaults",
             "ui/src/components/crash-reports.test.tsx::the preview is the Sentry event exactly as it would go"

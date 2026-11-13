@@ -605,13 +605,30 @@ fn build_settings_naming(variable: &str) -> Vec<String> {
     found
 }
 
+/// D-108 (AJ-E1107 R5): only the release build is given crash reports'
+/// Sentry address (the macOS build workflow, as a named secret for its
+/// compile step, passed in by the nightly release), and nothing prints it.
 #[test]
-fn crash_reports_have_nowhere_to_go() {
-    // No build is given the reporting address.
-    assert_eq!(
-        build_settings_naming("AI_JUGGLER_CRASH_ENDPOINT"),
-        Vec::<String>::new()
-    );
+fn crash_reports_address_reaches_only_the_release_build() {
+    let mut naming: Vec<String> = build_settings_naming("AI_JUGGLER_CRASH_ENDPOINT")
+        .iter()
+        .map(|path| {
+            std::path::Path::new(path)
+                .file_name()
+                .map_or_else(|| path.clone(), |name| name.to_string_lossy().into_owned())
+        })
+        .collect();
+    naming.sort();
+    assert_eq!(naming, ["build-macos.yml", "nightly.yml"]);
+    for workflow in ["build-macos.yml", "nightly.yml"] {
+        let text = read(&format!(".github/workflows/{workflow}"));
+        for line in text.lines().filter(|line| line.contains("CRASH_ENDPOINT")) {
+            assert!(
+                line.trim_start().starts_with("AI_JUGGLER_CRASH_ENDPOINT:"),
+                "{workflow} uses the crash address beyond passing it: {line}"
+            );
+        }
+    }
     // The address is read only to say whether sending is possible, and the
     // crash code holds no way to send.
     let crash = product(&read("crates/juggler-app/src/crash.rs"));
