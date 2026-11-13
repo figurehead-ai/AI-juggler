@@ -65,7 +65,8 @@ nothing asks. The first time, AI Juggler says so when its window is back.
 To bring the window back, click AI Juggler in the Dock, choose **Open AI
 Juggler** from its menu-bar icon, or open AI Juggler again.
 
-To quit, press ⌘Q. With sessions running, AI Juggler asks first and says
+To quit, press ⌘Q, or choose **Quit AI Juggler** from its menu-bar icon.
+With sessions running, AI Juggler asks first and says
 what quitting does to each: **Quit anyway**, **Stop them first** or
 **Cancel**. Quitting from the Dock (right-click its icon, then **Quit**),
 logging out, restarting and shutting down quit without asking.
