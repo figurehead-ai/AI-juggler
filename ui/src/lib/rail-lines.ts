@@ -49,6 +49,8 @@ export type Line =
   | { kind: "idle"; app: IdleApp; open: boolean }
   /** D-64: "Show n more" inactive apps. */
   | { kind: "idle-more"; hidden: number }
+  /** D-103.1: "Recent" over the last ones of an App with nothing open. */
+  | { kind: "recent"; app: string }
   /** 0.4.3: "Show all" under an App's last ones (`count`: those read). */
   | { kind: "all"; app: string; count: number; group: RailGroup | null; idle: IdleApp | null }
   /** D-100: an app running that the user hasn't added (Add). */
@@ -67,6 +69,7 @@ export const LINE_HEIGHT: Record<Line["kind"], number> = {
   past: 42,
   idle: 46,
   "idle-more": 26,
+  recent: 22,
   all: 26,
   offer: 34,
 };
@@ -328,7 +331,9 @@ export function lineKey(line: Line, index: number): string {
       return `past:${line.app}:${line.item.key}`;
     case "idle":
       return `idle:${line.app.key}`;
-    case "all": return `all:${line.app}`;
+    case "recent":
+    case "all":
+      return `${line.kind}:${line.app}`;
     case "offer":
       return `offer:${line.offer.id}`;
     default:

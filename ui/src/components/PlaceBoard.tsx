@@ -12,7 +12,7 @@
 import { useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState, type JSX, type ReactNode } from "react";
 import { NeedRow, PlaceHeader, edgeOf, type Arrangeable } from "./PlaceRows";
 import { SessionRow } from "./row/SessionRow";
-import { AlsoLine, Chevron, RailLink, RailSearchFoundNothing, SectionHead, scrollerOf, stepPastEdge } from "./PlaceBoardParts";
+import { AlsoLine, Chevron, RailCaption, RailLink, RailSearchFoundNothing, SectionHead, scrollerOf, stepPastEdge } from "./PlaceBoardParts";
 import { idleAppPage, RailIdleApp, RailShowAll } from "./RailIdleApp";
 import { RailOfferRow, usePlaceOffers } from "./PlaceOffers";
 import { RailOrderMenu } from "./RailOrderMenu";
@@ -336,6 +336,7 @@ export function PlaceBoard({ sessions, projects, accounts, snooze, now, selected
         return <SessionRow item={line.item} density={compact ? "compact" : "cozy"} within={{ app: true }} edge={edgeOf(line.item.place)} selected={selectedId === (line.item.session?.id ?? line.item.conversation?.id)} onSelect={onSelect} now={now} subagents={view.show.subagents} depth={line.kind === "past" ? line.depth : undefined} parent={line.kind === "past" ? line.parent : undefined} />;
       case "more":
         return <RailLink onClick={() => toggle(`${line.group.key}#all`)} testId="rail-more-quiet">{`+${line.quiet} ${line.words}`}</RailLink>;
+      case "recent": return <RailCaption>Recent</RailCaption>; // D-103.1: an App with nothing open
       case "all": return <RailShowAll page={line.group ? appPageOfGroup(lens, line.group, places) : line.idle ? idleAppPage(line.idle) : null} loaded={line.count} onOpen={openAppSessions} />; // 0.4.3 (D-64): its page
       case "idle": {
         const known = line.app.placeId !== null ? (places?.find((place) => place.id === line.app.placeId) ?? null) : null;

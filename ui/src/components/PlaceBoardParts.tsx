@@ -45,6 +45,18 @@ export function RailLink({ onClick, testId, expanded, children }: { onClick: () 
   );
 }
 
+/** D-103.1: "Recent", muted, over the last ones of an App with nothing
+ * open (persona D6: "nothing open" above three rows read as a
+ * contradiction). Words only, never a stop on the keys' path; it starts
+ * where the rows' link under them does. */
+export function RailCaption({ children }: { children: string }): JSX.Element {
+  return (
+    <p className="ml-3 flex h-[22px] items-end px-2.5 text-label font-medium text-muted" data-testid="rail-recent">
+      {children}
+    </p>
+  );
+}
+
 /** A section's head: a click folds it in place, and unfolds it. */
 export function SectionHead({ id, count, open, onToggle, extra }: { id: SectionId; count: number; open: boolean; onToggle: () => void; extra?: ReactNode }): JSX.Element {
   const { label, tone, Icon, testId } = SECTION[id];

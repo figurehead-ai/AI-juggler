@@ -49,7 +49,7 @@ const kinds = (out: Line[]) =>
 describe("0.4.3 a running App unfolds to its sessions", () => {
   // 0.4.3 (the maintainer's 0.4.2 test: three running profiles read
   // "nothing open" with a chevron that unfolded nothing, none marked Out).
-  it("a running App with nothing open unfolds to its last 3 at once, pinned first, then Show all; never a dead chevron", () => {
+  it("a running App with nothing open unfolds to its last 3 at once, pinned first, then Recent over its last ones (D-103.1), then Show all; never a dead chevron", () => {
     const places = [running("East", 41, { account_id: "a1" }), running("West", 42, { account_id: "a9" })];
     const ended = [1, 2, 3, 4, 5].map((n) => past(`e${n}`, n, { app: "app:claude-app:/p/East" }));
     const items = itemsOf(ended).map((item) => (item.key === "c:a1/e5" ? { ...item, pinned: true } : item));
@@ -58,6 +58,7 @@ describe("0.4.3 a running App unfolds to its sessions", () => {
       "section:open:2",
       "header:app|claude-app|East",
       "past:c:a1/e5",
+      "recent",
       "past:c:a1/e1",
       "past:c:a1/e2",
       "past:c:a1/e3",
@@ -78,7 +79,7 @@ describe("0.4.3 a running App unfolds to its sessions", () => {
     const places = [running("East", 41, { account_id: "a1" })];
     const rows = [past("kept", 1, { app: "app:claude-app:/p/East" }), past("deleted", 2, { app: "app:claude-app:/p/East", app_unlisted: true })];
     const out = lines(rows, places).lines;
-    expect(kinds(out)).toEqual(["section:open:1", "header:app|claude-app|East", "past:c:a1/kept", "also"]);
+    expect(kinds(out)).toEqual(["section:open:1", "header:app|claude-app|East", "recent", "past:c:a1/kept", "also"]);
   });
 
   it("invariant: every header with a fold unfolds to at least one row, in every App shape", () => {
@@ -93,7 +94,8 @@ describe("0.4.3 a running App unfolds to its sessions", () => {
       const out = lines(rows, places, toggled).lines;
       out.forEach((line, at) => {
         if (line.kind !== "header" || !line.foldable || line.folded !== null) return;
-        const next = out[at + 1];
+        // D-103.1: an App with nothing open says "Recent" over its last ones.
+        const next = out[at + 1]?.kind === "recent" ? out[at + 2] : out[at + 1];
         expect(next && (next.kind === "row" || next.kind === "past"), `${line.group.key} unfolds to a row`).toBe(true);
       });
       for (const line of out) if (line.kind === "header" && !line.foldable) expect(out[out.indexOf(line) + 1]?.kind).not.toMatch(/^(row|past)$/);
@@ -108,7 +110,7 @@ describe("0.4.3 a running App unfolds to its sessions", () => {
     expect(kinds(out)).toEqual(["section:open:2", "header:app|claude-app|South", "header:app|claude-app|North", "also"]);
     // Unfolded, it's under its own App.
     const open = lines([past("jive", 22, { app: "app:claude-app:/p/South" })], places).lines;
-    expect(kinds(open).slice(0, 3)).toEqual(["section:open:2", "header:app|claude-app|South", "past:c:a1/jive"]);
+    expect(kinds(open).slice(0, 4)).toEqual(["section:open:2", "header:app|claude-app|South", "recent", "past:c:a1/jive"]);
   });
 
   it("invariant: by App, each Open now group carries its App's own folder for its Out mark, never its first row's", () => {
