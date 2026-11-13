@@ -1706,10 +1706,7 @@ fn an_app_signing_in_to_another_account_moves_its_open_session_between_account_p
     // started (its App and Account beside it, never in its name).
     // Its start time only where the system can say one (not on every CI
     // host): "«folder · started 11:20 PM»", else "«folder»".
-    let lead = format!(
-        "«{}",
-        dir.path().file_name().unwrap().to_str().unwrap()
-    );
+    let lead = format!("«{}", dir.path().file_name().unwrap().to_str().unwrap());
     let said = |pool: &str| -> Vec<String> {
         pools::canvas::canvas_impl(&state, pool, Vec::new())
             .unwrap()
