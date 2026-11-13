@@ -238,7 +238,7 @@ jobs:
         run: python3 scripts/gen_usage_stats_doc.py --check
       - name: Every sub-second timer says why (AJ-E805)
         run: python3 scripts/polling_audit.py > /dev/null
-      - name: Release and CI scripts (D-20, D-24, ADR-0025 self-tests)
+      - name: Release and CI scripts (D-20, D-24, D-109, ADR-0025 self-tests)
         run: |
           python3 scripts/gate_passed.py --selftest
           python3 scripts/affected_crates.py --selftest
@@ -252,6 +252,7 @@ jobs:
           python3 scripts/stats_config_check.py --selftest
           python3 scripts/release_scope.py --selftest
           python3 scripts/release_scope.py report 0.4 >/dev/null
+          python3 scripts/signoff_record.py --selftest
           python3 scripts/apple_retry.py --selftest
           python3 scripts/updater_sig_check.py --selftest
       - name: Tool capabilities manifest
