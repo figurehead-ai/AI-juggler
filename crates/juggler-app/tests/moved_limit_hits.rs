@@ -389,8 +389,9 @@ fn at_start_a_hit_whose_account_is_gone_is_no_ones_and_the_counts_are_kept() {
     let data = dir.path().join("app-data");
     let state = start(&data);
     let (side, side_dir) = profile(&state, dir.path(), "side", "acct-s");
-    // The journal names an Account that is no longer there.
-    let gone_dir = dir.path().join("ClaudeCodeProfiles/gone");
+    // The journal names an Account that is no longer there (Work, its
+    // folder never added here).
+    let gone_dir = dir.path().join("ClaudeCodeProfiles/work");
     let from = gone_dir.join("projects/-w-p/s-1.jsonl");
     let to = side_dir.join("projects/-w-p/s-1.jsonl");
     journal(
