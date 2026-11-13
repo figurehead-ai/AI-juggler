@@ -96,7 +96,7 @@
 **Research basis**: `grok.md`.
 **Handover note**: —
 
-### AJ-E1605 ZCode | Status: IN-PROGRESS (requirements numbered and the research re-checked, 2026-11-13) | Priority P1 | Effort L | Depends: AJ-E1521
+### AJ-E1605 ZCode | Status: IN-PROGRESS (round 1 built 2026-11-13: R1–R3 and R7 on fixtures, the kit 15 of 15; R4 labels, R5, R6 and the live check AJ-E1612 left) | Priority P1 | Effort L | Depends: AJ-E1521
 **Goal**: ZCode, promised in the README and SPEC, ships.
 **User story**: As a GLM subscriber, I juggle ZCode with my other tools.
 **Requirements** (SPEC §4.3; numbered 2026-11-13 after re-checking the research on the installed app, desktop 3.15.3 / engine 0.16.9):
