@@ -217,6 +217,40 @@ fn in_window(rank: u8, changed: bool, at_ms: Option<i64>, since: i64) -> bool {
     (changed || rank == RUNNING) && (rank == NEEDS_YOU || at_ms.is_none_or(|at| at >= since))
 }
 
+/// Session `row` as a summary row: in `group` (`words` for it), its
+/// status changes in the window, when it entered its group, its project's
+/// name and the processes it left behind.
+fn summary_row(
+    row: crate::features::sessions::dto::InstanceInfo,
+    group: &str,
+    words: &str,
+    transitions: Vec<TransitionInfo>,
+    at_ms: Option<i64>,
+    project: Option<String>,
+    leftovers: u32,
+) -> SummaryRowInfo {
+    SummaryRowInfo {
+        detail: row.ending.and_then(|ending| ending.detail),
+        tokens: row.tokens.map(|t| t.input + t.output),
+        session_id: row.id,
+        account_label: row.account_label,
+        provider: row.provider,
+        kind: row.kind,
+        project,
+        group: group.to_owned(),
+        status: row.status,
+        words: words.to_owned(),
+        transitions,
+        at_ms,
+        leftovers,
+        label: row.label,
+        title: row.title,
+        git_branch: row.git_branch,
+        cwd: row.cwd,
+        started_at_ms: row.started_at_ms,
+    }
+}
+
 /// Core: the summary since `since_ms` (default: the user's last look,
 /// else 12 h).
 ///
@@ -284,31 +318,14 @@ pub fn overnight_summary_impl(
             .filter(|(_, _, at)| *at >= since)
             .map(|(from, to, at_ms)| TransitionInfo { from, to, at_ms })
             .collect();
+        let project = row
+            .project_id
+            .as_ref()
+            .and_then(|id| projects.get(id).cloned());
+        let leftovers = leftovers_by.get(&row.id).copied().unwrap_or(0);
         out.push((
             rank,
-            SummaryRowInfo {
-                session_id: row.id.clone(),
-                account_label: row.account_label.clone(),
-                provider: row.provider.clone(),
-                kind: row.kind.clone(),
-                project: row
-                    .project_id
-                    .as_ref()
-                    .and_then(|id| projects.get(id).cloned()),
-                group: group.to_owned(),
-                status: row.status.clone(),
-                words: words.to_owned(),
-                transitions,
-                at_ms,
-                detail: row.ending.as_ref().and_then(|ending| ending.detail.clone()),
-                tokens: row.tokens.as_ref().map(|t| t.input + t.output),
-                leftovers: leftovers_by.get(&row.id).copied().unwrap_or(0),
-                label: row.label.clone(),
-                title: row.title.clone(),
-                git_branch: row.git_branch.clone(),
-                cwd: row.cwd.clone(),
-                started_at_ms: row.started_at_ms,
-            },
+            summary_row(row, group, words, transitions, at_ms, project, leftovers),
         ));
     }
     // Needs you: the one waiting longest first (deep/11 §4.1, "Waiting
