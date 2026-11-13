@@ -1122,6 +1122,10 @@ pub fn run() {
         if let tauri::RunEvent::Reopen { .. } = event {
             main_window::reopened(app);
         }
+        // D-113: the Dock's Quit asks as ⌘Q does (once launched).
+        if let tauri::RunEvent::Ready = event {
+            quit::answer_quit_events(app);
+        }
         if let tauri::RunEvent::Exit = event {
             // AJ-E1509: quit as asked — the run is clean and the
             // watchdog ends with the app.

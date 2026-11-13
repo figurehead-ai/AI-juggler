@@ -26,9 +26,12 @@
 //! having seen the sheet (ADR-0003). It waits, logged; the sheet comes up
 //! when the window shows, and a second ⌘Q still quits. Every path is
 //! logged, so a quit nobody chose can be told apart afterwards.
-//! Logging out, shutting down and the Dock's Quit never ask: macOS sends
-//! those as `terminate:`, past the menu, and the app delegate answers it
-//! without asking (no `RunEvent::ExitRequested` comes first).
+//! D-113 (0.4.5): the quit Apple event has a handler of our own
+//! ([`answer_quit_events`]). One without a reason (the Dock's Quit,
+//! Activity Monitor's, a script's `quit`) goes through [`request`], as ⌘Q
+//! does; logging out, restarting and shutting down (the event says why),
+//! or any while quitting, terminate at once and never ask. If the handler
+//! can't be put in place, the system's own stays and quits without asking.
 
 // Tauri command signatures take State by value (as in commands.rs).
 #![allow(clippy::needless_pass_by_value)]
@@ -560,6 +563,44 @@ pub fn request<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> bool {
             });
             true
         }
+    }
+}
+
+/// The quit Apple event as AI Juggler answers it (D-113).
+struct QuitEventsOf<R: tauri::Runtime>(tauri::AppHandle<R>);
+
+impl<R: tauri::Runtime> juggler_window_events::QuitEvents for QuitEventsOf<R> {
+    fn quitting(&self) -> bool {
+        quitting()
+    }
+
+    fn ask(&self) {
+        tracing::info!(
+            "a quit Apple event without a reason (the Dock's Quit, Activity Monitor, a script): asking as ⌘Q does"
+        );
+        let _ = request(&self.0);
+    }
+
+    fn terminating(&self, reason: Option<u32>) {
+        let reason = reason.map(|code| String::from_utf8_lossy(&code.to_be_bytes()).into_owned());
+        tracing::info!(
+            ?reason,
+            "a quit Apple event with a reason (log out, restart, shut down), or while quitting: quitting as asked"
+        );
+    }
+}
+
+/// D-113: the quit Apple event from now on asks as ⌘Q does when it gives
+/// no reason, and quits at once when it does (log out, restart, shut
+/// down). Call once, on the main thread, once the app has launched
+/// (`RunEvent::Ready`: AppKit puts its own handler in place as it
+/// launches). If it can't be put in place, the system's own stays.
+pub fn answer_quit_events<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
+    match juggler_window_events::answer_quit_events(QuitEventsOf(app.clone())) {
+        Ok(()) => tracing::info!("the quit Apple event: asks first without a reason (D-113)"),
+        Err(error) => tracing::warn!(
+            "the quit Apple event keeps the system's handler, which quits without asking: {error}"
+        ),
     }
 }
 
