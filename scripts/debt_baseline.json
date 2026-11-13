@@ -1183,9 +1183,6 @@
  "ui/src/lib/scroll-memory.ts": {
   "knip:exports": 1
  },
- "ui/src/lib/session-titles.ts": {
-  "knip:exports": 1
- },
  "ui/src/lib/shortcut-bindings.ts": {
   "knip:exports": 2
  },
