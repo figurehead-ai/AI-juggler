@@ -95,27 +95,38 @@ function Row({ row, name, now, onOpen }: { row: SummaryRowInfo; name: string; no
       <button
         type="button"
         onClick={() => onOpen(row.session_id)}
-        className="flex w-full flex-wrap items-center gap-x-2 gap-y-0.5 rounded-lg border border-hairline px-2.5 py-1.5 text-left text-label hover:border-accent/40 hover:bg-surface"
+        className="flex w-full flex-col gap-0.5 rounded-lg border border-hairline px-2.5 py-1.5 text-left text-label hover:border-accent/40 hover:bg-surface"
         data-testid="summary-row"
         data-group={row.group}
       >
-        <span className="font-medium text-ink" data-testid="summary-name">{name}</span>
-        {/* Its App by its full name (the 0.4 review). */}
-        <span className="text-muted" data-testid="summary-app">· {sessionAppName(row)}</span>
-        {row.project && <span className="text-muted">· {row.project}</span>}
-        <span className="text-ink">· {row.detail ? `${row.words} · ${row.detail}` : row.words}</span>
-        <span className="flex-1" />
-        {/* Its tokens when they're known; nothing when they aren't (an
-            unknown value stays silent, never a 0: the persona walk found
-            "tokens: Unavailable · cost: Unavailable" on every row, the
-            runway pushed below the fold). The row has no cost to say. */}
-        {row.tokens !== null && <span className="text-muted">{row.tokens.toLocaleString()} tokens</span>}
-        {row.leftovers > 0 && (
-          <span className="text-ink">
-            · {row.leftovers} leftover {row.leftovers === 1 ? "process" : "processes"}
-          </span>
-        )}
-        {when && <span className="w-full text-muted" data-testid="summary-when">{when}</span>}
+        {/* Its name on a line of its own, as "Pick up where you left off"
+            names a session; what it ran in and how it went under it (a
+            long name pushed "· Finished" onto a line alone). */}
+        <span className="w-full truncate font-medium text-ink" data-testid="summary-name" title={name}>
+          {name}
+        </span>
+        <span className="flex w-full flex-wrap items-center gap-x-2 gap-y-0.5">
+          {/* Its App by its full name (the 0.4 review). */}
+          <span className="text-muted" data-testid="summary-app">{sessionAppName(row)}</span>
+          {row.project && <span className="text-muted">· {row.project}</span>}
+          <span className="text-ink">· {row.detail ? `${row.words} · ${row.detail}` : row.words}</span>
+          {when && (
+            <span className="text-muted">
+              · <span data-testid="summary-when">{when}</span>
+            </span>
+          )}
+          <span className="flex-1" />
+          {/* Its tokens when they're known; nothing when they aren't (an
+              unknown value stays silent, never a 0: the persona walk found
+              "tokens: Unavailable · cost: Unavailable" on every row, the
+              runway pushed below the fold). The row has no cost to say. */}
+          {row.tokens !== null && <span className="text-muted">{row.tokens.toLocaleString()} tokens</span>}
+          {row.leftovers > 0 && (
+            <span className="text-ink">
+              · {row.leftovers} leftover {row.leftovers === 1 ? "process" : "processes"}
+            </span>
+          )}
+        </span>
       </button>
     </li>
   );
