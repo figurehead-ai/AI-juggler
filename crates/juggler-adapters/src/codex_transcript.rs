@@ -143,7 +143,9 @@ impl RolloutParser {
         match kind.as_str() {
             "session_meta" => self.session_id = text(payload, "id").or(self.session_id.take()),
             "turn_context" => self.model = text(payload, "model").or(self.model.take()),
-            "token_usage_record" => {
+            // A summary's tokens are its usage's (0.4.5, AJ-E805: the
+            // transcript reader), so only a whole parse counts them here.
+            "token_usage_record" if self.keep_messages => {
                 let key = ["thread_id", "turn_id", "response_id"]
                     .map(|field| text(payload, field).unwrap_or_default())
                     .join("/");

@@ -3,13 +3,12 @@
 //! (subagents' transcripts sit one level deeper and are part of their
 //! parent, so they're not listed). Read-only.
 
-use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 use juggler_adapter::conversation::{
     ConversationSummary, SessionProcess, prompt_title, title_from, value_after,
 };
-use juggler_core::model::TokenCounts;
+use juggler_adapter::transcript_read::{TranscriptReader, UsageRead};
 use juggler_core::time::timestamp_ms;
 
 /// The longest title kept.
@@ -98,18 +97,13 @@ fn ask_title(message: &serde_json::Value) -> Option<String> {
     })
 }
 
-/// Reads one conversation: its id, folder, branch, title, first and last
-/// activity, and tokens (each assistant message counted once, by its
-/// message id: the CLI writes a message's lines more than once).
+/// Reads one conversation whole: its id, folder, branch, title, first and
+/// last activity, and tokens (each response once: its usage, by the
+/// store's rule). Through the same reader that follows a live transcript
+/// ([`transcript_reader`]).
 #[must_use]
 pub fn read_conversation(path: &Path) -> Option<ConversationSummary> {
-    // Line by line, each bounded: a transcript of any size reads in
-    // bounded memory.
-    let lines = crate::transcript::session_lines(path).ok()?;
-    summary_of(
-        lines.map(|(_, line)| String::from_utf8_lossy(&line).into_owned()),
-        path,
-    )
+    crate::transcript_follow::read_whole(path, transcript_reader(""))
 }
 
 /// QA batch 10: a large transcript's quick read, from its start and end
@@ -117,10 +111,53 @@ pub fn read_conversation(path: &Path) -> Option<ConversationSummary> {
 #[must_use]
 pub fn read_conversation_quick(path: &Path) -> Option<ConversationSummary> {
     let ends = juggler_adapter::conversation::file_ends(path)?;
-    let text = String::from_utf8_lossy(&ends);
-    let mut summary = summary_of(text.lines().map(str::to_owned), path)?;
-    summary.tokens = TokenCounts::default();
-    Some(summary)
+    let mut fold = Fold::default();
+    for line in ends.split(|byte| *byte == b'\n') {
+        if let Ok(value) = serde_json::from_slice::<serde_json::Value>(line) {
+            fold.line(&value);
+        }
+    }
+    fold.summary(path)
+}
+
+/// 0.4.5 (AJ-E805): a transcript read as it grows: what it says about the
+/// conversation, and its usage (`quota_ingest`'s events, counted under
+/// `account`), each line parsed once.
+#[must_use]
+pub fn transcript_reader(account: &str) -> Box<dyn TranscriptReader> {
+    Box::new(Reader {
+        account: account.to_owned(),
+        fold: Fold::default(),
+    })
+}
+
+/// A transcript's reader ([`transcript_reader`]).
+struct Reader {
+    account: String,
+    fold: Fold,
+}
+
+impl TranscriptReader for Reader {
+    fn read(&mut self, lines: &[u8]) -> UsageRead {
+        let mut events = crate::quota_ingest::TranscriptEvents::new(&self.account);
+        for line in lines.split(|byte| *byte == b'\n') {
+            if line.iter().all(u8::is_ascii_whitespace) {
+                continue;
+            }
+            match serde_json::from_slice::<serde_json::Value>(line) {
+                Ok(value) => {
+                    self.fold.line(&value);
+                    events.value(&value);
+                }
+                Err(_) => events.damaged(),
+            }
+        }
+        crate::quota_ingest::usage_read(events.finish())
+    }
+
+    fn summary(&self, path: &Path) -> Option<ConversationSummary> {
+        self.fold.summary(path)
+    }
 }
 
 /// A Claude Code session id (a UUID: 8-4-4-4-12 hex digits), as its
@@ -205,30 +242,36 @@ impl ToolTitles {
     }
 
     /// The one `claude --resume` shows first.
-    fn best(self) -> Option<String> {
-        self.custom.or(self.ai).or(self.summary)
+    fn best(&self) -> Option<String> {
+        self.custom
+            .as_ref()
+            .or(self.ai.as_ref())
+            .or(self.summary.as_ref())
+            .cloned()
     }
 }
 
-/// What a transcript's lines (all, or its two ends) say.
-fn summary_of(lines_in: impl Iterator<Item = String>, path: &Path) -> Option<ConversationSummary> {
-    let mut summary = ConversationSummary::default();
-    let mut tool_titles = ToolTitles::default();
-    let mut first_ask: Option<String> = None;
-    let mut opening: Option<String> = None;
-    let mut usage: HashMap<String, TokenCounts> = HashMap::new();
-    let mut unnamed = 0_u64;
-    let mut lines = 0_u64;
-    let mut entry_seen = false;
-    for line in lines_in {
-        let Ok(value) = serde_json::from_str::<serde_json::Value>(&line) else {
-            continue; // a damaged or half-written line
-        };
-        lines += 1;
+/// What a transcript's lines (all, or its two ends) say, gathered a line
+/// at a time; its tokens are its usage's ([`transcript_reader`]).
+#[derive(Default)]
+struct Fold {
+    summary: ConversationSummary,
+    tool_titles: ToolTitles,
+    first_ask: Option<String>,
+    opening: Option<String>,
+    lines: u64,
+    entry_seen: bool,
+}
+
+impl Fold {
+    /// One line that parsed.
+    fn line(&mut self, value: &serde_json::Value) {
+        self.lines += 1;
         let str_of = |key: &str| value.get(key).and_then(serde_json::Value::as_str);
-        if tool_titles.take(str_of("type"), &value) {
-            continue;
+        if self.tool_titles.take(str_of("type"), value) {
+            return;
         }
+        let summary = &mut self.summary;
         if summary.id.is_empty()
             && let Some(id) = str_of("sessionId")
         {
@@ -242,7 +285,7 @@ fn summary_of(lines_in: impl Iterator<Item = String>, path: &Path) -> Option<Con
         if let Some(branch) = str_of("gitBranch").filter(|branch| !branch.is_empty()) {
             summary.git_branch = Some(branch.to_owned());
         }
-        note_entrypoint(&mut summary, &mut entry_seen, str_of("entrypoint"));
+        note_entrypoint(summary, &mut self.entry_seen, str_of("entrypoint"));
         if let Some(at) = str_of("timestamp").and_then(timestamp_ms) {
             summary.started_ms = Some(summary.started_ms.map_or(at, |first| first.min(at)));
             summary.last_ms = Some(summary.last_ms.map_or(at, |last| last.max(at)));
@@ -252,76 +295,41 @@ fn summary_of(lines_in: impl Iterator<Item = String>, path: &Path) -> Option<Con
             .and_then(serde_json::Value::as_bool)
             == Some(true);
         let Some(message) = value.get("message") else {
-            continue;
+            return;
         };
-        match str_of("type") {
-            Some("user") if first_ask.is_none() && !sidechain => {
-                if opening.is_none() {
-                    opening = first_text(message).and_then(|text| title_from(text, TITLE_MAX));
-                }
-                if !tools_own(&value) {
-                    first_ask = ask_title(message);
-                }
+        if str_of("type") == Some("user") && self.first_ask.is_none() && !sidechain {
+            if self.opening.is_none() {
+                self.opening = first_text(message).and_then(|text| title_from(text, TITLE_MAX));
             }
-            Some("assistant") => {
-                if let Some(counts) = message.get("usage").map(counts_of) {
-                    let key = message
-                        .get("id")
-                        .and_then(serde_json::Value::as_str)
-                        .map_or_else(
-                            || {
-                                unnamed += 1;
-                                format!("#{unnamed}")
-                            },
-                            str::to_owned,
-                        );
-                    usage.insert(key, counts);
-                }
+            if !tools_own(value) {
+                self.first_ask = ask_title(message);
             }
-            _ => {}
         }
     }
-    if lines == 0 {
-        return None;
-    }
-    // 0.4.3: a session is its file, as Claude Code resumes it: a fork's
-    // file starts with lines copied from its parent (the parent's
-    // `sessionId`), so three files of one family read as one row and the
-    // app's own list had one more than AI Juggler.
-    if let Some(stem) = path
-        .file_stem()
-        .map(|stem| stem.to_string_lossy())
-        .filter(|stem| is_session_id(stem))
-    {
-        summary.id = stem.into_owned();
-    }
-    if summary.id.is_empty() {
-        summary.id = path.file_stem()?.to_string_lossy().into_owned();
-    }
-    summary.title = tool_titles.best().or(first_ask);
-    summary.opening = opening;
-    for counts in usage.values() {
-        summary.tokens.input += counts.input;
-        summary.tokens.output += counts.output;
-        summary.tokens.cache_read += counts.cache_read;
-        summary.tokens.cache_write += counts.cache_write;
-    }
-    Some(summary)
-}
 
-fn counts_of(usage: &serde_json::Value) -> TokenCounts {
-    let n = |key: &str| {
-        usage
-            .get(key)
-            .and_then(serde_json::Value::as_u64)
-            .unwrap_or(0)
-    };
-    TokenCounts {
-        input: n("input_tokens"),
-        output: n("output_tokens"),
-        cache_read: n("cache_read_input_tokens"),
-        cache_write: n("cache_creation_input_tokens"),
-        reasoning: 0,
+    /// What the lines so far say, with no tokens; `None` before any.
+    fn summary(&self, path: &Path) -> Option<ConversationSummary> {
+        if self.lines == 0 {
+            return None;
+        }
+        let mut summary = self.summary.clone();
+        // 0.4.3: a session is its file, as Claude Code resumes it: a fork's
+        // file starts with lines copied from its parent (the parent's
+        // `sessionId`), so three files of one family read as one row and
+        // the app's own list had one more than AI Juggler.
+        if let Some(stem) = path
+            .file_stem()
+            .map(|stem| stem.to_string_lossy())
+            .filter(|stem| is_session_id(stem))
+        {
+            summary.id = stem.into_owned();
+        }
+        if summary.id.is_empty() {
+            summary.id = path.file_stem()?.to_string_lossy().into_owned();
+        }
+        summary.title = self.tool_titles.best().or_else(|| self.first_ask.clone());
+        summary.opening.clone_from(&self.opening);
+        Some(summary)
     }
 }
 
@@ -342,6 +350,80 @@ pub fn session_process(exe: Option<&Path>, args: &[String]) -> Option<SessionPro
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// 0.4.5 (AJ-E805): a transcript read as it grows, in any pieces (a
+    /// response's lines split between reads), says what it says read whole,
+    /// and its usage is the usage reading's: each response once, at its
+    /// largest. The conversation list read it whole again on every pass.
+    #[test]
+    fn a_transcript_read_as_it_grows_is_the_transcript_read_whole() {
+        let dir = tempfile::tempdir().unwrap();
+        let line = |kind: &str, id: &str, output: u64, extra: &str| {
+            format!(
+                r#"{{"type":"{kind}","sessionId":"s-1","cwd":"/w/proj","gitBranch":"main","timestamp":"2026-10-21T10:00:0{output}.000Z","requestId":"r-{id}","uuid":"u-{id}-{output}",{extra}"message":{{"id":"{id}","role":"{kind}","content":"why does login fail?","usage":{{"input_tokens":10,"output_tokens":{output},"cache_read_input_tokens":100}}}}}}"#
+            )
+        };
+        let lines = [
+            r#"{"type":"user","sessionId":"s-1","cwd":"/w/proj","timestamp":"2026-10-21T10:00:00.000Z","message":{"role":"user","content":"why does login fail?"}}"#.to_owned(),
+            // One response streamed over three lines, its output growing.
+            line("assistant", "m1", 1, ""),
+            line("assistant", "m1", 5, ""),
+            line("assistant", "m1", 9, ""),
+            line("assistant", "m2", 3, r#""isSidechain":true,"#),
+            r#"{"type":"ai-title","aiTitle":"Login failure"}"#.to_owned(),
+            line("assistant", "m3", 4, ""),
+        ];
+        let text = lines.join("\n") + "\n";
+        let path = write(
+            dir.path(),
+            "projects/-w-proj/s-1.jsonl",
+            &lines.iter().map(String::as_str).collect::<Vec<_>>(),
+        );
+        let whole = read_conversation(&path).unwrap();
+        // Each response once at its largest: m1 9, m2 3, m3 4.
+        assert_eq!(
+            (
+                whole.tokens.input,
+                whole.tokens.output,
+                whole.tokens.cache_read
+            ),
+            (30, 16, 300)
+        );
+        assert_eq!(whole.title.as_deref(), Some("Login failure"));
+        let usage = crate::quota_ingest::transcript_events("acc", text.as_bytes()).events;
+        // Every split between whole lines reads the same.
+        let ends: Vec<usize> = text.match_indices('\n').map(|(at, _)| at + 1).collect();
+        for cut in &ends {
+            let mut file =
+                juggler_adapter::transcript_read::ConversationFile::new(transcript_reader("acc"));
+            let first = file.read(&text.as_bytes()[..*cut]);
+            let second = file.read(&text.as_bytes()[*cut..]);
+            assert_eq!(file.summary(&path).as_ref(), Some(&whole), "cut at {cut}");
+            let keys: std::collections::BTreeSet<_> = first
+                .events
+                .iter()
+                .chain(&second.events)
+                .filter_map(|event| event.msg_uuid.clone())
+                .collect();
+            let whole_keys: std::collections::BTreeSet<_> = usage
+                .iter()
+                .filter_map(|event| event.msg_uuid.clone())
+                .collect();
+            assert_eq!(keys, whole_keys, "cut at {cut}");
+        }
+        // Not a transcript: no reader.
+        let adapter = crate::claude_code::ClaudeCodeAdapter::with_bin("/bin/true");
+        let reader = |name: &str| {
+            juggler_adapter::ToolTranscripts::transcript_reader(
+                &adapter,
+                &dir.path().join(name),
+                "a",
+            )
+            .is_some()
+        };
+        assert!(reader("s.jsonl"));
+        assert!(!reader("settings.json"));
+    }
 
     fn write(dir: &Path, name: &str, lines: &[&str]) -> PathBuf {
         let path = dir.join(name);

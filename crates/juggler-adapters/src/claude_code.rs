@@ -715,6 +715,15 @@ impl ToolTranscripts for ClaudeCodeAdapter {
     fn conversation_reader_version(&self) -> u32 {
         5
     }
+    fn transcript_reader(
+        &self,
+        path: &Path,
+        account: &str,
+    ) -> Option<Box<dyn juggler_adapter::transcript_read::TranscriptReader>> {
+        path.extension()
+            .is_some_and(|ext| ext == "jsonl")
+            .then(|| crate::claude_conversations::transcript_reader(account))
+    }
     fn read_conversation_quick(
         &self,
         path: &Path,

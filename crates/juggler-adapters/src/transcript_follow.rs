@@ -148,6 +148,39 @@ fn skip_line(file: &mut std::fs::File) -> Option<u64> {
     }
 }
 
+/// A conversation file read whole through its reader (a tool's
+/// `read_conversation`, when its files are append-only logs: one reader,
+/// whole or as it grows). Its last line counts even without a newline
+/// (the file is read once, not followed).
+#[must_use]
+pub fn read_whole(
+    path: &Path,
+    reader: Box<dyn juggler_adapter::transcript_read::TranscriptReader>,
+) -> Option<juggler_adapter::conversation::ConversationSummary> {
+    let mut file = juggler_adapter::transcript_read::ConversationFile::new(reader);
+    let followed = follow(path, 0, |step| {
+        if let Step::Lines(lines) = step {
+            let _ = file.read(lines);
+        }
+    });
+    if !crate::transcript::is_compressed(path)
+        && let Ok(mut rest) = std::fs::File::open(path)
+        && rest.seek(std::io::SeekFrom::Start(followed.offset)).is_ok()
+    {
+        let mut last = Vec::new();
+        if rest
+            .take(crate::common::jsonl::LINE_MAX as u64)
+            .read_to_end(&mut last)
+            .is_ok()
+            && !last.iter().all(u8::is_ascii_whitespace)
+        {
+            last.push(b'\n');
+            let _ = file.read(&last);
+        }
+    }
+    file.summary(path)
+}
+
 /// How much a compressed file may decompress to before AI Juggler stops
 /// and leaves it unread, so a damaged or hostile file can't keep a read
 /// busy: far above any real rollout (the largest seen, a 50,000-turn
@@ -250,7 +283,8 @@ struct LinesRead {
 /// Reads `reader` a slice at a time and hands `each` the complete lines
 /// (through their newlines) as they come. A line still unfinished past
 /// `limits.line` is dropped up to its newline. Whatever follows the last
-/// newline is a line never finished, and is left out.
+/// newline is the file's last line (a compressed file is finished), handed
+/// on with one.
 fn for_each_lines(
     mut reader: impl std::io::Read,
     limits: LineLimits,
@@ -264,6 +298,12 @@ fn for_each_lines(
     loop {
         let read = reader.read(&mut slice).map_err(|_| Unreadable::Damaged)?;
         if read == 0 {
+            // A compressed file is finished: its last line counts without
+            // a newline too.
+            if !skipping && !pending.iter().all(u8::is_ascii_whitespace) {
+                pending.push(b'\n');
+                each(&pending);
+            }
             return Ok(seen);
         }
         total += read as u64;
@@ -312,13 +352,16 @@ mod line_tests {
         (handed, read)
     }
 
-    /// Lines split across slices come out whole; a last line never finished
-    /// is left out.
+    /// Lines split across slices come out whole; the last line counts
+    /// without its newline (a compressed file is finished).
     #[test]
     fn lines_cross_slices_whole() {
-        let text = b"{\"a\":1}\n{\"b\":\"a longer value here\"}\nunfinished";
+        let text = b"{\"a\":1}\n{\"b\":\"a longer value here\"}\nlast";
         let (handed, read) = lines_of(text, SMALL);
-        assert_eq!(handed, b"{\"a\":1}\n{\"b\":\"a longer value here\"}\n");
+        assert_eq!(
+            handed,
+            b"{\"a\":1}\n{\"b\":\"a longer value here\"}\nlast\n"
+        );
         assert_eq!(read.ok().map(|read| read.overlong), Some(0));
     }
 
