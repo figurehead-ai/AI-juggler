@@ -301,6 +301,8 @@ pub struct CollectorWork {
     /// New descendants those listings found: processes a tree started
     /// since the last full scan, counted at once.
     pub discovered: u64,
+    /// When the last tick ran, epoch ms (0 before the first).
+    pub last_tick_ms: i64,
 }
 
 /// One process as the running-tools scan needs it (no environment).
@@ -423,6 +425,7 @@ impl LiveStatsCollector {
         let full = self.ticks <= WARMUP_FULL_TICKS || self.ticks.is_multiple_of(FULL_SCAN_EVERY);
         let roots = supervisor.live_roots();
         self.work.ticks += 1;
+        self.work.last_tick_ms = now_ms;
         if full {
             self.work.full_scans += 1;
             self.refresh_all();
