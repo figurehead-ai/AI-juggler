@@ -291,7 +291,7 @@ low-load check before a push. A release goes like this:
    | `visual (1/4)`…`(4/4)`, **`visual`** | the visual gate in the pinned x64 container, split by test; `visual` checks the baseline notes and merges the reports |
    | `a11y (1/6)`…`(6/6)`, `a11y` | the accessibility gate, split by test |
    | **`build-macos`**, **`build-linux`**, **`build-windows`** | the cross-platform builds |
-   | `rc-dev-app` | the release candidate: AI Juggler Dev, release profile, arm64, unsigned, built by `scripts/build_dev_app.sh` (as `just app`); its bundle checked, the first open after an update on the synthetic v49 database (headless measure, then the real-window check); uploaded as `rc-dev-app-<commit>`. `verify` needs it |
+   | `rc-dev-app`, `rc-v49`, `rc-first-open` | the release candidate: AI Juggler Dev, release profile, arm64, unsigned, built by `scripts/build_dev_app.sh` (as `just app`) with its bundle checked (`rc-dev-app`); beside it, the synthetic v49 database and the headless measure of its first open (`rc-v49`, its own release test build); then the first open after an update in a real window on both (`rc-first-open`), which uploads the app as `rc-dev-app-<commit>`. Side by side since AJ-E2020 R5 (one job, the two builds took ~40 min). `verify` needs all three |
 
    The checks in bold are the ones main's ruleset requires; they kept their
    names, so the ruleset didn't change. A merge needs every one green on the
@@ -329,10 +329,11 @@ Measured (2026-11-02):
 
 Release candidates are built on GitHub, not on the shared Mac (2026-11-11:
 local release builds filled its disk and swap). Every CI run builds one in
-`rc-dev-app` (above). To walk it:
+`rc-dev-app` and, once `rc-first-open` has checked it, uploads it (above).
+To walk it:
 
 ```sh
-scripts/qa/fetch_rc.sh <commit>    # the PR's head commit, once rc-dev-app passed
+scripts/qa/fetch_rc.sh <commit>    # the PR's head commit, once rc-first-open passed
 ```
 
 It downloads `rc-dev-app-<commit>` into

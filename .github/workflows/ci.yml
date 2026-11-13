@@ -637,7 +637,7 @@ jobs:
   # required check missing, which blocks the merge.
   verify:
     name: verify
-    needs: [plan, static, static-rust, rust-build, rust-test, dev-bridge, floor-gallery, ui, visual-shard, visual, a11y-shard, a11y, build-macos, rc-dev-app, build-linux, build-windows]
+    needs: [plan, static, static-rust, rust-build, rust-test, dev-bridge, floor-gallery, ui, visual-shard, visual, a11y-shard, a11y, build-macos, rc-dev-app, rc-v49, rc-first-open, build-linux, build-windows]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -1076,6 +1076,13 @@ jobs:
   # the first open after an update (the rc8 blocker) on the synthetic v49
   # database, in a real window. Only then is the app uploaded, as
   # `rc-dev-app-<commit>`, for walks: `scripts/qa/fetch_rc.sh <commit>`.
+  #
+  # Three jobs, so the two release builds run side by side (AJ-E2020 R5,
+  # 2026-11-13): the app (rc-dev-app, ~19 min) and the v49 database's test
+  # build (rc-v49, ~20 min: `cargo test --release` builds juggler-app and
+  # its dependencies again with the test features). One after the other
+  # they were ~40 min, every pull request's critical path. rc-first-open
+  # then runs the real-window check on both, and uploads the app.
   rc-dev-app:
     name: rc-dev-app
     needs: plan
@@ -1128,10 +1135,63 @@ jobs:
           echo "$REF" > "$out/COMMIT"
           lipo -info "$APP/Contents/MacOS/"*
           codesign -dv "$APP/Contents/MacOS/juggler-app" 2>&1 | grep -E '^(Signature|Identifier|CDHash)' || true
-      # The synthetic v49 database (no real data), made as the local RC
-      # made it, and the headless measure of its first open (storage ready,
-      # sizes). The test binary links the Swift bridge but never calls it:
-      # an empty stub satisfies its load (as build-macos's suites do).
+      # Checked by rc-first-open before anyone can fetch it for a walk.
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: rc-build-${{ env.REF }}
+          path: ${{ runner.temp }}/rc/
+          retention-days: 1
+          if-no-files-found: error
+      - name: Keep the dependencies only (release, main only)
+        if: steps.cargo-cache.outputs.cache-hit != 'true' && github.ref == 'refs/heads/main'
+        shell: bash
+        run: ./scripts/ci/cache_keep_deps.sh target/release
+      - name: Save the Cargo cache (release, main only)
+        if: steps.cargo-cache.outputs.cache-hit != 'true' && github.ref == 'refs/heads/main'
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+            target
+          key: ${{ steps.cargo-cache.outputs.cache-primary-key }}
+
+  # The synthetic v49 database (no real data), made as the local RC made
+  # it, and the headless measure of its first open (storage ready, sizes).
+  # The test binary links the Swift bridge but never calls it: an empty
+  # stub satisfies its load (as build-macos's suites do). Its own release
+  # cache: the test build's dependency set isn't the app's.
+  rc-v49:
+    name: rc-v49
+    needs: plan
+    if: needs.plan.outputs.tested == '' && contains(fromJSON(needs.plan.outputs.jobs || '[]'), 'rc-v49')
+    runs-on: macos-latest
+    timeout-minutes: 90
+    permissions:
+      contents: read
+    env:
+      REF: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: ${{ env.REF }}
+          persist-credentials: false
+      - name: Toolchain (pinned)
+        uses: $/.github/actions/macos-app-toolchain
+        with:
+          target: aarch64-apple-darwin
+      - name: Cargo cache (release tests)
+        id: cargo-cache
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+            target
+          key: ${{ runner.os }}-rc-v49-cargo-${{ hashFiles('**/Cargo.lock', 'rust-toolchain.toml') }}
+          restore-keys: ${{ runner.os }}-rc-v49-cargo-
       - name: The v49 database, and its first open measured
         run: |
           set -euo pipefail
@@ -1141,6 +1201,64 @@ jobs:
           AIJ_KEEP_V49="$RUNNER_TEMP/v49/juggler.sqlite" \
             cargo test --release -p juggler-app --test first_open_measure -- --ignored --nocapture
           ls -l "$RUNNER_TEMP/v49"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: rc-v49-${{ env.REF }}
+          path: ${{ runner.temp }}/v49/
+          retention-days: 1
+          if-no-files-found: error
+      - name: Keep the dependencies only (release tests, main only)
+        if: steps.cargo-cache.outputs.cache-hit != 'true' && github.ref == 'refs/heads/main'
+        shell: bash
+        run: ./scripts/ci/cache_keep_deps.sh target/release
+      - name: Save the Cargo cache (release tests, main only)
+        if: steps.cargo-cache.outputs.cache-hit != 'true' && github.ref == 'refs/heads/main'
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+            target
+          key: ${{ steps.cargo-cache.outputs.cache-primary-key }}
+
+  # The first open after an update brings the main window (rc8), on the
+  # app rc-dev-app built and the database rc-v49 made; only then is the
+  # app uploaded for walks, as `rc-dev-app-<commit>`.
+  rc-first-open:
+    name: rc-first-open
+    needs: [plan, rc-dev-app, rc-v49]
+    if: needs.plan.outputs.tested == '' && contains(fromJSON(needs.plan.outputs.jobs || '[]'), 'rc-first-open')
+    runs-on: macos-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    env:
+      REF: ${{ github.event.pull_request.head.sha || github.sha }}
+      APP: target/release/bundle/macos/AI Juggler Dev.app
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: ${{ env.REF }}
+          persist-credentials: false
+          sparse-checkout: |
+            scripts/qa/first_open_window_check.sh
+          sparse-checkout-cone-mode: false
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: rc-build-${{ env.REF }}
+          path: ${{ runner.temp }}/rc/
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: rc-v49-${{ env.REF }}
+          path: ${{ runner.temp }}/v49/
+      - name: The app as rc-dev-app built it
+        run: |
+          set -euo pipefail
+          [ "$(cat "$RUNNER_TEMP/rc/COMMIT")" = "$REF" ] || { echo "::error::the build names another commit"; exit 1; }
+          mkdir -p "$(dirname "$APP")"
+          tar -C "$(dirname "$APP")" -xf "$RUNNER_TEMP/rc/app.tar"
+          codesign -dv "$APP/Contents/MacOS/juggler-app" 2>&1 | grep -E '^(Signature|Identifier|CDHash)' || true
       # The window check reads windows through System Events, which needs
       # the runner's Accessibility and Automation grants (GitHub's macOS
       # images set them for the runner). Probed first, bounded, so a
@@ -1166,20 +1284,6 @@ jobs:
           path: ${{ runner.temp }}/rc/
           retention-days: 14
           if-no-files-found: error
-      - name: Keep the dependencies only (release, main only)
-        if: steps.cargo-cache.outputs.cache-hit != 'true' && github.ref == 'refs/heads/main'
-        shell: bash
-        run: ./scripts/ci/cache_keep_deps.sh target/release
-      - name: Save the Cargo cache (release, main only)
-        if: steps.cargo-cache.outputs.cache-hit != 'true' && github.ref == 'refs/heads/main'
-        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
-        with:
-          path: |
-            ~/.cargo/registry/index
-            ~/.cargo/registry/cache
-            ~/.cargo/git/db
-            target
-          key: ${{ steps.cargo-cache.outputs.cache-primary-key }}
 
   build-linux:
     name: build-linux

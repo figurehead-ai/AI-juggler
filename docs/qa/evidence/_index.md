@@ -152,6 +152,7 @@
 | AJ-E2018 | PASS4 | 2026-11-06 | [manifest](AJ-E2018/manifest.md) |
 | AJ-E2019 | PASS2 | 2026-11-06 | [manifest](AJ-E2019/manifest.md) |
 | AJ-E202 | PASS7 | 2026-10-16 | [manifest](AJ-E202/manifest.md) |
+| AJ-E2020 | PASS3 | 2026-11-13 | [manifest](AJ-E2020/manifest.md) |
 | AJ-E203 | PASS9 | 2026-10-16 | [manifest](AJ-E203/manifest.md) |
 | AJ-E204 | PASS8 | 2026-10-16 | [manifest](AJ-E204/manifest.md) |
 | AJ-E205 | PASS11 | 2026-10-16 | [manifest](AJ-E205/manifest.md) |
