@@ -342,7 +342,7 @@
 | AJ-E802 | PASS7 | 2026-10-13 | [manifest](AJ-E802/manifest.md) |
 | AJ-E803 | PASS8 | 2026-10-23 | [manifest](AJ-E803/manifest.md) |
 | AJ-E804 | PASS6 | 2026-10-19 | [manifest](AJ-E804/manifest.md) |
-| AJ-E805 | PASS15 | 2026-10-19 | [manifest](AJ-E805/manifest.md) |
+| AJ-E805 | FAIL1 PASS17 | 2026-11-13 | [manifest](AJ-E805/manifest.md) |
 | AJ-E806 | PASS4 | 2026-10-23 | [manifest](AJ-E806/manifest.md) |
 | AJ-E807 | PASS7 | 2026-10-19 | [manifest](AJ-E807/manifest.md) |
 | AJ-E808 | PASS7 | 2026-11-07 | [manifest](AJ-E808/manifest.md) |
