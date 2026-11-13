@@ -3045,10 +3045,10 @@ Each ships with tests that fail without it and a design critique; the M2, D2 and
   through the quit request, with its sheet and D-111's rules. A click on
   the Dock icon, the tray or a second launch shows the hidden window. The
   first time a close hides the window, AI Juggler says once, as a toast:
-  "AI Juggler keeps running in the menu bar. ⌘Q quits." It's shown when the
-  window is next on screen (a hidden window can't show it), and recorded
-  so it never shows again on that install. The Floor's window keeps its
-  own close handling.
+  "AI Juggler kept running while its window was closed. It stays in the
+  menu bar. ⌘Q quits." It's shown when the window is next on screen (a
+  hidden window can't show it), and recorded so it never shows again on
+  that install. The Floor's window keeps its own close handling.
 - Why: AI Juggler is meant to stay running (always-on), and the tray and
   the Dock bring it back. A close that quit, with nothing live, ended it
   for anything that pressed the button, an accessibility client among

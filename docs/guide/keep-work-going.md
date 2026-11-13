@@ -56,6 +56,20 @@ it isn't.
 macOS's App Nap is also held off while AI Juggler runs sessions, so they
 aren't slowed down when the window is in the background.
 
+## Closing the window keeps AI Juggler running
+
+The window's close button and ⌘W only hide the window. AI Juggler keeps
+running in the menu bar, and so does every session: nothing stops, and
+nothing asks. The first time, AI Juggler says so when its window is back.
+
+To bring the window back, click AI Juggler in the Dock, choose **Open AI
+Juggler** from its menu-bar icon, or open AI Juggler again.
+
+To quit, press ⌘Q. With sessions running, AI Juggler asks first and says
+what quitting does to each: **Quit anyway**, **Stop them first** or
+**Cancel**. Quitting from the Dock (right-click its icon, then **Quit**),
+logging out, restarting and shutting down quit without asking.
+
 ## Reopen AI Juggler if it quits unexpectedly
 
 On by default. If AI Juggler crashes, it opens again by itself: never after

@@ -35,7 +35,8 @@
 - [Notifications](notifications.md): being told when a session needs you,
   while you're in another app.
 - [Keep work going](keep-work-going.md): restarting crashed sessions,
-  keeping the Mac awake, reopening after a crash, opening at login.
+  keeping the Mac awake, closing the window and quitting, reopening after
+  a crash, opening at login.
 - [Your other Macs](fleet.md) (beta): pairing your Macs, what each one sees,
   starting a session on another Mac, and usage by machine.
 - [Pools](pools.md): grouping sessions that work together, what each
