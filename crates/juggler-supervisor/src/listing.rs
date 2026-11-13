@@ -169,7 +169,7 @@ pub(crate) fn full_scan(
     let read = refresh_these(table, cpu, pids, kind, at);
     let resident = listed
         .keys()
-        .filter_map(|pid| Some((*pid, juggler_proc_list::resident(*pid)?)))
+        .filter_map(|pid| Some((*pid, juggler_proc_list::task(*pid)?.resident)))
         .collect();
     (read, Some(resident))
 }

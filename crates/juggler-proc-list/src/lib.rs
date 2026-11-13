@@ -23,16 +23,23 @@
 //! process isn't found under its own parent, is no listing (`None`, and
 //! the callers read the table their old way).
 //!
-//! [`resident`] reads one process's resident memory
-//! (`proc_pidinfo(PROC_PIDTASKINFO)`, the record `sysinfo` takes it from,
-//! without the arguments `sysinfo` reads with it): This Mac's other apps
-//! are measured from it on every full scan.
+//! [`task`] reads one process's resident memory and the CPU time it has
+//! used (`proc_pidinfo(PROC_PIDTASKINFO)`, the record `sysinfo` takes them
+//! from, without the arguments `sysinfo` reads with them): This Mac's
+//! other apps are measured from it on every full scan, and the observed
+//! tools' trees (the Claude app's ~300 processes on a busy Mac) at every
+//! listing. The record's CPU times are in Mach time units: nanoseconds on
+//! an Intel Mac, 24 MHz ticks on Apple silicon. They're converted with
+//! the timebase the kernel names, `hw.tbfrequency` (ticks a second), read
+//! once.
 //!
-//! THE AUDIT: four `unsafe` blocks, each with its SAFETY note: the
+//! THE AUDIT: five `unsafe` blocks, each with its SAFETY note: the
 //! `sysctl` asking how many bytes the records take (a null buffer: nothing
 //! written), and the `sysctl` writing them into a byte buffer whose size
 //! the kernel is told; zeroing one `proc_taskinfo`, and `proc_pidinfo`
-//! writing into it at its size. Reading the fields is safe code.
+//! writing into it at its size; `sysctlbyname("hw.tbfrequency")` writing
+//! into an eight-byte buffer it is told the size of, once per run. Reading
+//! the fields is safe code.
 //!
 //! Nothing here reads a process's arguments, environment, files or the
 //! contents of its memory.
@@ -47,7 +54,7 @@
 #![deny(missing_docs, unsafe_op_in_unsafe_fn)]
 #![cfg_attr(
     target_os = "macos",
-    allow(unsafe_code, reason = "D-110: the four audited blocks")
+    allow(unsafe_code, reason = "D-110: the five audited blocks")
 )]
 
 /// One process, as the kernel lists it.
@@ -83,14 +90,23 @@ pub fn list() -> Option<Vec<Listed>> {
     }
 }
 
-/// The resident memory of `pid`, bytes. `None` when it's gone, isn't this
-/// user's to read (the kernel refuses another user's), and on other
+/// One process's task, as the kernel counts it.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Task {
+    /// Its resident memory, bytes.
+    pub resident: u64,
+    /// The CPU time it has used, user and system, nanoseconds.
+    pub cpu_ns: u64,
+}
+
+/// The resident memory and CPU time of `pid`. `None` when it's gone, isn't
+/// this user's to read (the kernel refuses another user's), and on other
 /// systems.
 #[must_use]
-pub fn resident(pid: u32) -> Option<u64> {
+pub fn task(pid: u32) -> Option<Task> {
     #[cfg(target_os = "macos")]
     {
-        macos::resident(pid)
+        macos::task(pid)
     }
     #[cfg(not(target_os = "macos"))]
     {
@@ -215,8 +231,9 @@ mod macos {
         })
     }
 
-    pub(super) fn resident(pid: u32) -> Option<u64> {
+    pub(super) fn task(pid: u32) -> Option<super::Task> {
         let pid = libc::c_int::try_from(pid).ok()?;
+        let ticks_a_second = timebase()?;
         // SAFETY: an all-zero `proc_taskinfo` is a valid value (plain
         // integers).
         let mut info: libc::proc_taskinfo = unsafe { std::mem::zeroed() };
@@ -228,7 +245,54 @@ mod macos {
         let wrote = unsafe {
             libc::proc_pidinfo(pid, libc::PROC_PIDTASKINFO, 0, (&raw mut info).cast(), size)
         };
-        (wrote == size).then_some(info.pti_resident_size)
+        if wrote != size {
+            return None;
+        }
+        let ticks = u128::from(info.pti_total_user) + u128::from(info.pti_total_system);
+        Some(super::Task {
+            resident: info.pti_resident_size,
+            cpu_ns: nanos(ticks, ticks_a_second),
+        })
+    }
+
+    /// Mach time `ticks` in nanoseconds, at `ticks_a_second`.
+    pub(super) fn nanos(ticks: u128, ticks_a_second: u64) -> u64 {
+        let nanos = ticks * 1_000_000_000 / u128::from(ticks_a_second.max(1));
+        u64::try_from(nanos).unwrap_or(u64::MAX)
+    }
+
+    /// Mach time's ticks a second (`hw.tbfrequency`: 24 MHz on Apple
+    /// silicon, 1 GHz, i.e. nanoseconds, on Intel), read once; `None` when
+    /// the kernel doesn't say (then no CPU time is read).
+    pub(super) fn timebase() -> Option<u64> {
+        static TIMEBASE: std::sync::OnceLock<Option<u64>> = std::sync::OnceLock::new();
+        *TIMEBASE.get_or_init(|| {
+            let mut value = [0_u8; 8];
+            let mut size: libc::size_t = value.len();
+            // SAFETY: the name is a NUL-terminated C string; `value` holds
+            // eight live bytes and `size` tells the kernel so: it writes at
+            // most that many and sets `size` to how many it wrote (failing,
+            // writing nothing usable, when the value is larger). Nothing is
+            // kept past the call; nothing is set (a null new value).
+            let read = unsafe {
+                libc::sysctlbyname(
+                    c"hw.tbfrequency".as_ptr(),
+                    value.as_mut_ptr().cast(),
+                    &raw mut size,
+                    std::ptr::null_mut(),
+                    0,
+                )
+            };
+            if read != 0 {
+                return None;
+            }
+            let value = match size {
+                8 => u64::from_ne_bytes(value),
+                4 => u64::from(u32::from_ne_bytes(value[..4].try_into().ok()?)),
+                _ => return None,
+            };
+            (value > 0).then_some(value)
+        })
     }
 
     pub(super) fn list() -> Option<Vec<Listed>> {
@@ -332,7 +396,9 @@ mod tests {
     #[test]
     #[cfg(target_os = "macos")]
     fn this_process_resident_memory_is_as_ps_says() {
-        let ours = super::resident(std::process::id()).expect("our own task info");
+        let ours = super::task(std::process::id())
+            .expect("our own task info")
+            .resident;
         let out = std::process::Command::new("/bin/ps")
             .args(["-o", "rss=", "-p", &std::process::id().to_string()])
             .output()
@@ -349,13 +415,83 @@ mod tests {
         let mut child = std::process::Command::new("/usr/bin/true").spawn().unwrap();
         let pid = child.id();
         child.wait().unwrap();
-        assert_eq!(super::resident(pid), None, "gone");
+        assert_eq!(super::task(pid), None, "gone");
+    }
+
+    /// The timebase is the one the kernel names (`sysctl hw.tbfrequency`).
+    #[test]
+    #[cfg(target_os = "macos")]
+    fn the_timebase_is_as_sysctl_says() {
+        let out = std::process::Command::new("/usr/sbin/sysctl")
+            .args(["-n", "hw.tbfrequency"])
+            .output()
+            .unwrap();
+        let theirs: u64 = String::from_utf8_lossy(&out.stdout).trim().parse().unwrap();
+        assert_eq!(super::macos::timebase(), Some(theirs));
+        // Ticks to nanoseconds: a second's ticks are a second; no overflow
+        // past `u64`'s nanoseconds.
+        assert_eq!(super::macos::nanos(u128::from(theirs), theirs), 1_000_000_000);
+        assert_eq!(super::macos::nanos(u128::MAX / 2_000_000_000, 1), u64::MAX);
+    }
+
+    /// A busy child's CPU time, read through [`super::task`], grows with
+    /// the wall clock (a spinning process takes up to one core): the
+    /// record's Mach ticks are converted to nanoseconds (unconverted, a
+    /// 24 MHz tick reads 42 times too low), and its total is what `ps`
+    /// says.
+    #[test]
+    #[cfg(target_os = "macos")]
+    fn a_busy_childs_cpu_time_follows_the_wall_clock() {
+        use std::time::{Duration, Instant};
+        // Busy (bounded, no forks), killed however the test ends.
+        struct Reap(std::process::Child);
+        impl Drop for Reap {
+            fn drop(&mut self) {
+                let _ = self.0.kill();
+                let _ = self.0.wait();
+            }
+        }
+        let child = Reap(
+            std::process::Command::new("/bin/sh")
+                .args(["-c", "i=0; while [ $i -lt 30000000 ]; do i=$((i+1)); done"])
+                .spawn()
+                .unwrap(),
+        );
+        let pid = child.0.id();
+        let read = || (Instant::now(), super::task(pid).expect("the child's task").cpu_ns);
+        std::thread::sleep(Duration::from_millis(300));
+        let (from_at, from_ns) = read();
+        std::thread::sleep(Duration::from_millis(1_500));
+        let (to_at, to_ns) = read();
+        let wall = to_at.duration_since(from_at).as_nanos() as f64;
+        let share = (to_ns - from_ns) as f64 / wall;
+        assert!(
+            (0.5..=1.1).contains(&share),
+            "CPU {} ns over {wall} ns of wall time: {share}",
+            to_ns - from_ns
+        );
+        // Its total, as `ps` says it (`[mm:]ss.cc`, to the hundredth).
+        let out = std::process::Command::new("/bin/ps")
+            .args(["-o", "time=", "-p", &pid.to_string()])
+            .env("LC_ALL", "C")
+            .output()
+            .unwrap();
+        let ours = super::task(pid).unwrap().cpu_ns as f64 / 1e9;
+        let theirs = String::from_utf8_lossy(&out.stdout)
+            .trim()
+            .split(':')
+            .fold(0.0, |total, part| total * 60.0 + part.parse::<f64>().unwrap());
+        assert!(
+            (ours - theirs).abs() < 0.1 + theirs * 0.05,
+            "ours {ours} s, ps {theirs} s"
+        );
+        drop(child);
     }
 
     #[test]
     #[cfg(not(target_os = "macos"))]
     fn elsewhere_it_lists_nothing() {
         assert_eq!(super::list(), None);
-        assert_eq!(super::resident(1), None);
+        assert_eq!(super::task(1), None);
     }
 }
