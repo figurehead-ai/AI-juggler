@@ -13,7 +13,7 @@ import { AttentionAnnouncer, RenewalAnnouncer } from "./components/indicator";
 import { cliAppId } from "./lib/app-name";
 import { ConversationsProvider } from "./lib/conversations";
 import { prefetchLazy } from "./lib/lazy";
-import { ThisMacContext } from "./lib/machine";
+import { ThisMacProvider } from "./lib/machine";
 import { PRIMARY_NAV } from "./lib/nav";
 import { useScrollMemory } from "./lib/scroll-memory";
 import { ShellOverlays } from "./shell/Overlays";
@@ -39,13 +39,13 @@ export default function App() {
     sayPainted();
   }, []);
   const shell = useShell();
-  const { selection, global, setGlobal, openPage, sessions, accounts, projects, loaded, refresh, newSheet, thisMacInfo, info } = shell;
+  const { selection, global, setGlobal, openPage, sessions, accounts, projects, loaded, refresh, newSheet, info } = shell;
   // 0.3.4: Home opens where it was left.
   const homeScroll = useScrollMemory("home");
   const screen = global !== null ? SCREENS[global] : undefined;
 
   return (
-    <ThisMacContext.Provider value={thisMacInfo}>
+    <ThisMacProvider refreshKey={sessions}>
     <ConversationsProvider want={selection.kind === "conversation" ? { accountId: selection.accountId, id: selection.id } : null}>
     <AppActions
       selectConversation={(conversation) => openPage({ kind: "conversation", accountId: conversation.account_id, id: conversation.id, projectId: conversation.project_id })}
@@ -63,7 +63,7 @@ export default function App() {
       <SkipLink />
       <AttentionAnnouncer sessions={sessions} />
       {/* AJ-E2502: the menu-bar item's asks (Needs you is the backend's, D-49). */}
-      <NoticeOpeners ready={loaded} sessions={sessions} accounts={accounts} projects={projects} thisMac={thisMacInfo} />
+      <NoticeOpeners ready={loaded} sessions={sessions} accounts={accounts} projects={projects} />
       <RenewalAnnouncer accounts={accounts} />
       <WorkflowRail
         density={shell.railDensity}
@@ -143,6 +143,6 @@ export default function App() {
     </div>
     </AppActions>
     </ConversationsProvider>
-    </ThisMacContext.Provider>
+    </ThisMacProvider>
   );
 }

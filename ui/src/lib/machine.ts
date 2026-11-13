@@ -4,7 +4,7 @@
  * preview mocks) are in `ipc/this-mac`; this module holds the hooks and the
  * words.
  */
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, createElement, useContext, useEffect, useState, type ReactNode } from "react";
 import { hasLiveBackend } from "./bridge";
 import { onThisMac, thisMac } from "./ipc/this-mac";
 import { memorySize } from "./compact";
@@ -70,6 +70,14 @@ export function resourceLine(cpu: number | null, rss: number | null, helpers: nu
 /** This Mac for components deep in the tree (the rail rows): the app
  * provides its one subscription here. */
 export const ThisMacContext = createContext<ThisMacInfo | null>(null);
+
+/** The app's one This Mac subscription, given to what reads it. AJ-E805:
+ * it was the shell's state, so each 5 s reading (while an AI tool runs)
+ * drew the whole app again, the rail included; now only what reads This
+ * Mac draws again. `refreshKey`: as `useThisMac`'s. */
+export function ThisMacProvider({ refreshKey, children }: { refreshKey?: unknown; children: ReactNode }): ReactNode {
+  return createElement(ThisMacContext.Provider, { value: useThisMac(refreshKey) }, children);
+}
 
 /** How each level of the Mac's state looks: This Mac's glyph and tone,
  * the rail footer's dot. */

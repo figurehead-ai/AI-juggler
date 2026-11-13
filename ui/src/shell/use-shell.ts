@@ -12,7 +12,6 @@ import { OPEN_ACCOUNT } from "../lib/accounts-page";
 import { OPEN_APP, useApps } from "../lib/apps";
 import { accountName, useSubscriptions, type SubscriptionInfo } from "../lib/subscriptions";
 import { useFloorLogos } from "../lib/floor-logos";
-import { useThisMac } from "../lib/machine";
 import { GLOBAL_NAV, focusPageSoon, globalId } from "../lib/nav";
 import { setCentreOpen, toggleCentre } from "../lib/notices-store";
 import { routeOpen, useOutsideRequests } from "../lib/outside";
@@ -145,8 +144,6 @@ export function useShell() {
   useFloorLogos(); // AJ-E3508: the Floor's logos, drawn once each (only after the Floor opens)
   useOutsideRequests({ hotkey: dialogs.setGoToHotkey, goTo: () => setGoToOpen(true), open: (open) => routeOpen(open, { remote: inspectRemote, session: selectSession, centre: () => setCentreOpen(true), page: setGlobal, app: (id) => openPage({ kind: "app", id }), account: (id) => openPage({ kind: "subscription", id }), tasks: (appId) => (showTasksHeldBy(`app:${appId}`), setGlobal("tasks")), conversation: (accountId, id) => openPage({ kind: "conversation", accountId, id, projectId: null }), pool: (id) => openPage({ kind: "pool", id }), settings: (section) => window.dispatchEvent(new CustomEvent("aij:open-settings", { detail: { section } })) }) });
 
-  // E14: This Mac — one subscription for Home, the rail and the header.
-  const thisMacInfo = useThisMac(sessions);
 
   // An App's and an Account's page by theirs (the E32 walk).
   const apps = useApps(accounts);
@@ -158,7 +155,7 @@ export function useShell() {
   return {
     ...rail, now, ...nav, ...data, ...dialogs, ...remote,
     selectedSession, selectedProject, selectedLogin, selectedAccount, selectedProvider,
-    stopSession, thisMacInfo, contextTitle, newSessionHere,
+    stopSession, contextTitle, newSessionHere,
   };
 }
 
