@@ -1707,11 +1707,11 @@ for (const theme of THEMES) {
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto("/");
     await expectRail(page); // D-25: the list, or its icon column when narrow
-    await page
-      .getByRole("button", { name: /\bon Work Max\b/ })
-      .filter({ hasText: /working/i }) // AJ-E2104 Req.3: the rail says Working
-      .first()
-      .click();
+    // sess-2 by its id: the rail's order (newest first, 0.4.4 P1) isn't
+    // what this capture is about.
+    const adoptedRow = page.locator('button[data-instance-id="sess-2"]').first();
+    await expect(adoptedRow).toContainText(/working/i); // AJ-E2104 Req.3: the rail says Working
+    await adoptedRow.click();
     await expect(page.getByTestId("instance-adopted-chip")).toContainText("↻ picked up after restart");
     await page.getByRole("tab", { name: "Processes" }).click();
     const notice = page.getByTestId("instance-detached-notice");
@@ -5096,7 +5096,9 @@ for (const theme of THEMES) {
       await page.screenshot({ path: resolve(GALLERY, `54-summary/home-${vp.name}-${theme}.png`) });
       await page.getByTestId("summary-row").first().click();
       await expect(page.getByTestId("page-header")).toBeVisible(); // AJ-E1533: the item's page
-      await terminalDrawn(page);
+      // An ended session whose output wasn't kept shows its conversation,
+      // never an empty terminal under "replayed" (0.4.4 P2, D-103.11).
+      await expect(page.getByText("Its terminal output wasn't kept, so this is its conversation.")).toBeVisible();
       await page.screenshot({ path: resolve(GALLERY, `54-summary/opened-${vp.name}-${theme}.png`) });
     });
   }
