@@ -2947,7 +2947,7 @@ Each ships with tests that fail without it and a design critique; the M2, D2 and
 - Decision: `crates/juggler-proc-list`: one `sysctl(CTL_KERN, KERN_PROC,
   KERN_PROC_ALL)` read (the call `ps` makes) listing every process's pid,
   parent, start time, short name and zombie state, never its arguments or
-  environment. The maintainer's AJ-E805 brief (2026-11-13) allowed a cheap
+  environment. AJ-E805's 0.4.5 brief (2026-11-13) allowed a cheap
   listing "if, and only if, your profile shows the listing dominates": it
   does. On the lab at rest, reading the process table was 54 % of the
   app's busy samples (the 2 s collector's listing and full scan,
