@@ -72,8 +72,8 @@ asks the adapter contract, never a tool's files or names directly.
   its native wgpu window.
 - `crates/juggler-stats` — opt-in, identifier-free usage statistics.
 - Audited shims, each a handful of `unsafe` calls behind a safe API:
-  `juggler-login-item`, `juggler-scap-init`, `juggler-vm-stats`,
-  `juggler-window-events`.
+  `juggler-login-item`, `juggler-proc-list`, `juggler-scap-init`,
+  `juggler-vm-stats`, `juggler-window-events`.
 - `crates/juggler-app` — the Tauri shell: `lib.rs` (the command registry
   `app_commands!`, start-up), `features/<feature>/` (every command and its
   logic: `commands.rs` the thin `#[tauri::command]`s, `dto.rs` the wire

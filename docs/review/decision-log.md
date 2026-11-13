@@ -2941,3 +2941,41 @@ Each ships with tests that fail without it and a design critique; the M2, D2 and
 
 - **Amends:** D-102 ("Show all N" → "All N sessions ›"; the caption), D-97 (New session's default when a repo has its own Account).
 - Sources: `docs/qa/0.4-walks/personas/runs-0.4.3.md`; the R5 list in the coordinating session's notes.
+
+### D-108 The process table is listed in one system call — a fifth audited unsafe shim — SETTLED (2026-11-13)
+
+- Decision: `crates/juggler-proc-list`: one `sysctl(CTL_KERN, KERN_PROC,
+  KERN_PROC_ALL)` read (the call `ps` makes) listing every process's pid,
+  parent, start time, short name and zombie state, never its arguments or
+  environment. The maintainer's AJ-E805 brief (2026-11-13) allowed a cheap
+  listing "if, and only if, your profile shows the listing dominates": it
+  does. On the lab at rest, reading the process table was 54 % of the
+  app's busy samples (the 2 s collector's listing and full scan,
+  presence's 5 s look, the live view's scan), and 72 % of each read was
+  `sysinfo` reading every process's arguments (`KERN_PROCARGS2`, twice),
+  which it does on every refresh whatever it is asked
+  (`docs/qa/evidence/AJ-E805/idle-0.4.5.md`). With the listing, a
+  process's arguments are read once, when it first appears; only the
+  processes AI Juggler measures are read again; the zombies `sysinfo`
+  never lists on a Mac come from the same read (no more `/bin/ps`).
+- As with D-17, D-26 and D-27, the carve-out is a new, isolated crate that
+  does NOT inherit the workspace lint baseline; `unsafe_code = "forbid"`
+  stays absolute everywhere else. It holds exactly two `unsafe` blocks
+  (the `sysctl` asking the records' size, and the one reading them into a
+  byte buffer), each with a SAFETY note, under
+  `#![deny(unsafe_op_in_unsafe_fn)]`, behind one safe function (`list`).
+  `libc` has no `kinfo_proc`, so the six fields read are taken at their
+  offsets in its fixed 64-bit layout, and every read checks itself (a
+  record size other than 648 bytes, or a listing without this process
+  under its own parent, is no listing: the callers read the table as
+  before). Off macOS it is a safe stub that lists nothing. Its tests hold
+  it to `ps` (this process's parent and name, the count) and to a real
+  zombie.
+- Rejected: `proc_listallpids` with `proc_pidinfo(PROC_PIDTBSDINFO)` per
+  pid (the kernel refuses it for other users' processes and for zombies:
+  678 of 872 listed); keeping `sysinfo`'s table between reads alone
+  (df2caecfb, reverted in a99736df8: `sysinfo` reads every process's
+  arguments on each refresh anyway, no gain measured); slowing the ticks
+  (ADR-0032 promises launch and quit within 2 s).
+- Sources: `docs/qa/evidence/AJ-E805/idle-0.4.5.md` (the 0.4.5 follow-up's
+  profile and numbers).

@@ -2954,6 +2954,7 @@ dependencies = [
  "juggler-link",
  "juggler-login-item",
  "juggler-platform",
+ "juggler-proc-list",
  "juggler-scap-init",
  "juggler-stats",
  "juggler-supervisor",
@@ -3108,6 +3109,13 @@ dependencies = [
  "tempfile",
  "thread-priority",
  "tokio",
+]
+
+[[package]]
+name = "juggler-proc-list"
+version = "0.4.0"
+dependencies = [
+ "libc",
 ]
 
 [[package]]
