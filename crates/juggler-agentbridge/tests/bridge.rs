@@ -728,7 +728,9 @@ fn the_task_commands_go_through_the_real_binary_and_the_level() {
     // D-96, D-103.8: an untitled author by its facts (folder · when it
     // started; its App and Account shown beside it, never in its name).
     let by = listed["tasks"][0]["written_by"].as_str().unwrap();
-    assert!(by.starts_with("shop · started "), "{by}");
+    // Its start time where the system can say one (not on every CI host):
+    // "shop · started 11:14 PM", else "shop".
+    assert!(by == "shop" || by.starts_with("shop · started "), "{by}");
     assert!(!by.contains("Work Max"), "{by}");
     assert!(!by.contains("Untitled session"), "{by}");
     let took = json(&run(&["claim", &id]));
