@@ -593,7 +593,7 @@ impl<R: tauri::Runtime> juggler_window_events::QuitEvents for QuitEventsOf<R> {
 /// D-113: the quit Apple event from now on asks as ⌘Q does when it gives
 /// no reason, and quits at once when it does (log out, restart, shut
 /// down). Call once, on the main thread, once the app has launched
-/// (`RunEvent::Ready`: AppKit puts its own handler in place as it
+/// (`RunEvent::Ready`: `AppKit` puts its own handler in place as it
 /// launches). If it can't be put in place, the system's own stays.
 pub fn answer_quit_events<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
     match juggler_window_events::answer_quit_events(QuitEventsOf(app.clone())) {

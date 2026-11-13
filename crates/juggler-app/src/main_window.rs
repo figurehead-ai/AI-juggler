@@ -24,6 +24,7 @@
 
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::time::Duration;
 
 use juggler_core::storage::Storage;
 use tauri::Manager;
@@ -220,6 +221,28 @@ pub fn resized<W: Hide + ?Sized>(window: &W, waiting: &AtomicBool) {
     }
 }
 
+/// How long a close waits for full screen to end before giving up (the
+/// exit animation takes under a second).
+const LEAVE_FULL_SCREEN: Duration = Duration::from_secs(3);
+
+/// A close from full screen hides the window once it is out of it. The
+/// last resize of the way out can come while the window still says it is
+/// full screen, and none comes after (the by-hand check of D-112: the
+/// window stayed), so the same check [`resized`] makes runs every 100 ms
+/// for up to [`LEAVE_FULL_SCREEN`], stopping once it has hidden the window
+/// or the window was shown again.
+fn hide_once_out_of_full_screen<R: tauri::Runtime>(window: tauri::Window<R>) {
+    std::thread::spawn(move || {
+        let step = Duration::from_millis(100);
+        let mut waited = Duration::ZERO;
+        while HIDE_ONCE_WINDOWED.load(Ordering::SeqCst) && waited < LEAVE_FULL_SCREEN {
+            std::thread::sleep(step);
+            waited += step;
+            resized(&window, &HIDE_ONCE_WINDOWED);
+        }
+    });
+}
+
 /// The main window's own events (the Floor's window has its own, in
 /// `features::floor::window`).
 pub fn on_window_event<R: tauri::Runtime>(window: &tauri::Window<R>, event: &tauri::WindowEvent) {
@@ -230,6 +253,9 @@ pub fn on_window_event<R: tauri::Runtime>(window: &tauri::Window<R>, event: &tau
             if crate::quit::close_hides() {
                 api.prevent_close();
                 hide_on_close(window, &HIDE_ONCE_WINDOWED);
+                if HIDE_ONCE_WINDOWED.load(Ordering::SeqCst) {
+                    hide_once_out_of_full_screen(window.clone());
+                }
                 CLOSE_NOTE.closed();
                 tracing::info!("the main window's close: hidden, nothing quits (D-112)");
             }
