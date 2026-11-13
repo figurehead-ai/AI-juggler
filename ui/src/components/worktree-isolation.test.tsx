@@ -53,8 +53,8 @@ describe("AJ-E1002 worktree offer", () => {
     const words = sessionsInWords(two, now);
     expect(words).not.toContain("Account G, Account G");
     const [first, second] = words.split(" and ");
-    expect(first).toMatch(/^storefront · .* · started 9:21 AM \(1\)$/);
-    expect(second).toMatch(/^storefront · .* · started 9:21 AM \(2\)$/);
+    expect(first).toBe("storefront · started 9:21 AM (1)");
+    expect(second).toBe("storefront · started 9:21 AM (2)");
     expect(sessionsInWords([busy({ title: "Fix the checkout totals" }), busy({ id: "s-2", label: "Reviewer" })], now)).toBe("Fix the checkout totals and Reviewer");
     expect(sessionsInWords([busy({ id: "a", label: "Writer" }), busy({ id: "b", label: "Lead" }), busy({ id: "c", git_branch: "fix/limits" })], now)).toBe("Writer, Lead and fix/limits");
 

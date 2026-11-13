@@ -4,7 +4,7 @@
  * where and on which profile (the review of 0.1.4: two cards both said
  * "payments-api"). One nothing named takes the first words of the last
  * thing you asked it, else its telling branch, else its facts — its
- * project, its App and when it started (the review of 0.1.5; D-96) — and
+ * project and when it started (the review of 0.1.5; D-96, D-103.8) — and
  * no two rows ever read the same. Each opens
  * its page; Mark reviewed takes it off. E31 (AJ-E3103): each is the one
  * session row (`row/SessionRow`), as in the rail and on every page.
@@ -16,7 +16,7 @@ import { IconCheck } from "./icons-controls";
 import { SessionRow } from "./row/SessionRow";
 import { sessionItem } from "../lib/rail-items";
 import { placeOf } from "../screens/Home";
-import { askedKey, sessionAppShort, startedWords, tellApart, untitledName, useAskedWords } from "../lib/session-titles";
+import { askedKey, startedWords, tellApart, untitledName, useAskedWords } from "../lib/session-titles";
 import { tellingBranch } from "../lib/project-words";
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import type { ProjectInfo } from "../types/generated/ProjectInfo";
@@ -29,15 +29,16 @@ export function recentRows(recent: InstanceInfo[], projects: ProjectInfo[], aske
     const branch = tellingBranch(session.git_branch);
     const named = session.label ?? session.title ?? words ?? branch;
     const untitled = named === null;
-    const title = named ?? untitledName({ folder: place.title, app: sessionAppShort(session), startedMs: session.started_at_ms }, now);
+    const title = named ?? untitledName({ folder: place.title, startedMs: session.started_at_ms }, now);
     // The where line skips what the title already says (its branch; an
-    // untitled one's facts name its place and its App).
+    // untitled one's facts name its place), never its Account (D-103.8).
     const byBranch = named !== null && named === branch;
-    const where = [untitled ? null : place.title, byBranch ? null : session.git_branch, untitled ? null : session.account_label].filter(Boolean).join(" · ");
+    const where = [untitled ? null : place.title, byBranch ? null : session.git_branch, session.account_label].filter(Boolean).join(" · ");
     return { session, title, where, untitled };
   });
   // Never two rows that read alike: a named one adds its profile, then its
-  // time; one told by its facts has both already.
+  // time; one told by its facts has its time already, and its Account is
+  // its second line's (D-103.8).
   const count = (key: (row: (typeof rows)[number]) => string) => rows.reduce((seen, row) => seen.set(key(row), (seen.get(key(row)) ?? 0) + 1), new Map<string, number>());
   const titles = count((row) => row.title);
   for (const row of rows) if (!row.untitled && (titles.get(row.title) ?? 0) > 1) row.title = `${row.title} · ${row.session.account_label}`;

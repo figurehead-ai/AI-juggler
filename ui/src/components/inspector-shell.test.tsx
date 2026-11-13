@@ -128,8 +128,8 @@ beforeEach(() => {
 describe("AJ-E1533 one page model: each type's header and its own tabs", () => {
   const kinds: { kind: InspectorSelection; name: string | RegExp; type: string; tabs: string[] }[] = [
     // D-25: a session is titled by its label, else its place; D-96: an
-    // untitled one by its facts (folder · App · when it started).
-    { kind: { kind: "instance", id: "sess-1" }, name: /^ai-juggler · Work Max · started \S/, type: "Session", tabs: ["Overview", "Pools", "Usage", "Processes"] },
+    // untitled one by its facts (folder · when it started; D-103.8: never its Account).
+    { kind: { kind: "instance", id: "sess-1" }, name: /^ai-juggler · started \S/, type: "Session", tabs: ["Overview", "Pools", "Usage", "Processes"] },
     // AJ-E3104: a tool's page leads to its Apps, sessions, projects and pools.
     { kind: { kind: "provider", id: "claude-code" }, name: "claude-code", type: "Tool", tabs: ["Overview", "Apps", "Sessions 1", "Projects 1", "Pools"] },
     // 0.3: a project's eight doors, Usage too before anything is measured

@@ -142,8 +142,8 @@ describe("Home, desktop first", () => {
     expect(goToConversation).toHaveBeenCalledTimes(2);
     // AI Juggler's own session: its page is where it runs, so no ↗.
     // Named by the shared short name (never "main", the rc12 walk; D-96:
-    // by its facts, folder · App · when it started).
-    const own_ = [...needs.querySelectorAll<HTMLElement>("[data-home-item]")].find((item) => /ai-juggler · Work Max · started /.test(item.textContent ?? ""))!;
+    // by its facts, folder · when it started; D-103.8: never its Account).
+    const own_ = [...needs.querySelectorAll<HTMLElement>("[data-home-item]")].find((item) => /ai-juggler · started /.test(item.textContent ?? ""))!;
     expect(own_).toBeTruthy();
     expect(within(own_).queryByRole("button", { name: /^Go to it/ })).toBeNull();
   });

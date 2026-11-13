@@ -71,7 +71,7 @@ export function sessionTitle(row: ProcessGraphRowInfo, now = Date.now()): string
   if (session.app_itself || session.shared_by > 0) return session.title || "The app itself";
   if (session.title) return session.title;
   // Its App is the row it sits under: its folder and when it started.
-  if (session.started_ms != null) return untitledName({ folder: session.folder_name, app: null, startedMs: session.started_ms }, now);
+  if (session.started_ms != null) return untitledName({ folder: session.folder_name, startedMs: session.started_ms }, now);
   return session.folder_name ? `${session.folder_name} · no title yet` : "A session with no title yet";
 }
 
