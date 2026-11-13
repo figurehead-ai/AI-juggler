@@ -148,7 +148,7 @@
 **Research basis**: `hermes.md`.
 **Handover note**: The Nous Portal allows one account per person (§5.1).
 
-### AJ-E1608 Muse (Meta) CLI | Status: TODO | Priority P2 | Effort M | Depends: AJ-E1521
+### AJ-E1608 Muse (Meta) CLI | Status: IN-PROGRESS (built 2026-11-13: R1–R3 on fixtures, the MIT SDK's transcripts and a live `muse serve --provider echo`; API-key accounts for every account but the user's own, whose Keychain sign-in is one per Mac; separate subscription sign-ins wired behind a flag that stays off; a real turn, real usage and two subscription accounts apart UNPROVEN until AJ-E1612, D-107) | Priority P2 | Effort M | Depends: AJ-E1521
 **Goal**: Meta's `muse` CLI runs, API-key accounts first.
 **User story**: As a Muse user, I see its 5-hour and weekly windows beside my other tools.
 **Requirements**:
