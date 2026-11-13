@@ -125,9 +125,18 @@ for (const theme of ["dark", "light"] as const) {
     const chooser = page.getByRole("dialog", { name: "Add an app: which tool?" });
     await chooser.getByTestId("provider-card").filter({ hasText: "Claude Code" }).getByTestId("provider-choose").click();
     const dialog = page.getByRole("dialog", { name: "Add apps" });
-    await expect(dialog.getByTestId("first-run-bring-in")).toHaveText("Bring in 2 apps");
+    // Both found setups are offered, none ticked for you when adding one
+    // tool's app (AJ-E3514 F5, D-84); one tick brings in just that one.
+    const boxes = dialog.getByTestId("first-run-row").getByRole("checkbox");
+    await expect(boxes).toHaveCount(2);
+    await expect(dialog.getByTestId("first-run-row").getByRole("checkbox", { checked: true })).toHaveCount(0);
+    const bringIn = dialog.getByTestId("first-run-bring-in");
+    await expect(bringIn).toHaveText("Bring in 0 apps");
+    await expect(bringIn).toBeDisabled();
     await page.screenshot({ path: resolve(OUT, `add-accounts-1280x800-${theme}.png`) });
     await axeClean(page, "add accounts");
+    await boxes.first().check();
+    await expect(bringIn).toHaveText("Bring in 1 app");
     await page.keyboard.press("Escape");
     await expect(dialog).toHaveCount(0);
   });
@@ -380,7 +389,9 @@ for (const theme of ["dark", "light"] as const) {
     await openSwitch(page);
     const rows = page.getByTestId("switch-target-rows");
     await expect(rows.getByTestId("continue-set-up")).toHaveText("Start a session on Personal ›");
-    await expect(rows.getByRole("button", { name: /^Lab/ }).first()).toHaveAttribute("aria-pressed", "true");
+    // Same tool first: Lab, not Codex, is suggested. Rows name the App whole
+    // (E32 naming, D-100's "CLI"), so Lab's row is "Claude Code CLI · Lab".
+    await expect(rows.getByRole("button", { name: /^Claude Code CLI · Lab\b/ }).first()).toHaveAttribute("aria-pressed", "true");
     await rows.scrollIntoViewIfNeeded();
     await page.screenshot({ path: resolve(OUT, `switch-setup-1280x800-${theme}.png`) });
     await axeClean(page, "switch list with one not set up");
