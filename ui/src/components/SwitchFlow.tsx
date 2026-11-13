@@ -20,7 +20,7 @@ import { useEffect, useRef, useState, type JSX } from "react";
 import { BackButton, CancelButton, ContinueButton, PRIMARY, PRIMARY_WAITING, StepMarks, SwitchDialogFrame, useDialogKeys } from "./switch/SwitchDialogFrame";
 import type { FreezeChoice } from "./SwitchFreezeChoice";
 import { FailedStep, failureOf } from "./switch/FailedStep";
-import { takeSwitchOpener } from "../lib/handover-focus";
+import { useSwitchInvoker } from "../lib/handover-focus";
 import { useSwitchSetup } from "../lib/useSwitchSetup";
 import { tooLittleSpace, useSwitchSpace } from "./switch/DiskSpace";
 import { CarryChoice, useCarryChoice } from "./switch/CarryChoice";
@@ -84,12 +84,11 @@ export function SwitchFlow({
   // AJ-E804 (WCAG 2.4.3): cancelling returns focus to the control that
   // opened the switch. (A completed switch hands focus to the undo
   // toast instead.)
-  const invokerRef = useRef<Element | null>(null);
+  // From Continue on another account, what opened that dialog.
+  const invokerRef = useSwitchInvoker();
   // One switch per confirm: a second ⏎ before the phase re-renders would
   // read the stale "confirm" and start another (review of #132).
   const started = useRef(false);
-  // From Continue on another account, what opened that dialog.
-  if (invokerRef.current === null) invokerRef.current = takeSwitchOpener() ?? document.activeElement;
   const running = phase.kind === "executing" || move.running;
   // Set the moment the switch starts, so an Esc that comes before the
   // next render is held too.

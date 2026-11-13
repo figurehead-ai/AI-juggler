@@ -58,7 +58,9 @@ export function placeOf(session: InstanceInfo, projects: ProjectInfo[]): { title
 const PLAIN_BRANCHES = new Set(["main", "master", "trunk", "develop", "development", "dev", "head", "default"]);
 
 /** The branch when it says what the work was ("fix/limits"), never one
- * that says nothing ("main"). */
+ * that says nothing ("main", a blank one): the backend's
+ * `naming::telling_branch`, held to it by `fixtures/session-names.json`. */
 export function tellingBranch(branch: string | null | undefined): string | null {
-  return branch && !PLAIN_BRANCHES.has(branch.toLowerCase()) ? branch : null;
+  const plain = branch?.trim().toLowerCase() ?? "";
+  return branch && plain !== "" && !PLAIN_BRANCHES.has(plain) ? branch : null;
 }

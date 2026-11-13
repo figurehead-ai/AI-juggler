@@ -1702,12 +1702,11 @@ fn an_app_signing_in_to_another_account_moves_its_open_session_between_account_p
 
     // P5 step 4: the pool says who left, and why; the one it joined says
     // so too; the pools it stayed in say nothing.
-    // D-96: an untitled member by its facts — folder · App · when it
-    // started (where the system can say a time).
-    let lead = format!(
-        "«{} · work",
-        dir.path().file_name().unwrap().to_str().unwrap()
-    );
+    // D-96, D-103.8: an untitled member by its facts — folder · when it
+    // started (its App and Account beside it, never in its name).
+    // Its start time only where the system can say one (not on every CI
+    // host): "«folder · started 11:20 PM»", else "«folder»".
+    let lead = format!("«{}", dir.path().file_name().unwrap().to_str().unwrap());
     let said = |pool: &str| -> Vec<String> {
         pools::canvas::canvas_impl(&state, pool, Vec::new())
             .unwrap()
@@ -1721,6 +1720,8 @@ fn an_app_signing_in_to_another_account_moves_its_open_session_between_account_p
         let line = lines.into_iter().next().unwrap();
         let tail = format!("» {what}: its account is now Other account");
         assert!(line.starts_with(&lead) && line.ends_with(&tail), "{line}");
+        let name = line[lead.len()..line.len() - tail.len()].to_owned();
+        assert!(name.is_empty() || name.starts_with(" · started "), "{line}");
         assert!(!line.contains("Untitled session"), "{line}");
         line.trim_end_matches(&tail).to_owned()
     };

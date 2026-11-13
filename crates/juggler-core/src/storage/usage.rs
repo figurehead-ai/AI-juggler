@@ -22,7 +22,9 @@ mod cost_pages;
 pub use cost_pages::CostDay;
 mod detail;
 pub use detail::RepriceCursor;
+mod hits;
 use detail::{Details, EVENT_COLUMNS, event_row};
+pub use hits::HitMove;
 mod owners;
 use owners::{Owners, Rows, SessionKey};
 

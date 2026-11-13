@@ -24,7 +24,7 @@ import { editorChoices, projectForget, projectOpen, projectRelocate, projectRena
 /** A session's title on screen: the user's label, else what it was about
  * (its conversation's title: the tool's summary or the first thing asked,
  * AJ-E1536), else its facts by the rail's one rule (`shortName`, D-96:
- * "billing · Work · started 1:14 AM"). */
+ * "billing · started 1:14 AM", D-103.8). */
 export function sessionTitle(session: InstanceInfo, now: number = Date.now()): string {
   return session.label ?? session.title ?? shortName(session, now);
 }

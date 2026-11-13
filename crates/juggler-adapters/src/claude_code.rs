@@ -801,6 +801,16 @@ impl ToolQuota for ClaudeCodeAdapter {
     fn limit_hit(&self, tail: &str) -> Option<juggler_adapter::live::LimitHit> {
         crate::claude_limits::limit_hit_in_tail(tail)
     }
+    fn limit_hits_at(
+        &self,
+        path: &Path,
+    ) -> Vec<(
+        PathBuf,
+        juggler_core::quota::WindowKind,
+        juggler_core::quota::QuotaSample,
+    )> {
+        crate::claude_limits::limit_hits_at(path)
+    }
 }
 
 impl ToolLive for ClaudeCodeAdapter {

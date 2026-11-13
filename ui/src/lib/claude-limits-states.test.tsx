@@ -11,7 +11,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import type { WindowDisplay } from "./ipc/quota";
 import { agoWords, windowView } from "./quotaWindow";
 import { runwayOf } from "../components/AccountRunway";
-import { unmeasuredWords } from "../screens/accounts/AccountCard";
+import { unmeasuredWords } from "../components/MeasureLimits";
 import { AccountProbe } from "../pages/AccountProbe";
 import { setToolsForTests } from "./tools";
 import { PREVIEW_TOOLS } from "../preview/tools";

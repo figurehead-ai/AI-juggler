@@ -15,10 +15,24 @@ A scenario file (TOML, the subset below) says:
 
     [setup]                         # the starting state, as data
     projects = ["web"]
+    replica = false                 # a bare lab HOME: only what the scenario seeds
+                                    # (not the replica's heavy Mac), so every count is its own
     [[setup.apps]]                  # tool, account, profile, running,
+                                    # (tool "codex-app": the Codex app, on the lab
+                                    # HOME's ~/.codex; this Mac's ChatGPT.app runs it,
+                                    # which a lab's build doesn't see: closed there)
+                                    # (running on a Claude app profile: lab_scenario.sh
+                                    # start-apps starts it on its lab folders)
                                     # signed_in (false: none), room_used (% of 5 h),
+                                    # week_used (% of the week, resetting in 3 days),
                                     # added (false: a desktop profile's folder only, D-84)
                                     # signin ("unreadable": its lab sign-in cut short, A10)
+                                    # past (N past sessions its own surface started, in its
+                                    # tool's own records: a Code tab's records and transcripts,
+                                    # a terminal's transcripts, a Codex thread and its store row)
+                                    # script_runs (N `claude -p` / `codex exec` runs in its folder)
+                                    # folder_of (an App listed before it: runs on that App's
+                                    # folder, as Codex CLI on the Codex app's ~/.codex)
     [[setup.sessions]]              # id, app, project, state,
                                     # conversation (true: a few turns in its
                                     # tool's own format, replica.py's writer)
@@ -192,10 +206,29 @@ def unseeded(scenario: dict, name: str, seeded: dict[str, set[str]]) -> list[str
 def signed_in_tools(seeder: str) -> set[str]:
     """The tools the seeder gives a lab sign-in: the `"tool" =>` arms of
     its `lab_sign_in_for`. A Claude app profile is signed in through its
-    Claude Code folder."""
+    Claude Code folder, the Codex app through its Codex folder."""
     body = re.search(r"fn lab_sign_in_for\b.*?\n}\n", seeder, re.S)
     tools = set(re.findall(r'"([a-z-]+)"\s*=>', body.group(0))) if body else set()
-    return tools | ({"claude-desktop"} if "claude-code" in tools else set())
+    return (
+        tools
+        | ({"claude-desktop"} if "claude-code" in tools else set())
+        | ({"codex-app"} if "codex" in tools else set())
+    )
+
+
+def misplaced_folders(scenario: dict, name: str) -> list[str]:
+    """PL1: an App with `folder_of` runs on another App's folder, which the
+    seeder has made by then: an App listed before it."""
+    out = []
+    seen: list[str] = []
+    for index, app in enumerate(scenario.get("setup", {}).get("apps", []), 1):
+        if not isinstance(app, dict):
+            continue
+        other = app.get("folder_of")
+        if other is not None and other not in seen:
+            out.append(f"{name}: setup.apps[{index}] ({app.get('id')}) is on the folder of {other!r}, which no App listed before it is")
+        seen.append(app.get("id"))
+    return out
 
 
 def unsigned(scenario: dict, name: str, tools: set[str]) -> list[str]:
@@ -372,7 +405,13 @@ expect = "b"
     ], unseeded(bad, "Z1-a.toml", seeded)
     # Every App on an Account has its tool's lab sign-in (P5, rc31).
     tools = signed_in_tools('fn lab_sign_in_for(tool: &str) -> bool {\n    match tool {\n        "claude-code" => a(),\n        "codex" => b(),\n        _ => return false,\n    }\n    true\n}\n')
-    assert tools == {"claude-code", "claude-desktop", "codex"}, tools
+    assert tools == {"claude-code", "claude-desktop", "codex", "codex-app"}, tools
+    # An App on another's folder comes after it (PL1).
+    shared = {"setup": {"apps": [{"id": "cli", "tool": "codex", "folder_of": "app"}, {"id": "app", "tool": "codex-app"},
+                                 {"id": "cli2", "tool": "codex", "folder_of": "app"}]}}
+    assert misplaced_folders(shared, "Z1-a.toml") == [
+        "Z1-a.toml: setup.apps[1] (cli) is on the folder of 'app', which no App listed before it is"
+    ], misplaced_folders(shared, "Z1-a.toml")
     five = {"setup": {"apps": [
         {"id": "work", "tool": "claude-code", "account": "Work"},
         {"id": "p", "tool": "codex", "account": "Personal"},
@@ -426,6 +465,7 @@ def main(argv: list[str]) -> int:
         found += [problem for name, scenario in all_.items() for problem in unseeded(scenario, name, seeded)]
         tools = signed_in_tools(SEEDER.read_text())
         found += [problem for name, scenario in all_.items() for problem in unsigned(scenario, name, tools)]
+        found += [problem for name, scenario in all_.items() for problem in misplaced_folders(scenario, name)]
         templates = template_ids(TEMPLATES.read_text())
         found += [problem for name, scenario in all_.items() for problem in empty_template_pools(scenario, name, templates)]
         found += missing_sheets(all_, tracked_files())

@@ -514,6 +514,25 @@ fn a_transcripts_hits_are_read_line_by_line_and_its_words_never_kept() {
 }
 
 #[test]
+fn what_a_move_renamed_gives_each_hit_with_its_file_a_folders_too() {
+    let dir = tempfile::tempdir().unwrap();
+    let file = dir.path().join("s-1.jsonl");
+    let nested = dir.path().join("s-1/subagents/agent-1.jsonl");
+    std::fs::create_dir_all(nested.parent().unwrap()).unwrap();
+    std::fs::write(&file, hit_line("five_hour", "rejected", 1_792_900_000)).unwrap();
+    std::fs::write(&nested, hit_line("seven_day", "rejected", 1_793_000_000)).unwrap();
+    let at = |path: &Path| {
+        limit_hits_at(path)
+            .into_iter()
+            .map(|(file, kind, _)| (file, kind.as_str()))
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(at(&file), [(file.clone(), "five_hour")]);
+    assert_eq!(at(&dir.path().join("s-1")), [(nested, "weekly")]);
+    assert!(at(&dir.path().join("gone")).is_empty());
+}
+
+#[test]
 fn the_transcript_reader_keeps_hits_as_samples_beside_its_tokens() {
     let reset_s = 1_792_900_000;
     let usage = r#"{"type":"assistant","timestamp":"2026-10-24T17:00:00Z","sessionId":"s-1","requestId":"r0","message":{"id":"m0","model":"claude-x","usage":{"input_tokens":10,"output_tokens":5}}}"#;

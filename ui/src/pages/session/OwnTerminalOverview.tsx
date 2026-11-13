@@ -32,7 +32,7 @@ export function OwnTerminalOverview({
   session: InstanceInfo;
   project: ProjectInfo | null;
   onOpenProject: (id: string) => void;
-  /** Its terminal (and, ended, the line that says its scrollback was replayed). */
+  /** Its terminal; ended, what it kept (SessionTerminal: the terminal replayed, else its conversation). */
   terminal: ReactNode;
   /** Its details (when it ended, its notes, its launch settings and ids). */
   details: ReactNode;

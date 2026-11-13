@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import { sharedRead, useSharedRead, whenForgotten, type SharedRead } from "./shared-read";
 import { onPlacesChanged, placesFind, placesList, type KnownPlaceInfo } from "./ipc/places";
 import { learnPlaces } from "./marks";
+import { agoWords } from "./time-words";
 
 /** The places remembered, one read for every screen that shows them
  * (walk A4: seven hooks each read them, ~20 reads a window's first
@@ -80,25 +81,18 @@ export function placeFor(places: KnownPlaceInfo[] | null, appPid: number | null)
   return places.find((place) => place.app_pid === appPid) ?? null;
 }
 
-/** A place's state in words: "Running", "Not running · seen 2 h ago",
- * "Keep alive paused: it stopped 3 times in 10 minutes". */
+/** A place's state in words: "Running", "Closed · last open 12 min ago",
+ * "Keep alive paused: it stopped 3 times in 10 minutes". D-103.5: one that
+ * isn't running is "Closed" (was "Not running · seen this hour"), with
+ * when it was last seen open in the app's ago-words. */
 export function placeWords(place: KnownPlaceInfo, now: number = Date.now()): string {
   if (place.lost) return "Lost its window when the system restarted the display";
   if (place.paused) return `Keep alive paused: ${place.paused}`;
   if (place.app_pid !== null) return place.keep_alive ? "Running · kept alive" : "Running";
-  if (place.keep_alive) return "Not running · keep alive starts it";
+  if (place.keep_alive) return "Closed · keep alive starts it";
   // AJ-E3203: found by its folder's name, not seen running yet.
   if (place.found) return "Found with your other profiles";
-  return `Not running · seen ${ago(place.seen_ms, now)}`;
-}
-
-function ago(ms: number, now: number): string {
-  const minutes = Math.max(0, Math.round((now - ms) / 60_000));
-  if (minutes < 60) return "this hour";
-  const hours = Math.round(minutes / 60);
-  if (hours < 24) return `${hours} h ago`;
-  const days = Math.round(hours / 24);
-  return days === 1 ? "yesterday" : `${days} days ago`;
+  return `Closed · last open ${agoWords(place.seen_ms, now)}`;
 }
 
 /** The desktop app (its name, "Claude") another app's session was last

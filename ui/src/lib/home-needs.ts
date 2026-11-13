@@ -81,7 +81,7 @@ export function isSessionNeed(need: HomeNeed): boolean {
  * counted as the rail's Needs you counts them, so the two agree ("3
  * sessions need you" beside "Needs you 3"); a sign-in, the Mac, a cap or
  * leftovers are the "more" (the review of 0.1.4: "4 things" beside 3). */
-export function needsHeading(count: number | { sessions: number; others: number }, calm: { runOut: string[]; running: boolean; anything: boolean }): string {
+export function needsHeading(count: number | { sessions: number; others: number }, calm: { runOut: string[]; running: boolean; anything: boolean; known?: boolean }): string {
   const { sessions, others } = typeof count === "number" ? { sessions: 0, others: count } : count;
   if (sessions > 0) {
     const them = sessions === 1 ? "1 session" : `${sessions} sessions`;
@@ -89,6 +89,8 @@ export function needsHeading(count: number | { sessions: number; others: number 
     return `${them} and ${others} more ${others === 1 ? "thing" : "things"} need you`;
   }
   if (others > 0) return others === 1 ? "1 thing needs you" : `${others} things need you`;
+  // D-103.6: never "All clear" before the needs have loaded.
+  if (calm.known === false) return "Checking what needs you…";
   // QA batch 9: never "All clear" while an account has run out (D-62:
   // `runOut` names Accounts, a folder in none by its own name).
   if (calm.runOut.length === 1) return `${calm.runOut[0]} has run out`;

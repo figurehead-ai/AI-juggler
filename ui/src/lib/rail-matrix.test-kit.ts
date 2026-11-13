@@ -106,12 +106,16 @@ interface Expectation {
   open?: string[];
   offered?: string[];
   idle?: string[];
+  /** By Account (0.4.4): the Accounts with nothing open but a pinned session. */
+  pinned?: string[];
   /** Section heads' counts; `null`: no such head. */
   counts?: Partial<Record<SectionId, number | null>>;
   /** What sits under each key, top to bottom (session ids). */
   under?: Record<string, string[]>;
-  /** The link lines under each key ("Last 3 inactive", "Show all", "+2 more"). */
+  /** The link lines under each key ("+5 recent", "All 5 sessions ›", "+2 more"). */
   links?: Record<string, string[]>;
+  /** D-103.1: the keys whose last ones sit under a "Recent" caption. */
+  recent?: string[];
   foldable?: Record<string, boolean>;
   /** The headers drawn folded. */
   folded?: string[];
@@ -166,6 +170,8 @@ interface Seen {
   counts: Map<SectionId, number>;
   under: Map<string, string[]>;
   links: Map<string, string[]>;
+  /** The keys with a "Recent" caption under them (D-103.1). */
+  recent: Set<string>;
   headers: Map<string, Extract<Line, { kind: "header" }>>;
   depth: Map<string, number>;
   /** Each session drawn under a key: that key (Needs you's shortcut aside). */
@@ -190,7 +196,7 @@ function drawn(walk: Walk, item: Parameters<typeof idOfItem>[0], depth: number |
   push(walk.seen.drawnUnder, id, walk.at);
 }
 
-/** A link line ("Last 3 inactive", "Show all", "+2 more") under the App or Account above it. */
+/** A link line ("+5 recent", "All 5 sessions ›", "+2 more") under the App or Account above it. */
 function link(walk: Walk, words: string): void {
   if (walk.at !== null) push(walk.seen.links, walk.at, words);
 }
@@ -236,8 +242,11 @@ function under(line: Line, walk: Walk): void {
     case "past":
       drawn(walk, line.item, line.depth);
       return;
+    case "recent":
+      if (walk.at !== null) walk.seen.recent.add(walk.at);
+      return;
     case "all":
-      link(walk, "Show all");
+      link(walk, `All ${line.count} sessions ›`);
       return;
     case "more":
       link(walk, `+${line.quiet} ${line.words}`);
@@ -251,7 +260,7 @@ function under(line: Line, walk: Walk): void {
 }
 
 function read(lines: readonly Line[]): Seen {
-  const seen: Seen = { sections: new Map(), counts: new Map(), under: new Map(), links: new Map(), headers: new Map(), depth: new Map(), drawnUnder: new Map(), idleMore: 0 };
+  const seen: Seen = { sections: new Map(), counts: new Map(), under: new Map(), links: new Map(), recent: new Set(), headers: new Map(), depth: new Map(), drawnUnder: new Map(), idleMore: 0 };
   const walk: Walk = { seen, section: null, at: null };
   for (const line of lines) {
     enter(line, walk);
@@ -310,22 +319,38 @@ function heads(row: MatrixRow, seen: Seen): void {
   }
 }
 
-/** What holds in every row (ADR-0032 §3, amendment 8). */
+/** D-103.1: "Recent" right over the last ones of an App with nothing
+ * open (an Inactive one's too), and only there: never under one with
+ * something open, over its pins, or while searching. */
+function recents(row: MatrixRow, built: Lines, seen: Seen): void {
+  const nothingOpen = (key: string) => (seen.headers.get(key)?.group.items.length ?? 0) === 0 && !row.query;
+  built.lines.forEach((line, at) => {
+    if (line.kind !== "recent") return;
+    const next = built.lines[at + 1];
+    expect(next?.kind === "past" && !next.item.pinned, `${line.app}: Recent right over its last ones`).toBe(true);
+    expect(nothingOpen(line.app), `${line.app}: Recent with something open, or searching`).toBe(true);
+  });
+  const pins = new Set(row.pins ?? []);
+  for (const [key, ids] of seen.under) expect(seen.recent.has(key), `${key}: Recent over its last ones`).toBe(nothingOpen(key) && ids.some((id) => !pins.has(id)));
+}
+
+/** What holds in every row (ADR-0032 §3, amendment 8, D-103.1). */
 function invariants(row: MatrixRow, built: Lines, seen: Seen): void {
   placement(row, built, seen);
   folds(seen);
   marks(row, seen);
   heads(row, seen);
+  recents(row, built, seen);
 }
 
 const sorted = (list: readonly string[] | undefined) => [...(list ?? [])].sort();
 
 function sectionsMatch(want: Expectation, seen: Seen): void {
-  for (const id of ["open", "offered", "idle"] as const) {
+  for (const id of ["open", "offered", "idle", "pinned"] as const) {
     const keys = want[id];
     if (keys !== undefined) expect(sorted(seen.sections.get(id)), `${id} holds`).toEqual(sorted(keys));
   }
-  for (const id of ["needs", "open", "offered", "idle"] as const) {
+  for (const id of ["needs", "open", "offered", "idle", "pinned"] as const) {
     const count = want.counts?.[id];
     if (count !== undefined) expect(seen.counts.get(id) ?? null, `${id}'s head`).toBe(count);
   }
@@ -335,6 +360,7 @@ function sectionsMatch(want: Expectation, seen: Seen): void {
 function underMatch(want: Expectation, seen: Seen): void {
   for (const [key, ids] of Object.entries(want.under ?? {})) expect(seen.under.get(key) ?? [], `under ${key}`).toEqual(ids);
   for (const [key, words] of Object.entries(want.links ?? {})) expect(seen.links.get(key) ?? [], `links under ${key}`).toEqual(words);
+  if (want.recent) expect(sorted([...seen.recent]), "Recent over").toEqual(sorted(want.recent));
   for (const [id, depth] of Object.entries(want.depth ?? {})) expect(seen.depth.get(id), `${id}'s depth`).toBe(depth);
 }
 

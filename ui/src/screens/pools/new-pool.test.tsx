@@ -49,7 +49,8 @@ describe("AJ-E3007 the templates and the draft", () => {
   });
 
   // D-96 D in the wizard (the rc27 pool pass): four untitled Lab sessions
-  // in one folder read "team · Lab · started 9:2x AM", alike to the minute.
+  // in one folder read "team · Lab · started 9:2x AM", alike to the minute
+  // (D-103.8: "team · started 9:2x AM", their Account on the line under).
   it("alike untitled sessions are told apart in the wizard's list", () => {
     const base = MOCK_SESSIONS.find((one) => sessionState(one).state !== "ended") ?? MOCK_SESSIONS[0]!;
     const at = new Date(2026, 10, 10, 9, 25).getTime();
@@ -59,7 +60,8 @@ describe("AJ-E3007 the templates and the draft", () => {
     const rows = sessionCandidates({ draft, sessions, conversations: [], pools: null, tools: [], projectName: (id) => id ?? "No project", nameOf: (s) => shortName(s, at + 3_600_000), now: at + 3_600_000 });
     const labels = rows.map((row) => row.label);
     expect(new Set(labels).size).toBe(4);
-    expect(labels.every((label) => /^team · .* · started .*\(\d\)$/.test(label))).toBe(true);
+    expect(labels.every((label) => /^team · started .*\(\d\)$/.test(label))).toBe(true);
+    expect(rows.every((row) => row.detail.includes("Lab"))).toBe(true);
   });
 
   it("a session out of scope says why and offers the scope", () => {

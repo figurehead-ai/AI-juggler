@@ -271,17 +271,33 @@ func main(_ args: [String]) {
     switch verb {
     case "click":
         let chain = ancestors(element(at: n(1), n(2)))
-        let role = attr(chain[0], "AXRole") as? String ?? ""
-        if ["AXTextField", "AXTextArea", "AXComboBox", "AXSearchField"].contains(role) {
-            AXUIElementSetAttributeValue(chain[0], "AXFocused" as CFString, kCFBooleanTrue)
+        // The element under the point can be a text field's own part (its
+        // placeholder's text): the field is then up the chain, and a click
+        // there puts the cursor in it, as a mouse click does (the 0.4.3
+        // persona D3: the rail's search box "took no typing").
+        let fields = ["AXTextField", "AXTextArea", "AXComboBox", "AXSearchField"]
+        if let field = chain.prefix(3).first(where: { fields.contains(attr($0, "AXRole") as? String ?? "") }) {
+            AXUIElementSetAttributeValue(field, "AXFocused" as CFString, kCFBooleanTrue)
+            // While the app is in the background (the Mac is in use and is
+            // never taken over), focus doesn't take: `type` finds this field
+            // again by its point.
+            try? "\(n(1)) \(n(2))".write(to: out.appendingPathComponent(".field"), atomically: true, encoding: .utf8)
         } else if let target = chain.first(where: { actions($0).contains("AXPress") }) {
             AXUIElementPerformAction(target, "AXPress" as CFString)
         } else {
             fail("nothing to press there")
         }
     case "type":
-        guard let focused = attr(axApp, "AXFocusedUIElement") else { fail("no field has the cursor (click one first)") }
-        let field = focused as! AXUIElement
+        let fields = ["AXTextField", "AXTextArea", "AXComboBox", "AXSearchField"]
+        func isField(_ e: AXUIElement) -> Bool { fields.contains(attr(e, "AXRole") as? String ?? "") }
+        var found: AXUIElement?
+        if let focused = attr(axApp, "AXFocusedUIElement"), isField(focused as! AXUIElement) {
+            found = (focused as! AXUIElement)
+        } else if let saved = try? String(contentsOf: out.appendingPathComponent(".field"), encoding: .utf8) {
+            let xy = saved.split(separator: " ").compactMap { Double($0) }
+            if xy.count == 2 { found = ancestors(element(at: xy[0], xy[1])).prefix(3).first(where: isField) }
+        }
+        guard let field = found else { fail("no field has the cursor (click one first)") }
         let text = args.dropFirst().joined(separator: " ")
         let had = attr(field, "AXValue") as? String ?? ""
         guard AXUIElementSetAttributeValue(field, "AXValue" as CFString, (had + text) as CFString) == .success else {

@@ -2,12 +2,13 @@
  * 0.4.1 (walk A3): a session page's App chip keeps the part that tells
  * Apps apart. At the minimum window (1024×680), folded, the chip sits on
  * the title's line; it read "Claude Code · …", the profile cut off. The
- * tool word gives way first ("… · Work Max", its mark beside), the title
- * truncates before the name does, and the chip's accessible name and
- * tooltip carry the App's full name. No captures: a layout check only.
+ * tool word gives way first, whole (0.4.4, D-100: "Work Max", its mark
+ * beside), the title truncates before the name does, and the chip's
+ * accessible name and tooltip carry the App's full name (D-100's CLI
+ * names). No captures: a layout check only.
  */
 import { expect, test, type Page } from "@playwright/test";
-import { allStatuses, expectRail, terminalDrawn } from "./fixtures";
+import { allStatuses, expectRail, openRailList, openRailSession, terminalDrawn } from "./fixtures";
 
 async function seed(page: Page, width: number, height: number) {
   await page.addInitScript((fixture) => {
@@ -64,8 +65,8 @@ for (const folded of [true, false]) {
     expect(name.width).toBeGreaterThan(20);
     expect(name.shown, "Work Max is cut off in the chip").toBeGreaterThanOrEqual(name.width - 0.5);
     // Its accessible name and tooltip: the App's full name.
-    await expect(page.getByRole("button", { name: "Open Claude Code · Work Max's page", exact: true })).toBeVisible();
-    await expect(page.getByTestId("session-app-page")).toHaveAttribute("title", /^Claude Code · Work Max\b/);
+    await expect(page.getByRole("button", { name: "Open Claude Code CLI · Work Max's page", exact: true })).toBeVisible();
+    await expect(page.getByTestId("session-app-page")).toHaveAttribute("title", /^Claude Code CLI · Work Max\b/);
   });
 }
 
@@ -85,3 +86,25 @@ test("the chip's name holds while the title gives way, folded at 1024 px", async
   const name = await shownOf(page, "Work Max");
   expect(name.shown, "Work Max is cut off in the chip").toBeGreaterThanOrEqual(name.width - 0.5);
 });
+
+// D-100 (0.4.4): with the list open at 1024 px, an ended session's four
+// actions left its name and chips 96 px: "Keep th…" and an App chip that
+// read nothing. The actions go down a line instead, their hints clear of
+// the facts under them.
+test("an ended session's actions go down a line before its names are cut, at 1024 px with the list open", async ({ page }) => {
+  await seed(page, 1024, 680);
+  await openRailList(page);
+  await openRailSession(page, "sess-8");
+  await expect(page.getByTestId("header-relaunch-hint")).toBeVisible();
+  const whole = (id: string) => page.getByTestId(id).evaluate((node) => node.scrollWidth <= node.clientWidth);
+  expect(await whole("page-name"), "the session's name is cut").toBe(true);
+  expect(await whole("session-app-short"), "the App's name is cut").toBe(true);
+  const box = async (id: string) => (await page.getByTestId(id).boundingBox())!;
+  const chips = await box("page-chips");
+  const relaunch = await box("header-relaunch");
+  expect(relaunch.y, "the actions sit below the chips").toBeGreaterThanOrEqual(chips.y + chips.height);
+  const hint = await box("header-relaunch-hint");
+  const facts = await box("page-facts");
+  expect(hint.y + hint.height, "the hint prints over the facts").toBeLessThanOrEqual(facts.y);
+});
+

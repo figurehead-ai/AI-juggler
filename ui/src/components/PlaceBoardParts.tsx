@@ -6,7 +6,7 @@
 import { Fragment, type JSX, type ReactNode } from "react";
 import { flushSync } from "react-dom";
 import { moveLine } from "../lib/roving";
-import { IconAlert } from "./icons";
+import { IconAlert, IconPin } from "./icons";
 import { IconHistory, IconWindow } from "./icons-places";
 import { IconPlus } from "./icons-actions";
 import type { HiddenApp } from "../lib/shown-apps";
@@ -21,6 +21,8 @@ const SECTION: Record<SectionId, { label: string; tone: string; Icon: typeof Ico
   // your apps that aren't running.
   offered: { label: "Running, not added", tone: "text-ink-2", Icon: IconPlus, testId: "rail-running-not-added" },
   idle: { label: "Inactive apps", tone: "text-ink-2", Icon: IconHistory, testId: "rail-inactive-apps" },
+  // 0.4.4: by Account, the ones with nothing open but a pinned session.
+  pinned: { label: "Pinned", tone: "text-ink-2", Icon: IconPin, testId: "rail-pinned" },
 };
 
 /** A fold chevron, as the Project lens's (FoldButton). */
@@ -40,6 +42,18 @@ export function RailLink({ onClick, testId, expanded, children }: { onClick: () 
       {children}
       {expanded !== undefined && <Chevron open={expanded} />}
     </button>
+  );
+}
+
+/** D-103.1: "Recent", muted, over the last ones of an App with nothing
+ * open (persona D6: "nothing open" above three rows read as a
+ * contradiction). Words only, never a stop on the keys' path; it starts
+ * where the rows' link under them does. */
+export function RailCaption({ children }: { children: string }): JSX.Element {
+  return (
+    <p className="ml-3 flex h-[22px] items-end px-2.5 text-label font-medium text-muted" data-testid="rail-recent-caption">
+      {children}
+    </p>
   );
 }
 

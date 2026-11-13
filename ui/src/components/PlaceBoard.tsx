@@ -12,8 +12,8 @@
 import { useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState, type JSX, type ReactNode } from "react";
 import { NeedRow, PlaceHeader, edgeOf, type Arrangeable } from "./PlaceRows";
 import { SessionRow } from "./row/SessionRow";
-import { AlsoLine, Chevron, RailLink, RailSearchFoundNothing, SectionHead, scrollerOf, stepPastEdge } from "./PlaceBoardParts";
-import { idleAppPage, RailIdleApp, RailShowAll } from "./RailIdleApp";
+import { AlsoLine, Chevron, RailCaption, RailLink, RailSearchFoundNothing, SectionHead, scrollerOf, stepPastEdge } from "./PlaceBoardParts";
+import { idleAppPage, RailAllSessions, RailIdleApp } from "./RailIdleApp";
 import { RailOfferRow, usePlaceOffers } from "./PlaceOffers";
 import { RailOrderMenu } from "./RailOrderMenu";
 import { useArrange } from "./rail-arrange";
@@ -300,7 +300,7 @@ export function PlaceBoard({ sessions, projects, accounts, snooze, now, selected
             folded={line.folded}
             // Your order and Name remember a fold; Latest activity's is this visit's.
             onToggle={() => (stable ? toggleFold(orderLens, group.key) : toggle(group.key))}
-            arrange={arrangeOf("group", group.key, group.key)}
+            arrange={built.groups.includes(group) ? arrangeOf("group", group.key, group.key) : null} /* 0.4.4: Pinned's Accounts aren't Open now's to arrange */
             onOpen={opens ? () => openPlace(group) : undefined}
             openWords={lens === "pool" ? "Open its page" : groupClosed(known, group) ? "Start" : undefined}
             onPage={pageOf(group)} onWarm={lens === "pool" && group.poolId !== null ? () => void warmPool(group.poolId!) : undefined}
@@ -336,7 +336,8 @@ export function PlaceBoard({ sessions, projects, accounts, snooze, now, selected
         return <SessionRow item={line.item} density={compact ? "compact" : "cozy"} within={{ app: true }} edge={edgeOf(line.item.place)} selected={selectedId === (line.item.session?.id ?? line.item.conversation?.id)} onSelect={onSelect} now={now} subagents={view.show.subagents} depth={line.kind === "past" ? line.depth : undefined} parent={line.kind === "past" ? line.parent : undefined} />;
       case "more":
         return <RailLink onClick={() => toggle(`${line.group.key}#all`)} testId="rail-more-quiet">{`+${line.quiet} ${line.words}`}</RailLink>;
-      case "all": return <RailShowAll page={line.group ? appPageOfGroup(lens, line.group, places) : line.idle ? idleAppPage(line.idle) : null} loaded={line.count} onOpen={openAppSessions} />; // 0.4.3 (D-64): its page
+      case "recent": return <RailCaption>Recent</RailCaption>; // D-103.1: an App with nothing open
+      case "all": return <RailAllSessions page={line.group ? appPageOfGroup(lens, line.group, places) : line.idle ? idleAppPage(line.idle) : null} loaded={line.count} onOpen={openAppSessions} />; // 0.4.3 (D-64): its page
       case "idle": {
         const known = line.app.placeId !== null ? (places?.find((place) => place.id === line.app.placeId) ?? null) : null;
         return <RailIdleApp app={line.app} open={line.open} onToggle={() => toggle(`${line.app.key}#recent`)} now={now} keepAlive={keepAliveOf(known)} />;

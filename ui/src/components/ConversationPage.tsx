@@ -17,7 +17,8 @@ import { ProcessesView } from "../screens/processes/ProcessesView";
 import { useCallback, useEffect, useMemo, useRef, useState, type JSX } from "react";
 import { Button, Card } from "./primitives";
 import { useActionHost, useItemMenu } from "./ItemMenu";
-import { PageHeader, PageShell, WhenShown, type Crumb } from "../pages/PageShell";
+import { PageShell, WhenShown } from "../pages/PageShell";
+import { PageHeader, type Crumb } from "../pages/PageHeader";
 import { pageTabs } from "../pages/registry";
 import { conversationTitle, useConversations } from "../lib/conversations";
 import { useSubscriptions, accountOfProfile } from "../lib/subscriptions";
@@ -183,7 +184,8 @@ function ConversationView({
         kind="conversation"
         subject={`${conversation.account_id}:${conversation.id}`}
         switchKey={model.switchSource}
-        notice={<SessionNotices accountId={conversation.account_id} switchKey={model.switchSource} reminderKey={`${REMINDER_CONVERSATION}${conversation.id}`} parkedId={null} sessions={NO_SESSIONS} />}
+        // D-103.3: an ended one's page stays quiet (its account's notice is a line under Continue).
+        notice={<SessionNotices accountId={conversation.account_id} quiet={!conversation.live} switchKey={model.switchSource} reminderKey={`${REMINDER_CONVERSATION}${conversation.id}`} parkedId={null} sessions={NO_SESSIONS} />}
         tabs={tabs}
         header={
           <PageHeader

@@ -8,7 +8,8 @@ lab runs. This reads the same accessibility lines and checks, read-only:
 
 1. **Unfold.** Every header with a fold, unfolded, has a row under it; a
    header with nothing to show has no fold. A running App with nothing
-   open shows its last ones (up to 3), then "Show all N" when it has more.
+   open shows its last ones (up to 3), then "All N sessions ›" when it has
+   more ("Show all N" before 0.4.4, D-103.2).
 2. **Records.** A Claude app profile's sessions are its Code tab's records
    (`<instance>/claude-code-sessions/*/*/local_*.json`, by `cliSessionId`,
    with a transcript in its folder): the rows and counts the rail shows
@@ -129,8 +130,8 @@ def parse_rail(lines: list[tuple[str, str, str]]) -> list[RailApp]:
             cur.pinned += ", pinned," in words or words.endswith(", pinned")
         elif m := re.match(r"^Last (?:(\d+) )?inactive$", words):
             cur.recent = int(m.group(1) or 1)
-        elif m := re.match(r"^Show all (\d+)$", words):
-            cur.show_all = int(m.group(1))
+        elif m := re.match(r"^(?:All (\d+) sessions? ›|Show all (\d+))$", words):
+            cur.show_all = int(m.group(1) or m.group(2))
     return apps
 
 
@@ -379,7 +380,7 @@ def known_apps(db: sqlite3.Connection, desktop_names: dict[str, str]) -> list[Kn
 
 
 def drawn_count(app: RailApp) -> int | None:
-    """How many sessions the rail says an App has: its "Show all N" when
+    """How many sessions the rail says an App has: its "All N sessions ›" when
     drawn; an Inactive App's "N sessions"; else the rows under an unfolded
     App with nothing open (a header with no fold has none). `None`: not
     drawn (folded, or something open in it)."""
@@ -467,7 +468,7 @@ def check(
             if shown.rows - shown.pinned != want:
                 problems.append(f"{shown.rows - shown.pinned} of its last ones under it, its records say {want}: {shown.name}")
             if rest > 3 and shown.show_all != mine.listed:
-                problems.append(f"Show all says {shown.show_all}, its records hold {mine.listed}: {shown.name}")
+                problems.append(f"All N sessions says {shown.show_all}, its records hold {mine.listed}: {shown.name}")
     if leftovers:
         problems.append(f"{leftovers} new transcript(s) of a lab run in a real profile's folder")
     more_lines, more = codex_problems(rail, apps, codex or {})
@@ -487,13 +488,15 @@ def selftest() -> None:
     ], got
     new = [
         ("AXButton", "Open now 2", ""), ("AXButton", "Fold Claude app · East", ""), ("AXButton", "Claude app · East, nothing open, Out of room until Sun 6:00 AM", ""),
-        ("AXButton", "Ended, A, proj · 1 d ago", ""), ("AXButton", "Ended, B, proj · 2 d ago", ""), ("AXButton", "Ended, C, proj · 3 d ago", ""), ("AXButton", "Show all 9", ""),
+        ("AXStaticText", "Recent", ""), ("AXButton", "Ended, A, proj · 1 d ago", ""), ("AXButton", "Ended, B, proj · 2 d ago", ""), ("AXButton", "Ended, C, proj · 3 d ago", ""), ("AXButton", "All 9 sessions ›", ""),
         ("AXButton", "Claude app · West, nothing open", ""), ("AXButton", "Inactive apps 1", ""), ("AXButton", "Claude app · Gone, Desktop app, 4 d ago, Out of room until Sun", ""),
     ]
     got = parse_rail(new)
     assert [(a.name, a.foldable, a.rows, a.show_all, a.out) for a in got] == [
         ("Claude app · East", True, 3, 9, True), ("Claude app · West", False, 0, None, False), ("Claude app · Gone", False, 0, None, True)
     ], got
+    # An installed 0.4.3 says "Show all 9" (D-103.2 renamed it in 0.4.4).
+    assert parse_rail([*new[:7], ("AXButton", "Show all 9", ""), *new[8:]])[0].show_all == 9
     east = KnownApp("Claude app · East", "desktop", "codex", "f-east", None, None)
     _, problems = check(got, [east], {"f-east"}, 0)
     assert problems == [], problems
@@ -544,7 +547,7 @@ def selftest_d102() -> None:
     def rail(cli_sessions: int, app_folded: bool) -> list[RailApp]:
         return parse_rail([
             ("AXButton", "Open now 1", ""), ("AXButton", f"{'Unfold' if app_folded else 'Fold'} Codex app", ""), ("AXButton", "Codex app, nothing open", ""),
-            *([] if app_folded else [("AXButton", f"Ended, T{n}, proj · {n} d ago", "") for n in (1, 2, 3)] + [("AXButton", "Show all 15", "")]),
+            *([] if app_folded else [("AXButton", f"Ended, T{n}, proj · {n} d ago", "") for n in (1, 2, 3)] + [("AXButton", "All 15 sessions ›", "")]),
             ("AXButton", "Inactive apps 1", ""), ("AXButton", "Unfold Codex CLI · Codex home", ""),
             ("AXButton", f"Codex CLI · Codex home, CLI app, 2 d ago · {cli_sessions} sessions", ""),
         ])

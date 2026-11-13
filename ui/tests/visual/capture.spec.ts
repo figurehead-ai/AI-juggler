@@ -18,7 +18,7 @@ const GALLERY_ROOT = resolve(process.cwd(), "../docs/qa/evidence/_gallery");
 import { EXAMPLE_GITHUB_OFFER } from "../../src/preview/mcp-secret-offer";
 import { EXAMPLE_SETUP_NOTES, EXAMPLE_SETUP_NOTES_HANDOVER } from "../../src/preview/switch-setup";
 import { previewMac } from "../../src/preview/processes-fixture";
-import { allStatuses, honestEmpty, openRailGroup, readyHome, goTo, groupBy, openFilters, openSwitch, expectRail, openRailList, settingsPane, onlyMac, projectBoardByDefault, terminalDrawn, NARROW_RAIL_PX, switchRows, openWorkMaxSession } from "./fixtures";
+import { allStatuses, honestEmpty, openRailGroup, readyHome, goTo, groupBy, openFilters, openSwitch, expectRail, openRailList, settingsPane, onlyMac, projectBoardByDefault, terminalDrawn, NARROW_RAIL_PX, switchRows, openRailSession } from "./fixtures";
 
 // AJ-E2104: these galleries read the project board, every status drawn.
 projectBoardByDefault(test);
@@ -135,10 +135,13 @@ for (const theme of THEMES) {
       await page.goto("/");
       // D-25 (AJ-E1020): below NARROW_RAIL_PX the rail is its icon column.
       await expect(page.getByTestId("rail")).toHaveAttribute("data-density", vp.width < NARROW_RAIL_PX ? "minimal" : "comfortable");
-      // The row carries its account in the aria-label (initials disc on
-      // screen) — click by accessible name (AJ-E402).
-      await openWorkMaxSession(page);
+      // sess-4 (Work Max, probably stuck, still live) at every size: the
+      // icon column lists only what's open. The rail's order used to open
+      // sess-8 when wide, which has ended: since 0.4.4 its switch card
+      // stays folded and quiet (D-103.3), not this populated panel.
+      await openRailSession(page, "sess-4");
       await expect(page.getByTestId("handover-section")).toBeVisible();
+      await expect(page.getByTestId("handover-teaser")).toBeVisible(); // a live one's card, not the quiet line
       await page.screenshot({
         path: resolve(GALLERY, `05-session-panel/populated-${vp.name}-${theme}.png`),
       });
@@ -383,10 +386,14 @@ for (const vp of INSPECTOR_VIEWPORTS) {
   test(`inspector — Session / Terminal — ${vp.name}`, async ({ page }) => {
     await seedInspectorPage(page, vp);
     await expectRail(page); // D-25: the list, or its icon column when narrow
-    await openWorkMaxSession(page);
+    // sess-2, the working one: its terminal. The rail's order used to open
+    // sess-8, which has ended, and since 0.4.4 an ended session whose
+    // output wasn't kept shows its conversation instead (D-103.11).
+    await openRailSession(page, "sess-2");
     const tabs = page.getByRole("tablist", { name: "Session tabs" }).getByRole("tab");
     await expect(tabs).toHaveText(["Overview", "Pools", "Usage", "Processes"]);
     await expect(tabs.first()).toHaveAttribute("aria-selected", "true");
+    await terminalDrawn(page);
     await page.screenshot({ path: resolve(GALLERY, `06-inspector/session-terminal-${vp.name}.png`) });
   });
 
@@ -425,7 +432,7 @@ for (const vp of INSPECTOR_VIEWPORTS) {
 test("inspector — Instance Overview fields (populated)", gate("07-inspector-content"), async ({ page }) => {
   await seedInspectorPage(page, { width: 1440, height: 900 });
   await expectRail(page); // D-25: the list, or its icon column when narrow
-  await openWorkMaxSession(page);
+  await openRailSession(page, "sess-8"); // stopped with an error: its fields and its model drift line
   await expect(page.getByTestId("instance-overview-fields")).toBeVisible();
   await page.screenshot({ path: resolve(GALLERY, "07-inspector-content/instance-overview-populated.png") });
 });
@@ -433,7 +440,7 @@ test("inspector — Instance Overview fields (populated)", gate("07-inspector-co
 test("inspector — Instance Usage honest chart empties", async ({ page }) => {
   await seedInspectorPage(page, { width: 1440, height: 900 });
   await expectRail(page); // D-25: the list, or its icon column when narrow
-  await openWorkMaxSession(page);
+  await openRailSession(page, "sess-8"); // ended, nothing measured: the honest empties
   await page.getByRole("tab", { name: "Usage" }).click();
   await expect(page.locator('section:not([hidden])').getByTestId("instance-usage").first()).toBeVisible();
   await page.screenshot({ path: resolve(GALLERY, "07-inspector-content/instance-usage.png") });
@@ -552,7 +559,7 @@ test("inspector — Project Overview", async ({ page }) => {
 test("inspector — Quality tab populated", gate("09-quality"), async ({ page }) => {
   await seedInspectorPage(page, { width: 1440, height: 900 });
   await expectRail(page); // D-25: the list, or its icon column when narrow
-  await openWorkMaxSession(page);
+  await openRailSession(page, "sess-8"); // the fixture's quality signals (sess-2 has them too)
   // AJ-E1533: the quality signals sit on Usage, under the token breakdown.
   await page.getByRole("tab", { name: "Usage" }).click();
   await expect(page.getByTestId("quality-tokens")).toBeVisible();
@@ -562,7 +569,7 @@ test("inspector — Quality tab populated", gate("09-quality"), async ({ page })
 test("inspector — Quality tab View as table", async ({ page }) => {
   await seedInspectorPage(page, { width: 1440, height: 900 });
   await expectRail(page); // D-25: the list, or its icon column when narrow
-  await openWorkMaxSession(page);
+  await openRailSession(page, "sess-8"); // as "Quality tab populated"
   await page.getByRole("tab", { name: "Usage" }).click(); // AJ-E1533: quality lives on Usage
   await page.getByRole("button", { name: "View as table" }).click();
   await expect(page.getByTestId("quality-tokens").getByRole("table")).toBeVisible();
@@ -577,9 +584,8 @@ test("inspector — Quality tab View as table", async ({ page }) => {
 // chip on the Accounts screen. Dates are pinned relative to T0 so the
 // tiers are deterministic.
 function renewalDate(daysFromT0: number): string {
-  const target = new Date(T0 + daysFromT0 * 86_400_000);
-  const pad = (value: number) => String(value).padStart(2, "0");
-  return `${target.getFullYear()}-${pad(target.getMonth() + 1)}-${pad(target.getDate())}`;
+  // The fixture's own day (`toISOString`): UTC's, as the pages' zone is.
+  return new Date(T0 + daysFromT0 * 86_400_000).toISOString().slice(0, 10);
 }
 
 async function seedRenewalPage(
@@ -641,73 +647,81 @@ async function openWorkAppSettings(page: import("@playwright/test").Page) {
   await expect(page.getByTestId("app-settings")).toBeVisible();
 }
 
-// The renewal each tier puts on the Account's header (lib/renewal.ts): a
-// date further off in its words, 7 days or fewer as its ⚠/⛔ chip
-// (AJ-E411); `null`: no date, so no renewal at all — never a guess, D-12.
-for (const [name, days, words, chip] of [
-  ["date-only", 20, /Renews (?!in |tomorrow)\S/, null],
-  ["countdown", 10, "Renews in 10 days", null],
-  ["warning", 6, "⚠ Renews in 6 days", "warning"],
-  ["danger", 0, "⛔ Renewal date passed", "danger"],
-  ["unknown", null, null, null],
-] as const) {
-  test(`renewal — Account Overview ${name} state`, async ({ page }) => {
-    await seedRenewalPage(page, { width: 1440, height: 900 }, days);
+// AJ-E411 (0.4.4): the renewal captures read the same on any Mac. Its
+// date field writes a day in the browser's own order (en-US here, as in
+// CI's container: "10/19/2024"), and the days to it count in one zone
+// (the fixture's day is UTC's; west of UTC-6 it read a day early).
+test.describe(() => {
+  test.use({ locale: "en-US", timezoneId: "UTC" });
+
+  // The renewal each tier puts on the Account's header (lib/renewal.ts): a
+  // date further off in its words, 7 days or fewer as its ⚠/⛔ chip
+  // (AJ-E411); `null`: no date, so no renewal at all — never a guess, D-12.
+  for (const [name, days, words, chip] of [
+    ["date-only", 20, /Renews (?!in |tomorrow)\S/, null],
+    ["countdown", 10, "Renews in 10 days", null],
+    ["warning", 6, "⚠ Renews in 6 days", "warning"],
+    ["danger", 0, "⛔ Renewal date passed", "danger"],
+    ["unknown", null, null, null],
+  ] as const) {
+    test(`renewal — Account Overview ${name} state`, async ({ page }) => {
+      await seedRenewalPage(page, { width: 1440, height: 900 }, days);
+      await openWorkAccount(page);
+      // D-62 (AJ-E3205 req. 1): the Account's header says its renewal, on
+      // every tab; its Overview leads with its limits.
+      const facts = page.getByTestId("page-facts");
+      const tier = page.getByTestId("page-header").getByTestId("renewal-chip");
+      if (words === null) await expect(page.getByTestId("page-header")).not.toContainText(/Renew/);
+      else if (chip === null) {
+        await expect(facts).toContainText(words);
+        await expect(tier).toHaveCount(0);
+      } else {
+        await expect(tier).toHaveAttribute("data-tier", chip);
+        await expect(tier).toContainText(words);
+        await expect(facts).not.toContainText(/Renew/);
+      }
+      await expect(page.getByTestId("page-header")).toBeInViewport();
+      await page.screenshot({ path: resolve(GALLERY, `11-renewal/account-${name}-1440x900.png`) });
+    });
+  }
+
+  /** The Account's Settings tab: its renewal date, entered by you. */
+  async function openRenewalEditor(page: import("@playwright/test").Page) {
     await openWorkAccount(page);
-    // D-62 (AJ-E3205 req. 1): the Account's header says its renewal, on
-    // every tab; its Overview leads with its limits.
-    const facts = page.getByTestId("page-facts");
-    const tier = page.getByTestId("page-header").getByTestId("renewal-chip");
-    if (words === null) await expect(page.getByTestId("page-header")).not.toContainText(/Renew/);
-    else if (chip === null) {
-      await expect(facts).toContainText(words);
-      await expect(tier).toHaveCount(0);
-    } else {
-      await expect(tier).toHaveAttribute("data-tier", chip);
-      await expect(tier).toContainText(words);
-      await expect(facts).not.toContainText(/Renew/);
-    }
-    await expect(page.getByTestId("page-header")).toBeInViewport();
-    await page.screenshot({ path: resolve(GALLERY, `11-renewal/account-${name}-1440x900.png`) });
+    await page.getByRole("tablist", { name: "Account tabs" }).getByRole("tab", { name: /^Settings/ }).click();
+    await expect(page.getByTestId("account-renewal-row")).toBeVisible();
+    await expect(page.getByTestId("account-renewal-input")).toHaveAttribute("data-value", renewalDate(6));
+    await expect(page.getByTestId("page-header").getByTestId("renewal-chip")).toContainText("Renews in 6 days");
+  }
+
+  test("renewal — editor with helper text (1440x900 + 1280x800)", gate("11-renewal"), async ({ page }) => {
+    await seedRenewalPage(page, { width: 1440, height: 900 }, 6);
+    await openRenewalEditor(page);
+    // Said once, for the whole account (AJ-E3202 req. 4).
+    await expect(page.getByText("Entered by you, once for the whole account and every app on it: AI Juggler doesn't read your billing.")).toBeVisible();
+    await frameOn(page.getByTestId("account-settings-tab"));
+    await expect(page.getByTestId("account-renewal-row")).toBeInViewport();
+    await page.screenshot({ path: resolve(GALLERY, "11-renewal/editor-1440x900.png") });
   });
-}
 
-/** The Account's Settings tab: its renewal date, entered by you. */
-async function openRenewalEditor(page: import("@playwright/test").Page) {
-  await openWorkAccount(page);
-  await page.getByRole("tablist", { name: "Account tabs" }).getByRole("tab", { name: /^Settings/ }).click();
-  await expect(page.getByTestId("account-renewal-row")).toBeVisible();
-  await expect(page.getByTestId("account-renewal-input")).toHaveAttribute("data-value", renewalDate(6));
-  await expect(page.getByTestId("page-header").getByTestId("renewal-chip")).toContainText("Renews in 6 days");
-}
+  test("renewal — editor at 1280x800", async ({ page }) => {
+    await seedRenewalPage(page, { width: 1280, height: 800 }, 6);
+    await openRenewalEditor(page);
+    await frameOn(page.getByTestId("account-settings-tab"));
+    await expect(page.getByTestId("account-renewal-row")).toBeInViewport();
+    await page.screenshot({ path: resolve(GALLERY, "11-renewal/editor-1280x800.png") });
+  });
 
-test("renewal — editor with helper text (1440x900 + 1280x800)", gate("11-renewal"), async ({ page }) => {
-  await seedRenewalPage(page, { width: 1440, height: 900 }, 6);
-  await openRenewalEditor(page);
-  // Said once, for the whole account (AJ-E3202 req. 4).
-  await expect(page.getByText("Entered by you, once for the whole account and every app on it: AI Juggler doesn't read your billing.")).toBeVisible();
-  await frameOn(page.getByTestId("account-settings-tab"));
-  await expect(page.getByTestId("account-renewal-row")).toBeInViewport();
-  await page.screenshot({ path: resolve(GALLERY, "11-renewal/editor-1440x900.png") });
-});
-
-test("renewal — editor at 1280x800", async ({ page }) => {
-  await seedRenewalPage(page, { width: 1280, height: 800 }, 6);
-  await openRenewalEditor(page);
-  await frameOn(page.getByTestId("account-settings-tab"));
-  await expect(page.getByTestId("account-renewal-row")).toBeInViewport();
-  await page.screenshot({ path: resolve(GALLERY, "11-renewal/editor-1280x800.png") });
-});
-
-test("renewal — Accounts row chip at <= 7 days (and none for unknown)", async ({ page }) => {
-  await seedRenewalPage(page, { width: 1440, height: 900 }, 6, { accountsList: true });
-  await goTo(page, "Accounts");
-  // The card's chip (not the polite announcer, which says it too).
-  const chip = page.getByTestId("account-card").getByText("Renews in 6 days").first();
-  await expect(chip).toBeVisible();
-  await frameOn(chip, { gap: 160 }); // its card around it
-  await expect(chip).toBeInViewport();
-  await page.screenshot({ path: resolve(GALLERY, "11-renewal/accounts-row-chip-1440x900.png") });
+  test("renewal — Accounts row chip at <= 7 days (and none for unknown)", async ({ page }) => {
+    await seedRenewalPage(page, { width: 1440, height: 900 }, 6, { accountsList: true });
+    await goTo(page, "Accounts");
+    // The card's chip (not the polite announcer, which says it too).
+    const chip = page.getByTestId("account-card").getByText("Renews in 6 days").first();
+    await expect(chip).toBeVisible();
+    await frameOn(chip, { gap: 160 }); // its card around it
+    await expect(chip).toBeInViewport();
+    await page.screenshot({ path: resolve(GALLERY, "11-renewal/accounts-row-chip-1440x900.png") });
+  });
 });
 
 // AJ-E412 running-model captures: I-03 plain vs drift (sess-8 carries
@@ -735,7 +749,7 @@ test("model — I-03 plain (launch == running rows show no marker)", async ({ pa
 test("model — Instance Overview dual-model line", async ({ page }) => {
   await seedInspectorPage(page, { width: 1440, height: 900 });
   await expectRail(page); // D-25: the list, or its icon column when narrow
-  await openWorkMaxSession(page);
+  await openRailSession(page, "sess-8"); // the drift fixture: launched opus, running sonnet-5
   await expect(page.getByTestId("instance-model-line")).toBeVisible();
   await expect(page.getByTestId("instance-model-line")).toContainText(
     "Launched with opus - now running sonnet-5",
@@ -1707,11 +1721,11 @@ for (const theme of THEMES) {
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto("/");
     await expectRail(page); // D-25: the list, or its icon column when narrow
-    await page
-      .getByRole("button", { name: /\bon Work Max\b/ })
-      .filter({ hasText: /working/i }) // AJ-E2104 Req.3: the rail says Working
-      .first()
-      .click();
+    // sess-2 by its id: the rail's order (newest first, 0.4.4 P1) isn't
+    // what this capture is about.
+    const adoptedRow = page.locator('button[data-instance-id="sess-2"]').first();
+    await expect(adoptedRow).toContainText(/working/i); // AJ-E2104 Req.3: the rail says Working
+    await adoptedRow.click();
     await expect(page.getByTestId("instance-adopted-chip")).toContainText("↻ picked up after restart");
     await page.getByRole("tab", { name: "Processes" }).click();
     const notice = page.getByTestId("instance-detached-notice");
@@ -2100,7 +2114,7 @@ for (const theme of THEMES) {
         await page.setViewportSize({ width: vp.width, height: vp.height });
         await page.goto("/");
         await expectRail(page); // D-25: the list, or its icon column when narrow
-        await openWorkMaxSession(page);
+        await openRailSession(page, "sess-8"); // any Work Max session shows its account's window
         await page.getByRole("tab", { name: "Usage" }).click();
         // 0.1.5: a session's Usage tab shows its account's window as every
         // session page does (the old two-clock card left with the strips;
@@ -3160,7 +3174,10 @@ for (const theme of THEMES) {
       await page.setViewportSize({ width: vp.width, height: vp.height });
       await page.goto("/");
       await expectRail(page); // D-25: the list, or its icon column when narrow
-      await openWorkMaxSession(page);
+      // sess-4, live: its switch list loads with its page. The rail's order
+      // used to open sess-8 when wide, which has ended, and since 0.4.4 an
+      // ended session looks for room only once its card is opened (D-103.3).
+      await openRailSession(page, "sess-4");
       const solid = page.locator("[data-testid='fidelity-badge'][data-validated='true']");
       const hatched = page.locator("[data-testid='fidelity-badge'][data-validated='false']");
       await expect(solid).toContainText("Continues exactly · Proven");
@@ -3893,7 +3910,9 @@ for (const theme of THEMES) {
       await page.setViewportSize({ width: vp.width, height: vp.height });
       await page.goto("/");
       await expectRail(page);
-      await openWorkMaxSession(page);
+      // sess-4: live, so the icon column at 1024 lists it too (the rail's
+      // order used to open sess-8 at 1280, sess-4 at 1024).
+      await openRailSession(page, "sess-4");
       // A session's header names its tool once, in its App chip (the 0.4
       // review, 46): the tool's door is on its App's page.
       await page.getByTestId("session-account-menu").click();
@@ -4864,8 +4883,11 @@ for (const theme of THEMES) {
       await expectRail(page); // D-25: the list, or its icon column when narrow
       await openRailList(page); // F14: below 1100 px the list is a ⌘B away
       await expect(page.getByTestId("rail-identity").first()).toBeVisible();
-      await openWorkMaxSession(page);
+      await openRailSession(page, "sess-8"); // a Work Max session's identity line
       await expect(page.getByTestId("instance-identity")).toBeVisible();
+      // D-100 (0.4.4): beside P3's longer ended time, the App's name stays whole (it was "· W").
+      await expect(page.getByTestId("session-app-short")).toHaveText("Work Max");
+      expect(await page.getByTestId("session-app-short").evaluate((name) => name.scrollWidth <= name.clientWidth)).toBe(true);
       await page.screenshot({ path: resolve(GALLERY, `51-identity/rail-and-chip-${vp.name}-${theme}.png`) });
       // AJ-E1533: relaunch an ended Work Max session from its page header.
       await page.locator('[data-instance-id="sess-6"]').first().click(); // finished
@@ -4945,7 +4967,8 @@ for (const theme of THEMES) {
       await expectRail(page); // D-25: the list, or its icon column when narrow
       await openRailList(page); // F14: below 1100 px the list is a ⌘B away
       await expect(page.getByTestId("git-badge").first()).toBeVisible();
-      await openWorkMaxSession(page);
+      // sess-8: ended, so its worktree can be removed (a live one's can't).
+      await openRailSession(page, "sess-8");
       await expect(page.getByTestId("instance-git")).toContainText("3 uncommitted files");
       if (vp.name === "1280x800") {
         await page.screenshot({ path: resolve(GALLERY, `52-worktree/chips-1280x800-${theme}.png`) });
@@ -5096,7 +5119,9 @@ for (const theme of THEMES) {
       await page.screenshot({ path: resolve(GALLERY, `54-summary/home-${vp.name}-${theme}.png`) });
       await page.getByTestId("summary-row").first().click();
       await expect(page.getByTestId("page-header")).toBeVisible(); // AJ-E1533: the item's page
-      await terminalDrawn(page);
+      // An ended session whose output wasn't kept shows its conversation,
+      // never an empty terminal under "replayed" (0.4.4 P2, D-103.11).
+      await expect(page.getByText("Its terminal output wasn't kept, so this is its conversation.")).toBeVisible();
       await page.screenshot({ path: resolve(GALLERY, `54-summary/opened-${vp.name}-${theme}.png`) });
     });
   }
@@ -6055,7 +6080,9 @@ async function openSwitchWith(page: import("@playwright/test").Page, theme: (typ
   await page.setViewportSize(RERENDER_VP);
   await page.goto("/");
   await expectRail(page);
-  await openWorkMaxSession(page);
+  // sess-8 (ended; on a conversation, which sess-1, still starting, isn't):
+  // Switch account… opens its list in the dialog.
+  await openRailSession(page, "sess-8");
   await openSwitch(page);
 }
 

@@ -76,15 +76,16 @@ export function idleAppPage(app: IdleApp): string | null {
   return app.kind === "desktop" ? app.placeId : app.accountId ? cliAppId(app.accountId) : null;
 }
 
-/** 0.4.3: under an App's last ones, "Show all N": N as its page counts
- * them (walk K1), the read ones until known; a click opens its page's
- * Sessions (D-64: the full list is on the App's page). */
-export function RailShowAll({ page, loaded, onOpen }: { page: string | null; loaded: number; onOpen: (page: string) => void }): JSX.Element | null {
+/** 0.4.3: under an App's last ones, "All N sessions ›" (D-103.2: "Show
+ * all N" left persona M7 guessing what it hid): N as its page counts them
+ * (walk K1), the read ones until known; a click opens its page's Sessions
+ * (D-64: the full list is on the App's page). */
+export function RailAllSessions({ page, loaded, onOpen }: { page: string | null; loaded: number; onOpen: (page: string) => void }): JSX.Element | null {
   const count = usePageCount(page, loaded) ?? loaded;
   if (page === null) return null;
   return (
-    <RailLink onClick={() => onOpen(page)} testId="rail-show-all">
-      {`Show all ${count}`}
+    <RailLink onClick={() => onOpen(page)} testId="rail-all-sessions">
+      {`All ${count} ${count === 1 ? "session" : "sessions"} ›`}
     </RailLink>
   );
 }

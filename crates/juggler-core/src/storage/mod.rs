@@ -105,7 +105,9 @@ pub use terms::{Choice, ChoiceOption, Term, Terms, TermsRepo, fee_key};
 pub use transcript_index::{
     IndexState, IndexedLine, SearchIndexFile, TranscriptIndexRepo, fts_expression, line_text,
 };
-pub use usage::{CostDay, RepriceCursor, Stored, UsageRepo, anchor_settings_key, cap_settings_key};
+pub use usage::{
+    CostDay, HitMove, RepriceCursor, Stored, UsageRepo, anchor_settings_key, cap_settings_key,
+};
 pub use usage_history::{
     GroupCost, HOUR_MS, HourRow, ModelRow, Replace, Rollup, SETTLED_MS, SwitchRow, TurnRow,
     UsageHistoryRepo, add as add_tokens, thin,

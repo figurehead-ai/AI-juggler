@@ -838,17 +838,20 @@ fn needs_you_is_worked_out_from_every_source() {
     assert_eq!(kinds, want);
 
     let by_key = |key: &str| needs.iter().find(|need| need.key == key).unwrap();
-    // D-96: an untitled one by its facts (its folder, its App; no time
-    // before the sources say when they were read).
-    assert_eq!(
-        by_key("s:s-wait").title,
-        "“s-wait · Account s-wait” needs your reply"
+    // D-96: an untitled one by its facts (its folder; no time before the
+    // sources say when they were read); D-103.8: its Account in the
+    // detail, never in its name.
+    assert_eq!(by_key("s:s-wait").title, "“s-wait” needs your reply");
+    assert!(
+        by_key("s:s-wait").detail.contains("Account s-wait"),
+        "{:?}",
+        by_key("s:s-wait").detail
     );
     assert_eq!(by_key("s:s-wait").project.as_deref(), Some("web"));
     assert_eq!(by_key("s:s-limit").action.as_deref(), Some("limit"));
     assert_eq!(
         by_key("s:s-failed").title,
-        "“s-failed · Account s-failed” stopped with an error"
+        "“s-failed” stopped with an error"
     );
     assert_eq!(
         by_key("c:acct-x/c-asks").detail,
@@ -1152,10 +1155,7 @@ fn a_wait_shows_in_needs_you_at_once_whatever_the_threshold() {
     assert_eq!(summary.count, 1, "the bell");
     let listed = centre::open_needs(&state.storage.lock().unwrap(), now, tray::NEEDS_LISTED);
     assert_eq!(listed.len(), 1, "Needs you");
-    assert_eq!(
-        listed[0].title,
-        "“s-wait · Account s-wait” needs your reply"
-    );
+    assert_eq!(listed[0].title, "“s-wait” needs your reply");
     let menu = tray::build(summary.count, &listed, &state.notifier.open_now(), now);
     assert_eq!(menu.title.as_deref(), Some("1"), "the menu-bar count");
     assert_eq!(
@@ -1187,27 +1187,32 @@ fn archiving_a_failed_session_takes_its_need_away_at_once_and_unarchiving_brings
         record.status = SessionStatus::Failed;
         storage.sessions().update(&record).unwrap();
     }
-    let rows = || -> Vec<String> {
+    let needs_of = || {
         let storage = state.storage.lock().unwrap();
         centre::open_needs(&storage, Timestamp::now().millis(), tray::NEEDS_LISTED)
             .into_iter()
             .filter(|row| row.target.session_id.as_deref() == Some(id.as_str()))
-            .map(|row| row.title)
-            .collect()
+            .collect::<Vec<_>>()
     };
+    let rows = || -> Vec<String> { needs_of().into_iter().map(|row| row.title).collect() };
     needs::refresh(&state);
-    // D-96: by its facts — folder · App · when it started (where the
-    // system can say a time).
+    // D-96: by its facts — folder · when it started (where the system can
+    // say a time); D-103.8: its Account is in the detail, never its name.
     let said = rows();
     assert_eq!(said.len(), 1, "the failed session needs you");
     let lead = if cfg!(target_os = "macos") {
-        "“billing · Work Max · started "
+        "“billing · started "
     } else {
-        "“billing · Work Max”"
+        "“billing”"
     };
     assert!(
         said[0].starts_with(lead) && said[0].ends_with("” stopped with an error"),
         "{said:?}"
+    );
+    assert!(!said[0].contains("Work Max"), "{said:?}");
+    assert!(
+        needs_of()[0].detail.contains("Work Max"),
+        "the Account beside it"
     );
 
     let bell = views::summary_now(&state).count;

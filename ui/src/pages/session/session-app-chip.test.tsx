@@ -14,7 +14,7 @@ import { forgetMarksForTests } from "../../lib/marks";
 import { setToolsForTests } from "../../lib/tools";
 import { PREVIEW_TOOLS } from "../../preview/tools";
 import type { KnownPlaceInfo } from "../../types/generated/KnownPlaceInfo";
-import { PageHeader } from "../PageShell";
+import { PageHeader } from "../PageHeader";
 import { SessionAppLink } from "./AccountMenu";
 import type { SessionModel } from "./model";
 import { SessionChips } from "./SessionHead";

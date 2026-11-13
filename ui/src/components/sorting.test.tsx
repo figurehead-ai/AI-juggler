@@ -185,6 +185,28 @@ describe("AJ-E404 Quota risk order (the lib; AJ-E2104's View has no sort menu)",
   });
 });
 
+describe("P1 (the D3 persona walk): a project's sessions, the latest activity first", () => {
+  // Given oldest first, as the backend's list may give them.
+  const H = 3_600_000;
+  const rows = [
+    mk("old", { status: "finished", last_activity_ms: NOW - 50 * H }),
+    mk("mid", { status: "stopped", last_activity_ms: NOW - 5 * H }),
+    mk("new", { status: "finished", last_activity_ms: NOW - 2 * H }),
+    mk("quiet", { status: "running", last_activity_ms: NOW - H }),
+    mk("busy", { status: "running", last_activity_ms: NOW - 5_000 }),
+  ];
+
+  it("orders ended and running peers newest first (it read the oldest first)", () => {
+    expect(sortSessions(rows, "needs", {}, NOW).map((row) => row.id)).toEqual(["busy", "quiet", "new", "mid", "old"]);
+  });
+
+  it("the Project lens with Show › Ended draws its ended ones newest first", () => {
+    setRailView({ ...DEFAULT_VIEW, group: "project", show: { ...DEFAULT_VIEW.show, ended: true } });
+    const { container } = renderBoard(rows);
+    expect(renderedIds(container)).toEqual(["busy", "quiet", "new", "mid", "old"]);
+  });
+});
+
 describe("AJ-E404 group-by rollups", () => {
   it("the Project lens renders headers with running/needs/lowest-quota rollups; needs order inside groups", () => {
     // AJ-E2103: a project shows under Open now while something of it is

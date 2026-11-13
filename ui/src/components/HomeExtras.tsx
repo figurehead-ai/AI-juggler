@@ -7,16 +7,28 @@
  */
 import type { JSX } from "react";
 import { headlineExtras, type HomeNeed } from "../lib/home-needs";
+import { EXTRAS_PLACE, keptShape, useKeepShape } from "../lib/needs-place";
 import { revealNeed } from "./HomeNeeds";
 
 /** `shown`: the heading names sessions and more things (with no session
  * in it, those things are the card's own rows, the first one large:
- * never said twice). */
-export function HomeExtras({ shown, needs, more }: { shown: boolean; needs: HomeNeed[]; more: { caps: string[]; messages: number; tasks: number } }): JSX.Element | null {
+ * never said twice). `pending`: the needs haven't loaded; D-103.6: the
+ * line keeps its place if it showed last time, so nothing under it moves. */
+export function HomeExtras({ shown, needs, more, pending = false }: { shown: boolean; needs: HomeNeed[]; more: { caps: string[]; messages: number; tasks: number }; pending?: boolean }): JSX.Element | null {
   const extras = shown ? headlineExtras(needs, more) : [];
+  const box = useKeepShape<HTMLParagraphElement>(EXTRAS_PLACE, !pending, extras.length);
+  if (pending) {
+    const kept = keptShape(EXTRAS_PLACE);
+    if (!kept || kept.rows === 0 || kept.height <= 0) return null;
+    return (
+      <p aria-hidden="true" className="flex items-center motion-safe:animate-pulse" style={{ height: kept.height }} data-testid="home-extras-place">
+        <span className="block h-3 w-1/3 rounded bg-skeleton" />
+      </p>
+    );
+  }
   if (extras.length === 0) return null;
   return (
-    <p className="flex flex-wrap items-center gap-x-1.5 text-body text-ink" data-testid="home-extras">
+    <p ref={box} className="flex flex-wrap items-center gap-x-1.5 text-body text-ink" data-testid="home-extras">
       {extras.map((extra, index) => (
         <span key={extra.key} className="flex items-center gap-1.5">
           {index > 0 && <span aria-hidden="true" className="text-muted">·</span>}

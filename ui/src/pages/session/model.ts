@@ -14,6 +14,7 @@ import { sessionState } from "../../lib/rail-items";
 import { toolSpec } from "../../lib/tools";
 import { waitingSince } from "../../lib/waiting";
 import { endedWord } from "../../lib/ended-how";
+import { statusLive } from "../../lib/session-process";
 import { appName, desktopAppWord, desktopProfile, sessionAppWords as rowAppWords, type AppWords } from "../../lib/app-name";
 
 export type SessionModel = {
@@ -107,7 +108,7 @@ function asReported(c: ConversationInfo): SessionModel {
 export function fromInstance(s: InstanceInfo, seen?: ConversationInfo): SessionModel {
   const tone = statusTone(s.status);
   const rail = sessionState(s);
-  const live = ["starting", "running", "waiting_user", "stuck", "quota_blocked"].includes(s.status);
+  const live = statusLive(s.status);
   return {
     tool: s.provider,
     profileId: s.account_id ?? "",

@@ -74,7 +74,7 @@ pub fn read_conversation_quick(path: &Path) -> Option<ConversationSummary> {
     let ends = juggler_adapter::conversation::file_ends(path)?;
     let mut summary = named(
         path,
-        summary_of(&ends, &path.file_name()?.to_string_lossy()),
+        quick_summary_of(&ends, &path.file_name()?.to_string_lossy()),
     )?;
     summary.tokens = juggler_core::model::TokenCounts::default();
     Some(summary)
@@ -100,19 +100,31 @@ fn compressed_head(path: &Path) -> Option<ConversationSummary> {
     );
     let mut summary = named(
         path,
-        summary_of(&head, &path.file_name()?.to_string_lossy()),
+        quick_summary_of(&head, &path.file_name()?.to_string_lossy()),
     )?;
     summary.tokens = juggler_core::model::TokenCounts::default();
     Some(summary)
 }
 
-/// What a rollout's bytes (whole, or its two ends) say.
-fn summary_of(bytes: &[u8], name: &str) -> Option<ConversationSummary> {
+/// A quick read's summary, only when its bytes hold the thread's first
+/// `session_meta` (who started it: D-102 places a thread under the Codex
+/// app or Codex CLI by it). Codex writes its whole instructions into that
+/// line, so it can outgrow the quick read's head; then `None` sends the
+/// caller to the whole read, plain or compressed alike, rather than list
+/// the thread under the wrong App until then (0.4.4).
+fn quick_summary_of(bytes: &[u8], name: &str) -> Option<ConversationSummary> {
+    let summary = lines_of(bytes);
+    summary.meta.as_ref()?;
+    summary.finish(name)
+}
+
+/// What a rollout's bytes (whole, or its two ends) say, a line at a time.
+fn lines_of(bytes: &[u8]) -> Summary {
     let mut summary = Summary::default();
     for (index, line) in bytes.split(|byte| *byte == b'\n').enumerate() {
         summary.line(index, line);
     }
-    summary.finish(name)
+    summary
 }
 
 /// Whether `originator` is the Codex app's: it writes "Codex Desktop", and
@@ -341,6 +353,52 @@ mod tests {
         );
     }
 
+    /// 0.4.4 (D-102): a rollout says who started it, plain or compressed,
+    /// in its quick read as in its whole one: its first `session_meta`,
+    /// whatever its size (Codex writes its whole instructions into it; 20 to
+    /// 50 KB on the maintainer's Mac), so it is never listed under the
+    /// wrong App. A first line longer than the quick read's head gives no
+    /// quick read (the whole read follows), never one without it.
+    #[test]
+    fn a_rollout_says_who_started_it_however_long_its_first_line() {
+        let home = tempfile::tempdir().unwrap();
+        let day = home.path().join("sessions/2026/10/21");
+        std::fs::create_dir_all(&day).unwrap();
+        for (n, size) in [(1_u32, 40_000_usize), (2, 400_000)] {
+            let id = format!("0199a2b3-c4d5-7e6f-8a9b-0c1d2e3f4a{n:02}");
+            let meta = format!(
+                r#"{{"timestamp":"2026-10-21T10:00:00.000Z","type":"session_meta","payload":{{"id":"{id}","cwd":"/w/api","source":"vscode","originator":"Codex Desktop","base_instructions":{{"text":"{}"}}}}}}"#,
+                "x".repeat(size)
+            );
+            let ask = r#"{"timestamp":"2026-10-21T10:00:02.000Z","type":"response_item","payload":{"type":"message","role":"user","content":[{"type":"input_text","text":"Speed up the import job"}]}}"#;
+            let plain = day.join(format!("rollout-2026-10-21T10-00-00-{id}.jsonl"));
+            std::fs::write(&plain, format!("{meta}\n{ask}\n")).unwrap();
+            let packed = day.join(format!("rollout-2026-10-21T10-00-00-{id}.jsonl.zst"));
+            std::fs::write(
+                &packed,
+                zstd::stream::encode_all(format!("{meta}\n{ask}\n").as_bytes(), 3).unwrap(),
+            )
+            .unwrap();
+            let app = Some(crate::codex_live::CODEX_APP_HOST);
+            for path in [&plain, &packed] {
+                let whole = read_conversation(path).unwrap();
+                assert_eq!(whole.started_in.as_deref(), app, "{size}: {path:?}");
+                match read_conversation_quick(path) {
+                    Some(quick) => assert_eq!(
+                        (quick.id.as_str(), quick.started_in.as_deref()),
+                        (id.as_str(), app),
+                        "{size}: {path:?}"
+                    ),
+                    // A plain file this small is read whole anyway.
+                    None => assert!(
+                        size > 256 * 1024 || path == &plain,
+                        "{size}: {path:?} reads quickly"
+                    ),
+                }
+            }
+        }
+    }
+
     #[test]
     fn a_cli_session_is_told_from_the_apps_helpers() {
         let args = |list: &[&str]| list.iter().map(|arg| (*arg).to_owned()).collect::<Vec<_>>();
@@ -487,12 +545,10 @@ mod tests {
             )
         };
         let title = |lines: &[&str]| {
-            summary_of(
-                format!("{}\n", lines.join("\n")).as_bytes(),
-                "rollout-a.jsonl",
-            )
-            .unwrap()
-            .title
+            lines_of(format!("{}\n", lines.join("\n")).as_bytes())
+                .finish("rollout-a.jsonl")
+                .unwrap()
+                .title
         };
         // The first thing typed, to its first sentence.
         assert_eq!(
@@ -578,8 +634,16 @@ mod tests {
         let parent = r#"{"timestamp":"2026-10-21T10:00:00.000Z","type":"session_meta","payload":{"id":"0199a2b3-c4d5-7e6f-8a9b-0c1d2e3f4a5b","cwd":"/w/api","source":"cli"}}"#;
         let child = r#"{"timestamp":"2026-10-21T10:01:00.000Z","type":"session_meta","payload":{"id":"0199a2b3-c4d5-7e6f-8a9b-0c1d2e3f4a5c","cwd":"/w/api","source":{"subagent":{"thread_spawn":{"parent_thread_id":"0199a2b3-c4d5-7e6f-8a9b-0c1d2e3f4a5b"}}}}}"#;
         let ask = r#"{"timestamp":"2026-10-21T10:01:01.000Z","type":"response_item","payload":{"type":"message","role":"user","content":[{"type":"input_text","text":"look into the flaky test"}]}}"#;
-        assert!(summary_of(format!("{parent}\n{ask}\n").as_bytes(), "rollout-a.jsonl").is_some());
-        assert!(summary_of(format!("{child}\n{ask}\n").as_bytes(), "rollout-b.jsonl").is_none());
+        assert!(
+            lines_of(format!("{parent}\n{ask}\n").as_bytes())
+                .finish("rollout-a.jsonl")
+                .is_some()
+        );
+        assert!(
+            lines_of(format!("{child}\n{ask}\n").as_bytes())
+                .finish("rollout-b.jsonl")
+                .is_none()
+        );
     }
 
     fn summary_path(dir: &tempfile::TempDir) -> std::path::PathBuf {

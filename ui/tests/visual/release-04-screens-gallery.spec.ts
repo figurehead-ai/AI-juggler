@@ -7,7 +7,7 @@
  * critical/serious on each.
  */
 import { gate, test, expect } from "./axe-gallery";
-import { allStatuses, goTo, openSwitch, openUserMenu, openWorkMaxSession, settingsPane, switchRows } from "./fixtures";
+import { allStatuses, goTo, openSwitch, openUserMenu, openRailSession, settingsPane, switchRows } from "./fixtures";
 import { at, family, open, shot, SIZES, THEMES } from "./gallery-04";
 
 const CARRY = family("99-carry-choice");
@@ -36,7 +36,7 @@ for (const theme of THEMES) {
         };
       });
       await open(page, theme, size);
-      await openWorkMaxSession(page);
+      await openRailSession(page, "sess-live-1"); // the preview data's one session
       await openSwitch(page);
       await switchRows(page).first().click();
       const carry = page.getByTestId("switch-carry-choice");

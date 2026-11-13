@@ -863,6 +863,23 @@ pub trait ToolQuota: ToolIdentity {
         let _ = tail;
         None
     }
+    /// D-103.10: every limit hit the tool recorded at `path` (a transcript,
+    /// or a folder of them: what a move renamed), each with the file it is
+    /// in, its window and the reading (its instant and its reset), as the
+    /// usage reading stores it. For giving the hits a moved conversation
+    /// took along back to the account they happened on. Default: none.
+    #[must_use]
+    fn limit_hits_at(
+        &self,
+        path: &Path,
+    ) -> Vec<(
+        PathBuf,
+        juggler_core::quota::WindowKind,
+        juggler_core::quota::QuotaSample,
+    )> {
+        let _ = path;
+        Vec::new()
+    }
 }
 
 /// AJ-E2016: Sessions running now: their processes, live and app session files, and what a session's tail says.

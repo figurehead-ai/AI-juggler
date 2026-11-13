@@ -1,5 +1,5 @@
 import { focusHandover } from "../lib/handover-focus";
-import { processRunning } from "../lib/session-process";
+import { processRunning, statusLive } from "../lib/session-process";
 import { SessionNotices } from "./SessionNotices";
 import { ToolChip } from "./ToolMark";
 import { PageShell } from "../pages/PageShell";
@@ -41,6 +41,7 @@ import { cliAppName } from "../lib/app-name";
 import { SessionAppLink } from "../pages/session/AccountMenu";
 import { fromInstance } from "../pages/session/model";
 import { OwnTerminalOverview } from "../pages/session/OwnTerminalOverview";
+import { SessionTerminal } from "../pages/session/SessionTerminal";
 import { RemoteTabBody, type RemoteContext } from "./RemoteTabs";
 import { launchSettingsName } from "../lib/account-words";
 import { memorySize } from "../lib/compact";
@@ -91,6 +92,13 @@ export type InspectorData = {
    * tab bodies; every value source-labelled). */
   remote?: RemoteContext | null;
 };
+
+/** A session's own notices on its page (D-87); quiet once it has ended
+ * (D-103.3: its account's notice is a line under Continue there). */
+function OwnNotices({ id, sessions }: { id: string; sessions: InstanceInfo[] }) {
+  const session = sessions.find((s) => s.id === id);
+  return <SessionNotices accountId={session?.account_id ?? null} quiet={session !== undefined && !statusLive(session.status)} switchKey={id} reminderKey={id} parkedId={id} sessions={sessions} />;
+}
 
 /** The registry's page type for an inspector selection. */
 function pageKindOf(kind: InspectorKind, remote: RemoteContext | null): PageKind {
@@ -212,7 +220,7 @@ export function RightInspector({
       kind={page}
       subject={selection.id}
       switchKey={page === "session" ? selection.id : undefined}
-      notice={page === "session" ? <SessionNotices accountId={sessions.find((s) => s.id === selection.id)?.account_id ?? null} switchKey={selection.id} reminderKey={selection.id} parkedId={selection.id} sessions={sessions} /> : undefined}
+      notice={page === "session" ? <OwnNotices id={selection.id} sessions={sessions} /> : undefined}
       tabsKnown={page !== "session" || remote !== null || sessionTabs.known}
       emptyTabs={page === "session" && sessionTabs.counts?.pools === 0 ? ["pools"] : undefined}
       tabs={tabs}
@@ -481,6 +489,11 @@ function InstanceOverview(props: PanelProps) {
     // A terminal's session: the page every session has (its terminal the
     // main pane, the side column beside it).
     if (!isDesktop) {
+      const terminalCard = (
+        <Card className="min-h-[280px] flex-1 overflow-hidden bg-[#05070b] p-0">
+          <TerminalView id={terminalId} title={terminalTitle ?? session.account_label} status={session.status} rule={session.attention?.rule ?? null} />
+        </Card>
+      );
       return (
         <OwnTerminalOverview
           session={session}
@@ -498,10 +511,9 @@ function InstanceOverview(props: PanelProps) {
             ) : (
               <div className="flex min-h-0 flex-1 flex-col gap-2">
                 {session.runtime?.fell_back && <p className="text-meta text-ink-2" data-testid="runtime-fell-back">{`In its terminal: ${session.runtime.fell_back}.`}</p>}
-                <Card className="min-h-[280px] flex-1 overflow-hidden bg-[#05070b] p-0">
-                  <TerminalView id={terminalId} title={terminalTitle ?? session.account_label} status={session.status} rule={session.attention?.rule ?? null} />
-                </Card>
-                {!live && <p className="text-meta text-ink-2">{`ran ${since(session.started_at_ms, Date.now())} · scrollback replayed`}</p>}
+                {/* P2: ended, its terminal only when output was kept to
+                    replay; else its conversation, or why there's none. */}
+                <SessionTerminal session={session} live={live} terminal={terminalCard} now={props.now} />
               </div>
             )
           }

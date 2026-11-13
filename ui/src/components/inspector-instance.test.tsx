@@ -7,7 +7,7 @@ import { resetPreviewPools } from "../lib/ipc/pools";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { RightInspector, type InspectorSelection } from "./RightInspector";
 import { isHandoverShortcut, isStopShortcut } from "../lib/shortcuts";
-import { clock } from "../lib/time-words";
+import { clock, pastWhen } from "../lib/time-words";
 import type { AccountInfo } from "../types/generated/AccountInfo";
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import type { LaunchRecipeInfo } from "../types/generated/LaunchRecipeInfo";
@@ -282,6 +282,13 @@ describe("AJ-E1533 a session's page: no empty tabs, actions in the header", () =
     expect(ended.getByTestId("session-state-chip").textContent).toBe(`Ended ${clock(at)}`);
     expect(ended.queryByTestId("session-ended-stamp")).toBeNull();
     expect(ended.container.textContent!.match(/Ended/g)).toHaveLength(1);
+  });
+
+  it("P3 (the D3 persona walk): one that ended days ago says its day too, never the time alone", () => {
+    const at = NOW - 3 * 86_400_000;
+    const ended = shell(mk({ status: "finished", last_activity_ms: at }));
+    expect(ended.getByTestId("session-state-chip").textContent).toBe(`Ended ${pastWhen(at, NOW)}`);
+    expect(ended.getByTestId("session-state-chip").textContent).not.toBe(`Ended ${clock(at)}`);
   });
 
   it("no tab of the session view shows a task or decision code (D-25)", () => {

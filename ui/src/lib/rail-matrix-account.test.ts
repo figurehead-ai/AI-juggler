@@ -55,9 +55,26 @@ const ROWS: MatrixRow[] = [
     expect: { open: [TEAM], counts: { open: 2 }, under: { [TEAM]: ["o1", "w1"] }, also: { ended: 1 } },
   },
   {
-    name: "A4 an ended pinned session never opens its Account (pins never mean open)",
+    // 0.4.4: it showed nowhere. As by App, where an App not running keeps it under its row in Inactive apps.
+    name: "A4 an ended pinned session never opens its Account (pins never mean open): it shows under its Account, in Pinned",
     lens: "account", apps: [EAST], talks: [past("p1", EAST, 1)], pins: ["p1"],
-    expect: { open: [], counts: { open: null } },
+    expect: { open: [], pinned: [TEAM], counts: { open: null, pinned: 1 }, under: { [TEAM]: ["p1"] }, foldable: { [TEAM]: true }, also: { ended: 0 } },
+  },
+  {
+    // 0.4.4: as by App, an open App's pinned ended rows sit under its open ones.
+    name: "A8 an ended pinned session of an Account with something open: under it, after its open rows",
+    lens: "account", apps: [EAST, WEST], talks: [open("o1", EAST), open("w1", WEST), past("p1", WEST, 1), past("p2", EAST, 2)], pins: ["p1"],
+    expect: { open: [TEAM], pinned: [], counts: { open: 2, pinned: null }, under: { [TEAM]: ["o1", "w1", "p1"] }, also: { ended: 1 } },
+  },
+  {
+    name: "A9 Accounts apart: Team open with its rows, Solo in Pinned with its pinned one; an archived pinned one left out",
+    lens: "account", apps: [EAST, SOUTH, CLI], talks: [open("o1", EAST), past("s1", SOUTH, 20), past("c1", CLI, 3), past("c2", CLI, 4, { app_archived: true })], pins: ["s1", "c1", "c2"],
+    expect: { open: [TEAM], pinned: [SOLO], counts: { open: 1, pinned: 2 }, under: { [TEAM]: ["o1"], [SOLO]: ["c1", "s1"] } },
+  },
+  {
+    name: "A10 a pinned-only Account folded by the user: its header only, saying how many",
+    lens: "account", apps: [SOUTH], talks: [past("s1", SOUTH, 20)], pins: ["s1"], order: { folded: [`account:${SOLO}`] },
+    expect: { pinned: [SOLO], folded: [SOLO], under: { [SOLO]: [] } },
   },
   {
     name: "A5 archived and unlisted past sessions: not counted on the Also line",

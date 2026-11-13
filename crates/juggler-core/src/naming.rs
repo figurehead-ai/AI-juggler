@@ -3,7 +3,8 @@
 //! ("main"). One rule for every place a name is made (the window's
 //! `tellingBranch` holds the same list). A title that is what was asked
 //! is named by its first words ([`first_words`], the window's
-//! `firstWords`).
+//! `firstWords`). The window's `shortName` is the same rule, held to it
+//! by one file of cases both run (`ui/src/lib/fixtures/session-names.json`).
 
 /// Branches that name no piece of work.
 const PLAIN: [&str; 8] = [
@@ -29,46 +30,40 @@ pub fn telling_branch(branch: Option<&str>) -> Option<&str> {
 
 /// What an untitled session is told apart by (D-96, persona D2: two
 /// sessions in one folder both read "Untitled session · billing"): its
-/// folder, its App's short name ("Work") and when it started, in the
-/// user's words ("started 1:14 AM", `juggler_platform::clock::started_words`).
+/// folder and when it started, in the user's words ("started 1:14 AM",
+/// `juggler_platform::clock::started_words`). Never its App or Account
+/// (D-103.8): what shows the name says that beside it.
 #[derive(Debug, Clone, Copy, Default)]
 pub struct Facts<'a> {
     /// The last part of its working folder (or its project's name).
     pub folder: Option<&'a str>,
-    /// Its App's short name: its profile, else its app.
-    pub app: Option<&'a str>,
     /// When it started, in words.
     pub started: Option<&'a str>,
 }
 
 /// An untitled session's name by its facts (the window's `untitledName`):
-/// "billing · Work · started 1:14 AM"; "Session started 1:14 AM" when
-/// only the time is known; "Untitled session" when nothing is. An App
-/// label that is an email is left out (D-33).
+/// "billing · started 1:14 AM", never its Account (D-103.8, persona R2:
+/// "client-b · Client A · client-a · started 4:46 PM"); "Session started
+/// 1:14 AM" when only the time is known; "billing" when only the folder
+/// is; "Untitled session" when nothing is.
 #[must_use]
 pub fn untitled_name(facts: &Facts<'_>) -> String {
     fn some(part: Option<&str>) -> Option<&str> {
         part.map(str::trim).filter(|part| !part.is_empty())
     }
-    // D-33: an App is never named by an email.
-    let app = some(facts.app).filter(|app| !app.contains('@'));
-    let (folder, started) = (some(facts.folder), some(facts.started));
-    match (folder, app, started) {
-        (None, None, None) => "Untitled session".to_owned(),
-        (None, None, Some(started)) => format!("Session {started}"),
-        _ => [folder, app, started]
-            .into_iter()
-            .flatten()
-            .collect::<Vec<_>>()
-            .join(" · "),
+    match (some(facts.folder), some(facts.started)) {
+        (None, None) => "Untitled session".to_owned(),
+        (None, Some(started)) => format!("Session {started}"),
+        (Some(folder), None) => folder.to_owned(),
+        (Some(folder), Some(started)) => format!("{folder} · {started}"),
     }
 }
 
 /// A session's short name, the one rule wherever one is said (a pool's
 /// cards and messages, Needs you's notices; the window's `shortName`):
 /// its label, else its title's first words, else a branch that says what
-/// the work was, else its facts ("billing · Work · started 1:14 AM",
-/// D-96) — never the whole first prompt, never "main" (the rc7, rc12 and
+/// the work was, else its facts ("billing · started 1:14 AM", D-96,
+/// D-103.8) — never the whole first prompt, never "main" (the rc7, rc12 and
 /// rc15 walks), never `Untitled session · <folder>` (persona D2).
 #[must_use]
 pub fn short_name(
@@ -188,9 +183,55 @@ mod tests {
 
     const WEB: Facts<'static> = Facts {
         folder: Some("web"),
-        app: Some("Work"),
         started: Some("started 1:14 AM"),
     };
+
+    /// One case of `ui/src/lib/fixtures/session-names.json`.
+    #[derive(serde::Deserialize)]
+    #[serde(rename_all = "camelCase")]
+    struct Case {
+        label: Option<String>,
+        title: Option<String>,
+        branch: Option<String>,
+        folder: Option<String>,
+        started: bool,
+        name: String,
+        by_facts: bool,
+    }
+
+    #[derive(serde::Deserialize)]
+    struct Cases {
+        cases: Vec<Case>,
+    }
+
+    /// D-103.8: the window names a session by the same rule, from the same
+    /// cases (`session-titles.test.ts`).
+    #[test]
+    fn the_backend_and_the_window_name_a_session_the_same_way() {
+        let cases: Cases = serde_json::from_str(include_str!(
+            "../../../ui/src/lib/fixtures/session-names.json"
+        ))
+        .expect("the shared naming cases parse");
+        assert!(cases.cases.len() >= 10);
+        for case in &cases.cases {
+            let facts = Facts {
+                folder: case.folder.as_deref(),
+                started: case.started.then_some("started 1:14 AM"),
+            };
+            let (label, title, branch) = (
+                case.label.as_deref(),
+                case.title.as_deref(),
+                case.branch.as_deref(),
+            );
+            assert_eq!(
+                short_name(label, title, branch, &facts),
+                case.name.replace("{started}", "started 1:14 AM"),
+                "{label:?} {title:?} {branch:?} {:?}",
+                case.folder
+            );
+            assert_eq!(named_by_facts(label, title, branch), case.by_facts);
+        }
+    }
 
     #[test]
     fn a_session_is_named_by_its_label_its_first_words_a_telling_branch_or_its_facts() {
@@ -199,22 +240,14 @@ mod tests {
             "Writer"
         );
         assert_eq!(
-            short_name(
-                None,
-                Some("write the word lab to lab.txt and then list the folder"),
-                Some("main"),
-                &WEB
-            ),
-            "write the word lab to lab.txt and then…"
-        );
-        assert_eq!(
             short_name(None, None, Some("fix/limits"), &WEB),
             "fix/limits"
         );
-        // D-96: by its facts, never "Untitled session · web".
+        // D-96: by its facts, never "Untitled session · web"; D-103.8:
+        // never its Account.
         assert_eq!(
             short_name(None, None, Some("main"), &WEB),
-            "web · Work · started 1:14 AM"
+            "web · started 1:14 AM"
         );
         assert_eq!(
             short_name(None, Some("  "), None, &Facts::default()),
@@ -223,21 +256,17 @@ mod tests {
     }
 
     #[test]
-    fn an_untitled_session_says_its_folder_its_app_and_when_it_started() {
+    fn an_untitled_session_says_its_folder_and_when_it_started() {
         let two = Facts {
             started: Some("started 1:15 AM"),
             ..WEB
         };
-        // Two in one folder on one App read apart by their minute.
+        // Two in one folder read apart by their minute.
         assert_ne!(untitled_name(&WEB), untitled_name(&two));
-        assert_eq!(
-            untitled_name(&Facts { app: None, ..WEB }),
-            "web · started 1:14 AM"
-        );
+        assert_eq!(untitled_name(&WEB), "web · started 1:14 AM");
         assert_eq!(
             untitled_name(&Facts {
-                folder: None,
-                app: Some(" "),
+                folder: Some(" "),
                 ..WEB
             }),
             "Session started 1:14 AM"
@@ -247,14 +276,7 @@ mod tests {
                 started: None,
                 ..WEB
             }),
-            "web · Work"
-        );
-        assert_eq!(
-            untitled_name(&Facts {
-                app: Some("you@example.com"),
-                ..WEB
-            }),
-            "web · started 1:14 AM"
+            "web"
         );
         assert!(named_by_facts(None, Some(" "), Some("main")));
         assert!(!named_by_facts(None, None, Some("fix/limits")));

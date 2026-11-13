@@ -41,12 +41,15 @@ const renderHome = (sessions: InstanceInfo[] = []) =>
 afterEach(cleanup);
 beforeEach(() => {
   localStorage.clear();
-  clearSeams("__AIJ_QUOTA_DISPLAY__", "__AIJ_SCAN_REPORT__");
+  clearSeams("__AIJ_QUOTA_DISPLAY__", "__AIJ_SCAN_REPORT__", "__AIJ_PROBE__");
 });
 
 describe("D-97 Home's Next steps", () => {
   it("lists a found tool left out, one click to its Add flow, and Measure its limits per Account not measured", async () => {
     rememberFound(SCAN);
+    // 0.4.4: Measure its limits asks the tool here (D-39), when it's on.
+    const on = { offered: true, state: "on", last_run_ms: null, last_outcome: null };
+    setSeam("__AIJ_PROBE__", { work: on, personal: on });
     const opened: string[] = [];
     const listen = (event: Event) => opened.push(JSON.stringify(detailOf(event)));
     window.addEventListener(ADD_APP, listen);
@@ -59,7 +62,20 @@ describe("D-97 Home's Next steps", () => {
     expect(opened).toEqual([JSON.stringify({ tool: "codex" })]);
     window.removeEventListener(ADD_APP, listen);
     await waitFor(() => expect(within(next).getAllByTestId("home-next-measure")).toHaveLength(2));
-    expect(within(next).getAllByRole("button", { name: /^Measure its limits — / })).toHaveLength(2);
+    await waitFor(() => expect(within(next).getAllByRole("button", { name: /^Measure its limits — / })).toHaveLength(2));
+  });
+
+  it("D-103.4: an Account whose tool has no check offers How it's measured, opening where its limits come from under the row", async () => {
+    rememberFound({ ...SCAN, not_set_up: [] });
+    // No ask offered for either folder: nothing to measure here.
+    setSeam("__AIJ_PROBE__", {});
+    const view = renderHome();
+    const next = await view.findByTestId("home-next");
+    await waitFor(() => expect(within(next).getAllByRole("button", { name: /^How it's measured — / })).toHaveLength(2));
+    expect(within(next).queryAllByRole("button", { name: /^Measure its limits/ })).toHaveLength(0);
+    const row = within(next).getAllByTestId("home-next-measure")[0]!;
+    fireEvent.click(within(row).getByRole("button", { name: /^How it's measured — / }));
+    expect(within(row).getByTestId("measure-limits-how-words").textContent).toMatch(/^No current reading\. Limits come from /);
   });
 
   it("leaves a measured Account out, and goes once a session has run", async () => {

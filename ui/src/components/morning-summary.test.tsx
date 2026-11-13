@@ -123,6 +123,24 @@ describe("AJ-E1004 morning summary", () => {
     expect(ended!.textContent).toMatch(/ended .*6:38/);
   });
 
+  it("writes an ended time by the one rule: today's without a day, no leading zero (the 0.4.3 walk: \"ended Thu 06:20 PM\" on a Thursday)", async () => {
+    const now = Date.now();
+    const today = new Date(now);
+    today.setHours(0, 5, 0, 0);
+    w().__AIJ_SUMMARY__ = {
+      since_ms: now - 12 * 3_600_000,
+      generated_ms: now,
+      rows: [row("e1", "finished", "Finished", { status: "finished", at_ms: today.getTime() })],
+      counts: { finished: 1 },
+      leftovers: 0,
+    };
+    const { container } = render(<MorningSummary onOpenSession={() => undefined} />);
+    await waitFor(() => expect(container.querySelectorAll("[data-testid='summary-row']").length).toBe(1));
+    const text = container.querySelector("[data-testid='summary-row']")!.textContent ?? "";
+    expect(text).toMatch(/ended 12:05/);
+    expect(text).not.toMatch(/ended (Mon|Tue|Wed|Thu|Fri|Sat|Sun)|ended 0\d:/);
+  });
+
   it("leaves the time out of a row that has none: never NaN or Invalid Date (0.4.1 baseline pass)", () => {
     const now = 1_800_000_000_000;
     // A read that left its time off (the 54 capture's rows did), and a null one.

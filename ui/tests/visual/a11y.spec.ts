@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
-import { allStatuses, honestEmpty, type FixtureSet, goTo, openFilters, openSwitch, expectRail, openRailList, settingsPane, onlyMac, projectBoardByDefault, switchRows, openWorkMaxSession } from "./fixtures";
+import { allStatuses, honestEmpty, type FixtureSet, goTo, openFilters, openSwitch, expectRail, openRailList, settingsPane, onlyMac, projectBoardByDefault, switchRows, openRailSession } from "./fixtures";
 
 // AJ-E2104: these galleries read the project board, every status drawn.
 projectBoardByDefault(test);
@@ -679,7 +679,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/");
     await expectRail(page); // D-25: the list, or its icon column when narrow
-    await openWorkMaxSession(page);
+    await openRailSession(page, "sess-8");
     await openSwitch(page);
     await switchRows(page)
       .first()
@@ -752,7 +752,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/");
     await expectRail(page); // D-25: the list, or its icon column when narrow
-    await openWorkMaxSession(page);
+    await openRailSession(page, "sess-8");
     await openSwitch(page);
     await switchRows(page)
       .first()
@@ -824,7 +824,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/");
     await expectRail(page); // D-25: the list, or its icon column when narrow
-    await openWorkMaxSession(page);
+    await openRailSession(page, "sess-8");
     await expect(page.getByTestId("switch-back-card")).toBeVisible();
     const cardScan = await new AxeBuilder({ page })
       .include("[data-testid='switch-back-card']")
@@ -901,7 +901,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/");
     await expectRail(page); // D-25: the list, or its icon column when narrow
-    await openWorkMaxSession(page);
+    await openRailSession(page, "sess-8");
     await openSwitch(page);
     await switchRows(page)
       .first()
@@ -977,7 +977,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/");
     await expectRail(page); // D-25: the list, or its icon column when narrow
-    await openWorkMaxSession(page);
+    await openRailSession(page, "sess-8");
 
     // The ranked entry: scoped scan (the rows + their explanations).
     await openSwitch(page);
@@ -1794,7 +1794,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/");
     await expectRail(page); // D-25: the list, or its icon column when narrow
-    await openWorkMaxSession(page);
+    await openRailSession(page, "sess-8");
     await expect(page.getByTestId("remote-switch-target")).toBeVisible();
     expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
     // The wizard, keyboard-only: open, step, map, confirm.
@@ -1910,7 +1910,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.goto("/");
     await expectRail(page); // D-25: the list, or its icon column when narrow
     await expect(page.getByTestId("git-badge").first()).toHaveAttribute("title", /3 uncommitted files/);
-    await openWorkMaxSession(page);
+    await openRailSession(page, "sess-8");
     await page.getByTestId("worktree-remove").click();
     await expect(page.getByTestId("worktree-remove-confirm")).toBeFocused();
     expect(await scanSeriousWithConfirm(page)).toHaveLength(0);

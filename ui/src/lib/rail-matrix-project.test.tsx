@@ -60,20 +60,24 @@ const ROWS: ProjectRow[] = [
   },
   {
     // ASSUMED: a search shows every open match under its own project (the App lens's rule).
-    // 0.4.4 (filed from the 0.4.3 audit). MISMATCH: the other app's open match o-web under web vs `outsideScope` (components/OutsideConversations.tsx:57) returns "none" for any typed text, so no other app's session shows while searching.
+    // 0.4.4 (filed from the 0.4.3 audit): other apps' sessions were dropped by any typed text.
     name: "P2 search: every open match under its own project, other apps' too",
     query: "fix", sessions: SESSIONS, talks: TALKS,
     expect: { "p-api": ["s-api"], "p-web": ["o-web"] },
-    mismatch: "other apps' sessions are dropped by a search",
   },
   {
     // ASSUMED: Only › Project narrows to that project, its other apps' sessions too.
-    // 0.4.4 (filed from the 0.4.3 audit). MISMATCH: api's open o-api vs `outsideScope` returns "none" when the project filter is set (OutsideConversations.tsx:57), so only AI Juggler's own sessions show.
+    // 0.4.4 (filed from the 0.4.3 audit): other apps' sessions were dropped by Only › Project.
     name: "P3 Only project api: api's open sessions, AI Juggler's and other apps'; nothing of web's",
     // (No ended own session here: under a filter the board lists those too, and the spec says nothing of it.)
     only: { project: "api" }, sessions: SESSIONS.slice(0, 2), talks: TALKS,
     expect: { "p-api": ["s-api", "o-api"] },
-    mismatch: "other apps' sessions are dropped by Only project",
+  },
+  {
+    // ASSUMED: Only › Account narrows other apps' sessions as it does AI Juggler's own (0.4.4, with P2 and P3).
+    name: "P5 Only account Side: Side's open sessions, AI Juggler's and other apps'; none of East's",
+    only: { account: "Side" }, sessions: SESSIONS, talks: TALKS,
+    expect: { "p-api": ["s-api"], "p-web": ["s-web", "o-web"] },
   },
   {
     // RULED as App lens 7g (0.4.3): what runs shows, whatever its archive marks.
@@ -105,7 +109,8 @@ async function board(row: ProjectRow): Promise<{ groups: Record<string, string[]
   await view.findByTestId("instance-board");
   if (row.query) fireEvent.change(view.getByRole("searchbox"), { target: { value: row.query } });
   // Other apps' sessions arrive with the conversations' first read.
-  if (row.talks.some((talk) => talk.live && !row.query && !row.only)) await view.findAllByTestId("rail-outside");
+  const talks = new Set(row.talks.map((talk) => talk.id));
+  if (Object.values(row.expect).flat().some((id) => talks.has(id))) await view.findAllByTestId("rail-outside");
   const groups: Record<string, string[]> = {};
   for (const { id } of PROJECTS) {
     const box = document.getElementById(safeId("rail-group", id));

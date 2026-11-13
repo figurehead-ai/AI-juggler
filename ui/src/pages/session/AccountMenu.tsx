@@ -126,17 +126,18 @@ function useSessionApp(model: SessionModel): { id: string | null; name: string; 
 }
 
 /** 0.4.1 (walk A3): an App's name in a narrow chip. The tool word gives
- * way first ("… · Work Max"; the mark beside says the tool), its own
- * name last: the part that tells Apps apart, the rail's short name. */
+ * way before it, whole (D-100: it was cut to "C…"; the mark beside says
+ * the tool), at the header row's second step (`useGiveWay`); its own name
+ * last: the part that tells Apps apart, the rail's short name. */
 function ChipName({ words }: { words: AppWords }): JSX.Element {
   const short = appShortName(words);
   if (words.profile === null) return <span className="truncate">{short}</span>;
   return (
     <span className="flex min-w-0 items-baseline">
-      <span className="min-w-0 shrink-[1000] truncate" data-testid="session-app-word">
-        {words.app}
+      <span className="shrink-0 whitespace-pre data-gone:hidden" data-give-at="2" data-testid="session-app-word-part">
+        <span data-testid="session-app-word">{words.app}</span>
+        {" · "}
       </span>
-      <span className="shrink-0 whitespace-pre"> · </span>
       <span className="min-w-0 truncate" data-testid="session-app-short">
         {short}
       </span>

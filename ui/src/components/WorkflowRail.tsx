@@ -48,7 +48,7 @@ import { Button } from "./primitives";
 import { sessionTitle, useSessionManage } from "./ManageWork";
 import { shortName } from "../lib/session-titles";
 import { ActionHostProvider, useItemMenu } from "./ItemMenu";
-import { OutsideRows, outsideScope, railSlice, withOutsideGroups } from "./OutsideConversations";
+import { narrowOutside, OutsideRows, outsideScope, railSlice, withOutsideGroups } from "./OutsideConversations";
 import { AlsoLine, NeedsYouSection, OPEN_NOW, OpenNowLabel, openGroups, railOrder } from "./RailSections";
 import { RailToolbar } from "./RailToolbar";
 import { RailSignIns } from "./RailSignIns";
@@ -301,7 +301,7 @@ export function InstanceBoard({
   const mac = view.only.mac;
   const showLocal = mac === undefined || mac === "this-mac";
   const remoteShown = remoteMachines.filter((machine) => mac === undefined || mac === machine.machine_id);
-  const { all: conversations } = useConversations();
+  const { all: everyConversation } = useConversations();
   // AJ-E1502/E1537: rows name, pin and tidy through the action registry.
   const sessionManage = useSessionManage(onChanged);
   const searchRef = useRef<HTMLInputElement | null>(null);
@@ -328,6 +328,7 @@ export function InstanceBoard({
     project: projects.find((project) => project.name === view.only.project)?.id ?? (view.only.project ? "-" : null),
   };
   const onAccount = picked === undefined ? sessions : sessions.filter((row) => (accountOf(row.account_id)?.label ?? row.account_label) === picked);
+  const conversations = narrowOutside(everyConversation, filters, parsed.text, projects, picked, accountOf); // 0.4.4: other apps' too
   const filtered = filterSessions(onAccount, filters, parsed.text, projects);
   const sorted = sortSessions(filtered, "needs", snooze, now, projects, accounts);
   // D-49: what is in Needs you is the backend's.
@@ -535,7 +536,7 @@ export function InstanceBoard({
                   snooze={snooze}
                   />
               ))}
-              <OutsideRows projectId={entry.id} selectedId={selectedId} density={effectiveDensity} now={now} scope={scope} />
+              <OutsideRows all={conversations} projectId={entry.id} selectedId={selectedId} density={effectiveDensity} now={now} scope={scope} />
               </div>
             </div>
           ))]

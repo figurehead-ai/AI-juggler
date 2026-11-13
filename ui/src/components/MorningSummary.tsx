@@ -22,6 +22,7 @@ import { summaryHeadline } from "../lib/ended-how";
 import type { OvernightSummaryInfo } from "../types/generated/OvernightSummaryInfo";
 import type { SummaryRowInfo } from "../types/generated/SummaryRowInfo";
 import { sessionAppName } from "../lib/app-name";
+import { pastWhen } from "../lib/time-words";
 
 /** Rows a group shows before "Show all". */
 const SHOWN = 5;
@@ -38,8 +39,11 @@ const GROUPS: Array<{ id: string; title: string; icon: string }> = [
 ];
 
 
+/** Its time by the one rule every started and ended time follows (P3):
+ * "6:20 PM" today, "yesterday 6:20 PM", "Mon 6:20 PM" (the 0.4.3 walk read
+ * "ended Thu 06:20 PM" on a Thursday). */
 function since(ms: number): string {
-  return new Date(ms).toLocaleString([], { weekday: "short", hour: "2-digit", minute: "2-digit" });
+  return pastWhen(ms);
 }
 
 /** D-97 (5): the digest's start, plain: "Since you last looked, 01:56"

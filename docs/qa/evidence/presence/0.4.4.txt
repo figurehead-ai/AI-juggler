@@ -1,0 +1,17 @@
+presence-check (ADR-0032)
+running desktop apps (ps): 4 (desktop)
+your running Apps: 4
+Open now shows: 4 desktop App(s), counted 4
+Inactive apps shows: 5 named on screen
+  open: App 11: fold=folded rows=0 pinned=0 last=None all=None count=None out=False  records=28/8 shown
+  open: App 7: fold=folded rows=0 pinned=0 last=None all=None count=None out=False  records=19/15 shown
+  open: App 12: fold=folded rows=0 pinned=0 last=None all=None count=None out=False  records=4/4 shown
+  open: App 14: fold=True rows=3 pinned=0 last=None all=15 count=None out=False
+  idle: App 9: fold=folded rows=0 pinned=0 last=None all=None count=1 out=False  records=1/1 shown
+  idle: App 10: fold=folded rows=0 pinned=0 last=None all=None count=1 out=True  records=1/1 shown
+  idle: App 8: fold=folded rows=1 pinned=1 last=None all=None count=1 out=True  records=1/1 shown
+  idle: App 13: fold=folded rows=0 pinned=0 last=None all=None count=33 out=False
+  idle: App 6: fold=False rows=0 pinned=0 last=None all=None count=1 out=False  records=1/1 shown
+  codex store: 15 by the App 14 + 33 others = 48 listed; rail: app=15 cli=33
+  limit hits given back (D-103.10): 0 on the wrong Account before, 0 after; 0 moved, 0 cleared (their Account is gone), 0 left where they happened
+PASS Open now is exactly your running Apps; none is in two sections; each unfolds to its own records; every Out Account marked; no lab run in a real profile; Codex counts are the store's listed threads; no past limit hit left on the wrong Account

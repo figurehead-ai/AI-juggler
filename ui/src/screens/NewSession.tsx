@@ -140,23 +140,23 @@ export function NewSessionModal({
   }, []);
 
   const asked = useMemo(() => chooseFolder(projects, directory), [projects, directory]);
-  const data = useNewSessionData({ folders: accounts, sessions, kept, projectId: asked?.project?.id });
+  const data = useNewSessionData({ folders: accounts, sessions, kept, project: asked?.project ?? null });
   const recipes = useMemo(() => data.recipes ?? [], [data.recipes]);
   const ranked = useMemo(() => appsByRoom({ recipes, folders: accounts, roomOf: data.roomOf }), [recipes, accounts, data]);
-  // The pick never jumps under the cursor: once said with the room known,
-  // it stays for this folder until the user changes it (a fresh read only
-  // updates its room and notes).
+  // The pick never jumps under the cursor: once said with the room and the
+  // Accounts that ran here known, it stays for this folder until the user
+  // changes it (a fresh read only updates its room and notes).
   const steady = useRef<{ folder: string | null; app: string; said: { why: AppWhy; skipped: LaunchRecipeInfo | null; passedOver: LaunchRecipeInfo | null } } | null>(null);
   const keptApp = after?.app ?? null;
   const app = useMemo(() => {
-    const inputs = { recipes, project: asked?.project ?? null, folders: accounts, sessions, kept: keptApp, roomOf: data.roomOf, accountOf: data.accountKeyOf };
+    const inputs = { recipes, project: asked?.project ?? null, folders: accounts, sessions, kept: keptApp, roomOf: data.roomOf, accountOf: data.accountKeyOf, ranHere: data.ranHere };
     const held = steady.current;
     if (chosenApp === null && held && held.folder === (asked?.root ?? null)) {
       const kept = chooseApp({ ...inputs, chosen: held.app });
       if (kept?.recipe.account_id === held.app) return { ...kept, ...held.said };
     }
     const fresh = chooseApp({ ...inputs, chosen: chosenApp });
-    if (chosenApp === null && fresh && data.roomKnown) steady.current = { folder: asked?.root ?? null, app: fresh.recipe.account_id, said: { why: fresh.why, skipped: fresh.skipped, passedOver: fresh.passedOver ?? null } };
+    if (chosenApp === null && fresh && data.roomKnown && data.ranHereKnown) steady.current = { folder: asked?.root ?? null, app: fresh.recipe.account_id, said: { why: fresh.why, skipped: fresh.skipped, passedOver: fresh.passedOver ?? null } };
     return fresh;
   }, [recipes, asked, accounts, chosenApp, keptApp, sessions, data]);
   const settings = app ? recipes.filter((row) => row.account_id === app.recipe.account_id) : [];
