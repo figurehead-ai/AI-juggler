@@ -31,14 +31,11 @@ use std::path::{Path, PathBuf};
 use juggler_adapter::live::TailTurn;
 use juggler_core::model::{Confidence, TokenCounts};
 use juggler_core::quota::{UsageEvent, UsageSource};
-use rusqlite::{Connection, OpenFlags, OptionalExtension};
+use rusqlite::{Connection, OptionalExtension};
 
 /// The database file's name in the data folder (`latest`/`beta`/`prod`
 /// channels, the ones the installers ship).
 pub const DB_FILE: &str = "opencode.db";
-
-/// How long a read waits for OpenCode's own write to finish.
-const BUSY_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(2);
 
 /// One OpenCode session, as the list and the linker need it.
 #[derive(Debug, Clone, PartialEq)]
@@ -64,37 +61,15 @@ pub struct OpenCodeSession {
     pub archived: bool,
 }
 
-/// Opens `db` read-only, waiting briefly for a writer.
-///
-/// While OpenCode runs, its write-ahead log sits beside the file and the
-/// read joins it as any reader does. When OpenCode is closed there is no
-/// log, and even a read-only open would create one (and its index) in
-/// the user's folder — so the file is opened `immutable`: no log, no
-/// lock, nothing written. Should OpenCode start during that read, the
-/// read may fail; the next pass reads again.
+/// Opens `db` read-only, waiting briefly for a writer, never writing
+/// beside it (`common::sqlite::open_tool_store`: the log joined while
+/// OpenCode runs, the file `immutable` when it is closed).
 ///
 /// # Errors
 ///
 /// A plain message when the file can't be opened.
 pub fn open_read_only(db: &Path) -> Result<Connection, String> {
-    if !db.is_file() {
-        return Err(format!("no OpenCode database at {}", db.display()));
-    }
-    let mut wal = db.as_os_str().to_owned();
-    wal.push("-wal");
-    let flags = OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_NO_MUTEX;
-    let conn = if Path::new(&wal).exists() {
-        juggler_core::storage::open_hardened_with(db, flags)
-    } else {
-        juggler_core::storage::open_hardened_with(
-            format!("file:{}?immutable=1", crate::common::sqlite::uri_path(db)),
-            flags | OpenFlags::SQLITE_OPEN_URI,
-        )
-    }
-    .map_err(|error| format!("opencode db open (read-only): {error}"))?;
-    conn.busy_timeout(BUSY_TIMEOUT)
-        .map_err(|error| format!("opencode db busy timeout: {error}"))?;
-    Ok(conn)
+    crate::common::sqlite::open_tool_store(db, "OpenCode")
 }
 
 /// Whether `conn` has a table named `name`.

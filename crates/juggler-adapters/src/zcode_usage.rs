@@ -77,7 +77,9 @@ pub fn zcode_credits(
 }
 
 /// Reads the WHOLE `model_usage` table (completed rows only) from the
-/// vendor DB, opened READ-ONLY (WAL-safe). Full-table each pass is
+/// vendor DB, read-only and never written beside (`open_tool_store`:
+/// the log joined while `ZCode` runs, `immutable` when it is closed, where
+/// a plain read-only open failed). Full-table each pass is
 /// the deliberate choice: rows carry no vendor uuid, so the stable
 /// `rowid` is the dedupe key and completeness — not a high-water mark
 /// — keeps ids honest. A day is ~1k rows; the read is <10 ms.
@@ -87,12 +89,7 @@ pub fn zcode_credits(
 /// Returns a message when the DB cannot be opened or the table is
 /// missing (never a partial/invented read).
 pub fn zcode_events(account: &str, db_path: &Path) -> Result<Vec<UsageEvent>, String> {
-    use rusqlite::OpenFlags;
-    let conn = juggler_core::storage::open_hardened_with(
-        db_path,
-        OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_NO_MUTEX,
-    )
-    .map_err(|error| format!("zcode db open (read-only): {error}"))?;
+    let conn = crate::common::sqlite::open_tool_store(db_path, "ZCode")?;
     let mut stmt = conn
         .prepare(
             "SELECT rowid, model_id, input_tokens, output_tokens,
