@@ -735,8 +735,16 @@ mod imp {
                     event: Option<&NSAppleEventDescriptor>,
                     _reply: Option<&NSAppleEventDescriptor>,
                 ) {
+                    // The system sends log out, restart and shut down's
+                    // reason as the event's attribute (`keyAEQuitReason`);
+                    // a parameter of that name is taken too. Only its
+                    // presence counts: a reason never asks.
                     let reason = event
-                        .and_then(|event| event.paramDescriptorForKeyword(QUIT_REASON))
+                        .and_then(|event| {
+                            event
+                                .attributeDescriptorForKeyword(QUIT_REASON)
+                                .or_else(|| event.paramDescriptorForKeyword(QUIT_REASON))
+                        })
                         .map(|reason| reason.enumCodeValue());
                     if super::super::answer(reason, self.ivars().app.as_ref())
                         == QuitAnswer::Terminate
