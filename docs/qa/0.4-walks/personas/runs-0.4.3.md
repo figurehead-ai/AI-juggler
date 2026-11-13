@@ -93,3 +93,40 @@ P1 (newest first) holds in the rail's "Ended today". Fixed on the way: "ended Th
   - the labs' conversations are short summaries;
   - a build on a lab sees only the lab's processes, so ChatGPT.app reads closed there.
 - **What this can't tell:** how strangers with other setups judge it, how it feels after weeks, and anything the maintainer's calibration (`calibration-0.4.3.md`) will show. One run per flow, so no run-to-run variance.
+
+## Re-walks on 0.4.4 with D-103 built (fresh testers; local build at 911344ef9, presence PASS on PL1 first)
+
+| Flow | Step | W | V | C | F | Reason (short) |
+|---|---|---|---|---|---|---|
+| M6 Which can I use now (run 3) | 1 Home | 5 | 5 | 4 | 4 | red "Out · resets Sun 9:16 PM" chips and "2 accounts out" answer it in seconds (run 1: 4 / 4 / 3 / 3) |
+| | 2 Measure its limits | 4 | 3 | 3 | 3 | "Measuring…"; how long to wait unsaid |
+| | 3 its answer | 2 | 2 | 2 | 2 | "answered; its limits show here once they're in", then nothing (the lab's profile isn't signed in): fixed, it now says it answered without limits and how they'll come (4ddd65a1a) |
+| | 4 Usage | 4 | 4 | 3 | 3 | both windows' "back in" side by side; which one blocks is unsaid there |
+| | solved | partly | | | | who is out and when they're back: sure; the account she'd switch to has no reading (the lab's) |
+| D6 What's up right now (run 3) | 1 Home | 5 | 4 | 4 | 4 | four cards with state; "Closed · last open 3 min ago" |
+| | 2 what's open | 3 | 3 | 2 | 3 | "work nothing open", "Recent" over Ended rows read right; doubt came from This Mac listing this Mac's own Claude and ChatGPT windows, which the lab's rail doesn't see (setup: a lab sees only its own processes) |
+| | 3 See what's using it | 5 | 5 | 4 | 4 | per-app GB, CPU and windows with plain advice: "beats my ps scripts" |
+| | solved | partly | | | | running vs not quick; the lab's split view of this Mac made "what's open" doubtful |
+| M7 Back to that conversation (run 3) | 1 Home | 3 | 3 | 3 | 3 | "work nothing open" with Recent: 3 of its 5 shown, the one she wants not among them |
+| | 2 rail search | setup | setup | setup | setup | the walk driver couldn't type into the search box while the build was in the background; fixed in the driver (the box filters to it at once by hand) |
+| | 3 All 5 sessions › | 5 | 4 | 4 | 4 | the App's Sessions tab with "Explain this stack trace" (D-103.2's words read right) |
+| | 4 its page | 3 | 3 | 3 | 3 | read in place, no out-of-room shouting now (D-103.3); the lab's replies are short summaries, not a real explanation (setup) |
+| | solved | partly | | | | found in 3 clicks; the content is the lab's |
+| R2 Right account for the client (run 2) | 1 Home | 4 | 3 | 2 | 3 | "Client A" beside "Client A (old)"; the lab's profile is named client-a like the repo |
+| | 2 New session | 3 | 2 | 4 | 2 | still "Agency · agency — the last you used here": the lab's client-a had all three accounts, so D-103.7's rule falls to last used; no binding offered (fixed after: the sheet offers it whenever several worked there) |
+| | 3 Change app | 4 | 3 | 3 | 3 | a tick on the choice; "(old)" read twice |
+| | 4 Client A | 5 | 4 | 4 | 4 | sentence and Account row agree |
+| | 5 Start | 5 | 4 | 4 | 4 | "Where it runs" plus "later launches must match" |
+| | solved | partly | | | | right account because she distrusted the default |
+| R3 Who touched this repo (run 2) | 1 Home | 3 | 3 | 3 | 3 | all accounts "Not measured yet" (the lab's) |
+| | 2 Projects | 5 | 3 | 4 | 3 | client-b, 14 sessions |
+| | 3 client-b | 4 | 4 | 4 | 3 | "Who did the work: 14 sessions, 100% Client B"; tokens "None recorded" (D-103.9; was 3 / 3 / 2 / 2) |
+| | 4 its Sessions | 5 | 4 | 5 | 4 | 14 rows, account and repo on each |
+| | 5 a session | 2 | 2 | 4 | 2 | "No output was kept … recorded no conversation": the lab's sessions have none (setup) |
+| | 6 its History tab | 1 | 1 | 3 | 2 | only "Ended" |
+| | 7 History | 4 | 3 | 4 | 3 | same facts; no summary of the work |
+| | solved | partly | | | | who and when: proven; what was done: not shown (an audit summary/export is a later feature) |
+| D3 Find one of fifty (run 2) | 1 Home | 2 | 2 | 2 | 2 | rows now read "api · started 8:39 PM" (D-103.8: no account in the name), but the lab's 52 sessions are all untitled, so nothing tells their topics apart (run 1: 3 / 3 / 2 / 2) |
+| | 2 rail search "login" | 5 | 4 | 4 | 4 | one hit at once |
+| | 3 its page | 5 | 4 | 4 | 4 | the conversation, folder, branch and account in one place |
+| | solved | partly | | | | found in 3 steps (run 1: 5); no file list or diff of what changed |
