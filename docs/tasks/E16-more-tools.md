@@ -132,7 +132,7 @@
 **Research basis**: `kiro.md`.
 **Handover note**: Old Kiro CLI builds stop connecting on 2026-11-09; support V3 only.
 
-### AJ-E1607 Hermes Agent | Status: TODO | Priority P2 | Effort M | Depends: AJ-E1521
+### AJ-E1607 Hermes Agent | Status: IN-PROGRESS (built 2026-11-13 from its MIT source at 422ad186: a HERMES_HOME and gateway lock folder per account, the guard through Hermes' own policy layer, sessions from state.db, `hermes usage --json`, an owned gateway ended by its process group; nothing run live until AJ-E1612) | Priority P2 | Effort M | Depends: AJ-E1521
 **Goal**: Hermes Agent runs with its own profiles, kept away from managed Codex and Claude homes.
 **User story**: As a Nous Portal user, I juggle Hermes profiles.
 **Requirements**:

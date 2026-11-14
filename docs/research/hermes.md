@@ -1,6 +1,6 @@
 # Research notes: Hermes (Nous Research Hermes Agent, and other "Hermes" candidates)
 
-Research date: 2026-10-21
+Research date: 2026-10-21; source pass 2026-11-13 (§10)
 
 > Input to the multi-Provider evaluation. Mirrors the structure of [codex.md](codex.md). Nothing was installed, no account was signed in, no binary was downloaded, and no local `~/.hermes`, `~/.claude`, `~/.codex` or credential directory was read. Docs were read as Markdown sources from the vendor repo via raw.githubusercontent.com (the same files that build hermes-agent.nousresearch.com/docs). Every claim was accessed on 2026-10-21.
 >
@@ -105,6 +105,138 @@ Sources: **Nous Portal Terms of Service, last updated 2026-09-28** — https://p
 - **Which Hermes did you mean?** Nous Research **Hermes Agent** (assumed here), or **Hermes IDE** (hermes-ide.com, a multi-agent console that competes with AI Juggler)?
 - Should a Hermes account be allowed to use a ChatGPT or Claude subscription that AI Juggler already manages as a Codex or Claude Code account, or must those stay disjoint?
 - Is "Hermes-reported" quota (from `hermes usage --json`) acceptable to show, given codex.md §9's ruling on unsanctioned Codex limit feeds?
+
+## 10. Source pass (D-106, 2026-11-13, AJ-E1607)
+
+The MIT source was read, never run or installed: `NousResearch/hermes-agent`
+at **`422ad1861856dd9b80b947fbad9f39d1580f6b41`** (main, 2026-11-13; the
+newest tag was `v2026.9.24`, and `hermes --version` prints
+`Hermes Agent v<version> (<release date>)`, `hermes_cli/_startup_fast.py:195`,
+followed by a passive update check, `:236`). Every line below is
+**[Verified-primary]** from that commit unless marked; paths are in the
+repo. Hermes isn't installed on the build Mac (installing it needs the
+maintainer's yes), so nothing here ran live: AJ-E1612's lab checks it.
+
+### 10.1 What moves its state
+
+| Variable | What it moves | Source |
+|---|---|---|
+| `HERMES_HOME` | The whole home: `config.yaml`, `.env`, `auth.json`, `SOUL.md`, memories, skills, `state.db`, logs, `gateway.pid`. Context override, then the variable, then `~/.hermes` | `hermes_constants.py:206` (`get_hermes_home`) |
+| (the root) | A home outside `~/.hermes` is its own root; `<root>/profiles/<name>` belongs to `<root>` | `hermes_constants.py:111` (`_hermes_root_of`), `:314` |
+| `HERMES_SHARED_AUTH_DIR` | The Nous Portal sign-in shared by every profile of a root, default `<root>/shared/nous_auth.json` (written on login and every refresh) | `hermes_cli/auth_nous.py:350` |
+| `HERMES_GATEWAY_LOCK_DIR` | The gateway's host lock and rendezvous record, default `$XDG_STATE_HOME/hermes/gateway-locks` (else `~/.local/state/…`): **not under the home**, one per OS user | `gateway/status.py:321` (`_get_lock_dir`); `gateway/host_rendezvous.py:1-31, 217` |
+| `HERMES_MANAGED_DIR` | An administrator's policy folder (`config.yaml` and `.env` whose values win over the user's), default `/etc/hermes`; launch-only, so no `.env` can set it | `hermes_cli/managed_scope.py:31, 45`; `hermes_constants.py:874`; `hermes_cli/config.py:2063`; `hermes_cli/env_loader.py:445` |
+| `HERMES_KANBAN_HOME` | One kanban board across homes | `hermes_cli/kanban_db.py:405` |
+| `HERMES_DATA_DIR_SUFFIX` | Moves the default home to `~/.hermes<suffix>` | `hermes_constants.py:69-76` |
+| `CODEX_HOME`, `CLAUDE_CONFIG_DIR` | Where Hermes looks for the Codex CLI's and Claude Code's homes (see 10.2) | `hermes_cli/auth_codex.py:590`; `agent/anthropic_credentials.py:345` |
+
+The process ledger (`spawn-ledger.json`) is at the root
+(`hermes_cli/process_identity.py:38, 261`).
+
+### 10.2 Sign-ins, and the Codex and Claude homes (the guardrail, Req.3)
+
+- Provider sign-ins and credential pools: `$HERMES_HOME/auth.json`
+  (`hermes_cli/auth.py:481`); keys and bot tokens in `$HERMES_HOME/.env`;
+  the Nous Portal sign-in also in `<root>/shared/nous_auth.json` (10.1). A
+  file, not the Keychain, for Hermes' own sign-ins.
+- **Hermes borrows and refreshes other tools' sign-ins by default.**
+  `auth.adopt_external_logins: True` (`hermes_cli/config_defaults.py:1738`):
+  with no login of its own, it reads `$CODEX_HOME/auth.json` (else
+  `~/.codex/auth.json`, `hermes_cli/auth_codex.py:587`) and Claude Code's
+  `$CLAUDE_CONFIG_DIR/.credentials.json` **and the login Keychain item
+  `Claude Code-credentials`** (`agent/anthropic_credentials.py:48, 359`),
+  and writes a refreshed Claude token back (`:543`). Both refresh tokens
+  are single-use, so one program's refresh signs the other out. With the
+  setting false, none of them is read (`agent/credential_sources.py:32`,
+  gating `auth_codex.py:252`, `anthropic_credentials.py:367`,
+  `credential_pool.py:2558`).
+- Its Codex app-server runtime writes MCP servers into
+  `$CODEX_HOME/config.toml` (`hermes_cli/codex_runtime_plugin_migration.py:424`);
+  its session import reads `$CODEX_HOME/sessions` and
+  `$CLAUDE_CONFIG_DIR/projects` (`hermes_cli/foreign_sessions.py:176`).
+- **Route used (AJ-E1607):** every run AI Juggler starts sets
+  `HERMES_MANAGED_DIR` to a policy folder of the account's own
+  (`config.yaml`: `auth.adopt_external_logins: false`; `.env`: `CODEX_HOME`
+  and `CLAUDE_CONFIG_DIR` at empty folders), so neither the Keychain item nor
+  a Codex or Claude home is read, whatever the user's own config or `.env`
+  says. A client-started gateway inherits it (only supervisor markers are
+  stripped, `hermes_cli/gateway_runtime_start.py:20-27`). A Mac with
+  `/etc/hermes` is refused rather than overridden.
+- **Gap that remains:** first-time `hermes setup` offers "Coming from another
+  agent?" — an import of `~/.claude` or `~/.codex` found by `Path.home()`,
+  not by those variables, run only on the user's yes through the
+  `agent-importers` plugin (`hermes_cli/setup_agent_import.py`). AI Juggler
+  never runs `hermes setup` or `hermes import-agent` (its sign-in is
+  `hermes model`); whether a first `hermes` run reaches that step is a lab
+  check.
+
+### 10.3 Sessions
+
+`$HERMES_HOME/state.db` (`hermes_state.py:182`), SQLite in WAL, schema
+version 33 (`hermes_state_common.py:296`): `sessions` (`:468`: `id`,
+`source`, `title`, `cwd`, `started_at`/`last_activity_at`/`ended_at` as REAL
+epoch seconds, `parent_session_id`, `hidden`, `archived`, the token and cost
+columns, `profile_name`) and `messages` (`:538`: `role`, `content`,
+`timestamp`, …). Written only by the home's gateway. Resume:
+`hermes --resume/-r <id|title|latest>`, `--continue/-c [name]`, `--in <dir>`
+(`hermes_cli/_parser.py:181-195`; `hermes chat` takes `--resume` too, `:280`).
+
+### 10.4 Usage
+
+`hermes usage [--provider P] [--json]` (`hermes_cli/subcommands/usage.py:15,
+38`): one JSON document — `provider`, `source`, `title`, `plan`,
+`fetched_at`, `windows[]` (`label`, `used_percent`, `resets_at`, `detail`),
+`details`, `unavailable_reason`; exit 1 with nothing on stdout when nothing
+could be fetched. Readers exist for `openai-codex` (`Session`/`Weekly`),
+`anthropic` (`Current session`, `Current week`, per-model weeks) and
+`openrouter` (credits), plus a provider plugin's hook
+(`agent/account_usage.py:911, 944`). **Nous Portal has none:** its credits
+show only in a session's `/usage` (`agent/account_usage.py:263, 498`), so a
+Nous Portal account gets no windows from `hermes usage`. Its usage cache is
+in memory only (`agent/account_usage_cache.py`), no local file.
+
+### 10.5 The gateway
+
+- One per home records itself in `$HERMES_HOME/gateway.pid`
+  (`{"pid","kind":"hermes-gateway","argv","start_time"}`, an older one a bare
+  pid), `gateway.lock`, `gateway_state.json` (`gateway/status.py:40, 309,
+  782`).
+- One host owner per OS user per lock folder multiplexes every profile:
+  `host-gateway.json`, `.lock`, a 0600 `.token`; a second start attaches
+  instead of binding a second port; the owner answers `/api/host/identity`
+  (`gateway/host_rendezvous.py:60, 217-227`). So an account needs a lock
+  folder of its own, or its client attaches to the user's own gateway.
+- A client with no gateway starts one: on macOS a one-off **launchd job**
+  `com.nousresearch.hermes.runtime.<id>`, with `--idle-exit`
+  (`hermes_cli/gateway_runtime_start.py:71`;
+  `hermes_cli/gateway_launchd_runtime.py:26, 100`); elsewhere a detached
+  (`setsid`) child.
+- `hermes gateway run --external-supervisor` runs one in the foreground owned
+  by its starter: restarts and updates exit back to it
+  (`hermes_cli/subcommands/gateway.py:110`). `hermes gateway stop` stops the
+  home's (`:159`), proving the process from its record first.
+  `hermes gateway ensure|attach --json` start or find one and print its
+  WebSocket URL with a single-use ticket (`:122, 133`).
+- Ports: the API server `127.0.0.1:8642` (`gateway/platforms/api_server.py:155`);
+  the gateway's own port is published in the host record.
+
+### 10.6 Protocols for driving sessions (found, not built yet)
+
+ACP over stdio (`hermes acp`, `hermes_cli/subcommands/acp.py:10`;
+`acp_adapter/`), the TUI gateway's JSON-RPC (`hermes-gateway-v1` over
+`/api/ws` with a ticket from `hermes gateway attach --json`, or stdio,
+`tui_gateway/entry.py`; methods `session.create`, `prompt.submit`,
+`session.resume`, approvals as server→client requests,
+`website/docs/developer-guide/programmatic-integration.md`), and the
+OpenAI-compatible API server. Headless `hermes -z` skips approvals
+(`hermes_cli/_parser.py:150`), so AI Juggler doesn't offer it.
+
+### 10.7 Terms, checked again
+
+The Nous Portal Terms of Service were read again on 2026-11-13 ("Last update:
+November 10, 2026"): §5.1, §5.2, §8.5 and §10.1(7) say what §7 above records
+(§10.1(7) now reads "to circumvent any Plan, usage or rate limit or any
+suspension"). Recorded in AJ-E1518's register.
 
 ## Search log (Negative-evidence)
 
