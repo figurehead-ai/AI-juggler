@@ -3011,3 +3011,10 @@ Each ships with tests that fail without it and a design critique; the M2, D2 and
 - **Amends:** AJ-E807 R4 and its per-milestone signing; MAINTAINER-STEPS Part 5.
 - Sources: the coordinating session's findings and relay of the maintainer's answer, 2026-11-13.
 
+### D-115 0.5 adds no tools beyond its plan; Gemini CLI and GitHub Copilot CLI are candidates for 0.6 — SETTLED (2026-11-14)
+
+**Ruling.** The maintainer, 2026-11-14, asked by the coordinating session whether any more tools should join 0.5 (Gemini CLI, GitHub Copilot CLI, or others such as Amp, Qwen Code, Goose and Factory Droid): "None for now".
+
+- **0.5's tool list stays as planned** (the roadmap's 0.5 section and `docs/plan/0.5-order.md`); nothing is added to it.
+- **Gemini CLI and GitHub Copilot CLI are candidates for 0.6**, to be weighed when 0.6 is planned; the others named are not scheduled.
+- Sources: the coordinating session's relay of the maintainer's answer, 2026-11-14. D-111 to D-114 are release/0.4.5's.
