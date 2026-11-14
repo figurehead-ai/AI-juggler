@@ -1,5 +1,7 @@
 # Milestone M3 evidence — quota & billing (EPICS.md:91 M3-2, M3-6)
 
+> **Replaced by D-109 (2026-11-13):** a release's sign-off is the Stable approval, recorded in `docs/qa/signoffs/`; kept as history.
+
 Evidence section per AJ-E606's validation clause (store test output +
 `wc -l` of new modules). Later M3 tasks append their own sections.
 
@@ -320,9 +322,9 @@ then USD is uniformly `Estimate`, which is the stricter label.
 
 ## Sign-off
 
-Added by AJ-E807: a gate is signed here with the decision, the reviewer,
-the date and the commit it approves (`scripts/gate_packet.py signed`
-checks it). Until then this gate is open.
+Added by AJ-E807 (2026-10-19) and never signed. Retired by D-109: gates
+aren't signed here any more; a release's sign-off is the Stable approval,
+recorded in `docs/qa/signoffs/`. The table is kept as it was.
 
 | Field | Value |
 |---|---|

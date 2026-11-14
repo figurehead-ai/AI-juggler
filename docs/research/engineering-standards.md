@@ -674,8 +674,8 @@ view, a codemap with names and no links, invariants stated as absences ("`juggle
 knows no tool id", "the UI never branches on a tool", "only `juggler-app` knows Tauri",
 "only adapters read a tool's files"), layer boundaries (IPC, adapter ports, storage) and
 cross-cutting concerns (errors, tracing, redaction, guardrails). Revisit it at each
-milestone gate. *Enforced:* a gate-packet checkbox, plus a `research_staleness.sh`-style
-date check.
+milestone gate. *Enforced:* a `research_staleness.sh`-style date check (the gate-packet
+checkbox went with the gate packets, D-109).
 
 **D2 MUST: Every crate has a `//!` doc with its role and what it must not know.**
 (The crate docs already exist. Add the "must not know" line.) A crate README is

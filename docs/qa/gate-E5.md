@@ -1,5 +1,7 @@
 # Gate E5 — Process ownership & cleanup epic acceptance
 
+> **Replaced by D-109 (2026-11-13):** a release's sign-off is the Stable approval, recorded in `docs/qa/signoffs/`; kept as history.
+
 Status: **AGENT-VERIFIED 2026-10-13 (fixtures + soak + real-claude
 mechanics dogfood) — two honest open items below; no "done" claim
 until they close**
@@ -120,9 +122,9 @@ Prepared: 2026-10-13 (zcode-primary)
 
 ## Sign-off
 
-Added by AJ-E807: a gate is signed here with the decision, the reviewer,
-the date and the commit it approves (`scripts/gate_packet.py signed`
-checks it). Until then this gate is open.
+Added by AJ-E807 (2026-10-19) and never signed. Retired by D-109: gates
+aren't signed here any more; a release's sign-off is the Stable approval,
+recorded in `docs/qa/signoffs/`. The table is kept as it was.
 
 | Field | Value |
 |---|---|

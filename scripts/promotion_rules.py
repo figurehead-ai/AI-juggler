@@ -14,13 +14,15 @@ live in one tested place:
   beta build itself, and the full hand-walk comes before Stable.
 - **Stable**: the version has been on beta for at least STABLE_MIN_DAYS
   (7, D-114; D-24 said 14), and no `blocker` issue is open. (Stable is
-  also a deliberate act: the maintainer runs and approves it, D-109;
-  promote.yml checks the signed beta gate and the CHANGELOG section.)
+  also a deliberate act: the maintainer runs and approves it, and the
+  approval is the release's sign-off, D-109; promote.yml checks the
+  CHANGELOG section and the roadmap scope.)
 - **A blocker fix** (D-114) on a frozen line: a patch that fixes blocker
   issues (`blocker_fix`, each a closed issue labelled `blocker`) needs
-  BLOCKER_FIX_MIN_DAYS (3) on its own beta tag, not the whole 7, and its
-  line's first candidate (`line_beta_at`, the earliest `beta/vX.Y.*`) at
-  least STABLE_MIN_DAYS on beta, so the line's soak is never skipped.
+  BLOCKER_FIX_MIN_DAYS (3) on its own beta tag, not the whole 7, and the
+  Stable candidate it fixes (promote.yml's `candidate` input; its
+  annotated beta tag's date is `line_beta_at`) at least STABLE_MIN_DAYS
+  on beta, so the line's soak is never skipped.
 
 A failed rule can be overridden only with a written reason, which is
 printed with the result and kept in the channel tag's message.

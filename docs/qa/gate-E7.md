@@ -1,5 +1,7 @@
 # Gate E7 — Fleet beta (AJ-E710)
 
+> **Replaced by D-109 (2026-11-13):** a release's sign-off is the Stable approval, recorded in `docs/qa/signoffs/`; kept as history.
+
 The Fleet beta gate (AJ-E710) fills this file as each E7 task lands:
 per-requirement pass/fail with the CI run, dogfood recordings, timings,
 the security-negative checklist (one test per STRIDE row of the
@@ -132,9 +134,9 @@ Local validation status per pair stays in `gate-E2-validation.md`.
 
 ## Sign-off
 
-Added by AJ-E807: a gate is signed here with the decision, the reviewer,
-the date and the commit it approves (`scripts/gate_packet.py signed`
-checks it). Until then this gate is open.
+Added by AJ-E807 (2026-10-19) and never signed. Retired by D-109: gates
+aren't signed here any more; a release's sign-off is the Stable approval,
+recorded in `docs/qa/signoffs/`. The table is kept as it was.
 
 | Field | Value |
 |---|---|
