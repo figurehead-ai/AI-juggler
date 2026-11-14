@@ -25,7 +25,7 @@
  * rail holds a session older than the card's window, the card's foot says
  * "Older sessions: search ⌘K", and a click runs ⌘K.
  */
-import { useState, type JSX } from "react";
+import { useEffect, useState, type JSX } from "react";
 import { overnightSummary, overnightSummarySeen } from "../lib/ipc/park";
 import { sharedRead, useSharedRead } from "../lib/shared-read";
 import { waitingWords } from "../lib/waiting";
@@ -34,6 +34,8 @@ import type { OvernightSummaryInfo } from "../types/generated/OvernightSummaryIn
 import type { SummaryRowInfo } from "../types/generated/SummaryRowInfo";
 import { sessionAppName } from "../lib/app-name";
 import { namesApart } from "../lib/session-titles";
+import { onConversationsChanged } from "../lib/ipc/conversations";
+import { coalesced } from "../lib/shown-window";
 import { pastWhen } from "../lib/time-words";
 import { useKeys } from "../lib/use-keys";
 import type { RailItem } from "../lib/rail-items";
@@ -175,6 +177,22 @@ export function MorningSummary({
   const summary = kept && (seenAt === null || kept.generated_ms > seenAt) ? kept : null;
   // The groups opened past their first few rows.
   const [open, setOpen] = useState<ReadonlySet<string>>(() => new Set());
+  // 0.4.5: a session's name can come after the card's first read (the
+  // conversation pass's first run at launch; a title a tool writes later),
+  // and the card read only when Home opened, so its rows stayed
+  // "<folder> · started …" while Pick up named them. It reads again when
+  // the conversation index changes (not on each live turn), at most every
+  // 5 s, and only while the window shows.
+  useEffect(() => {
+    const again = coalesced(() => void summaryRead.refresh(), 5_000);
+    const stop = onConversationsChanged((change) => {
+      if (change === "index") again.ask();
+    });
+    return () => {
+      stop();
+      again.stop();
+    };
+  }, []);
   if (!summary || summary.rows.length === 0) return null;
   const headline = summaryHeadline(summary.counts);
   const at = now ?? summary.generated_ms;

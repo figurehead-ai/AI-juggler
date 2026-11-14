@@ -5,10 +5,21 @@
  * renders when nothing happened.
  */
 import { act, cleanup, fireEvent, render, waitFor } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MorningSummary, olderThanCard, sinceHeading, whenLine } from "./MorningSummary";
 import { summaryHeadline } from "../lib/ended-how";
 import type { SummaryRowInfo } from "../types/generated/SummaryRowInfo";
+
+// The card's conversation-index listener, heard by the test (the preview's
+// own seam only ever says "live").
+const heard = vi.hoisted(() => [] as Array<(change: "live" | "index") => void>);
+vi.mock("../lib/ipc/conversations", async (actual) => ({
+  ...(await actual<typeof import("../lib/ipc/conversations")>()),
+  onConversationsChanged: (handler: (change: "live" | "index") => void) => {
+    heard.push(handler);
+    return () => heard.splice(heard.indexOf(handler), 1);
+  },
+}));
 
 const w = () => window as unknown as Record<string, unknown>;
 const row = (id: string, group: string, words: string, over: Partial<SummaryRowInfo> = {}): SummaryRowInfo => ({
@@ -38,6 +49,26 @@ beforeEach(() => {
 });
 
 describe("AJ-E1004 morning summary", () => {
+  it("reads again when the conversation index changes, so a name that came later shows; not on a live turn (0.4.5)", async () => {
+    const summary = (title?: string) => ({
+      since_ms: 1_800_000_000_000 - 8 * 3_600_000,
+      generated_ms: 1_800_000_000_000,
+      rows: [row("s1", "finished", "Finished", title ? { title } : {})],
+      counts: { finished: 1 },
+      leftovers: 0,
+    });
+    w().__AIJ_SUMMARY__ = summary();
+    const { container } = render(<MorningSummary onOpenSession={() => undefined} />);
+    const name = () => container.querySelector("[data-testid='summary-name']")?.textContent;
+    await waitFor(() => expect(name()).toMatch(/^storefront · started /));
+    w().__AIJ_SUMMARY__ = summary("Add retries with backoff to the webhook client");
+    act(() => heard.forEach((handler) => handler("live")));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(name()).toMatch(/^storefront · started /);
+    act(() => heard.forEach((handler) => handler("index")));
+    await waitFor(() => expect(name()).toBe("Add retries with backoff to the webhook client"));
+  });
+
   it("leads every row with the session's own name, alike ones told apart, then its App (0.4.5, persona D3)", async () => {
     w().__AIJ_SUMMARY__ = {
       since_ms: 1_800_000_000_000 - 8 * 3_600_000,
