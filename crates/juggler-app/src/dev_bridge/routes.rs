@@ -369,6 +369,10 @@ read_routes! {
 #[cfg(test)]
 pub const NOT_SERVED: &[(&str, &str)] = &[
     (
+        "main_window::app_close_note_due",
+        "the note a close of the native window owes (D-112); a browser page has no such window",
+    ),
+    (
         "features::messages::commands::messages_doc",
         "a shared document's whole text; the list of documents is served",
     ),
