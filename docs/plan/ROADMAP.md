@@ -120,6 +120,7 @@ D-24 blockers ship as 0.4.x.
 | Area | Tasks |
 |---|---|
 | Idle CPU's open ends: the web content's and GPU's brief spikes traced, Home drawing only on a change, a fully covered window measured | AJ-E812, AJ-E813, AJ-E814 |
+| A speed test that fails under load: the relation counts proven cached by the work done, the timing moved to a benchmark that is not a gate | AJ-E815 |
 
 ## 0.5 — More tools and teams
 

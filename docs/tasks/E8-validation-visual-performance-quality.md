@@ -243,3 +243,16 @@
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E805/idle-0.4.6.md`.
 **Files to touch**: the measurement tools only, unless a cause is found.
 **Handover note**: 0.4.5's rounds couldn't cover the window without activating another app (`open -j` left it 100 % uncovered).
+
+### AJ-E815 The relation counts' speed test measures the work, not the clock | Status: TODO | Priority P1 | Effort S | Depends: AJ-E3102
+**Goal**: `ten_thousand_sessions_count_cold_within_a_second_and_cached_within_5_ms` (`crates/juggler-app/tests/relations.rs`) gates on wall-clock bars of 5 ms; under load it fails with nothing wrong. Make it prove the cache works by what it does, and move the timing out of the gate.
+**User story**: As a maintainer, I want a red test to mean a real regression, never a busy Mac or a loaded CI runner.
+**Requirements**:
+1. The cached counts SHALL be shown cached by work done: no rebuild across all 540 counts and the one `counts_many` ask (`state.relations.builds()` unchanged), and no session row read for them (a rows-read counter, or a fake store that counts its reads); a change SHALL still rebuild only the stale part (`builds() + 1`, as now).
+2. The cold rebuild of 10 000 sessions SHALL keep only a generous bound (at least 10× its unloaded time), or none, with its work checked the same way.
+3. The timings SHALL go to a separate benchmark that is not a gate (`cargo bench` or an ignored test run by name), printing the same `[perf]` lines and the old 1 s / 5 ms budgets beside them.
+4. Every other gate test asserting an elapsed time under 50 ms SHALL be listed in the commit and changed the same way, or kept with its reason.
+**Quality gates**: The test passes under a CPU load of several busy cores (a bounded, self-cleaning load generator; `pgrep -x yes` is 0 afterwards), and fails when the cache is bypassed (a scratch change that rebuilds on every count).
+**Evidence/validation proof**: the loaded run and the failing scratch run, named in the commit.
+**Files to touch**: `crates/juggler-app/tests/relations.rs`, the relations cache's counters (`crates/juggler-app/src/features/relations/`) if a rows-read counter is missing, a bench target.
+**Handover note**: 0.4.5's light preflight on b694d08e3 failed it once at a load average of 20–29 (the slowest of 540 cached counts 97 ms against 5 ms; the cold rebuild 561 ms against 1 s); the same test passed three times alone right after.
