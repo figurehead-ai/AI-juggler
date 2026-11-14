@@ -950,7 +950,6 @@ mod tests {
                     modified: None,
                     conversation: Some(conversation),
                     complete: true,
-                    counted_at: None,
                 },
             );
         };

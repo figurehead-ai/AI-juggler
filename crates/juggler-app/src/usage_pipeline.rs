@@ -131,10 +131,6 @@ struct AccountOffsets {
     legacy_spool: u64,
     #[serde(default)]
     files: BTreeMap<String, u64>,
-    /// Per Codex rollout: what its last slice left for the next one (the
-    /// model, the last total, compactions waiting for their thread).
-    #[serde(default)]
-    carries: BTreeMap<String, juggler_adapters::RolloutCarry>,
     /// Claude: how far its own limit records were read (the app's meter,
     /// Claude Code's last `/usage`, the look back for limit hits).
     #[serde(default)]
@@ -163,6 +159,10 @@ struct IngestState {
     /// saved).
     #[serde(skip)]
     progress: Option<Arc<Reading>>,
+    /// The files whose usage this pass took from their readers (never
+    /// saved).
+    #[serde(skip)]
+    taken: Vec<(String, PathBuf)>,
 }
 
 /// A Codex account's P21 check to make, with the threads whose rollouts
@@ -248,7 +248,6 @@ impl IngestState {
     fn read_again(&mut self) {
         for offsets in self.offsets.values_mut() {
             offsets.files.values_mut().for_each(|offset| *offset = 0);
-            offsets.carries.clear();
         }
     }
 }
@@ -286,6 +285,12 @@ fn ingest_pass_due(state: &Arc<AppState>, tick: u32, due: gate::Due, named: Opti
     let named = named.filter(|_| !rereading);
     let first = start_first_read(state, &mut ingest);
     if rereading {
+        // Their readers too: every line is read again (AJ-E805). On the
+        // first read nothing was taken from them yet: what they read is
+        // all still there.
+        if !first {
+            state.transcripts.retain(|_, _| false);
+        }
         ingest.read_again();
     }
     let mut store_batch: Vec<juggler_core::quota::UsageEvent> = Vec::new();
@@ -306,6 +311,11 @@ fn ingest_pass_due(state: &Arc<AppState>, tick: u32, due: gate::Due, named: Opti
         if dir.as_os_str().is_empty() {
             continue;
         }
+        let adapter = state.registry.get(&account.harness);
+        let source = adapter.as_deref().map(|adapter| Source {
+            readers: &state.transcripts,
+            adapter,
+        });
         match harness.as_str() {
             "claude-code" if rereading || due.claude => {
                 // ADR-0018: an account's capture lives in AI Juggler's own
@@ -314,7 +324,7 @@ fn ingest_pass_due(state: &Arc<AppState>, tick: u32, due: gate::Due, named: Opti
                 let spool =
                     juggler_adapters::overlay_spool_path(&state.overlays_dir(), &account_id);
                 ingest_claude(
-                    &account_id,
+                    (&account_id, source),
                     &dir,
                     &spool,
                     &mut ingest,
@@ -325,7 +335,7 @@ fn ingest_pass_due(state: &Arc<AppState>, tick: u32, due: gate::Due, named: Opti
             }
             "codex" if rereading || due.codex => {
                 ingest_codex(
-                    &account_id,
+                    (&account_id, source),
                     &dir,
                     &mut ingest,
                     &mut store_batch,
@@ -347,54 +357,86 @@ fn ingest_pass_due(state: &Arc<AppState>, tick: u32, due: gate::Due, named: Opti
         }
     }
 
-    if !before_store(state, rereading, &mut store_batch) {
+    // What the pass took from the transcripts' readers is theirs no more:
+    // a pass that stores less than all of it reads it again from the
+    // offsets saved, through new readers (AJ-E805).
+    let taken = std::mem::take(&mut ingest.taken);
+    let stored_all = store_pass(
+        state,
+        (&mut ingest, saved.as_deref()),
+        (rereading, first),
+        &accounts,
+        (&mut store_batch, &sample_batch),
+        (&credits_batch, &checks),
+    );
+    if !stored_all {
+        state
+            .transcripts
+            .retain(|account, path| !taken.iter().any(|(a, p)| a == account && p == path));
         return;
-    }
-
-    // Single writer, in chunks (QA batch 9: a first pass on a heavy setup
-    // held storage for over a minute in one write, and every screen and
-    // the conversation index waited behind it). Offsets are saved only
-    // once every chunk is in: when a write fails, the next pass reads the
-    // same lines again (the store dedupes what an earlier chunk kept).
-    let Some(stored) = store_in_chunks(state, rereading, &store_batch) else {
-        return;
-    };
-    if let Ok(storage) = state.storage.lock() {
-        let usage = storage.usage();
-        if rereading {
-            // 0.3.8: copies two accounts hold that no file read reached.
-            if usage.settle_copies().is_err() {
-                return;
-            }
-            ingest.reread = REREAD_VERSION;
-            if usage.clear_derived_dirty().is_err() {
-                return;
-            }
-            if first {
-                state.usage_reading.end();
-            }
-        } else {
-            // AJ-E1103: Measured tokens this pass added (D-06): a new
-            // response, or the rest of one an earlier pass began. A re-read
-            // is not new use.
-            crate::usage_stats::tokens_ingested(&accounts, &store_batch, &stored);
-        }
-        if usage.insert_sourced_samples(&sample_batch.windows).is_err()
-            || usage
-                .insert_model_week_samples(&sample_batch.model_weeks)
-                .is_err()
-        {
-            return;
-        }
-        save_credits(&storage, &credits_batch);
-        forget_duplicated_compactions(&storage, &mut ingest, &checks);
-        save_if_changed(&storage, &ingest, saved.as_deref());
     }
     // D-39 (off until ruled): ask the tool itself for profiles whose own
     // records are old.
     if instances.is_some() {
         crate::features::quota::probe::tick(state, &accounts);
     }
+}
+
+/// Stores what a pass read, then its offsets; `false` when any of it
+/// wasn't stored (the offsets then stay as they were).
+fn store_pass(
+    state: &Arc<AppState>,
+    (ingest, saved): (&mut IngestState, Option<&str>),
+    (rereading, first): (bool, bool),
+    accounts: &[juggler_core::model::Account],
+    (store_batch, sample_batch): (&mut Vec<juggler_core::quota::UsageEvent>, &SampleBatch),
+    (credits_batch, checks): (&Credits, &[CompactionCheck]),
+) -> bool {
+    if !before_store(state, rereading, store_batch) {
+        return false;
+    }
+    // Single writer, in chunks (QA batch 9: a first pass on a heavy
+    // setup held storage for over a minute in one write, and every
+    // screen and the conversation index waited behind it). Offsets are
+    // saved only once every chunk is in: when a write fails, the next
+    // pass reads the same lines again (the store dedupes what an
+    // earlier chunk kept).
+    let Some(stored) = store_in_chunks(state, rereading, store_batch) else {
+        return false;
+    };
+    let Ok(storage) = state.storage.lock() else {
+        return false;
+    };
+    let usage = storage.usage();
+    if rereading {
+        // 0.3.8: copies two accounts hold that no file read reached.
+        if usage.settle_copies().is_err() {
+            return false;
+        }
+        ingest.reread = REREAD_VERSION;
+        if usage.clear_derived_dirty().is_err() {
+            return false;
+        }
+        if first {
+            state.usage_reading.end();
+        }
+    } else {
+        // AJ-E1103: Measured tokens this pass added (D-06): a new
+        // response, or the rest of one an earlier pass began. A re-read
+        // is not new use.
+        crate::usage_stats::tokens_ingested(accounts, store_batch, &stored);
+    }
+    if usage.insert_sourced_samples(&sample_batch.windows).is_err()
+        || usage
+            .insert_model_week_samples(&sample_batch.model_weeks)
+            .is_err()
+    {
+        return false;
+    }
+    save_credits(&storage, credits_batch);
+    forget_duplicated_compactions(&storage, ingest, checks);
+    save_if_changed(&storage, ingest, saved);
+    true
 }
 
 /// Stored calls priced again per batch: a pass holds storage for one
@@ -634,7 +676,7 @@ fn session_chunks(
 /// hit in a transcript is the folder's it was spent on (`spent`: a moved
 /// conversation's, the one it left).
 fn ingest_claude(
-    account: &str,
+    (account, source): (&str, Option<Source<'_>>),
     dir: &Path,
     spool: &Path,
     ingest: &mut IngestState,
@@ -686,20 +728,13 @@ fn ingest_claude(
     } else {
         let mut files = Vec::new();
         let _ = collect_files(&projects, &mut files, is_jsonl);
-        forget_missing(ingest, account, &projects, &files);
+        forget_missing((ingest, source), account, &projects, &files);
         files
     };
     // Limit hits ride in the transcripts: Claude Code's own record of a
     // window running out, with the vendor's reset.
     for path in &files {
-        let outcome = tail_one(
-            account,
-            "transcript",
-            path,
-            |path, account, offset, _| juggler_adapters::tail_transcript(path, account, offset),
-            ingest,
-            store,
-        );
+        let outcome = tail_one(source, account, "transcript", path, ingest, store);
         for (kind, sample) in outcome.samples {
             if let Some(on) = spent.folder(account, path, sample.ts) {
                 samples
@@ -737,7 +772,7 @@ fn ingest_claude(
 /// `token_count` lines also carry Codex's own limit readings: Measured
 /// samples, and the latest credits snapshot.
 fn ingest_codex(
-    account: &str,
+    (account, source): (&str, Option<Source<'_>>),
     dir: &Path,
     ingest: &mut IngestState,
     store: &mut Vec<juggler_core::quota::UsageEvent>,
@@ -754,7 +789,7 @@ fn ingest_codex(
         false
     } else {
         let complete = collect_files(&sessions, &mut files, rollout);
-        forget_missing(ingest, account, &sessions, &files);
+        forget_missing((ingest, source), account, &sessions, &files);
         complete
     };
     // Only from a whole listing with rollouts in it: an empty, missing or
@@ -777,14 +812,7 @@ fn ingest_codex(
     }
     let mut latest: Option<juggler_adapters::CreditsSnapshot> = None;
     for path in files {
-        let outcome = tail_one(
-            account,
-            "rollout",
-            &path,
-            juggler_adapters::tail_rollout,
-            ingest,
-            store,
-        );
+        let outcome = tail_one(source, account, "rollout", &path, ingest, store);
         for (kind, sample) in outcome.samples {
             samples.windows.push((
                 account.to_owned(),
@@ -832,15 +860,25 @@ fn ingest_zcode(
     }
 }
 
-/// Reads one file's next slice: its path, account, offset and carry.
-type Tail = fn(&Path, &str, u64, &juggler_adapters::RolloutCarry) -> juggler_adapters::TailOutcome;
+/// Where a pass reads an account's transcripts: their readers, shared with
+/// the conversation list (AJ-E805), made by the account's tool.
+#[derive(Clone, Copy)]
+struct Source<'a> {
+    readers: &'a crate::transcript_readers::Readers,
+    adapter: &'a dyn juggler_adapter::HarnessAdapter,
+}
 
-/// Forgets the offsets and carries of an account's files that are no longer
-/// on disk (deleted, or moved away), so the state doesn't grow with every
-/// file there ever was. Only when `root` could be listed: a folder that is
-/// gone or unreadable for a moment forgets nothing (else the next pass
-/// would read every file again from its start).
-fn forget_missing(ingest: &mut IngestState, account: &str, root: &Path, files: &[PathBuf]) {
+/// Forgets the offsets (and readers) of an account's files that are no
+/// longer on disk (deleted, or moved away), so the state doesn't grow with
+/// every file there ever was. Only when `root` could be listed: a folder
+/// that is gone or unreadable for a moment forgets nothing (else the next
+/// pass would read every file again from its start).
+fn forget_missing(
+    (ingest, source): (&mut IngestState, Option<Source<'_>>),
+    account: &str,
+    root: &Path,
+    files: &[PathBuf],
+) {
     if std::fs::read_dir(root).is_err() {
         return;
     }
@@ -852,7 +890,13 @@ fn forget_missing(ingest: &mut IngestState, account: &str, root: &Path, files: &
         .map(|path| path.to_string_lossy().to_string())
         .collect();
     offsets.files.retain(|path, _| present.contains(path));
-    offsets.carries.retain(|path, _| present.contains(path));
+    if let Some(source) = source {
+        source.readers.retain(|of, path| {
+            of != account
+                || !path.starts_with(root)
+                || present.contains(path.to_string_lossy().as_ref())
+        });
+    }
 }
 
 /// The high-water key, in an account's offsets, of a store read by time.
@@ -902,42 +946,38 @@ fn ingest_store(
     }
 }
 
-/// Tails one file from its stored offset and carry: its events go to the
-/// store, the offset, carry and health are recorded; the rest of the
-/// outcome (samples, credits) is returned for the caller.
+/// Reads one file on from its stored offset, through its reader (shared
+/// with the conversation list: AJ-E805): its events go to the store, the
+/// offset and health are recorded; the rest (samples, credits) is returned
+/// for the caller.
 fn tail_one(
+    source: Option<Source<'_>>,
     account: &str,
-    source: &str,
+    kind: &str,
     path: &Path,
-    tail: Tail,
     ingest: &mut IngestState,
     store: &mut Vec<juggler_core::quota::UsageEvent>,
-) -> juggler_adapters::TailOutcome {
+) -> juggler_adapter::transcript_read::UsageRead {
     if let Some(progress) = &ingest.progress {
         progress.file_read();
     }
     let key = path.to_string_lossy().to_string();
     let offsets = ingest.offsets.entry(account.to_owned()).or_default();
     let offset = offsets.files.get(&key).copied().unwrap_or(0);
-    let carry = offsets.carries.get(&key).cloned().unwrap_or_default();
     // 0.3.5: a file read to its end is skipped by its size alone, never
     // opened (each pass opened every transcript of every account).
-    if carry == juggler_adapters::RolloutCarry::default()
-        && offset > 0
-        && std::fs::metadata(path).is_ok_and(|meta| meta.len() == offset)
-    {
-        return juggler_adapters::TailOutcome {
-            offset,
-            ..juggler_adapters::TailOutcome::default()
-        };
+    if offset > 0 && std::fs::metadata(path).is_ok_and(|meta| meta.len() == offset) {
+        return juggler_adapter::transcript_read::UsageRead::default();
     }
-    let mut outcome = tail(path, account, offset, &carry);
-    if outcome.carry == juggler_adapters::RolloutCarry::default() {
-        offsets.carries.remove(&key);
-    } else {
-        offsets.carries.insert(key.clone(), outcome.carry.clone());
-    }
-    offsets.files.insert(key, outcome.offset);
+    let Some((read_to, mut outcome)) = source.and_then(|source| {
+        source
+            .readers
+            .take_usage(source.adapter, account, path, offset)
+    }) else {
+        return juggler_adapter::transcript_read::UsageRead::default();
+    };
+    offsets.files.insert(key, read_to);
+    ingest.taken.push((account.to_owned(), path.to_path_buf()));
     let latest = outcome
         .events
         .iter()
@@ -947,17 +987,17 @@ fn tail_one(
     let errors = outcome.parse_errors;
     store.append(&mut outcome.events);
     if latest.is_some() || errors > 0 {
-        record_health(ingest, account, source, latest, errors, "");
+        record_health(ingest, account, kind, latest, errors, "");
     }
     if let Some(reason) = outcome.unread {
-        record_health(ingest, account, source, None, 1, reason);
+        record_health(ingest, account, kind, None, 1, reason);
     }
     if outcome.dropped > 0 {
         // Damage, counted like a bad line: usage that won't be counted.
         record_health(
             ingest,
             account,
-            source,
+            kind,
             None,
             outcome.dropped,
             "compactions dropped before their thread was known",
@@ -1068,6 +1108,7 @@ pub fn source_health(state: &Arc<AppState>) -> Vec<SourceHealthInfo> {
 /// original): drop its read offsets so the next pass reads the new place
 /// from the start; the store's `(account, msg_uuid)` dedupe absorbs repeats.
 pub fn forget_account_offsets(state: &Arc<AppState>, account: &str) {
+    state.transcripts.retain(|of, _| of != account);
     let mut ingest = load_state(state);
     if ingest.offsets.remove(account).is_none() {
         return;
@@ -1311,7 +1352,8 @@ mod cadence_tests {
     }
 
     /// 0.3.5: a file already read to its end isn't handed to the reader
-    /// (opened) again; one that grew is.
+    /// (opened) again; one that grew is, and only what was written since is
+    /// read (AJ-E805).
     #[test]
     fn a_file_read_to_its_end_is_skipped_by_its_size() {
         let dir = tempfile::tempdir().unwrap();
@@ -1319,26 +1361,21 @@ mod cadence_tests {
         std::fs::write(&path, "{}\n").unwrap();
         let mut ingest = IngestState::default();
         let mut store = Vec::new();
-        static OPENED: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
-        fn tail(
-            _: &Path,
-            _: &str,
-            _: u64,
-            _: &juggler_adapters::RolloutCarry,
-        ) -> juggler_adapters::TailOutcome {
-            OPENED.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-            juggler_adapters::TailOutcome {
-                offset: 3,
-                ..juggler_adapters::TailOutcome::default()
-            }
-        }
-        let opened = || OPENED.load(std::sync::atomic::Ordering::SeqCst);
-        tail_one("a", "transcript", &path, tail, &mut ingest, &mut store);
-        assert_eq!(opened(), 1, "a new file is read");
-        tail_one("a", "transcript", &path, tail, &mut ingest, &mut store);
-        assert_eq!(opened(), 1, "read to its end: skipped");
+        let readers = crate::transcript_readers::Readers::default();
+        let adapter = juggler_adapters::ClaudeCodeAdapter::with_bin("/bin/true");
+        let source = Some(Source {
+            readers: &readers,
+            adapter: &adapter,
+        });
+        let read = juggler_adapters::transcript_follow::followed_here;
+        let start = read();
+        let mut tail = || tail_one(source, "a", "transcript", &path, &mut ingest, &mut store);
+        tail();
+        assert_eq!(read() - start, 3, "a new file is read");
+        tail();
+        assert_eq!(read() - start, 3, "read to its end: skipped");
         std::fs::write(&path, "{}\n{}\n").unwrap();
-        tail_one("a", "transcript", &path, tail, &mut ingest, &mut store);
-        assert_eq!(opened(), 2, "it grew: read again");
+        tail();
+        assert_eq!(read() - start, 6, "it grew: what was written since");
     }
 }

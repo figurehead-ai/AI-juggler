@@ -76,27 +76,6 @@ struct Entry {
     conversation: Option<Conversation>,
     /// Read whole (its tokens counted), not only its quick read.
     complete: bool,
-    /// When it was last read whole.
-    counted_at: Option<std::time::Instant>,
-}
-
-/// A transcript this big is read whole (for its tokens) at most every
-/// [`WHOLE_EVERY`] while it grows; its quick read keeps the last count
-/// between (0.3.5: a 586 MB live session was read whole every 15 s and
-/// kept a core busy).
-const WHOLE_BIG: u64 = 32 * 1024 * 1024;
-
-/// How often a big, growing transcript is read whole.
-const WHOLE_EVERY: std::time::Duration = std::time::Duration::from_secs(300);
-
-/// Whether a file of `len` bytes, last read whole at `counted_at`, is due
-/// a whole read at `now`.
-fn whole_read_due(
-    len: u64,
-    counted_at: Option<std::time::Instant>,
-    now: std::time::Instant,
-) -> bool {
-    len <= WHOLE_BIG || counted_at.is_none_or(|at| now.saturating_duration_since(at) >= WHOLE_EVERY)
 }
 
 /// Calls a pass's `progress` every `every` that read something.
@@ -187,11 +166,6 @@ fn store(
         before.and_then(|entry| entry.conversation.as_ref()),
         conversation.as_ref(),
     );
-    let counted_at = if complete {
-        Some(std::time::Instant::now())
-    } else {
-        before.and_then(|entry| entry.counted_at)
-    };
     let conversation =
         conversation.map(|conversation| carry_tokens(conversation, complete, before));
     files.insert(
@@ -201,7 +175,6 @@ fn store(
             modified,
             conversation,
             complete,
-            counted_at,
         },
     );
     drop(files);
@@ -232,8 +205,9 @@ fn note_placed(index: &ConversationIndex, was: Option<&Conversation>, now: Optio
     }
 }
 
-/// A quick read (a changed file's start and end) counts no tokens: until
-/// the whole file is read again, it keeps the count its last read had, so
+/// A quick read (a big file's start and end, before its reader has read
+/// it: 0.4.5, AJ-E805) counts no tokens: until its reader has, it keeps
+/// the count its last read had, so
 /// a live session's usage never flips to "not measured" and back on every
 /// pass (a transcript only grows, so the last count is a floor).
 fn carry_tokens(
@@ -1409,7 +1383,6 @@ mod tests {
             modified: None,
             conversation: None,
             complete: true,
-            counted_at: None,
         };
         {
             let mut files = index.files.lock().unwrap();
@@ -1505,30 +1478,7 @@ mod tests {
             modified: None,
             conversation: Some(conversation),
             complete,
-            counted_at: None,
         }
-    }
-
-    /// 0.3.5: a big transcript that grows is read whole at most every five
-    /// minutes; a small one, or one never read whole, every time.
-    #[test]
-    fn a_big_growing_transcript_is_read_whole_at_most_every_five_minutes() {
-        let now = std::time::Instant::now();
-        let big = WHOLE_BIG + 1;
-        assert!(
-            whole_read_due(1_000, Some(now), now),
-            "a small file: always"
-        );
-        assert!(whole_read_due(big, None, now), "never read whole: now");
-        assert!(
-            !whole_read_due(big, Some(now), now),
-            "just read whole: not again"
-        );
-        let earlier = now.checked_sub(WHOLE_EVERY).unwrap();
-        assert!(
-            whole_read_due(big, Some(earlier), now),
-            "five minutes on: again"
-        );
     }
 
     #[test]

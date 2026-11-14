@@ -565,6 +565,254 @@ fn import_in_place(state: &Arc<AppState>, config: &Path, label: &str) -> String 
     .to_string()
 }
 
+/// 0.4.5 (AJ-E805): a transcript that grows is read once, as it grows, by
+/// one reader that both the conversation list and the usage reading take
+/// from. The list's 15 s pass read every changed transcript whole again for
+/// its tokens (every pass under 32 MB), so a working session cost more the
+/// longer it ran; and the usage reading tailed the same file beside it.
+#[test]
+fn a_pass_reads_only_what_was_appended() {
+    use juggler_adapters::transcript_follow::followed_here;
+    const ID: &str = "1c1c1c1c-0000-4000-8000-0000000000b1";
+    let work = tempfile::tempdir().unwrap();
+    let root = work.path().canonicalize().unwrap();
+    let app = root.join("Dev/app");
+    std::fs::create_dir_all(app.join(".git")).unwrap();
+    let config = root.join("setup");
+    transcript(&config, &app, ID, "Fix the login test");
+    let file = config
+        .join("projects")
+        .join(app.to_string_lossy().replace(['/', '.'], "-"))
+        .join(format!("{ID}.jsonl"));
+    let answer = |n: usize| {
+        format!(
+            "{{\"type\":\"assistant\",\"sessionId\":\"{ID}\",\"cwd\":\"{}\",\"timestamp\":\"2026-10-21T10:01:00.000Z\",\"requestId\":\"req-{n}\",\"uuid\":\"u-{n}\",\"message\":{{\"id\":\"msg-{n}\",\"role\":\"assistant\",\"content\":\"{}\",\"usage\":{{\"input_tokens\":10,\"output_tokens\":2}}}}}}\n",
+            app.display(),
+            "x".repeat(400)
+        )
+    };
+    // Big enough for the quick read's two ends (320 KB) and more.
+    let mut text = std::fs::read_to_string(&file).unwrap();
+    for n in 0..1_000 {
+        text.push_str(&answer(n));
+    }
+    std::fs::write(&file, &text).unwrap();
+    let mut registry = AdapterRegistry::new();
+    registry.register(Arc::new(ClaudeCodeAdapter::with_bin("/bin/true")));
+    let state = Arc::new(AppState::init_with_registry(root.join("app-data"), registry).unwrap());
+    let account = import_in_place(&state, &config, "Work");
+    let tokens = || {
+        state
+            .conversations
+            .all()
+            .unwrap()
+            .into_iter()
+            .find(|c| c.summary.id == ID)
+            .map(|c| (c.summary.tokens.input, c.summary.tokens.output))
+    };
+    let stored = || {
+        let storage = state.storage.lock().unwrap();
+        storage
+            .usage()
+            .events_for_account(&account, 0)
+            .unwrap()
+            .len()
+    };
+    let start = followed_here();
+    conversations::tick(&state).unwrap();
+    juggler_app::usage_pipeline::ingest_pass(&state, 4);
+    assert_eq!(tokens(), Some((10_000, 2_000)));
+    assert_eq!(stored(), 1_000);
+    let whole = std::fs::metadata(&file).unwrap().len();
+    assert_eq!(
+        followed_here() - start,
+        whole,
+        "the first read reads it once, for both"
+    );
+    // One more answer: both read only it.
+    let line = answer(1_000);
+    let mut appended = std::fs::OpenOptions::new()
+        .append(true)
+        .open(&file)
+        .unwrap();
+    std::io::Write::write_all(&mut appended, line.as_bytes()).unwrap();
+    drop(appended);
+    let before = followed_here();
+    assert!(
+        conversations::tick(&state).unwrap(),
+        "the pass read the line"
+    );
+    juggler_app::usage_pipeline::ingest_pass(&state, 8);
+    assert_eq!(
+        followed_here() - before,
+        line.len() as u64,
+        "what was appended, and only that"
+    );
+    assert_eq!(tokens(), Some((10_010, 2_002)));
+    assert_eq!(stored(), 1_001);
+}
+
+/// What the session page's Conversation panel is sent.
+struct Kept;
+
+impl conversations::feed::DeltaSink for Kept {
+    fn send(&self, _: conversations::feed::dto::ConversationDeltaInfo) -> bool {
+        true
+    }
+}
+
+/// The turns the panel shows for `account`'s conversation `id`, as
+/// `conversations_follow` reads them: its file from the index, then the
+/// feed.
+fn panel_turns(state: &Arc<AppState>, account: &str, id: &str) -> (String, Vec<String>) {
+    let path = state.conversations.path_of(account, id);
+    assert!(path.is_some(), "the index names the conversation's file");
+    let feeds = Arc::new(conversations::feed::Feeds::default());
+    let snapshot = conversations::feed::follow_impl(
+        state,
+        &feeds,
+        conversations::feed::FeedKey {
+            account: account.to_owned(),
+            conversation: id.to_owned(),
+            subagent: None,
+        },
+        path,
+        Some(20),
+        Arc::new(Kept),
+    );
+    if let Some(subscription) = snapshot.subscription {
+        conversations::feed::unfollow_impl(&feeds, subscription);
+    }
+    let said = snapshot
+        .turns
+        .iter()
+        .flat_map(|turn| &turn.blocks)
+        .map(|block| block.text.clone())
+        .collect();
+    (snapshot.state, said)
+}
+
+/// 0.4.5: the session page's Conversation panel reads a Claude Code
+/// conversation's turns, written as the lab's replica writes them (a
+/// title line, then turns), and a Codex thread's (the coordinator's walk:
+/// the panel's placeholders never filled on a build with the transcript
+/// readers).
+#[test]
+fn a_conversations_turns_reach_the_session_pages_panel() {
+    const ID: &str = "6a9fa8e6-0f05-4268-8408-e5f7c82c78b9";
+    let work = tempfile::tempdir().unwrap();
+    let root = work.path().canonicalize().unwrap();
+    let app = root.join("repos/api");
+    std::fs::create_dir_all(app.join(".git")).unwrap();
+    let config = root.join("setup");
+    let dir = config
+        .join("projects")
+        .join(app.to_string_lossy().replace(['/', '.'], "-"));
+    std::fs::create_dir_all(&dir).unwrap();
+    let line = |kind: &str, uuid: &str, parent: &str, at: &str, message: &str| {
+        format!(
+            r#"{{"parentUuid": {parent}, "isSidechain": false, "userType": "external", "cwd": "{}", "sessionId": "{ID}", "version": "2.1.296", "gitBranch": "main", "uuid": "{uuid}", "timestamp": "2026-11-10T20:{at}.000Z", "type": "{kind}", "message": {message}}}"#,
+            app.display()
+        )
+    };
+    let reply = |id: &str, text: &str| {
+        format!(
+            r#"{{"id": "msg_{id}", "type": "message", "role": "assistant", "model": "claude-sonnet-4-5", "content": [{{"type": "text", "text": "{text}"}}], "stop_reason": "end_turn", "usage": {{"input_tokens": 120, "cache_creation_input_tokens": 300, "cache_read_input_tokens": 1200, "output_tokens": 80, "service_tier": "standard"}}}}"#
+        )
+    };
+    let lines = [
+        r#"{"type": "summary", "summary": "Fix the login flow in the api", "leafUuid": "leaf"}"#
+            .to_owned(),
+        line(
+            "user",
+            "u1",
+            "null",
+            "00:00",
+            r#"{"role": "user", "content": "Fix the login flow in the api"}"#,
+        ),
+        line(
+            "assistant",
+            "a1",
+            "\"u1\"",
+            "01:00",
+            &reply("a1", "The session cookie expires too early."),
+        ),
+        line(
+            "user",
+            "u2",
+            "\"a1\"",
+            "05:00",
+            r#"{"role": "user", "content": "Keep going."}"#,
+        ),
+        line(
+            "assistant",
+            "a2",
+            "\"u2\"",
+            "06:00",
+            &reply("a2", "Done: the change is in and the tests pass."),
+        ),
+    ];
+    std::fs::write(dir.join(format!("{ID}.jsonl")), lines.join("\n") + "\n").unwrap();
+    // A Codex home with one thread (the adapters' paginated fixture).
+    let codex = root.join("codex-home");
+    let day = codex.join("sessions/2026/10/20");
+    std::fs::create_dir_all(&day).unwrap();
+    std::fs::write(codex.join("config.toml"), "model = \"gpt-5\"\n").unwrap();
+    std::fs::write(
+        codex.join("auth.json"),
+        r#"{"auth_mode":"chatgpt","tokens":{"refresh_token":"fixture"}}"#,
+    )
+    .unwrap();
+    std::fs::copy(
+        Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../juggler-adapters/tests/fixtures/codex/rollout-paginated.jsonl"),
+        day.join("rollout-2026-10-20T08-00-00-019a1b2c-0000-7000-8000-00000000c0de.jsonl"),
+    )
+    .unwrap();
+    let mut registry = AdapterRegistry::new();
+    registry.register(Arc::new(ClaudeCodeAdapter::with_bin("/bin/true")));
+    registry.register(Arc::new(
+        juggler_adapters::CodexAdapter::with_bin("/bin/true").with_home(&codex),
+    ));
+    let state = Arc::new(AppState::init_with_registry(root.join("app-data"), registry).unwrap());
+    let claude = import_in_place(&state, &config, "Work");
+    let codex_account = juggler_app::features::account::import::account_import_mode_impl(
+        &state,
+        "codex",
+        codex.to_str().unwrap(),
+        "Codex work",
+        juggler_app::features::account::import::ImportRequest {
+            in_place: true,
+            origin: Some("home-pattern".into()),
+            ..juggler_app::features::account::import::ImportRequest::default()
+        },
+    )
+    .unwrap()
+    .account
+    .id
+    .to_string();
+    conversations::tick(&state).unwrap();
+    let (shown, said) = panel_turns(&state, &claude, ID);
+    assert_eq!(shown, "shown");
+    for words in [
+        "Fix the login flow in the api",
+        "The session cookie expires too early.",
+        "Done: the change is in and the tests pass.",
+    ] {
+        assert!(
+            said.iter().any(|text| text.contains(words)),
+            "{words:?} in {said:?}"
+        );
+    }
+    let (shown, said) = panel_turns(
+        &state,
+        &codex_account,
+        "019a1b2c-0000-7000-8000-00000000c0de",
+    );
+    assert_eq!(shown, "shown");
+    assert!(!said.is_empty(), "the thread's turns");
+}
+
 /// AJ-E3006 R2, rc19: Continue in AI Juggler on a conversation in the
 /// second of two Apps (the Lab App first, aij-test second, one
 /// subscription) resumes it in aij-test's own folder, in its folder, by

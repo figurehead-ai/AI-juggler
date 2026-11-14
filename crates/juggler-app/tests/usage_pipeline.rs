@@ -23,14 +23,19 @@ use juggler_core::model::{
     Timestamp,
 };
 
+/// The tools whose files the usage reading reads, through their readers
+/// (0.4.5, AJ-E805), as the app registers them.
+fn tools() -> juggler_adapter::AdapterRegistry {
+    let mut registry = juggler_adapter::AdapterRegistry::new();
+    registry.register(Arc::new(juggler_adapters::ClaudeCodeAdapter::with_bin(
+        "/bin/true",
+    )));
+    registry.register(Arc::new(juggler_adapters::CodexAdapter::new()));
+    registry
+}
+
 fn app_state(dir: &Path) -> Arc<AppState> {
-    Arc::new(
-        AppState::init_with_registry(
-            dir.join("app-data"),
-            juggler_adapter::AdapterRegistry::new(),
-        )
-        .unwrap(),
-    )
+    Arc::new(AppState::init_with_registry(dir.join("app-data"), tools()).unwrap())
 }
 
 fn seed_claude_account(state: &Arc<AppState>, dir: &Path) {

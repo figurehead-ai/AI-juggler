@@ -78,6 +78,7 @@ pub mod state;
 pub mod terminal;
 pub mod test_launch;
 pub mod ticks;
+pub mod transcript_readers;
 pub mod transcript_text;
 pub mod updates;
 pub mod usage_pipeline;

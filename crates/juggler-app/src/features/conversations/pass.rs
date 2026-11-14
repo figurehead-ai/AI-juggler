@@ -7,7 +7,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::SystemTime;
 
-use super::{Reporter, gate, list_build, store, whole_read_due};
+use super::{Reporter, gate, list_build, store};
 use crate::error::{AppError, AppResult};
 use crate::state::AppState;
 
@@ -94,10 +94,13 @@ pub(super) fn refresh_files(
     }
     // Two rounds, newest first (QA batch 10: one Mac's Codex rollouts were
     // 6.6 GB, and reading each whole kept everything from showing for over
-    // a minute). First every new or changed file's quick read (its start
-    // and end) where its tool has one, so the list and what's live come
-    // within seconds; then the whole of each file read quickly, for its
-    // tokens. A file read whole in the first round is complete.
+    // a minute). A transcript its reader has read takes only what was
+    // written since (0.4.5, AJ-E805: one reader per transcript, the usage
+    // reading's too; it was read whole again for its tokens on every pass).
+    // A big one not read yet gets its quick read (its start and end) first,
+    // so the list and what's live come within seconds; then its reader
+    // reads it, once, for its tokens. A file read whole in the first round
+    // is complete.
     let mut later = Vec::new();
     for (account, adapter, path, len, modified) in &found {
         report.maybe();
@@ -124,12 +127,18 @@ pub(super) fn refresh_files(
             _ => {}
         }
         // Read outside the lock: a big transcript never holds up a reader.
-        let (summary, complete) = match guarded(|| adapter.read_conversation_quick(path)) {
+        let id = account.id.as_str();
+        let quick = if state.transcripts.is_read(id, path) {
+            None
+        } else {
+            guarded(|| adapter.read_conversation_quick(path))
+        };
+        let (summary, complete) = match quick {
             Some(summary) => {
                 later.push((account, adapter, path, len, modified));
                 (Some(summary), false)
             }
-            None => (guarded(|| adapter.read_conversation(path)), true),
+            None => (read(state, adapter, id, path), true),
         };
         store(state, account, path, *len, *modified, summary, complete)?;
         changed_any = true;
@@ -141,13 +150,9 @@ pub(super) fn refresh_files(
     }
     // What's listed and live, at once, before the long round.
     report.flush();
-    let now = std::time::Instant::now();
     for (account, adapter, path, len, modified) in later {
-        if !whole_read_due(*len, counted_at(state, path)?, now) {
-            continue;
-        }
         report.maybe();
-        let summary = guarded(|| adapter.read_conversation(path));
+        let summary = read(state, adapter, account.id.as_str(), path);
         store(state, account, path, *len, *modified, summary, true)?;
         changed_any = true;
         report.read();
@@ -245,18 +250,21 @@ fn guarded<T>(read: impl FnOnce() -> Option<T>) -> Option<T> {
         .flatten()
 }
 
-/// When `path` was last read whole, if it was.
-fn counted_at(
+/// What `path` says, through its transcript reader (only what was written
+/// since its last read: AJ-E805), or read whole when its tool has none (a
+/// record rewritten whole).
+fn read(
     state: &Arc<AppState>,
+    adapter: &juggler_adapter::SharedAdapter,
+    account: &str,
     path: &std::path::Path,
-) -> AppResult<Option<std::time::Instant>> {
-    Ok(state
-        .conversations
-        .files
-        .lock()
-        .map_err(|_| AppError::StatePoisoned)?
-        .get(path)
-        .and_then(|entry| entry.counted_at))
+) -> Option<juggler_adapter::conversation::ConversationSummary> {
+    guarded(|| {
+        state
+            .transcripts
+            .summary(adapter.as_ref(), account, path)
+            .unwrap_or_else(|| adapter.read_conversation(path))
+    })
 }
 
 /// Forgets every file a pass didn't see (gone from its folder); whether
@@ -272,17 +280,27 @@ fn forget_unseen(
         .files
         .lock()
         .map_err(|_| AppError::StatePoisoned)?;
-    let before = files.len();
     let seen: std::collections::HashSet<PathBuf> = seen.into_iter().collect();
-    files.retain(|path, _| match only {
-        None => seen.contains(path),
-        Some((listed, gone)) => {
-            !gone.contains(path)
-                && (seen.contains(path) || !listed.iter().any(|dir| path.starts_with(dir)))
+    let mut dropped = std::collections::HashSet::new();
+    files.retain(|path, _| {
+        let keep = match only {
+            None => seen.contains(path),
+            Some((listed, gone)) => {
+                !gone.contains(path)
+                    && (seen.contains(path) || !listed.iter().any(|dir| path.starts_with(dir)))
+            }
+        };
+        if !keep {
+            dropped.insert(path.clone());
         }
+        keep
     });
-    let forgot = files.len() != before;
     drop(files);
+    let forgot = !dropped.is_empty();
+    // Their readers go with them (AJ-E805).
+    if forgot {
+        state.transcripts.retain(|_, path| !dropped.contains(path));
+    }
     if forgot {
         state.conversations.placed_changed();
         crate::features::relations::changed(

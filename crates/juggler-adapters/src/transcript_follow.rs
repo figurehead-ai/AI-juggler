@@ -46,6 +46,19 @@ pub struct Followed {
 /// The most of a file read into memory at once while following it.
 pub(crate) const CHUNK: u64 = 64 * 1024 * 1024;
 
+thread_local! {
+    /// Bytes this thread has read through [`follow`].
+    static FOLLOWED: std::cell::Cell<u64> = const { std::cell::Cell::new(0) };
+}
+
+/// Bytes this thread has read through [`follow`] since it started: what a
+/// test measures a pass by (one that read an appended transcript whole
+/// again shows the whole file here).
+#[must_use]
+pub fn followed_here() -> u64 {
+    FOLLOWED.with(std::cell::Cell::get)
+}
+
 /// Reads `path` from `offset` through its last whole line, handing `each`
 /// where it starts and then the lines. Nothing is read when nothing was
 /// written since (or the file can't be opened).
@@ -60,6 +73,12 @@ pub(crate) fn follow_by(
     chunk: u64,
     mut each: impl FnMut(Step<'_>),
 ) -> Followed {
+    let mut each = |step: Step<'_>| {
+        if let Step::Lines(lines) = step {
+            FOLLOWED.with(|read| read.set(read.get() + lines.len() as u64));
+        }
+        each(step);
+    };
     let unchanged = Followed {
         offset,
         ..Followed::default()
