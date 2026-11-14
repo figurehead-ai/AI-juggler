@@ -1964,7 +1964,9 @@ for (const theme of ["dark", "light"] as const) {
 
 /** AJ-E1004 a11y (both themes): the morning summary — a labelled
  * region, one button per row, severity in words — scans axe-clean and
- * every row is reachable by keyboard. */
+ * every row is reachable by keyboard; so is its "Older sessions" line,
+ * named by its words (persona D3: the fixture's sessions are older than
+ * the card's window). */
 for (const theme of ["dark", "light"] as const) {
   test(`morning summary — axe 0 — ${theme}`, async ({ page }) => {
     await page.addInitScript(
@@ -1997,6 +1999,8 @@ for (const theme of ["dark", "light"] as const) {
     await expect(page.getByTestId("summary-row").first()).toBeFocused();
     await page.keyboard.press("Tab");
     await expect(page.getByTestId("summary-row").nth(1)).toBeFocused();
+    await page.keyboard.press("Tab");
+    await expect(page.getByRole("button", { name: "Older sessions: search ⌘K" })).toBeFocused();
     expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
   });
 }
