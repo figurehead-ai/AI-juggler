@@ -42,7 +42,7 @@ const limit = (used: number, resets: number, badge: "measured" | "estimated") =>
   burned_tokens: 0,
 });
 
-export const HOME_OUT_FIXTURE = {
+const HOME_OUT_FIXTURE = {
   accounts: [account("claude-work", "claude-code", "Work Max"), account("claude-personal", "claude-code", "Personal"), account("codex", "codex", "Codex")],
   projects: [
     { id: "proj-ai-juggler", root: "/Users/you/Dev/ai-juggler", name: "ai-juggler", last_activity_ms: T0, active_instance: null, accounts_used: [], instance_count: 0, history_sessions: 0, history_last_used_ms: null, repo: null, missing: false },
@@ -52,7 +52,7 @@ export const HOME_OUT_FIXTURE = {
   conversations: placesConversations(T0),
 };
 
-export const HOME_OUT_QUOTA = [
+const HOME_OUT_QUOTA = [
   { account: "claude-work", five_hour: limit(100, AT_10, "estimated"), weekly: null },
   { account: "codex", five_hour: limit(100, AT_6, "measured"), weekly: null },
   { account: "claude-personal", five_hour: limit(93, AT_10, "measured"), weekly: null },
