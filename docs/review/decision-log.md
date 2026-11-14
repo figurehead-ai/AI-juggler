@@ -3086,3 +3086,29 @@ Each ships with tests that fail without it and a design critique; the M2, D2 and
   the app by pid (TERM, which quits as asked) instead.
 - Sources: `crates/juggler-window-events`, `crates/juggler-app/src/quit.rs`,
   ADR-0003's gap note.
+
+### D-114 The first Stable: 0.4.6 after 7 days on beta, the 0.4 line frozen; a blocker fix needs 3 days on its own tag — SETTLED (2026-11-13)
+
+- **Ruling** (maintainer, 2026-11-13; asked "How long should the Stable
+  candidate (0.4.6) sit on Beta with the 0.4 line frozen before it can
+  become the first Stable?", chose "7 days (Recommended)").
+- The plan it sits in (the coordinating session's):
+  1. 0.4.5 ships to beta as planned.
+  2. 0.4.6 is the Stable candidate. It closes the 0.4 scope still open
+     (AJ-E3002, AJ-E3304, AJ-E3306, AJ-E3307 and the 0.4.5 presence
+     report; `release_scope.py check 0.4.5 --channel stable` lists them).
+  3. Once 0.4.6 is on beta the 0.4 line is frozen: only D-24 blockers
+     ship as 0.4.x; everything else goes to release/0.5.
+  4. Stable after 7 days on beta with no open blocker. A blocker fix
+     doesn't restart the 7 days: its patch needs 3 days on its own beta
+     tag, and its line's first candidate 7 days on beta (so a fix
+     shipped on day 1 still waits for day 7). The maintainer's GitHub
+     stable approval is the sign-off (D-109).
+- **Amends** D-24's Stable rule (14+ days on beta) to 7 days, and adds the
+  blocker-fix rule. Enforced by `scripts/promotion_rules.py`
+  (`STABLE_MIN_DAYS`, `BLOCKER_FIX_MIN_DAYS`, self-tested) from
+  `promote.yml`, whose `blocker_fix` input names the blocker issues a
+  patch fixes (each must be a closed issue labelled `blocker`).
+- **Plan, not a ruling** (the steady cadence after the first Stable):
+  nightly every night; beta about weekly, as a nightly used for a couple
+  of days; stable every 2–4 weeks after a clean soak.
