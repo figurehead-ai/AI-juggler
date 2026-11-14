@@ -412,5 +412,29 @@
 | AJ-E3519 | The View menu, top right | E35-the-floor.md | P1 | S | AJ-E3515 |
 | AJ-E3520 | Day and night from the Mac's clock | E35-the-floor.md | P1 | S | AJ-E3521 |
 | AJ-E3521 | The reworked look: light, shadow, occlusion and grade | E35-the-floor.md | P0 | M | — |
-Total: 410 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
+| AJ-E3601 | The calm foundation: tokens, attentionLevel(), the OS settings, the beta-only classic flag and the validation kit | E36-calm-attention.md | P0 | L | — |
+| AJ-E3602 | One count of what needs you: L2 and L3, in the rail, the bell, the title and the tray | E36-calm-attention.md | P0 | S | AJ-E3601 |
+| AJ-E3603 | The rail and the header, calm | E36-calm-attention.md | P0 | M | AJ-E3601, AJ-E3602 |
+| AJ-E3604 | Projects, calm: the Projects screen and the project page | E36-calm-attention.md | P0 | M | AJ-E3601, AJ-E3603 |
+| AJ-E3605 | Pools, calm, on 0.4.6's calm pool redesign | E36-calm-attention.md | P0 | M | AJ-E3601, AJ-E3603, 0.4.6's calm pool redesign merged into release/0.5 |
+| AJ-E3606 | Tasks, calm | E36-calm-attention.md | P0 | S | AJ-E3601, AJ-E3603 |
+| AJ-E3607 | Accounts and Apps, calm: the Accounts screen, the Account page and the App page | E36-calm-attention.md | P0 | M | AJ-E3601, AJ-E3603 |
+| AJ-E3608 | Usage, calm | E36-calm-attention.md | P0 | S | AJ-E3601, AJ-E3603 |
+| AJ-E3609 | History, calm | E36-calm-attention.md | P1 | S | AJ-E3601, AJ-E3603 |
+| AJ-E3610 | This Mac, calm: This Mac, Processes and your Macs | E36-calm-attention.md | P1 | S | AJ-E3601, AJ-E3603 |
+| AJ-E3611 | The session pages, calm | E36-calm-attention.md | P0 | M | AJ-E3601, AJ-E3603 |
+| AJ-E3612 | Settings, calm | E36-calm-attention.md | P1 | S | AJ-E3601, AJ-E3603 |
+| AJ-E3613 | First run, calm | E36-calm-attention.md | P1 | S | AJ-E3601, AJ-E3603 |
+| AJ-E3614 | Sheets, dialogs and toasts, calm | E36-calm-attention.md | P1 | M | AJ-E3601, AJ-E3603 |
+| AJ-E3615 | The menu-bar menu and notifications, calm | E36-calm-attention.md | P1 | S | AJ-E3601, AJ-E3602 |
+| AJ-E3616 | The Floor's HUD and list, calm where it applies | E36-calm-attention.md | P1 | S | AJ-E3601, AJ-E3603 |
+| AJ-E3617 | The calm app closed: the classic flag removed, the principles and the guide written, the whole app walked | E36-calm-attention.md | P0 | S | AJ-E3602…AJ-E3616, AJ-E3701 |
+| AJ-E3701 | Home in two columns: the layout, Your apps and Runway by account (Home's calm pass) | E37-home-activity-feed.md | P0 | M | AJ-E3601, AJ-E3602 |
+| AJ-E3702 | The feed: pinned needs, the stream, rollups, the away digest, the new-updates pill, filters, paging and the voice (F1) | E37-home-activity-feed.md | P0 | XL | AJ-E3701 |
+| AJ-E3703 | The agent's own last reply, quoted behind "show last messages" (a+) | E37-home-activity-feed.md | P1 | S | AJ-E3702 |
+| AJ-E3704 | The journal gaps the feed needs: a switch's completion time, runway crossings, a daily usage digest, and the files a session left (F2: G2, G3, G6, G7) | E37-home-activity-feed.md | P1 | M | AJ-E3702 |
+| AJ-E3705 | Other apps' conversation state changes and a turn's end, persisted (F2: G4) | E37-home-activity-feed.md | P1 | M | AJ-E3702 |
+| AJ-E3706 | Git commits, pull requests and the task-close note in the feed, through the adapters (F3: G1, G5) | E37-home-activity-feed.md | P1 | M | AJ-E3702 |
+| AJ-E3707 | The feed's accessibility: the feed pattern, keys and one batched announcement | E37-home-activity-feed.md | P0 | S | AJ-E3702 |
+Total: 434 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
 Status of every task at generation: TODO. The epic files are canonical; this catalog is an index, never edited to claim progress.

@@ -15,7 +15,7 @@
    decisions D-01..D-118. Do not re-litigate them; supersede only via a
    new recorded decision.
 3. [TASK-CATALOG.md](TASK-CATALOG.md) — every task ID, epic, priority.
-4. The epic file for the task you claim (E1-E35 below).
+4. The epic file for the task you claim (E1-E37 below).
 5. Source research cited inside that task (pass2/deep reports, SPEC,
    code at the cited lines) — read before editing anything.
 
@@ -58,6 +58,8 @@
 | [E33-validated-by-use.md](E33-validated-by-use.md) | 0.4 validated by use: every combination, every real use case (0.4, D-62) | AJ-E3301-E3308 |
 | [E34-reply-and-read.md](E34-reply-and-read.md) | Reply and read: a richer conversation, find, one composer, and an honest reply area (0.5, D-66) | AJ-E3401-E3405 |
 | [E35-the-floor.md](E35-the-floor.md) | The Floor: the whole company as a live office in its own native window (0.4, D-67, D-68; 0.4.1 findings AJ-E3515-E3521, D-90) | AJ-E3501-E3521 |
+| [E36-calm-attention.md](E36-calm-attention.md) | Calm attention: only what needs you is loud, on every screen (0.5, D-117) | AJ-E3601-E3617 |
+| [E37-home-activity-feed.md](E37-home-activity-feed.md) | Home as an activity feed: what happened, what needs you, your apps and runway (0.5, D-118) | AJ-E3701-E3707 |
 | [CRITIC-CHECKS.md](CRITIC-CHECKS.md) | Cross-epic audit of this system | — |
 
 ## Task format (every task, no exceptions)

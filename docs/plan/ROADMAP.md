@@ -135,6 +135,8 @@ under D-24.
 | Updates and release integrity finished | AJ-E1010 |
 | Each release's sign-off recorded from the Stable approval (D-109) | AJ-E807 |
 | Release speed: beta promotes the tested nightly, CI builds once and tests what changed (D-99; planned after 0.4.1) | AJ-E2020 |
+| Calm attention: four levels read from one place, each need loud once per area, a quieter look (section labels, no borders, App icons muted until they need you), every collapsible kept, on every screen: the 0.5 Stable doesn't ship with a screen on the old look (D-117) | E36 |
+| Home as an activity feed: what needs you pinned on top, then what happened, newest first and rolled up, with a "while you were away" digest; Your apps and Runway by account beside it (D-118) | E37 |
 
 Accessibility stays proven by the automated gates on every release
 (axe on every gallery state, keyboard traversals, contrast); the manual
