@@ -116,12 +116,60 @@ sign-in, no prompt to Meta; and against the MIT SDK at `07e1548c`.
   (0600) is the record that points at it. So the item is one per Mac,
   whatever folder Muse runs in: two homes share one subscription sign-in,
   and `muse login` in a second replaces the first's. API-key accounts are
-  unaffected (`META_API_KEY` per process comes first). The binary reads an
-  undocumented `TBH_CREDENTIAL_BACKEND` and records the backend in effect
-  as `file`, `keychain` or `keychain_fallback_file` (off macOS: `file`), so
-  `TBH_CREDENTIAL_BACKEND=file` likely keeps the sign-in in the folder's
-  own `auth.json`; UNCONFIRMED until the lab (D-107). **[Verified-primary:
-  the binary's strings; Inferred: the value]**
+  unaffected (`META_API_KEY` per process comes first). **[Verified-primary:
+  the binary's strings]**
+- **`TBH_CREDENTIAL_BACKEND=file` never reaches the Keychain (checked
+  2026-11-13 on `muse-bin-1.4.13-R6996.1`, sha256 `9fd40ae9…b84aa0`; a
+  stripped Rust binary whose export trie still names its functions;
+  offsets below are from its load address `0x100000000`).** The only
+  Keychain calls in the whole binary are `SecItemCopyMatching`, `SecItemAdd`,
+  `SecItemUpdate` and `SecItemDelete` (no `SecKeychain*` import, no
+  `security` command, no `dlsym` name for them). Each is reached only from
+  the `security_framework` crate's `passwords` functions, and those only from
+  `tbh_config::secret_store::keychain::KeychainStore::{get,set,delete}`
+  (`0xdcd3540`/`0xdcd3640`/`0xdcd3740`, each loading `ai.meta.dev.credentials`).
+  `KeychainStore` has one vtable (`0x117965ed0`), used only by
+  `secret_store::platform_default_store` (`0xddc4990`). That function is
+  called from exactly four places (`0xdd8a3a8`, `0xdd8a624`, and through a
+  branch island `0x9de410`, `0x2fbdaf0`), and each first checks the variable:
+  `EnvSnapshot::from_process_env` (`0xdbccc9c`) reads `TBH_CREDENTIAL_BACKEND`
+  into the snapshot, and the selector takes the file branch when the value is
+  exactly the four bytes `file` (lower case; `FILE`, `file ` or any other
+  value means the Keychain), or when `EnvSnapshot::is_e2e_test` is true. In
+  the file branch the store is a zero-sized one whose `get`, `set` and
+  `delete` (`0xddc7cd0`/`0xddc7cf0`/`0xddc7d04`, and identical copies in the
+  other two crates) only return an error, with no call at all. So under
+  `file` there is no read to migrate, no write, no delete and no fallback to
+  the Keychain on error: a slot in `auth.json` that points at the Keychain is
+  refused ("keychain unavailable and the … slot is keychain-referenced
+  (FM-008)"). A sign-in made in the Keychain mode can't be copied into a
+  `file` home; sign in again there. `keychain_fallback_file` is the other
+  direction: the Keychain mode falling back to the file when macOS refuses
+  (reasons like `interaction_not_allowed`, `denied`), never the reverse.
+  Sign-in, sign-out and refresh use the same selection:
+  `CredentialProvider::{new, from_env, from_paths, from_paths_for_startup}`,
+  `dispose_login_slot_if_unchanged` and
+  `reconcile_plaintext_credentials_from_env` all call it. The file is
+  `$XDG_CONFIG_HOME/muse/auth.json` (else `$HOME/.config/muse/auth.json`),
+  token fields in plain text (`providers.meta.mechanism` `oauth`,
+  `access_token`, `expires_at`, as the launcher reads them); the
+  Keychain-mode `auth.json` here is 0600, and the file mode's own write
+  wasn't seen, as no sign-in was made. Live
+  check: `muse serve --provider echo` in a throwaway home (all of `HOME` and
+  `XDG_CONFIG/DATA/STATE/CACHE_HOME` inside it, `MUSE_NO_AUTO_UPDATE=1`,
+  `TBH_DISABLE_TELEMETRY=1`, `TBH_CREDENTIAL_BACKEND=file`) under
+  `sandbox-exec` (no network, Keychain services denied): `account/read`
+  `loggedOut`; the session record wrote `"credential_backend":"file"`,
+  `"keychain_fallback_reason":"none"`; the Keychain item's modified date
+  (`20261013164543Z`) was the same before and after, and nothing was left
+  running. Not covered: a Muse that starts another Muse with a cleared
+  environment would not see the variable (none of the binary's
+  `env_clear` callers is one; they start tools, hooks, MCP servers and Git),
+  and a later version can change this, so check each update. A lab sign-in
+  sets `TBH_CREDENTIAL_BACKEND=file` (exactly), its own `HOME` and
+  `XDG_CONFIG_HOME`/`XDG_DATA_HOME`/`XDG_STATE_HOME`/`XDG_CACHE_HOME`,
+  `MUSE_NO_AUTO_UPDATE=1`, and no `MUSE_AUTH_PATH`. **[Verified-primary:
+  the binary's code, disassembled; one live run]**
 - **Where Muse keeps things.** `initialize`'s `museHome` is
   `$XDG_DATA_HOME/muse` (checked live). The session index is
   `$XDG_DATA_HOME/muse/session-index.db` (WAL), `schema_meta.schema_version`
