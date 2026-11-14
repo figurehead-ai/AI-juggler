@@ -13,17 +13,18 @@
 //! Close Window, which arrives as a close request) hide the window.
 //! Nothing quits, the quit sheet never shows, and every session keeps
 //! running; ⌘Q quits (`quit.rs`). A window in full screen leaves it
-//! first, and hides once it has (hidden in full screen, it would leave an
-//! empty Space behind). The first close that hides it is told once, the
-//! next time the window is on screen ([`CloseNote`]).
+//! first, and hides once the exit is over (hidden in full screen, it would
+//! leave an empty Space behind; [`HideAfterExit`]). The first close that
+//! hides it is told once, the next time the window is on screen
+//! ([`CloseNote`]).
 
 #![allow(
     clippy::needless_pass_by_value,
     reason = "Tauri command signatures take State by value"
 )]
 
-use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU8, Ordering};
+use std::sync::{Arc, OnceLock};
 use std::time::Duration;
 
 use juggler_core::storage::Storage;
@@ -58,7 +59,9 @@ impl<R: tauri::Runtime> Raise for tauri::WebviewWindow<R> {
     fn show(&self) {
         // Shown again: a close's hide still waiting on full screen to end
         // is called off.
-        HIDE_ONCE_WINDOWED.store(false, Ordering::SeqCst);
+        if HIDE_AFTER_EXIT.call_off() {
+            tracing::info!("a close from full screen: called off, the window was shown again");
+        }
         let _ = tauri::WebviewWindow::show(self);
     }
     fn unminimize(&self) {
@@ -179,7 +182,7 @@ pub fn reopened<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
 pub trait Hide {
     /// It fills its own full-screen Space.
     fn full_screen(&self) -> bool;
-    /// Leaves full screen (a resize says when it has).
+    /// Leaves full screen (the exit event says when it has).
     fn leave_full_screen(&self);
     /// Hides it.
     fn hide(&self);
@@ -202,80 +205,229 @@ impl<R: tauri::Runtime> Hide for tauri::Window<R> {
     }
 }
 
-/// A close asked while the main window was full screen: it hides once the
-/// window has left full screen. Showing the window calls it off.
-static HIDE_ONCE_WINDOWED: AtomicBool = AtomicBool::new(false);
+/// What a close from full screen waits on before it hides the window.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Exit {
+    /// The window's own exit event, sent once the exit animation is over
+    /// (`juggler_window_events::watch_full_screen_exit`).
+    Event,
+    /// Looks every 200 ms ([`HideAfterExit::settle`]): the event can't be
+    /// watched, or didn't come within 5 s.
+    Fallback,
+}
 
-/// A close hides `window` (D-112): at once, or, in full screen, once it
-/// has left full screen (`waiting` holds that until [`resized`]).
-pub fn hide_on_close<W: Hide + ?Sized>(window: &W, waiting: &AtomicBool) {
-    if window.full_screen() {
-        waiting.store(true, Ordering::SeqCst);
+/// No close waiting.
+const IDLE: u8 = 0;
+/// A close waits on the exit event.
+const ON_EVENT: u8 = 1;
+/// A close's fallback is at it.
+const ON_FALLBACK: u8 = 2;
+
+/// A close from full screen, until the window is hidden (D-112). tao says
+/// a window has left full screen as soon as it is asked to, so a hide then
+/// lands mid-way out and the exit's end puts the window back: the hide
+/// waits for the exit's own end, the window's exit event, and hides once.
+/// Where that event can't be watched, or doesn't come in time, the
+/// fallback looks instead, hiding the window whenever it is out of full
+/// screen and on screen, until it stays hidden. Showing the window calls
+/// either off.
+#[derive(Debug, Default)]
+pub struct HideAfterExit(AtomicU8);
+
+impl HideAfterExit {
+    /// Nothing waiting.
+    #[must_use]
+    pub const fn new() -> Self {
+        Self(AtomicU8::new(IDLE))
+    }
+
+    /// A close hides `window`: at once, or, in full screen, once it has
+    /// left it, on its exit event when that is `watched`, else by the
+    /// fallback. What it waits on; `None` when it hid at once.
+    #[must_use]
+    pub fn close<W: Hide + ?Sized>(&self, window: &W, watched: bool) -> Option<Exit> {
+        if !window.full_screen() {
+            window.hide();
+            return None;
+        }
+        let (exit, state) = if watched {
+            (Exit::Event, ON_EVENT)
+        } else {
+            (Exit::Fallback, ON_FALLBACK)
+        };
+        self.0.store(state, Ordering::SeqCst);
         window.leave_full_screen();
-    } else {
-        window.hide();
+        Some(exit)
+    }
+
+    /// The window's exit event: a close waiting on it hides the window,
+    /// once. True when it did.
+    #[must_use]
+    pub fn exited<W: Hide + ?Sized>(&self, window: &W) -> bool {
+        let waited = self
+            .0
+            .compare_exchange(ON_EVENT, IDLE, Ordering::SeqCst, Ordering::SeqCst)
+            .is_ok();
+        if waited {
+            window.hide();
+        }
+        waited
+    }
+
+    /// The window was shown again: a close still waiting is called off.
+    /// True when one was.
+    #[must_use]
+    pub fn call_off(&self) -> bool {
+        self.0.swap(IDLE, Ordering::SeqCst) != IDLE
+    }
+
+    /// A close waits on the exit event still.
+    #[must_use]
+    pub fn on_event(&self) -> bool {
+        self.0.load(Ordering::SeqCst) == ON_EVENT
+    }
+
+    /// The exit event didn't come in time: the fallback takes over. True
+    /// when it does (a close still waited on the event).
+    #[must_use]
+    pub fn fall_back(&self) -> bool {
+        self.0
+            .compare_exchange(ON_EVENT, ON_FALLBACK, Ordering::SeqCst, Ordering::SeqCst)
+            .is_ok()
+    }
+
+    /// The window was resized: in the fallback, it is hidden if it is out
+    /// of full screen and still on screen (the window says it has left
+    /// full screen as soon as it is asked to, so a hide can land mid-way
+    /// out and the exit's end puts the window back; the exit's own last
+    /// resize then hides it again). Waiting on the event, a resize does
+    /// nothing: the event hides it once the exit is over.
+    pub fn resized<W: Hide + ?Sized>(&self, window: &W) {
+        if self.0.load(Ordering::SeqCst) == ON_FALLBACK && !window.full_screen() && window.visible()
+        {
+            window.hide();
+        }
+    }
+
+    /// One look of the fallback; true when it is over: called off (the
+    /// window was shown again), or the window has stayed hidden for six
+    /// looks in a row (`hidden` counts them). Out of full screen and on
+    /// screen, it hides the window again.
+    #[must_use]
+    pub fn settle<W: Hide + ?Sized>(&self, window: &W, hidden: &mut u8) -> bool {
+        if self.0.load(Ordering::SeqCst) != ON_FALLBACK {
+            return true;
+        }
+        if window.full_screen() || window.visible() {
+            *hidden = 0;
+            self.resized(window);
+            return false;
+        }
+        *hidden += 1;
+        if *hidden >= HIDDEN_LOOKS {
+            self.give_up();
+            return true;
+        }
+        false
+    }
+
+    /// The fallback is over, done or not.
+    pub fn give_up(&self) {
+        let _ = self
+            .0
+            .compare_exchange(ON_FALLBACK, IDLE, Ordering::SeqCst, Ordering::SeqCst);
     }
 }
 
-/// The window was resized: a close waiting on full screen to end hides it
-/// if it is out of full screen and still on screen. The wait isn't over
-/// here: the window says it has left full screen as soon as it is asked
-/// to, so a hide can land mid-way out and the exit's end puts the window
-/// back; the exit's own last resize then hides it again ([`settle`] ends
-/// the wait once the window stays hidden).
-pub fn resized<W: Hide + ?Sized>(window: &W, waiting: &AtomicBool) {
-    if waiting.load(Ordering::SeqCst) && !window.full_screen() && window.visible() {
-        window.hide();
+/// Waits for the exit event a look at a time (`sleep` between looks), up
+/// to `looks` looks. True when the fallback takes over: the event didn't
+/// come, and nothing showed the window meanwhile.
+#[must_use]
+pub fn event_or_fallback(pending: &HideAfterExit, looks: u32, mut sleep: impl FnMut()) -> bool {
+    for _ in 0..looks {
+        sleep();
+        if !pending.on_event() {
+            return false;
+        }
     }
+    pending.fall_back()
 }
 
-/// Looks in a row the window must stay hidden for a close from full
-/// screen to be done (at 200 ms a look: longer than the exit animation,
-/// which can put a window hidden mid-way back on screen).
+/// The main window's close from full screen.
+static HIDE_AFTER_EXIT: HideAfterExit = HideAfterExit::new();
+
+/// Whether the main window's exit event is watched: tried once, at the
+/// first close from full screen (most closes never need it).
+static EXIT_WATCHED: OnceLock<bool> = OnceLock::new();
+
+/// Watches the main window's exit event, once (main thread only); false
+/// when it can't be, said in the log: closes from full screen then hide by
+/// the fallback.
+fn watch_exit<R: tauri::Runtime>(window: &tauri::Window<R>) -> bool {
+    *EXIT_WATCHED.get_or_init(|| {
+        let hide = window.clone();
+        let watched = juggler_window_events::watch_full_screen_exit(window, move || {
+            if HIDE_AFTER_EXIT.exited(&hide) {
+                tracing::info!("a close from full screen: hidden on the exit event");
+            }
+        });
+        if let Err(e) = &watched {
+            tracing::warn!(
+                "a close from full screen: the exit event can't be watched ({e}); the fallback hides the window"
+            );
+        }
+        watched.is_ok()
+    })
+}
+
+/// A look, waiting on full screen to end.
+const LOOK: Duration = Duration::from_millis(200);
+
+/// How long a close from full screen waits for the exit event before the
+/// fallback takes over (the exit animation takes under a second).
+const EXIT_EVENT_WAIT: Duration = Duration::from_secs(5);
+
+/// Looks in a row the window must stay hidden for the fallback to be done
+/// (at 200 ms a look: longer than the exit animation, which can put a
+/// window hidden mid-way back on screen).
 const HIDDEN_LOOKS: u8 = 6;
 
-/// One look at a close waiting on full screen to end; true when the wait
-/// is over: called off (the window was shown again), or the window has
-/// stayed hidden for [`HIDDEN_LOOKS`] looks in a row (`hidden` counts
-/// them). Out of full screen and on screen, it hides the window again.
-pub fn settle<W: Hide + ?Sized>(window: &W, waiting: &AtomicBool, hidden: &mut u8) -> bool {
-    if !waiting.load(Ordering::SeqCst) {
-        return true;
-    }
-    if window.full_screen() || window.visible() {
-        *hidden = 0;
-        resized(window, waiting);
-        return false;
-    }
-    *hidden += 1;
-    if *hidden >= HIDDEN_LOOKS {
-        waiting.store(false, Ordering::SeqCst);
-        return true;
-    }
-    false
-}
-
-/// How long a close from full screen keeps at it (the exit animation takes
-/// under a second).
+/// How long the fallback keeps at it.
 const LEAVE_FULL_SCREEN: Duration = Duration::from_secs(5);
 
-/// A close from full screen hides the window once it is out of it, and
-/// keeps it hidden (the by-hand check of D-112: a hide that landed during
-/// the exit animation was undone by its end, and the window stayed):
-/// [`settle`] every 200 ms for up to [`LEAVE_FULL_SCREEN`].
-fn hide_once_out_of_full_screen<R: tauri::Runtime>(window: tauri::Window<R>) {
+/// Looks in `wait`.
+fn looks(wait: Duration) -> u32 {
+    u32::try_from(wait.as_millis() / LOOK.as_millis()).unwrap_or(u32::MAX)
+}
+
+/// A close from full screen, after the window was asked to leave it:
+/// waiting on the exit event, nothing happens here unless the event hasn't
+/// come within [`EXIT_EVENT_WAIT`]; then, or at once when the event can't
+/// be watched, the fallback: [`HideAfterExit::settle`] every 200 ms for up
+/// to [`LEAVE_FULL_SCREEN`] (the by-hand check of D-112: a hide that landed
+/// during the exit animation was undone by its end).
+fn hide_after_exit<R: tauri::Runtime>(window: tauri::Window<R>, exit: Exit) {
     std::thread::spawn(move || {
-        let step = Duration::from_millis(200);
+        if exit == Exit::Event {
+            if !event_or_fallback(&HIDE_AFTER_EXIT, looks(EXIT_EVENT_WAIT), || {
+                std::thread::sleep(LOOK);
+            }) {
+                return;
+            }
+            tracing::warn!(
+                "a close from full screen: no exit event within 5 s; the fallback hides the window"
+            );
+        }
         let mut waited = Duration::ZERO;
         let mut hidden = 0;
         while waited < LEAVE_FULL_SCREEN {
-            std::thread::sleep(step);
-            waited += step;
+            std::thread::sleep(LOOK);
+            waited += LOOK;
             let (full, shown) = (window.full_screen(), window.visible());
-            if settle(&window, &HIDE_ONCE_WINDOWED, &mut hidden) {
+            if HIDE_AFTER_EXIT.settle(&window, &mut hidden) {
                 tracing::info!(
                     ms = waited.as_millis(),
-                    "a close from full screen: done (the window stayed hidden, or was shown again)"
+                    "a close from full screen: done by the fallback (the window stayed hidden, or was shown again)"
                 );
                 return;
             }
@@ -284,12 +436,12 @@ fn hide_once_out_of_full_screen<R: tauri::Runtime>(window: tauri::Window<R>) {
                 full,
                 shown,
                 hidden,
-                "a close from full screen: still waiting"
+                "a close from full screen: the fallback is still at it"
             );
         }
-        HIDE_ONCE_WINDOWED.store(false, Ordering::SeqCst);
+        HIDE_AFTER_EXIT.give_up();
         tracing::warn!(
-            "a close from full screen: gave up after 5 s; the window may still be on screen"
+            "a close from full screen: the fallback gave up after 5 s; the window may still be on screen"
         );
     });
 }
@@ -303,16 +455,24 @@ pub fn on_window_event<R: tauri::Runtime>(window: &tauri::Window<R>, event: &tau
         tauri::WindowEvent::CloseRequested { api, .. } => {
             if crate::quit::close_hides() {
                 api.prevent_close();
-                hide_on_close(window, &HIDE_ONCE_WINDOWED);
-                if HIDE_ONCE_WINDOWED.load(Ordering::SeqCst) {
-                    tracing::info!("the main window's close in full screen: leaving it first");
-                    hide_once_out_of_full_screen(window.clone());
+                // Watched from the first close in full screen on (most
+                // closes never need it).
+                let watched = Hide::full_screen(window) && watch_exit(window);
+                if let Some(exit) = HIDE_AFTER_EXIT.close(window, watched) {
+                    tracing::info!(
+                        "the main window's close in full screen: leaving it first; it hides {}",
+                        match exit {
+                            Exit::Event => "on the exit event",
+                            Exit::Fallback => "by the fallback",
+                        }
+                    );
+                    hide_after_exit(window.clone(), exit);
                 }
                 CLOSE_NOTE.closed();
                 tracing::info!("the main window's close: hidden, nothing quits (D-112)");
             }
         }
-        tauri::WindowEvent::Resized(_) => resized(window, &HIDE_ONCE_WINDOWED),
+        tauri::WindowEvent::Resized(_) => HIDE_AFTER_EXIT.resized(window),
         // AJ-E1510: no system notification while AI Juggler is in front.
         tauri::WindowEvent::Focused(focused) => window
             .state::<Arc<AppState>>()
@@ -504,8 +664,7 @@ mod tests {
     #[test]
     fn a_close_hides_the_window_and_the_dock_icon_brings_it_back() {
         let window = shown();
-        let waiting = AtomicBool::new(false);
-        hide_on_close(&window, &waiting);
+        assert_eq!(HideAfterExit::new().close(&window, true), None, "at once");
         assert_eq!(*window.0.borrow(), ["hide"]);
         assert!(!window.on_screen());
         assert!(reopen(Some(&window), || raise(&window)), "it comes back");
@@ -527,80 +686,131 @@ mod tests {
         assert!(!reopen(None::<&Recorder>, || unreachable!("no window")));
     }
 
-    /// In full screen a close leaves full screen first and hides once the
-    /// window is out of it (hidden in full screen, it would leave an empty
-    /// Space); a resize still in full screen doesn't hide it.
-    #[test]
-    fn a_close_in_full_screen_hides_once_out_of_it() {
+    /// A window in full screen, closed: the hide waits on `watched`'s
+    /// path, and the window says it is out of full screen at once, as tao
+    /// does mid-exit.
+    fn closed_in_full_screen(watched: bool) -> (Recorder, HideAfterExit, Option<Exit>) {
         let window = shown();
         window.2.set(true);
-        let waiting = AtomicBool::new(false);
-        hide_on_close(&window, &waiting);
+        let pending = HideAfterExit::new();
+        let exit = pending.close(&window, watched);
         assert_eq!(*window.0.borrow(), ["leave full screen"]);
-        resized(&window, &waiting);
+        window.2.set(false);
+        (window, pending, exit)
+    }
+
+    /// The by-hand check of D-112: a hide that lands mid-exit is undone by
+    /// the exit's end. With the exit event watched, nothing hides the
+    /// window until the event, which hides it once; the fallback's wait
+    /// then ends without a look, and nothing hides it again.
+    #[test]
+    fn the_exit_event_hides_the_window_once_and_the_fallback_does_not() {
+        let (window, pending, exit) = closed_in_full_screen(true);
+        assert_eq!(exit, Some(Exit::Event));
+        pending.resized(&window);
         assert_eq!(
             *window.0.borrow(),
             ["leave full screen"],
-            "still full screen"
+            "mid-exit: left on screen"
         );
-        window.2.set(false);
-        resized(&window, &waiting);
+        let mut look = 0;
+        let fallback = event_or_fallback(&pending, looks(EXIT_EVENT_WAIT), || {
+            look += 1;
+            if look == 3 {
+                assert!(pending.exited(&window), "the exit's end");
+            }
+        });
+        assert!(!fallback, "the event came: no fallback");
+        assert_eq!(look, 3, "the wait ends at the event");
         assert_eq!(*window.0.borrow(), ["leave full screen", "hide"]);
-        resized(&window, &waiting);
+        window.1.set(true); // whatever puts it back later is not this close's
+        pending.resized(&window);
+        assert!(pending.settle(&window, &mut 0), "nothing left to do");
+        assert!(!pending.exited(&window), "a second event hides nothing");
         assert_eq!(
             *window.0.borrow(),
             ["leave full screen", "hide"],
-            "hidden: a later resize leaves it alone"
+            "hidden once"
         );
     }
 
-    /// The by-hand check of D-112: a hide that lands during the exit
-    /// animation is undone by its end (the window is back on screen). The
-    /// wait goes on and hides it again; it ends once the window has stayed
-    /// hidden for two looks, and a show calls it off.
+    /// No exit event within the wait: the fallback takes over and hides
+    /// the window; an event that comes after that does nothing.
     #[test]
-    fn a_hide_undone_by_the_exit_animation_is_done_again() {
+    fn with_no_exit_event_in_time_the_fallback_hides_the_window() {
+        let (window, pending, _) = closed_in_full_screen(true);
+        let mut waited = 0;
+        assert!(
+            event_or_fallback(&pending, looks(EXIT_EVENT_WAIT), || waited += 1),
+            "the fallback takes over"
+        );
+        assert_eq!(waited, 25, "5 s at 200 ms a look");
+        assert!(!pending.settle(&window, &mut 0));
+        assert_eq!(*window.0.borrow(), ["leave full screen", "hide"]);
+        assert!(
+            !pending.exited(&window),
+            "a late event: the fallback has it"
+        );
+        assert_eq!(*window.0.borrow(), ["leave full screen", "hide"]);
+    }
+
+    /// The window shown again before the exit event: the close is called
+    /// off; the event hides nothing, and no fallback follows.
+    #[test]
+    fn a_show_before_the_exit_event_calls_the_close_off() {
+        let (window, pending, _) = closed_in_full_screen(true);
+        assert!(pending.call_off(), "a close was waiting");
+        assert!(!pending.exited(&window));
+        assert!(!event_or_fallback(&pending, looks(EXIT_EVENT_WAIT), || ()));
+        assert!(pending.settle(&window, &mut 0), "over");
+        assert_eq!(*window.0.borrow(), ["leave full screen"], "never hidden");
+        assert!(!pending.call_off(), "nothing left to call off");
+    }
+
+    /// The exit event can't be watched: the fallback alone hides the
+    /// window, on a resize once it is out of full screen (never while in
+    /// it), and keeps it hidden: a hide undone by the exit's end is done
+    /// again; it is over once the window has stayed hidden for six looks
+    /// in a row, and a show calls it off.
+    #[test]
+    fn unwatched_the_fallback_hides_the_window_and_keeps_it_hidden() {
         let window = shown();
         window.2.set(true);
-        let waiting = AtomicBool::new(false);
+        let pending = HideAfterExit::new();
+        assert_eq!(pending.close(&window, false), Some(Exit::Fallback));
         let mut hidden = 0;
-        hide_on_close(&window, &waiting);
-        assert!(!settle(&window, &waiting, &mut hidden), "still full screen");
+        pending.resized(&window);
+        assert!(!pending.settle(&window, &mut hidden), "still full screen");
+        assert_eq!(*window.0.borrow(), ["leave full screen"]);
         window.2.set(false);
-        assert!(!settle(&window, &waiting, &mut hidden));
+        pending.resized(&window);
         assert_eq!(*window.0.borrow(), ["leave full screen", "hide"]);
         window.1.set(true); // the animation's end put it back
-        resized(&window, &waiting);
+        assert!(!pending.settle(&window, &mut hidden));
         assert_eq!(
             *window.0.borrow(),
             ["leave full screen", "hide", "hide"],
             "hidden again"
         );
         for look in 1..HIDDEN_LOOKS {
-            assert!(
-                !settle(&window, &waiting, &mut hidden),
-                "{look} looks hidden"
-            );
+            assert!(!pending.settle(&window, &mut hidden), "{look} looks hidden");
         }
-        assert!(
-            settle(&window, &waiting, &mut hidden),
-            "stayed hidden: done"
-        );
-        assert!(!waiting.load(Ordering::SeqCst));
+        assert!(pending.settle(&window, &mut hidden), "stayed hidden: done");
+        window.1.set(true);
+        pending.resized(&window);
+        assert_eq!(window.0.borrow().len(), 3, "done: a resize leaves it alone");
 
-        let window = shown();
-        window.2.set(true);
-        let waiting = AtomicBool::new(false);
-        hide_on_close(&window, &waiting);
-        waiting.store(false, Ordering::SeqCst); // shown again
-        assert!(settle(&window, &waiting, &mut 0), "called off");
+        let (window, pending, _) = closed_in_full_screen(false);
+        assert!(pending.call_off(), "shown again");
+        assert!(pending.settle(&window, &mut 0), "called off");
+        assert_eq!(*window.0.borrow(), ["leave full screen"]);
     }
 
     /// A resize with no close waiting never hides the window.
     #[test]
     fn a_resize_alone_never_hides() {
         let window = shown();
-        resized(&window, &AtomicBool::new(false));
+        HideAfterExit::new().resized(&window);
         assert!(window.0.borrow().is_empty());
     }
 
