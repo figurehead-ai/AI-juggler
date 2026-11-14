@@ -694,7 +694,7 @@ impl KeptRows {
 
 /// AI Juggler's sessions as Needs you reads them (D-49): their rows are read
 /// from storage again only when a change was told of the sessions, their
-/// Accounts or the projects ([`KeptRows::fresh`]), or every
+/// Accounts or the projects (`KeptRows::fresh`), or every
 /// [`ROWS_SWEEP_MS`]; what moves on its own (titles, the tools' runtime
 /// words, subagent counts, resume refusals) is joined fresh every time.
 /// AJ-E805 (round 4): the whole read ran every 5 s, 3 ms with nothing

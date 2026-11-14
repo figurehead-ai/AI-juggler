@@ -98,7 +98,7 @@ const RECENT: usize = 16;
 ///
 /// A response's lines come together: Claude Code writes one line per
 /// content block, each with the response's usage, and a slice can end
-/// between them. The last [`RECENT`] responses keep their figures, so a
+/// between them. The last 16 responses keep their figures, so a
 /// later line of one raises its count; any other key seen before is a copy
 /// (a fork's or a resumed rollout's repeated history) and adds nothing.
 /// Measured on one real profile (1,198 transcripts, 16.5 GB): 234,539

@@ -312,7 +312,7 @@ pub fn uses_folder(tool: &RunningTool, path: &str, home: &Path) -> bool {
 
 /// Each Account's label with its folders (its own and the one it was
 /// brought in from) as the running tools name theirs, each normalised once
-/// by `normalize` ([`normalized`] in the app). AJ-E805: This Mac's 5 s
+/// by `normalize` (`normalized` in the app). AJ-E805: This Mac's 5 s
 /// reading normalised every Account's folders again for each running tool,
 /// and `canonicalize` walks every component of a path: about 240 walks a
 /// reading with ten sessions open, the largest part of its CPU.

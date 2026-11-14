@@ -28,7 +28,7 @@ pub enum Void {
     NotReady,
     /// It won't decode: one bad line, not read again until it changes.
     Damaged,
-    /// It decompresses past [`COMPRESSED_MAX`]: left unread.
+    /// It decompresses past 16 GiB (far above any real rollout): left unread.
     TooLarge,
 }
 
