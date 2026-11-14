@@ -2,9 +2,10 @@
  * AJ-E1107 — crash reports, behind their own setting (separate from
  * usage statistics): Never (the default), Ask me each time, or Always
  * send. DO_NOT_TRACK forces Never. A report is scrubbed on this Mac
- * before it is kept; with "Ask me each time" the next launch shows it
- * in full and asks. This build has no reporting service yet, so a
- * report the user chooses to send stays queued here — and says so.
+ * before it is kept; with "Ask me each time" the next launch shows the
+ * whole Sentry event that would go (D-108) and asks. A build without
+ * Sentry's address keeps a report the user chooses to send queued here,
+ * and says so.
  */
 import { useEffect, useRef, useState, type JSX } from "react";
 import { Button } from "./primitives";
@@ -45,7 +46,7 @@ export function CrashReportsSetting(): JSX.Element | null {
       <p className="text-label text-muted">
         {info.reason
           ? `${info.reason}.`
-          : "Separate from usage statistics. A report is scrubbed on this computer first: your home folder becomes ~, and your user name, links and anything that looks like a key are removed."}
+          : "Separate from usage statistics. Reports go to Sentry, the crash-report service AI Juggler uses, only as you choose here. Each is scrubbed on this computer first: your home folder becomes ~, and your user name, links and anything that looks like a key are removed."}
       </p>
       {!info.can_send && info.effective !== "never" && (
         <p className="text-label text-muted" data-testid="crash-cannot-send">
@@ -90,8 +91,8 @@ export function CrashReportPrompt(): JSX.Element | null {
           AI Juggler quit unexpectedly. Send a crash report?
         </h2>
         <p className="text-label leading-relaxed text-muted">
-          This is the whole report, exactly as it would be sent. It was scrubbed on this computer: no home folder, user name,
-          links or keys.
+          This is the whole report, exactly as it would be sent to Sentry. It was scrubbed on this computer: no home folder,
+          user name, links or keys.
           {!info.can_send && " This build can't send it yet, so Send keeps it on this computer until one can."}
         </p>
         <pre
@@ -100,7 +101,7 @@ export function CrashReportPrompt(): JSX.Element | null {
           tabIndex={0}
           data-testid="crash-preview"
         >
-          {JSON.stringify(report, null, 2)}
+          {info.asking_event ?? JSON.stringify(report, null, 2)}
         </pre>
         <div className="flex flex-wrap justify-end gap-2">
           <Button size="sm" variant="secondary" onClick={() => answer("dont_send")} data-testid="crash-dont-send">

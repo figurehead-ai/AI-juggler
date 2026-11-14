@@ -2,7 +2,8 @@
 //!
 //! - Its manifests are what Claude Code reads: the plugin's name and
 //!   version, one MCP server run from the plugin's own folder, a skill
-//!   with its name and description, and a marketplace that lists it. No
+//!   with its name and description, and the repository's marketplace
+//!   (`.claude-plugin/` at its root) that lists it. No
 //!   key, socket or account appears anywhere in it.
 //! - Copied into a fixture home as an install puts it, its server runs
 //!   the real `juggler-agent`: in a session AI Juggler started (a key in
@@ -122,8 +123,15 @@ fn the_plugins_manifests_are_what_claude_code_reads_and_hold_no_secret() {
         env!("CARGO_PKG_VERSION"),
         "released with the app"
     );
-    let market = json(&root.join(".claude-plugin/marketplace.json"));
-    assert_eq!(market["plugins"][0]["source"], "./ai-juggler");
+    // The marketplace is at the repository's root, where
+    // `/plugin marketplace add figurehead-ai/AI-juggler` reads it.
+    let market = json(&root.join("../../.claude-plugin/marketplace.json"));
+    assert_eq!(market["name"], "ai-juggler");
+    assert_eq!(market["plugins"][0]["name"], "ai-juggler");
+    assert_eq!(
+        market["plugins"][0]["source"],
+        "./plugins/claude-code/ai-juggler"
+    );
     let mcp = json(&root.join("ai-juggler/.mcp.json"));
     let servers = mcp["mcpServers"].as_object().unwrap();
     assert_eq!(servers.len(), 1);

@@ -386,3 +386,21 @@ All searches and fetches were run on 2026-10-21.
 - **S-11 (local usage file):** Same pages as S-09 and S-10, plus https://cursor.com/docs/cli/changelog (searched for "usage") and the third-party store.db analysis (ashiato #87: no usage in store.db). None found.
 - **S-12 (individual-plan quota API):** Fetched https://cursor.com/docs/api, /docs/account/teams/admin-api, /docs/cloud-agent/api/endpoints and /docs/sdk/typescript. The Admin, Analytics and Usage APIs are Enterprise-team only. The SDK and Cloud APIs report per-agent tokens and cost, not plan allowance.
 - **S-13 (multiple-accounts clause in terms):** Fetched https://cursor.com/terms-of-service (searched for "multiple", "one person", "share your account" and "automated means") and https://cursor.com/acceptable-use-policy twice. WebSearch `cursor.com acceptable use policy Anysphere`. No explicit clause.
+
+## Terms, re-read 2026-11-13
+
+Read for the maintainer's ruling (a Sonnet draft; each quote below checked against its page on Opus the same day). **The ruling:** D-105 gives this tool full support on every plan; this section keeps the vendor's own wording on record beside it.
+
+### What the terms say
+- Acceptable Use Policy, https://cursor.com/acceptable-use-policy ("Last updated August 11, 2026"). Under the bullet "Not complying with laws or regulations, including by:" the list includes: "Accessing the Service through automated or non-human means, whether through a bot, script, or otherwise". Violations may lead to "action against your account, up to suspension or termination". A forum thread asks whether API/SDK use is covered; no official answer found: https://forum.cursor.com/t/is-this-use-of-cursor-cloud-agents-permitted-under-cursor-s-terms/168633
+- CLI headless: https://cursor.com/docs/cli/headless : "Use Cursor CLI in scripts and automation workflows for code analysis, generation, and refactoring tasks." So the CLI's own `-p`/print mode is documented and offered by Cursor itself; docs pair it with an API key.
+- Authentication, https://cursor.com/docs/cli/reference/authentication : browser login (`agent login`) for interactive use; `CURSOR_API_KEY` (or `--api-key`) "for automation, scripts, and CI" (paraphrase of page). `agent status` shows the active account.
+- Multiple accounts: NOT FOUND in CLI docs or Terms (https://cursor.com/terms-of-service, last updated Sept 3, 2026, is silent). Config-dir env var: NOT FOUND in the authentication page (one stored login).
+- Plans (https://cursor.com/pricing, read today): Free, Plus $8, Premium $30, Super $100, Ultra $200, Teams, Enterprise. The "Pro / Pro+" names did NOT appear; tiers now seem sold as The X Subscription (announced 2026-10-12) with a shared Grok/Cursor usage pool: https://cursor.com/help/the-x-subscription/overview . Which plans include CLI: NOT FOUND. A forum report mentions CLI API keys breaking after the 2026-10-13 switch (truncated, unverified).
+
+### What it meant for AI Juggler, before the ruling
+(a) Launching the interactive CLI per account: UNCLEAR. A human typing in a terminal is not "automated"; our app only opens the terminal for the user. No ban on launching it, but no multi-account provision, and no documented per-account home folder.
+(b) Reading local sessions and usage: UNCLEAR (not addressed; no credential reads).
+(c) Headless runs: ALLOWED for the CLI's own print mode (documented for scripts), recommended with an API key.
+
+**The recommendation then:** build for API-key accounts first (clearly documented for automation), plus interactive launch for subscription logins as track-only until Cursor clarifies multi-account use.

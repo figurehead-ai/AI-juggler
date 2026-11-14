@@ -163,7 +163,8 @@ rollback all work before any user depends on them.
       nightly make a second version first).
 
 Stable comes later: **Promote** with channel `stable` only accepts a
-version that was on beta, and only once the beta gate is signed (Part 5).
+version that was on beta, and only once the minor's whole roadmap scope is
+done or deferred. Your approval of it is the release's sign-off (Part 5).
 
 ### 8. Measurements on your Mac (AJ-E805, 20 min)
 
@@ -276,19 +277,22 @@ fills the gate.
 
 ---
 
-## Part 5 — Signing the gates (AJ-E807)
+## Part 5 — Signing off a release (D-109, AJ-E807)
 
-**Why:** a signature records that you reviewed the evidence at a
-specific commit. The beta update feed doesn't move until the beta gate
-is signed.
+**Why:** your sign-off records that you reviewed a release at a specific
+commit. It is the **Approve** click on a Stable promotion, nothing more:
+GitHub keeps who approved, when and in which run, and Promote writes a
+sign-off record from it, with the roadmap scope's result and a link to
+each task's evidence (attached to the release as `signoff-X.Y.Z.md` and
+shown in the run's summary).
 
-- [ ] For M0, M1, M3, E5 and E7: read the gate file in `docs/qa/`. If
-      you accept it, fill its **Sign-off** table: Decision `APPROVED`,
-      Reviewer (your name), Date (`YYYY-MM-DD`), Commit (the current
-      `main` commit). `git rev-parse --short origin/main` prints it.
-- [ ] Beta: run `just gate-packet`, read `docs/qa/gate-beta.md`, and sign
-      it only when every criterion is PASS. `just gate-signed` confirms
-      the signature is complete.
+- [ ] When you promote a version to Stable (**Actions → Promote**,
+      channel `stable`), read the run's summary first: the D-24 checks,
+      the accessibility gate and the roadmap scope. The run stops before
+      asking you while anything in the scope is open. Then click
+      **Review deployments → Approve**.
+- [ ] Nothing else to sign. The old gate files (`docs/qa/gate-*.md`) are
+      history; an agent copies each record into `docs/qa/signoffs/`.
 
 ---
 
@@ -314,12 +318,21 @@ shares, needs the whole gallery compared.
 
 ## Part 7 — As new tools land
 
-### 16. Live checks of new tools on spare accounts (AJ-E1612)
+### 16. Live checks of new tools in separate lab profiles (AJ-E1612)
 
 **Why:** every new tool is built from its source and fixtures only. One
-short run on an account that doesn't matter proves what really happens,
-and the evidence records it. Use a throwaway project, and sign-ins you
-don't mind losing (a free model, or a small OpenCode Zen balance).
+short run proves what really happens, and the evidence records it.
+
+**Your part is the sign-ins only (D-107, 2026-11-13).** The agent sets up a
+separate lab profile or home for each installed tool on your existing
+accounts (`KIMI_CODE_HOME`, `ZCODE_*`, `KIRO_HOME`, a per-account `HOME`…),
+under a throwaway lab project in AI Juggler Dev, never the tool's real home.
+When they're ready you get one line per tool saying where to sign in; you
+sign each in once, all in one sitting. The agent then runs every checklist
+below itself (guarded keystrokes, one or two tools at a time, small tasks),
+records the evidence and stops everything it started. A tool that isn't
+installed is listed with what installing it needs; installing waits for
+your yes. The checklists below are what the agent runs.
 
 #### OpenCode (AJ-E1602; about 30 min per version)
 
@@ -557,12 +570,13 @@ to the agent.
 
 ## Part 8 — Pools and the agent bridge
 
-### 17. The agent bridge spike on spare accounts (AJ-E1701 Req.2; about 30 min)
+### 17. The agent bridge spike in separate lab profiles (AJ-E1701 Req.2; about 30 min)
 
 **Why:** AJ-E1704 built the bridge to the vendors' documented behaviour,
 and its tests run on the fake tool only. Three things only a real run
 can show, and the evidence marks them **unverified** until you've done
-this. Use spare accounts, a throwaway lab project, and AI Juggler Dev
+this. The agent uses separate lab profiles on your existing accounts
+(D-107; you only sign them in), a throwaway lab project, and AI Juggler Dev
 (`just dev`, which builds `juggler-agent` beside it). Allow nothing,
 sign in to nothing new.
 

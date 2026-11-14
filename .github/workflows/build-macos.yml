@@ -78,6 +78,10 @@ on:
         required: false
       TAURI_SIGNING_PRIVATE_KEY_PASSWORD:
         required: false
+      # D-108: Sentry's address for crash reports, compiled into release
+      # builds only (crates/juggler-app/build.rs, `cfg(crash_sender)`).
+      AI_JUGGLER_CRASH_ENDPOINT:
+        required: false
 
 # Each job asks for what it needs, nothing more.
 permissions: {}
@@ -240,6 +244,12 @@ jobs:
           # also trusts, so a rotation needs no new build first
           # (docs/RELEASING.md, "If a key leaks").
           AIJ_UPDATER_NEXT_PUBKEYS: ${{ vars.AIJ_UPDATER_NEXT_PUBKEYS }}
+          # D-108 (AJ-E1107): crash reports' Sentry address, compiled in so
+          # the app can send a report the user agreed to. A Sentry address
+          # is public by design (every shipped app carries it); it's a
+          # secret here only so it isn't printed or forked. Empty (a
+          # rehearsal, a fork): the app is built without the sender.
+          AI_JUGGLER_CRASH_ENDPOINT: ${{ secrets.AI_JUGGLER_CRASH_ENDPOINT }}
         run: |
           set -euo pipefail
           # `build` bundles with this very file (compiled-*/config-*.json),

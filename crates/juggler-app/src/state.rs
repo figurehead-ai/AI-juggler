@@ -567,6 +567,15 @@ fn registry_with(claude: juggler_adapters::ClaudeCodeAdapter) -> AdapterRegistry
     registry.register(std::sync::Arc::new(
         juggler_adapters::GrokBuildAdapter::new(),
     ));
+    // AJ-E1605: ZCode, through the engine inside its app. No handover
+    // support, and its terminal takes no first message, so nothing is
+    // switched to it; a ZCode session's chat goes into a saved handover
+    // (its adapter reads it from its store), and switching from it waits
+    // for the live check (AJ-E1612).
+    registry.register(std::sync::Arc::new(juggler_adapters::ZCodeAdapter::new()));
+    // AJ-E1608: Meta's Muse Code, driven over `muse serve`. No handover
+    // support yet, so nothing is switched to or from it.
+    registry.register(std::sync::Arc::new(juggler_adapters::MuseAdapter::new()));
     registry
 }
 

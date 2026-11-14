@@ -3,20 +3,19 @@
 //! and the double the app's driver and the conformance kit run against.
 
 use juggler_adapter::ToolLaunch;
-use std::collections::VecDeque;
 use std::path::Path;
 use std::time::Duration;
 
-use juggler_adapter::runtime::book::{AskBook, drain_turn};
-use juggler_adapter::runtime::lines::{Lines, Next, write_json};
+use juggler_adapter::AdapterError;
+use juggler_adapter::runtime::book::{AskBook, release_turn};
+use juggler_adapter::runtime::pipe::Pipe;
 use juggler_adapter::runtime::{
     Approval, ApprovalKind, AskAnswer, AskId, AskOption, Choice, Connection, DrivenLaunch,
     DrivenRuntime, DrivenSession, DrivenSpec, ErrorCategory, LimitWindow, LimitsSnapshot,
     LiveStatusWord, Maturity, OptionEffect, Question, QuestionPart, Release, ReleaseOutcome,
-    Runtime, RuntimeEvent, TerminalView, Transport, TurnEnd, TurnInput, TurnOrigin, TurnUsage,
-    ViewOf, events::bounded,
+    Runtime, RuntimeEvent, TerminalView, TurnEnd, TurnInput, TurnOrigin, TurnUsage, ViewOf,
+    events::bounded,
 };
-use juggler_adapter::{AdapterError, LaunchMode};
 use juggler_core::model::{Account, Profile};
 use serde_json::{Value, json};
 
@@ -47,14 +46,8 @@ impl DrivenRuntime for FakeHarnessAdapter {
         cwd: &Path,
         launch: &DrivenLaunch,
     ) -> Result<DrivenSpec, AdapterError> {
-        let mode = launch
-            .resume
-            .as_ref()
-            .map_or(LaunchMode::Interactive, |id| LaunchMode::Resume {
-                session_id: id.clone(),
-                delta_prompt: None,
-            });
-        let mut spec = self.launch_spec(account, profile, cwd, &mode)?;
+        let mode = crate::common::driven::launch_mode(launch)?;
+        let spec = self.launch_spec(account, profile, cwd, &mode)?;
         let id = launch
             .resume
             .clone()
@@ -66,20 +59,19 @@ impl DrivenRuntime for FakeHarnessAdapter {
         } else {
             "--session-id"
         };
-        spec.args = vec![
+        let args = vec![
             "drive".to_owned(),
             "--dir".to_owned(),
             dir.to_string_lossy().into_owned(),
             flag.to_owned(),
             id.clone(),
         ];
-        spec.needs_pty = false;
-        Ok(DrivenSpec {
-            launch: spec,
-            transport: Transport::Stdio,
-            native_id: Some(id),
-            model: None,
-        })
+        Ok(crate::common::driven::over_stdio(
+            spec,
+            args,
+            Some(id),
+            None,
+        ))
     }
 
     fn connect(
@@ -89,15 +81,12 @@ impl DrivenRuntime for FakeHarnessAdapter {
         _account: &Account,
     ) -> Result<Box<dyn DrivenSession>, AdapterError> {
         Ok(Box::new(FakeDrivenSession {
-            lines: Lines::spawn(io.reader),
-            writer: io.writer,
+            pipe: Pipe::new(io),
             native_id: spec.native_id.clone(),
-            queue: VecDeque::new(),
             book: AskBook::default(),
             turn_running: false,
             origin: None,
             limits: None,
-            exited: false,
         }))
     }
 
@@ -108,26 +97,18 @@ impl DrivenRuntime for FakeHarnessAdapter {
         cwd: &Path,
         of: &ViewOf,
     ) -> Result<TerminalView, AdapterError> {
-        let mode = LaunchMode::Resume {
-            session_id: of.native_id.clone(),
-            delta_prompt: None,
-        };
-        self.launch_spec(account, profile, cwd, &mode)
-            .map(TerminalView::AfterRelease)
+        crate::common::driven::terminal_resume(self, account, profile, cwd, of)
     }
 }
 
 /// One session of the fake's protocol.
 pub struct FakeDrivenSession {
-    lines: Lines,
-    writer: Box<dyn std::io::Write + Send>,
+    pipe: Pipe,
     native_id: Option<String>,
-    queue: VecDeque<RuntimeEvent>,
     book: AskBook,
     turn_running: bool,
     origin: Option<TurnOrigin>,
     limits: Option<LimitsSnapshot>,
-    exited: bool,
 }
 
 fn word(message: &Value, key: &str) -> String {
@@ -208,7 +189,7 @@ fn question(message: &Value) -> RuntimeEvent {
 
 impl FakeDrivenSession {
     fn send(&mut self, value: &Value) -> Result<(), AdapterError> {
-        write_json(self.writer.as_mut(), value).map_err(AdapterError::Io)
+        self.pipe.send(value)
     }
 
     /// The fake's message as neutral events (first one returned, the rest
@@ -304,31 +285,26 @@ impl DrivenSession for FakeDrivenSession {
     }
 
     fn next_event(&mut self, timeout: Duration) -> Result<Option<RuntimeEvent>, AdapterError> {
-        if let Some(event) = self.queue.pop_front() {
+        if let Some(event) = self.pipe.queue.pop_front() {
             return Ok(Some(event));
         }
-        if self.exited {
+        let Some(line) = self.pipe.read(timeout) else {
+            // Nothing, or the end (queued by the read).
+            let end = self.pipe.queue.pop_front();
+            if let Some(event) = &end {
+                self.book.note(event);
+            }
+            return Ok(end);
+        };
+        let Ok(message) = serde_json::from_str::<Value>(&line) else {
             return Ok(None);
+        };
+        let events = self.map(&message);
+        for event in &events {
+            self.book.note(event);
         }
-        match self.lines.next(timeout) {
-            Next::Line(line) => {
-                let Ok(message) = serde_json::from_str::<Value>(&line) else {
-                    return Ok(None);
-                };
-                let events = self.map(&message);
-                for event in &events {
-                    self.book.note(event);
-                }
-                self.queue.extend(events);
-                Ok(self.queue.pop_front())
-            }
-            Next::Timeout => Ok(None),
-            Next::Closed => {
-                self.exited = true;
-                self.book.note(&RuntimeEvent::Exited);
-                Ok(Some(RuntimeEvent::Exited))
-            }
-        }
+        self.pipe.queue.extend(events);
+        Ok(self.pipe.queue.pop_front())
     }
 
     fn send_turn(&mut self, input: TurnInput) -> Result<(), AdapterError> {
@@ -370,25 +346,9 @@ impl DrivenSession for FakeDrivenSession {
     }
 
     fn release(mut self: Box<Self>, how: Release) -> Result<ReleaseOutcome, AdapterError> {
-        let mut tail: Vec<RuntimeEvent> = self.queue.drain(..).collect();
-        let mut at_boundary = !self.turn_running;
-        if self.turn_running {
-            let wait = match how {
-                Release::AfterTurn(wait) => wait,
-                Release::Now => {
-                    self.interrupt()?;
-                    Duration::from_secs(5)
-                }
-            };
-            let (more, ended) = drain_turn(&mut |timeout| self.next_event(timeout), wait);
-            tail.extend(more);
-            at_boundary = ended && matches!(how, Release::AfterTurn(_));
-        }
+        let queued = self.pipe.drain();
+        let running = self.turn_running;
         // Closing stdin ends the fake (the writer drops with `self`).
-        Ok(ReleaseOutcome {
-            native_id: self.native_id.clone(),
-            at_boundary,
-            tail,
-        })
+        release_turn(self.as_mut(), queued, running, how)
     }
 }

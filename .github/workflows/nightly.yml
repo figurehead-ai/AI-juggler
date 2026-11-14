@@ -149,6 +149,7 @@ jobs:
       APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
       TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
       TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+      AI_JUGGLER_CRASH_ENDPOINT: ${{ secrets.AI_JUGGLER_CRASH_ENDPOINT }}
 
   release:
     name: publish
@@ -190,6 +191,11 @@ jobs:
           # note (nightly_notes.py writes it; hand-written notes must too).
           ./scripts/release_notes_check.sh "$VERSION" ${PREVIOUS:+"$PREVIOUS"}
 
+      - name: The Claude Code plugin, released with the app (AJ-E1905, D-73)
+        # A zip of plugins/claude-code/ai-juggler, its plugin.json at this
+        # version; reproducible, so SHA256SUMS and provenance name it too.
+        run: python3 scripts/plugin_package.py "$VERSION" "$RUNNER_TEMP/assets"
+
       - name: Assemble the update feeds and checksums
         env:
           REPOSITORY: ${{ github.repository }}
@@ -227,6 +233,7 @@ jobs:
             ${{ runner.temp }}/assets/*.dmg
             ${{ runner.temp }}/assets/*.app.tar.gz
             ${{ runner.temp }}/assets/*.cdx.json
+            ${{ runner.temp }}/assets/*.zip
 
       - name: Publish the build (pre-release; channels point at it later)
         env:

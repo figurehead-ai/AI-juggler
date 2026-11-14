@@ -34,6 +34,8 @@ pub fn source_words(spec: &juggler_adapter::ToolSpec, source: UsageSource) -> Op
             .map_or_else(|| format!("{tool}'s app"), |app| format!("the {app} app")),
         UsageSource::UsageCache => format!("{tool}'s last usage check"),
         UsageSource::ApiRetry => format!("{tool}, when it hit the limit"),
+        // D-106: undocumented enough to say so where it shows.
+        UsageSource::LocalServer => format!("{tool}'s own local server (experimental)"),
         UsageSource::Transcript | UsageSource::Sqlite => return None,
     })
 }

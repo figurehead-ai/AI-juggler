@@ -138,7 +138,7 @@
   "jscpd:lines": 6
  },
  "crates/juggler-adapters/src/claude_code.rs": {
-  "jscpd:lines": 169
+  "jscpd:lines": 151
  },
  "crates/juggler-adapters/src/claude_cut.rs": {
   "jscpd:lines": 71
@@ -162,13 +162,10 @@
   "jscpd:lines": 16
  },
  "crates/juggler-adapters/src/claude_stream/codec.rs": {
-  "jscpd:lines": 22
+  "jscpd:lines": 11
  },
  "crates/juggler-adapters/src/claude_stream/mod.rs": {
-  "jscpd:lines": 63
- },
- "crates/juggler-adapters/src/claude_stream/session.rs": {
-  "jscpd:lines": 93
+  "jscpd:lines": 30
  },
  "crates/juggler-adapters/src/claude_subagents/mod.rs": {
   "jscpd:lines": 6
@@ -186,28 +183,22 @@
   "jscpd:lines": 7
  },
  "crates/juggler-adapters/src/codex.rs": {
-  "jscpd:lines": 108
+  "jscpd:lines": 81
  },
  "crates/juggler-adapters/src/codex_appserver/asks.rs": {
   "jscpd:lines": 7
  },
  "crates/juggler-adapters/src/codex_appserver/codec.rs": {
-  "jscpd:lines": 22
+  "jscpd:lines": 11
  },
  "crates/juggler-adapters/src/codex_appserver/mod.rs": {
-  "jscpd:lines": 40
- },
- "crates/juggler-adapters/src/codex_appserver/session.rs": {
-  "jscpd:lines": 75
+  "jscpd:lines": 30
  },
  "crates/juggler-adapters/src/codex_cut.rs": {
   "jscpd:lines": 48
  },
  "crates/juggler-adapters/src/codex_endpoint.rs": {
   "jscpd:lines": 37
- },
- "crates/juggler-adapters/src/codex_environment.rs": {
-  "jscpd:lines": 21
  },
  "crates/juggler-adapters/src/codex_family.rs": {
   "jscpd:lines": 10
@@ -240,22 +231,22 @@
   "jscpd:lines": 7
  },
  "crates/juggler-adapters/src/fake.rs": {
-  "jscpd:lines": 16
+  "jscpd:lines": 8
  },
  "crates/juggler-adapters/src/fake_desktop.rs": {
   "jscpd:lines": 8
  },
  "crates/juggler-adapters/src/fake_driven.rs": {
-  "jscpd:lines": 41
+  "jscpd:lines": 20
  },
  "crates/juggler-adapters/src/grok_build.rs": {
-  "jscpd:lines": 378
+  "jscpd:lines": 282
  },
  "crates/juggler-adapters/src/grok_environment.rs": {
-  "jscpd:lines": 49
+  "jscpd:lines": 17
  },
  "crates/juggler-adapters/src/grok_inventory.rs": {
-  "jscpd:lines": 119
+  "jscpd:lines": 66
  },
  "crates/juggler-adapters/src/grok_sessions.rs": {
   "jscpd:lines": 47
@@ -267,13 +258,13 @@
   "jscpd:lines": 18
  },
  "crates/juggler-adapters/src/kimi_code.rs": {
-  "jscpd:lines": 234
+  "jscpd:lines": 168
  },
  "crates/juggler-adapters/src/kimi_environment.rs": {
-  "jscpd:lines": 42
+  "jscpd:lines": 17
  },
  "crates/juggler-adapters/src/kimi_inventory.rs": {
-  "jscpd:lines": 109
+  "jscpd:lines": 55
  },
  "crates/juggler-adapters/src/kimi_sessions.rs": {
   "jscpd:lines": 46
@@ -288,10 +279,10 @@
   "jscpd:lines": 30
  },
  "crates/juggler-adapters/src/opencode.rs": {
-  "jscpd:lines": 173
+  "jscpd:lines": 144
  },
  "crates/juggler-adapters/src/opencode_inventory.rs": {
-  "jscpd:lines": 118
+  "jscpd:lines": 59
  },
  "crates/juggler-adapters/src/opencode_store.rs": {
   "jscpd:lines": 6

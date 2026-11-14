@@ -141,15 +141,16 @@ describe("AJ-E210 BetaMatrix — the disclosure table", () => {
   it("the honest default (no seam): every switch in beta", async () => {
     const { container } = render(<BetaMatrix />);
     await waitFor(() =>
-      expect(container.querySelectorAll('[data-testid="beta-matrix-row"]').length).toBe(5),
+      expect(container.querySelectorAll('[data-testid="beta-matrix-row"]').length).toBe(10),
     );
-    // Only switches between the tools AI Juggler has (Claude Code, Codex
-    // and OpenCode here): a researched pair for a tool it can't run is
-    // left out.
+    // Only switches between the tools AI Juggler has (Claude Code, Codex,
+    // OpenCode and ZCode here): a researched pair for a tool it can't run
+    // (Gemini) is left out.
     expect(container.querySelector('[data-testid="beta-matrix-summary"]')!.textContent).toContain(
-      "None of the 5 switches is proven yet; all are in beta.",
+      "None of the 10 switches is proven yet; all are in beta.",
     );
-    expect(container.textContent).not.toMatch(/zcode|gemini/i);
+    expect(container.textContent).not.toMatch(/gemini/i);
+    expect(container.textContent).toContain("ZCode");
     expect(container.textContent).toContain("OpenCode");
     expect(container.textContent).not.toMatch(/lossless/i);
     expect(container.textContent).toContain("Pass with the real tools");

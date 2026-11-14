@@ -33,18 +33,9 @@
 //! session with it, and `grok --resume <id> -- "<message>"` sends it in
 //! the resumed one, so a switch can start Grok with its handover pointer.
 
-use std::path::{Path, PathBuf};
+use crate::common::prelude::*;
 
-use juggler_adapter::environment::{DiscoveredInstall, ImportOutcome, LoginProbe};
-use juggler_adapter::launch::ENV_UNSET;
-use juggler_adapter::prelude::*;
-use juggler_adapter::{
-    AdapterError, Capabilities, DiscoveryReport, EnvMap, InstallStatus, LaunchMode, LaunchSpec,
-    SessionWatcher, VerificationStatus,
-};
-use juggler_core::model::{Account, HarnessId, Profile};
-
-use crate::claude_code::{LoginState, existing, find_on_path, home_dir, prepare_managed_dir_for};
+use crate::claude_code::{existing, find_on_path};
 
 /// Provider id: `grok-build` (the unofficial CLI is also called `grok`).
 pub const GROK_BUILD_ID: &str = "grok-build";
@@ -98,13 +89,7 @@ const UNSET: &[&str] = &[ENV_AUTH_PATH, "XAI_API_KEY"];
 /// the first line that starts with a digit, a leading `v` dropped.
 #[must_use]
 pub fn parse_version(stdout: &str) -> Option<String> {
-    stdout
-        .lines()
-        .next()?
-        .split_whitespace()
-        .map(|word| word.strip_prefix('v').unwrap_or(word))
-        .find(|word| word.starts_with(|c: char| c.is_ascii_digit()))
-        .map(str::to_owned)
+    crate::common::probe::first_version_word(stdout)
 }
 
 /// Whether `path` is a Node or Bun script (its first line `#!…node` or
@@ -206,27 +191,6 @@ impl GrokBuildAdapter {
             notes,
         }
     }
-
-    /// The pinned home, the removed variables and the fixed ones.
-    fn isolation_env(&self, state_dir: &Path) -> EnvMap {
-        let mut env: EnvMap = self
-            .pinned_env(state_dir)
-            .into_iter()
-            .map(|(key, value)| {
-                (
-                    key.to_owned(),
-                    value.unwrap_or_else(|| ENV_UNSET.to_owned()),
-                )
-            })
-            .collect();
-        for key in UNSET {
-            env.insert((*key).to_owned(), ENV_UNSET.to_owned());
-        }
-        for (key, value) in FIXED {
-            env.insert((*key).to_owned(), (*value).to_owned());
-        }
-        env
-    }
 }
 
 /// Sign-in state of a Grok Build home, from each `auth.json` entry's mode
@@ -256,14 +220,7 @@ pub fn grok_login_state(home: &Path) -> LoginState {
 }
 
 fn scan_probe(home: &Path) -> LoginProbe {
-    match grok_login_state(home) {
-        LoginState::SignedIn | LoginState::ApiKey => LoginProbe::LoggedIn,
-        LoginState::Partial
-        | LoginState::Expired
-        | LoginState::SsoPending
-        | LoginState::LoggedOut
-        | LoginState::Unknown => LoginProbe::LoggedOut,
-    }
+    grok_login_state(home).probe()
 }
 
 /// `grok` subcommands that aren't a session (research §1–§6).
@@ -345,13 +302,9 @@ impl ToolDiscovery for GrokBuildAdapter {
         )
     }
     fn scan_environment(&self) -> Vec<DiscoveredInstall> {
-        let Some(home) = self.user_home() else {
-            return Vec::new();
-        };
-        let env_override = std::env::var_os(ENV_HOME)
-            .filter(|value| !value.is_empty())
-            .map(PathBuf::from);
-        crate::grok_environment::scan_grok_environment(&home, env_override.as_deref(), &scan_probe)
+        crate::common::home::scan_home(self.user_home(), ENV_HOME, |home, env| {
+            crate::grok_environment::scan_grok_environment(home, env, &scan_probe)
+        })
     }
     fn vendor_default_dir(&self) -> Option<PathBuf> {
         self.default_home()
@@ -367,11 +320,7 @@ impl ToolDiscovery for GrokBuildAdapter {
 impl ToolSignIn for GrokBuildAdapter {
     fn prepare_account(&self, state_dir: &Path) -> Result<EnvMap, AdapterError> {
         prepare_managed_dir_for(state_dir, GROK_BUILD_ID)?;
-        Ok(self
-            .pinned_env(state_dir)
-            .into_iter()
-            .filter_map(|(key, value)| Some((key.to_owned(), value?)))
-            .collect())
+        Ok(self.pinned_set_env(state_dir))
     }
     fn login_state(&self, state_dir: &Path) -> LoginState {
         grok_login_state(state_dir)

@@ -3,10 +3,13 @@
   "owner": {
     "name": "Figurehead"
   },
+  "metadata": {
+    "description": "AI Juggler's optional Claude Code plugin: the pool tools and a skill for working the pool's tasks, while AI Juggler runs."
+  },
   "plugins": [
     {
       "name": "ai-juggler",
-      "source": "./ai-juggler",
+      "source": "./plugins/claude-code/ai-juggler",
       "description": "AI Juggler's pool tools and a skill for working the pool's tasks."
     }
   ]

@@ -46,20 +46,9 @@
 
 pub mod service;
 
-use std::path::{Path, PathBuf};
+use crate::common::prelude::*;
 
-use juggler_adapter::environment::{DiscoveredInstall, ImportOutcome, LoginProbe};
-use juggler_adapter::launch::ENV_UNSET;
-use juggler_adapter::prelude::*;
-use juggler_adapter::{
-    AdapterError, Capabilities, DiscoveryReport, EnvMap, InstallStatus, LaunchMode, LaunchSpec,
-    SessionEvent, SessionWatcher, VerificationStatus,
-};
-use juggler_core::model::{Account, HarnessId, Profile};
-
-use crate::claude_code::{
-    LoginState, existing, find_on_path, home_dir, is_managed_dir, prepare_managed_dir_for,
-};
+use crate::claude_code::{existing, find_on_path, is_managed_dir};
 use crate::opencode_environment::{managed_config_dir, managed_data_dir, managed_state_dir};
 use crate::opencode_store::DB_FILE;
 
@@ -283,22 +272,6 @@ impl OpenCodeAdapter {
             notes,
         }
     }
-
-    /// The pinned variables plus every removed one, for a launch or the
-    /// sign-in flow.
-    fn isolation_env(&self, state_dir: &Path) -> EnvMap {
-        let mut env = EnvMap::new();
-        for (key, value) in self.pinned_env(state_dir) {
-            env.insert(
-                key.to_owned(),
-                value.unwrap_or_else(|| ENV_UNSET.to_owned()),
-            );
-        }
-        for key in UNSET {
-            env.insert((*key).to_owned(), ENV_UNSET.to_owned());
-        }
-        env
-    }
 }
 
 /// The data folder of an account folder, from the account's own record:
@@ -368,14 +341,7 @@ fn classify_kinds(kinds: &[String]) -> LoginState {
 }
 
 fn scan_probe(data_dir: &Path) -> LoginProbe {
-    match opencode_login_state(data_dir) {
-        LoginState::SignedIn | LoginState::ApiKey => LoginProbe::LoggedIn,
-        LoginState::Partial
-        | LoginState::Expired
-        | LoginState::SsoPending
-        | LoginState::LoggedOut
-        | LoginState::Unknown => LoginProbe::LoggedOut,
-    }
+    opencode_login_state(data_dir).probe()
 }
 
 /// `{"model": "<model>"}` merged into any inline settings the launch
@@ -448,13 +414,9 @@ impl ToolDiscovery for OpenCodeAdapter {
         )
     }
     fn scan_environment(&self) -> Vec<DiscoveredInstall> {
-        let Some(home) = self.user_home() else {
-            return Vec::new();
-        };
-        let xdg = std::env::var_os(ENV_DATA_HOME)
-            .filter(|value| !value.is_empty())
-            .map(PathBuf::from);
-        crate::opencode_environment::scan_opencode_environment(&home, xdg.as_deref(), &scan_probe)
+        crate::common::home::scan_home(self.user_home(), ENV_DATA_HOME, |home, env| {
+            crate::opencode_environment::scan_opencode_environment(home, env, &scan_probe)
+        })
     }
     fn vendor_default_dir(&self) -> Option<PathBuf> {
         self.default_data_dir()
@@ -482,11 +444,7 @@ impl ToolSignIn for OpenCodeAdapter {
                 }
             })?;
         }
-        Ok(self
-            .pinned_env(state_dir)
-            .into_iter()
-            .filter_map(|(key, value)| Some((key.to_owned(), value?)))
-            .collect())
+        Ok(self.pinned_set_env(state_dir))
     }
     fn login_state(&self, state_dir: &Path) -> LoginState {
         opencode_login_state(&self.data_dir(state_dir))
@@ -697,11 +655,10 @@ impl ToolInventory for OpenCodeAdapter {
 
 impl ToolTranscripts for OpenCodeAdapter {
     fn watcher(&self, transcript_root: &Path) -> Result<Box<dyn SessionWatcher>, AdapterError> {
-        Ok(Box::new(DbWatcher {
-            db: transcript_root.join(DB_FILE),
-            seen: std::collections::BTreeMap::new(),
-            pending: std::collections::VecDeque::new(),
-        }))
+        Ok(Box::new(crate::common::sqlite::StoreWatcher::new(
+            transcript_root.join(DB_FILE),
+            crate::opencode_store::session_changes,
+        )))
     }
     /// The session that ran in `cwd` from `opencode.db` (read-only);
     /// its link is `<db>#<id>` (see `opencode_store`).
@@ -895,43 +852,5 @@ impl OpenCodeAdapter {
                     .map(|home| home.join(".config").join("opencode"))
             })
             .flatten()
-    }
-}
-
-/// Polls `opencode.db` for sessions: a new id is `Discovered`, a newer
-/// `time_updated` is `MessageAppended`. Read-only; an unreadable file
-/// yields nothing (watching degrades, never crashes).
-struct DbWatcher {
-    db: PathBuf,
-    seen: std::collections::BTreeMap<String, i64>,
-    pending: std::collections::VecDeque<SessionEvent>,
-}
-
-impl SessionWatcher for DbWatcher {
-    fn poll(
-        &mut self,
-        _timeout: std::time::Duration,
-    ) -> Result<Option<SessionEvent>, AdapterError> {
-        if self.pending.is_empty()
-            && let Ok(sessions) = crate::opencode_store::sessions(&self.db)
-        {
-            for session in sessions.into_iter().rev() {
-                let transcript_path = crate::opencode_store::session_ref(&self.db, &session.id);
-                match self.seen.insert(session.id.clone(), session.updated_ms) {
-                    None => self.pending.push_back(SessionEvent::Discovered {
-                        native_id: session.id,
-                        transcript_path,
-                    }),
-                    Some(before) if before < session.updated_ms => {
-                        self.pending.push_back(SessionEvent::MessageAppended {
-                            native_id: session.id,
-                            transcript_path,
-                        });
-                    }
-                    Some(_) => {}
-                }
-            }
-        }
-        Ok(self.pending.pop_front())
     }
 }

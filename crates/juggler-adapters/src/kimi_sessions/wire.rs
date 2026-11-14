@@ -18,7 +18,10 @@
 //!   runs) waits on the user until the `interaction.resolved` with its
 //!   `id`: needs you;
 //! - `usage.record` is one model call's tokens (`inputOther`, `output`,
-//!   `inputCacheRead`, `inputCacheCreation`) and its model.
+//!   `inputCacheRead`, `inputCacheCreation`) and its model;
+//! - a `turn.ended` that failed at the plan's limit is a limit hit, its
+//!   window named by the vendor's message ([`crate::kimi_limits`], matched
+//!   and dropped as it is parsed); a later completed turn clears it.
 //!
 //! What the lines say is never kept: no prompt, message or answer text is
 //! read into memory as a value, only types, ids, times and counts.
@@ -59,9 +62,9 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::sync::{LazyLock, Mutex};
 
-use juggler_adapter::live::{LiveSession, LiveStatus, TailTurn};
+use juggler_adapter::live::{LimitHit, LiveSession, LiveStatus, TailTurn};
 use juggler_core::model::{Confidence, TokenCounts};
-use juggler_core::quota::{UsageEvent, UsageSource};
+use juggler_core::quota::{QuotaSample, UsageEvent, UsageSource, WindowKind};
 
 use crate::transcript_tail::{TailLog, TranscriptTail};
 
@@ -136,6 +139,13 @@ pub struct WireLog {
     last_time: Option<i64>,
     /// Usage read since it was last taken out.
     usage: Vec<WireUsage>,
+    /// The limit hit its last turns ended at, until a turn completes.
+    hit: Option<LimitHit>,
+    /// When a turn last completed (the model answered).
+    completed_at: Option<i64>,
+    /// Every limit hit read, when asked for ([`limit_hits_at`]); `None`
+    /// keeps none (the cache's logs).
+    hits: Option<Vec<(i64, Option<WindowKind>)>>,
 }
 
 /// A record's fields that are read; the rest of it is ignored.
@@ -155,6 +165,9 @@ struct Record {
     model: Option<String>,
     #[serde(default)]
     usage: Option<Tokens>,
+    /// `turn.ended`'s reason word.
+    #[serde(default)]
+    reason: Option<String>,
 }
 
 /// `TokenUsage` (`packages/agent-core-v2/src/human/llm/usage.ts`).
@@ -230,6 +243,7 @@ impl WireLog {
                 self.turn = None;
                 // A turn that ended waits on nothing it asked (inferred).
                 self.open.clear();
+                self.turn_ended(record.reason.as_deref(), time, line);
             }
             "interaction.request" => {
                 if let Some(id) = record.id {
@@ -261,6 +275,41 @@ impl WireLog {
             }
             _ => {}
         }
+    }
+
+    /// A turn's end: a completed one clears the limit hit; a failed one
+    /// at the plan's limit is one, at the record's time (a record without
+    /// one takes the last time read, as every record here does).
+    fn turn_ended(&mut self, reason: Option<&str>, time: Option<i64>, line: &[u8]) {
+        match reason {
+            Some("completed") => {
+                self.hit = None;
+                self.completed_at = time.or(self.completed_at);
+            }
+            Some("failed") => {
+                let (Some(at), Some(window)) = (time, crate::kimi_limits::hit_in(line)) else {
+                    return;
+                };
+                self.hit = Some(LimitHit {
+                    at_ms: at,
+                    resets_at_ms: None,
+                    window,
+                });
+                if let Some(hits) = &mut self.hits {
+                    hits.push((at, window));
+                }
+            }
+            _ => {}
+        }
+    }
+
+    /// The limit hit the log's last turns ended at (none once a turn
+    /// completed after it); none for a version not read.
+    #[must_use]
+    pub fn limit_hit(&self) -> Option<LimitHit> {
+        (self.protocol == Protocol::Known)
+            .then_some(self.hit)
+            .flatten()
     }
 
     /// What the log says the session is doing, for a session held since
@@ -422,21 +471,131 @@ pub fn read_live(path: &Path) -> Option<LiveSession> {
     })
 }
 
-/// What the log at `path` says its session is doing, read up to its end.
-#[must_use]
-pub fn status_of(path: &Path, held_since: Option<i64>) -> LiveStatus {
-    let Ok(taken) = FILES.lock().map(|mut files| files.remove(path)) else {
-        return LiveStatus::Unknown;
-    };
+/// `read` of the log at `path`, read up to its end (from where the last
+/// read stopped); `None` when it couldn't be read.
+fn with_log<R>(path: &Path, read: impl FnOnce(&WireLog) -> R) -> Option<R> {
+    let taken = FILES.lock().map(|mut files| files.remove(path)).ok()?;
     let mut file = taken.unwrap_or_default();
     if !file.catch_up(path) {
-        return LiveStatus::Unknown;
+        return None;
     }
-    let status = file.tail.log().status(held_since);
+    let out = read(file.tail.log());
     if let Ok(mut files) = FILES.lock() {
         files.insert(path.to_path_buf(), file);
     }
-    status
+    Some(out)
+}
+
+/// What the log at `path` says its session is doing, read up to its end.
+#[must_use]
+pub fn status_of(path: &Path, held_since: Option<i64>) -> LiveStatus {
+    with_log(path, |log| log.status(held_since)).unwrap_or(LiveStatus::Unknown)
+}
+
+/// The limit hit a tail of one log holds (`tail` must open with the log's
+/// version line, as a whole log does: a tail cut from a longer log says
+/// nothing, never a guess).
+#[must_use]
+pub fn limit_hit_in_tail(tail: &str) -> Option<LimitHit> {
+    let mut log = WireLog::default();
+    log.feed(tail.as_bytes());
+    log.limit_hit()
+}
+
+/// The limit hit the session whose record (`state.json`) is `record`
+/// holds, from every agent's log in its folder (a subagent's turn can be
+/// the one that hit it): the newest, unless a turn completed after it.
+/// `None` for any other file.
+#[must_use]
+pub fn session_limit_hit(record: &Path) -> Option<Option<LimitHit>> {
+    if record.file_name()? != super::STATE_FILE {
+        return None;
+    }
+    let mut newest: Option<LimitHit> = None;
+    let mut carried_on: Option<i64> = None;
+    for log in agent_logs(record.parent()?) {
+        let Some((hit, done)) = with_log(&log, |wire| {
+            (
+                wire.limit_hit(),
+                wire.completed_at
+                    .filter(|_| wire.protocol == Protocol::Known),
+            )
+        }) else {
+            continue;
+        };
+        if hit.is_some_and(|hit| newest.is_none_or(|seen| hit.at_ms > seen.at_ms)) {
+            newest = hit;
+        }
+        carried_on = carried_on.max(done);
+    }
+    Some(newest.filter(|hit| carried_on.is_none_or(|at| at < hit.at_ms)))
+}
+
+/// Every limit hit recorded at `path` that names its window — a session's
+/// record (`state.json`: its agents' logs), one log, or a folder of them
+/// (what a move renamed) — each with its log, as the usage reading keeps
+/// a hit: the window used up at the hit's time, its reset unknown.
+#[must_use]
+pub fn limit_hits_at(path: &Path) -> Vec<(PathBuf, WindowKind, QuotaSample)> {
+    let mut files = Vec::new();
+    if path.is_dir() {
+        wire_files_under(path, &mut files, 0);
+    } else if path
+        .file_name()
+        .is_some_and(|name| name == super::STATE_FILE)
+    {
+        files = path.parent().map(agent_logs).unwrap_or_default();
+    } else if path.file_name().is_some_and(|name| name == WIRE_FILE) && path.is_file() {
+        files.push(path.to_path_buf());
+    }
+    let mut out = Vec::new();
+    for file in files {
+        let log = WireLog {
+            hits: Some(Vec::new()),
+            ..WireLog::default()
+        };
+        let mut tail = TranscriptTail::resume(log, 0, None);
+        if tail.read_all(&file).is_err() || tail.log().protocol != Protocol::Known {
+            continue;
+        }
+        let hits = tail.log().hits.clone().unwrap_or_default();
+        out.extend(hits.into_iter().filter_map(|(at, window)| {
+            Some((
+                file.clone(),
+                window?,
+                QuotaSample {
+                    ts: at,
+                    used_pct: 100.0,
+                    resets_at: None,
+                    confidence: Confidence::Measured,
+                    held_until: None,
+                },
+            ))
+        }));
+    }
+    out
+}
+
+/// The deepest folder [`wire_files_under`] goes into.
+const MAX_DEPTH: u32 = 8;
+
+/// Every event log under `dir`, sorted.
+fn wire_files_under(dir: &Path, out: &mut Vec<PathBuf>, depth: u32) {
+    if depth > MAX_DEPTH {
+        return;
+    }
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return;
+    };
+    let mut entries: Vec<PathBuf> = entries.flatten().map(|entry| entry.path()).collect();
+    entries.sort();
+    for path in entries {
+        if path.is_dir() {
+            wire_files_under(&path, out, depth + 1);
+        } else if path.file_name().is_some_and(|name| name == WIRE_FILE) {
+            out.push(path);
+        }
+    }
 }
 
 /// What a session's main log says of its last turn, for the session whose
@@ -456,24 +615,28 @@ pub fn last_turn(record: &Path) -> Option<TailTurn> {
     }
 }
 
+/// Every agent's log in the session folder `dir`, sorted.
+fn agent_logs(dir: &Path) -> Vec<PathBuf> {
+    let Ok(agents) = std::fs::read_dir(dir.join(AGENTS_DIR)) else {
+        return Vec::new();
+    };
+    let mut out: Vec<PathBuf> = agents
+        .flatten()
+        .map(|agent| agent.path().join(WIRE_FILE))
+        .filter(|log| log.is_file())
+        .collect();
+    out.sort();
+    out
+}
+
 /// Every agent's log of every session in `home`.
 #[must_use]
 pub fn logs(home: &Path) -> Vec<PathBuf> {
-    let mut out = Vec::new();
-    for dir in super::conversation_files(home)
+    let mut out: Vec<PathBuf> = super::conversation_files(home)
         .iter()
         .filter_map(|state| state.parent())
-    {
-        let Ok(agents) = std::fs::read_dir(dir.join(AGENTS_DIR)) else {
-            continue;
-        };
-        for agent in agents.flatten() {
-            let log = agent.path().join(WIRE_FILE);
-            if log.is_file() {
-                out.push(log);
-            }
-        }
-    }
+        .flat_map(agent_logs)
+        .collect();
     out.sort();
     out
 }
@@ -693,6 +856,132 @@ mod tests {
                 },
             ]
         );
+    }
+
+    /// A failed turn at the plan's limit, as Kimi Code writes it.
+    fn hit_line(message: &str, time: i64) -> String {
+        format!(
+            r#"{{"type":"turn.ended","agentId":"main","turnId":2,"reason":"failed","error":{{"code":"provider.api_error","message":"{message}","name":"APIProviderQuotaExhaustedError","details":{{"statusCode":429,"requestId":null}},"retryable":false}},"durationMs":120,"time":{time}}}"#
+        )
+    }
+
+    fn completed(time: i64) -> String {
+        format!(
+            r#"{{"type":"turn.ended","agentId":"main","turnId":3,"reason":"completed","time":{time}}}"#
+        )
+    }
+
+    const FIVE: &str = "You've reached your 5-hour usage limit. Please wait for it to reset.";
+    const WEEK: &str = "You've reached your weekly (7-day) usage limit.";
+    const MONTH: &str = "You've reached your monthly usage limit.";
+
+    #[test]
+    fn a_turn_failed_at_the_limit_names_its_window_until_a_turn_completes() {
+        for (message, window) in [
+            (FIVE, WindowKind::FiveHour),
+            (WEEK, WindowKind::Weekly { anchor_ms: None }),
+            (MONTH, WindowKind::Monthly),
+        ] {
+            let mut wire = log(&[META, &hit_line(message, 4000)]);
+            assert_eq!(
+                wire.limit_hit(),
+                Some(LimitHit {
+                    at_ms: 4000,
+                    resets_at_ms: None,
+                    window: Some(window),
+                })
+            );
+            // Another prompt alone leaves it: only an answer clears it.
+            wire.feed(
+                br#"{"type":"turn.prompt","agentId":"main","input":[],"origin":"user","time":4500}
+"#,
+            );
+            assert!(wire.limit_hit().is_some());
+            wire.feed(format!("{}\n", completed(5000)).as_bytes());
+            assert_eq!(wire.limit_hit(), None);
+        }
+    }
+
+    #[test]
+    fn other_failures_versions_and_cut_lines_are_no_hit() {
+        let busy = r#"{"type":"turn.ended","agentId":"main","turnId":2,"reason":"failed","error":{"code":"provider.rate_limit","message":"Too many concurrent requests.","name":"APIProviderRateLimitError","details":{"statusCode":429},"retryable":true},"time":4000}"#;
+        assert_eq!(log(&[META, busy]).limit_hit(), None);
+        // A protocol not read says nothing.
+        let newer = r#"{"type":"metadata","protocol_version":"1.6","created_at":1000}"#;
+        assert_eq!(log(&[newer, &hit_line(FIVE, 4000)]).limit_hit(), None);
+        // The last line cut short is skipped.
+        let line = hit_line(FIVE, 4000);
+        let cut = &line[..line.len() - 20];
+        assert_eq!(log(&[META, cut]).limit_hit(), None);
+        // A hit without its own time takes the last one read, as every
+        // record does (the log's start at least).
+        let untimed = hit_line(FIVE, 4000).replace(",\"time\":4000", "");
+        assert_eq!(
+            log(&[META, &untimed]).limit_hit().map(|hit| hit.at_ms),
+            Some(1000)
+        );
+        // A tail that doesn't open with its version line says nothing.
+        assert_eq!(
+            limit_hit_in_tail(&format!("{}\n", hit_line(FIVE, 4000))),
+            None
+        );
+        assert!(limit_hit_in_tail(&format!("{META}\n{}\n", hit_line(FIVE, 4000))).is_some());
+    }
+
+    #[test]
+    fn a_sessions_hit_is_read_from_every_agents_log_and_listed_with_its_file() {
+        let home = tempfile::tempdir().unwrap();
+        let dir = home.path().join("sessions/key/s1");
+        std::fs::create_dir_all(dir.join("agents/main")).unwrap();
+        std::fs::create_dir_all(dir.join("agents/sub-1")).unwrap();
+        let record = dir.join(super::super::STATE_FILE);
+        std::fs::write(&record, "{}").unwrap();
+        let main = main_log(&dir);
+        let sub = dir.join("agents/sub-1").join(WIRE_FILE);
+        std::fs::write(&main, format!("{META}\n{}\n", completed(3000))).unwrap();
+        std::fs::write(&sub, format!("{META}\n{}\n", hit_line(WEEK, 4000))).unwrap();
+        let hit = session_limit_hit(&record).unwrap().unwrap();
+        assert_eq!(hit.window, Some(WindowKind::Weekly { anchor_ms: None }));
+        assert_eq!(hit.at_ms, 4000);
+        // The main agent answered after it: carried on.
+        std::fs::write(
+            &main,
+            format!("{META}\n{}\n{}\n", completed(3000), completed(6000)),
+        )
+        .unwrap();
+        assert_eq!(session_limit_hit(&record), Some(None));
+        // Any other file: the caller reads its tail instead.
+        assert_eq!(session_limit_hit(&main), None);
+
+        // Every hit naming its window, from the record, a log or a folder.
+        std::fs::write(
+            &main,
+            format!(
+                "{META}\n{}\n{}\n{}\n",
+                hit_line(FIVE, 1000),
+                hit_line("Your credit balance is used up.", 1500),
+                completed(2000)
+            ),
+        )
+        .unwrap();
+        let hits = limit_hits_at(&record);
+        let found: Vec<(PathBuf, &str, i64)> = hits
+            .iter()
+            .map(|(file, kind, sample)| (file.clone(), kind.as_str(), sample.ts))
+            .collect();
+        assert_eq!(
+            found,
+            [
+                (main.clone(), "five_hour", 1000),
+                (sub.clone(), "weekly", 4000)
+            ]
+        );
+        assert!(hits.iter().all(|(_, _, sample)| sample.used_pct >= 100.0
+            && sample.resets_at.is_none()
+            && sample.confidence == Confidence::Measured));
+        assert_eq!(limit_hits_at(home.path()).len(), 2);
+        assert_eq!(limit_hits_at(&sub).len(), 1);
+        assert!(limit_hits_at(&home.path().join("nothing")).is_empty());
     }
 
     #[test]

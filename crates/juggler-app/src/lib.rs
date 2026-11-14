@@ -26,6 +26,7 @@ pub mod crash;
 pub mod crash_native;
 #[cfg(any(crash_sender, test))]
 pub mod crash_send;
+pub mod crash_sentry;
 pub mod crossmachine;
 pub mod ids;
 pub mod startup;

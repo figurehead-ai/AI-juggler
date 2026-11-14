@@ -3266,14 +3266,18 @@ for (const theme of THEMES) {
 
     test(`beta — matrix, all pairs open debt — ${vp.name} — ${theme}`, gate("33-beta"), async ({ page }) => {
       await openProfiles(page);
-      // E16 (AJ-E1602) brings a tool more, so the fixture's matrix has a
-      // fifth switch.
+      // E16 brings tools more (OpenCode, AJ-E1602; ZCode, AJ-E1605), so
+      // the fixture's matrix has ten switches.
       await expect(page.getByTestId("beta-matrix-summary")).toContainText(
-        "None of the 5 switches is proven yet",
+        "None of the 10 switches is proven yet",
       );
       await expect(page.getByTestId("beta-matrix-row").first()).toContainText(
         "Beta — not proven yet",
       );
+      // Ten rows are taller than the screen: the matrix's top (its summary
+      // line) in view, not its middle, so no sentence is cut.
+      await page.getByTestId("beta-matrix").evaluate((matrix) => matrix.scrollIntoView({ block: "start" }));
+      await page.evaluate(() => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))));
       await page.screenshot({
         path: resolve(GALLERY, `33-beta/matrix-default-${vp.name}-${theme}.png`),
       });

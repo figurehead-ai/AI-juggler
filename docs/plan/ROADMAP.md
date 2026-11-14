@@ -113,13 +113,14 @@ switch, to 0.4.1.
 
 **Intent.** Bring the tools people use next, let work move between
 people as easily as between accounts, and make AI Juggler a macOS
-release people can rely on. Planned work that starts only after the
-first Stable, a 0.4.x (D-85); 0.5 ships to Beta first, then to Stable
+release people can rely on. It may start before the first Stable, a
+0.4.x, and 0.4.x fixes preempt it (D-104, amending D-85); the order is
+[0.5-order.md](0.5-order.md). 0.5 ships to Beta first, then to Stable
 under D-24.
 
 | Area | Tasks |
 |---|---|
-| ZCode, Kiro CLI, Hermes Agent, Muse, Cursor CLI, Antigravity on work plans; the desktop apps, track-only | AJ-E1605…AJ-E1610, AJ-E1613 |
+| ZCode, Kiro CLI, Hermes Agent, Muse, Cursor CLI, Antigravity (every plan, D-105); the desktop apps opened, kept alive and focused, with replies wherever a route exists (D-66) | AJ-E1605…AJ-E1610, AJ-E1613 |
 | Kimi Code's and Grok Build's usage finished | AJ-E1603, AJ-E1604 |
 | Every new tool checked live on spare accounts | AJ-E1612 |
 | The Claude Code plugin published | AJ-E1905 (waits on D-43 point 6) |
@@ -132,7 +133,7 @@ under D-24.
 | A pool line's own talk rule set from the member before its first message (the role pair covers it until then) | AJ-E3010 |
 | The 10-account, 50-session load proof; a cold start budget on the release build | AJ-E805 |
 | Updates and release integrity finished | AJ-E1010 |
-| The gate packet signed | AJ-E807 |
+| Each release's sign-off recorded from the Stable approval (D-109) | AJ-E807 |
 | Release speed: beta promotes the tested nightly, CI builds once and tests what changed (D-99; planned after 0.4.1) | AJ-E2020 |
 
 Accessibility stays proven by the automated gates on every release

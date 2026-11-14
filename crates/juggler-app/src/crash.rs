@@ -11,11 +11,15 @@
 //!   carries no environment, host name or user.
 //! - **`ask`:** the next launch shows the report in full and asks: Send,
 //!   Don't send, or Always send.
-//! - **Sending** needs the reporting service's address, compiled into
-//!   release builds only. This build has none, so a report the user
-//!   chose to send stays queued on this Mac until one that does. The
-//!   sender is its own module (`crash_send`, AJ-E1516), built only with
-//!   an address; this file holds no way to send.
+//! - **Sending** (D-108): reports go to Sentry, as events built by
+//!   Sentry's own SDK (`crash_sentry`, the one file that uses it), each
+//!   scrubbed again in the SDK's `before_send`. Only what the user agreed
+//!   to goes: nothing under `never`; under `ask` only a report answered
+//!   Send or Always send; under `always` what's kept. The address (the
+//!   DSN) is compiled into release builds only; a build without one keeps
+//!   a report the user chose to send queued on this Mac until one that
+//!   has it. The sender is its own module (`crash_send`, AJ-E1516), built
+//!   only with an address; this file holds no way to send.
 //! - **Crashes outside Rust** (AJ-E1516): macOS's own report of the crash
 //!   is read at the next launch and kept the same way (`crash_native`).
 
@@ -90,6 +94,9 @@ pub struct CrashInfo {
     pub queued: u32,
     /// This build can send them.
     pub can_send: bool,
+    /// D-108: the Sentry event the first waiting report (`asking[0]`, the
+    /// one the next-launch question shows) would send, exactly, as JSON.
+    pub asking_event: Option<String>,
 }
 
 /// What the panic hook applies now (0 never, 1 ask, 2 always): set at
@@ -252,14 +259,39 @@ pub(crate) fn hex(bytes: &[u8]) -> String {
     })
 }
 
+/// Whose home folder and user name [`scrub`] takes out.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct Identity {
+    /// The home folder, as a path string.
+    pub home: String,
+    /// The user name.
+    pub user: String,
+}
+
+impl Identity {
+    /// This Mac's user: the one every report is scrubbed for.
+    #[must_use]
+    pub fn here() -> Self {
+        Self {
+            home: juggler_platform::user::home()
+                .map(|h| h.display().to_string())
+                .unwrap_or_default(),
+            user: std::env::var("USER").unwrap_or_default(),
+        }
+    }
+
+    /// [`scrub`] for this identity.
+    #[must_use]
+    pub fn scrub(&self, text: &str) -> String {
+        scrub(text, &self.home, &self.user)
+    }
+}
+
 /// Builds a scrubbed report from a panic's parts.
 #[must_use]
 pub fn report_of(message: &str, location: &str, backtrace: &str, at_ms: i64) -> CrashReport {
     use sha2::Digest as _;
-    let home = juggler_platform::user::home()
-        .map(|h| h.display().to_string())
-        .unwrap_or_default();
-    let user = std::env::var("USER").unwrap_or_default();
+    let Identity { home, user } = Identity::here();
     let location = scrub(location, &home, &user);
     // The signature: where, plus the message's first word (its kind),
     // never the message itself.
@@ -397,14 +429,17 @@ pub fn install(state: &Arc<AppState>) {
 pub fn crash_info_impl(state: &Arc<AppState>) -> CrashInfo {
     let dir = dir(state);
     let effective = effective(state);
+    // Nothing of the SDK is touched under Never: no report waits then.
+    let asking = if effective == "never" {
+        Vec::new()
+    } else {
+        kept(&dir, "asking")
+    };
     CrashInfo {
         setting: setting(state),
         reason: do_not_track().then(|| "Never, because DO_NOT_TRACK is set".to_owned()),
-        asking: if effective == "never" {
-            Vec::new()
-        } else {
-            kept(&dir, "asking")
-        },
+        asking_event: asking.first().and_then(crate::crash_sentry::preview),
+        asking,
         queued: u32::try_from(kept(&dir, "queued").len()).unwrap_or(u32::MAX),
         can_send: service_address().is_some(),
         effective,
@@ -752,6 +787,14 @@ mod tests {
         assert!(keep(&dir(&state), &report, "ask").unwrap());
         let info = crash_info_impl(&state);
         assert_eq!(info.asking.len(), 1);
+        // D-108: the question shows the Sentry event that would go.
+        assert!(
+            info.asking_event
+                .as_deref()
+                .is_some_and(|event| event.contains(&report.signature)),
+            "{:?}",
+            info.asking_event
+        );
         let after = crash_answer_impl(&state, &report.id, "always_send").unwrap();
         assert_eq!(
             (after.setting.as_str(), after.queued, after.asking.len()),

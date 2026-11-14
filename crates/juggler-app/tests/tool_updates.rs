@@ -114,8 +114,12 @@ fn every_registered_tool_lists_its_versions_on_npm_and_says_how_to_update() {
             );
             assert!(!package.is_empty());
         }
-        let command = spec.update_command.expect("an update command");
-        assert!(!command.is_empty(), "{id}");
+        // A tool that updates with its own app (ZCode) has no list to ask
+        // and no command to run; any other names its command.
+        if spec.release_feed.is_some() || spec.update_command.is_some() {
+            let command = spec.update_command.expect("an update command");
+            assert!(!command.is_empty(), "{id}");
+        }
     }
     // A fixture answer per tool reads as its version.
     for (package, answer) in [

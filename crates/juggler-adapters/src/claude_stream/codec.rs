@@ -341,14 +341,7 @@ impl Codec {
         let line = json!({"type": "control_response", "response": {"subtype": "success",
             "request_id": ask.as_str(), "response": decision}});
         self.open.remove(ask.as_str());
-        let events = vec![
-            RuntimeEvent::AskResolved { id: ask.clone() },
-            state(LiveStatusWord::Busy),
-        ];
-        for event in &events {
-            self.book.note(event);
-        }
-        Ok((line, events))
+        Ok((line, self.book.answered(ask)))
     }
 
     fn approval(&mut self, id: &str, request: &Value) -> Vec<RuntimeEvent> {

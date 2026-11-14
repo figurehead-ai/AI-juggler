@@ -64,7 +64,8 @@ In scope:
   Kanban's files, or a sign-in or key file read at all.
 - The opt-in search index of sessions started outside AI Juggler: anything
   of it left behind after it's turned off.
-- Crash reports: anything sent without your choice, or not scrubbed first.
+- Crash reports: anything sent without your choice, anything sent to
+  Sentry that the preview didn't show, or not scrubbed first.
 - Updates: signature checks and downgrade protection.
 - The optional Figurehead account client: device-token handling, backup
   encryption, and anything that sends data you didn't turn on.
@@ -96,8 +97,14 @@ and the [security guidelines](./docs/engineering/SECURITY-GUIDELINES.md)):
   your Mac.
 - **Usage statistics are off unless you turn them on.** They're aggregated
   on your Mac, carry no identifiers and are documented in
-  [docs/usage-stats.md](./docs/usage-stats.md). Crash reports are kept on
-  your Mac and never sent automatically.
+  [docs/usage-stats.md](./docs/usage-stats.md).
+- **Crash reports are off unless you turn them on** (D-19, D-108). Each is
+  scrubbed on your Mac first, and goes only to Sentry, the crash-report
+  service, through Sentry's own SDK with its automatic data collection
+  off: with Ask, only after you've read the whole report and chosen Send;
+  with Always, without asking. Never, the default, sends nothing, and
+  `DO_NOT_TRACK` forces Never. Release builds carry Sentry's address; a
+  development build never sends.
 - **Signed updates only**, verified before they're installed.
 - **Fleet** uses mutual TLS with a key per Mac and a pairing code you
   confirm. Your Macs talk directly, with no relay, and credentials never

@@ -91,7 +91,8 @@ describe("AJ-E1518 the Privacy page", () => {
       if (tool.runtime?.terms_note) expect(note?.textContent).toBe(tool.runtime.terms_note);
       else expect(note).toBeNull();
     });
-    expect(view.getAllByTestId("privacy-runtime-note")).toHaveLength(2);
+    // Claude Code, Codex, ZCode and Muse Code have a runtime note.
+    expect(view.getAllByTestId("privacy-runtime-note")).toHaveLength(4);
   });
 
   it("the private report opens from the page's last line", () => {

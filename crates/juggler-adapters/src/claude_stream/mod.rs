@@ -28,9 +28,9 @@ use std::path::Path;
 
 use juggler_adapter::runtime::{
     Connection, DrivenLaunch, DrivenRuntime, DrivenSession, DrivenSpec, Maturity, Runtime,
-    TerminalView, Transport, ViewOf,
+    TerminalView, ViewOf,
 };
-use juggler_adapter::{AdapterError, InstallStatus, LaunchMode};
+use juggler_adapter::{AdapterError, InstallStatus};
 use juggler_core::model::{Account, Profile};
 
 use crate::claude_code::ClaudeCodeAdapter;
@@ -132,18 +132,9 @@ impl DrivenRuntime for ClaudeCodeAdapter {
         cwd: &Path,
         launch: &DrivenLaunch,
     ) -> Result<DrivenSpec, AdapterError> {
-        if let Some(id) = &launch.resume {
-            crate::codex::refuse_option_like(id)?;
-        }
         crate::codex::refuse_option_like(&launch.fresh_id)?;
-        let mode = launch
-            .resume
-            .as_ref()
-            .map_or(LaunchMode::Interactive, |id| LaunchMode::Resume {
-                session_id: id.clone(),
-                delta_prompt: None,
-            });
-        let mut spec = self.launch_spec(account, profile, cwd, &mode)?;
+        let mode = crate::common::driven::launch_mode(launch)?;
+        let spec = self.launch_spec(account, profile, cwd, &mode)?;
         if !trusted(&account.state_dir, &spec.cwd) {
             return Err(AdapterError::InvalidLaunch(
                 "Claude Code hasn't been trusted in this folder yet: start it once in its terminal, where it asks"
@@ -163,14 +154,12 @@ impl DrivenRuntime for ClaudeCodeAdapter {
         if let Some(model) = &profile.settings_overlay.model {
             args.extend(["--model".to_owned(), model.clone()]);
         }
-        spec.args = args;
-        spec.needs_pty = false;
-        Ok(DrivenSpec {
-            launch: spec,
-            transport: Transport::Stdio,
-            native_id: Some(id),
-            model: profile.settings_overlay.model.clone(),
-        })
+        Ok(crate::common::driven::over_stdio(
+            spec,
+            args,
+            Some(id),
+            profile.settings_overlay.model.clone(),
+        ))
     }
 
     fn connect(
@@ -183,7 +172,7 @@ impl DrivenRuntime for ClaudeCodeAdapter {
             .native_id
             .clone()
             .ok_or_else(|| AdapterError::InvalidLaunch("no session id".into()))?;
-        let session = session::ClaudeSession::connect(io, &id, &account.state_dir)?;
+        let session = session::connect(io, &id, &account.state_dir)?;
         Ok(Box::new(session))
     }
 
@@ -195,11 +184,6 @@ impl DrivenRuntime for ClaudeCodeAdapter {
         cwd: &Path,
         of: &ViewOf,
     ) -> Result<TerminalView, AdapterError> {
-        let mode = LaunchMode::Resume {
-            session_id: of.native_id.clone(),
-            delta_prompt: None,
-        };
-        self.launch_spec(account, profile, cwd, &mode)
-            .map(TerminalView::AfterRelease)
+        crate::common::driven::terminal_resume(self, account, profile, cwd, of)
     }
 }

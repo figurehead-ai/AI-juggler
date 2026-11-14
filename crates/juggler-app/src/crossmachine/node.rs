@@ -277,6 +277,67 @@ pub(crate) fn launch_here(
     transcript: Option<TranscriptRef>,
     moment: &str,
 ) -> AppResult<(SessionId, u32)> {
+    let launch = Launch {
+        profile,
+        account,
+        project,
+        mode,
+        transcript,
+        moment,
+        history: None,
+    };
+    launch_with(state, launch)
+}
+
+/// AJ-E1605 R3: a new session on `account` that starts with `history` in
+/// it, taken in by its tool's own import (no model call), driven; as
+/// [`launch_here`] otherwise.
+///
+/// # Errors
+///
+/// As [`launch_here`]; the tool's refusal when it can't be driven.
+pub(crate) fn import_here(
+    state: &Arc<AppState>,
+    profile: &juggler_core::model::LaunchRecipe,
+    account: &juggler_core::model::Account,
+    project: &juggler_core::model::ProjectRecord,
+    history: juggler_adapter::runtime::ImportedHistory,
+    moment: &str,
+) -> AppResult<(SessionId, u32)> {
+    let launch = Launch {
+        profile,
+        account,
+        project,
+        mode: &juggler_adapter::LaunchMode::Interactive,
+        transcript: None,
+        moment,
+        history: Some(history),
+    };
+    launch_with(state, launch)
+}
+
+/// What [`launch_here`] and [`import_here`] start: `launch_here`'s
+/// arguments and the history an import adds.
+struct Launch<'a> {
+    profile: &'a juggler_core::model::LaunchRecipe,
+    account: &'a juggler_core::model::Account,
+    project: &'a juggler_core::model::ProjectRecord,
+    mode: &'a juggler_adapter::LaunchMode,
+    transcript: Option<TranscriptRef>,
+    moment: &'a str,
+    history: Option<juggler_adapter::runtime::ImportedHistory>,
+}
+
+fn launch_with(state: &Arc<AppState>, launch: Launch<'_>) -> AppResult<(SessionId, u32)> {
+    let Launch {
+        profile,
+        account,
+        project,
+        mode,
+        transcript,
+        moment,
+        history,
+    } = launch;
     // The profile's model goes in as `claude --model` (the adapter's
     // launch spec); settings.json is never rewritten (ADR-0018 §3).
     let adapter = state
@@ -285,13 +346,34 @@ pub(crate) fn launch_here(
         .ok_or_else(|| AppError::UnknownHarness(account.harness.to_string()))?;
     // AJ-E1001: the receiving Account must be who it was here too.
     let assertion = crate::identity::assert_identity(state, account)?;
-    let spec = crate::features::launch::resume_gate::launch_spec(
+    let spec = crate::features::sessions::spawn::planned_terminal(
         adapter.as_ref(),
-        account,
-        profile,
         &project.root,
-        mode,
+        crate::features::launch::resume_gate::launch_spec(
+            adapter.as_ref(),
+            account,
+            profile,
+            &project.root,
+            mode,
+        ),
     )?;
+    let cwd = match &spec {
+        Ok(spec) => spec.cwd.clone(),
+        Err(none) => none.cwd.clone(),
+    };
+    // Driven, a session can only start empty or resume: a first message
+    // would be lost, so it is refused instead.
+    let (resume, plain) = match mode {
+        juggler_adapter::LaunchMode::Interactive => (None, true),
+        juggler_adapter::LaunchMode::Resume {
+            session_id,
+            delta_prompt: None,
+        } => (Some(session_id.clone()), true),
+        _ => (None, false),
+    };
+    if let (Err(none), None, false) = (&spec, &history, plain) {
+        return Err(AppError::Refused(none.why.clone()));
+    }
     let session = SessionId::new(format!("sess-{}", crate::ids::unique_suffix()));
     // The one path: the row first (ADR-0010 §1), then the bridge and the
     // account's key in the launch, under the supervisor.
@@ -302,7 +384,7 @@ pub(crate) fn launch_here(
             account,
             profile: &profile.id,
             project: Some(project.id.clone()),
-            cwd: spec.cwd.clone(),
+            cwd,
             conversation: transcript
                 .as_ref()
                 .and_then(|reference| reference.native_id.clone())
@@ -310,7 +392,17 @@ pub(crate) fn launch_here(
             transcript_ref: transcript,
             origin: "switch",
         },
-        crate::features::sessions::spawn::Runs::Terminal(spec),
+        match (spec, history) {
+            (Ok(spec), None) => crate::features::sessions::spawn::Runs::Terminal(spec),
+            // An import, or a tool with no terminal UI: driven.
+            (terminal, history) => crate::features::sessions::spawn::Runs::Planned {
+                profile,
+                resume,
+                requested: Some(juggler_adapter::Runtime::Driven),
+                terminal,
+                history,
+            },
+        },
     )?;
     crate::identity::record(state, &session, account, &assertion, moment);
     Ok((session, started.spawned.pid))

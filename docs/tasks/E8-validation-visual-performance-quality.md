@@ -92,7 +92,7 @@
 **Research basis**: pass2/04 §3 indicator redundancy rule; deep/11 §9 a11y spec; prior reports' unresolved contrast item (`styles.css` faint text) must be closed with measurements here.
 **Handover note**: Do not certify from code reading. The earlier reviews explicitly left contrast/focus unverified; this task exists to replace inference with measurement.
 
-### AJ-E805 Performance budgets and load proof (10 Accounts / 50 Instances) | Status: IN-PROGRESS (automated proof evidenced; release-app cold start and 10 live Instances are maintainer steps) | Priority P0 | Effort L | Depends: AJ-E801
+### AJ-E805 Performance budgets and load proof (10 Accounts / 50 Instances) | Status: IN-PROGRESS (automated proof evidenced; release-build cold start 582 ms PASS, 2026-11-13; idle CPU on the release app 5.7 % FAILS the 2 % budget, a 0.4.x bug; 10 live provider Instances are the maintainer's step) | Priority P0 | Effort L | Depends: AJ-E801
 **Goal**: Prove the app stays responsive at the scale the product promises, with budgets enforced as gates.
 **User story**: As a power user with 10 accounts and dozens of live sessions, I want the rail and inspector to stay instant so supervision never lags the work.
 **Requirements**:
@@ -127,22 +127,22 @@
 **Research basis**: docs/plan/QUALITY.md gates; docs/plan/RUNBOOK.md process; agent-review-prompt offline gates (`just verify`, `cargo test --workspace`, `pnpm --dir ui build`).
 **Handover note**: First inspect what CI actually exists today; do not assume a workflow file. If no CI exists, the task delivers the documented local gate script first and names CI creation as a follow-up task.
 
-### AJ-E807 Milestone gate verification and sign-off | Status: IN-PROGRESS (packet, link check, rehearsal and the signed-gate block evidenced; the gate signatures are the maintainer's) | Priority P0 | Effort M | Depends: AJ-E803, AJ-E804, AJ-E805, AJ-E806
-**Goal**: Make each milestone gate (M1 onwards) an evidence review, not a status meeting.
-**User story**: As a maintainer signing a gate, I want every acceptance criterion traced to stored proof so beta claims are auditable later.
+### AJ-E807 Release sign-off: the Stable approval, recorded with its evidence | Status: IN-PROGRESS (D-109 built 2026-11-13: promote.yml's `record` job and `scripts/signoff_record.py`, with its self-test and a rehearsal against a real past approval; R1–R4 PASS by test and dry run; left: the record job's first run on GitHub, at the first Stable promotion) | Priority P0 | Effort M | Depends: AJ-E803, AJ-E804, AJ-E805, AJ-E806
+**Goal**: Make each release's sign-off an evidence review, not a status meeting: the maintainer's Stable approval, recorded with the proof it approved (D-109, which replaced the per-milestone gate files).
+**User story**: As a maintainer approving a Stable, I want every task in its scope traced to stored proof and my approval recorded with it, so release claims are auditable later.
 **Requirements**:
-1. Each gate report (QUALITY.md §8 template) SHALL list criteria with evidence paths under `docs/qa/evidence/`; a criterion without a resolving path SHALL be recorded FAIL or DEFERRED with a task ID, never PASS.
-2. Gate review SHALL include the visual gallery delta, axe summary, performance measured table and unresolved-items register for that milestone.
+1. Each release's sign-off record SHALL list every task of the release's roadmap scope with its state and a link to its evidence manifest under `docs/qa/evidence/`; a task whose manifest doesn't prove each requirement SHALL show as UNPROVEN, OPEN or DEFERRED with its decision, never as proven.
+2. The record SHALL carry the review inputs: the visual gallery delta since the previous Stable, the accessibility gate's result on the commit, the measured performance table (AJ-E805) and the unresolved items.
 3. Beta-exit criteria SHALL include: fidelity matrix status per Provider pair (AJ-E808), zero verified-cleanup false kills, A->B->A continuity result, and Fleet security review sign-off (E7).
-4. Sign-off SHALL be recorded with date, commit SHA and reviewer in the gate file; unsigned gates block the next milestone's scope.
-**UI/UX reasoning**: NN-g visibility for governance: the gate file is the single status surface; links beat attachments and memory.
-**Performance budget**: Gate packet generation <60 s from manifests; review meeting target <60 min with pre-read packet.
-**Quality gates**: A deliberately unlinked criterion in a rehearsal gate MUST be caught by the link-check from AJ-E801.
-**Evidence/validation proof**: First rehearsal gate packet stored in `docs/qa/evidence/AJ-E807/`; pass = link-check green, unsigned state blocks progression in the documented workflow.
-**Visual testing**: Gate packet index captured at 1280x800; pass = every criterion row shows verdict + evidence link without horizontal scrolling.
-**Files to touch**: `docs/qa/gate-M1.md` and future gate files, `docs/plan/QUALITY.md`, `docs/plan/EPICS.md` gate section.
-**Research basis**: EPICS.md:158-164; QUALITY.md §8; decision-log D-04/D-15 (docs acceptance precedes code stages).
-**Handover note**: The M1 gate was previously found unsigned while scope accumulated; closing that paperwork is part of this task's first execution.
+4. Sign-off SHALL be the maintainer's approval of the `stable` environment in the Promote workflow, recorded automatically with date, commit SHA and reviewer (D-109); Stable SHALL NOT move while the minor's roadmap scope is open (`release_scope.py check X.Y.Z --channel stable` in `promote.yml`).
+**UI/UX reasoning**: NN-g visibility for governance: one record per Stable, on the release, in the run's summary and in `docs/qa/signoffs/`; links beat attachments and memory; the maintainer's only step is the click they already make.
+**Performance budget**: Record generation <60 s; review target <60 min with the run's summary as the pre-read.
+**Quality gates**: A run without an approval of `stable` MUST NOT produce a record, and a task whose manifest doesn't prove it MUST NOT show as proven (`signoff_record.py --selftest`, `release_scope.py --selftest`, in `just release-selftest` and CI).
+**Evidence/validation proof**: A rehearsal record from a real past Promote run stored in `docs/qa/evidence/AJ-E807/`; pass = self-tests green, the rehearsal names the reviewer, commit and date and promotes nothing.
+**Visual testing**: None: the record is Markdown read on GitHub, no app screen. The 2026-10-19 gate-packet capture stays as history.
+**Files to touch**: `.github/workflows/promote.yml`, `scripts/signoff_record.py`, `scripts/release_scope.py`, `docs/qa/signoffs/`, `docs/plan/QUALITY.md` §8, `docs/plan/EPICS.md` gate section, `docs/RELEASING.md`, `docs/internal/MAINTAINER-STEPS.md` Part 5.
+**Research basis**: EPICS.md:158-164; QUALITY.md §8; decision-log D-04/D-15, D-24, D-83, D-85, D-99, D-109.
+**Handover note**: None of the six milestone gate files (M0, M1, M3, E5, E7, beta) was ever signed, and the beta feed never waited for them; D-109 made them history and retired `gate_packet.py`. After the first Stable promotion, copy its record into the repository (`python3 scripts/signoff_record.py pull X.Y.Z`), commit it on the release branch, add the live row to the manifest and close this task.
 
 ### AJ-E808 Provider-pair fidelity validation matrix (operations) | Status: DONE-EVIDENCED (2026-11-07, release/0.4.1; 25 cells decided live, the shipped Claude Code / Codex pairs closed or placed: Claude→Claude file history waits for a second Claude Code terminal sign-in, Codex→Codex beyond lab 11 deferred (D-91), ZCode and the +service pairs credential-only (`docs/qa/0.4-completion.md`); `docs/qa/evidence/AJ-E808/manifest.md`) | Priority P0 | Effort L | Depends: AJ-E801
 **Goal**: Run and maintain the per-Provider-pair validation matrix that turns beta fidelity badges from claims into earned labels.

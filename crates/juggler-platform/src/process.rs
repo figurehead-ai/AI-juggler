@@ -48,9 +48,88 @@ pub fn helper(program: impl AsRef<OsStr>) -> Command {
     command
 }
 
+/// Whether process `pid` is there (it may be another user's): a signal-0
+/// probe on Unix. `false` for pid 0 and anything a pid can't be. Other
+/// systems can't tell yet and answer `false`.
+#[must_use]
+pub fn alive(pid: u32) -> bool {
+    #[cfg(unix)]
+    {
+        use nix::errno::Errno;
+        use nix::sys::signal::kill;
+        use nix::unistd::Pid;
+        let Some(pid) = i32::try_from(pid).ok().filter(|pid| *pid > 0) else {
+            return false;
+        };
+        match kill(Pid::from_raw(pid), None) {
+            Ok(()) | Err(Errno::EPERM) => true,
+            Err(_) => false,
+        }
+    }
+    #[cfg(not(unix))]
+    {
+        let _ = pid;
+        false
+    }
+}
+
+/// Asks a child AI Juggler started to end (SIGTERM on Unix, so it can let
+/// go of what it holds); the caller waits, then kills it if it hasn't.
+///
+/// # Errors
+///
+/// It is gone already, or this system has no such request (the caller
+/// kills it instead).
+pub fn terminate(child: &std::process::Child) -> std::io::Result<()> {
+    ask_to_end(
+        child.id(),
+        "not a child's process",
+        "asking a process to end",
+    )
+}
+
+/// SIGTERM to `pid` on Unix, never to 0 or 1 (the caller's group or
+/// init): `not_one` refuses those, `unsupported` names the request where
+/// the system has none.
+pub(crate) fn ask_to_end(pid: u32, not_one: &str, unsupported: &str) -> std::io::Result<()> {
+    #[cfg(unix)]
+    {
+        use nix::sys::signal::{Signal, kill};
+        use nix::unistd::Pid;
+        let _ = unsupported;
+        let pid = i32::try_from(pid)
+            .ok()
+            .filter(|pid| *pid > 1)
+            .ok_or_else(|| std::io::Error::other(not_one.to_owned()))?;
+        kill(Pid::from_raw(pid), Signal::SIGTERM).map_err(std::io::Error::from)
+    }
+    #[cfg(not(unix))]
+    {
+        let _ = (pid, not_one);
+        Err(crate::unsupported(unsupported))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn never_asks_the_group_or_init_to_end() {
+        for pid in [0, 1, u32::MAX] {
+            let error = ask_to_end(pid, "not that one", "ending").expect_err("refused");
+            if cfg!(unix) {
+                assert_eq!(error.to_string(), "not that one");
+            }
+        }
+    }
+
+    #[test]
+    fn this_process_is_alive_and_no_pid_isnt() {
+        assert!(alive(std::process::id()));
+        assert!(!alive(0));
+        assert!(!alive(u32::MAX));
+    }
 
     #[test]
     fn a_helper_sees_only_the_allowlist_and_the_system_path() {

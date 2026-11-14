@@ -8,7 +8,7 @@ travels **nightly → beta → stable**:
 |---|---|---|
 | **Nightly** | People who want the newest code and accept rough edges. Installed as its own app, **AI Juggler Nightly** | `nightly.yml` builds `main` every day something that ships has changed. No approval |
 | **Beta** | Newer features, a little less tested | `promote.yml`, the tested nightly, with no rebuild, once **no `blocker` issue is open** (D-24 as D-99 amends it: the days of real use happen on beta), with the maintainer's approval (the `beta` environment) |
-| **Stable** | Well-tested releases for everyday work | `promote.yml`, a deliberate release: only a version that has been on beta **14+ days** with **no open `blocker`**, once the beta gate is signed and the minor's whole roadmap scope is done or deferred (D-99), with the maintainer's approval (the `stable` environment) |
+| **Stable** | Well-tested releases for everyday work | `promote.yml`, a deliberate release: only a version that has been on beta **14+ days** with **no open `blocker`**, once the minor's whole roadmap scope is done or deferred (D-99), with the maintainer's approval (the `stable` environment), which is the release's sign-off and is recorded (D-109) |
 
 **What counts as a blocker** (label the issue `blocker`): data loss, an
 Instance running on the wrong account, stopping a process AI Juggler
@@ -86,6 +86,14 @@ build a third locally. They install next to each other and share nothing:
 | **AI Juggler** | `ai.figurehead.juggler` | `AI Juggler` | Beta or Stable (the user's choice) | `AI-Juggler-X.Y.Z-universal.*`, `latest.json` |
 | **AI Juggler Nightly** | `ai.figurehead.juggler.nightly` | `AI Juggler Nightly` | Nightly | `AI-Juggler-Nightly-X.Y.Z-universal.*`, `latest-nightly.json` |
 | **AI Juggler Dev** | `ai.figurehead.juggler.dev` | `AI Juggler Dev` | never | built by `just dev` / `just app` |
+
+Every release also carries `AI-Juggler-Claude-Code-plugin-X.Y.Z.zip`, the
+optional Claude Code plugin at that version (AJ-E1905, D-73): the nightly's
+release job writes it with `scripts/plugin_package.py` (reproducible, in
+`SHA256SUMS.txt` and the build provenance). The repository's root
+`.claude-plugin/marketplace.json` serves the same folder to
+`/plugin marketplace add figurehead-ai/AI-juggler`; the user guide is
+[Pools › The Claude Code plugin](guide/pools.md#the-claude-code-plugin).
 
 Each edition also has its own Keychain items, Fleet port (47821, 47822,
 47823) and single-instance lock, and the Nightly and Dev icons carry a band
@@ -283,7 +291,7 @@ low-load check before a push. A release goes like this:
    | `visual (1/4)`…`(4/4)`, **`visual`** | the visual gate in the pinned x64 container, split by test; `visual` checks the baseline notes and merges the reports |
    | `a11y (1/6)`…`(6/6)`, `a11y` | the accessibility gate, split by test |
    | **`build-macos`**, **`build-linux`**, **`build-windows`** | the cross-platform builds |
-   | `rc-dev-app` | the release candidate: AI Juggler Dev, release profile, arm64, unsigned, built by `scripts/build_dev_app.sh` (as `just app`); its bundle checked, the first open after an update on the synthetic v49 database (headless measure, then the real-window check); uploaded as `rc-dev-app-<commit>`. `verify` needs it |
+   | `rc-dev-app`, `rc-v49`, `rc-first-open` | the release candidate: AI Juggler Dev, release profile, arm64, unsigned, built by `scripts/build_dev_app.sh` (as `just app`) with its bundle checked (`rc-dev-app`); beside it, the synthetic v49 database and the headless measure of its first open (`rc-v49`, its own release test build); then the first open after an update in a real window on both (`rc-first-open`), which uploads the app as `rc-dev-app-<commit>`. Side by side since AJ-E2020 R5 (one job, the two builds took ~40 min). `verify` needs all three |
 
    The checks in bold are the ones main's ruleset requires; they kept their
    names, so the ruleset didn't change. A merge needs every one green on the
@@ -321,10 +329,11 @@ Measured (2026-11-02):
 
 Release candidates are built on GitHub, not on the shared Mac (2026-11-11:
 local release builds filled its disk and swap). Every CI run builds one in
-`rc-dev-app` (above). To walk it:
+`rc-dev-app` and, once `rc-first-open` has checked it, uploads it (above).
+To walk it:
 
 ```sh
-scripts/qa/fetch_rc.sh <commit>    # the PR's head commit, once rc-dev-app passed
+scripts/qa/fetch_rc.sh <commit>    # the PR's head commit, once rc-first-open passed
 ```
 
 It downloads `rc-dev-app-<commit>` into
@@ -480,9 +489,6 @@ also needs:
 
 - the version has been on beta for 14+ days (counted from the annotated
   `beta/vX.Y.Z` tag's date) and no `blocker` issue is open;
-- the beta gate is signed (`docs/qa/gate-beta.md`, AJ-E807; build it with
-  `just gate-packet`, review it, fill in its Sign-off section, check with
-  `just gate-signed`);
 - a `## [X.Y.Z]` section in `CHANGELOG.md` for contributors;
 - the minor's whole roadmap scope (`docs/plan/ROADMAP.md`, every patch
   sub-section included) done and proven, or deferred by a decision:
@@ -494,6 +500,23 @@ also needs:
 
 Approving makes it GitHub's **Latest** release (the website's download
 button uses it) and tags it `stable/vX.Y.Z`.
+
+**The approval is the release's sign-off** (D-109, AJ-E807). Once the
+channel has moved, Promote's `record` job writes the sign-off record with
+`scripts/signoff_record.py`: the version, the commit, who approved and
+when, the run, `release_scope.py check X.Y.Z --channel stable`'s result
+with every task's state and a link to its evidence manifest, and the
+review inputs (the accessibility gate, the visual gallery delta since the
+previous Stable, the measured performance table, the unresolved items).
+It is attached to the release as `signoff-X.Y.Z.md` and shown in the
+run's summary. The repository doesn't let Actions open pull requests (and
+one opened with the workflow's token would start no CI), so the record
+reaches the repository through the release branch:
+`python3 scripts/signoff_record.py pull X.Y.Z` copies it into
+`docs/qa/signoffs/X.Y.Z.md` to commit there. The dry run, which reads a
+past Promote run and promotes, uploads and commits nothing:
+`python3 scripts/signoff_record.py rehearse --repo OWNER/NAME --run RUN_ID --version X.Y.Z --environment beta --out DIR`.
+The old milestone gate files (`docs/qa/gate-*.md`) are history.
 
 **Usage statistics** (only once they are switched on): register `X.Y.Z` as a
 known version in Figurehead's usage-statistics configuration when it reaches

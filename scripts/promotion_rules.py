@@ -14,8 +14,9 @@ live in one tested place:
   beta build itself, and the full hand-walk comes before Stable.
 - **Stable**: the version has been on beta for at least STABLE_MIN_DAYS,
   and no `blocker` issue is open. (Stable is also a deliberate act: the
-  maintainer runs and approves it; promote.yml checks the signed beta
-  gate and the CHANGELOG section.)
+  maintainer runs and approves it, and the approval is the release's
+  sign-off, D-109; promote.yml checks the CHANGELOG section and the
+  roadmap scope.)
 
 A failed rule can be overridden only with a written reason, which is
 printed with the result and kept in the channel tag's message.

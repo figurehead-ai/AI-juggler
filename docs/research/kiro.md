@@ -341,3 +341,24 @@ Every search ran on 2026-10-21. "Pages checked" means opened with WebFetch, `gh`
 - **S-12 (reverse-engineering clause)**
   - Pages checked: https://aws.amazon.com/legal/aws-ip-license-terms/ and https://kiro.dev/license/.
   - Result: no explicit reverse-engineering clause found in either. The AWS Customer Agreement itself was not fetched.
+
+## Terms, re-read 2026-11-13
+
+Read for the maintainer's ruling (a Sonnet draft; each quote below checked against its page on Opus the same day). **The ruling:** D-105 gives this tool full support on every plan; this section keeps the vendor's own wording on record beside it.
+
+### What the terms say
+Source: Kiro billing FAQ, section "With which tools can I use my Kiro subscription?" https://kiro.dev/docs/billing/related-questions/ (the CLI-docs URL https://kiro.dev/docs/cli/billing/related-questions/ redirects there).
+- "Kiro subscriptions can be used with Kiro IDE, Kiro CLI, Kiro Web, Kiro Crew, ACP compatible IDEs, and automation in software development (ex: reviews during CI/CD)."
+- "Use through third-party automation harnesses (such as OpenClaw) that route requests outside of Kiro's native interfaces is not permitted."
+- The phrase "third-party automation harnesses" is on that page (a search snippet of the CLI-billing path also showed "Use with OpenClaw and similar tools that leverage third-party harnesses is prohibited"; I could not re-fetch that wording, so treat it as secondary).
+- Supervising / launching interactive `kiro-cli` from another app: NOT FOUND (neither allowed nor forbidden by name).
+- Multiple accounts per person: NOT FOUND (billing FAQ is silent).
+- KIRO_HOME: documented at https://kiro.dev/docs/configuration/ : "Set `KIRO_HOME` to an absolute path to keep separate Kiro profiles, such as work and personal." and "In V3, Kiro stores its global configuration, sign-ins, sessions, and agent state there." Relative paths, filesystem root or home dir are ignored (falls back to ~/.kiro). Changelog: https://kiro.dev/changelog/cli/2-3/ (KIRO_HOME introduced in 2.3).
+- Old builds stopping on 2026-11-09: NOT FOUND. Kiro CLI 3.0 launched 2026-11-03 (https://kiro.dev/blog/cli-3/); https://kiro.dev/changelog/cli/3-0/ says "The Classic (V1) interactive experience no longer runs." No dated cutoff found; V2 stays reachable via `kiro-cli --v2`. The 2026-11-09 date may exist in an in-app notice I could not see.
+
+### What it meant for AI Juggler, before the ruling
+(a) Launching the interactive CLI per account with its own KIRO_HOME: LIKELY ALLOWED. It is Kiro's own CLI, run by the user in Kiro's native interface, and KIRO_HOME-for-profiles is documented. The harness ban targets tools that route requests outside Kiro's native interfaces. Unclear only in that "another app launches it" is not addressed; one account per profile is not addressed either.
+(b) Reading local sessions and usage: UNCLEAR (not addressed in terms; sessions live under KIRO_HOME in V3 per docs; no credential reads needed).
+(c) Headless runs: ALLOWED in the CI sense ("automation in software development"); our use would be interactive-first, headless not needed.
+
+**The recommendation then:** build for subscription accounts (interactive launch with KIRO_HOME per account), with no request routing of our own; confirm in writing with AWS if multi-account is a concern.

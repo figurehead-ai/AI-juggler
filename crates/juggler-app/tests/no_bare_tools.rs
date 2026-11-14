@@ -180,6 +180,7 @@ const SIGN_IN_FILES: &[&str] = &[
     "\"mcp-auth.json\"",
     "\"kimi-code.json\"",
     "\"mcp_credentials.json\"",
+    "\"credentials.json\"",
 ];
 
 /// The module that owns them, and its name constants.
@@ -193,6 +194,11 @@ const SIGN_IN_CONSTANTS: &[&str] = &[
     "GROK_AUTH",
     "GROK_MCP_AUTH",
     "KIMI_MEMBERSHIP",
+    "ZCODE_CREDENTIALS",
+    "ZCODE_SIGN_IN_PATH",
+    "MUSE_AUTH",
+    "MUSE_KEYCHAIN_SERVICE",
+    "MUSE_KEYCHAIN_ACCOUNT",
 ];
 
 /// Its reads: each streams `auth.json` into a presence-only shape (for
@@ -226,6 +232,9 @@ const SETTINGS_READS: &[(&str, &str)] = &[
     // Key by key (`jsonc::value_text`): `permissions` and `statusLine`
     // only, a value with a secret written in it never kept (AJ-E1508).
     ("juggler-adapters/src/claude_inventory.rs", "own_settings"),
+    // AJ-E1608: Muse Code's `mcp_servers` only, each server read through
+    // the shared JSON reader, which keeps no secret.
+    ("juggler-adapters/src/muse_inventory.rs", "inventory"),
     ("juggler-adapters/src/quota_ingest.rs", "install_statusline"),
     (
         "juggler-adapters/src/quota_ingest.rs",

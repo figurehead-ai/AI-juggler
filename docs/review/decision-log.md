@@ -2941,3 +2941,73 @@ Each ships with tests that fail without it and a design critique; the M2, D2 and
 
 - **Amends:** D-102 ("Show all N" → "All N sessions ›"; the caption), D-97 (New session's default when a repo has its own Account).
 - Sources: `docs/qa/0.4-walks/personas/runs-0.4.3.md`; the R5 list in the coordinating session's notes.
+
+### D-104 0.5 work may start before the first Stable; 0.4.x fixes preempt it — SETTLED (2026-11-12)
+
+**Ruling.** The maintainer, 2026-11-12, with 0.4.4 finishing: "if you run out of things to work, you can start working on 0.5 version as planned".
+
+- **0.5 may start now**, on `release/0.5` cut from `main`, in the order of `docs/plan/0.5-order.md`, while 0.4.x is still on its way to the first Stable.
+- **0.4.x preempts it.** A 0.4.x finding (a bug in a shipped 0.4, a walk's or a persona's finding, a release step) is taken before any 0.5 work, and 0.5 work never holds a 0.4.x release back (no shared branch, no shared CI wait).
+- **The first Stable is still a 0.4.x.** D-85's other points stand: Stable comes when 0.4.x is tested, validated and fixed; 0.5 ships to Beta first and to Stable under D-24.
+- **Amends:** D-85 ("no 0.5 feature work starts until 0.4.x is fully tested, validated and fixed").
+- Sources: `docs/plan/0.5-order.md`.
+
+### D-105 Kiro, Cursor and Antigravity get full support on every plan — SETTLED (2026-11-13)
+
+**Ruling.** The maintainer, 2026-11-13, on the terms notes for AJ-E1606 (Kiro), AJ-E1609 (Cursor) and AJ-E1613 (Antigravity): "we are not wrapping the tools, since they are desktop apps, Openning the app does not count as automated control of it. I don't see any term violations the way I interpert it. OS system can reopen the app on load, does that mean OS should never reopen the app. Also bringing app into focus is still fine." And, the same day, correcting a first reading that kept prompts off for these three: "don't limit anything, on those tools, the way we build AI juggler we specifically designed it where we are not automating the way they don't want people. What they don't want is someone using their tokens and agent and wrapping it as something else, that is the abuse they are protecting against."
+
+- **Full support on every plan,** Antigravity's consumer plans included: AI Juggler opens each tool's own app or CLI for the right account, reopens it (Keep alive, at login), brings it into focus, reads its own files for sessions and usage, and offers everything it offers for the other tools: pools, the reply box, switching (a first prompt included).
+- **No track-only plan kind and no "never sends prompts" guardrail** for these three. Each requirement's "ruling first" step is met by this entry.
+- **A tool's own guideline still applies where it has one** (as Kimi's interactive-only rule on subscription accounts, AJ-E1603), decided per tool from its own documented rules, not from this entry.
+- **The vendors' own wording stays on record** beside the ruling, in `docs/research/kiro.md`, `cursor.md` and `antigravity.md` (§ "Terms, re-read 2026-11-13"): Kiro's FAQ bars "third-party automation harnesses … that route requests outside of Kiro's native interfaces"; Cursor's Acceptable Use Policy (updated 2026-08-11) bars access "through automated or non-human means"; Antigravity's FAQ calls using third-party software to access it "a violation of our Terms of Service" and says wrapping `agy` "is not supported under consumer plans". The maintainer's reading: AI Juggler runs each tool's own unmodified app or CLI for the user, under the user's own sign-in, and never reuses a tool's tokens or agent as something else.
+- **Amends:** AJ-E1609's handover note (no track-only fallback), AJ-E1613's goal, requirement 1 and guardrail (consumer plans no longer track-only).
+- Sources: the three research notes above; the coordinating session's relay of the maintainer's two messages, 2026-11-13.
+
+### D-106 Kimi usage on by default, with one honest privacy exception; undocumented routes researched before any gap — SETTLED (2026-11-13)
+
+**Ruling.** The maintainer, 2026-11-13, on AJ-E1603 R3 (reading `kimi web`'s usage needs the home's `server.token`, which the Privacy page's "reads no tokens" contradicts): option C, Kimi usage on by default, with one honest exception line on the Privacy page. And a standing order, in their words: "have you tried researching undocumented ways, we've done many undocumented implementations across different tools, why stop here. That should be your standing order."
+
+- **Research first, keyless preferred.** Before building the `server.token` route, look for an undocumented usage source that needs no key (a `/usage` or `/status` command in the interactive CLI; quota fields in Kimi's session or wire records, logs or `server/instances/`; headers the CLI records; an unauthenticated route of `kimi web`; the app bundle's own code). Each finding is sourced, tested on fixtures and guarded by a format check, because undocumented routes change.
+- **If no keyless source works,** the `server.token` route: the key is read only to ask Kimi's own local server on 127.0.0.1, never stored, logged, copied (a bring-in still leaves it) or sent anywhere else; the usage shows labelled experimental.
+- **The Privacy page** (README § privacy, `docs/guide/trust.md`, SPEC §8 and the website's page) gains one plain exception line naming exactly what is read and where it goes, with the build; the "reads no tokens" and "no requests to AI providers" promises change only for that case, by name.
+- **Standing order, every tool:** before calling a capability a gap or asking for a ruling (usage, sessions, titles, reply routes), an undocumented-route research pass is run and its findings recorded; every adapter brief carries that step.
+- **Amends:** AJ-E1603 R3 ("labelled experimental" stands; the source is decided by the research pass).
+- **Design call (the coordinating session, 2026-11-13),** from the research pass (`docs/research/kimi.md` §12, `MoonshotAI/kimi-code` at `30e3ce44`): no keyless source of the windows exists, so R3 is built in three parts. (1) Keyless and always on: a turn that failed at the plan's limit (`turn.ended` `failed`, Kimi's quota error) says which window ran out (5-hour, weekly, monthly) and when, from the vendor's fixed message openings, matched then dropped; a later completed turn clears it. (2) Attach: a `kimi web` the user already runs for the home (a live instance record), healthz first, then `GET /api/v1/oauth/usage` with that home's `server.token`, read for that one request and sent only to 127.0.0.1. (3) Self-started: when none runs and the account's usage is wanted (the usage cadence or "Measure now"), `kimi web --no-open --port 0` with a per-run `KIMI_CODE_PASSWORD`, output discarded, stopped at once within a hard deadline, one at a time, never restarted; only for membership accounts. Not an agent run, so R4's interactive-only rule doesn't apply. Two corrections to the research: quota errors are HTTP 429 with `exceeded_current_quota_error` (not 403), and the server API page is `reference/server-api-service.md`.
+- Sources: the coordinating session's relay of the maintainer's words, 2026-11-13.
+
+### D-107 Live checks use the maintainer's existing accounts in separate lab profiles; the maintainer only signs in — SETTLED (2026-11-13)
+
+**Ruling.** The maintainer, 2026-11-13, restating earlier rulings: "you can use my existing accounts but create separate profiles". Never "spare accounts" again.
+
+- **Live checks** (AJ-E1612 for every new tool, AJ-E1701's bridge spike, and the like) run on the maintainer's existing accounts, each tool in **a separate lab profile or home** made for the lab (`KIMI_CODE_HOME`, `ZCODE_*`, `KIRO_HOME`, a per-account `HOME`…) under a throwaway lab project, set up through AI Juggler Dev. A tool's real home is never touched.
+- **The maintainer's part is the sign-ins only,** batched: each lab profile signed in once, all tools in one sitting, from one line per tool saying where.
+- **Agents drive every step** with guarded keystrokes (the frontmost and topmost check), one or two tools at a time, small tasks only; the evidence is recorded and every process reaped (the ledger back to 0).
+- **A tool not installed** is listed with what installing it needs; installing waits for the maintainer's yes.
+- **Amends:** AJ-E1612 and AJ-E1701 R2 ("spare accounts"); MAINTAINER-STEPS steps 16 and 17.
+- Sources: the coordinating session's relay of the maintainer's words, 2026-11-13.
+
+### D-108 Crash reports go to Sentry, through its SDK, behind D-19's setting and our scrubber — SETTLED (2026-11-13)
+
+**Ruling.** The maintainer, 2026-11-13, on AJ-E1107 and AJ-E1516: "I don't mind using Sentry" and "If we are going to use sentry than using sentry SDK is fine".
+
+- **Sentry receives crash reports,** sent by Sentry's own Rust SDK. This amends ADR-0015's rejection of a third-party SDK **for crash reports only**; usage statistics are unchanged (their own closed schema, no SDK).
+- **D-19 stands:** the Never / Ask / Always setting and the scrubbing on the Mac. The SDK sends only what the user agreed to: nothing on Never, a full read-only preview first on Ask.
+- **Every event passes through AI Juggler's own scrubber** in `before_send`, so the scrub corpus tests keep gating what leaves the Mac.
+- **`send_default_pii = false`:** no server name, no user, no IP; AI Juggler's own breadcrumbs only; no automatic integration that reads the environment, URLs or files.
+- **The address** (the DSN) comes from `AI_JUGGLER_CRASH_ENDPOINT` at compile time, in release builds only; debug builds never send.
+- **Wording:** `SECURITY.md`'s "never sent automatically" (already wrong under D-19's Always) and the Privacy pages are corrected with the build.
+- **The account:** the project is MIT and public; the maintainer creates the Sentry account and applies for Sentry's sponsored open-source plan. AJ-E1107 R5 waits for the secret.
+- **Amends:** ADR-0015 (the rejected "third-party analytics SDK" does not cover crash reports); AJ-E1107 R5.
+- Sources: the coordinating session's relay of the maintainer's words, 2026-11-13.
+
+### D-109 A release's sign-off is the Stable approval on GitHub, recorded automatically; the old gate files are history — SETTLED (2026-11-13)
+
+**Ruling.** The maintainer, 2026-11-13, answering the coordinating session's option A: "A, go ahead". What was found first: none of the six gate files (M0, M1, M3, E5, E7, beta) is signed; `gate-beta.md` is four weeks stale (50 FAIL); MAINTAINER-STEPS Part 5 says the beta feed doesn't move until the beta gate is signed, which is false (no CI step runs `gate-signed`; 0.4.1 to 0.4.4 went to beta without it).
+
+- **The sign-off is the maintainer's GitHub approval of the `stable` environment** in the Promote workflow: GitHub records the reviewer, the date and the commit, which meets AJ-E807 R4.
+- **An automatic record:** on a stable promotion, the Promote workflow writes a sign-off record into the repository through its normal pull-request or merge route (never a force-push): the version, the commit, the date and the approving reviewer (read from the run's approval through the API), and the result of `release_scope.py check <version> --channel stable` with links to the evidence manifests. Proven with a dry-run or rehearsal mode that promotes nothing.
+- **The old gate files** (`docs/qa/gates/`) get a header note, replaced by D-109, and stay as history; `gate-packet` and `gate-signed` are retired or repointed at the new record.
+- **Docs:** MAINTAINER-STEPS Part 5 (and its false feed claim), QUALITY.md §8, EPICS' gate section and AJ-E807's text and evidence follow it. The maintainer's only step is the Stable click they already make.
+- **Amends:** AJ-E807 R4 and its per-milestone signing; MAINTAINER-STEPS Part 5.
+- Sources: the coordinating session's findings and relay of the maintainer's answer, 2026-11-13.
+

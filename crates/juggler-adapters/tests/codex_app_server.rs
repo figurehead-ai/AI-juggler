@@ -435,6 +435,7 @@ fn start(
         socket: world.base.join("unused.sock"),
         resume: resume.map(str::to_owned),
         fresh_id: "unused".into(),
+        history: None,
     };
     let spec = driven
         .driven_spec(&world.account, &world.profile, &world.cwd, &launch)
@@ -808,6 +809,7 @@ fn the_driven_launch_never_carries_a_bypass_or_an_inherited_key() {
         socket: world.base.join("x.sock"),
         resume: None,
         fresh_id: "unused".into(),
+        history: None,
     };
     let spec = adapter
         .driven()

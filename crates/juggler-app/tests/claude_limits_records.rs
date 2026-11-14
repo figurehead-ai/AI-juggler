@@ -488,6 +488,8 @@ fn qa_real_readonly_claude_limits_per_profile() {
         let mut push = |kind: WindowKind, sample: QuotaSample, source: UsageSource| match kind {
             WindowKind::FiveHour => five.push((sample, Some(source))),
             WindowKind::Weekly { .. } => week.push((sample, Some(source))),
+            // Claude names no month.
+            WindowKind::Monthly => {}
         };
         let limits = claude_limits::profile_limits(&dir).unwrap_or_default();
         let mut counts = [0usize; 3];

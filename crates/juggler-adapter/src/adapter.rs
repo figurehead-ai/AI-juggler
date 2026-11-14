@@ -398,6 +398,37 @@ pub trait ToolLaunch: ToolIdentity {
             .map(|key| (*key, value.clone()))
             .collect()
     }
+    /// The environment a launch (or the sign-in flow) gets for
+    /// `state_dir`: each [`crate::ToolLaunch::pinned_env`] variable set,
+    /// or removed ([`crate::launch::ENV_UNSET`]) where it runs unset, every
+    /// [`crate::ToolLaunch::launch_unset_keys`] one removed, and every
+    /// [`crate::ToolLaunch::launch_fixed_env`] one set. A launch adds it
+    /// after the Launch settings' overrides, so none of them reaches these.
+    #[must_use]
+    fn isolation_env(&self, state_dir: &Path) -> EnvMap {
+        let unset = || crate::launch::ENV_UNSET.to_owned();
+        let mut env: EnvMap = self
+            .pinned_env(state_dir)
+            .into_iter()
+            .map(|(key, value)| (key.to_owned(), value.unwrap_or_else(unset)))
+            .collect();
+        for key in self.launch_unset_keys() {
+            env.insert((*key).to_owned(), unset());
+        }
+        for (key, value) in self.launch_fixed_env() {
+            env.insert((*key).to_owned(), (*value).to_owned());
+        }
+        env
+    }
+    /// The pinned variables that are set for `state_dir` (what preparing
+    /// an account folder hands back; one that runs unset is left out).
+    #[must_use]
+    fn pinned_set_env(&self, state_dir: &Path) -> EnvMap {
+        self.pinned_env(state_dir)
+            .into_iter()
+            .filter_map(|(key, value)| Some((key.to_owned(), value?)))
+            .collect()
+    }
     /// The arguments that resume conversation `conversation_id` from a
     /// terminal, after [`crate::ToolDiscovery::shell_command`] (AJ-E1537's Copy
     /// resume command). `None` when the tool can't resume from a
@@ -769,6 +800,18 @@ pub trait ToolTranscripts: ToolIdentity {
         let _ = state_dir;
         Vec::new()
     }
+    /// AJ-E1605 Req.6: the turns of the conversation at `transcript` (its
+    /// link), for a handover, when this tool keeps them its own way (a
+    /// store, not a Claude Code or Codex transcript file): who spoke and
+    /// what they said, oldest first, read-only. `None` (the default): the
+    /// caller reads the link as a transcript file. An adapter that reads
+    /// them also answers `None` when the record isn't in the shape it
+    /// knows (never a half-read conversation).
+    #[must_use]
+    fn conversation_turns(&self, transcript: &Path) -> Option<Vec<crate::handover::TurnText>> {
+        let _ = transcript;
+        None
+    }
     /// Creates a watcher over the account's transcript root.
     ///
     /// # Errors
@@ -879,6 +922,38 @@ pub trait ToolQuota: ToolIdentity {
     )> {
         let _ = path;
         Vec::new()
+    }
+    /// AJ-E1603: the limit hit an open session holds, read by the adapter
+    /// from the session's linked transcript `transcript` itself, for a
+    /// tool whose record of hits isn't in that file's tail (Kimi Code's
+    /// versioned event logs beside its record). `None`: the caller reads
+    /// the tail with [`crate::ToolQuota::limit_hit`]. `Some(None)`: no hit
+    /// holds. Default: `None`.
+    #[must_use]
+    fn session_limit_hit(&self, transcript: &Path) -> Option<Option<crate::live::LimitHit>> {
+        let _ = transcript;
+        None
+    }
+    /// D-106: whether [`crate::ToolQuota::plan_usage`] is offered for the
+    /// account at `state_dir` (its sign-in is one the tool's service
+    /// reports on). Reads which files are there, never a secret; starts
+    /// nothing. Default: `false`.
+    #[must_use]
+    fn plan_usage_offered(&self, state_dir: &Path) -> bool {
+        let _ = state_dir;
+        false
+    }
+    /// D-106: asks the tool's own service for the account's plan usage
+    /// now, bounded in time (it may start the tool's server briefly and
+    /// stops it before returning). Called only on the usage cadence or
+    /// when the user asks, never in a loop. `None`: not offered.
+    /// `Some(Err)`: unknown this time, in plain words (never a secret).
+    fn plan_usage(
+        &self,
+        account: &Account,
+    ) -> Option<Result<crate::plan_usage::PlanReading, String>> {
+        let _ = account;
+        None
     }
 }
 

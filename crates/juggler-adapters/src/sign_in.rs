@@ -4,8 +4,9 @@
 //! presence-only shape of Codex's `auth.json` (which fields are filled, its
 //! mode and account id; every token is skipped while parsing and never
 //! stored), the kinds of OpenCode's sign-ins (`oauth`, `api`), Grok
-//! Build's modes (`web_login`, `api_key`), and which of Kimi Code's
-//! sign-in files are there. The name constants are the crate's own, for the copy rules
+//! Build's modes (`web_login`, `api_key`), which of Kimi Code's
+//! sign-in files are there, whether `ZCode`'s is, and whether Muse Code's
+//! sign-in record is there and its Keychain item exists (by its name only). The name constants are the crate's own, for the copy rules
 //! that keep these files back. `juggler-app/tests/no_bare_tools.rs` fails
 //! when the names appear anywhere else, when a function outside the lists
 //! uses the constants, or when this module reads any other way.
@@ -33,6 +34,23 @@ pub(crate) const GROK_MCP_AUTH: &str = "mcp_credentials.json";
 pub(crate) const KIMI_CREDENTIALS: &str = "credentials";
 /// Kimi Code's membership (OAuth) sign-in, in that folder.
 pub(crate) const KIMI_MEMBERSHIP: &str = "kimi-code.json";
+/// `ZCode`'s sign-ins (AJ-E1605): its Z.ai tokens and provider keys, in
+/// the `v2/` folder of its tree (`<ZCODE_DATA_BASE_DIR>/.zcode/v2/`).
+pub(crate) const ZCODE_CREDENTIALS: &str = "credentials.json";
+/// The folder of `ZCode`'s tree that holds it.
+const ZCODE_SIGN_IN_DIR: &str = "v2";
+/// Its path in the tree, for the copy rules' lists (a copy never takes it).
+pub(crate) const ZCODE_SIGN_IN_PATH: &str = "v2/credentials.json";
+/// Muse Code's sign-in record (AJ-E1608), in its config folder
+/// (`$XDG_CONFIG_HOME/muse/`): on macOS it points at the Keychain item
+/// below, which holds the sign-in itself.
+pub(crate) const MUSE_AUTH: &str = "auth.json";
+/// Muse Code's Keychain item (a generic password): its service and its
+/// account, fixed (the binary's own strings, 1.4.13): one per Mac, whatever
+/// folder Muse runs in.
+pub(crate) const MUSE_KEYCHAIN_SERVICE: &str = "ai.meta.dev.credentials";
+/// The item's account.
+pub(crate) const MUSE_KEYCHAIN_ACCOUNT: &str = "meta";
 
 /// A provider's sign-in file in a config folder, when it's file-based:
 /// presence and size only, never its contents.
@@ -45,6 +63,11 @@ pub fn metadata(provider: &str, dir: &Path) -> Option<std::fs::Metadata> {
         crate::kimi_code::KIMI_CODE_ID => {
             return std::fs::metadata(dir.join(KIMI_CREDENTIALS).join(KIMI_MEMBERSHIP)).ok();
         }
+        crate::zcode::ZCODE_ID => return zcode_sign_in_metadata(&crate::zcode::tree_of(dir)),
+        crate::muse::MUSE_ID => {
+            return std::fs::metadata(crate::muse::config_of(dir).join(MUSE_AUTH)).ok();
+        }
+
         _ => CLAUDE_CREDENTIALS,
     };
     std::fs::metadata(dir.join(name)).ok()
@@ -206,6 +229,38 @@ pub(crate) fn kimi_sign_in(home: &Path) -> Option<KimiSignIn> {
     })
 }
 
+/// `ZCode`'s sign-in file in its tree (`tree`, the `.zcode` folder):
+/// presence and size only, never its contents (AJ-E1605 Req.2).
+fn zcode_sign_in_metadata(tree: &Path) -> Option<std::fs::Metadata> {
+    std::fs::metadata(tree.join(ZCODE_SIGN_IN_DIR).join(ZCODE_CREDENTIALS)).ok()
+}
+
+/// Whether `ZCode`'s tree (`tree`) holds a sign-in: its file is there and
+/// not empty. Its contents are never opened. `None` when the account's
+/// folder (`state_dir`) can't be listed.
+pub(crate) fn zcode_signed_in(state_dir: &Path, tree: &Path) -> Option<bool> {
+    std::fs::read_dir(state_dir).ok()?;
+    Some(zcode_sign_in_metadata(tree).is_some_and(|meta| meta.is_file() && meta.len() > 0))
+}
+
+/// Whether Muse Code's config folder `config` holds its sign-in record:
+/// the file is there and not empty. Its contents are never opened.
+/// `None` when the account's folder (`state_dir`) can't be listed.
+pub(crate) fn muse_signed_in(state_dir: &Path, config: &Path) -> Option<bool> {
+    std::fs::read_dir(state_dir).ok()?;
+    Some(
+        std::fs::metadata(config.join(MUSE_AUTH))
+            .is_ok_and(|meta| meta.is_file() && meta.len() > 0),
+    )
+}
+
+/// Whether this Mac's Keychain holds Muse Code's sign-in item, by its
+/// service and account only: its secret is never asked for (no `-w`, no
+/// `-g`). `false` when this run keeps away from the keychain.
+pub(crate) fn muse_keychain_item() -> bool {
+    juggler_adapter::keychain::item_exists(MUSE_KEYCHAIN_SERVICE, Some(MUSE_KEYCHAIN_ACCOUNT))
+}
+
 /// The shape of `auth.json` the probe needs — field names and presence;
 /// `auth_mode` is a mode name, not a secret.
 #[derive(Debug, Default, serde::Deserialize)]
@@ -240,4 +295,18 @@ struct IdShape {
 #[serde(default)]
 struct IdTokens {
     account_id: Option<String>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The copy rules' path is the file the probe looks at.
+    #[test]
+    fn zcodes_sign_in_path_is_the_probed_file() {
+        assert_eq!(
+            Path::new(ZCODE_SIGN_IN_PATH),
+            Path::new(ZCODE_SIGN_IN_DIR).join(ZCODE_CREDENTIALS)
+        );
+    }
 }

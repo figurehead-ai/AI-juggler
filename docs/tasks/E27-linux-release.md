@@ -365,7 +365,7 @@
 **Goal**: The dedicated first release ships Linux on the Beta channel, on the shared version stream, only when the core works on the promised distributions and desktops: tools found, accounts imported, sessions run and are seen, stops whole and honest, switching keeps history, and every missing feature says so.
 **User story**: As an early Linux user, the Beta does what its page says on my distribution, and what isn't there yet says so where I'd look for it.
 **Requirements**:
-1. A gate file `docs/qa/gate-linux-beta.md` SHALL list each criterion with its evidence link (the `gate_packet.py` format).
+1. A gate file `docs/qa/gate-linux-beta.md` SHALL list each criterion with its evidence link (one row per criterion: its evidence link and verdict).
 2. Core criteria on each promised distribution and desktop: tools found (AJ-E2706); import; two Claude accounts in parallel with zero writes to `~/.claude`; sessions seen in the Processes view; stops whole with zero false kills (AJ-E2705); switching A→B→Codex→A keeps history, tasks and context; honest usage; keep-awake (AJ-E2711); secrets in the keyring or a plain refusal (AJ-E2708).
 3. Every feature not ready on Linux or on a given desktop SHALL say so where it would be, with the reason, and the release notes SHALL list them by desktop.
 4. The release SHALL go through the shared flow: the version's nightly carries its Linux build beside the other shipped OSes', and D-24's promotion rules (days of Nightly use, no open `blocker`) hold on Linux as well before the one promote to Beta moves every OS's build.
@@ -387,7 +387,7 @@
 2. `promote.yml` SHALL promote a version only when every shipped OS's build of it is in the release, and move the channel's one feed, and the package repository's component if there is one, with all of them together; `scripts/promotion_rules.py` SHALL check it.
 3. A `blocker` on any shipped OS SHALL stop the promotion of that version for every OS (D-24 across OSes; the agents' reading of D-52, the maintainer to confirm).
 4. The Definition of Done's "every shipped OS" line (added by AJ-E2616, or here if Linux ships first) SHALL include Linux, and CI's Linux desktop-session job (AJ-E2702) SHALL be required on every PR to `main` and `release/*`.
-5. Linux SHALL reach Stable with the first version carrying it that the stable rules promote (14+ days on beta, no `blocker`, the beta gate signed); before that promote, the security review SHALL be re-run for the Linux-specific code: the AppImage trust rule and the stable bridge copy, the Secret Service, the repository signing.
+5. Linux SHALL reach Stable with the first version carrying it that the stable rules promote (14+ days on beta, no `blocker`, the roadmap scope complete; the Stable approval is the sign-off, D-109); before that promote, the security review SHALL be re-run for the Linux-specific code: the AppImage trust rule and the stable bridge copy, the Secret Service, the repository signing.
 6. An update from the first Linux Beta to that Stable build SHALL be proven for each format, with a rollback.
 **UI/UX reasoning**: The release channel policy (memory: nightly as pushed, beta after real use, stable deliberate), for every OS at once; Nielsen #1: the channel in About, and "not on Linux yet" with its reason.
 **Performance budget**: a nightly with Linux ≤ 20 min longer than without it (the OS jobs in parallel); a promote ≤ 10 min including the repository; the Stable candidate within 10 % of the first release's measured budgets.

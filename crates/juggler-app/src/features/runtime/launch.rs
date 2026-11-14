@@ -9,9 +9,10 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
+use juggler_adapter::HarnessAdapter;
 use juggler_adapter::runtime::{Connection, DrivenLaunch, DrivenRuntime, Runtime, Transport};
-use juggler_adapter::{HarnessAdapter, LaunchSpec};
 use juggler_core::model::{Profile, SessionId};
+use juggler_core::storage::Storage;
 use sha2::{Digest, Sha256};
 
 use super::driver::{Driver, Meta};
@@ -34,6 +35,9 @@ pub struct Plan<'a> {
     pub resume: Option<String>,
     /// The user's choice for this session, when they made one.
     pub requested: Option<Runtime>,
+    /// A conversation a new session starts with, for a tool that imports
+    /// one (AJ-E1605 R3); `None` otherwise.
+    pub history: Option<juggler_adapter::runtime::ImportedHistory>,
 }
 
 /// The socket for `session`: short, in the runtime folder, or `None` when
@@ -139,6 +143,7 @@ fn try_driven(
         socket: socket.clone(),
         resume: plan.resume.clone(),
         fresh_id: fresh_uuid(),
+        history: plan.history.clone(),
     };
     let mut spec = driven
         .driven_spec(row.account, plan.profile, cwd, &launch)
@@ -196,6 +201,28 @@ fn try_driven(
     })
 }
 
+/// `read` over the store, for `row`'s start.
+fn with_storage<T>(
+    state: &AppState,
+    row: &NewSession<'_>,
+    read: impl FnOnce(&Storage) -> T,
+) -> Result<T, Unstarted> {
+    let storage = state
+        .storage
+        .lock()
+        .map_err(|_| Unstarted::of(row.id, AppError::StatePoisoned))?;
+    Ok(read(&storage))
+}
+
+/// The runtime `plan`'s profile was set to, if any, and whether Beta
+/// features are on.
+fn runtime_choice(storage: &Storage, plan: &Plan<'_>) -> (Option<Runtime>, bool) {
+    let choice = settings::profile_choices(storage)
+        .get(plan.profile.id.as_str())
+        .copied();
+    (choice, settings::beta_on(storage))
+}
+
 /// Starts `row`'s session in the runtime its plan picks; the terminal
 /// launch `terminal` is the fallback (and what runs for a terminal plan).
 /// Called by the one path,
@@ -212,21 +239,20 @@ pub(crate) fn start(
     adapter: &dyn HarnessAdapter,
     row: &NewSession<'_>,
     plan: &Plan<'_>,
-    mut terminal: LaunchSpec,
+    terminal: crate::features::sessions::spawn::Terminal,
 ) -> Result<Started, Unstarted> {
-    let (profile_choice, beta, trust) = {
-        let storage = state
-            .storage
-            .lock()
-            .map_err(|_| Unstarted::of(row.id, AppError::StatePoisoned))?;
-        (
-            settings::profile_choices(&storage)
-                .get(plan.profile.id.as_str())
-                .copied(),
-            settings::beta_on(&storage),
-            super::trust::apply_to(&storage, adapter, row.account, &mut terminal),
-        )
+    let mut terminal = match terminal {
+        Ok(spec) => spec,
+        // AJ-E1605 R3: a tool with no terminal UI runs driven or not at
+        // all, never in a terminal that can't start.
+        Err(none) => return start_driven_only(state, adapter, row, plan, &none),
     };
+    let ((profile_choice, beta), trust) = with_storage(state, row, |storage| {
+        (
+            runtime_choice(storage, plan),
+            super::trust::apply_to(storage, adapter, row.account, &mut terminal),
+        )
+    })?;
     let mut session = row.id.clone();
     let fell_back = match settings::plan(adapter.driven(), plan.requested, profile_choice, beta) {
         settings::Plan::Terminal(why) => why,
@@ -268,6 +294,38 @@ pub(crate) fn start(
         spawned,
         runtime: Runtime::Terminal,
     })
+}
+
+/// AJ-E1605 R3: `row`'s session for a tool whose only runtime is driven:
+/// driven when its plan allows, else refused with why (its terminal
+/// reason, and why it couldn't be driven).
+fn start_driven_only(
+    state: &Arc<AppState>,
+    adapter: &dyn HarnessAdapter,
+    row: &NewSession<'_>,
+    plan: &Plan<'_>,
+    none: &crate::features::sessions::spawn::NoTerminal,
+) -> Result<Started, Unstarted> {
+    let refused = |why: Option<String>| {
+        let words = why.map_or_else(
+            || format!("{}; start it without a terminal", none.why),
+            |why| format!("{}, and it couldn't start without one: {why}", none.why),
+        );
+        Unstarted::of(row.id, AppError::Refused(words))
+    };
+    let (profile_choice, beta) = with_storage(state, row, |storage| runtime_choice(storage, plan))?;
+    let Some(driven) = adapter.driven() else {
+        return Err(refused(None));
+    };
+    match settings::plan(Some(driven), plan.requested, profile_choice, beta) {
+        settings::Plan::Terminal(why) => Err(refused(why)),
+        settings::Plan::Driven => {
+            match try_driven(state, adapter, driven, row, plan, &none.cwd, None) {
+                Ok(started) => Ok(started),
+                Err(NotDriven::Before(why) | NotDriven::After(why)) => Err(refused(Some(why))),
+            }
+        }
+    }
 }
 
 /// A driven start failed after its process ran (and was stopped): its id

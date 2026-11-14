@@ -216,8 +216,12 @@ fn continue_as(
     native_id: &str,
     runtime: Runtime,
 ) -> AppResult<HandoverInfo> {
-    let terminal = crate::features::launch::resume_gate::resume_spec(
-        state, account, profile, &from.cwd, native_id,
+    let terminal = crate::features::sessions::spawn::planned_terminal(
+        crate::features::launch::resume_gate::adapter_of(state, account)?.as_ref(),
+        &from.cwd,
+        crate::features::launch::resume_gate::resume_spec(
+            state, account, profile, &from.cwd, native_id,
+        ),
     )?;
     // The one path: its row first, then the runtime asked for.
     let session = SessionId::new(format!("sess-{}", crate::ids::unique_suffix()));
@@ -238,6 +242,7 @@ fn continue_as(
             resume: Some(native_id.to_owned()),
             requested: Some(runtime),
             terminal,
+            history: None,
         },
     )?;
     record_continuation(state, from, &started.session)?;

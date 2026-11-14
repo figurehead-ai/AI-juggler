@@ -336,16 +336,9 @@ pub fn start_impl(
             message: error.to_string(),
         }
     })?;
-    let mode = juggler_adapter::LaunchMode::Primed {
-        prompt: crate::features::handover::pointer(
-            &crate::features::switch::replay::replay_header(state, &account.harness),
-            &file,
-        ),
-        read_dirs: file.parent().map(Path::to_path_buf).into_iter().collect(),
-    };
-    let (session, _pid) =
-        crate::crossmachine::launch_here(state, &profile, &account, &project, &mode, None, "pack")
-            .inspect_err(|error| failed(state, &edge, FailureStage::Launch, &error.to_string()))?;
+    let started = start_from(state, &pack, &profile, &account, &project, folder, &file);
+    let (session, _pid) = started
+        .inspect_err(|error| failed(state, &edge, FailureStage::Launch, &error.to_string()))?;
     let storage = crate::commands::lock_storage_arc(state)?;
     let graph = storage.switch_graph();
     let to_epoch = EpochId::new(format!("ep-{}", crate::ids::unique_suffix()));
@@ -365,6 +358,53 @@ pub fn start_impl(
         session_id: session.to_string(),
         edge_id: edge.to_string(),
     })
+}
+
+/// Starts the session a pack goes into (AJ-E1605 R3): a tool that takes
+/// a conversation in at the start (its own import, no model call) gets the
+/// handover as its first message; any other is primed with a pointer to
+/// the handover's file.
+fn start_from(
+    state: &Arc<AppState>,
+    pack: &OpenedPack,
+    profile: &juggler_core::model::LaunchRecipe,
+    account: &juggler_core::model::Account,
+    project: &juggler_core::model::ProjectRecord,
+    folder: &Path,
+    file: &Path,
+) -> AppResult<(juggler_core::model::SessionId, u32)> {
+    let imports = state
+        .registry
+        .get(&account.harness)
+        .and_then(|adapter| {
+            adapter
+                .driven()
+                .map(juggler_adapter::runtime::DrivenRuntime::imports_history)
+        })
+        .unwrap_or(false);
+    if imports {
+        let history = juggler_adapter::runtime::ImportedHistory {
+            title: format!(
+                "Handover from {} ({})",
+                tool_name(state, &pack.state.source.provider),
+                pack.state.source.account_label
+            ),
+            turns: vec![(
+                "user".to_owned(),
+                brief(state, pack, &account.harness, folder),
+            )],
+        };
+        crate::crossmachine::import_here(state, profile, account, project, history, "pack")
+    } else {
+        let mode = juggler_adapter::LaunchMode::Primed {
+            prompt: crate::features::handover::pointer(
+                &crate::features::switch::replay::replay_header(state, &account.harness),
+                file,
+            ),
+            read_dirs: file.parent().map(Path::to_path_buf).into_iter().collect(),
+        };
+        crate::crossmachine::launch_here(state, profile, account, project, &mode, None, "pack")
+    }
 }
 
 fn failed(state: &Arc<AppState>, edge: &SwitchEdgeId, at: FailureStage, why: &str) {

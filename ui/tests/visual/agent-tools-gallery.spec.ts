@@ -59,6 +59,11 @@ async function axe(page: Page, what: string) {
 }
 
 async function poolPage(page: Page) {
+  // The rail's Needs you (the fixture's unsigned Personal app) lands after
+  // the first paint. Opened before then, the rail held the pool's line
+  // still under the pointer and scrolled the notice away behind "1 new
+  // above" (rail-hold; CI run 43403942121, 15 of 20 local runs).
+  await expect(page.getByTestId("rail-needs-you")).toContainText(/Needs you\s*1/);
   await groupBy(page, "Pool");
   await openRailGroup(page, "Checkout redesign", page.getByTestId("pool-page"));
   await expect(page.getByTestId("pool-page")).toBeVisible();

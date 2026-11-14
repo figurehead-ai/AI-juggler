@@ -368,24 +368,10 @@ pub fn set_up(home: &Path, user_home: Option<&Path>, item: &Item) -> Result<Appl
                 ));
             }
             let file = home.join("config.toml");
-            crate::config_edit::set(&file, ConfigFormat::Toml, entries)
-                .map_err(AdapterError::Unsupported)?;
+            let undo = crate::config_edit::set_undoably(file, ConfigFormat::Toml, entries)?;
             Ok(Applied {
                 summary: format!("Set the {}", item.kind.words()),
-                // Each value's fingerprint, never the value itself.
-                undo: Undo::RemoveSetting {
-                    file,
-                    format: ConfigFormat::Toml,
-                    entries: entries
-                        .iter()
-                        .map(|(key, value)| {
-                            (
-                                key.clone(),
-                                crate::config_edit::fingerprint(ConfigFormat::Toml, value),
-                            )
-                        })
-                        .collect(),
-                },
+                undo,
                 note: None,
             })
         }
@@ -799,14 +785,7 @@ pub(crate) fn toml_mcp_item(tool: &str, name: &str, entry: &toml::Table) -> Item
 }
 
 fn item(kind: ItemKind, name: &str, detail: Detail) -> Item {
-    Item {
-        tool: CODEX_ID.to_owned(),
-        kind,
-        name: name.to_owned(),
-        scope: Scope::User,
-        detail,
-        origin: Origin::Own,
-    }
+    Item::own(CODEX_ID, kind, name, detail)
 }
 
 /// A Claude command as a Codex skill: frontmatter with its name and a

@@ -87,7 +87,7 @@
 | AJ-E804 | Accessibility verification programme | E8-validation-visual-performance-quality.md | P0 | M | AJ-E802 |
 | AJ-E805 | Performance budgets and load proof (10 Accounts / 50 Instances) | E8-validation-visual-performance-quality.md | P0 | L | AJ-E801 |
 | AJ-E806 | Quality gates and CI enforcement | E8-validation-visual-performance-quality.md | P0 | M | AJ-E801 |
-| AJ-E807 | Milestone gate verification and sign-off | E8-validation-visual-performance-quality.md | P0 | M | AJ-E803, AJ-E804, AJ-E805, AJ-E806 |
+| AJ-E807 | Release sign-off: the Stable approval, recorded with its evidence | E8-validation-visual-performance-quality.md | P0 | M | AJ-E803, AJ-E804, AJ-E805, AJ-E806 |
 | AJ-E808 | Provider-pair fidelity validation matrix (operations) | E8-validation-visual-performance-quality.md | P0 | L | AJ-E801 |
 | AJ-E809 | Beta dogfood programme | E8-validation-visual-performance-quality.md | P1 | M | AJ-E807, AJ-E808 |
 | AJ-E810 | External research evidence standard | E8-validation-visual-performance-quality.md | P1 | S | AJ-E801 |

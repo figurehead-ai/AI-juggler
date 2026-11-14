@@ -1,5 +1,7 @@
 # Gate V1 — Milestone M1 acceptance (M1-7)
 
+> **Replaced by D-109 (2026-11-13):** a release's sign-off is the Stable approval, recorded in `docs/qa/signoffs/`; kept as history.
+
 Status: **MECHANICS VERIFIED (agent dogfood, 2026-10-12) — awaiting user confirmation**
 
 ## Agent-run dogfood evidence (mechanics, real claude binary)
@@ -77,9 +79,9 @@ evidence in PR #37) and its live sessions kept running throughout.
 
 ## Sign-off
 
-Added by AJ-E807: a gate is signed here with the decision, the reviewer,
-the date and the commit it approves (`scripts/gate_packet.py signed`
-checks it). Until then this gate is open.
+Added by AJ-E807 (2026-10-19) and never signed. Retired by D-109: gates
+aren't signed here any more; a release's sign-off is the Stable approval,
+recorded in `docs/qa/signoffs/`. The table is kept as it was.
 
 | Field | Value |
 |---|---|

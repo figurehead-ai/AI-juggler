@@ -97,6 +97,59 @@ Research date: 2026-10-21
 - Is supporting API-key (`META_API_KEY`) accounts first acceptable, before subscription sign-ins are proven isolatable?
 - May we run a live probe with a sacrificial Meta account (EVIDENCE-STANDARD rule 3)?
 
+## Corrections (2026-11-13, AJ-E1608)
+
+Checked on the installed Muse Code and its own strings, in throwaway homes
+under `sandbox-exec` (no network, no Keychain), `MUSE_NO_AUTO_UPDATE=1`, no
+sign-in, no prompt to Meta; and against the MIT SDK at `07e1548c`.
+
+- **Version.** Installed here: **1.4.13** (`1.4.13-R6996.1`), the
+  installer's bash launcher `~/.local/bin/muse` running
+  `muse-bin-1.4.13-R6996.1` beside it; the launcher's own record is
+  `~/.local/bin/.muse-version`. The vendor's changelog is at 1.4.18. The
+  launcher updates the binary in the background once an hour unless
+  `MUSE_NO_AUTO_UPDATE=1` (`MUSE_SYNC_UPDATE=1` updates in the
+  foreground). **[Verified-primary: the launcher's own code and files]**
+- **The sign-in and several accounts.** On macOS the sign-in is a login
+  Keychain generic password with service **`ai.meta.dev.credentials`** and
+  account **`meta`**, both fixed in the binary; `$XDG_CONFIG_HOME/muse/auth.json`
+  (0600) is the record that points at it. So the item is one per Mac,
+  whatever folder Muse runs in: two homes share one subscription sign-in,
+  and `muse login` in a second replaces the first's. API-key accounts are
+  unaffected (`META_API_KEY` per process comes first). The binary reads an
+  undocumented `TBH_CREDENTIAL_BACKEND` and records the backend in effect
+  as `file`, `keychain` or `keychain_fallback_file` (off macOS: `file`), so
+  `TBH_CREDENTIAL_BACKEND=file` likely keeps the sign-in in the folder's
+  own `auth.json`; UNCONFIRMED until the lab (D-107). **[Verified-primary:
+  the binary's strings; Inferred: the value]**
+- **Where Muse keeps things.** `initialize`'s `museHome` is
+  `$XDG_DATA_HOME/muse` (checked live). The session index is
+  `$XDG_DATA_HOME/muse/session-index.db` (WAL), `schema_meta.schema_version`
+  `1`, one `sessions` row per session (`session_id`, `session_log_path`,
+  `workspace_root`, `title`, `first_user_prompt`, `created_at_us`,
+  `updated_at_us`, `status`, `msp_kind`, `msp_parent_session_id`, …);
+  the logs are `sessions/YYYY/MM/DD/<uuid>/session.jsonl`. Session names
+  live in `~/Library/Application Support/muse/session-name-authority/`,
+  which only `HOME` moves. Muse also reads `CODEX_HOME` and
+  `CLAUDE_CONFIG_DIR` (foreign skills). **[Verified-primary: a throwaway
+  home's own files; the binary's strings]**
+- **The protocol.** Every command's `commandId` must be a UUIDv7 (`muse
+  serve` refuses a v4: "expected UUIDv7"); `session/start` and
+  `session/resume` subscribe the connection to the session's view by
+  themselves (their `viewCursor`), so no `view/subscribe` follows;
+  `approval/request` and `userInput/request` are requests the client
+  acknowledges at once, then decides with `approval/decide` or
+  `userInput/answer`; `account/read` and `usage/refresh` need
+  `capabilities.experimentalApi`; `muse serve --provider echo` runs without
+  an account (`account/read`: `loggedOut`). **[Verified-primary: the SDK's
+  schema and transcripts; checked live with the echo provider]**
+- **Terms.** The Meta Model API Terms of Service (updated 2026-10-09,
+  https://dev.meta.ai/legal/terms-of-service) cover the subscription:
+  §3.2, its credential "is for use only with the coding harness under your
+  Coding Harness Subscription"; §3.1, no sharing of an API key; §10.1(xii),
+  no evading rate limits or usage quotas. They don't name Muse Code. Recorded
+  in AJ-E1518's register. **[Verified-primary]**
+
 ## Search log (Negative-evidence)
 
 - **S-1 Official desktop app** (2026-10-21). WebSearch "Muse Code desktop app Meta macOS download"; WebSearch "Meta Muse app Mac "Muse Code" desktop conversation terminal switch" (extended). Sources: https://dev.meta.ai/products/muse-code (no desktop mention), MD/muse-code/ (lists CLI only), the changelog (one 1.4.10 "desktop app" mention), musecodes.io FAQ (warns that "desktop app" downloads are not from Meta), and productcompass.pm (third-party GUI). No Meta-published Muse Code desktop app was found by this search.

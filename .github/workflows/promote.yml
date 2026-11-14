@@ -10,11 +10,12 @@
 # the D-24 requirements as D-99 amends them hold: no `blocker` issue is
 # open (beta promotes the tested nightly; its days of use are on beta).
 # Stable also needs: the accessibility gate run here again, on the
-# commit, whatever CI ran; 14+ days on beta, no open `blocker`, the beta gate
-# (docs/qa/gate-beta.md, AJ-E807) signed, a CHANGELOG section, and the
-# minor's whole roadmap scope done or deferred (release_scope.py, D-99). A
-# D-24 requirement can be overridden only with a written reason, which
-# is kept in the channel tag.
+# commit, whatever CI ran; 14+ days on beta, no open `blocker`, a CHANGELOG
+# section, and the minor's whole roadmap scope done or deferred
+# (release_scope.py, D-99). A D-24 requirement can be overridden only with
+# a written reason, which is kept in the channel tag.
+# The approval of `stable` is the release's sign-off (D-109, AJ-E807): the
+# `record` job writes it down once the channel has moved.
 # Both also need usage statistics collected for the version: the stats
 # service's config has collection on and accepts it
 # (scripts/stats_config_check.py). No override: turn it on there first.
@@ -65,6 +66,8 @@ jobs:
     outputs:
       ref: ${{ steps.check.outputs.ref }}
       scanned: ${{ steps.scanned.outputs.on }}
+      # The main commit the scope was checked on (the sign-off record's links).
+      scope_sha: ${{ steps.check.outputs.scope_sha }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
@@ -96,7 +99,8 @@ jobs:
           # The roadmap scope (D-99): beta reports what is open; Stable
           # fails unless the whole minor, its later patches' rows included,
           # is done or deferred by a decision (D-85).
-          python3 scripts/release_scope.py check "$VERSION" --channel "$CHANNEL"
+          python3 scripts/release_scope.py check "$VERSION" --channel "$CHANNEL" --json "$RUNNER_TEMP/scope.json"
+          echo "scope_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
           # D-24: the channel's requirements, decided by promotion_rules.py.
           built_at="$(gh release view "v$VERSION" --repo "$REPO" --json publishedAt --jq .publishedAt)"
           beta_at=""
@@ -123,12 +127,19 @@ jobs:
           if [ "$CHANNEL" = "stable" ]; then
             gh api "repos/$REPO/git/ref/tags/beta/v$VERSION" >/dev/null 2>&1 \
               || { echo "::error::v$VERSION was never on beta — promote it to beta first"; exit 1; }
-            python3 scripts/gate_packet.py signed docs/qa/gate-beta.md
             grep -q "^## \[$VERSION\]" CHANGELOG.md \
               || { echo "::error::CHANGELOG.md has no [$VERSION] section"; exit 1; }
           fi
           echo "ref=$ref" >> "$GITHUB_OUTPUT"
           echo "Promote $VERSION ($ref) to $CHANNEL" >> "$GITHUB_STEP_SUMMARY"
+      # D-109: the scope result the sign-off record carries is this one.
+      - name: The scope, for the sign-off record
+        if: inputs.channel == 'stable'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: scope
+          path: ${{ runner.temp }}/scope.json
+          retention-days: 30
       # ADR-0025: the same gate on the same content gives the same answer.
       # A beta promotion reuses a full accessibility scan CI passed on this
       # commit, or on the head of the pull request merged as it when the
@@ -313,3 +324,48 @@ jobs:
             gh release edit "v$VERSION" --repo "$REPO" --prerelease=false --latest
           fi
           echo "${CHANNEL^} channel → $VERSION" >> "$GITHUB_STEP_SUMMARY"
+
+  # D-109 (AJ-E807): a release's sign-off is the maintainer's approval of
+  # the `stable` environment above; this job records it (who approved,
+  # when, the commit, the run, the scope result with each task's evidence
+  # manifest, the review inputs) with scripts/signoff_record.py. The
+  # repository doesn't let Actions open pull requests, so the record goes on
+  # the release and in this run's summary, never a push; `signoff_record.py
+  # pull X.Y.Z` brings it into docs/qa/signoffs/ on the release branch.
+  # `signoff_record.py rehearse` is its dry run against a past run.
+  record:
+    name: sign-off record
+    needs: [check, promote]
+    if: ${{ !cancelled() && inputs.channel == 'stable' && needs.promote.result == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      # The run's environment approval and its jobs (when it was approved).
+      actions: read
+      # Attaching the record to the release.
+      contents: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+          ref: ${{ needs.check.outputs.scope_sha }}
+          # The gallery delta compares with the previous stable/v* tag.
+          fetch-depth: 0
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: scope
+          path: ${{ runner.temp }}/scope
+      - name: Record the sign-off
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          REF: ${{ needs.check.outputs.ref }}
+          SCOPE_SHA: ${{ needs.check.outputs.scope_sha }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          record="$(python3 scripts/signoff_record.py record --repo "$REPO" --run "$RUN_ID" \
+            --version "$VERSION" --sha "$REF" --scope "$RUNNER_TEMP/scope/scope.json" \
+            --scope-sha "$SCOPE_SHA" --out "$RUNNER_TEMP/signoff")"
+          gh release upload "v$VERSION" "$record" --repo "$REPO" --clobber
+          cat "$record" >> "$GITHUB_STEP_SUMMARY"

@@ -51,7 +51,7 @@ export function PrivacyPane({ anchor }: { anchor?: string }): JSX.Element {
       <PaneSection
         id="stats"
         title="Usage statistics, crash reports and search"
-        footer="Usage statistics are off until you choose. Crash reports stay on this computer."
+        footer="Usage statistics and crash reports are off until you choose."
         card
       >
         <PrivacyCard />

@@ -8,6 +8,7 @@ use std::collections::HashMap;
 use juggler_adapter::AdapterError;
 use juggler_adapter::runtime::book::AskBook;
 use juggler_adapter::runtime::events::bounded;
+use juggler_adapter::runtime::session::{LineAndEvents, LineCodec};
 use juggler_adapter::runtime::{
     AskAnswer, AskId, ErrorCategory, ItemKind, ItemSummary, LimitWindow, LimitsSnapshot,
     LiveStatusWord, ModelChoice, RuntimeEvent, TurnEnd, TurnInput, TurnOrigin, TurnUsage,
@@ -386,47 +387,7 @@ impl Codec {
         })?;
         let line = rpc::answer(rpc_id, response(how, answer)?);
         self.open.remove(ask.as_str());
-        let events = vec![
-            RuntimeEvent::AskResolved { id: ask.clone() },
-            state(LiveStatusWord::Busy),
-        ];
-        for event in &events {
-            self.book.note(event);
-        }
-        Ok((line, events))
-    }
-
-    /// One message from the server: the events it makes, and any line to
-    /// send back at once (a refusal of a request AI Juggler doesn't handle;
-    /// never an answer to an ask).
-    pub fn incoming(&mut self, message: Incoming) -> (Vec<RuntimeEvent>, Vec<Value>) {
-        let events = match message {
-            Incoming::Response { id, result } => self.response(id, result),
-            Incoming::Request { id, method, params } => {
-                let ask = AskId(match &id {
-                    Value::String(s) => s.clone(),
-                    other => other.to_string(),
-                });
-                let Some((event, how)) = ask_of(&ask, &method, &params) else {
-                    self.unknown += 1;
-                    let refusal = rpc::refusal(&id, "AI Juggler doesn't handle this request");
-                    return (Vec::new(), vec![refusal]);
-                };
-                self.open.insert(ask.0.clone(), (id, how));
-                vec![event, state(LiveStatusWord::Waiting)]
-            }
-            Incoming::Notification { method, params } => self.notification(&method, &params),
-        };
-        for event in &events {
-            self.book.note(event);
-            if let RuntimeEvent::AskResolved { id } = event {
-                self.open.remove(id.as_str());
-            }
-            if matches!(event, RuntimeEvent::TurnEnded { .. }) {
-                self.open.clear();
-            }
-        }
-        (events, Vec::new())
+        Ok((line, self.book.answered(ask)))
     }
 
     fn response(&mut self, id: i64, result: Result<Value, String>) -> Vec<RuntimeEvent> {
@@ -599,5 +560,91 @@ impl Codec {
                 Vec::new()
             }
         }
+    }
+}
+
+impl Codec {
+    /// One message from the server: the events it makes, and any line to
+    /// send back at once (a refusal of a request AI Juggler doesn't handle;
+    /// never an answer to an ask).
+    pub fn incoming(&mut self, message: Incoming) -> (Vec<RuntimeEvent>, Vec<Value>) {
+        let events = match message {
+            Incoming::Response { id, result } => self.response(id, result),
+            Incoming::Request { id, method, params } => {
+                let ask = AskId(match &id {
+                    Value::String(s) => s.clone(),
+                    other => other.to_string(),
+                });
+                let Some((event, how)) = ask_of(&ask, &method, &params) else {
+                    self.unknown += 1;
+                    let refusal = rpc::refusal(&id, "AI Juggler doesn't handle this request");
+                    return (Vec::new(), vec![refusal]);
+                };
+                self.open.insert(ask.0.clone(), (id, how));
+                vec![event, state(LiveStatusWord::Waiting)]
+            }
+            Incoming::Notification { method, params } => self.notification(&method, &params),
+        };
+        for event in &events {
+            self.book.note(event);
+            if let RuntimeEvent::AskResolved { id } = event {
+                self.open.remove(id.as_str());
+            }
+            if matches!(event, RuntimeEvent::TurnEnded { .. }) {
+                self.open.clear();
+            }
+        }
+        (events, Vec::new())
+    }
+}
+
+impl LineCodec for Codec {
+    fn take_line(&mut self, line: &str) -> (Vec<RuntimeEvent>, Vec<Value>) {
+        rpc::message(line, &mut self.unknown).map_or_else(Default::default, |m| self.incoming(m))
+    }
+
+    fn native_id(&self) -> Option<String> {
+        self.handshake.thread.clone()
+    }
+
+    fn turn_running(&self) -> bool {
+        self.turn_running
+    }
+
+    fn turn(&mut self, input: TurnInput) -> Result<LineAndEvents, AdapterError> {
+        Ok((self.turn_start(input)?, Vec::new()))
+    }
+
+    fn stop(&mut self) -> Option<Value> {
+        self.interrupt()
+    }
+
+    fn answer(&mut self, ask: &AskId, answer: &AskAnswer) -> Result<LineAndEvents, AdapterError> {
+        Codec::answer(self, ask, answer)
+    }
+
+    /// The next turn carries the model (no line now).
+    fn set_model(&mut self, model: &str) -> Result<(Option<Value>, RuntimeEvent), AdapterError> {
+        Ok((None, Codec::set_model(self, model)))
+    }
+
+    fn steer(&mut self, input: &TurnInput) -> Result<Value, AdapterError> {
+        Codec::steer(self, input)
+    }
+
+    fn models(&mut self) -> Result<Value, AdapterError> {
+        Ok(Codec::models(self))
+    }
+
+    fn compact(&mut self) -> Result<LineAndEvents, AdapterError> {
+        Ok((Codec::compact(self)?, Vec::new()))
+    }
+
+    fn limits_request(&mut self) -> Option<Value> {
+        Some(self.rate_limits())
+    }
+
+    fn limits(&self) -> Option<LimitsSnapshot> {
+        Codec::limits(self)
     }
 }

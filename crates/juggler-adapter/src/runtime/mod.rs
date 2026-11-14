@@ -23,6 +23,8 @@
 pub mod book;
 pub mod events;
 pub mod lines;
+pub mod pipe;
+pub mod session;
 pub mod typed;
 
 use std::io::{BufRead, Write};
@@ -108,6 +110,21 @@ pub struct DrivenLaunch {
     /// A fresh id AI Juggler picked (a UUID), for a tool that lets the
     /// caller name a new conversation; a tool that names its own ignores it.
     pub fresh_id: String,
+    /// A conversation the new session starts with (a pack's), for a tool
+    /// that [imports history](DrivenRuntime::imports_history); ignored on a
+    /// resume and by every other tool.
+    pub history: Option<ImportedHistory>,
+}
+
+/// A conversation a new driven session starts with, taken in by the
+/// tool's own import (no model call): its title and its turns, oldest
+/// first, as text.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ImportedHistory {
+    /// Its title.
+    pub title: String,
+    /// Its turns: the role (`user` or `assistant`) and the text.
+    pub turns: Vec<(String, String)>,
 }
 
 /// Everything needed to start one driven session. Produced by adapters;
@@ -124,6 +141,9 @@ pub struct DrivenSpec {
     /// The model to start with, for a tool that takes it over its protocol
     /// rather than as a flag (the profile's launch settings).
     pub model: Option<String>,
+    /// The conversation a new session starts with ([`DrivenLaunch::history`]),
+    /// for a tool that imports it at the start.
+    pub history: Option<ImportedHistory>,
 }
 
 /// A connected transport: what the codec reads and writes.
@@ -202,6 +222,23 @@ pub trait DrivenRuntime: Send + Sync {
     /// Whether its sessions take more input into a running turn
     /// ([`DrivenSession::steer`]). Default: no.
     fn steers(&self) -> bool {
+        false
+    }
+
+    /// Whether the tool has a terminal UI to fall back to (AJ-E1605 R3).
+    /// `false`: driven is its only runtime (`ZCode`'s app ships no terminal
+    /// UI); its [`crate::ToolLaunch::launch_spec`] refuses with the reason,
+    /// [`DrivenRuntime::terminal_view`] too, and the app starts its
+    /// sessions driven or not at all. Default: `true`.
+    fn terminal_ui(&self) -> bool {
+        true
+    }
+
+    /// Whether a new session can be started with a conversation already
+    /// in it ([`DrivenLaunch::history`]), taken in by the tool's own import
+    /// with no model call (AJ-E1605 R3: `ZCode`'s `importedHistory`).
+    /// Default: no.
+    fn imports_history(&self) -> bool {
         false
     }
 
@@ -284,9 +321,7 @@ pub trait DrivenSession: Send {
     /// [`AdapterError::Unsupported`] where the tool has no steering.
     fn steer(&mut self, input: TurnInput) -> Result<(), AdapterError> {
         let _ = input;
-        Err(AdapterError::Unsupported(
-            "this tool can't add to a running turn".into(),
-        ))
+        Err(cannot::steer())
     }
 
     /// Interrupts the running turn.
@@ -318,9 +353,7 @@ pub trait DrivenSession: Send {
     ///
     /// [`AdapterError::Unsupported`] where the tool can't list them.
     fn list_models(&mut self) -> Result<(), AdapterError> {
-        Err(AdapterError::Unsupported(
-            "this tool doesn't list its models".into(),
-        ))
+        Err(cannot::list_models())
     }
 
     /// Compacts the conversation.
@@ -329,9 +362,7 @@ pub trait DrivenSession: Send {
     ///
     /// [`AdapterError::Unsupported`] where the tool can't.
     fn compact(&mut self) -> Result<(), AdapterError> {
-        Err(AdapterError::Unsupported(
-            "this tool can't compact from AI Juggler".into(),
-        ))
+        Err(cannot::compact())
     }
 
     /// What the tool last reported about its limits, and asks it again
@@ -348,6 +379,30 @@ pub trait DrivenSession: Send {
     ///
     /// The write's error.
     fn release(self: Box<Self>, how: Release) -> Result<ReleaseOutcome, AdapterError>;
+}
+
+/// What a tool without one of [`DrivenSession`]'s optional calls answers
+/// (its defaults' words, for a codec that offers the same calls).
+pub mod cannot {
+    use crate::error::AdapterError;
+
+    /// No [`super::DrivenSession::steer`].
+    #[must_use]
+    pub fn steer() -> AdapterError {
+        AdapterError::Unsupported("this tool can't add to a running turn".into())
+    }
+
+    /// No [`super::DrivenSession::list_models`].
+    #[must_use]
+    pub fn list_models() -> AdapterError {
+        AdapterError::Unsupported("this tool doesn't list its models".into())
+    }
+
+    /// No [`super::DrivenSession::compact`].
+    #[must_use]
+    pub fn compact() -> AdapterError {
+        AdapterError::Unsupported("this tool can't compact from AI Juggler".into())
+    }
 }
 
 /// The options an approval offers, by id: an answer naming another is

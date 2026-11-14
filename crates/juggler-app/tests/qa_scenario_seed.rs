@@ -75,6 +75,7 @@ fn lab_room(state: &Arc<AppState>, id: &str, window: juggler_core::quota::Window
     let resets = match window {
         WindowKind::FiveHour => 2 * 3_600_000,
         WindowKind::Weekly { .. } => 3 * 24 * 3_600_000,
+        WindowKind::Monthly => 20 * 24 * 3_600_000,
     };
     let sample = QuotaSample {
         ts: now - 60_000,

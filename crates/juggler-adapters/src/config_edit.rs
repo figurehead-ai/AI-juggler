@@ -9,9 +9,10 @@
 //! names (a JSON Pointer, RFC 6901: `~1` is `/`, `~0` is `~`) for a value
 //! inside an object, such as OpenCode's MCP servers (`/mcp/<name>`).
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
-use juggler_adapter::inventory::{ConfigFormat, rewrite_in_place};
+use juggler_adapter::AdapterError;
+use juggler_adapter::inventory::{ConfigFormat, Undo, rewrite_in_place};
 use juggler_adapter::jsonc;
 
 /// What taking the settings out did.
@@ -115,6 +116,29 @@ pub fn strings_of(format: ConfigFormat, value: &str) -> Vec<String> {
         }
     }
     out
+}
+
+/// [`set`]s `entries` in `file`, and gives the undo that takes exactly
+/// them out again (each value's fingerprint, never the value itself).
+///
+/// # Errors
+///
+/// [`set`]'s, as [`AdapterError::Unsupported`].
+pub fn set_undoably(
+    file: PathBuf,
+    format: ConfigFormat,
+    entries: &[(String, String)],
+) -> Result<Undo, AdapterError> {
+    set(&file, format, entries).map_err(AdapterError::Unsupported)?;
+    let entries = entries
+        .iter()
+        .map(|(key, value)| (key.clone(), fingerprint(format, value)))
+        .collect();
+    Ok(Undo::RemoveSetting {
+        file,
+        format,
+        entries,
+    })
 }
 
 /// Sets each of `entries` (key, value text) in `file`, creating the file

@@ -142,31 +142,49 @@ pub(crate) fn launch_env_pinned(
     account: &Account,
 ) -> bool {
     let pinned = adapter.pinned_env(&account.state_dir);
-    !pinned.is_empty()
-        && adapter
-            .launch_spec(
+    let profile = Profile {
+        id: ProfileId::new("check"),
+        name: "check".into(),
+        account: account.id.clone(),
+        settings_overlay: SettingsOverlay::default(),
+        default_cwd: None,
+    };
+    let root = std::path::Path::new("/");
+    // AJ-E1605 R3: a tool with no terminal UI is checked on the launch it
+    // runs, its driven one.
+    let spec = match adapter.driven().filter(|driven| !driven.terminal_ui()) {
+        Some(driven) => driven
+            .driven_spec(
                 account,
-                &Profile {
-                    id: ProfileId::new("check"),
-                    name: "check".into(),
-                    account: account.id.clone(),
-                    settings_overlay: SettingsOverlay::default(),
-                    default_cwd: None,
+                &profile,
+                root,
+                &juggler_adapter::runtime::DrivenLaunch {
+                    socket: std::env::temp_dir().join("check.sock"),
+                    resume: None,
+                    fresh_id: "check".into(),
+                    history: None,
                 },
-                std::path::Path::new("/"),
-                &juggler_adapter::LaunchMode::Interactive,
             )
-            .is_ok_and(|spec| {
-                pinned
-                    .iter()
-                    .all(|(key, expected)| match (spec.env.get(*key), expected) {
-                        (Some(value), None) => value == juggler_adapter::launch::ENV_UNSET,
-                        (Some(value), Some(path)) => {
-                            std::path::Path::new(value) == std::path::Path::new(path)
-                        }
-                        (None, _) => false,
-                    })
-            })
+            .map(|spec| spec.launch),
+        None => adapter.launch_spec(
+            account,
+            &profile,
+            root,
+            &juggler_adapter::LaunchMode::Interactive,
+        ),
+    };
+    !pinned.is_empty()
+        && spec.is_ok_and(|spec| {
+            pinned
+                .iter()
+                .all(|(key, expected)| match (spec.env.get(*key), expected) {
+                    (Some(value), None) => value == juggler_adapter::launch::ENV_UNSET,
+                    (Some(value), Some(path)) => {
+                        std::path::Path::new(value) == std::path::Path::new(path)
+                    }
+                    (None, _) => false,
+                })
+        })
 }
 
 /// Check 5: this folder's sign-in reads only this folder (a single-path

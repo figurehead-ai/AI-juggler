@@ -418,11 +418,11 @@ fn providers_capabilities_says_which_tools_report_their_limits() {
             .registry
             .get(&juggler_core::model::HarnessId::new(row.provider.as_str()))
             .unwrap();
+        // A limits feed, or limits from the plan's caps the user enters
+        // (ZCode), both count: the quota display's own rule.
         assert_eq!(
             row.reports_limits,
-            adapter
-                .capabilities()
-                .contains(juggler_adapter::Capabilities::USAGE_QUOTA_FEED),
+            juggler_app::features::quota::shows_limits(adapter.capabilities()),
             "{}",
             row.provider
         );

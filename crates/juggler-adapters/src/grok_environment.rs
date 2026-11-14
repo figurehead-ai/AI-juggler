@@ -17,7 +17,7 @@
 //!   installer's binary, downloads and completions, the user guide it
 //!   unpacks on each start, or a settings file with a key written in it.
 
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use juggler_adapter::environment::{
     DiscoveredInstall, ImportOutcome, InstallOrigin, LoginProbe, SourceInspect,
@@ -76,20 +76,10 @@ pub fn scan_grok_environment(
     env_override: Option<&Path>,
     login_probe: &dyn Fn(&Path) -> LoginProbe,
 ) -> Vec<DiscoveredInstall> {
-    let mut candidates: Vec<(PathBuf, InstallOrigin)> =
-        vec![(home.join(".grok"), InstallOrigin::VendorDefault)];
-    if let Some(path) = env_override {
-        candidates.push((path.to_path_buf(), InstallOrigin::EnvOverride));
-    }
-    if let Ok(entries) = std::fs::read_dir(home) {
-        for entry in entries.flatten() {
-            let name = entry.file_name();
-            let Some(name) = name.to_str() else { continue };
-            if name.starts_with(".grok-") {
-                candidates.push((entry.path(), InstallOrigin::HomePattern));
-            }
-        }
-    }
+    let mut candidates = home::default_candidates(home, ".grok", env_override);
+    candidates.extend(home::home_variants(home, &|name| {
+        name.starts_with(".grok-")
+    }));
     home::installs_from(&GROK_LAYOUT, candidates, login_probe, &origin_notes)
 }
 
@@ -133,7 +123,7 @@ pub fn import_grok_home(
     degraded: bool,
 ) -> Result<ImportOutcome, juggler_adapter::AdapterError> {
     let skips: &[&str] = if degraded { GROK_LAYOUT.history } else { &[] };
-    let mut outcome = home::import_with_layout(
+    let outcome = home::import_with_layout(
         &GROK_LAYOUT,
         source,
         dest,
@@ -141,16 +131,7 @@ pub fn import_grok_home(
         home::MAX_IMPORT_BYTES,
         skips,
     )?;
-    if let Err(error) = crate::settings_keys::keep_back_keyed(dest, SETTINGS, &mut outcome.skipped)
-    {
-        let _ = std::fs::remove_dir_all(dest);
-        return Err(juggler_adapter::AdapterError::AccountDir {
-            path: dest.to_path_buf(),
-            message: format!("couldn't finish the copy — the partial copy was removed ({error})"),
-        });
-    }
-    outcome.degraded = degraded;
-    Ok(outcome)
+    home::finish_copy(dest, dest, SETTINGS, outcome, degraded)
 }
 
 fn origin_notes(origin: InstallOrigin, login: LoginProbe) -> Vec<String> {
