@@ -153,7 +153,7 @@ pub fn lab_sign_ins() -> bool {
     #[cfg(all(debug_assertions, feature = "lab-sign-ins"))]
     {
         std::env::var(ENV_LAB_SIGN_INS).as_deref() == Ok("1")
-            && std::env::var_os("HOME").is_some_and(|home| is_lab_home(Path::new(&home)))
+            && home_dir().is_some_and(|home| is_lab_home(&home))
     }
     #[cfg(not(all(debug_assertions, feature = "lab-sign-ins")))]
     {

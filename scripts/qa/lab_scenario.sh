@@ -124,6 +124,15 @@ case "$cmd" in
       [ -d "$app" ] || app="${CARGO_TARGET_DIR:-$root/target}/release/bundle/macos/AI Juggler Dev.app"
       [ -d "$app" ] || { echo "lab-scenario: no AI Juggler Dev build (just build-dev, or set AIJ_DEV_APP)" >&2; exit 1; }
     fi
+    # A bundle whose signature doesn't hold (a debug build's linker-only
+    # signature: "code has no resources but signature indicates they must be
+    # present") is what made macOS call a replica app damaged and offer the
+    # Trash (2026-11-13): signed ad hoc as a whole, then verified strictly,
+    # before it runs. Launched only by its binary, never through `open`.
+    if ! codesign --verify --strict "$app" 2>/dev/null; then
+      codesign --force --deep --sign - "$app" >/dev/null 2>&1 || true
+      codesign --verify --strict "$app" || { echo "lab-scenario: $app doesn't verify after an ad-hoc signature" >&2; exit 1; }
+    fi
     # Its own HOME: the data folder, the vendors' folders and the sign-ins are the lab's.
     # Its log in the lab, so this command returns (and a pipe after it ends).
     HOME="$lab" "$root/scripts/qa/lab_env.sh" "$app/Contents/MacOS/$(defaults read "$app/Contents/Info" CFBundleExecutable)" > "$lab/dev.log" 2>&1 &
