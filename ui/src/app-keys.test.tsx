@@ -388,6 +388,11 @@ describe("AJ-E1504 keys in the app", () => {
     fireEvent.click(row);
     const terminal = await view.findByTestId(/^terminal-/);
     press({ key: "k", ctrlKey: true }, terminal);
-    expect(view.queryByRole("dialog", { name: /Go to/i })).toBeNull();
+    // The palette's own name (it was "Go to"; a stale name made this pass
+    // whatever the key did).
+    expect(view.queryByRole("dialog", { name: /Search, act or go/i })).toBeNull();
+    // The control: ⌘K outside the terminal does open it, so the name is right.
+    press({ key: "k", metaKey: true }, document.body);
+    expect(await view.findByRole("dialog", { name: /Search, act or go/i })).toBeTruthy();
   });
 });
