@@ -292,6 +292,8 @@
 | AJ-E3519 | PASS5 | 2026-11-06 | [manifest](AJ-E3519/manifest.md) |
 | AJ-E3520 | PASS6 | 2026-11-06 | [manifest](AJ-E3520/manifest.md) |
 | AJ-E3521 | PASS8 | 2026-11-06 | [manifest](AJ-E3521/manifest.md) |
+| AJ-E3601 | (no claims yet) | 2026-11-14 | [manifest](AJ-E3601/manifest.md) |
+| AJ-E3701 | (no claims yet) | 2026-11-14 | [manifest](AJ-E3701/manifest.md) |
 | AJ-E401 | PASS9 | 2026-10-13 | [manifest](AJ-E401/manifest.md) |
 | AJ-E402 | PASS11 | 2026-10-13 | [manifest](AJ-E402/manifest.md) |
 | AJ-E403 | PASS10 | 2026-10-13 | [manifest](AJ-E403/manifest.md) |
