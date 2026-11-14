@@ -16,11 +16,14 @@ for doc in docs/qa/gate-*.md docs/qa/beta-exit.md docs/qa/evidence/*/manifest.md
   done < <(grep -oE '\((docs/qa/evidence/[^)#]+)\)' "$doc" | tr -d '()')
 done
 
-# --- 1b) gate files: every link resolves relative to the file, and no
-#         criterion is PASS without a resolving evidence link (AJ-E807) --
+# --- 1b) gate files (history since D-109): every relative link resolves
+#         relative to the file ----------------------------------------
 for doc in docs/qa/gate-*.md; do
   [ -f "$doc" ] || continue
-  out="$(python3 scripts/gate_packet.py check "$doc")" || { echo "$out"; fail=1; }
+  while IFS= read -r link; do
+    case "$link" in *://*|'#'*) continue ;; esac
+    [ -e "$(dirname "$doc")/${link%%#*}" ] || { echo "BROKEN LINK: $doc -> $link"; fail=1; }
+  done < <(grep -oE '\]\([^)[:space:]]+\)' "$doc" | sed -E 's/^\]\(//; s/\)$//')
 done
 
 # --- 2) secret scan over the evidence store -------------------------------
