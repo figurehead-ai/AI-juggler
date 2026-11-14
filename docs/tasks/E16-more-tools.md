@@ -230,12 +230,12 @@
 ### AJ-E1612 Live checks in separate lab profiles | Status: IN-PROGRESS (staged 2026-11-14: scenario T16 seeds two fresh Apps per installed tool in a throwaway lab, the lab's Muse switch and its 1.4.13 gate are built, the run sheet `docs/qa/0.5-walks/AJ-E1612.md` and the maintainer's page beside it are written; the sitting itself pending) | Priority P0 | Effort M | Depends: AJ-E1601..AJ-E1609
 **Goal**: Each new tool is proven live once, on the maintainer's existing accounts in separate lab profiles (D-107).
 **User story**: As the maintainer, I sign each tool's lab profile in once, all tools in one sitting; agents run the checklists and the evidence records what really happened.
-**Requirements**: For each tool, a checklist covering: sign-in stays separate across two homes, a session starts and resumes, usage is read, and quota exhaustion is seen. The captures go to `docs/research/evidence/`.
+**Requirements**: For each tool, a checklist covering: sign-in stays separate across two homes, a session starts and resumes, usage is read, and quota exhaustion is seen. The captures go to `docs/qa/evidence/AJ-E1612/`.
 **UI/UX reasoning**: n/a.
 **Performance budget**: n/a.
 **Quality gates**: the evidence standard (live, never with real users' secrets).
 **Evidence/validation proof**: one capture per tool.
 **Visual testing**: n/a.
-**Files to touch**: `docs/research/evidence/`, `docs/internal/MAINTAINER-STEPS.md`.
+**Files to touch**: `docs/qa/evidence/AJ-E1612/`, `docs/internal/MAINTAINER-STEPS.md`.
 **Research basis**: the evidence standard, rule 3.
 **Handover note**: D-107: agents set up a separate profile or home per tool (`KIMI_CODE_HOME`, `ZCODE_*`, `KIRO_HOME`, a per-account `HOME`…) under a throwaway lab project in AI Juggler Dev, never the tool's real home; the maintainer signs them in, in one sitting; agents drive every step with guarded keystrokes, 1–2 tools at a time, reap every process. A tool not installed is listed with what installing it needs; installing waits for the maintainer's yes.

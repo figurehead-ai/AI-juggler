@@ -442,7 +442,7 @@ fn only_the_users_own_setup_is_used_where_it_is_and_none_is_copied() {
 /// Muse, on the Keychain, is unaffected), and the release default is off.
 #[test]
 fn the_file_backend_runs_only_on_the_version_its_proof_read() {
-    assert_eq!(FILE_BACKEND_PROVEN, ["1.4.13"]);
+    assert_eq!(FILE_BACKEND_PROVEN, ["1.4.13-R6996.1"]);
     const {
         assert!(
             !juggler_adapters::muse::SEPARATE_SIGN_INS,
@@ -478,16 +478,25 @@ fn the_file_backend_runs_only_on_the_version_its_proof_read() {
     assert!(launch(&dir).is_ok());
 
     // Any other version: refused, saying which and why.
-    for other in ["1.4.14-R7000.1", "1.4.12-R6000.1", "2.0.0-R1.1"] {
+    // Another build of 1.4.13 counts as another version: the proof read one build.
+    for other in [
+        "1.4.14-R7000.1",
+        "1.4.12-R6000.1",
+        "2.0.0-R1.1",
+        "1.4.13-R7001.1",
+    ] {
         std::fs::write(kit.bin.parent().unwrap().join(".muse-version"), other).unwrap();
-        let version = other.split("-R").next().unwrap();
+        let version = other;
         for refused in [
             adapter.login_spec(&dir).map(|_| ()),
             launch(&dir).map(|_| ()),
         ] {
             match refused {
                 Err(AdapterError::Unsupported(why)) => {
-                    assert!(why.contains(version) && why.contains("1.4.13"), "{why}");
+                    assert!(
+                        why.contains(version) && why.contains("1.4.13-R6996.1"),
+                        "{why}"
+                    );
                 }
                 other => panic!("{version}: expected a refusal, got {other:?}"),
             }

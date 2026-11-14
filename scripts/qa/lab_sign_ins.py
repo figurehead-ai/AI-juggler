@@ -20,7 +20,7 @@ lab, and watches the real home while the maintainer signs lab A in:
       modification time, by name (never opened), saved in the lab and
       compared after a sign-in.
   muse-gate --home LAB --save | --compare
-      Muse's version (1.4.13 or stop: the file backend's proof is bound to
+      Muse's build (1.4.13-R6996.1 or stop: the file backend's proof is bound to
       it) and the real Keychain item's modification date, from
       `security find-generic-password` without -w (never the secret).
   --selftest
@@ -81,7 +81,7 @@ TOOLS: dict[str, Tool] = {
     # HOME=<folder>, XDG_CONFIG_HOME=<folder>/.config, the file backend.
     "muse-code": Tool("Muse Code", ("login",), (".config/muse/auth.json",), (".config/muse/auth.json",)),
 }
-MUSE_PROVEN = "1.4.13"
+MUSE_PROVEN = "1.4.13-R6996.1"
 MUSE_KEYCHAIN = ("ai.meta.dev.credentials", "meta")
 SECURITY = "/usr/bin/security"
 
@@ -303,7 +303,7 @@ def muse_version() -> str | None:
                               env={**real_env(), "MUSE_NO_AUTO_UPDATE": "1"}, stdin=subprocess.DEVNULL)
     except (OSError, subprocess.TimeoutExpired):
         return None
-    found = re.search(r"\b(\d+\.\d+\.\d+)\b", done.stdout)
+    found = re.search(r"\((\d+\.\d+\.\d+-R[0-9.]+)\)", done.stdout)
     return found.group(1) if found else None
 
 

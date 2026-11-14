@@ -134,7 +134,7 @@ pub const SEPARATE_SIGN_INS: bool = false;
 /// sandboxed run: `docs/research/muse-code.md`). The proof is bound to the
 /// code it read: any other version runs the file backend only once it is
 /// repeated there.
-pub const FILE_BACKEND_PROVEN: &[&str] = &["1.4.13"];
+pub const FILE_BACKEND_PROVEN: &[&str] = &["1.4.13-R6996.1"];
 
 /// The lab's switch for separate sign-ins (AJ-E1612, D-107): `1` turns
 /// them on in a debug build with the `lab-sign-ins` feature, on a lab
@@ -428,13 +428,27 @@ impl MuseAdapter {
         if !self.uses_file_backend(state_dir) {
             return Ok(());
         }
-        match Self::version(bin) {
-            Ok(version) if FILE_BACKEND_PROVEN.contains(&version.as_str()) => Ok(()),
-            Ok(version) => Err(AdapterError::Unsupported(unproven_backend(&version))),
-            Err(_) => Err(AdapterError::Unsupported(unproven_backend(
-                "(its version can't be read)",
+        match Self::build(bin) {
+            Some(build) if FILE_BACKEND_PROVEN.contains(&build.as_str()) => Ok(()),
+            Some(build) => Err(AdapterError::Unsupported(unproven_backend(&build))),
+            None => Err(AdapterError::Unsupported(unproven_backend(
+                "(its build can't be read)",
             ))),
         }
+    }
+
+    /// The launcher's own record of the build it runs (`1.4.13-R6996.1`),
+    /// whole: the proof was read on one build, so nothing looser (a
+    /// `--version` number, another build of 1.4.13) counts.
+    fn build(bin: &Path) -> Option<String> {
+        let file = bin.parent()?.join(VERSION_FILE);
+        let meta = std::fs::metadata(&file).ok()?;
+        if !meta.is_file() || meta.len() >= 256 {
+            return None;
+        }
+        let text = std::fs::read_to_string(&file).ok()?;
+        let line = text.lines().next()?.trim();
+        parse_version_file(line).map(|_| line.to_owned())
     }
 
     /// Refuses a launch of an account that would run on the Mac's one
