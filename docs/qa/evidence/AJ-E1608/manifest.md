@@ -41,11 +41,15 @@ but the session record the binary writes names the backend in effect as
 keychain/none, keychain_fallback_file/any non-none"; "off-macOS stamps
 `file`"), and its auth file reader knows `auth.json` as `empty`,
 `malformed`, `ready` or `partial`, with fields for tokens, an API key and
-the account's name. So `TBH_CREDENTIAL_BACKEND=file` is the likely way to
-keep a sign-in in the folder's own `auth.json`. It is wired
-(`MuseAdapter::with_separate_sign_ins`, `muse::SEPARATE_SIGN_INS`) and
-**off**: whether Muse honours it, and with that value, is the lab's to show
-(D-107). The Keychain item is a generic password, service
+the account's name. The binary's own code settles it (1.4.13, sha256
+`9fd40ae9…`; disassembled, `docs/research/muse-code.md`, commit f9511b8b3):
+exactly `file` selects a store whose reads, writes and deletes never reach
+the Keychain, for sign-in, sign-out and refresh alike, with no fallback to
+the Keychain on error; a sandboxed live run with `file` recorded
+`credential_backend: file` and left the Keychain item's modification date
+unchanged. It is wired (`MuseAdapter::with_separate_sign_ins`,
+`muse::SEPARATE_SIGN_INS`) and stays **off** until the lab shows two folders
+keeping two live sign-ins (D-107). The Keychain item is a generic password, service
 `ai.meta.dev.credentials`, account `meta`, both fixed in the binary.
 
 ## Requirements

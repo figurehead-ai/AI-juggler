@@ -46,10 +46,10 @@
 //!   such an account doesn't start, and its sign-in is refused, each with
 //!   the reason ([`ONE_SIGN_IN`]).
 //!
-//! An undocumented variable, `TBH_CREDENTIAL_BACKEND`, may move the sign-in
-//! into the folder's own `auth.json`: the binary records a session's
-//! credential backend as `file`, `keychain` or `keychain_fallback_file`
-//! (1.4.13's strings), so `file` is the likely value. It is wired
+//! An undocumented variable, `TBH_CREDENTIAL_BACKEND`, moves the sign-in
+//! into the folder's own `auth.json`: exactly `file` selects a store that
+//! never reaches the Keychain, with no fallback to it on error (1.4.13's
+//! code, disassembled; `docs/research/muse-code.md`). It is wired
 //! ([`MuseAdapter::with_separate_sign_ins`]) and stays off ([`SEPARATE_SIGN_INS`])
 //! until the lab shows two folders keep two sign-ins (D-107).
 //!
@@ -106,7 +106,8 @@ const ENV_PROJECTS: &str = "MUSE_PROJECTS_HOME";
 const ENV_BIN_OVERRIDE: &str = "AI_JUGGLER_MUSE_BIN";
 
 /// The credential backend that keeps the sign-in in the folder's own
-/// `auth.json` (the likely value; UNCONFIRMED until the lab, D-107).
+/// `auth.json`, never the Keychain (1.4.13's code; the value must be exactly
+/// this). Two live sign-ins kept apart is the lab's to show (D-107).
 pub const FILE_BACKEND: &str = "file";
 
 /// Whether accounts other than the user's own Muse may hold a subscription
