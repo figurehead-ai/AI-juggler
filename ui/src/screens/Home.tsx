@@ -149,9 +149,7 @@ export function HomeScreen({
   onOpenCleanup?: () => void;
   /** AJ-E1528: the This Mac page. */
   onOpenThisMac?: () => void;
-  /** ⌘K's search: the summary's "Older sessions" line (persona D3). */
-  onSearch?: () => void;
-}): JSX.Element {
+} & Pick<HomeCardContext, "onSearch">): JSX.Element {
   const thisMac = useThisMacInfo(given);
   const actionKeys = useKeys("home-action");
   // 0.0.11 walk (Q3): a tool without a limits feed says so in its row.
