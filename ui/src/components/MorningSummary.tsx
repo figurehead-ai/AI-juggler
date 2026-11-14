@@ -19,6 +19,11 @@
  * conversation's title or first ask, its branch, else "<folder> ·
  * started …", alike ones told apart); its App follows. The rows named
  * only their App, so fifty of them read alike.
+ *
+ * 0.4.5 (persona D3, runs 3 and 4): Home lists only what changed in its
+ * window, and nothing on it said that search finds the rest. When the
+ * rail holds a session older than the card's window, the card's foot says
+ * "Older sessions: search ⌘K", and a click runs ⌘K.
  */
 import { useState, type JSX } from "react";
 import { overnightSummary, overnightSummarySeen } from "../lib/ipc/park";
@@ -30,9 +35,14 @@ import type { SummaryRowInfo } from "../types/generated/SummaryRowInfo";
 import { sessionAppName } from "../lib/app-name";
 import { namesApart } from "../lib/session-titles";
 import { pastWhen } from "../lib/time-words";
+import { useKeys } from "../lib/use-keys";
+import type { RailItem } from "../lib/rail-items";
 
 /** Rows a group shows before "Show all". */
 const SHOWN = 5;
+
+/** The card's quiet links: "Show all N", "Older sessions: search ⌘K". */
+const LINK = "self-start rounded text-label text-muted underline-offset-2 hover:text-ink hover:underline";
 
 const GROUPS: Array<{ id: string; title: string; icon: string }> = [
   { id: "crashed", title: "Crashed", icon: "✕" },
@@ -88,6 +98,17 @@ export function whenLine(row: SummaryRowInfo, now: number): string | null {
   return last ? `last change ${since(last.at_ms)}` : null;
 }
 
+/** A session as the rail holds it, as far as the card's foot asks. */
+export type HeldSession = Pick<RailItem, "lastMs" | "archived"> & { session: { id: string } | null };
+
+/** Whether the rail holds a session older than the card's window: last
+ * active before the window starts, not on the card, not put away. Only
+ * search finds those from Home (persona D3). */
+export function olderThanCard(held: readonly HeldSession[], summary: Pick<OvernightSummaryInfo, "since_ms" | "rows">): boolean {
+  const onCard = new Set(summary.rows.map((row) => row.session_id));
+  return held.some((item) => !item.archived && item.lastMs < summary.since_ms && !(item.session && onCard.has(item.session.id)));
+}
+
 function Row({ row, name, now, onOpen }: { row: SummaryRowInfo; name: string; now: number; onOpen: (id: string) => void }): JSX.Element {
   const when = whenLine(row, now);
   return (
@@ -133,9 +154,22 @@ function Row({ row, name, now, onOpen }: { row: SummaryRowInfo; name: string; no
 }
 
 /** `now`: the clock its waits are read against (Home's); without it, when
- * the summary was built. */
-export function MorningSummary({ onOpenSession, now }: { onOpenSession: (id: string) => void; now?: number }): JSX.Element | null {
+ * the summary was built. `held`: the sessions the rail holds (Home's,
+ * already read), and `onSearch` ⌘K's search: with both, the card's foot
+ * points to older sessions when there are any. */
+export function MorningSummary({
+  onOpenSession,
+  now,
+  held,
+  onSearch,
+}: {
+  onOpenSession: (id: string) => void;
+  now?: number;
+  held?: readonly HeldSession[];
+  onSearch?: () => void;
+}): JSX.Element | null {
   const kept: OvernightSummaryInfo | undefined = useSharedRead(summaryRead);
+  const searchKeys = useKeys("palette");
   // Marked seen: gone at once, whatever the read behind it still holds.
   const [seenAt, setSeenAt] = useState<number | null>(null);
   const summary = kept && (seenAt === null || kept.generated_ms > seenAt) ? kept : null;
@@ -194,7 +228,7 @@ export function MorningSummary({ onOpenSession, now }: { onOpenSession: (id: str
               <button
                 type="button"
                 onClick={() => setOpen((shown) => new Set(shown).add(group.id))}
-                className="self-start rounded text-label text-muted underline-offset-2 hover:text-ink hover:underline"
+                className={LINK}
                 data-testid="summary-show-all"
               >
                 Show all {rows.length}
@@ -203,6 +237,12 @@ export function MorningSummary({ onOpenSession, now }: { onOpenSession: (id: str
           </div>
         );
       })}
+      {/* Persona D3: the card holds only its window; search finds the rest. */}
+      {onSearch && held && olderThanCard(held, summary) && (
+        <button type="button" onClick={onSearch} className={LINK} aria-keyshortcuts={searchKeys.aria} data-testid="summary-older">
+          {searchKeys.words ? `Older sessions: search ${searchKeys.words}` : "Older sessions: search"}
+        </button>
+      )}
     </section>
   );
 }

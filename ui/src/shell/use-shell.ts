@@ -15,6 +15,7 @@ import { useFloorLogos } from "../lib/floor-logos";
 import { GLOBAL_NAV, focusPageSoon, globalId } from "../lib/nav";
 import { setCentreOpen, toggleCentre } from "../lib/notices-store";
 import { routeOpen, useOutsideRequests } from "../lib/outside";
+import { focusRailSearch } from "../lib/rail-view";
 import { showTasksHeldBy } from "../lib/tasks-holder";
 import { useWindowTitle } from "../lib/window-title";
 import { providerDisplayName } from "../lib/providers";
@@ -121,10 +122,18 @@ export function useShell() {
     }
   };
 
+  // ⌘K (AJ-E404 Req.4): the rail's search takes focus (where the palette
+  // gives it back), and the palette opens or closes. Home's "Older
+  // sessions" line runs the same (persona D3, 0.4.5).
+  const search = useCallback(() => {
+    focusRailSearch();
+    setGoToOpen((openNow) => !openNow);
+  }, [setGoToOpen]);
+
   // AJ-E1504: App's shortcuts (lib/app-keys.ts, from the one registry).
   useAppKeys({
     openShortcuts: () => setShortcutsOpen(true),
-    togglePalette: () => setGoToOpen((openNow) => !openNow),
+    search,
     toggleNotifications: toggleCentre,
     newSession: newSessionHere, newProject: dialogs.newProject,
     toggleRail: rail.toggleRail,
@@ -155,7 +164,7 @@ export function useShell() {
   return {
     ...rail, now, ...nav, ...data, ...dialogs, ...remote,
     selectedSession, selectedProject, selectedLogin, selectedAccount, selectedProvider,
-    stopSession, contextTitle, newSessionHere,
+    stopSession, contextTitle, newSessionHere, search,
   };
 }
 

@@ -120,6 +120,7 @@ export function HomeScreen({
   thisMac: given,
   onOpenCleanup,
   onOpenThisMac,
+  onSearch,
   loading = false,
 }: {
   /** AJ-E1503: the first load hasn't answered yet (placeholders). */
@@ -148,6 +149,8 @@ export function HomeScreen({
   onOpenCleanup?: () => void;
   /** AJ-E1528: the This Mac page. */
   onOpenThisMac?: () => void;
+  /** ⌘K's search: the summary's "Older sessions" line (persona D3). */
+  onSearch?: () => void;
 }): JSX.Element {
   const thisMac = useThisMacInfo(given);
   const actionKeys = useKeys("home-action");
@@ -419,7 +422,7 @@ export function HomeScreen({
   const cards: HomeCardContext = {
     sessions, conversations, accounts, projects, subscriptions, now, items, allNeeds, capNeeds, messageNeeds, taskNeeds,
     parked, recent, quota, quotaKnown, ledgerDegraded, needsKnown: needsNow.known, recentArea, busy, actionKeysAria: actionKeys.aria,
-    signingIn, signInError, runwayFor, act, startSignIn, onOpenSession, onNewSession, onLimit, onChanged, onOpenThisMac, onOpenCleanup,
+    signingIn, signInError, runwayFor, act, startSignIn, onOpenSession, onSearch, onNewSession, onLimit, onChanged, onOpenThisMac, onOpenCleanup,
   };
 
   return (

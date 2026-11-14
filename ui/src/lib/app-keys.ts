@@ -21,7 +21,9 @@ export function shortcutUsed(shortcut: string): void {
 /** What App does for its shortcuts. */
 export interface AppKeyActions {
   openShortcuts: () => void;
-  togglePalette: () => void;
+  /** ⌘K: the rail's search takes focus, and the palette opens or closes
+   * (the shell's `search`, which Home's "Older sessions" line runs too). */
+  search: () => void;
   /** AJ-E2503: the notification centre (⌥⌘N, D-50). */
   toggleNotifications: () => void;
   /** D-50: ⌘N. */
@@ -72,8 +74,7 @@ export function useAppKeys(actions: AppKeyActions): void {
     // case) and focuses the rail search (AJ-E404 Req.4).
     palette: () => {
       shortcutUsed("command_palette");
-      window.dispatchEvent(new Event("aij:focus-search"));
-      d.togglePalette();
+      d.search();
     },
     notifications: () => {
       shortcutUsed("other");

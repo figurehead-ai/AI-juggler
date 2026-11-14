@@ -64,6 +64,8 @@ export interface HomeCardContext {
   act: (session: InstanceInfo, what: "resume" | "reviewed") => Promise<void>;
   startSignIn: (account: AccountInfo) => void;
   onOpenSession: (id: string) => void;
+  /** ⌘K's search (the shell's): the summary's way to older sessions. */
+  onSearch?: () => void;
   onNewSession: () => void;
   onLimit?: (id: string) => void;
   onChanged?: () => void;
@@ -99,7 +101,7 @@ const HOME_CARDS: readonly HomeCard[] = [
       ),
   },
   // AJ-E1006: what changed while you were away — only when something did.
-  { id: "morning", area: "top", render: (ctx) => <MorningSummary onOpenSession={ctx.onOpenSession} now={ctx.now} /> },
+  { id: "morning", area: "top", render: (ctx) => <MorningSummary onOpenSession={ctx.onOpenSession} now={ctx.now} held={ctx.items} onSearch={ctx.onSearch} /> },
   {
     id: "first-session",
     area: "top",

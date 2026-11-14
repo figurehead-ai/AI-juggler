@@ -6,7 +6,7 @@
  */
 import { act, cleanup, fireEvent, render, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { MorningSummary, sinceHeading, whenLine } from "./MorningSummary";
+import { MorningSummary, olderThanCard, sinceHeading, whenLine } from "./MorningSummary";
 import { summaryHeadline } from "../lib/ended-how";
 import type { SummaryRowInfo } from "../types/generated/SummaryRowInfo";
 
@@ -231,6 +231,40 @@ describe("AJ-E1004 morning summary", () => {
     const { findByTestId, container } = render(<MorningSummary onOpenSession={() => undefined} />);
     await waitFor(async () => expect((await findByTestId("summary-since")).textContent).toMatch(/^Since you last looked, 0?1:56/));
     expect(container.textContent).not.toMatch(/Since you were away|since \w{3} /);
+  });
+
+  it("points to search for sessions older than its window, and its click runs ⌘K's search (persona D3)", async () => {
+    const since = 1_800_000_000_000 - 12 * 3_600_000;
+    w().__AIJ_SUMMARY__ = { since_ms: since, generated_ms: 1_800_000_000_000, default_window: true, rows: [row("s1", "finished", "Finished")], counts: { finished: 1 }, leftovers: 0 };
+    const searched: string[] = [];
+    const held = [
+      { session: { id: "s1" }, lastMs: since + 3_600_000, archived: false },
+      { session: null, lastMs: since - 3 * 24 * 3_600_000, archived: false },
+    ];
+    const { container } = render(<MorningSummary onOpenSession={() => undefined} held={held} onSearch={() => searched.push("search")} />);
+    await waitFor(() => expect(container.querySelector("[data-testid='summary-older']")).not.toBeNull());
+    const older = container.querySelector<HTMLButtonElement>("[data-testid='summary-older']")!;
+    expect(older.textContent).toBe("Older sessions: search ⌘K");
+    expect(older.getAttribute("aria-keyshortcuts")).toBe("Meta+K");
+    fireEvent.click(older);
+    expect(searched).toEqual(["search"]);
+  });
+
+  it("says nothing of older sessions when the rail holds none older than its window", async () => {
+    const since = 1_800_000_000_000 - 12 * 3_600_000;
+    const summary = { since_ms: since, generated_ms: 1_800_000_000_000, default_window: true, rows: [row("s1", "running", "Still running")], counts: { running: 1 }, leftovers: 0 };
+    w().__AIJ_SUMMARY__ = summary;
+    // Newer than the window; the card's own row, however quiet; one put away.
+    const held = [
+      { session: null, lastMs: since + 60_000, archived: false },
+      { session: { id: "s1" }, lastMs: since - 3_600_000, archived: false },
+      { session: null, lastMs: since - 3_600_000, archived: true },
+    ];
+    const { container } = render(<MorningSummary onOpenSession={() => undefined} held={held} onSearch={() => undefined} />);
+    await waitFor(() => expect(container.querySelector("[data-testid='morning-summary']")).not.toBeNull());
+    expect(container.querySelector("[data-testid='summary-older']")).toBeNull();
+    expect(olderThanCard(held, summary)).toBe(false);
+    expect(olderThanCard([...held, { session: { id: "s9" }, lastMs: since - 1, archived: false }], summary)).toBe(true);
   });
 
   it("says only \"Ended\" when nothing said how (D-96 C)", () => {
