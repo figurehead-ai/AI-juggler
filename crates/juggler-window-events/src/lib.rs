@@ -993,17 +993,23 @@ mod tests {
         assert_eq!(*quitting.heard.borrow(), ["terminating 0".to_owned()]);
     }
 
-    /// Off the main thread nothing is installed (the system's handler
-    /// stays, so the app can always quit).
-    #[test]
-    fn a_handler_off_the_main_thread_is_refused() {
-        let err = std::thread::spawn(|| super::answer_quit_events(App::default()))
-            .join()
-            .map_err(|_| "joined");
+    /// `call`, run off the main thread (a test thread isn't it), is
+    /// refused.
+    fn refused_off_the_main_thread<T: std::fmt::Debug + Send + 'static>(
+        call: impl FnOnce() -> Result<T, Error> + Send + 'static,
+    ) {
+        let err = std::thread::spawn(call).join().map_err(|_| "joined");
         assert!(
             matches!(err, Ok(Err(Error::NotMainThread | Error::Unsupported(_)))),
             "{err:?}"
         );
+    }
+
+    /// Off the main thread nothing is installed (the system's handler
+    /// stays, so the app can always quit).
+    #[test]
+    fn a_handler_off_the_main_thread_is_refused() {
+        refused_off_the_main_thread(|| super::answer_quit_events(App::default()));
     }
 
     #[test]
@@ -1035,23 +1041,10 @@ mod tests {
                 Err(raw_window_handle::HandleError::Unavailable)
             }
         }
-        // Test threads aren't the main thread.
-        let err = std::thread::spawn(|| super::visible(&NoHandle))
-            .join()
-            .map_err(|_| "joined");
-        assert!(
-            matches!(err, Ok(Err(Error::NotMainThread | Error::Unsupported(_)))),
-            "{err:?}"
-        );
+        refused_off_the_main_thread(|| super::visible(&NoHandle));
         // D-112: nor is a full-screen exit watched (a close from full
         // screen then hides by its fallback).
-        let err = std::thread::spawn(|| super::watch_full_screen_exit(&NoHandle, || ()))
-            .join()
-            .map_err(|_| "joined");
-        assert!(
-            matches!(err, Ok(Err(Error::NotMainThread | Error::Unsupported(_)))),
-            "{err:?}"
-        );
+        refused_off_the_main_thread(|| super::watch_full_screen_exit(&NoHandle, || ()));
     }
 
     #[test]
