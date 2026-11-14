@@ -8,7 +8,7 @@ import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import { roomCountWords, roomCounts, roomMarkFrom, roomMarkOf, roomMarkOfProfile } from "./room-mark";
 import { RoomChip } from "../components/RoomChip";
-import { whenWords } from "./time-words";
+import { clocksWhole, whenWords } from "./time-words";
 import type { QuotaDisplayData, WindowDisplay } from "./ipc/quota";
 import { subscription } from "../test/fixtures";
 import type { SubscriptionInfo } from "./subscriptions";
@@ -94,10 +94,12 @@ describe("the chip", () => {
     expect(chip.getAttribute("data-kind")).toBe("out");
     expect(chip.className).toContain("text-danger");
     expect(chip.querySelector("svg")).not.toBeNull();
-    // Seen: the short words; heard: the whole title (hidden text, as a
-    // plain span may not carry an aria-label).
-    expect(chip.querySelector("[aria-hidden=true]:not(svg)")?.textContent).toBe(`Out · resets ${whenWords(RESET, NOW)}`);
+    // Seen: the short words, its clock kept whole where they wrap
+    // (0.4.5); heard: the whole title (hidden text, as a plain span may
+    // not carry an aria-label), and its tooltip the same.
+    expect(chip.querySelector("[aria-hidden=true]:not(svg)")?.textContent).toBe(clocksWhole(`Out · resets ${whenWords(RESET, NOW)}`));
     expect(chip.querySelector(".sr-only")?.textContent).toBe(`Out of room until ${whenWords(RESET, NOW)}`);
+    expect(chip.title).toBe(`Out of room until ${whenWords(RESET, NOW)}`);
     cleanup();
     render(<RoomChip mark={roomMarkFrom(12, RESET, false, NOW)} compact />);
     expect(screen.getByTestId("room-chip").className).toContain("text-warning");

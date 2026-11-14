@@ -12,6 +12,7 @@ import type { RoomMark } from "../lib/room-mark";
 import { useQuotaDisplays } from "../lib/kept-reads";
 import { useSubscriptions } from "../lib/subscriptions";
 import { roomCountWords, roomCounts, roomMarkOfProfile } from "../lib/room-mark";
+import { clocksWhole } from "../lib/time-words";
 import { openAccounts } from "../lib/accounts-filter";
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
 
@@ -33,7 +34,21 @@ export function RoomChip({ mark, size = "sm", compact = false, iconOnly = false,
       </span>
     );
   }
-  const box = size === "md" ? "gap-1.5 px-2.5 py-0.5 text-meta leading-5" : compact ? "gap-0.5 px-1 text-label leading-4" : "gap-1 px-1.5 py-px text-label leading-4";
+  // 0.4.5 (the maintainer's 0.4.4 finding: "Out · resets 6:00 AM
+  // tomorrow" ran past Home's narrowest app card): never wider than its
+  // container; words that don't fit go on to a second line inside it,
+  // the icon beside the first, a clock never parted from its AM. One
+  // line is drawn exactly as before: the icon sits in a line-tall box,
+  // centred as it was, and each size's corner is half its one-line
+  // height (line, padding and border: md 26, sm 20, compact 18 px), what
+  // `rounded-full` came to; two lines are a rounded box, not a capsule
+  // whose ends crowd the icon.
+  const box =
+    size === "md"
+      ? "gap-1.5 px-2.5 py-0.5 text-meta leading-5 rounded-[13px]"
+      : compact
+        ? "gap-0.5 px-1 text-label leading-4 rounded-[9px]"
+        : "gap-1 px-1.5 py-px text-label leading-4 rounded-[10px]";
   return (
     // Screen readers hear its title as text (an aria-label on a plain
     // span is prohibited: axe's aria-prohibited-attr); sighted users see
@@ -42,12 +57,18 @@ export function RoomChip({ mark, size = "sm", compact = false, iconOnly = false,
       title={mark.title}
       data-testid={testId}
       data-kind={mark.kind}
-      className={`inline-flex shrink-0 items-center whitespace-nowrap rounded-full border font-semibold ${box} ${TONE[mark.kind]}`}
+      className={`inline-flex max-w-full shrink-0 items-start border font-semibold ${box} ${TONE[mark.kind]}`}
     >
       {/* Compact (the rail's App header) is the red word alone: its icon
           took the room the App's name needs ("Work M…", the 0.4.1 gate). */}
-      {!compact && <Icon aria-hidden="true" width={size === "md" ? 14 : 12} height={size === "md" ? 14 : 12} />}
-      <span aria-hidden="true">{compact ? mark.short : mark.label}</span>
+      {!compact && (
+        <span className={`flex shrink-0 items-center ${size === "md" ? "h-5" : "h-4"}`}>
+          <Icon aria-hidden="true" width={size === "md" ? 14 : 12} height={size === "md" ? 14 : 12} />
+        </span>
+      )}
+      <span aria-hidden="true" className="min-w-0 break-words">
+        {compact ? mark.short : clocksWhole(mark.label)}
+      </span>
       <span className="sr-only">{mark.title}</span>
     </span>
   );
