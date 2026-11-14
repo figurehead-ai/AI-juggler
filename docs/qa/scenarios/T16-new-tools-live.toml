@@ -1,0 +1,110 @@
+id = "T16"
+title = "New tools, live: two lab Apps per tool, one signed in"
+epic = "E16"
+decisions = ["D-107"]
+layers = ["L4"]
+exercises = ["AJ-E1612 live check", "Add a fresh app", "Sign in", "separate sign-ins", "a session starts and resumes", "usage"]
+needs = ["lab", "rc"]
+# The sitting's own sheet (the agents' checklist) and the maintainer's
+# one page beside it: docs/qa/0.5-walks/AJ-E1612-maintainer.md.
+sheet = "docs/qa/0.5-walks/AJ-E1612.md"
+
+# AJ-E1612 (D-107): OpenCode, Kimi Code, Grok Build, ZCode and Muse Code,
+# each with two fresh Apps made as Add a fresh app makes them
+# (`create_account_for_person`): "lab A", which the maintainer signs in,
+# and "lab B", left signed out to prove A's sign-in stays in A's folder.
+# All in a bare lab HOME with one throwaway project; no sign-in happens
+# in setup. `lab_sign_ins` seeds and opens the lab with the lab's Muse
+# switch (AIJ_LAB_MUSE_SIGN_INS=1 on a debug `lab-bridge` build): each Muse
+# App then signs in to its own folder through TBH_CREDENTIAL_BACKEND=file,
+# never the Keychain, and only on Muse 1.4.13. The seed writes each App's
+# Sign in (program, words, environment) to <lab>/sign-ins.json, which
+# `scripts/qa/lab_sign_ins.py check` holds to the lab.
+[setup]
+replica = false
+projects = ["lab"]
+lab_sign_ins = true
+
+[[setup.apps]]
+id = "opencode-a"
+tool = "opencode"
+profile = "lab A"
+fresh = true
+
+[[setup.apps]]
+id = "opencode-b"
+tool = "opencode"
+profile = "lab B"
+fresh = true
+
+[[setup.apps]]
+id = "kimi-a"
+tool = "kimi-code"
+profile = "lab A"
+fresh = true
+
+[[setup.apps]]
+id = "kimi-b"
+tool = "kimi-code"
+profile = "lab B"
+fresh = true
+
+[[setup.apps]]
+id = "grok-a"
+tool = "grok-build"
+profile = "lab A"
+fresh = true
+
+[[setup.apps]]
+id = "grok-b"
+tool = "grok-build"
+profile = "lab B"
+fresh = true
+
+[[setup.apps]]
+id = "zcode-a"
+tool = "zcode"
+profile = "lab A"
+fresh = true
+
+[[setup.apps]]
+id = "zcode-b"
+tool = "zcode"
+profile = "lab B"
+fresh = true
+
+[[setup.apps]]
+id = "muse-a"
+tool = "muse-code"
+profile = "lab A"
+fresh = true
+
+[[setup.apps]]
+id = "muse-b"
+tool = "muse-code"
+profile = "lab B"
+fresh = true
+
+[[steps]]
+do = "Before anything: lab_sign_ins.py real --save, and muse-gate --save (Muse 1.4.13, its Keychain item's date)"
+expect = "The real homes' sign-in files and the Keychain item's date are recorded by name only; Muse is 1.4.13 (else Muse is skipped)"
+
+[[steps]]
+do = "Open the lab; look under Apps"
+expect = "Ten Apps, two per tool (lab A and lab B), each Not signed in"
+
+[[steps]]
+do = "Per tool, lab A's Sign in (one or two tools at a time)"
+expect = "AI Juggler's terminal runs the tool's own sign-in in lab A's folder; the maintainer completes the browser step; lab A reads Signed in"
+
+[[steps]]
+do = "lab_sign_ins.py check --home <lab> --signed-in <tool>"
+expect = "lab A has its sign-in in its own folder; lab B has none; the real home's files and (Muse) the Keychain item's date are unchanged"
+
+[[steps]]
+do = "Start a session on lab A in the lab project, send one short turn, end it, resume it"
+expect = "The session starts, answers, and resumes the same conversation"
+
+[[steps]]
+do = "Look at lab A's usage"
+expect = "Its usage is read from the tool's own source (or the screen says why it can't be); a limit hit is recorded only if one happens"

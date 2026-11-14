@@ -6,6 +6,12 @@
 #
 #   scripts/build_dev_app.sh          the .app, in $CARGO_TARGET_DIR/release/bundle/macos
 #   scripts/build_dev_app.sh icon     only the Dev edition's marked icon (`just dev-icon`)
+#   scripts/build_dev_app.sh lab      the lab's Dev .app (AJ-E1612): a DEBUG build with
+#                                     `lab-bridge` (the lab write mode and the lab's Muse
+#                                     switch, neither of which compiles in a release
+#                                     build), in $CARGO_TARGET_DIR/debug/bundle/macos.
+#                                     Only `lab_scenario.sh open` on a lab runs it; it
+#                                     never ships (no release workflow passes `lab`).
 #
 # Like the release workflow, it ships `juggler-agent` beside the app
 # (AJ-E1704, Tauri's externalBin): without it a launch's hooks report
@@ -23,9 +29,17 @@ cargo tauri icon target/edition-icons/dev/icon.png --output target/edition-icons
 
 target="${CARGO_TARGET_DIR:-target}"
 triple="$(rustc -vV | sed -n 's/^host: //p')"
-cargo build --release -q -p juggler-agentbridge --bin juggler-agent
+if [ "${1:-}" = lab ]; then
+  profile=debug
+  cargo build -q -p juggler-agentbridge --bin juggler-agent
+  flags=(--debug --features lab-bridge)
+else
+  profile=release
+  cargo build --release -q -p juggler-agentbridge --bin juggler-agent
+  flags=()
+fi
 mkdir -p crates/juggler-app/binaries
-cp "$target/release/juggler-agent" "crates/juggler-app/binaries/juggler-agent-$triple"
-cargo tauri build --bundles app --config crates/juggler-app/tauri.dev.conf.json \
+cp "$target/$profile/juggler-agent" "crates/juggler-app/binaries/juggler-agent-$triple"
+cargo tauri build ${flags[@]+"${flags[@]}"} --bundles app --config crates/juggler-app/tauri.dev.conf.json \
     --config crates/juggler-app/tauri.bundle.json
-python3 scripts/bundle_check.py "$target/release/bundle/macos/AI Juggler Dev.app"
+python3 scripts/bundle_check.py "$target/$profile/bundle/macos/AI Juggler Dev.app"

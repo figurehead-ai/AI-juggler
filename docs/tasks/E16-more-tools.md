@@ -227,7 +227,7 @@
 **Research basis**: SPEC §10; EPICS M5-3.
 **Handover note**: —
 
-### AJ-E1612 Live checks in separate lab profiles | Status: TODO | Priority P0 | Effort M | Depends: AJ-E1601..AJ-E1609
+### AJ-E1612 Live checks in separate lab profiles | Status: IN-PROGRESS (staged 2026-11-14: scenario T16 seeds two fresh Apps per installed tool in a throwaway lab, the lab's Muse switch and its 1.4.13 gate are built, the run sheet `docs/qa/0.5-walks/AJ-E1612.md` and the maintainer's page beside it are written; the sitting itself pending) | Priority P0 | Effort M | Depends: AJ-E1601..AJ-E1609
 **Goal**: Each new tool is proven live once, on the maintainer's existing accounts in separate lab profiles (D-107).
 **User story**: As the maintainer, I sign each tool's lab profile in once, all tools in one sitting; agents run the checklists and the evidence records what really happened.
 **Requirements**: For each tool, a checklist covering: sign-in stays separate across two homes, a session starts and resumes, usage is read, and quota exhaustion is seen. The captures go to `docs/research/evidence/`.

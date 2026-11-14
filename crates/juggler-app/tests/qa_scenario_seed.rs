@@ -605,6 +605,47 @@ fn account_named(
         .account_id
 }
 
+/// T16 (AJ-E1612): fresh App `id`'s Sign in as its action runs it — its
+/// adapter's `login_spec` on its folder: the program, its words, where it
+/// runs and every variable it sets or removes (no key: a sign-in takes
+/// none). A sign-in its adapter refuses (the tool missing, Muse on a
+/// version whose file backend wasn't checked) is recorded with the reason.
+fn fresh_sign_in(state: &Arc<AppState>, id: &str, tool: &str, account_id: &str) -> Value {
+    let folder = dir_of(state, account_id);
+    let adapter = state
+        .registry
+        .get(&juggler_core::model::HarnessId::new(tool))
+        .expect("a tool this build knows");
+    let mut out = serde_json::json!({
+        "id": id,
+        "tool": tool,
+        "account": account_id,
+        "folder": folder,
+    });
+    match adapter.login_spec(&folder) {
+        Ok(spec) => {
+            let env: serde_json::Map<String, Value> = spec
+                .env
+                .iter()
+                .map(|(key, value)| {
+                    let shown = if value == juggler_adapter::launch::ENV_UNSET {
+                        Value::Null
+                    } else {
+                        Value::String(value.clone())
+                    };
+                    (key.clone(), shown)
+                })
+                .collect();
+            out["program"] = Value::String(spec.program.to_string_lossy().into_owned());
+            out["args"] = serde_json::json!(spec.args);
+            out["cwd"] = Value::String(spec.cwd.to_string_lossy().into_owned());
+            out["env"] = Value::Object(env);
+        }
+        Err(error) => out["refused"] = Value::String(error.to_string()),
+    }
+    out
+}
+
 fn level_of(word: &str) -> Option<AccessLevel> {
     AccessLevel::parse(&word.replace('-', "_"))
 }
@@ -698,6 +739,8 @@ fn seed_lab(seed: &Value, data: PathBuf, home: &std::path::Path) -> (Arc<AppStat
     let lab_roots = [home, data_dir.as_path()];
     let adopt = std::env::var("AIJ_LAB_ADOPT").ok();
     let mut adopted_once = false;
+    // T16 (AJ-E1612): each fresh App's Sign in, as its action runs it.
+    let mut sign_ins: Vec<Value> = Vec::new();
     for app in seed["apps"].as_array().cloned().unwrap_or_default() {
         let (id, tool) = (app["id"].as_str().unwrap(), app["tool"].as_str().unwrap());
         if tool == "codex-app" {
@@ -897,9 +940,17 @@ fn seed_lab(seed: &Value, data: PathBuf, home: &std::path::Path) -> (Arc<AppStat
                 }
             }
         } else {
-            let Ok(account) =
+            // T16 (AJ-E1612): `fresh = true` is an App made as Add a fresh
+            // app makes it (its "Main" launch settings with it), signed
+            // out; nothing written for it.
+            let made = if app["fresh"].as_bool() == Some(true) {
+                juggler_app::features::account::create_account_for_person(
+                    &state, tool, &label, None,
+                )
+            } else {
                 juggler_app::features::account::create_account(&state, tool, &label, None)
-            else {
+            };
+            let Ok(account) = made else {
                 notes.push(format!(
                     "{id}: {tool} isn't a tool this build knows; left out"
                 ));
@@ -932,10 +983,35 @@ fn seed_lab(seed: &Value, data: PathBuf, home: &std::path::Path) -> (Arc<AppStat
             records: None,
         };
         lab_past(&app, &surface, &cwds, &lab_roots, &mut notes);
-        let profile =
+        let recipe = if app["fresh"].as_bool() == Some(true) {
+            sign_ins.push(fresh_sign_in(&state, id, tool, &account.id));
+            // The launch settings Add a fresh app made with it.
+            state
+                .storage
+                .lock()
+                .unwrap()
+                .profiles()
+                .list_by_account(&juggler_core::model::AccountId::new(account.id.clone()))
+                .unwrap()
+                .remove(0)
+                .id
+                .to_string()
+        } else {
             juggler_app::features::profile::create_profile(&state, &account.id, "Main", None, None)
-                .unwrap();
-        recipes.insert(id.to_owned(), (account.id, profile.id));
+                .unwrap()
+                .id
+        };
+        recipes.insert(id.to_owned(), (account.id, recipe));
+    }
+    if !sign_ins.is_empty() {
+        // Beside the data folder, in the lab (never the repo): what
+        // `scripts/qa/lab_sign_ins.py check` holds to the lab.
+        std::fs::write(
+            home.join("sign-ins.json"),
+            serde_json::to_string_pretty(&Value::Array(sign_ins)).unwrap(),
+        )
+        .unwrap();
+        notes.push("the fresh Apps' Sign in, as each runs it: sign-ins.json".to_owned());
     }
     // A10: a sign-in that can't be read, made by the seeder in the lab.
     seed_unreadable_sign_ins(

@@ -18,6 +18,13 @@
 # --import brings the replica's setups in where they are first (as
 # `just dev-bridge-data` does on a real Mac), for walks on its Apps.
 #
+# A scenario with `lab_sign_ins = true` (T16, AJ-E1612) seeds and opens
+# with the lab's Muse switch: the seed and the app are debug `lab-bridge`
+# builds with AIJ_LAB_MUSE_SIGN_INS=1 (never a release build: it doesn't
+# compile there), its fresh Apps' Sign in recorded in <lab>/sign-ins.json
+# and checked by scripts/qa/lab_sign_ins.py; `open` runs the lab's Dev
+# build (`scripts/build_dev_app.sh lab`).
+#
 # The HOME must be under /tmp and contain "aij-lab"; a real HOME is refused.
 set -euo pipefail
 root="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -47,6 +54,16 @@ case "$lab" in
   *) echo "lab-scenario: $lab isn't a lab (under /tmp, named aij-lab…) — refusing" >&2; exit 1 ;;
 esac
 data="$lab/Library/Application Support/AI Juggler Dev"
+# The scenario's own switches (`lab_sign_ins`), read from its seed.
+lab_sign_ins=0
+python3 -I "$root/scripts/qa/scenario.py" seed "$id" 2>/dev/null | grep -q '"lab_sign_ins": true' && lab_sign_ins=1
+if [ "$lab_sign_ins" = 1 ]; then
+  # The lab's Muse switch (AJ-E1612), in a debug lab-bridge build only.
+  features=(--features lab-bridge)
+  export AIJ_LAB_MUSE_SIGN_INS=1
+else
+  features=()
+fi
 
 case "$cmd" in
   setup)
@@ -80,25 +97,45 @@ case "$cmd" in
       # AIJ_LAB_ADOPT=<tool> (ADR-0027 condition 7): that tool's App uses
       # its real default folder where it is; the bridge checks it again.
       (cd "$root" && HOME="$lab" AIJ_QA_SEED="$lab/scenario-seed.json" AIJ_QA_DATA="$data" AIJ_QA_HOME="$lab" AIJ_QA_REAL_HOME="$real_home" \
-        "$root/scripts/qa/lab_env.sh" cargo test -q --offline -p juggler-app --test qa_scenario_seed -- --ignored --nocapture > "$lab/seed.log" 2>&1) \
+        "$root/scripts/qa/lab_env.sh" cargo test -q --offline -p juggler-app ${features[@]+"${features[@]}"} --test qa_scenario_seed -- --ignored --nocapture > "$lab/seed.log" 2>&1) \
         || { tail -20 "$lab/seed.log" >&2; echo "lab-scenario: the seed failed (whole log: $lab/seed.log)" >&2; exit 1; }
       grep '^seed:' "$lab/seed.log" || true
     fi
+    if [ -e "$lab/sign-ins.json" ]; then
+      # Every fresh App's Sign in held to the lab (T16).
+      python3 -I "$root/scripts/qa/lab_sign_ins.py" check --home "$lab"
+    fi
     # The walk sheet is tracked (`scenario.py check`); setup never writes
     # into the repo (the rc26 walk: PM3's and PF1's were left untracked).
-    sheet="docs/qa/0.4-walks/$id.md"
+    sheet="$(python3 -I "$root/scripts/qa/scenario.py" sheet-path "$id")"
     if [ -e "$root/$sheet" ]; then echo "lab-scenario: walk sheet $sheet"
     else echo "lab-scenario: $id has no walk sheet: make it with scripts/qa/scenario.py sheet $id --out $sheet and commit it" >&2; fi
     echo "lab-scenario: $id is set up in $lab — open it with: scripts/qa/lab_scenario.sh open $id"
     ;;
   open)
     [ -d "$data" ] || { echo "lab-scenario: $lab isn't set up" >&2; exit 1; }
-    app="${AIJ_DEV_APP:-$root/target/release/bundle/macos/AI Juggler Dev.app}"
-    [ -d "$app" ] || app="${CARGO_TARGET_DIR:-$root/target}/release/bundle/macos/AI Juggler Dev.app"
-    [ -d "$app" ] || { echo "lab-scenario: no AI Juggler Dev build (just build-dev, or set AIJ_DEV_APP)" >&2; exit 1; }
+    if [ "$lab_sign_ins" = 1 ]; then
+      # The lab's Dev build (debug, lab-bridge: the Muse switch compiles
+      # only there); a release-mode Dev .app would sign Muse in nowhere.
+      app="${AIJ_DEV_APP:-${CARGO_TARGET_DIR:-$root/target}/debug/bundle/macos/AI Juggler Dev.app}"
+      [ -d "$app" ] || { echo "lab-scenario: no lab Dev build (scripts/build_dev_app.sh lab, or set AIJ_DEV_APP)" >&2; exit 1; }
+    else
+      app="${AIJ_DEV_APP:-$root/target/release/bundle/macos/AI Juggler Dev.app}"
+      [ -d "$app" ] || app="${CARGO_TARGET_DIR:-$root/target}/release/bundle/macos/AI Juggler Dev.app"
+      [ -d "$app" ] || { echo "lab-scenario: no AI Juggler Dev build (just build-dev, or set AIJ_DEV_APP)" >&2; exit 1; }
+    fi
     # Its own HOME: the data folder, the vendors' folders and the sign-ins are the lab's.
-    HOME="$lab" "$root/scripts/qa/lab_env.sh" "$app/Contents/MacOS/$(defaults read "$app/Contents/Info" CFBundleExecutable)" &
-    echo "lab-scenario: AI Juggler Dev on $lab (pid $!)"
+    # Its log in the lab, so this command returns (and a pipe after it ends).
+    HOME="$lab" "$root/scripts/qa/lab_env.sh" "$app/Contents/MacOS/$(defaults read "$app/Contents/Info" CFBundleExecutable)" > "$lab/dev.log" 2>&1 &
+    pid=$!
+    # AI Juggler Dev runs once per Mac: a second one hands over to the
+    # running copy and quits. Still running after 8 s, it is the lab's.
+    sleep 8
+    if ! kill -0 "$pid" 2>/dev/null; then
+      echo "lab-scenario: AI Juggler Dev quit at once: another AI Juggler Dev runs on this Mac and took over (quit it first)" >&2
+      exit 1
+    fi
+    echo "lab-scenario: AI Juggler Dev on $lab (pid $pid; drive it by this pid only; its log: $lab/dev.log)"
     ;;
   bridge)
     [ -d "$data" ] || { echo "lab-scenario: $lab isn't set up" >&2; exit 1; }
