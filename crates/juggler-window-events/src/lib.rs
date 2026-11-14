@@ -39,6 +39,21 @@
 //!    for the app's life, as the manager doesn't retain it). Nothing of
 //!    tao's is replaced: it survives tao upgrades.
 //!
+//! D-112 added one, for a close from full screen (the window hides once
+//! its exit animation is over): one audited block (8) in
+//! [`watch_full_screen_exit`]'s macOS half:
+//!
+//! 8. (a) reading `AppKit`'s `NSWindowDidExitFullScreenNotification` (an
+//!    extern static it defines and never changes); (b) observing it with
+//!    a block, through the notification center, for one window: the
+//!    object filter is that window (only compared, never retained or
+//!    messaged by the center), no queue (delivered on the thread that
+//!    posts it: `AppKit` posts a window's notifications on the main
+//!    thread), and the block is `Send + Sync`, never reads the
+//!    notification, and only calls the caller's own function. The window's
+//!    delegate (tao's) is never touched: it survives tao upgrades. The
+//!    observer lives as long as the app, so it is never removed.
+//!
 //! What this crate is NOT: a general unsafe escape hatch. It exists so the
 //! workspace law `unsafe_code = "forbid"` stays absolute everywhere else;
 //! it doesn't inherit the workspace lint baseline (see `Cargo.toml`). Any
@@ -48,10 +63,10 @@
 //! [`Error::Unsupported`], with why.
 //!
 //! Must not know: the Floor's scene, storage, the app's sessions or
-//! anything but input, visibility, presence and quit events: it is an
-//! audited shim.
+//! anything but input, visibility, presence, full-screen exits and quit
+//! events: it is an audited shim.
 #![deny(missing_docs, unsafe_op_in_unsafe_fn)]
-#![cfg_attr(target_os = "macos", allow(unsafe_code))] // ADR-0026, ADR-0032, D-113: the audited calls
+#![cfg_attr(target_os = "macos", allow(unsafe_code))] // ADR-0026, ADR-0032, D-112, D-113: the audited calls
 
 use raw_window_handle::HasWindowHandle;
 
@@ -237,6 +252,25 @@ pub fn reduce_motion() -> bool {
 /// [`Error::Unsupported`], with why, where it can't yet.
 pub fn watch_apps(on_change: impl Fn() + Send + Sync + 'static) -> Result<(), Error> {
     imp::watch_apps(on_change)
+}
+
+/// D-112: calls `on_exit` each time `window` has left full screen, its
+/// exit animation over, for the rest of the app's life (main thread only;
+/// `on_exit` runs on the main thread). tao says a window has left full
+/// screen as soon as it is asked to; this says when the exit has ended.
+/// It reads the system's notification for the window (audit 8): the
+/// window's delegate is never touched.
+///
+/// # Errors
+///
+/// As [`install`]: [`Error::Unsupported`], with why, where it can't yet;
+/// off the main thread; or for a handle that isn't a window. Nothing is
+/// then watched.
+pub fn watch_full_screen_exit(
+    window: &impl HasWindowHandle,
+    on_exit: impl Fn() + Send + Sync + 'static,
+) -> Result<(), Error> {
+    imp::watch_full_screen_exit(window, on_exit)
 }
 
 /// D-113: what a quit Apple event (`kCoreEventClass`/`kAEQuitApplication`)
@@ -694,6 +728,32 @@ mod imp {
         Ok(())
     }
 
+    pub(super) fn watch_full_screen_exit(
+        window: &impl HasWindowHandle,
+        on_exit: impl Fn() + Send + Sync + 'static,
+    ) -> Result<(), Error> {
+        use objc2_app_kit::NSWindowDidExitFullScreenNotification;
+        use objc2_foundation::{NSNotification, NSNotificationCenter};
+        let window = window_of(window)?;
+        let object: &AnyObject = window.as_ref();
+        let block = RcBlock::new(move |_note: NonNull<NSNotification>| on_exit());
+        // SAFETY (audit 8): (a) AppKit's own constant name, read only; (b)
+        // the object filter is the window itself, only compared; no queue
+        // (AppKit posts a window's notifications on the main thread); the
+        // block is Send + Sync and never reads the notification.
+        let token = unsafe {
+            NSNotificationCenter::defaultCenter().addObserverForName_object_queue_usingBlock(
+                Some(NSWindowDidExitFullScreenNotification),
+                Some(object),
+                None,
+                &block,
+            )
+        };
+        // Observed for the app's whole life: never removed.
+        std::mem::forget(token);
+        Ok(())
+    }
+
     pub(super) use quit::answer_quit_events;
 
     /// D-113: the quit Apple event's handler (audit 7).
@@ -824,6 +884,17 @@ mod imp {
 
     pub(super) fn watch_apps(_on_change: impl Fn() + Send + Sync + 'static) -> Result<(), Error> {
         Err(Error::Unsupported(WHY))
+    }
+
+    pub(super) fn watch_full_screen_exit(
+        _window: &impl HasWindowHandle,
+        _on_exit: impl Fn() + Send + Sync + 'static,
+    ) -> Result<(), Error> {
+        Err(Error::Unsupported(if cfg!(target_os = "windows") {
+            "a close from full screen waits for the exit's end in the Windows release"
+        } else {
+            "a close from full screen waits for the exit's end in the Linux release"
+        }))
     }
 
     pub(super) fn answer_quit_events(_app: Box<dyn super::QuitEvents>) -> Result<(), Error> {
@@ -966,6 +1037,15 @@ mod tests {
         }
         // Test threads aren't the main thread.
         let err = std::thread::spawn(|| super::visible(&NoHandle))
+            .join()
+            .map_err(|_| "joined");
+        assert!(
+            matches!(err, Ok(Err(Error::NotMainThread | Error::Unsupported(_)))),
+            "{err:?}"
+        );
+        // D-112: nor is a full-screen exit watched (a close from full
+        // screen then hides by its fallback).
+        let err = std::thread::spawn(|| super::watch_full_screen_exit(&NoHandle, || ()))
             .join()
             .map_err(|_| "joined");
         assert!(
