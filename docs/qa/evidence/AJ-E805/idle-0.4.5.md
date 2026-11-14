@@ -505,3 +505,246 @@ its check passed). ADR-0032: within 2 s.
 - **Not measured:** the grown lab; a window hidden from its start (`open
   -j` left it on screen under another window); the installed beta beyond
   `ps`.
+
+## Round 4, the same day: the observed trees, This Mac's folders, Needs you's rows
+
+Round 3 left shown with 10 working at 2.03 % (180 s readings). The
+coordinator set the bar for the rest of the work: the **median of 5 kept
+60 s runs**, the window shown and 10 sessions working, **under 2.0 %** of
+one core for `juggler-app`, its web content and its GPU process.
+
+### Method
+
+As round 3, with these differences:
+
+- **Builds.** "Before": 5f8a0d44f (round 3's last). "After": 6142eaf39
+  (the observed trees, This Mac's folders and the rail's rows below, with
+  the branch's own 0.4.5 commits beside them). The Dev edition's release
+  build, copied out of the shared target.
+- **Lab.** PD3 with the replica, imported (334 transcripts). The 10
+  working stand-ins started at 16:02 and ran through the series.
+- **Reading.** 60 s readings: 75 s after launch shown, then hidden through
+  System Events, 15 s, 60 s hidden; `ps -o time=` every 30 s; A B
+  interleaved, one build at a time, `open -g -n`, by pid, quit by bundle id.
+- **The drop rule** (the coordinator's, decided from the system log, never
+  from the number): a reading is dropped when its pid logged `performClick`
+  or `windowShouldClose` (another process closed the lab window) or more
+  than 3 clusters of `WebProcessPool::initializeAccessibility` in its 60 s
+  (accessibility traffic denser than the steady poll); fewer than 5 kept
+  is run again. A steady outside accessibility poller (about every 32 s,
+  visible windows only) stays in every reading of both builds.
+- **Profiles.** Measurement-only builds (never committed) recording CPU by
+  span from each thread's own clock every 30 s.
+
+### The fixes
+
+| Commit | What | Guard |
+|---|---|---|
+| c3fe068ef, 4b0a7a05b | **D-110 amended**: `juggler-proc-list::task()` reads a process's CPU time beside its resident memory (`proc_pidinfo` `PROC_PIDTASKINFO`), converted to nanoseconds with `mach_timebase_info` | the shim's tests against `ps` |
+| e4aa24c03 | The collector measures the observed tools' trees (the Claude app's ~300 processes) from their task records, not through `sysinfo` with their arguments at every listing | `tests/observed.rs::a_known_trees_listing_reads_no_process_whole_again` |
+| 25bda7cdc | The rail's rows draw again only when their own heavy note changes (`ThisMacValue` selects through the This Mac store) | `lib/this-mac-provider.test.tsx` |
+| e514ab01d | This Mac normalises each Account's folders once a reading, not once for each running tool (0.046 % of a core: a `canonicalize` per tool × Account every 5 s) | `running_setups` tests |
+| bd5cace8f | Needs you reads AI Juggler's session rows from storage only when their stamps move, or every 60 s | `tests/notification_model.rs::needs_you_reads_the_session_rows_only_when_they_changed` |
+| 5f8177183, dc217e1f3 | Round 3's UI lint findings; the listing's stale fallback table dropped without a new `System` | the lint itself |
+
+### Results
+
+60 s readings, % of one core, the three processes together (series
+16:25–17:09, load 4–26).
+
+| Condition | Build | Kept readings | **Median** |
+|---|---|---|---|
+| Shown, 10 working | before (5f8a0d44f) | 2.566 2.399 2.848 1.966 1.915 | **2.40** |
+| | after (6142eaf39) | 2.583 8.112 1.916 2.316 2.400 | **2.40** |
+| Hidden after a show, 10 working | before | 0.983 1.432 1.683 1.250 1.416 | **1.42** |
+| | after | 1.150 1.416 1.584 1.116 1.699 | **1.42** |
+
+Dropped: after w1 shown 4.013 (7 accessibility clusters, load 25.6);
+before w3 hidden (the lab window closed from outside at 16:42:52,
+`performClick` then `windowShouldClose`; the build quit). Kept by the
+rule: after w3 shown 8.112 (2 clusters), its first 30 s the web content
+5.8 % and GPU 5.0 % (cause not found).
+
+**The bar was not met (2.40), and the fixes measured no change against
+round 3's last build.** The profiles said why: with the stand-ins'
+transcripts at about 0.37 MB (16:05–16:19), `juggler-app` read 1.0–1.2 %
+(the 2 s `processes` tick 0.28, the 5 s `resources` tick 0.19–0.21, the
+graph 0.08, `live` 0.07–0.09, the conversation pass 0.02); at about
+1.2 MB (17:16) the conversation pass read **0.38 %** and the unnamed
+threads another **0.38 %**. The stand-ins' transcripts grew about 16 KB
+a minute each through the series, and the 15 s conversation pass read
+every changed transcript whole again for its tokens
+(`whole_read_due`: every pass under 32 MB). Its cost grows with every
+working session's length; both builds read the same growing files (A B
+interleaved), so what the fixes took away the growth put back. Round 5
+takes that on, and compares round 3 with round 4 like for like.
+
+## Round 5, the same day: one reader per transcript
+
+### The cause, and the ruling
+
+Round 4's profiles at 1.2 MB transcripts put the 15 s conversation pass at
+0.38 % of a core, from 0.02 % with fresh ones: every changed transcript
+was read whole again for its tokens on every pass (under 32 MB; every
+5 min above), while the usage pipeline tailed the same file by offset.
+The coordinator ruled one incremental reader per transcript, usage and the
+conversation's token count both from it: no second reader, no lazy path
+beside it, no interval.
+
+### Which count is right
+
+The store's rule (`UsageRepo::store_events`): each response once by its
+key, the larger figure of each class.
+
+- **Claude Code.** The conversation reader keyed a response by
+  `message.id`, the last line's usage; the pipeline by
+  `message.id/requestId`, the larger figure. On one real profile (counts
+  only, read-only: 1,198 transcripts, 16.5 GB, 468,115 usage lines,
+  234,539 responses) the keys are the same, every last line is the
+  largest, and no response comes back after another's line: the totals
+  don't change.
+- **Codex.** The conversation reader counted reasoning inside `output` and
+  again in `reasoning`, cache writes inside `input` too, and no
+  compaction's own usage; the pipeline didn't (P14, P17, P21). On this
+  Mac's 87 uncompressed rollouts with records, 78 change: the five
+  classes' sum 43.628 G → 43.579 G (−0.11 %, 48.8 M reasoning tokens
+  counted twice). Codex's reader version goes to 5, so saved summaries are
+  read again.
+- **Grok Build, Kimi Code.** Their conversation files are records written
+  again whole, with no tokens (Kimi's usage is a store read by time):
+  no reader; read whole when they change, as before.
+
+### The fixes
+
+| Commit | What | Guard |
+|---|---|---|
+| b5fde336c | ADR-0019 seam: `ToolTranscripts::transcript_reader` (default none); `TranscriptReader` (lines in, that slice's usage out, the summary so far); `TokenTally` (the store's rule, per file); `transcript_follow` (the tail's chunk loop and the compressed stream, tool-agnostic) | `transcript_read` tests; the quota tests unchanged |
+| 361dd3dab | Claude Code's and Codex's readers (each line parsed once for both uses); `read_conversation` is the same reader over the whole file; Codex's totals corrected | each adapter's reader read in every split equals the whole read; Grok's and Kimi's give none |
+| 9a98194ec | `transcript_readers::Readers` in `AppState`, one per (account, file): offset, the 64 bytes before it (a file written again, not appended to, starts over), usage queued for the pipeline. The conversation pass reads only what was appended (`WHOLE_BIG`, `WHOLE_EVERY` gone); the pipeline takes Claude's transcripts and Codex's rollouts from the same readers | `tests/conversations.rs::a_pass_reads_only_what_was_appended` (a 0.7 MB transcript read once for both; one line appended: both read exactly its bytes; fails with a whole read beside the reader); `a_conversations_turns_reach_the_session_pages_panel` |
+| 8c8f085ac, bb9e4ec4d | Copied test code removed (proc-list's `Reap`, Grok's and Kimi's checks); rustdoc's links to private items | the debt baseline; `cargo doc -D warnings` |
+
+### Method
+
+As round 4, with these differences:
+
+- **Builds.** "After": be2625ce6 (this round, with the branch's D-112 and
+  D-113 window and quit fixes beside it). "Before": the same commit with
+  this round's 31 files as they were at 37e563562 (no other commit in
+  between touches them), so the two differ by the reader alone. The Dev
+  edition's release build from an export, copied out of the shared target.
+- **Lab.** /tmp/aij-lab-r4 (PD3 + replica, imported, 334 transcripts) with
+  the 10 working stand-ins; /tmp/aij-lab-r4g (each Claude transcript cloned
+  15 times, 4,830) with none live.
+- **Transcript size, fixed.** Before each run the stand-ins were stopped,
+  their six growing Claude transcripts set to the run's size (cut at a
+  whole line, or their own lines appended again), and the stand-ins
+  started again; the three Codex stand-ins start a new rollout each time
+  (a few KB). They grow about 16 KB a minute during a run.
+- **Readings.** `ps -o time=` of `juggler-app`, its web content and its
+  GPU process, by pid, every 30 s. Launch `open -g -n`, never activated;
+  ended by TERM on the pid (a quit Apple event may ask first, D-113). The
+  window was 100 % uncovered in every shown reading (a fully covered
+  window is a hidden page to WebKit). Per-thread CPU from `proc_pidinfo`
+  over 120 s. The Mac ran other work throughout (load 5–57).
+- **The drop rule** as round 4 (scaled to the reading's length for 180 s
+  readings). No reading was dropped: none logged `performClick` or
+  `windowShouldClose`, and none had more than 2 accessibility clusters in
+  a minute. The steady outside poller is in every reading of both builds.
+
+### Results
+
+**The bar: shown, 10 working, 60 s readings, transcripts at 1 MB** (A B
+interleaved, 21:19–22:02; % of one core, the three processes together):
+
+| Condition | Build | Kept readings | **Median** | `juggler-app` median |
+|---|---|---|---|---|
+| Shown, 10 working | before | 1.599 1.183 1.516 5.103 2.698 | **1.60** | 0.98 |
+| | after | 1.449 1.749 7.530 1.683 3.748 | **1.75** | 1.03 |
+| Hidden after a show, 10 working | before | 0.833 0.883 0.983 1.566 0.996 | **0.98** | 0.97 |
+| | after | 1.237 0.683 0.783 0.767 0.949 | **0.78** | 0.75 |
+
+**The bar is met: 1.75 % for the after build, under 2.0.** The before build
+also read under 2.0 in this series: at 1 MB the conversation pass's cost
+(below) is smaller than the readings' spread. Three readings spiked
+(before w4 5.10, after w3 7.53, after w5 3.75): the web content and GPU
+process at 0.5–3.2 % each, with `juggler-app` at 1.8–2.5, in both builds,
+at load 19–40, as round 4's 8.11; the cause wasn't found. Four of the
+after build's five shown runs fell at load 28–40, the before build's at
+7–20.
+
+**The reader, flat against transcript size** (shown, 10 working; the
+conversation pass's own thread, `conversations`, over 120 s; and the
+three processes over a 180 s reading):
+
+| Stand-ins' transcripts | Build | `conversations` thread | All three, 180 s | `juggler-app`, 180 s |
+|---|---|---|---|---|
+| fresh (20 KB) | before | 0.02 | 2.52 | 1.03 |
+| | after | 0.01 | 1.73 | 0.99 |
+| about 1 MB | before | 0.06 (0.33 in a 30 s window) | 2.19 | 1.53 |
+| | after | 0.02 (under 0.01 in 30 s) | 1.32 | 0.78 |
+| about 3 MB | before | 0.27 (0.32 in 30 s) | 1.98 | 1.29 |
+| | after | 0.05 (load 42) | 1.69 | 0.99 |
+
+The before build's pass grows with every working session's length (round
+4: 0.38 at 1.2 MB); the after build's stays at a few hundredths. The
+180 s totals carry the web content's and GPU's spread (0.6–1.5 between
+runs) and a single run each.
+
+**Other conditions** (one run each; 60 s readings):
+
+| Condition | before | after |
+|---|---|---|
+| Shown, 10 quiet (resumed, writing nothing) | 1.08 | 1.08 |
+| Hidden after a show, 10 quiet | 0.62 | 0.67 |
+| Grown lab (4,830 transcripts), 0 live, shown | 1.60 | 1.68 |
+| Grown lab, 0 live, hidden after a show | 0.62 | 0.70 |
+| `open -j` launch, 10 working (meant as covered) | 1.13 | 1.53 |
+
+`open -j` left the window 100 % uncovered this time, so that row is a
+shown reading, not a covered one; a covered window wasn't produced without
+activating another app. Quiet sessions write nothing, so the reader
+changes nothing there.
+
+### The baseline: 2.03 in round 3, 2.40 in round 4
+
+Like for like, the before build of this round (round 4's code and the
+branch's since, without the reader) read **2.19 at 1 MB in a 180 s
+reading, and a median 1.60 over five 60 s readings at 1 MB**; 2.52 and
+1.98 at 20 KB and 3 MB. What moved the round-3 and round-4 figures:
+
+1. **The transcripts grew.** The stand-ins write about 16 KB a minute
+   each and ran for hours; round 4's were about 0.37 MB at its start and
+   1.2 MB at its end, and its before and after builds read the same
+   growing files. The before code's pass read each changed file whole
+   every 15 s: 0.02 % of a core fresh, 0.06–0.33 % at 1 MB, 0.27–0.38 % at
+   1.2–3 MB (the unnamed threads beside it in round 4's 1.2 MB profile,
+   0.38, read 0.01–0.10 here, 0.17 once at load 42: not reproduced).
+2. **Single readings spread more than the builds differ.** The web content
+   and GPU process vary 0.6–1.5 between quiet runs and spike to 3–8 in
+   some (both builds), and the Mac's load ran 5–57; under load the same
+   work reads as more CPU time. A 60 s reading holds four conversation
+   passes and one full process scan, a 180 s one twelve and three: the
+   same mean, with more spread at 60 s.
+
+So 2.03 → 2.40 was no code regression: round 4 read longer transcripts
+than round 3 at its later runs, in the noisier 60 s readings. At a fixed
+1 MB with 180 s readings the reader takes the before build's 2.19 to
+1.32.
+
+### Presence (ADR-0032)
+
+`scripts/qa/presence_check.py` on the PL1 lab with the after build, three
+times: **PASS** before the start, after it and after the quit, each time
+(9 of 9). How long after `ps` showed the change the rail's Open now did
+(its accessibility tree read about every 0.1 s, one read included):
+**launch 0.54, 0.51 and 0.51 s; quit 0.43, 0.54 and 0.52 s** (ADR-0032:
+within 2 s).
+
+### Open
+
+- The web content's and GPU process's spikes (3–8 % for part of a minute,
+  both builds, under load) are the largest single source of spread in the
+  shown readings; not traced.
+- Home still draws again on each 5 s This Mac reading for its level alone
+  (a selector would stop it); not done, as the bar is met.
+- A covered window (WebKit's hidden page) wasn't measured this round.
