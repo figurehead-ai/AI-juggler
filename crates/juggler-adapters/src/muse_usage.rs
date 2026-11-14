@@ -25,7 +25,7 @@
 use std::collections::HashMap;
 use std::io::BufReader;
 use std::path::{Path, PathBuf};
-use std::process::{Child, Stdio};
+use std::process::Stdio;
 use std::sync::{Mutex, OnceLock};
 use std::time::{Duration, Instant};
 
@@ -38,14 +38,13 @@ use juggler_core::quota::{QuotaSample, WindowKind};
 use serde_json::{Value, json};
 
 use crate::codex_appserver::rpc::{self, Incoming};
+use crate::common::child::Reaped;
 use crate::muse_serve::codec::{self, methods};
 
 /// The least time between two fresh reads for one account.
 pub const REFRESH_EVERY: Duration = Duration::from_secs(60);
 /// A whole check, server or command, stops past this.
 const DEADLINE: Duration = Duration::from_secs(20);
-/// How long a stopped server may take to end before it is killed.
-const STOP_GRACE: Duration = Duration::from_secs(3);
 /// The 5-hour window's length.
 const FIVE_HOURS_MINS: u64 = 300;
 
@@ -143,27 +142,6 @@ pub fn usage(bin: &Path, state_dir: &Path, env: &EnvMap) -> Result<PlanReading, 
     }
 }
 
-/// A started Muse, stopped and reaped when dropped.
-struct Started(Child);
-
-impl Drop for Started {
-    fn drop(&mut self) {
-        if matches!(self.0.try_wait(), Ok(None)) {
-            let _ = juggler_adapter::process::terminate(&self.0);
-            let until = Instant::now() + STOP_GRACE;
-            while matches!(self.0.try_wait(), Ok(None)) && Instant::now() < until {
-                // poll: the server ending after SIGTERM, bounded by the
-                // grace (3 s), once per usage check.
-                std::thread::sleep(Duration::from_millis(50));
-            }
-        }
-        if matches!(self.0.try_wait(), Ok(None)) {
-            let _ = self.0.kill();
-        }
-        let _ = self.0.wait();
-    }
-}
-
 /// Muse run for the account: its own binary with the account's isolation
 /// (a variable that runs unset is left out), output piped or dropped.
 fn command(bin: &Path, state_dir: &Path, env: &EnvMap, args: &[&str]) -> std::process::Command {
@@ -184,17 +162,17 @@ fn from_server(
     refresh: bool,
 ) -> Result<PlanReading, String> {
     let deadline = Instant::now() + DEADLINE;
-    let mut child = command(bin, state_dir, env, crate::muse_serve::SERVER_ARGS)
+    let child = command(bin, state_dir, env, crate::muse_serve::SERVER_ARGS)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::null())
         .spawn()
         .map_err(|_| "Muse Code's session server couldn't be started".to_owned())?;
-    let (Some(stdin), Some(stdout)) = (child.stdin.take(), child.stdout.take()) else {
-        drop(Started(child));
+    let mut started = Reaped::new(child);
+    let (Some(stdin), Some(stdout)) = (started.child().stdin.take(), started.child().stdout.take())
+    else {
         return Err("Muse Code's session server has no pipes".into());
     };
-    let _started = Started(child);
     let mut pipe = Pipe::new(Connection {
         reader: Box::new(BufReader::new(stdout)),
         writer: Box::new(stdin),
@@ -238,40 +216,18 @@ fn answer(pipe: &mut Pipe, id: i64, deadline: Instant) -> Result<Value, String> 
 /// `muse usage --json`, bounded in time; its JSON object is read like the
 /// server's answer.
 fn from_command(bin: &Path, state_dir: &Path, env: &EnvMap) -> Result<PlanReading, String> {
-    let deadline = Instant::now() + DEADLINE;
-    let child = command(bin, state_dir, env, &["usage", "--json"])
-        .stdin(Stdio::null())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::null())
-        .spawn()
-        .map_err(|_| "`muse usage` couldn't be started".to_owned())?;
-    let mut started = Started(child);
-    let mut stdout = started
-        .0
-        .stdout
-        .take()
-        .ok_or("`muse usage` has no output")?;
-    let reader = std::thread::spawn(move || {
-        let mut text = String::new();
-        let _ = std::io::Read::read_to_string(
-            &mut std::io::Read::take(&mut stdout, 64 * 1024),
-            &mut text,
-        );
-        text
-    });
-    while matches!(started.0.try_wait(), Ok(None)) && Instant::now() < deadline {
-        // poll: the command ending, bounded by the deadline (20 s), once
-        // per usage check.
-        std::thread::sleep(Duration::from_millis(50));
-    }
-    let ended = started.0.try_wait().ok().flatten();
-    drop(started);
-    let text = reader.join().unwrap_or_default();
-    match ended {
+    let out = crate::common::child::output_within(
+        &mut command(bin, state_dir, env, &["usage", "--json"]),
+        Instant::now() + DEADLINE,
+        64 * 1024,
+    )
+    .map_err(|_| "`muse usage` couldn't be started".to_owned())?;
+    match out.status {
         Some(status) if status.success() => {}
         Some(_) => return Err("`muse usage` failed (not signed in, or no subscription)".into()),
         None => return Err("`muse usage` didn't answer in time".into()),
     }
+    let text = out.stdout;
     let value: Value = serde_json::from_str(text.trim())
         .map_err(|_| "`muse usage --json` printed something AI Juggler doesn't read".to_owned())?;
     if value.get("usage").is_some() || value.get("subscriptionActive").is_some() {

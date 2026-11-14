@@ -142,6 +142,26 @@ pub(crate) fn finish_copy(
     Ok(outcome)
 }
 
+/// A tool's copy of the home `source` into `dest` by its `layout`, up to
+/// [`MAX_IMPORT_BYTES`], leaving `skips` out, then [`finish_copy`] with its
+/// `settings` (Kimi Code's, Grok Build's and Hermes Agent's copies alike).
+///
+/// # Errors
+///
+/// [`AdapterError::AccountDir`] as [`import_with_layout`] and
+/// [`finish_copy`] give it.
+pub(crate) fn copy_home(
+    layout: &Layout,
+    (source, dest): (&Path, &Path),
+    login_probe: &dyn Fn(&Path) -> LoginProbe,
+    settings: &[&str],
+    skips: &[&str],
+    degraded: bool,
+) -> Result<ImportOutcome, AdapterError> {
+    let outcome = import_with_layout(layout, source, dest, login_probe, MAX_IMPORT_BYTES, skips)?;
+    finish_copy(dest, dest, settings, outcome, degraded)
+}
+
 /// Turns candidate paths into discovered installs: canonical, deduped,
 /// config-only, metadata-only, most useful first. Shared by every
 /// Provider's scan.

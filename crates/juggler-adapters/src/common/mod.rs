@@ -2,6 +2,7 @@
 //! is mostly data plus a few small impls. Nothing here names a tool.
 //!
 //! - [`layout`]: what differs between tools' config homes.
+//! - [`child`]: a tool's process AI Juggler starts, ended and reaped.
 //! - [`driven`]: the terminal launch a driven runtime starts from and
 //!   resumes in.
 //! - [`home`]: scanning, inspecting, copying and adopting a config home.
@@ -14,6 +15,7 @@
 
 #[cfg(test)]
 pub(crate) mod bridge_sample;
+pub(crate) mod child;
 pub(crate) mod driven;
 pub(crate) mod home;
 #[cfg(test)]

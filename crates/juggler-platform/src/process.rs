@@ -88,6 +88,47 @@ pub fn terminate(child: &std::process::Child) -> std::io::Result<()> {
     )
 }
 
+/// Makes `command`'s process the leader of a process group of its own,
+/// so [`end_group`] ends it with everything it forks (AJ-E1607). Other
+/// systems have no such group yet: the command is left as it is.
+pub fn own_group(command: &mut Command) {
+    #[cfg(unix)]
+    std::os::unix::process::CommandExt::process_group(command, 0);
+    #[cfg(not(unix))]
+    let _ = command;
+}
+
+/// Ends the process group a child AI Juggler started as its group's
+/// leader (AJ-E1607: a tool's daemon and everything it forked): SIGTERM,
+/// so they can let go of what they hold, or SIGKILL with `force`. Never
+/// group 0 or 1 (the caller's own group, or init's).
+///
+/// # Errors
+///
+/// The group is gone already, or this system has no such request.
+pub fn end_group(leader: u32, force: bool) -> std::io::Result<()> {
+    #[cfg(unix)]
+    {
+        use nix::sys::signal::{Signal, killpg};
+        use nix::unistd::Pid;
+        let group = i32::try_from(leader)
+            .ok()
+            .filter(|group| *group > 1)
+            .ok_or_else(|| std::io::Error::other("not a child's process group"))?;
+        let signal = if force {
+            Signal::SIGKILL
+        } else {
+            Signal::SIGTERM
+        };
+        killpg(Pid::from_raw(group), signal).map_err(std::io::Error::from)
+    }
+    #[cfg(not(unix))]
+    {
+        let _ = (leader, force);
+        Err(crate::unsupported("ending a process group"))
+    }
+}
+
 /// SIGTERM to `pid` on Unix, never to 0 or 1 (the caller's group or
 /// init): `not_one` refuses those, `unsupported` names the request where
 /// the system has none.
@@ -121,6 +162,13 @@ mod tests {
             if cfg!(unix) {
                 assert_eq!(error.to_string(), "not that one");
             }
+        }
+    }
+
+    #[test]
+    fn never_ends_the_callers_group_or_inits() {
+        for group in [0, 1, u32::MAX] {
+            assert!(end_group(group, true).is_err(), "{group}");
         }
     }
 

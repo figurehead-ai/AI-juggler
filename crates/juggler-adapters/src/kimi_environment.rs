@@ -137,15 +137,14 @@ pub fn import_kimi_home(
     login_probe: &dyn Fn(&Path) -> LoginProbe,
     degraded: bool,
 ) -> Result<ImportOutcome, juggler_adapter::AdapterError> {
-    let outcome = home::import_with_layout(
+    home::copy_home(
         &KIMI_LAYOUT,
-        source,
-        dest,
+        (source, dest),
         login_probe,
-        home::MAX_IMPORT_BYTES,
+        SETTINGS,
         &[],
-    )?;
-    home::finish_copy(dest, dest, SETTINGS, outcome, degraded)
+        degraded,
+    )
 }
 
 fn origin_notes(origin: InstallOrigin, login: LoginProbe) -> Vec<String> {

@@ -123,15 +123,14 @@ pub fn import_grok_home(
     degraded: bool,
 ) -> Result<ImportOutcome, juggler_adapter::AdapterError> {
     let skips: &[&str] = if degraded { GROK_LAYOUT.history } else { &[] };
-    let outcome = home::import_with_layout(
+    home::copy_home(
         &GROK_LAYOUT,
-        source,
-        dest,
+        (source, dest),
         login_probe,
-        home::MAX_IMPORT_BYTES,
+        SETTINGS,
         skips,
-    )?;
-    home::finish_copy(dest, dest, SETTINGS, outcome, degraded)
+        degraded,
+    )
 }
 
 fn origin_notes(origin: InstallOrigin, login: LoginProbe) -> Vec<String> {
