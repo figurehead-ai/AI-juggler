@@ -51,7 +51,13 @@
 //! never reaches the Keychain, with no fallback to it on error (1.4.13's
 //! code, disassembled; `docs/research/muse-code.md`). It is wired
 //! ([`MuseAdapter::with_separate_sign_ins`]) and stays off ([`SEPARATE_SIGN_INS`])
-//! until the lab shows two folders keep two sign-ins (D-107).
+//! until the lab shows two folders keep two sign-ins (D-107). The lab
+//! itself turns it on through [`lab_sign_ins`]: compiled only into a debug
+//! build with the `lab-sign-ins` feature (a release build with it doesn't
+//! compile), and on only with [`ENV_LAB_SIGN_INS`]`=1` on a throwaway lab
+//! `HOME`. Wherever it is on, a folder's run uses the file backend only on
+//! a Muse whose code that proof read ([`FILE_BACKEND_PROVEN`]); any other
+//! version is refused with the reason until the proof is repeated.
 //!
 //! **Sessions** come from Muse's own index, `session-index.db`, read-only
 //! with a format check ([`crate::muse_sessions`]); a session AI Juggler
@@ -86,6 +92,14 @@ pub const ENV_HOME: &str = "HOME";
 pub const ENV_CONFIG: &str = "XDG_CONFIG_HOME";
 /// The data root (`<it>/muse`: sessions, their index, `museHome`).
 pub const ENV_DATA: &str = "XDG_DATA_HOME";
+/// The cache root: inside an account like the others, so no run of one
+/// writes the user's own `~/.cache`.
+pub const ENV_CACHE: &str = "XDG_CACHE_HOME";
+/// The state root, likewise.
+pub const ENV_STATE: &str = "XDG_STATE_HOME";
+/// XDG's runtime folder and search paths: removed from every launch, so
+/// no inherited value points an account outside its folder.
+const ENV_XDG_INHERITED: [&str; 3] = ["XDG_RUNTIME_DIR", "XDG_CONFIG_DIRS", "XDG_DATA_DIRS"];
 /// Where Muse looks for Codex's skills.
 pub const ENV_CODEX: &str = "CODEX_HOME";
 /// Where Muse looks for Claude Code's skills.
@@ -115,17 +129,74 @@ pub const FILE_BACKEND: &str = "file";
 /// lab check shows two folders keep two sign-ins (D-107).
 pub const SEPARATE_SIGN_INS: bool = false;
 
+/// The Muse versions whose file backend was proven never to reach the
+/// Keychain (1.4.13's code disassembled, `muse-bin-1.4.13-R6996.1`, plus a
+/// sandboxed run: `docs/research/muse-code.md`). The proof is bound to the
+/// code it read: any other version runs the file backend only once it is
+/// repeated there.
+pub const FILE_BACKEND_PROVEN: &[&str] = &["1.4.13"];
+
+/// The lab's switch for separate sign-ins (AJ-E1612, D-107): `1` turns
+/// them on in a debug build with the `lab-sign-ins` feature, on a lab
+/// `HOME` ([`is_lab_home`]); anywhere else it does nothing.
+pub const ENV_LAB_SIGN_INS: &str = "AIJ_LAB_MUSE_SIGN_INS";
+
+#[cfg(all(feature = "lab-sign-ins", not(debug_assertions)))]
+compile_error!("the `lab-sign-ins` feature is for debug lab builds only (AJ-E1612)");
+
+/// Whether this run is the lab's, with separate sign-ins on: never in a
+/// release build (the feature doesn't compile there, and without it this
+/// is always `false`), else only when [`ENV_LAB_SIGN_INS`] is `1` and
+/// `HOME` is a throwaway lab.
+#[must_use]
+pub fn lab_sign_ins() -> bool {
+    #[cfg(all(debug_assertions, feature = "lab-sign-ins"))]
+    {
+        std::env::var(ENV_LAB_SIGN_INS).as_deref() == Ok("1")
+            && std::env::var_os("HOME").is_some_and(|home| is_lab_home(Path::new(&home)))
+    }
+    #[cfg(not(all(debug_assertions, feature = "lab-sign-ins")))]
+    {
+        false
+    }
+}
+
+/// Whether `home` is a throwaway lab (`lab_scenario.sh`'s, by
+/// [`juggler_core::lab::throwaway_lab`], the lab write mode's own check).
+#[must_use]
+pub fn is_lab_home(home: &Path) -> bool {
+    juggler_core::lab::throwaway_lab(home).is_ok()
+}
+
+/// Why a folder's run can't use the file backend on `version`.
+#[must_use]
+pub fn unproven_backend(version: &str) -> String {
+    format!(
+        "Muse {version} isn't the version whose separate sign-in was checked ({}): \
+         its sign-in might reach this computer's keychain and replace your own Muse's. \
+         It stays off until that check is repeated on {version}",
+        FILE_BACKEND_PROVEN.join(", ")
+    )
+}
+
 /// The Keychain-backed sign-in is one per Mac: why a second account can't
 /// have one.
 pub const ONE_SIGN_IN: &str = "Muse keeps its Meta sign-in in this computer's system keychain under one fixed name, \
      so only your own Muse can be signed in with your subscription: a second sign-in would replace it. \
      Give this account a Meta Model API key instead (META_API_KEY in its Launch settings)";
 
-const PINNED: &[&str] = &[ENV_HOME, ENV_CONFIG, ENV_DATA, ENV_CODEX, ENV_CLAUDE];
+const PINNED: &[&str] = &[
+    ENV_HOME, ENV_CONFIG, ENV_DATA, ENV_CACHE, ENV_STATE, ENV_CODEX, ENV_CLAUDE,
+];
 const ISOLATION: &[&str] = &[
     ENV_HOME,
     ENV_CONFIG,
     ENV_DATA,
+    ENV_CACHE,
+    ENV_STATE,
+    ENV_XDG_INHERITED[0],
+    ENV_XDG_INHERITED[1],
+    ENV_XDG_INHERITED[2],
     ENV_CODEX,
     ENV_CLAUDE,
     ENV_NO_UPDATE,
@@ -135,9 +206,22 @@ const ISOLATION: &[&str] = &[
     ENV_BIN_OVERRIDE,
 ];
 /// Removed from every launch (see the module docs).
-const UNSET: &[&str] = &[ENV_CREDENTIAL_BACKEND, ENV_LAUNCHER_AUTH, ENV_PROJECTS];
+const UNSET: &[&str] = &[
+    ENV_CREDENTIAL_BACKEND,
+    ENV_LAUNCHER_AUTH,
+    ENV_PROJECTS,
+    ENV_XDG_INHERITED[0],
+    ENV_XDG_INHERITED[1],
+    ENV_XDG_INHERITED[2],
+];
 /// The same, while separate sign-ins are on (the backend is then set).
-const UNSET_SEPARATE: &[&str] = &[ENV_LAUNCHER_AUTH, ENV_PROJECTS];
+const UNSET_SEPARATE: &[&str] = &[
+    ENV_LAUNCHER_AUTH,
+    ENV_PROJECTS,
+    ENV_XDG_INHERITED[0],
+    ENV_XDG_INHERITED[1],
+    ENV_XDG_INHERITED[2],
+];
 /// Set on every run.
 pub const FIXED: &[(&str, &str)] = &[(ENV_NO_UPDATE, "1")];
 
@@ -147,6 +231,9 @@ const VERSION_FILE: &str = ".muse-version";
 const CONFIG_ROOT: &str = ".config";
 /// The folder an account keeps Muse's data root in.
 const DATA_ROOT: &str = ".local/share";
+/// The folders an account keeps the cache and state roots in.
+const CACHE_ROOT: &str = ".cache";
+const STATE_ROOT: &str = ".local/state";
 /// Muse's folder inside either root.
 const MUSE_DIR: &str = "muse";
 /// The empty folders Muse is pointed at for Codex's and Claude's skills.
@@ -216,7 +303,8 @@ pub struct MuseAdapter {
     bin: Option<PathBuf>,
     /// The user's home (tests/fixtures; `None` reads `$HOME`).
     home: Option<PathBuf>,
-    /// Separate subscription sign-ins per folder ([`SEPARATE_SIGN_INS`]).
+    /// Separate subscription sign-ins per folder ([`SEPARATE_SIGN_INS`],
+    /// or the lab's [`lab_sign_ins`]).
     separate: bool,
 }
 
@@ -225,7 +313,7 @@ impl MuseAdapter {
     #[must_use]
     pub fn new() -> Self {
         Self {
-            separate: SEPARATE_SIGN_INS,
+            separate: SEPARATE_SIGN_INS || lab_sign_ins(),
             ..Self::default()
         }
     }
@@ -322,6 +410,33 @@ impl MuseAdapter {
         }
     }
 
+    /// Whether separate sign-ins are on (the release default: off).
+    #[must_use]
+    pub fn separate_sign_ins(&self) -> bool {
+        self.separate
+    }
+
+    /// Whether `state_dir`'s runs use the file backend: separate sign-ins
+    /// on, and not the user's own Muse (which keeps the Keychain).
+    fn uses_file_backend(&self, state_dir: &Path) -> bool {
+        self.separate && !self.is_default(state_dir)
+    }
+
+    /// Refuses a run on the file backend unless `bin` is a version whose
+    /// code the proof read ([`FILE_BACKEND_PROVEN`]), with the reason.
+    fn refuse_unproven_backend(&self, bin: &Path, state_dir: &Path) -> Result<(), AdapterError> {
+        if !self.uses_file_backend(state_dir) {
+            return Ok(());
+        }
+        match Self::version(bin) {
+            Ok(version) if FILE_BACKEND_PROVEN.contains(&version.as_str()) => Ok(()),
+            Ok(version) => Err(AdapterError::Unsupported(unproven_backend(&version))),
+            Err(_) => Err(AdapterError::Unsupported(unproven_backend(
+                "(its version can't be read)",
+            ))),
+        }
+    }
+
     /// Refuses a launch of an account that would run on the Mac's one
     /// subscription sign-in without being the user's own Muse ([`ONE_SIGN_IN`]).
     fn refuse_shared_sign_in(
@@ -347,10 +462,10 @@ impl MuseAdapter {
             key.map_or_else(unset, str::to_owned),
         );
         if self.separate {
-            let backend = if self.is_default(state_dir) {
-                unset()
-            } else {
+            let backend = if self.uses_file_backend(state_dir) {
                 FILE_BACKEND.to_owned()
+            } else {
+                unset()
             };
             env.insert(ENV_CREDENTIAL_BACKEND.to_owned(), backend);
         }
@@ -594,6 +709,7 @@ impl ToolLaunch for MuseAdapter {
             crate::codex::refuse_option_like(session_id)?;
         }
         self.refuse_shared_sign_in(&account.state_dir, profile)?;
+        self.refuse_unproven_backend(&bin, &account.state_dir)?;
         let mut args: Vec<String> = Vec::new();
         if let Some(model) = &profile.settings_overlay.model {
             args.extend(["--model".into(), model.clone()]);
@@ -636,10 +752,12 @@ impl ToolLaunch for MuseAdapter {
         if !self.own_sign_in(state_dir) {
             return Err(AdapterError::Unsupported(ONE_SIGN_IN.into()));
         }
+        let program = self.require_bin()?;
+        self.refuse_unproven_backend(&program, state_dir)?;
         let mut env = self.isolation_env(state_dir);
         env.extend(self.sign_in_env(state_dir, None));
         Ok(LaunchSpec {
-            program: self.require_bin()?,
+            program,
             args: vec!["login".into()],
             env,
             cwd: state_dir.to_path_buf(),
@@ -659,18 +777,25 @@ impl ToolLaunch for MuseAdapter {
     fn pinned_env_keys(&self) -> &'static [&'static str] {
         PINNED
     }
-    /// An account's folder is a home of its own; the user's own Muse runs
-    /// with the XDG variables unset, and `HOME`, `CODEX_HOME` and
+    /// An account's folder is a home of its own, every XDG root inside
+    /// it; the user's own Muse runs with the XDG roots unset, and `HOME`, `CODEX_HOME` and
     /// `CLAUDE_CONFIG_DIR` as they are.
     fn pinned_env(&self, state_dir: &Path) -> Vec<(&'static str, Option<String>)> {
         if self.is_default(state_dir) {
-            return vec![(ENV_CONFIG, None), (ENV_DATA, None)];
+            return vec![
+                (ENV_CONFIG, None),
+                (ENV_DATA, None),
+                (ENV_CACHE, None),
+                (ENV_STATE, None),
+            ];
         }
         let text = |path: PathBuf| Some(path.to_string_lossy().into_owned());
         vec![
             (ENV_HOME, text(state_dir.to_path_buf())),
             (ENV_CONFIG, text(state_dir.join(CONFIG_ROOT))),
             (ENV_DATA, text(state_dir.join(DATA_ROOT))),
+            (ENV_CACHE, text(state_dir.join(CACHE_ROOT))),
+            (ENV_STATE, text(state_dir.join(STATE_ROOT))),
             (ENV_CODEX, text(state_dir.join(NO_CODEX))),
             (ENV_CLAUDE, text(state_dir.join(NO_CLAUDE))),
         ]
@@ -857,6 +982,18 @@ mod tests {
             parse_version("Muse Code 1.4.13 (1.4.13-R6996.1)").as_deref(),
             Some("1.4.13")
         );
+    }
+
+    #[test]
+    fn the_release_default_keeps_separate_sign_ins_off() {
+        const { assert!(!SEPARATE_SIGN_INS) };
+        // Without the lab feature (every release build), nothing turns
+        // them on, whatever the environment says.
+        #[cfg(not(feature = "lab-sign-ins"))]
+        {
+            assert!(!lab_sign_ins());
+            assert!(!MuseAdapter::new().separate_sign_ins());
+        }
     }
 
     #[test]

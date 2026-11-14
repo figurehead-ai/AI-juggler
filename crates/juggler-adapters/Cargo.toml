@@ -10,6 +10,13 @@ repository.workspace = true
 [lints]
 workspace = true
 
+[features]
+# AJ-E1612 (D-107): the lab's switch for Muse's separate sign-ins
+# (`muse::lab_sign_ins`). Debug builds only — a release build with it
+# doesn't compile — and on only with AIJ_LAB_MUSE_SIGN_INS=1 on a lab HOME.
+# juggler-app's `lab-bridge` turns it on; no default or release build does.
+lab-sign-ins = []
+
 [dependencies]
 juggler-adapter = { version = "0.4.0", path = "../juggler-adapter" }
 juggler-core = { version = "0.4.0", path = "../juggler-core" }

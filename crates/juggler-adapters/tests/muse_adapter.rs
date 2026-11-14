@@ -22,8 +22,8 @@ use juggler_adapter::prelude::*;
 use juggler_adapter::{AdapterError, InstallStatus, LaunchMode, LoginState};
 use juggler_adapters::MuseAdapter;
 use juggler_adapters::muse::{
-    ENV_API_KEY, ENV_CLAUDE, ENV_CODEX, ENV_CONFIG, ENV_CREDENTIAL_BACKEND, ENV_DATA, ENV_HOME,
-    ENV_NO_UPDATE, FILE_BACKEND, ONE_SIGN_IN,
+    ENV_API_KEY, ENV_CACHE, ENV_CLAUDE, ENV_CODEX, ENV_CONFIG, ENV_CREDENTIAL_BACKEND, ENV_DATA,
+    ENV_HOME, ENV_NO_UPDATE, ENV_STATE, FILE_BACKEND, FILE_BACKEND_PROVEN, ONE_SIGN_IN,
 };
 use juggler_core::model::{Account, AccountId, Profile, ProfileId, SettingsOverlay};
 
@@ -146,6 +146,19 @@ fn each_account_is_a_home_of_its_own_and_the_users_own_runs_as_muse_does() {
         env(ENV_DATA),
         Some(dir.join(".local/share").to_string_lossy().into_owned())
     );
+    // AJ-E1612: every XDG root inside the account, the inherited search
+    // paths and runtime folder removed.
+    assert_eq!(
+        env(ENV_CACHE),
+        Some(dir.join(".cache").to_string_lossy().into_owned())
+    );
+    assert_eq!(
+        env(ENV_STATE),
+        Some(dir.join(".local/state").to_string_lossy().into_owned())
+    );
+    for key in ["XDG_RUNTIME_DIR", "XDG_CONFIG_DIRS", "XDG_DATA_DIRS"] {
+        assert_eq!(env(key).as_deref(), Some(ENV_UNSET), "{key}");
+    }
     for (key, sentinel) in [(ENV_CODEX, "no-codex"), (ENV_CLAUDE, "no-claude")] {
         let folder = PathBuf::from(env(key).unwrap());
         assert!(
@@ -184,7 +197,7 @@ fn each_account_is_a_home_of_its_own_and_the_users_own_runs_as_muse_does() {
             &LaunchMode::Interactive,
         )
         .unwrap();
-    for key in [ENV_CONFIG, ENV_DATA] {
+    for key in [ENV_CONFIG, ENV_DATA, ENV_CACHE, ENV_STATE] {
         assert_eq!(
             spec.env.get(key).map(String::as_str),
             Some(ENV_UNSET),
@@ -421,4 +434,83 @@ fn only_the_users_own_setup_is_used_where_it_is_and_none_is_copied() {
     assert!(!dest.exists());
     let found = adapter.scan_environment();
     assert!(found.iter().any(|install| install.path == own));
+}
+
+/// AJ-E1612: the file backend's proof read 1.4.13's code only. With
+/// separate sign-ins on, a folder's sign-in and sessions run on it only on
+/// 1.4.13; any other version is refused with the reason (the user's own
+/// Muse, on the Keychain, is unaffected), and the release default is off.
+#[test]
+fn the_file_backend_runs_only_on_the_version_its_proof_read() {
+    assert_eq!(FILE_BACKEND_PROVEN, ["1.4.13"]);
+    const {
+        assert!(
+            !juggler_adapters::muse::SEPARATE_SIGN_INS,
+            "the release default stays off"
+        );
+    };
+    let kit = kit();
+    let adapter = adapter(&kit).with_separate_sign_ins(true);
+    let dir = kit.home.parent().unwrap().join("accounts/v");
+    adapter.prepare_account(&dir).unwrap();
+    let own = kit.home.join(".config/muse");
+    std::fs::create_dir_all(&own).unwrap();
+    let launch = |state_dir: &Path| {
+        adapter.launch_spec(
+            &account(state_dir),
+            &profile(&[], None),
+            &kit.project,
+            &LaunchMode::Interactive,
+        )
+    };
+
+    // 1.4.13 (the kit's launcher record): allowed.
+    let login = adapter.login_spec(&dir).unwrap();
+    assert_eq!(
+        login.env.get(ENV_CREDENTIAL_BACKEND).map(String::as_str),
+        Some(FILE_BACKEND)
+    );
+    assert_eq!(login.env.get(ENV_NO_UPDATE).map(String::as_str), Some("1"));
+    assert_eq!(
+        login.env.get("MUSE_AUTH_PATH").map(String::as_str),
+        Some(ENV_UNSET)
+    );
+    assert!(launch(&dir).is_ok());
+
+    // Any other version: refused, saying which and why.
+    for other in ["1.4.14-R7000.1", "1.4.12-R6000.1", "2.0.0-R1.1"] {
+        std::fs::write(kit.bin.parent().unwrap().join(".muse-version"), other).unwrap();
+        let version = other.split("-R").next().unwrap();
+        for refused in [
+            adapter.login_spec(&dir).map(|_| ()),
+            launch(&dir).map(|_| ()),
+        ] {
+            match refused {
+                Err(AdapterError::Unsupported(why)) => {
+                    assert!(why.contains(version) && why.contains("1.4.13"), "{why}");
+                }
+                other => panic!("{version}: expected a refusal, got {other:?}"),
+            }
+        }
+        // The user's own Muse keeps the Keychain: no file backend, no gate.
+        assert!(adapter.login_spec(&own).is_ok(), "{version}");
+        assert!(launch(&own).is_ok(), "{version}");
+    }
+
+    // With separate sign-ins off (the release default), no folder takes
+    // the file backend, so the version doesn't gate it.
+    let off = self::adapter(&kit);
+    assert!(!off.separate_sign_ins());
+    let spec = off
+        .launch_spec(
+            &account(&dir),
+            &profile(&[(ENV_API_KEY, KEY)], None),
+            &kit.project,
+            &LaunchMode::Interactive,
+        )
+        .unwrap();
+    assert_eq!(
+        spec.env.get(ENV_CREDENTIAL_BACKEND).map(String::as_str),
+        Some(ENV_UNSET)
+    );
 }
