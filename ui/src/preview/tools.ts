@@ -1,7 +1,7 @@
 /**
  * AJ-E1525: the tools catalog the preview and the tests run on, matching
  * what the adapters' specs serve (crates/juggler-adapters claude_code.rs,
- * codex.rs, opencode.rs, kimi_code.rs, grok_build.rs, zcode.rs and muse.rs `*_spec()`). Preview data only — the app reads
+ * codex.rs, opencode.rs, kimi_code.rs, grok_build.rs, zcode.rs, muse.rs and hermes.rs `*_spec()`). Preview data only — the app reads
  * `tools_catalog`. Tests can swap it through `window.__AIJ_TOOLS__`.
  */
 import type { ToolSpecInfo } from "../types/generated/ToolSpecInfo";
@@ -277,5 +277,44 @@ export const PREVIEW_TOOLS: ToolSpecInfo[] = [
       terms_note:
         "Its sessions run through your own Muse Code's session server (muse serve), with that account's own sign-in: Meta's SDK is made for that, and AI Juggler never takes Muse's credential.",
     },
+  },
+  {
+    id: "hermes-agent",
+    display_name: "Hermes Agent",
+    short_name: "Hermes",
+    vendor: "Nous Research",
+    mark: "hermes",
+    vendor_mark: null,
+    install_url: "https://hermes-agent.nousresearch.com/docs/getting-started/installation",
+    install_command: "curl -fsSL https://hermes-agent.nousresearch.com/install.sh | bash",
+    sign_in_own: "Hermes Agent's own sign-in",
+    sign_in_short: "Hermes Agent's",
+    same_as: "as when you run Hermes Agent yourself",
+    desktop_app: null,
+    kinds: ["cli"],
+    rules_files: ["AGENTS.md"],
+    scan_hint: "Your own Hermes home and its profiles. Nothing is changed.",
+    setup_groups: [{ id: "hermes-agent", title: "Hermes Agent", path_contains: null, origin: null, shows_install: true }],
+    default_label: "Hermes",
+    flow: { first_run: true, primary: false },
+    terms: {
+      name: "Nous Portal Terms of Service",
+      url: "https://portal.nousresearch.com/terms",
+      accounts:
+        "The Nous Portal terms allow one account per person, say a sign-in is never used by several people, and bar using several accounts to get more credits or capacity or to get around a usage limit.",
+      checked: "2026-11-13",
+    },
+    home_env: [
+      "HERMES_HOME",
+      "HERMES_GATEWAY_LOCK_DIR",
+      "HERMES_SHARED_AUTH_DIR",
+      "HERMES_MANAGED_DIR",
+      "CODEX_HOME",
+      "CLAUDE_CONFIG_DIR",
+      "HERMES_KANBAN_HOME",
+      "HERMES_DATA_DIR_SUFFIX",
+      "AI_JUGGLER_HERMES_BIN",
+    ],
+    supports: { in_place: true, limits: true, app_meter: false, thread_link: false, agent_tools: false, resume: true },
   },
 ];

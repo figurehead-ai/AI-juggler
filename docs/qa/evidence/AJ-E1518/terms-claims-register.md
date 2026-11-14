@@ -94,6 +94,22 @@ CLI" (research `docs/research/muse-code.md` §7).
 | Rate limits and usage quotas are never evaded | dev.meta.ai/legal/terms-of-service (§10.1(xii)) · 2026-11-13 | Verified-primary | Users may not "circumvent, violate, hack, disable, or evade rate limits, usage quotas, content filters, access controls" |
 | No one-account-per-person rule | dev.meta.ai/legal/terms-of-service · 2026-11-13 | Negative-evidence | Not found by this search: the terms read in full name sharing and evasion, not several accounts of one person |
 
+## Hermes Agent (Nous Research)
+
+Read on Nous Research's own site on 2026-11-13 (AJ-E1607): the Nous Portal
+Terms of Service ("Last update: November 10, 2026"; the research read the
+2026-09-28 version, research `docs/research/hermes.md` §7). Hermes Agent's
+code is MIT; these terms govern the Nous Portal subscription Hermes signs
+in to. A Hermes account on another provider (OpenRouter, a Codex or Claude
+sign-in) is under that provider's own terms.
+
+| Claim | Source · accessed | Label | Evidence |
+|---|---|---|---|
+| One Nous Portal account per person | portal.nousresearch.com/terms (§5.1) · 2026-11-13 | Verified-primary | "Each Client may have only one Account." |
+| A sign-in is never used by several people | portal.nousresearch.com/terms (§5.2) · 2026-11-13 | Verified-primary | "Login Credentials must not be used by multiple persons." |
+| Several accounts may not be used for more credits or capacity, or to get around a limit | portal.nousresearch.com/terms (§10.1(7)) · 2026-11-13 | Verified-primary | Users may not "create, control or use multiple Accounts to obtain additional Free Trials, credits or capacity", or act "to circumvent any Plan, usage or rate limit or any suspension" |
+| Nous may set and change limits | portal.nousresearch.com/terms (§8.5) · 2026-11-13 | Verified-primary | "Nous Research may set and change limits on use of the Nous Research Services" |
+
 ## What Add account says
 
 Word for word, from each adapter's `terms` (the test
@@ -113,6 +129,8 @@ Word for word, from each adapter's `terms` (the test
   - The ZCode table's rows 1 and 2.
 - **Muse Code**, linking the Meta Model API Terms of Service: "Meta's Model API terms say a subscription's credential is for use only with its coding harness, an API key is never shared, and rate limits and usage quotas are never evaded."
   - The Muse Code table's rows 1 to 3.
+- **Hermes Agent**, linking the Nous Portal Terms of Service: "The Nous Portal terms allow one account per person, say a sign-in is never used by several people, and bar using several accounts to get more credits or capacity or to get around a usage limit."
+  - The Hermes Agent table's rows 1 to 3. AI Juggler never offers a second Nous Portal account as more capacity (§5.1, §10.1(7)); a Hermes account on another provider is that provider's.
 
 ## How a tool's sessions run (D-40)
 

@@ -6,7 +6,7 @@
 //! stored), the kinds of OpenCode's sign-ins (`oauth`, `api`), Grok
 //! Build's modes (`web_login`, `api_key`), which of Kimi Code's
 //! sign-in files are there, whether `ZCode`'s is, and whether Muse Code's
-//! sign-in record is there and its Keychain item exists (by its name only). The name constants are the crate's own, for the copy rules
+//! sign-in record is there and its Keychain item exists (by its name only), and whether Hermes Agent's sign-in files are there. The name constants are the crate's own, for the copy rules
 //! that keep these files back. `juggler-app/tests/no_bare_tools.rs` fails
 //! when the names appear anywhere else, when a function outside the lists
 //! uses the constants, or when this module reads any other way.
@@ -45,6 +45,15 @@ pub(crate) const ZCODE_SIGN_IN_PATH: &str = "v2/credentials.json";
 /// (`$XDG_CONFIG_HOME/muse/`): on macOS it points at the Keychain item
 /// below, which holds the sign-in itself.
 pub(crate) const MUSE_AUTH: &str = "auth.json";
+/// Hermes Agent's provider sign-ins (AJ-E1607), in its home
+/// (`$HERMES_HOME/auth.json`: every provider's login and its credential
+/// pool; `hermes_cli/auth.py`, `_auth_file_path`).
+pub(crate) const HERMES_AUTH: &str = "auth.json";
+/// Hermes' keys and bot tokens, in its home (`.env`).
+pub(crate) const HERMES_ENV: &str = ".env";
+/// Hermes' Nous Portal sign-in shared by every profile of one root
+/// (`<root>/shared/nous_auth.json`; `hermes_cli/auth_nous.py`).
+pub(crate) const HERMES_SHARED_AUTH: &str = "shared";
 /// Muse Code's Keychain item (a generic password): its service and its
 /// account, fixed (the binary's own strings, 1.4.13): one per Mac, whatever
 /// folder Muse runs in.
@@ -67,6 +76,7 @@ pub fn metadata(provider: &str, dir: &Path) -> Option<std::fs::Metadata> {
         crate::muse::MUSE_ID => {
             return std::fs::metadata(crate::muse::config_of(dir).join(MUSE_AUTH)).ok();
         }
+        crate::hermes::HERMES_ID => HERMES_AUTH,
 
         _ => CLAUDE_CREDENTIALS,
     };
@@ -251,6 +261,20 @@ pub(crate) fn muse_signed_in(state_dir: &Path, config: &Path) -> Option<bool> {
     Some(
         std::fs::metadata(config.join(MUSE_AUTH))
             .is_ok_and(|meta| meta.is_file() && meta.len() > 0),
+    )
+}
+
+/// Whether a Hermes home holds a provider sign-in: its `auth.json` is
+/// there and not empty, or its shared Nous Portal sign-in is. Contents are
+/// never opened (an API key in `.env` can't be told from other settings
+/// without reading it, so it isn't). `None` when the home can't be listed.
+pub(crate) fn hermes_signed_in(home: &Path) -> Option<bool> {
+    std::fs::read_dir(home).ok()?;
+    let filled =
+        |path: &Path| std::fs::metadata(path).is_ok_and(|meta| meta.is_file() && meta.len() > 0);
+    Some(
+        filled(&home.join(HERMES_AUTH))
+            || filled(&home.join(HERMES_SHARED_AUTH).join("nous_auth.json")),
     )
 }
 

@@ -576,6 +576,10 @@ fn registry_with(claude: juggler_adapters::ClaudeCodeAdapter) -> AdapterRegistry
     // AJ-E1608: Meta's Muse Code, driven over `muse serve`. No handover
     // support yet, so nothing is switched to or from it.
     registry.register(std::sync::Arc::new(juggler_adapters::MuseAdapter::new()));
+    // AJ-E1607: Nous Research's Hermes Agent, one HERMES_HOME per account,
+    // kept away from Codex's and Claude's homes. No handover support yet,
+    // so nothing is switched to or from it.
+    registry.register(std::sync::Arc::new(juggler_adapters::HermesAdapter::new()));
     registry
 }
 

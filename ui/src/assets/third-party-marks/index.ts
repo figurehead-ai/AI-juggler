@@ -28,4 +28,5 @@ export const MARKS: Record<string, MarkEntry> = {
   grok: { owner: "xAI", allowed: false },
   zcode: { owner: "Z.ai", allowed: false },
   muse: { owner: "Meta", allowed: false },
+  hermes: { owner: "Nous Research", allowed: false },
 };

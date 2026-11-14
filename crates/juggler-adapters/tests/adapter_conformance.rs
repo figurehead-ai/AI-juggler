@@ -12,6 +12,7 @@
 use juggler_adapter::ToolQuota;
 mod conformance;
 mod grok_fixture;
+mod hermes_fixture;
 mod kimi_fixture;
 mod muse_fixture;
 mod opencode_fixture;
@@ -23,8 +24,8 @@ use std::path::{Path, PathBuf};
 use conformance::{Sandbox, Subject, UsageSubject};
 use juggler_adapter::HarnessAdapter;
 use juggler_adapters::{
-    ClaudeCodeAdapter, CodexAdapter, FakeHarnessAdapter, GrokBuildAdapter, KimiCodeAdapter,
-    MuseAdapter, OpenCodeAdapter, ZCodeAdapter,
+    ClaudeCodeAdapter, CodexAdapter, FakeHarnessAdapter, GrokBuildAdapter, HermesAdapter,
+    KimiCodeAdapter, MuseAdapter, OpenCodeAdapter, ZCodeAdapter,
 };
 use juggler_core::quota::{UsageEvent, UsageSource};
 use opencode_fixture::Line;
@@ -861,7 +862,60 @@ impl Subject for Muse {
     }
 }
 
+// Hermes Agent (AJ-E1607): Nous Research's `hermes`, each account a
+// HERMES_HOME of its own with its own gateway lock folder and the guard
+// that keeps it away from Codex's and Claude's homes; sessions from its
+// `state.db`. Its sign-ins (`auth.json`, keys in `.env`) never move in a
+// copy.
+
+struct Hermes;
+
+impl Subject for Hermes {
+    fn adapter(&self, sandbox: &Sandbox) -> Box<dyn HarnessAdapter> {
+        let bin = sandbox.bin.join("hermes");
+        hermes_fixture::stub(&bin);
+        Box::new(
+            HermesAdapter::with_bin(bin)
+                .with_home(&sandbox.home)
+                .with_system_policy(sandbox.home.join("no-etc-hermes")),
+        )
+    }
+
+    fn write_session(&self, state_dir: &Path, cwd: &Path, n: u32) -> String {
+        let id = format!("20261113_kit{n}");
+        hermes_fixture::add_session(state_dir, &id, cwd, "kit session");
+        id
+    }
+
+    fn seed_source(&self, sandbox: &Sandbox, canary: &str) -> Option<PathBuf> {
+        let home = sandbox.home.join(".hermes");
+        hermes_fixture::settings(&home);
+        hermes_fixture::sign_in(&home, canary);
+        Some(home)
+    }
+
+    fn credential_files(&self) -> &'static [&'static str] {
+        &["auth.json", ".env"]
+    }
+
+    fn session_record(&self, state_dir: &Path, id: &str) -> Option<PathBuf> {
+        Some(juggler_adapters::hermes_sessions::session_ref(
+            &hermes_fixture::store(state_dir),
+            id,
+        ))
+    }
+
+    fn usage(&self) -> Option<&dyn UsageSubject> {
+        None
+    }
+
+    fn sandboxed_default(&self) -> bool {
+        true
+    }
+}
+
 conformance!(claude_code, Claude);
+conformance!(hermes_agent, Hermes);
 conformance!(muse_code, Muse);
 conformance!(grok_build, Grok);
 conformance!(kimi_code, Kimi);
