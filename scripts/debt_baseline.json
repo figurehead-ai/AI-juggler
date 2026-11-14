@@ -243,7 +243,7 @@
   "jscpd:lines": 282
  },
  "crates/juggler-adapters/src/grok_environment.rs": {
-  "jscpd:lines": 17
+  "jscpd:lines": 9
  },
  "crates/juggler-adapters/src/grok_inventory.rs": {
   "jscpd:lines": 66
@@ -261,7 +261,7 @@
   "jscpd:lines": 168
  },
  "crates/juggler-adapters/src/kimi_environment.rs": {
-  "jscpd:lines": 17
+  "jscpd:lines": 9
  },
  "crates/juggler-adapters/src/kimi_inventory.rs": {
   "jscpd:lines": 55
