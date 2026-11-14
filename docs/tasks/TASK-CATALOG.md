@@ -92,6 +92,9 @@
 | AJ-E809 | Beta dogfood programme | E8-validation-visual-performance-quality.md | P1 | M | AJ-E807, AJ-E808 |
 | AJ-E810 | External research evidence standard | E8-validation-visual-performance-quality.md | P1 | S | AJ-E801 |
 | AJ-E811 | Full-sweep visual check (D-21) | E8-validation-visual-performance-quality.md | P1 | S | AJ-E802, AJ-E803 |
+| AJ-E812 | Idle CPU: the web content's and GPU's brief spikes traced | E8-validation-visual-performance-quality.md | P1 | M | AJ-E805 |
+| AJ-E813 | Home draws again only when what it shows changes, not on every This Mac reading | E8-validation-visual-performance-quality.md | P1 | S | AJ-E805 |
+| AJ-E814 | Idle CPU measured with the window fully covered | E8-validation-visual-performance-quality.md | P2 | S | AJ-E805 |
 | AJ-E901 | SPEC §3 domain-model rewrite (Provider/Instance/Switch Graph/ledger) | E9-docs-adrs-and-plan-rewrite.md | P0 | M | — |
 | AJ-E902 | SPEC §5 supervisor/ledger + §6 two-clock usage rewrite | E9-docs-adrs-and-plan-rewrite.md | P0 | M | AJ-E901 |
 | AJ-E903 | SPEC §7 Switching rewrite (Switch Graph, pack v2, divergence) | E9-docs-adrs-and-plan-rewrite.md | P0 | M | AJ-E901 |
