@@ -451,56 +451,53 @@ mod tests {
     #[cfg(target_os = "macos")]
     fn a_busy_childs_cpu_time_follows_the_wall_clock() {
         use std::time::{Duration, Instant};
-        // Busy (bounded, no forks), killed however the test ends.
-        struct Reap(std::process::Child);
-        impl Drop for Reap {
-            fn drop(&mut self) {
-                let _ = self.0.kill();
-                let _ = self.0.wait();
-            }
-        }
-        let child = Reap(
-            std::process::Command::new("/bin/sh")
-                .args(["-c", "i=0; while [ $i -lt 30000000 ]; do i=$((i+1)); done"])
-                .spawn()
-                .unwrap(),
-        );
-        let pid = child.0.id();
-        let read = || {
-            (
-                Instant::now(),
-                super::task(pid).expect("the child's task").cpu_ns,
-            )
-        };
-        std::thread::sleep(Duration::from_millis(300));
-        let (from_at, from_ns) = read();
-        std::thread::sleep(Duration::from_millis(1_500));
-        let (to_at, to_ns) = read();
-        let wall = to_at.duration_since(from_at).as_nanos() as f64;
-        let share = (to_ns - from_ns) as f64 / wall;
-        assert!(
-            (0.5..=1.1).contains(&share),
-            "CPU {} ns over {wall} ns of wall time: {share}",
-            to_ns - from_ns
-        );
-        // Its total, as `ps` says it (`[mm:]ss.cc`, to the hundredth).
-        let out = std::process::Command::new("/bin/ps")
-            .args(["-o", "time=", "-p", &pid.to_string()])
-            .env("LC_ALL", "C")
-            .output()
+        // Busy (bounded, no forks), killed however the checks end.
+        let mut child = std::process::Command::new("/bin/sh")
+            .args(["-c", "i=0; while [ $i -lt 30000000 ]; do i=$((i+1)); done"])
+            .spawn()
             .unwrap();
-        let ours = super::task(pid).unwrap().cpu_ns as f64 / 1e9;
-        let theirs = String::from_utf8_lossy(&out.stdout)
-            .trim()
-            .split(':')
-            .fold(0.0, |total, part| {
-                total * 60.0 + part.parse::<f64>().unwrap()
-            });
-        assert!(
-            (ours - theirs).abs() < 0.1 + theirs * 0.05,
-            "ours {ours} s, ps {theirs} s"
-        );
-        drop(child);
+        let pid = child.id();
+        let checked = std::panic::catch_unwind(|| {
+            let read = || {
+                (
+                    Instant::now(),
+                    super::task(pid).expect("the child's task").cpu_ns,
+                )
+            };
+            std::thread::sleep(Duration::from_millis(300));
+            let (from_at, from_ns) = read();
+            std::thread::sleep(Duration::from_millis(1_500));
+            let (to_at, to_ns) = read();
+            let wall = to_at.duration_since(from_at).as_nanos() as f64;
+            let share = (to_ns - from_ns) as f64 / wall;
+            assert!(
+                (0.5..=1.1).contains(&share),
+                "CPU {} ns over {wall} ns of wall time: {share}",
+                to_ns - from_ns
+            );
+            // Its total, as `ps` says it (`[mm:]ss.cc`, to the hundredth).
+            let out = std::process::Command::new("/bin/ps")
+                .args(["-o", "time=", "-p", &pid.to_string()])
+                .env("LC_ALL", "C")
+                .output()
+                .unwrap();
+            let ours = super::task(pid).unwrap().cpu_ns as f64 / 1e9;
+            let theirs = String::from_utf8_lossy(&out.stdout)
+                .trim()
+                .split(':')
+                .fold(0.0, |total, part| {
+                    total * 60.0 + part.parse::<f64>().unwrap()
+                });
+            assert!(
+                (ours - theirs).abs() < 0.1 + theirs * 0.05,
+                "ours {ours} s, ps {theirs} s"
+            );
+        });
+        let _ = child.kill();
+        let _ = child.wait();
+        if let Err(failed) = checked {
+            std::panic::resume_unwind(failed);
+        }
     }
 
     #[test]

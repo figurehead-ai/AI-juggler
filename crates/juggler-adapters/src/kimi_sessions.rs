@@ -270,15 +270,11 @@ mod tests {
         );
         assert_eq!(read.last_ms, Some(1_792_580_500_000));
         assert_eq!(read.tokens, juggler_core::model::TokenCounts::default());
-        // 0.4.5 (AJ-E805): a record rewritten whole, not an append-only
-        // log: no transcript reader; it is read whole when it changes.
+        // AJ-E805: Kimi rewrites its `state.json`; with no log to follow
+        // there is no transcript reader for it.
+        let adapter = crate::kimi_code::KimiCodeAdapter::new();
         assert!(
-            juggler_adapter::ToolTranscripts::transcript_reader(
-                &crate::kimi_code::KimiCodeAdapter::new(),
-                &path,
-                "a"
-            )
-            .is_none()
+            juggler_adapter::ToolTranscripts::transcript_reader(&adapter, &path, "a").is_none()
         );
         assert_eq!(session_id_of(&path), "ses-1");
         assert_eq!(
