@@ -3125,3 +3125,44 @@ Each ships with tests that fail without it and a design critique; the M2, D2 and
 - **Plan, not a ruling** (the steady cadence after the first Stable):
   nightly every night; beta about weekly, as a nightly used for a couple
   of days; stable every 2–4 weeks after a clean soak.
+
+### D-116 Desktop app sessions are full pool members in 0.4.6, through AI Juggler's connector (MCP and plugin), added with consent or guided — SETTLED (2026-11-14)
+
+- **Ruling** (maintainer, 2026-11-14; asked "Which release should carry
+  this?" about making desktop app sessions full pool members, chose
+  "0.4.6 (Recommended)"). Their words, after making a pool of their two
+  Claude app profiles and seeing both marked Watched, "can't reply":
+  "Our pool should work with both desktop and cli apps. Remember how we
+  solve this, we solve it with plugins and MCP, and if app gets added and
+  it doesn't have our plugin or MCP server than it is either added
+  automatically by our tool (if possible) or guides user step by step on
+  how to do it. This is essential."
+- **Decision:** a desktop app's session joins a pool as a real member
+  through AI Juggler's connector: the agent-bridge MCP server, and for
+  Claude the Claude Code plugin (AJ-E1905: MCP config, the tasks skill,
+  an inbox hook). It reads and sends the pool's messages, shared
+  documents and tasks under the pool's rules and level; talk rules are
+  enforced at the bridge, as for terminal sessions. Each desktop app's
+  route (the Claude app's Code tab under its profile's
+  CLAUDE_CONFIG_DIR; its chats and Cowork; ChatGPT's Codex app) is
+  researched first, undocumented ones included, and proven on a lab
+  profile.
+- **Waking stays the honest limit (D-66):** AI Juggler never types into a
+  desktop app's window, so an idle desktop member gets pool messages on
+  its next turn; the canvas says so, not "can't reply".
+- **Adding the connector:** with the user's consent, never silently. When
+  an App without it joins a pool, one card offers to add it (its
+  consequence, an example, a docs link). Add writes only our entry into
+  that App's own config (merged, never replacing theirs; a preview of the
+  change), records it so Remove restores the file exactly, and says a
+  running session picks it up at its next start. Where writing isn't
+  possible or allowed, a step-by-step guide with copyable steps, and the
+  member turns live once AI Juggler sees it done. The switch preflight's
+  offer of missing MCP servers and skills is reused, not built twice. No
+  secret and no Keychain are touched; the bridge stays local with its
+  auth. Live checks only on lab profiles or aij-test.
+- **Amends:** D-61 point 15 ("Watched… joining from anywhere comes
+  later": desktop sessions join in 0.4.6) and D-73's timing (the
+  plugin's parts that pools need ship in 0.4.6, from the 0.5 work).
+- Sources: the coordinating session's relay of the maintainer's answer
+  and words, 2026-11-14.
