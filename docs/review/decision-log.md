@@ -3018,3 +3018,41 @@ Each ships with tests that fail without it and a design critique; the M2, D2 and
 - **0.5's tool list stays as planned** (the roadmap's 0.5 section and `docs/plan/0.5-order.md`); nothing is added to it.
 - **Gemini CLI and GitHub Copilot CLI are candidates for 0.6**, to be weighed when 0.6 is planned; the others named are not scheduled.
 - Sources: the coordinating session's relay of the maintainer's answer, 2026-11-14. D-111 to D-114 are release/0.4.5's.
+
+### D-117 Calm attention: four levels, each need loud once per area, a quiet round-2 look, and every 0.5 screen on it — SETTLED (2026-11-14)
+
+**Ruling.** The maintainer, 2026-11-14, on Home and the rail: they "look like a Christmas tree… if users feel everything is a disaster then nothing is a disaster". On the round-2 mock: "calm it even more… subheadings and borders… more subtle but still readable", and "app icons different color tones, so those that have alerts and need attention are brighter… or those that are selected". Approving it: "Yes that is good, but don't lose the collapsable sections and subagent and session collapsables… I don't see them in your designs". On scope: "0.5 should revamp every screen we have with this new calm model." The research, the audit and the proposal are in `docs/research/calm-attention/`; the round-2 mock's captures in `docs/qa/evidence/AJ-E3601/`.
+
+1. **Four levels, one source.** `attentionLevel()` in `ui/src/lib/attention.ts`, beside `attentionWords`, is the one source the rail, Home, the bell and the tray read:
+   - **L3 Broken:** red, a glyph, at most one tinted block per area;
+   - **L2 Needs you:** an amber word and dot, no fills ("probably" states a hollow ring);
+   - **L1 Note:** a quiet glyph;
+   - **L0 Calm:** the grey hierarchy.
+
+   Each need is loud once per area. One filled primary button per view. No looping animation: 0.4.5's `.dot-live` three-iteration rule and `idle.spec.ts` stay.
+2. **Round 2's look.** Section labels in `--color-section` (small tracked capitals); no card borders (the surface tone separates); no row dividers; filled controls; ghost secondary buttons; the dark status tokens retuned. App icons and dots are muted at rest (`--tone-saturate` .25 and `--tone-opacity`) and in full colour at L2 and L3, when selected or current, and on hover or focus: a CSS treatment of the icons read at run time, nothing baked in. The token names, agreed with the 0.4 line, which reuses them for 0.4.6's pools: `--color-section`, `--color-fill`, `--tone-saturate`, `--tone-opacity`, `--color-divider`, `--color-count` / `--color-count-ink`, `--color-count-alarm` / its ink, `--level-3`, `--level-2`, `--level-1-done`, `--level-1-live`.
+3. **Every collapsible stays:** the rail's sections (Needs you, Open now, Inactive apps, Recent), App and profile group headers, session rows that unfold their subagents, and every other disclosure. Their chevrons stay, muted at rest, always visible on hover and focus, and operable from the keyboard.
+4. **One calm default, no classic mode.** It honours macOS Increase Contrast and Reduce Motion. A hidden `aij.attention=classic` flag exists only during the 0.5 beta, for side-by-side walks, and is removed before 0.5 goes Stable.
+5. **The shared count** (rail, bell, title) counts L2 and L3 only; "To review" items are listed, last, and not counted. **Amends D-47 point 2:** a session that needs you keeps its place and its word in Open now, shown as an amber dot with the word in normal ink; the loud copy is the Needs you row.
+6. **Every screen in 0.5,** no longer "phase C if scope allows": Home, the rail, Projects, Pools (on 0.4.6's calm pool redesign once it merges), Tasks, Accounts, Usage, History, This Mac, the session pages, Settings, first run, sheets, dialogs and toasts, the menu-bar menu and notifications, and the Floor's HUD where it applies. The 0.5 Stable does not ship with a screen left on the old look.
+
+- **Order:** the tokens and `attentionLevel()` first, then Home's new layout (D-118, which carries Home's calm pass), then the other screens.
+- **Tasks:** E36 (AJ-E3601…AJ-E3617); Home's pass is AJ-E3701.
+- **Amends:** D-47 point 2 (the colour of a need in Open now); the proposal's "phase C if the scope gate allows" (all of it is 0.5); the proposal's "remove `.dot-live`" (0.4.5's three-iteration rule stands instead).
+- Sources: the coordinating session's relays of the maintainer, 2026-11-14.
+
+### D-118 Home becomes a two-column activity feed in 0.5 — SETTLED (2026-11-14)
+
+**Ruling.** The maintainer, 2026-11-14: "it should go into 0.5"; "like a twitter feed… imagine we have an agent tweeting about what is going on with our system". Approving the proposal and its mock: "Love it lets do it". The research, the item catalogue, the proposal and the mock are in `docs/research/home-feed/`; the mock's captures in `docs/qa/evidence/AJ-E3701/`.
+
+1. **Layout,** for users with active Accounts: two columns that scroll on their own. The feed is `minmax(480px, 1fr)` with a 720 px reading cap; the right column is `clamp(320px, 30%, 400px)` with Your apps (running, then not running) and Runway by account, each collapsible. At narrow widths they stack, feed first, with one page and "Show more", and an "Apps & runway ↓" link. First run for new users is unchanged; the rail's Needs you is unchanged.
+2. **The feed:** open L2 and L3 needs pinned on top (Home's one loud mark per need), then a chronological stream with no ranking, items without borders. Rollups follow the proposal; nothing broken is ever folded into a quiet rollup. A "While you were away" divider and digest; an "N new updates" pill instead of moving the reader; filters: type chips and one Project, App, Pool or Account picker; three pages load by themselves, then Load more; the cached first page paints at once; seen and read are tracked apart. The voice: subject first, what changed, a link, no emoji.
+3. **Retired into the feed:** the overnight summary card becomes the away digest (it keeps its last-seen key); "Pick up where you left off" folds into the Finished filter.
+4. **The sentences:** templates over stored data (a), plus the agent's own final reply quoted, behind the existing "show last messages" setting (a+). Summaries written by a model (b) are not in 0.5: a later candidate that needs a terms reading per provider and its own ruling.
+5. **Phases, all in 0.5:** F1, the feed over the data that exists; F2, the gaps: a switch's completion time, runway threshold crossings, a turn ended, other apps' state changes, a daily usage digest, the files a session left (G2, G3, G4, G6, G7); F3, git commits and pull requests (G1) and the task-close note (G5), through adapters or the existing git reading, never a per-tool branch outside the adapters.
+6. **Accessibility:** the W3C feed pattern (`role="feed"`, `article`), Page Down and Page Up and J and K between items, one batched polite announcement for new items, round 2's contrast.
+
+- **Order:** D-117's tokens and `attentionLevel()` first, then this layout (Home's calm pass happens here, once), then the other screens.
+- **Tasks:** E37 (AJ-E3701…AJ-E3707).
+- **Amends:** AJ-E2105's Home layout (its needs and apps move into the feed's pinned zone and the right column); AJ-E1004 R2's morning summary card (its data and its last-seen key move into the away digest); the proposal's "placement is the maintainer's call" (it is 0.5).
+- Sources: the coordinating session's relays of the maintainer, 2026-11-14.
