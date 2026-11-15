@@ -202,7 +202,7 @@ describe("AJ-E3007, AJ-E3011 the setup, start to end", () => {
     expect(screen.queryByTestId("new-pool-make")).toBeNull();
     nextTo("Who's in");
     // From here on, Make pool, and the rest says what it's filled in with.
-    expect(screen.getByTestId("new-pool-prefilled").textContent).toBe("The rest is filled in. New sessions in ai-juggler join as Member and may Work together. Everyone may message everyone.");
+    expect(screen.getByTestId("new-pool-prefilled").textContent).toBe("The rest is filled in. New sessions in ai-juggler join as Member and may Work together. Everyone may message everyone; an Observer only reads.");
     fireEvent.click(screen.getByTestId("new-pool-make"));
     await waitFor(() => expect(opened).not.toBeNull());
     const calls = seams().__AIJ_POOL_CALLS__ ?? [];
@@ -210,6 +210,18 @@ describe("AJ-E3007, AJ-E3011 the setup, start to end", () => {
     expect(calls).toContain(`join:${opened}:all:member:`);
     // The canvas's checklist: Where and Who's in were walked here.
     expect(localStorage.getItem(`aij.pool-setup.${opened}`)).toContain("where");
+  });
+
+  it("the footer's talk line is the Review's: an Observer set to Ask first is an exception there too", () => {
+    render(<NewPool sessions={MOCK_SESSIONS} projects={MOCK_PROJECTS} accounts={[]} project="proj-ai-juggler" onClose={() => undefined} />);
+    nextTo("Who may message whom");
+    const footer = () => screen.getByTestId("new-pool-prefilled").textContent;
+    expect(footer()).toContain("Everyone may message everyone; an Observer only reads.");
+    const cell = screen.getAllByTestId("new-pool-talk-cell").find((one) => one.dataset.pair === "observer>lead")!;
+    expect(cell.dataset.rule).toBe("blocked");
+    fireEvent.click(cell);
+    expect(cell.dataset.rule).toBe("ask");
+    expect(footer()).toContain("Some pairs ask you first or are blocked.");
   });
 
   it("the intro: full on the first pool, one line after it", () => {

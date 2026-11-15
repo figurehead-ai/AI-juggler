@@ -215,10 +215,11 @@ export function NewPool({
   const current = STEPS[step]!;
   const everyone = draft.members.find((member) => member.ref === "all");
   // What the rest is filled in with, said on every step Make is enabled.
-  const talkDefault = Object.values(draft.talk).every((rule) => rule === "allowed") || talkSentence(draft).startsWith("Everyone may");
+  // The Review's own talk sentence (as the backend enforces it), or its gist.
+  const talk = talkSentence(draft);
   const prefilled = [
     everyone ? joinSentence(where, everyone.role, everyone.level ?? draft.level) : `They may ${ownLabel(draft.level)} on their own.`,
-    talkDefault ? "Everyone may message everyone." : "Some pairs ask you first or are blocked.",
+    talk.startsWith("Everyone may") ? talk : "Some pairs ask you first or are blocked.",
   ].join(" ");
   const stepCandidates = {
     projects: projects.map((one) => ({ id: one.id, name: one.name, root: one.root, open: sessions.some((session) => session.project_id === one.id && sessionState(session).state !== "ended") })),
