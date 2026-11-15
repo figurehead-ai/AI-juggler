@@ -9,7 +9,9 @@
 #   scripts/build_dev_app.sh lab      the lab's Dev .app (AJ-E1612): a DEBUG build with
 #                                     `lab-bridge` (the lab write mode and the lab's Muse
 #                                     switch, neither of which compiles in a release
-#                                     build), in $CARGO_TARGET_DIR/debug/bundle/macos.
+#                                     build), in $CARGO_TARGET_DIR/debug/bundle/macos,
+#                                     copied, signed and verified to
+#                                     /tmp/aij-lab-dev/AI Juggler Dev.app.
 #                                     Only `lab_scenario.sh open` on a lab runs it; it
 #                                     never ships (no release workflow passes `lab`).
 #
@@ -43,3 +45,15 @@ cp "$target/$profile/juggler-agent" "crates/juggler-app/binaries/juggler-agent-$
 cargo tauri build ${flags[@]+"${flags[@]}"} --bundles app --config crates/juggler-app/tauri.dev.conf.json \
     --config crates/juggler-app/tauri.bundle.json
 python3 scripts/bundle_check.py "$target/$profile/bundle/macos/AI Juggler Dev.app"
+if [ "${1:-}" = lab ]; then
+  # The lab keeps its copy at one stable path outside the build folder
+  # (lab_scenario.sh opens it there; a build folder gets trimmed), signed
+  # ad hoc as a whole and verified strictly (a debug build's linker-only
+  # signature is what makes macOS call an app damaged).
+  lab_app=/tmp/aij-lab-dev/"AI Juggler Dev.app"
+  rm -rf "$lab_app" && mkdir -p "$(dirname "$lab_app")"
+  ditto "$target/$profile/bundle/macos/AI Juggler Dev.app" "$lab_app"
+  codesign --force --deep --sign - "$lab_app" >/dev/null 2>&1
+  codesign --verify --strict "$lab_app"
+  echo "build-dev-app: the lab's copy is $lab_app"
+fi

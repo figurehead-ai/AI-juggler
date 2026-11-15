@@ -117,7 +117,11 @@ case "$cmd" in
     if [ "$lab_sign_ins" = 1 ]; then
       # The lab's Dev build (debug, lab-bridge: the Muse switch compiles
       # only there); a release-mode Dev .app would sign Muse in nowhere.
-      app="${AIJ_DEV_APP:-${CARGO_TARGET_DIR:-$root/target}/debug/bundle/macos/AI Juggler Dev.app}"
+      # The lab's Dev app is kept at one stable path outside any build
+      # folder (a build folder is trimmed to save the disk; a copy there
+      # costs a whole target, about 25 GB): scripts/build_dev_app.sh lab
+      # builds it in the shared target and copies the bundle here.
+      app="${AIJ_DEV_APP:-/tmp/aij-lab-dev/AI Juggler Dev.app}"
       [ -d "$app" ] || { echo "lab-scenario: no lab Dev build (scripts/build_dev_app.sh lab, or set AIJ_DEV_APP)" >&2; exit 1; }
     else
       app="${AIJ_DEV_APP:-$root/target/release/bundle/macos/AI Juggler Dev.app}"
