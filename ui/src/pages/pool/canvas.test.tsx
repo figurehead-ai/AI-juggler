@@ -626,6 +626,19 @@ describe("semantic zoom (the 0.3 review: 9–10 px words at fit)", () => {
     view.unmount();
   });
 
+  it("a narrow node's ⋯ never takes its name's room on hover; a wide one's shows on hover (AJ-E3011 round 3)", () => {
+    const card: ContextCard = { session_id: first.id, name: "Planner", place: "shop · Work Max", tool: "Claude Code", account: "Work Max", state: "running", role: "member", task: { value: "None", unavailable: null }, said: { value: null, unavailable: "Unavailable" }, last_activity_ms: null, files: [], files_unavailable: null };
+    const member: MemberNode = { id: first.id, session: first, card, role: "member", name: "Planner" };
+    const more = (scale: number) => {
+      const view = render(<CompactNode member={member} at={{ x: 0, y: 0 }} asks={[]} held={0} selected={false} tabStop dragging={false} scale={scale} onSelect={() => {}} onMenu={() => {}} onPointerDown={() => {}} onKey={() => {}} />);
+      const classes = view.getByTestId("node-more").className.split(" ");
+      view.unmount();
+      return classes;
+    };
+    expect(more(0.3)).not.toContain("group-hover/node:w-5");
+    expect(more(0.69)).toContain("group-hover/node:w-5");
+  });
+
   it("an ask's edge takes no label's room: the other way's badge stays on its own line", () => {
     // A pair: A → B carries a waiting message (a badge), B → A an agent's
     // ask (answered on B's node, so its edge has no label). The ask's edge
