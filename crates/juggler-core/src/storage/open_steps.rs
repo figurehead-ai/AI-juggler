@@ -122,7 +122,7 @@ pub(super) fn whole_file_copy(
     conn: &Connection,
     db: &Path,
     to: &Path,
-) -> Result<bool, super::CopyFailure> {
+) -> Result<bool, super::pre_migration::CopyFailure> {
     // (busy, frames in the WAL, frames checkpointed); `-1`s when the
     // database isn't in WAL mode (its file is then whole already).
     let (busy, log, done): (i64, i64, i64) =
