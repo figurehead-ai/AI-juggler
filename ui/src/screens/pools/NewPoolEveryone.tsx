@@ -13,6 +13,7 @@ import type { JSX } from "react";
 import { EVERYONE, type Draft, type DraftMember } from "../../lib/new-pool";
 import type { PoolRole } from "../../lib/ipc/pools";
 import { joinSentence, memberSentence, nextLeadsLine, nextLeadsSentence, nextSessionWords } from "../../lib/pool-words";
+import { IconLead } from "../../components/icons-canvas";
 import { JoinAs } from "../../pages/pool/setup/JoinAs";
 import { MemberOwnLevel } from "../../pages/pool/setup/OwnLevelChoice";
 import { RoleCards, RolePicker, holdersOf } from "../../pages/pool/setup/RoleCards";
@@ -58,8 +59,11 @@ export function NewPoolEveryone({ draft, onDraft, where, nameOf }: { draft: Draf
                     <span className="flex min-w-0 flex-1 flex-col">
                       <span className="text-body font-medium text-ink">{name}</span>
                       {leadsNext && (
-                        <span className="text-meta text-ink-2" data-testid="new-pool-member-leads-next">
-                          {nextLeadsLine(member.role)}
+                        // As its card on the diagram says it; the sentence
+                        // below reads the rest back.
+                        <span className="inline-flex items-center gap-1 text-label font-medium text-ink-2" data-testid="new-pool-member-leads-next" title={nextLeadsLine(member.role)}>
+                          <IconLead aria-hidden="true" width={12} height={12} />
+                          Leads next
                         </span>
                       )}
                     </span>

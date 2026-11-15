@@ -84,7 +84,8 @@ export const OWN_LEVELS: readonly OwnLevelWords[] = [
     id: "full",
     label: "Work together and wake each other",
     line: "As Work together, and a message wakes an idle session so the work keeps going. Each wake starts a turn on your subscription.",
-    example: "Codex finishes a review; its note wakes Claude's idle session to carry on, without you. Each wake uses a turn on your subscription.",
+    // Its line above says each wake's cost.
+    example: "Codex finishes a review; its note wakes Claude's idle session to carry on, without you.",
   },
 ];
 

@@ -70,6 +70,6 @@ export function openNowByMember(draft: Pick<Draft, "every" | "projects" | "membe
  * it: "1 open now · new ones in web join", "No session open yet · new ones
  * in web join" (round 2, #15: "none open now" read as broken). */
 export function openNowWords(count: number, where?: string): string {
-  const joins = where ? `new ones in ${where} join` : "new ones join";
+  const joins = !where ? "new ones join" : where === "every project" ? "new ones in any project join" : `new ones in ${where} join`;
   return `${count > 0 ? `${count} open now` : "No session open yet"} · ${joins}`;
 }

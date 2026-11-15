@@ -111,7 +111,8 @@ describe("the controls", () => {
     expect(screen.getByTestId("own-level-line").textContent).toBe(OWN_LEVELS[1]!.line);
     expect(screen.getByTestId("own-level-example").textContent).toMatch(/^Example: /);
     // Round 2 (#5): waking's example shows at once, not behind a fold.
-    expect(screen.getByTestId("own-level-example-full").textContent).toBe("Example: Codex finishes a review; its note wakes Claude's idle session to carry on, without you. Each wake uses a turn on your subscription.");
+    expect(screen.getByTestId("own-level-example-full").textContent).toBe("Example: Codex finishes a review; its note wakes Claude's idle session to carry on, without you.");
+    expect(screen.getByTestId("own-level-choice").textContent).toContain("Each wake starts a turn on your subscription.");
     fireEvent.click(screen.getByTestId("own-level-choice-full"));
     expect(change).toHaveBeenCalledWith("full");
     rerender(<OwnLevelChoice value="full" onChange={change} />);

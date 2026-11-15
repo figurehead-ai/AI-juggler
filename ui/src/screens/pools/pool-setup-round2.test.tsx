@@ -91,7 +91,8 @@ describe("AJ-E3011 round 2", () => {
     const draft: Draft = { ...draftOf(templateById("blank"), "p-web"), members: [app("app:cli:work", "Claude Code · Work"), app("app:cli:codex", "Codex · Personal", "reviewer")], leadNext: "app:cli:work" };
     render(<NewPoolEveryone draft={draft} onDraft={() => undefined} where="web" nameOf={(_, label) => label} />);
     const rows = screen.getAllByTestId("new-pool-member-row");
-    expect(within(rows[0]!).getByTestId("new-pool-member-leads-next").textContent).toBe("Its next session leads · its others join as Member");
+    expect(within(rows[0]!).getByTestId("new-pool-member-leads-next").textContent).toBe("Leads next");
+    expect(within(rows[0]!).getByTestId("new-pool-member-sentence").textContent).toBe("Claude Code · Work: its next session leads; its others join as Member and may Work together, as the pool.");
     expect(within(rows[0]!).getByTestId("new-pool-member-role").textContent).toContain("Its others:");
     expect(within(rows[1]!).getByTestId("new-pool-member-role").textContent).toContain("Role:");
     expect(within(rows[1]!).getByTestId("new-pool-member-level").textContent).toContain("On its own:");

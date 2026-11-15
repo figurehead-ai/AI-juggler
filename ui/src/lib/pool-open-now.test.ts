@@ -41,5 +41,6 @@ describe("an App member's sessions now (the rc27 P1 walk)", () => {
     // AJ-E3011 round 2 (#15): "none open now" read as broken.
     expect(openNowWords(0, "web")).toBe("No session open yet · new ones in web join");
     expect(openNowWords(2, "web")).toBe("2 open now · new ones in web join");
+    expect(openNowWords(1, "every project")).toBe("1 open now · new ones in any project join");
   });
 });

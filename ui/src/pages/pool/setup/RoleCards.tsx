@@ -77,7 +77,8 @@ export function RolePicker({
     <Picker
       choice
       size="sm"
-      ariaLabel={`${name}'s role`}
+      // The visible label starts its name (axe: label-content-name-mismatch).
+      ariaLabel={prefix && prefix !== "Role:" ? `${name}: ${prefix.replace(/:$/, "")}` : `${name}'s role`}
       heading={`${name}'s role`}
       prefix={prefix}
       value={value}

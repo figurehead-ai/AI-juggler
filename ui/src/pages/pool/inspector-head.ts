@@ -42,7 +42,7 @@ export function inspectorHead(of: HeadOf): InspectorHead {
       return {
         title: of.label,
         // Round 2 (#2): an App whose next session leads says so, not "Member".
-        subtitle: `${KIND_WORDS[of.memberKind] ?? "Member"} · ${of.leadsNext ? `Its next session leads · its others ${roleCard(of.role).label}` : roleCard(of.role).label}`,
+        subtitle: `${KIND_WORDS[of.memberKind] ?? "Member"} · ${of.leadsNext ? "Leads next" : roleCard(of.role).label}`,
         pill: { words: of.open > 0 ? `${of.open} open now` : "None open now", level: 0 },
       };
     case "watched":
