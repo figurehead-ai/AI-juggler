@@ -13,7 +13,14 @@
  *   (v)   no animation that runs for ever (0.4.5's rule, idle.spec.ts);
  *   (vi)  every row's data-level is attentionLevel() of its need and state;
  *   (vii) every collapsible in the rail keeps its chevron, visible at rest
- *         and when focused (D-117 point 3).
+ *         and when focused (D-117 point 3);
+ *   (viii) selection is its own category, never loud: whatever is
+ *         selected, chosen or current (aria-checked, -current, -selected,
+ *         -pressed) wears the one selected look — a neutral edge 3:1 off
+ *         what is around it on a raised fill, its words semibold
+ *         (`--color-selected*`, controls/selected.ts) — never an amber,
+ *         red or accent fill, so it never counts in (i)–(iv) and never
+ *         spends the budget a need has.
  *
  * Each screen's calm pass (AJ-E3604…) adds its fixtures and areas here.
  */
@@ -167,6 +174,30 @@ for (const theme of ["dark", "light"] as const) {
           .map((button) => (button.textContent ?? "").trim().slice(0, 30));
       });
       expect(filled.length, `filled accent buttons: ${JSON.stringify(filled)}`).toBeLessThanOrEqual(1);
+      // (viii) selection, its own category: quiet, and never a loud fill.
+      const selection = await page.evaluate((areas) => {
+        const probe = document.createElement("span");
+        document.body.appendChild(probe);
+        const colour = (value: string) => {
+          probe.style.color = value;
+          return getComputedStyle(probe).color;
+        };
+        const loud = ["warning", "warning-soft", "danger", "danger-soft", "accent", "accent-fill", "accent-soft"].map((name) => colour(`var(--color-${name})`));
+        const selected = colour("var(--color-selected)");
+        probe.remove();
+        const SEL = "[role='radio'][aria-checked='true'], [aria-current]:not([aria-current='false']), [aria-selected='true'], [aria-pressed='true']";
+        const found = areas.flatMap((sel) => [...(document.querySelector(sel)?.querySelectorAll<HTMLElement>(SEL) ?? [])]);
+        return {
+          drawn: found.filter((element) => element.className.toString().includes("inset-ring-selected-ring") && getComputedStyle(element).backgroundColor === selected).length,
+          loud: found
+            .filter((element) => element.getBoundingClientRect().width > 0 && loud.includes(getComputedStyle(element).backgroundColor))
+            .map((element) => `${element.tagName.toLowerCase()} "${(element.textContent ?? "").trim().slice(0, 30)}"`),
+        };
+      }, Object.values(AREAS));
+      expect(selection.loud, "a selected item drawn with a loud fill").toEqual([]);
+      // The header's current page is always selected: at least that one
+      // wears the selected look.
+      expect(selection.drawn, "selected items in the selected look").toBeGreaterThan(0);
       // (v) nothing loops for ever in the rail or on Home.
       await expect
         .poll(() =>
