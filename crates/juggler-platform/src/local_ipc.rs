@@ -148,9 +148,9 @@ pub struct Peer {
     /// (`LOCAL_PEERTOKEN`); `None` when the system doesn't say.
     pub pid: Option<u32>,
     /// L4: the pid's version in that token (the kernel bumps it when a pid
-    /// is reused): equal to the live process's
-    /// ([`juggler_proc_list::pid_version`]) only while the process at `pid`
-    /// is the one that connected. `None` where there's no audit token.
+    /// is reused): the app compares it with the live process's
+    /// (`juggler_proc_list::pid_version`), equal only while the process at
+    /// `pid` is the one that connected. `None` where there's no audit token.
     pub pid_version: Option<u32>,
     /// When the connection was accepted.
     pub accepted: std::time::SystemTime,
@@ -576,12 +576,10 @@ mod tests {
         // AJ-E3013: the system names the peer's pid (this process: the
         // client is one of its threads), and the accept's time is kept.
         assert_eq!(stream.peer().pid, Some(std::process::id()));
-        // L4: the audit token's pid version is this live process's.
+        // L4: the audit token names a pid version too (the app compares it
+        // with the live process's: `attest_tests`).
         #[cfg(target_os = "macos")]
-        assert_eq!(
-            stream.peer().pid_version,
-            juggler_proc_list::pid_version(std::process::id())
-        );
+        assert!(stream.peer().pid_version.is_some());
         assert!(stream.peer().accepted >= before);
         let mut asked = String::new();
         stream.read_to_string(&mut asked).await.unwrap();

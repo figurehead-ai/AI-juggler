@@ -945,3 +945,32 @@ fn a_notice_is_dropped_when_the_conversation_changed_during_the_wait() {
         "already counted as woken (the budget), so it went no further"
     );
 }
+
+/// L4: a real connection's audit token carries the pid version the
+/// kernel reports for the live process that connected (this one).
+#[cfg(target_os = "macos")]
+#[test]
+fn the_tokens_pid_version_is_the_live_processs() {
+    let root = tempfile::Builder::new()
+        .prefix("aij-tok")
+        .tempdir_in("/tmp")
+        .unwrap();
+    let endpoint = root.path().join("d").join("s.sock");
+    let me = juggler_platform::user::current().unwrap();
+    let bound = juggler_platform::local_ipc::bind(&endpoint, me).unwrap();
+    let peer = tauri::async_runtime::block_on(async move {
+        let listener = bound.into_async().unwrap();
+        let connecting = std::thread::spawn({
+            let endpoint = endpoint.clone();
+            move || juggler_platform::local_ipc::connect(&endpoint).unwrap()
+        });
+        let stream = listener.accept().await.unwrap().unwrap();
+        drop(connecting.join().unwrap());
+        stream.peer()
+    });
+    assert_eq!(peer.pid, Some(std::process::id()));
+    assert_eq!(
+        peer.pid_version,
+        juggler_proc_list::pid_version(std::process::id())
+    );
+}
