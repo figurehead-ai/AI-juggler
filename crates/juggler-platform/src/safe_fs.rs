@@ -298,6 +298,48 @@ mod imp {
                 Err(errno) => Err(io_of(errno)),
             }
         }
+
+        #[cfg(not(target_os = "macos"))]
+        pub fn lock_holder(&self, _name: &OsStr) -> io::Result<Option<u32>> {
+            Err(io::Error::new(
+                io::ErrorKind::Unsupported,
+                "not on this system yet",
+            ))
+        }
+
+        #[cfg(target_os = "macos")]
+        pub fn lock_holder(&self, name: &OsStr) -> io::Result<Option<u32>> {
+            let flags = OFlag::O_RDONLY
+                .union(OFlag::O_NOFOLLOW)
+                .union(OFlag::O_NONBLOCK)
+                .union(OFlag::O_CLOEXEC);
+            let fd = match openat(&self.fd, name, flags, Mode::empty()) {
+                Ok(fd) => fd,
+                Err(Errno::ENOENT) => return Ok(None),
+                Err(errno) => return Err(io_of(errno)),
+            };
+            let stat = fstat(&fd).map_err(io_of)?;
+            if kind(&stat) != SFlag::S_IFREG || stat.st_uid != self.owner {
+                return Err(io::Error::new(
+                    io::ErrorKind::PermissionDenied,
+                    "not a regular file of the folder owner's",
+                ));
+            }
+            // Asks only: who would stop a write lock on the whole file.
+            // Nothing is locked here.
+            let mut lock = nix::libc::flock {
+                l_start: 0,
+                l_len: 0, // to the end: the whole file
+                l_pid: 0,
+                l_type: nix::libc::F_WRLCK,
+                l_whence: 0, // SEEK_SET: from the start
+            };
+            nix::fcntl::fcntl(&fd, nix::fcntl::FcntlArg::F_GETLK(&mut lock)).map_err(io_of)?;
+            if lock.l_type == nix::libc::F_UNLCK {
+                return Ok(None);
+            }
+            Ok(u32::try_from(lock.l_pid).ok().filter(|pid| *pid > 0))
+        }
     }
 }
 
@@ -341,6 +383,9 @@ mod imp {
             Err(unsupported())
         }
         pub fn remove_dir(&self, _name: &OsStr) -> io::Result<bool> {
+            Err(unsupported())
+        }
+        pub fn lock_holder(&self, _name: &OsStr) -> io::Result<Option<u32>> {
             Err(unsupported())
         }
     }
@@ -443,6 +488,26 @@ pub fn read_in(root: &Path, rel: &Path, expect: Expect) -> io::Result<Option<Vec
     let dir = Dir::root(root)?;
     let folder = dir.0.walk(folders, false, &mut Vec::new())?;
     folder.read(name, expect)
+}
+
+/// AJ-E3013 (the third review's Low 1): the process holding a write lock
+/// (`fcntl`'s, a POSIX record lock) on the file `rel` under `root`, walked
+/// to without a link, a regular file of `root`'s owner: asked with
+/// `F_GETLK`, which takes no lock. `None` when nothing holds one, or the
+/// file isn't there.
+///
+/// # Errors
+///
+/// A link on the way, a file that isn't a regular one of the owner's, or
+/// the system's error.
+pub fn lock_holder_in(root: &Path, rel: &Path) -> io::Result<Option<u32>> {
+    let parts = names(rel)?;
+    let Some((name, folders)) = parts.split_last() else {
+        return Err(io::Error::new(io::ErrorKind::InvalidInput, "no file named"));
+    };
+    let dir = Dir::root(root)?;
+    let folder = dir.0.walk(folders, false, &mut Vec::new())?;
+    folder.lock_holder(name)
 }
 
 /// The file at `path` (its folder reached as the system resolves it, the
@@ -585,5 +650,96 @@ mod tests {
         assert_eq!(std::fs::read_to_string(&elsewhere).unwrap(), "keep");
         let x = dir.walk(Path::new("x"), false, &mut Vec::new()).unwrap();
         assert!(x.remove_dir(OsStr::new(".y")).unwrap());
+    }
+
+    /// Not a test: the process the lock test asks about, holding a write
+    /// lock on the file `AIJ_TEST_LOCK` names for half a minute.
+    #[cfg(target_os = "macos")]
+    #[test]
+    #[ignore = "run by the lock test as the lock's holder"]
+    fn locker() {
+        let Some(path) = std::env::var_os("AIJ_TEST_LOCK") else {
+            return;
+        };
+        let file = std::fs::OpenOptions::new()
+            .read(true)
+            .write(true)
+            .open(path)
+            .unwrap();
+        let lock = nix::libc::flock {
+            l_start: 0,
+            l_len: 0,
+            l_pid: 0,
+            l_type: nix::libc::F_WRLCK,
+            l_whence: 0,
+        };
+        nix::fcntl::fcntl(&file, nix::fcntl::FcntlArg::F_SETLK(&lock)).unwrap();
+        std::thread::sleep(std::time::Duration::from_secs(30));
+    }
+
+    /// The third review's Low 1: the process holding a file's write lock
+    /// is named (asking takes no lock), none when nothing holds it, and
+    /// never through a link.
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn a_write_locks_holder_is_named_and_asking_locks_nothing() {
+        let root = tempfile::tempdir().unwrap();
+        let folder = root.path().join("Local Storage/leveldb");
+        std::fs::create_dir_all(&folder).unwrap();
+        let lock = folder.join("LOCK");
+        std::fs::write(&lock, "").unwrap();
+        let rel = Path::new("Local Storage/leveldb/LOCK");
+        assert_eq!(lock_holder_in(root.path(), rel).unwrap(), None, "unheld");
+        let mut holder = std::process::Command::new(std::env::current_exe().unwrap())
+            .args(["safe_fs::tests::locker", "--exact", "--ignored", "-q"])
+            .env("AIJ_TEST_LOCK", &lock)
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .spawn()
+            .unwrap();
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+        let mut held = None;
+        while held.is_none() && std::time::Instant::now() < deadline {
+            std::thread::sleep(std::time::Duration::from_millis(50));
+            held = lock_holder_in(root.path(), rel).unwrap();
+        }
+        assert_eq!(held, Some(holder.id()), "its holder, by pid");
+        let _ = holder.kill();
+        let _ = holder.wait();
+        assert_eq!(lock_holder_in(root.path(), rel).unwrap(), None, "let go");
+        // Never through a link: on the way, or at the name.
+        std::os::unix::fs::symlink(root.path().join("Local Storage"), root.path().join("ls"))
+            .unwrap();
+        assert!(lock_holder_in(root.path(), Path::new("ls/leveldb/LOCK")).is_err());
+        std::os::unix::fs::symlink(&lock, folder.join("LINK")).unwrap();
+        assert!(lock_holder_in(root.path(), Path::new("Local Storage/leveldb/LINK")).is_err());
+        assert_eq!(
+            lock_holder_in(root.path(), Path::new("Local Storage/leveldb/NONE")).unwrap(),
+            None
+        );
+    }
+
+    /// A manual check on a Mac running the Claude app (not run by default;
+    /// read-only: it asks, it takes no lock): its default instance's
+    /// storage lock is held by one of its running main processes.
+    #[cfg(target_os = "macos")]
+    #[test]
+    #[ignore = "needs the Claude app running on its default instance"]
+    fn the_running_claude_app_holds_its_instances_storage_lock() {
+        let home = std::env::var_os("HOME").unwrap();
+        let instance = Path::new(&home).join("Library/Application Support/Claude");
+        let out = std::process::Command::new("/usr/bin/pgrep")
+            .args(["-x", "Claude"])
+            .output()
+            .unwrap();
+        let pids: Vec<u32> = String::from_utf8_lossy(&out.stdout)
+            .lines()
+            .filter_map(|line| line.trim().parse().ok())
+            .collect();
+        let held = lock_holder_in(&instance, Path::new("Local Storage/leveldb/LOCK")).unwrap();
+        assert!(
+            held.is_some_and(|pid| pids.contains(&pid)),
+            "{held:?} in {pids:?}"
+        );
     }
 }

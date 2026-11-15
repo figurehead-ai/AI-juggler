@@ -322,27 +322,94 @@ pub(crate) fn still_the_same(
     })
 }
 
-/// M1: whether the App's main process, whose arguments are `args`, runs
-/// the instance at `instance_dir` (its `--user-data-dir`, else the App's
-/// default folder under `home`), compared as real paths.
+/// The third review's Low 1: the instance folder a main process's
+/// arguments `args` give with `flag` (`--user-data-dir`), read so that it
+/// can't differ from what the app itself reads: only `flag=<folder>`, at
+/// most once, before a `--` (after it the app reads no switch). Any other
+/// form (`flag <folder>`, `-user-data-dir=…`, an empty value), a second
+/// one, or one after `--` is refused. `None`: not given (its default).
+///
+/// # Errors
+///
+/// Why the arguments can't be trusted, in words.
+pub(crate) fn instance_arg(args: &[String], flag: &str) -> Result<Option<String>, String> {
+    let name = flag.trim_start_matches('-');
+    let exact = format!("{flag}=");
+    let mut found = None;
+    let mut seen = 0;
+    let mut ended = false;
+    for arg in args.iter().skip(1) {
+        if arg == "--" {
+            ended = true;
+            continue;
+        }
+        let bare = arg.trim_start_matches('-');
+        let names_it = arg.starts_with('-')
+            && (bare == name
+                || bare
+                    .strip_prefix(name)
+                    .is_some_and(|rest| rest.starts_with('=')));
+        if !names_it {
+            continue;
+        }
+        seen += 1;
+        match arg.strip_prefix(&exact) {
+            Some(value) if !value.is_empty() && !ended => found = Some(value.to_owned()),
+            _ => {
+                return Err(
+                    "its app was started with its profile folder given in another form".to_owned(),
+                );
+            }
+        }
+    }
+    if seen > 1 {
+        return Err("its app was started with its profile folder given more than once".to_owned());
+    }
+    Ok(found)
+}
+
+/// M1: the instance the App's main process, whose arguments are `args`,
+/// runs (its `--user-data-dir` read strictly, [`instance_arg`], else the
+/// App's default folder under `home`), when it's the one at
+/// `instance_dir`, compared as real paths: that real path.
+///
+/// # Errors
+///
+/// Why not, in words.
 pub(crate) fn runs_instance(
     args: &[String],
     host: &juggler_adapter::live::HostApp,
     home: &std::path::Path,
     instance_dir: &std::path::Path,
-) -> bool {
-    let running = host
-        .instance_arg
-        .as_deref()
-        .and_then(|flag| crate::features::conversations::places::arg_value(args, flag))
+) -> Result<PathBuf, String> {
+    let given = match host.instance_arg.as_deref() {
+        Some(flag) => instance_arg(args, flag)?,
+        None => None,
+    };
+    let running = given
         .map(PathBuf::from)
         .or_else(|| host.default_instance.as_deref().map(|dir| home.join(dir)));
     match (
         running.map(std::fs::canonicalize),
         std::fs::canonicalize(instance_dir),
     ) {
-        (Some(Ok(running)), Ok(ours)) => running == ours,
-        _ => false,
+        (Some(Ok(running)), Ok(ours)) if running == ours => Ok(ours),
+        _ => Err("the session runs under another profile of its app".to_owned()),
+    }
+}
+
+/// The third review's Low 1: whether the App's main process `host_pid`
+/// holds its instance's own lock (`lock`, from the adapter, under
+/// `instance`): the instance proven by the process holding it, read
+/// through the no-link walk, asking only (no lock is taken).
+///
+/// # Errors
+///
+/// Why not, in words.
+pub(crate) fn held_by(instance: &std::path::Path, lock: &str, host_pid: u32) -> Result<(), String> {
+    match juggler_platform::safe_fs::lock_holder_in(instance, std::path::Path::new(lock)) {
+        Ok(Some(holder)) if holder == host_pid => Ok(()),
+        _ => Err("the session's app doesn't hold this profile".to_owned()),
     }
 }
 
@@ -369,7 +436,9 @@ thread_local! {
 ///   each pid's version read before and after it;
 /// - every process checked is still the one first listed (start time and
 ///   parent) once the checks are done ([`still_the_same`]);
-/// - that main process runs this App's instance ([`runs_instance`]).
+/// - that main process runs this App's instance: its arguments say so,
+///   read strictly ([`runs_instance`]), and it holds the instance's own
+///   lock ([`held_by`]).
 ///
 /// # Errors
 ///
@@ -469,10 +538,11 @@ fn verify_tool(
         })
         .ok_or("this app's own app isn't known")?;
     let home = juggler_platform::user::home().unwrap_or_default();
-    if !runs_instance(&args, &app, &home, &candidate.instance_dir) {
-        return Err("the session runs under another profile of its app".to_owned());
-    }
-    Ok(())
+    let instance = runs_instance(&args, &app, &home, &candidate.instance_dir)?;
+    let lock = peer
+        .instance_lock()
+        .ok_or("this app's profile can't be told")?;
+    held_by(&instance, lock, host_pid)
 }
 
 /// H3: drops at once what is kept for each attested desktop session whose
@@ -962,26 +1032,161 @@ mod tests {
                 format!("--user-data-dir={}", dir.display()),
             ]
         };
-        assert!(runs_instance(&given(&ours), &app, &home, &ours));
-        assert!(!runs_instance(&given(&other), &app, &home, &ours));
+        let runs =
+            |args: &[String], dir: &std::path::Path| runs_instance(args, &app, &home, dir).is_ok();
+        assert!(runs(&given(&ours), &ours));
+        assert!(!runs(&given(&other), &ours));
         let plain = vec!["/Applications/Claude.app/Contents/MacOS/Claude".to_owned()];
-        assert!(
-            runs_instance(&plain, &app, &home, &default),
-            "its default one"
-        );
-        assert!(!runs_instance(&plain, &app, &home, &ours));
+        assert!(runs(&plain, &default), "its default one");
+        assert!(!runs(&plain, &ours));
         let link = root.path().join("link");
         std::os::unix::fs::symlink(&ours, &link).unwrap();
-        assert!(
-            runs_instance(&given(&link), &app, &home, &ours),
-            "as real paths"
+        assert!(runs(&given(&link), &ours), "as real paths");
+        assert!(!runs(&given(&root.path().join("none")), &ours));
+    }
+
+    #[test]
+    fn the_profile_folder_is_read_only_in_its_one_strict_form() {
+        // The third review's Low 1: only `--user-data-dir=<x>`, once,
+        // before `--`; anything the app could read otherwise is refused.
+        let args = |rest: &[&str]| -> Vec<String> {
+            std::iter::once("/Applications/Claude.app/Contents/MacOS/Claude")
+                .chain(rest.iter().copied())
+                .map(str::to_owned)
+                .collect()
+        };
+        let flag = "--user-data-dir";
+        assert_eq!(instance_arg(&args(&[]), flag), Ok(None), "its default");
+        assert_eq!(
+            instance_arg(&args(&["--user-data-dir=/p/a", "--other"]), flag),
+            Ok(Some("/p/a".to_owned()))
         );
-        assert!(!runs_instance(
-            &given(&root.path().join("none")),
-            &app,
-            &home,
-            &ours
-        ));
+        for refused in [
+            &["--user-data-dir=/p/a", "--user-data-dir=/p/b"][..],
+            &["--user-data-dir", "/p/a"][..],
+            &["-user-data-dir=/p/a"][..],
+            &["--user-data-dir="][..],
+            &["--user-data-dir=/p/a", "-user-data-dir=/p/b"][..],
+            &["--", "--user-data-dir=/p/a"][..],
+            &["---user-data-dir=/p/a"][..],
+        ] {
+            assert!(instance_arg(&args(refused), flag).is_err(), "{refused:?}");
+        }
+        // Names that only start alike aren't it.
+        assert_eq!(
+            instance_arg(
+                &args(&["--user-data-dir-x=/p", "--user-data-dirs=/q"]),
+                flag
+            ),
+            Ok(None)
+        );
+    }
+
+    /// Not a test: the process the instance-lock test asks about, holding
+    /// a write lock on the file `AIJ_TEST_LOCK` names for half a minute.
+    #[cfg(target_os = "macos")]
+    #[test]
+    #[ignore = "run by the instance-lock test as the lock's holder"]
+    fn instance_locker() {
+        let Some(path) = std::env::var_os("AIJ_TEST_LOCK") else {
+            return;
+        };
+        let file = std::fs::OpenOptions::new()
+            .read(true)
+            .write(true)
+            .open(path)
+            .unwrap();
+        let lock = nix::libc::flock {
+            l_start: 0,
+            l_len: 0,
+            l_pid: 0,
+            l_type: nix::libc::F_WRLCK,
+            l_whence: 0,
+        };
+        nix::fcntl::fcntl(&file, nix::fcntl::FcntlArg::F_SETLK(&lock)).unwrap();
+        std::thread::sleep(Duration::from_secs(30));
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn the_profile_must_be_held_by_the_app_that_runs_the_session() {
+        // The third review's Low 1: the instance's own lock, held by the
+        // verified main process; unheld, or held by another, is refused.
+        let lock = juggler_adapters::claude_peer::INSTANCE_LOCK;
+        let root = tempfile::tempdir().unwrap();
+        let file = root.path().join(lock);
+        std::fs::create_dir_all(file.parent().unwrap()).unwrap();
+        std::fs::write(&file, "").unwrap();
+        assert!(
+            held_by(root.path(), lock, std::process::id()).is_err(),
+            "unheld"
+        );
+        let mut holder = std::process::Command::new(std::env::current_exe().unwrap())
+            .args([
+                "features::agent_bridge::attest::tests::instance_locker",
+                "--exact",
+                "--ignored",
+                "-q",
+            ])
+            .env("AIJ_TEST_LOCK", &file)
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .spawn()
+            .unwrap();
+        let deadline = std::time::Instant::now() + Duration::from_secs(5);
+        while held_by(root.path(), lock, holder.id()).is_err()
+            && std::time::Instant::now() < deadline
+        {
+            std::thread::sleep(Duration::from_millis(50));
+        }
+        assert_eq!(
+            held_by(root.path(), lock, holder.id()),
+            Ok(()),
+            "its holder"
+        );
+        assert!(
+            held_by(root.path(), lock, holder.id() + 1).is_err(),
+            "another process isn't the one holding it"
+        );
+        let _ = holder.kill();
+        let _ = holder.wait();
+        assert!(held_by(root.path(), lock, holder.id()).is_err(), "let go");
+    }
+
+    /// A manual check on a Mac running the Claude app (not run by default;
+    /// read-only: it reads arguments and asks about a lock, takes none):
+    /// every running main process's arguments name its profile the strict
+    /// way, and it holds that profile's lock.
+    #[cfg(target_os = "macos")]
+    #[test]
+    #[ignore = "needs the Claude app running"]
+    fn the_running_claude_apps_profiles_pass_the_instance_checks() {
+        let out = std::process::Command::new("/usr/bin/pgrep")
+            .args(["-x", "Claude"])
+            .output()
+            .unwrap();
+        let pids: Vec<u32> = String::from_utf8_lossy(&out.stdout)
+            .lines()
+            .filter_map(|line| line.trim().parse().ok())
+            .collect();
+        assert!(!pids.is_empty(), "the Claude app runs");
+        let app = juggler_adapters::claude_live::host_apps().remove(0);
+        let home = juggler_platform::user::home().unwrap();
+        let table = crate::features::conversations::procs::some(&pids);
+        let mut checked = 0;
+        for pid in pids {
+            let Some(process) = table.get(&pid) else {
+                continue;
+            };
+            let given = instance_arg(&process.args, "--user-data-dir").unwrap();
+            let dir = given
+                .map(PathBuf::from)
+                .unwrap_or_else(|| home.join(app.default_instance.as_deref().unwrap()));
+            let instance = runs_instance(&process.args, &app, &home, &dir).unwrap();
+            held_by(&instance, juggler_adapters::claude_peer::INSTANCE_LOCK, pid).unwrap();
+            checked += 1;
+        }
+        assert!(checked > 0);
     }
 
     #[test]

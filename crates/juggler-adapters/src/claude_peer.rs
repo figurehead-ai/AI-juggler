@@ -55,6 +55,12 @@ pub const HOST_REQUIREMENT: &str = "identifier \"com.anthropic.claudefordesktop\
 /// identifier, so no other Anthropic-signed program (Claude Code itself,
 /// `app-cu-helper`) stands between them.
 pub const HELPER_REQUIREMENT: &str = "identifier \"disclaimer\" and anchor apple generic and certificate leaf[subject.OU] = \"Q6L2SF6YDW\"";
+/// The third review's Low 1: the lock the Claude app's main (browser)
+/// process holds on its instance while it runs it: Chromium's own storage
+/// database lock (`fcntl`, checked 2026-11-15: held by the running main
+/// process of each of five instances). The app takes no `SingletonLock`
+/// (none of those instances has one), so this is the proof.
+pub const INSTANCE_LOCK: &str = "Local Storage/leveldb/LOCK";
 /// M1: where a Claude app profile keeps its Claude Code, under its own
 /// folder: `claude-code/<version>/<build>/…/Contents/MacOS/claude`.
 const SHIPPED: &str = "claude-code";
@@ -110,6 +116,10 @@ impl DesktopPeer for ClaudeAppPeer {
 
     fn helper_requirement(&self) -> Option<&'static str> {
         Some(HELPER_REQUIREMENT)
+    }
+
+    fn instance_lock(&self) -> Option<&'static str> {
+        Some(INSTANCE_LOCK)
     }
 }
 

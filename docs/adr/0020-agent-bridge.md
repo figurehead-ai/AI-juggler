@@ -337,9 +337,18 @@ part in its adapter, `juggler_adapter::peer::DesktopPeer`):
      parent it had, and the pid version its check saw (an exec after the
      checks is caught too). Verdicts are kept per (pid, pid version, requirement),
      never per path (`juggler_platform::code_sign`).
-   - *The instance:* that verified main process's own `--user-data-dir`
-     (else the app's default folder) is this App's instance folder, as
-     real paths.
+   - *The instance (the third review's Low 1):* that verified main
+     process's own `--user-data-dir`, read the strict way (only
+     `--user-data-dir=<folder>`, once, before any `--`; any other form, a
+     second one or one after `--` is refused, so what AI Juggler reads
+     can't differ from what the app reads), else the app's default
+     folder, is this App's instance folder, as real paths; and that very
+     process holds the instance's own lock (the adapter names it: for the
+     Claude app, Chromium's `Local Storage/leveldb/LOCK`, an `fcntl` lock
+     asked about with `F_GETLK`, which takes none, the file reached
+     through the no-link walk). The Claude app takes no `SingletonLock`
+     (none of five running instances had one, 2026-11-15), so its storage
+     lock is the proof that a process runs that instance.
 
    **What this guarantees, exactly:** the caller (the socket's last user
    at `getsockopt` time, still that process) descends, at most two steps
@@ -484,6 +493,7 @@ chain ends at `launchd`) is refused.
 | **S** a same-user process that **forges** a registry entry for its own parent (M1) | the parent's **running** code must meet Claude Code's pinned requirement (identifier, Apple's anchor, Anthropic's team), under the Claude app's own running main process (its pinned bundle identifier and team) for this instance, directly or through its pinned `disclaimer` helper (another Anthropic-signed program isn't a hop); pid versions equal before and after each check, start times and parents unchanged after them; an archived conversation isn't attested; the files are read through the no-link walk, owner and mode checked on the open file. What remains is rewriting a live session's entry or record to name another conversation of the same App (as §4: a same-user process can already read a launched session's key) | `this_processs_own_chain_…` (a forged entry for the test's runner refused), `a_tool_whose_running_code_isnt_genuine_is_refused`, `the_running_code_is_checked_against_the_requirement`, `an_archived_session_isnt_attested` |
 | **S** a fake host: a program at `~/x/Claude.app/Contents/MacOS/Claude`, even signed with the app's identifier (M1 round 2, probe a) | the host is known by its running code's signature only (identifier **and** Anthropic's team under Apple's anchor), never a path or a folder name | `a_program_named_like_the_host_isnt_the_host`, `the_host_is_known_by_its_running_code_never_its_name` |
 | **S/T** a genuine program renamed over the path of a running ad-hoc one (M1 round 2, probe b) | the running code is checked (`SecCodeCopyGuestWithAttributes` by pid, `SecCodeCheckValidity` against the pinned requirement), never the file at `proc_pidpath`; verdicts kept per (pid, pid version) | `a_genuine_program_renamed_over_a_running_one_changes_nothing` |
+| **S** a host started with its profile folder given twice or in another form, so AI Juggler and the app read different instances (the third review's Low 1) | only `--user-data-dir=<folder>`, once, before `--`, is read; anything else is refused; and the verified main process must hold that instance's own lock (`F_GETLK` on the adapter's lock file, no lock taken) | `the_profile_folder_is_read_only_in_its_one_strict_form`, `the_profile_must_be_held_by_the_app_that_runs_the_session`, `a_write_locks_holder_is_named_and_asking_locks_nothing`; live, read-only: `the_running_claude_apps_profiles_pass_the_instance_checks` |
 | **S** a process that exits or execs while it's checked | its pid version read before and after each check; start time and parent read again after all of them | `a_process_that_changed_while_it_was_checked_is_refused` |
 | **E** the genuine Claude app made to run someone else's code (Node mode, `NODE_OPTIONS`, `--inspect`) | rests on its Electron fuses being off and the hardened runtime (4b); the fuse wire is checked on every Mac with the app | `the_installed_claude_apps_fuses_stay_off` |
 | **T** the connector's files changed to point elsewhere | Add records each file's sha256; status says "changed by someone"; Remove deletes only what still matches | connector tests |

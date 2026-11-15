@@ -121,6 +121,15 @@ pub trait DesktopPeer: Send + Sync {
         None
     }
 
+    /// The third review's Low 1: the file, relative to an App instance's
+    /// folder, that the App's running main process holds a write lock on
+    /// while it runs that instance, so the instance is proven by the
+    /// process holding it, not only by its arguments. `None` (the
+    /// default): no instance can be proven, nothing passes.
+    fn instance_lock(&self) -> Option<&'static str> {
+        None
+    }
+
     /// H3: whether `session`, attested earlier, is still the one the
     /// tool's own records name for its process (its registry entry still
     /// there, for the same conversation, with the same start time).
