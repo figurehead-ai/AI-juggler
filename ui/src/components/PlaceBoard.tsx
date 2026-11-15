@@ -11,7 +11,7 @@
  */
 import { useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState, type JSX, type ReactNode } from "react";
 import { NeedRow, PlaceHeader, type Arrangeable } from "./PlaceRows";
-import { SessionRow } from "./row/SessionRow";
+import { SessionRow, type SessionRowProps } from "./row/SessionRow";
 import { AlsoLine, Chevron, RailCaption, RailLink, RailSearchFoundNothing, SectionHead, ToReviewCaption, scrollerOf, stepPastEdge } from "./PlaceBoardParts";
 import { idleAppPage, RailAllSessions, RailIdleApp } from "./RailIdleApp";
 import { RailOfferRow, usePlaceOffers } from "./PlaceOffers";
@@ -276,6 +276,8 @@ export function PlaceBoard({ sessions, projects, accounts, snooze, now, selected
     stepPastEdge(box, scroll.box, event.key === "ArrowDown" ? 1 : -1, heights.row, redraw);
   };
 
+  // A session row's props, in Open now and among the ended alike.
+  const rowOf = (item: SessionRowProps["item"]): SessionRowProps => ({ item, density: compact ? "compact" : "cozy", within: { app: true }, selected: selectedId === (item.session?.id ?? item.conversation?.id), onSelect, now, subagents: view.show.subagents });
   const draw = (line: Line): ReactNode => {
     switch (line.kind) {
       case "section":
@@ -319,13 +321,7 @@ export function PlaceBoard({ sessions, projects, accounts, snooze, now, selected
       case "row":
         return (
           <SessionRow
-            item={line.item}
-            density={compact ? "compact" : "cozy"}
-            within={{ app: true }}
-            selected={selectedId === (line.item.session?.id ?? line.item.conversation?.id)}
-            onSelect={onSelect}
-            now={now}
-            subagents={view.show.subagents}
+            {...rowOf(line.item)}
             tools
             arrange={arrangeOf("row", line.group.key, line.item.key)}
             depth={line.depth} parent={line.parent}
@@ -333,7 +329,7 @@ export function PlaceBoard({ sessions, projects, accounts, snooze, now, selected
         );
       case "plain":
       case "past": // an ended one; under its App (past), nested in its family
-        return <SessionRow item={line.item} density={compact ? "compact" : "cozy"} within={{ app: true }} selected={selectedId === (line.item.session?.id ?? line.item.conversation?.id)} onSelect={onSelect} now={now} subagents={view.show.subagents} depth={line.kind === "past" ? line.depth : undefined} parent={line.kind === "past" ? line.parent : undefined} />;
+        return <SessionRow {...rowOf(line.item)} depth={line.kind === "past" ? line.depth : undefined} parent={line.kind === "past" ? line.parent : undefined} />;
       case "more":
         return <RailLink onClick={() => toggle(`${line.group.key}#all`)} testId="rail-more-quiet">{`+${line.quiet} ${line.words}`}</RailLink>;
       case "recent": return <RailCaption>Recent</RailCaption>; // D-103.1: an App with nothing open

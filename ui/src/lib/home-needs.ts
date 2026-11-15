@@ -84,7 +84,7 @@ export function homeNeeds({ items, signIns, signInDetail, mac, heavy, leftovers 
 }
 
 /** The needs the rail's Needs you counts too: its sessions. */
-export function isSessionNeed(need: HomeNeed): boolean {
+function isSessionNeed(need: HomeNeed): boolean {
   return need.kind === "session" || need.kind === "limit" || need.kind === "failed";
 }
 

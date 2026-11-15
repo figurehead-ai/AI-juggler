@@ -10,4 +10,4 @@ export { Picker, type PickerOption } from "./Picker";
 export { Segmented, type Segment } from "./Segmented";
 export { Disclosure } from "./Disclosure";
 export { DateField } from "./DateField";
-export { SELECTED, SELECTED_CARD, SELECTED_FILL } from "./selected";
+export { SELECTED } from "./selected";
