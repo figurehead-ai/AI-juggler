@@ -95,7 +95,9 @@ for (const theme of ["dark", "light"] as const) {
 
   test(`the rail with 8 open sessions: Needs you, places, Also — ${theme}`, async ({ page }) => {
     await seed(page, "eight", theme);
-    await expect(page.getByTestId("rail-needs-you")).toContainText("3");
+    // D-117: 2 ask (counted); the review is listed under To review.
+    await expect(page.getByTestId("rail-needs-you")).toContainText("2");
+    await expect(page.getByTestId("rail-to-review")).toBeVisible();
     // D-62: grouped by App: Claude Code · Work Max (its terminal sessions in
     // one group), ChatGPT, Claude app · Personal, Claude app · Work Max.
     await expect(page.getByTestId("place-header")).toHaveCount(4);
@@ -163,7 +165,8 @@ for (const theme of ["dark", "light"] as const) {
   test(`Home, typical: what needs you, your apps, runway by account — ${theme}`, async ({ page }) => {
     await seed(page, "eight", theme);
     // Counted as the rail counts them (the review of 0.1.4).
-    await expect(page.getByTestId("home-heading")).toHaveText("3 sessions need you");
+    // D-117: the review is listed, named in the counts line, not counted.
+    await expect(page.getByTestId("home-heading")).toHaveText("2 sessions need you");
     await expect(page.getByTestId("home-app-tile")).toHaveCount(4);
     await shoot(page, "home-typical", theme);
   });

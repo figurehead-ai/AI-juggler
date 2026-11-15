@@ -12,7 +12,9 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { allStatuses } from "./fixtures";
 
-const TEXT = ["ink", "ink-2", "muted", "faint", "accent", "accent-hi", "live", "success", "warning", "danger"] as const;
+const TEXT = ["ink", "ink-2", "section", "muted", "faint", "accent", "accent-hi", "live", "success", "warning", "danger"] as const;
+/** D-117: each count badge's ink on the badge. */
+const BADGES = [["count-ink", "count"], ["count-alarm-ink", "count-alarm"]] as const;
 const SURFACES = ["canvas", "canvas-hi", "surface", "surface-2", "surface-3"] as const;
 const OUT = resolve(process.cwd(), "../docs/qa/evidence/AJ-E804");
 
@@ -26,6 +28,18 @@ function luminance([r, g, b]: number[]): number {
 function ratio(a: number[], b: number[]): number {
   const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x);
   return (hi! + 0.05) / (lo! + 0.05);
+}
+
+/** APCA 0.0.98G |Lc| of text on a background (sRGB 0–255 channels). */
+function apca(text: number[], background: number[]): number {
+  const y = ([r, g, b]: number[]) => {
+    const lum = 0.2126729 * (r! / 255) ** 2.4 + 0.7151522 * (g! / 255) ** 2.4 + 0.072175 * (b! / 255) ** 2.4;
+    return lum > 0.022 ? lum : lum + (0.022 - lum) ** 1.414;
+  };
+  const [txt, bg] = [y(text), y(background)];
+  const sapc = bg > txt ? (bg ** 0.56 - txt ** 0.57) * 1.14 : (bg ** 0.65 - txt ** 0.62) * 1.14;
+  const lc = Math.abs(sapc) < 0.1 ? 0 : sapc > 0 ? sapc - 0.027 : sapc + 0.027;
+  return Math.abs(lc * 100);
 }
 
 const rows: string[] = [];
@@ -58,8 +72,23 @@ for (const theme of ["dark", "light"] as const) {
         probe.remove();
         return out;
       },
-      [...TEXT, ...SURFACES],
+      [...TEXT, ...SURFACES, ...BADGES.flat()],
     );
+    for (const [ink, badge] of BADGES) {
+      const r = ratio(colours[ink]!, colours[badge]!);
+      if (r < 4.5) failures.push(`${theme} ${ink} on ${badge}: ${r.toFixed(2)}:1`);
+      rows.push(`| ${theme} | \`${ink}\` on \`${badge}\` | ${r.toFixed(2)}${r < 4.5 ? " ✗" : ""} | | | | |`);
+    }
+    // D-117: in dark, the alarm keeps its APCA floor on every surface
+    // (warning Lc 60, danger Lc 52): never the quietest status colour.
+    if (theme === "dark") {
+      for (const bg of SURFACES) {
+        const w = apca(colours.warning!, colours[bg]!);
+        const d = apca(colours.danger!, colours[bg]!);
+        if (w < 60) failures.push(`dark warning on ${bg}: Lc ${w.toFixed(1)}`);
+        if (d < 52) failures.push(`dark danger on ${bg}: Lc ${d.toFixed(1)}`);
+      }
+    }
     for (const fg of TEXT) {
       const cells = SURFACES.map((bg) => {
         const r = ratio(colours[fg]!, colours[bg]!);

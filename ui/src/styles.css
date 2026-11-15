@@ -325,6 +325,10 @@ body {
     letter-spacing: 0.07em;
     text-transform: uppercase;
   }
+  /* The label's own fold button: the base layer resets a button's case. */
+  .section-label button {
+    text-transform: inherit;
+  }
   /* A section head's icon belongs to the old look only (Open now's window,
      Needs you's ⚠): the label says it; attention-classic.css shows it. */
   .section-icon {

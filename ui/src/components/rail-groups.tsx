@@ -126,8 +126,9 @@ export function FoldedNeeds({ rows, isNeed, onOpen }: { rows: InstanceInfo[]; is
           }
         : {})}
       // D-117: a mark, never a filled badge: the number in ink beside the
-      // amber dot (L2), in red beside a red dot when one is broken (L3).
-      className={"flex items-center gap-1 rounded text-label font-semibold outline-none focus-visible:ring-1 focus-visible:ring-accent/60 " + (danger ? "text-danger" : "text-ink")}
+      // amber dot (L2), or a red one when one is broken (L3); the loud
+      // copy is its Needs you row.
+      className="flex items-center gap-1 rounded text-label font-semibold text-ink outline-none focus-visible:ring-1 focus-visible:ring-accent/60"
       data-testid="rail-folded-needs"
       data-level={danger ? 3 : 2}
     >

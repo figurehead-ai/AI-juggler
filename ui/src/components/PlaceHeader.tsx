@@ -170,10 +170,10 @@ export function PlaceHeader({
           {/* What the count is, on the mark itself (the review of 0.1.4: an
               unexplained "1"): a tooltip. D-117: a mark, never a pill —
               the number in ink beside its level's dot (a ring when it's a
-              guess) at L2, the number in red at L3; the loud copy is
-              Needs you's row. */}
+              guess) at L2, a red dot at L3; the loud copy is Needs
+              you's row. */}
           {needs > 0 && (
-            <span title={`${needs} here ${needs === 1 ? "needs" : "need"} you: ${needs === 1 ? "it's" : "they're"} at the top, under Needs you`} className={"inline-flex min-w-[20px] shrink-[1000] items-center gap-1 overflow-hidden px-1 text-label font-semibold leading-[18px] tabular-nums " + (level === 3 ? "text-danger" : "text-ink")} data-testid="place-needs" data-level={level}>
+            <span title={`${needs} here ${needs === 1 ? "needs" : "need"} you: ${needs === 1 ? "it's" : "they're"} at the top, under Needs you`} className="inline-flex min-w-[20px] shrink-[1000] items-center gap-1 overflow-hidden px-1 text-label font-semibold leading-[18px] tabular-nums text-ink" data-testid="place-needs" data-level={level}>
               <span className="level-mark" data-level={level === 3 ? 3 : 2} data-probably={probably ? "true" : undefined} />
               {needs}
             </span>

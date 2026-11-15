@@ -30,7 +30,7 @@ import { PinMark } from "../RailProjectRows";
 import type { Arrangeable } from "../RowTools";
 import { shortHeavy, useHeavyNote } from "../../lib/machine";
 import { STATE_TONE, needWord, type RailItem } from "../../lib/rail-items";
-import { itemLevel, levelTone, type AttentionLevel } from "../../lib/attention";
+import { attentionLevel, itemLevel, levelTone, type AttentionLevel } from "../../lib/attention";
 import { agoWords } from "../../lib/time-words";
 import type { AppRef } from "../../lib/app-of";
 import { RowShell } from "./RowShell";
@@ -114,6 +114,10 @@ export function SessionRow(props: SessionRowProps): JSX.Element {
   const title = props.title ?? item.title;
   const state = rowState(item);
   const low = item.session ? lowLeftWords(item.session) : null;
+  // D-117: low room on a live session is L1 at 11–25 %, L2 at 10 % or
+  // less, L3 when out (its own fact, drawn with its own level).
+  const lowLevel = low && item.session?.quota ? attentionLevel({ need: "quota", left: Math.max(0, Math.round(100 - item.session.quota.used_percentage)), liveSessions: 1 }) : 0;
+  const lowTone = lowLevel >= 2 ? levelTone(lowLevel).text : "text-muted";
   const heavyNote = useHeavyNote(item.session?.id ?? "");
   const heavy = heavyNote ? shortHeavy(heavyNote) : null;
   const when = props.when ?? rowWhen(item, now);
@@ -136,7 +140,7 @@ export function SessionRow(props: SessionRowProps): JSX.Element {
   const railWord = state.level >= 2 ? "text-ink-2" : "text-muted";
   const railTitle = props.selected ? "font-semibold text-ink" : "font-medium text-ink-2";
   const exception = low ? (
-    <span className="ml-auto shrink-0 text-label text-warning">{low}</span>
+    <span className={"ml-auto shrink-0 text-label " + lowTone} data-level={lowLevel}>{low}</span>
   ) : heavy ? (
     <span className="ml-auto shrink-0 text-label text-warning" data-testid="rail-heavy">
       {heavy}
@@ -201,7 +205,7 @@ export function SessionRow(props: SessionRowProps): JSX.Element {
         <span aria-hidden="true" className="flex min-w-0 flex-1 items-center gap-1.5">
           <span className={"truncate text-meta " + railTitle} title={title} data-testid="row-title">{title}</span>
           {pinned && <PinMark />}
-          <span className="ml-auto shrink-0 text-label text-muted">{low ? <span className="text-warning">{low}</span> : heavy ? <span className="text-warning" data-testid="rail-heavy">{heavy}</span> : when}</span>
+          <span className="ml-auto shrink-0 text-label text-muted">{low ? <span className={lowTone} data-level={lowLevel}>{low}</span> : heavy ? <span className="text-warning" data-testid="rail-heavy">{heavy}</span> : when}</span>
           <span className={"shrink-0 text-label font-medium " + railWord} data-testid="state-word">
             {state.word}
           </span>

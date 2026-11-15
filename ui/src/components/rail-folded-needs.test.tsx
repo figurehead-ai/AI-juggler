@@ -82,5 +82,7 @@ it("a failed or blocked session marks the folded header as danger", () => {
   const mark = view.getByTestId("rail-folded-needs");
   expect(within(mark).getByText("1")).toBeTruthy();
   expect(mark.textContent).toContain("needs you");
-  expect(mark.className).toContain("text-danger");
+  // D-117: the number in ink, the level on its mark (a red dot, L3).
+  expect(mark.getAttribute("data-level")).toBe("3");
+  expect(mark.querySelector(".level-mark[data-level='3']")).toBeTruthy();
 });

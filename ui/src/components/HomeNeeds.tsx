@@ -13,7 +13,7 @@ import { useEffect, useState, type JSX, type ReactNode } from "react";
 import { Button } from "./primitives";
 import { useActionHost, useItemMenu } from "./ItemMenu";
 import { PlaceMark } from "./PlaceMarks";
-import { chipOf, homeChips, primaryWords, type HomeChip, type HomeNeed } from "../lib/home-needs";
+import { chipOf, homeChips, homeNeedLevel, primaryWords, type HomeChip, type HomeNeed } from "../lib/home-needs";
 import { Segmented } from "./controls";
 import { needWord } from "./PlaceRows";
 import { markSeen } from "../lib/seen";
@@ -119,6 +119,7 @@ function rowData(need: HomeNeed): Record<string, string | undefined> {
     "data-need-key": need.key,
     "data-session-id": session?.id ?? need.sessionId,
     "data-has-conversation": session?.conversation_id ? "yes" : undefined,
+    "data-level": String(homeNeedLevel(need)), // D-117: its attention level
   };
 }
 

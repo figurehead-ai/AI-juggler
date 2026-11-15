@@ -77,10 +77,12 @@ export function NeedRow({ compact = false, ...props }: RowProps): JSX.Element {
   );
   const why = (
     <span aria-hidden="true" className={"flex min-w-0 items-center gap-1 truncate text-label leading-4 " + (level >= 2 ? "font-semibold " + levelTone(level).text : "text-muted")} data-testid="need-word" data-level={level}>
-      {level === 3 && <span className="shrink-0">✕</span>}
       {level === 2 && item.probably && <span className="level-mark" data-level={2} data-probably="true" />}
       {level < 2 && item.need === "review" && <span className="shrink-0 text-success">✓</span>}
-      <span className="truncate">{word}</span>
+      <span className="truncate">
+        {level === 3 && "✕ "}
+        {word}
+      </span>
     </span>
   );
   const data = { "data-level": String(level), "data-need": item.need ?? undefined, "data-state": item.state };

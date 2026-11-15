@@ -170,8 +170,8 @@ function Actions({ children, needs, level = 2 }: { children: JSX.Element | null;
       {children ?? <span />}
       {needs > 0 && (
         // D-117: a mark, not a pill — the words in ink-2 by the level's dot
-        // (red words at L3); the loud copy is the Needs you card's row.
-        <span className={"inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap px-1 py-0.5 text-label font-medium " + (level === 3 ? "text-danger" : "text-ink-2")} data-testid="home-app-needs" data-level={level} title="Listed under Needs you">
+        // (red at L3); the loud copy is the Needs you card's row.
+        <span className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap px-1 py-0.5 text-label font-medium text-ink-2" data-testid="home-app-needs" data-level={level} title="Listed under Needs you">
           <span aria-hidden="true" className="level-mark" data-level={level === 3 ? 3 : 2} />
           {needs} {needs === 1 ? "needs" : "need"} you
         </span>

@@ -1,6 +1,6 @@
 /**
  * AJ-E2104 R2: a session row shows its account's runway only when it is
- * low (25 % left or less), in the warning colour and in what a screen
+ * low (25 % left or less), in its level's colour (D-117) and in what a screen
  * reader hears; otherwise the row says nothing of it. Other apps' rows
  * never do: AI Juggler reads room for the sessions it runs.
  */
@@ -21,12 +21,21 @@ const row = (used: number) =>
     </ul>,
   );
 
-it("says how much is left only when it's low, in the warning colour and in its name", () => {
+it("says how much is left only when it's low, in its level's colour and in its name", () => {
+  // D-117: 11–25 % on a live session is a note (muted, L1); 10 % or less
+  // waits on you (amber, L2); out, it is broken (red, L3).
   row(80);
   const low = screen.getByText("20% left");
-  expect(low.className).toContain("text-warning");
+  expect(low.className).toContain("text-muted");
+  expect(low.getAttribute("data-level")).toBe("1");
   // What a screen reader hears of the row says it too.
   expect([...document.querySelectorAll(".sr-only")].some((words) => (words.textContent ?? "").includes("20% left"))).toBe(true);
+  cleanup();
+  row(92);
+  expect(screen.getByText("8% left").className).toContain("text-warning");
+  cleanup();
+  row(100);
+  expect(screen.getByText("0% left").className).toContain("text-danger");
   cleanup();
   row(50);
   expect(screen.queryByText(/% left/)).toBeNull();
