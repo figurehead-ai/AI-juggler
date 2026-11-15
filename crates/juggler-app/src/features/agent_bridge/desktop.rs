@@ -208,15 +208,22 @@ pub(crate) async fn wait_with(
     if wait.v != wire::VERSION || !wait.token.is_empty() {
         return Response::refused(Refusal::Bad, "AI Juggler couldn't read that request.");
     }
-    if !super::calls::peer_within_rate(&state, Some(peer)) {
-        return Response::refused(Refusal::Limit, "Too many waits in a short time.");
+    if let Some(refused) = super::calls::keyless_refused(
+        &state,
+        super::calls::Counted::peer(Some(peer)),
+        "Too many waits in a short time.",
+    ) {
+        return refused;
     }
     let attested = {
         let (state, attestor) = (Arc::clone(&state), Arc::clone(&attestor));
         tauri::async_runtime::spawn_blocking(move || attestor(&state, peer)).await
     };
     let caller = match attested {
-        Ok(Ok(caller)) => caller,
+        Ok(Ok(caller)) => {
+            super::calls::note_attested(&state, peer, caller.tool_pid);
+            caller
+        }
         Ok(Err(why)) => return Response::refused(Refusal::Unattested, why),
         Err(_) => return Response::refused(Refusal::Bad, "AI Juggler couldn't answer that"),
     };
@@ -271,10 +278,38 @@ pub(crate) async fn wait_with(
             return Response::ok(serde_json::json!({ "wake": wake }));
         }
         if Instant::now() + look_every > until {
+            // Held as an attested wait until now: its next wait (and its
+            // session's hooks) stay out of the common cap.
+            super::calls::note_attested(&state, peer, caller.tool_pid);
             return Response::ok(serde_json::json!({ "wake": null }));
         }
         tokio::time::sleep(look_every).await;
     }
+}
+
+/// Who a hook's report counts as (the review's global-cap finding): a
+/// hook is a new process each time, so it counts as its session's process
+/// above it: its parent, or (a hook under `sh`) its grandparent when that
+/// one was attested recently; its parent otherwise; itself when its parent
+/// can't be read.
+fn counted_report(state: &Arc<AppState>, peer: Option<Peer>) -> super::calls::Counted {
+    use crate::features::conversations::procs;
+    let counted = |pid: u32| super::calls::Counted {
+        pid: Some(pid),
+        version: juggler_proc_list::pid_version(pid),
+    };
+    let above = |pid: u32| procs::parent_of(pid).filter(|parent| *parent > 1);
+    let Some(parent) = peer.and_then(|peer| peer.pid).and_then(above) else {
+        return super::calls::Counted::peer(peer);
+    };
+    let first = counted(parent);
+    if super::calls::recently_attested(state, first) {
+        return first;
+    }
+    above(parent)
+        .map(counted)
+        .filter(|grandparent| super::calls::recently_attested(state, *grandparent))
+        .unwrap_or(first)
 }
 
 /// Answers a connector hook's keyless report.
@@ -283,14 +318,21 @@ pub fn report(state: &Arc<AppState>, report: &wire::Report, peer: Option<Peer>) 
     if report.v != wire::VERSION || !wire::HOOK_EVENTS.contains(&report.hook.event.as_str()) {
         return Response::refused(Refusal::Bad, "AI Juggler couldn't read that report.");
     }
-    // L7: limited by its peer before any attestation's work.
-    if !super::calls::peer_within_rate(state, peer) {
-        return Response::refused(Refusal::Limit, "Too many reports in a short time.");
+    // L7: limited by its session's process before any attestation's work.
+    if let Some(refused) = super::calls::keyless_refused(
+        state,
+        counted_report(state, peer),
+        "Too many reports in a short time.",
+    ) {
+        return refused;
     }
     let caller = match peer
         .ok_or_else(|| "the system didn't name the caller".to_owned())
-        .and_then(|peer| super::attest::attest(state, peer))
-    {
+        .and_then(|peer| {
+            let caller = super::attest::attest(state, peer)?;
+            super::calls::note_attested(state, peer, caller.tool_pid);
+            Ok(caller)
+        }) {
         Ok(caller) => caller,
         Err(why) => return Response::refused(Refusal::Unattested, why),
     };

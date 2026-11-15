@@ -999,8 +999,8 @@ fn a_stale_socket_is_replaced_only_when_it_is_ours_and_never_through_a_link() {
 
 /// M2: a hostile loop of new processes (`nc -U`, a new pid each) sending
 /// keyless wake waits can't make the attestation's work unbounded: past
-/// the keyless cap the answer is Limit at once, and a launched session's
-/// keyed call is still answered meanwhile.
+/// the keyless cap the answer is Busy (or Limit) at once, and a launched
+/// session's keyed call is still answered meanwhile.
 #[cfg(target_os = "macos")]
 #[test]
 fn a_hostile_nc_loop_is_capped_and_keyed_calls_still_answer() {
@@ -1035,7 +1035,7 @@ fn a_hostile_nc_loop_is_capped_and_keyed_calls_still_answer() {
         nc.stdin.take().unwrap().write_all(line.as_bytes()).unwrap();
         let out = nc.wait_with_output().unwrap();
         let text = String::from_utf8_lossy(&out.stdout);
-        if text.contains("\"limit\"") {
+        if text.contains("\"limit\"") || text.contains("\"busy\"") {
             limited += 1;
         } else if text.contains("\"unattested\"") {
             unattested += 1;

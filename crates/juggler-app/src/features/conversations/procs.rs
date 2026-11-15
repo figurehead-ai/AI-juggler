@@ -212,6 +212,20 @@ pub fn some(pids: &[u32]) -> Table {
         .collect()
 }
 
+/// Only `pid`'s parent, nothing else read (AJ-E3013: a hook's report
+/// counts as its session's process above it).
+#[must_use]
+pub fn parent_of(pid: u32) -> Option<u32> {
+    let target = [Pid::from_u32(pid)];
+    let mut system = System::new();
+    system.refresh_processes_specifics(
+        ProcessesToUpdate::Some(&target),
+        false,
+        ProcessRefreshKind::nothing(),
+    );
+    system.process(target[0])?.parent().map(Pid::as_u32)
+}
+
 /// `pid`'s ancestors in `table`, nearest first (at most 64: a cycle in a
 /// stale table must not loop).
 #[must_use]

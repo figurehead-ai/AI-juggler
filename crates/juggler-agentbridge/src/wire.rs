@@ -533,6 +533,11 @@ pub enum Refusal {
     /// AJ-E3013 (ADR-0020's D-116 addendum): a call with no key whose
     /// caller couldn't be attested as a desktop app's session.
     Unattested,
+    /// AJ-E3013 (the review's global-cap finding): every keyless line
+    /// together is at its cap now (a flood from processes attested in no
+    /// recent call): the caller's own allowance isn't spent; try again in
+    /// a few seconds, without backing off further.
+    Busy,
 }
 
 /// The app's answer.

@@ -797,6 +797,166 @@ fn forty_connectors_and_a_hostile_loop_stay_bounded_and_members_still_wake() {
     });
 }
 
+/// The review's global-cap finding, as one decision: a flood of new
+/// processes fills the common cap; a process not attested lately is then
+/// told Busy (its own allowance not spent), a member attested lately is
+/// served, and right after the flood's window the newcomer has its whole
+/// allowance.
+#[test]
+fn a_flood_fills_the_common_cap_but_never_a_members_lines_or_a_newcomers_allowance() {
+    use super::calls::{Gate, KEYLESS_MAX, MAX_CALLS, WINDOW, gate};
+    use std::collections::HashMap;
+    use std::time::{Duration, Instant};
+    let mut calls = HashMap::new();
+    let start = Instant::now();
+    for pid in 0..KEYLESS_MAX {
+        assert_eq!(
+            gate(&mut calls, &format!("peer:{pid}"), false, start),
+            Gate::Served
+        );
+    }
+    for _ in 0..MAX_CALLS * 2 {
+        assert_eq!(gate(&mut calls, "peer:newcomer", false, start), Gate::Busy);
+    }
+    for _ in 0..MAX_CALLS {
+        assert_eq!(
+            gate(&mut calls, "peer:member", true, start),
+            Gate::Served,
+            "attested lately: out of the common cap"
+        );
+    }
+    assert_eq!(
+        gate(&mut calls, "peer:member", true, start),
+        Gate::Own,
+        "its own allowance still holds"
+    );
+    let after = start + WINDOW + Duration::from_millis(1);
+    for _ in 0..MAX_CALLS {
+        assert_eq!(
+            gate(&mut calls, "peer:newcomer", false, after),
+            Gate::Served,
+            "Busy spent none of it"
+        );
+    }
+    assert_eq!(gate(&mut calls, "peer:newcomer", false, after), Gate::Own);
+}
+
+/// The review's global-cap finding, end to end: members' connectors wait
+/// (attested); a flood of new processes' waits fills the common cap
+/// (Busy, its own reason); a member's next wait is still served and wakes
+/// at once for its message, during the flood and right after it, while a
+/// connector never attested is told Busy.
+#[test]
+fn members_still_wake_promptly_during_and_right_after_a_flood() {
+    use juggler_agentbridge::wire::Wait;
+    use std::time::{Duration, Instant};
+    let dir = tempfile::tempdir().unwrap();
+    let (state, pool) = lab(dir.path());
+    {
+        let storage = state.storage.lock().unwrap();
+        storage
+            .agent_access()
+            .set_level(&pool, AccessLevel::Full, &std::collections::BTreeSet::new())
+            .unwrap();
+        for n in [50, 51, 52] {
+            storage
+                .pools()
+                .join(
+                    &pool,
+                    &MemberRef::Conversation {
+                        folder: FOLDER.into(),
+                        id: conversation(n),
+                    },
+                    &[],
+                    PoolRole::Member,
+                    None,
+                )
+                .unwrap();
+            storage.attested().put(facts_of(n));
+        }
+    }
+    let attestor: super::desktop::Attestor = Arc::new(|_state, peer| {
+        let pid = peer.pid.unwrap_or_default();
+        if !(1050..1053).contains(&pid) {
+            return Err("not a desktop session".to_owned());
+        }
+        let n = pid - 1000;
+        Ok(super::attest::DesktopCaller {
+            session: desktop_id(FOLDER, &conversation(n)),
+            app_id: "app:claude-app:/x".into(),
+            folder: FOLDER.into(),
+            conversation: conversation(n),
+            tool_pid: u32::MAX,
+            can_wake: true,
+            facts: facts_of(n),
+        })
+    });
+    let peer = |pid: u32| juggler_platform::local_ipc::Peer {
+        pid: Some(pid),
+        pid_version: Some(1),
+        accepted: std::time::SystemTime::now(),
+    };
+    let wait = |secs: u32| Wait {
+        v: juggler_agentbridge::wire::VERSION,
+        token: String::new(),
+        wait_secs: secs,
+    };
+    let look = Duration::from_millis(50);
+    let wait_as = |pid: u32, secs: u32| {
+        super::desktop::wait_with(
+            Arc::clone(&state),
+            wait(secs),
+            peer(pid),
+            Arc::clone(&attestor),
+            look,
+        )
+    };
+    tauri::async_runtime::block_on(async {
+        // Members 50 and 51 have waited before (attested).
+        for pid in [1050, 1051] {
+            let first = wait_as(pid, 0).await;
+            assert!(first.refused.is_none(), "{first:?}");
+        }
+        // The flood: 300 new processes, one wait each.
+        let mut busy = 0;
+        for pid in 0..300 {
+            let answer = wait_as(5_000 + pid, 0).await;
+            busy += usize::from(answer.refused == Some(Refusal::Busy));
+        }
+        assert!(busy >= 300 - super::calls::KEYLESS_MAX, "{busy} busy");
+        // A connector never attested is told Busy, its own reason.
+        assert_eq!(wait_as(1052, 3).await.refused, Some(Refusal::Busy));
+        // During the flood: member 50's wait is served and wakes at once.
+        let started = Instant::now();
+        let during = tauri::async_runtime::spawn(wait_as(1050, 3));
+        tokio::time::sleep(Duration::from_millis(100)).await;
+        message_for(&state, &pool, "m-50", &conversation(50));
+        let woke = during.await.unwrap();
+        assert!(woke.refused.is_none(), "{woke:?}");
+        assert!(
+            woke.result.unwrap()["wake"]
+                .as_str()
+                .unwrap()
+                .contains("Planner")
+        );
+        assert!(started.elapsed() < Duration::from_secs(1), "promptly");
+        // Right after it (its lines still in the window): member 51 too.
+        let started = Instant::now();
+        let after = tauri::async_runtime::spawn(wait_as(1051, 3));
+        tokio::time::sleep(Duration::from_millis(100)).await;
+        message_for(&state, &pool, "m-51", &conversation(51));
+        let woke = after.await.unwrap();
+        assert!(woke.refused.is_none(), "{woke:?}");
+        assert!(
+            woke.result.unwrap()["wake"]
+                .as_str()
+                .unwrap()
+                .contains("Planner")
+        );
+        assert!(started.elapsed() < Duration::from_secs(1), "promptly");
+    });
+}
+
 /// Desktop member `n`'s conversation.
 fn conversation(n: u32) -> String {
     format!("conv-{n}")

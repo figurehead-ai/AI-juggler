@@ -25,14 +25,15 @@ use std::time::Duration;
 
 use crate::client::{CallError, post_lines, send_line};
 use crate::wire::{
-    MESSAGING_SOCKET_ENV, MESSAGING_TOKEN_ENV, Response, VERSION, WAIT_MAX_SECS, Wait,
+    MESSAGING_SOCKET_ENV, MESSAGING_TOKEN_ENV, Refusal, Response, VERSION, WAIT_MAX_SECS, Wait,
 };
 
 /// The longest notice posted.
 pub const NOTICE_MAX: usize = 300;
 
 /// The shortest and longest pause after AI Juggler didn't answer or
-/// refused (busy, limited, not attested, can't be woken).
+/// refused (limited, not attested, can't be woken); a [`Refusal::Busy`]
+/// is tried again after [`MIN_PAUSE`] instead.
 const BACKOFF: (Duration, Duration) = (Duration::from_secs(15), Duration::from_secs(300));
 
 /// M2: the least time between two waits, whatever the answer: an answer
@@ -170,19 +171,24 @@ pub fn run_until(app: &Path, inbox: &Inbox, pace: Pace, go_on: &dyn Fn() -> bool
     while go_on() {
         let started = std::time::Instant::now();
         asked += 1;
-        if let Ok(found) = wait_once(app) {
+        let answer = wait_once(app);
+        let busy = matches!(&answer, Err(CallError::Refused(Refusal::Busy, _)));
+        if let Ok(found) = answer {
             if let Some(notice) = found {
                 let _ = post(inbox, &notice);
             }
             pause = pace.backoff.0;
-            // M2: never sooner than the least pause, however fast the
-            // answer came.
-            if let Some(rest) = pace.min.checked_sub(started.elapsed()) {
-                std::thread::sleep(rest);
-            }
-        } else {
+        } else if !busy {
             std::thread::sleep(pause);
             pause = (pause * 2).min(pace.backoff.1);
+            continue;
+        }
+        // M2: never sooner than the least pause, however fast the answer
+        // came; the global cap's Busy is tried again after it too, with
+        // no back-off (a flood of others' mustn't push a member's wake
+        // minutes away).
+        if let Some(rest) = pace.min.checked_sub(started.elapsed()) {
+            std::thread::sleep(rest);
         }
     }
     asked
@@ -310,5 +316,51 @@ mod tests {
         let until = std::time::Instant::now() + Duration::from_millis(1_000);
         let asked = run_until(&socket, &inbox, pace, &|| std::time::Instant::now() < until);
         assert!((1..=6).contains(&asked), "{asked} waits in a second");
+    }
+
+    /// The review's global-cap finding: a Busy answer (every keyless line
+    /// together at its cap) is tried again after the least pause, never
+    /// backed off; any other refusal is.
+    #[cfg(unix)]
+    #[test]
+    fn busy_is_tried_again_after_the_least_pause_and_other_refusals_back_off() {
+        use std::io::{BufRead, Write as _};
+        use std::os::unix::fs::PermissionsExt;
+        let asked_in_a_second = |answer: &'static [u8]| {
+            let root = tempfile::tempdir().unwrap();
+            let dir = root.path().join("agent");
+            std::fs::create_dir(&dir).unwrap();
+            std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o700)).unwrap();
+            let socket = dir.join("bridge.sock");
+            let listener = std::os::unix::net::UnixListener::bind(&socket).unwrap();
+            std::thread::spawn(move || {
+                for stream in listener.incoming().flatten() {
+                    let mut line = String::new();
+                    let _ = std::io::BufReader::new(&stream).read_line(&mut line);
+                    let mut stream = stream;
+                    let _ = stream.write_all(answer);
+                }
+            });
+            let inbox = Inbox {
+                socket: root.path().join("no-inbox.sock"),
+                token: None,
+            };
+            let pace = Pace {
+                min: Duration::from_millis(100),
+                backoff: (Duration::from_millis(600), Duration::from_millis(2_000)),
+            };
+            let until = std::time::Instant::now() + Duration::from_millis(1_000);
+            run_until(&socket, &inbox, pace, &|| std::time::Instant::now() < until)
+        };
+        let busy = asked_in_a_second(b"{\"refused\":\"busy\",\"reason\":\"busy\"}\n");
+        assert!(
+            (6..=11).contains(&busy),
+            "{busy} waits in a second when busy"
+        );
+        let limited = asked_in_a_second(b"{\"refused\":\"limit\",\"reason\":\"limit\"}\n");
+        assert!(
+            (1..=2).contains(&limited),
+            "{limited} waits in a second when limited"
+        );
     }
 }

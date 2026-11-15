@@ -12,7 +12,7 @@
 //! and what each agent said of itself, marked as its own words. Nothing
 //! here changes a pool, a level or a rule, or touches a session.
 
-use std::collections::VecDeque;
+use std::collections::{HashMap, VecDeque};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
@@ -135,16 +135,21 @@ fn caller_of(
 ) -> Result<(SessionId, Option<SessionFacts>), Response> {
     if request.token.is_empty() {
         // L7: limited by its peer before any attestation's work.
-        if !peer_within_rate(state, peer) {
-            return Err(Response::refused(
-                Refusal::Limit,
-                "Too many calls in a short time: wait a few seconds.",
-            ));
+        if let Some(refused) = keyless_refused(
+            state,
+            Counted::peer(peer),
+            "Too many calls in a short time: wait a few seconds.",
+        ) {
+            return Err(refused);
         }
         // ADR-0020's D-116 addendum: attested on every call, or refused.
         return peer
             .ok_or_else(|| "the system didn't name the caller".to_owned())
-            .and_then(|peer| super::attest::attest(state, peer))
+            .and_then(|peer| {
+                let caller = super::attest::attest(state, peer)?;
+                note_attested(state, peer, caller.tool_pid);
+                Ok(caller)
+            })
             .map(|caller| (caller.session, Some(caller.facts)))
             .map_err(|why| {
                 Response::refused(
@@ -206,32 +211,74 @@ fn within_rate(state: &Arc<AppState>, session: &SessionId) -> bool {
 /// are forgotten (pids come and go).
 const RATE_KEYS_MAX: usize = 1_024;
 
-/// L7: a keyless line's own rate limit, by its peer's pid, checked before
-/// any attestation, so a looping caller costs no process listing and no
-/// storage lock past [`MAX_CALLS`] in [`WINDOW`].
-pub(super) fn peer_within_rate(
-    state: &Arc<AppState>,
-    peer: Option<juggler_platform::local_ipc::Peer>,
-) -> bool {
-    let key = peer
-        .and_then(|peer| peer.pid)
-        .map_or_else(|| "peer:unknown".to_owned(), |pid| format!("peer:{pid}"));
-    // M2: and all keyless lines together, so a loop of new processes (a
-    // new pid each, `nc -U` in a loop) can't make the attestation's work
-    // unbounded either.
-    within_rate_of(state, &key, MAX_CALLS) && within_rate_of(state, "peer:all", KEYLESS_MAX)
-}
-
 /// M2: the most keyless lines (calls, hook reports, wake waits) of every
 /// peer together in [`WINDOW`]: well above what a few dozen connectors
 /// send, far below what a loop of processes could.
 pub const KEYLESS_MAX: usize = 240;
 
-fn within_rate_of(state: &Arc<AppState>, key: &str, max: usize) -> bool {
-    let Ok(mut calls) = state.agent_bridge.calls.lock() else {
-        return false;
-    };
-    let now = Instant::now();
+/// The review's global-cap finding: how long a process attested (or held
+/// in an attested wait) stays out of [`KEYLESS_MAX`], so a flood of
+/// others' lines can't keep a member's own from being served.
+pub const ATTESTED_FOR: Duration = Duration::from_secs(60);
+
+/// The common cap's key.
+const ALL: &str = "peer:all";
+
+/// Said with [`Refusal::Busy`].
+const BUSY: &str = "AI Juggler is busy with other connections: try again in a few seconds.";
+
+/// Who a keyless line counts as: its peer, or (a hook's report) the
+/// session's process above it. `version` is that pid's version.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct Counted {
+    /// The pid, when the system named one.
+    pub pid: Option<u32>,
+    /// Its version, when known.
+    pub version: Option<u32>,
+}
+
+impl Counted {
+    /// The line's own peer.
+    pub(crate) fn peer(peer: Option<juggler_platform::local_ipc::Peer>) -> Self {
+        Self {
+            pid: peer.and_then(|peer| peer.pid),
+            version: peer.and_then(|peer| peer.pid_version),
+        }
+    }
+}
+
+/// What the keyless gate says of one line.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum Gate {
+    /// Served: counted against its own allowance, and against
+    /// [`KEYLESS_MAX`] unless its process was attested recently.
+    Served,
+    /// Its own allowance ([`MAX_CALLS`] in [`WINDOW`]) is spent.
+    Own,
+    /// Every keyless line together is at [`KEYLESS_MAX`]; its own
+    /// allowance isn't charged.
+    Busy,
+}
+
+/// `key`'s calls in [`WINDOW`] before `now`.
+fn recent_of<'a>(
+    calls: &'a mut HashMap<String, VecDeque<Instant>>,
+    key: &str,
+    now: Instant,
+) -> &'a mut VecDeque<Instant> {
+    let recent = calls.entry(key.to_owned()).or_default();
+    while recent
+        .front()
+        .is_some_and(|at| now.duration_since(*at) > WINDOW)
+    {
+        recent.pop_front();
+    }
+    recent
+}
+
+/// Forgets the callers idle for a [`WINDOW`] once [`RATE_KEYS_MAX`] are
+/// kept (pids come and go).
+fn prune(calls: &mut HashMap<String, VecDeque<Instant>>, now: Instant) {
     if calls.len() >= RATE_KEYS_MAX {
         calls.retain(|_, recent| {
             recent
@@ -239,13 +286,100 @@ fn within_rate_of(state: &Arc<AppState>, key: &str, max: usize) -> bool {
                 .is_some_and(|at| now.duration_since(*at) <= WINDOW)
         });
     }
-    let recent = calls.entry(key.to_owned()).or_insert_with(VecDeque::new);
-    while recent
-        .front()
-        .is_some_and(|at| now.duration_since(*at) > WINDOW)
-    {
-        recent.pop_front();
+}
+
+/// L7, M2 and the global-cap finding, as one decision at `now`: a line
+/// keyed `key` is checked against its own allowance first; then, unless
+/// `exempt` (its process attested recently), against every keyless line
+/// together; it's charged to both only when it's served.
+pub(crate) fn gate(
+    calls: &mut HashMap<String, VecDeque<Instant>>,
+    key: &str,
+    exempt: bool,
+    now: Instant,
+) -> Gate {
+    prune(calls, now);
+    if recent_of(calls, key, now).len() >= MAX_CALLS {
+        return Gate::Own;
     }
+    if !exempt {
+        let all = recent_of(calls, ALL, now);
+        if all.len() >= KEYLESS_MAX {
+            return Gate::Busy;
+        }
+        all.push_back(now);
+    }
+    recent_of(calls, key, now).push_back(now);
+    Gate::Served
+}
+
+/// L7: a keyless line's refusal before any attestation's work, if it gets
+/// one: past its own allowance `own` (Limit), so a looping caller costs no
+/// process listing and no storage lock past [`MAX_CALLS`] in [`WINDOW`];
+/// M2: past every keyless line's cap (Busy), so a loop of new processes
+/// (`nc -U` in a loop) can't make that work unbounded either, while a
+/// process attested in the last [`ATTESTED_FOR`] isn't held up by it.
+pub(super) fn keyless_refused(state: &Arc<AppState>, who: Counted, own: &str) -> Option<Response> {
+    let exempt = recently_attested(state, who);
+    let key = who
+        .pid
+        .map_or_else(|| "peer:unknown".to_owned(), |pid| format!("peer:{pid}"));
+    let decided = state
+        .agent_bridge
+        .calls
+        .lock()
+        .map_or(Gate::Busy, |mut calls| {
+            gate(&mut calls, &key, exempt, Instant::now())
+        });
+    match decided {
+        Gate::Served => None,
+        Gate::Own => Some(Response::refused(Refusal::Limit, own)),
+        Gate::Busy => Some(Response::refused(Refusal::Busy, BUSY)),
+    }
+}
+
+/// Notes the attested caller at `peer` and its session's tool process
+/// (`tool_pid`) as attested now, by pid and pid version.
+pub(super) fn note_attested(
+    state: &Arc<AppState>,
+    peer: juggler_platform::local_ipc::Peer,
+    tool_pid: u32,
+) {
+    let now = Instant::now();
+    let tool = juggler_proc_list::pid_version(tool_pid).map(|version| (tool_pid, version));
+    let Ok(mut kept) = state.agent_bridge.attested_peers.lock() else {
+        return;
+    };
+    if kept.len() >= RATE_KEYS_MAX {
+        kept.retain(|_, (_, at)| now.duration_since(*at) <= ATTESTED_FOR);
+        if kept.len() >= RATE_KEYS_MAX {
+            kept.clear();
+        }
+    }
+    for (pid, version) in [peer.pid.zip(peer.pid_version), tool].into_iter().flatten() {
+        kept.insert(pid, (version, now));
+    }
+}
+
+/// Whether `who` (its pid at that version) was attested in the last
+/// [`ATTESTED_FOR`].
+pub(super) fn recently_attested(state: &Arc<AppState>, who: Counted) -> bool {
+    let (Some(pid), Some(version)) = (who.pid, who.version) else {
+        return false;
+    };
+    state.agent_bridge.attested_peers.lock().is_ok_and(|kept| {
+        kept.get(&pid)
+            .is_some_and(|(at_version, at)| *at_version == version && at.elapsed() <= ATTESTED_FOR)
+    })
+}
+
+fn within_rate_of(state: &Arc<AppState>, key: &str, max: usize) -> bool {
+    let Ok(mut calls) = state.agent_bridge.calls.lock() else {
+        return false;
+    };
+    let now = Instant::now();
+    prune(&mut calls, now);
+    let recent = recent_of(&mut calls, key, now);
     if recent.len() >= max {
         return false;
     }
