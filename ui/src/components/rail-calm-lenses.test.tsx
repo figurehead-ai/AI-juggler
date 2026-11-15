@@ -156,9 +156,9 @@ describe("the folded icon rail is calm (D-117)", () => {
       }
       expect(name).not.toMatch(/^[!✕]/);
     }
-    const broke = rail.querySelector<HTMLElement>("[data-instance-id='broke']");
-    // A failed session has ended: the folded rail shows what is open.
-    if (broke) expect(broke.querySelector("[data-testid='rail-folded-needs']")!.textContent).toBe("✕");
+    // A failed session has ended, yet keeps its icon, lit with the red ✕ (rail-folded-levels.test.tsx).
+    const broke = rail.querySelector<HTMLElement>("[data-instance-id='broke']")!;
+    expect(broke.querySelector("[data-testid='rail-folded-needs']")!.textContent).toBe("✕");
     const stuck = rail.querySelector<HTMLElement>("[data-instance-id='stuck']")!;
     expect(stuck.querySelector("[data-testid='rail-folded-needs']")!.getAttribute("data-level")).toBe("2");
     expect(within(stuck).getByText(/^Probably stuck, /)).toBeTruthy();

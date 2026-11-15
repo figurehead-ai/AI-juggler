@@ -10,8 +10,12 @@
  *   each one is listed with its next step.
  * - **Open now**: every open session, AI Juggler's and the ones other apps
  *   run, by place in Open now's order (D-47), each as its app's icon with
- *   the profile's dot (D-38), its state's dot, and `!` when it needs you.
- *   Its name says the state first, then the title and where it runs.
+ *   the profile's dot (D-38), its state's dot, and its level's corner (D-117:
+ *   amber `!` at L2, red `✕` at L3). Its name says the state first, then the
+ *   title and where it runs. A session that waits on you or broke (L2/L3)
+ *   is there open or not: one that stopped with an error has ended, and the
+ *   count's red ✕ named it while no icon did (CI run 43768776781's
+ *   69-rail-narrow capture).
  * - **All clear** only when nothing needs you, nothing is open and the
  *   computer is calm (`RailCalm`); while the sessions still load, round
  *   placeholders stand in, never a false "All clear" (AJ-E1503 Req.4, as
@@ -52,12 +56,18 @@ export function needsYouWords(count: number): string {
   return `${count} ${count === 1 ? "thing needs" : "things need"} you`;
 }
 
-/** The open items in Open now's order: places as arranged, rows in them
+/** What the folded column shows: what is open, and what waits on you or
+ * broke (L2/L3, `counted`), open or not; a note (L1) only while open. */
+export function foldedShows(item: RailItem): boolean {
+  return openNow(item) || counted(itemLevel(item));
+}
+
+/** The folded items in Open now's order: places as arranged, rows in them
  * as arranged (pins first), Latest activity's rows by when they started
  * (the folded column holds still). */
 export function foldedOrder(items: RailItem[], mode: "yours" | "latest" | "name", places: readonly string[], rows: readonly string[]): RailItem[] {
   const rank = rankOf(rows);
-  return arrangeGroups(groupItems(items.filter(openNow), "place"), mode, places).flatMap((group) => sortRows(group.items, mode === "name" ? "name" : "yours", rank));
+  return arrangeGroups(groupItems(items.filter(foldedShows), "place"), mode, places).flatMap((group) => sortRows(group.items, mode === "name" ? "name" : "yours", rank));
 }
 
 export function FoldedRail({
