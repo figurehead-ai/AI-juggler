@@ -13,10 +13,10 @@
 import type { JSX } from "react";
 
 import { ChoiceOption } from "../../../components/controls";
-import { Button } from "../../../components/primitives";
 import { SELECTED_FILL } from "../../../components/controls/selected";
 import type { LeadChoice } from "../../../lib/new-pool";
-import { LEAD_WOULD, nextSessionWords } from "../../../lib/pool-words";
+import { LEAD_WOULD, leadSentence, nextSessionWords } from "../../../lib/pool-words";
+import { StartLeadButton } from "./StartLead";
 
 export interface LeadSession {
   ref: string;
@@ -31,6 +31,8 @@ export interface LeadApp {
   name: string;
   /** A session of it can start here (a CLI App, the pool made). */
   startable?: boolean;
+  /** Its sessions open in the pool's projects now, when known. */
+  open?: number;
 }
 
 const same = (a: LeadChoice, b: LeadChoice) =>
@@ -58,6 +60,8 @@ export function LeadPicker({
   testId?: string;
 }): JSX.Element {
   const starting = value.kind === "next" && onStart ? apps.find((app) => app.ref === value.app && app.startable) : undefined;
+  const chosenSession = value.kind === "session" ? sessions.find((one) => one.ref === value.ref) : undefined;
+  const chosenApp = value.kind === "next" ? apps.find((app) => app.ref === value.app) : undefined;
   const row = (choice: LeadChoice, title: string, detail: string, key: string, kind: string) => (
     <ChoiceOption
       key={key}
@@ -92,20 +96,22 @@ export function LeadPicker({
           <span className="section-label">Next session</span>
           <div className="flex flex-col gap-0.5">
             {apps.map((app) =>
-              row({ kind: "next", app: app.ref }, nextSessionWords(app.name), `It leads from its next session in ${where}.${onStart ? "" : " Once the pool is made, Start one now on its card starts that session."}`, app.ref, "next"),
+              row({ kind: "next", app: app.ref }, nextSessionWords(app.name), `It leads from its next session in ${where}.`, app.ref, "next"),
             )}
           </div>
-          {starting && (
-            <span className="flex flex-wrap items-center gap-2 px-3 pt-1 text-meta text-ink-2">
-              <Button size="sm" variant="accent" disabled={disabled} onClick={() => onStart?.(starting.ref)} data-testid={`${testId}-start`}>
-                Start one now
-              </Button>
+          {starting && onStart && (
+            <span className="flex flex-wrap items-center gap-2 px-3 pt-1 text-meta text-ink-2" data-made-pool-only>
+              <StartLeadButton member={starting.ref} name={starting.name} where={where} onStart={onStart} disabled={disabled} testId={`${testId}-start`} />
               New session on {starting.name} in {where}: it leads once you start it.
             </span>
           )}
         </div>
       )}
       <div className="flex flex-col gap-0.5">{row({ kind: "none" }, "No lead for now", LEAD_WOULD, "none", "none")}</div>
+      {/* Round 3: the read-back is the control's own, in both paths. */}
+      <p className="text-meta text-ink" data-testid={`${testId}-sentence`}>
+        {leadSentence(chosenSession?.name ?? null, chosenApp?.name ?? null, where, chosenApp?.open)}
+      </p>
     </fieldset>
   );
 }

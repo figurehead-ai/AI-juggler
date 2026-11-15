@@ -212,7 +212,7 @@ function PoolCanvasPage({ poolId, sessions, projects, accounts, now }: { poolId:
     },
     onStep: (step) => select({ kind: "pool", focus: step }),
   });
-  const { where, leadNextName } = setup;
+  const { where } = setup;
   const openProjects = new Set(sessions.filter((session) => sessionState(session).state !== "ended" && session.project_id).map((session) => session.project_id!));
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-card border border-hairline bg-surface" data-testid="pool-page">
@@ -347,7 +347,6 @@ function PoolCanvasPage({ poolId, sessions, projects, accounts, now }: { poolId:
           where={where}
           needs={needs}
           setup={{ rows: setup.rows, onOpen: setup.open, tools: setup.tools }}
-          leadNextName={leadNextName}
           leadDir={setup.leadDir}
           setupSections={
             <PoolSetupSections

@@ -7,7 +7,7 @@ import type { JSX } from "react";
 import type { Draft } from "../../lib/new-pool";
 import { nextRule, pairKey, ruleOf } from "../../lib/pool-templates";
 import { TalkTable } from "../../pages/pool/setup/TalkTable";
-import { talkSentence } from "./NewPoolReview";
+import { talkSentence } from "../../lib/pool-sentences";
 import { StepHead } from "./StepHead";
 
 export function NewPoolTalk({ draft, onDraft }: { draft: Draft; onDraft: (next: Draft) => void }): JSX.Element {

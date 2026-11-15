@@ -14,7 +14,7 @@ import { IconDone } from "../../../components/icons-menu";
 import { IconView } from "../../../components/icons-places";
 import type { PoolRole } from "../../../lib/ipc/pools";
 import { ROLE_CARDS, asRole, roleCard } from "../../../lib/pool-words";
-import { rolesFor } from "../../../lib/pools";
+import { leadHint, rolesFor } from "../../../lib/pools";
 
 type Icon = (props: SVGProps<SVGSVGElement>) => JSX.Element;
 
@@ -50,9 +50,16 @@ export function RoleCards({ holders, testId = "role-cards" }: { holders: Partial
   );
 }
 
-/** A member's role, with each role's line under it. A broad member (an
- * App, Account, Tool, Mac or everyone) can't lead (D-92): its picker
- * says why. */
+/** Round 3 (#1): an App's Lead, which its next session takes. */
+export const NEXT_LEAD_OPTION = { label: "Lead: its next session leads", hint: "One session leads: this App's next session in the pool's projects. Its other sessions keep their role." };
+
+/** Whether a member is an App (its next session can lead). */
+const isApp = (member: string) => member === "app" || member.startsWith("app:");
+
+/** A member's role, with each role's line under it. D-92: Lead is one
+ * session. An App's Lead is its next session's (round 3, #1: the walk
+ * clicked a greyed Lead three times); an Account, Tool, Mac or everyone
+ * can't lead, and {@link RoleWhy} says why beside it. */
 export function RolePicker({
   member,
   name,
@@ -60,6 +67,7 @@ export function RolePicker({
   onChange,
   disabled = false,
   prefix = "Role:",
+  leadsNext = false,
   testId,
 }: {
   /** Its visible label, before the value (round 2, #10). */
@@ -68,11 +76,15 @@ export function RolePicker({
   member: string;
   name: string;
   value: PoolRole;
+  /** An App whose next session leads: its value reads Lead. */
+  leadsNext?: boolean;
+  /** "lead" on an App: its next session leads. */
   onChange: (role: PoolRole) => void;
   disabled?: boolean;
   testId?: string;
 }): JSX.Element {
   const may = new Set(rolesFor(member));
+  const app = isApp(member);
   return (
     <Picker
       choice
@@ -81,18 +93,28 @@ export function RolePicker({
       ariaLabel={prefix && prefix !== "Role:" ? `${name}: ${prefix.replace(/:$/, "")}` : `${name}'s role`}
       heading={`${name}'s role`}
       prefix={prefix}
-      value={value}
+      value={leadsNext ? "lead" : value}
       disabled={disabled}
-      options={ROLE_CARDS.map((card) => ({
-        value: card.id,
-        label: card.label,
-        hint: card.line,
-        disabled: !may.has(card.id),
-        reason: may.has(card.id) ? undefined : "Lead is one session. Pick who leads in Who leads.",
-      }))}
+      options={ROLE_CARDS.map((card) =>
+        card.id === "lead" && app
+          ? { value: card.id, label: NEXT_LEAD_OPTION.label, hint: NEXT_LEAD_OPTION.hint }
+          : { value: card.id, label: card.label, hint: card.line, disabled: !may.has(card.id), reason: may.has(card.id) ? undefined : (leadHint(member) ?? undefined) },
+      )}
       onChange={onChange}
       testId={testId}
     />
+  );
+}
+
+/** Why a wider member (an Account, Tool, Mac, everyone) can't lead, as
+ * text beside its role (round 3, #1: not only inside the menu). */
+export function RoleWhy({ member, testId }: { member: string; testId?: string }): JSX.Element | null {
+  const why = isApp(member) ? null : leadHint(member);
+  if (!why) return null;
+  return (
+    <span className="text-meta text-ink-2" data-testid={testId}>
+      {why}
+    </span>
   );
 }
 

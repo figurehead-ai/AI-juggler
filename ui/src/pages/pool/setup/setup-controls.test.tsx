@@ -14,14 +14,14 @@ import { agentBridgeGet, resetPreviewAgentBridge } from "../../../lib/ipc/agent-
 import { joinSentence, leadSentence, levelSentence, memberSentence, OWN_LEVELS, roleCard, wakeWords, whereWords } from "../../../lib/pool-words";
 import { draftOf } from "../../../lib/new-pool";
 import { effectiveRule, nextRule, ruleOf, templateById } from "../../../lib/pool-templates";
-import { talkSentence } from "../../../screens/pools/NewPoolReview";
+import { talkSentence } from "../../../lib/pool-sentences";
 import { nameWraps } from "../NodeParts";
 import { LEVELS, levelLabel } from "../../../lib/pools";
 import { JoinAs } from "./JoinAs";
 import { LeadPicker } from "./LeadPicker";
 import { MemberOwnLevel, OwnLevelChoice } from "./OwnLevelChoice";
 import { PoolToolsCard } from "./PoolToolsCard";
-import { RoleCards, RolePicker, holdersOf } from "./RoleCards";
+import { RoleCards, RolePicker, RoleWhy, holdersOf } from "./RoleCards";
 import { TalkTable } from "./TalkTable";
 
 afterEach(() => {
@@ -91,13 +91,30 @@ describe("the controls", () => {
     expect(within(cards[3]!).getByTestId("role-card-holders").textContent).toBe("No one yet");
   });
 
-  it("a member's role picker shows the same lines, and an App can't lead (D-92)", () => {
+  it("a member's role picker shows the same lines; an App's Lead is its next session's, a wider group's is greyed with its reason in view (D-92, round 3 #1)", () => {
     const change = vi.fn();
     render(<RolePicker member="app" name="Claude Code · Work" value="member" onChange={change} testId="role" />);
     fireEvent.click(screen.getByTestId("role"));
     const lead = screen.getAllByRole("menuitemradio").find((line) => line.textContent?.startsWith("Lead"))!;
-    expect(lead.getAttribute("aria-disabled") ?? String(lead instanceof HTMLButtonElement && lead.disabled)).toBe("true");
+    expect(lead.textContent).toContain("Lead: its next session leads");
+    expect(lead instanceof HTMLButtonElement && lead.disabled).toBe(false);
     expect(screen.getAllByRole("menuitemradio").map((line) => line.textContent)).toContain("ReviewerReads everything, checks work in review and gives its verdict. Doesn't build.");
+    fireEvent.click(lead);
+    expect(change).toHaveBeenCalledWith("lead");
+    cleanup();
+    render(
+      <>
+        <RolePicker member="account" name="Work Max" value="member" onChange={change} testId="account-role" />
+        <RoleWhy member="account" testId="account-why" />
+        <RoleWhy member="app" testId="app-why" />
+      </>,
+    );
+    expect(screen.getByTestId("account-why").textContent).toBe("Lead is one session; pick one of this Account's sessions to lead.");
+    expect(screen.queryByTestId("app-why")).toBeNull();
+    fireEvent.click(screen.getByTestId("account-role"));
+    const greyed = screen.getAllByRole("menuitemradio").find((line) => line.textContent?.startsWith("Lead"))!;
+    expect(greyed instanceof HTMLButtonElement && greyed.disabled).toBe(true);
+    expect(greyed.textContent).toContain("Lead is one session; pick one of this Account's sessions to lead.");
   });
 
   it("what they may do on their own: a labelled choice with its consequence and an example, and what it means", () => {
@@ -148,7 +165,8 @@ describe("the controls", () => {
     expect(cell("member>member").getAttribute("aria-label")).toBe("Member to Members: Ask first. Press to change.");
     fireEvent.click(cell("lead>member"));
     expect(cycle).toHaveBeenCalledWith("lead", "member");
-    expect(screen.getByTestId("talk-table-above").textContent).toContain("Ask first waits for your OK in Needs you");
+    // Round 3 (#5): Needs you, said with what it is.
+    expect(screen.getByTestId("talk-table-above").textContent).toContain("Ask first waits in Needs you (the list of things waiting for your OK, on Home)");
     expect(screen.getByTestId("talk-table-below").textContent).toContain("click the line between them on the diagram");
   });
 

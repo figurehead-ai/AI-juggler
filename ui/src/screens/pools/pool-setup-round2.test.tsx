@@ -29,11 +29,12 @@ describe("AJ-E3011 round 2", () => {
   it("#1: Review says the team tools as a line, decided before Make pool, and names a project they're off for", async () => {
     const draft: Draft = { ...draftOf(templateById("blank"), "p-web"), members: [app("app:cli:work", "Claude Code · Work")] };
     const review = render(<NewPoolReview draft={draft} name="web team" where="web" projects={[{ id: "p-web", name: "web" }]} />);
-    expect((await review.findByTestId("new-pool-tools-line")).textContent).toBe("Off: they can't message yet.");
+    // Round 3: Review's line and the card are the diagram's own.
+    expect((await review.findByTestId("new-pool-review-tools-line")).textContent).toBe("Off: they can't message yet.");
     expect(review.getByTestId("new-pool-tools").textContent).toContain("switch it off for a project or an app in Settings › Agent access");
     fireEvent.click(review.getByTestId("new-pool-tools-on"));
     await review.findByText("On: they can message each other and share notes and tasks.");
-    expect(review.queryByTestId("new-pool-tools-on")).toBeNull();
+    expect(review.queryByTestId("new-pool-tools")).toBeNull();
     // On, but off for web: Review names it.
     const off = teamTools({ asked: true, on: true, available: true, off_projects: ["p-web"], off_profiles: [] }, draftPlaces(draft, [{ id: "p-web", name: "web" }]).projects, []);
     expect(teamToolsLine(off)).toBe("Off for web: they can't message there.");
@@ -93,7 +94,8 @@ describe("AJ-E3011 round 2", () => {
     const rows = screen.getAllByTestId("new-pool-member-row");
     expect(within(rows[0]!).getByTestId("new-pool-member-leads-next").textContent).toBe("Leads next");
     expect(within(rows[0]!).getByTestId("new-pool-member-sentence").textContent).toBe("Claude Code · Work: its next session leads; its others join as Member and may Work together, as the pool.");
-    expect(within(rows[0]!).getByTestId("new-pool-member-role").textContent).toContain("Its others:");
+    // Round 3 (#1): its Lead reads as its next session's, in the same picker.
+    expect(within(rows[0]!).getByTestId("new-pool-member-role").textContent).toBe("Role:Lead: its next session leads");
     expect(within(rows[1]!).getByTestId("new-pool-member-role").textContent).toContain("Role:");
     expect(within(rows[1]!).getByTestId("new-pool-member-level").textContent).toContain("On its own:");
     expect(within(rows[1]!).getByTestId("new-pool-member-level").textContent).toContain("Same as the pool (Work together)");

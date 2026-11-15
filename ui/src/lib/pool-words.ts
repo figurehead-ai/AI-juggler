@@ -178,8 +178,12 @@ export const TALK_WORDS: Record<TalkRule, { label: string; level: 0 | 2 | 3 }> =
 /** A stored talk rule as a rule (allowed otherwise). */
 export const asTalkRule = (rule: string | null | undefined): TalkRule => (rule === "ask" || rule === "blocked" ? rule : "allowed");
 
-/** The line above the talk table. */
-export const TALK_ABOVE = "Who may send a message to whom. Allowed needs nothing from you; Ask first waits for your OK in Needs you; Blocked stops it.";
+/** What "Needs you" is, said at its first mention on the pool screens
+ * (round 3, #5: the walk didn't know it). */
+export const NEEDS_YOU_WHAT = "the list of things waiting for your OK, on Home";
+
+/** The line above the talk table (the setup's first mention of Needs you). */
+export const TALK_ABOVE = `Who may send a message to whom. Allowed needs nothing from you; Ask first waits in Needs you (${NEEDS_YOU_WHAT}); Blocked stops it.`;
 /** The line below it: one pair of sessions. */
 export const TALK_BELOW = "An Observer only reads: its messages are blocked, or wait for your OK if you set Ask first. To set it for one pair of sessions, click the line between them on the diagram.";
 

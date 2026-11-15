@@ -22,7 +22,8 @@ import type { AgentBridgeInfo } from "../../types/generated/AgentBridgeInfo";
 import type { InstanceInfo } from "../../types/generated/InstanceInfo";
 import { PREVIEW_TOOLS } from "../../preview/tools";
 import { NewPool, busiestProject, freeName, nameOnChoose } from "./NewPool";
-import { NewPoolReview, talkSentence } from "./NewPoolReview";
+import { NewPoolReview } from "./NewPoolReview";
+import { talkSentence } from "../../lib/pool-sentences";
 import { NewPoolLead } from "./NewPoolLead";
 import { PoolIntro } from "../../pages/pool/setup/PoolIntro";
 
@@ -310,7 +311,8 @@ describe("AJ-E3007, AJ-E3011 the setup, start to end", () => {
     expect(lead.container.textContent).toContain("Claude Code · Work's next session");
     // Round 2 (#3): it leads from its next session in web, and the pool's
     // diagram can start one once it's made.
-    expect(lead.container.textContent).toContain("It leads from its next session in web. Once the pool is made, Start one now on its card starts that session.");
+    expect(lead.container.textContent).toContain("It leads from its next session in web.");
+    expect(lead.getByTestId("new-pool-lead-start-later").textContent).toBe("Once the pool is made, Start one now on its App's card starts that session.");
     fireEvent.click(options[0]!);
     expect(draft.leadNext).toBe("app:cli:a");
     lead.rerender(<NewPoolLead draft={draft} onDraft={(next) => (draft = next)} sessions={[]} nameOf={(_, label) => label} where="web" openNow={new Map([["app:cli:a", 0]])} />);

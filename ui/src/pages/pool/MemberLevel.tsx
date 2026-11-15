@@ -8,13 +8,13 @@
  */
 import { useState, type JSX } from "react";
 
-import { Picker } from "../../components/controls";
 import { showToast } from "../../components/Toast";
 import { errorText } from "../../lib/bridge";
 import { POOL_RULES_CHANGED, poolJoin } from "../../lib/ipc/pool-model";
 import type { PoolInfo, PoolRole } from "../../lib/ipc/pools";
 import { setPools } from "../../lib/pools";
-import { OWN_LEVELS, SAME_AS_POOL, ownLabel, wakeWords } from "../../lib/pool-words";
+import { SAME_AS_POOL, ownLabel, wakeWords } from "../../lib/pool-words";
+import { MemberOwnLevel } from "./setup/OwnLevelChoice";
 import { useSessionPools } from "../session/useSessionPools";
 
 const ROLES: readonly PoolRole[] = ["lead", "member", "reviewer", "observer"];
@@ -52,18 +52,15 @@ export function MemberLevel({ pool, sessionId, memberRole }: { pool: PoolInfo; s
   return (
     <div className="flex flex-col gap-1.5" data-testid="inspect-node-level">
       <span className="text-meta font-medium text-ink">What it may do on its own</span>
-      <Picker
-        choice
-        size="sm"
-        ariaLabel="What it may do on its own"
-        heading="What it may do on its own"
-        value={value}
+      {/* Round 3: the members' one control for this (MemberOwnLevel). */}
+      <MemberOwnLevel
+        prefix=""
+        name="it"
+        value={value === "keep" ? null : value}
+        poolLevel={pool.access.level}
+        kept={keptLevelWords(place.via, place.level, pool.access.level)}
         disabled={busy}
-        options={[
-          { value: "keep", label: keptLevelWords(place.via, place.level, pool.access.level) },
-          ...OWN_LEVELS.map((one) => ({ value: one.id, label: one.label, hint: one.line })),
-        ]}
-        onChange={(next) => void set(next)}
+        onChange={(next) => void set(next ?? "keep")}
         testId="inspect-node-level-picker"
       />
       <span className="text-meta text-ink-2">Its own choice wins over its {own ? "pool's" : `${VIA_WORD[place.via] ?? "member"}'s`}, for this session only.</span>

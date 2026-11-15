@@ -369,7 +369,11 @@ describe("Pools and a project's page", () => {
         <ProjectPool project={SHOP} sessions={MOCK_SESSIONS} now={NOW} />
       </ActionHostProvider>,
     );
-    fireEvent.click(await view.findByTestId("project-pool-open"));
+    const open = await view.findByTestId("project-pool-open");
+    // AJ-E3011 round 3 (#7): it waits, with a spinner, until the pool is read; then a click opens it.
+    await waitFor(() => expect(open.hasAttribute("disabled")).toBe(false));
+    expect(view.queryByTestId("project-pool-open-wait")).toBeNull();
+    fireEvent.click(open);
     expect(actions.calls).toEqual([`pool:pool-default:${SHOP.id}`]);
   });
 

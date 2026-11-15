@@ -54,7 +54,6 @@ export function usePoolSetup(input: {
   open: (step: SetupStepId) => void;
   where: string;
   leadCard: boolean;
-  leadNextName: string | null;
   /** The App whose next session leads, by member ref and name. */
   leadNext: { ref: string; name: string } | null;
   /** The pool's one project folder ("Start one now" opens there). */
@@ -90,7 +89,6 @@ export function usePoolSetup(input: {
     open,
     where: poolWhere(pool, input.projects),
     leadCard,
-    leadNextName: nextRule ? input.ruleLabel(nextRule) : null,
     leadNext: nextRule ? { ref: nextRule.member, name: input.ruleLabel(nextRule) } : null,
     leadDir: leadFolder(pool, input.projects),
     tools: {

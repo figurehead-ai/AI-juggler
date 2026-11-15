@@ -7,7 +7,10 @@
  * the wake option's example shows at once under it (#5), the chosen
  * one's too; "What does this mean?" keeps the tips and the guide. A
  * member's own choice is labelled "On its own:" and offers "Same as the
- * pool" first (#10). The setup and the inspector share it.
+ * pool" first (#10). Round 3: the one control for this setting, in New
+ * pool, the pool's inspector and the diagram's header (`look="menu"`,
+ * "On their own (everyone in this pool):"), with Custom where a made pool
+ * offers it; a member's own choice is MemberOwnLevel, everywhere.
  */
 import { useId, type JSX } from "react";
 
@@ -19,21 +22,47 @@ import { OWN_LABEL, OWN_LEVELS, OWN_SCOPE, POOLS_GUIDE, SAME_AS_POOL, asOwnLevel
 /** The guide's section on what agents may do. */
 const GUIDE = `${POOLS_GUIDE}#what-agents-may-do`;
 
+/** A made pool's fourth choice: each action picked by hand. */
+export const CUSTOM = { label: "Custom", line: "You pick each action, under Custom actions." };
+
 export function OwnLevelChoice({
   value,
   onChange,
+  onCustom,
+  look = "radios",
   label = OWN_LABEL,
   disabled = false,
   testId = "own-level",
 }: {
-  value: OwnLevel;
+  /** A made pool's may be "custom" (each action picked by hand). */
+  value: OwnLevel | "custom";
   onChange: (level: OwnLevel) => void;
+  /** A made pool: Custom is offered, and chosen with this. */
+  onCustom?: () => void;
+  /** Radios with each line (the setup, the inspector), or a menu (the
+   * diagram's header). */
+  look?: "radios" | "menu";
   /** Its visible label: what it sets and for whom. */
   label?: string;
   disabled?: boolean;
   testId?: string;
 }): JSX.Element {
   const name = useId();
+  if (look === "menu")
+    return (
+      <Picker
+        choice
+        size="sm"
+        ariaLabel={label}
+        heading={label}
+        prefix="On their own (everyone in this pool):"
+        value={value}
+        disabled={disabled}
+        options={[...OWN_LEVELS.map((one) => ({ value: one.id, label: one.label, hint: one.line })), ...(onCustom ? [{ value: "custom", label: CUSTOM.label, hint: CUSTOM.line }] : [])]}
+        onChange={(next) => (next === "custom" ? onCustom?.() : onChange(asOwnLevel(next)))}
+        testId={testId}
+      />
+    );
   return (
     <fieldset className="flex min-w-0 flex-col gap-2" data-testid={testId}>
       <legend className="text-meta font-medium text-ink">{label}</legend>
@@ -67,6 +96,22 @@ export function OwnLevelChoice({
             />
           );
         })}
+        {onCustom && (
+          // A made pool's own: each action picked by hand.
+          <div data-made-pool-only>
+          <ChoiceOption
+            type="radio"
+            name={name}
+            checked={value === "custom"}
+            disabled={disabled}
+            onChange={onCustom}
+            label={CUSTOM.label}
+            hint={CUSTOM.line}
+            className={value === "custom" ? SELECTED_FILL : ""}
+            data-testid={`${testId}-choice-custom`}
+          />
+          </div>
+        )}
       </div>
       <Explain
         testId={`${testId}-explain`}
@@ -91,8 +136,12 @@ export function MemberOwnLevel({
   onChange,
   disabled = false,
   prefix = "On its own:",
+  kept,
   testId,
 }: {
+  /** Its first choice's words, when it follows a wider member rather than
+   * the pool ("Same as its App (Work together)"). */
+  kept?: string;
   /** Its visible label, before the value ("" where a heading says it). */
   prefix?: string;
   name: string;
@@ -112,7 +161,7 @@ export function MemberOwnLevel({
       value={value ?? "pool"}
       disabled={disabled}
       options={[
-        { value: "pool", label: `${SAME_AS_POOL} (${ownLabel(poolLevel)})`, hint: "Follows the pool's choice, now and when it changes." },
+        { value: "pool", label: kept ?? `${SAME_AS_POOL} (${ownLabel(poolLevel)})`, hint: kept ? "Follows that member's choice, now and when it changes." : "Follows the pool's choice, now and when it changes." },
         ...OWN_LEVELS.map((one) => ({ value: one.id, label: one.label, hint: one.line })),
       ]}
       onChange={(next) => onChange(next === "pool" ? null : asOwnLevel(next))}

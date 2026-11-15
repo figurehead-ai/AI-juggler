@@ -25,7 +25,7 @@ import { rememberTab, rememberedTabId } from "../registry";
 import { PoolPage, poolCountWords } from "../PoolPage";
 import { first, openPage, resetCanvasTests, second, seams, seedTeam, third } from "./canvas.test-kit";
 import { cardOrder, cardWords, newPoolName, PoolsScreen } from "../../screens/pools/PoolsScreen";
-import { deliveryShort, deliveryWords } from "./InspectPool";
+import { deliveryWords } from "./InspectPool";
 import { CanvasEdges, pendingWords } from "./CanvasEdges";
 import { CompactNode } from "./CompactNode";
 import { CanvasNode } from "./CanvasNode";
@@ -392,13 +392,10 @@ describe("a pool's page: its canvas", () => {
 
   it("says how a message gets into a session", () => {
     const pool = { id: "p", name: "p", kind: "user", project_id: null, access: { level: "work_together", actions: [], hop_limit: 5, delivery_stopped: false }, rules: [], spans_macs: false, scopes: 1, members: 0, ...scopeOf("user", null) };
-    expect(deliveryWords(pool)).toBe("When you click Deliver");
-    expect(deliveryWords({ ...pool, access: { ...pool.access, level: "full" } })).toBe("By themselves, between turns");
-    expect(deliveryWords({ ...pool, access: { ...pool.access, delivery_stopped: true } })).toBe("Stopped: nothing goes into a session");
-    // The Activity panel's short form (design review #76).
-    expect(deliveryShort(pool)).toBe("Wait for you");
-    expect(deliveryShort({ ...pool, access: { ...pool.access, level: "full" } })).toBe("Go in by themselves");
-    expect(deliveryShort({ ...pool, access: { ...pool.access, delivery_stopped: true } })).toBe("Stopped");
+    // AJ-E3011 round 3 (#2): in plain words, not "When you click Deliver".
+    expect(deliveryWords(pool)).toBe("Each one waits for your OK in Needs you, then goes into the session.");
+    expect(deliveryWords({ ...pool, access: { ...pool.access, level: "full" } })).toBe("They go into the session by themselves, between its turns.");
+    expect(deliveryWords({ ...pool, access: { ...pool.access, delivery_stopped: true } })).toBe("Stopped: messages stay in the inboxes, and none goes into a session.");
   });
 
   it("fits members above the zoom bar, not under it (design review #10)", () => {

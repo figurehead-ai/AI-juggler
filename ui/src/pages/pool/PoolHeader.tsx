@@ -10,8 +10,10 @@ import { IconPool } from "../../components/icons-actions";
 import { IconMessage, IconTasks } from "../../components/icons-canvas";
 import { errorText } from "../../lib/bridge";
 import { poolRename, poolSetAccess, type PoolInfo } from "../../lib/ipc/pools";
-import { LEVELS, setPools } from "../../lib/pools";
-import { Picker, Segmented } from "../../components/controls";
+import { setPools } from "../../lib/pools";
+import { asOwnLevel } from "../../lib/pool-words";
+import { OwnLevelChoice } from "./setup/OwnLevelChoice";
+import { Segmented } from "../../components/controls";
 import { Chip } from "../../components/primitives";
 import { CrumbButton } from "../PageHeader";
 
@@ -192,14 +194,13 @@ export function PoolHeader({
           Messages
         </Toggle>
         <span className="mx-1 h-5 w-px bg-hairline" aria-hidden="true" />
-        <Picker choice
-          ariaLabel="What its sessions may do on their own"
-          heading="What sessions in this pool may do on their own"
-          size="sm"
-          prefix={<span className="text-muted">On their own:</span>}
-          value={pool.access.level}
-          options={LEVELS.map((level) => ({ value: level.id, label: level.label, hint: level.words }))}
-          onChange={(level) => void poolSetAccess(pool.id, level, level === "custom" ? pool.access.actions : []).then(setPools, (cause) => setError(errorText(cause)))}
+        {/* Round 3 (#3): the pool's one control for this, saying whom it covers. */}
+        <OwnLevelChoice
+          look="menu"
+          label="What sessions in this pool may do on their own"
+          value={pool.access.level === "custom" ? "custom" : asOwnLevel(pool.access.level)}
+          onChange={(level) => void poolSetAccess(pool.id, level, []).then(setPools, (cause) => setError(errorText(cause)))}
+          onCustom={() => void poolSetAccess(pool.id, "custom", pool.access.actions).then(setPools, (cause) => setError(errorText(cause)))}
           testId="pool-header-level"
         />
       </div>

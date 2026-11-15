@@ -1,21 +1,21 @@
 /**
  * AJ-E3007 step 4, AJ-E3011's Review (§1, §2): the whole pool read back
  * in sentences — its name and where, who's in, who leads, how everyone
- * else joins, who may message whom, what they may do on their own and the
- * seal — then what each member can actually do here (full, shell only,
- * watched, or joins later). Round 2 (#1): the team tools are a line here,
- * "Team tools: off — they can't message yet · Turn on", so they're
- * decided before Make pool. Make pool follows.
+ * else joins, who may message whom, what they may do on their own, the
+ * seal and the team tools — then what each member can actually do here,
+ * and the team tools card. Round 3: the sentences and the card are the
+ * pool inspector's own (PoolSentences, PoolToolsCard), from one shape, so
+ * the two paths can't say a pool differently. Make pool follows.
  */
-import type { JSX, ReactNode } from "react";
+import type { JSX } from "react";
 
-import { Button } from "../../components/primitives";
-import { leadOf, type Draft, type Reach } from "../../lib/new-pool";
-import { effectiveRule, ruleOf, TALK_ROLES } from "../../lib/pool-templates";
-import { TALK_WORDS, joinSentence, leadSentence, levelSentence, memberSentence, nextLeadsSentence, roleCard, type SetupStep } from "../../lib/pool-words";
+import type { Draft, Reach } from "../../lib/new-pool";
+import { roleCard, type SetupStep } from "../../lib/pool-words";
 import { openNowWords } from "../../lib/pool-open-now";
-import { TEAM_TOOLS, draftPlaces, teamToolsLine, turnOnTeamTools, type ToolsPlace } from "../../lib/team-tools";
-import { AgentAccessLink, useTeamTools, useToolsSave } from "../../pages/pool/setup/PoolToolsCard";
+import { shapeOfDraft } from "../../lib/pool-sentences";
+import { draftPlaces, type ToolsPlace } from "../../lib/team-tools";
+import { PoolSentences, Sentence, type SentenceRow } from "../../pages/pool/setup/PoolSentences";
+import { PoolToolsCard, useTeamTools } from "../../pages/pool/setup/PoolToolsCard";
 import { StepHead } from "./StepHead";
 
 const CAN: Record<Reach, string> = {
@@ -25,34 +25,9 @@ const CAN: Record<Reach, string> = {
   later: "its sessions here join by themselves, now and later",
 };
 
-/** The talk grid in a sentence: "Everyone may message everyone" or its
- * exceptions. */
-export function talkSentence(draft: Pick<Draft, "talk">): string {
-  // An Observer that may message no one "only reads", said once.
-  const observerReads = TALK_ROLES.every((to) => ruleOf(draft.talk, "observer", to) === "blocked");
-  const changed: string[] = [];
-  for (const from of TALK_ROLES) {
-    for (const to of TALK_ROLES) {
-      // As the backend enforces it: an Observer's "Allowed" asks you.
-      const rule = effectiveRule(from, ruleOf(draft.talk, from, to));
-      if (rule !== "allowed" && !(from === "observer" && observerReads)) changed.push(`${roleCard(from).label} to ${roleCard(to).label}: ${TALK_WORDS[rule].label.toLowerCase()}`);
-    }
-  }
-  const reads = observerReads ? "; an Observer only reads" : "";
-  return changed.length === 0 ? `Everyone may message everyone${reads}.` : `${changed.join("; ")}. The rest is allowed${reads}.`;
-}
-
-/** Who's in, in a sentence: the members by name, and whether new sessions
- * join by themselves. */
-export function whoSentence(draft: Pick<Draft, "members">, nameOf: (ref: string, label: string) => string = (_, label) => label): string {
-  const named = draft.members.filter((member) => member.ref !== "all");
-  const everyone = draft.members.some((member) => member.ref === "all");
-  if (named.length === 0) return everyone ? "Every session in these projects, as it starts." : "No one yet: add members now, or on the diagram later.";
-  const joins = named.some((member) => member.reach === "later");
-  const names = named.map((member) => nameOf(member.ref, member.label)).join(", ");
-  if (everyone) return `${names}, and every other session in these projects as it starts.`;
-  return `${names}. ${joins ? "Their new sessions here join by themselves." : "Nothing else joins by itself."}`;
-}
+/** Review's rows, and the step each one's Change goes back to. */
+const ROWS: readonly SentenceRow[] = ["who", "lead", "everyone", "talk", "own", "sealed", "tools"];
+const STEP_OF: Partial<Record<SentenceRow, SetupStep>> = { who: "who", lead: "lead", everyone: "everyone", talk: "talk", own: "own", sealed: "own" };
 
 export function NewPoolReview({
   draft,
@@ -77,36 +52,31 @@ export function NewPoolReview({
   /** Back to a step to change it (each sentence's Change). */
   onChange?: (step: SetupStep) => void;
 }): JSX.Element {
-  const change = (step: SetupStep) => (onChange ? () => onChange(step) : undefined);
-  const lead = leadOf(draft);
-  const leadName = lead.kind === "session" ? nameOf(lead.ref, draft.members.find((member) => member.ref === lead.ref)?.label ?? "A session") : null;
-  const nextName = lead.kind === "next" ? nameOf(lead.app, draft.members.find((member) => member.ref === lead.app)?.label ?? "An App") : null;
-  const everyone = draft.members.find((member) => member.ref === "all");
+  const shape = shapeOfDraft(draft, nameOf);
+  const places = draftPlaces(draft, projects);
+  const tools = useTeamTools(places.projects, places.apps);
   const named = draft.members.filter((member) => member.ref !== "all");
+  const changeOf = (row: SentenceRow) => {
+    const step = STEP_OF[row];
+    return onChange && step ? () => onChange(step) : undefined;
+  };
   return (
     <div className="flex max-w-3xl flex-col gap-5" data-testid="new-pool-step-review">
       <StepHead step="review" />
-      <dl className="flex flex-col gap-1" data-testid="new-pool-review">
-        <Sentence title="Name and where" onChange={change("where")}>
-          «{name}» works in {where}.
-        </Sentence>
-        <Sentence title="Who's in" onChange={change("who")}>{whoSentence(draft, nameOf)}</Sentence>
-        <Sentence title="Who leads" onChange={change("lead")}>{leadSentence(leadName, nextName, where, lead.kind === "next" ? openNow?.get(lead.app) : undefined)}</Sentence>
-        <Sentence title="Everyone else" onChange={change("everyone")}>
-          {joinSentence(where, everyone?.role ?? null, everyone?.level ?? draft.level)}
-          {named
-            .filter((member) => member.role !== "lead")
-            .map((member) => (
-              <span key={member.ref} className="block" data-testid="new-pool-review-role">
-                {member.ref === draft.leadNext ? nextLeadsSentence(nameOf(member.ref, member.label), member.role, member.level, draft.level) : memberSentence(nameOf(member.ref, member.label), member.role, member.level, draft.level)}
-              </span>
-            ))}
-        </Sentence>
-        <Sentence title="Who may message whom" onChange={change("talk")}>{talkSentence(draft)}</Sentence>
-        <Sentence title="On their own" onChange={change("own")}>{levelSentence(draft.level)}</Sentence>
-        <Sentence title="Kept apart" onChange={change("own")}>{draft.sealed ? "Sealed: its sessions are in no other pool, and nothing leaves it through AI Juggler." : "Not sealed: its sessions can be in other pools too."}</Sentence>
-        <TeamToolsLine places={draftPlaces(draft, projects)} />
-      </dl>
+      <PoolSentences
+        shape={shape}
+        where={where}
+        rows={ROWS}
+        open={(ref) => openNow?.get(ref)}
+        tools={tools}
+        changeOf={changeOf}
+        first={
+          <Sentence title="Name and where" onChange={onChange ? () => onChange("where") : undefined} testId="new-pool-review">
+            «{name}» works in {where}.
+          </Sentence>
+        }
+        testId="new-pool-review"
+      />
       {named.length > 0 && (
         <section className="flex flex-col gap-1.5" aria-label="What each member can do here">
           <span className="section-label">What each member can do here</span>
@@ -121,60 +91,8 @@ export function NewPoolReview({
           </ul>
         </section>
       )}
+      <PoolToolsCard testId="new-pool-tools" projects={places.projects} apps={places.apps} />
       <p className="text-meta text-ink-2">You can change all of this on the pool's diagram.</p>
-    </div>
-  );
-}
-
-/** Round 2 (#1): the team tools as one of Review's sentences: on, or off
- * (where) with what that means and Turn on, decided before Make pool. */
-function TeamToolsLine({ places }: { places: { projects: ToolsPlace[]; apps: ToolsPlace[] } }): JSX.Element | null {
-  const state = useTeamTools(places.projects, places.apps);
-  const { busy, error, run } = useToolsSave();
-  if (state === null) return null;
-  const off = state.kind !== "on" && state.kind !== "missing";
-  return (
-    <Sentence
-      title="Team tools"
-      testId="new-pool-tools"
-      action={
-        off ? (
-          <Button size="sm" variant="accent" disabled={busy} onClick={() => run(() => turnOnTeamTools(state))} data-testid="new-pool-tools-on">
-            Turn on
-          </Button>
-        ) : undefined
-      }
-    >
-      <span className={off ? "font-medium" : ""} data-testid="new-pool-tools-line">
-        {teamToolsLine(state)}
-      </span>
-      {off && (
-        <span className="mt-0.5 block text-meta text-ink-2">
-          {TEAM_TOOLS.gives} {TEAM_TOOLS.cost} {TEAM_TOOLS.where} <AgentAccessLink />.
-        </span>
-      )}
-      {error && (
-        <span className="block text-meta text-danger" role="alert">
-          {error}
-        </span>
-      )}
-    </Sentence>
-  );
-}
-
-function Sentence({ title, children, onChange, action, testId }: { title: string; children: ReactNode; onChange?: () => void; action?: ReactNode; testId?: string }): JSX.Element {
-  return (
-    <div className="grid grid-cols-1 items-start gap-x-4 gap-y-0.5 rounded-lg px-1 py-1.5 sm:grid-cols-[11rem_1fr_auto]" data-testid={testId}>
-      <dt className="section-label pt-0.5">{title}</dt>
-      <dd className="text-body text-ink">{children}</dd>
-      {action && <dd>{action}</dd>}
-      {onChange && (
-        <dd>
-          <button type="button" onClick={onChange} className="btn-ghost rounded-md px-1.5 py-0.5 text-meta outline-none focus-visible:ring-2 focus-visible:ring-accent/60" data-testid="new-pool-review-change">
-            Change<span className="sr-only"> {title.toLowerCase()}</span>
-          </button>
-        </dd>
-      )}
     </div>
   );
 }

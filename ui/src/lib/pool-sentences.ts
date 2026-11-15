@@ -1,0 +1,118 @@
+/**
+ * AJ-E3011 round 3: a pool read back in sentences, one way for both paths.
+ * New pool's Review reads a draft, a made pool's inspector reads the pool;
+ * each becomes a {@link PoolShape} first, so the summary on the diagram
+ * and the Review can never say a pool differently (the walks found the
+ * diagram path saying less than the setup).
+ */
+import type { PoolRole } from "./ipc/pools";
+import type { TalkRule } from "./ipc/pool-model";
+import { effectiveRule, ruleOf, TALK_ROLES, type PairKey } from "./pool-templates";
+import { TALK_WORDS, joinSentence, leadSentence, levelSentence, memberSentence, nextLeadsSentence, roleCard } from "./pool-words";
+
+/** One member, by its name on screen. */
+export interface ShapeMember {
+  /** `session:…`, `app:…`, `account:…`, `tool:…`, `mac:…`, or `all`. */
+  ref: string;
+  label: string;
+  role: PoolRole;
+  /** Its own choice of what it may do; `null`: the pool's. */
+  level: string | null;
+  /** Its new sessions join by themselves (an App, Account, Tool, Mac). */
+  later: boolean;
+}
+
+/** A pool, draft or made, as its sentences read it. */
+export interface PoolShape {
+  members: ShapeMember[];
+  /** The App (`app:…`) whose next session leads, while no session does. */
+  leadNext: string | null;
+  talk: Partial<Record<PairKey, TalkRule>>;
+  level: string;
+  sealed: boolean;
+}
+
+/** At most this many names in "Who's in"; then "and N more". */
+const NAMES = 3;
+
+/** Who's in: its members by name (three, then "and N more"), and
+ * whether new sessions join by themselves. */
+export function whoSentence(shape: Pick<PoolShape, "members">): string {
+  const named = shape.members.filter((member) => member.ref !== "all");
+  const everyone = shape.members.some((member) => member.ref === "all");
+  if (named.length === 0) return everyone ? "Every session in these projects, as it starts." : "No one yet: add members now, or on the diagram later.";
+  const shown = named.slice(0, NAMES).map((member) => member.label);
+  const names = named.length > NAMES ? `${shown.join(", ")} and ${named.length - NAMES} more` : shown.join(", ");
+  if (everyone) return `${names}, and every other session in these projects as it starts.`;
+  return `${names}. ${named.some((member) => member.later) ? "Their new sessions here join by themselves." : "Nothing else joins by itself."}`;
+}
+
+/** Who leads, read back: the session, the App from its next session in
+ * `where` ("(none is open now)" when `open` says so), or none. */
+export function leadLine(shape: Pick<PoolShape, "members" | "leadNext">, where: string, open?: (ref: string) => number | undefined): string {
+  const lead = shape.members.find((member) => member.role === "lead" && member.ref.startsWith("session:"));
+  if (lead) return leadSentence(lead.label, null);
+  const next = shape.leadNext ? shape.members.find((member) => member.ref === shape.leadNext) : undefined;
+  return leadSentence(null, next?.label ?? null, where, next ? open?.(next.ref) : undefined);
+}
+
+/** Everyone else: how new sessions join, then each named member's role
+ * (an App that leads next as one member). */
+export function everyoneLines(shape: Pick<PoolShape, "members" | "leadNext" | "level">, where: string): string[] {
+  const everyone = shape.members.find((member) => member.ref === "all");
+  return [
+    joinSentence(where, everyone?.role ?? null, everyone?.level ?? shape.level),
+    ...shape.members
+      .filter((member) => member.ref !== "all" && member.role !== "lead")
+      .map((member) => (member.ref === shape.leadNext ? nextLeadsSentence(member.label, member.role, member.level, shape.level) : memberSentence(member.label, member.role, member.level, shape.level))),
+  ];
+}
+
+/** The talk grid in a sentence: "Everyone may message everyone" or its
+ * exceptions, as the backend enforces them (an Observer's Allowed asks). */
+export function talkSentence(shape: Pick<PoolShape, "talk">): string {
+  // An Observer that may message no one "only reads", said once.
+  const observerReads = TALK_ROLES.every((to) => ruleOf(shape.talk, "observer", to) === "blocked");
+  const changed: string[] = [];
+  for (const from of TALK_ROLES) {
+    for (const to of TALK_ROLES) {
+      const rule = effectiveRule(from, ruleOf(shape.talk, from, to));
+      if (rule !== "allowed" && !(from === "observer" && observerReads)) changed.push(`${roleCard(from).label} to ${roleCard(to).label}: ${TALK_WORDS[rule].label.toLowerCase()}`);
+    }
+  }
+  const reads = observerReads ? "; an Observer only reads" : "";
+  return changed.length === 0 ? `Everyone may message everyone${reads}.` : `${changed.join("; ")}. The rest is allowed${reads}.`;
+}
+
+/** What they may do on their own. */
+export const ownLine = (shape: Pick<PoolShape, "level">): string => levelSentence(shape.level);
+
+/** Whether it's kept apart. */
+export const sealLine = (shape: Pick<PoolShape, "sealed">): string =>
+  shape.sealed ? "Sealed: its sessions are in no other pool, and nothing leaves it through AI Juggler." : "Not sealed: its sessions can be in other pools too.";
+
+/** A made pool's talk rows (`role:…` pairs) as a grid. */
+export function talkOf(rows: readonly { from: string; to: string; rule: string }[]): Partial<Record<PairKey, TalkRule>> {
+  const out: Partial<Record<PairKey, TalkRule>> = {};
+  for (const row of rows) {
+    const from = TALK_ROLES.find((role) => `role:${role}` === row.from);
+    const to = TALK_ROLES.find((role) => `role:${role}` === row.to);
+    if (from && to && (row.rule === "ask" || row.rule === "blocked")) out[`${from}>${to}`] = row.rule;
+  }
+  return out;
+}
+
+/** A draft pool (New pool) as its sentences read it, each member by its
+ * name on screen. */
+export function shapeOfDraft(
+  draft: { members: readonly { ref: string; label: string; role: PoolRole; level: string | null; reach: string }[]; leadNext: string | null; talk: Partial<Record<PairKey, TalkRule>>; level: string; sealed: boolean },
+  nameOf: (ref: string, label: string) => string,
+): PoolShape {
+  return {
+    members: draft.members.map((member) => ({ ref: member.ref, label: nameOf(member.ref, member.label), role: member.role, level: member.level, later: member.reach === "later" })),
+    leadNext: draft.leadNext,
+    talk: draft.talk,
+    level: draft.level,
+    sealed: draft.sealed,
+  };
+}

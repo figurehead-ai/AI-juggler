@@ -1,10 +1,12 @@
-import { useId, useState, type JSX } from "react";
+import { useState, type JSX } from "react";
 
 import { errorText } from "../lib/bridge";
 import { AGENT_ACTIONS, agentRuleRevoke, poolSetAccess, poolSetDelivery, type PoolInfo, type PoolsInfo } from "../lib/ipc/pools";
-import { ACTION_WORDS, LEVELS, setPools } from "../lib/pools";
+import { ACTION_WORDS, setPools } from "../lib/pools";
+import { asOwnLevel } from "../lib/pool-words";
+import { OwnLevelChoice } from "../pages/pool/setup/OwnLevelChoice";
 import { agoWords } from "../lib/time-words";
-import { Checkbox, Picker, Radio } from "./controls";
+import { Checkbox, Picker } from "./controls";
 
 /**
  * D-28: what agents may do in one pool — its level, picked by you here
@@ -14,7 +16,6 @@ import { Checkbox, Picker, Radio } from "./controls";
  * request becomes a question in Needs you, never a block.
  */
 export function PoolAccessPanel({ pool, now = Date.now() }: { pool: PoolInfo; now?: number }): JSX.Element {
-  const name = useId();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const run = async (work: () => Promise<PoolsInfo>) => {
@@ -32,23 +33,15 @@ export function PoolAccessPanel({ pool, now = Date.now() }: { pool: PoolInfo; no
   const allowed = new Set(pool.access.actions);
   return (
     <div className="flex flex-col gap-2.5" data-testid="pool-access" data-pool={pool.id}>
-      <fieldset className="flex flex-col gap-1" disabled={busy}>
-        <legend className="sr-only">What agents may do</legend>
-        {LEVELS.map((entry) => (
-          <label key={entry.id} className="flex cursor-pointer items-start gap-2 rounded-lg px-1.5 py-1 text-xs hover:bg-surface-2" data-testid={`pool-level-${entry.id}`}>
-            <Radio
-              name={name}
-              checked={level === entry.id}
-              onChange={() => void run(() => poolSetAccess(pool.id, entry.id, entry.id === "custom" ? pool.access.actions : []))}
-              className="mt-0.5"
-            />
-            <span className="flex flex-col">
-              <span className="font-medium text-ink">{entry.label}</span>
-              <span className="text-label text-muted">{entry.words}</span>
-            </span>
-          </label>
-        ))}
-      </fieldset>
+      {/* AJ-E3011 round 3: the one control for what a pool's sessions may do on their own. */}
+      <OwnLevelChoice
+        value={level === "custom" ? "custom" : asOwnLevel(level)}
+        label="What sessions in this pool may do on their own"
+        disabled={busy}
+        onChange={(next) => void run(() => poolSetAccess(pool.id, next, []))}
+        onCustom={() => void run(() => poolSetAccess(pool.id, "custom", pool.access.actions))}
+        testId="pool-access-level"
+      />
 
       {level === "custom" && (
         <fieldset className="ml-6 grid grid-cols-1 gap-0.5 sm:grid-cols-2" disabled={busy} data-testid="pool-custom">

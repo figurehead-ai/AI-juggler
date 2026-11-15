@@ -3,7 +3,9 @@
  * the rules you made (each taken back with a click), how messages go into
  * sessions and when a chain pauses, who tells you, your other Macs, and
  * the pools its agents may write to. Every change applies on the agents'
- * next request.
+ * next request. AJ-E3011 round 3 (#2): after the summary, each of these is
+ * a fold, closed at first, with one plain line on what it controls ("the
+ * wall" the walk met), in plain words (no bare "Deliver" or "Pause after").
  */
 import { useEffect, useState, type JSX, type ReactNode } from "react";
 
@@ -16,7 +18,7 @@ import { SealSetting } from "./SealSetting";
 import { ACTION_WORDS, setPools } from "../../lib/pools";
 import { agoWords } from "../../lib/time-words";
 import { PoolLinks } from "../messages/PoolLinks";
-import { ChoiceOption, Picker } from "../../components/controls";
+import { ChoiceOption, Disclosure, Picker } from "../../components/controls";
 
 const HOPS = Array.from({ length: 20 }, (_, index) => ({ value: String(index + 1), label: String(index + 1) }));
 
@@ -25,6 +27,29 @@ export function Section({ title, children, testId }: { title: string; children: 
     <section className="flex flex-col gap-2.5 border-t border-hairline/70 px-4 py-3.5 first:border-t-0" data-testid={testId}>
       <h4 className="text-meta font-semibold text-ink">{title}</h4>
       {children}
+    </section>
+  );
+}
+
+/** A section's details behind a fold, closed at first (round 3, #2): its
+ * title and one plain line on what it controls stay in view. */
+export function FoldSection({ title, line, children, testId, open = false }: { title: string; line: string; children: ReactNode; testId?: string; open?: boolean }): JSX.Element {
+  return (
+    <section className="border-t border-hairline/70 px-4 py-3 first:border-t-0" data-testid={testId}>
+      <Disclosure
+        tone="heading"
+        open={open}
+        summary={
+          <span className="flex flex-col">
+            <span>{title}</span>
+            <span className="text-meta font-normal text-ink-2">{line}</span>
+          </span>
+        }
+        summaryClassName="items-start"
+        testId={testId ? `${testId}-fold` : undefined}
+      >
+        <div className="mt-2.5 flex flex-col gap-2.5 pl-5">{children}</div>
+      </Disclosure>
     </section>
   );
 }
@@ -51,19 +76,12 @@ function useMuted(scope: "project" | "pool", value: string | null): boolean | nu
   return muted;
 }
 
-/** How a message gets into a session here, in words (D-29). */
+/** How a message gets into a session here, in plain words (D-29; round 3
+ * #2: "When you click Deliver" didn't say what was delivered, or where). */
 export function deliveryWords(pool: PoolInfo): string {
-  if (pool.access.delivery_stopped) return "Stopped: nothing goes into a session";
+  if (pool.access.delivery_stopped) return "Stopped: messages stay in the inboxes, and none goes into a session.";
   const own = pool.access.level === "full" || pool.rules.some((rule) => rule.action === "deliver_to_session");
-  return own ? "By themselves, between turns" : "When you click Deliver";
-}
-
-/** The same, short, for the canvas's Activity (design review #76: "Delivery
- * · When you click Deliver, 5 in a row" said how in the settings' words). */
-export function deliveryShort(pool: PoolInfo): string {
-  if (pool.access.delivery_stopped) return "Stopped";
-  const own = pool.access.level === "full" || pool.rules.some((rule) => rule.action === "deliver_to_session");
-  return own ? "Go in by themselves" : "Wait for you";
+  return own ? "They go into the session by themselves, between its turns." : "Each one waits for your OK in Needs you, then goes into the session.";
 }
 
 export function InspectPool({
@@ -121,7 +139,7 @@ export function InspectPool({
         </Section>
       )}
 
-      <Section title="Always allowed here" testId="pool-rules">
+      <FoldSection title="Allowed without asking" line="What you told this pool to always allow, so its agents stop asking you. Take one back any time." testId="pool-rules">
         {pool.rules.length === 0 ? (
           <p className="text-label text-muted">None yet. When you allow the same thing twice, the ask offers to remember it here.</p>
         ) : (
@@ -145,23 +163,20 @@ export function InspectPool({
             ))}
           </ul>
         )}
-      </Section>
+      </FoldSection>
 
-      <Section title="Messages into sessions" testId="pool-delivery">
-        <div className="flex items-baseline justify-between gap-3">
-          <span className="text-body text-muted">Delivered</span>
-          <span className="text-right text-body text-ink" data-testid="pool-delivery-words">
-            {deliveryWords(pool)}
-          </span>
-        </div>
+      <FoldSection title="Messages into sessions" line="How a message reaches a session that is working, and when a back-and-forth between agents stops to ask you." testId="pool-delivery">
+        <p className="text-meta text-ink" data-testid="pool-delivery-words">
+          {deliveryWords(pool)}
+        </p>
         <div className="flex items-center justify-between gap-3">
           <span className="flex flex-col">
-            <span className="text-body text-ink">Pause and ask after</span>
-            <span className="text-label text-muted">agent messages in a row without you</span>
+            <span className="text-meta text-ink">Stop and ask you after</span>
+            <span className="text-label text-muted">messages in a row between agents, without you</span>
           </span>
           <Picker choice
-            ariaLabel="Agent messages in a row before a chain pauses"
-            heading="Pause and ask after"
+            ariaLabel="Messages in a row between agents before it stops and asks you"
+            heading="Stop and ask you after"
             size="sm"
             value={String(pool.access.hop_limit)}
             options={HOPS}
@@ -173,20 +188,20 @@ export function InspectPool({
         <ChoiceOption
           type="checkbox"
           className="-mx-2"
-          label="Stop all of them"
-          hint="Messages still reach the inboxes; none goes into a session."
+          label="Keep every message out of sessions"
+          hint="They still reach the inboxes; none goes into a session until you turn this off."
           checked={pool.access.delivery_stopped}
           disabled={busy}
           onChange={(event) => void run(() => poolSetDelivery(pool.id, pool.access.hop_limit, event.target.checked))}
           data-testid="pool-stop-all"
         />
-      </Section>
+      </FoldSection>
 
-      <Section title="Used this week">
+      <FoldSection title="Used this week" line="What its sessions used this week, from their tools' own counts.">
         <PoolUsage members={members} project={pool.scope_all || pool.scope.length !== 1 ? null : (pool.scope[0] ?? null)} />
-      </Section>
+      </FoldSection>
 
-      <Section title="Notifications" testId="pool-notify">
+      <FoldSection title="Notifications" line="Whether what waits for you here also interrupts you." testId="pool-notify">
         {!own || project ? (
           <ChoiceOption
             type="checkbox"
@@ -206,9 +221,9 @@ export function InspectPool({
         ) : (
           <p className="text-label text-muted">Asks and paused chains wait in Needs you and notify you as your notification settings say.</p>
         )}
-      </Section>
+      </FoldSection>
 
-      <Section title="Your other Macs">
+      <FoldSection title="Your other Macs" line="Whether this pool's work may travel to your paired Macs.">
         <ChoiceOption
           type="checkbox"
           className="-mx-2"
@@ -219,7 +234,7 @@ export function InspectPool({
           onChange={(event) => void run(() => poolSetSpansMacs(pool.id, event.target.checked))}
           data-testid="pool-spans-macs"
         />
-      </Section>
+      </FoldSection>
 
       {pool.kind === "user" && (
         <Section title="Kept apart" testId="pool-seal-section">
@@ -227,9 +242,9 @@ export function InspectPool({
         </Section>
       )}
 
-      <Section title="Pools its agents may write to">
+      <FoldSection title="Pools its agents may write to" line="Other pools its agents may send messages and notes to.">
         <PoolLinks poolId={pool.id} />
-      </Section>
+      </FoldSection>
 
       {pool.kind === "user" && (
         <Section title="This pool">

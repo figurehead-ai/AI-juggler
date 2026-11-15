@@ -32,8 +32,8 @@ import { fitView, neighbour, NODE_H, NODE_W, toCanvas, zoomAt, type Point, type 
 import type { CanvasData, MemberNode } from "./useCanvas";
 import { useCanvasView } from "./canvas-view";
 
-/** `pool`'s `focus`: the setup step it opens on; `lead-next`: the lead's place (AJ-E3011). */
-export type Selection = { kind: "none" } | { kind: "pool"; focus?: string } | { kind: "node"; id: string } | { kind: "edge"; key: string } | { kind: "rule"; ref: string } | { kind: "lead-next" };
+/** `pool`'s `focus`: the setup step it opens on (AJ-E3011). */
+export type Selection = { kind: "none" } | { kind: "pool"; focus?: string } | { kind: "node"; id: string } | { kind: "edge"; key: string } | { kind: "rule"; ref: string };
 
 type Drag =
   | { kind: "node"; id: string; start: Point; origin: Point; moved: boolean }

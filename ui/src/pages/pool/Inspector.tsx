@@ -21,9 +21,9 @@ import { inspectorHead, type HeadOf, type InspectorHead } from "./inspector-head
 import { SELECTED_EDGE } from "./selection";
 import { sessionAlert } from "./NodeParts";
 import { PoolChecklist } from "./setup/PoolChecklist";
+import { PoolSummary, shapeOfPool } from "./PoolSummary";
 import { PoolToolsCard } from "./setup/PoolToolsCard";
 import type { ToolsPlace } from "../../lib/team-tools";
-import { InspectLeadNext } from "./InspectLeadNext";
 
 import type { ProjectInfo } from "../../types/generated/ProjectInfo";
 import type { PoolCanvasInfo } from "../../lib/ipc/pool-canvas";
@@ -33,57 +33,35 @@ import { agoWords } from "../../lib/time-words";
 import { lazyNamed } from "../../lib/lazy";
 import { PendingChip, edgeWords } from "./CanvasEdges";
 import { InspectNode } from "./InspectNode";
-import { InspectPool, Section, deliveryShort } from "./InspectPool";
+import { InspectPool, Section } from "./InspectPool";
 import type { Selection } from "./Canvas";
 import { edgeKey, type MemberNode } from "./useCanvas";
 
 // The conversation loads only when an edge is opened.
 import { EdgeTalk } from "./EdgeTalk";
-import { InspectRule } from "./InspectRule";
+import { InspectRule, type RuleLead } from "./InspectRule";
+import { setPoolLead } from "./pool-lead";
 import { startNextLead } from "../../lib/start-lead";
 import type { PoolRules } from "../../lib/pool-rules";
 import type { PoolRuleInfo } from "../../lib/ipc/pool-model";
 
 const ThreadView = lazyNamed(() => import("../messages/ThreadView"), "ThreadView");
 
-function Fact({ label, children }: { label: string; children: ReactNode }): JSX.Element {
-  return (
-    <div className="flex items-baseline justify-between gap-3 text-meta">
-      <span className="text-muted">{label}</span>
-      <span className="min-w-0 truncate text-right text-ink">{children}</span>
-    </div>
-  );
-}
-
-function Activity({ pool, canvas, members, now, onSelect }: { pool: PoolInfo; canvas: PoolCanvasInfo | null; members: MemberNode[]; now: number; onSelect: (selection: Selection) => void }): JSX.Element {
-  const lead = members.find((member) => member.role === "lead");
-  const asks = canvas?.asks.length ?? 0;
-  // An empty pool says it's empty once, on its canvas (design review #85):
-  // here only the way to its settings. What agents may do is in the
-  // header's Agents (#61).
+function Activity({ pool, canvas, now, onSelect }: { pool: PoolInfo; canvas: PoolCanvasInfo | null; now: number; onSelect: (selection: Selection) => void }): JSX.Element {
+  // An empty pool says it's empty once, on its canvas (design review #85).
+  // Round 3 (#2): the pool in short is the summary above, in sentences;
+  // here the way to all its settings, and what happens live.
   const empty = pool.members === 0;
   // Live shows while the pool has members, and for an empty one while its
   // stream says something (who just left, P5 step 4).
   const live = !empty || (canvas?.stream.length ?? 0) > 0;
   return (
     <div className="flex flex-col" data-testid="inspect-activity">
-      <Section title="This pool">
-        {!empty && (
-          <>
-            <Fact label="Sessions">
-              {pool.members}
-              {lead ? ` · lead ${lead.card.name}` : ""}
-            </Fact>
-            <Fact label="Messages">{deliveryShort(pool)}</Fact>
-            <Fact label="Pause after">{`${pool.access.hop_limit} in a row`}</Fact>
-            {pool.rules.length > 0 && <Fact label="Always allowed">{`${pool.rules.length} ${pool.rules.length === 1 ? "rule" : "rules"}`}</Fact>}
-          </>
-        )}
-        {asks > 0 && <Fact label="Waiting on you">{`${asks} ${asks === 1 ? "ask" : "asks"}`}</Fact>}
-        <button type="button" onClick={() => onSelect({ kind: "pool" })} className="self-start rounded text-meta text-accent-hi underline-offset-2 outline-none hover:underline focus-visible:ring-1 focus-visible:ring-accent/60" data-testid="inspect-open-settings">
-          Change what agents may do…
+      <div className="px-4 pb-3">
+        <button type="button" onClick={() => onSelect({ kind: "pool" })} className="rounded text-meta text-accent-hi underline-offset-2 outline-none hover:underline focus-visible:ring-1 focus-visible:ring-accent/60" data-testid="inspect-open-settings">
+          All of this pool's settings…
         </button>
-      </Section>
+      </div>
       {live && (
         <Section title="Live" testId="inspect-stream">
           {canvas === null ? (
@@ -180,12 +158,20 @@ function sessionHead(member: MemberNode): HeadOf {
 }
 
 /** What the selection is, for its title, subtitle and pill. */
-/** Round 2 (#2): the App whose next session leads is one member: its
- * lead line, "Start one now" (in the pool's one project) and Change. */
-function leadsNextOf(rule: PoolRuleInfo | undefined, rules: PoolRules, where: string, dir: string | null, onChange: () => void) {
+/** Who leads, as a member rule's inspector sets it (round 2 #2, round 3
+ * #1): whether this App's next session leads, the pool's one setter,
+ * "Start one now" in its one project, and its Who leads. */
+function ruleLeadOf(rule: PoolRuleInfo | undefined, rules: PoolRules, members: readonly MemberNode[], input: { poolId: string; where: string; dir: string | null; onChange: () => void }): RuleLead | null {
+  if (!rule) return null;
   const next = rules.rules?.lead_next;
-  if (!rule || !next || rule.member !== `app:${next}`) return null;
-  return { where, onStart: (ref: string) => startNextLead(ref, dir), onChange };
+  const leads = members.filter((member) => member.role === "lead").map((member) => member.id);
+  return {
+    leadsNext: !!next && rule.member === `app:${next}`,
+    where: input.where,
+    onStart: (ref) => startNextLead(ref, input.dir),
+    onChange: input.onChange,
+    onLead: (choice) => setPoolLead(input.poolId, leads, choice),
+  };
 }
 
 function selectionHead(input: {
@@ -196,8 +182,7 @@ function selectionHead(input: {
   canvas: PoolCanvasInfo | null;
   names: ReadonlyMap<string, string>;
   ruleLabel: (rule: PoolRuleInfo) => string;
-  leadNextName: string | null;
-  leadsNext?: boolean;
+  lead: RuleLead | null;
   pool: PoolInfo;
   project: ProjectInfo | undefined;
   where: string;
@@ -205,7 +190,7 @@ function selectionHead(input: {
 }): HeadOf {
   const { selection, member, rule, watched, pool } = input;
   if (member) return sessionHead(member);
-  if (rule) return { kind: "rule", label: input.ruleLabel(rule), memberKind: rule.kind, role: rule.role, open: rule.sessions, leadsNext: input.leadsNext };
+  if (rule) return { kind: "rule", label: input.ruleLabel(rule), memberKind: rule.kind, role: rule.role, open: rule.sessions, leadsNext: input.lead?.leadsNext };
   if (watched) return { kind: "watched", title: watched.title ?? "A session in another app", app: watched.tool, role: watched.role };
   if (selection.kind === "edge") {
     const [fromId = "", toId = ""] = selection.key.split(">");
@@ -214,7 +199,6 @@ function selectionHead(input: {
     const to = input.names.get(toId) ?? "a member";
     return { kind: "edge", from, to, count: edge ? `${edgeWords(edge, from, to).count} this week` : "Nothing yet this week", waits: (edge?.pending.length ?? 0) > 0 };
   }
-  if (selection.kind === "lead-next" && input.leadNextName) return { kind: "lead-next", app: input.leadNextName };
   return { kind: "pool", name: pool.name, own: pool.kind === "default" ? (input.project?.name ?? null) : null, where: input.where, sessions: pool.members, sealed: pool.sealed, needs: input.needs };
 }
 
@@ -250,10 +234,11 @@ type Step = (typeof SETUP_STEPS)[number];
 /** The pool's own inspector: the team tools while they're off for it
  * (round 2, #1: above the checklist, and still there once every step is
  * done), then the checklist. */
-function PoolProgress({ kind, setup }: { kind: Selection["kind"]; setup: InspectorSetup }): JSX.Element | null {
+function PoolProgress({ kind, setup, pool, rules, members, ruleLabel, where, needs }: { kind: Selection["kind"]; setup: InspectorSetup; pool: PoolInfo; rules: PoolRules; members: readonly MemberNode[]; ruleLabel: (rule: PoolRuleInfo) => string; where: string; needs: number }): JSX.Element | null {
   if (kind !== "none" && kind !== "pool") return null;
   return (
     <>
+      <PoolSummary shape={shapeOfPool(pool, rules.rules, members, ruleLabel)} where={where} rules={rules.rules?.members ?? []} needs={needs} tools={setup.tools} onOpen={setup.onOpen} />
       <div className="mx-4 mb-3 empty:hidden">
         <PoolToolsCard testId="pool-checklist-tools" projects={setup.tools.projects} apps={setup.tools.apps} />
       </div>
@@ -288,18 +273,16 @@ export const Inspector = forwardRef<HTMLHeadingElement, {
   needs: number;
   /** AJ-E3011: the setup's checklist, and opening one of its steps. */
   setup: InspectorSetup;
-  /** The App whose next session leads, by name, while the pool waits. */
-  leadNextName: string | null;
   /** The pool's one project folder: that App's "Start one now" opens there. */
   leadDir: string | null;
   /** The pool's setup controls (who leads, everyone else, talk, on their own). */
   setupSections?: ReactNode;
-}>(function Inspector({ pool, project, canvas, members, names, selection, now, onSelect, onOpenTask, onDeleted, rules, ruleLabel, ruleTool, where, needs, setup, leadNextName, leadDir, setupSections }, heading): JSX.Element {
+}>(function Inspector({ pool, project, canvas, members, names, selection, now, onSelect, onOpenTask, onDeleted, rules, ruleLabel, ruleTool, where, needs, setup, leadDir, setupSections }, heading): JSX.Element {
   const member = selection.kind === "node" ? members.find((row) => row.id === selection.id) : undefined;
   const rule = selection.kind === "rule" ? rules.rules?.members.find((row) => row.member === selection.ref) : undefined;
   const watched = selection.kind === "rule" ? rules.watched.find((row) => row.member === selection.ref) : undefined;
-  const leadsNext = leadsNextOf(rule, rules, where, leadDir, () => setup.onOpen("lead"));
-  const of = selectionHead({ selection, member, rule, watched, canvas, names, ruleLabel, leadNextName, leadsNext: leadsNext !== null, pool, project, where, needs });
+  const lead = ruleLeadOf(rule, rules, members, { poolId: pool.id, where, dir: leadDir, onChange: () => setup.onOpen("lead") });
+  const of = selectionHead({ selection, member, rule, watched, canvas, names, ruleLabel, lead, pool, project, where, needs });
   const head = inspectorHead(of);
   // The selected card and the inspector are linked by the same accent.
   const linked = of.kind !== "pool";
@@ -325,14 +308,12 @@ export const Inspector = forwardRef<HTMLHeadingElement, {
       {/* A new selection opens at its top (the list kept the last one's
           scroll: the pool's settings opened halfway down). */}
       <div key={JSON.stringify(selection)} className="min-h-0 flex-1 overflow-y-auto pb-6" data-canvas-scroll>
-        <PoolProgress kind={selection.kind} setup={setup} />
+        <PoolProgress kind={selection.kind} setup={setup} pool={pool} rules={rules} members={members} ruleLabel={ruleLabel} where={where} needs={needs} />
         {selection.kind === "pool" ? (
           <>
             {setupSections}
             <InspectPool pool={pool} project={project} now={now} members={members.map((row) => ({ id: row.id, name: names.get(row.id) ?? row.card.name }))} onDeleted={onDeleted} />
           </>
-        ) : selection.kind === "lead-next" ? (
-          <InspectLeadNext app={leadNextName} onOpen={() => setup.onOpen("lead")} />
         ) : member ? (
           <InspectNode
             pool={pool}
@@ -353,14 +334,14 @@ export const Inspector = forwardRef<HTMLHeadingElement, {
             watched={watched}
             label={rule ? ruleLabel(rule) : (watched?.title ?? "A session in another app")}
             shared={rule ? (ruleTool?.(rule) ?? null) : null}
-            leadsNext={leadsNext}
+            lead={lead}
             onChanged={rules.reload}
             onGone={() => onSelect({ kind: "none" })}
           />
         ) : selection.kind === "edge" ? (
           <InspectEdge pool={pool} canvas={canvas} edgeId={selection.key} names={names} now={now} />
         ) : (
-          <Activity pool={pool} canvas={canvas} members={members} now={now} onSelect={onSelect} />
+          <Activity pool={pool} canvas={canvas} now={now} onSelect={onSelect} />
         )}
       </div>
     </aside>

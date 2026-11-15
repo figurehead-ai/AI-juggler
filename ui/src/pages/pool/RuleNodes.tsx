@@ -18,7 +18,8 @@
  */
 import { useLayoutEffect, useRef, useState, type JSX } from "react";
 
-import { Button, Chip } from "../../components/primitives";
+import { Chip } from "../../components/primitives";
+import { StartLeadButton } from "./setup/StartLead";
 import { ShellOnly } from "../../components/ShellOnly";
 import { WhyButton } from "../../components/WhyTip";
 import { continueWhy } from "../../lib/resume-refusal";
@@ -27,8 +28,8 @@ import { useActionHost } from "../../components/ItemMenu";
 import { useConversations } from "../../lib/conversations";
 import type { PoolRuleInfo, WatchedMemberInfo } from "../../lib/ipc/pool-model";
 import { CONTINUE_WATCHED, CONTINUE_WATCHED_SHORT, levelLabel, roleLabel } from "../../lib/pools";
-import { openNowWords } from "../../lib/pool-open-now";
-import { LEAD_WOULD, nextLeadsLine, nextSessionWords, wakeWords } from "../../lib/pool-words";
+import { everyoneJoins, openNowWords } from "../../lib/pool-open-now";
+import { LEAD_WOULD, nextLeadsLine, wakeWords } from "../../lib/pool-words";
 import { cliFolderOf } from "../../lib/start-lead";
 import { IconLead } from "../../components/icons-canvas";
 import type { Selection } from "./Canvas";
@@ -109,13 +110,12 @@ export function RuleNodes({
     }
     if (JSON.stringify(next) !== JSON.stringify(lines)) setLines(next);
   });
-  // Round 2 (#2): the App whose next session leads is its own card, not a
-  // second one beside it.
-  const nextRef = leadPlace && leadNext && broad.some((rule) => rule.member === leadNext.ref) ? leadNext.ref : null;
-  const lead = leadPlace && nextRef === null ? { next: leadNext?.name ?? null } : null;
-  if (broad.length === 0 && waiting.length === 0 && !lead) return null;
+  // Round 2 (#2): the App whose next session leads is its own card; the
+  // lead's place is drawn only while no one leads and none is waited for.
+  const nextRef = leadPlace && leadNext ? leadNext.ref : null;
+  const noLead = leadPlace && nextRef === null;
+  if (broad.length === 0 && waiting.length === 0 && !noLead) return null;
   const selected = (ref: string) => selection.kind === "rule" && selection.ref === ref;
-  const leadSelected = selection.kind === "lead-next";
   return (
     <>
     {lines.length > 0 && (
@@ -126,22 +126,20 @@ export function RuleNodes({
       </svg>
     )}
     <div ref={column} className="pointer-events-none absolute right-3 top-3 z-10 flex max-h-[calc(100%-5rem)] w-56 flex-col gap-3 overflow-y-auto p-1" data-testid="canvas-rule-nodes" data-canvas-scroll onScroll={() => setLines((was) => [...was])}>
-      {lead && (
+      {noLead && (
         <button
           type="button"
-          onClick={() => onSelect(lead.next ? { kind: "lead-next" } : { kind: "pool", focus: "lead" })}
-          aria-pressed={lead.next ? leadSelected : undefined}
-          aria-current={leadSelected ? "true" : undefined}
-          className={"pointer-events-auto flex flex-col gap-1 rounded-xl px-3 py-2 text-left " + FOCUS_RING + " " + (leadSelected ? SELECTED : "bg-surface-2 hover:bg-surface-3")}
+          onClick={() => onSelect({ kind: "pool", focus: "lead" })}
+          className={"pointer-events-auto flex flex-col gap-1 rounded-xl bg-surface-2 px-3 py-2 text-left hover:bg-surface-3 " + FOCUS_RING}
           data-testid="canvas-lead-card"
-          data-kind={lead.next ? "next" : "none"}
+          data-kind="none"
         >
           <span className="flex items-center gap-1.5 text-label text-muted">
             <IconLead aria-hidden="true" width={12} height={12} />
             Lead
           </span>
-          <span className="line-clamp-2 text-body font-semibold text-ink">{lead.next ? nextSessionWords(lead.next) : "No lead for now"}</span>
-          <span className="text-meta text-ink-2">{lead.next ? "Leads once it starts here." : LEAD_WOULD}</span>
+          <span className="text-body font-semibold text-ink">No lead for now</span>
+          <span className="text-meta text-ink-2">{LEAD_WOULD}</span>
         </button>
       )}
       {broad.map((rule) => (
@@ -177,8 +175,8 @@ export function RuleNodes({
               {nextLeadsLine(rule.role)}
             </span>
           )}
-          <span className="text-meta text-ink-2">
-            {openNowWords(rule.sessions, where)}
+          <span className="text-meta text-ink-2" data-testid="canvas-rule-open">
+            {rule.member === "all" ? everyoneJoins(rule.sessions, where) : openNowWords(rule.sessions, where)}
             {rule.level ? ` · its own choice: ${levelLabel(rule.level)}` : ""}
           </span>
           <span className="text-label text-muted" data-testid="canvas-rule-wake">
@@ -186,9 +184,7 @@ export function RuleNodes({
           </span>
         </button>
         {rule.member === nextRef && onStartLead && cliFolderOf(rule.member) && (
-          <Button size="sm" variant="accent" className="pointer-events-auto self-start" onClick={() => onStartLead(rule.member)} title={`New session on ${labelOf(rule)}${where ? ` in ${where}` : ""}: it leads once you start it`} data-testid="canvas-rule-start-lead">
-            Start one now
-          </Button>
+          <StartLeadButton member={rule.member} name={labelOf(rule)} where={where ?? "these projects"} onStart={onStartLead} className="pointer-events-auto self-start" testId="canvas-rule-start-lead" />
         )}
         </div>
       ))}

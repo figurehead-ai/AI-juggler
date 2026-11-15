@@ -46,7 +46,10 @@ export function ProjectPool({ project, sessions, now }: { project: ProjectInfo; 
         icon={<IconPool width={15} height={15} />}
         sub={[`every session in ${project.name}, as one team`, pool ? `${pool.members} ${pool.members === 1 ? "session" : "sessions"}` : null, summary || null, pool ? `on their own: ${levelLabel(pool.access.level)}` : null].filter(Boolean).join(" · ")}
         actions={
-          <Button size="sm" variant="secondary" onClick={() => open(poolId)} data-testid="project-pool-open">
+          // Round 3 (#7): a click before the pools are read went nowhere;
+          // until then the button waits, saying so, with a spinner.
+          <Button size="sm" variant="secondary" disabled={!pool} aria-busy={!pool || undefined} title={pool ? undefined : "Reading the pool…"} onClick={() => open(poolId)} data-testid="project-pool-open">
+            {!pool && <span aria-hidden="true" className="inline-block size-3 rounded-full border-2 border-muted border-t-transparent motion-safe:animate-spin" data-testid="project-pool-open-wait" />}
             Open the pool ›
           </Button>
         }

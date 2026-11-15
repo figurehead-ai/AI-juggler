@@ -10,8 +10,9 @@ import { useEffect, useState, type JSX } from "react";
 import { Button } from "../../components/primitives";
 import { showToast } from "../../components/Toast";
 import { errorText } from "../../lib/bridge";
-import { POOL_RULES_CHANGED, poolJoin, poolLeave, poolSetLeadNext, poolSetTalk, type PoolRuleInfo, type TalkRule } from "../../lib/ipc/pool-model";
-import { poolSetAccess, poolSetRole, type PoolInfo, type PoolRole } from "../../lib/ipc/pools";
+import { POOL_RULES_CHANGED, poolJoin, poolLeave, poolSetTalk, type PoolRuleInfo, type TalkRule } from "../../lib/ipc/pool-model";
+import { setPoolLead } from "./pool-lead";
+import { poolSetAccess, type PoolInfo, type PoolRole } from "../../lib/ipc/pools";
 import { nextRule } from "../../lib/pool-templates";
 import type { LeadChoice } from "../../lib/new-pool";
 import { STEP_WORDS, asOwnLevel, asRole, asTalkRule, joinSentence, nextSessionWords } from "../../lib/pool-words";
@@ -19,7 +20,7 @@ import { cliFolderOf, startNextLead } from "../../lib/start-lead";
 import { setPools } from "../../lib/pools";
 import type { PoolRules } from "../../lib/pool-rules";
 import { sessionState } from "../../lib/rail-items";
-import { Section } from "./InspectPool";
+import { FoldSection, Section } from "./InspectPool";
 import { JoinAs } from "./setup/JoinAs";
 import { LeadPicker } from "./setup/LeadPicker";
 import { OwnLevelChoice } from "./setup/OwnLevelChoice";
@@ -77,24 +78,12 @@ export function PoolSetupSections({
       .finally(() => setBusy(false));
   };
   const memberRules = rules.rules?.members ?? [];
-  const apps = memberRules.filter((rule) => rule.kind === "app").map((rule) => ({ ref: rule.member, name: ruleLabel(rule), startable: cliFolderOf(rule.member) !== null }));
+  const apps = memberRules.filter((rule) => rule.kind === "app").map((rule) => ({ ref: rule.member, name: ruleLabel(rule), startable: cliFolderOf(rule.member) !== null, open: rule.sessions }));
   const leads = members.filter((member) => member.role === "lead");
   const open = members.filter((member) => sessionState(member.session).state !== "ended");
   const leadNext = rules.rules?.lead_next ?? null;
   const value: LeadChoice = leads[0] ? { kind: "session", ref: leads[0].id } : leadNext ? { kind: "next", app: `app:${leadNext}` } : { kind: "none" };
-  const demote = async (except?: string) => {
-    for (const lead of leads) if (lead.id !== except) setPools(await poolSetRole(lead.id, "member", pool.id));
-  };
-  const chooseLead = (choice: LeadChoice) =>
-    run("change who leads", async () => {
-      if (choice.kind === "session") {
-        await demote(choice.ref);
-        setPools(await poolSetRole(choice.ref, "lead", pool.id));
-      } else {
-        await demote();
-        await poolSetLeadNext(pool.id, choice.kind === "next" ? choice.app.slice("app:".length) : null);
-      }
-    });
+  const chooseLead = (choice: LeadChoice) => run("change who leads", () => setPoolLead(pool.id, leads.map((lead) => lead.id), choice));
   const everyone = memberRules.find((rule) => rule.member === "all");
   const nextName = leadNext ? (apps.find((app) => app.ref === `app:${leadNext}`)?.name ?? "An App") : null;
   const holders = holdersOf([
@@ -154,7 +143,7 @@ export function PoolSetupSections({
         </Section>
       </div>
       <div id="pool-setup-talk">
-        <Section title="Who may message whom" testId="pool-setup-talk">
+        <FoldSection title={STEP_WORDS.talk.title} line={STEP_WORDS.talk.why} open={focus === "talk"} testId="pool-setup-talk">
           <TalkTable
             compact
             disabled={busy}
@@ -165,32 +154,22 @@ export function PoolSetupSections({
             }}
             testId="pool-talk"
           />
-        </Section>
+        </FoldSection>
       </div>
       <div id="pool-setup-own">
-        <Section title="What they may do on their own" testId="pool-setup-own">
-          {level === "custom" ? (
-            <>
-              <p className="text-meta text-ink-2" data-testid="pool-own-custom">
-                Custom: you picked each action, under Custom actions below.
-              </p>
-              <Button size="sm" variant="ghost" className="self-start" disabled={busy} onClick={() => run("change what they may do", async () => setPools(await poolSetAccess(pool.id, "work_together")))}>
-                Use Work together instead
-              </Button>
-            </>
-          ) : (
-            <OwnLevelChoice
-              value={asOwnLevel(level)}
-              label="What sessions in this pool may do on their own"
-              disabled={busy}
-              onChange={(next) => run("change what they may do", async () => setPools(await poolSetAccess(pool.id, next)))}
-              testId="pool-own"
-            />
-          )}
+        <FoldSection title={STEP_WORDS.own.title} line={STEP_WORDS.own.why} open={focus === "own"} testId="pool-setup-own">
+          <OwnLevelChoice
+            value={level === "custom" ? "custom" : asOwnLevel(level)}
+            label="What sessions in this pool may do on their own"
+            disabled={busy}
+            onChange={(next) => run("change what they may do", async () => setPools(await poolSetAccess(pool.id, next)))}
+            onCustom={() => run("change what they may do", async () => setPools(await poolSetAccess(pool.id, "custom", pool.access.actions)))}
+            testId="pool-own"
+          />
           <p className="text-label text-muted" data-testid="pool-applies-next">
             Changes apply from each session's next call; nothing it is doing now is stopped.
           </p>
-        </Section>
+        </FoldSection>
       </div>
     </div>
   );

@@ -10,13 +10,13 @@
  */
 import type { JSX } from "react";
 
-import { EVERYONE, type Draft, type DraftMember } from "../../lib/new-pool";
+import { EVERYONE, withLead, type Draft, type DraftMember } from "../../lib/new-pool";
 import type { PoolRole } from "../../lib/ipc/pools";
 import { joinSentence, memberSentence, nextLeadsLine, nextLeadsSentence, nextSessionWords } from "../../lib/pool-words";
 import { IconLead } from "../../components/icons-canvas";
 import { JoinAs } from "../../pages/pool/setup/JoinAs";
 import { MemberOwnLevel } from "../../pages/pool/setup/OwnLevelChoice";
-import { RoleCards, RolePicker, holdersOf } from "../../pages/pool/setup/RoleCards";
+import { RoleCards, RolePicker, RoleWhy, holdersOf } from "../../pages/pool/setup/RoleCards";
 import { StepHead } from "./StepHead";
 
 export function NewPoolEveryone({ draft, onDraft, where, nameOf }: { draft: Draft; onDraft: (next: Draft) => void; where: string; nameOf: (ref: string, label: string) => string }): JSX.Element {
@@ -70,13 +70,19 @@ export function NewPoolEveryone({ draft, onDraft, where, nameOf }: { draft: Draf
                     <RolePicker
                       member={member.kind}
                       name={name}
-                      prefix={leadsNext ? "Its others:" : "Role:"}
                       value={member.role}
-                      onChange={(role) => setMember(member.ref, { role })}
+                      leadsNext={leadsNext}
+                      onChange={(role) => {
+                        // An App's Lead: its next session leads (round 3, #1), as Who leads sets it.
+                        if (role === "lead") return onDraft(withLead(draft, { kind: "next", app: member.ref }));
+                        const base = leadsNext ? withLead(draft, { kind: "none" }) : draft;
+                        onDraft({ ...base, members: base.members.map((one) => (one.ref === member.ref ? { ...one, role } : one)) });
+                      }}
                       testId="new-pool-member-role"
                     />
                     <MemberOwnLevel name={name} value={member.level} poolLevel={draft.level} onChange={(level) => setMember(member.ref, { level })} testId="new-pool-member-level" />
                   </span>
+                  <RoleWhy member={member.kind} testId="new-pool-member-lead-why" />
                   <span className="text-meta text-ink-2" data-testid="new-pool-member-sentence">
                     {leadsNext ? nextLeadsSentence(name, member.role, member.level, draft.level) : memberSentence(name, member.role, member.level, draft.level)}
                   </span>

@@ -311,7 +311,7 @@
   "jsx-a11y(prefer-tag-over-role)": 1
  },
  "src/components/PoolAccess.tsx": {
-  "jsx-a11y(label-has-associated-control)": 2,
+  "jsx-a11y(label-has-associated-control)": 1,
   "react(purity)": 1
  },
  "src/components/PoolSheet.tsx": {
@@ -864,7 +864,7 @@
   "typescript(no-unsafe-type-assertion)": 2
  },
  "src/components/pools.test.tsx": {
-  "typescript(no-unnecessary-type-assertion)": 2,
+  "typescript(no-unnecessary-type-assertion)": 1,
   "typescript(no-unsafe-type-assertion)": 3
  },
  "src/components/primitives.tsx": {

@@ -66,6 +66,13 @@ export function openNowByMember(draft: Pick<Draft, "every" | "projects" | "membe
   return counts;
 }
 
+/** Everyone in scope's card (round 3, #6): "Every new session in web joins
+ * here, now and later", then its open ones. */
+export function everyoneJoins(count: number, where?: string): string {
+  const place = !where ? "these projects" : where === "every project" ? "any project" : where;
+  return `Every new session in ${place} joins here, now and later${count > 0 ? ` · ${count} open now` : ""}`;
+}
+
 /** A broad member's open sessions now, as Review and its diagram card say
  * it: "1 open now · new ones in web join", "No session open yet · new ones
  * in web join" (round 2, #15: "none open now" read as broken). */

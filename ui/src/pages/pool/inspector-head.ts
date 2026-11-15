@@ -3,8 +3,8 @@
  * its own title, its kind and App as a subtitle ("Jive CLI" / "Session ·
  * Claude Code · Member"), and its status as a pill under the title, never
  * the heading. That covers a session, an App, an Account, a Tool, a Mac,
- * everyone in scope, a Watched session, a line between two members, the
- * lead's placeholder, and the pool itself when nothing is selected.
+ * everyone in scope, a Watched session, a line between two members, and
+ * the pool itself when nothing is selected.
  */
 import type { AttentionLevel } from "../../lib/attention";
 import { MACHINE_WORD } from "../../lib/machine-words";
@@ -25,8 +25,7 @@ export type HeadOf =
   | { kind: "session"; name: string; app: string; role: string; state: string; level: AttentionLevel }
   | { kind: "rule"; label: string; memberKind: string; role: string; open: number; leadsNext?: boolean }
   | { kind: "watched"; title: string; app: string | null; role: string }
-  | { kind: "edge"; from: string; to: string; count: string; waits: boolean }
-  | { kind: "lead-next"; app: string };
+  | { kind: "edge"; from: string; to: string; count: string; waits: boolean };
 
 export function inspectorHead(of: HeadOf): InspectorHead {
   switch (of.kind) {
@@ -47,9 +46,7 @@ export function inspectorHead(of: HeadOf): InspectorHead {
       };
     case "watched":
       return { title: of.title, subtitle: `Session · ${of.app ?? "another app"} · Watched · ${roleCard(of.role).label}`, pill: { words: "Can't reply here yet", level: 1 } };
-    case "edge":
-      return { title: `${of.from} → ${of.to}`, subtitle: "Line · what passes between these two", pill: of.waits ? { words: "Waits on you", level: 2 } : { words: of.count, level: 0 } };
     default:
-      return { title: `${of.app}'s next session`, subtitle: "Lead · it leads once it starts here", pill: { words: "Not started yet", level: 0 } };
+      return { title: `${of.from} → ${of.to}`, subtitle: "Line · what passes between these two", pill: of.waits ? { words: "Waits on you", level: 2 } : { words: of.count, level: 0 } };
   }
 }
