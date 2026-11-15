@@ -65,7 +65,9 @@ export { SessionCard } from "./SessionCard";
 import { useConversations } from "../lib/conversations";
 import { sessionWhen } from "../lib/time-words";
 import type { ActionHost } from "../lib/actions";
-import { StaleChip, attentionTooltip, isActiveStatus, lowLeftWords, stateChip } from "./indicator";
+import { StaleChip, attentionTooltip, isActiveStatus, lowLeftWords } from "./indicator";
+import { StateMark, rowState } from "./row/SessionRow";
+import { appTone } from "../lib/attention";
 
 /** Freshness timestamps per Instance id (epoch ms) driving the stale rule. */
 export type { Freshness } from "../lib/live-deltas";
@@ -438,7 +440,7 @@ export function InstanceBoard({
           <PlaceBoard sessions={sessions} projects={projects} accounts={accounts} snooze={snooze} now={now} selectedId={selectedId} onSelect={onSelect} query={query} scroll={{ top: scrollTop, height: viewportH, box: scrollRef.current }} density={effectiveDensity} cueSlot={cueSlot} />
         )}
         {byProject && <>
-        {showLocal && order && <NeedsYouSection rows={order.needs} sessions={sessions} selectedId={selectedId} density={effectiveDensity} now={now} renderRow={boardRow} />}
+        {showLocal && order && <NeedsYouSection rows={order.needs} sessions={sessions} projects={projects} onSelect={onSelect} selectedId={selectedId} density={effectiveDensity} now={now} />}
         {!showLocal ? null : loading && sessions.length === 0 ? (
           <RowPlaceholders shape="rail" rows={4} label="Loading sessions" />
         ) : sorted.length === 0 && idleProjects.length === 0 && !groups.some((g) => railSlice(conversations, g.id, scope).shown.length > 0) ? (
@@ -720,7 +722,6 @@ export function RailRow({
   now: number;
   freshness?: Freshness;
 }) {
-  const chip = stateChip(session.status);
   // AJ-E1502: the user's name for it shows over its own title; untitled,
   // its facts (D-96), by the rail's one rule.
   const title = shortName(session, now);
@@ -730,6 +731,13 @@ export function RailRow({
   // Ended; why it needs you when it does), the glyph a detail beside them.
   const said = sessionState(session);
   const state = parked ? parked.chip : said.word;
+  // D-117: the App lens's calm look, from its parts: its state's mark (a
+  // level's dot, a ring for a guess, a calm dot, a review's ✓), its word
+  // in ink-2 at L2/L3 and muted below (the loud copy is its Needs you
+  // row), and its App's icon muted unless it needs you or is current.
+  const item = sessionItem(session, () => null, false);
+  const look = rowState(item);
+  const lit = look.level >= 2 || selected;
   const low = lowLeftWords(session);
   const when = sessionWhen(session, now);
   // D-25: the row stays calm — these markers appear only when they are
@@ -743,7 +751,6 @@ export function RailRow({
     ? ((session.quota !== null ? staleCaption(sampled.quota, REFRESH_INTERVALS.quota, now) : null) ??
       (session.cpu_pct !== null ? staleCaption(sampled.resources, REFRESH_INTERVALS.resources, now) : null))
     : null;
-  const Icon = chip.Icon;
   return (
     <button
       type="button"
@@ -752,7 +759,7 @@ export function RailRow({
       data-rail-selected={selected ? "true" : undefined}
       onClick={() => onSelect(session.id)}
       className={
-        "relative flex w-full min-w-0 items-center gap-2.5 rounded-lg pl-2.5 text-left outline-none transition-colors focus-visible:ring-1 focus-visible:ring-accent/60 " + (trailing ? "pr-9 " : "pr-2 ") +
+        "tone-host relative flex w-full min-w-0 items-center gap-2.5 rounded-lg pl-2.5 text-left outline-none transition-colors focus-visible:ring-1 focus-visible:ring-accent/60 " + (trailing ? "pr-9 " : "pr-2 ") +
         (density === "compact" ? "py-1.5 " : "py-2 ") +
         (selected ? SELECTED_FILL : "hover:bg-surface/60") +
         // Ended rows are quieter by their title colour, never by opacity:
@@ -760,13 +767,13 @@ export function RailRow({
         ""
       }
     >
-      <span aria-hidden="true" data-state-glyph={said.state} className={"flex w-4 shrink-0 justify-center " + said.tone}>
-        <Icon width={13} height={13} />
+      <span aria-hidden="true" className="flex w-4 shrink-0 justify-center">
+        <StateMark item={item} level={look.level} dot={look.dot} />
       </span>
       <span className="flex min-w-0 flex-1 flex-col">
         <span className="flex min-w-0 items-baseline gap-1.5">
           {showProject && session.project_id && <ProjectMark projectId={session.project_id} size={12} />}
-          <span className={"min-w-0 truncate text-meta " + (selected ? "font-semibold " : "font-medium ") + (ended && !selected ? "text-muted" : "text-ink")}>{title}</span>
+          <span className={"min-w-0 truncate text-meta " + (selected ? "font-semibold text-ink" : "font-medium " + (ended ? "text-muted" : "text-ink-2"))}>{title}</span>
           {session.pinned && <PinMark />}
           {session.kind === "desktop" && (
             <span title="Runs in the Claude desktop app" data-testid="rail-app-chip" className="shrink-0 rounded border border-hairline px-1 text-label font-medium text-muted">
@@ -782,7 +789,7 @@ export function RailRow({
             <span
               title={parked ? parked.long : attentionTooltip(session)}
               data-testid={parked ? "rail-parked" : "rail-state-word"}
-              className={"shrink-0 whitespace-nowrap " + (parked ? "text-ink" : said.tone)}
+              className={"shrink-0 whitespace-nowrap " + (parked ? "text-ink" : look.level >= 2 ? "font-medium text-ink-2" : "text-muted")}
             >
               {state}
             </span>
@@ -812,8 +819,8 @@ export function RailRow({
       )}
       {/* AJ-E1532 with D-38: the tool (its own app's icon), and the account serving it now (its avatar
           follows the session when it switches accounts). */}
-      <AppIcon {...appOfSession(session)} size={16} />
-      <ProfileBadge app={sessionAppKey(session)} name={session.account_label} />
+      <AppIcon {...appOfSession(session)} size={16} className={appTone(lit)} />
+      <ProfileBadge app={sessionAppKey(session)} name={session.account_label} className={appTone(lit)} />
     </button>
   );
 }

@@ -13,7 +13,8 @@ import { AppIcon } from "./AppIcon";
 import { appOfConversation } from "../lib/app-of";
 import type { JSX } from "react";
 import { useActionHost, useItemMenu } from "./ItemMenu";
-import { stateChip } from "./indicator";
+import { StateMark, rowState } from "./row/SessionRow";
+import { appTone } from "../lib/attention";
 import { conversationTitle, outside } from "../lib/conversations";
 import { matches, parseQuery } from "../lib/rail-view";
 import type { AccountOf } from "../lib/rail-places";
@@ -21,7 +22,7 @@ import type { ConversationInfo } from "../lib/ipc/conversations";
 import type { ProjectInfo } from "../types/generated/ProjectInfo";
 import type { ChipFilters, RowGroup } from "../lib/railview";
 import { ago, agoWords } from "../lib/time-words";
-import { STATE_TONE, conversationAppKey, conversationItem, goToWhere, stateWord as railStateWord } from "../lib/rail-items";
+import { conversationAppKey, conversationItem, goToWhere, stateWord as railStateWord } from "../lib/rail-items";
 import { ProfileBadge } from "./ProfileBadge";
 import { SELECTED_FILL } from "./controls/selected";
 
@@ -44,11 +45,6 @@ export function openNow(conversation: ConversationInfo): boolean {
 export function stateWord(conversation: ConversationInfo): string {
   const item = conversationItem(conversation, () => null, null);
   return railStateWord(item.state, item.probably);
-}
-
-/** Its state's colour (the glyph and the word), as the place rows show it. */
-function stateTone(conversation: ConversationInfo): string {
-  return STATE_TONE[conversationItem(conversation, () => null, null).state].text;
 }
 
 
@@ -128,8 +124,10 @@ export function ConversationRow({
   onOpen: (conversation: ConversationInfo) => void;
 }): JSX.Element {
   const title = conversationTitle(conversation);
-  const chip = stateChip(conversation.live ? "running" : "finished");
-  const Icon = chip.Icon;
+  // D-117: the App lens's calm look, from its parts (as RailRow's).
+  const item = conversationItem(conversation, () => null, null);
+  const look = rowState(item);
+  const lit = look.level >= 2 || selected;
   const when = conversation.last_activity_ms === null ? "" : conversation.live ? ago(conversation.last_activity_ms, now) : agoWords(conversation.last_activity_ms, now);
   const state = stateWord(conversation);
   const menu = useItemMenu("conversation", conversation, title);
@@ -152,23 +150,23 @@ export function ConversationRow({
         data-rail-selected={selected ? "true" : undefined}
         onClick={primary}
         className={
-          "relative flex w-full min-w-0 items-center gap-2.5 rounded-lg pl-2.5 text-left outline-none transition-colors focus-visible:ring-1 focus-visible:ring-accent/60 " +
+          "tone-host relative flex w-full min-w-0 items-center gap-2.5 rounded-lg pl-2.5 text-left outline-none transition-colors focus-visible:ring-1 focus-visible:ring-accent/60 " +
           (goTo && asking ? "pr-9 " : "pr-2 ") +
           (density === "compact" ? "py-1.5 " : "py-2 ") +
           (selected ? SELECTED_FILL : "hover:bg-surface/60")
         }
       >
-        <span aria-hidden="true" className={"flex w-4 shrink-0 justify-center " + stateTone(conversation)}>
-          <Icon width={13} height={13} />
+        <span aria-hidden="true" className="flex w-4 shrink-0 justify-center">
+          <StateMark item={item} level={look.level} dot={look.dot} />
         </span>
         <span className="flex min-w-0 flex-1 flex-col">
           <span className="flex min-w-0 items-baseline gap-1.5">
-            <span className={"min-w-0 truncate text-meta " + (selected ? "font-semibold " : "font-medium ") + (conversation.live || selected ? "text-ink" : "text-muted")}>{title}</span>
+            <span className={"min-w-0 truncate text-meta " + (selected ? "font-semibold text-ink" : "font-medium " + (conversation.live ? "text-ink-2" : "text-muted"))}>{title}</span>
             {density === "compact" && when && <span className="ml-auto shrink-0 text-label tabular-nums text-muted">{when}</span>}
           </span>
           {density === "comfortable" && (
             <span className="flex min-w-0 items-center gap-1 overflow-hidden text-label text-muted">
-              <span className={"shrink-0 whitespace-nowrap " + stateTone(conversation)} data-testid="rail-state-word">{state}</span>
+              <span className={"shrink-0 whitespace-nowrap " + (look.level >= 2 ? "font-medium text-ink-2" : "text-muted")} data-testid="rail-state-word">{state}</span>
               <span className="shrink-0 whitespace-nowrap" data-testid="outside-mark">
                 · outside AI Juggler
               </span>
@@ -185,8 +183,8 @@ export function ConversationRow({
             {where && `, open in ${where}`}
           </span>
         </span>
-        <AppIcon {...appOfConversation(conversation)} size={16} />
-        <ProfileBadge app={conversationAppKey(conversation)} name={conversation.account_label} />
+        <AppIcon {...appOfConversation(conversation)} size={16} className={appTone(lit)} />
+        <ProfileBadge app={conversationAppKey(conversation)} name={conversation.account_label} className={appTone(lit)} />
       </button>
       {goTo}
       {menu.button({ label: `Conversation actions for ${title}`, className: "absolute bottom-0 left-0" })}

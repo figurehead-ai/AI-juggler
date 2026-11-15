@@ -17,6 +17,8 @@ import { useConversations } from "../lib/conversations";
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import type { ProjectInfo } from "../types/generated/ProjectInfo";
 import { SELECTED_FILL } from "./controls/selected";
+import { appTone, attentionLevel } from "../lib/attention";
+import { needOfAttention } from "../lib/rail-items";
 
 /** The accent bar a selected row carries. */
 
@@ -123,8 +125,11 @@ export function RailProjectHeader({
   const menu = useItemMenu("project", project, label);
   const accounts = projectAccounts(project, rows, useConversations().all);
   const accountsId = useId();
+  // D-117: its Apps' icons muted at rest; in full colour while one of its
+  // sessions waits on you or broke (L2/L3), when current, on hover or focus.
+  const lit = selected || rows.some((row) => attentionLevel({ need: needOfAttention(row.needs_attention ?? row.status) }) >= 2);
   return (
-    <div className="group relative flex min-w-0 flex-1 items-center" data-rail-row {...menu.triggerProps}>
+    <div className="tone-host group relative flex min-w-0 flex-1 items-center" data-rail-row {...menu.triggerProps}>
       <button
         type="button"
         onClick={onSelect}
@@ -145,7 +150,11 @@ export function RailProjectHeader({
         </span>
         <span className="flex shrink-0 items-center gap-1.5">
           {children}
-          <AppStack apps={accounts} />
+          {accounts.length > 0 && (
+            <span className={"flex " + appTone(lit)}>
+              <AppStack apps={accounts} />
+            </span>
+          )}
           <span className="text-label font-normal text-muted">{count}</span>
         </span>
       </button>

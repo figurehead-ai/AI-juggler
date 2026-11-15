@@ -41,6 +41,7 @@ import { useRailOrder } from "../lib/rail-order-store";
 import { arrangeGroups, rankOf, sortRows } from "../lib/rail-order";
 import { groupItems } from "../lib/rail-places";
 import { STATE_TONE, itemsOf, needWord, openNow, stateWord, type RailItem } from "../lib/rail-items";
+import { appTone, brokenOf, brokenParts, counted, highest, itemLevel, levelTone, noticeLevel } from "../lib/attention";
 import { isSnoozed, type SnoozeState } from "../lib/railview";
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import type { ProjectInfo } from "../types/generated/ProjectInfo";
@@ -95,6 +96,10 @@ export function FoldedRail({
   const { offRail } = useOffRail(useKnownPlaces());
   const open = foldedOrder(items, order.mode, order.groups.place, order.rows).filter((item) => item.need !== null || !offRail(item.place.key));
   const count = needs.count;
+  // D-117: the count takes its highest level (amber ⚠ n, red ✕ n), never
+  // a fill; what broke is said in its name.
+  const level = highest(needs.rows.map(noticeLevel).filter(counted));
+  const broken = brokenOf(needs.rows, noticeLevel, (row) => row.kind);
   // F11: one stop on the Tab path; ↑↓ move through the icons.
   const root = useRef<HTMLDivElement | null>(null);
   useRoving(root);
@@ -120,12 +125,14 @@ export function FoldedRail({
           data-rail-nav
           data-testid="rail-folded-needs-you"
           onClick={() => host.openHome?.()}
-          aria-label={`Needs you: ${needsYouWords(count)}. Open Home`}
+          aria-label={`Needs you: ${needsYouWords(count)}${broken.length > 0 ? `, ${brokenParts(broken)}` : ""}. Open Home`}
           title={`${needsYouWords(count)} — open Home`}
-          className="mb-1 flex min-h-6 items-center gap-0.5 rounded-full border border-warning/40 bg-warning-soft px-1.5 py-0.5 text-label font-bold text-warning outline-none transition-colors hover:bg-warning/20 focus-visible:ring-1 focus-visible:ring-accent/60"
+          data-level={level}
+          className={"mb-1 flex min-h-6 items-center gap-1 rounded-md px-1.5 py-0.5 text-label font-semibold tabular-nums outline-none transition-colors hover:bg-surface focus-visible:ring-1 focus-visible:ring-accent/60 " + (level >= 2 ? levelTone(level).text : "text-muted")}
         >
-          <span aria-hidden="true">!</span>
-          <span className="tabular-nums">{count}</span>
+          {/* The level's glyph (⚠ at L2, ✕ at L3): decoration. */}
+          {level >= 2 && <span aria-hidden="true" className="level-glyph" data-level={level} />}
+          <span aria-hidden="true">{count}</span>
         </button>
       )}
       {open.map((item) => (
@@ -149,12 +156,15 @@ export function FoldedRail({
 function FoldedRow({ item, selected, onSelect }: { item: RailItem; selected: boolean; onSelect: (id: string) => void }): JSX.Element {
   const primary = usePrimary(item, onSelect);
   const describedId = useId();
-  const needs = item.need !== null;
-  const word = needs ? needWord(item) : stateWord(item.state, item.probably);
+  // D-117: only what waits on you or broke (L2/L3) lights its corner and
+  // its icon; a note (L1, done, review it) keeps its word, calm.
+  const level = itemLevel(item);
+  const needs = level >= 2;
+  const word = item.need !== null ? needWord(item) : stateWord(item.state, item.probably);
   // AI Juggler's own sessions: the tool and account they run on, as the
   // place's app and profile name the others.
   const where = item.session ? [item.project, providerDisplayName(item.tool), item.accountLabel].filter(Boolean).join(" · ") : whereWords(item);
-  const tone = needs ? STATE_TONE.asks_you : STATE_TONE[item.state];
+  const tone = needs ? levelTone(level) : STATE_TONE[item.state];
   // AI Juggler's own sessions keep their fuller summary (I-01..I-11).
   const more = item.session ? ariaSummary(item.session) : where;
   return (
@@ -168,7 +178,7 @@ function FoldedRow({ item, selected, onSelect }: { item: RailItem; selected: boo
       aria-describedby={describedId}
       onClick={primary}
       className={
-        "group relative flex size-9 shrink-0 items-center justify-center rounded-lg outline-none transition-colors focus-visible:ring-1 focus-visible:ring-accent/60 " +
+        "tone-host group relative flex size-9 shrink-0 items-center justify-center rounded-lg outline-none transition-colors focus-visible:ring-1 focus-visible:ring-accent/60 " +
         (selected ? SELECTED_FILL : "hover:bg-surface")
       }
     >
@@ -179,13 +189,16 @@ function FoldedRow({ item, selected, onSelect }: { item: RailItem; selected: boo
       <span className="sr-only">
         {word}, {item.title}, {where}
       </span>
-      <span aria-hidden="true" className="flex">
+      {/* D-117: muted at rest; in full colour at L2/L3, when current, on hover or focus. */}
+      <span aria-hidden="true" className={"flex " + appTone(needs || selected)}>
         {item.session ? <OwnMark tool={item.tool} app={item.place.key} profile={item.accountLabel} /> : <PlaceMark place={item.place} profile={item.accountLabel} size={22} />}
       </span>
       <span aria-hidden="true" data-state-dot={item.state} className={"absolute bottom-0.5 left-0.5 size-2 rounded-full ring-2 ring-canvas " + tone.dot} />
+      {/* Its level's corner (! amber at L2, ✕ red at L3): decoration;
+          its name leads with the word. */}
       {needs && (
-        <span aria-hidden="true" data-testid="rail-folded-needs" className="absolute right-0 top-0 flex size-3.5 items-center justify-center rounded-full bg-warning text-label font-bold text-black">
-          !
+        <span aria-hidden="true" data-testid="rail-folded-needs" data-level={level} className={"absolute right-0 top-0 flex size-3.5 items-center justify-center rounded-full text-label font-bold " + (level === 3 ? "bg-count-alarm text-count-alarm-ink" : "bg-warning text-black")}>
+          {level === 3 ? "✕" : "!"}
         </span>
       )}
       {/* Hover and focus: the words, never a bare icon. */}

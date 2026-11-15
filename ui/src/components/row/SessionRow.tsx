@@ -102,8 +102,8 @@ export function rowState(item: RailItem): { word: string; text: string; dot: str
 
 /** The rail's state mark (D-117): a 6 px dot — a need's level mark (a
  * hollow ring when it's a guess), a static calm dot while working, faint
- * when idle or ended — or a review's ✓. */
-function StateMark({ item, level, dot }: { item: RailItem; level: AttentionLevel; dot: string }): JSX.Element {
+ * when idle or ended — or a review's ✓. Every lens's rows draw it. */
+export function StateMark({ item, level, dot }: { item: RailItem; level: AttentionLevel; dot: string }): JSX.Element {
   if (level >= 2) return <span aria-hidden="true" data-state-dot={item.state} data-level={level} data-probably={item.probably ? "true" : undefined} className="level-mark" />;
   if (item.need === "review") return <span aria-hidden="true" data-state-dot={item.state} className="flex w-1.5 shrink-0 justify-center overflow-visible text-label leading-none text-success">✓</span>;
   return <span aria-hidden="true" data-state-dot={item.state} className={"size-1.5 shrink-0 rounded-full " + dot} />;

@@ -365,7 +365,7 @@ export function needsYou(items: RailItem[]): RailItem[] {
 /** Needs you's one order, in every grouping (AJ-E2802 R7): the kind of need (failed, L3 on top
  * (D-117), then asks, out of room, stuck, to review), then the one waiting longest (since it
  * began to wait, `lib/waiting`), then a steady tie-break. */
-export function byNeed(a: Pick<RailItem, "need" | "lastMs" | "key"> & NeedRow, b: Pick<RailItem, "need" | "lastMs" | "key"> & NeedRow): number {
+function byNeed(a: Pick<RailItem, "need" | "lastMs" | "key"> & NeedRow, b: Pick<RailItem, "need" | "lastMs" | "key"> & NeedRow): number {
   return NEED_ORDER.indexOf(a.need!) - NEED_ORDER.indexOf(b.need!) || waitingSince(a) - waitingSince(b) || a.key.localeCompare(b.key);
 }
 
