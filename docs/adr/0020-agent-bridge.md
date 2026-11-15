@@ -322,9 +322,11 @@ part in its adapter, `juggler_adapter::peer::DesktopPeer`):
      the Claude app's own requirement, `identifier
      "com.anthropic.claudefordesktop"` (the bundle identifier read once
      from the installed app's `Info.plist` and pinned, with a test) and
-     the same anchor and team; or the parent must be one of the app's own
-     signed helpers (Anthropic's anchor and team: the app starts Claude
-     Code through its `disclaimer` helper) and the grandparent meet the
+     the same anchor and team; or the parent must be the app's own
+     `disclaimer` helper, through which the app starts Claude Code
+     (pinned: `identifier "disclaimer"`, the same anchor and team, so no
+     other Anthropic-signed program, Claude Code itself or
+     `app-cu-helper`, stands between them) and the grandparent meet the
      app's requirement. No path, bundle or folder name is read for this:
      a program at `~/x/Claude.app/Contents/MacOS/Claude` is no host.
    - *The same processes throughout:* each pid's version (`p_idversion`,
@@ -341,7 +343,7 @@ part in its adapter, `juggler_adapter::peer::DesktopPeer`):
    **What this guarantees, exactly:** the caller (the socket's last user
    at `getsockopt` time, still that process) descends, at most two steps
    down, from a process whose running code is Anthropic's Claude Code,
-   whose parent, directly or through one Anthropic-signed helper, is the
+   whose parent, directly or through the app's `disclaimer` helper, is the
    Claude app's own running main process for this App's instance; each of
    those was the same process before and after its check. It does **not**
    guarantee that the caller is AI Juggler's connector rather than
@@ -349,6 +351,22 @@ part in its adapter, `juggler_adapter::peer::DesktopPeer`):
    a command the model runs: they speak as the session, row below), nor
    which of the App's conversations it is beyond what the user-writable
    registry entry and App record say (the threat model below).
+
+   **What the helper hop leaves (the third review, Low 2).** `disclaimer`
+   is a generic launcher: the app starts programs through it, Claude Code
+   among them. So "the app → `disclaimer` → genuine Claude Code" proves
+   the Claude app started that Claude Code; it does not prove the Claude
+   Code is a Code-tab session. That part rests on the registry entry
+   (`entrypoint: "claude-desktop"`, its `hostSessionId`) and the App's
+   record, files this user, and so any process of this user, can write.
+   Inside the same-user boundary this leaves one case: a process that is
+   already a descendant (at most two steps down) of a Claude Code the
+   Claude app started, for any of its features, together with forged
+   registry and record files, is attested as a Code-tab conversation of
+   that App instance. It can't make a script outside such a tree pass,
+   can't pass for another App or profile, and gains nothing a process of
+   this user doesn't already have (it can read a launched session's key,
+   §4; it can drive the app as the user does).
 
    **What it rests on:** macOS enforcing code signing for running code;
    both programs signed with the hardened runtime (`flags=0x10000`), with
@@ -462,7 +480,7 @@ chain ends at `launchd`) is refused.
 | **S** a process that outlives its session (an orphaned MCP server) | its parent is `launchd`: no registry entry; refused | `an_orphan_is_refused` |
 | **S** resume and `/clear` (the MCP server outlives a conversation) | the registry and App record are read at every call; the call acts as the conversation they name now, or is refused when they disagree | `the_registry_is_read_at_every_call` |
 | **S** a descendant of the session (a hook, a shell command the model runs) | accepted, as that session: it is inside the session's own trust (the model can call the tools itself); at most two steps up | `a_hook_under_sh_is_attested` |
-| **S** a same-user process that **forges** a registry entry for its own parent (M1) | the parent's **running** code must meet Claude Code's pinned requirement (identifier, Apple's anchor, Anthropic's team), under the Claude app's own running main process (its pinned bundle identifier and team) for this instance, directly or through one of its signed helpers; pid versions equal before and after each check, start times and parents unchanged after them; an archived conversation isn't attested; the files are read through the no-link walk, owner and mode checked on the open file. What remains is rewriting a live session's entry or record to name another conversation of the same App (as §4: a same-user process can already read a launched session's key) | `this_processs_own_chain_…` (a forged entry for the test's runner refused), `a_tool_whose_running_code_isnt_genuine_is_refused`, `the_running_code_is_checked_against_the_requirement`, `an_archived_session_isnt_attested` |
+| **S** a same-user process that **forges** a registry entry for its own parent (M1) | the parent's **running** code must meet Claude Code's pinned requirement (identifier, Apple's anchor, Anthropic's team), under the Claude app's own running main process (its pinned bundle identifier and team) for this instance, directly or through its pinned `disclaimer` helper (another Anthropic-signed program isn't a hop); pid versions equal before and after each check, start times and parents unchanged after them; an archived conversation isn't attested; the files are read through the no-link walk, owner and mode checked on the open file. What remains is rewriting a live session's entry or record to name another conversation of the same App (as §4: a same-user process can already read a launched session's key) | `this_processs_own_chain_…` (a forged entry for the test's runner refused), `a_tool_whose_running_code_isnt_genuine_is_refused`, `the_running_code_is_checked_against_the_requirement`, `an_archived_session_isnt_attested` |
 | **S** a fake host: a program at `~/x/Claude.app/Contents/MacOS/Claude`, even signed with the app's identifier (M1 round 2, probe a) | the host is known by its running code's signature only (identifier **and** Anthropic's team under Apple's anchor), never a path or a folder name | `a_program_named_like_the_host_isnt_the_host`, `the_host_is_known_by_its_running_code_never_its_name` |
 | **S/T** a genuine program renamed over the path of a running ad-hoc one (M1 round 2, probe b) | the running code is checked (`SecCodeCopyGuestWithAttributes` by pid, `SecCodeCheckValidity` against the pinned requirement), never the file at `proc_pidpath`; verdicts kept per (pid, pid version) | `a_genuine_program_renamed_over_a_running_one_changes_nothing` |
 | **S** a process that exits or execs while it's checked | its pid version read before and after each check; start time and parent read again after all of them | `a_process_that_changed_while_it_was_checked_is_refused` |

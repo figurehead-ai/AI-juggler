@@ -49,10 +49,12 @@ pub const HOST_BUNDLE_ID: &str = "com.anthropic.claudefordesktop";
 pub const TOOL_REQUIREMENT: &str = "identifier \"com.anthropic.claude-code\" and anchor apple generic and certificate leaf[subject.OU] = \"Q6L2SF6YDW\"";
 /// M1: what the Claude app's own running main process must be.
 pub const HOST_REQUIREMENT: &str = "identifier \"com.anthropic.claudefordesktop\" and anchor apple generic and certificate leaf[subject.OU] = \"Q6L2SF6YDW\"";
-/// M1: what a helper of the Claude app (its `disclaimer`, which starts
-/// Claude Code) must be: Anthropic's code.
-pub const HELPER_REQUIREMENT: &str =
-    "anchor apple generic and certificate leaf[subject.OU] = \"Q6L2SF6YDW\"";
+/// M1 (round 3, Low 2): what the one helper between the Claude app and its
+/// Claude Code must be: its `disclaimer` launcher (`codesign -dv`,
+/// 2026-11-15: `Identifier=disclaimer`, Anthropic's team), pinned by its
+/// identifier, so no other Anthropic-signed program (Claude Code itself,
+/// `app-cu-helper`) stands between them.
+pub const HELPER_REQUIREMENT: &str = "identifier \"disclaimer\" and anchor apple generic and certificate leaf[subject.OU] = \"Q6L2SF6YDW\"";
 /// M1: where a Claude app profile keeps its Claude Code, under its own
 /// folder: `claude-code/<version>/<build>/…/Contents/MacOS/claude`.
 const SHIPPED: &str = "claude-code";
@@ -652,6 +654,10 @@ mod tests {
         assert!(TOOL_REQUIREMENT.contains("identifier \"com.anthropic.claude-code\""));
         let host = format!("identifier \"{HOST_BUNDLE_ID}\"");
         assert!(HOST_REQUIREMENT.contains(&host));
+        assert!(
+            HELPER_REQUIREMENT.starts_with("identifier \"disclaimer\" and "),
+            "Low 2: the helper by its identifier, not any of the team's programs"
+        );
         for requirement in [TOOL_REQUIREMENT, HOST_REQUIREMENT, HELPER_REQUIREMENT] {
             assert!(requirement.contains("anchor apple generic"));
             assert!(requirement.ends_with(&format!("leaf[subject.OU] = \"{ANTHROPIC_TEAM}\"")));

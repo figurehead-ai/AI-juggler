@@ -217,6 +217,20 @@ mod tests {
                 .iter()
                 .any(|pid| running_satisfies(*pid, 9, host))
         );
+        // Low 2: the helper hop is the app's `disclaimer` only; Claude
+        // Code itself, signed by the same team, isn't one.
+        let helper = "identifier \"disclaimer\" and anchor apple generic \
+                      and certificate leaf[subject.OU] = \"Q6L2SF6YDW\"";
+        assert!(
+            pids("disclaimer")
+                .iter()
+                .any(|pid| running_satisfies(*pid, 9, helper))
+        );
+        assert!(
+            !pids("claude")
+                .iter()
+                .any(|pid| running_satisfies(*pid, 9, helper))
+        );
         assert!(
             pids("claude")
                 .iter()
