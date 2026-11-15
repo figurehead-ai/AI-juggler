@@ -592,6 +592,23 @@ mod tests {
         assert_eq!(client.join().unwrap(), "ok\n");
     }
 
+    /// H1: a stale endpoint is removed only when it's the given user's:
+    /// asked for another user, this user's socket is never unlinked.
+    #[test]
+    fn a_stale_endpoint_of_another_user_is_never_removed() {
+        let root = base();
+        let endpoint = root.path().join("d").join("s.sock");
+        let me = current().unwrap();
+        drop(bind(&endpoint, me).unwrap());
+        let other = UserId::from_uid(me.uid().wrapping_add(1));
+        assert!(!endpoint_is_ours(&endpoint, other));
+        remove_if_ours(&endpoint, other);
+        assert!(endpoint.exists(), "not the other user's: left");
+        assert!(endpoint_is_ours(&endpoint, me));
+        remove_if_ours(&endpoint, me);
+        assert!(!endpoint.exists());
+    }
+
     #[test]
     fn a_stale_endpoint_of_ours_goes_and_anything_else_stays() {
         let root = base();

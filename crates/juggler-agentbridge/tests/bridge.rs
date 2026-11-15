@@ -952,3 +952,47 @@ fn what_agents_reach_has_no_path_to_a_session_a_setting_or_a_secret() {
         }
     }
 }
+
+/// H1: the socket's folder is made 0700 and the socket 0600; a stale
+/// socket of this user's is replaced, but a link at its place, or a folder
+/// open to others, is refused and left alone (never followed).
+#[cfg(unix)]
+#[test]
+fn a_stale_socket_is_replaced_only_when_it_is_ours_and_never_through_a_link() {
+    // A stale socket of ours, left by a crash.
+    let stale = world(&[]);
+    let agent = stale.root.join("app-data/agent");
+    std::fs::create_dir_all(&agent).unwrap();
+    std::fs::set_permissions(&agent, std::fs::Permissions::from_mode(0o700)).unwrap();
+    let socket = agent.join("bridge.sock");
+    drop(std::os::unix::net::UnixListener::bind(&socket).unwrap());
+    std::fs::set_permissions(&socket, std::fs::Permissions::from_mode(0o644)).unwrap();
+    let served = juggler_app::features::agent_bridge::server::ensure_serving(&stale.state).unwrap();
+    assert_eq!(served, socket);
+    assert_eq!(mode(&socket), 0o600, "replaced, made the user's alone");
+    assert_eq!(mode(&agent), 0o700);
+    // A link where the socket goes: refused, neither it nor its target
+    // removed.
+    let linked = world(&[]);
+    let agent = linked.root.join("app-data/agent");
+    std::fs::create_dir_all(&agent).unwrap();
+    std::fs::set_permissions(&agent, std::fs::Permissions::from_mode(0o700)).unwrap();
+    let elsewhere = linked.root.join("elsewhere.sock");
+    let _other = std::os::unix::net::UnixListener::bind(&elsewhere).unwrap();
+    std::os::unix::fs::symlink(&elsewhere, agent.join("bridge.sock")).unwrap();
+    assert!(juggler_app::features::agent_bridge::server::ensure_serving(&linked.state).is_err());
+    assert!(
+        std::fs::symlink_metadata(agent.join("bridge.sock"))
+            .unwrap()
+            .file_type()
+            .is_symlink()
+    );
+    assert!(elsewhere.exists(), "its target untouched");
+    // A folder others can write: refused, never chmod'ed into shape.
+    let open = world(&[]);
+    let agent = open.root.join("app-data/agent");
+    std::fs::create_dir_all(&agent).unwrap();
+    std::fs::set_permissions(&agent, std::fs::Permissions::from_mode(0o777)).unwrap();
+    assert!(juggler_app::features::agent_bridge::server::ensure_serving(&open.state).is_err());
+    assert_eq!(mode(&agent), 0o777);
+}
