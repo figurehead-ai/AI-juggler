@@ -19,6 +19,7 @@ import { ShellOnly } from "../../components/ShellOnly";
 import { IconLead, IconMore } from "../../components/icons-canvas";
 import { sessionState, STATE_TONE } from "../../lib/rail-items";
 import { NODE_H, NODE_W, nodeForm } from "./layout";
+import { FOCUS_RING } from "./selection";
 import { AskLine, NO_TASK, NodeRoom, nodeBorder, RoleChip, sessionAlert, useNodeDescription, type NodeProps } from "./NodeParts";
 
 export function CompactNode({ member, at, asks, held, selected, tabStop, dragging, scale, onSelect, onMenu, onPointerDown, onKey }: NodeProps): JSX.Element {
@@ -86,7 +87,7 @@ export function CompactNode({ member, at, asks, held, selected, tabStop, draggin
       aria-description={description}
       onClick={(event) => onSelect(member.id, event.detail === 0)}
       onKeyDown={(event) => onKey(member.id, event)}
-      className={"min-w-0 flex-1 rounded text-left font-semibold text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent/60 " + (wrap ? "" : "truncate ") + nameSize}
+      className={"min-w-0 flex-1 rounded text-left font-semibold text-ink " + FOCUS_RING + " " + (wrap ? "" : "truncate ") + nameSize}
       title={name}
     >
       {/* The two-line clamp on a span: WebKit (the app's view) doesn't lay
@@ -129,6 +130,8 @@ export function CompactNode({ member, at, asks, held, selected, tabStop, draggin
       data-testid="canvas-node"
       data-node={member.id}
       data-lead={lead || undefined}
+      data-selected={selected || undefined}
+      aria-current={selected ? "true" : undefined}
       data-form="compact"
       onPointerDown={(event) => onPointerDown(member.id, event)}
       onContextMenu={openMenu}
@@ -139,7 +142,7 @@ export function CompactNode({ member, at, asks, held, selected, tabStop, draggin
       <div
         style={{ transform: `scale(${1 / scale})`, transformOrigin: "0 0", width, height }}
         className={
-          "group/node relative flex flex-col justify-center gap-1 rounded-lg border bg-surface shadow-card motion-safe:animate-[aij-fade-in_140ms_ease-out] " +
+          "group/node relative flex flex-col justify-center gap-1 rounded-lg border motion-safe:animate-[aij-fade-in_140ms_ease-out] " +
           (tight ? "px-1.5 py-0.5 " : "px-2 py-1 ") +
           nodeBorder(selected, waits > 0, lead) +
           (dragging ? " cursor-grabbing opacity-90 shadow-lg" : " cursor-grab") +

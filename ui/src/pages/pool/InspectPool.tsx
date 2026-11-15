@@ -13,7 +13,7 @@ import { AGENT_ACTIONS, agentRuleRevoke, poolDelete, poolSetAccess, poolSetDeliv
 import { notificationsMute, notificationsMutes, notificationsUnmute, onNoticesChanged } from "../../lib/ipc/notices";
 import { PoolUsage } from "./PoolUsage";
 import { SealSetting } from "./SealSetting";
-import { ACTION_WORDS, LEVELS, setPools } from "../../lib/pools";
+import { ACTION_WORDS, setPools } from "../../lib/pools";
 import { agoWords } from "../../lib/time-words";
 import { PoolLinks } from "../messages/PoolLinks";
 import { ChoiceOption, Picker } from "../../components/controls";
@@ -101,20 +101,8 @@ export function InspectPool({
   const allowed = new Set(pool.access.actions);
   return (
     <div className="flex flex-col" data-testid="inspect-pool">
-      <Section title="What agents may do" testId="inspect-pool-level">
-        <Picker choice
-          ariaLabel="What agents may do"
-          heading="Agents in this pool may"
-          value={pool.access.level}
-          options={LEVELS.map((level) => ({ value: level.id, label: level.label, hint: level.words }))}
-          disabled={busy}
-          onChange={(level) => void run(() => poolSetAccess(pool.id, level, level === "custom" ? pool.access.actions : []))}
-          className="w-full"
-          testId="pool-level"
-        />
-        <p className="text-label text-muted">{LEVELS.find((level) => level.id === pool.access.level)?.words}</p>
-        <p className="text-label text-faint" data-testid="pool-applies-next">Changes apply from each agent's next call; nothing it is doing now is stopped.</p>
-        {pool.access.level === "custom" && (
+      {pool.access.level === "custom" && (
+        <Section title="Custom actions" testId="inspect-pool-level">
           <div className="-mx-2 flex flex-col" data-testid="pool-custom">
             {AGENT_ACTIONS.filter((action) => action !== "deliver_to_session").map((action) => (
               <ChoiceOption
@@ -130,8 +118,8 @@ export function InspectPool({
               />
             ))}
           </div>
-        )}
-      </Section>
+        </Section>
+      )}
 
       <Section title="Always allowed here" testId="pool-rules">
         {pool.rules.length === 0 ? (

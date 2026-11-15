@@ -1,13 +1,15 @@
 /**
  * D-62 (AJ-E3008): a member rule in the inspector: what it brings in
- * (its sessions now, and new ones), its role and its own level (the
- * pool's by default), and taking it out. A Watched member says what it
- * can't do and offers Continue in AI Juggler.
+ * (its sessions now, and new ones), its role and what its sessions may do
+ * on their own ("Same as the pool" by default), how they hear a message
+ * (D-119), and taking it out. A Watched member says what it can't do and
+ * offers Continue in AI Juggler. Its name, kind and role are the
+ * inspector's title and subtitle (AJ-E3012).
  */
 import { useState, type JSX } from "react";
 
 import { Button } from "../../components/primitives";
-import { Picker, Segmented } from "../../components/controls";
+
 import { useActionHost } from "../../components/ItemMenu";
 import { ShellOnly } from "../../components/ShellOnly";
 import { showToast } from "../../components/Toast";
@@ -15,7 +17,10 @@ import { errorText } from "../../lib/bridge";
 import { useConversations } from "../../lib/conversations";
 import { poolJoin, poolLeave, type PoolRuleInfo, type WatchedMemberInfo } from "../../lib/ipc/pool-model";
 import type { PoolInfo, PoolRole } from "../../lib/ipc/pools";
-import { CONTINUE_WATCHED, leadHint, levelLabel, roleLabel, rolesFor, setPools } from "../../lib/pools";
+import { CONTINUE_WATCHED, rolesFor, setPools } from "../../lib/pools";
+import { asRole, wakeWords } from "../../lib/pool-words";
+import { MemberOwnLevel } from "./setup/OwnLevelChoice";
+import { RolePicker } from "./setup/RoleCards";
 
 export function InspectRule({
   pool,
@@ -40,7 +45,7 @@ export function InspectRule({
   const { all } = useConversations();
   const [busy, setBusy] = useState(false);
   const member = rule?.member ?? watched?.member ?? "";
-  const role = (rule?.role ?? watched?.role ?? "member") as PoolRole;
+  const role: PoolRole = asRole(rule?.role ?? watched?.role ?? "member");
   const level = rule?.level ?? null;
   const run = async (what: string, call: () => Promise<unknown>) => {
     setBusy(true);
@@ -58,11 +63,12 @@ export function InspectRule({
   const fixed = pool.kind === "default" && member === "all";
   return (
     <div className="flex flex-col gap-4 px-4" data-testid="inspect-rule">
-      <div className="flex flex-col gap-0.5">
-        <span className="flex flex-wrap items-center gap-2">
-          <span className="text-section text-ink">{label}</span>
-          {shared && <ShellOnly tool={shared.tool} account={shared.account} />}
-        </span>
+      <div className="flex flex-col gap-1">
+        {shared && (
+          <span className="flex flex-wrap items-center gap-2">
+            <ShellOnly tool={shared.tool} account={shared.account} />
+          </span>
+        )}
         <span className="text-meta text-ink-2">
           {watched
             ? "Runs in another app: shown here and counted, with no tools and no rules, until it's continued in AI Juggler."
@@ -80,35 +86,22 @@ export function InspectRule({
         </div>
       )}
       <div className="flex flex-col gap-1.5">
-        <span className="text-meta font-semibold text-ink-2">Role</span>
-        <Segmented
-          label="Role"
-          value={role}
-          segments={rolesFor(member).map((one) => ({ value: one, label: roleLabel(one) }))}
-          onChange={(next) => void run("change its role", () => poolJoin(pool.id, member, next, level))}
-          className="self-start"
-          testId="inspect-rule-role"
-        />
-        {leadHint(member) && <span className="text-meta text-ink-2" data-testid="inspect-rule-lead-hint">{leadHint(member)}</span>}
+        <span className="text-meta font-medium text-ink">Its role</span>
+        <RolePicker member={member} name={label} value={role} onChange={(next) => void run("change its role", () => poolJoin(pool.id, member, next, level))} disabled={busy} testId="inspect-rule-role" />
+        {!rolesFor(member).includes("lead") && (
+          <span className="text-meta text-ink-2" data-testid="inspect-rule-lead-hint">
+            Lead is one session: pick who leads in the pool's Who leads, or have this App's next session lead.
+          </span>
+        )}
       </div>
       {!watched && (
         <div className="flex flex-col gap-1.5">
-          <span className="text-meta font-semibold text-ink-2">What its sessions may do</span>
-          <Picker
-            choice
-            size="sm"
-            ariaLabel="Its level"
-            value={level ?? "pool"}
-            options={[
-              { value: "pool", label: `The pool's (${levelLabel(pool.access.level)})` },
-              { value: "read", label: "Read" },
-              { value: "work_together", label: "Work together" },
-              { value: "full", label: "Full" },
-            ]}
-            onChange={(next) => void run("change its level", () => poolJoin(pool.id, member, role, next === "pool" ? null : next))}
-            testId="inspect-rule-level"
-          />
-          <span className="text-meta text-ink-2">Its own level replaces the pool's for the sessions it brings in.</span>
+          <span className="text-meta font-medium text-ink">What its sessions may do on their own</span>
+          <MemberOwnLevel name={label} value={level} poolLevel={pool.access.level} disabled={busy} onChange={(next) => void run("change what its sessions may do", () => poolJoin(pool.id, member, role, next))} testId="inspect-rule-level" />
+          <span className="text-meta text-ink-2">Its own choice replaces the pool's for the sessions it brings in.</span>
+          <span className="text-meta text-muted" data-testid="inspect-rule-wake">
+            Messages: its sessions {wakeWords(level ?? pool.access.level, false, true)}.
+          </span>
         </div>
       )}
       {!fixed && (

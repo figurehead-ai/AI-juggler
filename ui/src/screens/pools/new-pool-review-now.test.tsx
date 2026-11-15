@@ -20,7 +20,7 @@ describe("Review says what each member brings now (the rc27 P1 walk)", () => {
     ];
     const draft = { ...draftOf(templateById("writer-reviewer"), "web"), members };
     const openNow = new Map([["session:lead", 1], ["app:cli:lab", 1], ["app:cli:codex", 0]]);
-    const review = render(<NewPoolReview draft={draft} onName={() => undefined} projectName={(id) => id ?? "No project"} openNow={openNow} />);
+    const review = render(<NewPoolReview draft={draft} name="Web team" where="web" openNow={openNow} />);
     const rows = [...review.container.querySelectorAll("li")].map((row) => row.textContent);
     expect(rows[1]).toContain("1 open now · new ones join");
     expect(rows[2]).toContain("none open now · new ones join");

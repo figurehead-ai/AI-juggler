@@ -75,7 +75,7 @@ export function SessionPools({ session }: { session: InstanceInfo }): JSX.Elemen
                 </span>
                 <span className="flex shrink-0 flex-col items-end gap-0.5">
                   <Chip tone={place.role === "lead" ? "accent" : place.role === "reviewer" ? "live" : "neutral"}>{roleLabel(place.role)}</Chip>
-                  {place.level && <span className="text-label text-muted">its own level: {levelLabel(place.level)}</span>}
+                  {place.level && <span className="text-label text-muted">on its own: {levelLabel(place.level)}</span>}
                 </span>
               </button>
             </li>

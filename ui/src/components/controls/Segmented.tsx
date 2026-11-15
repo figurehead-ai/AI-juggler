@@ -21,6 +21,7 @@ export function Segmented<T extends string>({
   testId,
   className = "",
   wrap = false,
+  calm = false,
 }: {
   /** The group's name for screen readers ("Group sessions by"). */
   label: string;
@@ -32,6 +33,10 @@ export function Segmented<T extends string>({
   /** Filter chips with counts: whole words on more lines when narrow,
    * never cut ("Limit reache…" off the card at 390 px). */
   wrap?: boolean;
+  /** 0.4.6 (AJ-E3011): the calm look on the pool screens, as 0.5 draws
+   * every segmented control (D-117): filled, no outline, the chosen one
+   * the raised surface told apart by fill, weight and ink, not hue. */
+  calm?: boolean;
 }): JSX.Element {
   const refs = useRef<(HTMLButtonElement | null)[]>([]);
   const at = Math.max(
@@ -61,7 +66,7 @@ export function Segmented<T extends string>({
       aria-label={label}
       data-testid={testId}
       onKeyDown={onKey}
-      className={(wrap ? "flex min-w-0 max-w-full flex-wrap " : "flex ") + "gap-0.5 rounded-[10px] border border-hairline bg-surface/70 p-[2px] " + className}
+      className={(wrap ? "flex min-w-0 max-w-full flex-wrap " : "flex ") + (calm ? "seg-fill gap-0.5 rounded-[10px] bg-fill p-[2px] " : "gap-0.5 rounded-[10px] border border-hairline bg-surface/70 p-[2px] ") + className}
     >
       {segments.map((segment, index) => {
         const on = index === at;
@@ -86,7 +91,11 @@ export function Segmented<T extends string>({
               // The chosen one in the accent's tint and ink, in both themes: a
               // lighter grey in dark couldn't be told without reading (the 0.4
               // design review, 32).
-              (on ? "bg-accent-soft font-semibold text-accent-hi" : "text-muted hover:bg-surface-2 hover:text-ink")
+              (on
+                ? calm
+                  ? "bg-surface-3 font-medium text-ink-2 shadow-[inset_0_0_0_1px_var(--color-hairline)]"
+                  : "bg-accent-soft font-semibold text-accent-hi"
+                : "text-muted hover:bg-surface-2 hover:text-ink")
             }
           >
             {segment.label}

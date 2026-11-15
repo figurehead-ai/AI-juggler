@@ -32,7 +32,8 @@ import { fitView, neighbour, NODE_H, NODE_W, toCanvas, zoomAt, type Point, type 
 import type { CanvasData, MemberNode } from "./useCanvas";
 import { useCanvasView } from "./canvas-view";
 
-export type Selection = { kind: "none" } | { kind: "pool" } | { kind: "node"; id: string } | { kind: "edge"; key: string } | { kind: "rule"; ref: string };
+/** `pool`'s `focus`: the setup step it opens on; `lead-next`: the lead's place (AJ-E3011). */
+export type Selection = { kind: "none" } | { kind: "pool"; focus?: string } | { kind: "node"; id: string } | { kind: "edge"; key: string } | { kind: "rule"; ref: string } | { kind: "lead-next" };
 
 type Drag =
   | { kind: "node"; id: string; start: Point; origin: Point; moved: boolean }
@@ -71,6 +72,7 @@ export function Canvas({
   overlay,
   overlayRoom = 0, lineRules,
   paletteMore,
+  paletteRequest = 0,
 }: {
   pool: PoolInfo;
   data: CanvasData;
@@ -85,6 +87,8 @@ export function Canvas({
   overlayRoom?: number; lineRules?: LineRules;
   /** The palette's other candidates (D-62). */
   paletteMore?: ReactNode;
+  /** AJ-E3011: bumped to open the palette (the checklist's Who's in). */
+  paletteRequest?: number;
   candidates: InstanceInfo[];
   projects: ProjectInfo[];
   selection: Selection;
@@ -106,6 +110,7 @@ export function Canvas({
   const [paletteOpen, setPaletteOpen] = useState<boolean | null>(null);
   const justDragged = useRef(false);
   const reducedMotion = useReducedMotion();
+  useEffect(() => void (paletteRequest > 0 && openAndFocus(setPaletteOpen, palette)()), [paletteRequest]);
 
   useLayoutEffect(() => {
     const element = viewport.current;

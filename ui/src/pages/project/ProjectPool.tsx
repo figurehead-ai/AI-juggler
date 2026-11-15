@@ -39,10 +39,12 @@ export function ProjectPool({ project, sessions, now }: { project: ProjectInfo; 
   const open = (id: string) => host.openPool?.(id);
   return (
     <div className="flex w-full max-w-content flex-col gap-grid" data-testid="project-pool">
+      {/* AJ-E3011 §10: a project's own pool says what it is, apart from the
+          pools you made. */}
       <Section
-        title={pool?.name ?? `${project.name} · all sessions`}
+        title={`${project.name}'s own pool`}
         icon={<IconPool width={15} height={15} />}
-        sub={[pool ? `${pool.members} ${pool.members === 1 ? "session" : "sessions"}` : null, summary || null, pool ? `agents: ${levelLabel(pool.access.level)}` : null].filter(Boolean).join(" · ")}
+        sub={[`every session in ${project.name}, as one team`, pool ? `${pool.members} ${pool.members === 1 ? "session" : "sessions"}` : null, summary || null, pool ? `on their own: ${levelLabel(pool.access.level)}` : null].filter(Boolean).join(" · ")}
         actions={
           <Button size="sm" variant="secondary" onClick={() => open(poolId)} data-testid="project-pool-open">
             Open the pool ›

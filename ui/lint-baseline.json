@@ -1748,7 +1748,6 @@
  "src/pages/PoolPage.tsx": {
   "jsx-a11y(prefer-tag-over-role)": 1,
   "react(no-unstable-nested-components)": 2,
-  "react(purity)": 1,
   "react(use-memo)": 1,
   "typescript(consistent-return)": 1,
   "typescript(no-meaningless-void-operator)": 2
@@ -1864,7 +1863,7 @@
  },
  "src/pages/pool/InspectRule.tsx": {
   "typescript(no-unnecessary-type-assertion)": 1,
-  "typescript(no-unsafe-type-assertion)": 2
+  "typescript(no-unsafe-type-assertion)": 1
  },
  "src/pages/pool/Inspector.tsx": {
   "jsx-a11y(prefer-tag-over-role)": 1
@@ -2365,9 +2364,6 @@
   "react-hooks(exhaustive-deps)": 2,
   "typescript(no-meaningless-void-operator)": 1,
   "typescript(no-unsafe-type-assertion)": 1
- },
- "src/screens/pools/NewPoolRoles.tsx": {
-  "jsx-a11y(label-has-associated-control)": 1
  },
  "src/screens/pools/NewPoolTemplate.tsx": {
   "jsx-a11y(prefer-tag-over-role)": 1

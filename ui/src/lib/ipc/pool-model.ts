@@ -33,8 +33,9 @@ export type TalkRule = "allowed" | "ask" | "blocked";
 /** A member rule's stored ref: `everyone` is `all`. */
 export const memberRef = (kind: MemberKind, id = ""): string => (kind === "everyone" ? "all" : `${kind}:${id}`);
 
-// Specs may seed a pool's talk rules (`__AIJ_POOL_RULES__`, by pool id).
-type Seams = { __AIJ_POOL_CALLS__?: string[]; __AIJ_POOL_RULES__?: Record<string, { talk?: PoolTalkInfo[]; lead_next?: string | null }> };
+// Specs may seed a pool's talk rules, its member rules and the wait for
+// an App's next session to lead (`__AIJ_POOL_RULES__`, by pool id).
+type Seams = { __AIJ_POOL_CALLS__?: string[]; __AIJ_POOL_RULES__?: Record<string, { talk?: PoolTalkInfo[]; lead_next?: string | null; members?: PoolRuleInfo[] }> };
 const seams = () => globalThis as unknown as Seams;
 const record = (called: string) => (seams().__AIJ_POOL_CALLS__ ??= []).push(called);
 
@@ -46,7 +47,8 @@ const rulesOf = (poolId: string): PoolRulesInfo => {
   const pool = previewPoolToChange(poolId);
   // A role pair's own rule a spec seeded, as the wizard's grid would set it.
   const seeded = seams().__AIJ_POOL_RULES__?.[poolId];
-  const made: PoolRulesInfo = { pool_id: poolId, members: pool.kind === "default" ? [{ member: "all", kind: "everyone", role: "member", level: null, joined_at: 0, sessions: 0, session_ids: [] }] : [], talk: [...(seeded?.talk ?? [])], lead_next: seeded?.lead_next ?? null };
+  const everyone: PoolRuleInfo[] = pool.kind === "default" ? [{ member: "all", kind: "everyone", role: "member", level: null, joined_at: 0, sessions: 0, session_ids: [] }] : [];
+  const made: PoolRulesInfo = { pool_id: poolId, members: [...(seeded?.members ?? everyone)], talk: [...(seeded?.talk ?? [])], lead_next: seeded?.lead_next ?? null };
   previewRules.set(poolId, made);
   return made;
 };

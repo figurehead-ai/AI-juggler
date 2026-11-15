@@ -13,6 +13,7 @@ import { messagesAnswer } from "../../lib/ipc/messages";
 import { tasksAnswer } from "../../lib/ipc/tasks";
 import type { NodeAskInfo } from "../../lib/ipc/pool-canvas";
 import { sessionState } from "../../lib/rail-items";
+import { SELECTED } from "./selection";
 import type { Point } from "./layout";
 import type { MemberNode } from "./useCanvas";
 
@@ -112,15 +113,14 @@ export function RoleChip({ role, shape }: { role: string; shape: string }): JSX.
   );
 }
 
-/** A node's edge: chosen, waiting on you (a warm glow), the lead, or plain. */
-export function nodeBorder(selected: boolean, waits: boolean, lead: boolean): string {
-  return selected
-    ? "border-accent ring-2 ring-accent/50"
-    : waits
-      ? "border-warning/70 shadow-[0_0_0_1px_var(--color-warning-soft),0_0_18px_var(--color-warning-soft)]"
-      : lead
-        ? "border-accent/70 ring-1 ring-accent/40"
-        : "border-hairline";
+/** A node's surface and edge (AJ-E3012, D-117): one selection treatment
+ * — the solid 2 px accent ring with an offset and a raised surface; at
+ * rest the card stands off the canvas by its surface, with no border and
+ * no glow. What waits on you is its amber word, dot and badge (L2: no
+ * fill); the lead is its Lead mark, never a ring that reads as chosen.
+ * `_waits` and `_lead` stay in the signature: both forms pass them. */
+export function nodeBorder(selected: boolean, _waits: boolean, _lead: boolean): string {
+  return selected ? `border-transparent ${SELECTED}` : "border-transparent bg-surface shadow-card";
 }
 
 

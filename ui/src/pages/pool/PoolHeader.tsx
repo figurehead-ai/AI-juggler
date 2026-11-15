@@ -193,10 +193,10 @@ export function PoolHeader({
         </Toggle>
         <span className="mx-1 h-5 w-px bg-hairline" aria-hidden="true" />
         <Picker choice
-          ariaLabel="Agents"
-          heading="Agents in this pool may"
+          ariaLabel="What its sessions may do on their own"
+          heading="What sessions in this pool may do on their own"
           size="sm"
-          prefix={<span className="text-muted">Agents:</span>}
+          prefix={<span className="text-muted">On their own:</span>}
           value={pool.access.level}
           options={LEVELS.map((level) => ({ value: level.id, label: level.label, hint: level.words }))}
           onChange={(level) => void poolSetAccess(pool.id, level, level === "custom" ? pool.access.actions : []).then(setPools, (cause) => setError(errorText(cause)))}

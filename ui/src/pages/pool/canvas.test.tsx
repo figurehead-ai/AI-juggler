@@ -332,11 +332,12 @@ describe("a pool's page: its canvas", () => {
     expect(project.queryByTestId("pool-delete")).toBeNull();
   });
 
-  it("changes what agents may do in the inspector, and says what deleting does first", async () => {
+  it("changes what its sessions may do on their own in the inspector, and says what deleting does first", async () => {
     seedTeam();
     const view = await openPage();
     fireEvent.click(view.getByTestId("inspect-open-settings"));
-    pick(view.getByTestId("pool-level"), "Full");
+    // AJ-E3011: the labelled choice, in plain words (the setup's own control).
+    fireEvent.click(view.getByTestId("pool-own-choice-full"));
     await waitFor(() => expect(seams().__AIJ_POOL_CALLS__).toContain("access:pool-team:full:"));
     pick(view.getByTestId("pool-hop-limit"), "3");
     await waitFor(() => expect(seams().__AIJ_POOL_CALLS__).toContain("delivery:pool-team:3:false"));

@@ -1,0 +1,42 @@
+/**
+ * AJ-E3011 step 3, Who leads: the inline lead picker (§3). Never a dead
+ * end: sessions open now, an App's next session, or no lead for now.
+ */
+import type { JSX } from "react";
+
+import { leadCandidates, leadOf, withLead, type Candidate, type Draft } from "../../lib/new-pool";
+import { leadSentence, nextSessionWords } from "../../lib/pool-words";
+import { LeadPicker } from "../../pages/pool/setup/LeadPicker";
+import { StepHead } from "./StepHead";
+
+export function NewPoolLead({ draft, onDraft, sessions, nameOf }: { draft: Draft; onDraft: (next: Draft) => void; sessions: readonly Candidate[]; nameOf: (ref: string, label: string) => string }): JSX.Element {
+  const open = leadCandidates(sessions);
+  // A session named in the draft that leads, though it isn't open (a
+  // template's), stays offered.
+  const picked = draft.members.filter((member) => member.kind === "session" && member.reach !== "watched" && !open.some((row) => row.ref === member.ref));
+  const rows = [...picked.map((member) => ({ ref: member.ref, name: member.label, detail: "In this pool" })), ...open.map((row) => ({ ref: row.ref, name: row.label, detail: row.detail }))];
+  const apps = draft.members.filter((member) => member.kind === "app").map((member) => ({ ref: member.ref, name: nameOf(member.ref, member.label) }));
+  const choice = leadOf(draft);
+  const leadName = choice.kind === "session" ? (rows.find((row) => row.ref === choice.ref)?.name ?? null) : null;
+  const nextName = choice.kind === "next" ? (apps.find((app) => app.ref === choice.app)?.name ?? null) : null;
+  return (
+    <div className="flex max-w-3xl flex-col gap-4" data-testid="new-pool-step-lead">
+      <StepHead step="lead" />
+      <LeadPicker
+        sessions={rows}
+        apps={apps}
+        value={choice}
+        onChange={(next) => onDraft(withLead(draft, next, next.kind === "session" ? open.find((row) => row.ref === next.ref) : undefined))}
+        testId="new-pool-lead"
+      />
+      {apps.length === 0 && open.length === 0 && (
+        <p className="text-meta text-muted" data-testid="new-pool-lead-add-app">
+          To have a session lead later, add its App in Who's in: then «{nextSessionWords("its App")}» shows here.
+        </p>
+      )}
+      <p className="text-meta text-ink" data-testid="new-pool-lead-sentence">
+        {leadSentence(leadName, nextName)}
+      </p>
+    </div>
+  );
+}

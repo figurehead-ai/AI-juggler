@@ -19,6 +19,7 @@ import { refreshPaged, usePagedList, type PagedList } from "./paged";
 import type { MessageNeedInfo } from "./ipc/messages";
 import type { TaskNeedInfo } from "./ipc/tasks";
 import { sessionState } from "./rail-items";
+import { OWN_LEVELS } from "./pool-words";
 
 export { NO_PROJECT_POOL_ID, defaultPoolIdOf };
 export type { PoolRole };
@@ -54,16 +55,12 @@ export function leadHint(kindOrRef: string): string | null {
   return word ? `Lead is one session; pick one of this ${word}'s sessions to lead.` : null;
 }
 
-/** D-28: what agents may do in a pool, set by you in the app only. */
+/** D-28: what sessions in a pool may do on their own, set by you in the
+ * app only. 0.4.6 (AJ-E3011): "Level" is gone; the three are Look only,
+ * Work together, and Work together and wake each other (one vocabulary,
+ * `pool-words.ts`); Custom stays for picking each action. */
 export const LEVELS: { id: string; label: string; words: string }[] = [
-  { id: "read", label: "Read", words: "See who's here, what each one is doing, and the tasks." },
-  {
-    id: "work_together",
-    label: "Work together",
-    words:
-      "Read, and post messages, share documents, work on tasks and get a new session ready for you to start. A message for a session that's waiting goes in when you click.",
-  },
-  { id: "full", label: "Full", words: "Work together, and put messages straight into each other's sessions, until a chain of replies is long enough to pause and ask you." },
+  ...OWN_LEVELS.map((one) => ({ id: one.id, label: one.label, words: one.line })),
   { id: "custom", label: "Custom", words: "You pick each action." },
 ];
 
@@ -85,7 +82,7 @@ export const ACTION_WORDS: Record<string, string> = {
 };
 
 export function levelLabel(level: string): string {
-  return LEVELS.find((entry) => entry.id === level)?.label ?? "Read";
+  return LEVELS.find((entry) => entry.id === level)?.label ?? "Look only";
 }
 
 export function roleLabel(role: string): string {

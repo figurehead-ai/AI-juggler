@@ -1,63 +1,57 @@
 /**
- * AJ-E3007 step 1: pick a template. Each card shows its roles and talk as
- * chips, so the choice is visible before going on (wireframe 1).
+ * AJ-E3007 step 1, AJ-E3011's "How to start": the intro (full on the
+ * first pool, one line after), then "Start from scratch" as a full card
+ * beside the templates (it replaces Blank and the small "Set up by hand on
+ * the canvas" link). Each template card shows its roles and talk in plain
+ * words, so the choice is visible before going on (wireframe 1).
+ *
+ * Calm (D-117): cards stand off the page by surface tone, not borders;
+ * the chosen one has the selection ring (2 px accent, offset) and a raised
+ * surface, never a dashed or coloured fill.
  */
 import type { JSX } from "react";
 
-import { Chip, type ChipTone } from "../../components/primitives";
-import { POOL_TEMPLATES, type TemplateChip } from "../../lib/pool-templates";
+import { IconPlus } from "../../components/icons-actions";
+import { POOL_TEMPLATES, type PoolTemplate } from "../../lib/pool-templates";
+import { PoolIntro } from "../../pages/pool/setup/PoolIntro";
+import { FOCUS_RING, SELECTED } from "../../pages/pool/selection";
+import { StepHead } from "./StepHead";
 
-const TONE: Record<TemplateChip["tone"], ChipTone> = {
-  accent: "accent",
-  live: "live",
-  success: "success",
-  warning: "warning",
-  danger: "danger",
-  plain: "neutral",
-};
-
-export function NewPoolTemplate({ chosen, onChoose }: { chosen: string; onChoose: (id: string) => void }): JSX.Element {
+function Card({ template, on, onChoose }: { template: PoolTemplate; on: boolean; onChoose: (id: string) => void }): JSX.Element {
+  const scratch = template.id === "blank";
   return (
-    <div className="flex flex-col gap-4">
-      <p className="rounded-card border border-hairline bg-surface-2 px-3 py-2 text-meta text-ink-2">
-        <span className="font-semibold text-ink">Tip</span> A template fills in roles and talk for you. You can change any of it on the canvas later.
-      </p>
-      <div>
-        <h3 className="text-body font-semibold text-ink">What should this pool do?</h3>
-        <p className="text-meta text-ink-2">Pick the closest one. Everything it sets is shown before you make it.</p>
-      </div>
-      <div role="radiogroup" aria-label="Template" className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3" data-testid="new-pool-templates">
-        {POOL_TEMPLATES.map((template) => {
-          const on = template.id === chosen;
-          return (
-            <button
-              key={template.id}
-              type="button"
-              role="radio"
-              aria-checked={on}
-              onClick={() => onChoose(template.id)}
-              data-testid="new-pool-template"
-              data-template={template.id}
-              className={
-                "flex flex-col gap-1.5 rounded-card border p-3 text-left outline-none transition-colors focus-visible:ring-2 focus-visible:ring-accent/60 " +
-                (on ? "border-accent bg-accent-soft" : "border-hairline bg-surface hover:border-accent/50")
-              }
-            >
-              <span className="text-body font-semibold text-ink">{template.name}</span>
-              <span className="text-meta text-ink-2">{template.description}</span>
-              {template.chips.length > 0 && (
-                <span className="mt-0.5 flex flex-wrap gap-1">
-                  {template.chips.map((chip) => (
-                    <Chip key={chip.label} tone={TONE[chip.tone]}>
-                      {chip.label}
-                    </Chip>
-                  ))}
-                </span>
-              )}
-              {template.waits && <span className="text-label text-warning">{template.waits}</span>}
-            </button>
-          );
-        })}
+    <button
+      type="button"
+      role="radio"
+      aria-checked={on}
+      onClick={() => onChoose(template.id)}
+      data-testid="new-pool-template"
+      data-template={template.id}
+      className={"flex flex-col gap-1.5 rounded-xl p-3 text-left transition-colors " + FOCUS_RING + " " + (on ? SELECTED : "bg-surface hover:bg-surface-2")}
+    >
+      <span className="flex items-center gap-1.5 text-body font-semibold text-ink">
+        {scratch && <IconPlus aria-hidden="true" width={14} height={14} className="text-muted" />}
+        {template.name}
+      </span>
+      <span className="text-meta text-ink-2">{template.description}</span>
+      {template.chips.length > 0 && <span className="mt-0.5 text-label text-muted">{template.chips.map((chip) => chip.label).join(" · ")}</span>}
+      {template.waits && <span className="text-label text-muted">{template.waits}</span>}
+    </button>
+  );
+}
+
+export function NewPoolTemplate({ chosen, onChoose, first }: { chosen: string; onChoose: (id: string) => void; first: boolean }): JSX.Element {
+  const scratch = POOL_TEMPLATES.find((template) => template.id === "blank")!;
+  const templates = POOL_TEMPLATES.filter((template) => template.id !== "blank");
+  return (
+    <div className="flex flex-col gap-5" data-testid="new-pool-step-template">
+      <PoolIntro first={first} testId="new-pool-intro" />
+      <StepHead step="template" />
+      <div role="radiogroup" aria-label="How to start" className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3" data-testid="new-pool-templates">
+        <Card template={scratch} on={chosen === scratch.id} onChoose={onChoose} />
+        {templates.map((template) => (
+          <Card key={template.id} template={template} on={template.id === chosen} onChoose={onChoose} />
+        ))}
       </div>
     </div>
   );

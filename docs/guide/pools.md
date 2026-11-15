@@ -1,8 +1,10 @@
 # Pools
 
-A pool is a group of sessions that work together: a planner and two
-builders on "Checkout redesign", say. You make pools, name them, and say
-who leads. Nothing else makes or changes a pool.
+A pool is a team of your sessions on the same projects: a lead and two
+builders on "Checkout redesign", say, and a reviewer checking their work.
+They share messages, notes and tasks, and you approve what matters. You
+make pools, name them, and say who leads. Nothing else makes or changes a
+pool.
 
 Putting a session in a pool, giving it a role or deleting the pool never
 starts, stops or types into it.
@@ -18,12 +20,50 @@ project · all sessions**.
 
 ## Make a pool
 
-1. Open a session's menu (right-click it in the list, or its **⋯**) and
-   choose **Move to pool…**.
-2. With no pool of yours yet, name the new one (for example "Checkout
-   redesign"). You can keep it to one project: it then takes only that
-   project's sessions.
-3. **Make pool**. The session goes in, and the pool's page opens.
+**Pools › New pool** opens one guided setup, in order. Each step has a
+heading and one line on why, and every choice reads back as a sentence
+("New sessions in web join as Member and may Work together").
+
+1. **How to start**: **Start from scratch**, or a template (Writer and
+   reviewer, Feature team…) that fills in roles and who may message whom.
+   The first time, a short intro says what a pool is.
+2. **Where**: its name and which projects. Sessions in these projects can
+   join. A name and its projects already make a working pool: from the
+   next step on, **Make pool** is there, and the rest is filled in
+   (members join as Member, they may Work together, everyone may message
+   everyone).
+3. **Who's in**: Apps (every session they start in these projects joins
+   by itself, now and later) and sessions open now; Accounts, Tools, Macs
+   and everyone too.
+4. **Who leads**: one session leads (it plans the work and hands out
+   tasks). Pick a session open now; or **[App]'s next session** ("Claude
+   Code · Work's next session"): the next session that App starts in this
+   pool's projects joins as the Lead, and until then the canvas shows the
+   lead's place waiting for it; or **No lead for now**.
+5. **Everyone else**: **New sessions in web join as [Member]** (or don't
+   join: only who's in), and each member's role. The roles:
+   - **Lead**: plans the work and hands out tasks. One session.
+   - **Member**: works on the tasks it's given, and messages the team.
+   - **Reviewer**: reads everything, checks work in review and gives its
+     verdict. Doesn't build.
+   - **Observer**: watches and reads. Changes nothing.
+6. **Who may message whom**: a table by role ("Lead can message…").
+   **Allowed** needs nothing from you; **Ask first** waits for your OK in
+   Needs you; **Blocked** stops it. Only the exceptions are in colour. One
+   pair of sessions can differ: click the line between them on the canvas.
+7. **What they may do on their own** (see below), then **Seal** if you
+   want its work kept apart.
+8. **Review**: the whole pool in sentences, then **Make pool**. The first
+   time, it asks whether AI Juggler may give these sessions the pool's
+   tools (one switch for every pool, in Settings › Agent access).
+
+A project's **Pools** tab opens its own pool ("web's own pool: every
+session in web, as one team"), and **Move to pool…** on a session's menu
+still puts one session in a pool of yours.
+
+On the pool's canvas, **Set up this pool** keeps the same order beside it,
+a tick on each step done, until every step is: each step opens the same
+control as the setup.
 
 Once a pool of yours exists, the list's **View** (⇧V) offers **Group by ›
 Pool** (greyed until then): Open now shows your sessions under their
@@ -58,21 +98,27 @@ a pool's own view is its page.
 ## What agents may do
 
 Agents reach their pool through AI Juggler's agent tools, in the sessions
-AI Juggler starts once you say yes. You set what they may do,
-in the app only, per pool, each project's own pool too (on the pool's page,
-and every pool at once in **Settings › Agent access**):
+AI Juggler starts once you say yes. You set **what these sessions may do
+on their own**, in the app only, per pool, each project's own pool too (on
+the pool's page, and every pool at once in **Settings › Agent access**):
 
-- **Read**: see who's here, what each one is doing and the tasks, and
-  read their own messages and the pool's shared documents.
-- **Work together** (where every pool starts): Read, and post messages,
-  share documents, work on tasks and get a new session ready for you to
-  start (it waits in Needs you for your click). A message for a session
-  that's waiting goes in when you click.
-- **Full**: Work together, and put messages straight into each other's
-  sessions, up to the hop limit.
+- **Look only**: they see the team, its cards, tasks and their own
+  messages. Anything more waits for your OK in Needs you.
+- **Work together** (where every pool starts): they message each other and
+  share notes and tasks, and get a new session ready for you to start (it
+  waits in Needs you for your click). Anything more waits for your OK in
+  Needs you. A message reaches a session on its next turn.
+- **Work together and wake each other**: as Work together, and a message
+  wakes an idle session so the work keeps going, up to the hop limit. Each
+  wake starts a turn on your subscription.
 - **Custom**: you pick each action.
 
-Anything above the level becomes a question for you in Needs you, never a
+A member can follow the pool (**Same as the pool**, the default) or have
+its own choice. The canvas says, per member, whether it **wakes on new
+messages** or **reads messages on its next turn**; a Codex app thread
+**can't be woken**.
+
+Anything above that becomes a question for you in Needs you, never a
 block: **Allow once**, **Always allow in this pool** (offered the second
 time you allow the same thing) or **Deny**. Every "always allow" is listed
 under the pool and in **Settings › Agent access › Rules you made**, and
@@ -82,7 +128,7 @@ under the pool and in **Settings › Agent access › Rules you made**, and
 and forth before AI Juggler pauses and asks you (5 to start), and stops all
 of them in this pool.
 
-No level or rule lets an agent change a pool, a level or a rule, start a
+No choice or rule lets an agent change a pool, what it may do, or a rule, start a
 session, choose an app, or see a password or key. AI Juggler never
 answers a tool's own permission questions for you.
 
@@ -212,7 +258,7 @@ say where it is (**in review** when it's ready for a look), or **give it
 back** with a note for whoever takes it next. A member works the tasks it
 holds and edits the ones it made that no one has; the pool's **lead** plans
 epics and stories, gives tasks to others and closes anyone's. What a pool
-at each level lets agents do is above; at **Work together** they add,
+with each choice of what sessions may do on their own is above; at **Work together** they add,
 take and change tasks, and giving a task to someone else always asks you
 first (Needs you: **Allow once**, **Always allow in this pool** from the
 second time, or **Deny**). A task's words are its writer's: when an agent

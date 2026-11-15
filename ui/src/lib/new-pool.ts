@@ -19,6 +19,7 @@ import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import type { ConversationInfo } from "./ipc/conversations";
 import { memberRef, poolJoin, poolSetScope, poolSetSealed, poolSetTalk, type MemberKind, type TalkRule } from "./ipc/pool-model";
 import { poolCreate, poolSetAccess, poolSetSpansMacs, type PoolInfo, type PoolRole, type PoolsInfo } from "./ipc/pools";
+import { poolSetLeadNext } from "./ipc/pool-model";
 import { pairKey, ruleOf, templateById, TALK_ROLES, type PairKey, type PoolTemplate } from "./pool-templates";
 import { sessionState } from "./rail-items";
 import { namedByFacts, tellApart } from "./session-titles";
@@ -61,20 +62,31 @@ export interface Draft {
   level: "read" | "work_together" | "full";
   sealed: boolean;
   spansMacs: boolean;
+  /** AJ-E3011: the App (its member ref, `app:…`) whose next session here
+   * leads; `null` for none (D-92: one session leads). */
+  leadNext: string | null;
 }
 
-/** A new draft from a template, in `project` when one is in view. */
+/** The "everyone in scope" member: every session in the pool's projects,
+ * now and later. Its name on screen is `everyoneLabel` (by the scope). */
+export const EVERYONE: DraftMember = { ref: "all", kind: "everyone", label: "Everyone in this pool's projects", role: "member", level: null, reach: "later" };
+
+/** A new draft from a template, in `project` when one is in view. Start
+ * from scratch (AJ-E3011) makes a working pool from a name and its
+ * projects: everyone in them joins as a Member. */
 export function draftOf(template: PoolTemplate, project: string | null): Draft {
+  const scratch = template.id === "blank";
   return {
     template: template.id,
-    name: template.id === "blank" ? "" : template.name,
+    name: scratch ? "" : template.name,
     every: template.scope === "every",
     projects: template.scope === "every" || project === null ? [] : [project],
-    members: [],
+    members: scratch || template.kinds[0] === "everyone" ? [{ ...EVERYONE, role: template.broadRole ?? "member" }] : [],
     talk: { ...template.talk },
     level: template.level,
     sealed: template.sealed ?? false,
     spansMacs: template.spansMacs ?? false,
+    leadNext: null,
   };
 }
 
@@ -97,18 +109,6 @@ export function nextRole(draft: Draft, kind: MemberKind, reach: Reach = "full"):
 export function rolesToChoose(draft: { template: string; members: readonly { role: PoolRole }[] }): PoolRole[] {
   const held = new Set(draft.members.map((member) => member.role));
   return templateById(draft.template).roles.filter((role, at, all) => role !== "member" && all.indexOf(role) === at && !held.has(role));
-}
-
-/** D-92: when the template wants a Lead and no member picked can take it
- * (Apps, Accounts, Tools, Macs and everyone can't; a Watched session
- * can't act yet), how one is chosen, in plain words; `null` when a
- * member here can lead, or none is wanted (the rc26 P1 walk: Writer and
- * reviewer of two Apps said "Pick them in the list below", where no row
- * offered Lead). */
-export function leadLater(draft: { template: string; members: readonly Pick<DraftMember, "kind" | "role" | "reach">[] }): string | null {
-  if (draft.members.length === 0 || !rolesToChoose(draft).includes("lead")) return null;
-  if (draft.members.some((member) => member.kind === "session" && member.reach !== "watched")) return null;
-  return "No Lead yet: Lead is one session, and these join as a group. Once one of their sessions runs, click it on the pool's canvas and make it Lead; or go back and pick a session now.";
 }
 
 export interface Candidate {
@@ -379,9 +379,12 @@ export async function makePool(draft: Draft, into?: string): Promise<string> {
   if (draft.level !== "work_together") await poolSetAccess(made.id, draft.level);
   for (const member of draft.members) await poolJoin(made.id, member.ref, member.role, member.level);
   for (const change of talkChanges(draft.talk)) await poolSetTalk(made.id, change.from, change.to, change.rule);
+  // AJ-E3011: its App's next session leads, once the App is in.
+  if (draft.leadNext && !draft.members.some((member) => member.role === "lead")) await poolSetLeadNext(made.id, draft.leadNext.slice("app:".length));
   if (draft.sealed) await poolSetSealed(made.id, true);
   if (draft.spansMacs) await poolSetSpansMacs(made.id, true);
   return made.id;
 }
 
 export { pairKey };
+export { leadCandidates, leadOf, withLead, type LeadChoice } from "./new-pool-lead";

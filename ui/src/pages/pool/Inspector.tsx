@@ -3,8 +3,25 @@
  * settings, one member, or one edge (the conversation between the two,
  * with what waits on it) — and, with nothing selected, the pool's live
  * activity, newest first.
+ *
+ * AJ-E3012: it always leads with what is selected — its title, its kind
+ * and App as a subtitle, its status as a pill — and the title's edge
+ * carries the selected card's accent. AJ-E3011: the setup's checklist is
+ * its side card, in order, until every step is done.
  */
 import { forwardRef, type JSX, type ReactNode } from "react";
+
+import { AppIcon } from "../../components/AppIcon";
+import { appOfSession } from "../../lib/app-of";
+import { appName } from "../../lib/app-name";
+import { sessionState } from "../../lib/rail-items";
+import type { SetupRow } from "../../lib/pool-setup";
+import type { SETUP_STEPS } from "../../lib/pool-words";
+import { inspectorHead, type HeadOf, type InspectorHead } from "./inspector-head";
+import { SELECTED_EDGE } from "./selection";
+import { sessionAlert } from "./NodeParts";
+import { PoolChecklist } from "./setup/PoolChecklist";
+import { InspectLeadNext } from "./InspectLeadNext";
 
 import type { ProjectInfo } from "../../types/generated/ProjectInfo";
 import type { PoolCanvasInfo } from "../../lib/ipc/pool-canvas";
@@ -119,9 +136,6 @@ function InspectEdge({ pool, canvas, edgeId, names, now }: { pool: PoolInfo; can
   return (
     <div className="flex flex-col" data-testid="inspect-edge">
       <div className="flex flex-col gap-1 px-4 pb-3 pt-1">
-        <span className="text-section text-ink">
-          {from} → {to}
-        </span>
         <span className="text-meta text-muted">{edgeWords(edge, from, to).count} this week · last {agoWords(edge.last_at_ms, now)}</span>
       </div>
       <div className="pb-3">{talk}</div>
@@ -153,6 +167,72 @@ function InspectEdge({ pool, canvas, edgeId, names, now }: { pool: PoolInfo; can
   );
 }
 
+/** A session member's head: its App, role and state (L3 when it stopped
+ * by itself, L2 when it needs you). */
+function sessionHead(member: MemberNode): HeadOf {
+  const state = sessionState(member.session);
+  const alert = sessionAlert(member);
+  const app = (member.card.tool ? appName(member.card.tool, member.card.account) : member.card.account) ?? "its App";
+  return { kind: "session", name: member.name, app, role: member.role, state: alert?.word ?? state.word, level: alert?.tone === "danger" ? 3 : state.needs ? 2 : 0 };
+}
+
+/** What the selection is, for its title, subtitle and pill. */
+function selectionHead(input: {
+  selection: Selection;
+  member: MemberNode | undefined;
+  rule: PoolRuleInfo | undefined;
+  watched: PoolRules["watched"][number] | undefined;
+  canvas: PoolCanvasInfo | null;
+  names: ReadonlyMap<string, string>;
+  ruleLabel: (rule: PoolRuleInfo) => string;
+  leadNextName: string | null;
+  pool: PoolInfo;
+  project: ProjectInfo | undefined;
+  where: string;
+  needs: number;
+}): HeadOf {
+  const { selection, member, rule, watched, pool } = input;
+  if (member) return sessionHead(member);
+  if (rule) return { kind: "rule", label: input.ruleLabel(rule), memberKind: rule.kind, role: rule.role, open: rule.sessions };
+  if (watched) return { kind: "watched", title: watched.title ?? "A session in another app", app: watched.tool, role: watched.role };
+  if (selection.kind === "edge") {
+    const [fromId = "", toId = ""] = selection.key.split(">");
+    const edge = input.canvas?.edges.find((row) => edgeKey(row.from_session_id, row.to_session_id) === selection.key);
+    const from = input.names.get(fromId) ?? "A member";
+    const to = input.names.get(toId) ?? "a member";
+    return { kind: "edge", from, to, count: edge ? `${edgeWords(edge, from, to).count} this week` : "Nothing yet this week", waits: (edge?.pending.length ?? 0) > 0 };
+  }
+  if (selection.kind === "lead-next" && input.leadNextName) return { kind: "lead-next", app: input.leadNextName };
+  return { kind: "pool", name: pool.name, own: pool.kind === "default" ? (input.project?.name ?? null) : null, where: input.where, sessions: pool.members, sealed: pool.sealed, needs: input.needs };
+}
+
+/** The status under the title: calm at L0 and L1, an amber word and dot
+ * at L2, red with a glyph on its tint at L3 (D-117). */
+export function StatusPill({ pill }: { pill: NonNullable<InspectorHead["pill"]> }): JSX.Element {
+  const shape = "inline-flex w-fit items-center gap-1.5 rounded-full px-2 py-0.5 text-label";
+  if (pill.level === 3)
+    return (
+      <span className={shape + " bg-danger-soft font-semibold text-danger"} data-testid="inspector-pill" data-level={3}>
+        <span aria-hidden="true">✕</span>
+        {pill.words}
+      </span>
+    );
+  if (pill.level === 2)
+    return (
+      <span className={shape + " bg-surface-2 font-semibold text-warning"} data-testid="inspector-pill" data-level={2}>
+        <span aria-hidden="true" className="level-mark" data-level="2" />
+        {pill.words}
+      </span>
+    );
+  return (
+    <span className={shape + " bg-surface-2 text-ink-2"} data-testid="inspector-pill" data-level={pill.level}>
+      {pill.words}
+    </span>
+  );
+}
+
+type Step = (typeof SETUP_STEPS)[number];
+
 export const Inspector = forwardRef<HTMLHeadingElement, {
   pool: PoolInfo;
   project: ProjectInfo | undefined;
@@ -169,26 +249,52 @@ export const Inspector = forwardRef<HTMLHeadingElement, {
   ruleLabel: (rule: PoolRuleInfo) => string;
   /** An App or Tool member's shared tool and App (its "Shell only"). */
   ruleTool?: (rule: PoolRuleInfo) => { tool: string; account: string | null } | null;
-}>(function Inspector({ pool, project, canvas, members, names, selection, now, onSelect, onOpenTask, onDeleted, rules, ruleLabel, ruleTool }, heading): JSX.Element {
+  /** Its projects in words ("web", "every project"). */
+  where: string;
+  /** What waits on you here (its Pools card's count). */
+  needs: number;
+  /** AJ-E3011: the setup's checklist, and opening one of its steps. */
+  setup: { rows: readonly SetupRow[]; onOpen: (step: Step) => void };
+  /** The App whose next session leads, by name, while the pool waits. */
+  leadNextName: string | null;
+  /** The pool's setup controls (who leads, everyone else, talk, on their own). */
+  setupSections?: ReactNode;
+}>(function Inspector({ pool, project, canvas, members, names, selection, now, onSelect, onOpenTask, onDeleted, rules, ruleLabel, ruleTool, where, needs, setup, leadNextName, setupSections }, heading): JSX.Element {
   const member = selection.kind === "node" ? members.find((row) => row.id === selection.id) : undefined;
   const rule = selection.kind === "rule" ? rules.rules?.members.find((row) => row.member === selection.ref) : undefined;
   const watched = selection.kind === "rule" ? rules.watched.find((row) => row.member === selection.ref) : undefined;
-  const title = selection.kind === "pool" ? "Pool settings" : member ? "Member" : selection.kind === "rule" ? (watched ? "Watched member" : "Member rule") : selection.kind === "edge" ? "Conversation" : "Activity";
+  const of = selectionHead({ selection, member, rule, watched, canvas, names, ruleLabel, leadNextName, pool, project, where, needs });
+  const head = inspectorHead(of);
+  // The selected card and the inspector are linked by the same accent.
+  const linked = of.kind !== "pool";
   return (
-    <aside aria-labelledby="pool-inspector-title" className="flex h-full min-h-0 w-[340px] shrink-0 flex-col border-l border-hairline bg-surface" data-testid="pool-inspector">
-      <div className="flex h-11 shrink-0 items-center gap-2 px-4">
-        <h3 id="pool-inspector-title" ref={heading} tabIndex={-1} className="flex-1 text-section font-semibold text-ink outline-none">
-          {title}
-        </h3>
+    <aside aria-labelledby="pool-inspector-title" className="flex h-full min-h-0 w-[340px] shrink-0 flex-col bg-surface-2/40 shadow-[inset_1px_0_0_var(--color-divider)]" data-testid="pool-inspector" data-selected={of.kind}>
+      <div className={"flex shrink-0 items-start gap-2.5 px-4 pb-3 pt-3 " + (linked ? SELECTED_EDGE : "")} data-testid="inspector-head">
+        {member && <AppIcon {...appOfSession(member.session)} size={32} />}
+        <div className="flex min-w-0 flex-1 flex-col gap-1">
+          <h3 id="pool-inspector-title" ref={heading} tabIndex={-1} className="text-section font-semibold leading-snug text-ink outline-none [overflow-wrap:anywhere]" data-testid="inspector-title">
+            {head.title}
+          </h3>
+          <p className="text-meta text-muted" data-testid="inspector-subtitle">
+            {head.subtitle}
+          </p>
+          {head.pill && <StatusPill pill={head.pill} />}
+        </div>
         {selection.kind !== "none" && (
-          <button type="button" onClick={() => onSelect({ kind: "none" })} className="rounded-md px-1.5 py-0.5 text-label text-muted outline-none hover:bg-surface-2 hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60" data-testid="inspector-back">
-            Activity
+          <button type="button" onClick={() => onSelect({ kind: "none" })} className="shrink-0 rounded-md px-1.5 py-0.5 text-label text-muted outline-none hover:bg-surface-2 hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60" data-testid="inspector-back">
+            {selection.kind === "pool" ? "Done" : "Pool"}
           </button>
         )}
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto pb-6" data-canvas-scroll>
+        <PoolChecklist rows={setup.rows} onOpen={setup.onOpen} compact={selection.kind !== "none"} />
         {selection.kind === "pool" ? (
-          <InspectPool pool={pool} project={project} now={now} members={members.map((row) => ({ id: row.id, name: names.get(row.id) ?? row.card.name }))} onDeleted={onDeleted} />
+          <>
+            {setupSections}
+            <InspectPool pool={pool} project={project} now={now} members={members.map((row) => ({ id: row.id, name: names.get(row.id) ?? row.card.name }))} onDeleted={onDeleted} />
+          </>
+        ) : selection.kind === "lead-next" ? (
+          <InspectLeadNext app={leadNextName} onOpen={() => setup.onOpen("lead")} />
         ) : member ? (
           <InspectNode
             pool={pool}

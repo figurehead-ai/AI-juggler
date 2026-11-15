@@ -10,8 +10,6 @@ import { appName } from "../../lib/app-name";
 
 import { AskCard } from "../../components/AskCard";
 import { Button } from "../../components/primitives";
-import { AppIcon } from "../../components/AppIcon";
-import { appOfSession } from "../../lib/app-of";
 import { ShellOnly, useShellOnly } from "../../components/ShellOnly";
 import { useActionHost } from "../../components/ItemMenu";
 import { formatTokens } from "../../components/indicator";
@@ -20,7 +18,6 @@ import { useOpenAsks, type AskInfo } from "../../lib/ipc/runtime";
 import { onTasksChanged, tasksOfSession, type TaskInfo } from "../../lib/ipc/tasks";
 import type { CanvasEdgeInfo, NodeAskInfo } from "../../lib/ipc/pool-canvas";
 import type { PoolInfo } from "../../lib/ipc/pools";
-import { sessionState } from "../../lib/rail-items";
 import { TaskRow } from "../tasks/TaskRow";
 import { answerAsk, sessionAlert } from "./NodeParts";
 import { edgeWords } from "./CanvasEdges";
@@ -93,33 +90,22 @@ export function InspectNode({
   const host = useActionHost();
   const toolAsks = useOpenAsks().filter((ask) => ask.session_id === member.id);
   const tasks = useMemberTasks(member.id);
-  const state = sessionState(member.session);
   const alert = sessionAlert(member);
-  const name = member.name;
   const mine = edges.filter((edge) => edge.from_session_id === member.id || edge.to_session_id === member.id);
   const tokens = member.session.tokens;
   const shell = useShellOnly(member.session.provider, member.session.account_id, member.session.project_id);
   return (
     <div className="flex flex-col" data-testid="inspect-node">
       <div className="flex flex-col gap-2 px-4 pb-3 pt-1">
-        <div className="flex items-center gap-2">
-          <AppIcon {...appOfSession(member.session)} size={32} />
-          <span className="flex min-w-0 flex-col">
-            <span className="truncate text-section text-ink" title={name}>
-              {name}
-            </span>
-            <span className="flex min-w-0 items-center gap-1 text-label text-muted">
-              {member.role === "lead" ? "Lead · " : member.role === "observer" ? "Observer · " : null}
-              <button type="button" onClick={() => member.session.account_id && host.openAccountById?.(member.session.account_id)} disabled={!host.openAccountById || !member.session.account_id} className="min-w-0 truncate rounded text-left outline-none enabled:hover:text-ink enabled:hover:underline focus-visible:ring-1 focus-visible:ring-accent/60" data-testid="inspect-node-app">
-                {member.card.tool ? appName(member.card.tool, member.card.account) : member.card.account}
-              </button>
-            </span>
-          </span>
-        </div>
-        <span className="flex flex-wrap items-center gap-2">
-          <span className={"text-meta " + state.tone}>{state.word}</span>
+        {/* AJ-E3012: its name, App, role and state are the inspector's
+            title, subtitle and pill; here its App's page and its doors. */}
+        <span className="flex flex-wrap items-center gap-2 text-meta text-muted">
+          <button type="button" onClick={() => member.session.account_id && host.openAccountById?.(member.session.account_id)} disabled={!host.openAccountById || !member.session.account_id} className="min-w-0 truncate rounded text-left outline-none enabled:hover:text-ink enabled:hover:underline focus-visible:ring-1 focus-visible:ring-accent/60" data-testid="inspect-node-app">
+            {member.card.tool ? appName(member.card.tool, member.card.account) : member.card.account}
+          </button>
           <ShellOnly tool={member.session.provider} account={member.session.account_id} project={member.session.project_id} />
         </span>
+
         {shell && <p className="text-label text-muted">{shell}</p>}
         <div className="flex flex-wrap gap-2">
           <Button size="sm" onClick={() => host.openSessionById?.(member.id)} disabled={!host.openSessionById} data-testid="inspect-node-open">

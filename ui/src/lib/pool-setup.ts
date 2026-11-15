@@ -1,0 +1,74 @@
+/**
+ * 0.4.6 (AJ-E3011 §1): a pool's setup checklist on its canvas. It keeps
+ * the setup's order — where, who's in, who leads, everyone else, who may
+ * message whom, what they may do on their own — with a tick on each step
+ * done, and stays until every step is; it never vanishes when members are
+ * added. Where, who's in and who leads tick from the pool itself; the
+ * steps that start filled in tick once seen (the setup walked them, or
+ * the user looked and said so), kept on this Mac per pool: a viewer's
+ * convenience, never the pool's state.
+ */
+import { SETUP_STEPS, type SetupStep } from "./pool-words";
+
+const KEY = (poolId: string) => `aij.pool-setup.${poolId}`;
+
+const STEPS: readonly string[] = [...SETUP_STEPS, "template", "review"];
+const isStep = (value: unknown): value is SetupStep => typeof value === "string" && STEPS.includes(value);
+
+/** The steps seen for `poolId` (none when storage can't be read). */
+export function seenSteps(poolId: string): Set<SetupStep> {
+  try {
+    const raw = localStorage.getItem(KEY(poolId));
+    const list: unknown = raw ? JSON.parse(raw) : [];
+    return new Set(Array.isArray(list) ? list.filter(isStep) : []);
+  } catch {
+    return new Set();
+  }
+}
+
+/** Marks `steps` seen for `poolId`. */
+export function markSeen(poolId: string, steps: readonly SetupStep[]): Set<SetupStep> {
+  const seen = seenSteps(poolId);
+  for (const step of steps) seen.add(step);
+  try {
+    localStorage.setItem(KEY(poolId), JSON.stringify([...seen]));
+  } catch {
+    // Private storage: the checklist just asks again next time.
+  }
+  window.dispatchEvent(new CustomEvent(SETUP_SEEN, { detail: poolId }));
+  return seen;
+}
+
+/** A pool's seen steps changed here (its id in `detail`). */
+export const SETUP_SEEN = "aij:pool-setup-seen";
+
+export interface SetupFacts {
+  /** A project's own pool (its scope is its project). */
+  own: boolean;
+  /** It takes every project. */
+  every: boolean;
+  /** It has who's in it (sessions, or a member that brings them). */
+  whoIn: boolean;
+  /** A session leads it. */
+  led: boolean;
+  /** It waits for an App's next session to lead. */
+  leadNext: boolean;
+}
+
+export interface SetupRow {
+  step: (typeof SETUP_STEPS)[number];
+  done: boolean;
+}
+
+/** Each step, in order, and whether it's done. */
+export function setupRows(facts: SetupFacts, seen: ReadonlySet<SetupStep>): SetupRow[] {
+  const done: Record<(typeof SETUP_STEPS)[number], boolean> = {
+    where: facts.own || !facts.every || seen.has("where"),
+    who: facts.whoIn,
+    lead: facts.led || facts.leadNext || seen.has("lead"),
+    everyone: seen.has("everyone"),
+    talk: seen.has("talk"),
+    own: seen.has("own"),
+  };
+  return SETUP_STEPS.map((step) => ({ step, done: done[step] }));
+}

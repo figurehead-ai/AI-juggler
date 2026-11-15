@@ -1,0 +1,180 @@
+/**
+ * 0.4.6 (AJ-E3011 §1): the pool's setup, after it's made, in the setup's
+ * order and with the same controls: who's in, who leads (the lead picker),
+ * everyone else (the join line and the role cards), who may message whom
+ * (the talk table) and what they may do on their own. The canvas's
+ * checklist opens each one here (`focus`), scrolled into view.
+ */
+import { useEffect, useState, type JSX } from "react";
+
+import { Button } from "../../components/primitives";
+import { showToast } from "../../components/Toast";
+import { errorText } from "../../lib/bridge";
+import { POOL_RULES_CHANGED, poolJoin, poolLeave, poolSetLeadNext, poolSetTalk, type PoolRuleInfo, type TalkRule } from "../../lib/ipc/pool-model";
+import { poolSetAccess, poolSetRole, type PoolInfo, type PoolRole } from "../../lib/ipc/pools";
+import { nextRule } from "../../lib/pool-templates";
+import type { LeadChoice } from "../../lib/new-pool";
+import { asOwnLevel, asRole, asTalkRule, joinSentence, nextSessionWords } from "../../lib/pool-words";
+import { setPools } from "../../lib/pools";
+import type { PoolRules } from "../../lib/pool-rules";
+import { sessionState } from "../../lib/rail-items";
+import { Section } from "./InspectPool";
+import { JoinAs } from "./setup/JoinAs";
+import { LeadPicker } from "./setup/LeadPicker";
+import { OwnLevelChoice } from "./setup/OwnLevelChoice";
+import { RoleCards, holdersOf } from "./setup/RoleCards";
+import { TalkTable } from "./setup/TalkTable";
+import type { MemberNode } from "./useCanvas";
+import type { Selection } from "./Canvas";
+
+const failed = (what: string) => (cause: unknown) => showToast({ message: `Couldn't ${what}`, detail: errorText(cause), tone: "error" });
+
+/** The pool's role-pair talk as the table reads it. */
+function roleRule(rules: PoolRules["rules"], from: PoolRole, to: PoolRole): TalkRule {
+  const row = rules?.talk.find((one) => one.from === `role:${from}` && one.to === `role:${to}`);
+  return asTalkRule(row?.rule);
+}
+
+export function PoolSetupSections({
+  pool,
+  rules,
+  members,
+  ruleLabel,
+  where,
+  selection,
+  onAddMembers,
+}: {
+  pool: PoolInfo;
+  rules: PoolRules;
+  /** The canvas's session members. */
+  members: readonly MemberNode[];
+  ruleLabel: (rule: PoolRuleInfo) => string;
+  where: string;
+  /** The canvas's selection: a step to scroll to (the checklist's). */
+  selection: Selection;
+  onAddMembers: () => void;
+}): JSX.Element {
+  const [busy, setBusy] = useState(false);
+  const focus = selection.kind === "pool" ? selection.focus : undefined;
+  useEffect(() => {
+    if (focus) document.getElementById(`pool-setup-${focus}`)?.scrollIntoView({ block: "start" });
+  }, [focus]);
+  const run = (what: string, work: () => Promise<unknown>) => {
+    setBusy(true);
+    void work()
+      .then(() => {
+        rules.reload();
+        window.dispatchEvent(new CustomEvent(POOL_RULES_CHANGED, { detail: pool.id }));
+      }, failed(what))
+      .finally(() => setBusy(false));
+  };
+  const memberRules = rules.rules?.members ?? [];
+  const apps = memberRules.filter((rule) => rule.kind === "app").map((rule) => ({ ref: rule.member, name: ruleLabel(rule) }));
+  const leads = members.filter((member) => member.role === "lead");
+  const open = members.filter((member) => sessionState(member.session).state !== "ended");
+  const leadNext = rules.rules?.lead_next ?? null;
+  const value: LeadChoice = leads[0] ? { kind: "session", ref: leads[0].id } : leadNext ? { kind: "next", app: `app:${leadNext}` } : { kind: "none" };
+  const demote = async (except?: string) => {
+    for (const lead of leads) if (lead.id !== except) setPools(await poolSetRole(lead.id, "member", pool.id));
+  };
+  const chooseLead = (choice: LeadChoice) =>
+    run("change who leads", async () => {
+      if (choice.kind === "session") {
+        await demote(choice.ref);
+        setPools(await poolSetRole(choice.ref, "lead", pool.id));
+      } else {
+        await demote();
+        await poolSetLeadNext(pool.id, choice.kind === "next" ? choice.app.slice("app:".length) : null);
+      }
+    });
+  const everyone = memberRules.find((rule) => rule.member === "all");
+  const nextName = leadNext ? (apps.find((app) => app.ref === `app:${leadNext}`)?.name ?? "An App") : null;
+  const holders = holdersOf([
+    ...members.map((member) => ({ name: member.name, role: member.role })),
+    ...memberRules.filter((rule) => rule.kind !== "session" && rule.member !== "all").map((rule) => ({ name: ruleLabel(rule), role: rule.role })),
+    ...(everyone ? [{ name: "new sessions", role: everyone.role }] : []),
+    ...(nextName ? [{ name: nextSessionWords(nextName), role: "lead" }] : []),
+  ]);
+  const level = pool.access.level;
+  return (
+    <div className="flex flex-col" data-testid="pool-setup-sections">
+      <div id="pool-setup-who">
+        <Section title="Who's in" testId="pool-setup-who">
+          <p className="text-meta text-ink-2">
+            {members.length} {members.length === 1 ? "session" : "sessions"} on the canvas
+            {memberRules.some((rule) => rule.kind !== "session") ? ", and the Apps or groups whose new sessions join by themselves" : ""}.
+          </p>
+          <Button size="sm" variant="ghost" className="self-start" onClick={onAddMembers} data-testid="pool-setup-add">
+            Add a session or an App
+          </Button>
+        </Section>
+      </div>
+      <div id="pool-setup-lead">
+        <Section title="Who leads" testId="pool-setup-lead">
+          <p className="text-meta text-ink-2">The lead plans and hands out the work.</p>
+          <LeadPicker sessions={open.map((member) => ({ ref: member.id, name: member.name, detail: sessionState(member.session).word }))} apps={apps} value={value} onChange={chooseLead} disabled={busy} testId="pool-lead" />
+        </Section>
+      </div>
+      <div id="pool-setup-everyone">
+        <Section title="Everyone else" testId="pool-setup-everyone">
+          <JoinAs
+            where={where}
+            value={(everyone ? asRole(everyone.role) : null)}
+            disabled={busy || (pool.kind === "default" && !everyone)}
+            onChange={(role) =>
+              run("change how new sessions join", async () => {
+                if (role === null) setPools(await poolLeave(pool.id, "all"));
+                else setPools(await poolJoin(pool.id, "all", role, everyone?.level ?? null));
+              })
+            }
+            testId="pool-join"
+          />
+          <p className="text-meta text-ink-2" data-testid="pool-join-sentence">
+            {joinSentence(where, (everyone ? asRole(everyone.role) : null), everyone?.level ?? level)}
+          </p>
+          <RoleCards holders={holders} testId="pool-role-cards" />
+          <p className="text-meta text-muted">Change one member's role by clicking its card on the canvas.</p>
+        </Section>
+      </div>
+      <div id="pool-setup-talk">
+        <Section title="Who may message whom" testId="pool-setup-talk">
+          <TalkTable
+            compact
+            disabled={busy}
+            ruleOf={(from, to) => roleRule(rules.rules, from, to)}
+            onCycle={(from, to) => {
+              const next = nextRule(roleRule(rules.rules, from, to));
+              run("change who may message whom", () => poolSetTalk(pool.id, `role:${from}`, `role:${to}`, next === "allowed" ? null : next));
+            }}
+            testId="pool-talk"
+          />
+        </Section>
+      </div>
+      <div id="pool-setup-own">
+        <Section title="What they may do on their own" testId="pool-setup-own">
+          {level === "custom" ? (
+            <>
+              <p className="text-meta text-ink-2" data-testid="pool-own-custom">
+                Custom: you picked each action, under Custom actions below.
+              </p>
+              <Button size="sm" variant="ghost" className="self-start" disabled={busy} onClick={() => run("change what they may do", async () => setPools(await poolSetAccess(pool.id, "work_together")))}>
+                Use Work together instead
+              </Button>
+            </>
+          ) : (
+            <OwnLevelChoice
+              value={asOwnLevel(level)}
+              label="What sessions in this pool may do on their own"
+              disabled={busy}
+              onChange={(next) => run("change what they may do", async () => setPools(await poolSetAccess(pool.id, next)))}
+              testId="pool-own"
+            />
+          )}
+          <p className="text-label text-muted" data-testid="pool-applies-next">
+            Changes apply from each session's next call; nothing it is doing now is stopped.
+          </p>
+        </Section>
+      </div>
+    </div>
+  );
+}

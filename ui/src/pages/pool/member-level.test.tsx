@@ -31,7 +31,7 @@ describe("D-62 a session's own level in a pool", () => {
     render(<MemberLevel pool={pool} sessionId="p2" memberRole="member" />);
     const picker = await screen.findByTestId("inspect-node-level-picker");
     // What it has now: its Account's level, said as such.
-    expect(picker.textContent).toContain("As its Account (Read)");
+    expect(picker.textContent).toContain("Same as its Account (Look only)");
     pick(picker, "Work together");
     await waitFor(() => expect(join).toHaveBeenCalledWith("careful", "session:p2", "member", "work_together"));
   });
@@ -48,14 +48,15 @@ describe("D-62 a session's own level in a pool", () => {
     render(<MemberLevel pool={pool} sessionId="p3" memberRole="member" />);
     const picker = await screen.findByTestId("inspect-node-level-picker");
     expect(picker.textContent).toContain("Work together");
-    pick(picker, "The pool's (Work together)");
+    pick(picker, "Same as the pool (Work together)");
     // Its stored ref (a switch keeps its place) and its role there.
     await waitFor(() => expect(join).toHaveBeenCalledWith("careful", "work:w2", "reviewer", null));
   });
 
-  it("says whose level it keeps", () => {
-    expect(keptLevelWords("account", "read", "full")).toBe("As its Account (Read)");
-    expect(keptLevelWords("app", null, "full")).toBe("As its App (Full)");
-    expect(keptLevelWords("session", null, "read")).toBe("The pool's (Read)");
+  it("says whose choice it follows", () => {
+    // AJ-E3011: "Level" is gone; the choices say what they allow.
+    expect(keptLevelWords("account", "read", "full")).toBe("Same as its Account (Look only)");
+    expect(keptLevelWords("app", null, "full")).toBe("Same as its App (Work together and wake each other)");
+    expect(keptLevelWords("session", null, "read")).toBe("Same as the pool (Look only)");
   });
 });

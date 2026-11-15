@@ -180,12 +180,15 @@ export const POOL_TEMPLATES: readonly PoolTemplate[] = [
     talk: observerReadsOnly,
   },
   {
+    // AJ-E3011: "Start from scratch" replaces Blank and the small "Set up
+    // by hand on the canvas" link; a name and its projects make a working
+    // pool (everyone in them joins as a Member), every step said in words.
     id: "blank",
-    name: "Blank",
-    description: "Start empty and set everything yourself.",
+    name: "Start from scratch",
+    description: "A name and its projects make a working pool. Each step says what it sets, and everything after is filled in for you.",
     chips: [],
     scope: "one",
-    kinds: ["session"],
+    kinds: ["app", "session"],
     roles: [],
     level: "work_together",
     talk: {},

@@ -12,28 +12,22 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type JSX } from "react";
 
 import { Card } from "../components/primitives";
-import { AgentToolsQuestion } from "../components/AgentTools";
-import { useAgentBridge } from "../lib/ipc/agent-bridge";
 import type { AccountInfo } from "../types/generated/AccountInfo";
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import type { ProjectInfo } from "../types/generated/ProjectInfo";
-import { useApps } from "../lib/apps";
 import { usePoolRules } from "../lib/pool-rules";
-import { useSubscriptions } from "../lib/subscriptions";
-import { useTools } from "../lib/tools";
-import { poolSetScope, type PoolRuleInfo } from "../lib/ipc/pool-model";
-import type { PoolInfo } from "../lib/ipc/pools";
+import { poolSetScope } from "../lib/ipc/pool-model";
 import { CanvasTeach, hasWhoIsIn } from "./pool/CanvasTeach";
-import { PaletteMore, type MoreKind } from "./pool/PaletteMore";
-import { broadCandidates, draftOf, memberLabel, memberTool, sessionCandidates, thisMacOf, type Candidate } from "../lib/new-pool";
-import { usePairedMacs } from "../lib/ipc/fleet-launch";
-import { templateById } from "../lib/pool-templates";
-import { RuleNodes, ruleColumnRoom } from "./pool/RuleNodes";
+import { PaletteMore } from "./pool/PaletteMore";
+import { RuleNodes } from "./pool/RuleNodes";
+import { useMoreCandidates, useRuleLabel, useRuleTool } from "./pool/pool-page-reads";
 import { ScopeSheet } from "./pool/ScopeSheet";
 import { NewPool } from "../screens/pools/NewPool";
 import { FOCUS_THREAD, useMessageNeeds } from "../lib/ipc/messages";
 import { FOCUS_TASK, focusTask, useTaskNeeds, type TaskInfo } from "../lib/ipc/tasks";
-import { levelLabel, needWords, poolById, poolIdOf, poolIdsOf, poolNeedCount, scopeChipWords, scopeLabel, setPools, usePools } from "../lib/pools";
+import { needWords, poolById, poolIdOf, poolIdsOf, poolNeedCount, scopeChipWords, scopeLabel, setPools, usePools } from "../lib/pools";
+import { everyoneOf, usePoolSetup } from "./pool/usePoolSetup";
+import { PoolSetupSections } from "./pool/PoolSetupSections";
 import { liveOutside, useConversations } from "../lib/conversations";
 import { sessionState } from "../lib/rail-items";
 import { lazyNamed } from "../lib/lazy";
@@ -48,7 +42,7 @@ import { Inspector } from "./pool/Inspector";
 import { MemberList } from "./pool/MemberList";
 import { PoolHeader, type Panel } from "./pool/PoolHeader";
 import { usePoolMode } from "./pool/mode";
-import { addToPool, cannotJoin, nameOf } from "./pool/actions";
+import { addToPool, cannotJoin } from "./pool/actions";
 import { useCanvas } from "./pool/useCanvas";
 import type { Point } from "./pool/layout";
 import { isActiveStatus } from "../components/indicator";
@@ -101,57 +95,6 @@ export function PoolPage({ poolId, sessions, projects, accounts, now }: { poolId
   return <PoolCanvasPage key={pool.id} poolId={pool.id} sessions={sessions} projects={projects} accounts={accounts} now={now} />;
 }
 
-/** D-62: the palette's other candidates for `pool`, by kind, as the
- * wizard lists them (one rule for both), less the members it has. */
-function useMoreCandidates(pool: PoolInfo, sessions: InstanceInfo[], projects: ProjectInfo[], accounts: AccountInfo[], members: string[]): Record<MoreKind, Candidate[]> {
-  const pools = usePools();
-  const tools = useTools();
-  const apps = useApps(accounts);
-  const subscriptions = useSubscriptions();
-  const paired = usePairedMacs();
-  const { all } = useConversations();
-  const bridge = useAgentBridge();
-  return useMemo(() => {
-    const draft = { ...draftOf(templateById("blank"), null), every: pool.scope_all, projects: pool.scope };
-    const projectName = (id: string | null) => (id === null ? "No project" : (projects.find((one) => one.id === id)?.name ?? "A project"));
-    const named = new Set(members);
-    const own = sessionCandidates({ draft, sessions, conversations: all, pools, tools, bridge, projectName, nameOf, now: Date.now() }).filter((row) => !named.has(row.ref) && !(pools?.placements ?? []).some((place) => `session:${place.session_id}` === row.ref && place.pool_id === pool.id));
-    const thisMac = thisMacOf(sessions);
-    const broad = (kind: "app" | "account" | "tool" | "mac") => broadCandidates({ kind, apps: apps ?? [], subscriptions: subscriptions ?? [], tools, sessions, thisMac, paired, bridge }).filter((row) => !named.has(row.ref));
-    return {
-      watched: own.filter((row) => row.reach === "watched" && row.blocked === null),
-      app: broad("app"),
-      account: broad("account"),
-      tool: broad("tool"),
-      mac: broad("mac"),
-      everyone: named.has("all") ? [] : [{ ref: "all", kind: "everyone", label: "Everyone in this pool's projects", detail: "every session in scope, now and later", group: "open", reach: "later", blocked: null, lastMs: 0 }],
-      // Open sessions waiting to join; an ended one's place is History
-      // (the P3 walk: "docs · Ended" offered Add docs, which did nothing).
-      blocked: own.filter((row) => row.blocked !== null && row.group === "open"),
-    };
-  }, [pool, sessions, projects, members, pools, tools, bridge, apps, subscriptions, all, paired]);
-}
-
-/** D-62: a member rule's name, from the same Apps, Accounts and Tools the
- * other screens list. */
-function useRuleLabel(accounts: AccountInfo[], sessions: InstanceInfo[]): (rule: PoolRuleInfo) => string {
-  const apps = useApps(accounts);
-  const subscriptions = useSubscriptions();
-  const tools = useTools();
-  const paired = usePairedMacs();
-  return useCallback(
-    (rule: PoolRuleInfo) => memberLabel(rule.member, { apps: apps ?? [], subscriptions: subscriptions ?? [], tools, thisMac: thisMacOf(sessions), paired }),
-    [apps, subscriptions, tools, sessions, paired],
-  );
-}
-
-/** D-62 (the P8 walk): the tool and App an App or Tool member's sessions
- * all share, so its node and inspector say "Shell only" as theirs do. */
-function useRuleTool(accounts: AccountInfo[]): (rule: PoolRuleInfo) => { tool: string; account: string | null } | null {
-  const apps = useApps(accounts);
-  return useCallback((rule: PoolRuleInfo) => memberTool(rule.member, apps ?? []), [apps]);
-}
-
 function PoolCanvasPage({ poolId, sessions, projects, accounts, now }: { poolId: string; sessions: InstanceInfo[]; projects: ProjectInfo[]; accounts: AccountInfo[]; now: number }): JSX.Element {
   const pools = usePools();
   const pool = poolById(pools, poolId)!;
@@ -161,7 +104,7 @@ function PoolCanvasPage({ poolId, sessions, projects, accounts, now }: { poolId:
   const taskNeeds = useTaskNeeds();
   const data = useCanvas(poolId, sessions);
   const rules = usePoolRules(poolId);
-  const ruleLabel = useRuleLabel(accounts, sessions);
+  const ruleLabel = useRuleLabel(accounts, sessions, everyoneOf(pool, projects));
   const ruleTool = useRuleTool(accounts);
   const memberRules = rules.rules?.members ?? [];
   const lineRules = useMemo(() => ownLineRules(rules.rules?.talk ?? []), [rules.rules]);
@@ -183,6 +126,7 @@ function PoolCanvasPage({ poolId, sessions, projects, accounts, now }: { poolId:
     }
   };
   const [template, setTemplate] = useState(false);
+  const [paletteRequest, setPaletteRequest] = useState(0);
   const first = useMemo(arrival, []);
   const [panel, setPanelState] = useState<Panel>(first.panel);
   const [taskKey, setTaskKey] = useState(0);
@@ -250,6 +194,24 @@ function PoolCanvasPage({ poolId, sessions, projects, accounts, now }: { poolId:
   const unplaced = (data.canvas?.asks ?? []).filter((ask) => ask.session_id === null);
   const members = data.members.map((member) => ({ session_id: member.id, name: names.get(member.id) ?? member.card.name, live: isActiveStatus(member.session.status) }));
 
+  // AJ-E3011: the checklist, in the setup's order.
+  const setup = usePoolSetup({
+    pool,
+    projects,
+    whoIn: peopled,
+    rules: memberRules,
+    roles: data.members.map((member) => member.role),
+    info: rules.rules,
+    watched: rules.watched,
+    ruleLabel,
+    onScope: () => setScopeOpen(true),
+    onWho: () => {
+      setMode("canvas");
+      setPaletteRequest((n) => n + 1);
+    },
+    onStep: (step) => select({ kind: "pool", focus: step }),
+  });
+  const { where, leadNextName } = setup;
   const openProjects = new Set(sessions.filter((session) => sessionState(session).state !== "ended" && session.project_id).map((session) => session.project_id!));
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-card border border-hairline bg-surface" data-testid="pool-page">
@@ -265,13 +227,11 @@ function PoolCanvasPage({ poolId, sessions, projects, accounts, now }: { poolId:
             setTemplate(false);
             rules.reload();
           }}
-          onByHand={() => setTemplate(false)}
         />
       )}
       <PoolHeader pool={pool} facts={facts} scope={scopeWords === null ? undefined : { words: scopeWords, onOpen: () => setScopeOpen(true) }} mode={mode} panel={panel} onMode={setMode} onPanel={setPanel} />
       {/* D-30: asked once, the first time pools are used; never on a sealed
           pool, where "see each other" read as the opposite of sealing. */}
-      {!pool.sealed && <AgentToolsQuestion className="mx-4 mt-3" quiet poolLevel={levelLabel(pool.access.level)} />}
       {unplaced.length > 0 && (
         <p className="mx-4 mt-3 rounded-lg border border-warning/40 bg-warning-soft px-3 py-2 text-meta text-ink" data-testid="pool-unplaced-asks">
           {unplaced.length === 1 ? "An agent that isn't on the canvas asks you something" : `${unplaced.length} agents that aren't on the canvas ask you something`}: answer it in Needs you, or in the List view.
@@ -288,6 +248,7 @@ function PoolCanvasPage({ poolId, sessions, projects, accounts, now }: { poolId:
               selection={selection}
               onSelect={select}
               onAdd={add}
+              paletteRequest={paletteRequest}
               paletteMore={
                 <PaletteMore
                   poolId={pool.id}
@@ -303,9 +264,22 @@ function PoolCanvasPage({ poolId, sessions, projects, accounts, now }: { poolId:
                   }}
                 />
               }
-              overlayRoom={ruleColumnRoom(memberRules, rules.watched)}
+              overlayRoom={setup.room}
               lineRules={lineRules}
-              overlay={(placeOf) => <RuleNodes rules={memberRules} watched={rules.watched} labelOf={ruleLabel} toolOf={ruleTool} selection={selection} onSelect={(next) => select(next, true)} placeOf={placeOf} />}
+              overlay={(placeOf) => (
+                <RuleNodes
+                  rules={memberRules}
+                  watched={rules.watched}
+                  labelOf={ruleLabel}
+                  toolOf={ruleTool}
+                  selection={selection}
+                  onSelect={(next) => select(next, true)}
+                  placeOf={placeOf}
+                  lead={setup.leadCard}
+                  leadNext={leadNextName}
+                  poolLevel={pool.access.level}
+                />
+              )}
               empty={(paletteOpen, openPalette) =>
                 peopled ? (
                   <p className={"pointer-events-none absolute inset-x-0 bottom-16 text-center text-meta text-ink-2" + (paletteOpen ? " pl-[16.5rem]" : "")} data-testid="canvas-rules-only">
@@ -318,11 +292,9 @@ function PoolCanvasPage({ poolId, sessions, projects, accounts, now }: { poolId:
                 ) : (
                 <CanvasTeach
                   scope={scopeLabel(pool, projects)}
-                  scopeChosen={!pool.scope_all || pool.kind === "default"}
-                  membersAdded={peopled}
-                  onScope={() => setScopeOpen(true)}
                   onAdd={openPalette}
-                  onTemplate={() => setTemplate(true)}
+                  own={pool.kind === "default"}
+                  onSetup={() => setTemplate(true)}
                   inset={paletteOpen}
                 />
                 )
@@ -369,6 +341,21 @@ function PoolCanvasPage({ poolId, sessions, projects, accounts, now }: { poolId:
           rules={rules}
           ruleLabel={ruleLabel}
           ruleTool={ruleTool}
+          where={where}
+          needs={needs}
+          setup={{ rows: setup.rows, onOpen: setup.open }}
+          leadNextName={leadNextName}
+          setupSections={
+            <PoolSetupSections
+              pool={pool}
+              rules={rules}
+              members={data.members}
+              ruleLabel={ruleLabel}
+              where={where}
+              selection={selection}
+              onAddMembers={() => setup.open("who")}
+            />
+          }
           onDeleted={() => {
             showToast({ message: `Deleted ${pool.name}`, detail: "Its sessions are back in their projects' own pools." });
             // To the Pools screen (Home when there is none).

@@ -2,7 +2,7 @@
  * The Pools screen (redesign §5): every pool as a card — its canvas in
  * small, its name (a project's own pool says so), how many are in it,
  * what waits on you and how many tasks are moving. A card opens the
- * pool's canvas; New pool opens an empty one, its name ready to type.
+ * pool's canvas; New pool opens the guided setup (AJ-E3011).
  *
  * Instant and paged: the pools are the app's one copy (shown at once when
  * known, a skeleton before); a page of cards at a time, and only the cards
@@ -14,18 +14,15 @@ import { Page, PageGrid } from "../../components/Page";
 import { Button } from "../../components/primitives";
 import { IconPlus } from "../../components/icons-actions";
 import { useActionHost } from "../../components/ItemMenu";
-import { showToast } from "../../components/Toast";
-import { errorText } from "../../lib/bridge";
 import type { AccountInfo } from "../../types/generated/AccountInfo";
 import type { InstanceInfo } from "../../types/generated/InstanceInfo";
 import type { ProjectInfo } from "../../types/generated/ProjectInfo";
 import { useMessageNeeds } from "../../lib/ipc/messages";
 import { onTasksChanged, useTaskNeeds } from "../../lib/ipc/tasks";
 import { poolCanvasPreviews, type PoolPreviewInfo } from "../../lib/ipc/pool-canvas";
-import { poolCreate, type PoolInfo } from "../../lib/ipc/pools";
-import { needWords, onNewPoolRequest, poolIdsOf, poolNeedCount, roleOf, scopeLabel, setPools, takeNewPoolRequest, usePools, warmPool, type NewPoolRequest } from "../../lib/pools";
+import type { PoolInfo } from "../../lib/ipc/pools";
+import { needWords, onNewPoolRequest, poolIdsOf, poolNeedCount, roleOf, scopeLabel, takeNewPoolRequest, usePools, warmPool, type NewPoolRequest } from "../../lib/pools";
 import { sessionState } from "../../lib/rail-items";
-import { editNameOf } from "../../pages/pool/PoolHeader";
 import { NewPool } from "./NewPool";
 import { PoolMini, type MiniNode } from "./PoolMini";
 import { DeletePool, PoolCard, RenamePool } from "./PoolCard";
@@ -98,7 +95,6 @@ export function PoolsScreen({ sessions, projects, accounts }: { sessions: Instan
   const messageNeeds = useMessageNeeds();
   const taskNeeds = useTaskNeeds();
   const [shown, setShown] = useState(CARDS_PAGE);
-  const [busy, setBusy] = useState(false);
   const [wizard, setWizard] = useState<NewPoolRequest | false>(false);
   // A project's "Keep it apart…" (and any other door) opens it here.
   useEffect(() => {
@@ -158,30 +154,12 @@ export function PoolsScreen({ sessions, projects, accounts }: { sessions: Instan
     return () => window.clearTimeout(timer);
   }, [visibleKey]);
 
-  const create = async () => {
-    setBusy(true);
-    try {
-      const name = newPoolName((pools?.pools ?? []).map((pool) => pool.name));
-      const info = await poolCreate(name, null);
-      setPools(info);
-      const made = info.pools.find((pool) => pool.name === name);
-      if (made) {
-        editNameOf(made.id);
-        host.openPool?.(made.id);
-      }
-    } catch (cause) {
-      showToast({ message: "Couldn't make a pool", detail: errorText(cause), tone: "error" });
-    } finally {
-      setBusy(false);
-    }
-  };
-
   return (
     <Page
       title="Pools"
       subtitle="Sessions that work together. Open one to watch it, answer it and change it on its canvas."
       actions={
-        <Button variant="primary" onClick={() => setWizard({ template: "writer-reviewer", project: null })} disabled={busy} data-testid="pools-new">
+        <Button variant="primary" onClick={() => setWizard({ template: "blank", project: null })} data-testid="pools-new">
           <IconPlus width={15} height={15} aria-hidden="true" className="mr-1.5" />
           New pool
         </Button>
@@ -196,10 +174,6 @@ export function PoolsScreen({ sessions, projects, accounts }: { sessions: Instan
           project={wizard.project}
           startWith={wizard.template}
           onClose={() => setWizard(false)}
-          onByHand={() => {
-            setWizard(false);
-            void create();
-          }}
         />
       )}
       {pools === null ? (
