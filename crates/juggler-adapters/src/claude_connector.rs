@@ -53,10 +53,12 @@ pub fn plan(input: &ConnectorInput<'_>) -> ConnectorPlan {
     let hook = |event: &str| {
         serde_json::json!([{ "hooks": [{
             "type": "command",
+            // L9: AI Juggler moved or removed: the hook says nothing and
+            // succeeds, never a "command not found" in the session.
             "command": format!(
-                "JUGGLER_AGENT_SOCKET={} {} hook {event} --connector",
-                shell_quote(&socket),
-                shell_quote(&agent)
+                "[ -x {agent} ] || exit 0; JUGGLER_AGENT_SOCKET={socket} {agent} hook {event} --connector",
+                agent = shell_quote(&agent),
+                socket = shell_quote(&socket),
             ),
             "timeout": HOOK_TIMEOUT,
         }]}])
@@ -152,7 +154,7 @@ mod tests {
             .unwrap();
         assert_eq!(
             hook,
-            "JUGGLER_AGENT_SOCKET='/Users/u/Library/Application Support/AI Juggler/agent/bridge.sock' '/Applications/AI Juggler.app/Contents/MacOS/juggler-agent' hook UserPromptSubmit --connector"
+            "[ -x '/Applications/AI Juggler.app/Contents/MacOS/juggler-agent' ] || exit 0; JUGGLER_AGENT_SOCKET='/Users/u/Library/Application Support/AI Juggler/agent/bridge.sock' '/Applications/AI Juggler.app/Contents/MacOS/juggler-agent' hook UserPromptSubmit --connector"
         );
         assert!(manifest["hooks"]["SessionStart"].is_array());
         for part in &plan.parts {
@@ -163,5 +165,49 @@ mod tests {
             assert!(!text.contains("TOKEN"), "no key in any file");
         }
         assert!(plan.parts[1].path().ends_with("skills/pool-tasks/SKILL.md"));
+    }
+
+    /// L9: with AI Juggler moved or removed, each hook in the written
+    /// plugin.json exits 0 and prints nothing.
+    #[cfg(unix)]
+    #[test]
+    fn a_hook_is_silent_and_succeeds_when_the_agent_is_gone() {
+        use std::io::Write as _;
+        let root = tempfile::tempdir().unwrap();
+        let gone = root
+            .path()
+            .join("AI Juggler.app/Contents/MacOS/juggler-agent");
+        let plan = plan(&ConnectorInput {
+            agent: &gone,
+            socket: &root.path().join("agent/bridge.sock"),
+            version: "0.4.6",
+            server: "juggler",
+            tools: &["whoami"],
+        });
+        let ConnectorPart::File { text, .. } = &plan.parts[0] else {
+            unreachable!("a file");
+        };
+        let manifest: serde_json::Value = serde_json::from_str(text).unwrap();
+        for event in HOOK_EVENTS {
+            let command = manifest["hooks"][event][0]["hooks"][0]["command"]
+                .as_str()
+                .unwrap();
+            let mut child = std::process::Command::new("/bin/sh")
+                .args(["-c", command])
+                .stdin(std::process::Stdio::piped())
+                .stdout(std::process::Stdio::piped())
+                .stderr(std::process::Stdio::piped())
+                .spawn()
+                .unwrap();
+            child
+                .stdin
+                .take()
+                .unwrap()
+                .write_all(br#"{"session_id":"s"}"#)
+                .unwrap();
+            let out = child.wait_with_output().unwrap();
+            assert_eq!(out.status.code(), Some(0), "{event}");
+            assert!(out.stdout.is_empty() && out.stderr.is_empty(), "{event}");
+        }
     }
 }
