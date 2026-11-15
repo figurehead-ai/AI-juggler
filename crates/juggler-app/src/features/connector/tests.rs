@@ -147,11 +147,19 @@ fn an_app_it_cant_go_into_says_why() {
         super::remove_impl(&lab.state, &lab.claude_app).is_err(),
         "nothing recorded, nothing taken out"
     );
+    // Not offered for the Codex app until lab probe C2 (2026-11-15).
     let codex = super::status_impl(&lab.state, &lab.codex_app).unwrap();
-    assert_eq!(codex.state, "absent");
+    assert_eq!(codex.state, "unavailable");
+    assert_eq!(
+        codex.why_not.as_deref(),
+        Some("Codex can't yet tell which thread is calling")
+    );
+    let preview = super::preview_impl(&lab.state, &lab.codex_app).unwrap();
+    assert_eq!(preview.status.state, "unavailable");
+    assert!(preview.files.is_empty() && preview.guide.is_none());
     assert!(
-        !codex.attests && !codex.can_wake,
-        "a Codex app thread, said so"
+        super::add_impl(&lab.state, &lab.codex_app).is_err(),
+        "no Add"
     );
 }
 

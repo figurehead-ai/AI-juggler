@@ -123,6 +123,20 @@ fn target(state: &Arc<AppState>, app_id: &str) -> Result<Target, String> {
     })
 }
 
+/// The App `app_id`, when the connector is offered there (its adapter
+/// may say it isn't yet: a Codex app thread can't be told apart).
+fn offered(state: &Arc<AppState>, app_id: &str) -> Result<Target, String> {
+    let target = target(state, app_id)?;
+    match target
+        .adapter
+        .desktop_peer()
+        .and_then(juggler_adapter::peer::DesktopPeer::not_offered)
+    {
+        Some(why) => Err(why),
+        None => Ok(target),
+    }
+}
+
 /// The connector for this edition of AI Juggler in `target`.
 fn plan_for(state: &Arc<AppState>, target: &Target) -> Result<ConnectorPlan, String> {
     let agent = state
@@ -195,7 +209,7 @@ fn status_of(
 ///
 /// None in practice: an App it can't go into is `unavailable`, with why.
 pub fn status_impl(state: &Arc<AppState>, app_id: &str) -> AppResult<ConnectorStatusInfo> {
-    let target = match target(state, app_id) {
+    let target = match offered(state, app_id) {
         Ok(target) => target,
         Err(why) => return Ok(unavailable(app_id, why)),
     };
@@ -214,7 +228,7 @@ pub fn status_impl(state: &Arc<AppState>, app_id: &str) -> AppResult<ConnectorSt
 /// [`AppError::Refused`] when a part is outside the App's folder or
 /// through a link (nothing is written either way).
 pub fn preview_impl(state: &Arc<AppState>, app_id: &str) -> AppResult<ConnectorPreviewInfo> {
-    let target = match target(state, app_id) {
+    let target = match offered(state, app_id) {
         Ok(target) => target,
         Err(why) => {
             return Ok(ConnectorPreviewInfo {
@@ -272,7 +286,7 @@ pub fn preview_impl(state: &Arc<AppState>, app_id: &str) -> AppResult<ConnectorP
 /// didn't write is in the way (nothing is written then); the write's
 /// error (what was written is taken back).
 pub fn add_impl(state: &Arc<AppState>, app_id: &str) -> AppResult<ConnectorStatusInfo> {
-    let target = target(state, app_id).map_err(AppError::Refused)?;
+    let target = offered(state, app_id).map_err(AppError::Refused)?;
     let plan = plan_for(state, &target).map_err(AppError::Refused)?;
     let _writing = WRITING
         .lock()

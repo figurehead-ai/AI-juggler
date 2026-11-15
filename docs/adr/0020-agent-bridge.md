@@ -329,6 +329,52 @@ lives on is checked against the registry as it is at that call (the
 resume row below), and a server that outlives its session (its parent gone: the
 chain ends at `launchd`) is refused.
 
+**The threat model, plainly (the review, 2026-11-15).**
+
+- **What attestation stops:** honest but wrong callers: another tool's
+  process, a stale record or a reused pid, a session of another profile
+  or App, a process that outlived its session.
+- **What it doesn't stop:** a malicious process running as the same user.
+  Claude Code's registry folder (`<config>/sessions/`) and the app's
+  session records are writable by any process of this user, so such a
+  process could forge an entry for its own parent's pid, with the right
+  start time and a copied app record, and be attested as that session.
+- **Why that's no new exposure:** ADR-0020's key has the same limit: any
+  process of the same user can read a launched session's environment
+  (`KERN_PROCARGS2`), key included.
+- **What the boundary is:** the OS user. The socket is `0600` in a `0700`
+  folder of the user's, and every connection's peer user is checked
+  (`getpeereid`) before anything is read. Within that boundary,
+  attestation gives accountability: each call is tied to the one session
+  the system and the tool's own records name, and audited as it.
+
+**Settled with the review's questions (the coordinating session,
+2026-11-15).**
+
+- **The peer's pid is tokio's `LOCAL_PEEREPID`, and no new `unsafe`.**
+  On macOS the effective pid differs from the pid (`LOCAL_PEERPID`) only
+  for a socket delegated with `SO_DELEGATED` or `SO_DELEGATED_UUID`, and
+  XNU lets a process delegate a socket to another process only with the
+  private socket-delegation privilege (`PRIV_NET_PRIVILEGED_SOCKET_DELEGATE`),
+  which a same-user process doesn't have. Reading `LOCAL_PEERPID` itself
+  would need an `unsafe` `getsockopt` outside the audited crates (a
+  decision of its own), for no gain against this threat model. And the
+  pid is never trusted alone: the parent chain from the kernel, the
+  start-time order along it, the registry entry's `procStart` and the
+  App's own record still refuse any caller that isn't under a Code-tab
+  Claude Code process the registry names. The security review checks
+  this claim.
+- **No tool allow rule in the user's `settings.json` in 0.4.6.** Add
+  writes only AI Juggler's own folder (`skills/ai-juggler/`), so Remove
+  stays exact. Claude Code asks once per tool in the Code tab; the window
+  says so and suggests "Always allow". What a member may do is still the
+  pool's level.
+- **The Codex app's connector isn't offered.** Its writer (`[mcp_servers.juggler]`
+  in the App's `config.toml`) and its tests stay, but `connector_status`
+  and `connector_preview` say `unavailable` ("Codex can't yet tell which
+  thread is calling", from its adapter's `DesktopPeer::not_offered`) and
+  `connector_add` refuses, until lab probe C2 proves which thread calls.
+
 ### STRIDE, added
 
 | Threat | Mitigation | Test |

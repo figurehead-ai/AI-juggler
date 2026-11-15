@@ -96,6 +96,13 @@ pub trait DesktopPeer: Send + Sync {
     fn attests(&self) -> bool {
         true
     }
+
+    /// Why AI Juggler's connector isn't offered for this App yet, in the
+    /// window's words; `None`: it is. An App whose sessions can't be told
+    /// apart says so, and the window offers no Add for it.
+    fn not_offered(&self) -> Option<String> {
+        None
+    }
 }
 
 /// Whether a recorded start time and the process's own are the same

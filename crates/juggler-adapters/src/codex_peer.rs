@@ -27,6 +27,12 @@ impl DesktopPeer for CodexAppPeer {
     fn attests(&self) -> bool {
         false
     }
+
+    /// The coordinating session's ruling, 2026-11-15: no Add for the Codex
+    /// app until lab probe C2 shows which thread calls.
+    fn not_offered(&self) -> Option<String> {
+        Some("Codex can't yet tell which thread is calling".to_owned())
+    }
 }
 
 #[cfg(test)]
@@ -56,5 +62,9 @@ mod tests {
         ));
         assert!(!CodexAppPeer.can_wake());
         assert!(!CodexAppPeer.attests());
+        assert!(
+            CodexAppPeer.not_offered().is_some(),
+            "no Add until probe C2"
+        );
     }
 }
