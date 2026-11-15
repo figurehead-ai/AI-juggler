@@ -84,7 +84,7 @@ fn desktop_facts() -> SessionFacts {
         app: Some("app:claude-app:/x".into()),
         tool: Some(juggler_adapters::CLAUDE_CODE_ID.into()),
         conversation: Some((FOLDER.into(), CONVERSATION.into())),
-        ..SessionFacts::bare(desktop_id(CONVERSATION), None)
+        ..SessionFacts::bare(desktop_id(FOLDER, CONVERSATION), None)
     }
 }
 
@@ -92,7 +92,7 @@ fn desktop_facts() -> SessionFacts {
 fn attested_facts_resolve_like_a_cli_sessions_and_only_while_kept() {
     let dir = tempfile::tempdir().unwrap();
     let (state, pool) = lab(dir.path());
-    let desk = desktop_id(CONVERSATION);
+    let desk = desktop_id(FOLDER, CONVERSATION);
     let cli = SessionId::new("s-cli");
     let in_no_pool = |state: &Arc<AppState>| {
         let storage = state.storage.lock().unwrap();
@@ -183,7 +183,7 @@ fn a_keyless_call_without_a_peer_or_an_attestation_is_refused() {
             .lock()
             .unwrap()
             .sessions()
-            .pool_facts_of(&desktop_id(CONVERSATION))
+            .pool_facts_of(&desktop_id(FOLDER, CONVERSATION))
             .unwrap()
             .is_none(),
         "nothing kept"
@@ -304,7 +304,7 @@ fn this_processs_own_chain_is_attested_end_to_end_and_its_call_is_answered() {
         accepted: std::time::SystemTime::now(),
     };
     let caller = super::attest::attest(&state, peer).unwrap();
-    assert_eq!(caller.session, desktop_id(CONVERSATION));
+    assert_eq!(caller.session, desktop_id(FOLDER, CONVERSATION));
     assert_eq!(caller.tool_pid, parent);
     assert!(caller.can_wake);
     let line =
@@ -313,7 +313,10 @@ fn this_processs_own_chain_is_attested_end_to_end_and_its_call_is_answered() {
     assert!(answer.result.is_some(), "{answer:?}");
     let result = answer.result.unwrap();
     assert_eq!(result["pool"]["id"], pool.as_str());
-    assert_eq!(result["session_id"], desktop_id(CONVERSATION).as_str());
+    assert_eq!(
+        result["session_id"],
+        desktop_id(FOLDER, CONVERSATION).as_str()
+    );
     // The registry going stale (pid reused) refuses the next call and
     // drops what was kept.
     std::fs::write(
@@ -332,7 +335,7 @@ fn this_processs_own_chain_is_attested_end_to_end_and_its_call_is_answered() {
             .lock()
             .unwrap()
             .attested()
-            .get(&desktop_id(CONVERSATION))
+            .get(&desktop_id(FOLDER, CONVERSATION))
             .is_none()
     );
 }
@@ -409,7 +412,7 @@ fn a_wake_needs_the_pools_waking_rule_and_keeps_to_its_budget() {
         .unwrap()
         .attested()
         .put(desktop_facts());
-    let desk = desktop_id(CONVERSATION);
+    let desk = desktop_id(FOLDER, CONVERSATION);
     // Nothing yet, and nothing before this point counts.
     assert_eq!(super::desktop::wake_for(&state, &desk), None);
     std::thread::sleep(std::time::Duration::from_millis(5));
@@ -452,7 +455,7 @@ fn a_persons_message_or_a_paused_pool_never_wakes() {
         .agent_access()
         .set_level(&pool, AccessLevel::Full, &std::collections::BTreeSet::new())
         .unwrap();
-    let desk = desktop_id("conv-desk-1");
+    let desk = desktop_id(FOLDER, "conv-desk-1");
     assert_eq!(super::desktop::wake_for(&state, &desk), None);
     std::thread::sleep(std::time::Duration::from_millis(5));
     message(
@@ -473,4 +476,36 @@ fn a_persons_message_or_a_paused_pool_never_wakes() {
     std::thread::sleep(std::time::Duration::from_millis(5));
     message(&state, &pool, "m-9", "session:s-cli", "agent");
     assert_eq!(super::desktop::wake_for(&state, &desk), None, "paused");
+}
+
+/// L3: a call uses the facts its own attestation gave, never the shared
+/// map: a desktop id with no facts carried is refused even while the map
+/// holds some for it.
+#[test]
+fn a_call_carries_its_own_attested_facts() {
+    let dir = tempfile::tempdir().unwrap();
+    let (state, _) = lab(dir.path());
+    state
+        .storage
+        .lock()
+        .unwrap()
+        .attested()
+        .put(desktop_facts());
+    let storage = state.storage.lock().unwrap();
+    let desk = desktop_id(FOLDER, CONVERSATION);
+    assert!(super::calls::whose(&storage, &desk, None).is_err());
+    let other = SessionFacts {
+        session: desktop_id("another-folder", CONVERSATION),
+        ..desktop_facts()
+    };
+    assert!(
+        super::calls::whose(&storage, &desk, Some(&other)).is_err(),
+        "facts of another session"
+    );
+    let (_, folder, member) = super::calls::whose(&storage, &desk, Some(&desktop_facts())).unwrap();
+    assert_eq!(folder, FOLDER);
+    assert_eq!(
+        member.unwrap().to_wire(),
+        format!("conversation:{FOLDER}/{CONVERSATION}")
+    );
 }

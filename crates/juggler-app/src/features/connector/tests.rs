@@ -212,7 +212,7 @@ fn a_pools_desktop_members_say_their_connector_connection_and_wake() {
         .put(SessionFacts {
             app: Some(lab.claude_app.clone()),
             conversation: Some(("acc-claude".into(), "conv-1".into())),
-            ..SessionFacts::bare(desktop_id("conv-1"), None)
+            ..SessionFacts::bare(desktop_id("acc-claude", "conv-1"), None)
         });
     lab.state
         .storage

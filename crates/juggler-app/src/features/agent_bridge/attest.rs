@@ -52,6 +52,9 @@ pub struct DesktopCaller {
     pub tool_pid: u32,
     /// Whether its App's sessions can be woken (D-119).
     pub can_wake: bool,
+    /// L3: the facts this call was attested with, carried through it (the
+    /// shared map is for the pool lookups, not re-read by the call).
+    pub facts: SessionFacts,
 }
 
 impl DesktopCaller {
@@ -191,18 +194,19 @@ pub(crate) fn candidates(state: &Arc<AppState>) -> Vec<Candidate> {
         .collect()
 }
 
+/// The candidate that attested the caller (its index) and the session,
+/// or why none did.
+pub(crate) type Found = Result<(usize, juggler_adapter::peer::AttestedSession), String>;
+
 /// Which of `candidates` holds the caller whose chain is `chain`:
 /// exactly one must attest it. The conversations found stale on the way
 /// come back too (their kept facts are dropped).
 pub(crate) fn decide(
     candidates: &[Candidate],
     chain: &[ProcStep],
-) -> (
-    Result<(usize, juggler_adapter::peer::AttestedSession), String>,
-    Vec<String>,
-) {
+) -> (Found, Vec<(usize, String)>) {
     let mut found = Vec::new();
-    let mut stale = Vec::new();
+    let mut stale: Vec<(usize, String)> = Vec::new();
     let mut why = None;
     for (at, candidate) in candidates.iter().enumerate() {
         let Some(peer) = candidate.adapter.desktop_peer() else {
@@ -218,7 +222,7 @@ pub(crate) fn decide(
                 reason,
                 stale: gone,
             } => {
-                stale.extend(gone);
+                stale.extend(gone.map(|conversation| (at, conversation)));
                 why.get_or_insert(reason);
             }
         }
@@ -269,13 +273,15 @@ pub fn attest(state: &Arc<AppState>, peer: Peer) -> Result<DesktopCaller, String
     let candidates = candidates(state);
     let (verdict, gone) = decide(&candidates, &chain);
     if let Ok(storage) = state.storage.lock() {
-        for conversation in &gone {
-            storage.attested().forget(&desktop_id(conversation));
+        for (at, conversation) in &gone {
+            storage
+                .attested()
+                .forget(&desktop_id(&candidates[*at].folder, conversation));
         }
     }
     let (at, session) = verdict?;
     let candidate = &candidates[at];
-    let id = desktop_id(&session.conversation);
+    let id = desktop_id(&candidate.folder, &session.conversation);
     let kept_project = state
         .storage
         .lock()
@@ -304,7 +310,7 @@ pub fn attest(state: &Arc<AppState>, peer: Peer) -> Result<DesktopCaller, String
         .get(&AccountId::new(candidate.folder.clone()))
         .ok()
         .map(|found| found.harness.as_str().to_owned());
-    storage.attested().put(SessionFacts {
+    let facts = SessionFacts {
         session: id.clone(),
         work: None,
         project,
@@ -313,7 +319,8 @@ pub fn attest(state: &Arc<AppState>, peer: Peer) -> Result<DesktopCaller, String
         tool,
         mac: Some(machine.as_str().to_owned()),
         conversation: Some((candidate.folder.clone(), session.conversation.clone())),
-    });
+    };
+    storage.attested().put(facts.clone());
     Ok(DesktopCaller {
         session: id,
         app_id: candidate.app_id.clone(),
@@ -324,6 +331,7 @@ pub fn attest(state: &Arc<AppState>, peer: Peer) -> Result<DesktopCaller, String
             .adapter
             .desktop_peer()
             .is_some_and(juggler_adapter::peer::DesktopPeer::can_wake),
+        facts,
     })
 }
 

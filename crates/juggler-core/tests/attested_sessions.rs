@@ -24,14 +24,19 @@ fn desktop_facts(conversation: &str) -> SessionFacts {
         app: Some("app:claude-app:/p".into()),
         tool: Some("claude-code".into()),
         conversation: Some(("folder-1".into(), conversation.into())),
-        ..SessionFacts::bare(desktop_id(conversation), None)
+        ..SessionFacts::bare(desktop_id("folder-1", conversation), None)
     }
 }
 
 #[test]
 fn attested_facts_are_read_for_their_id_only_while_kept() {
     let storage = Storage::open_in_memory().unwrap();
-    let id = desktop_id("conv-1");
+    let id = desktop_id("folder-1", "conv-1");
+    assert_ne!(
+        id,
+        desktop_id("folder-2", "conv-1"),
+        "L3: the folder is part of it"
+    );
     assert!(is_desktop_id(id.as_str()));
     assert_eq!(
         storage.sessions().pool_facts_of(&id).unwrap(),

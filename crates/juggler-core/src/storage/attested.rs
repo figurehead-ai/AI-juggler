@@ -6,8 +6,8 @@
 //!   `instances`: AI Juggler didn't start it. When its bridge's call is
 //!   fully attested (its process chain, the tool's session registry and
 //!   the app's own record; `juggler-app`'s `features/agent_bridge/attest`),
-//!   its facts are kept here under a minted id, [`DESKTOP_PREFIX`] and its
-//!   conversation, which no real session can have
+//!   its facts are kept here under a minted id, [`DESKTOP_PREFIX`], its
+//!   config folder and its conversation, which no real session can have
 //!   ([`super::SessionsRepo::insert`] refuses it).
 //! - [`super::SessionsRepo::pool_facts_of`] reads them for such an id, so
 //!   `allowed`, the resolver, `refs_of` and `role_in` treat the session as
@@ -37,10 +37,12 @@ pub fn is_desktop_id(id: &str) -> bool {
     id.starts_with(DESKTOP_PREFIX)
 }
 
-/// The id an attested desktop session gets for `conversation`.
+/// The id an attested desktop session gets for `conversation` in the
+/// config folder (row) `folder` (L3: both, so two folders' conversations
+/// can never share one).
 #[must_use]
-pub fn desktop_id(conversation: &str) -> SessionId {
-    SessionId::new(format!("{DESKTOP_PREFIX}{conversation}"))
+pub fn desktop_id(folder: &str, conversation: &str) -> SessionId {
+    SessionId::new(format!("{DESKTOP_PREFIX}{folder}/{conversation}"))
 }
 
 /// The attested desktop sessions, in memory only.
@@ -145,7 +147,7 @@ mod tests {
         let start = Instant::now();
         kept.put_at(facts("sess-1"), start);
         assert_eq!(kept.get_at(&SessionId::new("sess-1"), start), None);
-        let id = desktop_id("c-1");
+        let id = desktop_id("f", "c-1");
         kept.put_at(facts(id.as_str()), start);
         let half = start + TTL / 2;
         assert!(kept.get_at(&id, half).is_some());
@@ -162,7 +164,7 @@ mod tests {
     fn a_new_attestation_refreshes_and_forget_drops() {
         let kept = AttestedSessions::default();
         let start = Instant::now();
-        let id = desktop_id("c-2");
+        let id = desktop_id("f", "c-2");
         kept.put_at(facts(id.as_str()), start);
         kept.put_at(facts(id.as_str()), start + TTL / 2);
         assert!(kept.get_at(&id, start + TTL).is_some());

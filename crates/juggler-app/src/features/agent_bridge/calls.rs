@@ -19,6 +19,7 @@ use std::time::{Duration, Instant};
 use juggler_agentbridge::wire::{self, Call, Refusal, Request, Response};
 use juggler_core::agent_access::{AgentAction, Decision};
 use juggler_core::model::SessionId;
+use juggler_core::pools::SessionFacts;
 use juggler_core::storage::MemberRef;
 use serde_json::{Value, json};
 
@@ -125,18 +126,19 @@ pub fn handle(state: &Arc<AppState>, line: &str) -> Response {
 }
 
 /// Who a request is from: its key's session, or (AJ-E3013) the desktop
-/// session its peer was attested as.
+/// session its peer was attested as, with the facts it was attested
+/// with (L3: carried through the call).
 fn caller_of(
     state: &Arc<AppState>,
     request: &Request,
     peer: Option<juggler_platform::local_ipc::Peer>,
-) -> Result<SessionId, Response> {
+) -> Result<(SessionId, Option<SessionFacts>), Response> {
     if request.token.is_empty() {
         // ADR-0020's D-116 addendum: attested on every call, or refused.
         return peer
             .ok_or_else(|| "the system didn't name the caller".to_owned())
             .and_then(|peer| super::attest::attest(state, peer))
-            .map(|caller| caller.session)
+            .map(|caller| (caller.session, Some(caller.facts)))
             .map_err(|why| {
                 Response::refused(
                     Refusal::Unattested,
@@ -150,6 +152,7 @@ fn caller_of(
         .agent_bridge
         .session_of(&state.data_dir, &request.token)
         .filter(|session| !super::session_ended(state, session.as_str()))
+        .map(|session| (session, None))
         .ok_or_else(|| {
             Response::refused(
                 Refusal::Unknown,
@@ -172,8 +175,8 @@ fn handle_from(
             "This juggler-agent doesn't match the running AI Juggler: restart the session in AI Juggler.",
         );
     }
-    let session = match caller_of(state, &request, peer) {
-        Ok(session) => session,
+    let (session, facts) = match caller_of(state, &request, peer) {
+        Ok(found) => found,
         Err(refused) => return refused,
     };
     if !within_rate(state, &session) {
@@ -182,7 +185,7 @@ fn handle_from(
             "Too many calls in a short time: wait a few seconds.",
         );
     }
-    match answer(state, &session, &request) {
+    match answer(state, &session, facts.as_ref(), &request) {
         Ok(result) => Response::ok(result),
         Err(refused) => refused,
     }
@@ -239,11 +242,12 @@ const fn names_a_pool(call: Call) -> bool {
 fn place_of(
     state: &Arc<AppState>,
     session: &SessionId,
+    facts: Option<&SessionFacts>,
     request: &Request,
 ) -> Result<Place, Response> {
     let storage = crate::commands::lock_storage_arc(state)
         .map_err(|_| Response::refused(Refusal::Bad, "AI Juggler is busy: try again."))?;
-    let (project, account, own_ref) = whose(&storage, session)?;
+    let (project, account, own_ref) = whose(&storage, session, facts)?;
     if let Err(why) = super::settings::allows(
         &super::settings::read(&storage),
         project.as_deref(),
@@ -317,29 +321,29 @@ fn place_of(
 
 /// A session's project and account folder, for Settings › Agent access,
 /// and the member ref it's addressed by when that isn't its own session
-/// ref: from its record, or (AJ-E3013) from what its attestation kept,
-/// a desktop session then being its conversation's Watched member.
+/// ref: from its record, or (AJ-E3013) from the facts its attestation on
+/// this call gave (L3: carried, never re-read from the shared map), a
+/// desktop session then being its conversation's Watched member.
 pub(super) fn whose(
     storage: &juggler_core::storage::Storage,
     session: &SessionId,
+    facts: Option<&SessionFacts>,
 ) -> Result<(Option<String>, String, Option<MemberRef>), Response> {
     if juggler_core::storage::attested::is_desktop_id(session.as_str()) {
-        let facts = storage
-            .sessions()
-            .pool_facts_of(session)
-            .ok()
-            .flatten()
-            .ok_or_else(|| {
-                Response::refused(Refusal::Unattested, "This session's confirmation ran out.")
-            })?;
-        let (folder, id) = facts.conversation.ok_or_else(|| {
+        let facts = facts
+            .filter(|facts| facts.session == *session)
+            .ok_or_else(|| Response::refused(Refusal::Unattested, "This call wasn't attested."))?;
+        let (folder, id) = facts.conversation.clone().ok_or_else(|| {
             Response::refused(
                 Refusal::Unattested,
                 "This session's conversation isn't known.",
             )
         })?;
         return Ok((
-            facts.project.map(|project| project.as_str().to_owned()),
+            facts
+                .project
+                .as_ref()
+                .map(|project| project.as_str().to_owned()),
             folder.clone(),
             Some(MemberRef::Conversation { folder, id }),
         ));
@@ -394,9 +398,10 @@ fn by_feature(
 fn answer(
     state: &Arc<AppState>,
     session: &SessionId,
+    facts: Option<&SessionFacts>,
     request: &Request,
 ) -> Result<Value, Response> {
-    let place = place_of(state, session, request)?;
+    let place = place_of(state, session, facts, request)?;
     if let Some(answered) = by_feature(state, session, &place, request) {
         return answered;
     }

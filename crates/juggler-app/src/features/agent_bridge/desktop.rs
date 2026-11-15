@@ -49,12 +49,14 @@ fn waits() -> &'static Arc<tokio::sync::Semaphore> {
 /// The session a message's sender ref stands for (a session, a Work
 /// item's live session, or an attested desktop session's conversation).
 fn sender_session(storage: &juggler_core::storage::Storage, sender: &str) -> Option<SessionId> {
-    if let Some(conversation) = sender
+    if let Some((folder, conversation)) = sender
         .strip_prefix("conversation:")
         .and_then(|rest| rest.split_once('/'))
-        .map(|(_, id)| id)
     {
-        return Some(juggler_core::storage::attested::desktop_id(conversation));
+        return Some(juggler_core::storage::attested::desktop_id(
+            folder,
+            conversation,
+        ));
     }
     crate::features::messages::live_session_of(storage, sender)
 }
@@ -207,14 +209,16 @@ pub fn report(state: &Arc<AppState>, report: &wire::Report, peer: Option<Peer>) 
     };
     // The tools' own switch (Settings › Agent access) governs the note too.
     let allowed = crate::commands::lock_storage_arc(state).is_ok_and(|storage| {
-        super::calls::whose(&storage, &caller.session).is_ok_and(|(project, account, _)| {
-            super::settings::allows(
-                &super::settings::read(&storage),
-                project.as_deref(),
-                &account,
-            )
-            .is_ok()
-        })
+        super::calls::whose(&storage, &caller.session, Some(&caller.facts)).is_ok_and(
+            |(project, account, _)| {
+                super::settings::allows(
+                    &super::settings::read(&storage),
+                    project.as_deref(),
+                    &account,
+                )
+                .is_ok()
+            },
+        )
     });
     let note = (allowed
         && juggler_agentbridge::hook::NOTE_EVENTS.contains(&report.hook.event.as_str()))
