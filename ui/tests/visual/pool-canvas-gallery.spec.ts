@@ -287,7 +287,8 @@ test("drag: a session from the palette in, a node to a new place", async ({ page
   await expect(page.getByTestId("canvas-drag-ghost")).toBeVisible();
   await page.mouse.up();
   await expect(page.getByTestId("canvas-node")).toHaveCount(7);
-  expect(await calls(page, "__AIJ_POOL_CALLS__")).toContain("move:s-tests:pool-checkout");
+  // Adding a session keeps its other pools: a join, not a move (d5737c715, D-62 decision 10).
+  expect(await calls(page, "__AIJ_POOL_CALLS__")).toContain("join:pool-checkout:session:s-tests:member:");
   // The first arrangement keeps every node where it is.
   const placed = (await calls(page, "__AIJ_POOL_CANVAS_CALLS__")).join("\n");
   expect(placed).toContain("s-tests@");

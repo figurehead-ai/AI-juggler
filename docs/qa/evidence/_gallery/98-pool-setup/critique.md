@@ -1,4 +1,4 @@
-<!-- captures: 55348093e982 -->
+<!-- captures: a9c5103d0db9 -->
 # 98-pool-setup: the pool setup a newcomer understands (AJ-E3011)
 
 Design critique (D-57, AJ-E2814) against the reference screens: Settings' choice lines, the switch dialog's "What does this mean?", and the calm UI round 2 mocks (levels, section labels, surface tone). Every step of New pool, empty (the first pool: the intro full, nothing chosen, the defaults filled in) and filled (a name, two Apps, an App's next session leading, a Reviewer, a pair blocked, waking, the seal), dark and light, 1280×800. Fixture names only.
@@ -57,3 +57,12 @@ Checked by eye, dark and light, empty and filled, against the calm rules (L0 sur
 | Review | A Team tools line: "Off: they can't message yet." with what they give, the cost, "asked once" and a link to Settings › Agent access, and Turn on in the Change column; "On: …" once on. The leading App reads as one member. Pass. |
 
 - Moved by round 2 (all 32 captures): the foot's and steps' words, the chips, the kinds row and side panel, the role reference, the labelled pickers, the radios on On their own, Review's Team tools line.
+
+## Round 3 (AJ-E3011): one control per setting, both paths
+
+New pool and the diagram now share every control and sentence (the lead control with its read-back, the team tools card, On their own, the summary); `paths-parity.test.tsx` fails if they drift. On these screens, dark and light:
+
+- Who leads: the read-back is the lead control's own; the note "Once the pool is made, Start one now on its App's card starts that session." sits under it (only a made pool can start one). Pass.
+- Everyone else: an App's role picker reads "Role: Lead: its next session leads" when its next session leads (chosen here or in Who leads); a wider group says why it can't lead, beside its picker. Pass.
+- Who may message whom: the line above the table says what Needs you is ("the list of things waiting for your OK, on Home"). Pass.
+- Review: the Team tools sentence, then the full team tools card (the diagram's own) in place of round 2's extra line. Pass.

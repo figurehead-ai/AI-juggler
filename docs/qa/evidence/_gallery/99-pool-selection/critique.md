@@ -1,4 +1,4 @@
-<!-- captures: b3db9b5b896a -->
+<!-- captures: 7c9eeaeb2910 -->
 # 99-pool-selection: the canvas's selection and the inspector's title (AJ-E3012)
 
 Design critique (D-57, AJ-E2814) against 97-pool-canvas (the canvas before) and the calm UI round 2 rules. The canvas with each kind selected — nothing (the pool), a session, an App, an Account, a Tool, everyone in scope, a line, the pool's own setup opened from the checklist, and the lead's place waiting for an App's next session — dark and light, 1280×800. Fixture names only.
@@ -49,3 +49,14 @@ Checked by eye, dark and light, against the calm rules and the checklist above.
 - The pool's own inspector keeps the team tools card above the checklist while they're off for it (see 92-agent-tools), and still once every step is done.
 - Weak, seen (not from this round): at the 38 % fit a line from "Fix the cart…" crosses the "Checko…" and "Review…" names when the Account is selected, and the "Review…" badge's line meets its edge; both from the canvas's edge routing.
 - Moved by round 2 (all 18 captures): the header's Diagram label, the broad cards' open-now words, and selection-lead-next (the one App card and its inspector).
+
+## Round 3 (AJ-E3011, the diagram path)
+
+The walk set a project's own pool up on the diagram and found it said less than New pool. Checked by eye, dark and light:
+
+- selection-pool (nothing selected): the inspector opens on the summary in the Review's own sentences (who's in, who leads, on their own, team tools, each with its Change), then what waits for you in **Needs you** (said with what it is, a link to it), the team tools card while they're off, then the checklist. The facts block ("Messages · Wait for you", "Pause after 5 in a row") is gone. Pass.
+- selection-pool-setup: the pool's settings keep Who's in, Who leads (the setup's LeadPicker and its read-back) and Everyone else open; Who may message whom and What they may do on their own are folds with the setup's own why-lines, open when the checklist opens them; the rest of its settings (Allowed without asking, Messages into sessions, Used this week, Notifications, Your other Macs, Pools its agents may write to) are folds closed at first, each with one plain line. Pass.
+- selection-app-role (new): an App's role menu offers "Lead: its next session leads" with its line, enabled; an Account's Lead stays greyed with "Lead is one session; pick one of this Account's sessions to lead." in the menu and beside the picker. Pass.
+- The header reads "On their own (everyone in this pool): Work together", the setup's own control as a menu.
+- Everyone's card reads "Every new session in any project joins here, now and later".
+- Weak: the summary's Who's in names three and "and N more"; at 1280×800 the checklist starts below the fold when the team tools card shows.

@@ -208,13 +208,18 @@ for (const r of ROWS) {
     } else await roles.getByTestId("new-pool-member-role").click();
     if (everyone) {
       // Set above.
+    } else if (nextLead) {
+      // Round 3 (#1): an App's Lead is its next session's, chosen in Who leads or here.
+      await page.getByRole("menuitemradio", { name: /^Lead: its next session leads/ }).click();
+      await expect(roles.getByTestId("new-pool-member-leads-next")).toHaveText("Leads next");
+      await expect(roles.getByTestId("new-pool-member-role")).toContainText("Lead: its next session leads");
     } else if (broad && r.role === "lead") {
-      // Lead is greyed with its reason; the App's row says it leads next.
+      // A wider group can't lead: greyed, with its reason, and the reason in view beside it.
       await expect(page.getByRole("menuitemradio", { name: /^Lead/ })).toBeDisabled();
       await page.getByRole("menuitemradio", { name: /^Member/ }).click();
-      if (nextLead) await expect(roles.getByTestId("new-pool-member-leads-next")).toHaveText("Leads next");
+      await expect(roles.getByTestId("new-pool-member-lead-why")).toContainText("Lead is one session");
     } else await page.getByRole("menuitemradio", { name: new RegExp(`^${ROLE[role]!}`) }).click();
-    if (!everyone) await expect(roles.getByTestId("new-pool-member-role")).toContainText(ROLE[role]!);
+    if (!everyone && !nextLead) await expect(roles.getByTestId("new-pool-member-role")).toContainText(ROLE[role]!);
     // Everyone in scope follows the pool's own choice (no own picker for it).
     if (r.own_level === "member" && !everyone) {
       const own = r.level === "full" ? "Look only" : "Work together and wake each other";

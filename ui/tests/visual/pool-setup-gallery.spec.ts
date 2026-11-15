@@ -178,6 +178,14 @@ for (const theme of ["dark", "light"] as const) {
       await shoot(page, SELECTION, `selection-${file}-1280x800-${theme}.png`);
     }
 
+    // Round 3 (#1): an App's role picker offers Lead as its next session's.
+    await page.locator('[data-rule-ref="app:cli:claude-personal"]').scrollIntoViewIfNeeded();
+    await page.locator('[data-rule-ref="app:cli:claude-personal"]').click();
+    await page.getByTestId("inspect-rule-role").click();
+    await expect(page.getByRole("menuitemradio", { name: /^Lead: its next session leads/ })).toBeEnabled();
+    await shoot(page, SELECTION, `selection-app-role-1280x800-${theme}.png`);
+    await page.keyboard.press("Escape");
+
     // A line, from the pool's live stream.
     await page.getByTestId("inspector-back").click();
     await page.getByTestId("inspect-stream").getByRole("button", { name: /Planner wrote to Fix the cart totals/ }).click();

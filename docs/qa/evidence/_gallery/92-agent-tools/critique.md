@@ -1,4 +1,4 @@
-<!-- captures: 7d6ed6c067f1 -->
+<!-- captures: fd5a0b1dafeb -->
 # 92-agent-tools: agent tools, the question on a pool's canvas and the setting with where they are off
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design passes.
