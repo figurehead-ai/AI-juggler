@@ -260,7 +260,15 @@ pub(crate) async fn wait_with(
                 .flatten()
         };
         if let Some(notice) = found {
-            return Response::ok(serde_json::json!({ "wake": notice }));
+            // L8: still the same conversation? (A /clear or a resume
+            // during the wait must not get the old one's notice.)
+            let again = {
+                let (state, attestor) = (Arc::clone(&state), Arc::clone(&attestor));
+                tauri::async_runtime::spawn_blocking(move || attestor(&state, peer)).await
+            };
+            let same = matches!(&again, Ok(Ok(now)) if now.session == caller.session);
+            let wake = same.then_some(notice);
+            return Response::ok(serde_json::json!({ "wake": wake }));
         }
         if Instant::now() + look_every > until {
             return Response::ok(serde_json::json!({ "wake": null }));

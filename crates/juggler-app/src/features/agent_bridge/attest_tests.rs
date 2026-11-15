@@ -841,3 +841,107 @@ fn message_for(state: &Arc<AppState>, pool: &str, id: &str, conversation: &str) 
     })
     .unwrap();
 }
+
+/// L8: the wait is attested again before its notice goes out: when the
+/// session's conversation changed meanwhile (a /clear, a resume), the
+/// notice is dropped.
+#[test]
+fn a_notice_is_dropped_when_the_conversation_changed_during_the_wait() {
+    use juggler_agentbridge::wire::Wait;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    use std::time::Duration;
+    let dir = tempfile::tempdir().unwrap();
+    let (state, pool) = lab(dir.path());
+    {
+        let storage = state.storage.lock().unwrap();
+        storage
+            .agent_access()
+            .set_level(&pool, AccessLevel::Full, &std::collections::BTreeSet::new())
+            .unwrap();
+        for n in 0..4 {
+            storage
+                .pools()
+                .join(
+                    &pool,
+                    &MemberRef::Conversation {
+                        folder: FOLDER.into(),
+                        id: conversation(n),
+                    },
+                    &[],
+                    PoolRole::Member,
+                    None,
+                )
+                .unwrap();
+            storage.attested().put(facts_of(n));
+        }
+    }
+    let run = |changes: bool| {
+        let calls = Arc::new(AtomicUsize::new(0));
+        let attestor: super::desktop::Attestor = {
+            let calls = Arc::clone(&calls);
+            Arc::new(move |_state, _peer| {
+                // Unchanged: conversation 0 throughout. Changed: 2 when it
+                // starts to wait, 3 by the time its notice would go.
+                let first = calls.fetch_add(1, Ordering::SeqCst) == 0;
+                let n = match (changes, first) {
+                    (false, _) => 0,
+                    (true, true) => 2,
+                    (true, false) => 3,
+                };
+                Ok(super::attest::DesktopCaller {
+                    session: desktop_id(FOLDER, &conversation(n)),
+                    app_id: "app:claude-app:/x".into(),
+                    folder: FOLDER.into(),
+                    conversation: conversation(n),
+                    tool_pid: 1,
+                    can_wake: true,
+                    facts: facts_of(n),
+                })
+            })
+        };
+        let peer = juggler_platform::local_ipc::Peer {
+            pid: Some(if changes { 2_001 } else { 2_002 }),
+            pid_version: Some(1),
+            accepted: std::time::SystemTime::now(),
+        };
+        let wait = Wait {
+            v: juggler_agentbridge::wire::VERSION,
+            token: String::new(),
+            wait_secs: 3,
+        };
+        let state = Arc::clone(&state);
+        let pool = pool.clone();
+        tauri::async_runtime::block_on(async move {
+            let handle = tauri::async_runtime::spawn(super::desktop::wait_with(
+                Arc::clone(&state),
+                wait,
+                peer,
+                attestor,
+                Duration::from_millis(50),
+            ));
+            tokio::time::sleep(Duration::from_millis(200)).await;
+            message_for(
+                &state,
+                &pool,
+                if changes { "m-a" } else { "m-b" },
+                &conversation(if changes { 2 } else { 0 }),
+            );
+            handle.await.unwrap()
+        })
+    };
+    let kept = run(false);
+    assert!(
+        kept.result.unwrap()["wake"].is_string(),
+        "the same conversation"
+    );
+    let dropped = run(true);
+    assert!(
+        dropped.result.unwrap()["wake"].is_null(),
+        "the conversation changed: dropped"
+    );
+    // It was the re-attestation that dropped it: the message was due.
+    assert!(
+        super::desktop::wake_for(&state, &desktop_id(FOLDER, &conversation(2))).is_none(),
+        "already counted as woken (the budget), so it went no further"
+    );
+}
