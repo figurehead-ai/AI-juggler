@@ -96,7 +96,7 @@ export function NewPoolWho({
   // there too (the P8 walk: a Kimi Code App left "0 shell only").
   const count = (reach: Reach) => draft.members.filter((member) => member.reach === reach || (reach === "shell" && member.reach === "later" && member.shell)).length;
   return (
-    <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1.6fr)_minmax(240px,1fr)]">
+    <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1.6fr)_minmax(240px,1fr)]" data-testid="new-pool-step-who">
       <div className="flex min-w-0 flex-col gap-4">
         <StepHead step="who" />
         <section className="flex flex-col gap-2" aria-label="Who's in">

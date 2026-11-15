@@ -57,7 +57,11 @@ export function PoolSetupSections({
   const [busy, setBusy] = useState(false);
   const focus = selection.kind === "pool" ? selection.focus : undefined;
   useEffect(() => {
-    if (focus) document.getElementById(`pool-setup-${focus}`)?.scrollIntoView({ block: "start" });
+    // Only the inspector's own list scrolls (scrollIntoView moved the whole
+    // window: the app's frame slid up under the gallery's capture).
+    const section = focus ? document.getElementById(`pool-setup-${focus}`) : null;
+    const list = section?.closest<HTMLElement>("[data-canvas-scroll]");
+    if (section && list) list.scrollTop += section.getBoundingClientRect().top - list.getBoundingClientRect().top;
   }, [focus]);
   const run = (what: string, work: () => Promise<unknown>) => {
     setBusy(true);

@@ -10,7 +10,7 @@ import type { JSX, ReactNode } from "react";
 
 import { leadOf, type Draft, type Reach } from "../../lib/new-pool";
 import { ruleOf, TALK_ROLES } from "../../lib/pool-templates";
-import { TALK_WORDS, joinSentence, leadSentence, levelSentence, memberSentence, roleCard } from "../../lib/pool-words";
+import { TALK_WORDS, joinSentence, leadSentence, levelSentence, memberSentence, roleCard, type SetupStep } from "../../lib/pool-words";
 import { openNowWords } from "../../lib/pool-open-now";
 import { PoolToolsCard } from "../../pages/pool/setup/PoolToolsCard";
 import { StepHead } from "./StepHead";
@@ -56,6 +56,7 @@ export function NewPoolReview({
   where,
   nameOf = (_, label) => label,
   openNow,
+  onChange,
 }: {
   draft: Draft;
   /** The name it gets (typed, else the suggestion). */
@@ -66,7 +67,10 @@ export function NewPoolReview({
   /** Each member's open sessions here now (`openNowByMember`): a broad
    * member says them as its canvas card will (the rc27 P1 walk). */
   openNow?: ReadonlyMap<string, number>;
+  /** Back to a step to change it (each sentence's Change). */
+  onChange?: (step: SetupStep) => void;
 }): JSX.Element {
+  const change = (step: SetupStep) => (onChange ? () => onChange(step) : undefined);
   const lead = leadOf(draft);
   const leadName = lead.kind === "session" ? nameOf(lead.ref, draft.members.find((member) => member.ref === lead.ref)?.label ?? "A session") : null;
   const nextName = lead.kind === "next" ? nameOf(lead.app, draft.members.find((member) => member.ref === lead.app)?.label ?? "An App") : null;
@@ -76,12 +80,12 @@ export function NewPoolReview({
     <div className="flex max-w-3xl flex-col gap-5" data-testid="new-pool-step-review">
       <StepHead step="review" />
       <dl className="flex flex-col gap-1" data-testid="new-pool-review">
-        <Sentence title="Name and where">
+        <Sentence title="Name and where" onChange={change("where")}>
           «{name}» works in {where}.
         </Sentence>
-        <Sentence title="Who's in">{whoSentence(draft, nameOf)}</Sentence>
-        <Sentence title="Who leads">{leadSentence(leadName, nextName)}</Sentence>
-        <Sentence title="Everyone else">
+        <Sentence title="Who's in" onChange={change("who")}>{whoSentence(draft, nameOf)}</Sentence>
+        <Sentence title="Who leads" onChange={change("lead")}>{leadSentence(leadName, nextName)}</Sentence>
+        <Sentence title="Everyone else" onChange={change("everyone")}>
           {joinSentence(where, everyone?.role ?? null, everyone?.level ?? draft.level)}
           {named
             .filter((member) => member.role !== "lead")
@@ -91,9 +95,9 @@ export function NewPoolReview({
               </span>
             ))}
         </Sentence>
-        <Sentence title="Who may message whom">{talkSentence(draft)}</Sentence>
-        <Sentence title="On their own">{levelSentence(draft.level)}</Sentence>
-        <Sentence title="Kept apart">{draft.sealed ? "Sealed: its sessions are in no other pool, and nothing leaves it through AI Juggler." : "Not sealed: its sessions can be in other pools too."}</Sentence>
+        <Sentence title="Who may message whom" onChange={change("talk")}>{talkSentence(draft)}</Sentence>
+        <Sentence title="On their own" onChange={change("own")}>{levelSentence(draft.level)}</Sentence>
+        <Sentence title="Kept apart" onChange={change("own")}>{draft.sealed ? "Sealed: its sessions are in no other pool, and nothing leaves it through AI Juggler." : "Not sealed: its sessions can be in other pools too."}</Sentence>
       </dl>
       {named.length > 0 && (
         <section className="flex flex-col gap-1.5" aria-label="What each member can do here">
@@ -115,11 +119,18 @@ export function NewPoolReview({
   );
 }
 
-function Sentence({ title, children }: { title: string; children: ReactNode }): JSX.Element {
+function Sentence({ title, children, onChange }: { title: string; children: ReactNode; onChange?: () => void }): JSX.Element {
   return (
-    <div className="grid grid-cols-1 gap-x-4 gap-y-0.5 rounded-lg px-1 py-1.5 sm:grid-cols-[11rem_1fr]">
+    <div className="grid grid-cols-1 items-start gap-x-4 gap-y-0.5 rounded-lg px-1 py-1.5 sm:grid-cols-[11rem_1fr_auto]">
       <dt className="section-label pt-0.5">{title}</dt>
       <dd className="text-body text-ink">{children}</dd>
+      {onChange && (
+        <dd>
+          <button type="button" onClick={onChange} className="btn-ghost rounded-md px-1.5 py-0.5 text-meta outline-none focus-visible:ring-2 focus-visible:ring-accent/60" data-testid="new-pool-review-change">
+            Change<span className="sr-only"> {title.toLowerCase()}</span>
+          </button>
+        </dd>
+      )}
     </div>
   );
 }

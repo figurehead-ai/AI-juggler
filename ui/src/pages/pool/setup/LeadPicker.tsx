@@ -10,6 +10,7 @@
 import type { JSX } from "react";
 
 import { ChoiceOption } from "../../../components/controls";
+import { SELECTED_FILL } from "../../../components/controls/selected";
 import type { LeadChoice } from "../../../lib/new-pool";
 import { LEAD_WOULD, nextSessionWords } from "../../../lib/pool-words";
 
@@ -54,7 +55,7 @@ export function LeadPicker({
       onChange={() => onChange(choice)}
       label={title}
       hint={detail}
-      className={same(choice, value) ? "bg-surface-3" : ""}
+      className={same(choice, value) ? SELECTED_FILL : ""}
       data-testid={`${testId}-option`}
       data-kind={kind}
       data-ref={key}

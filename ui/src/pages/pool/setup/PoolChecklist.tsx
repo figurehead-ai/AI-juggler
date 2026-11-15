@@ -10,6 +10,7 @@
 import type { JSX } from "react";
 
 import { IconCheck } from "../../../components/icons-controls";
+import { SELECTED_FILL } from "../../../components/controls/selected";
 import type { SetupRow } from "../../../lib/pool-setup";
 import { STEP_WORDS, type SETUP_STEPS } from "../../../lib/pool-words";
 import { PoolToolsCard } from "./PoolToolsCard";
@@ -55,7 +56,7 @@ export function PoolChecklist({ rows, onOpen, compact = false }: { rows: readonl
                 type="button"
                 onClick={() => onOpen(row.step)}
                 aria-current={isNext ? "step" : undefined}
-                className={"grid w-full grid-cols-[20px_1fr] items-start gap-x-2.5 rounded-lg px-2 py-1.5 text-left outline-none transition-colors hover:bg-surface-3 focus-visible:ring-2 focus-visible:ring-accent/60 " + (isNext ? "bg-surface-3" : "")}
+                className={"grid w-full grid-cols-[20px_1fr] items-start gap-x-2.5 rounded-lg px-2 py-1.5 text-left outline-none transition-colors hover:bg-surface-3 focus-visible:ring-2 focus-visible:ring-accent/60 " + (isNext ? SELECTED_FILL : "")}
                 data-testid="pool-checklist-step"
                 data-step={row.step}
                 data-done={row.done}

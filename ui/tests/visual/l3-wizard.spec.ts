@@ -4,18 +4,19 @@
  * of template, scope, member kind, capability, role, level, a member's own
  * level, a pair's rule, sealing, theme and width is walked at least once.
  *
- * Each row: Pools › New pool › the template (or Set up by hand, which
- * opens the canvas to set up there); Where (every project, one, several,
- * or sessions with no project); Who: a member of the row's kind (a whole
- * App, Account, Tool, Mac or everyone joins later) and, beside it, a
- * session of the row's capability (full tools, shell only, watched); "not
- * matched": a session the pool can't take as it is shows greyed, with its
- * reason and its fix. Roles and talk: the member's role and its own level
- * (or the pool's), the pool's level, one talk cell changed ("one-pair"),
- * sealed or not. The review says it; Make makes it with the user's own
- * calls and opens its canvas; a "custom" level is set there, in the
- * header (the wizard offers Read, Work together and Full). A pair of two
- * members set apart is the canvas table's (`canvas.csv`, edge overridden).
+ * Each row walks the setup in its order (AJ-E3011): How to start (the
+ * template, or Start from scratch for the table's "by hand"); Where (every
+ * project, one, several, or sessions with no project); Who's in: a member
+ * of the row's kind (a whole App, Account, Tool, Mac or everyone joins
+ * later) and, beside it, a session of the row's capability (full tools,
+ * shell only, watched); "not matched": a session the pool can't take as it
+ * is shows greyed, with its reason and its fix; Who leads; Everyone else:
+ * the member's role and its own choice (or the pool's); Who may message
+ * whom: one cell changed ("one-pair"); What they may do on their own, and
+ * the seal. The review says it; Make makes it with the user's own calls
+ * and opens its canvas; a "custom" choice is set there, in the header (the
+ * setup offers the three). A pair of two members set apart is the canvas
+ * table's (`canvas.csv`, edge overridden).
  * Every click's feedback is timed (≤ 100 ms), written to
  * `docs/qa/evidence/l3/wizard.json`.
  */
@@ -39,7 +40,8 @@ const TEMPLATE: Record<string, string> = { "writer-and-reviewer": "writer-review
 const KIND: Record<string, RegExp> = { session: /^Sessions/, app: /^Apps/, account: /^Accounts/, tool: /^Tools/, mac: /^Macs/, "everyone-in-scope": /^Everyone/ };
 const REACH: Record<string, string> = { full: "full tools", shell: "shell only", watched: "watched" };
 const ROLE: Record<string, string> = { lead: "Lead", member: "Member", reviewer: "Reviewer", observer: "Observer" };
-const LEVEL: Record<string, string> = { read: "Read", "work-together": "Work together", full: "Full", custom: "Work together" };
+// AJ-E3011: the words for what sessions may do on their own ("Level" is gone).
+const LEVEL: Record<string, string> = { read: "Look only", "work-together": "Work together", full: "Work together and wake each other", custom: "Work together" };
 
 const folder = (id: string, provider: string, label: string) => ({ id, provider, label, plan: null, login_state: "logged_in", cleanup_opt_in: false, renewal_date: null, preview_opt_in: false, in_place: false });
 const project = (id: string, name: string) => ({ id, root: `/Users/you/Dev/${name}`, name, last_activity_ms: T0 - 60_000, active_instance: null, accounts_used: [], instance_count: 2, history_sessions: 2, history_last_used_ms: null, repo: null, missing: false, pinned: false });
@@ -124,17 +126,10 @@ for (const r of ROWS) {
     const wizard = page.getByTestId("new-pool");
     await expect(wizard).toBeVisible();
 
-    // By hand: the canvas, to set it up there (its own table's).
-    if (r.template === "by-hand") {
-      await page.getByTestId("new-pool-by-hand").click();
-      await expect(wizard).toHaveCount(0);
-      await expect(page.getByTestId("pool-canvas")).toBeVisible();
-      times[r.row] = (await walkSteps(page)).map((ms) => Math.round(ms));
-      return;
-    }
-
-    // 1. The template.
-    await wizard.locator(`[data-testid=new-pool-template][data-template="${TEMPLATE[r.template] ?? r.template}"]`).click();
+    // AJ-E3011: "Set up by hand" became Start from scratch, the first card.
+    const template = r.template === "by-hand" ? "blank" : (TEMPLATE[r.template] ?? r.template);
+    // 1. How to start.
+    await wizard.locator(`[data-testid=new-pool-template][data-template="${template}"]`).click();
     await page.getByTestId("new-pool-next").click();
 
     // 2. Where.
@@ -154,8 +149,9 @@ for (const r of ROWS) {
         await add("payments-api");
       } else await add("Sessions with no project");
     }
+    await expect(page.getByTestId("new-pool-where-words")).toContainText(r.scope === "every-project" ? "any project" : r.scope === "one-project" ? "ai-juggler" : r.scope === "several-projects" ? "payments-api" : /no project/i);
+    await page.getByTestId("new-pool-next").click();
     const side = page.getByTestId("new-pool-side");
-    await expect(side).toContainText(r.scope === "every-project" ? "Every project" : r.scope === "one-project" ? "ai-juggler" : r.scope === "several-projects" ? "payments-api" : /no project/i);
 
     // Who: the row's kind; then a session of the row's capability.
     const kinds = page.getByTestId("new-pool-kind");
@@ -177,25 +173,37 @@ for (const r of ROWS) {
     await expect(side.getByText(new RegExp(`^${r.capability === "full" ? "\\d+ full" : r.capability === "shell" ? "\\d+ shell only" : "\\d+ watched"}$`))).toBeVisible();
     await page.getByTestId("new-pool-next").click();
 
-    // 3. Roles and talk.
-    const roles = page.getByTestId("new-pool-roles").locator("li").filter({ hasText: label }).first();
-    await roles.getByRole("radio", { name: ROLE[r.role]!, exact: true }).click();
-    await expect(roles.getByRole("radio", { name: ROLE[r.role]!, exact: true })).toHaveAttribute("aria-checked", "true");
-    await page.getByTestId("new-pool-level").getByRole("radio", { name: LEVEL[r.level]!, exact: true }).click();
+    // 3. Who leads: a Lead row picks its session in the picker.
+    await expect(page.getByTestId("new-pool-step-lead")).toBeVisible();
+    await page.getByTestId("new-pool-next").click();
+
+    // 4. Everyone else: the member's role and its own choice.
+    const roles = page.getByTestId("new-pool-member-row").filter({ hasText: label }).first();
+    await roles.getByTestId("new-pool-member-role").click();
+    await page.getByRole("menuitemradio", { name: new RegExp(`^${ROLE[r.role]!}`) }).click();
+    await expect(roles.getByTestId("new-pool-member-role")).toContainText(ROLE[r.role]!);
     if (r.own_level === "member") {
-      const own = r.level === "full" ? "Level: Read" : "Level: Full";
-      await roles.getByRole("button", { name: `${label}'s level` }).click();
-      await page.getByRole("menu").last().getByText(own, { exact: true }).click();
-      await expect(roles.getByRole("button", { name: `${label}'s level` })).toContainText(own.replace("Level: ", ""));
+      const own = r.level === "full" ? "Look only" : "Work together and wake each other";
+      await roles.getByTestId("new-pool-member-level").click();
+      await page.getByRole("menuitemradio", { name: new RegExp(`^${own}`) }).click();
+      await expect(roles.getByTestId("new-pool-member-level")).toContainText(own);
     }
+    await page.getByTestId("new-pool-next").click();
+
+    // 5. Who may message whom.
     let changed: string | null = null;
     if (r.pair_override === "one-pair") {
       const cell = page.locator('[data-testid=new-pool-talk-cell][data-pair="member>member"]');
-      const before = (await cell.textContent()) ?? "";
+      const before = (await cell.getAttribute("data-rule")) ?? "";
       await cell.click();
-      changed = (await cell.textContent()) ?? "";
+      changed = (await cell.getAttribute("data-rule")) ?? "";
       expect(changed).not.toBe(before);
+      changed = changed === "ask" ? "Ask first" : changed === "blocked" ? "Blocked" : "Allowed";
     }
+    await page.getByTestId("new-pool-next").click();
+
+    // 6. What they may do on their own, then the seal.
+    await page.getByTestId("new-pool-level").getByRole("radio", { name: LEVEL[r.level]!, exact: true }).click();
     if (r.sealed === "on") {
       await page.getByTestId("new-pool-seal").getByRole("checkbox").check();
       await expect(page.getByTestId("new-pool-seal").getByRole("checkbox")).toBeChecked();
@@ -209,7 +217,8 @@ for (const r of ROWS) {
     // summed up when it makes every pair the same ("Everyone may message
     // everyone").
     if (changed) await expect(review).toContainText(new RegExp(`Member to Member: ${changed.toLowerCase()}|Everyone may message everyone|No one may message|asks you first`, "i"));
-    const name = await page.getByTestId("new-pool-name").inputValue();
+    // The name: typed, or the one Review says it gets.
+    const name = ((await review.textContent()) ?? "").match(/«([^»]+)»/)?.[1] ?? "";
     expect(name.trim().length).toBeGreaterThan(0);
     await page.getByTestId("new-pool-next").click();
     await expect(wizard).toHaveCount(0);

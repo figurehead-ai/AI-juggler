@@ -46,14 +46,47 @@ export function TalkTable({
   onCycle: (from: PoolRole, to: PoolRole) => void;
   disabled?: boolean;
   testId?: string;
-  /** The inspector's narrow column: short column heads. */
+  /** The inspector's narrow column: a line per role, its pairs wrapping. */
   compact?: boolean;
 }): JSX.Element {
+  const cell = (from: PoolRole, to: PoolRole, words: string) => {
+    const rule = ruleOf(from, to);
+    return (
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => onCycle(from, to)}
+        aria-label={`${roleCard(from).label} to ${talkColumnLabel(to)}: ${TALK_WORDS[rule].label}. Press to change.`}
+        className="rounded-md px-1.5 py-1 text-left outline-none transition-colors hover:bg-surface-2 focus-visible:ring-2 focus-visible:ring-ink-2/70 disabled:opacity-60"
+        data-testid={`${testId}-cell`}
+        data-pair={`${from}>${to}`}
+        data-rule={rule}
+      >
+        {words && <span className="text-muted">{words} </span>}
+        <Rule rule={rule} />
+      </button>
+    );
+  };
   return (
     <div className="flex flex-col gap-2">
       <p className="text-meta text-ink-2" data-testid={`${testId}-above`}>
         {TALK_ABOVE}
       </p>
+      {compact ? (
+        // The inspector's narrow column: each role's line, its pairs wrapping.
+        <ul className="flex flex-col gap-2" data-testid={testId}>
+          {TALK_ROLES.map((from) => (
+            <li key={from} className="flex flex-col gap-0.5">
+              <span className="text-meta font-medium text-ink">{talkRowLabel(from)}</span>
+              <span className="flex flex-wrap gap-x-1 gap-y-0.5 text-meta">
+                {TALK_ROLES.filter((to) => !(from === to && from === "lead")).map((to) => (
+                  <span key={to}>{cell(from, to, `${talkColumnLabel(to)}:`)}</span>
+                ))}
+              </span>
+            </li>
+          ))}
+        </ul>
+      ) : (
       <div className="overflow-x-auto">
         <table className="w-full border-separate border-spacing-y-0.5 text-meta" data-testid={testId}>
           <thead>
@@ -63,7 +96,7 @@ export function TalkTable({
               </th>
               {TALK_ROLES.map((to) => (
                 <th key={to} scope="col" className="section-label px-1.5 pb-1 text-left">
-                  {compact ? roleCard(to).label : talkColumnLabel(to)}
+                  {talkColumnLabel(to)}
                 </th>
               ))}
             </tr>
@@ -83,21 +116,9 @@ export function TalkTable({
                       </td>
                     );
                   }
-                  const rule = ruleOf(from, to);
                   return (
                     <td key={to} className="p-0">
-                      <button
-                        type="button"
-                        disabled={disabled}
-                        onClick={() => onCycle(from, to)}
-                        aria-label={`${roleCard(from).label} to ${talkColumnLabel(to)}: ${TALK_WORDS[rule].label}. Press to change.`}
-                        className="w-full rounded-md px-1.5 py-1 text-left outline-none transition-colors hover:bg-surface-2 focus-visible:ring-2 focus-visible:ring-ink-2/70 disabled:opacity-60"
-                        data-testid={`${testId}-cell`}
-                        data-pair={`${from}>${to}`}
-                        data-rule={rule}
-                      >
-                        <Rule rule={rule} />
-                      </button>
+                      {cell(from, to, "")}
                     </td>
                   );
                 })}
@@ -106,6 +127,7 @@ export function TalkTable({
           </tbody>
         </table>
       </div>
+      )}
       <p className="text-meta text-ink-2" data-testid={`${testId}-below`}>
         {TALK_BELOW} {CLAUDE_CHANNEL_NOTE}
       </p>

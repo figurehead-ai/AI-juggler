@@ -5,6 +5,7 @@
  * End too), as the platform's own segmented controls do.
  */
 import { useRef, type JSX, type KeyboardEvent } from "react";
+import { SELECTED } from "./selected";
 
 export interface Segment<T extends string> {
   value: T;
@@ -35,7 +36,7 @@ export function Segmented<T extends string>({
   wrap?: boolean;
   /** 0.4.6 (AJ-E3011): the calm look on the pool screens, as 0.5 draws
    * every segmented control (D-117): filled, no outline, the chosen one
-   * the raised surface told apart by fill, weight and ink, not hue. */
+   * 0.5's SELECTED (a 3:1 neutral edge, the raised fill, semibold ink). */
   calm?: boolean;
 }): JSX.Element {
   const refs = useRef<(HTMLButtonElement | null)[]>([]);
@@ -93,7 +94,7 @@ export function Segmented<T extends string>({
               // design review, 32).
               (on
                 ? calm
-                  ? "bg-surface-3 font-medium text-ink-2 shadow-[inset_0_0_0_1px_var(--color-hairline)]"
+                  ? SELECTED
                   : "bg-accent-soft font-semibold text-accent-hi"
                 : "text-muted hover:bg-surface-2 hover:text-ink")
             }

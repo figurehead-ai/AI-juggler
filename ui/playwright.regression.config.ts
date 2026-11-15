@@ -21,6 +21,9 @@ const GALLERY_SPECS = [
   // 0.3's (E28): the shared controls, the header and its screens, the
   // pool canvas, what the other tool was told, and the Subagents tab.
   "controls-gallery", "handover-told-gallery", "nav-gallery", "pool-canvas-gallery", "subagents-gallery",
+  // 0.4.6's (AJ-E3011, AJ-E3012): the pool setup, every step, and the
+  // canvas with each kind selected.
+  "pool-setup-gallery",
 ];
 
 // AJ-E803: the visual regression gate. Baselines are rendered in the

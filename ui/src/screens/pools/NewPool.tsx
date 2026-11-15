@@ -20,6 +20,7 @@ import { useEffect, useMemo, useRef, useState, type JSX } from "react";
 import { keepTabInside } from "../../components/form";
 import { Button } from "../../components/primitives";
 import { IconCheck } from "../../components/icons-controls";
+import { SELECTED } from "../../components/controls/selected";
 import { useActionHost } from "../../components/ItemMenu";
 import { showToast } from "../../components/Toast";
 import { errorText } from "../../lib/bridge";
@@ -261,7 +262,7 @@ export function NewPool({
                 disabled={!reachable}
                 className={
                   "flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-meta outline-none focus-visible:ring-2 focus-visible:ring-accent/60 " +
-                  (at === step ? "bg-surface-3 font-semibold text-ink" : "text-ink-2 hover:bg-surface-2 disabled:text-muted disabled:hover:bg-transparent")
+                  (at === step ? SELECTED : "text-ink-2 hover:bg-surface-2 disabled:text-muted disabled:hover:bg-transparent")
                 }
                 data-testid="new-pool-step"
                 data-step={id}
@@ -288,7 +289,7 @@ export function NewPool({
             {current === "everyone" && <NewPoolEveryone draft={draft} onDraft={setDraft} where={where} nameOf={memberName} />}
             {current === "talk" && <NewPoolTalk draft={draft} onDraft={setDraft} />}
             {current === "own" && <NewPoolOwn draft={draft} onDraft={setDraft} where={where} />}
-            {current === "review" && <NewPoolReview draft={draft} name={name} where={where} nameOf={memberName} openNow={openNow} />}
+            {current === "review" && <NewPoolReview draft={draft} name={name} where={where} nameOf={memberName} openNow={openNow} onChange={(to) => go(STEPS.indexOf(to))} />}
           </div>
         </main>
       </div>

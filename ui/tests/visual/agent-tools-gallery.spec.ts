@@ -79,13 +79,16 @@ for (const theme of ["dark", "light"] as const) {
   test(`the one-time question on a pool's page — ${theme}`, gate("92-agent-tools"), async ({ page }) => {
     await open(page, theme, null);
     await poolPage(page);
-    const question = page.getByTestId("agent-tools-question");
-    await expect(question).toContainText("Let agents in your projects see each other and work together?");
-    await expect(question.getByRole("button", { name: "Yes, let them" })).toBeVisible();
+    // AJ-E3011 §7: no banner over the work; a compact card in the pool's
+    // setup checklist, where it applies, saying what it gives, an example,
+    // and that it is one switch for every pool.
+    await expect(page.getByTestId("agent-tools-question")).toHaveCount(0);
+    const question = page.getByTestId("pool-checklist-tools");
+    await expect(question).toContainText("Let AI Juggler give these sessions the pool's tools: messages, shared notes and tasks.");
+    await expect(question).toContainText("Example: Claude can see that Codex is reviewing and send it a note.");
+    await expect(question).toContainText("One switch for every pool, in Settings › Agent access.");
+    await expect(question.getByRole("button", { name: "Turn on" })).toBeVisible();
     await expect(question.getByRole("button", { name: "Not now" })).toBeVisible();
-    // The rc26 P3/P9 walks: it says it's asked once for every pool, and
-    // keeps this pool's own level.
-    await expect(question.getByTestId("agent-tools-question-pool")).toContainText("Asked once, for every pool.");
     await page.mouse.move(0, 0);
     await page.screenshot({ path: resolve(OUT, `agent-tools-question-1280x800-${theme}.png`) });
     await axe(page, `the question ${theme}`);

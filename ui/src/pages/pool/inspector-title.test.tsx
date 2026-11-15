@@ -70,7 +70,7 @@ describe("on the canvas (AJ-E3012)", () => {
 
   it("one selection treatment: a solid accent ring with an offset and a raised surface, never dashes; waiting and leading aren't rings", () => {
     expect(nodeBorder(true, false, false)).toContain(SELECTED);
-    expect(SELECTED).toBe("bg-surface-3 shadow-card ring-2 ring-accent ring-offset-2 ring-offset-canvas");
+    expect(SELECTED).toBe("bg-selected shadow-card ring-2 ring-accent ring-offset-2 ring-offset-canvas");
     for (const [waits, lead] of [[true, false], [false, true], [false, false]] as const) {
       const rest = nodeBorder(false, waits, lead);
       expect(rest).not.toMatch(/ring|dashed|warning/);
