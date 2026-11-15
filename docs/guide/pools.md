@@ -1,7 +1,8 @@
 # Pools
 
-A pool is a team of your sessions on the same projects: a lead and two
-builders on "Checkout redesign", say, and a reviewer checking their work.
+A pool is a team of your AI sessions working on the same projects: a lead
+and two builders on "Checkout redesign", say, and a reviewer checking their
+work.
 They share messages, notes and tasks, and you approve what matters. You
 make pools, name them, and say who leads. Nothing else makes or changes a
 pool.
@@ -26,22 +27,29 @@ heading and one line on why, and every choice reads back as a sentence
 
 1. **How to start**: **Start from scratch**, or a template (Writer and
    reviewer, Feature team…) that fills in roles and who may message whom.
-   The first time, a short intro says what a pool is.
+   The first time, a short intro says what a pool is. Each template's card
+   says what it sets in plain words ("everyone may message", "members ask
+   before messaging each other", "look only", "kept apart").
 2. **Where**: its name and which projects. Sessions in these projects can
    join. A name and its projects already make a working pool: from the
    next step on, **Make pool** is there, and the rest is filled in
    (members join as Member, they may Work together, everyone may message
-   everyone).
-3. **Who's in**: Apps (every session they start in these projects joins
-   by itself, now and later) and sessions open now; Accounts, Tools, Macs
-   and everyone too.
+   everyone; an Observer only reads).
+3. **Who's in**: whole apps (every session they start in these projects
+   joins by itself, now and later) or single sessions open now; Accounts,
+   Tools, Macs and everyone are under **More**. The side says who's in, in
+   words: "2 apps, and every new session in web".
 4. **Who leads**: one session leads (it plans the work and hands out
-   tasks). Pick a session open now; or **[App]'s next session** ("Claude
-   Code · Work's next session"): the next session that App starts in this
-   pool's projects joins as the Lead, and until then the canvas shows a
-   Lead card waiting for it; or **No lead for now**.
+   tasks). Pick one to be in charge, or leave it for now: a session open
+   now; or **[App]'s next session** ("Claude Code · Work leads from its
+   next session in web"): the next session that App starts in this pool's
+   projects joins as the Lead. On the pool's diagram that App is one card,
+   "Its next session leads · its others join as Member", with **Start one
+   now**: it opens New session on that App in the pool's project, and the
+   session you start leads. Or **No lead for now**.
 5. **Everyone else**: **New sessions in web join as [Member]** (or don't
-   join: only who's in), and each member's role. The roles:
+   join: only who's in), and each member's **Role** and what it may do
+   **On its own** (Same as the pool, at first). What each role does:
    - **Lead**: plans the work and hands out tasks. One session.
    - **Member**: works on the tasks it's given, and messages the team.
    - **Reviewer**: reads everything, checks work in review and gives its
@@ -50,18 +58,22 @@ heading and one line on why, and every choice reads back as a sentence
 6. **Who may message whom**: a table by role ("Lead can message…").
    **Allowed** needs nothing from you; **Ask first** waits for your OK in
    Needs you; **Blocked** stops it. Only the exceptions are in colour. One
-   pair of sessions can differ: click the line between them on the canvas.
-7. **What they may do on their own** (see below), then **Seal** if you
-   want its work kept apart.
-8. **Review**: the whole pool in sentences, then **Make pool**. The first
-   time, it asks whether AI Juggler may give these sessions the pool's
-   tools (one switch for every pool, in Settings › Agent access).
+   pair of sessions can differ: click the line between them on the diagram.
+7. **What they may do on their own** (see below): how they work together
+   through AI Juggler. What each may change in your files stays with its
+   own app's settings. Then **Seal** if you want its work kept apart.
+8. **Review**: the whole pool in sentences, then **Make pool**. Its last
+   line is the **team tools**: "Team tools: off — they can't message yet",
+   with **Turn on**, so it's decided before the pool is made (see
+   [Team tools](#team-tools)).
 
 A project's **Pools** tab opens its own pool ("web's own pool: every
 session in web, as one team"), and **Move to pool…** on a session's menu
 still puts one session in a pool of yours.
 
-On the pool's canvas, **Set up this pool** keeps the same order beside it,
+A pool's page shows it as a **Diagram** (who is in it, and who messages
+whom) or a **List**. On the diagram, **Set up this pool** keeps the same
+order beside it,
 a tick on each step done, until every step is: each step opens the same
 control as the setup.
 
@@ -95,6 +107,21 @@ a pool's own view is its page.
   Observer), add or take out sessions, or delete it. Deleting a pool puts
   its sessions back in their projects' pools; nothing else changes.
 
+## Team tools
+
+The pool's members work as a team through AI Juggler's team tools: they
+message each other and share notes and tasks (Claude sees that Codex is
+reviewing, say, and sends it a note). They cover the sessions AI Juggler
+starts or connects in your pools, never a session outside a pool, and
+cost nothing extra: a session uses its own turns only when it acts.
+Without them, a pool is set up, but nobody in it can message.
+
+AI Juggler asks once, the first time you use pools (**Turn on team
+tools**, on Review or on the pool's page). After that they're on, and you
+can switch them off for a project or an app in **Settings › Agent access
+› Agent tools in sessions**. A pool whose project or app has them off says
+so ("Team tools: off for web — they can't message there") with **Turn on**.
+
 ## What agents may do
 
 Agents reach their pool through AI Juggler's agent tools, in the sessions
@@ -110,11 +137,13 @@ the pool's page, and every pool at once in **Settings › Agent access**):
   Needs you. A message reaches a session on its next turn.
 - **Work together and wake each other**: as Work together, and a message
   wakes an idle session so the work keeps going, up to the hop limit. Each
-  wake starts a turn on your subscription.
+  wake starts a turn on your subscription. For example, Codex finishes a
+  review, and its note wakes Claude's idle session to carry on, without
+  you.
 - **Custom**: you pick each action.
 
 A member can follow the pool (**Same as the pool**, the default) or have
-its own choice. The canvas says, per member, whether it **wakes on new
+its own choice. The diagram says, per member, whether it **wakes on new
 messages** or **reads messages on its next turn**; a Codex app thread
 **can't be woken**.
 
