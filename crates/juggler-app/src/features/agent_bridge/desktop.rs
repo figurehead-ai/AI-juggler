@@ -106,9 +106,42 @@ fn sender_session(storage: &juggler_core::storage::Storage, sender: &str) -> Opt
 /// an open thread of a pool neither paused nor stopped, that the sender's
 /// pool lets it deliver into a member's session within the hop limit
 /// (`allowed(deliver_to_session)`: the pool at Full, or a rule the user
-/// made), and at most once in [`WAKE_EVERY`].
+/// made), and at most once in [`WAKE_EVERY`]. Marks what it read as
+/// accounted for (and the budget spent, when it wakes).
 #[must_use]
 pub fn wake_for(state: &Arc<AppState>, session: &SessionId) -> Option<String> {
+    let look = look_for(state, session)?;
+    mark(session, &look);
+    look.notice
+}
+
+/// What one look found for a session, before anything is marked.
+#[derive(Clone, Debug)]
+pub(crate) struct Look {
+    /// The notice that may wake it now.
+    pub notice: Option<String>,
+    /// The newest message (epoch ms) the look read.
+    newest: i64,
+}
+
+/// L8 (round 2): marks `look` as accounted for: what it read is seen,
+/// and when it woke the session, the wake budget is spent now. Only after
+/// the caller was attested again, when it wakes.
+pub(crate) fn mark(session: &SessionId, look: &Look) {
+    if let Ok(mut woken) = woken().lock() {
+        let entry = woken
+            .entry(session.as_str().to_owned())
+            .or_insert((None, 0));
+        entry.1 = entry.1.max(look.newest);
+        if look.notice.is_some() {
+            entry.0 = Some(Instant::now());
+        }
+    }
+}
+
+/// [`wake_for`]'s look, marking nothing: `None` within the wake budget
+/// or when the messages can't be read.
+pub(crate) fn look_for(state: &Arc<AppState>, session: &SessionId) -> Option<Look> {
     let now = Instant::now();
     let (last, seen) = woken()
         .lock()
@@ -173,16 +206,7 @@ pub fn wake_for(state: &Arc<AppState>, session: &SessionId) -> Option<String> {
         }
     }
     let notice = juggler_core::messaging::unread_note(count, &senders);
-    if let Ok(mut woken) = woken().lock() {
-        let entry = woken
-            .entry(session.as_str().to_owned())
-            .or_insert((None, 0));
-        entry.1 = entry.1.max(newest);
-        if notice.is_some() {
-            entry.0 = Some(now);
-        }
-    }
-    notice
+    Some(Look { notice, newest })
 }
 
 /// D-119: a connector's wake wait. The caller is attested (or refused);
@@ -261,21 +285,31 @@ pub(crate) async fn wait_with(
         let found = {
             let state = Arc::clone(&state);
             let session = caller.session.clone();
-            tauri::async_runtime::spawn_blocking(move || wake_for(&state, &session))
+            tauri::async_runtime::spawn_blocking(move || look_for(&state, &session))
                 .await
                 .ok()
                 .flatten()
         };
-        if let Some(notice) = found {
-            // L8: still the same conversation? (A /clear or a resume
-            // during the wait must not get the old one's notice.)
-            let again = {
-                let (state, attestor) = (Arc::clone(&state), Arc::clone(&attestor));
-                tauri::async_runtime::spawn_blocking(move || attestor(&state, peer)).await
-            };
-            let same = matches!(&again, Ok(Ok(now)) if now.session == caller.session);
-            let wake = same.then_some(notice);
-            return Response::ok(serde_json::json!({ "wake": wake }));
+        match found {
+            Some(look) if look.notice.is_some() => {
+                // L8 (round 2): still the same conversation? Asked before
+                // anything is marked: a /clear or a resume during the wait
+                // gets nothing, and the old conversation's messages stay
+                // due and its wake budget unspent.
+                let again = {
+                    let (state, attestor) = (Arc::clone(&state), Arc::clone(&attestor));
+                    tauri::async_runtime::spawn_blocking(move || attestor(&state, peer)).await
+                };
+                let same = matches!(&again, Ok(Ok(now)) if now.session == caller.session);
+                if same {
+                    mark(&caller.session, &look);
+                }
+                let wake = look.notice.filter(|_| same);
+                return Response::ok(serde_json::json!({ "wake": wake }));
+            }
+            // Nothing that wakes: what it read is accounted for.
+            Some(look) => mark(&caller.session, &look),
+            None => {}
         }
         if Instant::now() + look_every > until {
             // Held as an attested wait until now: its next wait (and its

@@ -1002,9 +1002,10 @@ fn message_for(state: &Arc<AppState>, pool: &str, id: &str, conversation: &str) 
     .unwrap();
 }
 
-/// L8: the wait is attested again before its notice goes out: when the
-/// session's conversation changed meanwhile (a /clear, a resume), the
-/// notice is dropped.
+/// L8: the wait is attested again before its notice goes out, and
+/// (round 2) before anything is marked: when the session's conversation
+/// changed meanwhile (a /clear, a resume), the notice is dropped, its
+/// messages stay due and its wake budget is unspent.
 #[test]
 fn a_notice_is_dropped_when_the_conversation_changed_during_the_wait() {
     use juggler_agentbridge::wire::Wait;
@@ -1099,10 +1100,13 @@ fn a_notice_is_dropped_when_the_conversation_changed_during_the_wait() {
         dropped.result.unwrap()["wake"].is_null(),
         "the conversation changed: dropped"
     );
-    // It was the re-attestation that dropped it: the message was due.
+    // L8 (round 2): it was the re-attestation that dropped it, before
+    // anything was marked: the old conversation's message is still due
+    // and its wake budget unspent.
+    let due = super::desktop::wake_for(&state, &desktop_id(FOLDER, &conversation(2)));
     assert!(
-        super::desktop::wake_for(&state, &desktop_id(FOLDER, &conversation(2))).is_none(),
-        "already counted as woken (the budget), so it went no further"
+        due.is_some_and(|notice| notice.contains("Planner")),
+        "nothing marked seen, no wake spent"
     );
 }
 
