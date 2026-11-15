@@ -65,6 +65,21 @@
   --color-count-alarm: #ff8578;
   --color-count-alarm-ink: #0b0e14;
 
+  /* 0.5 (D-117) — what is selected, chosen or current: one look
+     everywhere (a segment, a tab, a chip, the rail's current row, a
+     chosen card), unmistakable at a glance yet never loud. A raised
+     fill (selected), its words semibold in ink (selected-ink) and a
+     solid edge (selected-ring) that stands ≥ 3:1 off the unselected
+     items around it (WCAG 1.4.11): 4.94–6.56:1 dark (surface-3 →
+     canvas), 5.73:1 on the filled control (fill). The surface-3 fill
+     alone was 1.16:1 on fill: a lighter grey nobody could read at a
+     glance (the 0.4 review's 32). Neutral, not the accent: the accent
+     stays for actions and keyboard focus, so focus never looks like
+     selection. Agreed names with 0.4.6's pools: never rename. */
+  --color-selected: #242935;
+  --color-selected-ink: #f3f5f9;
+  --color-selected-ring: #8e97a6;
+
   /* Type: native stack, mono for identifiers */
   --font-sans:
     -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", "Segoe UI",
@@ -199,6 +214,11 @@ body {
   --color-count-ink: #ffffff;
   --color-count-alarm: #b91c1c;
   --color-count-alarm-ink: #ffffff;
+  /* Selected: the edge 4.59–5.69:1 (canvas-hi → surface), 5.69:1 on the
+     filled control; ink on the fill 15.4:1 (13.3:1 dark). */
+  --color-selected: #e6e9ef;
+  --color-selected-ink: #0e1219;
+  --color-selected-ring: #5f6777;
   --tone-opacity: 0.72;
 }
 

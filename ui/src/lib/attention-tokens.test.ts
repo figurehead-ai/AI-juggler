@@ -77,6 +77,17 @@ describe.each(["dark", "light"] as const)("the calm-attention tokens (%s)", (the
     expect(token(theme, "fill")).not.toBe(token(theme, "canvas"));
     expect(ratio(token(theme, "fill"), token(theme, "canvas"))).toBeGreaterThan(1.05);
   });
+
+  // D-117 (selection): what is selected stands ≥ 3:1 off the unselected
+  // items around it (WCAG 1.4.11) on every surface and on a filled control,
+  // and its words are AA on its fill; never the accent (focus's colour).
+  it("a selected item's edge is 3:1 off everything unselected around it, its words AA", () => {
+    for (const around of [...SURFACES, "fill"] as const) {
+      expect(ratio(token(theme, "selected-ring"), token(theme, around)), `selected-ring vs ${around}`).toBeGreaterThanOrEqual(3);
+    }
+    expect(ratio(token(theme, "selected-ink"), token(theme, "selected"))).toBeGreaterThanOrEqual(4.5);
+    expect(token(theme, "selected-ring")).not.toBe(token(theme, "accent"));
+  });
 });
 
 describe("the level aliases and App tone", () => {
