@@ -3166,3 +3166,47 @@ Each ships with tests that fail without it and a design critique; the M2, D2 and
   plugin's parts that pools need ship in 0.4.6, from the 0.5 work).
 - Sources: the coordinating session's relay of the maintainer's answer
   and words, 2026-11-14.
+
+### D-119 A desktop Code-tab pool member is woken through Claude Code's own inbox, under the pool's waking rule — SETTLED (2026-11-15)
+
+- **Ruling** (engineering, by the coordinating session under D-66's
+  standing rule and D-28's levels; no new maintainer ruling needed,
+  2026-11-15). The 0.4.6 route research (`docs/research/desktop-pool-members.md`
+  §5.2) found a documented, sanctioned way to start a turn in an idle
+  Claude Code session: the session's own inbox socket
+  (`CLAUDE_CODE_MESSAGING_SOCKET`), to which the session's own child
+  processes may post ("When the receiving session is idle, Claude Code
+  starts a new turn with the message", the cross-session messaging docs).
+  D-66's standing rule says every sanctioned reply route is supported
+  through the adapter; D-28's waking rule already governs when a member
+  may be woken.
+- **Decision:**
+  1. A desktop Code-tab member is woken through its own inbox, posted to
+     by AI Juggler's connector (a child of that session), **only when the
+     pool is at Full, or a rule the user made allows it** — the same gate
+     and the same wake budget as a CLI member. At Work together or Read it
+     reads its messages on its next turn.
+  2. The notice is facts only ("1 new pool message from Planner"): it
+     can't approve or change anything (Claude Code treats it as a peer
+     message), and it follows Claude Code's own rate limit and ours.
+  3. The canvas says, per member, "wakes on new messages" or "reads
+     messages on its next turn", from its level and rules.
+  4. Codex app threads can't be woken (one shared app-server, no
+     per-thread inbox); the canvas says so.
+- **Why the gate stays:** waking starts a turn, and a turn uses the
+  user's subscription.
+- **Amends:** D-116's "waking stays the honest limit (D-66)" for the
+  Claude app's Code tab.
+- **Also settled with it** (the coordinating session accepted the
+  research's design calls, 2026-11-15): Add writes AI Juggler's plugin as
+  one folder, `<CLAUDE_CONFIG_DIR>/skills/ai-juggler/`; chats and Cowork
+  aren't pool members in 0.4.6 (AI Juggler doesn't track them as
+  sessions); a desktop call is attested by the peer's process chain and
+  Claude Code's session registry, checking the process start time against
+  pid reuse, and refused unless fully attested, never trusted on a
+  fallback (an ADR-0020 addendum, security-reviewed before merge); sealed
+  pools take no desktop members (sealing would change a setting for every
+  session of that profile); a Codex app thread stays Watched in 0.4.6
+  unless a lab probe proves which thread calls.
+- Sources: the coordinating session's message, 2026-11-15; the research
+  doc's §§1.1, 5.2, 8.
