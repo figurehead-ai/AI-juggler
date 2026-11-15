@@ -199,7 +199,7 @@ fn handle_from(
 }
 
 fn within_rate(state: &Arc<AppState>, session: &SessionId) -> bool {
-    within_rate_of(state, session.as_str())
+    within_rate_of(state, session.as_str(), MAX_CALLS)
 }
 
 /// The most callers the rate limit keeps count of; past it, the idle ones
@@ -216,10 +216,18 @@ pub(super) fn peer_within_rate(
     let key = peer
         .and_then(|peer| peer.pid)
         .map_or_else(|| "peer:unknown".to_owned(), |pid| format!("peer:{pid}"));
-    within_rate_of(state, &key)
+    // M2: and all keyless lines together, so a loop of new processes (a
+    // new pid each, `nc -U` in a loop) can't make the attestation's work
+    // unbounded either.
+    within_rate_of(state, &key, MAX_CALLS) && within_rate_of(state, "peer:all", KEYLESS_MAX)
 }
 
-fn within_rate_of(state: &Arc<AppState>, key: &str) -> bool {
+/// M2: the most keyless lines (calls, hook reports, wake waits) of every
+/// peer together in [`WINDOW`]: well above what a few dozen connectors
+/// send, far below what a loop of processes could.
+pub const KEYLESS_MAX: usize = 240;
+
+fn within_rate_of(state: &Arc<AppState>, key: &str, max: usize) -> bool {
     let Ok(mut calls) = state.agent_bridge.calls.lock() else {
         return false;
     };
@@ -238,7 +246,7 @@ fn within_rate_of(state: &Arc<AppState>, key: &str) -> bool {
     {
         recent.pop_front();
     }
-    if recent.len() >= MAX_CALLS {
+    if recent.len() >= max {
         return false;
     }
     recent.push_back(now);

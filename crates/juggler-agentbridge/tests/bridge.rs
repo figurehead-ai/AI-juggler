@@ -996,3 +996,62 @@ fn a_stale_socket_is_replaced_only_when_it_is_ours_and_never_through_a_link() {
     assert!(juggler_app::features::agent_bridge::server::ensure_serving(&open.state).is_err());
     assert_eq!(mode(&agent), 0o777);
 }
+
+/// M2: a hostile loop of new processes (`nc -U`, a new pid each) sending
+/// keyless wake waits can't make the attestation's work unbounded: past
+/// the keyless cap the answer is Limit at once, and a launched session's
+/// keyed call is still answered meanwhile.
+#[cfg(target_os = "macos")]
+#[test]
+fn a_hostile_nc_loop_is_capped_and_keyed_calls_still_answer() {
+    use std::io::Write as _;
+    if !Path::new("/usr/bin/nc").exists() {
+        return;
+    }
+    let world = world(&[]);
+    settings::answer_impl(&world.state, true).unwrap();
+    let session = session(&world, "s-1", SessionStatus::Running);
+    let (_, spec) = prepare(&world, &session);
+    let socket = PathBuf::from(spec.env.get(wire::SOCKET_ENV).unwrap());
+    let line = format!(
+        "{}\n",
+        serde_json::to_string(&wire::Wait {
+            v: wire::VERSION,
+            token: String::new(),
+            wait_secs: 1,
+        })
+        .unwrap()
+    );
+    let mut limited = 0;
+    let mut unattested = 0;
+    for _ in 0..300 {
+        let mut nc = std::process::Command::new("/usr/bin/nc")
+            .args(["-U", &socket.to_string_lossy()])
+            .stdin(std::process::Stdio::piped())
+            .stdout(std::process::Stdio::piped())
+            .stderr(std::process::Stdio::null())
+            .spawn()
+            .unwrap();
+        nc.stdin.take().unwrap().write_all(line.as_bytes()).unwrap();
+        let out = nc.wait_with_output().unwrap();
+        let text = String::from_utf8_lossy(&out.stdout);
+        if text.contains("\"limit\"") {
+            limited += 1;
+        } else if text.contains("\"unattested\"") {
+            unattested += 1;
+        }
+    }
+    assert!(
+        unattested <= juggler_app::features::agent_bridge::calls::KEYLESS_MAX,
+        "{unattested} attestations"
+    );
+    assert!(limited >= 300 - juggler_app::features::agent_bridge::calls::KEYLESS_MAX);
+    // A member's keyed call goes through at once.
+    let target = juggler_agentbridge::client::Target {
+        socket,
+        token: token(&spec),
+    };
+    let me =
+        juggler_agentbridge::client::call(&target, Call::Whoami, wire::Args::default()).unwrap();
+    assert_eq!(me["session_id"], "s-1");
+}
