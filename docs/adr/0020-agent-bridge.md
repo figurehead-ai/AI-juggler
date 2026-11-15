@@ -274,12 +274,16 @@ part in its adapter, `juggler_adapter::peer::DesktopPeer`):
 
 1. **The peer.** At accept, the socket's peer user must be this user
    (`getpeereid`, as before), and the socket's **audit token**
-   (`LOCAL_PEERTOKEN`, read through nix's safe `getsockopt`) names its pid
-   and that pid's version. The live process at that pid must have the
-   same version (`juggler_proc_list::pid_version`, the kernel's
-   `p_idversion`, which changes whenever a pid is reused), so the process
-   checked is the very one that connected. The time of the accept is
-   kept.
+   (`LOCAL_PEERTOKEN`, read through nix's safe `getsockopt` right at
+   accept) names the socket's last user at `getsockopt` time: its pid and
+   that pid's version. The live process at that pid must have the same
+   version (`juggler_proc_list::pid_version`, the kernel's `p_idversion`,
+   which changes whenever a pid is reused, and on exec), so a pid reused
+   after the accept is caught. Before the read there is only the moment
+   between the connection and the accept (microseconds); a caller can't
+   steer it to name a process that never used its socket, and whichever
+   process the token names is the one checked, whole. The time of the
+   accept is kept.
 2. **The chain.** One listing of the processes (`juggler-proc-list`, the
    kernel's own `kinfo_proc` records): the peer must be listed, not a
    zombie, readable as this user's (`proc_pidinfo`), and started no later
@@ -427,9 +431,9 @@ chain ends at `launchd`) is refused.
   review).** An earlier draft took tokio's `LOCAL_PEEREPID` and argued
   it was safe because it differs from `LOCAL_PEERPID` only for a
   delegated socket. That was the wrong question: either value is just a
-  pid recorded on the socket (the last process that used it), and a pid
-  can be reused once that process exits. The token (`LOCAL_PEERTOKEN`)
-  carries the pid's version as well, and the app compares it with the
+  pid, and a pid can be reused once that process exits. The token
+  (`LOCAL_PEERTOKEN`) names the socket's last user at `getsockopt` time,
+  read right at accept, and carries the pid's version as well, and the app compares it with the
   live process's version (one audited `proc_pidinfo` block in
   `juggler-proc-list`, under D-110's rules): a process that took the pid
   since has another version and is refused. Reading the token needs no

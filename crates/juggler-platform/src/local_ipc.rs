@@ -145,12 +145,19 @@ impl Listener {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Peer {
     /// The peer's pid: on macOS from the socket's audit token
-    /// (`LOCAL_PEERTOKEN`); `None` when the system doesn't say.
+    /// (`LOCAL_PEERTOKEN`), which names the socket's last user at
+    /// `getsockopt` time (read here, at accept); `None` when the system
+    /// doesn't say.
     pub pid: Option<u32>,
     /// L4: the pid's version in that token (the kernel bumps it when a pid
-    /// is reused): the app compares it with the live process's
-    /// (`juggler_proc_list::pid_version`), equal only while the process at
-    /// `pid` is the one that connected. `None` where there's no audit token.
+    /// is reused, and on exec): the app compares it with the live
+    /// process's (`juggler_proc_list::pid_version`), equal only while the
+    /// process at `pid` is the one the token named, so a pid reused after
+    /// the accept is caught. Before the read there is only the moment
+    /// between the connection and the accept (microseconds): a caller
+    /// can't steer it to name a process that never used its socket, and
+    /// whichever process is named is checked whole. `None` where there's
+    /// no audit token.
     pub pid_version: Option<u32>,
     /// When the connection was accepted.
     pub accepted: std::time::SystemTime,
@@ -350,7 +357,8 @@ mod imp {
     }
 
     /// AJ-E3013 (L4): the peer's pid and pid version from its audit token
-    /// (`LOCAL_PEERTOKEN`, through nix's safe `getsockopt`): `val[5]` is
+    /// (`LOCAL_PEERTOKEN`, through nix's safe `getsockopt`), the socket's
+    /// last user at `getsockopt` time, read right at accept: `val[5]` is
     /// the pid and `val[7]` its version (`audit_token_to_pid`,
     /// `audit_token_to_pidversion` in `bsm/libbsm.h`).
     #[cfg(target_os = "macos")]
