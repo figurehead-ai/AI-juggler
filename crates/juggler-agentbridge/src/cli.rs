@@ -27,6 +27,14 @@ impl App {
             target: Target::from_env(),
         }
     }
+
+    /// AJ-E3013: as AI Juggler's connector runs it ([`Target::for_connector`]).
+    #[must_use]
+    pub fn for_connector() -> Self {
+        Self {
+            target: Target::for_connector(),
+        }
+    }
 }
 
 impl Backend for App {
@@ -69,9 +77,12 @@ pub const USAGE: &str = "juggler-agent: AI Juggler's pool tools for the agent in
   juggler-agent --mcp           serve the same as an MCP server on stdin and stdout
   juggler-agent --mcp --plugin  the same, as the Claude Code plugin's server
   juggler-agent hook <event>    (run by the tool's own hooks) report this session's state
+  juggler-agent hook <event> --connector
+                                (AI Juggler's connector in a desktop app) unread pool messages
 
-Works in sessions AI Juggler started with its agent tools on. What the pool
-lets agents do is set by the user, in AI Juggler.";
+Works in sessions AI Juggler started with its agent tools on, and in a
+desktop app's sessions once AI Juggler's connector is added there. What the
+pool lets agents do is set by the user, in AI Juggler.";
 
 /// What the command line asked for.
 #[derive(Debug, PartialEq, Eq)]
@@ -91,6 +102,10 @@ pub enum Command {
     /// AJ-E2306: a tool's hook reporting its session's state
     /// (`hook <event>`, the tool's JSON on stdin).
     Hook(String),
+    /// AJ-E3013: AI Juggler's connector's hook in a desktop app's session
+    /// (`hook <event> --connector`): the inbox note, attested, and nothing
+    /// in a session AI Juggler started (its launch's own hooks report).
+    ConnectorHook(String),
 }
 
 /// Reads the arguments (without the program's name).
@@ -122,6 +137,7 @@ pub fn parse(args: &[String]) -> Result<Command, String> {
         [] | ["--help" | "-h" | "help"] => Ok(Command::Help),
         ["--version" | "-V"] => Ok(Command::Version),
         ["hook", event] => Ok(Command::Hook((*event).to_owned())),
+        ["hook", event, "--connector"] => Ok(Command::ConnectorHook((*event).to_owned())),
         ["whoami"] => Ok(call_of(Call::Whoami, Args::default())),
         ["roster" | "pool_roster"] => Ok(call_of(Call::PoolRoster, Args::default())),
         ["cards"] => Ok(call_of(Call::Cards, Args::default())),

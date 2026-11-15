@@ -6,7 +6,9 @@
 //!   folder of ours (`agent/`), and is made `0600`.
 //! - Every connection's peer user is checked (`getpeereid`, through
 //!   tokio's `peer_cred`); anything that isn't this user is dropped
-//!   unanswered. Then the key decides who is calling.
+//!   unanswered. Then the key decides who is calling, or, for a call with
+//!   no key (AJ-E3013), the peer's pid and the time of the accept are
+//!   attested ([`super::attest`]).
 //! - One request per connection, at most [`wire::MAX_REQUEST`] bytes,
 //!   read within [`READ_WAIT`]; at most [`MAX_OPEN`] at once.
 //! - A stale socket is removed only when `lstat` shows it is a socket we
@@ -81,6 +83,8 @@ pub fn ensure_serving(state: &Arc<AppState>) -> std::io::Result<PathBuf> {
 /// answer.
 async fn answer(mut stream: local_ipc::Stream, state: Arc<AppState>) {
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    // AJ-E3013: who connected and when, for a keyless call's attestation.
+    let peer = stream.peer();
     let mut request = Vec::new();
     let mut chunk = [0_u8; 4096];
     let read = tokio::time::timeout(READ_WAIT, async {
@@ -102,11 +106,13 @@ async fn answer(mut stream: local_ipc::Stream, state: Arc<AppState>) {
     let response = match read {
         Ok(Ok(true)) => {
             let line = String::from_utf8_lossy(&request).into_owned();
-            tauri::async_runtime::spawn_blocking(move || super::calls::handle_line(&state, &line))
-                .await
-                .unwrap_or_else(|_| {
-                    wire::Response::refused(wire::Refusal::Bad, "AI Juggler couldn't answer that")
-                })
+            tauri::async_runtime::spawn_blocking(move || {
+                super::calls::handle_line_from(&state, &line, Some(peer))
+            })
+            .await
+            .unwrap_or_else(|_| {
+                wire::Response::refused(wire::Refusal::Bad, "AI Juggler couldn't answer that")
+            })
         }
         Ok(Ok(false)) => wire::Response::refused(wire::Refusal::Limit, "That request is too long."),
         _ => return,

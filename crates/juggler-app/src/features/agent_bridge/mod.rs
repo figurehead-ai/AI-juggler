@@ -18,8 +18,12 @@
 //!
 //! Nothing here starts, stops or types into a session.
 
+pub mod attest;
+#[cfg(test)]
+mod attest_tests;
 pub mod calls;
 pub mod commands;
+pub mod desktop;
 pub mod dto;
 pub mod server;
 pub mod settings;
@@ -230,9 +234,14 @@ impl Bridge {
     }
 
     /// Whether `session` holds a key for the agent tools now (E18: only
-    /// then is it told about its messages).
+    /// then is it told about its messages). AJ-E3013: an attested desktop
+    /// session (`desktop:…`) has the tools by its attestation, which is the
+    /// only way such an id reaches the app.
     #[must_use]
     pub fn has_tools_key(&self, data_dir: &Path, session: &str) -> bool {
+        if juggler_core::storage::attested::is_desktop_id(session) {
+            return true;
+        }
         let Ok(mut epochs) = self.epochs.lock() else {
             return false;
         };

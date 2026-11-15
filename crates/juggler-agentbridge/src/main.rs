@@ -29,14 +29,27 @@ fn main() -> ExitCode {
         Ok(Command::McpPlugin) => {
             // E19: in a session AI Juggler started, its launch already
             // added the tools; the plugin's copy then stays empty.
+            // AJ-E3013: elsewhere, the connector's keyless calls, which
+            // the app attests (or refuses) on every call.
             let given = std::env::var(juggler_agentbridge::wire::TOKEN_ENV)
                 .is_ok_and(|token| !token.is_empty());
+            let mut app = App::for_connector();
             let stdin = std::io::stdin();
             let stdout = std::io::stdout();
             match serve_as(stdin.lock(), stdout.lock(), &mut app, Some(given)) {
                 Ok(()) => ExitCode::SUCCESS,
                 Err(_) => ExitCode::FAILURE,
             }
+        }
+        Ok(Command::ConnectorHook(event)) => {
+            // Silent and 0 when AI Juggler isn't running, the caller isn't
+            // attested, or this is a session AI Juggler started.
+            if let Some(note) =
+                juggler_agentbridge::hook::run_connector(&event, std::io::stdin().lock())
+            {
+                let _ = writeln!(std::io::stdout(), "{note}");
+            }
+            ExitCode::SUCCESS
         }
         Ok(Command::Help) => {
             println!("{USAGE}");

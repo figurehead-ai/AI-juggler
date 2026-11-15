@@ -5,10 +5,12 @@
 //!   already added the `juggler` server (D-30). The plugin's copy then
 //!   offers nothing (no tools, no resources) and says why, so the model
 //!   never sees the tools twice.
-//! - Anywhere else it serves the usual tools; with no key each call
-//!   answers in words: this session wasn't started by AI Juggler with its
-//!   agent tools, or AI Juggler isn't running (ADR-0020: a key comes only
-//!   with a launch).
+//! - Anywhere else it serves the usual tools. AJ-E3013: as AI Juggler's
+//!   connector in a desktop app's session (the socket named, no key), each
+//!   call goes to the app with no key, which attests the caller from the
+//!   system or refuses it (ADR-0020's D-116 addendum). With no socket
+//!   either, each call answers in words: this session wasn't started by
+//!   AI Juggler with its agent tools, or AI Juggler isn't running.
 
 use serde_json::{Value, json};
 

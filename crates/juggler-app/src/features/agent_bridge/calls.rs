@@ -93,18 +93,76 @@ const fn asks(call: Call) -> &'static str {
 }
 
 /// One line on the socket: a tool hook's report (AJ-E2306: its own shape
-/// and its own key, never an agent's call) or an agent's call.
+/// and its own key, never an agent's call) or an agent's call. The peer
+/// is unknown here: a keyless line is refused.
 #[must_use]
 pub fn handle_line(state: &Arc<AppState>, line: &str) -> Response {
-    if let Ok(report) = serde_json::from_str::<wire::Report>(line.trim()) {
-        return crate::features::runtime::reports::handle(state, &report);
-    }
-    handle(state, line)
+    handle_line_from(state, line, None)
 }
 
-/// Answers one request line.
+/// [`handle_line`], from `peer` (the socket's: who connected and when).
+/// AJ-E3013: a line with an empty key is attested from `peer`
+/// ([`super::attest`]) or refused.
+#[must_use]
+pub fn handle_line_from(
+    state: &Arc<AppState>,
+    line: &str,
+    peer: Option<juggler_platform::local_ipc::Peer>,
+) -> Response {
+    if let Ok(report) = serde_json::from_str::<wire::Report>(line.trim()) {
+        if report.token.is_empty() {
+            return super::desktop::report(state, &report, peer);
+        }
+        return crate::features::runtime::reports::handle(state, &report);
+    }
+    handle_from(state, line, peer)
+}
+
+/// Answers one request line (with no peer known: keyless is refused).
 #[must_use]
 pub fn handle(state: &Arc<AppState>, line: &str) -> Response {
+    handle_from(state, line, None)
+}
+
+/// Who a request is from: its key's session, or (AJ-E3013) the desktop
+/// session its peer was attested as.
+fn caller_of(
+    state: &Arc<AppState>,
+    request: &Request,
+    peer: Option<juggler_platform::local_ipc::Peer>,
+) -> Result<SessionId, Response> {
+    if request.token.is_empty() {
+        // ADR-0020's D-116 addendum: attested on every call, or refused.
+        return peer
+            .ok_or_else(|| "the system didn't name the caller".to_owned())
+            .and_then(|peer| super::attest::attest(state, peer))
+            .map(|caller| caller.session)
+            .map_err(|why| {
+                Response::refused(
+                    Refusal::Unattested,
+                    format!(
+                        "AI Juggler couldn't confirm which session this is ({why}), so it can't use the pool's tools. Add AI Juggler's connector to this app in AI Juggler, or continue the session in AI Juggler."
+                    ),
+                )
+            });
+    }
+    state
+        .agent_bridge
+        .session_of(&state.data_dir, &request.token)
+        .filter(|session| !super::session_ended(state, session.as_str()))
+        .ok_or_else(|| {
+            Response::refused(
+                Refusal::Unknown,
+                "This session's key isn't current: it ended, moved to another session, or wasn't started by AI Juggler. Continue it in AI Juggler to use these tools.",
+            )
+        })
+}
+
+fn handle_from(
+    state: &Arc<AppState>,
+    line: &str,
+    peer: Option<juggler_platform::local_ipc::Peer>,
+) -> Response {
     let Ok(request) = serde_json::from_str::<Request>(line.trim()) else {
         return Response::refused(Refusal::Bad, "AI Juggler couldn't read that request.");
     };
@@ -114,15 +172,9 @@ pub fn handle(state: &Arc<AppState>, line: &str) -> Response {
             "This juggler-agent doesn't match the running AI Juggler: restart the session in AI Juggler.",
         );
     }
-    let Some(session) = state
-        .agent_bridge
-        .session_of(&state.data_dir, &request.token)
-        .filter(|session| !super::session_ended(state, session.as_str()))
-    else {
-        return Response::refused(
-            Refusal::Unknown,
-            "This session's key isn't current: it ended, moved to another session, or wasn't started by AI Juggler. Continue it in AI Juggler to use these tools.",
-        );
+    let session = match caller_of(state, &request, peer) {
+        Ok(session) => session,
+        Err(refused) => return refused,
     };
     if !within_rate(state, &session) {
         return Response::refused(
@@ -191,15 +243,7 @@ fn place_of(
 ) -> Result<Place, Response> {
     let storage = crate::commands::lock_storage_arc(state)
         .map_err(|_| Response::refused(Refusal::Bad, "AI Juggler is busy: try again."))?;
-    let record = storage.sessions().get(session).map_err(|_| {
-        Response::refused(Refusal::Unknown, "AI Juggler doesn't know this session.")
-    })?;
-    let account = storage
-        .profiles()
-        .get(&record.profile)
-        .map(|profile| profile.account.as_str().to_owned())
-        .unwrap_or_default();
-    let project = record.project.as_ref().map(|id| id.as_str().to_owned());
+    let (project, account, own_ref) = whose(&storage, session)?;
     if let Err(why) = super::settings::allows(
         &super::settings::read(&storage),
         project.as_deref(),
@@ -259,7 +303,9 @@ fn place_of(
     may.sort();
     may.dedup();
     Ok(Place {
-        member: MemberRef::of_session(session, memberships.work_of(session)).to_wire(),
+        member: own_ref
+            .unwrap_or_else(|| MemberRef::of_session(session, memberships.work_of(session)))
+            .to_wire(),
         pool_id,
         pool_name,
         level: access.level,
@@ -267,6 +313,47 @@ fn place_of(
         role: role.as_str().to_owned(),
         pools: listed,
     })
+}
+
+/// A session's project and account folder, for Settings › Agent access,
+/// and the member ref it's addressed by when that isn't its own session
+/// ref: from its record, or (AJ-E3013) from what its attestation kept,
+/// a desktop session then being its conversation's Watched member.
+pub(super) fn whose(
+    storage: &juggler_core::storage::Storage,
+    session: &SessionId,
+) -> Result<(Option<String>, String, Option<MemberRef>), Response> {
+    if juggler_core::storage::attested::is_desktop_id(session.as_str()) {
+        let facts = storage
+            .sessions()
+            .pool_facts_of(session)
+            .ok()
+            .flatten()
+            .ok_or_else(|| {
+                Response::refused(Refusal::Unattested, "This session's confirmation ran out.")
+            })?;
+        let (folder, id) = facts.conversation.ok_or_else(|| {
+            Response::refused(
+                Refusal::Unattested,
+                "This session's conversation isn't known.",
+            )
+        })?;
+        return Ok((
+            facts.project.map(|project| project.as_str().to_owned()),
+            folder.clone(),
+            Some(MemberRef::Conversation { folder, id }),
+        ));
+    }
+    let record = storage.sessions().get(session).map_err(|_| {
+        Response::refused(Refusal::Unknown, "AI Juggler doesn't know this session.")
+    })?;
+    let account = storage
+        .profiles()
+        .get(&record.profile)
+        .map(|profile| profile.account.as_str().to_owned())
+        .unwrap_or_default();
+    let project = record.project.as_ref().map(|id| id.as_str().to_owned());
+    Ok((project, account, None))
 }
 
 /// The calls a feature answers itself (E18's messages, E19's tasks):

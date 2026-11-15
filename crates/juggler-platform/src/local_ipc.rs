@@ -127,14 +127,35 @@ impl Listener {
     ///
     /// The system's error accepting it.
     pub async fn accept(&self) -> std::io::Result<Option<Stream>> {
-        let (stream, peer) = imp::accept(&self.inner).await?;
-        Ok(crate::user::peer_allowed(peer, self.me).then_some(Stream(stream)))
+        let (stream, peer, pid) = imp::accept(&self.inner).await?;
+        let accepted = std::time::SystemTime::now();
+        Ok(crate::user::peer_allowed(peer, self.me)
+            .then_some(Stream(stream, Peer { pid, accepted })))
     }
+}
+
+/// AJ-E3013 (ADR-0020's D-116 addendum): who connected, as the system
+/// says, and when the connection was taken.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Peer {
+    /// The peer's pid (tokio's `peer_cred`: `LOCAL_PEEREPID` on macOS,
+    /// `SO_PEERCRED` on Linux); `None` when the system doesn't say.
+    pub pid: Option<u32>,
+    /// When the connection was accepted.
+    pub accepted: std::time::SystemTime,
 }
 
 /// One served connection, from `me`.
 #[derive(Debug)]
-pub struct Stream(imp::AsyncStream);
+pub struct Stream(imp::AsyncStream, Peer);
+
+impl Stream {
+    /// Who connected (its pid as the system names it) and when.
+    #[must_use]
+    pub const fn peer(&self) -> Peer {
+        self.1
+    }
+}
 
 impl AsyncRead for Stream {
     fn poll_read(
@@ -307,13 +328,15 @@ mod imp {
 
     pub async fn accept(
         listener: &AsyncListener,
-    ) -> std::io::Result<(AsyncStream, Option<UserId>)> {
+    ) -> std::io::Result<(AsyncStream, Option<UserId>, Option<u32>)> {
         let (stream, _) = listener.accept().await?;
-        let peer = stream
-            .peer_cred()
-            .ok()
-            .map(|cred| UserId::from_uid(cred.uid()));
-        Ok((stream, peer))
+        let cred = stream.peer_cred().ok();
+        let peer = cred.map(|cred| UserId::from_uid(cred.uid()));
+        let pid = cred
+            .and_then(|cred| cred.pid())
+            .and_then(|pid| u32::try_from(pid).ok())
+            .filter(|pid| *pid > 0);
+        Ok((stream, peer, pid))
     }
 
     pub fn connect(endpoint: &Path) -> std::io::Result<StdStream> {
@@ -432,7 +455,7 @@ mod imp {
 
     pub async fn accept(
         listener: &AsyncListener,
-    ) -> std::io::Result<(AsyncStream, Option<UserId>)> {
+    ) -> std::io::Result<(AsyncStream, Option<UserId>, Option<u32>)> {
         match *listener {}
     }
 
@@ -511,7 +534,12 @@ mod tests {
                 answer
             }
         });
+        let before = std::time::SystemTime::now();
         let mut stream = listener.accept().await.unwrap().unwrap();
+        // AJ-E3013: the system names the peer's pid (this process: the
+        // client is one of its threads), and the accept's time is kept.
+        assert_eq!(stream.peer().pid, Some(std::process::id()));
+        assert!(stream.peer().accepted >= before);
         let mut asked = String::new();
         stream.read_to_string(&mut asked).await.unwrap();
         assert_eq!(asked, "hi\n");

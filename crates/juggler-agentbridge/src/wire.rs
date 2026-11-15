@@ -375,7 +375,9 @@ pub struct Args {
 pub struct Request {
     /// [`VERSION`].
     pub v: u32,
-    /// The session's key, from the bridge's own environment.
+    /// The session's key, from the bridge's own environment. Empty
+    /// (AJ-E3013): a desktop app's session, which the app attests from
+    /// the system on every call, or refuses.
     pub token: String,
     /// What it asks for.
     pub call: Call,
@@ -500,6 +502,9 @@ pub enum Refusal {
     Limit,
     /// A request the app can't read.
     Bad,
+    /// AJ-E3013 (ADR-0020's D-116 addendum): a call with no key whose
+    /// caller couldn't be attested as a desktop app's session.
+    Unattested,
 }
 
 /// The app's answer.

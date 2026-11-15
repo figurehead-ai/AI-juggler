@@ -34,7 +34,7 @@ impl CallError {
     #[must_use]
     pub fn words(&self) -> String {
         match self {
-            Self::NoKey => "This session wasn't started by AI Juggler with its agent tools, so it has no key. Continue it in AI Juggler to use them.".to_owned(),
+            Self::NoKey => "This session wasn't started by AI Juggler with its agent tools, so it has no key. Continue it in AI Juggler to use them, or add AI Juggler's connector to its app.".to_owned(),
             Self::Unreachable(why) => format!("AI Juggler isn't answering: {why}. Is it running?"),
             Self::Refused(_, why) => why.clone(),
             Self::Garbled(why) => format!("AI Juggler's answer couldn't be read: {why}"),
@@ -65,6 +65,28 @@ impl Target {
             Some(socket) if !token.is_empty() && !socket.as_os_str().is_empty() => {
                 Ok(Self { socket, token })
             }
+            _ => Err(CallError::NoKey),
+        }
+    }
+
+    /// AJ-E3013 (ADR-0020's D-116 addendum): as the connector in a
+    /// desktop app's session runs it. With a key (a session AI Juggler
+    /// started), as [`Self::from_env`]; with none but the socket AI
+    /// Juggler's connector named, a keyless target, which the app attests
+    /// from the system on every call or refuses.
+    ///
+    /// # Errors
+    ///
+    /// [`CallError::NoKey`] when there's no socket either.
+    pub fn for_connector() -> Result<Self, CallError> {
+        if let Ok(keyed) = Self::from_env() {
+            return Ok(keyed);
+        }
+        match std::env::var_os(SOCKET_ENV).map(PathBuf::from) {
+            Some(socket) if !socket.as_os_str().is_empty() => Ok(Self {
+                socket,
+                token: String::new(),
+            }),
             _ => Err(CallError::NoKey),
         }
     }
