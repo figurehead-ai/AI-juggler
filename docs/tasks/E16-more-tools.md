@@ -198,7 +198,7 @@
 **Research basis**: `antigravity.md`.
 **Handover note**: The maintainer pointed out (2026-10-21) that Muse, Cursor, Antigravity and Kiro all have subscriptions; the aim is subscription accounts wherever terms and isolation allow.
 
-### AJ-E1610 Desktop apps: open, keep alive, focus, and reply where a route exists | Status: TODO | Priority P1 | Effort M | Depends: AJ-E413, AJ-E414
+### AJ-E1610 Desktop apps: open, keep alive, focus, and reply where a route exists | Status: IN-PROGRESS (built 2026-11-15 on fixtures: one table of the AI desktop apps in `juggler-adapters` (`desktop_apps.json`), each found by its bundle or bundle id (Kimi Code by its own folder), offered when seen running, opened, kept alive and focused as every App; only documented or live-checked links are sent, the Claude app's `code/continue` and `needs-input` declared unverified; replies only through Hermes' gateway; each track-only part says why on the App page; Antigravity's consumer plans never driven; every live part pending AJ-E1612) | Priority P1 | Effort M | Depends: AJ-E413, AJ-E414
 **Goal**: Every AI desktop app on the Mac shows up in AI Juggler as an App, opens, stays alive and comes into focus like every other App, and takes replies and shows its sessions wherever a sanctioned route exists (D-105, D-66, D-106).
 **User story**: As a user with the Claude app, Cursor, Kiro IDE and Antigravity open, I see them in This Mac and the rail, open or keep each one running, jump to the right window, and answer their sessions from AI Juggler where the app allows it.
 **Requirements** (rewritten 2026-11-13 against D-105, D-66 and D-106; "track-only" was the old default):
