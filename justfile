@@ -122,6 +122,7 @@ release-selftest:
     python3 scripts/updater_sig_check.py --selftest
     python3 scripts/release_scope.py --selftest
     python3 scripts/release_scope.py report 0.4 >/dev/null
+    python3 scripts/signoff_record.py --selftest
 
 # AJ-E809: the weekly dogfood report from runs.csv (exit 1 until beta-exit is met).
 dogfood-report:
@@ -248,15 +249,6 @@ test:
     cargo nextest run --workspace
     cargo test --workspace --doc
 
-# AJ-E807: (re)build the beta gate packet from the manifests, then check
-# it; `gate-signed` exits 1 until the maintainer signs it.
-gate-packet:
-    python3 scripts/gate_packet.py build docs/qa/gates/beta.json
-    python3 scripts/gate_packet.py check docs/qa/gate-beta.md
-
-gate-signed:
-    python3 scripts/gate_packet.py signed docs/qa/gate-beta.md
-
 # Real Claude Code and Codex on accounts whose owner agreed, in a new
 # throwaway project: it spends a little usage and adds the lab's sessions
 # to the accounts. Arguments: a new project folder, two Claude config
@@ -374,6 +366,11 @@ replica-live minutes="60" *args="":
     python3 -I scripts/replica.py live --home {{replica_home}} --harness {{target_dir}}/debug/fake-harness --desktop {{target_dir}}/debug/fake-desktop --minutes {{minutes}} {{args}}
 
 # Compare the backend's read models with the oracle on the replica (AJ-E1529).
+# The replica's stand-in apps out of LaunchServices' records, then deleted
+# (before removing a replica home by hand).
+replica-teardown:
+    python3 -I scripts/replica.py teardown --home {{replica_home}}
+
 replica-oracle:
     #!/usr/bin/env bash
     set -euo pipefail

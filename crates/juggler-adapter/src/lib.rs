@@ -44,6 +44,7 @@ pub mod spec;
 pub mod subagents;
 pub mod switching;
 pub mod system_tools;
+pub mod transcript_read;
 pub mod user_path;
 pub mod watcher;
 

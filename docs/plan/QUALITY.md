@@ -133,32 +133,15 @@ sub-second timer or sleep in shipped code without a `poll:` note.
 - **Docs:** README quickstart must always work on the latest release; architecture diagrams updated in the same PR as the change.
 - **Only final artifacts are committed** (see CONTRIBUTING) — clean code and docs, not exploration or conversation residue.
 
-## 8. Validation gates (milestone-level)
+## 8. Release sign-off (D-109)
 
-Defined in [EPICS.md](./EPICS.md) (automated + functional + quality audit + report + user confirmation). Gate packets are generated, not hand-written (AJ-E807): `scripts/gate_packet.py build docs/qa/gates/<gate>.json` lists each criterion with its evidence links and verdict. A criterion is PASS only when every evidence path resolves and its tasks are DONE-EVIDENCED; otherwise it is DEFERRED with the open task IDs, or FAIL when tasks claim done without proof. The packet also carries the gallery delta, the axe summary, the measured performance table and the unresolved items. `just evidence` link-checks every `docs/qa/gate-*.md` and rejects a PASS without evidence. A gate is signed in its Sign-off section with decision, reviewer, date and commit; promotion to the stable channel waits for a signed beta gate (D-20). The gate report template:
+A release's sign-off is the maintainer's approval of the `stable` environment in the Promote workflow (D-109, AJ-E807; it replaced the per-milestone gate files). What blocks Stable is checked before that approval, in `promote.yml`: the minor's whole roadmap scope done and proven, or deferred by a decision (`scripts/release_scope.py check X.Y.Z --channel stable`, D-99 and D-85; a task is proven only when its evidence manifest has a PASS line for every requirement), 14+ days on beta with no open `blocker` (D-24), the accessibility gate on the commit, and a CHANGELOG section. After the approval, `scripts/signoff_record.py` writes the sign-off record ([RELEASING.md](../RELEASING.md), § Each release):
 
-```markdown
-# Gate VX — <Milestone>
-Date: YYYY-MM-DD · Commit: <sha> · Report: docs/qa/gate-MX.md
+- the version, the commit, the approving reviewer and when, the run;
+- the scope's result, with every task's state and a link to its evidence manifest;
+- the review inputs: the accessibility gate, the visual gallery delta since the previous Stable, the measured performance table (AJ-E805) and the unresolved items.
 
-## 1. Automated
-- CI matrix: <green/failures> (links to runs)
-- Coverage: <table vs targets>
-- cargo-deny: <clean> · Guardrails: <pass> · Fuzz since last gate: <no new crashes>
-- Benchmarks: <within budgets / regressions explained>
-
-## 2. Functional (every acceptance criterion, with evidence)
-- <Task ID>: <criterion> — <evidence link/summary> — PASS
-
-## 3. Quality audit (vs QUALITY.md)
-- Findings: <list> — Fixed in <commits> / waived with reason <never for correctness>
-
-## 4. Known issues carried forward
-- <issue links, with milestone owner>
-
-## 5. Confirmation
-- Maintainer sign-off: the maintainer — <date>
-```
+The record goes on the release and in the run's summary, and into `docs/qa/signoffs/X.Y.Z.md` through the release branch. The milestone gate reports (`docs/qa/gate-M0.md` to `gate-beta.md`) are kept as history; the beta-exit criteria stay in `docs/qa/beta-exit.md`.
 
 ## 9. Reviewer checklist (mirrored in the PR template)
 

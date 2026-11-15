@@ -8,6 +8,7 @@ import { keepIfSame } from "./same";
 import { folderName, untitledName } from "./session-titles";
 import { tellingBranch } from "./project-words";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type JSX, type ReactNode } from "react";
+import { coalesced } from "./shown-window";
 import { conversationsBuildAgain, conversationsBuilding, conversationsGet, conversationsList, onConversationsChanged, type ConversationInfo } from "./ipc/conversations";
 import type { ListBuildInfo } from "../types/generated/ListBuildInfo";
 
@@ -69,7 +70,14 @@ export function ConversationsProvider({ children, want = null }: { children: Rea
   }, [askBuild]);
   useEffect(() => {
     refresh();
-    return onConversationsChanged(refresh);
+    // AJ-E805: sessions at work change the list every few seconds; a
+    // burst reads it at once, then at most once a second.
+    const reads = coalesced(refresh);
+    const stop = onConversationsChanged(reads.ask);
+    return () => {
+      reads.stop();
+      stop();
+    };
   }, [refresh]);
   const building = build !== null;
   useEffect(() => {

@@ -1,4 +1,4 @@
-import type { Terminal } from "@xterm/xterm";
+import type { IDisposable, Terminal } from "@xterm/xterm";
 
 /**
  * A terminal's field and macOS's input-source mark (⊖), which it draws at
@@ -121,4 +121,45 @@ export function holdInput(term: Pick<Terminal, "textarea" | "options">, gone: bo
   if (!field) return;
   if (gone && field.ownerDocument.activeElement === field) field.blur();
   field.disabled = gone;
+}
+
+/**
+ * 0.4.5 (AJ-E805, idle CPU): a session terminal's cursor blinks while the
+ * terminal is in use, then rests. Blinking for ever, a focused terminal
+ * kept the window drawing with nothing typed or written (xterm's blink is
+ * an endless animation). It blinks again at the next key or the next
+ * output.
+ */
+
+/** How long the cursor blinks after the last key or output. */
+const BLINK_FOR_MS = 10_000;
+
+type Blinking = { options: Pick<Terminal["options"], "cursorBlink">; onData: Terminal["onData"]; onWriteParsed: Terminal["onWriteParsed"] };
+
+/** Blinks `term`'s cursor for [`BLINK_FOR_MS`] after each key and each
+ * output, from now. Its listeners go with the terminal. */
+export function blinkWhileUsed(term: Blinking): IDisposable {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const rest = () => {
+    try {
+      term.options.cursorBlink = false;
+    } catch {
+      // The terminal was closed meanwhile.
+    }
+  };
+  const wake = () => {
+    if (!term.options.cursorBlink) term.options.cursorBlink = true;
+    clearTimeout(timer);
+    timer = setTimeout(rest, BLINK_FOR_MS);
+  };
+  const keyed = term.onData(wake);
+  const written = term.onWriteParsed(wake);
+  wake();
+  return {
+    dispose: () => {
+      clearTimeout(timer);
+      keyed.dispose();
+      written.dispose();
+    },
+  };
 }

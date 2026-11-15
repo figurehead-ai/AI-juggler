@@ -5,10 +5,21 @@
  * renders when nothing happened.
  */
 import { act, cleanup, fireEvent, render, waitFor } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { MorningSummary, sinceHeading, whenLine } from "./MorningSummary";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { MorningSummary, olderThanCard, sinceHeading, whenLine } from "./MorningSummary";
 import { summaryHeadline } from "../lib/ended-how";
 import type { SummaryRowInfo } from "../types/generated/SummaryRowInfo";
+
+// The card's conversation-index listener, heard by the test (the preview's
+// own seam only ever says "live").
+const heard = vi.hoisted(() => [] as Array<(change: "live" | "index") => void>);
+vi.mock("../lib/ipc/conversations", async (actual) => ({
+  ...(await actual<typeof import("../lib/ipc/conversations")>()),
+  onConversationsChanged: (handler: (change: "live" | "index") => void) => {
+    heard.push(handler);
+    return () => heard.splice(heard.indexOf(handler), 1);
+  },
+}));
 
 const w = () => window as unknown as Record<string, unknown>;
 const row = (id: string, group: string, words: string, over: Partial<SummaryRowInfo> = {}): SummaryRowInfo => ({
@@ -25,6 +36,9 @@ const row = (id: string, group: string, words: string, over: Partial<SummaryRowI
   detail: null,
   tokens: null,
   leftovers: 0,
+  git_branch: null,
+  cwd: "/Users/dev/repos/storefront",
+  started_at_ms: 1_800_000_000_000 - 3 * 3_600_000,
   ...over,
 });
 
@@ -35,6 +49,52 @@ beforeEach(() => {
 });
 
 describe("AJ-E1004 morning summary", () => {
+  it("reads again when the conversation index changes, so a name that came later shows; not on a live turn (0.4.5)", async () => {
+    const summary = (title?: string) => ({
+      since_ms: 1_800_000_000_000 - 8 * 3_600_000,
+      generated_ms: 1_800_000_000_000,
+      rows: [row("s1", "finished", "Finished", title ? { title } : {})],
+      counts: { finished: 1 },
+      leftovers: 0,
+    });
+    w().__AIJ_SUMMARY__ = summary();
+    const { container } = render(<MorningSummary onOpenSession={() => undefined} />);
+    const name = () => container.querySelector("[data-testid='summary-name']")?.textContent;
+    await waitFor(() => expect(name()).toMatch(/^storefront · started /));
+    w().__AIJ_SUMMARY__ = summary("Add retries with backoff to the webhook client");
+    act(() => heard.forEach((handler) => handler("live")));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(name()).toMatch(/^storefront · started /);
+    act(() => heard.forEach((handler) => handler("index")));
+    await waitFor(() => expect(name()).toBe("Add retries with backoff to the webhook client"));
+  });
+
+  it("leads every row with the session's own name, alike ones told apart, then its App (0.4.5, persona D3)", async () => {
+    w().__AIJ_SUMMARY__ = {
+      since_ms: 1_800_000_000_000 - 8 * 3_600_000,
+      generated_ms: 1_800_000_000_000,
+      rows: [
+        row("s1", "finished", "Finished", { title: "Add retries with backoff to the webhook client" }),
+        row("s2", "finished", "Finished", { label: "Billing spike", title: "Rename the billing models" }),
+        row("s3", "finished", "Finished", { started_at_ms: 1_800_000_000_000 - 2 * 3_600_000 }),
+        row("s4", "finished", "Finished", { started_at_ms: 1_800_000_000_000 - 2 * 3_600_000 }),
+      ],
+      counts: { finished: 4 },
+      leftovers: 0,
+    };
+    const { container } = render(<MorningSummary onOpenSession={() => undefined} />);
+    await waitFor(() => expect(container.querySelector("[data-testid='morning-summary']")).not.toBeNull());
+    const names = Array.from(container.querySelectorAll("[data-testid='summary-name']")).map((n) => n.textContent);
+    expect(names[0]).toBe("Add retries with backoff to the webhook client");
+    expect(names[1]).toBe("Billing spike");
+    // Two untitled ones from one folder at one time: told apart, never alike.
+    expect(names[2]).toMatch(/^storefront · started .+/);
+    expect(names[2]).not.toBe(names[3]);
+    // The name leads; its App follows.
+    const first = container.querySelector<HTMLButtonElement>("[data-testid='summary-row']")!;
+    expect(first.textContent.indexOf("Add retries")).toBeLessThan(first.textContent.indexOf("Claude Code"));
+  });
+
   it("orders by severity, names leftovers, says tokens only when known, opens a row", async () => {
     w().__AIJ_SUMMARY__ = {
       since_ms: 1_800_000_000_000 - 8 * 3_600_000,
@@ -87,8 +147,8 @@ describe("AJ-E1004 morning summary", () => {
     };
     const { container } = render(<MorningSummary onOpenSession={() => undefined} />);
     await waitFor(() => expect(container.querySelectorAll("[data-testid='summary-row']").length).toBe(2));
-    const names = [...container.querySelectorAll("[data-testid='summary-row']")].map((el) => el.firstElementChild!.textContent);
-    expect(names).toEqual(["Claude app · Work · Work Max", "Claude Code CLI · Work · work"]);
+    const apps = [...container.querySelectorAll("[data-testid='summary-app']")].map((el) => el.textContent.replace(/^· /, ""));
+    expect(apps).toEqual(["Claude app · Work · Work Max", "Claude Code CLI · Work · work"]);
   });
 
   it("shows five rows a group, the rest a click away (walk K1)", async () => {
@@ -202,6 +262,40 @@ describe("AJ-E1004 morning summary", () => {
     const { findByTestId, container } = render(<MorningSummary onOpenSession={() => undefined} />);
     await waitFor(async () => expect((await findByTestId("summary-since")).textContent).toMatch(/^Since you last looked, 0?1:56/));
     expect(container.textContent).not.toMatch(/Since you were away|since \w{3} /);
+  });
+
+  it("points to search for sessions older than its window, and its click runs ⌘K's search (persona D3)", async () => {
+    const since = 1_800_000_000_000 - 12 * 3_600_000;
+    w().__AIJ_SUMMARY__ = { since_ms: since, generated_ms: 1_800_000_000_000, default_window: true, rows: [row("s1", "finished", "Finished")], counts: { finished: 1 }, leftovers: 0 };
+    const searched: string[] = [];
+    const held = [
+      { session: { id: "s1" }, lastMs: since + 3_600_000, archived: false },
+      { session: null, lastMs: since - 3 * 24 * 3_600_000, archived: false },
+    ];
+    const { container } = render(<MorningSummary onOpenSession={() => undefined} held={held} onSearch={() => searched.push("search")} />);
+    await waitFor(() => expect(container.querySelector("[data-testid='summary-older']")).not.toBeNull());
+    const older = container.querySelector<HTMLButtonElement>("[data-testid='summary-older']")!;
+    expect(older.textContent).toBe("Older sessions: search ⌘K");
+    expect(older.getAttribute("aria-keyshortcuts")).toBe("Meta+K");
+    fireEvent.click(older);
+    expect(searched).toEqual(["search"]);
+  });
+
+  it("says nothing of older sessions when the rail holds none older than its window", async () => {
+    const since = 1_800_000_000_000 - 12 * 3_600_000;
+    const summary = { since_ms: since, generated_ms: 1_800_000_000_000, default_window: true, rows: [row("s1", "running", "Still running")], counts: { running: 1 }, leftovers: 0 };
+    w().__AIJ_SUMMARY__ = summary;
+    // Newer than the window; the card's own row, however quiet; one put away.
+    const held = [
+      { session: null, lastMs: since + 60_000, archived: false },
+      { session: { id: "s1" }, lastMs: since - 3_600_000, archived: false },
+      { session: null, lastMs: since - 3_600_000, archived: true },
+    ];
+    const { container } = render(<MorningSummary onOpenSession={() => undefined} held={held} onSearch={() => undefined} />);
+    await waitFor(() => expect(container.querySelector("[data-testid='morning-summary']")).not.toBeNull());
+    expect(container.querySelector("[data-testid='summary-older']")).toBeNull();
+    expect(olderThanCard(held, summary)).toBe(false);
+    expect(olderThanCard([...held, { session: { id: "s9" }, lastMs: since - 1, archived: false }], summary)).toBe(true);
   });
 
   it("says only \"Ended\" when nothing said how (D-96 C)", () => {

@@ -298,7 +298,7 @@ pub fn changed(state: &AppState, change: Change) {
 /// even while another thread holds the app's connection for a long write,
 /// and never served unchecked. Without that connection (an in-memory
 /// database, or it failed), the app's connection, waiting its turn.
-fn stored_now(state: &AppState) -> AppResult<StoredStamps> {
+pub(crate) fn stored_now(state: &AppState) -> AppResult<StoredStamps> {
     {
         let mut reader = state
             .relations

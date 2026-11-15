@@ -2941,3 +2941,228 @@ Each ships with tests that fail without it and a design critique; the M2, D2 and
 
 - **Amends:** D-102 ("Show all N" → "All N sessions ›"; the caption), D-97 (New session's default when a repo has its own Account).
 - Sources: `docs/qa/0.4-walks/personas/runs-0.4.3.md`; the R5 list in the coordinating session's notes.
+
+### D-109 A release's sign-off is the Stable approval on GitHub, recorded automatically; the old gate files are history — SETTLED (2026-11-13)
+
+**Ruling.** The maintainer, 2026-11-13, answering the coordinating session's option A: "A, go ahead". What was found first: none of the six gate files (M0, M1, M3, E5, E7, beta) is signed; `gate-beta.md` is four weeks stale (50 FAIL); MAINTAINER-STEPS Part 5 says the beta feed doesn't move until the beta gate is signed, which is false (no CI step runs `gate-signed`; 0.4.1 to 0.4.4 went to beta without it).
+
+- **The sign-off is the maintainer's GitHub approval of the `stable` environment** in the Promote workflow: GitHub records the reviewer, the date and the commit, which meets AJ-E807 R4.
+- **An automatic record:** on a stable promotion, the Promote workflow writes a sign-off record into the repository through its normal pull-request or merge route (never a force-push): the version, the commit, the date and the approving reviewer (read from the run's approval through the API), and the result of `release_scope.py check <version> --channel stable` with links to the evidence manifests. Proven with a dry-run or rehearsal mode that promotes nothing.
+- **The old gate files** (`docs/qa/gates/`) get a header note, replaced by D-109, and stay as history; `gate-packet` and `gate-signed` are retired or repointed at the new record.
+- **Docs:** MAINTAINER-STEPS Part 5 (and its false feed claim), QUALITY.md §8, EPICS' gate section and AJ-E807's text and evidence follow it. The maintainer's only step is the Stable click they already make.
+- **Amends:** AJ-E807 R4 and its per-milestone signing; MAINTAINER-STEPS Part 5.
+- Sources: the coordinating session's findings and relay of the maintainer's answer, 2026-11-13.
+- On the 0.4 line: brought from release/0.5 (f3c7cd34f, e4a94077c,
+  cea9acf64) so the first Stable (0.4.6, D-114) can be promoted from main.
+
+### D-110 The process table is listed in one system call — a fifth audited unsafe shim — SETTLED (2026-11-13)
+
+- Decision: `crates/juggler-proc-list`: one `sysctl(CTL_KERN, KERN_PROC,
+  KERN_PROC_ALL)` read (the call `ps` makes) listing every process's pid,
+  parent, start time, short name and zombie state, never its arguments or
+  environment. AJ-E805's 0.4.5 brief (2026-11-13) allowed a cheap
+  listing "if, and only if, your profile shows the listing dominates": it
+  does. On the lab at rest, reading the process table was 54 % of the
+  app's busy samples (the 2 s collector's listing and full scan,
+  presence's 5 s look, the live view's scan), and 72 % of each read was
+  `sysinfo` reading every process's arguments (`KERN_PROCARGS2`, twice),
+  which it does on every refresh whatever it is asked
+  (`docs/qa/evidence/AJ-E805/idle-0.4.5.md`). With the listing, a
+  process's arguments are read once, when it first appears; only the
+  processes AI Juggler measures are read again; the zombies `sysinfo`
+  never lists on a Mac come from the same read (no more `/bin/ps`).
+- As with D-17, D-26 and D-27, the carve-out is a new, isolated crate that
+  does NOT inherit the workspace lint baseline; `unsafe_code = "forbid"`
+  stays absolute everywhere else. It holds exactly five `unsafe` blocks
+  (the `sysctl` asking the records' size, and the one reading them into a
+  byte buffer; zeroing a `proc_taskinfo`, and the `proc_pidinfo` filling
+  it; `mach_timebase_info`, read once per run and cached),
+  each with a SAFETY note, under `#![deny(unsafe_op_in_unsafe_fn)]`,
+  behind two safe functions: `list`, and `task` (one process's resident
+  memory and CPU time, the record `sysinfo` takes them from: the
+  collector's full scan measures This Mac's other apps with it, reading
+  only new processes whole, and each listing measures the observed tools'
+  trees with it, reading only new processes whole too).
+  `libc` has no `kinfo_proc`, so the seven fields read are taken at their
+  offsets in its fixed 64-bit layout, and every read checks itself (a
+  record size other than 648 bytes, or a listing without this process
+  under its own parent, is no listing: the callers read the table as
+  before). Off macOS it is a safe stub that lists nothing. Its tests hold
+  it to `ps` (this process's parent, name, memory and the count) and to a
+  real zombie.
+- Amended 2026-11-13 (AJ-E805 round 4, the maintainer's call; unshipped,
+  so in place): the fifth block. Round 3's per-thread reading put the
+  2 s `processes` tick first among the app's costs with 10 sessions at
+  work (0.33 % of a core), and in it the observed tools' trees read
+  through `sysinfo` at every listing (every 4 s), each process's
+  arguments with them (`KERN_PROCARGS2`, twice, whatever is asked).
+  Their CPU time is in the same `proc_taskinfo` record `resident`
+  already read (`pti_total_user` + `pti_total_system`), but counted in
+  Mach time units: nanoseconds on an Intel Mac, 24 MHz ticks on Apple
+  silicon (unconverted, a busy process reads 42 times too low). They're
+  converted with Mach's own ratio, `mach_timebase_info` (125/3 ns a tick
+  on Apple silicon, 1/1 on Intel), called once per run and cached;
+  `libc` marks it deprecated in favour of the `mach2` crate, and the
+  call allows that with its reason rather than add a dependency or a
+  hand-written declaration (`libc`'s is the audited one).
+  `hw.tbfrequency` was tried first and dropped at review: Mach's ratio
+  is the conversion's own definition. Its tests hold the conversion at
+  both ratios (a pure function, so both run on any Mac), this Mac's
+  ratio to the kernel's tick rate (`sysctl -n hw.tbfrequency`), and a
+  busy child's CPU time to the wall clock and to `ps` (the unconverted
+  reading fails them).
+- Rejected: `proc_listallpids` with `proc_pidinfo(PROC_PIDTBSDINFO)` per
+  pid (the kernel refuses it for other users' processes and for zombies:
+  678 of 872 listed); keeping `sysinfo`'s table between reads alone
+  (df2caecfb, reverted in a99736df8: `sysinfo` reads every process's
+  arguments on each refresh anyway, no gain measured); slowing the ticks
+  (ADR-0032 promises launch and quit within 2 s).
+- Sources: `docs/qa/evidence/AJ-E805/idle-0.4.5.md` (the 0.4.5 follow-up's
+  profile and numbers).
+- Number: first recorded as D-108 (commit messages a040caa4a to
+  ba4f8c2c3); release/0.5 had already taken D-104 to D-109.
+
+### D-111 A quit request's ack timer starts once the window shows; a hidden window's unanswered request never quits — SETTLED (2026-11-13)
+
+- Decision (the coordinating session's design call, 0.4.5): closing the
+  main window or ⌘Q with live sessions brings the window forward and
+  shows the quit sheet (AJ-E1503). The [`ACK_WINDOW`] fallback (quit as
+  if Quit anyway when the sheet never answers) now starts only once the
+  main window is shown and not minimised. A request whose window never
+  shows within `SHOW_WINDOW` doesn't quit: it is logged and keeps
+  waiting, the sheet comes up when the window shows, and a second ⌘Q or
+  close still quits. Unchanged: with nothing live, a close or ⌘Q quits at
+  once; logging out and shutting down never ask. Every path is logged
+  (quit at once, asked, a shown window never answered, the window never
+  showed).
+- Why: something other than the person (an accessibility client, a
+  script) can press a hidden window's close button. With sessions live,
+  the old timer could quit unanswered, ending terminal sessions nobody
+  chose to stop (ADR-0003, always-on). The timer is for a hung webview in
+  a shown window, and that case still quits.
+- Found: the idle-CPU labs (AJ-E805) saw lab windows' close buttons
+  pressed by an outside accessibility client (11:31:45, 12:30:48,
+  16:42:52 and three in round 2). The 16:42:52 case quit 12 ms after the
+  press, on the nothing-live path: the lab's sessions weren't AI
+  Juggler's (its supervision log was empty). That is the designed path.
+  The live-sessions case is what this closes. No quit path wrote a log
+  line, so the incident could only be told from the system log.
+- Sources: `crates/juggler-app/src/quit.rs` and its tests.
+
+### D-112 The close button hides the main window; ⌘Q quits — SETTLED (2026-11-13)
+
+- Decision (the coordinating session's design call, 0.4.5, an always-on
+  fix): the main window's close button and ⌘W hide the window. Nothing
+  quits, the quit sheet never shows, and every session keeps running.
+  ⌘Q, the tray's Quit and the Dock's Quit (where it reaches the app) go
+  through the quit request, with its sheet and D-111's rules. A click on
+  the Dock icon, the tray or a second launch shows the hidden window. The
+  first time a close hides the window, AI Juggler says once, as a toast:
+  "AI Juggler kept running while its window was closed. It stays in the
+  menu bar. ⌘Q quits." It's shown when the window is next on screen (a
+  hidden window can't show it), and recorded so it never shows again on
+  that install. The Floor's window keeps its own close handling.
+- Why: AI Juggler is meant to stay running (always-on), and the tray and
+  the Dock bring it back. A close that quit, with nothing live, ended it
+  for anything that pressed the button, an accessibility client among
+  them (D-111's lab incidents). Neither the maintainer's rulings nor SPEC
+  say close must quit; E15 recorded AJ-E1503's "⌘Q and the close button
+  ask first" only as built.
+- Supersedes: the close-button half of AJ-E1503 Req.3 (its ⌘Q half
+  stands).
+- Sources: `crates/juggler-app/src/lib.rs` (the window's close),
+  `crates/juggler-app/src/quit.rs`, E15's AJ-E1503 note, the quitting
+  docs page.
+
+### D-113 A quit Apple event without a reason asks first; logout, restart and shutdown never do — SETTLED (2026-11-13)
+
+- Decision (the coordinating session's call, 0.4.5): AI Juggler installs
+  its own handler for the quit Apple event (`kCoreEventClass` /
+  `kAEQuitApplication`) through `NSAppleEventManager`, in the audited
+  `juggler-window-events` crate (one more audited unsafe block,
+  documented as ADR-0026's are). An event that carries `keyAEQuitReason`
+  (log out, restart, shut down), or one that arrives while AI Juggler is
+  already quitting, terminates at once and never asks. One without a
+  reason (the Dock's Quit, Activity Monitor's Quit, an AppleScript `quit`)
+  goes through the quit request: the window comes forward with the sheet
+  under D-111's rules, and with nothing live it quits at once. If the
+  handler can't be installed, AI Juggler logs it and quits as before;
+  it never ends up unable to quit.
+- Why: since D-112 the close button only hides the window, so the Dock's
+  Quit becomes an obvious way to quit, and it ended terminal sessions
+  without the sheet (tao's app delegate has no
+  `applicationShouldTerminate:`). That was ADR-0003's gap. A handler of
+  our own replaces nothing in tao, so it survives tao upgrades; patching
+  tao's delegate class would not.
+- Consequence: scripts and test teardowns that quit a Dev build with an
+  AppleScript `quit` now meet the sheet when sessions are live; they end
+  the app by pid (TERM, which quits as asked) instead.
+- Sources: `crates/juggler-window-events`, `crates/juggler-app/src/quit.rs`,
+  ADR-0003's gap note.
+
+### D-114 The first Stable: 0.4.6 after 7 days on beta, the 0.4 line frozen; a blocker fix needs 3 days on its own tag — SETTLED (2026-11-13)
+
+- **Ruling** (maintainer, 2026-11-13; asked "How long should the Stable
+  candidate (0.4.6) sit on Beta with the 0.4 line frozen before it can
+  become the first Stable?", chose "7 days (Recommended)").
+- The plan it sits in (the coordinating session's):
+  1. 0.4.5 ships to beta as planned.
+  2. 0.4.6 is the Stable candidate. It closes the 0.4 scope still open
+     (AJ-E3002, AJ-E3304, AJ-E3306, AJ-E3307 and the 0.4.5 presence
+     report; `release_scope.py check 0.4.5 --channel stable` lists them).
+  3. Once 0.4.6 is on beta the 0.4 line is frozen: only D-24 blockers
+     ship as 0.4.x; everything else goes to release/0.5.
+  4. Stable after 7 days on beta with no open blocker. A blocker fix
+     doesn't restart the 7 days: its patch needs 3 days on its own beta
+     tag, and its line's first candidate 7 days on beta (so a fix
+     shipped on day 1 still waits for day 7). The maintainer's GitHub
+     stable approval is the sign-off (D-109).
+- **Amends** D-24's Stable rule (14+ days on beta) to 7 days, and adds the
+  blocker-fix rule. Enforced by `scripts/promotion_rules.py`
+  (`STABLE_MIN_DAYS`, `BLOCKER_FIX_MIN_DAYS`, self-tested) from
+  `promote.yml`, whose `blocker_fix` input names the blocker issues a
+  patch fixes (each must be a closed issue labelled `blocker`).
+- **Plan, not a ruling** (the steady cadence after the first Stable):
+  nightly every night; beta about weekly, as a nightly used for a couple
+  of days; stable every 2–4 weeks after a clean soak.
+
+### D-116 Desktop app sessions are full pool members in 0.4.6, through AI Juggler's connector (MCP and plugin), added with consent or guided — SETTLED (2026-11-14)
+
+- **Ruling** (maintainer, 2026-11-14; asked "Which release should carry
+  this?" about making desktop app sessions full pool members, chose
+  "0.4.6 (Recommended)"). Their words, after making a pool of their two
+  Claude app profiles and seeing both marked Watched, "can't reply":
+  "Our pool should work with both desktop and cli apps. Remember how we
+  solve this, we solve it with plugins and MCP, and if app gets added and
+  it doesn't have our plugin or MCP server than it is either added
+  automatically by our tool (if possible) or guides user step by step on
+  how to do it. This is essential."
+- **Decision:** a desktop app's session joins a pool as a real member
+  through AI Juggler's connector: the agent-bridge MCP server, and for
+  Claude the Claude Code plugin (AJ-E1905: MCP config, the tasks skill,
+  an inbox hook). It reads and sends the pool's messages, shared
+  documents and tasks under the pool's rules and level; talk rules are
+  enforced at the bridge, as for terminal sessions. Each desktop app's
+  route (the Claude app's Code tab under its profile's
+  CLAUDE_CONFIG_DIR; its chats and Cowork; ChatGPT's Codex app) is
+  researched first, undocumented ones included, and proven on a lab
+  profile.
+- **Waking stays the honest limit (D-66):** AI Juggler never types into a
+  desktop app's window, so an idle desktop member gets pool messages on
+  its next turn; the canvas says so, not "can't reply".
+- **Adding the connector:** with the user's consent, never silently. When
+  an App without it joins a pool, one card offers to add it (its
+  consequence, an example, a docs link). Add writes only our entry into
+  that App's own config (merged, never replacing theirs; a preview of the
+  change), records it so Remove restores the file exactly, and says a
+  running session picks it up at its next start. Where writing isn't
+  possible or allowed, a step-by-step guide with copyable steps, and the
+  member turns live once AI Juggler sees it done. The switch preflight's
+  offer of missing MCP servers and skills is reused, not built twice. No
+  secret and no Keychain are touched; the bridge stays local with its
+  auth. Live checks only on lab profiles or aij-test.
+- **Amends:** D-61 point 15 ("Watched… joining from anywhere comes
+  later": desktop sessions join in 0.4.6) and D-73's timing (the
+  plugin's parts that pools need ship in 0.4.6, from the 0.5 work).
+- Sources: the coordinating session's relay of the maintainer's answer
+  and words, 2026-11-14.

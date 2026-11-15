@@ -1649,10 +1649,6 @@
   "typescript(no-unnecessary-type-assertion)": 1,
   "typescript(no-unsafe-type-assertion)": 1
  },
- "src/lib/session-titles.ts": {
-  "typescript(consistent-return)": 1,
-  "typescript(no-unsafe-type-assertion)": 1
- },
  "src/lib/shared-read.ts": {
   "eslint(no-shadow)": 1,
   "react(exhaustive-effect-dependencies)": 1

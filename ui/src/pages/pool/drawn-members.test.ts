@@ -60,7 +60,7 @@ describe("a member's name (rc7 walk)", () => {
     const plain: InstanceInfo = { ...base, label: undefined, title: undefined, git_branch: null, cwd: "/w/web" };
     const one = (over: Partial<InstanceInfo>) => nameOf({ ...plain, ...over });
     expect(one({ label: "Writer", title: "Write the notes" })).toBe("Writer");
-    expect(one({ title: "Good. Write the release notes for 0.4.1 and check every link in them twice" })).toBe("Write the release notes for 0.4.1 and check…");
+    expect(one({ title: "Good. Write the release notes for 0.4.1 and check every link in them twice" })).toBe("Write the release notes for 0.4.1 and check every link in…");
     expect(one({ git_branch: "main" })).not.toContain("main");
     expect(one({ git_branch: "fix/limits" })).toBe("fix/limits");
   });

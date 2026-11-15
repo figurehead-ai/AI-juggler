@@ -14,7 +14,8 @@
  * the calls that change them in `__AIJ_TASKS_CALLS__`.
  */
 import { useEffect, useState } from "react";
-import { call, listen } from "./transport";
+import { call } from "./transport";
+import { listenWhileShown } from "../shown-window";
 import { hasLiveBackend, refused } from "../bridge";
 import type { TaskInfo } from "../../types/generated/TaskInfo";
 import type { TaskCounts } from "../../types/generated/TaskCounts";
@@ -326,16 +327,8 @@ export function onTasksChanged(handler: () => void): () => void {
     listeners.add(handler);
     return () => listeners.delete(handler);
   }
-  let unlisten: (() => void) | null = null;
-  let gone = false;
-  void listen<string[]>(TASKS_CHANGED, () => handler()).then((off) => {
-    if (gone) off();
-    else unlisten = off;
-  });
-  return () => {
-    gone = true;
-    unlisten?.();
-  };
+  // AJ-E805: not heard while the window is hidden; read once when it shows.
+  return listenWhileShown<string[]>(TASKS_CHANGED, () => handler(), handler);
 }
 
 /** What waits on you about tasks, kept current. */

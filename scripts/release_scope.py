@@ -40,6 +40,9 @@ Usage:
     release_scope.py check 0.4.1 --channel beta     # the same
     release_scope.py check 0.4.3 --channel stable   # the whole 0.4; exit 1
                                                     # when anything is open
+    release_scope.py check 0.4.3 --channel stable --json scope.json
+                     # also writes every named task's state and the output
+                     # (promote.yml's sign-off record reads it, D-109)
     release_scope.py --selftest
 CI reports it on a release pull request, the nightly before it builds a
 new minor (x.y.0), and promote.yml before beta; preflight prints its first
@@ -271,6 +274,15 @@ def selftest() -> int:
                 got = run(argv)
             assert got == want, (argv, got, out.getvalue())
             assert "OPEN      AJ-E9" in out.getvalue(), (argv, out.getvalue())
+        # D-109: --json carries each task's state and the exit for the record.
+        target = EVIDENCE / "scope.json"
+        with contextlib.redirect_stdout(io.StringIO()):
+            assert run(["check", "9.9.1", "--channel", "stable", "--json", str(target)]) == 1
+        import json
+        got = json.loads(target.read_text(encoding="utf-8"))
+        assert got["exit"] == 1 and got["channel"] == "stable", got
+        assert got["tasks"] == [{"id": "AJ-E9", "title": "made up", "status": "TODO", "state": "open"}], got
+        assert got["output"][0].startswith("release scope 9.9.1"), got
     finally:
         scope = real
         EVIDENCE = saved
@@ -287,6 +299,11 @@ def main() -> int:
 
 def run(args: list[str]) -> int:
     args = list(args)
+    json_path = None
+    if "--json" in args and args.index("--json") + 1 < len(args):
+        at = args.index("--json")
+        json_path = pathlib.Path(args[at + 1])
+        del args[at:at + 2]
     channel = None
     if len(args) == 4 and args[2] == "--channel":
         channel = args.pop()
@@ -308,37 +325,66 @@ def run(args: list[str]) -> int:
     )
     known, wanted, open_, deferred, missing, unchecked, weak = scope(minor, upto)
     done = len(wanted) - len(open_) - len([t for t in wanted if t in deferred]) - len(missing) - len(weak)
-    print(f"release scope {version}{' (stable: the whole ' + minor + ')' if channel == 'stable' else ''}: {len(wanted)} tasks named, {done} done and proven, "
-          f"{len(weak)} marked done but unproven, {len(deferred)} deferred, {len(open_)} open")
+    lines = [f"release scope {version}{' (stable: the whole ' + minor + ')' if channel == 'stable' else ''}: {len(wanted)} tasks named, {done} done and proven, "
+             f"{len(weak)} marked done but unproven, {len(deferred)} deferred, {len(open_)} open"]
     for t in open_:
         title, status, _ = known[t]
-        print(f"  OPEN      {t} {title[:70]} — {status[:60]}")
+        lines.append(f"  OPEN      {t} {title[:70]} — {status[:60]}")
     for t, why in weak.items():
-        print(f"  UNPROVEN  {t} {known[t][0][:60]} — {why}")
+        lines.append(f"  UNPROVEN  {t} {known[t][0][:60]} — {why}")
     for t, d in sorted(deferred.items()):
-        print(f"  deferred  {t} ({d})")
+        lines.append(f"  deferred  {t} ({d})")
     for t in missing:
-        print(f"  UNKNOWN   {t}: named in the roadmap, no task header in docs/tasks")
+        lines.append(f"  UNKNOWN   {t}: named in the roadmap, no task header in docs/tasks")
     for row in unchecked:
-        print(f"  UNCHECKED row '{row[:60]}': names no task, so nothing proves it")
+        lines.append(f"  UNCHECKED row '{row[:60]}': names no task, so nothing proves it")
+    code = 0
     # ADR-0032: the rail must match what runs, on every channel.
     unseen = presence(version) if mode == "check" else None
     if unseen:
-        print(f"  PRESENCE  {unseen}")
-        print("release_scope: the rail isn't proven to match what runs on the real Mac (ADR-0032).")
-        return 1
-    failed = bool(open_ or missing or unchecked or weak)
-    if mode == "check" and failed:
+        lines.append(f"  PRESENCE  {unseen}")
+        lines.append("release_scope: the rail isn't proven to match what runs on the real Mac (ADR-0032).")
+        code = 1
+    elif mode == "check" and (open_ or missing or unchecked or weak):
         if channel != "stable":
             # D-99: only the Stable promotion is gated; elsewhere it reports.
-            print(f"release_scope: {minor} is not complete yet; report only "
-                  "(the Stable promotion fails on it, D-99).")
-            return 0
-        print(f"release_scope: {minor} is not complete. Finish the open tasks, or "
-              "list them under '**Deferred (D-NN):**' with the maintainer's decision.")
-        return 1
-    return 0
+            lines.append(f"release_scope: {minor} is not complete yet; report only "
+                         "(the Stable promotion fails on it, D-99).")
+        else:
+            lines.append(f"release_scope: {minor} is not complete. Finish the open tasks, or "
+                         "list them under '**Deferred (D-NN):**' with the maintainer's decision.")
+            code = 1
+    print("\n".join(lines))
+    if json_path:
+        write_json(json_path, version, minor, channel, code, lines, known, wanted, open_, deferred, missing, weak)
+    return code
 
+
+def write_json(path, version, minor, channel, code, lines, known, wanted, open_, deferred, missing, weak) -> None:
+    """Every named task's state, for the Stable sign-off record (D-109)."""
+    import json
+
+    def state(t: str) -> dict:
+        if t in missing:
+            return {"id": t, "title": "", "state": "unknown"}
+        title, status, _ = known[t]
+        row = {"id": t, "title": title, "status": status}
+        if t in deferred:
+            return row | {"state": "deferred", "decision": deferred[t]}
+        if t in open_:
+            return row | {"state": "open"}
+        if t in weak:
+            return row | {"state": "unproven", "why": weak[t]}
+        return row | {"state": "proven"}
+
+    path.write_text(json.dumps({
+        "version": version,
+        "minor": minor,
+        "channel": channel,
+        "exit": code,
+        "output": lines,
+        "tasks": [state(t) for t in sorted(set(wanted) | set(deferred), key=lambda t: int(t[4:]))],
+    }, indent=1) + "\n", encoding="utf-8")
 
 if __name__ == "__main__":
     sys.exit(main())

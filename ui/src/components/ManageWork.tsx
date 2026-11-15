@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { shortName, useAskedName } from "../lib/session-titles";
+import { shortName } from "../lib/session-titles";
 import { createPortal } from "react-dom";
 import { ReplayDialog } from "./ReplayDialog";
 import { showToast } from "./Toast";
@@ -22,18 +22,11 @@ import { editorChoices, projectForget, projectOpen, projectRelocate, projectRena
  */
 
 /** A session's title on screen: the user's label, else what it was about
- * (its conversation's title: the tool's summary or the first thing asked,
- * AJ-E1536), else its facts by the rail's one rule (`shortName`, D-96:
- * "billing · started 1:14 AM", D-103.8). */
+ * (its conversation's title: the tool's name for it, else its first
+ * prompt, AJ-E1536, 0.4.5), else its facts by the rail's one rule
+ * (`shortName`, D-96: "billing · started 1:14 AM", D-103.8). */
 export function sessionTitle(session: InstanceInfo, now: number = Date.now()): string {
   return session.label ?? session.title ?? shortName(session, now);
-}
-
-/** [`sessionTitle`] where an untitled session's last ask is known, as
- * Home and the rail name it ("Session" while there's none). */
-export function useSessionTitle(session: InstanceInfo | null): string {
-  const asked = useAskedName(session);
-  return session ? (asked ?? sessionTitle(session)) : "Session";
 }
 
 /** The editor projects open in (Settings), or null for Finder. */

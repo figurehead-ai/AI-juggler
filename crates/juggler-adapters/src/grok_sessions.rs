@@ -100,6 +100,12 @@ fn has_parent(summary: &serde_json::Value) -> bool {
         })
 }
 
+/// The folder every session's record is under.
+#[must_use]
+pub fn conversation_roots(home: &Path) -> Vec<PathBuf> {
+    vec![home.join(SESSIONS_DIR)]
+}
+
 /// Every top-level session's record in the home.
 #[must_use]
 pub fn conversation_files(home: &Path) -> Vec<PathBuf> {
@@ -323,6 +329,10 @@ mod tests {
         assert_eq!(read.cwd.as_deref(), Some(cwd));
         assert_eq!(read.last_ms, Some(1_792_580_500_000));
         assert_eq!(read.tokens, juggler_core::model::TokenCounts::default());
+        // 0.4.5 (AJ-E805): `summary.json` is written again whole, never
+        // appended to: no transcript reader (read whole when it changes).
+        let adapter = crate::grok_build::GrokBuildAdapter::new();
+        assert!(juggler_adapter::ToolTranscripts::transcript_reader(&adapter, &top, "a").is_none());
         assert_eq!(session_id_of(&top.with_file_name("updates.jsonl")), read.id);
     }
 

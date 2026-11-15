@@ -87,11 +87,15 @@
 | AJ-E804 | Accessibility verification programme | E8-validation-visual-performance-quality.md | P0 | M | AJ-E802 |
 | AJ-E805 | Performance budgets and load proof (10 Accounts / 50 Instances) | E8-validation-visual-performance-quality.md | P0 | L | AJ-E801 |
 | AJ-E806 | Quality gates and CI enforcement | E8-validation-visual-performance-quality.md | P0 | M | AJ-E801 |
-| AJ-E807 | Milestone gate verification and sign-off | E8-validation-visual-performance-quality.md | P0 | M | AJ-E803, AJ-E804, AJ-E805, AJ-E806 |
+| AJ-E807 | Release sign-off: the Stable approval, recorded with its evidence | E8-validation-visual-performance-quality.md | P0 | M | AJ-E803, AJ-E804, AJ-E805, AJ-E806 |
 | AJ-E808 | Provider-pair fidelity validation matrix (operations) | E8-validation-visual-performance-quality.md | P0 | L | AJ-E801 |
 | AJ-E809 | Beta dogfood programme | E8-validation-visual-performance-quality.md | P1 | M | AJ-E807, AJ-E808 |
 | AJ-E810 | External research evidence standard | E8-validation-visual-performance-quality.md | P1 | S | AJ-E801 |
 | AJ-E811 | Full-sweep visual check (D-21) | E8-validation-visual-performance-quality.md | P1 | S | AJ-E802, AJ-E803 |
+| AJ-E812 | Idle CPU: the web content's and GPU's brief spikes traced | E8-validation-visual-performance-quality.md | P1 | M | AJ-E805 |
+| AJ-E813 | Home draws again only when what it shows changes, not on every This Mac reading | E8-validation-visual-performance-quality.md | P1 | S | AJ-E805 |
+| AJ-E814 | Idle CPU measured with the window fully covered | E8-validation-visual-performance-quality.md | P2 | S | AJ-E805 |
+| AJ-E815 | The relation counts' speed test measures the work, not the clock | E8-validation-visual-performance-quality.md | P1 | S | AJ-E3102 |
 | AJ-E901 | SPEC §3 domain-model rewrite (Provider/Instance/Switch Graph/ledger) | E9-docs-adrs-and-plan-rewrite.md | P0 | M | — |
 | AJ-E902 | SPEC §5 supervisor/ledger + §6 two-clock usage rewrite | E9-docs-adrs-and-plan-rewrite.md | P0 | M | AJ-E901 |
 | AJ-E903 | SPEC §7 Switching rewrite (Switch Graph, pack v2, divergence) | E9-docs-adrs-and-plan-rewrite.md | P0 | M | AJ-E901 |
@@ -412,5 +416,5 @@
 | AJ-E3519 | The View menu, top right | E35-the-floor.md | P1 | S | AJ-E3515 |
 | AJ-E3520 | Day and night from the Mac's clock | E35-the-floor.md | P1 | S | AJ-E3521 |
 | AJ-E3521 | The reworked look: light, shadow, occlusion and grade | E35-the-floor.md | P0 | M | — |
-Total: 410 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
+Total: 414 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
 Status of every task at generation: TODO. The epic files are canonical; this catalog is an index, never edited to claim progress.

@@ -129,7 +129,6 @@ pub fn refresh_on(surface: &dyn Surface, state: &Arc<AppState>) {
 /// A line of the menu-bar item was clicked: AI Juggler comes forward on
 /// what it asked for. Nothing else happens until the user acts there.
 pub fn tray_clicked<R: tauri::Runtime>(app: &tauri::AppHandle<R>, id: &str) {
-    use tauri::Manager;
     let Some(click) = tray::click_of(id) else {
         return;
     };
@@ -137,11 +136,14 @@ pub fn tray_clicked<R: tauri::Runtime>(app: &tauri::AppHandle<R>, id: &str) {
         app.emit_event(AppEvent::FloorOpenRequest, ());
         return;
     }
-    if let Some(window) = app.get_webview_window("main") {
-        let _ = window.show();
-        let _ = window.unminimize();
-        let _ = window.set_focus();
+    // D-112: Quit asks as ⌘Q does (D-111's rules; it brings the window
+    // forward itself when it asks).
+    if click == TrayClick::Quit {
+        let _ = crate::quit::request(app);
+        return;
     }
+    // D-112: the menu-bar item is a way back to a window a close hid.
+    crate::main_window::bring_forward(app);
     match click {
         TrayClick::NewSession => {
             app.emit_event(AppEvent::NewSession, ());
@@ -152,7 +154,7 @@ pub fn tray_clicked<R: tauri::Runtime>(app: &tauri::AppHandle<R>, id: &str) {
         TrayClick::Notice(id) => {
             app.emit_event(AppEvent::NotificationsOpen, Some(id));
         }
-        TrayClick::Open | TrayClick::Floor => {}
+        TrayClick::Open | TrayClick::Floor | TrayClick::Quit => {}
     }
 }
 

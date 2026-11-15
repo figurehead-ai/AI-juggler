@@ -2,10 +2,10 @@
  * Home's "Pick up where you left off" (AJ-E1005, D-25): what ended this
  * week and isn't marked reviewed, as rows that say what each was, then
  * where and on which profile (the review of 0.1.4: two cards both said
- * "payments-api"). One nothing named takes the first words of the last
- * thing you asked it, else its telling branch, else its facts — its
- * project and when it started (the review of 0.1.5; D-96, D-103.8) — and
- * no two rows ever read the same. Each opens
+ * "payments-api"). One nothing named takes its conversation's title (the
+ * tool's name for it, else its first prompt, 0.4.5), else its telling
+ * branch, else its facts — its project and when it started (the review of
+ * 0.1.5; D-96, D-103.8) — and no two rows ever read the same. Each opens
  * its page; Mark reviewed takes it off. E31 (AJ-E3103): each is the one
  * session row (`row/SessionRow`), as in the rail and on every page.
  */
@@ -16,18 +16,17 @@ import { IconCheck } from "./icons-controls";
 import { SessionRow } from "./row/SessionRow";
 import { sessionItem } from "../lib/rail-items";
 import { placeOf } from "../screens/Home";
-import { askedKey, startedWords, tellApart, untitledName, useAskedWords } from "../lib/session-titles";
+import { startedWords, tellApart, untitledName } from "../lib/session-titles";
 import { tellingBranch } from "../lib/project-words";
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import type { ProjectInfo } from "../types/generated/ProjectInfo";
 
 /** Each row's title and where line, no two the same. */
-export function recentRows(recent: InstanceInfo[], projects: ProjectInfo[], asked: ReadonlyMap<string, string | null>, now: number): { session: InstanceInfo; title: string; where: string }[] {
+export function recentRows(recent: InstanceInfo[], projects: ProjectInfo[], now: number): { session: InstanceInfo; title: string; where: string }[] {
   const rows = recent.map((session) => {
     const place = placeOf(session, projects);
-    const words = session.conversation_id ? asked.get(askedKey(session.account_id ?? "", session.conversation_id)) : null;
     const branch = tellingBranch(session.git_branch);
-    const named = session.label ?? session.title ?? words ?? branch;
+    const named = session.label ?? session.title ?? branch;
     const untitled = named === null;
     const title = named ?? untitledName({ folder: place.title, startedMs: session.started_at_ms }, now);
     // The where line skips what the title already says (its branch; an
@@ -76,9 +75,6 @@ export function HomeRecent({
   onReviewAll?: () => void;
 }): JSX.Element | null {
   const actionKeys = useKeys("home-action");
-  const asked = useAskedWords(
-    recent.flatMap((session) => (!session.label && !session.title && session.conversation_id ? [{ profileId: session.account_id ?? "", conversationId: session.conversation_id }] : [])),
-  );
   if (recent.length === 0) return null;
   return (
     <section aria-labelledby="home-recent" className="flex flex-col gap-2.5" data-testid="home-recent">
@@ -91,7 +87,7 @@ export function HomeRecent({
         )}
       </div>
       <ul className="overflow-hidden rounded-card border border-hairline bg-surface shadow-card">
-        {recentRows(recent, projects, asked, now).map(({ session, title }) => {
+        {recentRows(recent, projects, now).map(({ session, title }) => {
           const project = projects.find((one) => one.id === session.project_id)?.name ?? null;
           return (
             <li key={session.id} className="border-t border-hairline/60 first:border-t-0">

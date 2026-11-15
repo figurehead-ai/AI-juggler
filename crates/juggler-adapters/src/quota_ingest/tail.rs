@@ -2,7 +2,6 @@
 //! a chunk of whole lines at a time, each slice's carry passed to the next
 //! (0.1: a 5 GB rollout was read whole on its first pass).
 
-use std::io::Read as _;
 use std::path::Path;
 
 use super::{RolloutCarry, TailOutcome};
@@ -20,10 +19,13 @@ pub fn tail_jsonl(
     carry: &RolloutCarry,
     parse: impl FnMut(&[u8], RolloutCarry) -> TailOutcome,
 ) -> TailOutcome {
-    tail_jsonl_by(path, offset, carry, parse, TAIL_CHUNK)
+    tail_jsonl_by(path, offset, carry, parse, crate::transcript_follow::CHUNK)
 }
 
 /// [`tail_jsonl`], `chunk` bytes at a time (the tests read in small ones).
+/// A compressed file is read whole when its size changed
+/// ([`crate::transcript_follow`]); one that won't decode, or is too large,
+/// counts nothing of what it held.
 pub(crate) fn tail_jsonl_by(
     path: &Path,
     offset: u64,
@@ -31,93 +33,45 @@ pub(crate) fn tail_jsonl_by(
     mut parse: impl FnMut(&[u8], RolloutCarry) -> TailOutcome,
     chunk: u64,
 ) -> TailOutcome {
-    use std::io::Seek as _;
-    let unchanged = |offset, carry: &RolloutCarry| TailOutcome {
+    use crate::transcript_follow::{Step, Void, follow_by};
+    let mut total = TailOutcome {
         offset,
         carry: carry.clone(),
         ..TailOutcome::default()
     };
-    let Ok(mut file) = std::fs::File::open(path) else {
-        return unchanged(offset, carry);
+    let followed = follow_by(path, offset, chunk, |step| match step {
+        // Read again from its start: its facts were about the old content.
+        Step::From(from) if from != offset => total.carry = RolloutCarry::default(),
+        Step::From(_) => {}
+        Step::Lines(lines) => {
+            let slice = parse(lines, total.carry.clone());
+            merge(&mut total, slice);
+        }
+    });
+    let void = |offset, carry| TailOutcome {
+        carry,
+        offset,
+        ..TailOutcome::default()
     };
-    let len = file.metadata().map_or(offset, |meta| meta.len());
-    let mut start = offset;
-    let mut carry = carry.clone();
-    if len < start {
-        start = 0;
-        carry = RolloutCarry::default();
-    }
-    if start >= len {
-        return unchanged(start, &carry);
-    }
-    if let Ok(seeked) = file.seek(std::io::SeekFrom::Start(start)) {
-        start = seeked;
-    }
-    // A chunk of whole lines at a time, each slice's carry passed to the
-    // next: the same outcome as one read of everything new, in a chunk's
-    // memory (0.1 QA: a 5 GB rollout was read whole on its first pass).
-    let mut total = unchanged(start, &carry);
-    let mut at = start;
-    let mut bytes = Vec::new();
-    while at < len {
-        bytes.clear();
-        let _ = (&mut file).take(chunk).read_to_end(&mut bytes);
-        if bytes.is_empty() {
-            break;
+    match followed.void {
+        None => {}
+        Some(Void::NotReady) => return void(followed.offset, carry.clone()),
+        Some(Void::Damaged) => {
+            return TailOutcome {
+                parse_errors: 1,
+                ..void(followed.offset, RolloutCarry::default())
+            };
         }
-        // Consume only through the last newline (a partial trailing line
-        // stays for the next pass).
-        let consumed = bytes
-            .iter()
-            .rposition(|byte| *byte == b'\n')
-            .map_or(0, |index| index + 1);
-        if consumed == 0 {
-            if (bytes.len() as u64) < chunk {
-                break; // the last line, still being written
-            }
-            // One line longer than a chunk: no usage line is; skipped
-            // whole, never held.
-            match skip_line(&mut file) {
-                Some(skipped) => {
-                    at += chunk + skipped;
-                    total.parse_errors += 1;
-                    continue;
-                }
-                None => break,
-            }
-        }
-        let slice = parse(&bytes[..consumed], total.carry.clone());
-        merge(&mut total, slice);
-        at += consumed as u64;
-        if file.seek(std::io::SeekFrom::Start(at)).is_err() {
-            break;
+        Some(Void::TooLarge) => {
+            return TailOutcome {
+                unread: Some("a compressed rollout too large to read"),
+                ..void(followed.offset, RolloutCarry::default())
+            };
         }
     }
-    total.offset = at;
+    total.offset = followed.offset;
+    total.parse_errors += followed.skipped;
     total
-}
-
-/// The most of a file read into memory at once while tailing it.
-const TAIL_CHUNK: u64 = 64 * 1024 * 1024;
-
-/// Reads on to the end of the current line; the bytes read, newline
-/// included, or `None` when the file ends first (the line is unfinished).
-fn skip_line(file: &mut std::fs::File) -> Option<u64> {
-    let mut buf = vec![0_u8; 1 << 20];
-    let mut read = 0_u64;
-    loop {
-        let got = file.read(&mut buf).ok()?;
-        if got == 0 {
-            return None;
-        }
-        if let Some(at) = buf[..got].iter().position(|byte| *byte == b'\n') {
-            let used = at as u64 + 1;
-            let back = i64::try_from(got as u64 - used).ok()?;
-            std::io::Seek::seek(file, std::io::SeekFrom::Current(-back)).ok()?;
-            return Some(read + used);
-        }
-        read += got as u64;
-    }
 }
 
 /// One slice's outcome added to the pass's.

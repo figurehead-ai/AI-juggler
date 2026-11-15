@@ -596,6 +596,9 @@ impl ToolTranscripts for GrokBuildAdapter {
     ) -> Option<Box<dyn juggler_adapter::SubagentReader>> {
         crate::grok_subagents::reader(scope)
     }
+    fn conversation_roots(&self, state_dir: &Path) -> Vec<PathBuf> {
+        crate::grok_sessions::conversation_roots(state_dir)
+    }
     fn conversation_files(&self, state_dir: &Path) -> Vec<PathBuf> {
         crate::grok_sessions::conversation_files(state_dir)
     }

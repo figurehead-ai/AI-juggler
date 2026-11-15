@@ -6,7 +6,7 @@
  * `resetsWords`: the system's own clock, today / tomorrow / the weekday.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { clock, dateWords, pastDay, pastWhen, resetsLead, resetsWords, sessionWhen, whenWords } from "./time-words";
+import { clock, clocksWhole, dateWords, pastDay, pastWhen, resetsLead, resetsWords, sessionWhen, whenWords } from "./time-words";
 import { outOfRoomConsequence, outOfRoomWords } from "./room";
 import { resetWords, windowView } from "./quotaWindow";
 import { windowDisplay } from "./wire";
@@ -39,6 +39,26 @@ describe("the clock", () => {
 
   it.runIf(twelveHour)("on a 12-hour system: no leading zero beside AM", () => {
     expect(clock(SATURDAY)).toMatch(/^7:13\s?AM$/);
+  });
+});
+
+describe("a clock kept whole where words wrap (0.4.5: \"…about 10:00 / AM tomorrow\")", () => {
+  it("binds the time to the word after it with a space as wide, and nothing else", () => {
+    expect(clocksWhole("Out · resets about 10:00 AM tomorrow")).toBe("Out · resets about 10:00\u00a0AM tomorrow");
+    expect(clocksWhole("Out · resets Thu, Nov 20 9:05 PM")).toBe("Out · resets Thu, Nov 20 9:05\u00a0PM");
+    expect(clocksWhole("resets at 10:00 a.m. tomorrow")).toBe("resets at 10:00\u00a0a.m. tomorrow");
+    // A 24-hour clock keeps its "tomorrow"; words without a clock are as they were.
+    expect(clocksWhole("Out · resets 18:00 tomorrow")).toBe("Out · resets 18:00\u00a0tomorrow");
+    expect(clocksWhole("Low · 7% left")).toBe("Low · 7% left");
+    expect(clocksWhole("Out")).toBe("Out");
+  });
+
+  it("leaves a clock the system already writes unbroken as it is", () => {
+    expect(clocksWhole("Out · resets 6:00\u202fAM tomorrow")).toBe("Out · resets 6:00\u202fAM tomorrow");
+  });
+
+  it("keeps every reset's clock whole, whatever its day", () => {
+    for (const at of [TODAY, TOMORROW, SATURDAY, NEXT_WEDNESDAY]) expect(clocksWhole(whenWords(at, NOW))).not.toMatch(/\d:\d\d \p{L}/u);
   });
 });
 

@@ -27,7 +27,7 @@ import { focusHandoverSoon } from "../lib/handover-focus";
 import { instancesMarkReviewed } from "../lib/ipc/review";
 import { useCallback, useEffect, useMemo, useRef, useState, type JSX, type KeyboardEvent } from "react";
 import { runwayOf } from "../components/AccountRunway";
-import type { ThisMacInfo } from "../lib/machine";
+import { useThisMacInfo, type ThisMacInfo } from "../lib/machine";
 import { LegendPopover } from "../components/LegendPopover";
 import { sessionLabel } from "../lib/stop";
 import { matches, type KeyLike } from "../lib/shortcuts";
@@ -117,9 +117,10 @@ export function HomeScreen({
   openLoginTerminal,
   onAccountsChanged,
   onChanged,
-  thisMac = null,
+  thisMac: given,
   onOpenCleanup,
   onOpenThisMac,
+  onSearch,
   loading = false,
 }: {
   /** AJ-E1503: the first load hasn't answered yet (placeholders). */
@@ -148,7 +149,8 @@ export function HomeScreen({
   onOpenCleanup?: () => void;
   /** AJ-E1528: the This Mac page. */
   onOpenThisMac?: () => void;
-}): JSX.Element {
+} & Pick<HomeCardContext, "onSearch">): JSX.Element {
+  const thisMac = useThisMacInfo(given);
   const actionKeys = useKeys("home-action");
   // 0.0.11 walk (Q3): a tool without a limits feed says so in its row.
   // The runways kept from the last read (any screen's) show at once; read
@@ -418,7 +420,7 @@ export function HomeScreen({
   const cards: HomeCardContext = {
     sessions, conversations, accounts, projects, subscriptions, now, items, allNeeds, capNeeds, messageNeeds, taskNeeds,
     parked, recent, quota, quotaKnown, ledgerDegraded, needsKnown: needsNow.known, recentArea, busy, actionKeysAria: actionKeys.aria,
-    signingIn, signInError, runwayFor, act, startSignIn, onOpenSession, onNewSession, onLimit, onChanged, onOpenThisMac, onOpenCleanup,
+    signingIn, signInError, runwayFor, act, startSignIn, onOpenSession, onSearch, onNewSession, onLimit, onChanged, onOpenThisMac, onOpenCleanup,
   };
 
   return (

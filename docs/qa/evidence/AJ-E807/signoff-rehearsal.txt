@@ -1,0 +1,29 @@
+# AJ-E807 / D-109 dry run — 2026-11-13T15:04Z, base commit a8ad43cf8 (release/0.5, the D-109 change on top)
+
+## 1. Self-tests
+$ python3 scripts/release_scope.py --selftest
+release-scope selftest: OK
+exit=0
+$ python3 scripts/signoff_record.py --selftest
+signoff-record selftest: OK
+exit=0
+
+## 2. Rehearsal against a real past Promote run (0.4.4 to beta, run 43413923798): reads the run's approval and jobs, checks the scope here; promotes, uploads and commits nothing
+$ python3 scripts/signoff_record.py rehearse --repo figurehead-ai/AI-juggler --run 43413923798 --version 0.4.4 --environment beta --out (scratch)
+(scratch)/signoff-0.4.4.md
+exit=0
+elapsed 3.6 s
+
+## 3. The same run with the default environment (stable): it holds no Stable approval, so there is no record
+$ python3 scripts/signoff_record.py rehearse --repo figurehead-ai/AI-juggler --run 43413923798 --version 0.4.4 --out (scratch)
+signoff_record: run 43413923798 holds no approval of the `stable` environment; without one there is no sign-off to record
+exit=1
+record written: 0 files
+
+## 4. Nothing moved
+$ gh api repos/figurehead-ai/AI-juggler/git/matching-refs/tags/stable --jq length
+0
+$ gh release view v0.4.4 --repo figurehead-ai/AI-juggler --json assets --jq "[.assets[].name | select(startswith(\"signoff\"))] | length"
+0
+
+The record (section 2) is signoff-rehearsal-0.4.4.md beside this file; the approver's GitHub login was replaced by `maintainer-login` before it was committed.

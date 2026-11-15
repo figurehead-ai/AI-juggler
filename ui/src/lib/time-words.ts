@@ -83,6 +83,15 @@ export function clock(ms: number): string {
   return new Date(ms).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
 }
 
+/** Words with each clock kept on one line where they wrap: the space
+ * after an "h:mm" before a word ("10:00 AM", "10:00 a.m.") becomes a
+ * no-break space, as wide, so a wrapped line never parts the time from
+ * its AM (0.4.5: an Out mark read "…about 10:00 / AM tomorrow"). Where
+ * the system already writes it unbroken (U+202F), it's left as is. */
+export function clocksWhole(words: string): string {
+  return words.replace(/(\d:\d\d) (?=\p{L})/gu, "$1\u00a0");
+}
+
 /** Whole calendar days from `now`'s day to `ms`'s (0 today, 1 tomorrow;
  * -1 yesterday: `startedWords` looks back by it). */
 function daysAhead(ms: number, now: number): number {

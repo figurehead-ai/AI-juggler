@@ -57,7 +57,7 @@ import { RailNoMatch } from "./PlaceBoardParts";
 import { useBackendNeeds, useRailSnoozes } from "../lib/needs-you";
 import { OtherMacs } from "./RemoteBoard";
 import { modelDrift } from "./SessionCards";
-import { parseQuery, useRailView } from "../lib/rail-view";
+import { FOCUS_SEARCH_EVENT, parseQuery, useRailView } from "../lib/rail-view";
 import { goToWhere, sessionAppKey, sessionItem, sessionState } from "../lib/rail-items";
 // AJ-E2104: the indicator row and card moved to their own files.
 export { SessionRow, modelDrift } from "./SessionCards";
@@ -308,11 +308,11 @@ export function InstanceBoard({
   // The list box: its scroll, view, edge and the new-above pill's slot.
   const { ref: scrollRef, top: scrollTop, height: viewportH, cueSlot, setCueSlot, listProps } = useRailListScroll();
 
-  // ⌘K focuses the rail search from anywhere (App dispatches the event).
+  // ⌘K focuses the rail search from anywhere (lib/rail-view's focusRailSearch).
   useLayoutEffect(() => {
     const focus = () => searchRef.current?.focus();
-    window.addEventListener("aij:focus-search", focus);
-    return () => window.removeEventListener("aij:focus-search", focus);
+    window.addEventListener(FOCUS_SEARCH_EVENT, focus);
+    return () => window.removeEventListener(FOCUS_SEARCH_EVENT, focus);
   }, []);
 
   // F11: the list is one stop on the Tab path; ↑↓ move inside it.

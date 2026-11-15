@@ -136,7 +136,14 @@ fn whole_summary(bytes: &[u8], name: &str) -> Option<ConversationSummary> {
     let mut summary = ConversationSummary {
         id: rollout_thread_id(bytes, name)?,
         cwd: rollout_cwd(bytes).map(PathBuf::from),
-        tokens: parsed.usage,
+        // 0.4.5 (AJ-E805): its usage's, by the store's rule.
+        tokens: {
+            let mut tally = juggler_adapter::transcript_read::TokenTally::default();
+            for event in crate::quota_ingest::rollout_events("", bytes).events {
+                tally.add(event.msg_uuid.as_deref(), event.tokens);
+            }
+            tally.total()
+        },
         title: parsed
             .messages
             .iter()

@@ -1,6 +1,7 @@
 /**
- * AI Juggler's own life: its version, ready, relaunch and quitting with
- * live sessions (AJ-E1503).
+ * AI Juggler's own life: its version, ready, relaunch, quitting with
+ * live sessions (AJ-E1503) and the note a close that hid the window owes
+ * (D-112).
  */
 import { call, listen, liveBackend as hasBackend } from "./transport";
 import { EVENTS } from "../bridge";
@@ -108,7 +109,20 @@ export async function appQuitCancel(): Promise<void> {
   return call("app_quit_cancel");
 }
 
-/** ⌘Q or the close button while sessions are live: show the quit sheet. */
+/** D-112: whether the window, now on screen again, says that a close hid
+ * it and AI Juggler kept running (once per install). */
+export async function appCloseNoteDue(): Promise<boolean> {
+  if (!hasBackend) return false;
+  return call("app_close_note_due");
+}
+
+/** The window said it: it never shows again on this install. */
+export async function appCloseNoteTold(): Promise<void> {
+  if (!hasBackend) return;
+  return call("app_close_note_told");
+}
+
+/** ⌘Q while sessions are live: show the quit sheet. */
 export function onQuitRequested(handler: (plan: QuitPlanInfo) => void): () => void {
   if (!hasBackend) {
     // The preview's seam: `aij:quit-requested` with the plan as detail.

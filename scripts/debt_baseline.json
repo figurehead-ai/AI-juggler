@@ -300,7 +300,7 @@
   "jscpd:lines": 8
  },
  "crates/juggler-adapters/src/quota_ingest.rs": {
-  "jscpd:lines": 81
+  "jscpd:lines": 63
  },
  "crates/juggler-adapters/src/subtasks.rs": {
   "jscpd:lines": 38
@@ -690,7 +690,7 @@
   "jscpd:lines": 13
  },
  "crates/juggler-supervisor/src/live_stats.rs": {
-  "jscpd:lines": 87
+  "jscpd:lines": 67
  },
  "crates/juggler-supervisor/src/machine.rs": {
   "jscpd:lines": 20
@@ -708,7 +708,7 @@
   "jscpd:lines": 15
  },
  "crates/lib/ipc/app-lifecycle.ts": {
-  "jscpd:lines": 34
+  "jscpd:lines": 14
  },
  "crates/lib/ipc/backup.ts": {
   "jscpd:lines": 27
@@ -720,25 +720,13 @@
   "jscpd:lines": 33
  },
  "crates/lib/ipc/floor.ts": {
-  "jscpd:lines": 38
- },
- "crates/lib/ipc/instances.ts": {
-  "jscpd:lines": 140
- },
- "crates/lib/ipc/messages.ts": {
-  "jscpd:lines": 20
- },
- "crates/lib/ipc/processes.ts": {
-  "jscpd:lines": 13
+  "jscpd:lines": 25
  },
  "crates/lib/ipc/settings.ts": {
   "jscpd:lines": 16
  },
  "crates/lib/ipc/switchSetup.ts": {
   "jscpd:lines": 14
- },
- "crates/lib/ipc/tasks.ts": {
-  "jscpd:lines": 20
  },
  "crates/lib/ipc/updates.ts": {
   "jscpd:lines": 11
@@ -1178,12 +1166,9 @@
   "knip:types": 1
  },
  "ui/src/lib/roving.ts": {
-  "knip:exports": 2
- },
- "ui/src/lib/scroll-memory.ts": {
   "knip:exports": 1
  },
- "ui/src/lib/session-titles.ts": {
+ "ui/src/lib/scroll-memory.ts": {
   "knip:exports": 1
  },
  "ui/src/lib/shortcut-bindings.ts": {

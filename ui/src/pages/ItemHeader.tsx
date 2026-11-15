@@ -20,7 +20,7 @@ import { InspectorHeaderMenu } from "../components/InspectorHeaderMenu";
 import { ResumeButton } from "./session/ResumeButton";
 import { Hinted } from "./Hinted";
 import { useActionHost } from "../components/ItemMenu";
-import { useSessionTitle } from "../components/ManageWork";
+import { sessionTitle } from "../components/ManageWork";
 import { freshnessText } from "../components/RemoteTabs";
 import { IconFleet, IconJuggler, IconProjects, IconTerminal } from "../components/icons";
 import type { InspectorData, InspectorKind } from "../components/RightInspector";
@@ -105,7 +105,7 @@ export function InspectorHeader({
   const subscriptions = useSubscriptions();
   const remote = data.remote ?? null;
   const instance = data.instance ?? null;
-  const shownTitle = useSessionTitle(instance);
+  const shownTitle = instance ? sessionTitle(instance) : "Session";
   // rc33 M4: why its switch would refuse, said on its doors here too.
   const switchNotYet = useSwitchNotYet(instance?.id);
 

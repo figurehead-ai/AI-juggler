@@ -49,6 +49,14 @@
       "type": "item",
       "id": "floor:open",
       "text": "The Floor"
+    },
+    {
+      "type": "separator"
+    },
+    {
+      "type": "item",
+      "id": "tray:quit",
+      "text": "Quit AI Juggler"
     }
   ]
 }

@@ -18,9 +18,14 @@ pub struct ConversationSummary {
     pub cwd: Option<PathBuf>,
     /// The git branch it last recorded, when it records one.
     pub git_branch: Option<String>,
-    /// A title: the tool's own summary, else the first thing the user
-    /// asked (one line, trimmed); never AI Juggler's own words
-    /// ([`prompt_title`]).
+    /// A title: the tool's own name for it (Claude Code's `/rename` or the
+    /// Claude app's title, its AI title, an older summary; Codex's thread
+    /// name or goal), else its first prompt as the tool's own picker
+    /// (`claude --resume`, `codex resume`) lists it: the first thing the
+    /// user asked, one line, never a slash command, a tool's output or a
+    /// wrapper the tool adds (0.4.5); never AI Juggler's own words, a
+    /// pasted key or a bare path ([`prompt_title`]). `None` when there's
+    /// neither: its facts name it (D-103.8).
     pub title: Option<String>,
     /// How it opens: the first line of its first message, whoever wrote
     /// it (AI Juggler's own prompt included), cut as a title is. What a
@@ -118,7 +123,13 @@ pub fn title_from(text: &str, max: usize) -> Option<String> {
 ///   title, except a switch's replayed history, which gives the first
 ///   thing the user asked in it (a switched session keeps its name);
 /// - an image the tool notes in the turn (`[Image #1]`, `[Image: original
-///   3416x1271, …]`) is left out, and the words after it are the title.
+///   3416x1271, …]`) is left out, and the words after it are the title;
+/// - 0.4.5: its first line that says something, as one line
+///   ([`juggler_core::naming::said_line`]): a line of only paths or pasted
+///   keys (an `@"/Users/…/brief.md"` mention) is skipped, and the title
+///   stops before a word that looks like a key, so no list shows one. A
+///   prompt that is only those is no title: the next prompt is, and with
+///   none its facts name it.
 ///
 /// Each tool's own injected blocks (a tag, its context notes) are its
 /// adapter's to leave out before asking.
@@ -136,11 +147,9 @@ pub fn prompt_title(text: &str, max: usize) -> Option<String> {
     if juggler_core::injected::is_ours(&text) {
         return None;
     }
-    let words = text
-        .lines()
-        .map(without_images)
-        .find(|line| !line.is_empty())?;
-    title_from(words, max)
+    let words = text.lines().map(without_images).collect::<Vec<_>>();
+    let said = juggler_core::naming::said_line(&words.join("\n"))?;
+    title_from(&said, max)
 }
 
 /// A line without the image notes it opens with.
@@ -279,6 +288,29 @@ mod tests {
         assert_eq!(
             prompt_title("Fix the flaky login test", 80).as_deref(),
             Some("Fix the flaky login test")
+        );
+    }
+
+    /// 0.4.5: a title is one line, and never a pasted key or a bare path.
+    #[test]
+    fn a_title_never_shows_a_key_or_a_bare_path() {
+        assert_eq!(prompt_title("/Users/you/Downloads/brief.md", 80), None);
+        assert_eq!(prompt_title("sk-test-0123456789abcdefXYZ", 80), None);
+        assert_eq!(
+            prompt_title(
+                "@\"/Users/you/Downloads/brief.md\"\n\nOk so we are   planning the move",
+                80
+            )
+            .as_deref(),
+            Some("Ok so we are planning the move")
+        );
+        assert_eq!(
+            prompt_title(
+                "[Image #1] Use sk-test-0123456789abcdefXYZ to list models",
+                80
+            )
+            .as_deref(),
+            Some("Use")
         );
     }
 

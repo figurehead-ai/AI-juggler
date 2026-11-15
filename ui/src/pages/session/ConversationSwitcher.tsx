@@ -315,7 +315,7 @@ function Leaf({ last, picked, onClick, mark, live = false, danger = false, title
       >
         <span aria-hidden="true" className={"relative mt-[2px] flex shrink-0 " + (danger ? "text-danger" : live ? "text-live" : "text-muted")}>
           {MARKS[mark]}
-          {live && <span className="absolute -right-0.5 -top-0.5 size-1.5 rounded-full bg-live motion-safe:animate-pulse" />}
+          {live && <span className="dot-live absolute -right-0.5 -top-0.5 size-1.5 rounded-full bg-live" />}
         </span>
         <span className="flex min-w-0 flex-col">
           <span className="line-clamp-2 break-words text-meta font-medium leading-[1.35]">{title}</span>

@@ -72,6 +72,23 @@ describe("D-100 an App running with nothing open keeps its words at 264 px", () 
     }
   });
 
+  it("a render with the same words changes nothing in them (AJ-E805)", async () => {
+    // Every render showed each word, measured it and hid it again: an App's
+    // header renders with every change, about 400 writes a minute with 10
+    // sessions at work, and the header was drawn again for each.
+    const { rerender } = render(<PlaceHeader place={place} label="Claude app" count={0} needs={0} folded={null} onToggle={() => {}} foldable={false} />);
+    const line = screen.getByTestId("place-name-line");
+    const writes: MutationRecord[] = [];
+    const watch = new MutationObserver((records) => writes.push(...records));
+    watch.observe(line, { subtree: true, attributes: true });
+    for (const needs of [1, 2, 0]) rerender(<PlaceHeader place={place} label="Claude app" count={0} needs={needs} folded={null} onToggle={() => {}} foldable={false} />);
+    await Promise.resolve();
+    watch.disconnect();
+    expect(writes).toEqual([]);
+    expect(shown("place-nothing-open")).toBe(true);
+    expect(shown("place-app-word")).toBe(false);
+  });
+
   it("with something open, the app word is all there is: shown while it fits whole", () => {
     render(<PlaceHeader place={place} label="Claude app" count={2} needs={0} folded={null} onToggle={() => {}} />);
     expect(shown("place-app-word")).toBe(true);

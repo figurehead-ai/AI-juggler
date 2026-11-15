@@ -1,39 +1,99 @@
 /**
  * A title for a session nothing named (the review of 0.1.5: Home's rows
- * all read "Untitled session · payments-api"): the first words of the
- * last thing you asked it, read from the end of its transcript (already
- * redacted, and only while Last messages is on), else its telling branch,
- * else its facts: its folder and when it started (D-96, D-103.8). Read
- * once per conversation, after Home has painted, and kept for the window's
- * life only.
+ * all read "Untitled session · payments-api"): its conversation's title,
+ * the tool's own name for it or else the first words of its first prompt
+ * as `claude --resume` and Codex's picker list it (0.4.5: the backend
+ * reads it in the pass that indexes its transcript, so no second read),
+ * else its telling branch, else its facts: its folder and when it started
+ * (D-96, D-103.8). Never a pasted key or a bare path.
  */
-import { useEffect, useState } from "react";
-import { conversationsLastMessages } from "./ipc/conversations";
-import { hasLiveBackend } from "./bridge";
 import { pastWhen } from "./time-words";
 import { tellingBranch } from "./project-words";
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
 
-/** The first few words of what was asked: its first line, cut before a
- * redaction mark, its first clause past a short opener ("Good.", "OK,
- * thanks."), at most `max` words or 56 characters, "…" when cut short. */
-export function firstWords(text: string, max = 8): string | null {
-  const line = text
-    .split("\n")
-    .map((part) => part.trim())
-    .find(Boolean);
+/** The most characters a name of words keeps (0.4.5: about 60, cut at a
+ * word). */
+const NAME_CHARS = 60;
+
+/** A word that looks like a pasted key or token (`sk-ant-api03-…`, a
+ * hash, a base64 blob): a run of at least 16 ASCII letters and digits
+ * that has both. Long plain words ("extraordinarily") have no digit. */
+function tokenLike(word: string): boolean {
+  return (word.match(/[A-Za-z0-9]{16,}/g) ?? []).some((run) => /[A-Za-z]/.test(run) && /\d/.test(run));
+}
+
+/** A word that is a path: a `/` or a backslash, and not a web address. */
+function pathLike(word: string): boolean {
+  return /[/\\]/.test(word) && /[\p{L}\p{N}]/u.test(word) && (!word.includes("://") || word.startsWith("file://"));
+}
+
+/** A line of only paths or pasted keys (an `@"/Users/…/brief.md"`
+ * mention, a dragged file, a pasted token): nothing to name a session by,
+ * nor for a name to show. */
+function saysNothing(line: string): boolean {
+  const words = line
+    .replace(/\\ /g, "_")
+    .split(/\s+/)
+    .map((word) => word.replace(/^[@"'`*<>()[\],;]+|[@"'`*<>()[\],;]+$/g, ""))
+    .filter(Boolean);
+  return words.length > 0 && words.every((word) => pathLike(word) || tokenLike(word));
+}
+
+/** The first line that says something. */
+function spokenLine(text: string): string | null {
+  return (
+    text
+      .split("\n")
+      .map((part) => part.trim())
+      .find((line) => line && !saysNothing(line)) ?? null
+  );
+}
+
+/** `line` up to a redaction mark, then up to a word that looks like a key. */
+function kept(line: string): string {
+  const unmarked = line.split(/•{2,}|\[redacted\]/i)[0]!;
+  let at = 0;
+  for (const part of unmarked.match(/\S*\s*/g) ?? []) {
+    if (!part) break;
+    if (tokenLike(part)) return unmarked.slice(0, at);
+    at += part.length;
+  }
+  return unmarked;
+}
+
+/** The first words of what was asked, one line: its first line that says
+ * something (not only paths or pasted keys), whitespace collapsed, cut
+ * before a redaction mark or a key, its first clause past a short opener
+ * ("Good.", "OK, thanks."), at most 60 characters cut at a word, "…" when
+ * cut short. A colon doesn't end a clause: a tool's own title ("Billing
+ * move: rehearsal") reads whole. `naming::first_words` is the same. */
+export function firstWords(text: string): string | null {
+  const line = spokenLine(text);
   if (!line) return null;
-  const clean = line.split(/•{2,}|\[redacted\]/i)[0]!.replace(/[`*_#>]/g, "").replace(/\s+/g, " ").trim();
-  const clauses = clean.split(/(?<=[.;:!?])\s+/).filter(Boolean);
+  const clean = kept(line).replace(/[`*_#>]/g, "").replace(/\s+/g, " ").trim();
+  const clauses = clean.split(/(?<=[.;!?])\s+/).filter(Boolean);
   while (clauses.length > 1 && clauses[0]!.split(" ").length < 3) clauses.shift();
   const clause = (clauses[0] ?? "").replace(/[\s,;:–—-]+$/, "");
   if (clause.length < 3) return null;
-  const words = clause.split(" ");
-  let out = words.slice(0, max).join(" ");
-  if (out.length > 56) out = out.slice(0, 56).replace(/\s+\S*$/, "");
+  let out = clause;
+  if (out.length > NAME_CHARS) {
+    const head = out.slice(0, NAME_CHARS);
+    // A whole word that ends right at the limit stays.
+    out = /\s/.test(out.charAt(NAME_CHARS)) ? head.trimEnd() : head.replace(/\s+\S*$/, "");
+  }
   const cut = out.length < clause.replace(/[.!?]+$/, "").length;
   out = out.replace(/[.,;:!]+$/, "");
   return cut ? `${out}…` : out;
+}
+
+/** What a title says as a name: its first words, a short one ("ok") as it
+ * is, `null` when it says nothing but a path or a key
+ * (`naming::title_words`). */
+function titleWords(title: string): string | null {
+  const words = firstWords(title);
+  if (words) return words;
+  const line = spokenLine(title);
+  return (line && kept(line).replace(/\s+/g, " ").trim()) || null;
 }
 
 /** When it started, in a few words (`pastWhen`): "started 1:14 AM"
@@ -52,7 +112,8 @@ export interface SessionFacts {
   startedMs: number | null;
 }
 
-/** D-96 (persona D2), D-103.8: an untitled session's name, by its facts —
+/** D-96 (persona D2), D-103.8: an untitled session's name (one with no
+ * first prompt, 0.4.5), by its facts —
  * "billing · started 1:14 AM", "billing · started yesterday 9:02 PM" (its
  * day as `pastWhen` says it), never "Untitled session · billing", which
  * two sessions in one folder share, and never its Account (persona R2:
@@ -85,88 +146,18 @@ export function tellApart<T>(rows: readonly T[], name: (row: T) => string, order
   return out;
 }
 
-/** An untitled session's name from what it was last asked, as Home and
- * the rail show it; `null` while unknown or when it has its own title
- * (the 0.4.1 persona walk: its own page said "Untitled session · …"). */
-export function useAskedName(session: { label?: string | null; title?: string | null; account_id?: string | null; conversation_id?: string | null } | null): string | null {
-  const ask = session && !session.label && !session.title && session.conversation_id ? { profileId: session.account_id ?? "", conversationId: session.conversation_id } : null;
-  const asked = useAskedWords(ask ? [ask] : []);
-  return ask ? (asked.get(askedKey(ask.profileId, ask.conversationId)) ?? null) : null;
-}
-
-/** The key what was asked is kept under. */
-export function askedKey(profileId: string, conversationId: string): string {
-  return `${profileId}\u0000${conversationId}`;
-}
-
-const asked = new Map<string, string | null>();
-const reading = new Map<string, Promise<string | null>>();
-
-/** Tests: forget what was read. */
-export function forgetAskedForTests(): void {
-  asked.clear();
-  reading.clear();
-}
-
-function read(profileId: string, conversationId: string): Promise<string | null> {
-  const key = askedKey(profileId, conversationId);
-  const pending =
-    reading.get(key) ??
-    conversationsLastMessages(profileId, conversationId, { max: 12 }).then(
-      (info) => {
-        const last = info.state === "shown" ? [...info.turns].reverse().find((turn) => turn.speaker === "you") : undefined;
-        const text = last?.blocks.filter((block) => block.kind === "text").map((block) => block.text).join("\n") ?? "";
-        const words = text ? firstWords(text) : null;
-        asked.set(key, words);
-        return words;
-      },
-      () => {
-        asked.set(key, null);
-        return null;
-      },
-    );
-  reading.set(key, pending);
-  return pending;
-}
-
-/** What each untitled conversation was last asked, by
- * `profile\0conversation`: read in idle time after the first paint. */
-export function useAskedWords(rows: { profileId: string; conversationId: string }[]): ReadonlyMap<string, string | null> {
-  const wanted = rows.map((row) => askedKey(row.profileId, row.conversationId)).join("\n");
-  const [, setTick] = useState(0);
-  useEffect(() => {
-    const todo = rows.filter((row) => !asked.has(askedKey(row.profileId, row.conversationId)));
-    if (todo.length === 0) return;
-    let alive = true;
-    const w = window as unknown as { requestIdleCallback?: (fn: () => void, opts?: { timeout: number }) => number };
-    const start = () => {
-      void Promise.all(todo.map((row) => read(row.profileId, row.conversationId))).then(() => alive && setTick((tick) => tick + 1));
-    };
-    // The preview has nothing to read from disk: at once, so a capture
-    // shows the words the first time as the second.
-    if (!hasLiveBackend()) start();
-    else if (w.requestIdleCallback) w.requestIdleCallback(start, { timeout: 1500 });
-    else setTimeout(start, 50);
-    return () => {
-      alive = false;
-    };
-    // `wanted` stands for `rows` (a new array each render).
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [wanted]);
-  return asked;
-}
-
 /** The last part of a working folder ("billing"). */
 export function folderName(cwd: string | null | undefined): string {
   const path = cwd ?? "";
   return path.replace(/\/+$/, "").split("/").pop() || path;
 }
 
-/** Whether a session is named by its facts (D-96): no label, no title,
- * no branch that says what the work was. Its name has its start time in
- * it already. */
+/** Whether a session is named by its facts (D-96): no label, no title
+ * with words to say, no branch that says what the work was. Its name has
+ * its start time in it already. */
 export function namedByFacts(session: { label?: string | null; title?: string | null; git_branch?: string | null }): boolean {
-  return !given(session.label) && !given(session.title) && tellingBranch(session.git_branch) === null;
+  const title = given(session.title);
+  return !given(session.label) && (title === null || titleWords(title) === null) && tellingBranch(session.git_branch) === null;
 }
 
 /** `text` unless it's blank (the backend's rule: "  " names nothing). */
@@ -188,18 +179,21 @@ export function tellFactsApart<T extends { key: string; title: string; startMs: 
 
 /** A session's short name, the one rule wherever a short one is needed
  * (the rail, Needs you, a pool's canvas, its list and its messages, the
- * session's header, the palette): its label, else its title's first
- * words, else a branch that says what the work was ("fix/limits"), else
+ * session's header, the palette): its label, else its title's words (the
+ * tool's own name for it, else the first words of its first prompt,
+ * 0.4.5), else a branch that says what the work was ("fix/limits"), else
  * its facts (D-96, D-103.8: "billing · started 1:14 AM") — never the whole
  * first prompt, never "main" (the rc7 and rc12 walks), never "Untitled
- * session · <folder>" (persona D2). The member card's name (`card_name`)
- * and the backend's `naming::short_name` are the same rule, held to it by
- * one file of cases both run (`fixtures/session-names.json`). */
+ * session · <folder>" (persona D2), never a pasted key or a bare path. The
+ * member card's name (`card_name`) and the backend's `naming::short_name`
+ * are the same rule, held to it by one file of cases both run
+ * (`fixtures/session-names.json`). */
 export function shortName(session: Pick<InstanceInfo, "label" | "title" | "git_branch" | "cwd" | "started_at_ms">, now: number = Date.now()): string {
   const label = given(session.label);
   if (label) return label;
   const title = given(session.title);
-  if (title) return firstWords(title) ?? title;
+  const words = title === null ? null : titleWords(title);
+  if (words) return words;
   return tellingBranch(session.git_branch) ?? untitledName({ folder: folderName(session.cwd) || null, startedMs: session.started_at_ms }, now);
 }
 

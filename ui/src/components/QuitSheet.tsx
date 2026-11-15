@@ -1,8 +1,8 @@
 /**
  * AJ-E1503 Req.3 — quitting with live sessions says how many are running
- * and what quitting does to them, before anything happens. ⌘Q and the
- * window's close button ask the backend; with nothing live it quits at
- * once and this sheet never shows.
+ * and what quitting does to them, before anything happens. ⌘Q asks the
+ * backend; with nothing live it quits at once and this sheet never shows.
+ * The window's close button and ⌘W only hide the window (D-112).
  *
  * A terminal session ends when AI Juggler quits (its terminal lives in
  * this app); a desktop session keeps running on its own. Quit anyway,
@@ -131,13 +131,16 @@ export function QuitSheet(): JSX.Element | null {
         )}
         {error && <p className="text-warning">{error}</p>}
         <div className="flex flex-wrap justify-end gap-2">
-          <Button size="sm" variant="ghost" disabled={busy !== null} onClick={cancel}>
+          {/* 0.4.5 (D-113): Cancel is the default. The Dock's Quit and a
+              script's quit bring this sheet up too, so a stray Return must
+              never end sessions (a destructive choice is never the default). */}
+          <Button size="sm" variant="ghost" disabled={busy !== null} onClick={cancel} data-autofocus data-testid="quit-cancel">
             Cancel
           </Button>
           <Button size="sm" variant="secondary" disabled={busy !== null} onClick={() => void quit(true)} data-testid="quit-stop-first">
             {one ? "Stop it first" : "Stop them first"}
           </Button>
-          <Button size="sm" variant="primary" disabled={busy !== null} onClick={() => void quit(false)} data-autofocus data-testid="quit-anyway">
+          <Button size="sm" variant="primary" disabled={busy !== null} onClick={() => void quit(false)} data-testid="quit-anyway">
             Quit anyway
           </Button>
         </div>

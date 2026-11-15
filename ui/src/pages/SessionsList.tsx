@@ -25,6 +25,7 @@ import { ago, agoWords, sessionWhen } from "../lib/time-words";
 export { dayWords } from "../lib/time-words";
 import { hasLiveBackend } from "../lib/bridge";
 import { onSessionsUpdated } from "../lib/ipc/instances";
+import { coalesced } from "../lib/shown-window";
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import type { ProjectInfo } from "../types/generated/ProjectInfo";
 import type { ConversationInfo } from "../lib/ipc/conversations";
@@ -369,23 +370,16 @@ export function PagedSessions({
 const rowKey = (row: Row) => row.key;
 
 /** A shown related list reads itself again when sessions or the tools'
- * conversations change (once a burst settles); what it shows holds still
- * (`useHeld`). */
+ * conversations change (a burst: at once, then at most once a second, as
+ * the relation counts do); what it shows holds still (`useHeld`). */
 function useFollow(on: boolean, listKey: string): void {
   useEffect(() => {
     if (!on) return;
-    let timer: ReturnType<typeof setTimeout> | null = null;
-    const again = () => {
-      if (timer) clearTimeout(timer);
-      timer = setTimeout(() => refreshPaged(listKey), FOLLOW_SETTLE_MS);
-    };
-    const stops = [onSessionsUpdated(again), onConversationsChanged(again)];
+    const reads = coalesced(() => refreshPaged(listKey));
+    const stops = [onSessionsUpdated(reads.ask), onConversationsChanged(reads.ask)];
     return () => {
-      if (timer) clearTimeout(timer);
+      reads.stop();
       stops.forEach((stop) => stop());
     };
   }, [on, listKey]);
 }
-
-/** As the relation counts settle a burst of changes (lib/relation-counts). */
-const FOLLOW_SETTLE_MS = 250;

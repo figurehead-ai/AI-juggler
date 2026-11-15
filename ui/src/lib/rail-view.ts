@@ -136,6 +136,14 @@ export function showInRail(key: ShowKey, on = true): void {
   if (on) window.dispatchEvent(new CustomEvent(RAIL_REVEAL_EVENT, { detail: { key } }));
 }
 
+/** Fired to put the caret in the rail's search (the rail listens). */
+export const FOCUS_SEARCH_EVENT = "aij:focus-search";
+
+/** The rail's search takes focus: ⌘K's first step (AJ-E404 Req.4). */
+export function focusRailSearch(): void {
+  window.dispatchEvent(new Event(FOCUS_SEARCH_EVENT));
+}
+
 export function isDefaultView(view: RailView): boolean {
   return view.group === "place" && !viewChanged(view);
 }

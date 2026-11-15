@@ -140,6 +140,10 @@ case "$cmd" in
     done
     sleep 1
     for pid in $pids; do kill -0 "$pid" 2>/dev/null && kill -9 "$pid" 2>/dev/null || true; done
+    # The replica's stand-in apps out of LaunchServices' records first: one
+    # left registered could be started by the system outside the lab (a
+    # "damaged app" dialog on the maintainer's screen, 2026-11-13).
+    python3 -I "$root/scripts/replica.py" teardown --home "$lab" || true
     rm -rf "$lab"
     echo "lab-scenario: $lab removed; nothing of it runs"
     ;;

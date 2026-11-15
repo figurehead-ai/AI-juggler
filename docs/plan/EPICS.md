@@ -45,7 +45,7 @@ kept for tracking continuity.
 > and the [legacy→canonical glossary in SPEC §3](../SPEC.md).
 
 The canonical task breakdown is now the **E-catalog**
-(`docs/tasks/E1..E35`, 410 tasks, evidence-gated). The M-milestones
+(`docs/tasks/E1..E35`, 414 tasks, evidence-gated). The M-milestones
 below retain their IDs for tracking continuity; their *scope text* is
 re-sequenced around the settled thesis **Switch → See → Clean**, with
 Fleet integrated at launch (D-13), not deferred:
@@ -245,6 +245,8 @@ stable, and in every task's Definition of Done. Shared seams are built once
 ---
 
 ## Validation gate definition (applies to every `Gate VX`)
+
+> **Replaced by D-109 (2026-11-13)** for releases: a release's sign-off is the maintainer's Stable approval in the Promote workflow, recorded with its evidence ([QUALITY.md](./QUALITY.md) §8, AJ-E807). The milestone gates below and their reports (`docs/qa/gate-*.md`) are kept as history.
 
 1. **Automated:** full CI matrix green (macOS arm64/x64, Ubuntu, Windows) · guardrail test suite green · coverage ≥ targets (QUALITY.md §5) · `cargo-deny` clean · benches within stated budgets (no unexplained regressions).
 2. **Functional:** every acceptance criterion of the milestone's tasks executed and evidenced (command output, screenshots, or fixture reports) — no criterion waived.

@@ -285,6 +285,10 @@ export interface Commands {
   app_bug_report_open: { args: { id: string; title: string; words: string; keep: string[] }; result: void };
   /** Write features::app::diagnostics::app_bug_report_preview */
   app_bug_report_preview: { args: { context?: BugContextArgs | null }; result: BugReportInfo };
+  /** Read main_window::app_close_note_due */
+  app_close_note_due: { args: Record<string, never>; result: boolean };
+  /** Write main_window::app_close_note_told */
+  app_close_note_told: { args: Record<string, never>; result: void };
   /** Write features::app::diagnostics::app_debug_log_clear */
   app_debug_log_clear: { args: Record<string, never>; result: DebugModeInfo };
   /** Write features::app::diagnostics::app_debug_log_show */

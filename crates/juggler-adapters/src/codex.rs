@@ -857,6 +857,9 @@ impl ToolTranscripts for CodexAdapter {
             path,
         })
     }
+    fn conversation_roots(&self, state_dir: &Path) -> Vec<PathBuf> {
+        crate::codex_conversations::conversation_roots(state_dir)
+    }
     fn conversation_files(&self, state_dir: &Path) -> Vec<PathBuf> {
         crate::codex_conversations::conversation_files(state_dir)
     }
@@ -867,9 +870,20 @@ impl ToolTranscripts for CodexAdapter {
         crate::codex_conversations::read_conversation(path)
     }
     /// 2: who started it (`started_in`, ADR-0032 amendment 6, 0.4.2); 3: a
-    /// script's run (`by_script`, `codex exec`: 0.4.3, D-102).
+    /// script's run (`by_script`, `codex exec`: 0.4.3, D-102); 4: a title
+    /// from its first prompt is one line, never a pasted key or a bare
+    /// path (0.4.5); 5: a thread's tokens are its usage's, as the usage
+    /// reading counts them: reasoning and cache writes once each,
+    /// compactions included (0.4.5, AJ-E805).
     fn conversation_reader_version(&self) -> u32 {
-        3
+        5
+    }
+    fn transcript_reader(
+        &self,
+        path: &Path,
+        account: &str,
+    ) -> Option<Box<dyn juggler_adapter::transcript_read::TranscriptReader>> {
+        is_rollout_file(path).then(|| crate::codex_conversations::transcript_reader(account))
     }
     fn read_conversation_quick(
         &self,

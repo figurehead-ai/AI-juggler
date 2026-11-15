@@ -104,6 +104,7 @@ pub mod sign_in;
 pub mod subtasks;
 pub mod tool_summary;
 pub mod transcript;
+pub mod transcript_follow;
 pub mod transcript_tail;
 mod transcript_watcher;
 pub mod zcode_usage;

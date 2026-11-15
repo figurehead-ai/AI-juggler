@@ -17,8 +17,8 @@ seam should hold, in shipped code outside the seams:
                   (UI and Rust copy; identifiers and comments don't count)
 
 The seams are exempt: `crates/juggler-platform/` (the OS seams), the
-audited per-OS shims (`juggler-login-item`, `juggler-scap-init`,
-`juggler-vm-stats`) and `juggler-adapter/src/system_tools.rs` (the one place
+audited per-OS shims (`juggler-login-item`, `juggler-proc-list`,
+`juggler-scap-init`, `juggler-vm-stats`) and `juggler-adapter/src/system_tools.rs` (the one place
 system tools are named by path). So are tests (`/tests/`, `*.test.*`,
 `*.spec.*`, inline `#[cfg(test)]` / `#[cfg(all(test, …))]` modules), test
 fixture programs (`src/bin/fake_*`), generated code and the UI's preview
@@ -52,6 +52,7 @@ SEAMS = (
     "crates/juggler-login-item/",
     "crates/juggler-scap-init/",
     "crates/juggler-vm-stats/",
+    "crates/juggler-proc-list/",
     "crates/juggler-adapter/src/system_tools.rs",
 )
 SCAN = (("crates", (".rs",)), ("ui/src", (".ts", ".tsx")))

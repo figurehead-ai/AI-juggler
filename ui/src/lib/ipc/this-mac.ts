@@ -5,7 +5,8 @@
  * fixture; `window.__AIJ_MACHINE__` picks the state ("plenty" | "tight" |
  * "pressure" | "unsampled", or a full payload).
  */
-import { call, listen } from "./transport";
+import { call } from "./transport";
+import { listenWhileShown } from "../shown-window";
 import { hasLiveBackend } from "../bridge";
 import { instancesList } from "./instances";
 import type { MachineFixture } from "../../preview/machine";
@@ -93,7 +94,9 @@ export async function machineAdvice(): Promise<MachineAdviceInfo[]> {
   return call("machine_advice");
 }
 
-/** This Mac's 5 s `machine://this-mac` emission (live backends only). */
-export function onThisMac(handler: (info: ThisMacInfo) => void): Promise<() => void> {
-  return listen<ThisMacInfo>("machine://this-mac", (event) => handler(event.payload));
+/** This Mac's 5 s `machine://this-mac` emission (live backends only),
+ * while the window can be seen; read once when it shows (AJ-E805).
+ * Returns the stop. */
+export function onThisMac(handler: (info: ThisMacInfo) => void): () => void {
+  return listenWhileShown<ThisMacInfo>("machine://this-mac", handler, () => void thisMac().then(handler, () => undefined));
 }

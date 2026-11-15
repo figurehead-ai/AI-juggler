@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import { allStatuses, honestEmpty, type FixtureSet, goTo, openFilters, openSwitch, expectRail, openRailList, settingsPane, onlyMac, projectBoardByDefault, switchRows, openRailSession } from "./fixtures";
+import { HOME_OUT_USE, showHomeOut } from "./fixtures/home-out";
 
 // AJ-E2104: these galleries read the project board, every status drawn.
 projectBoardByDefault(test);
@@ -1964,7 +1965,9 @@ for (const theme of ["dark", "light"] as const) {
 
 /** AJ-E1004 a11y (both themes): the morning summary — a labelled
  * region, one button per row, severity in words — scans axe-clean and
- * every row is reachable by keyboard. */
+ * every row is reachable by keyboard; so is its "Older sessions" line,
+ * named by its words (persona D3: the fixture's sessions are older than
+ * the card's window). */
 for (const theme of ["dark", "light"] as const) {
   test(`morning summary — axe 0 — ${theme}`, async ({ page }) => {
     await page.addInitScript(
@@ -1997,6 +2000,8 @@ for (const theme of ["dark", "light"] as const) {
     await expect(page.getByTestId("summary-row").first()).toBeFocused();
     await page.keyboard.press("Tab");
     await expect(page.getByTestId("summary-row").nth(1)).toBeFocused();
+    await page.keyboard.press("Tab");
+    await expect(page.getByRole("button", { name: "Older sessions: search ⌘K" })).toBeFocused();
     expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
   });
 }
@@ -2425,7 +2430,7 @@ for (const theme of ["dark", "light"] as const) {
     );
     const sheet = page.getByRole("dialog", { name: "Quit AI Juggler?" });
     await expect(sheet).toBeVisible();
-    await expect(page.getByTestId("quit-anyway")).toBeFocused();
+    await expect(page.getByTestId("quit-cancel")).toBeFocused(); // D-113: the safe choice is the default
     // Tab stays inside the sheet.
     for (let i = 0; i < 6; i += 1) await page.keyboard.press("Tab");
     expect(await sheet.evaluate((node) => node.contains(document.activeElement))).toBe(true);
@@ -2513,3 +2518,33 @@ for (const theme of ["dark", "light"] as const) {
     expect(all, summary).toHaveLength(0);
   });
 }
+
+// 0.4.5 (the maintainer's 0.4.4 finding): an Account's "Out · resets
+// 6:00 AM tomorrow" ran past the right edge of Home's narrowest app card.
+// Every room mark on that screen (tests/visual/fixtures/home-out.ts)
+// stays inside its card, its words whole: wrapped inside the mark, never
+// cut or hidden.
+test.describe("room marks on Home's narrowest app cards", () => {
+  test.use(HOME_OUT_USE);
+  test("stay inside their cards, their words whole — both themes", async ({ page }) => {
+    for (const theme of ["dark", "light"] as const) {
+      await showHomeOut(page, theme);
+      const marks = page.locator('[data-testid$="room"], [data-testid="room-chip"]');
+      await expect(marks).toHaveCount(4);
+      const escaped = await marks.evaluateAll((all) =>
+        all.flatMap((mark) => {
+          const card = mark.closest("li");
+          if (!card) return [`${mark.textContent}: in no card`];
+          const right = mark.getBoundingClientRect().right;
+          const edge = card.getBoundingClientRect().right;
+          const bad: string[] = [];
+          if (right > edge) bad.push(`"${mark.getAttribute("title")}" ends ${(right - edge).toFixed(1)} px past its card`);
+          if (mark.scrollWidth > mark.clientWidth + 1) bad.push(`"${mark.getAttribute("title")}" is cut: ${mark.scrollWidth} px of words in ${mark.clientWidth} px`);
+          return bad;
+        }),
+      );
+      expect(escaped, theme).toEqual([]);
+      expect(await scanSeriousWithConfirm(page), theme).toHaveLength(0);
+    }
+  });
+});

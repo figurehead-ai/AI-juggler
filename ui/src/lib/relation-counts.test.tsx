@@ -44,6 +44,29 @@ describe("useRelationCounts", () => {
     expect(invoke).toHaveBeenCalledTimes(2);
   });
 
+  it("reads a burst of changes at once, then at most once a second (AJ-E805)", async () => {
+    const { useRelationCounts } = await import("./relation-counts");
+    const { result } = renderHook(() => useRelationCounts("project", "p-2"));
+    await waitFor(() => expect(result.current?.sessions.all).toBeDefined());
+    invoke.mockClear();
+    vi.useFakeTimers();
+    // Sessions at work: a change every 100 ms for a second.
+    act(() => told[0]!());
+    expect(invoke).toHaveBeenCalledTimes(1);
+    for (let i = 0; i < 9; i += 1) {
+      act(() => {
+        vi.advanceTimersByTime(100);
+        told[i % told.length]!();
+      });
+    }
+    expect(invoke).toHaveBeenCalledTimes(1);
+    act(() => void vi.advanceTimersByTime(100));
+    expect(invoke).toHaveBeenCalledTimes(2);
+    act(() => void vi.advanceTimersByTime(5000));
+    expect(invoke).toHaveBeenCalledTimes(2);
+    vi.useRealTimers();
+  });
+
   it("asks nothing without an entity", async () => {
     const { useRelationCounts } = await import("./relation-counts");
     const { result } = renderHook(() => useRelationCounts(null, "p-1"));

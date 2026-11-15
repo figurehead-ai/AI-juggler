@@ -155,7 +155,10 @@ export function AppIconTile({ appId, appPid = null, name, size, alt = "", classN
     );
   }
   if (!done) {
-    return <span ref={box} aria-hidden="true" className={`inline-flex shrink-0 bg-skeleton motion-safe:animate-pulse ${className}`} style={{ ...frame, borderRadius: radius }} data-testid="app-icon" data-app={appId ?? undefined} data-state="loading" />;
+    // It pulses while its read runs; one out of view isn't read yet and
+    // waits still (0.4.5, AJ-E805: off screen, it pulsed for ever).
+    const pulse = visible ? " motion-safe:animate-pulse" : "";
+    return <span ref={box} aria-hidden="true" className={`inline-flex shrink-0 bg-skeleton${pulse} ${className}`} style={{ ...frame, borderRadius: radius }} data-testid="app-icon" data-app={appId ?? undefined} data-state="loading" />;
   }
   const own = appId === OWN_APP_ID;
   const glyph = Math.round(size * 0.7);

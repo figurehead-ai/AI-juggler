@@ -9,7 +9,9 @@
 //! milliseconds later, or only every 10 s, reads far too low or too high.
 //! The accumulated CPU time is exact on every platform, so each refresh
 //! notes it with the time it was read, and the figure is its growth over a
-//! window of at least [`MIN_WINDOW`].
+//! window of at least [`MIN_WINDOW`]. A reading may come from `sysinfo`'s
+//! table or straight from the kernel's task record
+//! ([`CpuSince::note_reading`], AJ-E805: the listing's observed trees).
 
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
@@ -25,10 +27,10 @@ pub struct CpuSince {
     seen: HashMap<u32, Seen>,
 }
 
-/// One reading: the CPU time so far (ms) and when it was read.
+/// One reading: the CPU time so far (ns) and when it was read.
 #[derive(Debug, Clone, Copy)]
 struct Reading {
-    cpu_ms: u64,
+    cpu_ns: u64,
     at: Instant,
 }
 
@@ -53,6 +55,14 @@ impl CpuSince {
         }
     }
 
+    /// Forgets the processes `system` no longer holds (after a targeted
+    /// refresh dropped the ones gone).
+    pub fn forget_gone(&mut self, system: &sysinfo::System) {
+        let processes = system.processes();
+        self.seen
+            .retain(|pid, _| processes.contains_key(&sysinfo::Pid::from_u32(*pid)));
+    }
+
     /// Notes every process after a full refresh (`at`: just before it),
     /// and forgets the ones gone.
     pub fn note_all(&mut self, system: &sysinfo::System, at: Instant) {
@@ -65,12 +75,18 @@ impl CpuSince {
     }
 
     fn note_one(&mut self, process: &sysinfo::Process, at: Instant) {
-        let start_time = process.start_time();
-        let reading = Reading {
-            cpu_ms: process.accumulated_cpu_time(),
+        self.note_reading(
+            process.pid().as_u32(),
+            process.start_time(),
+            process.accumulated_cpu_time().saturating_mul(1_000_000),
             at,
-        };
-        let pid = process.pid().as_u32();
+        );
+    }
+
+    /// Notes one process's CPU time so far (`cpu_ns`) read at `at`; the
+    /// process is told apart by its start time (epoch seconds).
+    pub fn note_reading(&mut self, pid: u32, start_time: u64, cpu_ns: u64, at: Instant) {
+        let reading = Reading { cpu_ns, at };
         let seen = match self.seen.get(&pid) {
             // Another process under a reused pid starts over.
             Some(seen) if seen.start_time == start_time => {
@@ -92,22 +108,34 @@ impl CpuSince {
         self.seen.insert(pid, seen);
     }
 
+    /// Forgets every process but those `keep` holds.
+    pub fn keep_only(&mut self, keep: impl Fn(u32) -> bool) {
+        self.seen.retain(|pid, _| keep(*pid));
+    }
+
     /// The process's CPU % (100 = one core) from the window's start to its
     /// latest reading; `None` until a window exists (never a fake idle).
     #[must_use]
     pub fn pct(&self, process: &sysinfo::Process) -> Option<f64> {
+        self.pct_of(process.pid().as_u32(), process.start_time())
+    }
+
+    /// As [`CpuSince::pct`], for the process `pid` that started at
+    /// `start_time` (epoch seconds).
+    #[must_use]
+    pub fn pct_of(&self, pid: u32, start_time: u64) -> Option<f64> {
         let seen = self
             .seen
-            .get(&process.pid().as_u32())
-            .filter(|seen| seen.start_time == process.start_time())?;
+            .get(&pid)
+            .filter(|seen| seen.start_time == start_time)?;
         let from = seen.from?;
         let wall = seen.latest.at.duration_since(from.at).as_secs_f64();
         if wall <= 0.0 {
             return None;
         }
-        let cpu = seen.latest.cpu_ms.saturating_sub(from.cpu_ms);
-        #[allow(clippy::cast_precision_loss)] // CPU ms never nears 2^52
-        Some(cpu as f64 / 1000.0 / wall * 100.0)
+        let cpu = seen.latest.cpu_ns.saturating_sub(from.cpu_ns);
+        #[allow(clippy::cast_precision_loss)] // CPU ns never nears 2^52 within a window
+        Some(cpu as f64 / 1e9 / wall * 100.0)
     }
 }
 

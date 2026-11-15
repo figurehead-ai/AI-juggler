@@ -100,6 +100,11 @@ pub struct Notifier {
     /// D-49: what Needs you was last time (a hash: the model is written
     /// only when it changes).
     needs_signature: Mutex<Option<u64>>,
+    /// D-49, AJ-E805: AI Juggler's session rows as Needs you last read
+    /// them from storage ([`needs::KeptRows`]).
+    kept_rows: Mutex<Option<needs::KeptRows>>,
+    /// How many times Needs you read those rows from storage.
+    rows_read: std::sync::atomic::AtomicU64,
 }
 
 impl Default for Notifier {
@@ -119,6 +124,8 @@ impl Default for Notifier {
             this_mac: Mutex::new(None),
             sign_ins: Mutex::new(None),
             needs_signature: Mutex::new(None),
+            kept_rows: Mutex::new(None),
+            rows_read: std::sync::atomic::AtomicU64::new(0),
         }
     }
 }
@@ -203,6 +210,34 @@ impl Notifier {
             *cached = Some((now, accounts.clone()));
         }
         accounts
+    }
+
+    /// D-49: the session rows Needs you kept, when still `fresh`; else
+    /// `read` reads them, and they are kept.
+    pub fn session_rows(
+        &self,
+        fresh: impl FnOnce(&needs::KeptRows) -> bool,
+        read: impl FnOnce() -> Option<needs::KeptRows>,
+    ) -> Option<Vec<crate::features::sessions::dto::InstanceInfo>> {
+        if let Ok(kept) = self.kept_rows.lock()
+            && let Some(kept) = kept.as_ref().filter(|kept| fresh(kept))
+        {
+            return Some(kept.rows.clone());
+        }
+        let read = read()?;
+        self.rows_read.fetch_add(1, Ordering::Relaxed);
+        let rows = read.rows.clone();
+        if let Ok(mut kept) = self.kept_rows.lock() {
+            *kept = Some(read);
+        }
+        Some(rows)
+    }
+
+    /// How many times Needs you read AI Juggler's session rows from
+    /// storage (a cached tick reads none).
+    #[must_use]
+    pub fn session_rows_read(&self) -> u64 {
+        self.rows_read.load(Ordering::Relaxed)
     }
 
     /// D-49: records what Needs you is now; `true` when it is what it was.

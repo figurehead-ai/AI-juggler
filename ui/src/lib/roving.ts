@@ -87,8 +87,11 @@ export function rove(root: HTMLElement, remembered: string | null): string | nul
   for (const entry of lines) {
     const index = entry === active ? 0 : -1;
     for (const control of entry.controls) {
+      // Written only when it differs (AJ-E805: this runs after every render
+      // of the rail, and setting a value it already had still changed the
+      // page: about 2,000 writes a minute with 10 sessions at work).
       if (control.tabIndex !== index) control.tabIndex = index;
-      control.setAttribute(OURS, "");
+      if (!control.hasAttribute(OURS)) control.setAttribute(OURS, "");
     }
   }
   return focused ? keyOf(focused.line) : remembered;

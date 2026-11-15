@@ -423,7 +423,7 @@
 **Goal**: The dedicated first release ships Windows on the Beta channel, on the shared version stream, only when the core works on a real Windows machine: tools found, accounts imported, sessions run and are seen, stops are whole and honest, switching keeps history, and nothing claims what it can't do.
 **User story**: As an early Windows user, the Beta does what its page says, and every feature that isn't there yet says so where I'd look for it.
 **Requirements**:
-1. A gate file `docs/qa/gate-windows-beta.md` SHALL list each criterion with its evidence link (the `gate_packet.py` format).
+1. A gate file `docs/qa/gate-windows-beta.md` SHALL list each criterion with its evidence link (one row per criterion: its evidence link and verdict).
 2. Core criteria: tools found every supported way (AJ-E2607); import of existing setups; two Claude accounts in parallel with zero writes to `%USERPROFILE%\.claude`; sessions seen in the Processes view; stops whole with zero false kills (AJ-E2606); switching A→B→Codex→A keeps history, tasks and context (the 0.1 switching rule); honest usage; keep-awake and the PC's signals (AJ-E2612).
 3. Every feature not ready on Windows SHALL show "not on Windows yet" where it would be, with the reason, and the release notes SHALL list them (WSL, window mirroring, any `NotYet` seam).
 4. The release SHALL go through the shared flow: the version's nightly carries its Windows build beside macOS's, and D-24's promotion rules (days of Nightly use, no open `blocker`) hold on Windows as well as macOS before the one promote to Beta moves both.
@@ -446,7 +446,7 @@
 3. A `blocker` on any shipped OS SHALL stop the promotion of that version for every OS (D-24 across OSes; the agents' reading of D-52, the maintainer to confirm).
 4. The Definition of Done (`docs/plan/QUALITY.md` §2) and the reviewer checklist SHALL require every shipped OS; the PR template SHALL ask for it; CI's Windows test job (AJ-E2602) SHALL be required on every PR to `main` and `release/*`.
 5. The task format (`docs/tasks/README.md`) SHALL ask every new task to name how it is tested on each shipped OS, or why it is unsupported there.
-6. Windows SHALL reach Stable with the first version carrying it that the stable rules promote (14+ days on beta, no `blocker`, the beta gate signed); before that promote, the security review (the M8-2 checklist) SHALL be re-run for the Windows-specific code: ACLs, the named pipe, Credential Manager, the Job Object, the installer.
+6. Windows SHALL reach Stable with the first version carrying it that the stable rules promote (14+ days on beta, no `blocker`, the roadmap scope complete; the Stable approval is the sign-off, D-109); before that promote, the security review (the M8-2 checklist) SHALL be re-run for the Windows-specific code: ACLs, the named pipe, Credential Manager, the Job Object, the installer.
 7. An update from the first Windows Beta to that Stable build SHALL be proven, with a rollback.
 **UI/UX reasoning**: The release channel policy (memory: nightly as pushed, beta after real use, stable deliberate), now for every OS at once; Nielsen #1: the channel shown in About, and "not on Windows yet" with its reason where a feature is unsupported.
 **Performance budget**: a nightly with Windows ≤ 30 min longer than the macOS-only run (the OS jobs in parallel); a promote ≤ 10 min; the Stable candidate within 10 % of the first release's measured budgets.

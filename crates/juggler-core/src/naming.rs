@@ -2,9 +2,10 @@
 //! it says what the work was ("fix/limits"), never one that says nothing
 //! ("main"). One rule for every place a name is made (the window's
 //! `tellingBranch` holds the same list). A title that is what was asked
-//! is named by its first words ([`first_words`], the window's
-//! `firstWords`). The window's `shortName` is the same rule, held to it
-//! by one file of cases both run (`ui/src/lib/fixtures/session-names.json`).
+//! (its first prompt, 0.4.5) is named by its first words ([`first_words`],
+//! the window's `firstWords`), never a pasted key or a bare path. The
+//! window's `shortName` is the same rule, held to it by one file of cases
+//! both run (`ui/src/lib/fixtures/session-names.json`).
 
 /// Branches that name no piece of work.
 const PLAIN: [&str; 8] = [
@@ -45,7 +46,8 @@ pub struct Facts<'a> {
 /// "billing · started 1:14 AM", never its Account (D-103.8, persona R2:
 /// "client-b · Client A · client-a · started 4:46 PM"); "Session started
 /// 1:14 AM" when only the time is known; "billing" when only the folder
-/// is; "Untitled session" when nothing is.
+/// is; "Untitled session" when nothing is. Only a session with no first
+/// prompt is named so (0.4.5): one that has one is named by its words.
 #[must_use]
 pub fn untitled_name(facts: &Facts<'_>) -> String {
     fn some(part: Option<&str>) -> Option<&str> {
@@ -60,11 +62,14 @@ pub fn untitled_name(facts: &Facts<'_>) -> String {
 }
 
 /// A session's short name, the one rule wherever one is said (a pool's
-/// cards and messages, Needs you's notices; the window's `shortName`):
-/// its label, else its title's first words, else a branch that says what
-/// the work was, else its facts ("billing · started 1:14 AM", D-96,
-/// D-103.8) — never the whole first prompt, never "main" (the rc7, rc12 and
-/// rc15 walks), never `Untitled session · <folder>` (persona D2).
+/// cards and messages, Needs you's notices, the Floor; the window's
+/// `shortName`): its label, else its title's words (the tool's own name
+/// for it, else the first words of its first prompt, as `claude --resume`
+/// and Codex's picker list it: 0.4.5), else a branch that says what the
+/// work was, else its facts ("billing · started 1:14 AM", D-96, D-103.8)
+/// — never the whole first prompt, never "main" (the rc7, rc12 and rc15
+/// walks), never `Untitled session · <folder>` (persona D2), never a
+/// pasted key or a bare path.
 #[must_use]
 pub fn short_name(
     label: Option<&str>,
@@ -75,8 +80,8 @@ pub fn short_name(
     if let Some(label) = label.filter(|label| !label.trim().is_empty()) {
         return label.to_owned();
     }
-    if let Some(title) = title.filter(|title| !title.trim().is_empty()) {
-        return first_words(title, 8).unwrap_or_else(|| title.to_owned());
+    if let Some(words) = title.and_then(title_words) {
+        return words;
     }
     if let Some(branch) = telling_branch(branch) {
         return branch.to_owned();
@@ -84,26 +89,56 @@ pub fn short_name(
     untitled_name(facts)
 }
 
-/// Whether a session is named by its facts: no label, no title, no
-/// branch that says what the work was (its name says when it started).
+/// Whether a session is named by its facts: no label, no title with words
+/// to say, no branch that says what the work was (its name says when it
+/// started).
 #[must_use]
 pub fn named_by_facts(label: Option<&str>, title: Option<&str>, branch: Option<&str>) -> bool {
     let empty = |part: Option<&str>| part.is_none_or(|part| part.trim().is_empty());
-    empty(label) && empty(title) && telling_branch(branch).is_none()
+    empty(label) && title.and_then(title_words).is_none() && telling_branch(branch).is_none()
 }
 
-/// The most characters [`first_words`] keeps.
-const FIRST_WORDS_CHARS: usize = 56;
+/// What a title says as a name: its first words ([`first_words`]); a
+/// short one ("ok") as it is ([`said_line`]); `None` when it says nothing
+/// but a path or a key (a first prompt that was only those: its facts
+/// name it).
+fn title_words(title: &str) -> Option<String> {
+    first_words(title).or_else(|| said_line(title))
+}
 
-/// The first few words of what was asked: its first line, cut before a
-/// redaction mark, its first clause past a short opener ("Good.", "OK,
-/// thanks."), at most `max` words or 56 characters, "…" when cut short;
-/// `None` when nothing is left (rc7 walk: pool members and senders were
-/// named by the whole first prompt). The window's `firstWords` is the same.
+/// What a prompt says, as one line: its first line that says something
+/// (not only paths or pasted keys), cut before a redaction mark or a word
+/// that looks like a key, whitespace collapsed; `None` when nothing is
+/// left. What a conversation's title is made of when it's what was asked
+/// (`juggler_adapter::conversation::prompt_title`), so no list shows a
+/// pasted key or a bare path as a title.
 #[must_use]
-pub fn first_words(text: &str, max: usize) -> Option<String> {
-    let line = text.lines().map(str::trim).find(|line| !line.is_empty())?;
-    let kept = cut_at_redaction(line);
+pub fn said_line(text: &str) -> Option<String> {
+    let line = spoken_line(text)?;
+    let kept = before_secret(cut_at_redaction(line))
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ");
+    (!kept.is_empty()).then_some(kept)
+}
+
+/// The most characters [`first_words`] keeps (0.4.5: about 60, cut at a
+/// word).
+const NAME_CHARS: usize = 60;
+
+/// The first words of what was asked, one line: its first line that says
+/// something (a line of only paths or pasted keys says nothing:
+/// `says_nothing`), whitespace collapsed, cut before a redaction mark or
+/// a word that looks like a key (`token_like`), its first clause past a
+/// short opener ("Good.", "OK, thanks."), at most 60 characters cut at a
+/// word, "…" when cut short; `None` when nothing is left (rc7 walk: pool
+/// members and senders were named by the whole first prompt). A colon
+/// doesn't end a clause: a tool's own title ("Billing move: rehearsal")
+/// reads whole. The window's `firstWords` is the same.
+#[must_use]
+pub fn first_words(text: &str) -> Option<String> {
+    let line = spoken_line(text)?;
+    let kept = before_secret(cut_at_redaction(line));
     let clean: String = kept
         .chars()
         .filter(|c| !matches!(c, '`' | '*' | '_' | '#' | '>'))
@@ -123,11 +158,14 @@ pub fn first_words(text: &str, max: usize) -> Option<String> {
     if clause.chars().count() < 3 {
         return None;
     }
-    let mut out = clause.split(' ').take(max).collect::<Vec<_>>().join(" ");
-    if out.chars().count() > FIRST_WORDS_CHARS {
-        let head: String = out.chars().take(FIRST_WORDS_CHARS).collect();
-        // Back to the last whole word (as `\s+\S*$` cuts it).
+    let mut out = clause.to_owned();
+    if out.chars().count() > NAME_CHARS {
+        let head: String = out.chars().take(NAME_CHARS).collect();
+        let ends_a_word = out.chars().nth(NAME_CHARS).is_some_and(char::is_whitespace);
+        // Back to the last whole word (as `\s+\S*$` cuts it); a word that
+        // ends right at the limit stays.
         out = match head.rfind(char::is_whitespace) {
+            _ if ends_a_word => head.trim_end().to_owned(),
             Some(at) => head[..at].trim_end().to_owned(),
             None => head,
         };
@@ -140,6 +178,79 @@ pub fn first_words(text: &str, max: usize) -> Option<String> {
     } else {
         out.to_owned()
     })
+}
+
+/// `text`'s first line that says something: not empty, and not only
+/// paths or pasted keys ([`says_nothing`]).
+fn spoken_line(text: &str) -> Option<&str> {
+    text.lines()
+        .map(str::trim)
+        .find(|line| !line.is_empty() && !says_nothing(line))
+}
+
+/// Whether a line is only paths or pasted keys (an `@"/Users/…/brief.md"`
+/// mention, a dragged file, a pasted token): nothing to name a session
+/// by, and nothing a name should show. Markdown marks around them
+/// (backticks, quotes, `@`) don't count.
+fn says_nothing(line: &str) -> bool {
+    // A shell's escaped space is part of its path.
+    let line = line.replace("\\ ", "_");
+    let mut words = line
+        .split_whitespace()
+        .map(|word| {
+            word.trim_matches(|c: char| {
+                matches!(
+                    c,
+                    '@' | '"' | '\'' | '`' | '*' | '<' | '>' | '(' | ')' | '[' | ']' | ',' | ';'
+                )
+            })
+        })
+        .filter(|word| !word.is_empty())
+        .peekable();
+    words.peek().is_some() && words.all(|word| path_like(word) || token_like(word))
+}
+
+/// Whether `word` is a path: it has a `/` or a backslash and isn't a web
+/// address (`https://…` names a page, not a file on this Mac).
+fn path_like(word: &str) -> bool {
+    let separated = word.contains(['/', '\\']) && word.chars().any(char::is_alphanumeric);
+    separated && (!word.contains("://") || word.starts_with("file://"))
+}
+
+/// The shortest run of letters and digits, mixed, that reads as a key
+/// rather than a word.
+const TOKEN_RUN: usize = 16;
+
+/// Whether `word` looks like a pasted key or token (`sk-ant-api03-…`, a
+/// hash, a base64 blob): a run of at least 16 ASCII letters and digits
+/// that has both. Long plain words ("extraordinarily") have no digit.
+fn token_like(word: &str) -> bool {
+    let (mut run, mut letter, mut digit) = (0, false, false);
+    for c in word.chars() {
+        if c.is_ascii_alphanumeric() {
+            run += 1;
+            letter |= c.is_ascii_alphabetic();
+            digit |= c.is_ascii_digit();
+            if run >= TOKEN_RUN && letter && digit {
+                return true;
+            }
+        } else {
+            (run, letter, digit) = (0, false, false);
+        }
+    }
+    false
+}
+
+/// `line` up to its first word that looks like a key ([`token_like`]).
+fn before_secret(line: &str) -> &str {
+    let mut at = 0;
+    for word in line.split_inclusive(char::is_whitespace) {
+        if token_like(word) {
+            return &line[..at];
+        }
+        at += word.len();
+    }
+    line
 }
 
 /// `line` up to a redaction mark (`[redacted]`, or two or more `•`).
@@ -157,14 +268,14 @@ fn cut_at_redaction(line: &str) -> &str {
     &line[..end]
 }
 
-/// `text` split after each `.;:!?` that a space follows.
+/// `text` split after each `.;!?` that a space follows (not `:`: "Billing
+/// move: rehearsal" is one clause).
 fn clauses_of(text: &str) -> Vec<&str> {
     let mut out = Vec::new();
     let mut start = 0;
     let mut chars = text.char_indices().peekable();
     while let Some((at, c)) = chars.next() {
-        if matches!(c, '.' | ';' | ':' | '!' | '?')
-            && chars.peek().is_some_and(|&(_, next)| next == ' ')
+        if matches!(c, '.' | ';' | '!' | '?') && chars.peek().is_some_and(|&(_, next)| next == ' ')
         {
             let end = at + c.len_utf8();
             out.push(&text[start..end]);
@@ -179,7 +290,9 @@ fn clauses_of(text: &str) -> Vec<&str> {
 
 #[cfg(test)]
 mod tests {
-    use super::{Facts, first_words, named_by_facts, short_name, telling_branch, untitled_name};
+    use super::{
+        Facts, first_words, named_by_facts, said_line, short_name, telling_branch, untitled_name,
+    };
 
     const WEB: Facts<'static> = Facts {
         folder: Some("web"),
@@ -285,31 +398,85 @@ mod tests {
 
     #[test]
     fn a_long_first_prompt_names_a_session_by_its_first_words() {
+        // 0.4.5: about 60 characters, cut at a word.
         assert_eq!(
             first_words(
-                "Good. Write the release notes for 0.4.1 and check every link in them twice",
-                8
+                "Good. Write the release notes for 0.4.1 and check every link in them twice"
             )
             .as_deref(),
-            Some("Write the release notes for 0.4.1 and check…")
+            Some("Write the release notes for 0.4.1 and check every link in…")
         );
         assert_eq!(
-            first_words("Fix the login test.", 8).as_deref(),
+            first_words("Fix the login test.").as_deref(),
             Some("Fix the login test")
         );
         assert_eq!(
-            first_words("\n  **Tidy** the `docs` folder\nmore", 8).as_deref(),
+            first_words("\n  **Tidy** the `docs` folder\nmore").as_deref(),
             Some("Tidy the docs folder")
         );
         assert_eq!(
-            first_words("Use key [redacted] now", 8).as_deref(),
+            first_words("Use key [redacted] now").as_deref(),
             Some("Use key")
         );
-        assert_eq!(first_words("ok", 8), None);
-        assert_eq!(first_words("   ", 8), None);
-        let long = first_words("Investigateeverything thoroughly regardingtheextraordinarilylongwordsthatkeepgoing andgoing", 8).unwrap();
-        assert!(long.chars().count() <= 57, "{long}");
+        assert_eq!(first_words("ok"), None);
+        assert_eq!(first_words("   "), None);
+        let long = first_words("Investigateeverything thoroughly regardingtheextraordinarilylongwordsthatkeepgoing andgoing").unwrap();
+        assert!(long.chars().count() <= 61, "{long}");
         assert!(long.ends_with('…'));
+        // A colon doesn't end it: a tool's own title reads whole.
+        assert_eq!(
+            first_words("Billing move: rehearsal starts (M2)").as_deref(),
+            Some("Billing move: rehearsal starts (M2)")
+        );
+    }
+
+    /// 0.4.5: a name never shows a pasted key or a bare path; a line of
+    /// only those says nothing, and the next line speaks.
+    #[test]
+    fn a_name_never_shows_a_key_or_a_bare_path() {
+        let key = "sk-test-0123456789abcdefXYZ";
+        for nothing in [
+            key,
+            "/Users/you/Downloads/brief.md",
+            "~/Desktop/Screenshot\\ 2026-11-13\\ at\\ 09.41.png",
+            "@\"/Users/you/My Documents/brief.md\"",
+            "`src/lib/naming.rs`",
+            "C:\\Users\\you\\notes.txt",
+            "3f786850e387550fdab836ed7e6dc881de23001b",
+        ] {
+            assert_eq!(first_words(nothing), None, "{nothing}");
+            assert_eq!(said_line(nothing), None, "{nothing}");
+            assert_eq!(
+                short_name(None, Some(nothing), None, &WEB),
+                "web · started 1:14 AM",
+                "{nothing}"
+            );
+            assert!(named_by_facts(None, Some(nothing), None), "{nothing}");
+        }
+        assert_eq!(
+            first_words(&format!("Call the API with {key} and list the models")).as_deref(),
+            Some("Call the API with")
+        );
+        assert_eq!(
+            first_words(
+                "@\"/Users/you/Downloads/brief.md\"\nOk so we are planning to move the shop"
+            )
+            .as_deref(),
+            Some("Ok so we are planning to move the shop")
+        );
+        // Not keys: long plain words, ids with dashes, web addresses, versions.
+        for words in [
+            "Read https://example.com/docs/2026/limits first",
+            "Rename 0b1c2d3e-4f5a-4b6c-8d7e-9f0a1b2c3d4e in the store",
+            "Ship 0.4.5 to beta",
+        ] {
+            assert_eq!(first_words(words).as_deref(), Some(words), "{words}");
+        }
+        assert_eq!(
+            said_line("  Fix   the\tlogin\n").as_deref(),
+            Some("Fix the login")
+        );
+        assert_eq!(short_name(None, Some("ok"), None, &WEB), "ok");
     }
 
     #[test]

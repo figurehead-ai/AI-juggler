@@ -4,7 +4,7 @@
  * preview mocks) are in `ipc/this-mac`; this module holds the hooks and the
  * words.
  */
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, createElement, useContext, useEffect, useLayoutEffect, useState, useSyncExternalStore, type ReactNode } from "react";
 import { hasLiveBackend } from "./bridge";
 import { onThisMac, thisMac } from "./ipc/this-mac";
 import { memorySize } from "./compact";
@@ -34,7 +34,7 @@ export type { ThisMacInfo, ToolTreeInfo, OverloadAlertInfo };
  * preview has no events, so callers pass something that changes with
  * the sessions on screen.
  */
-export function useThisMac(refreshKey?: unknown): ThisMacInfo | null {
+function useThisMac(refreshKey?: unknown): ThisMacInfo | null {
   const [info, setInfo] = useState<ThisMacInfo | null>(null);
   useEffect(() => {
     let alive = true;
@@ -47,15 +47,11 @@ export function useThisMac(refreshKey?: unknown): ThisMacInfo | null {
   }, [hasLiveBackend() ? 0 : refreshKey]);
   useEffect(() => {
     if (!hasLiveBackend()) return;
-    let unlisten: (() => void) | null = null;
     let alive = true;
-    void onThisMac((payload) => alive && setInfo(payload)).then((stop) => {
-      if (alive) unlisten = stop;
-      else stop();
-    });
+    const stop = onThisMac((payload) => alive && setInfo(payload));
     return () => {
       alive = false;
-      unlisten?.();
+      stop();
     };
   }, []);
   return info;
@@ -71,9 +67,63 @@ export function resourceLine(cpu: number | null, rss: number | null, helpers: nu
   return parts.join(" · ");
 }
 
-/** This Mac for components deep in the tree (the rail rows): the app
- * provides its one subscription here. */
+/** This Mac for components deep in the tree: the app provides its one
+ * subscription here. Every reader draws again on each reading; a reader of
+ * one part of it (a rail row's heavy note) uses the store below. */
 export const ThisMacContext = createContext<ThisMacInfo | null>(null);
+
+/** The same reading as a store: a reader of one part of it draws again
+ * only when that part changes (AJ-E805: each 5 s reading drew every rail
+ * row again for its heavy note). */
+interface ThisMacStore {
+  get: () => ThisMacInfo | null;
+  subscribe: (listener: () => void) => () => void;
+  set: (info: ThisMacInfo | null) => void;
+}
+
+function thisMacStore(first: ThisMacInfo | null): ThisMacStore {
+  let current = first;
+  const listeners = new Set<() => void>();
+  return {
+    get: () => current,
+    subscribe: (listener) => {
+      listeners.add(listener);
+      return () => {
+        listeners.delete(listener);
+      };
+    },
+    set: (info) => {
+      if (info === current) return;
+      current = info;
+      for (const listener of listeners) listener();
+    },
+  };
+}
+
+const ThisMacStoreContext = createContext<ThisMacStore>(thisMacStore(null));
+
+/** Gives `info` to what reads This Mac below: whole (`ThisMacContext`) or
+ * one part at a time (`useHeavyNote`). */
+export function ThisMacValue({ info, children }: { info: ThisMacInfo | null; children?: ReactNode }): ReactNode {
+  const [store] = useState(() => thisMacStore(info));
+  useLayoutEffect(() => store.set(info), [store, info]);
+  return createElement(ThisMacStoreContext.Provider, { value: store }, createElement(ThisMacContext.Provider, { value: info }, children));
+}
+
+/** This Mac as given (a test, the preview), else the app's one
+ * subscription (AJ-E805). */
+export function useThisMacInfo(given?: ThisMacInfo | null): ThisMacInfo | null {
+  const shown = useContext(ThisMacContext);
+  return given === undefined ? shown : given;
+}
+
+/** The app's one This Mac subscription, given to what reads it. AJ-E805:
+ * it was the shell's state, so each 5 s reading (while an AI tool runs)
+ * drew the whole app again, the rail included; now only what reads This
+ * Mac draws again. `refreshKey`: as `useThisMac`'s. */
+export function ThisMacProvider({ refreshKey, children }: { refreshKey?: unknown; children: ReactNode }): ReactNode {
+  return createElement(ThisMacValue, { info: useThisMac(refreshKey) }, children);
+}
 
 /** How each level of the Mac's state looks: This Mac's glyph and tone,
  * the rail footer's dot. */
@@ -101,10 +151,12 @@ export function machineStatus(
   return { level, words: summary.words, cause, calm: level === "plenty", ...look };
 }
 
-/** A session's heavy note ("CPU 95%", "3.2 GB"), only while it's heavy. */
+/** A session's heavy note ("CPU 95%", "3.2 GB"), only while it's heavy.
+ * Its row draws again only when its own note changes. */
 export function useHeavyNote(sessionId: string): string | null {
-  const info = useContext(ThisMacContext);
-  return info?.heavy.find((tree) => tree.session_id === sessionId)?.heavy_note ?? null;
+  const store = useContext(ThisMacStoreContext);
+  const note = () => store.get()?.heavy.find((tree) => tree.session_id === sessionId)?.heavy_note ?? null;
+  return useSyncExternalStore(store.subscribe, note, note);
 }
 
 /** Reasons joined as one sentence ("macOS …" keeps its lower-case m). */

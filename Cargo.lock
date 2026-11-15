@@ -2954,6 +2954,7 @@ dependencies = [
  "juggler-link",
  "juggler-login-item",
  "juggler-platform",
+ "juggler-proc-list",
  "juggler-scap-init",
  "juggler-stats",
  "juggler-supervisor",
@@ -3111,6 +3112,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "juggler-proc-list"
+version = "0.4.0"
+dependencies = [
+ "libc",
+]
+
+[[package]]
 name = "juggler-scap-init"
 version = "0.4.0"
 dependencies = [
@@ -3142,6 +3150,7 @@ dependencies = [
  "juggler-adapter",
  "juggler-adapters",
  "juggler-core",
+ "juggler-proc-list",
  "juggler-vm-stats",
  "netstat2",
  "nix 0.31.3",

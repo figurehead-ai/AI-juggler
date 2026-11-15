@@ -16,6 +16,7 @@ import { relationsCounts, relationsRelated, type EntityKind, type RelationCounts
 import type { RelatedIdsInfo } from "../types/generated/RelatedIdsInfo";
 import { onPoolsChanged } from "./pools";
 import { sharedReads, useSharedRead } from "./shared-read";
+import { coalesced } from "./shown-window";
 
 const KEY = ":";
 
@@ -25,10 +26,6 @@ const countsOf = sharedReads<RelationCountsInfo | undefined>(async (key) => {
   return answer;
 });
 
-/** A change can come in bursts (a pass reading many files): one read
- * after it settles. */
-const SETTLE_MS = 250;
-
 /** AJ-E3104: which of one kind an entity's sessions are on, by
  * `of${KEY}kind${KEY}id`. */
 const relatedOf = sharedReads<RelatedIdsInfo | undefined>(async (key) => {
@@ -36,19 +33,17 @@ const relatedOf = sharedReads<RelatedIdsInfo | undefined>(async (key) => {
   return relationsRelated({ kind: kind as EntityKind, id: id.join(KEY) }, of as EntityKind);
 });
 
-/** Read `source` again once a change that could move a count settles:
- * sessions, the tools' conversations, the apps' places, the pools. */
+/** Read `source` again when a change could move a count: sessions, the
+ * tools' conversations, the apps' places, the pools. A burst of them (a
+ * pass reading many files, sessions at work) reads at once and then at
+ * most once a second (AJ-E805). */
 function useReadAgain(source: { refresh: () => Promise<unknown> } | null): void {
   useEffect(() => {
     if (!source) return;
-    let timer: ReturnType<typeof setTimeout> | null = null;
-    const again = () => {
-      if (timer) clearTimeout(timer);
-      timer = setTimeout(() => void source.refresh(), SETTLE_MS);
-    };
-    const stops = [onSessionsUpdated(again), onConversationsChanged(again), onPlacesChanged(again), onPoolsChanged(again)];
+    const reads = coalesced(() => void source.refresh());
+    const stops = [onSessionsUpdated(reads.ask), onConversationsChanged(reads.ask), onPlacesChanged(reads.ask), onPoolsChanged(reads.ask)];
     return () => {
-      if (timer) clearTimeout(timer);
+      reads.stop();
       stops.forEach((stop) => stop());
     };
   }, [source]);
