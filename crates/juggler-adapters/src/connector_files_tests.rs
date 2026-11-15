@@ -485,6 +485,54 @@ fn inventories_list_the_connector_as_ai_jugglers_never_a_skill_or_server_to_copy
 /// replaced, takes away every file and folder it made, and leaves no
 /// temporary file behind; a later Add then goes through.
 #[cfg(unix)]
+/// L6 (round 2): a link or a folder where Add writes a file first isn't
+/// AI Juggler's leftover: it's never removed, and Add is refused naming
+/// it, with nothing written; a plain leftover file there is taken away.
+#[test]
+fn something_not_ours_at_the_temporary_name_is_named_and_never_removed() {
+    let root = claude_folder();
+    let old = add(root.path(), &claude("0.4.5"), None).unwrap();
+    let plan = claude("0.4.6");
+    let replaced = preview_of(root.path(), &plan, &old)
+        .into_iter()
+        .find(|file| file.action == Action::Replace)
+        .expect("a file the new edition replaces")
+        .path;
+    let file = root.path().join(&replaced);
+    let temp = file.with_file_name(format!(
+        ".{}.ai-juggler-new",
+        file.file_name().unwrap().to_string_lossy()
+    ));
+    let elsewhere = root.path().join("elsewhere");
+    std::fs::write(&elsewhere, "keep").unwrap();
+    std::os::unix::fs::symlink(&elsewhere, &temp).unwrap();
+    let before = snapshot(root.path());
+    let refused = add(root.path(), &plan, Some(&old));
+    let Err(ConnectorError::Refused(why)) = &refused else {
+        unreachable!("{refused:?}");
+    };
+    assert!(why.contains(&temp.display().to_string()), "{why}");
+    assert!(why.contains("nothing was written"), "{why}");
+    assert_eq!(snapshot(root.path()), before, "every file as it was");
+    assert!(std::fs::symlink_metadata(&temp).is_ok(), "the link kept");
+    assert_eq!(std::fs::read_to_string(&elsewhere).unwrap(), "keep");
+    std::fs::remove_file(&temp).unwrap();
+    std::fs::create_dir(&temp).unwrap();
+    assert!(matches!(
+        add(root.path(), &plan, Some(&old)),
+        Err(ConnectorError::Refused(_))
+    ));
+    assert!(temp.is_dir(), "the folder kept");
+    std::fs::remove_dir(&temp).unwrap();
+    std::fs::write(&temp, "half").unwrap();
+    let new = add(root.path(), &plan, Some(&old)).unwrap();
+    assert!(!temp.exists(), "a plain leftover file is ours: taken away");
+    assert_eq!(
+        status(root.path(), &plan, Some(&new)).state,
+        ConnectorState::Current
+    );
+}
+
 #[test]
 fn a_failure_part_way_takes_back_everything_add_wrote() {
     use std::os::unix::fs::PermissionsExt;

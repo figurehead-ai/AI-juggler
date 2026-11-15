@@ -586,7 +586,22 @@ fn write_part(
     let (dir, name) = folder_of(config_dir, rel, true, made)?
         .ok_or_else(|| refused("a folder on the way couldn't be made"))?;
     if existed {
-        dir.replace(&name, text.as_bytes())?;
+        // L6 (round 2): something not AI Juggler's at the temporary name
+        // is never removed: Add says what and where, and takes back all
+        // it wrote.
+        dir.replace(&name, text.as_bytes()).map_err(|error| {
+            match juggler_adapter::safe_fs::temp_in_the_way(&error) {
+                Some(temp) => {
+                    let at = config_dir.join(rel).with_file_name(temp);
+                    refused(format!(
+                        "{} is where AI Juggler writes {} first, and what's there isn't AI Juggler's (a link, a folder or another user's file), so nothing was written: remove it, then add the connector again",
+                        at.display(),
+                        rel.display()
+                    ))
+                }
+                None => ConnectorError::from(error),
+            }
+        })?;
     } else {
         dir.create_new(&name, text.as_bytes())?;
     }

@@ -56,6 +56,34 @@ pub fn temp_name(name: &OsStr) -> std::ffi::OsString {
     temp
 }
 
+/// L6 (round 2): what [`Dir::replace`] refuses with when something that
+/// isn't its own leftover sits at the temporary name: a link, a folder,
+/// anything not a plain file, or a file not the folder owner's. It's never
+/// removed; the caller names it ([`temp_in_the_way`]).
+#[derive(Debug)]
+pub struct TempInTheWay(pub std::ffi::OsString);
+
+impl std::fmt::Display for TempInTheWay {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{} is in the way of the temporary file",
+            self.0.to_string_lossy()
+        )
+    }
+}
+
+impl std::error::Error for TempInTheWay {}
+
+/// The name in the way, when `error` is a [`TempInTheWay`].
+#[must_use]
+pub fn temp_in_the_way(error: &io::Error) -> Option<&OsStr> {
+    error
+        .get_ref()
+        .and_then(|inner| inner.downcast_ref::<TempInTheWay>())
+        .map(|found| found.0.as_os_str())
+}
+
 /// The plain names of `rel` (no root, no `..`, no `.`), or an error.
 fn names(rel: &Path) -> io::Result<Vec<&OsStr>> {
     let mut out = Vec::new();
@@ -224,13 +252,17 @@ mod imp {
                 ));
             }
             let temp = super::temp_name(name);
-            // A temporary file left by a write that stopped half-way (L6):
-            // ours by its name, taken away when it's a plain file.
+            // L6 (round 2): whatever is at the temporary name is stale. A
+            // plain file of the folder owner's is a write of ours that
+            // stopped half-way (the name's `.ai-juggler-new` is our marker,
+            // and only this writer makes one): taken away. Anything else
+            // (a link, a folder, another's file) is never removed: the
+            // replacement is refused, naming it.
             if let Some(left) = self.entry(&temp)? {
-                if kind(&left) != SFlag::S_IFREG {
+                if kind(&left) != SFlag::S_IFREG || left.st_uid != self.owner {
                     return Err(io::Error::new(
                         io::ErrorKind::AlreadyExists,
-                        "something else is where the temporary file goes",
+                        super::TempInTheWay(temp),
                     ));
                 }
                 unlinkat(&self.fd, temp.as_os_str(), UnlinkatFlags::NoRemoveDir).map_err(io_of)?;
@@ -498,8 +530,34 @@ mod tests {
             std::fs::Permissions::from_mode(0o600),
         )
         .unwrap();
-        // A leftover temporary file doesn't block a replacement.
-        std::fs::write(root.path().join("x/.y/.f.ai-juggler-new"), "left").unwrap();
+        // L6: something at the temporary name that isn't our leftover (a
+        // link, a folder) is never removed: the replacement is refused,
+        // naming it, and the file is as it was.
+        let temp = root.path().join("x/.y/.f.ai-juggler-new");
+        for in_the_way in ["link", "folder"] {
+            if in_the_way == "link" {
+                std::os::unix::fs::symlink(root.path().join("x"), &temp).unwrap();
+            } else {
+                std::fs::create_dir(&temp).unwrap();
+            }
+            let refused = deep.replace(OsStr::new("f"), b"two").unwrap_err();
+            assert_eq!(
+                temp_in_the_way(&refused),
+                Some(OsStr::new(".f.ai-juggler-new")),
+                "{in_the_way}"
+            );
+            assert!(
+                std::fs::symlink_metadata(&temp).is_ok(),
+                "{in_the_way} kept"
+            );
+            assert_eq!(std::fs::read(root.path().join("x/.y/f")).unwrap(), b"one");
+            std::fs::remove_dir(&temp)
+                .or_else(|_| std::fs::remove_file(&temp))
+                .unwrap();
+        }
+        // A plain file there is a write of ours that stopped half-way:
+        // it doesn't block a replacement.
+        std::fs::write(&temp, "left").unwrap();
         deep.replace(OsStr::new("f"), b"two").unwrap();
         assert_eq!(std::fs::read(root.path().join("x/.y/f")).unwrap(), b"two");
         assert!(!root.path().join("x/.y/.f.ai-juggler-new").exists());
