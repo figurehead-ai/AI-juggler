@@ -212,7 +212,8 @@ export function CompactNode({ member, at, asks, held, selected, tabStop, draggin
                 Lead ·
               </span>
             )}
-            {word}
+            {/* Its own box, so a long state ends in "…", not mid-letter. */}
+            <span className="min-w-0 truncate">{word}</span>
           </span>
         )}
         {waits > 0 && (

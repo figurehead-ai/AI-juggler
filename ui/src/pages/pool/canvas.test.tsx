@@ -596,6 +596,26 @@ describe("semantic zoom (the 0.3 review: 9–10 px words at fit)", () => {
     expect(node(0.3)).toEqual(expect.arrayContaining(["text-label", "line-clamp-2"]));
   });
 
+  it("a Lead's state line ends in an ellipsis, not mid-letter: the state is its own truncating box", () => {
+    // 0.4.6 after-walk: "Lead · Worki" at 45 %, cut with no "…".
+    const lead = {
+      id: first.id,
+      session: first,
+      card: { account: "Work Max", tool: "Claude Code", task: { value: "None" } } as unknown as ContextCard,
+      role: "lead",
+      name: "Planner",
+    };
+    const view = render(
+      <CompactNode member={lead} at={{ x: 0, y: 0 }} asks={[]} held={0} selected={false} tabStop dragging={false} scale={0.45} onSelect={() => {}} onMenu={() => {}} onPointerDown={() => {}} onKey={() => {}} />,
+    );
+    const state = view.getByTestId("node-state");
+    expect(within(state).getByTestId("node-lead").textContent).toContain("Lead");
+    const word = state.lastElementChild as HTMLElement;
+    expect(word.dataset.testid).toBeUndefined();
+    expect(word.className.split(" ")).toEqual(expect.arrayContaining(["min-w-0", "truncate"]));
+    view.unmount();
+  });
+
   it("an ask's edge takes no label's room: the other way's badge stays on its own line", () => {
     // A pair: A → B carries a waiting message (a badge), B → A an agent's
     // ask (answered on B's node, so its edge has no label). The ask's edge
