@@ -36,10 +36,23 @@ const RECORD_MAX: u64 = 2 * 1024 * 1024;
 pub const DESKTOP_ENTRYPOINT: &str = "claude-desktop";
 /// The longest id taken from a record.
 const ID_MAX: usize = 128;
-/// M1: Anthropic's Apple developer team, which signs the Claude Code the
-/// Claude app ships (`codesign -dv` on its bundled CLI, 2026-11-15:
-/// `TeamIdentifier=Q6L2SF6YDW`, `Identifier=com.anthropic.claude-code`).
+/// M1: Anthropic's Apple developer team, which signs the Claude app and
+/// the Claude Code it ships (`codesign -dv`, 2026-11-15: the CLI
+/// `Identifier=com.anthropic.claude-code`, the app
+/// `Identifier=com.anthropic.claudefordesktop`, its helpers, all
+/// `TeamIdentifier=Q6L2SF6YDW`).
 pub const ANTHROPIC_TEAM: &str = "Q6L2SF6YDW";
+/// M1: the Claude app's bundle identifier, read once from the installed
+/// app's `Info.plist` (`CFBundleIdentifier`, 2026-11-15) and pinned.
+pub const HOST_BUNDLE_ID: &str = "com.anthropic.claudefordesktop";
+/// M1: what the running Claude Code must be.
+pub const TOOL_REQUIREMENT: &str = "identifier \"com.anthropic.claude-code\" and anchor apple generic and certificate leaf[subject.OU] = \"Q6L2SF6YDW\"";
+/// M1: what the Claude app's own running main process must be.
+pub const HOST_REQUIREMENT: &str = "identifier \"com.anthropic.claudefordesktop\" and anchor apple generic and certificate leaf[subject.OU] = \"Q6L2SF6YDW\"";
+/// M1: what a helper of the Claude app (its `disclaimer`, which starts
+/// Claude Code) must be: Anthropic's code.
+pub const HELPER_REQUIREMENT: &str =
+    "anchor apple generic and certificate leaf[subject.OU] = \"Q6L2SF6YDW\"";
 /// M1: where a Claude app profile keeps its Claude Code, under its own
 /// folder: `claude-code/<version>/<build>/…/Contents/MacOS/claude`.
 const SHIPPED: &str = "claude-code";
@@ -85,8 +98,16 @@ impl DesktopPeer for ClaudeAppPeer {
         tool_binary(place, exe)
     }
 
-    fn signer(&self) -> Option<&'static str> {
-        Some(ANTHROPIC_TEAM)
+    fn tool_requirement(&self) -> Option<&'static str> {
+        Some(TOOL_REQUIREMENT)
+    }
+
+    fn host_requirement(&self) -> Option<&'static str> {
+        Some(HOST_REQUIREMENT)
+    }
+
+    fn helper_requirement(&self) -> Option<&'static str> {
+        Some(HELPER_REQUIREMENT)
     }
 }
 
@@ -563,7 +584,7 @@ mod tests {
         ] {
             assert!(!tool_binary(&place(&lab), &not_it), "{}", not_it.display());
         }
-        assert_eq!(ClaudeAppPeer.signer(), Some(ANTHROPIC_TEAM));
+        assert_eq!(ClaudeAppPeer.tool_requirement(), Some(TOOL_REQUIREMENT));
     }
 
     #[test]
@@ -580,5 +601,80 @@ mod tests {
             attest(&place(&lab), &[step(5000, START + 5), step(4242, START)]),
             PeerVerdict::Unattested { .. }
         ));
+    }
+
+    /// M1: the requirements pin the CLI's identifier, the app's own bundle
+    /// identifier (the one its host record names) and Anthropic's team; on
+    /// a Mac with the Claude app installed, its Info.plist says the same.
+    #[test]
+    fn the_requirements_pin_the_identifiers_and_the_team() {
+        assert!(TOOL_REQUIREMENT.contains("identifier \"com.anthropic.claude-code\""));
+        let host = format!("identifier \"{HOST_BUNDLE_ID}\"");
+        assert!(HOST_REQUIREMENT.contains(&host));
+        for requirement in [TOOL_REQUIREMENT, HOST_REQUIREMENT, HELPER_REQUIREMENT] {
+            assert!(requirement.contains("anchor apple generic"));
+            assert!(requirement.ends_with(&format!("leaf[subject.OU] = \"{ANTHROPIC_TEAM}\"")));
+        }
+        assert_eq!(
+            crate::claude_live::host_apps()[0].bundle_id.as_deref(),
+            Some(HOST_BUNDLE_ID)
+        );
+        let plist = Path::new("/Applications/Claude.app/Contents/Info.plist");
+        if plist.is_file() {
+            let read = std::process::Command::new("/usr/libexec/PlistBuddy")
+                .args(["-c", "Print :CFBundleIdentifier"])
+                .arg(plist)
+                .output()
+                .unwrap();
+            assert_eq!(String::from_utf8_lossy(&read.stdout).trim(), HOST_BUNDLE_ID);
+        }
+    }
+
+    /// M1 round 2 (the ADR's 4b, "What it rests on"): the installed Claude
+    /// app's Electron fuses keep it from running anyone else's code:
+    /// `RunAsNode`, `NODE_OPTIONS` and `--inspect` off, asar integrity and
+    /// only-from-asar on. Read from its fuse wire (the sentinel, a version,
+    /// a count, then one byte a fuse: `0` off, `1` on) on every Mac that
+    /// has the app; nothing to read elsewhere. If this fails after a Claude
+    /// app update, the host check no longer holds: stop offering the
+    /// connector (`not_offered`) until it's rethought.
+    #[test]
+    fn the_installed_claude_apps_fuses_stay_off() {
+        const SENTINEL: &[u8] = b"dL7pKGdnNz796PbbjQWNKmHXBZaB9tsX";
+        let framework = Path::new(
+            "/Applications/Claude.app/Contents/Frameworks/Electron Framework.framework/Electron Framework",
+        );
+        let Ok(bytes) = std::fs::read(framework) else {
+            return;
+        };
+        let at = bytes
+            .windows(SENTINEL.len())
+            .position(|window| window == SENTINEL)
+            .expect("the fuse wire");
+        let wire = &bytes[at + SENTINEL.len()..];
+        assert_eq!(wire[0], 1, "the fuse wire's version");
+        let fuses = &wire[2..2 + usize::from(wire[1])];
+        let [
+            run_as_node,
+            _,
+            node_options,
+            inspect,
+            asar_integrity,
+            only_asar,
+            ..,
+        ] = fuses
+        else {
+            unreachable!("fewer fuses than this check reads: {fuses:?}");
+        };
+        assert_eq!(
+            [*run_as_node, *node_options, *inspect],
+            *b"000",
+            "RunAsNode, NODE_OPTIONS, --inspect"
+        );
+        assert_eq!(
+            [*asar_integrity, *only_asar],
+            *b"11",
+            "asar integrity, only from asar"
+        );
     }
 }

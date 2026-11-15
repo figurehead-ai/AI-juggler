@@ -240,6 +240,103 @@ pub(crate) fn decide(
     (verdict, stale)
 }
 
+/// M1 (security review, round 2): what the lineage check reads of the
+/// system: the real one in [`verify_tool`], a made-up one in the tests.
+pub(crate) struct System<'a> {
+    /// Whether the code **running** as a pid now meets a code-signing
+    /// requirement (the pid's version the same before and after the
+    /// check: [`juggler_platform::code_sign::running_satisfies`]).
+    pub satisfies: &'a dyn Fn(u32, &str) -> bool,
+    /// A pid's parent, from the kernel's listing.
+    pub parent_of: &'a dyn Fn(u32) -> Option<u32>,
+}
+
+/// M1: the requirements an App's adapter pins
+/// ([`juggler_adapter::peer::DesktopPeer::tool_requirement`] and the rest).
+#[derive(Clone, Copy)]
+pub(crate) struct Requirements<'a> {
+    /// The tool's running program.
+    pub tool: &'a str,
+    /// The App's own main process.
+    pub host: &'a str,
+    /// A helper of the App between it and the tool.
+    pub helper: &'a str,
+}
+
+/// M1: the App's main process that runs the tool at `tool`, known by its
+/// verified running code only (never a path, a bundle or a folder name):
+/// the tool's running code meets the tool's requirement, and its parent's
+/// the App's, or its parent's an App helper's and its grandparent's the
+/// App's.
+///
+/// # Errors
+///
+/// Why not, in words.
+pub(crate) fn host_of_tool(
+    tool: u32,
+    requirements: Requirements<'_>,
+    system: &System<'_>,
+) -> Result<u32, String> {
+    if !(system.satisfies)(tool, requirements.tool) {
+        return Err("the session's running program isn't its maker's Claude Code".to_owned());
+    }
+    let above = |pid: u32| (system.parent_of)(pid).filter(|parent| *parent > 1);
+    let parent = above(tool).ok_or("the session's Claude Code has no app above it")?;
+    if (system.satisfies)(parent, requirements.host) {
+        return Ok(parent);
+    }
+    if !(system.satisfies)(parent, requirements.helper) {
+        return Err("the session's Claude Code wasn't started by its app".to_owned());
+    }
+    let grandparent = above(parent).ok_or("the session's Claude Code has no app above it")?;
+    if (system.satisfies)(grandparent, requirements.host) {
+        Ok(grandparent)
+    } else {
+        Err("the session's Claude Code isn't running under its app".to_owned())
+    }
+}
+
+/// M1: whether each of `pids` is still the process `before` listed (the
+/// same start time and parent) in the kernel's listing `after`, read once
+/// the checks were done: none ended, and none's pid was taken since.
+pub(crate) fn still_the_same(
+    pids: &[u32],
+    before: &HashMap<u32, Listed>,
+    after: &HashMap<u32, Listed>,
+) -> bool {
+    pids.iter()
+        .all(|pid| match (before.get(pid), after.get(pid)) {
+            (Some(was), Some(now)) => {
+                !now.zombie && started(was) == started(now) && was.ppid == now.ppid
+            }
+            _ => false,
+        })
+}
+
+/// M1: whether the App's main process, whose arguments are `args`, runs
+/// the instance at `instance_dir` (its `--user-data-dir`, else the App's
+/// default folder under `home`), compared as real paths.
+pub(crate) fn runs_instance(
+    args: &[String],
+    host: &juggler_adapter::live::HostApp,
+    home: &std::path::Path,
+    instance_dir: &std::path::Path,
+) -> bool {
+    let running = host
+        .instance_arg
+        .as_deref()
+        .and_then(|flag| crate::features::conversations::places::arg_value(args, flag))
+        .map(PathBuf::from)
+        .or_else(|| host.default_instance.as_deref().map(|dir| home.join(dir)));
+    match (
+        running.map(std::fs::canonicalize),
+        std::fs::canonicalize(instance_dir),
+    ) {
+        (Some(Ok(running)), Ok(ours)) => running == ours,
+        _ => false,
+    }
+}
+
 #[cfg(test)]
 thread_local! {
     /// Tests that drive a real attestation with this test process's own
@@ -248,22 +345,27 @@ thread_local! {
     pub(crate) static ACCEPT_ANY_TOOL: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
 }
 
-/// M1 (security review): the tool process the registry names must be this
-/// App's own copy of the tool, signed by its maker, and running under this
-/// App instance's own process:
-/// - its executable (`proc_pidpath`, through `sysinfo`) has no link on its
-///   path, sits where the App keeps its tool
-///   ([`juggler_adapter::peer::DesktopPeer::tool_binary`]), and is signed by
-///   the adapter's team ([`juggler_platform::code_sign::signed_by_team`],
-///   kept per file);
-/// - its ancestors reach the App's own process for this instance (the same
-///   host-and-instance reading the conversations' places use).
+/// M1 (security review, rounds 1 and 2): the tool process the registry
+/// names must be this App's own Claude Code, its **running** code signed
+/// by its maker, running under this App instance's own **running** main
+/// process:
+/// - its executable has no link on its path and sits where the App keeps
+///   its tool ([`juggler_adapter::peer::DesktopPeer::tool_binary`]): a
+///   filter, never the proof;
+/// - the code running as the tool, and as the App's main process above it
+///   (its parent, or its grandparent through one of the App's own signed
+///   helpers), meets the requirements the adapter pins
+///   ([`host_of_tool`]): the kernel's code-signing check of the running
+///   code by pid ([`juggler_platform::code_sign::running_satisfies`]),
+///   each pid's version read before and after it;
+/// - every process checked is still the one first listed (start time and
+///   parent) once the checks are done ([`still_the_same`]);
+/// - that main process runs this App's instance ([`runs_instance`]).
 ///
 /// # Errors
 ///
 /// Why not, in words.
 fn verify_tool(
-    state: &Arc<AppState>,
     candidate: &Candidate,
     session: &juggler_adapter::peer::AttestedSession,
     kernel: &HashMap<u32, Listed>,
@@ -272,26 +374,21 @@ fn verify_tool(
     if ACCEPT_ANY_TOOL.with(std::cell::Cell::get) {
         return Ok(());
     }
-    use crate::features::conversations::{places, procs};
+    use crate::features::conversations::procs;
     let peer = candidate
         .adapter
         .desktop_peer()
         .ok_or("this app's tool can't be checked")?;
-    let mut pids = vec![session.tool_pid];
-    let mut at = session.tool_pid;
-    for _ in 0..6 {
-        match kernel.get(&at).map(|process| process.ppid) {
-            Some(parent) if parent > 1 => {
-                pids.push(parent);
-                at = parent;
-            }
-            _ => break,
-        }
-    }
-    let table = procs::some(&pids);
-    let exe = table
-        .get(&session.tool_pid)
-        .and_then(|process| process.exe.clone())
+    let (Some(tool), Some(host), Some(helper)) = (
+        peer.tool_requirement(),
+        peer.host_requirement(),
+        peer.helper_requirement(),
+    ) else {
+        return Err("this app's tool can't be checked".to_owned());
+    };
+    let exe = procs::some(&[session.tool_pid])
+        .remove(&session.tool_pid)
+        .and_then(|process| process.exe)
         .ok_or("the session's Claude Code process can't be read")?;
     if std::fs::canonicalize(&exe).ok().as_ref() != Some(&exe) {
         return Err("the session's program is reached through a link".to_owned());
@@ -303,25 +400,53 @@ fn verify_tool(
     if !peer.tool_binary(&place, &exe) {
         return Err("the session's process isn't this app's own Claude Code".to_owned());
     }
-    let signed = peer
-        .signer()
-        .is_some_and(|team| juggler_platform::code_sign::signed_by_team(&exe, team));
-    if !signed {
-        return Err("the session's program isn't signed by its maker".to_owned());
-    }
-    let hosts = places::HostRegistry::of(&state.registry);
-    let home = juggler_platform::user::home().unwrap_or_default();
-    let host = places::host_of(session.tool_pid, &table, &hosts, &home)
-        .ok_or("the session isn't running under this app")?;
-    let same_instance = match (
-        &host.instance_dir,
-        std::fs::canonicalize(&candidate.instance_dir),
-    ) {
-        (Some(running), Ok(ours)) => std::fs::canonicalize(running).ok().as_ref() == Some(&ours),
-        _ => false,
+    let satisfies = |pid: u32, requirement: &str| {
+        let Some(before) = juggler_proc_list::pid_version(pid) else {
+            return false;
+        };
+        juggler_platform::code_sign::running_satisfies(pid, before, requirement)
+            && juggler_proc_list::pid_version(pid) == Some(before)
     };
-    if host.app_id != candidate.host_app_id || !same_instance {
-        return Err("the session runs under another app or profile".to_owned());
+    let parent_of = |pid: u32| kernel.get(&pid).map(|process| process.ppid);
+    let system = System {
+        satisfies: &satisfies,
+        parent_of: &parent_of,
+    };
+    let host_pid = host_of_tool(
+        session.tool_pid,
+        Requirements { tool, host, helper },
+        &system,
+    )?;
+    let mut checked = vec![session.tool_pid, host_pid];
+    if let Some(parent) = parent_of(session.tool_pid).filter(|parent| *parent != host_pid) {
+        checked.push(parent);
+    }
+    let now: HashMap<u32, Listed> = juggler_proc_list::list()
+        .ok_or("this system doesn't list its processes")?
+        .into_iter()
+        .map(|process| (process.pid, process))
+        .collect();
+    if !still_the_same(&checked, kernel, &now) {
+        return Err("a process checked ended or changed while it was checked".to_owned());
+    }
+    let app = candidate
+        .host_app_id
+        .as_deref()
+        .and_then(|id| {
+            candidate
+                .adapter
+                .host_apps()
+                .into_iter()
+                .find(|app| app.id == id)
+        })
+        .ok_or("this app's own app isn't known")?;
+    let args = procs::some(&[host_pid])
+        .remove(&host_pid)
+        .map(|process| process.args)
+        .unwrap_or_default();
+    let home = juggler_platform::user::home().unwrap_or_default();
+    if !runs_instance(&args, &app, &home, &candidate.instance_dir) {
+        return Err("the session runs under another profile of its app".to_owned());
     }
     Ok(())
 }
@@ -493,8 +618,9 @@ fn attest_inner(state: &Arc<AppState>, peer: Peer) -> Result<DesktopCaller, Stri
     let (at, session) = verdict?;
     let candidate = &candidates[at];
     // M1: the registry's word isn't enough: its process must be this App's
-    // own signed Claude Code, running under this App's own process.
-    verify_tool(state, candidate, &session, &table)?;
+    // own Claude Code, its running code signed by its maker, under the
+    // App's own running main process for this instance.
+    verify_tool(candidate, &session, &table)?;
     let id = desktop_id(&candidate.folder, &session.conversation);
     let kept_project = state
         .storage
@@ -653,6 +779,172 @@ mod tests {
             ..peer(400, 5_000)
         };
         assert!(chain_of(no_token, &rows, &|_| true, &seven).is_err());
+    }
+
+    const TOOL: &str = "tool requirement";
+    const HOST: &str = "host requirement";
+    const HELPER: &str = "helper requirement";
+
+    fn requirements() -> Requirements<'static> {
+        Requirements {
+            tool: TOOL,
+            host: HOST,
+            helper: HELPER,
+        }
+    }
+
+    /// A made-up system: each pid's parent, and the requirements the code
+    /// running as it meets.
+    fn lineage(rows: &[(u32, u32, &[&str])]) -> Result<u32, String> {
+        let meets: HashMap<u32, Vec<String>> = rows
+            .iter()
+            .map(|(pid, _, met)| (*pid, met.iter().map(|one| (*one).to_owned()).collect()))
+            .collect();
+        let parents: HashMap<u32, u32> = rows.iter().map(|(pid, ppid, _)| (*pid, *ppid)).collect();
+        let satisfies = |pid: u32, requirement: &str| {
+            meets
+                .get(&pid)
+                .is_some_and(|met| met.iter().any(|one| one == requirement))
+        };
+        let parent_of = |pid: u32| parents.get(&pid).copied();
+        host_of_tool(
+            400,
+            requirements(),
+            &System {
+                satisfies: &satisfies,
+                parent_of: &parent_of,
+            },
+        )
+    }
+
+    #[test]
+    fn the_tool_runs_under_the_apps_running_code_directly_or_through_its_helper() {
+        // M1 round 2.
+        assert_eq!(
+            lineage(&[(400, 300, &[TOOL]), (300, 1, &[HOST, HELPER])]),
+            Ok(300)
+        );
+        assert_eq!(
+            lineage(&[
+                (400, 300, &[TOOL]),
+                (300, 200, &[HELPER]),
+                (200, 1, &[HOST, HELPER])
+            ]),
+            Ok(200),
+            "the app's own helper (its disclaimer) between them"
+        );
+    }
+
+    #[test]
+    fn the_host_is_known_by_its_running_code_never_its_name() {
+        // M1 round 2, the review's probe (a): a program at `~/x/Claude.app/
+        // Contents/MacOS/Claude` whose running code isn't the Claude app's
+        // (an impostor, signed ad hoc or by anyone else) hosts nothing,
+        // whatever its path or folder says (the check never reads either).
+        let impostor = lineage(&[(400, 300, &[TOOL]), (300, 1, &[])]);
+        assert_eq!(
+            impostor,
+            Err("the session's Claude Code wasn't started by its app".to_owned())
+        );
+        assert!(
+            lineage(&[
+                (400, 300, &[TOOL]),
+                (300, 200, &[HELPER]),
+                (200, 1, &[HELPER])
+            ])
+            .is_err(),
+            "a helper of the maker's under something that isn't the app"
+        );
+        assert!(
+            lineage(&[(400, 300, &[TOOL]), (300, 200, &[]), (200, 1, &[HOST])]).is_err(),
+            "the app above something of no one's (a shell it didn't sign)"
+        );
+        assert!(
+            lineage(&[(400, 300, &[TOOL]), (300, 1, &[HELPER])]).is_err(),
+            "a helper with nothing above it"
+        );
+        assert!(
+            lineage(&[(400, 1, &[TOOL])]).is_err(),
+            "a Claude Code launchd runs: no app at all"
+        );
+    }
+
+    #[test]
+    fn a_tool_whose_running_code_isnt_genuine_is_refused() {
+        // M1 round 2, the review's probe (b): the genuine program renamed
+        // over a running ad-hoc one changes nothing: what runs is checked
+        // (`code_sign`'s own probe proves the check reads the running
+        // code); here, a tool whose running code fails is refused even
+        // under the genuine app.
+        assert_eq!(
+            lineage(&[(400, 300, &[]), (300, 1, &[HOST])]),
+            Err("the session's running program isn't its maker's Claude Code".to_owned())
+        );
+    }
+
+    #[test]
+    fn a_process_that_changed_while_it_was_checked_is_refused() {
+        // M1 round 2: the start time and parent of every pid checked, read
+        // again once the checks are done.
+        let before = table(&[listed(200, 1, 1_000), listed(400, 200, 2_000)]);
+        assert!(still_the_same(&[200, 400], &before, &before));
+        let reused = table(&[listed(200, 1, 3_000), listed(400, 200, 2_000)]);
+        assert!(
+            !still_the_same(&[200, 400], &before, &reused),
+            "a pid taken since"
+        );
+        let moved = table(&[listed(200, 1, 1_000), listed(400, 1, 2_000)]);
+        assert!(
+            !still_the_same(&[200, 400], &before, &moved),
+            "its parent ended"
+        );
+        let gone = table(&[listed(200, 1, 1_000)]);
+        assert!(!still_the_same(&[200, 400], &before, &gone));
+        let mut zombie = listed(400, 200, 2_000);
+        zombie.zombie = true;
+        let ended = table(&[listed(200, 1, 1_000), zombie]);
+        assert!(!still_the_same(&[200, 400], &before, &ended));
+    }
+
+    #[test]
+    fn the_apps_main_process_must_run_this_instance() {
+        // M1: the instance comes from the verified main process's own
+        // arguments, compared as real paths.
+        let root = tempfile::tempdir().unwrap();
+        let home = root.path().join("home");
+        let ours = root.path().join("profiles/work");
+        let other = root.path().join("profiles/play");
+        let default = home.join("Library/Application Support/Claude");
+        for dir in [&ours, &other, &default] {
+            std::fs::create_dir_all(dir).unwrap();
+        }
+        let app = juggler_adapters::claude_live::host_apps().remove(0);
+        let given = |dir: &std::path::Path| {
+            vec![
+                "/Applications/Claude.app/Contents/MacOS/Claude".to_owned(),
+                format!("--user-data-dir={}", dir.display()),
+            ]
+        };
+        assert!(runs_instance(&given(&ours), &app, &home, &ours));
+        assert!(!runs_instance(&given(&other), &app, &home, &ours));
+        let plain = vec!["/Applications/Claude.app/Contents/MacOS/Claude".to_owned()];
+        assert!(
+            runs_instance(&plain, &app, &home, &default),
+            "its default one"
+        );
+        assert!(!runs_instance(&plain, &app, &home, &ours));
+        let link = root.path().join("link");
+        std::os::unix::fs::symlink(&ours, &link).unwrap();
+        assert!(
+            runs_instance(&given(&link), &app, &home, &ours),
+            "as real paths"
+        );
+        assert!(!runs_instance(
+            &given(&root.path().join("none")),
+            &app,
+            &home,
+            &ours
+        ));
     }
 
     #[test]

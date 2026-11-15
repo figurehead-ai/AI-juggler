@@ -101,10 +101,23 @@ pub trait DesktopPeer: Send + Sync {
         false
     }
 
-    /// M1: the Apple developer team that signs the tool's program, which
-    /// the app checks the running program against (`None`: nothing
-    /// passes).
-    fn signer(&self) -> Option<&'static str> {
+    /// M1: the code-signing requirement the tool's **running** program
+    /// must meet (its identifier, Apple's anchor, its maker's team).
+    /// `None` (the default): nothing passes.
+    fn tool_requirement(&self) -> Option<&'static str> {
+        None
+    }
+
+    /// M1: the requirement the App's own main process must meet (its
+    /// bundle identifier, Apple's anchor, its maker's team): the host is
+    /// known by its verified signature only, never by a path or a name.
+    fn host_requirement(&self) -> Option<&'static str> {
+        None
+    }
+
+    /// M1: the requirement a helper of the App must meet when it stands
+    /// between the App and the tool (the App's own team).
+    fn helper_requirement(&self) -> Option<&'static str> {
         None
     }
 

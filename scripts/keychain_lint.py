@@ -13,6 +13,11 @@ use goes through code that honours that mode:
   like) only in `crates/juggler-platform/src/keychain.rs`
   (`keychain::item_exists`, which runs nothing when off).
 
+`security_framework`'s code-signing module (AJ-E3013, M1 round 2: whether
+a running process's code meets a requirement) never opens a keychain; it
+is allowed in `crates/juggler-platform/src/code_sign.rs` alone, and any
+other part of the crate there is still refused.
+
 Fails naming each other place. Test files are left out.
 
 Usage: keychain_lint.py [--selftest]
@@ -28,8 +33,12 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import rust_tests  # noqa: E402  (one test-code finder for every lint, D-94)
 
 RULES = [
-    (re.compile(r"\bsecurity_framework\b|\bSecItem\w*|\bSecKeychain\w*"), {"crates/juggler-account/src/secrets.rs"},
+    (re.compile(r"\bsecurity_framework\b(?!::os::macos::code_signing\b)|\bSecItem\w*|\bSecKeychain\w*"),
+     {"crates/juggler-account/src/secrets.rs"},
      "the Keychain APIs: only through juggler-account's stores (secrets.rs)"),
+    (re.compile(r"\bsecurity_framework::os::macos::code_signing\b"),
+     {"crates/juggler-account/src/secrets.rs", "crates/juggler-platform/src/code_sign.rs"},
+     "code signing: only through juggler_platform::code_sign"),
     (re.compile(r"/usr/bin/security\b|\b(find|add|delete)-(generic|internet)-password\b|\bdump-keychain\b"),
      {"crates/juggler-platform/src/keychain.rs"},
      "the security tool: only through juggler_platform::keychain"),
@@ -68,8 +77,14 @@ def selftest() -> None:
         ok = root / "crates/juggler-platform/src/keychain.rs"
         ok.parent.mkdir(parents=True)
         ok.write_text('const SECURITY: &str = "/usr/bin/security";\n')
+        sign = root / "crates/juggler-platform/src/code_sign.rs"
+        sign.write_text("use security_framework::os::macos::code_signing::SecCode;\n"
+                        "use security_framework::passwords::get_generic_password;\n")
         found = findings(root)
-        assert found == ["crates/x/src/lib.rs:1: the security tool: only through juggler_platform::keychain"], found
+        assert found == [
+            "crates/juggler-platform/src/code_sign.rs:2: the Keychain APIs: only through juggler-account's stores (secrets.rs)",
+            "crates/x/src/lib.rs:1: the security tool: only through juggler_platform::keychain",
+        ], found
     print("keychain-lint: selftest ok")
 
 

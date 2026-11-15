@@ -38,6 +38,11 @@ objc2-app-kit = { version = "0.3.2", default-features = false, features = ["std"
 # D-96: the date formatters `clock` keeps, by their retained handle (already
 # in the tree through juggler-app).
 objc2 = { workspace = true }
+# AJ-E3013 (M1): a running process's code checked against an explicit
+# code-signing requirement (SecCodeCopyGuestWithAttributes,
+# SecCodeCheckValidity) through the crate's safe API; already the
+# workspace's (juggler-account's Keychain), so no new crate and no `unsafe`.
+security-framework = "3"
 
 [target."cfg(unix)".dependencies]
 # The effective user id (safe bindings; no `unsafe` here); 0.3.8: asking an
