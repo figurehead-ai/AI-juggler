@@ -11,7 +11,8 @@
 //!   ([`super::SessionsRepo::insert`] refuses it).
 //! - [`super::SessionsRepo::pool_facts_of`] reads them for such an id, so
 //!   `allowed`, the resolver, `refs_of` and `role_in` treat the session as
-//!   they treat any other. `pool_facts()` (every session) doesn't list them.
+//!   they treat any other, and `pool_facts()` (every session) lists the
+//!   fresh ones too, so the pools' tallies count them (AJ-E3013).
 //! - An entry lives [`TTL`] after the last attested call that put it; a
 //!   read never extends it. The attestation path drops one at once when a
 //!   later call finds its session's record stale ([`AttestedSessions::forget`]).

@@ -29,7 +29,7 @@ fn desktop_facts(conversation: &str) -> SessionFacts {
 }
 
 #[test]
-fn attested_facts_are_read_for_their_id_only_while_kept() {
+fn attested_facts_are_read_for_their_id_and_listed_only_while_kept() {
     let storage = Storage::open_in_memory().unwrap();
     let id = desktop_id("folder-1", "conv-1");
     assert_ne!(
@@ -49,12 +49,14 @@ fn attested_facts_are_read_for_their_id_only_while_kept() {
         facts.conversation,
         Some(("folder-1".into(), "conv-1".into()))
     );
-    assert!(
-        storage.sessions().pool_facts().unwrap().is_empty(),
-        "every session's list is unchanged"
-    );
+    // AJ-E3013 integration: every session's list has it too while it's
+    // fresh (the pools' tallies count it), and loses it when forgotten.
+    let every = storage.sessions().pool_facts().unwrap();
+    assert_eq!(every.len(), 1);
+    assert_eq!(every[0].session, id);
     storage.attested().forget(&id);
     assert_eq!(storage.sessions().pool_facts_of(&id).unwrap(), None);
+    assert!(storage.sessions().pool_facts().unwrap().is_empty());
     // A real session's id never reads the attested map.
     storage
         .attested()

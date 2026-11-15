@@ -504,12 +504,21 @@ pub fn rules_of(storage: &Storage, pool_id: &str) -> AppResult<PoolRulesInfo> {
     let memberships = members::memberships(storage)?;
     let mut brought: std::collections::HashMap<String, u32> = std::collections::HashMap::new();
     let mut ids: std::collections::HashMap<String, Vec<String>> = std::collections::HashMap::new();
-    let open: std::collections::HashSet<SessionId> = storage
+    let mut open: std::collections::HashSet<SessionId> = storage
         .sessions()
         .live()?
         .into_iter()
         .map(|record| record.id)
         .collect();
+    // AJ-E3013: a desktop session is open while one of its calls is
+    // attested (its App's node counts it).
+    open.extend(
+        storage
+            .attested()
+            .fresh()
+            .into_iter()
+            .map(|facts| facts.session),
+    );
     let archived = members::archived(storage)?;
     for facts in storage.sessions().pool_facts()? {
         if !open.contains(&facts.session) || archived.contains(facts.session.as_str()) {

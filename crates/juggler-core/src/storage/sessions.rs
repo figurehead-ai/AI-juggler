@@ -553,11 +553,19 @@ impl SessionsRepo<'_> {
     /// Account is the one its folder's sign-in was last read as; `None`
     /// when that isn't known ("Account unknown").
     ///
+    /// AJ-E3013: and every attested desktop session while its facts are
+    /// fresh (kept in memory: no query, no attestation), so the pools'
+    /// tallies count a connected desktop member as any other session.
+    ///
     /// # Errors
     ///
     /// Returns [`CoreError::Storage`] on SQLite failures.
     pub fn pool_facts(&self) -> Result<Vec<crate::pools::SessionFacts>, CoreError> {
-        self.pool_facts_where("", [])
+        let mut all = self.pool_facts_where("", [])?;
+        if let Some(attested) = self.attested {
+            all.extend(attested.fresh());
+        }
+        Ok(all)
     }
 
     /// [`Self::pool_facts`] for one session; `None` when it isn't there.
