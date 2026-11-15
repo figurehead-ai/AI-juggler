@@ -93,12 +93,23 @@ test.afterAll(() => {
 });
 
 /** Picks the first row that can join, of the kind shown, whose reach says `reach` (any when null). */
+/** AJ-E3011 round 2 (#8): Apps and Sessions are segments; the rarer
+ * kinds are under More, picked from its menu. */
+async function chooseKind(page: Page, member: string): Promise<void> {
+  const kinds = page.getByTestId("new-pool-kind");
+  if (member === "session" || member === "app") return kinds.getByRole("radio", { name: KIND[member]! }).click();
+  await kinds.getByRole("radio", { name: "More" }).click();
+  await page.getByTestId("new-pool-kind-picker").click();
+  await page.getByRole("menuitemradio", { name: KIND[member]! }).click();
+}
+
 async function pick(page: Page, reach: string | null): Promise<string> {
   const rows = page.getByTestId("new-pool-candidate").filter({ has: page.locator("button[role=checkbox]:not([disabled])") });
   const row = reach ? rows.filter({ hasText: reach }).first() : rows.first();
   await expect(row).toBeVisible();
   const label = (await row.locator("button span.flex-1 span").first().textContent()) ?? "";
-  await row.getByRole("checkbox").click();
+  // Start from scratch has everyone in already (AJ-E3011): a click would take it out.
+  if ((await row.getByRole("checkbox").getAttribute("aria-checked")) !== "true") await row.getByRole("checkbox").click();
   await expect(row.getByRole("checkbox")).toHaveAttribute("aria-checked", "true");
   return label.trim();
 }
@@ -154,35 +165,58 @@ for (const r of ROWS) {
     const side = page.getByTestId("new-pool-side");
 
     // Who: the row's kind; then a session of the row's capability.
-    const kinds = page.getByTestId("new-pool-kind");
     let label = "";
     if (r.member === "not-matched") {
       // A session it can't take as it is: greyed, its reason and its fix.
-      await kinds.getByRole("radio", { name: KIND.session! }).click();
+      await chooseKind(page, "session");
       const blocked = page.getByTestId("new-pool-candidate").filter({ has: page.locator("button[role=checkbox][disabled]") });
       await expect(blocked.first()).toBeVisible();
       await expect(blocked.first()).toContainText(/Ended|not in this pool's projects|sealed/);
       await expect(blocked.first().getByTestId("new-pool-fix")).toBeVisible();
     } else if (r.member !== "session") {
-      await kinds.getByRole("radio", { name: KIND[r.member]! }).click();
+      await chooseKind(page, r.member);
       label = await pick(page, "new ones join");
     }
-    await kinds.getByRole("radio", { name: KIND.session! }).click();
+    await chooseKind(page, "session");
     const reachLabel = await pick(page, REACH[r.capability]!);
     if (r.member === "session" || r.member === "not-matched") label = reachLabel;
-    await expect(side.getByText(new RegExp(`^${r.capability === "full" ? "\\d+ full" : r.capability === "shell" ? "\\d+ shell only" : "\\d+ watched"}$`))).toBeVisible();
+    // Round 2 (#6, #7): the side panel names who's in, in words.
+    await expect(side.getByTestId("new-pool-side-members")).toContainText(reachLabel);
     await page.getByTestId("new-pool-next").click();
 
-    // 3. Who leads: a Lead row picks its session in the picker.
+    // 3. Who leads. D-92: one session leads; an App leads from its next
+    // session (AJ-E3011), and an Account, Tool, Mac or everyone can't.
     await expect(page.getByTestId("new-pool-step-lead")).toBeVisible();
+    const broad = r.member !== "session" && r.member !== "not-matched";
+    const nextLead = r.role === "lead" && r.member === "app";
+    if (nextLead) {
+      await page.getByTestId("new-pool-lead").getByText(`${label}'s next session`, { exact: true }).click();
+      await expect(page.getByTestId("new-pool-lead-sentence")).toContainText(`${label} leads from its next session`);
+    }
     await page.getByTestId("new-pool-next").click();
 
     // 4. Everyone else: the member's role and its own choice.
     const roles = page.getByTestId("new-pool-member-row").filter({ hasText: label }).first();
-    await roles.getByTestId("new-pool-member-role").click();
-    await page.getByRole("menuitemradio", { name: new RegExp(`^${ROLE[r.role]!}`) }).click();
-    await expect(roles.getByTestId("new-pool-member-role")).toContainText(ROLE[r.role]!);
-    if (r.own_level === "member") {
+    const role = broad && r.role === "lead" ? "member" : r.role;
+    const everyone = r.member === "everyone-in-scope";
+    if (everyone) {
+      // Everyone in scope is the join line: "New sessions in … join as [Member]" (no Lead in it).
+      await page.getByTestId("new-pool-join-picker").click();
+      await expect(page.getByRole("menuitemradio", { name: /^Lead/ })).toHaveCount(0);
+      await page.getByRole("menuitemradio", { name: new RegExp(`^${ROLE[role]!}`) }).click();
+      await expect(page.getByTestId("new-pool-join-picker")).toContainText(ROLE[role]!);
+    } else await roles.getByTestId("new-pool-member-role").click();
+    if (everyone) {
+      // Set above.
+    } else if (broad && r.role === "lead") {
+      // Lead is greyed with its reason; the App's row says it leads next.
+      await expect(page.getByRole("menuitemradio", { name: /^Lead/ })).toBeDisabled();
+      await page.getByRole("menuitemradio", { name: /^Member/ }).click();
+      if (nextLead) await expect(roles.getByTestId("new-pool-member-leads-next")).toHaveText("Leads next");
+    } else await page.getByRole("menuitemradio", { name: new RegExp(`^${ROLE[role]!}`) }).click();
+    if (!everyone) await expect(roles.getByTestId("new-pool-member-role")).toContainText(ROLE[role]!);
+    // Everyone in scope follows the pool's own choice (no own picker for it).
+    if (r.own_level === "member" && !everyone) {
       const own = r.level === "full" ? "Look only" : "Work together and wake each other";
       await roles.getByTestId("new-pool-member-level").click();
       await page.getByRole("menuitemradio", { name: new RegExp(`^${own}`) }).click();
@@ -228,7 +262,8 @@ for (const r of ROWS) {
     const id = made.find((call) => call.startsWith("scope:"))?.split(":")[1] ?? "";
     expect(made.some((call) => call.startsWith(`scope:${id}:`) && (r.scope === "every-project" ? call.endsWith(":every") : !call.endsWith(":every")))).toBe(true);
     expect(made.filter((call) => call.startsWith(`join:${id}:`)).length).toBeGreaterThanOrEqual(r.member === "session" || r.member === "not-matched" ? 1 : 2);
-    expect(made.some((call) => call.startsWith(`join:${id}:`) && call.includes(`:${r.role}:`))).toBe(true);
+    expect(made.some((call) => call.startsWith(`join:${id}:`) && call.includes(`:${role}:`))).toBe(true);
+    if (nextLead) expect(made.some((call) => call.startsWith(`lead_next:${id}:`) && !call.endsWith(":clear"))).toBe(true);
     if (r.sealed === "on") expect(made).toContain(`sealed:${id}:true`);
     if (changed) expect(made.some((call) => call.startsWith(`talk:${id}:`))).toBe(true);
 
