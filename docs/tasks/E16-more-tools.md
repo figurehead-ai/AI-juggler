@@ -186,9 +186,12 @@
 1. Ruled (D-105, 2026-11-13): full support on every plan, consumer ones included; the FAQ's wording is kept in `antigravity.md` § Terms.
 2. The plan the account reports is shown, never used to limit it. Usage: `/usage` is an interactive command; a sanctioned non-interactive reading is to be found first (`agy -p /usage --output-format json` wasn't found documented, 2026-11-13).
 3. Isolation: no documented variable moves the CLI's home (`~/.gemini/antigravity-cli/`), so a per-account `HOME` is tested live first.
+4. Consumer plans (free, Pro, Ultra on a personal Google Account), under Antigravity's own guideline (D-105, 2026-11-15): AI Juggler opens, keeps alive and focuses the user's own Antigravity App or `agy` for the right account, and reads sessions and usage from its own records and screens. A switch the user starts by hand stays. No driven runtime (no `agy -p`, no `agy acp` session driving) and no automatic switching or rotation onto or off such an account.
+5. Workspace, Gemini Enterprise and API-key accounts: full support, including the driven runtime over `agy acp` and automatic switching (Workspace needs the admin to provision Antigravity).
+6. The plan's terms note in the UI reads plainly and calmly, close to: "Google's consumer plans don't allow other apps to drive Antigravity or rotate accounts automatically. AI Juggler opens and watches your Antigravity instead. Workspace and API-key accounts get full support." It links to [the vendors' terms](../guide/trust.md#your-accounts-and-the-vendors-terms).
 **UI/UX reasoning**: Like Codex.
 **Performance budget**: as Codex.
-**Quality gates**: the conformance kit; a guardrail that no Antigravity token or session credential is ever read, copied or reused (the vendor's own concern, D-105).
+**Quality gates**: the conformance kit; a guardrail that no Antigravity token or session credential is ever read, copied or reused (the vendor's own concern, D-105); a test that the consumer-plan path never starts `agy -p` or `agy acp` and never schedules an automatic switch.
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E1613/manifest.md`.
 **Visual testing**: the tool view.
 **Files to touch**: `crates/juggler-adapters/src/antigravity*.rs`.

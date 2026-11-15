@@ -2954,6 +2954,19 @@ Each ships with tests that fail without it and a design critique; the M2, D2 and
 - **Amends:** AJ-E1609's handover note (no track-only fallback), AJ-E1613's goal, requirement 1 and guardrail (consumer plans no longer track-only).
 - Sources: the three research notes above; the coordinating session's relay of the maintainer's two messages, 2026-11-13.
 
+#### Antigravity's own guideline (2026-11-15)
+
+D-105 lets a tool's own guideline apply where it has one. Antigravity has one. Read on 2026-11-15 at https://antigravity.google/docs/faq.md:
+
+- Under "Can I use Antigravity CLI headless mode in third-party coding agents or automate account switching?": "Wrapping agy inside third-party coding agents or applications, or automating account rotation" … "is not supported under consumer plans." And: "Antigravity CLI headless mode (agy -p) is intended for direct scripting and CI workflows."
+- Under "Why can't I use third-party software (such as Claude Code, OpenClaw, or OpenCode) with my Antigravity login?": "Using third-party software, tools, or services to access Antigravity is a violation of our Terms of Service" and "Such actions can result in suspension or termination of your account."
+
+The design that follows from it:
+
+- **Consumer plans** (free, Pro, Ultra on a personal Google Account): AI Juggler opens, keeps alive and focuses the user's own Antigravity App or `agy` for the right account, and reads sessions and usage from its own records and screens. A switch the user starts by hand stays. There is no driven runtime (no `agy -p`, no `agy acp` session driving) and no automatic switching or rotation onto or off such an account.
+- **Workspace, Gemini Enterprise and API-key accounts:** full support, including the driven runtime over `agy acp` and automatic switching. Workspace needs the admin to provision Antigravity.
+- **Re-check:** the FAQ is re-read at each release under the reply-routes standing rule (D-66).
+
 ### D-106 Kimi usage on by default, with one honest privacy exception; undocumented routes researched before any gap — SETTLED (2026-11-13)
 
 **Ruling.** The maintainer, 2026-11-13, on AJ-E1603 R3 (reading `kimi web`'s usage needs the home's `server.token`, which the Privacy page's "reads no tokens" contradicts): option C, Kimi usage on by default, with one honest exception line on the Privacy page. And a standing order, in their words: "have you tried researching undocumented ways, we've done many undocumented implementations across different tools, why stop here. That should be your standing order."

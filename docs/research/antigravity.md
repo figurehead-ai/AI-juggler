@@ -242,6 +242,8 @@ Sources: **Google Antigravity Additional Terms of Service** (AG/terms/), the Goo
 
 **Antigravity CLI (`agy`): Track-only for consumer accounts. A full adapter is possible only for API-key / Gemini Enterprise accounts. Size M (track-only), L (full).**
 
+> Update 2026-11-15: D-105 (`docs/review/decision-log.md`, "Antigravity's own guideline") now sets the design: consumer plans open, keep alive, focus and read, with no driven runtime and no automatic switching; Workspace, Enterprise and API-key accounts get full support.
+
 - What works: detection (`agy --version`), launch in the user's terminal, OSC 7501 / `title` state for "waiting / stuck", resume ids (`-c`, `--conversation`, the `last_conversations.json` map), and the session index from `brain/<id>/…/transcript.jsonl` (path documented, schema not).
 - Quota: `agy -p /usage --output-format json` (documented, no quota spend; JSON shape community-observed) and the documented statusline `quota` object give a sanctioned *Measured-ish* remaining fraction plus reset time. That is better than Codex.
 - Blockers:
