@@ -218,6 +218,10 @@ pub fn join_impl(
     storage
         .pools()
         .join(&pool.id, &member, &replaces, role, level.as_ref())?;
+    if role == PoolRole::Lead {
+        // AJ-E3011: a Lead picked by hand ends the wait for a next one.
+        super::lead_next::picked(&storage, &pool.id)?;
+    }
     membership_changed(state, "joined", &pool.id, &member);
     pools_info(&storage)
 }
@@ -263,6 +267,7 @@ pub fn leave_impl(state: &Arc<AppState>, pool_id: &str, member: &str) -> AppResu
         .map(|row| row.member)
         .collect();
     storage.pools().leave(&pool.id, &rows)?;
+    super::lead_next::left(&storage, &pool.id, &member)?;
     membership_changed(state, "left", &pool.id, &member);
     pools_info(&storage)
 }
@@ -563,6 +568,7 @@ pub fn rules_of(storage: &Storage, pool_id: &str) -> AppResult<PoolRulesInfo> {
         pool_id: pool_id.to_owned(),
         members: rows,
         talk,
+        lead_next: storage.pools().lead_next(pool_id)?,
     })
 }
 

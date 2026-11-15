@@ -799,6 +799,8 @@ export interface Commands {
   pools_set_access: { args: { poolId: string; level: string; actions: string[] }; result: PoolsInfo };
   /** Write features::pools::commands::pools_set_delivery */
   pools_set_delivery: { args: { poolId: string; hopLimit: number; stopped: boolean }; result: PoolsInfo };
+  /** Write features::pools::commands::pools_set_lead_next */
+  pools_set_lead_next: { args: { poolId: string; app?: string | null }; result: string | null };
   /** Write features::pools::commands::pools_set_role */
   pools_set_role: { args: { sessionId: string; role: string; poolId?: string | null }; result: PoolsInfo };
   /** Write features::pools::commands::pools_set_scope */

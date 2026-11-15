@@ -597,6 +597,7 @@ lab_routes! {
     "pools_set_sealed" => features::pools::commands::pools_set_sealed(state; pool_id: String, sealed: bool);
     "pools_set_skip_held" => features::pools::commands::pools_set_skip_held(state; pool_id: String, skip: bool);
     "pools_set_talk" => features::pools::commands::pools_set_talk(state; pool_id: String, from: String, to: String, rule: Option<String>);
+    "pools_set_lead_next" => features::pools::commands::pools_set_lead_next(state; pool_id: String, app: Option<String>);
     "pools_canvas_place" => features::pools::commands::pools_canvas_place(state; pool_id: String, nodes: Vec<crate::features::pools::NodePositionInfo>);
     "pools_canvas_tidy" => features::pools::commands::pools_canvas_tidy(state; pool_id: String);
     // Walk A7: New session's Start checks the folder's sign-in just

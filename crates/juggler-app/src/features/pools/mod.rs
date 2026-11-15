@@ -23,6 +23,7 @@ pub mod canvas_words;
 pub mod cards;
 pub mod commands;
 pub mod dto;
+pub mod lead_next;
 pub mod members;
 pub mod model;
 pub mod sign_in;
@@ -454,6 +455,10 @@ pub fn pool_set_role_impl(
     storage
         .pools()
         .join(&pool_id, &member, &here, role, level.as_ref())?;
+    if role == PoolRole::Lead {
+        // AJ-E3011: a Lead picked by hand ends the wait for a next one.
+        lead_next::picked(&storage, &pool_id)?;
+    }
     let step = if role == PoolRole::Lead {
         "lead"
     } else {

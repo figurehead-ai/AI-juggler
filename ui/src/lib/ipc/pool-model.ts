@@ -34,7 +34,7 @@ export type TalkRule = "allowed" | "ask" | "blocked";
 export const memberRef = (kind: MemberKind, id = ""): string => (kind === "everyone" ? "all" : `${kind}:${id}`);
 
 // Specs may seed a pool's talk rules (`__AIJ_POOL_RULES__`, by pool id).
-type Seams = { __AIJ_POOL_CALLS__?: string[]; __AIJ_POOL_RULES__?: Record<string, { talk?: PoolTalkInfo[] }> };
+type Seams = { __AIJ_POOL_CALLS__?: string[]; __AIJ_POOL_RULES__?: Record<string, { talk?: PoolTalkInfo[]; lead_next?: string | null }> };
 const seams = () => globalThis as unknown as Seams;
 const record = (called: string) => (seams().__AIJ_POOL_CALLS__ ??= []).push(called);
 
@@ -46,7 +46,7 @@ const rulesOf = (poolId: string): PoolRulesInfo => {
   const pool = previewPoolToChange(poolId);
   // A role pair's own rule a spec seeded, as the wizard's grid would set it.
   const seeded = seams().__AIJ_POOL_RULES__?.[poolId];
-  const made: PoolRulesInfo = { pool_id: poolId, members: pool.kind === "default" ? [{ member: "all", kind: "everyone", role: "member", level: null, joined_at: 0, sessions: 0, session_ids: [] }] : [], talk: [...(seeded?.talk ?? [])] };
+  const made: PoolRulesInfo = { pool_id: poolId, members: pool.kind === "default" ? [{ member: "all", kind: "everyone", role: "member", level: null, joined_at: 0, sessions: 0, session_ids: [] }] : [], talk: [...(seeded?.talk ?? [])], lead_next: seeded?.lead_next ?? null };
   previewRules.set(poolId, made);
   return made;
 };
@@ -64,6 +64,8 @@ export async function poolJoin(poolId: string, member: string, role: PoolRole, l
     const row = rules.members.find((one) => one.member === member);
     if (row) Object.assign(row, { role, level });
     else rules.members.push({ member, kind: kindOf(member), role, level, joined_at: Date.now(), sessions: 0, session_ids: [] });
+    // AJ-E3011: a Lead picked by hand ends the wait for a next one.
+    if (role === "lead") rules.lead_next = null;
     if (member.startsWith("session:")) previewPlaceSession(member.slice("session:".length), poolId, role);
     return previewPoolsInfo();
   }
@@ -77,6 +79,7 @@ export async function poolLeave(poolId: string, member: string): Promise<PoolsIn
     if (previewPoolToChange(poolId).kind === "default" && member === "all") throw refused("A project's own pool always holds everyone in its project.");
     record(`leave:${poolId}:${member}`);
     rules.members = rules.members.filter((one) => one.member !== member);
+    if (member === `app:${rules.lead_next}`) rules.lead_next = null;
     return previewPoolsInfo();
   }
   return call("pools_leave", { poolId, member });
@@ -134,6 +137,25 @@ export async function poolSetTalk(poolId: string, from: string, to: string, rule
   // canvas; the pool page reads its rules again.
   window.dispatchEvent(new CustomEvent(POOL_RULES_CHANGED, { detail: poolId }));
   return changed;
+}
+
+/** AJ-E3011 (D-92 holds): the App (its id) whose next session in the
+ * pool leads it, while it has no Lead; `null` clears the wait. The App
+ * must be a member, and the pool without a Lead. */
+export async function poolSetLeadNext(poolId: string, app: string | null): Promise<string | null> {
+  let waits: string | null;
+  if (!hasLiveBackend()) {
+    const rules = rulesOf(poolId);
+    if (app !== null && !rules.members.some((row) => row.member === `app:${app}`)) throw refused("Add the App to the pool first: its next session leads once it's in.");
+    if (app !== null && rules.members.some((row) => row.role === "lead")) throw refused("This pool has a Lead. Make it a Member first, then pick who leads next.");
+    record(`lead_next:${poolId}:${app ?? "clear"}`);
+    rules.lead_next = app;
+    waits = app;
+  } else {
+    waits = await call("pools_set_lead_next", { poolId, app });
+  }
+  window.dispatchEvent(new CustomEvent(POOL_RULES_CHANGED, { detail: poolId }));
+  return waits;
 }
 
 /** A pool's rules changed here (its id in `detail`). */

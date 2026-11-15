@@ -38,7 +38,8 @@ fn a_v51_database_upgrades_to_v52_and_reads_its_accounts_back() {
 
     let storage = Storage::open(&db).expect("0.4.0's database opens in 0.4.1");
     assert!(storage.migrated_on_open());
-    assert_eq!(storage.user_version().unwrap(), 52);
+    // v52 and every step after it (v53, AJ-E3011).
+    assert_eq!(storage.user_version().unwrap(), Storage::schema_version());
     let accounts = storage.accounts().list().unwrap();
     let ids: Vec<&str> = accounts.iter().map(|a| a.id.as_str()).collect();
     assert_eq!(ids, ["work", "side"]);
@@ -86,7 +87,8 @@ fn v52_is_safe_to_run_again() {
         .pragma_update(None, "user_version", 51)
         .unwrap();
     let storage = Storage::open(&db).expect("v52 again");
-    assert_eq!(storage.user_version().unwrap(), 52);
+    // v52 and every step after it (v53, AJ-E3011).
+    assert_eq!(storage.user_version().unwrap(), Storage::schema_version());
 }
 
 /// rc27's v52 added `accounts.import_name` instead of the table, and the
@@ -109,10 +111,14 @@ fn rc27s_v52_data_opens_and_saves_an_accepted_name() {
     }
 
     let storage = Storage::open(&db).expect("rc27's v52 data opens");
-    assert!(
-        !storage.migrated_on_open(),
-        "already v52: no migration runs"
+    // Already v52: v52 doesn't run again; only the steps after it do
+    // (v53, AJ-E3011), none of which touch the accounts.
+    assert_eq!(
+        storage.migrated_on_open(),
+        Storage::schema_version() > 52,
+        "only the steps after v52 run"
     );
+    assert_eq!(storage.user_version().unwrap(), Storage::schema_version());
     let ids: Vec<String> = storage
         .accounts()
         .list()

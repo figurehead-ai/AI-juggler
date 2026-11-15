@@ -192,6 +192,8 @@ pub(crate) fn start_session(
     match started {
         Ok(started) => {
             counted(row.account, InstanceKind::Terminal, row.origin);
+            // AJ-E3011: a pool waiting for its App's next session to lead.
+            crate::features::pools::lead_next::claim(state, row.id);
             Ok(started)
         }
         Err(unstarted) => {
@@ -256,6 +258,8 @@ pub(crate) fn spawn_tracked<T>(
     match spawn() {
         Ok(spawned) => {
             counted(row.account, kind, row.origin);
+            // AJ-E3011: a pool waiting for its App's next session to lead.
+            crate::features::pools::lead_next::claim(state, row.id);
             Ok(spawned)
         }
         Err(error) => {

@@ -376,6 +376,7 @@ macro_rules! app_commands {
             Write features::pools::commands::pools_set_sealed,
             Write features::pools::commands::pools_set_skip_held,
             Write features::pools::commands::pools_set_talk,
+            Write features::pools::commands::pools_set_lead_next,
             Read  features::pools::commands::pools_rules,
             Read  features::pools::commands::pools_of_session,
             Read  features::pools::commands::pools_watched,

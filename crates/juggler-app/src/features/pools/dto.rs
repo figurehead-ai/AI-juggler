@@ -163,6 +163,9 @@ pub struct PoolRulesInfo {
     pub members: Vec<PoolRuleInfo>,
     /// Its talk settings (anything unset is allowed).
     pub talk: Vec<PoolTalkInfo>,
+    /// AJ-E3011: the App (its id) whose next session leads, while the
+    /// pool waits for one (D-92: one session leads); `null` otherwise.
+    pub lead_next: Option<String>,
 }
 
 /// One pool a session is in, and how (its Pools tab).
