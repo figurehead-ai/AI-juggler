@@ -26,15 +26,40 @@ pub struct HostRegistry {
 }
 
 impl HostRegistry {
-    /// The tools' apps (`tool_apps`, from the adapters) and the built-in
-    /// terminals and editors.
+    /// The tools' apps (`tool_apps`, from the adapters), then (AJ-E1610)
+    /// every AI desktop app of the shared table no adapter gave (a tool
+    /// whose adapter isn't built yet: Cursor, Kiro, Antigravity), then the
+    /// built-in terminals and editors.
     #[must_use]
     pub fn new(tool_apps: Vec<HostApp>) -> Self {
         let mut apps = tool_apps;
+        for app in juggler_adapters::desktop_apps::all() {
+            if !apps.iter().any(|known| known.id == app.id) {
+                apps.push(app);
+            }
+        }
         // The list ships inside the app; a broken one is a build bug the
         // test below catches, never a crash here.
         apps.extend(serde_json::from_str::<Vec<HostApp>>(BUILTIN).unwrap_or_default());
         Self { apps }
+    }
+
+    /// AJ-E1610: the app bundle `dir` is: by its folder's name, else by
+    /// the bundle id its own `Info.plist` declares (an app the user
+    /// renamed, a beta build).
+    #[must_use]
+    pub fn by_bundle_dir(&self, dir: &Path) -> Option<&HostApp> {
+        let name = dir.file_name()?.to_str()?;
+        self.by_bundle(name).or_else(|| {
+            let id = bundle_id_of(dir)?;
+            self.apps.iter().find(|app| app.has_bundle_id(&id))
+        })
+    }
+
+    /// Every app it knows.
+    #[must_use]
+    pub fn apps(&self) -> &[HostApp] {
+        &self.apps
     }
 
     /// The registry over every adapter in `registry`.
@@ -108,6 +133,34 @@ pub fn outer_bundle(exe: &Path) -> Option<(PathBuf, String)> {
     None
 }
 
+/// The bundle ids read so far, by bundle folder (each read once a run:
+/// the list of processes is read every few seconds). Bounded: emptied when
+/// full.
+static BUNDLE_IDS: std::sync::Mutex<Option<std::collections::HashMap<PathBuf, Option<String>>>> =
+    std::sync::Mutex::new(None);
+
+/// At most this many bundle folders remembered.
+const BUNDLE_IDS_MAX: usize = 512;
+
+/// AJ-E1610: the bundle id app bundle `dir` declares, read once a run
+/// (`juggler_platform::apps::bundle_identifier`: its `Info.plist` only).
+#[must_use]
+pub fn bundle_id_of(dir: &Path) -> Option<String> {
+    let Ok(mut known) = BUNDLE_IDS.lock() else {
+        return juggler_platform::apps::bundle_identifier(dir);
+    };
+    let known = known.get_or_insert_with(std::collections::HashMap::new);
+    if let Some(id) = known.get(dir) {
+        return id.clone();
+    }
+    if known.len() >= BUNDLE_IDS_MAX {
+        known.clear();
+    }
+    let id = juggler_platform::apps::bundle_identifier(dir);
+    known.insert(dir.to_path_buf(), id.clone());
+    id
+}
+
 /// The value of `flag` in `args` (`--flag=value` or `--flag value`).
 #[must_use]
 pub fn arg_value(args: &[String], flag: &str) -> Option<String> {
@@ -138,7 +191,7 @@ pub fn host_of(pid: u32, table: &Table, hosts: &HostRegistry, home: &Path) -> Op
         .collect();
     let (at, bundle_dir, bundle) = bundled
         .iter()
-        .find(|(_, _, name)| hosts.by_bundle(name).is_some())
+        .find(|(_, dir, _)| hosts.by_bundle_dir(dir).is_some())
         .or_else(|| bundled.last())
         .cloned()?;
     // Up the chain while still inside the same bundle: the app's own
@@ -152,7 +205,7 @@ pub fn host_of(pid: u32, table: &Table, hosts: &HostRegistry, home: &Path) -> Op
                 .is_some_and(|exe| exe.starts_with(&bundle_dir))
         })
         .last()?;
-    let app = hosts.by_bundle(&bundle);
+    let app = hosts.by_bundle_dir(&bundle_dir);
     let instance_dir = app.and_then(|app| {
         let flag = app.instance_arg.as_deref()?;
         arg_value(&main.args, flag)
@@ -215,13 +268,18 @@ pub fn running_apps(table: &Table, hosts: &HostRegistry, home: &Path) -> Vec<Run
         let Some(exe) = process.exe.as_deref() else {
             continue;
         };
-        let Some((dir, bundle)) = outer_bundle(exe) else {
+        let Some((dir, _)) = outer_bundle(exe) else {
             continue;
         };
-        let Some(app) = hosts.by_bundle(&bundle) else {
+        // AJ-E1610: only an app's main executable (its helpers, and the
+        // tools it runs, sit deeper), so a bundle id is read for those alone.
+        if exe.parent() != Some(&dir.join("Contents/MacOS")) {
+            continue;
+        }
+        let Some(app) = hosts.by_bundle_dir(&dir) else {
             continue;
         };
-        if app.kind != HostKind::Desktop || exe.parent() != Some(&dir.join("Contents/MacOS")) {
+        if !app.is_app() {
             continue;
         }
         let given = app

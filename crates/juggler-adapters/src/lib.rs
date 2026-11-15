@@ -70,6 +70,7 @@ pub mod config_edit;
 pub mod conversation_feed;
 mod conversation_lines;
 pub mod cut;
+pub mod desktop_apps;
 pub mod fake;
 pub mod fake_driven;
 pub mod folder_wake;

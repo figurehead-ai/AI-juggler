@@ -259,9 +259,60 @@ pub struct HostApp {
     /// as a profile's own name links a Claude app profile.
     #[serde(default)]
     pub default_folder: Option<String>,
+    /// AJ-E1610: what the app allows, route by route, its track-only
+    /// parts and whether it may be driven ([`crate::desktop_app`]).
+    #[serde(default)]
+    pub desktop: crate::desktop_app::DesktopFacts,
 }
 
 impl HostApp {
+    /// AJ-E1610: an app the user runs as an App (offered when seen
+    /// running, opened, kept alive, focused): a tool's own desktop app, or
+    /// an editor that is also an AI app ([`crate::desktop_app::DesktopFacts::editor_app`]).
+    #[must_use]
+    pub fn is_app(&self) -> bool {
+        self.kind == HostKind::Desktop || self.desktop.editor_app
+    }
+
+    /// AJ-E1610: whether `id` is this app's bundle id (its own, or a beta
+    /// or dev build's).
+    #[must_use]
+    pub fn has_bundle_id(&self, id: &str) -> bool {
+        !id.is_empty()
+            && (self.bundle_id.as_deref() == Some(id)
+                || self
+                    .desktop
+                    .other_bundle_ids
+                    .iter()
+                    .any(|other| other == id))
+    }
+
+    /// AJ-E1610: the link of route `action` with `{id}` (a plain id) or
+    /// `{folder}` (escaped), when the route is one AI Juggler may use;
+    /// `None` for an unverified route (plain focus instead), an id that
+    /// isn't plain, or a route through the adapter.
+    #[must_use]
+    pub fn route_link(
+        &self,
+        action: crate::desktop_app::RouteAction,
+        id: Option<&str>,
+        folder: Option<&Path>,
+    ) -> Option<String> {
+        let link = self.desktop.usable(action)?.link.as_deref()?;
+        let mut out = link.to_owned();
+        if out.contains("{id}") {
+            out = out.replace("{id}", id.filter(|id| plain_id(id))?);
+        }
+        if out.contains("{folder}") {
+            let folder = folder.filter(|folder| folder.is_absolute())?;
+            out = out.replace(
+                "{folder}",
+                &crate::desktop_app::link_escape(&folder.to_string_lossy()),
+            );
+        }
+        Some(out)
+    }
+
     /// Its name on screen: [`HostApp::shown`], else the Dock's.
     #[must_use]
     pub fn shown_name(&self) -> &str {
@@ -282,6 +333,15 @@ impl HostApp {
     /// ([`HostApp::session_link`]); never for an id that isn't plain.
     #[must_use]
     pub fn session_link_for(&self, id: &str) -> Option<String> {
+        // AJ-E1610: an app that declares its session route sends the link
+        // only while that route may be used (an unverified one: focus).
+        if self
+            .desktop
+            .route(crate::desktop_app::RouteAction::OpenSession)
+            .is_some_and(|route| !route.status.usable())
+        {
+            return None;
+        }
         self.session_link
             .as_ref()
             .filter(|_| plain_id(id))
@@ -420,6 +480,7 @@ mod tests {
             handoff_record: None,
             session_link: None,
             default_folder: None,
+            desktop: crate::desktop_app::DesktopFacts::default(),
         };
         assert_eq!(
             app.thread_link_for("0199-ab_c").as_deref(),

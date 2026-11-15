@@ -418,6 +418,11 @@ impl ToolDiscovery for OpenCodeAdapter {
             crate::opencode_environment::scan_opencode_environment(home, env, &scan_probe)
         })
     }
+    /// AJ-E1610: its own desktop app (`desktop_apps.json`), on the same
+    /// default folder as the CLI, so its sessions are this adapter's.
+    fn host_apps(&self) -> Vec<juggler_adapter::live::HostApp> {
+        crate::desktop_apps::for_tool(OPENCODE_ID)
+    }
     fn vendor_default_dir(&self) -> Option<PathBuf> {
         self.default_data_dir()
     }

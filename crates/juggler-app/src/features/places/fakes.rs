@@ -60,6 +60,10 @@ impl start::Starter for Recorder {
 #[derive(Default)]
 pub(crate) struct FakeDesktop {
     pub links: Mutex<Vec<String>>,
+    /// AJ-E1610: the links sent to one process (`pid`, link), when
+    /// `sends_links` (else none goes, as before).
+    pub sent: Mutex<Vec<(u32, String)>>,
+    pub sends_links: bool,
     pub opens_links: bool,
     pub lost: bool,
 }
@@ -119,5 +123,18 @@ impl Desktop for FakeDesktop {
     }
     fn tty(&self, _: u32) -> Option<String> {
         None
+    }
+    fn send_link_to(
+        &self,
+        pid: u32,
+        link: &str,
+        _: bool,
+    ) -> crate::features::conversations::goto::LinkSent {
+        use crate::features::conversations::goto::LinkSent;
+        if !self.sends_links {
+            return LinkSent::Failed;
+        }
+        self.sent.lock().unwrap().push((pid, link.to_owned()));
+        LinkSent::Sent
     }
 }

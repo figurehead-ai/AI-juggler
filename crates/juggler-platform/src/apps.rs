@@ -259,6 +259,30 @@ pub fn quit(pid: u32) -> std::io::Result<()> {
 /// other system, answers `None`). Read only, at most 1 MB.
 #[must_use]
 pub fn bundle_version(bundle: &std::path::Path) -> Option<String> {
+    plist_word(bundle, "CFBundleShortVersionString", |c| {
+        c.is_ascii_alphanumeric() || c == '.' || c == '-'
+    })
+}
+
+/// AJ-E1610: the bundle id an app bundle declares (macOS:
+/// `CFBundleIdentifier` in its `Contents/Info.plist`, an XML property
+/// list; a binary one, or any other system, answers `None`). Read only,
+/// at most 1 MB: how an app the user renamed, or a beta build, is still
+/// known.
+#[must_use]
+pub fn bundle_identifier(bundle: &std::path::Path) -> Option<String> {
+    plist_word(bundle, "CFBundleIdentifier", |c| {
+        c.is_ascii_alphanumeric() || c == '.' || c == '-' || c == '_'
+    })
+}
+
+/// One short string value of `key` in a bundle's XML `Info.plist`, when
+/// every character passes `allowed`.
+fn plist_word(
+    bundle: &std::path::Path,
+    key: &str,
+    allowed: impl Fn(char) -> bool,
+) -> Option<String> {
     use std::io::Read as _;
     let mut text = String::new();
     std::fs::File::open(bundle.join("Contents/Info.plist"))
@@ -266,17 +290,12 @@ pub fn bundle_version(bundle: &std::path::Path) -> Option<String> {
         .take(1 << 20)
         .read_to_string(&mut text)
         .ok()?;
-    let key = text.find("<key>CFBundleShortVersionString</key>")?;
-    let rest = &text[key..];
+    let at = text.find(&format!("<key>{key}</key>"))?;
+    let rest = &text[at..];
     let open = rest.find("<string>")? + "<string>".len();
     let close = rest[open..].find("</string>")?;
-    let version = rest[open..open + close].trim();
-    (!version.is_empty()
-        && version.len() <= 64
-        && version
-            .chars()
-            .all(|c| c.is_ascii_alphanumeric() || c == '.' || c == '-'))
-    .then(|| version.to_owned())
+    let word = rest[open..open + close].trim();
+    (!word.is_empty() && word.len() <= 128 && word.chars().all(allowed)).then(|| word.to_owned())
 }
 
 /// The folders this system installs apps in, for the user whose home is
@@ -433,6 +452,31 @@ mod tests {
         assert_eq!(bundle_version(tmp.path()).as_deref(), Some("4.16336.0"));
         std::fs::write(tmp.path().join("Contents/Info.plist"), "bplist00…").unwrap();
         assert_eq!(bundle_version(tmp.path()), None);
+    }
+
+    /// AJ-E1610: a renamed app, or a beta build, is known by its id.
+    #[test]
+    fn a_bundles_id_is_read_from_its_xml_plist_and_a_strange_one_is_not() {
+        let tmp = tempfile::tempdir().unwrap();
+        std::fs::create_dir_all(tmp.path().join("Contents")).unwrap();
+        let plist = |id: &str| {
+            std::fs::write(
+                tmp.path().join("Contents/Info.plist"),
+                format!("<plist><dict><key>CFBundleIdentifier</key>\n<string>{id}</string></dict></plist>"),
+            )
+            .unwrap();
+        };
+        plist("ai.opencode.desktop.beta");
+        assert_eq!(
+            bundle_identifier(tmp.path()).as_deref(),
+            Some("ai.opencode.desktop.beta")
+        );
+        plist("a b");
+        assert_eq!(bundle_identifier(tmp.path()), None);
+        plist("");
+        assert_eq!(bundle_identifier(tmp.path()), None);
+        std::fs::remove_file(tmp.path().join("Contents/Info.plist")).unwrap();
+        assert_eq!(bundle_identifier(tmp.path()), None);
     }
 
     #[test]

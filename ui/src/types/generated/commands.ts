@@ -754,7 +754,7 @@ export interface Commands {
   /** Read features::places::commands::places_offers */
   places_offers: { args: Record<string, never>; result: PlaceOfferInfo[] };
   /** Write features::places::commands::places_open */
-  places_open: { args: { id: string; conversationId?: string | null }; result: GoToOutcomeInfo };
+  places_open: { args: { id: string; conversationId?: string | null; action?: string | null; folder?: string | null }; result: GoToOutcomeInfo };
   /** Read features::places::commands::places_profiles */
   places_profiles: { args: Record<string, never>; result: FindProfilesInfo };
   /** Write features::places::commands::places_profiles_set */

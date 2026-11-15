@@ -8,7 +8,7 @@
 
 use std::path::{Path, PathBuf};
 
-use juggler_adapter::live::{HostApp, HostKind};
+use juggler_adapter::live::HostApp;
 
 /// Whether `text` is a thread id (a UUID's shape).
 fn is_thread_id(text: &str) -> bool {
@@ -69,35 +69,14 @@ pub fn is_session_server(exe: Option<&Path>, args: &[String]) -> bool {
 /// The Codex app's id in the host registry.
 pub const CODEX_APP_HOST: &str = "codex-app";
 
-/// The Codex app, as data: the Dock calls it `ChatGPT`, and a thread opens
-/// with its documented link.
+/// The Codex app, as data (`desktop_apps.json`, AJ-E1610): the Dock calls
+/// it `ChatGPT`, a thread opens with its documented link, and (ADR-0032)
+/// it runs on Codex's own folder, so it is the App of the Account that
+/// holds `~/.codex`. On screen it's the Codex app, never just the tool's
+/// name, which its CLI App carries ("Codex CLI").
 #[must_use]
 pub fn host_apps() -> Vec<HostApp> {
-    vec![HostApp {
-        id: CODEX_APP_HOST.to_owned(),
-        name: "ChatGPT".to_owned(),
-        bundle: "ChatGPT.app".to_owned(),
-        bundle_id: Some("com.openai.codex".to_owned()),
-        kind: HostKind::Desktop,
-        instance_arg: None,
-        default_instance: None,
-        thread_link: Some("codex://threads/{id}".to_owned()),
-        folder_link: None,
-        folder_command: None,
-        tab_script: None,
-        // ADR-0032: on screen it's the Codex app (the Dock says ChatGPT),
-        // as the Claude app's is "Claude app": never just the tool's name,
-        // which its CLI App carries ("Codex CLI").
-        shown: Some("Codex app".to_owned()),
-        siblings: false,
-        folder_env: None,
-        handoff_link: None,
-        handoff_record: None,
-        session_link: None,
-        // ADR-0032: it runs on Codex's own folder, so it is the App of the
-        // Account that holds `~/.codex`.
-        default_folder: Some(".codex".to_owned()),
-    }]
+    crate::desktop_apps::for_tool(crate::codex::CODEX_ID)
 }
 
 #[cfg(test)]

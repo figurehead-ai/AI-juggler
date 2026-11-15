@@ -421,6 +421,11 @@ impl ToolDiscovery for HermesAdapter {
     fn resolved_binary(&self) -> Option<PathBuf> {
         self.resolve_bin()
     }
+    /// AJ-E1610: its own desktop app (`desktop_apps.json`), on the same
+    /// default folder as the CLI, so its sessions are this adapter's.
+    fn host_apps(&self) -> Vec<juggler_adapter::live::HostApp> {
+        crate::desktop_apps::for_tool(HERMES_ID)
+    }
     fn vendor_default_dir(&self) -> Option<PathBuf> {
         self.default_home()
     }
@@ -664,7 +669,8 @@ pub fn hermes_spec() -> juggler_adapter::ToolSpec {
             short: "Hermes Agent's".to_owned(),
         },
         same_as: "as when you run Hermes Agent yourself".to_owned(),
-        // Hermes Desktop (com.nousresearch.hermes) is AJ-E1610's.
+        // Hermes Desktop (com.nousresearch.hermes) is an App through
+        // `host_apps` (AJ-E1610); the tool itself stays a CLI here.
         desktop_app: None,
         app_meter: false,
         kinds: vec![ToolKind::Cli],

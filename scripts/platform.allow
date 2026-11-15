@@ -9,8 +9,6 @@ crates/juggler-account/src/secrets.rs mac-words 1
 crates/juggler-adapter/src/inventory.rs unix-api 2
 crates/juggler-adapters/src/bin/support/replica_write.rs unix-api 2
 crates/juggler-adapters/src/claude_environment.rs mac-words 1
-crates/juggler-adapters/src/claude_live.rs app-bundle 1
-crates/juggler-adapters/src/codex_live.rs app-bundle 1
 crates/juggler-adapters/src/common/home.rs unix-api 3
 crates/juggler-adapters/src/quota_ingest.rs unix-api 2
 crates/juggler-adapters/src/tool_summary.rs slash-split 1

@@ -86,6 +86,14 @@
 //!     tool AI Juggler moves conversations for supports the floor of an
 //!     exact move (history, resume, the source untouched, what stays
 //!     named); one it can't claims nothing.
+//! 15. **Desktop apps, honestly** (AJ-E1610, D-66, D-84, D-106) — each
+//!     desktop app an adapter describes can be found (a bundle id, or the
+//!     folder it keeps its own state in), names its tool, opens per
+//!     account only by a switch a live check proved (the Claude app's
+//!     `--user-data-dir`), says each part it can't reach in one plain line,
+//!     reads and replies only through the adapter (never a link of its
+//!     own), offers a reply exactly when it has a sound route, and has no
+//!     link that installs anything.
 //!
 //! Fixtures only: every home, credential and transcript is synthetic and
 //! lives in a temporary sandbox; nothing real is read.
@@ -2030,6 +2038,64 @@ pub fn answers_switching_honestly(subject: &dyn Subject) {
     );
 }
 
+// 15. Desktop apps, honestly (AJ-E1610)
+
+/// Each desktop app the adapter describes is found, named, reached only by
+/// sound routes, and says plainly what it can't do.
+pub fn describes_its_desktop_apps_honestly(subject: &dyn Subject) {
+    use juggler_adapter::desktop_app::{RouteAction, TrackPart};
+    let sandbox = Sandbox::new();
+    let adapter = subject.adapter(&sandbox);
+    let id = adapter.spec().id;
+    for app in adapter.host_apps().into_iter().filter(|app| app.is_app()) {
+        let at = format!("{id}: {}", app.id);
+        assert!(
+            app.bundle_id.is_some() || app.desktop.install_folder.is_some(),
+            "{at}: no way to find it"
+        );
+        assert_eq!(
+            app.desktop.tool.as_deref(),
+            Some(id.as_str()),
+            "{at}: names its tool"
+        );
+        if app.instance_arg.is_some() {
+            assert_eq!(
+                app.instance_arg.as_deref(),
+                Some("--user-data-dir"),
+                "{at}: only the proved profile switch"
+            );
+        } else {
+            assert!(
+                app.desktop.why_not(TrackPart::Account).is_some(),
+                "{at}: says why it opens on one account"
+            );
+        }
+        for route in &app.desktop.routes {
+            if matches!(route.action, RouteAction::Reply | RouteAction::ReadSessions) {
+                assert_eq!(route.link, None, "{at}: through the adapter only");
+            }
+            let link = route.link.as_deref().unwrap_or_default();
+            assert!(
+                !link.contains("install") && !link.contains("plugin"),
+                "{at}: {link}"
+            );
+        }
+        let reply = app.desktop.usable(RouteAction::Reply).is_some();
+        assert_ne!(
+            reply,
+            app.desktop.why_not(TrackPart::Reply).is_some(),
+            "{at}: a sound reply route, or one line saying why not"
+        );
+        for track in &app.desktop.track_only {
+            assert!(
+                track.why.ends_with('.') && !track.why.contains('\n') && track.why.len() <= 140,
+                "{at}: {}",
+                track.why
+            );
+        }
+    }
+}
+
 /// Instantiates the whole kit for one subject as a test module.
 #[macro_export]
 macro_rules! conformance {
@@ -2110,6 +2176,11 @@ macro_rules! conformance {
             #[test]
             fn answers_switching_honestly() {
                 conformance::answers_switching_honestly(&$subject);
+            }
+
+            #[test]
+            fn describes_its_desktop_apps_honestly() {
+                conformance::describes_its_desktop_apps_honestly(&$subject);
             }
         }
     };

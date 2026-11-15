@@ -297,6 +297,11 @@ impl ToolDiscovery for KimiCodeAdapter {
             crate::kimi_environment::scan_kimi_environment(home, env, &scan_probe)
         })
     }
+    /// AJ-E1610: its own desktop app (`desktop_apps.json`), on the same
+    /// default folder as the CLI, so its sessions are this adapter's.
+    fn host_apps(&self) -> Vec<juggler_adapter::live::HostApp> {
+        crate::desktop_apps::for_tool(KIMI_CODE_ID)
+    }
     fn vendor_default_dir(&self) -> Option<PathBuf> {
         self.default_home()
     }

@@ -121,6 +121,9 @@ function AppBody({
     return appItems(all, app.railKey, appByConversation(places), appByFolder(places));
   }, [sessions, conversations, projects, seen, app.railKey, places]);
   const worked = useWorkedProjects("app", app.id, items, projects);
+  // AJ-E1610: the project it worked in last, for its app's "New session in …".
+  const lastProject = worked[0] ? projects.find((project) => project.id === worked[0]!.id) : undefined;
+  const lastFolder = lastProject ? { name: lastProject.name, root: lastProject.root } : null;
   const openIds = items.filter(openHere).flatMap((item) => item.session?.id ?? item.conversation?.id ?? []);
   const open = openIds.length;
   const restart = restartCounts(items.filter(openHere));
@@ -180,7 +183,7 @@ function AppBody({
         render={(tab, visible) => {
           switch (tab) {
             case "overview":
-              return <AppOverview app={app} items={items} projects={worked} now={now} host={host} onOpenSession={onOpenSession} onOpenProject={onOpenProject} />;
+              return <AppOverview app={app} items={items} projects={worked} now={now} host={host} onOpenSession={onOpenSession} onOpenProject={onOpenProject} lastFolder={lastFolder} />;
             case "sessions":
               return (
                 <RelatedList

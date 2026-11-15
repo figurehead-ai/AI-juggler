@@ -26,6 +26,7 @@ use link::folder_for_profile;
 use link::link_its_folder;
 pub mod open_session;
 pub mod profiles;
+pub mod reach;
 mod records;
 pub use records::{RecordIndex, record_index};
 pub mod start;
@@ -189,8 +190,9 @@ pub fn with_book<T>(state: &Arc<AppState>, body: impl FnOnce(&mut Book) -> T) ->
     Ok(answer)
 }
 
-/// The tool whose desktop app `host` is (the host's id when no adapter
-/// names it).
+/// The tool whose desktop app `host` is: its adapter's, else (AJ-E1610)
+/// the tool the shared table names for it (a tool whose adapter isn't
+/// built yet), else the host's id.
 fn tool_of(state: &Arc<AppState>, host: &str) -> String {
     state
         .registry
@@ -202,7 +204,13 @@ fn tool_of(state: &Arc<AppState>, host: &str) -> String {
                 .get(id)
                 .is_some_and(|adapter| adapter.host_apps().iter().any(|app| app.id == host))
         })
-        .map_or_else(|| host.to_owned(), |id| id.to_string())
+        .map(|id| id.to_string())
+        .or_else(|| {
+            HostRegistry::of(&state.registry)
+                .by_id(host)
+                .and_then(|app| app.desktop.tool.clone())
+        })
+        .unwrap_or_else(|| host.to_owned())
 }
 
 /// The live view's full scan found `running` with `entries` open: they
@@ -1478,6 +1486,8 @@ pub(crate) fn remember_test_profile(
 
 #[cfg(test)]
 mod d84_tests;
+#[cfg(test)]
+mod desktop_apps_tests;
 #[cfg(test)]
 pub(crate) mod fakes;
 #[cfg(test)]
