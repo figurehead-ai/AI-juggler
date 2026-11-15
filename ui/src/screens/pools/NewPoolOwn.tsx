@@ -36,7 +36,7 @@ export function NewPoolOwn({ draft, onDraft, where }: { draft: Draft; onDraft: (
         <Explain
           testId="new-pool-seal-explain"
           guide={`${POOLS_GUIDE}#make-a-pool`}
-          tips={["A sealed pool's sessions are in no other pool, and nothing leaves it through AI Juggler.", "A switch into or out of a sealed pool asks first.", "You can unseal it later from its canvas; its sessions go back into the pools they were in."]}
+          tips={["A sealed pool's sessions are in no other pool, and nothing leaves it through AI Juggler.", "A switch into or out of a sealed pool asks first.", "You can unseal it later from its diagram; its sessions go back into the pools they were in."]}
         />
       </div>
     </div>

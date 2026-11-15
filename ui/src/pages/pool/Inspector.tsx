@@ -21,6 +21,8 @@ import { inspectorHead, type HeadOf, type InspectorHead } from "./inspector-head
 import { SELECTED_EDGE } from "./selection";
 import { sessionAlert } from "./NodeParts";
 import { PoolChecklist } from "./setup/PoolChecklist";
+import { PoolToolsCard } from "./setup/PoolToolsCard";
+import type { ToolsPlace } from "../../lib/team-tools";
 import { InspectLeadNext } from "./InspectLeadNext";
 
 import type { ProjectInfo } from "../../types/generated/ProjectInfo";
@@ -38,6 +40,7 @@ import { edgeKey, type MemberNode } from "./useCanvas";
 // The conversation loads only when an edge is opened.
 import { EdgeTalk } from "./EdgeTalk";
 import { InspectRule } from "./InspectRule";
+import { startNextLead } from "../../lib/start-lead";
 import type { PoolRules } from "../../lib/pool-rules";
 import type { PoolRuleInfo } from "../../lib/ipc/pool-model";
 
@@ -177,6 +180,14 @@ function sessionHead(member: MemberNode): HeadOf {
 }
 
 /** What the selection is, for its title, subtitle and pill. */
+/** Round 2 (#2): the App whose next session leads is one member: its
+ * lead line, "Start one now" (in the pool's one project) and Change. */
+function leadsNextOf(rule: PoolRuleInfo | undefined, rules: PoolRules, where: string, dir: string | null, onChange: () => void) {
+  const next = rules.rules?.lead_next;
+  if (!rule || !next || rule.member !== `app:${next}`) return null;
+  return { where, onStart: (ref: string) => startNextLead(ref, dir), onChange };
+}
+
 function selectionHead(input: {
   selection: Selection;
   member: MemberNode | undefined;
@@ -186,6 +197,7 @@ function selectionHead(input: {
   names: ReadonlyMap<string, string>;
   ruleLabel: (rule: PoolRuleInfo) => string;
   leadNextName: string | null;
+  leadsNext?: boolean;
   pool: PoolInfo;
   project: ProjectInfo | undefined;
   where: string;
@@ -193,7 +205,7 @@ function selectionHead(input: {
 }): HeadOf {
   const { selection, member, rule, watched, pool } = input;
   if (member) return sessionHead(member);
-  if (rule) return { kind: "rule", label: input.ruleLabel(rule), memberKind: rule.kind, role: rule.role, open: rule.sessions };
+  if (rule) return { kind: "rule", label: input.ruleLabel(rule), memberKind: rule.kind, role: rule.role, open: rule.sessions, leadsNext: input.leadsNext };
   if (watched) return { kind: "watched", title: watched.title ?? "A session in another app", app: watched.tool, role: watched.role };
   if (selection.kind === "edge") {
     const [fromId = "", toId = ""] = selection.key.split(">");
@@ -235,10 +247,24 @@ type Step = (typeof SETUP_STEPS)[number];
 
 /** The pool's setup progress: the checklist on the pool, one line over
  * its settings; none over a member, a line or the lead's card. */
-function PoolProgress({ kind, setup }: { kind: Selection["kind"]; setup: { rows: readonly SetupRow[]; onOpen: (step: Step) => void } }): JSX.Element | null {
+/** The pool's own inspector: the team tools while they're off for it
+ * (round 2, #1: above the checklist, and still there once every step is
+ * done), then the checklist. */
+function PoolProgress({ kind, setup }: { kind: Selection["kind"]; setup: InspectorSetup }): JSX.Element | null {
   if (kind !== "none" && kind !== "pool") return null;
-  return <PoolChecklist rows={setup.rows} onOpen={setup.onOpen} compact={kind === "pool"} />;
+  return (
+    <>
+      <div className="mx-4 mb-3 empty:hidden">
+        <PoolToolsCard testId="pool-checklist-tools" projects={setup.tools.projects} apps={setup.tools.apps} />
+      </div>
+      <PoolChecklist rows={setup.rows} onOpen={setup.onOpen} compact={kind === "pool"} />
+    </>
+  );
 }
+
+/** The setup's checklist, opening one of its steps, and where the team
+ * tools are switched (its projects and CLI Apps). */
+type InspectorSetup = { rows: readonly SetupRow[]; onOpen: (step: Step) => void; tools: { projects: readonly ToolsPlace[]; apps: readonly ToolsPlace[] } };
 
 export const Inspector = forwardRef<HTMLHeadingElement, {
   pool: PoolInfo;
@@ -261,16 +287,19 @@ export const Inspector = forwardRef<HTMLHeadingElement, {
   /** What waits on you here (its Pools card's count). */
   needs: number;
   /** AJ-E3011: the setup's checklist, and opening one of its steps. */
-  setup: { rows: readonly SetupRow[]; onOpen: (step: Step) => void };
+  setup: InspectorSetup;
   /** The App whose next session leads, by name, while the pool waits. */
   leadNextName: string | null;
+  /** The pool's one project folder: that App's "Start one now" opens there. */
+  leadDir: string | null;
   /** The pool's setup controls (who leads, everyone else, talk, on their own). */
   setupSections?: ReactNode;
-}>(function Inspector({ pool, project, canvas, members, names, selection, now, onSelect, onOpenTask, onDeleted, rules, ruleLabel, ruleTool, where, needs, setup, leadNextName, setupSections }, heading): JSX.Element {
+}>(function Inspector({ pool, project, canvas, members, names, selection, now, onSelect, onOpenTask, onDeleted, rules, ruleLabel, ruleTool, where, needs, setup, leadNextName, leadDir, setupSections }, heading): JSX.Element {
   const member = selection.kind === "node" ? members.find((row) => row.id === selection.id) : undefined;
   const rule = selection.kind === "rule" ? rules.rules?.members.find((row) => row.member === selection.ref) : undefined;
   const watched = selection.kind === "rule" ? rules.watched.find((row) => row.member === selection.ref) : undefined;
-  const of = selectionHead({ selection, member, rule, watched, canvas, names, ruleLabel, leadNextName, pool, project, where, needs });
+  const leadsNext = leadsNextOf(rule, rules, where, leadDir, () => setup.onOpen("lead"));
+  const of = selectionHead({ selection, member, rule, watched, canvas, names, ruleLabel, leadNextName, leadsNext: leadsNext !== null, pool, project, where, needs });
   const head = inspectorHead(of);
   // The selected card and the inspector are linked by the same accent.
   const linked = of.kind !== "pool";
@@ -324,6 +353,7 @@ export const Inspector = forwardRef<HTMLHeadingElement, {
             watched={watched}
             label={rule ? ruleLabel(rule) : (watched?.title ?? "A session in another app")}
             shared={rule ? (ruleTool?.(rule) ?? null) : null}
+            leadsNext={leadsNext}
             onChanged={rules.reload}
             onGone={() => onSelect({ kind: "none" })}
           />

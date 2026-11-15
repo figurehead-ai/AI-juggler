@@ -13,7 +13,6 @@ import { IconCheck } from "../../../components/icons-controls";
 import { SELECTED_FILL } from "../../../components/controls/selected";
 import type { SetupRow } from "../../../lib/pool-setup";
 import { STEP_WORDS, type SETUP_STEPS } from "../../../lib/pool-words";
-import { PoolToolsCard } from "./PoolToolsCard";
 
 type Step = (typeof SETUP_STEPS)[number];
 
@@ -46,9 +45,6 @@ export function PoolChecklist({ rows, onOpen, compact = false }: { rows: readonl
           {done} of {rows.length} done
         </span>
       </div>
-      {/* The one switch the rest needs, first while it's unanswered (it was
-          cut off at the column's foot at 800 px). */}
-      <PoolToolsCard testId="pool-checklist-tools" />
       <ol className="flex flex-col gap-0.5">
         {rows.map((row, at) => {
           const words = STEP_WORDS[row.step];

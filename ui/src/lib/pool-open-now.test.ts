@@ -38,6 +38,8 @@ describe("an App member's sessions now (the rc27 P1 walk)", () => {
 
   it("says it as the canvas's card says it", () => {
     expect(openNowWords(1)).toBe("1 open now · new ones join");
-    expect(openNowWords(0)).toBe("none open now · new ones join");
+    // AJ-E3011 round 2 (#15): "none open now" read as broken.
+    expect(openNowWords(0, "web")).toBe("No session open yet · new ones in web join");
+    expect(openNowWords(2, "web")).toBe("2 open now · new ones in web join");
   });
 });

@@ -143,7 +143,9 @@ describe("AJ-E3007, AJ-E3011 the setup, start to end", () => {
     nextTo("Who's in");
     const first = screen.getAllByTestId("new-pool-candidate").find((row) => !row.querySelector("[role=checkbox]")!.hasAttribute("disabled"))!;
     fireEvent.click(within(first).getByRole("checkbox"));
-    expect(within(screen.getByTestId("new-pool-side")).getByText(/1 full|0 full/)).toBeTruthy();
+    // Round 2 (#6, #7): who's in, in words, without "full / shell only / watched".
+    expect(screen.getByTestId("new-pool-side-words").textContent).toMatch(/^1 (session|app)/);
+    expect(screen.getByTestId("new-pool-side").textContent).not.toMatch(/full|shell only|watched/);
     nextTo("Who may message whom");
     // The template's member↔member ask first, then blocked on a click.
     const cell = screen.getAllByTestId("new-pool-talk-cell").find((one) => one.dataset.pair === "member>member")!;
@@ -176,7 +178,7 @@ describe("AJ-E3007, AJ-E3011 the setup, start to end", () => {
       "How to start: A template fills in roles and who may message whom; you can change any of it.",
       "Where: Sessions in these projects can join.",
       "Who's in: Only these work together.",
-      "Who leads: The lead plans and hands out the work.",
+      "Who leads: The lead plans and hands out the work. Pick one to be in charge, or leave it for now.",
       "Everyone else: What each member does, and how new sessions join.",
       "Who may message whom: Set an exception only where you want one; the rest is allowed.",
       "What they may do on their own: Anything more waits for your OK in Needs you.",
@@ -227,7 +229,7 @@ describe("AJ-E3007, AJ-E3011 the setup, start to end", () => {
   it("the intro: full on the first pool, one line after it", () => {
     const first = render(<PoolIntro first />);
     expect(first.getByTestId("pool-intro").dataset.open).toBe("true");
-    expect(first.getByTestId("pool-intro-lines").textContent).toContain("A pool is a team of your sessions on the same projects.");
+    expect(first.getByTestId("pool-intro-lines").textContent).toContain("A pool is a team of your AI sessions working on the same projects.");
     first.unmount();
     const later = render(<PoolIntro first={false} />);
     const fold = later.getByTestId("pool-intro");
@@ -301,18 +303,24 @@ describe("AJ-E3007, AJ-E3011 the setup, start to end", () => {
       { ref: "app:cli:b", kind: "app" as const, label: "Codex · Personal", role: "reviewer" as const, level: null, reach: "later" as const },
     ];
     let draft: Draft = { ...draftOf(templateById("writer-reviewer"), "web"), members: apps };
-    const lead = render(<NewPoolLead draft={draft} onDraft={(next) => (draft = next)} sessions={[]} nameOf={(_, label) => label} />);
+    const lead = render(<NewPoolLead draft={draft} onDraft={(next) => (draft = next)} sessions={[]} nameOf={(_, label) => label} where="web" openNow={new Map([["app:cli:a", 0]])} />);
     const options = lead.getAllByTestId("new-pool-lead-option");
     expect(options.map((one) => one.dataset.kind)).toEqual(["next", "next", "none"]);
     expect(lead.getByTestId("new-pool-lead-none-open").textContent).toBe("No session is open in these projects now.");
     expect(lead.container.textContent).toContain("Claude Code · Work's next session");
+    // Round 2 (#3): it leads from its next session in web, and the pool's
+    // diagram can start one once it's made.
+    expect(lead.container.textContent).toContain("It leads from its next session in web. Once the pool is made, Start one now on its card starts that session.");
     fireEvent.click(options[0]!);
     expect(draft.leadNext).toBe("app:cli:a");
+    lead.rerender(<NewPoolLead draft={draft} onDraft={(next) => (draft = next)} sessions={[]} nameOf={(_, label) => label} where="web" openNow={new Map([["app:cli:a", 0]])} />);
+    expect(lead.getByTestId("new-pool-lead-sentence").textContent).toBe("Claude Code · Work leads from its next session in web (none is open now): it plans the work and hands out tasks.");
     lead.unmount();
-    const review = render(<NewPoolReview draft={draft} name="Web team" where="web" />);
-    expect(review.getByTestId("new-pool-review").textContent).toContain("Claude Code · Work's next session here leads: it plans the work and hands out tasks.");
+    const review = render(<NewPoolReview draft={draft} name="Web team" where="web" openNow={new Map([["app:cli:a", 0]])} />);
+    expect(review.getByTestId("new-pool-review").textContent).toContain("Claude Code · Work leads from its next session in web (none is open now): it plans the work and hands out tasks.");
+    // Round 2 (#2): one member, not a Lead beside a Member.
     expect(review.getAllByTestId("new-pool-review-role").map((line) => line.textContent)).toEqual([
-      "Claude Code · Work is a Member and may Work together, as the pool.",
+      "Claude Code · Work: its next session leads; its others join as Member and may Work together, as the pool.",
       "Codex · Personal is a Reviewer and may Work together, as the pool.",
     ]);
   });
@@ -363,7 +371,7 @@ describe("New pool's Who list is paged", () => {
 // The P8 walk (rc32, step 4): adding a Kimi Code App left the counters at
 // "0 full, 0 shell only", and its row said only "new ones join".
 describe("P8 an App member that works through its shell, in the wizard", () => {
-  it("its row says Shell only beside new ones join, and the counter counts it", () => {
+  it("its row says Shell only beside new ones join, and the side panel names it", () => {
     const why = "Its tool has no agent tools yet: it works through its shell, and can't read the pool, post or take a task.";
     const kimi: Candidate = { ref: "app:cli:kimi-1", kind: "app", label: "Kimi Code · Lab", detail: "none open now", group: "all", reach: "later", blocked: null, shell: why, lastMs: 0 };
     const candidates = { session: [], app: [kimi], account: [], tool: [], mac: [], everyone: [] } as Record<MemberKind, Candidate[]>;
@@ -375,6 +383,8 @@ describe("P8 an App member that works through its shell, in the wizard", () => {
     expect(within(row).getByTestId("shell-only").getAttribute("aria-description")).toBe(why);
     fireEvent.click(within(row).getByRole("checkbox"));
     rerender(<NewPoolWho draft={draft} onDraft={(next) => (draft = next)} candidates={candidates} onFix={() => undefined} />);
-    expect(screen.getByTestId("new-pool-side").textContent).toContain("1 shell only");
+    // Round 2 (#6, #7): in words, without the jargon counters.
+    expect(screen.getByTestId("new-pool-side-words").textContent).toBe("1 app");
+    expect(screen.getByTestId("new-pool-side-members").textContent).toContain("Kimi Code · Lab");
   });
 });

@@ -190,6 +190,7 @@ export function PageShell({
               aria-selected={tab === entry.id}
               aria-controls={`page-panel-${entry.id}`}
               tabIndex={tab === entry.id ? 0 : -1}
+              title={entry.hint}
               onClick={() => pick(entry.id)}
               onKeyDown={(event) => {
                 if (event.key !== "ArrowRight" && event.key !== "ArrowLeft") return;

@@ -14,7 +14,8 @@ import { POOL_RULES_CHANGED, poolJoin, poolLeave, poolSetLeadNext, poolSetTalk, 
 import { poolSetAccess, poolSetRole, type PoolInfo, type PoolRole } from "../../lib/ipc/pools";
 import { nextRule } from "../../lib/pool-templates";
 import type { LeadChoice } from "../../lib/new-pool";
-import { asOwnLevel, asRole, asTalkRule, joinSentence, nextSessionWords } from "../../lib/pool-words";
+import { STEP_WORDS, asOwnLevel, asRole, asTalkRule, joinSentence, nextSessionWords } from "../../lib/pool-words";
+import { cliFolderOf, startNextLead } from "../../lib/start-lead";
 import { setPools } from "../../lib/pools";
 import type { PoolRules } from "../../lib/pool-rules";
 import { sessionState } from "../../lib/rail-items";
@@ -43,6 +44,7 @@ export function PoolSetupSections({
   where,
   selection,
   onAddMembers,
+  leadDir = null,
 }: {
   pool: PoolInfo;
   rules: PoolRules;
@@ -53,6 +55,8 @@ export function PoolSetupSections({
   /** The canvas's selection: a step to scroll to (the checklist's). */
   selection: Selection;
   onAddMembers: () => void;
+  /** The pool's one project folder: "Start one now" opens New session there. */
+  leadDir?: string | null;
 }): JSX.Element {
   const [busy, setBusy] = useState(false);
   const focus = selection.kind === "pool" ? selection.focus : undefined;
@@ -73,7 +77,7 @@ export function PoolSetupSections({
       .finally(() => setBusy(false));
   };
   const memberRules = rules.rules?.members ?? [];
-  const apps = memberRules.filter((rule) => rule.kind === "app").map((rule) => ({ ref: rule.member, name: ruleLabel(rule) }));
+  const apps = memberRules.filter((rule) => rule.kind === "app").map((rule) => ({ ref: rule.member, name: ruleLabel(rule), startable: cliFolderOf(rule.member) !== null }));
   const leads = members.filter((member) => member.role === "lead");
   const open = members.filter((member) => sessionState(member.session).state !== "ended");
   const leadNext = rules.rules?.lead_next ?? null;
@@ -95,7 +99,7 @@ export function PoolSetupSections({
   const nextName = leadNext ? (apps.find((app) => app.ref === `app:${leadNext}`)?.name ?? "An App") : null;
   const holders = holdersOf([
     ...members.map((member) => ({ name: member.name, role: member.role })),
-    ...memberRules.filter((rule) => rule.kind !== "session" && rule.member !== "all").map((rule) => ({ name: ruleLabel(rule), role: rule.role })),
+    ...memberRules.filter((rule) => rule.kind !== "session" && rule.member !== "all").map((rule) => ({ name: rule.member === `app:${leadNext}` ? `${ruleLabel(rule)}'s other sessions` : ruleLabel(rule), role: rule.role })),
     ...(everyone ? [{ name: "new sessions", role: everyone.role }] : []),
     ...(nextName ? [{ name: nextSessionWords(nextName), role: "lead" }] : []),
   ]);
@@ -105,7 +109,7 @@ export function PoolSetupSections({
       <div id="pool-setup-who">
         <Section title="Who's in" testId="pool-setup-who">
           <p className="text-meta text-ink-2">
-            {members.length} {members.length === 1 ? "session" : "sessions"} on the canvas
+            {members.length} {members.length === 1 ? "session" : "sessions"} on the diagram
             {memberRules.some((rule) => rule.kind !== "session") ? ", and the Apps or groups whose new sessions join by themselves" : ""}.
           </p>
           <Button size="sm" variant="ghost" className="self-start" onClick={onAddMembers} data-testid="pool-setup-add">
@@ -115,8 +119,17 @@ export function PoolSetupSections({
       </div>
       <div id="pool-setup-lead">
         <Section title="Who leads" testId="pool-setup-lead">
-          <p className="text-meta text-ink-2">The lead plans and hands out the work.</p>
-          <LeadPicker sessions={open.map((member) => ({ ref: member.id, name: member.name, detail: sessionState(member.session).word }))} apps={apps} value={value} onChange={chooseLead} disabled={busy} testId="pool-lead" />
+          <p className="text-meta text-ink-2">{STEP_WORDS.lead.why}</p>
+          <LeadPicker
+            sessions={open.map((member) => ({ ref: member.id, name: member.name, detail: sessionState(member.session).word }))}
+            apps={apps}
+            value={value}
+            onChange={chooseLead}
+            disabled={busy}
+            where={where}
+            onStart={(app) => startNextLead(app, leadDir)}
+            testId="pool-lead"
+          />
         </Section>
       </div>
       <div id="pool-setup-everyone">
@@ -137,7 +150,7 @@ export function PoolSetupSections({
             {joinSentence(where, (everyone ? asRole(everyone.role) : null), everyone?.level ?? level)}
           </p>
           <RoleCards holders={holders} testId="pool-role-cards" />
-          <p className="text-meta text-muted">Change one member's role by clicking its card on the canvas.</p>
+          <p className="text-meta text-muted">Change one member's role by clicking its card on the diagram.</p>
         </Section>
       </div>
       <div id="pool-setup-talk">

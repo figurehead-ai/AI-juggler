@@ -3,16 +3,19 @@
  * in sentences — its name and where, who's in, who leads, how everyone
  * else joins, who may message whom, what they may do on their own and the
  * seal — then what each member can actually do here (full, shell only,
- * watched, or joins later), and the agent-tools consent where it applies
- * (§7). Make pool follows.
+ * watched, or joins later). Round 2 (#1): the team tools are a line here,
+ * "Team tools: off — they can't message yet · Turn on", so they're
+ * decided before Make pool. Make pool follows.
  */
 import type { JSX, ReactNode } from "react";
 
+import { Button } from "../../components/primitives";
 import { leadOf, type Draft, type Reach } from "../../lib/new-pool";
 import { effectiveRule, ruleOf, TALK_ROLES } from "../../lib/pool-templates";
-import { TALK_WORDS, joinSentence, leadSentence, levelSentence, memberSentence, roleCard, type SetupStep } from "../../lib/pool-words";
+import { TALK_WORDS, joinSentence, leadSentence, levelSentence, memberSentence, nextLeadsSentence, roleCard, type SetupStep } from "../../lib/pool-words";
 import { openNowWords } from "../../lib/pool-open-now";
-import { PoolToolsCard } from "../../pages/pool/setup/PoolToolsCard";
+import { TEAM_TOOLS, draftPlaces, teamToolsLine, turnOnTeamTools, type ToolsPlace } from "../../lib/team-tools";
+import { AgentAccessLink, useTeamTools, useToolsSave } from "../../pages/pool/setup/PoolToolsCard";
 import { StepHead } from "./StepHead";
 
 const CAN: Record<Reach, string> = {
@@ -44,7 +47,7 @@ export function talkSentence(draft: Pick<Draft, "talk">): string {
 export function whoSentence(draft: Pick<Draft, "members">, nameOf: (ref: string, label: string) => string = (_, label) => label): string {
   const named = draft.members.filter((member) => member.ref !== "all");
   const everyone = draft.members.some((member) => member.ref === "all");
-  if (named.length === 0) return everyone ? "Every session in these projects, as it starts." : "No one yet: add members now, or on the canvas later.";
+  if (named.length === 0) return everyone ? "Every session in these projects, as it starts." : "No one yet: add members now, or on the diagram later.";
   const joins = named.some((member) => member.reach === "later");
   const names = named.map((member) => nameOf(member.ref, member.label)).join(", ");
   if (everyone) return `${names}, and every other session in these projects as it starts.`;
@@ -57,6 +60,7 @@ export function NewPoolReview({
   where,
   nameOf = (_, label) => label,
   openNow,
+  projects = [],
   onChange,
 }: {
   draft: Draft;
@@ -68,6 +72,8 @@ export function NewPoolReview({
   /** Each member's open sessions here now (`openNowByMember`): a broad
    * member says them as its canvas card will (the rc27 P1 walk). */
   openNow?: ReadonlyMap<string, number>;
+  /** The projects by name (the team tools say which are off). */
+  projects?: readonly ToolsPlace[];
   /** Back to a step to change it (each sentence's Change). */
   onChange?: (step: SetupStep) => void;
 }): JSX.Element {
@@ -85,20 +91,21 @@ export function NewPoolReview({
           «{name}» works in {where}.
         </Sentence>
         <Sentence title="Who's in" onChange={change("who")}>{whoSentence(draft, nameOf)}</Sentence>
-        <Sentence title="Who leads" onChange={change("lead")}>{leadSentence(leadName, nextName)}</Sentence>
+        <Sentence title="Who leads" onChange={change("lead")}>{leadSentence(leadName, nextName, where, lead.kind === "next" ? openNow?.get(lead.app) : undefined)}</Sentence>
         <Sentence title="Everyone else" onChange={change("everyone")}>
           {joinSentence(where, everyone?.role ?? null, everyone?.level ?? draft.level)}
           {named
             .filter((member) => member.role !== "lead")
             .map((member) => (
               <span key={member.ref} className="block" data-testid="new-pool-review-role">
-                {memberSentence(nameOf(member.ref, member.label), member.role, member.level, draft.level)}
+                {member.ref === draft.leadNext ? nextLeadsSentence(nameOf(member.ref, member.label), member.role, member.level, draft.level) : memberSentence(nameOf(member.ref, member.label), member.role, member.level, draft.level)}
               </span>
             ))}
         </Sentence>
         <Sentence title="Who may message whom" onChange={change("talk")}>{talkSentence(draft)}</Sentence>
         <Sentence title="On their own" onChange={change("own")}>{levelSentence(draft.level)}</Sentence>
         <Sentence title="Kept apart" onChange={change("own")}>{draft.sealed ? "Sealed: its sessions are in no other pool, and nothing leaves it through AI Juggler." : "Not sealed: its sessions can be in other pools too."}</Sentence>
+        <TeamToolsLine places={draftPlaces(draft, projects)} />
       </dl>
       {named.length > 0 && (
         <section className="flex flex-col gap-1.5" aria-label="What each member can do here">
@@ -107,24 +114,60 @@ export function NewPoolReview({
             {named.map((member) => (
               <li key={member.ref} className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 rounded-lg bg-surface-2 px-3 py-2">
                 <span className="min-w-0 flex-1 truncate text-body font-medium text-ink">{nameOf(member.ref, member.label)}</span>
-                <span className="text-meta text-ink-2">{roleCard(member.role).label}</span>
-                <span className="text-meta text-muted">{member.reach === "later" && openNow ? openNowWords(openNow.get(member.ref) ?? 0) : CAN[member.reach]}</span>
+                <span className="text-meta text-ink-2">{member.ref === draft.leadNext ? "Its next session leads" : roleCard(member.role).label}</span>
+                <span className="text-meta text-muted">{member.reach === "later" && openNow ? openNowWords(openNow.get(member.ref) ?? 0, where) : CAN[member.reach]}</span>
               </li>
             ))}
           </ul>
         </section>
       )}
-      <PoolToolsCard testId="new-pool-tools" />
-      <p className="text-meta text-ink-2">You can change all of this on the pool's canvas.</p>
+      <p className="text-meta text-ink-2">You can change all of this on the pool's diagram.</p>
     </div>
   );
 }
 
-function Sentence({ title, children, onChange }: { title: string; children: ReactNode; onChange?: () => void }): JSX.Element {
+/** Round 2 (#1): the team tools as one of Review's sentences: on, or off
+ * (where) with what that means and Turn on, decided before Make pool. */
+function TeamToolsLine({ places }: { places: { projects: ToolsPlace[]; apps: ToolsPlace[] } }): JSX.Element | null {
+  const state = useTeamTools(places.projects, places.apps);
+  const { busy, error, run } = useToolsSave();
+  if (state === null) return null;
+  const off = state.kind !== "on" && state.kind !== "missing";
   return (
-    <div className="grid grid-cols-1 items-start gap-x-4 gap-y-0.5 rounded-lg px-1 py-1.5 sm:grid-cols-[11rem_1fr_auto]">
+    <Sentence
+      title="Team tools"
+      testId="new-pool-tools"
+      action={
+        off ? (
+          <Button size="sm" variant="accent" disabled={busy} onClick={() => run(() => turnOnTeamTools(state))} data-testid="new-pool-tools-on">
+            Turn on
+          </Button>
+        ) : undefined
+      }
+    >
+      <span className={off ? "font-medium" : ""} data-testid="new-pool-tools-line">
+        {teamToolsLine(state)}
+      </span>
+      {off && (
+        <span className="mt-0.5 block text-meta text-ink-2">
+          {TEAM_TOOLS.gives} {TEAM_TOOLS.cost} {TEAM_TOOLS.where} <AgentAccessLink />.
+        </span>
+      )}
+      {error && (
+        <span className="block text-meta text-danger" role="alert">
+          {error}
+        </span>
+      )}
+    </Sentence>
+  );
+}
+
+function Sentence({ title, children, onChange, action, testId }: { title: string; children: ReactNode; onChange?: () => void; action?: ReactNode; testId?: string }): JSX.Element {
+  return (
+    <div className="grid grid-cols-1 items-start gap-x-4 gap-y-0.5 rounded-lg px-1 py-1.5 sm:grid-cols-[11rem_1fr_auto]" data-testid={testId}>
       <dt className="section-label pt-0.5">{title}</dt>
       <dd className="text-body text-ink">{children}</dd>
+      {action && <dd>{action}</dd>}
       {onChange && (
         <dd>
           <button type="button" onClick={onChange} className="btn-ghost rounded-md px-1.5 py-0.5 text-meta outline-none focus-visible:ring-2 focus-visible:ring-accent/60" data-testid="new-pool-review-change">

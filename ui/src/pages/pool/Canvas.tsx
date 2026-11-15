@@ -297,7 +297,7 @@ export function Canvas({
     <div
       ref={viewport}
       role="region"
-      aria-label={`${pool.name}: canvas`}
+      aria-label={`${pool.name}: diagram`}
       aria-describedby="canvas-help"
       onKeyDown={onCanvasKey}
       onPointerDown={(event) => {
@@ -356,7 +356,7 @@ export function Canvas({
         <div className={"pointer-events-none absolute inset-0 flex items-center justify-center p-8" + (paletteOpen ? " pl-[17rem]" : "")} data-testid="canvas-empty">
           <div className="flex max-w-sm flex-col items-center gap-2 rounded-2xl border-2 border-dashed border-hairline bg-surface/80 px-6 py-8 text-center">
             <span className="text-section text-ink">No one in this pool yet</span>
-            <span className="text-body text-muted">Drag a session from the left onto the canvas, or press Add beside it.</span>
+            <span className="text-body text-muted">Drag a session from the left onto the diagram, or press Add beside it.</span>
           </div>
         </div>
       )}

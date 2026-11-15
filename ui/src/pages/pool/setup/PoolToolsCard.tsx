@@ -1,31 +1,28 @@
 /**
- * 0.4.6 (AJ-E3011 §7): the agent-tools consent where it applies — a
- * compact card in the setup (and in the canvas's checklist), not a wall of
- * text above the work. It says what turning it on gives these sessions,
- * its consequence with an example, that it is one switch for every pool
- * (Settings › Agent access), then Turn on and Not now; once "Not now", it
- * says what won't work until it's on, and still offers Turn on.
+ * 0.4.6 (AJ-E3011 §7, round 2 #1): the team tools (D-30's agent tools)
+ * where a pool needs them — a compact card in the pool's inspector, and
+ * Review's "Team tools" line. It says what they give, who they cover,
+ * what they cost and what happens without them, with an example, then
+ * that it's asked once and switched off per project or app in Settings ›
+ * Agent access (a link to that place). "Turn on team tools" and, while
+ * not asked yet, "Not now". Off for one of this pool's projects or Apps,
+ * it says where, and Turn on switches those back on. Gone once on.
  */
 import { useState, type JSX } from "react";
 
 import { Button } from "../../../components/primitives";
 import { errorText } from "../../../lib/bridge";
-import { agentBridgeAnswer, setAgentBridge, useAgentBridge } from "../../../lib/ipc/agent-bridge";
+import { agentBridgeAnswer, setAgentBridge, useAgentBridge, type AgentBridgeInfo } from "../../../lib/ipc/agent-bridge";
+import { AGENT_ACCESS, TEAM_TOOLS, openAgentAccess, teamTools, teamToolsLine, turnOnTeamTools, type TeamTools, type ToolsPlace } from "../../../lib/team-tools";
 
-export const TOOLS_WHAT = "Let AI Juggler give these sessions the pool's tools: messages, shared notes and tasks.";
-export const TOOLS_EXAMPLE = "Example: Claude can see that Codex is reviewing and send it a note.";
-export const TOOLS_SCOPE = "One switch for every pool, in Settings › Agent access. Sessions get the tools when they next start in AI Juggler.";
-export const TOOLS_OFF = "Until it's on, these sessions can't see each other, message or share tasks: the pool only groups them for you.";
-
-export function PoolToolsCard({ testId = "pool-tools-card" }: { testId?: string }): JSX.Element | null {
-  const info = useAgentBridge();
+/** Saves a change to the tools and redraws every view that reads them. */
+export function useToolsSave(): { busy: boolean; error: string | null; run: (work: () => Promise<AgentBridgeInfo>) => void } {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  if (info === null || (info.asked && info.on)) return null;
-  const answer = (on: boolean) => {
+  const run = (work: () => Promise<AgentBridgeInfo>) => {
     setBusy(true);
     setError(null);
-    void agentBridgeAnswer(on).then(
+    work().then(
       (next) => {
         setAgentBridge(next);
         setBusy(false);
@@ -36,29 +33,61 @@ export function PoolToolsCard({ testId = "pool-tools-card" }: { testId?: string 
       },
     );
   };
-  const declined = info.asked && !info.on;
+  return { busy, error, run };
+}
+
+/** "Settings › Agent access" as a link to that place. */
+export function AgentAccessLink(): JSX.Element {
   return (
-    <section aria-labelledby={`${testId}-title`} className="flex flex-col gap-1.5 rounded-xl bg-surface-2 px-3.5 py-3" data-testid={testId}>
+    <button type="button" onClick={openAgentAccess} className="rounded font-medium text-ink underline decoration-hairline underline-offset-2 outline-none hover:decoration-ink focus-visible:ring-1 focus-visible:ring-accent/60" data-testid="team-tools-settings">
+      {AGENT_ACCESS}
+    </button>
+  );
+}
+
+/** Where this pool's tools stand, from its projects and Apps. */
+export function useTeamTools(projects: readonly ToolsPlace[], apps: readonly ToolsPlace[]): TeamTools | null {
+  const info = useAgentBridge();
+  return info === null ? null : teamTools(info, projects, apps);
+}
+
+export function PoolToolsCard({ testId = "pool-tools-card", projects = [], apps = [] }: { testId?: string; projects?: readonly ToolsPlace[]; apps?: readonly ToolsPlace[] }): JSX.Element | null {
+  const state = useTeamTools(projects, apps);
+  const { busy, error, run } = useToolsSave();
+  if (state === null || state.kind === "on") return null;
+  return (
+    <section aria-labelledby={`${testId}-title`} className="flex flex-col gap-1.5 rounded-xl bg-surface-2 px-3.5 py-3" data-testid={testId} data-state={state.kind}>
       <h4 id={`${testId}-title`} className="text-body font-semibold text-ink">
-        {TOOLS_WHAT}
+        {TEAM_TOOLS.title}
       </h4>
-      <p className="text-meta text-ink-2">{TOOLS_EXAMPLE}</p>
-      <p className="text-meta text-muted">{TOOLS_SCOPE}</p>
-      {declined && (
-        <p className="text-meta text-ink-2" data-testid={`${testId}-off`}>
-          {TOOLS_OFF}
+      {state.kind !== "ask" && (
+        <p className="text-meta font-medium text-ink" data-testid={`${testId}-state`}>
+          {teamToolsLine(state)}
         </p>
       )}
-      <span className="mt-1 flex gap-2">
-        <Button size="sm" variant="accent" disabled={busy || !info.available} onClick={() => answer(true)} data-testid={`${testId}-on`}>
-          Turn on
-        </Button>
-        {!declined && (
-          <Button size="sm" variant="ghost" disabled={busy} onClick={() => answer(false)} data-testid={`${testId}-not-now`}>
-            Not now
+      <p className="text-meta text-ink-2">
+        {TEAM_TOOLS.gives} {TEAM_TOOLS.example}
+      </p>
+      <ul className="flex flex-col gap-0.5 text-meta text-ink-2" data-testid={`${testId}-facts`}>
+        <li>{TEAM_TOOLS.who}</li>
+        <li>{TEAM_TOOLS.cost}</li>
+        <li className="text-ink">{TEAM_TOOLS.without}</li>
+      </ul>
+      <p className="text-meta text-muted">
+        {TEAM_TOOLS.where} <AgentAccessLink />.
+      </p>
+      {state.kind !== "missing" && (
+        <span className="mt-1 flex flex-wrap gap-2">
+          <Button size="sm" variant="accent" disabled={busy} onClick={() => run(() => turnOnTeamTools(state))} data-testid={`${testId}-on`}>
+            {TEAM_TOOLS.button}
           </Button>
-        )}
-      </span>
+          {state.kind === "ask" && (
+            <Button size="sm" variant="ghost" disabled={busy} onClick={() => run(() => agentBridgeAnswer(false))} data-testid={`${testId}-not-now`}>
+              Not now
+            </Button>
+          )}
+        </span>
+      )}
       {error && (
         <p className="text-meta text-danger" role="alert">
           {error}

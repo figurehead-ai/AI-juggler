@@ -18,7 +18,8 @@ import { useConversations } from "../../lib/conversations";
 import { poolJoin, poolLeave, type PoolRuleInfo, type WatchedMemberInfo } from "../../lib/ipc/pool-model";
 import type { PoolInfo, PoolRole } from "../../lib/ipc/pools";
 import { CONTINUE_WATCHED, rolesFor, setPools } from "../../lib/pools";
-import { asRole, wakeWords } from "../../lib/pool-words";
+import { asRole, leadSentence, wakeWords } from "../../lib/pool-words";
+import { cliFolderOf } from "../../lib/start-lead";
 import { MemberOwnLevel } from "./setup/OwnLevelChoice";
 import { RolePicker } from "./setup/RoleCards";
 
@@ -30,7 +31,11 @@ export function InspectRule({
   onChanged,
   onGone,
   shared = null,
+  leadsNext = null,
 }: {
+  /** Round 2 (#2, #3): this App's next session leads — where, "Start one
+   * now" (New session on it there) and "Change who leads". */
+  leadsNext?: { where: string; onStart: (member: string) => void; onChange: () => void } | null;
   /** The tool and App all its sessions share (an App or Tool member):
    * its "Shell only" is theirs (the P8 walk). */
   shared?: { tool: string; account: string | null } | null;
@@ -85,19 +90,12 @@ export function InspectRule({
           </span>
         </div>
       )}
-      <div className="flex flex-col gap-1.5">
-        <span className="text-meta font-medium text-ink">Its role</span>
-        <RolePicker member={member} name={label} value={role} onChange={(next) => void run("change its role", () => poolJoin(pool.id, member, next, level))} disabled={busy} testId="inspect-rule-role" />
-        {!rolesFor(member).includes("lead") && (
-          <span className="text-meta text-ink-2" data-testid="inspect-rule-lead-hint">
-            {member.startsWith("app:") ? "Lead is one session: pick who leads in the pool's Who leads, or have this App's next session lead." : "Lead is one session: pick who leads in the pool's Who leads."}
-          </span>
-        )}
-      </div>
+      {leadsNext && <LeadsNext member={member} label={label} open={rule?.sessions} {...leadsNext} />}
+      <RoleSection member={member} label={label} role={role} leadsNext={leadsNext !== null} busy={busy} onRole={(next) => void run("change its role", () => poolJoin(pool.id, member, next, level))} />
       {!watched && (
         <div className="flex flex-col gap-1.5">
           <span className="text-meta font-medium text-ink">What its sessions may do on their own</span>
-          <MemberOwnLevel name={label} value={level} poolLevel={pool.access.level} disabled={busy} onChange={(next) => void run("change what its sessions may do", () => poolJoin(pool.id, member, role, next))} testId="inspect-rule-level" />
+          <MemberOwnLevel prefix="" name={label} value={level} poolLevel={pool.access.level} disabled={busy} onChange={(next) => void run("change what its sessions may do", () => poolJoin(pool.id, member, role, next))} testId="inspect-rule-level" />
           <span className="text-meta text-ink-2">Its own choice replaces the pool's for the sessions it brings in.</span>
           <span className="text-meta text-muted" data-testid="inspect-rule-wake">
             Messages: its sessions {wakeWords(level ?? pool.access.level, false, true)}.
@@ -121,6 +119,43 @@ export function InspectRule({
         >
           Take out of the pool
         </Button>
+      )}
+    </div>
+  );
+}
+
+/** Round 2 (#2, #3): this App leads from its next session in the pool's
+ * projects; "Start one now" opens New session on it there (a CLI App). */
+function LeadsNext({ member, label, open, where, onStart, onChange }: { member: string; label: string; open: number | undefined; where: string; onStart: (member: string) => void; onChange: () => void }): JSX.Element {
+  return (
+    <div className="flex flex-col gap-1.5" data-testid="inspect-rule-leads-next">
+      <span className="text-meta font-medium text-ink">Who leads</span>
+      <span className="text-meta text-ink-2">{leadSentence(null, label, where, open)}</span>
+      <span className="flex flex-wrap gap-2">
+        {cliFolderOf(member) && (
+          <Button size="sm" variant="accent" onClick={() => onStart(member)} data-testid="inspect-rule-start-lead">
+            Start one now
+          </Button>
+        )}
+        <Button size="sm" variant="ghost" onClick={onChange} data-testid="inspect-rule-change-lead">
+          Change who leads
+        </Button>
+      </span>
+    </div>
+  );
+}
+
+/** Its role ("Its other sessions join as" for an App whose next session
+ * leads), and why it can't lead where it can't. */
+function RoleSection({ member, label, role, leadsNext, busy, onRole }: { member: string; label: string; role: PoolRole; leadsNext: boolean; busy: boolean; onRole: (role: PoolRole) => void }): JSX.Element {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <span className="text-meta font-medium text-ink">{leadsNext ? "Its other sessions join as" : "Its role"}</span>
+      <RolePicker prefix="" member={member} name={label} value={role} onChange={onRole} disabled={busy} testId="inspect-rule-role" />
+      {!leadsNext && !rolesFor(member).includes("lead") && (
+        <span className="text-meta text-ink-2" data-testid="inspect-rule-lead-hint">
+          {member.startsWith("app:") ? "Lead is one session: pick who leads in the pool's Who leads, or have this App's next session lead." : "Lead is one session: pick who leads in the pool's Who leads."}
+        </span>
       )}
     </div>
   );

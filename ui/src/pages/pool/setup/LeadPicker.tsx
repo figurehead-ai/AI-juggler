@@ -6,10 +6,14 @@
  *   here leads (the pool's `lead_next`);
  * - "No lead for now", saying what a lead would add.
  * The setup's "Who leads" step and the canvas's inspector share it.
+ * Round 2 (#3): an App's row says it leads from its next session in the
+ * pool's projects; on a made pool, "Start one now" opens New session on
+ * that App there (the user starts it).
  */
 import type { JSX } from "react";
 
 import { ChoiceOption } from "../../../components/controls";
+import { Button } from "../../../components/primitives";
 import { SELECTED_FILL } from "../../../components/controls/selected";
 import type { LeadChoice } from "../../../lib/new-pool";
 import { LEAD_WOULD, nextSessionWords } from "../../../lib/pool-words";
@@ -25,6 +29,8 @@ export interface LeadApp {
   /** The App's member ref (`app:…`). */
   ref: string;
   name: string;
+  /** A session of it can start here (a CLI App, the pool made). */
+  startable?: boolean;
 }
 
 const same = (a: LeadChoice, b: LeadChoice) =>
@@ -36,6 +42,8 @@ export function LeadPicker({
   value,
   onChange,
   disabled = false,
+  where = "these projects",
+  onStart,
   testId = "lead-picker",
 }: {
   sessions: readonly LeadSession[];
@@ -43,8 +51,13 @@ export function LeadPicker({
   value: LeadChoice;
   onChange: (choice: LeadChoice) => void;
   disabled?: boolean;
+  /** The pool's projects in words ("web"). */
+  where?: string;
+  /** A made pool: starts the chosen App's session that will lead. */
+  onStart?: (app: string) => void;
   testId?: string;
 }): JSX.Element {
+  const starting = value.kind === "next" && onStart ? apps.find((app) => app.ref === value.app && app.startable) : undefined;
   const row = (choice: LeadChoice, title: string, detail: string, key: string, kind: string) => (
     <ChoiceOption
       key={key}
@@ -78,8 +91,18 @@ export function LeadPicker({
         <div className="flex flex-col gap-1">
           <span className="section-label">Next session</span>
           <div className="flex flex-col gap-0.5">
-            {apps.map((app) => row({ kind: "next", app: app.ref }, nextSessionWords(app.name), "Its next session in this pool leads. Until then the pool works without a lead.", app.ref, "next"))}
+            {apps.map((app) =>
+              row({ kind: "next", app: app.ref }, nextSessionWords(app.name), `It leads from its next session in ${where}.${onStart ? "" : " Once the pool is made, Start one now on its card starts that session."}`, app.ref, "next"),
+            )}
           </div>
+          {starting && (
+            <span className="flex flex-wrap items-center gap-2 px-3 pt-1 text-meta text-ink-2">
+              <Button size="sm" variant="accent" disabled={disabled} onClick={() => onStart?.(starting.ref)} data-testid={`${testId}-start`}>
+                Start one now
+              </Button>
+              New session on {starting.name} in {where}: it leads once you start it.
+            </span>
+          )}
         </div>
       )}
       <div className="flex flex-col gap-0.5">{row({ kind: "none" }, "No lead for now", LEAD_WOULD, "none", "none")}</div>

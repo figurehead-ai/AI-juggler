@@ -178,7 +178,7 @@ export function PoolHeader({
           label="Show the pool as"
           value={mode}
           segments={[
-            { value: "canvas", label: "Canvas", title: "Its members as nodes, who talks to whom as edges" },
+            { value: "canvas", label: "Diagram", title: "Who is in the pool, and who messages whom, as a diagram" },
             { value: "list", label: "List", title: "The same as rows, for the keyboard and screen readers" },
           ]}
           onChange={onMode}

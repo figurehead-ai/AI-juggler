@@ -157,7 +157,7 @@ export function PoolsScreen({ sessions, projects, accounts }: { sessions: Instan
   return (
     <Page
       title="Pools"
-      subtitle="Sessions that work together. Open one to watch it, answer it and change it on its canvas."
+      subtitle="Teams of your AI sessions. Open one to watch it, answer it and change it on its diagram."
       actions={
         <Button variant="primary" onClick={() => setWizard({ template: "blank", project: null })} data-testid="pools-new">
           <IconPlus width={15} height={15} aria-hidden="true" className="mr-1.5" />

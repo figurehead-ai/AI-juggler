@@ -20,6 +20,7 @@ import { poolSetScope } from "../lib/ipc/pool-model";
 import { CanvasTeach, hasWhoIsIn } from "./pool/CanvasTeach";
 import { PaletteMore } from "./pool/PaletteMore";
 import { RuleNodes } from "./pool/RuleNodes";
+import { startNextLead } from "../lib/start-lead";
 import { useMoreCandidates, useRuleLabel, useRuleTool } from "./pool/pool-page-reads";
 import { ScopeSheet } from "./pool/ScopeSheet";
 import { NewPool } from "../screens/pools/NewPool";
@@ -234,7 +235,7 @@ function PoolCanvasPage({ poolId, sessions, projects, accounts, now }: { poolId:
           pool, where "see each other" read as the opposite of sealing. */}
       {unplaced.length > 0 && (
         <p className="mx-4 mt-3 rounded-lg border border-warning/40 bg-warning-soft px-3 py-2 text-meta text-ink" data-testid="pool-unplaced-asks">
-          {unplaced.length === 1 ? "An agent that isn't on the canvas asks you something" : `${unplaced.length} agents that aren't on the canvas ask you something`}: answer it in Needs you, or in the List view.
+          {unplaced.length === 1 ? "An agent that isn't on the diagram asks you something" : `${unplaced.length} agents that aren't on the diagram ask you something`}: answer it in Needs you, or in the List view.
         </p>
       )}
       <div className="flex min-h-0 flex-1">
@@ -276,7 +277,9 @@ function PoolCanvasPage({ poolId, sessions, projects, accounts, now }: { poolId:
                   onSelect={(next) => select(next, true)}
                   placeOf={placeOf}
                   lead={setup.leadCard}
-                  leadNext={leadNextName}
+                  leadNext={setup.leadNext}
+                  where={where}
+                  onStartLead={(member) => startNextLead(member, setup.leadDir)}
                   poolLevel={pool.access.level}
                 />
               )}
@@ -343,8 +346,9 @@ function PoolCanvasPage({ poolId, sessions, projects, accounts, now }: { poolId:
           ruleTool={ruleTool}
           where={where}
           needs={needs}
-          setup={{ rows: setup.rows, onOpen: setup.open }}
+          setup={{ rows: setup.rows, onOpen: setup.open, tools: setup.tools }}
           leadNextName={leadNextName}
+          leadDir={setup.leadDir}
           setupSections={
             <PoolSetupSections
               pool={pool}
@@ -354,6 +358,7 @@ function PoolCanvasPage({ poolId, sessions, projects, accounts, now }: { poolId:
               where={where}
               selection={selection}
               onAddMembers={() => setup.open("who")}
+              leadDir={setup.leadDir}
             />
           }
           onDeleted={() => {

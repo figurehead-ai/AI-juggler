@@ -3,13 +3,16 @@
  * [Member ▾]" — the old "Everyone in this pool's projects" row as a
  * labelled control that reads back as a sentence — then the four roles as
  * cards, and each member's role and what it may do on its own ("Same as
- * the pool" first), each row read back as a sentence.
+ * the pool" first), each row read back as a sentence. Round 2 (#2): an
+ * App whose next session leads is one row: "Its next session leads · its
+ * others join as [Member ▾]"; the roles are a plain reference (#9), and
+ * each picker has its label ("Role:", "On its own:", #10).
  */
 import type { JSX } from "react";
 
 import { EVERYONE, type Draft, type DraftMember } from "../../lib/new-pool";
 import type { PoolRole } from "../../lib/ipc/pools";
-import { joinSentence, memberSentence, nextSessionWords } from "../../lib/pool-words";
+import { joinSentence, memberSentence, nextLeadsLine, nextLeadsSentence, nextSessionWords } from "../../lib/pool-words";
 import { JoinAs } from "../../pages/pool/setup/JoinAs";
 import { MemberOwnLevel } from "../../pages/pool/setup/OwnLevelChoice";
 import { RoleCards, RolePicker, holdersOf } from "../../pages/pool/setup/RoleCards";
@@ -25,7 +28,7 @@ export function NewPoolEveryone({ draft, onDraft, where, nameOf }: { draft: Draf
   };
   const named = draft.members.filter((member) => member.ref !== "all");
   const holders = holdersOf([
-    ...named.map((member) => ({ name: nameOf(member.ref, member.label), role: member.role })),
+    ...named.map((member) => ({ name: member.ref === draft.leadNext ? `${nameOf(member.ref, member.label)}'s other sessions` : nameOf(member.ref, member.label), role: member.role })),
     ...(everyone ? [{ name: "new sessions", role: everyone.role }] : []),
     ...(draft.leadNext ? [{ name: nextSessionWords(nameOf(draft.leadNext, draft.members.find((member) => member.ref === draft.leadNext)?.label ?? "An App")), role: "lead" }] : []),
   ]);
@@ -39,7 +42,7 @@ export function NewPoolEveryone({ draft, onDraft, where, nameOf }: { draft: Draf
         </p>
       </div>
       <div className="flex flex-col gap-2">
-        <span className="section-label">The roles</span>
+        <span className="section-label">What each role does</span>
         <RoleCards holders={holders} testId="new-pool-role-cards" />
       </div>
       {named.length > 0 && (
@@ -48,15 +51,30 @@ export function NewPoolEveryone({ draft, onDraft, where, nameOf }: { draft: Draf
           <ul className="flex flex-col gap-1" data-testid="new-pool-roles">
             {named.map((member) => {
               const name = nameOf(member.ref, member.label);
+              const leadsNext = member.ref === draft.leadNext;
               return (
-                <li key={member.ref} className="flex flex-col gap-1.5 rounded-xl bg-surface-2 px-3 py-2.5" data-testid="new-pool-member-row">
+                <li key={member.ref} className="flex flex-col gap-1.5 rounded-xl bg-surface-2 px-3 py-2.5" data-testid="new-pool-member-row" data-leads-next={leadsNext || undefined}>
                   <span className="flex flex-wrap items-center gap-2">
-                    <span className="min-w-0 flex-1 text-body font-medium text-ink">{name}</span>
-                    <RolePicker member={member.kind} name={name} value={member.role} onChange={(role) => setMember(member.ref, { role })} testId="new-pool-member-role" />
+                    <span className="flex min-w-0 flex-1 flex-col">
+                      <span className="text-body font-medium text-ink">{name}</span>
+                      {leadsNext && (
+                        <span className="text-meta text-ink-2" data-testid="new-pool-member-leads-next">
+                          {nextLeadsLine(member.role)}
+                        </span>
+                      )}
+                    </span>
+                    <RolePicker
+                      member={member.kind}
+                      name={name}
+                      prefix={leadsNext ? "Its others:" : "Role:"}
+                      value={member.role}
+                      onChange={(role) => setMember(member.ref, { role })}
+                      testId="new-pool-member-role"
+                    />
                     <MemberOwnLevel name={name} value={member.level} poolLevel={draft.level} onChange={(level) => setMember(member.ref, { level })} testId="new-pool-member-level" />
                   </span>
                   <span className="text-meta text-ink-2" data-testid="new-pool-member-sentence">
-                    {memberSentence(name, member.role, member.level, draft.level)}
+                    {leadsNext ? nextLeadsSentence(name, member.role, member.level, draft.level) : memberSentence(name, member.role, member.level, draft.level)}
                   </span>
                 </li>
               );

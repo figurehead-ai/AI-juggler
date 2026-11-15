@@ -94,7 +94,7 @@ export function Palette({
             </p>
           ) : (
             <>
-              <p className="px-1 text-label text-muted">Drag one onto the canvas, or Add.</p>
+              <p className="px-1 text-label text-muted">Drag one onto the diagram, or Add.</p>
               {sessions.length > SEARCH_FROM && (
                 <input autoCorrect="off" autoCapitalize="off" spellCheck={false}
                   type="search"

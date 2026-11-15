@@ -65,7 +65,7 @@ export function RelatedPools({ pools, teach, testId = "related-pools", inSection
             <span className="flex min-w-0 flex-1 flex-col">
               <span className="truncate text-body font-medium text-ink">{pool.name}</span>
               <span className="truncate text-meta text-muted">
-                {pool.kind === "user" ? "Your pool" : "Its project's own pool"} · agents: {levelLabel(pool.access.level)}
+                {pool.kind === "user" ? "Your pool" : "Its project's own pool"} · on their own: {levelLabel(pool.access.level)}
               </span>
             </span>
             <span className="shrink-0 text-meta tabular-nums text-ink-2">

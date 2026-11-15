@@ -10,7 +10,7 @@ import { cleanup, fireEvent, render, screen, within } from "@testing-library/rea
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { pick } from "../../../test/pick";
-import { resetPreviewAgentBridge } from "../../../lib/ipc/agent-bridge";
+import { agentBridgeGet, resetPreviewAgentBridge } from "../../../lib/ipc/agent-bridge";
 import { joinSentence, leadSentence, levelSentence, memberSentence, OWN_LEVELS, roleCard, wakeWords, whereWords } from "../../../lib/pool-words";
 import { draftOf } from "../../../lib/new-pool";
 import { effectiveRule, nextRule, ruleOf, templateById } from "../../../lib/pool-templates";
@@ -48,7 +48,10 @@ describe("the sentences each choice reads back as", () => {
 
   it("who leads, and what a pool without one lacks", () => {
     expect(leadSentence("Planner", null)).toBe("Planner leads: it plans the work and hands out tasks.");
-    expect(leadSentence(null, "Claude Code · Work")).toBe("Claude Code · Work's next session here leads: it plans the work and hands out tasks.");
+    expect(leadSentence(null, "Claude Code · Work")).toBe("Claude Code · Work leads from its next session in these projects: it plans the work and hands out tasks.");
+    // Round 2 (#3): where, and that none is open yet.
+    expect(leadSentence(null, "Claude Code · Work", "web", 0)).toBe("Claude Code · Work leads from its next session in web (none is open now): it plans the work and hands out tasks.");
+    expect(leadSentence(null, "Claude Code · Work", "web", 2)).toBe("Claude Code · Work leads from its next session in web: it plans the work and hands out tasks.");
     expect(leadSentence(null, null)).toMatch(/^No lead for now: nobody splits the work into tasks/);
   });
 
@@ -101,9 +104,14 @@ describe("the controls", () => {
     const change = vi.fn();
     const { rerender } = render(<OwnLevelChoice value="work_together" onChange={change} />);
     expect(screen.getByTestId("own-level").textContent).toContain("What these sessions may do on their own");
-    expect(screen.getByRole("radiogroup", { name: "What these sessions may do on their own" })).toBeTruthy();
+    expect(screen.getByRole("group", { name: "What these sessions may do on their own" })).toBeTruthy();
+    expect(screen.getAllByRole("radio")).toHaveLength(3);
+    // Round 2 (#4): what it covers, and what stays with each app.
+    expect(screen.getByTestId("own-level-scope").textContent).toBe("This is how they work together through AI Juggler. What each may change in your files stays with its own app's settings.");
     expect(screen.getByTestId("own-level-line").textContent).toBe(OWN_LEVELS[1]!.line);
     expect(screen.getByTestId("own-level-example").textContent).toMatch(/^Example: /);
+    // Round 2 (#5): waking's example shows at once, not behind a fold.
+    expect(screen.getByTestId("own-level-example-full").textContent).toBe("Example: Codex finishes a review; its note wakes Claude's idle session to carry on, without you. Each wake uses a turn on your subscription.");
     fireEvent.click(screen.getByTestId("own-level-choice-full"));
     expect(change).toHaveBeenCalledWith("full");
     rerender(<OwnLevelChoice value="full" onChange={change} />);
@@ -140,7 +148,7 @@ describe("the controls", () => {
     fireEvent.click(cell("lead>member"));
     expect(cycle).toHaveBeenCalledWith("lead", "member");
     expect(screen.getByTestId("talk-table-above").textContent).toContain("Ask first waits for your OK in Needs you");
-    expect(screen.getByTestId("talk-table-below").textContent).toContain("click the line between them on the canvas");
+    expect(screen.getByTestId("talk-table-below").textContent).toContain("click the line between them on the diagram");
   });
 
   it("the lead picker: sessions open now, each App's next session, then no lead for now", () => {
@@ -165,17 +173,46 @@ describe("the controls", () => {
     expect(none instanceof HTMLInputElement && none.checked).toBe(true);
   });
 
-  it("the agent tools' consent: what it gives, an example, one switch for every pool, and Not now says what won't work", async () => {
+  it("the team tools (round 2, #1, D-30): what they give, who, the cost, without them, asked once and off per project or app", async () => {
     render(<PoolToolsCard />);
     const card = await screen.findByTestId("pool-tools-card");
-    expect(card.textContent).toContain("Let AI Juggler give these sessions the pool's tools: messages, shared notes and tasks.");
-    expect(card.textContent).toContain("Example: Claude can see that Codex is reviewing and send it a note.");
-    expect(card.textContent).toContain("One switch for every pool, in Settings › Agent access.");
+    expect(card.querySelector("h4")?.textContent).toBe("Let your assistants work as a team");
+    for (const words of [
+      "They can message each other and share notes and tasks.",
+      "Example: Claude sees that Codex is reviewing and sends it a note.",
+      "never a session outside a pool",
+      "Nothing extra: a session uses its own turns only when it acts.",
+      "Without it, the pool is set up, but nobody in it can message.",
+      "Asked once. After that you can switch it off for a project or an app in Settings › Agent access.",
+    ])
+      expect(card.textContent).toContain(words);
+    // Never "one switch for every pool" (run 2 left it off for that).
+    expect(card.textContent).not.toMatch(/one switch|every pool/i);
+    expect(screen.getByTestId("pool-tools-card-on").textContent).toBe("Turn on team tools");
+    // The link opens Settings › Agent access at its agent tools.
+    const opened: string[] = [];
+    const listen = (event: Event) => opened.push(event instanceof CustomEvent ? JSON.stringify(event.detail) : "");
+    window.addEventListener("aij:open-settings", listen);
+    fireEvent.click(screen.getByTestId("team-tools-settings"));
+    window.removeEventListener("aij:open-settings", listen);
+    expect(opened).toEqual([JSON.stringify({ section: "agent-tools" })]);
     fireEvent.click(screen.getByTestId("pool-tools-card-not-now"));
-    expect((await screen.findByTestId("pool-tools-card-off")).textContent).toContain("can't see each other, message or share tasks");
-    expect(screen.getByTestId("pool-tools-card-on")).toBeTruthy();
+    expect((await screen.findByTestId("pool-tools-card-state")).textContent).toBe("Off: they can't message yet.");
     fireEvent.click(screen.getByTestId("pool-tools-card-on"));
     await vi.waitFor(() => expect(screen.queryByTestId("pool-tools-card")).toBeNull());
+  });
+
+  it("the team tools off for one of the pool's projects: the card says where, and Turn on switches that project back on", async () => {
+    Object.assign(window, { __AIJ_AGENT_BRIDGE__: { asked: true, on: true, off_projects: ["p-web"] } });
+    resetPreviewAgentBridge();
+    render(<PoolToolsCard projects={[{ id: "p-web", name: "web" }, { id: "p-docs", name: "docs" }]} />);
+    expect((await screen.findByTestId("pool-tools-card-state")).textContent).toBe("Off for web: they can't message there.");
+    expect(screen.queryByTestId("pool-tools-card-not-now")).toBeNull();
+    fireEvent.click(screen.getByTestId("pool-tools-card-on"));
+    await vi.waitFor(() => expect(screen.queryByTestId("pool-tools-card")).toBeNull());
+    // web's own switch is back on; nothing else changed.
+    expect(await agentBridgeGet()).toMatchObject({ asked: true, on: true, off_projects: [] });
+    Object.assign(window, { __AIJ_AGENT_BRIDGE__: undefined });
   });
 });
 

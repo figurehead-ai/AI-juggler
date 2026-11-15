@@ -11,6 +11,8 @@ import { ruleColumnRoom } from "./RuleNodes";
 import type { PoolInfo } from "../../lib/ipc/pools";
 import { markSeen, seenSteps, setupRows, SETUP_SEEN, type SetupRow } from "../../lib/pool-setup";
 import { everyoneLabel, whereWords, type SETUP_STEPS } from "../../lib/pool-words";
+import { cliFolderOf, leadFolder } from "../../lib/start-lead";
+import type { ToolsPlace } from "../../lib/team-tools";
 
 export type SetupStepId = (typeof SETUP_STEPS)[number];
 
@@ -30,7 +32,7 @@ export function everyoneOf(pool: Pick<PoolInfo, "scope_all" | "scope">, projects
 
 export function usePoolSetup(input: {
   pool: Pick<PoolInfo, "id" | "kind" | "scope_all" | "scope">;
-  projects: readonly { id: string; name: string }[];
+  projects: readonly { id: string; name: string; root?: string }[];
   /** It has who's in it. */
   whoIn: boolean;
   /** Its member rules, and the roles of the sessions on its canvas. */
@@ -47,7 +49,20 @@ export function usePoolSetup(input: {
   onWho: () => void;
   /** The other steps: the pool's section in the inspector. */
   onStep: (step: SetupStepId) => void;
-}): { rows: SetupRow[]; open: (step: SetupStepId) => void; where: string; leadCard: boolean; leadNextName: string | null; room: number } {
+}): {
+  rows: SetupRow[];
+  open: (step: SetupStepId) => void;
+  where: string;
+  leadCard: boolean;
+  leadNextName: string | null;
+  /** The App whose next session leads, by member ref and name. */
+  leadNext: { ref: string; name: string } | null;
+  /** The pool's one project folder ("Start one now" opens there). */
+  leadDir: string | null;
+  /** Its projects and CLI Apps, where the team tools are switched. */
+  tools: { projects: ToolsPlace[]; apps: ToolsPlace[] };
+  room: number;
+} {
   const { pool } = input;
   const [seen, setSeen] = useState(() => seenSteps(pool.id));
   useEffect(() => {
@@ -76,6 +91,15 @@ export function usePoolSetup(input: {
     where: poolWhere(pool, input.projects),
     leadCard,
     leadNextName: nextRule ? input.ruleLabel(nextRule) : null,
+    leadNext: nextRule ? { ref: nextRule.member, name: input.ruleLabel(nextRule) } : null,
+    leadDir: leadFolder(pool, input.projects),
+    tools: {
+      projects: pool.scope_all ? [] : input.projects.filter((one) => pool.scope.includes(one.id)).map((one) => ({ id: one.id, name: one.name })),
+      apps: input.rules.flatMap((rule) => {
+        const folder = cliFolderOf(rule.member);
+        return folder ? [{ id: folder, name: input.ruleLabel(rule) }] : [];
+      }),
+    },
     room: ruleColumnRoom(input.rules, input.watched, leadCard),
   };
 }

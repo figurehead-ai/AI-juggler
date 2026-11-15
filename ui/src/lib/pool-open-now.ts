@@ -66,8 +66,10 @@ export function openNowByMember(draft: Pick<Draft, "every" | "projects" | "membe
   return counts;
 }
 
-/** A broad member's open sessions now, as Review and its canvas card say
- * it: "1 open now · new ones join", "none open now · new ones join". */
-export function openNowWords(count: number): string {
-  return `${count > 0 ? `${count} open now` : "none open now"} · new ones join`;
+/** A broad member's open sessions now, as Review and its diagram card say
+ * it: "1 open now · new ones in web join", "No session open yet · new ones
+ * in web join" (round 2, #15: "none open now" read as broken). */
+export function openNowWords(count: number, where?: string): string {
+  const joins = where ? `new ones in ${where} join` : "new ones join";
+  return `${count > 0 ? `${count} open now` : "No session open yet"} · ${joins}`;
 }

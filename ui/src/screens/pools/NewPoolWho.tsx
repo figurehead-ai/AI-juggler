@@ -7,18 +7,22 @@
  *   a line what adding one brings. Open now first, then Recent, then All;
  *   search past 8. A row that can't join says why and offers the step
  *   that would let it in.
- * - The side panel counts what each choice brings, what joins later, and
- *   what each member can do here.
+ * - The side panel says who's in, in words: "2 apps, and every new
+ *   session in web", each by name, "Everyone in web" saying what it is
+ *   (round 2, #6; the count no longer adds it silently). "Can act in the
+ *   pool: full / shell only / watched" isn't shown here (#7: jargon).
+ * - Round 2 (#8): one line above the kinds says what adding brings; Apps
+ *   and Sessions first, the rarer kinds under More.
  * - Calm (D-117): surface tone, no row dividers; colour only for what
  *   needs you.
  */
 import { useMemo, useState, type JSX } from "react";
 
 import { Button } from "../../components/primitives";
-import { Segmented } from "../../components/controls";
+import { Picker, Segmented } from "../../components/controls";
 import { ShellOnlyChip } from "../../components/ShellOnly";
 import { MEMBER_KINDS, type MemberKind } from "../../lib/ipc/pool-model";
-import { nextRole, REACH_WORDS, type Candidate, type Draft, type DraftMember, type Reach } from "../../lib/new-pool";
+import { nextRole, REACH_WORDS, type Candidate, type Draft, type DraftMember } from "../../lib/new-pool";
 import { MACHINE_WORD, MACHINES_WORD } from "../../lib/machine-words";
 import { templateById } from "../../lib/pool-templates";
 import { StepHead } from "./StepHead";
@@ -49,8 +53,32 @@ const KIND_LINES: Record<MemberKind, string> = {
   everyone: "Everyone: every session in these projects joins, now and later.",
 };
 
-/** The kinds in the order a newcomer reaches for them. */
+/** The kinds in the order a newcomer reaches for them: Apps and Sessions,
+ * the rest under More. */
 const KIND_ORDER: readonly MemberKind[] = ["app", "session", "account", "tool", "mac", "everyone"];
+const MORE_KINDS: readonly MemberKind[] = ["account", "tool", "mac", "everyone"];
+const isMore = (kind: MemberKind) => MORE_KINDS.includes(kind);
+
+/** One of a kind and many, for the side panel's sentence. */
+const KIND_COUNT: Record<MemberKind, [string, string]> = {
+  app: ["app", "apps"],
+  session: ["session", "sessions"],
+  account: ["account", "accounts"],
+  tool: ["tool", "tools"],
+  mac: [MACHINE_WORD, MACHINES_WORD],
+  everyone: ["", ""],
+};
+
+/** Who's in, in words: "2 apps, and every new session in web". */
+export function whoInWords(members: readonly Pick<DraftMember, "ref" | "kind">[], where: string): string {
+  const parts = KIND_ORDER.filter((kind) => kind !== "everyone")
+    .map((kind) => [kind, members.filter((member) => member.ref !== "all" && member.kind === kind).length] as const)
+    .filter(([, count]) => count > 0)
+    .map(([kind, count]) => `${count} ${KIND_COUNT[kind][count === 1 ? 0 : 1]}`);
+  const everyone = members.some((member) => member.ref === "all");
+  if (!everyone) return parts.length > 0 ? parts.join(", ") : "No one yet";
+  return parts.length > 0 ? `${parts.join(", ")}, and every new session in ${where}` : `Every new session in ${where}`;
+}
 
 const GROUPS: { id: Candidate["group"]; label: string }[] = [
   { id: "open", label: "Open now" },
@@ -64,6 +92,7 @@ export function NewPoolWho({
   candidates,
   onFix,
   nameOf = (_, label) => label,
+  where = "these projects",
 }: {
   draft: Draft;
   onDraft: (next: Draft) => void;
@@ -71,6 +100,8 @@ export function NewPoolWho({
   onFix: (candidate: Candidate) => void;
   /** A member's name on screen (everyone by its scope). */
   nameOf?: (ref: string, label: string) => string;
+  /** Its projects in words ("web"). */
+  where?: string;
 }): JSX.Element {
   const [kind, setKind] = useState<MemberKind>(() => {
     const first = templateById(draft.template).kinds[0] ?? "session";
@@ -91,32 +122,50 @@ export function NewPoolWho({
       onDraft({ ...draft, members: [...draft.members, member] });
     }
   };
-  const broad = draft.members.filter((member) => member.reach === "later");
-  // An App or Tool whose sessions all work through their shell counts
-  // there too (the P8 walk: a Kimi Code App left "0 shell only").
-  const count = (reach: Reach) => draft.members.filter((member) => member.reach === reach || (reach === "shell" && member.reach === "later" && member.shell)).length;
+  const pickKind = (value: MemberKind) => {
+    setKind(value);
+    setQuery("");
+    setMore({});
+  };
+  const named = draft.members.filter((member) => member.ref !== "all");
+  const everyone = draft.members.find((member) => member.ref === "all");
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1.6fr)_minmax(240px,1fr)]" data-testid="new-pool-step-who">
       <div className="flex min-w-0 flex-col gap-4">
         <StepHead step="who" />
         <section className="flex flex-col gap-2" aria-label="Who's in">
-          <span className="text-meta font-medium text-ink" id="new-pool-kind-label">
-            Add Apps, sessions open now, or a wider group
+          <span className="text-meta font-medium text-ink" id="new-pool-kind-label" data-testid="new-pool-kind-label">
+            Add whole apps — every session they start here joins — or single sessions open now
           </span>
-          <Segmented
-            calm
-            wrap
-            label="Kind of member"
-            value={kind}
-            segments={KIND_ORDER.map((one) => ({ value: one, label: one === "everyone" ? KIND_WORDS[one] : `${KIND_WORDS[one]} ${candidates[one].length}` }))}
-            onChange={(value) => {
-              setKind(value);
-              setQuery("");
-              setMore({});
-            }}
-            testId="new-pool-kind"
-            className="self-start"
-          />
+          <span className="flex flex-wrap items-center gap-2">
+            <Segmented<MemberKind | "more">
+              calm
+              wrap
+              label="Kind of member"
+              value={isMore(kind) ? "more" : kind}
+              segments={[
+                { value: "app", label: `${KIND_WORDS.app} ${candidates.app.length}` },
+                { value: "session", label: `${KIND_WORDS.session} ${candidates.session.length}` },
+                { value: "more", label: "More", title: "Accounts, tools, Macs, or everyone in these projects" },
+              ]}
+              onChange={(value) => pickKind(value === "more" ? (isMore(kind) ? kind : "account") : value)}
+              testId="new-pool-kind"
+              className="self-start"
+            />
+            {isMore(kind) && (
+              <Picker
+                choice
+                size="sm"
+                ariaLabel="Which kind"
+                heading="Add a wider group"
+                prefix="Kind:"
+                value={kind}
+                options={MORE_KINDS.map((one) => ({ value: one, label: one === "everyone" ? KIND_WORDS[one] : `${KIND_WORDS[one]} ${candidates[one].length}`, hint: KIND_LINES[one] }))}
+                onChange={pickKind}
+                testId="new-pool-kind-picker"
+              />
+            )}
+          </span>
           <p className="text-meta text-ink-2" data-testid="new-pool-kind-line">
             {KIND_LINES[kind]}
           </p>
@@ -168,30 +217,27 @@ export function NewPoolWho({
         </section>
       </div>
 
-      <aside className="flex flex-col gap-3 self-start rounded-xl bg-surface-2 p-3" aria-label="In this pool" data-testid="new-pool-side">
-        <span className="text-body font-semibold text-ink">
-          In this pool <span className="text-meta font-medium text-muted">{draft.members.length}</span>
-        </span>
-        <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-meta">
-          <dt className="text-muted">Members</dt>
-          <dd className="text-ink">{draft.members.length > 0 ? draft.members.map((member) => nameOf(member.ref, member.label)).join(", ") : "none yet"}</dd>
-          <dt className="text-muted">Joins later</dt>
-          <dd className="text-ink">
-            {broad.some((member) => member.ref === "all")
-              ? "every new session in these projects"
-              : broad.length > 0
-                ? `new sessions of ${broad.map((member) => nameOf(member.ref, member.label)).join(", ")}`
-                : `nothing (no App, Account, Tool or ${MACHINE_WORD} chosen)`}
-          </dd>
-        </dl>
-        <div className="flex flex-col gap-1">
-          <span className="section-label">Can act in the pool</span>
-          <span className="flex flex-wrap gap-x-3 gap-y-1 text-meta text-ink-2">
-            <span>{count("full")} full</span>
-            <span>{count("shell")} shell only</span>
-            <span>{count("watched")} watched</span>
-          </span>
-        </div>
+      <aside className="flex flex-col gap-2 self-start rounded-xl bg-surface-2 p-3" aria-label="In this pool" data-testid="new-pool-side">
+        <span className="text-body font-semibold text-ink">In this pool</span>
+        <p className="text-meta text-ink" data-testid="new-pool-side-words">
+          {whoInWords(draft.members, where)}
+        </p>
+        {(named.length > 0 || everyone) && (
+          <ul className="flex flex-col gap-1.5 text-meta" data-testid="new-pool-side-members">
+            {named.map((member) => (
+              <li key={member.ref} className="flex items-baseline gap-2">
+                <span className="min-w-0 flex-1 text-ink">{nameOf(member.ref, member.label)}</span>
+                <span className="shrink-0 text-muted">{KIND_WORDS[member.kind].replace(/s$/, "")}</span>
+              </li>
+            ))}
+            {everyone && (
+              <li className="flex flex-col" data-testid="new-pool-side-everyone">
+                <span className="text-ink">{nameOf(everyone.ref, everyone.label)}</span>
+                <span className="text-muted">Every new session in {where} joins by itself, now and later.</span>
+              </li>
+            )}
+          </ul>
+        )}
       </aside>
     </div>
   );

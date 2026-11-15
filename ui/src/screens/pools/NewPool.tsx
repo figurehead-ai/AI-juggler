@@ -285,12 +285,12 @@ export function NewPool({
           <div className="mx-auto flex max-w-5xl flex-col gap-4">
             {current === "template" && <NewPoolTemplate chosen={draft.template} onChoose={choose} first={firstPool} />}
             {current === "where" && <NewPoolWhere draft={draft} onDraft={setDraft} projects={stepCandidates.projects} nameFixed={!!into} suggestedName={suggestedName} />}
-            {current === "who" && <NewPoolWho draft={draft} onDraft={setDraft} candidates={candidates} onFix={fix} nameOf={memberName} />}
-            {current === "lead" && <NewPoolLead draft={draft} onDraft={setDraft} sessions={candidates.session} nameOf={memberName} />}
+            {current === "who" && <NewPoolWho draft={draft} onDraft={setDraft} candidates={candidates} onFix={fix} nameOf={memberName} where={where} />}
+            {current === "lead" && <NewPoolLead draft={draft} onDraft={setDraft} sessions={candidates.session} nameOf={memberName} where={where} openNow={openNow} />}
             {current === "everyone" && <NewPoolEveryone draft={draft} onDraft={setDraft} where={where} nameOf={memberName} />}
             {current === "talk" && <NewPoolTalk draft={draft} onDraft={setDraft} />}
             {current === "own" && <NewPoolOwn draft={draft} onDraft={setDraft} where={where} />}
-            {current === "review" && <NewPoolReview draft={draft} name={name} where={where} nameOf={memberName} openNow={openNow} onChange={(to) => go(STEPS.indexOf(to))} />}
+            {current === "review" && <NewPoolReview draft={draft} name={name} where={where} nameOf={memberName} openNow={openNow} projects={projects} onChange={(to) => go(STEPS.indexOf(to))} />}
           </div>
         </main>
       </div>

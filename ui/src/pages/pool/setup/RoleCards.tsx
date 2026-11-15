@@ -1,8 +1,10 @@
 /**
- * 0.4.6 (AJ-E3011 §4): the four roles as small cards, each with its icon,
- * one line on what it may do and who holds it now; and the role picker a
- * member gets, with the same lines. The setup's "Everyone else" step and
- * the canvas's inspector show the same cards.
+ * 0.4.6 (AJ-E3011 §4): the four roles, each with its icon, one line on
+ * what it may do and who holds it now; and the role picker a member gets,
+ * with the same lines. The setup's "Everyone else" step and the diagram's
+ * inspector show the same list. Round 2 (#9): a plain reference ("What
+ * each role does"), text with an icon: no surface, edge or hover, since
+ * nothing is chosen from it (the cards read as buttons).
  */
 import type { JSX, SVGProps } from "react";
 
@@ -23,21 +25,23 @@ export function RoleIcon({ role, size = 14 }: { role: string; size?: number }): 
   return <Shape aria-hidden="true" width={size} height={size} className="shrink-0 text-muted" />;
 }
 
-/** The four cards; `holders` names who holds each role now. */
+/** The four roles as a reference; `holders` names who holds each now. */
 export function RoleCards({ holders, testId = "role-cards" }: { holders: Partial<Record<PoolRole, string[]>>; testId?: string }): JSX.Element {
   return (
-    <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2" aria-label="The roles" data-testid={testId}>
+    <ul className="grid grid-cols-1 gap-x-6 gap-y-2.5 sm:grid-cols-2" aria-label="What each role does" data-testid={testId}>
       {ROLE_CARDS.map((card) => {
         const who = holders[card.id] ?? [];
         return (
-          <li key={card.id} className="flex flex-col gap-1 rounded-xl bg-surface-2 px-3 py-2.5" data-testid="role-card" data-role={card.id}>
-            <span className="flex items-center gap-1.5">
+          <li key={card.id} className="flex gap-2" data-testid="role-card" data-role={card.id}>
+            <span className="pt-0.5">
               <RoleIcon role={card.id} />
-              <span className="text-body font-semibold text-ink">{card.label}</span>
             </span>
-            <span className="text-meta text-ink-2">{card.line}</span>
-            <span className="text-label text-muted" data-testid="role-card-holders">
-              {who.length === 0 ? "No one yet" : `Now: ${who.join(", ")}`}
+            <span className="flex min-w-0 flex-col gap-0.5">
+              <span className="text-meta font-semibold text-ink">{card.label}</span>
+              <span className="text-meta text-ink-2">{card.line}</span>
+              <span className="text-label text-muted" data-testid="role-card-holders">
+                {who.length === 0 ? "No one yet" : `Now: ${who.join(", ")}`}
+              </span>
             </span>
           </li>
         );
@@ -55,8 +59,11 @@ export function RolePicker({
   value,
   onChange,
   disabled = false,
+  prefix = "Role:",
   testId,
 }: {
+  /** Its visible label, before the value (round 2, #10). */
+  prefix?: string;
   /** Its kind (`app`) or stored ref (`app:…`). */
   member: string;
   name: string;
@@ -72,6 +79,7 @@ export function RolePicker({
       size="sm"
       ariaLabel={`${name}'s role`}
       heading={`${name}'s role`}
+      prefix={prefix}
       value={value}
       disabled={disabled}
       options={ROLE_CARDS.map((card) => ({

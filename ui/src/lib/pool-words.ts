@@ -20,9 +20,9 @@ export const POOLS_GUIDE = "pools";
 
 /** What a pool is, why, and what happens once it's made (the intro). */
 export const INTRO = {
-  what: "A pool is a team of your sessions on the same projects.",
+  what: "A pool is a team of your AI sessions working on the same projects.",
   why: "They share messages, notes and tasks, and you approve what matters.",
-  after: "Once it's made, its sessions join as they start, and its canvas shows who does what.",
+  after: "Once it's made, its sessions join as they start, and its diagram shows who does what.",
 };
 
 export interface RoleCard {
@@ -60,6 +60,10 @@ export interface OwnLevelWords {
 /** The label above the choice: what it sets, and for whom. */
 export const OWN_LABEL = "What these sessions may do on their own";
 
+/** What "on their own" covers, and what it leaves to each app (round 2,
+ * #4: the walks read it as covering what they may do to the files). */
+export const OWN_SCOPE = "This is how they work together through AI Juggler. What each may change in your files stays with its own app's settings.";
+
 /** "Same as the pool", a member's first choice. */
 export const SAME_AS_POOL = "Same as the pool";
 
@@ -80,7 +84,7 @@ export const OWN_LEVELS: readonly OwnLevelWords[] = [
     id: "full",
     label: "Work together and wake each other",
     line: "As Work together, and a message wakes an idle session so the work keeps going. Each wake starts a turn on your subscription.",
-    example: "Claude finishes a change and its note starts a turn in the idle Codex session, without you.",
+    example: "Codex finishes a review; its note wakes Claude's idle session to carry on, without you. Each wake uses a turn on your subscription.",
   },
 ];
 
@@ -130,11 +134,26 @@ export function levelSentence(level: string): string {
   return `On their own they may ${ownLabel(level)}. ${ownLevel(level).line}`;
 }
 
-/** The lead, read back. `next`: the App whose next session leads. */
-export function leadSentence(lead: string | null, next: string | null): string {
+/** The lead, read back. `next`: the App whose next session leads, in
+ * `where`; `open`: its sessions open there now, when known (round 2, #3:
+ * "next session" read as "not in charge now"). */
+export function leadSentence(lead: string | null, next: string | null, where = "these projects", open?: number): string {
   if (lead) return `${lead} leads: it plans the work and hands out tasks.`;
-  if (next) return `${next}'s next session here leads: it plans the work and hands out tasks.`;
+  if (next) return `${next} leads from its next session in ${where}${open === 0 ? " (none is open now)" : ""}: it plans the work and hands out tasks.`;
   return NO_LEAD;
+}
+
+/** An App whose next session leads, as one member (round 2, #2): its
+ * role line, the others' role after it. */
+export function nextLeadsLine(othersRole: string): string {
+  return `Its next session leads · its others join as ${roleCard(othersRole).label}`;
+}
+
+/** That App read back: "Claude Code · Work: its next session leads; its
+ * others join as Member and may Work together, as the pool." */
+export function nextLeadsSentence(name: string, othersRole: string, level: string | null, poolLevel: string): string {
+  const may = level === null ? `${ownLabel(poolLevel)}, as the pool` : ownLabel(level);
+  return `${name}: its next session leads; its others join as ${roleCard(othersRole).label} and may ${may}.`;
 }
 
 /** What a pool without a lead lacks, said where the lead would be. */
@@ -161,7 +180,7 @@ export const asTalkRule = (rule: string | null | undefined): TalkRule => (rule =
 /** The line above the talk table. */
 export const TALK_ABOVE = "Who may send a message to whom. Allowed needs nothing from you; Ask first waits for your OK in Needs you; Blocked stops it.";
 /** The line below it: one pair of sessions. */
-export const TALK_BELOW = "An Observer only reads: its messages are blocked, or wait for your OK if you set Ask first. To set it for one pair of sessions, click the line between them on the canvas.";
+export const TALK_BELOW = "An Observer only reads: its messages are blocked, or wait for your OK if you set Ask first. To set it for one pair of sessions, click the line between them on the diagram.";
 
 /** A row's head: "Lead can message…". */
 export function talkRowLabel(role: PoolRole): string {
@@ -192,7 +211,7 @@ export const STEP_WORDS: Record<SetupStep, { title: string; nav: string; why: st
   template: { title: "How to start", nav: "Start", why: "A template fills in roles and who may message whom; you can change any of it." },
   where: { title: "Where", nav: "Where", why: "Sessions in these projects can join." },
   who: { title: "Who's in", nav: "Who's in", why: "Only these work together." },
-  lead: { title: "Who leads", nav: "Who leads", why: "The lead plans and hands out the work." },
+  lead: { title: "Who leads", nav: "Who leads", why: "The lead plans and hands out the work. Pick one to be in charge, or leave it for now." },
   everyone: { title: "Everyone else", nav: "Everyone else", why: "What each member does, and how new sessions join." },
   talk: { title: "Who may message whom", nav: "Who may message whom", why: "Set an exception only where you want one; the rest is allowed." },
   own: { title: "What they may do on their own", nav: "On their own", why: "Anything more waits for your OK in Needs you." },

@@ -1,6 +1,9 @@
 /**
  * AJ-E3011 step 3, Who leads: the inline lead picker (§3). Never a dead
  * end: sessions open now, an App's next session, or no lead for now.
+ * Round 2 (#3, #18): the App's row says it leads from its next session in
+ * these projects, and that the pool's diagram can start one; the why-line
+ * says leaving it for now is a choice.
  */
 import type { JSX } from "react";
 
@@ -9,7 +12,23 @@ import { leadSentence, nextSessionWords } from "../../lib/pool-words";
 import { LeadPicker } from "../../pages/pool/setup/LeadPicker";
 import { StepHead } from "./StepHead";
 
-export function NewPoolLead({ draft, onDraft, sessions, nameOf }: { draft: Draft; onDraft: (next: Draft) => void; sessions: readonly Candidate[]; nameOf: (ref: string, label: string) => string }): JSX.Element {
+export function NewPoolLead({
+  draft,
+  onDraft,
+  sessions,
+  nameOf,
+  where = "these projects",
+  openNow,
+}: {
+  draft: Draft;
+  onDraft: (next: Draft) => void;
+  sessions: readonly Candidate[];
+  nameOf: (ref: string, label: string) => string;
+  /** Its projects in words ("web"). */
+  where?: string;
+  /** Each member's open sessions here now: "(none is open now)". */
+  openNow?: ReadonlyMap<string, number>;
+}): JSX.Element {
   const open = leadCandidates(sessions);
   // A session named in the draft that leads, though it isn't open (a
   // template's), stays offered.
@@ -26,6 +45,7 @@ export function NewPoolLead({ draft, onDraft, sessions, nameOf }: { draft: Draft
         sessions={rows}
         apps={apps}
         value={choice}
+        where={where}
         onChange={(next) => onDraft(withLead(draft, next, next.kind === "session" ? open.find((row) => row.ref === next.ref) : undefined))}
         testId="new-pool-lead"
       />
@@ -35,7 +55,7 @@ export function NewPoolLead({ draft, onDraft, sessions, nameOf }: { draft: Draft
         </p>
       )}
       <p className="text-meta text-ink" data-testid="new-pool-lead-sentence">
-        {leadSentence(leadName, nextName)}
+        {leadSentence(leadName, nextName, where, choice.kind === "next" ? openNow?.get(choice.app) : undefined)}
       </p>
     </div>
   );

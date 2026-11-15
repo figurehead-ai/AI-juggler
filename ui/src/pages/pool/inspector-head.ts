@@ -23,7 +23,7 @@ const KIND_WORDS: Record<string, string> = { session: "Session", app: "App", acc
 export type HeadOf =
   | { kind: "pool"; name: string; own: string | null; where: string; sessions: number; sealed: boolean; needs: number }
   | { kind: "session"; name: string; app: string; role: string; state: string; level: AttentionLevel }
-  | { kind: "rule"; label: string; memberKind: string; role: string; open: number }
+  | { kind: "rule"; label: string; memberKind: string; role: string; open: number; leadsNext?: boolean }
   | { kind: "watched"; title: string; app: string | null; role: string }
   | { kind: "edge"; from: string; to: string; count: string; waits: boolean }
   | { kind: "lead-next"; app: string };
@@ -41,7 +41,8 @@ export function inspectorHead(of: HeadOf): InspectorHead {
     case "rule":
       return {
         title: of.label,
-        subtitle: `${KIND_WORDS[of.memberKind] ?? "Member"} · ${roleCard(of.role).label}`,
+        // Round 2 (#2): an App whose next session leads says so, not "Member".
+        subtitle: `${KIND_WORDS[of.memberKind] ?? "Member"} · ${of.leadsNext ? `Its next session leads · its others ${roleCard(of.role).label}` : roleCard(of.role).label}`,
         pill: { words: of.open > 0 ? `${of.open} open now` : "None open now", level: 0 },
       };
     case "watched":

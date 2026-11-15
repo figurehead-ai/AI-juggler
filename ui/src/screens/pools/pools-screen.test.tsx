@@ -105,9 +105,9 @@ describe("the Pools screen (AJ-E2807)", () => {
     expect(view.getByTestId("pools-cards").style.gridTemplateColumns).toContain("auto-fill");
     fireEvent.contextMenu(box, { clientX: 30, clientY: 30, button: 2 });
     const menu = view.getByRole("menu");
-    expect(within(menu).getAllByRole("menuitem").map((item) => item.textContent)).toEqual(["Open its canvas", "Rename…", "Delete…"]);
+    expect(within(menu).getAllByRole("menuitem").map((item) => item.textContent)).toEqual(["Open its diagram", "Rename…", "Delete…"]);
     for (const item of within(menu).getAllByRole("menuitem")) expect(item.querySelector("svg"), item.textContent ?? "").toBeTruthy();
-    fireEvent.click(within(menu).getByRole("menuitem", { name: "Open its canvas" }));
+    fireEvent.click(within(menu).getByRole("menuitem", { name: "Open its diagram" }));
     expect(opened).toEqual(["pool-team"]);
     // Rename… from its ⋯ button
     fireEvent.click(within(box).getByTestId("pool-card-menu"));

@@ -10,13 +10,15 @@
  * 0.4.6: a broad member is a stacked card, never a dashed one (AJ-E3012:
  * dashes never mean selection; the selected one has the one ring). Its
  * name takes two lines before an ellipsis. Each says how its sessions hear
- * a message (D-119). Above them, the lead's place (AJ-E3011): "Lead: [App]'s
- * next session" while the pool waits for it, or "No lead" with what a
- * lead would add.
+ * a message (D-119). Above them, the lead's place (AJ-E3011): "No lead for
+ * now" with what a lead would add. Round 2 (#2, #3): an App whose next
+ * session leads is one card, its own ("Its next session leads · its
+ * others join as Member"), with "Start one now" under it (New session on
+ * that App, in the pool's project; the user starts it).
  */
 import { useLayoutEffect, useRef, useState, type JSX } from "react";
 
-import { Chip } from "../../components/primitives";
+import { Button, Chip } from "../../components/primitives";
 import { ShellOnly } from "../../components/ShellOnly";
 import { WhyButton } from "../../components/WhyTip";
 import { continueWhy } from "../../lib/resume-refusal";
@@ -26,7 +28,8 @@ import { useConversations } from "../../lib/conversations";
 import type { PoolRuleInfo, WatchedMemberInfo } from "../../lib/ipc/pool-model";
 import { CONTINUE_WATCHED, CONTINUE_WATCHED_SHORT, levelLabel, roleLabel } from "../../lib/pools";
 import { openNowWords } from "../../lib/pool-open-now";
-import { LEAD_WOULD, nextSessionWords, wakeWords } from "../../lib/pool-words";
+import { LEAD_WOULD, nextLeadsLine, nextSessionWords, wakeWords } from "../../lib/pool-words";
+import { cliFolderOf } from "../../lib/start-lead";
 import { IconLead } from "../../components/icons-canvas";
 import type { Selection } from "./Canvas";
 import { FOCUS_RING, SELECTED } from "./selection";
@@ -59,11 +62,17 @@ export function RuleNodes({
   lead: leadPlace = false,
   leadNext = null,
   poolLevel = "work_together",
+  where,
+  onStartLead,
 }: {
   /** AJ-E3011: the lead's place, drawn while no session leads. */
   lead?: boolean;
-  /** The App whose next session will lead, by name (null: no lead for now). */
-  leadNext?: string | null;
+  /** The App whose next session will lead (null: no lead for now). */
+  leadNext?: { ref: string; name: string } | null;
+  /** The pool's projects in words ("web"): "new ones in web join". */
+  where?: string;
+  /** Opens New session on that App, in the pool's project. */
+  onStartLead?: (member: string) => void;
   /** The pool's level: a member's own, else this, says how it wakes. */
   poolLevel?: string;
   /** The tool and App an App or Tool member's sessions all share: its
@@ -100,7 +109,10 @@ export function RuleNodes({
     }
     if (JSON.stringify(next) !== JSON.stringify(lines)) setLines(next);
   });
-  const lead = leadPlace ? { next: leadNext } : null;
+  // Round 2 (#2): the App whose next session leads is its own card, not a
+  // second one beside it.
+  const nextRef = leadPlace && leadNext && broad.some((rule) => rule.member === leadNext.ref) ? leadNext.ref : null;
+  const lead = leadPlace && nextRef === null ? { next: leadNext?.name ?? null } : null;
   if (broad.length === 0 && waiting.length === 0 && !lead) return null;
   const selected = (ref: string) => selection.kind === "rule" && selection.ref === ref;
   const leadSelected = selection.kind === "lead-next";
@@ -133,8 +145,8 @@ export function RuleNodes({
         </button>
       )}
       {broad.map((rule) => (
+        <div key={rule.member} className="flex flex-col gap-1">
         <button
-          key={rule.member}
           type="button"
           onClick={() => onSelect({ kind: "rule", ref: rule.member })}
           aria-pressed={selected(rule.member)}
@@ -147,20 +159,38 @@ export function RuleNodes({
         >
           <span className="flex items-center gap-1.5">
             <span className="text-label font-medium text-muted">{KIND_WORD[rule.kind] ?? rule.kind}</span>
-            <Chip tone="neutral">{roleLabel(rule.role)}</Chip>
+            {rule.member === nextRef ? (
+              <span className="inline-flex items-center gap-1 text-label font-medium text-ink-2" data-testid="canvas-rule-leads-next">
+                <IconLead aria-hidden="true" width={12} height={12} />
+                Leads next
+              </span>
+            ) : (
+              <Chip tone="neutral">{roleLabel(rule.role)}</Chip>
+            )}
             <RuleShellOnly shared={toolOf?.(rule) ?? null} />
           </span>
           <span className="line-clamp-2 text-body font-semibold text-ink [overflow-wrap:normal]" title={labelOf(rule)}>
             {labelOf(rule)}
           </span>
+          {rule.member === nextRef && (
+            <span className="text-meta text-ink" data-testid="canvas-rule-next-line">
+              {nextLeadsLine(rule.role)}
+            </span>
+          )}
           <span className="text-meta text-ink-2">
-            {openNowWords(rule.sessions)}
+            {openNowWords(rule.sessions, where)}
             {rule.level ? ` · its own choice: ${levelLabel(rule.level)}` : ""}
           </span>
           <span className="text-label text-muted" data-testid="canvas-rule-wake">
             Its sessions {wakeWords(rule.level ?? poolLevel, false, true)}
           </span>
         </button>
+        {rule.member === nextRef && onStartLead && cliFolderOf(rule.member) && (
+          <Button size="sm" variant="accent" className="pointer-events-auto self-start" onClick={() => onStartLead(rule.member)} title={`New session on ${labelOf(rule)}${where ? ` in ${where}` : ""}: it leads once you start it`} data-testid="canvas-rule-start-lead">
+            Start one now
+          </Button>
+        )}
+        </div>
       ))}
       {waiting.map((one) => {
         const conversation = all.find((row) => row.account_id === one.folder && row.id === one.conversation_id);

@@ -49,7 +49,7 @@ export function SessionPools({ session }: { session: InstanceInfo }): JSX.Elemen
     <div className="flex w-full max-w-content flex-col gap-4" data-testid="session-pools">
       {shown.pools.length === 0 ? (
         <p className="max-w-prose text-meta text-ink-2" data-testid="session-pools-none">
-          <span className="font-medium text-ink">In no pool now.</span> Add it to one from a pool's canvas, or make a pool with New pool.
+          <span className="font-medium text-ink">In no pool now.</span> Add it to one from a pool's diagram, or make a pool with New pool.
         </p>
       ) : (
         <ul className="flex flex-col divide-y divide-hairline/70 rounded-card border border-hairline bg-surface" data-testid="session-pools-list">
