@@ -168,6 +168,7 @@ for (const theme of ["dark", "light"] as const) {
       ["tool:codex", "Codex", "tool"],
       ["all", "Everyone, in every project", "everyone"],
     ] as const) {
+      await page.locator(`[data-rule-ref="${ref}"]`).scrollIntoViewIfNeeded();
       await page.locator(`[data-rule-ref="${ref}"]`).click();
       if (name) await expect(title).toHaveText(name);
       await expect(page.locator(`[data-rule-ref="${ref}"]`)).toHaveAttribute("aria-current", "true");

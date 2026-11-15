@@ -46,6 +46,9 @@ export function PoolChecklist({ rows, onOpen, compact = false }: { rows: readonl
           {done} of {rows.length} done
         </span>
       </div>
+      {/* The one switch the rest needs, first while it's unanswered (it was
+          cut off at the column's foot at 800 px). */}
+      <PoolToolsCard testId="pool-checklist-tools" />
       <ol className="flex flex-col gap-0.5">
         {rows.map((row, at) => {
           const words = STEP_WORDS[row.step];
@@ -79,7 +82,6 @@ export function PoolChecklist({ rows, onOpen, compact = false }: { rows: readonl
           );
         })}
       </ol>
-      <PoolToolsCard testId="pool-checklist-tools" />
     </section>
   );
 }

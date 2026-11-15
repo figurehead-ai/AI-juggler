@@ -38,8 +38,8 @@ heading and one line on why, and every choice reads back as a sentence
 4. **Who leads**: one session leads (it plans the work and hands out
    tasks). Pick a session open now; or **[App]'s next session** ("Claude
    Code · Work's next session"): the next session that App starts in this
-   pool's projects joins as the Lead, and until then the canvas shows the
-   lead's place waiting for it; or **No lead for now**.
+   pool's projects joins as the Lead, and until then the canvas shows a
+   Lead card waiting for it; or **No lead for now**.
 5. **Everyone else**: **New sessions in web join as [Member]** (or don't
    join: only who's in), and each member's role. The roles:
    - **Lead**: plans the work and hands out tasks. One session.
