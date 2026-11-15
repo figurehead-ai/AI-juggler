@@ -18,6 +18,7 @@ use open_steps::{Unwatched, tidy_room};
 mod account_audit;
 mod accounts;
 mod agent_access;
+pub mod attested;
 mod profiles;
 mod sessions;
 
@@ -1008,6 +1009,9 @@ pub struct Storage {
     /// AJ-E3004 R1: the resolved pool memberships and the `memberships`
     /// stamp they were built at ([`Storage::memberships`]).
     memberships: std::sync::Mutex<Option<(i64, std::sync::Arc<crate::pools::Memberships>)>>,
+    /// AJ-E3013: the desktop sessions the agent bridge attested, in memory
+    /// ([`attested::AttestedSessions`]).
+    attested: attested::AttestedSessions,
 }
 
 impl Storage {
@@ -1094,6 +1098,7 @@ impl Storage {
             conn,
             migrated: false,
             memberships: std::sync::Mutex::new(None),
+            attested: attested::AttestedSessions::default(),
         };
         if upgrading {
             watch.step(OpenStep::Updating);
@@ -1167,7 +1172,14 @@ impl Storage {
     /// Repository for [`crate::model::SessionRecord`] rows.
     #[must_use]
     pub fn sessions(&self) -> SessionsRepo<'_> {
-        SessionsRepo::new(&self.conn)
+        SessionsRepo::new(&self.conn).with_attested(&self.attested)
+    }
+
+    /// AJ-E3013: the desktop sessions the agent bridge attested
+    /// ([`attested::AttestedSessions`]); written only by its attestation.
+    #[must_use]
+    pub fn attested(&self) -> &attested::AttestedSessions {
+        &self.attested
     }
 
     /// Repository for [`crate::model::ProjectRecord`] rows.

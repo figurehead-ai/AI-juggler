@@ -35,6 +35,9 @@ pub struct SessionBrief {
 #[derive(Debug)]
 pub struct SessionsRepo<'a> {
     conn: &'a Connection,
+    /// AJ-E3013: the attested desktop sessions, when this repo was opened
+    /// through [`super::Storage::sessions`].
+    attested: Option<&'a super::attested::AttestedSessions>,
 }
 
 /// The lifecycle events that set a session's reviewed and archived state
@@ -45,11 +48,26 @@ pub const STATE_EVENTS: [&str; 4] = ["reviewed", "unreviewed", "archived", "unar
 /// to, at_ms)`.
 pub type LastTransitions = std::collections::HashMap<String, (Option<String>, String, i64)>;
 
+impl<'a> SessionsRepo<'a> {
+    /// AJ-E3013: the same repo, also reading the attested desktop
+    /// sessions' facts ([`Self::pool_facts_of`]).
+    #[must_use]
+    pub fn with_attested(self, attested: &'a super::attested::AttestedSessions) -> Self {
+        Self {
+            attested: Some(attested),
+            ..self
+        }
+    }
+}
+
 impl SessionsRepo<'_> {
     /// Wraps an open connection.
     #[must_use]
     pub fn new(conn: &Connection) -> SessionsRepo<'_> {
-        SessionsRepo { conn }
+        SessionsRepo {
+            conn,
+            attested: None,
+        }
     }
 
     /// Inserts a new session record.
@@ -59,6 +77,14 @@ impl SessionsRepo<'_> {
     /// Returns [`CoreError::Storage`] on I/O or constraint violations
     /// (unknown profile, duplicate id).
     pub fn insert(&self, session: &InstanceRecord) -> Result<(), CoreError> {
+        // AJ-E3013: an attested desktop session's minted id is never a
+        // session AI Juggler records (ADR-0020's D-116 addendum).
+        if super::attested::is_desktop_id(session.id.as_str()) {
+            return Err(CoreError::Validation {
+                subject: "session id",
+                message: "an attested desktop session's id isn't a session record's".to_owned(),
+            });
+        }
         self.conn.execute(
             "INSERT INTO instances
                  (id, conversation_id, launch_recipe_id, machine, kind, project, cwd, status,
@@ -543,6 +569,11 @@ impl SessionsRepo<'_> {
         &self,
         session: &SessionId,
     ) -> Result<Option<crate::pools::SessionFacts>, CoreError> {
+        // AJ-E3013: an attested desktop session (no row: AI Juggler didn't
+        // start it) has the facts its attestation kept, while they're fresh.
+        if super::attested::is_desktop_id(session.as_str()) {
+            return Ok(self.attested.and_then(|attested| attested.get(session)));
+        }
         Ok(self
             .pool_facts_where("WHERE i.id = ?1", [session.as_str()])?
             .into_iter()
