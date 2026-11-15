@@ -201,8 +201,12 @@ mod imp {
             let fd =
                 openat(&self.fd, name, flags, Mode::from_bits_truncate(mode)).map_err(io_of)?;
             let mut file = std::fs::File::from(fd);
-            file.write_all(bytes)?;
-            file.sync_all()
+            let wrote = file.write_all(bytes).and_then(|()| file.sync_all());
+            if wrote.is_err() {
+                // L6: a half-written new file never stays.
+                let _ = unlinkat(&self.fd, name, UnlinkatFlags::NoRemoveDir);
+            }
+            wrote
         }
 
         pub fn create_new(&self, name: &OsStr, bytes: &[u8]) -> io::Result<()> {

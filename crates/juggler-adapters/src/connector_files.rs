@@ -635,23 +635,23 @@ pub fn add(
         )));
     }
     let mut made = record.map(|record| record.dirs.clone()).unwrap_or_default();
-    let mut created: Vec<PathBuf> = Vec::new();
+    // L6: Add is all or nothing. Each step is kept so a failure part-way
+    // takes every one back: files made are removed, files replaced get
+    // their old text again, folders made go when empty.
+    let mut done: Vec<(PathBuf, Option<String>)> = Vec::new();
+    let mut new_dirs: Vec<PathBuf> = Vec::new();
     let mut parts = Vec::new();
     for (part, found) in plan.parts.iter().zip(&found) {
         let existed = found.before.is_some();
         let wrote = if found.state() == ConnectorState::Current {
             Ok(()) // already as this edition writes it
         } else {
-            write_part(config_dir, &found.rel, &found.after, existed, &mut made)
+            write_part(config_dir, &found.rel, &found.after, existed, &mut new_dirs)
+                .map(|()| done.push((found.rel.clone(), found.before.clone())))
         };
         if let Err(error) = wrote {
-            for rel in &created {
-                let _ = remove_part(config_dir, rel);
-            }
+            take_back(config_dir, &done, &new_dirs);
             return Err(error);
-        }
-        if !existed {
-            created.push(found.rel.clone());
         }
         parts.push(match part {
             ConnectorPart::File { path, .. } => RecordedPart::File {
@@ -696,9 +696,29 @@ pub fn add(
             );
         }
     }
+    made.extend(new_dirs);
     made.sort();
     made.dedup();
     Ok(ConnectorRecord { parts, dirs: made })
+}
+
+/// L6: undoes a part-way Add: each file written gets its old text back
+/// (or goes, when Add made it), newest first, then the folders Add made
+/// go when empty. Best effort: a step that fails leaves the rest going.
+fn take_back(config_dir: &Path, done: &[(PathBuf, Option<String>)], made: &[PathBuf]) {
+    for (rel, before) in done.iter().rev() {
+        let _ = match before {
+            Some(text) => write_part(config_dir, rel, text, true, &mut Vec::new()),
+            None => remove_part(config_dir, rel).map(|_| ()),
+        };
+    }
+    let mut made = made.to_vec();
+    made.sort_by_key(|dir| std::cmp::Reverse(dir.components().count()));
+    for dir in &made {
+        if let Ok(Some((parent, name))) = folder_of(config_dir, dir, false, &mut Vec::new()) {
+            let _ = parent.remove_dir(&name);
+        }
+    }
 }
 
 /// Takes the connector out: each part only while it's as recorded; what

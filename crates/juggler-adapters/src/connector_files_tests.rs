@@ -480,3 +480,56 @@ fn inventories_list_the_connector_as_ai_jugglers_never_a_skill_or_server_to_copy
             .any(|item| item.kind == ItemKind::McpServer && item.name == "github")
     );
 }
+
+/// L6: Add is all or nothing: a failure part-way puts back every file it
+/// replaced, takes away every file and folder it made, and leaves no
+/// temporary file behind; a later Add then goes through.
+#[cfg(unix)]
+#[test]
+fn a_failure_part_way_takes_back_everything_add_wrote() {
+    use std::os::unix::fs::PermissionsExt;
+    let root = tempfile::tempdir().unwrap();
+    let file = |path: &str, text: String| ConnectorPart::File {
+        path: PathBuf::from(path),
+        text,
+    };
+    let plan = |version: &str, with_two: bool| ConnectorPlan {
+        parts: [
+            Some(file("a/one", format!("one {version}"))),
+            with_two.then(|| file("b/two", format!("two {version}"))),
+            Some(file("c/three", format!("three {version}"))),
+        ]
+        .into_iter()
+        .flatten()
+        .collect(),
+        picked_up: String::new(),
+        guide: juggler_adapter::inventory::GetIt::default(),
+    };
+    let first = add(root.path(), &plan("v1", false), None).unwrap();
+    let before = snapshot(root.path());
+    // The third part's folder can't be written: its replacement fails
+    // after the first was replaced and the second made.
+    let locked = root.path().join("c");
+    std::fs::set_permissions(&locked, std::fs::Permissions::from_mode(0o500)).unwrap();
+    let failed = add(root.path(), &plan("v2", true), Some(&first));
+    std::fs::set_permissions(&locked, std::fs::Permissions::from_mode(0o755)).unwrap();
+    assert!(matches!(failed, Err(ConnectorError::Io(_))), "{failed:?}");
+    assert_eq!(snapshot(root.path()), before, "every file as it was");
+    assert!(
+        !root.path().join("b").exists(),
+        "the folder it made is gone"
+    );
+    assert!(
+        !snapshot(root.path())
+            .iter()
+            .any(|(path, _)| path.to_string_lossy().ends_with(".ai-juggler-new")),
+        "no temporary file left"
+    );
+    let second = add(root.path(), &plan("v2", true), Some(&first)).unwrap();
+    assert_eq!(
+        std::fs::read_to_string(root.path().join("c/three")).unwrap(),
+        "three v2"
+    );
+    remove(root.path(), &second).unwrap();
+    assert!(snapshot(root.path()).is_empty(), "Remove takes it all out");
+}
