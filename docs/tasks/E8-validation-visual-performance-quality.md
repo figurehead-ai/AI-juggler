@@ -244,7 +244,7 @@
 **Files to touch**: the measurement tools only, unless a cause is found.
 **Handover note**: 0.4.5's rounds couldn't cover the window without activating another app (`open -j` left it 100 % uncovered).
 
-### AJ-E815 The relation counts' speed test measures the work, not the clock | Status: TODO | Priority P1 | Effort S | Depends: AJ-E3102
+### AJ-E815 The relation counts' speed test measures the work, not the clock | Status: DONE-EVIDENCED (2026-11-15) | Priority P1 | Effort S | Depends: AJ-E3102
 **Goal**: `ten_thousand_sessions_count_cold_within_a_second_and_cached_within_5_ms` (`crates/juggler-app/tests/relations.rs`) gates on wall-clock bars of 5 ms; under load it fails with nothing wrong. Make it prove the cache works by what it does, and move the timing out of the gate.
 **User story**: As a maintainer, I want a red test to mean a real regression, never a busy Mac or a loaded CI runner.
 **Requirements**:
@@ -255,4 +255,4 @@
 **Quality gates**: The test passes under a CPU load of several busy cores (a bounded, self-cleaning load generator; `pgrep -x yes` is 0 afterwards), and fails when the cache is bypassed (a scratch change that rebuilds on every count).
 **Evidence/validation proof**: the loaded run and the failing scratch run, named in the commit.
 **Files to touch**: `crates/juggler-app/tests/relations.rs`, the relations cache's counters (`crates/juggler-app/src/features/relations/`) if a rows-read counter is missing, a bench target.
-**Handover note**: 0.4.5's light preflight on b694d08e3 failed it once at a load average of 20–29 (the slowest of 540 cached counts 97 ms against 5 ms; the cold rebuild 561 ms against 1 s); the same test passed three times alone right after.
+**Handover note**: 0.4.5's light preflight on b694d08e3 failed it once at a load average of 20–29 (the slowest of 540 cached counts 97 ms against 5 ms; the cold rebuild 561 ms against 1 s); the same test passed three times alone right after. Done 2026-11-15: the gate checks `relations.builds()` (540 cached counts and one ask build nothing; the cold build exactly the two parts, bound 10 s); `relation_counts_timings` is the ignored benchmark; the bridge's 50 ms test gates the median (slowest < 500 ms); the terminal echo's median-of-best-round bar kept. Evidence: `docs/qa/evidence/AJ-E815/manifest.md`.
