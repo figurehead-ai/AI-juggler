@@ -13,6 +13,72 @@ Research date: 2026-10-21
 > Surfaces: **Desktop** = Kiro IDE (a VS Code–based editor). **CLI** = Kiro CLI (`kiro-cli`), the renamed successor of Amazon Q Developer CLI (`q`). Kiro also ships Web, Mobile (preview) and **Crew** (a 24/7 agent product); those are out of scope apart from mentions.
 > Short URLs: `KD/` = `https://kiro.dev/docs/`. `QSRC/` = `https://github.com/aws/amazon-q-developer-cli/blob/15cc8f3cd18c4272925ce1c7053268eedff1ea0a/crates/chat-cli/src/` (the last `main` commit of the predecessor's open-source repo, read via the GitHub API).
 
+## Update 2026-11-15 (D-106 pass: undocumented routes, Kiro CLI 3.x)
+
+Read-only web research by a Sonnet pass; nothing installed, run or signed in. Pages read 2026-11-15. This section **corrects and extends** the 2026-10-21 notes below; where they disagree, this section wins. Corrected lines are marked "Corrected 2026-11-15" further down.
+Short URLs: `KD/` = `https://kiro.dev/docs/`; `CL/` = `https://kiro.dev/changelog/cli/`.
+
+### What changed since 2026-10-21 [Verified-primary]
+
+- Kiro CLI **3.0.0 shipped 2026-11-03**; the latest is **3.3.0 (2026-11-12)**. V3 is now the default engine. `kiro-cli --v2` keeps V2. The Classic (V1) interface no longer runs. — Source: CL/3-0/, https://kiro.dev/downloads/, CL (accessed 2026-11-15)
+- **The CLI desktop app is retired.** 3.0 ships "a single standalone `kiro-cli` binary"; existing macOS DMG installs switch to it at the next update check, and the first 3.0 chat removes leftover desktop-app files. So `/Applications/Kiro CLI.app` should no longer be the install path after an update. The macOS binary path is **not stated** by the docs; the curl installer's `~/.local/bin/kiro-cli` is the last known (secondary) location. — Source: CL/3-0/, KD/getting-started/installation/ (accessed 2026-11-15)
+- `kiro-cli doctor` is gone (use `kiro-cli diagnostic`); `autocomplete`, `inline`, `translate`, `theme` and `dashboard` are gone. — Source: CL/3-0/
+- 3.1.0 (2026-11-05): `/usage` also shows the credits this session has used; an optional "Session credits" status-line segment exists. 3.2.1 fixed sign-in on Linux hosts with no graphical session. 3.3.0: `--resume` on a local launch skips newer sessions that have no prompts. — Source: CL/3-1/, CL, KD/cli/chat/session-management/
+- The "old builds stop connecting on 2026-11-09" date from the task's handover note is **still not on any page** (downloads page and CL/3-0/ carry no cutoff) [Negative-evidence]. Treat it as an in-app notice we cannot see; support V3 only anyway (D-105).
+
+### Answers to the seven questions
+
+**1. What Kiro ships.** Two products. (a) **Kiro IDE**, a VS Code-based editor, `/Applications/Kiro.app`, shell launcher `kiro`, bundle id inferred `dev.kiro.desktop`, latest 1.4.154 [Verified-primary: downloads page; Verified-secondary: Homebrew cask `kiro` for the path]. (b) **Kiro CLI**, binary `kiro-cli` (the old `q` still may exist), V3 default, 3.3.0 [Verified-primary]. Install: `curl -fsSL https://cli.kiro.dev/install | bash`, or Homebrew cask `kiro-cli`. Binary location on macOS after 3.0: **not documented** [Negative-evidence]; detect with PATH, then `~/.local/bin/kiro-cli`, then the old app path [Inferred]. Sources: KD/getting-started/installation/, https://kiro.dev/downloads/, https://formulae.brew.sh/api/cask/kiro-cli.json.
+
+**2. Per-account isolation.**
+- `KIRO_HOME` (absolute path): "In V3, it overrides the global Kiro directory for configuration, sign-ins, sessions, and agent state." Bad paths (relative, `/`, home, an ancestor) fall back to `~/.kiro`. Existing MCP sign-ins are copied in once. [Verified-primary] — Source: KD/reference/settings/, KD/configuration/
+- Other variables seen on the docs: `KIRO_AGENT_CONFIG_DIR` (where V2-to-V3 agent upgrade looks), `KIRO_RUNTIME_DIR` ("override for the bundled runtime", meaning unexplained), `KIRO_DEFAULT_SETTINGS` (a defaults file, CLI 3.1+, macOS and Linux), `KIRO_API_KEY`, `KIRO_LOG_LEVEL`, `KIRO_CHAT_LOG_FILE`. [Verified-primary] — Source: KD/reference/settings/, CL/2-37/, CL/3-1/. `KIRO_DATA_DIR` is **not on the settings page** now; the 2026-10-21 report that it moves runtime assets but not `data.sqlite3` stays [Verified-secondary].
+- **Sign-in storage is not documented by the vendor** [Negative-evidence]. A community multi-account tool for kiro-cli 2.x says "Kiro uses macOS Keychain to store token" and keeps a separate user keychain plus its own `HOME` per account, with `data.sqlite3` and `history` under `~/Library/Application Support/kiro-cli/` per profile; on Linux a file fallback is used. [Verified-secondary, 2.x only; no service or account names published] — Source: https://github.com/wangyuyan-agent/kiro-multi (README and `src/lib.rs`, read with `gh api`). This **corrects** the 2026-10-21 line that said "not the Keychain" (that was Q CLI 1.x, from source).
+- **Two accounts side by side on one Mac:** documented route is one `KIRO_HOME` per account [Verified-primary]. Whether V3 sign-ins really leave the shared Keychain and `data.sqlite3` under that variable is **unproven**; the safe belt-and-braces route, proven only by the community tool for 2.x, is a separate `HOME` per account as well [Verified-secondary]. A live check must confirm (item 7).
+- IDE: no vendor doc for `KIRO_HOME` or `--user-data-dir` [Negative-evidence]; the IDE has no account switcher.
+
+**3. Sessions.**
+- Saved after every turn, keyed by directory, UUID ids, one process per session. The docs say "Local database (`~/.kiro/`)" and say nothing more precise. — Source: KD/cli/chat/session-management/ [Verified-primary]
+- V3 on-disk layout stays **vendor-undocumented, and the vendor tells clients not to depend on it**; discover with ACP `session/list`, open with `session/load` (parameters `sessionId`, `cwd`, `additionalDirectories`, `mcpServers`; `noReplay: true` skips replay; replayed updates carry `_meta.kiro.replay`), branch with `session/fork`. — Source: KD/cli/v3/acp-migration/ [Verified-primary]. Request and response fields of `session/list` and `fork` are **not documented** [Negative-evidence].
+- Secondary map of stores (unchanged): V3 `~/.kiro/sessions/<workspace-hash>/sess_*/session.json` + `messages.jsonl`; V2 `~/.kiro/sessions/cli/<id>.json{,l}`. [Verified-secondary] (see section 4)
+- Resume: `--resume`, `--resume-picker`, `--resume-id <ID>`, `--list-sessions` (output format not stated), `--delete-session`, `--sessions` dashboard, `/chat resume`. A content index exists (`chat.sessionDashboard.indexResponses`). [Verified-primary]
+
+**4. Usage and limits.**
+- One monthly credit pool, no 5-hour or weekly window; plans Free 50, Pro 1,000, Pro+ 2,000, Pro Max 5,000, Power 10,000 credits (table in section 5, unchanged). [Verified-primary] — Source: https://kiro.dev/pricing/
+- Shown in `/usage` (plan limits, bar, now also session credits), the web dashboard, and an 80% low-credit notice. [Verified-primary]
+- **Undocumented route found:** `kiro-cli chat --no-interactive /usage` prints the usage panel (to stderr, ANSI-coloured) in a stable text shape, parsed by a community tool as `Estimated Usage | resets on YYYY-MM-DD | <PLAN NAME>` and `Credits (951.38 of 1000 covered in plan)`. [Verified-secondary, 2.x format] — Source: kiro-multi `src/lib.rs` `parse_usage_output`. Whether 3.x prints the same is **unproven** (live check).
+- ACP: `_kiro/account/getUsage` (advertised extension, replaces v2 `/usage`; response shape **not documented**), `_kiro/error/rate_limit` (payload not documented), `session_info_update` meta kinds `context_usage` and `turn_completion` per section 5. [Verified-primary for names]
+- Local per-turn credits: V3 `usage_summary.promptTurnSummaries[].usage` in the session store [Verified-secondary]. No local file reports the monthly balance.
+- A limit hit: in a 2.x ACP run the community tool saw `-32603 Internal error` on stderr and read it as quota used up [Verified-secondary; a guess by that tool]; V3 should send `_kiro/error/rate_limit` [Verified-primary name only]. Free plans are also "subject to rate limits".
+
+**5. Driving it.**
+- `kiro-cli acp`: JSON-RPC 2.0 over stdio, protocol version 1; V3 is the default for new clients, `--agent-engine v1|v2|v3` picks one. Core methods `initialize`, `authenticate`, `session/new|list|load|fork|prompt|cancel|set_mode|set_config_option`, plus `_kiro/...` extensions listed by `agentCapabilities._meta.kiro.extensionMethods` (named: `_kiro/session/rename|context|compact`, `_kiro/account/getUsage`, `_kiro/hooks/list`, `_kiro/mcp/status|resetServer`, `_kiro/tools/didChange`, `_kiro/governance/state`, `_session/steer`). Signed out, it answers `initialize` with one auth method and fails other calls; terminal-capable clients get a "Log in to Kiro" method (runs `kiro-cli login`). `--auth-method=client` lets the client supply tokens via `_kiro/auth/getAccessToken` (we will not use it: it moves credentials through us). — Source: KD/cli/acp/, KD/cli/v3/acp-migration/, CL/2-37/ [Verified-primary]
+- Headless: `kiro-cli chat --no-interactive "<prompt>"` with `--output-format stream-json` (V2/V3; per-event fields undocumented), `--trust-all-tools`, `--resume-id`, `--cloud --repo`, `--sandbox`; needs `KIRO_API_KEY` (Pro and up). Exit codes 3 and 4 as in section 4. Whether usage appears in headless output is **not stated**. — Source: KD/cli/headless/ [Verified-primary]
+- MCP: `~/.kiro/settings/mcp.json` (moves with `KIRO_HOME`), `kiro-cli mcp add|remove|list|import|status`. Hooks: JSON in `.kiro/hooks/` and, in V3, `~/.kiro/hooks/` (`SessionStart`, `PreToolUse`, `PostToolUse`, `Stop`, 3.1 `PreCompact`/`PostCompact`). Settings file `~/.kiro/settings/cli.json`. Logs `$TMPDIR/kiro-log/kiro-chat.log`. [Verified-primary]
+- Terminal signals: OSC 7501 program status and terminal title reflect "waiting for approval" [Verified-primary, KD/cli/terminal-ui/].
+
+**6. Terms.** Source for both: https://kiro.dev/docs/billing/related-questions/ (read again 2026-11-15, same wording as 2026-11-13).
+- Allowed: "Kiro subscriptions can be used with Kiro IDE, Kiro CLI, Kiro Web..." (and ACP-compatible IDEs and CI/CD automation).
+- Not allowed: "third-party automation harnesses" that route requests "outside of Kiro's native interfaces".
+- Several accounts per person, and one app launching `kiro-cli` for the user: **still silent** [Negative-evidence]. Team text: "each developer needs their own subscription" (https://kiro.dev/pricing/). Abuse-detection and suspension reports after account switching stay as in sections 3 and 7. All [Verified-primary]; reading of them stays [Inferred].
+
+**7. What a live lab check needs** [Inferred, from the above]
+- Install: `curl -fsSL https://cli.kiro.dev/install | bash` (or Homebrew cask `kiro-cli`) into the lab profile only; the maintainer says yes to the download first. Confirm `kiro-cli --version` is 3.3.0 or later.
+- Sign-in by the maintainer, one existing account per lab profile (D-107): `kiro-cli login` (device flow is available), with `KIRO_HOME` set to an absolute lab path. Builder ID or Google or GitHub is enough; a paid plan only for the Pro-and-up checks (API key, plan name in `/usage`).
+- Checks to run, in order: (1) with `KIRO_HOME` set, does `kiro-cli whoami` still show the other account's login when run without it (Keychain and `data.sqlite3` leakage), and does a second `HOME` fix it; (2) `ls -R $KIRO_HOME` after a chat (where sessions, sign-in files land); (3) `kiro-cli acp` session over stdio: `initialize`, `session/list`, `session/load`, `session/fork`, record the field shapes; (4) call `_kiro/account/getUsage` and capture the shape; (5) `kiro-cli chat --no-interactive /usage` text on 3.x; (6) force a rate limit on a Free account if possible and capture `_kiro/error/rate_limit`; (7) macOS Keychain items (`security dump-keychain` metadata only, never the secrets) to learn service and account names.
+- Reap launched processes and keep captures free of real names and tokens.
+
+### Gaps that remain
+
+| Gap | What would close it |
+|---|---|
+| Does V3 sign-in follow `KIRO_HOME` on macOS, or stay in the shared Keychain and `data.sqlite3`? | Live check 1 and 7 |
+| macOS binary path after 3.0 | `which kiro-cli` and the installer output on the lab Mac |
+| Shapes of `session/list`, `session/fork`, `getUsage`, `rate_limit` | Live ACP capture (checks 3, 4, 6) |
+| Keychain service and account names | `security` metadata listing (check 7) |
+| 2026-11-09 cutoff, multi-account and supervisor terms | An in-app notice, or a written answer from AWS support |
+| IDE isolation (`KIRO_HOME`, `--user-data-dir`) | Live IDE check; IDE stays track-only meanwhile |
+
 ## 1. Distribution & versioning
 
 ### The rename (CLI)
@@ -41,10 +107,10 @@ Research date: 2026-10-21
 - **[Verified-primary]** Install with `curl -fsSL https://cli.kiro.dev/install | bash`. It supports macOS, Windows 11 (PowerShell), and Linux with glibc 2.34+ or a musl variant. — Source: KD/cli/, KD/getting-started/installation/, https://kiro.dev/downloads/ (accessed 2026-10-21)
 - **[Verified-secondary]** The macOS curl installer puts `kiro-cli` in `~/.local/bin`, and it updated an existing Q CLI install in place. — Source: https://dev.classmethod.jp/en/articles/kiro-cli-macos-install-guide/ (accessed 2026-10-21)
 - **[Verified-secondary]** The Homebrew cask `kiro-cli` is at 2.33.0 and comes from `desktop-release.q.us-east-1.amazonaws.com/2.33.0/Kiro%20CLI.dmg`. It installs **`/Applications/Kiro CLI.app`** and links `Kiro CLI.app/Contents/MacOS/kiro-cli`. On uninstall it removes the launchd job `com.amazon.codewhisperer.launcher`. Its zap list is `~/.kiro`, `~/.local/bin/kiro-cli`, `~/.local/bin/kiro-cli-chat`, `~/Library/Application Support/kiro-cli`, `~/Library/Caches/com.amazon.codewhisperer`, `~/Library/Caches/dev.kiro.cli`, `~/Library/LaunchAgents/com.amazon.codewhisperer.launcher.plist`, `~/Library/Preferences/dev.kiro.cli.plist` and `~/Library/WebKit/com.amazon.codewhisperer`. There is no Homebrew *formula* (S-11). — Source: https://formulae.brew.sh/api/cask/kiro-cli.json (accessed 2026-10-21)
-- **[Inferred]** The CLI app's bundle id is **`dev.kiro.cli`**, going by its plist names. There are two binaries, `kiro-cli` and `kiro-cli-chat`. Detection order: `kiro-cli` on PATH, then `~/.local/bin/kiro-cli`, then `/Applications/Kiro CLI.app/Contents/MacOS/kiro-cli`. A legacy `q`/`qchat` may still be on PATH.
+- **[Inferred]** *Corrected 2026-11-15: from 3.0 the desktop app is retired and only a standalone `kiro-cli` binary remains.* The CLI app's bundle id is **`dev.kiro.cli`**, going by its plist names. There are two binaries, `kiro-cli` and `kiro-cli-chat`. Detection order: `kiro-cli` on PATH, then `~/.local/bin/kiro-cli`, then `/Applications/Kiro CLI.app/Contents/MacOS/kiro-cli`. A legacy `q`/`qchat` may still be on PATH.
 - **[Verified-primary]** `kiro-cli --version` / `-V` prints the version, and `kiro-cli version --changelog[=all|=x.y.z]` prints the changelog. `kiro-cli doctor --format json` and `kiro-cli update [-y]` exist. — Source: KD/reference/cli-commands/ (accessed 2026-10-21)
 - **[Verified-primary]** The changelog's latest release is 2.32.0 (2026-10-15), with releases every 1–4 days (2.24.0 on 2026-09-23 through 2.32.0). — Source: https://kiro.dev/changelog/cli/ (accessed 2026-10-21). Homebrew already lists 2.33.0.
-- **[Verified-primary]** Two agent engines ship side by side. **V2** is the 2.x default; **V3** is an "early release" chosen with `--v3` or setting `chat.agentEngine` = `v3`. V3's session store is "not backward-compatible" with V2. — Source: KD/cli/v3/ (accessed 2026-10-21)
+- **[Verified-primary]** *Corrected 2026-11-15: V3 became the default in 3.0.0 (2026-11-03); see the update section.* Two agent engines ship side by side. **V2** is the 2.x default; **V3** is an "early release" chosen with `--v3` or setting `chat.agentEngine` = `v3`. V3's session store is "not backward-compatible" with V2. — Source: KD/cli/v3/ (accessed 2026-10-21)
 - **[Verified-primary]** On macOS the CLI writes logs to `$TMPDIR/kiro-log/kiro-chat.log`. `KIRO_CHAT_LOG_FILE` and `KIRO_LOG_LEVEL` override it. — Source: KD/cli/setup/, KD/cli/acp/ (accessed 2026-10-21)
 
 ## 2. Configuration system
@@ -115,7 +181,7 @@ Research date: 2026-10-21
 
 ### Where tokens live
 
-- **[Verified-primary]** Predecessor (Q CLI): OIDC tokens sat in **SQLite** `data.sqlite3`, table `auth_kv` (key/value), not in the macOS Keychain. Keys included `codewhisperer:odic:token` and `codewhisperer:odic:device-registration`, plus state keys `auth.idc.start-url`, `auth.idc.region` and `api.codewhisperer.profile`. The Builder ID start URL was `https://view.awsapps.com/start` (us-east-1). The MCP OAuth cache was `~/.aws/sso/cache`. — Source: QSRC/database/sqlite_migrations/005_auth_table.sql, QSRC/database/mod.rs, QSRC/auth/builder_id.rs, QSRC/auth/consts.rs, QSRC/util/paths.rs (accessed 2026-10-21)
+- **[Verified-primary]** *Corrected 2026-11-15: for kiro-cli 2.x a community tool reports macOS Keychain token storage; see the update section.* Predecessor (Q CLI): OIDC tokens sat in **SQLite** `data.sqlite3`, table `auth_kv` (key/value), not in the macOS Keychain. Keys included `codewhisperer:odic:token` and `codewhisperer:odic:device-registration`, plus state keys `auth.idc.start-url`, `auth.idc.region` and `api.codewhisperer.profile`. The Builder ID start URL was `https://view.awsapps.com/start` (us-east-1). The MCP OAuth cache was `~/.aws/sso/cache`. — Source: QSRC/database/sqlite_migrations/005_auth_table.sql, QSRC/database/mod.rs, QSRC/auth/builder_id.rs, QSRC/auth/consts.rs, QSRC/util/paths.rs (accessed 2026-10-21)
 - **[Verified-secondary]** Since kiro-cli 2.16, the CLI keeps sole custody of the login in its SQLite state store, and `kiro-cli login` no longer writes `~/.aws/sso/cache`. Third parties get a token through `kiro-cli chat _ get-kas-token`. The CLI refreshes the token itself, and a second refresher of the rotating token causes `invalid_grant`. Switching the active account can kill a token before it expires. — Source: https://pkg.go.dev/github.com/cplieger/vibekit/internal/kiroauth (v0.8.1, 2026-09-07) (accessed 2026-10-21)
 - **[Verified-secondary]** The CLI's macOS DB is `~/Library/Application Support/kiro-cli/data.sqlite3`. — Source: https://pypi.org/project/kiro-cli-history/ (0.4.1, 2026-10-06); corroborated by the cask zap path and #11960 (accessed 2026-10-21)
 - **[Verified-primary]** V3 sign-ins live under KIRO_HOME (§2). — Source: KD/reference/settings/ (accessed 2026-10-21). **[Inferred]** V2 sign-ins (in `data.sqlite3` in the platform data directory) are therefore not separated by KIRO_HOME alone. Whether V3 still reads or writes the shared `data.sqlite3` on macOS is **unknown**. #11960 shows the DB being written outside the relocated directory on Windows.
