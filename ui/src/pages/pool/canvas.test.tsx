@@ -585,8 +585,14 @@ describe("semantic zoom (the 0.3 review: 9–10 px words at fit)", () => {
     // A wider box (69 %, about 160 px): 13 px, two lines.
     expect(node(0.69)).toEqual(expect.arrayContaining(["text-meta", "line-clamp-2"]));
     expect(node(0.69)).not.toContain("text-label");
-    // rc7 walk: the 30 % floor (a box about 70 × 34 px) read "we…": the
-    // name now wraps on two lines at 12 px there too.
+    // rc7 walk: the 30 % floor (a box about 70 × 34 px) read "we…". A name
+    // whose words fit wraps on two lines there; AJ-E3012: one word wider
+    // than the room ("payment") never breaks mid-word: the name is one
+    // line with an ellipsis, whole in the inspector's title.
+    member.name = "Spike: payment sandbox";
+    expect(node(0.3)).toEqual(expect.arrayContaining(["text-label", "truncate"]));
+    expect(node(0.3)).not.toContain("line-clamp-2");
+    member.name = "Fix the cart";
     expect(node(0.3)).toEqual(expect.arrayContaining(["text-label", "line-clamp-2"]));
   });
 

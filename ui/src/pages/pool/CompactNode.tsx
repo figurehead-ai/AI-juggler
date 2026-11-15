@@ -98,12 +98,17 @@ export function CompactNode({ member, at, asks, held, selected, tabStop, draggin
       {/* The two-line clamp on a span: WebKit (the app's view) doesn't lay
           a button's own content out as a clamped box, and the rc12 walk saw
           a 30 % node's name run down ten lines past its box. */}
+      {/* One line ends in an ellipsis inside a block span: a button's own
+          text isn't cut with one where the row can't shrink it (the 38 %
+          gallery fit read "Planne", its "r" under the edge). */}
       {wrapWords ? (
         <span className="line-clamp-2 leading-tight [overflow-wrap:normal]" data-node-name-text>
           {name}
         </span>
       ) : (
-        name
+        <span className="block truncate" data-node-name-text>
+          {name}
+        </span>
       )}
     </button>
   );
