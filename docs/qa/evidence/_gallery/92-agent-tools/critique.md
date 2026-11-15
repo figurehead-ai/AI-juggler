@@ -1,4 +1,4 @@
-<!-- captures: cbe87644e96d -->
+<!-- captures: 7d6ed6c067f1 -->
 # 92-agent-tools: agent tools, the question on a pool's canvas and the setting with where they are off
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design passes.
@@ -19,3 +19,9 @@ agent-tools-question puts the question card ("Let agents in your projects see ea
 agent-tools-question (both themes) no longer has a card over the canvas: the newcomer walks read "Let agents … see each other and work together? … Asked once, for every pool" as a global switch and left it unanswered. It is now the compact card at the top of the pool's setup checklist in the inspector: "Let AI Juggler give these sessions the pool's tools: messages, shared notes and tasks.", its example ("Claude can see that Codex is reviewing and send it a note."), that it is one switch for every pool in Settings › Agent access, then a tinted Turn on and a ghost Not now (the page's one filled button stays elsewhere). After Not now it says what won't work until it's on. The canvas is left whole; the lead node sits where the fit puts it in both themes.
 
 - Weak: the card sits inside the checklist, so the checklist's steps start lower while the question is open.
+
+## 0.4.6 round 2 (AJ-E3011 #1, D-30): team tools, asked once, off per project or app
+
+agent-tools-question (both themes): run 2 left the card unanswered over "one switch for every pool". It is now "Let your assistants work as a team": what it gives (messages, shared notes and tasks) with its example, who it covers (sessions AI Juggler starts or connects in your pools, never one outside a pool), that it costs nothing extra, that without it the pool is set up but nobody can message (in ink, the one line that matters most), then "Asked once. After that you can switch it off for a project or an app in Settings › Agent access" with that place as a link, and a tinted "Turn on team tools" beside a ghost Not now. It sits above the checklist now (not inside it), so it stays once every step is done, and says "Off for web: they can't message there." when the pool's project or App has it off. Review in the setup says the same as a line. Checked dark and light: the facts are ink-2 at 13 px, the link underlined in ink.
+
+- Weak: seven short lines in the 340 px column; it pushes the checklist below the fold at 800 px while unanswered.

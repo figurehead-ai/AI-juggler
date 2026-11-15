@@ -1,4 +1,4 @@
-<!-- captures: a92984f7e4a1 -->
+<!-- captures: 8a91c1ca3238 -->
 # 97-pool-canvas: the Pools screen and a pool's canvas
 
 Design critique (D-57, AJ-E2814) against the reference screens: the row menus (77-menus), the rail's order menu, Usage and Processes. The baseline note says what changed on purpose; this says whether it is good.
@@ -83,3 +83,7 @@ new-pool-* (both widths, both themes) now walks eight steps instead of four: How
 
 - Weak, new: the node's ⋯ on a selected card still overlaps a long name at 100 %; with four broad members the canvas fits smaller and compact names break mid-word (the compact form's `break-words`).
 - Fixed (the coordinator's check): compact names break only between words, and a word wider than its room makes the name one line with an ellipsis ("Fix the c…", "Checko…"); the Lead's state line ends in an ellipsis too ("Lead · Worki" was cut mid-letter at 45 %). inspect-member-* drops the pool's "Setup 2 of 6" line: it shows only on the pool. new-pool-talk-* and new-pool-review-*: the feature-team template's Observer row reads Blocked, calm, and the review says "an Observer only reads".
+
+## 0.4.6 round 2 (AJ-E3011)
+
+canvas, inspect-* and new-pool-* (both widths and themes): the header's switch reads **Diagram | List** (the walks read "Canvas" as a drawing area); broad cards say "No session open yet · new ones in any project join"; new-pool-* carry the round 2 words (the chips, Who's in in words, the labelled pickers, On their own's radios, Review's Team tools line; see 98-pool-setup).

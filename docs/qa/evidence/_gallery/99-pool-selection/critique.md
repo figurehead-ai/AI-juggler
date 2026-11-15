@@ -1,4 +1,4 @@
-<!-- captures: 595a10e20a28 -->
+<!-- captures: b3db9b5b896a -->
 # 99-pool-selection: the canvas's selection and the inspector's title (AJ-E3012)
 
 Design critique (D-57, AJ-E2814) against 97-pool-canvas (the canvas before) and the calm UI round 2 rules. The canvas with each kind selected — nothing (the pool), a session, an App, an Account, a Tool, everyone in scope, a line, the pool's own setup opened from the checklist, and the lead's place waiting for an App's next session — dark and light, 1280×800. Fixture names only.
@@ -10,10 +10,10 @@ Design critique (D-57, AJ-E2814) against 97-pool-canvas (the canvas before) and 
 | Grid | Canvas, the members' column (224 px) and the inspector (340 px) share the page card's edges; the inspector's title block aligns with its sections' 16 px gutter. |
 | Hierarchy | The inspector leads with the selection's own title (15 px semibold), its kind and App as a subtitle (muted), then its status pill; the setup line and the sections follow. |
 | Spacing | 12 px between member cards in the column, the stack's two edges inside it; the inspector keeps its 8 px rhythm. |
-| Icons | The App's icon beside a session's title; the lead's crown on its place. |
+| Icons | The App's icon beside a session's title; the lead's crown on the App whose next session leads. |
 | Shared controls | The role and own-choice Pickers, the setup's LeadPicker, JoinAs, RoleCards, TalkTable and OwnLevelChoice in the pool's own setup. |
 | Disabled reasons | An App's role picker greys Lead with its reason. |
-| Plain words | "Session · Claude Code · Work Max · Lead", "App · Reviewer", "Line · what passes between these two", "Lead · it leads once it starts here"; "Its sessions read messages on their next turn". |
+| Plain words | "Session · Claude Code · Work Max · Lead", "App · Reviewer", "App · Leads next", "Line · what passes between these two"; "No session open yet · new ones in any project join"; "Its sessions read messages on their next turn"; Diagram, not Canvas. |
 | Type sizes | 12 px floor in the cards' wake lines and the pill. |
 | Both themes | Checked dark and light: the accent ring and its canvas-coloured offset read in both; the raised surface is 0.5's `--color-selected`. |
 | 1280×800 | With four broad members the column scrolls inside itself; the canvas fits beside it. |
@@ -38,3 +38,14 @@ Design critique (D-57, AJ-E2814) against 97-pool-canvas (the canvas before) and 
 
 - (This branch) Opening a setup step scrolled the whole window (scrollIntoView); it scrolls the inspector's own list now.
 - (This branch) The talk table's five columns didn't fit the inspector's 340 px; there it is a line per role, its pairs wrapping.
+
+## Round 2 (AJ-E3011, after the two newcomer walks)
+
+Checked by eye, dark and light, against the calm rules and the checklist above.
+
+- The pool's view is **Diagram | List** (the walks read "Canvas" as a drawing area).
+- An App whose next session leads is one card, not a Lead placeholder beside it: "App", the crown and "Leads next", its name, "Its next session leads · its others join as Member", its open-now line, and **Start one now** under it (the accent tint, not a filled primary: the page keeps one). Selected, the inspector's subtitle reads "App · Leads next", with a Who leads section (the lead line, Start one now, Change who leads) and "Its other sessions join as" over its role picker. Pass, both themes.
+- Broad cards say "No session open yet · new ones in any project join" (was "none open now · new ones join").
+- The pool's own inspector keeps the team tools card above the checklist while they're off for it (see 92-agent-tools), and still once every step is done.
+- Weak, seen (not from this round): at the 38 % fit a line from "Fix the cart…" crosses the "Checko…" and "Review…" names when the Account is selected, and the "Review…" badge's line meets its edge; both from the canvas's edge routing.
+- Moved by round 2 (all 18 captures): the header's Diagram label, the broad cards' open-now words, and selection-lead-next (the one App card and its inspector).

@@ -79,15 +79,19 @@ for (const theme of ["dark", "light"] as const) {
   test(`the one-time question on a pool's page — ${theme}`, gate("92-agent-tools"), async ({ page }) => {
     await open(page, theme, null);
     await poolPage(page);
-    // AJ-E3011 §7: no banner over the work; a compact card in the pool's
-    // setup checklist, where it applies, saying what it gives, an example,
-    // and that it is one switch for every pool.
+    // AJ-E3011 §7, round 2 (#1, D-30): no banner over the work; a compact
+    // card above the pool's setup checklist saying what the team tools
+    // give, who, the cost, what happens without them, an example, and that
+    // they're asked once and switched off per project or app.
     await expect(page.getByTestId("agent-tools-question")).toHaveCount(0);
     const question = page.getByTestId("pool-checklist-tools");
-    await expect(question).toContainText("Let AI Juggler give these sessions the pool's tools: messages, shared notes and tasks.");
-    await expect(question).toContainText("Example: Claude can see that Codex is reviewing and send it a note.");
-    await expect(question).toContainText("One switch for every pool, in Settings › Agent access.");
-    await expect(question.getByRole("button", { name: "Turn on" })).toBeVisible();
+    await expect(question.getByRole("heading")).toHaveText("Let your assistants work as a team");
+    await expect(question).toContainText("They can message each other and share notes and tasks.");
+    await expect(question).toContainText("Example: Claude sees that Codex is reviewing and sends it a note.");
+    await expect(question).toContainText("Without it, the pool is set up, but nobody in it can message.");
+    await expect(question).toContainText("Asked once. After that you can switch it off for a project or an app in Settings › Agent access.");
+    await expect(question).not.toContainText(/one switch|every pool/i);
+    await expect(question.getByRole("button", { name: "Turn on team tools" })).toBeVisible();
     await expect(question.getByRole("button", { name: "Not now" })).toBeVisible();
     await page.mouse.move(0, 0);
     await page.screenshot({ path: resolve(OUT, `agent-tools-question-1280x800-${theme}.png`) });

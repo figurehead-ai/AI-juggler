@@ -13,6 +13,9 @@
  *
  * Invented names and fixture data only. 1280×800; axe 0 critical/serious
  * on each capture.
+ *
+ * Round 2 (#17): every menu on a pool's screen opens inside the window at
+ * 1024×680 and 1024×768 (the role menu was clipped at 1024×768).
  */
 import AxeBuilder from "@axe-core/playwright";
 import { type Page } from "@playwright/test";
@@ -59,7 +62,7 @@ function selectionSeed(t0: number) {
   };
 }
 
-async function open(page: Page, theme: "dark" | "light", seed: Record<string, unknown> | null) {
+async function open(page: Page, theme: "dark" | "light", seed: Record<string, unknown> | null, size = { width: 1280, height: 800 }) {
   await page.clock.setFixedTime(GATE_NOW);
   await page.addInitScript(
     ({ theme, seed }) => {
@@ -72,7 +75,7 @@ async function open(page: Page, theme: "dark" | "light", seed: Record<string, un
     { theme, seed },
   );
   await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
-  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.setViewportSize(size);
   await page.goto("/");
   await expect(page.getByTestId("rail")).toBeVisible();
 }
@@ -143,7 +146,7 @@ for (const theme of ["dark", "light"] as const) {
       await shoot(page, SETUP, `setup-${step}-filled-1280x800-${theme}.png`);
       if (step !== "review") await page.getByTestId("new-pool-next").click();
     }
-    await expect(page.getByTestId("new-pool-review")).toContainText("next session here leads");
+    await expect(page.getByTestId("new-pool-review")).toContainText("leads from its next session in storefront");
     await expect(page.getByTestId("new-pool-review")).toContainText("Sealed");
   });
 
@@ -187,11 +190,61 @@ for (const theme of ["dark", "light"] as const) {
     await expect(page.getByTestId("pool-setup-talk")).toBeVisible();
     await shoot(page, SELECTION, `selection-pool-setup-1280x800-${theme}.png`);
 
-    // A pool waiting for an App's next session to lead: its place on the canvas.
+    // A pool waiting for an App's next session to lead: that App is one
+    // card, "Leads next", with Start one now (round 2, #2 and #3).
     await goTo(page, "Pools");
     await page.getByTestId("pool-card-tile").filter({ hasText: "Review crew" }).click();
-    await page.getByTestId("canvas-lead-card").click();
-    await expect(title).toHaveText("Claude Code CLI · Work Max's next session");
+    await expect(page.getByTestId("canvas-lead-card")).toHaveCount(0);
+    await page.locator('[data-rule-ref="app:cli:claude-work"]').click();
+    await expect(title).toHaveText("Claude Code CLI · Work Max");
+    await expect(page.getByTestId("inspect-rule-leads-next")).toContainText("leads from its next session");
+    await expect(page.getByTestId("canvas-rule-start-lead")).toBeVisible();
     await shoot(page, SELECTION, `selection-lead-next-1280x800-${theme}.png`);
+  });
+}
+
+for (const size of [
+  { width: 1024, height: 680 },
+  { width: 1024, height: 768 },
+]) {
+  test(`every menu on a pool's screen opens inside the window — ${size.width}×${size.height}`, async ({ page }) => {
+    await open(page, "dark", selectionSeed(GATE_NOW), size);
+    await goTo(page, "Pools");
+    await page.getByTestId("pool-card-tile").filter({ hasText: "Checkout team" }).click();
+    // A narrow window opens the List; the Diagram is a click away.
+    await page.getByTestId("pool-mode-canvas").click();
+    await expect(page.getByTestId("pool-canvas")).toBeVisible();
+    const inside = async (what: string) => {
+      const menu = page.getByRole("menu").last();
+      await expect(menu, what).toBeVisible();
+      const box = (await menu.boundingBox())!;
+      expect([box.x >= 0, box.y >= 0, box.x + box.width <= size.width, box.y + box.height <= size.height], `${what}: ${JSON.stringify(box)}`).toEqual([true, true, true, true]);
+      await page.keyboard.press("Escape");
+      await expect(page.getByRole("menu")).toHaveCount(0);
+    };
+    const open1 = async (testId: string, what: string) => {
+      await page.getByTestId(testId).scrollIntoViewIfNeeded();
+      await page.getByTestId(testId).click();
+      await inside(what);
+    };
+    await open1("pool-header-level", "the header's On their own");
+    // An App at the inspector's edge: its role and what it may do.
+    await page.locator('[data-rule-ref="app:cli:claude-personal"]').scrollIntoViewIfNeeded();
+    await page.locator('[data-rule-ref="app:cli:claude-personal"]').click();
+    await open1("inspect-rule-role", "an App's role");
+    await open1("inspect-rule-level", "an App's On its own");
+    // Everyone in scope, the last card, low on the canvas.
+    await page.locator('[data-rule-ref="all"]').scrollIntoViewIfNeeded();
+    await page.locator('[data-rule-ref="all"]').click();
+    await open1("inspect-rule-role", "everyone's role");
+    // A session: its menu, and what it may do.
+    await page.locator('[data-node-name="s-plan"]').click({ button: "right" });
+    await inside("a session's menu");
+    await page.locator('[data-node-name="s-plan"]').click();
+    await open1("inspect-node-level-picker", "a session's On its own");
+    // The pool's own setup: how everyone else joins.
+    await page.getByTestId("inspector-back").click();
+    await page.locator('[data-testid=pool-checklist-step][data-step="everyone"]').click();
+    await open1("pool-join-picker", "the pool's join as");
   });
 }
