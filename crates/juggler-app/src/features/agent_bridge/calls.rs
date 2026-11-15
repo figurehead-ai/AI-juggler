@@ -614,15 +614,13 @@ fn answer(
             Ok(json!({"says": (!text.is_empty()).then_some(text), "pool": pool}))
         }
         Call::Whoami => {
-            let cards = cards(state, &place.pool_id)?;
-            let me = cards
-                .iter()
-                .find(|card| card.session_id == session.as_str());
+            let (name, place_words, tool) =
+                who_am_i(state, session, &place.pool_id, &place.member)?;
             Ok(json!({
                 "session_id": session.as_str(),
-                "name": me.map(|card| card.name.clone()),
-                "place": me.map(|card| card.place.clone()),
-                "tool": me.map(|card| card.tool.clone()),
+                "name": name,
+                "place": place_words,
+                "tool": tool,
                 "pool": pool,
                 "pools": place.pools,
                 "role": place.role,
@@ -661,9 +659,45 @@ fn answer(
     }
 }
 
-/// `pool_roster`: the pool's members by their cards, and (D-62 decision
-/// 15) its Watched members, who can't reply until continued.
-fn roster(
+/// A caller's name, place and tool, for `whoami`.
+pub(crate) type Me = (Option<String>, Option<String>, Option<String>);
+
+/// `whoami`'s name, place and tool: from its card, or (AJ-E3013) for an
+/// attested desktop session from what the pool knows of its conversation
+/// (its title, its App, its tool), the facts this call was attested with
+/// naming which.
+pub(crate) fn who_am_i(
+    state: &Arc<AppState>,
+    session: &SessionId,
+    pool_id: &str,
+    member: &str,
+) -> Result<Me, Response> {
+    if juggler_core::storage::attested::is_desktop_id(session.as_str()) {
+        let me = crate::features::connector::reach::of_pool(state, pool_id)
+            .unwrap_or_default()
+            .into_iter()
+            .find(|one| one.member == member);
+        return Ok(me.map_or((None, None, None), |one| {
+            (Some(one.name), one.place, one.tool)
+        }));
+    }
+    let cards = cards(state, pool_id)?;
+    let me = cards
+        .iter()
+        .find(|card| card.session_id == session.as_str());
+    Ok((
+        me.map(|card| card.name.clone()),
+        me.map(|card| card.place.clone()),
+        me.map(|card| card.tool.clone()),
+    ))
+}
+
+/// `pool_roster`: the pool's members by their cards, and (AJ-E3013) its
+/// desktop conversations: a connected one by the ref a message to it
+/// takes, with how a new message reaches it (it wakes, or reads at its
+/// next turn); a Watched one (D-62 decision 15) as one that can't reply,
+/// and why.
+pub(crate) fn roster(
     state: &Arc<AppState>,
     session: &SessionId,
     pool_id: &str,
@@ -685,25 +719,28 @@ fn roster(
             })
         })
         .collect();
-    // D-62 decision 15: sessions other apps run, shown but unable
-    // to reply until they're continued in AI Juggler.
-    let watched = pools::watched::watched_impl(state, pool_id).unwrap_or_default();
-    members.extend(
-        watched
-            .into_iter()
-            .filter(|one| one.continued_session.is_none())
-            .map(|one| {
-                json!({
-                    "you": false,
-                    "watched": one.member,
-                    "name": one.title.unwrap_or_else(|| "A session in another app".to_owned()),
-                    "tool": one.tool,
-                    "account": one.account_label,
-                    "state": "watched: can't reply",
-                    "role": one.role,
-                })
-            }),
-    );
+    let desktop = crate::features::connector::reach::of_pool(state, pool_id).unwrap_or_default();
+    members.extend(desktop.into_iter().map(|one| {
+        let you = one.session.as_deref() == Some(session.as_str());
+        let mut entry = json!({
+            "you": you,
+            "name": one.name,
+            "place": one.place,
+            "tool": one.tool,
+            "account": one.account,
+            "state": one.reach_words(),
+            "role": one.role,
+        });
+        // A connected one is written to by its ref, as any member by its
+        // session_id; a Watched one keeps its own key (it can't reply).
+        let key = if one.connected {
+            "session_id"
+        } else {
+            "watched"
+        };
+        entry[key] = json!(one.member);
+        entry
+    }));
     Ok(json!({"pool": pool, "members": members, "note": OWN_WORDS}))
 }
 

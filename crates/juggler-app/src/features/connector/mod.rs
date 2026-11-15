@@ -23,6 +23,7 @@
 
 pub mod commands;
 pub mod dto;
+pub(crate) mod reach;
 
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
@@ -442,5 +443,7 @@ pub fn desktop_members_impl(
     Ok(out)
 }
 
+#[cfg(test)]
+mod reach_tests;
 #[cfg(test)]
 mod tests;
