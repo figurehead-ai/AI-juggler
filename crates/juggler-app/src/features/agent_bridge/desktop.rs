@@ -18,7 +18,7 @@ use std::time::{Duration, Instant};
 use juggler_agentbridge::wire::{self, Refusal, Response};
 use juggler_core::agent_access::{AgentAction, Decision};
 use juggler_core::model::SessionId;
-use juggler_core::storage::{RecipientState, SENDER_USER, ThreadState};
+use juggler_core::storage::{RecipientState, SENDER_USER};
 use juggler_platform::local_ipc::Peer;
 
 use crate::state::AppState;
@@ -85,21 +85,6 @@ impl Drop for Held<'_> {
 /// Who a wait's peer is (the attestation; a test's stand-in).
 pub type Attestor =
     Arc<dyn Fn(&Arc<AppState>, Peer) -> Result<super::attest::DesktopCaller, String> + Send + Sync>;
-
-/// The session a message's sender ref stands for (a session, a Work
-/// item's live session, or an attested desktop session's conversation).
-fn sender_session(storage: &juggler_core::storage::Storage, sender: &str) -> Option<SessionId> {
-    if let Some((folder, conversation)) = sender
-        .strip_prefix("conversation:")
-        .and_then(|rest| rest.split_once('/'))
-    {
-        return Some(juggler_core::storage::attested::desktop_id(
-            folder,
-            conversation,
-        ));
-    }
-    crate::features::messages::live_session_of(storage, sender)
-}
 
 /// D-119: the facts-only notice that wakes `session` now, if a message
 /// came that may: an agent's (a person's message waits for its turn), in
@@ -171,19 +156,13 @@ pub(crate) fn look_for(state: &Arc<AppState>, session: &SessionId) -> Option<Loo
             .into_iter()
             .filter(|row| row.message.sender_kind != SENDER_USER)
             .filter(|row| {
-                let pool = &row.message.pool_id;
-                repo.pool_pause(pool).ok().flatten().is_none()
-                    && !storage
-                        .agent_access()
-                        .access(pool)
-                        .is_ok_and(|access| access.delivery_stopped)
-                    && repo
-                        .thread(&row.message.thread_id)
-                        .ok()
-                        .flatten()
-                        .is_some_and(|thread| thread.state == ThreadState::Open)
+                crate::features::messages::delivery::may_deliver_now(&storage, &row.message)
             })
-            .filter_map(|row| Some((sender_session(&storage, &row.message.sender_ref)?, row)))
+            .filter_map(|row| {
+                let sender =
+                    crate::features::messages::sender_session(&storage, &row.message.sender_ref)?;
+                Some((sender, row))
+            })
             .collect();
         (open, newest)
     };

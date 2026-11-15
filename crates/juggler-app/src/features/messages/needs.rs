@@ -581,7 +581,7 @@ fn tell_sender(state: &Arc<AppState>, message: &Message, body: &str) {
 /// queued as the user's click.
 fn go_on(state: &Arc<AppState>, deliver: bool, message: &Message) -> AppResult<()> {
     if !deliver {
-        let sender = super::live_session_of(&*lock_storage_arc(state)?, &message.sender_ref);
+        let sender = super::sender_session(&*lock_storage_arc(state)?, &message.sender_ref);
         if let Some(session) = sender {
             let from = Author::Agent {
                 session,

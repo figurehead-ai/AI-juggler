@@ -262,6 +262,18 @@ pub(crate) fn live_session_of(storage: &Storage, member_ref: &str) -> Option<Ses
     live.into_iter().next().map(|record| record.id)
 }
 
+/// The session a message's sender ref stands for, for the decisions made
+/// as that sender (`allowed(deliver_to_session)` and the rest): a session
+/// or a Work item's live session, or (AJ-E3013) a desktop conversation's
+/// attested session. One rule for the delivery worker, Needs you's
+/// release and waking a desktop member (D-119).
+pub(crate) fn sender_session(storage: &Storage, sender: &str) -> Option<SessionId> {
+    if let Some(MemberRef::Conversation { folder, id }) = MemberRef::parse(sender) {
+        return Some(juggler_core::storage::attested::desktop_id(&folder, &id));
+    }
+    live_session_of(storage, sender)
+}
+
 /// A pool's name as the app shows it.
 pub(crate) fn pool_name(storage: &Storage, pool_id: &str) -> AppResult<String> {
     crate::features::pools::named_pool(storage, pool_id).map(|(_, name)| name)

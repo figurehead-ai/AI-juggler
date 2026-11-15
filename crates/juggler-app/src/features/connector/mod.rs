@@ -32,9 +32,8 @@ use juggler_adapter::SharedAdapter;
 use juggler_adapter::connector::{ConnectorInput, ConnectorPlan};
 use juggler_adapters::connector_files::{self, ConnectorRecord, ConnectorState};
 use juggler_agentbridge::wire;
-use juggler_core::agent_access::AgentAction;
 use juggler_core::model::{AccountId, HarnessId};
-use juggler_core::storage::{MemberRef, Storage};
+use juggler_core::storage::MemberRef;
 
 use self::dto::{
     ConnectorFileInfo, ConnectorPreviewInfo, ConnectorRemovalInfo, ConnectorStatusInfo,
@@ -343,19 +342,6 @@ pub fn remove_impl(state: &Arc<AppState>, app_id: &str) -> AppResult<ConnectorRe
     })
 }
 
-/// Whether a new pool message may start a member's turn in `pool_id`
-/// (D-119: the pool at Full, or a rule the user made), as `allowed` decides
-/// `deliver_to_session` before its hop limit.
-pub(crate) fn pool_wakes(storage: &Storage, pool_id: &str) -> bool {
-    storage.agent_access().access(pool_id).is_ok_and(|access| {
-        access.level.is_some_and(|level| {
-            level
-                .actions(&access.custom)
-                .contains(&AgentAction::DeliverToSession)
-        }) || access.rules.contains(&AgentAction::DeliverToSession)
-    })
-}
-
 /// A pool's desktop members: each one's App, its connector, whether it's
 /// connected, and how a new pool message reaches it.
 ///
@@ -388,7 +374,7 @@ pub fn desktop_members_impl(
         (
             rows,
             apps,
-            pool_wakes(&storage, pool_id),
+            crate::features::messages::delivery::pool_delivers(&storage, pool_id),
             storage.attested().fresh(),
         )
     };
