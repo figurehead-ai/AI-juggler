@@ -303,6 +303,14 @@ fn this_processs_own_chain_is_attested_end_to_end_and_its_call_is_answered() {
         pid_version: juggler_proc_list::pid_version(me),
         accepted: std::time::SystemTime::now(),
     };
+    // M1: the registry entry above was written by a "script" for its own
+    // parent (this test's runner): that process isn't this App's signed
+    // Claude Code, so the call is refused.
+    let forged = super::attest::attest(&state, peer).unwrap_err();
+    assert!(forged.contains("Claude Code"), "{forged}");
+    // The rest of the path, with M1's check of the program set aside
+    // (it is tested on its own).
+    super::attest::ACCEPT_ANY_TOOL.with(|accept| accept.set(true));
     let caller = super::attest::attest(&state, peer).unwrap();
     assert_eq!(caller.session, desktop_id(FOLDER, CONVERSATION));
     assert_eq!(caller.tool_pid, parent);
@@ -351,7 +359,7 @@ fn only_the_attestation_writes_the_attested_sessions() {
                 walk(&path, found);
             } else if path.extension().is_some_and(|ext| ext == "rs") {
                 let text = std::fs::read_to_string(&path).unwrap();
-                let code = text.split("#[cfg(test)]").next().unwrap_or_default();
+                let code = text.split("#[cfg(test)]\nmod").next().unwrap_or_default();
                 if code.contains("attested().put(") && !path.ends_with("attest_tests.rs") {
                     found.push(path.to_string_lossy().into_owned());
                 }

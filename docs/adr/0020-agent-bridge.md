@@ -299,14 +299,23 @@ part in its adapter, `juggler_adapter::peer::DesktopPeer`):
 4. **The App's record.** That `hostSessionId` must name the App's own
    record, `<instance>/claude-code-sessions/<account>/<org>/<hostSessionId>.json`
    (a regular file, never a link), whose `cliSessionId` equals the
-   registry's `sessionId`. Its conversation is the member: `(the App's
-   config folder row, that id)`.
+   registry's `sessionId`, and which the app hasn't archived. Its
+   conversation is the member: `(the App's config folder row, that id)`.
+4b. **The tool's own program (M1).** The registry's word isn't enough:
+   the process it names must be this App's own Claude Code. Its executable
+   (`proc_pidpath`, through `sysinfo`) has no link on its path, sits in
+   the App's own folder (`<instance>/claude-code/<version>/…/Contents/MacOS/claude`),
+   and is validly signed by Anthropic's team (`Q6L2SF6YDW`, checked by
+   `codesign --verify --strict` against Apple's anchor; the verdict kept
+   per file path, inode, size and modification time). Its ancestors reach
+   this App instance's own process (the Claude app's main executable,
+   started for this `--user-data-dir`).
 5. **One App.** Every desktop App the user added (D-84) whose tool's
    adapter can attest is asked; exactly one must attest. None, or two,
    is a refusal.
 6. **Its place.** The app builds the session's facts (App, Account, Tool,
    conversation; project from the conversation index) under a minted id,
-   `desktop:<conversation>`, which no real session can have
+   `desktop:<folder>/<conversation>` (L3), which no real session can have
    (`SessionsRepo::insert` refuses the prefix), and keeps them in memory
    (`Storage::attested`), refreshed by each attested call and dropped ten
    minutes after the last one, or at once when a later call finds that
@@ -336,11 +345,16 @@ chain ends at `launchd`) is refused.
 - **What attestation stops:** honest but wrong callers: another tool's
   process, a stale record or a reused pid, a session of another profile
   or App, a process that outlived its session.
-- **What it doesn't stop:** a malicious process running as the same user.
-  Claude Code's registry folder (`<config>/sessions/`) and the app's
-  session records are writable by any process of this user, so such a
-  process could forge an entry for its own parent's pid, with the right
-  start time and a copied app record, and be attested as that session.
+- **What it doesn't stop:** a malicious process running as the same
+  user, in one narrow way after M1. Claude Code's registry folder
+  (`<config>/sessions/`) and the app's session records are writable by
+  any process of this user. A script can no longer get attested by
+  writing an entry for its own parent: that parent must be the App's own
+  Claude Code program, signed by Anthropic, running under the App's own
+  process. What remains is a process inside a live Code-tab session
+  (the session's own CLI, or something it runs) rewriting **its own
+  CLI's** registry entry to name another conversation of the same App:
+  it could then act as that other conversation of the same profile.
 - **Why that's no new exposure:** ADR-0020's key has the same limit: any
   process of the same user can read a launched session's environment
   (`KERN_PROCARGS2`), key included.
@@ -387,7 +401,7 @@ chain ends at `launchd`) is refused.
 | **S** a process that outlives its session (an orphaned MCP server) | its parent is `launchd`: no registry entry; refused | `an_orphan_is_refused` |
 | **S** resume and `/clear` (the MCP server outlives a conversation) | the registry and App record are read at every call; the call acts as the conversation they name now, or is refused when they disagree | `the_registry_is_read_at_every_call` |
 | **S** a descendant of the session (a hook, a shell command the model runs) | accepted, as that session: it is inside the session's own trust (the model can call the tools itself); at most two steps up | `a_hook_under_sh_is_attested` |
-| **S** a same-user process that **forges** a registry file and an App record for its own parent | out of scope, as in §4: a same-user process can already read a launched session's environment, and so its key. The files must be regular files of this user's, in the App's own folders | (design) |
+| **S** a same-user process that **forges** a registry entry for its own parent (M1) | the parent must be this App's own Claude Code (its program under the App's folder, signed by Anthropic's team, running under the App's own process); an archived conversation isn't attested; the files are read through the no-link walk, owner and mode checked on the open file. What remains is a session rewriting its own CLI's entry to name another conversation of the same App (as §4: a same-user process can already read a launched session's key) | `this_processs_own_chain_…` (a forged entry for the test's runner refused), `only_the_profiles_own_shipped_claude_code_is_its_tool`, `another_teams_program_or_none_isnt_signed_by_the_team`, `an_archived_session_isnt_attested` |
 | **T** the connector's files changed to point elsewhere | Add records each file's sha256; status says "changed by someone"; Remove deletes only what still matches | connector tests |
 | **I** secrets | the registry's `*.key` files are never opened; no value of the session's environment is read by the app (D-37); the connector holds no secret | `the_key_files_are_never_read` |
 | **D** call storms | the same limits: 30 calls in 10 s per conversation | (as before) |

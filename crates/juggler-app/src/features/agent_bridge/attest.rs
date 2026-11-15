@@ -81,6 +81,8 @@ pub(crate) struct Candidate {
     pub instance_dir: PathBuf,
     /// Its tool's adapter.
     pub adapter: SharedAdapter,
+    /// Its host app's registry id (`claude-app`).
+    pub host_app_id: Option<String>,
 }
 
 /// Epoch microseconds of `at` (0 before 1970).
@@ -189,6 +191,7 @@ pub(crate) fn candidates(state: &Arc<AppState>) -> Vec<Candidate> {
                 config_dir,
                 instance_dir,
                 adapter,
+                host_app_id: app.host_app_id,
             })
         })
         .collect()
@@ -235,6 +238,92 @@ pub(crate) fn decide(
         _ => Err("more than one desktop app claims this session".to_owned()),
     };
     (verdict, stale)
+}
+
+#[cfg(test)]
+thread_local! {
+    /// Tests that drive a real attestation with this test process's own
+    /// parent standing in for Claude Code skip M1's check of its program
+    /// (which no test process can pass); the check itself is tested apart.
+    pub(crate) static ACCEPT_ANY_TOOL: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
+/// M1 (security review): the tool process the registry names must be this
+/// App's own copy of the tool, signed by its maker, and running under this
+/// App instance's own process:
+/// - its executable (`proc_pidpath`, through `sysinfo`) has no link on its
+///   path, sits where the App keeps its tool
+///   ([`juggler_adapter::peer::DesktopPeer::tool_binary`]), and is signed by
+///   the adapter's team ([`juggler_platform::code_sign::signed_by_team`],
+///   kept per file);
+/// - its ancestors reach the App's own process for this instance (the same
+///   host-and-instance reading the conversations' places use).
+///
+/// # Errors
+///
+/// Why not, in words.
+fn verify_tool(
+    state: &Arc<AppState>,
+    candidate: &Candidate,
+    session: &juggler_adapter::peer::AttestedSession,
+    kernel: &HashMap<u32, Listed>,
+) -> Result<(), String> {
+    #[cfg(test)]
+    if ACCEPT_ANY_TOOL.with(std::cell::Cell::get) {
+        return Ok(());
+    }
+    use crate::features::conversations::{places, procs};
+    let peer = candidate
+        .adapter
+        .desktop_peer()
+        .ok_or("this app's tool can't be checked")?;
+    let mut pids = vec![session.tool_pid];
+    let mut at = session.tool_pid;
+    for _ in 0..6 {
+        match kernel.get(&at).map(|process| process.ppid) {
+            Some(parent) if parent > 1 => {
+                pids.push(parent);
+                at = parent;
+            }
+            _ => break,
+        }
+    }
+    let table = procs::some(&pids);
+    let exe = table
+        .get(&session.tool_pid)
+        .and_then(|process| process.exe.clone())
+        .ok_or("the session's Claude Code process can't be read")?;
+    if std::fs::canonicalize(&exe).ok().as_ref() != Some(&exe) {
+        return Err("the session's program is reached through a link".to_owned());
+    }
+    let place = DesktopPlace {
+        config_dir: &candidate.config_dir,
+        instance_dir: &candidate.instance_dir,
+    };
+    if !peer.tool_binary(&place, &exe) {
+        return Err("the session's process isn't this app's own Claude Code".to_owned());
+    }
+    let signed = peer
+        .signer()
+        .is_some_and(|team| juggler_platform::code_sign::signed_by_team(&exe, team));
+    if !signed {
+        return Err("the session's program isn't signed by its maker".to_owned());
+    }
+    let hosts = places::HostRegistry::of(&state.registry);
+    let home = juggler_platform::user::home().unwrap_or_default();
+    let host = places::host_of(session.tool_pid, &table, &hosts, &home)
+        .ok_or("the session isn't running under this app")?;
+    let same_instance = match (
+        &host.instance_dir,
+        std::fs::canonicalize(&candidate.instance_dir),
+    ) {
+        (Some(running), Ok(ours)) => std::fs::canonicalize(running).ok().as_ref() == Some(&ours),
+        _ => false,
+    };
+    if host.app_id != candidate.host_app_id || !same_instance {
+        return Err("the session runs under another app or profile".to_owned());
+    }
+    Ok(())
 }
 
 /// H3: drops at once what is kept for each attested desktop session whose
@@ -339,6 +428,9 @@ pub fn attest(state: &Arc<AppState>, peer: Peer) -> Result<DesktopCaller, String
     }
     let (at, session) = verdict?;
     let candidate = &candidates[at];
+    // M1: the registry's word isn't enough: its process must be this App's
+    // own signed Claude Code, running under this App's own process.
+    verify_tool(state, candidate, &session, &table)?;
     let id = desktop_id(&candidate.folder, &session.conversation);
     let kept_project = state
         .storage

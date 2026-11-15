@@ -93,6 +93,21 @@ pub trait DesktopPeer: Send + Sync {
     /// can reach (a Codex app thread).
     fn can_wake(&self) -> bool;
 
+    /// M1: whether `exe` (a running process's real executable, no link on
+    /// its path) is this App's own copy of the tool: where the App keeps
+    /// it under its own folder. `false` (the default): nothing passes.
+    fn tool_binary(&self, place: &DesktopPlace<'_>, exe: &Path) -> bool {
+        let _ = (place, exe);
+        false
+    }
+
+    /// M1: the Apple developer team that signs the tool's program, which
+    /// the app checks the running program against (`None`: nothing
+    /// passes).
+    fn signer(&self) -> Option<&'static str> {
+        None
+    }
+
     /// H3: whether `session`, attested earlier, is still the one the
     /// tool's own records name for its process (its registry entry still
     /// there, for the same conversation, with the same start time).

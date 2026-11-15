@@ -36,6 +36,13 @@ const RECORD_MAX: u64 = 2 * 1024 * 1024;
 pub const DESKTOP_ENTRYPOINT: &str = "claude-desktop";
 /// The longest id taken from a record.
 const ID_MAX: usize = 128;
+/// M1: Anthropic's Apple developer team, which signs the Claude Code the
+/// Claude app ships (`codesign -dv` on its bundled CLI, 2026-11-15:
+/// `TeamIdentifier=Q6L2SF6YDW`, `Identifier=com.anthropic.claude-code`).
+pub const ANTHROPIC_TEAM: &str = "Q6L2SF6YDW";
+/// M1: where a Claude app profile keeps its Claude Code, under its own
+/// folder: `claude-code/<version>/<build>/…/Contents/MacOS/claude`.
+const SHIPPED: &str = "claude-code";
 
 /// A registry entry: the fields attestation reads, nothing else kept.
 #[derive(serde::Deserialize)]
@@ -48,11 +55,13 @@ struct Entry {
     proc_start: Option<String>,
 }
 
-/// The app's record: its conversation id, nothing else kept.
+/// The app's record: its conversation id and whether the app archived
+/// it, nothing else kept.
 #[derive(serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct Record {
     cli_session_id: Option<String>,
+    is_archived: Option<bool>,
 }
 
 /// The Claude app's half of the attestation.
@@ -70,6 +79,14 @@ impl DesktopPeer for ClaudeAppPeer {
 
     fn still_current(&self, place: &DesktopPlace<'_>, session: &AttestedSession) -> bool {
         still_current(place, session)
+    }
+
+    fn tool_binary(&self, place: &DesktopPlace<'_>, exe: &Path) -> bool {
+        tool_binary(place, exe)
+    }
+
+    fn signer(&self) -> Option<&'static str> {
+        Some(ANTHROPIC_TEAM)
     }
 }
 
@@ -141,6 +158,10 @@ fn from_entry(place: &DesktopPlace<'_>, bytes: &[u8], step: ProcStep) -> PeerVer
         return PeerVerdict::no("Claude Code's session record names no app session");
     };
     match app_record(place.instance_dir, &host) {
+        AppRecord::Archived => {
+            // M1: an archived conversation isn't a live member.
+            PeerVerdict::no("the Claude app archived this session")
+        }
         AppRecord::Of(record) if record == conversation => PeerVerdict::Attested(AttestedSession {
             conversation,
             host_session: host,
@@ -154,6 +175,19 @@ fn from_entry(place: &DesktopPlace<'_>, bytes: &[u8], step: ProcStep) -> PeerVer
             PeerVerdict::no("this Claude app profile has no record of the session")
         }
     }
+}
+
+/// M1: whether `exe` is the Claude Code this profile ships: under the
+/// profile's own folder, in `claude-code/<version>/…`, the bundle's
+/// `Contents/MacOS/claude` (the folder's real path: no link on the way).
+#[must_use]
+pub fn tool_binary(place: &DesktopPlace<'_>, exe: &Path) -> bool {
+    let Ok(root) = std::fs::canonicalize(place.instance_dir.join(SHIPPED)) else {
+        return false;
+    };
+    exe.strip_prefix(&root)
+        .is_ok_and(|rest| rest.components().count() >= 5)
+        && exe.ends_with("Contents/MacOS/claude")
 }
 
 /// H3: whether the registry still names `session` for its tool process:
@@ -178,6 +212,8 @@ pub fn still_current(place: &DesktopPlace<'_>, session: &AttestedSession) -> boo
 enum AppRecord {
     /// Its conversation.
     Of(String),
+    /// Archived by the app.
+    Archived,
     /// A record that isn't a plain file, or doesn't read.
     Unreadable,
     /// None.
@@ -211,10 +247,16 @@ fn app_record(instance_dir: &Path, host: &str) -> AppRecord {
             return match record(instance_dir, &rel, RECORD_MAX) {
                 Ok(None) => continue,
                 Err(()) => AppRecord::Unreadable,
-                Ok(Some(bytes)) => serde_json::from_slice::<Record>(&bytes)
-                    .ok()
-                    .and_then(|record| record.cli_session_id)
-                    .map_or(AppRecord::Unreadable, AppRecord::Of),
+                Ok(Some(bytes)) => match serde_json::from_slice::<Record>(&bytes) {
+                    Ok(Record {
+                        is_archived: Some(true),
+                        ..
+                    }) => AppRecord::Archived,
+                    Ok(record) => record
+                        .cli_session_id
+                        .map_or(AppRecord::Unreadable, AppRecord::Of),
+                    Err(_) => AppRecord::Unreadable,
+                },
             };
         }
     }
@@ -500,5 +542,43 @@ mod tests {
         // The registry entry gone: the session ended.
         std::fs::remove_file(lab.config.join("sessions/4242.json")).unwrap();
         assert!(!still_current(&place(&lab), &session));
+    }
+
+    #[test]
+    fn only_the_profiles_own_shipped_claude_code_is_its_tool() {
+        let lab = lab();
+        let shipped = lab
+            .instance
+            .join("claude-code/2.1.325/485fdac4332e/claude.bundle/Contents/MacOS");
+        std::fs::create_dir_all(&shipped).unwrap();
+        let root = std::fs::canonicalize(&lab.instance).unwrap();
+        let exe = root.join("claude-code/2.1.325/485fdac4332e/claude.bundle/Contents/MacOS/claude");
+        assert!(tool_binary(&place(&lab), &exe));
+        for not_it in [
+            PathBuf::from("/usr/local/bin/claude"),
+            root.join("claude-code/claude"),
+            root.join("claude-code/2.1.325/485fdac4332e/claude.bundle/Contents/MacOS/sh"),
+            lab.config
+                .join("claude-code/2.1.325/x/y/Contents/MacOS/claude"),
+        ] {
+            assert!(!tool_binary(&place(&lab), &not_it), "{}", not_it.display());
+        }
+        assert_eq!(ClaudeAppPeer.signer(), Some(ANTHROPIC_TEAM));
+    }
+
+    #[test]
+    fn an_archived_session_isnt_attested() {
+        let lab = lab();
+        desktop_entry(&lab, 4242, START_TEXT);
+        std::fs::write(
+            lab.instance
+                .join("claude-code-sessions/acct/org/local_abc-1.json"),
+            r#"{"sessionId":"local_abc-1","cliSessionId":"conv-1","isArchived":true}"#,
+        )
+        .unwrap();
+        assert!(matches!(
+            attest(&place(&lab), &[step(5000, START + 5), step(4242, START)]),
+            PeerVerdict::Unattested { .. }
+        ));
     }
 }
