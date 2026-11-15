@@ -77,10 +77,11 @@ export function NeedRow({ compact = false, ...props }: RowProps): JSX.Element {
   );
   const why = (
     <span aria-hidden="true" className={"flex min-w-0 items-center gap-1 truncate text-label leading-4 " + (level >= 2 ? "font-semibold " + levelTone(level).text : "text-muted")} data-testid="need-word" data-level={level}>
-      {level === 2 && item.probably && <span className="level-mark" data-level={2} data-probably="true" />}
-      {level < 2 && item.need === "review" && <span className="shrink-0 text-success">✓</span>}
+      {/* The glyphs are decoration (the row's name says its word). */}
+      {level === 2 && item.probably && <span aria-hidden="true" className="level-mark" data-level={2} data-probably="true" />}
+      {level < 2 && item.need === "review" && <span aria-hidden="true" className="shrink-0 text-success">✓</span>}
       <span className="truncate">
-        {level === 3 && "✕ "}
+        {level === 3 && <span aria-hidden="true">✕ </span>}
         {word}
       </span>
     </span>

@@ -505,7 +505,10 @@ export function InstanceBoard({
                       selected={entry.id === selectedId}
                       onSelect={() => onSelectProject(entry.id)}
                     >
-                      {folded.has(entry.id) && <FoldedNeeds rows={entry.rows} isNeed={isNeed} onOpen={() => toggleFold(entry.id)} />}
+                      {/* Inside the project's button: a mark, never a
+                          button in a button (axe nested-interactive); its
+                          fold chevron unfolds it. */}
+                      {folded.has(entry.id) && <FoldedNeeds rows={entry.rows} isNeed={isNeed} />}
                     </RailProjectHeader>
                   ) : (
                     <p

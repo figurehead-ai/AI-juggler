@@ -394,11 +394,13 @@ body {
   }
   /* A count that carries its level (Needs you's head): its glyph before
      the number, ⚠ at L2 and ✕ at L3 (the shape tells them apart, never
-     the hue alone). */
-  .level-count[data-level="2"]::before {
+     the hue alone). Drawn on its own aria-hidden span, never on the
+     count's ::before: generated content is part of an accessible name
+     (the head read "Needs you ✕ 5", 2026-11-15). */
+  .level-glyph[data-level="2"]::before {
     content: "⚠";
   }
-  .level-count[data-level="3"]::before {
+  .level-glyph[data-level="3"]::before {
     content: "✕";
   }
   /* A level's mark: a 6 px dot (L2 filled, a hollow ring when inferred),

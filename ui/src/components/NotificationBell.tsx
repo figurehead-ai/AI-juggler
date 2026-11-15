@@ -14,7 +14,7 @@ import { bellLabel } from "../lib/notice-words";
 import { useKeys } from "../lib/use-keys";
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import { useBackendNeeds } from "../lib/needs-you";
-import { counted, highest, noticeLevel } from "../lib/attention";
+import { brokenOf, counted, highest, noticeLevel } from "../lib/attention";
 
 const NotificationCentre = lazyNamed(() => import("./NotificationCentre"), "NotificationCentre");
 
@@ -27,12 +27,13 @@ export function NotificationBell({ sessions }: { sessions: InstanceInfo[] }): JS
   // not hue) and red only when one of them is broken (L3).
   const { rows } = useBackendNeeds();
   const level = highest(rows.map(noticeLevel).filter(counted));
+  const broken = brokenOf(rows, noticeLevel, (row) => row.kind);
   return (
     <div className="relative" data-notification-bell>
       <button
         type="button"
         onClick={toggleCentre}
-        aria-label={bellLabel(count, summary?.unread ?? 0)}
+        aria-label={bellLabel(count, summary?.unread ?? 0, broken)}
         aria-haspopup="dialog"
         aria-expanded={open}
         aria-keyshortcuts={keys.aria}

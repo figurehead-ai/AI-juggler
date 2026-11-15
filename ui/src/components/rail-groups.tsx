@@ -7,7 +7,7 @@ import { useState, type JSX } from "react";
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import type { ProjectInfo } from "../types/generated/ProjectInfo";
 import { lastWorked } from "../lib/project-words";
-import { attentionLevel } from "../lib/attention";
+import { attentionLevel, brokenParts, brokenWord } from "../lib/attention";
 import { needOfAttention } from "../lib/rail-items";
 import type { SectionId } from "../lib/rail-lines";
 
@@ -109,7 +109,11 @@ export function FoldedNeeds({ rows, isNeed, onOpen }: { rows: InstanceInfo[]; is
   const count = rows.filter(isNeed).length;
   if (count === 0) return null;
   // D-117: one source of levels (a failure is broken, L3).
-  const danger = rows.some((row) => isNeed(row) && attentionLevel({ need: needOfAttention(row.needs_attention ?? row.status) }) === 3);
+  const broken = rows.flatMap((row) => {
+    const need = isNeed(row) ? needOfAttention(row.needs_attention ?? row.status) : null;
+    return need && attentionLevel({ need }) === 3 ? [brokenWord(need)] : [];
+  });
+  const danger = broken.length > 0;
   // The 0.4.1 persona walk: a "!1" that did nothing when clicked. A click
   // unfolds its group, so what needs you shows (still the user's click).
   const Mark = onOpen ? "button" : "span";
@@ -134,7 +138,8 @@ export function FoldedNeeds({ rows, isNeed, onOpen }: { rows: InstanceInfo[]; is
     >
       <span aria-hidden="true" className="level-mark" data-level={danger ? 3 : 2} />
       <span className="tabular-nums">{count}</span>
-      <span className="sr-only">{count === 1 ? "needs you" : "need you"},</span>
+      {/* Its red dot is decoration: what broke is said in words. */}
+      <span className="sr-only">{count === 1 ? "needs you" : "need you"}{danger ? `, ${brokenParts(broken)}` : ""},</span>
     </Mark>
   );
 }

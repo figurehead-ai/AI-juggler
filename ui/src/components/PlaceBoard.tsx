@@ -281,7 +281,7 @@ export function PlaceBoard({ sessions, projects, accounts, snooze, now, selected
   const draw = (line: Line): ReactNode => {
     switch (line.kind) {
       case "section":
-        return <SectionHead id={line.id} count={line.count} level={line.level} open={!closed.has(line.id)} onToggle={() => foldSection(line.id)} extra={line.id === "open" ? <RailOrderMenu /> : undefined} />;
+        return <SectionHead id={line.id} count={line.count} level={line.level} broken={line.broken} open={!closed.has(line.id)} onToggle={() => foldSection(line.id)} extra={line.id === "open" ? <RailOrderMenu /> : undefined} />;
       case "to-review": return <ToReviewCaption />; // D-117: notes, last, uncounted
       case "need":
         return <NeedRow item={line.item} selected={selectedId === (line.item.session?.id ?? line.item.conversation?.id)} onSelect={onSelect} now={now} compact={compact} />;
@@ -299,7 +299,7 @@ export function PlaceBoard({ sessions, projects, accounts, snooze, now, selected
             place={lens === "account" || lens === "pool" ? null : group.place}
             label={group.label}
             count={group.items.length}
-            needs={line.needs} level={line.level} probably={line.probably} lit={group.items.some((item) => selectedId !== null && selectedId === (item.session?.id ?? item.conversation?.id))} /* D-117 */
+            needs={line.needs} level={line.level} probably={line.probably} broken={line.broken} lit={group.items.some((item) => selectedId !== null && selectedId === (item.session?.id ?? item.conversation?.id))} /* D-117 */
             folded={line.folded}
             // Your order and Name remember a fold; Latest activity's is this visit's.
             onToggle={() => (stable ? toggleFold(orderLens, group.key) : toggle(group.key))}

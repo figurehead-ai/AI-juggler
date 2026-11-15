@@ -13,7 +13,7 @@ import type { HiddenApp } from "../lib/shown-apps";
 import type { AlsoCounts, Line, OffRail, SectionId } from "../lib/rail-lines";
 import { isSearching, parseQuery, showInRail, useRailView, type ShowKey } from "../lib/rail-view";
 import { searchHistory } from "../lib/nav";
-import type { AttentionLevel } from "../lib/attention";
+import { levelCountWords, type AttentionLevel } from "../lib/attention";
 import { SELECTED } from "./controls/selected";
 
 const SECTION: Record<SectionId, { label: string; tone: string; Icon: typeof IconAlert; testId: string }> = {
@@ -77,23 +77,32 @@ export function ToReviewCaption(): JSX.Element {
 /** A section's head: a click folds it in place, and unfolds it. D-117:
  * every head is the same calm label (`section-label`: the section tone,
  * capitals); on Needs you the count carries the level (amber ⚠ n at L2,
- * red ✕ n at L3) and none shows when only notes are listed. */
-export function SectionHead({ id, count, level = 0, open, onToggle, extra }: { id: SectionId; count: number; level?: AttentionLevel; open: boolean; onToggle: () => void; extra?: ReactNode }): JSX.Element {
+ * red ✕ n at L3) and none shows when only notes are listed. The glyph is
+ * decoration: its name says the level in words, its visible words first
+ * (WCAG 2.5.3): "Needs you 5, 2 stopped with an error, 3 wait on you"
+ * (`broken`: each L3 thing's word). */
+export function SectionHead({ id, count, level = 0, broken = [], open, onToggle, extra }: { id: SectionId; count: number; level?: AttentionLevel; broken?: readonly string[]; open: boolean; onToggle: () => void; extra?: ReactNode }): JSX.Element {
   const { label, tone, Icon, testId } = SECTION[id];
   const needs = id === "needs";
   const countTone = needs ? (level === 3 ? "text-danger" : level === 2 ? "text-warning" : "text-muted") : "text-muted";
   return (
     <div className="@container relative flex h-[30px] items-end px-0.5">
       <h3 className={"section-label flex min-w-0 flex-1"} data-section={id} data-classic-tone={tone} data-testid={testId} data-level={needs ? level : undefined}>
-        <button type="button" aria-expanded={open} data-rail-nav data-testid="rail-section-fold" onClick={onToggle} className="group/fold flex min-h-6 w-full items-center gap-1.5 rounded-md px-1.5 outline-none hover:bg-surface/60 focus-visible:ring-1 focus-visible:ring-accent/60">
+        <button type="button" aria-expanded={open} aria-label={needs && count > 0 ? `${label} ${levelCountWords(count, broken)}` : undefined} data-rail-nav data-testid="rail-section-fold" onClick={onToggle} className="group/fold flex min-h-6 w-full items-center gap-1.5 rounded-md px-1.5 outline-none hover:bg-surface/60 focus-visible:ring-1 focus-visible:ring-accent/60">
           {/* The old look's icon (attention-classic.css shows it). */}
           <Icon width={13} height={13} aria-hidden="true" className="section-icon" />
+          {/* On Needs you, a space after its label: the visible words read
+              "Needs you 5", as its name begins (axe's label-in-name, WCAG
+              2.5.3). */}
           {label}
+          {needs && " "}
           {(!needs || count > 0) && (
             // The level's glyph (⚠ at L2, ✕ at L3) is drawn by
-            // `.level-count` before the number: decoration, the count's
-            // words are the number.
+            // `.level-glyph` before the number: decoration, hidden; on
+            // Needs you the button's name says the count in words (the
+            // heading takes its name from it).
             <span className={"level-count inline-flex items-center gap-1 font-semibold normal-case tracking-normal tabular-nums " + countTone} data-level={needs ? level : undefined} data-testid="section-count">
+              {needs && level >= 2 && <span aria-hidden="true" className="level-glyph" data-level={level} />}
               {count}
             </span>
           )}

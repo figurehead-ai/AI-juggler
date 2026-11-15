@@ -14,7 +14,7 @@ import { useState, type JSX } from "react";
 import { AppIcon } from "./AppIcon";
 import { AppKindBadge } from "./AppKindBadge";
 import { appKindOfKey } from "../lib/app-kind";
-import { appTone, counted, highest, itemLevel, type AttentionLevel } from "../lib/attention";
+import { appTone, brokenOf, brokenParts, counted, highest, itemLevel, type AttentionLevel } from "../lib/attention";
 import { IconReplay } from "./icons-actions";
 import { ProfileBadge } from "./ProfileBadge";
 import { SectionTitle } from "./SectionTitle";
@@ -164,7 +164,7 @@ function AccountRows({ words, left, label, low, rows }: { words: string | null; 
 
 /** 0.4.1: the bottom row, in the same place on every card: the action on
  * the left, what needs you (when anything does) on the right; one line. */
-function Actions({ children, needs, level = 2 }: { children: JSX.Element | null; needs: number; level?: AttentionLevel }): JSX.Element {
+function Actions({ children, needs, level = 2, broken = [] }: { children: JSX.Element | null; needs: number; level?: AttentionLevel; broken?: readonly string[] }): JSX.Element {
   return (
     <div className="mt-auto flex min-h-7 flex-nowrap items-center justify-between gap-2">
       {children ?? <span />}
@@ -174,6 +174,8 @@ function Actions({ children, needs, level = 2 }: { children: JSX.Element | null;
         <span className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap px-1 py-0.5 text-label font-medium text-ink-2" data-testid="home-app-needs" data-level={level} title="Listed under Needs you">
           <span aria-hidden="true" className="level-mark" data-level={level === 3 ? 3 : 2} />
           {needs} {needs === 1 ? "needs" : "need"} you
+          {/* Its red dot is decoration: what broke, in words. */}
+          {broken.length > 0 && <span className="sr-only">, {brokenParts(broken)}</span>}
         </span>
       )}
     </div>
@@ -203,6 +205,7 @@ function Tile({ group, runway, kept, appId, rows, folder }: { group: RailGroup; 
   const loud = group.items.filter((item) => counted(itemLevel(item)));
   const needs = loud.length;
   const level = highest(loud.map(itemLevel));
+  const broken = brokenOf(loud, itemLevel, (item) => item.need);
   const count = group.items.length;
   const low = runway?.left !== null && runway?.left !== undefined && runway.left <= 25;
   const name = [place.app, place.profile].filter(Boolean).join(" · ");
@@ -259,7 +262,7 @@ function Tile({ group, runway, kept, appId, rows, folder }: { group: RailGroup; 
       <AccountRows words={runway?.words ?? null} left={runway?.left ?? null} label={name} low={low} rows={rows} />
       {/* The action on the left, what needs you on the right, on every card
           in the same place (0.4.1); "Open": the card names the app. */}
-      <Actions needs={needs} level={level}>
+      <Actions needs={needs} level={level} broken={broken}>
         {place.appPid !== null ? (
           <button
             type="button"

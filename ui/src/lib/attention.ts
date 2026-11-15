@@ -148,3 +148,49 @@ export function highest(levels: Iterable<AttentionLevel>): AttentionLevel {
 export function appTone(lit: boolean): string {
   return lit ? "app-tone is-lit" : "app-tone";
 }
+
+/** D-117, said aloud (the a11y fix of 2026-11-15, Happo's snapshots of
+ * 83f700ed6: the head read "Needs you ✕ 5"): a level's glyphs (⚠ ✕, the
+ * dot, the ring) are decoration, hidden from screen readers; the words
+ * carry the level. What an L3 (broken) thing is, in its row's words. */
+export function brokenWord(need: string | null | undefined): string {
+  switch (need) {
+    case "failed":
+      return "stopped with an error";
+    case "limit":
+      return "limit reached";
+    case "quota":
+      return "out of room";
+    case "room":
+      return "this computer under critical pressure";
+    default:
+      return "broken";
+  }
+}
+
+/** Each broken (L3) thing's word among `things` (its level by `levelOf`,
+ * its kind by `needOf`). */
+export function brokenOf<T>(things: readonly T[], levelOf: (thing: T) => AttentionLevel, needOf: (thing: T) => string | null | undefined): string[] {
+  return things.filter((thing) => levelOf(thing) === 3).map((thing) => brokenWord(needOf(thing)));
+}
+
+/** The broken (L3) things by their words, most first: "2 stopped with an
+ * error, 1 out of room"; empty for none. */
+export function brokenParts(words: readonly string[]): string {
+  const counts = new Map<string, number>();
+  for (const word of words) counts.set(word, (counts.get(word) ?? 0) + 1);
+  return [...counts]
+    .sort((a, b) => b[1] - a[1])
+    .map(([word, n]) => `${n} ${word}`)
+    .join(", ");
+}
+
+/** A level count, said aloud: the number, then what broke (L3), then what
+ * waits on you (L2) when both are there: "5, 2 stopped with an error, 3
+ * wait on you"; "3" when nothing broke. `broken`: each L3 thing's word. */
+export function levelCountWords(count: number, broken: readonly string[]): string {
+  if (broken.length === 0) return String(count);
+  const waits = count - broken.length;
+  const rest = waits > 0 ? `, ${waits} ${waits === 1 ? "waits" : "wait"} on you` : "";
+  return `${count}, ${brokenParts(broken)}${rest}`;
+}

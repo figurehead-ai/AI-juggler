@@ -18,7 +18,7 @@
  * unfolding to its sessions, `rail-unfold.ts`), "Running, not added" the
  * apps found running (Add), "Inactive apps" the rest; each App in one.
  */
-import { counted, highest, itemLevel, noticeLevel, type AttentionLevel } from "./attention";
+import { brokenOf, counted, highest, itemLevel, noticeLevel, type AttentionLevel } from "./attention";
 import { endedToday, needsYou, openNow, type RailItem } from "./rail-items";
 import { frozenOrder, groupItems, isQuiet, NO_POOL, quietWords, type AccountOf, type GroupBy, type PoolOf, type RailGroup } from "./rail-places";
 import { arrangeGroup, arrangeGroups, foldKey, lensOf, type OrderMode } from "./rail-order";
@@ -33,13 +33,13 @@ import { appName } from "./app-name";
 export type SectionId = "needs" | "open" | "offered" | "idle" | "pinned";
 
 export type Line =
-  | { kind: "section"; id: SectionId; count: number; level?: AttentionLevel } // D-117: L2+L3; the highest
+  | { kind: "section"; id: SectionId; count: number; level?: AttentionLevel; broken?: string[] } // D-117: L2+L3; the highest
   | { kind: "need"; item: RailItem }
   | { kind: "to-review" } // D-117: over Needs you's notes (L1), uncounted
   | { kind: "notice"; notice: NoticeInfo }
   /** 0.4.3: `foldable`: unfolding shows a row; `recent`: an App with
    * something open, its past ones' count, on its header (shown in place). */
-  | { kind: "header"; group: RailGroup; folded: string | null; needs: number; digit: number | null; foldable: boolean; recent: { count: number; open: boolean } | null; level?: AttentionLevel; probably?: boolean }
+  | { kind: "header"; group: RailGroup; folded: string | null; needs: number; digit: number | null; foldable: boolean; recent: { count: number; open: boolean } | null; level?: AttentionLevel; probably?: boolean; broken?: string[] }
   | { kind: "row"; item: RailItem; group: RailGroup; depth?: number; parent?: string | null }
   | { kind: "more"; group: RailGroup; quiet: number; words: "quiet" | "more" }
   | { kind: "also" }
@@ -174,7 +174,7 @@ function needsSection(needs: RailItem[], rest: NoticeInfo[]): Line[] {
   const notes: Line[] = [...needs.filter((item) => !counted(itemLevel(item))).map((item) => ({ kind: "need" as const, item })), ...rest.filter((notice) => !counted(noticeLevel(notice))).map((notice) => ({ kind: "notice" as const, notice }))];
   const level = highest([...loudNeeds.map(itemLevel), ...loudRest.map(noticeLevel)]);
   return [
-    { kind: "section", id: "needs", count: loudNeeds.length + loudRest.length, level },
+    { kind: "section", id: "needs", count: loudNeeds.length + loudRest.length, level, broken: [...brokenOf(loudNeeds, itemLevel, (item) => item.need), ...brokenOf(loudRest, noticeLevel, (notice) => notice.kind)] }, // said aloud: its ✕ is decoration
     ...loudNeeds.map((item): Line => ({ kind: "need", item })),
     ...loudRest.map((notice): Line => ({ kind: "notice", notice })),
     ...(notes.length > 0 ? [{ kind: "to-review" } as const, ...notes] : []),
@@ -182,9 +182,9 @@ function needsSection(needs: RailItem[], rest: NoticeInfo[]): Line[] {
 }
 
 /** A group header's needs (D-117): L2+L3 counted; the highest level; a ring when all are guesses. */
-function groupNeeds(here: RailItem[]): { needsHere: number; level: AttentionLevel; probably: boolean } {
+function groupNeeds(here: RailItem[]): { needsHere: number; level: AttentionLevel; probably: boolean; broken: string[] } {
   const loud = here.filter((item) => counted(itemLevel(item)));
-  return { needsHere: loud.length, level: highest(loud.map(itemLevel)), probably: loud.length > 0 && loud.every((item) => item.probably) };
+  return { needsHere: loud.length, level: highest(loud.map(itemLevel)), probably: loud.length > 0 && loud.every((item) => item.probably), broken: brokenOf(loud, itemLevel, (item) => item.need) };
 }
 
 export function buildLines({ items, view, query, now, toggled, frozen, accountOf, poolOf, order = YOURS, others = [], known = [], offRail = () => false, offers = [], cliApps = [] }: LineInputs): Lines {
@@ -245,7 +245,7 @@ export function buildLines({ items, view, query, now, toggled, frozen, accountOf
   // By App, Open now counts the Apps open; otherwise the sessions.
   if (groups.length > 0) lines.push({ kind: "section", id: "open", count: apps ? groups.length : open.length });
   groups.forEach((group, index) => {
-    const { needsHere, level, probably } = groupNeeds(needs.filter((item) => groupKey(item) === group.key));
+    const { needsHere, level, probably, broken } = groupNeeds(needs.filter((item) => groupKey(item) === group.key));
     const digit = index < 9 ? index + 1 : null;
     // Your order and Name: a place folds only when the user folds it
     // (remembered). Latest activity: a quiet place folds to its header,
@@ -259,13 +259,13 @@ export function buildLines({ items, view, query, now, toggled, frozen, accountOf
     const under = apps ? unfoldLines(group, idle.get(group.key) ?? [], searching, toggled) : pinnedLines(group.key, pins.find((one) => one.key === group.key)?.items ?? []);
     const foldable = unfoldsToARow(group, under);
     if (folded && foldable) {
-      lines.push({ kind: "header", group, folded: quietWords(group), needs: needsHere, digit, foldable, recent: null, level, probably });
+      lines.push({ kind: "header", group, folded: quietWords(group), needs: needsHere, digit, foldable, recent: null, level, probably, broken });
       return;
     }
     // 0.4.3: an App with something open keeps its past ones to a count on
     // its header (no row of its own); a click shows them here.
     const before = apps && !searching && group.items.length > 0 ? (idle.get(group.key) ?? []).filter((item) => !item.pinned).length : 0;
-    lines.push({ kind: "header", group, folded: null, needs: needsHere, digit, foldable, recent: before > 0 ? { count: before, open: toggled.has(`${group.key}#recent`) } : null, level, probably });
+    lines.push({ kind: "header", group, folded: null, needs: needsHere, digit, foldable, recent: before > 0 ? { count: before, open: toggled.has(`${group.key}#recent`) } : null, level, probably, broken });
     // Latest activity re-sorts, so it holds still under the pointer; the
     // other orders never move a row by themselves.
     const drawn = stable ? fold.shown : keep(`group:${group.key}`, fold.shown);

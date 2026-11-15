@@ -8,6 +8,7 @@ import type { NoticeInfo } from "../types/generated/NoticeInfo";
 import type { NoticeDigestInfo } from "../types/generated/NoticeDigestInfo";
 import { clock, minutes, resetsWords, whenWords } from "./time-words";
 import { waitingWords } from "./waiting";
+import { brokenParts } from "./attention";
 
 /** When something happened: today a time, else its day. */
 export function happenedAt(ms: number, now: number): string {
@@ -153,7 +154,9 @@ export function mutedLine(until: string, count: number): string {
 }
 
 /** The bell's name for screen readers. */
-export function bellLabel(count: number, unread: number): string {
-  const needs = count === 0 ? "nothing needs you" : count === 1 ? "1 thing needs you" : `${count} things need you`;
+export function bellLabel(count: number, unread: number, broken: readonly string[] = []): string {
+  // D-117: its red badge is decoration; what broke (L3) is said in words.
+  const top = count === 0 ? "nothing needs you" : count === 1 ? "1 thing needs you" : `${count} things need you`;
+  const needs = count > 0 && broken.length > 0 ? `${top}, ${brokenParts(broken)}` : top;
   return unread > 0 ? `Notifications: ${needs}, ${unread} unread` : `Notifications: ${needs}`;
 }

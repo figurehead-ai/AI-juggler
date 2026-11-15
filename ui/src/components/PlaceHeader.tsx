@@ -20,7 +20,7 @@ import { useFitWhole } from "./use-fit-whole";
 import { appKindOfKey } from "../lib/app-kind";
 import { FoldButton } from "./rail-groups";
 import { IconUpRight } from "./icons-places";
-import { appTone, type AttentionLevel } from "../lib/attention";
+import { appTone, brokenParts, type AttentionLevel } from "../lib/attention";
 import { DROP, Grip, type Arrangeable } from "./RowTools";
 import type { RailPlace } from "../lib/rail-items";
 
@@ -51,7 +51,11 @@ export function PlaceHeader({
   level = 0,
   probably = false,
   lit = false,
+  broken = [],
 }: {
+  /** D-117: each L3 thing's word here, said in its name (its red dot is
+   * decoration): "2 need you, 1 stopped with an error". */
+  broken?: readonly string[];
   /** D-117: the highest level of what needs you here (its count's mark),
    * a ring when every one is a guess; `lit`: it is current (a row of it
    * is open). At L2/L3 or lit, its icon is in full colour. */
@@ -141,7 +145,7 @@ export function PlaceHeader({
         className="relative flex min-h-6 min-w-0 flex-1 items-center gap-1.5 rounded-md px-1 py-1 text-left outline-none hover:bg-surface/60 focus-visible:ring-1 focus-visible:ring-accent/60"
       >
         {/* 0.4.3: its Out or low mark in its name too (the mark itself is drawn aria-hidden). */}
-        <span className="sr-only">{[folded ?? `${name}, ${empty ? "nothing open" : `${count} open`}${needs > 0 ? `, ${needs} need you` : ""}`, mark?.title].filter(Boolean).join(", ")}</span>
+        <span className="sr-only">{[folded ?? `${name}, ${empty ? "nothing open" : `${count} open`}${needs > 0 ? `, ${needs} need you${broken.length > 0 ? `, ${brokenParts(broken)}` : ""}` : ""}`, mark?.title].filter(Boolean).join(", ")}</span>
         <span aria-hidden="true" className="flex min-w-0 flex-1 items-center gap-[3px]">
           {/* D-100: its kind beside its icon (a window, or >_), never over it. */}
           {children ?? (place && (
@@ -174,7 +178,7 @@ export function PlaceHeader({
               you's row. */}
           {needs > 0 && (
             <span title={`${needs} here ${needs === 1 ? "needs" : "need"} you: ${needs === 1 ? "it's" : "they're"} at the top, under Needs you`} className="inline-flex min-w-[20px] shrink-[1000] items-center gap-1 overflow-hidden px-1 text-label font-semibold leading-[18px] tabular-nums text-ink" data-testid="place-needs" data-level={level}>
-              <span className="level-mark" data-level={level === 3 ? 3 : 2} data-probably={probably ? "true" : undefined} />
+              <span aria-hidden="true" className="level-mark" data-level={level === 3 ? 3 : 2} data-probably={probably ? "true" : undefined} />
               {needs}
             </span>
           )}
