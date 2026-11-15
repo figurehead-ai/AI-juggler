@@ -598,21 +598,29 @@ describe("semantic zoom (the 0.3 review: 9–10 px words at fit)", () => {
 
   it("a Lead's state line ends in an ellipsis, not mid-letter: the state is its own truncating box", () => {
     // 0.4.6 after-walk: "Lead · Worki" at 45 %, cut with no "…".
-    const lead = {
-      id: first.id,
-      session: first,
-      card: { account: "Work Max", tool: "Claude Code", task: { value: "None" } } as unknown as ContextCard,
-      role: "lead",
+    const card: ContextCard = {
+      session_id: first.id,
       name: "Planner",
+      place: "shop · Work Max",
+      tool: "Claude Code",
+      account: "Work Max",
+      state: "running",
+      role: "lead",
+      task: { value: "None", unavailable: null },
+      said: { value: null, unavailable: "Unavailable" },
+      last_activity_ms: null,
+      files: [],
+      files_unavailable: null,
     };
+    const lead: MemberNode = { id: first.id, session: first, card, role: "lead", name: "Planner" };
     const view = render(
       <CompactNode member={lead} at={{ x: 0, y: 0 }} asks={[]} held={0} selected={false} tabStop dragging={false} scale={0.45} onSelect={() => {}} onMenu={() => {}} onPointerDown={() => {}} onKey={() => {}} />,
     );
     const state = view.getByTestId("node-state");
     expect(within(state).getByTestId("node-lead").textContent).toContain("Lead");
-    const word = state.lastElementChild as HTMLElement;
-    expect(word.dataset.testid).toBeUndefined();
-    expect(word.className.split(" ")).toEqual(expect.arrayContaining(["min-w-0", "truncate"]));
+    const word = state.lastElementChild;
+    expect(word?.getAttribute("data-testid")).toBeNull();
+    expect(word?.className.split(" ")).toEqual(expect.arrayContaining(["min-w-0", "truncate"]));
     view.unmount();
   });
 
