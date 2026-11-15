@@ -46,7 +46,9 @@ heading and one line on why, and every choice reads back as a sentence
    projects joins as the Lead. On the pool's diagram that App is one card,
    "Its next session leads · its others join as Member", with **Start one
    now**: it opens New session on that App in the pool's project, and the
-   session you start leads. Or **No lead for now**.
+   session you start leads. An App's role picker offers the same: **Lead:
+   its next session leads**. An Account, Tool, Mac or everyone can't lead,
+   and says why beside its role. Or **No lead for now**.
 5. **Everyone else**: **New sessions in web join as [Member]** (or don't
    join: only who's in), and each member's **Role** and what it may do
    **On its own** (Same as the pool, at first). What each role does:
@@ -72,10 +74,15 @@ session in web, as one team"), and **Move to pool…** on a session's menu
 still puts one session in a pool of yours.
 
 A pool's page shows it as a **Diagram** (who is in it, and who messages
-whom) or a **List**. On the diagram, **Set up this pool** keeps the same
-order beside it,
-a tick on each step done, until every step is: each step opens the same
-control as the setup.
+whom) or a **List**. Its header's **On their own (everyone in this
+pool)** is the same choice as the setup's. Beside the diagram, the pool
+opens on a short summary in the Review's own sentences (who's in, who
+leads, what they may do on their own, the team tools) and what waits for
+you in **Needs you** (the list of things waiting for your OK, on Home).
+**Set up this pool** keeps the setup's order below it, a tick on each
+step done, until every step is: each step opens the same control as the
+setup. The rest of the pool's settings are folds, closed at first, each
+with a line on what it controls.
 
 Once a pool of yours exists, the list's **View** (⇧V) offers **Group by ›
 Pool** (greyed until then): Open now shows your sessions under their
@@ -147,15 +154,18 @@ its own choice. The diagram says, per member, whether it **wakes on new
 messages** or **reads messages on its next turn**; a Codex app thread
 **can't be woken**.
 
-Anything above that becomes a question for you in Needs you, never a
-block: **Allow once**, **Always allow in this pool** (offered the second
-time you allow the same thing) or **Deny**. Every "always allow" is listed
-under the pool and in **Settings › Agent access › Rules you made**, and
-**Take back** ends it from the next request.
+Anything above that becomes a question for you in Needs you (the list of
+things waiting for your OK, on Home), never a block: **Allow once**,
+**Always allow in this pool** (offered the second time you allow the same
+thing) or **Deny**. Every "always allow" is listed under the pool's
+**Allowed without asking** and in **Settings › Agent access › Rules you
+made**, and **Take back** ends it from the next request.
 
-**Messages put into sessions** sets how many replies in a row may go back
-and forth before AI Juggler pauses and asks you (5 to start), and stops all
-of them in this pool.
+**Messages into sessions** says how a message reaches a session that is
+working (by itself between its turns, or after your OK in Needs you), and
+**Stop and ask you after** sets how many messages in a row between agents
+go back and forth before AI Juggler stops and asks you (5 to start).
+**Keep every message out of sessions** stops all of them in this pool.
 
 No choice or rule lets an agent change a pool, what it may do, or a rule, start a
 session, choose an app, or see a password or key. AI Juggler never
