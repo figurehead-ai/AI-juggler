@@ -159,7 +159,7 @@ function LeadsNext({ member, label, open, where, onStart, onChange }: { member: 
  * that wait first. */
 function roleChange(next: PoolRole, input: { lead: RuleLead | null; run: (what: string, call: () => Promise<unknown>) => Promise<void>; poolId: string; member: string; level: string | null }): void {
   const { lead, run, poolId, member, level } = input;
-  if (next === "lead" && lead) {
+  if (next === "lead" && lead && member.startsWith("app:")) {
     void run("change who leads", () => lead.onLead({ kind: "next", app: member }));
   } else {
     void run("change its role", async () => {

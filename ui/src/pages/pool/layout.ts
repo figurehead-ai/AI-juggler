@@ -117,7 +117,9 @@ export const clampScale = (scale: number) => Math.min(MAX_SCALE, Math.max(MIN_SC
 /** `left`, `top` and `bottom`: what the canvas's own chrome covers (the
  * palette, its folded line, the zoom bar: design review #10). */
 export function fitView(points: Iterable<Point>, width: number, height: number, pad = 48, left = 0, top = 0, bottom = 0, right = 0): View {
-  const box = bounds(points);
+  // Read twice (the box, the lead): an iterator only once.
+  const all = [...points];
+  const box = bounds(all);
   // `right`: the room a column over the right edge takes (the rules' group
   // nodes), so no member's node is drawn under it. Too narrow for both
   // sides, the open palette (it folds) gives way, never the column.
@@ -137,9 +139,22 @@ export function fitView(points: Iterable<Point>, width: number, height: number, 
   const y = tall * scale > high - pad * 2 ? top + pad - box.y * scale : top + high / 2 - (box.y + tall / 2) * scale;
   // Too wide, the first column in view beside the palette, the rest a pan
   // away (rc4 walk: a 50-member pool, centred, had its first node under
-  // the palette and its last column under the right-hand column).
-  const x = box.w * scale > room - pad * 2 ? width - right - room + pad - box.x * scale : middle - (box.x + box.w / 2) * scale;
+  // the palette and its last column under the right-hand column) — but
+  // never the top node (the lead) under that column (AJ-E3011 round 3: at
+  // 1024 px a taller group card lay over the lead and took its clicks).
+  const wide = box.w * scale > room - pad * 2;
+  const first = width - right - room + pad - box.x * scale;
+  const lead = wide ? topmost(all) : null;
+  const leadClear = lead ? width - right - pad - (lead.x + NODE_W) * scale : first;
+  const x = wide ? Math.min(first, leadClear) : middle - (box.x + box.w / 2) * scale;
   return { x, y, scale };
+}
+
+/** The top node (the lead's place), leftmost on a tie. */
+function topmost(points: Iterable<Point>): Point | null {
+  let top: Point | null = null;
+  for (const at of points) if (!top || at.y < top.y || (at.y === top.y && at.x < top.x)) top = at;
+  return top;
 }
 
 /** Zooms by `factor` around a point of the window, keeping it still. */

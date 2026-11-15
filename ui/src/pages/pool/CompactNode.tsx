@@ -127,11 +127,14 @@ export function CompactNode({ member, at, asks, held, selected, tabStop, draggin
       aria-label={`More for ${name}`}
       aria-haspopup="menu"
       className={
-        "flex h-5 shrink-0 items-center justify-center overflow-hidden rounded-md text-muted outline-none hover:bg-surface-2 hover:text-ink focus-visible:w-5 focus-visible:opacity-100 focus-visible:ring-1 focus-visible:ring-accent/60 group-hover/node:w-5 group-hover/node:opacity-100 " +
+        "flex h-5 shrink-0 items-center justify-center overflow-hidden rounded-md text-muted outline-none hover:bg-surface-2 hover:text-ink focus-visible:w-5 focus-visible:opacity-100 focus-visible:ring-1 focus-visible:ring-accent/60 " +
         // Its slot takes room only while it shows: at rest the name has the
         // node's width, so a long one reads whole at fit.
         // AJ-E3012: in a narrow box a selected node's name keeps its room
-        // (the 38 % gallery fit read "Pl… a…"); hover and focus still show ⋯.
+        // (the 38 % gallery fit read "Pl… a…"), and hovering doesn't take
+        // it either (the name went to nothing under the pointer, and a
+        // click on it missed); focus, right-click and ⇧F10 still open ⋯.
+        (width >= 140 ? "group-hover/node:w-5 group-hover/node:opacity-100 " : "") +
         (selected && width >= 140 ? "w-5 opacity-100" : "w-0 opacity-0")
       }
       data-testid="node-more"

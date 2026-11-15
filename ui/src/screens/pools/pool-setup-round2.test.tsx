@@ -103,6 +103,21 @@ describe("AJ-E3011 round 2", () => {
     expect(within(screen.getByTestId("new-pool-role-cards")).getByText(/Claude Code · Work's other sessions/)).toBeTruthy();
   });
 
+  it("round 3 #1: Lead in Everyone else is an App's next session, but a session's own", () => {
+    let draft: Draft = { ...draftOf(templateById("blank"), "p-web"), members: [app("app:cli:work", "Claude Code · Work"), { ref: "session:s1", kind: "session", label: "Planner", role: "member", level: null, reach: "full" }] };
+    const view = render(<NewPoolEveryone draft={draft} onDraft={(next) => (draft = next)} where="web" nameOf={(_, label) => label} />);
+    const rows = screen.getAllByTestId("new-pool-member-row");
+    fireEvent.click(within(rows[0]!).getByTestId("new-pool-member-role"));
+    fireEvent.click(screen.getByRole("menuitemradio", { name: /^Lead: its next session leads/ }));
+    expect(draft.leadNext).toBe("app:cli:work");
+    view.rerender(<NewPoolEveryone draft={draft} onDraft={(next) => (draft = next)} where="web" nameOf={(_, label) => label} />);
+    fireEvent.click(within(screen.getAllByTestId("new-pool-member-row")[1]!).getByTestId("new-pool-member-role"));
+    fireEvent.click(screen.getByRole("menuitemradio", { name: /^Lead/ }));
+    // One session leads (D-92): the session takes it, the wait for the App ends.
+    expect(draft.leadNext).toBeNull();
+    expect(draft.members.find((member) => member.ref === "session:s1")?.role).toBe("lead");
+  });
+
   it("#10: a member's own choice says On its own: before its value", () => {
     render(<MemberOwnLevel name="Codex" value={null} poolLevel="work_together" onChange={() => undefined} testId="own" />);
     expect(screen.getByTestId("own").textContent).toBe("On its own:Same as the pool (Work together)");

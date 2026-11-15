@@ -74,7 +74,7 @@ export function NewPoolEveryone({ draft, onDraft, where, nameOf }: { draft: Draf
                       leadsNext={leadsNext}
                       onChange={(role) => {
                         // An App's Lead: its next session leads (round 3, #1), as Who leads sets it.
-                        if (role === "lead") return onDraft(withLead(draft, { kind: "next", app: member.ref }));
+                        if (role === "lead") return onDraft(withLead(draft, member.kind === "app" ? { kind: "next", app: member.ref } : { kind: "session", ref: member.ref }));
                         const base = leadsNext ? withLead(draft, { kind: "none" }) : draft;
                         onDraft({ ...base, members: base.members.map((one) => (one.ref === member.ref ? { ...one, role } : one)) });
                       }}

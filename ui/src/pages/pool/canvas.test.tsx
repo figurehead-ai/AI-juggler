@@ -112,6 +112,11 @@ describe("the canvas's geometry", () => {
     const panned = fitView(many.values(), 1280, 800, 48, 260, 0, 0, 240);
     expect(panned.scale).toBeCloseTo(0.3);
     expect(panned.x).toBeGreaterThanOrEqual(260);
+    // AJ-E3011 round 3: the lead, centred above a grid too wide to fit,
+    // stays clear of the column (at 1024 px a group card took its clicks).
+    const led = new Map([["lead", { x: 9 * (NODE_W + 40), y: -(NODE_H + 60) }], ...many]);
+    const leadView = fitView(led.values(), 600, 700, 48, 0, 0, 0, 240);
+    expect(leadView.x + (9 * (NODE_W + 40) + NODE_W) * leadView.scale).toBeLessThanOrEqual(600 - 240);
   });
 
   it("moves to the nearest node the arrow points at", () => {
