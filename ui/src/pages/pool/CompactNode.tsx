@@ -52,7 +52,12 @@ export function CompactNode({ member, at, asks, held, selected, tabStop, draggin
   // The name's room: the box less its padding, the state dot, the lead's
   // crown and the ⋯ slot when it shows; words break only between them.
   const fontPx = nameSize === "text-body" ? 14 : nameSize === "text-meta" ? 13 : 12;
-  const room = width - (tight ? 12 : 16) - 14 - (lead ? 16 : 0) - (selected && width >= 140 ? 24 : 0);
+  // Every gap of the row counts (dot, crown, the ⋯ slot even when it's
+  // folded), the border too, and a tenth to spare for the font's own
+  // widths: a word that only just fits is cut by the edge (the gallery's
+  // "Planne").
+  const gaps = 6 * (lines === 1 && lead ? 3 : 2);
+  const room = (width - (tight ? 12 : 16) - 2 - 8 - (lines === 1 && lead ? 12 : 0) - gaps - (selected && width >= 140 ? 20 : 0)) / 1.1;
   const wrapWords = wrap && nameWraps(name, room, fontPx);
 
   useEffect(() => {
