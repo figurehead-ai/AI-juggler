@@ -1,4 +1,4 @@
-<!-- captures: d4d730674edd -->
+<!-- captures: 514bb27f325f -->
 # 97-pool-canvas: the Pools screen and a pool's canvas
 
 Design critique (D-57, AJ-E2814) against the reference screens: the row menus (77-menus), the rail's order menu, Usage and Processes. The baseline note says what changed on purpose; this says whether it is good.
@@ -76,3 +76,9 @@ A pool you made shows its scope as a chip ("Scope every project") and sealed whe
 ## 0.4.1 rc33 (2026-11-11): sessions, said as sessions
 
 The rc33 P5 walk read "0 members" on a pool whose Account member was there: the card counted sessions under the word for member rows. pools-screen (both widths, both themes) now says "6 sessions · 4 need you · 2 tasks moving", "1 session · quiet" on docs-site and storefront, the word the pool's header uses ("5 open in AI Juggler · 6 in all"). canvas, canvas-badge-open, canvas-edge-badge-open and canvas-full: the inspector's This pool row reads "Sessions 6 · lead Planner" (was "Members"). Only these 20 were retaken, in the pinned container; nothing else on them moved. The overlaps listed under Weak are unchanged.
+
+## 0.4.6 (AJ-E3011, AJ-E3012): the setup in order, one selection, the inspector titled by it
+
+new-pool-* (both widths, both themes) now walks eight steps instead of four: How to start (Start from scratch is the first, full card; the small "Set up by hand" link is gone), Where, Who's in, Who leads, Everyone else, Who may message whom, On their own, Review — each with a heading and a why-line, the order ticked down the side, and the foot saying what the rest is filled in with from Who's in on. new-pool-roles-* belongs to the old four-step wizard and new-pool-1280x800-* to the removed "by hand" path; both stay as the earlier evidence their manifests cite. canvas and inspect-*: the nodes stand off the board by surface, no hairline and no amber glow (a need is its word, dot and badge, L2); the inspector leads with the selection's own title, its kind and App, and a status pill, its title edge in the accent; the selected node has the one ring (2 px accent, 2 px offset) on 0.5's raised `--color-selected`; the header's picker says "On their own: Work together". inspect-pool opens the pool's own setup above its settings (who leads, how everyone else joins with the role cards, who may message whom as a line per role, what they may do on their own) and the custom actions only when Custom is chosen.
+
+- Weak, new: the node's ⋯ on a selected card still overlaps a long name at 100 %; with four broad members the canvas fits smaller and compact names break mid-word (the compact form's `break-words`).

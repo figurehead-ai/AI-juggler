@@ -236,6 +236,7 @@
 | AJ-E3008 | PASS4 | 2026-11-09 | [manifest](AJ-E3008/manifest.md) |
 | AJ-E3009 | PASS4 | 2026-11-09 | [manifest](AJ-E3009/manifest.md) |
 | AJ-E301 | PASS11 | 2026-10-16 | [manifest](AJ-E301/manifest.md) |
+| AJ-E3011 | PASS5 | 2026-11-15 | [manifest](AJ-E3011/manifest.md) |
 | AJ-E302 | PASS12 | 2026-10-17 | [manifest](AJ-E302/manifest.md) |
 | AJ-E303 | PASS10 | 2026-10-17 | [manifest](AJ-E303/manifest.md) |
 | AJ-E304 | PASS12 | 2026-10-17 | [manifest](AJ-E304/manifest.md) |
@@ -348,6 +349,7 @@
 | AJ-E809 | PASS4 | 2026-10-19 | [manifest](AJ-E809/manifest.md) |
 | AJ-E810 | PASS5 | 2026-10-18 | [manifest](AJ-E810/manifest.md) |
 | AJ-E811 | PASS7 | 2026-10-19 | [manifest](AJ-E811/manifest.md) |
+| AJ-E815 | PASS6 | 2026-11-15 | [manifest](AJ-E815/manifest.md) |
 | AJ-E901 | (no claims yet) | 2026-10-13 | [manifest](AJ-E901/manifest.md) |
 | AJ-E902 | (no claims yet) | 2026-10-13 | [manifest](AJ-E902/manifest.md) |
 | AJ-E903 | (no claims yet) | 2026-10-13 | [manifest](AJ-E903/manifest.md) |

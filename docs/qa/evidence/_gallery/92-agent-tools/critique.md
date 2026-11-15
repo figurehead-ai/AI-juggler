@@ -1,4 +1,4 @@
-<!-- captures: e658d849545f -->
+<!-- captures: cbe87644e96d -->
 # 92-agent-tools: agent tools, the question on a pool's canvas and the setting with where they are off
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design passes.
@@ -13,3 +13,9 @@ agent-tools-question puts the question card ("Let agents in your projects see ea
 - agent-tools-question-1280x800-dark.png, agent-tools-question-1280x800-light.png: "ADD A SESSION" in capitals with a count reads as a label, not a picker.
 - settings-agent-tools-1280x800-dark.png, settings-agent-tools-1280x800-light.png: a stray row of dots at the top edge, above "Rules you made".
 - agent-tools-question-1280x800-light vs -dark: the lead node sits in a different place on the canvas in each theme (centred in light, top left in dark).
+
+## 0.4.6 (AJ-E3011 §7): the question where it applies
+
+agent-tools-question (both themes) no longer has a card over the canvas: the newcomer walks read "Let agents … see each other and work together? … Asked once, for every pool" as a global switch and left it unanswered. It is now the compact card at the top of the pool's setup checklist in the inspector: "Let AI Juggler give these sessions the pool's tools: messages, shared notes and tasks.", its example ("Claude can see that Codex is reviewing and send it a note."), that it is one switch for every pool in Settings › Agent access, then a tinted Turn on and a ghost Not now (the page's one filled button stays elsewhere). After Not now it says what won't work until it's on. The canvas is left whole; the lead node sits where the fit puts it in both themes.
+
+- Weak: the card sits inside the checklist, so the checklist's steps start lower while the question is open.
