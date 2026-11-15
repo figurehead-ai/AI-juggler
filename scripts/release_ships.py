@@ -53,7 +53,8 @@ RULES: tuple[tuple[str, bool, str], ...] = (
     ("ui/src/test/**", False, "helpers only the tests import (the self-test checks)"),
     ("ui/playwright*.config.ts", False, "Playwright's configuration"),
     ("ui/vitest.config.ts", False, "Vitest's configuration"),
-    ("**/*.md", False, "documentation: the app includes none (the self-test checks)"),
+    ("plugins/claude-code/ai-juggler/skills/*/SKILL.md", True, "the plugin's skill: the plugin's zip carries it, and the app writes it into a Claude app profile with its connector (AJ-E3013)"),
+    ("**/*.md", False, "documentation: the app includes none but the plugin's skill above (the self-test checks)"),
     # The app.
     ("crates/**", True, "the app: Rust code, build scripts, the Tauri configuration, capabilities, icons, Info.plist, entitlements"),
     ("ui/**", True, "the interface `pnpm build` bundles, with its packages and lockfile"),

@@ -50,6 +50,28 @@ pub fn dir_is_ours(dir: &Path, me: UserId) -> bool {
     }
 }
 
+/// AJ-E3013: `path` is a regular file (`lstat`: never a link), owned by
+/// whoever owns `folder`, that no one else can write: a record another
+/// tool keeps in its own folder, fit to be read for an attestation.
+/// `false` where owners aren't read yet (Windows).
+#[must_use]
+pub fn plain_file_of(path: &Path, folder: &Path) -> bool {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::MetadataExt;
+        let (Ok(file), Ok(dir)) = (std::fs::symlink_metadata(path), std::fs::metadata(folder))
+        else {
+            return false;
+        };
+        file.is_file() && file.uid() == dir.uid() && file.mode() & 0o022 == 0
+    }
+    #[cfg(not(unix))]
+    {
+        let _ = (path, folder);
+        false
+    }
+}
+
 /// Why an executable isn't run.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Untrusted {
@@ -177,6 +199,30 @@ mod rule {
     const STAFF: u32 = 20;
 
     /// M-a (#126 re-review): the owner counts, not just the mode bits.
+    #[test]
+    fn a_record_is_a_plain_file_of_its_folders_owner_no_one_else_can_write() {
+        use std::os::unix::fs::PermissionsExt;
+        let root = tempfile::tempdir().unwrap();
+        let file = root.path().join("r.json");
+        std::fs::write(&file, "{}").unwrap();
+        std::fs::set_permissions(&file, std::fs::Permissions::from_mode(0o644)).unwrap();
+        assert!(super::plain_file_of(&file, root.path()));
+        std::fs::set_permissions(&file, std::fs::Permissions::from_mode(0o666)).unwrap();
+        assert!(
+            !super::plain_file_of(&file, root.path()),
+            "anyone can write it"
+        );
+        std::fs::set_permissions(&file, std::fs::Permissions::from_mode(0o644)).unwrap();
+        let link = root.path().join("l.json");
+        std::os::unix::fs::symlink(&file, &link).unwrap();
+        assert!(!super::plain_file_of(&link, root.path()), "a link");
+        assert!(!super::plain_file_of(root.path(), root.path()), "a folder");
+        assert!(!super::plain_file_of(
+            &root.path().join("none"),
+            root.path()
+        ));
+    }
+
     #[test]
     fn root_or_me_and_nobody_else_can_write() {
         let me = 501;

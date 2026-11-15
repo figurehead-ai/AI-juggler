@@ -10,7 +10,7 @@
 //!    ([`juggler_proc_list::list`]): the peer listed, not a zombie,
 //!    readable as this user's, started no later than the accept; its
 //!    parent and grandparent listed, not zombies, each started no later
-//!    than its child ([`chain_of`]);
+//!    than its child (`chain_of`);
 //! 3. every desktop App the user added, with a config folder, whose tool's
 //!    adapter can attest ([`juggler_adapter::peer::DesktopPeer`]): exactly
 //!    one must say this chain is one of its sessions.

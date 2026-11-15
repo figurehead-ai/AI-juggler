@@ -92,34 +92,22 @@ impl Target {
 }
 
 /// AJ-E3013: the socket AI Juggler's connector calls: the one it named
-/// ([`SOCKET_ENV`]), else the one of the edition this program ships in
-/// (`<Name>.app/Contents/MacOS/juggler-agent` → the edition's data folder,
-/// `~/Library/Application Support/<Name>/agent/`, as every edition names
-/// it). The key never comes this way: only the app's attestation.
+/// ([`SOCKET_ENV`]), else the one in the edition's data folder the
+/// plugin's launcher found its program in ([`DATA_ENV`]: `<data>/agent/`,
+/// as every edition keeps it). The key never comes this way: only the
+/// app's attestation.
 #[must_use]
 pub fn connector_socket() -> Option<PathBuf> {
-    if let Some(named) = std::env::var_os(SOCKET_ENV).filter(|named| !named.is_empty()) {
-        return Some(PathBuf::from(named));
+    let named = |name: &str| std::env::var_os(name).filter(|value| !value.is_empty());
+    if let Some(socket) = named(SOCKET_ENV) {
+        return Some(PathBuf::from(socket));
     }
-    let home = std::env::var_os("HOME").map(PathBuf::from)?;
-    edition_socket(&std::env::current_exe().ok()?, &home)
+    named(DATA_ENV).map(|data| PathBuf::from(data).join("agent").join("bridge.sock"))
 }
 
-/// The socket of the edition whose bundle holds `program`, under `home`.
-#[must_use]
-pub fn edition_socket(program: &Path, home: &Path) -> Option<PathBuf> {
-    let macos = program.parent()?;
-    let contents = macos.parent()?;
-    let bundle = contents.parent()?;
-    let name = bundle.file_name()?.to_str()?.strip_suffix(".app")?;
-    let laid_out = macos.file_name()? == "MacOS" && contents.file_name()? == "Contents";
-    (laid_out && !name.is_empty() && cfg!(target_os = "macos")).then(|| {
-        home.join("Library/Application Support")
-            .join(name)
-            .join("agent")
-            .join("bridge.sock")
-    })
-}
+/// The edition's data folder, as the published plugin's launcher names it
+/// for the program it found (a path, not a secret).
+pub const DATA_ENV: &str = "JUGGLER_AGENT_DATA";
 
 /// Whether `socket` may be given the key: a socket (`lstat`, a link is
 /// never followed) in a folder only its owner can write, both owned by
@@ -182,6 +170,31 @@ pub fn send_line(socket: &Path, line: &str, wait: Duration) -> Result<String, Ca
 
 #[cfg(unix)]
 fn exchange(socket: &Path, line: &str, wait: Duration) -> Result<String, CallError> {
+    let mut text = line.to_owned();
+    text.push('\n');
+    let answer = talk(socket, &text, wait, true)?;
+    String::from_utf8(answer).map_err(|error| CallError::Garbled(error.to_string()))
+}
+
+#[cfg(not(unix))]
+fn exchange(socket: &Path, line: &str, wait: Duration) -> Result<String, CallError> {
+    talk(socket, line, wait, true).map(|_| String::new())
+}
+
+/// D-119: writes `text` to `socket` (a socket of this user's, never a
+/// link) and reads nothing back: a post to a session's own inbox.
+///
+/// # Errors
+///
+/// When the socket isn't trustworthy or the write fails.
+pub fn post_lines(socket: &Path, text: &str, wait: Duration) -> Result<(), CallError> {
+    talk(socket, text, wait, false).map(|_| ())
+}
+
+/// The one connection: to a trusted socket only, `text` written, the
+/// writing side closed, and the answer read when `answer` says so.
+#[cfg(unix)]
+fn talk(socket: &Path, text: &str, wait: Duration, answer: bool) -> Result<Vec<u8>, CallError> {
     use std::os::unix::net::UnixStream;
     if !trusted_socket(socket) {
         return Err(CallError::Unreachable(format!(
@@ -193,53 +206,28 @@ fn exchange(socket: &Path, line: &str, wait: Duration) -> Result<String, CallErr
     let mut stream = UnixStream::connect(socket).map_err(unreachable)?;
     stream.set_read_timeout(Some(wait)).map_err(unreachable)?;
     stream.set_write_timeout(Some(wait)).map_err(unreachable)?;
-    stream.write_all(line.as_bytes()).map_err(unreachable)?;
-    stream.write_all(b"\n").map_err(unreachable)?;
+    stream.write_all(text.as_bytes()).map_err(unreachable)?;
     stream
         .shutdown(std::net::Shutdown::Write)
         .map_err(unreachable)?;
-    let mut answer = Vec::new();
-    stream
-        .take(u64::try_from(MAX_RESPONSE).unwrap_or(u64::MAX) + 1)
-        .read_to_end(&mut answer)
-        .map_err(unreachable)?;
-    if answer.len() > MAX_RESPONSE {
-        return Err(CallError::Garbled("the answer is too long".to_owned()));
+    let mut read = Vec::new();
+    if answer {
+        stream
+            .take(u64::try_from(MAX_RESPONSE).unwrap_or(u64::MAX) + 1)
+            .read_to_end(&mut read)
+            .map_err(unreachable)?;
+        if read.len() > MAX_RESPONSE {
+            return Err(CallError::Garbled("the answer is too long".to_owned()));
+        }
     }
-    String::from_utf8(answer).map_err(|error| CallError::Garbled(error.to_string()))
+    Ok(read)
 }
 
 #[cfg(not(unix))]
-fn exchange(_socket: &Path, _line: &str, _wait: Duration) -> Result<String, CallError> {
+fn talk(_socket: &Path, _text: &str, _wait: Duration, _answer: bool) -> Result<Vec<u8>, CallError> {
     Err(CallError::Unreachable(
         "the agent tools aren't available on this system yet".to_owned(),
     ))
-}
-
-#[cfg(all(test, target_os = "macos"))]
-mod edition_tests {
-    use super::edition_socket;
-    use std::path::Path;
-
-    #[test]
-    fn the_connector_finds_its_editions_socket_from_its_bundle() {
-        let home = Path::new("/Users/u");
-        assert_eq!(
-            edition_socket(
-                Path::new("/Applications/AI Juggler Nightly.app/Contents/MacOS/juggler-agent"),
-                home
-            ),
-            Some(
-                Path::new("/Users/u/Library/Application Support/AI Juggler Nightly/agent")
-                    .join("bridge.sock")
-            )
-        );
-        assert_eq!(
-            edition_socket(Path::new("/w/target/debug/juggler-agent"), home),
-            None,
-            "a build outside a bundle has no edition"
-        );
-    }
 }
 
 #[cfg(all(test, unix))]

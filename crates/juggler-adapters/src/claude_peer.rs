@@ -81,22 +81,7 @@ fn plain_id(id: &str) -> bool {
 /// A file attestation may read: a regular file (never a link), owned by
 /// whoever owns `folder`, that no one else can write.
 fn plain_file_of(path: &Path, folder: &Path) -> bool {
-    let (Ok(file), Ok(dir)) = (std::fs::symlink_metadata(path), std::fs::metadata(folder)) else {
-        return false;
-    };
-    if !file.is_file() {
-        return false;
-    }
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::MetadataExt;
-        file.uid() == dir.uid() && file.mode() & 0o022 == 0
-    }
-    #[cfg(not(unix))]
-    {
-        let _ = dir;
-        true
-    }
+    juggler_adapter::file_trust::plain_file_of(path, folder)
 }
 
 /// The verdict for `chain` (the caller first) in the App at `place`.

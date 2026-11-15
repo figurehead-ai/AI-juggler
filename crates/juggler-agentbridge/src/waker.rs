@@ -20,11 +20,10 @@
 //! - When AI Juggler isn't answering, it waits longer between tries, and
 //!   it ends with the process.
 
-use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
-use crate::client::{CallError, send_line, trusted_socket};
+use crate::client::{CallError, post_lines, send_line};
 use crate::wire::{
     MESSAGING_SOCKET_ENV, MESSAGING_TOKEN_ENV, Response, VERSION, WAIT_MAX_SECS, Wait,
 };
@@ -95,27 +94,12 @@ pub fn inbox_lines(inbox: &Inbox, notice: &str) -> String {
 /// # Errors
 ///
 /// When the socket isn't trustworthy or the post fails.
-#[cfg(unix)]
-pub fn post(inbox: &Inbox, notice: &str) -> std::io::Result<()> {
-    if !trusted_socket(&inbox.socket) {
-        return Err(std::io::Error::other(
-            "the session's inbox isn't a socket of this user's",
-        ));
-    }
-    let mut stream = std::os::unix::net::UnixStream::connect(&inbox.socket)?;
-    stream.set_write_timeout(Some(Duration::from_secs(2)))?;
-    stream.write_all(inbox_lines(inbox, notice).as_bytes())?;
-    stream.shutdown(std::net::Shutdown::Write)
-}
-
-/// Elsewhere there's no inbox to post to.
-///
-/// # Errors
-///
-/// Always.
-#[cfg(not(unix))]
-pub fn post(_inbox: &Inbox, _notice: &str) -> std::io::Result<()> {
-    Err(std::io::Error::other("no inbox on this system"))
+pub fn post(inbox: &Inbox, notice: &str) -> Result<(), CallError> {
+    post_lines(
+        &inbox.socket,
+        &inbox_lines(inbox, notice),
+        Duration::from_secs(2),
+    )
 }
 
 /// One wait: the notice the app sent, if any.

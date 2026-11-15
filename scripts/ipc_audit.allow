@@ -9,6 +9,11 @@
 # each listed one says why its list stays small, or "TO PAGE" with what reads it.
 # uncalled entries carry the date they were listed: 2026-10-21.
 uncalled account_audit
+uncalled connector_add  # 2026-11-15: the pool page's connector card (AJ-E3013) calls it in 0.4.6
+uncalled connector_desktop_members  # 2026-11-15: the pool canvas (AJ-E3013) calls it in 0.4.6
+uncalled connector_preview  # 2026-11-15: the pool page's connector card (AJ-E3013) calls it in 0.4.6
+uncalled connector_remove  # 2026-11-15: the App's connector menu (AJ-E3013) calls it in 0.4.6
+uncalled connector_status  # 2026-11-15: the pool page's connector card (AJ-E3013) calls it in 0.4.6
 uncalled harnesses_list_alias
 uncalled isolation_check
 uncalled parked_list
@@ -53,6 +58,11 @@ unbounded cleanup_status  # bounded: a fixed set (settings, checks, choices or t
 unbounded cleanup_tier2_decide  # bounded: a fixed set (settings, checks, choices or tools)
 unbounded cloud_backup_list  # TO PAGE: every cloud backup
 unbounded cloud_backup_prepare_restore  # bounded: a fixed set (settings, checks, choices or tools)
+unbounded connector_add  # bounded: the connector's few files (two for the Claude app, one for the Codex app)
+unbounded connector_desktop_members  # bounded: the desktop members the user named in one pool (the canvas shows at most 60)
+unbounded connector_preview  # bounded: the connector's few files (two for the Claude app, one for the Codex app)
+unbounded connector_remove  # bounded: the connector's few files (two for the Claude app, one for the Codex app)
+unbounded connector_status  # bounded: the connector's few files (two for the Claude app, one for the Codex app)
 unbounded conversations_earlier  # bounded: one page of at most 60 turns (feed::PAGE_MAX), keyset-paged by the offset where a turn starts (ADR-0024)
 unbounded conversations_follow  # bounded: the latest turns, at most 60 (feed::PAGE_MAX); changes after come on its channel, at most 100 turns each (ADR-0024)
 unbounded conversations_get  # bounded: one conversation (its places: one per process it is open in)
