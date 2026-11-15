@@ -25,10 +25,11 @@
 //!   a copied skill (`inventory_files::copy_tree`), every file here is AI
 //!   Juggler's own and holds no secret.
 
-use std::path::{Component, Path, PathBuf};
+use std::path::{Path, PathBuf};
 
 use juggler_adapter::connector::{ConnectorPart, ConnectorPlan, stays_inside};
 use juggler_adapter::handover::sha256_hex;
+use juggler_adapter::safe_fs::{Dir, Expect};
 
 /// What Add wrote, kept by the app so Remove is exact.
 #[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -190,58 +191,76 @@ fn refused(why: impl Into<String>) -> ConnectorError {
     ConnectorError::Refused(why.into())
 }
 
-/// `rel` inside `config_dir`, when it's safe to read and write: relative,
-/// no `..`, the folder a real folder, and no link anywhere on the way or
-/// at the file itself.
-///
-/// # Errors
-///
-/// [`ConnectorError::Refused`] with why.
-pub fn inside(config_dir: &Path, rel: &Path) -> Result<PathBuf, ConnectorError> {
+/// The most bytes a file of the connector, or a tool config file it
+/// merges into, may hold.
+const FILE_MAX: u64 = 4 * 1024 * 1024;
+
+/// The folder `rel`'s file is in, opened under `config_dir` (L5: the one
+/// shared walk, `openat` with no link followed anywhere), and the file's
+/// name; `None` when a folder on the way isn't there and nothing may be
+/// set (`create_missing`). Folders made are added to `made` (relative to
+/// `config_dir`).
+fn folder_of(
+    config_dir: &Path,
+    rel: &Path,
+    create_missing: bool,
+    made: &mut Vec<PathBuf>,
+) -> Result<Option<(Dir, std::ffi::OsString)>, ConnectorError> {
     if !stays_inside(rel) {
         return Err(refused(format!(
             "{} isn't inside the App's config folder",
             rel.display()
         )));
     }
-    match std::fs::symlink_metadata(config_dir) {
-        Ok(meta) if meta.is_dir() => {}
-        Ok(_) => return Err(refused("the App's config folder is a link or a file")),
-        Err(_) => return Err(refused("the App's config folder isn't there")),
+    let name = rel
+        .file_name()
+        .ok_or_else(|| refused("a part names no file"))?
+        .to_os_string();
+    let root = Dir::root(config_dir)
+        .map_err(|_| refused("the App's config folder is a link, a file, or isn't there"))?;
+    let parent = rel.parent().unwrap_or_else(|| Path::new(""));
+    match root.walk(parent, create_missing, made) {
+        Ok(dir) => Ok(Some((dir, name))),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound && !create_missing => Ok(None),
+        Err(_) => Err(refused(format!(
+            "{} can't be reached without going through a link",
+            rel.display()
+        ))),
     }
-    let parts: Vec<Component<'_>> = rel.components().collect();
-    let mut at = config_dir.to_path_buf();
-    for (index, part) in parts.iter().enumerate() {
-        at.push(part.as_os_str());
-        let last = index + 1 == parts.len();
-        match std::fs::symlink_metadata(&at) {
-            Err(_) => break, // nothing there yet: made by Add, never a link
-            Ok(meta) if meta.file_type().is_symlink() => {
-                return Err(refused(format!(
-                    "{} is a link, which AI Juggler never writes through",
-                    shown(config_dir, &at)
-                )));
-            }
-            Ok(meta) if !last && !meta.is_dir() => {
-                return Err(refused(format!(
-                    "{} isn't a folder",
-                    shown(config_dir, &at)
-                )));
-            }
-            Ok(meta) if last && !meta.is_file() => {
-                return Err(refused(format!("{} isn't a file", shown(config_dir, &at))));
-            }
-            Ok(_) => {}
-        }
-    }
-    Ok(config_dir.join(rel))
 }
 
-fn shown(config_dir: &Path, path: &Path) -> String {
-    path.strip_prefix(config_dir)
-        .unwrap_or(path)
-        .display()
-        .to_string()
+/// `rel`'s text under `config_dir`, read on the opened file (L5): `None`
+/// when it isn't there.
+///
+/// # Errors
+///
+/// [`ConnectorError::Refused`] for a link, something not a plain file, or
+/// a path outside the folder.
+fn read_part(config_dir: &Path, rel: &Path) -> Result<Option<String>, ConnectorError> {
+    let Some((dir, name)) = folder_of(config_dir, rel, false, &mut Vec::new())? else {
+        return Ok(None);
+    };
+    let bytes = dir.read(&name, Expect::small(FILE_MAX)).map_err(|_| {
+        refused(format!(
+            "{} is a link, or isn't a plain file AI Juggler can read",
+            rel.display()
+        ))
+    })?;
+    bytes
+        .map(|bytes| String::from_utf8(bytes).map_err(|_| refused("the file isn't text")))
+        .transpose()
+}
+
+/// `rel` inside `config_dir`, when it's safe to read and write: relative,
+/// no `..`, the folder a real folder, and no link anywhere on the way or
+/// at the file itself (checked through the shared walk, L5).
+///
+/// # Errors
+///
+/// [`ConnectorError::Refused`] with why.
+pub fn inside(config_dir: &Path, rel: &Path) -> Result<PathBuf, ConnectorError> {
+    read_part(config_dir, rel)?;
+    Ok(config_dir.join(rel))
 }
 
 /// A TOML value without its layout, keys sorted: what a fingerprint is of.
@@ -306,19 +325,10 @@ fn table_fingerprint(text: &str, path: &[String]) -> Option<String> {
     table_value(text, path).map(|value| sha256_hex(canonical(&value).as_bytes()))
 }
 
-/// The file's text, when it's there (an unreadable one is an error).
-fn read_text(path: &Path) -> Result<Option<String>, ConnectorError> {
-    match std::fs::read_to_string(path) {
-        Ok(text) => Ok(Some(text)),
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(None),
-        Err(error) => Err(error.into()),
-    }
-}
-
 /// One part, as it stands against its plan and its record.
 struct Standing {
-    /// Its file, absolute.
-    file: PathBuf,
+    /// Its file, relative to the App's config folder.
+    rel: PathBuf,
     /// The file's text now.
     before: Option<String>,
     /// The part's fingerprint on disk (`None`: not there).
@@ -432,8 +442,8 @@ fn standing(
     part: &ConnectorPart,
     record: Option<&ConnectorRecord>,
 ) -> Result<Standing, ConnectorError> {
-    let file = inside(config_dir, part.path())?;
-    let before = read_text(&file)?;
+    let rel = part.path().to_path_buf();
+    let before = read_part(config_dir, &rel)?;
     let recorded = record
         .and_then(|record| record.parts.iter().find(|done| done.same_part(part)))
         .map(|done| done.fingerprint().to_owned());
@@ -443,7 +453,7 @@ fn standing(
             planned: sha256_hex(text.as_bytes()),
             after: text.clone(),
             before,
-            file,
+            rel,
             recorded,
         },
         ConnectorPart::TomlTable { table, text, .. } => {
@@ -455,7 +465,7 @@ fn standing(
                 after: merged(&now, table, text)?,
                 planned,
                 before,
-                file,
+                rel,
                 recorded,
             }
         }
@@ -555,70 +565,41 @@ pub fn status(config_dir: &Path, plan: &ConnectorPlan, record: Option<&Connector
 /// A recorded part's fingerprint on disk now (`None`: not there, or not
 /// safe to read).
 fn on_disk(config_dir: &Path, done: &RecordedPart) -> Option<String> {
-    let file = inside(config_dir, done.path()).ok()?;
-    let text = read_text(&file).ok()??;
+    let text = read_part(config_dir, done.path()).ok()??;
     match done {
         RecordedPart::File { .. } => Some(sha256_hex(text.as_bytes())),
         RecordedPart::TomlTable { table, .. } => table_fingerprint(&text, table),
     }
 }
 
-/// Makes `path`'s missing parent folders inside `config_dir`, recording
-/// each one made (relative).
-fn make_parents(config_dir: &Path, path: &Path, made: &mut Vec<PathBuf>) -> std::io::Result<()> {
-    let Some(parent) = path.parent() else {
-        return Ok(());
-    };
-    let mut missing = Vec::new();
-    let mut at = parent;
-    while at != config_dir && std::fs::symlink_metadata(at).is_err() {
-        missing.push(at.to_path_buf());
-        match at.parent() {
-            Some(up) => at = up,
-            None => break,
-        }
-    }
-    for dir in missing.into_iter().rev() {
-        std::fs::create_dir(&dir)?;
-        if let Ok(rel) = dir.strip_prefix(config_dir) {
-            made.push(rel.to_path_buf());
-        }
+/// Writes `text` as `rel` under `config_dir` (L5: through the shared
+/// walk): a new file is created, never over one that appeared meanwhile;
+/// an existing one is replaced whole by a rename, its permissions kept.
+/// Folders made on the way are added to `made`.
+fn write_part(
+    config_dir: &Path,
+    rel: &Path,
+    text: &str,
+    existed: bool,
+    made: &mut Vec<PathBuf>,
+) -> Result<(), ConnectorError> {
+    let (dir, name) = folder_of(config_dir, rel, true, made)?
+        .ok_or_else(|| refused("a folder on the way couldn't be made"))?;
+    if existed {
+        dir.replace(&name, text.as_bytes())?;
+    } else {
+        dir.create_new(&name, text.as_bytes())?;
     }
     Ok(())
 }
 
-/// Writes `text` to `file` whole: a new file is created (never over one
-/// that appeared meanwhile); an existing one is replaced by a rename, its
-/// permissions kept.
-fn write_whole(file: &Path, text: &str, existed: bool) -> std::io::Result<()> {
-    use std::io::Write as _;
-    if !existed {
-        let mut out = std::fs::OpenOptions::new()
-            .write(true)
-            .create_new(true)
-            .open(file)?;
-        return out.write_all(text.as_bytes());
-    }
-    let permissions = std::fs::metadata(file)?.permissions();
-    let name = file.file_name().map_or_else(
-        || "connector".to_owned(),
-        |name| name.to_string_lossy().into_owned(),
-    );
-    let temp = file.with_file_name(format!(".{name}.ai-juggler-new"));
-    let written = (|| {
-        let mut out = std::fs::OpenOptions::new()
-            .write(true)
-            .create_new(true)
-            .open(&temp)?;
-        out.write_all(text.as_bytes())?;
-        out.sync_all()?;
-        std::fs::set_permissions(&temp, permissions)?;
-        std::fs::rename(&temp, file)
-    })();
-    if written.is_err() {
-        let _ = std::fs::remove_file(&temp);
-    }
-    written
+/// Removes `rel` under `config_dir` (through the shared walk); `false`
+/// when it wasn't there.
+fn remove_part(config_dir: &Path, rel: &Path) -> Result<bool, ConnectorError> {
+    let Some((dir, name)) = folder_of(config_dir, rel, false, &mut Vec::new())? else {
+        return Ok(false);
+    };
+    Ok(dir.remove_file(&name)?)
 }
 
 /// Writes the connector, recording what it wrote. Nothing is written when
@@ -661,17 +642,16 @@ pub fn add(
         let wrote = if found.state() == ConnectorState::Current {
             Ok(()) // already as this edition writes it
         } else {
-            make_parents(config_dir, &found.file, &mut made)
-                .and_then(|()| write_whole(&found.file, &found.after, existed))
+            write_part(config_dir, &found.rel, &found.after, existed, &mut made)
         };
         if let Err(error) = wrote {
-            for file in &created {
-                let _ = std::fs::remove_file(file);
+            for rel in &created {
+                let _ = remove_part(config_dir, rel);
             }
-            return Err(error.into());
+            return Err(error);
         }
         if !existed {
-            created.push(found.file.clone());
+            created.push(found.rel.clone());
         }
         parts.push(match part {
             ConnectorPart::File { path, .. } => RecordedPart::File {
@@ -732,19 +712,20 @@ pub fn remove(config_dir: &Path, record: &ConnectorRecord) -> Result<Removal, Co
     let mut kept = Vec::new();
     let mut left = Vec::new();
     for done in &record.parts {
-        let Ok(file) = inside(config_dir, done.path()) else {
-            kept.push(done.path().to_path_buf());
+        let rel = done.path();
+        let Ok(found) = read_part(config_dir, rel) else {
+            kept.push(rel.to_path_buf());
             left.push(done.clone());
             continue;
         };
-        let Some(text) = read_text(&file)? else {
+        let Some(text) = found else {
             continue; // already gone
         };
         match done {
             RecordedPart::File { sha256, .. } => {
                 if sha256_hex(text.as_bytes()) == *sha256 {
-                    std::fs::remove_file(&file)?;
-                    removed.push(done.path().to_path_buf());
+                    remove_part(config_dir, rel)?;
+                    removed.push(rel.to_path_buf());
                 } else {
                     kept.push(done.path().to_path_buf());
                     left.push(done.clone());
@@ -760,9 +741,9 @@ pub fn remove(config_dir: &Path, record: &ConnectorRecord) -> Result<Removal, Co
                 Some(now) if now == *fingerprint => {
                     let rest = unmerged(&text, table)?;
                     if *created_file && rest.trim().is_empty() {
-                        std::fs::remove_file(&file)?;
+                        remove_part(config_dir, rel)?;
                     } else {
-                        write_whole(&file, &rest, true)?;
+                        write_part(config_dir, rel, &rest, true, &mut Vec::new())?;
                     }
                     removed.push(done.path().to_path_buf());
                 }
@@ -776,8 +757,9 @@ pub fn remove(config_dir: &Path, record: &ConnectorRecord) -> Result<Removal, Co
     let mut dirs = record.dirs.clone();
     dirs.sort_by_key(|dir| std::cmp::Reverse(dir.components().count()));
     for dir in &dirs {
-        if let Ok(path) = inside_dir(config_dir, dir) {
-            let _ = std::fs::remove_dir(path); // only when empty
+        // Only when empty, and never through a link (the shared walk).
+        if let Ok(Some((parent, name))) = folder_of(config_dir, dir, false, &mut Vec::new()) {
+            let _ = parent.remove_dir(&name);
         }
     }
     let left = (!left.is_empty()).then(|| ConnectorRecord {
@@ -785,7 +767,11 @@ pub fn remove(config_dir: &Path, record: &ConnectorRecord) -> Result<Removal, Co
         dirs: record
             .dirs
             .iter()
-            .filter(|dir| config_dir.join(dir).is_dir())
+            .filter(|dir| {
+                Dir::root(config_dir)
+                    .and_then(|root| root.walk(dir, false, &mut Vec::new()))
+                    .is_ok()
+            })
             .cloned()
             .collect(),
     });
@@ -794,21 +780,6 @@ pub fn remove(config_dir: &Path, record: &ConnectorRecord) -> Result<Removal, Co
         kept,
         left,
     })
-}
-
-/// A recorded folder inside `config_dir`, never through a link.
-fn inside_dir(config_dir: &Path, rel: &Path) -> Result<PathBuf, ConnectorError> {
-    if !stays_inside(rel) {
-        return Err(refused("outside the folder"));
-    }
-    let mut at = config_dir.to_path_buf();
-    for part in rel.components() {
-        at.push(part.as_os_str());
-        if std::fs::symlink_metadata(&at).is_ok_and(|meta| !meta.is_dir()) {
-            return Err(refused("not a folder"));
-        }
-    }
-    Ok(at)
 }
 
 /// AJ-E3013: AI Juggler's connector as a tool's inventory lists it: a

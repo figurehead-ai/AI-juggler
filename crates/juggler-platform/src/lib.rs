@@ -41,6 +41,7 @@ pub mod local_ipc;
 pub mod private_fs;
 pub mod process;
 pub mod room;
+pub mod safe_fs;
 pub mod system;
 pub mod thread;
 pub mod transfer;

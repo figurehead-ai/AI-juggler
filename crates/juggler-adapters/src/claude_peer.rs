@@ -22,10 +22,11 @@
 
 use std::path::{Path, PathBuf};
 
-use juggler_adapter::live::{ctime_utc_secs, read_small};
+use juggler_adapter::live::ctime_utc_secs;
 use juggler_adapter::peer::{
     AttestedSession, DesktopPeer, DesktopPlace, MAX_HOPS, PeerVerdict, ProcStep, same_start_strict,
 };
+use juggler_adapter::safe_fs::{Expect, read_in};
 
 /// The largest registry entry read (they're under 1 KiB).
 const ENTRY_MAX: u64 = 16 * 1024;
@@ -78,10 +79,12 @@ fn plain_id(id: &str) -> bool {
             .all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_')
 }
 
-/// A file attestation may read: a regular file (never a link), owned by
-/// whoever owns `folder`, that no one else can write.
-fn plain_file_of(path: &Path, folder: &Path) -> bool {
-    juggler_adapter::file_trust::plain_file_of(path, folder)
+/// A record attestation may read (L5: the shared walk): `rel` under
+/// `root`, never through a link, a regular file of `root`'s owner no one
+/// else can write, at most `max` bytes, all checked on the opened file.
+/// `Ok(None)`: not there.
+fn record(root: &Path, rel: &Path, max: u64) -> Result<Option<Vec<u8>>, ()> {
+    read_in(root, rel, Expect::owned(max)).map_err(|_| ())
 }
 
 /// The verdict for `chain` (the caller first) in the App at `place`.
@@ -90,27 +93,24 @@ pub fn attest(place: &DesktopPlace<'_>, chain: &[ProcStep]) -> PeerVerdict {
     if chain.is_empty() {
         return PeerVerdict::no("the caller's process isn't known");
     }
-    let sessions = crate::claude_live::sessions_dir(place.config_dir);
     for step in chain.iter().skip(1).take(MAX_HOPS) {
-        let path = sessions.join(format!("{}.json", step.pid));
-        if std::fs::symlink_metadata(&path).is_err() {
-            continue; // not a Claude Code process of this profile
+        let rel = PathBuf::from("sessions").join(format!("{}.json", step.pid));
+        match record(place.config_dir, &rel, ENTRY_MAX) {
+            Ok(None) => {} // not a Claude Code process of this profile
+            Ok(Some(bytes)) => return from_entry(place, &bytes, *step),
+            Err(()) => {
+                return PeerVerdict::no(
+                    "Claude Code's session record isn't a plain file of this profile's",
+                );
+            }
         }
-        return from_entry(place, &path, *step);
     }
     PeerVerdict::no("the caller wasn't started by a Code-tab session of this Claude app profile")
 }
 
-/// The verdict from the registry entry at `path`, for the process `step`.
-fn from_entry(place: &DesktopPlace<'_>, path: &Path, step: ProcStep) -> PeerVerdict {
-    if !plain_file_of(path, place.config_dir) {
-        return PeerVerdict::no(
-            "Claude Code's session record isn't a plain file of this profile's",
-        );
-    }
-    let Some(entry) =
-        read_small(path, ENTRY_MAX).and_then(|text| serde_json::from_str::<Entry>(&text).ok())
-    else {
+/// The verdict from the registry entry `bytes`, for the process `step`.
+fn from_entry(place: &DesktopPlace<'_>, bytes: &[u8], step: ProcStep) -> PeerVerdict {
+    let Ok(entry) = serde_json::from_slice::<Entry>(bytes) else {
         return PeerVerdict::no("Claude Code's session record couldn't be read");
     };
     if entry.pid != Some(u64::from(step.pid)) {
@@ -178,17 +178,21 @@ fn app_record(instance_dir: &Path, host: &str) -> AppRecord {
     };
     for account in folders(&root) {
         for org in folders(&account) {
-            let path = org.join(format!("{host}.json"));
-            if std::fs::symlink_metadata(&path).is_err() {
+            let Ok(rel) = org
+                .join(format!("{host}.json"))
+                .strip_prefix(instance_dir)
+                .map(Path::to_path_buf)
+            else {
                 continue;
-            }
-            if !plain_file_of(&path, instance_dir) {
-                return AppRecord::Unreadable;
-            }
-            return read_small(&path, RECORD_MAX)
-                .and_then(|text| serde_json::from_str::<Record>(&text).ok())
-                .and_then(|record| record.cli_session_id)
-                .map_or(AppRecord::Unreadable, AppRecord::Of);
+            };
+            return match record(instance_dir, &rel, RECORD_MAX) {
+                Ok(None) => continue,
+                Err(()) => AppRecord::Unreadable,
+                Ok(Some(bytes)) => serde_json::from_slice::<Record>(&bytes)
+                    .ok()
+                    .and_then(|record| record.cli_session_id)
+                    .map_or(AppRecord::Unreadable, AppRecord::Of),
+            };
         }
     }
     AppRecord::Missing
