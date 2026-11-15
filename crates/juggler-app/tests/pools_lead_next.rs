@@ -12,7 +12,8 @@
     clippy::unwrap_used,
     clippy::expect_used,
     clippy::panic,
-    clippy::pedantic
+    clippy::pedantic,
+    reason = "a test: a failed fixture step should stop it at once"
 )]
 
 use std::path::Path;
@@ -183,7 +184,7 @@ fn the_apps_next_session_leads_and_the_wait_ends() {
     let first = start(&lab.state, "s-1", "work", &lab.web, &lab.web_root);
     assert_eq!(
         pools::lead_next::claim(&lab.state, &first),
-        [lab.pool.clone()]
+        std::slice::from_ref(&lab.pool)
     );
     assert_eq!(leads(&lab.state, &lab.pool), ["session:s-1"]);
     assert_eq!(
