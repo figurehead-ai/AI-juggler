@@ -889,6 +889,11 @@ impl ToolRuntime for ClaudeCodeAdapter {
             text,
         ))
     }
+    /// AJ-E3013: a Claude app profile's Code-tab sessions, attested from
+    /// Claude Code's own registry and the app's own record.
+    fn desktop_peer(&self) -> Option<&dyn juggler_adapter::peer::DesktopPeer> {
+        Some(&crate::claude_peer::ClaudeAppPeer)
+    }
 }
 
 /// The AJ-E308 sign-in taxonomy — moved to the adapter contract for

@@ -40,7 +40,10 @@ fn attested_facts_are_read_for_their_id_only_while_kept() {
     );
     storage.attested().put(desktop_facts("conv-1"));
     let facts = storage.sessions().pool_facts_of(&id).unwrap().unwrap();
-    assert_eq!(facts.conversation, Some(("folder-1".into(), "conv-1".into())));
+    assert_eq!(
+        facts.conversation,
+        Some(("folder-1".into(), "conv-1".into()))
+    );
     assert!(
         storage.sessions().pool_facts().unwrap().is_empty(),
         "every session's list is unchanged"
@@ -48,7 +51,9 @@ fn attested_facts_are_read_for_their_id_only_while_kept() {
     storage.attested().forget(&id);
     assert_eq!(storage.sessions().pool_facts_of(&id).unwrap(), None);
     // A real session's id never reads the attested map.
-    storage.attested().put(SessionFacts::bare(SessionId::new("sess-x"), None));
+    storage
+        .attested()
+        .put(SessionFacts::bare(SessionId::new("sess-x"), None));
     assert_eq!(
         storage
             .sessions()

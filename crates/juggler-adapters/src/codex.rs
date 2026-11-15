@@ -937,6 +937,10 @@ impl ToolRuntime for CodexAdapter {
     fn driven(&self) -> Option<&dyn juggler_adapter::DrivenRuntime> {
         Some(self)
     }
+    /// AJ-E3013: a Codex app thread can't be attested yet (it says why).
+    fn desktop_peer(&self) -> Option<&dyn juggler_adapter::peer::DesktopPeer> {
+        Some(&crate::codex_peer::CodexAppPeer)
+    }
 }
 
 /// ADR-0019: Codex, described as data (every screen and command reads

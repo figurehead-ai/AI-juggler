@@ -29,7 +29,7 @@ use crate::pools::SessionFacts;
 pub const DESKTOP_PREFIX: &str = "desktop:";
 
 /// How long an entry lives after the last attested call.
-pub const TTL: Duration = Duration::from_secs(10 * 60);
+pub const TTL: Duration = Duration::from_mins(10);
 
 /// Whether `id` is an attested desktop session's (minted) id.
 #[must_use]
@@ -137,7 +137,11 @@ mod tests {
         assert!(kept.get_at(&id, half).is_some());
         // The read at half-time didn't extend it.
         assert_eq!(kept.get_at(&id, start + TTL), None);
-        assert_eq!(kept.get_at(&id, start + TTL / 4), None, "dropped, not hidden");
+        assert_eq!(
+            kept.get_at(&id, start + TTL / 4),
+            None,
+            "dropped, not hidden"
+        );
     }
 
     #[test]

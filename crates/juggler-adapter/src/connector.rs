@@ -106,7 +106,9 @@ mod tests {
 
     #[test]
     fn a_part_stays_inside_its_folder() {
-        assert!(stays_inside(Path::new("skills/ai-juggler/.claude-plugin/plugin.json")));
+        assert!(stays_inside(Path::new(
+            "skills/ai-juggler/.claude-plugin/plugin.json"
+        )));
         assert!(stays_inside(Path::new("config.toml")));
         for outside in ["", "/etc/hosts", "../x", "skills/../../x", "./x"] {
             assert!(!stays_inside(Path::new(outside)), "{outside}");
