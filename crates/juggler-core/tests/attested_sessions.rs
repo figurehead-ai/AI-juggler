@@ -2,12 +2,12 @@
 //! facts reach the pool lookups through `pool_facts_of`, only while
 //! attested, and its minted id can never be a session record's.
 
-// Test crates are pragmatic by policy (QUALITY.md §2: tests excepted).
 #![allow(
     clippy::unwrap_used,
     clippy::expect_used,
     clippy::panic,
-    clippy::pedantic
+    clippy::pedantic,
+    reason = "test crates are pragmatic by policy (QUALITY.md §2: tests excepted)"
 )]
 
 use std::path::PathBuf;
