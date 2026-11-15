@@ -42,7 +42,7 @@ const FIXTURE = {
   conversations: placesConversations(T0),
 };
 
-async function open(page: Page, theme: "dark" | "light", group: "app" | "project") {
+async function open(page: Page, theme: "dark" | "light", group: "app" | "project", width = 1440) {
   await page.addInitScript(
     ({ set, theme: t, t0, lens }) => {
       (window as unknown as Record<string, unknown>).__AIJ_FIXTURE__ = set;
@@ -55,11 +55,12 @@ async function open(page: Page, theme: "dark" | "light", group: "app" | "project
     { set: FIXTURE, theme, t0: T0, lens: group },
   );
   await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
-  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.setViewportSize({ width, height: 900 });
   await page.goto("/");
   await expectRail(page);
   await expect(page.getByTestId("home-heading")).not.toHaveText(/Checking/);
-  await expect(page.getByRole("button", { name: /Stopped with an error/ }).first()).toBeVisible();
+  // The backend's needs are in (the L3 one drawn somewhere: a row, a count).
+  await expect(page.locator("[data-level='3']").first()).toBeAttached();
 }
 
 /** Every node's name in Chromium's accessibility tree that holds a glyph
@@ -97,11 +98,24 @@ for (const theme of ["dark", "light"] as const) {
 
   test(`status glyphs — no accessible name holds one; axe 0 — a folded project — ${theme}`, async ({ page }) => {
     await open(page, theme, "project");
+    // D-117: the Project lens's head is the App lens's, said in words.
+    await expect(page.getByRole("heading", { name: /^Needs you \d+, 1 stopped with an error, \d+ wait on you$/ })).toBeVisible();
     await page.getByRole("button", { name: "Fold ai-juggler" }).click();
     const mark = page.getByTestId("rail-folded-needs");
     await expect(mark).toHaveAttribute("data-level", "3");
     // A mark inside the project's button (never a button in a button): the button says it.
     await expect(page.getByTestId("rail-project")).toHaveAccessibleName(/^ai-juggler 3 need you, 1 stopped with an error, /);
+    expect(await glyphNames(page)).toEqual([]);
+    expect(await axeSerious(page)).toEqual([]);
+  });
+
+  test(`status glyphs — no accessible name holds one; axe 0 — the folded icon rail — ${theme}`, async ({ page }) => {
+    await open(page, theme, "app", 1000);
+    const rail = page.getByTestId("rail-folded");
+    await expect(rail).toBeVisible();
+    // Its corners (! at L2, ✕ at L3) are decoration; its names say the word.
+    await expect(rail.locator("[data-testid='rail-folded-needs'][data-level='2']").first()).toBeVisible();
+    await expect(rail.getByRole("button", { name: /^Probably stuck, / })).toBeVisible();
     expect(await glyphNames(page)).toEqual([]);
     expect(await axeSerious(page)).toEqual([]);
   });
