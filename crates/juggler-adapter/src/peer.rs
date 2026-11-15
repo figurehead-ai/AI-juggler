@@ -43,6 +43,8 @@ pub struct AttestedSession {
     pub host_session: String,
     /// The tool's process the caller descends from.
     pub tool_pid: u32,
+    /// That process's start time, epoch seconds, as the kernel lists it.
+    pub tool_start: i64,
 }
 
 /// An adapter's answer.
@@ -90,6 +92,15 @@ pub trait DesktopPeer: Send + Sync {
     /// `false` when no session of it has an inbox AI Juggler's connector
     /// can reach (a Codex app thread).
     fn can_wake(&self) -> bool;
+
+    /// H3: whether `session`, attested earlier, is still the one the
+    /// tool's own records name for its process (its registry entry still
+    /// there, for the same conversation, with the same start time).
+    /// `false` (the default) drops what was kept for it at once.
+    fn still_current(&self, place: &DesktopPlace<'_>, session: &AttestedSession) -> bool {
+        let _ = (place, session);
+        false
+    }
 
     /// Whether this App's sessions can be attested at all (`false`: every
     /// keyless call from them is refused, and the window says why).

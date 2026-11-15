@@ -91,6 +91,10 @@ pub struct Bridge {
     pub(crate) serving: Mutex<Option<PathBuf>>,
     /// The program, when set (tests); else beside AI Juggler's own.
     program: Mutex<Option<PathBuf>>,
+    /// AJ-E3013 (H3): each attested desktop session kept now, by its id:
+    /// its App and what its tool's registry named, re-checked on every
+    /// attested call ([`attest::sweep`]).
+    pub(crate) desktop: Mutex<HashMap<String, (String, juggler_adapter::peer::AttestedSession)>>,
 }
 
 /// The socket for the app's data folder (per edition: each edition has

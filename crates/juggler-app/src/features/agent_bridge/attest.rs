@@ -237,6 +237,61 @@ pub(crate) fn decide(
     (verdict, stale)
 }
 
+/// H3: drops at once what is kept for each attested desktop session whose
+/// tool's registry no longer names it (the entry gone, or its process's
+/// start time changed), or whose kept facts ran out, besides the ten
+/// minutes' expiry. Runs on every attested call (the refresh path).
+pub(crate) fn sweep(state: &Arc<AppState>, candidates: &[Candidate]) {
+    let kept: Vec<(String, (String, juggler_adapter::peer::AttestedSession))> =
+        match state.agent_bridge.desktop.lock() {
+            Ok(kept) => kept
+                .iter()
+                .map(|(id, at)| (id.clone(), at.clone()))
+                .collect(),
+            Err(_) => return,
+        };
+    let mut gone = Vec::new();
+    for (id, (app_id, session)) in kept {
+        let current = candidates
+            .iter()
+            .find(|candidate| candidate.app_id == app_id)
+            .is_some_and(|candidate| {
+                let place = DesktopPlace {
+                    config_dir: &candidate.config_dir,
+                    instance_dir: &candidate.instance_dir,
+                };
+                candidate
+                    .adapter
+                    .desktop_peer()
+                    .is_some_and(|peer| peer.still_current(&place, &session))
+            });
+        let fresh = state.storage.lock().is_ok_and(|storage| {
+            storage
+                .attested()
+                .seen(&juggler_core::model::SessionId::new(id.as_str()))
+                .is_some()
+        });
+        if !current || !fresh {
+            gone.push(id);
+        }
+    }
+    if gone.is_empty() {
+        return;
+    }
+    if let Ok(storage) = state.storage.lock() {
+        for id in &gone {
+            storage
+                .attested()
+                .forget(&juggler_core::model::SessionId::new(id.as_str()));
+        }
+    }
+    if let Ok(mut kept) = state.agent_bridge.desktop.lock() {
+        for id in &gone {
+            kept.remove(id);
+        }
+    }
+}
+
 /// The project of `conversation` in `folder`, from the conversation index
 /// (`None` when it has none): read once per conversation, then kept with
 /// its facts.
@@ -263,6 +318,10 @@ fn project_of(state: &Arc<AppState>, folder: &str, conversation: &str) -> Option
 ///
 /// Why it isn't attested, in words: the call is refused with them.
 pub fn attest(state: &Arc<AppState>, peer: Peer) -> Result<DesktopCaller, String> {
+    let candidates = candidates(state);
+    // H3: whatever else this call turns out to be, every desktop session
+    // kept now is checked against its tool's registry again.
+    sweep(state, &candidates);
     let table: HashMap<u32, Listed> = juggler_proc_list::list()
         .ok_or("this system doesn't list its processes")?
         .into_iter()
@@ -270,7 +329,6 @@ pub fn attest(state: &Arc<AppState>, peer: Peer) -> Result<DesktopCaller, String
         .collect();
     let ours = |pid: u32| juggler_proc_list::task(pid).is_some();
     let chain = chain_of(peer, &table, &ours, &juggler_proc_list::pid_version)?;
-    let candidates = candidates(state);
     let (verdict, gone) = decide(&candidates, &chain);
     if let Ok(storage) = state.storage.lock() {
         for (at, conversation) in &gone {
@@ -321,6 +379,13 @@ pub fn attest(state: &Arc<AppState>, peer: Peer) -> Result<DesktopCaller, String
         conversation: Some((candidate.folder.clone(), session.conversation.clone())),
     };
     storage.attested().put(facts.clone());
+    drop(storage);
+    if let Ok(mut kept) = state.agent_bridge.desktop.lock() {
+        kept.insert(
+            id.as_str().to_owned(),
+            (candidate.app_id.clone(), session.clone()),
+        );
+    }
     Ok(DesktopCaller {
         session: id,
         app_id: candidate.app_id.clone(),

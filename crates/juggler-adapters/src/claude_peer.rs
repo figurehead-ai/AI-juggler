@@ -67,6 +67,10 @@ impl DesktopPeer for ClaudeAppPeer {
         // D-119: a Code-tab session has its own inbox socket.
         true
     }
+
+    fn still_current(&self, place: &DesktopPlace<'_>, session: &AttestedSession) -> bool {
+        still_current(place, session)
+    }
 }
 
 /// An id as the registry and the app write them: letters, digits, `-`
@@ -141,6 +145,7 @@ fn from_entry(place: &DesktopPlace<'_>, bytes: &[u8], step: ProcStep) -> PeerVer
             conversation,
             host_session: host,
             tool_pid: step.pid,
+            tool_start: step.start_secs,
         }),
         AppRecord::Of(_) | AppRecord::Unreadable => PeerVerdict::no(
             "the Claude app's record of the session names another conversation, or can't be read",
@@ -149,6 +154,24 @@ fn from_entry(place: &DesktopPlace<'_>, bytes: &[u8], step: ProcStep) -> PeerVer
             PeerVerdict::no("this Claude app profile has no record of the session")
         }
     }
+}
+
+/// H3: whether the registry still names `session` for its tool process:
+/// the entry there, for its pid and conversation, with its start time.
+#[must_use]
+pub fn still_current(place: &DesktopPlace<'_>, session: &AttestedSession) -> bool {
+    let rel = PathBuf::from("sessions").join(format!("{}.json", session.tool_pid));
+    let Ok(Some(bytes)) = record(place.config_dir, &rel, ENTRY_MAX) else {
+        return false;
+    };
+    serde_json::from_slice::<Entry>(&bytes).is_ok_and(|entry| {
+        entry.pid == Some(u64::from(session.tool_pid))
+            && entry.session_id.as_deref() == Some(session.conversation.as_str())
+            && same_start_strict(
+                entry.proc_start.as_deref().and_then(ctime_utc_secs),
+                session.tool_start,
+            )
+    })
 }
 
 /// What the app keeps for one of its sessions.
@@ -275,6 +298,7 @@ mod tests {
                 conversation: "conv-1".into(),
                 host_session: "local_abc-1".into(),
                 tool_pid: 4242,
+                tool_start: START,
             })
         );
     }
@@ -457,5 +481,24 @@ mod tests {
             !code.contains(".key\""),
             "the attestation names no key file"
         );
+    }
+
+    #[test]
+    fn a_kept_session_stays_current_only_while_its_registry_entry_does() {
+        let lab = lab();
+        desktop_entry(&lab, 4242, START_TEXT);
+        record(&lab, "conv-1");
+        let PeerVerdict::Attested(session) =
+            attest(&place(&lab), &[step(5000, START + 5), step(4242, START)])
+        else {
+            unreachable!("attested");
+        };
+        assert!(still_current(&place(&lab), &session));
+        // procStart changed: the pid now runs something else.
+        desktop_entry(&lab, 4242, "Mon Oct 26 08:33:20 2026");
+        assert!(!still_current(&place(&lab), &session));
+        // The registry entry gone: the session ended.
+        std::fs::remove_file(lab.config.join("sessions/4242.json")).unwrap();
+        assert!(!still_current(&place(&lab), &session));
     }
 }

@@ -509,3 +509,101 @@ fn a_call_carries_its_own_attested_facts() {
         format!("conversation:{FOLDER}/{CONVERSATION}")
     );
 }
+
+/// H3: on every attested call, what is kept for each desktop session is
+/// dropped at once when its tool's registry entry is gone or names
+/// another start time, not only after ten minutes.
+#[test]
+fn kept_facts_go_when_the_registry_entry_goes_or_its_start_changes() {
+    use juggler_adapter::peer::AttestedSession;
+    let dir = tempfile::tempdir().unwrap();
+    let mut registry = juggler_adapter::AdapterRegistry::new();
+    registry.register(Arc::new(juggler_adapters::ClaudeCodeAdapter::new()));
+    let state = Arc::new(AppState::init_with_registry(dir.path().join("data"), registry).unwrap());
+    let config = dir.path().join("config");
+    let instance = dir.path().join("instance");
+    std::fs::create_dir_all(config.join("sessions")).unwrap();
+    std::fs::create_dir_all(&instance).unwrap();
+    let start = 1_793_000_000;
+    let entry = |text: &str| {
+        std::fs::write(
+            config.join("sessions/4242.json"),
+            format!(
+                r#"{{"pid":4242,"sessionId":"{CONVERSATION}","procStart":"{text}","hostSessionId":"local_t1","entrypoint":"claude-desktop"}}"#
+            ),
+        )
+        .unwrap();
+    };
+    entry(&ctime(start));
+    let app = {
+        let storage = state.storage.lock().unwrap();
+        storage
+            .accounts()
+            .insert(&crate::test_support::account(
+                FOLDER,
+                juggler_adapters::CLAUDE_CODE_ID,
+                "Desk",
+                config.clone(),
+            ))
+            .unwrap();
+        let app = storage
+            .apps()
+            .upsert_desktop(
+                juggler_adapters::CLAUDE_CODE_ID,
+                "claude-app",
+                Some(&instance.to_string_lossy()),
+                1,
+            )
+            .unwrap();
+        storage.apps().set_folder(&app, Some(FOLDER)).unwrap();
+        app
+    };
+    let desk = desktop_id(FOLDER, CONVERSATION);
+    let keep = || {
+        state
+            .storage
+            .lock()
+            .unwrap()
+            .attested()
+            .put(desktop_facts());
+        state.agent_bridge.desktop.lock().unwrap().insert(
+            desk.as_str().to_owned(),
+            (
+                app.clone(),
+                AttestedSession {
+                    conversation: CONVERSATION.into(),
+                    host_session: "local_t1".into(),
+                    tool_pid: 4242,
+                    tool_start: start,
+                },
+            ),
+        );
+    };
+    let kept = || {
+        state
+            .storage
+            .lock()
+            .unwrap()
+            .attested()
+            .get(&desk)
+            .is_some()
+            && state
+                .agent_bridge
+                .desktop
+                .lock()
+                .unwrap()
+                .contains_key(desk.as_str())
+    };
+    let sweep = || super::attest::sweep(&state, &super::attest::candidates(&state));
+    keep();
+    sweep();
+    assert!(kept(), "still its registry's");
+    entry(&ctime(start + 3600));
+    sweep();
+    assert!(!kept(), "its start time changed: dropped at once");
+    entry(&ctime(start));
+    keep();
+    std::fs::remove_file(config.join("sessions/4242.json")).unwrap();
+    sweep();
+    assert!(!kept(), "its registry entry gone: dropped at once");
+}
