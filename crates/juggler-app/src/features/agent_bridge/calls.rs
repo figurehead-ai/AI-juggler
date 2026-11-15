@@ -134,6 +134,13 @@ fn caller_of(
     peer: Option<juggler_platform::local_ipc::Peer>,
 ) -> Result<(SessionId, Option<SessionFacts>), Response> {
     if request.token.is_empty() {
+        // L7: limited by its peer before any attestation's work.
+        if !peer_within_rate(state, peer) {
+            return Err(Response::refused(
+                Refusal::Limit,
+                "Too many calls in a short time: wait a few seconds.",
+            ));
+        }
         // ADR-0020's D-116 addendum: attested on every call, or refused.
         return peer
             .ok_or_else(|| "the system didn't name the caller".to_owned())
@@ -192,13 +199,39 @@ fn handle_from(
 }
 
 fn within_rate(state: &Arc<AppState>, session: &SessionId) -> bool {
+    within_rate_of(state, session.as_str())
+}
+
+/// The most callers the rate limit keeps count of; past it, the idle ones
+/// are forgotten (pids come and go).
+const RATE_KEYS_MAX: usize = 1_024;
+
+/// L7: a keyless line's own rate limit, by its peer's pid, checked before
+/// any attestation, so a looping caller costs no process listing and no
+/// storage lock past [`MAX_CALLS`] in [`WINDOW`].
+pub(super) fn peer_within_rate(
+    state: &Arc<AppState>,
+    peer: Option<juggler_platform::local_ipc::Peer>,
+) -> bool {
+    let key = peer
+        .and_then(|peer| peer.pid)
+        .map_or_else(|| "peer:unknown".to_owned(), |pid| format!("peer:{pid}"));
+    within_rate_of(state, &key)
+}
+
+fn within_rate_of(state: &Arc<AppState>, key: &str) -> bool {
     let Ok(mut calls) = state.agent_bridge.calls.lock() else {
         return false;
     };
     let now = Instant::now();
-    let recent = calls
-        .entry(session.as_str().to_owned())
-        .or_insert_with(VecDeque::new);
+    if calls.len() >= RATE_KEYS_MAX {
+        calls.retain(|_, recent| {
+            recent
+                .back()
+                .is_some_and(|at| now.duration_since(*at) <= WINDOW)
+        });
+    }
+    let recent = calls.entry(key.to_owned()).or_insert_with(VecDeque::new);
     while recent
         .front()
         .is_some_and(|at| now.duration_since(*at) > WINDOW)

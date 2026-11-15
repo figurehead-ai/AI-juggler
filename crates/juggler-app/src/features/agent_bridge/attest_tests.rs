@@ -615,3 +615,54 @@ fn kept_facts_go_when_the_registry_entry_goes_or_its_start_changes() {
     sweep();
     assert!(!kept(), "its registry entry gone: dropped at once");
 }
+
+/// L7: keyless lines are limited by their peer before any attestation:
+/// past 30 in 10 s the answer is Limit, not another attempt.
+#[test]
+fn a_looping_keyless_caller_is_limited_before_it_is_attested() {
+    let dir = tempfile::tempdir().unwrap();
+    let (state, _) = lab(dir.path());
+    let peer = juggler_platform::local_ipc::Peer {
+        pid: Some(4_000_000),
+        pid_version: Some(1),
+        accepted: std::time::SystemTime::now(),
+    };
+    let line =
+        serde_json::to_string(&Request::new(String::new(), Call::Whoami, Args::default())).unwrap();
+    let answers: Vec<_> = (0..31)
+        .map(|_| super::calls::handle_line_from(&state, &line, Some(peer)).refused)
+        .collect();
+    assert!(
+        answers[..30]
+            .iter()
+            .all(|refusal| *refusal == Some(Refusal::Unattested))
+    );
+    assert_eq!(
+        answers[30],
+        Some(Refusal::Limit),
+        "the 31st isn't attested at all"
+    );
+    // Another peer has its own allowance.
+    let other = juggler_platform::local_ipc::Peer {
+        pid: Some(4_000_001),
+        ..peer
+    };
+    assert_eq!(
+        super::calls::handle_line_from(&state, &line, Some(other)).refused,
+        Some(Refusal::Unattested)
+    );
+    // A connector hook's keyless report is limited the same way.
+    let report = serde_json::to_string(&juggler_agentbridge::wire::Report {
+        v: juggler_agentbridge::wire::VERSION,
+        token: String::new(),
+        hook: juggler_agentbridge::wire::HookReport {
+            event: "UserPromptSubmit".into(),
+            ..Default::default()
+        },
+    })
+    .unwrap();
+    assert_eq!(
+        super::calls::handle_line_from(&state, &report, Some(peer)).refused,
+        Some(Refusal::Limit)
+    );
+}

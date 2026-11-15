@@ -200,6 +200,10 @@ pub fn report(state: &Arc<AppState>, report: &wire::Report, peer: Option<Peer>) 
     if report.v != wire::VERSION || !wire::HOOK_EVENTS.contains(&report.hook.event.as_str()) {
         return Response::refused(Refusal::Bad, "AI Juggler couldn't read that report.");
     }
+    // L7: limited by its peer before any attestation's work.
+    if !super::calls::peer_within_rate(state, peer) {
+        return Response::refused(Refusal::Limit, "Too many reports in a short time.");
+    }
     let caller = match peer
         .ok_or_else(|| "the system didn't name the caller".to_owned())
         .and_then(|peer| super::attest::attest(state, peer))
