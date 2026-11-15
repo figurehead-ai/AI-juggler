@@ -11,7 +11,7 @@ import { PoolCardRows } from "../../components/PoolCards";
 import { IconPool } from "../../components/icons-actions";
 import { Button } from "../../components/primitives";
 import { useActionHost } from "../../components/ItemMenu";
-import { defaultPoolIdOf, levelLabel, usePoolMembers, usePools } from "../../lib/pools";
+import { defaultPoolIdOf, levelLabel, requestNewPool, usePoolMembers, usePools } from "../../lib/pools";
 import { useTaskNeeds } from "../../lib/ipc/tasks";
 import { sessionState } from "../../lib/rail-items";
 import type { InstanceInfo } from "../../types/generated/InstanceInfo";
@@ -67,19 +67,36 @@ export function ProjectPool({ project, sessions, now }: { project: ProjectInfo; 
           <p className="text-meta text-ink-2">Answer these in Needs you on Home, or on the pool's page.</p>
         </Section>
       )}
-      <Section title="Its other pools" sub="pools of yours that hold its sessions, or were made for it" testId="project-pool-yours">
+      {/* AJ-E3011 §1: the project's door to the same guided setup as New
+          pool, its project filled in. */}
+      <Section
+        title="Its other pools"
+        sub="pools of yours that hold its sessions, or were made for it"
+        actions={
+          <Button size="sm" variant="ghost" onClick={() => newPoolFor(project.id)} data-testid="project-pool-new">
+            New pool for {project.name}…
+          </Button>
+        }
+        testId="project-pool-yours"
+      >
         <RelatedPools
           pools={others}
           testId="project-other-pools"
           inSection
           teach={{
             title: "No pool of yours holds this project's sessions yet",
-            body: "Its sessions are watched together in its own pool, above. Put some of them in a pool of their own from a session's ⋯ menu (Move to pool…) to give them roles.",
+            body: "Its sessions are a team in its own pool, above. New pool sets up one of your own, step by step: who's in, who leads, who checks.",
           }}
         />
       </Section>
     </div>
   );
+}
+
+/** The guided setup (Pools › New pool), on `project`. */
+function newPoolFor(project: string): void {
+  requestNewPool({ template: "blank", project });
+  window.dispatchEvent(new CustomEvent("aij:open-screen", { detail: { id: "pools" } }));
 }
 
 /** Each state word, counted: "2 working · 1 asks you · 498 ended". The

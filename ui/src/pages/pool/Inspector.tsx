@@ -286,7 +286,9 @@ export const Inspector = forwardRef<HTMLHeadingElement, {
           </button>
         )}
       </div>
-      <div className="min-h-0 flex-1 overflow-y-auto pb-6" data-canvas-scroll>
+      {/* A new selection opens at its top (the list kept the last one's
+          scroll: the pool's settings opened halfway down). */}
+      <div key={JSON.stringify(selection)} className="min-h-0 flex-1 overflow-y-auto pb-6" data-canvas-scroll>
         <PoolChecklist rows={setup.rows} onOpen={setup.onOpen} compact={selection.kind !== "none"} />
         {selection.kind === "pool" ? (
           <>

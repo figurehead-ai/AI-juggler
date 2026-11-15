@@ -90,7 +90,7 @@ export function InspectRule({
         <RolePicker member={member} name={label} value={role} onChange={(next) => void run("change its role", () => poolJoin(pool.id, member, next, level))} disabled={busy} testId="inspect-rule-role" />
         {!rolesFor(member).includes("lead") && (
           <span className="text-meta text-ink-2" data-testid="inspect-rule-lead-hint">
-            Lead is one session: pick who leads in the pool's Who leads, or have this App's next session lead.
+            {member.startsWith("app:") ? "Lead is one session: pick who leads in the pool's Who leads, or have this App's next session lead." : "Lead is one session: pick who leads in the pool's Who leads."}
           </span>
         )}
       </div>
