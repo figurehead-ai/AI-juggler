@@ -99,11 +99,25 @@ fn started(process: &Listed) -> u128 {
 ///
 /// Why the chain can't be trusted, in words.
 pub(crate) fn chain_of(
-    peer: u32,
-    accepted: SystemTime,
+    peer: Peer,
     table: &HashMap<u32, Listed>,
     ours: &dyn Fn(u32) -> bool,
+    version_of: &dyn Fn(u32) -> Option<u32>,
 ) -> Result<Vec<ProcStep>, String> {
+    let accepted = peer.accepted;
+    let pid = peer
+        .pid
+        .ok_or("the system didn't name the caller's process")?;
+    // L4: the socket's audit token names the pid and its version; the live
+    // process at that pid must be the very one that connected (a pid reused
+    // since has another version).
+    match (peer.pid_version, version_of(pid)) {
+        (Some(token), Some(live)) if token == live => {}
+        _ => {
+            return Err("the caller's process can't be told from one that took its pid".to_owned());
+        }
+    }
+    let peer = pid;
     let step = |process: &Listed| ProcStep {
         pid: process.pid,
         start_secs: i64::try_from(process.start_secs).unwrap_or(i64::MAX),
@@ -245,16 +259,13 @@ fn project_of(state: &Arc<AppState>, folder: &str, conversation: &str) -> Option
 ///
 /// Why it isn't attested, in words: the call is refused with them.
 pub fn attest(state: &Arc<AppState>, peer: Peer) -> Result<DesktopCaller, String> {
-    let pid = peer
-        .pid
-        .ok_or("the system didn't name the caller's process")?;
     let table: HashMap<u32, Listed> = juggler_proc_list::list()
         .ok_or("this system doesn't list its processes")?
         .into_iter()
         .map(|process| (process.pid, process))
         .collect();
     let ours = |pid: u32| juggler_proc_list::task(pid).is_some();
-    let chain = chain_of(pid, peer.accepted, &table, &ours)?;
+    let chain = chain_of(peer, &table, &ours, &juggler_proc_list::pid_version)?;
     let candidates = candidates(state);
     let (verdict, gone) = decide(&candidates, &chain);
     if let Ok(storage) = state.storage.lock() {
@@ -340,6 +351,19 @@ mod tests {
         UNIX_EPOCH + Duration::from_secs(secs)
     }
 
+    /// A peer `pid` that connected at `secs`, its token's version 7.
+    fn peer(pid: u32, secs: u64) -> Peer {
+        Peer {
+            pid: Some(pid),
+            pid_version: Some(7),
+            accepted: at(secs),
+        }
+    }
+
+    fn seven(_: u32) -> Option<u32> {
+        Some(7)
+    }
+
     #[test]
     fn the_chain_comes_from_the_kernel_and_stops_at_two_steps() {
         let rows = table(&[
@@ -349,10 +373,10 @@ mod tests {
             listed(300, 200, 3_000),
             listed(400, 300, 4_000),
         ]);
-        let chain = chain_of(400, at(5_000), &rows, &|_| true).unwrap();
+        let chain = chain_of(peer(400, 5_000), &rows, &|_| true, &seven).unwrap();
         let pids: Vec<u32> = chain.iter().map(|step| step.pid).collect();
         assert_eq!(pids, [400, 300, 200]);
-        let short = chain_of(100, at(5_000), &rows, &|_| true).unwrap();
+        let short = chain_of(peer(100, 5_000), &rows, &|_| true, &seven).unwrap();
         assert_eq!(short.len(), 1, "nothing above a process launchd started");
     }
 
@@ -360,11 +384,11 @@ mod tests {
     fn a_reused_or_missing_process_is_refused() {
         let rows = table(&[listed(300, 200, 3_000), listed(400, 300, 4_000)]);
         assert!(
-            chain_of(400, at(3_500), &rows, &|_| true).is_err(),
+            chain_of(peer(400, 3_500), &rows, &|_| true, &seven).is_err(),
             "started after it connected: a reused pid"
         );
         assert!(
-            chain_of(400, at(5_000), &rows, &|_| true).is_err(),
+            chain_of(peer(400, 5_000), &rows, &|_| true, &seven).is_err(),
             "its grandparent is gone"
         );
         let reparented = table(&[
@@ -373,16 +397,32 @@ mod tests {
             listed(400, 300, 4_000),
         ]);
         assert!(
-            chain_of(400, at(5_000), &reparented, &|_| true).is_err(),
+            chain_of(peer(400, 5_000), &reparented, &|_| true, &seven).is_err(),
             "a parent younger than its child: the pid was reused"
         );
         let mut zombie = listed(400, 300, 4_000);
         zombie.zombie = true;
-        assert!(chain_of(400, at(5_000), &table(&[zombie]), &|_| true).is_err());
+        assert!(chain_of(peer(400, 5_000), &table(&[zombie]), &|_| true, &seven).is_err());
         assert!(
-            chain_of(400, at(5_000), &rows, &|_| false).is_err(),
+            chain_of(peer(400, 5_000), &rows, &|_| false, &seven).is_err(),
             "not this user's"
         );
-        assert!(chain_of(999, at(5_000), &rows, &|_| true).is_err());
+        assert!(chain_of(peer(999, 5_000), &rows, &|_| true, &seven).is_err());
+    }
+
+    #[test]
+    fn a_pid_taken_since_the_connection_is_refused() {
+        // L4: the token's version must be the live process's.
+        let rows = table(&[listed(300, 1, 3_000), listed(400, 300, 4_000)]);
+        assert!(chain_of(peer(400, 5_000), &rows, &|_| true, &seven).is_ok());
+        let other = |_: u32| Some(8);
+        assert!(chain_of(peer(400, 5_000), &rows, &|_| true, &other).is_err());
+        let gone = |_: u32| None;
+        assert!(chain_of(peer(400, 5_000), &rows, &|_| true, &gone).is_err());
+        let no_token = Peer {
+            pid_version: None,
+            ..peer(400, 5_000)
+        };
+        assert!(chain_of(no_token, &rows, &|_| true, &seven).is_err());
     }
 }

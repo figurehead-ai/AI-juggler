@@ -127,10 +127,16 @@ impl Listener {
     ///
     /// The system's error accepting it.
     pub async fn accept(&self) -> std::io::Result<Option<Stream>> {
-        let (stream, peer, pid) = imp::accept(&self.inner).await?;
+        let (stream, peer, (pid, pid_version)) = imp::accept(&self.inner).await?;
         let accepted = std::time::SystemTime::now();
-        Ok(crate::user::peer_allowed(peer, self.me)
-            .then_some(Stream(stream, Peer { pid, accepted })))
+        Ok(crate::user::peer_allowed(peer, self.me).then_some(Stream(
+            stream,
+            Peer {
+                pid,
+                pid_version,
+                accepted,
+            },
+        )))
     }
 }
 
@@ -138,9 +144,14 @@ impl Listener {
 /// says, and when the connection was taken.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Peer {
-    /// The peer's pid (tokio's `peer_cred`: `LOCAL_PEEREPID` on macOS,
-    /// `SO_PEERCRED` on Linux); `None` when the system doesn't say.
+    /// The peer's pid: on macOS from the socket's audit token
+    /// (`LOCAL_PEERTOKEN`); `None` when the system doesn't say.
     pub pid: Option<u32>,
+    /// L4: the pid's version in that token (the kernel bumps it when a pid
+    /// is reused): equal to the live process's
+    /// ([`juggler_proc_list::pid_version`]) only while the process at `pid`
+    /// is the one that connected. `None` where there's no audit token.
+    pub pid_version: Option<u32>,
     /// When the connection was accepted.
     pub accepted: std::time::SystemTime,
 }
@@ -328,15 +339,41 @@ mod imp {
 
     pub async fn accept(
         listener: &AsyncListener,
-    ) -> std::io::Result<(AsyncStream, Option<UserId>, Option<u32>)> {
+    ) -> std::io::Result<(AsyncStream, Option<UserId>, (Option<u32>, Option<u32>))> {
         let (stream, _) = listener.accept().await?;
-        let cred = stream.peer_cred().ok();
-        let peer = cred.map(|cred| UserId::from_uid(cred.uid()));
-        let pid = cred
+        let peer = stream
+            .peer_cred()
+            .ok()
+            .map(|cred| UserId::from_uid(cred.uid()));
+        let found = token(&stream);
+        Ok((stream, peer, found))
+    }
+
+    /// AJ-E3013 (L4): the peer's pid and pid version from its audit token
+    /// (`LOCAL_PEERTOKEN`, through nix's safe `getsockopt`): `val[5]` is
+    /// the pid and `val[7]` its version (`audit_token_to_pid`,
+    /// `audit_token_to_pidversion` in `bsm/libbsm.h`).
+    #[cfg(target_os = "macos")]
+    fn token(stream: &AsyncStream) -> (Option<u32>, Option<u32>) {
+        use nix::sys::socket::{getsockopt, sockopt::LocalPeerToken};
+        getsockopt(stream, LocalPeerToken).map_or((None, None), |token| {
+            (
+                Some(token.val[5]).filter(|pid| *pid > 0),
+                Some(token.val[7]),
+            )
+        })
+    }
+
+    /// Elsewhere: the pid tokio reads, with no version to check it by.
+    #[cfg(not(target_os = "macos"))]
+    fn token(stream: &AsyncStream) -> (Option<u32>, Option<u32>) {
+        let pid = stream
+            .peer_cred()
+            .ok()
             .and_then(|cred| cred.pid())
             .and_then(|pid| u32::try_from(pid).ok())
             .filter(|pid| *pid > 0);
-        Ok((stream, peer, pid))
+        (pid, None)
     }
 
     pub fn connect(endpoint: &Path) -> std::io::Result<StdStream> {
@@ -455,7 +492,7 @@ mod imp {
 
     pub async fn accept(
         listener: &AsyncListener,
-    ) -> std::io::Result<(AsyncStream, Option<UserId>, Option<u32>)> {
+    ) -> std::io::Result<(AsyncStream, Option<UserId>, (Option<u32>, Option<u32>))> {
         match *listener {}
     }
 
@@ -539,6 +576,12 @@ mod tests {
         // AJ-E3013: the system names the peer's pid (this process: the
         // client is one of its threads), and the accept's time is kept.
         assert_eq!(stream.peer().pid, Some(std::process::id()));
+        // L4: the audit token's pid version is this live process's.
+        #[cfg(target_os = "macos")]
+        assert_eq!(
+            stream.peer().pid_version,
+            juggler_proc_list::pid_version(std::process::id())
+        );
         assert!(stream.peer().accepted >= before);
         let mut asked = String::new();
         stream.read_to_string(&mut asked).await.unwrap();

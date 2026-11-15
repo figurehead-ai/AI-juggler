@@ -172,6 +172,7 @@ fn a_keyless_call_without_a_peer_or_an_attestation_is_refused() {
     // A real peer that no desktop App holds: refused, never trusted.
     let peer = juggler_platform::local_ipc::Peer {
         pid: Some(std::process::id()),
+        pid_version: juggler_proc_list::pid_version(std::process::id()),
         accepted: std::time::SystemTime::now(),
     };
     let refused = super::calls::handle_line_from(&state, &line, Some(peer));
@@ -299,6 +300,7 @@ fn this_processs_own_chain_is_attested_end_to_end_and_its_call_is_answered() {
     };
     let peer = juggler_platform::local_ipc::Peer {
         pid: Some(me),
+        pid_version: juggler_proc_list::pid_version(me),
         accepted: std::time::SystemTime::now(),
     };
     let caller = super::attest::attest(&state, peer).unwrap();

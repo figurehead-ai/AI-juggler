@@ -41,8 +41,13 @@ objc2 = { workspace = true }
 
 [target."cfg(unix)".dependencies]
 # The effective user id (safe bindings; no `unsafe` here); 0.3.8: asking an
-# app that lost its window to quit (`apps::quit`, SIGTERM).
-nix = { workspace = true, features = ["user", "fs", "signal"] }
+# app that lost its window to quit (`apps::quit`, SIGTERM); AJ-E3013: a
+# local peer's audit token (`LOCAL_PEERTOKEN`) and files opened without
+# following links (`openat`).
+nix = { workspace = true, features = ["user", "fs", "signal", "socket"] }
+# AJ-E3013 (L4): a peer's pid version, to compare with its socket's audit
+# token (the audited `proc_pidinfo` of D-110's crate; no `unsafe` here).
+juggler-proc-list = { version = "0.4.0", path = "../juggler-proc-list" }
 
 [dev-dependencies]
 tempfile = { workspace = true }

@@ -273,11 +273,13 @@ the attestation.
 part in its adapter, `juggler_adapter::peer::DesktopPeer`):
 
 1. **The peer.** At accept, the socket's peer user must be this user
-   (`getpeereid`, as before) and the system names its pid (tokio's
-   `peer_cred`, which reads `LOCAL_PEEREPID` on macOS: the same pid as
-   `LOCAL_PEERPID` unless the socket was delegated with `SO_DELEGATED`,
-   which XNU allows only with the private socket-delegation privilege).
-   The time of the accept is kept.
+   (`getpeereid`, as before), and the socket's **audit token**
+   (`LOCAL_PEERTOKEN`, read through nix's safe `getsockopt`) names its pid
+   and that pid's version. The live process at that pid must have the
+   same version (`juggler_proc_list::pid_version`, the kernel's
+   `p_idversion`, which changes whenever a pid is reused), so the process
+   checked is the very one that connected. The time of the accept is
+   kept.
 2. **The chain.** One listing of the processes (`juggler-proc-list`, the
    kernel's own `kinfo_proc` records): the peer must be listed, not a
    zombie, readable as this user's (`proc_pidinfo`), and started no later
@@ -351,19 +353,19 @@ chain ends at `launchd`) is refused.
 **Settled with the review's questions (the coordinating session,
 2026-11-15).**
 
-- **The peer's pid is tokio's `LOCAL_PEEREPID`, and no new `unsafe`.**
-  On macOS the effective pid differs from the pid (`LOCAL_PEERPID`) only
-  for a socket delegated with `SO_DELEGATED` or `SO_DELEGATED_UUID`, and
-  XNU lets a process delegate a socket to another process only with the
-  private socket-delegation privilege (`PRIV_NET_PRIVILEGED_SOCKET_DELEGATE`),
-  which a same-user process doesn't have. Reading `LOCAL_PEERPID` itself
-  would need an `unsafe` `getsockopt` outside the audited crates (a
-  decision of its own), for no gain against this threat model. And the
-  pid is never trusted alone: the parent chain from the kernel, the
-  start-time order along it, the registry entry's `procStart` and the
-  App's own record still refuse any caller that isn't under a Code-tab
-  Claude Code process the registry names. The security review checks
-  this claim.
+- **The peer is named by its audit token (L4, corrected after the
+  review).** An earlier draft took tokio's `LOCAL_PEEREPID` and argued
+  it was safe because it differs from `LOCAL_PEERPID` only for a
+  delegated socket. That was the wrong question: either value is just a
+  pid recorded on the socket (the last process that used it), and a pid
+  can be reused once that process exits. The token (`LOCAL_PEERTOKEN`)
+  carries the pid's version as well, and the app compares it with the
+  live process's version (one audited `proc_pidinfo` block in
+  `juggler-proc-list`, under D-110's rules): a process that took the pid
+  since has another version and is refused. Reading the token needs no
+  `unsafe` (nix's `getsockopt`). The chain, the start times along it, the
+  registry entry's `procStart`, the CLI's signed binary (M1) and the
+  App's own record still have to agree after that.
 - **No tool allow rule in the user's `settings.json` in 0.4.6.** Add
   writes only AI Juggler's own folder (`skills/ai-juggler/`), so Remove
   stays exact. Claude Code asks once per tool in the Code tab; the window
