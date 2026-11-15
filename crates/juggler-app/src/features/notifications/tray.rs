@@ -12,6 +12,9 @@ use super::views::OpenNowInput;
 
 /// Lines of Needs you the menu lists before "and N more…".
 pub const NEEDS_LISTED: usize = 5;
+/// Open needs read for the menu: the counted ones it lists, and the notes
+/// it counts on their own line ("To review · 3").
+pub const NEEDS_READ: usize = 200;
 /// The menu-bar item's id.
 pub const TRAY_ID: &str = "aij-tray";
 /// Menu ids: open AI Juggler, start a new session, open the centre.
@@ -86,29 +89,41 @@ fn line_of(notice: &NoticeInfo, now: i64) -> String {
     meta.map_or_else(|| title.clone(), |meta| format!("{title} · {meta}"))
 }
 
-/// The menu for `count` needs (the first of them in `needs`) and what is
-/// open now.
+/// The menu for `count` needs (the open ones in `needs`, the counted ones
+/// first listed) and what is open now. 0.5 (D-117): the count and its
+/// lines are what waits on the user or broke (attention level 2 or 3);
+/// the notes (finished work to review, low room nothing live depends on)
+/// are one line under them, to the centre, never counted.
 #[must_use]
 pub fn build(count: u32, needs: &[NoticeInfo], open: &OpenNowInput, now: i64) -> TrayMenu {
+    let (counted, notes): (Vec<&NoticeInfo>, Vec<&NoticeInfo>) = needs
+        .iter()
+        .partition(|notice| super::centre::counted(notice));
     let mut lines = vec![TrayLine::Heading {
         text: format!("Needs you · {count}"),
     }];
-    if needs.is_empty() {
+    if counted.is_empty() {
         lines.push(TrayLine::Note {
             text: "Nothing needs you".to_owned(),
         });
     }
-    for notice in needs.iter().take(NEEDS_LISTED) {
+    for notice in counted.iter().take(NEEDS_LISTED) {
         lines.push(TrayLine::Item {
             id: format!("{NOTICE_PREFIX}{}", notice.id),
             text: line_of(notice, now),
         });
     }
-    let listed = u32::try_from(needs.len().min(NEEDS_LISTED)).unwrap_or(0);
+    let listed = u32::try_from(counted.len().min(NEEDS_LISTED)).unwrap_or(0);
     if count > listed {
         lines.push(TrayLine::Item {
             id: CENTRE_ID.to_owned(),
             text: format!("and {} more…", count - listed),
+        });
+    }
+    if !notes.is_empty() {
+        lines.push(TrayLine::Item {
+            id: CENTRE_ID.to_owned(),
+            text: format!("To review · {}", notes.len()),
         });
     }
     lines.push(TrayLine::Separator);
@@ -276,6 +291,24 @@ mod tests {
         }
     }
 
+    /// The approved design's example: one asks, an Account almost out
+    /// with two sessions live on it, and finished work to review.
+    fn example() -> Vec<NoticeInfo> {
+        let mut quota = need(2, "quota", "Work Max is almost out of room", 3, Some(7));
+        quota.facts.sessions = Some(2);
+        vec![
+            need(1, "asks", "“Docs bot” needs your reply", 24, None),
+            quota,
+            need(
+                3,
+                "review",
+                "“Site deployment” is done — review it",
+                12,
+                None,
+            ),
+        ]
+    }
+
     fn open() -> OpenNowInput {
         OpenNowInput {
             total: 10,
@@ -311,27 +344,17 @@ mod tests {
 
     #[test]
     fn the_menu_lists_what_needs_you_then_what_is_open() {
-        let needs = [
-            need(1, "asks", "“Docs bot” needs your reply", 24, None),
-            need(2, "quota", "Work Max is almost out of room", 3, Some(7)),
-            need(
-                3,
-                "review",
-                "“Site deployment” is done — review it",
-                12,
-                None,
-            ),
-        ];
-        let menu = build(3, &needs, &open(), NOW);
-        assert_eq!(menu.title.as_deref(), Some("3"));
-        assert_eq!(menu.tooltip, "AI Juggler · 3 things need you");
+        let menu = build(2, &example(), &open(), NOW);
+        assert_eq!(menu.title.as_deref(), Some("2"));
+        assert_eq!(menu.tooltip, "AI Juggler · 2 things need you");
+        // D-117: the review is listed apart, under what counts, uncounted.
         assert_eq!(
             texts(&menu),
             [
-                "# Needs you · 3",
+                "# Needs you · 2",
                 "[tray:notice:1] “Docs bot” needs your reply · 24 m",
                 "[tray:notice:2] Work Max is almost out of room · 7%",
-                "[tray:notice:3] “Site deployment” is done — review it",
+                "[tray:centre] To review · 1",
                 "---",
                 "# Open now · 10 · 4 working",
                 "(Claude app · 6 · Codex in ChatGPT · 3 · Terminal · 1)",
@@ -347,18 +370,7 @@ mod tests {
     /// approved design's example): `AJ_WRITE_FIXTURES=1` writes it again.
     #[test]
     fn the_gallerys_menu_is_the_builders() {
-        let needs = [
-            need(1, "asks", "“Docs bot” needs your reply", 24, None),
-            need(2, "quota", "Work Max is almost out of room", 3, Some(7)),
-            need(
-                3,
-                "review",
-                "“Site deployment” is done — review it",
-                12,
-                None,
-            ),
-        ];
-        let menu = build(3, &needs, &open(), NOW);
+        let menu = build(2, &example(), &open(), NOW);
         let json = serde_json::to_string_pretty(&menu).unwrap() + "\n";
         let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("../../ui/tests/visual/fixtures/tray-menu.json");
@@ -384,9 +396,7 @@ mod tests {
 
     #[test]
     fn a_long_list_ends_with_the_rest_in_the_centre() {
-        let needs: Vec<NoticeInfo> = (0..8)
-            .map(|id| need(id, "review", "Done", 1, None))
-            .collect();
+        let needs: Vec<NoticeInfo> = (0..8).map(|id| need(id, "asks", "Asks", 1, None)).collect();
         let menu = build(8, &needs, &OpenNowInput::default(), NOW);
         let lines = texts(&menu);
         assert_eq!(
@@ -413,12 +423,29 @@ mod tests {
         assert_eq!(click_of("tray:notice:x"), None);
     }
 
+    /// D-117: notes alone (a review, low room nothing live is on) count
+    /// nothing; they are one line, to the centre.
+    #[test]
+    fn notes_alone_count_nothing_and_are_one_line() {
+        let needs = [
+            need(1, "review", "Done", 1, None),
+            need(2, "quota", "Personal is low", 1, Some(18)),
+            need(3, "leftovers", "2 processes left running", 1, None),
+        ];
+        let menu = build(0, &needs, &OpenNowInput::default(), NOW);
+        assert_eq!(menu.title, None);
+        let lines = texts(&menu);
+        assert!(lines.contains(&"(Nothing needs you)".to_owned()));
+        assert!(lines.contains(&"[tray:centre] To review · 3".to_owned()));
+        assert!(!lines.iter().any(|line| line.starts_with("[tray:notice:")));
+    }
+
     #[test]
     fn a_long_title_is_cut_with_an_ellipsis() {
         let long = "x".repeat(80);
         let menu = build(
             1,
-            &[need(1, "review", &long, 0, None)],
+            &[need(1, "signin", &long, 0, None)],
             &OpenNowInput::default(),
             NOW,
         );

@@ -14,7 +14,7 @@ import { useState, type JSX } from "react";
 import { AppIcon } from "./AppIcon";
 import { AppKindBadge } from "./AppKindBadge";
 import { appKindOfKey } from "../lib/app-kind";
-import { IconAlert } from "./icons";
+import { appTone, counted, highest, itemLevel, type AttentionLevel } from "../lib/attention";
 import { IconReplay } from "./icons-actions";
 import { ProfileBadge } from "./ProfileBadge";
 import { SectionTitle } from "./SectionTitle";
@@ -164,13 +164,15 @@ function AccountRows({ words, left, label, low, rows }: { words: string | null; 
 
 /** 0.4.1: the bottom row, in the same place on every card: the action on
  * the left, what needs you (when anything does) on the right; one line. */
-function Actions({ children, needs }: { children: JSX.Element | null; needs: number }): JSX.Element {
+function Actions({ children, needs, level = 2 }: { children: JSX.Element | null; needs: number; level?: AttentionLevel }): JSX.Element {
   return (
     <div className="mt-auto flex min-h-7 flex-nowrap items-center justify-between gap-2">
       {children ?? <span />}
       {needs > 0 && (
-        <span className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full bg-warning-soft px-2 py-0.5 text-label font-semibold text-warning" data-testid="home-app-needs" title="Listed under Needs you">
-          <IconAlert width={11} height={11} aria-hidden="true" />
+        // D-117: a mark, not a pill — the words in ink-2 by the level's dot
+        // (red words at L3); the loud copy is the Needs you card's row.
+        <span className={"inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap px-1 py-0.5 text-label font-medium " + (level === 3 ? "text-danger" : "text-ink-2")} data-testid="home-app-needs" data-level={level} title="Listed under Needs you">
+          <span aria-hidden="true" className="level-mark" data-level={level === 3 ? 3 : 2} />
           {needs} {needs === 1 ? "needs" : "need"} you
         </span>
       )}
@@ -197,14 +199,18 @@ function AppName({ id, name, children }: { id: string | null; name: string; chil
 
 function Tile({ group, runway, kept, appId, rows, folder }: { group: RailGroup; runway: Runway | null; kept: boolean; appId: string | null; rows: Rows; folder: string | null }): JSX.Element {
   const place = group.place!;
-  const needs = group.items.filter((item) => item.need !== null).length;
+  // D-117: L2 and L3 counted; its mark takes the highest.
+  const loud = group.items.filter((item) => counted(itemLevel(item)));
+  const needs = loud.length;
+  const level = highest(loud.map(itemLevel));
   const count = group.items.length;
   const low = runway?.left !== null && runway?.left !== undefined && runway.left <= 25;
   const name = [place.app, place.profile].filter(Boolean).join(" · ");
   return (
-    <li className="@container flex h-full min-w-0 flex-col gap-3 rounded-card border border-hairline bg-surface p-4 shadow-card" data-testid="home-app-tile" data-place={place.key}>
+    <li className="tone-host @container flex h-full min-w-0 flex-col gap-3 rounded-card border border-hairline bg-surface p-4 shadow-card" data-testid="home-app-tile" data-place={place.key} data-level={level}>
       <div className="flex min-w-0 items-start gap-3">
-        <AppIcon appId={place.appId} appPid={place.appPid} name={place.app} size={32} />
+        {/* D-117: in full colour while it needs you (or hovered), muted at rest. */}
+        <AppIcon appId={place.appId} appPid={place.appPid} name={place.app} size={32} className={appTone(level >= 2)} />
         <div className="flex min-w-0 flex-1 flex-col gap-0.5">
           {/* The app's name, then the kept-alive mark beside it (0.4.1:
               never squeezing the profile): its words on a wide card, its
@@ -253,7 +259,7 @@ function Tile({ group, runway, kept, appId, rows, folder }: { group: RailGroup; 
       <AccountRows words={runway?.words ?? null} left={runway?.left ?? null} label={name} low={low} rows={rows} />
       {/* The action on the left, what needs you on the right, on every card
           in the same place (0.4.1); "Open": the card names the app. */}
-      <Actions needs={needs}>
+      <Actions needs={needs} level={level}>
         {place.appPid !== null ? (
           <button
             type="button"

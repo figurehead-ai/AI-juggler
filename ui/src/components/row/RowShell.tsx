@@ -106,8 +106,9 @@ export function RowShell({
   const menu = useItemMenu(menuKind ?? (item.session ? "session" : "conversation"), (item.session ?? item.conversation) as never, item.title, local);
   const where = goToWhere(item);
   const list = layout === "list";
-  // Needs you: its ↗ always shows; elsewhere on hover and focus.
-  const shown = item.need !== null && !tools && !list;
+  // Needs you: its ↗ on hover, focus or the selected row (D-117, R10);
+  // elsewhere on hover and focus. The G key and the menu still go there.
+  const shown = item.need !== null && !tools && !list && selected;
   const goTo = where === null ? null : menu.goTo({ where, shown, className: tools || list ? "" : "absolute right-1 top-1/2 -translate-y-1/2" });
   // AJ-E1502: the pin, on hover and focus, runs the menu's own Pin.
   const pin = tools ? menu.actions.find((action) => action.id === "pin" && !action.reason) : undefined;
@@ -115,7 +116,8 @@ export function RowShell({
   const menuLabel = list ? `Actions for ${item.title}` : `${item.session ? "Session" : "Conversation"} actions for ${item.title}`;
   return (
     <div
-      className={"group relative " + (list ? "@container " : "") + (indent ? "ml-3" : "") + (arrange?.dragging ? " opacity-50" : "") + (arrange?.drop ? DROP[arrange.drop] : "")}
+      // `tone-host`: hovered or focused, its App's mark is in full colour (D-117).
+      className={"tone-host group relative " + (list ? "@container " : "") + (indent ? "ml-3" : "") + (arrange?.dragging ? " opacity-50" : "") + (arrange?.drop ? DROP[arrange.drop] : "")}
       data-rail-row={list ? undefined : ""}
       // A session started from another: one step in per level, under it.
       style={depth > 0 ? { marginLeft: `${0.75 + depth}rem` } : undefined}

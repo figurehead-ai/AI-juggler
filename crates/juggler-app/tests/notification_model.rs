@@ -1238,7 +1238,9 @@ fn archiving_another_apps_session_here_takes_its_need_away_at_once_and_unarchivi
 {
     let dir = tempfile::tempdir().unwrap();
     let state = app_state(dir.path());
-    let done = || theirs("c-done", "Codex", "codex-desktop", Some("done_review"));
+    // D-117: one that asks (counted), so the bell's step shows; a review
+    // is listed but never counted.
+    let done = || theirs("c-done", "Codex", "codex-desktop", Some("asks_you"));
     let sources = |archived_here: bool| needs::NeedSources {
         conversations: vec![needs_conversation(done(), archived_here)],
         computer: "Mac",
@@ -1254,7 +1256,7 @@ fn archiving_another_apps_session_here_takes_its_need_away_at_once_and_unarchivi
     };
     let now = Timestamp::now().millis();
     assert!(needs::refresh_from(&state, &sources(false), now));
-    assert_eq!(rows().len(), 1, "finished, not looked at: it needs you");
+    assert_eq!(rows().len(), 1, "it asks: it needs you");
     let bell = views::summary_now(&state).count;
 
     // Archived here: the next working out leaves it out ...

@@ -78,7 +78,10 @@ describe("the rail by place", () => {
   it("reads Needs you, then Open now by place in a stable order, then Also", async () => {
     const view = board([own("aj")]);
     const needs = await view.findByTestId("rail-needs-you");
-    expect(needs.textContent).toMatch(/Needs you\s*3/i);
+    // D-117: the count holds what waits on you (2 ask); "Done, review it"
+    // is listed under To review, uncounted.
+    expect(needs.textContent).toMatch(/Needs you\s*2/i);
+    expect(view.getByTestId("rail-to-review")).toBeTruthy();
     const open = view.getByTestId("rail-open-now");
     expect(needs.compareDocumentPosition(open) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     const names = headers(view.getByTestId("place-board")).map((h) => h.getAttribute("data-place"));

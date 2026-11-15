@@ -97,7 +97,8 @@ fn the_needs_you_list_is_kept_in_step_and_each_need_is_told_once() {
     assert_eq!(fresh.len(), 1);
     let open = page(&storage, "needs", &first(), NOW + 2 * MIN).unwrap();
     assert_eq!(keys(&open), ["“Site deployment” is done — review it"]);
-    assert_eq!(summary(&storage, clock(NOW + 2 * MIN)).unwrap().count, 1);
+    // D-117: listed, never counted (a review is a note, level 1).
+    assert_eq!(summary(&storage, clock(NOW + 2 * MIN)).unwrap().count, 0);
 }
 
 #[test]
@@ -161,7 +162,8 @@ fn snoozed_needs_leave_the_count_until_they_wake_muted_ones_stay() {
     snooze(&storage, "s:sess-a", Snooze::Until(NOW + 60 * MIN), NOW).unwrap();
     mute(&storage, "kind", "stuck", "", NOW).unwrap();
     let now = summary(&storage, clock(NOW)).unwrap();
-    assert_eq!(now.count, 2, "the snoozed need is out of the count");
+    // D-117: the review (c) is listed, never counted.
+    assert_eq!(now.count, 1, "the snoozed need is out of the count");
     assert_eq!(now.snoozed, 1);
     assert_eq!(now.muted, 1, "the muted need is still counted");
     assert_eq!(now.unread, 1, "only the review has a dot");
@@ -172,7 +174,7 @@ fn snoozed_needs_leave_the_count_until_they_wake_muted_ones_stay() {
     assert_eq!(
         open_needs(&storage, NOW, 10).len(),
         2,
-        "the menu-bar item lists what counts"
+        "the menu-bar item reads what isn't snoozed"
     );
     assert!(!may_interrupt(&storage, "stuck", None));
     assert!(may_interrupt(&storage, "asks", None));
@@ -182,12 +184,12 @@ fn snoozed_needs_leave_the_count_until_they_wake_muted_ones_stay() {
         "a snooze ends"
     );
     // Its time come, it is back in the count by itself.
-    assert_eq!(summary(&storage, clock(NOW + 61 * MIN)).unwrap().count, 3);
+    assert_eq!(summary(&storage, clock(NOW + 61 * MIN)).unwrap().count, 2);
     // Snoozed until woken: out until the user wakes it.
     snooze(&storage, "b", Snooze::UntilWoken, NOW).unwrap();
-    assert_eq!(summary(&storage, clock(NOW + 61 * MIN)).unwrap().count, 2);
+    assert_eq!(summary(&storage, clock(NOW + 61 * MIN)).unwrap().count, 1);
     snooze(&storage, "b", Snooze::Wake, NOW).unwrap();
-    assert_eq!(summary(&storage, clock(NOW + 61 * MIN)).unwrap().count, 3);
+    assert_eq!(summary(&storage, clock(NOW + 61 * MIN)).unwrap().count, 2);
     // Mute this project: the project's needs stop interrupting.
     mute(&storage, "project", "proj-docs", "docs-site", NOW).unwrap();
     assert!(!may_interrupt(&storage, "review", Some("proj-docs")));
@@ -443,4 +445,70 @@ fn local_midnight_follows_the_offset() {
     };
     assert_eq!(unknown.local_hour(), None);
     assert_eq!(unknown.today_start(), 20_000 * day);
+}
+
+/// 0.5 (D-117): the backend's attention level is the window's
+/// `attentionLevel()`, case by case, from the one table both read.
+#[test]
+fn attention_levels_match_the_windows_table() {
+    let table: serde_json::Value = serde_json::from_str(include_str!(
+        "../../../../../../ui/src/lib/fixtures/attention-levels.json"
+    ))
+    .unwrap();
+    let cases = table["cases"].as_array().unwrap();
+    let mut checked = 0;
+    for case in cases {
+        // A state alone (no need) is the window's own: no notice has one.
+        let Some(kind) = case["need"].as_str() else {
+            continue;
+        };
+        let facts = LevelFacts {
+            left: case["left"].as_i64(),
+            live_sessions: case["liveSessions"]
+                .as_u64()
+                .and_then(|n| u32::try_from(n).ok()),
+            no_room: case["noRoom"].as_bool().unwrap_or(false),
+            critical: case["critical"].as_bool().unwrap_or(false),
+        };
+        let want = u8::try_from(case["level"].as_u64().unwrap()).unwrap();
+        assert_eq!(attention_level(kind, facts), want, "{case}");
+        checked += 1;
+    }
+    assert!(checked >= 20, "the table lost its cases ({checked})");
+    // Every kind the backend writes is placed in it.
+    for (kind, _) in NEED_KINDS.iter().chain(APP_KINDS) {
+        if *kind != "quota" && APP_KINDS.iter().any(|(app, _)| app == kind) {
+            continue;
+        }
+        assert!(
+            cases.iter().any(|case| case["need"] == *kind),
+            "{kind} has no level in the table"
+        );
+    }
+}
+
+/// D-117: the one count holds what waits on the user or broke, never a
+/// review, nor low room no live session depends on.
+#[test]
+fn the_count_holds_levels_two_and_three_only() {
+    let (_dir, storage) = storage();
+    sync_needs(
+        &storage,
+        &[
+            need("a", "asks", "A"),
+            need("f", "failed", "F"),
+            need("r", "review", "R"),
+            need("l", "leftovers", "L"),
+        ],
+        NOW,
+    )
+    .unwrap();
+    assert_eq!(summary(&storage, clock(NOW)).unwrap().count, 2);
+    // An Account almost out with two sessions live on it needs you.
+    assert!(
+        open_need(&storage, &quota("Work Max", 7, NOW + 60 * MIN), NOW)
+            .unwrap()
+            .is_some()
+    );
+    assert_eq!(summary(&storage, clock(NOW)).unwrap().count, 3);
 }

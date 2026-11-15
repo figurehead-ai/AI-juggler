@@ -23,6 +23,7 @@ import { waitingSince } from "./waiting";
 import type { ConversationInfo } from "./ipc/conversations";
 import type { KnownPlaceInfo } from "./ipc/places";
 import { ownersOf } from "./rail-apps";
+import { counted, noticeLevel } from "./attention";
 
 /** The kinds that are a session's (the rail's Needs you shows them). */
 const SESSION_KINDS = new Set<string>(["asks", "stuck", "limit", "failed", "review"]);
@@ -35,7 +36,8 @@ const NEED_ORDER = ["asks", "limit", "failed", "stuck", "review"];
 export interface BackendNeeds {
   /** What counts now, oldest first (snoozed ones left out). */
   rows: NoticeInfo[];
-  /** The one count (the bell's, the badge's, the menu-bar item's). */
+  /** The one count (the bell's, the badge's, the menu-bar item's): what
+   * waits on you or broke (L2, L3; D-117), never a note. */
   count: number;
   /** The subjects of `rows` ("cap:…", "message:…", "task:…", "s:…"). */
   subjects: ReadonlySet<string>;
@@ -64,7 +66,7 @@ export function useBackendNeeds(): BackendNeeds {
     const rows = withoutArchived(list.items.filter((row) => !row.snoozed), archived);
     const needOf = new Map<string, Need>();
     for (const row of rows) if (SESSION_KINDS.has(row.kind)) needOf.set(row.subject, row.kind as Need);
-    return { rows, count: summary?.count ?? rows.length, subjects: new Set(rows.map((row) => row.subject)), needOf, loading: list.loading, known };
+    return { rows, count: summary?.count ?? rows.filter((row) => counted(noticeLevel(row))).length, subjects: new Set(rows.map((row) => row.subject)), needOf, loading: list.loading, known };
   }, [list.items, list.loading, summary?.count, archived, known]);
 }
 
@@ -86,8 +88,9 @@ export function homeNeedsOf(rows: NoticeInfo[], items: RailItem[], accounts: Acc
     const kind = HOME_KIND[row.kind];
     if (!kind) continue;
     const item = SESSION_KINDS.has(row.kind) ? byKey.get(row.subject) : undefined;
+    const level = noticeLevel(row); // D-117: the backend's row says it
     if (item) {
-      out.push({ key: item.key, kind, title: item.title, detail: [item.project, ...placeWords(item.place)].filter(Boolean).join(" · "), severe: kind !== "session", item });
+      out.push({ key: item.key, kind, title: item.title, detail: [item.project, ...placeWords(item.place)].filter(Boolean).join(" · "), severe: kind !== "session", item, level });
       continue;
     }
     if (SESSION_KINDS.has(row.kind)) {
@@ -95,7 +98,7 @@ export function homeNeedsOf(rows: NoticeInfo[], items: RailItem[], accounts: Acc
       // still needs you, as the bell counts it: the notice's own words,
       // opened by its ids.
       const ids = row.target.account_id && row.target.conversation_id ? { accountId: row.target.account_id, id: row.target.conversation_id } : undefined;
-      out.push({ key: row.subject, kind, title: row.title, detail: row.detail, severe: kind !== "session", sessionId: row.target.session_id ?? undefined, conversationIds: row.target.session_id ? undefined : ids, since: row.created_ms });
+      out.push({ key: row.subject, kind, title: row.title, detail: row.detail, severe: kind !== "session", sessionId: row.target.session_id ?? undefined, conversationIds: row.target.session_id ? undefined : ids, since: row.created_ms, level });
       continue;
     }
     const account = row.target.account_id ? accounts.find((entry) => entry.id === row.target.account_id) : undefined;
@@ -108,6 +111,7 @@ export function homeNeedsOf(rows: NoticeInfo[], items: RailItem[], accounts: Acc
       account,
       sessionId: row.kind === "quota" ? liveOn(sessions, row.target.account_id)?.id : (row.target.session_id ?? undefined),
       conversation: row.kind === "quota" ? openElsewhere(items, row.target.account_id) : undefined,
+      level,
     });
   }
   const rank = (need: HomeNeed) => (need.item?.need ? NEED_ORDER.indexOf(need.item.need) : 0);

@@ -10,6 +10,7 @@ import { renewalLabel, renewalRowVisible } from "../lib/renewal";
 import { accountNameOf, useSubscriptions } from "../lib/subscriptions";
 import { subagentsRunning } from "../lib/subagents";
 import { STATE_TONE, stateWord, type RailState } from "../lib/rail-items";
+import { LegendLevels } from "./LegendLevels";
 import {
   IconFork,
   IconGitBranch,
@@ -376,7 +377,8 @@ export function IndicatorLegend({ compact = false }: { compact?: boolean }) {
           <dd className="text-muted">a reading stopped updating</dd>
         </div>
       </dl>
-      <span className="border-t border-hairline pt-1.5 text-muted">A row's left edge is its app's colour.</span>
+      <LegendLevels />
+      <span className="border-t border-hairline pt-1.5 text-muted">An App's icon is in full colour while it needs you or is open; muted otherwise.</span>
     </div>
   );
 }

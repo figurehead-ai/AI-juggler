@@ -3,11 +3,11 @@
 //! lab can seed it. End to end over the real code: the Claude app's own
 //! record and a `claude` in its instance are read by the adapter through
 //! the live scanner (only the process table is scripted), the index
-//! joins them to the transcript, Needs you and the bell count it; Archive
-//! is refused while it's open (only ended sessions are archived); opening
-//! it marks it seen (the window's `conversation_seen` setting), and its
-//! row leaves Needs you and the bell drops by one at once, and stays gone
-//! over the next tick.
+//! joins them to the transcript, Needs you lists it (0.5, D-117: listed
+//! under To review, never counted by the bell); Archive is refused while
+//! it's open (only ended sessions are archived); opening it marks it seen
+//! (the window's `conversation_seen` setting), and its row leaves Needs
+//! you at once, and stays gone over the next tick.
 //!
 //! Runs as a child on `HOME=<lab>` so nothing of this Mac's own (its
 //! `~/.claude`, its Claude app profiles) is listed or read.
@@ -223,12 +223,13 @@ fn a_review_ready_conversation_is_not_archived_while_open_and_seeing_it_clears_n
     assert!(row.live, "open in its Claude app instance");
     assert_eq!(row.state.as_deref(), Some("done_review"), "the app's word");
 
-    // 2. Needs you holds it, and the bell counts it.
+    // 2. Needs you holds it; the bell doesn't count it (D-117: a review
+    // is a note, level 1).
     let before = rows();
     assert_eq!(before.len(), 1, "finished, not looked at: {before:?}");
     assert_eq!(before[0].0, "review");
     let counted = bell();
-    assert!(counted >= 1, "the bell counts it");
+    assert_eq!(counted, 0, "a review is listed, never counted");
 
     // 3. Archive is refused while it's open (only ended sessions are
     // archived; the UI shows it disabled with these words), and nothing
@@ -243,7 +244,7 @@ fn a_review_ready_conversation_is_not_archived_while_open_and_seeing_it_clears_n
     assert_eq!(bell(), counted);
 
     // 4. Opening it marks it seen (the window's `markSeen` saves this
-    // setting): its row leaves Needs you and the bell drops by one at once.
+    // setting): its row leaves Needs you at once; the bell stays.
     let seen = format!(
         r#"{{"c:{}/{SESSION}":{}}}"#,
         account.id,
@@ -251,10 +252,10 @@ fn a_review_ready_conversation_is_not_archived_while_open_and_seeing_it_clears_n
     );
     juggler_app::settings_policy::app_setting_set_impl(&state, "conversation_seen", &seen).unwrap();
     assert!(rows().is_empty(), "seen: out of Needs you at once");
-    assert_eq!(bell(), counted - 1, "the bell dropped by one at once");
+    assert_eq!(bell(), counted, "the bell never counted it");
 
     // ... and the next tick keeps it out (still open, still review-ready).
     tick();
     assert!(rows().is_empty(), "the tick doesn't bring it back");
-    assert_eq!(bell(), counted - 1);
+    assert_eq!(bell(), counted);
 }

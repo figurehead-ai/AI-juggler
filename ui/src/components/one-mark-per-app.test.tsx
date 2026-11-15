@@ -13,7 +13,6 @@ import { cleanup, render, screen, waitFor, within } from "@testing-library/react
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { CliAppMark, PlaceMark, markPlace } from "./PlaceMarks";
 import { PlaceHeader } from "./PlaceHeader";
-import { edgeOf } from "./PlaceRows";
 import { RailIdleApp } from "./RailIdleApp";
 import { HomeApps } from "./HomeApps";
 import { AccountAvatar, AccountStack } from "./Avatar";
@@ -126,7 +125,8 @@ describe("AJ-E3206 a CLI App wears one colour on every surface", () => {
   const work = appColor(5);
   const place = cliPlace("claude-code", WORK.id, WORK.label, { name: "Terminal", kind: "terminal", pid: 5100 });
 
-  it("the rail's row mark, its App header, its rows' edge and an idle app", () => {
+  // D-117: its rows no longer carry an edge in its colour (said once, by its header).
+  it("the rail's row mark, its App header and an idle app", () => {
     expect(place.key).toBe(cliAppKey("claude-code", WORK.id, WORK.label));
     const row = render(<PlaceMark place={place} />);
     expect(badgeIn(row.container)).toBe(work);
@@ -134,7 +134,6 @@ describe("AJ-E3206 a CLI App wears one colour on every surface", () => {
     const header = render(<PlaceHeader place={place} label="Claude Code" count={2} needs={0} folded={null} onToggle={() => {}} />);
     expect(badgeIn(header.container)).toBe(work);
     cleanup();
-    expect(edgeOf(place)).toBe(work);
     const idle = render(
       <RailIdleApp
         app={{ key: place.key, kind: "cli", name: "Claude Code · Work Max", app: "Claude Code", profile: WORK.label, appId: null, lastMs: NOW, appPid: null, placeId: null, cannotStart: null, accountId: WORK.id, folder: WORK.id, tool: "claude-code", sessions: [] }}

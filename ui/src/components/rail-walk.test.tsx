@@ -194,9 +194,11 @@ describe("every rail element opens a page here (place lens)", () => {
     const list = await view.findByTestId("place-board");
     await waitFor(() => expect(row(list, "c:claude-work/outside-3")).toBeTruthy());
     const asks = row(list, "c:claude-work/outside-3").parentElement!;
-    // Needs you: always shown, named for its app and profile.
+    // Needs you: named for its app and profile; D-117 (R10): shown on
+    // hover, focus or the selected row, as everywhere (still in the Tab
+    // order, and ⌘↩ and the menu go there too).
     const arrow = within(asks).getByRole("button", { name: "Go to it in Claude app · Work Max" });
-    expect(arrow.className).not.toContain("opacity-0");
+    expect(arrow.className).toContain("group-hover:opacity-100");
     fireEvent.click(arrow);
     expect(host.goToConversation).toHaveBeenCalledTimes(1);
     fireEvent.keyDown(row(list, "c:claude-work/outside-3"), { key: "Enter", metaKey: true });

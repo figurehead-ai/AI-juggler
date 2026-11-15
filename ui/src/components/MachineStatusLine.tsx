@@ -45,7 +45,9 @@ export function MachineStatusLine({ minimal, onOpen, short = false }: { minimal:
   // "Under memory pressure"): a voice user says what they see (axe,
   // label-content-name-mismatch).
   const spoken = shown === words ? undefined : `${name} · ${shown}`;
-  const dot = status ? status.dot : "bg-faint";
+  // D-117: calm (plenty of room) is a neutral faint dot; amber when
+  // tight (L2), red under pressure (L3).
+  const dot = status && !status.calm ? status.dot : "bg-faint";
   // The level, by which the dot breathes when it changes, then rests
   // (styles.css).
   const breath = status?.level ?? "unsampled";

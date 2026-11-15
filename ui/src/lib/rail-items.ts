@@ -23,6 +23,7 @@ import { toolSpec } from "./tools";
 import { shortName, tellFactsApart } from "./session-titles";
 import { waitingSince, type NeedRow } from "./waiting";
 import { endedWord } from "./ended-how";
+import { itemLevel, levelTone } from "./attention";
 
 export type RailState = "asks_you" | "working" | "idle" | "done_review" | "ended";
 
@@ -161,12 +162,12 @@ export function needWord(item: Pick<RailItem, "need" | "state" | "probably"> & P
   }
 }
 
-/** The state's colour token (text and dot). */
+/** The state's colour token (text and dot); D-117: only L2 and L3 take amber and red. */
 export const STATE_TONE: Record<RailState, { text: string; dot: string }> = {
   asks_you: { text: "text-warning", dot: "bg-warning" },
-  working: { text: "text-live", dot: "bg-live" },
+  working: { text: "text-muted", dot: "bg-live" },
   idle: { text: "text-muted", dot: "bg-faint" },
-  done_review: { text: "text-success", dot: "bg-success" },
+  done_review: { text: "text-muted", dot: "bg-success" },
   ended: { text: "text-muted", dot: "bg-faint" },
 };
 
@@ -236,8 +237,8 @@ export function sessionItem(row: InstanceInfo, projectName: (id: string | null) 
  * needs you, and the word's colour — the place rows' wording. */
 export function sessionState(row: InstanceInfo): { state: RailState; word: string; tone: string; dot: string; needs: boolean } {
   const item = sessionItem(row, () => null, false);
-  const needs = item.need !== null;
-  return { state: item.state, word: needWord(item), tone: needs ? "text-warning" : STATE_TONE[item.state].text, dot: STATE_TONE[item.state].dot, needs };
+  const level = itemLevel(item); // D-117: amber L2, red L3; else calm
+  return { state: item.state, word: needWord(item), tone: level >= 2 ? levelTone(level).text : STATE_TONE[item.state].text, dot: level >= 2 ? levelTone(level).dot : STATE_TONE[item.state].dot, needs: item.need !== null };
 }
 
 /** A status alone (a paired Mac's row: no attention record) as the
@@ -350,21 +351,20 @@ export function itemsOf({ sessions, conversations, projects, seen, snoozed = () 
   });
 }
 
-const NEED_ORDER: Need[] = ["asks", "limit", "failed", "stuck", "review"];
+const NEED_ORDER: Need[] = ["failed", "asks", "limit", "stuck", "review"];
 
 /** The state a need says, as `sessionItem` reads a session's (a failure
  * keeps the state it has). */
 const NEED_STATE: Partial<Record<Need, RailState>> = { asks: "asks_you", stuck: "asks_you", limit: "asks_you", review: "done_review" };
 
-/** Needs you: what asks first, then limits, failures, stuck, things to
- * review; the longest waiting first within each. */
+/** Needs you, in `byNeed`'s order (what broke, then what asks, …). */
 export function needsYou(items: RailItem[]): RailItem[] {
   return items.filter((item) => item.need !== null).sort(byNeed);
 }
 
-/** Needs you's one order, in every grouping (AJ-E2802 R7): the kind of
- * need (asks, then out of room, failed, stuck, to review), then the one
- * waiting longest (since it began to wait, `lib/waiting`), then a steady tie-break. */
+/** Needs you's one order, in every grouping (AJ-E2802 R7): the kind of need (failed, L3 on top
+ * (D-117), then asks, out of room, stuck, to review), then the one waiting longest (since it
+ * began to wait, `lib/waiting`), then a steady tie-break. */
 export function byNeed(a: Pick<RailItem, "need" | "lastMs" | "key"> & NeedRow, b: Pick<RailItem, "need" | "lastMs" | "key"> & NeedRow): number {
   return NEED_ORDER.indexOf(a.need!) - NEED_ORDER.indexOf(b.need!) || waitingSince(a) - waitingSince(b) || a.key.localeCompare(b.key);
 }

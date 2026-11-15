@@ -20,7 +20,7 @@ import { useFitWhole } from "./use-fit-whole";
 import { appKindOfKey } from "../lib/app-kind";
 import { FoldButton } from "./rail-groups";
 import { IconUpRight } from "./icons-places";
-import { IconAlert } from "./icons";
+import { appTone, type AttentionLevel } from "../lib/attention";
 import { DROP, Grip, type Arrangeable } from "./RowTools";
 import type { RailPlace } from "../lib/rail-items";
 
@@ -48,7 +48,16 @@ export function PlaceHeader({
   onWarm,
   foldable = true,
   recent = null,
+  level = 0,
+  probably = false,
+  lit = false,
 }: {
+  /** D-117: the highest level of what needs you here (its count's mark),
+   * a ring when every one is a guess; `lit`: it is current (a row of it
+   * is open). At L2/L3 or lit, its icon is in full colour. */
+  level?: AttentionLevel;
+  probably?: boolean;
+  lit?: boolean;
   /** 0.4.3: an App with something open: its past ones' count, shown on
    * hover and focus ("+3 recent", muted, as its count); a click shows them
    * under it, in place, and it stays shown while they do. */
@@ -114,8 +123,10 @@ export function PlaceHeader({
       }}
       onPointerEnter={onWarm}
       onFocus={onWarm}
-      className={"group/head flex h-[30px] min-w-0 items-center gap-0.5 rounded-md pr-1" + (arrange?.dragging ? " opacity-50" : "") + (arrange?.drop ? DROP[arrange.drop] : "")}
+      className={"tone-host group/head flex h-[30px] min-w-0 items-center gap-0.5 rounded-md pr-1" + (arrange?.dragging ? " opacity-50" : "") + (arrange?.drop ? DROP[arrange.drop] : "")}
       data-testid="place-header"
+      data-lit={level >= 2 || lit ? "true" : undefined}
+      data-level={needs > 0 ? level : undefined}
       data-place={place?.key}
       data-order-head={arrange?.group}
     >
@@ -135,11 +146,11 @@ export function PlaceHeader({
           {/* D-100: its kind beside its icon (a window, or >_), never over it. */}
           {children ?? (place && (
             <>
-              <AppIcon appId={place.appId} appPid={place.appPid} name={place.app} size={16} />
+              <AppIcon appId={place.appId} appPid={place.appPid} name={place.app} size={16} className={appTone(level >= 2 || lit)} />
               <AppKindBadge kind={appKindOfKey(place.key)} />
             </>
           ))}
-          {place?.profile && <ProfileBadge app={place.key} name={place.profile} size={6} />}
+          {place?.profile && <ProfileBadge app={place.key} name={place.profile} size={6} className={appTone(level >= 2 || lit)} />}
           {/* D-100 (the 0.4.2 review): the App's own name gives way last.
               It takes its own width (cut, at its end, its full name on
               hover, only when nothing else is left to give); its secondary
@@ -156,11 +167,14 @@ export function PlaceHeader({
             {/* 0.4.4: placed first, so it wins over the app word (the kind mark and icon say the app). */}
             {empty && <span className="shrink-0 whitespace-nowrap text-label leading-[18px] text-muted" data-testid="place-nothing-open" data-fit="first">nothing open</span>}
           </span>
-          {/* What the amber count is, on the chip itself (the review of
-              0.1.4: an unexplained "1"): the Needs you mark and a tooltip. */}
+          {/* What the count is, on the mark itself (the review of 0.1.4: an
+              unexplained "1"): a tooltip. D-117: a mark, never a pill —
+              the number in ink beside its level's dot (a ring when it's a
+              guess) at L2, the number in red at L3; the loud copy is
+              Needs you's row. */}
           {needs > 0 && (
-            <span title={`${needs} here ${needs === 1 ? "needs" : "need"} you: ${needs === 1 ? "it's" : "they're"} at the top, under Needs you`} className="inline-flex min-w-[20px] shrink-[1000] items-center gap-0.5 overflow-hidden rounded-full bg-warning-soft px-1 text-label font-semibold leading-[18px] tabular-nums text-warning" data-testid="place-needs">
-              <IconAlert width={10} height={10} aria-hidden="true" />
+            <span title={`${needs} here ${needs === 1 ? "needs" : "need"} you: ${needs === 1 ? "it's" : "they're"} at the top, under Needs you`} className={"inline-flex min-w-[20px] shrink-[1000] items-center gap-1 overflow-hidden px-1 text-label font-semibold leading-[18px] tabular-nums " + (level === 3 ? "text-danger" : "text-ink")} data-testid="place-needs" data-level={level}>
+              <span className="level-mark" data-level={level === 3 ? 3 : 2} data-probably={probably ? "true" : undefined} />
               {needs}
             </span>
           )}

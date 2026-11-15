@@ -5,6 +5,7 @@
  * hard, processes left behind. (On 0.2: agent messages, agent requests,
  * prepared launches and paused chains join as kinds here.)
  */
+import { attentionLevel, counted, itemLevel, type AttentionLevel } from "./attention";
 import type { AccountInfo } from "../types/generated/AccountInfo";
 import { placeWords, type RailItem } from "./rail-items";
 import type { ConversationInfo } from "./ipc/conversations";
@@ -31,6 +32,17 @@ export interface HomeNeed {
   /** E3104: when an unloaded session's need was first written (its
    * notice's time: the wait it shows, `lib/waiting` for a loaded one). */
   since?: number;
+  /** D-117: its attention level, when the backend's row said it (else
+   * worked out from its item or kind, `homeNeedLevel`). */
+  level?: AttentionLevel;
+}
+
+/** A Home need's level (D-117): its own, else its rail item's, else its
+ * kind's (a failure is broken; the rest wait on you). */
+export function homeNeedLevel(need: Pick<HomeNeed, "level" | "item" | "kind">): AttentionLevel {
+  if (need.level !== undefined) return need.level;
+  if (need.item) return itemLevel(need.item);
+  return attentionLevel({ need: need.kind === "mac" ? "room" : need.kind === "session" ? "asks" : need.kind });
 }
 
 /** The order kinds come in: what blocks work first. */
@@ -74,6 +86,15 @@ export function homeNeeds({ items, signIns, signInDetail, mac, heavy, leftovers 
 /** The needs the rail's Needs you counts too: its sessions. */
 export function isSessionNeed(need: HomeNeed): boolean {
   return need.kind === "session" || need.kind === "limit" || need.kind === "failed";
+}
+
+/** The heading's counts (D-117): what waits on you or broke (L2, L3) —
+ * its sessions, and the rest with `own` (caps, agents' messages and
+ * tasks, all L2) — and the notes listed but not counted ("1 to review"). */
+export function headCount(needs: HomeNeed[], own: number): { sessions: number; others: number; notes: number } {
+  const loud = needs.filter((need) => counted(homeNeedLevel(need)));
+  const sessions = loud.filter(isSessionNeed).length;
+  return { sessions, others: loud.length - sessions + own, notes: needs.length - loud.length };
 }
 
 /** The heading: one sentence about what needs the user; with nothing,

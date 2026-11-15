@@ -61,11 +61,13 @@ function home(sessions: InstanceInfo[], conversations: ConversationInfo[], props
 describe("Home, desktop first", () => {
   it("one sentence about what needs you, the other counts as links that turn the rail's views on", async () => {
     const view = home([], placesConversations(NOW));
-    await waitFor(() => expect(view.getByTestId("home-heading").textContent).toBe("3 sessions need you"));
+    // D-117: the two that ask are counted; the one done, to review, is
+    // listed and named in the counts line, never counted.
+    await waitFor(() => expect(view.getByTestId("home-heading").textContent).toBe("2 sessions need you"));
     const counts = view.getByTestId("home-counts");
-    // D-47: open counts every open session, the 3 that need you too (they
-    // stay in their places in Open now); Needs you counts them once.
-    expect(counts.textContent).toMatch(/7 open.*1 inactive.*1 ended today/);
+    // D-47: open counts every open session, the ones that need you too
+    // (they stay in their places in Open now); Needs you counts them once.
+    expect(counts.textContent).toMatch(/7 open.*1 to review.*1 inactive.*1 ended today/);
     fireEvent.click(within(counts).getByRole("button", { name: "1 inactive session" }));
     expect(railView().show.inactive).toBe(true);
     fireEvent.click(within(counts).getByRole("button", { name: "1 ended today" }));
@@ -112,7 +114,9 @@ describe("Home, desktop first", () => {
     expect(onLimit).toHaveBeenCalledWith("lim");
     fireEvent.click(within(view.getByTestId("home-need-leftovers")).getByRole("button", { name: /^Clean up/ }));
     expect(onOpenCleanup).toHaveBeenCalledOnce();
-    expect(view.getByTestId("home-heading").textContent).toBe("4 sessions and 1 more thing need you");
+    // D-117: the review and the leftovers (notes, L1) are listed, not counted.
+    expect(view.getByTestId("home-heading").textContent).toBe("3 sessions need you");
+    expect(view.getByTestId("home-counts").textContent).toContain("2 to review");
   });
 
   it("a session's need opens its page; its ↗ (and ⌘↩) goes to its app, and only while it's open", async () => {

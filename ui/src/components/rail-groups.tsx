@@ -7,7 +7,8 @@ import { useState, type JSX } from "react";
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import type { ProjectInfo } from "../types/generated/ProjectInfo";
 import { lastWorked } from "../lib/project-words";
-import { attentionBadge } from "./indicator";
+import { attentionLevel } from "../lib/attention";
+import { needOfAttention } from "../lib/rail-items";
 import type { SectionId } from "../lib/rail-lines";
 
 const FOLDED_KEY = "aij.rail.folded";
@@ -100,14 +101,15 @@ export function repoGroups(projects: ProjectInfo[]): { key: string; name: string
 
 /**
  * A folded group still says what needs you inside it (0.0.11 walk, Q7):
- * the same "!" mark the session rows' icons carry, and how many. The fold
+ * its level's mark and how many (D-117: no filled badge). The fold
  * stays the user's choice — nothing unfolds by itself.
  */
 export function FoldedNeeds({ rows, isNeed, onOpen }: { rows: InstanceInfo[]; isNeed: (row: InstanceInfo) => boolean; onOpen?: () => void }): JSX.Element | null {
   // D-49: in Needs you as the backend says (a snoozed one is not).
   const count = rows.filter(isNeed).length;
   if (count === 0) return null;
-  const danger = rows.some((row) => isNeed(row) && attentionBadge(row)?.tone === "danger");
+  // D-117: one source of levels (a failure is broken, L3).
+  const danger = rows.some((row) => isNeed(row) && attentionLevel({ need: needOfAttention(row.needs_attention ?? row.status) }) === 3);
   // The 0.4.1 persona walk: a "!1" that did nothing when clicked. A click
   // unfolds its group, so what needs you shows (still the user's click).
   const Mark = onOpen ? "button" : "span";
@@ -123,18 +125,13 @@ export function FoldedNeeds({ rows, isNeed, onOpen }: { rows: InstanceInfo[]; is
             title: "Show what needs you",
           }
         : {})}
-      className={"flex items-center gap-1 rounded text-label font-semibold outline-none focus-visible:ring-1 focus-visible:ring-accent/60 " + (danger ? "text-danger" : "text-warning")}
+      // D-117: a mark, never a filled badge: the number in ink beside the
+      // amber dot (L2), in red beside a red dot when one is broken (L3).
+      className={"flex items-center gap-1 rounded text-label font-semibold outline-none focus-visible:ring-1 focus-visible:ring-accent/60 " + (danger ? "text-danger" : "text-ink")}
       data-testid="rail-folded-needs"
+      data-level={danger ? 3 : 2}
     >
-      <span
-        aria-hidden="true"
-        className={
-          "flex size-3.5 items-center justify-center rounded-full text-label font-bold " +
-          (danger ? "bg-danger text-white" : "bg-warning text-black")
-        }
-      >
-        !
-      </span>
+      <span aria-hidden="true" className="level-mark" data-level={danger ? 3 : 2} />
       <span className="tabular-nums">{count}</span>
       <span className="sr-only">{count === 1 ? "needs you" : "need you"},</span>
     </Mark>
@@ -161,7 +158,8 @@ export function FoldButton({
       aria-expanded={open}
       aria-controls={controls}
       aria-label={open ? `Fold ${label}` : `Unfold ${label}`}
-      className="flex size-6 shrink-0 items-center justify-center rounded-md text-muted outline-none hover:bg-surface/60 hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60"
+      // D-117: muted at rest (faint), never hidden; ink on hover and focus.
+      className="flex size-6 shrink-0 items-center justify-center rounded-md text-faint outline-none hover:bg-surface/60 hover:text-ink focus-visible:text-ink focus-visible:ring-1 focus-visible:ring-accent/60"
       data-testid="rail-fold"
     >
       <svg

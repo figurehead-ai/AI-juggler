@@ -65,7 +65,10 @@ it("a folded project shows how many need you, with the Needs you mark", () => {
   const mark = view.getByTestId("rail-folded-needs");
   expect(mark.textContent).toContain("2");
   expect(mark.textContent).toContain("need you");
-  expect(mark.className).toContain("text-warning");
+  // D-117: a mark, not a badge: the number in ink by the amber dot (L2).
+  expect(mark.className).toContain("text-ink");
+  expect(mark.getAttribute("data-level")).toBe("2");
+  expect(mark.querySelector(".level-mark[data-level='2']")).toBeTruthy();
   // The calm project folded: no mark.
   fireEvent.click(view.getByRole("button", { name: "Fold storefront" }));
   expect(view.getAllByTestId("rail-folded-needs")).toHaveLength(1);

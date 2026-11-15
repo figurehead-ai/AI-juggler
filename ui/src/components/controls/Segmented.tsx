@@ -61,7 +61,9 @@ export function Segmented<T extends string>({
       aria-label={label}
       data-testid={testId}
       onKeyDown={onKey}
-      className={(wrap ? "flex min-w-0 max-w-full flex-wrap " : "flex ") + "gap-0.5 rounded-[10px] border border-hairline bg-surface/70 p-[2px] " + className}
+      // D-117: filled (`--color-fill`), no outline; Increase Contrast keeps
+      // a hairline (the `seg-fill` rule).
+      className={(wrap ? "flex min-w-0 max-w-full flex-wrap " : "flex ") + "seg-fill gap-0.5 rounded-[10px] bg-fill p-[2px] " + className}
     >
       {segments.map((segment, index) => {
         const on = index === at;
@@ -83,10 +85,11 @@ export function Segmented<T extends string>({
             // and "Pool" (the 0.3 re-render).
             className={
               (wrap ? "min-h-6 flex-none whitespace-nowrap " : "min-h-6 min-w-0 flex-auto truncate ") + "rounded-[7px] px-1 py-0.5 text-label outline-none transition-colors focus-visible:ring-2 focus-visible:ring-accent/60 " +
-              // The chosen one in the accent's tint and ink, in both themes: a
-              // lighter grey in dark couldn't be told without reading (the 0.4
-              // design review, 32).
-              (on ? "bg-accent-soft font-semibold text-accent-hi" : "text-muted hover:bg-surface-2 hover:text-ink")
+              // D-117: the chosen one is the raised surface, its word ink-2 at
+              // 500, the rest muted at 400 — told apart by fill, weight and
+              // ink, never by hue (the accent is for actions and focus; the
+              // 0.4 review's 32 asked for more than a lighter grey).
+              (on ? "bg-surface-3 font-medium text-ink-2 shadow-[inset_0_0_0_1px_var(--color-hairline)]" : "text-muted hover:bg-surface-2 hover:text-ink")
             }
           >
             {segment.label}

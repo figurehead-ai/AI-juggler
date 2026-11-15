@@ -146,7 +146,8 @@ export function WorkflowRail({
       data-density={density}
       style={{ width: minimal ? 60 : width }}
       className={
-        "relative flex h-full shrink-0 select-none flex-col border-r border-hairline bg-surface/30 backdrop-blur-xl transition-[width] duration-150 ease-out " +
+        // D-117: one hairline (`--color-divider`) splits the rail from the main area.
+        "relative flex h-full shrink-0 select-none flex-col border-r border-divider bg-surface/30 backdrop-blur-xl transition-[width] duration-150 ease-out " +
         (dragging ? "" : "")
       }
     >
@@ -181,15 +182,17 @@ export function WorkflowRail({
         )}
       </div>
 
-      {/* D-25: one primary action; New project stays one click away. */}
-      <div className={"flex gap-1.5 border-t border-hairline/60 p-2 " + (minimal ? "flex-col" : "")}>
+      {/* D-25: one primary action; New project stays one click away. D-117:
+          the foot has no rule, and its buttons are ghost buttons (the
+          header's New session keeps the accent). */}
+      <div className={"flex gap-1.5 p-2 " + (minimal ? "flex-col" : "")}>
         <button
           type="button"
           onClick={onNewSession}
           title={minimal ? "New session" : undefined}
           aria-label={minimal ? "New session" : undefined}
           data-testid="rail-new-session"
-          className="flex min-w-0 flex-1 items-center justify-center gap-2 overflow-hidden rounded-lg border border-accent/30 bg-accent-soft px-3 py-[7px] text-meta font-medium text-accent-hi outline-none transition-colors hover:border-accent/50 hover:bg-accent/15 focus-visible:ring-1 focus-visible:ring-accent/60"
+          className="btn-ghost flex min-w-0 flex-1 items-center justify-center gap-2 overflow-hidden rounded-lg px-3 py-[7px] text-meta font-medium outline-none transition-colors focus-visible:ring-1 focus-visible:ring-accent/60"
         >
           <IconTerminal width={14} height={14} />
           {!minimal && <span className="truncate">New session</span>}
@@ -201,7 +204,7 @@ export function WorkflowRail({
           aria-label="History"
           title="History"
           data-testid="rail-history"
-          className="flex shrink-0 items-center justify-center rounded-lg border border-hairline px-2.5 py-[7px] text-muted outline-none transition-colors hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60"
+          className="btn-ghost flex shrink-0 items-center justify-center rounded-lg px-2.5 py-[7px] text-muted outline-none transition-colors hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60"
         >
           <IconHistory width={14} height={14} />
         </button>
@@ -211,7 +214,7 @@ export function WorkflowRail({
           aria-label="New project"
           title="New project"
           data-testid="rail-new-project"
-          className="flex shrink-0 items-center justify-center rounded-lg border border-hairline px-2.5 py-[7px] text-muted outline-none transition-colors hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60"
+          className="btn-ghost flex shrink-0 items-center justify-center rounded-lg px-2.5 py-[7px] text-muted outline-none transition-colors hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60"
         >
           <IconProjects width={14} height={14} />
         </button>

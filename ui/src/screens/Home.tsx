@@ -35,7 +35,7 @@ import { RowPlaceholders } from "../components/Placeholder";
 import { Welcome } from "../components/Welcome";
 import { useKnownPlaces } from "../lib/places";
 import { HomeRecent } from "../components/HomeRecent";
-import { isSessionNeed, needsHeading } from "../lib/home-needs";
+import { headCount, needsHeading } from "../lib/home-needs";
 import { HomeExtras } from "../components/HomeExtras";
 import { endedToday, itemsOf, openNow } from "../lib/rail-items";
 import { showInRail } from "../lib/rail-view";
@@ -382,8 +382,7 @@ export function HomeScreen({
   // The heading counts the rows it sits over (the 0.2 walk, F4: "2
   // sessions need you" over four rows): the backend's needs Home lists,
   // and the caps, agents' messages and tasks with their own rows.
-  const sessionNeeds = allNeeds.filter(isSessionNeed).length;
-  const otherNeeds = allNeeds.length - sessionNeeds + capNeeds.caps.length + messageNeeds.length + taskNeeds.length;
+  const { sessions: sessionNeeds, others: otherNeeds, notes } = headCount(allNeeds, capNeeds.caps.length + messageNeeds.length + taskNeeds.length);
   const headline = needsHeading({ sessions: sessionNeeds, others: otherNeeds }, {
     // 0.3.2: one carrying on with its credits hasn't run out. D-62: the
     // room is the Account's, so it's named once by it, however many of
@@ -396,6 +395,7 @@ export function HomeScreen({
   const sessionsWords = (count: number, what: string) => `${count} ${what} ${count === 1 ? "session" : "sessions"}`;
   const counts: { key: string; words: string; run: () => void }[] = [
     { key: "open", words: `${openCount} open`, run: () => document.querySelector<HTMLElement>("[data-testid='rail'] [data-rail-item]")?.focus() },
+    { key: "review", words: `${notes} to review`, run: () => document.querySelector<HTMLElement>("[data-testid='home-needs']")?.scrollIntoView?.({ block: "nearest" }) },
     // "23 inactive" read as apps or anything (the maintainer, 0.3.3).
     { key: "inactive", words: sessionsWords(items.filter((item) => item.inactive).length, "inactive"), run: () => showInRail("inactive") },
     { key: "ended", words: `${items.filter((item) => endedToday(item, now)).length} ended today`, run: () => showInRail("ended") },

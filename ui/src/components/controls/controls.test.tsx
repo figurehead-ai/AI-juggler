@@ -275,14 +275,21 @@ describe("Segmented, sized by its words (the 0.3 re-render)", () => {
     }
   });
 
-  it("marks the chosen one with the accent's tint and ink, never a grey that dark can't tell apart (0.4 design review, 32)", () => {
+  // D-117 (round 2): the chosen one is the raised surface with an edge, its
+  // word ink-2 at 500 (the rest muted at 400): told apart by fill, edge,
+  // weight and ink at once, never by a lighter grey alone (the 0.4 design
+  // review, 32); the accent is kept for actions and focus.
+  it("marks the chosen one by fill, edge, weight and ink, never the accent", () => {
     const view = render(
       <Segmented label="Group sessions by" value="project" onChange={() => {}} segments={[{ value: "place", label: "App" }, { value: "project", label: "Project" }]} />,
     );
     const [app, project] = view.getAllByRole("radio");
-    expect(project!.className).toContain("bg-accent-soft");
-    expect(project!.className).toContain("text-accent-hi");
-    expect(project!.className).not.toContain("bg-surface-3");
-    expect(app!.className).not.toContain("bg-accent-soft");
+    expect(project!.className).toContain("bg-surface-3");
+    expect(project!.className).toContain("text-ink-2");
+    expect(project!.className).toContain("font-medium");
+    expect(project!.className).toContain("inset_0_0_0_1px");
+    expect(project!.className).not.toMatch(/bg-accent|text-accent/);
+    expect(app!.className).toContain("text-muted");
+    expect(app!.className).not.toContain("bg-surface-3");
   });
 });

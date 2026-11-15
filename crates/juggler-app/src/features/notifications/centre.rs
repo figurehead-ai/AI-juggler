@@ -8,9 +8,11 @@
 //! Rules (the approved design, 2026-10-27, and D-49):
 //! - **One count.** The number on the bell, the badge, the menu-bar item,
 //!   the rail and Home is the open needs that aren't snoozed: the Needs
-//!   you count. A snoozed need leaves the count until its snooze ends (it
-//!   comes back by itself, on the backend's tick); a muted one is still
-//!   counted and only stops interrupting.
+//!   you count. Since 0.5 (D-117) only the needs at attention level 2 or 3
+//!   ([`attention_level`]): a review is listed, never counted. A snoozed
+//!   need leaves the count until its snooze ends (it comes back by
+//!   itself, on the backend's tick); a muted one is still counted and
+//!   only stops interrupting.
 //! - **Told once.** What happened is written once per key; a need is open
 //!   once per key ([`juggler_core::storage::NoticesRepo`]).
 //! - **Nothing acts by itself.** A notice says what happened and offers
@@ -77,6 +79,72 @@ pub fn kind_label(kind: &str) -> Option<&'static str> {
         .chain(APP_KINDS)
         .find(|(id, _)| *id == kind)
         .map(|(_, label)| *label)
+}
+
+/// 0.5 (D-117, the attention budget) — the facts a need's level is
+/// worked out from, beside its kind.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct LevelFacts {
+    /// A quota need: the room left, in percent.
+    pub left: Option<i64>,
+    /// A quota need: live sessions on the Account.
+    pub live_sessions: Option<u32>,
+    /// A limit with no Account that has room to go on.
+    pub no_room: bool,
+    /// This computer at critical pressure.
+    pub critical: bool,
+}
+
+/// A need's attention level (0.5, D-117), the backend's mirror of the
+/// window's `attentionLevel()` (`ui/src/lib/attention.ts`); both are held
+/// to one table (`ui/src/lib/fixtures/attention-levels.json`, read by the
+/// tests of each). 3: broken (work stopped, only the user recovers it);
+/// 2: needs the user (a decision waits, nothing is lost while it does);
+/// 1: a note (finished work to review, low room nothing live depends on,
+/// processes left running). An unknown kind is a need (2) until placed.
+#[must_use]
+pub fn attention_level(kind: &str, facts: LevelFacts) -> u8 {
+    match kind {
+        "failed" => 3,
+        "limit" => {
+            if facts.no_room {
+                3
+            } else {
+                2
+            }
+        }
+        "room" => {
+            if facts.critical {
+                3
+            } else {
+                2
+            }
+        }
+        "quota" => {
+            let live = facts.live_sessions.unwrap_or(0) > 0;
+            match facts.left {
+                Some(left) if live && left <= 0 => 3,
+                Some(left) if live && left <= 10 => 2,
+                _ => 1,
+            }
+        }
+        "review" | "leftovers" => 1,
+        _ => 2,
+    }
+}
+
+/// The one count holds a need at level 2 or 3 (D-117 amends D-47 point
+/// 2): "To review" stays listed, last, and uncounted.
+#[must_use]
+pub fn counted(row: &NoticeInfo) -> bool {
+    attention_level(
+        &row.kind,
+        LevelFacts {
+            left: row.meter,
+            live_sessions: row.facts.sessions,
+            ..LevelFacts::default()
+        },
+    ) >= 2
 }
 
 /// What a click opens. Every field is optional; the UI opens the first
@@ -633,7 +701,8 @@ pub fn summary(storage: &Storage, clock: Clock) -> AppResult<NoticeSummaryInfo> 
         .count()
         .min(BANNERS_SHOWN);
     Ok(NoticeSummaryInfo {
-        count: count_of(&|row| !row.snoozed),
+        // D-117: what waits on the user or broke (L2, L3), not a note.
+        count: count_of(&|row| !row.snoozed && counted(row)),
         unread: count_of(&|row| row.unread)
             .saturating_add(u32::try_from(earlier_unread).unwrap_or(u32::MAX)),
         snoozed: count_of(&|row| row.snoozed),

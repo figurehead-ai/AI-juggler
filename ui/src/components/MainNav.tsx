@@ -83,7 +83,8 @@ export function CleanupPill({ count, shown, onOpen }: { count: number; shown: bo
       type="button"
       onClick={onOpen}
       title={words}
-      className="flex shrink-0 items-center whitespace-nowrap rounded-full border border-warning/40 bg-warning-soft px-2.5 py-1 text-meta font-medium text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
+      // D-117: a note (L1), so a ghost button in muted words, no tint.
+      className="btn-ghost flex shrink-0 items-center whitespace-nowrap rounded-full px-2.5 py-1 text-meta font-medium text-muted outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
       data-testid="nav-cleanup-pill"
     >
       {/* 0.3.2: a narrow bar (1024 px, the list open, Fleet's tab too)

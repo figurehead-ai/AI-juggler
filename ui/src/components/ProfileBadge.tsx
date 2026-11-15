@@ -25,6 +25,7 @@ export function ProfileBadge({
   variant = "dot",
   size = 8,
   ring,
+  className = "",
 }: {
   /** The App: its stored slot, or its id or rail key (lib/marks). */
   app: AppMark;
@@ -35,6 +36,8 @@ export function ProfileBadge({
   size?: number;
   /** A dot's 1.5 px ring: the colour of the surface under it. */
   ring?: string;
+  /** D-117: the dot's own tone class (`appTone`), apart from its icon's. */
+  className?: string;
 }): JSX.Element {
   useMarks();
   const color = appColor(app);
@@ -62,7 +65,7 @@ export function ProfileBadge({
       data-variant="dot"
       data-color={color}
       {...mark}
-      className="inline-block shrink-0 rounded-full"
+      className={"inline-block shrink-0 rounded-full " + className}
       style={{ width: size, height: size, background: color, boxShadow: ring ? `0 0 0 1.5px ${ring}` : undefined }}
     />
   );

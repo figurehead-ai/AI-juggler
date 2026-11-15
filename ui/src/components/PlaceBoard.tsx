@@ -10,9 +10,9 @@
  * with ⌥⌘↑ and ⌥⌘↓); `lib/rail-order-store.ts` keeps it.
  */
 import { useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState, type JSX, type ReactNode } from "react";
-import { NeedRow, PlaceHeader, edgeOf, type Arrangeable } from "./PlaceRows";
+import { NeedRow, PlaceHeader, type Arrangeable } from "./PlaceRows";
 import { SessionRow } from "./row/SessionRow";
-import { AlsoLine, Chevron, RailCaption, RailLink, RailSearchFoundNothing, SectionHead, scrollerOf, stepPastEdge } from "./PlaceBoardParts";
+import { AlsoLine, Chevron, RailCaption, RailLink, RailSearchFoundNothing, SectionHead, ToReviewCaption, scrollerOf, stepPastEdge } from "./PlaceBoardParts";
 import { idleAppPage, RailAllSessions, RailIdleApp } from "./RailIdleApp";
 import { RailOfferRow, usePlaceOffers } from "./PlaceOffers";
 import { RailOrderMenu } from "./RailOrderMenu";
@@ -279,7 +279,8 @@ export function PlaceBoard({ sessions, projects, accounts, snooze, now, selected
   const draw = (line: Line): ReactNode => {
     switch (line.kind) {
       case "section":
-        return <SectionHead id={line.id} count={line.count} open={!closed.has(line.id)} onToggle={() => foldSection(line.id)} extra={line.id === "open" ? <RailOrderMenu /> : undefined} />;
+        return <SectionHead id={line.id} count={line.count} level={line.level} open={!closed.has(line.id)} onToggle={() => foldSection(line.id)} extra={line.id === "open" ? <RailOrderMenu /> : undefined} />;
+      case "to-review": return <ToReviewCaption />; // D-117: notes, last, uncounted
       case "need":
         return <NeedRow item={line.item} selected={selectedId === (line.item.session?.id ?? line.item.conversation?.id)} onSelect={onSelect} now={now} compact={compact} />;
       case "notice":
@@ -296,7 +297,7 @@ export function PlaceBoard({ sessions, projects, accounts, snooze, now, selected
             place={lens === "account" || lens === "pool" ? null : group.place}
             label={group.label}
             count={group.items.length}
-            needs={line.needs}
+            needs={line.needs} level={line.level} probably={line.probably} lit={group.items.some((item) => selectedId !== null && selectedId === (item.session?.id ?? item.conversation?.id))} /* D-117 */
             folded={line.folded}
             // Your order and Name remember a fold; Latest activity's is this visit's.
             onToggle={() => (stable ? toggleFold(orderLens, group.key) : toggle(group.key))}
@@ -321,7 +322,6 @@ export function PlaceBoard({ sessions, projects, accounts, snooze, now, selected
             item={line.item}
             density={compact ? "compact" : "cozy"}
             within={{ app: true }}
-            edge={edgeOf(line.group.place)}
             selected={selectedId === (line.item.session?.id ?? line.item.conversation?.id)}
             onSelect={onSelect}
             now={now}
@@ -333,7 +333,7 @@ export function PlaceBoard({ sessions, projects, accounts, snooze, now, selected
         );
       case "plain":
       case "past": // an ended one; under its App (past), nested in its family
-        return <SessionRow item={line.item} density={compact ? "compact" : "cozy"} within={{ app: true }} edge={edgeOf(line.item.place)} selected={selectedId === (line.item.session?.id ?? line.item.conversation?.id)} onSelect={onSelect} now={now} subagents={view.show.subagents} depth={line.kind === "past" ? line.depth : undefined} parent={line.kind === "past" ? line.parent : undefined} />;
+        return <SessionRow item={line.item} density={compact ? "compact" : "cozy"} within={{ app: true }} selected={selectedId === (line.item.session?.id ?? line.item.conversation?.id)} onSelect={onSelect} now={now} subagents={view.show.subagents} depth={line.kind === "past" ? line.depth : undefined} parent={line.kind === "past" ? line.parent : undefined} />;
       case "more":
         return <RailLink onClick={() => toggle(`${line.group.key}#all`)} testId="rail-more-quiet">{`+${line.quiet} ${line.words}`}</RailLink>;
       case "recent": return <RailCaption>Recent</RailCaption>; // D-103.1: an App with nothing open

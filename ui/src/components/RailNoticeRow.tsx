@@ -5,6 +5,7 @@
  * mark and words are the notification centre's; a click is the notice's
  * own primary (it opens what it is about; nothing runs by itself).
  */
+import { levelTone, noticeLevel } from "../lib/attention";
 import { useLayoutEffect, useRef, useState, type JSX, type RefObject } from "react";
 import { NoticeMark } from "./NoticeRow";
 import { needLine, primaryWords } from "../lib/notice-words";
@@ -45,15 +46,19 @@ export function RailNoticeRow({ notice, now, onOpen, canHandOver }: { notice: No
   const plainOpen = action === "Open";
   const showLine = Boolean(line) && (!long || plainOpen);
   const showAction = Boolean(action) && !(long && plainOpen && line);
+  // D-117: its action word in its level's colour (amber L2, red L3 on the
+  // tint); a note's (L1: low room nothing live is on, leftovers) muted.
+  const level = noticeLevel(notice);
   return (
     <button
       type="button"
       data-rail-item={`notice:${notice.subject}`}
       data-testid="rail-notice"
       data-kind={notice.kind}
+      data-level={level}
       onClick={() => onOpen(notice)}
       title={line ? `${notice.title} — ${line}` : undefined}
-      className="flex h-[62px] w-full min-w-0 items-start gap-2.5 rounded-lg pb-2.5 pl-2 pr-2 pt-2 text-left outline-none transition-colors hover:bg-surface/60 focus-visible:ring-1 focus-visible:ring-accent/60"
+      className={"flex h-[62px] w-full min-w-0 items-start gap-2.5 rounded-lg pb-2.5 pl-2 pr-2 pt-2 text-left outline-none transition-colors hover:bg-surface/60 focus-visible:ring-1 focus-visible:ring-accent/60" + (level === 3 ? " bg-danger-soft" : "")}
     >
       <span className="sr-only">{[notice.title, line, action].filter(Boolean).join(", ")}</span>
       <span aria-hidden="true" className="mt-0.5 flex shrink-0">
@@ -66,7 +71,7 @@ export function RailNoticeRow({ notice, now, onOpen, canHandOver }: { notice: No
             {line}
           </span>
         )}
-        {showAction && <span className="truncate text-label font-semibold leading-4 text-warning">{action}</span>}
+        {showAction && <span className={"truncate text-label leading-4 " + (level >= 2 ? "font-semibold " + levelTone(level).text : "text-muted")}>{action}</span>}
       </span>
     </button>
   );

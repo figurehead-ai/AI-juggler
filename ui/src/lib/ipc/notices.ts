@@ -10,6 +10,7 @@
 import { call, listen } from "./transport";
 import { hasLiveBackend } from "../bridge";
 import { pageOf, type Page, type PageRequest } from "../paged";
+import { counted, noticeLevel } from "../attention";
 import type { NeedSnoozeInfo } from "../../types/generated/NeedSnoozeInfo";
 import type { NoticeInfo } from "../../types/generated/NoticeInfo";
 import type { NoticeMuteInfo } from "../../types/generated/NoticeMuteInfo";
@@ -92,8 +93,9 @@ function summaryOf(s: Stand): NoticeSummaryInfo {
   const quota = open.filter((row) => row.kind === "quota" && row.facts.resets_at_ms !== null).sort((a, b) => (a.facts.resets_at_ms ?? 0) - (b.facts.resets_at_ms ?? 0))[0];
   const count = (kind: string) => earlier.filter((row) => row.kind === kind).length;
   return {
-    // D-49: a snoozed need is out of the count until it wakes.
-    count: open.filter((row) => !row.snoozed).length,
+    // D-49: a snoozed need is out of the count until it wakes. D-117:
+    // only what waits or broke (L2, L3), as the backend counts.
+    count: open.filter((row) => !row.snoozed && counted(noticeLevel(row))).length,
     unread: open.filter((row) => row.unread).length + earlier.filter((row) => row.unread).length,
     snoozed: open.filter((row) => row.snoozed).length,
     muted: open.filter((row) => row.muted).length,
