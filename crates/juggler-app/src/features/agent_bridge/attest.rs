@@ -421,6 +421,12 @@ fn verify_tool(
     if let Some(parent) = parent_of(session.tool_pid).filter(|parent| *parent != host_pid) {
         checked.push(parent);
     }
+    // The verified main process's arguments, read before the last check
+    // that it's still the same process.
+    let args = procs::some(&[host_pid])
+        .remove(&host_pid)
+        .map(|process| process.args)
+        .unwrap_or_default();
     let now: HashMap<u32, Listed> = juggler_proc_list::list()
         .ok_or("this system doesn't list its processes")?
         .into_iter()
@@ -440,10 +446,6 @@ fn verify_tool(
                 .find(|app| app.id == id)
         })
         .ok_or("this app's own app isn't known")?;
-    let args = procs::some(&[host_pid])
-        .remove(&host_pid)
-        .map(|process| process.args)
-        .unwrap_or_default();
     let home = juggler_platform::user::home().unwrap_or_default();
     if !runs_instance(&args, &app, &home, &candidate.instance_dir) {
         return Err("the session runs under another profile of its app".to_owned());
