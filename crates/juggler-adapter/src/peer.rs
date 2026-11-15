@@ -90,6 +90,12 @@ pub trait DesktopPeer: Send + Sync {
     /// `false` when no session of it has an inbox AI Juggler's connector
     /// can reach (a Codex app thread).
     fn can_wake(&self) -> bool;
+
+    /// Whether this App's sessions can be attested at all (`false`: every
+    /// keyless call from them is refused, and the window says why).
+    fn attests(&self) -> bool {
+        true
+    }
 }
 
 /// Whether a recorded start time and the process's own are the same

@@ -1,0 +1,446 @@
+//! AJ-E3013 (D-116, D-119): AI Juggler's connector in a desktop App, on
+//! the user's say-so, and a pool's desktop members as the canvas shows
+//! them.
+//!
+//! - **What it is** comes from the App's tool's adapter, as data
+//!   (`ToolRuntime::desktop_connector`): the Claude app's plugin folder,
+//!   the Codex app's one `config.toml` table. The writer is one for every
+//!   tool (`juggler_adapters::connector_files`): only into that App's own
+//!   config folder, never through a link, never a secret, never the
+//!   Keychain.
+//! - **Preview** shows each file before and after; **Add** writes and
+//!   records each file's fingerprint here (`connectors.json`, `0600`, in
+//!   AI Juggler's data folder) so **Remove** takes out exactly what it
+//!   wrote and names what someone changed; **status** says absent,
+//!   current, outdated or changed.
+//! - **A pool's desktop members** ([`desktop_members_impl`]): each one's
+//!   App, its connector, whether one of its sessions called lately (the
+//!   attestation's facts, `Storage::attested`), and whether a new pool
+//!   message wakes it (the pool at Full, or a rule, and an App that can
+//!   be woken) or waits for its next turn.
+//!
+//! Nothing here starts, stops or types into an app.
+
+pub mod commands;
+pub mod dto;
+
+use std::collections::BTreeMap;
+use std::path::{Path, PathBuf};
+use std::sync::Arc;
+
+use juggler_adapter::SharedAdapter;
+use juggler_adapter::connector::{ConnectorInput, ConnectorPlan};
+use juggler_adapters::connector_files::{self, ConnectorRecord, ConnectorState};
+use juggler_agentbridge::wire;
+use juggler_core::agent_access::AgentAction;
+use juggler_core::model::{AccountId, HarnessId};
+use juggler_core::storage::{MemberRef, Storage};
+
+use self::dto::{
+    ConnectorFileInfo, ConnectorPreviewInfo, ConnectorRemovalInfo, ConnectorStatusInfo,
+    DesktopMemberInfo,
+};
+use crate::error::{AppError, AppResult};
+use crate::features::switch_setup::GetItInfo;
+use crate::state::AppState;
+
+/// The records of what Add wrote, by App, in AI Juggler's data folder.
+const RECORDS: &str = "connectors.json";
+
+/// Held while the records are read and written again (commands run in
+/// parallel; two saves at once would drop one).
+static WRITING: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+/// A desktop App the connector can go into.
+struct Target {
+    app_id: String,
+    label: String,
+    config_dir: PathBuf,
+    adapter: SharedAdapter,
+}
+
+fn load(state: &Arc<AppState>) -> BTreeMap<String, ConnectorRecord> {
+    std::fs::read_to_string(state.data_dir.join(RECORDS))
+        .ok()
+        .and_then(|text| serde_json::from_str(&text).ok())
+        .unwrap_or_default()
+}
+
+fn save(state: &Arc<AppState>, records: &BTreeMap<String, ConnectorRecord>) -> AppResult<()> {
+    let text = serde_json::to_string_pretty(records)
+        .map_err(|error| AppError::Refused(error.to_string()))?;
+    juggler_platform::private_fs::write_private(&state.data_dir.join(RECORDS), text.as_bytes())
+        .map_err(|error| AppError::io("keep what the connector wrote", &error))
+}
+
+/// The App `app_id`, when the connector can go into it; else why not.
+fn target(state: &Arc<AppState>, app_id: &str) -> Result<Target, String> {
+    let storage = state
+        .storage
+        .lock()
+        .map_err(|_| "AI Juggler is busy".to_owned())?;
+    let app = storage
+        .apps()
+        .get(app_id)
+        .ok()
+        .flatten()
+        .ok_or("AI Juggler doesn't know this app")?;
+    if app.kind != "desktop" {
+        return Err("only a desktop app takes AI Juggler's connector: terminal sessions get it from AI Juggler's launch".to_owned());
+    }
+    let adapter = state
+        .registry
+        .get(&HarnessId::new(app.tool.as_str()))
+        .ok_or("AI Juggler has no adapter for this app's tool")?;
+    if adapter.desktop_connector().is_none() {
+        return Err(format!(
+            "AI Juggler has no connector for {}'s app yet",
+            adapter.spec().display_name
+        ));
+    }
+    let folder = app.folder_id.clone().ok_or(
+        "AI Juggler hasn't seen which folder this app's sessions use yet: open a session in it once",
+    )?;
+    let config_dir = storage
+        .accounts()
+        .get(&AccountId::new(folder))
+        .map_err(|_| "this app's folder isn't one AI Juggler keeps".to_owned())?
+        .state_dir;
+    let label = app.label.clone().unwrap_or_else(|| {
+        app.instance_dir
+            .as_deref()
+            .and_then(|dir| Path::new(dir).file_name())
+            .map_or_else(
+                || adapter.spec().display_name,
+                |name| name.to_string_lossy().into_owned(),
+            )
+    });
+    Ok(Target {
+        app_id: app.id,
+        label,
+        config_dir,
+        adapter,
+    })
+}
+
+/// The connector for this edition of AI Juggler in `target`.
+fn plan_for(state: &Arc<AppState>, target: &Target) -> Result<ConnectorPlan, String> {
+    let agent = state
+        .agent_bridge
+        .program()
+        .ok_or("AI Juggler's juggler-agent isn't beside it, or isn't safe to run")?;
+    let socket = crate::features::agent_bridge::socket_path(&state.data_dir)
+        .ok_or("AI Juggler's data folder's path is too long for its socket")?;
+    let connector = target
+        .adapter
+        .desktop_connector()
+        .ok_or("no connector for this app")?;
+    Ok(connector.plan(&ConnectorInput {
+        agent: &agent,
+        socket: &socket,
+        version: env!("CARGO_PKG_VERSION"),
+        server: wire::SERVER_NAME,
+        tools: &wire::TOOLS,
+    }))
+}
+
+fn state_word(state: ConnectorState) -> &'static str {
+    match state {
+        ConnectorState::Absent => "absent",
+        ConnectorState::Current => "current",
+        ConnectorState::Outdated => "outdated",
+        ConnectorState::Changed => "changed",
+    }
+}
+
+fn unavailable(app_id: &str, why: String) -> ConnectorStatusInfo {
+    ConnectorStatusInfo {
+        app_id: app_id.to_owned(),
+        state: "unavailable".to_owned(),
+        changed: Vec::new(),
+        why_not: Some(why),
+        folder: None,
+        picked_up: None,
+        attests: false,
+        can_wake: false,
+    }
+}
+
+fn shown(target: &Target, rel: &Path) -> String {
+    target.config_dir.join(rel).to_string_lossy().into_owned()
+}
+
+fn status_of(
+    target: &Target,
+    plan: &ConnectorPlan,
+    record: Option<&ConnectorRecord>,
+) -> ConnectorStatusInfo {
+    let found = connector_files::status(&target.config_dir, plan, record);
+    let peer = target.adapter.desktop_peer();
+    ConnectorStatusInfo {
+        app_id: target.app_id.clone(),
+        state: state_word(found.state).to_owned(),
+        changed: found.changed.iter().map(|rel| shown(target, rel)).collect(),
+        why_not: None,
+        folder: Some(target.config_dir.to_string_lossy().into_owned()),
+        picked_up: Some(plan.picked_up.clone()),
+        attests: peer.is_some_and(juggler_adapter::peer::DesktopPeer::attests),
+        can_wake: peer.is_some_and(juggler_adapter::peer::DesktopPeer::can_wake),
+    }
+}
+
+/// Where the connector stands in the App `app_id`.
+///
+/// # Errors
+///
+/// None in practice: an App it can't go into is `unavailable`, with why.
+pub fn status_impl(state: &Arc<AppState>, app_id: &str) -> AppResult<ConnectorStatusInfo> {
+    let target = match target(state, app_id) {
+        Ok(target) => target,
+        Err(why) => return Ok(unavailable(app_id, why)),
+    };
+    let plan = match plan_for(state, &target) {
+        Ok(plan) => plan,
+        Err(why) => return Ok(unavailable(app_id, why)),
+    };
+    let records = load(state);
+    Ok(status_of(&target, &plan, records.get(app_id)))
+}
+
+/// What Add would write into the App `app_id`, each file before and after.
+///
+/// # Errors
+///
+/// [`AppError::Refused`] when a part is outside the App's folder or
+/// through a link (nothing is written either way).
+pub fn preview_impl(state: &Arc<AppState>, app_id: &str) -> AppResult<ConnectorPreviewInfo> {
+    let target = match target(state, app_id) {
+        Ok(target) => target,
+        Err(why) => {
+            return Ok(ConnectorPreviewInfo {
+                status: unavailable(app_id, why),
+                files: Vec::new(),
+                refused: None,
+                guide: None,
+            });
+        }
+    };
+    let plan = plan_for(state, &target).map_err(AppError::Refused)?;
+    let records = load(state);
+    let record = records.get(app_id);
+    let files = connector_files::preview(&target.config_dir, &plan, record)
+        .map_err(|error| AppError::Refused(error.to_string()))?;
+    let in_the_way: Vec<String> = files
+        .iter()
+        .filter(|file| file.action == connector_files::Action::Refuse)
+        .map(|file| shown(&target, &file.path))
+        .collect();
+    Ok(ConnectorPreviewInfo {
+        status: status_of(&target, &plan, record),
+        refused: (!in_the_way.is_empty()).then(|| {
+            format!(
+                "{} is already there and isn't AI Juggler's as it wrote it, so Add won't replace it",
+                in_the_way.join(", ")
+            )
+        }),
+        files: files
+            .into_iter()
+            .map(|file| ConnectorFileInfo {
+                path: shown(&target, &file.path),
+                action: match file.action {
+                    connector_files::Action::Create => "create",
+                    connector_files::Action::Replace => "replace",
+                    connector_files::Action::Merge => "merge",
+                    connector_files::Action::Same => "same",
+                    connector_files::Action::Refuse => "refuse",
+                }
+                .to_owned(),
+                before: file.before,
+                after: file.after,
+            })
+            .collect(),
+        guide: Some(GetItInfo::of(&plan.guide, &target.label)),
+    })
+}
+
+/// Adds the connector to the App `app_id` (the user's click on the card,
+/// after the preview), and records what it wrote.
+///
+/// # Errors
+///
+/// [`AppError::Refused`] when it can't go there, or something AI Juggler
+/// didn't write is in the way (nothing is written then); the write's
+/// error (what was written is taken back).
+pub fn add_impl(state: &Arc<AppState>, app_id: &str) -> AppResult<ConnectorStatusInfo> {
+    let target = target(state, app_id).map_err(AppError::Refused)?;
+    let plan = plan_for(state, &target).map_err(AppError::Refused)?;
+    let _writing = WRITING
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    let mut records = load(state);
+    let record = connector_files::add(&target.config_dir, &plan, records.get(app_id))
+        .map_err(|error| AppError::Refused(error.to_string()))?;
+    records.insert(app_id.to_owned(), record);
+    if let Err(error) = save(state, &records) {
+        // Unrecorded, it couldn't be removed exactly: take it back.
+        if let Some(record) = records.get(app_id) {
+            let _ = connector_files::remove(&target.config_dir, record);
+        }
+        return Err(error);
+    }
+    Ok(status_of(&target, &plan, records.get(app_id)))
+}
+
+/// Takes the connector out of the App `app_id`: only what still matches
+/// what Add wrote; what someone changed stays, named.
+///
+/// # Errors
+///
+/// [`AppError::Refused`] when AI Juggler has no record of adding it there;
+/// a write's error.
+pub fn remove_impl(state: &Arc<AppState>, app_id: &str) -> AppResult<ConnectorRemovalInfo> {
+    let target = target(state, app_id).map_err(AppError::Refused)?;
+    let plan = plan_for(state, &target).map_err(AppError::Refused)?;
+    let _writing = WRITING
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    let mut records = load(state);
+    let record = records.get(app_id).cloned().ok_or_else(|| {
+        AppError::Refused(
+            "AI Juggler has no record of adding its connector to this app, so it takes nothing out"
+                .to_owned(),
+        )
+    })?;
+    let removal = connector_files::remove(&target.config_dir, &record)
+        .map_err(|error| AppError::Refused(error.to_string()))?;
+    match &removal.left {
+        Some(left) => records.insert(app_id.to_owned(), left.clone()),
+        None => records.remove(app_id),
+    };
+    save(state, &records)?;
+    Ok(ConnectorRemovalInfo {
+        status: status_of(&target, &plan, records.get(app_id)),
+        removed: removal
+            .removed
+            .iter()
+            .map(|rel| shown(&target, rel))
+            .collect(),
+        kept: removal.kept.iter().map(|rel| shown(&target, rel)).collect(),
+    })
+}
+
+/// Whether a new pool message may start a member's turn in `pool_id`
+/// (D-119: the pool at Full, or a rule the user made), as `allowed` decides
+/// `deliver_to_session` before its hop limit.
+pub(crate) fn pool_wakes(storage: &Storage, pool_id: &str) -> bool {
+    storage.agent_access().access(pool_id).is_ok_and(|access| {
+        access.level.is_some_and(|level| {
+            level
+                .actions(&access.custom)
+                .contains(&AgentAction::DeliverToSession)
+        }) || access.rules.contains(&AgentAction::DeliverToSession)
+    })
+}
+
+/// A pool's desktop members: each one's App, its connector, whether it's
+/// connected, and how a new pool message reaches it.
+///
+/// # Errors
+///
+/// [`AppError::Refused`] for a pool that isn't there; storage failures.
+pub fn desktop_members_impl(
+    state: &Arc<AppState>,
+    pool_id: &str,
+) -> AppResult<Vec<DesktopMemberInfo>> {
+    let (rows, apps, wakes, fresh) = {
+        let storage = crate::commands::lock_storage_arc(state)?;
+        storage
+            .pools()
+            .get(pool_id)
+            .map_err(|_| AppError::Refused("that pool isn't there".to_owned()))?;
+        let rows: Vec<MemberRef> = storage
+            .pools()
+            .members()?
+            .into_iter()
+            .filter(|row| row.pool_id == pool_id)
+            .map(|row| row.member)
+            .collect();
+        let apps: Vec<juggler_core::storage::App> = storage
+            .apps()
+            .list()?
+            .into_iter()
+            .filter(|app| app.kind == "desktop" && !app.hidden)
+            .collect();
+        (
+            rows,
+            apps,
+            pool_wakes(&storage, pool_id),
+            storage.attested().fresh(),
+        )
+    };
+    let mut statuses: BTreeMap<String, ConnectorStatusInfo> = BTreeMap::new();
+    let mut status = |app_id: &str| {
+        statuses
+            .entry(app_id.to_owned())
+            .or_insert_with(|| {
+                status_impl(state, app_id)
+                    .unwrap_or_else(|error| unavailable(app_id, error.to_string()))
+            })
+            .clone()
+    };
+    let mut out = Vec::new();
+    for member in rows {
+        let (app, connected) = match &member {
+            MemberRef::Conversation { folder, id } => {
+                let mut held = apps
+                    .iter()
+                    .filter(|app| app.folder_id.as_deref() == Some(folder.as_str()));
+                let app = match (held.next(), held.next()) {
+                    (Some(one), None) => Some(one),
+                    _ => None,
+                };
+                let connected = fresh.iter().any(|facts| {
+                    facts.conversation.as_ref() == Some(&(folder.clone(), id.clone()))
+                });
+                if app.is_none() && !connected {
+                    continue; // another tool's terminal conversation, not a desktop app's
+                }
+                (app, connected)
+            }
+            MemberRef::App(id) => {
+                let Some(app) = apps.iter().find(|app| app.id == *id) else {
+                    continue;
+                };
+                let connected = fresh
+                    .iter()
+                    .any(|facts| facts.app.as_deref() == Some(id.as_str()));
+                (Some(app), connected)
+            }
+            _ => continue,
+        };
+        let found = app.map(|app| status(&app.id));
+        let can_wake = app
+            .and_then(|app| state.registry.get(&HarnessId::new(app.tool.as_str())))
+            .and_then(|adapter| {
+                adapter
+                    .desktop_peer()
+                    .map(juggler_adapter::peer::DesktopPeer::can_wake)
+            });
+        let wake = match can_wake {
+            Some(false) => "cant_wake",
+            Some(true) if wakes => "wakes",
+            _ => "next_turn",
+        };
+        out.push(DesktopMemberInfo {
+            member: member.to_wire(),
+            app_id: app.map(|app| app.id.clone()),
+            connector: found.map_or_else(|| "unavailable".to_owned(), |found| found.state),
+            connected,
+            wake: wake.to_owned(),
+        });
+    }
+    Ok(out)
+}
+
+#[cfg(test)]
+mod tests;

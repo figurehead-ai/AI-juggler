@@ -143,9 +143,12 @@ pub struct PreviewFile {
     pub path: PathBuf,
     /// What Add would do.
     pub action: Action,
-    /// The file as it is (`None`: not there).
+    /// AI Juggler's part as it is now: a whole file's text, or a merged
+    /// table's own lines (`None`: not there, or not AI Juggler's: someone
+    /// else's file is never shown).
     pub before: Option<String>,
-    /// The file as Add would leave it.
+    /// AI Juggler's part as Add writes it (a merged table: its own lines
+    /// only; the rest of the tool's file is never shown, and stays as it is).
     pub after: String,
 }
 
@@ -270,6 +273,32 @@ fn table_value(text: &str, path: &[String]) -> Option<toml::Value> {
         at = at.as_table()?.get(key)?;
     }
     Some(at.clone())
+}
+
+/// The table at `path` in the TOML `text`, as its own lines (`None`: not
+/// there).
+fn table_text(text: &str, path: &[String]) -> Option<String> {
+    let doc: toml_edit::DocumentMut = text.parse().ok()?;
+    let mut at = doc.as_table();
+    let (last, parents) = path.split_last()?;
+    for key in parents {
+        at = at.get(key)?.as_table()?;
+    }
+    let mut item = at.get(last)?.clone();
+    unplace(&mut item);
+    if let Some(table) = item.as_table_mut() {
+        table.decor_mut().set_prefix("");
+    }
+    let mut only = toml_edit::DocumentMut::new();
+    let mut into = only.as_table_mut();
+    for key in parents {
+        let mut made = toml_edit::Table::new();
+        made.set_implicit(true);
+        into.insert(key, toml_edit::Item::Table(made));
+        into = into.get_mut(key)?.as_table_mut()?;
+    }
+    into.insert(last, item);
+    Some(only.to_string())
 }
 
 /// The fingerprint of the table at `path` in `text`.
@@ -455,11 +484,26 @@ pub fn preview(
                 (ConnectorState::Absent, _) => Action::Create,
                 _ => Action::Replace,
             };
+            let ours = matches!(
+                found.state(),
+                ConnectorState::Current | ConnectorState::Outdated
+            );
+            let (before, after) = match part {
+                ConnectorPart::File { text, .. } => (found.before.filter(|_| ours), text.clone()),
+                ConnectorPart::TomlTable { table, text, .. } => (
+                    found
+                        .before
+                        .as_deref()
+                        .filter(|_| ours)
+                        .and_then(|now| table_text(now, table)),
+                    text.clone(),
+                ),
+            };
             Ok(PreviewFile {
                 path: part.path().to_path_buf(),
                 action,
-                before: found.before,
-                after: found.after,
+                before,
+                after,
             })
         })
         .collect()

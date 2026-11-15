@@ -218,10 +218,9 @@ fn something_ai_juggler_didnt_write_is_never_replaced() {
     std::fs::create_dir_all(theirs.parent().unwrap()).unwrap();
     std::fs::write(&theirs, "{\"name\":\"ai-juggler\",\"theirs\":true}").unwrap();
     let plan = claude("0.4.6");
-    assert_eq!(
-        preview(root.path(), &plan, None).unwrap()[0].action,
-        Action::Refuse
-    );
+    let shown = preview(root.path(), &plan, None).unwrap();
+    assert_eq!(shown[0].action, Action::Refuse);
+    assert_eq!(shown[0].before, None, "someone else's file is never shown");
     assert_eq!(
         status(root.path(), &plan, None).state,
         ConnectorState::Changed
@@ -313,10 +312,20 @@ fn codex_config_with_servers_and_comments_merges_one_table_and_unmerges_byte_for
     let plan = codex();
     let shown = preview(home.path(), &plan, None).unwrap();
     assert_eq!(shown[0].action, Action::Merge);
-    assert_eq!(shown[0].before.as_deref(), Some(CODEX_WITH_SERVERS));
+    assert_eq!(shown[0].before, None, "the user's own file is never shown");
+    assert!(
+        !shown[0].after.contains("github"),
+        "only AI Juggler's table"
+    );
     let record = add(home.path(), &plan, None).unwrap();
     let merged = std::fs::read_to_string(&config).unwrap();
-    assert_eq!(merged, shown[0].after, "the preview is what's written");
+    assert!(
+        merged.contains(shown[0].after.trim()),
+        "the preview is what's added:\n{merged}"
+    );
+    let again = preview(home.path(), &plan, Some(&record)).unwrap();
+    assert_eq!(again[0].action, Action::Same);
+    assert_eq!(again[0].before.as_deref(), Some(shown[0].after.as_str()));
     assert!(merged.contains("command = \"github-mcp\"  # keep this comment"));
     assert!(merged.starts_with("# My Codex settings\nmodel = \"gpt-5.5\"   # the one I like\n"));
     let parsed: toml::Table = merged.parse().unwrap();

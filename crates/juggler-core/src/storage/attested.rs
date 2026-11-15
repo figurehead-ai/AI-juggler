@@ -108,6 +108,20 @@ impl AttestedSessions {
             .filter(|seen| seen.elapsed() < TTL)
     }
 
+    /// Every session kept and fresh now.
+    #[must_use]
+    pub fn fresh(&self) -> Vec<SessionFacts> {
+        let entries = self
+            .entries
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        entries
+            .values()
+            .filter(|(_, seen)| seen.elapsed() < TTL)
+            .map(|(facts, _)| facts.clone())
+            .collect()
+    }
+
     /// Forgets `id` (its session's record went stale).
     pub fn forget(&self, id: &SessionId) {
         self.entries

@@ -23,6 +23,10 @@ impl DesktopPeer for CodexAppPeer {
     fn can_wake(&self) -> bool {
         false
     }
+
+    fn attests(&self) -> bool {
+        false
+    }
 }
 
 #[cfg(test)]
@@ -51,5 +55,6 @@ mod tests {
             PeerVerdict::Unattested { .. }
         ));
         assert!(!CodexAppPeer.can_wake());
+        assert!(!CodexAppPeer.attests());
     }
 }

@@ -422,6 +422,13 @@ macro_rules! app_commands {
             Read  features::agent_bridge::commands::agent_bridge_get,
             Write features::agent_bridge::commands::agent_bridge_answer,
             Write features::agent_bridge::commands::agent_bridge_set,
+            // AJ-E3013 (D-116): AI Juggler's connector in a desktop App, and
+            // a pool's desktop members.
+            Read  features::connector::commands::connector_preview,
+            Write features::connector::commands::connector_add,
+            Write features::connector::commands::connector_remove,
+            Read  features::connector::commands::connector_status,
+            Read  features::connector::commands::connector_desktop_members,
             Read  features::runtime::commands::runtime_get,
             Read  features::processes::commands::processes_page,
             Read  features::processes::commands::processes_counts,
