@@ -1,4 +1,4 @@
-<!-- captures: 74381225bb01 -->
+<!-- captures: 01bd3ba7d420 -->
 # 98-pool-setup: the pool setup a newcomer understands (AJ-E3011)
 
 Design critique (D-57, AJ-E2814) against the reference screens: Settings' choice lines, the switch dialog's "What does this mean?", and the calm UI round 2 mocks (levels, section labels, surface tone). Every step of New pool, empty (the first pool: the intro full, nothing chosen, the defaults filled in) and filled (a name, two Apps, an App's next session leading, a Reviewer, a pair blocked, waking, the seal), dark and light, 1280×800. Fixture names only.
@@ -32,6 +32,9 @@ Design critique (D-57, AJ-E2814) against the reference screens: Settings' choice
 - Who's in's side panel counts "0 full · 0 shell only" for a pool of Apps (their sessions aren't open yet); true, but reads as nothing.
 
 ## Fixed
+
+- (The coordinator's check) Start from scratch let an Observer message everyone, against its role card ("Watches and reads. Changes nothing.") and every template; its sends are blocked by default now, its own row calm, and the review says "an Observer only reads".
+- (The coordinator's check, follow-up) The foot under Who's in to On their own still said "Everyone may message everyone." while the table blocked an Observer; it reuses the Review's sentence now ("…; an Observer only reads."), so table, foot and Review agree.
 
 - (This branch) The step heading lacked weight against its why-line; semibold now.
 - (This branch) Review's long filled column had nothing to focus in it (axe: a scrolling region); each sentence now has its Change, back to that step.

@@ -1,4 +1,4 @@
-<!-- captures: f33b856790b6 -->
+<!-- captures: 595a10e20a28 -->
 # 99-pool-selection: the canvas's selection and the inspector's title (AJ-E3012)
 
 Design critique (D-57, AJ-E2814) against 97-pool-canvas (the canvas before) and the calm UI round 2 rules. The canvas with each kind selected — nothing (the pool), a session, an App, an Account, a Tool, everyone in scope, a line, the pool's own setup opened from the checklist, and the lead's place waiting for an App's next session — dark and light, 1280×800. Fixture names only.
@@ -23,15 +23,18 @@ Design critique (D-57, AJ-E2814) against 97-pool-canvas (the canvas before) and 
 - One selection treatment everywhere on the canvas: a solid 2 px accent ring with a 2 px offset on a raised surface; no dashes. Keyboard focus is a separate ink outline outside it.
 - The selected card and the inspector are linked by the same accent on the inspector's title edge.
 - Broad members read as many (a stacked card), not as a dashed outline; their names take two lines before an ellipsis.
-- The checklist never vanishes: a one-line "Setup · 2 of 6 done · next: …" over a member, the full card on the pool.
+- The setup checklist is the pool's: in full on the pool, one line over its settings, and never over a member, a line or the lead's card.
 
 ## Weak
 
-- At the 38 % fit forced by four broad members, compact node names still break mid-word ("Plann/er"), the older compact form's `break-words`; the fit, not the selection, is the cause.
 - Each broad card's wake line adds a third line; with four cards the column scrolls at 800 px.
 - The inspector's back control reads "Pool" (to the pool) and "Done" (from its settings): two words for one way back.
 
 ## Fixed
+
+- (The coordinator's check) Compact names broke mid-word at the 38 % fit ("Plann/er", "Checkou/t copy…"); names now break only between words, and a word wider than its room makes the name one line with an ellipsis.
+- (The coordinator's check) A member's inspector showed the pool's "Setup 2 of 6" line; it shows only on the pool.
+- (The coordinator's check) The pool's talk list showed an Observer's sends as Allowed though every one asks you; it reads Ask first now, and a new pool blocks them.
 
 - (This branch) Opening a setup step scrolled the whole window (scrollIntoView); it scrolls the inspector's own list now.
 - (This branch) The talk table's five columns didn't fit the inspector's 340 px; there it is a line per role, its pairs wrapping.
