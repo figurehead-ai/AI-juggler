@@ -358,6 +358,28 @@ does, from its own environment, on the app's say-so. Claude Code treats
 it as a peer message (it can't approve or change anything) and applies
 its own rate limit on top of ours.
 
+- **How the connector hears of a wake.** Its MCP server holds one wait
+  open (`wire::Wait`, keyless, at most 110 s, in a slot of its own: 32 at
+  most, never one of the calls' 16). The app attests it, then looks every
+  5 s for an unread agent's message in an open thread of a pool neither
+  paused nor stopped that `allowed(sender, pool, deliver_to_session, hop)`
+  lets it deliver (the pool at Full, or a rule; the hop limit), at most one
+  wake a minute per session, and answers with the facts-only note
+  (`messaging::unread_note`). A person's message waits for the turn.
+- **Which variables the server has (checked statically, 2026-11-15; lab
+  A9 proves it live).** The bundled Claude Code 2.1.325 sets
+  `process.env.CLAUDE_CODE_MESSAGING_SOCKET` when it binds the inbox, so
+  children it starts after that inherit it; it keeps the token in a
+  separate child environment (`….set("CLAUDE_CODE_MESSAGING_TOKEN", …)`),
+  documented for hooks and Bash. So the server may have the socket and
+  not the token. The connector posts with the auth line when it has the
+  token and without it otherwise (the docs: on macOS an own child is
+  verified while the posting process runs, which a long-lived MCP server
+  is). With no socket in its environment it wakes nothing and the member
+  reads on its next turn (its hooks' note). No token is ever passed
+  through a file or to AI Juggler: the hook route the research named
+  would need that, and isn't built.
+
 ## Unverified until the spike (AJ-E1701, the maintainer's)
 
 - That a server from `--mcp-config` loads in Claude Code without an

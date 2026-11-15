@@ -483,6 +483,34 @@ pub struct Report {
     pub hook: HookReport,
 }
 
+/// D-119 (AJ-E3013): AI Juggler's connector in a desktop app's session
+/// asks to be told when a pool message should wake that session. A shape
+/// of its own (never an agent's call); always keyless: the app attests
+/// the caller, waits at most [`WAIT_MAX_SECS`], and answers
+/// `{"wake": <a facts-only notice> | null}`.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Wait {
+    /// [`VERSION`].
+    pub v: u32,
+    /// Always empty: the caller is attested, never keyed.
+    pub token: String,
+    /// How long it waits, seconds (the app keeps it to [`WAIT_MAX_SECS`]).
+    pub wait_secs: u32,
+}
+
+/// The longest a wake wait is held open.
+pub const WAIT_MAX_SECS: u32 = 110;
+
+/// The session's own inbox socket, in its process's environment (Claude
+/// Code's cross-session messaging): where the connector posts a wake.
+pub const MESSAGING_SOCKET_ENV: &str = "CLAUDE_CODE_MESSAGING_SOCKET";
+
+/// The token for that socket's auth line, when the session gave its
+/// child one. Read by the connector from its own environment only, sent
+/// only to that socket, never to AI Juggler and never written anywhere.
+pub const MESSAGING_TOKEN_ENV: &str = "CLAUDE_CODE_MESSAGING_TOKEN";
+
 /// Why a call was refused.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]

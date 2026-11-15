@@ -34,6 +34,14 @@ fn main() -> ExitCode {
             let given = std::env::var(juggler_agentbridge::wire::TOKEN_ENV)
                 .is_ok_and(|token| !token.is_empty());
             let mut app = App::for_connector();
+            // D-119: in a desktop app's session (no key), a pool message the
+            // pool's waking rule allows wakes it through its own inbox.
+            if !given {
+                juggler_agentbridge::waker::start(
+                    juggler_agentbridge::client::connector_socket(),
+                    juggler_agentbridge::waker::Inbox::from_env(),
+                );
+            }
             let stdin = std::io::stdin();
             let stdout = std::io::stdout();
             match serve_as(stdin.lock(), stdout.lock(), &mut app, Some(given)) {

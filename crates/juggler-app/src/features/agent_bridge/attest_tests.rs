@@ -364,3 +364,111 @@ fn only_the_attestation_writes_the_attested_sessions() {
         "{found:?}"
     );
 }
+
+/// Puts a message from `sender` (a session ref, or the user) to the
+/// desktop member's Watched ref, unread, in a new thread.
+fn message(state: &Arc<AppState>, pool: &str, id: &str, sender: &str, kind: &str) {
+    use juggler_core::storage::{NewMessage, RecipientState};
+    let storage = state.storage.lock().unwrap();
+    let repo = storage.messages();
+    repo.create_thread(&format!("t-{id}"), pool, "s", sender)
+        .unwrap();
+    repo.insert_message(&NewMessage {
+        id,
+        thread_id: &format!("t-{id}"),
+        pool_id: pool,
+        sender_ref: sender,
+        sender_kind: kind,
+        sender_name: "Planner",
+        kind: "note",
+        subject: "s",
+        body: "the words never reach the notice",
+        body_sha256: id,
+        hop: 1,
+        reply_to: None,
+        to_all: false,
+        redacted: 0,
+        recipients: &[(
+            format!("conversation:{FOLDER}/{CONVERSATION}"),
+            "Desk".into(),
+            RecipientState::Unread,
+        )],
+    })
+    .unwrap();
+}
+
+#[test]
+fn a_wake_needs_the_pools_waking_rule_and_keeps_to_its_budget() {
+    let dir = tempfile::tempdir().unwrap();
+    let (state, pool) = lab(dir.path());
+    state
+        .storage
+        .lock()
+        .unwrap()
+        .attested()
+        .put(desktop_facts());
+    let desk = desktop_id(CONVERSATION);
+    // Nothing yet, and nothing before this point counts.
+    assert_eq!(super::desktop::wake_for(&state, &desk), None);
+    std::thread::sleep(std::time::Duration::from_millis(5));
+    // Work together: an agent's message waits for its next turn.
+    message(&state, &pool, "m-1", "session:s-cli", "agent");
+    assert_eq!(super::desktop::wake_for(&state, &desk), None);
+    // Full: the next agent's message wakes it, facts only.
+    state
+        .storage
+        .lock()
+        .unwrap()
+        .agent_access()
+        .set_level(&pool, AccessLevel::Full, &std::collections::BTreeSet::new())
+        .unwrap();
+    std::thread::sleep(std::time::Duration::from_millis(5));
+    message(&state, &pool, "m-2", "session:s-cli", "agent");
+    let notice = super::desktop::wake_for(&state, &desk).unwrap();
+    assert!(notice.contains("Planner"), "{notice}");
+    assert!(!notice.contains("never reach"), "never a message's words");
+    // The budget: no second wake within a minute.
+    std::thread::sleep(std::time::Duration::from_millis(5));
+    message(&state, &pool, "m-3", "session:s-cli", "agent");
+    assert_eq!(super::desktop::wake_for(&state, &desk), None);
+}
+
+#[test]
+fn a_persons_message_or_a_paused_pool_never_wakes() {
+    let dir = tempfile::tempdir().unwrap();
+    let (state, pool) = lab(dir.path());
+    state
+        .storage
+        .lock()
+        .unwrap()
+        .attested()
+        .put(desktop_facts());
+    state
+        .storage
+        .lock()
+        .unwrap()
+        .agent_access()
+        .set_level(&pool, AccessLevel::Full, &std::collections::BTreeSet::new())
+        .unwrap();
+    let desk = desktop_id("conv-desk-1");
+    assert_eq!(super::desktop::wake_for(&state, &desk), None);
+    std::thread::sleep(std::time::Duration::from_millis(5));
+    message(
+        &state,
+        &pool,
+        "u-1",
+        juggler_core::storage::SENDER_USER,
+        "user",
+    );
+    assert_eq!(super::desktop::wake_for(&state, &desk), None, "a person's");
+    state
+        .storage
+        .lock()
+        .unwrap()
+        .messages()
+        .pause_pool(&pool, "held", "user")
+        .unwrap();
+    std::thread::sleep(std::time::Duration::from_millis(5));
+    message(&state, &pool, "m-9", "session:s-cli", "agent");
+    assert_eq!(super::desktop::wake_for(&state, &desk), None, "paused");
+}

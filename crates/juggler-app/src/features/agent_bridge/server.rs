@@ -70,8 +70,7 @@ pub fn ensure_serving(state: &Arc<AppState>) -> std::io::Result<PathBuf> {
                 continue; // too many at once: dropped, the caller retries
             };
             tauri::async_runtime::spawn(async move {
-                answer(stream, state).await;
-                drop(permit);
+                answer(stream, state, permit).await;
             });
         }
     });
@@ -81,7 +80,11 @@ pub fn ensure_serving(state: &Arc<AppState>) -> std::io::Result<PathBuf> {
 
 /// One connection (already known to be this user's): one request, one
 /// answer.
-async fn answer(mut stream: local_ipc::Stream, state: Arc<AppState>) {
+async fn answer(
+    mut stream: local_ipc::Stream,
+    state: Arc<AppState>,
+    permit: tokio::sync::OwnedSemaphorePermit,
+) {
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
     // AJ-E3013: who connected and when, for a keyless call's attestation.
     let peer = stream.peer();
@@ -106,6 +109,17 @@ async fn answer(mut stream: local_ipc::Stream, state: Arc<AppState>) {
     let response = match read {
         Ok(Ok(true)) => {
             let line = String::from_utf8_lossy(&request).into_owned();
+            if let Ok(wait) = serde_json::from_str::<wire::Wait>(line.trim()) {
+                // D-119: a wake wait is held open, but never in one of the
+                // calls' slots (its own, few, in `desktop::wait`).
+                drop(permit);
+                let response = super::desktop::wait(state, wait, peer).await;
+                let mut line = serde_json::to_string(&response).unwrap_or_default();
+                line.push('\n');
+                let _ = stream.write_all(line.as_bytes()).await;
+                let _ = stream.shutdown().await;
+                return;
+            }
             tauri::async_runtime::spawn_blocking(move || {
                 super::calls::handle_line_from(&state, &line, Some(peer))
             })
@@ -121,4 +135,5 @@ async fn answer(mut stream: local_ipc::Stream, state: Arc<AppState>) {
     line.push('\n');
     let _ = stream.write_all(line.as_bytes()).await;
     let _ = stream.shutdown().await;
+    drop(permit);
 }

@@ -40,4 +40,5 @@ pub mod hook;
 pub mod mcp;
 pub mod plugin;
 pub mod task_tools;
+pub mod waker;
 pub mod wire;
