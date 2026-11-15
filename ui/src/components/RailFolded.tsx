@@ -44,6 +44,7 @@ import { STATE_TONE, itemsOf, needWord, openNow, stateWord, type RailItem } from
 import { isSnoozed, type SnoozeState } from "../lib/railview";
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import type { ProjectInfo } from "../types/generated/ProjectInfo";
+import { SELECTED_FILL } from "./controls/selected";
 
 /** "4 things need you", as the bell says it. */
 export function needsYouWords(count: number): string {
@@ -168,7 +169,7 @@ function FoldedRow({ item, selected, onSelect }: { item: RailItem; selected: boo
       onClick={primary}
       className={
         "group relative flex size-9 shrink-0 items-center justify-center rounded-lg outline-none transition-colors focus-visible:ring-1 focus-visible:ring-accent/60 " +
-        (selected ? "bg-surface" : "hover:bg-surface")
+        (selected ? SELECTED_FILL : "hover:bg-surface")
       }
     >
       <span id={describedId} hidden>

@@ -25,6 +25,7 @@ import { TaskRow } from "./TaskRow";
 import { TaskTree } from "./TaskTree";
 import { TaskView } from "./TaskView";
 import { STATUS_WORDS } from "./words";
+import { SELECTED } from "../../components/controls/selected";
 
 const FILTERS = ["open", "ready", "in_progress", "in_review", "blocked", "closed"] as const;
 /** "All open" is every task not done, so it holds the next ones' tasks
@@ -114,7 +115,7 @@ export function PoolTasks({ poolId, sessions, projects, now }: { poolId: string;
                     role="radio"
                     aria-checked={on}
                     onClick={() => setFilter(word)}
-                    className={"h-8 rounded-lg px-2.5 text-meta font-medium outline-none transition-colors focus-visible:ring-1 focus-visible:ring-accent/60 " + (on ? "bg-accent-soft text-accent-hi" : "text-muted hover:bg-surface-2 hover:text-ink")}
+                    className={"h-8 rounded-lg px-2.5 text-meta outline-none transition-colors focus-visible:ring-1 focus-visible:ring-accent/60 " + (on ? SELECTED : "font-medium text-muted hover:bg-surface-2 hover:text-ink")}
                     data-testid={`tasks-filter-${word}`}
                   >
                     {FILTER_WORDS[word]}
@@ -129,7 +130,7 @@ export function PoolTasks({ poolId, sessions, projects, now }: { poolId: string;
         <div className="ml-auto flex flex-wrap items-center gap-2">
           <div role="radiogroup" aria-label="Show" className="flex rounded-lg border border-hairline p-0.5">
             {(["list", "plan"] as const).map((v) => (
-              <button key={v} type="button" role="radio" aria-checked={view === v} onClick={() => setView(v)} className={"h-7 rounded-md px-2.5 text-meta " + (view === v ? "bg-surface-3 text-ink" : "text-muted hover:text-ink")} data-testid={`tasks-view-${v}`}>
+              <button key={v} type="button" role="radio" aria-checked={view === v} onClick={() => setView(v)} className={"h-7 rounded-md px-2.5 text-meta " + (view === v ? SELECTED : "text-muted hover:text-ink")} data-testid={`tasks-view-${v}`}>
                 {v === "list" ? "List" : "Plan"}
               </button>
             ))}

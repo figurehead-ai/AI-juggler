@@ -20,6 +20,7 @@ import { lastPane, rememberPane, shownPanes, targetOf, type PaneId } from "./set
 import { searchSettings } from "./settings/settings-index";
 import { SettingsSearch } from "./settings/SettingsSearch";
 import { PaneTile } from "./settings/parts";
+import { SELECTED } from "../components/controls/selected";
 
 type PaneProps = { anchor?: string };
 
@@ -107,11 +108,13 @@ export function SettingsScreen({
                 aria-current={pane === entry.id ? "page" : undefined}
                 className={
                   "flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 text-left text-body transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent " +
-                  // AJ-E3306 (rc26): the selected item carries the accent
-                  // (text and edge); a hover is a lighter plain fill, so a
-                  // resting pointer never reads as a second selection.
+                  // AJ-E3306 (rc26): the selected item carries an edge and a
+                  // fill; a hover is a lighter plain fill with no edge, so a
+                  // resting pointer never reads as a second selection. D-117
+                  // (selection): the one selected look, neutral — a 3:1 edge
+                  // and semibold ink — the accent is for actions and focus.
                   (pane === entry.id
-                    ? "bg-accent-soft font-medium text-accent-hi ring-1 ring-inset ring-accent/30"
+                    ? SELECTED
                     : "text-ink hover:bg-surface-2/60") +
                   (searching && !matched.has(entry.id) ? " opacity-45" : "")
                 }

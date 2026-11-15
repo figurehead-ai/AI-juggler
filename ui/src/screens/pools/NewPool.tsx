@@ -35,6 +35,7 @@ import { openNowByMember } from "../../lib/pool-open-now";
 import { NewPoolRoles } from "./NewPoolRoles";
 import { NewPoolTemplate } from "./NewPoolTemplate";
 import { NewPoolWho } from "./NewPoolWho";
+import { SELECTED } from "../../components/controls/selected";
 
 const STEPS = ["Template", "Where and who", "Roles and talk", "Review"] as const;
 
@@ -206,7 +207,7 @@ export function NewPool({
               onClick={() => at < step && setStep(at)}
               aria-current={at === step ? "step" : undefined}
               disabled={at > step}
-              className={"flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-meta outline-none focus-visible:ring-2 focus-visible:ring-accent/60 " + (at === step ? "bg-accent-soft font-semibold text-ink" : "text-ink-2 disabled:opacity-60")}
+              className={"flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-meta outline-none focus-visible:ring-2 focus-visible:ring-accent/60 " + (at === step ? SELECTED : "text-ink-2 disabled:opacity-60")}
               data-testid="new-pool-step"
             >
               <span className={"flex size-5 shrink-0 items-center justify-center rounded-full text-label font-semibold " + (at === step ? "bg-accent text-white" : at < step ? "bg-success text-white" : "bg-surface-3 text-muted")}>

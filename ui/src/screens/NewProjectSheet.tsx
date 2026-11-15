@@ -15,6 +15,7 @@ import type { QuotaDisplayData } from "../lib/ipc/quota";
 import { errorText, signedIn } from "../lib/bridge";
 import { launchSettingsName, launchTitle } from "../lib/account-words";
 import { pickLaunch } from "../lib/launch-pick";
+import { SELECTED_CARD } from "../components/controls/selected";
 
 /**
  * AJ-E305 flow (b): a new project in ≤ 3 clicks and zero typed
@@ -197,7 +198,7 @@ export function NewProjectSheet({
                 className={
                   "flex min-w-0 flex-col gap-1 rounded-xl border px-3 py-2.5 text-left outline-none transition-colors focus-visible:ring-1 focus-visible:ring-accent/60 " +
                   (directory === row.root
-                    ? "border-accent/40 bg-accent-soft"
+                    ? SELECTED_CARD
                     : "border-hairline hover:border-hairline/80 hover:bg-surface")
                 }
               >

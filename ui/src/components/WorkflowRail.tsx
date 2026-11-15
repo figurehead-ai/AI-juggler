@@ -71,6 +71,7 @@ import { StaleChip, attentionTooltip, isActiveStatus, lowLeftWords, stateChip } 
 export type { Freshness } from "../lib/live-deltas";
 import type { Freshness } from "../lib/live-deltas";
 import { ProfileBadge } from "./ProfileBadge";
+import { SELECTED_FILL } from "./controls/selected";
 
 /**
  * The workflow navigator (ADR-0007): one rail, three tabs, and the live
@@ -750,20 +751,19 @@ export function RailRow({
       className={
         "relative flex w-full min-w-0 items-center gap-2.5 rounded-lg pl-2.5 text-left outline-none transition-colors focus-visible:ring-1 focus-visible:ring-accent/60 " + (trailing ? "pr-9 " : "pr-2 ") +
         (density === "compact" ? "py-1.5 " : "py-2 ") +
-        (selected ? "bg-surface" : "hover:bg-surface/60") +
+        (selected ? SELECTED_FILL : "hover:bg-surface/60") +
         // Ended rows are quieter by their title colour, never by opacity:
         // faded small text would fall below 4.5:1 (WCAG 1.4.3).
         ""
       }
     >
-      {selected && <span aria-hidden="true" className="absolute left-0.5 top-1/2 h-4 w-[2px] -translate-y-1/2 rounded-full bg-accent" />}
       <span aria-hidden="true" data-state-glyph={said.state} className={"flex w-4 shrink-0 justify-center " + said.tone}>
         <Icon width={13} height={13} />
       </span>
       <span className="flex min-w-0 flex-1 flex-col">
         <span className="flex min-w-0 items-baseline gap-1.5">
           {showProject && session.project_id && <ProjectMark projectId={session.project_id} size={12} />}
-          <span className={"min-w-0 truncate text-meta font-medium " + (ended ? "text-muted" : "text-ink")}>{title}</span>
+          <span className={"min-w-0 truncate text-meta " + (selected ? "font-semibold " : "font-medium ") + (ended && !selected ? "text-muted" : "text-ink")}>{title}</span>
           {session.pinned && <PinMark />}
           {session.kind === "desktop" && (
             <span title="Runs in the Claude desktop app" data-testid="rail-app-chip" className="shrink-0 rounded border border-hairline px-1 text-label font-medium text-muted">

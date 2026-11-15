@@ -35,6 +35,7 @@ import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import type { ProjectInfo } from "../types/generated/ProjectInfo";
 import { FilterChip } from "../components/related/FilterChip";
 import { OutsideSearchLink } from "../components/OutsideSearchSetting";
+import { SELECTED } from "../components/controls/selected";
 
 type ListId = "ended" | "archived";
 
@@ -279,7 +280,7 @@ export function History({
               role="tab"
               aria-selected={list === tab.id}
               onClick={() => setList(tab.id)}
-              className={"rounded-md px-3 py-1 text-meta font-medium " + (list === tab.id ? "bg-surface-3 text-ink" : "text-muted hover:text-ink")}
+              className={"rounded-md px-3 py-1 text-meta " + (list === tab.id ? SELECTED : "font-medium text-muted hover:text-ink")}
               data-testid={`history-tab-${tab.id}`}
             >
               {tab.label}

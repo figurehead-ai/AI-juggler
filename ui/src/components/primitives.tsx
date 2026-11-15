@@ -1,5 +1,6 @@
 import { forwardRef } from "react";
 import type { ButtonHTMLAttributes, HTMLAttributes, ReactNode } from "react";
+import { SELECTED_CARD } from "./controls/selected";
 
 /**
  * Base UI primitives, shadcn-style: hand-vendored, token-driven, no
@@ -9,7 +10,7 @@ import type { ButtonHTMLAttributes, HTMLAttributes, ReactNode } from "react";
  * carry a quiet accent glow, live elements breathe.
  */
 
-type ButtonVariant = "primary" | "accent" | "secondary" | "ghost" | "danger";
+type ButtonVariant = "primary" | "accent" | "secondary" | "ghost" | "danger" | "chosen";
 type ButtonSize = "sm" | "md";
 
 /** The primary's fill (0.3.2, D-62 decision 23: one solid colour), for
@@ -28,6 +29,10 @@ const buttonVariants: Record<ButtonVariant, string> = {
   ghost: "text-muted hover:text-ink hover:bg-surface-2",
   danger:
     "bg-danger/15 text-danger border border-danger/30 hover:bg-danger/25",
+  // D-117 (selection): a choice that is picked (an ask's answer, a toggle
+  // among options): the one selected look, semibold (below), never the
+  // primary's fill — selection is not an action, and never loud.
+  chosen: `border ${SELECTED_CARD} text-selected-ink active:translate-y-px`,
 };
 
 const buttonSizes: Record<ButtonSize, string> = {
@@ -54,7 +59,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonHTMLAttributes<HTMLBut
     <button
       ref={ref}
       type={type ?? "button"}
-      className={`inline-flex items-center justify-center font-medium
+      className={`inline-flex items-center justify-center ${variant === "chosen" ? "font-semibold" : "font-medium"}
         transition-all duration-150 disabled:opacity-40 disabled:pointer-events-none
         cursor-pointer disabled:cursor-default select-none ${buttonVariants[variant]} ${buttonSizes[size]} ${className}`}
       {...props}

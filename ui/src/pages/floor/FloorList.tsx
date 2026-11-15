@@ -19,6 +19,7 @@ import { useNoticeSummary } from "../../lib/notices-store";
 import { useKeys } from "../../lib/use-keys";
 import { floorRows, groups, summary, waitingCount } from "./floor-list-model";
 import { FloorSection } from "./FloorRows";
+import { SELECTED_CARD } from "../../components/controls/selected";
 
 export { GLYPH, groups, summary, waitingFirst, floorColumns, floorRows, type FloorGroup } from "./floor-list-model";
 
@@ -129,7 +130,7 @@ export function FloorList(): JSX.Element {
             disabled={waiting === 0 && !waitingOnly}
             className={
               "inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-meta outline-none transition-colors focus-visible:ring-2 focus-visible:ring-accent/60 disabled:opacity-50 " +
-              (waitingOnly ? "border-accent/45 bg-accent-soft text-ink" : "border-hairline bg-surface text-muted hover:text-ink")
+              (waitingOnly ? SELECTED_CARD + " font-semibold text-selected-ink" : "border-hairline bg-surface text-muted hover:text-ink")
             }
             data-testid="floor-list-waiting"
           >

@@ -13,6 +13,7 @@ import { IconTerminal } from "./icons";
 import { errorText } from "../lib/bridge";
 import { appName } from "../lib/app-name";
 import { fleetLaunchOptions, fleetLaunchStart, type LaunchMachineInfo } from "../lib/ipc/fleet-launch";
+import { SELECTED_CARD } from "./controls/selected";
 
 export interface Where {
   machines: LaunchMachineInfo[];
@@ -49,7 +50,7 @@ export function MachinePicker({ where }: { where: Where }): JSX.Element | null {
             onClick={() => where.pick(id)}
             className={
               "rounded-full border px-2.5 py-1 transition-colors " +
-              (on ? "border-accent/50 bg-accent-soft text-ink" : "border-hairline text-muted hover:text-ink")
+              (on ? SELECTED_CARD + " font-semibold text-selected-ink" : "border-hairline text-muted hover:text-ink")
             }
           >
             {label}
@@ -86,7 +87,7 @@ export function RemoteSessionSheet({ where, onClose }: { where: Where; onClose: 
   };
   const choice = (on: boolean) =>
     "flex min-w-0 flex-col gap-0.5 rounded-xl border px-3 py-2 text-left text-xs transition-colors " +
-    (on ? "border-accent/40 bg-accent-soft" : "border-hairline hover:bg-surface");
+    (on ? SELECTED_CARD : "border-hairline hover:bg-surface");
   return (
     <div
       ref={sheet}

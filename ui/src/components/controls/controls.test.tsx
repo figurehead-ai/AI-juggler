@@ -9,7 +9,7 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { useEffect, useRef, useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { Checkbox, ChoiceOption, Disclosure, Picker, Radio, Segmented } from ".";
+import { Checkbox, ChoiceOption, Disclosure, Picker, Radio, SELECTED, Segmented } from ".";
 import { Modal } from "../form";
 import { anchoredEdge, anchoredSpan, menuEdge, menuPoint, type MenuAt } from "../RowMenu";
 
@@ -275,21 +275,27 @@ describe("Segmented, sized by its words (the 0.3 re-render)", () => {
     }
   });
 
-  // D-117 (round 2): the chosen one is the raised surface with an edge, its
-  // word ink-2 at 500 (the rest muted at 400): told apart by fill, edge,
-  // weight and ink at once, never by a lighter grey alone (the 0.4 design
-  // review, 32); the accent is kept for actions and focus.
-  it("marks the chosen one by fill, edge, weight and ink, never the accent", () => {
+  // D-117 (selection): the chosen one is unmistakable at a glance — an
+  // edge ≥ 3:1 off the unselected segments (selected-ring; the grey fill
+  // alone was 1.16:1) plus a second cue, never the colour alone: the raised
+  // fill with its word semibold in ink. Neutral: the accent is for actions
+  // and focus. Its state is said to screen readers too (aria-checked).
+  it("marks the chosen one by a 3:1 edge plus a filled, semibold word, never the accent", () => {
     const view = render(
       <Segmented label="Group sessions by" value="project" onChange={() => {}} segments={[{ value: "place", label: "App" }, { value: "project", label: "Project" }]} />,
     );
     const [app, project] = view.getAllByRole("radio");
-    expect(project!.className).toContain("bg-surface-3");
-    expect(project!.className).toContain("text-ink-2");
-    expect(project!.className).toContain("font-medium");
-    expect(project!.className).toContain("inset_0_0_0_1px");
-    expect(project!.className).not.toMatch(/bg-accent|text-accent/);
+    expect(project!.getAttribute("aria-checked")).toBe("true");
+    expect(app!.getAttribute("aria-checked")).toBe("false");
+    expect(project!.className).toContain(SELECTED);
+    // The edge (the 3:1 cue) and the second cue: the fill and the semibold word.
+    expect(project!.className).toContain("inset-ring-selected-ring");
+    expect(project!.className).toContain("bg-selected");
+    expect(project!.className).toContain("font-semibold");
+    expect(project!.className).toContain("text-selected-ink");
+    expect(project!.className).not.toMatch(/bg-accent|text-accent|ring-accent(?!\/60)/);
+    // The unselected: no edge, no fill, no weight.
     expect(app!.className).toContain("text-muted");
-    expect(app!.className).not.toContain("bg-surface-3");
+    expect(app!.className).not.toMatch(/bg-selected|inset-ring|font-semibold/);
   });
 });

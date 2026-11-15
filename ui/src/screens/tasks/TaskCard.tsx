@@ -12,6 +12,7 @@ import { errorText } from "../../lib/bridge";
 import { tasksApprove } from "../../lib/ipc/tasks";
 import { PRIORITY_WORDS } from "../../pages/tasks/words";
 import type { TaskBoardRow } from "../../lib/ipc/tasks-across";
+import { SELECTED_CARD } from "../../components/controls/selected";
 
 /** Who has it, in a few words: its holder and the App it works in
  * ("Builder · Claude Code · Work", AJ-E2806 R2), "Yours", or no one yet. */
@@ -81,7 +82,7 @@ export function TaskCard({
     <li
       className={
         "relative flex min-w-0 flex-col gap-1 rounded-lg border px-3 py-2.5 transition-colors focus-within:ring-2 focus-within:ring-accent/60 " +
-        (selected ? "border-accent/50 bg-surface-3" : "border-hairline bg-surface hover:bg-surface-2")
+        (selected ? SELECTED_CARD : "border-hairline bg-surface hover:bg-surface-2")
       }
       data-testid="task-card"
       data-status={task.status}

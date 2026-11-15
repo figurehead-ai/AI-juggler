@@ -23,6 +23,7 @@ import type { FleetSelfInfo } from "../types/generated/FleetSelfInfo";
 import { MachineUsageCard } from "../components/MachineUsage";
 import { ThisMacCard } from "../components/FleetThisMac";
 import { Radio } from "../components/controls";
+import { SELECTED_CARD } from "../components/controls/selected";
 
 /**
  * Fleet (beta) — AJ-E702: this Mac's machine identity and the machines
@@ -637,7 +638,7 @@ export function AccessSheet({
               key={option.id}
               className={
                 "flex items-start gap-2.5 rounded-lg border px-3 py-2.5 " +
-                (choice === option.id ? "border-accent/60 bg-accent-soft" : "border-hairline")
+                (choice === option.id ? SELECTED_CARD : "border-hairline")
               }
               data-testid={`fleet-access-${option.id}`}
             >

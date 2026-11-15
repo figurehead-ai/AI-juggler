@@ -63,6 +63,7 @@ import type { SourceInspectInfo } from "../types/generated/SourceInspectInfo";
 import { byteSize } from "../lib/compact";
 import { Radio } from "../components/controls";
 import { lazyNamed } from "../lib/lazy";
+import { SELECTED_CARD } from "../components/controls/selected";
 
 // The sign-in terminal shows in the step itself (0.4.1: it opened behind
 // this full-window flow); xterm loads only when a sign-in starts.
@@ -445,7 +446,7 @@ function FoundStep({
               key={option.id}
               className={
                 "flex cursor-pointer gap-3 rounded-xl border px-4 py-3 " +
-                (placement === option.id ? "border-accent bg-accent-soft/40" : "border-hairline bg-surface hover:bg-surface-2/60")
+                (placement === option.id ? SELECTED_CARD : "border-hairline bg-surface hover:bg-surface-2/60")
               }
               data-testid={`first-run-placement-${option.id}`}
             >

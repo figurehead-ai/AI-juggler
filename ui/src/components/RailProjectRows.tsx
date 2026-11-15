@@ -16,11 +16,9 @@ import { accountsWords, projectAccounts } from "../lib/project-accounts";
 import { useConversations } from "../lib/conversations";
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import type { ProjectInfo } from "../types/generated/ProjectInfo";
+import { SELECTED_FILL } from "./controls/selected";
 
 /** The accent bar a selected row carries. */
-function SelectedBar(): JSX.Element {
-  return <span aria-hidden="true" className="absolute left-0.5 top-1/2 h-4 w-[2px] -translate-y-1/2 rounded-full bg-accent" />;
-}
 
 /** AJ-E1502: a pinned row's mark, beside its title. */
 export function PinMark(): JSX.Element {
@@ -65,15 +63,15 @@ export function ProjectRow({
         className={
           "relative flex w-full min-w-0 items-center gap-2.5 rounded-lg pl-2.5 pr-2 text-left outline-none transition-colors focus-visible:ring-1 focus-visible:ring-accent/60 " +
           (density === "compact" ? "py-1.5 " : "py-2 ") +
-          (selected ? "bg-surface" : "hover:bg-surface/60")
+          // D-117 (selection): a 3:1 edge on the raised fill, its name in ink.
+          (selected ? SELECTED_FILL : "hover:bg-surface/60")
         }
         data-testid="rail-history-project"
       >
-        {selected && <SelectedBar />}
         <ProjectMark projectId={project.id} size={16} />
         <span className="flex min-w-0 flex-1 flex-col">
           <span className="flex min-w-0 items-baseline gap-1.5">
-            <span className={"min-w-0 truncate text-meta font-medium " + (project.missing ? "text-muted" : "text-ink")}>{project.name}</span>
+            <span className={"min-w-0 truncate text-meta " + (selected ? "font-semibold " : "font-medium ") + (project.missing && !selected ? "text-muted" : "text-ink")}>{project.name}</span>
             {project.pinned && <PinMark />}
             {project.missing && <span className="shrink-0 text-label font-semibold text-muted">moved</span>}
             {density === "compact" && when && <span className="ml-auto shrink-0 text-label tabular-nums text-muted">{when === "just now" ? "now" : when.replace(" ago", "")}</span>}
@@ -136,11 +134,10 @@ export function RailProjectHeader({
         data-rail-selected={selected ? "true" : undefined}
         className={
           "relative flex min-w-0 flex-1 items-center justify-between gap-2 rounded-md py-0.5 pl-1 pr-2.5 text-left text-meta font-semibold outline-none focus-visible:ring-1 focus-visible:ring-accent/60 " +
-          (selected ? "bg-surface text-ink" : "text-muted hover:text-ink")
+          (selected ? SELECTED_FILL + " text-ink" : "text-muted hover:text-ink")
         }
         data-testid="rail-project"
       >
-        {selected && <SelectedBar />}
         <span className="flex min-w-0 items-center gap-1.5">
           <ProjectMark projectId={project.id} size={14} />
           <span className="min-w-0 truncate">{label}</span>

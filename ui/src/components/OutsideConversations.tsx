@@ -23,6 +23,7 @@ import type { ChipFilters, RowGroup } from "../lib/railview";
 import { ago, agoWords } from "../lib/time-words";
 import { STATE_TONE, conversationAppKey, conversationItem, goToWhere, stateWord as railStateWord } from "../lib/rail-items";
 import { ProfileBadge } from "./ProfileBadge";
+import { SELECTED_FILL } from "./controls/selected";
 
 /** Ended outside conversations shown per project under the Ended filter. */
 export const RECENT_SHOWN = 3;
@@ -154,16 +155,15 @@ export function ConversationRow({
           "relative flex w-full min-w-0 items-center gap-2.5 rounded-lg pl-2.5 text-left outline-none transition-colors focus-visible:ring-1 focus-visible:ring-accent/60 " +
           (goTo && asking ? "pr-9 " : "pr-2 ") +
           (density === "compact" ? "py-1.5 " : "py-2 ") +
-          (selected ? "bg-surface" : "hover:bg-surface/60")
+          (selected ? SELECTED_FILL : "hover:bg-surface/60")
         }
       >
-        {selected && <span aria-hidden="true" className="absolute left-0.5 top-1/2 h-4 w-[2px] -translate-y-1/2 rounded-full bg-accent" />}
         <span aria-hidden="true" className={"flex w-4 shrink-0 justify-center " + stateTone(conversation)}>
           <Icon width={13} height={13} />
         </span>
         <span className="flex min-w-0 flex-1 flex-col">
           <span className="flex min-w-0 items-baseline gap-1.5">
-            <span className={"min-w-0 truncate text-meta font-medium " + (conversation.live ? "text-ink" : "text-muted")}>{title}</span>
+            <span className={"min-w-0 truncate text-meta " + (selected ? "font-semibold " : "font-medium ") + (conversation.live || selected ? "text-ink" : "text-muted")}>{title}</span>
             {density === "compact" && when && <span className="ml-auto shrink-0 text-label tabular-nums text-muted">{when}</span>}
           </span>
           {density === "comfortable" && (

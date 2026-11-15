@@ -16,6 +16,7 @@ import { useBackendNeeds } from "../lib/needs-you";
 import { useNoticeActions } from "../lib/notice-actions";
 import { RailNoticeRow } from "./RailNoticeRow";
 import { byNeed, needOfAttention } from "../lib/rail-items";
+import { SELECTED } from "./controls/selected";
 
 const ENDED = new Set(["finished", "stopped", "failed", "handed_over"]);
 
@@ -188,7 +189,7 @@ export function AlsoLine({ ended, renderRow, ...props }: RowProps & { ended: Ins
         <span>Also:</span>
         {VIEWS.filter((view) => count(view) > 0).map((view) => (
           <Fragment key={view}>
-            <button type="button" aria-pressed={shown.has(view)} data-testid={`rail-also-${view}`} onClick={() => toggle(view)} className={link + (shown.has(view) ? " text-accent-hi" : "")}>
+            <button type="button" aria-pressed={shown.has(view)} data-testid={`rail-also-${view}`} onClick={() => toggle(view)} className={link + (shown.has(view) ? " " + SELECTED : "")}>
               {count(view)} {WORDS[view]}
             </button>
             <span aria-hidden="true">·</span>

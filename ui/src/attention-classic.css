@@ -21,6 +21,10 @@
   --color-divider: var(--color-hairline);
   --tone-saturate: 1;
   --tone-opacity: 1;
+  /* Selection in 0.4's accent tint (the edge kept, so it stays readable). */
+  --color-selected: var(--color-accent-soft);
+  --color-selected-ink: var(--color-accent-hi);
+  --color-selected-ring: var(--color-accent);
 }
 :root[data-attention="classic"][data-theme="light"] {
   --color-live: #056074;

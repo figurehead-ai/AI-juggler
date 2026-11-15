@@ -6,6 +6,7 @@ import type { JSX } from "react";
 
 import { Chip, type ChipTone } from "../../components/primitives";
 import { POOL_TEMPLATES, type TemplateChip } from "../../lib/pool-templates";
+import { SELECTED_CARD } from "../../components/controls/selected";
 
 const TONE: Record<TemplateChip["tone"], ChipTone> = {
   accent: "accent",
@@ -40,7 +41,7 @@ export function NewPoolTemplate({ chosen, onChoose }: { chosen: string; onChoose
               data-template={template.id}
               className={
                 "flex flex-col gap-1.5 rounded-card border p-3 text-left outline-none transition-colors focus-visible:ring-2 focus-visible:ring-accent/60 " +
-                (on ? "border-accent bg-accent-soft" : "border-hairline bg-surface hover:border-accent/50")
+                (on ? SELECTED_CARD : "border-hairline bg-surface hover:border-accent/50")
               }
             >
               <span className="text-body font-semibold text-ink">{template.name}</span>

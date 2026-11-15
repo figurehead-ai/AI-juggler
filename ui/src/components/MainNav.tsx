@@ -11,6 +11,7 @@ import { PAGE_UNDER } from "../lib/nav";
 import { ariaKeysOf, keysOf, SHORTCUTS, type ShortcutId } from "../lib/shortcuts";
 import { onBindingsChanged } from "../lib/shortcut-bindings";
 import { IconBroom } from "./icons-actions";
+import { SELECTED } from "./controls/selected";
 
 /** A tab's key from the one registry (0.3 polish: each tab's tooltip
  * names it, so the keys are learnt where the tabs are): "⌘⇧P", or the
@@ -22,8 +23,9 @@ export function navKeys(id: string): string | null {
 
 // Snug below 1280 px, so the row fits at 1024 with the list open.
 const NAV_BUTTON = "rounded-md px-1.5 py-1.5 text-meta transition-colors outline-none focus-visible:ring-2 focus-visible:ring-accent/60 xl:px-2.5 ";
-// The lit tab is the page's title: raised, in ink, heavier.
-const lit = (current: boolean) => (current ? "bg-surface font-semibold text-ink sheen" : "font-medium text-muted hover:bg-surface/60 hover:text-ink");
+// The lit tab is the page's title: D-117 (selection), the one selected look
+// (a 3:1 edge on the raised fill, semibold ink), as every chosen thing.
+const lit = (current: boolean) => (current ? SELECTED : "font-medium text-muted hover:bg-surface/60 hover:text-ink");
 
 /** Whether `id`'s tab is the page shown. */
 export function navLit(id: string, global: string | null, page: string): boolean {

@@ -4,6 +4,7 @@
  * section titles carry (the approved canvas: icons in headers).
  */
 import { useRef, type JSX, type SVGProps } from "react";
+import { SELECTED } from "../controls/selected";
 
 export function Segmented<T extends string>({
   label,
@@ -54,12 +55,12 @@ export function Segmented<T extends string>({
               }
             }}
             className={
-              "rounded-md font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-accent/60 " +
+              "rounded-md outline-none transition-colors focus-visible:ring-2 focus-visible:ring-accent/60 " +
               (size === "sm" ? "px-2.5 py-1 text-label " : "px-3 py-1.5 text-meta ") +
-              // The chosen one in the accent's tint, as controls/Segmented: a
-              // grey on grey can't be told without reading (the 0.4 design
-              // review, 32; this copy had kept it).
-              (on ? "bg-accent-soft font-semibold text-accent-hi" : "text-muted hover:bg-surface-3 hover:text-ink")
+              // The chosen one as controls/Segmented's (D-117, selection): a
+              // 3:1 edge plus the raised fill and a semibold word; a grey on
+              // grey can't be told without reading (the 0.4 design review, 32).
+              (on ? SELECTED : "font-medium text-muted hover:bg-surface-3 hover:text-ink")
             }
           >
             {option.label}

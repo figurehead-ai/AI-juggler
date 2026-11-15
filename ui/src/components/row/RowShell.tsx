@@ -20,6 +20,7 @@ import { DROP, Grip, type Arrangeable } from "../RowTools";
 import { goToWhere, type RailItem } from "../../lib/rail-items";
 import { markSeen } from "../../lib/seen";
 import { togglePin } from "../../lib/rail-order-store";
+import { SELECTED_FILL } from "../controls/selected";
 
 /** Its primary (a click, ↩): its page here, whichever app runs it. */
 export function usePrimary(item: RailItem, onSelect: (id: string) => void): () => void {
@@ -139,7 +140,9 @@ export function RowShell({
         {...buttonData}
         className={
           "absolute inset-0 w-full text-left outline-none transition-colors focus-visible:ring-1 focus-visible:ring-accent/60 " +
-          (list ? "group-hover:bg-surface-2 focus-visible:ring-inset " : selected ? "bg-surface " : "group-hover:bg-surface/60 ") +
+          // D-117 (selection): the selected row is SELECTED_FILL (a 3:1 edge on
+          // the raised fill); its title turns semibold ink (SessionRow).
+          (list ? "group-hover:bg-surface-2 focus-visible:ring-inset " : selected ? SELECTED_FILL + " " : "group-hover:bg-surface/60 ") +
           shape
         }
       >

@@ -19,6 +19,7 @@ import type { DivergenceInfo } from "../types/generated/DivergenceInfo";
 import type { FleetSwitchBackPlanInfo } from "../types/generated/FleetSwitchBackPlanInfo";
 import { Checkbox, Radio } from "./controls";
 import { PRIMARY_FILL } from "./primitives";
+import { SELECTED_CARD } from "./controls/selected";
 
 /** The dialog's go button: the one primary fill (0.3.2), faded while it can't go. */
 const GO = `rounded-lg px-3 py-1.5 text-xs font-semibold ${PRIMARY_FILL} disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:brightness-100`;
@@ -189,7 +190,7 @@ export function CrossMachineSwitchBack({
                   key={option.id}
                   className={
                     "flex items-start gap-2 rounded-lg border px-2.5 py-2 text-label " +
-                    (choice === option.id ? "border-accent/60 bg-accent-soft" : "border-hairline")
+                    (choice === option.id ? SELECTED_CARD : "border-hairline")
                   }
                 >
                   <Radio

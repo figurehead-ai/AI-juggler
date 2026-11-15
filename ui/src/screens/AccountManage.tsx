@@ -13,6 +13,7 @@ import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import type { ActionHost } from "../lib/actions";
 import { Radio } from "../components/controls";
 import { cliAppName } from "../lib/app-name";
+import { SELECTED_CARD } from "../components/controls/selected";
 
 /** A home-relative path, for display. */
 export function shortPath(path: string): string {
@@ -141,7 +142,7 @@ export function RemoveAccountModal({
                   key={option.id}
                   className={
                     "flex items-center gap-2 rounded-lg border px-3 py-1.5 text-sm " +
-                    (folder === option.id ? "border-accent/60 bg-accent-soft" : "border-hairline")
+                    (folder === option.id ? SELECTED_CARD : "border-hairline")
                   }
                 >
                   <Radio

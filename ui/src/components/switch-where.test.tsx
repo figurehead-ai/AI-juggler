@@ -223,7 +223,9 @@ describe("0.3.5 simple by default, details on demand", () => {
     expect(view.getByTestId("switch-carry-stays").querySelector("span")!.className).toContain("bg-warning-soft");
   });
 
-  it("colours the step marks: done ticked in the success tint, the current one in the accent", async () => {
+  // D-117 (selection): the current step has the one selected look (a 3:1
+  // edge on the raised fill, semibold), no longer the accent's tint.
+  it("colours the step marks: done ticked in the success tint, the current one selected", async () => {
     const view = mount(WIZARD, EXAMPLE_DESTINATIONS);
     await toConfirm(view);
     const marks = view.getByTestId("switch-steps").querySelectorAll("li");
@@ -231,7 +233,8 @@ describe("0.3.5 simple by default, details on demand", () => {
     expect(marks[0]!.className).toContain("bg-success-soft");
     expect(marks[0]!.querySelector("svg")).toBeTruthy();
     expect(marks[2]!.getAttribute("aria-current")).toBe("step");
-    expect(marks[2]!.className).toContain("bg-accent-soft");
+    expect(marks[2]!.className).toContain("inset-ring-selected-ring");
+    expect(marks[2]!.className).toContain("font-semibold");
   });
 });
 

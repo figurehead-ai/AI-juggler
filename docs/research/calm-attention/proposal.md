@@ -200,13 +200,28 @@ A section label sits above labels on four counts: colour (Lc ~73 against ~62), w
   - there is no rail indent guide;
   - the rail foot and header lose their rules;
   - **one hairline** (`--color-divider`) splits the rail from the main area.
-- **Inputs and segmented controls** are filled with `--color-fill` and have no outline. The selected segment is `surface-3` with ink-2 text at weight 500.
+- **Inputs and segmented controls** are filled with `--color-fill` and have no outline. The selected segment has the one selected look (see "Selection" below); round 2's `surface-3` with ink-2 text at 500 was 1.16:1 on the fill and could not be told at a glance.
 - **Buttons:** every non-primary button is a ghost button (ink-2 text, `surface-3` on hover). The one filled accent button remains. The header New session is accent text with no fill.
 - **App marks:**
   - Rail and need rows show a **6 px App dot** instead of the icon.
   - Group headers show a **13 px** icon and a 5 px dot.
   - The **full icon stays on the App tiles**, where the App is the subject.
   - Account discs on the Runway shrink to 8 px.
+
+### Selection: unmistakable, still calm (2026-11-15)
+
+The maintainer could not tell the selected item on the pool canvas at a glance once round 2 made the chosen segment a lighter grey (`surface-3` on `fill`: 1.16:1 dark, 1.22:1 light), the 0.4 design review's point 32 again. The rule: **a selected state stands at least 3:1 off the unselected items around it (WCAG 1.4.11), plus a second cue, never colour alone.**
+
+| Token | Dark | Light | Measured (min over canvas, canvas-hi, surface, surface-2, surface-3, fill) |
+|---|---|---|---|
+| `--color-selected` (the raised fill) | `#242935` | `#e6e9ef` | the second cue with the weight; alone it is not enough |
+| `--color-selected-ink` (its words, semibold) | `#f3f5f9` | `#0e1219` | 13.3:1 / 15.4:1 on the fill |
+| `--color-selected-ring` (the solid edge) | `#8e97a6` | `#5f6777` | **dark 4.94:1** (surface-3) → 6.56:1, 5.73:1 on fill; **light 4.59:1** (canvas-hi) → 5.69:1, 5.69:1 on fill |
+
+- **One look everywhere** (`ui/src/components/controls/selected.ts`): segments, tabs, the header's current page, chips and pills (`SELECTED`: edge 1.5 px inside, fill, semibold ink); the rail's and lists' selected rows (`SELECTED_FILL`, their titles turn semibold ink); chosen cards and option boxes (`SELECTED_CARD`: border plus a 1 px inner ring, a 2 px solid edge like the pool canvas's selected card).
+- **Neutral, not the accent.** A neutral edge reaches 3:1, so the accent stays for actions and keyboard focus, and focus (the accent ring outside) never looks like selection (the edge inside). The rail's accent bar on the selected row went with it.
+- **Not loud.** Selection is its own category in the attention budget (rule viii): never an amber, red or accent fill, so it spends nothing a need has. The classic comparison look maps it back to 0.4's accent tint.
+- Gated by `lib/attention-tokens.test.ts` (tokens), `tests/visual/contrast.spec.ts` (tokens and every chosen segment as drawn) and `tests/visual/attention-budget.spec.ts` (viii).
 
 ### App tone: muted at rest, full colour when it matters
 
@@ -286,7 +301,7 @@ In the mock, the two Work Max Apps, which need you, are in full colour on their 
 | H5 | Floor button | Unchanged. | – |
 | H6 | Avatar | `surface-3` disc, ink initial. | L0 |
 | R1 | Brand mark | Accent, no glow. | – |
-| R5 | Lens tabs | Selected tab: `surface-3` fill + ink text (no accent). The accent is for actions and focus. | L0 |
+| R5 | Lens tabs | Selected tab: the selected look (a 3:1 neutral edge, raised fill, semibold ink; no accent). The accent is for actions and focus. | L0 |
 | R6 | Needs you header | **Kept loud**: alert icon + label + count of L2+L3. Amber if the highest level is L2, red if L3, muted with no icon if only L1 (reviews). Reviews are listed last, under a faint "To review" label. | rule 4 |
 | R8 | Need-row corner dot | App colour, unchanged, and now the **only** meaning of a corner dot anywhere (see M28). | identity |
 | R9 | Need-row state word | Amber (L2) or red (L3), semibold. "Done, review it" becomes muted with a ✓ success glyph (L1). "Probably …" gets the hollow ring. | (a) |
@@ -313,7 +328,7 @@ In the mock, the two Work Max Apps, which need you, are in full colour on their 
 | M8 | Kept-alive chip | A muted replay glyph + "kept alive", no tint. | L1 |
 | M9 | Paused or lost App | Paused: muted (L1). Lost while sessions were open: amber (L2). | (a) |
 | M11 / M24 | Runway meters | Healthy: `ink-2` at 55% opacity in dark (`#848994`, 4.15:1 against the `surface-3` track) and 65% in light (`#6d737e`, 3.92:1). Both clear the 3:1 non-text minimum. Low: amber. Out with live work: red. **The accent is no longer used for meters.** | (a) |
-| M13 | Need chips | No outer box. Selected chip: surface-3 + ink. Counts stay. | borders, accent |
+| M13 | Need chips | No outer box. Selected chip: the selected look (a 3:1 neutral edge, raised fill, semibold ink). Counts stay. | borders, accent |
 | M15 | First need's state word | Amber (L2) or red (L3). | (a) |
 | M16 | "Open its page ↵" | **Stays the one filled accent button.** | rule 3 |
 | M19 | Other need rows | Dividers become 8 px spacing. Each row's state word is loud once (it is the Home surface's copy). | rule 1 |

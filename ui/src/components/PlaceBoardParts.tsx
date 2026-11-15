@@ -14,6 +14,7 @@ import type { AlsoCounts, Line, OffRail, SectionId } from "../lib/rail-lines";
 import { isSearching, parseQuery, showInRail, useRailView, type ShowKey } from "../lib/rail-view";
 import { searchHistory } from "../lib/nav";
 import type { AttentionLevel } from "../lib/attention";
+import { SELECTED } from "./controls/selected";
 
 const SECTION: Record<SectionId, { label: string; tone: string; Icon: typeof IconAlert; testId: string }> = {
   needs: { label: "Needs you", tone: "text-warning", Icon: IconAlert, testId: "rail-needs-you" },
@@ -123,7 +124,7 @@ export function AlsoLine({ also, hidden, offRail = [], openApp }: { also: AlsoCo
       <span>Also:</span>
       {ALSO.filter((part) => also[part.key] > 0).map((part) => (
         <Fragment key={part.key}>
-          <button type="button" aria-pressed={view.show[part.show]} data-testid={`rail-also-${part.key}`} onClick={() => showInRail(part.show, !view.show[part.show])} className={link + (view.show[part.show] ? " text-accent-hi" : "")}>
+          <button type="button" aria-pressed={view.show[part.show]} data-testid={`rail-also-${part.key}`} onClick={() => showInRail(part.show, !view.show[part.show])} className={link + (view.show[part.show] ? " " + SELECTED : "")}>
             {also[part.key]} {part.words}
           </button>
           <span aria-hidden="true">·</span>

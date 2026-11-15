@@ -5,6 +5,7 @@
  * End too), as the platform's own segmented controls do.
  */
 import { useRef, type JSX, type KeyboardEvent } from "react";
+import { SELECTED } from "./selected";
 
 export interface Segment<T extends string> {
   value: T;
@@ -85,11 +86,12 @@ export function Segmented<T extends string>({
             // and "Pool" (the 0.3 re-render).
             className={
               (wrap ? "min-h-6 flex-none whitespace-nowrap " : "min-h-6 min-w-0 flex-auto truncate ") + "rounded-[7px] px-1 py-0.5 text-label outline-none transition-colors focus-visible:ring-2 focus-visible:ring-accent/60 " +
-              // D-117: the chosen one is the raised surface, its word ink-2 at
-              // 500, the rest muted at 400 — told apart by fill, weight and
-              // ink, never by hue (the accent is for actions and focus; the
-              // 0.4 review's 32 asked for more than a lighter grey).
-              (on ? "bg-surface-3 font-medium text-ink-2 shadow-[inset_0_0_0_1px_var(--color-hairline)]" : "text-muted hover:bg-surface-2 hover:text-ink")
+              // D-117 (selection): the chosen one is SELECTED — an edge ≥ 3:1
+              // off the unselected segments (the grey fill alone was 1.16:1,
+              // the 0.4 review's 32 again), plus the raised fill and its word
+              // semibold in ink; the rest muted at 400. Neutral: the accent is
+              // for actions and focus.
+              (on ? SELECTED : "text-muted hover:bg-surface-2 hover:text-ink")
             }
           >
             {segment.label}

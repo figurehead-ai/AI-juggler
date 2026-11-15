@@ -10,6 +10,7 @@ import { useHandoverPage } from "../lib/handover-focus";
 import { matches } from "../lib/shortcuts";
 import { statsEvent } from "../lib/ipc/usage-stats";
 import { PAGE_LABELS, PAGE_TAB_OF, rememberTab, rememberedTab, rememberedTabId, type PageKind, type PageTab, type PageTabId } from "./registry";
+import { SELECTED } from "../components/controls/selected";
 
 const SHOW_TAB = "aij:page-tab";
 
@@ -201,8 +202,10 @@ export function PageShell({
                 tabsRef.current?.querySelectorAll<HTMLButtonElement>("[role='tab']")[next]?.focus();
               }}
               className={
-                "rounded-lg px-2.5 py-1 text-meta font-medium outline-none transition-colors focus-visible:ring-1 focus-visible:ring-accent/60 " +
-                (tab === entry.id ? "bg-accent-soft text-accent-hi" : "text-muted hover:bg-surface hover:text-ink")
+                "rounded-lg px-2.5 py-1 text-meta outline-none transition-colors focus-visible:ring-1 focus-visible:ring-accent/60 " +
+                // D-117 (selection): the one selected look (a 3:1 edge, the
+                // raised fill, semibold ink); the accent is for actions and focus.
+                (tab === entry.id ? SELECTED : "font-medium text-muted hover:bg-surface hover:text-ink")
               }
             >
               {entry.label}

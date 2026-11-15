@@ -6,6 +6,7 @@ import type { DiscoveredMachineInfo } from "../types/generated/DiscoveredMachine
 import type { PairingStateInfo } from "../types/generated/PairingStateInfo";
 import { Radio } from "../components/controls";
 import { keepTabInside, useDialogFocus } from "../components/form";
+import { SELECTED_CARD } from "../components/controls/selected";
 
 /** Which side of pairing this Mac is on. */
 export type PairingMode = "host" | "join";
@@ -491,7 +492,7 @@ function JoinFind({
                 key={machine.instance_id}
                 className={
                   "flex items-center gap-2 rounded-lg border px-3 py-2 text-sm " +
-                  (chosen === machine.instance_id ? "border-accent/60 bg-accent-soft" : "border-hairline")
+                  (chosen === machine.instance_id ? SELECTED_CARD : "border-hairline")
                 }
                 data-testid="pairing-machine"
               >
@@ -694,7 +695,7 @@ function Permissions({
             key={option.id}
             className={
               "flex items-start gap-2.5 rounded-lg border px-3 py-2.5 " +
-              (permission === option.id ? "border-accent/60 bg-accent-soft" : "border-hairline")
+              (permission === option.id ? SELECTED_CARD : "border-hairline")
             }
             data-testid={`pairing-permission-${option.id}`}
           >

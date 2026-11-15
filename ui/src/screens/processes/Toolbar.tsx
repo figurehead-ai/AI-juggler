@@ -9,6 +9,7 @@ import { Checkbox, Picker } from "../../components/controls";
 import { IconSliders } from "../../components/icons-actions";
 import { processState, STATE_FILTERS } from "../../lib/process-states";
 import type { ProcessCountsInfo } from "../../lib/ipc/processes";
+import { SELECTED } from "../../components/controls/selected";
 
 export type ViewId = "attention" | "running" | "ended" | "ports" | "history";
 
@@ -72,7 +73,7 @@ export function ViewTabs({ view, counts, onView, embedded = false, history = tru
               if (event.key === "ArrowLeft") move(at - 1);
             }}
             data-testid={`process-view-${item.id}`}
-            className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-body font-medium transition-colors ${selected ? "bg-surface text-ink shadow-card" : "text-muted hover:text-ink"}`}
+            className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-body transition-colors ${selected ? SELECTED : "font-medium text-muted hover:text-ink"}`}
           >
             {item.label}
             {count !== undefined && count > 0 && <span className={`rounded-full px-1.5 text-label tabular-nums ${item.id === "attention" ? "bg-warning-soft text-warning" : "bg-surface-3 text-muted"}`}>{count}</span>}
