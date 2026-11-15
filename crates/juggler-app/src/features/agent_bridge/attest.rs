@@ -298,19 +298,28 @@ pub(crate) fn host_of_tool(
 
 /// M1: whether each of `pids` is still the process `before` listed (the
 /// same start time and parent) in the kernel's listing `after`, read once
-/// the checks were done: none ended, and none's pid was taken since.
+/// the checks were done, and (the third review's Info) still at the pid
+/// version its check saw (`checked_at`; `version_of` reads it now): none
+/// ended, none's pid was taken since, and none exec'd after its check.
 pub(crate) fn still_the_same(
     pids: &[u32],
     before: &HashMap<u32, Listed>,
     after: &HashMap<u32, Listed>,
+    checked_at: &HashMap<u32, u32>,
+    version_of: &dyn Fn(u32) -> Option<u32>,
 ) -> bool {
-    pids.iter()
-        .all(|pid| match (before.get(pid), after.get(pid)) {
+    pids.iter().all(|pid| {
+        let listed = match (before.get(pid), after.get(pid)) {
             (Some(was), Some(now)) => {
                 !now.zombie && started(was) == started(now) && was.ppid == now.ppid
             }
             _ => false,
-        })
+        };
+        listed
+            && checked_at
+                .get(pid)
+                .is_some_and(|then| version_of(*pid) == Some(*then))
+    })
 }
 
 /// M1: whether the App's main process, whose arguments are `args`, runs
@@ -400,12 +409,18 @@ fn verify_tool(
     if !peer.tool_binary(&place, &exe) {
         return Err("the session's process isn't this app's own Claude Code".to_owned());
     }
+    // Each pid's version as its check saw it, for the last check below.
+    let checked_at: std::cell::RefCell<HashMap<u32, u32>> = std::cell::RefCell::default();
     let satisfies = |pid: u32, requirement: &str| {
         let Some(before) = juggler_proc_list::pid_version(pid) else {
             return false;
         };
-        juggler_platform::code_sign::running_satisfies(pid, before, requirement)
-            && juggler_proc_list::pid_version(pid) == Some(before)
+        let met = juggler_platform::code_sign::running_satisfies(pid, before, requirement)
+            && juggler_proc_list::pid_version(pid) == Some(before);
+        if met {
+            checked_at.borrow_mut().insert(pid, before);
+        }
+        met
     };
     let parent_of = |pid: u32| kernel.get(&pid).map(|process| process.ppid);
     let system = System {
@@ -432,7 +447,14 @@ fn verify_tool(
         .into_iter()
         .map(|process| (process.pid, process))
         .collect();
-    if !still_the_same(&checked, kernel, &now) {
+    let same = still_the_same(
+        &checked,
+        kernel,
+        &now,
+        &checked_at.borrow(),
+        &juggler_proc_list::pid_version,
+    );
+    if !same {
         return Err("a process checked ended or changed while it was checked".to_owned());
     }
     let app = candidate
@@ -889,23 +911,36 @@ mod tests {
         // M1 round 2: the start time and parent of every pid checked, read
         // again once the checks are done.
         let before = table(&[listed(200, 1, 1_000), listed(400, 200, 2_000)]);
-        assert!(still_the_same(&[200, 400], &before, &before));
+        let checked_at: HashMap<u32, u32> = [(200, 5), (400, 9)].into_iter().collect();
+        let as_checked = |pid: u32| checked_at.get(&pid).copied();
+        let same = |after: &HashMap<u32, Listed>, now: &dyn Fn(u32) -> Option<u32>| {
+            still_the_same(&[200, 400], &before, after, &checked_at, now)
+        };
+        assert!(same(&before, &as_checked));
         let reused = table(&[listed(200, 1, 3_000), listed(400, 200, 2_000)]);
-        assert!(
-            !still_the_same(&[200, 400], &before, &reused),
-            "a pid taken since"
-        );
+        assert!(!same(&reused, &as_checked), "a pid taken since");
         let moved = table(&[listed(200, 1, 1_000), listed(400, 1, 2_000)]);
-        assert!(
-            !still_the_same(&[200, 400], &before, &moved),
-            "its parent ended"
-        );
+        assert!(!same(&moved, &as_checked), "its parent ended");
         let gone = table(&[listed(200, 1, 1_000)]);
-        assert!(!still_the_same(&[200, 400], &before, &gone));
+        assert!(!same(&gone, &as_checked));
         let mut zombie = listed(400, 200, 2_000);
         zombie.zombie = true;
         let ended = table(&[listed(200, 1, 1_000), zombie]);
-        assert!(!still_the_same(&[200, 400], &before, &ended));
+        assert!(!same(&ended, &as_checked));
+        // The third review's Info: an exec after its check (same pid, same
+        // start time and parent, a new pid version) is caught too.
+        let exec_d = |pid: u32| {
+            if pid == 400 {
+                Some(10)
+            } else {
+                as_checked(pid)
+            }
+        };
+        assert!(!same(&before, &exec_d), "an exec after the check");
+        assert!(
+            !still_the_same(&[200, 400, 300], &before, &before, &checked_at, &as_checked),
+            "a pid never checked isn't the same"
+        );
     }
 
     #[test]

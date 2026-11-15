@@ -334,7 +334,8 @@ part in its adapter, `juggler_adapter::peer::DesktopPeer`):
      execs) is read before its check and again after it, and must be the
      same; once all checks are done, the kernel's listing is read again
      and every process checked must still have the start time and the
-     parent it had. Verdicts are kept per (pid, pid version, requirement),
+     parent it had, and the pid version its check saw (an exec after the
+     checks is caught too). Verdicts are kept per (pid, pid version, requirement),
      never per path (`juggler_platform::code_sign`).
    - *The instance:* that verified main process's own `--user-data-dir`
      (else the app's default folder) is this App's instance folder, as
