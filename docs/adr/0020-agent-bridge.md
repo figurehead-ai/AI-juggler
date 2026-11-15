@@ -378,7 +378,8 @@ part in its adapter, `juggler_adapter::peer::DesktopPeer`):
    (`SessionsRepo::insert` refuses the prefix), and keeps them in memory
    (`Storage::attested`), refreshed by each attested call and dropped ten
    minutes after the last one, or at once when a later call finds that
-   session's registry entry stale. Only this path writes it. Then the call
+   session's registry entry stale or its conversation archived by the app
+   (or its record gone, or naming another conversation). Only this path writes it. Then the call
    goes on exactly as a keyed one: the rate limit (per conversation),
    Settings › Agent access, the pool's level, the talk rules, and
    `allowed(pool, action)`, which decides and audits.

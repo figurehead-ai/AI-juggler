@@ -520,9 +520,10 @@ fn a_call_carries_its_own_attested_facts() {
 
 /// H3: on every attested call, what is kept for each desktop session is
 /// dropped at once when its tool's registry entry is gone or names
-/// another start time, not only after ten minutes.
+/// another start time, or (round 2) when the app archives its
+/// conversation, not only after ten minutes.
 #[test]
-fn kept_facts_go_when_the_registry_entry_goes_or_its_start_changes() {
+fn kept_facts_go_when_the_registry_entry_goes_its_start_changes_or_it_is_archived() {
     use juggler_adapter::peer::AttestedSession;
     let dir = tempfile::tempdir().unwrap();
     let mut registry = juggler_adapter::AdapterRegistry::new();
@@ -543,6 +544,18 @@ fn kept_facts_go_when_the_registry_entry_goes_or_its_start_changes() {
         .unwrap();
     };
     entry(&ctime(start));
+    let records = instance.join("claude-code-sessions/acct/org");
+    std::fs::create_dir_all(&records).unwrap();
+    let app_record = |archived: bool| {
+        std::fs::write(
+            records.join("local_t1.json"),
+            format!(
+                r#"{{"sessionId":"local_t1","cliSessionId":"{CONVERSATION}","isArchived":{archived}}}"#
+            ),
+        )
+        .unwrap();
+    };
+    app_record(false);
     let app = {
         let storage = state.storage.lock().unwrap();
         storage
@@ -614,6 +627,13 @@ fn kept_facts_go_when_the_registry_entry_goes_or_its_start_changes() {
     std::fs::remove_file(config.join("sessions/4242.json")).unwrap();
     sweep();
     assert!(!kept(), "its registry entry gone: dropped at once");
+    entry(&ctime(start));
+    keep();
+    sweep();
+    assert!(kept(), "back");
+    app_record(true);
+    sweep();
+    assert!(!kept(), "its conversation archived: dropped at once");
 }
 
 /// L7: keyless lines are limited by their peer before any attestation:

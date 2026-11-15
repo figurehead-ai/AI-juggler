@@ -211,22 +211,30 @@ pub fn tool_binary(place: &DesktopPlace<'_>, exe: &Path) -> bool {
         && exe.ends_with("Contents/MacOS/claude")
 }
 
-/// H3: whether the registry still names `session` for its tool process:
-/// the entry there, for its pid and conversation, with its start time.
+/// H3: whether the registry still names `session` for its tool process
+/// (the entry there, for its pid and conversation, with its start time),
+/// and the app's record still names its conversation, not archived (H3,
+/// round 2: archiving a conversation drops its kept facts at once).
 #[must_use]
 pub fn still_current(place: &DesktopPlace<'_>, session: &AttestedSession) -> bool {
     let rel = PathBuf::from("sessions").join(format!("{}.json", session.tool_pid));
     let Ok(Some(bytes)) = record(place.config_dir, &rel, ENTRY_MAX) else {
         return false;
     };
-    serde_json::from_slice::<Entry>(&bytes).is_ok_and(|entry| {
+    let registry = serde_json::from_slice::<Entry>(&bytes).is_ok_and(|entry| {
         entry.pid == Some(u64::from(session.tool_pid))
             && entry.session_id.as_deref() == Some(session.conversation.as_str())
             && same_start_strict(
                 entry.proc_start.as_deref().and_then(ctime_utc_secs),
                 session.tool_start,
             )
-    })
+    });
+    registry
+        && plain_id(&session.host_session)
+        && matches!(
+            app_record(place.instance_dir, &session.host_session),
+            AppRecord::Of(conversation) if conversation == session.conversation
+        )
 }
 
 /// What the app keeps for one of its sessions.
@@ -563,6 +571,39 @@ mod tests {
         // The registry entry gone: the session ended.
         std::fs::remove_file(lab.config.join("sessions/4242.json")).unwrap();
         assert!(!still_current(&place(&lab), &session));
+    }
+
+    /// H3 (round 2): a kept session stops being current the moment the app
+    /// archives its conversation, or its record names another one or goes.
+    #[test]
+    fn an_archived_conversation_isnt_current_any_more() {
+        let lab = lab();
+        desktop_entry(&lab, 4242, START_TEXT);
+        record(&lab, "conv-1");
+        let PeerVerdict::Attested(session) =
+            attest(&place(&lab), &[step(5000, START + 5), step(4242, START)])
+        else {
+            unreachable!("attested");
+        };
+        assert!(still_current(&place(&lab), &session));
+        let file = lab
+            .instance
+            .join("claude-code-sessions/acct/org/local_abc-1.json");
+        std::fs::write(
+            &file,
+            r#"{"sessionId":"local_abc-1","cliSessionId":"conv-1","isArchived":true}"#,
+        )
+        .unwrap();
+        assert!(!still_current(&place(&lab), &session), "archived");
+        record(&lab, "conv-2");
+        assert!(
+            !still_current(&place(&lab), &session),
+            "another conversation"
+        );
+        std::fs::remove_file(&file).unwrap();
+        assert!(!still_current(&place(&lab), &session), "no record");
+        record(&lab, "conv-1");
+        assert!(still_current(&place(&lab), &session));
     }
 
     #[test]
