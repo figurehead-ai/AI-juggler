@@ -53,6 +53,9 @@ pub enum AppEvent {
     MessagesChanged,
     /// The processes changed.
     ProcessesChanged,
+    /// The processes' counts moved (AJ-E805: the top bar's count, told
+    /// only when it moves).
+    ProcessCounts,
     /// The places (apps and profiles) changed.
     PlacesChanged,
     /// A session's runtime changed.
@@ -77,7 +80,7 @@ pub enum AppEvent {
 
 impl AppEvent {
     /// Every event, in declaration order.
-    pub const ALL: [Self; 29] = [
+    pub const ALL: [Self; 30] = [
         Self::AppReady,
         Self::SessionsUpdated,
         Self::SessionsResources,
@@ -97,6 +100,7 @@ impl AppEvent {
         Self::TasksChanged,
         Self::MessagesChanged,
         Self::ProcessesChanged,
+        Self::ProcessCounts,
         Self::PlacesChanged,
         Self::RuntimeChanged,
         Self::ConversationsChanged,
@@ -132,6 +136,7 @@ impl AppEvent {
             Self::TasksChanged => "tasks://changed",
             Self::MessagesChanged => "messages://changed",
             Self::ProcessesChanged => "processes://changed",
+            Self::ProcessCounts => "processes://counts",
             Self::PlacesChanged => "places-changed",
             Self::RuntimeChanged => "runtime://changed",
             Self::ConversationsChanged => "conversations://changed",

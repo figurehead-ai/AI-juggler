@@ -8,7 +8,8 @@
  * in `preview/processes`, so the page, its filters and its sheets work in
  * the dev preview and the gallery.
  */
-import { call, listen } from "./transport";
+import { call } from "./transport";
+import { listenWhileShown } from "../shown-window";
 import { hasLiveBackend } from "../bridge";
 import { portInventory, type PortInventoryInfo } from "./kill";
 import type { KillExecuteData, KillVerifyData } from "../../components/KillSheet";
@@ -43,6 +44,8 @@ export type {
 
 /** The event the backend sends when the graph changed. */
 export const PROCESSES_CHANGED = "processes://changed";
+/** AJ-E805: the counts alone, told only when one moves. */
+export const PROCESS_COUNTS = "processes://counts";
 
 /** A query with every filter off (the page's default). */
 export function processQuery(over: Partial<ProcessQueryInput> = {}): ProcessQueryInput {
@@ -148,24 +151,35 @@ export async function processesSnapshot(): Promise<ProcessSnapshotInfo> {
   return call("processes_snapshot");
 }
 
-/** Calls `on` each time the graph changes; returns the disposer. In the
- * preview, a `aij:processes-changed` window event stands in. */
-export function onProcessesChanged(on: (change: ProcessGraphChangedInfo) => void): () => void {
-  if (!hasLiveBackend()) {
-    const handler = (event: Event) => on((event as CustomEvent<ProcessGraphChangedInfo>).detail);
-    window.addEventListener("aij:processes-changed", handler);
-    return () => window.removeEventListener("aij:processes-changed", handler);
-  }
-  let disposed = false;
-  let stop: (() => void) | null = null;
-  void listen<ProcessGraphChangedInfo>(PROCESSES_CHANGED, (event) => on(event.payload)).then((unlisten) => {
-    if (disposed) unlisten();
-    else stop = unlisten;
-  });
-  return () => {
-    disposed = true;
-    stop?.();
-  };
+/** Calls `on` with the counts each time the graph changes (the Processes
+ * page, which shows it), while the window can be seen (read once when it
+ * shows: AJ-E805); returns the disposer. In the preview, a
+ * `aij:processes-changed` window event stands in. */
+export function onProcessesChanged(on: (counts: ProcessCountsInfo) => void): () => void {
+  return (
+    previewCounts(on) ??
+    listenWhileShown<ProcessGraphChangedInfo>(PROCESSES_CHANGED, (change) => on(change.counts), countsAgain(on))
+  );
+}
+
+/** Calls `on` with the counts when one moves (the top bar's count): the
+ * graph changes on nearly every 2 s tick while sessions work, and a
+ * window that listens to it is sent each (AJ-E805). */
+export function onProcessCounts(on: (counts: ProcessCountsInfo) => void): () => void {
+  return previewCounts(on) ?? listenWhileShown<ProcessCountsInfo>(PROCESS_COUNTS, on, countsAgain(on));
+}
+
+/** The counts read again (a window that shows again catches up). */
+function countsAgain(on: (counts: ProcessCountsInfo) => void): () => void {
+  return () => void processesCounts().then(on, () => undefined);
+}
+
+/** In the preview, the `aij:processes-changed` window event; live, `null`. */
+function previewCounts(on: (counts: ProcessCountsInfo) => void): (() => void) | null {
+  if (hasLiveBackend()) return null;
+  const handler = (message: Event) => on((message as CustomEvent<ProcessGraphChangedInfo>).detail.counts);
+  window.addEventListener("aij:processes-changed", handler);
+  return () => window.removeEventListener("aij:processes-changed", handler);
 }
 
 /** Reveal folder: the session's folder in Finder (the one the backend

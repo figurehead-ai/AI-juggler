@@ -8,6 +8,7 @@ import { expect, gate, test } from "./happo";
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { allStatuses, honestEmpty, openFilters, type FixtureSet } from "./fixtures";
+import { HOME_OUT_USE, HOME_OUT_VIEWPORT, showHomeOut } from "./fixtures/home-out";
 
 const OUT = resolve(process.cwd(), "../docs/qa/evidence/_gallery/67-home");
 const T0 = 1_728_800_000_000;
@@ -125,6 +126,32 @@ for (const theme of ["dark", "light"] as const) {
     await expect(menu).toHaveCount(0);
   });
 }
+
+/**
+ * 0.4.5 (the maintainer's 0.4.4 finding): Your apps at its narrowest
+ * cards (210 px) with an Account out of room whose reset reads at its
+ * longest (fixtures/home-out.ts). Its mark wraps inside the card, its
+ * icon beside the first line; a mark that fits ("Low · 7% left") is drawn
+ * as before. Both themes in one gate state.
+ */
+test.describe("home — your apps, an Account out, at the narrowest cards", () => {
+  test.use(HOME_OUT_USE);
+  test("home — your apps, an Account out, at the narrowest cards — both themes", gate("67-home-apps-out"), async ({ page }) => {
+    const size = `${HOME_OUT_VIEWPORT.width}x${HOME_OUT_VIEWPORT.height}`;
+    for (const theme of ["dark", "light"] as const) {
+      await showHomeOut(page, theme);
+      const marks = page.getByTestId("home-app-room");
+      await expect(marks.filter({ hasText: "Out · resets about 10:00 AM tomorrow" })).toHaveCount(2);
+      await expect(marks.filter({ hasText: "Out · resets 6:00 AM tomorrow" })).toHaveCount(1);
+      await expect(marks.filter({ hasText: "Low · 7% left" })).toHaveCount(1);
+      await expect(page.getByTestId("home-app-account").filter({ hasText: "7% left" })).toHaveCount(1);
+      await expect(page.getByTestId("home-app-tile").first()).toHaveJSProperty("offsetWidth", 210);
+      await page.mouse.move(0, 0);
+      await page.getByTestId("home-apps").screenshot({ path: resolve(OUT, `apps-out-${size}-${theme}.png`) });
+      await axeClean(page, `home your apps, out, ${theme}`);
+    }
+  });
+});
 
 // 0.0.6 dogfood: the rail's "?" opened a legend that was clipped out of
 // sight — the suites checked it opened, never that it could be seen.

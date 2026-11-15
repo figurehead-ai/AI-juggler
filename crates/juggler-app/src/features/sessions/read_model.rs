@@ -56,15 +56,30 @@ pub fn working_records(storage: &Storage) -> AppResult<Vec<SessionRecord>> {
     )?)
 }
 
-/// One batched sample of live process stats for every supervised session
-/// (locks only the collector — never together with the storage lock).
+/// How old the collector's stats may be before a reader samples again
+/// itself (AJ-E805, 0.4.5 idle CPU). The app's 2 s tick keeps them younger,
+/// so the readers (the 5 s emission, the 15 s heuristics, every list the
+/// window asks for) read what that tick sampled. Each used to run a whole
+/// tick of its own: the process table read again, the zombies' `ps`, the
+/// reconcile, the ports, several times every few seconds. A caller with no
+/// tick running (a tool, a test) still gets a fresh sample.
+pub(crate) const STATS_FRESH_MS: i64 = 3_000;
+
+/// The live process stats of every supervised session, as the last tick
+/// sampled them (sampled now when no tick ran within [`STATS_FRESH_MS`]);
+/// locks only the collector, never together with the storage lock.
 pub(crate) fn live_stats_of(state: &Arc<AppState>) -> LiveStatsMap {
     let Ok(mut collector) = state.resources.lock() else {
         // Poisoned collector: report nothing rather than fabricated zeros.
         return LiveStatsMap::new();
     };
-    collector
-        .refresh(&state.supervisor)
+    let age = now_millis().saturating_sub(collector.work().last_tick_ms);
+    let sampled = if age <= STATS_FRESH_MS {
+        collector.stats_snapshot()
+    } else {
+        collector.refresh(&state.supervisor)
+    };
+    sampled
         .into_iter()
         .map(|(session, stats)| (session.to_string(), stats))
         .collect()
@@ -1073,5 +1088,23 @@ mod tests {
                 "NeedsAttention.ts is missing `{variant}`"
             );
         }
+    }
+
+    /// AJ-E805 (0.4.5): the readers of the live stats (the 5 s emission,
+    /// the heuristics, every list the window asks for) read what the 2 s
+    /// tick sampled; each ran a whole sampling tick of its own (the
+    /// process table read again, the zombies' `ps`, the reconcile).
+    #[test]
+    fn a_reader_takes_the_ticks_stats_without_sampling_again() {
+        let dir = tempfile::tempdir().expect("temp dir");
+        let state = crate::test_support::bare_state(dir.path().join("data"));
+        let ticks = || state.resources.lock().expect("collector").work().ticks;
+        // No tick ran yet: the first reader samples.
+        let _ = super::live_stats_of(&state);
+        assert_eq!(ticks(), 1);
+        for _ in 0..5 {
+            let _ = super::live_stats_of(&state);
+        }
+        assert_eq!(ticks(), 1, "fresh stats are read, never sampled again");
     }
 }

@@ -100,6 +100,13 @@ const SINK_SITES: &[(&str, &str)] = &[
         "features/presence/tests::a_launch_and_a_quit_show_within_the_bound",
         CHILD,
     ),
+    // AJ-E805 (0.4.5, a test): the `sleep` the process table's
+    // started-since test started itself, ended once it has read it; never
+    // anything else.
+    (
+        "features/conversations/procs::a_process_started_since_is_read_with_its_arguments",
+        CHILD,
+    ),
     // E23 (ADR-0022): a driven session's own process, through the
     // supervisor: the one it just started when its protocol didn't answer
     // (the start falls back to the terminal), one handed over to the

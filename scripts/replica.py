@@ -298,14 +298,17 @@ def claude_line(kind: str, cwd: str, session: str, branch: str, parent: str | No
 def write_claude_conversation(folder: Path, cwd: str, branch: str, start: dt.datetime, rng: random.Random,
                               session: str | None = None, turns: int | None = None,
                               topic: str | None = None, said: str | None = None,
-                              entrypoint: str | None = None) -> tuple[str, dt.datetime, int, str]:
+                              entrypoint: str | None = None, titled: bool = True) -> tuple[str, dt.datetime, int, str]:
     session = session or str(uuid.UUID(int=rng.getrandbits(128)))
     topic = topic or rng.choice(TOPICS)
     model = rng.choice(MODELS_CLAUDE)
     path = folder / claude_dir_name(cwd) / f"{session}.jsonl"
     path.parent.mkdir(parents=True, exist_ok=True)
     at, parent, tokens = start, None, 0
-    lines = [json.dumps({"type": "summary", "summary": topic, "leafUuid": "leaf"})]
+    # `titled=False`: no title line, as a short session Claude Code never
+    # titled (its name then comes from its first ask, as `claude --resume`
+    # shows it).
+    lines = [json.dumps({"type": "summary", "summary": topic, "leafUuid": "leaf"})] if titled else []
     for turn in range(turns if turns is not None else rng.randint(2, 18)):
         line, parent = claude_line("user", cwd, session, branch, parent, at, rng,
                                    text=topic if turn == 0 else (said if turn == 1 and said else "Keep going."),
@@ -503,10 +506,39 @@ INFO_PLIST = """<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0"><dict>
 <key>CFBundleExecutable</key><string>{exe}</string>
+<key>CFBundleName</key><string>{name}</string>
+<key>CFBundleDisplayName</key><string>{name}</string>
 <key>CFBundleIdentifier</key><string>test.aij-replica.{ident}</string>
 <key>CFBundlePackageType</key><string>APPL</string>
 </dict></plist>
 """
+
+
+# The system's tool that keeps the record of every app it has seen.
+LSREGISTER = "/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister"
+
+# What would start a stand-in through LaunchServices (Gatekeeper's checks and
+# its dialogs among them): never used; a stand-in starts from its own path.
+NOT_A_START = {"open", "osascript"}
+
+
+def copy_bare(source: str | Path, target: Path) -> None:
+    """`source` copied to `target` as a plain executable file: its bytes and
+    nothing else, never its extended attributes (a quarantine or provenance
+    mark carried over made macOS call a stand-in "damaged" and say it was
+    downloaded, in a dialog on the maintainer's screen, 2026-11-13)."""
+    shutil.copyfile(source, target)
+    os.chmod(target, 0o755)
+
+
+def start(argv: list[str], **kwargs: object) -> subprocess.Popen:
+    """A stand-in started by running its own executable, never through
+    LaunchServices (`open`, NSWorkspace, AppleScript), so Gatekeeper's
+    checks and dialogs are never part of it."""
+    program = str(kwargs.get("executable") or argv[0])
+    assert Path(program).name not in NOT_A_START, f"replica: {program} would start it through LaunchServices"
+    assert Path(program).is_absolute() and Path(program).is_file(), f"replica: {program} isn't a stand-in's own file"
+    return subprocess.Popen(argv, **kwargs)  # type: ignore[arg-type]
 
 
 def make_bundle(bundle: Path, exe: str, source: str, nested: list[Path] | None = None) -> Path:
@@ -517,13 +549,20 @@ def make_bundle(bundle: Path, exe: str, source: str, nested: list[Path] | None =
     every launch (the coordinator, 2026-10-22). `codesign --verify
     --strict` must pass before anything starts from it. (`spctl` rejects
     every ad-hoc bundle, AI Juggler's own Dev builds included; that is not
-    what raises the dialog, so it isn't the check.)"""
+    what raises the dialog, so it isn't the check.) It is named "AIJ
+    Replica <name>" wherever the system names it (its executable keeps the
+    name the app's process reader knows), carries no quarantine mark, and
+    starts only from its own path ([`start`]); `replica.py teardown` takes
+    it out of LaunchServices' records and deletes it."""
     target = bundle / "Contents" / "MacOS" / exe
     target.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copy2(source, target)
+    copy_bare(source, target)
     ident = "".join(c if c.isalnum() else "-" for c in bundle.stem.lower())
-    (bundle / "Contents" / "Info.plist").write_text(INFO_PLIST.format(exe=exe, ident=ident))
+    name = f"AIJ Replica {bundle.stem}"
+    (bundle / "Contents" / "Info.plist").write_text(INFO_PLIST.format(exe=exe, ident=ident, name=name))
     if sys.platform == "darwin":
+        subprocess.run(["xattr", "-dr", "com.apple.quarantine", str(bundle)],
+                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         for path in [*(nested or []), bundle]:
             subprocess.run(["codesign", "--force", "--sign", "-", str(path)], check=True,
                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
@@ -546,7 +585,7 @@ def live(args: argparse.Namespace) -> None:
     claude_bin = bin_dir / "claude"
     codex_bin = bin_dir / "codex"
     for target in (claude_bin, codex_bin):
-        shutil.copy2(args.harness, target)
+        copy_bare(args.harness, target)
     # The desktop app runs each of its Code sessions from a bundled CLI;
     # the desktop app and a ChatGPT-like helper are bundles too. Each is a
     # whole, signed bundle (see `make_bundle`).
@@ -555,7 +594,7 @@ def live(args: argparse.Namespace) -> None:
     chatgpt = home / MARKER / "Applications" / "ChatGPT.app"
     helper = chatgpt / "Contents" / "Frameworks" / "ChatGPT Helper"
     helper.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copy2(args.desktop, helper)
+    copy_bare(args.desktop, helper)
     make_bundle(chatgpt, "ChatGPT", args.desktop, nested=[helper])
 
     procs: list[subprocess.Popen] = []
@@ -616,13 +655,13 @@ def live(args: argparse.Namespace) -> None:
             helper_env = {**env, "AIJ_REPLICA_WRITE": writer([
                 "--format", "claude", "--file", str(home / MARKER / "helper-scratch.jsonl"),
                 "--cwd", project["path"], "--session-id", "helper", "--every-ms", "60000", "--idle"])}
-            procs.append(subprocess.Popen(["ugrep", "-r", "TODO", "."], executable=exe, cwd=project["path"],
+            procs.append(start(["ugrep", "-r", "TODO", "."], executable=exe, cwd=project["path"],
                                           env=helper_env, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL))
             truth["helpers"] = [{"name": "ugrep", "pid": procs[-1].pid, "account": account["label"],
                                  "project": Path(project["path"]).name}]
             time.sleep(0.2)
         env["AIJ_REPLICA_WRITE"] = writer(options)
-        procs.append(subprocess.Popen(argv, cwd=project["path"], env=env,
+        procs.append(start(argv, cwd=project["path"], env=env,
                                       stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL))
         truth["live"].append({"tool": "claude-code", "account": account["label"], "project": Path(project["path"]).name,
                               "id": session, "pid": procs[-1].pid})
@@ -637,16 +676,16 @@ def live(args: argparse.Namespace) -> None:
             "--format", "codex", "--file", str(day / f"rollout-{now:%Y-%m-%dT%H-%M-%S}-{thread}.jsonl"),
             "--cwd", project["path"], "--session-id", thread, "--every-ms", "5000", "--ask", rng.choice(TOPICS),
             "--used", str(account["limits"]["five_hour_used_percent"]), str(account["limits"]["weekly_used_percent"])])
-        procs.append(subprocess.Popen([str(codex_bin)], cwd=project["path"], env=env,
+        procs.append(start([str(codex_bin)], cwd=project["path"], env=env,
                                       stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL))
         truth["live"].append({"tool": "codex", "account": account["label"], "project": Path(project["path"]).name,
                               "id": thread, "pid": procs[-1].pid})
     if args.desktop_app:
-        procs.append(subprocess.Popen([str(app), "--exit-after-secs", str(args.minutes * 60)],
+        procs.append(start([str(app), "--exit-after-secs", str(args.minutes * 60)],
                                       env={**env_base, "CLAUDE_CONFIG_DIR": claude_accounts[1]["folder"]}))
-        procs.append(subprocess.Popen([str(helper), "--exit-after-secs", str(args.minutes * 60)], env=env_base))
+        procs.append(start([str(helper), "--exit-after-secs", str(args.minutes * 60)], env=env_base))
     if args.pressure_mb:
-        procs.append(subprocess.Popen([sys.executable, "-c", (
+        procs.append(start([sys.executable, "-c", (
             "import time,sys\n"
             f"b=bytearray({args.pressure_mb}*1024*1024)\n"
             "for i in range(0,len(b),4096): b[i]=1\n"
@@ -674,6 +713,31 @@ def live(args: argparse.Namespace) -> None:
     while time.monotonic() < deadline:
         time.sleep(1)
     stop()
+
+
+def replica_bundles(home: Path) -> list[Path]:
+    """Every stand-in `.app` the replica made under `home`, outermost first
+    (a nested one goes with its outer bundle)."""
+    found = sorted((home / MARKER).rglob("*.app"), key=lambda path: len(path.parts))
+    outer: list[Path] = []
+    for bundle in found:
+        if not any(parent in outer for parent in bundle.parents):
+            outer.append(bundle)
+    return outer
+
+
+def teardown(args: argparse.Namespace) -> None:
+    """The replica's stand-in apps out of LaunchServices' records, then
+    deleted (every lab's teardown runs it before removing the lab): a stand-in
+    left registered could be started by the system, outside the lab, and
+    raise a dialog naming a damaged app (2026-11-13)."""
+    home = Path(args.home).expanduser()
+    lab_only(home)
+    for bundle in replica_bundles(home):
+        if sys.platform == "darwin" and Path(LSREGISTER).exists():
+            subprocess.run([LSREGISTER, "-u", str(bundle)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        shutil.rmtree(bundle, ignore_errors=True)
+        print(f"replica: {bundle.name} unregistered and deleted")
 
 
 def lab_only(folder: Path) -> None:
@@ -716,7 +780,8 @@ def conversation(args: argparse.Namespace) -> None:
     (`<folder>/projects/<cwd>/<session>.jsonl`), ended a minute ago (or
     `--ago-minutes` before that). `--topic` is its title and first ask,
     `--said` its second (persona D3: a session found by its title or by
-    what was said). `--entrypoint` is where Claude Code says it ran (`cli`,
+    what was said); `--untitled` leaves the title out, so `--topic` is
+    only its first ask. `--entrypoint` is where Claude Code says it ran (`cli`,
     `claude-desktop`, a script's `sdk-cli`); `--app-record DIR` adds the
     Claude app's own record of it in DIR (a profile's
     `claude-code-sessions/<account>/<org>`), as a Code-tab session has.
@@ -730,7 +795,8 @@ def conversation(args: argparse.Namespace) -> None:
     start = ended - dt.timedelta(minutes=9 + 2 * args.turns)
     session, _, _, topic = write_claude_conversation(folder / "projects", args.cwd, "main", start, rng,
                                                      session=args.session, turns=args.turns,
-                                                     topic=args.topic, said=args.said, entrypoint=args.entrypoint)
+                                                     topic=args.topic, said=args.said, entrypoint=args.entrypoint,
+                                                     titled=not args.untitled)
     path = folder / "projects" / claude_dir_name(args.cwd) / f"{session}.jsonl"
     touch(path, ended)
     written = {"path": str(path), "session": session, "topic": topic}
@@ -849,7 +915,41 @@ def selftest() -> None:
             pass
         assert (real / "keep.txt").read_text() == "mine"
         lab_writers(Path(tmp))
+        if sys.platform == "darwin":
+            stand_in_bundles(Path(tmp))
     print("replica selftest: OK")
+
+
+def stand_in_bundles(tmp: Path) -> None:
+    """A stand-in app (2026-11-13: a replica Claude.app raised "'Claude' is
+    damaged and can't be opened" on the maintainer's screen): named as the
+    replica's wherever the system names it, its executable still "Claude";
+    no quarantine mark, even from a marked source; whole and signed; started
+    only from its own path; and gone, records and all, after teardown."""
+    import plistlib
+
+    lab = tmp / "aij-lab-stand-ins"
+    source = tmp / "marked-binary"
+    shutil.copyfile("/usr/bin/true", source)
+    os.chmod(source, 0o755)
+    subprocess.run(["xattr", "-w", "com.apple.quarantine", "0081;00000000;replica-test;", str(source)], check=True)
+    bundle = lab / MARKER / "Applications" / "Claude.app"
+    make_bundle(bundle, "Claude", str(source))
+    info = plistlib.loads((bundle / "Contents" / "Info.plist").read_bytes())
+    assert info["CFBundleName"] == info["CFBundleDisplayName"] == "AIJ Replica Claude", info
+    assert info["CFBundleExecutable"] == "Claude", info
+    marks = subprocess.run(["xattr", "-r", str(bundle)], capture_output=True, text=True, check=True).stdout
+    assert "com.apple.quarantine" not in marks, f"quarantined: {marks}"
+    source_marks = subprocess.run(["xattr", str(source)], capture_output=True, text=True, check=True).stdout
+    assert "com.apple.quarantine" in source_marks, "the test's source was marked"
+    for refused in (["open", str(bundle)], ["/usr/bin/open", "-a", str(bundle)], ["osascript", "-e", "x"], ["Claude"]):
+        try:
+            start(refused)
+            raise AssertionError(f"started through LaunchServices or by name: {refused}")
+        except AssertionError as refusal:
+            assert str(refusal).startswith("replica:"), refusal
+    teardown(argparse.Namespace(home=str(lab)))
+    assert not bundle.exists() and replica_bundles(lab) == [], "teardown leaves no stand-in app"
 
 
 def lab_writers(tmp: Path) -> None:
@@ -867,12 +967,20 @@ def lab_writers(tmp: Path) -> None:
         conversation(argparse.Namespace(
             folder=str(lab / "code"), cwd=str(lab / "repos/web"), session="0a1b2c3d-0000-4000-8000-000000000001",
             turns=2, topic="Fix the flaky login test", said=None, ago_minutes=60, entrypoint="claude-desktop",
-            app_record=str(lab / "profile/claude-code-sessions/acct/org")))
+            app_record=str(lab / "profile/claude-code-sessions/acct/org"), untitled=False))
         for n, (originator, source) in enumerate((("Codex Desktop", "vscode"), ("codex_exec", "exec"))):
             codex_thread(argparse.Namespace(
                 home=str(lab / "codex"), cwd=str(lab / "repos/web"), thread=f"0a1b2c3d-0000-4000-8000-00000000001{n}",
                 originator=originator, source=source, turns=2, topic=None, ago_minutes=0))
+        conversation(argparse.Namespace(
+            folder=str(lab / "term"), cwd=str(lab / "repos/api"), session="0a1b2c3d-0000-4000-8000-000000000002",
+            turns=2, topic="Tidy the settings page", said=None, ago_minutes=0, entrypoint=None, app_record=None,
+            untitled=True))
     written = [json.loads(line) for line in out.getvalue().splitlines()]
+    # Untitled: no title line; the topic is only its first ask.
+    bare = [json.loads(line) for line in Path(written[3]["path"]).read_text().splitlines()]
+    assert all(line["type"] != "summary" for line in bare), bare[0]
+    assert bare[0]["type"] == "user" and "Tidy the settings page" in json.dumps(bare[0]["message"]), bare[0]
     lines = [json.loads(line) for line in Path(written[0]["path"]).read_text().splitlines()]
     assert all(line.get("entrypoint") == "claude-desktop" for line in lines if line["type"] in ("user", "assistant"))
     record = json.loads(Path(written[0]["record"]).read_text())
@@ -886,7 +994,8 @@ def lab_writers(tmp: Path) -> None:
     assert rows == [("exec", "codex_exec", 0), ("vscode", "Codex Desktop", 0)], rows
     try:
         conversation(argparse.Namespace(folder=str(tmp / "someone"), cwd="/", session="x", turns=1, topic=None,
-                                        said=None, ago_minutes=0, entrypoint=None, app_record=None))
+                                        said=None, ago_minutes=0, entrypoint=None, app_record=None,
+                                        untitled=False))
         raise AssertionError("a folder outside a lab was written")
     except SystemExit:
         pass
@@ -919,6 +1028,7 @@ def main() -> None:
     c.add_argument("--turns", type=int, default=3)
     c.add_argument("--topic", help="its title and first ask (default: one of the replica's)")
     c.add_argument("--said", help="its second ask, for a search of what was said")
+    c.add_argument("--untitled", action="store_true", help="no title line: --topic is only its first ask")
     c.add_argument("--ago-minutes", type=int, default=0, help="how long before now it ended")
     c.add_argument("--entrypoint", help="where Claude Code says it ran: cli, claude-desktop, sdk-cli")
     c.add_argument("--app-record", help="also the Claude app's record of it, in this records folder")
@@ -933,6 +1043,8 @@ def main() -> None:
     x.add_argument("--ago-minutes", type=int, default=0, help="how long before now it ended")
     t = sub.add_parser("truth")
     t.add_argument("--home", required=True)
+    d = sub.add_parser("teardown", help="the stand-in apps out of LaunchServices' records, then deleted")
+    d.add_argument("--home", required=True)
     sub.add_parser("selftest")
     args = parser.parse_args()
     if args.command == "build":
@@ -943,6 +1055,8 @@ def main() -> None:
         conversation(args)
     elif args.command == "codex-thread":
         codex_thread(args)
+    elif args.command == "teardown":
+        teardown(args)
     elif args.command == "selftest":
         selftest()
     else:

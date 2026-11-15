@@ -29,6 +29,17 @@ use juggler_core::quota::{UsageEvent, UsageSource};
 const T0: i64 = 1_792_663_200_000;
 const SWITCH_MIN: i64 = 5;
 
+/// The tools whose files the usage reading reads, through their readers
+/// (0.4.5, AJ-E805), as the app registers them.
+fn tools() -> juggler_adapter::AdapterRegistry {
+    let mut registry = juggler_adapter::AdapterRegistry::new();
+    registry.register(Arc::new(juggler_adapters::ClaudeCodeAdapter::with_bin(
+        "/bin/true",
+    )));
+    registry.register(Arc::new(juggler_adapters::CodexAdapter::new()));
+    registry
+}
+
 /// A usage line at `minute` past 10:00 on 2026-10-22.
 fn line(id: &str, session: &str, minute: i64, output: u64) -> String {
     let ts = format!("2026-10-22T10:{minute:02}:00.000Z");
@@ -195,13 +206,8 @@ fn write(path: PathBuf, lines: &[String]) {
 #[test]
 fn a_switched_conversations_history_counts_only_where_it_was_spent() {
     let dir = tempfile::tempdir().unwrap();
-    let state = Arc::new(
-        AppState::init_with_registry(
-            dir.path().join("app-data"),
-            juggler_adapter::AdapterRegistry::new(),
-        )
-        .unwrap(),
-    );
+    let state =
+        Arc::new(AppState::init_with_registry(dir.path().join("app-data"), tools()).unwrap());
     let (b, c) = (dir.path().join("b"), dir.path().join("c"));
     account(&state, "acc-b", &b);
     account(&state, "acc-c", &c);
@@ -295,13 +301,7 @@ fn a_switched_conversations_history_counts_only_where_it_was_spent() {
 }
 
 fn state_with(dir: &Path, accounts: &[&str]) -> Arc<AppState> {
-    let state = Arc::new(
-        AppState::init_with_registry(
-            dir.join("app-data"),
-            juggler_adapter::AdapterRegistry::new(),
-        )
-        .unwrap(),
-    );
+    let state = Arc::new(AppState::init_with_registry(dir.join("app-data"), tools()).unwrap());
     for id in accounts {
         account(&state, id, &dir.join(id));
     }
@@ -489,13 +489,8 @@ fn no_pass_reads_a_copy_while_its_switch_runs() {
 #[test]
 fn a_conversation_copied_outside_ai_juggler_counts_each_call_once() {
     let dir = tempfile::tempdir().unwrap();
-    let state = Arc::new(
-        AppState::init_with_registry(
-            dir.path().join("app-data"),
-            juggler_adapter::AdapterRegistry::new(),
-        )
-        .unwrap(),
-    );
+    let state =
+        Arc::new(AppState::init_with_registry(dir.path().join("app-data"), tools()).unwrap());
     let (b, c) = (dir.path().join("b"), dir.path().join("c"));
     account(&state, "acc-b", &b);
     account(&state, "acc-c", &c);

@@ -13,10 +13,12 @@ pub mod by_relation;
 pub mod commands;
 pub mod dto;
 pub mod feed;
+pub mod gate;
 pub mod goto;
 pub mod last_messages;
 pub mod list_build;
 pub mod live;
+mod pass;
 pub mod places;
 pub mod procs;
 pub mod saved;
@@ -74,27 +76,6 @@ struct Entry {
     conversation: Option<Conversation>,
     /// Read whole (its tokens counted), not only its quick read.
     complete: bool,
-    /// When it was last read whole.
-    counted_at: Option<std::time::Instant>,
-}
-
-/// A transcript this big is read whole (for its tokens) at most every
-/// [`WHOLE_EVERY`] while it grows; its quick read keeps the last count
-/// between (0.3.5: a 586 MB live session was read whole every 15 s and
-/// kept a core busy).
-const WHOLE_BIG: u64 = 32 * 1024 * 1024;
-
-/// How often a big, growing transcript is read whole.
-const WHOLE_EVERY: std::time::Duration = std::time::Duration::from_secs(300);
-
-/// Whether a file of `len` bytes, last read whole at `counted_at`, is due
-/// a whole read at `now`.
-fn whole_read_due(
-    len: u64,
-    counted_at: Option<std::time::Instant>,
-    now: std::time::Instant,
-) -> bool {
-    len <= WHOLE_BIG || counted_at.is_none_or(|at| now.saturating_duration_since(at) >= WHOLE_EVERY)
 }
 
 /// Calls a pass's `progress` every `every` that read something.
@@ -180,11 +161,11 @@ fn store(
         .lock()
         .map_err(|_| AppError::StatePoisoned)?;
     let before = files.get(path);
-    let counted_at = if complete {
-        Some(std::time::Instant::now())
-    } else {
-        before.and_then(|entry| entry.counted_at)
-    };
+    note_placed(
+        &state.conversations,
+        before.and_then(|entry| entry.conversation.as_ref()),
+        conversation.as_ref(),
+    );
     let conversation =
         conversation.map(|conversation| carry_tokens(conversation, complete, before));
     files.insert(
@@ -194,7 +175,6 @@ fn store(
             modified,
             conversation,
             complete,
-            counted_at,
         },
     );
     drop(files);
@@ -205,8 +185,29 @@ fn store(
     Ok(())
 }
 
-/// A quick read (a changed file's start and end) counts no tokens: until
-/// the whole file is read again, it keeps the count its last read had, so
+/// AJ-E805 (round 3): what one read did to the folders ([`Placed`]): a
+/// conversation new to the index or in another folder changes them; one
+/// that only went on is touched.
+fn note_placed(index: &ConversationIndex, was: Option<&Conversation>, now: Option<&Conversation>) {
+    let (Some(was), Some(now)) = (was, now) else {
+        if was.is_some() || now.is_some() {
+            index.placed_changed();
+        }
+        return;
+    };
+    if was.folder != now.folder || was.summary.id != now.summary.id {
+        index.placed_changed();
+    } else if let (Some(folder), Some(at)) = (&now.folder, now.summary.last_ms)
+        && was.summary.last_ms.is_none_or(|before| at > before)
+        && let Ok(mut placed) = index.placed.lock()
+    {
+        placed.touched.push((folder.clone(), at));
+    }
+}
+
+/// A quick read (a big file's start and end, before its reader has read
+/// it: 0.4.5, AJ-E805) counts no tokens: until its reader has, it keeps
+/// the count its last read had, so
 /// a live session's usage never flips to "not measured" and back on every
 /// pass (a transcript only grows, so the last count is a floor).
 fn carry_tokens(
@@ -258,6 +259,22 @@ pub struct ConversationIndex {
     background: std::sync::atomic::AtomicBool,
     /// How far the first build is, and whether its last pass failed.
     build: list_build::Progress,
+    /// AJ-E805: which files the background pass reads (made at its first).
+    gate: Mutex<Option<gate::Gate>>,
+    /// AJ-E805 (round 3): what the reads since the projects were last
+    /// brought up to date did to the conversations' folders.
+    placed: Mutex<Placed>,
+}
+
+/// What reads did to the index's folders since [`ConversationIndex::take_placed`].
+#[derive(Debug, Default, PartialEq, Eq)]
+pub struct Placed {
+    /// A conversation came, went, or changed folder: the projects are
+    /// worked out again (`projects_backfill_impl`).
+    pub changed: bool,
+    /// Known conversations that only went on (lines appended): each one's
+    /// folder and its newest activity, for its project's last use.
+    pub touched: Vec<(PathBuf, i64)>,
 }
 
 impl ConversationIndex {
@@ -267,6 +284,22 @@ impl ConversationIndex {
     pub fn forget_under(&self, folder: &std::path::Path) {
         if let Ok(mut files) = self.files.lock() {
             files.retain(|path, _| !path.starts_with(folder));
+        }
+    }
+
+    /// What reads did to the folders since the last call ([`Placed`]),
+    /// and nothing since.
+    pub fn take_placed(&self) -> Placed {
+        self.placed
+            .lock()
+            .map(|mut placed| std::mem::take(&mut *placed))
+            .unwrap_or_default()
+    }
+
+    /// A conversation came, went or moved folder (see [`Placed`]).
+    fn placed_changed(&self) {
+        if let Ok(mut placed) = self.placed.lock() {
+            placed.changed = true;
         }
     }
 
@@ -303,18 +336,59 @@ impl ConversationIndex {
     /// [`AppError::StatePoisoned`] when the index's lock is poisoned.
     pub fn all(&self) -> AppResult<Vec<Conversation>> {
         let files = self.files.lock().map_err(|_| AppError::StatePoisoned)?;
-        let mut out = merged(
+        Ok(newest_first(merged(
             files
                 .values()
                 .filter_map(|entry| entry.conversation.clone()),
-        );
-        out.sort_by(|a, b| {
-            b.summary
-                .last_ms
-                .cmp(&a.summary.last_ms)
-                .then_with(|| a.path.cmp(&b.path))
-        });
-        Ok(out)
+        )))
+    }
+
+    /// Whether the index holds any conversation (without copying them).
+    ///
+    /// # Errors
+    ///
+    /// [`AppError::StatePoisoned`] when the index's lock is poisoned.
+    pub fn holds_any(&self) -> AppResult<bool> {
+        let files = self.files.lock().map_err(|_| AppError::StatePoisoned)?;
+        Ok(files.values().any(|entry| entry.conversation.is_some()))
+    }
+
+    /// AJ-E805: [`Self::all`]'s conversations for which `keep` holds of
+    /// any of their files (a thread's other files with them), without
+    /// copying the rest: the live refresh every 2 s and the working list
+    /// copied, merged and sorted every conversation on the Mac.
+    ///
+    /// # Errors
+    ///
+    /// [`AppError::StatePoisoned`] when the index's lock is poisoned.
+    pub fn all_where(&self, keep: impl Fn(&Conversation) -> bool) -> AppResult<Vec<Conversation>> {
+        let files = self.files.lock().map_err(|_| AppError::StatePoisoned)?;
+        let conversations = || {
+            files
+                .values()
+                .filter_map(|entry| entry.conversation.as_ref())
+        };
+        let kept: std::collections::HashSet<(&str, &str, &str)> = conversations()
+            .filter(|c| keep(c))
+            .map(|c| {
+                (
+                    c.account_id.as_str(),
+                    c.tool.as_str(),
+                    c.summary.id.as_str(),
+                )
+            })
+            .collect();
+        Ok(newest_first(merged(
+            conversations()
+                .filter(|c| {
+                    kept.contains(&(
+                        c.account_id.as_str(),
+                        c.tool.as_str(),
+                        c.summary.id.as_str(),
+                    ))
+                })
+                .cloned(),
+        )))
     }
 
     /// 0.4.3: the list has been read whole once since the start (what a
@@ -415,6 +489,16 @@ impl ConversationIndex {
         })
     }
 
+    /// Every conversation in a running app's sidebar with no process on
+    /// it, `(account, tool, id)`.
+    #[must_use]
+    pub fn inactive_keys(&self) -> Vec<live::Live> {
+        self.inactive
+            .lock()
+            .map(|inactive| inactive.iter().cloned().collect())
+            .unwrap_or_default()
+    }
+
     /// Whether `account`'s `(tool, id)` is in a running app's sidebar with
     /// no process on it.
     #[must_use]
@@ -499,6 +583,17 @@ impl ConversationIndex {
     }
 }
 
+/// Newest activity first (then by file, so the order holds still).
+fn newest_first(mut conversations: Vec<Conversation>) -> Vec<Conversation> {
+    conversations.sort_by(|a, b| {
+        b.summary
+            .last_ms
+            .cmp(&a.summary.last_ms)
+            .then_with(|| a.path.cmp(&b.path))
+    });
+    conversations
+}
+
 /// One conversation per `(account, tool, id)`. A resumed or forked thread
 /// can be several files with one id (Codex writes a rollout per resume,
 /// repeating its parent's rows): the newest file stands for it, from the
@@ -551,9 +646,15 @@ pub fn titled(
     state: &Arc<AppState>,
     mut rows: Vec<crate::features::sessions::dto::InstanceInfo>,
 ) -> AppResult<Vec<crate::features::sessions::dto::InstanceInfo>> {
+    // AJ-E805: only these rows' conversations (Needs you reads the rows
+    // every 5 s; this copied every conversation on the Mac each time).
+    let wanted: std::collections::HashSet<(&str, &str)> = rows
+        .iter()
+        .filter_map(|row| Some((row.account_id.as_deref()?, row.conversation_id.as_deref()?)))
+        .collect();
     let titles: HashMap<(String, String), String> = state
         .conversations
-        .all()?
+        .all_where(|c| wanted.contains(&(c.account_id.as_str(), c.summary.id.as_str())))?
         .into_iter()
         .filter_map(|c| Some(((c.account_id, c.summary.id), c.summary.title?)))
         .collect();
@@ -599,15 +700,35 @@ pub fn tick_with(
     let accounts = lock_storage_arc(state)?.accounts().list()?;
     let files_changed = {
         let _pass = state.conversations.hold_pass();
-        refresh_with(state, &accounts, every, &|| {
+        let progress = || {
             if update_live(state).is_ok() {
                 progress();
             }
-        })?
+        };
+        match pass::plan(state, &accounts) {
+            gate::Plan::Whole => refresh_with(state, &accounts, every, &progress)?,
+            gate::Plan::Some(scope) if scope.is_empty() => false,
+            gate::Plan::Some(scope) => {
+                let changed =
+                    pass::refresh_files(state, &accounts, every, &progress, Some(&scope))?;
+                if changed {
+                    saved::save_soon(state);
+                }
+                changed
+            }
+        }
     };
+    // New folders become projects without the UI asking; lines appended
+    // to known conversations move only their projects' last use (AJ-E805:
+    // the whole backfill, a copy and a placing of every conversation and a
+    // write of every project, ran on every pass while sessions worked).
     if files_changed {
-        // New folders become projects without the UI asking.
-        crate::features::projects::backfill::projects_backfill_impl(state)?;
+        let placed = state.conversations.take_placed();
+        if placed.changed {
+            crate::features::projects::backfill::projects_backfill_impl(state)?;
+        } else if !placed.touched.is_empty() {
+            crate::features::projects::backfill::touch_last_used(state, &placed.touched)?;
+        }
     }
     let live_changed = update_live(state)?;
     Ok(files_changed || live_changed)
@@ -638,7 +759,21 @@ fn update_live(state: &Arc<AppState>) -> AppResult<bool> {
         .lock()
         .map_err(|_| AppError::StatePoisoned)?
         .clone();
-    let all = state.conversations.all()?;
+    // Only the conversations something is open on (or idle in an app).
+    let open: std::collections::HashSet<(&str, &str)> = model
+        .entries
+        .iter()
+        .map(|entry| (entry.tool.as_str(), entry.session_id.as_str()))
+        .chain(
+            model
+                .inactive
+                .iter()
+                .map(|(tool, id)| (tool.as_str(), id.as_str())),
+        )
+        .collect();
+    let all = state
+        .conversations
+        .all_where(|c| open.contains(&(c.tool.as_str(), c.summary.id.as_str())))?;
     let mut now = live::live_entries(&all, &model);
     // AJ-E2107: a terminal session's tail can say it waits on the user;
     // a session its tool records no state for takes its tail's last turn.
@@ -873,7 +1008,7 @@ pub fn refresh_impl(state: &Arc<AppState>) -> AppResult<bool> {
 /// As [`refresh_impl`].
 pub fn read_if_cold(state: &Arc<AppState>) -> AppResult<()> {
     saved::restore_once(state);
-    if !state.conversations.all()?.is_empty() {
+    if state.conversations.holds_any()? {
         return Ok(());
     }
     // The app's background pass reads them once the window has painted,
@@ -909,7 +1044,7 @@ fn refresh_with(
     // again. The last index, saved, is restored first: only what changed
     // since is read.
     saved::restore_once(state);
-    let changed = refresh_files(state, accounts, every, progress)?;
+    let changed = pass::refresh_files(state, accounts, every, progress, None)?;
     state
         .conversations
         .first_done
@@ -918,172 +1053,6 @@ fn refresh_with(
         saved::save_soon(state);
     }
     Ok(changed)
-}
-
-fn refresh_files(
-    state: &Arc<AppState>,
-    accounts: &[juggler_core::model::Account],
-    every: std::time::Duration,
-    progress: &dyn Fn(),
-) -> AppResult<bool> {
-    let mut seen: Vec<PathBuf> = Vec::new();
-    let mut changed_any = false;
-    // Every account's files, listed first (cheap), then read newest
-    // first: a running session's file is among the newest.
-    let mut found = Vec::new();
-    let mut report = Reporter::new(every, progress);
-    for account in accounts {
-        let Some(adapter) = state.registry.get(&account.harness) else {
-            continue;
-        };
-        // AJ-E1602: a tool that keeps every conversation in one store
-        // gives them in one read; each is read again only once it changed.
-        for stored in adapter.stored_conversations(&account.state_dir) {
-            seen.push(stored.key.clone());
-            let changed = u64::try_from(stored.changed_ms)
-                .ok()
-                .map(|ms| std::time::UNIX_EPOCH + std::time::Duration::from_millis(ms));
-            let unchanged = state
-                .conversations
-                .files
-                .lock()
-                .map_err(|_| AppError::StatePoisoned)?
-                .get(&stored.key)
-                .is_some_and(|entry| entry.modified == changed);
-            if !unchanged {
-                store(
-                    state,
-                    account,
-                    &stored.key,
-                    0,
-                    changed,
-                    Some(stored.summary),
-                    true,
-                )?;
-                changed_any = true;
-                report.read();
-            }
-        }
-        for path in adapter.conversation_files(&account.state_dir) {
-            let Ok(meta) = std::fs::metadata(&path) else {
-                continue;
-            };
-            found.push((
-                account,
-                std::sync::Arc::clone(&adapter),
-                path,
-                meta.len(),
-                meta.modified().ok(),
-            ));
-        }
-    }
-    found.sort_by_key(|entry| std::cmp::Reverse(entry.4));
-    // So far `seen` holds the stored ones, read above.
-    list_build::started(state, seen.len() + found.len(), seen.len());
-    // Two rounds, newest first (QA batch 10: one Mac's Codex rollouts were
-    // 6.6 GB, and reading each whole kept everything from showing for over
-    // a minute). First every new or changed file's quick read (its start
-    // and end) where its tool has one, so the list and what's live come
-    // within seconds; then the whole of each file read quickly, for its
-    // tokens. A file read whole in the first round is complete.
-    let mut later = Vec::new();
-    for (account, adapter, path, len, modified) in &found {
-        report.maybe();
-        state.conversations.build.step();
-        seen.push(path.clone());
-        let entry = state
-            .conversations
-            .files
-            .lock()
-            .map_err(|_| AppError::StatePoisoned)?
-            .get(path)
-            .map(|entry| {
-                (
-                    entry.len == *len && entry.modified == *modified,
-                    entry.complete,
-                )
-            });
-        match entry {
-            Some((true, true)) => continue,
-            Some((true, false)) => {
-                later.push((account, adapter, path, len, modified));
-                continue;
-            }
-            _ => {}
-        }
-        // Read outside the lock: a big transcript never holds up a reader.
-        let (summary, complete) = match guarded(|| adapter.read_conversation_quick(path)) {
-            Some(summary) => {
-                later.push((account, adapter, path, len, modified));
-                (Some(summary), false)
-            }
-            None => (guarded(|| adapter.read_conversation(path)), true),
-        };
-        store(state, account, path, *len, *modified, summary, complete)?;
-        changed_any = true;
-        report.read();
-    }
-    // The list is whole now (the long round only counts tokens).
-    list_build::listed(state);
-    // What's listed and live, at once, before the long round.
-    report.flush();
-    let now = std::time::Instant::now();
-    for (account, adapter, path, len, modified) in later {
-        if !whole_read_due(*len, counted_at(state, path)?, now) {
-            continue;
-        }
-        report.maybe();
-        let summary = guarded(|| adapter.read_conversation(path));
-        store(state, account, path, *len, *modified, summary, true)?;
-        changed_any = true;
-        report.read();
-    }
-    Ok(forget_unseen(state, seen)? || changed_any)
-}
-
-/// One transcript's read; one whose reader panics reads as unreadable
-/// (the panic is still kept as a crash report), so one odd file never
-/// stops the pass, and with it the first build, on every tick.
-fn guarded<T>(read: impl FnOnce() -> Option<T>) -> Option<T> {
-    std::panic::catch_unwind(std::panic::AssertUnwindSafe(read))
-        .ok()
-        .flatten()
-}
-
-/// When `path` was last read whole, if it was.
-fn counted_at(
-    state: &Arc<AppState>,
-    path: &std::path::Path,
-) -> AppResult<Option<std::time::Instant>> {
-    Ok(state
-        .conversations
-        .files
-        .lock()
-        .map_err(|_| AppError::StatePoisoned)?
-        .get(path)
-        .and_then(|entry| entry.counted_at))
-}
-
-/// Forgets every file a pass didn't see (gone from its folder); whether
-/// any was.
-fn forget_unseen(state: &Arc<AppState>, seen: Vec<PathBuf>) -> AppResult<bool> {
-    let mut files = state
-        .conversations
-        .files
-        .lock()
-        .map_err(|_| AppError::StatePoisoned)?;
-    let before = files.len();
-    let seen: std::collections::HashSet<PathBuf> = seen.into_iter().collect();
-    files.retain(|path, _| seen.contains(path));
-    let forgot = files.len() != before;
-    drop(files);
-    if forgot {
-        crate::features::relations::changed(
-            state,
-            crate::features::relations::Change::ConversationsIndex,
-        );
-    }
-    Ok(forgot)
 }
 
 /// The title the conversation `id` on `account_id` shows under, when the
@@ -1428,7 +1397,6 @@ mod tests {
             modified: None,
             conversation: None,
             complete: true,
-            counted_at: None,
         };
         {
             let mut files = index.files.lock().unwrap();
@@ -1524,30 +1492,7 @@ mod tests {
             modified: None,
             conversation: Some(conversation),
             complete,
-            counted_at: None,
         }
-    }
-
-    /// 0.3.5: a big transcript that grows is read whole at most every five
-    /// minutes; a small one, or one never read whole, every time.
-    #[test]
-    fn a_big_growing_transcript_is_read_whole_at_most_every_five_minutes() {
-        let now = std::time::Instant::now();
-        let big = WHOLE_BIG + 1;
-        assert!(
-            whole_read_due(1_000, Some(now), now),
-            "a small file: always"
-        );
-        assert!(whole_read_due(big, None, now), "never read whole: now");
-        assert!(
-            !whole_read_due(big, Some(now), now),
-            "just read whole: not again"
-        );
-        let earlier = now.checked_sub(WHOLE_EVERY).unwrap();
-        assert!(
-            whole_read_due(big, Some(earlier), now),
-            "five minutes on: again"
-        );
     }
 
     #[test]

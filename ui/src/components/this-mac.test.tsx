@@ -12,7 +12,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { RailRow } from "./WorkflowRail";
 import { HomeScreen } from "../screens/Home";
 import { ThisMacScreen } from "../screens/ThisMacScreen";
-import { ThisMacContext, type ThisMacInfo, type ToolTreeInfo } from "../lib/machine";
+import { ThisMacContext, ThisMacValue, type ThisMacInfo, type ToolTreeInfo } from "../lib/machine";
 import { mockMachineHealth } from "../preview/machine";
 import type { AccountInfo } from "../types/generated/AccountInfo";
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
@@ -179,9 +179,9 @@ describe("Home's Needs you (AJ-E1404 Req.3)", () => {
 describe("the rail's heavy note (AJ-E1405)", () => {
   const row = (note: string | null) =>
     render(
-      <ThisMacContext.Provider value={info("plenty", note ? [tree({ session_id: "s1", place: null, heavy_note: note })] : [])}>
+      <ThisMacValue info={info("plenty", note ? [tree({ session_id: "s1", place: null, heavy_note: note })] : [])}>
         <RailRow session={mk("s1")} selected={false} onSelect={vi.fn()} density="comfortable" now={NOW} />
-      </ThisMacContext.Provider>,
+      </ThisMacValue>,
     );
 
   it("adds one figure only while the session is heavy", () => {

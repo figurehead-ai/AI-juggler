@@ -10,10 +10,13 @@
 # the D-24 requirements as D-99 amends them hold: no `blocker` issue is
 # open (beta promotes the tested nightly; its days of use are on beta).
 # Stable also needs: the accessibility gate run here again, on the
-# commit, whatever CI ran; 14+ days on beta, no open `blocker`, a CHANGELOG
-# section, and the minor's whole roadmap scope done or deferred
-# (release_scope.py, D-99). A D-24 requirement can be overridden only with
-# a written reason, which is kept in the channel tag.
+# commit, whatever CI ran; 7+ days on beta (D-114; a blocker fix on a
+# frozen line: 3+ days on its own beta tag, with the Stable candidate it
+# fixes 7+ on beta, named by the `blocker_fix` and `candidate` inputs),
+# no open `blocker`, a CHANGELOG section, and the minor's whole roadmap
+# scope done or deferred (release_scope.py, D-99). A D-24 requirement can
+# be overridden only with a written reason, which is kept in the channel
+# tag.
 # The approval of `stable` is the release's sign-off (D-109, AJ-E807): the
 # `record` job writes it down once the channel has moved.
 # Both also need usage statistics collected for the version: the stats
@@ -38,6 +41,16 @@ on:
         type: string
         required: false
         default: ""
+      blocker_fix:
+        description: "Stable only, a blocker fix on a frozen line (D-114): the blocker issues it fixes, e.g. 42 57"
+        type: string
+        required: false
+        default: ""
+      candidate:
+        description: "With blocker_fix: the Stable candidate it fixes (X.Y.Z), whose beta date starts the line's 7 days"
+        type: string
+        required: false
+        default: ""
 
 # Each job asks for what it needs (AJ-E2001): the checks and the
 # accessibility gate (which installs and runs the UI's dependencies) read;
@@ -52,6 +65,8 @@ env:
   VERSION: ${{ inputs.version }}
   CHANNEL: ${{ inputs.channel }}
   OVERRIDE: ${{ inputs.override }}
+  BLOCKER_FIX: ${{ inputs.blocker_fix }}
+  CANDIDATE: ${{ inputs.candidate }}
 
 jobs:
   check:
@@ -109,15 +124,44 @@ jobs:
             [ "${beta_ref%% *}" = "tag" ] && beta_at="$(gh api "repos/$REPO/git/tags/${beta_ref#* }" --jq .tagger.date)"
           fi
           gh issue list --repo "$REPO" --label blocker --state open --json number,title > "$RUNNER_TEMP/blockers.json"
-          python3 - "$RUNNER_TEMP/facts.json" "$built_at" "$beta_at" "$RUNNER_TEMP/blockers.json" <<'PY'
+          # D-114: a blocker fix on a frozen line names the blockers it
+          # fixes (each must be closed and labelled) and the Stable
+          # candidate it fixes, whose beta date starts the line's 7 days.
+          line_beta_at=""
+          : > "$RUNNER_TEMP/fixes.jsonl"
+          if [ -n "${BLOCKER_FIX//[[:space:]]/}" ]; then
+            [ "$CHANNEL" = stable ] || { echo "::error::blocker_fix is for a stable promotion"; exit 1; }
+            [[ "$CANDIDATE" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] \
+              || { echo "::error::a blocker fix names the Stable candidate it fixes (candidate: X.Y.Z)"; exit 1; }
+            [ "${CANDIDATE%.*}" = "${VERSION%.*}" ] || { echo "::error::$CANDIDATE isn't on $VERSION's line"; exit 1; }
+            line_beta_at="$(git for-each-ref --format='%(taggerdate:iso8601-strict)' "refs/tags/beta/v$CANDIDATE")"
+            for n in ${BLOCKER_FIX//[#,]/ }; do
+              [[ "$n" =~ ^[0-9]+$ ]] || { echo "::error::blocker_fix lists issue numbers only"; exit 1; }
+              gh issue view "$n" --repo "$REPO" --json number,state,labels \
+                --jq '{number, closed: (.state == "CLOSED"), blocker: ([.labels[].name] | index("blocker") != null)}' \
+                >> "$RUNNER_TEMP/fixes.jsonl"
+            done
+          fi
+          python3 - "$RUNNER_TEMP/facts.json" "$built_at" "$beta_at" "$RUNNER_TEMP/blockers.json" "$line_beta_at" "$RUNNER_TEMP/fixes.jsonl" <<'PY'
           import datetime, json, os, sys
-          out, built_at, beta_at, blockers = sys.argv[1:]
+          out, built_at, beta_at, blockers, line_beta_at, fixes = sys.argv[1:]
+          # One JSON value per fixed issue, however gh lays them out.
+          raw, at, fixed, decoder = open(fixes).read(), 0, [], json.JSONDecoder()
+          while True:
+            while at < len(raw) and raw[at].isspace():
+              at += 1
+            if at >= len(raw):
+              break
+            value, at = decoder.raw_decode(raw, at)
+            fixed.append(value)
           json.dump({
             "now": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
             "built_at": built_at or None,
             "beta_at": beta_at or None,
             "blockers": json.load(open(blockers)),
             "override": os.environ.get("OVERRIDE", ""),
+            "line_beta_at": line_beta_at or None,
+            "blocker_fix": fixed,
           }, open(out, "w"))
           PY
           python3 scripts/promotion_rules.py check "$CHANNEL" "$RUNNER_TEMP/facts.json" | tee "$RUNNER_TEMP/rules.txt"

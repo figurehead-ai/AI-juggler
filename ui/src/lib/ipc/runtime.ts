@@ -10,7 +10,8 @@
  * {@link RuntimeViewInfo}) and records calls in `__AIJ_RUNTIME_CALLS__`.
  */
 import { useEffect, useState } from "react";
-import { call, listen } from "./transport";
+import { call } from "./transport";
+import { listenWhileShown } from "../shown-window";
 import { hasLiveBackend } from "../bridge";
 import type { AnswerInput } from "../../types/generated/AnswerInput";
 import type { AskInfo } from "../../types/generated/AskInfo";
@@ -153,19 +154,12 @@ export async function runtimeBeta(on: boolean): Promise<RuntimeChoicesInfo> {
   return call("runtime_beta", { on });
 }
 
-/** Calls `handler` with the ids of driven sessions that changed. */
-export function onRuntimeChanged(handler: (ids: string[]) => void): () => void {
+/** Calls `handler` with the ids of driven sessions that changed, while
+ * the window can be seen; when it shows, once with `null`: any may have
+ * (AJ-E805). */
+export function onRuntimeChanged(handler: (ids: string[] | null) => void): () => void {
   if (!hasLiveBackend()) return () => undefined;
-  let unlisten: (() => void) | null = null;
-  let gone = false;
-  void listen<string[]>(RUNTIME_CHANGED, (event) => handler(event.payload)).then((off) => {
-    if (gone) off();
-    else unlisten = off;
-  });
-  return () => {
-    gone = true;
-    unlisten?.();
-  };
+  return listenWhileShown<string[]>(RUNTIME_CHANGED, handler, () => handler(null));
 }
 
 /** A driven session's page, kept current; `null` while it loads or when
@@ -178,7 +172,7 @@ export function useRuntimeView(sessionId: string | null): RuntimeViewInfo | null
     const read = () => void runtimeGet(sessionId).then((next) => alive && setView(next), () => undefined);
     read();
     const off = onRuntimeChanged((ids) => {
-      if (ids.includes(sessionId)) read();
+      if (ids === null || ids.includes(sessionId)) read();
     });
     return () => {
       alive = false;

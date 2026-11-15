@@ -16,6 +16,9 @@ needs = ["lab"]
 [setup]
 projects = ["api", "web", "billing", "infra"]
 ended_sessions = 52
+# 0.4.5: each says what it was for (its first ask; two in three of the
+# Claude Code ones untitled, named by that ask as `claude --resume` shows).
+ended_conversations = true
 
 [[setup.apps]]
 id = "cc-work"
@@ -45,17 +48,23 @@ conversation = true
 title = "Fix the login flow in the api"
 said = "The session cookie expires before the redirect finishes; keep users signed in."
 
+# 0.4.5: these two have talked too (D3 run 1 read two rows alike, "web ·
+# started …" and "infra · started …"); untitled, named by their first ask.
 [[setup.sessions]]
 id = "web-build"
 app = "cc-platform"
 project = "web"
 state = "working"
+conversation = true
+first_ask = "Move the web build to the new bundler and fix the broken imports"
 
 [[setup.sessions]]
 id = "infra-plan"
 app = "cc-work"
 project = "infra"
 state = "needs-you"
+conversation = true
+first_ask = "Plan moving the staging cluster to the new region"
 
 [[steps]]
 do = "Find the session where I was fixing the login flow in the api repo."

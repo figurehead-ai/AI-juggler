@@ -109,6 +109,19 @@ switch, to 0.4.1.
 | The Floor reworked: labels by zoom, one floor at a time, hover cards, inactive Apps dimmed, the View menu, day and night, the reworked light | AJ-E3515…AJ-E3521 |
 | Move to account: a Claude → Claude switch moves the whole family, journaled and undoable (D-93) | AJ-E212 |
 
+### 0.4.6 — the Stable candidate
+
+D-114 (2026-11-13): 0.4.6 is the first Stable's candidate. It closes the
+0.4 scope still open (the rows above: AJ-E3002, AJ-E3304, AJ-E3306,
+AJ-E3307, and the 0.4.5 presence report) and idle CPU's open ends from
+0.4.5's AJ-E805 rounds. Once it is on beta, the 0.4 line is frozen: only
+D-24 blockers ship as 0.4.x.
+
+| Area | Tasks |
+|---|---|
+| Idle CPU's open ends: the web content's and GPU's brief spikes traced, Home drawing only on a change, a fully covered window measured | AJ-E812, AJ-E813, AJ-E814 |
+| A speed test that fails under load: the relation counts proven cached by the work done, the timing moved to a benchmark that is not a gate | AJ-E815 |
+
 ## 0.5 — More tools and teams
 
 **Intent.** Bring the tools people use next, let work move between

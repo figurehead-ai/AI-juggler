@@ -141,6 +141,9 @@ pub struct AppState {
     /// AJ-E1529: every account's conversations, read from the tools' own
     /// files (kept in memory; rebuilt from the files after a restart).
     pub conversations: crate::features::conversations::ConversationIndex,
+    /// 0.4.5 (AJ-E805): one reader per transcript, which the conversation
+    /// list and the usage reading both take from.
+    pub transcripts: crate::transcript_readers::Readers,
     /// AJ-E1538: the opt-in index of outside sessions' words, while on.
     pub outside_search: crate::features::outside_search::OutsideSearch,
     /// AJ-E1532: the icon each project's mark uses, as the project list
@@ -453,6 +456,7 @@ impl AppState {
             switch_stops: Mutex::default(),
             usage_reading: std::sync::Arc::default(),
             conversations: crate::features::conversations::ConversationIndex::default(),
+            transcripts: crate::transcript_readers::Readers::default(),
             outside_search: crate::features::outside_search::OutsideSearch::default(),
             project_icons: std::sync::Mutex::default(),
             app_icons: crate::features::app_icons::IconCache::of(&cache),

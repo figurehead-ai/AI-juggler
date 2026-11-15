@@ -65,4 +65,29 @@ tokens: number | null,
  * Processes it left behind (E5 inventory: still running after it
  * closed).
  */
-leftovers: number, };
+leftovers: number, 
+/**
+ * What it is named by, as every other list names a session (the UI's
+ * `shortName`, `naming::short_name`): the name the user gave it,
+ * its conversation's title (the tool's own, else its first ask), its
+ * branch, its folder and when it started. 0.4.5, persona D3: the
+ * summary heading Home named no session, only its App, so fifty
+ * rows read alike.
+ */
+label?: string, 
+/**
+ * Its conversation's title (see `label`).
+ */
+title?: string, 
+/**
+ * Its git branch (see `label`).
+ */
+git_branch: string | null, 
+/**
+ * Its working folder (see `label`).
+ */
+cwd: string, 
+/**
+ * When it started, epoch ms (see `label`).
+ */
+started_at_ms: number, };

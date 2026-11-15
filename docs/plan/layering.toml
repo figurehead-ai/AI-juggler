@@ -22,13 +22,15 @@ juggler-scap-init = []
 juggler-login-item = []
 # D-27: the audited host_statistics64 shim (the compressor's pages); depends on nothing of ours.
 juggler-vm-stats = []
+# D-110: the audited process listing shim (KERN_PROC_ALL); depends on nothing of ours.
+juggler-proc-list = []
 # The OS seams (cross-platform audit C5): who we are, owner-only files,
 # local sockets, program trust. Knows no tool and no product, so it sits
 # below everything and depends on nothing of ours.
 juggler-platform = []
 juggler-adapter = ["juggler-core", "juggler-platform"]
 juggler-adapters = ["juggler-adapter", "juggler-core"]
-juggler-supervisor = ["juggler-adapter", "juggler-core", "juggler-vm-stats"]
+juggler-supervisor = ["juggler-adapter", "juggler-core", "juggler-proc-list", "juggler-vm-stats"]
 juggler-handover = ["juggler-adapter", "juggler-core", "juggler-platform"]
 juggler-link = []
 juggler-app = [
@@ -43,6 +45,7 @@ juggler-app = [
   "juggler-link",
   "juggler-login-item",
   "juggler-platform",
+  "juggler-proc-list",
   "juggler-scap-init",
   "juggler-stats",
   "juggler-supervisor",

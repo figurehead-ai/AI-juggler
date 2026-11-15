@@ -289,6 +289,12 @@ fn sessions_are_listed_resumed_and_told_from_helpers() {
     std::fs::create_dir_all(&app).unwrap();
     let record = kimi_fixture::add_session(&home, "ses-9", &app, "Fix the cart");
     assert_eq!(adapter.conversation_files(&home), vec![record.clone()]);
+    // AJ-E805: the folder its file events are heard in holds it.
+    let roots = adapter.conversation_roots(&home);
+    assert!(
+        roots.iter().any(|root| record.starts_with(root)),
+        "{roots:?}"
+    );
     let read = adapter.read_conversation(&record).unwrap();
     assert_eq!(read.id, "ses-9");
     assert_eq!(read.title.as_deref(), Some("Fix the cart"));

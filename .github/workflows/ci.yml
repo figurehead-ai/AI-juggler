@@ -847,11 +847,26 @@ jobs:
           BASE_REF: ${{ github.base_ref }}
         # Only this PR's own baseline changes: diff from where it meets the
         # base branch now (main's later changes aren't the PR's). The body
-        # is read fresh so a re-run sees notes added after the push.
+        # is read fresh so a re-run sees notes added after the push. This
+        # job runs in the Playwright image, which has no `gh`: curl and
+        # python3 read it (2026-11-14, #235: `gh pr view` failed silently
+        # here, so every run checked the body from its push). A failed read
+        # says so before it falls back to that body.
         run: |
           git config --global --add safe.directory "$GITHUB_WORKSPACE"
           base="$(git merge-base "origin/$BASE_REF" HEAD)"
-          body="$(gh pr view "$PR_NUMBER" --json body --jq .body 2>/dev/null || printf '%s' "$EVENT_BODY")"
+          # The token goes in a header from the env, never the URL, and no
+          # command is echoed while it is in use.
+          set +x
+          if body="$(curl -fsS -H "Authorization: Bearer $GH_TOKEN" \
+              -H "Accept: application/vnd.github+json" \
+              "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER" \
+              | python3 -c 'import json, sys; print(json.load(sys.stdin).get("body") or "", end="")' 2>/dev/null)"; then
+            echo "baseline-notes: checking the pull request's body as it is now"
+          else
+            echo "::warning::The pull request's current body could not be read; checking its body from when this run started."
+            body="$EVENT_BODY"
+          fi
           PR_BODY="$body" python3 scripts/check_baseline_notes.py "$base"
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         if: always() && env.RAN == 'true'

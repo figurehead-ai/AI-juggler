@@ -1,6 +1,9 @@
 //! 0.3.5 (ADR-0024): a wake-up when a file in one of a few folders
 //! changes, for the conversation feed and the live view: only the folders
 //! they name are watched, not recursively, and only while they name them.
+//! 0.4.5 (AJ-E805): a [`FolderWake::trees`] watch takes in each folder's
+//! subfolders too (the usage pipeline's transcript trees: one system
+//! stream, where it listed every folder every second).
 //!
 //! Events are hints, never the truth. The system's file events can come
 //! late (minutes on a Mac whose event service is saturated by another
@@ -40,6 +43,60 @@ impl Woke {
     }
 }
 
+/// AJ-E805 (0.4.5): what a watch's events said since it was last taken:
+/// the paths they named, or that anything may have changed. The
+/// conversation list's and the usage pipeline's gates read only what their
+/// events named, and everything after a lost track.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct Heard {
+    /// The paths the events named.
+    pub paths: BTreeSet<PathBuf>,
+    /// The system lost track ([`Woke::Rescan`]), or more paths changed than
+    /// are kept ([`Heard::MAX`]): anything may have changed.
+    pub lost: bool,
+}
+
+impl Heard {
+    /// The most paths kept between two takes.
+    pub const MAX: usize = 4096;
+
+    /// Notes one wake-up.
+    pub fn note(&mut self, woke: Woke) {
+        match woke {
+            Woke::Rescan => self.lost = true,
+            Woke::Paths(paths) => {
+                self.paths.extend(paths);
+                if self.paths.len() > Self::MAX {
+                    self.paths.clear();
+                    self.lost = true;
+                }
+            }
+        }
+    }
+
+    /// Something was heard.
+    #[must_use]
+    pub fn any(&self) -> bool {
+        self.lost || !self.paths.is_empty()
+    }
+
+    /// What was heard since the last take, emptied.
+    #[must_use]
+    pub fn take(heard: &Mutex<Self>) -> Self {
+        heard
+            .lock()
+            .map(|mut heard| std::mem::take(&mut *heard))
+            .unwrap_or_default()
+    }
+}
+
+/// Notes `woke` into `heard`.
+fn note_into(heard: &Mutex<Heard>, woke: Woke) {
+    if let Ok(mut heard) = heard.lock() {
+        heard.note(woke);
+    }
+}
+
 /// The callback a watch wakes.
 type OnChange = Arc<Mutex<Box<dyn Fn(Woke) + Send>>>;
 
@@ -59,6 +116,8 @@ enum Source {
 pub struct FolderWake {
     source: Source,
     folders: BTreeSet<PathBuf>,
+    /// Each folder with everything under it ([`FolderWake::trees`]).
+    recursive: bool,
 }
 
 /// Wakes a [`FolderWake::by_hand`] watch, as the system would.
@@ -108,7 +167,43 @@ impl FolderWake {
         Self {
             source,
             folders: BTreeSet::new(),
+            recursive: false,
         }
+    }
+
+    /// Like [`FolderWake::new`], each folder watched with everything under
+    /// it.
+    pub fn trees(on_change: impl Fn(Woke) + Send + 'static) -> Self {
+        Self {
+            recursive: true,
+            ..Self::new(on_change)
+        }
+    }
+
+    /// A [`FolderWake::trees`] watch keeping what its events said, to take
+    /// with [`Heard::take`].
+    #[must_use]
+    pub fn trees_heard() -> (Self, Arc<Mutex<Heard>>) {
+        let heard = Arc::new(Mutex::new(Heard::default()));
+        let into = Arc::clone(&heard);
+        (Self::trees(move |woke| note_into(&into, woke)), heard)
+    }
+
+    /// A [`FolderWake::by_hand`] watch keeping what its hand says, as
+    /// [`FolderWake::trees_heard`] keeps the system's.
+    #[must_use]
+    pub fn by_hand_heard() -> (Self, Hand, Arc<Mutex<Heard>>) {
+        let heard = Arc::new(Mutex::new(Heard::default()));
+        let into = Arc::clone(&heard);
+        let (wake, hand) = Self::by_hand(move |woke| note_into(&into, woke));
+        (wake, hand, heard)
+    }
+
+    /// Whether the system's file events can wake it (`false`: its
+    /// watcher couldn't be made; its users' own timers must look).
+    #[must_use]
+    pub fn hears_the_system(&self) -> bool {
+        !matches!(self.source, Source::Off)
     }
 
     /// A watch that hears only its [`Hand`]: every folder asked for counts
@@ -120,13 +215,20 @@ impl FolderWake {
         let wake = Self {
             source: Source::Hand,
             folders: BTreeSet::new(),
+            recursive: false,
         };
         (wake, hand)
     }
 
-    /// Watches exactly `folders` from now on (each not recursively).
+    /// Watches exactly `folders` from now on (each not recursively, unless
+    /// made by [`FolderWake::trees`]).
     pub fn watch(&mut self, folders: &BTreeSet<PathBuf>) {
         use notify::Watcher as _;
+        let mode = if self.recursive {
+            notify::RecursiveMode::Recursive
+        } else {
+            notify::RecursiveMode::NonRecursive
+        };
         let watcher = match &mut self.source {
             Source::System(watcher) => watcher,
             Source::Hand => {
@@ -140,11 +242,7 @@ impl FolderWake {
         }
         let mut now_watched = BTreeSet::new();
         for folder in folders {
-            if self.folders.contains(folder)
-                || watcher
-                    .watch(folder, notify::RecursiveMode::NonRecursive)
-                    .is_ok()
-            {
+            if self.folders.contains(folder) || watcher.watch(folder, mode).is_ok() {
                 now_watched.insert(folder.clone());
             }
         }

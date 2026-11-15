@@ -1455,3 +1455,56 @@ fn a_menu_line_brings_ai_juggler_forward_on_its_notice_and_nothing_else() {
         "and N more… opens the centre"
     );
 }
+
+/// AJ-E805 (round 4): Needs you's 5 s tick reads AI Juggler's session rows
+/// from storage only when something they're made from changed (a stored
+/// session, the change stamps) or its sweep is due; otherwise it keeps
+/// them. It read every row, with its Account, launch settings, lifecycle
+/// and marks, every 5 s whatever happened.
+#[test]
+fn needs_you_reads_the_session_rows_only_when_they_changed() {
+    let dir = tempfile::tempdir().unwrap();
+    let state = app_state(dir.path());
+    let id = session(&state, dir.path(), "s-rows", "Work");
+    let now = Timestamp::now().millis();
+    let status = |rows: &[juggler_app::features::sessions::dto::InstanceInfo]| {
+        rows.iter()
+            .find(|row| row.id == id)
+            .map(|row| row.status.clone())
+    };
+    let rows = needs::session_rows(&state, now);
+    assert_eq!(status(&rows).as_deref(), Some("running"));
+    for tick in 1..=5 {
+        needs::session_rows(&state, now + tick * 5_000);
+    }
+    assert_eq!(
+        state.notifier.session_rows_read(),
+        1,
+        "nothing changed: kept"
+    );
+    // A stored change (the database's own stamp moves): read again.
+    {
+        let storage = state.storage.lock().unwrap();
+        let mut record = storage
+            .sessions()
+            .get(&SessionId::new(id.as_str()))
+            .unwrap();
+        record.status = SessionStatus::WaitingUser;
+        storage.sessions().update(&record).unwrap();
+    }
+    let rows = needs::session_rows(&state, now + 30_000);
+    assert_eq!(state.notifier.session_rows_read(), 2);
+    assert_eq!(status(&rows).as_deref(), Some("waiting_user"));
+    // A change told by an event: read again.
+    juggler_app::features::relations::changed(
+        &state,
+        juggler_app::features::relations::Change::SessionsUpdated,
+    );
+    needs::session_rows(&state, now + 35_000);
+    assert_eq!(state.notifier.session_rows_read(), 3);
+    // The sweep: read again a minute after the last read, changed or not.
+    needs::session_rows(&state, now + 35_000 + needs::ROWS_SWEEP_MS - 1);
+    assert_eq!(state.notifier.session_rows_read(), 3);
+    needs::session_rows(&state, now + 35_000 + needs::ROWS_SWEEP_MS);
+    assert_eq!(state.notifier.session_rows_read(), 4);
+}

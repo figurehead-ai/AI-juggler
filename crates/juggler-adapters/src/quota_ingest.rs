@@ -499,29 +499,63 @@ pub(crate) fn reset_ms(value: &serde_json::Value) -> Option<i64> {
 #[must_use]
 pub fn transcript_events(account: &str, bytes: &[u8]) -> TailOutcome {
     let text = String::from_utf8_lossy(bytes);
-    let mut outcome = TailOutcome::default();
-    let mut seen: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
+    let mut events = TranscriptEvents::new(account);
     for line in text.lines() {
         if line.trim().is_empty() {
             continue;
         }
-        let Ok(value) = serde_json::from_str::<serde_json::Value>(line) else {
-            outcome.parse_errors += 1;
-            continue;
-        };
+        match serde_json::from_str::<serde_json::Value>(line) {
+            Ok(value) => events.value(&value),
+            Err(_) => events.damaged(),
+        }
+    }
+    events.finish()
+}
+
+/// [`transcript_events`] a line at a time, for a reader that parses each
+/// line once for more than its usage (0.4.5, AJ-E805: the transcript
+/// reader).
+pub(crate) struct TranscriptEvents<'a> {
+    account: &'a str,
+    outcome: TailOutcome,
+    seen: std::collections::HashMap<String, usize>,
+}
+
+impl<'a> TranscriptEvents<'a> {
+    pub(crate) fn new(account: &'a str) -> Self {
+        Self {
+            account,
+            outcome: TailOutcome::default(),
+            seen: std::collections::HashMap::new(),
+        }
+    }
+
+    /// A line that isn't JSON.
+    pub(crate) fn damaged(&mut self) {
+        self.outcome.parse_errors += 1;
+    }
+
+    /// The slice's usage.
+    pub(crate) fn finish(self) -> TailOutcome {
+        self.outcome
+    }
+
+    /// One line.
+    pub(crate) fn value(&mut self, value: &serde_json::Value) {
+        let outcome = &mut self.outcome;
         // A limit hit: Claude Code's own record of which window ran out
         // and when it resets (only those, `claude_limits`).
-        if let Some(hit) = crate::claude_limits::limit_hit_sample(&value) {
+        if let Some(hit) = crate::claude_limits::limit_hit_sample(value) {
             outcome.samples.push(hit);
         }
         let Some(usage) = value
             .get("message")
             .and_then(|message| message.get("usage"))
         else {
-            continue;
+            return;
         };
-        let Some(key) = response_key(&value) else {
-            continue;
+        let Some(key) = response_key(value) else {
+            return;
         };
         let ts = value
             .get("timestamp")
@@ -541,10 +575,10 @@ pub fn transcript_events(account: &str, bytes: &[u8]) -> TailOutcome {
             reasoning: 0,
         };
         if tokens == TokenCounts::default() {
-            continue; // an empty usage block is not an event
+            return; // an empty usage block is not an event
         }
-        let detail = claude_detail(&value, usage, &tokens);
-        if let Some(&at) = seen.get(&key) {
+        let detail = claude_detail(value, usage, &tokens);
+        if let Some(&at) = self.seen.get(&key) {
             let kept = &mut outcome.events[at];
             kept.tokens.input = kept.tokens.input.max(tokens.input);
             kept.tokens.output = kept.tokens.output.max(tokens.output);
@@ -552,11 +586,11 @@ pub fn transcript_events(account: &str, bytes: &[u8]) -> TailOutcome {
             kept.tokens.cache_write = kept.tokens.cache_write.max(tokens.cache_write);
             kept.detail.cache_write_1h = kept.detail.cache_write_1h.max(detail.cache_write_1h);
             kept.detail.prompt_tokens = kept.detail.prompt_tokens.max(detail.prompt_tokens);
-            continue;
+            return;
         }
-        seen.insert(key.clone(), outcome.events.len());
+        self.seen.insert(key.clone(), outcome.events.len());
         outcome.events.push(UsageEvent {
-            account: account.to_owned(),
+            account: self.account.to_owned(),
             session: value
                 .get("sessionId")
                 .and_then(serde_json::Value::as_str)
@@ -576,7 +610,6 @@ pub fn transcript_events(account: &str, bytes: &[u8]) -> TailOutcome {
             msg_uuid: Some(key),
         });
     }
-    outcome
 }
 
 /// One Claude API response's key: `message.id/requestId` (either alone
@@ -630,81 +663,91 @@ pub fn rollout_events_after(account: &str, bytes: &[u8], carry: RolloutCarry) ->
         if line.trim().is_empty() {
             continue;
         }
-        let Ok(value) = serde_json::from_str::<serde_json::Value>(line) else {
-            outcome.parse_errors += 1;
-            continue;
-        };
-        carry.see(&value, account, &mut outcome);
-        if take_token_count(&value, &mut outcome) {
-            continue;
+        match serde_json::from_str::<serde_json::Value>(line) {
+            Ok(value) => rollout_value(account, &value, &mut carry, &mut outcome),
+            Err(_) => outcome.parse_errors += 1,
         }
-        if value.get("type").and_then(serde_json::Value::as_str) == Some("turn_context") {
-            if let Some(model) = value
-                .get("payload")
-                .and_then(|payload| payload.get("model"))
-                .and_then(serde_json::Value::as_str)
-            {
-                carry.model = Some(model.to_owned());
-            }
-            continue;
-        }
-        if value.get("type").and_then(serde_json::Value::as_str) != Some("token_usage_record") {
-            continue;
-        }
-        let Some(payload) = value.get("payload") else {
-            outcome.parse_errors += 1;
-            continue;
-        };
-        let Some(usage) = payload.get("usage") else {
-            outcome.parse_errors += 1;
-            continue;
-        };
-        let key = |field: &str| {
-            payload
-                .get(field)
-                .and_then(serde_json::Value::as_str)
-                .map(str::to_owned)
-        };
-        let (Some(thread), Some(turn), Some(response)) =
-            (key("thread_id"), key("turn_id"), key("response_id"))
-        else {
-            outcome.parse_errors += 1;
-            continue;
-        };
-        let tokens = codex_token_counts(usage);
-        if tokens == TokenCounts::default() {
-            continue;
-        }
-        let ts = value
-            .get("timestamp")
-            .and_then(serde_json::Value::as_str)
-            .and_then(juggler_core::time::timestamp_ms)
-            .unwrap_or_default();
-        let (kind, root_session) = carry.thread_of(&thread);
-        outcome.events.push(UsageEvent {
-            account: account.to_owned(),
-            session: Some(thread.clone()),
-            ts,
-            model: carry.model.clone(),
-            tokens,
-            credits: None,
-            usd_est: None,
-            source: UsageSource::Rollout,
-            confidence: Confidence::Measured,
-            detail: UsageDetail {
-                prompt_tokens: usage
-                    .get("input_tokens")
-                    .and_then(serde_json::Value::as_u64)
-                    .unwrap_or_default(),
-                kind,
-                root_session,
-                ..UsageDetail::default()
-            },
-            msg_uuid: Some(format!("{thread}/{turn}/{response}")),
-        });
     }
     outcome.carry = carry;
     outcome
+}
+
+/// One rollout line's part in [`rollout_events_after`], for a reader that
+/// parses each line once for more than its usage (0.4.5, AJ-E805).
+pub(crate) fn rollout_value(
+    account: &str,
+    value: &serde_json::Value,
+    carry: &mut RolloutCarry,
+    outcome: &mut TailOutcome,
+) {
+    carry.see(value, account, outcome);
+    if take_token_count(value, outcome) {
+        return;
+    }
+    if value.get("type").and_then(serde_json::Value::as_str) == Some("turn_context") {
+        if let Some(model) = value
+            .get("payload")
+            .and_then(|payload| payload.get("model"))
+            .and_then(serde_json::Value::as_str)
+        {
+            carry.model = Some(model.to_owned());
+        }
+        return;
+    }
+    if value.get("type").and_then(serde_json::Value::as_str) != Some("token_usage_record") {
+        return;
+    }
+    let Some(payload) = value.get("payload") else {
+        outcome.parse_errors += 1;
+        return;
+    };
+    let Some(usage) = payload.get("usage") else {
+        outcome.parse_errors += 1;
+        return;
+    };
+    let key = |field: &str| {
+        payload
+            .get(field)
+            .and_then(serde_json::Value::as_str)
+            .map(str::to_owned)
+    };
+    let (Some(thread), Some(turn), Some(response)) =
+        (key("thread_id"), key("turn_id"), key("response_id"))
+    else {
+        outcome.parse_errors += 1;
+        return;
+    };
+    let tokens = codex_token_counts(usage);
+    if tokens == TokenCounts::default() {
+        return;
+    }
+    let ts = value
+        .get("timestamp")
+        .and_then(serde_json::Value::as_str)
+        .and_then(juggler_core::time::timestamp_ms)
+        .unwrap_or_default();
+    let (kind, root_session) = carry.thread_of(&thread);
+    outcome.events.push(UsageEvent {
+        account: account.to_owned(),
+        session: Some(thread.clone()),
+        ts,
+        model: carry.model.clone(),
+        tokens,
+        credits: None,
+        usd_est: None,
+        source: UsageSource::Rollout,
+        confidence: Confidence::Measured,
+        detail: UsageDetail {
+            prompt_tokens: usage
+                .get("input_tokens")
+                .and_then(serde_json::Value::as_u64)
+                .unwrap_or_default(),
+            kind,
+            root_session,
+            ..UsageDetail::default()
+        },
+        msg_uuid: Some(format!("{thread}/{turn}/{response}")),
+    });
 }
 
 /// What one slice of a Codex rollout leaves for the next. A file is read
@@ -962,18 +1005,20 @@ fn take_token_count(value: &serde_json::Value, outcome: &mut TailOutcome) -> boo
     true
 }
 
-/// Codex's credits, as its own rollout reports them (no value is read
-/// anywhere else; `auth.json` is never opened).
-#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
-pub struct CreditsSnapshot {
-    /// When Codex wrote it, epoch ms.
-    pub ts: i64,
-    /// The plan has credits at all.
-    pub has_credits: bool,
-    /// Credits are unlimited.
-    pub unlimited: bool,
-    /// The balance as Codex wrote it (a string in its protocol).
-    pub balance: Option<String>,
+// Codex's credits: one transcript reader's figure (0.4.5, AJ-E805).
+pub use juggler_adapter::transcript_read::CreditsSnapshot;
+
+/// A slice's outcome as a transcript reader gives it (its offset and
+/// carry are the reader's own).
+pub(crate) fn usage_read(outcome: TailOutcome) -> juggler_adapter::transcript_read::UsageRead {
+    juggler_adapter::transcript_read::UsageRead {
+        events: outcome.events,
+        samples: outcome.samples,
+        credits: outcome.credits,
+        parse_errors: outcome.parse_errors,
+        dropped: outcome.dropped,
+        unread: outcome.unread,
+    }
 }
 
 /// The limit readings on one Codex `token_count` line: `rate_limits`
@@ -1097,19 +1142,12 @@ pub fn tail_transcript(path: &Path, account: &str, offset: u64) -> TailOutcome {
     })
 }
 
-/// Fix batch 5: Codex's compressed rollouts (`.jsonl.zst`), read as a
-/// stream (split from this file: the size budget).
-mod compressed;
-
 /// Convenience: [`tail_jsonl`] with the Codex rollout parser; `carry` is
 /// the previous pass's [`TailOutcome::carry`] for this file. A compressed
 /// rollout (`rollout-*.jsonl.zst`: Codex compresses older ones) is read
-/// once instead, as a stream (see `read_compressed_rollout`).
+/// whole instead, as a stream ([`crate::transcript_follow`]).
 #[must_use]
 pub fn tail_rollout(path: &Path, account: &str, offset: u64, carry: &RolloutCarry) -> TailOutcome {
-    if crate::transcript::is_compressed(path) {
-        return compressed::read_compressed_rollout(path, account, offset);
-    }
     tail_jsonl(path, offset, carry, |bytes, carry| {
         rollout_events_after(account, bytes, carry)
     })

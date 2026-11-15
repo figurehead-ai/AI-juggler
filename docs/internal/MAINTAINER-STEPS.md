@@ -165,6 +165,14 @@ rollback all work before any user depends on them.
 Stable comes later: **Promote** with channel `stable` only accepts a
 version that was on beta, and only once the minor's whole roadmap scope is
 done or deferred. Your approval of it is the release's sign-off (Part 5).
+The first Stable (D-114) is 0.4.6, after **7 days** on beta with no open
+blocker; while it is on beta the 0.4 line is frozen (only blocker fixes
+ship as 0.4.x). A blocker fix needs **3 days** on its own beta tag, not
+the whole 7: promote it with `blocker_fix` (the issue numbers it fixes)
+and `candidate` (0.4.6).
+After the first Stable (a plan, not a ruling): nightly every night; beta
+about weekly, a nightly you've used for a couple of days; stable every
+2–4 weeks after a clean soak.
 
 ### 8. Measurements on your Mac (AJ-E805, 20 min)
 

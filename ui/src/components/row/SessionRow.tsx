@@ -49,7 +49,7 @@ export interface SessionRowProps {
   /** What the place it shows in already says: its App (a rail group, an
    * App's page), its project (a project's page). */
   within?: { app?: boolean; project?: boolean };
-  /** The title worked out for it (a list's: what was last asked). */
+  /** The title worked out for it (Home's: told apart from the rows beside it). */
   title?: string;
   /** When, in words (default: last looked at, else last active). */
   when?: string;

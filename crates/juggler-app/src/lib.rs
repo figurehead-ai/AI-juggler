@@ -79,6 +79,7 @@ pub mod state;
 pub mod terminal;
 pub mod test_launch;
 pub mod ticks;
+pub mod transcript_readers;
 pub mod transcript_text;
 pub mod updates;
 pub mod usage_pipeline;
@@ -532,6 +533,9 @@ macro_rules! app_commands {
             Write quit::app_quit,
             Write quit::app_quit_ack,
             Write quit::app_quit_cancel,
+            // D-112: the toast the first close that hid the window owes.
+            Read  main_window::app_close_note_due,
+            Write main_window::app_close_note_told,
             Read  settings_policy::session_prefs_get,
             Write settings_policy::session_prefs_set,
             Read  features::tools::commands::tools_catalog,
@@ -954,8 +958,9 @@ pub fn run() {
         .manage(app_state)
         // 0.3.5 (ADR-0024, T2): the conversations pages follow.
         .manage(Arc::new(features::conversations::feed::Feeds::default()))
-        // AJ-E1503: ⌘Q and the close button ask first while sessions
-        // are live (the predefined Quit item would quit without asking).
+        // AJ-E1503: ⌘Q asks first while sessions are live (the
+        // predefined Quit item would quit without asking); D-112: the
+        // close button hides the window (main_window.rs).
         .menu(quit::app_menu)
         .on_menu_event(|app, event| {
             if event.id() == quit::QUIT_MENU_ID {
@@ -970,7 +975,6 @@ pub fn run() {
             }
         })
         .on_window_event(|window, event| {
-            use tauri::Manager;
             // AJ-E2003: a folder dropped onto a window counts as chosen.
             if let tauri::WindowEvent::DragDrop(tauri::DragDropEvent::Drop { paths, .. }) = event {
                 picked::record_dropped(paths);
@@ -979,20 +983,9 @@ pub fn run() {
                 features::floor::window::on_window_event(window, event);
                 return;
             }
-            if let tauri::WindowEvent::CloseRequested { api, .. } = event
-                && window.label() == "main"
-                && quit::request(window.app_handle())
-            {
-                api.prevent_close();
-            }
-            // AJ-E1510: no system notification while AI Juggler is in front.
-            if let tauri::WindowEvent::Focused(focused) = event
-                && window.label() == "main"
-            {
-                window
-                    .state::<Arc<state::AppState>>()
-                    .notifier
-                    .set_in_front(*focused);
+            // D-112: its close hides it; AJ-E1510: its focus.
+            if window.label() == main_window::MAIN {
+                main_window::on_window_event(window, event);
             }
         })
         .invoke_handler(app_commands!(tauri_handler))
@@ -1125,6 +1118,15 @@ pub fn run() {
             tauri::RunEvent::ExitRequested { .. } | tauri::RunEvent::Exit
         ) {
             features::places::keep::stand_down();
+        }
+        // D-112: a click on the Dock icon brings a hidden window back.
+        #[cfg(target_os = "macos")]
+        if let tauri::RunEvent::Reopen { .. } = event {
+            main_window::reopened(app);
+        }
+        // D-113: the Dock's Quit asks as ⌘Q does (once launched).
+        if let tauri::RunEvent::Ready = event {
+            quit::answer_quit_events(app);
         }
         if let tauri::RunEvent::Exit = event {
             // AJ-E1509: quit as asked — the run is clean and the
@@ -1433,6 +1435,9 @@ fn spawn_read_model_ticks(
         // AJ-E2401: the Processes view's graph, from what the tick just
         // read (no scan of its own); the page hears of changes.
         if let Some(change) = features::processes::tick(&processes_state) {
+            if processes_state.processes.counts_moved(&change.counts) {
+                processes_app.emit_event(AppEvent::ProcessCounts, change.counts.clone());
+            }
             processes_app.emit_event(AppEvent::ProcessesChanged, change);
         }
         detect_running_models(&processes_app, &processes_state, None);

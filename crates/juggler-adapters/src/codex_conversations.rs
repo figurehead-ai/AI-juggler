@@ -5,9 +5,16 @@
 use std::path::{Path, PathBuf};
 
 use juggler_adapter::conversation::{ConversationSummary, SessionProcess, value_after};
+use juggler_adapter::transcript_read::{TranscriptReader, UsageRead};
 use juggler_core::time::timestamp_ms;
 
 use crate::codex_transcript::{RolloutParser, thread_id_from_name};
+
+/// The folder every rollout is under: `sessions`.
+#[must_use]
+pub fn conversation_roots(home: &Path) -> Vec<PathBuf> {
+    vec![home.join("sessions")]
+}
 
 /// Every `sessions/*/*/*/rollout-*.jsonl` under `home`.
 #[must_use]
@@ -39,19 +46,71 @@ pub fn conversation_files(home: &Path) -> Vec<PathBuf> {
     out
 }
 
-/// Reads one rollout: its thread id, folder, branch, title
+/// Reads one rollout whole: its thread id, folder, branch, title
 /// ([`crate::codex_titles`]: never the context Codex or its app injects),
-/// first and last activity, and tokens (each response counted once).
+/// first and last activity, and tokens (each response once, as the usage
+/// reading counts them, compactions included). Through the same reader
+/// that follows a live rollout ([`transcript_reader`]).
 #[must_use]
 pub fn read_conversation(path: &Path) -> Option<ConversationSummary> {
-    let name = path.file_name()?.to_string_lossy().into_owned();
-    let mut summary = Summary::default();
-    crate::transcript::for_each_line(path, |index, line| {
-        summary.line(index, line);
-        true
+    crate::transcript_follow::read_whole(path, transcript_reader(""))
+}
+
+/// 0.4.5 (AJ-E805): a rollout read as it grows: what it says about the
+/// thread, and its usage (`quota_ingest`'s events with their carry,
+/// counted under `account`), each line parsed once.
+#[must_use]
+pub fn transcript_reader(account: &str) -> Box<dyn TranscriptReader> {
+    Box::new(Reader {
+        account: account.to_owned(),
+        summary: Summary::default(),
+        carry: crate::quota_ingest::RolloutCarry::default(),
+        index: 0,
     })
-    .ok()?;
-    named(path, summary.finish(&name))
+}
+
+/// A rollout's reader ([`transcript_reader`]).
+struct Reader {
+    account: String,
+    summary: Summary,
+    carry: crate::quota_ingest::RolloutCarry,
+    /// The next line's index in the file.
+    index: usize,
+}
+
+impl TranscriptReader for Reader {
+    fn read(&mut self, lines: &[u8]) -> UsageRead {
+        let mut outcome = crate::quota_ingest::TailOutcome::default();
+        // Whole lines, each through its newline: nothing follows the last.
+        let lines = lines.strip_suffix(b"\n").unwrap_or(lines);
+        for line in lines.split(|byte| *byte == b'\n') {
+            let index = self.index;
+            self.index += 1;
+            if line.iter().all(u8::is_ascii_whitespace) {
+                continue;
+            }
+            if let Ok(value) = serde_json::from_slice::<serde_json::Value>(line) {
+                self.summary.value(index, &value);
+                crate::quota_ingest::rollout_value(
+                    &self.account,
+                    &value,
+                    &mut self.carry,
+                    &mut outcome,
+                );
+            } else {
+                self.summary.line(index, line);
+                outcome.parse_errors += 1;
+            }
+        }
+        crate::quota_ingest::usage_read(outcome)
+    }
+
+    fn summary(&self, path: &Path) -> Option<ConversationSummary> {
+        named(
+            path,
+            self.summary.summary(&path.file_name()?.to_string_lossy()),
+        )
+    }
 }
 
 /// The summary with Codex's own name for the thread as its title, when
@@ -115,7 +174,7 @@ fn compressed_head(path: &Path) -> Option<ConversationSummary> {
 fn quick_summary_of(bytes: &[u8], name: &str) -> Option<ConversationSummary> {
     let summary = lines_of(bytes);
     summary.meta.as_ref()?;
-    summary.finish(name)
+    summary.summary(name)
 }
 
 /// What a rollout's bytes (whole, or its two ends) say, a line at a time.
@@ -191,12 +250,19 @@ impl Summary {
         if line.iter().all(u8::is_ascii_whitespace) {
             return;
         }
-        self.any = true;
-        let parser = self.parser.get_or_insert_with(|| RolloutParser::new(false));
         let Ok(value) = serde_json::from_slice::<serde_json::Value>(line) else {
+            self.any = true;
+            let parser = self.parser.get_or_insert_with(|| RolloutParser::new(false));
             parser.line(index, line); // counted as damage
             return;
         };
+        self.value(index, &value);
+    }
+
+    /// One line that parsed.
+    fn value(&mut self, index: usize, value: &serde_json::Value) {
+        self.any = true;
+        let parser = self.parser.get_or_insert_with(|| RolloutParser::new(false));
         if let Some(at) = value
             .get("timestamp")
             .and_then(serde_json::Value::as_str)
@@ -241,24 +307,23 @@ impl Summary {
                 self.git_branch = Some(branch);
             }
         }
-        parser.value(index, &value);
+        parser.value(index, value);
     }
 
-    /// The summary; `None` for an empty file, or a subagent's rollout,
-    /// which is part of the conversation that started it (as Claude Code's
-    /// subagents are), not one of its own. Its usage is still the
-    /// account's (0.1 QA 3.1).
-    fn finish(self, name: &str) -> Option<ConversationSummary> {
-        let meta = self.meta.unwrap_or(Meta {
-            subagent: false,
-            started_in: None,
-            by_script: false,
-        });
-        if !self.any || meta.subagent {
+    /// The summary so far, with no tokens (its usage's, [`Reader`]);
+    /// `None` for an empty file, or a subagent's rollout, which is part of
+    /// the conversation that started it (as Claude Code's subagents are),
+    /// not one of its own. Its usage is still the account's (0.1 QA 3.1).
+    fn summary(&self, name: &str) -> Option<ConversationSummary> {
+        let (subagent, started_in, by_script) =
+            self.meta.as_ref().map_or((false, None, false), |meta| {
+                (meta.subagent, meta.started_in.clone(), meta.by_script)
+            });
+        if !self.any || subagent {
             return None;
         }
-        let parser = self.parser?;
-        let cwd = self.cwd.map(PathBuf::from);
+        let parser = self.parser.as_ref()?;
+        let cwd = self.cwd.as_ref().map(PathBuf::from);
         let title = crate::codex_titles::from_rollout(&crate::codex_titles::Parts {
             first_ask: parser.first_ask(),
             goal: self.goal.is_some(),
@@ -266,18 +331,18 @@ impl Summary {
             cwd: cwd.as_deref(),
         });
         Some(ConversationSummary {
-            id: self.id.or_else(|| thread_id_from_name(name))?,
+            id: self.id.clone().or_else(|| thread_id_from_name(name))?,
             cwd,
-            tokens: parser.usage(),
+            tokens: juggler_core::model::TokenCounts::default(),
             title,
             opening: parser.first_message().and_then(|text| {
                 juggler_adapter::conversation::title_from(text, crate::codex_titles::TITLE_MAX)
             }),
             started_ms: self.started_ms,
             last_ms: self.last_ms,
-            git_branch: self.git_branch,
-            started_in: meta.started_in,
-            by_script: meta.by_script,
+            git_branch: self.git_branch.clone(),
+            started_in,
+            by_script,
         })
     }
 }
@@ -320,6 +385,66 @@ pub fn session_process(exe: Option<&Path>, args: &[String]) -> Option<SessionPro
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// 0.4.5 (AJ-E805): a rollout read as it grows says what it says read
+    /// whole, and its tokens are the usage reading's (P14, P17): reasoning
+    /// and cache writes counted once each, a compaction's own usage
+    /// counted, a repeated record once. The conversation list's own count
+    /// had reasoning twice, cache writes inside the input too, and no
+    /// compactions.
+    #[test]
+    fn a_rollout_read_as_it_grows_counts_tokens_as_the_usage_reading_does() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir
+            .path()
+            .join("sessions/2026/10/21/rollout-2026-10-21T10-00-00-0199a2b3-c4d5-7e6f-8a9b-0c1d2e3f4a5b.jsonl");
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        let record = |response: &str| {
+            format!(
+                r#"{{"timestamp":"2026-10-21T10:00:09.000Z","type":"token_usage_record","payload":{{"thread_id":"t","turn_id":"1","response_id":"{response}","usage":{{"input_tokens":100,"cached_input_tokens":60,"cache_write_input_tokens":10,"output_tokens":20,"reasoning_output_tokens":5}}}}}}"#
+            )
+        };
+        let lines = [
+            r#"{"timestamp":"2026-10-21T10:00:00.000Z","type":"session_meta","payload":{"id":"0199a2b3-c4d5-7e6f-8a9b-0c1d2e3f4a5b","cwd":"/w/api","source":"cli"}}"#.to_owned(),
+            r#"{"timestamp":"2026-10-21T10:00:01.000Z","type":"response_item","payload":{"type":"message","role":"user","content":[{"type":"input_text","text":"fix the flaky test"}]}}"#.to_owned(),
+            record("r1"),
+            record("r1"),
+            r#"{"timestamp":"2026-10-21T10:00:10.000Z","type":"event_msg","payload":{"type":"token_count","info":{"total_token_usage":{"total_tokens":120},"last_token_usage":{"input_tokens":100,"output_tokens":20}}}}"#.to_owned(),
+            r#"{"timestamp":"2026-10-21T10:00:11.000Z","type":"compacted","payload":{"message":""}}"#.to_owned(),
+            r#"{"timestamp":"2026-10-21T10:00:12.000Z","type":"event_msg","payload":{"type":"token_count","info":{"total_token_usage":{"total_tokens":150},"last_token_usage":{"input_tokens":25,"output_tokens":5}}}}"#.to_owned(),
+            record("r2"),
+        ];
+        let text = lines.join("\n") + "\n";
+        std::fs::write(&path, &text).unwrap();
+        let whole = read_conversation(&path).unwrap();
+        // Two responses: input 100 - 60 cached - 10 written = 30, output
+        // 20 - 5 reasoning = 15; and the compaction's own 25 in, 5 out.
+        let t = whole.tokens;
+        assert_eq!(
+            (t.input, t.output, t.cache_read, t.cache_write, t.reasoning),
+            (85, 35, 120, 20, 10)
+        );
+        let ends: Vec<usize> = text.match_indices('\n').map(|(at, _)| at + 1).collect();
+        for cut in &ends {
+            let mut file =
+                juggler_adapter::transcript_read::ConversationFile::new(transcript_reader("acc"));
+            let _ = file.read(&text.as_bytes()[..*cut]);
+            let _ = file.read(&text.as_bytes()[*cut..]);
+            assert_eq!(file.summary(&path).as_ref(), Some(&whole), "cut at {cut}");
+        }
+        let adapter = crate::codex::CodexAdapter::new();
+        assert!(
+            juggler_adapter::ToolTranscripts::transcript_reader(&adapter, &path, "a").is_some()
+        );
+        assert!(
+            juggler_adapter::ToolTranscripts::transcript_reader(
+                &adapter,
+                &dir.path().join("session_index.jsonl"),
+                "a"
+            )
+            .is_none()
+        );
+    }
 
     #[test]
     fn a_compressed_rollout_is_a_conversation_too() {
@@ -522,6 +647,65 @@ mod tests {
         );
     }
 
+    /// 0.4.5: an untitled thread is named by its first prompt, as `codex
+    /// resume` lists it: past the context Codex injects, one line, never
+    /// a pasted key or a bare path (the next prompt names it then), and
+    /// none at all when there's no prompt.
+    #[test]
+    fn a_rollout_is_named_by_its_first_prompt() {
+        let dir = tempfile::tempdir().unwrap();
+        let meta = r#"{"timestamp":"2026-11-13T08:00:00.000Z","type":"session_meta","payload":{"id":"019a7c11-2b3c-7d4e-8f5a-6b7c8d9e0f1a","cwd":"/w/shop","originator":"codex_cli_rs","source":"cli"}}"#;
+        let user = |text: &str| {
+            format!(
+                r#"{{"timestamp":"2026-11-13T08:00:01.000Z","type":"response_item","payload":{{"type":"message","role":"user","content":[{{"type":"input_text","text":{}}}]}}}}"#,
+                serde_json::Value::from(text)
+            )
+        };
+        let rollout = |name: &str, lines: &[String]| {
+            let path = dir.path().join(format!(
+                "rollout-2026-11-13T08-00-00-019a7c11-2b3c-7d4e-8f5a-6b7c8d9e0f1a-{name}.jsonl"
+            ));
+            let mut all = vec![meta.to_owned()];
+            all.extend_from_slice(lines);
+            std::fs::write(&path, all.join("\n")).unwrap();
+            read_conversation(&path).unwrap()
+        };
+        let context = user("<environment_context>\n  <cwd>/w/shop</cwd>\n</environment_context>");
+        let named = rollout(
+            "a",
+            &[
+                user("# AGENTS.md instructions for /w/shop"),
+                context.clone(),
+                user("/Users/you/Downloads/cart.csv"),
+                user("Round   the cart total\nto cents, then run the tests"),
+            ],
+        );
+        assert_eq!(named.title.as_deref(), Some("Round the cart total"));
+        assert_eq!(
+            juggler_core::naming::short_name(
+                None,
+                named.title.as_deref(),
+                None,
+                &juggler_core::naming::Facts::default()
+            ),
+            "Round the cart total"
+        );
+        let unnamed = rollout("b", &[context, user("sk-test-0123456789abcdefXYZ")]);
+        assert_eq!(unnamed.title, None);
+        assert_eq!(
+            juggler_core::naming::short_name(
+                None,
+                unnamed.title.as_deref(),
+                None,
+                &juggler_core::naming::Facts {
+                    folder: Some("shop"),
+                    started: Some("started 8:00 AM")
+                }
+            ),
+            "shop · started 8:00 AM"
+        );
+    }
+
     /// The 0.1.5 review: a Codex app thread was titled with the block the
     /// app injects (`<external_codex_apps_…>`).
     #[test]
@@ -546,7 +730,7 @@ mod tests {
         };
         let title = |lines: &[&str]| {
             lines_of(format!("{}\n", lines.join("\n")).as_bytes())
-                .finish("rollout-a.jsonl")
+                .summary("rollout-a.jsonl")
                 .unwrap()
                 .title
         };
@@ -636,12 +820,12 @@ mod tests {
         let ask = r#"{"timestamp":"2026-10-21T10:01:01.000Z","type":"response_item","payload":{"type":"message","role":"user","content":[{"type":"input_text","text":"look into the flaky test"}]}}"#;
         assert!(
             lines_of(format!("{parent}\n{ask}\n").as_bytes())
-                .finish("rollout-a.jsonl")
+                .summary("rollout-a.jsonl")
                 .is_some()
         );
         assert!(
             lines_of(format!("{child}\n{ask}\n").as_bytes())
-                .finish("rollout-b.jsonl")
+                .summary("rollout-b.jsonl")
                 .is_none()
         );
     }

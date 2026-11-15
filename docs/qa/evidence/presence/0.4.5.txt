@@ -1,0 +1,18 @@
+presence-check (ADR-0032)
+running desktop apps (ps): 7 (desktop)
+your running Apps: 7
+Open now shows: 7 desktop App(s), counted 7
+Inactive apps shows: 2 named on screen
+  open: App 11: fold=folded rows=0 pinned=0 last=None all=None count=None out=False  records=28/8 shown
+  open: App 7: fold=folded rows=0 pinned=0 last=None all=None count=None out=False  records=19/15 shown
+  open: App 8: fold=folded rows=0 pinned=0 last=None all=None count=None out=True  records=1/1 shown
+  open: App 9: fold=folded rows=0 pinned=0 last=None all=None count=None out=False  records=1/1 shown
+  open: App 10: fold=folded rows=0 pinned=0 last=None all=None count=None out=False  records=1/1 shown
+  open: App 12: fold=folded rows=0 pinned=0 last=None all=None count=None out=False  records=4/4 shown
+  open: App 14: fold=True rows=3 pinned=0 last=None all=15 count=None out=False
+  idle: App 13: fold=folded rows=0 pinned=0 last=None all=None count=33 out=False
+  idle: App 6: fold=False rows=0 pinned=0 last=None all=None count=1 out=False  records=1/1 shown
+  codex store: 15 by the App 14 + 33 others = 48 listed; rail: app=15 cli=33
+  limit hits given back (D-103.10): 0 on the wrong Account before, 0 after; 0 moved, 0 cleared (their Account is gone), 0 left where they happened
+(The 0.4.5 Dev build at 115961766, a release build from a clean export, on an act-free copy of the installed AI Juggler's data (scripts/qa/act_free_copy.sh), its rail read by pid, 2026-11-13. Process ledger 0 before and after; no child process but its own watchdog; the Dev folder restored.)
+PASS Open now is exactly your running Apps; none is in two sections; each unfolds to its own records; every Out Account marked; no lab run in a real profile; Codex counts are the store's listed threads; no past limit hit left on the wrong Account

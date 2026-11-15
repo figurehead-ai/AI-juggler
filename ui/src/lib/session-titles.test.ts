@@ -1,8 +1,8 @@
 /**
  * The review of 0.1.5: Home's "Pick up where you left off" rows all read
  * "Untitled session · payments-api". An untitled session takes the first
- * words of the last thing asked, else its branch or project and when it
- * started; no two rows read the same.
+ * words of its first prompt (0.4.5, as `claude --resume` lists it), else
+ * its branch or project and when it started; no two rows read the same.
  */
 import { describe, expect, it } from "vitest";
 import { firstWords, namedByFacts, shortName, startedWords, tellApart, untitledName } from "./session-titles";
@@ -21,13 +21,26 @@ describe("firstWords", () => {
   it("skips a short opener and stops at the clause", () => {
     expect(firstWords("Good. Keep the old shortcuts working; the test key is •••")).toBe("Keep the old shortcuts working");
   });
-  it("cuts a long ask to a few words, with an ellipsis", () => {
-    expect(firstWords("Please migrate every billing webhook handler to the new queue and remove the old cron")).toBe("Please migrate every billing webhook handler to the…");
+  it("cuts a long ask at a word near 60 characters, with an ellipsis (0.4.5)", () => {
+    expect(firstWords("Please migrate every billing webhook handler to the new queue and remove the old cron")).toBe("Please migrate every billing webhook handler to the new…");
+    // A word that ends right at the limit stays.
+    expect(firstWords("Move every billing webhook to the new queue and drop the old cron today")).toBe("Move every billing webhook to the new queue and drop the old…");
   });
   it("keeps a question's mark, never a redacted key", () => {
     expect(firstWords("Why does checkout fail?")).toBe("Why does checkout fail?");
     expect(firstWords("••• is the key")).toBeNull();
     expect(firstWords("   \n  ")).toBeNull();
+  });
+  it("0.4.5: never a pasted key or a bare path; a line of those says nothing, the next one speaks", () => {
+    expect(firstWords("sk-test-0123456789abcdefXYZ")).toBeNull();
+    expect(firstWords("/Users/you/Downloads/brief.md")).toBeNull();
+    expect(firstWords("Call the API with sk-test-0123456789abcdefXYZ and list the models")).toBe("Call the API with");
+    expect(firstWords('@"/Users/you/Downloads/brief.md"\nOk so we are planning to move the shop')).toBe("Ok so we are planning to move the shop");
+    expect(firstWords("Rename 0b1c2d3e-4f5a-4b6c-8d7e-9f0a1b2c3d4e in the store")).toBe("Rename 0b1c2d3e-4f5a-4b6c-8d7e-9f0a1b2c3d4e in the store");
+    expect(firstWords("Read https://example.com/docs/2026/limits first")).toBe("Read https://example.com/docs/2026/limits first");
+  });
+  it("a colon doesn't end it: a tool's own title reads whole", () => {
+    expect(firstWords("Billing move: rehearsal starts (M2)")).toBe("Billing move: rehearsal starts (M2)");
   });
 });
 
@@ -121,28 +134,26 @@ function session(id: string, over: Partial<InstanceInfo> = {}): InstanceInfo {
 const PROJECTS = [{ id: "proj-payments", root: "/Users/you/Dev/payments-api", name: "payments-api" }] as ProjectInfo[];
 
 describe("recentRows", () => {
-  it("titles an untitled row by what was asked, the where line keeps the project", () => {
-    const asked = new Map([["claude-work\u0000c-1", "Keep the old shortcuts working"]]);
-    const [row] = recentRows([session("a", { conversation_id: "c-1" })], PROJECTS, asked, NOW);
+  it("titles a row by its conversation's title (its first prompt, 0.4.5), the where line keeps the project", () => {
+    const [row] = recentRows([session("a", { conversation_id: "c-1", title: "Keep the old shortcuts working" })], PROJECTS, NOW);
     expect(row!.title).toBe("Keep the old shortcuts working");
     expect(row!.where).toBe("payments-api · main · Work Max");
   });
-  it("without words: its facts — project · when it started, never 'Untitled' (D-96), never its Account (D-103.8)", () => {
-    const [row] = recentRows([session("a")], PROJECTS, new Map(), NOW);
+  it("without a first prompt: its facts — project · when it started, never 'Untitled' (D-96), never its Account (D-103.8)", () => {
+    const [row] = recentRows([session("a", { conversation_id: "c-1" })], PROJECTS, NOW);
     expect(row!.title).toBe(`payments-api · started ${clock(NOW - 7_200_000)}`);
     expect(row!.title).not.toMatch(/Untitled/);
     // The where line doesn't say again what the title says; it says the Account.
     expect(row!.where).toBe("main · Work Max");
   });
   it("two untitled in one project and minute are numbered", () => {
-    const rows = recentRows([session("a"), session("b")], PROJECTS, new Map(), NOW);
+    const rows = recentRows([session("a"), session("b")], PROJECTS, NOW);
     expect(rows.map((row) => row.title)).toEqual([`payments-api · started ${clock(NOW - 7_200_000)} (1)`, `payments-api · started ${clock(NOW - 7_200_000)} (2)`]);
   });
   it("never shows two rows alike", () => {
     const rows = recentRows(
       [session("a", { title: "Fix it" }), session("b", { title: "Fix it", account_label: "Personal" }), session("c", { title: "Fix it", account_label: "Personal", started_at_ms: NOW - 50_000_000 })],
       PROJECTS,
-      new Map(),
       NOW,
     );
     expect(new Set(rows.map((row) => row.title)).size).toBe(3);

@@ -1116,11 +1116,19 @@ fn seed_lab(seed: &Value, data: PathBuf, home: &std::path::Path) -> (Arc<AppStat
         Some(days) if bulk > 0 => i64::try_from(days * 24 * 3_600_000 / (bulk + 1)).unwrap(),
         _ => 37 * 60_000,
     };
+    // Persona D3 (0.4.5): `ended_conversations = true` gives each one a
+    // short conversation in its tool's own format, its first ask one of
+    // [`BULK_ASKS`]; two in three of each Claude Code App's carry no title
+    // line, as short sessions Claude Code never titled (named by their
+    // first ask, as `claude --resume` shows them). Codex's thread store
+    // names each of its own.
+    let talk = seed["ended_conversations"].as_bool() == Some(true);
+    let mut talks: Vec<(String, String, u64, usize)> = Vec::new();
     if bulk > 0 && !terminal.is_empty() {
         let now = Timestamp::now().millis();
         let storage = state.storage.lock().unwrap();
         for i in 0..bulk {
-            let (_, (_, recipe)) = terminal[usize::try_from(i).unwrap() % terminal.len()];
+            let (_, (account, recipe)) = terminal[usize::try_from(i).unwrap() % terminal.len()];
             let name = names
                 .get(usize::try_from(i).unwrap() % names.len().max(1))
                 .copied();
@@ -1146,6 +1154,32 @@ fn seed_lab(seed: &Value, data: PathBuf, home: &std::path::Path) -> (Arc<AppStat
                     window: None,
                 })
                 .unwrap();
+            if talk {
+                let ended_ago =
+                    u64::try_from((now - started - 20 * 60_000).max(0) / 60_000).unwrap();
+                talks.push((
+                    format!("ended-{i:04}"),
+                    account.clone(),
+                    ended_ago,
+                    usize::try_from(i).unwrap(),
+                ));
+            }
+        }
+        drop(storage);
+        for (id, account, ago_minutes, n) in &talks {
+            lab_talk(
+                &state,
+                &LabTalk {
+                    id,
+                    topic: Some(BULK_ASKS[n % BULK_ASKS.len()]),
+                    said: None,
+                    ago_minutes: *ago_minutes,
+                    // Every third of each App's (they take turns).
+                    titled: (n / terminal.len()).is_multiple_of(3),
+                },
+                account,
+                &mut notes,
+            );
         }
         notes.push(format!(
             "{bulk} ended sessions, back to {} days ago",
@@ -1361,6 +1395,98 @@ fn lab_conversation(
     notes: &mut Vec<String>,
 ) {
     let id = session["id"].as_str().unwrap();
+    let tool = lab_tool(state, account);
+    if tool != "claude-code" {
+        notes.push(format!(
+            "{id}: no lab conversation for {tool} yet; it has none"
+        ));
+        return;
+    }
+    // Persona D3: its title and what was said, and when it ended (a
+    // session from `days_ago` ended half an hour after it started).
+    let ago_minutes = session["days_ago"]
+        .as_u64()
+        .map_or(0, |days| (days * 24 * 60).saturating_sub(30));
+    lab_talk(
+        state,
+        &LabTalk {
+            id,
+            // `first_ask` (0.4.5): an untitled one, named by what it was
+            // first asked (a session Claude Code never titled).
+            topic: session["title"].as_str().or(session["first_ask"].as_str()),
+            said: session["said"].as_str(),
+            ago_minutes,
+            titled: session["title"].is_string(),
+        },
+        account,
+        notes,
+    );
+}
+
+/// The first asks of a lab's bulk ended sessions (persona D3, 0.4.5:
+/// fifty sessions told apart by what each was for). Harmless, varied, a
+/// few longer than a name's 60 characters; none says "login" or "cookie"
+/// (PD3 searches for those). 25: prime to the projects' count, so no
+/// project gets the same ask twice in fifty.
+const BULK_ASKS: [&str; 25] = [
+    "Add retries with backoff to the webhook client",
+    "Why does the nightly job run twice on Sundays?",
+    "Move the feature flags out of the env file into the config service, keeping the old names working",
+    "Write a migration that splits the address column",
+    "The search results page is slow with more than 200 rows, can you profile it and fix the worst part?",
+    "Rename the billing models to match the new invoice terms",
+    "Set up a staging deploy for pull requests",
+    "Add an index for the orders by customer query",
+    "Draft release notes from the last twenty merged changes",
+    "Replace the hand-written CSV export with the shared exporter",
+    "The upload progress bar jumps back to zero halfway, find out why",
+    "Add rate limits to the public API keys",
+    "Make the date picker respect the user's first weekday",
+    "Clean up the unused feature toggles from last quarter",
+    "Port the cron scripts to the job queue",
+    "Explain how the cache invalidation works in the pricing service and where it can go stale",
+    "Add an audit trail for refunds",
+    "Bump the database driver and fix what breaks",
+    "Split the dashboard bundle so the charts load later",
+    "Add dark mode to the email templates",
+    "Find why the health check flaps under load",
+    "Document the on-call runbook for the queue backlog",
+    "Make the invoice PDF render the same in every locale",
+    "Add pagination to the team members list",
+    "Tighten the CORS rules on the admin endpoints",
+];
+
+/// One lab conversation to write: its session, first ask (or the
+/// replica's own pick), second ask, how long ago it ended, and whether it
+/// carries its tool's title.
+struct LabTalk<'a> {
+    id: &'a str,
+    topic: Option<&'a str>,
+    said: Option<&'a str>,
+    ago_minutes: u64,
+    titled: bool,
+}
+
+/// The tool scenario Account `account` runs (`claude-code`, `codex`, …).
+fn lab_tool(state: &Arc<AppState>, account: &str) -> String {
+    state
+        .storage
+        .lock()
+        .unwrap()
+        .accounts()
+        .get(&juggler_core::model::AccountId::new(account.to_owned()))
+        .unwrap()
+        .harness
+        .to_string()
+}
+
+/// `talk` written by the replica's writers in its Account's tool's own
+/// format under the Account's folder (Claude Code: `replica.py
+/// conversation`; Codex: `codex-thread`, as Codex CLI starts one), and its
+/// session linked to it, as a session that has talked is. Another tool's
+/// session is left without one, with a note.
+fn lab_talk(state: &Arc<AppState>, talk: &LabTalk<'_>, account: &str, notes: &mut Vec<String>) {
+    let id = talk.id;
     let (record, tool, dir) = {
         let storage = state.storage.lock().unwrap();
         let record = storage.sessions().get(&SessionId::new(id)).unwrap();
@@ -1370,34 +1496,48 @@ fn lab_conversation(
             .unwrap();
         (record, found.harness.to_string(), found.state_dir)
     };
-    if tool != "claude-code" {
-        notes.push(format!(
-            "{id}: no lab conversation for {tool} yet; it has none"
-        ));
-        return;
-    }
     let native = lab_uuid(id);
-    let mut args: Vec<std::ffi::OsString> = vec![
-        "conversation".into(),
-        "--folder".into(),
-        dir.into(),
+    let mut args: Vec<std::ffi::OsString> = match tool.as_str() {
+        "claude-code" => vec![
+            "conversation".into(),
+            "--folder".into(),
+            dir.into(),
+            "--session".into(),
+        ],
+        "codex" => vec![
+            "codex-thread".into(),
+            "--home".into(),
+            dir.into(),
+            "--originator".into(),
+            "codex_cli_rs".into(),
+            "--source".into(),
+            "cli".into(),
+            "--thread".into(),
+        ],
+        _ => {
+            notes.push(format!(
+                "{id}: no lab conversation for {tool} yet; it has none"
+            ));
+            return;
+        }
+    };
+    args.extend([
+        native.clone().into(),
         "--cwd".into(),
         record.cwd.clone().into(),
-        "--session".into(),
-        native.clone().into(),
-    ];
-    // Persona D3: its title and what was said, and when it ended (a
-    // session from `days_ago` ended half an hour after it started).
-    if let Some(title) = session["title"].as_str() {
-        args.extend(["--topic".into(), title.into()]);
+        "--ago-minutes".into(),
+        talk.ago_minutes.to_string().into(),
+    ]);
+    if let Some(topic) = talk.topic {
+        args.extend(["--topic".into(), topic.into()]);
     }
-    if let Some(said) = session["said"].as_str() {
+    if let Some(said) = talk.said {
         args.extend(["--said".into(), said.into()]);
     }
-    let ago = session["days_ago"]
-        .as_u64()
-        .map_or(0, |days| (days * 24 * 60).saturating_sub(30));
-    args.extend(["--ago-minutes".into(), ago.to_string().into()]);
+    let untitled = !talk.titled && tool == "claude-code";
+    if untitled {
+        args.push("--untitled".into());
+    }
     let written = replica(&args);
     let path = PathBuf::from(written["path"].as_str().unwrap());
     let mut linked = record;
@@ -1413,9 +1553,11 @@ fn lab_conversation(
         .sessions()
         .update(&linked)
         .unwrap();
-    notes.push(match session["title"].as_str() {
-        Some(title) => format!("{id}: a conversation of a few turns, \"{title}\""),
-        None => format!("{id}: a conversation of a few turns"),
+    // Codex's thread store names every thread it keeps.
+    notes.push(match (talk.topic, untitled) {
+        (Some(topic), false) => format!("{id}: a conversation of a few turns, \"{topic}\""),
+        (Some(topic), true) => format!("{id}: an untitled conversation, first asking \"{topic}\""),
+        (None, _) => format!("{id}: a conversation of a few turns"),
     });
 }
 

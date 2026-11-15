@@ -19,6 +19,8 @@ import { backendAnswered, backendFailed } from "../lib/backend-health";
 import { singleFlight, useLiveDeltas, type Freshness } from "../lib/live-deltas";
 import { withMarks } from "../lib/palette";
 import { withFolderMarks } from "../lib/marks";
+import { keepIfSame } from "../lib/same";
+import { coalesced } from "../lib/shown-window";
 import { useWithSelected } from "../lib/session-lookup";
 import { staleSubscriptions } from "../lib/subscriptions";
 import type { AccountInfo } from "../types/generated/AccountInfo";
@@ -94,12 +96,16 @@ export function useAppData(selection: Selection, openPage: (next: Selection) => 
           launchRecipesList(),
           switchBackSuggestions().catch(() => []),
         ]);
-      setProjects(withMarks(projectRows)); // AJ-E1532: each project its mark
-      setSessions(sessionRows);
-      setAccounts(withFolderMarks(accountRows)); // AJ-E3206: each App's and Account's colour, each folder its initials
+      // AJ-E805: an equal answer keeps its identity, so the shell doesn't
+      // draw again (with sessions at work this read runs every few seconds).
+      const projectsNow = withMarks(projectRows); // AJ-E1532: each project its mark
+      const accountsNow = withFolderMarks(accountRows); // AJ-E3206: each App's and Account's colour, each folder its initials
+      setProjects((was) => keepIfSame(was, projectsNow));
+      setSessions((was) => keepIfSame(was, sessionRows));
+      setAccounts((was) => keepIfSame(was, accountsNow));
       publishAgentTools(accountRows); // AJ-E3002 R3: which Apps' sessions get the agent tools
-      setProfiles(profileRows);
-      setSwitchBackCards(backSuggestions);
+      setProfiles((was) => keepIfSame(was, profileRows));
+      setSwitchBackCards((was) => keepIfSame(was, backSuggestions));
       if (!boardInteractiveCounted) {
         boardInteractiveCounted = true;
         statsEvent("perf.board_interactive_ms", {}, performance.now());
@@ -111,7 +117,7 @@ export function useAppData(selection: Selection, openPage: (next: Selection) => 
         for (const [id, sampled] of Object.entries(current)) {
           if (next[id]) next[id] = sampled;
         }
-        return next;
+        return keepIfSame(current, next);
       });
       backendAnswered();
     } catch (cause) {
@@ -132,15 +138,18 @@ export function useAppData(selection: Selection, openPage: (next: Selection) => 
   }, [refresh]);
 
   // Day one: the REAL project history from imported transcripts (an idempotent
-  // scan); AJ-E1529: again when the files change (not when only what's open did).
+  // scan); AJ-E1529: again when the files change (not when only what's open
+  // did), and when sessions change. AJ-E805: a burst of either reads the
+  // lists at once, then at most once a second.
   useEffect(() => {
     void projectsBackfill().then(() => void refresh());
-    return onConversationsChanged((change) => change === "index" && void refresh());
-  }, [refresh]);
-
-  useEffect(() => {
     void refresh();
-    return onSessionsUpdated(() => void refresh());
+    const reads = coalesced(() => void refresh());
+    const stops = [onConversationsChanged((change) => change === "index" && reads.ask()), onSessionsUpdated(reads.ask)];
+    return () => {
+      reads.stop();
+      stops.forEach((stop) => stop());
+    };
   }, [refresh]);
 
   // AJ-E402/E401: the 5 s resource and 30 s quota ticks, merged by id.

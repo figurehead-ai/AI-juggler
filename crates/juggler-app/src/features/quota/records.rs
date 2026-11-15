@@ -73,6 +73,14 @@ pub(crate) fn read_soon() {
     READ_SOON.store(true, std::sync::atomic::Ordering::Release);
 }
 
+/// Whether the records will be read at pass `tick` (the usage pipeline's
+/// gate asks before the pass, which [`due`] then answers for good).
+pub(crate) fn will_be_due(tick: u32) -> bool {
+    READ_SOON.load(std::sync::atomic::Ordering::Acquire)
+        || tick.is_multiple_of(RECORDS_EVERY)
+        || tick == 1
+}
+
 /// Whether the records are due at pass `tick`: every [`RECORDS_EVERY`]
 /// passes, the first, and the one after [`read_soon`].
 fn due(tick: u32) -> bool {

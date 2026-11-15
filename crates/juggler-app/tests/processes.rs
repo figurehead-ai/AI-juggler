@@ -292,3 +292,19 @@ fn unknown_instance_is_an_error_not_an_empty_table() {
         "the failure names the instance"
     );
 }
+
+/// AJ-E805 (round 3): the graph changes on nearly every 2 s tick while
+/// sessions work, and the top bar's count listened to it, so the window
+/// was sent every change (about 18 a minute). Its count has its own event,
+/// told only when a count moves.
+#[test]
+fn the_top_bars_count_is_told_only_when_a_count_moves() {
+    use juggler_app::features::processes::{Processes, dto::ProcessCountsInfo};
+    let processes = Processes::default();
+    let mut counts = ProcessCountsInfo::default();
+    assert!(processes.counts_moved(&counts), "the first counts are told");
+    assert!(!processes.counts_moved(&counts), "the same counts are not");
+    counts.processes = 3;
+    assert!(processes.counts_moved(&counts), "a count that moved is");
+    assert!(!processes.counts_moved(&counts));
+}

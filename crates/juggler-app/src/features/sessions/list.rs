@@ -61,11 +61,38 @@ pub(crate) fn rows_with(
     records: Vec<SessionRecord>,
     live: &LiveStatsMap,
 ) -> AppResult<Vec<InstanceInfo>> {
+    joined(state, stored_rows(state, records, live)?)
+}
+
+/// The rows of `records` as storage makes them (their Accounts, launch
+/// settings, lifecycle, marks and `live` stats), before [`joined`].
+///
+/// # Errors
+///
+/// Returns the typed [`AppError`](crate::error::AppError) message on
+/// storage failures.
+pub(crate) fn stored_rows(
+    state: &Arc<AppState>,
+    records: Vec<SessionRecord>,
+    live: &LiveStatsMap,
+) -> AppResult<Vec<InstanceInfo>> {
     let labels = desktop_isolation_labels(&state.registry);
     let adopted = state.supervisor.alive_adopted_sessions();
     let storage = lock_storage_arc(state)?;
-    let rows = session_infos_for(&storage, records, live, &labels, &adopted)?;
-    drop(storage);
+    session_infos_for(&storage, records, live, &labels, &adopted)
+}
+
+/// What moves on its own beside storage, joined onto `rows`: counted
+/// subagents, the runtime's words, the resume refusal (rc21) and the
+/// conversation's title.
+///
+/// # Errors
+///
+/// A poisoned lock.
+pub(crate) fn joined(
+    state: &Arc<AppState>,
+    rows: Vec<InstanceInfo>,
+) -> AppResult<Vec<InstanceInfo>> {
     let rows = crate::features::subagents::count::counted(state, rows);
     let rows = crate::features::runtime::described(state, rows);
     let rows = crate::features::launch::resume_gate::with_refusals(state, rows);

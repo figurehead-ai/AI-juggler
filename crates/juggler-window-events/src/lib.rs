@@ -26,6 +26,34 @@
 //!    reads the notification, and only calls the caller's own function).
 //!    The observers live as long as the app, so none is ever removed.
 //!
+//! D-113 added one, for quitting: the quit Apple event's handler, one
+//! audited unit (7) of four `unsafe` markers in [`answer_quit_events`]'s
+//! macOS half, each with its SAFETY note:
+//!
+//! 7. (a) defining the handler's class (`NSObject`'s subclass, which has
+//!    no subclassing requirements; the class has no `Drop`); (b) its one
+//!    method, the selector `NSAppleEventManager` calls on a handler (two
+//!    descriptors, either taken as maybe nil; returns nothing); (c)
+//!    `NSObject`'s own `init` on the object just allocated; (d) handing it
+//!    to `NSAppleEventManager` (it responds to the selector, and is kept
+//!    for the app's life, as the manager doesn't retain it). Nothing of
+//!    tao's is replaced: it survives tao upgrades.
+//!
+//! D-112 added one, for a close from full screen (the window hides once
+//! its exit animation is over): one audited block (8) in
+//! [`watch_full_screen_exit`]'s macOS half:
+//!
+//! 8. (a) reading `AppKit`'s `NSWindowDidExitFullScreenNotification` (an
+//!    extern static it defines and never changes); (b) observing it with
+//!    a block, through the notification center, for one window: the
+//!    object filter is that window (only compared, never retained or
+//!    messaged by the center), no queue (delivered on the thread that
+//!    posts it: `AppKit` posts a window's notifications on the main
+//!    thread), and the block is `Send + Sync`, never reads the
+//!    notification, and only calls the caller's own function. The window's
+//!    delegate (tao's) is never touched: it survives tao upgrades. The
+//!    observer lives as long as the app, so it is never removed.
+//!
 //! What this crate is NOT: a general unsafe escape hatch. It exists so the
 //! workspace law `unsafe_code = "forbid"` stays absolute everywhere else;
 //! it doesn't inherit the workspace lint baseline (see `Cargo.toml`). Any
@@ -34,10 +62,11 @@
 //! Elsewhere (Windows until 0.6, Linux until 0.7) every call says
 //! [`Error::Unsupported`], with why.
 //!
-//! Must not know: the Floor's scene, storage or anything but input and
-//! visibility events: it is an audited shim.
+//! Must not know: the Floor's scene, storage, the app's sessions or
+//! anything but input, visibility, presence, full-screen exits and quit
+//! events: it is an audited shim.
 #![deny(missing_docs, unsafe_op_in_unsafe_fn)]
-#![cfg_attr(target_os = "macos", allow(unsafe_code))] // ADR-0026, ADR-0032: the six audited calls
+#![cfg_attr(target_os = "macos", allow(unsafe_code))] // ADR-0026, ADR-0032, D-112, D-113: the audited calls
 
 use raw_window_handle::HasWindowHandle;
 
@@ -223,6 +252,115 @@ pub fn reduce_motion() -> bool {
 /// [`Error::Unsupported`], with why, where it can't yet.
 pub fn watch_apps(on_change: impl Fn() + Send + Sync + 'static) -> Result<(), Error> {
     imp::watch_apps(on_change)
+}
+
+/// D-112: calls `on_exit` each time `window` has left full screen, its
+/// exit animation over, for the rest of the app's life (main thread only;
+/// `on_exit` runs on the main thread). tao says a window has left full
+/// screen as soon as it is asked to; this says when the exit has ended.
+/// It reads the system's notification for the window (audit 8): the
+/// window's delegate is never touched.
+///
+/// # Errors
+///
+/// As [`install`]: [`Error::Unsupported`], with why, where it can't yet;
+/// off the main thread; or for a handle that isn't a window. Nothing is
+/// then watched.
+pub fn watch_full_screen_exit(
+    window: &impl HasWindowHandle,
+    on_exit: impl Fn() + Send + Sync + 'static,
+) -> Result<(), Error> {
+    imp::watch_full_screen_exit(window, on_exit)
+}
+
+/// D-113: what a quit Apple event (`kCoreEventClass`/`kAEQuitApplication`)
+/// does.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum QuitAnswer {
+    /// Terminate at once, asking nothing: the event says why the system
+    /// asks (log out, restart, shut down), or the app is already on its
+    /// way out.
+    Terminate,
+    /// Ask, as ⌘Q does: no reason (the Dock's Quit, Activity Monitor's
+    /// Quit, a script's `quit`).
+    Ask,
+}
+
+/// The Apple event code four characters spell.
+const fn code(name: &[u8; 4]) -> u32 {
+    u32::from_be_bytes(*name)
+}
+
+/// `kCoreEventClass`.
+#[cfg_attr(
+    not(target_os = "macos"),
+    allow(dead_code, reason = "read by the AppKit handler only")
+)]
+const CORE_EVENT_CLASS: u32 = code(b"aevt");
+/// `kAEQuitApplication`.
+#[cfg_attr(
+    not(target_os = "macos"),
+    allow(dead_code, reason = "read by the AppKit handler only")
+)]
+const QUIT_APPLICATION: u32 = code(b"quit");
+/// `keyAEQuitReason`: why the system asks the app to quit.
+#[cfg_attr(
+    not(target_os = "macos"),
+    allow(dead_code, reason = "read by the AppKit handler only")
+)]
+const QUIT_REASON: u32 = code(b"why?");
+
+/// A quit event's answer: one that carries a reason (`keyAEQuitReason`,
+/// whatever it is: `kAELogOut`, `kAEReallyLogOut`, `kAERestart`,
+/// `kAEShutDown`, the dialog ones…), or any while the app is `quitting`
+/// already, terminates; one without a reason asks.
+#[must_use]
+pub const fn quit_answer(reason: Option<u32>, quitting: bool) -> QuitAnswer {
+    if quitting || reason.is_some() {
+        QuitAnswer::Terminate
+    } else {
+        QuitAnswer::Ask
+    }
+}
+
+/// What the app does with a quit Apple event (D-113).
+pub trait QuitEvents {
+    /// The app is already on its way out.
+    fn quitting(&self) -> bool;
+    /// An event without a reason: ask, as ⌘Q does.
+    fn ask(&self);
+    /// Said just before the app terminates, with the event's reason code.
+    fn terminating(&self, reason: Option<u32>);
+}
+
+/// Answers one event with `reason` for `app`: asks it, or tells it the
+/// app terminates (the caller then terminates).
+#[cfg_attr(
+    not(target_os = "macos"),
+    allow(dead_code, reason = "read by the AppKit handler only")
+)]
+fn answer(reason: Option<u32>, app: &dyn QuitEvents) -> QuitAnswer {
+    let answer = quit_answer(reason, app.quitting());
+    match answer {
+        QuitAnswer::Ask => app.ask(),
+        QuitAnswer::Terminate => app.terminating(reason),
+    }
+    answer
+}
+
+/// D-113: answers the quit Apple event from now on: [`QuitAnswer::Ask`]
+/// goes to `app`; [`QuitAnswer::Terminate`] is `NSApplication`'s own
+/// `terminate:`, what the system's handler did. Main thread only, once the
+/// app has finished launching: AppKit installs its own handler as it
+/// launches, and this one replaces it (a second call replaces the first).
+///
+/// # Errors
+///
+/// [`Error::NotMainThread`] off the main thread; [`Error::Unsupported`],
+/// with why, where it can't yet. The system's own handler then stays (it
+/// quits without asking): the app can always quit.
+pub fn answer_quit_events(app: impl QuitEvents + 'static) -> Result<(), Error> {
+    imp::answer_quit_events(Box::new(app))
 }
 
 /// Whether the Floor's window can read its events on this system.
@@ -589,6 +727,123 @@ mod imp {
         }
         Ok(())
     }
+
+    pub(super) fn watch_full_screen_exit(
+        window: &impl HasWindowHandle,
+        on_exit: impl Fn() + Send + Sync + 'static,
+    ) -> Result<(), Error> {
+        use objc2_app_kit::NSWindowDidExitFullScreenNotification;
+        use objc2_foundation::{NSNotification, NSNotificationCenter};
+        let window = window_of(window)?;
+        let object: &AnyObject = window.as_ref();
+        let block = RcBlock::new(move |_note: NonNull<NSNotification>| on_exit());
+        // SAFETY (audit 8): (a) AppKit's own constant name, read only; (b)
+        // the object filter is the window itself, only compared; no queue
+        // (AppKit posts a window's notifications on the main thread); the
+        // block is Send + Sync and never reads the notification.
+        let token = unsafe {
+            NSNotificationCenter::defaultCenter().addObserverForName_object_queue_usingBlock(
+                Some(NSWindowDidExitFullScreenNotification),
+                Some(object),
+                None,
+                &block,
+            )
+        };
+        // Observed for the app's whole life: never removed.
+        std::mem::forget(token);
+        Ok(())
+    }
+
+    pub(super) use quit::answer_quit_events;
+
+    /// D-113: the quit Apple event's handler (audit 7).
+    mod quit {
+        use std::cell::RefCell;
+
+        use objc2::rc::Retained;
+        use objc2::runtime::{AnyObject, NSObject};
+        use objc2::{DefinedClass, MainThreadMarker, MainThreadOnly, define_class, msg_send, sel};
+        use objc2_app_kit::NSApplication;
+        use objc2_foundation::{NSAppleEventDescriptor, NSAppleEventManager};
+
+        use super::super::{
+            CORE_EVENT_CLASS, Error, QUIT_APPLICATION, QUIT_REASON, QuitAnswer, QuitEvents,
+        };
+
+        /// The handler's state: the app it answers for.
+        pub(super) struct Answers {
+            app: Box<dyn QuitEvents>,
+        }
+
+        define_class!(
+            // SAFETY (audit 7a): NSObject has no subclassing requirements,
+            // and the class implements no `Drop`.
+            #[unsafe(super(NSObject))]
+            #[thread_kind = MainThreadOnly]
+            #[name = "AIJugglerQuitEventHandler"]
+            #[ivars = Answers]
+            pub(super) struct QuitHandler;
+
+            impl QuitHandler {
+                // SAFETY (audit 7b): the selector `NSAppleEventManager`
+                // calls on a handler, with the event and its reply (two
+                // `NSAppleEventDescriptor`s, each taken as maybe nil),
+                // returning nothing.
+                #[unsafe(method(handleQuitEvent:withReplyEvent:))]
+                fn handle_quit(
+                    &self,
+                    event: Option<&NSAppleEventDescriptor>,
+                    _reply: Option<&NSAppleEventDescriptor>,
+                ) {
+                    // The system sends log out, restart and shut down's
+                    // reason as the event's attribute (`keyAEQuitReason`);
+                    // a parameter of that name is taken too. Only its
+                    // presence counts: a reason never asks.
+                    let reason = event
+                        .and_then(|event| {
+                            event
+                                .attributeDescriptorForKeyword(QUIT_REASON)
+                                .or_else(|| event.paramDescriptorForKeyword(QUIT_REASON))
+                        })
+                        .map(|reason| reason.enumCodeValue());
+                    if super::super::answer(reason, self.ivars().app.as_ref())
+                        == QuitAnswer::Terminate
+                    {
+                        NSApplication::sharedApplication(self.mtm()).terminate(None);
+                    }
+                }
+            }
+        );
+
+        thread_local! {
+            /// The handler in place: the manager doesn't retain it.
+            static KEPT: RefCell<Option<Retained<QuitHandler>>> = const { RefCell::new(None) };
+        }
+
+        pub(in super::super) fn answer_quit_events(app: Box<dyn QuitEvents>) -> Result<(), Error> {
+            let mtm = MainThreadMarker::new().ok_or(Error::NotMainThread)?;
+            let handler = QuitHandler::alloc(mtm).set_ivars(Answers { app });
+            // SAFETY (audit 7c): NSObject's own `init`, on the object just
+            // allocated with its state set.
+            let handler: Retained<QuitHandler> = unsafe { msg_send![super(handler), init] };
+            let object: &AnyObject = handler.as_ref();
+            // SAFETY (audit 7d): `handler` answers the selector with the
+            // signature the manager calls (7b), and is kept below for the
+            // app's life (the manager doesn't retain it).
+            unsafe {
+                NSAppleEventManager::sharedAppleEventManager()
+                    .setEventHandler_andSelector_forEventClass_andEventID(
+                        object,
+                        sel!(handleQuitEvent:withReplyEvent:),
+                        CORE_EVENT_CLASS,
+                        QUIT_APPLICATION,
+                    );
+            }
+            // A handler replaced by this one goes once this one is in place.
+            KEPT.with(|kept| kept.replace(Some(handler)));
+            Ok(())
+        }
+    }
 }
 
 #[cfg(not(target_os = "macos"))]
@@ -631,6 +886,25 @@ mod imp {
         Err(Error::Unsupported(WHY))
     }
 
+    pub(super) fn watch_full_screen_exit(
+        _window: &impl HasWindowHandle,
+        _on_exit: impl Fn() + Send + Sync + 'static,
+    ) -> Result<(), Error> {
+        Err(Error::Unsupported(if cfg!(target_os = "windows") {
+            "a close from full screen waits for the exit's end in the Windows release"
+        } else {
+            "a close from full screen waits for the exit's end in the Linux release"
+        }))
+    }
+
+    pub(super) fn answer_quit_events(_app: Box<dyn super::QuitEvents>) -> Result<(), Error> {
+        Err(Error::Unsupported(if cfg!(target_os = "windows") {
+            "quitting from the taskbar asks first in the Windows release"
+        } else {
+            "quitting from the desktop asks first in the Linux release"
+        }))
+    }
+
     pub(super) const fn reduce_motion() -> bool {
         false
     }
@@ -638,7 +912,105 @@ mod imp {
 
 #[cfg(test)]
 mod tests {
-    use super::{Error, hint};
+    use std::cell::RefCell;
+
+    use super::{Error, QuitAnswer, QuitEvents, code, hint, quit_answer};
+
+    /// D-113: each reason the system gives (log out, restart, shut down,
+    /// their dialogs, quit all) terminates at once; no reason asks; any
+    /// event while quitting terminates.
+    #[test]
+    fn a_quit_event_with_a_reason_terminates_and_one_without_asks() {
+        for reason in [
+            b"logo", // kAELogOut
+            b"rlgo", // kAEReallyLogOut
+            b"rrst", // kAEShowRestartDialog
+            b"rsdn", // kAEShowShutdownDialog
+            b"pwrd", // kAEShowPowerDialog
+            b"rest", // kAERestart
+            b"shut", // kAEShutDown
+            b"quia", // kAEQuitAll
+        ] {
+            assert_eq!(
+                quit_answer(Some(code(reason)), false),
+                QuitAnswer::Terminate,
+                "{}",
+                String::from_utf8_lossy(reason)
+            );
+        }
+        assert_eq!(
+            quit_answer(Some(0), false),
+            QuitAnswer::Terminate,
+            "any reason"
+        );
+        assert_eq!(quit_answer(None, false), QuitAnswer::Ask, "the Dock's Quit");
+        assert_eq!(quit_answer(None, true), QuitAnswer::Terminate, "quitting");
+        assert_eq!(
+            quit_answer(Some(code(b"rlgo")), true),
+            QuitAnswer::Terminate
+        );
+    }
+
+    #[derive(Default)]
+    struct App {
+        quitting: bool,
+        heard: RefCell<Vec<String>>,
+    }
+
+    impl QuitEvents for App {
+        fn quitting(&self) -> bool {
+            self.quitting
+        }
+        fn ask(&self) {
+            self.heard.borrow_mut().push("ask".to_owned());
+        }
+        fn terminating(&self, reason: Option<u32>) {
+            self.heard
+                .borrow_mut()
+                .push(format!("terminating {}", reason.unwrap_or(0)));
+        }
+    }
+
+    /// The handler asks the app, or tells it before terminating; never
+    /// both.
+    #[test]
+    fn the_handler_asks_the_app_or_tells_it_it_terminates() {
+        let app = App::default();
+        assert_eq!(super::answer(None, &app), QuitAnswer::Ask);
+        assert_eq!(
+            super::answer(Some(code(b"shut")), &app),
+            QuitAnswer::Terminate
+        );
+        assert_eq!(
+            *app.heard.borrow(),
+            ["ask".to_owned(), format!("terminating {}", code(b"shut"))]
+        );
+        let quitting = App {
+            quitting: true,
+            ..App::default()
+        };
+        assert_eq!(super::answer(None, &quitting), QuitAnswer::Terminate);
+        assert_eq!(*quitting.heard.borrow(), ["terminating 0".to_owned()]);
+    }
+
+    /// `call`, run off the main thread (a test thread isn't it), is
+    /// refused.
+    fn refused_off_the_main_thread<T: std::fmt::Debug + Send + 'static>(
+        call: impl FnOnce() -> Result<T, Error> + Send + 'static,
+    ) {
+        let err = std::thread::spawn(call).join().map_err(|_| "joined");
+        assert!(
+            matches!(err, Ok(Err(Error::NotMainThread | Error::Unsupported(_)))),
+            "{err:?}"
+        );
+    }
+
+    /// Off the main thread nothing is installed (the system's handler
+    /// stays, so the app can always quit).
+    #[test]
+    fn a_handler_off_the_main_thread_is_refused() {
+        refused_off_the_main_thread(|| super::answer_quit_events(App::default()));
+    }
 
     #[test]
     fn a_press_that_wobbles_is_still_a_click() {
@@ -669,14 +1041,10 @@ mod tests {
                 Err(raw_window_handle::HandleError::Unavailable)
             }
         }
-        // Test threads aren't the main thread.
-        let err = std::thread::spawn(|| super::visible(&NoHandle))
-            .join()
-            .map_err(|_| "joined");
-        assert!(
-            matches!(err, Ok(Err(Error::NotMainThread | Error::Unsupported(_)))),
-            "{err:?}"
-        );
+        refused_off_the_main_thread(|| super::visible(&NoHandle));
+        // D-112: nor is a full-screen exit watched (a close from full
+        // screen then hides by its fallback).
+        refused_off_the_main_thread(|| super::watch_full_screen_exit(&NoHandle, || ()));
     }
 
     #[test]

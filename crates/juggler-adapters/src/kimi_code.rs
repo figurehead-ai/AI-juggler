@@ -487,6 +487,9 @@ impl ToolTranscripts for KimiCodeAdapter {
     ) -> Option<Box<dyn juggler_adapter::SubagentReader>> {
         crate::kimi_subagents::reader(scope)
     }
+    fn conversation_roots(&self, state_dir: &Path) -> Vec<PathBuf> {
+        crate::kimi_sessions::conversation_roots(state_dir)
+    }
     fn conversation_files(&self, state_dir: &Path) -> Vec<PathBuf> {
         crate::kimi_sessions::conversation_files(state_dir)
     }

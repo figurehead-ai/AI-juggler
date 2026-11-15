@@ -1,10 +1,10 @@
 /**
  * AJ-E2018 — what the shell opens over the work area: the port warning,
  * the prompts that wait for their moment, the palette, first run and Add
- * account, the limit and switch flows, and the New session and New
- * project sheets.
+ * account, the limit and switch flows, the New session and New project
+ * sheets, and the toast a close that hid the window owes (D-112).
  */
-import type { JSX } from "react";
+import { useEffect, type JSX } from "react";
 import { CrashReportPrompt } from "../components/CrashReports";
 import { FleetPromptDialog } from "../components/FleetPromptDialog";
 import { IdentityMismatchDialog } from "../components/IdentityMismatchDialog";
@@ -17,6 +17,7 @@ import { ReportBugHost } from "../components/ReportBugSheet";
 import { RestartAppHost } from "../components/RestartApp";
 import { ToastHost } from "../components/Toast";
 import { UsageStatsReconsent } from "../components/UsageStatsReconsent";
+import { watchCloseNote } from "../lib/close-note";
 import { desktopFocus } from "../lib/ipc/desktop";
 import { fleetRemoteFocus } from "../lib/ipc/fleet-remote";
 import { goToHotkeySet } from "../lib/ipc/settings";
@@ -30,6 +31,8 @@ const GoToPalette = lazyNamed(() => import("../components/GoToPalette"), "GoToPa
 
 export function ShellOverlays({ shell }: { shell: Shell }): JSX.Element {
   const { portWarning, recovery, sessions, projects, accounts, refresh, selectSession, inspectRemote, switchFlow, limitFor, newSheet, selection } = shell;
+  // D-112: the toast the first close that hid the window owes.
+  useEffect(() => watchCloseNote(), []);
   return (
     <>
       {portWarning && (

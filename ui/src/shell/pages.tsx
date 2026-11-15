@@ -49,9 +49,9 @@ const PAGES: Partial<Record<Selection["kind"], PageEntry>> = {
           openLoginTerminal={shell.openLoginTerminal}
           onAccountsChanged={shell.accountsChanged}
           onChanged={() => void shell.refresh()}
-          thisMac={shell.thisMacInfo}
           onOpenCleanup={() => shell.openOn("cleanup", CLEAN_UP_VIEW)}
           onOpenThisMac={() => shell.setGlobal("thismac")}
+          onSearch={shell.search}
         />
       </ScreenBoundary>
     </div>

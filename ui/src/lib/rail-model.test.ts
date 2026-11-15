@@ -371,7 +371,7 @@ describe("archived sessions of other apps (0.4.1)", () => {
 
 describe("a session's name in the rail (the rc12 walk)", () => {
   it("is its title's first words, else never a branch that names no work", () => {
-    expect(sessionItem(own("t", { title: "write the word lab to lab.txt and then list the folder so I can see it" }), none, false).title).toBe("write the word lab to lab.txt and then…");
+    expect(sessionItem(own("t", { title: "write the word lab to lab.txt and then list the folder so I can see it" }), none, false).title).toBe("write the word lab to lab.txt and then list the folder so I…");
     const plain = sessionItem(own("m", { title: undefined, label: undefined, git_branch: "main", cwd: "/w/web" }), none, false).title;
     expect(plain).not.toContain("main");
     expect(plain).toContain("web");

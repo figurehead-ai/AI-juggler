@@ -209,3 +209,50 @@
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E811/` — the noise run, the scratch-change reports (local and CI) and their triptychs.
 **Files to touch**: `scripts/visual_sweep.sh`, `scripts/visual_sweep_diff.mjs`, `scripts/visual_gate.sh` (`--full-sweep` hand-off), `justfile`, `.github/workflows/visual-sweep.yml`, `docs/plan/QUALITY.md`, `docs/internal/MAINTAINER-STEPS.md`, `CONTRIBUTING.md`.
 **Handover note**: The sweep reports, it does not block; an unexpected changed state is a regression to fix or a missing core baseline to add, never a reason to stop running the core check.
+
+### AJ-E812 Idle CPU: the web content's and GPU's brief spikes traced | Status: TODO | Priority P1 | Effort M | Depends: AJ-E805
+**Goal**: Find what makes the web content and GPU process jump to 3–8 % of a core for part of a minute while nothing changes on screen, and stop it at its cause.
+**User story**: As someone who leaves AI Juggler open all day, I want it to stay quiet minute after minute, not most minutes.
+**Requirements**:
+1. The spikes SHALL be reproduced on the AJ-E805 lab (PD3 plus the replica, ten working sessions, window shown), in both a 0.4.4 and a current build, and their cause found from what the web content and the app do in that minute (no debugger attached; see AJ-E805's method).
+2. The cause SHALL be fixed where it is, with a test that fails without the fix; no interval raised and no reading dropped to hide it.
+3. The AJ-E805 median bar SHALL still hold, and the share of 60 s readings over 2 % SHALL be reported before and after.
+**Quality gates**: Five kept 60 s runs, shown with ten working, none over 3 %; the median under 2 %.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E805/idle-0.4.6.md` — the cause, the fix and the readings (0.4.5 round 5 kept two of five over 3 %: 3.75 and 7.53).
+**Files to touch**: found by the trace.
+**Handover note**: Found in 0.4.5's round 5 (AJ-E805); both builds showed them under load, so they predate the one-reader work.
+
+### AJ-E813 Home draws again only when what it shows changes, not on every This Mac reading | Status: TODO | Priority P1 | Effort S | Depends: AJ-E805
+**Goal**: Home reads only the machine's summary level from This Mac's 5 s reading, but redraws all of itself on each one.
+**User story**: As someone with Home open, I want it to cost nothing while nothing on it changes.
+**Requirements**:
+1. Home SHALL subscribe to This Mac's summary level through a memoised selector (or a subscription to that value alone), as the rail rows do since AJ-E805 round 4.
+2. A render-count test SHALL show Home not redrawing on a reading whose level is unchanged, and redrawing once when it changes; it SHALL fail on the old code.
+**Quality gates**: The test, tsc, vitest; the AJ-E805 bar holds.
+**Evidence/validation proof**: the test, and its failing run on the old code, named in the commit.
+**Files to touch**: `ui/src/screens/Home.tsx` (inside its size budget), `ui/src/lib/machine.ts`.
+**Handover note**: Round 5 wrote such a selector and reverted it once the bar was met; this makes it a task, not a margin.
+
+### AJ-E814 Idle CPU measured with the window fully covered | Status: TODO | Priority P2 | Effort S | Depends: AJ-E805
+**Goal**: Measure AI Juggler's idle cost when its window is shown but fully covered by other windows, the state WebKit treats as hidden.
+**User story**: As someone whose AI Juggler sits behind an editor, I want it to cost what a hidden window costs.
+**Requirements**:
+1. The covered state SHALL be made on a lab without activating any app the user is using (a lab-owned covering window, never a keystroke to another app), and checked by the window server's uncovered share.
+2. Five kept 60 s runs, ten working, SHALL be reported beside shown and hidden.
+**Quality gates**: The covered median under the shown median; any gap explained.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E805/idle-0.4.6.md`.
+**Files to touch**: the measurement tools only, unless a cause is found.
+**Handover note**: 0.4.5's rounds couldn't cover the window without activating another app (`open -j` left it 100 % uncovered).
+
+### AJ-E815 The relation counts' speed test measures the work, not the clock | Status: TODO | Priority P1 | Effort S | Depends: AJ-E3102
+**Goal**: `ten_thousand_sessions_count_cold_within_a_second_and_cached_within_5_ms` (`crates/juggler-app/tests/relations.rs`) gates on wall-clock bars of 5 ms; under load it fails with nothing wrong. Make it prove the cache works by what it does, and move the timing out of the gate.
+**User story**: As a maintainer, I want a red test to mean a real regression, never a busy Mac or a loaded CI runner.
+**Requirements**:
+1. The cached counts SHALL be shown cached by work done: no rebuild across all 540 counts and the one `counts_many` ask (`state.relations.builds()` unchanged), and no session row read for them (a rows-read counter, or a fake store that counts its reads); a change SHALL still rebuild only the stale part (`builds() + 1`, as now).
+2. The cold rebuild of 10 000 sessions SHALL keep only a generous bound (at least 10× its unloaded time), or none, with its work checked the same way.
+3. The timings SHALL go to a separate benchmark that is not a gate (`cargo bench` or an ignored test run by name), printing the same `[perf]` lines and the old 1 s / 5 ms budgets beside them.
+4. Every other gate test asserting an elapsed time under 50 ms SHALL be listed in the commit and changed the same way, or kept with its reason.
+**Quality gates**: The test passes under a CPU load of several busy cores (a bounded, self-cleaning load generator; `pgrep -x yes` is 0 afterwards), and fails when the cache is bypassed (a scratch change that rebuilds on every count).
+**Evidence/validation proof**: the loaded run and the failing scratch run, named in the commit.
+**Files to touch**: `crates/juggler-app/tests/relations.rs`, the relations cache's counters (`crates/juggler-app/src/features/relations/`) if a rows-read counter is missing, a bench target.
+**Handover note**: 0.4.5's light preflight on b694d08e3 failed it once at a load average of 20–29 (the slowest of 540 cached counts 97 ms against 5 ms; the cold rebuild 561 ms against 1 s); the same test passed three times alone right after.
