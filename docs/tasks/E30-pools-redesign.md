@@ -228,3 +228,60 @@
 **Research basis**: `docs/qa/0.4-walks/E3002-R3.md` step 8; AJ-E3008 R4.
 **Handover note**: —
 
+## 0.4.6, the Stable candidate
+
+### AJ-E3011 Pool setup a newcomer understands: a flow in order, every choice said in plain words for whom it applies | Status: TODO | Priority P0 | Effort L | Depends: AJ-E3007, AJ-E3008
+**Goal**: Someone who has never heard of pools, agents, roles, leads or permission levels makes a working pool by hand and knows, at every control, what it sets and for whom.
+**User story**: As a newcomer, I give a pool a name and its projects, read in plain sentences what will happen, change only what I want, and never meet a word or a dropdown I can't explain.
+**Requirements** (the maintainer's findings on 0.4.5's setup, 2026-11-14, via main):
+1. The setup SHALL read as a flow in order: who's in, the lead, everyone else's role, talk rules, what sessions may do on their own, then seal. Each step has a heading, one line on why, and one spacing scale.
+2. A short intro SHALL say what a pool is, why to make one and what happens after, in 2–3 lines with a small diagram: full on the first pool, collapsed afterwards.
+3. Defaults: a name and its projects SHALL make a working pool; everything else is optional, prefilled, and explained.
+4. Every dropdown and segmented control SHALL have a visible label first saying what it sets and for whom. The choice SHALL read back as a sentence ("New sessions in these projects join as Member and may Work together"). The "Everyone in this pool's projects" Member | Reviewer | Observer control becomes that sentence.
+5. "Level" SHALL go: "What these sessions may do on their own: Look only / Work together / Anything", each with a one-line consequence and an example ("Work together: they can message each other and share notes and tasks; anything else waits for your OK in Needs you"). A member's own choice offers "Same as the pool".
+6. Roles SHALL be cards with an icon, one line on what each can do, and who holds it. "Lead is one session" SHALL carry its own inline picker.
+7. The talk rules SHALL use plain labels (no FROM↓·TO→). "Allowed" is calm and neutral; colour only for "Ask first" and "Blocked", so an exception stands out.
+8. Every term SHALL have plain words or an info popover with an example and a docs link (`docs/guide/pools.md`). Every serious choice SHALL give its consequence and an example.
+9. The screens SHALL follow the calm UI round 2 (L3 Broken / L2 Needs you / L1 Note / L0 Calm; section labels in small tracked caps; surface tone, not card borders; filled controls; ghost secondary buttons; muted app icons at rest), using 0.5's token names only (agreed with the 0.5 session; no new token without it). Every collapsible stays.
+**UI/UX reasoning**: progressive disclosure for the newcomer: minimal defaults, depth on demand; one sentence instead of an unexplained control. The 0.4.5 screen "reads as a list, not a flow" and its 12 green "Allowed" cells hid the one exception.
+**Performance budget**: each step renders at once from what the wizard already read; no new backend read per step.
+**Quality gates**: a Sonnet newcomer persona walks the manual flow at least three times before the build and twice after, each screen scored on "Do I know what this does and who it affects?" (any "no" is redesigned and walked again), and every verdict checked by Opus; the design-quality critique; vitest per control; a11y; gallery captures of every step, both themes.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E3011/` (the walks' score sheets before and after, the critique, the before/after captures); P10 re-walked.
+**Visual testing**: every step of the setup and the talk rules, empty and filled, light and dark.
+**Files to touch**: `ui/src/screens/pools/` (NewPool*, the wizard), `ui/src/pages/pool/` (RuleNodes, MemberLevel, SealSetting, ScopeSheet), `ui/src/lib/attention.ts` (attentionLevel), `docs/guide/pools.md`, the SPEC's pool wording where "Level" is named.
+**Research basis**: E17, E30, the pool D-numbers (D-61, D-62), SPEC §9, deep/11, wireframes 5–6; the calm UI round 2 proposal (its §c, §c2 tokens).
+**Handover note**: —
+
+### AJ-E3012 The canvas's selection: one clear treatment, and the inspector always titled by what is selected | Status: TODO | Priority P1 | Effort M | Depends: AJ-E3008
+**Goal**: Selecting anything on the pool canvas shows clearly which card it is, and the inspector names it.
+**User story**: As someone working on a pool, I click a card and see at once that it is selected, and the inspector on the right starts with its name.
+**Requirements** (the maintainer, 2026-11-14, via main):
+1. The inspector SHALL always lead with the selected object's own title, its kind and app as a subtitle ("Jive CLI" / "Session · Claude Code · Member"). This applies to a session, an App, an Account, everyone in scope, a line between members, and the pool itself when nothing is selected. Status SHALL be a pill under the title, never the heading.
+2. One selection treatment SHALL hold across the canvas: a solid 2 px accent ring with an offset and a subtle raised surface. Dashed borders SHALL NOT mean selection. The selected card and the inspector SHALL be linked by the same accent on the inspector's title edge. Keyboard focus SHALL be visible and distinct from selection.
+**UI/UX reasoning**: one surface to see and manage; the inspector follows the selection and says what it follows.
+**Performance budget**: selection repaints one node and the inspector, within a frame.
+**Quality gates**: vitest that the inspector's title matches the selected card for each member type; a11y: aria-selected/aria-current on the card and a heading naming it in the inspector; checked against every card state in both themes.
+**Evidence/validation proof**: a gallery capture of a selected card beside every state, light and dark.
+**Visual testing**: the canvas with each kind selected, both themes.
+**Files to touch**: `ui/src/pages/pool/` (Canvas, CanvasNode, CompactNode, Inspector, InspectNode, InspectPool, InspectRule).
+**Research basis**: AJ-E3008's inspector; the calm UI round 2 levels.
+**Handover note**: —
+
+### AJ-E3013 Desktop app sessions as full pool members through AI Juggler's connector, added with consent or guided (D-116) | Status: TODO | Priority P0 | Effort L | Depends: AJ-E3006, AJ-E1902
+**Goal**: A Claude app or Codex app session in a pool reads and sends the pool's messages, docs and tasks as a member, like a CLI session.
+**User story**: As someone who put two Claude app profiles in a pool, I add AI Juggler's connector to each with one click (or follow a short guide), and their sessions talk in the pool instead of showing "can't reply".
+**Requirements** (D-116):
+1. Route research SHALL come first, undocumented routes included, for: the Claude app's Code tab (its bundled CLI under the profile's CLAUDE_CONFIG_DIR: `.claude.json` mcpServers, the plugins folder, settings.json hooks), its chats and Cowork (`claude_desktop_config.json` per profile / --user-data-dir), and the ChatGPT Codex app (`config.toml`, shared with the CLI). Each route SHALL be proven on a lab profile: the bridge MCP loads without a prompt and its tools work.
+2. Membership SHALL run through the agent-bridge MCP and, for Claude, the Claude Code plugin (its MCP config, the pool-tasks skill, and a new inbox hook: none exists yet). Messages, docs and tasks follow the pool's rules and what members may do on their own; talk rules are enforced at the bridge.
+3. Waking (D-66): an idle desktop member gets messages on its next turn. The canvas SHALL say "gets messages on its next turn", not "can't reply". "Watched" goes for connected members. The disabled "Continue in AI Juggler" goes; Continue as CLI stays in the member's menu.
+4. Adding the connector SHALL take consent on one card ("Add AI Juggler's connector to [App · profile] so its sessions can talk in this pool"), with its consequence, an example and a docs link. Add SHALL merge only AI Juggler's entry, show a diff preview first, and record what it wrote so Remove is exact. A running session picks it up at its next start, and a restart is offered where safe. Otherwise a step-by-step guide with copy buttons SHALL be shown, and its completion detected. The switch preflight's offer of missing MCP servers and skills SHALL be reused.
+5. Safety: it SHALL write only that App's own config, never a secret or the login Keychain. The bridge stays local with its auth. Remove is tested. A security review comes before merge. Live checks run only on lab profiles or the sanctioned aij-test profile, never the maintainer's real profiles, unless the maintainer clicks Add in their own app.
+6. AJ-E1905's release packaging (9c1e36562 on release/0.5) SHALL be cherry-picked, keeping only its plugin hunk of nightly.yml.
+**UI/UX reasoning**: enhance, never replace: the user's own apps join the pool through their sanctioned extension points.
+**Performance budget**: adding the connector writes one file and returns at once; a member's connection state reads from the bridge without polling.
+**Quality gates**: config merge and unmerge fixtures per app type (Claude Code tab, Claude chats, Codex app); the guide's detection; a security review; a lab walk where a Code-tab session in a pool sends and receives a message and claims a task; AJ-E3011's newcomer walk extended to adding a desktop app.
+**Evidence/validation proof**: `docs/research/desktop-pool-members.md` (the routes, each with its proof); `docs/qa/evidence/AJ-E3013/` (the lab walk, the merge/unmerge fixtures, the security review).
+**Visual testing**: the consent card, the diff preview, the guide, a connected desktop member on the canvas, both themes.
+**Files to touch**: `crates/juggler-adapters/` (each desktop adapter's connector seam), `crates/juggler-agentbridge/`, `plugins/claude-code/ai-juggler/` (the inbox hook), `ui/src/pages/pool/`, `docs/guide/pools.md`.
+**Research basis**: D-116, D-66, AJ-E1905, AJ-E3006; `docs/research/desktop-pool-members.md` (to write).
+**Handover note**: —
