@@ -31,8 +31,31 @@ use crate::wire::{
 /// The longest notice posted.
 pub const NOTICE_MAX: usize = 300;
 
-/// The shortest and longest pause after AI Juggler didn't answer.
+/// The shortest and longest pause after AI Juggler didn't answer or
+/// refused (busy, limited, not attested, can't be woken).
 const BACKOFF: (Duration, Duration) = (Duration::from_secs(15), Duration::from_secs(300));
+
+/// M2: the least time between two waits, whatever the answer: an answer
+/// that comes back at once (a wake, or none) never makes a busy loop.
+pub const MIN_PAUSE: Duration = Duration::from_secs(5);
+
+/// How the waker paces itself.
+#[derive(Clone, Copy, Debug)]
+pub struct Pace {
+    /// The least time between two waits.
+    pub min: Duration,
+    /// The first and the longest pause after a refusal.
+    pub backoff: (Duration, Duration),
+}
+
+impl Default for Pace {
+    fn default() -> Self {
+        Self {
+            min: MIN_PAUSE,
+            backoff: BACKOFF,
+        }
+    }
+}
 
 /// Where a wake goes: the session's inbox socket, and its token when it
 /// gave one.
@@ -137,20 +160,32 @@ pub fn wait_once(app: &Path) -> Result<Option<String>, CallError> {
 
 /// Runs the waker until the process ends: waits, posts, waits again.
 pub fn run(app: &Path, inbox: &Inbox) {
-    let mut pause = BACKOFF.0;
-    loop {
-        match wait_once(app) {
-            Ok(Some(notice)) => {
+    run_until(app, inbox, Pace::default(), &|| true);
+}
+
+/// [`run`] while `go_on` says so; how many waits it asked for.
+pub fn run_until(app: &Path, inbox: &Inbox, pace: Pace, go_on: &dyn Fn() -> bool) -> usize {
+    let mut pause = pace.backoff.0;
+    let mut asked = 0;
+    while go_on() {
+        let started = std::time::Instant::now();
+        asked += 1;
+        if let Ok(found) = wait_once(app) {
+            if let Some(notice) = found {
                 let _ = post(inbox, &notice);
-                pause = BACKOFF.0;
             }
-            Ok(None) => pause = BACKOFF.0,
-            Err(_) => {
-                std::thread::sleep(pause);
-                pause = (pause * 2).min(BACKOFF.1);
+            pause = pace.backoff.0;
+            // M2: never sooner than the least pause, however fast the
+            // answer came.
+            if let Some(rest) = pace.min.checked_sub(started.elapsed()) {
+                std::thread::sleep(rest);
             }
+        } else {
+            std::thread::sleep(pause);
+            pause = (pause * 2).min(pace.backoff.1);
         }
     }
+    asked
 }
 
 /// Starts the waker beside the connector's MCP server, when this process
@@ -241,5 +276,39 @@ mod tests {
     fn with_no_ai_juggler_a_wait_fails_quietly() {
         let root = tempfile::tempdir().unwrap();
         assert!(wait_once(&root.path().join("bridge.sock")).is_err());
+    }
+
+    /// M2: an app that answers at once (no wake, or a wake) never makes
+    /// the waker loop: at least the least pause between two waits.
+    #[cfg(unix)]
+    #[test]
+    fn an_answer_at_once_never_makes_a_busy_loop() {
+        use std::io::{BufRead, Write as _};
+        use std::os::unix::fs::PermissionsExt;
+        let root = tempfile::tempdir().unwrap();
+        let dir = root.path().join("agent");
+        std::fs::create_dir(&dir).unwrap();
+        std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o700)).unwrap();
+        let socket = dir.join("bridge.sock");
+        let listener = std::os::unix::net::UnixListener::bind(&socket).unwrap();
+        std::thread::spawn(move || {
+            for stream in listener.incoming().flatten() {
+                let mut line = String::new();
+                let _ = std::io::BufReader::new(&stream).read_line(&mut line);
+                let mut stream = stream;
+                let _ = stream.write_all(b"{\"result\":{\"wake\":null}}\n");
+            }
+        });
+        let inbox = Inbox {
+            socket: root.path().join("no-inbox.sock"),
+            token: None,
+        };
+        let pace = Pace {
+            min: Duration::from_millis(200),
+            backoff: (Duration::from_millis(200), Duration::from_millis(400)),
+        };
+        let until = std::time::Instant::now() + Duration::from_millis(1_000);
+        let asked = run_until(&socket, &inbox, pace, &|| std::time::Instant::now() < until);
+        assert!((1..=6).contains(&asked), "{asked} waits in a second");
     }
 }

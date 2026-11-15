@@ -95,6 +95,8 @@ pub struct Bridge {
     /// its App and what its tool's registry named, re-checked on every
     /// attested call ([`attest::sweep`]).
     pub(crate) desktop: Mutex<HashMap<String, (String, juggler_adapter::peer::AttestedSession)>>,
+    /// D-119 (M2): the connectors' wake waits held now.
+    pub(crate) waits: desktop::Waits,
 }
 
 /// The socket for the app's data folder (per edition: each edition has

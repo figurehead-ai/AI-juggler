@@ -24,8 +24,8 @@ use juggler_platform::local_ipc::Peer;
 use crate::state::AppState;
 
 /// D-119: the most wake waits held open at once (each a connector of a
-/// desktop session; never one of the calls' slots).
-pub const WAITS_MAX: usize = 32;
+/// desktop session, one a session; never one of the calls' slots).
+pub const WAITS_MAX: usize = 64;
 /// How often a wait looks for a message that may wake its session.
 pub const LOOK_EVERY: Duration = Duration::from_secs(5);
 /// Our wake budget, on top of Claude Code's own: at most one wake a
@@ -41,10 +41,50 @@ fn woken() -> &'static Mutex<Woken> {
     WOKEN.get_or_init(Mutex::default)
 }
 
-fn waits() -> &'static Arc<tokio::sync::Semaphore> {
-    static WAITS: OnceLock<Arc<tokio::sync::Semaphore>> = OnceLock::new();
-    WAITS.get_or_init(|| Arc::new(tokio::sync::Semaphore::new(WAITS_MAX)))
+/// D-119 (M2): the wake waits held now: a slot each, one a session.
+#[derive(Debug)]
+pub struct Waits {
+    slots: Arc<tokio::sync::Semaphore>,
+    waiting: Mutex<std::collections::HashSet<String>>,
 }
+
+impl Default for Waits {
+    fn default() -> Self {
+        Self {
+            slots: Arc::new(tokio::sync::Semaphore::new(WAITS_MAX)),
+            waiting: Mutex::default(),
+        }
+    }
+}
+
+/// One session's wait, held until it ends (then another may start).
+struct Held<'w> {
+    waits: &'w Waits,
+    session: String,
+}
+
+impl<'w> Held<'w> {
+    /// The session's one wait, unless it already has one.
+    fn take(waits: &'w Waits, session: &SessionId) -> Option<Self> {
+        let mut waiting = waits.waiting.lock().ok()?;
+        waiting.insert(session.as_str().to_owned()).then(|| Self {
+            waits,
+            session: session.as_str().to_owned(),
+        })
+    }
+}
+
+impl Drop for Held<'_> {
+    fn drop(&mut self) {
+        if let Ok(mut waiting) = self.waits.waiting.lock() {
+            waiting.remove(&self.session);
+        }
+    }
+}
+
+/// Who a wait's peer is (the attestation; a test's stand-in).
+pub type Attestor =
+    Arc<dyn Fn(&Arc<AppState>, Peer) -> Result<super::attest::DesktopCaller, String> + Send + Sync>;
 
 /// The session a message's sender ref stands for (a session, a Work
 /// item's live session, or an attested desktop session's conversation).
@@ -149,15 +189,31 @@ pub fn wake_for(state: &Arc<AppState>, session: &SessionId) -> Option<String> {
 /// its App must be one whose sessions can be woken; then it's held until
 /// a message may wake it ([`wake_for`]) or [`wire::WAIT_MAX_SECS`] pass.
 pub async fn wait(state: Arc<AppState>, wait: wire::Wait, peer: Peer) -> Response {
+    let attestor: Attestor = Arc::new(super::attest::attest);
+    wait_with(state, wait, peer, attestor, LOOK_EVERY).await
+}
+
+/// [`wait`], with its attestation and how often it looks given (tests).
+/// M2: a caller is limited by its peer first (L7), then attested; a
+/// session in no pool gets no wait (Deny), a session holds one wait at a
+/// time, and a slot is taken only after all that (Limit when none is
+/// free): every refusal makes the connector back off.
+pub(crate) async fn wait_with(
+    state: Arc<AppState>,
+    wait: wire::Wait,
+    peer: Peer,
+    attestor: Attestor,
+    look_every: Duration,
+) -> Response {
     if wait.v != wire::VERSION || !wait.token.is_empty() {
         return Response::refused(Refusal::Bad, "AI Juggler couldn't read that request.");
     }
-    let Ok(_slot) = Arc::clone(waits()).try_acquire_owned() else {
-        return Response::ok(serde_json::json!({ "wake": null }));
-    };
+    if !super::calls::peer_within_rate(&state, Some(peer)) {
+        return Response::refused(Refusal::Limit, "Too many waits in a short time.");
+    }
     let attested = {
-        let state = Arc::clone(&state);
-        tauri::async_runtime::spawn_blocking(move || super::attest::attest(&state, peer)).await
+        let (state, attestor) = (Arc::clone(&state), Arc::clone(&attestor));
+        tauri::async_runtime::spawn_blocking(move || attestor(&state, peer)).await
     };
     let caller = match attested {
         Ok(Ok(caller)) => caller,
@@ -167,6 +223,25 @@ pub async fn wait(state: Arc<AppState>, wait: wire::Wait, peer: Peer) -> Respons
     if !caller.can_wake {
         return Response::refused(Refusal::Off, "This app's sessions can't be woken.");
     }
+    let in_pool = state.storage.lock().is_ok_and(|storage| {
+        crate::features::pools::members::resolution_of(&storage, &caller.session)
+            .ok()
+            .flatten()
+            .is_some_and(|resolution| !resolution.placements.is_empty())
+    });
+    if !in_pool {
+        return Response::refused(
+            Refusal::Deny,
+            "This session is in no pool: nothing would wake it.",
+        );
+    }
+    let waits = &state.agent_bridge.waits;
+    let Some(_held) = Held::take(waits, &caller.session) else {
+        return Response::refused(Refusal::Limit, "This session already waits.");
+    };
+    let Ok(_slot) = Arc::clone(&waits.slots).try_acquire_owned() else {
+        return Response::refused(Refusal::Limit, "Too many sessions wait now.");
+    };
     // What came before the first wait isn't a wake (its note says it).
     if let Ok(mut woken) = woken().lock() {
         woken
@@ -187,10 +262,10 @@ pub async fn wait(state: Arc<AppState>, wait: wire::Wait, peer: Peer) -> Respons
         if let Some(notice) = found {
             return Response::ok(serde_json::json!({ "wake": notice }));
         }
-        if Instant::now() + LOOK_EVERY > until {
+        if Instant::now() + look_every > until {
             return Response::ok(serde_json::json!({ "wake": null }));
         }
-        tokio::time::sleep(LOOK_EVERY).await;
+        tokio::time::sleep(look_every).await;
     }
 }
 

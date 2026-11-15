@@ -666,3 +666,178 @@ fn a_looping_keyless_caller_is_limited_before_it_is_attested() {
         Some(Refusal::Limit)
     );
 }
+
+/// M2: 40 connectors wait at once; a hostile caller loops (unattested,
+/// and as a session that already waits): its work stays bounded by the
+/// peer limit and one wait a session, no connector is refused, and a
+/// member a message is for still wakes.
+#[test]
+fn forty_connectors_and_a_hostile_loop_stay_bounded_and_members_still_wake() {
+    use juggler_agentbridge::wire::{Refusal, Wait};
+    use std::collections::HashMap;
+    use std::sync::Mutex;
+    use std::time::Duration;
+    let dir = tempfile::tempdir().unwrap();
+    let (state, pool) = lab(dir.path());
+    {
+        let storage = state.storage.lock().unwrap();
+        storage
+            .agent_access()
+            .set_level(&pool, AccessLevel::Full, &std::collections::BTreeSet::new())
+            .unwrap();
+        for n in 0..40 {
+            storage
+                .pools()
+                .join(
+                    &pool,
+                    &MemberRef::Conversation {
+                        folder: FOLDER.into(),
+                        id: conversation(n),
+                    },
+                    &[],
+                    PoolRole::Member,
+                    None,
+                )
+                .unwrap();
+            storage.attested().put(facts_of(n));
+        }
+    }
+    let asked: Arc<Mutex<HashMap<u32, usize>>> = Arc::default();
+    let attestor: super::desktop::Attestor = {
+        let asked = Arc::clone(&asked);
+        Arc::new(move |_state, peer| {
+            let pid = peer.pid.unwrap_or_default();
+            *asked.lock().unwrap().entry(pid).or_default() += 1;
+            if !(1000..1040).contains(&pid) {
+                return Err("not a desktop session".to_owned());
+            }
+            let n = pid - 1000;
+            Ok(super::attest::DesktopCaller {
+                session: desktop_id(FOLDER, &conversation(n)),
+                app_id: "app:claude-app:/x".into(),
+                folder: FOLDER.into(),
+                conversation: conversation(n),
+                tool_pid: 1,
+                can_wake: true,
+                facts: facts_of(n),
+            })
+        })
+    };
+    let peer = |pid: u32| juggler_platform::local_ipc::Peer {
+        pid: Some(pid),
+        pid_version: Some(1),
+        accepted: std::time::SystemTime::now(),
+    };
+    let wait = Wait {
+        v: juggler_agentbridge::wire::VERSION,
+        token: String::new(),
+        wait_secs: 3,
+    };
+    let look = Duration::from_millis(50);
+    tauri::async_runtime::block_on(async {
+        let waiting: Vec<_> = (1000..1040)
+            .map(|pid| {
+                tauri::async_runtime::spawn(super::desktop::wait_with(
+                    Arc::clone(&state),
+                    wait.clone(),
+                    peer(pid),
+                    Arc::clone(&attestor),
+                    look,
+                ))
+            })
+            .collect();
+        tokio::time::sleep(Duration::from_millis(300)).await;
+        // A hostile loop, unattested: limited by its peer before more
+        // attestations than the limit allows.
+        let mut limited = 0;
+        for _ in 0..200 {
+            let answer = super::desktop::wait_with(
+                Arc::clone(&state),
+                wait.clone(),
+                peer(9_999),
+                Arc::clone(&attestor),
+                look,
+            )
+            .await;
+            assert!(answer.result.is_none(), "{answer:?}");
+            limited += usize::from(answer.refused == Some(Refusal::Limit));
+        }
+        assert_eq!(limited, 170, "past 30 in 10 s: Limit");
+        assert_eq!(asked.lock().unwrap()[&9_999], 30, "at most 30 attestations");
+        // The same, as a session that already waits: never a second wait.
+        for _ in 0..50 {
+            let again = super::desktop::wait_with(
+                Arc::clone(&state),
+                wait.clone(),
+                peer(1_007),
+                Arc::clone(&attestor),
+                look,
+            )
+            .await;
+            assert_eq!(again.refused, Some(Refusal::Limit));
+        }
+        // A message for member 7 wakes it while the others wait on.
+        message_for(&state, &pool, "m-7", &conversation(7));
+        let mut answers = Vec::new();
+        for handle in waiting {
+            answers.push(handle.await.unwrap());
+        }
+        for (n, answer) in answers.iter().enumerate() {
+            assert!(
+                answer.refused.is_none(),
+                "connector {n} refused: {answer:?}"
+            );
+            let wake = &answer.result.as_ref().unwrap()["wake"];
+            if n == 7 {
+                assert!(wake.as_str().unwrap().contains("Planner"), "{wake}");
+            } else {
+                assert!(wake.is_null(), "connector {n}: {wake}");
+            }
+        }
+    });
+}
+
+/// Desktop member `n`'s conversation.
+fn conversation(n: u32) -> String {
+    format!("conv-{n}")
+}
+
+/// Desktop member `n`'s facts.
+fn facts_of(n: u32) -> SessionFacts {
+    SessionFacts {
+        conversation: Some((FOLDER.into(), conversation(n))),
+        ..SessionFacts::bare(desktop_id(FOLDER, &conversation(n)), None)
+    }
+}
+
+/// An agent's message from the terminal member to desktop member
+/// `conversation`, unread.
+fn message_for(state: &Arc<AppState>, pool: &str, id: &str, conversation: &str) {
+    use juggler_core::storage::{NewMessage, RecipientState};
+    let storage = state.storage.lock().unwrap();
+    let repo = storage.messages();
+    repo.create_thread(&format!("t-{id}"), pool, "s", "session:s-cli")
+        .unwrap();
+    repo.insert_message(&NewMessage {
+        id,
+        thread_id: &format!("t-{id}"),
+        pool_id: pool,
+        sender_ref: "session:s-cli",
+        sender_kind: "agent",
+        sender_name: "Planner",
+        kind: "note",
+        subject: "s",
+        body: "the words never reach the notice",
+        body_sha256: id,
+        hop: 1,
+        reply_to: None,
+        to_all: false,
+        redacted: 0,
+        recipients: &[(
+            format!("conversation:{FOLDER}/{conversation}"),
+            "Desk".into(),
+            RecipientState::Unread,
+        )],
+    })
+    .unwrap();
+}
