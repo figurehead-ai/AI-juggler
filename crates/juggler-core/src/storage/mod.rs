@@ -821,7 +821,6 @@ CREATE INDEX idx_usage_holds_msg ON usage_holds(msg);
 
 /// AJ-E3202 req. 3: names accepted at import; also made on every open (rc27's v52 lacked it).
 const V52: &str = accounts::IMPORT_NAMES;
-
 /// 0.4.6 (AJ-E3011): a pool may wait for an App's next session to lead.
 const V53: &str = pools::LEAD_NEXT_MIGRATION;
 
