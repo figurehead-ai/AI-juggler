@@ -233,6 +233,13 @@ export function StatusPill({ pill }: { pill: NonNullable<InspectorHead["pill"]> 
 
 type Step = (typeof SETUP_STEPS)[number];
 
+/** The pool's setup progress: the checklist on the pool, one line over
+ * its settings; none over a member, a line or the lead's card. */
+function PoolProgress({ kind, setup }: { kind: Selection["kind"]; setup: { rows: readonly SetupRow[]; onOpen: (step: Step) => void } }): JSX.Element | null {
+  if (kind !== "none" && kind !== "pool") return null;
+  return <PoolChecklist rows={setup.rows} onOpen={setup.onOpen} compact={kind === "pool"} />;
+}
+
 export const Inspector = forwardRef<HTMLHeadingElement, {
   pool: PoolInfo;
   project: ProjectInfo | undefined;
@@ -289,7 +296,7 @@ export const Inspector = forwardRef<HTMLHeadingElement, {
       {/* A new selection opens at its top (the list kept the last one's
           scroll: the pool's settings opened halfway down). */}
       <div key={JSON.stringify(selection)} className="min-h-0 flex-1 overflow-y-auto pb-6" data-canvas-scroll>
-        <PoolChecklist rows={setup.rows} onOpen={setup.onOpen} compact={selection.kind !== "none"} />
+        <PoolProgress kind={selection.kind} setup={setup} />
         {selection.kind === "pool" ? (
           <>
             {setupSections}

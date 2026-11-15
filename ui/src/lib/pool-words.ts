@@ -161,7 +161,7 @@ export const asTalkRule = (rule: string | null | undefined): TalkRule => (rule =
 /** The line above the talk table. */
 export const TALK_ABOVE = "Who may send a message to whom. Allowed needs nothing from you; Ask first waits for your OK in Needs you; Blocked stops it.";
 /** The line below it: one pair of sessions. */
-export const TALK_BELOW = "To set it for one pair of sessions, click the line between them on the canvas.";
+export const TALK_BELOW = "An Observer only reads: its messages are blocked, or wait for your OK if you set Ask first. To set it for one pair of sessions, click the line between them on the canvas.";
 
 /** A row's head: "Lead can message…". */
 export function talkRowLabel(role: PoolRole): string {

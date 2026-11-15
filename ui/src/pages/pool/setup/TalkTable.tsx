@@ -14,12 +14,23 @@ import type { PoolRole } from "../../../lib/ipc/pools";
 import type { TalkRule } from "../../../lib/ipc/pool-model";
 import { TALK_ABOVE, TALK_BELOW, TALK_WORDS, roleCard, talkColumnLabel, talkRowLabel } from "../../../lib/pool-words";
 import { CLAUDE_CHANNEL_NOTE } from "../../../lib/pools";
-import { TALK_ROLES } from "../../../lib/pool-templates";
+import { TALK_ROLES, effectiveRule } from "../../../lib/pool-templates";
 
 /** A cell's words and marks by rule (no fill: an exception's word, its
  * dot or glyph, carries it). */
-function Rule({ rule }: { rule: TalkRule }): JSX.Element {
+function Rule({ rule, quiet = false }: { rule: TalkRule; quiet?: boolean }): JSX.Element {
   const words = TALK_WORDS[rule];
+  // An Observer's own row blocked is what the role is (it only reads):
+  // calm, never an exception's red.
+  if (quiet && rule === "blocked")
+    return (
+      <span className="inline-flex items-center gap-1.5 text-muted">
+        <span aria-hidden="true" className="text-[11px] leading-none">
+          ⊘
+        </span>
+        {words.label}
+      </span>
+    );
   if (words.level === 0) return <span className="text-muted">{words.label}</span>;
   return (
     <span className={"inline-flex items-center gap-1.5 font-semibold " + (words.level === 3 ? "text-danger" : "text-warning")}>
@@ -50,7 +61,8 @@ export function TalkTable({
   compact?: boolean;
 }): JSX.Element {
   const cell = (from: PoolRole, to: PoolRole, words: string) => {
-    const rule = ruleOf(from, to);
+    // What the backend does with it (an Observer's "Allowed" asks you).
+    const rule = effectiveRule(from, ruleOf(from, to));
     return (
       <button
         type="button"
@@ -63,7 +75,7 @@ export function TalkTable({
         data-rule={rule}
       >
         {words && <span className="text-muted">{words} </span>}
-        <Rule rule={rule} />
+        <Rule rule={rule} quiet={from === "observer"} />
       </button>
     );
   };

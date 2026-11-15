@@ -23,7 +23,7 @@ import { sessionState, STATE_TONE } from "../../lib/rail-items";
 import { NODE_H, NODE_W, nodeForm } from "./layout";
 import { FOCUS_RING } from "./selection";
 import { CompactNode } from "./CompactNode";
-import { AskLine, NO_TASK, NodeRoom, nodeBorder, RoleChip, sessionAlert, useNodeDescription, type NodeProps } from "./NodeParts";
+import { AskLine, NO_TASK, NodeRoom, nameWraps, nodeBorder, RoleChip, sessionAlert, useNodeDescription, type NodeProps } from "./NodeParts";
 
 /** Its full card from 100 % up, its compact form below (semantic zoom). */
 export const CanvasNode = memo(function CanvasNode(props: NodeProps): JSX.Element {
@@ -87,7 +87,7 @@ function FullNode({ member, at, asks, held, selected, tabStop, dragging, onSelec
           aria-description={description}
           onClick={(event) => onSelect(member.id, event.detail === 0)}
           onKeyDown={(event) => onKey(member.id, event)}
-          className={"line-clamp-2 min-w-0 flex-1 rounded text-left text-sm font-semibold text-ink [overflow-wrap:anywhere] " + FOCUS_RING}
+          className={"min-w-0 flex-1 rounded text-left text-sm font-semibold text-ink [overflow-wrap:normal] " + (nameWraps(name, NODE_W - 72, 14) ? "line-clamp-2 " : "truncate ") + FOCUS_RING}
           title={name}
         >
           {name}

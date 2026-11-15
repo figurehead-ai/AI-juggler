@@ -9,7 +9,7 @@
 import type { JSX, ReactNode } from "react";
 
 import { leadOf, type Draft, type Reach } from "../../lib/new-pool";
-import { ruleOf, TALK_ROLES } from "../../lib/pool-templates";
+import { effectiveRule, ruleOf, TALK_ROLES } from "../../lib/pool-templates";
 import { TALK_WORDS, joinSentence, leadSentence, levelSentence, memberSentence, roleCard, type SetupStep } from "../../lib/pool-words";
 import { openNowWords } from "../../lib/pool-open-now";
 import { PoolToolsCard } from "../../pages/pool/setup/PoolToolsCard";
@@ -26,11 +26,12 @@ const CAN: Record<Reach, string> = {
  * exceptions. */
 export function talkSentence(draft: Pick<Draft, "talk">): string {
   // An Observer that may message no one "only reads", said once.
-  const observerReads = TALK_ROLES.filter((to) => to !== "observer").every((to) => ruleOf(draft.talk, "observer", to) === "blocked");
+  const observerReads = TALK_ROLES.every((to) => ruleOf(draft.talk, "observer", to) === "blocked");
   const changed: string[] = [];
   for (const from of TALK_ROLES) {
     for (const to of TALK_ROLES) {
-      const rule = ruleOf(draft.talk, from, to);
+      // As the backend enforces it: an Observer's "Allowed" asks you.
+      const rule = effectiveRule(from, ruleOf(draft.talk, from, to));
       if (rule !== "allowed" && !(from === "observer" && observerReads)) changed.push(`${roleCard(from).label} to ${roleCard(to).label}: ${TALK_WORDS[rule].label.toLowerCase()}`);
     }
   }

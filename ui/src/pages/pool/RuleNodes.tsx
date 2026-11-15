@@ -150,7 +150,7 @@ export function RuleNodes({
             <Chip tone="neutral">{roleLabel(rule.role)}</Chip>
             <RuleShellOnly shared={toolOf?.(rule) ?? null} />
           </span>
-          <span className="line-clamp-2 text-body font-semibold text-ink [overflow-wrap:anywhere]" title={labelOf(rule)}>
+          <span className="line-clamp-2 text-body font-semibold text-ink [overflow-wrap:normal]" title={labelOf(rule)}>
             {labelOf(rule)}
           </span>
           <span className="text-meta text-ink-2">

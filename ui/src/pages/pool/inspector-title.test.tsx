@@ -45,7 +45,7 @@ describe("the inspector's title, by what is selected", () => {
 });
 
 describe("on the canvas (AJ-E3012)", () => {
-  it("selecting a member titles the inspector by its name, with the accent on the title's edge; the pool titles it otherwise", async () => {
+  it("selecting a member titles the inspector by its name, with the accent on the title's edge, and no setup progress; the pool titles it otherwise", async () => {
     seedTeam();
     const view = await openPage();
     // Nothing selected: the pool, by its name, as a heading.
@@ -58,6 +58,9 @@ describe("on the canvas (AJ-E3012)", () => {
     expect(view.getByTestId("inspector-subtitle").textContent).toMatch(/^Session · .+ · Lead$/);
     expect(within(view.getByTestId("inspector-head")).getByTestId("inspector-pill")).toBeTruthy();
     expect(view.getByTestId("inspector-head").className).toContain("var(--color-accent)");
+    // The pool's setup progress isn't a member's: none over a session.
+    expect(view.queryByTestId("pool-checklist")).toBeNull();
+    expect(view.queryByTestId("pool-checklist-line")).toBeNull();
     // The card says it's the selected one, with the one ring.
     const selected = view.getAllByTestId("canvas-node")[0]!;
     expect(selected.getAttribute("aria-current")).toBe("true");
@@ -66,6 +69,8 @@ describe("on the canvas (AJ-E3012)", () => {
     expect(selected.className).not.toContain("dashed");
     fireEvent.click(view.getByTestId("inspector-back"));
     await waitFor(() => expect(view.getByTestId("inspector-title").textContent).toBe("Team"));
+    // Back on the pool: its checklist, in full.
+    expect(view.getByTestId("pool-checklist")).toBeTruthy();
   });
 
   it("one selection treatment: a solid accent ring with an offset and a raised surface, never dashes; waiting and leading aren't rings", () => {

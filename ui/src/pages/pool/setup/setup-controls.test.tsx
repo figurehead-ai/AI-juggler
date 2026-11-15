@@ -11,7 +11,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { pick } from "../../../test/pick";
 import { resetPreviewAgentBridge } from "../../../lib/ipc/agent-bridge";
-import { joinSentence, leadSentence, levelSentence, memberSentence, OWN_LEVELS, wakeWords, whereWords } from "../../../lib/pool-words";
+import { joinSentence, leadSentence, levelSentence, memberSentence, OWN_LEVELS, roleCard, wakeWords, whereWords } from "../../../lib/pool-words";
+import { draftOf } from "../../../lib/new-pool";
+import { effectiveRule, nextRule, ruleOf, templateById } from "../../../lib/pool-templates";
+import { talkSentence } from "../../../screens/pools/NewPoolReview";
+import { nameWraps } from "../NodeParts";
 import { LEVELS, levelLabel } from "../../../lib/pools";
 import { JoinAs } from "./JoinAs";
 import { LeadPicker } from "./LeadPicker";
@@ -172,5 +176,50 @@ describe("the controls", () => {
     expect(screen.getByTestId("pool-tools-card-on")).toBeTruthy();
     fireEvent.click(screen.getByTestId("pool-tools-card-on"));
     await vi.waitFor(() => expect(screen.queryByTestId("pool-tools-card")).toBeNull());
+  });
+});
+
+// The coordinator's check (0.4.6): an Observer "watches and reads;
+// changes nothing", the backend asks you for every message it sends
+// (agent_access::decide's observer flag), and Start from scratch blocks
+// its sends as every template does. The table, the role card and the
+// review sentence agree.
+describe("an Observer only reads, everywhere it's said", () => {
+  it("Start from scratch blocks an Observer's sends, as the templates do", () => {
+    const scratch = draftOf(templateById("blank"), "web");
+    for (const to of ["lead", "member", "reviewer", "observer"] as const) expect(ruleOf(scratch.talk, "observer", to)).toBe("blocked");
+    expect(ruleOf(draftOf(templateById("writer-reviewer"), "web").talk, "observer", "member")).toBe("blocked");
+    expect(talkSentence(scratch)).toBe("Everyone may message everyone; an Observer only reads.");
+    expect(roleCard("observer").line).toBe("Watches and reads. Changes nothing.");
+  });
+
+  it("the table shows what the backend does: an Observer's Allowed asks you, and it cycles only between Ask first and Blocked", () => {
+    expect(effectiveRule("observer", "allowed")).toBe("ask");
+    expect(effectiveRule("member", "allowed")).toBe("allowed");
+    expect(nextRule("blocked", "observer")).toBe("ask");
+    expect(nextRule("ask", "observer")).toBe("blocked");
+    expect(nextRule("allowed", "observer")).toBe("blocked");
+    render(<TalkTable ruleOf={() => "allowed"} onCycle={() => undefined} />);
+    const cell = (pair: string) => screen.getAllByTestId("talk-table-cell").find((one) => one.dataset.pair === pair)!;
+    expect(cell("observer>lead").dataset.rule).toBe("ask");
+    expect(cell("lead>member").dataset.rule).toBe("allowed");
+    // A pool that never set it (a project's own) reads true: the review too.
+    expect(talkSentence({ talk: {} })).toContain("Observer to Lead: ask first");
+  });
+
+  it("an Observer's own row blocked is calm, not an exception's red", () => {
+    render(<TalkTable ruleOf={(from) => (from === "observer" ? "blocked" : "allowed")} onCycle={() => undefined} />);
+    const blocked = screen.getAllByTestId("talk-table-cell").find((one) => one.dataset.pair === "observer>member")!;
+    expect(blocked.firstElementChild!.className).toContain("text-muted");
+    expect(blocked.firstElementChild!.className).not.toContain("text-danger");
+    expect(screen.getByTestId("talk-table-below").textContent).toContain("An Observer only reads");
+  });
+});
+
+describe("a node's name breaks only between words (AJ-E3012)", () => {
+  it("wraps words that fit its room, and asks for one line with an ellipsis when a word doesn't", () => {
+    expect(nameWraps("Fix the cart totals", 80, 12)).toBe(true);
+    expect(nameWraps("Planner", 30, 12)).toBe(false);
+    expect(nameWraps("Checkout copy pass", 40, 12)).toBe(false);
   });
 });

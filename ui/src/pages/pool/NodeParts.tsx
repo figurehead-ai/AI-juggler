@@ -131,3 +131,32 @@ export function NodeRoom({ profileId }: { profileId: string | null | undefined }
   const mark = useRoomMark(profileId);
   return mark?.kind === "out" ? <RoomChip mark={mark} compact testId="node-room" /> : null;
 }
+
+/** A canvas, reused, to measure a word as the node draws it. */
+let measure: CanvasRenderingContext2D | null | undefined;
+
+/** The widest word of `name` at `fontPx`, semibold, in px: measured where
+ * the page can (the app's view), else estimated (0.6 em a letter). */
+function widestWord(name: string, fontPx: number): number {
+  if (measure === undefined) {
+    try {
+      measure = typeof document !== "undefined" ? document.createElement("canvas").getContext("2d") : null;
+    } catch {
+      measure = null;
+    }
+  }
+  const words = name.split(/\s+/).filter(Boolean);
+  if (measure) {
+    measure.font = `600 ${fontPx}px -apple-system, BlinkMacSystemFont, "SF Pro Text", Inter, sans-serif`;
+    return Math.max(0, ...words.map((word) => measure!.measureText(word).width));
+  }
+  return Math.max(0, ...words.map((word) => word.length * fontPx * 0.6));
+}
+
+/** AJ-E3012: a node's name breaks only between words. When one word is
+ * wider than the room, the name is one line with an ellipsis instead
+ * ("Plann/er" read as two words at a small fit); the full name is the
+ * inspector's title and the node's tooltip. */
+export function nameWraps(name: string, roomPx: number, fontPx: number): boolean {
+  return widestWord(name, fontPx) <= roomPx;
+}

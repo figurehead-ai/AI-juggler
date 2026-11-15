@@ -48,11 +48,15 @@ export interface PoolTemplate {
   waits?: string;
 }
 
-/** What a role may do in the talk grid: an Observer only reads. */
-const observerReadsOnly: Partial<Record<PairKey, TalkRule>> = {
+/** What a role may do in the talk grid: an Observer only reads (the
+ * backend asks you for every message an Observer sends, whatever its
+ * pair says: `agent_access::decide`'s observer flag; AJ-E3011 blocks its
+ * sends by default, Start from scratch too). */
+export const observerReadsOnly: Partial<Record<PairKey, TalkRule>> = {
   "observer>lead": "blocked",
   "observer>member": "blocked",
   "observer>reviewer": "blocked",
+  "observer>observer": "blocked",
 };
 
 export const POOL_TEMPLATES: readonly PoolTemplate[] = [
@@ -191,7 +195,7 @@ export const POOL_TEMPLATES: readonly PoolTemplate[] = [
     kinds: ["app", "session"],
     roles: [],
     level: "work_together",
-    talk: {},
+    talk: observerReadsOnly,
   },
 ];
 
@@ -204,7 +208,17 @@ export function ruleOf(talk: Partial<Record<PairKey, TalkRule>>, from: PoolRole,
   return talk[pairKey(from, to)] ?? "allowed";
 }
 
-/** The next rule when a grid cell is clicked: allowed → ask → blocked. */
-export function nextRule(rule: TalkRule): TalkRule {
+/** What a pair's rule does, as the backend enforces it: an Observer's
+ * messages never go without you (D-28's observer flag makes each an ask),
+ * so its "Allowed" is in effect Ask first. */
+export function effectiveRule(from: PoolRole, rule: TalkRule): TalkRule {
+  return from === "observer" && rule === "allowed" ? "ask" : rule;
+}
+
+/** The next rule when a grid cell is clicked: allowed → ask → blocked;
+ * an Observer's pair only between ask first and blocked (it can't be
+ * allowed, see `effectiveRule`). */
+export function nextRule(rule: TalkRule, from?: PoolRole): TalkRule {
+  if (from === "observer") return effectiveRule(from, rule) === "ask" ? "blocked" : "ask";
   return rule === "allowed" ? "ask" : rule === "ask" ? "blocked" : "allowed";
 }

@@ -16,7 +16,7 @@ export function NewPoolTalk({ draft, onDraft }: { draft: Draft; onDraft: (next: 
       <StepHead step="talk" />
       <TalkTable
         ruleOf={(from, to) => ruleOf(draft.talk, from, to)}
-        onCycle={(from, to) => onDraft({ ...draft, talk: { ...draft.talk, [pairKey(from, to)]: nextRule(ruleOf(draft.talk, from, to)) } })}
+        onCycle={(from, to) => onDraft({ ...draft, talk: { ...draft.talk, [pairKey(from, to)]: nextRule(ruleOf(draft.talk, from, to), from) } })}
         testId="new-pool-talk"
       />
       <p className="text-meta text-ink" data-testid="new-pool-talk-sentence">

@@ -147,7 +147,7 @@ export function PoolSetupSections({
             disabled={busy}
             ruleOf={(from, to) => roleRule(rules.rules, from, to)}
             onCycle={(from, to) => {
-              const next = nextRule(roleRule(rules.rules, from, to));
+              const next = nextRule(roleRule(rules.rules, from, to), from);
               run("change who may message whom", () => poolSetTalk(pool.id, `role:${from}`, `role:${to}`, next === "allowed" ? null : next));
             }}
             testId="pool-talk"
