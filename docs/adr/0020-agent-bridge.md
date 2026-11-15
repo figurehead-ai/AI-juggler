@@ -246,6 +246,118 @@ authority it doesn't have.* Mitigation: the four rules above. Tests:
 `the_caps_hold`), `wire.rs` (`a_request_round_trips_and_refuses_strangers`)
 and the guardrail suite's "no action without the user's command".
 
+## D-116 addendum: attested desktop identity (AJ-E3013, 2026-11-15)
+
+D-116 makes a desktop app's session a full pool member through AI
+Juggler's connector (the bridge as an MCP server, and for the Claude
+app's Code tab the plugin's hooks), and D-119 lets such a member be woken
+through Claude Code's own inbox. AI Juggler doesn't start those sessions,
+so they never get a key (§4). This addendum adds the one other way a call
+gets an identity: **attestation**, checked by the app against the
+operating system and the tool's own records on every call. Research:
+`docs/research/desktop-pool-members.md` §1.1.
+
+**The connector.** Written by AI Juggler with the user's consent, into
+that App's own config folder only (D-116): the bridge runs as
+`<agent> --mcp --plugin`, and the hooks as `<agent> hook <event>`, with
+the edition's socket path in `JUGGLER_AGENT_SOCKET` (a path, not a
+secret). Nothing it writes holds a key, a token or a credential.
+
+**The call.** With no key in its environment and a socket named, the
+bridge sends its usual request with an **empty key**. The request's one
+shape is unchanged: no field names a session, a process, a folder or a
+pool other than one of its own (D-62). Nothing the caller says is part of
+the attestation.
+
+**The check** (the app, `features/agent_bridge/attest.rs`; the tool's
+part in its adapter, `juggler_adapter::peer::DesktopPeer`):
+
+1. **The peer.** At accept, the socket's peer user must be this user
+   (`getpeereid`, as before) and the system names its pid (tokio's
+   `peer_cred`, which reads `LOCAL_PEEREPID` on macOS: the same pid as
+   `LOCAL_PEERPID` unless the socket was delegated with `SO_DELEGATED`,
+   which XNU allows only with the private socket-delegation privilege).
+   The time of the accept is kept.
+2. **The chain.** One listing of the processes (`juggler-proc-list`, the
+   kernel's own `kinfo_proc` records): the peer must be listed, not a
+   zombie, readable as this user's (`proc_pidinfo`), and started no later
+   than the accept. Then its parent and its parent's parent, each listed,
+   none a zombie, and each started no later than its child (a reparented
+   or reused parent fails).
+3. **The tool's registry** (Claude, `claude_peer.rs`). For the parent,
+   then the grandparent (a hook runs under `sh`): in the App's own
+   `CLAUDE_CONFIG_DIR`, `sessions/<pid>.json`: a regular file of this
+   user's (never a link), small, its `pid` equal to its name. Of it only
+   `pid`, `sessionId`, `hostSessionId`, `entrypoint`, `status` and
+   `procStart` are read; the `*.key` files beside it are never opened.
+   It must say `entrypoint: "claude-desktop"`, carry a `procStart` within
+   one second of that process's real start time (**pid reuse**: a stale
+   file for a reused pid fails), and a `hostSessionId` of the form
+   `local_<id>`.
+4. **The App's record.** That `hostSessionId` must name the App's own
+   record, `<instance>/claude-code-sessions/<account>/<org>/<hostSessionId>.json`
+   (a regular file, never a link), whose `cliSessionId` equals the
+   registry's `sessionId`. Its conversation is the member: `(the App's
+   config folder row, that id)`.
+5. **One App.** Every desktop App the user added (D-84) whose tool's
+   adapter can attest is asked; exactly one must attest. None, or two,
+   is a refusal.
+6. **Its place.** The app builds the session's facts (App, Account, Tool,
+   conversation; project from the conversation index) under a minted id,
+   `desktop:<conversation>`, which no real session can have
+   (`SessionsRepo::insert` refuses the prefix), and keeps them in memory
+   (`Storage::attested`), refreshed by each attested call and dropped ten
+   minutes after the last one, or at once when a later call finds that
+   session's registry entry stale. Only this path writes it. Then the call
+   goes on exactly as a keyed one: the rate limit (per conversation),
+   Settings › Agent access, the pool's level, the talk rules, and
+   `allowed(pool, action)`, which decides and audits.
+
+**Refused, never trusted.** Anything short of all of the above (no peer
+pid, a process missing, a registry entry missing, of another shape, a
+link, without `procStart`, with a start time that doesn't match, an App
+record missing or naming another conversation, no App or two) is
+`Refusal::Unattested`, with the reason. There is no fallback to the
+caller's word, the environment, a cached verdict or a guess. A Codex app
+thread is refused (one shared `codex app-server`, no per-thread
+process: `codex_peer` answers "can't tell which thread is calling" until
+a lab probe proves a way).
+
+**Each call is attested again.** Nothing is cached between calls but the
+facts' lifetime: a session resumed or `/clear`ed while its MCP server
+lives on is checked against the registry as it is at that call (the
+resume row below), and a server that outlives its session (its parent gone: the
+chain ends at `launchd`) is refused.
+
+### STRIDE, added
+
+| Threat | Mitigation | Test |
+|---|---|---|
+| **S** another user's process | peer uid = ours, before anything is read | `local_ipc` (as before) |
+| **S** a same-user process outside the session's tree claims a session | no field claims anything; the chain comes from the kernel; its parent/grandparent must be a Code-tab process with a matching registry entry and App record | `a_process_outside_the_session_is_refused` |
+| **S** pid reuse: the session ended and its pid now runs something else | `procStart` must match that pid's real start time (±1 s); each process in the chain started no later than its child; the peer started no later than the accept | `a_reused_pid_is_refused` |
+| **S** a process that outlives its session (an orphaned MCP server) | its parent is `launchd`: no registry entry; refused | `an_orphan_is_refused` |
+| **S** resume and `/clear` (the MCP server outlives a conversation) | the registry and App record are read at every call; the call acts as the conversation they name now, or is refused when they disagree | `the_registry_is_read_at_every_call` |
+| **S** a descendant of the session (a hook, a shell command the model runs) | accepted, as that session: it is inside the session's own trust (the model can call the tools itself); at most two steps up | `a_hook_under_sh_is_attested` |
+| **S** a same-user process that **forges** a registry file and an App record for its own parent | out of scope, as in §4: a same-user process can already read a launched session's environment, and so its key. The files must be regular files of this user's, in the App's own folders | (design) |
+| **T** the connector's files changed to point elsewhere | Add records each file's sha256; status says "changed by someone"; Remove deletes only what still matches | connector tests |
+| **I** secrets | the registry's `*.key` files are never opened; no value of the session's environment is read by the app (D-37); the connector holds no secret | `the_key_files_are_never_read` |
+| **D** call storms | the same limits: 30 calls in 10 s per conversation | (as before) |
+| **E** elevation through the attested path | the same `allowed()`, levels and talk rules; a desktop member can do nothing a keyed member can't | `attested_calls_go_through_the_same_decision` |
+
+### Waking (D-119)
+
+An idle desktop Code-tab member is woken only when the pool's waking
+rule allows it (the pool at Full, or a rule the user made), with the same
+gate and wake budget as a terminal member. The connector, a child of that
+session, posts one facts-only line ("AI Juggler: 1 new pool message from
+Planner; read it with read_inbox") to the session's own inbox socket
+(`CLAUDE_CODE_MESSAGING_SOCKET`, with the documented auth line on macOS).
+The app never opens that socket and never reads the token: the bridge
+does, from its own environment, on the app's say-so. Claude Code treats
+it as a peer message (it can't approve or change anything) and applies
+its own rate limit on top of ours.
+
 ## Unverified until the spike (AJ-E1701, the maintainer's)
 
 - That a server from `--mcp-config` loads in Claude Code without an
