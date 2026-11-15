@@ -634,6 +634,14 @@
   greet the user with AI Juggler's prompts).
 - Consequences: sessions started outside AI Juggler are pool members but
   can't call the tools until continued in AI Juggler.
+- **Amended by D-116** (2026-11-15, for desktop apps only): with the
+  user's explicit Add, AI Juggler writes its own entry into a desktop
+  App's config (its own folder, or its own `config.toml` table), shows
+  the diff first, and Remove restores it exactly; CLI launches keep this
+  decision's per-launch config. A desktop session joined that way calls
+  the tools without being continued in AI Juggler. The tools stay
+  pre-allowed only where AI Juggler launches; a desktop session's app
+  asks once per tool.
 
 ### D-31 Agents never start sessions; nothing picks an account by usage — SETTLED (2026-10-24)
 
@@ -3164,6 +3172,14 @@ Each ships with tests that fail without it and a design critique; the M2, D2 and
 - **Amends:** D-61 point 15 ("Watched… joining from anywhere comes
   later": desktop sessions join in 0.4.6) and D-73's timing (the
   plugin's parts that pools need ship in 0.4.6, from the 0.5 work).
+- **Amends D-30's "never by editing the user's config"** (the
+  coordinating session, 2026-11-15), for desktop apps only: with the
+  user's explicit Add, AI Juggler writes only its own entry (its own
+  folder, `<CLAUDE_CONFIG_DIR>/skills/ai-juggler/`, or its own
+  `[mcp_servers.juggler]` table in Codex's `config.toml`), shows a diff
+  first, and Remove restores it exactly (by the hashes it recorded); CLI
+  launches keep D-30's per-launch config. D-30's ask-once and its
+  per-project and per-account switch stay as they are.
 - Sources: the coordinating session's relay of the maintainer's answer
   and words, 2026-11-14.
 
