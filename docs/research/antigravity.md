@@ -325,3 +325,75 @@ Source: official FAQ, https://antigravity.google/docs/faq.md
 (c) Headless runs: ALLOWED when direct scripting by the user; NOT supported if wrapped inside a third-party app on consumer plans.
 
 **The recommendation then:** track-only for consumer (AI Pro/Ultra) accounts; build launch/switch for API-key or Workspace/Enterprise accounts only.
+
+## Update, 2026-11-15 (research pass for AJ-E1613, D-106 standing order)
+
+Read-only pass; nothing was installed, downloaded or run. `AG` = `https://antigravity.google`. Everything above stays as written unless a line below says it is corrected.
+
+### Corrections to the notes above
+
+- **Correction to "Terms, re-read 2026-11-13":** the line "`agy -p /usage --output-format json`: NOT FOUND in docs" is wrong. The vendor changelog (v1.1.11) documents `agy -p "/usage"` (also `/quota`, `/credits`, `/model`) as a non-interactive command that spends no quota and starts no agent turn; see §5 above. It still has no page of its own in the docs, so the output shape stays undocumented (issue #1045 shows it). **[Verified-primary]** — AG/docs/changelog/ (accessed 2026-11-15)
+- **Correction to §6 "ACP … Negative-evidence":** `agy acp` is now a documented subcommand of the CLI. See the first item below.
+- **Versions moved:** the App is at **v2.32.0** (2026-11-13). The CLI repo changelog is at **1.5.9**. §1's v2.24.0 and 1.4.4 are out of date. **[Verified-primary]** — AG/docs/changelog/, https://github.com/google-antigravity/antigravity-cli/blob/main/CHANGELOG.md (accessed 2026-11-15)
+
+### 1. What ships
+
+- **[Verified-primary]** Three Google-built surfaces: the Antigravity App (agent manager, bundle id `com.google.antigravity`, `/Applications/Antigravity.app`), the separate Antigravity IDE (`com.google.antigravity-ide`) and the CLI `agy`. The CLI installs to `~/.local/bin/agy` with `curl -fsSL https://antigravity.google/cli/install.sh | bash`. The App has no shell launcher. Same details as §1 above. — AG/docs/getting-started/ (accessed 2026-11-15)
+- **[Verified-primary]** New: the CLI carries an ACP server, started as `agy acp`. Zed, JetBrains IDEs, Android Studio and Xcode launch it as a subprocess; VS Code needs a community ACP client. The separate `antigravity-acp` registry binary from §6 is therefore no longer the only route. — AG/docs/cli/acp/, AG/docs/ide/extensions/acp/ (accessed 2026-11-15)
+
+### 2. Per-account isolation
+
+- **[Verified-primary]** The CLI's files live in `~/.gemini/antigravity-cli/` (settings at `settings.json`). The reference page lists `--log-file` as the only path flag, and no environment variable that moves the home. — AG/docs/cli/reference/ (accessed 2026-11-15)
+- **[Verified-primary]** Issue #155 (a request for a `GEMINI_CLI_HOME`-style variable such as `AGY_HOME`) is still open. It has no maintainer answer; the last comment is 2026-10-19. — https://github.com/google-antigravity/antigravity-cli/issues/155 (accessed 2026-11-15)
+- **[Verified-secondary]** A per-account `HOME` is the only workaround, per vendor-repo collaborators (§2). It moves the files but, as far as anyone has reported, not the sign-in: one Keychain item (service `gemini`, account `antigravity`) serves the whole macOS user. A third-party article repeats this and says there is no profile flag. — https://agentsroom.dev/blog/multiple-accounts-antigravity-cli (search result, not fetched in full)
+- **[Verified-primary]** Sign-in is the OS keyring first, a file fallback second. Changelog 1.5.x: after a failed Keychain write the CLI keeps the token in its own file-based storage for the rest of the session (the "Keychain Not Found" dialog fix). The file's path is not documented. — CLI CHANGELOG 1.5.9 (accessed 2026-11-15)
+- **[Inferred]** Two Google accounts side by side on one Mac with the CLI is therefore not proven. It needs the live lab check (question 7): sign in under `HOME=lab-a` and see whether `HOME=lab-b` finds the same sign-in.
+- **[Verified-secondary]** The App and IDE are Electron apps; a third-party tool (paragravity) runs several accounts in separate windows with `--user-data-dir`. Not verified for the 2.x App, and no vendor page documents that flag for it. — https://github.com/edison-land/paragravity/wiki (search result)
+- **[Verified-primary]** Account switching in the CLI is `/logout` then sign-in; the App has no account switcher (§3). Plugin accounts (App v2.28.2, "add, reconnect, or disconnect accounts") are for plugins, not for the Google sign-in. — AG/docs/changelog/ (accessed 2026-11-15)
+
+### 3. Sessions and agents
+
+- **[Verified-primary]** Unchanged from §4: UUID per conversation, artifacts and transcript under `<app_data_dir>/brain/<id>/`, CLI conversations as SQLite files under `~/.gemini/antigravity-cli/conversations/`, `agy -c`, `--conversation <id>`, `/resume`, `/fork`. The conversations page still gives no storage paths or file schema. — AG/docs/cli/conversations/ (accessed 2026-11-15)
+- **[Verified-primary]** ACP sessions can be resumed and reloaded by an editor (CLI changelog 1.5.x); they read the same CLI settings and sign-in. — CLI CHANGELOG (accessed 2026-11-15)
+- **[Negative-evidence]** No documented index beyond `cache/last_conversations.json` and `cache/projects.json`; no documented schema for `transcript.jsonl`.
+
+### 4. Usage and limits
+
+- **[Verified-primary]** Free: "A meaningful quota, refreshed weekly" plus a weekly limit. Pro: high quota refreshed every five hours until the weekly limit. Ultra: highest quota, same cycle, third-party models. Workspace and Enterprise: Cloud terms in Gemini Enterprise, no figures. Limits follow the agent's work, not prompt count. — AG/docs/plans/ (accessed 2026-11-15)
+- **[Verified-primary]** Where it shows: the App's Settings page (per model); in the CLI `/usage`, `/credits` and the statusline payload (`quota`, `plan_tier`, `email`). Non-interactive: `agy -p "/usage" --output-format json` (changelog v1.1.11). — AG/docs/plans/, AG/docs/changelog/, AG/docs/cli/statusline/
+- **[Verified-primary]** A limit hit: the plans page describes no message. The "AI Credit Overages" setting (Never/Always) decides what happens after baseline quota; the CLI reports personal quota exhaustion at once instead of retrying (v1.3.3). — AG/docs/plans/, AG/docs/changelog/
+- **[Verified-secondary]** The `/usage` JSON is `command.data.groups[].buckets[]` with `window`, `remaining_fraction`, `reset_time`. — https://github.com/google-antigravity/antigravity-cli/issues/1045
+- **[Verified-secondary]** ACP does not send quota; it now sends context-window use only (1.5.x). — CLI CHANGELOG
+- **[Negative-evidence]** No local quota record file and no documented endpoint. The backend call behind `/usage` (`v1internal:retrieveUserQuotaSummary`) needs the user's token, which AI Juggler never reads.
+
+### 5. Driving it
+
+- **[Verified-primary]** Headless: `agy -p` with `--output-format text|json|stream-json`, `--input-format stream-json`, `--json-schema`, `--conversation`, `--continue`; it needs a prior sign-in. — AG/docs/cli/reference/, AG/docs/cli/headless/
+- **[Verified-primary]** New: ACP over JSON-RPC on stdin/stdout via `agy acp` (`--login` signs in; it reuses the cached sign-in). It is a sanctioned local control plane and the closest thing to Codex's app-server; it carries replies, tool calls, diffs, permission requests, model pickers and session resume. — AG/docs/cli/acp/
+- **[Verified-primary]** Also: Remote Control (`agy remote-control`), OSC 7501 state reports, statusline and title hooks, `hooks.json` events, MCP config at `~/.gemini/config/mcp_config.json` and `.agents/mcp_config.json`. Same as §6.
+- **[Negative-evidence]** No headless mode for the App or IDE; the App has Scheduled Tasks and Remote Control.
+
+### 6. Terms (quotes under 15 words)
+
+- FAQ: "Using third-party software, tools, or services to access Antigravity is a violation" — AG/docs/faq/
+- FAQ: "Wrapping `agy` inside third-party coding agents or applications" and automating account rotation are "not supported under consumer plans" — AG/docs/faq/
+- FAQ: "Antigravity CLI headless mode (`agy -p`) is intended for direct scripting and CI workflows." — AG/docs/faq/
+- FAQ, Workspace: "Your Workspace administrator must explicitly provision Antigravity for your account." — AG/docs/faq/
+- Additional terms, clause 6: "using the Service in connection with products not provided by us." — AG/terms/
+- Staff forum reply, 2026-10-07: running the unmodified `agy` headless is permitted in "your own personal, single-user workflow"; no tokens extracted; keep runs sequential. Another staff reply, dated 2026-10-16, is said by a poster to say the opposite; it was not found on the page. — https://discuss.ai.google.dev/t/can-a-local-ai-coordinator-launch-the-official-antigravity-cli-with-subscription-sign-in/186246 **[Verified-secondary]**
+- **[Negative-evidence]** Neither the FAQ nor the terms address several Google accounts per person. The terms page shows no effective date.
+- Under D-105 this stays on record only; the ruling gives full support on every plan.
+
+### 7. What a live lab check needs
+
+- Install (the maintainer's yes first, D-107): the CLI via the vendor's `install.sh`, or the Homebrew cask `antigravity-cli`; the App via `Antigravity.dmg` from AG/download/ or cask `antigravity`.
+- Sign-in: the maintainer's existing Google account, in a lab home (`HOME=<lab>`), interactive `agy` once; a second existing account in a second lab home if two are available.
+- Steps: (a) after sign-in under home A, run `HOME=B agy` and see whether it is signed in (Keychain shared or not); (b) `HOME=A agy -p "/usage" --output-format json` and record the shape; (c) `agy acp` handshake over stdio (initialize, new session, a one-word prompt); (d) conversation files under the lab home and their format; (e) App: a `--user-data-dir` launch and whether its sign-in is separate.
+
+### Remaining gaps and what closes each
+
+- Two accounts side by side (Keychain item shared or not): closed by live step (a).
+- Where the file-fallback token is stored, and App/IDE Keychain items: closed by a file listing in the lab home after sign-in (names only, contents never read).
+- `transcript.jsonl` and conversation SQLite schemas: closed by fixtures made in the lab.
+- Whether ACP carries session lists and usage: closed by step (c) and `agy acp --help`.
+- Whether `--user-data-dir` isolates the App: closed by step (e).
