@@ -407,6 +407,70 @@ fn project_of(state: &Arc<AppState>, folder: &str, conversation: &str) -> Option
 ///
 /// Why it isn't attested, in words: the call is refused with them.
 pub fn attest(state: &Arc<AppState>, peer: Peer) -> Result<DesktopCaller, String> {
+    attest_inner(state, peer).inspect_err(|why| log_refusal(why))
+}
+
+/// H2: how often a refusal's reason is logged: once a minute a reason,
+/// the next line saying how many were left out.
+pub const LOG_EVERY: std::time::Duration = std::time::Duration::from_secs(60);
+
+/// The most reasons the log keeps count of (a flood of distinct ones
+/// can't grow it).
+const LOG_REASONS_MAX: usize = 64;
+
+/// H2: the line to log for a refusal `why` now, if one is due: at most
+/// one a reason in [`LOG_EVERY`], with how many were left out since.
+pub(crate) fn refusal_line(
+    seen: &mut HashMap<String, (std::time::Instant, u32)>,
+    why: &str,
+    now: std::time::Instant,
+) -> Option<String> {
+    let skipped = match seen.get_mut(why) {
+        Some((since, skipped)) if now.duration_since(*since) < LOG_EVERY => {
+            *skipped = skipped.saturating_add(1);
+            return None;
+        }
+        Some(entry) => std::mem::replace(entry, (now, 0)).1,
+        None => {
+            if seen.len() >= LOG_REASONS_MAX {
+                seen.clear();
+            }
+            seen.insert(why.to_owned(), (now, 0));
+            0
+        }
+    };
+    Some(if skipped == 0 {
+        format!("agent bridge: a keyless call wasn't attested: {why}")
+    } else {
+        format!(
+            "agent bridge: a keyless call wasn't attested: {why} ({skipped} more like it in the last minute)"
+        )
+    })
+}
+
+/// H2: logs a refusal by its reason only (scrubbed of the home folder,
+/// the user name, paths and anything secret-shaped: the crash reports'
+/// scrubber), never a session id or a record's contents, and at most once
+/// a minute a reason.
+fn log_refusal(why: &str) {
+    static SEEN: std::sync::OnceLock<std::sync::Mutex<HashMap<String, (std::time::Instant, u32)>>> =
+        std::sync::OnceLock::new();
+    let home = juggler_platform::user::home()
+        .map(|home| home.to_string_lossy().into_owned())
+        .unwrap_or_default();
+    let user = std::env::var("USER").unwrap_or_default();
+    let reason = crate::crash::scrub(why, &home, &user);
+    let line = SEEN
+        .get_or_init(std::sync::Mutex::default)
+        .lock()
+        .ok()
+        .and_then(|mut seen| refusal_line(&mut seen, &reason, std::time::Instant::now()));
+    if let Some(line) = line {
+        tracing::info!("{line}");
+    }
+}
+
+fn attest_inner(state: &Arc<AppState>, peer: Peer) -> Result<DesktopCaller, String> {
     let candidates = candidates(state);
     // H3: whatever else this call turns out to be, every desktop session
     // kept now is checked against its tool's registry again.
@@ -589,5 +653,50 @@ mod tests {
             ..peer(400, 5_000)
         };
         assert!(chain_of(no_token, &rows, &|_| true, &seven).is_err());
+    }
+
+    #[test]
+    fn a_refusal_is_logged_once_a_minute_a_reason_with_what_was_left_out() {
+        // H2.
+        let mut seen = HashMap::new();
+        let start = std::time::Instant::now();
+        let first = refusal_line(&mut seen, "the caller's process is gone", start).unwrap();
+        assert_eq!(
+            first,
+            "agent bridge: a keyless call wasn't attested: the caller's process is gone"
+        );
+        for n in 1..=5 {
+            let at = start + Duration::from_secs(n);
+            assert_eq!(
+                refusal_line(&mut seen, "the caller's process is gone", at),
+                None
+            );
+        }
+        assert!(
+            refusal_line(&mut seen, "another reason", start + Duration::from_secs(2)).is_some(),
+            "each reason its own"
+        );
+        let later =
+            refusal_line(&mut seen, "the caller's process is gone", start + LOG_EVERY).unwrap();
+        assert!(
+            later.ends_with("(5 more like it in the last minute)"),
+            "{later}"
+        );
+        // A flood of distinct reasons can't grow it without bound.
+        for n in 0..1_000 {
+            let _ = refusal_line(&mut seen, &format!("reason {n}"), start);
+        }
+        assert!(seen.len() <= LOG_REASONS_MAX);
+    }
+
+    #[test]
+    fn a_logged_reason_carries_no_path_or_user() {
+        // H2: the reason goes through the crash reports' scrubber first.
+        let scrubbed = crate::crash::scrub(
+            "no record at /Users/jdoe/Library/Application Support/x.json for jdoe",
+            "/Users/jdoe",
+            "jdoe",
+        );
+        assert!(!scrubbed.contains("jdoe"), "{scrubbed}");
     }
 }
