@@ -5,9 +5,10 @@
  * Single source of truth for color/shape/typography; components consume
  * semantic names only (bg-canvas, text-muted, border-hairline, ...).
  *
- * Iteration 2 (design review): depth (ambient gradients, glass, layered
- * shadows), motion (consistent 150ms micro-transitions, live pulse), and
- * glow accents — same palette, more polish.
+ * Iteration 2 (design review): depth (glass, layered shadows), motion
+ * (consistent 150ms micro-transitions). 0.5 (D-117, the attention
+ * budget): colour, fills and motion are for what needs you; the rest is
+ * calm (docs: the calm-attention design).
  */
 @theme {
   /* Surfaces: deep space neutrals, layered elevation */
@@ -38,16 +39,40 @@
   /* The primary button's fill: white on it is 5.09:1. */
   --color-accent-fill: #5b5bea;
   --color-accent-soft: #7c7cf41f;
-  --color-live: #22d3ee;
-  --color-live-soft: #22d3ee1f;
+  /* 0.5 (D-117, the attention budget): the dark status colours retuned
+     into a chroma ladder with the alarm on top: danger (L3) the most
+     saturated and brighter than before (Lc 52–56, was 45–49, the quietest
+     status colour), warning (L2) next, live and success (L1) calm. Each
+     stays ≥ 6:1 on every surface and ≥ 0.166 OKLab ΔE from the App marks
+     (lib/mark-hues). The light theme's already formed that ladder. */
+  --color-live: #7bbfcc;
+  --color-live-soft: #7bbfcc1f;
 
   /* Semantics */
-  --color-success: #34d399;
-  --color-success-soft: #34d3991a;
-  --color-warning: #fbbf24;
-  --color-warning-soft: #fbbf241a;
-  --color-danger: #f87171;
-  --color-danger-soft: #f871711a;
+  --color-success: #79c3a0;
+  --color-success-soft: #79c3a01a;
+  --color-warning: #e8b25a;
+  --color-warning-soft: #e8b25a1a;
+  --color-danger: #ff8578;
+  /* The L3 row tint (one block per surface): danger on it 5.86:1 on
+     surface, 4.84:1 on surface-3; ink on it 12.7:1. */
+  --color-danger-soft: #ff857824;
+
+  /* 0.5 (D-117) — calm surroundings. Agreed names: 0.4.6's pools use
+     them exactly, so never rename.
+     section: section labels (Needs you, Open now; 12 px / 500, capitals),
+       between ink-2 and muted (8.82–11.71:1, Lc 70–74).
+     fill: a filled control in place of its outline (search, segments).
+     divider: the one hairline left, the rail/main split (decorative).
+     count / count-ink: the neutral count badge (13.5:1);
+     count-alarm / -ink: the count badge at L3 only (8.2:1). */
+  --color-section: #c3cad5;
+  --color-fill: #181d27;
+  --color-divider: #232a36;
+  --color-count: #d2d8e1;
+  --color-count-ink: #0b0e14;
+  --color-count-alarm: #ff8578;
+  --color-count-alarm-ink: #0b0e14;
 
   /* Type: native stack, mono for identifiers */
   --font-sans:
@@ -103,14 +128,33 @@
   --shadow-edge: 0 2px 6px -1px rgba(0, 0, 0, 0.55);
 }
 
-/* Ambient canvas: layered wash instead of flat black. */
+/*
+ * 0.5 (D-117) — the attention levels and the App tone, as plain custom
+ * properties (no utilities of their own). attentionLevel() (lib/attention)
+ * says a thing's level; these say its colour:
+ *   L3 Broken     --level-3       (danger)
+ *   L2 Needs you  --level-2       (warning)
+ *   L1 Note       --level-1-done  (success: to review)
+ *                 --level-1-live  (live: a calm working mark)
+ *   L0 Calm       the four text levels, no hue
+ * An App's icon and mark are muted at rest (--tone-*) and in full colour
+ * when it is at L2/L3, selected or current, hovered or focused (.app-tone).
+ */
+:root {
+  --level-3: var(--color-danger);
+  --level-2: var(--color-warning);
+  --level-1-done: var(--color-success);
+  --level-1-live: var(--color-live);
+  --tone-saturate: 0.25;
+  --tone-opacity: 0.78;
+}
+
+/* The canvas: a flat canvas-hi → canvas step (0.5, D-117: the violet and
+   cyan washes went; colour is for what needs you). */
 body {
   @apply bg-canvas text-ink font-sans antialiased;
   overscroll-behavior: none;
-  background-image:
-    radial-gradient(1100px 700px at 12% -12%, #7c7cf40d, transparent 60%),
-    radial-gradient(900px 600px at 95% 8%, #22d3ee08, transparent 55%),
-    linear-gradient(180deg, var(--color-canvas-hi), var(--color-canvas) 40%);
+  background-image: linear-gradient(180deg, var(--color-canvas-hi), var(--color-canvas) 40%);
   background-attachment: fixed;
 }
 
@@ -153,13 +197,35 @@ body {
      clears AA (≥ 4.7:1) on every surface it sits on. */
   --color-danger: #b91c1c;
   --color-danger-soft: #b91c1c14;
+
+  /* 0.5 (D-117): section 7.80–9.66:1; count 12.7:1; count-alarm 6.5:1. */
+  --color-section: #3d4553;
+  --color-fill: #ffffff;
+  --color-divider: #e2e6ed;
+  --color-count: #2c3341;
+  --color-count-ink: #ffffff;
+  --color-count-alarm: #b91c1c;
+  --color-count-alarm-ink: #ffffff;
+  --tone-opacity: 0.72;
 }
 
-[data-theme="light"] body {
-  background-image:
-    radial-gradient(1100px 700px at 12% -12%, #5b5bf00a, transparent 60%),
-    radial-gradient(900px 600px at 95% 8%, #0891b206, transparent 55%),
-    linear-gradient(180deg, var(--color-canvas-hi), var(--color-canvas) 40%);
+/*
+ * macOS Increase Contrast (prefers-contrast: more), with no setting of
+ * our own: the one divider rises to the hairline, the hairline to faint,
+ * ghost buttons take a border, section labels rise to ink-2 and Apps'
+ * icons keep half their colour at full opacity.
+ */
+@media (prefers-contrast: more) {
+  :root {
+    --color-divider: var(--color-hairline);
+    --tone-saturate: 0.5;
+    --tone-opacity: 1;
+  }
+  :root,
+  [data-theme="light"] {
+    --color-hairline: var(--color-faint);
+    --color-section: var(--color-ink-2);
+  }
 }
 
 ::selection {
@@ -240,6 +306,96 @@ body {
  * the window to no endless animation at rest. */
 .dot-live {
   animation: breathe 2.4s var(--ease-out-soft) 3;
+}
+
+/*
+ * 0.5 (D-117) — the calm grammar's own classes (the rail, Home's marks;
+ * 0.4.6's pools reuse the tokens). Kept here, not as utilities, so the
+ * one hidden comparison look (attention-classic.css, 0.5 betas only) can
+ * put the old look back over them. In the components layer, so a
+ * utility on the element still wins (a ghost button's own text colour).
+ */
+@layer components {
+  /* A section's label: Needs you, Open now, Inactive apps, Your apps. */
+  .section-label {
+    color: var(--color-section);
+    font-size: var(--text-label);
+    line-height: var(--text-label--line-height);
+    font-weight: 500;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+  }
+  /* A section head's icon belongs to the old look only (Open now's window,
+     Needs you's ⚠): the label says it; attention-classic.css shows it. */
+  .section-icon {
+    display: none;
+  }
+  /* An App's icon or mark at rest: muted, its own shape kept (saturate,
+     never a tint, so no App's colour lands on another). Lit — at L2/L3,
+     selected or current, hovered or focused — it is in full colour. The
+     filter is on the image only; a profile's dot takes the class itself. */
+  .app-tone {
+    filter: saturate(var(--tone-saturate));
+    opacity: var(--tone-opacity);
+    transition:
+      filter 150ms,
+      opacity 150ms;
+  }
+  .app-tone.is-lit,
+  .tone-host:hover .app-tone,
+  .tone-host:focus-within .app-tone,
+  .tone-host[data-lit="true"] .app-tone {
+    filter: none;
+    opacity: 1;
+  }
+  /* A ghost button: words in ink-2, a fill on hover, a border only on
+     focus (and under Increase Contrast, above). */
+  .btn-ghost {
+    border: 1px solid transparent;
+    color: var(--color-ink-2);
+    background: transparent;
+  }
+  .btn-ghost:hover {
+    background: var(--color-surface-3);
+    color: var(--color-ink);
+  }
+  @media (prefers-contrast: more) {
+    .btn-ghost {
+      border-color: var(--color-faint);
+    }
+    /* A filled control keeps an outline under Increase Contrast. */
+    .seg-fill {
+      box-shadow: inset 0 0 0 1px var(--color-hairline);
+    }
+  }
+  /* A count that carries its level (Needs you's head): its glyph before
+     the number, ⚠ at L2 and ✕ at L3 (the shape tells them apart, never
+     the hue alone). */
+  .level-count[data-level="2"]::before {
+    content: "⚠";
+  }
+  .level-count[data-level="3"]::before {
+    content: "✕";
+  }
+  /* A level's mark: a 6 px dot (L2 filled, a hollow ring when inferred),
+     in the level's colour. */
+  .level-mark {
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    flex-shrink: 0;
+    border-radius: 9999px;
+  }
+  .level-mark[data-level="3"] {
+    background: var(--level-3);
+  }
+  .level-mark[data-level="2"] {
+    background: var(--level-2);
+  }
+  .level-mark[data-level="2"][data-probably="true"] {
+    background: transparent;
+    box-shadow: inset 0 0 0 1.5px var(--level-2);
+  }
 }
 
 /*
@@ -387,6 +543,9 @@ main::-webkit-scrollbar-track {
   }
   .dot-live, .animate-breathe, .welcome-rise {
     animation: none !important;
+  }
+  .app-tone {
+    transition: none !important;
   }
 }
 
