@@ -894,6 +894,10 @@ impl ToolRuntime for ClaudeCodeAdapter {
     fn desktop_peer(&self) -> Option<&dyn juggler_adapter::peer::DesktopPeer> {
         Some(&crate::claude_peer::ClaudeAppPeer)
     }
+    /// AJ-E3013: the plugin folder `skills/ai-juggler/` (Route A).
+    fn desktop_connector(&self) -> Option<&dyn juggler_adapter::connector::DesktopConnector> {
+        Some(&crate::claude_connector::ClaudeAppConnector)
+    }
 }
 
 /// The AJ-E308 sign-in taxonomy — moved to the adapter contract for

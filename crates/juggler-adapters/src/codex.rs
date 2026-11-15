@@ -941,6 +941,10 @@ impl ToolRuntime for CodexAdapter {
     fn desktop_peer(&self) -> Option<&dyn juggler_adapter::peer::DesktopPeer> {
         Some(&crate::codex_peer::CodexAppPeer)
     }
+    /// AJ-E3013: `[mcp_servers.juggler]` in the App's `config.toml` (Route K).
+    fn desktop_connector(&self) -> Option<&dyn juggler_adapter::connector::DesktopConnector> {
+        Some(&crate::codex_connector::CodexAppConnector)
+    }
 }
 
 /// ADR-0019: Codex, described as data (every screen and command reads

@@ -82,14 +82,43 @@ impl Target {
         if let Ok(keyed) = Self::from_env() {
             return Ok(keyed);
         }
-        match std::env::var_os(SOCKET_ENV).map(PathBuf::from) {
-            Some(socket) if !socket.as_os_str().is_empty() => Ok(Self {
+        connector_socket()
+            .map(|socket| Self {
                 socket,
                 token: String::new(),
-            }),
-            _ => Err(CallError::NoKey),
-        }
+            })
+            .ok_or(CallError::NoKey)
     }
+}
+
+/// AJ-E3013: the socket AI Juggler's connector calls: the one it named
+/// ([`SOCKET_ENV`]), else the one of the edition this program ships in
+/// (`<Name>.app/Contents/MacOS/juggler-agent` → the edition's data folder,
+/// `~/Library/Application Support/<Name>/agent/`, as every edition names
+/// it). The key never comes this way: only the app's attestation.
+#[must_use]
+pub fn connector_socket() -> Option<PathBuf> {
+    if let Some(named) = std::env::var_os(SOCKET_ENV).filter(|named| !named.is_empty()) {
+        return Some(PathBuf::from(named));
+    }
+    let home = std::env::var_os("HOME").map(PathBuf::from)?;
+    edition_socket(&std::env::current_exe().ok()?, &home)
+}
+
+/// The socket of the edition whose bundle holds `program`, under `home`.
+#[must_use]
+pub fn edition_socket(program: &Path, home: &Path) -> Option<PathBuf> {
+    let macos = program.parent()?;
+    let contents = macos.parent()?;
+    let bundle = contents.parent()?;
+    let name = bundle.file_name()?.to_str()?.strip_suffix(".app")?;
+    let laid_out = macos.file_name()? == "MacOS" && contents.file_name()? == "Contents";
+    (laid_out && !name.is_empty() && cfg!(target_os = "macos")).then(|| {
+        home.join("Library/Application Support")
+            .join(name)
+            .join("agent")
+            .join("bridge.sock")
+    })
 }
 
 /// Whether `socket` may be given the key: a socket (`lstat`, a link is
@@ -185,6 +214,32 @@ fn exchange(_socket: &Path, _line: &str, _wait: Duration) -> Result<String, Call
     Err(CallError::Unreachable(
         "the agent tools aren't available on this system yet".to_owned(),
     ))
+}
+
+#[cfg(all(test, target_os = "macos"))]
+mod edition_tests {
+    use super::edition_socket;
+    use std::path::Path;
+
+    #[test]
+    fn the_connector_finds_its_editions_socket_from_its_bundle() {
+        let home = Path::new("/Users/u");
+        assert_eq!(
+            edition_socket(
+                Path::new("/Applications/AI Juggler Nightly.app/Contents/MacOS/juggler-agent"),
+                home
+            ),
+            Some(
+                Path::new("/Users/u/Library/Application Support/AI Juggler Nightly/agent")
+                    .join("bridge.sock")
+            )
+        );
+        assert_eq!(
+            edition_socket(Path::new("/w/target/debug/juggler-agent"), home),
+            None,
+            "a build outside a bundle has no edition"
+        );
+    }
 }
 
 #[cfg(all(test, unix))]

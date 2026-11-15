@@ -1,11 +1,13 @@
 #!/bin/sh
 # AI Juggler's pool tools for this Claude Code session (E19, AJ-E1905).
 #
-# Runs AI Juggler's own juggler-agent as this plugin's MCP server. In a
+# Runs AI Juggler's own juggler-agent as this plugin's MCP server (no
+# arguments), or as its inbox hook (`hook <event> --connector`). In a
 # session AI Juggler started with its agent tools, its launch already added
-# them, and this copy lists none. Anywhere else each tool answers why it
-# can't: the session wasn't started by AI Juggler, or AI Juggler isn't
-# running. No key is read or written here: a key comes only with a launch.
+# them, and this copy lists none. In a Claude app session, AI Juggler
+# confirms which session is calling from the system on every call (its
+# connector, AJ-E3013); anywhere else each tool answers why it can't. No
+# key is read or written here.
 apps="${JUGGLER_APPS:-/Applications}"
 for agent in \
   "$JUGGLER_AGENT" \
@@ -15,8 +17,14 @@ for agent in \
   "$HOME/Applications/AI Juggler Nightly.app/Contents/MacOS/juggler-agent" \
   "$apps/AI Juggler Dev.app/Contents/MacOS/juggler-agent"; do
   if [ -n "$agent" ] && [ -x "$agent" ]; then
+    if [ "$1" = hook ]; then
+      exec "$agent" hook "$2" --connector
+    fi
     exec "$agent" --mcp --plugin
   fi
 done
+if [ "$1" = hook ]; then
+  exit 0 # a hook: silent when AI Juggler isn't here
+fi
 echo "AI Juggler isn't installed on this Mac (its juggler-agent wasn't found), so its pool tools aren't here." >&2
 exit 1

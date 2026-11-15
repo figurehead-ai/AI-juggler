@@ -215,3 +215,48 @@ fn installed_in_a_fixture_home_it_runs_the_bridge_and_says_why_not() {
     assert_eq!(code, Some(1));
     assert!(stderr.contains("AI Juggler isn't installed"), "{stderr}");
 }
+
+/// AJ-E3013: the plugin's inbox hooks run its launcher as
+/// `hook <event> --connector`; with no AI Juggler answering, each prints
+/// nothing and exits 0 (a hook never holds its tool up or fails it).
+#[test]
+fn the_inbox_hooks_are_silent_and_never_fail_without_ai_juggler() {
+    let home = tempfile::tempdir().unwrap();
+    let root = install(home.path());
+    let hooks = json(&root.join("hooks/hooks.json"));
+    for event in ["SessionStart", "UserPromptSubmit"] {
+        let command = hooks["hooks"][event][0]["hooks"][0]["command"]
+            .as_str()
+            .unwrap()
+            .replace("${CLAUDE_PLUGIN_ROOT}", &root.to_string_lossy());
+        assert!(
+            command.ends_with(&format!("hook {event} --connector")),
+            "{command}"
+        );
+        for agent in [BRIDGE, "/nonexistent/juggler-agent"] {
+            let mut child = Command::new("/bin/sh")
+                .args(["-c", &command])
+                .env_clear()
+                .env("HOME", home.path())
+                .env("PATH", "/usr/bin:/bin")
+                .env("JUGGLER_APPS", home.path().join("none"))
+                .env("JUGGLER_AGENT", agent)
+                .stdin(Stdio::piped())
+                .stdout(Stdio::piped())
+                .stderr(Stdio::piped())
+                .spawn()
+                .unwrap();
+            child
+                .stdin
+                .take()
+                .unwrap()
+                .write_all(
+                    br#"{"session_id":"s","hook_event_name":"UserPromptSubmit","prompt":"hi"}"#,
+                )
+                .unwrap();
+            let out = child.wait_with_output().unwrap();
+            assert_eq!(out.status.code(), Some(0), "{event} with {agent}");
+            assert!(out.stdout.is_empty(), "{event}: nothing printed");
+        }
+    }
+}

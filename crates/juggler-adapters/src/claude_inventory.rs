@@ -74,29 +74,7 @@ pub fn inventory(dir: &Path, state_file: &Path, project: Option<&Path>) -> Vec<I
             }
         }
     }
-    let skills = dir.join("skills");
-    // claude.ai's skills sync into one folder per id they were synced
-    // under, often with the same skills in each (QA P24): one item per
-    // name, and none for a skill the account also has as its own files.
-    let mut synced: BTreeMap<String, Item> = BTreeMap::new();
-    let mut own = std::collections::BTreeSet::new();
-    for (name, path) in children(&skills, true) {
-        if name == "synced" {
-            for (_, set) in children(&path, true) {
-                for found in synced_set(&set) {
-                    synced.entry(found.name.clone()).or_insert(found);
-                }
-            }
-        } else if path.join("SKILL.md").is_file() {
-            own.insert(name.clone());
-            items.push(item(ItemKind::Skill, &name, Detail::Files { path }));
-        }
-    }
-    items.extend(
-        synced
-            .into_values()
-            .filter(|found| !own.contains(&found.name)),
-    );
+    items.extend(skills(dir));
     for (kind, folder) in [
         (ItemKind::Command, "commands"),
         (ItemKind::Subagent, "agents"),
@@ -149,6 +127,11 @@ pub fn inventory(dir: &Path, state_file: &Path, project: Option<&Path>) -> Vec<I
                     },
                 )
             });
+        } else if id.split('@').next() == Some(crate::claude_connector::PLUGIN) {
+            // AJ-E3013: the published plugin is AI Juggler's connector too.
+            if !items.iter().any(crate::connector_files::is_connector) {
+                items.push(crate::connector_files::connector_item(CLAUDE_CODE_ID, id));
+            }
         } else {
             items.push(item(
                 ItemKind::Plugin,
@@ -158,6 +141,46 @@ pub fn inventory(dir: &Path, state_file: &Path, project: Option<&Path>) -> Vec<I
         }
     }
     items.extend(own_settings(dir));
+    items
+}
+
+/// The account's skills, one item per name (claude.ai's synced ones once,
+/// and none the account also has as its own files), and AI Juggler's
+/// connector folder as its connector (AJ-E3013), never a skill.
+fn skills(dir: &Path) -> Vec<Item> {
+    let mut items = Vec::new();
+    let skills = dir.join("skills");
+    // claude.ai's skills sync into one folder per id they were synced
+    // under, often with the same skills in each (QA P24): one item per
+    // name, and none for a skill the account also has as its own files.
+    let mut synced: BTreeMap<String, Item> = BTreeMap::new();
+    let mut own = std::collections::BTreeSet::new();
+    for (name, path) in children(&skills, true) {
+        if name == crate::claude_connector::PLUGIN {
+            // AJ-E3013: AI Juggler's connector (its plugin folder), never
+            // a skill of the user's to copy.
+            if path.join(".claude-plugin/plugin.json").is_file() {
+                items.push(crate::connector_files::connector_item(
+                    CLAUDE_CODE_ID,
+                    &format!("{name}@skills-dir"),
+                ));
+            }
+        } else if name == "synced" {
+            for (_, set) in children(&path, true) {
+                for found in synced_set(&set) {
+                    synced.entry(found.name.clone()).or_insert(found);
+                }
+            }
+        } else if path.join("SKILL.md").is_file() {
+            own.insert(name.clone());
+            items.push(item(ItemKind::Skill, &name, Detail::Files { path }));
+        }
+    }
+    items.extend(
+        synced
+            .into_values()
+            .filter(|found| !own.contains(&found.name)),
+    );
     items
 }
 
@@ -527,6 +550,10 @@ fn mcp_secret_steps(name: &str, scope: Scope, server: &McpServer, config_dir: &s
 /// Whether Claude Code can set up `item`.
 #[must_use]
 pub fn can_set_up(item: &Item) -> SetUp {
+    if crate::connector_files::is_connector(item) {
+        // AJ-E3013: AI Juggler adds its own connector; never copied.
+        return crate::connector_files::connector_turn_on();
+    }
     let from_claude = item.tool == CLAUDE_CODE_ID;
     match (&item.kind, &item.detail) {
         // Another tool's account items are turned on in that tool.

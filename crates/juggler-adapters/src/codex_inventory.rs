@@ -44,7 +44,16 @@ pub fn inventory(home: &Path, user_home: Option<&Path>) -> Vec<Item> {
             if let Some(entry) = entry.as_table()
                 && entry.get("enabled").and_then(toml::Value::as_bool) != Some(false)
             {
-                items.push(mcp_item(name, entry));
+                if is_ai_juggler(entry) {
+                    // AJ-E3013: AI Juggler's connector, never a server of
+                    // the user's to copy.
+                    items.push(crate::connector_files::connector_item(
+                        CODEX_ID,
+                        &format!("mcp_servers.{name}"),
+                    ));
+                } else {
+                    items.push(mcp_item(name, entry));
+                }
             }
         }
     }
@@ -242,6 +251,10 @@ const EVERY_PROJECT: &str =
 /// Whether Codex can set up `item`.
 #[must_use]
 pub fn can_set_up(item: &Item) -> SetUp {
+    if crate::connector_files::is_connector(item) {
+        // AJ-E3013: AI Juggler adds its own connector; never copied.
+        return crate::connector_files::connector_turn_on();
+    }
     let from_codex = item.tool == CODEX_ID;
     match (&item.kind, &item.detail) {
         (_, Detail::FromTheAccount { .. }) => SetUp::Impossible(
@@ -594,6 +607,16 @@ fn shell_word(word: &str) -> String {
     } else {
         format!("'{}'", word.replace('\'', "'\\''"))
     }
+}
+
+/// AJ-E3013: whether a server is AI Juggler's own bridge (the connector,
+/// or a copy of it): its program is `juggler-agent`.
+fn is_ai_juggler(entry: &toml::Table) -> bool {
+    entry
+        .get("command")
+        .and_then(toml::Value::as_str)
+        .and_then(|command| Path::new(command).file_name())
+        .is_some_and(|name| name == "juggler-agent")
 }
 
 /// Appends `[mcp_servers.<name>]` to `config.toml`, after a backup.

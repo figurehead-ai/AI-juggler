@@ -79,6 +79,12 @@ pub struct ConnectorInput<'a> {
     pub socket: &'a Path,
     /// AI Juggler's version, for the plugin's manifest.
     pub version: &'a str,
+    /// The bridge's MCP server name in AI Juggler's launches (`juggler`):
+    /// a tool whose config the launches also override names its table so.
+    pub server: &'a str,
+    /// AI Juggler's tools, all of them (pre-allowed where the tool's
+    /// config can say so; the pool's level is the real check, D-30).
+    pub tools: &'a [&'a str],
 }
 
 /// A desktop App's connector, as data (Claude: its plugin folder; Codex:

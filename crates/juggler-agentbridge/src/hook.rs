@@ -145,9 +145,7 @@ pub fn run_connector(event: &str, stdin: impl Read) -> Option<String> {
     if keyed || !NOTE_EVENTS.contains(&event) {
         return None;
     }
-    let socket = std::env::var_os(SOCKET_ENV)
-        .map(PathBuf::from)
-        .filter(|socket| !socket.as_os_str().is_empty())?;
+    let socket = crate::client::connector_socket()?;
     connector_note(event, stdin, &socket)
 }
 
