@@ -256,3 +256,20 @@
 **Evidence/validation proof**: the loaded run and the failing scratch run, named in the commit.
 **Files to touch**: `crates/juggler-app/tests/relations.rs`, the relations cache's counters (`crates/juggler-app/src/features/relations/`) if a rows-read counter is missing, a bench target.
 **Handover note**: 0.4.5's light preflight on b694d08e3 failed it once at a load average of 20–29 (the slowest of 540 cached counts 97 ms against 5 ms; the cold rebuild 561 ms against 1 s); the same test passed three times alone right after.
+
+### AJ-E816 Local Playwright runs match CI: the local-only failures | Status: TODO | Priority P2 | Effort M | Depends: AJ-E805
+**Goal**: The a11y, overload and tasks specs fail on this Mac and pass on GitHub's Linux CI (run on 83f700ed6). Find each cause and either fix it or pin the difference in the Playwright config, so a local run means what CI means.
+**User story**: As a maintainer, I want a red local run to mean a real regression, so I don't re-run or doubt every gallery check I do on this Mac.
+**Requirements**:
+1. The 2026-11-15 local run (`nice -n 15 npx playwright test` on `a11y.spec.ts`, `overload-gallery.spec.ts`, `tasks-gallery.spec.ts`; 135 passed, 13 failed across both themes, 11 in the first run) SHALL be re-run on a quiet tree and each failure explained. Failures seen:
+   - `a11y.spec.ts:238` "tiers — account toggles" (dark, light): `getByTestId('account-tier-toggles')` resolves but stays hidden for 5 s after the profile row opens. [Inferred] the profile page is not open or its toggles sit in a collapsed section; a stale build or the tree being edited during the run.
+   - `a11y.spec.ts:2236` "recovery code sheet" (dark): timeout waiting for the Settings sidebar's Advanced button. [Inferred] the same slow or half-built page.
+   - `overload-gallery.spec.ts:144` "the banner above a session" (1280 and 1024, both themes) and `:155` "busy processor, the Claude app" (both themes): timeout clicking the session row "Fake Desk app Working" in the instance board. [Inferred] a time-of-day or locale difference in the row's title (a local run showed "Session started yesterday…" where CI shows the fixture title), or the board not listing the session.
+   - `tasks-gallery.spec.ts:197` "a pool's tasks" (dark): `getByTestId('rail')` not found on load. [Inferred] the dev server was mid-rebuild.
+   - `tasks-gallery.spec.ts:248` "start a session for a task" (dark, light) and `:312` "keyboard: a held change answered with 1": timeout picking the profile `Deep work · Claude Code · Work Max` in the picker. [Inferred] the picker lists profiles in a different order or shows a different label from the fixture, from a local cache or fixture state.
+2. Each cause SHALL be named by evidence (the error context, a trace, the fixture's clock and locale), not inferred; the specs that depend on today's date SHALL freeze the clock.
+3. The Playwright config SHALL pin timezone, locale, colour scheme and the font set (or the specs SHALL not depend on them), and a local run SHALL start from a fresh build and an empty browser state.
+**Quality gates**: The three specs pass locally on a quiet tree and in CI; the gallery images stay unchanged after a local run (`git status` clean for `docs/qa/evidence/_gallery`).
+**Evidence/validation proof**: the local run's line report and the CI run's, named in the commit.
+**Files to touch**: `ui/playwright.config.ts`, `ui/tests/visual/fixtures.ts`, the three specs only where they read the clock.
+**Handover note**: The 2026-11-15 run happened while other sessions were editing `ui/src` in the same tree, so some failures may come from half-edited code, not from the Mac; a run in a clean worktree decides it. The run also rewrote 35 gallery images under `74-overload` and `95-tasks` (restored, never committed).

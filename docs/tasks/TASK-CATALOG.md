@@ -96,6 +96,7 @@
 | AJ-E813 | Home draws again only when what it shows changes, not on every This Mac reading | E8-validation-visual-performance-quality.md | P1 | S | AJ-E805 |
 | AJ-E814 | Idle CPU measured with the window fully covered | E8-validation-visual-performance-quality.md | P2 | S | AJ-E805 |
 | AJ-E815 | The relation counts' speed test measures the work, not the clock | E8-validation-visual-performance-quality.md | P1 | S | AJ-E3102 |
+| AJ-E816 | Local Playwright runs match CI: the local-only failures | E8-validation-visual-performance-quality.md | P2 | M | AJ-E805 |
 | AJ-E901 | SPEC §3 domain-model rewrite (Provider/Instance/Switch Graph/ledger) | E9-docs-adrs-and-plan-rewrite.md | P0 | M | — |
 | AJ-E902 | SPEC §5 supervisor/ledger + §6 two-clock usage rewrite | E9-docs-adrs-and-plan-rewrite.md | P0 | M | AJ-E901 |
 | AJ-E903 | SPEC §7 Switching rewrite (Switch Graph, pack v2, divergence) | E9-docs-adrs-and-plan-rewrite.md | P0 | M | AJ-E901 |
@@ -440,5 +441,5 @@
 | AJ-E3705 | Other apps' conversation state changes and a turn's end, persisted (F2: G4) | E37-home-activity-feed.md | P1 | M | AJ-E3702 |
 | AJ-E3706 | Git commits, pull requests and the task-close note in the feed, through the adapters (F3: G1, G5) | E37-home-activity-feed.md | P1 | M | AJ-E3702 |
 | AJ-E3707 | The feed's accessibility: the feed pattern, keys and one batched announcement | E37-home-activity-feed.md | P0 | S | AJ-E3702 |
-Total: 438 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
+Total: 439 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
 Status of every task at generation: TODO. The epic files are canonical; this catalog is an index, never edited to claim progress.
