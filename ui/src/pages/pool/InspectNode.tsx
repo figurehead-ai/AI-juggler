@@ -21,7 +21,7 @@ import type { PoolInfo } from "../../lib/ipc/pools";
 import { TaskRow } from "../tasks/TaskRow";
 import { answerAsk, sessionAlert } from "./NodeParts";
 import { edgeWords } from "./CanvasEdges";
-import { Section } from "./InspectPool";
+import { Section } from "./Section";
 import { makeLead } from "./actions";
 import { MemberLevel } from "./MemberLevel";
 import type { MemberNode } from "./useCanvas";

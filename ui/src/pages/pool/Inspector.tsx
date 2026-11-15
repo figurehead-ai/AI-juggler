@@ -33,7 +33,8 @@ import { agoWords } from "../../lib/time-words";
 import { lazyNamed } from "../../lib/lazy";
 import { PendingChip, edgeWords } from "./CanvasEdges";
 import { InspectNode } from "./InspectNode";
-import { InspectPool, Section } from "./InspectPool";
+import { InspectPool } from "./InspectPool";
+import { Section } from "./Section";
 import type { Selection } from "./Canvas";
 import { edgeKey, type MemberNode } from "./useCanvas";
 

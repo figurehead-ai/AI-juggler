@@ -20,7 +20,7 @@ import { cliFolderOf, startNextLead } from "../../lib/start-lead";
 import { setPools } from "../../lib/pools";
 import type { PoolRules } from "../../lib/pool-rules";
 import { sessionState } from "../../lib/rail-items";
-import { FoldSection, Section } from "./InspectPool";
+import { FoldSection, Section } from "./Section";
 import { JoinAs } from "./setup/JoinAs";
 import { LeadPicker } from "./setup/LeadPicker";
 import { OwnLevelChoice } from "./setup/OwnLevelChoice";

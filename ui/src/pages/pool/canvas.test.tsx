@@ -25,7 +25,7 @@ import { rememberTab, rememberedTabId } from "../registry";
 import { PoolPage, poolCountWords } from "../PoolPage";
 import { first, openPage, resetCanvasTests, second, seams, seedTeam, third } from "./canvas.test-kit";
 import { cardOrder, cardWords, newPoolName, PoolsScreen } from "../../screens/pools/PoolsScreen";
-import { deliveryWords } from "./InspectPool";
+import { deliveryWords } from "./PoolAccessFolds";
 import { CanvasEdges, pendingWords } from "./CanvasEdges";
 import { CompactNode } from "./CompactNode";
 import { CanvasNode } from "./CanvasNode";
