@@ -1,0 +1,66 @@
+/*
+ * 0.5 betas only (D-117, AJ-E3601 R5) — the hidden comparison look:
+ * `localStorage["aij.attention"] = "classic"` puts the 0.4 colours back
+ * over the calm grammar, for side-by-side walks. Loaded only when asked
+ * for (lib/attention-classic.ts); no Settings, no baselines. AJ-E3617
+ * deletes this file and its loader before 0.5 goes Stable
+ * (tests/bundle/attention-classic-beta-only.test.ts fails once a 0.5
+ * Stable sign-off exists while it is still here).
+ *
+ * The counting rule (L2 + L3) is not a look and stays as it is.
+ */
+:root[data-attention="classic"] {
+  --color-live: #22d3ee;
+  --color-live-soft: #22d3ee1f;
+  --color-success: #34d399;
+  --color-success-soft: #34d3991a;
+  --color-warning: #fbbf24;
+  --color-warning-soft: #fbbf241a;
+  --color-danger: #f87171;
+  --color-danger-soft: #f871711a;
+  --color-divider: var(--color-hairline);
+  --tone-saturate: 1;
+  --tone-opacity: 1;
+}
+:root[data-attention="classic"][data-theme="light"] {
+  --color-live: #056074;
+  --color-live-soft: #0891b216;
+  --color-success: #065f46;
+  --color-success-soft: #065f461a;
+  --color-warning: #9c4807;
+  --color-warning-soft: #b4530914;
+  --color-danger: #b91c1c;
+  --color-danger-soft: #b91c1c14;
+}
+:root[data-attention="classic"] body {
+  background-image:
+    radial-gradient(1100px 700px at 12% -12%, #7c7cf40d, transparent 60%),
+    radial-gradient(900px 600px at 95% 8%, #22d3ee08, transparent 55%),
+    linear-gradient(180deg, var(--color-canvas-hi), var(--color-canvas) 40%);
+}
+:root[data-attention="classic"][data-theme="light"] body {
+  background-image:
+    radial-gradient(1100px 700px at 12% -12%, #5b5bf00a, transparent 60%),
+    radial-gradient(900px 600px at 95% 8%, #0891b206, transparent 55%),
+    linear-gradient(180deg, var(--color-canvas-hi), var(--color-canvas) 40%);
+}
+/* Section heads: sentence case, semibold, in their old hues, with icons. */
+:root[data-attention="classic"] .section-label {
+  font-size: var(--text-meta);
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--color-ink-2);
+}
+:root[data-attention="classic"] .section-label[data-section="needs"] {
+  color: var(--color-warning);
+}
+:root[data-attention="classic"] .section-label[data-section="open"] {
+  color: var(--color-live);
+}
+:root[data-attention="classic"] .section-icon {
+  display: inline;
+}
+:root[data-attention="classic"] .btn-ghost {
+  border-color: var(--color-hairline);
+}

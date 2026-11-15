@@ -43,7 +43,11 @@ void import("./lib/walk-timing").then((walk) => walk.walkTimingWanted() && walk.
 // the registry, without probing anything).
 const ownTerminal = ownTerminalWindow();
 void loadPreview().then(() => {
-  void fetchAppInfo().then((info) => (devBuild = devBuild || info?.edition === "dev"), () => null);
+  void fetchAppInfo().then((info) => {
+    devBuild = devBuild || info?.edition === "dev";
+    // D-117: the hidden classic look, 0.5 betas only (AJ-E3617 removes it).
+    if (info) void import("./lib/attention-classic").then((mode) => mode.applyAttentionMode(info));
+  }, () => null);
   return loadTools();
 }).finally(() => {
   ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
