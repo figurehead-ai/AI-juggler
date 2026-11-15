@@ -95,3 +95,26 @@ The pool screens are the first built calm. The levels are L3 Broken (red, a glyp
 - The design-quality critique; vitest per control; a11y (labels, aria-selected and aria-current on cards, a heading naming the selection); gallery captures of every step, empty and filled, light and dark.
 - Before and after screenshots with notes saying what changed, for the review page.
 - P10 re-walked; the AJ-E3304 pool scenarios that cross these screens re-walked.
+
+## Round 2 (after the first two walks after the build)
+
+Both after-walks reached S with no detour (ease 5/7, value 5/7, feeling +1; before: F, F, F at 3–4/7 and −1). The bar for done is 6/7 or better on ease and value from two walks, and no "no" on the key question. Every friction point either run logged, with its fix:
+
+1. **The team can't talk until "Turn on", and nobody turned it on with confidence** (run 2 left it off: "one switch for every pool", who it affects and what it costs unclear). The card becomes "Let your assistants work as a team": what it gives (messages to each other, shared notes and tasks), who it covers (the sessions AI Juggler starts or connects in any of your pools, never a session outside a pool), what it costs (nothing extra: a session uses its own turns only when it acts), what happens without it ("the pool is set up, but nobody in it can message"), an example, and where to switch it off (Settings › Agent access). The button says "Turn on team tools". Review shows it as a line ("Team tools: off — they can't message yet · Turn on") so it is decided before Make pool.
+2. **Claude shown twice** (a Lead placeholder card and the App as Member), and its row in Everyone else said Member. An App whose next session leads is one card: its role line says "Its next session leads · its others join as Member"; its row in Everyone else says the same with the picker for "its others".
+3. **"Next session" read as "not in charge now".** The lead line says "Claude Code · Work leads from its next session in web (none is open now)", with **Start one now**: it starts that App's session in the pool's project (the usual New session, prefilled), which then leads.
+4. **"On their own" doesn't say what it leaves out.** One line under it: "This is how they work together through AI Juggler. What each may change in your files stays with its own app's settings."
+5. **"Wake each other" half understood.** Its example shows at once under the option (not behind "What does this mean?"): "Codex finishes a review; its note wakes Claude's idle session to carry on, without you. Each wake uses a turn on your subscription."
+6. **Who's in counted "3" for two assistants** (it counted "Everyone in web" silently). The panel says "2 apps, and every new session in web", with "Everyone in web" as its own line saying what it is.
+7. **"Can act in the pool: 0 full, 0 shell only, 0 watched" is jargon.** Not shown in the setup. Where it is kept (the canvas list), in words: "open now: none — sessions join as they start".
+8. **The kinds tabs (Apps / Sessions / Accounts / Tools / Macs / Everyone) are unexplained.** One line above them ("Add whole apps — every session they start here joins — or single sessions open now"); Apps and Sessions first, the rarer kinds under "More".
+9. **The role cards look like buttons and aren't.** They become a plain reference ("What each role does"), styled as text with an icon, no hover or button edge.
+10. **A member's second picker "Same as the pool (Work together)" has no label.** Its label is "On its own:".
+11. **The template cards' chips use the old words** ("talk: allowed", "level: Read", "member↔member: ask first", "sealed"). In plain words: "everyone may message", "look only", "members ask before messaging each other", "kept apart".
+12. **"Pool"** isn't known: the Pools page says "Teams of your AI sessions" under its title, and the intro's first line defines it.
+13. **"Canvas"** read as "a drawing area?": the tab is named **Diagram** (Diagram | List).
+14. **The project page's "agents: Work together"** reads "On their own: Work together", as everywhere else.
+15. **"none open now · new ones join"** reads "No session open yet · new ones in web join".
+16. **The "Subagents" tab and "Settings › Agent access"** were not understood: say what each is where it appears (a one-line hint or tooltip with words, not a bare name).
+17. **The role menu clipped at 1024×768** (seen once; at 1280×800 it fits): menus near the window edge flip or shift inside the window at every size from 1024×680.
+18. **"No lead for now" preselected** while Apps are in: the step's why-line says "Pick one to be in charge, or leave it for now", so leaving it is a visible choice.
