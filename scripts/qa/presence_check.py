@@ -17,7 +17,8 @@ Open now names a desktop App that isn't running, when an App is in both
 sections, or when Inactive apps says "Running". 0.4.3: and when what an
 App unfolds to, its session counts or its Out mark disagree with the apps'
 own records and the Accounts' readings, or a lab run wrote into a real
-profile's folder (`presence_sessions.py`); (D-102) when the Codex app's and
+profile's folder (`presence_sessions.py`; 0.4.6: any folder but the Dev
+build's own Lab App folder, as its database names it); (D-102) when the Codex app's and
 Codex CLI's counts aren't the Codex store's listed threads. Run it with the rail grouped by
 App, Open now unfolded and every App in it unfolded. 0.4.4 (D-103.10): it
 prints what the one-time pass that gives past limit hits back to the
@@ -247,6 +248,9 @@ def selftest() -> int:
         "app:claude-app:/tmp/aij-lab-z1/Library/Application Support/ClaudeProfiles/work"
     }
     assert running_ids(Path("/x"), rows) >= {"app:codex-app:"}, "on the user's own home, every process"
+    # What each App unfolds to and counts, and the lab-run gate (CI runs
+    # this selftest only).
+    presence_sessions.selftest()
     print("presence_check: selftest passed")
     return 0
 
@@ -308,9 +312,17 @@ def main() -> int:
         problems.append("Open now is folded or not drawn: unfold it and run again")
     # 0.4.3: what each unfolds to, its counts and its Out mark.
     db = sqlite3.connect(f"file:{args.data / 'juggler.sqlite'}?mode=ro", uri=True)
-    known = presence_sessions.known_apps(db, mine)
+    known = presence_sessions.known_apps(db, mine, claude_default)
     since = time.mktime(time.strptime(args.since, "%Y-%m-%d")) if args.since else 0.0
-    leftovers = presence_sessions.lab_leftovers([app.state_dir for app in known if app.state_dir], since)
+    # 0.4.6: the Dev build's Lab App folder is where our lab runs belong
+    # (ADR-0027 7b); exactly it, by its resolved path. Every other folder
+    # is checked.
+    lab_app = presence_sessions.lab_app_folder(home)
+    folders = [app.state_dir for app in known if app.state_dir]
+    leftovers = presence_sessions.lab_leftovers(folders, since, lab_app)
+    if lab_app is not None:
+        ours = presence_sessions.lab_leftovers([lab_app], since)
+        lines.append(f"(lab runs: {ours} in the Dev build's Lab App folder, ours by ADR-0027 7b; every other folder checked)")
     # 0.4.3 (D-102): each Codex home's listed threads, read-only from its store.
     homes = {app.folder: app.state_dir for app in known if app.tool == "codex" and app.folder and app.state_dir}
     codex = {folder: presence_sessions.codex_listed(home) for folder, home in homes.items()}
