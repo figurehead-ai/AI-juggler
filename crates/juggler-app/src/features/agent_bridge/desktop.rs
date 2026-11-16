@@ -398,9 +398,19 @@ pub fn report(state: &Arc<AppState>, report: &wire::Report, peer: Option<Peer>) 
             },
         )
     });
-    let note = (allowed
-        && juggler_agentbridge::hook::NOTE_EVENTS.contains(&report.hook.event.as_str()))
-    .then(|| crate::features::messages::delivery::note_for(state, &caller.session))
-    .flatten();
+    let noted =
+        allowed && juggler_agentbridge::hook::NOTE_EVENTS.contains(&report.hook.event.as_str());
+    if noted {
+        // D-119 item 6: back from a new process, what the whole pool was
+        // told while it was gone is in its inbox first (the note counts it).
+        crate::features::messages::catch_up::on_desktop_back(
+            state,
+            &caller.session,
+            &caller.member_ref(),
+        );
+    }
+    let note = noted
+        .then(|| crate::features::messages::delivery::note_for(state, &caller.session))
+        .flatten();
     Response::ok(serde_json::json!({ "note": note }))
 }

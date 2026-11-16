@@ -25,6 +25,7 @@
 //! data on this Mac.
 
 pub mod agent;
+pub mod catch_up;
 pub mod commands;
 pub mod delivery;
 pub mod docs;
@@ -156,6 +157,9 @@ pub(crate) struct Member {
     pub anchor: String,
     /// Its role in the pool (`lead`, `member`, `reviewer`, `observer`).
     pub role: String,
+    /// Its session runs now (D-119 item 6: a pool-wide message is copied
+    /// to it only then).
+    pub open: bool,
 }
 
 /// A pool's members, by their cards (names, tools, roles).
@@ -171,6 +175,7 @@ pub(crate) fn roster(state: &Arc<AppState>, pool_id: &str) -> AppResult<Vec<Memb
             let session = SessionId::new(card.session_id.as_str());
             Member {
                 anchor: MemberRef::of_session(&session, works.get(&session)).to_wire(),
+                open: SessionStatus::parse(&card.state).is_some_and(is_live),
                 session_id: card.session_id,
                 name: card.name,
                 tool: card.tool,

@@ -67,6 +67,20 @@ pub(crate) struct DesktopConversation {
 }
 
 impl DesktopConversation {
+    /// D-119 item 6: it's open now: one of its calls is attested, or its
+    /// tool's process is on it (`live`: the conversation index's live
+    /// set). A pool-wide message is copied to it only then.
+    pub(crate) fn is_open(&self, live: &[crate::features::conversations::live::Live]) -> bool {
+        if self.session.is_some() {
+            return true;
+        }
+        let Some(MemberRef::Conversation { folder, id }) = MemberRef::parse(&self.member) else {
+            return false;
+        };
+        live.iter()
+            .any(|(account, _, conversation)| *account == folder && *conversation == id)
+    }
+
     /// How a new pool message reaches it, in words (the roster's state).
     pub(crate) const fn reach_words(&self) -> &'static str {
         if !self.connected {

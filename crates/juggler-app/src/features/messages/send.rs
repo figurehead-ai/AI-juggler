@@ -124,6 +124,13 @@ type Ruled = (Vec<Addressee>, Vec<Option<HoldReason>>, Vec<&'static str>);
 /// is the pool's desktop conversations (AJ-E3013): a connected one is a
 /// member like any other (the whole pool reaches it too), a Watched one
 /// only by its own ref.
+///
+/// D-119 item 6: the whole pool is its members open now (a session that
+/// runs, a desktop conversation attested or on its tool's process); an
+/// ended member gets no copy, and catches up from the pool's log when
+/// it's resumed ([`super::catch_up`]). A member named on its own gets its
+/// copy, open or not. With no one else open, the message is kept in the
+/// pool's log only.
 fn recipients(
     state: &Arc<AppState>,
     storage_links: &[String],
@@ -173,21 +180,23 @@ fn recipients(
             None,
         )]),
         "pool" => {
-            let all: Vec<_> = mine
-                .iter()
-                .filter(|member| member.anchor != me)
-                .map(|member| named(member, None))
-                .chain(
-                    desktop
-                        .iter()
-                        .filter(|one| one.connected && one.member != me)
-                        .map(as_to),
-                )
-                .collect();
-            if all.is_empty() {
-                Err(refuse(Refusal::Deny, "There's no one else in this pool."))
+            let others = mine.iter().any(|member| member.anchor != me)
+                || desktop.iter().any(|one| one.connected && one.member != me);
+            if others {
+                let live = state.conversations.live_keys();
+                Ok(mine
+                    .iter()
+                    .filter(|member| member.open && member.anchor != me)
+                    .map(|member| named(member, None))
+                    .chain(
+                        desktop
+                            .iter()
+                            .filter(|one| one.connected && one.is_open(&live) && one.member != me)
+                            .map(as_to),
+                    )
+                    .collect())
             } else {
-                Ok(all)
+                Err(refuse(Refusal::Deny, "There's no one else in this pool."))
             }
         }
         who => {
@@ -519,7 +528,10 @@ pub fn send(state: &Arc<AppState>, out: &Outgoing) -> Result<Sent, Response> {
     let desktop =
         crate::features::connector::reach::of_pool(state, &out.pool_id).unwrap_or_default();
     let (found, my_role) = recipients(state, &links, &out.pool_id, &out.from, &out.to, &desktop)?;
-    let (to, talk_held, left_out) = if agent {
+    let (to, talk_held, left_out) = if found.is_empty() {
+        // D-119 item 6: everyone else ended; the pool's log keeps it.
+        (Vec::new(), Vec::new(), vec![NO_ONE_OPEN])
+    } else if agent {
         let storage = lock_storage_arc(state).map_err(|_| busy())?;
         ruled(
             &storage,
@@ -883,6 +895,10 @@ fn desktop_how(
         DESKTOP_NEXT_TURN
     }
 }
+
+/// A pool-wide message when no one else is open (D-119 item 6), in the
+/// words its sender is told.
+pub(crate) const NO_ONE_OPEN: &str = "no one else in the pool is open now: it's kept in the pool's log, and a member resumed later reads it then";
 
 /// How a message reaches a connected desktop member that it wakes.
 pub(crate) const DESKTOP_WOKEN: &str =

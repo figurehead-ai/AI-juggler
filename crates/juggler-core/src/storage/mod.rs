@@ -70,7 +70,7 @@ pub use footprints::{
 };
 pub use identity::{IdentityAssertion, IdentityRepo};
 pub use messages::{
-    Doc, HeldAsk, InboxRow, Message, MessageEvent, MessagesRepo, NewMessage, Recipient,
+    Doc, HeldAsk, InboxRow, Message, MessageEvent, MessagesRepo, Missed, NewMessage, Recipient,
     RecipientState, SENDER_USER, Thread, ThreadState,
 };
 pub use notices::{

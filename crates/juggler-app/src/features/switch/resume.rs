@@ -123,6 +123,8 @@ fn resume_conversation(
     )?;
     // The same line of work: it keeps the pools it was put in.
     crate::features::pools::switching::carry_resumed_logged(state, &session_row.id, &new_session);
+    // D-119 item 6: and reads what the whole pool was told while it was gone.
+    crate::features::messages::catch_up::after_resume_logged(state, &session_row.id, &new_session);
     Ok(LaunchResult {
         session_id: new_session.to_string(),
         pid,

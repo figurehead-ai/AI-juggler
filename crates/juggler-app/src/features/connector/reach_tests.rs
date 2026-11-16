@@ -151,6 +151,55 @@ impl Lab {
         )
     }
 
+    /// Whether `recipient` holds a copy of `sent`.
+    fn has_copy(&self, sent: &Sent, recipient: &str) -> bool {
+        self.state
+            .storage
+            .lock()
+            .unwrap()
+            .messages()
+            .recipients(&sent.message.id)
+            .unwrap()
+            .iter()
+            .any(|r| r.recipient_ref == recipient)
+    }
+
+    /// `conv-1`'s session as its tool's process started at `start` keeps
+    /// it (what an attestation keeps in memory).
+    fn process(&self, start: i64) {
+        self.state.agent_bridge.desktop.lock().unwrap().insert(
+            desktop_id(FOLDER, CONVERSATION).as_str().to_owned(),
+            (
+                self.app.clone(),
+                juggler_adapter::peer::AttestedSession {
+                    conversation: CONVERSATION.into(),
+                    host_session: "local_t1".into(),
+                    tool_pid: 4242,
+                    tool_start: start,
+                    cwd: None,
+                    title: None,
+                },
+            ),
+        );
+    }
+
+    /// `conv-1`'s session reads its inbox (unread), through its tools.
+    fn read(&self) -> serde_json::Value {
+        let caller = crate::features::messages::agent::Caller {
+            session: desktop_id(FOLDER, CONVERSATION),
+            pool_id: self.pool.clone(),
+            pool_name: "Team".into(),
+            member_ref: MEMBER.into(),
+        };
+        let request = juggler_agentbridge::wire::Request::new(
+            String::new(),
+            juggler_agentbridge::wire::Call::ReadInbox,
+            juggler_agentbridge::wire::Args::default(),
+        );
+        crate::features::messages::agent::answer(&self.state, &caller, &request)
+            .unwrap_or_else(|refused| unreachable!("{refused:?}"))
+    }
+
     /// The state of `sent`'s copy for `recipient`.
     fn copy(&self, sent: &Sent, recipient: &str) -> RecipientState {
         self.state
@@ -201,12 +250,41 @@ fn a_desktop_member_with_the_connector_is_messaged_as_a_full_member_watched_with
     assert_eq!(lab.copy(&woken, MEMBER), RecipientState::Unread);
     assert_eq!(how(&woken), send::DESKTOP_WOKEN);
 
-    let all = lab.send("s-cli", "session:s-cli", "pool", 4).unwrap();
+    // D-119 item 6: the whole pool reaches it while it's open (a call of
+    // its attested, or its tool's process on it); not before.
+    let closed = lab.send("s-cli", "session:s-cli", "pool", 4).unwrap();
+    assert!(!lab.has_copy(&closed, MEMBER), "not open: no copy");
+    lab.attest();
+    let all = lab.send("s-cli", "session:s-cli", "pool", 5).unwrap();
     assert_eq!(
         lab.copy(&all, MEMBER),
         RecipientState::Unread,
         "the whole pool reaches it"
     );
+}
+
+/// D-119 item 6: a connected desktop member that isn't open gets no copy
+/// of a pool-wide message; back from a new process of its tool, its first
+/// read has it, and says so once.
+#[test]
+fn a_desktop_member_back_from_a_new_process_reads_what_the_whole_pool_was_told() {
+    let lab = lab();
+    super::add_impl(&lab.state, &lab.app).unwrap();
+    let gone = lab.send("s-cli", "session:s-cli", "pool", 1).unwrap();
+    assert!(!lab.has_copy(&gone, MEMBER));
+    lab.attest();
+    lab.process(100);
+    let first = lab.read();
+    assert_eq!(first["messages"][0]["id"], gone.message.id.as_str());
+    assert_eq!(first["caught_up"][0]["copied"], 1);
+    assert_eq!(first["caught_up"][0]["earlier"], 0);
+    assert!(lab.read()["caught_up"].is_null(), "said once");
+    // A new process with nothing missed since its last read: nothing.
+    lab.process(200);
+    let back = lab.read();
+    assert!(back["caught_up"].is_null());
+    assert!(back["messages"].as_array().unwrap().is_empty());
+    assert_eq!(lab.copy(&gone, MEMBER), RecipientState::Read, "one copy");
 }
 
 /// Item 1: attested lately (no connector record needed), it's a full

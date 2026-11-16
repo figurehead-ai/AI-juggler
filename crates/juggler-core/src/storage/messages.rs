@@ -26,6 +26,10 @@ use rusqlite::{Connection, OptionalExtension, Row, params};
 use crate::error::CoreError;
 use crate::model::Timestamp;
 
+/// D-119 item 6: what a resumed member missed.
+mod missed;
+pub use missed::Missed;
+
 /// v34: the E18 tables.
 pub(super) const MIGRATION: &str = "
 CREATE TABLE agent_threads (
