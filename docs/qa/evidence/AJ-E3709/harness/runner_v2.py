@@ -56,9 +56,9 @@ def main():
         cleaned, removed = gate.guard(it["source"]); cands = gate.candidates(cleaned)
         for rep in range(a.repeats):
             rec = {"id":it["id"],"bucket":it["bucket"],"rep":rep,"cold_first":first,"removed":removed,"n_cands":len(cands)}; first = False
-            rec["write"] = None if removed else call(gate.INSTRUCTIONS, gate.frame(cleaned), 60)
-            rec["choose"] = call(gate.CHOOSE_INSTRUCTIONS, gate.choose_frame(cands), 8) if cands else None
-            rec["frame_only"] = call(gate.INSTRUCTIONS, gate.frame(it["source"]), 60) if removed else None
+            rec["write"] = None if removed else call(gate.INSTRUCTIONS_V2, gate.frame(cleaned), 60)
+            rec["choose"] = call(gate.CHOOSE_INSTRUCTIONS_V2, gate.choose_frame(cands), 8) if cands else None
+            rec["frame_only"] = call(gate.INSTRUCTIONS_V2, gate.frame(it["source"]), 60) if removed else None
             res.append(rec)
         peak = max(peak, rss_of(WATCH))
     wall = time.time() - t_start
@@ -73,7 +73,7 @@ def main():
             deltas.append({"pid":pid,"name":name,"cpu_s":round(t1 - before[pid][0],2)})
     deltas.sort(key=lambda x: -x["cpu_s"])
     ncalls = sum(1 for r in res for k in ("write","choose","frame_only") if r[k])
-    meta = {"hello":hello.strip(),"prompt_version":gate.PROMPT_VERSION,"gate_version":gate.GATE_VERSION,"instructions":gate.INSTRUCTIONS,"label":gate.LABEL,"choose_instructions":gate.CHOOSE_INSTRUCTIONS,
+    meta = {"hello":hello.strip(),"prompt_version":gate.PROMPT_VERSION_V2,"gate_version":gate.GATE_VERSION_V2,"instructions":gate.INSTRUCTIONS_V2,"label":gate.LABEL,"choose_instructions":gate.CHOOSE_INSTRUCTIONS_V2,
             "temperature":0,"max_tokens_write":60,"max_tokens_choose":8,"repeats":a.repeats,"corpus":os.path.basename(a.corpus),"calls":ncalls,"wall_s":round(wall,1),
             "host":subprocess.run(["sw_vers","-productVersion"],capture_output=True,text=True).stdout.strip()+" "+os.uname().machine,
             "helper_cpu_s":helper_cpu,"watched_rss_mb":{"before":round(rss0,1),"peak":round(peak,1),"after":round(rss1,1)},"cpu_deltas":deltas[:25],
