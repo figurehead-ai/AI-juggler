@@ -181,8 +181,8 @@ function needsSection(needs: RailItem[], rest: NoticeInfo[]): Line[] {
   ];
 }
 
-/** A group header's needs (D-117): L2+L3 counted; the highest level; a ring when all are guesses. */
-function groupNeeds(here: RailItem[]): { needsHere: number; level: AttentionLevel; probably: boolean; broken: string[] } {
+/** A head's needs (D-117; an App's, a project's): L2+L3 counted; the highest level; a ring when all are guesses. */
+export function groupNeeds(here: RailItem[]): { needsHere: number; level: AttentionLevel; probably: boolean; broken: string[] } {
   const loud = here.filter((item) => counted(itemLevel(item)));
   return { needsHere: loud.length, level: highest(loud.map(itemLevel)), probably: loud.length > 0 && loud.every((item) => item.probably), broken: brokenOf(loud, itemLevel, (item) => item.need) };
 }

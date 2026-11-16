@@ -58,7 +58,8 @@ import { useBackendNeeds, useRailSnoozes } from "../lib/needs-you";
 import { OtherMacs } from "./RemoteBoard";
 import { modelDrift } from "./SessionCards";
 import { FOCUS_SEARCH_EVENT, parseQuery, useRailView } from "../lib/rail-view";
-import { goToWhere, sessionAppKey, sessionItem, sessionState } from "../lib/rail-items";
+import { goToWhere, itemsOf, sessionAppKey, sessionItem, sessionState } from "../lib/rail-items";
+import { groupNeeds } from "../lib/rail-lines";
 // AJ-E2104: the indicator row and card moved to their own files.
 export { SessionRow, modelDrift } from "./SessionCards";
 export { SessionCard } from "./SessionCard";
@@ -504,14 +505,11 @@ export function InstanceBoard({
                       label={entry.label}
                       rollup={entry.rollup}
                       count={entry.rows.length + railSlice(conversations, entry.id, scope).shown.length}
+                      // D-117: its needs as an App head's (the one rule, the backend's list).
+                      needs={groupNeeds(itemsOf({ sessions: entry.rows, conversations: railSlice(conversations, entry.id, scope).shown, projects, seen: {}, needOf }))}
                       selected={entry.id === selectedId}
                       onSelect={() => onSelectProject(entry.id)}
-                    >
-                      {/* Inside the project's button: a mark, never a
-                          button in a button (axe nested-interactive); its
-                          fold chevron unfolds it. */}
-                      {folded.has(entry.id) && <FoldedNeeds rows={entry.rows} isNeed={isNeed} />}
-                    </RailProjectHeader>
+                    />
                   ) : (
                     <p
                       className="flex min-w-0 flex-1 items-baseline justify-between gap-2 py-0.5 pl-1 pr-2.5 text-meta font-semibold text-ink-2"

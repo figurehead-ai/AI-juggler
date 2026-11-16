@@ -7,7 +7,7 @@ import { useState, type JSX } from "react";
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import type { ProjectInfo } from "../types/generated/ProjectInfo";
 import { lastWorked } from "../lib/project-words";
-import { attentionLevel, brokenParts, brokenWord } from "../lib/attention";
+import { attentionLevel, brokenParts, brokenWord, type AttentionLevel } from "../lib/attention";
 import { needOfAttention } from "../lib/rail-items";
 import type { SectionId } from "../lib/rail-lines";
 
@@ -141,6 +141,31 @@ export function FoldedNeeds({ rows, isNeed, onOpen }: { rows: InstanceInfo[]; is
       {/* Its red dot is decoration: what broke is said in words. */}
       <span className="sr-only">{count === 1 ? "needs you" : "need you"}{danger ? `, ${brokenParts(broken)}` : ""},</span>
     </Mark>
+  );
+}
+
+/** A head's needs, said in its name (D-117: its mark is decoration):
+ * "2 need you, 1 stopped with an error"; empty for none. */
+export function headNeedsWords(needs: number, broken: readonly string[]): string {
+  if (needs === 0) return "";
+  return `${needs} ${needs === 1 ? "needs" : "need"} you${broken.length > 0 ? `, ${brokenParts(broken)}` : ""}`;
+}
+
+/**
+ * A head's count of what needs you (an App's, a project's; D-117): a
+ * mark, never a pill: the number in ink beside its level's dot (a ring
+ * when every one is a guess) at L2, a red dot at L3. The dot is hidden;
+ * the head's name says it in words (`headNeedsWords`). What the count is
+ * is on the mark itself, as a tooltip (the review of 0.1.4: an
+ * unexplained "1").
+ */
+export function HeadNeeds({ needs, level, probably = false, testId = "place-needs", className = "" }: { needs: number; level: AttentionLevel; probably?: boolean; testId?: string; className?: string }): JSX.Element | null {
+  if (needs === 0) return null;
+  return (
+    <span title={`${needs} here ${needs === 1 ? "needs" : "need"} you: ${needs === 1 ? "it's" : "they're"} at the top, under Needs you`} className={"inline-flex min-w-[20px] items-center gap-1 overflow-hidden px-1 text-label font-semibold leading-[18px] tabular-nums text-ink " + className} data-testid={testId} data-level={level}>
+      <span aria-hidden="true" className="level-mark" data-level={level === 3 ? 3 : 2} data-probably={probably ? "true" : undefined} />
+      {needs}
+    </span>
   );
 }
 

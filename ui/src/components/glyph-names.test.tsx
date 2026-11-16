@@ -130,12 +130,13 @@ describe("no status glyph in any accessible name (D-117)", () => {
     setRailView({ ...DEFAULT_VIEW, group: "project" });
     const view = board(SESSIONS);
     fireEvent.click(await view.findByRole("button", { name: "Fold ai-juggler" }));
-    const mark = view.getByTestId("rail-folded-needs");
+    // D-117 (AJ-E3603): the App heads' mark (`HeadNeeds`), folded or not.
+    const mark = view.getByTestId("place-needs");
     expect(mark.getAttribute("data-level")).toBe("3");
     expect(mark.querySelector(".level-mark")!.getAttribute("aria-hidden")).toBe("true");
     // In the project's own button: a mark, never a button in a button.
     expect(mark.tagName).toBe("SPAN");
-    expect(view.getByTestId("rail-project")).toBe(view.getByRole("button", { name: /^ai-juggler\s*2\s*need you, 1 stopped with an error,/ }));
+    expect(view.getByTestId("rail-project")).toBe(view.getByRole("button", { name: /^ai-juggler, \d+ sessions, 2 need you, 1 stopped with an error$/ }));
     expect(withGlyphs(view.container)).toEqual([]);
   });
 

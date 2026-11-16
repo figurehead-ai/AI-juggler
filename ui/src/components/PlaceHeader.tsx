@@ -18,9 +18,9 @@ import { AppIcon } from "./AppIcon";
 import { AppKindBadge } from "./AppKindBadge";
 import { useFitWhole } from "./use-fit-whole";
 import { appKindOfKey } from "../lib/app-kind";
-import { FoldButton } from "./rail-groups";
+import { FoldButton, HeadNeeds, headNeedsWords } from "./rail-groups";
 import { IconUpRight } from "./icons-places";
-import { appTone, brokenParts, type AttentionLevel } from "../lib/attention";
+import { appTone, type AttentionLevel } from "../lib/attention";
 import { DROP, Grip, type Arrangeable } from "./RowTools";
 import type { RailPlace } from "../lib/rail-items";
 
@@ -145,7 +145,7 @@ export function PlaceHeader({
         className="relative flex min-h-6 min-w-0 flex-1 items-center gap-1.5 rounded-md px-1 py-1 text-left outline-none hover:bg-surface/60 focus-visible:ring-1 focus-visible:ring-accent/60"
       >
         {/* 0.4.3: its Out or low mark in its name too (the mark itself is drawn aria-hidden). */}
-        <span className="sr-only">{[folded ?? `${name}, ${empty ? "nothing open" : `${count} open`}${needs > 0 ? `, ${needs} need you${broken.length > 0 ? `, ${brokenParts(broken)}` : ""}` : ""}`, mark?.title].filter(Boolean).join(", ")}</span>
+        <span className="sr-only">{[folded ?? `${name}, ${empty ? "nothing open" : `${count} open`}${needs > 0 ? `, ${headNeedsWords(needs, broken)}` : ""}`, mark?.title].filter(Boolean).join(", ")}</span>
         <span aria-hidden="true" className="flex min-w-0 flex-1 items-center gap-[3px]">
           {/* D-100: its kind beside its icon (a window, or >_), never over it. */}
           {children ?? (place && (
@@ -171,17 +171,8 @@ export function PlaceHeader({
             {/* 0.4.4: placed first, so it wins over the app word (the kind mark and icon say the app). */}
             {empty && <span className="shrink-0 whitespace-nowrap text-label leading-[18px] text-muted" data-testid="place-nothing-open" data-fit="first">nothing open</span>}
           </span>
-          {/* What the count is, on the mark itself (the review of 0.1.4: an
-              unexplained "1"): a tooltip. D-117: a mark, never a pill —
-              the number in ink beside its level's dot (a ring when it's a
-              guess) at L2, a red dot at L3; the loud copy is Needs
-              you's row. */}
-          {needs > 0 && (
-            <span title={`${needs} here ${needs === 1 ? "needs" : "need"} you: ${needs === 1 ? "it's" : "they're"} at the top, under Needs you`} className="inline-flex min-w-[20px] shrink-[1000] items-center gap-1 overflow-hidden px-1 text-label font-semibold leading-[18px] tabular-nums text-ink" data-testid="place-needs" data-level={level}>
-              <span aria-hidden="true" className="level-mark" data-level={level === 3 ? 3 : 2} data-probably={probably ? "true" : undefined} />
-              {needs}
-            </span>
-          )}
+          {/* D-117: its needs' mark (the loud copy is Needs you's row). */}
+          <HeadNeeds needs={needs} level={level} probably={probably} className="shrink-[1000]" />
           {/* 0.4.1: out of room or low, its mark; the count steps aside
               for it (its rows show what's open; the name above keeps it),
               so the profile's name keeps its room. */}

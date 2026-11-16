@@ -17,10 +17,18 @@ import { useConversations } from "../lib/conversations";
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import type { ProjectInfo } from "../types/generated/ProjectInfo";
 import { SELECTED_FILL } from "./controls/selected";
-import { appTone, attentionLevel } from "../lib/attention";
-import { needOfAttention } from "../lib/rail-items";
+import { appTone, type AttentionLevel } from "../lib/attention";
+import { HeadNeeds, headNeedsWords } from "./rail-groups";
 
-/** The accent bar a selected row carries. */
+/** What needs you in a project (`groupNeeds`): how many (L2+L3), their
+ * highest level, whether all are guesses, and each broken one's word. */
+export interface ProjectNeeds {
+  needsHere: number;
+  level: AttentionLevel;
+  probably: boolean;
+  broken: string[];
+}
+const NO_NEEDS: ProjectNeeds = { needsHere: 0, level: 0, probably: false, broken: [] };
 
 /** AJ-E1502: a pinned row's mark, beside its title. */
 export function PinMark(): JSX.Element {
@@ -101,13 +109,17 @@ export function ProjectRow({
 }
 
 /** A project's group heading in the rail: opens the project, with its
- * menu on right-click, ⋯ or Shift+F10 (AJ-E1537). */
+ * menu on right-click, ⋯ or Shift+F10 (AJ-E1537). D-117: what needs you
+ * in it shows as an App's head shows it, folded or not: its level's mark
+ * and the number (`HeadNeeds`, the mark hidden), said in its name ("ai-
+ * juggler, 2 need you, 1 stopped with an error"). */
 export function RailProjectHeader({
   project,
   rows,
   label,
   rollup,
   count,
+  needs = NO_NEEDS,
   selected,
   onSelect,
   children,
@@ -118,6 +130,8 @@ export function RailProjectHeader({
   label: string;
   rollup: string;
   count: number;
+  /** What needs you in it (`groupNeeds`, the App heads' rule). */
+  needs?: ProjectNeeds;
   selected: boolean;
   onSelect: () => void;
   children?: ReactNode;
@@ -127,7 +141,8 @@ export function RailProjectHeader({
   const accountsId = useId();
   // D-117: its Apps' icons muted at rest; in full colour while one of its
   // sessions waits on you or broke (L2/L3), when current, on hover or focus.
-  const lit = selected || rows.some((row) => attentionLevel({ need: needOfAttention(row.needs_attention ?? row.status) }) >= 2);
+  const lit = selected || needs.level >= 2;
+  const said = [label, project.pinned ? "pinned" : null, `${count} ${count === 1 ? "session" : "sessions"}`, headNeedsWords(needs.needsHere, needs.broken) || null].filter(Boolean).join(", ");
   return (
     <div className="tone-host group relative flex min-w-0 flex-1 items-center" data-rail-row {...menu.triggerProps}>
       <button
@@ -142,14 +157,18 @@ export function RailProjectHeader({
           (selected ? SELECTED_FILL + " text-ink" : "text-muted hover:text-ink")
         }
         data-testid="rail-project"
+        data-level={needs.needsHere > 0 ? needs.level : undefined}
       >
-        <span className="flex min-w-0 items-center gap-1.5">
+        {/* Its name in words; what it draws is decoration (D-117). */}
+        <span className="sr-only">{said}</span>
+        <span aria-hidden="true" className="flex min-w-0 items-center gap-1.5">
           <ProjectMark projectId={project.id} size={14} />
           <span className="min-w-0 truncate">{label}</span>
           {project.pinned && <PinMark />}
         </span>
-        <span className="flex shrink-0 items-center gap-1.5">
+        <span aria-hidden="true" className="flex shrink-0 items-center gap-1.5">
           {children}
+          <HeadNeeds needs={needs.needsHere} level={needs.level} probably={needs.probably} />
           {accounts.length > 0 && (
             <span className={"flex " + appTone(lit)}>
               <AppStack apps={accounts} />

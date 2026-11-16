@@ -101,10 +101,11 @@ for (const theme of ["dark", "light"] as const) {
     // D-117: the Project lens's head is the App lens's, said in words.
     await expect(page.getByRole("heading", { name: /^Needs you \d+, 1 stopped with an error, \d+ wait on you$/ })).toBeVisible();
     await page.getByRole("button", { name: "Fold ai-juggler" }).click();
-    const mark = page.getByTestId("rail-folded-needs");
+    // D-117 (AJ-E3603): the App heads' mark, folded or not.
+    const mark = page.getByTestId("rail-project").getByTestId("place-needs");
     await expect(mark).toHaveAttribute("data-level", "3");
     // A mark inside the project's button (never a button in a button): the button says it.
-    await expect(page.getByTestId("rail-project")).toHaveAccessibleName(/^ai-juggler 3 need you, 1 stopped with an error, /);
+    await expect(page.getByTestId("rail-project")).toHaveAccessibleName(/^ai-juggler, \d+ sessions?, \d+ need you, 1 stopped with an error$/);
     expect(await glyphNames(page)).toEqual([]);
     expect(await axeSerious(page)).toEqual([]);
   });

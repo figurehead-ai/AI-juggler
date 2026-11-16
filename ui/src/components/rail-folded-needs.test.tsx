@@ -1,6 +1,7 @@
 /**
  * 0.0.11 walk, Q7: a folded project still says what needs you inside it —
  * the session rows' "!" mark and a count — and nothing unfolds by itself.
+ * D-117 (AJ-E3603): open too, as an App head says it.
  */
 import { needsOfRows } from "../test/needs-kit";
 import { cleanup, fireEvent, render, within } from "@testing-library/react";
@@ -52,37 +53,55 @@ function board(rows: InstanceInfo[]) {
   );
 }
 
-it("a folded project shows how many need you, with the Needs you mark", () => {
+/** A project's head (its button) by its name. */
+const head = (view: ReturnType<typeof board>, name: string) => view.getAllByTestId("rail-project").find((button) => button.textContent?.includes(name))!;
+
+// D-117 (AJ-E3603): a project head shows what needs you in it as an App
+// head does, folded or not (it showed only its Apps' icons and a count):
+// its level's mark beside the number, the mark hidden, the words in its
+// name; its chevron still folds it, and nothing unfolds by itself.
+it("a project head says what needs you in it, folded or not, as an App head does", () => {
   const view = board([
     mk("a", { status: "stuck", needs_attention: "stuck" }),
     mk("b", { status: "waiting_user", needs_attention: "waiting_user" }),
     mk("c"),
     mk("d", { project_id: "proj-2", cwd: "/Users/dev/storefront" }),
   ]);
-  // Open: the rows say it themselves, the header adds nothing.
-  expect(view.queryByTestId("rail-folded-needs")).toBeNull();
-  fireEvent.click(view.getByRole("button", { name: "Fold ai-juggler" }));
-  const mark = view.getByTestId("rail-folded-needs");
-  expect(mark.textContent).toContain("2");
-  expect(mark.textContent).toContain("need you");
+  const ai = head(view, "ai-juggler");
+  const mark = within(ai).getByTestId("place-needs");
+  expect(mark.textContent).toBe("2");
   // D-117: a mark, not a badge: the number in ink by the amber dot (L2).
   expect(mark.className).toContain("text-ink");
   expect(mark.getAttribute("data-level")).toBe("2");
-  expect(mark.querySelector(".level-mark[data-level='2']")).toBeTruthy();
-  // The calm project folded: no mark.
-  fireEvent.click(view.getByRole("button", { name: "Fold storefront" }));
-  expect(view.getAllByTestId("rail-folded-needs")).toHaveLength(1);
-  // Still folded: nothing unfolded itself.
+  expect(mark.querySelector(".level-mark[data-level='2']")!.getAttribute("aria-hidden")).toBe("true");
+  expect(mark.closest("[aria-hidden='true']")).toBeTruthy();
+  // Said in its name, as an App head says it.
+  expect(ai).toBe(view.getByRole("button", { name: "ai-juggler, 3 sessions, 2 need you" }));
+  // Its Apps' icons lit (L2); the calm project's muted, with no mark.
+  expect(ai.querySelector(".app-tone")!.classList.contains("is-lit")).toBe(true);
+  const calm = head(view, "storefront");
+  expect(within(calm).queryByTestId("place-needs")).toBeNull();
+  expect(calm.querySelector(".app-tone")!.classList.contains("is-lit")).toBe(false);
+  expect(calm).toBe(view.getByRole("button", { name: "storefront, 1 session" }));
+  // Folded, it still says so; the chevron folds, nothing unfolds itself.
+  fireEvent.click(view.getByRole("button", { name: "Fold ai-juggler" }));
+  expect(within(head(view, "ai-juggler")).getByTestId("place-needs").textContent).toBe("2");
   expect(view.getByRole("button", { name: "Unfold ai-juggler" }).getAttribute("aria-expanded")).toBe("false");
+  expect(view.queryByTestId("rail-folded-needs")).toBeNull();
 });
 
-it("a failed or blocked session marks the folded header as danger", () => {
-  const view = board([mk("a", { status: "failed", needs_attention: "failed" }), mk("b")]);
-  fireEvent.click(view.getByRole("button", { name: "Fold ai-juggler" }));
-  const mark = view.getByTestId("rail-folded-needs");
-  expect(within(mark).getByText("1")).toBeTruthy();
-  expect(mark.textContent).toContain("needs you");
-  // D-117: the number in ink, the level on its mark (a red dot, L3).
+it("a broken session marks the project head red and says what broke", () => {
+  const view = board([mk("a", { status: "failed", needs_attention: "failed" }), mk("b", { status: "stuck", needs_attention: "stuck" }), mk("c")]);
+  const ai = head(view, "ai-juggler");
+  const mark = within(ai).getByTestId("place-needs");
+  expect(mark.textContent).toBe("2");
+  // D-117: the number in ink, its highest level on its mark (a red dot, L3).
   expect(mark.getAttribute("data-level")).toBe("3");
   expect(mark.querySelector(".level-mark[data-level='3']")).toBeTruthy();
+  expect(ai.getAttribute("data-level")).toBe("3");
+  expect(ai).toBe(view.getByRole("button", { name: "ai-juggler, 3 sessions, 2 need you, 1 stopped with an error" }));
+  // One broken alone: "1 needs you".
+  cleanup();
+  const one = board([mk("a", { status: "failed", needs_attention: "failed" }), mk("b")]);
+  expect(head(one, "ai-juggler")).toBe(one.getByRole("button", { name: "ai-juggler, 2 sessions, 1 needs you, 1 stopped with an error" }));
 });
