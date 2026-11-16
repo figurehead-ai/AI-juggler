@@ -150,6 +150,7 @@ under D-24.
 | Release speed: beta promotes the tested nightly, CI builds once and tests what changed (D-99; planned after 0.4.1) | AJ-E2020 |
 | Calm attention: four levels read from one place, each need loud once per area, a quieter look (section labels, no borders, App icons muted until they need you), every collapsible kept, on every screen: the 0.5 Stable doesn't ship with a screen on the old look (D-117) | E36 |
 | Home as an activity feed: what needs you pinned on top, then what happened, newest first and rolled up, with a "while you were away" digest; Your apps and Runway by account beside it (D-118) | E37 |
+| AI jobs through one router (summaries and Chat share it; a job no engine can do is hidden), one downloaded model at most, and Chat v1: a read-only panel that answers from your own sessions, tasks, pools and usage with sources (D-121) | E38 |
 
 Accessibility stays proven by the automated gates on every release
 (axe on every gallery state, keyboard traversals, contrast); the manual

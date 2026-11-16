@@ -3319,6 +3319,6 @@ The design that follows from it:
 4. **Order.** A (excerpts, AJ-E3708); then the router and Chat v1 on Apple's model; then B's calm-line rewriting, only if blind reviewers prefer it over A's excerpt on the realistic corpus with zero FAILs; then the local tier, after the download approval and the model tests.
 
 - **Not scheduled:** the orchestrator bot. It builds on the router and Chat, and needs its own ruling.
-- **Tasks:** E38 (AJ-E3801…AJ-E3810); AJ-E3711's handover now points at the router and B's shipping rule.
+- **Tasks:** E38 (AJ-E3801…AJ-E3809); AJ-E3711's handover now points at the router and B's shipping rule.
 - **Amends:** D-120 (point 2's tier list becomes engines behind the router; B's calm lines ship only on the rule in point 4; the "conversation" open idea becomes Chat v1).
 - Sources: the coordinating session's relay of the maintainer, 2026-11-16.

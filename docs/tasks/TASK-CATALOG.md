@@ -445,5 +445,14 @@
 | AJ-E3709 | On-device summary lines: the multi-angle research pass (B research) | E37-home-activity-feed.md | P0 | M | AJ-E3702 |
 | AJ-E3710 | On-device summary lines: the design, an ADR for a pluggable SummaryEngine (B design) | E37-home-activity-feed.md | P0 | M | AJ-E3709 |
 | AJ-E3711 | On-device summary lines: detection, the three tiers, the automatic fetch, the notice and the Settings switch (B build) | E37-home-activity-feed.md | P0 | XL | AJ-E3710 |
-Total: 443 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
+| AJ-E3801 | The AI-jobs router: the ADR (jobs, engines, capabilities) | E38-chat.md | P0 | M | AJ-E3710 |
+| AJ-E3802 | The router and the seam: jobs, engines, capabilities, hidden when no engine | E38-chat.md | P0 | L | AJ-E3801, AJ-E3708 |
+| AJ-E3803 | Disk rules: one downloaded model, approval for more, Settings total and Remove, free-disk margin | E38-chat.md | P0 | M | AJ-E3802 |
+| AJ-E3804 | Chat v1: the top-right icon, the side panel, calm design and accessibility | E38-chat.md | P0 | L | AJ-E3802, AJ-E3708 |
+| AJ-E3805 | Chat v1's look-up tools over AI Juggler's data, with sources and "I don't know" | E38-chat.md | P0 | XL | AJ-E3802, AJ-E3708 |
+| AJ-E3806 | The guard for Chat: tool results as quoted data, injection removed, answers checked against the facts | E38-chat.md | P0 | M | AJ-E3805 |
+| AJ-E3807 | The no-model panel: look-ups that need no AI, and the approved download offer | E38-chat.md | P1 | M | AJ-E3804, AJ-E3803 |
+| AJ-E3808 | Chat history: local, clearable, never off the Mac | E38-chat.md | P1 | S | AJ-E3804 |
+| AJ-E3809 | The newcomer walk: Chat v1 on a real Mac, by hand | E38-chat.md | P0 | M | AJ-E3804…AJ-E3808 |
+Total: 452 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
 Status of every task at generation: TODO. The epic files are canonical; this catalog is an index, never edited to claim progress.
