@@ -3322,3 +3322,21 @@ The design that follows from it:
 - **Tasks:** E38 (AJ-E3801…AJ-E3809); AJ-E3711's handover now points at the router and B's shipping rule.
 - **Amends:** D-120 (point 2's tier list becomes engines behind the router; B's calm lines ship only on the rule in point 4; the "conversation" open idea becomes Chat v1).
 - Sources: the coordinating session's relay of the maintainer, 2026-11-16.
+
+### D-123 The orchestrator bot (option E) goes into 0.6; the tested open models' licences are accepted; the maintainer installs Hermes — SETTLED (2026-11-16)
+
+**Ruling.** The maintainer, 2026-11-16, answering where D and E go now that 0.6 is the Windows release (D-52): "Bot should go into 0.6". On the model-licence notes from the evaluation: "All those models are open source and fine to be used". On the skipped Hermes sign-in row: "I will install hermes … and let you know when done".
+
+1. **The orchestrator bot is scheduled for 0.6.**
+   - It builds on D-121's router and Chat v1. It grows in stages over the pool levels, as option E describes: first an advisor that triages and drafts; then actions inside pool rules, with approval gates, an audit log and cost caps; then more autonomy, earned over time.
+   - 0.6 is also Windows' first release (D-52), so the bot ships on both macOS and Windows.
+   - Its own design ruling (stages, approvals, engines) comes before any building.
+   - Option D, the cloud tier, is not placed by this ruling. It stays "later" unless the bot's design shows it needs one.
+2. **Licences.**
+   - The open models in the evaluation are accepted for use: Qwen3 (Apache-2.0), Granite (Apache-2.0), Gemma 4 (Apache-2.0), and NVIDIA Nemotron under the NVIDIA Nemotron Open Model License.
+   - The compliance steps stay. A shipped model carries its licence text and any required notice, and Nemotron's text comes from NVIDIA's page, because its repository only names it.
+   - The ship gates (D-120/D-121, ADR-0034) still decide which model, if any, is offered.
+3. **Hermes:** the maintainer installs it. Its sign-in row (AJ-E1612) stays "skipped, waiting for install" until they say it's done, and then it joins the second sitting.
+
+- **Amends:** D-120 ("D and E later" becomes "E in 0.6, D unplaced") and D-121 ("Not scheduled: the orchestrator bot" becomes 0.6).
+- Sources: the coordinating session's relay of the maintainer, 2026-11-16.
