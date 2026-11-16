@@ -10,7 +10,7 @@
  * the page while closed, hidden, as `<details>` kept it.
  */
 import { useId, useState, type JSX, type ReactNode } from "react";
-import { FoldChevron } from "../this-mac-memory";
+import { FoldChevron } from "./FoldChevron";
 
 const TONES = {
   quiet: "text-meta text-muted hover:text-ink",

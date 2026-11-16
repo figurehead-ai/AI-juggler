@@ -12,23 +12,10 @@
  * surface, both themes); figures in tabular numbers.
  */
 import type { JSX } from "react";
-// Disclosure draws its chevron with FoldChevron, from here: the two take
-// each other only at render, so the two-way import is safe.
 import { Disclosure } from "./controls";
 import { memoryBasisWords } from "./this-mac-parts";
 import { bytesWords, type ThisMacInfo } from "../lib/machine";
 import { memoryParts, otherAppBytes, PRESSURE_MORE, PRESSURE_SHORT, underPressure } from "../lib/machine-memory";
-
-/** The rail's fold chevron: one look for every disclosure, the app's
- * Disclosure (a button), turned while `open`. No native `<details>` is
- * left to turn it (the native-controls lint keeps them out). */
-export function FoldChevron({ open }: { open: boolean }): JSX.Element {
-  return (
-    <svg aria-hidden="true" width="12" height="12" viewBox="0 0 10 10" className={`shrink-0 text-muted transition-transform motion-reduce:transition-none ${open ? "rotate-90" : ""}`}>
-      <path d="M3.5 2 L7 5 L3.5 8" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
 
 /** Each part's look: a colour and, for compressed memory, stripes, so no
  * part is told by colour alone. */
