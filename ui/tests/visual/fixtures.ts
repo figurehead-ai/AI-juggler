@@ -461,7 +461,7 @@ export async function terminalDrawn(page: import("@playwright/test").Page): Prom
  * already (the limit hit), else Switch account…'s dialog (0.3.2). */
 export async function openSwitch(page: import("@playwright/test").Page): Promise<void> {
   const section = page.getByTestId("handover-section");
-  if (await section.evaluate((node) => (node as HTMLDetailsElement).open).catch(() => false)) return;
+  if (await section.evaluate((node) => node.hasAttribute("data-open")).catch(() => false)) return;
   await page.getByTestId("header-switch").click();
   await expect(page.getByTestId("continue-dialog")).toBeVisible();
 }

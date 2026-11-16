@@ -37,7 +37,7 @@ import { CardTitle } from "./CardTitle";
 import { toolSpec } from "../../lib/tools";
 import { SaveHandover } from "../../components/HandoverView";
 import { ContinueDialog } from "../../components/ContinueDialog";
-import { AccountRoomLine, ContinueSummary } from "../../components/ContinueSummary";
+import { AccountRoomLine, ContinueFold } from "../../components/ContinueSummary";
 
 /** A target App (D-62: a tool on one of its folders), as the page shows
  * it. */
@@ -336,10 +336,9 @@ export function ContinueOn({
   return (
     <Card className="flex flex-col gap-3 p-5" data-testid="continue-on">
       {quiet ? (
-        <details open={chosen} onToggle={(event) => setChosen(event.currentTarget.open)} className="group" data-testid="continue-fold">
-          <ContinueSummary />
+        <ContinueFold open={chosen} onToggle={setChosen} testId="continue-fold">
           {chosen && <div className="mt-3 flex flex-col gap-3">{shown}</div>}
-        </details>
+        </ContinueFold>
       ) : (
         <>
           <CardTitle>Continue in another app</CardTitle>

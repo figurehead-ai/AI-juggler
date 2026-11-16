@@ -1,8 +1,5 @@
 # AJ-E2801 R5: raw system controls in shipped UI code, `path kind count`
-# (kind: select, checkbox, radio, date, details). Only shrinks. Every
-# choice uses the shared controls in ui/src/components/controls/; select,
-# checkbox, radio and date have been empty since 0.3. details (the 0.4.6
-# rc2 walk P9): the native disclosures left when the lint learnt them,
-# each going to the shared Disclosure.
-ui/src/components/HandoverSection.tsx details 1
-ui/src/pages/session/ContinueOn.tsx details 1
+# (kind: select, checkbox, radio, date, details). Only shrinks. Empty: every
+# choice uses the shared controls in ui/src/components/controls/ (select,
+# checkbox, radio and date since 0.3), and every fold the shared Disclosure
+# (details since 0.4.6 rc3, the rc2 walk P9).

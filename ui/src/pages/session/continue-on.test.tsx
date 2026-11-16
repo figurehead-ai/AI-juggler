@@ -175,9 +175,7 @@ describe("AJ-E2108 Continue on another account", () => {
     show(fromConversation(conversation({ live: false, places: [], pid: null, state: null })), vi.fn(), carryIn);
     // D-103.3: reading it looks for no room until its card is opened.
     expect(targets).not.toHaveBeenCalled();
-    const fold = screen.getByTestId("continue-fold");
-    fold.setAttribute("open", "");
-    fireEvent(fold, new Event("toggle"));
+    fireEvent.click(screen.getByRole("button", { name: "Continue in another app" }));
     await waitFor(() => expect(screen.getAllByTestId("continue-target").length).toBe(1));
     expect(screen.getByTestId("continue-outside").textContent).toContain("The original stays as it is.");
     fireEvent.click(screen.getByTestId("continue-carry-in"));

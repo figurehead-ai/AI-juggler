@@ -5,7 +5,7 @@
  * and the search for room starts only when the user chooses an app. A
  * live session keeps today's notice and its list at once.
  */
-import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as notices from "../../lib/ipc/notices";
 import * as targets from "../../lib/ipc/switch-targets";
@@ -42,10 +42,9 @@ afterEach(() => {
 const settle = () => act(async () => new Promise((done) => setTimeout(done, 20)));
 
 /** Opens a folded card, as a click on its title does. */
+/** Presses a card's Continue fold (the app's disclosure, a button). */
 function openFold(testId: string): void {
-  const fold = screen.getByTestId(testId);
-  fold.setAttribute("open", "");
-  fireEvent(fold, new Event("toggle"));
+  fireEvent.click(within(screen.getByTestId(testId)).getByRole("button", { name: "Continue in another app" }));
 }
 
 describe("D-103.3 an ended session's page stays quiet", () => {
@@ -65,7 +64,7 @@ describe("D-103.3 an ended session's page stays quiet", () => {
     expect(line.textContent).toMatch(/^This session's account, West, is out of room · resets .+$/);
     // Quiet: folded, muted words, no banner, no list, no search.
     expect(line.className).toContain("text-muted");
-    expect(screen.getByTestId("continue-fold").hasAttribute("open")).toBe(false);
+    expect(screen.getByTestId("continue-fold-toggle").getAttribute("aria-expanded")).toBe("false");
     expect(screen.queryByText("Looking for room…")).toBeNull();
     await settle();
     expect(asked).not.toHaveBeenCalled();
