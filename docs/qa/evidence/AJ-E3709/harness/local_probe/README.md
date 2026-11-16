@@ -41,13 +41,16 @@ CARGO_TARGET_DIR=~/Dev/AIJuggler-shared-target/r05-probe CMAKE_DISABLE_FIND_PACK
   as the user message, `enable_thinking=false`. Both models' templates honour that flag by pre-filling an empty think block
   (Qwen3: `<think>\n\n</think>\n\n`; Nemotron 3 Nano: `<think></think>`), so the instructions reach the model byte for byte, with
   no `/no_think` added. `--show-prompt` prints the rendered form and the template, then exits.
-- Greedy decoding (temperature 0). `write` (mode `line`): at most `max_tokens` (60) under the GBNF form of `gate.LINE_PATTERN`,
-  ADR-0033 §1's `line_grammar()`: 1 to 20 words of non-space, non-quotation-mark characters joined by single spaces. A request's
-  own `grammar` field replaces it. `choose` (mode `pick`): the grammar `[1-count]`, at most 20 tokens.
-- `finish` is `length` when the limit is reached before the model ends its turn. `refused` and `retried_permissive` are always
+- Greedy decoding (temperature 0). `write` (mode `line`): at most `max_tokens` (60) under ADR-0033 §1's `line_grammar()` as
+  ruled on 2026-11-16: one line of at most 160 characters, no line break, no quotation mark, no whitespace but the plain space,
+  and no word cap. The first build capped the grammar at 20 words, and the models then glued words together once the cap was
+  reached ("MB_of_memory"). The gate's shape check enforces the 20 words, as it does for Apple's guided output, which has no word
+  cap either. A request's own `grammar` field replaces it. `choose` (mode `pick`): the grammar `[1-count]`, at most 20 tokens.
+- `finish` is `length` when the token limit is reached before the model ends its turn, or when the grammar forced the end at
+  160 characters while the model wanted to go on (a cut line, rejected by step 4 like a token-limit cut). `refused` and `retried_permissive` are always
   false (llama.cpp has no guardrail layer; a refusal in words is the harness's non-answer check).
 - The hello carries the model file's name, its SHA-256 read from `MANIFEST.md` (not re-hashed), its quantisation, the llama.cpp
-  build, `line_max_words` (runner_v3.py refuses a probe whose limit differs from gate.py's) and the rendered grammar.
+  build, `line_max_chars` (runner_v3.py refuses a probe whose limit differs from gate.py's) and the rendered grammar.
 - `--stats FILE` appends one JSON line per call (prompt tokens, prompt and decode time, decode tokens/s, whether a think tag was
   generated) and, at exit, the peak RSS and the peak physical footprint.
 

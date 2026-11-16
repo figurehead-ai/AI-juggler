@@ -40,8 +40,8 @@ class Probe:
         if h.get("protocol") != 3: raise SystemExit(f"the probe speaks protocol {h.get('protocol')}, not 3: rebuild apple_probe.swift")
         if "available" not in str(h.get("available", "")).lower() or "unavailable" in str(h.get("available", "")).lower():
             raise SystemExit(f"the probe's model is not available here: {h.get('available')}")
-        if "line_max_words" in h and h["line_max_words"] != gate.LINE_MAX_WORDS:   # local_probe's grammar mirrors gate.py's limit
-            raise SystemExit(f"the probe's line grammar allows {h['line_max_words']} words, gate.py {gate.LINE_MAX_WORDS}: rebuild it")
+        if "line_max_chars" in h and h["line_max_chars"] != gate.LINE_MAX_CHARS:   # local_probe's grammar mirrors gate.py's limit
+            raise SystemExit(f"the probe's line grammar allows {h['line_max_chars']} characters, gate.py {gate.LINE_MAX_CHARS}: rebuild it")
     def call(s, req):
         t0 = time.perf_counter()
         s.p.stdin.write(json.dumps(req) + "\n"); s.p.stdin.flush()

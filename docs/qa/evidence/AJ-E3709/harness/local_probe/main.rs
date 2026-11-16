@@ -7,12 +7,13 @@
 //! Protocol 3, as apple_probe.swift: one JSON object per stdin line, one per stdout line.
 //!   request  {id, system, prompt, max_tokens, temperature, mode?, field?, field_description?, pattern?, count?, grammar?}
 //!   response {id, text, finish: "stop"|"length", out_tokens, refused, retried_permissive, error, gen_ms}
-//! mode "line": one line under LINE_GRAMMAR (ADR-0033 §1 `line_grammar()`: 1 to 20 words, no line break, no quotation mark;
-//!   the same shape as gate.LINE_PATTERN). A request's own `grammar` replaces it (the ADR's contract: the client sends it).
+//! mode "line": one line under `line_grammar()` (ADR-0033 §1 as ruled 2026-11-16: at most 160 characters, no line break, no
+//!   quotation mark, no word cap; the gate's shape check enforces the 20 words). A request's own `grammar` replaces it (the ADR's contract: the client sends it).
 //! mode "pick": a digit-only grammar, 1..=count. no mode: plain text, no grammar (v2's form).
 //! Every call: `system` is the system message, `prompt` the user message, rendered with the GGUF's own (Jinja) chat template with
 //! thinking off; greedy decoding (temperature 0); a 4096-token context cleared before each call; at most `max_tokens` new tokens.
-//! finish is "length" when the limit was reached before the model ended its turn. refused and retried_permissive are always false:
+//! finish is "length" when the token limit was reached before the model ended its turn, or the grammar forced the end (the
+//! 160-character cap) while the model wanted to go on. refused and retried_permissive are always false:
 //! llama.cpp has no guardrail layer (a refusal in words is the harness's non-answer check, as for Apple).
 //! The hello carries the model file's name, its SHA-256 as recorded in MANIFEST.md (not re-hashed here), and the llama.cpp build.
 //! --stats appends one JSON line per call (prompt tokens, prompt and decode time, tokens/s) and, at exit, the peak memory.
@@ -34,13 +35,15 @@ use std::time::Instant;
 
 const PROTOCOL: u32 = 3;
 const LLAMA_CPP: &str = "llama-cpp-2 0.1.146 / llama-cpp-sys-2 0.1.146 (llama-cpp-rs 4afdaf0782ef, vendored llama.cpp), Metal";
-/// gate.LINE_MAX_WORDS; runner_v3.py refuses a probe whose hello says otherwise.
-const LINE_MAX_WORDS: u32 = 20;
-/// ADR-0033 §1 `line_grammar()`, the GBNF form of gate.LINE_PATTERN `[^\s"“”„«»「」]+(?: [^\s"“”„«»「」]+){0,19}`:
-/// one or more words of non-space, non-quotation-mark characters, joined by single spaces, at most LINE_MAX_WORDS words.
+/// gate.LINE_MAX_CHARS; runner_v3.py refuses a probe whose hello says otherwise.
+const LINE_MAX_CHARS: u32 = 160;
+/// ADR-0033 §1 `line_grammar()` as ruled 2026-11-16: one line of 1 to LINE_MAX_CHARS characters, no line break, no quotation mark,
+/// no whitespace but the plain space, not starting with a space. No word cap: a word cap in the grammar made the models glue words
+/// together once the cap was reached; the gate's shape check (step 4) enforces the 20 words, as for Apple's guided output.
 fn line_grammar() -> String {
-    let word = r#"[^ \t\n\r\x0B\x0C\u0085   -     　"“”„«»「」]+"#;
-    format!("root ::= word (\" \" word){{0,{}}}\nword ::= {word}\n", LINE_MAX_WORDS - 1)
+    let ch = r#"[^\t\n\r\x0B\x0C\u0085   -     　"“”„«»「」]"#;
+    let first = ch.replacen("[^", "[^ ", 1);
+    format!("root ::= first rest{{0,{}}}\nfirst ::= {first}\nrest ::= {ch}\n", LINE_MAX_CHARS - 1)
 }
 /// choose: the number only, 1..=count (ADR-0033 §4.2: "a grammar that allows only a digit"; at most 8 candidates).
 fn pick_grammar(count: u32) -> String {
@@ -106,12 +109,13 @@ fn peak_memory_mb() -> (f64, f64) {
 /// Greedy decoding (temperature 0) under an optional grammar, with llama.cpp common's fast path: the unconstrained argmax is taken
 /// when the grammar allows it (then it is also the constrained argmax); otherwise the grammar masks the whole vocabulary and the
 /// argmax of what is left is taken. Ties go to the lowest token id, as llama.cpp's greedy sampler does. The grammar accepts the token.
-fn greedy_under(logits: &[f32], grammar: Option<&mut LlamaSampler>) -> LlamaToken {
+/// Returns the token and whether the grammar overrode the model's choice (an end forced by the 160-character cap is a cut line).
+fn greedy_under(logits: &[f32], grammar: Option<&mut LlamaSampler>) -> (LlamaToken, bool) {
     let argmax = |it: &mut dyn Iterator<Item = (i32, f32)>| {
         it.fold((0, f32::NEG_INFINITY), |b, (i, l)| if l > b.1 { (i, l) } else { b }).0
     };
     let best = argmax(&mut logits.iter().enumerate().map(|(i, l)| (i as i32, *l)));
-    let Some(g) = grammar else { return LlamaToken(best) };
+    let Some(g) = grammar else { return (LlamaToken(best), false) };
     let mut one = LlamaTokenDataArray::new(vec![LlamaTokenData::new(LlamaToken(best), logits[best as usize], 0.0)], false);
     g.apply(&mut one);
     let tok = if one.data[0].logit().is_finite() {
@@ -123,7 +127,7 @@ fn greedy_under(logits: &[f32], grammar: Option<&mut LlamaSampler>) -> LlamaToke
         argmax(&mut all.data.iter().map(|d| (d.id().0, d.logit())))
     };
     g.accept(LlamaToken(tok));
-    LlamaToken(tok)
+    (LlamaToken(tok), tok != best)
 }
 
 struct Engine<'m> {
@@ -171,8 +175,9 @@ impl Engine<'_> {
         let (mut text, mut n, mut pos, mut finish, mut think_tag) = (String::new(), 0u32, toks.len() as i32, "length", false);
         let mut step = LlamaBatch::new(1, 1);
         while n < max_tokens {
-            let tok = greedy_under(self.ctx.get_logits_ith(if n == 0 { last } else { 0 }), grammar.as_mut());
-            if self.model.is_eog_token(tok) { finish = "stop"; break; }
+            let (tok, forced) = greedy_under(self.ctx.get_logits_ith(if n == 0 { last } else { 0 }), grammar.as_mut());
+            // an end the grammar forced (the model wanted to go on past the character cap) is a cut line: "length", as for the token limit
+            if self.model.is_eog_token(tok) { finish = if forced { "length" } else { "stop" }; break; }
             n += 1;
             let special = self.model.token_to_piece(tok, &mut encoding_rs::UTF_8.new_decoder(), true, None).unwrap_or_default();
             if special.contains("<think>") || special.contains("</think>") { think_tag = true; }
@@ -193,7 +198,7 @@ fn main() {
     let (sha, sha_src) = manifest_sha(&a.model, a.manifest.as_deref());
     let mut hello = json!({"hello": true, "protocol": PROTOCOL, "guided": true, "engine": "local model (llama.cpp, Metal) via local_probe",
         "model_file": name, "model_sha256": sha, "sha256_source": sha_src, "quant": quant_of(&name), "llama_cpp": LLAMA_CPP,
-        "n_ctx": a.ctx, "temperature": 0, "sampler": "greedy", "line_max_words": LINE_MAX_WORDS, "line_grammar": line_grammar(),
+        "n_ctx": a.ctx, "temperature": 0, "sampler": "greedy", "line_max_chars": LINE_MAX_CHARS, "line_grammar": line_grammar(),
         "chat_template": "the GGUF's own (tokenizer.chat_template), Jinja", "thinking": "off: enable_thinking=false (flag and template kwarg)",
         "os": std::process::Command::new("sw_vers").arg("-productVersion").output().ok()
             .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string()).unwrap_or_default()});
