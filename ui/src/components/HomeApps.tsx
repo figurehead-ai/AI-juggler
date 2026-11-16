@@ -15,6 +15,7 @@ import { AppIcon } from "./AppIcon";
 import { AppKindBadge } from "./AppKindBadge";
 import { appKindOfKey } from "../lib/app-kind";
 import { IconAlert } from "./icons";
+import { roomTone } from "../lib/attention";
 import { IconReplay } from "./icons-actions";
 import { ProfileBadge } from "./ProfileBadge";
 import { SectionTitle } from "./SectionTitle";
@@ -142,18 +143,18 @@ interface Rows {
 /** 0.4.1: a tile's account line and usage bar, the rows the cards in view
  * keep (an empty one keeps its height): one line, cut with the whole words
  * in its tooltip. */
-function AccountRows({ words, left, label, low, rows }: { words: string | null; left: number | null; label: string; low: boolean; rows: Rows }): JSX.Element | null {
+function AccountRows({ words, left, label, tone, rows }: { words: string | null; left: number | null; label: string; tone: ReturnType<typeof roomTone>; rows: Rows }): JSX.Element | null {
   if (!rows.words && !rows.bar) return null;
   return (
     <div className="flex flex-col gap-1" data-testid="home-app-account">
       {rows.words && (
-        <span className={"truncate text-meta " + (low ? "text-warning" : "text-muted")} title={words ?? undefined}>
+        <span className={"truncate text-meta " + (tone.level >= 2 ? tone.text : "text-muted")} title={words ?? undefined}>
           {words ?? "\u00a0"}
         </span>
       )}
       {left !== null ? (
         <div className="h-1.5 overflow-hidden rounded-full bg-surface-3" role="meter" aria-valuemin={0} aria-valuemax={100} aria-valuenow={left} aria-label={`${label}: ${words ?? ""}`}>
-          <div className={"h-full rounded-full " + (low ? "bg-warning" : "bg-accent")} style={{ width: `${left}%` }} />
+          <div className={"h-full rounded-full " + tone.bar} style={{ width: `${left}%` }} />
         </div>
       ) : rows.bar ? (
         <div className="h-1.5" aria-hidden="true" />
@@ -199,7 +200,8 @@ function Tile({ group, runway, kept, appId, rows, folder }: { group: RailGroup; 
   const place = group.place!;
   const needs = group.items.filter((item) => item.need !== null).length;
   const count = group.items.length;
-  const low = runway?.left !== null && runway?.left !== undefined && runway.left <= 25;
+  // D-126: amber only when its open sessions are on 10 % or less (L2).
+  const tone = roomTone(runway?.left ?? null, group.items.filter((item) => item.live).length);
   const name = [place.app, place.profile].filter(Boolean).join(" · ");
   return (
     <li className="@container flex h-full min-w-0 flex-col gap-3 rounded-card border border-hairline bg-surface p-4 shadow-card" data-testid="home-app-tile" data-place={place.key}>
@@ -250,7 +252,7 @@ function Tile({ group, runway, kept, appId, rows, folder }: { group: RailGroup; 
       <span className="flex empty:hidden">
         <ProfileRoomChip profileId={folder} testId="home-app-room" />
       </span>
-      <AccountRows words={runway?.words ?? null} left={runway?.left ?? null} label={name} low={low} rows={rows} />
+      <AccountRows words={runway?.words ?? null} left={runway?.left ?? null} label={name} tone={tone} rows={rows} />
       {/* The action on the left, what needs you on the right, on every card
           in the same place (0.4.1); "Open": the card names the app. */}
       <Actions needs={needs}>

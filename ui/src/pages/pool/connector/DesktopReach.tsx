@@ -4,6 +4,7 @@
  * long amber paragraph as many times as there were rows. The list says
  * it once ({@link DesktopListNote}); each row says only where it stands,
  * in a few words ({@link DesktopReachTag}): "Can talk", or "Watched".
+ * D-126: "Watched" is a plain fact, never amber (it waits on no one).
  */
 import type { JSX } from "react";
 
@@ -31,7 +32,7 @@ export function DesktopReachTag({ member, testId }: { member: string; testId: st
   if (!app || !status) return null;
   const can = isAdded(status.state);
   return (
-    <span className={"shrink-0 text-label font-medium " + (can ? "text-success" : "text-warning")} data-testid={testId} data-reach={can ? "talk" : "watched"}>
+    <span className={"shrink-0 text-label font-medium " + (can ? "text-success" : "text-muted")} data-testid={testId} data-reach={can ? "talk" : "watched"}>
       {can ? "Can talk" : "Watched"}
     </span>
   );

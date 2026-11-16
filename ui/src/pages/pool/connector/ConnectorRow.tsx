@@ -5,7 +5,8 @@
  * stands, "Watched: can't talk in the pool yet", with Add; Add opens the
  * consent card's own preview (the same files, the same "Add to …"), so
  * it's one component on both paths (the pool's inspector shows the full
- * card). Review keeps its warning as the backstop.
+ * card). Review keeps its warning as the backstop. D-126: where it stands
+ * is a fact (adding is the user's choice), so its words are ink, not amber.
  */
 import type { JSX, ReactNode } from "react";
 
@@ -45,7 +46,7 @@ export function ConnectorRowState({
   return (
     <div className="flex flex-col gap-1.5" data-testid={testId} data-state={status.state}>
       <p className="text-meta text-ink">
-        <span className="font-medium text-warning">Watched: can't talk in the pool yet.</span> <span data-testid={`${testId}-why`}>{why}</span>
+        <span className="font-medium text-ink">Watched: can't talk in the pool yet.</span> <span data-testid={`${testId}-why`}>{why}</span>
       </p>
       {can && (
         <span className="flex flex-wrap items-center gap-2">

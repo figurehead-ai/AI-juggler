@@ -3,6 +3,7 @@
  * line ("Creates ~/…/plugin.json"), its exact text in a fold under it —
  * and what Remove deletes, each file in a line, the ones someone changed
  * named as staying. The consent card's diff; nothing is written here.
+ * D-126: a file left alone is a fact, said in muted words, never amber.
  */
 import type { JSX } from "react";
 
@@ -16,7 +17,7 @@ export function ConnectorFiles({ files, testId }: { files: readonly ConnectorFil
     <ul className="flex flex-col gap-1.5" data-testid={`${testId}-files`}>
       {files.map((file) => (
         <li key={file.path} className="flex flex-col gap-0.5" data-action={file.action} data-testid={`${testId}-file`}>
-          <span className={"text-meta [overflow-wrap:anywhere] " + (file.action === "refuse" ? "text-warning" : "text-ink")}>{fileLine(file.action, file.path)}</span>
+          <span className={"text-meta [overflow-wrap:anywhere] " + (file.action === "refuse" ? "text-muted" : "text-ink")}>{fileLine(file.action, file.path)}</span>
           {file.action !== "same" && file.action !== "refuse" && (
             // Round 7: the app's Disclosure (a button), which an
             // accessibility press opens; a flex <summary> wasn't one.
@@ -40,7 +41,7 @@ export function RemoveFiles({ files, changed, anyway = false, testId }: { files:
   return (
     <ul className={"flex flex-col gap-1" + (anyway ? " list-disc pl-5" : "")} data-testid={`${testId}-remove-files`}>
       {files.map((path) => (
-        <li key={path} className={"text-meta [overflow-wrap:anywhere] " + (changed.includes(path) ? "text-warning" : "text-ink")} data-testid={`${testId}-remove-file`}>
+        <li key={path} className={"text-meta [overflow-wrap:anywhere] " + (changed.includes(path) ? "text-muted" : "text-ink")} data-testid={`${testId}-remove-file`}>
           {line(path)}
         </li>
       ))}

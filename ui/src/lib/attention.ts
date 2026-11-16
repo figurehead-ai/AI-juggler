@@ -142,6 +142,17 @@ export function highest(levels: Iterable<AttentionLevel>): AttentionLevel {
   return top;
 }
 
+/** D-126: a room meter's colour (Home's runway, an App's tile): amber
+ * only at L2, when a live session is on an Account at 10 % or less, red
+ * once one runs out; low room nothing live depends on is a fact (L1),
+ * in the accent like any other reading. */
+export function roomTone(left: number | null, liveSessions: number): { text: string; bar: string; level: AttentionLevel } {
+  const level = left === null ? 0 : attentionLevel({ need: "quota", left, liveSessions });
+  if (level === 3) return { text: "text-danger", bar: "bg-danger", level };
+  if (level === 2) return { text: "text-warning", bar: "bg-warning", level };
+  return { text: "text-ink", bar: "bg-accent", level };
+}
+
 /** An App's icon or mark tone (D-117, `.app-tone` in styles.css): muted
  * at rest, in full colour when `lit` (L2/L3, selected or current); a
  * `tone-host` around it lights it on hover and focus too. */

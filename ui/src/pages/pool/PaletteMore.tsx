@@ -4,7 +4,8 @@
  * (Watched until their app has AI Juggler's connector), Apps, Accounts,
  * Tools, Macs and everyone in scope (their sessions join by
  * themselves), and the sessions that can't join
- * yet, each with its reason in amber and the step that would let it in.
+ * yet, each with its reason and the step that would let it in (D-126: in
+ * muted words; a reason is a fact, never amber).
  */
 import { useState, type JSX } from "react";
 
@@ -111,7 +112,7 @@ export function PaletteMore({
               )}
             </span>
             {row.blocked && (
-              <span className="flex flex-wrap items-center gap-1.5 text-label text-warning">
+              <span className="flex flex-wrap items-center gap-1.5 text-label text-muted">
                 {row.blocked}
                 {row.fix && (
                   <button type="button" onClick={() => onFix(row)} className="font-medium text-accent-hi underline-offset-2 hover:underline">
