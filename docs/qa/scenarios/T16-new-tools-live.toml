@@ -85,6 +85,26 @@ tool = "muse-code"
 profile = "lab B"
 fresh = true
 
+# Hermes (AJ-E1607; D-123: the maintainer installs it himself). Its two
+# Apps join only with `lab_scenario.sh setup T16 --with-hermes`, or by
+# themselves once Hermes is installed (never on stand-ins unless asked);
+# until then nothing of Hermes is seeded or required (lab_sign_ins.py
+# reads <lab>/with-hermes). Its Sign in is `hermes model`, HERMES_HOME in
+# the App's folder.
+[[setup.optional_apps]]
+id = "hermes-a"
+tool = "hermes-agent"
+profile = "lab A"
+fresh = true
+with = "hermes"
+
+[[setup.optional_apps]]
+id = "hermes-b"
+tool = "hermes-agent"
+profile = "lab B"
+fresh = true
+with = "hermes"
+
 [[steps]]
 do = "Before anything: lab_sign_ins.py real --save, and muse-gate --save (Muse 1.4.13, its Keychain item's date)"
 expect = "The real homes' sign-in files and the Keychain item's date are recorded by name only; Muse is 1.4.13 (else Muse is skipped)"

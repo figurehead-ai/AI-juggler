@@ -14,6 +14,16 @@
 #   scripts/qa/lab_scenario.sh start-apps PL1 [--home …] # its running Claude app profiles, as Open starts them
 #   scripts/qa/lab_scenario.sh stop-apps PL1 [--home …]  # quits them (teardown does too)
 #   scripts/qa/lab_scenario.sh teardown P1 [--home …] [--force-abandon]
+#   scripts/qa/lab_scenario.sh setup T16 --standins [--with-hermes]   # a dry run on stand-ins
+#
+# --standins (T16's dry run, AJ-E1612): the stand-in tools
+# (scripts/qa/standins/) are put in <lab>/standins and Dev is pointed at
+# them by the adapters' test overrides (<lab>/standins/env.sh, sourced by
+# every command on that lab); nothing real is run or signed in.
+# --with-hermes / --no-hermes: T16's Hermes Apps (setup.optional_apps,
+# D-123) are seeded only with it; without either, only when Hermes is
+# installed (never on stand-ins unless asked). The choice is kept in
+# <lab>/with-hermes, which lab_sign_ins.py reads too.
 #
 # A sign-ins lab (T16) is torn down only once every tool's every run-sheet
 # step has a recorded result (`lab_sign_ins.py complete`); --force-abandon
@@ -33,16 +43,21 @@
 set -euo pipefail
 root="$(cd "$(dirname "$0")/../.." && pwd)"
 cmd="${1:-}"; id="${2:-}"
-[ -n "$cmd" ] && [ -n "$id" ] || { sed -n '2,21p' "$0"; exit 2; }
+[ -n "$cmd" ] && [ -n "$id" ] || { sed -n '2,31p' "$0"; exit 2; }
 shift 2
 lab="/tmp/aij-lab-$(echo "$id" | tr '[:upper:]' '[:lower:]')"
 import=0
 force_abandon=0
+standins=0
+hermes=auto
 while [ $# -gt 0 ]; do
   case "$1" in
     --home) lab="$2"; shift 2 ;;
     --import) import=1; shift ;;
     --force-abandon) force_abandon=1; shift ;;
+    --standins) standins=1; shift ;;
+    --with-hermes) hermes=1; shift ;;
+    --no-hermes) hermes=0; shift ;;
     *) echo "lab-scenario: unknown option $1" >&2; exit 2 ;;
   esac
 done
@@ -70,6 +85,12 @@ if [ "$lab_sign_ins" = 1 ]; then
 else
   features=()
 fi
+# A dry run's stand-ins (AJ-E1612): every command on that lab points Dev
+# and its seed at them (lab_env.sh passes the overrides on only into it).
+if [ -f "$lab/standins/env.sh" ]; then
+  # shellcheck source=/dev/null
+  . "$lab/standins/env.sh"
+fi
 
 case "$cmd" in
   setup)
@@ -94,6 +115,29 @@ case "$cmd" in
     fi
     mkdir -p "$data"
     python3 -I "$root/scripts/qa/scenario.py" seed "$id" > "$lab/scenario-seed.json"
+    if grep -q '"optional_apps"' "$lab/scenario-seed.json"; then
+      # T16's Hermes Apps (D-123): seeded with --with-hermes, or when
+      # Hermes is installed (on stand-ins, only when asked).
+      if [ "$hermes" = auto ]; then
+        hermes=0
+        if [ "$standins" = 0 ] && { command -v hermes >/dev/null 2>&1 || [ -x "$real_home/.local/bin/hermes" ]; }; then hermes=1; fi
+      fi
+      [ "$hermes" = 1 ] && : > "$lab/with-hermes"
+      python3 -I -c 'import json, sys
+path, wanted = sys.argv[1], sys.argv[2] == "1"
+seed = json.load(open(path))
+extra = seed.pop("optional_apps", [])
+seed["apps"] = seed.get("apps", []) + [dict((k, v) for k, v in app.items() if k != "with") for app in extra if wanted and app.get("with") == "hermes"]
+json.dump(seed, open(path, "w"), indent=2)' "$lab/scenario-seed.json" "$hermes"
+      echo "lab-scenario: Hermes Apps $([ "$hermes" = 1 ] && echo "seeded" || echo "left out (--with-hermes adds them)")"
+    fi
+    if [ "$standins" = 1 ]; then
+      # The dry run's stand-in tools, before the seed asks each adapter for
+      # its Sign in (the overrides decide which program that is).
+      python3 -I "$root/scripts/qa/standins/install.py" --lab "$lab" $([ "$hermes" = 1 ] && echo --with-hermes)
+      # shellcheck source=/dev/null
+      . "$lab/standins/env.sh"
+    fi
     if grep -q '"from"' "$lab/scenario-seed.json"; then
       # P9: the lab starts as a 0.3 data folder (schema v39), for 0.4 to
       # move on first open; seeding through 0.4 would move it already.
@@ -211,5 +255,5 @@ case "$cmd" in
     rm -rf "$lab"
     echo "lab-scenario: $lab removed; nothing of it runs"
     ;;
-  *) sed -n '2,21p' "$0"; exit 2 ;;
+  *) sed -n '2,31p' "$0"; exit 2 ;;
 esac
