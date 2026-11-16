@@ -25,7 +25,7 @@ if ! features --features dev-bridge | grep -qF "$on"; then
   exit 1
 fi
 release=(.github/workflows/build-macos.yml .github/workflows/nightly.yml .github/workflows/promote.yml)
-if grep -nE -- '--all-features|dev-bridge|lab-bridge' "${release[@]}"; then
+if grep -nE -- '--all-features|dev-bridge|lab-bridge|--profile[ =]walk' "${release[@]}"; then
   echo "dev-bridge: a release workflow turns the feature on" >&2
   exit 1
 fi
@@ -57,7 +57,9 @@ fi
 # release check, run on every shipped binary at signing, can see it).
 debug_agent="${CARGO_TARGET_DIR:-target}/debug/juggler-agent"
 if [[ "${1:-}" != "--quick" && -x "$debug_agent" ]]; then
-  if ! strings -a "$debug_agent" | grep -q AIJ_PROBE_V1; then
+  # grep reads the binary itself: `strings | grep -q` under pipefail fails
+  # when grep stops early and strings dies of SIGPIPE (flaky on a big binary).
+  if ! LC_ALL=C grep -aqF AIJ_PROBE_V1 "$debug_agent"; then
     echo "dev-bridge: the debug juggler-agent has no probe marker, so the release check can't see one" >&2
     exit 1
   fi
