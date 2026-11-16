@@ -674,3 +674,52 @@ fn a_line_between_a_cli_and_a_desktop_session_counts_and_its_own_rule_holds() {
     assert_eq!((back.rule.as_str(), back.own), ("allowed", false));
     assert!(lab.send(desk.as_str(), MEMBER, "s-cli", 5).is_ok());
 }
+
+/// Round 7 #7, the UI builder's follow-up: each node the canvas shows
+/// carries its anchor, the ref a talk rule is stored under (a session in
+/// a Work item: its Work item's, whatever brought it into the pool; a
+/// desktop session: its own ref), so a line's own rule is matched to its
+/// line without a member row.
+#[test]
+fn each_canvas_node_carries_the_ref_its_talk_rules_are_stored_under() {
+    use crate::features::pools::{canvas, model};
+    use juggler_core::model::{AccountId, Epoch, EpochId, HarnessId};
+
+    let lab = lab();
+    lab.attest();
+    let work = {
+        let storage = lab.state.storage.lock().unwrap();
+        let project = storage
+            .projects()
+            .ensure(&lab._dir.path().join("w"))
+            .unwrap();
+        let graph = storage.switch_graph();
+        let work = graph.create_work(&project.id, "Work").unwrap();
+        graph
+            .insert_epoch(&Epoch {
+                id: EpochId::new("ep-cli"),
+                work: work.id.clone(),
+                session_ref: Some(SessionId::new("s-cli")),
+                native_id: None,
+                account: AccountId::new("acc-cli"),
+                provider: HarnessId::new(juggler_adapters::CLAUDE_CODE_ID),
+                resumed_from_epoch: None,
+                machine: None,
+            })
+            .unwrap();
+        work.id
+    };
+    let drawn =
+        canvas::canvas_impl(&lab.state, &lab.pool, vec!["s-cli".into(), MEMBER.into()]).unwrap();
+    let cli = format!("work:{}", work.as_str());
+    assert_eq!(drawn.anchors.get("s-cli"), Some(&cli));
+    assert_eq!(drawn.anchors.get(MEMBER).map(String::as_str), Some(MEMBER));
+    // The line's own rule, set as the window sets it, is stored under
+    // exactly those two anchors.
+    let rules =
+        model::set_talk_impl(&lab.state, &lab.pool, "session:s-cli", MEMBER, Some("ask")).unwrap();
+    assert_eq!(
+        (rules.talk[0].from.as_str(), rules.talk[0].to.as_str()),
+        (cli.as_str(), MEMBER)
+    );
+}

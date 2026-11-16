@@ -304,6 +304,10 @@ pub fn canvas_impl(
         asks: node_asks,
         stream,
         since_ms: since,
+        anchors: session_ids
+            .iter()
+            .map(|id| (id.clone(), refs.anchor_of(id)))
+            .collect(),
     })
 }
 
