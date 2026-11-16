@@ -923,7 +923,7 @@
   "knip:exports": 1
  },
  "ui/src/components/palette/rows.ts": {
-  "knip:exports": 3
+  "knip:exports": 2
  },
  "ui/src/components/primitives.tsx": {
   "knip:exports": 1
