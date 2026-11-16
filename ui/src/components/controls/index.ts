@@ -11,6 +11,7 @@ export { Picker, type PickerOption } from "./Picker";
 export { Segmented, SEGMENTED_FRAME, type Segment, type SegmentedSize } from "./Segmented";
 export { Disclosure } from "./Disclosure";
 export { DateField } from "./DateField";
+export { TimeField } from "./TimeField";
 export { CheckRow, RowList, ToggleRow } from "./ControlRow";
 export { CheckCard, RadioCard, RadioCards } from "./RadioCard";
 export { CARD_FOCUS, CHOSEN_CARD, SELECTED, SELECTED_CARD, SELECTED_FILL } from "./selected";
