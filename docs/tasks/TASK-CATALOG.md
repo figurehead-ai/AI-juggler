@@ -240,6 +240,7 @@
 | AJ-E1907 | A task's session starts from a short pointer | E19-agent-tasks.md | P1 | S | AJ-E1902 |
 | AJ-E1613 | Antigravity on work plans | E16-more-tools.md | P2 | L | AJ-E1521 |
 | AJ-E1614 | Spot a running tool by more than its file name | E16-more-tools.md | P2 | S | AJ-E1602, AJ-E1604 |
+| AJ-E1615 | The sign-in surface: each App's own accessible name, the right provider, a fresh state on exit | E16-more-tools.md | P1 | S | AJ-E1612 |
 | AJ-E2001 | Sign and publish separately from the build | E20-engineering-and-security.md | P0 | L | — |
 | AJ-E2002 | Agent bridge security design | E20-engineering-and-security.md | P0 | M | — |
 | AJ-E2003 | Lock down the webview: command allowlist, capabilities, navigation | E20-engineering-and-security.md | P1 | M | — |
@@ -456,5 +457,5 @@
 | AJ-E3807 | The no-model panel: look-ups that need no AI, and the approved download offer | E38-chat.md | P1 | M | AJ-E3804, AJ-E3803 |
 | AJ-E3808 | Chat history: local, clearable, never off the Mac | E38-chat.md | P1 | S | AJ-E3804 |
 | AJ-E3809 | The newcomer walk: Chat v1 on a real Mac, by hand | E38-chat.md | P0 | M | AJ-E3804…AJ-E3808 |
-Total: 454 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
+Total: 455 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
 Status of every task at generation: TODO. The epic files are canonical; this catalog is an index, never edited to claim progress.

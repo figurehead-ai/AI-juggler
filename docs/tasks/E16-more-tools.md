@@ -212,6 +212,24 @@
 **Files to touch**: `crates/juggler-adapters/src/opencode.rs`, `grok_build.rs`.
 **Handover note**: —
 
+### AJ-E1615 The sign-in surface: each App's own accessible name, the right provider, a fresh state on exit | Status: IN-PROGRESS (found 2026-11-16 by the AJ-E1612 sitting-2 dry run, `docs/qa/evidence/AJ-E1612/dry-run.md`; also on release/0.4.6: findings 1 and 2 are in 0.4.6's code and the 0.4.6 session cherry-picks the fixes there) | Priority P1 | Effort S | Depends: AJ-E1612
+**Goal**: The sign-in row, its button and its terminal belong to one App, name the right provider, and leave Home correct when the sign-in ends.
+**User story**: As a user with two Apps of the same label, or an assistive-tech user, I start the sign-in of the App I mean, and Home stops asking once I have signed in.
+**Findings**:
+1. Home's Needs-you sign-in row is titled `<App label> needs its sign-in`, and its Sign in button's accessible name repeats it. Two Apps with the same label (the lab's "lab A" in every tool; a user's two "Personal") give identical names. The buttons also sit outside their rows' groups in the accessibility tree. An assistive-tech user, or a driver matching by name, can start the wrong App's sign-in (the dry run started Kimi's instead of OpenCode's). A pointer click hits the right row.
+2. The sign-in terminal's footer says "Complete Anthropic's sign-in above…" for every tool (`ui/src/screens/WorkPanels.tsx`).
+3. After a sign-in finished, Home still listed the App as needing its sign-in. Its state isn't re-read when the sign-in terminal exits.
+**Requirements**:
+1. Each sign-in row SHALL be one group or list item whose accessible name includes the App's tool, and its Sign in button SHALL be inside it, with an accessible name unique per App.
+2. The sign-in terminal's footer SHALL name the App's own provider, taken from its adapter, for every tool.
+3. When a Sign in terminal's process exits, that App's sign-in state SHALL be re-read at once through the existing event path, and Home and the rail SHALL update.
+4. Role-query tests SHALL cover each of the above, and the a11y gate SHALL run on the touched screens.
+**UI/UX reasoning**: Visible text stays short and calm (D-117); the unique name is for assistive tech and drivers, not extra words on screen.
+**Quality gates**: the role-query tests above; the a11y gate on Home and the sign-in terminal.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E1615/manifest.md`.
+**Files to touch**: `ui/src/screens/WorkPanels.tsx`, Home's Needs-you row, the sign-in terminal's exit event path.
+**Handover note**: —
+
 ### AJ-E1610 Desktop apps: open, keep alive, focus, and reply where a route exists | Status: IN-PROGRESS (built 2026-11-15 on fixtures: one table of the AI desktop apps in `juggler-adapters` (`desktop_apps.json`), each found by its bundle or bundle id (Kimi Code by its own folder), offered when seen running, opened, kept alive and focused as every App; only documented or live-checked links are sent, the Claude app's `code/continue` and `needs-input` declared unverified; replies only through Hermes' gateway; each track-only part says why on the App page; Antigravity's consumer plans never driven; every live part pending AJ-E1612) | Priority P1 | Effort M | Depends: AJ-E413, AJ-E414
 **Goal**: Every AI desktop app on the Mac shows up in AI Juggler as an App, opens, stays alive and comes into focus like every other App, and takes replies and shows its sessions wherever a sanctioned route exists (D-105, D-66, D-106).
 **User story**: As a user with the Claude app, Cursor, Kiro IDE and Antigravity open, I see them in This Mac and the rail, open or keep each one running, jump to the right window, and answer their sessions from AI Juggler where the app allows it.
