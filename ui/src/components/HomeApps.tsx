@@ -313,7 +313,9 @@ export function HomeApps({ items, accounts = NO_ACCOUNTS, strip = false }: { ite
           <>
             <p className="px-2 pt-1 text-label text-muted" data-testid="home-apps-down">Not running</p>
             <ul className="flex flex-col">
-              {closed.map((row) => ("place" in row ? <KeptRow key={row.place.id} place={row.place} /> : <CliRow key={row.app.id} app={row.app} />))}
+              {closed.map((row) =>
+                "app" in row ? <CliRow key={row.app.id} app={row.app} /> : <KeptRow key={row.place.id} place={row.place} />,
+              )}
             </ul>
           </>
         )}
