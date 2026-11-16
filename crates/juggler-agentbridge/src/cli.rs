@@ -17,6 +17,9 @@ use crate::wire::{
 /// The app, reached with this process's own key.
 pub struct App {
     target: Result<Target, CallError>,
+    /// AJ-E3013 (the lab's start race): the connector's calls until one
+    /// gets an answer other than "not attested".
+    unsettled: bool,
 }
 
 impl App {
@@ -25,6 +28,7 @@ impl App {
     pub fn from_env() -> Self {
         Self {
             target: Target::from_env(),
+            unsettled: false,
         }
     }
 
@@ -33,13 +37,63 @@ impl App {
     pub fn for_connector() -> Self {
         Self {
             target: Target::for_connector(),
+            unsettled: true,
         }
     }
 }
 
 impl Backend for App {
     fn call(&mut self, what: Call, args: Args) -> Result<Value, CallError> {
-        call(self.target.as_ref().map_err(Clone::clone)?, what, args)
+        let target = self.target.as_ref().map_err(Clone::clone)?;
+        if !self.unsettled {
+            return call(target, what, args);
+        }
+        let outcome = until_attested(
+            || call(target, what, args.clone()),
+            &std::thread::sleep,
+            START_RACE,
+            START_RETRY_EVERY,
+        );
+        if !matches!(outcome, Err(CallError::Refused(Refusal::Unattested, _))) {
+            self.unsettled = false;
+        }
+        outcome
+    }
+}
+
+/// AJ-E3013 (the lab's start race, 2026-11-15): a Code-tab session's
+/// first call can come before Claude Code and the Claude app have written
+/// the records it's attested by (its registry entry, the app's session
+/// record), seconds after it starts. Until a first call is answered, a
+/// "not attested" is asked again for this long; after that, and once one
+/// call was answered, a refusal stands (fail closed).
+pub const START_RACE: std::time::Duration = std::time::Duration::from_secs(10);
+
+/// How often the first call is asked again within [`START_RACE`].
+pub const START_RETRY_EVERY: std::time::Duration = std::time::Duration::from_secs(1);
+
+/// `once` until it's answered with anything but "not attested", asking
+/// again every `every` (`sleep` waits) for at most `budget`; then its
+/// last answer, whatever it is.
+///
+/// # Errors
+///
+/// The last answer's, when it's one.
+pub fn until_attested(
+    mut once: impl FnMut() -> Result<Value, CallError>,
+    sleep: &dyn Fn(std::time::Duration),
+    budget: std::time::Duration,
+    every: std::time::Duration,
+) -> Result<Value, CallError> {
+    let mut waited = std::time::Duration::ZERO;
+    loop {
+        match once() {
+            Err(CallError::Refused(Refusal::Unattested, _)) if waited + every <= budget => {
+                sleep(every);
+                waited += every;
+            }
+            answered => return answered,
+        }
     }
 }
 
@@ -362,10 +416,10 @@ pub fn exit_code(outcome: &Result<Value, CallError>) -> u8 {
 
 #[cfg(test)]
 mod tests {
-    use super::{Command, call_of, parse, serve};
+    use super::{Command, START_RACE, START_RETRY_EVERY, call_of, parse, serve, until_attested};
     use crate::client::CallError;
     use crate::mcp::Backend;
-    use crate::wire::{Args, Call};
+    use crate::wire::{Args, Call, Refusal};
     use serde_json::{Value, json};
 
     fn words(line: &str) -> Vec<String> {
@@ -441,5 +495,63 @@ mod tests {
         serve(input.as_bytes(), &mut out, &mut Echo).unwrap();
         let out = String::from_utf8(out).unwrap();
         assert_eq!(out.lines().count(), 2, "{out}");
+    }
+
+    /// AJ-E3013 (the lab's start race): a first call refused as "not
+    /// attested" is asked again, every second for at most ten; an answer
+    /// ends it; past the budget the refusal stands.
+    #[test]
+    fn a_first_call_is_asked_again_through_the_start_race_and_no_longer() {
+        use std::cell::Cell;
+        use std::time::Duration;
+        let unattested = || Err(CallError::Refused(Refusal::Unattested, "not yet".into()));
+        let slept = Cell::new(Duration::ZERO);
+        let sleep = |d: Duration| slept.set(slept.get() + d);
+        let asked = Cell::new(0);
+        let answer = until_attested(
+            || {
+                asked.set(asked.get() + 1);
+                if asked.get() < 4 {
+                    unattested()
+                } else {
+                    Ok(serde_json::json!({"session_id": "desktop:f/c"}))
+                }
+            },
+            &sleep,
+            START_RACE,
+            START_RETRY_EVERY,
+        );
+        assert!(answer.is_ok(), "attested on the fourth ask");
+        assert_eq!((asked.get(), slept.get()), (4, Duration::from_secs(3)));
+        let asked = Cell::new(0);
+        slept.set(Duration::ZERO);
+        let refused = until_attested(
+            || {
+                asked.set(asked.get() + 1);
+                unattested()
+            },
+            &sleep,
+            START_RACE,
+            START_RETRY_EVERY,
+        );
+        assert!(matches!(
+            refused,
+            Err(CallError::Refused(Refusal::Unattested, _))
+        ));
+        assert_eq!(asked.get(), 11, "the first and ten more, then it stands");
+        assert_eq!(slept.get(), START_RACE);
+        // Any other refusal is the answer at once.
+        let asked = Cell::new(0);
+        let denied = until_attested(
+            || {
+                asked.set(asked.get() + 1);
+                Err(CallError::Refused(Refusal::Deny, "in no pool".into()))
+            },
+            &sleep,
+            START_RACE,
+            START_RETRY_EVERY,
+        );
+        assert!(matches!(denied, Err(CallError::Refused(Refusal::Deny, _))));
+        assert_eq!(asked.get(), 1);
     }
 }
