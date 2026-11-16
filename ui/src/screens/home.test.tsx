@@ -180,7 +180,7 @@ describe("D-25 Home — the screen", () => {
     const view = renderHome([mk("w", { status: "waiting_user" }), mk("r")], [...ACCOUNTS, folderFixture({ id: "out", label: "Spare", login_state: "signed_out" })]);
     await waitFor(() => expect(view.getByTestId("home-heading").textContent).toBe("1 session and 1 more thing need you"));
     const extras = view.getByTestId("home-extras");
-    const link = within(extras).getByRole("button", { name: "Spare needs its sign-in" });
+    const link = within(extras).getByRole("button", { name: "Claude Code CLI · Spare needs its sign-in" });
     fireEvent.click(link);
     await waitFor(() => expect(document.activeElement?.closest("[data-need-key='signin:out']")).not.toBeNull());
   });

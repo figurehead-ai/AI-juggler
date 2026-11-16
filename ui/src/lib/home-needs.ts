@@ -9,6 +9,7 @@ import { attentionLevel, counted, itemLevel, type AttentionLevel } from "./atten
 import type { AccountInfo } from "../types/generated/AccountInfo";
 import { placeWords, type RailItem } from "./rail-items";
 import type { ConversationInfo } from "./ipc/conversations";
+import { cliAppName } from "./app-name";
 
 export type HomeNeedKind = "session" | "limit" | "failed" | "signin" | "mac" | "heavy" | "leftovers" | "quota";
 
@@ -145,10 +146,36 @@ export function primaryWords(need: HomeNeed): string {
   }
 }
 
+/** The App a sign-in is for, by its full name ("Kimi Code CLI · lab A",
+ * its tool's name from its adapter), when the need knows its App. */
+function signInApp(need: Pick<HomeNeed, "kind" | "account">): string | null {
+  return need.kind === "signin" && need.account ? cliAppName(need.account.provider, need.account.label) : null;
+}
+
+/** A need's name for assistive tech (AJ-E1612): its row's group, so each
+ * row is told apart. A sign-in names its App in full ("Kimi Code CLI ·
+ * lab A needs its sign-in"), where the visible title stays short ("lab A
+ * needs its sign-in": several tools' Apps may share that label). */
+export function needName(need: Pick<HomeNeed, "kind" | "account" | "title">): string {
+  const app = signInApp(need);
+  return app ? `${app} needs its sign-in` : need.title;
+}
+
+/** The primary's accessible name, its visible words first, so every
+ * row's button is its own: "Sign in to Kimi Code CLI · lab A", else
+ * "<its words> — <its title>". */
+export function primaryName(need: HomeNeed): string {
+  const app = signInApp(need);
+  return app ? `${primaryWords(need)} to ${app}` : `${primaryWords(need)} — ${need.title}`;
+}
+
 /** One of the heading's "more things", by name, and where its row is. */
 export interface HeadlineExtra {
   key: string;
   words: string;
+  /** Its name for assistive tech, when its words alone don't tell it
+   * apart (a sign-in's App, `needName`). */
+  name?: string;
   /** The row it opens to on Home (a CSS selector inside Needs you). */
   target: string;
 }
@@ -165,7 +192,7 @@ const EXTRAS_SHOWN = 3;
  */
 export function headlineExtras(needs: HomeNeed[], more: { caps: string[]; messages: number; tasks: number }): HeadlineExtra[] {
   const all: HeadlineExtra[] = [
-    ...needs.filter((need) => !isSessionNeed(need)).map((need) => ({ key: need.key, words: need.title, target: `[data-need-key="${CSS.escape(need.key)}"]` })),
+    ...needs.filter((need) => !isSessionNeed(need)).map((need) => ({ key: need.key, words: need.title, ...(needName(need) === need.title ? {} : { name: needName(need) }), target: `[data-need-key="${CSS.escape(need.key)}"]` })),
     ...more.caps.map((words, index) => ({ key: `cap:${index}`, words, target: `[data-testid="home-cap"]:nth-of-type(${index + 1})` })),
     ...(more.messages > 0 ? [{ key: "messages", words: more.messages === 1 ? "1 message from an agent" : `${more.messages} messages from agents`, target: '[data-testid="message-needs"]' }] : []),
     ...(more.tasks > 0 ? [{ key: "tasks", words: more.tasks === 1 ? "1 task waits on you" : `${more.tasks} tasks wait on you`, target: '[data-testid="task-needs"]' }] : []),

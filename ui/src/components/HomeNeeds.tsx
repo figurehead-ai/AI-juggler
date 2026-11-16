@@ -13,7 +13,7 @@ import { useEffect, useState, type JSX, type ReactNode } from "react";
 import { Button } from "./primitives";
 import { useActionHost, useItemMenu } from "./ItemMenu";
 import { PlaceMark } from "./PlaceMarks";
-import { homeNeedLevel, primaryWords, type HomeNeed } from "../lib/home-needs";
+import { homeNeedLevel, needName, primaryName, primaryWords, type HomeNeed } from "../lib/home-needs";
 import { needWord } from "./PlaceRows";
 import { markSeen } from "../lib/seen";
 import { focusHandoverSoon } from "../lib/handover-focus";
@@ -215,7 +215,7 @@ export function HomeNeeds({
         <MessageNeeds needs={messages} />
         <TaskNeeds needs={tasks.needs} projects={tasks.projects} />
         {first ? (
-          <NeedBox need={first} tag="div" className="flex flex-col gap-3" data={{ "data-home-item": "", "data-testid": `home-need-${first.kind}`, "data-first": "true", "data-kind": first.kind, ...rowData(first) }}>
+          <NeedBox need={first} tag="div" className="flex flex-col gap-3" data={{ role: "group", "aria-label": needName(first), "data-home-item": "", "data-testid": `home-need-${first.kind}`, "data-first": "true", "data-kind": first.kind, ...rowData(first) }}>
             {(goTo) => (
             <>
             <div className="flex min-w-0 items-start gap-3">
@@ -241,10 +241,9 @@ export function HomeNeeds({
             </div>
             {bubble}
             <div className="flex flex-wrap items-center gap-2">
-              <Button size="sm" variant="primary" data-home-row aria-keyshortcuts="Enter" onClick={() => run(first)}>
+              <Button size="sm" variant="primary" data-home-row aria-keyshortcuts="Enter" aria-label={primaryName(first)} onClick={() => run(first)}>
                 {primaryWords(first)}
                 <span aria-hidden="true" className="opacity-80">↵</span>
-                <span className="sr-only"> — {first.title}</span>
               </Button>
               {goTo}
               {secondWords(first) && (
@@ -265,7 +264,7 @@ export function HomeNeeds({
         {rest.length > 0 && (
           <ul className="flex flex-col gap-1">
             {rest.map((need) => (
-              <NeedBox key={need.key} need={need} tag="li" data={{ "data-home-item": "", "data-kind": need.kind, "data-testid": `home-need-${need.kind}`, ...rowData(need) }} className="flex min-w-0 items-center gap-2.5 py-1.5">
+              <NeedBox key={need.key} need={need} tag="li" data={{ "aria-label": needName(need), "data-home-item": "", "data-kind": need.kind, "data-testid": `home-need-${need.kind}`, ...rowData(need) }} className="flex min-w-0 items-center gap-2.5 py-1.5">
                 {(goTo) => (
                 <>
                 <Mark need={need} size={24} />
@@ -273,9 +272,8 @@ export function HomeNeeds({
                   <span className="truncate text-meta font-medium text-ink">{need.title}</span>
                   <span className="truncate text-label text-muted" title={need.detail} data-testid="need-line">{need.item ? [needWord(need.item), waitLine(need.item, now), need.detail].filter(Boolean).join(" · ") : need.detail}</span>
                 </span>
-                <Button size="sm" variant="secondary" data-home-row aria-keyshortcuts={actionKeys.aria} onClick={() => run(need)}>
+                <Button size="sm" variant="secondary" data-home-row aria-keyshortcuts={actionKeys.aria} aria-label={primaryName(need)} onClick={() => run(need)}>
                   {primaryWords(need)}
-                  <span className="sr-only"> — {need.title}</span>
                 </Button>
                 {goTo}
                 </>
