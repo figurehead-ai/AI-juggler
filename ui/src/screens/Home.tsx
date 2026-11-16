@@ -150,8 +150,7 @@ export function HomeScreen({
   /** AJ-E1528: the This Mac page. */
   onOpenThisMac?: () => void;
 } & Pick<HomeCardContext, "onSearch">): JSX.Element {
-  // AJ-E813: the level alone, so a 5 s reading at the same level draws nothing.
-  const macLevel = useMachineLevel(given);
+  const macLevel = useMachineLevel(given); // AJ-E813: the level alone
   const actionKeys = useKeys("home-action");
   // 0.0.11 walk (Q3): a tool without a limits feed says so in its row.
   // The runways kept from the last read (any screen's) show at once; read
