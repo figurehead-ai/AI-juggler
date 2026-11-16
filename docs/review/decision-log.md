@@ -3358,3 +3358,4 @@ The design that follows from it:
 4. **Scope:** this answer covers this one check. Any other use of the maintainer's transcripts needs a fresh yes (ADR-0033).
 
 - Sources: the maintainer's answer to the coordinating session's question, 2026-11-16.
+- **Amended 2026-11-16 (the maintainer's answer, "Keep for both checks"):** after Apple's model failed the blind review (ADR-0033, 855a92ee9: B doesn't ship on it), the redacted real-message set may be kept and used for two checks: A's excerpt-rule check (AJ-E3708 Req. 6d) and the downloadable-model (local tier) B check. It's still not used for tuning. The same rules apply: redacted, local, read only by the Claude sessions doing these checks. The folder is deleted once both results are recorded.
