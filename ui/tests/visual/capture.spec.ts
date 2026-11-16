@@ -5107,6 +5107,12 @@ for (const theme of THEMES) {
       const stream = await shownIds("feed-card");
       expect((await shownIds("feed-digest-item")).filter((id) => stream.includes(id))).toEqual([]);
       await page.getByTestId("feed-away").scrollIntoViewIfNeeded();
+      if (vp.name === "1440x900") {
+        // The digest is in view at once: the feed column isn't scrolled, so
+        // the pinned zone shows with its label and no scrolled-edge rule.
+        await expect(page.getByTestId("home-main")).not.toHaveAttribute("data-scrolled");
+        await expect(page.getByTestId("home-needs-now-fold")).toBeInViewport();
+      }
       await page.screenshot({ path: resolve(GALLERY, `54-summary/home-${vp.name}-${theme}.png`) });
       await page.getByTestId("feed-digest-item").first().click();
       await expect(page.getByTestId("page-header")).toBeVisible(); // AJ-E1533: the item's page

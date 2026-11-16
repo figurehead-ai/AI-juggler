@@ -170,6 +170,9 @@ for (const theme of ["dark", "light"] as const) {
     await seed(page, allStatuses, theme, { width: 1280, height: 800 }, { feed: digestFeed(T0), summary: away(T0, 9) });
     await expect(page.getByTestId("feed-away")).toBeVisible();
     await expectNoTwice(page);
+    // The pinned zone shows, so its label does (the 54-summary state).
+    await expect(page.getByTestId("home-needs-now-section")).toBeVisible();
+    await expect(page.getByTestId("home-needs-now-fold")).toBeInViewport({ ratio: 1 });
     // Back as Home opened: the night is the digest's, the older one under it.
     await expect(page.getByTestId("feed-card")).toHaveCount(1);
     await page.getByTestId("feed-away").scrollIntoViewIfNeeded();
@@ -205,6 +208,12 @@ for (const size of [{ width: 1024, height: 680 }, { width: 1280, height: 800 }])
           sideFirst: box(at("home-side")).top,
         };
       });
+    // At rest the feed column isn't scrolled: the pinned zone shows under
+    // its label, with no scrolled-edge rule over it (the 54-summary capture
+    // of CI run 43857640404 had the column scrolled 36 px by its own
+    // scrollIntoViewIfNeeded, the label above the view and the rule showing).
+    await expect(page.getByTestId("home-main")).not.toHaveAttribute("data-scrolled");
+    await expect(page.getByTestId("home-needs-now-fold")).toBeInViewport({ ratio: 1 });
     const before = await boxes();
     expect(before.outer.scroll, "the page has no scroll of its own").toBe(before.outer.client);
     expect(Math.abs(before.main.bottom - before.foot), "the feed column reaches the work area's foot").toBeLessThanOrEqual(1);
