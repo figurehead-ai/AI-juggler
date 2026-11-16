@@ -10,8 +10,10 @@ real profile. Runbook: docs/qa/evidence/AJ-E3013/c2-runbook.md.
 Run it with the standard library only: `python3 -I scripts/qa/c2_probe.py STEP`
 
     stage      make the lab (0700), pin the probe binary, write config.toml,
-               record ~/.codex's names and dates as the baseline
+               record the names, sizes and dates of ~/.codex and of
+               ~/Library/Application Support/Codex as the baseline
     status     what is staged; signed in or not (by file name only)
+    features   `codex features list` on the lab: anything on beyond 0.163's
     dry        one app-server: start, initialize, thread/list,
                mcpServerStatus/list, stop; ps and lsof evidence
     preflight  no model, no sign-in: two threads, the probe called directly
@@ -22,7 +24,15 @@ Run it with the standard library only: `python3 -I scripts/qa/c2_probe.py STEP`
     run        C2 and C3 with the model (needs the sign-in): two threads each
                asked to call the probe, then one asked to run --probe-shell
     reap       stop anything the lab left running
-    selftest   the config check and the --probe-shell match, no codex run
+    compare    two report .json files (one per codex version) side by side
+    selftest   the checks, the listings, lsof's reading, the guard, --codex,
+               the stop-at-once (on a bounded sleep), no codex run
+
+`--codex` picks the binary: /opt/homebrew/bin/codex (default), or the
+ChatGPT app's bundled CLI run in place, read-only, through its own wrapper
+(Contents/Resources/codex-cli/bin/codex: pinned by sha256, it sets no
+environment and execs ../CodexCLI.app/Contents/MacOS/codex; the bundle's
+`pathDir` goes first on PATH). Never a copy, and the app is never launched.
 
 Every step that runs codex (stage's --version too) refuses a lab config.toml
 that doesn't set every REQUIRED key (the sign-in as a file; plugins, remote
@@ -32,9 +42,12 @@ missing key; and it refuses when CODEX_HOME names another folder, when
 ~/.codex differs from the staged baseline (names and dates only; nothing in
 it is ever opened), or when another Codex is running; it runs codex with a
 small environment and inside a macOS sandbox that denies every read and
-write under ~/.codex (`--no-guard` drops only that sandbox), checks the
-server's own `codexHome`, samples ps and lsof while it runs, compares
-~/.codex afterwards, and reaps every process it started. It never reads
+write under ~/.codex and ~/Library/Application Support/Codex and any write
+inside the ChatGPT app (`--no-guard` drops only that sandbox), checks the
+server's own `codexHome`, samples ps and lsof while it runs (and stops the
+whole tree at once on a file open under ~/.codex, the app's Codex data or
+~/Library/Keychains, or on an internet socket in a step that expects none),
+compares both listings afterwards, and reaps every process it started. It never reads
 auth.json, a token or the Keychain; the sign-in is stored in the lab's own
 auth.json (`cli_auth_credentials_store = "file"`).
 """
@@ -65,17 +78,39 @@ EVIDENCE = LAB / "evidence"
 BIN = LAB / "bin"
 AGENT = BIN / "juggler-agent"
 PROBE_OUT = LAB / "probe.jsonl"
-BASELINE = EVIDENCE / "codex-dir-baseline.json"
+BASELINE = EVIDENCE / "guarded-baseline.json"
+OLD_BASELINE = EVIDENCE / "codex-dir-baseline.json"  # the first stage's, ~/.codex only
 GROUPS = EVIDENCE / "process-groups.txt"
-CODEX = Path("/opt/homebrew/bin/codex")
 HOME = Path.home()
 REAL_CODEX_DIR = HOME / ".codex"
+APP_SUPPORT_CODEX = HOME / "Library/Application Support/Codex"  # the ChatGPT app's Codex data
+KEYCHAINS = HOME / "Library/Keychains"
+# Listed before and after every codex step (names, sizes, dates; never a
+# file's content), and denied to the whole codex tree by the guard.
+LISTED = (("~/.codex", REAL_CODEX_DIR), ("~/Library/Application Support/Codex", APP_SUPPORT_CODEX))
+# Nothing of the codex tree may have a file open under these (lsof).
+GUARDED = LISTED + (("~/Library/Keychains", KEYCHAINS),)
+HOMEBREW_CODEX = Path("/opt/homebrew/bin/codex")
+APP_BUNDLE = Path("/Applications/ChatGPT.app")
+# The app's bundled CLI, run in place through its own wrapper, read-only:
+# never copied or changed, and the app itself is never launched. The
+# wrapper as read on 2026-11-16 (328 bytes, sha256 below) sets no
+# environment: it resolves its own links and runs
+# `exec "$bin_dir/../CodexCLI.app/Contents/MacOS/codex" "$@"`. Another
+# wrapper is refused until it is read again.
+BUNDLED_WRAPPER = APP_BUNDLE / "Contents/Resources/codex-cli/bin/codex"
+BUNDLED_TARGET = APP_BUNDLE / "Contents/Resources/codex-cli/CodexCLI.app/Contents/MacOS/codex"
+BUNDLED_WRAPPER_SHA256 = "50ab38ba21d0d9f8346f32f41848382f15b556190f3c7a07e885a4fb73e379c8"
+CODEX = HOMEBREW_CODEX  # --codex
 AGENT_SOURCE = HOME / "Dev/AIJuggler-shared-target/feed/debug/juggler-agent"
 # Read for its version only; nothing in the ChatGPT app is ever run.
 APP_CODEX_PACKAGE = Path(
     "/Applications/ChatGPT.app/Contents/Resources/codex-cli/codex-package.json"
 )
 MARKER = b"AIJ_PROBE_V1"
+# What a probe build must hold to be pinned: this commit's probe (nested
+# _meta, the sandboxed chain), not an older one another worktree built.
+PROBE_NEEDS = (MARKER, b"meta_nested", b"(ps can't run here)")
 SERVER = "juggler-probe"
 CLIENT = {"name": "ai_juggler_lab", "title": "AI Juggler lab probe C2", "version": "1"}
 LOGIN_CAP_S = 15 * 60
@@ -307,12 +342,54 @@ def has_auth_file() -> bool:
         return False
 
 
+IDENTITY: dict = {}
+
+
+def codex_identity() -> dict:
+    """Which codex this run uses (`--codex`), checked once: the homebrew
+    CLI, or the ChatGPT app's bundled CLI through its pinned wrapper. The
+    bundle's own `codex-package.json` names a `pathDir` (its `rg`), which
+    the app presumably puts on PATH: it is put first on PATH here too."""
+    if IDENTITY.get("path") == str(CODEX):
+        return IDENTITY
+    chosen = Path(os.path.abspath(CODEX))
+    if chosen == HOMEBREW_CODEX:
+        if not os.access(chosen, os.X_OK):
+            raise Refused(f"{chosen} isn't there or can't run")
+        found = {"kind": "homebrew", "path": str(chosen), "runs": real(chosen), "path_dir": None}
+    elif chosen == BUNDLED_WRAPPER:
+        if not BUNDLED_WRAPPER.is_file() or not os.access(BUNDLED_TARGET, os.X_OK):
+            raise Refused("the ChatGPT app's bundled codex isn't there")
+        digest = sha256(BUNDLED_WRAPPER)
+        if digest != BUNDLED_WRAPPER_SHA256:
+            raise Refused(
+                f"the bundled wrapper changed (sha256 {digest}, read {BUNDLED_WRAPPER_SHA256[:16]}…): "
+                "read it again, and what environment it sets, before running it"
+            )
+        package = json.loads(APP_CODEX_PACKAGE.read_text())
+        name = package.get("pathDir")
+        folder = APP_CODEX_PACKAGE.parent / name if isinstance(name, str) else None
+        plain = isinstance(name, str) and re.fullmatch(r"[A-Za-z0-9_-][A-Za-z0-9._-]*", name)
+        found = {
+            "kind": "bundled",
+            "path": str(chosen),
+            "runs": str(BUNDLED_TARGET),
+            "package_version": package.get("version"),
+            "path_dir": str(folder) if plain and folder.is_dir() else None,
+        }
+    else:
+        raise Refused(f"--codex takes {HOMEBREW_CODEX} or {BUNDLED_WRAPPER}, not {chosen}")
+    IDENTITY.clear()
+    IDENTITY.update(found)
+    return IDENTITY
+
+
 def codex_version() -> str:
-    out = subprocess.run(
-        guarded([str(CODEX), "--version"], True), env=child_env(), cwd=WORK,
-        capture_output=True, text=True, timeout=30, check=False,
-    )
-    return out.stdout.strip() or out.stderr.strip()
+    """`codex --version`, in the guard and watched like everything else."""
+    _, out, err, watched = run_watched(guarded([str(CODEX), "--version"], True), stop_on_net=True)
+    if watched["alarm"]:
+        raise Refused("STOPPED AT ONCE, `codex --version` touched outside the lab: " + "; ".join(watched["alarm"]))
+    return out.strip() or err.strip()
 
 
 def app_codex_version() -> str:
@@ -322,27 +399,33 @@ def app_codex_version() -> str:
         return "not installed"
 
 
-# ----------------------------------------------------------- ~/.codex, by names
+# ------------------------------------- ~/.codex and the app's data, by names
 
 
-def codex_dir_snapshot() -> dict:
-    """~/.codex's names and modification dates (never a file's content)."""
-    top = []
+def folder_snapshot(folder: Path) -> dict:
+    """A folder's names, sizes and modification dates, every entry, links
+    not followed (never a file's content)."""
     try:
-        entries = sorted(os.scandir(REAL_CODEX_DIR), key=lambda e: e.name)
+        entries = sorted(os.scandir(folder), key=lambda e: e.name)
     except FileNotFoundError:
-        return {"exists": False, "top": [], "deep": {}, "deep_sha256": ""}
+        return {"exists": False, "top": [], "deep": {}, "deep_sha256": "", "entries": 0}
+    top = []
     for entry in entries:
-        meta = entry.stat(follow_symlinks=False)
-        top.append([entry.name, meta.st_mtime_ns])
-    deep = {".": os.lstat(REAL_CODEX_DIR).st_mtime_ns}
-    for folder, dirs, files in os.walk(REAL_CODEX_DIR, followlinks=False):
+        try:
+            meta = entry.stat(follow_symlinks=False)
+        except OSError:
+            continue
+        top.append([entry.name, meta.st_mtime_ns, meta.st_size])
+    root = os.lstat(folder)
+    deep = {".": [root.st_mtime_ns, root.st_size]}
+    for parent, dirs, files in os.walk(folder, followlinks=False):
         for name in dirs + files:
-            path = os.path.join(folder, name)
+            path = os.path.join(parent, name)
             try:
-                deep[os.path.relpath(path, REAL_CODEX_DIR)] = os.lstat(path).st_mtime_ns
-            except FileNotFoundError:
+                meta = os.lstat(path)
+            except OSError:
                 continue
+            deep[os.path.relpath(path, folder)] = [meta.st_mtime_ns, meta.st_size]
     blob = json.dumps(sorted(deep.items())).encode()
     return {
         "exists": True,
@@ -353,16 +436,23 @@ def codex_dir_snapshot() -> dict:
     }
 
 
+def guarded_snapshot() -> dict:
+    """Every LISTED folder's snapshot, by its label."""
+    return {label: folder_snapshot(path) for label, path in LISTED}
+
+
 def top_lines(snapshot: dict) -> list:
-    """`ls -la`, names and dates only."""
-    return [
-        f"{dt.datetime.fromtimestamp(ns / 1e9):%Y-%m-%d %H:%M:%S}  {name}"
-        for name, ns in snapshot["top"]
-    ]
+    """`ls -la`, names, sizes and dates only."""
+    lines = []
+    for row in snapshot["top"]:
+        name, ns, size = (row + [None])[:3]
+        shown = "" if size is None else f"{size:>12}  "
+        lines.append(f"{dt.datetime.fromtimestamp(ns / 1e9):%Y-%m-%d %H:%M:%S}  {shown}{name}")
+    return lines
 
 
-def codex_dir_changes(before: dict, after: dict) -> list:
-    """Names (relative to ~/.codex) added, removed or with another date."""
+def folder_changes(before: dict, after: dict) -> list:
+    """Names added, removed, or with another date or size."""
     old, new = before.get("deep", {}), after.get("deep", {})
     changed = [name for name in new if name in old and new[name] != old[name]]
     added = [name for name in new if name not in old]
@@ -372,17 +462,37 @@ def codex_dir_changes(before: dict, after: dict) -> list:
     ] + [f"removed {n}" for n in sorted(removed)]
 
 
+def guarded_changes(baseline: dict, now: dict) -> dict:
+    """Each LISTED folder's changes since `baseline` (empty when none)."""
+    folders = baseline.get("folders", {})
+    return {label: folder_changes(folders.get(label, {}), now.get(label, {})) for label, _ in LISTED}
+
+
 def load_baseline() -> dict:
     if not BASELINE.exists():
-        raise Refused("no baseline of ~/.codex: run `stage` first")
-    return json.loads(BASELINE.read_text())
+        raise Refused("no baseline of ~/.codex and the app's Codex data: run `stage` first")
+    baseline = json.loads(BASELINE.read_text())
+    if baseline.get("version") != 2:
+        raise Refused("the baseline is of an older kind: run `stage --rebaseline`")
+    return baseline
 
 
 def save_baseline() -> dict:
-    snapshot = codex_dir_snapshot()
-    snapshot["taken"] = dt.datetime.now().isoformat(timespec="seconds")
-    write_private(BASELINE, json.dumps(snapshot))
-    return snapshot
+    baseline = {
+        "version": 2,
+        "taken": dt.datetime.now().isoformat(timespec="seconds"),
+        "folders": guarded_snapshot(),
+    }
+    write_private(BASELINE, json.dumps(baseline))
+    return baseline
+
+
+def say_changes(changes: dict) -> list:
+    """One line per LISTED folder: unchanged, or its first changed names."""
+    return [
+        f"{label}: " + ("UNCHANGED (names, sizes and dates)" if not found else f"CHANGED: {'; '.join(found[:10])}")
+        for label, found in changes.items()
+    ]
 
 
 # ----------------------------------------------------------------- processes
@@ -457,18 +567,12 @@ def walled_off(pid: int) -> bool:
     return not inside(home) and not inside(codex_home)
 
 
-def lsof(pids: list) -> dict:
-    """Open files of `pids`: anything under ~/.codex or the Keychains, the
-    count of network sockets, and the lab paths, never contents."""
-    if not pids:
-        return {"codex_dir": [], "keychains": [], "net": [], "files": 0, "lab": []}
-    out = subprocess.run(
-        ["/usr/sbin/lsof", "-nP", "-w", "-p", ",".join(map(str, pids)), "-F", "ptn"],
-        capture_output=True, text=True, check=False,
-    ).stdout
-    codex_dir = real(REAL_CODEX_DIR)
-    keychains = str(HOME / "Library/Keychains")
-    pid, kind, hits, keys, net, files, lab = 0, "", [], [], [], 0, set()
+def lsof_parse(out: str) -> dict:
+    """lsof's `-F ptn` lines: the names open under each GUARDED place (its
+    real path or as written), the internet sockets, the count, the lab's."""
+    places = [(label, {real(path), str(path)}) for label, path in GUARDED]
+    hits: dict = {label: [] for label, _ in GUARDED}
+    pid, kind, net, files, lab = 0, "", [], 0, set()
     for line in out.splitlines():
         if line.startswith("p"):
             pid = int(line[1:])
@@ -479,13 +583,49 @@ def lsof(pids: list) -> dict:
             files += 1
             if kind in ("IPv4", "IPv6"):
                 net.append(f"{pid} {name}")
-            if name == codex_dir or name.startswith(codex_dir + "/") or name.startswith(str(REAL_CODEX_DIR) + "/"):
-                hits.append(f"{pid} {name}")
-            if name.startswith(keychains):
-                keys.append(f"{pid} {name}")
+            for label, roots in places:
+                if any(name == root or name.startswith(root + "/") for root in roots):
+                    hits[label].append(f"{pid} {name}")
             if "aij-lab-c2" in name:
                 lab.add(name)
-    return {"codex_dir": hits, "keychains": keys, "net": net, "files": files, "lab": sorted(lab)}
+    return {"hits": hits, "net": net, "files": files, "lab": sorted(lab)}
+
+
+def lsof(pids: list) -> dict:
+    """Open files of `pids`, by lsof_parse (names only, never contents)."""
+    if not pids:
+        return lsof_parse("")
+    out = subprocess.run(
+        ["/usr/sbin/lsof", "-nP", "-w", "-p", ",".join(map(str, pids)), "-F", "ptn"],
+        capture_output=True, text=True, check=False,
+    ).stdout
+    return lsof_parse(out)
+
+
+def alarm_reasons(found: dict, stop_on_net: bool) -> list:
+    """Why a run must stop at once: a file open under a GUARDED place, or
+    an internet socket where none is expected (no sign-in, no model)."""
+    reasons = [f"open under {label}: {', '.join(names[:3])}" for label, names in found["hits"].items() if names]
+    if stop_on_net and found["net"]:
+        reasons.append(f"internet sockets: {', '.join(found['net'][:3])}")
+    return reasons
+
+
+def kill_tree(root: int) -> None:
+    """SIGKILL `root` and everything under it, children first (codex starts
+    its children in groups of their own, so the root's group isn't enough)."""
+    table = ps_table()
+    depth = {}
+    for pid in descendants(root, table):
+        steps, at = 0, pid
+        while at != root and at in table and steps < 64:
+            at, steps = table[at][0], steps + 1
+        depth[pid] = steps
+    for pid in sorted(depth, key=lambda pid: -depth[pid]):
+        try:
+            os.kill(pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
 
 
 def describe_tree(root: int) -> list:
@@ -559,7 +699,7 @@ def child_env() -> dict:
         "SHELL": user.pw_shell or "/bin/zsh",
         "TMPDIR": os.environ.get("TMPDIR", "/tmp/"),
         "LANG": "en_US.UTF-8",
-        "PATH": PATH,
+        "PATH": f"{codex_identity()['path_dir']}:{PATH}" if codex_identity()["path_dir"] else PATH,
         "CODEX_HOME": str(CODEX_HOME),
         "CODEX_SQLITE_HOME": str(CODEX_HOME),
     }
@@ -567,11 +707,16 @@ def child_env() -> dict:
 
 def guard_profile() -> str:
     """A sandbox for the whole codex tree: everything allowed but any read
-    or write under ~/.codex (an attempt fails instead of happening)."""
-    target = real(REAL_CODEX_DIR)
-    if '"' in target or "\\" in target:
-        raise Refused("~/.codex's path can't be quoted for the sandbox")
-    return f'(version 1)(allow default)(deny file-read* file-write* (subpath "{target}"))'
+    or write under ~/.codex or the app's Codex data (an attempt fails
+    instead of happening), and any write inside the ChatGPT app."""
+    denied = sorted({spelling for _, path in LISTED for spelling in (real(path), str(path))})
+    written = sorted({real(APP_BUNDLE), str(APP_BUNDLE)})
+    for path in denied + written:
+        if '"' in path or "\\" in path:
+            raise Refused(f"{path} can't be quoted for the sandbox")
+    subpaths = " ".join(f'(subpath "{path}")' for path in denied)
+    bundle = " ".join(f'(subpath "{path}")' for path in written)
+    return f"(version 1)(allow default)(deny file-read* file-write* {subpaths})(deny file-write* {bundle})"
 
 
 def guarded(command: list, guard: bool) -> list:
@@ -592,8 +737,8 @@ def preconditions(rebaseline: bool, need_auth: bool = False) -> dict:
     if real(CODEX_HOME).startswith(real(REAL_CODEX_DIR)):
         raise Refused("the lab home is inside ~/.codex")
     check_config(CODEX_HOME / "config.toml")
-    if not os.access(AGENT, os.X_OK) or MARKER not in AGENT.read_bytes():
-        raise Refused(f"{AGENT} is missing or isn't a probe build: run `stage`")
+    if not os.access(AGENT, os.X_OK) or not all(need in AGENT.read_bytes() for need in PROBE_NEEDS):
+        raise Refused(f"{AGENT} is missing or isn't this commit's probe build: run `stage`")
     if (CODEX_HOME / "config.toml").read_text() != config_text():
         raise Refused("the lab config.toml isn't the staged one: run `stage` again")
     others = other_codex(set())
@@ -604,14 +749,15 @@ def preconditions(rebaseline: bool, need_auth: bool = False) -> dict:
         )
     if lab_processes():
         raise Refused("the lab still has processes running: run `reap`")
+    codex_identity()
     baseline = save_baseline() if rebaseline else load_baseline()
-    now = codex_dir_snapshot()
-    changes = codex_dir_changes(baseline, now)
-    if changes:
+    changes = guarded_changes(baseline, guarded_snapshot())
+    if any(changes.values()):
+        listed = [f"{label}: {name}" for label, found in changes.items() for name in found[:20]]
         raise Refused(
-            "~/.codex differs from the staged baseline (names and dates only). If that was the "
-            "maintainer's own Codex, look at the names and run again with --rebaseline:\n  "
-            + "\n  ".join(changes[:40])
+            "~/.codex or the app's Codex data differs from the staged baseline (names, sizes and "
+            "dates). If that was the maintainer's own Codex or app, look at the names and run "
+            "again with --rebaseline:\n  " + "\n  ".join(listed)
         )
     if need_auth and not has_auth_file():
         raise Refused("the lab home isn't signed in (no auth.json by name): run `login` first")
@@ -628,16 +774,17 @@ class RpcError(Exception):
 class Watcher:
     """ps and lsof over a process tree every half second while it lives:
     every process seen once (its program, parent and lab-home variables),
-    and every open name under ~/.codex or the Keychains, and every internet
-    socket, across all samples (short-lived children such as the probe's
-    first start are caught too)."""
+    every name open under a GUARDED place and every internet socket, across
+    all samples (short-lived children such as the probe's first start are
+    caught too). On the first alarm (alarm_reasons) it kills the whole
+    tree at once and keeps the reason."""
 
-    def __init__(self, root: int, every: float = 0.5):
-        self.root, self.every = root, every
+    def __init__(self, root: int, stop_on_net: bool = False, every: float = 0.5):
+        self.root, self.every, self.stop_on_net = root, every, stop_on_net
         self.seen: dict = {}
-        self.codex_dir: set = set()
-        self.keychains: set = set()
+        self.hits: dict = {label: set() for label, _ in GUARDED}
         self.net: set = set()
+        self.alarm: list = []
         self.samples = 0
         self.halt = threading.Event()
         self.thread = threading.Thread(target=self._loop, daemon=True)
@@ -653,10 +800,14 @@ class Watcher:
                     self.seen[pid] = {"pid": pid, "ppid": ppid, "pgid": pgid, "command": command[:200], "env": env_marks(pid)}
             if pids:
                 found = lsof(pids)
-                self.codex_dir.update(found["codex_dir"])
-                self.keychains.update(found["keychains"])
+                for label, names in found["hits"].items():
+                    self.hits[label].update(names)
                 self.net.update(found["net"])
                 self.samples += 1
+                reasons = alarm_reasons(found, self.stop_on_net)
+                if reasons and not self.alarm:
+                    self.alarm = reasons
+                    kill_tree(self.root)
             self.halt.wait(self.every)
 
     def stop(self) -> dict:
@@ -665,9 +816,9 @@ class Watcher:
         return {
             "samples": self.samples,
             "processes": sorted(self.seen.values(), key=lambda row: row["pid"]),
-            "codex_dir": sorted(self.codex_dir),
-            "keychains": sorted(self.keychains),
+            "hits": {label: sorted(names) for label, names in self.hits.items()},
             "net": sorted(self.net),
+            "alarm": self.alarm,
         }
 
 
@@ -676,7 +827,7 @@ class AppServer:
     as AI Juggler's adapter drives it (crates/juggler-adapters/src/
     codex_appserver)."""
 
-    def __init__(self, guard: bool, tag: str):
+    def __init__(self, guard: bool, tag: str, stop_on_net: bool = False):
         command = guarded(
             [str(CODEX), "app-server", "--listen", "stdio://", "--strict-config"], guard
         )
@@ -688,7 +839,7 @@ class AppServer:
             stdout=subprocess.PIPE, stderr=self.stderr, start_new_session=True,
         )
         remember_group(self.proc.pid)
-        self.watch = Watcher(self.proc.pid)
+        self.watch = Watcher(self.proc.pid, stop_on_net)
         self.watched: dict = {}
         self.lines: queue.Queue = queue.Queue()
         self.next_id = 0
@@ -710,6 +861,8 @@ class AppServer:
         self.proc.stdin.flush()
 
     def pump(self, timeout: float) -> None:
+        if self.watch.alarm:
+            raise Refused("STOPPED AT ONCE, something touched outside the lab: " + "; ".join(self.watch.alarm))
         try:
             raw = self.lines.get(timeout=timeout)
         except queue.Empty:
@@ -1050,6 +1203,12 @@ def verdict(found: dict, prompts: list, final: bool = True) -> list:
     return lines
 
 
+def hits_line(hits: dict, net: list) -> str:
+    """lsof's counts under each GUARDED place, and the internet sockets."""
+    parts = [f"under {label} {len(names)}{' ' + str(names[:3]) if names else ''}" for label, names in hits.items()]
+    return "; ".join(parts) + f"; internet sockets {len(net)}{' ' + str(net[:3]) if net else ''}"
+
+
 def write_report(tag: str, body: dict, summary: list) -> Path:
     path = EVIDENCE / f"{tag}.md"
     json_path = EVIDENCE / f"{tag}.json"
@@ -1070,11 +1229,12 @@ def write_report(tag: str, body: dict, summary: list) -> Path:
                 f"{env['CODEX_SQLITE_HOME'] or '(none)'} | {env['HOME'] or '(none)'} | `{row['command'][:110]}` |"
             )
         out.append("")
-        out.append(
-            f"Across all samples: open under ~/.codex {len(watched['codex_dir'])} {watched['codex_dir'] or ''};"
-            f" under ~/Library/Keychains {len(watched['keychains'])}; internet sockets {len(watched['net'])}"
-            f" {watched['net'] or ''}"
-        )
+        out.append(f"lsof across all samples: {hits_line(watched['hits'], watched['net'])}")
+        out.append("")
+    for label, lines in (body.get("listed_after") or {}).items():
+        out.append(f"## {label} after (names, sizes, dates)")
+        out.append("")
+        out += [f"    {line}" for line in lines["top"]] or ["    (not there)"]
         out.append("")
     for entry in body.get("samples", []):
         out.append(f"## ps and lsof: {entry['label']}")
@@ -1090,8 +1250,7 @@ def write_report(tag: str, body: dict, summary: list) -> Path:
         found = entry["lsof"]
         out.append("")
         out.append(
-            f"lsof: {found['files']} open names; under ~/.codex: {len(found['codex_dir'])}"
-            f" {found['codex_dir'] or ''}; Keychains: {len(found['keychains'])}; internet sockets: {len(found['net'])} {found['net'] or ''};"
+            f"lsof: {found['files']} open names; {hits_line(found['hits'], found['net'])};"
             f" lab paths: {', '.join(found.get('lab', [])) or 'none'}"
         )
         out.append("")
@@ -1102,37 +1261,59 @@ def write_report(tag: str, body: dict, summary: list) -> Path:
 def finish(server: AppServer, baseline: dict, body: dict, summary: list, tag: str) -> int:
     server.stop()
     left = reap(quiet=True)
-    after = codex_dir_snapshot()
-    changes = codex_dir_changes(baseline, after)
-    body["codex_dir_after"] = {"top": top_lines(after), "deep_sha256": after["deep_sha256"], "changes": changes}
+    after = guarded_snapshot()
+    changes = guarded_changes(baseline, after)
+    body["listed_after"] = {
+        label: {"top": top_lines(snap), "deep_sha256": snap["deep_sha256"], "entries": snap["entries"], "changes": changes[label]}
+        for label, snap in after.items()
+    }
     body["left_running"] = [f"{p} {c[:100]}" for p, _, c in left]
-    body["watch"] = server.watched
-    touched = [hit for entry in body.get("samples", []) for hit in entry["lsof"]["codex_dir"]]
-    touched += [hit for hit in server.watched.get("codex_dir", []) if hit not in touched]
-    homes = {row["env"]["CODEX_HOME"] for row in server.watched.get("processes", [])}
-    samples = len(body.get("samples", [])) + server.watched.get("samples", 0)
-    summary.insert(0, f"~/.codex: {'UNCHANGED' if not changes else 'CHANGED: ' + '; '.join(changes[:10])}"
-                   f" (names and dates, {after.get('entries', 0)} entries, digest {after['deep_sha256'][:16]})")
-    summary.insert(1, f"lsof under ~/.codex across {samples} samples: {len(touched)} {touched or ''}")
-    summary.insert(2, f"processes started: {len(server.watched.get('processes', []))}; their CODEX_HOME values: {sorted(h or '(none)' for h in homes)}")
-    summary.insert(3, "every process reaped" if not left else f"LEFT RUNNING: {body['left_running']}")
+    watched = server.watched
+    body["watch"] = watched
+    hits = {label: list(names) for label, names in watched.get("hits", {}).items()}
+    for entry in body.get("samples", []):
+        for label, names in entry["lsof"]["hits"].items():
+            hits.setdefault(label, []).extend(n for n in names if n not in hits[label])
+    net = list(watched.get("net", []))
+    for entry in body.get("samples", []):
+        net += [n for n in entry["lsof"]["net"] if n not in net]
+    homes = {row["env"]["CODEX_HOME"] for row in watched.get("processes", [])}
+    samples = len(body.get("samples", [])) + watched.get("samples", 0)
+    alarm = watched.get("alarm") or []
+    head = [f"ALARM, stopped at once: {'; '.join(alarm)}"] if alarm else []
+    head += [f"codex: {body.get('codex')} ({body.get('codex_identity', {}).get('kind')}, {tilde(body.get('codex_identity', {}).get('runs', ''))})"]
+    head += say_changes(changes)
+    head.append(f"lsof across {samples} samples: {hits_line(hits, net)}")
+    head.append(f"processes started: {len(watched.get('processes', []))}; their CODEX_HOME values: {sorted(h or '(none)' for h in homes)}")
+    head.append("every process reaped" if not left else f"LEFT RUNNING: {body['left_running']}")
+    summary[:0] = head
     path = write_report(tag, body, summary)
     for line in summary:
         say(line)
     say(f"report: {path}")
-    return 0 if not changes and not touched and not left else 4
+    if alarm:
+        return 5
+    touched = any(hits.values()) or any(changes.values()) or left
+    return 0 if not touched else 4
 
 
 def begin(args, tag: str, need_auth: bool = False):
     baseline = preconditions(args.rebaseline, need_auth)
+    identity = dict(codex_identity())
+    identity["runs_sha256"] = sha256(Path(identity["runs"]))
     body = {
         "tag": tag,
         "codex": codex_version(),
+        "codex_identity": identity,
         "app_bundled_codex": app_codex_version(),
         "guard": not args.no_guard,
         "agent_sha256": sha256(AGENT),
         "config_sha256": sha256(CODEX_HOME / "config.toml"),
-        "codex_dir_before": {"top": top_lines(baseline), "deep_sha256": baseline["deep_sha256"]},
+        "listed_before": {
+            label: {"top": top_lines(snap), "deep_sha256": snap["deep_sha256"], "entries": snap["entries"]}
+            for label, snap in baseline["folders"].items()
+        },
+        "baseline_taken": baseline.get("taken"),
         "lab_home_names_before": sorted(os.listdir(CODEX_HOME)),
         "samples": [],
     }
@@ -1149,25 +1330,40 @@ def cmd_stage(args) -> int:
     for folder in (LAB, CODEX_HOME, WORK, EVIDENCE, BIN):
         private_dir(folder)
     source = Path(args.agent)
-    if MARKER not in source.read_bytes():
-        raise Refused(f"{source} isn't a debug build with the probe ({MARKER.decode()} missing)")
-    if os.path.lexists(AGENT):
-        os.unlink(AGENT)
-    shutil.copy2(source, AGENT)
-    os.chmod(AGENT, 0o700)
+    fresh = source.is_file() and all(need in source.read_bytes() for need in PROBE_NEEDS)
+    pinned = AGENT.is_file() and all(need in AGENT.read_bytes() for need in PROBE_NEEDS)
+    if fresh:
+        if os.path.lexists(AGENT):
+            os.unlink(AGENT)
+        shutil.copy2(source, AGENT)
+        os.chmod(AGENT, 0o700)
+        say(f"probe: {AGENT} sha256 {sha256(AGENT)} (from {source})")
+    elif pinned:
+        say(f"probe: kept the pinned {AGENT} (sha256 {sha256(AGENT)}); {source} isn't this commit's probe build")
+    else:
+        raise Refused(f"{source} isn't this commit's probe build (debug juggler-agent): build it from this worktree")
     write_private(CODEX_HOME / "config.toml", config_text())
     check_config(CODEX_HOME / "config.toml")  # before codex first runs on it
+    identity = codex_identity()
+    if OLD_BASELINE.exists():
+        first = json.loads(OLD_BASELINE.read_text())
+        old = {name: ns for name, ns in first.get("deep", {}).items()}
+        now = {name: row[0] for name, row in folder_snapshot(REAL_CODEX_DIR)["deep"].items()}
+        since = folder_changes({"deep": old}, {"deep": now})
+        say(f"~/.codex since the first baseline ({first.get('taken')}), names and dates: "
+            + ("unchanged" if not since else f"{len(since)} changes: {since[:10]}"))
     if not BASELINE.exists() or args.rebaseline:
         baseline = save_baseline()
     else:
         baseline = load_baseline()
     say(f"lab: {LAB} (0700); home {CODEX_HOME}; names: {sorted(os.listdir(CODEX_HOME))}")
-    say(f"probe: {AGENT} sha256 {sha256(AGENT)} (from {source})")
-    say(f"config.toml sha256 {sha256(CODEX_HOME / 'config.toml')}")
-    say(f"~/.codex baseline taken {baseline.get('taken')}: {baseline.get('entries')} names, digest {baseline['deep_sha256'][:16]}")
-    for line in top_lines(baseline):
-        say(f"    {line}")
-    say(f"codex: {codex_version()} (the ChatGPT app bundles {app_codex_version()})")
+    say(f"config.toml sha256 {sha256(CODEX_HOME / 'config.toml')}: every required setting is there")
+    for label, snap in baseline["folders"].items():
+        say(f"{label} baseline taken {baseline.get('taken')}: {snap['entries']} names, digest {snap['deep_sha256'][:16]}")
+        for line in top_lines(snap):
+            say(f"    {line}")
+    say(f"codex ({identity['kind']}, runs {identity['runs']}): {codex_version()}"
+        f" (the ChatGPT app bundles {app_codex_version()})")
     say("signed in: " + ("yes (auth.json present, by name)" if has_auth_file() else "no"))
     return 0
 
@@ -1175,16 +1371,23 @@ def cmd_stage(args) -> int:
 def cmd_status(args) -> int:
     say(f"lab home: {CODEX_HOME} names {sorted(os.listdir(CODEX_HOME)) if CODEX_HOME.exists() else 'missing'}")
     say("signed in: " + ("yes (auth.json present, by name)" if has_auth_file() else "no"))
+    try:
+        identity = codex_identity()
+        say(f"codex ({identity['kind']}): runs {identity['runs']}"
+            + (f", package {identity['package_version']}, PATH first {identity['path_dir']}" if identity["kind"] == "bundled" else ""))
+    except Refused as why:
+        say(f"codex: {why}")
     if AGENT.exists():
-        say(f"probe: sha256 {sha256(AGENT)}, marker {'present' if MARKER in AGENT.read_bytes() else 'MISSING'}")
+        ok = all(need in AGENT.read_bytes() for need in PROBE_NEEDS)
+        say(f"probe: sha256 {sha256(AGENT)}, {'this commit' if ok else 'NOT this commit'}'s probe build")
     try:
         check_config(CODEX_HOME / "config.toml")
         say("config.toml: every required setting is there")
     except Refused as why:
         say(f"config.toml: {why}")
     try:
-        changes = codex_dir_changes(load_baseline(), codex_dir_snapshot())
-        say("~/.codex vs baseline: " + ("unchanged" if not changes else f"{len(changes)} changes: {changes[:10]}"))
+        for line in say_changes(guarded_changes(load_baseline(), guarded_snapshot())):
+            say(f"vs baseline: {line}")
     except Refused as why:
         say(str(why))
     say(f"lab processes: {lab_processes() or 'none'}; other Codex: {other_codex(set()) or 'none'}")
@@ -1196,7 +1399,7 @@ def cmd_dry(args) -> int:
     baseline, body = begin(args, tag)
     rotate_probe_file(tag)
     since = now_ms()
-    server = AppServer(not args.no_guard, tag)
+    server = AppServer(not args.no_guard, tag, stop_on_net=True)
     summary = []
     try:
         init = server.initialize()
@@ -1232,7 +1435,7 @@ def cmd_preflight(args) -> int:
     baseline, body = begin(args, tag)
     rotate_probe_file(tag)
     since = now_ms()
-    server = AppServer(not args.no_guard, tag)
+    server = AppServer(not args.no_guard, tag, stop_on_net=True)
     summary, windows, shells = [], [], []
     try:
         server.initialize()
@@ -1308,6 +1511,144 @@ def cmd_run(args) -> int:
     return finish(server, baseline, body, summary, tag)
 
 
+# Features on by default in codex 0.163.0 under this lab's config (`codex
+# features list`, 2026-11-16). A version that turns on anything else is
+# looked at (`features`) before its first app-server run: a new feature can
+# download or start things on its own, as the plugin sync did.
+KNOWN_ON = frozenset(
+    """api_key_cyber_access_programs api_key_model_discovery auth_elicitation
+    browser_annotation_api browser_use browser_use_external browser_use_full_cdp_access
+    cli_daybreak code_mode_host code_mode_interrupt collaboration_modes compaction_image_budget
+    computer_use content_item_kinds enable_request_compression fast_mode goals guardian_approval
+    guardian_reuse_parent_compaction hooks image_generation in_app_browser in_app_chat
+    in_app_dictation in_app_local_automation in_app_voice instant_interrupt item_ids mentions_v2
+    multi_agent plugin_sharing realtime_conversation resize_all_images shell_tool skill_search
+    sleep_tool sqlite steer system_proxy_fallback terminal_resize_reflow tool_call_mcp_elicitation
+    tool_search_always_defer_mcp_tools tui_app_server ultrafast_mode unbounded_connection_retries
+    unified_exec unified_exec_tty view_image workspace_dependencies worktrees
+    write_stdin_approval""".split()
+)
+
+
+def features_on(listing: str) -> list:
+    """The features `codex features list` shows as on (`name stage true`)."""
+    return sorted(
+        words[0] for words in (line.split() for line in listing.splitlines()) if len(words) >= 2 and words[-1] == "true"
+    )
+
+
+def run_watched(command: list, stop_on_net: bool) -> tuple:
+    """A short codex command in the lab, watched like the app-server (its
+    exit, output, error text and what the watcher saw)."""
+    proc = subprocess.Popen(
+        command, cwd=WORK, env=child_env(), stdin=subprocess.DEVNULL,
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE, start_new_session=True,
+    )
+    remember_group(proc.pid)
+    watch = Watcher(proc.pid, stop_on_net)
+    try:
+        out, err = proc.communicate(timeout=60)
+    except subprocess.TimeoutExpired:
+        kill_tree(proc.pid)
+        out, err = proc.communicate()
+    return proc.returncode, out.decode(errors="replace"), err.decode(errors="replace"), watch.stop()
+
+
+def cmd_features(args) -> int:
+    """`codex features list` on the lab: what is on beyond KNOWN_ON, and
+    any REQUIRED feature still on (the config not taken)."""
+    tag = f"features-{stamp()}"
+    baseline = preconditions(args.rebaseline)
+    command = guarded([str(CODEX), "features", "list"], not args.no_guard)
+    code, out, err, watched = run_watched(command, stop_on_net=True)
+    left = reap(quiet=True)
+    changes = guarded_changes(baseline, guarded_snapshot())
+    on = features_on(out)
+    new = sorted(set(on) - KNOWN_ON)
+    still = [name for name, _ in REQUIRED if name.startswith("features.") and name.split(".", 1)[1] in on]
+    summary = ([f"ALARM, stopped at once: {'; '.join(watched['alarm'])}"] if watched["alarm"] else []) + [
+        f"codex ({codex_identity()['kind']}): exit {code}, {len(on)} features on",
+        "on beyond 0.163.0's: " + (", ".join(new) if new else "none") + (" (look at each before the dry run)" if new else ""),
+        "REQUIRED features still on: " + (", ".join(still) if still else "none"),
+        *(["its errors: " + err.strip().replace("\n", " | ")[:400]] if err.strip() else []),
+        *say_changes(changes),
+        f"lsof: {hits_line(watched['hits'], watched['net'])}",
+        "every process reaped" if not left else f"LEFT RUNNING: {left}",
+    ]
+    write_private(EVIDENCE / f"{tag}.md", tilde("\n".join(f"- {line}" for line in summary) + "\n\n" + out))
+    for line in summary:
+        say(line)
+    if watched["alarm"]:
+        return 5
+    bad = code != 0 or new or still or any(changes.values()) or any(watched["hits"].values()) or left
+    return 4 if bad else 0
+
+
+def cmd_compare(args) -> int:
+    """Two reports (one per codex version) side by side; the ship claim
+    covers only a version a `run` report proves."""
+    if len(args.paths) != 2:
+        raise Refused("compare takes two report .json files from the lab's evidence folder, one per codex version")
+    reports = [json.loads(Path(path).read_text()) for path in args.paths]
+
+    def answer(report: dict, key: str):
+        found = report.get("analysis") or {}
+        calls = found.get("calls") or []
+        listed = report.get("listed_after") or {}
+        watched = report.get("watch") or {}
+        if key == "codex":
+            return f"{report.get('codex')} ({(report.get('codex_identity') or {}).get('kind', '?')})"
+        if key == "step":
+            return f"{report.get('tag', '?').split('-')[0]} (guard {'on' if report.get('guard') else 'off'})"
+        if key in dict(LISTED):
+            changes = (listed.get(key) or {}).get("changes")
+            return "n/a" if changes is None else ("unchanged" if not changes else f"CHANGED ({len(changes)})")
+        if key == "lsof":
+            return hits_line(watched.get("hits", {}), watched.get("net", []))
+        if key == "alarm":
+            return "; ".join(watched.get("alarm") or []) or "none"
+        if not found:
+            return "n/a"
+        if key == "processes":
+            return ", ".join(f"{len(pids)} for {thread[:8]}" for thread, pids in found["probe_pids_by_thread"].items()) or "none"
+        if key == "parent":
+            return "app-server" if calls and all(c["parent_is_app_server"] for c in calls) else f"{[c['parent'] for c in calls]}"
+        if key == "env":
+            return "yes" if found.get("env_thread_id_seen") else "no"
+        if key == "meta":
+            return ", ".join(sorted({k for c in calls for k in c["meta_keys"]})) or "none"
+        if key == "named":
+            return "yes, each its own" if found.get("every_thread_named_in_meta") else "no"
+        if key == "lease":
+            return "yes" if found.get("lease_seen") else "no"
+        if key == "prompts":
+            return str(len(report.get("prompts") or []))
+        if key == "c3":
+            return "; ".join(f"{s['how'].split(' ')[0]} {'matches' if s['matches_thread'] else 'NO'}" for s in found.get("c3", [])) or "none"
+        return "?"
+
+    rows = [
+        ("codex", "codex"), ("step", "step"),
+        *[(label, label) for label, _ in LISTED],
+        ("lsof (guarded places, sockets)", "lsof"), ("alarm", "alarm"),
+        ("probe processes per thread", "processes"), ("their parent", "parent"),
+        ("CODEX_THREAD_ID in the MCP server's environment", "env"), ("_meta keys", "meta"),
+        ("_meta names the calling thread", "named"), ("connection lease key", "lease"),
+        ("approval prompts", "prompts"), ("C3: CODEX_THREAD_ID in the thread's shell", "c3"),
+    ]
+    out = ["| | " + " | ".join(answer(r, "codex") for r in reports) + " |", "|---|---|---|"]
+    out += [f"| {title} | " + " | ".join(str(answer(r, key)) for r in reports) + " |" for title, key in rows[1:]]
+    proven = [answer(r, "codex") for r in reports if r.get("tag", "").startswith("run-") and (r.get("analysis") or {}).get("calls")]
+    out += ["", "The ship claim covers only what a `run` (the model's own path) proved: "
+            + (", ".join(proven) if proven else "none of these (no `run` report)")]
+    path = EVIDENCE / f"compare-{stamp()}.md"
+    write_private(path, tilde("\n".join(out) + "\n"))
+    for line in out:
+        say(line)
+    say(f"written: {path}")
+    return 0
+
+
 def rotate_probe_file(tag: str) -> None:
     if PROBE_OUT.exists() and not PROBE_OUT.is_symlink():
         os.rename(PROBE_OUT, EVIDENCE / f"probe-before-{tag}.jsonl")
@@ -1327,6 +1668,7 @@ def cmd_login(args) -> int:
         stdout=subprocess.PIPE, stderr=subprocess.STDOUT, start_new_session=True,
     )
     remember_group(proc.pid)
+    watch = Watcher(proc.pid)  # a file under a GUARDED place stops it at once
     opened = threading.Event()
 
     def relay() -> None:
@@ -1360,22 +1702,28 @@ def cmd_login(args) -> int:
             except (ProcessLookupError, subprocess.TimeoutExpired):
                 continue
     reader.join(timeout=5)
+    watched = watch.stop()
     left = reap(quiet=True)
-    after = codex_dir_snapshot()
-    changes = codex_dir_changes(baseline, after)
+    changes = guarded_changes(baseline, guarded_snapshot())
     names_after = sorted(os.listdir(CODEX_HOME))
-    summary = [
+    codex_changes = changes.get("~/.codex", [])
+    summary = ([f"ALARM, stopped at once: {'; '.join(watched['alarm'])}"] if watched["alarm"] else []) + [
         outcome,
+        f"codex ({codex_identity()['kind']}): {tilde(codex_identity()['runs'])}",
         "lab home signed in: " + ("yes, auth.json present (by name, never opened)" if has_auth_file() else "NO"),
         f"lab home names before {names_before}, after {names_after}",
-        "~/.codex: " + ("UNCHANGED (names and dates)" if not changes else "CHANGED: " + "; ".join(changes[:20])),
-        "~/.codex/auth.json: " + ("not among the changes" if not any(c.endswith(" auth.json") for c in changes) else "CHANGED"),
+        *say_changes(changes),
+        "~/.codex/auth.json: " + ("not among the changes" if not any(c.endswith(" auth.json") for c in codex_changes) else "CHANGED"),
+        f"lsof across {watched['samples']} samples: {hits_line(watched['hits'], watched['net'])}",
         "every process reaped" if not left else f"LEFT RUNNING: {left}",
     ]
     write_private(EVIDENCE / f"{tag}.md", tilde("\n".join(f"- {s}" for s in summary) + "\n"))
     for line in summary:
         say(line)
-    return 0 if has_auth_file() and not changes and not left else 4
+    if watched["alarm"]:
+        return 5
+    clean = not any(changes.values()) and not any(watched["hits"].values()) and not left
+    return 0 if has_auth_file() and clean else 4
 
 
 def without(text: str, name: str) -> str:
@@ -1443,6 +1791,97 @@ def cmd_selftest(args) -> int:
             failed.append(f"check_config refused the staged config: {why}")
     expect(is_probe_shell(f"/bin/zsh -lc '{AGENT} --probe-shell'"), "the wrapped probe-shell matches")
     expect(not is_probe_shell(f"{AGENT} --probe-shell; rm -rf x"), "anything more doesn't")
+
+    # Listings: names, sizes and dates; a size, a date, a new and a gone name.
+    with tempfile.TemporaryDirectory() as folder:
+        root = Path(folder)
+        (root / "a").write_text("one")
+        (root / "b").write_text("two")
+        (root / "sub").mkdir()
+        (root / "sub" / "c").write_text("three")
+        os.symlink("/nonexistent", root / "link")
+        before = folder_snapshot(root)
+        expect(before["entries"] == 6, f"every entry, the link not followed: {before['entries']}")
+        expect(all(len(row) == 3 for row in before["top"]), "the top rows carry a size")
+        expect(folder_changes(before, folder_snapshot(root)) == [], "nothing changed, nothing listed")
+        stamp_b = os.lstat(root / "b").st_mtime_ns
+        (root / "a").write_text("one more")  # another size
+        os.utime(root / "b", ns=(stamp_b + 5_000_000_000, stamp_b + 5_000_000_000))  # another date
+        (root / "sub" / "c").unlink()
+        (root / "d").write_text("four")
+        found = folder_changes(before, folder_snapshot(root))
+        for want in ("changed a", "changed b", "added d", "removed sub/c"):
+            expect(want in found, f"{want} listed: {found}")
+        expect(folder_snapshot(root / "none")["exists"] is False, "a missing folder is listed as missing")
+        expect(len(top_lines(before)) == 4 and "link" in top_lines(before)[2], f"top lines: {top_lines(before)}")
+
+    # lsof: each guarded place, a near miss, sockets, the lab.
+    text = "\n".join([
+        "p100", "tREG", f"n{REAL_CODEX_DIR}/config.toml",
+        "tREG", f"n{APP_SUPPORT_CODEX}/Local State",
+        "tREG", f"n{KEYCHAINS}/login.keychain-db",
+        "tREG", f"n{REAL_CODEX_DIR}-other/x",
+        "p101", "tIPv4", "n10.0.0.1:50000->1.2.3.4:443", "tunix", "n->0x1234",
+        "tREG", "n/private/tmp/aij-lab-c2/codex-home/state_5.sqlite",
+    ])
+    found = lsof_parse(text)
+    expect([len(found["hits"][label]) for label, _ in GUARDED] == [1, 1, 1], f"one hit per place: {found['hits']}")
+    expect(found["net"] == ["101 10.0.0.1:50000->1.2.3.4:443"], f"one internet socket, the unix one not: {found['net']}")
+    expect(found["files"] == 7 and len(found["lab"]) == 1, f"counts: {found['files']}, {found['lab']}")
+    quiet = lsof_parse("p1\ntREG\nn/tmp/aij-lab-c2/x\ntIPv4\nn1.2.3.4:443")
+    expect(alarm_reasons(found, False) and len(alarm_reasons(found, False)) == 3, "a guarded hit stops a run")
+    expect(alarm_reasons(quiet, False) == [], "a socket is fine where a model call is expected")
+    expect(len(alarm_reasons(quiet, True)) == 1, "a socket stops a run that expects none")
+
+    # The guard denies both listed places and any write inside the app.
+    profile = guard_profile()
+    for _, path in LISTED:
+        expect(f'(subpath "{real(path)}")' in profile, f"the guard denies {path}")
+    expect(f'(deny file-write* (subpath "{real(APP_BUNDLE)}")' in profile, "the guard denies writes inside the app")
+
+    # --codex: the two known binaries, nothing else; the bundle's pathDir first on PATH.
+    global CODEX
+    chosen = CODEX
+    try:
+        CODEX = Path("/nonexistent/codex")
+        try:
+            codex_identity()
+            failed.append("an unknown --codex was taken")
+        except Refused:
+            pass
+        if os.access(HOMEBREW_CODEX, os.X_OK):
+            CODEX = HOMEBREW_CODEX
+            expect(codex_identity()["kind"] == "homebrew" and child_env()["PATH"] == PATH, "homebrew: PATH as is")
+        if BUNDLED_WRAPPER.is_file():
+            CODEX = BUNDLED_WRAPPER
+            identity = codex_identity()  # reads the wrapper's bytes and the package file only
+            expect(identity["kind"] == "bundled" and identity["runs"] == str(BUNDLED_TARGET), f"bundled: {identity}")
+            expect(child_env()["PATH"].startswith(f"{identity['path_dir']}:") if identity["path_dir"] else True,
+                   "the bundle's pathDir comes first on PATH")
+            expect("CODEX_HOME" in child_env() and child_env()["CODEX_HOME"] == str(CODEX_HOME), "the lab home either way")
+    finally:
+        CODEX = chosen
+        IDENTITY.clear()
+
+    # features list: what is on.
+    listing = "plugins  stable  false\nnew_fetcher  stable  true\nshell_tool  stable  true\n"
+    expect(features_on(listing) == ["new_fetcher", "shell_tool"], f"features on: {features_on(listing)}")
+    expect(sorted(set(features_on(listing)) - KNOWN_ON) == ["new_fetcher"], "a feature beyond 0.163's is named")
+
+    # Stop at once kills a whole tree, children in groups of their own too
+    # (a bounded `sleep`, never codex).
+    shell = subprocess.Popen(
+        ["/bin/sh", "-c", "/usr/bin/perl -e 'setpgrp(0,0); sleep 20' & /bin/sleep 20 & wait"],
+        start_new_session=True,
+    )
+    time.sleep(0.5)
+    tree = descendants(shell.pid, ps_table())
+    kill_tree(shell.pid)
+    shell.wait(timeout=10)
+    time.sleep(0.3)
+    alive = [pid for pid in tree if pid in ps_table()]
+    expect(len(tree) >= 3 and not alive, f"kill_tree left {alive} of {tree}")
+
     for line in failed:
         say(f"FAIL: {line}")
     say(f"c2_probe selftest: {'OK' if not failed else f'{len(failed)} failed'}")
@@ -1455,17 +1894,28 @@ def cmd_reap(args) -> int:
 
 def main(argv: list) -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("step", choices=["stage", "status", "dry", "preflight", "login", "run", "reap", "selftest"])
+    parser.add_argument(
+        "step",
+        choices=["stage", "status", "features", "dry", "preflight", "login", "run", "reap", "compare", "selftest"],
+    )
+    parser.add_argument("paths", nargs="*", help="compare: two report .json files")
+    parser.add_argument(
+        "--codex", default=str(HOMEBREW_CODEX),
+        help=f"the codex to run: {HOMEBREW_CODEX} (default) or the app's bundled {BUNDLED_WRAPPER}, in place",
+    )
     parser.add_argument("--agent", default=str(AGENT_SOURCE), help="the debug juggler-agent to pin (stage)")
-    parser.add_argument("--rebaseline", action="store_true", help="take ~/.codex's names and dates again first")
-    parser.add_argument("--no-guard", action="store_true", help="run codex without the ~/.codex-denying sandbox")
+    parser.add_argument("--rebaseline", action="store_true", help="take the listings of ~/.codex and the app's Codex data again first")
+    parser.add_argument("--no-guard", action="store_true", help="run codex without the sandbox that denies ~/.codex and the app's data")
     parser.add_argument("--no-open", action="store_true", help="login: print the page, don't open it")
     args = parser.parse_args(argv)
     os.umask(0o077)
     steps = {
         "stage": cmd_stage, "status": cmd_status, "dry": cmd_dry, "preflight": cmd_preflight,
         "login": cmd_login, "run": cmd_run, "reap": cmd_reap, "selftest": cmd_selftest,
+        "features": cmd_features, "compare": cmd_compare,
     }
+    global CODEX
+    CODEX = Path(args.codex)
     try:
         return steps[args.step](args)
     except Refused as why:

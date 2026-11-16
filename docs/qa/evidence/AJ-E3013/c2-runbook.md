@@ -102,6 +102,42 @@ with `python3 -I`). Staging record: `c2-staging.md` beside this file.
 4. **Clean up:** `reap` if anything is left. Delete `/tmp/aij-lab-c2` when
    done: it holds the lab sign-in.
 
+## The app's bundled codex (0.169), on the coordinator's "go"
+
+Approved on conditions (2026-11-16): the ChatGPT app's own CLI, run in
+place and read-only, never copied or changed, and the app never launched.
+`--codex /Applications/ChatGPT.app/Contents/Resources/codex-cli/bin/codex`
+picks it; the default stays `/opt/homebrew/bin/codex` (0.163.0).
+
+- **The wrapper** (`bin/codex`, 328 bytes, read 2026-11-16) sets no
+  environment: it resolves its own links and runs `exec
+  ../CodexCLI.app/Contents/MacOS/codex "$@"`. The driver pins its sha256
+  and refuses a changed wrapper until it is read again. The bundle's
+  `codex-package.json` names `pathDir: codex-path` (its own `rg`), which
+  the app presumably puts on PATH: the driver puts it first on PATH too.
+  What else the app sets when it spawns its app-server isn't known (no app
+  runs here).
+- **Guards, the same plus:** the sandbox denies reads and writes under both
+  `~/.codex` and `~/Library/Application Support/Codex`, and any write inside
+  `/Applications/ChatGPT.app`. Both folders are listed before and after
+  (names, sizes, dates). lsof counts files open under `~/.codex`,
+  `~/Library/Keychains` and `~/Library/Application Support/Codex`. The
+  watcher **stops the whole tree at once** on any of those, or on an
+  internet socket in `features`, `dry` or `preflight` (exit 5), and the
+  report says so first.
+- **Steps:**
+  1. `stage --codex <bundled>`: the new config, checked; the first
+     baseline of both folders; then only `codex --version`.
+  2. `features --codex <bundled>`: names anything on beyond 0.163's
+     defaults. Each is looked at before the dry run, since a new feature
+     can fetch or start things as the plugin sync did.
+  3. `dry --codex <bundled>`: no sign-in. If anything touches outside the
+     lab, it stops, and the coordinator hears first.
+  4. On the coordinator's word only: `preflight`, then `run`, with
+     `--codex <bundled>`.
+  5. `compare <0.163 report.json> <0.169 report.json>`: side by side. The
+     ship claim covers only a version that a `run` proved.
+
 ## What `run` answers, and what it means
 
 | C2 question | Where | Expected |
@@ -128,9 +164,10 @@ with `python3 -I`). Staging record: `c2-staging.md` beside this file.
 - **Version.** The CLI is 0.163.0; the ChatGPT app bundles
   0.169.0-alpha.11.1 (`codex-package.json`, read only). 0.169 has
   `codex/connectionLease` and "missing MCP request metadata object",
-  0.163 has neither. A 0.163 result carries to the app as far as 0.169
-  keeps `_meta.threadId`. Updating the CLI is a download: the
-  maintainer's yes.
+  0.163 has neither. A 0.163 result carries to the app only as far as
+  0.169 keeps `_meta.threadId`: hence the bundled 0.169 run above, and the
+  claim per version (`compare`). Updating the homebrew CLI would be a
+  download: the maintainer's yes.
 - **The desktop UI's wiring is inferred**, not observed: the app spawns
   the same `codex app-server`, but no ChatGPT app ran (ADR-0020, D-116
   addendum).
