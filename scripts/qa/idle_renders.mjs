@@ -37,9 +37,20 @@ const hook = () => {
   window.__AIJ_RENDERS__ = counts;
   const nameOf = (type) => (type && (type.displayName || type.name || (type.render && (type.render.displayName || type.render.name)) || (type.type && nameOf(type.type)))) || "?";
   const component = (f) => [0, 1, 11, 14, 15].includes(f.tag);
-  // PerformedWork (1): the component's function ran in this commit
-  const rendered = (f) => component(f) && (f.flags & 1) === 1 && f.alternate !== null;
-  const walk = (fiber) => {
+  // PerformedWork (1): the component's function ran in this commit. A
+  // subtree React skipped keeps the very fiber objects it had, with the
+  // flag from whenever they last rendered: every commit counted them
+  // again (AJ-E812: a page whose 20 leaves rendered once counted 220 in
+  // 11 commits). A fiber that renders is the other of its two objects,
+  // so one committed in the previous commit too didn't run.
+  const seen = new WeakMap();
+  let commit = 0;
+  const rendered = (f) => {
+    const before = seen.get(f);
+    seen.set(f, commit);
+    return component(f) && (f.flags & 1) === 1 && f.alternate !== null && before !== commit - 1;
+  };
+  const walk = (fiber, watching) => {
     // [fiber, whether the nearest component above it rendered]
     const stack = [[fiber, false]];
     while (stack.length) {
@@ -48,7 +59,7 @@ const hook = () => {
       let below = above;
       if (component(f)) {
         const did = rendered(f);
-        if (did) {
+        if (did && watching) {
           counts.renders++;
           const name = nameOf(f.type);
           counts.by[name] = (counts.by[name] || 0) + 1;
@@ -75,9 +86,12 @@ const hook = () => {
     onCommitFiberUnmount() {},
     onPostCommitFiberRoot() {},
     onCommitFiberRoot(_id, root) {
-      if (!window.__AIJ_WATCHING__) return;
-      counts.commits++;
-      walk(root.current.child);
+      // Every commit is walked, watched or not, so the first one watched
+      // knows which fibers the commit before it had.
+      commit++;
+      const watching = Boolean(window.__AIJ_WATCHING__);
+      if (watching) counts.commits++;
+      walk(root.current.child, watching);
     },
   };
 };
