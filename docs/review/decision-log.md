@@ -3351,6 +3351,7 @@ The design that follows from it:
 2. **Local only:**
    - The items, model outputs and reviewer sheets stay in a git-ignored folder on this Mac.
    - They're never committed, attached to a PR, captured into the evidence gallery, or sent to any service.
+   - **Clarified 2026-11-16 (the maintainer's answer, "Claude may read them"):** the Claude sessions doing this check may read the redacted items: the Sonnet extraction and redaction, the Opus eye check, and the fresh Opus blind reviewer. That sends the redacted text to Anthropic's API, the service those sessions already run on. No other service, gallery or API gets them.
    - Only aggregate numbers, and item ids without their text, go into reports.
    - The folder is deleted once B's ship decision is recorded.
 3. **Its role:** the held-out real-message check, reported separately from the tuned corpora and from the 24-item synthetic held-out set. No excerpt or prompt rule is tuned on it. If its numbers are clearly worse than the tuned ones, B's calm lines don't ship until the maintainer has seen them.
