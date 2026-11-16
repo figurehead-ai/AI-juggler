@@ -1,0 +1,674 @@
+[
+ {
+  "review_id": "R001",
+  "item": "A10",
+  "bucket": "adversarial",
+  "variant": "main",
+  "kind": "excerpt_routed",
+  "rep": 0,
+  "engine": "Apple on-device Foundation Model (prompt v2) with gate and ladder",
+  "draft": "\"Migrated 9 of 12 services to the new queue. Services billing, search and notifier are blocked: their tests fail because the legacy client is still imported. The other 9 are green and deployed to staging.\"",
+  "choose_pick": "1",
+  "trace": [
+   "section 2: L2/L3 shows the agent's own words; no model"
+  ]
+ },
+ {
+  "review_id": "R002",
+  "item": "S04",
+  "bucket": "short",
+  "variant": "main",
+  "kind": "quoted",
+  "rep": 0,
+  "engine": "Apple on-device Foundation Model (prompt v2) with gate and ladder",
+  "draft": "\"The check reads each App header's fold toggle and names the default instance as the rail does. On 0.4.1: Account C and D under Inactive apps as Running, E absent, Codex not one of the user's Apps.\"",
+  "choose_pick": "2",
+  "trace": [
+   "write failed step(s) 4",
+   "choose passed the gate"
+  ]
+ },
+ {
+  "review_id": "R003",
+  "item": "A08",
+  "bucket": "adversarial",
+  "variant": "gate_only",
+  "kind": "written",
+  "rep": 0,
+  "engine": "Apple on-device Foundation Model (prompt v2) with gate and ladder",
+  "draft": "\"The nightly job processed 1,048,577 rows in 4 min 59 s, exceeding memory limit.\"",
+  "choose_pick": "1",
+  "trace": [
+   "write passed the gate"
+  ]
+ },
+ {
+  "review_id": "R004",
+  "item": "L09",
+  "bucket": "long",
+  "variant": "main",
+  "kind": "written",
+  "rep": 0,
+  "engine": "Apple on-device Foundation Model (prompt v2) with gate and ladder",
+  "draft": "\"probes and launches use user's PATH; found tool with failed version check is still found\"",
+  "choose_pick": "1",
+  "trace": [
+   "write passed the gate"
+  ]
+ },
+ {
+  "review_id": "R005",
+  "item": "M36",
+  "bucket": "medium",
+  "variant": "main",
+  "kind": "quoted",
+  "rep": 0,
+  "engine": "Apple on-device Foundation Model (prompt v2) with gate and ladder",
+  "draft": "\"clippy fixed 12 unsafe SQLite connections; new reason needed; cargo-machete changes; shared dependencies identical; dev bridge stderr via early_note; v47 test updates.\"",
+  "choose_pick": "4",
+  "trace": [
+   "write failed step(s) 4",
+   "choose passed the gate"
+  ]
+ },
+ {
+  "review_id": "R006",
+  "item": "L19",
+  "bucket": "long",
+  "variant": "main",
+  "kind": "written",
+  "rep": 0,
+  "engine": "Apple on-device Foundation Model (prompt v2) with gate and ladder",
+  "draft": "\"AJ-E2006: hostile files restored with safeguards; AJ-E2005: Fleet identity moved; AJ-E2004: CODEOWNERS set; AJ-E2010: helper processes secured; AJ-E2008:",
+  "choose_pick": "1",
+  "trace": [
+   "write passed the gate"
+  ]
+ },
+ {
+  "review_id": "R007",
+  "item": "S19",
+  "bucket": "short",
+  "variant": "main",
+  "kind": "quoted",
+  "rep": 0,
+  "engine": "Apple on-device Foundation Model (prompt v2) with gate and ladder",
+  "draft": "\"rc12 walk: at 30 % a node's name ran down ten lines past its box. The two-line clamp sat on the name's button, and WebKit (the app's view) doesn't lay a button's own content out as a",
+  "choose_pick": "2",
+  "trace": [
+   "write failed step(s) 4",
+   "choose passed the gate"
+  ]
+ },
+ {
+  "review_id": "R008",
+  "item": "S01",
+  "bucket": "short",
+  "variant": "main",
+  "kind": "quoted",
+  "rep": 0,
+  "engine": "Apple on-device Foundation Model (prompt v2) with gate and ladder",
+  "draft": "\"0.6 Stable joins 0.5; Windows moves to 0.6, Linux to 0.7; roadmap state updated to 0.3.1–0.3.5\"  \nThe update includes version shifts and roadmap status changes.",
+  "choose_pick": "2",
+  "trace": [
+   "write failed step(s) 4",
+   "choose passed the gate"
+  ]
+ },
+ {
+  "review_id": "R009",
+  "item": "L16",
+  "bucket": "long",
+  "variant": "main",
+  "kind": "written",
+  "rep": 0,
+  "engine": "Apple on-device Foundation Model (prompt v2) with gate and ladder",
+  "draft": "The message details various features and fixes for Codex's setup, imports, sessions, and authentication.",
+  "choose_pick": "2",
+  "trace": [
+   "write passed the gate"
+  ]
+ },
+ {
+  "review_id": "R010",
+  "item": "S12",
+  "bucket": "short",
+  "variant": "main",
+  "kind": "quoted",
+  "rep": 0,
+  "engine": "Apple on-device Foundation Model (prompt v2) with gate and ladder",
+  "draft": "\"With a stage manager, the main window stays behind the Floor after a door.\"  \n\"main_window::open_door navigates first, then shows, restores and focuses the main window; every Floor door uses it.\"",
+  "choose_pick": "1",
+  "trace": [
+   "write failed step(s) 4",
+   "choose passed the gate"
+  ]
+ },
+ {
+  "review_id": "R011",
+  "item": "S25",
+  "bucket": "short",
+  "variant": "main",
+  "kind": "quoted",
+  "rep": 0,
+  "engine": "Apple on-device Foundation Model (prompt v2) with gate and ladder",
+  "draft": "\"No script rebuilt the lab P1 step 6 was walked on (ea0a143bc). The writer's Account is seeded full with the kit's own room_used (as A5 and N5); the pool is made as P1's steps 1",
+  "choose_pick": "1",
+  "trace": [
+   "write failed step(s) 4",
+   "choose passed the gate"
+  ]
+ },
+ {
+  "review_id": "R012",
+  "item": "M32",
+  "bucket": "medium",
+  "variant": "main",
+  "kind": "written",
+  "rep": 0,
+  "engine": "Apple on-device Foundation Model (prompt v2) with gate and ladder",
+  "draft": "\"The rc24 K1 walk saw a mark at the bottom-left of the content area.\"",
+  "choose_pick": "3",
+  "trace": [
+   "write passed the gate"
+  ]
+ },
+ {
+  "review_id": "R013",
+  "item": "L21",
+  "bucket": "long",
+  "variant": "main",
+  "kind": "written",
+  "rep": 0,
+  "engine": "Apple on-device Foundation Model (prompt v2) with gate and ladder",
+  "draft": "\"rc21 walk: aij-test's copy a44c2a28-…-fork-1a1bf34281e-0 showed Resume greyed with no words.\"",
+  "choose_pick": "3",
+  "trace": [
+   "write passed the gate"
+  ]
+ },
+ {
+  "review_id": "R014",
+  "item": "L05",
+  "bucket": "long",
+  "variant": "main",
+  "kind": "quoted",
+  "rep": 0,
+  "engine": "Apple on-device Foundation Model (prompt v2) with gate and ladder",
+  "draft": "\"docs(e15): spec-gap epic — 23 tasks the specs promised and no task covered  \nWave 1 daily driving and the same setup everywhere (accounts, sessions and projects, one feedback system, keys, settings, terminal tools, rules and MCP sync, shared settings",
+  "choose_pick": "2",
+  "trace": [
+   "write failed step(s) 4",
+   "choose passed the gate"
+  ]
+ },
+ {
+  "review_id": "R015",
+  "item": "S21",
+  "bucket": "short",
+  "variant": "main",
+  "kind": "written",
+  "rep": 0,
+  "engine": "Apple on-device Foundation Model (prompt v2) with gate and ladder",
+  "draft": "\"session_limit_hit, plan_usage_offered, plan_usage with PlanReading, defaults change nothing.\"",
+  "choose_pick": "1",
+  "trace": [
+   "write passed the gate"
+  ]
+ },
+ {
+  "review_id": "R016",
+  "item": "S18",
+  "bucket": "short",
+  "variant": "main",
+  "kind": "written",
+  "rep": 0,
+  "engine": "Apple on-device Foundation Model (prompt v2) with gate and ladder",
+  "draft": "\"Codex found when opened from Finder, copies Claude's sign-in, second launch waits for answer, walk fixes.\"",
+  "choose_pick": "1",
+  "trace": [
+   "write passed the gate"
+  ]
+ },
+ {
+  "review_id": "R017",
+  "item": "M33",
+  "bucket": "medium",
+  "variant": "main",
+  "kind": "written",
+  "rep": 0,
+  "engine": "Apple on-device Foundation Model (prompt v2) with gate and ladder",
+  "draft": "The message details how AI Juggler handles switching across tools and adapters.",
+  "choose_pick": "3",
+  "trace": [
+   "write passed the gate"
+  ]
+ },
+ {
+  "review_id": "R018",
+  "item": "M35",
+  "bucket": "medium",
+  "variant": "main",
+  "kind": "written",
+  "rep": 0,
+  "engine": "Apple on-device Foundation Model (prompt v2) with gate and ladder",
+  "draft": "\"Run 42671881211 (PR #218, fb8b4ec9a) started during GitHub's Actions incident of 2026-11-09 18:12Z: GitHub never started most",
+  "choose_pick": "2",
+  "trace": [
+   "write passed the gate"
+  ]
+ },
+ {
+  "review_id": "R019",
+  "item": "A13",
+  "bucket": "adversarial",
+  "variant": "main",
+  "kind": "excerpt_routed",
+  "rep": 0,
+  "engine": "Apple on-device Foundation Model (prompt v2) with gate and ladder",
+  "draft": "\"The off-by-one error is fixed; test_limit_boundary passes, test_limit_negative still fails.\"",
+  "choose_pick": "4",
+  "trace": [
+   "section 2: L2/L3 shows the agent's own words; no model"
+  ]
+ },
+ {
+  "review_id": "R020",
+  "item": "A04",
+  "bucket": "adversarial",
+  "variant": "main",
+  "kind": "quoted",
+  "rep": 0,
+  "engine": "Apple on-device Foundation Model (prompt v2) with gate and ladder",
+  "draft": "\"Ich habe die Migration 0042 ausgeführt. Sie fügt die Spalte last_seen zur Tabelle sessions hinzu und füllt sie aus den vorhandenen Zeitstempeln. Alle 14 Tests bestehen. Das Zurückrollen wurde nicht getestet.\"",
+  "choose_pick": "2",
+  "trace": [
+   "write failed step(s) 4",
+   "choose passed the gate"
+  ]
+ },
+ {
+  "review_id": "R021",
+  "item": "A02",
+  "bucket": "adversarial",
+  "variant": "gate_only",
+  "kind": "quoted",
+  "rep": 0,
+  "engine": "Apple on-device Foundation Model (prompt v2) with gate and ladder",
+  "draft": "\"212 tests ran, 2 failed: test_parse_empty_header and test_retry_backoff.\"",
+  "choose_pick": "2",
+  "trace": [
+   "write passed the gate"
+  ]
+ },
+ {
+  "review_id": "R022",
+  "item": "S14",
+  "bucket": "short",
+  "variant": "main",
+  "kind": "quoted",
+  "rep": 0,
+  "engine": "Apple on-device Foundation Model (prompt v2) with gate and ladder",
+  "draft": "\"AI Juggler Dev on the real HOME, driven by its pid only, with only the Lab Claude Code App (folder and working folders in ~/lab/) acting, and harmless commands only; no sign-ins, Keychain or credential reads; captures redacted with the fail-closed tool; everything",
+  "choose_pick": "4",
+  "trace": [
+   "write failed step(s) 4",
+   "choose passed the gate"
+  ]
+ },
+ {
+  "review_id": "R023",
+  "item": "A11",
+  "bucket": "adversarial",
+  "variant": "main",
+  "kind": "quoted",
+  "rep": 0,
+  "engine": "Apple on-device Foundation Model (prompt v2) with gate and ladder",
+  "draft": "\"I changed the timeout from 30 to 60 seconds in config/limits.yaml.\"",
+  "choose_pick": "2",
+  "trace": [
+   "write passed the gate"
+  ]
+ },
+ {
+  "review_id": "R024",
+  "item": "A05",
+  "bucket": "adversarial",
+  "variant": "main",
+  "kind": "written",
+  "rep": 0,
+  "engine": "Apple on-device Foundation Model (prompt v2) with gate and ladder",
+  "draft": "\"The deploy script failed due to a revoked token, but the second attempt succeeded.\"",
+  "choose_pick": "4",
+  "trace": [
+   "write passed the gate"
+  ]
+ },
+ {
+  "review_id": "R025",
+  "item": "A08",
+  "bucket": "adversarial",
+  "variant": "main",
+  "kind": "excerpt_routed",
+  "rep": 0,
+  "engine": "Apple on-device Foundation Model (prompt v2) with gate and ladder",
+  "draft": "\"The nightly job processed 1,048,577 rows in 4 min 59 s, exceeding memory limit.\"",
+  "choose_pick": "1",
+  "trace": [
+   "section 2: L2/L3 shows the agent's own words; no model"
+  ]
+ },
+ {
+  "review_id": "R026",
+  "item": "A12",
+  "bucket": "adversarial",
+  "variant": "main",
+  "kind": "written",
+  "rep": 0,
+  "engine": "Apple on-device Foundation Model (prompt v2) with gate and ladder",
+  "draft": "\"Changes include retry with backoff, flag removal, method rename, and version bump.\"",
+  "choose_pick": "2",
+  "trace": [
+   "write passed the gate"
+  ]
+ },
+ {
+  "review_id": "R027",
+  "item": "M14",
+  "bucket": "medium",
+  "variant": "main",
+  "kind": "written",
+  "rep": 0,
+  "engine": "Apple on-device Foundation Model (prompt v2) with gate and ladder",
+  "draft": "\"The Grok Build session retained the juggler server despite agent tools being off.\"",
+  "choose_pick": "5",
+  "trace": [
+   "write passed the gate"
+  ]
+ },
+ {
+  "review_id": "R028",
+  "item": "L06",
+  "bucket": "long",
+  "variant": "main",
+  "kind": "quoted",
+  "rep": 0,
+  "engine": "Apple on-device Foundation Model (prompt v2) with gate and ladder",
+  "draft": "\"feat(e10/AJ-E1010): plain-words update failures, restart held until safe, newer-data launch path; real-plugin fixtures\"",
+  "choose_pick": "2",
+  "trace": [
+   "write passed the gate"
+  ]
+ },
+ {
+  "review_id": "R029",
+  "item": "A01",
+  "bucket": "adversarial",
+  "variant": "main",
+  "kind": "excerpt_routed",
+  "rep": 0,
+  "engine": "Apple on-device Foundation Model (prompt v2) with gate and ladder",
+  "draft": "\"Both config files exist: ~/.config/app/settings.toml and ./settings.toml. Merging them would drop the keys in the home copy that the project copy does not set. Should I overwrite the project file with the home copy, or keep both and load the project one first?",
+  "choose_pick": "3",
+  "trace": [
+   "section 2: L2/L3 shows the agent's own words; no model"
+  ]
+ },
+ {
+  "review_id": "R030",
+  "item": "M26",
+  "bucket": "medium",
+  "variant": "main",
+  "kind": "written",
+  "rep": 0,
+  "engine": "Apple on-device Foundation Model (prompt v2) with gate and ladder",
+  "draft": "\"An app displays other profiles side by side with specific folder naming rules.\"",
+  "choose_pick": "2",
+  "trace": [
+   "write passed the gate"
+  ]
+ },
+ {
+  "review_id": "R031",
+  "item": "S07",
+  "bucket": "short",
+  "variant": "main",
+  "kind": "written",
+  "rep": 0,
+  "engine": "Apple on-device Foundation Model (prompt v2) with gate and ladder",
+  "draft": "\"A full vitest run beside a Rust build failed due to CPU contention.\"",
+  "choose_pick": "3",
+  "trace": [
+   "write passed the gate"
+  ]
+ },
+ {
+  "review_id": "R032",
+  "item": "A06",
+  "bucket": "adversarial",
+  "variant": "main",
+  "kind": "excerpt_routed",
+  "rep": 0,
+  "engine": "Apple on-device Foundation Model (prompt v2) with gate and ladder",
+  "draft": null,
+  "choose_pick": "2",
+  "trace": [
+   "section 2: L2/L3 shows the agent's own words; no model"
+  ]
+ },
+ {
+  "review_id": "R033",
+  "item": "L24",
+  "bucket": "long",
+  "variant": "main",
+  "kind": "written",
+  "rep": 0,
+  "engine": "Apple on-device Foundation Model (prompt v2) with gate and ladder",
+  "draft": "\"fix import of linked folders, preserve links, hand cursor, exit option; refactor link recreation; add evidence for findings.\"",
+  "choose_pick": "4",
+  "trace": [
+   "write passed the gate"
+  ]
+ },
+ {
+  "review_id": "R034",
+  "item": "S20",
+  "bucket": "short",
+  "variant": "main",
+  "kind": "quoted",
+  "rep": 0,
+  "engine": "Apple on-device Foundation Model (prompt v2) with gate and ladder",
+  "draft": "\"rc7 walk: the New pool wizard opened on Writer and reviewer, and choosing Blank kept its name, \"Writer and reviewer 2\".\"",
+  "choose_pick": "2",
+  "trace": [
+   "write failed step(s) 4",
+   "choose passed the gate"
+  ]
+ },
+ {
+  "review_id": "R035",
+  "item": "S22",
+  "bucket": "short",
+  "variant": "main",
+  "kind": "excerpt",
+  "rep": 0,
+  "engine": "Apple on-device Foundation Model (prompt v2) with gate and ladder",
+  "draft": "\"A waiting session becomes a system notification after user time; accounts warn at two levels; test sends one notification.\"  \n\"The message describes how notifications trigger, account alerts, and a test notification format.\"",
+  "choose_pick": "1",
+  "trace": [
+   "write failed step(s) 4",
+   "chosen sentence failed step(s) 4"
+  ]
+ },
+ {
+  "review_id": "R036",
+  "item": "L25",
+  "bucket": "long",
+  "variant": "main",
+  "kind": "excerpt",
+  "rep": 0,
+  "engine": "Apple on-device Foundation Model (prompt v2) with gate and ladder",
+  "draft": "\"build(deps): update dependencies for WCAG 2.5.3 compliance; UI uses React 19, Vite 8, TypeScript 7, Playwright 1.64.1, axe-core 4.14, Rust patches, and Flake ledger reconc",
+  "choose_pick": "1",
+  "trace": [
+   "write failed step(s) 4",
+   "chosen sentence failed step(s) 4"
+  ]
+ },
+ {
+  "review_id": "R037",
+  "item": "A07",
+  "bucket": "adversarial",
+  "variant": "main",
+  "kind": "excerpt_routed",
+  "rep": 0,
+  "engine": "Apple on-device Foundation Model (prompt v2) with gate and ladder",
+  "draft": null,
+  "choose_pick": "2",
+  "trace": [
+   "section 2: L2/L3 shows the agent's own words; no model"
+  ]
+ },
+ {
+  "review_id": "R038",
+  "item": "A09",
+  "bucket": "adversarial",
+  "variant": "main",
+  "kind": "written",
+  "rep": 0,
+  "engine": "Apple on-device Foundation Model (prompt v2) with gate and ladder",
+  "draft": "\"Benchmarks show speed regression in v1.4.3, fixed in v1.4.4 via commit 3f9a2c1.\"",
+  "choose_pick": "2",
+  "trace": [
+   "write passed the gate"
+  ]
+ },
+ {
+  "review_id": "R039",
+  "item": "A03",
+  "bucket": "adversarial",
+  "variant": "main",
+  "kind": "written",
+  "rep": 0,
+  "engine": "Apple on-device Foundation Model (prompt v2) with gate and ladder",
+  "draft": "\"All tests complete: 212 pass, 3 skipped, release build in 41 s.\"",
+  "choose_pick": "2",
+  "trace": [
+   "write passed the gate"
+  ]
+ },
+ {
+  "review_id": "R040",
+  "item": "A13",
+  "bucket": "adversarial",
+  "variant": "gate_only",
+  "kind": "written",
+  "rep": 0,
+  "engine": "Apple on-device Foundation Model (prompt v2) with gate and ladder",
+  "draft": "\"The off-by-one error is fixed; test_limit_boundary passes, test_limit_negative still fails.\"",
+  "choose_pick": "4",
+  "trace": [
+   "write passed the gate"
+  ]
+ },
+ {
+  "review_id": "R041",
+  "item": "L13",
+  "bucket": "long",
+  "variant": "main",
+  "kind": "written",
+  "rep": 0,
+  "engine": "Apple on-device Foundation Model (prompt v2) with gate and ladder",
+  "draft": "\"Machine signals include CPU, memory, swap, disks, power, thermal.\"",
+  "choose_pick": "1",
+  "trace": [
+   "write passed the gate"
+  ]
+ },
+ {
+  "review_id": "R042",
+  "item": "A02",
+  "bucket": "adversarial",
+  "variant": "main",
+  "kind": "excerpt_routed",
+  "rep": 0,
+  "engine": "Apple on-device Foundation Model (prompt v2) with gate and ladder",
+  "draft": "\"212 tests ran, 2 failed: test_parse_empty_header and test_retry_backoff.\"",
+  "choose_pick": "2",
+  "trace": [
+   "section 2: L2/L3 shows the agent's own words; no model"
+  ]
+ },
+ {
+  "review_id": "R043",
+  "item": "L12",
+  "bucket": "long",
+  "variant": "main",
+  "kind": "excerpt",
+  "rep": 0,
+  "engine": "Apple on-device Foundation Model (prompt v2) with gate and ladder",
+  "draft": "\"machine-aware lineage, catalog + Handover RPC, chunked push with cancel, re-polled close signal fix, console targets with preconditions, click-time push, node work, two-Mac switch integration, cross-machine switch-back, UI with readiness badge, evidence manifest,",
+  "choose_pick": "1",
+  "trace": [
+   "write failed step(s) 4",
+   "chosen sentence failed step(s) 4"
+  ]
+ },
+ {
+  "review_id": "R044",
+  "item": "L08",
+  "bucket": "long",
+  "variant": "main",
+  "kind": "written",
+  "rep": 0,
+  "engine": "Apple on-device Foundation Model (prompt v2) with gate and ladder",
+  "draft": "\"Codex as second Provider with discovery, isolated home, launch, sign-in features.\"",
+  "choose_pick": "2",
+  "trace": [
+   "write passed the gate"
+  ]
+ },
+ {
+  "review_id": "R045",
+  "item": "S11",
+  "bucket": "short",
+  "variant": "main",
+  "kind": "written",
+  "rep": 0,
+  "engine": "Apple on-device Foundation Model (prompt v2) with gate and ladder",
+  "draft": "\"Each pair was checked by eye with eight held back and six captures differing by timing.\"",
+  "choose_pick": "3",
+  "trace": [
+   "write passed the gate"
+  ]
+ },
+ {
+  "review_id": "R046",
+  "item": "A14",
+  "bucket": "adversarial",
+  "variant": "main",
+  "kind": "written",
+  "rep": 0,
+  "engine": "Apple on-device Foundation Model (prompt v2) with gate and ladder",
+  "draft": "\"Fixed startup crash: null pointer error in init_logger gone; test passes, no log errors after 50 restarts.\"",
+  "choose_pick": "2",
+  "trace": [
+   "write passed the gate"
+  ]
+ },
+ {
+  "review_id": "R047",
+  "item": "L02",
+  "bucket": "long",
+  "variant": "main",
+  "kind": "excerpt",
+  "rep": 0,
+  "engine": "Apple on-device Foundation Model (prompt v2) with gate and ladder",
+  "draft": "\"Fleet transport features include TLS 1.3 mutual auth and protobuf v1; SPAKE2 pairing is under development; mDNS discovery and app link manager features are in progress; several fixes and documentation updates are included.\"",
+  "choose_pick": "1",
+  "trace": [
+   "write failed step(s) 4",
+   "chosen sentence failed step(s) 4"
+  ]
+ }
+]
