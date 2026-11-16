@@ -161,20 +161,39 @@ describe("D-118 — the feed", () => {
   });
 
   it("shows the away divider and digest at the last look, 2 h or more ago", async () => {
-    Reflect.set(window, "__AIJ_SUMMARY__", { since_ms: NOW - 5 * HOUR, generated_ms: NOW, default_window: false, rows: [], counts: {}, leftovers: 0 });
-    seed([...many(2), ...many(1, NOW - 6 * HOUR).map((one) => ({ ...one, id: "old", coalesce: "s:old" }))]);
+    // Away from 5 h ago until Home opened 30 min ago.
+    Reflect.set(window, "__AIJ_SUMMARY__", { since_ms: NOW - 5 * HOUR, generated_ms: NOW - HOUR / 2, default_window: false, rows: [], counts: {}, leftovers: 0 });
+    const at = (id: string, ms: number) => many(1, ms).map((one) => ({ ...one, id, coalesce: `s:${id}`, rollup: null, subject: id }))[0]!;
+    seed([at("back", NOW - 10 * 60_000), at("away-1", NOW - 2 * HOUR), at("away-2", NOW - 3 * HOUR), at("old", NOW - 6 * HOUR)]);
     feed();
     const away = await screen.findByTestId("feed-away");
     expect(within(away).getByTestId("feed-away-divider").textContent).toMatch(/^While you were away · since /);
     expect(within(away).getByTestId("feed-digest-words").textContent).toBe("2 finished.");
-    // It sits after what happened since, before what was seen.
+    // R5: since the return above it, the last look's older ones under it;
+    // what happened while away is in the digest only.
     const cards = screen.getAllByTestId("feed-card");
-    expect(cards[1]!.compareDocumentPosition(away) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(away.compareDocumentPosition(cards[2]!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(cards.map((card) => card.getAttribute("data-feed-ids"))).toEqual(["back", "old"]);
+    expect(cards[0]!.compareDocumentPosition(away) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(away.compareDocumentPosition(cards[1]!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     await act(async () => {
       fireEvent.click(within(away).getByTestId("feed-digest-seen"));
     });
     expect(within(away).getByTestId("feed-digest-seen").textContent).toBe("Seen");
+  });
+
+  it("never shows an item both as a card and in the digest (the 54-summary capture showed three twice)", async () => {
+    // Back as Home opened: everything since the last look is the digest's.
+    Reflect.set(window, "__AIJ_SUMMARY__", { since_ms: NOW - 9 * HOUR, generated_ms: NOW, default_window: false, rows: [], counts: {}, leftovers: 0 });
+    seed([...many(5, NOW - HOUR), ...many(2, NOW - 20 * HOUR).map((one, n) => ({ ...one, id: `old:${n}`, coalesce: `s:old${n}` }))]);
+    feed();
+    const away = await screen.findByTestId("feed-away");
+    fireEvent.click(within(away).getByTestId("feed-digest-all"));
+    const ids = (nodes: HTMLElement[]) => nodes.flatMap((node) => (node.getAttribute("data-feed-ids") ?? "").split(" ").filter(Boolean));
+    const digest = ids(within(away).getAllByTestId("feed-digest-item"));
+    const stream = ids(screen.getAllByTestId("feed-card"));
+    expect(digest).toHaveLength(5);
+    expect(stream).toEqual(["old:0", "old:1"]);
+    expect(digest.filter((id) => stream.includes(id))).toEqual([]);
   });
 
   it("holds new items behind the pill while the reader is scrolled down", async () => {

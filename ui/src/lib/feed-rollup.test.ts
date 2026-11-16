@@ -6,7 +6,7 @@
  * reader's place (R6) and Home's layout by width (AJ-E3701 R4).
  */
 import { describe, expect, it } from "vitest";
-import { AWAY_MS, awayOf, cardsOf, dayStarts, restartOf, stateOf } from "./feed-rollup";
+import { AWAY_MS, cardsOf, splitAway, dayStarts, restartOf, stateOf } from "./feed-rollup";
 import { heldBack, newWords } from "./use-feed-stream";
 import { homeLayout } from "./home-layout";
 import { feedItem } from "../preview/feed";
@@ -81,22 +81,49 @@ describe("D-118 R4 — one thing, one card; rollups by key", () => {
 describe("D-118 R5 — the away divider and digest", () => {
   const items = [finished("a", 10 * MIN), crashed("x", 3 * HOUR), finished("b", 5 * HOUR, { folder: "home" }), finished("old", 10 * HOUR)];
 
-  it("shows nothing when the last look is under 2 h ago, or never kept", () => {
-    expect(awayOf(cardsOf(items), NOW - AWAY_MS + MIN, NOW, false)).toBeNull();
-    expect(awayOf(cardsOf(items), null, NOW, false)).toBeNull();
+  const look = (sinceAgo: number, backAgo = 0) => ({ sinceMs: NOW - sinceAgo, backMs: NOW - backAgo });
+  const keys = (cards: { key: string }[]) => cards.map((card) => card.key);
+
+  it("shows nothing when the last look is under 2 h before the return, or never kept", () => {
+    expect(splitAway(cardsOf(items), look(AWAY_MS - MIN), false).away).toBeNull();
+    expect(splitAway(cardsOf(items), look(3 * HOUR, 2 * HOUR), false).away).toBeNull();
+    const none = splitAway(cardsOf(items), null, false);
+    expect(none.away).toBeNull();
+    expect(none.stream).toHaveLength(4);
   });
 
-  it("sits before the first card at or before the last look, with what happened since: counts by kind, the broken first", () => {
-    const away = awayOf(cardsOf(items), NOW - 8 * HOUR, NOW, false)!;
-    expect(away.index).toBe(3);
-    expect(away.kinds).toEqual(["finished", "crashed", "finished"]);
-    expect(away.top.map((thing) => thing.head.id)).toEqual(["l:x", "l:a", "l:b"]);
+  it("rolls what happened while away into the digest, never a card as well: counts by kind, the broken first", () => {
+    const { stream, away } = splitAway(cardsOf(items), look(8 * HOUR), false);
+    expect(away!.index).toBe(0);
+    expect(away!.kinds).toEqual(["finished", "crashed", "finished"]);
+    expect(away!.top.map((thing) => thing.head.id)).toEqual(["l:x", "l:a", "l:b"]);
+    expect(keys(stream)).toEqual(["s:old"]);
+  });
+
+  it("keeps what came since the return above the divider, and what is older than the last look under it", () => {
+    // Away from 8 h ago until 1 h ago: a (10 min) came after the return.
+    const { stream, away } = splitAway(cardsOf(items), look(8 * HOUR, HOUR), false);
+    expect(keys(stream)).toEqual(["s:a", "s:old"]);
+    expect(away!.index).toBe(1);
+    expect(away!.all.map((thing) => thing.head.id)).toEqual(["l:x", "l:b"]);
+    const shown = new Set(stream.flatMap((card) => card.things.flatMap((thing) => thing.items.map((one) => one.id))));
+    expect(away!.all.flatMap((thing) => thing.items.map((one) => one.id)).filter((id) => shown.has(id))).toEqual([]);
+  });
+
+  it("nothing while away: no divider, every card in the stream", () => {
+    const { stream, away } = splitAway(cardsOf(items), look(30 * HOUR, 20 * HOUR), false);
+    expect(away).toBeNull();
+    expect(stream).toHaveLength(4);
   });
 
   it("waits for its boundary to load while more pages follow; at the end of the feed it closes the list", () => {
     const recent = items.slice(0, 3);
-    expect(awayOf(cardsOf(recent), NOW - 8 * HOUR, NOW, true)).toBeNull();
-    expect(awayOf(cardsOf(recent), NOW - 8 * HOUR, NOW, false)!.index).toBe(3);
+    const waiting = splitAway(cardsOf(recent), look(8 * HOUR), true);
+    expect(waiting.away).toBeNull();
+    expect(waiting.stream).toHaveLength(3);
+    const closed = splitAway(cardsOf(recent), look(8 * HOUR), false);
+    expect(closed.away!.index).toBe(0);
+    expect(closed.stream).toEqual([]);
   });
 
   it("starts a day separator at each new day", () => {

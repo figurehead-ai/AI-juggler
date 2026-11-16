@@ -10,12 +10,12 @@
  * has been in front 10 s with the digest on screen. The card stays for
  * this visit; the next one starts from the new boundary.
  */
-import { useEffect, useRef, useState, type JSX } from "react";
+import { useEffect, useMemo, useRef, useState, type JSX } from "react";
 import { overnightSummary, overnightSummarySeen } from "../lib/ipc/park";
 import { sharedRead, useSharedRead } from "../lib/shared-read";
 import { clock } from "../lib/time-words";
 import { digestWords, exactWhen, feedWhen, said, sentence } from "../lib/feed-words";
-import { stateOf, type Away } from "../lib/feed-rollup";
+import { stateOf, type Away, type LastLook } from "../lib/feed-rollup";
 import type { FeedItemInfo } from "../lib/ipc/feed";
 
 /** The last look, kept between Home's openings. */
@@ -28,9 +28,11 @@ const SEEN_AFTER_MS = 10_000;
  * summary's default window is not a look). Marking it seen doesn't read
  * it again: the card stays for this visit, and the next one reads the new
  * boundary as Home opens. */
-export function useLastLook(): number | null {
+export function useLastLook(): LastLook | null {
   const read = useSharedRead(summary);
-  return read && !read.default_window ? read.since_ms : null;
+  // Its read as Home opened is the return: what came after it is "since
+  // you came back", above the divider.
+  return useMemo(() => (read && !read.default_window ? { sinceMs: read.since_ms, backMs: read.generated_ms } : null), [read]);
 }
 
 function markSeen(): void {
@@ -81,7 +83,7 @@ export function HomeFeedAway({ away, now, onOpen }: { away: Away; now: number; o
             const item = stateOf(thing);
             return (
               <li key={thing.key} className="flex items-baseline gap-3 text-meta text-ink-2">
-                <button type="button" onClick={() => void onOpen(item)} className="min-w-0 rounded text-left outline-none hover:text-ink hover:underline focus-visible:ring-1 focus-visible:ring-accent/60" data-testid="feed-digest-item">
+                <button type="button" onClick={() => void onOpen(item)} className="min-w-0 rounded text-left outline-none hover:text-ink hover:underline focus-visible:ring-1 focus-visible:ring-accent/60" data-testid="feed-digest-item" data-feed-ids={thing.items.map((one) => one.id).join(" ")}>
                   {said(sentence(item))}
                 </button>
                 <time className="ml-auto shrink-0 text-label text-muted" title={exactWhen(item.at_ms)}>{feedWhen(item.at_ms, now)}</time>

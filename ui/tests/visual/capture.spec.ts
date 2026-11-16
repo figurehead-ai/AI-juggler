@@ -5100,6 +5100,12 @@ for (const theme of THEMES) {
       await expect(page.getByTestId("feed-away")).toBeVisible();
       await expect(page.getByTestId("feed-digest-words")).toBeVisible();
       await expect(page.getByTestId("feed-digest")).not.toContainText(/NaN|Invalid Date/);
+      // R5: the night is the digest's only, never a stream card as well
+      // (CI run 43857640404 showed its three twice).
+      const shownIds = (testId: string) =>
+        page.getByTestId(testId).evaluateAll((nodes) => nodes.flatMap((node) => (node.getAttribute("data-feed-ids") ?? "").split(" ").filter(Boolean)));
+      const stream = await shownIds("feed-card");
+      expect((await shownIds("feed-digest-item")).filter((id) => stream.includes(id))).toEqual([]);
       await page.getByTestId("feed-away").scrollIntoViewIfNeeded();
       await page.screenshot({ path: resolve(GALLERY, `54-summary/home-${vp.name}-${theme}.png`) });
       await page.getByTestId("feed-digest-item").first().click();

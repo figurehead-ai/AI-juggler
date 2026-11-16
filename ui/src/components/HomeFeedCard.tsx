@@ -188,6 +188,8 @@ export function HomeFeedCard({ card, pos, now, unread, fresh, actions }: { card:
       data-session-id={card.rolled ? undefined : (item.target.session_id ?? undefined)}
       data-ended={!card.rolled && ENDED.has(item.kind) ? "yes" : undefined}
       data-testid="feed-card"
+      // Every item it shows (the tests hold that none is a digest line as well).
+      data-feed-ids={card.things.flatMap((thing) => thing.items.map((one) => one.id)).join(" ")}
       data-kind={item.kind}
       data-level={card.level}
       data-rolled={card.rolled || undefined}

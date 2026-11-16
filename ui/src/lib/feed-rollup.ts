@@ -104,32 +104,52 @@ export function cardsOf(items: readonly FeedItemInfo[]): FeedCard[] {
 /** The away boundary is shown when the last look is this long ago. */
 export const AWAY_MS = 2 * 3_600_000;
 
-/** The away divider and digest (R5): where the divider sits (before the
- * first card at or before the last look), and what happened since. */
+/** When the user last looked (`sinceMs`, `summary_seen_at_ms`) and when
+ * they came back (`backMs`, the read of it as Home opened). */
+export interface LastLook {
+  sinceMs: number;
+  backMs: number;
+}
+
+/** The away divider and digest (R5): where the divider sits in the
+ * stream, and what happened while away. */
 export interface Away {
-  /** The divider goes before this card (cards.length: after them all). */
+  /** The divider goes before this stream card (stream.length: after them all). */
   index: number;
   sinceMs: number;
-  /** Each thing's kind since the last look (the digest counts them). */
+  /** Each thing's kind while away (the digest counts them). */
   kinds: string[];
   /** The three most important, broken first, then the newest. */
   top: FeedThing[];
-  /** Every thing since the last look (Show all). */
+  /** Every thing while away (Show all). */
   all: FeedThing[];
 }
 
-/** Where the away divider goes, and the digest: `null` when the last
- * look was under 2 h ago, or the boundary isn't loaded yet (more pages
- * follow; the auto pages reach it). */
-export function awayOf(cards: readonly FeedCard[], sinceMs: number | null, now: number, more: boolean): Away | null {
-  if (sinceMs === null || now - sinceMs < AWAY_MS) return null;
-  const index = cards.findIndex((card) => card.head.at_ms <= sinceMs);
-  if (index < 0 && more) return null;
-  const at = index < 0 ? cards.length : index;
-  const all = cards.slice(0, at).flatMap((card) => card.things);
-  if (all.length === 0) return null;
+/**
+ * The feed split at the last look (R5, proposal §3.6): what happened
+ * while away (after the last look, up to the return) is rolled into the
+ * digest under the divider and is not a stream card as well; above the
+ * divider only what came since the return; under it, what is older than
+ * the last look. A card goes whole by its newest thing, so no item is
+ * ever both a card and a digest line. No away (`away: null`, every card
+ * in the stream) when the last look is under 2 h before the return, was
+ * never kept, nothing happened while away, or its boundary isn't loaded
+ * yet (more pages follow; the auto pages reach it).
+ */
+export function splitAway(cards: readonly FeedCard[], look: LastLook | null, more: boolean): { stream: FeedCard[]; away: Away | null } {
+  const none = { stream: [...cards], away: null };
+  if (look === null || look.backMs - look.sinceMs < AWAY_MS) return none;
+  if (more && !cards.some((card) => card.head.at_ms <= look.sinceMs)) return none;
+  const since = cards.filter((card) => card.head.at_ms > look.backMs);
+  const gone = cards.filter((card) => card.head.at_ms <= look.backMs && card.head.at_ms > look.sinceMs);
+  const older = cards.filter((card) => card.head.at_ms <= look.sinceMs);
+  const all = gone.flatMap((card) => card.things);
+  if (all.length === 0) return none;
   const top = [...all].sort((a, b) => levelOf(b) - levelOf(a) || stateOf(b).at_ms - stateOf(a).at_ms).slice(0, 3);
-  return { index: at, sinceMs, kinds: all.map((thing) => stateOf(thing).kind), top, all };
+  return {
+    stream: [...since, ...older],
+    away: { index: since.length, sinceMs: look.sinceMs, kinds: all.map((thing) => stateOf(thing).kind), top, all },
+  };
 }
 
 /** Day separators: the index of each card that starts a new day. */

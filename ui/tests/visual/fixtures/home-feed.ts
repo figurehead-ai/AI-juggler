@@ -16,10 +16,17 @@ const WORK = { kind: "app", name: null, provider: "claude-code", folder: "claude
 const PERSONAL = { kind: "app", name: null, provider: "claude-code", folder: "claude-personal", folder_label: "Personal", desktop: true } as const;
 const CODEX = { kind: "app", name: null, provider: "codex", folder: "codex", folder_label: "Codex", desktop: false } as const;
 
-/** The last look, `hours` ago (never the default window), as the seam reads it. */
-export function away(now: number, hours: number) {
-  return { since_ms: now - hours * HOUR, generated_ms: now, default_window: false, rows: [], counts: {}, leftovers: 0 };
+/** The last look, `hours` ago (never the default window), as the seam
+ * reads it; the return (the read as Home opened, `generated_ms`) `back`
+ * hours ago: what came after it is above the away divider, what came
+ * between the two is the digest's only (R5). */
+export function away(now: number, hours: number, back = 0) {
+  return { since_ms: now - hours * HOUR, generated_ms: now - back * HOUR, default_window: false, rows: [], counts: {}, leftovers: 0 };
 }
+
+/** Busy's away: gone from 9 h ago until 4½ h ago, so every card of the
+ * busy day is since the return and the night's two are the digest's. */
+export const BUSY_AWAY = (now: number) => away(now, 9, 4.5);
 
 /** A few endings newer than the last look (9 h) and one older: the digest's input. */
 export function digestFeed(now: number): FeedItemInfo[] {
@@ -37,7 +44,8 @@ export function digestFeed(now: number): FeedItemInfo[] {
   ];
 }
 
-/** Every kind the feed draws, newest first, and a rollup of four finished sessions. */
+/** Every kind the feed draws, newest first, a rollup of four finished
+ * sessions, and two from the night before (the away digest's). */
 export function busyFeed(now: number): FeedItemInfo[] {
   const item = (id: string, ago: number, kind: string, category: string, over: Over) =>
     feedItem({ id, at_ms: now - ago, kind, category, coalesce: id, subject: "Refactor the router", author: WORK, ...over });
@@ -64,6 +72,9 @@ export function busyFeed(now: number): FeedItemInfo[] {
     item("l:12", 100 * MIN, "message", "pools", { subject: "Which branch?", author: { kind: "agent", name: "Tess", provider: "claude-code", folder: null, folder_label: null, desktop: false }, facts: { pool: "Release crew", pool_id: "pool-1", thread: "Which branch?", thread_count: 3, quote: "I'd cut it from release/0.5 so the paging test lands with the feed." } }),
     item("c:13", 110 * MIN, "worked", "other", { subject: "Plan the trip notes app", author: CODEX, facts: { project: "trip-notes" } }),
     ...rolled,
+    // The night (BUSY_AWAY's digest): a failure and a finish while away.
+    item("l:14", 6 * HOUR, "failed", "needs", { level: 3, subject: "Rebuild the search index", facts: { project: "ai-juggler", detail: "exit code 2", duration_ms: 40 * MIN } }),
+    item("l:15", 7 * HOUR, "finished", "finished", { subject: "Bump the dependencies", facts: { project: "ai-juggler", duration_ms: 22 * MIN } }),
   ];
 }
 

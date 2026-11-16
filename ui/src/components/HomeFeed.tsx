@@ -2,8 +2,9 @@
  * D-118 (AJ-E3702) — Home's activity feed, the stream under the pinned
  * zone: the filters, then what happened, newest first, never ranked,
  * rolled up so it never spams (`lib/feed-rollup`), day separators as
- * section labels, the "While you were away" divider and digest at the
- * last look, every sentence from `lib/feed-words`.
+ * section labels, the "While you were away" divider and digest (what
+ * happened while away is rolled into it, never a card as well; above it
+ * only what came since the return), every sentence from `lib/feed-words`.
  *
  * Paging (R8): three pages load by themselves as the end comes into view,
  * then Load more; the last visit's first page paints at once, or six
@@ -18,7 +19,7 @@ import { HomeFeedCard, type CardActions } from "./HomeFeedCard";
 import { HomeFeedAway, useLastLook } from "./HomeFeedAway";
 import { HomeFeedFilters, type Facets } from "./HomeFeedFilters";
 import { Button } from "./primitives";
-import { awayOf, cardsOf, dayStarts, type FeedCard } from "../lib/feed-rollup";
+import { cardsOf, dayStarts, splitAway, type FeedCard } from "../lib/feed-rollup";
 import { dayLabel, EMPTY_FEED } from "../lib/feed-words";
 import { markAllRead, markRead, readHorizon, readIds, unread, useFeedFilters } from "../lib/feed-state";
 import { clock } from "../lib/time-words";
@@ -139,11 +140,12 @@ export function HomeFeed({ stacked, now, actions, nameOf, facets, toReview, onRe
   const [read, setRead] = useState(readIds);
   const [horizon, setHorizon] = useState(() => readHorizon(now));
   const lastLook = useLastLook();
-  const cards = useMemo(() => cardsOf(stream.shown.map((item) => {
+  const all = useMemo(() => cardsOf(stream.shown.map((item) => {
     const name = nameOf(item);
     return name ? { ...item, subject: name } : item;
   })), [stream.shown, nameOf]);
-  const away = awayOf(cards, lastLook, now, stream.list.hasMore);
+  // R5: what happened while away is the digest's, never a card as well.
+  const { stream: cards, away } = useMemo(() => splitAway(all, lastLook, stream.list.hasMore), [all, lastLook, stream.list.hasMore]);
   const days = dayStarts(cards);
   const shownCards: FeedCard[] = stacked && !more ? cards.slice(0, STACKED_CARDS) : cards;
   const open = (item: FeedItemInfo): boolean => {
@@ -167,7 +169,7 @@ export function HomeFeed({ stacked, now, actions, nameOf, facets, toReview, onRe
         </button>
       )}
       <States stream={stream} quiet={quiet} onNewSession={onNewSession} onOpenApp={onOpenApp} />
-      {cards.length > 0 && (
+      {(cards.length > 0 || away) && (
         <div role="feed" aria-busy={stream.list.loadingMore || stream.list.stale} aria-labelledby="activity-h" className="flex flex-col gap-0.5" data-testid="feed">
           {shownCards.map((card, index) => (
             <Fragment key={card.key}>

@@ -17,7 +17,7 @@ import { resolve } from "node:path";
 import type { FixtureSet } from "../../src/preview/fixtures";
 import { placesConversations } from "../../src/preview/places";
 import { allStatuses } from "./fixtures";
-import { away, busyFeed, digestFeed, manyFeed } from "./fixtures/home-feed";
+import { away, BUSY_AWAY, busyFeed, digestFeed, manyFeed } from "./fixtures/home-feed";
 
 const OUT = resolve(process.cwd(), "../docs/qa/evidence/_gallery/68-home-feed");
 const T0 = 1_728_800_000_000;
@@ -82,12 +82,28 @@ async function expectWholeBusyFeed(page: Page) {
   await expect(page.getByTestId("feed-digest")).toBeVisible();
   await expect(page.getByTestId("feed-quote")).toBeVisible();
   await expect(page.getByTestId("feed-rollup")).toBeVisible();
+  await expectNoTwice(page);
+}
+
+/** R5: what happened while away is the digest's only, never a stream
+ * card as well (the 54-summary capture of CI run 43857640404 showed the
+ * digest's three twice). Opens Show all first, so every line counts. */
+async function expectNoTwice(page: Page) {
+  const all = page.getByTestId("feed-digest-all");
+  if ((await all.count()) > 0 && (await all.getAttribute("aria-expanded")) === "false") await all.click();
+  const ids = (testId: string) =>
+    page.getByTestId(testId).evaluateAll((nodes) => nodes.flatMap((node) => (node.getAttribute("data-feed-ids") ?? "").split(" ").filter(Boolean)));
+  const digest = await ids("feed-digest-item");
+  const stream = await ids("feed-card");
+  expect(digest.length, "the digest has lines").toBeGreaterThan(0);
+  expect(digest.filter((id) => stream.includes(id)), "no item both a card and a digest line").toEqual([]);
+  if ((await all.count()) > 0) await all.click(); // back to the three
 }
 
 const STATES: Array<{ name: string; fixture: FixtureSet; seams: Seams }> = [
   { name: "all-clear", fixture: allClear, seams: {} },
   { name: "typical", fixture: allStatuses, seams: {} },
-  { name: "busy", fixture: allStatuses, seams: { feed: busyFeed(T0), summary: away(T0, 9) } },
+  { name: "busy", fixture: allStatuses, seams: { feed: busyFeed(T0), summary: BUSY_AWAY(T0) } },
   { name: "flood", fixture: flood, seams: {} },
 ];
 
@@ -108,7 +124,7 @@ for (const theme of ["dark", "light"] as const) {
           await expect(page.getByTestId("feed-card").first()).toBeVisible();
           if (stacked) {
             // AJ-E3701 R4: stacked, the feed is one page (12 cards), then Show more.
-            // Busy's 13 cards are all newer than the last look, so the away
+            // Busy's 13 cards all came since the return, so the away
             // boundary (AJ-E3702 R5: the divider and digest sit at it) is past
             // that page: Show more reveals it, below.
             await expect(page.getByTestId("feed-show-more")).toBeVisible();
@@ -153,6 +169,9 @@ for (const theme of ["dark", "light"] as const) {
   test(`home feed — the away digest, shown in place — 1280 — ${theme}`, async ({ page }) => {
     await seed(page, allStatuses, theme, { width: 1280, height: 800 }, { feed: digestFeed(T0), summary: away(T0, 9) });
     await expect(page.getByTestId("feed-away")).toBeVisible();
+    await expectNoTwice(page);
+    // Back as Home opened: the night is the digest's, the older one under it.
+    await expect(page.getByTestId("feed-card")).toHaveCount(1);
     await page.getByTestId("feed-away").scrollIntoViewIfNeeded();
     await page.screenshot({ path: resolve(OUT, `away-1280-${theme}.png`) });
   });
@@ -168,7 +187,7 @@ for (const theme of ["dark", "light"] as const) {
  */
 for (const size of [{ width: 1024, height: 680 }, { width: 1280, height: 800 }]) {
   test(`home feed — two columns, only the columns scroll — ${size.width}x${size.height}`, async ({ page }) => {
-    await seed(page, allStatuses, "dark", size, { feed: busyFeed(T0), summary: away(T0, 9) });
+    await seed(page, allStatuses, "dark", size, { feed: busyFeed(T0), summary: BUSY_AWAY(T0) });
     await expect(page.getByTestId("home")).toHaveAttribute("data-layout", "columns");
     await expect(page.getByTestId("feed-card").first()).toBeVisible();
     const boxes = () =>
