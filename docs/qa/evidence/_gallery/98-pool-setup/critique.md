@@ -1,4 +1,4 @@
-<!-- captures: 84bb864c98e8 -->
+<!-- captures: 28402ae9aab4 -->
 # 98-pool-setup: the pool setup a newcomer understands (AJ-E3011)
 
 Design critique (D-57, AJ-E2814) against the reference screens: Settings' choice lines, the switch dialog's "What does this mean?", and the calm UI round 2 mocks (levels, section labels, surface tone). Every step of New pool, empty (the first pool: the intro full, nothing chosen, the defaults filled in) and filled (a name, two Apps, an App's next session leading, a Reviewer, a pair blocked, waking, the seal), dark and light, 1280×800. Fixture names only.
@@ -81,3 +81,13 @@ Checked by eye, dark and light, empty and filled (the container's baselines and 
 ## Sam's round-4 follow-ups
 
 - setup-tools-empty: the question's scope line reads "This is for every pool you make; you can switch it off for a project or an app in Settings." (was "You can switch it off per project or app in Settings."). Checked dark and light. Pass.
+
+## Round 5 (AJ-E3011, Sam's diagram path and Casey's PC1 walk)
+
+Checked by eye, dark and light:
+
+- empty-pool-setup (new): an empty pool's page is New pool's own flow in place: "Set up Docs crew", the same steps and template cards inside the pool page's card, "Show the diagram" quiet at the top right, Next in the foot and no Cancel. Pass.
+- setup-talk (empty and filled): "Click a cell to change it." above the table, and each cell is a button that looks like one (surface-2 with a hairline edge). Pass.
+- setup-everyone: "New sessions in storefront join as:" with its picker. Pass.
+- setup-tools-empty: the card says "It costs nothing extra. Your assistants use their own turns only when they act." and "This is a setting in AI Juggler; it changes nothing in your apps." Pass.
+- Weak: the template grid's last row is cut at the empty pool's 800 px height (it scrolls inside the step).

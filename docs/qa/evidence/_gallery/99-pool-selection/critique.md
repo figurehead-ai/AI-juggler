@@ -1,4 +1,4 @@
-<!-- captures: b2b5b3321e62 -->
+<!-- captures: e3f72e71db2b -->
 # 99-pool-selection: the canvas's selection and the inspector's title (AJ-E3012)
 
 Design critique (D-57, AJ-E2814) against 97-pool-canvas (the canvas before) and the calm UI round 2 rules. The canvas with each kind selected — nothing (the pool), a session, an App, an Account, a Tool, everyone in scope, a line, the pool's own setup opened from the checklist, and the lead's place waiting for an App's next session — dark and light, 1280×800. Fixture names only.
@@ -77,3 +77,10 @@ Checked by eye, dark and light:
 - header-custom (new): Custom chosen in the header opens its list in place, under the control: "Custom: what they may do on their own", "On their own they may do the 11 things you picked, under Custom actions.", and the pool's own Custom list (the inspector's and Settings' one list), Done at its foot; the page under it is inert. The inspector's summary reads the same count ("On their own they may do the 11 things you picked"). Checked dark and light. Pass.
 - Weak: at 1280×800 the list's Done sits below the popover's fold (it scrolls inside); Escape and a press outside close it too.
 - The ready line names which to open first when an App's next session leads ("Open Claude Code CLI · Work Max in web first: it leads; …"); none of these captures has that state in view.
+
+## Round 5 (AJ-E3011, under D-55)
+
+- Every capture: the inspector is 380 px at first (was 340), resizable from its left edge 360 to 420 px, its width kept.
+- opened-lead (new): Who leads opened from the summary's Change sits at the panel's top with the chosen radio focused (its ring visible), the whole list in view at 1280×800. A browser test checks the same at 1024×768 and that the role menu and the join menu open inside the window. Pass.
+- The talk table's cells look like buttons ("Click a cell to change it." above it). Pass.
+- Weak: at 1280×800 the opened Who leads list pushes its read-back to the panel's foot.

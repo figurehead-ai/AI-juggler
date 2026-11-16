@@ -1,4 +1,4 @@
-<!-- captures: 7d5adab0ca3e -->
+<!-- captures: b16f5a710262 -->
 # 97-pool-canvas: the Pools screen and a pool's canvas
 
 Design critique (D-57, AJ-E2814) against the reference screens: the row menus (77-menus), the rail's order menu, Usage and Processes. The baseline note says what changed on purpose; this says whether it is good.
@@ -94,3 +94,9 @@ canvas, inspect-* and new-pool-* (both widths and themes): the header's switch r
 - new-pool-lead (both sizes): an App's next session "takes charge as soon as one of its sessions starts in storefront". new-pool-review: Team tools as one line, then "What happens next: Open a session in storefront: it joins; their messages show here." Pass.
 - Delete on a node (and the inspector's Take out of the pool) is held like Stop: a toast with Undo; letting it run takes it out (the keyboard test checks Undo keeps it and nothing is sent).
 - The 1024×700 captures re-rendered with under 50 px of noise and were left as committed.
+
+## 0.4.6 round 5 (AJ-E3011, under D-55)
+
+- Every capture with the inspector: 380 px at first (was 340), resizable 360-420 from its left edge; the canvas gives up the 40 px.
+- An empty pool's page opens in its guided setup (98-pool-setup/empty-pool-setup); these captures' pools have members, so they stay on the diagram.
+- Adding from the palette keeps the added row in place, marked Added, so the next Add doesn't move (a browser test measures it).
