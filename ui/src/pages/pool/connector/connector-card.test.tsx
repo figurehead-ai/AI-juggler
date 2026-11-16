@@ -76,16 +76,14 @@ describe("AJ-E3013: the connector's consent card", () => {
     expect(screen.getByTestId("c-removed").textContent).toBe("A running session keeps it until it next starts.");
   });
 
-  it("changed: it says so, and Remove names the file it leaves", async () => {
+  it("changed: it says so, and Remove names the file it would delete", async () => {
     const changed = "/Users/you/Profiles/Work/claude-code/skills/ai-juggler/skills/pool-tasks/SKILL.md";
     Object.assign(window, { __AIJ_CONNECTOR__: { [WORK]: { state: "changed", changed: [changed] } } });
     card();
     expect((await screen.findByTestId("c-changed")).textContent).toContain(shortPath(changed));
     await act(async () => fireEvent.click(screen.getByTestId("c-remove")));
     const lines = screen.getAllByTestId("c-remove-file").map((one) => one.textContent);
-    expect(lines).toContain(`Leaves ${FOLDER}/skills/ai-juggler/skills/pool-tasks/SKILL.md: it changed since AI Juggler wrote it`);
-    await act(async () => fireEvent.click(screen.getByTestId("c-confirm-remove")));
-    expect(screen.getByTestId("c-removed").textContent).toContain("It left one file that changed since it wrote it: ~/Profiles/Work/claude-code/skills/ai-juggler/skills/pool-tasks/SKILL.md.");
+    expect(lines).toContain(`${FOLDER}/skills/ai-juggler/skills/pool-tasks/SKILL.md changed since AI Juggler wrote it`);
   });
 
   it("an older edition's: Update, through the same preview", async () => {
@@ -112,8 +110,8 @@ describe("AJ-E3013: the connector's consent card", () => {
 
   it("an app that can't take it (the Codex app): why, plainly, and that no guide can do it either", async () => {
     card(CODEX);
-    // Round 6: never the backend's own text; this preview has no reason code.
-    expect((await screen.findByTestId("c-why-not")).textContent).toBe("AI Juggler can't add its connector to this app yet.");
+    // Never the backend's own text: its reason code, worded.
+    expect((await screen.findByTestId("c-why-not")).textContent).toBe("AI Juggler can't add its connector to this app yet: it can't tell this app's sessions apart.");
     expect(screen.getByTestId("c-guide-none").textContent).toContain("no guide for it either");
     expect(screen.queryByTestId("c-add")).toBeNull();
   });
@@ -166,5 +164,36 @@ describe("AJ-E3013: the card in plain words first (Casey's PC1 walk)", () => {
   it("the sentence counts what each file is", () => {
     expect(previewSentence([{ action: "merge" }], { name: "ChatGPT" })).toBe("This adds a small helper to ChatGPT so its sessions can talk in this pool: its own table added to 1 settings file; nothing of yours changes.");
     expect(previewSentence([{ action: "replace" }, { action: "replace" }], { name: "x", kind: "Claude app", profile: "Side" }, "pools")).toBe("This adds a small helper to your Claude app (Side) so its sessions can talk in pools: 2 older AI Juggler files updated; nothing of yours changes.");
+  });
+});
+
+// 93b495f28: Remove is all or nothing; a changed file refuses it, named,
+// and the card offers Remove anyway, with Cancel focused.
+describe("AJ-E3013: Remove anyway", () => {
+  it("a file changed since Add: Remove would take nothing out; Remove anyway names it and takes it out whole", async () => {
+    const changed = "/Users/you/Profiles/Work/claude-code/skills/ai-juggler/skills/pool-tasks/SKILL.md";
+    Object.assign(window, { __AIJ_CONNECTOR__: { [WORK]: { state: "changed", changed: [changed] } } });
+    card();
+    await act(async () => fireEvent.click(await screen.findByTestId("c-remove")));
+    expect(screen.getByTestId("c-remove-changed").textContent).toContain("SKILL.md changed since AI Juggler added it, so Remove takes nothing out.");
+    const anyway = screen.getByTestId("c-remove-anyway");
+    expect(anyway.textContent).toBe("Remove anyway (also deletes SKILL.md)");
+    expect(document.activeElement).toBe(screen.getByTestId("c-cancel"));
+    expect(screen.queryByTestId("c-confirm-remove")).toBeNull();
+    await act(async () => fireEvent.click(anyway));
+    expect(calls()).toEqual([`remove-anyway:${WORK}`]);
+    expect(screen.getByTestId("c-removed").textContent).toBe("A running session keeps it until it next starts.");
+  });
+
+  it("a Remove refused for a file changed meanwhile turns into Remove anyway", async () => {
+    Object.assign(window, { __AIJ_CONNECTOR__: { [WORK]: { state: "current" } } });
+    card();
+    await act(async () => fireEvent.click(await screen.findByTestId("c-remove")));
+    // Someone changes a file while the confirmation is open.
+    resetPreviewConnector();
+    Object.assign(window, { __AIJ_CONNECTOR__: { [WORK]: { state: "changed", changed: ["/Users/you/Profiles/Work/claude-code/skills/ai-juggler/.claude-plugin/plugin.json"] } } });
+    await act(async () => fireEvent.click(screen.getByTestId("c-confirm-remove")));
+    expect(screen.getByTestId("c-remove-anyway").textContent).toBe("Remove anyway (also deletes plugin.json)");
+    expect(calls()).toEqual([]);
   });
 });

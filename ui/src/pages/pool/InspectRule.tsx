@@ -19,7 +19,7 @@ import { poolJoin, type PoolRuleInfo, type WatchedMemberInfo } from "../../lib/i
 import type { PoolInfo, PoolRole } from "../../lib/ipc/pools";
 import { setPools } from "../../lib/pools";
 import { useApps } from "../../lib/apps";
-import { CONNECTOR_MEANING, reachOf, useDesktopMembers, wakeLine } from "../../lib/connector";
+import { CONNECTOR_MEANING, deliverWakes, reachOf, useDesktopMembers, wakeLine } from "../../lib/connector";
 import type { DesktopMemberInfo } from "../../lib/ipc/connector";
 import { ConnectorCard } from "./connector/ConnectorCard";
 import { asRole, leadSentence, wakeWords } from "../../lib/pool-words";
@@ -137,8 +137,8 @@ function DesktopSection({ poolId, member, watched, desktop }: { poolId: string; 
     reach.kind === "watched"
       ? `Watched: ${reach.line.charAt(0).toLowerCase()}${reach.line.slice(1)} (${CONNECTOR_MEANING}). ${who} ${watched ? "is" : "are"} shown and counted here, without the pool's tools.`
       : reach.kind === "added"
-        ? `AI Juggler's connector is in ${name}. ${who} ${watched ? "joins" : "join"} at the next start; then: ${wake.charAt(0).toLowerCase()}${wake.slice(1)}.`
-        : `${who} ${watched ? "talks" : "talk"} in this pool through AI Juggler's connector. ${wake}.`;
+        ? `AI Juggler's connector is in ${name}. ${who} ${watched ? "joins" : "join"} at the next start; then: ${wake.charAt(0).toLowerCase()}${wake.slice(1)}.${deliverWakes(desktop?.wake ?? "", !watched)}`
+        : `${who} ${watched ? "talks" : "talk"} in this pool through AI Juggler's connector. ${wake}.${deliverWakes(desktop?.wake ?? "", !watched)}`;
   return (
     <div className="flex flex-col gap-2" data-testid="inspect-rule-desktop" data-reach={reach.kind} data-member={member}>
       <span className="text-meta text-ink-2" data-testid="inspect-rule-reach">

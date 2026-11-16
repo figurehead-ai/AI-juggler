@@ -22,7 +22,7 @@ import { Button } from "../../../components/primitives";
 import { errorText } from "../../../lib/bridge";
 import { CONNECTOR, CONNECTOR_GUIDE, connectorChanged, previewSentence, shortPath, statusLine, useConnectorStatus } from "../../../lib/connector";
 import { Disclosure } from "../../../components/controls";
-import { connectorAdd, connectorPreview, connectorRemove, type ConnectorPreviewInfo, type ConnectorRemovalInfo, type ConnectorStatusInfo } from "../../../lib/ipc/connector";
+import { connectorAdd, connectorPreview, connectorRemove, connectorRemoveAnyway, connectorStatus, type ConnectorPreviewInfo, type ConnectorRemovalInfo, type ConnectorStatusInfo } from "../../../lib/ipc/connector";
 import { trustOpen } from "../../../lib/ipc/trust";
 import { useAgentBridge, type AgentBridgeInfo } from "../../../lib/ipc/agent-bridge";
 import { useReveal } from "../../../lib/reveal";
@@ -123,9 +123,23 @@ export function ConnectorCard({
         const preview = await connectorPreview(appId);
         setPhase({ kind: "remove", files: preview.files.map((file) => file.path), changed: preview.status.changed });
       }),
+    // All or nothing (93b495f28): refused for a file changed since Add,
+    // the card then offers Remove anyway, naming it.
     remove: () =>
       act(async () => {
-        const removal = await connectorRemove(appId);
+        try {
+          const removal = await connectorRemove(appId);
+          connectorChanged(appId);
+          setPhase({ kind: "removed", removal });
+        } catch (cause) {
+          const now = await connectorStatus(appId);
+          if (now.changed.length === 0) throw cause;
+          setPhase({ kind: "remove", files: phase.kind === "remove" ? phase.files : now.changed, changed: now.changed });
+        }
+      }),
+    removeAnyway: () =>
+      act(async () => {
+        const removal = await connectorRemoveAnyway(appId);
         connectorChanged(appId);
         setPhase({ kind: "removed", removal });
       }),
@@ -162,8 +176,8 @@ export function ConnectorCard({
   };
   if (phase.kind !== "idle") {
     return (
-      <Revealed key={phase.kind}>
-        <PhaseView phase={phase} status={status} parts={parts} onAdd={() => void actions.add()} onRemove={() => void actions.remove()} />
+      <Revealed key={phase.kind === "remove" && phase.changed.length > 0 ? "remove-changed" : phase.kind} on={!busy}>
+        <PhaseView phase={phase} status={status} parts={parts} onAdd={() => void actions.add()} onRemove={() => void actions.remove()} onRemoveAnyway={() => void actions.removeAnyway()} />
       </Revealed>
     );
   }
@@ -182,10 +196,11 @@ export function ConnectorCard({
 }
 
 /** A step that opens in the panel: in view in its list, Cancel focused
- * (the aij-test proof: a confirmation clipped at the panel's foot). */
-function Revealed({ children }: { children: ReactNode }): JSX.Element {
+ * (the aij-test proof: a confirmation clipped at the panel's foot), once
+ * it can take focus (Cancel is disabled while a call runs). */
+function Revealed({ children, on }: { children: ReactNode; on: boolean }): JSX.Element {
   const ref = useRef<HTMLDivElement | null>(null);
-  useReveal(ref);
+  useReveal(ref, on);
   return <div ref={ref}>{children}</div>;
 }
 
@@ -258,7 +273,7 @@ function Resting({ status, parts, where, onReview, onGuide, onRemove }: { status
 
 /** A step under way: the preview, the guide, what Remove deletes, and
  * what Add or Remove did. */
-function PhaseView({ phase, status, parts, onAdd, onRemove }: { phase: Exclude<Phase, { kind: "idle" }>; status: ConnectorStatusInfo; parts: Parts; onAdd: () => void; onRemove: () => void }): JSX.Element {
+function PhaseView({ phase, status, parts, onAdd, onRemove, onRemoveAnyway }: { phase: Exclude<Phase, { kind: "idle" }>; status: ConnectorStatusInfo; parts: Parts; onAdd: () => void; onRemove: () => void; onRemoveAnyway: () => void }): JSX.Element {
   const { app, appId, testId, poolId, busy, cancel } = parts;
   switch (phase.kind) {
     case "preview":
@@ -314,11 +329,21 @@ function PhaseView({ phase, status, parts, onAdd, onRemove }: { phase: Exclude<P
       return (
         <Card parts={parts} title={`What Remove takes out of ${app}`}>
           <RemoveFiles files={phase.files} changed={phase.changed} testId={testId} />
-          {phase.changed.length > 0 && <p className="text-meta text-ink-2">Remove leaves what changed since AI Juggler wrote it, named above, and takes out the rest.</p>}
+          {phase.changed.length > 0 && (
+            <p className="text-meta text-ink" data-testid={`${testId}-remove-changed`}>
+              {changedWords(phase.changed)} changed since AI Juggler added it, so Remove takes nothing out. Remove anyway takes the connector out whole, deleting {phase.changed.length === 1 ? "that file" : "those files"} too.
+            </p>
+          )}
           <span className="mt-1 flex flex-wrap gap-2">
-            <Button size="sm" variant="danger" disabled={busy} onClick={onRemove} data-testid={`${testId}-confirm-remove`}>
-              {CONNECTOR.confirmRemove(app)}
-            </Button>
+            {phase.changed.length > 0 ? (
+              <Button size="sm" variant="danger" disabled={busy} onClick={onRemoveAnyway} data-testid={`${testId}-remove-anyway`}>
+                Remove anyway (also deletes {changedWords(phase.changed)})
+              </Button>
+            ) : (
+              <Button size="sm" variant="danger" disabled={busy} onClick={onRemove} data-testid={`${testId}-confirm-remove`}>
+                {CONNECTOR.confirmRemove(app)}
+              </Button>
+            )}
             {cancel}
           </span>
         </Card>
@@ -326,6 +351,12 @@ function PhaseView({ phase, status, parts, onAdd, onRemove }: { phase: Exclude<P
     default:
       return <Removed removal={phase.removal} parts={parts} />;
   }
+}
+
+/** Changed files by name ("SKILL.md", "plugin.json and SKILL.md"). */
+function changedWords(paths: readonly string[]): string {
+  const names = paths.map((path) => path.split("/").pop() ?? path);
+  return names.length <= 1 ? (names[0] ?? "a file") : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
 }
 
 /** What Remove did: all of it out, or what it left, named. */

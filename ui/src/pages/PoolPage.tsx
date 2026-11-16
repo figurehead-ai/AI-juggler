@@ -31,6 +31,7 @@ import { FOCUS_THREAD, useMessageNeeds } from "../lib/ipc/messages";
 import { FOCUS_TASK, focusTask, useTaskNeeds, type TaskInfo } from "../lib/ipc/tasks";
 import { needWords, poolById, poolIdOf, poolIdsOf, poolNeedCount, scopeChipWords, scopeLabel, setPools, usePools } from "../lib/pools";
 import { drawnRules, everyoneOf, usePoolSetup } from "./pool/usePoolSetup";
+import { desktopRecipients, useDesktopSessions } from "../lib/connector";
 import { PoolSetupSections } from "./pool/PoolSetupSections";
 import { liveOutside, useConversations } from "../lib/conversations";
 import { sessionState } from "../lib/rail-items";
@@ -201,7 +202,9 @@ function PoolCanvasPage({ poolId, sessions, projects, accounts, now, rules }: Pa
   // Round 5: a project's own pool says its scope here, not as a card.
   const facts = [pool.kind === "default" && project ? `Every session in ${project.name} is part of this team` : null, poolCountWords(pool.members, openHere.length, elsewhere), needs > 0 ? needWords(needs) : null].filter(Boolean).join(" · ");
   const unplaced = (data.canvas?.asks ?? []).filter((ask) => ask.session_id === null);
-  const members = data.members.map((member) => ({ session_id: member.id, name: names.get(member.id) ?? member.card.name, live: isActiveStatus(member.session.status) }));
+  // AJ-E3013: a desktop session through the connector is a recipient too.
+  const desktopSessions = useDesktopSessions(pool.id);
+  const members = [...data.members.map((member) => ({ session_id: member.id, name: names.get(member.id) ?? member.card.name, live: isActiveStatus(member.session.status) })), ...desktopRecipients(desktopSessions)];
 
   // AJ-E3011: the checklist, in the setup's order.
   const setup = usePoolSetup({

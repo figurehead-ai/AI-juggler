@@ -160,3 +160,39 @@ describe("AJ-E3013: the words follow the connector", () => {
     expect(reachOf(member("x", { connector: "changed", connected: true })).line).toBe("Its app's AI Juggler connector was changed");
   });
 });
+
+// f1b9bd354: the desktop sessions an App brings in, as session nodes under
+// its card.
+describe("AJ-E3013: desktop sessions under their App", () => {
+  it("each with its name, role and how a message reaches it; a fresh call shows a dot", async () => {
+    const ref = `app:${WORK}`;
+    Object.assign(window, {
+      __AIJ_DESKTOP_SESSIONS__: {
+        [POOL]: [
+          { member: "conversation:claude-work/c1", session_id: "desktop:claude-work/c1", name: "Fix sign-in copy", place: "Claude app · Work", tool: "Claude Code", account: "Work", role: "member", app_id: WORK, via: "app", wake: "wakes" },
+          { member: "conversation:claude-work/c2", session_id: null, name: "Tidy the tests", place: "Claude app · Work", tool: "Claude Code", account: "Work", role: "reviewer", app_id: WORK, via: "app", wake: "next_turn" },
+        ],
+      },
+    });
+    seed([member(ref, { connector: "current", connected: true })], { [WORK]: { state: "current" } });
+    render(<RuleNodes poolId={POOL} rules={[{ member: ref, kind: "app", role: "member", level: null, joined_at: 1, sessions: 2, session_ids: [] }]} watched={[]} labelOf={() => "Claude app · Work Max"} selection={{ kind: "none" }} onSelect={() => undefined} />);
+    const rows = await screen.findAllByTestId("canvas-desktop-session");
+    expect(rows.map((row) => row.textContent)).toEqual(["Fix sign-in copyMemberWakes on new messages", "Tidy the testsReviewerReads messages on its next turn"]);
+  });
+});
+
+// D-119 (5): a person's own Deliver wakes a desktop member whatever the
+// pool's level; the inspector says it as Messages' Deliver does.
+describe("D-119: Deliver wakes a desktop member at any level", () => {
+  it("a member that reads on its next turn says Deliver wakes it; one that wakes says nothing more", async () => {
+    const { deliverWakes } = await import("../../lib/connector");
+    seed([member("conversation:claude-work/c1", { connector: "current", connected: true, wake: "next_turn" })], { [WORK]: { state: "current" } });
+    const pool: PoolInfo = { id: POOL, name: "web team", kind: "user", project_id: null, access: { level: "work_together", actions: [], hop_limit: 5, delivery_stopped: false }, rules: [], spans_macs: false, scopes: 1, members: 0, ...scopeOf("user", null) };
+    render(<InspectRule pool={pool} rule={undefined} watched={watched("c1", "Fix sign-in copy")} label="Fix sign-in copy" onChanged={() => undefined} onGone={() => undefined} />);
+    await waitFor(() => expect(screen.getByTestId("inspect-rule-reach").textContent).toBe("It talks in this pool through AI Juggler's connector. Reads messages on its next turn. A message you send with Deliver wakes it, whatever the pool's level."));
+    expect(deliverWakes("next_turn", false)).toBe(" A message you send with Deliver wakes it, whatever the pool's level.");
+    expect(deliverWakes("next_turn", true)).toBe(" A message you send with Deliver wakes them, whatever the pool's level.");
+    expect(deliverWakes("wakes", true)).toBe("");
+    expect(deliverWakes("cant_wake", false)).toBe("");
+  });
+});

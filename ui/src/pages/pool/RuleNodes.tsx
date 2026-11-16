@@ -24,7 +24,8 @@ import { ShellOnly } from "../../components/ShellOnly";
 import { MACHINE_WORD } from "../../lib/machine-words";
 import type { PoolRuleInfo, WatchedMemberInfo } from "../../lib/ipc/pool-model";
 import { levelLabel, roleLabel } from "../../lib/pools";
-import { reachOf, useDesktopMembers } from "../../lib/connector";
+import { reachOf, useDesktopMembers, useDesktopSessions } from "../../lib/connector";
+import { DesktopSessions, sessionsUnder } from "./DesktopSessions";
 import { DesktopMemberCard } from "./DesktopMemberCard";
 import { everyoneJoins, openNowWords } from "../../lib/pool-open-now";
 import { LEADS_WHEN, LEAD_WOULD, nextLeadsLine, wakeWords } from "../../lib/pool-words";
@@ -91,8 +92,10 @@ export function RuleNodes({
   onSelect: (selection: Selection) => void;
 }): JSX.Element | null {
   const broad = broadOf(rules);
-  // AJ-E3013: the desktop members' connectors (an App's, a session's).
+  // AJ-E3013: the desktop members' connectors (an App's, a session's), and
+  // the desktop sessions an App brings in through it, under their App.
   const desktop = useDesktopMembers(poolId);
+  const desktopSessions = useDesktopSessions(poolId);
   const waiting = watched.filter((one) => one.continued_session === null);
   // Round 4 (#5): a member being added shows at once, pending, until the
   // rules read back have it; its role change likewise.
@@ -202,6 +205,7 @@ export function RuleNodes({
             {desktop?.has(rule.member) ? desktopLine(desktop.get(rule.member)) : `Its sessions ${wakeWords(rule.level ?? poolLevel, false, true)}`}
           </span>
         </button>
+        <DesktopSessions sessions={sessionsUnder(rule, desktopSessions, broad, labelOf)} />
         {desktop?.has(rule.member) && addsConnector(desktop.get(rule.member)) && (
           <Button size="sm" variant="accent" className="pointer-events-auto self-start" aria-label={`Add AI Juggler's connector to ${labelOf(rule)}`} onClick={() => onSelect({ kind: "rule", ref: rule.member })} data-testid="canvas-rule-connector-add">
             Add

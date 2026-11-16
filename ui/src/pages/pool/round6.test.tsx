@@ -161,3 +161,18 @@ describe("round 6 #7, #10, #11", () => {
   });
 });
 
+
+// The connector builder's backend for round 6 (41af467d0, 93b495f28,
+// f1b9bd354): every reason code worded, Remove anyway, desktop sessions.
+describe("the connector's reason codes, worded", () => {
+  it.each([
+    ["missing", "This build of AI Juggler doesn't include its helper."],
+    ["unsafe_location", "AI Juggler's helper can't run from a folder others can write (~/Downloads). Move AI Juggler to Applications, then open it again."],
+    ["not_offered", "AI Juggler can't add its connector to this app yet: it can't tell this app's sessions apart."],
+    ["unknown_app", "AI Juggler doesn't know this app yet: open it once while AI Juggler runs."],
+    ["no_folder", "AI Juggler hasn't seen which settings folder this app uses yet: open a session in it once."],
+    ["no_connector", "AI Juggler has no connector for this kind of app yet."],
+  ])("%s", (code, words) => {
+    expect(unavailableWords(status({ unavailable: code, unsafe_folder: "~/Downloads" }), bridge({}))).toBe(words);
+  });
+});

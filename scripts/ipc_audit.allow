@@ -9,8 +9,6 @@
 # each listed one says why its list stays small, or "TO PAGE" with what reads it.
 # uncalled entries carry the date they were listed: 2026-10-21.
 uncalled account_audit
-uncalled connector_desktop_sessions  # 2026-11-16: the desktop sessions for the pool's member and recipient lists (AJ-E3013, lab A6/A9); the UI builder's round adds them
-uncalled connector_remove_anyway  # 2026-11-16: the backend of Remove anyway (AJ-E3013, lab A11); the UI's confirm comes with the UI builder's round
 uncalled harnesses_list_alias
 uncalled isolation_check
 uncalled parked_list

@@ -17,7 +17,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { sharedReads, useSharedRead } from "./shared-read";
 import { POOLS_GUIDE } from "./pool-words";
-import { CONNECTOR_CHANGED, connectorDesktopMembers, connectorStatus, type ConnectorStatusInfo, type DesktopMemberInfo } from "./ipc/connector";
+import { CONNECTOR_CHANGED, connectorDesktopMembers, connectorDesktopSessions, connectorStatus, type ConnectorStatusInfo, type DesktopMemberInfo, type DesktopSessionInfo } from "./ipc/connector";
 import { POOL_RULES_CHANGED } from "./ipc/pool-model";
 import type { AppModel } from "./apps";
 import type { AgentBridgeInfo } from "./ipc/agent-bridge";
@@ -92,8 +92,9 @@ export function fileLine(action: string, path: string): string {
 /** What Remove deletes, in a line per file. */
 export const removeLine = (path: string) => `Deletes ${shortPath(path)}`;
 
-/** A file someone changed since Add: Remove leaves it, named. */
-export const keptLine = (path: string) => `Leaves ${shortPath(path)}: it changed since AI Juggler wrote it`;
+/** A file someone changed since Add (Remove is all or nothing: it takes
+ * nothing out then; Remove anyway deletes it too). */
+export const keptLine = (path: string) => `${shortPath(path)} changed since AI Juggler wrote it`;
 
 /** Why the connector can't go into an App, in the user's words, never
  * the backend's own text (round 6, Casey's run: "juggler-agent isn't
@@ -101,11 +102,10 @@ export const keptLine = (path: string) => `Leaves ${shortPath(path)}: it changed
  * the status carries one) decides; until then the agent program's own
  * (the team tools' `AgentBridgeInfo`: the same program) does. */
 export function unavailableWords(status: ConnectorStatusInfo, bridge: AgentBridgeInfo | null): string {
-  const code: unknown = Reflect.get(status, "unavailable");
-  const folder: unknown = Reflect.get(status, "unsafe_folder");
+  // The status's own code (41af467d0); without one, the agent program's.
   const program = bridge && !bridge.available ? (bridge.unavailable ?? "missing") : null;
-  const kind = typeof code === "string" ? code : program;
-  const where = typeof folder === "string" ? folder : (bridge?.unsafe_folder ?? null);
+  const kind = status.unavailable ?? program;
+  const where = status.unsafe_folder ?? bridge?.unsafe_folder ?? null;
   switch (kind) {
     case "missing":
       return "This build of AI Juggler doesn't include its helper.";
@@ -113,6 +113,12 @@ export function unavailableWords(status: ConnectorStatusInfo, bridge: AgentBridg
       return `AI Juggler's helper can't run from a folder others can write${where ? ` (${where})` : ""}. Move AI Juggler to Applications, then open it again.`;
     case "not_offered":
       return "AI Juggler can't add its connector to this app yet: it can't tell this app's sessions apart.";
+    case "unknown_app":
+      return "AI Juggler doesn't know this app yet: open it once while AI Juggler runs.";
+    case "no_folder":
+      return "AI Juggler hasn't seen which settings folder this app uses yet: open a session in it once.";
+    case "no_connector":
+      return "AI Juggler has no connector for this kind of app yet.";
     default:
       return "AI Juggler can't add its connector to this app yet.";
   }
@@ -126,7 +132,7 @@ export function statusLine(status: ConnectorStatusInfo, bridge: AgentBridgeInfo 
     case "outdated":
       return CONNECTOR.outdated;
     case "changed":
-      return `AI Juggler's connector here was changed${status.changed.length > 0 ? ` (${status.changed.map(shortPath).join(", ")})` : ""}, so AI Juggler leaves it alone. Remove takes out the rest; then Add writes it again.`;
+      return `AI Juggler's connector here was changed${status.changed.length > 0 ? ` (${status.changed.map(shortPath).join(", ")})` : ""}, so AI Juggler leaves it alone. Remove shows what it would delete, and Remove anyway takes it out whole; then Add writes it again.`;
     case "unavailable":
       return unavailableWords(status, bridge);
     default:
@@ -147,6 +153,13 @@ export function wakeLine(wake: string): string {
     default:
       return "Reads messages on its next turn";
   }
+}
+
+/** D-119 (5): a message the person sends with Deliver wakes a desktop
+ * member whatever the pool's level (the waking rule gates agents'
+ * messages); Messages' Deliver says the same. */
+export function deliverWakes(wake: string, many: boolean): string {
+  return wake === "next_turn" ? ` A message you send with Deliver wakes ${many ? "them" : "it"}, whatever the pool's level.` : "";
 }
 
 /** A desktop member as the canvas and inspector say it. */
@@ -175,6 +188,7 @@ export function reachOf(info: DesktopMemberInfo | undefined): DesktopReach {
 
 const statuses = sharedReads(connectorStatus);
 const members = sharedReads(connectorDesktopMembers);
+const sessions = sharedReads(connectorDesktopSessions);
 
 /** Read again on Add, Remove, and a pool's change. */
 function useReadAgain(refresh: () => void, poolId?: string): void {
@@ -208,6 +222,24 @@ export function useDesktopMembers(poolId: string | undefined, polling = false): 
   const value = useSharedRead(source, { pollMs: polling ? GUIDE_POLL_MS : 0 });
   useReadAgain(useCallback(() => void source?.refresh(), [source]), poolId);
   return useMemo(() => (value ? new Map(value.map((one) => [one.member, one])) : undefined), [value]);
+}
+
+/** A pool's desktop sessions (members through the connector), read on
+ * open and again when the pool or a connector changes; never polled. */
+export function useDesktopSessions(poolId: string | undefined): readonly DesktopSessionInfo[] {
+  const source = poolId ? sessions(poolId) : null;
+  const value = useSharedRead(source);
+  useReadAgain(useCallback(() => void source?.refresh(), [source]), poolId);
+  return value ?? NONE;
+}
+
+const NONE: readonly DesktopSessionInfo[] = [];
+
+/** AJ-E3013: a pool's desktop sessions as Messages recipients, beside the
+ * sessions AI Juggler runs: each by its member ref (what `to` takes),
+ * named with its place; open while one of its calls is fresh. */
+export function desktopRecipients(found: readonly DesktopSessionInfo[]): { session_id: string; name: string; live: boolean }[] {
+  return found.map((one) => ({ session_id: one.member, name: one.place ? `${one.name} · ${one.place}` : one.name, live: one.session_id !== null }));
 }
 
 /** Several Apps' connectors at once (a step listing them), read on mount
