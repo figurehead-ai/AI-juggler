@@ -28,3 +28,15 @@ export const SELECTED_FILL = "bg-selected inset-ring-[1.5px] inset-ring-selected
 /** A chosen card that already draws a 1 px border: the border and an inner
  * ring make the 2 px solid edge the pool canvas's selected card has. */
 export const SELECTED_CARD = "border-selected-ring bg-selected inset-ring-1 inset-ring-selected-ring";
+
+/**
+ * 0.4.6 (AJ-E3012, the pool screens; D-126, every making screen): a
+ * chosen card — a pool's node, a template, a RadioCard — a solid 2 px
+ * accent ring with a 2 px offset and a raised surface. Dashes never mean
+ * selection. Its keyboard focus is its own, distinct ring (ink, further
+ * out), so a focused card and a chosen one are never confused.
+ */
+export const CHOSEN_CARD = "bg-selected shadow-card ring-2 ring-accent ring-offset-2 ring-offset-canvas";
+
+/** Keyboard focus on a card or its name: an ink outline, outside the ring. */
+export const CARD_FOCUS = "outline-none focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ink-2";
