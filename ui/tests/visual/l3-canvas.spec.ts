@@ -133,6 +133,9 @@ for (const r of ROWS) {
     await page.waitForTimeout(300); // the cards settle (their counts read)
     await act(tile);
     await expect(page.getByTestId("pool-page")).toBeVisible();
+    // Round 5: an empty pool opens in its guided setup; this walk is the
+    // diagram's, so Show the diagram.
+    if (r.members === 0) await act(page.getByTestId("new-pool-show-diagram"));
     // A narrow window opens it as rows: the canvas, chosen.
     if ((await page.getByTestId("pool-canvas").count()) === 0) await act(page.getByTestId("pool-mode-canvas"));
     await expect(page.getByTestId("pool-canvas")).toBeVisible();

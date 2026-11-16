@@ -8,9 +8,9 @@
  *   session connected ("Reads messages on its next turn"); another
  *   Watched with Add; a Codex app thread that can't take it or be woken.
  * - card: the App selected, its inspector's consent card.
- * - preview: Add's preview, each file in a line, then (preview-text) the
- *   manifest's text open.
- * - guide: "Add it yourself instead": the steps, the command and Copy,
+ * - preview: Add's preview in one plain sentence, the files under "Show
+ *   the files"; preview-text: the files shown, the manifest's text open.
+ * - guide: "Show me how to add it by hand": the steps, the command and Copy,
  *   watched for while open.
  * - connected: the connected session selected: how a message reaches it,
  *   and its app's connector with Remove.
@@ -131,11 +131,14 @@ for (const theme of ["dark", "light"] as const) {
     await shoot(page, `card-1280x800-${theme}.png`);
 
     await page.getByTestId("inspect-connector-add").click();
-    await expect(page.getByTestId("inspect-connector-file")).toHaveCount(2);
+    // Casey's PC1 walk: one plain sentence first, the files under a fold.
+    await expect(page.getByTestId("inspect-connector-preview-sentence")).toHaveText("This adds a small helper to your Claude app (Work Max) so its sessions can talk in this pool: 2 new files in its own settings folder; nothing of yours changes.");
     await expect(page.getByTestId("inspect-connector-confirm")).toHaveText("Add to Claude app · Work Max");
     await axe(page, `preview ${theme}`);
     await shoot(page, `preview-1280x800-${theme}.png`);
-    // Each file's exact text, in its fold.
+    // Show the files: each file, and its exact text in its own fold.
+    await page.getByTestId("inspect-connector-files-fold").locator("summary").first().click();
+    await expect(page.getByTestId("inspect-connector-file")).toHaveCount(2);
     await page.getByTestId("inspect-connector-file-show").first().click();
     await expect(page.getByTestId("inspect-connector-file-text").first()).toContainText('"mcpServers"');
     await page.getByTestId("inspect-connector-file-show").first().scrollIntoViewIfNeeded();

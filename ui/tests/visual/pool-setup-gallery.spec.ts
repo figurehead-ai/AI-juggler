@@ -215,6 +215,28 @@ for (const theme of ["dark", "light"] as const) {
     await shoot(page, SELECTION, `selection-lead-next-1280x800-${theme}.png`);
   });
 
+  // Round 5: an empty pool opens in its guided setup (New pool's steps, in
+  // place, prefilled), with Show the diagram; and on the diagram, a
+  // Change opens its section at the panel's top, its control focused.
+  test(`an empty pool's setup, and a section opened from Change — ${theme}`, async ({ page }) => {
+    const seed = canvasSeed(GATE_NOW);
+    await open(page, theme, { ...seed, __AIJ_POOLS__: { ...seed.__AIJ_POOLS__, pools: [...seed.__AIJ_POOLS__.pools, { id: "pool-docs", name: "Docs crew", rules: [] }] } });
+    await goTo(page, "Pools");
+    await page.getByTestId("pool-card-tile").filter({ hasText: "Docs crew" }).click();
+    await expect(page.getByTestId("new-pool")).toHaveAttribute("data-embedded", "true");
+    await expect(page.getByTestId("new-pool-step-template")).toBeVisible();
+    await axe(page, `empty pool setup ${theme}`);
+    await shoot(page, SETUP, `empty-pool-setup-1280x800-${theme}.png`);
+
+    await goTo(page, "Pools");
+    await page.getByTestId("pool-card-tile").filter({ hasText: "Checkout team" }).click();
+    await expect(page.getByTestId("pool-canvas")).toBeVisible();
+    await page.locator('[data-testid="pool-summary"] [data-row="lead"] [data-testid$="-change"]').click();
+    await expect(page.locator("#pool-setup-lead :focus")).toHaveCount(1);
+    await axe(page, `opened section ${theme}`);
+    await shoot(page, SELECTION, `opened-lead-1280x800-${theme}.png`);
+  });
+
   // Sam's round-4 walk: Custom in the header opens its list in place, and
   // the sentence counts what's picked.
   test(`the header's Custom, its list in place — ${theme}`, async ({ page }) => {
