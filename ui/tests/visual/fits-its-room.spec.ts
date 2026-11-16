@@ -11,6 +11,7 @@
  */
 import { expect, test, type Page } from "@playwright/test";
 import { knownPlacesPreview, placesConversations } from "../../src/preview/places";
+import { MOCK_SESSIONS } from "../../src/preview/fixtures";
 
 const T0 = new Date(2026, 10, 1, 15, 0, 0).getTime();
 
@@ -109,3 +110,25 @@ for (const size of [
     expect(await sideways(page)).toEqual([]);
   });
 }
+
+// The 0.4.6 rc2 walk (A8): an ended row's long state word ("Ended with AI
+// Juggler") never gave way, so its project and time ran under it ("3 min
+// agEnded…"). At the rail's narrowest, every row's time ends before its
+// state word starts.
+test("A8: a rail row's time never runs under its state word — 1024", async ({ page }) => {
+  const ended = MOCK_SESSIONS.map((row) => ({ ...row, status: "stopped", ending: { how: "with_app", detail: null } }));
+  await seed(page, { accounts: A9_FOLDERS, projects: [], sessions: ended, conversations: [], subscriptions: A9_SUBSCRIPTIONS }, { width: 1024, height: 700 });
+  const rows = page.getByTestId("rail").locator("[data-testid='state-word']");
+  await expect(rows.first()).toBeVisible();
+  const under = await page.getByTestId("rail").evaluate((rail) =>
+    [...rail.querySelectorAll<HTMLElement>("[data-testid='state-word']")].flatMap((word) => {
+      const line = word.parentElement;
+      const when = line?.querySelector<HTMLElement>("[data-testid='row-when']");
+      if (!when) return [];
+      const end = when.getBoundingClientRect().right;
+      const start = word.getBoundingClientRect().left;
+      return end > start + 0.5 ? [`${when.textContent} | ${word.textContent}: ${Math.round(end - start)} px under`] : [];
+    }),
+  );
+  expect(under).toEqual([]);
+});

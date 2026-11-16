@@ -215,7 +215,11 @@ export function SessionRow(props: SessionRowProps): JSX.Element {
             {also && <span aria-hidden="true" className="shrink-0 whitespace-pre" data-testid="row-also"> · {also}</span>}
             {helpers && <RowSubagents item={item} words={helpers} onSelect={props.onSelect} />}
           </span>
-          <span aria-hidden="true" className={"shrink-0 text-label leading-[14px] " + (needs ? "font-semibold " : "font-medium ") + state.text} data-testid="state-word">
+          {/* The 0.4.6 rc2 walk (A8): "Ended with AI Juggler" never gave
+              way, so the project and time ran under it ("3 min agEnded…").
+              It takes at most half the line and is cut last, whole on
+              hover and in the row's name; the time stays whole (0.4.5). */}
+          <span aria-hidden="true" title={state.word} className={"min-w-0 max-w-[50%] shrink truncate text-label leading-[14px] " + (needs ? "font-semibold " : "font-medium ") + state.text} data-testid="state-word">
             {state.word}
           </span>
         </span>
