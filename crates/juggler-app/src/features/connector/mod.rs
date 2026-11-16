@@ -74,38 +74,90 @@ fn save(state: &Arc<AppState>, records: &BTreeMap<String, ConnectorRecord>) -> A
         .map_err(|error| AppError::io("keep what the connector wrote", &error))
 }
 
+/// Why the connector can't go into an App: a code the window words
+/// (`ConnectorStatusInfo::unavailable`) and the words for logs (`why_not`).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) enum Why {
+    /// AI Juggler doesn't know the App, or its tool.
+    UnknownApp(String),
+    /// The connector isn't offered there (a terminal App, a tool with no
+    /// connector yet, a Codex app until lab probe C2).
+    NotOffered(String),
+    /// The App has no config folder AI Juggler knows yet.
+    NoFolder(String),
+    /// No juggler-agent beside AI Juggler (or no socket for its data).
+    Missing(String),
+    /// juggler-agent is there, in a folder others own or can write.
+    UnsafeLocation(PathBuf),
+}
+
+impl Why {
+    /// Its code on the wire.
+    pub(crate) const fn code(&self) -> &'static str {
+        match self {
+            Self::UnknownApp(_) => "unknown_app",
+            Self::NotOffered(_) => "not_offered",
+            Self::NoFolder(_) => "no_folder",
+            Self::Missing(_) => "missing",
+            Self::UnsafeLocation(_) => "unsafe_location",
+        }
+    }
+
+    /// Its words (logs, `why_not`).
+    pub(crate) fn words(&self) -> String {
+        match self {
+            Self::UnknownApp(words)
+            | Self::NotOffered(words)
+            | Self::NoFolder(words)
+            | Self::Missing(words) => words.clone(),
+            Self::UnsafeLocation(folder) => format!(
+                "AI Juggler's juggler-agent is in a folder others can write ({}), so it isn't run",
+                folder.display()
+            ),
+        }
+    }
+}
+
+impl From<Why> for AppError {
+    fn from(why: Why) -> Self {
+        Self::Refused(why.words())
+    }
+}
+
 /// The App `app_id`, when the connector can go into it; else why not.
-fn target(state: &Arc<AppState>, app_id: &str) -> Result<Target, String> {
+fn target(state: &Arc<AppState>, app_id: &str) -> Result<Target, Why> {
     let storage = state
         .storage
         .lock()
-        .map_err(|_| "AI Juggler is busy".to_owned())?;
+        .map_err(|_| Why::UnknownApp("AI Juggler is busy".to_owned()))?;
     let app = storage
         .apps()
         .get(app_id)
         .ok()
         .flatten()
-        .ok_or("AI Juggler doesn't know this app")?;
+        .ok_or_else(|| Why::UnknownApp("AI Juggler doesn't know this app".to_owned()))?;
     if app.kind != "desktop" {
-        return Err("only a desktop app takes AI Juggler's connector: terminal sessions get it from AI Juggler's launch".to_owned());
+        return Err(Why::NotOffered("only a desktop app takes AI Juggler's connector: terminal sessions get it from AI Juggler's launch".to_owned()));
     }
     let adapter = state
         .registry
         .get(&HarnessId::new(app.tool.as_str()))
-        .ok_or("AI Juggler has no adapter for this app's tool")?;
+        .ok_or_else(|| {
+            Why::UnknownApp("AI Juggler has no adapter for this app's tool".to_owned())
+        })?;
     if adapter.desktop_connector().is_none() {
-        return Err(format!(
+        return Err(Why::NotOffered(format!(
             "AI Juggler has no connector for {}'s app yet",
             adapter.spec().display_name
-        ));
+        )));
     }
-    let folder = app.folder_id.clone().ok_or(
-        "AI Juggler hasn't seen which folder this app's sessions use yet: open a session in it once",
-    )?;
+    let folder = app.folder_id.clone().ok_or_else(|| {
+        Why::NoFolder("AI Juggler hasn't seen which folder this app's sessions use yet: open a session in it once".to_owned())
+    })?;
     let config_dir = storage
         .accounts()
         .get(&AccountId::new(folder))
-        .map_err(|_| "this app's folder isn't one AI Juggler keeps".to_owned())?
+        .map_err(|_| Why::NoFolder("this app's folder isn't one AI Juggler keeps".to_owned()))?
         .state_dir;
     let label = app.label.clone().unwrap_or_else(|| {
         app.instance_dir
@@ -126,30 +178,38 @@ fn target(state: &Arc<AppState>, app_id: &str) -> Result<Target, String> {
 
 /// The App `app_id`, when the connector is offered there (its adapter
 /// may say it isn't yet: a Codex app thread can't be told apart).
-fn offered(state: &Arc<AppState>, app_id: &str) -> Result<Target, String> {
+fn offered(state: &Arc<AppState>, app_id: &str) -> Result<Target, Why> {
     let target = target(state, app_id)?;
     match target
         .adapter
         .desktop_peer()
         .and_then(juggler_adapter::peer::DesktopPeer::not_offered)
     {
-        Some(why) => Err(why),
+        Some(why) => Err(Why::NotOffered(why)),
         None => Ok(target),
     }
 }
 
 /// The connector for this edition of AI Juggler in `target`.
-fn plan_for(state: &Arc<AppState>, target: &Target) -> Result<ConnectorPlan, String> {
+fn plan_for(state: &Arc<AppState>, target: &Target) -> Result<ConnectorPlan, Why> {
     let agent = state
         .agent_bridge
-        .program()
-        .ok_or("AI Juggler's juggler-agent isn't beside it, or isn't safe to run")?;
-    let socket = crate::features::agent_bridge::socket_path(&state.data_dir)
-        .ok_or("AI Juggler's data folder's path is too long for its socket")?;
+        .program_or_why()
+        .map_err(|why| match why {
+            crate::features::agent_bridge::Unavailable::Missing => {
+                Why::Missing("AI Juggler's juggler-agent isn't beside it".to_owned())
+            }
+            crate::features::agent_bridge::Unavailable::UnsafeLocation(folder) => {
+                Why::UnsafeLocation(folder)
+            }
+        })?;
+    let socket = crate::features::agent_bridge::socket_path(&state.data_dir).ok_or_else(|| {
+        Why::Missing("AI Juggler's data folder's path is too long for its socket".to_owned())
+    })?;
     let connector = target
         .adapter
         .desktop_connector()
-        .ok_or("no connector for this app")?;
+        .ok_or_else(|| Why::NotOffered("no connector for this app".to_owned()))?;
     Ok(connector.plan(&ConnectorInput {
         agent: &agent,
         socket: &socket,
@@ -168,12 +228,21 @@ fn state_word(state: ConnectorState) -> &'static str {
     }
 }
 
-fn unavailable(app_id: &str, why: String) -> ConnectorStatusInfo {
+fn unavailable(app_id: &str, why: &Why) -> ConnectorStatusInfo {
+    let home = juggler_platform::user::home();
     ConnectorStatusInfo {
         app_id: app_id.to_owned(),
         state: "unavailable".to_owned(),
+        unavailable: Some(why.code().to_owned()),
+        unsafe_folder: match why {
+            Why::UnsafeLocation(folder) => Some(home.as_deref().map_or_else(
+                || folder.display().to_string(),
+                |home| crate::features::places::profiles::shown(folder, home),
+            )),
+            _ => None,
+        },
         changed: Vec::new(),
-        why_not: Some(why),
+        why_not: Some(why.words()),
         folder: None,
         picked_up: None,
         attests: false,
@@ -195,6 +264,9 @@ fn status_of(
     ConnectorStatusInfo {
         app_id: target.app_id.clone(),
         state: state_word(found.state).to_owned(),
+        // Offered here and not added yet.
+        unavailable: (found.state == ConnectorState::Absent).then(|| "no_connector".to_owned()),
+        unsafe_folder: None,
         changed: found.changed.iter().map(|rel| shown(target, rel)).collect(),
         why_not: None,
         folder: Some(target.config_dir.to_string_lossy().into_owned()),
@@ -212,11 +284,11 @@ fn status_of(
 pub fn status_impl(state: &Arc<AppState>, app_id: &str) -> AppResult<ConnectorStatusInfo> {
     let target = match offered(state, app_id) {
         Ok(target) => target,
-        Err(why) => return Ok(unavailable(app_id, why)),
+        Err(why) => return Ok(unavailable(app_id, &why)),
     };
     let plan = match plan_for(state, &target) {
         Ok(plan) => plan,
-        Err(why) => return Ok(unavailable(app_id, why)),
+        Err(why) => return Ok(unavailable(app_id, &why)),
     };
     let records = load(state);
     Ok(status_of(&target, &plan, records.get(app_id)))
@@ -233,14 +305,14 @@ pub fn preview_impl(state: &Arc<AppState>, app_id: &str) -> AppResult<ConnectorP
         Ok(target) => target,
         Err(why) => {
             return Ok(ConnectorPreviewInfo {
-                status: unavailable(app_id, why),
+                status: unavailable(app_id, &why),
                 files: Vec::new(),
                 refused: None,
                 guide: None,
             });
         }
     };
-    let plan = plan_for(state, &target).map_err(AppError::Refused)?;
+    let plan = plan_for(state, &target)?;
     let records = load(state);
     let record = records.get(app_id);
     let files = connector_files::preview(&target.config_dir, &plan, record)
@@ -287,8 +359,8 @@ pub fn preview_impl(state: &Arc<AppState>, app_id: &str) -> AppResult<ConnectorP
 /// didn't write is in the way (nothing is written then); the write's
 /// error (what was written is taken back).
 pub fn add_impl(state: &Arc<AppState>, app_id: &str) -> AppResult<ConnectorStatusInfo> {
-    let target = offered(state, app_id).map_err(AppError::Refused)?;
-    let plan = plan_for(state, &target).map_err(AppError::Refused)?;
+    let target = offered(state, app_id)?;
+    let plan = plan_for(state, &target)?;
     let _writing = WRITING
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
@@ -329,8 +401,8 @@ pub fn remove_anyway_impl(state: &Arc<AppState>, app_id: &str) -> AppResult<Conn
 }
 
 fn remove_as(state: &Arc<AppState>, app_id: &str, anyway: bool) -> AppResult<ConnectorRemovalInfo> {
-    let target = target(state, app_id).map_err(AppError::Refused)?;
-    let plan = plan_for(state, &target).map_err(AppError::Refused)?;
+    let target = target(state, app_id)?;
+    let plan = plan_for(state, &target)?;
     let _writing = WRITING
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
@@ -404,8 +476,9 @@ pub fn desktop_members_impl(
         statuses
             .entry(app_id.to_owned())
             .or_insert_with(|| {
-                status_impl(state, app_id)
-                    .unwrap_or_else(|error| unavailable(app_id, error.to_string()))
+                status_impl(state, app_id).unwrap_or_else(|error| {
+                    unavailable(app_id, &Why::UnknownApp(error.to_string()))
+                })
             })
             .clone()
     };

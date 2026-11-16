@@ -20,9 +20,25 @@ state: string,
  */
 changed: Array<string>, 
 /**
- * Why it can't be added here, for `unavailable`.
+ * Why it can't be added here, for `unavailable`, in words for logs
+ * (the window words `unavailable` instead).
  */
 why_not: string | null, 
+/**
+ * Why there's no connector to use here, a code for the window to word:
+ * `missing` (no juggler-agent beside AI Juggler) | `unsafe_location`
+ * (it's in a folder others own or can write: `unsafe_folder`) |
+ * `not_offered` (not for this App, or not yet: the Codex app until lab
+ * probe C2) | `unknown_app` | `no_folder` (the App has no config
+ * folder AI Juggler knows yet) | `no_connector` (offered here, not
+ * added: the `absent` state). `null` when it's there.
+ */
+unavailable?: string | null, 
+/**
+ * With `unsafe_location`: the folder that failed the check, the home
+ * folder written `~`.
+ */
+unsafe_folder?: string | null, 
 /**
  * The App's own config folder it goes in.
  */

@@ -175,6 +175,63 @@ fn remove_refuses_on_a_changed_file_and_remove_anyway_takes_it_all() {
     assert_eq!(removal.status.state, "absent");
 }
 
+/// The window words each reason from its code (`unavailable`), never from
+/// `why_not`'s raw words: one code a reason.
+#[cfg(unix)]
+#[test]
+fn every_reason_the_connector_isnt_there_has_its_code() {
+    use std::os::unix::fs::PermissionsExt as _;
+    let lab = lab();
+    let code = |app: &str| super::status_impl(&lab.state, app).unwrap().unavailable;
+    // Offered, not added.
+    assert_eq!(code(&lab.claude_app).as_deref(), Some("no_connector"));
+    // Added: nothing to say.
+    super::add_impl(&lab.state, &lab.claude_app).unwrap();
+    assert_eq!(code(&lab.claude_app), None);
+    // Not offered: the Codex app until C2.
+    assert_eq!(code(&lab.codex_app).as_deref(), Some("not_offered"));
+    // An App AI Juggler doesn't know.
+    assert_eq!(code("app:nope:").as_deref(), Some("unknown_app"));
+    // A desktop App with no config folder yet.
+    let bare = lab
+        .state
+        .storage
+        .lock()
+        .unwrap()
+        .apps()
+        .upsert_desktop(
+            juggler_adapters::CLAUDE_CODE_ID,
+            "claude-app",
+            Some("/nowhere/x"),
+            1,
+        )
+        .unwrap();
+    assert_eq!(code(&bare).as_deref(), Some("no_folder"));
+    // No juggler-agent beside AI Juggler.
+    let away = tempfile::tempdir().unwrap();
+    lab.state
+        .agent_bridge
+        .set_program(Some(away.path().join("juggler-agent")));
+    assert_eq!(code(&lab.claude_app).as_deref(), Some("missing"));
+    // In a folder others can write (as from /tmp): named.
+    let open = away.path().join("open");
+    std::fs::create_dir(&open).unwrap();
+    std::fs::set_permissions(&open, std::fs::Permissions::from_mode(0o777)).unwrap();
+    std::fs::copy("/bin/echo", open.join("juggler-agent")).unwrap();
+    lab.state
+        .agent_bridge
+        .set_program(Some(open.join("juggler-agent")));
+    let status = super::status_impl(&lab.state, &lab.claude_app).unwrap();
+    assert_eq!(status.unavailable.as_deref(), Some("unsafe_location"));
+    let folder = status.unsafe_folder.unwrap();
+    let canonical = std::fs::canonicalize(&open).unwrap();
+    assert!(
+        [open.display().to_string(), canonical.display().to_string()].contains(&folder),
+        "{folder}"
+    );
+    assert!(status.why_not.is_some(), "the words stay for logs");
+}
+
 #[test]
 fn an_app_it_cant_go_into_says_why() {
     let lab = lab();

@@ -19,8 +19,22 @@ pub struct ConnectorStatusInfo {
     pub state: String,
     /// The files changed by someone, inside the App's config folder.
     pub changed: Vec<String>,
-    /// Why it can't be added here, for `unavailable`.
+    /// Why it can't be added here, for `unavailable`, in words for logs
+    /// (the window words `unavailable` instead).
     pub why_not: Option<String>,
+    /// Why there's no connector to use here, a code for the window to word:
+    /// `missing` (no juggler-agent beside AI Juggler) | `unsafe_location`
+    /// (it's in a folder others own or can write: `unsafe_folder`) |
+    /// `not_offered` (not for this App, or not yet: the Codex app until lab
+    /// probe C2) | `unknown_app` | `no_folder` (the App has no config
+    /// folder AI Juggler knows yet) | `no_connector` (offered here, not
+    /// added: the `absent` state). `null` when it's there.
+    #[ts(optional = nullable)]
+    pub unavailable: Option<String>,
+    /// With `unsafe_location`: the folder that failed the check, the home
+    /// folder written `~`.
+    #[ts(optional = nullable)]
+    pub unsafe_folder: Option<String>,
     /// The App's own config folder it goes in.
     pub folder: Option<String>,
     /// When the App's sessions pick it up, in a sentence.
