@@ -824,7 +824,7 @@ fn whole_list(query: &SessionsQuery) -> Option<crate::features::relations::Entit
 }
 
 /// The ids of AI Juggler's sessions to review in `query`'s list (its
-/// scope, search, filters and time, read as [`Which::ToReview`]): what
+/// scope, search, filters and time, read as `to_review`): what
 /// Home's "Mark all N reviewed" marks, every one, not only those the app
 /// holds (the 0.4.6 RC walk K2, F-K2-7a).
 ///
