@@ -22,8 +22,13 @@ Run it with the standard library only: `python3 -I scripts/qa/c2_probe.py STEP`
     run        C2 and C3 with the model (needs the sign-in): two threads each
                asked to call the probe, then one asked to run --probe-shell
     reap       stop anything the lab left running
+    selftest   the config check and the --probe-shell match, no codex run
 
-Every step that runs codex refuses when CODEX_HOME names another folder, when
+Every step that runs codex (stage's --version too) refuses a lab config.toml
+that doesn't set every REQUIRED key (the sign-in as a file; plugins, remote
+plugins, Apps, dependency installs, tool suggestions, in-app updates, the
+daemon, the shell snapshot, the update check and analytics off), naming the
+missing key; and it refuses when CODEX_HOME names another folder, when
 ~/.codex differs from the staged baseline (names and dates only; nothing in
 it is ever opened), or when another Codex is running; it runs codex with a
 small environment and inside a macOS sandbox that denies every read and
@@ -104,11 +109,13 @@ sandbox_mode = "read-only"
 [analytics]
 enabled = false
 
-# No downloads, nothing shared: the first dry run (2026-11-16) found the
-# app-server cloning github.com/openai/plugins (93 MB) into this home at
-# start. These flags (names from `codex features list`) turn off that sync,
-# remote plugins and Apps connectors, MCP dependency installs, tool
-# suggestions, in-app updates and the shared local app-server daemon.
+# No downloads, nothing started on its own: the first dry run (2026-11-16)
+# found the app-server cloning github.com/openai/plugins (93 MB) into this
+# home at start. These flags (names from `codex features list`) turn off
+# that sync, remote plugins and Apps connectors, MCP dependency installs,
+# tool suggestions, in-app updates, the shared local app-server daemon and
+# the login-shell snapshot each thread started. Every step that runs codex
+# refuses a config without them (REQUIRED).
 [features]
 plugins = false
 remote_plugin = false
@@ -117,6 +124,7 @@ skill_mcp_dependency_install = false
 tool_suggest = false
 in_app_updates = false
 daemon_auto_start = false
+shell_snapshot = false
 
 # The probe (debug-only juggler-agent, pinned into the lab by `stage`).
 [mcp_servers.{SERVER}]
@@ -130,6 +138,107 @@ tool_timeout_sec = 30
 [mcp_servers.{SERVER}.tools.probe]
 approval_mode = "approve"
 """
+
+
+# What every lab CODEX_HOME sets before codex first runs on it: the sign-in
+# and MCP tokens as files, never the Keychain, and off everything that can
+# download or start things on its own (the lesson of 2026-11-16: a dry
+# app-server cloned github.com/openai/plugins, 93 MB, into the lab at
+# start). A step that runs codex refuses a config without one, naming it.
+REQUIRED: tuple = (
+    ("cli_auth_credentials_store", "file"),
+    ("mcp_oauth_credentials_store", "file"),
+    ("check_for_update_on_startup", False),
+    ("analytics.enabled", False),
+    ("features.plugins", False),
+    ("features.remote_plugin", False),
+    ("features.apps", False),
+    ("features.skill_mcp_dependency_install", False),
+    ("features.tool_suggest", False),
+    ("features.in_app_updates", False),
+    ("features.daemon_auto_start", False),
+    ("features.shell_snapshot", False),
+)
+TWICE = object()
+
+
+def strip_comment(line: str) -> str:
+    """`line` up to a `#` outside quotes."""
+    quote = ""
+    for at, char in enumerate(line):
+        if quote:
+            quote = "" if char == quote else quote
+        elif char in "\"'":
+            quote = char
+        elif char == "#":
+            return line[:at]
+    return line
+
+
+def toml_value(text: str):
+    """A plain TOML value: true/false, a one-line string, else its text."""
+    text = text.strip()
+    if text in ("true", "false"):
+        return text == "true"
+    if len(text) >= 2 and text[0] == text[-1] and text[0] in "\"'":
+        return text[1:-1]
+    return text
+
+
+def toml_settings(text: str) -> dict:
+    """A config.toml's plain `key = value` lines by dotted name
+    (`[features]` then `plugins = false` is `features.plugins`; a dotted
+    key counts in its table). Only what REQUIRED needs: anything else (an
+    inline table, a multi-line value) is just not found, so it is refused.
+    A name set twice is TWICE (TOML forbids it; refused too)."""
+    settings: dict = {}
+    table = ""
+    for raw in text.splitlines():
+        line = strip_comment(raw).strip()
+        if not line:
+            continue
+        header = re.fullmatch(r"\[\[?([^\[\]]+)\]\]?", line)
+        if header:
+            table = ".".join(part.strip().strip("\"'") for part in header.group(1).split("."))
+            continue
+        pair = re.fullmatch(r"([A-Za-z0-9_\-.\"' ]+?)\s*=\s*(.+)", line)
+        if not pair:
+            continue
+        key = ".".join(part.strip().strip("\"'") for part in pair.group(1).split("."))
+        name = f"{table}.{key}" if table else key
+        settings[name] = TWICE if name in settings else toml_value(pair.group(2))
+    return settings
+
+
+def missing_settings(text: str) -> list:
+    """The REQUIRED settings a config lacks, each named with what it needs."""
+    settings = toml_settings(text)
+    out = []
+    for name, want in REQUIRED:
+        shown = f'"{want}"' if isinstance(want, str) else str(want).lower()
+        got = settings.get(name)
+        if got is TWICE:
+            out.append(f"{name} = {shown} (it is set twice)")
+        elif name not in settings:
+            out.append(f"{name} = {shown} (missing)")
+        elif got != want:
+            out.append(f"{name} = {shown} (it says {got!r})")
+    return out
+
+
+def check_config(path: Path) -> None:
+    """Refuses a lab config.toml without every REQUIRED setting."""
+    try:
+        text = path.read_text()
+    except OSError:
+        raise Refused(f"the lab config.toml can't be read ({path}): run `stage`") from None
+    missing = missing_settings(text)
+    if missing:
+        raise Refused(
+            "the lab config.toml doesn't turn off everything that can download or start "
+            "things on its own (or keep the sign-in in a file), so codex won't run on it:\n  "
+            + "\n  ".join(missing)
+        )
 
 
 # ---------------------------------------------------------------- small helpers
@@ -482,10 +591,9 @@ def preconditions(rebaseline: bool, need_auth: bool = False) -> dict:
             raise Refused(f"{folder} must be this user's, 0700")
     if real(CODEX_HOME).startswith(real(REAL_CODEX_DIR)):
         raise Refused("the lab home is inside ~/.codex")
+    check_config(CODEX_HOME / "config.toml")
     if not os.access(AGENT, os.X_OK) or MARKER not in AGENT.read_bytes():
         raise Refused(f"{AGENT} is missing or isn't a probe build: run `stage`")
-    if not (CODEX_HOME / "config.toml").exists():
-        raise Refused("the lab config.toml is missing: run `stage`")
     if (CODEX_HOME / "config.toml").read_text() != config_text():
         raise Refused("the lab config.toml isn't the staged one: run `stage` again")
     others = other_codex(set())
@@ -1048,6 +1156,7 @@ def cmd_stage(args) -> int:
     shutil.copy2(source, AGENT)
     os.chmod(AGENT, 0o700)
     write_private(CODEX_HOME / "config.toml", config_text())
+    check_config(CODEX_HOME / "config.toml")  # before codex first runs on it
     if not BASELINE.exists() or args.rebaseline:
         baseline = save_baseline()
     else:
@@ -1068,6 +1177,11 @@ def cmd_status(args) -> int:
     say("signed in: " + ("yes (auth.json present, by name)" if has_auth_file() else "no"))
     if AGENT.exists():
         say(f"probe: sha256 {sha256(AGENT)}, marker {'present' if MARKER in AGENT.read_bytes() else 'MISSING'}")
+    try:
+        check_config(CODEX_HOME / "config.toml")
+        say("config.toml: every required setting is there")
+    except Refused as why:
+        say(f"config.toml: {why}")
     try:
         changes = codex_dir_changes(load_baseline(), codex_dir_snapshot())
         say("~/.codex vs baseline: " + ("unchanged" if not changes else f"{len(changes)} changes: {changes[:10]}"))
@@ -1264,13 +1378,84 @@ def cmd_login(args) -> int:
     return 0 if has_auth_file() and not changes and not left else 4
 
 
+def without(text: str, name: str) -> str:
+    """`text` with the line that sets `name` (by dotted name) taken out."""
+    kept, table = [], ""
+    for raw in text.splitlines():
+        line = strip_comment(raw).strip()
+        header = re.fullmatch(r"\[\[?([^\[\]]+)\]\]?", line)
+        if header:
+            table = header.group(1).strip()
+        pair = re.fullmatch(r"([A-Za-z0-9_\-.\"' ]+?)\s*=\s*(.+)", line)
+        if pair and (f"{table}.{pair.group(1).strip()}" if table else pair.group(1).strip()) == name:
+            continue
+        kept.append(raw)
+    return "\n".join(kept) + "\n"
+
+
+def cmd_selftest(args) -> int:
+    """No codex runs and no lab is needed: the config check against the
+    staged config and broken copies of it, and the --probe-shell match."""
+    import tempfile
+
+    failed = []
+
+    def expect(ok: bool, what: str) -> None:
+        if not ok:
+            failed.append(what)
+
+    good = config_text()
+    expect(missing_settings(good) == [], f"the staged config passes: {missing_settings(good)}")
+    for name, _ in REQUIRED:
+        cut = without(good, name)
+        expect(cut != good, f"{name}: its line was found to take out")
+        missing = missing_settings(cut)
+        expect(len(missing) == 1 and missing[0].startswith(f"{name} = "), f"{name} missing is named: {missing}")
+    flipped = good.replace("apps = false", "apps = true")
+    expect(missing_settings(flipped) == ["features.apps = false (it says True)"], f"true refused: {missing_settings(flipped)}")
+    keychain = good.replace('cli_auth_credentials_store = "file"', 'cli_auth_credentials_store = "keyring"')
+    expect(any(m.startswith("cli_auth_credentials_store") for m in missing_settings(keychain)), "the Keychain store refused")
+    twice = good + "\n[features]\nplugins = false\n"
+    expect(any("set twice" in m for m in missing_settings(twice)), "a name set twice refused")
+    commented = good.replace("tool_suggest = false", "# tool_suggest = false")
+    expect(any(m.startswith("features.tool_suggest") for m in missing_settings(commented)), "a commented-out line doesn't count")
+    trailing = good.replace("tool_suggest = false", "tool_suggest = false # off")
+    expect(missing_settings(trailing) == [], "a trailing comment is fine")
+    dotted = without(good, "features.plugins").replace(
+        "cli_auth_credentials_store", "features.plugins = false\ncli_auth_credentials_store", 1
+    )
+    expect(missing_settings(dotted) == [], f"a dotted top-level key counts: {missing_settings(dotted)}")
+    inline = without(good, "features.apps").replace("[features]", "features_note = 1\n[features]")
+    inline += "\n[other]\napps = false\n"
+    expect(any(m.startswith("features.apps") for m in missing_settings(inline)), "the key in another table doesn't count")
+    with tempfile.TemporaryDirectory() as folder:
+        path = Path(folder) / "config.toml"
+        path.write_text(without(good, "features.daemon_auto_start"))
+        try:
+            check_config(path)
+            failed.append("check_config let a config without daemon_auto_start through")
+        except Refused as why:
+            expect("features.daemon_auto_start = false (missing)" in str(why), f"the refusal names the key: {why}")
+        path.write_text(good)
+        try:
+            check_config(path)
+        except Refused as why:
+            failed.append(f"check_config refused the staged config: {why}")
+    expect(is_probe_shell(f"/bin/zsh -lc '{AGENT} --probe-shell'"), "the wrapped probe-shell matches")
+    expect(not is_probe_shell(f"{AGENT} --probe-shell; rm -rf x"), "anything more doesn't")
+    for line in failed:
+        say(f"FAIL: {line}")
+    say(f"c2_probe selftest: {'OK' if not failed else f'{len(failed)} failed'}")
+    return 0 if not failed else 1
+
+
 def cmd_reap(args) -> int:
     return 0 if not reap() else 4
 
 
 def main(argv: list) -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("step", choices=["stage", "status", "dry", "preflight", "login", "run", "reap"])
+    parser.add_argument("step", choices=["stage", "status", "dry", "preflight", "login", "run", "reap", "selftest"])
     parser.add_argument("--agent", default=str(AGENT_SOURCE), help="the debug juggler-agent to pin (stage)")
     parser.add_argument("--rebaseline", action="store_true", help="take ~/.codex's names and dates again first")
     parser.add_argument("--no-guard", action="store_true", help="run codex without the ~/.codex-denying sandbox")
@@ -1279,7 +1464,7 @@ def main(argv: list) -> int:
     os.umask(0o077)
     steps = {
         "stage": cmd_stage, "status": cmd_status, "dry": cmd_dry, "preflight": cmd_preflight,
-        "login": cmd_login, "run": cmd_run, "reap": cmd_reap,
+        "login": cmd_login, "run": cmd_run, "reap": cmd_reap, "selftest": cmd_selftest,
     }
     try:
         return steps[args.step](args)

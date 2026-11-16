@@ -26,9 +26,19 @@ with `python3 -I`). Staging record: `c2-staging.md` beside this file.
   - `check_for_update_on_startup = false`, `[analytics] enabled = false`.
   - `[features]` off: `plugins`, `remote_plugin`, `apps`,
     `skill_mcp_dependency_install`, `tool_suggest`, `in_app_updates`,
-    `daemon_auto_start`. The first dry run found the app-server cloning
-    github.com/openai/plugins (93 MB) into the lab home at start (deleted).
-    These flags stop that and any other fetch or shared daemon.
+    `daemon_auto_start`, `shell_snapshot`. The first dry run found the
+    app-server cloning github.com/openai/plugins (93 MB) into the lab home
+    at start (deleted). These flags stop that, any other fetch, the shared
+    daemon, and the login shell each thread started on its own.
+- **The rule (the lesson of that clone): every lab `CODEX_HOME` turns
+  these off before codex first runs on it.** The driver enforces it: every
+  step that runs codex (`stage`'s `--version` too) reads `config.toml` and
+  refuses, naming each missing key, unless it has the file stores,
+  `check_for_update_on_startup = false`, `[analytics] enabled = false` and
+  every `[features]` key above `= false` (`REQUIRED` in the driver;
+  `python3 -I scripts/qa/c2_probe.py selftest` checks that a config missing
+  any one of them is refused, without running codex). A new lab home, for
+  another Codex version or tool, copies these keys first.
   - `[mcp_servers.juggler-probe]`: `command` is the pinned probe, `args =
     ["--mcp", "--probe", "/tmp/aij-lab-c2/probe.jsonl"]`, `enabled_tools =
     ["probe"]`; `[mcp_servers.juggler-probe.tools.probe] approval_mode =
@@ -62,7 +72,9 @@ with `python3 -I`). Staging record: `c2-staging.md` beside this file.
 ## Steps
 
 0. **Staged (2026-11-16):** `stage`, `dry` (guarded and not), `preflight`
-   (`c2-staging.md`).
+   (`c2-staging.md`). `shell_snapshot = false` and the config check came
+   after those runs: the lab is refused until `stage` writes the new
+   config (it then runs only `codex --version`); rerun `dry` after it.
 1. **The sitting (the maintainer's one step).** The ChatGPT app and any
    terminal codex are quit first (the driver refuses otherwise). Never a
    bare `codex login`: without `CODEX_HOME` it signs in on `~/.codex`. The
@@ -125,6 +137,8 @@ with `python3 -I`). Staging record: `c2-staging.md` beside this file.
 - `/bin/ps` is setuid root, so a sandboxed process (Codex's seatbelt, the
   guard) can't run it: the probe then records only its pid and parent's,
   and the driver's own ps names the chain.
-- Codex runs the user's login shell for its shell snapshot (`zsh -lc`,
-  sourcing the dotfiles) without `CODEX_HOME`. The dotfiles don't mention
-  codex (2026-11-16), and the guard denies `~/.codex` to that shell too.
+- The staging runs had the shell snapshot on: Codex ran the user's login
+  shell (`zsh -lc`, sourcing the dotfiles) without `CODEX_HOME` at each
+  thread's start. It is off now. A model's own command still runs in a
+  login shell; the dotfiles don't mention codex (2026-11-16), and the
+  guard denies `~/.codex` to that shell too.
