@@ -128,8 +128,11 @@ pub struct Bridge {
     program: Mutex<Option<PathBuf>>,
     /// AJ-E3013 (H3): each attested desktop session kept now, by its id:
     /// its App and what its tool's registry named, re-checked on every
-    /// attested call ([`attest::sweep`]).
+    /// attested call and the live view's tick ([`attest::sweep`]).
     pub(crate) desktop: Mutex<HashMap<String, (String, juggler_adapter::peer::AttestedSession)>>,
+    /// Run 3: a kept desktop session went (its process ended) since the
+    /// live view's last tick told the window ([`attest::sweep_now`]).
+    pub(crate) desktop_went: std::sync::atomic::AtomicBool,
     /// D-119 (M2): the connectors' wake waits held now.
     pub(crate) waits: desktop::Waits,
     /// The review's global-cap finding: each process attested recently,

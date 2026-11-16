@@ -570,20 +570,82 @@ fn verify_tool(
     held_by(&instance, lock, host_pid)
 }
 
+/// Whether a kept session's tool process runs now: `Some(true)` the same
+/// pid with the same start time, not ended; `Some(false)` gone, ended or
+/// a reused pid; `None` when the system can't say.
+pub(crate) type Running<'a> = &'a dyn Fn(u32, i64) -> Option<bool>;
+
+/// [`Running`] by a process table (`None`: the system lists none).
+pub(crate) fn running_in(
+    table: Option<&HashMap<u32, Listed>>,
+) -> impl Fn(u32, i64) -> Option<bool> + '_ {
+    move |pid, start| {
+        let table = table?;
+        Some(table.get(&pid).is_some_and(|process| {
+            !process.zombie && i64::try_from(process.start_secs).ok() == Some(start)
+        }))
+    }
+}
+
+/// Run 3 (aij-test quit, its App still "1 open now"): the kept desktop
+/// sessions checked now against their tools' registries and the process
+/// table, as [`sweep`] does on a call: one whose process ended goes at
+/// once, one still running stays open. The live view's tick runs it
+/// (2 s); nothing to do while none is kept. Whether one went, here or on
+/// a call since the last tick (then the window hears of it: the pools'
+/// counts and the conversations' open state moved).
+pub fn sweep_now(state: &Arc<AppState>) -> bool {
+    use std::sync::atomic::Ordering;
+    let none = state
+        .agent_bridge
+        .desktop
+        .lock()
+        .map_or(true, |kept| kept.is_empty());
+    if none {
+        return state
+            .agent_bridge
+            .desktop_went
+            .swap(false, Ordering::AcqRel);
+    }
+    let table: Option<HashMap<u32, Listed>> = juggler_proc_list::list().map(|all| {
+        all.into_iter()
+            .map(|process| (process.pid, process))
+            .collect()
+    });
+    sweep(state, &candidates(state), &running_in(table.as_ref()));
+    let went = state
+        .agent_bridge
+        .desktop_went
+        .swap(false, Ordering::AcqRel);
+    if went {
+        crate::features::relations::changed(
+            state,
+            crate::features::relations::Change::ConversationsLive,
+        );
+    }
+    went
+}
+
 /// H3: drops at once what is kept for each attested desktop session whose
 /// tool's registry no longer names it (the entry gone, or its process's
-/// start time changed), or whose kept facts ran out, besides the ten
-/// minutes' expiry. Runs on every attested call (the refresh path).
-pub(crate) fn sweep(state: &Arc<AppState>, candidates: &[Candidate]) {
+/// start time changed), whose process ended (`running`: the pid gone or
+/// its start time another), or whose kept facts ran out. One still named
+/// and running is kept fresh (run 3): it counts as open, a running holder
+/// and a recipient exactly while its process runs; the ten minutes only
+/// bound facts this can't confirm (no process table). Runs on every
+/// attested call and on the live view's tick ([`sweep_now`]). Whether one
+/// went.
+pub(crate) fn sweep(state: &Arc<AppState>, candidates: &[Candidate], running: Running<'_>) -> bool {
     let kept: Vec<(String, (String, juggler_adapter::peer::AttestedSession))> =
         match state.agent_bridge.desktop.lock() {
             Ok(kept) => kept
                 .iter()
                 .map(|(id, at)| (id.clone(), at.clone()))
                 .collect(),
-            Err(_) => return,
+            Err(_) => return false,
         };
     let mut gone = Vec::new();
+    let mut still = Vec::new();
     for (id, (app_id, session)) in kept {
         let current = candidates
             .iter()
@@ -604,12 +666,12 @@ pub(crate) fn sweep(state: &Arc<AppState>, candidates: &[Candidate]) {
                 .seen(&juggler_core::model::SessionId::new(id.as_str()))
                 .is_some()
         });
-        if !current || !fresh {
-            gone.push(id);
+        match running(session.tool_pid, session.tool_start) {
+            _ if !current || !fresh => gone.push(id),
+            Some(false) => gone.push(id),
+            Some(true) => still.push(id),
+            None => {}
         }
-    }
-    if gone.is_empty() {
-        return;
     }
     if let Ok(storage) = state.storage.lock() {
         for id in &gone {
@@ -617,12 +679,25 @@ pub(crate) fn sweep(state: &Arc<AppState>, candidates: &[Candidate]) {
                 .attested()
                 .forget(&juggler_core::model::SessionId::new(id.as_str()));
         }
+        for id in &still {
+            storage
+                .attested()
+                .renew(&juggler_core::model::SessionId::new(id.as_str()));
+        }
+    }
+    if gone.is_empty() {
+        return false;
     }
     if let Ok(mut kept) = state.agent_bridge.desktop.lock() {
         for id in &gone {
             kept.remove(id);
         }
     }
+    state
+        .agent_bridge
+        .desktop_went
+        .store(true, std::sync::atomic::Ordering::Release);
+    true
 }
 
 /// The project of `conversation` in `folder`, from the conversation index
@@ -718,14 +793,15 @@ fn log_refusal(why: &str) {
 
 fn attest_inner(state: &Arc<AppState>, peer: Peer) -> Result<DesktopCaller, String> {
     let candidates = candidates(state);
-    // H3: whatever else this call turns out to be, every desktop session
-    // kept now is checked against its tool's registry again.
-    sweep(state, &candidates);
     let table: HashMap<u32, Listed> = juggler_proc_list::list()
         .ok_or("this system doesn't list its processes")?
         .into_iter()
         .map(|process| (process.pid, process))
         .collect();
+    // H3: whatever else this call turns out to be, every desktop session
+    // kept now is checked against its tool's registry and the process
+    // table again.
+    sweep(state, &candidates, &running_in(Some(&table)));
     let ours = |pid: u32| juggler_proc_list::task(pid).is_some();
     let chain = chain_of(peer, &table, &ours, &juggler_proc_list::pid_version)?;
     let (verdict, gone) = decide(&candidates, &chain);

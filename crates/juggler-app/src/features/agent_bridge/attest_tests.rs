@@ -470,8 +470,9 @@ fn the_first_call_finds_the_sessions_project_and_name_before_any_index() {
 
 #[test]
 fn only_the_attestation_writes_the_attested_sessions() {
-    // ADR-0020's D-116 addendum: `attested().put(` appears in one file of
-    // the app's code, the attestation (tests aside).
+    // ADR-0020's D-116 addendum: `attested().put(` (and run 3's
+    // `attested().renew(`) appears in one file of the app's code, the
+    // attestation (tests aside).
     fn walk(dir: &Path, found: &mut Vec<String>) {
         for entry in std::fs::read_dir(dir).unwrap().flatten() {
             let path = entry.path();
@@ -480,11 +481,16 @@ fn only_the_attestation_writes_the_attested_sessions() {
             } else if path.extension().is_some_and(|ext| ext == "rs") {
                 let text = std::fs::read_to_string(&path).unwrap();
                 let code = text.split("#[cfg(test)]\nmod").next().unwrap_or_default();
-                // Test files (`…_tests.rs`) aside, as test modules are.
-                let test_file = path
-                    .file_name()
-                    .is_some_and(|name| name.to_string_lossy().ends_with("_tests.rs"));
-                if code.contains("attested().put(") && !test_file {
+                // Test files (`…_tests.rs`, a `tests.rs` module) aside, as
+                // test modules are.
+                let test_file = path.file_name().is_some_and(|name| {
+                    let name = name.to_string_lossy();
+                    name.ends_with("_tests.rs") || name == "tests.rs"
+                });
+                // As written, a call split over lines too.
+                let flat: String = code.split_whitespace().collect();
+                let writes = flat.contains("attested().put(") || flat.contains("attested().renew(");
+                if writes && !test_file {
                     found.push(path.to_string_lossy().into_owned());
                 }
             }
@@ -642,124 +648,222 @@ fn a_call_carries_its_own_attested_facts() {
     );
 }
 
-/// H3: on every attested call, what is kept for each desktop session is
-/// dropped at once when its tool's registry entry is gone or names
-/// another start time, or (round 2) when the app archives its
-/// conversation, not only after ten minutes.
-#[test]
-fn kept_facts_go_when_the_registry_entry_goes_its_start_changes_or_it_is_archived() {
-    use juggler_adapter::peer::AttestedSession;
-    let dir = tempfile::tempdir().unwrap();
-    let mut registry = juggler_adapter::AdapterRegistry::new();
-    registry.register(Arc::new(juggler_adapters::ClaudeCodeAdapter::new()));
-    let state = Arc::new(AppState::init_with_registry(dir.path().join("data"), registry).unwrap());
-    let config = dir.path().join("config");
-    let instance = dir.path().join("instance");
-    std::fs::create_dir_all(config.join("sessions")).unwrap();
-    std::fs::create_dir_all(&instance).unwrap();
-    let start = 1_793_000_000;
-    let entry = |text: &str| {
+/// A desktop session kept as an attestation keeps it: a Claude app's
+/// config folder with its registry entry for `pid`, its app record, and
+/// the App with that folder.
+struct Kept {
+    state: Arc<AppState>,
+    app: String,
+    config: std::path::PathBuf,
+    records: std::path::PathBuf,
+    pid: u32,
+    start: i64,
+}
+
+impl Kept {
+    fn new(dir: &Path, pid: u32, start: i64) -> Self {
+        let mut registry = juggler_adapter::AdapterRegistry::new();
+        registry.register(Arc::new(juggler_adapters::ClaudeCodeAdapter::new()));
+        let state = Arc::new(AppState::init_with_registry(dir.join("data"), registry).unwrap());
+        let config = dir.join("config");
+        let instance = dir.join("instance");
+        std::fs::create_dir_all(config.join("sessions")).unwrap();
+        let records = instance.join("claude-code-sessions/acct/org");
+        std::fs::create_dir_all(&records).unwrap();
+        let app = {
+            let storage = state.storage.lock().unwrap();
+            storage
+                .accounts()
+                .insert(&crate::test_support::account(
+                    FOLDER,
+                    juggler_adapters::CLAUDE_CODE_ID,
+                    "Desk",
+                    config.clone(),
+                ))
+                .unwrap();
+            let app = storage
+                .apps()
+                .upsert_desktop(
+                    juggler_adapters::CLAUDE_CODE_ID,
+                    "claude-app",
+                    Some(&instance.to_string_lossy()),
+                    1,
+                )
+                .unwrap();
+            storage.apps().set_folder(&app, Some(FOLDER)).unwrap();
+            app
+        };
+        let kept = Self {
+            state,
+            app,
+            config,
+            records,
+            pid,
+            start,
+        };
+        kept.entry(start);
+        kept.app_record(false);
+        kept
+    }
+
+    /// Its registry entry, naming its process's start as `start`.
+    fn entry(&self, start: i64) {
         std::fs::write(
-            config.join("sessions/4242.json"),
+            self.registry(),
             format!(
-                r#"{{"pid":4242,"sessionId":"{CONVERSATION}","procStart":"{text}","hostSessionId":"local_t1","entrypoint":"claude-desktop"}}"#
+                r#"{{"pid":{},"sessionId":"{CONVERSATION}","procStart":"{}","hostSessionId":"local_t1","entrypoint":"claude-desktop"}}"#,
+                self.pid,
+                ctime(start)
             ),
         )
         .unwrap();
-    };
-    entry(&ctime(start));
-    let records = instance.join("claude-code-sessions/acct/org");
-    std::fs::create_dir_all(&records).unwrap();
-    let app_record = |archived: bool| {
+    }
+
+    fn registry(&self) -> std::path::PathBuf {
+        self.config.join(format!("sessions/{}.json", self.pid))
+    }
+
+    fn app_record(&self, archived: bool) {
         std::fs::write(
-            records.join("local_t1.json"),
+            self.records.join("local_t1.json"),
             format!(
                 r#"{{"sessionId":"local_t1","cliSessionId":"{CONVERSATION}","isArchived":{archived}}}"#
             ),
         )
         .unwrap();
-    };
-    app_record(false);
-    let app = {
-        let storage = state.storage.lock().unwrap();
-        storage
-            .accounts()
-            .insert(&crate::test_support::account(
-                FOLDER,
-                juggler_adapters::CLAUDE_CODE_ID,
-                "Desk",
-                config.clone(),
-            ))
-            .unwrap();
-        let app = storage
-            .apps()
-            .upsert_desktop(
-                juggler_adapters::CLAUDE_CODE_ID,
-                "claude-app",
-                Some(&instance.to_string_lossy()),
-                1,
-            )
-            .unwrap();
-        storage.apps().set_folder(&app, Some(FOLDER)).unwrap();
-        app
-    };
-    let desk = desktop_id(FOLDER, CONVERSATION);
-    let keep = || {
-        state
+    }
+
+    /// What an attestation keeps for it.
+    fn keep(&self) {
+        self.state
             .storage
             .lock()
             .unwrap()
             .attested()
             .put(desktop_facts());
-        state.agent_bridge.desktop.lock().unwrap().insert(
-            desk.as_str().to_owned(),
+        self.state.agent_bridge.desktop.lock().unwrap().insert(
+            desktop_id(FOLDER, CONVERSATION).as_str().to_owned(),
             (
-                app.clone(),
-                AttestedSession {
+                self.app.clone(),
+                juggler_adapter::peer::AttestedSession {
                     conversation: CONVERSATION.into(),
                     host_session: "local_t1".into(),
-                    tool_pid: 4242,
-                    tool_start: start,
+                    tool_pid: self.pid,
+                    tool_start: self.start,
                     cwd: None,
                     title: None,
                 },
             ),
         );
-    };
-    let kept = || {
-        state
+    }
+
+    fn kept(&self) -> bool {
+        let desk = desktop_id(FOLDER, CONVERSATION);
+        self.state
             .storage
             .lock()
             .unwrap()
             .attested()
             .get(&desk)
             .is_some()
-            && state
+            && self
+                .state
                 .agent_bridge
                 .desktop
                 .lock()
                 .unwrap()
                 .contains_key(desk.as_str())
+    }
+}
+
+/// H3: on every attested call, what is kept for each desktop session is
+/// dropped at once when its tool's registry entry is gone or names
+/// another start time, (round 2) when the app archives its conversation,
+/// or (run 3) when its process ended, not only after ten minutes.
+#[test]
+fn kept_facts_go_when_the_registry_entry_goes_its_start_changes_or_it_is_archived() {
+    let dir = tempfile::tempdir().unwrap();
+    let start = 1_793_000_000;
+    let lab = Kept::new(dir.path(), 4242, start);
+    let alive = std::cell::Cell::new(true);
+    let running = |pid: u32, at: i64| Some(alive.get() && pid == 4242 && at == start);
+    let sweep =
+        || super::attest::sweep(&lab.state, &super::attest::candidates(&lab.state), &running);
+    lab.keep();
+    assert!(!sweep());
+    assert!(lab.kept(), "still its registry's");
+    lab.entry(start + 3600);
+    assert!(sweep());
+    assert!(!lab.kept(), "its start time changed: dropped at once");
+    lab.entry(start);
+    lab.keep();
+    std::fs::remove_file(lab.registry()).unwrap();
+    sweep();
+    assert!(!lab.kept(), "its registry entry gone: dropped at once");
+    lab.entry(start);
+    lab.keep();
+    sweep();
+    assert!(lab.kept(), "back");
+    alive.set(false);
+    sweep();
+    assert!(
+        !lab.kept(),
+        "its process ended, its entry left behind: dropped at once"
+    );
+    alive.set(true);
+    lab.keep();
+    lab.app_record(true);
+    sweep();
+    assert!(!lab.kept(), "its conversation archived: dropped at once");
+}
+
+/// Run 3 (aij-test quit, its App still said "1 open now"): a desktop
+/// session counts as open and as a running holder or recipient while its
+/// tool's process runs, and stops at the live view's next tick once its
+/// registry entry goes, no timer passing; the tick says so (the window
+/// is told). This test's own process stands in for its Claude Code.
+#[test]
+fn a_desktop_session_stops_counting_as_open_when_its_registry_entry_goes() {
+    let dir = tempfile::tempdir().unwrap();
+    let pid = std::process::id();
+    let start = juggler_proc_list::list()
+        .and_then(|all| all.into_iter().find(|process| process.pid == pid))
+        .map_or(1_793_000_000, |process| {
+            i64::try_from(process.start_secs).unwrap()
+        });
+    let lab = Kept::new(dir.path(), pid, start);
+    lab.keep();
+    let member = format!("conversation:{FOLDER}/{CONVERSATION}");
+    let open = || {
+        let storage = lab.state.storage.lock().unwrap();
+        let desk = desktop_id(FOLDER, CONVERSATION);
+        storage
+            .attested()
+            .fresh()
+            .iter()
+            .any(|facts| facts.session == desk)
+            && crate::features::messages::session_now(&storage, &member).is_some()
     };
-    let sweep = || super::attest::sweep(&state, &super::attest::candidates(&state));
-    keep();
-    sweep();
-    assert!(kept(), "still its registry's");
-    entry(&ctime(start + 3600));
-    sweep();
-    assert!(!kept(), "its start time changed: dropped at once");
-    entry(&ctime(start));
-    keep();
-    std::fs::remove_file(config.join("sessions/4242.json")).unwrap();
-    sweep();
-    assert!(!kept(), "its registry entry gone: dropped at once");
-    entry(&ctime(start));
-    keep();
-    sweep();
-    assert!(kept(), "back");
-    app_record(true);
-    sweep();
-    assert!(!kept(), "its conversation archived: dropped at once");
+    assert!(
+        !super::attest::sweep_now(&lab.state),
+        "it runs: nothing went"
+    );
+    assert!(open());
+    std::fs::remove_file(lab.registry()).unwrap();
+    assert!(super::attest::sweep_now(&lab.state), "the window is told");
+    assert!(!open(), "not open, not a running holder or recipient");
+    assert!(
+        !super::attest::sweep_now(&lab.state),
+        "none kept: nothing to do"
+    );
+    // Gone on another session's call: told at the next tick all the same.
+    lab.entry(start);
+    lab.keep();
+    std::fs::remove_file(lab.registry()).unwrap();
+    let unknown = |_: u32, _: i64| None;
+    super::attest::sweep(&lab.state, &super::attest::candidates(&lab.state), &unknown);
+    assert!(!open());
+    assert!(super::attest::sweep_now(&lab.state), "the window is told");
 }
 
 /// The A9 lab walk (2026-11-15): an idle desktop member never woke for

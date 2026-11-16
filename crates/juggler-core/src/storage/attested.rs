@@ -15,9 +15,14 @@
 //!   fresh ones too, so the pools' tallies count them (AJ-E3013).
 //! - An entry lives [`TTL`] after the last attested call that put it; a
 //!   read never extends it. The attestation path drops one at once when a
-//!   later call finds its session's record stale ([`AttestedSessions::forget`]).
+//!   later call or its liveness sweep finds its session's record stale or
+//!   its process ended ([`AttestedSessions::forget`]), and keeps one fresh
+//!   while that sweep finds its process running and its records naming it
+//!   ([`AttestedSessions::renew`]): it's open exactly while it runs, and
+//!   the ten minutes only bound what can't be confirmed (run 3).
 //! - Only the attestation path writes here: a guard test in `juggler-app`
-//!   holds every `attested().put(` to that one file.
+//!   holds every `attested().put(` and `attested().renew(` to that one
+//!   file.
 
 use std::collections::HashMap;
 use std::sync::Mutex;
@@ -125,6 +130,27 @@ impl AttestedSessions {
             .collect()
     }
 
+    /// Keeps `id` fresh from now, when it's kept and fresh: only the
+    /// attestation path's liveness sweep calls this, having found the
+    /// session's tool process running (the same pid, the same start) and
+    /// its registry entry and app record still naming it. Never brings
+    /// back one that ran out.
+    pub fn renew(&self, id: &SessionId) {
+        self.renew_at(id, Instant::now());
+    }
+
+    fn renew_at(&self, id: &SessionId, now: Instant) {
+        let mut entries = self
+            .entries
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        if let Some((_, seen)) = entries.get_mut(id)
+            && now.saturating_duration_since(*seen) < TTL
+        {
+            *seen = now;
+        }
+    }
+
     /// Forgets `id` (its session's record went stale).
     pub fn forget(&self, id: &SessionId) {
         self.entries
@@ -171,5 +197,22 @@ mod tests {
         assert!(kept.get_at(&id, start + TTL).is_some());
         kept.forget(&id);
         assert_eq!(kept.get_at(&id, start + TTL / 2), None);
+    }
+
+    /// Run 3: renewed while its process runs, it stays past the ten
+    /// minutes; one that ran out isn't brought back.
+    #[test]
+    fn a_renewal_keeps_it_while_one_that_ran_out_stays_gone() {
+        let kept = AttestedSessions::default();
+        let start = Instant::now();
+        let id = desktop_id("f", "c-3");
+        kept.put_at(facts(id.as_str()), start);
+        kept.renew_at(&id, start + TTL / 2);
+        kept.renew_at(&id, start + TTL);
+        assert!(kept.get_at(&id, start + TTL + TTL / 2).is_some());
+        let late = desktop_id("f", "c-4");
+        kept.put_at(facts(late.as_str()), start);
+        kept.renew_at(&late, start + TTL + TTL / 4);
+        assert_eq!(kept.get_at(&late, start + TTL + TTL / 2), None);
     }
 }

@@ -419,10 +419,17 @@ part in its adapter, `juggler_adapter::peer::DesktopPeer`):
    conversation; project from the conversation index) under a minted id,
    `desktop:<folder>/<conversation>` (L3), which no real session can have
    (`SessionsRepo::insert` refuses the prefix), and keeps them in memory
-   (`Storage::attested`), refreshed by each attested call and dropped ten
-   minutes after the last one, or at once when a later call finds that
-   session's registry entry stale or its conversation archived by the app
-   (or its record gone, or naming another conversation). Only this path writes it. Then the call
+   (`Storage::attested`), refreshed by each attested call, and dropped at
+   once when a later call, or the live view's tick (2 s), finds that
+   session's registry entry stale, its process ended (the pid gone or its
+   start time another), or its conversation archived by the app (or its
+   record gone, or naming another conversation). While that check finds
+   its process running and its records naming it, the facts stay fresh:
+   the session is open, a running holder and a recipient exactly while it
+   runs (run 3, 2026-11-16: an App still said "1 open now" for ten
+   minutes after its app quit). The ten minutes after the last call only
+   bound facts nothing can confirm (no process table). Only this path
+   writes it. Then the call
    goes on exactly as a keyed one: the rate limit (per conversation),
    Settings › Agent access, the pool's level, the talk rules, and
    `allowed(pool, action)`, which decides and audits.

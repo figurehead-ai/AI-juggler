@@ -146,7 +146,12 @@ pub(crate) fn spawn_read_model_ticks(
             "live-sessions",
             features::conversations::scan::TICK,
             move || {
-                if let Ok(true) = features::conversations::live_tick(&live_state) {
+                let moved = matches!(features::conversations::live_tick(&live_state), Ok(true));
+                // Run 3: a desktop session whose process ended stops
+                // counting as open at once (its App's "open now", a
+                // running holder or recipient), never after a timer.
+                let ended = features::agent_bridge::attest::sweep_now(&live_state);
+                if moved || ended {
                     live_app.emit_event(
                         AppEvent::ConversationsChanged,
                         features::conversations::CHANGED_LIVE,
