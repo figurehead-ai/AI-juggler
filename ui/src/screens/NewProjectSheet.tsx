@@ -69,7 +69,12 @@ export function NewProjectSheet({
   const [error, setError] = useState<string | null>(null);
   const { dragging, zone } = useFolderDrop(setDirectory); // wf03: a dropped folder
   // Esc closes it wherever focus is, even right after ⌘⇧N (as New session, #198).
-  useEscapeCloses(onClose);
+  // While the add-app detour is open its own Escape leaves it and returns
+  // here, the folder still chosen (Req.7): this sheet's listener, added
+  // first, must not close the sheet under it.
+  useEscapeCloses(() => {
+    if (!detour) onClose();
+  });
   const tilesRef = useRef<HTMLDivElement | null>(null);
 
   const reload = () => {
