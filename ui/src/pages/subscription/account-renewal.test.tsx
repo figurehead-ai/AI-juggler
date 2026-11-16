@@ -29,7 +29,9 @@ const digits = (iso: string) => {
 const renewalSaves = () => setTerm.mock.calls.filter((call) => (call as unknown[])[1] === "renewal");
 
 function settings(renewal: string | null = null) {
-  render(<AccountSettings sub={sub(renewal)} now={Date.now()} onChanged={() => {}} />);
+  // A fixed "now" before the fixtures' renewal dates (2026-11-28), so the
+  // test means the same whatever day it runs.
+  render(<AccountSettings sub={sub(renewal)} now={new Date(2026, 10, 15, 12).getTime()} onChanged={() => {}} />);
   return asInput(screen.getByTestId("account-renewal-input"));
 }
 
