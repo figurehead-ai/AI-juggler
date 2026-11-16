@@ -439,7 +439,13 @@ fn the_version_moves_as_the_window_reads_it_when_a_need_ends() {
         let json = serde_json::to_string(&version).unwrap();
         serde_json::from_str::<f64>(&json).unwrap()
     };
-    let sign_in = |key: &str| need(&format!("signin:{key}"), "signin", "lab A needs its sign-in");
+    let sign_in = |key: &str| {
+        need(
+            &format!("signin:{key}"),
+            "signin",
+            "lab A needs its sign-in",
+        )
+    };
     let all = [sign_in("a"), sign_in("b"), sign_in("c")];
     sync_needs(&storage, &all, NOW).unwrap();
     // A snooze held, as on the maintainer's Mac (its hash is a part).
