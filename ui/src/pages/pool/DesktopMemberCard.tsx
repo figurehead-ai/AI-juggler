@@ -15,7 +15,7 @@ import { ACTION_ICONS } from "../../components/ActionIcon";
 import { useActionHost } from "../../components/ItemMenu";
 import { Button, Chip } from "../../components/primitives";
 import { MenuItem, MenuLine, RowMenu, menuPoint, type MenuAt } from "../../components/RowMenu";
-import { reachOf } from "../../lib/connector";
+import { CONNECTOR, reachOf } from "../../lib/connector";
 import { useConversations } from "../../lib/conversations";
 import type { DesktopMemberInfo } from "../../lib/ipc/connector";
 import type { WatchedMemberInfo } from "../../lib/ipc/pool-model";
@@ -48,7 +48,7 @@ export function DesktopMemberCard({ one, desktop, selected, onSelect }: { one: W
             <span className="text-label text-muted">{roleLabel(one.role)}</span>
           </span>
           <span className="line-clamp-2 text-body font-semibold text-ink">{title}</span>
-          <span className="text-meta text-ink-2" data-testid="canvas-watched-reach">
+          <span className="text-meta text-ink-2" title={watched ? CONNECTOR.meaning : undefined} data-testid="canvas-watched-reach">
             {[one.tool, reach.line].filter(Boolean).join(" · ")}
           </span>
         </button>

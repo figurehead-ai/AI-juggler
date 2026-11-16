@@ -8,7 +8,7 @@
 import type { JSX } from "react";
 
 import { useApps } from "../../lib/apps";
-import { folderOfApp } from "../../lib/connector";
+import { CONNECTOR, folderOfApp } from "../../lib/connector";
 import type { OfferInfo, SetupCheckInfo } from "../../lib/ipc/switchSetup";
 import { ConnectorCard } from "../../pages/pool/connector/ConnectorCard";
 
@@ -22,9 +22,9 @@ export function ConnectorOfferRow({ offer, check, toFolder }: { offer: OfferInfo
         <span className="text-label text-muted">AI Juggler's own</span>
       </span>
       <span className="text-meta text-ink-2">
-        Not one of your skills, so it isn't copied. {app ? `Add it to ${app.name} with your OK, and its sessions talk in pools:` : `${check.to}'s Claude app gets it from AI Juggler, with your OK, when it joins a pool.`}
+        {CONNECTOR.meaning} Not one of your skills, so it isn't copied. {app ? `Add it to ${app.name} with your OK, and its sessions talk in pools:` : `${check.to}'s Claude app gets it from AI Juggler, with your OK, when it joins a pool.`}
       </span>
-      {app && <ConnectorCard appId={app.id} app={app.name} where="pools" heading={4} testId="switch-connector" />}
+      {app && <ConnectorCard appId={app.id} app={app.name} kind={app.app} profile={app.profile} where="pools" heading={4} testId="switch-connector" />}
     </li>
   );
 }

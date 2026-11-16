@@ -17,7 +17,7 @@ export function DesktopConnectors({ refs, where, testId = "desktop-connectors" }
   return (
     <div className="flex flex-col gap-2" data-testid={testId}>
       {desktop.map((app) => (
-        <ConnectorCard key={app.id} appId={app.id} app={app.name} where={where} heading={4} testId={`${testId}-card`} />
+        <ConnectorCard key={app.id} appId={app.id} app={app.name} kind={app.app} profile={app.profile} where={where} heading={4} testId={`${testId}-card`} />
       ))}
     </div>
   );

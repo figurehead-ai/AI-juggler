@@ -37,6 +37,9 @@ export const TEAM_TOOLS = {
   gives: "They see who else is in their pool and what each is doing, and send each other notes and tasks: Claude sees that Codex is reviewing and sends it a note.",
   // Round 5 (Sam: "costs nothing extra: turns" was unclear).
   cost: "It costs nothing extra. Your assistants use their own turns only when they act.",
+  // Casey's PC1 walk, after adding the connector: "does this change my
+  // Claude app a second time?"
+  local: "This is a setting in AI Juggler; it changes nothing in your apps.",
   // Sam's round-4 walk: "your pools" was vague; whom it covers, said.
   where: "This is for every pool you make; you can switch it off for a project or an app in",
   yes: "Yes, let them work together",

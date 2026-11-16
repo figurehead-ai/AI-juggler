@@ -19,6 +19,10 @@ import { Palette } from "./Palette";
 import { PoolSetupSections } from "./PoolSetupSections";
 import { drawnRules } from "./usePoolSetup";
 import { JoinAs } from "./setup/JoinAs";
+import { TalkTable } from "./setup/TalkTable";
+import { LeadPicker } from "./setup/LeadPicker";
+import { TALK_ABOVE } from "../../lib/pool-words";
+import type { LeadChoice } from "../../lib/new-pool";
 
 beforeEach(() => {
   resetPending();
@@ -84,5 +88,31 @@ describe("AJ-E3011 round 5", () => {
     );
     expect(document.activeElement).toBe(screen.getByTestId("pool-setup-everyone").querySelector('[data-testid="pool-join-picker"], button'));
     expect(screen.getByTestId("pool-setup-everyone").contains(document.activeElement)).toBe(true);
+  });
+
+  it("Casey #3: the team tools card says it changes nothing in your apps", () => {
+    expect(TEAM_TOOLS.local).toBe("This is a setting in AI Juggler; it changes nothing in your apps.");
+  });
+
+  it("Casey #4: who may message whom says its cells change, and each cell is a button", () => {
+    expect(TALK_ABOVE).toContain("Click a cell to change it.");
+    render(<TalkTable ruleOf={() => "allowed"} onCycle={() => undefined} testId="t" />);
+    const cells = screen.getAllByTestId("t-cell");
+    expect(cells.every((cell) => cell.tagName === "BUTTON")).toBe(true);
+    expect(screen.getByTestId("t-above").textContent).toContain("Click a cell to change it.");
+  });
+
+  it("Casey #5: Who leads keeps one choice checked, whichever was picked last", () => {
+    function Host() {
+      const [value, setValue] = useState<LeadChoice>({ kind: "none" });
+      return <LeadPicker sessions={[{ ref: "s1", name: "Planner", detail: "web" }]} apps={[{ ref: "app:a", name: "Claude app · Work Max" }, { ref: "app:b", name: "Claude app · Side" }]} value={value} onChange={setValue} />;
+    }
+    render(<Host />);
+    const checked = () => [...document.querySelectorAll<HTMLInputElement>('input[type="radio"]')].filter((one) => one.checked).map((one) => one.closest("[data-kind]")?.getAttribute("data-kind"));
+    const option = (kind: string) => document.querySelector<HTMLElement>(`input[data-kind="${kind}"]`)!;
+    for (const kind of ["next", "none", "session", "next"]) {
+      fireEvent.click(option(kind));
+      expect(checked()).toEqual([kind]);
+    }
   });
 });

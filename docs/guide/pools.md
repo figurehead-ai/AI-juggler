@@ -57,7 +57,8 @@ heading and one line on why, and every choice reads back as a sentence
    - **Reviewer**: reads everything, checks work in review and gives its
      verdict. Doesn't build.
    - **Observer**: watches and reads. Changes nothing.
-6. **Who may message whom**: a table by role ("Lead can message…").
+6. **Who may message whom**: a table by role ("Lead can message…");
+   click a cell to change it (Allowed, Ask first, Blocked).
    **Allowed** needs nothing from you; **Ask first** waits for your OK in
    Needs you; **Blocked** stops it. Only the exceptions are in colour. One
    pair of sessions can differ: click the line between them on the diagram.
@@ -101,6 +102,17 @@ a pool's own view is its page.
 
 ## A pool's page
 
+A pool with no members yet opens in its setup: New pool's own steps, on
+the pool's page, with its projects (and name) filled in. A project's own
+pool keeps its project: every session in it is part of the team, and
+**Everyone else** sets the role they join as. **Show the diagram** leaves
+the setup; once the pool has members, it opens on its diagram.
+
+On the diagram, the panel at the right follows what you select. Drag its
+left edge (or focus it and use ← →) to make it wider, 360 to 420 px; the
+width is kept. A **Change** or a checklist item opens its section at the
+top of the panel, its control ready.
+
 - **Members**: each session in the pool, as a row like Home's: its name and
   state (in the list's words: Asks you, Working, Idle, Ended), where it
   runs (its project and app), its tool, its role and when it was last
@@ -129,7 +141,8 @@ The pool's members work as a team through AI Juggler's team tools: they
 message each other and share notes and tasks (Claude sees that Codex is
 reviewing, say, and sends it a note). They cover the sessions AI Juggler
 starts or connects in your pools, never a session outside a pool, and
-cost nothing extra: a session uses its own turns only when it acts.
+cost nothing extra: your assistants use their own turns only when they
+act. It's a setting in AI Juggler and changes nothing in your apps.
 Without them, a pool is set up, but nobody in it can message.
 
 It's for every pool you make. AI Juggler asks once, the first time you
@@ -154,9 +167,11 @@ pool's tools. **Add** opens one card: "Add AI Juggler's connector to
 Claude · Work so its sessions can talk in this pool", what it does, an
 example, and this section.
 
-- **Add** first shows exactly what it writes: each file ("Creates
-  ~/…/skills/ai-juggler/.claude-plugin/plugin.json") with its text under
-  it. Nothing is written until you click **Add to Claude · Work**. It
+- **Add** first says in one sentence what it does ("This adds a small
+  helper to your Claude app (Work) so its sessions can talk in this pool:
+  2 new files in its own settings folder; nothing of yours changes."),
+  with each file and its exact text under **Show the files**. Nothing is
+  written until you click **Add to Claude · Work**. It
   writes only AI Juggler's own folder in that profile's Claude Code
   settings: its pool tools and a note on new messages. Never a secret,
   never your Keychain, and nothing of yours changes.
@@ -164,7 +179,7 @@ example, and this section.
   sessions have it at once. AI Juggler doesn't restart a session for you.
 - **Remove** shows exactly what it deletes first. If you changed one of
   its files since, Remove leaves that file and names it.
-- **Add it yourself instead** shows the steps to install AI Juggler's
+- **Show me how to add it by hand** shows the steps to install AI Juggler's
   plugin from the app (**+ › Add plugins**), with a **Copy** button for
   the command. While the steps are open, AI Juggler watches for it and
   says when it's done: the connector is there, or one of the app's

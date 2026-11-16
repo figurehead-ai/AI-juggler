@@ -138,13 +138,13 @@ export interface Candidate {
  * would act). AJ-E3013: they talk through AI Juggler's connector, added
  * with the user's OK; Watched without it. */
 function desktopAppNote(app: string): string {
-  return `Runs in the ${app}: with AI Juggler's connector in it (added with your OK) its sessions talk in the pool; without it they're Watched.`;
+  return `Runs in the ${app}: with AI Juggler's connector in it (a small helper, added with your OK) its sessions talk in the pool; without it they're Watched.`;
 }
 
 /** A session another app runs: how it takes part, said before it's added
  * (P1 step 8; AJ-E3013). */
 function watchedNote(where: string): string {
-  return `Runs in ${where}: with AI Juggler's connector in its app (added with your OK) it talks in the pool; without it, it's Watched.`;
+  return `Runs in ${where}: with AI Juggler's connector in its app (a small helper, added with your OK) it talks in the pool; without it, it's Watched.`;
 }
 
 const DAY = 24 * 60 * 60 * 1000;

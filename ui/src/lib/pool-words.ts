@@ -205,7 +205,7 @@ export const asTalkRule = (rule: string | null | undefined): TalkRule => (rule =
 export const NEEDS_YOU_WHAT = "the list of things waiting for your OK, on Home";
 
 /** The line above the talk table (the setup's first mention of Needs you). */
-export const TALK_ABOVE = `Who may send a message to whom. Allowed needs nothing from you; Ask first waits in Needs you (${NEEDS_YOU_WHAT}); Blocked stops it.`;
+export const TALK_ABOVE = `Who may send a message to whom. Click a cell to change it. Allowed needs nothing from you; Ask first waits in Needs you (${NEEDS_YOU_WHAT}); Blocked stops it.`;
 /** The line below it: one pair of sessions. */
 export const TALK_BELOW = "An Observer only reads: its messages are blocked, or wait for your OK if you set Ask first. To set it for one pair of sessions, click the line between them on the diagram.";
 

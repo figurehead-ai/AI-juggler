@@ -20,7 +20,8 @@ import { useState, type JSX, type ReactNode } from "react";
 
 import { Button } from "../../../components/primitives";
 import { errorText } from "../../../lib/bridge";
-import { CONNECTOR, CONNECTOR_GUIDE, connectorChanged, shortPath, statusLine, useConnectorStatus } from "../../../lib/connector";
+import { CONNECTOR, CONNECTOR_GUIDE, connectorChanged, previewSentence, shortPath, statusLine, useConnectorStatus } from "../../../lib/connector";
+import { Disclosure } from "../../../components/controls";
 import { connectorAdd, connectorPreview, connectorRemove, type ConnectorPreviewInfo, type ConnectorRemovalInfo, type ConnectorStatusInfo } from "../../../lib/ipc/connector";
 import { trustOpen } from "../../../lib/ipc/trust";
 import { ConnectorFiles, RemoveFiles } from "./ConnectorFiles";
@@ -43,6 +44,9 @@ interface Parts {
   busy: boolean;
   heading: 3 | 4;
   state: string;
+  /** The App as the preview's sentence says it ("your Claude app (Work Max)"). */
+  who: { name: string; kind?: string; profile?: string | null };
+  where: string;
   failed: ReactNode;
   cancel: JSX.Element;
 }
@@ -68,7 +72,13 @@ export function ConnectorCard({
   poolId,
   heading = 3,
   testId = "connector",
+  kind,
+  profile,
 }: {
+  /** The App's kind and profile, for the preview's sentence ("Claude
+   * app", "Work Max"). */
+  kind?: string;
+  profile?: string | null;
   appId: string;
   /** The App as named ("Claude · Work"). */
   app: string;
@@ -135,6 +145,8 @@ export function ConnectorCard({
     busy,
     heading,
     state: status.state,
+    who: { name: app, kind, profile },
+    where,
     failed,
     cancel: (
       <Button size="sm" variant="ghost" disabled={busy} onClick={() => setPhase({ kind: "idle" })} data-testid={`${testId}-cancel`}>
@@ -200,6 +212,10 @@ function Resting({ status, parts, where, onReview, onGuide, onRemove }: { status
   const outdated = status.state === "outdated";
   return (
     <Card parts={parts} title={CONNECTOR.title(app, where)}>
+      {/* Where "connector" is first named, what it is (Casey's PC1 walk). */}
+      <p className="text-meta text-ink" data-testid={`${testId}-meaning`}>
+        {CONNECTOR.meaning}
+      </p>
       {outdated && (
         <p className="text-meta text-ink" data-testid={`${testId}-outdated`}>
           {CONNECTOR.outdated}
@@ -240,8 +256,16 @@ function PhaseView({ phase, status, parts, onAdd, onRemove }: { phase: Exclude<P
       }
       return (
         <Card parts={parts} title={`What AI Juggler writes into ${app}`}>
-          <p className="text-meta text-ink-2">Only these files, in {app}'s own settings folder. Nothing is written until you add it.</p>
-          <ConnectorFiles files={phase.preview.files} testId={testId} />
+          {/* Casey's PC1 walk: one plain sentence first, the paths under a fold. */}
+          <p className="text-meta text-ink" data-testid={`${testId}-preview-sentence`}>
+            {previewSentence(phase.preview.files, parts.who, parts.where)}
+          </p>
+          <p className="text-meta text-ink-2">Nothing is written until you add it.</p>
+          <Disclosure className="text-meta" summary={CONNECTOR.showFiles} testId={`${testId}-files-fold`}>
+            <div className="mt-1.5">
+              <ConnectorFiles files={phase.preview.files} testId={testId} />
+            </div>
+          </Disclosure>
           <span className="mt-1 flex flex-wrap gap-2">
             <Button size="sm" variant="primary" disabled={busy} onClick={onAdd} data-testid={`${testId}-confirm`}>
               {CONNECTOR.confirm(app)}
@@ -252,7 +276,7 @@ function PhaseView({ phase, status, parts, onAdd, onRemove }: { phase: Exclude<P
       );
     case "guide":
       return (
-        <Card parts={parts} title={`Add AI Juggler's connector to ${app} yourself`}>
+        <Card parts={parts} title={`Add AI Juggler's connector to ${app} by hand`}>
           <ConnectorGuide appId={appId} app={app} guide={phase.preview?.guide ?? null} poolId={poolId} why={status.state === "unavailable" ? statusLine(status) : null} testId={testId} />
           <span className="flex gap-2">{cancel}</span>
         </Card>

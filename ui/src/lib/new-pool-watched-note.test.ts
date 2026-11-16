@@ -47,7 +47,7 @@ describe("a session another app runs, offered to a pool", () => {
     const row = rows.find((one) => one.ref === "conversation:acc/c1");
     expect(row?.reach).toBe("watched");
     expect(row?.blocked).toBeNull();
-    expect(row?.note).toBe("Runs in the Claude app: with AI Juggler's connector in its app (added with your OK) it talks in the pool; without it, it's Watched.");
+    expect(row?.note).toBe("Runs in the Claude app: with AI Juggler's connector in its app (a small helper, added with your OK) it talks in the pool; without it, it's Watched.");
     expect(row?.fix).toBeUndefined();
   });
 });

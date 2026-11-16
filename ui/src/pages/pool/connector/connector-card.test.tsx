@@ -10,7 +10,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-libra
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { forgetSharedReads } from "../../../lib/shared-read";
-import { CONNECTOR, fileLine, shortPath } from "../../../lib/connector";
+import { CONNECTOR, fileLine, previewSentence, shortPath } from "../../../lib/connector";
 import { resetPreviewConnector } from "../../../lib/ipc/connector";
 import { ConnectorCard } from "./ConnectorCard";
 
@@ -143,5 +143,27 @@ describe("AJ-E3013: the guide", () => {
       await vi.advanceTimersByTimeAsync(13_000);
     });
     expect(screen.queryByTestId("c-guide-done")).toBeNull();
+  });
+});
+
+// Casey's PC1 walk: the preview led with long paths, and "connector" wasn't
+// explained where it first appeared; "Add it yourself" sounded like a
+// terminal.
+describe("AJ-E3013: the card in plain words first (Casey's PC1 walk)", () => {
+  it("says what the connector is under its title; the preview opens with one plain sentence, the files under a closed Show the files", async () => {
+    render(<ConnectorCard appId={WORK} app="Claude app · Work Max" kind="Claude app" profile="Work Max" testId="c" />);
+    expect((await screen.findByTestId("c-meaning")).textContent).toBe("AI Juggler's connector is a small helper AI Juggler adds to an app so its sessions can read and send the pool's messages, notes and tasks.");
+    expect(screen.getByTestId("c-guide-open").textContent).toBe("Show me how to add it by hand");
+    await act(async () => fireEvent.click(screen.getByTestId("c-add")));
+    expect(screen.getByTestId("c-preview-sentence").textContent).toBe("This adds a small helper to your Claude app (Work Max) so its sessions can talk in this pool: 2 new files in its own settings folder; nothing of yours changes.");
+    const fold = screen.getByTestId("c-files-fold");
+    expect(fold.hasAttribute("open")).toBe(false);
+    expect(fold.textContent).toContain("Show the files");
+    expect(fold.contains(screen.getAllByTestId("c-file")[0]!)).toBe(true);
+  });
+
+  it("the sentence counts what each file is", () => {
+    expect(previewSentence([{ action: "merge" }], { name: "ChatGPT" })).toBe("This adds a small helper to ChatGPT so its sessions can talk in this pool: its own table added to 1 settings file; nothing of yours changes.");
+    expect(previewSentence([{ action: "replace" }, { action: "replace" }], { name: "x", kind: "Claude app", profile: "Side" }, "pools")).toBe("This adds a small helper to your Claude app (Side) so its sessions can talk in pools: 2 older AI Juggler files updated; nothing of yours changes.");
   });
 });

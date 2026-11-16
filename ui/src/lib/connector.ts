@@ -27,6 +27,26 @@ export const CONNECTOR_GUIDE = `${POOLS_GUIDE}#desktop-apps-in-a-pool`;
 /** How often an open guide reads the App again (only while it's open). */
 export const GUIDE_POLL_MS = 3_000;
 
+/** What the connector is, said where it's first named (Casey's PC1 walk:
+ * "connector" wasn't explained where it appeared). */
+export const CONNECTOR_MEANING = "a small helper AI Juggler adds to an app so its sessions can read and send the pool's messages, notes and tasks";
+
+/** The preview's first line: what Add does, in plain words, before any
+ * path ("This adds a small helper to your Claude app (Work Max) so its
+ * sessions can talk in this pool: 2 new files in its own settings folder;
+ * nothing of yours changes."). */
+export function previewSentence(files: readonly { action: string }[], app: { name: string; kind?: string; profile?: string | null }, where = "this pool"): string {
+  const count = (action: string) => files.filter((file) => file.action === action).length;
+  const plural = (n: number, one: string, many: string) => (n === 1 ? `1 ${one}` : `${n} ${many}`);
+  const parts = [
+    count("create") > 0 ? `${plural(count("create"), "new file", "new files")} in its own settings folder` : null,
+    count("replace") > 0 ? `${plural(count("replace"), "older AI Juggler file", "older AI Juggler files")} updated` : null,
+    count("merge") > 0 ? `its own table added to ${plural(count("merge"), "settings file", "settings files")}` : null,
+  ].filter(Boolean);
+  const who = app.kind && app.profile ? `your ${app.kind} (${app.profile})` : app.name;
+  return `This adds a small helper to ${who} so its sessions can talk in ${where}${parts.length > 0 ? `: ${parts.join(", ")}` : ""}; nothing of yours changes.`;
+}
+
 /** The consent card's words. */
 export const CONNECTOR = {
   title: (app: string, where = "this pool") => `Add AI Juggler's connector to ${app} so its sessions can talk in ${where}`,
@@ -41,7 +61,9 @@ export const CONNECTOR = {
   added: "Added. A running session picks it up at its next start.",
   update: "Update",
   outdated: "An older edition of AI Juggler's connector is here: Update writes this edition's.",
-  showGuide: "Add it yourself instead",
+  showGuide: "Show me how to add it by hand",
+  meaning: `AI Juggler's connector is ${CONNECTOR_MEANING}.`,
+  showFiles: "Show the files",
 };
 
 /** Home as `~`, so a path reads short (and names no one). */

@@ -69,7 +69,8 @@ export function TalkTable({
         disabled={disabled}
         onClick={() => onCycle(from, to)}
         aria-label={`${roleCard(from).label} to ${talkColumnLabel(to)}: ${TALK_WORDS[rule].label}. Press to change.`}
-        className="rounded-md px-1.5 py-1 text-left outline-none transition-colors hover:bg-surface-2 focus-visible:ring-2 focus-visible:ring-ink-2/70 disabled:opacity-60"
+        // Casey's PC1 walk: cells read as text; each is a button, and looks it.
+        className="rounded-md bg-surface-2 px-1.5 py-1 text-left shadow-[inset_0_0_0_1px_var(--color-hairline)] outline-none transition-colors hover:bg-surface-3 focus-visible:ring-2 focus-visible:ring-ink-2/70 disabled:opacity-60"
         data-testid={`${testId}-cell`}
         data-pair={`${from}>${to}`}
         data-rule={rule}

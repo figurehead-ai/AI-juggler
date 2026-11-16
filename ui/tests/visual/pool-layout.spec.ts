@@ -26,6 +26,10 @@ function seed(t0: number) {
     ...base,
     __AIJ_POOLS__: { ...base.__AIJ_POOLS__, pools: [...base.__AIJ_POOLS__.pools, { id: "pool-docs", name: "Docs crew", rules: [] }] },
     __AIJ_POOL_RULES__: { [POOL]: { members: [rule("app:cli:claude-personal", "app", "reviewer")] } },
+    // Two Claude app profiles (Casey's PC1), as places.
+    __AIJ_PLACES__: {
+      places: ["Work", "Side"].map((name) => ({ id: `app:claude-app:/Users/you/Profiles/${name}`, app_id: "claude-app", app: "Claude", instance: name, profile: name === "Work" ? "Work Max" : "Side", label: `Claude · ${name}`, account_id: name === "Work" ? "claude-work" : "claude-side", app_pid: null, lost: false, keep_alive: false, paused: null, seen_ms: t0 - 3_600_000, cannot_start: null, recent: [], found: false })),
+    },
   };
 }
 
@@ -161,4 +165,25 @@ test("an empty pool opens in its guided setup, with Show the diagram", async ({ 
   await expect(page.getByTestId("new-pool-step-template")).toBeVisible();
   await page.getByTestId("new-pool-show-diagram").click();
   await expect(page.getByTestId("pool-canvas").or(page.getByTestId("pool-list"))).toBeVisible();
+});
+
+// Casey's PC1 walk: after "Work Max's next session" in Who leads, "No lead
+// for now" seemed to keep its dot. One radio checked, ever.
+test("Who leads: one choice checked at a time", async ({ page }) => {
+  await open(page, { width: 1280, height: 800 });
+  await goTo(page, "Pools");
+  await page.getByTestId("pools-new").click();
+  for (let n = 0; n < 4 && !(await page.getByTestId("new-pool-step-who").isVisible()); n += 1) await page.getByTestId("new-pool-next").click();
+  await page.getByRole("radiogroup", { name: "Kind of member" }).getByRole("radio", { name: /^Apps/ }).click();
+  // Both Claude app profiles, as Casey did.
+  for (const name of ["Claude app · Work Max", "Claude app · Side"]) await page.getByTestId("new-pool-candidate").filter({ hasText: name }).getByRole("checkbox").click();
+  await page.getByTestId("new-pool-next").click();
+  const picker = page.getByTestId("new-pool-step-lead");
+  const radios = page.locator('input[type="radio"][name$="-choice"]');
+  const checked = () => radios.evaluateAll((all) => all.filter((one) => (one as HTMLInputElement).checked).map((one) => one.closest("[data-kind]")?.getAttribute("data-kind")));
+  await expect(picker).toBeVisible();
+  for (const kind of ["next", "none", "next"]) {
+    await page.locator(`[data-kind="${kind}"]`).first().click();
+    await expect.poll(checked).toEqual([kind]);
+  }
 });

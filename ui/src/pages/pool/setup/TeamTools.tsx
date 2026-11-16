@@ -110,6 +110,9 @@ export function TeamToolsQuestion({
       </Title>
       <p className="text-meta text-ink-2">{TEAM_TOOLS.gives}</p>
       <p className="text-meta text-ink-2">{TEAM_TOOLS.cost}</p>
+      <p className="text-meta text-ink-2" data-testid={`${testId}-local`}>
+        {TEAM_TOOLS.local}
+      </p>
       <p className="text-meta text-muted">
         {TEAM_TOOLS.where}{" "}
         <button type="button" onClick={openAgentAccess} className="rounded font-medium text-ink underline decoration-hairline underline-offset-2 outline-none hover:decoration-ink focus-visible:ring-1 focus-visible:ring-accent/60" data-testid={`${testId}-settings`}>

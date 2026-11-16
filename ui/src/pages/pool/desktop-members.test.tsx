@@ -10,7 +10,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import * as conversations from "../../lib/conversations";
 import { forgetSharedReads } from "../../lib/shared-read";
-import { reachOf, wakeLine } from "../../lib/connector";
+import { CONNECTOR_MEANING, reachOf, wakeLine } from "../../lib/connector";
 import { resetPreviewConnector, type DesktopMemberInfo } from "../../lib/ipc/connector";
 import type { ConversationInfo } from "../../lib/ipc/conversations";
 import { scopeOf, type PoolInfo } from "../../lib/ipc/pools";
@@ -109,7 +109,7 @@ describe("AJ-E3013: the inspector", () => {
   it("Watched: why, the consent card, and no Continue button", async () => {
     seed([member("conversation:claude-work/c1", {})]);
     render(<InspectRule pool={pool} rule={undefined} watched={watched("c1", "Fix sign-in copy")} label="Fix sign-in copy" onChanged={() => undefined} onGone={() => undefined} />);
-    await waitFor(() => expect(screen.getByTestId("inspect-rule-reach").textContent).toBe("Watched: its app has no AI Juggler connector. It is shown and counted here, without the pool's tools."));
+    await waitFor(() => expect(screen.getByTestId("inspect-rule-reach").textContent).toBe(`Watched: its app has no AI Juggler connector (${CONNECTOR_MEANING}). It is shown and counted here, without the pool's tools.`));
     expect(await screen.findByTestId("inspect-connector")).toBeTruthy();
     expect(screen.queryByTestId("inspect-rule-continue")).toBeNull();
   });
