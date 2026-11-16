@@ -3374,3 +3374,26 @@ The design that follows from it:
 4. **If one passes,** it becomes the optional one-click download (D-120 amendment, D-121 disk rules). If neither passes, 0.5's feed ships A only, and B waits for a later engine.
 
 - Sources: the maintainer's answer to the coordinating session's question, 2026-11-16.
+
+### D-126 Calm is for monitoring; making and editing screens get a rich, polished design — amends D-117 — SETTLED (2026-11-16)
+
+**Ruling.** The maintainer, 2026-11-16, on seeing the pool wizard (Who's in) and a new pool's canvas in a walk: "they are way too plainly looking. When I told you to not make screens to colorful and standing out, that was only on pages and area where we monitor things, But on wizards, create and edit CRUD pages, we need things to look great". And: "I said keep easy to see, I didn't say degrade our design to look so amateurish and basic."
+
+1. **Two design modes, chosen by the screen's job:**
+   - **Monitoring (calm, D-117)** covers surfaces watched over time: Home and its feed, the rail, session lists, Open now, usage and runway, History, a running pool's canvas, and status marks. They keep the four attention levels, quiet chrome and muted app icons.
+   - **Making and editing (rich)** covers wizards, create and edit forms, setup flows, onboarding, empty states that invite a first action, settings, and a pool still being set up. These get a polished, confident design:
+     - the app's accent colour and tinted surfaces;
+     - icons and app logos on every choice;
+     - visual choice cards with previews instead of bare checkboxes and chips;
+     - illustrations or diagrams that show what a choice does;
+     - clear step progress, and a live preview or summary that looks like the result;
+     - good use of the space, with no narrow column on an empty canvas;
+     - short copy, with depth behind "Learn more".
+2. **Calm never means plain.** Monitoring screens are still crafted: real type scale, hierarchy, considered spacing and depth. Calm limits *alarm colour and noise*, not design quality.
+3. **Scope and order:**
+   - **0.4.6:** the pool wizard and a new pool's setup state. It's 0.4.6's headline feature, and 0.4.6 isn't on beta yet.
+   - **0.5:** every other wizard, create/edit page and setup flow, as part of 0.5's revamp of every screen.
+   - Mock-ups in both themes go to the maintainer before building. Then the design critique, the a11y gate and the ui-consistency rule apply, as always.
+
+- **Amends:** D-117 (its calm rules apply to monitoring surfaces only).
+- Sources: the maintainer's messages with two screenshots, 2026-11-16.
