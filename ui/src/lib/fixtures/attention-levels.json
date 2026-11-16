@@ -1,5 +1,5 @@
 {
-  "about": "0.5 (D-117): attentionLevel() in ui/src/lib/attention.ts and attention_level() in crates/juggler-app/src/features/notifications/centre.rs are held to this one table. Each case: a subject (a Needs-you kind with its facts, or a session state) and its level. Counted = level 2 or 3.",
+  "about": "0.5 (D-117): attentionLevel() in ui/src/lib/attention.ts and attention_level() in crates/juggler-app/src/features/notifications/centre.rs are held to this one table. Each case: a subject (a Needs-you kind with its facts, or a session state) and its level. A parked session (parked: true) is calm whatever its need, and a need at level 0 is no need (neither side lists it). Counted = level 2 or 3.",
   "cases": [
     { "need": "failed", "level": 3 },
     { "need": "limit", "noRoom": true, "level": 3 },
@@ -24,8 +24,12 @@
     { "need": "a-kind-not-placed-yet", "level": 2 },
     { "need": "review", "level": 1 },
     { "need": "leftovers", "level": 1 },
+    { "need": "limit", "parked": true, "level": 0 },
+    { "need": "limit", "noRoom": true, "parked": true, "level": 0 },
+    { "need": "failed", "parked": true, "level": 0 },
     { "state": "asks_you", "level": 2 },
     { "state": "done_review", "level": 1 },
+    { "state": "asks_you", "parked": true, "level": 0 },
     { "state": "working", "level": 0 },
     { "state": "idle", "level": 0 },
     { "state": "ended", "level": 0 },

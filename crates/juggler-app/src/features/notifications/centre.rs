@@ -93,6 +93,10 @@ pub struct LevelFacts {
     pub no_room: bool,
     /// This computer at critical pressure.
     pub critical: bool,
+    /// A session parked until its reset (AJ-E1003): calm (level 0),
+    /// whatever its need: AI Juggler holds it, and the reset raises its
+    /// one offer (a notice). A need at level 0 is no need.
+    pub parked: bool,
 }
 
 /// A need's attention level (0.5, D-117), the backend's mirror of the
@@ -104,6 +108,9 @@ pub struct LevelFacts {
 /// processes left running). An unknown kind is a need (2) until placed.
 #[must_use]
 pub fn attention_level(kind: &str, facts: LevelFacts) -> u8 {
+    if facts.parked {
+        return 0;
+    }
     match kind {
         "failed" => 3,
         "limit" => {

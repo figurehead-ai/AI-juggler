@@ -56,7 +56,10 @@ export function attentionWords(rule: string | null | undefined): string {
  *   10 % or less under a live session).
  * - **L1 Note**: good to know, no action now (done, review it; low room
  *   nothing live depends on; processes left running).
- * - **L0 Calm**: the running picture (working, idle, ended).
+ * - **L0 Calm**: the running picture (working, idle, ended), and a
+ *   session parked until its reset, whatever its need: AI Juggler holds
+ *   it, nothing is lost, and the reset raises its one offer (a notice,
+ *   AJ-E1003). A need at L0 is no need: the backend lists none for it.
  *
  * Inferred states stay at their level (the word says "Probably"); they
  * draw a hollow ring instead of a filled dot (`level-mark`).
@@ -79,6 +82,11 @@ export interface AttentionSubject {
   noRoom?: boolean;
   /** room: this Mac at critical pressure. */
   critical?: boolean;
+  /** A session parked until its reset (AJ-E1003): calm (L0), whatever
+   * its need. The CI run 43777785232 home-scrolled capture: its parked
+   * session's "Limit reached" lit the folded rail while the count, the
+   * backend's (which lists no parked session), left it out. */
+  parked?: boolean;
 }
 
 /** The kinds that are a decision waiting (L2) whatever their facts. */
@@ -90,6 +98,7 @@ const NOTES = new Set(["review", "leftovers"]);
  * never quieter than it should be until it is placed here. */
 export function attentionLevel(subject: AttentionSubject): AttentionLevel {
   const { need } = subject;
+  if (subject.parked) return 0;
   if (need) {
     if (need === "failed") return 3;
     if (need === "limit") return subject.noRoom ? 3 : 2;

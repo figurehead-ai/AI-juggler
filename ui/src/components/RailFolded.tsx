@@ -44,7 +44,7 @@ import { useKnownPlaces } from "../lib/places";
 import { useRailOrder } from "../lib/rail-order-store";
 import { arrangeGroups, rankOf, sortRows } from "../lib/rail-order";
 import { groupItems } from "../lib/rail-places";
-import { STATE_TONE, itemsOf, needWord, openNow, stateWord, type RailItem } from "../lib/rail-items";
+import { STATE_TONE, itemsOf, needWord, openNow, type RailItem } from "../lib/rail-items";
 import { appTone, brokenOf, brokenParts, counted, highest, itemLevel, levelTone, noticeLevel } from "../lib/attention";
 import { isSnoozed, type SnoozeState } from "../lib/railview";
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
@@ -170,7 +170,7 @@ function FoldedRow({ item, selected, onSelect }: { item: RailItem; selected: boo
   // its icon; a note (L1, done, review it) keeps its word, calm.
   const level = itemLevel(item);
   const needs = level >= 2;
-  const word = item.need !== null ? needWord(item) : stateWord(item.state, item.probably);
+  const word = needWord(item);
   // AI Juggler's own sessions: the tool and account they run on, as the
   // place's app and profile name the others.
   const where = item.session ? [item.project, providerDisplayName(item.tool), item.accountLabel].filter(Boolean).join(" · ") : whereWords(item);

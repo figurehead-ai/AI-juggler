@@ -469,6 +469,7 @@ fn attention_levels_match_the_windows_table() {
                 .and_then(|n| u32::try_from(n).ok()),
             no_room: case["noRoom"].as_bool().unwrap_or(false),
             critical: case["critical"].as_bool().unwrap_or(false),
+            parked: case["parked"].as_bool().unwrap_or(false),
         };
         let want = u8::try_from(case["level"].as_u64().unwrap()).unwrap();
         assert_eq!(attention_level(kind, facts), want, "{case}");
