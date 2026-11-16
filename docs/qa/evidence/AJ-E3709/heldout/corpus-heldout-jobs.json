@@ -456,7 +456,7 @@
  {
   "id": "N006",
   "job": "attention",
-  "source": "Fertig. Das Skript backup/rotate.sh löscht jetzt Sicherungen älter als 30 Tage, ohne Rückfrage. Ich habe es nur mit einem Dummy-Ordner getestet, nicht mit euren echten Daten. Falls das 30-Tage-Limit nicht passt, sag Bescheid, sonst ist es so gemeint.",
+  "source": "Fertig. Das Skript backup/rotate.sh löscht jetzt Sicherungen älter als 30 Tage, ohne Rückfrage. Ich habe es nur mit einem Dummy-Ordner getestet, nicht mit euren echten Daten. Falls das 30-Tage-Limit nicht passt, sag Bescheid, sonst ist es so gemeint. Ein Papierkorb ist nicht vorgesehen, gelöschte Dateien sind also weg.",
   "facts": {
    "outcome": "success",
    "tests": {
