@@ -74,6 +74,39 @@ struct Epoch {
     scope: String,
 }
 
+/// Why the bridge program can't run (AJ-E3013: the window says which).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Unavailable {
+    /// Nothing runnable beside AI Juggler.
+    Missing,
+    /// It's there, but this folder (or file) on its way belongs to another
+    /// user or others can write it, so it's never run.
+    UnsafeLocation(PathBuf),
+}
+
+impl Unavailable {
+    /// Its word on the wire (`missing`, `unsafe_location`).
+    #[must_use]
+    pub const fn word(&self) -> &'static str {
+        match self {
+            Self::Missing => "missing",
+            Self::UnsafeLocation(_) => "unsafe_location",
+        }
+    }
+
+    /// The folder that failed the check, the home folder written `~`.
+    #[must_use]
+    pub fn shown_folder(&self, home: Option<&Path>) -> Option<String> {
+        match self {
+            Self::Missing => None,
+            Self::UnsafeLocation(entry) => Some(home.map_or_else(
+                || entry.display().to_string(),
+                |home| crate::features::places::profiles::shown(entry, home),
+            )),
+        }
+    }
+}
+
 /// The scope of a report key (AJ-E2306).
 pub const REPORTS: &str = "reports";
 
@@ -143,15 +176,35 @@ impl Bridge {
     /// are: nothing is trusted then.
     #[must_use]
     pub fn program(&self) -> Option<PathBuf> {
+        self.program_or_why().ok()
+    }
+
+    /// [`Self::program`], or why there's none to run: nothing there (or
+    /// not a program), or (AJ-E3013) the folder on its way that another
+    /// user owns or can write, the one that failed the check.
+    ///
+    /// # Errors
+    ///
+    /// [`Unavailable`].
+    pub fn program_or_why(&self) -> Result<PathBuf, Unavailable> {
         let chosen = self.program.lock().ok().and_then(|slot| slot.clone());
-        let path = chosen.or_else(|| {
-            std::env::current_exe()
-                .ok()?
-                .parent()
-                .map(|dir| dir.join(wire::PROGRAM))
-        })?;
-        let me = juggler_platform::user::current().ok()?;
-        juggler_platform::file_trust::trusted_executable(&path, me)
+        let path = chosen
+            .or_else(|| {
+                std::env::current_exe()
+                    .ok()?
+                    .parent()
+                    .map(|dir| dir.join(wire::PROGRAM))
+            })
+            .ok_or(Unavailable::Missing)?;
+        let me = juggler_platform::user::current().map_err(|_| Unavailable::Missing)?;
+        juggler_platform::file_trust::executable_trust(&path, me).map_err(|why| match why {
+            juggler_platform::file_trust::Untrusted::Missing
+            | juggler_platform::file_trust::Untrusted::NotRunnable => Unavailable::Missing,
+            juggler_platform::file_trust::Untrusted::Owner(entry)
+            | juggler_platform::file_trust::Untrusted::Writable(entry) => {
+                Unavailable::UnsafeLocation(entry)
+            }
+        })
     }
 
     /// The status line a member set, if it did.

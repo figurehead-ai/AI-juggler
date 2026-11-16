@@ -102,10 +102,14 @@ pub fn allows(choice: &Choice, project: Option<&str>, account: &str) -> Result<(
 /// Storage failures.
 pub fn info(state: &Arc<AppState>) -> AppResult<AgentBridgeInfo> {
     let choice = read(&*lock_storage_arc(state)?);
+    let why = state.agent_bridge.program_or_why().err();
+    let home = juggler_platform::user::home();
     Ok(AgentBridgeInfo {
         asked: choice.on.is_some(),
         on: choice.on == Some(true),
-        available: state.agent_bridge.program().is_some(),
+        available: why.is_none(),
+        unavailable: why.as_ref().map(|why| why.word().to_owned()),
+        unsafe_folder: why.and_then(|why| why.shown_folder(home.as_deref())),
         off_projects: choice.off_projects.into_iter().collect(),
         off_profiles: choice.off_profiles.into_iter().collect(),
     })
@@ -185,5 +189,60 @@ mod tests {
         choice.off_profiles.insert("a".into());
         assert!(allows(&choice, Some("q"), "a").is_err());
         assert!(allows(&choice, Some("q"), "b").is_ok());
+    }
+
+    /// AJ-E3013: the window is told why the team tools aren't available:
+    /// nothing to run, or a program in a folder others can write (named,
+    /// the home folder as `~`), never just "not in this build".
+    #[cfg(unix)]
+    #[test]
+    fn why_the_bridge_isnt_available_is_said_missing_or_unsafe_location() {
+        use std::os::unix::fs::PermissionsExt as _;
+        let root = tempfile::tempdir().unwrap();
+        let state = crate::test_support::bare_state(root.path().join("data"));
+        state
+            .agent_bridge
+            .set_program(Some(std::path::PathBuf::from("/bin/echo")));
+        let ok = super::info(&state).unwrap();
+        assert!(ok.available);
+        assert_eq!((ok.unavailable, ok.unsafe_folder), (None, None));
+
+        state
+            .agent_bridge
+            .set_program(Some(root.path().join("no-such/juggler-agent")));
+        let missing = super::info(&state).unwrap();
+        assert!(!missing.available);
+        assert_eq!(missing.unavailable.as_deref(), Some("missing"));
+        assert_eq!(missing.unsafe_folder, None);
+
+        // As from /tmp: the program is there, its folder others can write.
+        let open = root.path().join("open");
+        std::fs::create_dir(&open).unwrap();
+        std::fs::set_permissions(&open, std::fs::Permissions::from_mode(0o777)).unwrap();
+        let program = open.join("juggler-agent");
+        std::fs::copy("/bin/echo", &program).unwrap();
+        state.agent_bridge.set_program(Some(program));
+        let unsafe_location = super::info(&state).unwrap();
+        assert!(!unsafe_location.available, "never run from there");
+        assert_eq!(
+            unsafe_location.unavailable.as_deref(),
+            Some("unsafe_location")
+        );
+        let canonical = std::fs::canonicalize(&open).unwrap();
+        assert!(
+            [open.display().to_string(), canonical.display().to_string()]
+                .contains(unsafe_location.unsafe_folder.as_ref().unwrap()),
+            "{:?}",
+            unsafe_location.unsafe_folder
+        );
+        // Under the home folder, the folder is said with `~`.
+        let why =
+            super::super::Unavailable::UnsafeLocation("/Users/you/Downloads/AI Juggler".into());
+        assert_eq!(
+            why.shown_folder(Some(std::path::Path::new("/Users/you")))
+                .as_deref(),
+            Some("~/Downloads/AI Juggler")
+        );
+        assert_eq!(super::super::Unavailable::Missing.shown_folder(None), None);
     }
 }
