@@ -1,4 +1,4 @@
-<!-- captures: b951f9c97137 -->
+<!-- captures: 3a65dcd7892e -->
 # 99-desktop-connector: desktop apps in a pool through AI Juggler's connector (AJ-E3013)
 
 Design critique (D-57, AJ-E2814) against 99-pool-selection (the canvas and inspector around it), 92-agent-tools (the team tools card, the same card shape) and the calm UI round 2 rules. The Checkout team pool with a Claude app profile as an App member (no connector), a Claude app session connected, another Watched, and a ChatGPT (Codex app) thread; dark and light, 1280×800. Fixtures only: nothing is written or run.
@@ -40,3 +40,8 @@ Design critique (D-57, AJ-E2814) against 99-pool-selection (the canvas and inspe
 - preview: opens with "This adds a small helper to your Claude app (Work Max) so its sessions can talk in this pool: 2 new files in its own settings folder; nothing of yours changes.", then "Nothing is written until you add it.", the files under a closed "Show the files", and Add to Claude app · Work Max with Cancel, all in view. preview-text: "Show the files" open, the manifest's text open. Pass.
 - guide: "Add AI Juggler's connector to Claude app · Work Max by hand". Pass.
 - All: the inspector is 380 px.
+
+## The aij-test proof's follow-ups
+
+- guide: the card's step now opens in view in the panel (the list scrolls to it), its Cancel focused; so do the preview and Remove, and the pool's delete and seal confirmations (a browser test at 1761×1348, 1280×800 and 1024×768). Pass.
+- After Remove, a member's words follow the connector: Watched with the reason, never "Wakes on new messages" (unit-tested; no capture).
