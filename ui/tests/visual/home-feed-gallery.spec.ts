@@ -13,6 +13,7 @@ import { expect, gate, test } from "./happo";
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
 import type { FixtureSet } from "../../src/preview/fixtures";
+import { placesConversations } from "../../src/preview/places";
 import { allStatuses } from "./fixtures";
 import { away, busyFeed, digestFeed, manyFeed } from "./fixtures/home-feed";
 
@@ -20,6 +21,9 @@ const OUT = resolve(process.cwd(), "../docs/qa/evidence/_gallery/68-home-feed");
 const T0 = 1_728_800_000_000;
 
 const allClear: FixtureSet = { ...allStatuses, sessions: allStatuses.sessions.filter((s) => s.status === "running" && !s.attention) };
+/** The typical fixture with the preview's desktop Apps open (two Claude
+ * profiles, Terminal, ChatGPT), so Your apps has rows to fold. */
+const withApps: FixtureSet = Object.assign({ ...allStatuses }, { conversations: placesConversations(T0) });
 /** Forty sessions (the flood): the fixture's, repeated under their own ids. */
 const flood: FixtureSet = {
   ...allStatuses,
@@ -67,6 +71,14 @@ async function axeClean(page: Page, what: string) {
   expect(bad.map((v) => `${v.id}: ${v.nodes[0]?.target}`), `axe on ${what}`).toEqual([]);
 }
 
+/** Busy's whole feed: the away divider and digest, a quoted message, a rollup. */
+async function expectWholeBusyFeed(page: Page) {
+  await expect(page.getByTestId("feed-away")).toBeVisible();
+  await expect(page.getByTestId("feed-digest")).toBeVisible();
+  await expect(page.getByTestId("feed-quote")).toBeVisible();
+  await expect(page.getByTestId("feed-rollup")).toBeVisible();
+}
+
 const STATES: Array<{ name: string; fixture: FixtureSet; seams: Seams }> = [
   { name: "all-clear", fixture: allClear, seams: {} },
   { name: "typical", fixture: allStatuses, seams: {} },
@@ -84,23 +96,37 @@ for (const theme of ["dark", "light"] as const) {
         if (layout) await expect(page.getByTestId("home")).toHaveAttribute("data-layout", layout);
         await expect(page.getByTestId("home-side")).toBeAttached();
         if (layout === "stacked") await expect(page.getByTestId("home-side-link")).toBeVisible();
+        // Stacked or not, as this width's main area came out (1280 may be either).
+        const stacked = (await page.getByTestId("home").getAttribute("data-layout")) === "stacked";
         if (state.name === "busy") {
-          await expect(page.getByTestId("feed-away")).toBeVisible();
           await expect(page.getByTestId("feed-card").first()).toBeVisible();
-          await expect(page.getByTestId("feed-quote")).toBeVisible();
-          await expect(page.getByTestId("feed-rollup")).toBeVisible();
+          if (stacked) {
+            // AJ-E3701 R4: stacked, the feed is one page (12 cards), then Show more.
+            // Busy's 13 cards are all newer than the last look, so the away
+            // boundary (AJ-E3702 R5: the divider and digest sit at it) is past
+            // that page: Show more reveals it, below.
+            await expect(page.getByTestId("feed-show-more")).toBeVisible();
+            await expect(page.getByTestId("feed-away")).toHaveCount(0);
+          } else {
+            await expectWholeBusyFeed(page);
+          }
         }
         await page.mouse.move(0, 0);
         await page.screenshot({ path: resolve(OUT, `${state.name}-${size.name}-${theme}.png`) });
+        if (state.name === "busy" && stacked) {
+          await page.getByTestId("feed-show-more").click();
+          await expectWholeBusyFeed(page);
+        }
         await axeClean(page, `home feed ${state.name} ${size.name}`);
       });
     }
   }
 
-  // Each right-column section, and the pinned zone, folded (kept in aij.home.fold.<id>).
+  // Each right-column section, and the pinned zone, folded (kept in aij.home.fold.<id>),
+  // with desktop Apps open so Your apps is there to fold.
   for (const fold of ["home-needs-now", "home-apps", "home-runway"] as const) {
     test(`home feed — ${fold} folded — 1280 — ${theme}`, async ({ page }) => {
-      await seed(page, allStatuses, theme, { width: 1280, height: 800 });
+      await seed(page, withApps, theme, { width: 1280, height: 800 });
       await page.getByTestId(`${fold}-fold`).click();
       await expect(page.getByTestId(`${fold}-fold`)).toHaveAttribute("aria-expanded", "false");
       expect(await page.evaluate((id) => localStorage.getItem(`aij.home.fold.${id}`), fold)).not.toBeNull();
