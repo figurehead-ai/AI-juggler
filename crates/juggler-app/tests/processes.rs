@@ -304,7 +304,37 @@ fn the_top_bars_count_is_told_only_when_a_count_moves() {
     let mut counts = ProcessCountsInfo::default();
     assert!(processes.counts_moved(&counts), "the first counts are told");
     assert!(!processes.counts_moved(&counts), "the same counts are not");
-    counts.processes = 3;
-    assert!(processes.counts_moved(&counts), "a count that moved is");
+    counts.to_clean = 2;
+    assert!(
+        processes.counts_moved(&counts),
+        "the top bar's count that moved is"
+    );
     assert!(!processes.counts_moved(&counts));
+}
+
+/// AJ-E812: the window's only reader of `processes://counts` is the top
+/// bar, which shows `to_clean`. With ten sessions at work their processes
+/// come and go on most 2 s ticks: the other counts moved and the window
+/// was told 11–15 times a minute for nothing it draws.
+#[test]
+fn counts_the_top_bar_doesnt_show_tell_the_window_nothing() {
+    use juggler_app::features::processes::{Processes, dto::ProcessCountsInfo};
+    let processes = Processes::default();
+    let mut counts = ProcessCountsInfo {
+        to_clean: 1,
+        ..ProcessCountsInfo::default()
+    };
+    assert!(processes.counts_moved(&counts));
+    for moved in 1..=10 {
+        counts.processes = 40 + moved;
+        counts.sessions = moved % 3;
+        counts.attention = moved % 2;
+        counts.zombies = moved % 4;
+        assert!(
+            !processes.counts_moved(&counts),
+            "tick {moved}: only counts the top bar doesn't show moved"
+        );
+    }
+    counts.to_clean = 0;
+    assert!(processes.counts_moved(&counts), "the top bar's count moved");
 }
