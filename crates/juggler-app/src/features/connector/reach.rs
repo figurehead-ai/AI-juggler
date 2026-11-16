@@ -79,8 +79,9 @@ impl DesktopConversation {
     }
 }
 
-/// An App's place in words: its host app's name, and its own label when
-/// it has one ("Claude app · Work").
+/// An App's place in words: its host app's name, and its own label, else
+/// its instance folder's name ("Claude app · aij-test", as the window
+/// names it).
 fn place_of(state: &Arc<AppState>, app: &App) -> String {
     let base = state
         .registry
@@ -93,7 +94,17 @@ fn place_of(state: &Arc<AppState>, app: &App) -> String {
                 .map(|host| host.shown_name().to_owned())
         })
         .unwrap_or_else(|| app.tool.clone());
-    match app.label.as_deref().filter(|label| !label.is_empty()) {
+    let label = app
+        .label
+        .clone()
+        .filter(|label| !label.is_empty())
+        .or_else(|| {
+            app.instance_dir
+                .as_deref()
+                .and_then(|dir| std::path::Path::new(dir).file_name())
+                .map(|name| name.to_string_lossy().into_owned())
+        });
+    match label {
         Some(label) => format!("{base} · {label}"),
         None => base,
     }
@@ -111,6 +122,18 @@ fn can_wake(state: &Arc<AppState>, app: &App) -> bool {
                 .map(juggler_adapter::peer::DesktopPeer::can_wake)
         })
         .unwrap_or(false)
+}
+
+/// The title the app's own record gave a session attested lately (its
+/// first calls can come before the conversation index has it).
+fn kept_title(state: &Arc<AppState>, session: &str) -> Option<String> {
+    state
+        .agent_bridge
+        .desktop
+        .lock()
+        .ok()?
+        .get(session)
+        .and_then(|(_, kept)| kept.title.clone())
 }
 
 /// A tool's name in words, from its harness id.
@@ -174,6 +197,7 @@ pub(crate) fn of_pool(state: &Arc<AppState>, pool_id: &str) -> AppResult<Vec<Des
                 session: facts.map(|facts| facts.session.as_str().to_owned()),
                 name: one
                     .title
+                    .or_else(|| facts.and_then(|facts| kept_title(state, facts.session.as_str())))
                     .unwrap_or_else(|| "A session in another app".to_owned()),
                 tool: one.tool.or_else(|| {
                     facts
@@ -249,6 +273,7 @@ fn through_others(
                 .conversation
                 .as_ref()
                 .and_then(|key| index.get(key).cloned())
+                .or_else(|| kept_title(state, facts.session.as_str()))
                 .unwrap_or_else(|| "A session in another app".to_owned()),
             session: Some(facts.session.as_str().to_owned()),
             tool: facts.tool.as_deref().map(|tool| tool_words(state, tool)),

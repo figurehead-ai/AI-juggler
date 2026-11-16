@@ -83,6 +83,50 @@ struct Entry {
 struct Record {
     cli_session_id: Option<String>,
     is_archived: Option<bool>,
+    /// The session's working folder (the aij-test proof, run 2: its
+    /// project, from the first call on).
+    cwd: Option<String>,
+    /// Its title.
+    title: Option<String>,
+}
+
+/// The longest title taken from a record.
+const TITLE_MAX: usize = 200;
+
+/// What the app's record says of the session: its conversation, and
+/// (when it names them) its working folder and title.
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct Told {
+    conversation: String,
+    cwd: Option<PathBuf>,
+    title: Option<String>,
+}
+
+impl Told {
+    fn of(record: Record) -> Option<Self> {
+        Some(Self {
+            conversation: record.cli_session_id?,
+            // Only a plain absolute folder: never `..`, never relative.
+            cwd: record.cwd.map(PathBuf::from).filter(|cwd| {
+                cwd.is_absolute()
+                    && !cwd
+                        .components()
+                        .any(|part| matches!(part, std::path::Component::ParentDir))
+            }),
+            title: record
+                .title
+                .map(|title| {
+                    title
+                        .chars()
+                        .map(|c| if c.is_control() { ' ' } else { c })
+                        .take(TITLE_MAX)
+                        .collect::<String>()
+                        .trim()
+                        .to_owned()
+                })
+                .filter(|title| !title.is_empty()),
+        })
+    }
 }
 
 /// The Claude app's half of the attestation.
@@ -195,12 +239,16 @@ fn from_entry(place: &DesktopPlace<'_>, bytes: &[u8], step: ProcStep) -> PeerVer
             // M1: an archived conversation isn't a live member.
             PeerVerdict::no("the Claude app archived this session")
         }
-        AppRecord::Of(record) if record == conversation => PeerVerdict::Attested(AttestedSession {
-            conversation,
-            host_session: host,
-            tool_pid: step.pid,
-            tool_start: step.start_secs,
-        }),
+        AppRecord::Of(told) if told.conversation == conversation => {
+            PeerVerdict::Attested(AttestedSession {
+                conversation,
+                host_session: host,
+                tool_pid: step.pid,
+                tool_start: step.start_secs,
+                cwd: told.cwd,
+                title: told.title,
+            })
+        }
         AppRecord::Of(_) | AppRecord::Unreadable => PeerVerdict::no(
             "the Claude app's record of the session names another conversation, or can't be read",
         ),
@@ -245,14 +293,14 @@ pub fn still_current(place: &DesktopPlace<'_>, session: &AttestedSession) -> boo
         && plain_id(&session.host_session)
         && matches!(
             app_record(place.instance_dir, &session.host_session),
-            AppRecord::Of(conversation) if conversation == session.conversation
+            AppRecord::Of(told) if told.conversation == session.conversation
         )
 }
 
 /// What the app keeps for one of its sessions.
 enum AppRecord {
-    /// Its conversation.
-    Of(String),
+    /// Its conversation (and folder and title).
+    Of(Told),
     /// Archived by the app.
     Archived,
     /// A record that isn't a plain file, or doesn't read.
@@ -293,9 +341,7 @@ fn app_record(instance_dir: &Path, host: &str) -> AppRecord {
                         is_archived: Some(true),
                         ..
                     }) => AppRecord::Archived,
-                    Ok(record) => record
-                        .cli_session_id
-                        .map_or(AppRecord::Unreadable, AppRecord::Of),
+                    Ok(record) => Told::of(record).map_or(AppRecord::Unreadable, AppRecord::Of),
                     Err(_) => AppRecord::Unreadable,
                 },
             };
@@ -382,6 +428,8 @@ mod tests {
                 host_session: "local_abc-1".into(),
                 tool_pid: 4242,
                 tool_start: START,
+                cwd: None,
+                title: Some("t".into()),
             })
         );
     }
@@ -733,5 +781,36 @@ mod tests {
             *b"11",
             "asar integrity, only from asar"
         );
+    }
+
+    /// The aij-test proof, run 2: the app's own record names the session's
+    /// working folder and title from its first call, before any index has
+    /// read its transcript; a folder that isn't plain and absolute isn't
+    /// taken, and a title is one bounded line.
+    #[test]
+    fn the_apps_record_gives_the_sessions_folder_and_title() {
+        let lab = lab();
+        desktop_entry(&lab, 4242, START_TEXT);
+        let file = lab
+            .instance
+            .join("claude-code-sessions/acct/org/local_abc-1.json");
+        let session = |text: &str| {
+            std::fs::write(&file, text).unwrap();
+            match attest(&place(&lab), &[step(5000, START + 5), step(4242, START)]) {
+                PeerVerdict::Attested(session) => session,
+                other => unreachable!("{other:?}"),
+            }
+        };
+        let told = session(
+            r#"{"sessionId":"local_abc-1","cliSessionId":"conv-1","cwd":"/Users/you/lab/web","title":"Fix the\nlogin"}"#,
+        );
+        assert_eq!(told.cwd.as_deref(), Some(Path::new("/Users/you/lab/web")));
+        assert_eq!(told.title.as_deref(), Some("Fix the login"));
+        for cwd in ["lab/web", "/Users/you/../root"] {
+            let told = session(&format!(
+                r#"{{"sessionId":"local_abc-1","cliSessionId":"conv-1","cwd":"{cwd}"}}"#
+            ));
+            assert_eq!(told.cwd, None, "{cwd}");
+        }
     }
 }

@@ -45,6 +45,13 @@ pub struct AttestedSession {
     pub tool_pid: u32,
     /// That process's start time, epoch seconds, as the kernel lists it.
     pub tool_start: i64,
+    /// The session's working folder, as the app's own record names it
+    /// (its project), when it does: there from the session's first call,
+    /// before any conversation index has read its transcript (the aij-test
+    /// proof, run 2).
+    pub cwd: Option<std::path::PathBuf>,
+    /// The session's title, as the app's own record names it, when it does.
+    pub title: Option<String>,
 }
 
 /// An adapter's answer.

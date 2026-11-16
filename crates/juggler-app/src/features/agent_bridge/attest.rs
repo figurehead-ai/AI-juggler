@@ -626,19 +626,21 @@ pub(crate) fn sweep(state: &Arc<AppState>, candidates: &[Candidate]) {
 }
 
 /// The project of `conversation` in `folder`, from the conversation index
-/// (`None` when it has none): read once per conversation, then kept with
-/// its facts.
+/// (`None` when it has none yet): kept with its facts once found.
 fn project_of(state: &Arc<AppState>, folder: &str, conversation: &str) -> Option<ProjectId> {
-    let found = state
+    let cwd = state
         .conversations
-        .all()
-        .ok()?
-        .into_iter()
-        .find(|one| one.account_id == folder && one.summary.id == conversation)?;
-    let cwd = found.folder?;
+        .conversation_of(folder, conversation)?
+        .folder?;
+    project_at(state, &cwd)
+}
+
+/// The project whose root holds the folder `cwd` (a worktree's, its
+/// repository's), when AI Juggler has one there.
+fn project_at(state: &Arc<AppState>, cwd: &std::path::Path) -> Option<ProjectId> {
     let storage = state.storage.lock().ok()?;
     let homes = storage.projects().worktree_homes().ok()?;
-    let root = juggler_core::storage::project_root_with(&cwd, &homes);
+    let root = juggler_core::storage::project_root_with(cwd, &homes);
     crate::features::projects::by_root(&storage, |project| project.id)
         .ok()?
         .remove(&root)
@@ -750,9 +752,20 @@ fn attest_inner(state: &Arc<AppState>, peer: Peer) -> Result<DesktopCaller, Stri
             facts.conversation.as_ref()
                 == Some(&(candidate.folder.clone(), session.conversation.clone()))
         })
-        .map(|facts| facts.project);
-    let project =
-        kept_project.unwrap_or_else(|| project_of(state, &candidate.folder, &session.conversation));
+        .and_then(|facts| facts.project);
+    // The aij-test proof, run 2: a project is kept once found, but "none"
+    // never is (the first call can come before any index has read the
+    // session's transcript; kept, it held the session out of its pool for
+    // as long as it called). The app's own record names its folder from
+    // the first call; the index is the fallback.
+    let project = kept_project
+        .or_else(|| {
+            session
+                .cwd
+                .as_deref()
+                .and_then(|cwd| project_at(state, cwd))
+        })
+        .or_else(|| project_of(state, &candidate.folder, &session.conversation));
     let machine = crate::commands::local_machine_id(state);
     let storage = state
         .storage

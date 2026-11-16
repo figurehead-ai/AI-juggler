@@ -348,6 +348,126 @@ fn this_processs_own_chain_is_attested_end_to_end_and_its_call_is_answered() {
     );
 }
 
+/// The aij-test proof, run 2: the session's first call was attested
+/// seconds after it started, before the conversation index had read its
+/// transcript. Its project was "none", kept so for as long as it called:
+/// it landed in the "No project" pool, not the pool of its App and folder,
+/// unnamed. Now its project comes from the app's own record of its folder
+/// on the first call, "none" is never kept, and it's named by the record's
+/// title and its App by its profile folder's name.
+#[test]
+fn the_first_call_finds_the_sessions_project_and_name_before_any_index() {
+    use juggler_core::model::HarnessId;
+    let dir = tempfile::tempdir().unwrap();
+    let mut registry = juggler_adapter::AdapterRegistry::new();
+    registry.register(Arc::new(juggler_adapters::ClaudeCodeAdapter::new()));
+    let state = Arc::new(AppState::init_with_registry(dir.path().join("data"), registry).unwrap());
+    crate::features::agent_bridge::settings::answer_impl(&state, true).unwrap();
+    let config = dir.path().join("config");
+    let instance = dir.path().join("aij-test");
+    let web = dir.path().join("lab/web");
+    std::fs::create_dir_all(&web).unwrap();
+    let me = std::process::id();
+    let table = juggler_proc_list::list().unwrap();
+    let parent = table.iter().find(|p| p.pid == me).unwrap().ppid;
+    let parent_start = table.iter().find(|p| p.pid == parent).unwrap().start_secs;
+    std::fs::create_dir_all(config.join("sessions")).unwrap();
+    std::fs::write(
+        config.join(format!("sessions/{parent}.json")),
+        format!(
+            r#"{{"pid":{parent},"sessionId":"{CONVERSATION}","status":"busy","procStart":"{}","hostSessionId":"local_t1","entrypoint":"claude-desktop"}}"#,
+            ctime(i64::try_from(parent_start).unwrap())
+        ),
+    )
+    .unwrap();
+    std::fs::create_dir_all(instance.join("claude-code-sessions/a/o")).unwrap();
+    let record = |cwd: Option<&Path>| {
+        let cwd = cwd.map_or_else(String::new, |cwd| format!(r#","cwd":"{}""#, cwd.display()));
+        std::fs::write(
+            instance.join("claude-code-sessions/a/o/local_t1.json"),
+            format!(
+                r#"{{"sessionId":"local_t1","cliSessionId":"{CONVERSATION}","title":"Fix the login"{cwd}}}"#
+            ),
+        )
+        .unwrap();
+    };
+    let (pool, project) = {
+        let storage = state.storage.lock().unwrap();
+        storage
+            .accounts()
+            .insert(&crate::test_support::account(
+                FOLDER,
+                HarnessId::new(juggler_adapters::CLAUDE_CODE_ID).as_str(),
+                "Desk",
+                config.clone(),
+            ))
+            .unwrap();
+        let app = storage
+            .apps()
+            .upsert_desktop(
+                juggler_adapters::CLAUDE_CODE_ID,
+                "claude-app",
+                Some(&instance.to_string_lossy()),
+                1,
+            )
+            .unwrap();
+        storage.apps().set_folder(&app, Some(FOLDER)).unwrap();
+        let project = storage.projects().ensure(&web).unwrap().id;
+        let pool = storage.pools().create("aij46 run2", None).unwrap().id;
+        storage
+            .pools()
+            .set_scope(
+                &pool,
+                &juggler_core::storage::Scope::These([Some(project.clone())].into()),
+            )
+            .unwrap();
+        storage
+            .pools()
+            .join(&pool, &MemberRef::App(app), &[], PoolRole::Member, None)
+            .unwrap();
+        (pool, project)
+    };
+    let peer = juggler_platform::local_ipc::Peer {
+        pid: Some(me),
+        pid_version: juggler_proc_list::pid_version(me),
+        accepted: std::time::SystemTime::now(),
+    };
+    super::attest::ACCEPT_ANY_TOOL.with(|accept| accept.set(true));
+    let whoami = || {
+        let line =
+            serde_json::to_string(&Request::new(String::new(), Call::Whoami, Args::default()))
+                .unwrap();
+        super::calls::handle_line_from(&state, &line, Some(peer))
+    };
+    // A record that doesn't name the folder yet: no project on this call…
+    record(None);
+    let caller = super::attest::attest(&state, peer).unwrap();
+    assert_eq!(caller.facts.project, None);
+    // …and "none" isn't kept: once the record names it, it's found.
+    record(Some(&web));
+    let caller = super::attest::attest(&state, peer).unwrap();
+    assert_eq!(caller.facts.project, Some(project));
+    let answer = whoami();
+    assert!(answer.result.is_some(), "{answer:?}");
+    let result = answer.result.unwrap();
+    assert_eq!(
+        result["pool"]["id"],
+        pool.as_str(),
+        "its App's pool for its folder"
+    );
+    assert_eq!(result["name"], "Fix the login", "the app's own title");
+    let place = result["place"].as_str().unwrap_or_default();
+    assert!(
+        place.contains("aij-test"),
+        "its App by its profile folder: {place}"
+    );
+    // The pool's member and recipient list has it (f1b9bd354's read).
+    let listed = crate::features::connector::desktop_sessions_impl(&state, &pool).unwrap();
+    assert_eq!(listed.len(), 1, "{listed:?}");
+    assert_eq!(listed[0].name, "Fix the login");
+    assert_eq!(listed[0].via, "app");
+}
+
 #[test]
 fn only_the_attestation_writes_the_attested_sessions() {
     // ADR-0020's D-116 addendum: `attested().put(` appears in one file of
@@ -596,6 +716,8 @@ fn kept_facts_go_when_the_registry_entry_goes_its_start_changes_or_it_is_archive
                     host_session: "local_t1".into(),
                     tool_pid: 4242,
                     tool_start: start,
+                    cwd: None,
+                    title: None,
                 },
             ),
         );
