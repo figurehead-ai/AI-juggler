@@ -35,7 +35,7 @@
 > AJ-E3703…AJ-E3706 beside the E36 screen passes; AJ-E3707 with AJ-E3702
 > and closed last.
 
-### AJ-E3701 Home in two columns: the layout, Your apps and Runway by account (Home's calm pass) | Status: TODO | Priority P0 | Effort M | Depends: AJ-E3601, AJ-E3602
+### AJ-E3701 Home in two columns: the layout, Your apps and Runway by account (Home's calm pass) | Status: IN-PROGRESS | Priority P0 | Effort M | Depends: AJ-E3601, AJ-E3602
 **Goal**: Home becomes two calm columns that scroll on their own, with your apps and runway always one glance away.
 **User story**: As someone with three Apps on two Accounts, I open Home and see what needs me and what happened on the left, and my apps and their runway on the right, without either pushing the other off screen.
 **Requirements**:
@@ -54,7 +54,7 @@
 **Research basis**: `docs/research/home-feed/proposal.md` §1, §8, §9; `docs/research/calm-attention/proposal.md` §(c2); D-118 point 1.
 **Handover note**: AJ-E2105's Home (needs and apps) and 0.4.6's Home work (AJ-E813: Home draws only on a change) are the base; merge the 0.4 line in first. The feed column can ship its pinned zone over today's needs before AJ-E3702 lands, so Home is never half-built in a commit.
 
-### AJ-E3702 The feed: pinned needs, the stream, rollups, the away digest, the new-updates pill, filters, paging and the voice (F1) | Status: TODO | Priority P0 | Effort XL | Depends: AJ-E3701
+### AJ-E3702 The feed: pinned needs, the stream, rollups, the away digest, the new-updates pill, filters, paging and the voice (F1) | Status: IN-PROGRESS | Priority P0 | Effort XL | Depends: AJ-E3701
 **Goal**: The left column tells the story of what happened, in one calm stream, from the data AI Juggler already keeps.
 **User story**: As someone back after a night away, I see what needs me first, then what finished, switched or broke while I was gone, each line one click from its thing.
 **Requirements**:
