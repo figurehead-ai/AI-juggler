@@ -1882,6 +1882,23 @@ def cmd_selftest(args) -> int:
     alive = [pid for pid in tree if pid in ps_table()]
     expect(len(tree) >= 3 and not alive, f"kill_tree left {alive} of {tree}")
 
+    # Every codex child (login, run, features) starts from child_env() alone:
+    # a Code-tab session's markers and routing in this process never reach it
+    # (the 0.4.6 lab rule: CLAUDE_CODE_ENTRYPOINT made tools take themselves
+    # for that session's children).
+    markers = {"CLAUDE_CODE_ENTRYPOINT": "claude-desktop", "CLAUDECODE": "1", "ANTHROPIC_BASE_URL": "x", "OPENAI_API_KEY": "x"}
+    saved = {key: os.environ.get(key) for key in markers}
+    os.environ.update(markers)
+    try:
+        leaked = sorted(key for key in child_env() if key.startswith(("CLAUDE", "ANTHROPIC_", "OPENAI_")))
+    finally:
+        for key, value in saved.items():
+            if value is None:
+                os.environ.pop(key, None)
+            else:
+                os.environ[key] = value
+    expect(not leaked, f"child_env passes {leaked}")
+
     for line in failed:
         say(f"FAIL: {line}")
     say(f"c2_probe selftest: {'OK' if not failed else f'{len(failed)} failed'}")
