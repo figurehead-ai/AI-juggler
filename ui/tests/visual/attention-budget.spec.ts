@@ -9,7 +9,11 @@
  *         items, plus its Needs you count;
  *   (ii)  no amber fill (a 6 px level mark is a mark, not a fill);
  *   (iii) at most one danger-soft block per area;
- *   (iv)  at most one filled accent button per view;
+ *   (iv)  at most one filled accent button per view (the top bar's New
+ *         session is tinted by design, `variant="accent"`, never filled,
+ *         so it is outside this count; on Home the one fill is the first
+ *         pinned need's primary, or the empty feed's New session only
+ *         once the needs are read and none waits, D-118);
  *   (v)   no animation that runs for ever (0.4.5's rule, idle.spec.ts);
  *   (vi)  every row's data-level is attentionLevel() of its need and state;
  *   (vii) every collapsible in the rail keeps its chevron, visible at rest

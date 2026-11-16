@@ -352,7 +352,9 @@ export function HomeScreen({
     <HomeFeed
       stacked={stacked}
       now={now}
-      quiet={allNeeds.length + capNeeds.caps.length + messageNeeds.length + taskNeeds.length === 0}
+      // Filled only once the needs are read and none waits (D-118: else the
+      // first pinned need holds the one fill; an unread list counts as one).
+      quiet={needsNow.known && allNeeds.length + capNeeds.caps.length + messageNeeds.length + taskNeeds.length === 0}
       scroller={scroller}
       nameOf={nameOf}
       facets={{ projects, accounts, subscriptions, pools }}
