@@ -132,6 +132,25 @@ for (const screen of ["Projects", "Pools", "Tasks", "Accounts", "Usage", "Histor
   });
 }
 
+/** A pane loads its parts lazily (Accounts' date fields, Switching's keys
+ * picker): wait until its openers stop appearing, or the audit's count
+ * varies from run to run (75, 77, 78). */
+async function settled(page: Page, within: Locator): Promise<void> {
+  await page.waitForLoadState("networkidle");
+  let last = -1;
+  await expect
+    .poll(
+      async () => {
+        const now = await within.locator(OPENERS).count();
+        const same = now === last;
+        last = now;
+        return same;
+      },
+      { intervals: [300, 300, 500, 500, 800], timeout: 8_000 },
+    )
+    .toBe(true);
+}
+
 test("every menu and popover in each Settings pane", async ({ page }) => {
   await open(page);
   await goTo(page, "Settings");
@@ -139,7 +158,7 @@ test("every menu and popover in each Settings pane", async ({ page }) => {
   const panes = page.getByRole("navigation", { name: "Settings" }).getByRole("button");
   for (const pane of await panes.allTextContents()) {
     await settingsPane(page, pane.trim());
-    await page.waitForTimeout(300);
+    await settled(page, main);
     await auditScreen(page, `Settings › ${pane.trim()}`, main);
   }
 });

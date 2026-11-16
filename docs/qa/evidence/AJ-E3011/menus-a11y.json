@@ -1,6 +1,6 @@
 {
   "spec": "ui/tests/visual/menus-a11y.spec.ts",
-  "menus": 78,
+  "menus": 79,
   "covered": [
     {
       "screen": "Rail, header and Home",
@@ -353,6 +353,12 @@
     {
       "screen": "Settings › Notifications",
       "opener": "Last warning at: 95 %",
+      "kind": "menu",
+      "options": 3
+    },
+    {
+      "screen": "Settings › Privacy",
+      "opener": "Crash reports: Never",
       "kind": "menu",
       "options": 3
     },
