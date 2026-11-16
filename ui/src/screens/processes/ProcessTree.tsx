@@ -200,7 +200,9 @@ export function ProcessTree({
                     data-kind={row.kind}
                     onFocus={() => setFocus(index)}
                     onClick={() => setFocus(index)}
-                    className={`absolute inset-x-0 grid ${COLUMNS} items-center border-b border-hairline/60 px-3 outline-none focus-visible:bg-accent-soft/40 focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-accent/60 ${
+                    // 0.0.7: a click selects the row, so it shows the hand
+                    // like every clickable thing (tests/visual/cursor.spec.ts).
+                    className={`absolute inset-x-0 grid ${COLUMNS} cursor-pointer items-center border-b border-hairline/60 px-3 outline-none focus-visible:bg-accent-soft/40 focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-accent/60 ${
                       row.kind === "app" ? "bg-surface-2/60" : "hover:bg-surface-2/50"
                     }`}
                     style={{ top: index * ROW_HEIGHT, height: ROW_HEIGHT }}

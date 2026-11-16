@@ -72,3 +72,14 @@ describe("0.3.2 folding on Processes", () => {
     expect(onToggle).toHaveBeenLastCalledWith(expect.objectContaining({ key: "s:1" }), true);
   });
 });
+
+describe("0.0.7 the hand on Processes' rows", () => {
+  it("every row, which a click selects, shows the pointing hand", () => {
+    tree();
+    const rows = screen.getAllByTestId(/^process-row-/);
+    expect(rows).toHaveLength(ROWS.length);
+    for (const el of rows) expect(el.className.split(/\s+/)).toContain("cursor-pointer");
+    fireEvent.click(rows[2]!);
+    expect(rows[2]!.getAttribute("aria-selected")).toBe("true");
+  });
+});
