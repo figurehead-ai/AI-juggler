@@ -18,6 +18,7 @@ pub mod dashboard;
 pub mod desktop;
 pub mod environment;
 pub mod expert;
+pub mod feed;
 pub mod fleet;
 pub mod floor;
 pub mod funnel;

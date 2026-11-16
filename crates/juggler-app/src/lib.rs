@@ -95,8 +95,7 @@ compile_error!("the `dev-bridge` feature is for debug builds only (docs/qa/DEV-B
 use crate::events::{AppEvent, EmitEvent as _};
 use std::sync::Arc;
 
-/// Name of the event emitted once the backend is ready; the payload is
-/// the `AppInfo` value.
+/// Name of the event emitted once the backend is ready; the payload is the `AppInfo` value.
 pub const EVENT_APP_READY: &str = AppEvent::AppReady.name();
 
 /// Name of the event carrying the refreshed session list.
@@ -254,6 +253,7 @@ macro_rules! app_commands {
             Write remote::fleet_remote_focus,
             Write remote::fleet_remote_clean,
             Read  overnight::overnight_summary,
+            Read  features::feed::commands::feed_page,
             Write overnight::overnight_summary_seen,
             Write parked::instance_park,
             Write lifecycle::instance_mark_reviewed,

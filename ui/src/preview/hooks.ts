@@ -6,6 +6,7 @@ export * as accountSettings from "./account-settings";
 export * as appIcons from "./app-icons";
 export * as appState from "./app-state";
 export * as conversationFeed from "./conversation-feed";
+export * as feed from "./feed";
 export * as fixtures from "./fixtures";
 export * as fleet from "./fleet";
 export * as machine from "./machine";

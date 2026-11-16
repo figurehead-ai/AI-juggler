@@ -24,6 +24,7 @@ mod sessions;
 mod cleanup_audit;
 mod cleanup_settings;
 mod entities;
+pub mod feed;
 mod fleet_sync;
 mod floor;
 mod footprints;
@@ -967,8 +968,7 @@ fn owner_only(path: &Path) {
 /// another. Set explicitly, not left to the driver's default.
 pub const BUSY_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(5);
 
-/// Applies [`BUSY_TIMEOUT`] to a connection on the app database and
-/// switches it to WAL.
+/// Applies [`BUSY_TIMEOUT`] to a connection on the app database and switches it to WAL.
 ///
 /// # Errors
 ///
@@ -1103,6 +1103,7 @@ impl Storage {
         storage.conn.execute_batch(accounts::IMPORT_NAMES)?;
         storage.conn.execute_batch(usage_history::HISTORY_DERIVED)?;
         storage.conn.execute_batch(usage_history::ROLLUP_DERIVED)?;
+        storage.conn.execute_batch(feed::FEED_DERIVED)?;
         if path.is_some() {
             open_steps::tidy(&storage.conn, room, watch);
         }
@@ -1116,8 +1117,7 @@ impl Storage {
         self.migrated
     }
 
-    /// Runs pending forward migrations from the current schema version;
-    /// `true` when any ran.
+    /// Runs pending forward migrations from the current schema version; `true` when any ran.
     fn migrate(&self, current: i64) -> Result<bool, CoreError> {
         let supported = i64::try_from(MIGRATIONS.len()).unwrap_or(i64::MAX);
         if current > supported {

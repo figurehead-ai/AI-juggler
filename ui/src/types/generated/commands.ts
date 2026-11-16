@@ -55,6 +55,8 @@ import type { EditorChoicesInfo } from "./EditorChoicesInfo";
 import type { EntityKind } from "./EntityKind";
 import type { EntityRef } from "./EntityRef";
 import type { ExpertSetupInfo } from "./ExpertSetupInfo";
+import type { FeedFiltersInfo } from "./FeedFiltersInfo";
+import type { FeedItemInfo } from "./FeedItemInfo";
 import type { FigureheadStatusInfo } from "./FigureheadStatusInfo";
 import type { FindProfilesInfo } from "./FindProfilesInfo";
 import type { FleetPeerInfo } from "./FleetPeerInfo";
@@ -453,6 +455,8 @@ export interface Commands {
   expert_reveal: { args: { provider: string; accountId?: string | null }; result: void };
   /** Write features::expert::commands::expert_setup_info */
   expert_setup_info: { args: { provider: string; accountId?: string | null; recipeId?: string | null }; result: ExpertSetupInfo };
+  /** Read features::feed::commands::feed_page */
+  feed_page: { args: { request: PageRequest; filters: FeedFiltersInfo }; result: Page<FeedItemInfo> };
   /** Write figurehead::figurehead_claim */
   figurehead_claim: { args: { code: string; name?: string | null }; result: FigureheadStatusInfo };
   /** Write figurehead::figurehead_dismiss_notice */
