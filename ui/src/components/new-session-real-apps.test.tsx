@@ -7,7 +7,7 @@
  * from the profile's session in the project ("Start in web on Claude Code
  * CLI · Work Max"), an App that doesn't exist, and would have run the
  * CLI on the profile's folder; its Change app listed "Claude Code CLI ·
- * Work Max" and "· Side" (K4). The pure rule is `offeredRecipes`
+ * Work Max" and "· Side" (K4). The pure rule is `cliRecipes`
  * (`lib/new-session-offered.test.ts`); a switch's targets, which are real,
  * are named by their App (`switch-target-apps.test.tsx`).
  */
@@ -20,6 +20,7 @@ import { loadSubscriptions, staleSubscriptions } from "../lib/subscriptions";
 import type { StoredAppInfo } from "../lib/ipc/apps";
 import type { KnownPlaceInfo } from "../lib/ipc/places";
 import type { AccountInfo } from "../types/generated/AccountInfo";
+import type { LaunchRecipeInfo } from "../types/generated/LaunchRecipeInfo";
 import { account, clearSeams, instance, project, recipe, setSeam, subscription } from "../test/fixtures";
 
 const NOW = Date.now();
@@ -38,16 +39,26 @@ const stored = (id: string, folder_id: string): StoredAppInfo => ({ id, kind: id
 // The backend's list (`apps::users_apps`): no CLI App on either profile's folder.
 const STORED = [stored("cli:cc-work", "cc-work"), stored("cli:cc-personal", "cc-personal"), ...PLACES.map((place) => stored(place.id, place.account_id ?? ""))];
 
-// The live app's Apps, as `useApps` reads them with the backend's list.
+// The live app's Apps, as `useApps` and `useCliRecipes` read them with the
+// backend's list (kept per input, as the real hooks keep them).
 const joined = new WeakMap<readonly AccountInfo[], AppModel[]>();
+const offered = new WeakMap<readonly LaunchRecipeInfo[], readonly LaunchRecipeInfo[]>();
 vi.mock("../lib/apps", async (original) => {
   const real = await original<typeof import("../lib/apps")>();
+  // Read when called: the factory runs before this file's constants.
+  const read = () => ({ stored: STORED, places: PLACES, listed: true });
   return {
     ...real,
     useApps: (folders: readonly AccountInfo[] = []) => {
-      const apps = joined.get(folders) ?? real.appsOf({ stored: STORED, places: PLACES, folders, listed: true });
+      const apps = joined.get(folders) ?? real.appsOf({ ...read(), folders });
       joined.set(folders, apps);
       return apps;
+    },
+    useCliRecipes: (recipes: readonly LaunchRecipeInfo[] | null) => {
+      if (recipes === null) return null;
+      const kept = offered.get(recipes) ?? real.cliRecipes(recipes, read());
+      offered.set(recipes, kept);
+      return kept;
     },
   };
 });

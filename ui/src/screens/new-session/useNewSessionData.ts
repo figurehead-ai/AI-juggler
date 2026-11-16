@@ -7,7 +7,7 @@
  * plan share it (`accountDisplay`). D-103.7: which Accounts ever ran in
  * the project, from the backend's count by Account (every session there),
  * what the app holds until it answers. Its Apps are the CLI Apps the
- * user has (`offeredRecipes`: a Claude app profile's folder isn't one,
+ * user has (`cliRecipes`: a Claude app profile's folder isn't one,
  * the 0.4.6 RC walk A8).
  */
 import { useEffect, useMemo, useState } from "react";
@@ -19,10 +19,9 @@ import type { LaunchRecipeInfo } from "../../types/generated/LaunchRecipeInfo";
 import type { QuotaDisplayData } from "../../lib/ipc/quota";
 import { useQuotaDisplays } from "../../lib/kept-reads";
 import { accountDisplay, accountName, accountOfProfile, useSubscriptions } from "../../lib/subscriptions";
-import { useApps } from "../../lib/apps";
+import { useApps, useCliRecipes } from "../../lib/apps";
 import { cliAppId, cliAppName } from "../../lib/app-name";
 import { launchRoom } from "../../lib/launch-pick";
-import { offeredRecipes } from "../../lib/new-session-choice";
 import { machineAdvice } from "../../lib/ipc/this-mac";
 import type { MachineAdviceInfo } from "../../lib/machine";
 import type { Room } from "../../lib/new-session-choice";
@@ -32,7 +31,7 @@ import { useRelatedCounts, useRelationCounts } from "../../lib/relation-counts";
 import type { ProjectInfo } from "../../types/generated/ProjectInfo";
 
 export interface NewSessionData {
-  /** The CLI Apps' launch settings (`offeredRecipes`); `null` until
+  /** The CLI Apps' launch settings (`cliRecipes`); `null` until
    * known (never while the app holds some). */
   recipes: readonly LaunchRecipeInfo[] | null;
   /** Whether the runways have answered. */
@@ -87,11 +86,7 @@ export function useNewSessionData({
   const { displays, known } = useQuotaDisplays();
   const subscriptions = useSubscriptions();
   const apps = useApps(folders);
-  const offered = useMemo(() => {
-    if (recipes === null) return null;
-    const cli = apps === null ? null : new Set(apps.flatMap((app) => (app.kind === "cli" && app.folder ? [app.folder.id] : [])));
-    return offeredRecipes(recipes, folders, cli);
-  }, [recipes, apps, folders]);
+  const offered = useCliRecipes(recipes);
 
   const [ranked, setRanked] = useState<RankedRowData[]>([]);
   useEffect(() => {

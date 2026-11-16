@@ -1,4 +1,5 @@
 import { focusHandover } from "../lib/handover-focus";
+import { useCliRecipes } from "../lib/apps";
 import { processRunning, statusLive } from "../lib/session-process";
 import { SessionNotices } from "./SessionNotices";
 import { ToolChip } from "./ToolMark";
@@ -370,6 +371,9 @@ function InstanceOverview(props: PanelProps) {
     () => localStorage.getItem("aij.a11y-explainer.dismissed") === "1",
   );
   const { kind, data, sessions, accounts, profiles, terminalTitle } = props;
+  // A project's "Launch with another app": a CLI start, a CLI App's launch
+  // settings only (the 0.4.6 RC walks A8 and K4).
+  const launchable = useCliRecipes(profiles) ?? [];
 
   if (kind === "instance" && data.instance) {
     const session = data.instance;
@@ -709,7 +713,7 @@ function InstanceOverview(props: PanelProps) {
               Launch with another app
             </p>
             <div className="flex flex-col gap-1.5">
-              {profiles.slice(0, 5).map((recipe) => {
+              {launchable.slice(0, 5).map((recipe) => {
                 const ready = signedIn(accounts.find((a) => a.id === recipe.account_id)?.login_state);
                 return (
                   <button
@@ -732,7 +736,7 @@ function InstanceOverview(props: PanelProps) {
                   </button>
                 );
               })}
-              {profiles.length === 0 && (
+              {launchable.length === 0 && (
                 <p className="text-xs text-ink-2">No launch settings yet — add an app first.</p>
               )}
             </div>

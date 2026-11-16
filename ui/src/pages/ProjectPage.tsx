@@ -4,6 +4,7 @@
  * first) and its Overview (accounts, sessions ever, checkouts, which
  * account starts work here, how the work travelled).
  */
+import { useCliRecipes } from "../lib/apps";
 import { CliAppMark } from "../components/PlaceMarks";
 import { useState } from "react";
 import { createPortal } from "react-dom";
@@ -193,7 +194,10 @@ export function ProjectOverview(props: ProjectPanelProps) {
     if (isActiveStatus(row.status)) entry.live.push(row);
     checkouts.set(path, entry);
   }
-  const ranked = props.profiles
+  // A CLI start, so a CLI App's launch settings only (the 0.4.6 RC walks
+  // A8 and K4: a Claude app profile's folder read "Claude Code CLI · Work Max").
+  const launchable = useCliRecipes(props.profiles) ?? [];
+  const ranked = launchable
     .map((recipe) => {
       const worst = props.sessions
         .filter((s) => s.account_id === recipe.account_id && s.quota !== null)

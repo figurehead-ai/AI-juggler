@@ -12,7 +12,7 @@
  *
  * The App (a CLI tool on a config folder; one per folder, its first
  * launch settings unless the user picks others; only a folder that is a
- * CLI App, `offeredRecipes`):
+ * CLI App, `lib/apps`' `cliRecipes`):
  * 1. the one the user chose (in the sheet, or the door that opened it);
  * 2. this project's default (the user's "Always use for <project>", in
  *    Change app, on the project page or offered in the sheet); else its
@@ -174,21 +174,6 @@ export function folderWhyWords(why: FolderWhy): string | null {
   }
 }
 
-/** D-62, D-84 (the 0.4.6 RC walk A8): the launch settings New session
- * offers, a CLI App's. Every config folder has launch settings, but a
- * folder a Claude app profile holds is that profile's (`lib/apps`): it is
- * a CLI App only once a terminal session ran there or the user named it.
- * Offered anyway, a start there read "Claude Code CLI · Work Max", an App
- * that isn't one, and ran the CLI on the profile's folder. `cliFolders`:
- * the folders that are CLI Apps, `null` while the Apps aren't read (all
- * are offered); a folder not among `folders` is offered as before. */
-export function offeredRecipes(recipes: readonly LaunchRecipeInfo[], folders: readonly AccountInfo[], cliFolders: ReadonlySet<string> | null): readonly LaunchRecipeInfo[] {
-  if (cliFolders === null) return recipes;
-  const known = new Set(folders.map((folder) => folder.id));
-  const offered = recipes.filter((recipe) => !known.has(recipe.account_id) || cliFolders.has(recipe.account_id));
-  return offered.length === recipes.length ? recipes : offered;
-}
-
 /** One launch settings per App (its first), in the backend's order. */
 export function appRecipes(recipes: readonly LaunchRecipeInfo[]): LaunchRecipeInfo[] {
   const seen = new Set<string>();
@@ -221,7 +206,7 @@ export function chooseApp(inputs: AppInputs): AppChoice | null {
   const startable = apps.filter((recipe) => canStart(inputs.folders, recipe.account_id));
   const accountOf = inputs.accountOf ?? ((id: string) => id);
   // The 0.4.6 RC walk A8: a door or a binding may name a folder that isn't
-  // a CLI App (a Claude app profile's, `offeredRecipes`: the Account page's
+  // a CLI App (a Claude app profile's, `cliRecipes`: the Account page's
   // first folder, a project bound to it before): its Account's own CLI App
   // stands for it, one that can start first, never another Account's.
   const of = (id: string | null | undefined) => {
