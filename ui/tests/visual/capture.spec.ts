@@ -2193,7 +2193,16 @@ for (const theme of THEMES) {
       // AJ-E2501: on Home the account almost out of room is a Needs you
       // item (its banner is for the other screens); the renewal line is
       // under Earlier in the notification centre, never a window alert.
-      await expect(page.getByTestId("home-need-quota")).toContainText("Claude Max 20x is almost out of room");
+      // D-118 R2: past 3 pinned needs it waits behind "+n more need you",
+      // named under the heading (D-96 B), one click to its row.
+      await expect(page.getByTestId("home-extras")).toContainText("Claude Max 20x is almost out of room");
+      await page.getByTestId("home-extras").getByRole("button", { name: "Claude Max 20x is almost out of room" }).click();
+      const quotaNeed = page.getByTestId("home-need-quota");
+      await expect(quotaNeed).toContainText("Claude Max 20x is almost out of room");
+      await expect(quotaNeed).toContainText("8% of its 5-hour window left");
+      await expect(quotaNeed.getByRole("button", { name: "Continue in another app… — Claude Max 20x is almost out of room" })).toBeFocused(); // its hand-over
+      // D-118: the renewal line is also one of the feed's items (what happened).
+      await expect(page.getByTestId("feed")).toContainText("p…@example.com: Renews in 6 days — check your plan");
       await page.getByTestId("notification-bell").click();
       await expect(page.getByTestId("notices-earlier")).toContainText("p…@example.com: Renews in 6 days — check your plan");
       await page.screenshot({
@@ -5936,6 +5945,9 @@ for (const theme of THEMES) {
     await expect(page.getByTestId("toast")).toContainText("reviewed.");
     await page.mouse.move(0, 0);
     await page.screenshot({ path: resolve(GALLERY, `75-feedback/reviewed-1280x800-${theme}.png`) });
+    // AJ-E1503: Undo puts it back on the list.
+    await page.getByTestId("toast").getByTestId("toast-undo").click();
+    await expect(page.getByTestId("toast-undone")).toContainText("is back on the list.");
   });
 
   test(`75 feedback — the quit sheet — ${theme}`, async ({ page }) => {

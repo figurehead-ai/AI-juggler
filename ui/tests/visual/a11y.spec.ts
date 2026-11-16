@@ -587,7 +587,10 @@ for (const theme of ["dark", "light"] as const) {
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto("/");
     // The notification region renders in the work view (polite
-    // live-region semantics assertable before the modal opens).
+    // live-region semantics assertable before the modal opens). D-118 R2:
+    // past 3 pinned needs it waits behind "+n more need you", named under
+    // the heading (D-96 B), one click to its row.
+    await page.getByTestId("home-extras").getByRole("button", { name: "Claude Max 20x is almost out of room" }).click();
     await expect(page.getByTestId("home-need-quota")).toBeVisible();
     // D-87: a due reset reminder is on its session's own page, never in
     // the band over a screen.

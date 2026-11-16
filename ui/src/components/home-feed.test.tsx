@@ -9,7 +9,8 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { HomeFeed } from "./HomeFeed";
-import { feedItem } from "../preview/feed";
+import { endingItem, feedItem } from "../preview/feed";
+import { MOCK_SESSIONS } from "../preview/fixtures";
 import { keepFirst, keptFilters, markRead, readHorizon, readIds, unread } from "../lib/feed-state";
 import type { FeedItemInfo } from "../lib/ipc/feed";
 
@@ -193,5 +194,18 @@ describe("D-118 — the feed", () => {
     fireEvent.click(pill);
     expect(await screen.findByText("Brand new")).toBeTruthy();
     box.remove();
+  });
+});
+
+describe("D-118 — the preview's stand-in", () => {
+  it("names a seeded session that came without its folder, never failing the page", () => {
+    // The gallery's fixtures seed sessions without a cwd: one such ending
+    // made the whole feed "couldn't be read" (capture specs 27, 55, 75).
+    const session = { ...MOCK_SESSIONS[0]!, status: "finished" as const, label: undefined, title: undefined };
+    Reflect.deleteProperty(session, "cwd");
+    const item = endingItem(session);
+    expect(item?.subject).toBe("A session");
+    expect(item?.facts.cwd).toBeNull();
+    expect(item?.category).toBe("finished");
   });
 });

@@ -14,6 +14,7 @@ import type { NoticeInfo } from "../types/generated/NoticeInfo";
 import type { Page } from "../types/generated/Page";
 import type { PageRequest } from "../types/generated/PageRequest";
 import { MOCK_SESSIONS, seeded } from "./fixtures";
+import { folderName } from "../lib/session-titles";
 
 /** A seeded list, as far as the stand-in reads one (the seam's own). */
 function isItems(value: unknown): value is FeedItemInfo[] {
@@ -58,7 +59,9 @@ export function feedItem(over: Omit<Partial<FeedItemInfo>, "facts" | "target"> &
 const ENDED: Record<string, [string, number] | undefined> = { finished: ["finished", 1], failed: ["failed", 3], stopped: ["stopped", 0] };
 
 /** A preview session's ending as the backend's item for it (tests seed
- * the feed with these). */
+ * the feed with these). A gallery's seeded session can come without its
+ * folder (the captures' fixtures): the item then names it as the window
+ * would, never failing the whole page. */
 export function endingItem(session: InstanceInfo): FeedItemInfo | null {
   const ended = ENDED[session.status];
   if (!ended) return null;
@@ -67,9 +70,9 @@ export function endingItem(session: InstanceInfo): FeedItemInfo | null {
   return feedItem({
     id: `l:${session.id}`, at_ms: at, kind, category: kind === "failed" ? "needs" : "finished", level, mine: kind === "stopped",
     coalesce: `s:${session.id}`, rollup: kind === "failed" ? null : `v:${kind}:${session.account_id}:${session.project_id ?? "-"}:L${level}`, rollup_window_ms: 7_200_000,
-    scope: `f:${session.account_id}`, subject: session.label ?? session.title ?? session.cwd.split("/").pop() ?? "A session",
+    scope: `f:${session.account_id}`, subject: session.label ?? session.title ?? (folderName(session.cwd) || "A session"),
     author: { kind: "app", name: null, provider: session.provider, folder: session.account_id, folder_label: session.account_label, desktop: session.kind === "desktop" },
-    facts: { ...NO_FACTS, project_id: session.project_id, cwd: session.cwd, duration_ms: at - session.started_at_ms },
+    facts: { ...NO_FACTS, project_id: session.project_id, cwd: session.cwd ?? null, duration_ms: at - session.started_at_ms },
     target: { ...EMPTY_TARGET, session_id: session.id, project_id: session.project_id },
   });
 }
