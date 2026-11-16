@@ -6,6 +6,7 @@
  */
 import { useState, type JSX, type PointerEvent, type ReactNode } from "react";
 import { usePendingAdds } from "../../lib/pool-pending";
+import { keep, keepInPlace, type Kept } from "../../lib/in-place";
 
 import { AppIcon } from "../../components/AppIcon";
 import { AppKindBadge } from "../../components/AppKindBadge";
@@ -50,14 +51,18 @@ export function Palette({
 }): JSX.Element {
   const [words, setWords] = useState("");
   const adding = new Set(usePendingAdds(poolId).map((one) => one.ref));
+  // Round 5: an added row stays where it was, marked added (no jump).
+  const [kept, setKept] = useState<ReadonlyMap<string, Kept<InstanceInfo>>>(new Map());
   const query = words.trim().toLowerCase();
   const projectOf = (session: InstanceInfo) => projects.find((project) => project.id === session.project_id)?.name ?? null;
   // D-96 D: alike names told apart, as the nodes are (the rc27 pool pass).
   const names = namesApart(sessions);
   const named = (session: InstanceInfo) => names.get(session.id) ?? nameOf(session);
-  const shown = sessions
-    .filter((session) => !query || `${named(session)} ${projectOf(session) ?? ""} ${session.account_label}`.toLowerCase().includes(query))
-    .slice(0, SHOWN);
+  const shown = keepInPlace(
+    sessions.filter((session) => !query || `${named(session)} ${projectOf(session) ?? ""} ${session.account_label}`.toLowerCase().includes(query)).slice(0, SHOWN),
+    kept,
+    (session) => session.id,
+  );
 
   if (removing) {
     return (
@@ -79,7 +84,10 @@ export function Palette({
       <button
         type="button"
         aria-expanded={open}
-        onClick={() => onOpen(!open)}
+        onClick={() => {
+          setKept(new Map());
+          onOpen(!open);
+        }}
         className="flex items-center gap-2 rounded-xl px-3 py-2 text-left text-meta font-semibold text-ink-2 outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60"
       >
         <span className="flex-1">Add a session</span>
@@ -111,11 +119,11 @@ export function Palette({
                 />
               )}
               <ul className="flex flex-col gap-1" data-testid="canvas-palette-list">
-                {shown.map((session) => (
+                {shown.map(({ row: session, added }, at) => (
                   <li
                     key={session.id}
                     onPointerDown={(event) => {
-                      if ((event.target as HTMLElement).closest("button")) return;
+                      if (added || (event.target as HTMLElement).closest("button")) return;
                       onStartDrag(session, event);
                     }}
                     className="group flex touch-none cursor-grab items-center gap-2 rounded-lg border border-dashed border-hairline bg-surface px-2 py-1.5 hover:border-accent/60 hover:bg-surface-2"
@@ -130,14 +138,21 @@ export function Palette({
                       <span className="truncate text-meta text-ink">{named(session)}</span>
                       <span className="truncate text-label text-faint">{[projectOf(session), session.account_label].filter(Boolean).join(" · ")}</span>
                     </span>
-                    {adding.has(`session:${session.id}`) ? (
-                      <output className="shrink-0 text-label text-muted" data-testid="canvas-palette-adding">
+                    {added ? (
+                      <output className="flex h-6 shrink-0 items-center text-label text-muted" data-testid="canvas-palette-added">
+                        Added
+                      </output>
+                    ) : adding.has(`session:${session.id}`) ? (
+                      <output className="flex h-6 shrink-0 items-center text-label text-muted" data-testid="canvas-palette-adding">
                         Adding…
                       </output>
                     ) : (
                       <button
                         type="button"
-                        onClick={() => onAdd(session)}
+                        onClick={() => {
+                          setKept((was) => keep(was, session.id, session, at));
+                          onAdd(session);
+                        }}
                         aria-label={`Add ${named(session)} to this pool`}
                         className="flex size-6 shrink-0 items-center justify-center rounded-md text-muted outline-none hover:bg-accent-soft hover:text-accent-hi focus-visible:ring-1 focus-visible:ring-accent/60"
                         data-testid="canvas-palette-add"

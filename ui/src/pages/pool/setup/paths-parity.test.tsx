@@ -7,7 +7,7 @@
  * and the same controls, and the summary the same sentences as Review.
  * If either path drifts, this fails.
  */
-import { cleanup, render } from "@testing-library/react";
+import { cleanup, fireEvent, render, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { resetPreviewAgentBridge } from "../../../lib/ipc/agent-bridge";
@@ -24,6 +24,10 @@ import { nextLine, shapeOfDraft } from "../../../lib/pool-sentences";
 import { NewPoolTools } from "../../../screens/pools/NewPoolTools";
 import { agentBridgeAnswer } from "../../../lib/ipc/agent-bridge";
 import { TeamToolsQuestion } from "./TeamTools";
+import { MOCK_PROJECTS, MOCK_SESSIONS } from "../../../preview/fixtures";
+import { NewPool } from "../../../screens/pools/NewPool";
+import { EmptyPoolSetup, existingOf } from "../EmptyPoolSetup";
+import { opensInSetup } from "../mode";
 
 beforeEach(() => resetPreviewAgentBridge());
 afterEach(cleanup);
@@ -180,5 +184,51 @@ describe("AJ-E3011 round 3: New pool and the diagram say one pool the same way",
     expect(diagram.sentences.who).toBe(setup.sentences.who);
     // Round 4 (#3): what happens next, from the same shapes.
     expect(nextLine(shapeOfPool(pool, rulesInfo, [], label), WHERE)).toBe(nextLine(shapeOfDraft(draft, nameOf), WHERE));
+  });
+});
+
+// AJ-E3011 round 5: an empty pool's page is New pool's own flow, in place,
+// prefilled with the pool's projects (and a project's own pool keeps its
+// scope). Same steps, same step components, the same controls; if either
+// drifts, this fails.
+describe("AJ-E3011 round 5: an empty pool's setup is New pool's flow", () => {
+  const steps = () => [...document.querySelectorAll('[data-testid="new-pool-step"]')].map((step) => step.textContent);
+  const stepTitle = () => document.querySelector('[data-testid="new-pool-step-title"]')?.textContent;
+
+  it("the same steps and the same first step, in place, with Show the diagram for Cancel", async () => {
+    const shown = render(<NewPool sessions={MOCK_SESSIONS} projects={MOCK_PROJECTS} accounts={[]} project="proj-ai-juggler" onClose={() => undefined} />);
+    await waitFor(() => expect(steps().length).toBeGreaterThan(0));
+    const fromNew = { steps: steps(), title: stepTitle(), dialog: shown.getByTestId("new-pool").tagName };
+    shown.unmount();
+    let diagram = 0;
+    const empty: PoolInfo = { ...pool, scope: ["proj-ai-juggler"] };
+    const page = render(<EmptyPoolSetup pool={empty} rules={{ rules: { ...rulesInfo, members: [] }, watched: [], reload: () => undefined }} projects={MOCK_PROJECTS} sessions={MOCK_SESSIONS} accounts={[]} onDiagram={() => (diagram += 1)} />);
+    await waitFor(() => expect(steps().length).toBeGreaterThan(0));
+    expect(steps()).toEqual(fromNew.steps);
+    expect(stepTitle()).toBe(fromNew.title);
+    expect(fromNew.dialog).toBe("DIALOG");
+    expect(page.getByTestId("new-pool").getAttribute("data-embedded")).toBe("true");
+    expect(page.queryByTestId("new-pool-cancel")).toBeNull();
+    fireEvent.click(page.getByTestId("new-pool-show-diagram"));
+    expect(diagram).toBe(1);
+  });
+
+  it("prefilled: a pool's projects in Where; a project's own pool says its scope and keeps everyone in it", async () => {
+    const web = MOCK_PROJECTS[0]!;
+    const own: PoolInfo = { ...pool, id: "pool-own", kind: "default", project_id: web.id, ...scopeOf("default", web.id) };
+    const view = render(<EmptyPoolSetup pool={own} rules={{ rules: { ...rulesInfo, members: [{ ...rule("all", "everyone"), role: "reviewer" }], lead_next: null }, watched: [], reload: () => undefined }} projects={MOCK_PROJECTS} sessions={MOCK_SESSIONS} accounts={[]} onDiagram={() => undefined} />);
+    fireEvent.click(await view.findByTestId("new-pool-next"));
+    expect(view.getByTestId("new-pool-where-fixed").textContent).toBe(`Every session in ${web.name} is part of this team.`);
+    expect(view.getByTestId("new-pool-name")).toHaveProperty("value", `${web.name}'s own pool`);
+    // Everyone else: its join role is the pool's own (here Reviewer).
+    expect(existingOf(own, [{ ...rule("all", "everyone"), role: "reviewer" }])).toEqual({ every: false, projects: [web.id], everyoneRole: "reviewer", fixedScope: true });
+    expect(existingOf({ ...pool, scope: ["a", "b"] }, [])).toEqual({ every: false, projects: ["a", "b"], everyoneRole: null, fixedScope: false });
+  });
+
+  it("opens in the setup only while empty, its rules read, and the diagram not chosen", () => {
+    expect(opensInSetup({ peopled: false, rulesRead: true, diagramChosen: false })).toBe(true);
+    expect(opensInSetup({ peopled: true, rulesRead: true, diagramChosen: false })).toBe(false);
+    expect(opensInSetup({ peopled: false, rulesRead: false, diagramChosen: false })).toBe(false);
+    expect(opensInSetup({ peopled: false, rulesRead: true, diagramChosen: true })).toBe(false);
   });
 });

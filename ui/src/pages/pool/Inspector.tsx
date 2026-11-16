@@ -9,7 +9,7 @@
  * carries the selected card's accent. AJ-E3011: the setup's checklist is
  * its side card, in order, until every step is done.
  */
-import { forwardRef, type JSX, type ReactNode } from "react";
+import { forwardRef, useState, type JSX, type ReactNode } from "react";
 
 import { AppIcon } from "../../components/AppIcon";
 import { appOfSession } from "../../lib/app-of";
@@ -47,6 +47,12 @@ import { startNextLead } from "../../lib/start-lead";
 import type { PoolRules } from "../../lib/pool-rules";
 import type { PoolRuleInfo } from "../../lib/ipc/pool-model";
 import { reachOf, useDesktopMembers } from "../../lib/connector";
+import { Splitter, readEdgeWidth, type SplitterEdge } from "../../components/Splitter";
+
+/** The inspector's edge (AJ-E3011 round 5, under D-55: the 340 px panel
+ * hid Who leads and the role menu): 360 to 420 px, 380 at first, kept per
+ * viewer. */
+export const INSPECTOR_EDGE: SplitterEdge = { min: 360, max: 420, initial: 380, store: "aij.pool.inspector.width", label: "Resize the inspector", side: "left", testId: "inspector-splitter" };
 import type { DesktopMemberInfo } from "../../lib/ipc/connector";
 
 const ThreadView = lazyNamed(() => import("../messages/ThreadView"), "ThreadView");
@@ -290,12 +296,15 @@ export const Inspector = forwardRef<HTMLHeadingElement, {
   const watched = selection.kind === "rule" ? rules.watched.find((row) => row.member === selection.ref) : undefined;
   const lead = ruleLeadOf(rule, rules, members, { poolId: pool.id, where, dir: leadDir, onChange: () => setup.onOpen("lead") });
   const desktop = useDesktopMembers(pool.id);
+  const [width, setWidth] = useState(() => readEdgeWidth(INSPECTOR_EDGE));
   const of = selectionHead({ selection, member, rule, watched, canvas, names, ruleLabel, lead, pool, project, where, needs, desktop });
   const head = inspectorHead(of);
   // The selected card and the inspector are linked by the same accent.
   const linked = of.kind !== "pool";
   return (
-    <aside aria-labelledby="pool-inspector-title" className="flex h-full min-h-0 w-[340px] shrink-0 flex-col bg-surface-2/40 shadow-[inset_1px_0_0_var(--color-divider)]" data-testid="pool-inspector" data-selected={of.kind}>
+    <aside id="pool-inspector" aria-labelledby="pool-inspector-title" style={{ width }} className="relative flex h-full min-h-0 shrink-0 flex-col bg-surface-2/40 shadow-[inset_1px_0_0_var(--color-divider)]" data-testid="pool-inspector" data-selected={of.kind}>
+      {/* Round 5 (under D-55): wider, and resizable; its width is kept. */}
+      <Splitter edge={INSPECTOR_EDGE} width={width} onWidth={setWidth} controls="pool-inspector" />
       <div className={"flex shrink-0 items-start gap-2.5 px-4 pb-3 pt-3 " + (linked ? SELECTED_EDGE : "")} data-testid="inspector-head">
         {member && <AppIcon {...appOfSession(member.session)} size={32} />}
         <div className="flex min-w-0 flex-1 flex-col gap-1">

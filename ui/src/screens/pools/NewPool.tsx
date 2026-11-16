@@ -17,7 +17,6 @@
  */
 import { useEffect, useMemo, useRef, useState, type JSX } from "react";
 
-import { keepTabInside } from "../../components/form";
 import { Button } from "../../components/primitives";
 import { IconCheck } from "../../components/icons-controls";
 import { SELECTED } from "../../components/controls/selected";
@@ -32,6 +31,7 @@ import { useConversations } from "../../lib/conversations";
 import { useAgentBridge } from "../../lib/ipc/agent-bridge";
 import { MEMBER_KINDS, type MemberKind } from "../../lib/ipc/pool-model";
 import { broadCandidates, draftOf, makePool, sessionCandidates, thisMacOf, type Candidate, type Draft } from "../../lib/new-pool";
+import { NewPoolFrame, fitExisting, type ExistingPool } from "./NewPoolFrame";
 import { usePairedMacs } from "../../lib/ipc/fleet-launch";
 import { templateById, type PoolTemplate } from "../../lib/pool-templates";
 import { hasUserPools, refreshPools, usePools } from "../../lib/pools";
@@ -109,7 +109,15 @@ export function NewPool({
   startWith,
   onClose,
   startAt,
+  embedded = false,
+  existing,
 }: {
+  /** AJ-E3011 round 5: an empty pool's own page shows this setup in
+   * place (not over the window); its "Show the diagram" is `onClose`. */
+  embedded?: boolean;
+  /** Setting up an existing pool (`into`): its projects, its everyone
+   * member's role, and whether its scope is fixed (a project's own). */
+  existing?: ExistingPool;
   sessions: InstanceInfo[];
   projects: ProjectInfo[];
   accounts: AccountInfo[];
@@ -145,11 +153,11 @@ export function NewPool({
   const [draft, setDraft] = useState<Draft>(() => {
     // AJ-E3011: Start from scratch is where a newcomer starts.
     const first = templateById(startWith ?? "blank");
-    const made = draftOf(first, start);
+    const made = fitExisting(draftOf(first, start), existing);
     return { ...made, name: into?.name ?? (first.id === "blank" ? "" : freeName(first.name, taken)) };
   });
   const [busy, setBusy] = useState(false);
-  const dialogRef = useRef<HTMLDivElement | null>(null);
+  const dialogRef = useRef<HTMLDialogElement | null>(null);
   const primaryRef = useRef<HTMLButtonElement | null>(null);
   useEffect(() => primaryRef.current?.focus(), [step]);
 
@@ -186,7 +194,7 @@ export function NewPool({
 
   const choose = (id: string) => {
     const template = templateById(id);
-    setDraft((was) => ({ ...draftOf(template, start), members: was.members, name: into ? was.name : nameOnChoose(was, template, taken) }));
+    setDraft((was) => ({ ...fitExisting(draftOf(template, start), existing), members: was.members, name: into ? was.name : nameOnChoose(was, template, taken) }));
   };
   const fix = (row: Candidate) => {
     if (!row.fix) return;
@@ -209,7 +217,7 @@ export function NewPool({
     }
     setBusy(true);
     try {
-      const id = await makePool({ ...draft, name }, into?.id);
+      const id = await makePool({ ...draft, name }, into?.id, { keepScope: existing?.fixedScope === true });
       // The canvas's checklist: the steps walked here are seen.
       markSeen(id, steps.slice(1, Math.max(step, furthest) + 1));
       await refreshPools();
@@ -235,30 +243,7 @@ export function NewPool({
     projects: projects.map((one) => ({ id: one.id, name: one.name, root: one.root, open: sessions.some((session) => session.project_id === one.id && sessionState(session).state !== "ended") })),
   };
   return (
-    <div
-      ref={dialogRef}
-      role="dialog"
-      aria-modal="true"
-      aria-label="New pool"
-      className="fixed inset-0 z-50 flex flex-col bg-canvas"
-      data-testid="new-pool"
-      onKeyDown={(event) => {
-        if (event.key === "Escape") {
-          event.stopPropagation();
-          onClose();
-        }
-        keepTabInside(dialogRef.current, event);
-      }}
-    >
-      {/* rc5 walk: the wizard takes the whole window, so its title starts
-          below the window's traffic lights (the overlay title bar's top
-          28 px, as the rail's does), and the bar moves the window. */}
-      <header data-tauri-drag-region className="flex items-center gap-3 bg-surface px-5 pb-3 pt-8">
-        <h2 className="text-title font-semibold text-ink">
-          {into ? `Set up ${into.name}` : "New pool"}
-          {step > 0 && <span className="text-ink-2"> · {name}</span>}
-        </h2>
-      </header>
+    <NewPoolFrame embedded={embedded} dialogRef={dialogRef} onClose={onClose} title={into ? `Set up ${into.name}` : "New pool"} name={step > 0 ? name : null}>
       <div className="flex min-h-0 flex-1">
         <nav aria-label="Steps" className="flex w-60 shrink-0 flex-col gap-0.5 bg-surface p-3">
           {steps.map((id, at) => {
@@ -294,7 +279,7 @@ export function NewPool({
         <main className="min-w-0 flex-1 overflow-y-auto bg-canvas px-6 py-5">
           <div className="mx-auto flex max-w-5xl flex-col gap-4">
             {current === "template" && <NewPoolTemplate chosen={draft.template} onChoose={choose} first={firstPool} />}
-            {current === "where" && <NewPoolWhere draft={draft} onDraft={setDraft} projects={stepCandidates.projects} nameFixed={!!into} suggestedName={suggestedName} />}
+            {current === "where" && <NewPoolWhere draft={draft} onDraft={setDraft} projects={stepCandidates.projects} nameFixed={!!into} suggestedName={suggestedName} scopeFixed={existing?.fixedScope ? `Every session in ${where} is part of this team.` : undefined} />}
             {current === "who" && <NewPoolWho draft={draft} onDraft={setDraft} candidates={candidates} onFix={fix} nameOf={memberName} where={where} />}
             {current === "lead" && <NewPoolLead draft={draft} onDraft={setDraft} sessions={candidates.session} nameOf={memberName} where={where} />}
             {current === "everyone" && <NewPoolEveryone draft={draft} onDraft={setDraft} where={where} nameOf={memberName} />}
@@ -310,6 +295,7 @@ export function NewPool({
         steps={steps}
         prefilled={step >= MAKE_FROM && !last ? prefilled : null}
         into={!!into}
+        cancel={!embedded}
         busy={busy}
         primaryRef={primaryRef}
         onClose={onClose}
@@ -317,7 +303,7 @@ export function NewPool({
         onMake={() => void make()}
         onNext={() => go(step + 1)}
       />
-    </div>
+    </NewPoolFrame>
   );
 }
 
@@ -328,6 +314,7 @@ function NewPoolFooter({
   steps,
   prefilled,
   into,
+  cancel,
   busy,
   primaryRef,
   onClose,
@@ -340,6 +327,9 @@ function NewPoolFooter({
   /** What the rest is filled in with; `null` before Who's in and on Review. */
   prefilled: string | null;
   into: boolean;
+  /** Cancel, unless it's in place on an empty pool's page (its "Show
+   * the diagram" is above). */
+  cancel: boolean;
   busy: boolean;
   primaryRef: React.RefObject<HTMLButtonElement | null>;
   onClose: () => void;
@@ -358,9 +348,11 @@ function NewPoolFooter({
       ) : (
         <span className="flex-1" />
       )}
-      <Button variant="ghost" onClick={onClose} data-testid="new-pool-cancel">
-        Cancel
-      </Button>
+      {cancel && (
+        <Button variant="ghost" onClick={onClose} data-testid="new-pool-cancel">
+          Cancel
+        </Button>
+      )}
       {step > 0 && (
         <Button variant="ghost" onClick={onBack} data-testid="new-pool-back">
           Back

@@ -30,6 +30,15 @@ import { TalkTable } from "./setup/TalkTable";
 import type { MemberNode } from "./useCanvas";
 import type { Selection } from "./Canvas";
 
+/** A section's control to focus when it's opened: the choice made (a
+ * checked radio), else its first control past its fold's heading. */
+function controlOf(section: HTMLElement): HTMLElement | null {
+  const checked = section.querySelector<HTMLElement>("input:checked:not(:disabled)");
+  if (checked) return checked;
+  const all = section.querySelectorAll<HTMLElement>("button:not(:disabled), input:not(:disabled), select:not(:disabled), [tabindex='0']");
+  return [...all].find((one) => !one.closest("summary")) ?? null;
+}
+
 const failed = (what: string) => (cause: unknown) => showToast({ message: `Couldn't ${what}`, detail: errorText(cause), tone: "error" });
 
 /** The pool's role-pair talk as the table reads it. */
@@ -64,10 +73,13 @@ export function PoolSetupSections({
   const focus = selection.kind === "pool" ? selection.focus : undefined;
   useEffect(() => {
     // Only the inspector's own list scrolls (scrollIntoView moved the whole
-    // window: the app's frame slid up under the gallery's capture).
+    // window: the app's frame slid up under the gallery's capture). Round 5
+    // (under D-55): the control being edited is focused, at the top.
     const section = focus ? document.getElementById(`pool-setup-${focus}`) : null;
     const list = section?.closest<HTMLElement>("[data-canvas-scroll]");
-    if (section && list) list.scrollTop += section.getBoundingClientRect().top - list.getBoundingClientRect().top;
+    if (!section || !list) return;
+    list.scrollTop += section.getBoundingClientRect().top - list.getBoundingClientRect().top;
+    controlOf(section)?.focus({ preventScroll: true });
   }, [focus]);
   const run = (what: string, work: () => Promise<unknown>) => {
     setBusy(true);

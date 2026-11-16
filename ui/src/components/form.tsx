@@ -36,7 +36,7 @@ export function Input({ className = "", ...props }: InputHTMLAttributes<HTMLInpu
 }
 
 /** §2.5: Tab and Shift+Tab stay inside `container` (a dialog's trap). */
-export function keepTabInside(container: HTMLElement | null, event: KeyboardEvent<HTMLElement>): void {
+export function keepTabInside(container: HTMLElement | null, event: Pick<KeyboardEvent<HTMLElement>, "key" | "shiftKey" | "preventDefault">): void {
   if (event.key !== "Tab") return;
   const focusable = Array.from(
     container?.querySelectorAll<HTMLElement>("button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), a[href], [tabindex='0']") ?? [],

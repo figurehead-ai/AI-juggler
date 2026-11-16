@@ -16,6 +16,7 @@ import { poolJoin } from "../../lib/ipc/pool-model";
 import { usePendingAdds, withPendingAdd } from "../../lib/pool-pending";
 import { REACH_WORDS, type Candidate } from "../../lib/new-pool";
 import { setPools } from "../../lib/pools";
+import { keep, keepInPlace, type Kept } from "../../lib/in-place";
 
 export type MoreKind = "watched" | "app" | "account" | "tool" | "mac" | "everyone" | "blocked";
 
@@ -42,8 +43,10 @@ export function PaletteMore({
 }): JSX.Element {
   const kinds = (Object.keys(WORDS) as MoreKind[]).filter((kind) => kind === "everyone" || lists[kind].length > 0);
   const [kind, setKind] = useState<MoreKind>(kinds[0] ?? "everyone");
-  const rows = lists[kind] ?? [];
   const adding = new Set(usePendingAdds(poolId).map((one) => one.ref));
+  // Round 5: an added row stays where it was, marked added (no jump).
+  const [kept, setKept] = useState<ReadonlyMap<string, Kept<Candidate>>>(new Map());
+  const rows = keepInPlace((lists[kind] ?? []).slice(0, 30), kept, (row) => row.ref);
   const add = async (row: Candidate) => {
     try {
       // Round 4 (#5): its card shows at once, pending, until the pool says so.
@@ -64,26 +67,37 @@ export function PaletteMore({
         prefix="More:"
         value={kind}
         options={kinds.map((one) => ({ value: one, label: `${WORDS[one]} ${one === "everyone" ? "" : lists[one].length}`.trim() }))}
-        onChange={setKind}
+        onChange={(next) => {
+          setKept(new Map());
+          setKind(next);
+        }}
         testId="canvas-palette-kind"
       />
       <ul className="flex flex-col gap-1">
-        {rows.slice(0, 30).map((row) => (
+        {rows.map(({ row, added }, at) => (
           <li key={row.ref} className="flex flex-col gap-0.5 rounded-lg border border-dashed border-hairline bg-surface px-2 py-1.5" data-testid="canvas-palette-more-item">
             <span className="flex items-center gap-2">
               <span className="flex min-w-0 flex-1 flex-col">
                 <span className={"truncate text-meta " + (row.blocked ? "text-ink-2" : "text-ink")}>{row.label}</span>
                 <span className="truncate text-label text-faint">{row.reach === "later" && !row.blocked && row.kind !== "everyone" ? `${row.detail} · ${REACH_WORDS.later}` : row.detail}</span>
               </span>
-              {!row.blocked && adding.has(row.ref) && (
-                <output className="shrink-0 text-label text-muted" data-testid="canvas-palette-more-adding">
+              {added && (
+                <output className="shrink-0 px-1.5 py-0.5 text-label text-muted" data-testid="canvas-palette-more-added">
+                  Added
+                </output>
+              )}
+              {!added && !row.blocked && adding.has(row.ref) && (
+                <output className="shrink-0 px-1.5 py-0.5 text-label text-muted" data-testid="canvas-palette-more-adding">
                   Adding…
                 </output>
               )}
-              {!row.blocked && !adding.has(row.ref) && (
+              {!added && !row.blocked && !adding.has(row.ref) && (
                 <button
                   type="button"
-                  onClick={() => void add(row)}
+                  onClick={() => {
+                    setKept((was) => keep(was, row.ref, row, at));
+                    void add(row);
+                  }}
                   aria-label={`Add: ${row.label}`}
                   className="shrink-0 rounded-md px-1.5 py-0.5 text-label font-medium text-accent-hi outline-none hover:bg-accent-soft focus-visible:ring-1 focus-visible:ring-accent/60"
                   data-testid="canvas-palette-more-add"

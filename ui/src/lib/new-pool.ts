@@ -370,7 +370,7 @@ export function talkChanges(talk: Draft["talk"]): { from: string; to: string; ru
 /** Makes the pool the draft describes, or (`into`) sets an existing one
  * up as it says; its id. Every step is the user's own call; nothing
  * starts a session. */
-export async function makePool(draft: Draft, into?: string): Promise<string> {
+export async function makePool(draft: Draft, into?: string, { keepScope = false }: { keepScope?: boolean } = {}): Promise<string> {
   let made: PoolInfo | undefined;
   if (into) made = { id: into } as PoolInfo;
   else {
@@ -378,7 +378,8 @@ export async function makePool(draft: Draft, into?: string): Promise<string> {
     made = before.pools.find((pool) => pool.name === draft.name.trim() && pool.kind === "user");
   }
   if (!made) throw new Error("The pool wasn't made");
-  await poolSetScope(made.id, draft.every, draft.every ? [] : draft.projects);
+  // A project's own pool works in its project: its scope isn't set.
+  if (!keepScope) await poolSetScope(made.id, draft.every, draft.every ? [] : draft.projects);
   if (draft.level !== "work_together") await poolSetAccess(made.id, draft.level);
   for (const member of draft.members) await poolJoin(made.id, member.ref, member.role, member.level);
   for (const change of talkChanges(draft.talk)) await poolSetTalk(made.id, change.from, change.to, change.rule);

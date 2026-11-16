@@ -98,6 +98,13 @@ export function usePoolSetup(input: {
         return folder ? [{ id: folder, name: input.ruleLabel(rule) }] : [];
       }),
     },
-    room: ruleColumnRoom(input.rules, input.watched, leadCard),
+    room: ruleColumnRoom(drawnRules(input.pool, input.rules), input.watched, leadCard),
   };
+}
+
+/** The member rules the diagram draws as cards: a project's own pool
+ * draws no "Everyone in web" card (round 5): its header says every
+ * session in web is part of it, and Everyone else sets their role. */
+export function drawnRules<T extends { member: string }>(pool: Pick<PoolInfo, "kind">, rules: readonly T[]): T[] {
+  return pool.kind === "default" ? rules.filter((rule) => rule.member !== "all") : [...rules];
 }

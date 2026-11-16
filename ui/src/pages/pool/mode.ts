@@ -56,3 +56,34 @@ export function usePoolMode(poolId: string, empty = false): [Mode, (mode: Mode) 
   );
   return [mode, choose];
 }
+
+/** AJ-E3011 round 5: whether this pool's page shows its diagram though
+ * the pool is empty ("Show the diagram", or its setup made), kept per
+ * pool on this Mac. Until then an empty pool opens in the guided setup. */
+const DIAGRAM = (poolId: string) => `aij.pool.diagram.${poolId}`;
+
+export function useDiagramChosen(poolId: string): [boolean, () => void] {
+  const [chosen, setChosen] = useState(() => {
+    try {
+      return localStorage.getItem(DIAGRAM(poolId)) === "1";
+    } catch {
+      return false;
+    }
+  });
+  const choose = useCallback(() => {
+    try {
+      localStorage.setItem(DIAGRAM(poolId), "1");
+    } catch {
+      // Storage unavailable: this visit only.
+    }
+    setChosen(true);
+  }, [poolId]);
+  return [chosen, choose];
+}
+
+/** Whether an empty pool's page opens in the guided setup: no members
+ * (sessions, or member rules beyond a project's own everyone), its rules
+ * read, and the diagram not chosen. */
+export function opensInSetup({ peopled, rulesRead, diagramChosen }: { peopled: boolean; rulesRead: boolean; diagramChosen: boolean }): boolean {
+  return rulesRead && !peopled && !diagramChosen;
+}

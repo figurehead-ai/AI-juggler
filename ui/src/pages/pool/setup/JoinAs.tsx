@@ -32,7 +32,7 @@ export function JoinAs({
   return (
     <div className="flex flex-col gap-1.5" data-testid={testId}>
       <span className="flex flex-wrap items-center gap-2 text-meta font-medium text-ink">
-        New sessions in {where} join as
+        New sessions in {where} join as:
         <Picker
           choice
           size="sm"

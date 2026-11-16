@@ -19,7 +19,10 @@ export function NewPoolWhere({
   projects,
   nameFixed = false,
   suggestedName,
+  scopeFixed,
 }: {
+  /** A project's own pool (round 5): its scope, said, not chosen. */
+  scopeFixed?: string;
   draft: Draft;
   onDraft: (next: Draft) => void;
   /** Every project; `open`: it has sessions open now (shown first). */
@@ -50,6 +53,11 @@ export function NewPoolWhere({
         />
         <span className="text-meta text-muted">{draft.name.trim() ? "You can rename it later." : `Left empty, it's called «${suggestedName}».`}</span>
       </label>
+      {scopeFixed ? (
+        <p className="text-meta text-ink" data-testid="new-pool-where-fixed">
+          {scopeFixed}
+        </p>
+      ) : (
       <fieldset className="flex min-w-0 flex-col gap-2">
         <legend className="mb-2 text-meta font-medium text-ink">Which projects its sessions come from</legend>
         <Segmented
@@ -97,6 +105,7 @@ export function NewPoolWhere({
               : `Only sessions in ${draft.projects.map(name).join(", ")} can join, and they see only this pool's members.`}
         </p>
       </fieldset>
+      )}
     </div>
   );
 }
