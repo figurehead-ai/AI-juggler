@@ -36,8 +36,8 @@ import type { AccountInfo } from "../../types/generated/AccountInfo";
 import type { InstanceInfo } from "../../types/generated/InstanceInfo";
 import type { ProjectInfo } from "../../types/generated/ProjectInfo";
 import { RelatedPools, usePagePools } from "../../components/RelatedPools";
-import { useRelationCounts } from "../../lib/relation-counts";
-import { accountApps, accountAppsNow, accountItems } from "../../lib/account-items";
+import { useRelatedCounts, useRelationCounts } from "../../lib/relation-counts";
+import { accountApps, accountAppsNow, accountItems, withCounts } from "../../lib/account-items";
 import { openHere, useWorkedProjects, type appProjects } from "../../lib/app-items";
 import { appByRailKey, useApps, type AppModel } from "../../lib/apps";
 import { appByConversation, appByFolder, appKeyOf } from "../../lib/rail-apps";
@@ -101,7 +101,13 @@ function AccountBody({ sub, onChanged, sessions, projects, accounts, now, onOpen
   // "Instant and paged": its count from the Accounts' list at once; its
   // rows once the Apps are read (a placeholder till then, never empty).
   const known = useMemo(() => accountAppsNow(apps, sub, folderIds), [apps, sub, folderIds]);
-  const onIt = useMemo(() => (apps && known ? accountApps(apps, sub, folderIds, allItems, byConversation) : null), [apps, known, sub, folderIds, allItems, byConversation]);
+  // Walk K1 (0.4.6 RC): each App's sessions on this Account as its
+  // Sessions tab counts them (the backend's cache), not the loaded window.
+  const appCounts = useRelatedCounts("subscription", sub.account_id, "app");
+  const onIt = useMemo(
+    () => (apps && known ? withCounts(accountApps(apps, sub, folderIds, allItems, byConversation), appCounts) : null),
+    [apps, known, sub, folderIds, allItems, byConversation, appCounts],
+  );
   const appCount = known?.ids.length;
   const worked = useWorkedProjects("subscription", sub.account_id, items, projects);
   // Each session's App, by the rail's rule (a session that ended in the

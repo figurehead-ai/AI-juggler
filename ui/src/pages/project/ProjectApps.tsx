@@ -11,7 +11,7 @@ import { hasLiveBackend } from "../../lib/bridge";
 import type { AccountInfo } from "../../types/generated/AccountInfo";
 import type { InstanceInfo } from "../../types/generated/InstanceInfo";
 import type { ProjectInfo } from "../../types/generated/ProjectInfo";
-import { appsAmong, type AccountApp } from "../../lib/account-items";
+import { appsAmong, withCounts, type AccountApp } from "../../lib/account-items";
 import { useApps } from "../../lib/apps";
 import { appByConversation } from "../../lib/rail-apps";
 import { itemsOf } from "../../lib/rail-items";
@@ -39,7 +39,7 @@ export function useProjectApps(project: ProjectInfo | null | undefined, sessions
   return useMemo(() => {
     if (!apps || !project) return null;
     const rows = appsAmong(apps, live ? ids : undefined, items, byConversation);
-    return counts ? rows.map((row) => ({ ...row, sessions: counts.get(row.app.id) ?? row.sessions })) : rows;
+    return withCounts(rows, counts);
   }, [apps, project, live, ids, counts, items, byConversation]);
 }
 
