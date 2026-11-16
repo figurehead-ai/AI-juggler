@@ -123,15 +123,56 @@ fn preview_add_status_and_remove_through_the_app() {
             .state,
         "changed"
     );
-    let removal = super::remove_impl(&lab.state, &lab.claude_app).unwrap();
-    assert_eq!(removal.kept.len(), 1);
-    assert!(removal.kept[0].ends_with("SKILL.md"));
+    // A11: all or nothing, the changed file named; then put back as Add
+    // wrote it, Remove takes it all out.
+    assert!(super::remove_impl(&lab.state, &lab.claude_app).is_err());
     assert_eq!(std::fs::read_to_string(&skill).unwrap(), "mine now\n");
     assert!(
-        !lab.claude_config
+        lab.claude_config
             .join("skills/ai-juggler/.claude-plugin")
+            .exists(),
+        "nothing taken out"
+    );
+    super::add_impl(&lab.state, &lab.claude_app).unwrap_err();
+    let removal = super::remove_anyway_impl(&lab.state, &lab.claude_app).unwrap();
+    assert!(removal.kept.is_empty());
+    assert!(!lab.claude_config.join("skills/ai-juggler").exists());
+}
+
+/// The lab's A11: Remove is all or nothing; a file changed since Add
+/// refuses it, naming the file, and Remove anyway (the window's confirmed
+/// choice) takes it all out.
+#[test]
+fn remove_refuses_on_a_changed_file_and_remove_anyway_takes_it_all() {
+    let lab = lab();
+    super::add_impl(&lab.state, &lab.claude_app).unwrap();
+    let skill = lab
+        .claude_config
+        .join("skills/ai-juggler/skills/pool-tasks/SKILL.md");
+    std::fs::write(&skill, "my own notes\n").unwrap();
+    let refused = super::remove_impl(&lab.state, &lab.claude_app).unwrap_err();
+    assert!(
+        refused
+            .to_string()
+            .contains("skills/ai-juggler/skills/pool-tasks/SKILL.md"),
+        "{refused}"
+    );
+    assert!(skill.exists(), "nothing taken out");
+    assert!(
+        lab.claude_config
+            .join("skills/ai-juggler/.claude-plugin/plugin.json")
             .exists()
     );
+    assert_eq!(
+        super::status_impl(&lab.state, &lab.claude_app)
+            .unwrap()
+            .state,
+        "changed"
+    );
+    let removal = super::remove_anyway_impl(&lab.state, &lab.claude_app).unwrap();
+    assert!(removal.kept.is_empty());
+    assert!(!lab.claude_config.join("skills/ai-juggler").exists());
+    assert_eq!(removal.status.state, "absent");
 }
 
 #[test]

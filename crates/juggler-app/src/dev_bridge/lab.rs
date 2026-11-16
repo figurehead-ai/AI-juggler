@@ -553,7 +553,9 @@ fn guard(state: &AppState, ipc: &str, args: &mut serde_json::Value) -> Result<()
         // AJ-E3013 (the done-gate walk of the Claude-app persona): Add and
         // Remove write and take out only the App's config folder; that
         // folder and its instance folder must be the lab's.
-        "connector_add" | "connector_remove" => desktop_app_in_lab(state, &text(args, "appId")?),
+        "connector_add" | "connector_remove" | "connector_remove_anyway" => {
+            desktop_app_in_lab(state, &text(args, "appId")?)
+        }
         "switch_execute" => {
             // Neither side may be condition 7's folder: a switch writes the
             // carried conversation into the target's folder (the review).
@@ -704,6 +706,7 @@ lab_routes! {
     // desktop App (the guard: its config and instance folders the lab's).
     "connector_add" => features::connector::commands::connector_add(state; app_id: String);
     "connector_remove" => features::connector::commands::connector_remove(state; app_id: String);
+    "connector_remove_anyway" => features::connector::commands::connector_remove_anyway(state; app_id: String);
 }
 
 #[cfg(test)]

@@ -11,8 +11,9 @@
 //! - **Preview** shows each file before and after; **Add** writes and
 //!   records each file's fingerprint here (`connectors.json`, `0600`, in
 //!   AI Juggler's data folder) so **Remove** takes out exactly what it
-//!   wrote and names what someone changed; **status** says absent,
-//!   current, outdated or changed.
+//!   wrote, all or nothing: a file someone changed refuses it, named, and
+//!   **Remove anyway** (the person's confirmed choice) deletes it too;
+//!   **status** says absent, current, outdated or changed.
 //! - **A pool's desktop members** ([`desktop_members_impl`]): each one's
 //!   App, its connector, whether one of its sessions called lately (the
 //!   attestation's facts, `Storage::attested`), and whether a new pool
@@ -305,14 +306,29 @@ pub fn add_impl(state: &Arc<AppState>, app_id: &str) -> AppResult<ConnectorStatu
     Ok(status_of(&target, &plan, records.get(app_id)))
 }
 
-/// Takes the connector out of the App `app_id`: only what still matches
-/// what Add wrote; what someone changed stays, named.
+/// Takes the connector out of the App `app_id`, all or nothing: when a
+/// file it wrote was changed since, nothing is taken out and the refusal
+/// names it (the window then offers [`remove_anyway_impl`]).
 ///
 /// # Errors
 ///
-/// [`AppError::Refused`] when AI Juggler has no record of adding it there;
-/// a write's error.
+/// [`AppError::Refused`] when AI Juggler has no record of adding it there,
+/// or a file was changed since (named); a write's error.
 pub fn remove_impl(state: &Arc<AppState>, app_id: &str) -> AppResult<ConnectorRemovalInfo> {
+    remove_as(state, app_id, false)
+}
+
+/// The person's "Remove anyway (also deletes <file>)", after the window
+/// confirmed it: the connector taken out whole, a changed file too.
+///
+/// # Errors
+///
+/// As [`remove_impl`], but never for a changed file.
+pub fn remove_anyway_impl(state: &Arc<AppState>, app_id: &str) -> AppResult<ConnectorRemovalInfo> {
+    remove_as(state, app_id, true)
+}
+
+fn remove_as(state: &Arc<AppState>, app_id: &str, anyway: bool) -> AppResult<ConnectorRemovalInfo> {
     let target = target(state, app_id).map_err(AppError::Refused)?;
     let plan = plan_for(state, &target).map_err(AppError::Refused)?;
     let _writing = WRITING
@@ -325,8 +341,12 @@ pub fn remove_impl(state: &Arc<AppState>, app_id: &str) -> AppResult<ConnectorRe
                 .to_owned(),
         )
     })?;
-    let removal = connector_files::remove(&target.config_dir, &record)
-        .map_err(|error| AppError::Refused(error.to_string()))?;
+    let removal = if anyway {
+        connector_files::remove_anyway(&target.config_dir, &record)
+    } else {
+        connector_files::remove(&target.config_dir, &record)
+    }
+    .map_err(|error| AppError::Refused(error.to_string()))?;
     match &removal.left {
         Some(left) => records.insert(app_id.to_owned(), left.clone()),
         None => records.remove(app_id),

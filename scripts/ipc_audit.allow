@@ -9,6 +9,7 @@
 # each listed one says why its list stays small, or "TO PAGE" with what reads it.
 # uncalled entries carry the date they were listed: 2026-10-21.
 uncalled account_audit
+uncalled connector_remove_anyway  # 2026-11-16: the backend of Remove anyway (AJ-E3013, lab A11); the UI's confirm comes with the UI builder's round
 uncalled harnesses_list_alias
 uncalled isolation_check
 uncalled parked_list
@@ -57,6 +58,7 @@ unbounded connector_add  # bounded: the connector's few files (two for the Claud
 unbounded connector_desktop_members  # bounded: the desktop members the user named in one pool (the canvas shows at most 60)
 unbounded connector_preview  # bounded: the connector's few files (two for the Claude app, one for the Codex app)
 unbounded connector_remove  # bounded: the connector's few files (two for the Claude app, one for the Codex app)
+unbounded connector_remove_anyway  # bounded: the connector's few files (two for the Claude app, one for the Codex app)
 unbounded connector_status  # bounded: the connector's few files (two for the Claude app, one for the Codex app)
 unbounded conversations_earlier  # bounded: one page of at most 60 turns (feed::PAGE_MAX), keyset-paged by the offset where a turn starts (ADR-0024)
 unbounded conversations_follow  # bounded: the latest turns, at most 60 (feed::PAGE_MAX); changes after come on its channel, at most 100 turns each (ADR-0024)

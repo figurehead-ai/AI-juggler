@@ -401,6 +401,8 @@ export interface Commands {
   connector_preview: { args: { appId: string }; result: ConnectorPreviewInfo };
   /** Write features::connector::commands::connector_remove */
   connector_remove: { args: { appId: string }; result: ConnectorRemovalInfo };
+  /** Write features::connector::commands::connector_remove_anyway */
+  connector_remove_anyway: { args: { appId: string }; result: ConnectorRemovalInfo };
   /** Read features::connector::commands::connector_status */
   connector_status: { args: { appId: string }; result: ConnectorStatusInfo };
   /** Write features::conversations::archive::conversations_archive */

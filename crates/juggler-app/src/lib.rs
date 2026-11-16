@@ -428,6 +428,7 @@ macro_rules! app_commands {
             Read  features::connector::commands::connector_preview,
             Write features::connector::commands::connector_add,
             Write features::connector::commands::connector_remove,
+            Write features::connector::commands::connector_remove_anyway,
             Read  features::connector::commands::connector_status,
             Read  features::connector::commands::connector_desktop_members,
             Read  features::runtime::commands::runtime_get,

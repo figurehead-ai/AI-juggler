@@ -59,6 +59,24 @@ pub async fn connector_remove(
     .await
 }
 
+/// The person's "Remove anyway (also deletes <file>)" for the desktop App
+/// `app_id`, after the window confirmed it: the connector taken out
+/// whole, a file changed since Add too.
+///
+/// # Errors
+///
+/// As [`super::remove_anyway_impl`].
+#[tauri::command]
+pub async fn connector_remove_anyway(
+    state: tauri::State<'_, Arc<AppState>>,
+    app_id: String,
+) -> AppResult<ConnectorRemovalInfo> {
+    crate::ipc::blocking(state.inner(), "AI Juggler's connector", move |state| {
+        super::remove_anyway_impl(state, &app_id)
+    })
+    .await
+}
+
 /// Where AI Juggler's connector stands in the desktop App `app_id`.
 ///
 /// # Errors

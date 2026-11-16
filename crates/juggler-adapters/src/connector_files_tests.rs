@@ -146,9 +146,14 @@ fn preview_of(dir: &Path, plan: &ConnectorPlan, record: &ConnectorRecord) -> Vec
     preview(dir, plan, Some(record)).unwrap()
 }
 
+/// The lab's A11 (2026-11-15): Remove left a changed file and took the
+/// rest, half-removing the connector. Now it's all or nothing: a changed
+/// file refuses it, naming the file, with nothing taken out; Remove anyway
+/// (the person's confirmed choice) takes it all out, that file too.
 #[test]
-fn remove_keeps_and_names_a_file_someone_changed() {
+fn remove_refuses_naming_a_changed_file_and_remove_anyway_takes_it_all_out() {
     let root = claude_folder();
+    let before = (snapshot(root.path()), dirs(root.path()));
     let plan = claude("0.4.6");
     let record = add(root.path(), &plan, None).unwrap();
     let skill = root
@@ -157,33 +162,25 @@ fn remove_keeps_and_names_a_file_someone_changed() {
     std::fs::write(&skill, "my own notes\n").unwrap();
     let found = status(root.path(), &plan, Some(&record));
     assert_eq!(found.state, ConnectorState::Changed);
-    assert_eq!(
-        found.changed,
-        [PathBuf::from(
-            "skills/ai-juggler/skills/pool-tasks/SKILL.md"
-        )]
-    );
-    let removal = remove(root.path(), &record).unwrap();
-    assert_eq!(
-        removal.kept,
-        [PathBuf::from(
-            "skills/ai-juggler/skills/pool-tasks/SKILL.md"
-        )]
-    );
-    assert_eq!(std::fs::read_to_string(&skill).unwrap(), "my own notes\n");
+    let with_change = snapshot(root.path());
+    let refused = remove(root.path(), &record);
+    let Err(ConnectorError::Refused(why)) = &refused else {
+        unreachable!("{refused:?}");
+    };
     assert!(
-        !root
-            .path()
-            .join("skills/ai-juggler/.claude-plugin")
-            .exists()
+        why.contains("skills/ai-juggler/skills/pool-tasks/SKILL.md"),
+        "{why}"
     );
-    let left = removal.left.unwrap();
-    assert_eq!(left.parts.len(), 1, "the record keeps what stays");
-    // Add won't write over it either.
-    assert!(matches!(
-        add(root.path(), &plan, Some(&left)),
-        Err(ConnectorError::Refused(_))
-    ));
+    assert!(why.contains("Remove anyway"), "{why}");
+    assert_eq!(snapshot(root.path()), with_change, "nothing taken out");
+    let removal = remove_anyway(root.path(), &record).unwrap();
+    assert_eq!(removal.removed.len(), record.parts.len());
+    assert!(removal.kept.is_empty() && removal.left.is_none());
+    assert_eq!(
+        (snapshot(root.path()), dirs(root.path())),
+        before,
+        "the folder as it was before Add, the changed file gone too"
+    );
 }
 
 #[test]
@@ -378,7 +375,7 @@ fn codex_config_without_servers_or_without_a_file_comes_back_as_it_was() {
 }
 
 #[test]
-fn codex_keeps_a_users_juggler_server_and_a_table_they_changed() {
+fn codex_keeps_a_users_juggler_server_and_refuses_removing_a_table_they_changed() {
     let home = tempfile::tempdir().unwrap();
     let config = home.path().join("config.toml");
     let theirs = "[mcp_servers.juggler]\ncommand = \"/opt/my-juggler\"\n";
@@ -400,9 +397,17 @@ fn codex_keeps_a_users_juggler_server_and_a_table_they_changed() {
         status(home.path(), &codex(), Some(&record)).state,
         ConnectorState::Changed
     );
-    let removal = remove(home.path(), &record).unwrap();
-    assert_eq!(removal.kept, [PathBuf::from("config.toml")]);
+    // A11: all or nothing; Remove anyway unmerges the table as it is now,
+    // the rest of the user's file untouched.
+    assert!(matches!(
+        remove(home.path(), &record),
+        Err(ConnectorError::Refused(_))
+    ));
     assert_eq!(std::fs::read_to_string(&config).unwrap(), changed);
+    remove_anyway(home.path(), &record).unwrap();
+    let after = std::fs::read_to_string(&config).unwrap();
+    assert!(!after.contains("[mcp_servers.juggler]"), "{after}");
+    assert_eq!(after, CODEX_WITH_SERVERS, "the user's own file, as it was");
 }
 
 #[test]

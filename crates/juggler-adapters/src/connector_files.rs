@@ -181,9 +181,11 @@ impl From<std::io::Error> for ConnectorError {
 pub struct Removal {
     /// The files it took AI Juggler's parts out of (relative).
     pub removed: Vec<PathBuf>,
-    /// The files changed since Add, left as they are (relative).
+    /// The files changed since Add, left as they are (relative). Empty
+    /// since Remove is all or nothing (a changed part refuses it).
     pub kept: Vec<PathBuf>,
-    /// The record of what's left (the changed parts), `None` when nothing is.
+    /// The record of what's left, `None` when nothing is (always, since
+    /// Remove is all or nothing).
     pub left: Option<ConnectorRecord>,
 }
 
@@ -736,57 +738,102 @@ fn take_back(config_dir: &Path, done: &[(PathBuf, Option<String>)], made: &[Path
     }
 }
 
-/// Takes the connector out: each part only while it's as recorded; what
-/// changed stays, named.
+/// Takes the connector out, all or nothing (the lab's A11, 2026-11-15:
+/// taking out the unchanged parts and leaving a changed one half-removed
+/// it). When a part was changed since Add, nothing is taken out and the
+/// refusal names it: [`remove_anyway`] is the person's explicit "also
+/// delete it".
 ///
 /// # Errors
 ///
-/// [`ConnectorError::Io`] when a file can't be rewritten or removed.
+/// [`ConnectorError::Refused`] naming each changed part, or one that
+/// can't be read safely (a link, not a file of the folder's), with
+/// nothing taken out; [`ConnectorError::Io`] when a file can't be
+/// rewritten or removed.
 pub fn remove(config_dir: &Path, record: &ConnectorRecord) -> Result<Removal, ConnectorError> {
-    let mut removed = Vec::new();
-    let mut kept = Vec::new();
-    let mut left = Vec::new();
+    remove_with(config_dir, record, false)
+}
+
+/// [`remove`], the person's "Remove anyway": a part changed since Add is
+/// taken out too (the file deleted, or the merged table unmerged as it is
+/// now). A part that can't be read safely is still refused.
+///
+/// # Errors
+///
+/// As [`remove`], but never for a changed part.
+pub fn remove_anyway(
+    config_dir: &Path,
+    record: &ConnectorRecord,
+) -> Result<Removal, ConnectorError> {
+    remove_with(config_dir, record, true)
+}
+
+fn remove_with(
+    config_dir: &Path,
+    record: &ConnectorRecord,
+    anyway: bool,
+) -> Result<Removal, ConnectorError> {
+    // First, every part as it is now: nothing is taken out before all are
+    // known.
+    let mut found = Vec::new();
+    let mut changed = Vec::new();
     for done in &record.parts {
         let rel = done.path();
-        let Ok(found) = read_part(config_dir, rel) else {
-            kept.push(rel.to_path_buf());
-            left.push(done.clone());
-            continue;
+        let Ok(text) = read_part(config_dir, rel) else {
+            return Err(refused(format!(
+                "{} can't be read safely (a link, or not a file of this folder's), so nothing was taken out",
+                rel.display()
+            )));
         };
-        let Some(text) = found else {
+        let Some(text) = text else {
             continue; // already gone
         };
+        let as_added = match done {
+            RecordedPart::File { sha256, .. } => sha256_hex(text.as_bytes()) == *sha256,
+            RecordedPart::TomlTable {
+                table, fingerprint, ..
+            } => table_fingerprint(&text, table).is_none_or(|now| now == *fingerprint),
+        };
+        if !as_added {
+            changed.push(rel.to_path_buf());
+        }
+        found.push((done, text));
+    }
+    if !changed.is_empty() && !anyway {
+        let named: Vec<String> = changed
+            .iter()
+            .map(|rel| rel.display().to_string())
+            .collect();
+        return Err(refused(format!(
+            "{} changed since AI Juggler added it, so nothing was taken out. Remove anyway also deletes {}",
+            named.join(", "),
+            if named.len() == 1 { "it" } else { "them" }
+        )));
+    }
+    let mut removed = Vec::new();
+    for (done, text) in found {
+        let rel = done.path();
         match done {
-            RecordedPart::File { sha256, .. } => {
-                if sha256_hex(text.as_bytes()) == *sha256 {
-                    remove_part(config_dir, rel)?;
-                    removed.push(rel.to_path_buf());
-                } else {
-                    kept.push(done.path().to_path_buf());
-                    left.push(done.clone());
-                }
+            RecordedPart::File { .. } => {
+                remove_part(config_dir, rel)?;
+                removed.push(rel.to_path_buf());
             }
             RecordedPart::TomlTable {
                 table,
-                fingerprint,
                 created_file,
                 ..
-            } => match table_fingerprint(&text, table) {
-                None => {} // the user took it out
-                Some(now) if now == *fingerprint => {
-                    let rest = unmerged(&text, table)?;
-                    if *created_file && rest.trim().is_empty() {
-                        remove_part(config_dir, rel)?;
-                    } else {
-                        write_part(config_dir, rel, &rest, true, &mut Vec::new())?;
-                    }
-                    removed.push(done.path().to_path_buf());
+            } => {
+                if table_fingerprint(&text, table).is_none() {
+                    continue; // the user took it out
                 }
-                Some(_) => {
-                    kept.push(done.path().to_path_buf());
-                    left.push(done.clone());
+                let rest = unmerged(&text, table)?;
+                if *created_file && rest.trim().is_empty() {
+                    remove_part(config_dir, rel)?;
+                } else {
+                    write_part(config_dir, rel, &rest, true, &mut Vec::new())?;
                 }
-            },
+                removed.push(rel.to_path_buf());
+            }
         }
     }
     let mut dirs = record.dirs.clone();
@@ -797,23 +844,10 @@ pub fn remove(config_dir: &Path, record: &ConnectorRecord) -> Result<Removal, Co
             let _ = parent.remove_dir(&name);
         }
     }
-    let left = (!left.is_empty()).then(|| ConnectorRecord {
-        parts: left,
-        dirs: record
-            .dirs
-            .iter()
-            .filter(|dir| {
-                Dir::root(config_dir)
-                    .and_then(|root| root.walk(dir, false, &mut Vec::new()))
-                    .is_ok()
-            })
-            .cloned()
-            .collect(),
-    });
     Ok(Removal {
         removed,
-        kept,
-        left,
+        kept: Vec::new(),
+        left: None,
     })
 }
 
