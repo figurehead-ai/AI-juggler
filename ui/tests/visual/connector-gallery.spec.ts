@@ -250,7 +250,12 @@ for (const theme of ["dark", "light"] as const) {
     await page.locator(`[data-rule-ref="app:${WORK}"]`).click();
     await expect(page.getByTestId("inspect-connector-changed")).toContainText("SKILL.md");
     await page.getByTestId("inspect-connector-remove").click();
-    await expect(page.getByTestId("inspect-connector-remove-changed")).toContainText("SKILL.md changed since AI Juggler added it, so Remove takes nothing out.");
+    // Round 7 #8: nothing was taken out, said plainly; then what Remove
+    // anyway would delete, never "Deletes …" as if Remove will.
+    await expect(page.getByTestId("inspect-connector").locator("h4")).toHaveText("Nothing was taken out of Claude app · Work Max");
+    await expect(page.getByTestId("inspect-connector-remove-changed")).toHaveText("SKILL.md changed since AI Juggler added it, so Remove leaves the connector as it is.");
+    await expect(page.getByTestId("inspect-connector")).toContainText("Remove anyway would delete:");
+    await expect(page.getByTestId("inspect-connector")).not.toContainText("Deletes ");
     await expect(page.getByTestId("inspect-connector-remove-anyway")).toHaveText("Remove anyway (also deletes SKILL.md)");
     await expect(page.getByTestId("inspect-connector-cancel")).toBeFocused();
     await expect(page.getByTestId("inspect-connector-remove-anyway")).toBeInViewport();
@@ -274,5 +279,23 @@ for (const theme of ["dark", "light"] as const) {
     await expect(toIt).toHaveText("2 messages · Ask first here");
     await axe(page, `desktop line selected ${theme}`);
     await shoot(page, `desktop-line-selected-1280x800-${theme}.png`);
+  });
+
+  // Round 7 #9 (aij-test run 3): "Add a session" says how a desktop app's
+  // sessions take part once for its list; each row only where it stands.
+  test(`Add a session: the desktop note once, each row Watched or Can talk — ${theme}`, async ({ page }) => {
+    await open(page, theme);
+    await poolPage(page);
+    const palette = page.getByTestId("canvas-palette");
+    if (!(await page.getByTestId("canvas-palette-body").isVisible())) await palette.getByRole("button", { name: /Add a session/ }).click();
+    await page.getByTestId("canvas-palette-kind").click();
+    await page.getByRole("menuitemradio", { name: /^Apps/ }).click();
+    await expect(page.getByTestId("canvas-palette-more-note")).toHaveCount(1);
+    await expect(page.getByTestId("canvas-palette-more-note")).toContainText("Sessions in a desktop app talk in the pool once AI Juggler's connector");
+    const personal = page.getByTestId("canvas-palette-more-item").filter({ hasText: "Claude app · Personal" });
+    await expect(personal.getByTestId("canvas-palette-more-reach")).toHaveText("Can talk");
+    await expect(page.getByTestId("canvas-palette-more-item").filter({ hasText: "a small helper" })).toHaveCount(0);
+    await axe(page, `add a session ${theme}`);
+    await shoot(page, `add-a-session-1280x800-${theme}.png`);
   });
 }

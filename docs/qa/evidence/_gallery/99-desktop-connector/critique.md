@@ -1,4 +1,4 @@
-<!-- captures: 5fe50edda94f -->
+<!-- captures: 1db62b88c030 -->
 # 99-desktop-connector: desktop apps in a pool through AI Juggler's connector (AJ-E3013)
 
 Design critique (D-57, AJ-E2814) against 99-pool-selection (the canvas and inspector around it), 92-agent-tools (the team tools card, the same card shape) and the calm UI round 2 rules. The Checkout team pool with a Claude app profile as an App member (no connector), a Claude app session connected, another Watched, and a ChatGPT (Codex app) thread; dark and light, 1280×800. Fixtures only: nothing is written or run.
@@ -74,3 +74,15 @@ Checked by eye, dark and light:
 - preview-text: "Show the files" and "Its text" are buttons with aria-expanded (the aij-test driver's accessibility press did nothing on the old `<summary>`); the fold's text sits 2 px further from its chevron. Pass.
 - Weak (unchanged): the ChatGPT row's note still says "with AI Juggler's connector in it … its sessions talk in the pool", though the Codex app can't take it yet; ticked, its row says why.
 - The other captures re-rendered with under 60 px of noise and were left as committed.
+
+## Round 7, items 6–9 (aij-test run 3)
+
+Checked by eye, dark and light:
+
+- new-pool, new-pool-added: Who's in says once, under its kind line, "Sessions in a desktop app talk in the pool once AI Juggler's connector (a small helper, added with your OK) is in their app; until then they're Watched: shown and counted, without the pool's tools."; each unticked desktop row says only where it stands, "Watched" (amber: ChatGPT) or "Can talk" (green: Claude app · Personal), beside "new ones join". The ticked row keeps its own consent line and Add. Pass.
+- add-a-session (new): Add a session's More: Apps 4 has the same sentence once over the list; the ChatGPT row says "Watched" beside its Add, no row repeats the paragraph. Pass.
+- remove-anyway: the refusal is titled "Nothing was taken out of Claude app · Work Max", then "SKILL.md changed since AI Juggler added it, so Remove leaves the connector as it is.", then "Remove anyway would delete:" with both files (the changed one in amber, said so), Remove anyway and Cancel. No "Deletes …" line says Remove will. Pass.
+- desktop-line (new): Planner and the Work App's "Tidy the checkout tests" messaged each other; two lines run from the session's row to Planner's node, each way, with "2 messages" and "1 message" on labels kept apart. Pass.
+- desktop-line-selected (new): the "2 messages" line selected (accent): the inspector reads "Planner → Tidy the checkout tests", its Talk rule set to Ask first, "This line has its own rule; the role pair Member → Member says Allowed…", and the label reads "2 messages · Ask first here" (wrapped in two lines between the node and the row). Pass.
+- The pool page following sessions live (round 7 #6) has no capture: a unit test drives a session's start and end events with no navigation.
+- Weak: at 33 % the line from Planner's node runs close to the "1 waiting" chip; the labels sit on the lines' straight middle.
