@@ -8,15 +8,32 @@
  * bridge's `launchSession` raises it). Keyboard: focus starts on the
  * first action, Tab stays inside, Esc cancels.
  */
-import { useEffect, useRef, useState, type JSX } from "react";
+import { useEffect, useMemo, useRef, useState, type JSX } from "react";
 import { IDENTITY_MISMATCH_EVENT, type IdentityDecision, type IdentityMismatchRequest } from "../lib/ipc/launch";
 import { launchSettingsName } from "../lib/account-words";
-import { cliAppName } from "../lib/app-name";
+import { useCliRecipes, useTargetApp } from "../lib/apps";
+import type { LaunchRecipeInfo } from "../types/generated/LaunchRecipeInfo";
 import { PRIMARY_FILL } from "./primitives";
 
-export function IdentityMismatchDialog(): JSX.Element | null {
+const NO_RECIPES: readonly LaunchRecipeInfo[] = [];
+
+export function IdentityMismatchDialog({ recipes = NO_RECIPES }: { recipes?: readonly LaunchRecipeInfo[] }): JSX.Element | null {
   const [request, setRequest] = useState<IdentityMismatchRequest | null>(null);
   const dialogRef = useRef<HTMLDivElement | null>(null);
+  // The 0.4.6 RC walks A8 and K4: each way out is a CLI start, so a CLI
+  // App's launch settings only (`cliRecipes`; the alternatives name a
+  // recipe, its folder is the app's launch settings'), each named by its
+  // App (`targetApp`: your name for it, never "Claude Code CLI · Work Max").
+  const appOf = useTargetApp();
+  const folders = useMemo(
+    () =>
+      (request?.check.alternatives ?? []).map((alternative) => {
+        const recipe = recipes.find((row) => row.id === alternative.recipe_id);
+        return { ...alternative, account_id: recipe?.account_id ?? "", tool: recipe?.provider ?? request?.check.provider ?? null };
+      }),
+    [request, recipes],
+  );
+  const alternatives = useCliRecipes(folders) ?? [];
 
   useEffect(() => {
     const onRequest = (event: Event) => {
@@ -74,7 +91,7 @@ export function IdentityMismatchDialog(): JSX.Element | null {
         className="flex w-full max-w-md flex-col gap-3 rounded-xl border border-warning/50 bg-surface p-5 shadow-card"
       >
         <h3 id="identity-title" className="text-sm font-semibold">
-          <span aria-hidden="true">⚠ </span>Wrong account for {cliAppName(check.provider, check.account_label)}
+          <span aria-hidden="true">⚠ </span>Wrong account for {appOf({ folder: check.account_id, tool: check.provider, label: check.account_label }).name}
         </h3>
         <div id="identity-body" className="flex flex-col gap-1.5 text-label text-ink">
           <p>Nothing has launched. This app's sign-in changed:</p>
@@ -92,7 +109,7 @@ export function IdentityMismatchDialog(): JSX.Element | null {
           </p>
         </div>
         <div className="flex flex-col gap-1.5">
-          {check.alternatives.map((alternative, index) => (
+          {alternatives.map((alternative, index) => (
             <button
               key={alternative.recipe_id}
               type="button"
@@ -102,7 +119,7 @@ export function IdentityMismatchDialog(): JSX.Element | null {
               data-testid="identity-switch"
             >
               <span className="font-medium">
-                Use {cliAppName(check.provider, alternative.account_label)} ({launchSettingsName(alternative.recipe_name)})
+                Use {appOf({ folder: alternative.account_id, tool: alternative.tool, label: alternative.account_label }).name} ({launchSettingsName(alternative.recipe_name)})
               </span>
               {/* The address whole, never broken across lines. */}
               <span>
