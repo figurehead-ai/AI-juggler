@@ -477,6 +477,11 @@ fn the_file_backend_runs_only_on_the_version_its_proof_read() {
     );
     assert!(launch(&dir).is_ok());
 
+    // A signed-in App's plan usage (AJ-E1612) goes through the same gate:
+    // its `muse usage` would otherwise run on the Mac's Keychain sign-in.
+    muse_fixture::sign_in(&dir.join(".config/muse"), "made-up");
+    assert!(adapter.plan_usage_offered(&dir));
+
     // Any other version: refused, saying which and why.
     // Another build of 1.4.13 counts as another version: the proof read one build.
     for other in [
@@ -500,6 +505,13 @@ fn the_file_backend_runs_only_on_the_version_its_proof_read() {
                 }
                 other => panic!("{version}: expected a refusal, got {other:?}"),
             }
+        }
+        match adapter.plan_usage(&account(&dir)) {
+            Some(Err(why)) => assert!(
+                why.contains(version) && why.contains("1.4.13-R6996.1"),
+                "{why}"
+            ),
+            other => panic!("{version}: plan usage expected a refusal, got {other:?}"),
         }
         // The user's own Muse keeps the Keychain: no file backend, no gate.
         assert!(adapter.login_spec(&own).is_ok(), "{version}");

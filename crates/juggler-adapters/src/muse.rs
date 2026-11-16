@@ -469,20 +469,41 @@ impl MuseAdapter {
     /// (an inherited one removed), and, while separate sign-ins are on, the
     /// file backend for every folder but the user's own.
     fn sign_in_env(&self, state_dir: &Path, key: Option<&str>) -> EnvMap {
-        let unset = || juggler_adapter::launch::ENV_UNSET.to_owned();
-        let mut env = EnvMap::new();
+        let mut env = self.backend_env(state_dir);
         env.insert(
             ENV_API_KEY.to_owned(),
-            key.map_or_else(unset, str::to_owned),
+            key.map_or_else(
+                || juggler_adapter::launch::ENV_UNSET.to_owned(),
+                str::to_owned,
+            ),
         );
+        env
+    }
+
+    /// The sign-in backend alone: while separate sign-ins are on, the file
+    /// backend for every folder but the user's own (which keeps the
+    /// Keychain); nothing while they are off.
+    fn backend_env(&self, state_dir: &Path) -> EnvMap {
+        let mut env = EnvMap::new();
         if self.separate {
             let backend = if self.uses_file_backend(state_dir) {
                 FILE_BACKEND.to_owned()
             } else {
-                unset()
+                juggler_adapter::launch::ENV_UNSET.to_owned()
             };
             env.insert(ENV_CREDENTIAL_BACKEND.to_owned(), backend);
         }
+        env
+    }
+
+    /// A plan-usage run's environment (AJ-E1612): the folder's isolation
+    /// and its sign-in backend, so an App's `muse serve`/`muse usage` reads
+    /// its own sign-in, never the Mac's one Keychain sign-in (the user's
+    /// own). Nothing about keys: plan usage is offered only on a
+    /// subscription sign-in.
+    fn usage_env(&self, state_dir: &Path) -> EnvMap {
+        let mut env = self.isolation_env(state_dir);
+        env.extend(self.backend_env(state_dir));
         env
     }
 
@@ -901,9 +922,11 @@ impl ToolQuota for MuseAdapter {
             // whose file backend was proven, as its Sign in.
             self.refuse_unproven_backend(&bin, &account.state_dir)
                 .map_err(|error| error.to_string())?;
-            let mut env = self.isolation_env(&account.state_dir);
-            env.extend(self.sign_in_env(&account.state_dir, None));
-            crate::muse_usage::usage(&bin, &account.state_dir, &env)
+            crate::muse_usage::usage(
+                &bin,
+                &account.state_dir,
+                &self.usage_env(&account.state_dir),
+            )
         })
     }
 }
@@ -1016,6 +1039,37 @@ mod tests {
             assert!(!lab_sign_ins());
             assert!(!MuseAdapter::new().separate_sign_ins());
         }
+    }
+
+    #[test]
+    fn plan_usage_runs_on_the_folders_own_sign_in_backend_and_nothing_more() {
+        let work = std::env::temp_dir().join(format!("aij-muse-usage-env-{}", std::process::id()));
+        let lab = work.join("accounts/a");
+        let on = MuseAdapter::with_bin("/bin/echo").with_separate_sign_ins(true);
+        let env = on.usage_env(&lab);
+        assert_eq!(
+            env.get(ENV_CREDENTIAL_BACKEND).map(String::as_str),
+            Some(FILE_BACKEND),
+            "a separate App's usage reads its own file sign-in"
+        );
+        assert!(
+            !env.contains_key(ENV_API_KEY),
+            "usage touches no key, inherited or not"
+        );
+        // Separate sign-ins off (the release default): the backend is left
+        // as it was, so the user's own Muse keeps the Keychain.
+        let off = MuseAdapter::with_bin("/bin/echo").with_separate_sign_ins(false);
+        assert_eq!(
+            off.usage_env(&lab),
+            off.isolation_env(&lab),
+            "with separate sign-ins off, usage runs on isolation alone, as before"
+        );
+        assert_ne!(
+            off.usage_env(&lab)
+                .get(ENV_CREDENTIAL_BACKEND)
+                .map(String::as_str),
+            Some(FILE_BACKEND)
+        );
     }
 
     #[test]
