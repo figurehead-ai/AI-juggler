@@ -134,7 +134,7 @@ describe("Settings › Desktop apps: your apps", () => {
 describe("Home: an app that isn't running", () => {
   it("has a tile with why and Start, which starts it", async () => {
     seams().__AIJ_PLACES__ = { places: [place({ keep_alive: true }), place({ id: "other", label: "Claude · b-off", instance: "b-off", profile: "b-off" })] };
-    render(<HomeApps items={[]} runwayOf={() => null} />);
+    render(<HomeApps items={[]} />);
     await screen.findAllByTestId("home-app-closed");
     // 0.3.4 (D-64): every remembered app that's closed has a tile, the
     // kept-alive one first.

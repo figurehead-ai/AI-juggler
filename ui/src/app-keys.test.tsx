@@ -366,22 +366,6 @@ describe("AJ-E1504 keys in the app", () => {
     await waitFor(() => expect(view.getByRole("heading", { level: 1 }).textContent).toBe("Accounts"));
   });
 
-  it("Home's \"Older sessions\" line runs ⌘K: the palette opens, and closed, the rail's search has the caret (persona D3)", async () => {
-    // A window that starts now: every session the rail holds is older.
-    const now = Date.now();
-    const row = { session_id: "summary-only", account_label: "Work Max", provider: "claude-code", kind: "terminal", project: null, group: "finished", status: "finished", words: "Finished", transitions: [], at_ms: now, detail: null, tokens: null, leftovers: 0, git_branch: null, cwd: "/Users/dev/repos/api", started_at_ms: now - 3_600_000 };
-    Reflect.set(window, "__AIJ_SUMMARY__", { since_ms: now, generated_ms: now, default_window: true, rows: [row], counts: { finished: 1 }, leftovers: 0 });
-    try {
-      const view = await openApp();
-      fireEvent.click(await view.findByRole("button", { name: "Older sessions: search ⌘K" }));
-      fireEvent.keyDown(await view.findByRole("dialog", { name: "Search, act or go" }), { key: "Escape" });
-      await waitFor(() => expect(view.queryByRole("dialog", { name: "Search, act or go" })).toBeNull());
-      expect(document.activeElement).toBe(view.getByRole("searchbox", { name: /Search sessions/i }));
-    } finally {
-      Reflect.deleteProperty(window, "__AIJ_SUMMARY__");
-    }
-  });
-
   it("Ctrl+K in the terminal goes to the shell, not the search", async () => {
     const view = await openApp();
     const row = [...view.getByTestId("rail").querySelectorAll<HTMLButtonElement>("button")].find((b) => /feat\/read-model/.test(b.textContent ?? ""))!;

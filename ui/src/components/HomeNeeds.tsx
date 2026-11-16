@@ -13,8 +13,7 @@ import { useEffect, useState, type JSX, type ReactNode } from "react";
 import { Button } from "./primitives";
 import { useActionHost, useItemMenu } from "./ItemMenu";
 import { PlaceMark } from "./PlaceMarks";
-import { chipOf, homeChips, homeNeedLevel, primaryWords, type HomeChip, type HomeNeed } from "../lib/home-needs";
-import { Segmented } from "./controls";
+import { homeNeedLevel, primaryWords, type HomeNeed } from "../lib/home-needs";
 import { needWord } from "./PlaceRows";
 import { markSeen } from "../lib/seen";
 import { focusHandoverSoon } from "../lib/handover-focus";
@@ -102,8 +101,11 @@ function useRun(handlers: NeedHandlers): (need: HomeNeed, second?: boolean) => v
   };
 }
 
-/** D-96 B: the heading's extras open to their row here: All shown, the
- * row in view, its first control focused. */
+/** Pinned needs shown before "+n more need you" (D-118 R2). */
+export const PINNED_SHOWN = 3;
+
+/** D-96 B: the heading's extras open to their row here: every need
+ * shown, the row in view, its first control focused. */
 const revealers = new Set<(target: string) => void>();
 
 /** Shows the row `target` (a selector inside Needs you) and focuses it. */
@@ -176,14 +178,14 @@ export function HomeNeeds({
 }): JSX.Element | null {
   const actionKeys = useKeys("home-action");
   const run = useRun(handlers);
-  // AJ-E2910: a chip narrows the list (never remembered: a stale filter
-  // would hide a new need); the counts elsewhere never change with it.
-  const [chip, setChip] = useState<HomeChip>("all");
+  // D-118 (AJ-E3702 R2): past 3, the rest wait behind "+n more need you"
+  // (the pinned zone stays short; the count above says them all).
+  const [more, setMore] = useState(false);
   useEffect(() => {
     let timer = 0;
     const reveal = (target: string) => {
-      setChip("all");
-      // After the render that shows All: the row in view, its control focused.
+      setMore(true);
+      // After the render that shows them all: the row in view, its control focused.
       window.clearTimeout(timer);
       timer = window.setTimeout(() => {
         const row = document.querySelector<HTMLElement>(`[data-testid="home-needs"] ${target}, [data-testid="home-needs"]${target}`);
@@ -197,35 +199,21 @@ export function HomeNeeds({
       window.clearTimeout(timer);
     };
   }, []);
-  const chips = homeChips(needs, { asks: messages.length, review: tasks.needs.length });
-  const shownChip = chips.some((entry) => entry.value === chip) ? chip : "all";
-  const shownNeeds = shownChip === "all" ? needs : needs.filter((need) => chipOf(need) === shownChip);
-  const showMessages = shownChip === "all" || shownChip === "asks";
-  const showTasks = shownChip === "all" || shownChip === "review";
-  const hidden = needs.length + messages.length + tasks.needs.length - shownNeeds.length - (showMessages ? messages.length : 0) - (showTasks ? tasks.needs.length : 0);
-  const [first, ...rest] = shownNeeds;
-  // Nothing waits: the heading says so, and the card stays away.
-  const waiting = (showMessages ? messages.length : 0) + (showTasks ? tasks.needs.length : 0);
-  if (needs.length === 0 && !children && messages.length + tasks.needs.length === 0) return null;
+  const [first, ...others] = needs;
+  const rest = more ? others : others.slice(0, PINNED_SHOWN - 1);
+  const held = others.length - rest.length;
+  const waiting = messages.length + tasks.needs.length;
+  // Nothing waits: the zone says so in one muted line (Home's own).
+  if (needs.length === 0 && !children && waiting === 0) return null;
   return (
     // No area title: the page's heading already says what needs you (the
     // 0.4 design review, 42); the name stays for screen readers.
     <section aria-label="Needs you" className="flex min-w-0 flex-col gap-2.5" data-testid="home-needs">
-      <div className="flex flex-col gap-3 rounded-xl border border-hairline bg-surface p-4">
-        {chips.length > 0 && (
-          <div className="flex flex-wrap items-center gap-2" data-testid="home-chips">
-            <Segmented label="Show what needs you" value={shownChip} segments={chips.map(({ value, label }) => ({ value, label }))} onChange={setChip} testId="home-chip" wrap />
-            {hidden > 0 && (
-              <button type="button" className="text-meta text-muted hover:text-ink hover:underline" onClick={() => setChip("all")} data-testid="home-chips-hidden">
-                {hidden} more under All
-              </button>
-            )}
-          </div>
-        )}
-        {(shownChip === "all" || shownChip === "asks") && <AskBatch titleOf={(id) => needs.find((need) => need.item?.session?.id === id)?.title} />}
+      <div className="flex flex-col gap-3 rounded-xl bg-surface p-4">
+        <AskBatch titleOf={(id) => needs.find((need) => need.item?.session?.id === id)?.title} />
         {/* E18: agents' messages that wait on you. */}
-        {showMessages && <MessageNeeds needs={messages} />}
-        {showTasks && <TaskNeeds needs={tasks.needs} projects={tasks.projects} />}
+        <MessageNeeds needs={messages} />
+        <TaskNeeds needs={tasks.needs} projects={tasks.projects} />
         {first ? (
           <NeedBox need={first} tag="div" className="flex flex-col gap-3" data={{ "data-home-item": "", "data-testid": `home-need-${first.kind}`, "data-first": "true", "data-kind": first.kind, ...rowData(first) }}>
             {(goTo) => (
@@ -269,15 +257,15 @@ export function HomeNeeds({
             </>
             )}
           </NeedBox>
-        ) : waiting > 0 ? null : (
+        ) : waiting > 0 || children ? null : (
           <p className="text-sm text-ink-2" data-testid="home-needs-none">
             Nothing waits on you. What's open is in the list and under Your apps.
           </p>
         )}
         {rest.length > 0 && (
-          <ul className="flex flex-col border-t border-hairline/60 pt-1">
+          <ul className="flex flex-col gap-1">
             {rest.map((need) => (
-              <NeedBox key={need.key} need={need} tag="li" data={{ "data-home-item": "", "data-kind": need.kind, "data-testid": `home-need-${need.kind}`, ...rowData(need) }} className="flex min-w-0 items-center gap-2.5 border-b border-hairline/40 py-2 last:border-b-0">
+              <NeedBox key={need.key} need={need} tag="li" data={{ "data-home-item": "", "data-kind": need.kind, "data-testid": `home-need-${need.kind}`, ...rowData(need) }} className="flex min-w-0 items-center gap-2.5 py-1.5">
                 {(goTo) => (
                 <>
                 <Mark need={need} size={24} />
@@ -295,6 +283,11 @@ export function HomeNeeds({
               </NeedBox>
             ))}
           </ul>
+        )}
+        {held > 0 && (
+          <button type="button" aria-expanded={false} onClick={() => setMore(true)} className="self-start rounded text-meta text-ink-2 outline-none hover:underline focus-visible:ring-1 focus-visible:ring-accent/60" data-testid="home-needs-more">
+            +{held} more {held === 1 ? "needs" : "need"} you
+          </button>
         )}
         {children}
       </div>

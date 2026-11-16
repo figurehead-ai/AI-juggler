@@ -1,40 +1,42 @@
 /**
- * D-25, AJ-E2105 — Home: what needs you, what is open where, and the room
- * left, in one glance.
+ * D-25, AJ-E2105; D-118 (AJ-E3701, AJ-E3702) — Home: what needs you, what
+ * happened, and your apps and their room, in one glance.
  *
- * 1. **The heading** says what needs you ("2 things need you"), its "more things" named under it (D-96 B),
- *    then the counts as links that turn the rail's views on (open, inactive, ended today; an app hidden).
- * 2. **Your apps**: one tile per running app and profile (a place): its
- *    sessions, a needs-you badge, its account's runway, Open.
- * 3. **Needs you** holds every kind of item, each with its own primary:
- *    a session asking (its page; ↗ to its app), a limit reached (Continue in another app…, or
- *    Wait), a sign-in, a Mac working hard, processes left behind.
- * 4. **Runway by account**: each account's room left and its profiles,
- *    or the way to measure it. Unmeasured says so, never a guess.
- * This Mac's line is the top bar's; the rail lists what is open. Plus
- * "Pick up where you left off". Empty means "start here": no Account →
- * bring them in; no session → start one. D-25 amendment (AJ-E1021): Home is also the morning triage. Sessions
- * parked until a reset get their own section (Resume once the reset is
- * reached) instead of reading as "hit its limit"; "Pick up where you
- * left off" lists what ended this week and isn't marked reviewed yet;
+ * For someone with an Account, two columns under a fixed head that scroll
+ * on their own (lib/home-layout): on the left, the open needs pinned on
+ * top ("Needs you now", each loud once there), then the activity feed,
+ * newest first, rolled up, with the away digest at the last look; on the
+ * right, Your apps and Runway by account. Below about 1,000 px they stack,
+ * the feed first (one page, then Show more) and the head gains "Apps &
+ * runway ↓". The head's title is in ink: the pinned zone's count carries
+ * the colour (D-117). No Account yet: today's welcome and first run.
+ *
+ * The cards are a registry (screens/home-cards). Keys (AJ-E1005 Req.3):
  * J/K or the arrows move between rows, Enter opens, A runs the row's
- * action. The ledger-degraded banner moved here from Overview.
+ * action; r, h, s and e as the ? sheet says. The ledger-degraded banner
+ * sits over both columns.
  */
 import { ListBuilding } from "../components/ListBuilding";
 import { useKeys } from "../lib/use-keys";
+import { useHomeKeys } from "../lib/use-home-keys";
 import { useResource } from "../lib/use-resource";
-import { focusHandoverSoon } from "../lib/handover-focus";
 import { instancesMarkReviewed } from "../lib/ipc/review";
-import { useCallback, useEffect, useMemo, useRef, useState, type JSX, type KeyboardEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type JSX, type UIEvent } from "react";
 import { runwayOf } from "../components/AccountRunway";
 import { useThisMacInfo, type ThisMacInfo } from "../lib/machine";
 import { LegendPopover } from "../components/LegendPopover";
 import { sessionLabel } from "../lib/stop";
-import { matches, type KeyLike } from "../lib/shortcuts";
 import { RowPlaceholders } from "../components/Placeholder";
 import { Welcome } from "../components/Welcome";
 import { useKnownPlaces } from "../lib/places";
-import { HomeRecent } from "../components/HomeRecent";
+import { HomeFeed } from "../components/HomeFeed";
+import { COLUMNS, useHomeLayout } from "../lib/home-layout";
+import { openFeedItem, railRowOf } from "../lib/feed-open";
+import { useActionHost } from "../components/ItemMenu";
+import { usePools } from "../lib/pools";
+import { useScrollMemory } from "../lib/scroll-memory";
+import { shortName } from "../lib/session-titles";
+import type { FeedItemInfo } from "../lib/ipc/feed";
 import { headCount, needsHeading } from "../lib/home-needs";
 import { HomeExtras } from "../components/HomeExtras";
 import { endedToday, itemsOf, openNow } from "../lib/rail-items";
@@ -66,8 +68,6 @@ type Need = (typeof NEEDS)[number];
 const ENDED = ["finished", "stopped", "handed_over"];
 /** Ended sessions older than this are left to History (AJ-E1007). */
 const TO_REVIEW_WINDOW_MS = 7 * 24 * 3_600_000;
-/** "Pick up where you left off" shows this many, the rest on request. */
-const RECENT_SHOWN = 3;
 
 /** Ended this week (not handed over) and not yet marked reviewed or archived. */
 export function toReview(session: InstanceInfo, now: number): boolean {
@@ -120,7 +120,6 @@ export function HomeScreen({
   thisMac: given,
   onOpenCleanup,
   onOpenThisMac,
-  onSearch,
   loading = false,
 }: {
   /** AJ-E1503: the first load hasn't answered yet (placeholders). */
@@ -149,7 +148,9 @@ export function HomeScreen({
   onOpenCleanup?: () => void;
   /** AJ-E1528: the This Mac page. */
   onOpenThisMac?: () => void;
-} & Pick<HomeCardContext, "onSearch">): JSX.Element {
+  /** ⌘K's search (the shell's). */
+  onSearch?: () => void;
+}): JSX.Element {
   const thisMac = useThisMacInfo(given);
   const actionKeys = useKeys("home-action");
   // 0.0.11 walk (Q3): a tool without a limits feed says so in its row.
@@ -174,7 +175,13 @@ export function HomeScreen({
   // AJ-E501: process tracking degraded — said here, only when it is.
   const ledgerDegraded = useResource("dashboard-stats", dashboardStats).data?.ledger_degraded === true;
   const [busy, setBusy] = useState<string | null>(null);
-  const [showAll, setShowAll] = useState(false);
+  const host = useActionHost();
+  const pools = usePools();
+  const [layout, measure] = useHomeLayout();
+  const stacked = layout !== "columns";
+  const feedScroll = useScrollMemory("home-feed", { active: !stacked });
+  const feedBox = useRef<HTMLElement | null>(null);
+  const scroller = useCallback(() => (stacked ? document.querySelector<HTMLElement>("[data-testid='home-scroll']") : feedBox.current), [stacked]);
   // Set when Mark reviewed or Resume starts; the parent's refresh can
   // remove the row a moment later, so it holds for a few seconds.
   const restoreUntil = useRef(0);
@@ -224,80 +231,11 @@ export function HomeScreen({
     [onChanged, projects],
   );
 
-  // AJ-E1005 Req.3 on Home: J/K or the arrows move between rows, Enter
-  // opens (each row's first control is a button), A runs the row's action
-  // — also from the row's own action button (Mark reviewed).
-  const rootRef = useRef<HTMLDivElement | null>(null);
-  const rowsNow = () => Array.from(rootRef.current?.querySelectorAll<HTMLElement>("[data-home-row]") ?? []);
-  const rowIndexOf = (el: Element | null): number => {
-    const item = el?.closest("[data-home-item]");
-    return item ? rowsNow().findIndex((row) => row.closest("[data-home-item]") === item) : -1;
-  };
-  // AJ-E1504: the keys come from the registry (lib/shortcuts.ts), with
-  // its typing rule: never while typing in a field or the terminal.
-  const handleKey = (event: KeyLike & { target: EventTarget | null; preventDefault: () => void }) => {
-    if ((event.target as HTMLElement | null)?.tagName === "SELECT") return;
-    const rows = rowsNow();
-    const at = rowIndexOf(document.activeElement);
-    const focusRow = (index: number) => rows[Math.max(0, Math.min(rows.length - 1, index))]?.focus();
-    // The arrows move only once a row has focus (J and K start it).
-    const arrow = event.key.startsWith("Arrow");
-    if (matches("home-next", event) && (!arrow || at >= 0)) {
-      event.preventDefault();
-      focusRow(at + 1);
-    } else if (matches("home-prev", event) && (!arrow || at >= 0)) {
-      event.preventDefault();
-      focusRow(at < 0 ? 0 : at - 1);
-    } else if (matches("home-action", event) && at >= 0) {
-      const item = rows[at]!.closest("[data-home-item]");
-      const action = item?.querySelector<HTMLElement>("[data-home-action]") ?? rows[at]!;
-      event.preventDefault();
-      action.click();
-    } else if (at >= 0) rowKey(event, rows[at]!);
-  };
-  // AJ-E2910: r, h, s and e on the focused row (a key that doesn't apply
-  // to it does nothing; its ⋯ says why).
-  const rowKey = (event: KeyLike & { preventDefault: () => void }, row: HTMLElement) => {
-    const item = row.closest<HTMLElement>("[data-home-item]");
-    const id = item?.dataset.sessionId;
-    if (matches("home-reply", event)) {
-      event.preventDefault();
-      row.click();
-    } else if (matches("home-handover", event) && id && item?.dataset.hasConversation === "yes") {
-      event.preventDefault();
-      onOpenSession(id);
-      focusHandoverSoon(id);
-    } else if (matches("home-snooze", event) && item) {
-      event.preventDefault();
-      item.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true }));
-    } else if (matches("home-archive", event) && id && item?.dataset.ended === "yes") {
-      event.preventDefault();
-      const session = sessions.find((one) => one.id === id);
-      if (session) void archive(session);
-    }
-  };
-  const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => handleKey(event);
-  // Marking a row reviewed or resuming it removes or disables it, and its
-  // focus falls to <body>: put focus back on the row now at that place,
-  // and keep the keys working from <body> while Home is shown.
-  const lastRow = useRef<number | null>(null);
-  useEffect(() => {
-    if (busy !== null || Date.now() > restoreUntil.current || lastRow.current === null) return;
-    if (document.activeElement !== document.body) return;
-    const rows = rowsNow();
-    if (rows.length > 0) rows[Math.min(lastRow.current, rows.length - 1)]!.focus();
-  });
-  useEffect(() => {
-    const fromBody = (event: globalThis.KeyboardEvent) => {
-      // Never behind a dialog: a modal over Home (the limit dialog, the
-      // usage-stats question) owns the keys, even when a click on its
-      // text dropped focus to <body>.
-      if (event.defaultPrevented || document.querySelector('[aria-modal="true"]')) return;
-      if (document.activeElement === document.body) handleKey(event);
-    };
-    window.addEventListener("keydown", fromBody);
-    return () => window.removeEventListener("keydown", fromBody);
-  });
+  // AJ-E1005 Req.3, AJ-E2910: Home's row keys (lib/use-home-keys).
+  const keys = useHomeKeys({ busy, restoreUntil, onOpenSession, onArchive: (id) => {
+    const session = sessions.find((one) => one.id === id);
+    if (session) void archive(session);
+  } });
 
   // AJ-E2105: the rail's own list (its Needs you, its places), with the
   // apps turned off in Settings left out.
@@ -307,6 +245,12 @@ export function HomeScreen({
     () => itemsOf({ sessions: sessions.filter((s) => !s.parked), conversations, projects, seen, snoozed: (row) => isSnoozed(row, snooze, now), needOf: needsNow.needOf }),
     [sessions, conversations, projects, seen, snooze, now, needsNow.needOf],
   );
+  const byId = useMemo(() => new Map(sessions.map((session) => [session.id, session])), [sessions]);
+  // D-118: a session in the feed is named as every list names it.
+  const nameOf = useCallback((item: FeedItemInfo) => {
+    const session = item.target.session_id ? byId.get(item.target.session_id) : undefined;
+    return session ? shortName(session, now) : null;
+  }, [byId, now]);
   const parked = sessions
     .filter((s) => s.parked)
     .sort((a, b) => (a.parked_resets_at_ms ?? Number.MAX_SAFE_INTEGER) - (b.parked_resets_at_ms ?? Number.MAX_SAFE_INTEGER));
@@ -356,7 +300,6 @@ export function HomeScreen({
       (cause) => setSignInError(errorText(cause)),
     );
   };
-  const recent = showAll ? review : review.slice(0, RECENT_SHOWN);
   // The one runway decides, a tool that doesn't report its limits
   // included (the backend's unavailable reason, from the same capability).
   const runway = accounts.map((account) => ({
@@ -403,65 +346,113 @@ export function HomeScreen({
     { key: "ended", words: `${items.filter((item) => endedToday(item, now)).length} ended today`, run: () => showInRail("ended") },
     ...hiddenApps.map((part) => ({ key: `hidden-${part.app}`, words: `${part.count} in ${part.app} hidden`, run: () => window.dispatchEvent(new CustomEvent("aij:open-screen", { detail: { id: "settings" } })) })),
   ].filter((part) => !part.words.startsWith("0 "));
-  const runwayFor = (accountId: string | null) => {
-    const row = runway.find((r) => r.account.id === accountId);
-    // Unknown room says nothing (the 0.4 design review, 83). D-62: room is the Account's, so a tile says
-    // whose, unless the tile shows that name already as its profile's (no Account name of its own; 49).
-    if (!row || (!row.credits && row.left === null)) return null;
-    const whose = accountNameOf(subscriptions, row.account.id, row.account.label);
-    const shown = items.some((item) => item.accountId === accountId && item.place.profile === whose);
-    // Out of room: the tile's Out chip says it (0.4.1), so the line only names whose.
-    if (!row.credits && row.left !== null && row.left <= 0) return shown ? null : { left: null, words: whose };
-    const what = row.credits ? row.words : `${row.left}% left`;
-    return { left: row.left, words: shown ? what : `${whose} · ${what}` };
-  };
-  const recentArea = <HomeRecent recent={recent} total={review.length} shown={RECENT_SHOWN} showAll={showAll} onShowAll={() => setShowAll((open) => !open)} projects={projects} now={now} busy={busy} onOpen={onOpenSession} onReviewed={(session) => void act(session, "reviewed")} onReviewAll={() => void reviewAll()} />;
+  // D-118: the feed (its handlers are Home's: the session's page, Mark
+  // reviewed as Home marks it, the rail's row for ↗).
+  const feed = (
+    <HomeFeed
+      stacked={stacked}
+      now={now}
+      quiet={allNeeds.length + capNeeds.caps.length + messageNeeds.length + taskNeeds.length === 0}
+      scroller={scroller}
+      nameOf={nameOf}
+      facets={{ projects, accounts, subscriptions, pools }}
+      toReview={review.length}
+      onReviewAll={() => void reviewAll()}
+      onNewSession={onNewSession}
+      onOpenApp={() => document.querySelector<HTMLElement>("[data-testid='home-apps'] li button")?.focus()}
+      actions={{
+        open: (item) => openFeedItem(item, { host, onOpenSession, onOpenThisMac }),
+        review: (id) => {
+          const session = sessions.find((one) => one.id === id);
+          if (session) void act(session, "reviewed");
+          else void instanceMarkReviewed(id).then(() => onChanged?.(), (cause) => showToast({ tone: "warning", message: errorText(cause) }));
+        },
+        railOf: (item) => railRowOf(item, items),
+      }}
+    />
+  );
   // AJ-E2018: the cards themselves are a registry (screens/home-cards).
   const cards: HomeCardContext = {
     sessions, conversations, accounts, projects, subscriptions, now, items, allNeeds, capNeeds, messageNeeds, taskNeeds,
-    parked, recent, quota, quotaKnown, ledgerDegraded, needsKnown: needsNow.known, recentArea, busy, actionKeysAria: actionKeys.aria,
-    signingIn, signInError, runwayFor, act, startSignIn, onOpenSession, onSearch, onNewSession, onLimit, onChanged, onOpenThisMac, onOpenCleanup,
+    parked, quota, quotaKnown, ledgerDegraded, needsKnown: needsNow.known, feed, strip: layout === "strip", busy, actionKeysAria: actionKeys.aria,
+    signingIn, signInError, act, startSignIn, onOpenSession, onNewSession, onLimit, onChanged, onOpenThisMac, onOpenCleanup,
   };
 
+  // Each column's hairline once it is scrolled (`.scroll-edge`).
+  const edge = (event: UIEvent<HTMLDivElement>) => event.currentTarget.toggleAttribute("data-scrolled", event.currentTarget.scrollTop > 0);
+  const side = (
+    <aside aria-label="Apps and runway" id="home-side" className="flex min-w-0 flex-col gap-5" data-testid="home-side" data-layout={layout}>
+      <HomeCards area="right" ctx={cards} />
+    </aside>
+  );
   return (
     <div
-      ref={rootRef}
-      onKeyDown={onKeyDown}
-      onFocus={(event) => {
-        const index = rowIndexOf(event.target as Element);
-        if (index >= 0) lastRow.current = index;
+      ref={(node) => {
+        keys.attach(node);
+        return measure(node);
       }}
-      className="mx-auto flex w-full max-w-content flex-col gap-6 pb-10" data-testid="home">
-      <header className="flex flex-col gap-1">
-        <div className="flex items-center gap-2">
+      onKeyDown={keys.onKeyDown}
+      onFocus={keys.onFocus}
+      className={"mx-auto flex w-full max-w-content flex-col gap-4 " + (stacked ? "pb-10" : "h-full min-h-0")} data-testid="home" data-layout={layout}>
+      <header className="flex shrink-0 flex-col gap-1">
+        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+          {/* D-117: the title in ink; the pinned zone's count carries the colour. */}
           <h1 className="text-title text-ink" data-testid="home-heading">{headline}</h1>
+          {counts.length > 0 && (
+            <p className="flex flex-wrap items-center gap-x-1.5 text-body text-ink-2" data-testid="home-counts">
+              {counts.map((part, index) => (
+                <span key={part.key} className="flex items-center gap-1.5">
+                  {index > 0 && <span aria-hidden="true">·</span>}
+                  <button type="button" onClick={part.run} className="rounded outline-none hover:text-ink hover:underline focus-visible:ring-1 focus-visible:ring-accent/60">
+                    {part.words}
+                  </button>
+                </span>
+              ))}
+            </p>
+          )}
           {/* AJ-E403 Req.6: the legend's Home surface. */}
-          <LegendPopover className="shrink-0" placement="below" />
+          <LegendPopover className="shrink-0 self-center" placement="below" />
+          {stacked && (
+            <a href="#home-side" onClick={(event) => { event.preventDefault(); document.getElementById("home-side")?.scrollIntoView?.({ block: "start" }); }} className="ml-auto rounded text-meta text-ink-2 outline-none hover:text-ink hover:underline focus-visible:ring-1 focus-visible:ring-accent/60" data-testid="home-side-link">
+              Apps &amp; runway ↓
+            </a>
+          )}
         </div>
         <HomeExtras pending={!needsNow.known} shown={sessionNeeds > 0 && otherNeeds > 0} needs={allNeeds} more={{ caps: capNeeds.caps.map(capTitle), messages: messageNeeds.length, tasks: taskNeeds.length }} />
-        {counts.length > 0 && (
-          <p className="flex flex-wrap items-center gap-x-1.5 text-body text-ink-2" data-testid="home-counts">
-            {counts.map((part, index) => (
-              <span key={part.key} className="flex items-center gap-1.5">
-                {index > 0 && <span aria-hidden="true">·</span>}
-                <button type="button" onClick={part.run} className="rounded outline-none hover:text-ink hover:underline focus-visible:ring-1 focus-visible:ring-accent/60">
-                  {part.words}
-                </button>
-              </span>
-            ))}
-          </p>
-        )}
         <ListBuilding place="home" />
       </header>
 
       <HomeCards area="top" ctx={cards} />
 
-      <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(320px,2fr)]">
-        <div className="flex min-w-0 flex-col gap-6"><HomeCards area="left" ctx={cards} /></div>
-        <div className="flex min-w-0 flex-col gap-6"><HomeCards area="right" ctx={cards} /></div>
-      </div>
-
-      <HomeCards area="foot" ctx={cards} />
+      {stacked ? (
+        <>
+          <div className="flex min-w-0 flex-col gap-5" data-testid="home-main">
+            <HomeCards area="left" ctx={cards} />
+          </div>
+          {side}
+          <HomeCards area="foot" ctx={cards} />
+        </>
+      ) : (
+        <div className={"grid min-h-0 flex-1 gap-6 " + COLUMNS}>
+          <div
+            ref={(node) => {
+              feedBox.current = node;
+              return feedScroll(node);
+            }}
+            onScroll={edge}
+            className="scroll-edge min-h-0 min-w-0 overflow-y-auto overscroll-contain pb-10 pr-1"
+            data-testid="home-main"
+          >
+            <div className="flex w-full max-w-[720px] flex-col gap-5">
+              <HomeCards area="left" ctx={cards} />
+              <HomeCards area="foot" ctx={cards} />
+            </div>
+          </div>
+          <div onScroll={edge} className="scroll-edge min-h-0 min-w-0 overflow-y-auto overscroll-contain pb-10 pr-1" data-testid="home-side-scroll">
+            {side}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

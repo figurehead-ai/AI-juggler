@@ -149,7 +149,7 @@ describe("no status glyph in any accessible name (D-117)", () => {
     const work = (item: (typeof before)[number]) => item.place.key === "app|claude-app|Work" && item.live;
     const failed = before.find((item) => work(item) && item.need === null)!;
     const needOf = new Map<string, Need>([...before.flatMap((item) => (item.need === null ? [] : [[item.key, item.need] as const])), [failed.key, "failed"]]);
-    const view = render(<HomeApps items={itemsOf({ ...base, needOf })} runwayOf={() => null} />);
+    const view = render(<HomeApps items={itemsOf({ ...base, needOf })} />);
     const tiles = await view.findAllByTestId("home-app-tile");
     const broke = tiles.find((tile) => tile.dataset.level === "3")!;
     expect(within(broke).getByTestId("home-app-needs").textContent).toBe("2 need you, 1 stopped with an error");

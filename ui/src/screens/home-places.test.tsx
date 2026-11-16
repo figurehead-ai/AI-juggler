@@ -74,28 +74,30 @@ describe("Home, desktop first", () => {
     expect(railView().show.ended).toBe(true);
   });
 
-  it("Your apps: a tile per running app and profile, with its count, needs badge and Open; six, then how many more", async () => {
+  it("Your apps (D-118): a compact row per running app and profile, most recently used first, with its count, needs mark and Open; eight, then Show all", async () => {
     const view = home([], placesConversations(NOW));
-    const tiles = await view.findAllByTestId("home-app-tile");
-    expect(tiles.map((tile) => tile.dataset.place)).toEqual(["app|codex-app|", "app|claude-app|Personal", "app|claude-app|Work", "cli|claude-code|claude-work"]);
-    const work = tiles[2]!;
-    expect(work.textContent).toContain("Work Max·2 sessions");
+    const rows = await view.findAllByTestId("home-app-tile");
+    expect(new Set(rows.map((row) => row.dataset.place))).toEqual(new Set(["app|codex-app|", "app|claude-app|Personal", "app|claude-app|Work", "cli|claude-code|claude-work"]));
+    const work = rows.find((row) => row.dataset.place === "app|claude-app|Work")!;
+    expect(work.textContent).toContain("Work Max·2 open");
     expect(within(work).getByTestId("home-app-needs").textContent).toBe("1 needs you");
     expect(within(work).getByRole("button", { name: /^Open Claude/ })).toBeTruthy();
+    // The rows sit in the right column, under its own head.
+    expect(view.getByTestId("home-side").contains(work)).toBe(true);
     cleanup();
-    // Eight places: six tiles, then "Show 2 more apps".
+    // Ten places: eight rows, then "Show all 10".
     const places = (count: number) => [...Array(count)].map((_, n) => ({ ...placesConversations(NOW)[0]!, id: `p${n}`, places: [{ ...PREVIEW_PLACES[0]!, instance: `P${n}`, profile: `Profile ${n}`, pid: 900 + n }] }));
-    const again = home([], places(8));
-    await waitFor(() => expect(again.getAllByTestId("home-app-tile")).toHaveLength(6));
-    expect(again.getByTestId("home-apps-more").textContent).toBe("Show 2 more apps");
+    const again = home([], places(10));
+    await waitFor(() => expect(again.getAllByTestId("home-app-tile")).toHaveLength(8));
+    expect(again.getByTestId("home-apps-more").textContent).toBe("Show all 10");
     fireEvent.click(again.getByTestId("home-apps-more"));
-    expect(again.getAllByTestId("home-app-tile")).toHaveLength(8);
-    expect(again.getByTestId("home-apps-more").textContent).toBe("Show fewer apps");
+    expect(again.getAllByTestId("home-app-tile")).toHaveLength(10);
+    expect(again.getByTestId("home-apps-more").textContent).toBe("Show fewer");
     cleanup();
-    // Seven: all seven, never one behind a "+1" (the 0.2 walk, F18).
-    const seven = home([], places(7));
-    await waitFor(() => expect(seven.getAllByTestId("home-app-tile")).toHaveLength(7));
-    expect(seven.queryByTestId("home-apps-more")).toBeNull();
+    // Nine: all nine, never one behind a "Show all" (the 0.2 walk, F18).
+    const nine = home([], places(9));
+    await waitFor(() => expect(nine.getAllByTestId("home-app-tile")).toHaveLength(9));
+    expect(nine.queryByTestId("home-apps-more")).toBeNull();
   });
 
   it("Needs you holds every kind, each with its own primary", async () => {
@@ -112,10 +114,12 @@ describe("Home, desktop first", () => {
     const limit = view.getByTestId("home-need-limit");
     fireEvent.click(within(limit).getByRole("button", { name: /^Continue in another app/ }));
     expect(onLimit).toHaveBeenCalledWith("lim");
-    fireEvent.click(within(view.getByTestId("home-need-leftovers")).getByRole("button", { name: /^Clean up/ }));
-    expect(onOpenCleanup).toHaveBeenCalledOnce();
-    // D-117: the review and the leftovers (notes, L1) are listed, not counted.
+    // D-118: the pinned zone holds L2 and L3 only: the review is the
+    // feed's Finished filter, the leftovers the top bar's Clean up.
+    expect(view.queryByTestId("home-need-leftovers")).toBeNull();
+    expect(onOpenCleanup).not.toHaveBeenCalled();
     expect(view.getByTestId("home-heading").textContent).toBe("3 sessions need you");
+    expect(within(view.getByTestId("home-needs-now-section")).getByTestId("section-count").textContent).toBe("3");
     expect(view.getByTestId("home-counts").textContent).toContain("2 to review");
   });
 
@@ -183,54 +187,50 @@ describe("Home, desktop first", () => {
     expect(row.textContent).toContain("o@work.com");
   });
 
-  it("a tile says its room once: nothing when unknown, and no Account name that repeats its profile (0.4 design review, 83 and 49)", async () => {
-    const view = home([], placesConversations(NOW));
-    const tiles = await view.findAllByTestId("home-app-tile");
-    for (const tile of tiles) expect(tile.textContent).not.toMatch(/not measured/i);
-    cleanup();
+  it("an App's room is Runway by account's alone (D-118): its row never repeats it", async () => {
     seams().__AIJ_QUOTA_DISPLAY__ = [{ account: "claude-work", five_hour: { percentage: 40, state: "measured", resets_at_ms: null }, weekly: null }];
     const measured = home([], placesConversations(NOW));
-    await waitFor(() => expect(measured.getAllByTestId("home-app-tile")[2]!.textContent).toContain("60% left"));
-    // The Work tile shows the profile "Work Max"; the Account has no name of its own.
-    expect(measured.getAllByTestId("home-app-tile")[2]!.textContent).not.toContain("Work Max · 60% left");
+    await waitFor(() => expect(within(measured.getByTestId("home-runway")).getByText("60% left")).toBeTruthy());
+    for (const row of measured.getAllByTestId("home-app-tile")) expect(row.textContent).not.toMatch(/% left|not measured/i);
   });
 
-  it("the cards line up (0.4.1): the account row and bar on every card when any has one, on none when none does; Open and the badge in one bottom row", async () => {
-    const view = home([], placesConversations(NOW));
-    const tiles = await view.findAllByTestId("home-app-tile");
-    // Nothing measured: no empty rows to leave a gap.
-    for (const tile of tiles) expect(within(tile).queryByTestId("home-app-account")).toBeNull();
-    cleanup();
-    seams().__AIJ_QUOTA_DISPLAY__ = [{ account: "claude-work", five_hour: { percentage: 40, state: "measured", resets_at_ms: null }, weekly: null }];
-    const measured = home([], placesConversations(NOW));
-    await waitFor(() => expect(measured.getAllByTestId("home-app-tile")[2]!.textContent).toContain("60% left"));
-    // Every card keeps the same two rows, a measured one's meter or an empty one of its height.
-    for (const tile of measured.getAllByTestId("home-app-tile")) {
-      const rows = within(tile).getByTestId("home-app-account");
-      expect(rows.children).toHaveLength(2);
-      expect(rows.children[0]!.className).toContain("truncate");
-    }
-    const work = measured.getAllByTestId("home-app-tile")[2]!;
-    expect(within(work).getByTestId("home-app-account").children[0]!.getAttribute("title")).toMatch(/60% left$/);
-    // The badge sits in the Open button's row.
-    expect(within(work).getByTestId("home-app-needs").parentElement).toBe(within(work).getByRole("button", { name: /^Open Claude/ }).parentElement);
-  });
-
-  it("few needs: Pick up where you left off moves up beside them; many: it stays under the runway (0.4 design review, 39)", async () => {
+  it("the pinned zone and the feed share the left column; Apps and Runway the right (D-118 R1)", async () => {
     const ended = own("done", { status: "finished", last_activity_ms: NOW - 60_000 });
-    const few = home([own("f1", { status: "failed" }), ended], []);
-    const recent = await few.findByTestId("home-recent");
-    expect(recent.parentElement).not.toBe(few.getByTestId("home-runway").parentElement);
+    const view = home([own("f1", { status: "failed" }), ended], []);
+    const main = await view.findByTestId("home-main");
+    expect(main.contains(await view.findByTestId("home-needs-now-section"))).toBe(true);
+    expect(main.contains(view.getByTestId("home-feed"))).toBe(true);
+    const side = view.getByTestId("home-side");
+    expect(side.tagName).toBe("ASIDE");
+    expect(side.getAttribute("aria-label")).toBe("Apps and runway");
+    expect(side.contains(view.getByTestId("home-runway"))).toBe(true);
+    expect(view.queryByTestId("home-recent")).toBeNull();
+  });
+
+  it("stacks under about 1,000 px, the feed first, with Apps & runway ↓ in the head; a strip of App icons under 640 (AJ-E3701 R4)", async () => {
+    const width = (px: number) => vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue({ width: px, height: 800, top: 0, left: 0, right: px, bottom: 800, x: 0, y: 0, toJSON: () => ({}) });
+    const spy = width(900);
+    const view = home([], placesConversations(NOW));
+    const root = await view.findByTestId("home");
+    expect(root.dataset.layout).toBe("stacked");
+    expect(view.getByTestId("home-side-link").textContent).toBe("Apps & runway ↓");
+    // The feed first, then Apps and Runway below it.
+    expect(view.getByTestId("home-main").compareDocumentPosition(view.getByTestId("home-side")) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(await view.findAllByTestId("home-app-tile")).not.toHaveLength(0);
+    spy.mockRestore();
     cleanup();
-    const many = home([own("f1", { status: "failed" }), own("f2", { status: "failed" }), own("f3", { status: "failed" }), ended], []);
-    await waitFor(() => expect(many.getAllByTestId(/^home-need-/).length).toBeGreaterThan(2));
-    expect(many.getByTestId("home-recent").parentElement).toBe(many.getByTestId("home-runway").parentElement);
+    const narrow = width(600);
+    const strip = home([], placesConversations(NOW));
+    expect(await strip.findByTestId("home-apps-strip")).toBeTruthy();
+    narrow.mockRestore();
   });
 
   it("nothing needs you: says so, with no empty card", async () => {
     const view = home([own("r")], []);
     await waitFor(() => expect(view.getByTestId("home-heading").textContent).toBe("All clear — nothing needs you"));
     expect(view.queryByTestId("home-needs")).toBeNull();
+    // D-118: the pinned zone says it in one muted line.
+    expect(view.getByTestId("home-pinned-none").textContent).toBe("Nothing needs you");
     expect(view.queryByTestId("home-this-mac")).toBeNull();
   });
 });

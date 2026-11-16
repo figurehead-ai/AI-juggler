@@ -176,9 +176,6 @@
   "react(set-state-in-effect)": 2,
   "typescript(consistent-return)": 1
  },
- "src/components/HomeApps.tsx": {
-  "jsx-a11y(prefer-tag-over-role)": 1
- },
  "src/components/HomeNeeds.tsx": {
   "eslint(complexity)": 1,
   "typescript(no-unsafe-type-assertion)": 1
@@ -729,9 +726,6 @@
   "import(default)": 2,
   "typescript(no-unsafe-type-assertion)": 1
  },
- "src/components/home-chips.test.tsx": {
-  "typescript(no-unsafe-type-assertion)": 2
- },
  "src/components/identity-guard.test.tsx": {
   "typescript(no-unsafe-type-assertion)": 1
  },
@@ -786,9 +780,6 @@
   "eslint(no-shadow)": 1,
   "typescript(no-unnecessary-type-assertion)": 2,
   "typescript(no-unsafe-type-assertion)": 4
- },
- "src/components/morning-summary.test.tsx": {
-  "typescript(no-unsafe-type-assertion)": 1
  },
  "src/components/new-project-sheet.test.tsx": {
   "typescript(no-unnecessary-type-assertion)": 1,
@@ -1212,8 +1203,7 @@
   "typescript(no-unsafe-type-assertion)": 2
  },
  "src/lib/home-needs.ts": {
-  "typescript(consistent-return)": 1,
-  "typescript(no-unsafe-type-assertion)": 1
+  "typescript(consistent-return)": 1
  },
  "src/lib/ipc/account-import.ts": {
   "typescript(no-unsafe-type-assertion)": 5
@@ -1646,8 +1636,7 @@
   "typescript(no-unsafe-type-assertion)": 2
  },
  "src/lib/session-titles.test.ts": {
-  "typescript(no-unnecessary-type-assertion)": 1,
-  "typescript(no-unsafe-type-assertion)": 1
+  "typescript(no-unnecessary-type-assertion)": 1
  },
  "src/lib/shared-read.ts": {
   "eslint(no-shadow)": 1,
@@ -2225,8 +2214,8 @@
   "eslint(max-lines)": 1,
   "jsx-a11y(no-static-element-interactions)": 1,
   "typescript(consistent-return)": 2,
-  "typescript(no-unnecessary-type-assertion)": 2,
-  "typescript(no-unsafe-type-assertion)": 2
+  "typescript(no-unnecessary-type-assertion)": 1,
+  "typescript(no-unsafe-type-assertion)": 1
  },
  "src/screens/NewProjectSheet.tsx": {
   "eslint(complexity)": 1,

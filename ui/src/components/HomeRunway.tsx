@@ -14,7 +14,8 @@ import { MeasureLimits } from "./MeasureLimits";
 import { roomMarkFrom } from "../lib/room-mark";
 import type { JSX } from "react";
 import { AccountAvatar } from "./Avatar";
-import { SectionTitle } from "./SectionTitle";
+import { HomeSection } from "./HomeSection";
+import { attentionLevel, type AttentionLevel } from "../lib/attention";
 import { signedIn } from "../lib/bridge";
 import type { AccountInfo } from "../types/generated/AccountInfo";
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
@@ -77,6 +78,24 @@ export function accountAdvice(accounts: AccountInfo[], subscriptions: Subscripti
   return { count: rows.length, ...newWorkAdvice(rows) };
 }
 
+/** The sessions running on an Account's folders now (its room matters
+ * only while one does). */
+function liveOn(group: AccountGroup, sessions: readonly InstanceInfo[]): number {
+  const ids = new Set(group.profiles.map((profile) => profile.id));
+  return sessions.filter((s) => s.account_id !== null && ids.has(s.account_id) && LIVE.has(s.status)).length;
+}
+
+const LIVE = new Set(["starting", "running", "waiting_user", "stuck", "quota_blocked"]);
+
+/** A runway figure's and meter's colour by level: neutral, amber, red. */
+const LEVEL_TEXT: Record<AttentionLevel, string> = { 0: "text-ink", 1: "text-ink", 2: "text-warning", 3: "text-danger" };
+const LEVEL_FILL: Record<AttentionLevel, string> = { 0: "bg-muted", 1: "bg-muted", 2: "bg-warning", 3: "bg-danger" };
+
+/** A runway row's level (D-117): the quota need's, from its room and live work. */
+function runwayLevel(left: number | null, live: number): AttentionLevel {
+  return left === null ? 0 : attentionLevel({ need: "quota", left, liveSessions: live });
+}
+
 /** Every App on an Account, each by its whole name (the 0.4 review): the
  * one rule every screen lists them by (rc22, A3: `namedAccountApps`);
  * `null` while they're read. */
@@ -99,17 +118,18 @@ export function HomeRunway({ accounts, quota, quotaKnown = true, sessions }: { a
   const apps = useApps(accounts);
   const lineOf = (group: AccountGroup): RunwayLine => groupRunway(group, quota, sessions);
   return (
-    <section aria-labelledby="home-runway" className="flex min-w-0 flex-col gap-2.5" data-testid="home-runway">
-      <SectionTitle id="home-runway">Runway by account</SectionTitle>
-      <div className="flex flex-col rounded-xl border border-hairline bg-surface px-4 py-1.5">
+    <HomeSection id="home-runway" label="Runway by account">
+      <div className="flex flex-col rounded-xl bg-surface px-4 py-1.5" data-testid="home-runway">
         {accountGroups(accounts, subscriptions).map((group) => {
           const first = group.profiles[0]!;
           const row = lineOf(group);
-          const low = row.left !== null && row.left <= 25;
+          // D-117: neutral, amber at 10 % or less with a live session, red
+          // when out with live work (the one level table).
+          const level = runwayLevel(row.left, liveOn(group, sessions));
           // 0.3.2: used up, but its credits carry its work on.
           const credits = row.credits != null;
           return (
-            <div key={group.key} className="flex flex-col gap-1.5 border-t border-hairline/60 py-3 first:border-t-0" data-testid="home-runway-account">
+            <div key={group.key} className="flex flex-col gap-1.5 py-2.5" data-testid="home-runway-account" data-level={level}>
               <div className="flex items-center justify-between gap-3 text-sm">
                 <span className="flex min-w-0 items-center gap-2">
                   {/* An Account in its colour; a group not signed in is no Account yet: neutral. */}
@@ -133,7 +153,7 @@ export function HomeRunway({ accounts, quota, quotaKnown = true, sessions }: { a
                 {!credits && row.left !== null && row.left <= 0 ? (
                   <RoomChip mark={roomMarkFrom(row.left, null)} size="md" testId="home-runway-out" />
                 ) : (credits || row.left !== null) && (
-                  <span className={"shrink-0 text-body font-semibold tabular-nums " + (low ? "text-warning" : "text-ink")}>
+                  <span className={"shrink-0 text-body font-semibold tabular-nums " + LEVEL_TEXT[level]}>
                     {credits ? "On credits" : `${row.left}% left`}
                   </span>
                 )}
@@ -143,7 +163,7 @@ export function HomeRunway({ accounts, quota, quotaKnown = true, sessions }: { a
               {!quotaKnown && row.left === null && <div className="h-1.5 rounded-full bg-surface-3" aria-hidden="true" data-testid="home-runway-meter-pending" />}
               {row.left !== null && (
                 <div className="h-1.5 overflow-hidden rounded-full bg-surface-3" role="meter" aria-valuemin={0} aria-valuemax={100} aria-valuenow={row.left} aria-label={`${group.name}: ${row.words}`}>
-                  <div className={"h-full rounded-full " + (low ? "bg-warning" : "bg-accent")} style={{ width: `${row.left}%` }} />
+                  <div className={"h-full rounded-full " + LEVEL_FILL[level]} style={{ width: `${row.left}%` }} />
                 </div>
               )}
               <RunwayApps named={appsOn(group, apps)} />
@@ -167,6 +187,6 @@ export function HomeRunway({ accounts, quota, quotaKnown = true, sessions }: { a
           );
         })}
       </div>
-    </section>
+    </HomeSection>
   );
 }

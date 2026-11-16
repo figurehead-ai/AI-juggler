@@ -11,6 +11,8 @@ import { useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { HomeScreen, needOf, needWords, placeOf, toReview } from "./Home";
 import { renderWithNeeds } from "../test/needs-kit";
+import { endingItem } from "../preview/feed";
+import { EMPTY_FEED } from "../lib/feed-words";
 import { runwayOf } from "../components/AccountRunway";
 import { quotaDisplay } from "../lib/wire";
 import type { AccountInfo } from "../types/generated/AccountInfo";
@@ -24,6 +26,11 @@ import { account as folderFixture, seamCalls } from "../test/fixtures";
 import type { ActionHost } from "../lib/actions";
 
 const NOW = 1_728_800_000_000;
+
+/** D-118: the feed's items for these sessions' endings (the stand-in's). */
+function seedFeed(sessions: InstanceInfo[]): void {
+  Reflect.set(window, "__AIJ_FEED__", sessions.map(endingItem).filter((item) => item !== null));
+}
 const w = () => window as unknown as Record<string, unknown>;
 
 function mk(id: string, overrides: Partial<InstanceInfo> = {}): InstanceInfo {
@@ -72,6 +79,8 @@ const PROJECTS: ProjectInfo[] = [
 afterEach(cleanup);
 beforeEach(() => {
   for (const key of Object.keys(w()).filter((key) => key.startsWith("__AIJ_"))) delete w()[key];
+  // D-118: the feed starts empty; a test seeds it (`seedFeed`).
+  seedFeed([]);
 });
 
 describe("D-25 Home — the rules", () => {
@@ -182,12 +191,13 @@ describe("D-25 Home — the screen", () => {
     expect(renderHome([]).getByTestId("home").textContent).toContain("Ready when you are");
   });
 
-  it("says 'first' only when it is: with projects worked in, older sessions are in History (walk A9)", () => {
-    // PROJECTS has some: a Mac that worked before, its sessions past the working set.
-    const card = renderHome([]).getByTestId("home-first-session");
-    expect(card.textContent).toContain("Start a session");
-    expect(card.textContent).not.toContain("first");
-    expect(card.textContent).toContain("Your earlier sessions are in History.");
+  it("an Account with nothing yet: the quiet feed, with New session and Open an app (D-118 R12)", async () => {
+    const view = renderHome([]);
+    const empty = await view.findByTestId("feed-empty");
+    expect(empty.textContent).toContain(EMPTY_FEED);
+    expect(within(empty).getByRole("button", { name: "New session" })).toBeTruthy();
+    expect(within(empty).getByRole("button", { name: "Open an app" })).toBeTruthy();
+    expect(view.queryByTestId("home-first-session")).toBeNull();
   });
 
   it("never 'all clear' while an account has run out (QA batch 9)", async () => {
@@ -367,21 +377,23 @@ describe("AJ-E1021 Home as the morning triage (from AJ-E1005)", () => {
     expect(changed).toBe(1);
   });
 
-  it("pick up where you left off: three, then Show all; Mark reviewed takes one off", async () => {
+  it("what to pick up is in the feed (D-118 point 3): a finished card's Mark reviewed, and Mark all reviewed under the Finished filter", async () => {
     let changed = 0;
-    const ended = Array.from({ length: 5 }, (_, n) => mk(`e-${n}`, { status: "finished", last_activity_ms: NOW - (n + 1) * 60_000 }));
-    const { getByTestId, getAllByTestId, getAllByRole } = renderHome(
-      [...ended, mk("old", { status: "finished", lifecycle: "reviewed" })],
-      { onChanged: () => changed++ },
-    );
-    expect(getAllByTestId("home-recent-item")).toHaveLength(3);
-    fireEvent.click(getByTestId("home-recent-all"));
-    expect(getAllByTestId("home-recent-item")).toHaveLength(5);
+    // Three hours apart: each its own card (one App and project's finishes
+    // within 2 h roll up into one).
+    const ended = Array.from({ length: 5 }, (_, n) => mk(`e-${n}`, { status: "finished", last_activity_ms: NOW - (n + 1) * 3 * 3_600_000 }));
+    seedFeed(ended);
+    const { findAllByTestId, getAllByRole, getByRole, getByTestId, findByTestId } = renderHome([...ended, mk("old", { status: "finished", lifecycle: "reviewed" })], { onChanged: () => changed++ });
+    await waitFor(async () => expect(await findAllByTestId("feed-card")).toHaveLength(5));
     await act(async () => {
       fireEvent.click(getAllByRole("button", { name: /^Mark reviewed/ })[0]!);
     });
     expect(calls()).toEqual(["reviewed:e-0"]);
     expect(changed).toBe(1);
+    // The Finished filter's ⋯ marks every one still to review at once.
+    fireEvent.click(getByRole("radio", { name: "Finished" }));
+    fireEvent.click(getByTestId("feed-more"));
+    expect((await findByTestId("feed-review-all")).textContent).toBe("Mark all 5 reviewed");
   });
 
   it("is keyboard operable: J/K or arrows move, A runs the row's action, Enter opens", async () => {
@@ -408,20 +420,20 @@ describe("AJ-E1021 Home as the morning triage (from AJ-E1005)", () => {
         />
       );
     }
+    seedFeed([mk("d1", { status: "finished", last_activity_ms: NOW - 60_000 }), mk("d2", { status: "finished", last_activity_ms: NOW - 3 * 3_600_000 })]);
     const { container } = renderWithNeeds({ sessions: [mk("w", { status: "waiting_user" })], accounts: ACCOUNTS, projects: PROJECTS }, <Stateful />);
     const rows = () => Array.from(container.querySelectorAll<HTMLElement>("[data-home-row]"));
-    // AJ-E2105: Needs you's Open its page, then the two to pick up (what runs
-    // is in the list and under Your apps).
-    expect(rows()).toHaveLength(3);
+    // Needs you now's Open its page, then the feed's two finished cards
+    // (what runs is in the list and under Your apps).
+    await waitFor(() => expect(rows()).toHaveLength(3));
     rows()[0]!.focus();
     await user.keyboard("{ArrowDown}");
     expect(document.activeElement).toBe(rows()[1]);
-    // A marks d1 reviewed; its row disappears; focus lands on the row now
-    // in its place (d2), not on <body>, and the keys go on working.
+    // A marks d1 reviewed; the feed keeps its line (it's history) and the
+    // keys go on working from where focus is.
     await user.keyboard("a");
-    await waitFor(() => expect(rows()).toHaveLength(2));
-    expect(calls()).toEqual(["reviewed:d1"]);
-    await waitFor(() => expect(document.activeElement).toBe(rows()[1]));
+    await waitFor(() => expect(calls()).toEqual(["reviewed:d1"]));
+    rows()[1]!.focus();
     await user.keyboard("k");
     expect(document.activeElement).toBe(rows()[0]);
     await user.keyboard("{Enter}");
@@ -431,8 +443,10 @@ describe("AJ-E1021 Home as the morning triage (from AJ-E1005)", () => {
 
   it("A on a row's own Mark reviewed button acts on that row; J moves on from it", async () => {
     const user = userEvent.setup();
-    const { container, getAllByRole } = renderHome([mk("d1", { status: "finished" }), mk("d2", { status: "finished", last_activity_ms: NOW - 120_000 })]);
-    const markFirst = getAllByRole("button", { name: /^Mark reviewed/ })[0]!;
+    const done = [mk("d1", { status: "finished" }), mk("d2", { status: "finished", last_activity_ms: NOW - 3 * 3_600_000 })];
+    seedFeed(done);
+    const { container, findAllByRole } = renderHome(done);
+    const markFirst = (await findAllByRole("button", { name: /^Mark reviewed/ }))[0]!;
     markFirst.focus();
     await user.keyboard("a");
     await waitFor(() => expect(calls()).toEqual(["reviewed:d1"]));
@@ -452,7 +466,10 @@ describe("AJ-E1021 Home as the morning triage (from AJ-E1005)", () => {
 
   it("a dialog over Home owns the keys, even with focus on <body>", async () => {
     const user = userEvent.setup();
-    const { container } = renderHome([mk("d1", { status: "finished" }), mk("d2", { status: "finished", last_activity_ms: NOW - 120_000 })]);
+    const done = [mk("d1", { status: "finished" }), mk("d2", { status: "finished", last_activity_ms: NOW - 3 * 3_600_000 })];
+    seedFeed(done);
+    const { container } = renderHome(done);
+    await waitFor(() => expect(container.querySelectorAll("[data-home-row]").length).toBeGreaterThan(0));
     const modal = document.createElement("div");
     modal.setAttribute("role", "dialog");
     modal.setAttribute("aria-modal", "true");
@@ -555,6 +572,7 @@ describe("AJ-E2910 R4 — r, h, s and e on the focused row", () => {
 
   it("e archives an ended row with Undo; on a live row it does nothing", async () => {
     const user = userEvent.setup();
+    seedFeed([mk("d1", { status: "finished", last_activity_ms: NOW - 60_000 })]);
     const { view, rowOf } = await renderKeys([mk("w", { status: "waiting_user" }), mk("d1", { status: "finished", last_activity_ms: NOW - 60_000 })]);
     await waitFor(() => expect(rowOf("d1")).toBeTruthy());
     rowOf("w").focus();

@@ -115,7 +115,9 @@ it("a note is listed but never counted, and the three counts still agree (D-117)
   const { default: App } = await import("./App");
   const view = render(<App />);
   const heading = await view.findByTestId("home-heading");
-  await waitFor(() => expect(view.getByTestId("home-needs").textContent).toContain("Side Pro is running low"));
+  // D-118: Home pins L2 and L3 only; the note is named in its counts line.
+  await waitFor(() => expect(view.getByTestId("home-counts").textContent).toMatch(/\d+ to review/));
+  expect(view.queryByTestId("home-needs")?.textContent ?? "").not.toContain("Side Pro is running low");
   await waitFor(() => {
     const shown = count(heading.textContent ?? "");
     expect(shown).toBeGreaterThanOrEqual(1);

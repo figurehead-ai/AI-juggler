@@ -7,8 +7,10 @@
  * passing test is no slower; only a real failure takes longer to say so.
  */
 import { configure } from "@testing-library/react";
-import { afterEach, beforeAll } from "vitest";
+import { afterEach, beforeAll, beforeEach } from "vitest";
 import { forgetSharedReads } from "../lib/shared-read";
+import { forgetPaged } from "../lib/paged";
+import { forgetFeedState } from "../lib/feed-state";
 import { installPreview } from "../lib/preview-hooks";
 
 configure({ asyncUtilTimeout: 10_000 });
@@ -16,6 +18,22 @@ configure({ asyncUtilTimeout: 10_000 });
 // 0.3.4: what screens keep between visits (the last answers, scroll
 // positions, a session's tabs) never carries from one test to the next.
 afterEach(forgetSharedReads);
+
+// D-118: Home's feed starts empty in every test (a test seeds its items as
+// `__AIJ_FEED__`), and nothing it kept (its pages, its first page, its
+// filters and folds) carries to the next.
+// (tests/bundle run in Node: no window there.)
+const hasWindow = typeof window !== "undefined";
+beforeEach(() => {
+  if (hasWindow) Reflect.set(window, "__AIJ_FEED__", []);
+});
+afterEach(() => {
+  forgetPaged();
+  if (!hasWindow) return;
+  forgetFeedState();
+  Reflect.deleteProperty(window, "__AIJ_FEED__");
+  Reflect.deleteProperty(window, "__AIJ_FEED_CALLS__");
+});
 
 // AJ-E2018: the app loads the design preview's data before its first
 // render (main.tsx); a test file gets it before its first test. It loads

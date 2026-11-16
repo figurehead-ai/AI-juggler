@@ -553,6 +553,21 @@ main::-webkit-scrollbar-track {
   opacity: 1;
 }
 
+/* D-118 (AJ-E3702 R6): a feed item that arrives while the reader is at
+   the top fades in once, over 600 ms; never loops, and none at all under
+   Reduce Motion (the rule below stops every animation). */
+@keyframes feed-fresh {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.feed-fresh {
+  animation: feed-fresh 600ms ease-out 1;
+}
+
 /* Reduced motion: freeze micro-transitions and the live pulse —
    accessibility (WCAG 2.3.3) and deterministic visual captures.
    Transitions are switched OFF, not shortened: the CSS default
@@ -567,7 +582,7 @@ main::-webkit-scrollbar-track {
     animation-iteration-count: 1 !important;
     transition: none !important;
   }
-  .dot-live, .animate-breathe, .welcome-rise {
+  .dot-live, .animate-breathe, .welcome-rise, .feed-fresh {
     animation: none !important;
   }
   .app-tone {

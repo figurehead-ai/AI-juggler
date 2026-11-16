@@ -210,7 +210,7 @@ describe("AJ-E3206 a desktop App wears one colour on every surface", () => {
     const conversations = placesConversations(NOW);
     seams().__AIJ_PLACES__ = { places: [WORK_APP, LAB_APP] };
     const items = itemsOf({ sessions: [], conversations, projects: [], seen: {}, snoozed: () => false, pins: new Set(), needOf: new Map() });
-    render(<HomeApps items={items} runwayOf={() => null} />);
+    render(<HomeApps items={items} />);
     const open = await screen.findAllByTestId("home-app-tile");
     const tile = open.find((one) => one.dataset.place === desktopAppKey("claude-app", "Claude", "Work"))!;
     expect(badgeIn(tile)).toBe(work);
