@@ -562,8 +562,8 @@ fn hold_watched(
 /// waits on a Watched member. Best effort: a sender no longer
 /// running reads it in the thread.
 fn tell_sender(state: &Arc<AppState>, message: &Message, body: &str) {
-    let Ok(Some(session)) = lock_storage_arc(state)
-        .map(|storage| super::live_session_of(&storage, &message.sender_ref))
+    let Ok(Some(session)) =
+        lock_storage_arc(state).map(|storage| super::session_now(&storage, &message.sender_ref))
     else {
         return;
     };

@@ -426,3 +426,116 @@ fn a_connected_desktop_session_is_listed_for_the_members_and_recipients() {
     assert_eq!(own.len(), 1);
     assert_eq!(own[0].via, "conversation");
 }
+
+/// The aij-test proof, run 3: a desktop session claimed a pool task; Tasks
+/// said "In progress · An agent", "whose session has ended", offered Free
+/// it, and its Sessions read "A session that ended took it": the holder
+/// was looked up among sessions AI Juggler runs only, by a name from their
+/// roster only. Now it's the desktop session, named as the diagram names
+/// it, running while it's attested, with no Free it offered.
+#[test]
+fn a_desktop_session_that_claims_a_task_is_its_running_named_holder() {
+    use juggler_agentbridge::wire::{Args, Call, Request, TaskArgs, TaskCreateArgs};
+    let lab = lab();
+    lab.attest();
+    // Its kept session names its title (the app's own record).
+    lab.state.agent_bridge.desktop.lock().unwrap().insert(
+        desktop_id(FOLDER, CONVERSATION).as_str().to_owned(),
+        (
+            lab.app.clone(),
+            juggler_adapter::peer::AttestedSession {
+                conversation: CONVERSATION.into(),
+                host_session: "local_t1".into(),
+                tool_pid: 1,
+                tool_start: 0,
+                cwd: None,
+                title: Some("AI Juggler pool whoami result".into()),
+            },
+        ),
+    );
+    let desk = crate::features::tasks::agent::Caller {
+        session: desktop_id(FOLDER, CONVERSATION),
+        pool_id: lab.pool.clone(),
+        pool_name: "Team".into(),
+        member_ref: MEMBER.into(),
+        role: "member".into(),
+    };
+    let created = crate::features::tasks::agent::answer(
+        &lab.state,
+        &desk,
+        &Request::new(
+            String::new(),
+            Call::TaskCreate,
+            Args {
+                new_task: Some(TaskCreateArgs {
+                    title: "lab task".into(),
+                    ..TaskCreateArgs::default()
+                }),
+                ..Args::default()
+            },
+        ),
+    )
+    .unwrap();
+    let task = created["task"]["id"].as_str().unwrap().to_owned();
+    crate::features::tasks::agent::answer(
+        &lab.state,
+        &desk,
+        &Request::new(
+            String::new(),
+            Call::TaskClaim,
+            Args {
+                task: Some(TaskArgs { task: task.clone() }),
+                ..Args::default()
+            },
+        ),
+    )
+    .unwrap();
+    let detail = crate::features::tasks::views::detail(&lab.state, &task, None).unwrap();
+    assert_eq!(
+        detail.task.holder.as_deref(),
+        Some("AI Juggler pool whoami result"),
+        "named as the diagram names it, never \"An agent\""
+    );
+    assert_eq!(
+        detail.task.holder_session_id.as_deref(),
+        Some(desktop_id(FOLDER, CONVERSATION).as_str()),
+        "its session runs"
+    );
+    assert!(!detail.actions.free, "no Free it while it's open");
+    let session = detail
+        .sessions
+        .iter()
+        .find(|one| one.session_id == desktop_id(FOLDER, CONVERSATION).as_str())
+        .expect("its session took it");
+    assert!(session.live);
+    assert_eq!(session.name, "AI Juggler pool whoami result");
+}
+
+/// Run 3, the same resolution in Messages: a message from a desktop
+/// session names its session as the sender's, and a copy to it says it
+/// reads through the connector (never "Not running").
+#[test]
+fn messages_name_a_desktop_session_as_sender_and_recipient() {
+    let lab = lab();
+    lab.attest();
+    let desk = desktop_id(FOLDER, CONVERSATION);
+    let to_it = lab.send("s-cli", "session:s-cli", MEMBER, 1).unwrap();
+    let page = crate::features::messages::views::thread(&lab.state, &to_it.message.thread_id, None)
+        .unwrap();
+    let copy = page.messages[0]
+        .recipients
+        .iter()
+        .find(|r| r.id == MEMBER)
+        .unwrap()
+        .clone();
+    assert_eq!(copy.session_id.as_deref(), Some(desk.as_str()));
+    assert!(copy.how.contains("connector"), "{}", copy.how);
+    let from_it = lab.send(desk.as_str(), MEMBER, "s-cli", 2).unwrap();
+    let page =
+        crate::features::messages::views::thread(&lab.state, &from_it.message.thread_id, None)
+            .unwrap();
+    assert_eq!(
+        page.messages[0].from_session_id.as_deref(),
+        Some(desk.as_str())
+    );
+}

@@ -116,7 +116,8 @@ fn refusal_of(error: &AppError) -> Response {
     }
 }
 
-/// The caller as an actor: its name from the roster, its refs.
+/// The caller as an actor: its name from the roster (AJ-E3013, run 3: a
+/// desktop session's as the diagram names it), its refs.
 pub(crate) fn actor_of(state: &Arc<AppState>, caller: &Caller) -> Actor {
     let name = crate::features::messages::roster(state, &caller.pool_id)
         .ok()
@@ -125,7 +126,18 @@ pub(crate) fn actor_of(state: &Arc<AppState>, caller: &Caller) -> Actor {
                 .into_iter()
                 .find(|m| m.session_id == caller.session.as_str())
         })
-        .map_or_else(|| "An agent".to_owned(), |member| member.name);
+        .map(|member| member.name)
+        .or_else(|| {
+            crate::features::connector::reach::of_pool(state, &caller.pool_id)
+                .ok()?
+                .into_iter()
+                .find(|one| {
+                    one.member == caller.member_ref
+                        || one.session.as_deref() == Some(caller.session.as_str())
+                })
+                .map(|one| one.name)
+        })
+        .unwrap_or_else(|| "An agent".to_owned());
     let refs = lock_storage_arc(state).map_or_else(
         |_| vec![format!("session:{}", caller.session.as_str())],
         |storage| crate::features::messages::refs_of(&storage, &caller.session),

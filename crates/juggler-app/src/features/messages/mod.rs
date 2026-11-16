@@ -262,6 +262,22 @@ pub(crate) fn live_session_of(storage: &Storage, member_ref: &str) -> Option<Ses
     live.into_iter().next().map(|record| record.id)
 }
 
+/// The session a member ref stands for now, for who it is and whether it
+/// runs (Tasks' holder, a message's sender and recipients): its Work
+/// item's newest running session AI Juggler runs, else (AJ-E3013, the
+/// aij-test proof run 3) a desktop conversation's attested session while
+/// its facts are fresh. Delivery asks [`live_session_of`] instead: a
+/// desktop session isn't typed into.
+pub(crate) fn session_now(storage: &Storage, member_ref: &str) -> Option<SessionId> {
+    live_session_of(storage, member_ref).or_else(|| {
+        let Some(MemberRef::Conversation { folder, id }) = MemberRef::parse(member_ref) else {
+            return None;
+        };
+        let session = juggler_core::storage::attested::desktop_id(&folder, &id);
+        storage.attested().get(&session).map(|_| session)
+    })
+}
+
 /// The session a message's sender ref stands for, for the decisions made
 /// as that sender (`allowed(deliver_to_session)` and the rest): a session
 /// or a Work item's live session, or (AJ-E3013) a desktop conversation's

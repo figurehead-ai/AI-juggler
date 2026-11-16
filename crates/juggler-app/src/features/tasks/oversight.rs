@@ -47,7 +47,7 @@ fn act(
         .ok_or_else(|| refused("That task isn't there any more"))?;
     let holder = task.assignee_ref.as_deref();
     let holder_running =
-        holder.is_some_and(|h| crate::features::messages::live_session_of(&storage, h).is_some());
+        holder.is_some_and(|h| crate::features::messages::session_now(&storage, h).is_some());
     let changed = repo
         .user_action(
             &task.id,
