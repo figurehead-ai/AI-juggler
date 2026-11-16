@@ -129,6 +129,7 @@
 4. Each step scored 1–5 on: it worked; it gave value; it was clear how to do it; how it felt. Each flow also scored on whether the persona's problem was solved. Every score has a one-line reason.
 5. Findings ranked by severity and by how many personas and flows they touch. Any bug is fixed at once, then that step is walked again. Anything scored under 4 is reasoned about, a better design proposed, and brought to the maintainer before it's changed.
 6. A report for the maintainer: personas, flows, the score table, the ranked findings with evidence, what was fixed, and what waits on a decision.
+7. **See it work (0.4.6, the coordinating session's ruling, 2026-11-16):** on the release candidate, in the 7b lab with the Lab App (`docs/qa/0.4-walks/7b-live-claude.md`), a newcomer persona sets up a pool, starts one session, and sees the team respond: a message between members, a review of work, and a task taken. Its value scores 6/7 or better; if it lands below 6, the fix goes into 0.4.6 before the candidate ships. (AJ-E3011's done-gate judges the setup alone, as no session may start there.)
 **UI/UX reasoning**: tests and gates prove it works; only a user's walk proves it's worth using and clear.
 **Performance budget**: each step's time recorded; any wait over 1 s noted as a finding.
 **Quality gates**: no flow under 4 on any measure without the maintainer's decision; every bug found fixed and re-walked.
