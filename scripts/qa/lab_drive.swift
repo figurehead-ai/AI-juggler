@@ -70,9 +70,12 @@
 //   sign-in APP                   Home's Needs-you row named "APP needs its sign-in" (APP:
 //                                 the App's full name, "OpenCode CLI · lab A"): its button
 //                                 "Sign in to APP"; waits for the sign-in terminal ("Sign in · …")
-//   read-label APP                APP's sign-in state where Dev shows it: Home's Needs-you
-//                                 row, its row on Accounts (or its App page); prints
-//                                 STATE: needs-sign-in | not-signed-in | signed-in
+//   read-label APP                APP's sign-in state, only from what Dev derives from it:
+//                                 Home's row "APP needs its sign-in" (not-signed-in), or its
+//                                 absence on Home with every need shown (signed-in, valid
+//                                 after its sign-in terminal ended); the App page's own
+//                                 sign-in line verbatim when shown. Prints EVIDENCE: and
+//                                 STATE: not-signed-in | signed-in; else stops (exit 4)
 //   new-session TOOL APP PROJECT  New session → Change app → APP → Change folder →
 //                                 PROJECT → "Start in PROJECT" (TOOL names the row in the log)
 //   send TEXT [--field TITLE]     types TEXT and Return into the session's terminal
@@ -761,44 +764,63 @@ func signIn(_ pid: pid_t, app: String) {
     say("the sign-in terminal is open: answer its menu with `key`/`type`, read it with `read --ocr`")
 }
 
-enum SignInState: String { case needsSignIn = "needs-sign-in", notSignedIn = "not-signed-in", signedIn = "signed-in" }
+enum SignInState: String { case notSignedIn = "not-signed-in", signedIn = "signed-in" }
 
-/// App `app`'s sign-in state as Dev shows it (pure: tested by --selftest).
-/// Home's Needs-you row named "<app> needs its sign-in"; else its row on
-/// Accounts (the one holding "Open <app>" or "App actions for <app>"):
-/// "Not signed in" there, or what a signed-in row shows instead ("Nothing
-/// open", "N open now"). Each finding says where it was read.
-func signInState(_ nodes: [Node], app: String) -> [(SignInState, String)] {
-    var out: [(SignInState, String)] = []
-    if nodes.contains(where: { rowRoles.contains($0.role) && $0.label == signInRow(app) }) {
-        out.append((.needsSignIn, "Home's Needs you: \"\(signInRow(app))\""))
-    }
-    let handles = controls(nodes, titled: "Open \(squash(app))", roles: pressRoles) + controls(nodes, titled: "App actions for \(squash(app))", roles: pressRoles)
-    for h in handles {
-        // Its row: the nearest ancestor (six levels at most) holding a state word.
-        for a in ancestors(nodes, h).dropFirst().prefix(6) {
-            let words = descendants(nodes, a).map { nodes[$0].words }
-            if words.contains("Not signed in") { out.append((.notSignedIn, "its row: \"Not signed in\"")); break }
-            if words.contains("Its key isn't here") { out.append((.notSignedIn, "its row: \"Its key isn't here\"")); break }
-            if let shown = words.first(where: { $0 == "Nothing open" || $0.hasSuffix(" open now") }) {
-                out.append((.signedIn, "its row: \"\(shown)\" (a signed-in App's words)")); break
-            }
+/// What `read-label` found (pure: tested by --selftest): a state with the
+/// evidence it rests on, or why it can't tell; and the App page's own
+/// sign-in lines, verbatim.
+struct SignInReading {
+    var state: SignInState?
+    var evidence: String
+    var appPage: [String] = []
+}
+
+/// App `app`'s sign-in state, only from what Dev derives from its sign-in
+/// (never from words like "Nothing open", which say no session is open):
+///   1. Home's Needs-you row named "<app> needs its sign-in" is there:
+///      not signed in;
+///   2. Home is on screen with its Needs you read in full, and that row
+///      isn't there: signed in, by its absence (Dev reads an App's sign-in
+///      again when its sign-in terminal ends, so read this after the end);
+///   3. an App page headed `app` that shows a sign-in line: reported
+///      verbatim beside either.
+func signInState(_ nodes: [Node], app: String) -> SignInReading {
+    let row = signInRow(app)
+    // 3. The App page: the region under a heading that is the App's name.
+    var page: [String] = []
+    for h in nodes.indices where nodes[h].role == "AXHeading" && nodes[h].words == squash(app) {
+        for a in ancestors(nodes, h).dropFirst().prefix(4) {
+            let lines = descendants(nodes, a).map { nodes[$0].words }.filter { $0.lowercased().contains("sign") && $0 != row }
+            if !lines.isEmpty { page = lines; break }
         }
     }
-    var seen = Set<String>()
-    return out.filter { seen.insert("\($0.0.rawValue)|\($0.1)").inserted }
+    var dedup = Set<String>()
+    page = page.filter { dedup.insert($0).inserted }
+    // 1. Its row on Home's Needs you (or anywhere: the row's name is its own).
+    if nodes.contains(where: { rowRoles.contains($0.role) && $0.label == row }) {
+        return SignInReading(state: .notSignedIn, evidence: "Home's Needs you has the row \"\(row)\"", appPage: page)
+    }
+    // 2. Its absence, only from a Home that shows every need.
+    let home = nodes.contains { $0.role == "AXWindow" && ($0.label == "AI Juggler · Home" || $0.label.hasSuffix(" · Home")) }
+    guard home else {
+        return SignInReading(state: nil, evidence: "Home isn't on screen, so its Needs you can't be read (press \"Home\")", appPage: page)
+    }
+    if nodes.contains(where: { $0.words.hasPrefix("Checking what needs you") }) {
+        return SignInReading(state: nil, evidence: "Home's Needs you is still loading", appPage: page)
+    }
+    if let more = nodes.first(where: { $0.words.range(of: #"^\+\d+ more needs? you$"#, options: .regularExpression) != nil }) {
+        return SignInReading(state: nil, evidence: "Home holds needs behind \"\(more.words)\": press it, then read again", appPage: page)
+    }
+    return SignInReading(state: .signedIn, evidence: "no row \"\(row)\" on Home's Needs you (by its absence; valid after its sign-in terminal ended)", appPage: page)
 }
 
 func readLabel(_ pid: pid_t, app: String) {
     say("» read-label \"\(app)\"")
-    let found = signInState(tree(pid), app: app)
-    guard !found.isEmpty else {
-        stop(4, "\"\(app)\"'s sign-in isn't shown here (Home lists only Apps that need one): press \"Accounts\" and read again")
-    }
-    for (state, where_) in found { say("\(app): \(state.rawValue) — \(where_)") }
-    let states = Set(found.map { $0.0 })
-    if states.count > 1 { stop(4, "\"\(app)\" shows two states (\(states.map { $0.rawValue }.sorted().joined(separator: ", "))): read again in a moment") }
-    say("STATE: \(found[0].0.rawValue)")
+    let reading = signInState(tree(pid), app: app)
+    for line in reading.appPage { say("\(app): its App page says \"\(line)\"") }
+    guard let state = reading.state else { stop(4, "\"\(app)\"'s sign-in can't be read: \(reading.evidence)") }
+    say("EVIDENCE: \(reading.evidence)")
+    say("STATE: \(state.rawValue)")
 }
 
 func newSession(_ pid: pid_t, tool: String, app: String, project: String, labB: Bool = false) {
@@ -1025,22 +1047,44 @@ func selftest() {
     if signInRow(" Kimi Code CLI ·  lab A") != "Kimi Code CLI · lab A needs its sign-in" || signInButton("Kimi Code CLI · lab A") != "Sign in to Kimi Code CLI · lab A" {
         failures.append("the sign-in names")
     }
-    // read-label: from Home's row, then from the App's row on Accounts.
-    if signInState(beside, app: "Kimi Code CLI · lab A").map({ $0.0 }) != [.needsSignIn] { failures.append("read-label: Home's row") }
+    // read-label: only what Dev derives from the sign-in (Home's row, its
+    // absence on a fully shown Home, the App page's own line), never "Nothing open".
+    let homeNeeds: [Node] = [
+        n("AXWindow", "AI Juggler · Home", "", nil, 0),
+        n("AXGroup", "Needs you", "", 0, 1),                                   // 1
+        n("AXGroup", "Kimi Code CLI · lab A needs its sign-in", "", 1, 2),    // 2
+        n("AXStaticText", "", "lab A needs its sign-in", 2, 3),
+        n("AXButton", "Sign in to Kimi Code CLI · lab A", "", 2, 3),
+        n("AXGroup", "", "", 0, 1),                                            // 5: Your apps
+        n("AXStaticText", "", "OpenCode CLI", 5, 2),
+        n("AXStaticText", "", "Nothing open", 5, 2),
+    ]
+    let kimiOut = signInState(homeNeeds, app: "Kimi Code CLI · lab A")
+    if kimiOut.state != .notSignedIn || !kimiOut.evidence.contains("has the row") { failures.append("read-label: Home's row means not signed in") }
+    let openIn = signInState(homeNeeds, app: "OpenCode CLI · lab A")
+    if openIn.state != .signedIn || !openIn.evidence.contains("absence") { failures.append("read-label: no row on a full Home means signed in") }
+    if signInState(homeNeeds, app: "Kimi Code CLI · lab B").state != .signedIn { failures.append("read-label: lab B's own row, not lab A's") }
+    // Not Home (an Accounts row with "Nothing open"): no state, whatever it shows.
     let accounts: [Node] = [
         n("AXWindow", "AI Juggler · Accounts", "", nil, 0),
-        n("AXGroup", "", "", 0, 1),                                             // 1: Kimi's row
+        n("AXGroup", "", "", 0, 1),
         n("AXStaticText", "", "Kimi Code CLI", 1, 2),
         n("AXStaticText", "", "Nothing open", 1, 2),
         n("AXButton", "Open Kimi Code CLI · lab A", "", 1, 2),
-        n("AXGroup", "", "", 0, 1),                                             // 5: OpenCode's row
-        n("AXStaticText", "", "Not signed in", 5, 2),
-        n("AXButton", "Sign in", "", 5, 2),
-        n("AXButton", "Open OpenCode CLI · lab A", "", 5, 2),
     ]
-    if signInState(accounts, app: "Kimi Code CLI · lab A").map({ $0.0 }) != [.signedIn] { failures.append("read-label: a signed-in row") }
-    if signInState(accounts, app: "OpenCode CLI · lab A").map({ $0.0 }) != [.notSignedIn] { failures.append("read-label: a signed-out row") }
-    if !signInState(accounts, app: "Grok Build CLI · lab A").isEmpty { failures.append("read-label: an App not shown") }
+    if signInState(accounts, app: "Kimi Code CLI · lab A").state != nil { failures.append("read-label: a state from \"Nothing open\"") }
+    // A Home holding needs behind "+n more", or still loading: no state by absence.
+    if signInState(homeNeeds + [n("AXButton", "", "+2 more need you", 1, 2)], app: "OpenCode CLI · lab A").state != nil { failures.append("read-label: absence behind +n more") }
+    if signInState(homeNeeds + [n("AXHeading", "", "Checking what needs you…", 0, 1)], app: "OpenCode CLI · lab A").state != nil { failures.append("read-label: absence while loading") }
+    // The App page's own sign-in line, verbatim, beside the state.
+    let appPage = homeNeeds + [
+        n("AXGroup", "", "", 0, 1),                                            // 8
+        n("AXHeading", "", "OpenCode CLI · lab A", 8, 2),
+        n("AXStaticText", "", "Signed in with OpenCode's own sign-in", 8, 2),
+        n("AXStaticText", "", "Nothing open", 8, 2),
+    ]
+    let paged = signInState(appPage, app: "OpenCode CLI · lab A")
+    if paged.appPage != ["Signed in with OpenCode's own sign-in"] || paged.state != .signedIn { failures.append("read-label: the App page's line \(paged.appPage)") }
     // Bringing Dev forward: a made-up clock and Mac.
     failures += activationSelftest()
     // Words: exact, squashed.
