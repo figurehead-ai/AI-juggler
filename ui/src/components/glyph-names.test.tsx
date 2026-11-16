@@ -152,10 +152,14 @@ describe("no status glyph in any accessible name (D-117)", () => {
     const needOf = new Map<string, Need>([...before.flatMap((item) => (item.need === null ? [] : [[item.key, item.need] as const])), [failed.key, "failed"]]);
     const view = render(<HomeApps items={itemsOf({ ...base, needOf })} />);
     const tiles = await view.findAllByTestId("home-app-tile");
-    const broke = tiles.find((tile) => tile.dataset.level === "3")!;
+    const broke = tiles.find((tile) => tile.dataset.place === "app|claude-app|Work")!;
+    expect(broke.dataset.level).toBe("3");
     expect(within(broke).getByTestId("home-app-needs").textContent).toBe("2 need you, 1 stopped with an error");
     expect(within(broke).getByTestId("home-app-needs").querySelector(".level-mark")!.getAttribute("aria-hidden")).toBe("true");
-    expect(tiles.some((tile) => tile.dataset.level === "2")).toBe(true);
+    // AI Juggler's own sessions are their CLI App's (with the Terminal's,
+    // its folder's): its row says what broke there too.
+    const cli = tiles.find((tile) => tile.dataset.place === "cli|claude-code|claude-work")!;
+    expect(within(cli).getByTestId("home-app-needs").textContent).toMatch(/need you, 1 stopped with an error$/);
     expect(withGlyphs(view.container)).toEqual([]);
   });
 

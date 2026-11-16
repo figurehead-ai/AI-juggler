@@ -88,20 +88,43 @@ describe("Home, desktop first", () => {
     expect(within(work).getByRole("button", { name: /^Open Claude/ })).toBeTruthy();
     // The rows sit in the right column, under its own head.
     expect(view.getByTestId("home-side").contains(work)).toBe(true);
+    // A CLI App with nothing open is under Not running, its page by its
+    // name, nothing to start (D-100).
+    const idle = await view.findByTestId("home-app-cli");
+    expect(idle.dataset.place).toBe("cli|claude-code|claude-personal");
+    expect(within(idle).getByTestId("home-app-line").textContent).toBe("Nothing open");
+    expect(within(idle).getByRole("button", { name: /Claude Code CLI · Personal's page/ })).toBeTruthy();
+    expect(view.getByTestId("home-apps-down").compareDocumentPosition(idle) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     cleanup();
-    // Ten places: eight rows, then "Show all 10".
+    // Ten places and the two CLI Apps: eight rows, then "Show all 12".
     const places = (count: number) => [...Array(count)].map((_, n) => ({ ...placesConversations(NOW)[0]!, id: `p${n}`, places: [{ ...PREVIEW_PLACES[0]!, instance: `P${n}`, profile: `Profile ${n}`, pid: 900 + n }] }));
     const again = home([], places(10));
     await waitFor(() => expect(again.getAllByTestId("home-app-tile")).toHaveLength(8));
-    expect(again.getByTestId("home-apps-more").textContent).toBe("Show all 10");
+    expect(again.getByTestId("home-apps-more").textContent).toBe("Show all 12");
     fireEvent.click(again.getByTestId("home-apps-more"));
     expect(again.getAllByTestId("home-app-tile")).toHaveLength(10);
+    expect(again.getAllByTestId("home-app-cli")).toHaveLength(2);
     expect(again.getByTestId("home-apps-more").textContent).toBe("Show fewer");
     cleanup();
     // Nine: all nine, never one behind a "Show all" (the 0.2 walk, F18).
-    const nine = home([], places(9));
-    await waitFor(() => expect(nine.getAllByTestId("home-app-tile")).toHaveLength(9));
+    const nine = home([], places(7));
+    await waitFor(() => expect(nine.getAllByTestId("home-app-tile")).toHaveLength(7));
+    expect(nine.getAllByTestId("home-app-cli")).toHaveLength(2);
     expect(nine.queryByTestId("home-apps-more")).toBeNull();
+  });
+
+  it("Your apps is never empty for someone with an Account: sessions in AI Juggler's own terminal are their CLI App's, running; the rest not running (D-118)", async () => {
+    // Every session in AI Juggler, nothing outside: the old Home had no
+    // Your apps at all here.
+    const view = home([own("w1"), own("w2", { status: "waiting_user", needs_attention: "waiting_user" })], []);
+    const running = await view.findByTestId("home-app-tile");
+    expect(running.dataset.place).toBe("cli|claude-code|claude-work");
+    expect(within(running).getByTestId("home-app-line").textContent).toBe("2 open, 1 needs you");
+    // You're in it: nothing to bring forward, its name opens its page.
+    expect(within(running).queryByRole("button", { name: /^Open Claude Code CLI/ })).toBeNull();
+    expect(within(running).getByRole("button", { name: /Claude Code CLI · Work Max's page/ })).toBeTruthy();
+    expect((await view.findByTestId("home-app-cli")).dataset.place).toBe("cli|claude-code|claude-personal");
+    expect(view.getByTestId("home-apps-section").textContent).toMatch(/^Your apps 2/);
   });
 
   it("Needs you holds every kind, each with its own primary", async () => {

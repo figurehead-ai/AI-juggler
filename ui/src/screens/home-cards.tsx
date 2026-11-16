@@ -124,7 +124,7 @@ const HOME_CARDS: readonly HomeCard[] = [
   },
   { id: "parked", area: "left", render: (ctx) => ctx.parked.length > 0 && <ParkedCard ctx={ctx} /> },
   { id: "feed", area: "left", render: (ctx) => ctx.feed },
-  { id: "apps", area: "right", render: (ctx) => <HomeApps items={ctx.items} strip={ctx.strip} /> },
+  { id: "apps", area: "right", render: (ctx) => <HomeApps items={ctx.items} accounts={ctx.accounts} strip={ctx.strip} /> },
   { id: "runway", area: "right", render: (ctx) => <HomeRunway accounts={ctx.accounts} quota={ctx.quota} quotaKnown={ctx.quotaKnown} sessions={ctx.sessions} /> },
   // The optional access, once and quietly at the foot (the review of
   // 0.1.4: it took the top of Home until answered).

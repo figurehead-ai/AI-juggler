@@ -9,6 +9,13 @@
  * starts it). Running first, the most recently used first; then a muted
  * "Not running" group (0.3.4, D-64: every remembered App, so one that
  * quits is one click from starting again). Past 8, "Show all".
+ *
+ * Every App is here, as the rail's Open now and Inactive apps have them:
+ * a CLI App with sessions in AI Juggler's own terminal runs (its sessions
+ * are open, so it's no less running for being here; no Open, you're in
+ * it), and a CLI App with nothing open is under "Not running" (D-100: the
+ * Apps list's CLI Apps). Leaving them out left a user whose sessions all
+ * run in AI Juggler with no Your apps at all.
  */
 import { useState, type JSX } from "react";
 import { AppIcon } from "./AppIcon";
@@ -21,19 +28,23 @@ import { conversationsBringForward } from "../lib/ipc/conversations";
 import { placesOpen, type KnownPlaceInfo } from "../lib/ipc/places";
 import { placeFor, placeWords, useKnownPlaces } from "../lib/places";
 import { groupItems, type RailGroup } from "../lib/rail-places";
-import { appFolderOf, knownAppWord } from "../lib/rail-apps";
-import { appIdOfRailKey, openApp } from "../lib/apps";
+import { appFolderOf, knownAppWord, ownersOf } from "../lib/rail-apps";
+import { appIdOfRailKey, openApp, useCliApps, type AppModel } from "../lib/apps";
 import { appName, desktopProfile } from "../lib/app-name";
 import type { RailItem } from "../lib/rail-items";
+import type { AccountInfo } from "../types/generated/AccountInfo";
 
 /** Rows shown before "Show all". */
 export const ROWS_SHOWN = 8;
 
-/** The places with something open, AI Juggler's own left out (it's here),
- * the most recently used first. */
-export function appPlaces(items: RailItem[]): RailGroup[] {
+/** The Apps with something open, AI Juggler's own terminal included
+ * (its CLI App runs), each session under the App the rail puts it under
+ * (ADR-0032: `ownersOf`, from the remembered places), the most recently
+ * used first. */
+export function appPlaces(items: RailItem[], known: readonly KnownPlaceInfo[] = []): RailGroup[] {
+  const { theirs } = ownersOf(known);
   const groups = groupItems(
-    items.filter((item) => item.live && item.place.kind !== "own"),
+    items.filter((item) => item.live).map(theirs),
     "place",
   );
   const last = (group: RailGroup) => Math.max(...group.items.map((item) => item.lastMs));
@@ -155,6 +166,28 @@ function OpenRow({ group, appId, kept }: { group: RailGroup; appId: string | nul
   );
 }
 
+/** A CLI App with nothing open (D-100): its page by its name; nothing to
+ * start (a CLI App runs in a session). */
+function CliRow({ app }: { app: AppModel }): JSX.Element {
+  return (
+    <Row
+      id={app.id}
+      icon={<AppIcon appId={app.appId} appPid={null} name={app.app} size={20} className={appTone(false)} />}
+      app={app.app}
+      profile={app.profile}
+      slot={app.slot}
+      line="Nothing open"
+      needs={0}
+      level={0}
+      broken={[]}
+      testId="home-app-cli"
+      place={app.railKey}
+      lit={false}
+      action={null}
+    />
+  );
+}
+
 function KeptRow({ place }: { place: KnownPlaceInfo }): JSX.Element {
   const running = place.app_pid !== null;
   const app = knownAppWord(place);
@@ -188,7 +221,7 @@ function KeptRow({ place }: { place: KnownPlaceInfo }): JSX.Element {
 
 /** Under 640 px (AJ-E3701 R4): a strip of App icons, each its App forward
  * (or started), its needs a dot on its corner, its name in its own. */
-function Strip({ places, kept }: { places: RailGroup[]; kept: KnownPlaceInfo[] }): JSX.Element {
+function Strip({ places, kept, cli, pageOf }: { places: RailGroup[]; kept: KnownPlaceInfo[]; cli: AppModel[]; pageOf: (group: RailGroup) => string | null }): JSX.Element {
   const cell = "tone-host relative flex size-9 shrink-0 items-center justify-center rounded-lg bg-surface outline-none hover:bg-surface-2 focus-visible:ring-1 focus-visible:ring-accent/60";
   return (
     <ul className="flex gap-2 overflow-x-auto pb-1" data-testid="home-apps-strip">
@@ -196,9 +229,12 @@ function Strip({ places, kept }: { places: RailGroup[]; kept: KnownPlaceInfo[] }
         const place = group.place!;
         const name = appName(place.app, place.profile);
         const level = highest(group.items.filter((item) => counted(itemLevel(item))).map(itemLevel));
+        // In AI Juggler's own terminal there's nothing to bring forward: its page.
+        const page = place.appPid === null ? pageOf(group) : null;
+        const go = () => (page !== null ? openApp(page) : bringForward(place.appPid, name));
         return (
           <li key={group.key}>
-            <button type="button" className={cell} aria-label={`Open ${name}${level >= 2 ? ", needs you" : ""}`} title={name} onClick={() => bringForward(place.appPid, name)} data-testid="home-app-tile" data-place={place.key} data-level={level}>
+            <button type="button" className={cell} aria-label={`Open ${name}${page !== null ? "'s page" : ""}${level >= 2 ? ", needs you" : ""}`} title={name} onClick={go} data-testid="home-app-tile" data-place={place.key} data-level={level}>
               <AppIcon appId={place.appId} appPid={place.appPid} name={place.app} size={24} className={appTone(level >= 2)} />
               {level >= 2 && <span aria-hidden="true" className="level-mark absolute right-0.5 top-0.5" data-level={level} />}
             </button>
@@ -215,14 +251,24 @@ function Strip({ places, kept }: { places: RailGroup[]; kept: KnownPlaceInfo[] }
           </li>
         );
       })}
+      {cli.map((app) => (
+        <li key={app.id}>
+          <button type="button" className={cell + " opacity-70"} aria-label={`Open ${app.defaultName}'s page`} title={app.defaultName} onClick={() => openApp(app.id)} data-testid="home-app-cli">
+            <AppIcon appId={app.appId} appPid={null} name={app.app} size={24} className={appTone(false)} />
+          </button>
+        </li>
+      ))}
     </ul>
   );
 }
 
-export function HomeApps({ items, strip = false }: { items: RailItem[]; strip?: boolean }): JSX.Element | null {
+const NO_ACCOUNTS: readonly AccountInfo[] = [];
+
+export function HomeApps({ items, accounts = NO_ACCOUNTS, strip = false }: { items: RailItem[]; accounts?: readonly AccountInfo[]; strip?: boolean }): JSX.Element | null {
   const [all, setAll] = useState(false);
   const known = useKnownPlaces();
-  const places = appPlaces(items);
+  const cliApps = useCliApps(accounts);
+  const places = appPlaces(items, known ?? []);
   const shownPids = new Set(places.map((group) => group.place?.appPid ?? null));
   // Remembered with no open row: running ones (nothing open yet) with the
   // running; down ones under "Not running", kept alive first, then the
@@ -232,27 +278,32 @@ export function HomeApps({ items, strip = false }: { items: RailItem[]; strip?: 
     .sort((a, b) => Number(b.keep_alive) - Number(a.keep_alive) || Number(a.found) - Number(b.found) || b.seen_ms - a.seen_ms);
   const runningKept = kept.filter((place) => place.app_pid !== null);
   const down = kept.filter((place) => place.app_pid === null);
-  const total = places.length + kept.length;
+  // The CLI Apps with nothing open, after the desktop ones (their Start
+  // first), in the folders' order.
+  const openKeys = new Set(places.map((group) => group.key));
+  const idleCli = cliApps.filter((app) => !openKeys.has(app.railKey));
+  const total = places.length + kept.length + idleCli.length;
   if (total === 0) return null;
+  const folderOf = (group: RailGroup) => appFolderOf(group, placeFor(known, group.place?.appPid ?? null));
+  const pageOf = (group: RailGroup) => (group.place ? appIdOfRailKey(group.place.key, folderOf(group), known) : null);
   if (strip) {
     return (
       <HomeSection id="home-apps" label="Your apps" count={total} className="min-w-0">
-        <Strip places={places} kept={kept} />
+        <Strip places={places} kept={kept} cli={idleCli} pageOf={pageOf} />
       </HomeSection>
     );
   }
   const cut = !all && total > ROWS_SHOWN + 1;
   const room = cut ? ROWS_SHOWN : total;
-  const folderOf = (group: RailGroup) => appFolderOf(group, placeFor(known, group.place?.appPid ?? null));
   const running = [...places.map((group) => ({ group })), ...runningKept.map((place) => ({ place }))].slice(0, room);
-  const closed = down.slice(0, Math.max(0, room - running.length));
+  const closed = [...down.map((place) => ({ place })), ...idleCli.map((app) => ({ app }))].slice(0, Math.max(0, room - running.length));
   return (
     <HomeSection id="home-apps" label="Your apps" count={total} className="min-w-0">
       <div data-testid="home-apps" className="flex flex-col gap-1 rounded-xl bg-surface p-2">
         <ul className="flex flex-col">
           {running.map((row) =>
             "group" in row ? (
-              <OpenRow key={row.group.key} group={row.group} appId={row.group.place ? appIdOfRailKey(row.group.place.key, folderOf(row.group), known) : null} kept={placeFor(known, row.group.place?.appPid ?? null)?.keep_alive === true} />
+              <OpenRow key={row.group.key} group={row.group} appId={pageOf(row.group)} kept={placeFor(known, row.group.place?.appPid ?? null)?.keep_alive === true} />
             ) : (
               <KeptRow key={row.place.id} place={row.place} />
             ),
@@ -262,7 +313,7 @@ export function HomeApps({ items, strip = false }: { items: RailItem[]; strip?: 
           <>
             <p className="px-2 pt-1 text-label text-muted" data-testid="home-apps-down">Not running</p>
             <ul className="flex flex-col">
-              {closed.map((place) => <KeptRow key={place.id} place={place} />)}
+              {closed.map((row) => ("place" in row ? <KeptRow key={row.place.id} place={row.place} /> : <CliRow key={row.app.id} app={row.app} />))}
             </ul>
           </>
         )}
