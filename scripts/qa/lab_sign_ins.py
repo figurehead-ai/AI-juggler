@@ -64,7 +64,7 @@ class Tool:
 
     name: str
     words: tuple[str, ...]  # its sign-in command's words, in order
-    lab: tuple[str, ...]  # its sign-in, relative to a lab App's folder
+    lab: tuple[str, ...]  # its sign-in, relative to a lab App's folder (a glob pattern)
     real: tuple[str, ...]  # its sign-in files in the real home (a folder: each file in it)
 
 
@@ -73,7 +73,9 @@ TOOLS: dict[str, Tool] = {
     "opencode": Tool("OpenCode", ("auth", "login"), ("data/opencode/auth.json",),
                      (".local/share/opencode/auth.json", ".local/share/opencode/mcp-auth.json")),
     # KIMI_CODE_HOME=<folder>; `kimi login` (a device code).
-    "kimi-code": Tool("Kimi Code", ("login",), ("credentials/kimi-code.json",), (".kimi-code/credentials",)),
+    # 2.5 names the membership's file per environment: kimi-code-env-<hash>.json.
+    "kimi-code": Tool("Kimi Code", ("login",), ("credentials/kimi-code.json", "credentials/kimi-code-env-?*.json"),
+                      (".kimi-code/credentials",)),
     # GROK_HOME=<folder>; `grok login` (the browser).
     "grok-build": Tool("Grok Build", ("login",), ("auth.json",), (".grok/auth.json", ".grok/mcp_credentials.json")),
     # ZCODE_DATA_BASE_DIR=<folder>; the engine's `login` (Z.AI).
@@ -242,7 +244,7 @@ def check(lab: Path, signed_in: list[str], record: str | None) -> int:
         tool, app = entry.get("tool"), str(entry.get("id"))
         if tool not in TOOLS:
             continue
-        has = any((Path(str(entry["folder"])) / name).exists() for name in TOOLS[tool].lab)
+        has = any(any(Path(str(entry["folder"])).glob(name)) for name in TOOLS[tool].lab)
         want = tool in signed_in and app.endswith("-a")
         if has == want:
             report.ok(f"{app}: {'signed in' if has else 'no sign-in'} in its own folder")
@@ -368,6 +370,7 @@ def selftest() -> int:
     for constant, value in (("OPENCODE_AUTH", "auth.json"), ("OPENCODE_MCP_AUTH", "mcp-auth.json"),
                             ("GROK_AUTH", "auth.json"), ("GROK_MCP_AUTH", "mcp_credentials.json"),
                             ("KIMI_CREDENTIALS", "credentials"), ("KIMI_MEMBERSHIP", "kimi-code.json"),
+                            ("KIMI_MEMBERSHIP_ENV_PREFIX", "kimi-code-env-"),
                             ("ZCODE_SIGN_IN_PATH", "v2/credentials.json"), ("MUSE_AUTH", "auth.json"),
                             ("MUSE_KEYCHAIN_SERVICE", MUSE_KEYCHAIN[0])):
         assert f'{constant}: &str = "{value}"' in names, constant
@@ -402,6 +405,12 @@ def selftest() -> int:
         signed.write_text("{}")
         assert check(lab, [], None) == 1
         assert check(lab, ["muse-code"], None) == 0
+        # Kimi Code 2.5's membership file (per environment) counts as its sign-in.
+        kimi = Path(entries[2]["folder"]) / "credentials" / "kimi-code-env-0e4f99c69cc27850.json"
+        kimi.parent.mkdir(parents=True)
+        kimi.write_text("{}")
+        assert check(lab, ["muse-code"], None) == 1
+        assert check(lab, ["muse-code", "kimi-code"], None) == 0
         # A folder outside the lab, or Muse off the file backend, fails.
         entries[0]["env"] = {"XDG_DATA_HOME": "/Users/you/.local/share"}
         entries[9]["env"]["TBH_CREDENTIAL_BACKEND"] = "keychain"

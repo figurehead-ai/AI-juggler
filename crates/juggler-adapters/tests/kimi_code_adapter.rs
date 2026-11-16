@@ -264,6 +264,20 @@ fn the_sign_in_probe_reads_which_files_are_there_never_what_they_hold() {
         LoginState::ApiKey,
         "an empty membership file isn't a sign-in"
     );
+    // Kimi Code 2.5 names the membership's file per environment
+    // (AJ-E1612 lab, 2.5.3): still the membership, never an API key, so no
+    // headless runs on it.
+    write(
+        &home.join("credentials/kimi-code-env-0e4f99c69cc27850.json"),
+        "x",
+    );
+    assert_eq!(adapter.login_state(&home), LoginState::SignedIn);
+    std::fs::remove_file(home.join("credentials/platform.json")).unwrap();
+    assert_eq!(adapter.login_state(&home), LoginState::SignedIn);
+    std::fs::remove_file(home.join("credentials/kimi-code-env-0e4f99c69cc27850.json")).unwrap();
+    // A bare prefix isn't one.
+    write(&home.join("credentials/kimi-code-env-.json"), "x");
+    assert_eq!(adapter.login_state(&home), LoginState::ApiKey);
 }
 
 #[test]

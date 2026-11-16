@@ -34,6 +34,11 @@ pub(crate) const GROK_MCP_AUTH: &str = "mcp_credentials.json";
 pub(crate) const KIMI_CREDENTIALS: &str = "credentials";
 /// Kimi Code's membership (OAuth) sign-in, in that folder.
 pub(crate) const KIMI_MEMBERSHIP: &str = "kimi-code.json";
+/// Kimi Code 2.5's membership sign-in, one per environment, in that folder:
+/// `kimi-code-env-<hash>.json` (its `config.toml` names it as the
+/// `managed:kimi-code` provider's `oauth/kimi-code-env-<hash>` key; seen in
+/// the AJ-E1612 lab sign-in, 2.5.3).
+pub(crate) const KIMI_MEMBERSHIP_ENV_PREFIX: &str = "kimi-code-env-";
 /// `ZCode`'s sign-ins (AJ-E1605): its Z.ai tokens and provider keys, in
 /// the `v2/` folder of its tree (`<ZCODE_DATA_BASE_DIR>/.zcode/v2/`).
 pub(crate) const ZCODE_CREDENTIALS: &str = "credentials.json";
@@ -70,7 +75,8 @@ pub fn metadata(provider: &str, dir: &Path) -> Option<std::fs::Metadata> {
         crate::opencode::OPENCODE_ID => OPENCODE_AUTH,
         crate::grok_build::GROK_BUILD_ID => GROK_AUTH,
         crate::kimi_code::KIMI_CODE_ID => {
-            return std::fs::metadata(dir.join(KIMI_CREDENTIALS).join(KIMI_MEMBERSHIP)).ok();
+            return kimi_membership(&dir.join(KIMI_CREDENTIALS))
+                .and_then(|path| std::fs::metadata(path).ok());
         }
         crate::zcode::ZCODE_ID => return zcode_sign_in_metadata(&crate::zcode::tree_of(dir)),
         crate::muse::MUSE_ID => {
@@ -208,7 +214,8 @@ pub(crate) fn grok_auth(dir: &Path) -> GrokAuth {
 /// none is ever opened.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum KimiSignIn {
-    /// The membership's own sign-in (`kimi-code.json`): a subscription.
+    /// The membership's own sign-in (`kimi-code.json`, or 2.5's
+    /// `kimi-code-env-<hash>.json`): a subscription.
     Membership,
     /// Another sign-in file, and no membership one: a Kimi Platform API
     /// key [Inferred from the layout; on the live checklist].
@@ -217,13 +224,48 @@ pub(crate) enum KimiSignIn {
     None,
 }
 
+/// A sign-in file that is there and not empty (never opened).
+fn filled(path: &Path) -> bool {
+    std::fs::metadata(path).is_ok_and(|meta| meta.is_file() && meta.len() > 0)
+}
+
+/// Whether a file in Kimi Code's sign-ins folder is the membership's:
+/// `kimi-code.json`, or 2.5's `kimi-code-env-<hash>.json`.
+fn is_kimi_membership(name: &str) -> bool {
+    name == KIMI_MEMBERSHIP
+        || name
+            .strip_prefix(KIMI_MEMBERSHIP_ENV_PREFIX)
+            .and_then(|rest| rest.strip_suffix(".json"))
+            .is_some_and(|hash| !hash.is_empty())
+}
+
+/// The membership's sign-in file in Kimi Code's sign-ins folder (`folder`),
+/// when one is there and not empty: the older name first.
+fn kimi_membership(folder: &Path) -> Option<std::path::PathBuf> {
+    let older = folder.join(KIMI_MEMBERSHIP);
+    if filled(&older) {
+        return Some(older);
+    }
+    let mut found: Vec<_> = std::fs::read_dir(folder)
+        .ok()?
+        .flatten()
+        .map(|entry| entry.path())
+        .filter(|path| {
+            path.file_name()
+                .and_then(|name| name.to_str())
+                .is_some_and(is_kimi_membership)
+                && filled(path)
+        })
+        .collect();
+    found.sort();
+    found.into_iter().next()
+}
+
 /// See [`KimiSignIn`]. `None` when the home can't be listed.
 pub(crate) fn kimi_sign_in(home: &Path) -> Option<KimiSignIn> {
     std::fs::read_dir(home).ok()?;
     let folder = home.join(KIMI_CREDENTIALS);
-    let filled =
-        |path: &Path| std::fs::metadata(path).is_ok_and(|meta| meta.is_file() && meta.len() > 0);
-    if filled(&folder.join(KIMI_MEMBERSHIP)) {
+    if kimi_membership(&folder).is_some() {
         return Some(KimiSignIn::Membership);
     }
     let other = std::fs::read_dir(&folder).is_ok_and(|entries| {
