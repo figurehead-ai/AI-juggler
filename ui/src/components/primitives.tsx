@@ -26,8 +26,11 @@ const buttonVariants: Record<ButtonVariant, string> = {
     "bg-surface-2 text-ink border border-hairline hover:bg-surface-3 \
      hover:border-muted/30 active:translate-y-px",
   ghost: "text-muted hover:text-ink hover:bg-surface-2",
+  // At /15 its red stood 4.48:1 on surface-2 and 4.2:1 on surface-3 in
+  // dark (axe, the connector card's Remove anyway, 0.4.6); /10 keeps AA on
+  // every surface it sits on.
   danger:
-    "bg-danger/15 text-danger border border-danger/30 hover:bg-danger/25",
+    "bg-danger/10 text-danger border border-danger/30 hover:bg-danger/20",
 };
 
 const buttonSizes: Record<ButtonSize, string> = {
