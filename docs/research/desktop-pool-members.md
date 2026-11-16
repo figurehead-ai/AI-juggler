@@ -715,6 +715,9 @@ Rules for every step:
   headless `claude -p` works there.
 - Projects under `~/lab/` only. Guarded keystrokes (frontmost and topmost
   check). Never a real profile. Never read a key, token or credential file.
+- In the aij-test app, act only through `scripts/qa/app_drive` with
+  `AIJ_APP_PROFILE=aij-test` (`docs/qa/claude-app-drive.md`): it refuses any
+  pid that isn't that profile's Claude app, and sends nothing to another app.
 - Every step records the file snapshots (sha256 of the files the step may
   touch, before and after), the `ps` parent chain (names and pids only),
   and the bridge's log.

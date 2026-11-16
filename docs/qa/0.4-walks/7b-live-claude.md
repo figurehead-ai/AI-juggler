@@ -54,3 +54,11 @@ For each step, record: before and after captures (pid window only), what was exp
 - the topmost on-screen window at the point, on the active Space (CGWindowList, on-screen only), belongs to Dev's pid.
 
 If either fails, the click is refused, the reason is printed, and the driver stops and reports. Tested dry on 2026-11-07: inside Dev's window, OK; a point outside it (another app's window), refused; a pid that isn't in front, refused. Presses go by exact title only, never a prefix.
+
+## Driving the Claude app (aij-test)
+
+A step that acts inside the sanctioned aij-test Claude app (AJ-E3013's §7.2 and §7.3) uses only `scripts/qa/app_drive`. That's a new session from its menu, a click, a harmless prompt typed, Return. It needs `AIJ_APP_PID`, `AIJ_APP_PROFILE=aij-test` and `AIJ_APP_OUT` (a scratchpad folder). `app_drive list` finds the pid, and `app_drive shot` is step 4 of "Before" in one command.
+
+Its guard is read before every verb. The pid must be the Claude app itself (an exact `Claude.app` bundle with the app's bundle id, so never AI Juggler, a terminal or the CLI). Its `--user-data-dir` must end with the profile folder `AIJ_APP_PROFILE` names, so a real profile and the default one are refused. Its main window must be on screen.
+
+Clicks are accessibility presses on that pid's own elements, and keys are posted to that pid. Neither ever goes to the front app, so the global-click incident above can't happen through it. It refuses the window's close, minimise and zoom buttons, quit, close and sign-out keys and menu items, and text it can't type exactly. Verbs, refusals and status: [`docs/qa/claude-app-drive.md`](../claude-app-drive.md).
