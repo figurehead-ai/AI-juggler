@@ -3359,3 +3359,18 @@ The design that follows from it:
 
 - Sources: the maintainer's answer to the coordinating session's question, 2026-11-16.
 - **Amended 2026-11-16 (the maintainer's answer, "Keep for both checks"):** after Apple's model failed the blind review (ADR-0033, 855a92ee9: B doesn't ship on it), the redacted real-message set may be kept and used for two checks: A's excerpt-rule check (AJ-E3708 Req. 6d) and the downloadable-model (local tier) B check. It's still not used for tuning. The same rules apply: redacted, local, read only by the Claude sessions doing these checks. The folder is deleted once both results are recorded.
+
+### D-125 Test the next two local models: Granite 4.1 3B and Qwen3-4B-Instruct-2507 — SETTLED (2026-11-16)
+
+**Ruling.** The maintainer, 2026-11-16, after the first local-tier results (ADR-0033: Qwen3-1.7B at Q8 fails instruction-following; Nemotron 3 Nano 4B misses the entity bar, at 92.7 % and 91.7 % against 95 %; both safe), chose "Test both".
+
+1. **Test-only downloads:**
+   - Granite 4.1 3B, about 2.1 GB;
+   - Qwen3-4B-Instruct-2507, about 2.5 GB.
+
+   Each has a pinned revision, a SHA-256 checked before use, and its own empty folder outside the repo. Both are removed after the evaluation, unless one passes and becomes the offered download.
+2. **The same tests:** the frozen harness and gate (gate.py as at 7acec4f50), with llama.cpp guided generation, each GGUF's own template, and thinking off. Then the by-eye check of the script's flags, the blind review, and the real held-out check (D-124) before any ship call.
+3. **Quantisation:** prefer the official repository's Q4 build. If only a larger build is official, test it as the upper bound, under the Q8 rule.
+4. **If one passes,** it becomes the optional one-click download (D-120 amendment, D-121 disk rules). If neither passes, 0.5's feed ships A only, and B waits for a later engine.
+
+- Sources: the maintainer's answer to the coordinating session's question, 2026-11-16.
