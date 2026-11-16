@@ -15,6 +15,7 @@ import { ConversationsProvider } from "./lib/conversations";
 import { prefetchLazy } from "./lib/lazy";
 import { ThisMacProvider } from "./lib/machine";
 import { PRIMARY_NAV } from "./lib/nav";
+import { useModalsInert } from "./lib/inert";
 import { useScrollMemory } from "./lib/scroll-memory";
 import { ShellOverlays } from "./shell/Overlays";
 import { workArea } from "./shell/pages";
@@ -38,6 +39,8 @@ export default function App() {
     prefetchLazy();
     sayPainted();
   }, []);
+  // 0.4.6 rc2: a modal dialog's window is inert under it, every dialog's.
+  useModalsInert();
   const shell = useShell();
   const { selection, global, setGlobal, openPage, sessions, accounts, projects, loaded, refresh, newSheet, info } = shell;
   // 0.3.4: Home opens where it was left.

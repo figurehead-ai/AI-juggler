@@ -11,7 +11,7 @@
  * reaches the window (the menus' outside-press closes them), never the
  * control under it.
  */
-import { useLayoutEffect, type RefObject } from "react";
+import { useEffect, useLayoutEffect, type RefObject } from "react";
 
 /** How many open menus and popovers made each element inert. */
 const held = new Map<Element, number>();
@@ -70,6 +70,82 @@ export function useInertOutside(ref: RefObject<HTMLElement | null>, on = true): 
     };
   }, [ref, on]);
 }
+
+/** The topmost modal dialog shown now: the last `[aria-modal="true"]` in
+ * the page's order that isn't hidden, nor inside a part inert by its own
+ * owner (a closed panel). One inside a part these holds made inert counts:
+ * a dialog opened over another (the busy-folder offer over New session)
+ * is the top one then. */
+function topModal(): HTMLElement | null {
+  const shownNow = (one: HTMLElement) => {
+    if (one.closest("[hidden]")) return false;
+    const inertAbove = one.closest("[inert]");
+    return inertAbove === null || held.has(inertAbove);
+  };
+  return [...document.querySelectorAll<HTMLElement>('[aria-modal="true"]')].filter(shownNow).at(-1) ?? null;
+}
+
+/** The 0.4.6 rc2 walk (A8): a dialog only dimmed the window under it. An
+ * accessibility press (VoiceOver's, the walk's) on the New session sheet
+ * reached Home's "Start" behind it and opened a Claude app. Mounted once at
+ * the app's root: while any modal dialog shows (`aria-modal="true"`, the 37
+ * the app has, whoever draws them), everything outside the top one is
+ * inert, by the same counts the menus use; when it goes, its opener gets
+ * focus back if focus was left on the page (its own close hands it back
+ * while the opener is still inert, as the menus' did). */
+export function useModalsInert(): void {
+  useEffect(() => {
+    let shown: HTMLElement | null = null;
+    let others: Element[] = [];
+    // The page's control that opened the first dialog of a stack.
+    let opener: HTMLElement | null = null;
+    // What last had focus outside every dialog: the opener, even when a
+    // dialog's own effect moved focus inside before this saw it.
+    const active = document.activeElement;
+    let outside: HTMLElement | null = active instanceof HTMLElement && active !== document.body ? active : null;
+    const focused = (event: FocusEvent) => {
+      if (event.target instanceof HTMLElement && !event.target.closest('[aria-modal="true"]')) outside = event.target;
+    };
+    const lost = () => document.activeElement === null || document.activeElement === document.body;
+    const update = () => {
+      const top = topModal();
+      if (top === shown) return;
+      for (const one of others) release(one);
+      others = [];
+      shown = top;
+      if (top) {
+        opener ??= outside && !top.contains(outside) ? outside : null;
+        others = besides(top).filter((one) => !one.contains(top));
+        for (const one of others) hold(one);
+        // A dialog closed over this one left focus nowhere: back inside.
+        if (lost()) top.querySelector<HTMLElement>(FOCUSABLE)?.focus({ preventScroll: true });
+        return;
+      }
+      if (opener?.isConnected && lost()) opener.focus({ preventScroll: true });
+      opener = null;
+    };
+    let queued = false;
+    const watch = new MutationObserver(() => {
+      if (queued) return;
+      queued = true;
+      queueMicrotask(() => {
+        queued = false;
+        update();
+      });
+    });
+    document.addEventListener("focusin", focused);
+    watch.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ["aria-modal", "hidden"] });
+    update();
+    return () => {
+      watch.disconnect();
+      document.removeEventListener("focusin", focused);
+      for (const one of others) release(one);
+    };
+  }, []);
+}
+
+/** What takes focus in a dialog. */
+const FOCUSABLE = 'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
 /** Tests: whatever is held is let go. */
 export function releaseAllInert(): void {
