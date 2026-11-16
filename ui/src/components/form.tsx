@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, type InputHTMLAttributes, type KeyboardEvent, type ReactNode, type RefObject } from "react";
+import { useEffect, useId, useRef, type ComponentProps, type KeyboardEvent, type ReactNode, type RefObject } from "react";
 
 /**
  * Form primitives in the house design language: quiet surfaces, hairline
@@ -25,7 +25,8 @@ export function Field({
   );
 }
 
-export function Input({ className = "", ...props }: InputHTMLAttributes<HTMLInputElement>) {
+/** A text field; `ref` reaches the input (a sheet that selects its value on open). */
+export function Input({ className = "", ...props }: ComponentProps<"input">) {
   return (
     <input autoCorrect="off" autoCapitalize="off" spellCheck={false}
       className={`h-9 rounded-xl border border-hairline bg-surface-2 px-3 text-sm text-ink
