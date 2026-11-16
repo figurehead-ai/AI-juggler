@@ -441,5 +441,9 @@
 | AJ-E3705 | Other apps' conversation state changes and a turn's end, persisted (F2: G4) | E37-home-activity-feed.md | P1 | M | AJ-E3702 |
 | AJ-E3706 | Git commits, pull requests and the task-close note in the feed, through the adapters (F3: G1, G5) | E37-home-activity-feed.md | P1 | M | AJ-E3702 |
 | AJ-E3707 | The feed's accessibility: the feed pattern, keys and one batched announcement | E37-home-activity-feed.md | P0 | S | AJ-E3702 |
-Total: 439 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
+| AJ-E3708 | Per-agent excerpts from what agents already write, through the adapters (A) | E37-home-activity-feed.md | P0 | L | AJ-E3702 |
+| AJ-E3709 | On-device summary lines: the multi-angle research pass (B research) | E37-home-activity-feed.md | P0 | M | AJ-E3702 |
+| AJ-E3710 | On-device summary lines: the design, an ADR for a pluggable SummaryEngine (B design) | E37-home-activity-feed.md | P0 | M | AJ-E3709 |
+| AJ-E3711 | On-device summary lines: detection, the three tiers, the automatic fetch, the notice and the Settings switch (B build) | E37-home-activity-feed.md | P0 | XL | AJ-E3710 |
+Total: 443 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
 Status of every task at generation: TODO. The epic files are canonical; this catalog is an index, never edited to claim progress.

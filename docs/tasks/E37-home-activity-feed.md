@@ -94,7 +94,7 @@
 **Visual testing**: a card with a short, a long and no quote; the setting on and off; both themes.
 **Files to touch**: `crates/juggler-app/src/features/conversations/last_messages.rs`, `crates/juggler-adapters/src/conversation_feed.rs`, `crates/juggler-app/src/features/feed/`, `ui/src/lib/last-messages.ts`.
 **Research basis**: `docs/research/home-feed/research.md` §5 (a+); D-118 point 4.
-**Handover note**: summaries written by a model (b) are not in 0.5: they need a terms reading per provider and their own ruling (D-118 point 4); don't build a hook for them.
+**Handover note**: on-device summary lines (b) are in 0.5 under D-120 (AJ-E3708 to AJ-E3711); this task's quote becomes the first source of AJ-E3708's excerpts. Summaries through the user's own provider accounts (C) stay out until providers give permission.
 
 ### AJ-E3704 The journal gaps the feed needs: a switch's completion time, runway crossings, a daily usage digest, and the files a session left (F2: G2, G3, G6, G7) | Status: TODO | Priority P1 | Effort M | Depends: AJ-E3702
 **Goal**: The feed can say when a switch finished, when an Account crossed a threshold, what yesterday used, and what a session left uncommitted.
@@ -166,3 +166,84 @@
 **Files to touch**: `ui/src/components/HomeFeed*.tsx`, `ui/src/App.tsx` (the announcer), `ui/tests/visual/a11y.spec.ts`, `ui/tests/visual/keyboard-flows.spec.ts`.
 **Research basis**: `docs/research/home-feed/proposal.md` §10; `research.md` §1.6; D-118 point 6.
 **Handover note**: build these with AJ-E3702's components, not after them; this task closes when its test and walk pass on the finished feed.
+
+> **Feed summaries (D-120, 2026-11-16).** A (the agents' own excerpts) and B
+> (on-device AI lines) are in 0.5: AJ-E3708 to AJ-E3711. Research:
+> [`docs/research/feed-summaries-and-orchestrator-options.md`](../research/feed-summaries-and-orchestrator-options.md).
+> **Not scheduled:** C (the user's own Claude, Codex or Gemini summarising)
+> goes last, only once providers give permission; D (a cloud service) and E
+> (the orchestrator bot) are a later release, which the maintainer is choosing.
+> Don't build hooks for C, D or E.
+
+### AJ-E3708 Per-agent excerpts from what agents already write, through the adapters (A) | Status: TODO | Priority P0 | Effort L | Depends: AJ-E3702
+**Goal**: Each agent's feed item carries a short excerpt of what it is doing or just did, taken from what it already writes, at no model cost and fully local.
+**User story**: As someone scrolling Home, I see per agent "Fixed the login race; 212 tests pass; 2 files changed" or "Waiting: which database should I use?", so I know how each is going without opening it.
+**Requirements**:
+1. Each adapter SHALL declare which excerpt sources it offers (a capability, never a tool check outside the adapters): Claude Code's turn-end `last_assistant_message` from its `Stop` and `SubagentStop` hooks (hooks, not the transcript file, which Anthropic calls internal); Codex's exec and rollout events (agent message, plan update, file changes, commands); task lists where the tool writes them ("3 of 7 tasks done"); and git facts (files changed, tests run, commits) through the existing git reading.
+2. The excerpt SHALL be the agent's own text, trimmed to a clean opening (sentence boundary, 2 lines, "Show more" in place), redacted and bounded like the existing `last_messages` read, and shown only while "show last messages" is on; off, only facts (counts, state) show and no text is read.
+3. A tool or turn with no text, or no task list (newer Claude models don't write one by default), SHALL show the facts it has and nothing guessed; the item never shows an empty excerpt.
+4. Excerpts SHALL be stored in the registered, clearable local cache (D-58), keyed by conversation and turn, and come through `feed-words.ts` like every other sentence.
+5. This SHALL be the excerpt layer B reads from and the layer B falls back to; it supersedes AJ-E3703's single quote (AJ-E3703 becomes the first source here, not a separate path).
+**UI/UX reasoning**: quoting beats paraphrasing ("Accuracy means what it claims"); Claude Code's own agent view does the same without a model at most every 15 s; privacy by the user's existing choice.
+**Performance budget**: an excerpt ≤ 20 ms from cache, ≤ 100 ms cold, off the main thread, only for items in view; hooks add no measurable cost to the agent's turn; idle stays under 2% CPU.
+**Quality gates**: verify-static; adapter conformance tests per source (hook payload, rollout events, task list, git facts) with fixtures; tests for the setting's gate, redaction, clamping, the cache entry and the no-text cases; a check that nothing outside `crates/juggler-adapters` names a tool.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E3708/manifest.md`, R1–R6; a Sonnet lab walk on a throwaway repository with a Claude Code and a Codex session (a finished turn, a question, a failure), verified by Opus; the missing-or-unhelpful rate recorded for B.
+**Visual testing**: items with a short, a long, a question and no excerpt; the setting on and off; both themes.
+**Files to touch**: `crates/juggler-adapters/` (each adapter's excerpt capability), `crates/juggler-app/src/features/feed/`, `crates/juggler-app/src/features/conversations/last_messages.rs`, `ui/src/lib/feed-words.ts`, `ui/src/components/HomeFeed*.tsx`.
+**Research basis**: `docs/research/feed-summaries-and-orchestrator-options.md` (Option A); `docs/research/home-feed/research.md` §5; D-118 points 4 and 5; D-120 point 1.
+**Handover note**: a hook route for Claude Code may need a hook the user has installed; use what the existing hooks reading already offers first, and research undocumented routes (files, logs, local servers) before calling a source a gap.
+
+### AJ-E3709 On-device summary lines: the multi-angle research pass (B research) | Status: TODO | Priority P0 | Effort M | Depends: AJ-E3702
+**Goal**: The facts the design needs, checked from many angles, so the ADR rests on evidence rather than on the first research doc.
+**User story**: As the maintainer, I want to know what the Mac and a small model can really do for one-line summaries before we design around them.
+**Requirements**:
+1. The pass SHALL cover, with sources and an UNVERIFIED mark on anything unconfirmed: Apple's Foundation Models (availability, context size by macOS version, background and non-App-Store use, language and region limits, the Swift bridge and the maturity of the Rust crates); small open models (licences, sizes, quality on agent transcripts, Apple-silicon speed and energy per summary); runtimes (llama.cpp, mistral.rs, MLX) and how each ships and signs inside the app; the user's own Ollama or LM Studio (detection, the local ports, what a user may have loaded); and Windows and Linux equivalents (D-52).
+2. It SHALL measure, on the real Mac and in a throwaway lab: summary quality and faithfulness (does it add facts?) on a fixture of real-shaped agent messages, latency, memory, CPU and battery per summary against the idle under 2% budget.
+3. It SHALL research the automatic-fetch rules: suitable-hardware tests (chip, RAM, free disk), Wi-Fi or unmetered and Low Data Mode detection, on-power checks, checksummed and resumable downloads, a disk cap, hosting and its cost, and the privacy and consent wording.
+4. It SHALL research the user-facing side: how comparable apps tell the user once and offer the switch, and how the notice and the Settings control read without internal words.
+5. Any model or runtime download for measuring SHALL wait for the maintainer's explicit yes in chat; until then the pass reads sources and uses what is already on the Mac.
+**UI/UX reasoning**: "most important is ease of use": the user is never asked to download a model; automation is the default, with a way out.
+**Performance budget**: the pass sets the budget the build must keep (per summary latency, RAM, energy).
+**Quality gates**: every claim cited or marked UNVERIFIED; figures reproducible from a script in the evidence folder.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E3709/manifest.md`, R1–R5; the research file `docs/research/feed-summaries-on-device.md`, checked by Opus before AJ-E3710 starts.
+**Visual testing**: none (research); the notice and Settings wording drafts as text.
+**Files to touch**: `docs/research/feed-summaries-on-device.md`, `docs/qa/evidence/AJ-E3709/`.
+**Research basis**: `docs/research/feed-summaries-and-orchestrator-options.md` (Option B, open questions); D-120 point 2.
+**Handover note**: a Sonnet research agent reads the web; Opus verifies the numbers that drive the design. Never send the user's real transcripts to any outside service; measure on fixtures.
+
+### AJ-E3710 On-device summary lines: the design, an ADR for a pluggable SummaryEngine (B design) | Status: TODO | Priority P0 | Effort M | Depends: AJ-E3709
+**Goal**: One decided, extensible design for summary lines that the coordinating session has seen before any code is written.
+**User story**: As the maintainer, I want one seam that Apple's model, a small local model and plain excerpts all plug into, so a new engine never touches the feed.
+**Requirements**:
+1. An Opus ADR SHALL define a `SummaryEngine` seam: capability detection, a run call that takes an agent's own text and returns one line or "none", a faithfulness contract (never adds facts), a cost and health report, and implementations for Apple's Foundation Models, a local model and the extractive fallback (A's excerpts); a user's own Ollama or LM Studio is an optional implementation, never required.
+2. It SHALL set the order of degrade (Apple, then a background-fetched small model on suitable hardware, then A's excerpts), the hardware and network rules for the fetch (Apple silicon, enough RAM and disk, unmetered, on power, Low Data Mode respected, checksummed, resumable, a disk cap) and where the model lives in the registered, clearable cache (D-58).
+3. It SHALL specify the notice (told once) and the Settings switch, the faithfulness check, the failure behaviour (a slow, wrong or missing engine falls back silently to A), and the OS seams for Windows and Linux (D-52).
+4. It SHALL keep every tool check inside adapters and every sentence in `feed-words.ts`, and no summary text leaves the Mac.
+5. The design SHALL go to the coordinating session for the maintainer's eyes before AJ-E3711 starts.
+**UI/UX reasoning**: graceful degradation with automation as the default; the Settings switch and the one-time notice are the maintainer's explicit asks.
+**Performance budget**: the ADR states the build's budget: per-summary latency, RAM, energy, and idle under 2% CPU.
+**Quality gates**: the ADR passes the architecture review (no per-tool branches outside adapters, no duplication); a trait-level sketch compiles in a spike branch that is not merged.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E3710/manifest.md`, R1–R4; the ADR in `docs/adr/`, checked by Opus.
+**Visual testing**: none; wireframes of the notice and the Settings control, plain words only.
+**Files to touch**: `docs/adr/` (a new ADR), `docs/qa/evidence/AJ-E3710/`.
+**Research basis**: AJ-E3709's research; `docs/research/feed-summaries-and-orchestrator-options.md`; D-120 point 4; the architecture standard.
+**Handover note**: the seam must also serve a later cloud or orchestrator engine (D and E, not scheduled) without change, but build no hook for them now.
+
+### AJ-E3711 On-device summary lines: detection, the three tiers, the automatic fetch, the notice and the Settings switch (B build) | Status: TODO | Priority P0 | Effort XL | Depends: AJ-E3710
+**Goal**: The feed shows one clean line per agent when the Mac can write it comfortably, with no step from the user, and falls back to excerpts when it can't.
+**User story**: As a vibe-coder with several agents, I see "Fixing the login test; two failures left" instead of a long message, I was told once that my Mac does this itself, and I can turn it off.
+**Requirements**:
+1. Detection SHALL decide per Mac, with no prompt: tier 1, Apple's Foundation Models (macOS 26+, Apple Intelligence on, supported language and region, no download); tier 2, a small open model fetched automatically in the background, only on suitable hardware (Apple silicon, enough RAM and disk), on Wi-Fi or another unmetered link, on power, respecting Low Data Mode; tier 3, A's excerpts only. A running Ollama or LM Studio MAY be used if present, never required.
+2. The fetch SHALL be checksummed and resumable, capped on disk, paused on battery, a metered link or low disk, kept in the registered, clearable cache (D-58), and removed when the user switches the feature off or clears the cache. The app SHALL never ask the user to download a model.
+3. The user SHALL be told once, in plain words, when the feature turns on and which tier runs ("Your Mac now writes one-line summaries on this device. Nothing leaves it."), and Settings SHALL have one switch to turn it off (and on), showing the current tier and the space used.
+4. The engine SHALL only shorten the agent's own text, never add facts: a faithfulness check (every number, file name and verdict in the line appears in the source) rejects a line that fails and shows A's excerpt instead; a missing, slow or crashed engine falls back silently.
+5. Summaries SHALL run only when a turn ends or an item enters the view, never in a loop, within the budget AJ-E3710 sets and the idle under 2% CPU; the engine stops under thermal pressure and on battery saver.
+6. All of it SHALL sit behind the `SummaryEngine` seam; no tool check outside adapters, every sentence from `feed-words.ts`, no summary text sent off the Mac. Windows and Linux compile with the OS seams stubbed (D-52).
+**UI/UX reasoning**: "most important is ease of use… never ask user to download models… as much automation as possible"; the one-time notice and the switch keep it honest.
+**Performance budget**: from AJ-E3710; idle stays under 2% CPU with the feature on; a line appears within the ADR's latency; the fetch never competes with an agent's work.
+**Quality gates**: verify-static; unit tests for detection on a hardware and network matrix (each tier, each reason to fall back), the fetch rules (checksum, resume, cap, metered, battery), the faithfulness check with invented-fact fixtures and the silent fallback; the idle CPU gate; the Settings and notice tests; the a11y gate for the notice and the switch.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E3711/manifest.md`, R1–R8; a Sonnet lab walk on a real Apple-silicon Mac (each tier reachable, the notice shown once, the switch off and on, a metered link and battery refused) verified by Opus; before and after captures of the feed; CPU and battery measured over an hour.
+**Visual testing**: items with a summary line, with the excerpt fallback and with neither; the notice; the Settings control in each tier and off; both themes.
+**Files to touch**: `crates/juggler-app/src/features/feed/summary/` (the seam and engines), `crates/juggler-adapters/` (excerpt input from AJ-E3708), a small Swift bridge for Apple's framework, `crates/juggler-app/src/features/settings/`, `ui/src/lib/feed-words.ts`, `ui/src/components/HomeFeed*.tsx`, Settings UI.
+**Research basis**: AJ-E3709's research file; AJ-E3710's ADR; `docs/research/feed-summaries-and-orchestrator-options.md`; D-120 point 2.
+**Handover note**: shipping the automatic fetch to users is product behaviour D-120 covers; downloading a model during development still needs the maintainer's explicit yes in chat. Build against AJ-E3708's excerpts, which are also the fallback.
