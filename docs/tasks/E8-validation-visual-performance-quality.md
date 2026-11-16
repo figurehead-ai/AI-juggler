@@ -222,7 +222,7 @@
 **Files to touch**: found by the trace.
 **Handover note**: Found in 0.4.5's round 5 (AJ-E805); both builds showed them under load, so they predate the one-reader work.
 
-### AJ-E813 Home draws again only when what it shows changes, not on every This Mac reading | Status: TODO | Priority P1 | Effort S | Depends: AJ-E805
+### AJ-E813 Home draws again only when what it shows changes, not on every This Mac reading | Status: DONE (2026-11-16; evidence docs/qa/evidence/AJ-E813/manifest.md) | Priority P1 | Effort S | Depends: AJ-E805
 **Goal**: Home reads only the machine's summary level from This Mac's 5 s reading, but redraws all of itself on each one.
 **User story**: As someone with Home open, I want it to cost nothing while nothing on it changes.
 **Requirements**:

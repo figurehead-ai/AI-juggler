@@ -230,7 +230,7 @@
 
 ## 0.4.6, the Stable candidate
 
-### AJ-E3011 Pool setup a newcomer understands: a flow in order, every choice said in plain words for whom it applies | Status: TODO | Priority P0 | Effort L | Depends: AJ-E3007, AJ-E3008
+### AJ-E3011 Pool setup a newcomer understands: a flow in order, every choice said in plain words for whom it applies | Status: DONE (2026-11-16; evidence docs/qa/evidence/AJ-E3011/manifest.md) | Priority P0 | Effort L | Depends: AJ-E3007, AJ-E3008
 **Goal**: Someone who has never heard of pools, agents, roles, leads or permission levels makes a working pool by hand and knows, at every control, what it sets and for whom.
 **User story**: As a newcomer, I give a pool a name and its projects, read in plain sentences what will happen, change only what I want, and never meet a word or a dropdown I can't explain.
 **Requirements** (the maintainer's findings on 0.4.5's setup, 2026-11-14, via main):
@@ -252,7 +252,7 @@
 **Research basis**: E17, E30, the pool D-numbers (D-61, D-62), SPEC §9, deep/11, wireframes 5–6; the calm UI round 2 proposal (its §c, §c2 tokens).
 **Handover note**: —
 
-### AJ-E3012 The canvas's selection: one clear treatment, and the inspector always titled by what is selected | Status: TODO | Priority P1 | Effort M | Depends: AJ-E3008
+### AJ-E3012 The canvas's selection: one clear treatment, and the inspector always titled by what is selected | Status: DONE (2026-11-16; evidence docs/qa/evidence/AJ-E3012/manifest.md) | Priority P1 | Effort M | Depends: AJ-E3008
 **Goal**: Selecting anything on the pool canvas shows clearly which card it is, and the inspector names it.
 **User story**: As someone working on a pool, I click a card and see at once that it is selected, and the inspector on the right starts with its name.
 **Requirements** (the maintainer, 2026-11-14, via main):
@@ -267,7 +267,7 @@
 **Research basis**: AJ-E3008's inspector; the calm UI round 2 levels.
 **Handover note**: —
 
-### AJ-E3013 Desktop app sessions as full pool members through AI Juggler's connector, added with consent or guided (D-116) | Status: TODO | Priority P0 | Effort L | Depends: AJ-E3006, AJ-E1902
+### AJ-E3013 Desktop app sessions as full pool members through AI Juggler's connector, added with consent or guided (D-116) | Status: IN-PROGRESS (R2–R6 proven, docs/qa/evidence/AJ-E3013/manifest.md; R1 waits for the chats/Cowork route proof and the Codex app's, C1/C2, on the maintainer's lab Codex sign-in) | Priority P0 | Effort L | Depends: AJ-E3006, AJ-E1902
 **Goal**: A Claude app or Codex app session in a pool reads and sends the pool's messages, docs and tasks as a member, like a CLI session.
 **User story**: As someone who put two Claude app profiles in a pool, I add AI Juggler's connector to each with one click (or follow a short guide), and their sessions talk in the pool instead of showing "can't reply".
 **Requirements** (D-116):
