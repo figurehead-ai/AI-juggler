@@ -128,8 +128,7 @@ for (const theme of ["dark", "light"] as const) {
 }
 
 /**
- * 0.4.5 (the maintainer's 0.4.4 finding): Your apps at its narrowest
- * cards (210 px) with an Account out of room whose reset reads at its
+ * 0.4.5 (the maintainer's 0.4.4 finding): The runway by account with an Account out of room whose reset reads at its
  * longest (fixtures/home-out.ts). Its mark wraps inside the card, its
  * icon beside the first line; a mark that fits ("Low · 7% left") is drawn
  * as before. Both themes in one gate state.
@@ -140,14 +139,12 @@ test.describe("home — your apps, an Account out, at the narrowest cards", () =
     const size = `${HOME_OUT_VIEWPORT.width}x${HOME_OUT_VIEWPORT.height}`;
     for (const theme of ["dark", "light"] as const) {
       await showHomeOut(page, theme);
-      const marks = page.getByTestId("home-app-room");
-      await expect(marks.filter({ hasText: "Out · resets about 10:00 AM tomorrow" })).toHaveCount(2);
-      await expect(marks.filter({ hasText: "Out · resets 6:00 AM tomorrow" })).toHaveCount(1);
-      await expect(marks.filter({ hasText: "Low · 7% left" })).toHaveCount(1);
-      await expect(page.getByTestId("home-app-account").filter({ hasText: "7% left" })).toHaveCount(1);
-      await expect(page.getByTestId("home-app-tile").first()).toHaveJSProperty("offsetWidth", 210);
+      // D-118: the room marks live in the runway rows now (one per Account).
+      await expect(page.getByTestId("home-runway-account")).toHaveCount(3);
+      await expect(page.getByTestId("home-runway-out")).toHaveCount(2);
+      await expect(page.getByTestId("home-runway-account").filter({ hasText: "7% left" })).toHaveCount(1);
       await page.mouse.move(0, 0);
-      await page.getByTestId("home-apps").screenshot({ path: resolve(OUT, `apps-out-${size}-${theme}.png`) });
+      await page.getByTestId("home-runway").screenshot({ path: resolve(OUT, `apps-out-${size}-${theme}.png`) });
       await axeClean(page, `home your apps, out, ${theme}`);
     }
   });

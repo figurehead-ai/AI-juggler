@@ -177,15 +177,16 @@ for (const theme of ["dark", "light"] as const) {
     await shoot(page, "app-empty", theme);
   });
 
-  test(`Home's "Pick up where you left off", the same row — ${theme}`, async ({ page }) => {
+  // D-118: "Pick up where you left off" is retired; its role is the feed's Finished chip.
+  test(`Home's feed, Finished filter — ${theme}`, async ({ page }) => {
     await seed(page, theme);
-    await expect(page.getByTestId("home-recent")).toBeVisible();
-    // The same row; an ended one carries no repeated state word (the 0.4
+    await page.getByTestId("feed-chip-finished").click();
+    await expect(page.getByTestId("feed-card").first()).toBeVisible();
+    // An ended session's card carries no repeated state word (the 0.4
     // design review, 45).
-    await expect(page.getByTestId("home-recent-item").first()).toBeVisible();
-    await expect(page.getByTestId("home-recent-item").first().getByTestId("page-session-state")).toHaveCount(0);
-    await page.getByTestId("home-recent").scrollIntoViewIfNeeded();
-    await shoot(page, "home-recent", theme);
+    await expect(page.getByTestId("feed-card").first().getByTestId("page-session-state")).toHaveCount(0);
+    await page.getByTestId("home-feed").scrollIntoViewIfNeeded();
+    await shoot(page, "home-feed-finished", theme);
   });
 }
 

@@ -23,6 +23,12 @@
  *         spends the budget a need has.
  *
  * Each screen's calm pass (AJ-E3604…) adds its fixtures and areas here.
+ *
+ * D-118 (AJ-E3701, Home's calm pass): Home's loud copy of a need is its
+ * pinned zone ("Needs you now"), whose count carries the level as the
+ * rail's does; the feed under it is quiet (ix): an item about a need is a
+ * history line, never amber or red, whatever its level was; and Home's
+ * folds keep their chevrons too (vii).
  */
 import { expect, test, type Page } from "@playwright/test";
 import { allStatuses, expectRail } from "./fixtures";
@@ -113,7 +119,7 @@ function measure(page: Page, selector: string): Promise<Measured> {
       else if (!el.matches(MARK) && !el.parentElement?.closest(ROW + "[data-level='2'], " + ROW + "[data-level='3']")) facts.add(el);
     }
     out.distinctLoud = facts.size;
-    const count = area.querySelector("[data-testid='rail-needs-you'] [data-testid='section-count']");
+    const count = area.querySelector("[data-testid='rail-needs-you'] [data-testid='section-count'], [data-testid='home-needs-now-section'] [data-testid='section-count']");
     out.needsCount = count ? 1 : 0;
     const seen = new Set<Element>();
     const tinted: DOMRect[] = [];
@@ -210,6 +216,19 @@ for (const theme of ["dark", "light"] as const) {
         { timeout: 10_000 },
         )
         .toBe(0);
+      // (ix) D-118: the feed's stream is quiet: no amber or red words in it.
+      const loudInFeed = await page.locator("[data-testid='feed']").evaluateAll((feeds) => {
+        const probe = document.createElement("span");
+        document.body.appendChild(probe);
+        const colour = (value: string) => {
+          probe.style.color = value;
+          return getComputedStyle(probe).color;
+        };
+        const loud = [colour("var(--color-warning)"), colour("var(--color-danger)")];
+        probe.remove();
+        return feeds.flatMap((feed) => [...feed.querySelectorAll<HTMLElement>("*")].filter((element) => loud.includes(getComputedStyle(element).color) && (element.textContent ?? "").trim() !== "").map((element) => (element.textContent ?? "").trim().slice(0, 40)));
+      });
+      expect(loudInFeed, "loud words in the feed").toEqual([]);
       // (vi) every row's level is attentionLevel()'s.
       const rows = await page.locator("[data-testid='rail'] [data-level][data-state]").evaluateAll((all) => all.map((row) => ({ level: Number((row as HTMLElement).dataset.level), need: (row as HTMLElement).dataset.need ?? null, state: (row as HTMLElement).dataset.state ?? null })));
       expect(rows.length).toBeGreaterThan(0);
@@ -217,12 +236,13 @@ for (const theme of ["dark", "light"] as const) {
     });
   }
 
-  // (vii) D-117 point 3: every collapsible keeps its chevron.
-  test(`every rail collapsible keeps its chevron, at rest and focused — ${theme}`, async ({ page }) => {
+  // (vii) D-117 point 3: every collapsible keeps its chevron (D-118:
+  // Home's Needs you now, Your apps and Runway by account too).
+  test(`every rail and Home collapsible keeps its chevron, at rest and focused — ${theme}`, async ({ page }) => {
     await open(page, "typical", theme);
     // Disclosures (a menu's button is a popup, not a fold; "+3 recent" is
     // words that show on hover, as before D-117).
-    const toggles = page.locator("[data-testid='place-board'] button[aria-expanded]:not([aria-haspopup]):not([data-testid='place-recent'])");
+    const toggles = page.locator("[data-testid='place-board'] button[aria-expanded]:not([aria-haspopup]):not([data-testid='place-recent']), [data-testid='home'] button[aria-expanded][data-testid$='-fold']");
     const n = await toggles.count();
     expect(n).toBeGreaterThan(2);
     for (let i = 0; i < n; i++) {

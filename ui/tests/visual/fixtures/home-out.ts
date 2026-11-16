@@ -80,6 +80,7 @@ export async function showHomeOut(page: Page, theme: "dark" | "light"): Promise<
   await page.evaluate((value) => sessionStorage.setItem("aij.gallery.theme", value), theme);
   await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
   await page.reload();
-  await expect(page.getByTestId("home-apps")).toBeVisible();
-  await expect(page.getByTestId("home-app-room").first()).toBeVisible();
+  // D-118: the runway rows carry the room marks now (the app rows no longer do).
+  await expect(page.getByTestId("home-runway")).toBeVisible();
+  await expect(page.getByTestId("home-runway-out").first()).toBeVisible();
 }

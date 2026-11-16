@@ -174,7 +174,8 @@ for (const theme of ["dark", "light"] as const) {
   test(`Home, the app cards line up: room measured, one low, closed apps after — ${theme}`, async ({ page }) => {
     await seed(page, "eight", theme, LINE_UP);
     await expect(page.getByTestId("home-app-closed").first()).toBeVisible();
-    await expect(page.getByTestId("home-app-account").first()).toBeVisible();
+    // D-118: the app rows carry no runway; the room reads in the runway's rows.
+    await expect(page.getByTestId("home-runway-account").first()).toBeVisible();
     await page.getByTestId("home-apps").scrollIntoViewIfNeeded();
     await shoot(page, "home-cards", theme);
   });
