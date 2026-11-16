@@ -47,7 +47,7 @@ session (its walk results, 2026-11-09..10). The final candidate is rc31
 
 ## Still to do for DONE
 
-- R2: done in the two DRAFT blocks above (terminal and Code tab); Opus to verify both.
+- R2: done: the two live blocks above (terminal and Code tab), verified by Opus 2026-11-10 and written into `pools-lab.md` §2 (2026-11-16).
 - R4: the rc17/rc20 live results written into `pools-lab.md` §3 and the E3002-R3 sheet, with the commands and what was seen.
 
 ## Redaction checklist (tick before commit)
