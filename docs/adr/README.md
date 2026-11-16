@@ -35,5 +35,6 @@ ADRs capture the *why* behind non-obvious decisions: context, decision, alternat
 | [0029](./0029-typed-command-wrappers.md) | Typed command wrappers, generated in-repo from the `app_commands!` registry (tauri-specta 2.0 still a release candidate) | Accepted |
 | [0030](./0030-storage-concurrency.md) | Storage concurrency: one writer lock with short holds (one frame); a read pool only when a measured trigger fires | Accepted |
 | [0031](./0031-switch-by-move.md) | A switch can move: same-tool accounts on one disk move the whole family, journaled and undoable (D-93) | Accepted |
+| [0033](./0033-feed-summary-engines.md) | Feed summary lines: one `SummaryEngine` seam; Apple's model automatic, a local model offered on a click; helpers out of process; one faithfulness gate (D-120) | Proposed |
 
 To add one: copy `0000-template.md`, number sequentially, PR it with the change that implements the decision.

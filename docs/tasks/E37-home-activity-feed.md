@@ -211,7 +211,7 @@
 **Research basis**: `docs/research/feed-summaries-and-orchestrator-options.md` (Option B, open questions); D-120 point 2.
 **Handover note**: a Sonnet research agent reads the web; Opus verifies the numbers that drive the design. Never send the user's real transcripts to any outside service; measure on fixtures.
 
-### AJ-E3710 On-device summary lines: the design, an ADR for a pluggable SummaryEngine (B design) | Status: TODO | Priority P0 | Effort M | Depends: AJ-E3709
+### AJ-E3710 On-device summary lines: the design, an ADR for a pluggable SummaryEngine (B design) | Status: IN-PROGRESS (design awaiting the coordinating session's review: [ADR-0033](../adr/0033-feed-summary-engines.md)) | Priority P0 | Effort M | Depends: AJ-E3709
 **Goal**: One decided, extensible design for summary lines that the coordinating session has seen before any code is written.
 **User story**: As the maintainer, I want one seam that Apple's model, a small local model and plain excerpts all plug into, so a new engine never touches the feed.
 **Requirements**:
@@ -227,7 +227,7 @@
 **Visual testing**: none; wireframes of the notice and the Settings control, plain words only.
 **Files to touch**: `docs/adr/` (a new ADR), `docs/qa/evidence/AJ-E3710/`.
 **Research basis**: AJ-E3709's research; `docs/research/feed-summaries-and-orchestrator-options.md`; D-120 point 4; the architecture standard.
-**Handover note**: the seam must also serve a later cloud or orchestrator engine (D and E, not scheduled) without change, but build no hook for them now.
+**Handover note**: the seam must also serve a later cloud or orchestrator engine (D and E, not scheduled) without change, but build no hook for them now. The design is [ADR-0033](../adr/0033-feed-summary-engines.md) (Proposed, 2026-11-16), written to D-120 as amended: Apple's model automatic, the local model offered on one click with its model left as a slot for the selection study. Open, both the maintainer's: Q1 (the measurement download) and Q5 (the battery measurement).
 
 ### AJ-E3711 On-device summary lines: detection, the three tiers, the tier 2 offer card and one-click download, the notice and the Settings switch (B build) | Status: TODO | Priority P0 | Effort XL | Depends: AJ-E3710
 **Goal**: The feed shows one clean line per agent when the Mac can write it comfortably (no step from the user for Apple's own model, one click for the optional download), and falls back to excerpts when it can't.
@@ -247,4 +247,4 @@
 **Visual testing**: items with a summary line, with the excerpt fallback and with neither; the notice; the Settings control in each tier and off; both themes.
 **Files to touch**: `crates/juggler-app/src/features/feed/summary/` (the seam and engines), `crates/juggler-adapters/` (excerpt input from AJ-E3708), a small Swift bridge for Apple's framework, `crates/juggler-app/src/features/settings/`, `ui/src/lib/feed-words.ts`, `ui/src/components/HomeFeed*.tsx`, Settings UI.
 **Research basis**: AJ-E3709's research file; AJ-E3710's ADR; `docs/research/feed-summaries-and-orchestrator-options.md`; D-120 point 2.
-**Handover note**: D-120 as amended 2026-11-16: tier 2 is an offer and a one-click download, never automatic ("we can't download 2GB models without user approval"). Downloading a model during development still needs the maintainer's explicit yes in chat, given only after the model-selection study names the model and its pinned source. Build order: A, tier 1 with the extractive check, then tier 2. Build against AJ-E3708's excerpts, which are also the fallback.
+**Handover note**: D-120 as amended 2026-11-16: tier 2 is an offer and a one-click download, never automatic ("we can't download 2GB models without user approval"). Downloading a model during development still needs the maintainer's explicit yes in chat, given only after the model-selection study names the model and its pinned source. Build order: A, tier 1 with the extractive check, then tier 2. Build against AJ-E3708's excerpts, which are also the fallback. The design is [ADR-0033](../adr/0033-feed-summary-engines.md); build to it once the coordinating session has reviewed it.
