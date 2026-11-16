@@ -93,7 +93,7 @@ class Fake:
 def load_corpus(spec, limit, subset):
     label, _, path = spec.partition("=")
     if not path: raise SystemExit(f"--corpus wants LABEL=PATH, got {spec}")
-    raw = open(path, "rb").read(); items = json.loads(raw)
+    raw = open(path, "rb").read(); items = jobs.adapt_items(json.loads(raw))     # the per-job held-out schema, keys renamed only
     if subset == "sweep" and label == "v2":
         items = [x for x in items if x.get("bucket") == "adversarial"] + [x for x in items if x.get("bucket") != "adversarial"][:18]
     elif subset == "sweep" and label not in ("turnends",):
@@ -108,7 +108,7 @@ def build_calls(label, items, job_list, mark, n_examples, full=None, limit=0):
         if not it.get("source"): continue
         ctx = gate.prepare(it["source"]); F = gate.facts_norm(it.get("facts"))
         for job in job_list:
-            if job == "chat": continue
+            if job == "chat" or (it.get("job") and it["job"] != job): continue      # a per-job item runs only its own job
             settings = [("main", False)]
             if job == "attention":
                 settings = ([("facts_given", False)] if F and F["level"] in ("L0", "L1") else []) + [("facts_hidden", True)]
@@ -122,7 +122,7 @@ def build_calls(label, items, job_list, mark, n_examples, full=None, limit=0):
             sys_t, prompt, schema, grammar, mx, est, cut = jobs.request("chat", chat_item=ci, mark=mark, n_examples=n_examples)
             calls.append(("chat", "main", ci["id"], {"job": "chat", "mode": "fields", "system": sys_t, "prompt": prompt, "schema": schema,
                           "grammar": grammar, "max_tokens": mx, "refs": [r["ref"] for r in ci["rows"]], "question": ci["question"]},
-                          {"est_tokens": est, "cut": cut, "prompt_chars": len(prompt)}))
+                          {"est_tokens": est, "cut": cut, "prompt_chars": len(prompt), "chat_item": ci}))
     return calls
 
 def check_grammars(path):
@@ -145,9 +145,12 @@ def main():
     ap.add_argument("--subset", choices=("all", "sweep"), default="all", help="sweep: the tuned subset for the sampling sweep")
     ap.add_argument("--sampling", help="a config name from jobs.SAMPLING for this model (default: jobs.DEFAULT_SAMPLING)")
     ap.add_argument("--mark", choices=("datamark", "plain"), default="datamark", help="the fence's datamarking (research open question 3)")
+    ap.add_argument("--datamark", choices=("on", "off"), help="the sweep's name for --mark: off = no marks between words; the fences, "
+                    "the untrusted-data rule and the rule restated after the text stay, and the grammar still bans the mark")
     ap.add_argument("--examples", type=int, default=0, help="use only the first N examples per job (0: all)")
     ap.add_argument("--no-schema-in-prompt", action="store_true", help="Apple: includeSchemaInPrompt false (research open question 2)")
     a = ap.parse_args()
+    if a.datamark: a.mark = "datamark" if a.datamark == "on" else "plain"
     if a.check_grammars: return check_grammars(a.check_grammars)
     if not a.out or not a.corpus: ap.error("--out and at least one --corpus are needed")
     job_list = list(jobs.JOBS) if a.job == "all" else [j.strip() for j in a.job.split(",")]
@@ -183,7 +186,7 @@ def main():
     prompts = {j: hashlib.sha256((jobs.instructions(j, a.mark == "datamark", a.examples or None) + json.dumps(jobs.schema_for(j))).encode()).hexdigest()
                for j in job_list}
     meta = {"harness": "v4", "prompt_version": jobs.PROMPT_VERSION, "engine": "fake (no model)" if a.fake else (eng.h.get("engine") or "Apple on-device Foundation Model via apple_probe.swift"),
-            "hello": eng.hello, "family": fam, "sampling_name": sname, "sampling": jobs.SAMPLING[fam][sname], "mark": a.mark,
+            "hello": eng.hello, "family": fam, "sampling_name": sname, "sampling": jobs.SAMPLING[fam][sname], "mark": a.mark, "datamark": "on" if a.mark == "datamark" else "off",
             "examples": a.examples or "all", "schema_in_prompt": not a.no_schema_in_prompt, "jobs": job_list, "subset": a.subset,
             "prompt_sha256": prompts, "jobs_py_sha256": hashlib.sha256(open(jobs.__file__, "rb").read()).hexdigest(),
             "gate_py_sha256": hashlib.sha256(open(gate.__file__, "rb").read()).hexdigest(), "frozen_gate_commit": "7acec4f50",
