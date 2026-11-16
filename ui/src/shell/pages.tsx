@@ -88,8 +88,20 @@ function entityPage(shell: Shell, selection: Selection): JSX.Element | null {
 export function InspectorStop({ session, onStop }: { session: InstanceInfo; onStop: (session: InstanceInfo) => void }): JSX.Element | null {
   const held = useStopHeld(session.id);
   if (!processRunning(session)) return null; // one that ended at its limit has nothing to stop
+  // While held it can't be pressed again (rc33 R3), but it keeps focus:
+  // `aria-disabled`, not `disabled`, which would drop a keyboard user's
+  // place to the page's start (the a11y feedback spec, 0.4.6).
   return (
-    <Button size="sm" variant="secondary" disabled={held} onClick={() => onStop(session)} data-testid="inspector-stop">
+    <Button
+      size="sm"
+      variant="secondary"
+      aria-disabled={held || undefined}
+      className={held ? "cursor-default opacity-40" : undefined}
+      onClick={() => {
+        if (!held) onStop(session);
+      }}
+      data-testid="inspector-stop"
+    >
       {held ? "Stopping…" : "Stop"}
     </Button>
   );
