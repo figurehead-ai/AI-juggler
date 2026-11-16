@@ -10,14 +10,15 @@
  * - `chip`: the mark and its word ("Desktop", "CLI"), where a card, a
  *   page header or a picker names the App.
  */
-import type { JSX } from "react";
+import { memo, type JSX } from "react";
 import { IconTerminal } from "./icons";
 import { IconWindow } from "./icons-places";
 import { appKindWords, type AppKind } from "../lib/app-kind";
 
 export type { AppKind } from "../lib/app-kind";
 
-export function AppKindBadge({
+/** AJ-E812: draws again only when its own props change. */
+export const AppKindBadge = memo(function AppKindBadge({
   kind,
   variant = "glyph",
   className = "",
@@ -70,4 +71,4 @@ export function AppKindBadge({
       {said}
     </span>
   );
-}
+});
