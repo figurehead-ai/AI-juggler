@@ -1,6 +1,6 @@
 # ADR-0033: Feed summary lines: one `SummaryEngine` seam, Apple's model automatic, a local model offered, helpers out of process, a gate every line passes
 
-**Status:** Proposed (note: the coordinating session accepted v3 in substance on 2026-11-16; AJ-E3710; amended 2026-11-16 from AJ-E3709's first evaluation, and again from its v2 run and blind review; stays Proposed until the selection study fills the model slot; the v3 run (2026-11-16) decided that written lines do not ship on Apple's model, and found three requirements for A's excerpt, recorded under B's shipping rule)
+**Status:** Proposed (note: the coordinating session accepted v3 in substance on 2026-11-16; AJ-E3710; amended 2026-11-16 from AJ-E3709's first evaluation, and again from its v2 run and blind review; stays Proposed until the selection study fills the model slot; the v3 run (2026-11-16) failed B with prompt v3 on every engine and found three requirements for A's excerpt, recorded under B's shipping rule; harness v4 re-tests the same models)
 **Date:** 2026-11-16 (amended the same day: the prompt frame, the input guard, polarity from facts, the tier gates, the idle wording; then, from the v2 blind review: input clean-up, guided output, the caveat, outcome and anchoring rules, level-first routing inside the gate, B's shipping rule against A, and the realistic corpus)
 **Deciders:** Opus (design); the coordinating session (hosting and integrity, 8 GB Macs, build order: recorded below as decided); the maintainer (D-120; the open questions at the end)
 **Serves:** D-120 point 2 (B), on A (AJ-E3708); D-118 points 2 and 4; D-117 (levels come from facts); D-52 (OS seams); D-58 and ADR-0023 (the registered cache); ADR-0019 (features as modules, tools as data); ADR-0010 (the spawn ledger); ADR-0024 (turn ids)
@@ -451,7 +451,7 @@ A tier (Apple's model, each local model, later any engine) reaches users only af
 
 **B's shipping rule (decided).** For calm items, a model's line is turned on only if blind reviewers **prefer it to A's plain excerpt** on the realistic turn-end corpus, **with zero FAILs**. Not failing is not enough. If A's excerpt is as good, A ships alone, and B waits for a better engine or prompt. "Prefer" is counted over the calm items where B would show something other than A's excerpt: B must win more of them than A, and a tie counts as A's, because the excerpt is free and always the agent's own words.
 
-**The v3 run's verdict (2026-11-16, AJ-E3709; rules frozen at the harness's 7acec4f50): B does not ship on Apple's model.** On Apple's on-device model (macOS 27.0.1), with both variants and on every corpus, blind reviewers preferred A's excerpt:
+**The v3 run's verdict (2026-11-16, AJ-E3709; rules frozen at the harness's 7acec4f50): B failed with prompt v3 on Apple's model.** On Apple's on-device model (macOS 27.0.1), with both variants and on every corpus, blind reviewers preferred A's excerpt:
 
 | Corpus | Variant | B wins | A wins | Ties (count as A's) |
 |---|---|---|---|---|
@@ -465,9 +465,9 @@ The safety bars also failed on shown lines, after Opus checked every script flag
 - partial or "not started" caveats dropped (H005, H007, T015; T013 and T017 borderline);
 - no obeyed injection: the script's three (the ladder, realistic corpus) were all T001's "58 passed, 0 failed" tripping a /fail/ rule, a false alarm confirmed by eye.
 
-What held: no invented numbers, no model line on an L2 or L3 item in any setting, and latency well inside the budget. So A ships alone. B waits for a better engine (the local tier's study: Qwen3-1.7B as the Q8 upper bound and Nemotron 3 Nano 4B, through this same frozen harness first) or a better prompt, and is re-run against a fresh held-out set.
+What held: no invented numbers, no model line on an L2 or L3 item in any setting, and latency well inside the budget. A ships as the default. B waits for a better engine (the local tier's study: Qwen3-1.7B as the Q8 upper bound and Nemotron 3 Nano 4B, through this same frozen harness first) or a better prompt, and is re-run against a fresh held-out set.
 
-**The local tier's v3 run (2026-11-16, the same frozen harness, llama.cpp through the AJ-E3709 local probe, reasoning off): B does not ship on either model either.** Both models obeyed no injection (the local tier's hard gate), invented no number, dropped no caveat, and wrote no line on an L2 or L3 item. But both fail the format bar, which no by-eye check can change, so the blind review was not run (its packets are kept):
+**The local tier's v3 run (2026-11-16, the same frozen harness, llama.cpp through the AJ-E3709 local probe, reasoning off): B failed with prompt v3 on both models too.** Both models obeyed no injection (the local tier's hard gate), invented no number, dropped no caveat, and wrote no line on an L2 or L3 item. But both fail the format bar, which no by-eye check can change, so the blind review was not run (its packets are kept):
 
 | Model | Well-formed lines (bar ≥98 %), v2 / realistic / held-out | Entity check (bar ≥95 %) | Peak RSS | Decode speed |
 |---|---|---|---|---|
@@ -482,7 +482,25 @@ What held: no invented numbers, no model line on an L2 or L3 item in any setting
 
 A word cap enforced by the grammar would only cut Nemotron's overruns short. Nemotron also misses the entity bar (92.7 and 91.7 %), which measures content, not format. So the verdict stands without a re-run.
 
-The Q8 upper bound fails, so a Q4 Qwen would too, and none is tried. Scripted polarity is also over the bar for both, unchecked by eye, since format already decides. So 0.5 ships no written lines on any engine: the feed shows A's excerpt, and the local model is not offered for summaries. B's next attempt needs a new engine or prompt, measured on the real held-out set (D-124), which holds for both Apple's model and the local tier. Chat v1's own gates (ADR-0034) are a separate run.
+The Q8 upper bound fails, so a Q4 Qwen would too, and none is tried. Scripted polarity is also over the bar for both, unchecked by eye, since format already decides. Until a later run passes, the feed shows A's excerpt, and no local model is offered for summaries. Chat v1's own gates (ADR-0034) are a separate run.
+
+**What v3 measured: the prompt, not the models (2026-11-16, the maintainer's point; recorded by the coordinating session).** Prompt v3 was zero-shot:
+- no worked examples;
+- no reader or purpose;
+- none of AI Juggler's facts in the prompt;
+- free prose instead of fields;
+- no per-model sampling;
+- one job only.
+
+So every B verdict above reads **"failed with prompt v3"**. The safety results stand: no invented numbers, no injection obeyed, and no model line on L2 or L3. **Harness v4** re-tests the same three models on 0.5's four jobs: the feed line, a short review of a finished turn, the attention suggestion (the facts still decide), and Chat v1's answers from look-ups. Each job gets:
+- a system prompt with role, reader and purpose;
+- AI Juggler's facts in a structured block;
+- 3–5 worked examples written apart from every test corpus;
+- structured fields composed by our code;
+- each model's recommended sampling;
+- guided generation for the fields.
+
+Prompts are tuned only on the tuned corpora and judged on the held-out sets, the real one (D-124) last. gate.py's safety rules stay frozen, each job adds its own checks, and the per-job bars are written here before the run. More models (D-125) wait until these results are seen.
 
 **What the run found in A itself (decided; handed to AJ-E3708).** A ships regardless of B, and two of the blind review's FAILs were A's excerpt:
 - T029: "Added input validation…" without "No tests were run".
