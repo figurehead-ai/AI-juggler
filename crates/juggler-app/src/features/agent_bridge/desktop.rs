@@ -157,8 +157,7 @@ pub(crate) fn look_for(state: &Arc<AppState>, session: &SessionId) -> Option<Loo
         // AJ-E3013 (the A9 lab walk): the person's Deliver (their compose
         // with Deliver, or the Deliver on a waiting copy) is their click,
         // the permission: it wakes the member, whoever sent it.
-        let (delivered, rows): (Vec<_>, Vec<_>) =
-            rows.into_iter().partition(by_the_user);
+        let (delivered, rows): (Vec<_>, Vec<_>) = rows.into_iter().partition(by_the_user);
         let delivered: Vec<String> = delivered
             .into_iter()
             .map(|row| row.message.sender_name)
