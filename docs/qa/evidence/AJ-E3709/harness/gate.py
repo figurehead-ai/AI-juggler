@@ -434,6 +434,47 @@ def states_failure(text):
         if any((x.endswith("*") and w.startswith(x[:-1])) or w == x for x in OUTCOME_FAIL) and not any(_is_neg(t) for t in toks[max(0, i - 3):i]):
             return True
     return False
+# Does a sentence REPORT a failure (for the excerpt's second line, AJ-E3708 Req.6a), rather than describe a check or a condition?
+# A general grammatical test: a failure word (step 3's failure family), not negated, and not
+#   in a conditional clause (if/when/whenever/unless/falls/wenn/sofern/sobald earlier in its clause),
+#   governed by a modal (would/could/might/should/may, würde/könnte/sollte) just before it,
+#   after "instead of"/"rather than"/"without"/statt/anstatt/ohne (a gerund that did not happen),
+#   the object of a fix (a fixed-family word earlier in its clause: "fixed the error"),
+#   a present-tense form followed by if/when/unless/falls/wenn ("fails if", "fails when"),
+#   a present-tense form inside a relative clause (that/which/whose/who: "a check that fails"),
+#   a present-tense form after a sentence-initial conditional clause ("When the token expires, the upload fails"),
+#   an attributive form after an indefinite article ("a broken link"),
+#   a non-past form after a definite or possessive determiner, which names a thing ("the timeout", "its error handling").
+# A past form (…ed, broke(n), fehlgeschlagen, gescheitert, abgestürzt) is a report even when "when" follows ("failed when I ran it").
+COND_WORDS = {"if", "when", "whenever", "unless", "falls", "wenn", "sofern", "sobald"}
+MODAL_WORDS = {"would", "could", "might", "should", "may", "würde", "würden", "könnte", "könnten", "sollte", "sollten"}
+AVOID_WORDS = {"instead", "rather", "without", "statt", "anstatt", "ohne"}
+RELATIVE_WORDS = {"that", "which", "whose", "who"}
+PAST_FAIL = {"broke", "broken", "stuck", "fehlgeschlagen", "gescheitert", "abgestürzt", "kaputt"}
+def _is_outcome_fail(w): return any((x.endswith("*") and w.startswith(x[:-1])) or w == x for x in OUTCOME_FAIL)
+INDEFINITE = {"a", "an", "any", "every", "each", "ein", "eine", "einen", "einer", "eines", "jeder", "jede", "jedes"}
+DEFINITE = {"the", "this", "that", "these", "those", "its", "their", "our", "his", "her", "my", "your",
+            "der", "die", "das", "den", "dem", "des", "dieser", "diese", "dieses", "sein", "seine", "ihr", "ihre"}
+def reports_failure(sentence):
+    governed = False      # a sentence-initial conditional clause ("When X, the upload fails") governs what follows it
+    for ci, clause in enumerate(re.split(r"[,;:()\u2014\u2013]|\s-\s", nfkc(sentence))):
+        toks = _toks3(clause)
+        if ci == 0 and toks and toks[0] in COND_WORDS: governed = True
+        for i, w in enumerate(toks):
+            if _fam3(w) != "failure": continue
+            before = toks[:i]; past = w.endswith("ed") or w in PAST_FAIL or (w == "fehl" and bool({"schlug", "schlugen"} & set(toks)))
+            if i and toks[i - 1] in INDEFINITE: continue           # attributive: "a broken link" describes, it does not report
+            if governed and ci > 0 and not past: continue
+            if not past and i and toks[i - 1] in DEFINITE: continue
+            if any(_is_neg(t) for t in toks[max(0, i - 3):i]): continue
+            if any(t in COND_WORDS for t in before): continue
+            if any(t in MODAL_WORDS for t in toks[max(0, i - 3):i]): continue
+            if any(t in AVOID_WORDS for t in toks[max(0, i - 3):i]): continue
+            if any(_fam3(t) == "fixed" for t in before): continue
+            if not past and any(t in COND_WORDS for t in toks[i + 1:i + 3]): continue
+            if not past and any(t in RELATIVE_WORDS for t in before): continue
+            return True
+    return False
 def has_resolution(text):
     return verdict_words_v3(text)["succ"] or bool(set(_toks3(text)) & RESOLUTION_EXTRA)
 
@@ -655,14 +696,19 @@ def excerpt_v3(cleaned, facts=None):
     if F is None:
         after = sentences_v3(cleaned); after = after[after.index(pick) + 1:] if pick in after else after
         q = next((s for s in after if s.rstrip().rstrip("\"'”’)]").endswith("?")), None)
-        f = None if q else next((s for s in after if verdict_words_v3(s)["fail"]), None)
-        if q or f: return _cap(pick) + "\n" + _cap(q or f), ("question" if q else "failure")
-    if _caveat_phrase(pick) or _counts(pick): return _cap(pick), None
-    cav = next((s for s in sentences_v3(cleaned) if s != pick and (_caveat_phrase(s) or _counts(s))), None)
-    if not cav: return _cap(pick), None
-    if len(cav) > 200:
+        f = None if q else next((s for s in after if reports_failure(s)), None)
+        if q or f:      # a third line keeps the caveat (ADR-0033 90aba2a7b): a caveat is never dropped
+            second = q or f; cav = _caveat_line(cleaned, (pick, second))
+            return "\n".join([_cap(pick), _cap(second)] + ([cav] if cav else [])), ("question" if q else "failure") + ("+caveat" if cav else "")
+    cav = _caveat_line(cleaned, (pick,))
+    return (_cap(pick) + "\n" + cav, "caveat") if cav else (_cap(pick), None)
+def _caveat_line(cleaned, shown):
+    """the caveat sentence to add, or None when a shown sentence already carries one or the text states none"""
+    if any(_caveat_phrase(x) or _counts(x) for x in shown): return None
+    cav = next((s for s in sentences_v3(cleaned) if s not in shown and (_caveat_phrase(s) or _counts(s))), None)
+    if cav and len(cav) > 200:
         p = _caveat_phrase(cav) or ""; i = max(0, cav.find(p) - 80); cav = ("..." if i else "") + cav[i:i + 190]
-    return _cap(pick) + "\n" + cav, "caveat"
+    return cav
 
 # ---------- the ladder (v3), two B variants from the same drafts ----------
 def _pick_index(choose_out, n):
@@ -677,7 +723,7 @@ def ladder_v3(item, facts, write_out, choose_out, route=True, variant="ladder", 
     -> {shown, kind: written|quoted|excerpt|excerpt_routed, trace[], write_gate, choose_gate, excerpt, caveat_line, lang, cleaned, removed}"""
     ctx = ctx or prepare(item["source"])
     exc, second = excerpt_v3(ctx["cleaned"], facts)
-    base = {"excerpt": exc, "caveat_line": second == "caveat", "second_line": second, "lang": ctx["lang"], "cleaned": ctx["cleaned"], "removed": ctx["removed"],
+    base = {"excerpt": exc, "caveat_line": bool(second) and "caveat" in second, "second_line": second, "lang": ctx["lang"], "cleaned": ctx["cleaned"], "removed": ctx["removed"],
             "write_gate": None, "choose_gate": None, "draft": (write_out or {}).get("text") if variant == "ladder" else None}
     def done(shown, kind, trace, **kw): return {**base, **kw, "shown": shown, "kind": kind, "trace": trace}
     F = facts_norm(facts)
@@ -755,6 +801,17 @@ def selftest():
     check("excerpt, facts unknown: a later question is the second line, before a failure", sec == "question" and ex.endswith("Should I overwrite it?"), ex)
     ex, sec = excerpt_v3(normalise("I refactored the cache layer. Two tests failed: cache_ttl and cache_clear."), None)
     check("excerpt, facts unknown: a later failure is the second line", sec == "failure" and "failed" in ex, ex)
+    for sent, want in [("The build failed on the second run.", True), ("Three tests fail on main.", True), ("It crashes on start.", True),
+                       ("The build failed when I ran it under load.", True), ("The job was killed once and retried.", True),
+                       ("I changed the timeout from 30 to 60 seconds.", False), ("Der Build ist fehlgeschlagen.", True), ("Zwei Tests schlagen fehl.", True),
+                       ("The import fails if a link points outside the folder.", False), ("This would fail on older systems.", False),
+                       ("A check that fails when the schema is newer stops the launch.", False), ("A broken link is left out instead of failing the import.", False),
+                       ("When the token expires, the upload fails.", False), ("Fixed the null pointer error in the logger.", False),
+                       ("The parser no longer crashes on empty input.", False), ("Wenn die Datei fehlt, schlägt der Import fehl.", False),
+                       ("Der Import würde sonst fehlschlagen.", False), ("Falls der Test fehlschlägt, bricht der Lauf ab.", False)]:
+        check(f"reports_failure: {sent!r} -> {want}", reports_failure(sent) == want)
+    ex, sec = excerpt_v3(normalise("I refactored the cache layer. Two tests failed: cache_ttl and cache_clear. I did not run the integration tests."), None)
+    check("excerpt, facts unknown: the caveat is a third line, never dropped", sec == "failure+caveat" and ex.count("\n") == 2 and "did not run" in ex, ex)
     ex, sec = excerpt_v3(normalise("I changed the timeout to 60 seconds in config/limits.yaml. I did not run the tests."), None)
     check("excerpt, facts unknown: otherwise the caveat line", sec == "caveat" and "did not run" in ex, ex)
     ex, sec = excerpt_v3(normalise("Should I overwrite the older project file? It has two copies."), None)
