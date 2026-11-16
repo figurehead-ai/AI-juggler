@@ -210,7 +210,7 @@
 **Files to touch**: `scripts/visual_sweep.sh`, `scripts/visual_sweep_diff.mjs`, `scripts/visual_gate.sh` (`--full-sweep` hand-off), `justfile`, `.github/workflows/visual-sweep.yml`, `docs/plan/QUALITY.md`, `docs/internal/MAINTAINER-STEPS.md`, `CONTRIBUTING.md`.
 **Handover note**: The sweep reports, it does not block; an unexpected changed state is a regression to fix or a missing core baseline to add, never a reason to stop running the core check.
 
-### AJ-E812 Idle CPU: the web content's and GPU's brief spikes traced | Status: TODO | Priority P1 | Effort M | Depends: AJ-E805
+### AJ-E812 Idle CPU: the web content's and GPU's brief spikes traced | Status: DONE (2026-11-16; evidence docs/qa/evidence/AJ-E812/manifest.md) | Priority P1 | Effort M | Depends: AJ-E805
 **Goal**: Find what makes the web content and GPU process jump to 3–8 % of a core for part of a minute while nothing changes on screen, and stop it at its cause.
 **User story**: As someone who leaves AI Juggler open all day, I want it to stay quiet minute after minute, not most minutes.
 **Requirements**:
@@ -233,7 +233,7 @@
 **Files to touch**: `ui/src/screens/Home.tsx` (inside its size budget), `ui/src/lib/machine.ts`.
 **Handover note**: Round 5 wrote such a selector and reverted it once the bar was met; this makes it a task, not a margin.
 
-### AJ-E814 Idle CPU measured with the window fully covered | Status: TODO | Priority P2 | Effort S | Depends: AJ-E805
+### AJ-E814 Idle CPU measured with the window fully covered | Status: DONE (2026-11-16; evidence docs/qa/evidence/AJ-E814/manifest.md) | Priority P2 | Effort S | Depends: AJ-E805
 **Goal**: Measure AI Juggler's idle cost when its window is shown but fully covered by other windows, the state WebKit treats as hidden.
 **User story**: As someone whose AI Juggler sits behind an editor, I want it to cost what a hidden window costs.
 **Requirements**:
