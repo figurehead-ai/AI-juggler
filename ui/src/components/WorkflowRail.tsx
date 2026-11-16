@@ -349,10 +349,8 @@ export function InstanceBoard({
   // AJ-E2104: the Project lens with Show › Ended on is the whole board,
   // every session under its project (its Also line's parts stay its own).
   const order = quietView(effectiveGroup, filters, parsed.text) && !view.show.ended ? railOrder(sorted, isNeed, now) : null;
-  // D-103.6, as Home's Needs you: a row that needs you leaves its project
-  // for Needs you, so until the backend's list is known the board holds
-  // its place; nothing moves when the needs arrive (a row drawn under its
-  // project a moment, then gone, closed a menu opened on it).
+  // D-103.6 (as Home): hold the board until the backend's needs are known,
+  // so no row jumps from its project to Needs you (rail-project-hold.test).
   const holding = order !== null && !needsKnown;
   const groups = openGroups(order, withOutsideGroups(sessionGroups, conversations, projects, scope), conversations, scope, new Set(projects.filter((p) => p.pinned).map((p) => p.id)));
   const shownRows = order?.shown ?? ((rows: InstanceInfo[]) => rows);
