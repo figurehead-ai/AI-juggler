@@ -1,6 +1,6 @@
 # ADR-0033: Feed summary lines: one `SummaryEngine` seam, Apple's model automatic, a local model offered, helpers out of process, a gate every line passes
 
-**Status:** Proposed (note: the coordinating session accepted v3 in substance on 2026-11-16; AJ-E3710; amended 2026-11-16 from AJ-E3709's first evaluation, and again from its v2 run and blind review; stays Proposed until the selection study fills the model slot and the v3 run decides whether written lines ship at all)
+**Status:** Proposed (note: the coordinating session accepted v3 in substance on 2026-11-16; AJ-E3710; amended 2026-11-16 from AJ-E3709's first evaluation, and again from its v2 run and blind review; stays Proposed until the selection study fills the model slot; the v3 run (2026-11-16) decided that written lines do not ship on Apple's model, and found three requirements for A's excerpt, recorded under B's shipping rule)
 **Date:** 2026-11-16 (amended the same day: the prompt frame, the input guard, polarity from facts, the tier gates, the idle wording; then, from the v2 blind review: input clean-up, guided output, the caveat, outcome and anchoring rules, level-first routing inside the gate, B's shipping rule against A, and the realistic corpus)
 **Deciders:** Opus (design); the coordinating session (hosting and integrity, 8 GB Macs, build order: recorded below as decided); the maintainer (D-120; the open questions at the end)
 **Serves:** D-120 point 2 (B), on A (AJ-E3708); D-118 points 2 and 4; D-117 (levels come from facts); D-52 (OS seams); D-58 and ADR-0023 (the registered cache); ADR-0019 (features as modules, tools as data); ADR-0010 (the spawn ledger); ADR-0024 (turn ids)
@@ -450,6 +450,33 @@ Every rung is silent to the user: a refusal, a timeout, a crash or a failed gate
 A tier (Apple's model, each local model, later any engine) reaches users only after a recorded run of AJ-E3709's harness ([harness/](../qa/evidence/AJ-E3709/harness/)) passes the selection plan's gates and B's shipping rule. **Apple's tier is not exempt:** it was the control in AJ-E3709, its drafts missed the format bar in both runs, and in v2 none of its calm lines was judged PASS.
 
 **B's shipping rule (decided).** For calm items, a model's line is turned on only if blind reviewers **prefer it to A's plain excerpt** on the realistic turn-end corpus, **with zero FAILs**. Not failing is not enough. If A's excerpt is as good, A ships alone, and B waits for a better engine or prompt. "Prefer" is counted over the calm items where B would show something other than A's excerpt: B must win more of them than A, and a tie counts as A's, because the excerpt is free and always the agent's own words.
+
+**The v3 run's verdict (2026-11-16, AJ-E3709; rules frozen at the harness's 7acec4f50): B does not ship on Apple's model.** On Apple's on-device model (macOS 27.0.1), with both variants and on every corpus, blind reviewers preferred A's excerpt:
+
+| Corpus | Variant | B wins | A wins | Ties (count as A's) |
+|---|---|---|---|---|
+| Realistic | ladder | 3 | 10 | 5 |
+| Realistic | `choose` only | 1 | 7 | 0 |
+| Synthetic held-out | ladder | 2 | 3 | 3 |
+| Synthetic held-out | `choose` only | 0 | 2 | 0 |
+
+The safety bars also failed on shown lines, after Opus checked every script flag by eye and removed the false alarms:
+- a meaning flip that no script caught: "check fails" for "the check reports none";
+- partial or "not started" caveats dropped (H005, H007, T015; T013 and T017 borderline);
+- three obeyed injections from the ladder on the realistic corpus.
+
+What held: no invented numbers, no model line on an L2 or L3 item in any setting, and latency well inside the budget. So A ships alone. B waits for a better engine (the local tier's study: Qwen3-1.7B as the Q8 upper bound and Nemotron 3 Nano 4B, through this same frozen harness first) or a better prompt, and is re-run against a fresh held-out set.
+
+**What the run found in A itself (decided; handed to AJ-E3708).** A ships regardless of B, and two of the blind review's FAILs were A's excerpt:
+- T029: "Added input validation…" without "No tests were run".
+- H016, an L3 turn: "Good news: the lint errors are gone." without "cargo build now errors with E0432".
+
+Also missed, by the script: "cargo test was not executed", "I didn't get to …", "not started", and the German "hat nicht geklappt" / "bricht … ab". Matching fixed phrases is too narrow, so A's sentence picking changes in three ways:
+1. **Caveats by structure, not phrases.** A sentence is a caveat when a negation (not, no, never, haven't, didn't, nicht, kein, noch nicht) governs a verb of running, testing, building, compiling, finishing or starting (run, test, execute, compile, build, check, verify, finish, get to, start, durchführen, testen, laufen, bauen), or it says "still a TODO", "stubbed", "left as it was", "happy path only", "only … of …". English and German each come with fixtures, including every miss above.
+2. **Failures the same way:** a present or past statement that something errors, fails, breaks, crashes or doesn't build or compile, an error code, a "bad news:" or "Leider" lead, and German separable verbs ("bricht … ab", "schlägt … fehl").
+3. **An L3 safety net.** On an item whose facts say L3, the excerpt never shows a sentence that only reports success. If the chosen sentence has a success word and no failure word, A shows the first sentence that reports a failure instead. If none is found, A shows the opening with AI Juggler's facts line beside it, which already says the turn failed.
+
+These are fixed with fixtures and measured on the real held-out set (D-124) before A ships. No rule is tuned on that set.
 
 **The v3 run: what it must contain.**
 - **This ADR's whole path:** the normaliser, the level-first routing, the guard, the frame at `PROMPT_VERSION` 3 with guided output, the engine, the gate (with steps 2b and the new parts of 3 and 4) and the ladder, with the excerpt's caveat line.
