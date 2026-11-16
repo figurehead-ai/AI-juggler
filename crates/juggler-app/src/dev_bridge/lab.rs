@@ -19,11 +19,12 @@
 //!    no logic of its own. Same token, same loopback, same Origin.
 //! 4. Real accounts stay out: before each write, every folder it would
 //!    touch — the session's, its launch settings' Account folder, a
-//!    launch's working folder — must resolve inside the lab, and an
-//!    Account on a tool's own default folder is refused (its sign-in can
-//!    live outside the folder, in the login Keychain) ([`guard`]). A
-//!    launch with no folder starts in the lab's; a switch never goes to a
-//!    desktop app, which runs outside the lab.
+//!    launch's working folder, a desktop App's config and instance
+//!    folders (the connector's Add and Remove) — must resolve inside the
+//!    lab, and an Account on a tool's own default folder is refused (its
+//!    sign-in can live outside the folder, in the login Keychain)
+//!    ([`guard`]). A launch with no folder starts in the lab's; a switch
+//!    never goes to a desktop app, which runs outside the lab.
 //! 5. (ADR-0027 condition 7.) One exception, named when the lab starts
 //!    (2026-11-05, the Codex live steps): `AIJ_LAB_ADOPT=<tool>` lets the
 //!    lab use that tool's own default folder in the real home where it
@@ -392,6 +393,55 @@ fn session_in_lab(state: &AppState, id: &str, may_adopt: bool) -> Result<(), Str
     profile_in_lab(state, record.profile.as_str(), may_adopt)
 }
 
+/// AJ-E3013: a desktop App the connector may be added to or taken out of
+/// from a lab: its config folder (the folder Add writes and Remove takes
+/// from: `CLAUDE_CONFIG_DIR`, the Codex home) an Account folder of the
+/// lab's (never condition 7's, never a tool's default), and its instance
+/// folder (given, or the host app's default under the home) inside the
+/// lab, each resolved, so a link inside the lab that leads out is out.
+fn desktop_app_in_lab(state: &AppState, app_id: &str) -> Result<(), String> {
+    let app = state
+        .storage
+        .lock()
+        .map_err(|_| "the store is busy".to_owned())?
+        .apps()
+        .get(app_id)
+        .ok()
+        .flatten()
+        .ok_or("no such App")?;
+    let folder = app
+        .folder_id
+        .as_deref()
+        .ok_or("the App has no config folder yet")?;
+    account_in_lab(state, &juggler_core::model::AccountId::new(folder), false)
+        .map_err(|why| format!("its config folder: {why}"))?;
+    let instance = if let Some(dir) = app.instance_dir.as_deref() {
+        PathBuf::from(dir)
+    } else {
+        let default = app
+            .host_app_id
+            .as_deref()
+            .and_then(|host| {
+                state
+                    .registry
+                    .get(&juggler_core::model::HarnessId::new(app.tool.as_str()))?
+                    .host_apps()
+                    .into_iter()
+                    .find(|one| one.id == host)?
+                    .default_instance
+            })
+            .ok_or("its instance folder isn't known")?;
+        juggler_platform::user::home()
+            .ok_or("its instance folder isn't known")?
+            .join(default)
+    };
+    if inside(&instance) {
+        Ok(())
+    } else {
+        Err("its instance folder is outside the lab".to_owned())
+    }
+}
+
 /// Checks a write's arguments against the lab before it's made, and
 /// starts a launch with no folder in the lab's. The other writes touch
 /// only the store (pools, messages, a test notice); the ones naming a
@@ -500,6 +550,10 @@ fn guard(state: &AppState, ipc: &str, args: &mut serde_json::Value) -> Result<()
                 Err("the profile is outside the lab".to_owned())
             }
         }
+        // AJ-E3013 (the done-gate walk of the Claude-app persona): Add and
+        // Remove write and take out only the App's config folder; that
+        // folder and its instance folder must be the lab's.
+        "connector_add" | "connector_remove" => desktop_app_in_lab(state, &text(args, "appId")?),
         "switch_execute" => {
             // Neither side may be condition 7's folder: a switch writes the
             // carried conversation into the target's folder (the review).
@@ -646,6 +700,10 @@ lab_routes! {
     "runtime_end" => features::runtime::pickup::runtime_end(state; session_id: String);
     // AJ-E1907: a task's session, its brief never on the command line.
     "tasks_start" => features::tasks::commands::tasks_start(app, state; task_id: String, profile_id: String, need_id: Option<String>);
+    // AJ-E3013: AI Juggler's connector added to and taken out of a lab's
+    // desktop App (the guard: its config and instance folders the lab's).
+    "connector_add" => features::connector::commands::connector_add(state; app_id: String);
+    "connector_remove" => features::connector::commands::connector_remove(state; app_id: String);
 }
 
 #[cfg(test)]
@@ -824,6 +882,101 @@ mod tests {
         for ipc in ["runtime_choose", "runtime_interrupt"] {
             assert!(find(ipc).is_none(), "{ipc} is not a lab route");
         }
+    }
+
+    /// AJ-E3013 (the done-gate walk): Add and Remove of the connector on a
+    /// lab's desktop App go through; an App whose config folder is outside
+    /// the lab, reached through a link inside it, or whose instance folder
+    /// is outside, is refused with the reason. (A unit test checks one lab
+    /// here: the process's lab is this test's folder.)
+    #[test]
+    fn the_connector_is_added_and_removed_only_on_a_labs_desktop_app() {
+        let dir = tempfile::tempdir().unwrap();
+        let state = Arc::new(AppState::init(dir.path().join("data")).unwrap());
+        state
+            .agent_bridge
+            .set_program(Some(PathBuf::from("/bin/echo")));
+        let lab = LAB_HOME
+            .get_or_init(|| {
+                let dir = std::env::temp_dir().join(format!("aij-lab-conn-{}", std::process::id()));
+                std::fs::create_dir_all(&dir).unwrap();
+                std::fs::canonicalize(&dir).unwrap()
+            })
+            .clone();
+        let away = tempfile::tempdir().unwrap();
+        let app_on = |id: &str, config: &Path, instance: &Path| -> String {
+            std::fs::create_dir_all(config).unwrap();
+            let storage = state.storage.lock().unwrap();
+            storage
+                .accounts()
+                .insert(&crate::test_support::account(
+                    id,
+                    juggler_adapters::CLAUDE_CODE_ID,
+                    id,
+                    config.to_path_buf(),
+                ))
+                .unwrap();
+            let app = storage
+                .apps()
+                .upsert_desktop(
+                    juggler_adapters::CLAUDE_CODE_ID,
+                    "claude-app",
+                    Some(&instance.to_string_lossy()),
+                    1,
+                )
+                .unwrap();
+            storage.apps().set_folder(&app, Some(id)).unwrap();
+            app
+        };
+        let check = |ipc: &str, app: &str| {
+            let mut args = serde_json::json!({ "appId": app });
+            guard(&state, ipc, &mut args)
+        };
+        // Inside the lab: the guard lets both through, and they work.
+        let ours = app_on("acc-lab", &lab.join("claude-config"), &lab.join("instance"));
+        assert_eq!(check("connector_add", &ours), Ok(()));
+        crate::features::connector::add_impl(&state, &ours)
+            .map(|_| ())
+            .unwrap_or_else(|error| unreachable!("{error:?}"));
+        assert!(
+            lab.join("claude-config/skills/ai-juggler").is_dir(),
+            "written in the lab"
+        );
+        assert_eq!(check("connector_remove", &ours), Ok(()));
+        crate::features::connector::remove_impl(&state, &ours)
+            .map(|_| ())
+            .unwrap_or_else(|error| unreachable!("{error:?}"));
+        assert!(
+            !lab.join("claude-config/skills/ai-juggler").exists(),
+            "taken out"
+        );
+        // A config folder outside the lab.
+        let outside = app_on(
+            "acc-away",
+            &away.path().join("claude"),
+            &lab.join("instance-2"),
+        );
+        let refused = check("connector_add", &outside).unwrap_err();
+        assert!(refused.contains("outside the lab"), "{refused}");
+        assert!(check("connector_remove", &outside).is_err());
+        // A link inside the lab that leads out of it.
+        std::fs::create_dir_all(away.path().join("real")).unwrap();
+        std::os::unix::fs::symlink(away.path().join("real"), lab.join("linked")).unwrap();
+        let linked = app_on("acc-linked", &lab.join("linked"), &lab.join("instance-3"));
+        let refused = check("connector_add", &linked).unwrap_err();
+        assert!(refused.contains("outside the lab"), "{refused}");
+        // Its instance folder outside the lab.
+        let instance_away = app_on("acc-inst", &lab.join("config-4"), &away.path().join("inst"));
+        assert_eq!(
+            check("connector_add", &instance_away),
+            Err("its instance folder is outside the lab".to_owned())
+        );
+        assert_eq!(
+            check("connector_add", "app:nope:"),
+            Err("no such App".to_owned())
+        );
+        assert!(find("connector_add").is_some() && find("connector_remove").is_some());
+        let _ = std::fs::remove_dir_all(&lab);
     }
 
     #[test]
