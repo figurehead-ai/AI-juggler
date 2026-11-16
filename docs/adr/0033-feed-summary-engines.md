@@ -423,6 +423,8 @@ A paused download says why on its status line ("Waiting for Wi-Fi and power"). *
 
 **The excerpt keeps the caveat.** The excerpt is where most lines now land, so it must not drop what the gate protects. A's clean opening (AJ-E3708) gains one rule: when the text states a caveat (step 3's list) after the opening, the excerpt shows that sentence as its second line. A11's excerpt then reads "I changed the timeout from 30 to 60 seconds in config/limits.yaml." over "I did not run the tests …". This is handed to AJ-E3708 as a requirement.
 
+**With unknown facts, the excerpt keeps the question or the failure** (decided 2026-11-16, from the v3 harness). Without facts, A's opening is the text's first sentence, and a question or failure stated later was lost (v2 corpus: A01, A02, A07, A08, A10; realistic corpus: seven question items). So when the facts are unknown and the text has, after the opening, a sentence that asks (ends with a question mark) or states a failure (step 3's failure words), the excerpt shows that sentence as its second line. The question comes first; the caveat line still applies after the opening when there is neither. It doesn't change the item's attention level; it only keeps the agent's own words visible. This is handed to AJ-E3708 as a requirement.
+
 Every rung is silent to the user: a refusal, a timeout, a crash or a failed gate all look like the feed of today.
 
 **Tests:**

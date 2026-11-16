@@ -185,6 +185,7 @@
 4. Excerpts SHALL be stored in the registered, clearable local cache (D-58), keyed by conversation and turn, and come through `feed-words.ts` like every other sentence.
 5. The excerpt SHALL pass through the shared input cleaner of ADR-0033 v3 (join hard-wrapped lines, strip list markers and conventional-commit prefixes, leave clean text unchanged), the same one B and Chat use.
 6. The excerpt's caveat line: if the source says "not run", "not tested", "not done", "partial" or "N of M", the shown excerpt SHALL include that sentence.
+6a. With unknown facts: when AI Juggler has no facts for the turn and the text, after its opening, has a sentence that asks (ends with "?") or states a failure (ADR-0033 §6 step 3's failure words), the shown excerpt SHALL include that sentence as its second line, the question before the failure; otherwise rule 6 applies (ADR-0033, "With unknown facts, the excerpt keeps the question or the failure").
 7. This SHALL be the excerpt layer B reads from and the layer B falls back to; it supersedes AJ-E3703's single quote (AJ-E3703 becomes the first source here, not a separate path).
 **UI/UX reasoning**: quoting beats paraphrasing ("Accuracy means what it claims"); Claude Code's own agent view does the same without a model at most every 15 s; privacy by the user's existing choice.
 **Performance budget**: an excerpt ≤ 20 ms from cache, ≤ 100 ms cold, off the main thread, only for items in view; hooks add no measurable cost to the agent's turn; idle stays under 2% CPU.
