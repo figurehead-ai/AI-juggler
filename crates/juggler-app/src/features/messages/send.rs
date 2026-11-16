@@ -333,7 +333,7 @@ fn shaped(
         .map(|subject| messaging::one_line(subject, SUBJECT_MAX))
         .filter(|subject| !subject.is_empty())
         .or_else(|| thread_subject.map(str::to_owned))
-        .unwrap_or_else(|| messaging::one_line(body.lines().next().unwrap_or("Message"), 60));
+        .unwrap_or_else(|| messaging::subject_from(body.lines().next().unwrap_or("Message"), 60));
     Ok((kind, subject, body))
 }
 
