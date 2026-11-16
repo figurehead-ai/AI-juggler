@@ -7,6 +7,4 @@
 ui/src/components/HandoverSection.tsx details 1
 ui/src/components/switch/CarrySummary.tsx details 1
 ui/src/components/switch/Explain.tsx details 1
-ui/src/components/this-mac-memory.tsx details 2
 ui/src/pages/session/ContinueOn.tsx details 1
-ui/src/screens/ThisMacScreen.tsx details 1

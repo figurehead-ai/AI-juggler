@@ -18,7 +18,8 @@ import { useContext, type JSX, type ReactNode } from "react";
 import { Button } from "../components/primitives";
 import { ToolMark } from "../components/ToolMark";
 import { AwakeLine, MachineState, OwnLine, TreeRow, cpuWords } from "../components/this-mac-parts";
-import { FoldChevron, MemoryMeter, OtherAppsGroup } from "../components/this-mac-memory";
+import { MemoryMeter, OtherAppsGroup, ROW_FOLD } from "../components/this-mac-memory";
+import { Disclosure } from "../components/controls";
 import { RowPlaceholders } from "../components/Placeholder";
 import { alertNextStep, alertSubject, bytesWords, ThisMacContext, type ThisMacInfo, type ToolTreeInfo } from "../lib/machine";
 import type { ToolGroupInfo } from "../types/generated/ToolGroupInfo";
@@ -100,32 +101,40 @@ function ToolGroup({
   // Ours and another app's (AJ-E2407) are sessions; the Claude tools' are windows.
   const sessions = group.ours || trees.some((tree) => !!tree.title);
   return (
-    <details className="group border-t border-hairline/60 first:border-t-0" data-testid="this-mac-group" data-ours={group.ours ? "true" : "false"} open={group.ours}>
-      <summary className="flex cursor-pointer list-none flex-wrap items-center gap-x-3 gap-y-1 rounded-lg py-3 outline-none focus-visible:ring-1 focus-visible:ring-accent/60">
-        <FoldChevron />
-        <span className="flex min-w-0 flex-1 basis-40 items-center gap-2 text-body font-medium text-ink">
-          {mark && <ToolMark tool={mark} size={14} className="text-muted" />}
-          <span className="shrink-0">{group.label}</span>
-          <span className="min-w-0 truncate text-meta font-normal text-muted">
-            {trees.length === 1 ? "1" : trees.length} {sessions ? (trees.length === 1 ? "session" : "sessions") : trees.length === 1 ? "window" : "windows"}
-            {group.ours ? "" : " · not started by AI Juggler"}
-          </span>
-        </span>
-        <span className="ml-auto flex shrink-0 flex-col items-end gap-0.5 tabular-nums">
-          <span className="text-body text-ink">{memory}</span>
-          <span className="text-meta text-muted" title="As Activity Monitor counts it: 100% is one core busy">
-            {cpuWords(group.cpu_one_core_pct)}
-          </span>
-        </span>
-      </summary>
-      {trees.length > 0 && (
-        <ul className="mb-2 ml-[22px] flex flex-col" aria-label={group.label}>
-          {trees.map((tree) => (
-            <TreeRow key={tree.root_pid !== null ? `pid-${tree.root_pid}` : (tree.session_id ?? `${tree.place}-${tree.rss_bytes}`)} tree={tree} nameOf={nameOf} onOpenSession={onOpenSession} />
-          ))}
-        </ul>
-      )}
-    </details>
+    <div className="border-t border-hairline/60 first:border-t-0" data-testid="this-mac-group" data-ours={group.ours ? "true" : "false"}>
+      {/* The app's disclosure (a button an accessibility press opens), as
+          wide as the row: the figures sit at its end. */}
+      <Disclosure
+        open={group.ours}
+        summaryClassName={ROW_FOLD}
+        summary={
+          <>
+            <span className="flex min-w-0 flex-1 basis-40 items-center gap-2 text-body font-medium text-ink">
+              {mark && <ToolMark tool={mark} size={14} className="text-muted" />}
+              <span className="shrink-0">{group.label}</span>
+              <span className="min-w-0 truncate text-meta font-normal text-muted">
+                {trees.length === 1 ? "1" : trees.length} {sessions ? (trees.length === 1 ? "session" : "sessions") : trees.length === 1 ? "window" : "windows"}
+                {group.ours ? "" : " · not started by AI Juggler"}
+              </span>
+            </span>
+            <span className="ml-auto flex shrink-0 flex-col items-end gap-0.5 tabular-nums">
+              <span className="text-body text-ink">{memory}</span>
+              <span className="text-meta text-muted" title="As Activity Monitor counts it: 100% is one core busy">
+                {cpuWords(group.cpu_one_core_pct)}
+              </span>
+            </span>
+          </>
+        }
+      >
+        {trees.length > 0 && (
+          <ul className="mb-2 ml-[22px] flex flex-col" aria-label={group.label}>
+            {trees.map((tree) => (
+              <TreeRow key={tree.root_pid !== null ? `pid-${tree.root_pid}` : (tree.session_id ?? `${tree.place}-${tree.rss_bytes}`)} tree={tree} nameOf={nameOf} onOpenSession={onOpenSession} />
+            ))}
+          </ul>
+        )}
+      </Disclosure>
+    </div>
   );
 }
 

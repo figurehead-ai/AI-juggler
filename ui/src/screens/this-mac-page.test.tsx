@@ -9,6 +9,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { ThisMacScreen, treesOf } from "./ThisMacScreen";
 import { ThisMacContext, type ThisMacInfo, type ToolTreeInfo } from "../lib/machine";
 import { mockMachineHealth } from "../preview/machine";
+
+/** A group's fold: the app's disclosure, a button an accessibility press
+ * opens (the 0.4.6 rc2 walk P9). */
+const foldOf = (group: HTMLElement): HTMLButtonElement => group.querySelector<HTMLButtonElement>("[data-disclosure] > button[aria-expanded]")!;
 import type { OverloadAlertInfo } from "../types/generated/OverloadAlertInfo";
 
 const NOW = 1_728_800_000_000;
@@ -101,9 +105,9 @@ describe("the This Mac page", () => {
     const groups = screen.getAllByTestId("this-mac-group");
     expect(groups).toHaveLength(2);
     expect(groups[0]!.textContent).toContain("2 sessions");
-    expect(groups[0]!.hasAttribute("open")).toBe(true);
+    expect(foldOf(groups[0]!).getAttribute("aria-expanded")).toBe("true");
     expect(groups[1]!.textContent).toContain("2 windows · not started by AI Juggler");
-    expect(groups[1]!.hasAttribute("open")).toBe(false);
+    expect(foldOf(groups[1]!).getAttribute("aria-expanded")).toBe("false");
     // D-08: a window AI Juggler didn't start is shown, never offered.
     const theirs = within(groups[1]!).getAllByTestId("this-mac-tree");
     for (const row of theirs) expect(within(row).queryByRole("button")).toBeNull();
@@ -125,7 +129,7 @@ describe("the This Mac page", () => {
     });
     renderPage(value);
     const groups = screen.getAllByTestId("this-mac-group");
-    expect(groups.map((group) => group.querySelector("summary")?.textContent ?? "")).toEqual([
+    expect(groups.map((group) => foldOf(group).textContent ?? "")).toEqual([
       expect.stringContaining("Claude Code"),
       expect.stringContaining("Claude app"),
       expect.stringContaining("ChatGPT (Codex)"),
@@ -203,19 +207,18 @@ describe("the This Mac page", () => {
     // rest behind "What it means".
     const note = within(state).getByTestId("this-mac-pressure-note");
     expect(note.textContent).toContain("Memory pressure is macOS's own measure of how hard it is working to make room.");
-    const more = note.querySelector("details")!;
-    expect(more.hasAttribute("open")).toBe(false);
-    expect(more.textContent).toContain("Pressure can be high while some memory still looks free");
+    expect(within(note).getByRole("button", { name: "What it means" }).getAttribute("aria-expanded")).toBe("false");
+    expect(note.textContent).toContain("Pressure can be high while some memory still looks free");
     // What else: folded, by name, its figure the rest of what's in use.
     const group = screen.getByTestId("this-mac-other-apps");
-    expect(group.hasAttribute("open")).toBe(false);
-    expect(group.querySelector("summary")!.textContent).toContain("Other apps and macOS");
-    expect(group.querySelector("summary")!.textContent).toContain("22 GB");
+    const fold = within(group).getByRole("button", { name: /Other apps and macOS/ });
+    expect(fold.getAttribute("aria-expanded")).toBe("false");
+    expect(fold.textContent).toContain("22 GB");
     expect(group.textContent).toContain("macOS keeps 47 GB more compressed for every app, AI tools too");
     const rows = within(group).getAllByTestId("this-mac-other-app");
     expect(rows.map((row) => row.textContent)).toEqual(["next-server6.0 GB", "Dockerabout 3.7 GB3 processes", "fseventsd1.4 GB"]);
     // D-08: another app is never offered anything.
-    expect(within(group).queryByRole("button")).toBeNull();
+    expect(within(group).getAllByRole("button", { hidden: true })).toEqual([fold]);
   });
 
   it("says no word of pressure while macOS reports none", () => {
