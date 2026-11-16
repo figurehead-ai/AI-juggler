@@ -2,7 +2,7 @@
 """runner_v3.py: ADR-0033 v3's model calls for AJ-E3709's v3 run (section 6.1), stdlib only.
 
   python3 runner_v3.py --cmd <scratch>/apple_probe --corpus v2=../corpus-v2-8f7c7474.json \
-      --corpus turnends=../corpus-v3-turnends-<hash>.json --out ../results-apple-v3.json [--repeats 3]
+      --corpus turnends=../corpus-v3-turnends.json --out ../results-apple-v3.json [--repeats 3]
   python3 runner_v3.py --fake --limit 3 --corpus v2=... --corpus turnends=... --out <scratch>/dry.json   (no Apple calls)
 
 For every item of every corpus and every repeat: the text is normalised (step 0), its language judged, guarded (step 1), then

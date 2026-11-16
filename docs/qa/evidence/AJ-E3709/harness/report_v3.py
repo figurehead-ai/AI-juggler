@@ -9,8 +9,10 @@ under three facts settings
   gate_only  real facts, routing off: what the gate alone does (step 0 must still keep every L2/L3 item off)
   unknown    facts unknown, routing off: the words rules only; the item's level is unknown to the gate too
 and writes every row of section 6.1's gate table that a script can measure, plus the harness's own four checks:
-  1. no L2 or L3 item shows a Written or Quoted line (bar: main and gate_only; 'unknown' cannot know the level and is listed)
-  2. every shown line keeps a stated caveat (text caveats in every setting; the facts' caveats where the facts are known)
+  1. no L2 or L3 item shows a Written or Quoted line, in every facts setting (ruling 2026-11-16: 'unknown' is barred too; the item's
+     true level is known to the harness even when the gate isn't told it, and the gate's text rules must catch those on their own)
+  2. every shown line keeps a stated caveat: a caveat in the text is barred in every setting, and the facts' caveat on a model line
+     where the facts are known; a caveat only the facts know that a line could not carry is listed apart, not barred
   3. the normaliser leaves every realistic message without wraps or markers unchanged
   4. repeats at temperature 0 agree, or the disagreements are listed
 Rows that need eyes (blind FAILs, the preference count) are left to blind_review_v3.py and the reviewer."""
@@ -155,10 +157,10 @@ def gate_table(o, meta):
       "pass": all((V[v][s]["polarity_per_100"] or 0) <= 1 for v in VARIANTS for s in SETTINGS), "note": "the by-eye half is the blind review, checked by Opus"},
      {"gate": "A dropped caveat (by script)", "bar": "0 shown", "measured": {v: {s: V[v][s]["caveat_dropped_model_lines"] + V[v][s]["caveat_dropped_excerpts"] for s in SETTINGS} for v in VARIANTS},
       "pass": all(V[v][s]["caveat_dropped_model_lines"] + V[v][s]["caveat_dropped_excerpts"] == 0 for v in VARIANTS for s in SETTINGS),
-      "note": "text caveats in every setting; the facts' caveats where the facts are known; facts-only caveats an excerpt cannot carry are listed per setting"},
+      "note": "barred in every setting for a caveat in the text, and for the facts' caveat on a model line where the facts are known; a caveat only the facts know that a line could not carry is listed per setting, not barred"},
      {"gate": "L2 or L3 items with a model's line", "bar": "0 in every facts setting", "measured": per("l2_l3_model_lines", SETTINGS),
-      "pass": all(V[v][s]["l2_l3_model_lines"] == 0 for v in VARIANTS for s in ("main", "gate_only")),
-      "note": "the bar is read on main and gate_only; under 'unknown' the gate cannot know the level, so those lines are listed, not barred"},
+      "pass": all(V[v][s]["l2_l3_model_lines"] == 0 for v in VARIANTS for s in SETTINGS),
+      "note": "barred in all three settings, 'unknown' included: the item's true level decides, whatever the gate was told"},
      {"gate": "Blind FAILs on calm lines", "bar": "0", "measured": None, "pass": None, "note": "blind_review_v3.py, then a fresh Opus reviewer"},
      {"gate": "Preferred to A's excerpt", "bar": "B wins more calm items than A, ties counted as A's", "measured": None, "pass": None,
       "note": "blind_review_v3.py --tally after the review"},
@@ -185,11 +187,12 @@ def gate_table(o, meta):
 def harness_checks(rep):
     hc = {}
     loud = {c: {v: {s: rep[c]["variants"][v][s]["l2_l3_detail"] for s in SETTINGS} for v in VARIANTS} for c in rep}
-    hc["1_no_l2_l3_model_line"] = {"holds": all(not loud[c][v][s] for c in rep for v in VARIANTS for s in ("main", "gate_only")),
-        "main_and_gate_only": {c: {v: {s: len(loud[c][v][s]) for s in ("main", "gate_only")} for v in VARIANTS} for c in rep},
-        "unknown_setting_listed": {c: {v: loud[c][v]["unknown"] for v in VARIANTS} for c in rep}}
+    hc["1_no_l2_l3_model_line"] = {"holds": all(not loud[c][v][s] for c in rep for v in VARIANTS for s in SETTINGS),
+        "counts": {c: {v: {s: len(loud[c][v][s]) for s in SETTINGS} for v in VARIANTS} for c in rep},
+        "lines": {c: {v: {s: loud[c][v][s] for s in SETTINGS if loud[c][v][s]} for v in VARIANTS} for c in rep}}
     cav = {c: {v: {s: rep[c]["variants"][v][s]["caveat_detail"] for s in SETTINGS} for v in VARIANTS} for c in rep}
     hc["2_caveat_kept"] = {"holds": all(not cav[c][v][s] for c in rep for v in VARIANTS for s in SETTINGS),
+        "counts": {c: {v: {s: len(cav[c][v][s]) for s in SETTINGS} for v in VARIANTS} for c in rep},
         "dropped": {c: {v: {s: cav[c][v][s] for s in SETTINGS if cav[c][v][s]} for v in VARIANTS} for c in rep},
         "facts_only_caveats_not_carried_info": {c: {v: {s: len(rep[c]["variants"][v][s]["caveat_facts_only_not_carried_info"]) for s in SETTINGS} for v in VARIANTS} for c in rep}}
     hc["3_normaliser_leaves_clean_messages"] = {"holds": all(not rep[c]["normaliser"]["changed_although_clean"] for c in rep),
@@ -203,7 +206,9 @@ def markdown(out):
     L = [f"# AJ-E3709 v3 report (prompt {out['meta'].get('prompt_version')}, gate {out['meta'].get('gate_version')})", "",
          f"Engine: {out['meta'].get('engine')}. Machine: {out['meta'].get('machine')}. Started {out['meta'].get('started')}.", ""]
     L += ["## The harness's own checks", "", "| Check | Holds |", "|---|---|"]
-    for k, v in out["harness_checks"].items(): L.append(f"| {k} | {'yes' if v['holds'] else '**no**'} |")
+    for k, v in out["harness_checks"].items():
+        cnt = f" `{json.dumps(v['counts'])}`" if "counts" in v else ""
+        L.append(f"| {k} | {'yes' if v['holds'] else '**no**'}{cnt} |")
     for c, o in out["corpora"].items():
         L += ["", f"## Corpus `{c}` ({o['items']} items, {o['records']} trials)", "", "| Gate | Bar | Measured | Pass |", "|---|---|---|---|"]
         for r in o["gate_table"]:
