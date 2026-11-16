@@ -3373,6 +3373,7 @@ The design that follows from it:
 3. **Quantisation:** prefer the official repository's Q4 build. If only a larger build is official, test it as the upper bound, under the Q8 rule.
 4. **If one passes,** it becomes the optional one-click download (D-120 amendment, D-121 disk rules). If neither passes, 0.5's feed ships A only, and B waits for a later engine.
 
+- **On hold (2026-11-16, later the same day):** the maintainer pointed out that the first results measured our zero-shot prompt (v3), not the models, and asked "why am I being asked for those 2 additional models, when we want to confirm first the existing ones?" So nothing is downloaded under D-125 until harness v4 (researched prompts, context, examples, structured fields, per-model settings, the four 0.5 jobs) has re-tested Apple's model, Qwen3-1.7B and Nemotron, and the maintainer has seen the results.
 - Sources: the maintainer's answer to the coordinating session's question, 2026-11-16.
 
 ### D-126 Calm is for monitoring; making and editing screens get a rich, polished design — amends D-117 — SETTLED (2026-11-16)
