@@ -38,6 +38,19 @@ const buttonSizes: Record<ButtonSize, string> = {
   md: "h-9 px-3.5 text-sm gap-2 rounded-xl",
 };
 
+/**
+ * D-126 — one filled primary per view. A `primary` Button marks itself
+ * (`data-primary`); `primariesIn(view)` finds them, so a view's test
+ * holds it to one. Every other action is `secondary` (or `ghost`, or
+ * `accent` for an app-wide one); FlowLayout's foot takes one primary.
+ */
+export const PRIMARY_MARK = "data-primary";
+
+/** The filled primaries in `view` (a view shows one). */
+export function primariesIn(view: ParentNode): HTMLElement[] {
+  return [...view.querySelectorAll<HTMLElement>(`[${PRIMARY_MARK}]`)];
+}
+
 /** Ref-forwarding (AJ-E301: the wizard focuses its primary button on
  * every step change — focus management needs the ref). */
 export const Button = forwardRef<HTMLButtonElement, ButtonHTMLAttributes<HTMLButtonElement> & {
@@ -57,6 +70,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonHTMLAttributes<HTMLBut
     <button
       ref={ref}
       type={type ?? "button"}
+      {...(variant === "primary" ? { [PRIMARY_MARK]: "" } : {})}
       className={`inline-flex items-center justify-center font-medium
         transition-all duration-150 disabled:opacity-40 disabled:pointer-events-none
         cursor-pointer disabled:cursor-default select-none ${buttonVariants[variant]} ${buttonSizes[size]} ${className}`}
