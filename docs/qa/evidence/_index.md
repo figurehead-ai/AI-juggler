@@ -237,6 +237,7 @@
 | AJ-E3009 | PASS4 | 2026-11-09 | [manifest](AJ-E3009/manifest.md) |
 | AJ-E301 | PASS11 | 2026-10-16 | [manifest](AJ-E301/manifest.md) |
 | AJ-E3011 | PASS5 | 2026-11-15 | [manifest](AJ-E3011/manifest.md) |
+| AJ-E3013 | (directory without manifest — add one) | — | — |
 | AJ-E302 | PASS12 | 2026-10-17 | [manifest](AJ-E302/manifest.md) |
 | AJ-E303 | PASS10 | 2026-10-17 | [manifest](AJ-E303/manifest.md) |
 | AJ-E304 | PASS12 | 2026-10-17 | [manifest](AJ-E304/manifest.md) |
