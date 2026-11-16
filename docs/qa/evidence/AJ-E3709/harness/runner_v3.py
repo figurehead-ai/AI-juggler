@@ -3,6 +3,8 @@
 
   python3 runner_v3.py --cmd <scratch>/apple_probe --corpus v2=../corpus-v2-8f7c7474.json \
       --corpus turnends=../corpus-v3-turnends.json --out ../results-apple-v3.json [--repeats 3]
+  python3 runner_v3.py --cmd "<target>/release/local_probe --model <file.gguf> [--stats <scratch>/stats.jsonl]" --corpus ... --out ...
+                                                                                     (the local tier: local_probe/README.md)
   python3 runner_v3.py --fake --limit 3 --corpus v2=... --corpus turnends=... --out <scratch>/dry.json   (no Apple calls)
 
 For every item of every corpus and every repeat: the text is normalised (step 0), its language judged, guarded (step 1), then
@@ -18,6 +20,7 @@ model daemons, their resident memory, and the load average (the Mac is shared)."
 import argparse, hashlib, json, os, shlex, subprocess, time
 import gate
 from runner_v2 import WATCH, cpu_seconds, snapshot, rss_of, Top
+WATCH = WATCH + ["local_probe"]   # the local tier's engine (AJ-E3709 local_probe), measured like apple_probe
 
 def sh(cmd):
     try: return subprocess.run(cmd, capture_output=True, text=True, timeout=10).stdout.strip()
@@ -36,7 +39,9 @@ class Probe:
         h = json.loads(s.hello or "{}")
         if h.get("protocol") != 3: raise SystemExit(f"the probe speaks protocol {h.get('protocol')}, not 3: rebuild apple_probe.swift")
         if "available" not in str(h.get("available", "")).lower() or "unavailable" in str(h.get("available", "")).lower():
-            raise SystemExit(f"Apple's model is not available here: {h.get('available')}")
+            raise SystemExit(f"the probe's model is not available here: {h.get('available')}")
+        if "line_max_words" in h and h["line_max_words"] != gate.LINE_MAX_WORDS:   # local_probe's grammar mirrors gate.py's limit
+            raise SystemExit(f"the probe's line grammar allows {h['line_max_words']} words, gate.py {gate.LINE_MAX_WORDS}: rebuild it")
     def call(s, req):
         t0 = time.perf_counter()
         s.p.stdin.write(json.dumps(req) + "\n"); s.p.stdin.flush()
@@ -116,7 +121,8 @@ def main():
     eng.close()
     deltas = sorted(({"name": name, "cpu_s": round(t1 - before[pid][0], 2)} for pid, (t1, name) in after.items()
                      if pid in before and before[pid][1] == name and name in WATCH and t1 - before[pid][0] >= 0.05), key=lambda d: -d["cpu_s"])
-    meta = {"engine": "fake (no Apple calls)" if a.fake else "Apple on-device Foundation Model (SystemLanguageModel.default) via apple_probe.swift",
+    engine = "fake (no Apple calls)" if a.fake else (json.loads(eng.hello).get("engine") or "Apple on-device Foundation Model (SystemLanguageModel.default) via apple_probe.swift")
+    meta = {"engine": engine,
             "hello": eng.hello, "prompt_version": gate.PROMPT_VERSION, "gate_version": gate.GATE_VERSION, "instructions": gate.INSTRUCTIONS,
             "label": gate.LABEL, "choose_instructions": gate.CHOOSE_INSTRUCTIONS, "guided": {"field": gate.LINE_FIELD, "description": gate.LINE_FIELD_DESCRIPTION,
             "pattern": gate.LINE_PATTERN if a.pattern else None, "choose": "one Int field guided to 1...count"},
