@@ -11,7 +11,8 @@
  * App's own folder from its launch settings, else none.
  *
  * The App (a CLI tool on a config folder; one per folder, its first
- * launch settings unless the user picks others):
+ * launch settings unless the user picks others; only a folder that is a
+ * CLI App, `offeredRecipes`):
  * 1. the one the user chose (in the sheet, or the door that opened it);
  * 2. this project's default (the user's "Always use for <project>", in
  *    Change app, on the project page or offered in the sheet); else its
@@ -171,6 +172,21 @@ export function folderWhyWords(why: FolderWhy): string | null {
     default:
       return null;
   }
+}
+
+/** D-62, D-84 (the 0.4.6 RC walk A8): the launch settings New session
+ * offers, a CLI App's. Every config folder has launch settings, but a
+ * folder a Claude app profile holds is that profile's (`lib/apps`): it is
+ * a CLI App only once a terminal session ran there or the user named it.
+ * Offered anyway, a start there read "Claude Code CLI · Work Max", an App
+ * that isn't one, and ran the CLI on the profile's folder. `cliFolders`:
+ * the folders that are CLI Apps, `null` while the Apps aren't read (all
+ * are offered); a folder not among `folders` is offered as before. */
+export function offeredRecipes(recipes: readonly LaunchRecipeInfo[], folders: readonly AccountInfo[], cliFolders: ReadonlySet<string> | null): readonly LaunchRecipeInfo[] {
+  if (cliFolders === null) return recipes;
+  const known = new Set(folders.map((folder) => folder.id));
+  const offered = recipes.filter((recipe) => !known.has(recipe.account_id) || cliFolders.has(recipe.account_id));
+  return offered.length === recipes.length ? recipes : offered;
 }
 
 /** One launch settings per App (its first), in the backend's order. */
