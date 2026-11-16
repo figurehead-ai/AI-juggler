@@ -73,7 +73,7 @@ Stop rules: give up after 3 attempts with no progress, or after twice the shorte
 
 **What goes to the maintainer (R5):** every step score under 4 on that 1–5 scale and every flow solved only partly or not at all is reasoned about, given a better design, and brought to the maintainer before anything that isn't a bug is changed. Bugs are fixed at once.
 
-The measures below are kept as extra evidence, not the gate. After each flow: success grade; ease 1–7; value 1–7; feeling, three words from the balanced list plus −2…+2; "was my problem solved?" yes / partly / no; each with a one-line reason citing a step. After the walk, a **confusion pass**: each screen visited rated 0–2 for "would someone like me be confused here?"
+The measures below are kept as extra evidence, not the gate. After each flow: success grade; ease 1–7; value 1–7, **each with one sentence saying what would have made it a 6 or a 7** (0.4.6: three rounds sat at 5 with no detour, and without the testers' own reason the gap was guessed); feeling, three words from the balanced list plus −2…+2; "was my problem solved?" yes / partly / no; each with a one-line reason citing a step. After the walk, a **confusion pass**: each screen visited rated 0–2 for "would someone like me be confused here?"
 
 At the end of each persona: UMUX-Lite (two items, 1–7), likelihood to recommend (0–10, reported, not gated), the three best and three worst moments, and "what would make you stop using this?"
 
