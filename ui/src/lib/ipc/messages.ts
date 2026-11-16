@@ -124,6 +124,18 @@ export async function messagesThread(threadId: string, cursor: string | null = n
   return call("messages_thread", { threadId, cursor });
 }
 
+/** As the backend's `messaging::subject_from`: a body's first line as a
+ * subject, cut at a word near the end and marked "…" when cut. */
+export function subjectFrom(line: string, max: number): string {
+  const whole = line.replace(/\s+/g, " ").trim();
+  const chars = [...whole];
+  if (chars.length <= max || max < 2) return chars.slice(0, max).join("");
+  const kept = chars.slice(0, max - 1).join("");
+  const space = kept.lastIndexOf(" ");
+  const atWord = space >= 0 && [...kept.slice(0, space)].length * 4 >= (max - 1) * 3 ? kept.slice(0, space) : kept;
+  return `${atWord.replace(/[ ,;:-]+$/, "")}…`;
+}
+
 /** You write to a member or the whole pool (Deliver: also into their
  * sessions run in AI Juggler, at their next turn boundary). */
 export async function messagesSend(input: ComposeInput): Promise<ThreadPage> {
@@ -135,7 +147,7 @@ export async function messagesSend(input: ComposeInput): Promise<ThreadPage> {
     let thread = input.thread_id ? data.threads.find((t) => t.id === input.thread_id) : undefined;
     const now = Date.now();
     if (!thread) {
-      thread = { id: `thr-preview-${data.threads.length + 1}`, pool_id: input.pool_id, pool_name: "", subject: input.subject?.trim() || body.split("\n")[0]!.slice(0, 60), people: ["You"], count: 0, hop: 0, hop_cap: 6, state: "open", state_reason: null, updated_at_ms: now, last_from: "You", last_line: "", unread: 0 };
+      thread = { id: `thr-preview-${data.threads.length + 1}`, pool_id: input.pool_id, pool_name: "", subject: input.subject?.trim() || subjectFrom(body.split("\n")[0]!, 60), people: ["You"], count: 0, hop: 0, hop_cap: 6, state: "open", state_reason: null, updated_at_ms: now, last_from: "You", last_line: "", unread: 0 };
       data.threads.push(thread);
     }
     Object.assign(thread, { state: "open", state_reason: null, hop: 0, updated_at_ms: now, last_from: "You", last_line: body.split("\n")[0]!, count: thread.count + 1 });

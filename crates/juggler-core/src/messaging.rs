@@ -124,6 +124,24 @@ pub fn one_line(text: &str, max: usize) -> String {
         .collect()
 }
 
+/// A subject made from a body's first line when the sender gave none: one
+/// line of at most `max` characters, cut at a word where one is near the
+/// end and marked with "…" when anything was left out (aij-test run 4: a
+/// cut on a character read «…create a pool task titled 'la»).
+#[must_use]
+pub fn subject_from(line: &str, max: usize) -> String {
+    let whole = one_line(line, usize::MAX);
+    if whole.chars().count() <= max || max < 2 {
+        return one_line(&whole, max);
+    }
+    let kept: String = whole.chars().take(max - 1).collect();
+    let at_word = kept
+        .rfind(' ')
+        .filter(|&space| kept[..space].chars().count() * 4 >= (max - 1) * 3)
+        .map_or(kept.as_str(), |space| &kept[..space]);
+    format!("{}…", at_word.trim_end_matches([' ', ',', ';', ':', '-']))
+}
+
 /// Why a body isn't taken.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum BodyError {
@@ -385,6 +403,22 @@ mod tests {
         );
         assert!(clean_body(&"é".repeat(BODY_MAX)).is_ok());
         assert_eq!(one_line("a\nb\tc ", 3), "a b");
+    }
+
+    #[test]
+    fn a_subject_from_a_body_is_cut_at_a_word_with_an_ellipsis() {
+        let line = "Using AI Juggler's pool tools, create a pool task titled 'lab task'.";
+        let subject = subject_from(line, 60);
+        assert_eq!(
+            subject,
+            "Using AI Juggler's pool tools, create a pool task titled…"
+        );
+        assert!(subject.chars().count() <= 60);
+        // Short enough: as it is, no mark.
+        assert_eq!(subject_from("Round tax per line", 60), "Round tax per line");
+        // One long word: cut on a character, still marked.
+        let long = "x".repeat(80);
+        assert_eq!(subject_from(&long, 10), format!("{}…", "x".repeat(9)));
     }
 
     #[test]
