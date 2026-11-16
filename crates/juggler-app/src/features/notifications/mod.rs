@@ -212,6 +212,14 @@ impl Notifier {
         accounts
     }
 
+    /// AJ-E1612: forgets the accounts' sign-ins as last checked, so the
+    /// next [`Self::sign_ins`] checks them again (a sign-in just ended).
+    pub fn forget_sign_ins(&self) {
+        if let Ok(mut cached) = self.sign_ins.lock() {
+            *cached = None;
+        }
+    }
+
     /// D-49: the session rows Needs you kept, when still `fresh`; else
     /// `read` reads them, and they are kept.
     pub fn session_rows(
