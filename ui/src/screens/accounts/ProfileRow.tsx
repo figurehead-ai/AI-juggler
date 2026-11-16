@@ -156,17 +156,19 @@ export function ProfileRow(props: ProfileRowProps): JSX.Element {
       </div>
       {menu.element}
       {settingsOpen && (
-        <LaunchSettingsList
-          account={props.account}
-          recipes={props.recipes}
-          liveByRecipe={props.liveByRecipe}
-          envFor={envFor}
-          setEnvFor={setEnvFor}
-          onLaunch={props.onLaunch}
-          onDeleteRecipe={props.onDeleteRecipe}
-          onNewRecipe={props.onNewRecipe}
-          onClose={() => setSettingsOpen(false)}
-        />
+        <div className="mx-5 mb-3">
+          <LaunchSettingsList
+            account={props.account}
+            recipes={props.recipes}
+            liveByRecipe={props.liveByRecipe}
+            envFor={envFor}
+            setEnvFor={setEnvFor}
+            onLaunch={props.onLaunch}
+            onDeleteRecipe={props.onDeleteRecipe}
+            onNewRecipe={props.onNewRecipe}
+            onClose={() => setSettingsOpen(false)}
+          />
+        </div>
       )}
       {useOriginal && account.import_source_path && (
         <UseOriginalModal
