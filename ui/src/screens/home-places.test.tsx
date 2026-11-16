@@ -19,6 +19,7 @@ import type { ConversationInfo } from "../lib/ipc/conversations";
 import type { AccountInfo } from "../types/generated/AccountInfo";
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import { needsFor } from "../test/needs-kit";
+import { keptShape, NEEDS_PLACE } from "../lib/needs-place";
 
 const NOW = new Date(2026, 9, 24, 15, 0, 0).getTime();
 const seams = () => window as unknown as Record<string, unknown>;
@@ -252,12 +253,23 @@ describe("Home, desktop first", () => {
     narrow.mockRestore();
   });
 
-  it("nothing needs you: says so, with no empty card", async () => {
+  it("nothing needs you: the title says so, with no empty zone or card", async () => {
     const view = home([own("r")], []);
     await waitFor(() => expect(view.getByTestId("home-heading").textContent).toBe("All clear — nothing needs you"));
     expect(view.queryByTestId("home-needs")).toBeNull();
-    // D-118: the pinned zone says it in one muted line.
-    expect(view.getByTestId("home-pinned-none").textContent).toBe("Nothing needs you");
+    // 2026-11-16: no "Needs you now" zone at all; the title said it.
+    expect(view.queryByTestId("home-needs-now-section")).toBeNull();
+    expect(view.queryByRole("region", { name: /Needs you now/ })).toBeNull();
+    expect(view.queryByText("Nothing needs you")).toBeNull();
     expect(view.queryByTestId("home-this-mac")).toBeNull();
+    // Kept so the next look's skeleton doesn't hold an empty place (D-103.6).
+    expect(keptShape(NEEDS_PLACE)).toEqual({ rows: 0, height: 0 });
+  });
+
+  it("a need keeps the zone in its place, over the feed", async () => {
+    const view = home([own("ask", { status: "waiting_user", needs_attention: "waiting_user" })], []);
+    const zone = await view.findByRole("region", { name: /Needs you now/ });
+    expect(view.getByTestId("home-main").firstElementChild!.firstElementChild).toBe(zone);
+    expect(zone.contains(await view.findByTestId("home-needs"))).toBe(true);
   });
 });

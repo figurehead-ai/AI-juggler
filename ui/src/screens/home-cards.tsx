@@ -26,6 +26,7 @@ import { SmootherCard } from "../components/SmootherCard";
 import { showToast } from "../components/Toast";
 import { errorText } from "../lib/bridge";
 import { homeNeedLevel, type HomeNeed } from "../lib/home-needs";
+import { keptShape, NEEDS_PLACE, useKeepShape } from "../lib/needs-place";
 import { brokenOf, counted, highest } from "../lib/attention";
 import type { ConversationInfo } from "../lib/ipc/conversations";
 import type { MessageNeedInfo } from "../lib/ipc/messages";
@@ -160,38 +161,40 @@ export function HomeCards({ area, ctx }: { area: HomeArea; ctx: HomeCardContext 
 
 /** D-118 R2: "Needs you now", pinned over the feed: every open L2 and L3
  * need, loud once here (the count carries its level; the first need has
- * the feed's one filled primary), never filtered; nothing waiting, one
- * muted line. */
+ * the feed's one filled primary), never filtered. Nothing waiting, no
+ * zone at all: the title already says "All clear" (2026-11-16). Before
+ * the needs load, the zone holds its place only if it showed last time
+ * (D-103.6), so an empty one never flashes in and out. */
 function PinnedZone({ ctx }: { ctx: HomeCardContext }) {
   const pinned = pinnedNeeds(ctx);
   const count = needsCount(ctx);
+  const empty = count === 0 && !ctx.signingIn;
+  // Kept here: the place itself isn't drawn when there's nothing.
+  useKeepShape(NEEDS_PLACE, ctx.needsKnown && empty, 0);
+  if (ctx.needsKnown ? empty : keptShape(NEEDS_PLACE)?.rows === 0) return null;
   // Agents' messages, tasks and caps wait on you too: level 2.
   const level = highest([...pinned.map(homeNeedLevel), ...(count > pinned.length ? [2 as const] : [])]);
   return (
     <HomeSection id="home-needs-now" label="Needs you now" count={count} level={level} broken={brokenOf(pinned, homeNeedLevel, (need) => (need.kind === "session" ? need.item?.need : need.kind))} region>
-      {ctx.needsKnown && count === 0 && !ctx.signingIn ? (
-        <p className="px-1 text-meta text-muted" data-testid="home-pinned-none">Nothing needs you</p>
-      ) : (
-        <HomeNeedsPlace known={ctx.needsKnown} rows={count + (ctx.signingIn ? 1 : 0)}>
-          <HomeNeeds
-            needs={pinned}
-            now={ctx.now}
-            messages={ctx.messageNeeds}
-            tasks={{ needs: ctx.taskNeeds, projects: ctx.projects }}
-            handlers={{
-              onOpenSession: ctx.onOpenSession,
-              onLimit: ctx.onLimit,
-              onWait: (id) => void instancePark(id).then(() => { showToast({ message: "Parked until its reset." }); ctx.onChanged?.(); }, (cause) => showToast({ tone: "warning", message: errorText(cause) })),
-              onSignIn: (need) => need.account && ctx.startSignIn(need.account),
-              onOpenThisMac: ctx.onOpenThisMac,
-              onOpenCleanup: ctx.onOpenCleanup,
-            }}
-          >
-            {ctx.signingIn && <p className="text-meta text-ink-2" role="status">Finish signing in in the terminal that opened; this clears by itself when you're done.{ctx.signInError ? ` ${ctx.signInError}` : ""}</p>}
-            <CapNeedItems caps={ctx.capNeeds.caps} accounts={ctx.accounts} projects={ctx.projects} onSeen={ctx.capNeeds.reload} />
-          </HomeNeeds>
-        </HomeNeedsPlace>
-      )}
+      <HomeNeedsPlace known={ctx.needsKnown} rows={count + (ctx.signingIn ? 1 : 0)}>
+        <HomeNeeds
+          needs={pinned}
+          now={ctx.now}
+          messages={ctx.messageNeeds}
+          tasks={{ needs: ctx.taskNeeds, projects: ctx.projects }}
+          handlers={{
+            onOpenSession: ctx.onOpenSession,
+            onLimit: ctx.onLimit,
+            onWait: (id) => void instancePark(id).then(() => { showToast({ message: "Parked until its reset." }); ctx.onChanged?.(); }, (cause) => showToast({ tone: "warning", message: errorText(cause) })),
+            onSignIn: (need) => need.account && ctx.startSignIn(need.account),
+            onOpenThisMac: ctx.onOpenThisMac,
+            onOpenCleanup: ctx.onOpenCleanup,
+          }}
+        >
+          {ctx.signingIn && <p className="text-meta text-ink-2" role="status">Finish signing in in the terminal that opened; this clears by itself when you're done.{ctx.signInError ? ` ${ctx.signInError}` : ""}</p>}
+          <CapNeedItems caps={ctx.capNeeds.caps} accounts={ctx.accounts} projects={ctx.projects} onSeen={ctx.capNeeds.reload} />
+        </HomeNeeds>
+      </HomeNeedsPlace>
     </HomeSection>
   );
 }
