@@ -429,6 +429,44 @@ fn the_version_moves_with_every_change() {
     assert_ne!(two, summary(&storage, clock(NOW)).unwrap().version);
 }
 
+/// AJ-E1612 dry run 2: the window reads the version as a JavaScript
+/// number (an f64). Past 2^53 its last bits were lost there, so a need
+/// ending (the count one less, nothing else) left the version the same:
+/// the bell's count followed but no list was read again, and the rail
+/// kept "lab A needs its sign-in" (12) while Home, opened again, said 9.
+#[test]
+fn the_version_moves_as_the_window_reads_it_when_a_need_ends() {
+    let (_dir, storage) = storage();
+    let as_window = |version: i64| -> f64 {
+        let json = serde_json::to_string(&version).unwrap();
+        serde_json::from_str::<f64>(&json).unwrap()
+    };
+    let sign_in = |key: &str| need(&format!("signin:{key}"), "signin", "lab A needs its sign-in");
+    let all = [sign_in("a"), sign_in("b"), sign_in("c")];
+    sync_needs(&storage, &all, NOW).unwrap();
+    // A snooze held, as on the maintainer's Mac (its hash is a part).
+    snooze(&storage, "signin:c", Snooze::Until(NOW + 60 * MIN), NOW).unwrap();
+    let mut before = summary(&storage, clock(NOW)).unwrap();
+    for (left, ends) in [(&all[1..], NOW + MIN), (&all[2..], NOW + 2 * MIN)] {
+        // A sign-in ended: its need goes, the others stay as they were.
+        sync_needs(&storage, left, ends).unwrap();
+        let after = summary(&storage, clock(ends)).unwrap();
+        assert_eq!(after.count + 1, before.count, "one need fewer");
+        assert_ne!(
+            as_window(before.version).to_bits(),
+            as_window(after.version).to_bits(),
+            "the window must see the version move, so its lists are read again"
+        );
+        for version in [before.version, after.version] {
+            assert!(
+                version.unsigned_abs() < 1 << 53,
+                "{version} is past JavaScript's exact integers"
+            );
+        }
+        before = after;
+    }
+}
+
 #[test]
 fn local_midnight_follows_the_offset() {
     let day = 86_400_000;
