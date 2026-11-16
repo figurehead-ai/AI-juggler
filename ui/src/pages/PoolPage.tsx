@@ -119,7 +119,7 @@ function PoolCanvasPage({ poolId, sessions, projects, accounts, now, rules }: Pa
   const ruleLabel = useRuleLabel(accounts, sessions, everyoneOf(pool, projects));
   const ruleTool = useRuleTool(accounts);
   const memberRules = rules.rules?.members ?? [];
-  const lineRules = useMemo(() => ownLineRules(rules.rules?.talk ?? []), [rules.rules]);
+  const lineRules = useMemo(() => ownLineRules(rules.rules?.talk ?? [], rules.rules?.members), [rules.rules]);
   const hasRules = hasMemberRules(pool, rules);
   // Walk K1: who's in it is its sessions too, not only what the canvas draws.
   const peopled = hasWhoIsIn(pool.members, hasRules);

@@ -1,12 +1,12 @@
 /**
  * The pool inspector's body scrolled under its title and status pill with
  * nothing between (the review folder's connector-remove-refused shot):
- * it has the app's scroll edge now, shown only once it's scrolled.
+ * it has the app's scroll edge now, shown only once it's scrolled. The
+ * connector gallery checks the inspector's body has it, scrolled.
  */
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 
-import InspectorSource from "../pages/pool/Inspector.tsx?raw";
 import { ScrollEdge } from "./ScrollEdge";
 
 afterEach(cleanup);
@@ -27,9 +27,5 @@ describe("ScrollEdge", () => {
     body.scrollTop = 0;
     fireEvent.scroll(body);
     expect(body.hasAttribute("data-scrolled")).toBe(false);
-  });
-
-  it("is the pool inspector's body, for every selection", () => {
-    expect(InspectorSource).toMatch(/<ScrollEdge key=\{JSON\.stringify\(selection\)\}[^>]*data-testid="inspector-body"/);
   });
 });

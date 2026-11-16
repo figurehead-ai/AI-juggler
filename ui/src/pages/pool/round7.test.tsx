@@ -265,3 +265,25 @@ describe("round 7 #7: lines to desktop sessions", () => {
     read.mockRestore();
   });
 });
+
+// A session that belongs to a Work item has its line's own rule stored as
+// `work:<id>`; the badge showed for none of them.
+describe("a line's own rule for a session in a Work item", () => {
+  it("maps work: rows back to that Work's sessions on the canvas; one-way", () => {
+    const members = [{ member: "work:w-1", session_ids: ["s-cart"] }];
+    const rules = ownLineRules(
+      [
+        { from: "work:w-1", to: "session:s-plan", rule: "blocked" },
+        { from: "session:s-plan", to: "conversation:claude-aij/c1", rule: "ask" },
+        { from: "work:w-gone", to: "session:s-plan", rule: "allowed" },
+      ],
+      members,
+    );
+    expect([...rules]).toEqual([
+      ["s-cart>s-plan", "blocked"],
+      ["s-plan>conversation:claude-aij/c1", "ask"],
+    ]);
+    // Rules are one-way: s-plan → s-cart follows its pair.
+    expect(rules.has("s-plan>s-cart")).toBe(false);
+  });
+});

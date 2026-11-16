@@ -35,13 +35,21 @@ export function edgeWords(edge: CanvasEdgeInfo, from: string, to: string, own?: 
 
 /** The lines with their own rule, by edge key, from a pool's talk
  * settings (`session:<from>` → `session:<to>`; round 7 #7: a desktop
- * session's end is its own `conversation:` ref, as its line keys it). */
-export function ownLineRules(talk: readonly { from: string; to: string; rule: string }[]): LineRules {
+ * session's end is its own `conversation:` ref, as its line keys it).
+ * A session that belongs to a Work item has its rule stored as
+ * `work:<id>`: it's mapped back to that Work's sessions on the canvas
+ * through the pool's member of that ref (its `session_ids`). */
+export function ownLineRules(talk: readonly { from: string; to: string; rule: string }[], members: readonly { member: string; session_ids: string[] }[] = []): LineRules {
   const out = new Map<string, TalkRule>();
-  const end = (ref: string) => (ref.startsWith("session:") ? ref.slice("session:".length) : ref.startsWith("conversation:") ? ref : null);
+  const ends = (ref: string): string[] => {
+    if (ref.startsWith("session:")) return [ref.slice("session:".length)];
+    if (ref.startsWith("conversation:")) return [ref];
+    if (ref.startsWith("work:")) return members.find((row) => row.member === ref)?.session_ids ?? [];
+    return [];
+  };
   for (const { from, to, rule } of talk) {
-    const [a, b] = [end(from), end(to)];
-    if (a !== null && b !== null && (rule === "allowed" || rule === "ask" || rule === "blocked")) out.set(edgeKey(a, b), rule);
+    if (rule !== "allowed" && rule !== "ask" && rule !== "blocked") continue;
+    for (const a of ends(from)) for (const b of ends(to)) out.set(edgeKey(a, b), rule);
   }
   return out;
 }
