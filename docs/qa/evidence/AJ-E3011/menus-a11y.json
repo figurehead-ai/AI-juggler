@@ -1,0 +1,474 @@
+{
+  "spec": "ui/tests/visual/menus-a11y.spec.ts",
+  "menus": 78,
+  "covered": [
+    {
+      "screen": "Rail, header and Home",
+      "opener": "View",
+      "kind": "menu",
+      "options": 11
+    },
+    {
+      "screen": "Rail, header and Home",
+      "opener": "Session actions for Review the checkout steps",
+      "kind": "menu",
+      "options": 12
+    },
+    {
+      "screen": "Rail, header and Home",
+      "opener": "Open now's order: Your order",
+      "kind": "menu",
+      "options": 4
+    },
+    {
+      "screen": "Rail, header and Home",
+      "opener": "Session actions for Fix the cart totals",
+      "kind": "menu",
+      "options": 12
+    },
+    {
+      "screen": "Rail, header and Home",
+      "opener": "Session actions for Planner",
+      "kind": "menu",
+      "options": 12
+    },
+    {
+      "screen": "Rail, header and Home",
+      "opener": "Session actions for Review the checkout steps",
+      "kind": "menu",
+      "options": 12
+    },
+    {
+      "screen": "Rail, header and Home",
+      "opener": "Session actions for Tax rules research",
+      "kind": "menu",
+      "options": 12
+    },
+    {
+      "screen": "Rail, header and Home",
+      "opener": "Session actions for Price API tests",
+      "kind": "menu",
+      "options": 12
+    },
+    {
+      "screen": "Rail, header and Home",
+      "opener": "Session actions for Checkout copy pass",
+      "kind": "menu",
+      "options": 12
+    },
+    {
+      "screen": "Rail, header and Home",
+      "opener": "Session actions for Rewrite install guide",
+      "kind": "menu",
+      "options": 12
+    },
+    {
+      "screen": "Rail, header and Home",
+      "opener": "Indicator legend",
+      "kind": "dialog",
+      "options": 0
+    },
+    {
+      "screen": "Rail, header and Home",
+      "opener": "Notifications: 4 things need you, 4 unread",
+      "kind": "dialog",
+      "options": 0
+    },
+    {
+      "screen": "Rail, header and Home › Notifications: 4 things need you, 4 unread",
+      "opener": "More for “Review the checkout steps” needs your reply",
+      "kind": "menu",
+      "options": 4
+    },
+    {
+      "screen": "Rail, header and Home › Notifications: 4 things need you, 4 unread",
+      "opener": "More for Checkout copy pass wants to message Planner",
+      "kind": "menu",
+      "options": 5
+    },
+    {
+      "screen": "Rail, header and Home › Notifications: 4 things need you, 4 unread",
+      "opener": "More for Personal needs its sign-in",
+      "kind": "menu",
+      "options": 4
+    },
+    {
+      "screen": "Rail, header and Home › Notifications: 4 things need you, 4 unread",
+      "opener": "More for A reply would wake Review the checkout steps",
+      "kind": "menu",
+      "options": 5
+    },
+    {
+      "screen": "Rail, header and Home",
+      "opener": "More of the Floor",
+      "kind": "menu",
+      "options": 3
+    },
+    {
+      "screen": "Rail, header and Home",
+      "opener": "Your menu: Sam",
+      "kind": "menu",
+      "options": 12
+    },
+    {
+      "screen": "Rail, header and Home",
+      "opener": "Indicator legend",
+      "kind": "dialog",
+      "options": 0
+    },
+    {
+      "screen": "Rail, header and Home",
+      "opener": "Actions for Spike: payment sandbox",
+      "kind": "menu",
+      "options": 5
+    },
+    {
+      "screen": "Projects",
+      "opener": "Project actions for docs-site",
+      "kind": "menu",
+      "options": 11
+    },
+    {
+      "screen": "Projects",
+      "opener": "Project actions for storefront",
+      "kind": "menu",
+      "options": 11
+    },
+    {
+      "screen": "Pools",
+      "opener": "Pool actions for Checkout team",
+      "kind": "menu",
+      "options": 3
+    },
+    {
+      "screen": "Pools",
+      "opener": "Pool actions for docs-site · all sessions",
+      "kind": "menu",
+      "options": 3
+    },
+    {
+      "screen": "Pools",
+      "opener": "Pool actions for storefront · all sessions",
+      "kind": "menu",
+      "options": 3
+    },
+    {
+      "screen": "Tasks",
+      "opener": "Project: All",
+      "kind": "menu",
+      "options": 4
+    },
+    {
+      "screen": "Tasks",
+      "opener": "Pool: All",
+      "kind": "menu",
+      "options": 5
+    },
+    {
+      "screen": "Tasks",
+      "opener": "Holder: Anyone",
+      "kind": "menu",
+      "options": 5
+    },
+    {
+      "screen": "Accounts",
+      "opener": "Account actions for Claude Max 20x",
+      "kind": "menu",
+      "options": 2
+    },
+    {
+      "screen": "Accounts",
+      "opener": "App actions for Claude Code CLI · Work Max",
+      "kind": "menu",
+      "options": 8
+    },
+    {
+      "screen": "Accounts",
+      "opener": "App actions for Claude Code CLI · Personal",
+      "kind": "menu",
+      "options": 9
+    },
+    {
+      "screen": "History",
+      "opener": "Project: All",
+      "kind": "menu",
+      "options": 3
+    },
+    {
+      "screen": "History",
+      "opener": "App: All",
+      "kind": "menu",
+      "options": 3
+    },
+    {
+      "screen": "History",
+      "opener": "Tool: All",
+      "kind": "menu",
+      "options": 3
+    },
+    {
+      "screen": "History",
+      "opener": "Actions for Spike: payment sandbox",
+      "kind": "menu",
+      "options": 5
+    },
+    {
+      "screen": "Processes",
+      "opener": "Filters",
+      "kind": "dialog",
+      "options": 0
+    },
+    {
+      "screen": "Processes › Filters",
+      "opener": "Runs in: Any",
+      "kind": "menu",
+      "options": 3
+    },
+    {
+      "screen": "Processes › Filters",
+      "opener": "App: Any",
+      "kind": "menu",
+      "options": 3
+    },
+    {
+      "screen": "Processes › Filters",
+      "opener": "Project: Any",
+      "kind": "menu",
+      "options": 3
+    },
+    {
+      "screen": "Processes",
+      "opener": "More for Payments API",
+      "kind": "menu",
+      "options": 3
+    },
+    {
+      "screen": "Processes",
+      "opener": "More for node (vite)",
+      "kind": "menu",
+      "options": 6
+    },
+    {
+      "screen": "Processes",
+      "opener": "More for esbuild",
+      "kind": "menu",
+      "options": 6
+    },
+    {
+      "screen": "Processes",
+      "opener": "More for node (nodemon)",
+      "kind": "menu",
+      "options": 6
+    },
+    {
+      "screen": "Processes",
+      "opener": "More for python3 (http.server)",
+      "kind": "menu",
+      "options": 6
+    },
+    {
+      "screen": "Processes",
+      "opener": "More for Billing webhooks",
+      "kind": "menu",
+      "options": 3
+    },
+    {
+      "screen": "Processes",
+      "opener": "More for codex",
+      "kind": "menu",
+      "options": 5
+    },
+    {
+      "screen": "Processes",
+      "opener": "More for node (worker)",
+      "kind": "menu",
+      "options": 5
+    },
+    {
+      "screen": "Processes",
+      "opener": "More for webpack",
+      "kind": "menu",
+      "options": 6
+    },
+    {
+      "screen": "Processes",
+      "opener": "More for Landing page",
+      "kind": "menu",
+      "options": 3
+    },
+    {
+      "screen": "Processes",
+      "opener": "More for node (astro)",
+      "kind": "menu",
+      "options": 7
+    },
+    {
+      "screen": "Processes",
+      "opener": "More for esbuild",
+      "kind": "menu",
+      "options": 7
+    },
+    {
+      "screen": "Settings › General",
+      "opener": "Open projects in: Finder",
+      "kind": "menu",
+      "options": 3
+    },
+    {
+      "screen": "Settings › Accounts",
+      "opener": "Remind me: 7 days",
+      "kind": "menu",
+      "options": 5
+    },
+    {
+      "screen": "Settings › Accounts",
+      "opener": "Choose from a calendar",
+      "kind": "dialog",
+      "options": 0
+    },
+    {
+      "screen": "Settings › Accounts",
+      "opener": "Choose from a calendar",
+      "kind": "dialog",
+      "options": 0
+    },
+    {
+      "screen": "Settings › Switching",
+      "opener": "Keys and passwords for Claude Code: Use my choice (not chose",
+      "kind": "menu",
+      "options": 4
+    },
+    {
+      "screen": "Settings › Notifications",
+      "opener": "Tell me when a session waits longer than: 5 minutes",
+      "kind": "menu",
+      "options": 6
+    },
+    {
+      "screen": "Settings › Notifications",
+      "opener": "First warning at: 80 %",
+      "kind": "menu",
+      "options": 4
+    },
+    {
+      "screen": "Settings › Notifications",
+      "opener": "Last warning at: 95 %",
+      "kind": "menu",
+      "options": 3
+    },
+    {
+      "screen": "Settings › Advanced",
+      "opener": "Default for new apps: Notify only",
+      "kind": "menu",
+      "options": 2
+    },
+    {
+      "screen": "Settings › Advanced",
+      "opener": "Retention for Claude Code CLI · Work Max: Keep forever",
+      "kind": "menu",
+      "options": 5
+    },
+    {
+      "screen": "Settings › Advanced",
+      "opener": "Retention for Claude Code CLI · Personal: Keep forever",
+      "kind": "menu",
+      "options": 5
+    },
+    {
+      "screen": "Settings › Advanced",
+      "opener": "Size limit: Automatic",
+      "kind": "menu",
+      "options": 4
+    },
+    {
+      "screen": "Pool page",
+      "opener": "What sessions in this pool may do on their own: Work togethe",
+      "kind": "menu",
+      "options": 4
+    },
+    {
+      "screen": "Pool page",
+      "opener": "1 waiting on you about Checkout copy pass",
+      "kind": "dialog",
+      "options": 0
+    },
+    {
+      "screen": "Pool page",
+      "opener": "2 waiting on you about Review the checkout steps",
+      "kind": "dialog",
+      "options": 0
+    },
+    {
+      "screen": "Pool page",
+      "opener": "1 waiting on you about Tax rules research",
+      "kind": "dialog",
+      "options": 0
+    },
+    {
+      "screen": "Pool page › an App",
+      "opener": "What sessions in this pool may do on their own: Work togethe",
+      "kind": "menu",
+      "options": 4
+    },
+    {
+      "screen": "Pool page › an App",
+      "opener": "1 waiting on you about Checkout copy pass",
+      "kind": "dialog",
+      "options": 0
+    },
+    {
+      "screen": "Pool page › an App",
+      "opener": "2 waiting on you about Review the checkout steps",
+      "kind": "dialog",
+      "options": 0
+    },
+    {
+      "screen": "Pool page › an App",
+      "opener": "1 waiting on you about Tax rules research",
+      "kind": "dialog",
+      "options": 0
+    },
+    {
+      "screen": "Pool page › an App",
+      "opener": "Claude Code CLI · Personal's role: Reviewer",
+      "kind": "menu",
+      "options": 4
+    },
+    {
+      "screen": "Pool page › an App",
+      "opener": "What Claude Code CLI · Personal may do on its own: Same as t",
+      "kind": "menu",
+      "options": 4
+    },
+    {
+      "screen": "Pool page › its settings",
+      "opener": "What sessions in this pool may do on their own: Work togethe",
+      "kind": "menu",
+      "options": 4
+    },
+    {
+      "screen": "Pool page › its settings",
+      "opener": "1 waiting on you about Checkout copy pass",
+      "kind": "dialog",
+      "options": 0
+    },
+    {
+      "screen": "Pool page › its settings",
+      "opener": "2 waiting on you about Review the checkout steps",
+      "kind": "dialog",
+      "options": 0
+    },
+    {
+      "screen": "Pool page › its settings",
+      "opener": "1 waiting on you about Tax rules research",
+      "kind": "dialog",
+      "options": 0
+    },
+    {
+      "screen": "Pool page › its settings",
+      "opener": "New sessions in every project join as: Don't join",
+      "kind": "menu",
+      "options": 4
+    }
+  ]
+}

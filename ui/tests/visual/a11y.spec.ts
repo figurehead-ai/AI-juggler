@@ -2597,7 +2597,8 @@ test.describe("the pool setup and the canvas's selection", () => {
       await page.getByTestId("pools-new").click();
       const wizard = page.getByTestId("new-pool");
       await expect(wizard.locator('[data-template="blank"]')).toHaveAttribute("aria-checked", "true");
-      for (const step of ["template", "where", "who", "lead", "everyone", "talk", "own", "review"]) {
+      for (const step of ["template", "where", "who", "lead", "everyone", "talk", "own", "tools", "review"]) {
+        if (step === "tools" && (await page.getByTestId("new-pool-step-tools").count()) === 0) continue;
         await expect(page.getByTestId(`new-pool-step-${step}`)).toBeVisible();
         await expect(wizard.locator(`[data-testid=new-pool-step][data-step="${step}"]`)).toHaveAttribute("aria-current", "step");
         await expect(page.getByTestId("new-pool-step-title")).not.toBeEmpty();

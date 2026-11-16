@@ -191,7 +191,7 @@ for (const r of ROWS) {
     const nextLead = r.role === "lead" && r.member === "app";
     if (nextLead) {
       await page.getByTestId("new-pool-lead").getByText(`${label}'s next session`, { exact: true }).click();
-      await expect(page.getByTestId("new-pool-lead-sentence")).toContainText(`${label} leads from its next session`);
+      await expect(page.getByTestId("new-pool-lead-sentence")).toContainText(`${label} takes charge as soon as one of its sessions starts`);
     }
     await page.getByTestId("new-pool-next").click();
 
@@ -210,9 +210,9 @@ for (const r of ROWS) {
       // Set above.
     } else if (nextLead) {
       // Round 3 (#1): an App's Lead is its next session's, chosen in Who leads or here.
-      await page.getByRole("menuitemradio", { name: /^Lead: its next session leads/ }).click();
-      await expect(roles.getByTestId("new-pool-member-leads-next")).toHaveText("Leads next");
-      await expect(roles.getByTestId("new-pool-member-role")).toContainText("Lead: its next session leads");
+      await page.getByRole("menuitemradio", { name: /^Lead, once one of its sessions starts/ }).click();
+      await expect(roles.getByTestId("new-pool-member-leads-next")).toHaveText("Lead when a session starts");
+      await expect(roles.getByTestId("new-pool-member-role")).toContainText("Lead, once one of its sessions starts");
     } else if (broad && r.role === "lead") {
       // A wider group can't lead: greyed, with its reason, and the reason in view beside it.
       await expect(page.getByRole("menuitemradio", { name: /^Lead/ })).toBeDisabled();
@@ -248,6 +248,8 @@ for (const r of ROWS) {
       await expect(page.getByTestId("new-pool-seal").getByRole("checkbox")).toBeChecked();
     }
     await page.getByTestId("new-pool-next").click();
+    // D-30's question, its own step while unanswered (round 4): left for later.
+    if (await page.getByTestId("new-pool-step-tools").isVisible()) await page.getByTestId("new-pool-next").click();
 
     // 4. The review says it; Make makes it with the user's own calls.
     const review = page.getByTestId("new-pool-review");
