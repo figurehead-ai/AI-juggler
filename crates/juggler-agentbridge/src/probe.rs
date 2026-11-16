@@ -5,12 +5,16 @@
 //! (`scripts/release_seams_check.sh`) refuses [`MARKER`].
 //!
 //! - `juggler-agent --mcp --probe <out-file>` serves one MCP tool, `probe`.
-//!   Every request's `_meta` keys (never their values) are appended as it
-//!   comes; each `probe` call appends this process's environment variable
-//!   **names** (never a value, but for the three session and thread ids
-//!   [`IDS`], which are ids, not secrets), its pid and parent chain, and
-//!   the `initialize` `clientInfo`. The file is created `0600` (never over
-//!   a link), only in a folder under `/tmp/aij-lab…` or `~/lab`.
+//!   Every request's `_meta` keys are appended as it comes, with this
+//!   process's pid: the keys, the keys one object down (Codex's strings
+//!   name an `x-codex-turn-metadata` with `threadId`, `turnId` and
+//!   `callId`, so an id may sit there), and the values of the id keys
+//!   [`META_IDS`] only, never another value; each `probe` call appends
+//!   this process's environment variable **names** (never a value, but for
+//!   the three session and thread ids [`IDS`], which are ids, not
+//!   secrets), its pid and parent chain, and the `initialize`
+//!   `clientInfo`. The file is created `0600` (never over a link), only in
+//!   a folder under `/tmp/aij-lab…` or `~/lab`.
 //! - `juggler-agent --probe-shell` prints `CODEX_THREAD_ID` (when set) and
 //!   the parent chain, nothing else.
 //!
@@ -19,6 +23,8 @@
 
 use std::collections::BTreeMap;
 use std::io::{BufRead, Write};
+// The module is unix-only (`lib.rs`): its one use of the unix API.
+use std::os::unix::{fs::OpenOptionsExt as _, process::parent_id};
 use std::path::{Component, Path, PathBuf};
 
 use serde_json::{Value, json};
@@ -33,6 +39,26 @@ pub const IDS: [&str; 3] = [
     "CLAUDE_CODE_HOST_SESSION_ID",
     "CODEX_THREAD_ID",
 ];
+
+/// The `_meta` keys whose values are written, at its top or one object
+/// down, when the value looks like an id (letters, digits and `-_.:`, at
+/// most 128): ids, not secrets.
+/// A lease or a token is written as a key only.
+pub const META_IDS: [&str; 10] = [
+    "threadId",
+    "thread_id",
+    "turnId",
+    "turn_id",
+    "sessionId",
+    "session_id",
+    "conversationId",
+    "conversation_id",
+    "callId",
+    "call_id",
+];
+
+/// The longest JSON text read as an object inside `_meta`.
+const META_TEXT_MAX: usize = 4096;
 
 /// The probe's MCP server name (the lab's `[mcp_servers.juggler-probe]`).
 pub const SERVER: &str = "juggler-probe";
@@ -98,15 +124,12 @@ fn open(file: &Path) -> Result<std::fs::File, String> {
             .open(file)
             .map_err(|error| error.to_string()),
         Ok(_) => Err("the probe's file is a link or not a file".to_owned()),
-        Err(_) => {
-            use std::os::unix::fs::OpenOptionsExt as _;
-            std::fs::OpenOptions::new()
-                .append(true)
-                .create_new(true)
-                .mode(0o600)
-                .open(file)
-                .map_err(|error| error.to_string())
-        }
+        Err(_) => std::fs::OpenOptions::new()
+            .append(true)
+            .create_new(true)
+            .mode(0o600)
+            .open(file)
+            .map_err(|error| error.to_string()),
     }
 }
 
@@ -119,21 +142,34 @@ pub struct Step {
     pub name: String,
 }
 
+/// What a step is named when `/bin/ps` couldn't be run.
+pub const UNNAMED: &str = "(ps can't run here)";
+
 /// This process and its ancestors (nearest first), from one reading of
-/// the process table (`/bin/ps`, its environment cleared); empty when it
-/// can't be read.
+/// the process table (`/bin/ps`, its environment cleared). `/bin/ps` is
+/// setuid root, and a sandboxed process (Codex's seatbelt, the C2 lab's
+/// guard) can't run it: then just this process and its parent, by pid
+/// ([`UNNAMED`]), and the lab driver, outside the sandbox, names the rest.
 #[must_use]
 pub fn chain() -> Vec<Step> {
-    let Ok(out) = std::process::Command::new("/bin/ps")
+    let read = std::process::Command::new("/bin/ps")
         .args(["-A", "-o", "pid=,ppid=,comm="])
         .env_clear()
         .stdin(std::process::Stdio::null())
         .stderr(std::process::Stdio::null())
-        .output()
-    else {
-        return Vec::new();
-    };
-    chain_from(&String::from_utf8_lossy(&out.stdout), std::process::id())
+        .output();
+    let chain = read
+        .map(|out| chain_from(&String::from_utf8_lossy(&out.stdout), std::process::id()))
+        .unwrap_or_default();
+    if chain.is_empty() {
+        let step = |pid| Step {
+            pid,
+            name: UNNAMED.to_owned(),
+        };
+        vec![step(std::process::id()), step(parent_id())]
+    } else {
+        chain
+    }
 }
 
 /// The chain from `start` up, in `ps`'s `pid ppid comm` lines.
@@ -182,6 +218,66 @@ pub fn environment() -> (Vec<String>, BTreeMap<String, String>) {
     (names, ids)
 }
 
+/// `value` when it is a short id: letters, digits and `-_.:`, at most 128.
+fn id_like(value: &Value) -> Option<&str> {
+    let text = value.as_str()?;
+    let fits = !text.is_empty()
+        && text.len() <= 128
+        && text
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || b"-_.:".contains(&byte));
+    fits.then_some(text)
+}
+
+/// What the probe writes of a request's `_meta`: `meta_keys` (its keys),
+/// `meta_nested` (for each key, the value's kind and, for an object or a
+/// short JSON text holding one, its keys) and `meta_ids` (the
+/// [`META_IDS`] values, at the top or one object down, by their path).
+#[must_use]
+pub fn meta_view(params: &Value) -> serde_json::Map<String, Value> {
+    let meta = params.get("_meta").and_then(Value::as_object);
+    let mut nested = serde_json::Map::new();
+    let mut ids = serde_json::Map::new();
+    for (key, value) in meta.into_iter().flatten() {
+        if META_IDS.contains(&key.as_str())
+            && let Some(id) = id_like(value)
+        {
+            ids.insert(key.clone(), json!(id));
+        }
+        let parsed = value
+            .as_str()
+            .filter(|text| text.len() <= META_TEXT_MAX)
+            .and_then(|text| serde_json::from_str::<Value>(text).ok())
+            .filter(Value::is_object);
+        let (kind, inner) = match (value, parsed.as_ref()) {
+            (Value::Object(inner), _) => ("object", Some(inner)),
+            (_, Some(Value::Object(inner))) => ("json-text", Some(inner)),
+            (Value::String(_), _) => ("string", None),
+            (Value::Array(_), _) => ("array", None),
+            (Value::Number(_), _) => ("number", None),
+            (Value::Bool(_), _) => ("bool", None),
+            (Value::Null, _) => ("null", None),
+        };
+        let mut keys: Vec<&String> = inner.into_iter().flat_map(|inner| inner.keys()).collect();
+        keys.sort();
+        for (sub, value) in inner.into_iter().flatten() {
+            if META_IDS.contains(&sub.as_str())
+                && let Some(id) = id_like(value)
+            {
+                ids.insert(format!("{key}.{sub}"), json!(id));
+            }
+        }
+        nested.insert(key.clone(), json!({"kind": kind, "keys": keys}));
+    }
+    let mut top: Vec<&String> = meta.into_iter().flat_map(|meta| meta.keys()).collect();
+    top.sort();
+    let mut view = serde_json::Map::new();
+    view.insert("meta_keys".to_owned(), json!(top));
+    view.insert("meta_nested".to_owned(), Value::Object(nested));
+    view.insert("meta_ids".to_owned(), Value::Object(ids));
+    view
+}
+
 fn chain_json(chain: &[Step]) -> Value {
     Value::Array(
         chain
@@ -223,13 +319,12 @@ pub fn serve(
             .unwrap_or_default()
             .to_owned();
         let params = request.get("params").cloned().unwrap_or(Value::Null);
-        let meta_keys: Vec<String> = params
-            .get("_meta")
-            .and_then(Value::as_object)
-            .map(|meta| meta.keys().cloned().collect())
-            .unwrap_or_default();
-        let seen =
-            json!({"marker": MARKER, "at": now_ms(), "request": method, "meta_keys": meta_keys});
+        let meta = meta_view(&params);
+        let mut seen =
+            json!({"marker": MARKER, "at": now_ms(), "pid": std::process::id(), "request": method});
+        if let Some(seen) = seen.as_object_mut() {
+            seen.extend(meta.clone());
+        }
         writeln!(sink, "{seen}").map_err(|error| error.to_string())?;
         if method == "initialize" {
             client_info = params.get("clientInfo").cloned().unwrap_or(Value::Null);
@@ -252,7 +347,7 @@ pub fn serve(
             }]}),
             "tools/call" if params.get("name").and_then(Value::as_str) == Some("probe") => {
                 let (names, ids) = environment();
-                let record = json!({
+                let mut record = json!({
                     "marker": MARKER,
                     "at": now_ms(),
                     "pid": std::process::id(),
@@ -260,8 +355,10 @@ pub fn serve(
                     "env_names": names,
                     "ids": ids,
                     "client_info": client_info,
-                    "meta_keys": meta_keys,
                 });
+                if let Some(record) = record.as_object_mut() {
+                    record.extend(meta);
+                }
                 writeln!(sink, "{record}").map_err(|error| error.to_string())?;
                 json!({"content": [{"type": "text", "text": "recorded"}]})
             }
@@ -308,6 +405,36 @@ mod tests {
         assert!(chain_from(table, 999).is_empty());
         let looped = "5 6 a\n6 5 b\n";
         assert!(chain_from(looped, 5).len() <= CHAIN_MAX);
+    }
+
+    #[test]
+    fn meta_shows_keys_one_object_down_and_id_values_only() {
+        let params = json!({"_meta": {
+            "progressToken": 7,
+            "x-codex-turn-metadata": {"threadId": "thr-1", "turnId": "t-2", "note": "keep-out"},
+            "as-text": "{\"callId\":\"c-3\",\"token\":\"keep-out\"}",
+            "codex/connectionLease": "lease-keep-out",
+            "threadId": "has space",
+        }});
+        let view = Value::Object(meta_view(&params));
+        let text = view.to_string();
+        assert!(!text.contains("keep-out"), "no value but an id's: {text}");
+        assert_eq!(view["meta_ids"]["x-codex-turn-metadata.threadId"], "thr-1");
+        assert_eq!(view["meta_ids"]["x-codex-turn-metadata.turnId"], "t-2");
+        assert_eq!(view["meta_ids"]["as-text.callId"], "c-3");
+        assert!(view["meta_ids"].get("threadId").is_none(), "not id-like");
+        assert_eq!(view["meta_nested"]["as-text"]["kind"], "json-text");
+        assert_eq!(
+            view["meta_nested"]["codex/connectionLease"]["kind"],
+            "string"
+        );
+        assert_eq!(
+            view["meta_nested"]["x-codex-turn-metadata"]["keys"],
+            json!(["note", "threadId", "turnId"])
+        );
+        assert_eq!(view["meta_keys"].as_array().map(Vec::len), Some(5));
+        let none = Value::Object(meta_view(&json!({})));
+        assert_eq!(none["meta_keys"], json!([]));
     }
 
     #[test]

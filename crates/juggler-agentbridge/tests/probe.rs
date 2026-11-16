@@ -72,7 +72,7 @@ fn the_probe_records_names_ids_its_chain_the_client_and_meta_keys_in_a_lab_file(
             r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","clientInfo":{"name":"codex-app-test","version":"9"}}}"#,
             r#"{"jsonrpc":"2.0","method":"notifications/initialized"}"#,
             r#"{"jsonrpc":"2.0","id":2,"method":"tools/list"}"#,
-            r#"{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"probe","arguments":{},"_meta":{"progressToken":7,"x-thread":"t-9"}}}"#,
+            r#"{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"probe","arguments":{},"_meta":{"progressToken":7,"x-thread":"t-9","x-codex-turn-metadata":{"threadId":"thr-123","note":"do-not-write-me"}}}}"#,
         ],
     );
     assert!(ok, "{answers}");
@@ -85,6 +85,13 @@ fn the_probe_records_names_ids_its_chain_the_client_and_meta_keys_in_a_lab_file(
     assert_eq!(mode, 0o600);
     let text = std::fs::read_to_string(&out).unwrap();
     assert!(text.lines().all(|line| line.contains("AIJ_PROBE_V1")));
+    assert!(
+        text.lines().all(|line| {
+            serde_json::from_str::<serde_json::Value>(line)
+                .is_ok_and(|line| line["pid"].as_u64().is_some_and(|pid| pid > 0))
+        }),
+        "every line names the probe's process: {text}"
+    );
     assert!(
         !text.contains("do-not-write-me"),
         "never a value but the ids"
@@ -105,7 +112,11 @@ fn the_probe_records_names_ids_its_chain_the_client_and_meta_keys_in_a_lab_file(
         .iter()
         .filter_map(serde_json::Value::as_str)
         .collect();
-    assert_eq!(meta, ["progressToken", "x-thread"]);
+    assert_eq!(meta, ["progressToken", "x-codex-turn-metadata", "x-thread"]);
+    assert_eq!(
+        record["meta_ids"]["x-codex-turn-metadata.threadId"], "thr-123",
+        "a thread id one object down is written, its neighbours' values never"
+    );
     let chain = record["chain"].as_array().unwrap();
     assert!(
         chain.iter().any(|step| step["pid"] == std::process::id()),
