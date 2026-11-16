@@ -18,7 +18,7 @@
 set -uo pipefail
 root="$(cd "$(dirname "$0")/.." && pwd)"
 [ -n "${A11Y_SKIP_SUMMARY:-}" ] || rm -rf "$root/docs/qa/evidence/AJ-E804/axe"
-cd "$root/ui"
+cd "$root/ui" || exit 2
 AJ_AXE_GALLERY=1 AJ_A11Y_EVIDENCE=1 pnpm exec playwright test \
   tests/visual/capture.spec.ts \
   tests/visual/keyboard-flows.spec.ts \
@@ -26,6 +26,7 @@ AJ_AXE_GALLERY=1 AJ_A11Y_EVIDENCE=1 pnpm exec playwright test \
   tests/visual/contrast.spec.ts \
   tests/visual/inactive-apps-gallery.spec.ts \
   tests/visual/a11y-glyph-names.spec.ts \
+  tests/visual/attention-budget.spec.ts \
   "$@"
 tests=$?
 summary=0
