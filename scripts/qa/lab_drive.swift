@@ -15,11 +15,15 @@
 // If either fails, nothing is sent: the driver prints what is in the way
 // and waits (AIJ_DRIVE_WAIT seconds, default 120) for the person at the
 // Mac to bring Dev forward; still failing, it stops (exit 3), nothing sent.
+// Dev with no window on screen at all (accessibility still reads its page:
+// minimised, hidden, or on another Space) is the same: it prints "Dev's
+// window is off screen (minimised/hidden/other Space)" and waits.
 //
 // BRINGING DEV FORWARD (--may-activate, or AIJ_DRIVE_MAY_ACTIVATE=1; off by
 // default, so a walk never takes the front without asking; the dry run and
 // the sitting turn it on).
-// Only when the guard fails because another app is frontmost, and only:
+// Only when the guard fails because another app is frontmost, or because
+// Dev's window is off screen (minimised, hidden, another Space), and only:
 //   - when nobody has touched the Mac for 20 s (HID idle time,
 //     CGEventSource's HID system state);
 //   - while the screen isn't locked, no screen saver runs, and this login
@@ -27,7 +31,10 @@
 //     tell: no);
 //   - once per step (one run of this tool), never in a loop: still failing
 //     after it, the guard waits as before.
-// Each activation prints one line: ACTIVATED <UTC time> step=<command>
+// Bringing it forward: un-hide Dev when hidden (NSRunningApplication),
+// un-minimise its main window when minimised (AXMinimized false), then
+// activate it (macOS brings its window to the current Space). Each prints
+// its own line: UNHID / UNMINIMISED / ACTIVATED <UTC time> step=<command>
 // idle=<s>s. After it, any new input at the Mac (the idle time falls back
 // below the time since the activation) stops the run at once (exit 6):
 // nothing more is sent and Dev is left where it is (not lowered, not raised
@@ -124,6 +131,8 @@ enum Verdict: Equatable {
     case notFrontmost(String)
     case covered(String)
     case offWindow
+    /// Dev has no window on screen at all (minimised, hidden, another Space).
+    case offScreen
 }
 
 /// The guard's decision. `windows` is CGWindowList's on-screen list (front
@@ -145,6 +154,7 @@ func describe(_ verdict: Verdict) -> String {
     case .notFrontmost(let name): return "AI Juggler Dev isn't the frontmost app (\(name) is)"
     case .covered(let what): return "another window is on top at the point: \(what)"
     case .offWindow: return "no Dev window is on screen at the point"
+    case .offScreen: return "Dev's window is off screen (minimised/hidden/other Space)"
     }
 }
 
@@ -180,8 +190,12 @@ func decide(_ p: Probe, may: Bool, activatedAt: Double?, now: Double) -> Gate {
     let why = describe(p.verdict)
     guard may else { return .wait(why) }
     guard activatedAt == nil else { return .wait("\(why); Dev was brought forward once this step and never is again") }
-    // Only another app in front: a window over Dev's isn't moved.
-    guard case .notFrontmost = p.verdict else { return .wait(why) }
+    // Only another app in front, or Dev's window off screen: a window over
+    // Dev's isn't moved.
+    switch p.verdict {
+    case .notFrontmost, .offScreen: break
+    default: return .wait(why)
+    }
     if !p.onConsole { return .wait("\(why); this login isn't the one on screen") }
     if p.locked { return .wait("\(why); the screen is locked") }
     if p.saver { return .wait("\(why); the screen saver runs") }
@@ -197,13 +211,27 @@ enum GateEnd: Equatable {
     case inputStopped
 }
 
+/// One part of bringing Dev forward, by its log line's first word.
+enum Raise: String {
+    case unhid = "UNHID"
+    case unminimised = "UNMINIMISED"
+    case activated = "ACTIVATED"
+}
+
+/// A part done, and whether the system took it.
+struct Raised: Equatable {
+    let what: Raise
+    let ok: Bool
+}
+
 /// The clock and the Mac, injectable (the selftest's are made up).
 struct Mac {
     var now: () -> Double
     var sleep: (Double) -> Void
     var probe: () -> Probe
-    /// Brings Dev forward; false when the system refused.
-    var activate: () -> Bool
+    /// Brings Dev forward: un-hides it and un-minimises its main window
+    /// when they need it, then activates it; each part done, in order.
+    var activate: () -> [Raised]
     var log: (String) -> Void
 }
 
@@ -231,14 +259,17 @@ func gate(step: String, may: Bool, activatedAt: inout Double?, mac: Mac, limit: 
             return .inputStopped
         case .activate:
             activatedAt = now
-            let ok = mac.activate()
-            mac.log("ACTIVATED \(utc(now)) step=\(step) idle=\(String(format: "%.1f", p.idle))s" + (ok ? "" : " (the system refused; waiting as before)"))
+            // One line each, in the order done (un-hide, un-minimise, activate).
+            for part in mac.activate() {
+                mac.log("\(part.what.rawValue) \(utc(now)) step=\(step) idle=\(String(format: "%.1f", p.idle))s"
+                    + (part.ok ? "" : " (the system refused; waiting as before)"))
+            }
             mac.sleep(0.4)
         case .wait(let why):
             if why != asked {
                 let ask = may
                     ? "Nothing is sent. Dev is brought forward once, after \(Int(minIdle)) s without input; or bring it forward yourself."
-                    : "Nothing is sent. Please bring AI Juggler Dev forward (click its window); the driver never does it itself."
+                    : "Nothing is sent. Please bring AI Juggler Dev forward (click its window, or its Dock icon); the driver never does it itself."
                 mac.log("WAITING: \(why). \(ask) Waiting up to \(Int(limit)) s.")
                 asked = why
             }
@@ -317,12 +348,36 @@ func screenSaverRuns() -> Bool {
     }
 }
 
-/// Brings Dev (by pid) to the front through accessibility, else asks the
-/// system; nothing is clicked or typed.
-func bringForward(_ pid: pid_t) -> Bool {
+/// Dev's main window when it is minimised (else its first minimised
+/// standard window); nil when none is.
+func minimisedWindow(_ app: AXUIElement) -> AXUIElement? {
+    let minimised = { (w: AXUIElement) in (attr(w, kAXMinimizedAttribute) as? Bool) == true }
+    if let main = attr(app, kAXMainWindowAttribute), CFGetTypeID(main) == AXUIElementGetTypeID() {
+        let window = main as! AXUIElement
+        if minimised(window) { return window }
+    }
+    let windows = (attr(app, kAXWindowsAttribute) as? [AXUIElement]) ?? []
+    return windows.first { minimised($0) && text($0, kAXSubroleAttribute) == (kAXStandardWindowSubrole as String) }
+        ?? windows.first(where: minimised)
+}
+
+/// Brings Dev (by pid) forward: un-hides it when hidden, un-minimises its
+/// main window when minimised, then activates it (accessibility, else the
+/// system), so macOS brings its window to the current Space. Nothing is
+/// clicked or typed. Each part done, in order.
+func bringForward(_ pid: pid_t) -> [Raised] {
+    var done: [Raised] = []
+    let running = NSRunningApplication(processIdentifier: pid)
+    if let running, running.isHidden { done.append(Raised(what: .unhid, ok: running.unhide())) }
     let app = AXUIElementCreateApplication(pid)
-    if AXUIElementSetAttributeValue(app, kAXFrontmostAttribute as CFString, kCFBooleanTrue) == .success { return true }
-    return NSRunningApplication(processIdentifier: pid)?.activate(options: []) ?? false
+    if let window = minimisedWindow(app) {
+        let ok = AXUIElementSetAttributeValue(window, kAXMinimizedAttribute as CFString, kCFBooleanFalse) == .success
+        done.append(Raised(what: .unminimised, ok: ok))
+    }
+    let front = AXUIElementSetAttributeValue(app, kAXFrontmostAttribute as CFString, kCFBooleanTrue) == .success
+        || (running?.activate(options: []) ?? false)
+    done.append(Raised(what: .activated, ok: front))
+    return done
 }
 
 /// The step (command) this run is, for the activation log.
@@ -330,17 +385,24 @@ var step = "?"
 /// When this step brought Dev forward (once at most).
 var activatedAt: Double?
 
-/// The guard, right before a press or a key. Waits (asking once) while it
-/// fails; stops with nothing sent if it still fails after AIJ_DRIVE_WAIT.
-/// With --may-activate it may bring Dev forward once (see the head).
-func guarded(_ pid: pid_t, at point: CGPoint) {
+/// The guard, right before a press or a key (`point`: where it lands; nil:
+/// the middle of Dev's window, only waiting for one on screen). Waits
+/// (asking once) while it fails; stops with nothing sent if it still fails
+/// after AIJ_DRIVE_WAIT. With --may-activate it may bring Dev forward once
+/// (see the head).
+func guarded(_ pid: pid_t, at point: CGPoint?) {
     let mac = Mac(
         now: { Date().timeIntervalSince1970 },
         sleep: { usleep(useconds_t($0 * 1_000_000)) },
         probe: {
             let front = NSWorkspace.shared.frontmostApplication
-            let verdict = judge(dev: pid, frontmost: front?.processIdentifier, frontmostName: front?.localizedName ?? "",
-                                windows: onScreenWindows(), point: point)
+            // No window on screen while accessibility reads the page:
+            // minimised, hidden, or on another Space.
+            let win = devWindow(pid)
+            let verdict = win.map { win in
+                judge(dev: pid, frontmost: front?.processIdentifier, frontmostName: front?.localizedName ?? "",
+                      windows: onScreenWindows(), point: point ?? CGPoint(x: win.bounds.midX, y: win.bounds.midY))
+            } ?? .offScreen
             let s = session()
             return Probe(verdict: verdict, idle: hidIdle(), locked: s.locked, saver: screenSaverRuns(), onConsole: s.onConsole)
         },
@@ -505,9 +567,19 @@ func center(_ e: AXUIElement) -> CGPoint? {
     return CGPoint(x: f.midX, y: f.midY)
 }
 
+/// Dev's front window on screen. While it is off screen (minimised,
+/// hidden, another Space) the guard says so and waits; with --may-activate
+/// it brings it back once (see the head); still off screen, it stops.
+func windowOnScreen(_ pid: pid_t) -> (id: CGWindowID, bounds: CGRect, title: String) {
+    if let win = devWindow(pid) { return win }
+    guarded(pid, at: nil)
+    guard let win = devWindow(pid) else { stop(3, "\(describe(.offScreen)); nothing sent") }
+    return win
+}
+
 /// A point inside Dev's front window for the element (scrolled into view first).
 func pointFor(_ pid: pid_t, _ e: AXUIElement) -> CGPoint {
-    guard let win = devWindow(pid) else { stop(3, "AI Juggler Dev has no window on screen; nothing sent") }
+    let win = windowOnScreen(pid)
     if let c = center(e), win.bounds.contains(c) { return c }
     if actions(e).contains("AXScrollToVisible") {
         AXUIElementPerformAction(e, "AXScrollToVisible" as CFString)
@@ -523,10 +595,10 @@ let keyCodes: [String: CGKeyCode] = ["return": 36, "enter": 36, "tab": 48, "spac
                                      "left": 123, "right": 124, "down": 125, "up": 126, "delete": 51, "c": 8]
 
 func keyPoint(_ pid: pid_t) -> CGPoint {
+    let win = windowOnScreen(pid)
     let app = AXUIElementCreateApplication(pid)
     if let focused = attr(app, kAXFocusedUIElementAttribute), let c = center(focused as! AXUIElement),
-       let win = devWindow(pid), win.bounds.contains(c) { return c }
-    guard let win = devWindow(pid) else { stop(3, "AI Juggler Dev has no window on screen; nothing sent") }
+       win.bounds.contains(c) { return c }
     return CGPoint(x: win.bounds.midX, y: win.bounds.midY)
 }
 
@@ -690,9 +762,14 @@ func waitFor(_ pid: pid_t, _ needle: String, timeout: Double, ocr: Bool, gone: B
     say("» wait \"\(needle)\"" + (gone ? " --gone" : "") + (ocr ? " --ocr" : "") + " --timeout \(Int(timeout))")
     let start = Date()
     var lastOcr = Date.distantPast
+    var toldOffScreen = false
     while true {
         let useOcr = ocr && Date().timeIntervalSince(lastOcr) > 1.5
         if useOcr { lastOcr = Date() }
+        if useOcr, !toldOffScreen, devWindow(pid) == nil {
+            say("  \(describe(.offScreen)): its picture can't be read until it's back")
+            toldOffScreen = true
+        }
         let seen = shows(screenWords(pid, ocr: useOcr), needle)
         if seen != gone {
             say("  \(gone ? "gone" : "shown") after \(Int(Date().timeIntervalSince(start) * 1000)) ms")
@@ -737,6 +814,7 @@ func shot(_ pid: pid_t, _ o: Opts) {
     try? FileManager.default.createDirectory(at: outDir, withIntermediateDirectories: true)
     let raw = FileManager.default.temporaryDirectory.appendingPathComponent("lab_drive-raw-\(getpid()).png")
     defer { try? FileManager.default.removeItem(at: raw) }
+    _ = windowOnScreen(pid) // off screen: waits (or, with --may-activate, brings it back once)
     guard capture(pid, to: raw) else { stop(4, "Dev's window couldn't be captured") }
     let out = outDir.appendingPathComponent(name.hasSuffix(".jpg") ? name : "\(name).jpg")
     var redact = [tool.path, raw.path, out.path]
@@ -848,7 +926,10 @@ func send(_ pid: pid_t, _ words: String, field: String?) {
 
 /// `gate` against a made-up clock and Mac: `inputAt` is when the person
 /// last touched it (they keep typing while `busy` holds), `front` whether
-/// Dev is frontmost (activating makes it so unless `refuse`).
+/// Dev is frontmost (activating makes it so unless `refuse`), and Dev's
+/// window's state: `hidden`, `minimised`, `elsewhere` (another Space); any
+/// of them and it is off screen. Bringing it forward mends each, as the
+/// real one does (un-hide, un-minimise, activate: the Space follows).
 func activationSelftest() -> [String] {
     var failures: [String] = []
     final class World {
@@ -856,6 +937,9 @@ func activationSelftest() -> [String] {
         var inputAt = 1000.0
         var front = false
         var covered = false
+        var hidden = false
+        var minimised = false
+        var elsewhere = false
         var locked = false
         var saver = false
         var refuse = false
@@ -867,10 +951,18 @@ func activationSelftest() -> [String] {
         Mac(now: { w.t },
             sleep: { w.t += $0; if w.t < w.busyUntil { w.inputAt = w.t } },
             probe: {
-                let verdict: Verdict = !w.front ? .notFrontmost("Aside") : w.covered ? .covered("Notification Center, layer 23") : .clear
+                let verdict: Verdict = w.hidden || w.minimised || w.elsewhere ? .offScreen
+                    : !w.front ? .notFrontmost("Aside") : w.covered ? .covered("Notification Center, layer 23") : .clear
                 return Probe(verdict: verdict, idle: w.t - w.inputAt, locked: w.locked, saver: w.saver, onConsole: true)
             },
-            activate: { w.activations += 1; if !w.refuse { w.front = true }; return !w.refuse },
+            activate: {
+                w.activations += 1
+                var done: [Raised] = []
+                if w.hidden { done.append(Raised(what: .unhid, ok: !w.refuse)); if !w.refuse { w.hidden = false } }
+                if w.minimised { done.append(Raised(what: .unminimised, ok: !w.refuse)); if !w.refuse { w.minimised = false } }
+                if !w.refuse { w.front = true; w.elsewhere = false }
+                return done + [Raised(what: .activated, ok: !w.refuse)]
+            },
             log: { w.lines.append($0) })
     }
     // Off by default: never brought forward, however idle; the guard stops.
@@ -920,6 +1012,58 @@ func activationSelftest() -> [String] {
         _ = gate(step: "press", may: true, activatedAt: &at, mac: mac(w), limit: 60)
         if w.activations != 0 { failures.append("activation: for a covering window") }
     }
+    // Dev's window off screen (AJ-E1612 dry run 2: 45 min with no window on
+    // screen, accessibility still reading the page).
+    let offScreenWords = "Dev's window is off screen (minimised/hidden/other Space)"
+    // Without the switch: says so, waits, and stops; never brought back.
+    do {
+        let w = World(); w.inputAt = 0; w.minimised = true
+        var at: Double?
+        let end = gate(step: "press", may: false, activatedAt: &at, mac: mac(w), limit: 60)
+        if end != .guardStopped(offScreenWords) || w.activations != 0 || !w.minimised { failures.append("off screen: without --may-activate (\(end), \(w.activations))") }
+        if w.lines.filter({ $0.hasPrefix("WAITING: \(offScreenWords). Nothing is sent.") }).count != 1 { failures.append("off screen: its WAITING line \(w.lines)") }
+    }
+    // With it, hidden and minimised and in use for 10 s more: waits; at 20 s
+    // idle, once: un-hides, un-minimises, activates, each its own line, in
+    // that order, with the step and the idle time; then sends.
+    do {
+        let w = World(); w.hidden = true; w.minimised = true; w.busyUntil = 1010
+        var at: Double?
+        let end = gate(step: "read-label", may: true, activatedAt: &at, mac: mac(w), limit: 120)
+        let raised = w.lines.filter { $0.hasPrefix("UNHID ") || $0.hasPrefix("UNMINIMISED ") || $0.hasPrefix("ACTIVATED ") }
+        if end != .send || w.activations != 1 { failures.append("off screen: brought back once (\(end), \(w.activations))") }
+        if raised.map({ String($0.prefix(while: { $0 != " " })) }) != ["UNHID", "UNMINIMISED", "ACTIVATED"] { failures.append("off screen: its lines \(raised)") }
+        if !raised.allSatisfy({ $0.contains("step=read-label") && $0.contains("idle=2") && $0.contains("T") }) { failures.append("off screen: a line without its step or idle time \(raised)") }
+        if let at, at - w.inputAt < minIdle { failures.append("off screen: brought back after only \(at - w.inputAt) s idle") }
+        if !w.lines.contains(where: { $0.hasPrefix("WAITING: \(offScreenWords); the Mac is in use") }) { failures.append("off screen: it never said why it waited \(w.lines)") }
+        // Then the person touches the Mac: the run stops, nothing re-raised.
+        w.inputAt = w.t; w.t += 0.5
+        if gate(step: "read-label", may: true, activatedAt: &at, mac: mac(w), limit: 120) != .inputStopped || w.activations != 1 { failures.append("off screen: new input didn't stop the run") }
+    }
+    // On another Space only: activating alone (no un-hide, no un-minimise).
+    do {
+        let w = World(); w.inputAt = 0; w.elsewhere = true
+        var at: Double?
+        let end = gate(step: "press", may: true, activatedAt: &at, mac: mac(w), limit: 60)
+        let raised = w.lines.filter { $0.hasPrefix("UNHID ") || $0.hasPrefix("UNMINIMISED ") || $0.hasPrefix("ACTIVATED ") }
+        if end != .send || raised.count != 1 || !raised[0].hasPrefix("ACTIVATED ") { failures.append("off screen: another Space (\(end), \(raised))") }
+    }
+    // Off screen and locked, or the screen saver running: never, however idle.
+    for (locked, saver) in [(true, false), (false, true)] {
+        let w = World(); w.inputAt = 0; w.hidden = true; w.locked = locked; w.saver = saver
+        var at: Double?
+        _ = gate(step: "press", may: true, activatedAt: &at, mac: mac(w), limit: 60)
+        if w.activations != 0 || !w.hidden { failures.append("off screen: brought back while \(locked ? "locked" : "the screen saver runs")") }
+    }
+    // Refused: one try, each part logged as refused; then waits and stops.
+    do {
+        let w = World(); w.inputAt = 0; w.minimised = true; w.refuse = true
+        var at: Double?
+        let end = gate(step: "press", may: true, activatedAt: &at, mac: mac(w), limit: 60)
+        let refused = w.lines.filter { $0.contains("(the system refused; waiting as before)") }
+        if w.activations != 1 || refused.count != 2 { failures.append("off screen: refused (\(w.activations), \(refused))") }
+        if end != .guardStopped("\(offScreenWords); Dev was brought forward once this step and never is again") { failures.append("off screen: refused, then \(end)") }
+    }
     // The pure rule at its edges.
     let quiet = Probe(verdict: .notFrontmost("Aside"), idle: 19.9, locked: false, saver: false, onConsole: true)
     if decide(quiet, may: true, activatedAt: nil, now: 0) == .activate { failures.append("decide: 19.9 s idle") }
@@ -927,6 +1071,11 @@ func activationSelftest() -> [String] {
     if decide(twenty, may: true, activatedAt: nil, now: 0) != .activate { failures.append("decide: 20 s idle") }
     var away = twenty; away.onConsole = false
     if decide(away, may: true, activatedAt: nil, now: 0) == .activate { failures.append("decide: off console") }
+    var gone = twenty; gone.verdict = .offScreen
+    if decide(gone, may: true, activatedAt: nil, now: 0) != .activate { failures.append("decide: off screen at 20 s idle") }
+    if decide(gone, may: false, activatedAt: nil, now: 0) != .wait(offScreenWords) { failures.append("decide: off screen without the switch") }
+    gone.idle = 19.9
+    if decide(gone, may: true, activatedAt: nil, now: 0) == .activate { failures.append("decide: off screen at 19.9 s idle") }
     return failures
 }
 
@@ -1112,7 +1261,7 @@ func need(_ n: Int, _ usage: String) { if o.positional.count < n { stop(2, usage
 
 switch command {
 case "guard":
-    guard let win = devWindow(pid) else { stop(3, "AI Juggler Dev has no window on screen") }
+    guard let win = devWindow(pid) else { stop(3, describe(.offScreen)) }
     let front = NSWorkspace.shared.frontmostApplication
     let v = judge(dev: pid, frontmost: front?.processIdentifier, frontmostName: front?.localizedName ?? "",
                   windows: onScreenWindows(), point: CGPoint(x: win.bounds.midX, y: win.bounds.midY))
