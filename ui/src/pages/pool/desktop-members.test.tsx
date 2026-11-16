@@ -130,3 +130,33 @@ describe("AJ-E3013: the inspector", () => {
     expect(reachOf(member("x", { connector: "outdated" })).kind).toBe("added");
   });
 });
+
+// The aij-test proof: after Remove, the App's card and inspector still said
+// "Its sessions talk … through the connector. Wakes on new messages".
+describe("AJ-E3013: the words follow the connector", () => {
+  const pool: PoolInfo = { id: POOL, name: "web team", kind: "user", project_id: null, access: { level: "full", actions: [], hop_limit: 5, delivery_stopped: false }, rules: [], spans_macs: false, scopes: 1, members: 0, ...scopeOf("user", null) };
+  const ref = `app:${WORK}`;
+  const appRule = { member: ref, kind: "app", role: "member", level: null, joined_at: 1, sessions: 1, session_ids: [] };
+
+  it("after Remove, the App's card and inspector say Watched with the reason, though a session called lately", async () => {
+    seed([member(ref, { connector: "current", connected: true, wake: "wakes" })], { [WORK]: { state: "current" } });
+    render(
+      <>
+        <RuleNodes poolId={POOL} rules={[appRule]} watched={[]} labelOf={() => "Claude app · Work Max"} selection={{ kind: "none" }} onSelect={() => undefined} />
+        <InspectRule pool={pool} rule={appRule} watched={undefined} label="Claude app · Work Max" onChanged={() => undefined} onGone={() => undefined} />
+      </>,
+    );
+    await waitFor(() => expect(screen.getByTestId("canvas-rule-wake").textContent).toBe("Its sessions: wakes on new messages"));
+    expect(screen.getByTestId("inspect-rule-reach").textContent).toBe("Its sessions talk in this pool through AI Juggler's connector. Wakes on new messages.");
+    await act(async () => fireEvent.click(await screen.findByTestId("inspect-connector-remove")));
+    await act(async () => fireEvent.click(screen.getByTestId("inspect-connector-confirm-remove")));
+    await waitFor(() => expect(screen.getByTestId("canvas-rule-wake").textContent).toBe("Watched: its app has no AI Juggler connector"));
+    expect(screen.getByTestId("inspect-rule-reach").textContent).toMatch(/^Watched: its app has no AI Juggler connector/);
+    expect(screen.getByTestId("inspect-rule-reach").textContent).not.toContain("Wakes on new messages");
+  });
+
+  it("a session that calls with no connector in its app is still Watched; changed says so", () => {
+    expect(reachOf(member("x", { connector: "absent", connected: true, wake: "wakes" }))).toEqual({ kind: "watched", line: "Its app has no AI Juggler connector", fix: "add" });
+    expect(reachOf(member("x", { connector: "changed", connected: true })).line).toBe("Its app's AI Juggler connector was changed");
+  });
+});

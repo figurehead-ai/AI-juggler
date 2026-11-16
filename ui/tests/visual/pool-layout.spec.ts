@@ -187,3 +187,35 @@ test("Who leads: one choice checked at a time", async ({ page }) => {
     await expect.poll(checked).toEqual([kind]);
   }
 });
+
+// The aij-test proof: at 1761×1348 the delete-pool confirmation was
+// clipped at the panel's foot, its buttons out of reach. Every
+// confirmation in the panel shows in view, its first button focused.
+for (const size of [
+  { width: 1761, height: 1348 },
+  { width: 1280, height: 800 },
+  { width: 1024, height: 768 },
+]) {
+  test(`the panel's confirmations stay in view — ${size.width}×${size.height}`, async ({ page }) => {
+    await open(page, size);
+    // A pool of the user's own (a project's own can't be deleted).
+    await pool(page, "Checkout team");
+    if (await page.getByTestId("pool-mode").isVisible()) await page.getByTestId("pool-mode").getByRole("radio", { name: "Diagram" }).click();
+    await page.getByTestId("inspect-open-settings").click();
+    const list = page.locator('[data-testid="pool-inspector"] [data-canvas-scroll]').first();
+    for (const [open, confirm, safe] of [
+      ["pool-delete", "pool-delete-confirm", "pool-delete-keep"],
+      ["pool-seal-open", "pool-seal-yes", "pool-seal-no"],
+    ] as const) {
+      if (open === "pool-seal-open") await page.getByTestId("pool-more-fold").locator("summary").first().click();
+      await page.getByTestId(open).scrollIntoViewIfNeeded();
+      await page.getByTestId(open).click();
+      const button = page.getByTestId(confirm);
+      await expect(button).toBeVisible();
+      await expect.poll(() => inView(page, button, list), { message: `${confirm} is in view` }).toBe(true);
+      // Its safe choice has focus (Enter never deletes by surprise).
+      await expect(page.getByTestId(safe)).toBeFocused();
+      await page.getByTestId(safe).click();
+    }
+  });
+}

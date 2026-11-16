@@ -9,9 +9,10 @@
  * Round 4 (#6): the rarer ones (kept apart, your other Macs, other pools
  * its agents may write to) under one closed "More settings".
  */
-import { useEffect, useState, type JSX, type ReactNode } from "react";
+import { useEffect, useRef, useState, type JSX, type ReactNode } from "react";
 
 import { errorText } from "../../lib/bridge";
+import { useReveal } from "../../lib/reveal";
 import type { ProjectInfo } from "../../types/generated/ProjectInfo";
 import { poolDelete, poolSetSpansMacs, type PoolInfo, type PoolsInfo } from "../../lib/ipc/pools";
 import { notificationsMute, notificationsMutes, notificationsUnmute, onNoticesChanged } from "../../lib/ipc/notices";
@@ -135,7 +136,7 @@ export function InspectPool({
       {pool.kind === "user" && (
         <Section title="This pool">
           {confirmDelete ? (
-            <div className="flex flex-col gap-2 rounded-lg border border-danger/40 bg-danger-soft p-2.5" role="group" aria-label="Delete this pool?">
+            <DeleteConfirm>
               <span className="text-meta text-ink">Delete «{pool.name}»? Its sessions go back to their projects' own pools; its messages and tasks stay in its history.</span>
               <span className="flex gap-2">
                 <button type="button" onClick={() => void run(async () => {
@@ -146,11 +147,11 @@ export function InspectPool({
                 })} className="rounded-lg bg-danger px-2.5 py-1 text-meta font-medium text-white outline-none focus-visible:ring-2 focus-visible:ring-danger/60" data-testid="pool-delete-confirm">
                   Delete pool
                 </button>
-                <button type="button" onClick={() => setConfirmDelete(false)} className="rounded-lg px-2.5 py-1 text-meta text-muted outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60">
+                <button type="button" data-autofocus onClick={() => setConfirmDelete(false)} className="rounded-lg px-2.5 py-1 text-meta text-muted outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60" data-testid="pool-delete-keep">
                   Keep it
                 </button>
               </span>
-            </div>
+            </DeleteConfirm>
           ) : (
             <button type="button" onClick={() => setConfirmDelete(true)} className="self-start rounded-lg px-1 text-meta text-danger outline-none hover:underline focus-visible:ring-1 focus-visible:ring-danger/60" data-testid="pool-delete">
               Delete pool…
@@ -173,6 +174,18 @@ function MoreGroup({ title, children, testId }: { title: string; children: React
   return (
     <div className="flex flex-col gap-1.5" data-testid={testId}>
       <h5 className="text-meta font-semibold text-ink">{title}</h5>
+      {children}
+    </div>
+  );
+}
+
+/** Delete's confirmation, in view in the panel with Keep it focused (the
+ * aij-test proof: clipped at the panel's foot at 1761×1348). */
+function DeleteConfirm({ children }: { children: ReactNode }): JSX.Element {
+  const ref = useRef<HTMLDivElement | null>(null);
+  useReveal(ref);
+  return (
+    <div ref={ref} className="flex flex-col gap-2 rounded-lg border border-danger/40 bg-danger-soft p-2.5" role="group" aria-label="Delete this pool?" data-testid="pool-delete-group">
       {children}
     </div>
   );

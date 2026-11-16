@@ -16,7 +16,7 @@
  *   what fixes it; can't be added here (the Codex app): why, and that no
  *   guide can do it either.
  */
-import { useState, type JSX, type ReactNode } from "react";
+import { useRef, useState, type JSX, type ReactNode } from "react";
 
 import { Button } from "../../../components/primitives";
 import { errorText } from "../../../lib/bridge";
@@ -24,6 +24,7 @@ import { CONNECTOR, CONNECTOR_GUIDE, connectorChanged, previewSentence, shortPat
 import { Disclosure } from "../../../components/controls";
 import { connectorAdd, connectorPreview, connectorRemove, type ConnectorPreviewInfo, type ConnectorRemovalInfo, type ConnectorStatusInfo } from "../../../lib/ipc/connector";
 import { trustOpen } from "../../../lib/ipc/trust";
+import { useReveal } from "../../../lib/reveal";
 import { ConnectorFiles, RemoveFiles } from "./ConnectorFiles";
 import { ConnectorGuide } from "./ConnectorGuide";
 
@@ -149,12 +150,18 @@ export function ConnectorCard({
     where,
     failed,
     cancel: (
-      <Button size="sm" variant="ghost" disabled={busy} onClick={() => setPhase({ kind: "idle" })} data-testid={`${testId}-cancel`}>
+      <Button size="sm" variant="ghost" disabled={busy} onClick={() => setPhase({ kind: "idle" })} data-autofocus data-testid={`${testId}-cancel`}>
         {CONNECTOR.cancel}
       </Button>
     ),
   };
-  if (phase.kind !== "idle") return <PhaseView phase={phase} status={status} parts={parts} onAdd={() => void actions.add()} onRemove={() => void actions.remove()} />;
+  if (phase.kind !== "idle") {
+    return (
+      <Revealed key={phase.kind}>
+        <PhaseView phase={phase} status={status} parts={parts} onAdd={() => void actions.add()} onRemove={() => void actions.remove()} />
+      </Revealed>
+    );
+  }
   if (status.state === "current") {
     return (
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-meta text-ink-2" data-testid={`${testId}-there`}>
@@ -167,6 +174,14 @@ export function ConnectorCard({
     );
   }
   return <Resting status={status} parts={parts} where={where} onReview={() => void actions.review()} onGuide={() => void actions.guide()} onRemove={() => void actions.askRemove()} />;
+}
+
+/** A step that opens in the panel: in view in its list, Cancel focused
+ * (the aij-test proof: a confirmation clipped at the panel's foot). */
+function Revealed({ children }: { children: ReactNode }): JSX.Element {
+  const ref = useRef<HTMLDivElement | null>(null);
+  useReveal(ref);
+  return <div ref={ref}>{children}</div>;
 }
 
 /** The guide's section, opened in the browser. */

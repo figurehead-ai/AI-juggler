@@ -135,15 +135,18 @@ export type DesktopReach =
   | { kind: "watched"; line: string; fix: "add" | "fix" | null };
 
 export function reachOf(info: DesktopMemberInfo | undefined): DesktopReach {
+  // The connector first (the aij-test proof: after Remove, a session that
+  // had called lately still read "Wakes on new messages"): without one in
+  // its app it's Watched, with the reason, whatever called before.
   if (!info) return { kind: "watched", line: "Its app has no AI Juggler connector", fix: "add" };
-  if (info.connected) return { kind: "connected", line: wakeLine(info.wake) };
-  if (isAdded(info.connector)) return { kind: "added", line: `Added · joins at its next start · ${wakeLine(info.wake).toLowerCase()}` };
   if (info.connector === "changed") return { kind: "watched", line: "Its app's AI Juggler connector was changed", fix: "fix" };
   if (info.connector === "unavailable" || info.app_id === null) {
     const wake = info.wake === "cant_wake" ? "; it can't be woken" : "";
     return { kind: "watched", line: `Its app can't take AI Juggler's connector yet${wake}`, fix: null };
   }
-  return { kind: "watched", line: "Its app has no AI Juggler connector", fix: "add" };
+  if (!isAdded(info.connector)) return { kind: "watched", line: "Its app has no AI Juggler connector", fix: "add" };
+  if (info.connected) return { kind: "connected", line: wakeLine(info.wake) };
+  return { kind: "added", line: `Added · joins at its next start · ${wakeLine(info.wake).toLowerCase()}` };
 }
 
 const statuses = sharedReads(connectorStatus);
