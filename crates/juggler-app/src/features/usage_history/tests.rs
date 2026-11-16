@@ -295,3 +295,92 @@ fn new_tokens_and_conversations_count_as_the_vendors_bill_them() {
     );
     assert_eq!(folded.totals.usd, Some(0.75), "stored costs as they are");
 }
+
+/// The 0.4.6 RC walk K2 (F-K2-7b): AI Juggler's own sessions whose tool
+/// wrote nothing this Mac reads have no token counts. The Sessions tile
+/// counts every session in the range, so they count as not measured (it
+/// read "Sessions 0" over 1 000) and as started in it; a folder's scope
+/// counts only its own, and one last active before the range none.
+#[test]
+fn own_sessions_nothing_was_read_for_count_as_not_measured() {
+    use crate::test_support::{account, bare_state, instance, launch_settings};
+    use juggler_core::model::{SessionStatus, Timestamp};
+    let dir = tempfile::tempdir().unwrap();
+    let state = bare_state(dir.path().join("app-data"));
+    let now = Timestamp::now().millis();
+    {
+        let storage = state.storage.lock().unwrap();
+        for folder in ["work", "side"] {
+            storage
+                .accounts()
+                .insert(&account(
+                    folder,
+                    "claude-code",
+                    folder,
+                    dir.path().join(folder),
+                ))
+                .unwrap();
+            storage
+                .profiles()
+                .insert(&launch_settings(&format!("rec-{folder}"), "Main", folder))
+                .unwrap();
+        }
+        for n in 0..6_i64 {
+            let folder = if n < 3 { "rec-work" } else { "rec-side" };
+            let mut record = instance(
+                &format!("s-{n}"),
+                folder,
+                SessionStatus::Finished,
+                "/w".into(),
+            );
+            // The last one ended two days ago: before the range.
+            let last = now - if n == 5 { 48 } else { n + 1 } * HOUR;
+            record.started_at = Timestamp::from_millis(last - HOUR / 2);
+            record.last_activity = Some(Timestamp::from_millis(last));
+            storage.sessions().insert(&record).unwrap();
+        }
+    }
+    let day = UsageQueryInput {
+        edges_ms: vec![now - 24 * HOUR, now + HOUR],
+        ..query(vec![], "profile")
+    };
+    let all = super::history_impl(&state, &day).unwrap();
+    assert_eq!(all.totals.sessions, 0, "none measured");
+    assert_eq!(
+        all.unmeasured_sessions, 5,
+        "every one in the range, counted"
+    );
+    assert_eq!(all.started_per_bucket.iter().sum::<u32>(), 5);
+    let work = UsageQueryInput {
+        profile: Some("work".into()),
+        ..day.clone()
+    };
+    assert_eq!(
+        super::history_impl(&state, &work)
+            .unwrap()
+            .unmeasured_sessions,
+        3
+    );
+}
+
+/// A session a conversation the index read stands for is that one's,
+/// counted once: linked to it, or naming it on its folder.
+#[test]
+fn a_session_a_read_conversation_stands_for_is_not_counted_again() {
+    use crate::test_support::instance;
+    use juggler_core::model::{ConversationId, SessionStatus};
+    let linked: std::collections::HashSet<String> = ["s-linked".to_owned()].into();
+    let read: std::collections::HashSet<(String, String)> =
+        [("work".to_owned(), "c-1".to_owned())].into();
+    let plain = instance("s-plain", "rec", SessionStatus::Finished, "/w".into());
+    assert!(super::unread(&plain, Some("work"), &linked, &read));
+    let by_link = instance("s-linked", "rec", SessionStatus::Finished, "/w".into());
+    assert!(!super::unread(&by_link, Some("work"), &linked, &read));
+    let mut named = instance("s-named", "rec", SessionStatus::Finished, "/w".into());
+    named.conversation = Some(ConversationId::new("c-1"));
+    assert!(!super::unread(&named, Some("work"), &linked, &read));
+    assert!(
+        super::unread(&named, Some("side"), &linked, &read),
+        "another folder's c-1"
+    );
+}
