@@ -26,8 +26,8 @@ const HIT_TINT_MS = 2_400;
 function openFolds(row: HTMLElement, section: HTMLElement): void {
   for (let at: HTMLElement | null = row; at && at !== section; at = at.parentElement) {
     if (at === row) continue;
-    if (at instanceof HTMLDetailsElement && !at.open) at.open = true;
-    // The app's Disclosure (a button, round 7): pressed open.
+    // The app's Disclosure (a button, round 7), every fold's (the
+    // native-controls lint keeps <details> out): pressed open.
     if (at.matches("[data-disclosure]:not([data-open])")) at.querySelector<HTMLElement>(":scope > button[aria-expanded]")?.click();
   }
 }
