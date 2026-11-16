@@ -27,6 +27,19 @@ AJ_AXE_GALLERY=1 AJ_A11Y_EVIDENCE=1 pnpm exec playwright test \
   tests/visual/inactive-apps-gallery.spec.ts \
   tests/visual/a11y-glyph-names.spec.ts \
   tests/visual/attention-budget.spec.ts \
+  tests/visual/a11y.spec.ts \
+  tests/visual/accounts-out-filter.spec.ts \
+  tests/visual/caret-mark.spec.ts \
+  tests/visual/cursor.spec.ts \
+  tests/visual/fleet-pairing.spec.ts \
+  tests/visual/flows-cde.spec.ts \
+  tests/visual/idle.spec.ts \
+  tests/visual/new-project.spec.ts \
+  tests/visual/new-session-narrow.spec.ts \
+  tests/visual/replica-journey.spec.ts \
+  tests/visual/session-app-chip-narrow.spec.ts \
+  tests/visual/settings-nav-selection.spec.ts \
+  tests/visual/toast-narrow.spec.ts \
   "$@"
 tests=$?
 summary=0

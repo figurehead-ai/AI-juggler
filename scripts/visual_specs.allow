@@ -18,22 +18,9 @@ local l3-new-session           L3 validation journeys (0.4 plan §4): every clic
 local l3-pages                 L3 validation journeys (0.4 plan §4): every click timed <= 100 ms, evidence to docs/qa/evidence/l3/
 local l3-wizard                L3 validation journeys (0.4 plan §4): every click timed <= 100 ms, evidence to docs/qa/evidence/l3/
 
-# Known gaps (found 2026-11-16): assertion specs and evidence galleries
-# without a gate state that no CI job runs; they run only when someone runs
-# Playwright by hand or regenerates the gallery.
-gap a11y                       AJ-E402 axe on the rail fixture, both themes (assertions; no job runs it)
-gap accounts-out-filter        0.4.2 "N accounts out" lands on the Out filter (assertions; no job runs it)
-gap caret-mark                 rc24/25 K1 no input-source mark after a session page (assertions; no job runs it)
-gap cursor                     0.0.7 clickable things show the hand cursor (assertions; no job runs it)
-gap fleet-pairing              AJ-E704 pairing wizard end to end on the mock bridge (assertions; no job runs it)
-gap flows-cde                  AJ-E306 daily flows c/d/e click-count contracts (assertions; no job runs it)
-gap idle                       AJ-E805 0.4.5 an untouched window stops drawing (assertions; no job runs it)
-gap new-project                AJ-E305 New project in <= 3 clicks, ⌘⇧N (assertions; no job runs it)
-gap new-session-narrow         AJ-E3306 New session at 800x600 cuts nothing (assertions; no job runs it)
-gap replica-journey            AJ-E1529 the journey on the committed replica fixture (assertions; no job runs it)
-gap session-app-chip-narrow    0.4.1 A3 the App chip keeps the profile at 1024x680 (assertions; no job runs it)
-gap settings-nav-selection     AJ-E3306 X2 one Settings item looks selected (assertions; no job runs it)
-gap toast-narrow               rc31 NY1 Undo never covers the toast's words (assertions; no job runs it)
+# Known gaps (found 2026-11-16): evidence galleries without a gate state
+# that no CI job runs; they run only when someone regenerates the gallery.
+# (The thirteen assertion specs found with them run in scripts/a11y_gate.sh.)
 gap account-page-gallery       AJ-E3205 evidence gallery with no gate() state; its expects run only on a local regenerate
 gap app-icons-gallery          D-38 evidence gallery with no gate() state; its expects run only on a local regenerate
 gap app-page-gallery           AJ-E3204 evidence gallery with no gate() state; its expects run only on a local regenerate
