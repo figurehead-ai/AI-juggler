@@ -1,4 +1,4 @@
-<!-- captures: 604b3c05ee00 -->
+<!-- captures: 45f1f59ec58e -->
 # 92-agent-tools: agent tools, the question on a pool's canvas and the setting with where they are off
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design passes.
@@ -41,3 +41,9 @@ agent-tools-question (both themes): the card's scope line reads "This is for eve
 ## 0.4.6 round 5
 
 agent-tools-question (both themes): the card's cost line reads "It costs nothing extra. Your assistants use their own turns only when they act." and a new line says "This is a setting in AI Juggler; it changes nothing in your apps." (Casey wondered if it changed their Claude app). The inspector beside it is 380 px. Pass.
+
+## Section titles fixed (2026-11-16)
+
+Section titles re-rendered (6db085536): a colour token named like a type size (`--color-section` beside `--text-section`) had Tailwind build `.text-section` as a colour only, so every section title in the captures from 56f98a514 on was about 13 px regular grey. Re-captured and checked by eye against the earlier captures:
+
+- agent-tools-question (both themes): the inspector's title is 15 px semibold ink again, its sections a couple of pixels higher. Nothing else changed. Pass.

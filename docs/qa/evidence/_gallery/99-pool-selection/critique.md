@@ -1,4 +1,4 @@
-<!-- captures: c3944dcc9f37 -->
+<!-- captures: a6a552922bf3 -->
 # 99-pool-selection: the canvas's selection and the inspector's title (AJ-E3012)
 
 Design critique (D-57, AJ-E2814) against 97-pool-canvas (the canvas before) and the calm UI round 2 rules. The canvas with each kind selected — nothing (the pool), a session, an App, an Account, a Tool, everyone in scope, a line, the pool's own setup opened from the checklist, and the lead's place waiting for an App's next session — dark and light, 1280×800. Fixture names only.
@@ -92,3 +92,9 @@ Checked by eye, dark and light:
 - selection-pool and header-custom: the ready box ends with the first prompt to give, with Copy ("Then tell Planner: “Plan the work in every project, hand out tasks, and ask Claude Code CLI to review.”" on selection-pool). Pass.
 - Weak: at 1280×800 selection-pool's prompt line sits at the panel's foot, its second line below the fold (the panel scrolls).
 - selection-app-role re-rendered with 9 px of noise and was left as committed.
+
+## Section titles fixed (2026-11-16)
+
+Section titles re-rendered (6db085536): a colour token named like a type size (`--color-section` beside `--text-section`) had Tailwind build `.text-section` as a colour only, so every section title in the captures from 56f98a514 on was about 13 px regular grey. Re-captured and checked by eye against the earlier captures:
+
+- Every capture: the inspector's title (15 px semibold, as Hierarchy says) and its section titles ("Who leads", "Waiting on you", "The conversation") are ink and semibold again; what's under them sits 1-2 px higher. Wording, controls and states are unchanged. Pass.

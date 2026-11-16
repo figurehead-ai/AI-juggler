@@ -1,4 +1,4 @@
-<!-- captures: a8f05dbe1159 -->
+<!-- captures: b0f7a864e5c6 -->
 # 97-pool-canvas: the Pools screen and a pool's canvas
 
 Design critique (D-57, AJ-E2814) against the reference screens: the row menus (77-menus), the rail's order menu, Usage and Processes. The baseline note says what changed on purpose; this says whether it is good.
@@ -109,3 +109,9 @@ Checked by eye, dark and light:
 - new-pool-everyone (both sizes): the member's name takes its row's width, its Role and On its own pickers on the line under it (round 6 #8); the hint reads "Its role, and On its own: what this member may do without asking, if different from the pool." (#9). Pass.
 - The 1024×700 canvas captures, inspect-member, inspect-pool and messages-panel re-rendered with under 50 px of noise and were left as committed.
 - Weak: "in every project" makes the prompt read long for an every-project pool ("Plan the work in every project").
+
+## Section titles fixed (2026-11-16)
+
+Section titles re-rendered (6db085536): a colour token named like a type size (`--color-section` beside `--text-section`) had Tailwind build `.text-section` as a colour only, so every section title in the captures from 56f98a514 on was about 13 px regular grey. Re-captured and checked by eye against the earlier captures:
+
+- Every capture (both widths and themes; pools-screen at 1024 unchanged): the inspector's title ("Checkout team", the selected member's or line's name), List's "Members" and "Who talks to whom", Messages' title, New pool's step titles ("How to start", "Where", "Who's in", "Who leads", "Everyone else", "Who may message whom", "What they may do on their own", "Review") and the rail's wordmark are 15 px semibold ink again, as Hierarchy above says; what's under them sits 1-4 px higher. Wording, controls and states are unchanged. Pass.

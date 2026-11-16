@@ -1,4 +1,4 @@
-<!-- captures: e4b1a610ddbc -->
+<!-- captures: f4b5bc86f06d -->
 # 99-desktop-connector: desktop apps in a pool through AI Juggler's connector (AJ-E3013)
 
 Design critique (D-57, AJ-E2814) against 99-pool-selection (the canvas and inspector around it), 92-agent-tools (the team tools card, the same card shape) and the calm UI round 2 rules. The Checkout team pool with a Claude app profile as an App member (no connector), a Claude app session connected, another Watched, and a ChatGPT (Codex app) thread; dark and light, 1280×800. Fixtures only: nothing is written or run.
@@ -58,3 +58,9 @@ Checked by eye, dark and light:
 - Every reason a connector can't be added is worded (missing, unsafe location with its folder, not offered, unknown app, no folder, no connector); never the backend's own text (unit-tested; the ChatGPT card's line is unchanged).
 - Weak: the danger button and Cancel don't fit one row in the 380 px inspector, so Cancel wraps under it.
 - Weak: a desktop session's node isn't selectable on its own; its App's card is its door (role and level are the App's).
+
+## Section titles fixed (2026-11-16)
+
+Section titles re-rendered (6db085536): a colour token named like a type size (`--color-section` beside `--text-section`) had Tailwind build `.text-section` as a colour only, so every section title in the captures from 56f98a514 on was about 13 px regular grey. Re-captured and checked by eye against the earlier captures:
+
+- Every capture: the inspector's title, the card titles ("Set up this pool", the consent card's) and New pool's "Who's in" are semibold ink again; remove-anyway's danger button has the lighter tint everywhere now (the Button's own, d26547319; the card's override is gone). Wording, controls and states are unchanged. Pass.

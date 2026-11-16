@@ -1,4 +1,4 @@
-<!-- captures: 918a13b7e222 -->
+<!-- captures: c0622134e806 -->
 # 98-pool-setup: the pool setup a newcomer understands (AJ-E3011)
 
 Design critique (D-57, AJ-E2814) against the reference screens: Settings' choice lines, the switch dialog's "What does this mean?", and the calm UI round 2 mocks (levels, section labels, surface tone). Every step of New pool, empty (the first pool: the intro full, nothing chosen, the defaults filled in) and filled (a name, two Apps, an App's next session leading, a Reviewer, a pair blocked, waking, the seal), dark and light, 1280×800. Fixture names only.
@@ -99,3 +99,9 @@ Checked by eye, dark and light:
 - setup-everyone-filled: each member's name has its row's width ("Claude Code CLI · Work Max", "Lead when a session starts" under it), its Role and On its own pickers on the next line, then its sentence; the hint above reads "Its role, and On its own: what this member may do without asking, if different from the pool." (round 6 #8, #9). Pass.
 - Not in these captures (unit- and browser-tested): Review lists what can't work yet (a desktop App without the connector, with its reason in words) and never says ready then; it ends with the first prompt to give, with Copy; from a project's own pool the templates sit under a closed "Or start from a template"; Apps the pool couldn't take are named in a toast with why, never dropped silently; Who leads says why a desktop App can't lead; New pool's footer is never under a toast; the empty pool shows a skeleton while its rules load.
 - empty-pool-setup re-rendered with under 50 px of noise and was left as committed.
+
+## Section titles fixed (2026-11-16)
+
+Section titles re-rendered (6db085536): a colour token named like a type size (`--color-section` beside `--text-section`) had Tailwind build `.text-section` as a colour only, so every section title in the captures from 56f98a514 on was about 13 px regular grey. Re-captured and checked by eye against the earlier captures:
+
+- Every capture: the step's title is 15 px semibold ink again, above its why-line, as Hierarchy says (round 2's "semibold now" held in the code but the captures showed it grey and regular); the step's content sits 3-4 px higher, so Review (filled) shows the top of "What each member can do here"'s card at its foot. Wording, controls and states are unchanged. Pass.
