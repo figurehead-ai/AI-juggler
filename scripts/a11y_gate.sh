@@ -23,6 +23,10 @@ AJ_AXE_GALLERY=1 AJ_A11Y_EVIDENCE=1 pnpm exec playwright test \
   tests/visual/zoom-motion.spec.ts \
   tests/visual/contrast.spec.ts \
   tests/visual/inactive-apps-gallery.spec.ts \
+  tests/visual/a11y.spec.ts \
+  tests/visual/idle.spec.ts \
+  tests/visual/menus-a11y.spec.ts \
+  tests/visual/pool-layout.spec.ts \
   "$@"
 tests=$?
 summary=0
