@@ -34,13 +34,14 @@ export function edgeWords(edge: CanvasEdgeInfo, from: string, to: string, own?: 
 }
 
 /** The lines with their own rule, by edge key, from a pool's talk
- * settings (`session:<from>` → `session:<to>`). */
+ * settings (`session:<from>` → `session:<to>`; round 7 #7: a desktop
+ * session's end is its own `conversation:` ref, as its line keys it). */
 export function ownLineRules(talk: readonly { from: string; to: string; rule: string }[]): LineRules {
   const out = new Map<string, TalkRule>();
+  const end = (ref: string) => (ref.startsWith("session:") ? ref.slice("session:".length) : ref.startsWith("conversation:") ? ref : null);
   for (const { from, to, rule } of talk) {
-    if (from.startsWith("session:") && to.startsWith("session:") && (rule === "allowed" || rule === "ask" || rule === "blocked")) {
-      out.set(edgeKey(from.slice("session:".length), to.slice("session:".length)), rule);
-    }
+    const [a, b] = [end(from), end(to)];
+    if (a !== null && b !== null && (rule === "allowed" || rule === "ask" || rule === "blocked")) out.set(edgeKey(a, b), rule);
   }
   return out;
 }

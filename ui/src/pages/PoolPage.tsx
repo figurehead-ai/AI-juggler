@@ -31,7 +31,8 @@ import { FOCUS_THREAD, useMessageNeeds } from "../lib/ipc/messages";
 import { FOCUS_TASK, focusTask, useTaskNeeds, type TaskInfo } from "../lib/ipc/tasks";
 import { needWords, poolById, poolIdOf, poolIdsOf, poolNeedCount, scopeChipWords, scopeLabel, setPools, usePools } from "../lib/pools";
 import { drawnRules, everyoneOf, usePoolSetup } from "./pool/usePoolSetup";
-import { desktopRecipients, useDesktopSessions } from "../lib/connector";
+import { desktopRecipients } from "../lib/connector";
+import { useDesktopOnCanvas } from "./pool/useDesktopOnCanvas";
 import { PoolSetupSections } from "./pool/PoolSetupSections";
 import { liveOutside, useConversations } from "../lib/conversations";
 import { sessionState } from "../lib/rail-items";
@@ -112,7 +113,9 @@ function PoolCanvasPage({ poolId, sessions, projects, accounts, now, rules }: Pa
   const { all } = useConversations();
   const messageNeeds = useMessageNeeds();
   const taskNeeds = useTaskNeeds();
-  const data = useCanvas(poolId, sessions);
+  // Round 7 #7: the desktop sessions' lines are read with the canvas.
+  const desktop = useDesktopOnCanvas(poolId, rules.watched);
+  const data = useCanvas(poolId, sessions, desktop.refs);
   const ruleLabel = useRuleLabel(accounts, sessions, everyoneOf(pool, projects));
   const ruleTool = useRuleTool(accounts);
   const memberRules = rules.rules?.members ?? [];
@@ -173,7 +176,7 @@ function PoolCanvasPage({ poolId, sessions, projects, accounts, now, rules }: Pa
     setSelection(next);
     if (focusInspector) requestAnimationFrame(() => inspectorTitle.current?.focus());
   }, []);
-  const names = useMemo(() => new Map(data.members.map((member) => [member.id, member.name])), [data.members]);
+  const names = useMemo(() => new Map([...desktop.names, ...data.members.map((member) => [member.id, member.name] as const)]), [data.members, desktop.names]);
   const project = pool.project_id ? projects.find((row) => row.id === pool.project_id) : undefined;
   const candidates = useMemo(
     () => sessions.filter((session) => sessionState(session).state !== "ended" && !poolIdsOf(pools, session).includes(pool.id) && cannotJoin(pool, session) === null),
@@ -203,8 +206,7 @@ function PoolCanvasPage({ poolId, sessions, projects, accounts, now, rules }: Pa
   const facts = [pool.kind === "default" && project ? `Every session in ${project.name} is part of this team` : null, poolCountWords(pool.members, openHere.length, elsewhere), needs > 0 ? needWords(needs) : null].filter(Boolean).join(" · ");
   const unplaced = (data.canvas?.asks ?? []).filter((ask) => ask.session_id === null);
   // AJ-E3013: a desktop session through the connector is a recipient too.
-  const desktopSessions = useDesktopSessions(pool.id);
-  const members = [...data.members.map((member) => ({ session_id: member.id, name: names.get(member.id) ?? member.card.name, live: isActiveStatus(member.session.status) })), ...desktopRecipients(desktopSessions)];
+  const members = [...data.members.map((member) => ({ session_id: member.id, name: names.get(member.id) ?? member.card.name, live: isActiveStatus(member.session.status) })), ...desktopRecipients(desktop.sessions)];
 
   // AJ-E3011: the checklist, in the setup's order.
   const setup = usePoolSetup({
@@ -294,6 +296,9 @@ function PoolCanvasPage({ poolId, sessions, projects, accounts, now, rules }: Pa
                   selection={selection}
                   onSelect={(next) => select(next, true)}
                   placeOf={placeOf}
+                  edges={data.canvas?.edges}
+                  names={names}
+                  lineRules={lineRules}
                   lead={setup.leadCard}
                   leadNext={setup.leadNext}
                   poolId={pool.id}

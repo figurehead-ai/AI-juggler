@@ -35,7 +35,7 @@ export function DesktopSessions({ sessions }: { sessions: readonly DesktopSessio
       {sessions.map((one) => {
         const state = one.session_id ? "Active lately" : "Quiet lately";
         return (
-          <li key={one.member} className="flex flex-col gap-0.5 rounded-lg bg-surface px-2.5 py-1.5 shadow-card" data-testid="canvas-desktop-session" data-member={one.member}>
+          <li key={one.member} className="flex flex-col gap-0.5 rounded-lg bg-surface px-2.5 py-1.5 shadow-card" data-testid="canvas-desktop-session" data-member={one.member} data-desktop-ref={one.member}>
             <span className="flex items-start gap-1.5">
               <span aria-hidden="true" title={state} className={"mt-1.5 size-1.5 shrink-0 rounded-full " + (one.session_id ? "bg-success" : "bg-muted")} />
               <span className="sr-only">{state}: </span>

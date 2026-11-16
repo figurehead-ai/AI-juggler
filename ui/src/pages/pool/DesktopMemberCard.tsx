@@ -40,7 +40,7 @@ export function DesktopMemberCard({ one, desktop, selected, onSelect }: { one: W
     run();
   };
   return (
-    <div className={"pointer-events-auto flex flex-col gap-1 rounded-xl px-3 py-2 " + (selected ? SELECTED : "bg-surface shadow-card")} data-testid="canvas-watched-node" data-reach={reach.kind} data-rule-ref={one.member}>
+    <div className={"pointer-events-auto flex flex-col gap-1 rounded-xl px-3 py-2 " + (selected ? SELECTED : "bg-surface shadow-card")} data-testid="canvas-watched-node" data-reach={reach.kind} data-rule-ref={one.member} data-desktop-ref={one.member}>
       <div className="flex items-start gap-1">
         <button type="button" aria-pressed={selected} onClick={onSelect} className={"flex min-w-0 flex-1 flex-col gap-1 rounded-lg text-left " + FOCUS_RING}>
           <span className="flex items-center gap-1.5">

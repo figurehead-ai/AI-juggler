@@ -205,11 +205,16 @@ export async function poolsOfSession(sessionId: string): Promise<SessionPoolsInf
 
 /** The rule along one line between two sessions: its own, else its
  * roles' pair's. */
+/** A line's end as a member ref: a session's (`session:<id>`), or a
+ * desktop session's own `conversation:<folder>/<id>` (round 7 #7: its
+ * line keys it by that ref). */
+export const lineEndRef = (id: string): string => (id.startsWith("conversation:") ? id : `session:${id}`);
+
 export async function poolEdgeTalk(poolId: string, from: string, to: string): Promise<EdgeTalkInfo> {
   if (!hasLiveBackend()) {
     const rules = rulesOf(poolId);
-    const role = (id: string) => rules.members.find((row) => row.member === `session:${id}`)?.role ?? "member";
-    const own = rules.talk.find((row) => row.from === `session:${from}` && row.to === `session:${to}`);
+    const role = (id: string) => rules.members.find((row) => row.member === lineEndRef(id))?.role ?? "member";
+    const own = rules.talk.find((row) => row.from === lineEndRef(from) && row.to === lineEndRef(to));
     const pair = rules.talk.find((row) => row.from === `role:${role(from)}` && row.to === `role:${role(to)}`);
     const pairRule = pair?.rule ?? "allowed";
     return { rule: own?.rule ?? pairRule, pair_rule: pairRule, own: !!own, from_role: role(from), to_role: role(to) };

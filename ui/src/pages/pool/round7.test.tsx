@@ -5,7 +5,7 @@
  * what's chosen there; Show the files opens on an accessibility press.
  */
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { JSX } from "react";
 
@@ -13,7 +13,8 @@ import { CONNECTOR, desktopRecipients, useDesktopSessions } from "../../lib/conn
 import { PREVIEW_SESSIONS_UPDATED } from "../../lib/ipc/instances";
 import { usePoolRules } from "../../lib/pool-rules";
 import { resetPreviewConnector } from "../../lib/ipc/connector";
-import { poolJoin, poolRules, resetPreviewPoolModel, type MemberKind } from "../../lib/ipc/pool-model";
+import { lineEndRef, poolJoin, poolRules, resetPreviewPoolModel, type MemberKind } from "../../lib/ipc/pool-model";
+import * as poolCanvasIpc from "../../lib/ipc/pool-canvas";
 import { setPools } from "../../lib/pools";
 import { previewPoolsInfo, resetPreviewPools } from "../../lib/ipc/pools";
 import { DESKTOP_NOTE, draftOf, type Candidate, type Draft } from "../../lib/new-pool";
@@ -24,6 +25,9 @@ import { forgetSharedReads } from "../../lib/shared-read";
 import { NewPoolWho } from "../../screens/pools/NewPoolWho";
 import { ConnectorCard } from "./connector/ConnectorCard";
 import { RuleNodes } from "./RuleNodes";
+import { ownLineRules } from "./CanvasEdges";
+import { desktopLines } from "./DesktopEdges";
+import { useCanvas } from "./useCanvas";
 import { SENTENCE_TITLES } from "./setup/PoolSentences";
 
 describe("round 7 #1: the ready line names the member, not the tool", () => {
@@ -218,5 +222,46 @@ describe("round 7 #6: the pool page follows sessions live", () => {
     await waitFor(() => expect(screen.getByTestId("canvas-rule-open").textContent).toBe("No session open yet · new ones join"));
     expect(screen.queryByTestId("canvas-desktop-session")).toBeNull();
     expect(screen.getByTestId("to-list").textContent).toBe("");
+  });
+});
+
+// #7 (aij-test run 3): Lab and the aij-test session messaged each other
+// and the diagram drew no line, so the line's own rule couldn't be set.
+describe("round 7 #7: lines to desktop sessions", () => {
+  const LAB = "s-lab";
+  const AIJ = "conversation:claude-aij/c1";
+  const edge = (from: string, to: string, messages: number) => ({ from_session_id: from, to_session_id: to, messages, tasks: 0, last_at_ms: 1, thread_id: "thr-1", pending: [] });
+  const names = new Map([[LAB, "Lab"], [AIJ, "Say hello to lab"]]);
+
+  it("a line between a board node and a desktop row, each way, with its count; one between two board nodes is the board's", () => {
+    const ends: Record<string, { x: number; y: number; row: boolean }> = { [LAB]: { x: 300, y: 200, row: false }, [AIJ]: { x: 900, y: 400, row: true }, "s-other": { x: 100, y: 100, row: false } };
+    const lines = desktopLines({ edges: [edge(LAB, AIJ, 1), edge(AIJ, LAB, 1), edge(LAB, "s-other", 3)], endOf: (id) => ends[id] ?? null, names, selection: { kind: "edge", key: `${AIJ}>${LAB}` } });
+    expect(lines.map((line) => [line.key, line.count, line.on])).toEqual([
+      [`${LAB}>${AIJ}`, "1 message", false],
+      [`${AIJ}>${LAB}`, "1 message", true],
+    ]);
+    expect(lines[0]!.aria).toBe("1 message, Lab to Say hello to lab");
+    // Both ways: a little apart, not on top of each other.
+    expect(lines[0]!.d).not.toBe(lines[1]!.d);
+  });
+
+  it("its own rule shows on it and in the inspector: a desktop end is its conversation ref", async () => {
+    expect(lineEndRef(LAB)).toBe("session:s-lab");
+    expect(lineEndRef(AIJ)).toBe(AIJ);
+    const rules = ownLineRules([{ from: "session:s-lab", to: AIJ, rule: "allowed" }, { from: "role:member", to: "role:member", rule: "blocked" }]);
+    expect([...rules]).toEqual([[`${LAB}>${AIJ}`, "allowed"]]);
+    const ends: Record<string, { x: number; y: number; row: boolean }> = { [LAB]: { x: 300, y: 200, row: false }, [AIJ]: { x: 900, y: 400, row: true } };
+    expect(desktopLines({ edges: [edge(LAB, AIJ, 2)], endOf: (id) => ends[id] ?? null, names, lineRules: rules, selection: { kind: "none" } })[0]!.count).toBe("2 messages · Allowed here");
+  });
+
+  it("the canvas is read for the desktop sessions too, so their lines come back with the rest", async () => {
+    const read = vi.spyOn(poolCanvasIpc, "poolCanvas");
+    function Board(): null {
+      useCanvas("pool-desktop-lines", [], [AIJ]);
+      return null;
+    }
+    render(<Board />);
+    await waitFor(() => expect(read).toHaveBeenCalledWith("pool-desktop-lines", [AIJ]));
+    read.mockRestore();
   });
 });

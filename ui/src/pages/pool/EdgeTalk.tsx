@@ -10,7 +10,7 @@ import { useEffect, useState, type JSX } from "react";
 import { Segmented } from "../../components/controls";
 import { showToast } from "../../components/Toast";
 import { errorText } from "../../lib/bridge";
-import { poolEdgeTalk, poolSetTalk, type EdgeTalkInfo, type TalkRule } from "../../lib/ipc/pool-model";
+import { lineEndRef, poolEdgeTalk, poolSetTalk, type EdgeTalkInfo, type TalkRule } from "../../lib/ipc/pool-model";
 import { CLAUDE_CHANNEL_NOTE, roleLabel } from "../../lib/pools";
 
 const WORDS: Record<TalkRule, string> = { allowed: "Allowed", ask: "Ask first", blocked: "Blocked" };
@@ -32,7 +32,7 @@ export function EdgeTalk({ poolId, from, to, fromName, toName }: { poolId: strin
   const set = async (rule: TalkRule) => {
     try {
       // The pair's own rule again: the line follows its pair.
-      await poolSetTalk(poolId, `session:${from}`, `session:${to}`, rule === talk.pair_rule ? null : rule);
+      await poolSetTalk(poolId, lineEndRef(from), lineEndRef(to), rule === talk.pair_rule ? null : rule);
       setNonce((value) => value + 1);
     } catch (cause) {
       showToast({ message: "Couldn't change who may talk", detail: errorText(cause), tone: "error" });

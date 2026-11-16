@@ -103,7 +103,10 @@ export async function prefetchPool(poolId: string): Promise<void> {
   }
 }
 
-export function useCanvas(poolId: string, sessions: InstanceInfo[]) {
+/** `desktop`: the pool's desktop sessions (their member refs), drawn in
+ * its column, not as nodes here: the canvas is read for them too, so a
+ * line to one comes back with the rest (round 7 #7). */
+export function useCanvas(poolId: string, sessions: InstanceInfo[], desktop: readonly string[] = []) {
   const list = usePoolMembers(poolId);
   const { items, hasMore, loadingMore, loading, loadMore, refresh: refreshMembers } = list;
   // Up to the canvas's cap, a page at a time.
@@ -128,7 +131,8 @@ export function useCanvas(poolId: string, sessions: InstanceInfo[]) {
     () => drawn.map((member) => (pendingRoles.has(member.id) ? { ...member, role: pendingRoles.get(member.id)!, pending: true } : member)),
     [drawn, pendingRoles],
   );
-  const ids = useMemo(() => members.map((member) => member.id), [members]);
+  const desktopKey = desktop.join("|");
+  const ids = useMemo(() => [...members.map((member) => member.id), ...(desktopKey ? desktopKey.split("|") : [])], [members, desktopKey]);
   const idsKey = ids.join("|");
 
   // X2: a read made ahead (`prefetchPool`) paints at once; it's read again

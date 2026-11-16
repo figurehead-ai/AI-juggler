@@ -26,6 +26,9 @@ import type { PoolRuleInfo, WatchedMemberInfo } from "../../lib/ipc/pool-model";
 import { levelLabel, roleLabel } from "../../lib/pools";
 import { reachOf, useDesktopMembers, useDesktopSessions } from "../../lib/connector";
 import { DesktopSessions, quiet, sessionsUnder } from "./DesktopSessions";
+import { DesktopEdges } from "./DesktopEdges";
+import type { LineRules } from "./CanvasEdges";
+import type { CanvasEdgeInfo } from "../../lib/ipc/pool-canvas";
 import { DesktopMemberCard } from "./DesktopMemberCard";
 import { everyoneJoins, openNowWords } from "../../lib/pool-open-now";
 import { LEADS_WHEN, LEAD_WOULD, nextLeadsLine, wakeWords } from "../../lib/pool-words";
@@ -43,6 +46,9 @@ const KIND_WORD: Record<string, string> = { app: "App", account: "Account", tool
 
 /** The member rules drawn as group nodes: an App, Account, Tool, Mac or
  * everyone (a session's own rule is its node). */
+const NO_EDGES: readonly CanvasEdgeInfo[] = [];
+const NO_NAMES: ReadonlyMap<string, string> = new Map();
+
 const broadOf = (rules: readonly PoolRuleInfo[]) => rules.filter((rule) => rule.kind !== "session" && !rule.member.startsWith("conversation:"));
 
 /** The room the group nodes' column takes at the canvas's right (w-56
@@ -59,6 +65,9 @@ export function RuleNodes({
   selection,
   onSelect,
   placeOf,
+  edges = NO_EDGES,
+  names = NO_NAMES,
+  lineRules,
   toolOf,
   lead: leadPlace = false,
   leadNext = null,
@@ -84,6 +93,11 @@ export function RuleNodes({
   toolOf?: (rule: PoolRuleInfo) => { tool: string; account: string | null } | null;
   /** Where a member's node is on screen now (its lines end there). */
   placeOf?: (id: string) => { x: number; y: number; w: number; h: number } | null;
+  /** Round 7 #7: the canvas's lines, names and own rules, for the lines
+   * to the desktop sessions in this column. */
+  edges?: readonly CanvasEdgeInfo[];
+  names?: ReadonlyMap<string, string>;
+  lineRules?: LineRules;
   rules: PoolRuleInfo[];
   watched: WatchedMemberInfo[];
   /** A member rule's name on screen ("Claude Code · Work", "This Mac"). */
@@ -140,6 +154,7 @@ export function RuleNodes({
         ))}
       </svg>
     )}
+    <DesktopEdges column={column} edges={edges} placeOf={placeOf} names={names} lineRules={lineRules} selection={selection} onSelect={onSelect} />
     <div ref={column} className="pointer-events-none absolute right-3 top-3 z-10 flex max-h-[calc(100%-5rem)] w-56 flex-col gap-3 overflow-y-auto p-1" data-testid="canvas-rule-nodes" data-canvas-scroll onScroll={() => setLines((was) => [...was])}>
       {noLead && (
         <button

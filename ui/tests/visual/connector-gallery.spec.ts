@@ -102,6 +102,15 @@ function workConnector(state: "current" | "changed") {
   };
 }
 
+// Round 7 #7 (aij-test run 3): Planner and the Work App's desktop session
+// messaged each other; the diagram draws their lines from its row.
+function desktopLines(t0: number) {
+  const base = canvasSeed(t0).__AIJ_POOL_CANVAS__[POOL]!;
+  const line = (from: string, to: string, messages: number, ago: number) => ({ from_session_id: from, to_session_id: to, messages, tasks: 0, last_at_ms: t0 - ago, thread_id: "thr-copy", pending: [] });
+  const desktop = "conversation:claude-work/outside-7";
+  return { __AIJ_POOL_CANVAS__: { [POOL]: { ...base, edges: [...base.edges, line("s-plan", desktop, 2, 240_000), line(desktop, "s-plan", 1, 120_000)] } } };
+}
+
 async function open(page: Page, theme: "dark" | "light", extra: Record<string, unknown> = {}) {
   await page.clock.setFixedTime(GATE_NOW);
   await page.addInitScript(
@@ -247,5 +256,23 @@ for (const theme of ["dark", "light"] as const) {
     await expect(page.getByTestId("inspect-connector-remove-anyway")).toBeInViewport();
     await axe(page, `remove anyway ${theme}`);
     await shoot(page, `remove-anyway-1280x800-${theme}.png`);
+  });
+
+  test(`a line between a board node and a desktop session: its count, selected, its own rule — ${theme}`, async ({ page }) => {
+    await open(page, theme, { ...workConnector("current"), ...desktopLines(GATE_NOW) });
+    await poolPage(page);
+    const lines = page.getByTestId("canvas-desktop-line");
+    await expect(lines).toHaveCount(2);
+    const toIt = page.locator('[data-testid="canvas-desktop-line"][data-edge="s-plan>conversation:claude-work/outside-7"]');
+    await expect(toIt).toHaveText("2 messages");
+    await axe(page, `desktop line ${theme}`);
+    await shoot(page, `desktop-line-1280x800-${theme}.png`);
+
+    await toIt.click();
+    await expect(page.getByTestId("inspector-title")).toHaveText("Planner → Tidy the checkout tests");
+    await page.getByTestId("edge-talk-rule").getByRole("radio", { name: "Ask first" }).click();
+    await expect(toIt).toHaveText("2 messages · Ask first here");
+    await axe(page, `desktop line selected ${theme}`);
+    await shoot(page, `desktop-line-selected-1280x800-${theme}.png`);
   });
 }
