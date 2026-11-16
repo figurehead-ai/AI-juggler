@@ -589,7 +589,7 @@ pub(crate) fn running_in(
 
 /// Run 3 (aij-test quit, its App still "1 open now"): the kept desktop
 /// sessions checked now against their tools' registries and the process
-/// table, as [`sweep`] does on a call: one whose process ended goes at
+/// table, as `sweep` does on a call: one whose process ended goes at
 /// once, one still running stays open. The live view's tick runs it
 /// (2 s); nothing to do while none is kept. Whether one went, here or on
 /// a call since the last tick (then the window hears of it: the pools'
