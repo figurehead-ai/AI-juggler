@@ -98,8 +98,9 @@ pub struct Bridge {
     /// D-119 (M2): the connectors' wake waits held now.
     pub(crate) waits: desktop::Waits,
     /// The review's global-cap finding: each process attested recently,
-    /// by pid: its pid version and when ([`calls::ATTESTED_FOR`]).
-    pub(crate) attested_peers: Mutex<HashMap<u32, (u32, Instant)>>,
+    /// by pid: its pid version, when ([`calls::ATTESTED_FOR`]), and the
+    /// session it's charged to (the fifth finding).
+    pub(crate) attested_peers: Mutex<HashMap<u32, calls::Kept>>,
 }
 
 /// The socket for the app's data folder (per edition: each edition has

@@ -977,6 +977,86 @@ fn members_still_wake_promptly_during_and_right_after_a_flood() {
     });
 }
 
+/// The fifth finding: the lines of one attested session's processes (its
+/// connector, its hooks, anything it runs) share one allowance, keyed by
+/// its tool's pid and version, not one each; a process never attested has
+/// its own.
+#[test]
+fn an_attested_sessions_processes_share_one_allowance() {
+    use super::calls::{Counted, MAX_CALLS};
+    let dir = tempfile::tempdir().unwrap();
+    let (state, _) = lab(dir.path());
+    let peer = |pid: u32| juggler_platform::local_ipc::Peer {
+        pid: Some(pid),
+        pid_version: Some(1),
+        accepted: std::time::SystemTime::now(),
+    };
+    // Its tool: this test's own process (a version the kernel gives).
+    let tool = std::process::id();
+    super::calls::note_attested(&state, peer(4_100), tool);
+    super::calls::note_attested(&state, peer(4_101), tool);
+    let line = |pid: u32| {
+        super::calls::keyless_refused(
+            &state,
+            Counted {
+                pid: Some(pid),
+                version: Some(1),
+            },
+            "own",
+        )
+    };
+    let served = (0..MAX_CALLS)
+        .filter(|n| line(if n % 2 == 0 { 4_100 } else { 4_101 }).is_none())
+        .count();
+    assert_eq!(served, MAX_CALLS, "together, up to the one allowance");
+    assert_eq!(
+        line(4_101).map(|refused| refused.refused),
+        Some(Some(Refusal::Limit)),
+        "the session's allowance is spent, whichever process asks"
+    );
+    assert!(line(4_102).is_none(), "a process never attested: its own");
+}
+
+/// The fifth finding: a full table of attested processes makes room by
+/// dropping the oldest one, never every member's exemption at once.
+#[test]
+fn a_full_table_of_attested_processes_drops_the_oldest_only() {
+    use super::calls::{Kept, make_room};
+    use std::collections::HashMap;
+    use std::time::{Duration, Instant};
+    let base = Instant::now();
+    let mut kept: HashMap<u32, Kept> = (0..1_024_u32)
+        .map(|pid| {
+            (
+                pid,
+                Kept {
+                    version: 1,
+                    at: base + Duration::from_millis(u64::from(pid)),
+                    session: (pid, 1),
+                },
+            )
+        })
+        .collect();
+    make_room(&mut kept, 1_024, base + Duration::from_secs(2));
+    assert_eq!(kept.len(), 1_023);
+    assert!(!kept.contains_key(&0), "the oldest went");
+    assert!(
+        kept.contains_key(&1) && kept.contains_key(&1_023),
+        "the rest stay"
+    );
+    // Those past their time go first, all of them.
+    make_room(
+        &mut kept,
+        1_023,
+        base + super::calls::ATTESTED_FOR + Duration::from_millis(512),
+    );
+    assert!(kept.len() < 1_023 && kept.contains_key(&1_023));
+    assert!(
+        kept.values()
+            .all(|one| one.at >= base + Duration::from_millis(512))
+    );
+}
+
 /// Desktop member `n`'s conversation.
 fn conversation(n: u32) -> String {
     format!("conv-{n}")

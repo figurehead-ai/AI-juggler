@@ -320,10 +320,16 @@ pub(crate) fn gate(
 /// (`nc -U` in a loop) can't make that work unbounded either, while a
 /// process attested in the last [`ATTESTED_FOR`] isn't held up by it.
 pub(super) fn keyless_refused(state: &Arc<AppState>, who: Counted, own: &str) -> Option<Response> {
-    let exempt = recently_attested(state, who);
-    let key = who
-        .pid
-        .map_or_else(|| "peer:unknown".to_owned(), |pid| format!("peer:{pid}"));
+    let session = session_of(state, who);
+    let exempt = session.is_some();
+    // The fifth finding: an exempt line is charged to its session (its
+    // attested tool's pid and version), not to whichever of the session's
+    // processes sent it, so its descendants share one allowance.
+    let key = match (session, who.pid) {
+        (Some((pid, version)), _) => format!("session:{pid}:{version}"),
+        (None, Some(pid)) => format!("peer:{pid}"),
+        (None, None) => "peer:unknown".to_owned(),
+    };
     let decided = state
         .agent_bridge
         .calls
@@ -338,8 +344,42 @@ pub(super) fn keyless_refused(state: &Arc<AppState>, who: Counted, own: &str) ->
     }
 }
 
+/// A process attested lately: its pid version, when, and its session
+/// (the attested tool's pid and version) it's charged to.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct Kept {
+    /// Its pid version.
+    pub version: u32,
+    /// When it was attested (or held in an attested wait).
+    pub at: Instant,
+    /// Its session: the attested tool process's pid and version.
+    pub session: (u32, u32),
+}
+
+/// Makes room in `kept` for one more at `now`: those past
+/// [`ATTESTED_FOR`] go first, then (the fifth finding) the oldest, one by
+/// one, never all at once, so one burst never drops every member's
+/// exemption.
+pub(crate) fn make_room(kept: &mut HashMap<u32, Kept>, max: usize, now: Instant) {
+    if kept.len() < max {
+        return;
+    }
+    kept.retain(|_, one| now.duration_since(one.at) <= ATTESTED_FOR);
+    while kept.len() >= max {
+        let Some(oldest) = kept
+            .iter()
+            .min_by_key(|(_, one)| one.at)
+            .map(|(pid, _)| *pid)
+        else {
+            break;
+        };
+        kept.remove(&oldest);
+    }
+}
+
 /// Notes the attested caller at `peer` and its session's tool process
-/// (`tool_pid`) as attested now, by pid and pid version.
+/// (`tool_pid`) as attested now, by pid and pid version, both charged to
+/// that session.
 pub(super) fn note_attested(
     state: &Arc<AppState>,
     peer: juggler_platform::local_ipc::Peer,
@@ -347,30 +387,46 @@ pub(super) fn note_attested(
 ) {
     let now = Instant::now();
     let tool = juggler_proc_list::pid_version(tool_pid).map(|version| (tool_pid, version));
+    let caller = peer.pid.zip(peer.pid_version);
+    // Its tool's process names the session; when it can't be read, the
+    // caller itself stands for it.
+    let Some(session) = tool.or(caller) else {
+        return;
+    };
     let Ok(mut kept) = state.agent_bridge.attested_peers.lock() else {
         return;
     };
-    if kept.len() >= RATE_KEYS_MAX {
-        kept.retain(|_, (_, at)| now.duration_since(*at) <= ATTESTED_FOR);
-        if kept.len() >= RATE_KEYS_MAX {
-            kept.clear();
+    for (pid, version) in [caller, tool].into_iter().flatten() {
+        if !kept.contains_key(&pid) {
+            make_room(&mut kept, RATE_KEYS_MAX, now);
         }
+        kept.insert(
+            pid,
+            Kept {
+                version,
+                at: now,
+                session,
+            },
+        );
     }
-    for (pid, version) in [peer.pid.zip(peer.pid_version), tool].into_iter().flatten() {
-        kept.insert(pid, (version, now));
-    }
+}
+
+/// The session `who` (its pid at that version) was attested as in the
+/// last [`ATTESTED_FOR`]: its tool's pid and version.
+pub(super) fn session_of(state: &Arc<AppState>, who: Counted) -> Option<(u32, u32)> {
+    let (Some(pid), Some(version)) = (who.pid, who.version) else {
+        return None;
+    };
+    let kept = state.agent_bridge.attested_peers.lock().ok()?;
+    kept.get(&pid)
+        .filter(|one| one.version == version && one.at.elapsed() <= ATTESTED_FOR)
+        .map(|one| one.session)
 }
 
 /// Whether `who` (its pid at that version) was attested in the last
 /// [`ATTESTED_FOR`].
 pub(super) fn recently_attested(state: &Arc<AppState>, who: Counted) -> bool {
-    let (Some(pid), Some(version)) = (who.pid, who.version) else {
-        return false;
-    };
-    state.agent_bridge.attested_peers.lock().is_ok_and(|kept| {
-        kept.get(&pid)
-            .is_some_and(|(at_version, at)| *at_version == version && at.elapsed() <= ATTESTED_FOR)
-    })
+    session_of(state, who).is_some()
 }
 
 fn within_rate_of(state: &Arc<AppState>, key: &str, max: usize) -> bool {
