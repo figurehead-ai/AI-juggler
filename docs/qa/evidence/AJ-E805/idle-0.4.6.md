@@ -54,8 +54,9 @@ process (round 5 used `sample`; this round doesn't). What was read:
   for page due to user activity", then the window server's deferred
   ordering from the app's own connection). From launch 6 on it takes
   clicks itself and does nothing with them, and says on it "AI Juggler
-  test: measuring, closes by itself in a minute". The before and after builds alternate, one
-  launch at a time, under one set of 10 working stand-ins.
+  test: measuring, closes by itself in a minute". The before and after
+  builds alternate, one launch at a time, under one set of 10 working
+  stand-ins.
 - **The drop rule** (round 4's, decided from the system log, never from
   the number), widened: a reading is dropped when its pid logged a
   display reconfiguration, the app made active, the window occluded or
@@ -134,8 +135,8 @@ The spread follows the page's own work in that minute (14–41 commits,
 2–14 seconds with a DOM write), not the arm: the normal phases happened
 to hold 37 seconds with a DOM write and the flat ones 26, which is the
 GPU process's 0.11 between them (its cost per second with a write is the
-same in both, 0.02–0.03 %). A load of ~30 from `yes`
-amplified nothing either: the GPU process read as at low load. The
+same in both, 0.02–0.03 %). A load of ~30 from `yes` amplified
+nothing either: the GPU process read as at low load. The
 amplification of phase A came only under real contention (builds and
 the maintainer's work, load 85–95, memory-heavy and wider than the 30
 cores); a high-load A/B was not run, as the Mac was in use (load 83 from
@@ -143,7 +144,7 @@ the maintainer's own work at the end of the A/B).
 
 ### Outside events, and the window moved
 
-Over 24 min of shown readings the window was disturbed from outside
+In phase A's 20 minutes shown the window was disturbed from outside
 three ways, each named in the app's own log and none by the lab:
 
 - **Display reconfigurations** (11:15:35–38, 11:31:21–24): the external
