@@ -9,7 +9,10 @@
  * from the tool's own transcript as every session's page shows it; else
  * (no conversation either) that nothing was kept, and History's search.
  * The terminal stays mounted while it ends and while that's asked (one
- * that ends as you watch is never rebuilt).
+ * that ends as you watch is never rebuilt). One opened ended shows a
+ * skeleton while that's asked, never a blank terminal (the 0.4.6 RC walk
+ * K2, F-K2-6: black for about a second under load), and the answer is
+ * kept, so opening it again shows what it kept at once.
  */
 import { useEffect, useState, type JSX, type ReactNode } from "react";
 import { Button, Card } from "../../components/primitives";
@@ -20,21 +23,47 @@ import type { InstanceInfo } from "../../types/generated/InstanceInfo";
 import { LastMessages } from "./LastMessages";
 import { fromInstance } from "./model";
 
-/** Whether `id`'s terminal kept output to replay; `null` while asked
- * (and for no `id`: one still running). */
-function useKept(id: string | null): boolean | null {
-  const [answer, setAnswer] = useState<{ id: string; kept: boolean } | null>(null);
+/** What each ended session's terminal kept, by `id@last activity`: an
+ * ended one's kept output only changes when it runs again (its last
+ * activity moves), and the window's memory goes with the app's. */
+const answered = new Map<string, boolean>();
+
+/** Forgets the answers (tests). */
+export function forgetKept(): void {
+  answered.clear();
+}
+
+/** Whether the terminal `key` names kept output to replay: the kept
+ * answer at once, else `null` while asked (and for no `key`: one still
+ * running). */
+function useKept(id: string | null, key: string | null): boolean | null {
+  const [answer, setAnswer] = useState<{ key: string; kept: boolean } | null>(null);
   useEffect(() => {
-    if (id === null) return undefined;
+    if (id === null || key === null || answered.has(key)) return undefined;
     let alive = true;
     void terminalKept(id).then((kept) => {
-      if (alive) setAnswer({ id, kept });
+      answered.set(key, kept);
+      if (alive) setAnswer({ key, kept });
     });
     return () => {
       alive = false;
     };
-  }, [id]);
-  return answer?.id === id ? answer.kept : null;
+  }, [id, key]);
+  if (key === null) return null;
+  return answered.get(key) ?? (answer?.key === key ? answer.kept : null);
+}
+
+/** The terminal's shape while what it kept is asked: never a blank pane. */
+function Asking(): JSX.Element {
+  return (
+    <Card className="flex min-h-[280px] flex-1 flex-col p-5" data-testid="ended-terminal-asking">
+      <output aria-label="Reading what its terminal kept" className="flex flex-col gap-3">
+        <span className="h-3 w-1/3 rounded bg-skeleton motion-safe:animate-pulse" />
+        <span className="h-3 w-2/3 rounded bg-skeleton motion-safe:animate-pulse" />
+        <span className="h-3 w-1/2 rounded bg-skeleton motion-safe:animate-pulse" />
+      </output>
+    </Card>
+  );
 }
 
 /** History, searching for `words` (the rail's "Search all history"). */
@@ -43,10 +72,14 @@ function searchHistory(words: string): void {
 }
 
 export function SessionTerminal({ session, live, terminal, now }: { session: InstanceInfo; live: boolean; terminal: ReactNode; now: number }): JSX.Element {
-  const kept = useKept(live ? null : session.id);
+  const kept = useKept(live ? null : session.id, live ? null : `${session.id}@${session.last_activity_ms ?? session.started_at_ms}`);
+  // Seen running here: its terminal stays while what it kept is asked.
+  const [seenLive, setSeenLive] = useState(live);
+  if (live && !seenLive) setSeenLive(true);
+  if (!live && kept === null && !seenLive) return <Asking />;
   if (live || kept !== false) {
     return (
-      <div className="flex min-h-0 flex-1 flex-col gap-2" data-testid={live ? undefined : kept ? "ended-terminal-kept" : "ended-terminal-asking"}>
+      <div className="flex min-h-0 flex-1 flex-col gap-2" data-testid={live ? undefined : kept ? "ended-terminal-kept" : "ended-terminal-asked-live"}>
         {terminal}
         {!live && kept && <p className="text-meta text-ink-2">{`ran ${since(session.started_at_ms, now)} · scrollback replayed`}</p>}
       </div>
