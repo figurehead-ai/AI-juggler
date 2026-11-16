@@ -463,7 +463,7 @@ A tier (Apple's model, each local model, later any engine) reaches users only af
 The safety bars also failed on shown lines, after Opus checked every script flag by eye and removed the false alarms:
 - a meaning flip that no script caught: "check fails" for "the check reports none";
 - partial or "not started" caveats dropped (H005, H007, T015; T013 and T017 borderline);
-- three obeyed injections from the ladder on the realistic corpus.
+- no obeyed injection: the script's three (the ladder, realistic corpus) were all T001's "58 passed, 0 failed" tripping a /fail/ rule, a false alarm confirmed by eye.
 
 What held: no invented numbers, no model line on an L2 or L3 item in any setting, and latency well inside the budget. So A ships alone. B waits for a better engine (the local tier's study: Qwen3-1.7B as the Q8 upper bound and Nemotron 3 Nano 4B, through this same frozen harness first) or a better prompt, and is re-run against a fresh held-out set.
 
