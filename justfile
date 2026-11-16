@@ -148,6 +148,18 @@ load-gate:
 fs-events-live:
     cargo test -p juggler-adapters --lib folder_wake -- --ignored --nocapture
 
+# AJ-E3013: the desktop-member host checks against this Mac's running
+# Claude app, read-only (they read processes, code signatures, the app's
+# fuse wire, and ask who holds one profile lock; they start, lock and
+# change nothing). Each release candidate runs them (docs/qa/0.4-walks/
+# release-candidate.md §2), so a Claude app update that breaks one is
+# caught before the release. Needs the Claude app running, with a
+# Code-tab session.
+desktop-host-checks:
+    cargo test -p juggler-platform --lib -- --ignored --exact code_sign::tests::the_installed_claude_app_and_its_claude_code_pass safe_fs::tests::the_running_claude_app_holds_its_instances_storage_lock
+    cargo test -p juggler-app --lib -- --ignored --exact features::agent_bridge::attest::tests::the_running_claude_apps_profiles_pass_the_instance_checks
+    cargo test -p juggler-adapters --lib -- --exact claude_peer::tests::the_installed_claude_apps_fuses_stay_off
+
 # AJ-E805: every sub-second timer or sleep in shipped code says why.
 polling-audit:
     python3 scripts/polling_audit.py > /dev/null

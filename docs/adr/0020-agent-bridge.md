@@ -350,6 +350,21 @@ part in its adapter, `juggler_adapter::peer::DesktopPeer`):
      (none of five running instances had one, 2026-11-15), so its storage
      lock is the proof that a process runs that instance.
 
+     **What this rests on, and how it fails.** Chromium keeping its
+     storage service, and so that lock, in the browser (main) process. An
+     Electron update that moves it to a utility process makes the holder
+     another process, or no one: every attestation then fails closed with
+     "profile lock held by another process, maybe after a Claude app
+     update", said to the caller and logged under H2 (scrubbed, once a
+     minute a reason; test
+     `a_profile_lock_held_elsewhere_is_refused_visibly_and_logged_once_a_minute`).
+     **Each release candidate re-checks it on a real Mac:** `just
+     desktop-host-checks` (read-only: it reads processes, signatures and
+     the fuse wire, and asks who holds the lock; it starts, locks and
+     changes nothing), a row in `docs/qa/0.4-walks/release-candidate.md`
+     §2, so an app update that breaks the check is caught before the
+     release, not by users.
+
    **What this guarantees, exactly:** the caller (the socket's last user
    at `getsockopt` time, still that process) descends, at most two steps
    down, from a process whose running code is Anthropic's Claude Code,

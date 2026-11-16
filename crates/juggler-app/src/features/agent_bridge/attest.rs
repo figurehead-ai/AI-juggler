@@ -398,6 +398,15 @@ pub(crate) fn runs_instance(
     }
 }
 
+/// Why a profile's lock refuses (the third review's Low 1, main's
+/// condition): said to the caller and logged under H2's scrubbing and
+/// per-reason limit. The check rests on Chromium keeping its storage
+/// service, and so this lock, in the browser (main) process; an app update
+/// that moves it to a helper process makes every check fail closed, with
+/// these words, until it's rethought.
+pub(crate) const LOCK_ELSEWHERE: &str =
+    "profile lock held by another process, maybe after a Claude app update";
+
 /// The third review's Low 1: whether the App's main process `host_pid`
 /// holds its instance's own lock (`lock`, from the adapter, under
 /// `instance`): the instance proven by the process holding it, read
@@ -405,11 +414,24 @@ pub(crate) fn runs_instance(
 ///
 /// # Errors
 ///
-/// Why not, in words.
+/// [`LOCK_ELSEWHERE`] when another process holds it, no one does, or it
+/// can't be read: fail closed.
 pub(crate) fn held_by(instance: &std::path::Path, lock: &str, host_pid: u32) -> Result<(), String> {
-    match juggler_platform::safe_fs::lock_holder_in(instance, std::path::Path::new(lock)) {
-        Ok(Some(holder)) if holder == host_pid => Ok(()),
-        _ => Err("the session's app doesn't hold this profile".to_owned()),
+    holder_is(
+        &juggler_platform::safe_fs::lock_holder_in(instance, std::path::Path::new(lock)),
+        host_pid,
+    )
+}
+
+/// [`held_by`]'s decision on what the system said (`found`).
+///
+/// # Errors
+///
+/// [`LOCK_ELSEWHERE`] for anything but `host_pid` holding it.
+pub(crate) fn holder_is(found: &std::io::Result<Option<u32>>, host_pid: u32) -> Result<(), String> {
+    match found {
+        Ok(Some(holder)) if *holder == host_pid => Ok(()),
+        _ => Err(LOCK_ELSEWHERE.to_owned()),
     }
 }
 
@@ -1082,75 +1104,42 @@ mod tests {
         );
     }
 
-    /// Not a test: the process the instance-lock test asks about, holding
-    /// a write lock on the file `AIJ_TEST_LOCK` names for half a minute.
-    #[cfg(target_os = "macos")]
     #[test]
-    #[ignore = "run by the instance-lock test as the lock's holder"]
-    fn instance_locker() {
-        let Some(path) = std::env::var_os("AIJ_TEST_LOCK") else {
-            return;
-        };
-        let file = std::fs::OpenOptions::new()
-            .read(true)
-            .write(true)
-            .open(path)
-            .unwrap();
-        let lock = nix::libc::flock {
-            l_start: 0,
-            l_len: 0,
-            l_pid: 0,
-            l_type: nix::libc::F_WRLCK,
-            l_whence: 0,
-        };
-        nix::fcntl::fcntl(&file, nix::fcntl::FcntlArg::F_SETLK(&lock)).unwrap();
-        std::thread::sleep(Duration::from_secs(30));
-    }
-
-    #[cfg(target_os = "macos")]
-    #[test]
-    fn the_profile_must_be_held_by_the_app_that_runs_the_session() {
-        // The third review's Low 1: the instance's own lock, held by the
-        // verified main process; unheld, or held by another, is refused.
+    fn a_profile_lock_held_elsewhere_is_refused_visibly_and_logged_once_a_minute() {
+        // The third review's Low 1, main's condition: fail closed, with
+        // the reason, logged under H2 (scrubbed, once a minute a reason).
+        // (A real holder process is named: safe_fs's own test.)
+        assert_eq!(holder_is(&Ok(Some(7)), 7), Ok(()), "its own main process");
+        let refused = Err(LOCK_ELSEWHERE.to_owned());
+        assert_eq!(holder_is(&Ok(Some(8)), 7), refused, "another process");
+        assert_eq!(holder_is(&Ok(None), 7), refused, "no one");
+        let unreadable = std::io::Error::other("a link");
+        assert_eq!(holder_is(&Err(unreadable), 7), refused, "can't be read");
+        // A real profile folder whose lock no one holds, or that has none.
         let lock = juggler_adapters::claude_peer::INSTANCE_LOCK;
         let root = tempfile::tempdir().unwrap();
+        assert_eq!(held_by(root.path(), lock, std::process::id()), refused);
         let file = root.path().join(lock);
         std::fs::create_dir_all(file.parent().unwrap()).unwrap();
         std::fs::write(&file, "").unwrap();
-        assert!(
-            held_by(root.path(), lock, std::process::id()).is_err(),
-            "unheld"
-        );
-        let mut holder = std::process::Command::new(std::env::current_exe().unwrap())
-            .args([
-                "features::agent_bridge::attest::tests::instance_locker",
-                "--exact",
-                "--ignored",
-                "-q",
-            ])
-            .env("AIJ_TEST_LOCK", &file)
-            .stdout(std::process::Stdio::null())
-            .stderr(std::process::Stdio::null())
-            .spawn()
-            .unwrap();
-        let deadline = std::time::Instant::now() + Duration::from_secs(5);
-        while held_by(root.path(), lock, holder.id()).is_err()
-            && std::time::Instant::now() < deadline
-        {
-            std::thread::sleep(Duration::from_millis(50));
-        }
+        assert_eq!(held_by(root.path(), lock, std::process::id()), refused);
+        // Logged as it's said, once a minute.
         assert_eq!(
-            held_by(root.path(), lock, holder.id()),
-            Ok(()),
-            "its holder"
+            crate::crash::scrub(LOCK_ELSEWHERE, "/Users/x", "x"),
+            LOCK_ELSEWHERE
         );
-        assert!(
-            held_by(root.path(), lock, holder.id() + 1).is_err(),
-            "another process isn't the one holding it"
+        let mut seen = HashMap::new();
+        let now = std::time::Instant::now();
+        assert_eq!(
+            refusal_line(&mut seen, LOCK_ELSEWHERE, now).as_deref(),
+            Some(
+                "agent bridge: a keyless call wasn't attested: profile lock held by another process, maybe after a Claude app update"
+            )
         );
-        let _ = holder.kill();
-        let _ = holder.wait();
-        assert!(held_by(root.path(), lock, holder.id()).is_err(), "let go");
+        assert_eq!(
+            refusal_line(&mut seen, LOCK_ELSEWHERE, now + Duration::from_secs(5)),
+            None
+        );
     }
 
     /// A manual check on a Mac running the Claude app (not run by default;

@@ -2960,7 +2960,6 @@ dependencies = [
  "juggler-supervisor",
  "juggler-window-events",
  "macos-accessibility-client",
- "nix 0.31.3",
  "objc2",
  "objc2-app-kit",
  "objc2-foundation",

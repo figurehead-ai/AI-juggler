@@ -175,9 +175,6 @@ objc2-app-kit = { version = "0.3", default-features = false, features = ["std", 
 # 0.1.5: the activation live check runs the main thread's loop while it
 # waits, so macOS can tell it which app is in front.
 objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSString", "NSRunLoop", "NSDate"] }
-# AJ-E3013 (the third review's Low 1): a test process holds an `fcntl`
-# lock on a profile's lock file, as the Claude app holds its instance's.
-nix = { workspace = true, features = ["fs"] }
 
 # 0.1.5: the activation live check. AppKit wants the main thread, which the
 # test harness keeps for itself, so this test has its own `main`; it runs

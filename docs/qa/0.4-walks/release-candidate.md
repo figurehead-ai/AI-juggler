@@ -33,6 +33,7 @@ Opus is for coding and judgement only. Every subagent is started with its model 
 | Re-baseline | the one visual re-baseline (notes: the side-session notes' `rebaseline-0.4.1-notes.md`), every capture opened by eye, the critique stamped after staging | |
 | AJ-E3305 | the 24 families re-scored on that gallery (`docs/qa/0.4-walks/design.md`); lows fixed or sent to the maintainer | |
 | The installed app | quit while a row needs the single-instance socket (`tests/second_launch.rs` hands over to it otherwise) | |
+| Desktop-member host checks (AJ-E3013) | `just desktop-host-checks`, with the Claude app running and a Code-tab session open: read-only, it starts, locks and changes nothing. Every running Claude app's main process names its profile the one strict way and holds that profile's lock; the running app, its `disclaimer` and its Claude Code meet the pinned requirements; the app's fuses stay off. A FAIL after a Claude app update means attestation now refuses ("profile lock held by another process, maybe after a Claude app update"): no connector row passes, tell the maintainer before the release | |
 
 ## 3. Every scenario again (AJ-E3306 req. 1)
 
