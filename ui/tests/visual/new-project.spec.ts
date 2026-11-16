@@ -117,7 +117,8 @@ for (const theme of ["dark", "light"] as const) {
     await expect(page.getByRole("heading", { name: "New project" })).toBeVisible();
     await page.getByRole("button", { name: /Work in ai-juggler/ }).click();
     await expect(page.getByTestId("no-account-detour")).toBeVisible();
-    await page.getByRole("button", { name: "Add an account" }).click();
+    // AJ-E3201: the detour's words name what is set up, an app.
+    await page.getByTestId("no-account-detour").getByRole("button", { name: "Add an app" }).click();
     // The add-account flow (d) opens INLINE — over the sheet, which
     // keeps the pending directory (Req.7; AJ-E1022: Add account's steps).
     await expect(page.getByTestId("first-run")).toHaveAttribute("data-mode", "add");

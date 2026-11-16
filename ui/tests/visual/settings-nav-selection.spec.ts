@@ -4,7 +4,10 @@
  * its hover fill (surface-2) was all but the selected item's (accent-soft
  * over the page, same ink text, no other mark), so a hover read as a
  * second selection. Only the selected item may look selected: it carries
- * the accent (text and edge) a hovered item never has, in both themes.
+ * an edge a hovered item never has, and a second cue besides (D-117: the
+ * one neutral selected look, components/controls/selected.ts: a 3:1 edge,
+ * the raised fill, its words semibold in ink; the accent is for actions
+ * and focus), in both themes.
  */
 import { expect, test, type Locator, type Page } from "@playwright/test";
 import { allStatuses, goTo, settingsPane } from "./fixtures";
@@ -26,11 +29,11 @@ async function open(page: Page, theme: "dark" | "light") {
   await goTo(page, "Settings");
 }
 
-/** What makes an item look chosen: its fill, its text, its edge. */
+/** What makes an item look chosen: its fill, its words, its edge. */
 async function look(item: Locator) {
   return item.evaluate((el) => {
     const style = getComputedStyle(el);
-    return { fill: style.backgroundColor, text: style.color, edge: style.boxShadow };
+    return { fill: style.backgroundColor, weight: Number(style.fontWeight), edge: style.boxShadow };
   });
 }
 
@@ -48,7 +51,11 @@ for (const theme of ["dark", "light"] as const) {
     await page.waitForTimeout(250); // past the colour transition
     const selected = await look(advanced);
     const hovered = await look(keyboard);
-    expect(hovered.text, "a hovered item keeps the plain ink; the accent is the selection's").not.toBe(selected.text);
+    // Never the edge alone: the selection's words are semibold and its
+    // fill is its own, a hover keeps plain words and a lighter fill.
+    expect(selected.weight, "the selected item's words are semibold").toBeGreaterThanOrEqual(600);
+    expect(hovered.weight, "a hovered item keeps plain words").toBeLessThan(600);
+    expect(hovered.fill, "a hover's fill is not the selection's").not.toBe(selected.fill);
     expect(selected.edge, "the selected item has its accent edge").not.toBe("none");
     expect(hovered.edge, "a hovered item has no edge").toBe("none");
 

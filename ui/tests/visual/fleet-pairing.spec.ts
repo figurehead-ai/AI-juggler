@@ -71,9 +71,10 @@ test("host pairing completes keyboard-only, and View only is the default", async
   await expect(viewOnly).toBeFocused();
   await expect(page.getByRole("radio", { name: /View \+ control/ })).not.toBeChecked();
   await expect(page.getByTestId("pairing-permission-control")).toContainText("never read credentials");
-  // Back is always available: Permissions → Verify → Permissions.
+  // Back is always available: Permissions → Verify → Permissions. The
+  // wizard's own Back (the header has a Back of its own since 0.4).
   await page.keyboard.press("Tab");
-  await expect(page.getByRole("button", { name: "Back" })).toBeFocused();
+  await expect(wizard.getByRole("button", { name: "Back" })).toBeFocused();
   await page.keyboard.press("Tab");
   await expect(page.getByTestId("pairing-pair")).toBeFocused();
   await page.keyboard.press("Enter");

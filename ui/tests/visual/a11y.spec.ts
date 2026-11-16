@@ -252,8 +252,10 @@ for (const theme of ["dark", "light"] as const) {
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto("/");
     await goTo(page, "Accounts");
-    // AJ-E2109: a profile's page opens from its row.
+    // AJ-E2109: a profile's page opens from its row; the toggles are in
+    // its Settings tab (an App's page has tabs).
     await page.getByTestId("profile-open").first().click();
+    await page.getByRole("tablist", { name: "App tabs" }).getByRole("tab", { name: "Settings", exact: true }).click();
     await expect(page.getByTestId("account-tier-toggles")).toBeVisible();
     const results = await new AxeBuilder({ page })
       .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])
