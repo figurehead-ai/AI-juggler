@@ -183,7 +183,9 @@
 2. The excerpt SHALL be the agent's own text, trimmed to a clean opening (sentence boundary, 2 lines, "Show more" in place), redacted and bounded like the existing `last_messages` read, and shown only while "show last messages" is on; off, only facts (counts, state) show and no text is read.
 3. A tool or turn with no text, or no task list (newer Claude models don't write one by default), SHALL show the facts it has and nothing guessed; the item never shows an empty excerpt.
 4. Excerpts SHALL be stored in the registered, clearable local cache (D-58), keyed by conversation and turn, and come through `feed-words.ts` like every other sentence.
-5. This SHALL be the excerpt layer B reads from and the layer B falls back to; it supersedes AJ-E3703's single quote (AJ-E3703 becomes the first source here, not a separate path).
+5. The excerpt SHALL pass through the shared input cleaner of ADR-0033 v3 (join hard-wrapped lines, strip list markers and conventional-commit prefixes, leave clean text unchanged), the same one B and Chat use.
+6. The excerpt's caveat line: if the source says "not run", "not tested", "not done", "partial" or "N of M", the shown excerpt SHALL include that sentence.
+7. This SHALL be the excerpt layer B reads from and the layer B falls back to; it supersedes AJ-E3703's single quote (AJ-E3703 becomes the first source here, not a separate path).
 **UI/UX reasoning**: quoting beats paraphrasing ("Accuracy means what it claims"); Claude Code's own agent view does the same without a model at most every 15 s; privacy by the user's existing choice.
 **Performance budget**: an excerpt ≤ 20 ms from cache, ≤ 100 ms cold, off the main thread, only for items in view; hooks add no measurable cost to the agent's turn; idle stays under 2% CPU.
 **Quality gates**: verify-static; adapter conformance tests per source (hook payload, rollout events, task list, git facts) with fixtures; tests for the setting's gate, redaction, clamping, the cache entry and the no-text cases; a check that nothing outside `crates/juggler-adapters` names a tool.

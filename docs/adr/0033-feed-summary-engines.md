@@ -1,6 +1,6 @@
 # ADR-0033: Feed summary lines: one `SummaryEngine` seam, Apple's model automatic, a local model offered, helpers out of process, a gate every line passes
 
-**Status:** Proposed (AJ-E3710; amended 2026-11-16 from AJ-E3709's first evaluation, and again from its v2 run and blind review; stays Proposed until the selection study fills the model slot and the v3 run decides whether written lines ship at all)
+**Status:** Proposed (note: the coordinating session accepted v3 in substance on 2026-11-16; AJ-E3710; amended 2026-11-16 from AJ-E3709's first evaluation, and again from its v2 run and blind review; stays Proposed until the selection study fills the model slot and the v3 run decides whether written lines ship at all)
 **Date:** 2026-11-16 (amended the same day: the prompt frame, the input guard, polarity from facts, the tier gates, the idle wording; then, from the v2 blind review: input clean-up, guided output, the caveat, outcome and anchoring rules, level-first routing inside the gate, B's shipping rule against A, and the realistic corpus)
 **Deciders:** Opus (design); the coordinating session (hosting and integrity, 8 GB Macs, build order: recorded below as decided); the maintainer (D-120; the open questions at the end)
 **Serves:** D-120 point 2 (B), on A (AJ-E3708); D-118 points 2 and 4; D-117 (levels come from facts); D-52 (OS seams); D-58 and ADR-0023 (the registered cache); ADR-0019 (features as modules, tools as data); ADR-0010 (the spawn ledger); ADR-0024 (turn ids)
@@ -288,7 +288,7 @@ In the same pass, `offer` says whether and where the local file is offered (§5)
   - The offer card is shown once in Home, above the feed and below the pinned needs, as a quiet L1 note (D-117), after the user has seen excerpts in the feed for at least a day.
   - After **Not now**, Home never shows it again; Settings › Summaries keeps the offer.
 - **As an optional upgrade where Apple's model works:** in Settings › Summaries only, never in Home.
-- **Not offered:** while Apple is `NotReady` (it is preparing its own model), with the switch off, with Last messages off, or when the volume could not keep 10 GB and 10 % free after the file lands. In the last case the line says why: "Needs about 2.5 GB more free space".
+- **Not offered:** while Apple is `NotReady` (it is preparing its own model), with the switch off, with Last messages off, or when the volume could not keep 10 GB and 10 % free after the file lands (superseded: see ADR-0034 §5, "model size + 10 GB free"). In the last case the line says why: "Needs about 2.5 GB more free space".
 
 **The offer card** (wording for the build; every sentence in the Settings words module and `feed-words.ts`): "**Clearer lines in your feed, written on this Mac.** A small AI file (about 2.5 GB) can turn each finished turn into one clear line. It stays on this Mac, and nothing you read here leaves it. AI Juggler gets it once, on Wi-Fi and power, and you can remove it in Settings › Summaries." **Get it (2.5 GB)** · **Not now**. The size is the pin's own `bytes`, never a guess.
 
@@ -331,7 +331,7 @@ Nothing is downloaded, in development or for users, until the study fills the sl
 **Conditions while it runs** (`plan()`'s `transfer`). All must hold:
 - on power, Low Power Mode off, thermal Nominal or Fair, memory pressure Normal;
 - the network path satisfied, not expensive (hotspot, cellular) and not constrained (Low Data Mode). Unknown counts as no;
-- at least 10 GB and 10 % of the volume free after the file lands.
+- at least 10 GB and 10 % of the volume free after the file lands (superseded: ADR-0034 §5 sets "model size + 10 GB free").
 
 A paused download says why on its status line ("Waiting for Wi-Fi and power"). **Cancel** deletes the part file.
 
@@ -537,7 +537,7 @@ There is never a timer or a "refresh", and no backlog sweep on start: after a ni
 - **The local tier needs no notice of its own.** The user's own Get it is the moment they're told.
 - **Tier 3 changes nothing on screen,** so it shows no notice.
 
-**Settings › Summaries** (a new section, beside Desktop apps):
+**Settings › Summaries** (a new section, beside Desktop apps; ADR-0034 §5.5 renames it "Settings › AI on this Mac"):
 - One switch: **Write short summaries on this Mac**, with the line "One clear line for each finished turn, written on this Mac. Nothing leaves it."
 - One status line under it, from `plan()`'s `Status`:
 
