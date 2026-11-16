@@ -4,7 +4,7 @@
  * the canvas or the list, Tasks and Messages over the canvas, and what
  * agents may do, changed right here.
  */
-import { useEffect, useRef, useState, type JSX, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type JSX, type ReactNode } from "react";
 
 import { IconPool } from "../../components/icons-actions";
 import { IconMessage, IconTasks } from "../../components/icons-canvas";
@@ -13,6 +13,7 @@ import { poolRename, poolSetAccess, type PoolInfo } from "../../lib/ipc/pools";
 import { setPools } from "../../lib/pools";
 import { asOwnLevel } from "../../lib/pool-words";
 import { OwnLevelChoice } from "./setup/OwnLevelChoice";
+import { HeaderCustom } from "./HeaderCustom";
 import { Segmented } from "../../components/controls";
 import { Chip } from "../../components/primitives";
 import { CrumbButton } from "../PageHeader";
@@ -140,6 +141,8 @@ export function PoolHeader({
   onPanel: (panel: Panel) => void;
 }): JSX.Element {
   const [error, setError] = useState<string | null>(null);
+  const [custom, setCustom] = useState(false);
+  const closeCustom = useCallback(() => setCustom(false), []);
   return (
     <header className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-hairline px-4 py-2.5" data-testid="pool-header">
       <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-accent-soft text-accent-hi" aria-hidden="true">
@@ -194,15 +197,29 @@ export function PoolHeader({
           Messages
         </Toggle>
         <span className="mx-1 h-5 w-px bg-hairline" aria-hidden="true" />
-        {/* Round 3 (#3): the pool's one control for this, saying whom it covers. */}
-        <OwnLevelChoice
-          look="menu"
-          label="What sessions in this pool may do on their own"
-          value={pool.access.level === "custom" ? "custom" : asOwnLevel(pool.access.level)}
-          onChange={(level) => void poolSetAccess(pool.id, level, []).then(setPools, (cause) => setError(errorText(cause)))}
-          onCustom={() => void poolSetAccess(pool.id, "custom", pool.access.actions).then(setPools, (cause) => setError(errorText(cause)))}
-          testId="pool-header-level"
-        />
+        {/* Round 3 (#3): the pool's one control for this, saying whom it
+            covers; Custom opens its list in place (Sam's round-4 walk). */}
+        <span className="relative">
+          <OwnLevelChoice
+            look="menu"
+            label="What sessions in this pool may do on their own"
+            value={pool.access.level === "custom" ? "custom" : asOwnLevel(pool.access.level)}
+            onChange={(level) => void poolSetAccess(pool.id, level, []).then(setPools, (cause) => setError(errorText(cause)))}
+            onCustom={() => {
+              if (pool.access.level === "custom") setCustom(true);
+              else
+                void poolSetAccess(pool.id, "custom", pool.access.actions).then(
+                  (next) => {
+                    setPools(next);
+                    setCustom(true);
+                  },
+                  (cause) => setError(errorText(cause)),
+                );
+            }}
+            testId="pool-header-level"
+          />
+          {custom && <HeaderCustom pool={pool} onClose={closeCustom} />}
+        </span>
       </div>
       {error && (
         <p className="w-full text-label text-danger" role="alert">

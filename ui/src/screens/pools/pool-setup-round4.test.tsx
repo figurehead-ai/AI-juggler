@@ -7,7 +7,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { MOCK_PROJECTS, MOCK_SESSIONS } from "../../preview/fixtures";
 import { resetPreviewAgentBridge } from "../../lib/ipc/agent-bridge";
-import { resetPreviewPools, scopeOf, type PoolInfo } from "../../lib/ipc/pools";
+import { poolsList, resetPreviewPools, scopeOf, type PoolInfo } from "../../lib/ipc/pools";
 import { draftOf, type Draft } from "../../lib/new-pool";
 import { nextLine, shapeOfDraft } from "../../lib/pool-sentences";
 import { templateById } from "../../lib/pool-templates";
@@ -16,6 +16,9 @@ import { InspectPool } from "../../pages/pool/InspectPool";
 import { InspectRule } from "../../pages/pool/InspectRule";
 import { flushHeld, resetToasts, undoLatest } from "../../components/Toast";
 import { RuleNodes } from "../../pages/pool/RuleNodes";
+import { PoolHeader } from "../../pages/pool/PoolHeader";
+import { joinSentence, levelSentence, memberSentence, pickedCount } from "../../lib/pool-words";
+import { TEAM_TOOLS } from "../../lib/team-tools";
 import { NewPool } from "./NewPool";
 import { NewPoolReview } from "./NewPoolReview";
 
@@ -74,7 +77,7 @@ describe("AJ-E3011 round 4", () => {
   it("#3: what happens next, in one line, from the shared sentences: Review and the diagram alike", () => {
     const draft: Draft = { ...draftOf(templateById("blank"), "p-web"), members: [app("app:cli:work", "Claude Code · Work"), app("app:cli:codex", "Codex · Personal", "reviewer")], leadNext: "app:cli:work" };
     const line = nextLine(shapeOfDraft(draft, (_, label) => label), "web");
-    expect(line).toBe("Open Claude Code · Work in web: it leads; Codex · Personal checks its work; their messages show here");
+    expect(line).toBe("Open Claude Code · Work in web first: it leads; Codex · Personal checks its work; their messages show here");
     render(<NewPoolReview draft={draft} name="web team" where="web" />);
     expect(screen.getByTestId("new-pool-review-next").textContent).toBe(`What happens next: ${line}.`);
   });
@@ -153,5 +156,41 @@ describe("AJ-E3011 round 4", () => {
     expect(more.querySelector("summary")?.textContent).toContain("More settings");
     for (const inside of ["pool-seal-section", "pool-spans-macs"]) expect(more.querySelector(`[data-testid="${inside}"]`)).not.toBeNull();
     expect(more.textContent).toContain("Pools its agents may write to");
+  });
+});
+
+// Sam's round-4 walk (S, 5/7): Custom in the header changed only its
+// label, and the sentence read "they may Custom".
+describe("Sam's round-4 follow-ups", () => {
+  it("Custom reads as the actions picked, counted, everywhere the sentence is", () => {
+    expect(levelSentence("custom", 11)).toBe("On their own they may do the 11 things you picked, under Custom actions.");
+    expect(joinSentence("web", "member", "custom", 1)).toBe("New sessions in web join as Member and may do the 1 thing you picked.");
+    expect(memberSentence("Codex · Personal", "reviewer", null, "custom", 3)).toBe("Codex · Personal is a Reviewer and may do the 3 things you picked, as the pool.");
+    const pool = { access: { level: "custom", actions: ["read_roster", "read_cards", "deliver_to_session"] } };
+    expect(pickedCount(pool)).toBe(2);
+    expect(pickedCount({ access: { level: "work_together", actions: ["read_roster"] } })).toBeUndefined();
+  });
+
+  it("choosing Custom in the header opens its list in place, with the count in the sentence", async () => {
+    Object.assign(window, { __AIJ_POOLS__: { pools: [{ id: "pool-x", name: "web team" }] } });
+    resetPreviewPools();
+    // As the backend sends it: Work together's actions listed.
+    const pool = (await poolsList()).pools.find((one) => one.id === "pool-x")!;
+    expect(pool.access.level).toBe("work_together");
+    render(<PoolHeader pool={pool} facts={null} mode="canvas" panel={null} onMode={() => undefined} onPanel={() => undefined} />);
+    fireEvent.click(screen.getByTestId("pool-header-level"));
+    await act(async () => fireEvent.click(screen.getByRole("menuitemradio", { name: /^Custom/ })));
+    const list = await screen.findByTestId("pool-header-custom");
+    expect(list.querySelectorAll('input[type="checkbox"]')).toHaveLength(12);
+    await waitFor(() => expect(screen.getByTestId("pool-header-custom-sentence").textContent).toBe("On their own they may do the 11 things you picked, under Custom actions."));
+    // One unticked: the sentence follows.
+    await act(async () => fireEvent.click(list.querySelectorAll('input[type="checkbox"]')[0]!));
+    await waitFor(() => expect(screen.getByTestId("pool-header-custom-sentence").textContent).toBe("On their own they may do the 10 things you picked, under Custom actions."));
+    fireEvent.click(screen.getByTestId("pool-header-custom-done"));
+    expect(screen.queryByTestId("pool-header-custom")).toBeNull();
+  });
+
+  it("the question card says whom it covers: every pool you make", () => {
+    expect(`${TEAM_TOOLS.where} Settings.`).toBe("This is for every pool you make; you can switch it off for a project or an app in Settings.");
   });
 });

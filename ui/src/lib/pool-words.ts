@@ -100,6 +100,22 @@ export function ownLabel(level: string | null | undefined): string {
   return ownLevel(level).label;
 }
 
+/** What they may do, in a sentence's words: a level's name, or for
+ * Custom the actions picked by hand ("do the 11 things you picked"; the
+ * Sam walk read "they may Custom"). */
+export function ownMay(level: string | null | undefined, picked?: number): string {
+  if (level !== "custom") return ownLabel(level);
+  if (picked === undefined) return "do the things you picked";
+  return picked === 1 ? "do the 1 thing you picked" : `do the ${picked} things you picked`;
+}
+
+/** A Custom pool's actions picked by hand, counted as its Custom list
+ * shows them (messages into sessions are their own setting); `undefined`
+ * at another level. */
+export function pickedCount(pool: { access: { level: string; actions: readonly string[] } }): number | undefined {
+  return pool.access.level === "custom" ? pool.access.actions.filter((action) => action !== "deliver_to_session").length : undefined;
+}
+
 /** Where, in words: "web", "web and docs", "web, docs and api", or
  * "every project". */
 export function whereWords(every: boolean, names: readonly string[]): string {
@@ -117,21 +133,22 @@ export function everyoneLabel(every: boolean, names: readonly string[]): string 
 /** The join line read back as a sentence: who joins by themselves, as
  * what, and what they may do on their own. `role` is the "everyone"
  * member's role; `null`: nobody joins but who's in. */
-export function joinSentence(where: string, role: PoolRole | null, level: string): string {
+export function joinSentence(where: string, role: PoolRole | null, level: string, picked?: number): string {
   if (role === null) return `Only who's in joins: other sessions in ${where} stay out of this pool.`;
-  return `New sessions in ${where} join as ${roleCard(role).label} and may ${ownLabel(level)}.`;
+  return `New sessions in ${where} join as ${roleCard(role).label} and may ${ownMay(level, picked)}.`;
 }
 
 /** One member read back: "Codex CLI · Personal is a Reviewer and may
  * Look only." `level` is its own, `null`: the pool's. */
-export function memberSentence(name: string, role: PoolRole, level: string | null, poolLevel: string): string {
-  const may = level === null ? `${ownLabel(poolLevel)}, as the pool` : ownLabel(level);
+export function memberSentence(name: string, role: PoolRole, level: string | null, poolLevel: string, picked?: number): string {
+  const may = level === null ? `${ownMay(poolLevel, picked)}, as the pool` : ownLabel(level);
   const article = role === "observer" ? "an" : "a";
   return role === "lead" ? `${name} leads and may ${may}.` : `${name} is ${article} ${roleCard(role).label} and may ${may}.`;
 }
 
 /** What a session may do on its own, read back for the pool. */
-export function levelSentence(level: string): string {
+export function levelSentence(level: string, picked?: number): string {
+  if (level === "custom") return `On their own they may ${ownMay(level, picked)}, under Custom actions.`;
   return `On their own they may ${ownLabel(level)}. ${ownLevel(level).line}`;
 }
 
@@ -157,8 +174,8 @@ export function nextLeadsLine(othersRole: string): string {
 /** That App read back: "Claude Code · Work takes charge as soon as one of
  * its sessions starts; its others join as Member and may Work together,
  * as the pool." */
-export function nextLeadsSentence(name: string, othersRole: string, level: string | null, poolLevel: string): string {
-  const may = level === null ? `${ownLabel(poolLevel)}, as the pool` : ownLabel(level);
+export function nextLeadsSentence(name: string, othersRole: string, level: string | null, poolLevel: string, picked?: number): string {
+  const may = level === null ? `${ownMay(poolLevel, picked)}, as the pool` : ownLabel(level);
   return `${name} takes charge as soon as one of its sessions starts; its others join as ${roleCard(othersRole).label} and may ${may}.`;
 }
 

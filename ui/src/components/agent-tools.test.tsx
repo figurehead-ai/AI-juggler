@@ -34,7 +34,7 @@ describe("the one-time question (D-30; AJ-E3011 round 4: one component everywher
     expect(card.querySelector("h3")?.textContent).toBe(TEAM_TOOLS.question);
     expect(TEAM_TOOLS.question).toBe("Let the sessions in your pools message each other and share notes and tasks?");
     expect(card.textContent).toContain("It costs nothing extra");
-    expect(card.textContent).toContain("You can switch it off per project or app in Settings.");
+    expect(card.textContent).toContain("This is for every pool you make; you can switch it off for a project or an app in Settings.");
     await act(async () => fireEvent.click(await findByTestId("team-tools-yes")));
     await waitFor(() => expect(queryByTestId("team-tools")).toBeNull());
     expect(queryByTestId("team-tools-quiet")).toBeNull();

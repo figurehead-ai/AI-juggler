@@ -78,10 +78,10 @@ describe("the setup checklist (AJ-E3011 §1)", () => {
     expect(toolsLeftLine({ kind: "missing" })).toBe("Ready once the team tools are on: they're not in this build of AI Juggler.");
     expect(toolsLeftLine({ kind: "on" })).toBeNull();
     // The team tools on: ready, and the next line.
-    rerender(<PoolChecklist rows={rows} onOpen={open} ready={setupReady(rows, true)} next="Open Claude Code · Work in web: it leads; their messages show here" />);
+    rerender(<PoolChecklist rows={rows} onOpen={open} ready={setupReady(rows, true)} next="Open Claude Code · Work in web first: it leads; their messages show here" />);
     expect(screen.queryByTestId("pool-checklist")).toBeNull();
     expect(screen.getByTestId("pool-ready").textContent).toContain("This pool is ready");
-    expect(screen.getByTestId("pool-ready-next").textContent).toBe("What happens next: Open Claude Code · Work in web: it leads; their messages show here.");
+    expect(screen.getByTestId("pool-ready-next").textContent).toBe("What happens next: Open Claude Code · Work in web first: it leads; their messages show here.");
   });
 
   it("shrinks to one line while something else is selected, which opens the next step", () => {

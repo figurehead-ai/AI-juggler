@@ -69,8 +69,9 @@ heading and one line on why, and every choice reads back as a sentence
    **Yes, let them work together** or **Not now** (see
    [Team tools](#team-tools)).
 9. **Review**: the whole pool in sentences, with what happens next in one
-   line ("Open Claude Code · Work in web: it leads; Codex checks its work;
-   their messages show here"), then **Make pool**.
+   line, naming which session to open first ("Open Claude Code · Work in
+   web first: it leads; Codex checks its work; their messages show
+   here"), then **Make pool**.
 
 A project's **Pools** tab opens its own pool ("web's own pool: every
 session in web, as one team"), and **Move to pool…** on a session's menu
@@ -131,9 +132,9 @@ starts or connects in your pools, never a session outside a pool, and
 cost nothing extra: a session uses its own turns only when it acts.
 Without them, a pool is set up, but nobody in it can message.
 
-AI Juggler asks once, the first time you use pools: at the top of the
-pool's page, as New pool's own step, and in Settings › Agent access, the
-same question with **Yes, let them work together** and **Not now**. Once
+It's for every pool you make. AI Juggler asks once, the first time you
+use pools: at the top of the pool's page, as New pool's own step, and in
+Settings › Agent access, the same question with **Yes, let them work together** and **Not now**. Once
 you've answered, it doesn't ask again; you can switch them off per project
 or app in **Settings › Agent access › Agent tools in sessions**. After
 **Not now**, or with them off for the pool's project or app, the pool
@@ -200,7 +201,9 @@ the pool's page, and every pool at once in **Settings › Agent access**):
   wake starts a turn on your subscription. For example, Codex finishes a
   review, and its note wakes Claude's idle session to carry on, without
   you.
-- **Custom**: you pick each action.
+- **Custom**: you pick each action. Chosen in the diagram's header, its
+  list opens right there (the same list as the pool's settings), and the
+  pool reads back "On their own they may do the 11 things you picked".
 
 A member can follow the pool (**Same as the pool**, the default) or have
 its own choice. The diagram says, per member, whether it **wakes on new

@@ -36,7 +36,8 @@ export const TEAM_TOOLS = {
   question: "Let the sessions in your pools message each other and share notes and tasks?",
   gives: "They see who else is in their pool and what each is doing, and send each other notes and tasks: Claude sees that Codex is reviewing and sends it a note.",
   cost: "It costs nothing extra: a session uses its own turns only when it acts.",
-  where: "You can switch it off per project or app in",
+  // Sam's round-4 walk: "your pools" was vague; whom it covers, said.
+  where: "This is for every pool you make; you can switch it off for a project or an app in",
   yes: "Yes, let them work together",
   notNow: "Not now",
   turnOn: "Turn on",

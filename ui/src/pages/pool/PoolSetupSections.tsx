@@ -18,6 +18,7 @@ import type { LeadChoice } from "../../lib/new-pool";
 import { STEP_WORDS, asOwnLevel, asRole, asTalkRule, joinSentence, nextSessionWords } from "../../lib/pool-words";
 import { cliFolderOf, startNextLead } from "../../lib/start-lead";
 import { setPools } from "../../lib/pools";
+import { pickedCount } from "../../lib/pool-words";
 import type { PoolRules } from "../../lib/pool-rules";
 import { sessionState } from "../../lib/rail-items";
 import { FoldSection, Section } from "./Section";
@@ -136,7 +137,7 @@ export function PoolSetupSections({
             testId="pool-join"
           />
           <p className="text-meta text-ink-2" data-testid="pool-join-sentence">
-            {joinSentence(where, (everyone ? asRole(everyone.role) : null), everyone?.level ?? level)}
+            {joinSentence(where, (everyone ? asRole(everyone.role) : null), everyone?.level ?? level, pickedCount(pool))}
           </p>
           <RoleCards holders={holders} testId="pool-role-cards" />
           <p className="text-meta text-muted">Change one member's role by clicking its card on the diagram.</p>

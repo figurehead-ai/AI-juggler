@@ -10,6 +10,7 @@ import type { JSX } from "react";
 import { useActionHost } from "../../components/ItemMenu";
 import type { PoolRuleInfo, PoolRulesInfo } from "../../lib/ipc/pool-model";
 import type { PoolInfo } from "../../lib/ipc/pools";
+import { pickedCount } from "../../lib/pool-words";
 import { talkOf, type PoolShape } from "../../lib/pool-sentences";
 import { NEEDS_YOU_WHAT, asRole, type SETUP_STEPS } from "../../lib/pool-words";
 import type { ToolsPlace } from "../../lib/team-tools";
@@ -35,6 +36,7 @@ export function shapeOfPool(pool: Pick<PoolInfo, "access" | "sealed">, rules: Po
     leadNext: rules?.lead_next ? `app:${rules.lead_next}` : null,
     talk: talkOf(rules?.talk ?? []),
     level: pool.access.level,
+    picked: pickedCount(pool),
     sealed: pool.sealed,
   };
 }

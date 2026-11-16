@@ -29,6 +29,8 @@ export interface PoolShape {
   leadNext: string | null;
   talk: Partial<Record<PairKey, TalkRule>>;
   level: string;
+  /** A Custom level's actions picked by hand, counted. */
+  picked?: number;
   sealed: boolean;
 }
 
@@ -58,13 +60,13 @@ export function leadLine(shape: Pick<PoolShape, "members" | "leadNext">, where: 
 
 /** Everyone else: how new sessions join, then each named member's role
  * (an App that leads next as one member). */
-export function everyoneLines(shape: Pick<PoolShape, "members" | "leadNext" | "level">, where: string): string[] {
+export function everyoneLines(shape: Pick<PoolShape, "members" | "leadNext" | "level" | "picked">, where: string): string[] {
   const everyone = shape.members.find((member) => member.ref === "all");
   return [
-    joinSentence(where, everyone?.role ?? null, everyone?.level ?? shape.level),
+    joinSentence(where, everyone?.role ?? null, everyone?.level ?? shape.level, shape.picked),
     ...shape.members
       .filter((member) => member.ref !== "all" && member.role !== "lead")
-      .map((member) => (member.ref === shape.leadNext ? nextLeadsSentence(member.label, member.role, member.level, shape.level) : memberSentence(member.label, member.role, member.level, shape.level))),
+      .map((member) => (member.ref === shape.leadNext ? nextLeadsSentence(member.label, member.role, member.level, shape.level, shape.picked) : memberSentence(member.label, member.role, member.level, shape.level, shape.picked))),
   ];
 }
 
@@ -85,7 +87,7 @@ export function talkSentence(shape: Pick<PoolShape, "talk">): string {
 }
 
 /** What they may do on their own. */
-export const ownLine = (shape: Pick<PoolShape, "level">): string => levelSentence(shape.level);
+export const ownLine = (shape: Pick<PoolShape, "level" | "picked">): string => levelSentence(shape.level, shape.picked);
 
 /** Whether it's kept apart. */
 export const sealLine = (shape: Pick<PoolShape, "sealed">): string =>
@@ -95,13 +97,14 @@ export const sealLine = (shape: Pick<PoolShape, "sealed">): string =>
 const listWords = (names: readonly string[]) => (names.length <= 1 ? (names[0] ?? "") : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`);
 
 /** What happens next, in one line, once the pool is ready (round 4 #3):
- * "Open Claude Code · Work in web: it leads; Codex checks its work;
+ * "Open Claude Code · Work in web first: it leads; Codex checks its work;
  * their messages show here". The diagram's checklist and Review say it. */
 export function nextLine(shape: Pick<PoolShape, "members" | "leadNext">, where: string): string {
   const session = shape.members.find((member) => member.role === "lead" && member.ref.startsWith("session:"));
   const next = shape.leadNext ? shape.members.find((member) => member.ref === shape.leadNext) : undefined;
   const reviewers = shape.members.filter((member) => member.role === "reviewer").map((member) => member.label);
-  const parts = [session ? `${session.label} leads` : next ? `Open ${next.label} in ${where}: it leads` : `Open a session in ${where}: it joins`];
+  // Sam's round-4 walk: which one to open first, named.
+  const parts = [session ? `${session.label} leads` : next ? `Open ${next.label} in ${where} first: it leads` : `Open a session in ${where}: it joins`];
   if (reviewers.length > 0) parts.push(`${listWords(reviewers)} ${reviewers.length === 1 ? "checks" : "check"} ${session || next ? "its" : "their"} work`);
   parts.push("their messages show here");
   return parts.join("; ");
