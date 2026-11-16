@@ -10,9 +10,11 @@ export default defineConfig({
   apiKey: process.env.HAPPO_API_KEY,
   apiSecret: process.env.HAPPO_API_SECRET,
   integration: { type: "playwright" },
+  // The app's window is never narrower than 1024 x 680 (tauri.conf.json's
+  // minWidth / minHeight), so the small target is that minimum, not a phone.
   targets: {
     "chrome-large": { type: "chrome", viewport: "1200x900" },
-    "chrome-small": { type: "chrome", viewport: "375x667" },
+    "chrome-min": { type: "chrome", viewport: "1024x680" },
     accessibility: { type: "accessibility", viewport: "1024x768" },
   },
 });
