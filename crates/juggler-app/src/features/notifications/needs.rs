@@ -802,6 +802,15 @@ pub fn refresh(state: &Arc<AppState>) -> bool {
     refresh_from(state, &sources, now)
 }
 
+/// AJ-E1612: a sign-in's terminal ended. Its App's sign-in is read again
+/// at once (the adapters read files only), not when the last check ages
+/// out, and Needs you is worked out from it: Home, the rail and the bell
+/// follow on the change event, with no polling. `true` when it changed.
+pub fn sign_in_ended(state: &Arc<AppState>) -> bool {
+    state.notifier.forget_sign_ins();
+    refresh(state)
+}
+
 /// [`refresh`] from sources already read (the tests drive it).
 pub fn refresh_from(state: &Arc<AppState>, sources: &NeedSources, now: i64) -> bool {
     let (changed, open) = {
