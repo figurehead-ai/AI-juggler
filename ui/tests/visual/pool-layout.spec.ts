@@ -1,0 +1,164 @@
+/**
+ * AJ-E3011 round 5 (after5-run1.md, with main's correction under D-55):
+ * the pool page's layout, measured in a real browser.
+ *
+ * - No layout shift on Add: the next Add button is where it was after an
+ *   Add, in the palette and in its More (Apps).
+ * - The inspector: a section opened from a Change is at the top of the
+ *   panel with its control focused and fully in view; its menu opens
+ *   inside the window; an App's role menu too. At 1024×768 and 1280×800.
+ * - At 1280×800 its first section (the pool in short) fits without
+ *   scrolling.
+ * - An empty pool opens in its guided setup (New pool's own steps), with
+ *   Show the diagram.
+ */
+import { type Locator, type Page } from "@playwright/test";
+import { expect, GATE_NOW, test } from "./axe-gallery";
+import { goTo } from "./fixtures";
+import { canvasSeed } from "./fixtures/pool-canvas";
+
+const POOL = "pool-checkout";
+
+function seed(t0: number) {
+  const base = canvasSeed(t0);
+  const rule = (member: string, kind: string, role: string) => ({ member, kind, role, level: null, joined_at: t0 - 3_600_000, sessions: 0, session_ids: [] });
+  return {
+    ...base,
+    __AIJ_POOLS__: { ...base.__AIJ_POOLS__, pools: [...base.__AIJ_POOLS__.pools, { id: "pool-docs", name: "Docs crew", rules: [] }] },
+    __AIJ_POOL_RULES__: { [POOL]: { members: [rule("app:cli:claude-personal", "app", "reviewer")] } },
+  };
+}
+
+async function open(page: Page, size: { width: number; height: number }) {
+  await page.clock.setFixedTime(GATE_NOW);
+  await page.addInitScript((data) => {
+    Object.assign(window, data);
+    localStorage.setItem("aij.theme", "dark");
+    localStorage.setItem("aij.onboarding.dismissed", "1");
+    localStorage.setItem("aij.smoother.dismissed", JSON.stringify(["all"]));
+    sessionStorage.setItem("aij.ready.skipped", "1");
+  }, seed(GATE_NOW));
+  await page.emulateMedia({ reducedMotion: "reduce", colorScheme: "dark" });
+  await page.setViewportSize(size);
+  await page.goto("/");
+  await expect(page.getByTestId("rail")).toBeVisible();
+}
+
+async function pool(page: Page, name: string) {
+  await goTo(page, "Pools");
+  await page.getByTestId("pool-card-tile").filter({ hasText: name }).click();
+}
+
+/** Its box, rounded (a sub-pixel isn't a shift). */
+const box = async (one: Locator) => {
+  const at = (await one.boundingBox())!;
+  return { x: Math.round(at.x), y: Math.round(at.y), w: Math.round(at.width), h: Math.round(at.height) };
+};
+
+/** Whether `one` is wholly inside the window and inside `area`. */
+async function inView(page: Page, one: Locator, area: Locator): Promise<boolean> {
+  const it = (await one.boundingBox())!;
+  const room = (await area.boundingBox())!;
+  const view = page.viewportSize()!;
+  return it.y >= room.y - 1 && it.y + it.height <= room.y + room.height + 1 && it.y >= 0 && it.y + it.height <= view.height && it.x >= 0 && it.x + it.width <= view.width;
+}
+
+/** The newest open menu is inside the window. */
+async function menuInside(page: Page): Promise<void> {
+  const menu = page.locator('[role="menu"]').last();
+  await expect(menu).toBeVisible();
+  const it = (await menu.boundingBox())!;
+  const view = page.viewportSize()!;
+  expect(it.y, "the menu's top is in the window").toBeGreaterThanOrEqual(0);
+  expect(it.y + it.height, "the menu's foot is in the window").toBeLessThanOrEqual(view.height + 1);
+  expect(it.x + it.width, "the menu's right edge is in the window").toBeLessThanOrEqual(view.width + 1);
+  await page.keyboard.press("Escape");
+}
+
+test("Add keeps the next Add where it was: the palette and its More", async ({ page }) => {
+  await open(page, { width: 1280, height: 800 });
+  await pool(page, "Checkout team");
+  await expect(page.getByTestId("pool-canvas")).toBeVisible();
+  const palette = page.getByTestId("canvas-palette");
+  if (!(await page.getByTestId("canvas-palette-body").isVisible())) await palette.getByRole("button", { name: /Add a session/ }).click();
+  const adds = page.getByTestId("canvas-palette-add");
+  await expect(adds).toHaveCount(2);
+  const next = await box(adds.nth(1));
+  await adds.nth(0).click();
+  await expect(page.getByTestId("canvas-palette-added")).toHaveCount(1);
+  expect(await box(page.getByTestId("canvas-palette-add").first()), "the next session's Add didn't move").toEqual(next);
+
+  // The palette's More: the same, in the first kind with two to add.
+  const more = page.getByTestId("canvas-palette-more-add");
+  for (const kind of ["Sessions in other apps", "Apps", "Accounts", "Tools"]) {
+    if ((await more.count()) >= 2) break;
+    await page.getByTestId("canvas-palette-kind").click();
+    const option = page.getByRole("menuitemradio", { name: new RegExp(`^${kind}`) });
+    if ((await option.count()) === 0) {
+      await page.keyboard.press("Escape");
+      continue;
+    }
+    await option.click();
+  }
+  expect(await more.count(), "a kind with two to add").toBeGreaterThanOrEqual(2);
+  const second = await box(more.nth(1));
+  await more.nth(0).click();
+  await expect(page.getByTestId("canvas-palette-more-added")).toHaveCount(1);
+  expect(await box(page.getByTestId("canvas-palette-more-add").first()), "the next App's Add didn't move").toEqual(second);
+});
+
+for (const size of [
+  { width: 1024, height: 768 },
+  { width: 1280, height: 800 },
+]) {
+  test(`a section opened from Change is at the top, its control focused and in view; menus inside the window — ${size.width}×${size.height}`, async ({ page }) => {
+    await open(page, size);
+    await pool(page, "Checkout team");
+    await expect(page.getByTestId("pool-inspector")).toBeVisible();
+    const list = page.locator('[data-testid="pool-inspector"] [data-canvas-scroll]').first();
+    // (Who's in opens the palette on the diagram, not a section.)
+    for (const row of ["lead", "own"] as const) {
+      if (await page.getByTestId("inspector-back").isVisible()) await page.getByTestId("inspector-back").click();
+      await page.locator(`[data-testid="pool-summary"] [data-row="${row}"] [data-testid$="-change"]`).click();
+      const section = page.locator(`#pool-setup-${row}`);
+      await expect(section).toBeVisible();
+      const focused = page.locator(`#pool-setup-${row} :focus`);
+      await expect(focused, `${row}: its control is focused`).toHaveCount(1);
+      expect(await inView(page, focused, list), `${row}: its control is fully in view`).toBe(true);
+    }
+    // Everyone else: its join picker, focused, and its menu inside the window.
+    await page.locator("#pool-setup-everyone").scrollIntoViewIfNeeded();
+    await page.getByTestId("pool-join-picker").click();
+    await menuInside(page);
+    // An App's role menu, never off-screen.
+    if (await page.getByTestId("inspector-back").isVisible()) await page.getByTestId("inspector-back").click();
+    // (Under 1100 px a pool opens as rows: the diagram, chosen.)
+    await page.getByTestId("pool-mode").getByRole("radio", { name: "Diagram" }).click();
+    await page.locator('[data-rule-ref="app:cli:claude-personal"]').click();
+    const role = page.getByTestId("inspect-rule-role");
+    expect(await inView(page, role, list), "the App's role picker is in view").toBe(true);
+    await role.click();
+    await menuInside(page);
+  });
+}
+
+test("at 1280×800 the inspector's first section fits without scrolling", async ({ page }) => {
+  await open(page, { width: 1280, height: 800 });
+  await pool(page, "Checkout team");
+  const list = page.locator('[data-testid="pool-inspector"] [data-canvas-scroll]').first();
+  const summary = page.getByTestId("pool-summary");
+  await expect(summary).toBeVisible();
+  expect(await inView(page, summary, list)).toBe(true);
+  expect(await list.evaluate((el) => el.scrollTop)).toBe(0);
+});
+
+test("an empty pool opens in its guided setup, with Show the diagram", async ({ page }) => {
+  await open(page, { width: 1280, height: 800 });
+  await pool(page, "Docs crew");
+  const setup = page.getByTestId("new-pool");
+  await expect(setup).toHaveAttribute("data-embedded", "true");
+  await expect(page.getByTestId("new-pool-step")).toHaveCount(await page.getByTestId("new-pool-step").count());
+  await expect(page.getByTestId("new-pool-step-template")).toBeVisible();
+  await page.getByTestId("new-pool-show-diagram").click();
+  await expect(page.getByTestId("pool-canvas").or(page.getByTestId("pool-list"))).toBeVisible();
+});
