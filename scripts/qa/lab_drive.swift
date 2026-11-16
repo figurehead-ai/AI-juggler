@@ -2,9 +2,11 @@
 //
 // Drives AI Juggler Dev by its pid only, never by name (the installed AI
 // Juggler has the same process name, juggler-app), and refuses any pid
-// that isn't an "AI Juggler Dev.app". Never raises or activates any app,
-// never moves the pointer: buttons are pressed through accessibility,
-// keys are posted to Dev's pid only.
+// that isn't an "AI Juggler Dev.app". Never moves the pointer and never
+// sends a key or a click to another app: buttons are pressed through
+// accessibility, keys are posted to Dev's pid only (from a private event
+// source, so they never count as the person's input). It raises nothing
+// unless --may-activate says so (below).
 //
 // THE CLICK GUARD. Before every press and every keystroke, both must hold:
 //   - the frontmost app (NSWorkspace) is Dev's pid;
@@ -14,18 +16,40 @@
 // and waits (AIJ_DRIVE_WAIT seconds, default 120) for the person at the
 // Mac to bring Dev forward; still failing, it stops (exit 3), nothing sent.
 //
+// BRINGING DEV FORWARD (--may-activate, or AIJ_DRIVE_MAY_ACTIVATE=1; off by
+// default, so a walk never takes the front without asking; the dry run and
+// the sitting turn it on).
+// Only when the guard fails because another app is frontmost, and only:
+//   - when nobody has touched the Mac for 20 s (HID idle time,
+//     CGEventSource's HID system state);
+//   - while the screen isn't locked, no screen saver runs, and this login
+//     session is the one on screen (CGSessionCopyCurrentDictionary; can't
+//     tell: no);
+//   - once per step (one run of this tool), never in a loop: still failing
+//     after it, the guard waits as before.
+// Each activation prints one line: ACTIVATED <UTC time> step=<command>
+// idle=<s>s. After it, any new input at the Mac (the idle time falls back
+// below the time since the activation) stops the run at once (exit 6):
+// nothing more is sent and Dev is left where it is (not lowered, not raised
+// again). The full guard still runs before every single event.
+//
 // Build once (system swiftc only), then run:
 //   swiftc -O -o "$S/lab_drive" scripts/qa/lab_drive.swift      # $S: a scratch folder
 //   AIJ_DEV_PID=<pid> AIJ_DRIVE_OUT=docs/qa/evidence/AJ-E1612 "$S/lab_drive" <command> …
 //   "$S/lab_drive" --selftest                                     # the guard's logic, no clicks
 //
-// Primitives (TITLE and TEXT are exact words; --in TEXT scopes to the
-// smallest part of the window holding both TEXT and the control):
+// Primitives (TITLE and TEXT are exact words; --row NAME scopes to the one
+// row (group) named exactly NAME, and the control must sit inside it; --in
+// TEXT scopes to the smallest part of the window holding both TEXT and the
+// control, and refuses a part holding two such controls):
 //   guard                         the guard's verdict at Dev's window, nothing sent
 //   texts [--in TEXT]             the words Dev shows (role, label, value), read only
 //   buttons [--in TEXT]           the controls that can be pressed, with their exact titles
-//   press TITLE [--in TEXT …]     presses the one control titled exactly TITLE (each --in
-//                                 adds words its region must hold)
+//   press TITLE [--row NAME] [--in TEXT …]
+//                                 presses the one control titled exactly TITLE; with --row,
+//                                 TITLE must name one control in the whole window, inside
+//                                 the one row named NAME (each --in adds words its region
+//                                 must hold)
 //   focus TITLE [--in TEXT]       puts the cursor in the field titled TITLE
 //   focus-terminal [--in TEXT]    puts the cursor in AI Juggler's terminal (its input)
 //   type TEXT                     types TEXT where the cursor is (keys posted to Dev's pid)
@@ -43,10 +67,12 @@
 // The run sheet's steps (docs/qa/0.5-walks/AJ-E1612.md), each a few of the
 // above; each prints every primitive it runs, so a step that stops can be
 // finished by hand with the same words:
-//   sign-in ROWTEXT [ROWTEXT …]   Home's Needs-you row holding every ROWTEXT (e.g. "lab A
-//                                 needs its sign-in" "OpenCode's own sign-in"): its Sign in;
-//                                 waits for the sign-in terminal ("Sign in · …")
-//   read-label APP                the sign-in words beside APP (Signed in / Not signed in …)
+//   sign-in APP                   Home's Needs-you row named "APP needs its sign-in" (APP:
+//                                 the App's full name, "OpenCode CLI · lab A"): its button
+//                                 "Sign in to APP"; waits for the sign-in terminal ("Sign in · …")
+//   read-label APP                APP's sign-in state where Dev shows it: Home's Needs-you
+//                                 row, its row on Accounts (or its App page); prints
+//                                 STATE: needs-sign-in | not-signed-in | signed-in
 //   new-session TOOL APP PROJECT  New session → Change app → APP → Change folder →
 //                                 PROJECT → "Start in PROJECT" (TOOL names the row in the log)
 //   send TEXT [--field TITLE]     types TEXT and Return into the session's terminal
@@ -58,7 +84,8 @@
 //                                 new-session on lab B; prints what Dev says instead
 //
 // Exit: 0 done, 2 usage, 3 the guard stopped it (nothing sent), 4 not
-// found / ambiguous (nothing sent), 5 timed out waiting.
+// found / ambiguous (nothing sent), 5 timed out waiting, 6 new input at the
+// Mac after Dev was brought forward (nothing more sent).
 import AppKit
 import ApplicationServices
 import CoreGraphics
@@ -118,10 +145,115 @@ func describe(_ verdict: Verdict) -> String {
     }
 }
 
+// MARK: - bringing Dev forward (pure: tested by --selftest)
+
+/// Nobody has touched the Mac for this long before Dev may be brought forward.
+let minIdle: Double = 20
+
+/// What the guard and the Mac say at one moment.
+struct Probe: Equatable {
+    var verdict: Verdict
+    /// Seconds since the person's last input (HID).
+    var idle: Double
+    var locked: Bool
+    var saver: Bool
+    var onConsole: Bool
+}
+
+enum Gate: Equatable {
+    case send
+    case wait(String)
+    case activate
+    case stopNewInput
+}
+
+/// What to do now. `activatedAt`: when this step brought Dev forward (nil:
+/// not yet); `now` and it on one clock, in seconds.
+func decide(_ p: Probe, may: Bool, activatedAt: Double?, now: Double) -> Gate {
+    // After an activation, the person's input since then ends the run,
+    // whatever the guard says (checked before every single event).
+    if let at = activatedAt, now - p.idle > at + 0.25 { return .stopNewInput }
+    if p.verdict == .clear { return .send }
+    let why = describe(p.verdict)
+    guard may else { return .wait(why) }
+    guard activatedAt == nil else { return .wait("\(why); Dev was brought forward once this step and never is again") }
+    // Only another app in front: a window over Dev's isn't moved.
+    guard case .notFrontmost = p.verdict else { return .wait(why) }
+    if !p.onConsole { return .wait("\(why); this login isn't the one on screen") }
+    if p.locked { return .wait("\(why); the screen is locked") }
+    if p.saver { return .wait("\(why); the screen saver runs") }
+    if p.idle < minIdle {
+        return .wait("\(why); the Mac is in use (last input \(Int(p.idle)) s ago; \(Int(minIdle)) s without input needed)")
+    }
+    return .activate
+}
+
+enum GateEnd: Equatable {
+    case send
+    case guardStopped(String)
+    case inputStopped
+}
+
+/// The clock and the Mac, injectable (the selftest's are made up).
+struct Mac {
+    var now: () -> Double
+    var sleep: (Double) -> Void
+    var probe: () -> Probe
+    /// Brings Dev forward; false when the system refused.
+    var activate: () -> Bool
+    var log: (String) -> Void
+}
+
+func utc(_ seconds: Double) -> String {
+    let f = ISO8601DateFormatter()
+    f.formatOptions = [.withInternetDateTime]
+    return f.string(from: Date(timeIntervalSince1970: seconds))
+}
+
+/// Waits until an event may be sent: the guard clear (bringing Dev forward
+/// at most once, under `decide`'s rules), else stops. `activatedAt` lives
+/// for the whole step.
+func gate(step: String, may: Bool, activatedAt: inout Double?, mac: Mac, limit: Double) -> GateEnd {
+    let start = mac.now()
+    var asked = ""
+    while true {
+        let p = mac.probe()
+        let now = mac.now()
+        switch decide(p, may: may, activatedAt: activatedAt, now: now) {
+        case .send:
+            return .send
+        case .stopNewInput:
+            mac.log("STOPPED: someone used the Mac after AI Juggler Dev was brought forward (last input \(Int(p.idle)) s ago). "
+                + "Nothing more is sent; Dev stays where it is.")
+            return .inputStopped
+        case .activate:
+            activatedAt = now
+            let ok = mac.activate()
+            mac.log("ACTIVATED \(utc(now)) step=\(step) idle=\(String(format: "%.1f", p.idle))s" + (ok ? "" : " (the system refused; waiting as before)"))
+            mac.sleep(0.4)
+        case .wait(let why):
+            if why != asked {
+                let ask = may
+                    ? "Nothing is sent. Dev is brought forward once, after \(Int(minIdle)) s without input; or bring it forward yourself."
+                    : "Nothing is sent. Please bring AI Juggler Dev forward (click its window); the driver never does it itself."
+                mac.log("WAITING: \(why). \(ask) Waiting up to \(Int(limit)) s.")
+                asked = why
+            }
+            if now - start > limit { return .guardStopped(why) }
+            mac.sleep(0.5)
+        }
+    }
+}
+
 // MARK: - Dev, by pid only
 
 let env = ProcessInfo.processInfo.environment
-let args = Array(CommandLine.arguments.dropFirst())
+let rawArgs = Array(CommandLine.arguments.dropFirst())
+/// --may-activate (anywhere on the line), or AIJ_DRIVE_MAY_ACTIVATE=1 (a run
+/// sheet's setup, the agent's shell keeping no options between commands):
+/// this step may bring Dev forward, under the rules above. Default off.
+let mayActivate = rawArgs.contains("--may-activate") || env["AIJ_DRIVE_MAY_ACTIVATE"] == "1"
+let args = rawArgs.filter { $0 != "--may-activate" }
 let outDir = URL(fileURLWithPath: env["AIJ_DRIVE_OUT"] ?? FileManager.default.currentDirectoryPath)
 let waitLimit = Double(env["AIJ_DRIVE_WAIT"] ?? "") ?? 120
 
@@ -162,24 +294,59 @@ func devWindow(_ pid: pid_t) -> (id: CGWindowID, bounds: CGRect, title: String)?
     return nil
 }
 
+/// Seconds since the person's last input: keys, pointer, trackpad (the HID
+/// system's own state; the driver's private-source keys don't count).
+func hidIdle() -> Double {
+    CGEventSource.secondsSinceLastEventType(.hidSystemState, eventType: CGEventType(rawValue: ~0)!)
+}
+
+/// The login session's lock and console state; can't tell: locked, off console.
+func session() -> (locked: Bool, onConsole: Bool) {
+    guard let info = CGSessionCopyCurrentDictionary() as? [String: Any] else { return (true, false) }
+    let locked = (info["CGSSessionScreenIsLocked"] as? Bool) ?? ((info["CGSSessionScreenIsLocked"] as? Int).map { $0 != 0 } ?? false)
+    let onConsole = (info[kCGSessionOnConsoleKey as String] as? Bool) ?? false
+    return (locked, onConsole)
+}
+
+func screenSaverRuns() -> Bool {
+    NSWorkspace.shared.runningApplications.contains {
+        $0.bundleIdentifier == "com.apple.ScreenSaver.Engine" || $0.localizedName == "ScreenSaverEngine"
+    }
+}
+
+/// Brings Dev (by pid) to the front through accessibility, else asks the
+/// system; nothing is clicked or typed.
+func bringForward(_ pid: pid_t) -> Bool {
+    let app = AXUIElementCreateApplication(pid)
+    if AXUIElementSetAttributeValue(app, kAXFrontmostAttribute as CFString, kCFBooleanTrue) == .success { return true }
+    return NSRunningApplication(processIdentifier: pid)?.activate(options: []) ?? false
+}
+
+/// The step (command) this run is, for the activation log.
+var step = "?"
+/// When this step brought Dev forward (once at most).
+var activatedAt: Double?
+
 /// The guard, right before a press or a key. Waits (asking once) while it
 /// fails; stops with nothing sent if it still fails after AIJ_DRIVE_WAIT.
+/// With --may-activate it may bring Dev forward once (see the head).
 func guarded(_ pid: pid_t, at point: CGPoint) {
-    let start = Date()
-    var asked = ""
-    while true {
-        let front = NSWorkspace.shared.frontmostApplication
-        let verdict = judge(dev: pid, frontmost: front?.processIdentifier, frontmostName: front?.localizedName ?? "",
-                            windows: onScreenWindows(), point: point)
-        if verdict == .clear { return }
-        let line = describe(verdict)
-        if line != asked {
-            say("WAITING: \(line). Nothing is sent. Please bring AI Juggler Dev forward (click its window); "
-                + "the driver never does it itself. Waiting up to \(Int(waitLimit)) s.")
-            asked = line
-        }
-        if Date().timeIntervalSince(start) > waitLimit { stop(3, "stopped by the guard: \(line). Nothing was sent.") }
-        usleep(500_000)
+    let mac = Mac(
+        now: { Date().timeIntervalSince1970 },
+        sleep: { usleep(useconds_t($0 * 1_000_000)) },
+        probe: {
+            let front = NSWorkspace.shared.frontmostApplication
+            let verdict = judge(dev: pid, frontmost: front?.processIdentifier, frontmostName: front?.localizedName ?? "",
+                                windows: onScreenWindows(), point: point)
+            let s = session()
+            return Probe(verdict: verdict, idle: hidIdle(), locked: s.locked, saver: screenSaverRuns(), onConsole: s.onConsole)
+        },
+        activate: { bringForward(pid) },
+        log: say)
+    switch gate(step: step, may: mayActivate, activatedAt: &activatedAt, mac: mac, limit: waitLimit) {
+    case .send: return
+    case .guardStopped(let why): stop(3, "stopped by the guard: \(why). Nothing was sent.")
+    case .inputStopped: stop(6, "stopped: new input at the Mac after Dev was brought forward. Nothing more was sent.")
     }
 }
 
@@ -252,6 +419,25 @@ func ancestors(_ nodes: [Node], _ i: Int) -> [Int] {
     return out
 }
 
+/// Roles a row (a named group) has: a list item and role=group are AXGroup in WebKit.
+let rowRoles: Set<String> = ["AXGroup", "AXRow", "AXCell", "AXOutlineRow"]
+
+/// The one control titled `title` in the whole window, inside the one row
+/// named exactly `row`; else nil and why (AJ-E1612: no title may stand
+/// for two controls, and a button beside its row isn't its row's).
+func pickInRow(_ nodes: [Node], _ candidates: [Int], title: String, row: String) -> (Int?, String) {
+    let name = squash(row)
+    let rows = nodes.indices.filter { rowRoles.contains(nodes[$0].role) && nodes[$0].label == name }
+    guard rows.count == 1, let r = rows.first else {
+        return (nil, rows.isEmpty ? "no row named exactly \"\(name)\"" : "\(rows.count) rows named \"\(name)\"")
+    }
+    guard candidates.count == 1, let c = candidates.first else {
+        return (nil, candidates.isEmpty ? "none titled exactly \"\(title)\"" : "\(candidates.count) controls titled exactly \"\(title)\": a title must name one")
+    }
+    guard ancestors(nodes, c).contains(r) else { return (nil, "the control \"\(title)\" isn't inside the row \"\(name)\"") }
+    return (c, "")
+}
+
 let pressRoles: Set<String> = ["AXButton", "AXMenuItem", "AXMenuButton", "AXPopUpButton", "AXRadioButton", "AXCheckBox",
                                "AXLink", "AXTab", "AXCell", "AXRow", "AXDisclosureTriangle"]
 let fieldRoles: Set<String> = ["AXTextField", "AXTextArea", "AXComboBox", "AXSearchField"]
@@ -277,13 +463,19 @@ func controls(_ nodes: [Node], titled title: String, roles: Set<String>) -> [Int
     return found
 }
 
-/// Of `candidates`, the one in the tightest region holding every one of
-/// `regions`' words: for each candidate, its deepest ancestor that also
-/// holds a node with each text. Ambiguous or none: nil, with the reason.
+/// The one control of `candidates` (every control with the title in the
+/// window), in a region holding every one of `regions`' words. A title
+/// that names two controls is refused, words or not (AJ-E1612: the dry
+/// run's `--in` tied Kimi Code's Sign in to OpenCode's words, the rows'
+/// boxes nested oddly): name a row with --row instead. None: nil, with
+/// the reason.
 func pick(_ nodes: [Node], _ candidates: [Int], within regions: [String]) -> (Int?, String) {
+    guard candidates.count <= 1 else {
+        return (nil, "\(candidates.count) controls have that title: a title must name one (press by --row NAME, the row's own name)")
+    }
     guard !regions.isEmpty else {
         if candidates.count == 1 { return (candidates[0], "") }
-        return (nil, candidates.isEmpty ? "none found" : "\(candidates.count) found: say which with --in TEXT")
+        return (nil, "none found")
     }
     var markUps: [[Set<Int>]] = []  // per region text: each mark's ancestors
     for region in regions {
@@ -291,18 +483,18 @@ func pick(_ nodes: [Node], _ candidates: [Int], within regions: [String]) -> (In
         if marks.isEmpty { return (nil, "no words \"\(region)\" on screen") }
         markUps.append(marks.map { Set(ancestors(nodes, $0)) })
     }
-    var best: [(Int, Int)] = []  // (candidate, its region's depth)
+    var best: [(Int, Int, Int)] = []  // (candidate, its region, the region's depth)
     for c in candidates {
         // The first ancestor (from the control up) holding every text.
         if let region = ancestors(nodes, c).first(where: { a in markUps.allSatisfy { ups in ups.contains { $0.contains(a) } } }) {
-            best.append((c, nodes[region].depth))
+            best.append((c, region, nodes[region].depth))
         }
     }
     let named = regions.map { "\"\($0)\"" }.joined(separator: " + ")
-    guard let top = best.map({ $0.1 }).max() else { return (nil, "none found in a region with \(named)") }
-    let winners = best.filter { $0.1 == top }.map { $0.0 }
-    if winners.count == 1 { return (winners[0], "") }
-    return (nil, "\(winners.count) found equally near \(named): add another --in")
+    guard let top = best.map({ $0.2 }).max() else { return (nil, "none found in a region with \(named)") }
+    let winners = best.filter { $0.2 == top }
+    guard winners.count == 1, let (winner, _, _) = winners.first else { return (nil, "none found in a region with \(named)") }
+    return (winner, "")
 }
 
 func center(_ e: AXUIElement) -> CGPoint? {
@@ -337,8 +529,11 @@ func keyPoint(_ pid: pid_t) -> CGPoint {
 
 func post(_ pid: pid_t, code: CGKeyCode, flags: CGEventFlags = [], unicode: String? = nil) {
     guarded(pid, at: keyPoint(pid))
+    // A private source: these keys never count as the person's input (the
+    // idle time --may-activate reads stays theirs).
+    let source = CGEventSource(stateID: .privateState)
     for down in [true, false] {
-        guard let event = CGEvent(keyboardEventSource: nil, virtualKey: code, keyDown: down) else { stop(3, "no key event") }
+        guard let event = CGEvent(keyboardEventSource: source, virtualKey: code, keyDown: down) else { stop(3, "no key event") }
         event.flags = flags
         if let unicode {
             let units = Array(unicode.utf16)
@@ -403,6 +598,7 @@ func shows(_ words: [String], _ needle: String) -> Bool {
 struct Opts {
     var positional: [String] = []
     var within: [String] = []
+    var row: String?
     var timeout: Double = 30
     var ocr = false
     var gone = false
@@ -424,6 +620,7 @@ func parse(_ raw: [String]) -> Opts {
     while i < raw.count {
         switch raw[i] {
         case "--in": o.within.append(value())
+        case "--row": o.row = value()
         case "--timeout": o.timeout = Double(value()) ?? 30
         case "--ocr": o.ocr = true
         case "--gone": o.gone = true
@@ -442,10 +639,11 @@ func parse(_ raw: [String]) -> Opts {
 /// Presses it; with `soft`, a control that is there but disabled is
 /// reported (false) instead of stopping.
 @discardableResult
-func press(_ pid: pid_t, _ title: String, within: [String], soft: Bool = false) -> Bool {
-    say("» press \"\(title)\"" + within.map { " --in \"\($0)\"" }.joined())
+func press(_ pid: pid_t, _ title: String, within: [String], row: String? = nil, soft: Bool = false) -> Bool {
+    say("» press \"\(title)\"" + (row.map { " --row \"\($0)\"" } ?? "") + within.map { " --in \"\($0)\"" }.joined())
     let nodes = tree(pid)
-    let (chosen, why) = pick(nodes, controls(nodes, titled: title, roles: pressRoles), within: within)
+    let candidates = controls(nodes, titled: title, roles: pressRoles)
+    let (chosen, why) = row.map { pickInRow(nodes, candidates, title: title, row: $0) } ?? pick(nodes, candidates, within: within)
     guard let i = chosen else { stop(4, "no single control titled exactly \"\(title)\": \(why). Nothing pressed. (`buttons` lists them.)") }
     let e = nodes[i].element
     if soft, (attr(e, kAXEnabledAttribute) as? Bool) == false {
@@ -552,27 +750,55 @@ func shot(_ pid: pid_t, _ o: Opts) {
 
 // MARK: - the run sheet's steps
 
-func signIn(_ pid: pid_t, row: [String]) {
-    press(pid, "Sign in", within: row)
+/// Home's Needs-you row for App `app` (its full name, "Kimi Code CLI ·
+/// lab A"), and its button: the names Dev gives them (AJ-E1612).
+func signInRow(_ app: String) -> String { "\(squash(app)) needs its sign-in" }
+func signInButton(_ app: String) -> String { "Sign in to \(squash(app))" }
+
+func signIn(_ pid: pid_t, app: String) {
+    press(pid, signInButton(app), within: [], row: signInRow(app))
     waitFor(pid, "Sign in ·", timeout: 20, ocr: false, gone: false)
     say("the sign-in terminal is open: answer its menu with `key`/`type`, read it with `read --ocr`")
 }
 
-let signInWords = ["Signed in", "Not signed in", "needs its sign-in", "Account unknown", "Sign in"]
+enum SignInState: String { case needsSignIn = "needs-sign-in", notSignedIn = "not-signed-in", signedIn = "signed-in" }
 
-func readLabel(_ pid: pid_t, app: String) {
-    let nodes = tree(pid)
-    let marks = nodes.indices.filter { nodes[$0].words.contains(app) }
-    guard !marks.isEmpty else { stop(4, "no words \"\(app)\" on screen") }
-    var seen: [String] = []
-    for m in marks {
-        // The row: up to four levels above the App's name.
-        let row = ancestors(nodes, m).prefix(5).last!
-        for j in [row] + descendants(nodes, row) {
-            for w in signInWords where nodes[j].words.contains(w) && !seen.contains(nodes[j].words) { seen.append(nodes[j].words) }
+/// App `app`'s sign-in state as Dev shows it (pure: tested by --selftest).
+/// Home's Needs-you row named "<app> needs its sign-in"; else its row on
+/// Accounts (the one holding "Open <app>" or "App actions for <app>"):
+/// "Not signed in" there, or what a signed-in row shows instead ("Nothing
+/// open", "N open now"). Each finding says where it was read.
+func signInState(_ nodes: [Node], app: String) -> [(SignInState, String)] {
+    var out: [(SignInState, String)] = []
+    if nodes.contains(where: { rowRoles.contains($0.role) && $0.label == signInRow(app) }) {
+        out.append((.needsSignIn, "Home's Needs you: \"\(signInRow(app))\""))
+    }
+    let handles = controls(nodes, titled: "Open \(squash(app))", roles: pressRoles) + controls(nodes, titled: "App actions for \(squash(app))", roles: pressRoles)
+    for h in handles {
+        // Its row: the nearest ancestor (six levels at most) holding a state word.
+        for a in ancestors(nodes, h).dropFirst().prefix(6) {
+            let words = descendants(nodes, a).map { nodes[$0].words }
+            if words.contains("Not signed in") { out.append((.notSignedIn, "its row: \"Not signed in\"")); break }
+            if words.contains("Its key isn't here") { out.append((.notSignedIn, "its row: \"Its key isn't here\"")); break }
+            if let shown = words.first(where: { $0 == "Nothing open" || $0.hasSuffix(" open now") }) {
+                out.append((.signedIn, "its row: \"\(shown)\" (a signed-in App's words)")); break
+            }
         }
     }
-    say(seen.isEmpty ? "no sign-in words beside \"\(app)\"" : seen.map { "\(app): \($0)" }.joined(separator: "\n"))
+    var seen = Set<String>()
+    return out.filter { seen.insert("\($0.0.rawValue)|\($0.1)").inserted }
+}
+
+func readLabel(_ pid: pid_t, app: String) {
+    say("» read-label \"\(app)\"")
+    let found = signInState(tree(pid), app: app)
+    guard !found.isEmpty else {
+        stop(4, "\"\(app)\"'s sign-in isn't shown here (Home lists only Apps that need one): press \"Accounts\" and read again")
+    }
+    for (state, where_) in found { say("\(app): \(state.rawValue) — \(where_)") }
+    let states = Set(found.map { $0.0 })
+    if states.count > 1 { stop(4, "\"\(app)\" shows two states (\(states.map { $0.rawValue }.sorted().joined(separator: ", "))): read again in a moment") }
+    say("STATE: \(found[0].0.rawValue)")
 }
 
 func newSession(_ pid: pid_t, tool: String, app: String, project: String, labB: Bool = false) {
@@ -597,6 +823,90 @@ func send(_ pid: pid_t, _ words: String, field: String?) {
 }
 
 // MARK: - the selftest (no clicks, no keys)
+
+/// `gate` against a made-up clock and Mac: `inputAt` is when the person
+/// last touched it (they keep typing while `busy` holds), `front` whether
+/// Dev is frontmost (activating makes it so unless `refuse`).
+func activationSelftest() -> [String] {
+    var failures: [String] = []
+    final class World {
+        var t = 1000.0
+        var inputAt = 1000.0
+        var front = false
+        var covered = false
+        var locked = false
+        var saver = false
+        var refuse = false
+        var activations = 0
+        var busyUntil = 0.0
+        var lines: [String] = []
+    }
+    func mac(_ w: World) -> Mac {
+        Mac(now: { w.t },
+            sleep: { w.t += $0; if w.t < w.busyUntil { w.inputAt = w.t } },
+            probe: {
+                let verdict: Verdict = !w.front ? .notFrontmost("Aside") : w.covered ? .covered("Notification Center, layer 23") : .clear
+                return Probe(verdict: verdict, idle: w.t - w.inputAt, locked: w.locked, saver: w.saver, onConsole: true)
+            },
+            activate: { w.activations += 1; if !w.refuse { w.front = true }; return !w.refuse },
+            log: { w.lines.append($0) })
+    }
+    // Off by default: never brought forward, however idle; the guard stops.
+    do {
+        let w = World(); w.inputAt = 0
+        var at: Double?
+        if gate(step: "press", may: false, activatedAt: &at, mac: mac(w), limit: 60) != .guardStopped("AI Juggler Dev isn't the frontmost app (Aside is)") || w.activations != 0 {
+            failures.append("activation: without --may-activate Dev was brought forward")
+        }
+    }
+    // In use for 15 s more: waits, then brings Dev forward once, at 20 s idle, logged; then sends.
+    do {
+        let w = World(); w.busyUntil = 1015
+        var at: Double?
+        let end = gate(step: "sign-in", may: true, activatedAt: &at, mac: mac(w), limit: 120)
+        let logged = w.lines.filter { $0.hasPrefix("ACTIVATED ") }
+        if end != .send || w.activations != 1 || logged.count != 1 { failures.append("activation: once after idle (\(end), \(w.activations))") }
+        if let at, at - w.inputAt < minIdle { failures.append("activation: brought forward after only \(at - w.inputAt) s idle") }
+        if let line = logged.first, !(line.contains("step=sign-in") && line.contains("idle=2") && line.contains("T")) { failures.append("activation: its log line \(line)") }
+        // The next event: nobody touched the Mac, so it sends with no second activation.
+        w.t += 3
+        if gate(step: "sign-in", may: true, activatedAt: &at, mac: mac(w), limit: 120) != .send || w.activations != 1 { failures.append("activation: a second event") }
+        // Then the person moves the mouse: the run stops, nothing re-raised.
+        w.inputAt = w.t; w.t += 0.5
+        if gate(step: "sign-in", may: true, activatedAt: &at, mac: mac(w), limit: 120) != .inputStopped || w.activations != 1 { failures.append("activation: new input didn't stop the run") }
+        if !w.front { failures.append("activation: Dev was moved after new input") }
+    }
+    // Locked screen, screen saver: never, however idle.
+    for (locked, saver) in [(true, false), (false, true)] {
+        let w = World(); w.inputAt = 0; w.locked = locked; w.saver = saver
+        var at: Double?
+        _ = gate(step: "press", may: true, activatedAt: &at, mac: mac(w), limit: 60)
+        if w.activations != 0 { failures.append("activation: while \(locked ? "locked" : "the screen saver runs")") }
+    }
+    // Refused by the system: one try only, then the guard waits and stops.
+    do {
+        let w = World(); w.inputAt = 0; w.refuse = true
+        var at: Double?
+        let end = gate(step: "press", may: true, activatedAt: &at, mac: mac(w), limit: 60)
+        if w.activations != 1 { failures.append("activation: tried \(w.activations) times") }
+        if case .guardStopped = end {} else { failures.append("activation: refused, then \(end)") }
+    }
+    // Dev in front but a window over it: not Dev's to fix by activating.
+    do {
+        let w = World(); w.inputAt = 0; w.front = true; w.covered = true
+        var at: Double?
+        _ = gate(step: "press", may: true, activatedAt: &at, mac: mac(w), limit: 60)
+        if w.activations != 0 { failures.append("activation: for a covering window") }
+    }
+    // The pure rule at its edges.
+    let quiet = Probe(verdict: .notFrontmost("Aside"), idle: 19.9, locked: false, saver: false, onConsole: true)
+    if decide(quiet, may: true, activatedAt: nil, now: 0) == .activate { failures.append("decide: 19.9 s idle") }
+    var twenty = quiet; twenty.idle = 20
+    if decide(twenty, may: true, activatedAt: nil, now: 0) != .activate { failures.append("decide: 20 s idle") }
+    var away = twenty; away.onConsole = false
+    if decide(away, may: true, activatedAt: nil, now: 0) == .activate { failures.append("decide: off console") }
+    return failures
+}
 
 func selftest() {
     let dev: pid_t = 4242
@@ -657,12 +967,82 @@ func selftest() {
     ]
     let signIns = controls(rows, titled: "Sign in", roles: pressRoles)
     if signIns != [4, 9] { failures.append("exact titles: \(signIns)") }
-    if pick(rows, signIns, within: ["lab A needs its sign-in", "OpenCode's own sign-in"]).0 != 4 { failures.append("pick OpenCode's row") }
-    if pick(rows, signIns, within: ["Kimi Code's own sign-in"]).0 != 9 { failures.append("pick Kimi's row") }
+    // Two controls of one title: refused, whatever words narrow it (--row names the row).
+    if pick(rows, signIns, within: ["lab A needs its sign-in", "OpenCode's own sign-in"]).0 != nil { failures.append("--in chose between two of one title") }
+    if pick(rows, signIns, within: ["Kimi Code's own sign-in"]).0 != nil { failures.append("--in chose between two of one title (Kimi)") }
     if pick(rows, signIns, within: ["lab A needs its sign-in"]).0 != nil { failures.append("an ambiguous region picked one") }
+    // One control of the title: --in still checks its region holds the words.
+    let only = controls(rows, titled: "Sign in to everything", roles: pressRoles)
+    if pick(rows, only, within: ["lab A needs its sign-in"]).0 != 10 { failures.append("--in: the one control in its region") }
+    if pick(rows, only, within: ["Grok Build's own sign-in"]).0 != nil { failures.append("--in: words not on screen") }
     if pick(rows, signIns, within: []).0 != nil { failures.append("two Sign in without a region picked one") }
     if pick(rows, signIns, within: ["Grok Build's own sign-in"]).0 != nil { failures.append("a missing region picked one") }
     if controls(rows, titled: "Sign", roles: pressRoles) != [] { failures.append("a prefix matched") }
+    // AJ-E1612, the bug the dry run met: the first row an unnamed box whose
+    // button sits beside the rows, the rows' buttons all one name. `--in`
+    // picked Kimi Code's button for OpenCode's words.
+    let bug: [Node] = [
+        n("AXWindow", "AI Juggler · Home", "", nil, 0),
+        n("AXGroup", "Needs you", "", 0, 1),                                    // 1
+        n("AXStaticText", "", "lab A needs its sign-in", 1, 2),                 // OpenCode's words…
+        n("AXStaticText", "", "OpenCode's own sign-in, in a terminal here", 1, 2),
+        n("AXList", "", "", 1, 2),                                              // 4
+        n("AXGroup", "", "", 4, 3),                                             // 5: Kimi's row
+        n("AXStaticText", "", "lab A needs its sign-in", 5, 4),
+        n("AXStaticText", "", "Kimi Code's own sign-in, in a terminal here", 5, 4),
+        n("AXButton", "Sign in — lab A needs its sign-in", "", 5, 4),           // 8
+        n("AXButton", "Sign in — lab A needs its sign-in", "", 1, 2),           // 9: OpenCode's, beside
+    ]
+    let same = controls(bug, titled: "Sign in — lab A needs its sign-in", roles: pressRoles)
+    if same != [8, 9] { failures.append("the bug tree's buttons: \(same)") }
+    if pick(bug, same, within: ["lab A needs its sign-in", "OpenCode's own sign-in"]).0 != nil { failures.append("--in tied a button to the wrong row (the dry run's pick)") }
+    if pickInRow(bug, same, title: "Sign in — lab A needs its sign-in", row: "Needs you").0 != nil { failures.append("--row accepted a title naming two controls") }
+    // Named rows, but a button beside its row (outside it): refused.
+    let beside: [Node] = [
+        n("AXWindow", "AI Juggler · Home", "", nil, 0),
+        n("AXGroup", "OpenCode CLI · lab A needs its sign-in", "", 0, 1),     // 1
+        n("AXStaticText", "", "lab A needs its sign-in", 1, 2),
+        n("AXList", "", "", 0, 1),                                              // 3
+        n("AXGroup", "Kimi Code CLI · lab A needs its sign-in", "", 3, 2),    // 4
+        n("AXButton", "Sign in to Kimi Code CLI · lab A", "", 4, 3),           // 5
+        n("AXButton", "Sign in to OpenCode CLI · lab A", "", 3, 2),            // 6: a sibling of Kimi's row
+    ]
+    let open = controls(beside, titled: "Sign in to OpenCode CLI · lab A", roles: pressRoles)
+    if pickInRow(beside, open, title: "Sign in to OpenCode CLI · lab A", row: "OpenCode CLI · lab A needs its sign-in").0 != nil {
+        failures.append("--row pressed a button outside its row")
+    }
+    let kimiButton = controls(beside, titled: "Sign in to Kimi Code CLI · lab A", roles: pressRoles)
+    if pickInRow(beside, kimiButton, title: "Sign in to Kimi Code CLI · lab A", row: "Kimi Code CLI · lab A needs its sign-in").0 != 5 {
+        failures.append("--row missed the button inside its row")
+    }
+    if pickInRow(beside, kimiButton, title: "Sign in to Kimi Code CLI · lab A", row: "Grok Build CLI · lab A needs its sign-in").0 != nil {
+        failures.append("--row pressed with no such row")
+    }
+    let twoRows = beside + [n("AXGroup", "Kimi Code CLI · lab A needs its sign-in", "", 0, 1)]
+    if pickInRow(twoRows, kimiButton, title: "Sign in to Kimi Code CLI · lab A", row: "Kimi Code CLI · lab A needs its sign-in").0 != nil {
+        failures.append("--row chose between two rows of one name")
+    }
+    if signInRow(" Kimi Code CLI ·  lab A") != "Kimi Code CLI · lab A needs its sign-in" || signInButton("Kimi Code CLI · lab A") != "Sign in to Kimi Code CLI · lab A" {
+        failures.append("the sign-in names")
+    }
+    // read-label: from Home's row, then from the App's row on Accounts.
+    if signInState(beside, app: "Kimi Code CLI · lab A").map({ $0.0 }) != [.needsSignIn] { failures.append("read-label: Home's row") }
+    let accounts: [Node] = [
+        n("AXWindow", "AI Juggler · Accounts", "", nil, 0),
+        n("AXGroup", "", "", 0, 1),                                             // 1: Kimi's row
+        n("AXStaticText", "", "Kimi Code CLI", 1, 2),
+        n("AXStaticText", "", "Nothing open", 1, 2),
+        n("AXButton", "Open Kimi Code CLI · lab A", "", 1, 2),
+        n("AXGroup", "", "", 0, 1),                                             // 5: OpenCode's row
+        n("AXStaticText", "", "Not signed in", 5, 2),
+        n("AXButton", "Sign in", "", 5, 2),
+        n("AXButton", "Open OpenCode CLI · lab A", "", 5, 2),
+    ]
+    if signInState(accounts, app: "Kimi Code CLI · lab A").map({ $0.0 }) != [.signedIn] { failures.append("read-label: a signed-in row") }
+    if signInState(accounts, app: "OpenCode CLI · lab A").map({ $0.0 }) != [.notSignedIn] { failures.append("read-label: a signed-out row") }
+    if !signInState(accounts, app: "Grok Build CLI · lab A").isEmpty { failures.append("read-label: an App not shown") }
+    // Bringing Dev forward: a made-up clock and Mac.
+    failures += activationSelftest()
     // Words: exact, squashed.
     if squash("  Sign\u{00a0}in \n") != "Sign in" { failures.append("squash") }
     if !shows(["OpenCode CLI · lab A needs its sign-in"], "lab A needs its sign-in") { failures.append("shows") }
@@ -682,6 +1062,7 @@ func selftest() {
 guard let command = args.first else { stop(2, "say a command (see the head of scripts/qa/lab_drive.swift)") }
 if command == "--selftest" { selftest() }
 let o = parse(Array(args.dropFirst()))
+step = command
 let pid = devPid()
 func need(_ n: Int, _ usage: String) { if o.positional.count < n { stop(2, usage) } }
 
@@ -695,7 +1076,7 @@ case "guard":
     exit(v == .clear ? 0 : 3)
 case "texts": listTexts(pid, within: o.within, pressable: false)
 case "buttons": listTexts(pid, within: o.within, pressable: true)
-case "press": need(1, "press TITLE [--in TEXT]"); press(pid, o.positional[0], within: o.within)
+case "press": need(1, "press TITLE [--row NAME] [--in TEXT]"); press(pid, o.positional[0], within: o.within, row: o.row)
 case "focus": need(1, "focus TITLE [--in TEXT]"); focusField(pid, o.positional[0], within: o.within)
 case "focus-terminal": focusTerminal(pid, within: o.within)
 case "type": need(1, "type TEXT"); say("» type \"\(o.positional.joined(separator: " "))\""); typeText(pid, o.positional.joined(separator: " "))
@@ -706,7 +1087,7 @@ case "key":
 case "wait": need(1, "wait TEXT [--timeout S] [--ocr] [--gone]"); waitFor(pid, o.positional[0], timeout: o.timeout, ocr: o.ocr, gone: o.gone)
 case "read": screenWords(pid, ocr: o.ocr).forEach { say($0) }
 case "shot": shot(pid, o)
-case "sign-in": need(1, "sign-in ROWTEXT [ROWTEXT …]"); signIn(pid, row: o.positional + o.within)
+case "sign-in": need(1, "sign-in APP (its full name, e.g. \"OpenCode CLI · lab A\")"); signIn(pid, app: o.positional.joined(separator: " "))
 case "read-label": need(1, "read-label APP"); readLabel(pid, app: o.positional[0])
 case "new-session": need(3, "new-session TOOL APP PROJECT"); newSession(pid, tool: o.positional[0], app: o.positional[1], project: o.positional[2])
 case "send": need(1, "send TEXT [--field TITLE]"); send(pid, o.positional.joined(separator: " "), field: o.field)
