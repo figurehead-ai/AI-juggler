@@ -115,8 +115,11 @@ export function SessionRow(props: SessionRowProps): JSX.Element {
   const state = rowState(item);
   const low = item.session ? lowLeftWords(item.session) : null;
   // D-117: low room on a live session is L1 at 11–25 %, L2 at 10 % or
-  // less, L3 when out (its own fact, drawn with its own level).
-  const lowLevel = low && item.session?.quota ? attentionLevel({ need: "quota", left: Math.max(0, Math.round(100 - item.session.quota.used_percentage)), liveSessions: 1 }) : 0;
+  // less, L3 when out (its own fact, drawn with its own level). A session
+  // its limit stopped: the figure is that limit, at the row's own level
+  // (L2 "Limit reached", calm while parked): the inspector-folded capture's
+  // "Limit reached" row read "0% left" in red.
+  const lowLevel = !low || !item.session?.quota ? 0 : item.session.status === "quota_blocked" ? state.level : attentionLevel({ need: "quota", left: Math.max(0, Math.round(100 - item.session.quota.used_percentage)), liveSessions: 1 });
   const lowTone = lowLevel >= 2 ? levelTone(lowLevel).text : "text-muted";
   const heavyNote = useHeavyNote(item.session?.id ?? "");
   const heavy = heavyNote ? shortHeavy(heavyNote) : null;

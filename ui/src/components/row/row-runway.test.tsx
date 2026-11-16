@@ -40,3 +40,29 @@ it("says how much is left only when it's low, in its level's colour and in its n
   row(50);
   expect(screen.queryByText(/% left/)).toBeNull();
 });
+
+// D-117 (AJ-E3602), the inspector-folded captures: a "Limit reached" row
+// (L2) read "0% left" in red. A session its limit stopped: its figure is
+// that limit, at the row's own level (attentionLevel(), the one rule):
+// amber at L2, never red; calm while it is parked until its reset.
+it("a row its limit stopped shows its figure at the row's level: amber at L2, never red", () => {
+  const limited = (over: Parameters<typeof instance>[0] = {}) =>
+    render(
+      <SessionRow item={sessionItem(instance({ id: "s-limit", status: "quota_blocked", needs_attention: "quota_blocked", quota: { used_percentage: 100, resets_at_ms: null, confidence: "exact" }, ...over }), () => "shop", false)} density="cozy" now={Date.now()} onSelect={vi.fn()} />,
+    );
+  for (const used of [100, 95, 80]) {
+    limited({ quota: { used_percentage: used, resets_at_ms: null, confidence: "exact" } });
+    expect(document.querySelector("[data-need='limit']")?.getAttribute("data-level")).toBe("2");
+    const shown = screen.getByText(`${100 - used}% left`);
+    expect(shown.className).not.toContain("text-danger");
+    expect(shown.className).toContain("text-warning");
+    expect(shown.getAttribute("data-level")).toBe("2");
+    cleanup();
+  }
+  // Parked until its reset: calm (L0), its figure muted, its word "Parked".
+  limited({ parked: "measured", parked_resets_at_ms: Date.now() - 60_000 });
+  const figure = screen.getByText("0% left");
+  expect(figure.className).toContain("text-muted");
+  expect(figure.getAttribute("data-level")).toBe("0");
+  expect(screen.getByText("Parked")).toBeTruthy();
+});
