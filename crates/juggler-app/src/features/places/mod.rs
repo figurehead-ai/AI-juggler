@@ -1307,17 +1307,17 @@ pub fn open(
     // when it isn't running.
     let own = conversation.and_then(|conversation| {
         let host = hosts.by_id(&place.app_id)?;
-        let own = open_session::app_session_in(state, &place, conversation)?;
-        host.session_link_for(&own)
+        let record = open_session::app_session_in(state, &place, conversation)?;
+        Some((host.session_link_for(&record)?, record))
     });
-    if let Some(own) = own {
+    if let Some((own, record)) = own {
         let (state, id, still) = (Arc::clone(state), id.to_owned(), label.clone());
         return Ok(goto::within(goto::LIMIT, move || {
             open_session::open_in(
                 &label,
                 &id,
                 &place,
-                &own,
+                open_session::SessionLink::of(&record, &own),
                 &state,
                 &handoff::Real,
                 desktop.as_ref(),
