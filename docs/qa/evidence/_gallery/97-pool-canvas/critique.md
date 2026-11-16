@@ -1,4 +1,4 @@
-<!-- captures: b0f7a864e5c6 -->
+<!-- captures: df8c673a4254 -->
 # 97-pool-canvas: the Pools screen and a pool's canvas
 
 Design critique (D-57, AJ-E2814) against the reference screens: the row menus (77-menus), the rail's order menu, Usage and Processes. The baseline note says what changed on purpose; this says whether it is good.
@@ -115,3 +115,12 @@ Checked by eye, dark and light:
 Section titles re-rendered (6db085536): a colour token named like a type size (`--color-section` beside `--text-section`) had Tailwind build `.text-section` as a colour only, so every section title in the captures from 56f98a514 on was about 13 px regular grey. Re-captured and checked by eye against the earlier captures:
 
 - Every capture (both widths and themes; pools-screen at 1024 unchanged): the inspector's title ("Checkout team", the selected member's or line's name), List's "Members" and "Who talks to whom", Messages' title, New pool's step titles ("How to start", "Where", "Who's in", "Who leads", "Everyone else", "Who may message whom", "What they may do on their own", "Review") and the rail's wordmark are 15 px semibold ink again, as Hierarchy above says; what's under them sits 1-4 px higher. Wording, controls and states are unchanged. Pass.
+
+## Round 7 (AJ-E3011)
+
+Checked by eye, dark and light:
+
+- new-pool-* (both widths): the side list's step 5 reads "Who builds, who checks" (was "Everyone else", Sam missed that the checker is picked there); new-pool-everyone has it as its title with "Each member's role, and how new sessions join."; new-pool-lead's footer reads "Next: Who builds, who checks"; new-pool-review's row says it too, on two lines in its label column like "Who may message whom". Pass.
+- new-pool-template (both widths): the closed "What a pool is" no longer keeps an empty 8 px gap under it (the app's Disclosure is a button with aria-expanded now, so an accessibility press opens it), so How to start sits 8 px higher. Pass.
+- inspect-edge (both themes): the line's conversation is drawn, on the panel's gutter (the selection-line fix). Pass.
+- The other captures re-rendered with under 60 px of noise and were left as committed.

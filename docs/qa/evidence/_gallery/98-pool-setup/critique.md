@@ -1,4 +1,4 @@
-<!-- captures: c0622134e806 -->
+<!-- captures: a6ba1dbc66dd -->
 # 98-pool-setup: the pool setup a newcomer understands (AJ-E3011)
 
 Design critique (D-57, AJ-E2814) against the reference screens: Settings' choice lines, the switch dialog's "What does this mean?", and the calm UI round 2 mocks (levels, section labels, surface tone). Every step of New pool, empty (the first pool: the intro full, nothing chosen, the defaults filled in) and filled (a name, two Apps, an App's next session leading, a Reviewer, a pair blocked, waking, the seal), dark and light, 1280×800. Fixture names only.
@@ -105,3 +105,13 @@ Checked by eye, dark and light:
 Section titles re-rendered (6db085536): a colour token named like a type size (`--color-section` beside `--text-section`) had Tailwind build `.text-section` as a colour only, so every section title in the captures from 56f98a514 on was about 13 px regular grey. Re-captured and checked by eye against the earlier captures:
 
 - Every capture: the step's title is 15 px semibold ink again, above its why-line, as Hierarchy says (round 2's "semibold now" held in the code but the captures showed it grey and regular); the step's content sits 3-4 px higher, so Review (filled) shows the top of "What each member can do here"'s card at its foot. Wording, controls and states are unchanged. Pass.
+
+## Round 7 (AJ-E3011, after the round-6 done-gate walks)
+
+Checked by eye, dark and light:
+
+- Every capture: the side list's step 5 reads "Who builds, who checks" (Sam missed that "Everyone else" is where the reviewer is picked).
+- setup-everyone (empty, filled): the step's title is "Who builds, who checks", its line "Each member's role, and how new sessions join." Pass.
+- setup-lead: the footer's "Next: Who builds, who checks". setup-review: the row "Who builds, who checks" (two lines in its label column, like "Who may message whom"). Pass.
+- setup-template-filled and empty-pool-setup: the closed "What a pool is" no longer keeps an empty 8 px gap (the app's Disclosure is a button now), so How to start and the templates sit 8 px higher. Pass.
+- Who's in asking for the connector on a desktop App's own row is in 99-desktop-connector/new-pool (these captures' Apps are CLI ones).

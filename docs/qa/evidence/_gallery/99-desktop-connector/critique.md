@@ -1,4 +1,4 @@
-<!-- captures: f4b5bc86f06d -->
+<!-- captures: 5fe50edda94f -->
 # 99-desktop-connector: desktop apps in a pool through AI Juggler's connector (AJ-E3013)
 
 Design critique (D-57, AJ-E2814) against 99-pool-selection (the canvas and inspector around it), 92-agent-tools (the team tools card, the same card shape) and the calm UI round 2 rules. The Checkout team pool with a Claude app profile as an App member (no connector), a Claude app session connected, another Watched, and a ChatGPT (Codex app) thread; dark and light, 1280×800. Fixtures only: nothing is written or run.
@@ -64,3 +64,13 @@ Checked by eye, dark and light:
 Section titles re-rendered (6db085536): a colour token named like a type size (`--color-section` beside `--text-section`) had Tailwind build `.text-section` as a colour only, so every section title in the captures from 56f98a514 on was about 13 px regular grey. Re-captured and checked by eye against the earlier captures:
 
 - Every capture: the inspector's title, the card titles ("Set up this pool", the consent card's) and New pool's "Who's in" are semibold ink again; remove-anyway's danger button has the lighter tint everywhere now (the Button's own, d26547319; the card's override is gone). Wording, controls and states are unchanged. Pass.
+
+## Round 7 (AJ-E3011: Casey's worst moment, the round-6 done-gate)
+
+Checked by eye, dark and light:
+
+- new-pool: Who's in with Claude app · Work Max ticked: its own row says "Watched: can't talk in the pool yet." (warning colour), then what's missing in words, "AI Juggler's connector (a small helper AI Juggler adds to an app so its sessions can read and send the pool's messages, notes and tasks) isn't in it.", with Add and "Show me how to add it by hand", before Next. The card beside the list is gone: the row is where the eye already is. Review keeps its warning as the backstop. Pass.
+- new-pool-added (new): after Add (the consent card's own preview, then "Add to Claude app · Work Max"), the row holds "AI Juggler's connector is in Claude app · Work Max", "Added. A running session picks it up at its next start." and when its sessions pick it up. Pass.
+- preview-text: "Show the files" and "Its text" are buttons with aria-expanded (the aij-test driver's accessibility press did nothing on the old `<summary>`); the fold's text sits 2 px further from its chevron. Pass.
+- Weak (unchanged): the ChatGPT row's note still says "with AI Juggler's connector in it … its sessions talk in the pool", though the Codex app can't take it yet; ticked, its row says why.
+- The other captures re-rendered with under 60 px of noise and were left as committed.
