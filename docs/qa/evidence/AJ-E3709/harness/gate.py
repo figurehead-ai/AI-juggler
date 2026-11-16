@@ -641,21 +641,28 @@ STRAIGHT_TO_EXCERPT = {"0", "3", "5"}     # the ladder's rung 3: never to choose
 # ---------- A's excerpt (approximated: AJ-E3708's rules are not in this harness) with the caveat second line ----------
 def _cap(s, n=200): return s if len(s) <= n else s[:n - 3].rsplit(" ", 1)[0] + "..."
 def excerpt_v3(cleaned, facts=None):
-    """-> (text, caveat_line_added). Opening: the first sentence (L2: the question; L3: the failure sentence). Second line: when the
-    text states a caveat in another sentence, that sentence (section 6, 'The excerpt keeps the caveat')."""
+    """-> (text, second) with second in None | 'question' | 'failure' | 'caveat'. Opening: the first sentence (L2: the question; L3: the
+    failure sentence). Second line (AJ-E3708 Req.6a, ADR-0033 ff65596f8): when the facts are unknown and a sentence after the opening
+    asks (ends with '?') or states a failure (step 3's failure words), that sentence, a question first; otherwise, when the text states
+    a caveat in another sentence, that sentence (section 6, 'The excerpt keeps the caveat')."""
     F = facts_norm(facts); level = F["level"] if F else None
     sents = [s for s in sentences_v3(cleaned) if len(s.split()) >= 3] or sentences_v3(cleaned)
-    if not sents: return _cap(cleaned.strip(), 160), False
+    if not sents: return _cap(cleaned.strip(), 160), None
     pick = None
     if level == "L2": pick = next((s for s in sents if "?" in s), None)
     if level == "L3": pick = next((s for s in sents if verdict_words_v3(s)["fail"]), None)
     pick = pick or sents[0]
-    if _caveat_phrase(pick) or _counts(pick): return _cap(pick), False
+    if F is None:
+        after = sentences_v3(cleaned); after = after[after.index(pick) + 1:] if pick in after else after
+        q = next((s for s in after if s.rstrip().rstrip("\"'”’)]").endswith("?")), None)
+        f = None if q else next((s for s in after if verdict_words_v3(s)["fail"]), None)
+        if q or f: return _cap(pick) + "\n" + _cap(q or f), ("question" if q else "failure")
+    if _caveat_phrase(pick) or _counts(pick): return _cap(pick), None
     cav = next((s for s in sentences_v3(cleaned) if s != pick and (_caveat_phrase(s) or _counts(s))), None)
-    if not cav: return _cap(pick), False
+    if not cav: return _cap(pick), None
     if len(cav) > 200:
         p = _caveat_phrase(cav) or ""; i = max(0, cav.find(p) - 80); cav = ("..." if i else "") + cav[i:i + 190]
-    return _cap(pick) + "\n" + cav, True
+    return _cap(pick) + "\n" + cav, "caveat"
 
 # ---------- the ladder (v3), two B variants from the same drafts ----------
 def _pick_index(choose_out, n):
@@ -669,8 +676,8 @@ def ladder_v3(item, facts, write_out, choose_out, route=True, variant="ladder", 
     choose_out: {text|pick, error} or None. variant: 'ladder' (write, then choose) or 'choose_only'.
     -> {shown, kind: written|quoted|excerpt|excerpt_routed, trace[], write_gate, choose_gate, excerpt, caveat_line, lang, cleaned, removed}"""
     ctx = ctx or prepare(item["source"])
-    exc, cav = excerpt_v3(ctx["cleaned"], facts)
-    base = {"excerpt": exc, "caveat_line": cav, "lang": ctx["lang"], "cleaned": ctx["cleaned"], "removed": ctx["removed"],
+    exc, second = excerpt_v3(ctx["cleaned"], facts)
+    base = {"excerpt": exc, "caveat_line": second == "caveat", "second_line": second, "lang": ctx["lang"], "cleaned": ctx["cleaned"], "removed": ctx["removed"],
             "write_gate": None, "choose_gate": None, "draft": (write_out or {}).get("text") if variant == "ladder" else None}
     def done(shown, kind, trace, **kw): return {**base, **kw, "shown": shown, "kind": kind, "trace": trace}
     F = facts_norm(facts)
@@ -743,6 +750,15 @@ def selftest():
     r = ladder_v3({"source": "J'ai corrigé le bug du cache et ajouté trois tests pour la page des réglages."}, calm, {"text": "Corrigé le bug du cache."}, {"text": "1"})
     check("step 0: a language without word lists gets the excerpt, no engine", r["kind"] == "excerpt_routed", r)
     # step 0: facts unknown -> A's excerpt, no write and no choose (ffb384489), on every path
+    # A's excerpt with facts unknown (AJ-E3708 Req.6a): a later question, else a later failure, is its second line; a question first
+    ex, sec = excerpt_v3(normalise("I found two copies of the project file. Two tests failed on the old one. Should I overwrite it?"), None)
+    check("excerpt, facts unknown: a later question is the second line, before a failure", sec == "question" and ex.endswith("Should I overwrite it?"), ex)
+    ex, sec = excerpt_v3(normalise("I refactored the cache layer. Two tests failed: cache_ttl and cache_clear."), None)
+    check("excerpt, facts unknown: a later failure is the second line", sec == "failure" and "failed" in ex, ex)
+    ex, sec = excerpt_v3(normalise("I changed the timeout to 60 seconds in config/limits.yaml. I did not run the tests."), None)
+    check("excerpt, facts unknown: otherwise the caveat line", sec == "caveat" and "did not run" in ex, ex)
+    ex, sec = excerpt_v3(normalise("Should I overwrite the older project file? It has two copies."), None)
+    check("excerpt, facts unknown: an opening that asks needs no second line", sec is None and ex.startswith("Should I"), ex)
     calm_src = {"source": "Added retry with backoff to client.py. I added three tests for it."}
     for route in (True, False):
         for var in ("ladder", "choose_only"):
