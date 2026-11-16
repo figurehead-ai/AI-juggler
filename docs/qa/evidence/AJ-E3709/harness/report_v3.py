@@ -1,7 +1,12 @@
 #!/usr/bin/env python3
 """FROZEN: gate.py (gate, ladder and A's excerpt rules) frozen at commit 7acec4f50 (2026-11-16) for the v3 Apple run; no rule changes before it.
 
-report_v3.py RESULTS.json --corpus v2=PATH --corpus turnends=PATH [--corpus heldout=PATH] [--md OUT.md] > report-v3.json   (stdlib only)
+report_v3.py RESULTS.json --corpus v2=PATH --corpus turnends=PATH [--corpus heldout=PATH] [--md OUT.md] [--gate eval-4] > report-v3.json
+                                                                                                                          (stdlib only)
+--gate eval-3 (the default) is the frozen gate above, byte for byte. --gate eval-4 (gate_v4.py, AJ-E3708 Req.6b-6d) changes A's excerpt
+only: caveats and failures by structure and the L3 safety net; B's gate and ladder stay eval-3's, so eval-3 drafts are replayed as they
+are. Under eval-4 the report reads shown lines with eval-4's rules too: a caveat is dropped when a caveat kind the text states (unverified,
+incomplete) is on no shown line, and a failure is lost when no shown line reports one by structure.
 
 Corpus slots, each reported apart with its own gate table, checks and excerpt numbers: v2 (the 104-item set), turnends (the realistic
 turn-end messages; they decide B's shipping rule), heldout ("synthetic held-out": written by a model blind to the gate's rules, so
@@ -33,6 +38,23 @@ removed anything, so drafts count only where the guard left an injection in. A l
 import argparse, hashlib, json, re, statistics, sys
 import checks, gate
 FROZEN_GATE_COMMIT = "7acec4f50"   # the FROZEN line above; the report also records gate.py's sha256
+GATE = "eval-3"                    # --gate; eval-4 swaps A's excerpt (gate_v4.py) and the report's reading of shown lines
+def ladder(*a, **k):
+    if GATE == "eval-3": return gate.ladder_v3(*a, **k)
+    import gate_v4; return gate_v4.ladder_v4(*a, **k)
+def says_failure(shown):
+    if GATE == "eval-3": return gate.verdict_words_v3(shown)["fail"] or gate.verdict_words_v3(shown)["nsucc"]
+    import gate_v4; return gate_v4.shown_says_failure(shown)
+def text_caveat(cleaned, shown):
+    """-> (the text states a caveat, what the shown line drops or None)"""
+    if GATE == "eval-3":
+        req = gate.caveat_required(cleaned, None); return bool(req), (req if req and not gate.says_caveat(shown, req) else None)
+    import gate_v4; return bool(gate_v4.text_caveat_kinds(cleaned)), (gate_v4.caveat_dropped(cleaned, shown) or None)
+def says_facts_caveat(shown, facts_req):
+    if GATE == "eval-3": return gate.says_caveat(shown, facts_req)
+    import gate_v4
+    kinds = set().union(*(gate_v4.caveat_kinds(x) for x in shown.split("\n")))
+    return gate.says_caveat(shown, facts_req) or all((k == "facts" and "unverified" in kinds) or (k == "facts-count" and "incomplete" in kinds) for k, _ in facts_req)
 VARIANTS = ("ladder", "choose_only"); SETTINGS = ("main", "gate_only", "unknown")
 # corpus slots, reported apart (--corpus LABEL=PATH); a known slot that is not given is listed as empty
 SLOTS = {
@@ -130,7 +152,7 @@ def corpus_report(label, C, recs, meta):
             q2d = []; lat = []; rows = []; bb = {}; words_caught = []; words_missed = []
             for r in recs:
                 it = C[r["id"]]; true_f = gate.facts_norm(it["facts"]); facts = None if st == "unknown" else it["facts"]
-                L = gate.ladder_v3(it, facts, r["write"], r["choose"], route=route, variant=var, ctx=ctx[r["id"]])
+                L = ladder(it, facts, r["write"], r["choose"], route=route, variant=var, ctx=ctx[r["id"]])
                 kinds[L["kind"]] += 1; shown = L["shown"]
                 d = bb.setdefault(it.get("bucket"), {"trials": 0, "written": 0, "quoted": 0, "excerpt": 0})
                 d["trials"] += 1; d[L["kind"] if model(L["kind"]) else "excerpt"] += 1
@@ -149,19 +171,19 @@ def corpus_report(label, C, recs, meta):
                         if re.search(pat, shown, re.I): forb.append((r["id"], r["rep"], pat, shown))
                     if true_f and true_f["level"] in ("L2", "L3"): loud.append((r["id"], r["rep"], true_f["level"], L["kind"], shown))
                 elif g:
-                    if g["verdict"] == "fail" and not (gate.verdict_words_v3(shown)["fail"] or gate.verdict_words_v3(shown)["nsucc"]):
+                    if g["verdict"] == "fail" and not says_failure(shown):
                         lost.append((r["id"], r["rep"], shown, "failure lost in the excerpt"))
                     if g["verdict"] == "question" and "?" not in shown: lost.append((r["id"], r["rep"], shown, "question lost in the excerpt"))
                 # the caveat: text caveats in every setting; the facts' own where the facts are known to the gate
-                text_req = gate.caveat_required(ctx[r["id"]]["cleaned"], None)
+                text_req, text_drop = text_caveat(ctx[r["id"]]["cleaned"], shown)
                 facts_req = [x for x in gate.caveat_required(ctx[r["id"]]["cleaned"], true_f) if x[0].startswith("facts")]
-                if text_req and not gate.says_caveat(shown, text_req):
-                    (cav_model if model(L["kind"]) else cav_exc).append((r["id"], r["rep"], L["kind"], shown, text_req))
-                if facts_req and not text_req and not gate.says_caveat(shown, facts_req):
+                if text_drop:
+                    (cav_model if model(L["kind"]) else cav_exc).append((r["id"], r["rep"], L["kind"], shown, text_drop))
+                if facts_req and not text_req and not says_facts_caveat(shown, facts_req):
                     if model(L["kind"]) and st != "unknown": cav_model.append((r["id"], r["rep"], L["kind"], shown, facts_req))
                     else: cav_info.append((r["id"], r["rep"], L["kind"], shown, facts_req))
                 if st == "unknown" and true_f and true_f["level"] in ("L2", "L3"):
-                    W = gate.ladder_v3(it, None, r["write"], r["choose"], route=False, variant=var, ctx=ctx[r["id"]], unknown_rule=False)
+                    W = ladder(it, None, r["write"], r["choose"], route=False, variant=var, ctx=ctx[r["id"]], unknown_rule=False)
                     (words_missed if model(W["kind"]) else words_caught).append((r["id"], r["rep"], true_f["level"], W["kind"], W["shown"]))
                 if not r["cold_first"] and L["kind"] != "excerpt_routed" and st != "unknown":
                     ms = 0
@@ -169,7 +191,7 @@ def corpus_report(label, C, recs, meta):
                     if r["choose"] and (var == "choose_only" or reached_choose(L["trace"])): ms += r["choose"].get("latency_ms") or 0
                     if ms: lat.append(ms)
                 rows.append({"id": r["id"], "rep": r["rep"], "kind": L["kind"], "shown": shown, "excerpt": L["excerpt"], "caveat_line": L["caveat_line"],
-                             "second_line": L.get("second_line"),
+                             "second_line": L.get("second_line"), **({"excerpt_flags": L["excerpt_flags"]} if "excerpt_flags" in L else {}),
                              "trace": L["trace"], "write_gate": L["write_gate"], "choose_gate": L["choose_gate"],
                              "draft": (r["write"] or {}).get("text") if var == "ladder" else None, "choose": (r["choose"] or {}).get("text")})
             N = len(recs)
@@ -279,7 +301,8 @@ def harness_checks(rep):
     return hc
 
 def markdown(out):
-    L = [f"# AJ-E3709 v3 report (prompt {out['meta'].get('prompt_version')}, gate {out['meta'].get('gate_version')})", "",
+    L = [f"# AJ-E3709 v3 report (prompt {out['meta'].get('prompt_version')}, gate {out['meta'].get('gate_version')})"
+         + ("" if out["report"]["gate_version"] == "eval-3" else f", replayed with A's excerpt at {out['report']['gate_version']}"), "",
          f"Engine: {out['meta'].get('engine')}. Machine: {out['meta'].get('machine')}. Started {out['meta'].get('started')}.", ""]
     m = out["report"].get("model")
     if m: L += [f"Model: `{m['model_file']}` (sha256 {m['model_sha256']}), **{m['label']}**.", ""]
@@ -309,9 +332,13 @@ def markdown(out):
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("results"); ap.add_argument("--corpus", action="append", required=True, metavar="LABEL=PATH"); ap.add_argument("--md")
+    ap.add_argument("--gate", choices=("eval-3", "eval-4"), default="eval-3", help="eval-4: A's excerpt from gate_v4.py; B's gate stays eval-3")
     a = ap.parse_args()
+    global GATE; GATE = a.gate
     R = json.load(open(a.results)); meta = R["meta"]; warn = []
-    if meta.get("gate_version") != gate.GATE_VERSION or meta.get("prompt_version") != gate.PROMPT_VERSION:
+    if GATE == "eval-4" and meta.get("prompt_version") != gate.PROMPT_VERSION:
+        warn.append(f"results made at prompt {meta.get('prompt_version')}; this gate replays prompt {gate.PROMPT_VERSION}")
+    elif GATE == "eval-3" and (meta.get("gate_version") != gate.GATE_VERSION or meta.get("prompt_version") != gate.PROMPT_VERSION):
         warn.append(f"results made at prompt {meta.get('prompt_version')} / gate {meta.get('gate_version')}; this gate is {gate.PROMPT_VERSION} / {gate.GATE_VERSION}")
     rep = {}
     for spec in a.corpus:
@@ -328,6 +355,11 @@ def main():
     out = {"meta": meta, "report": {"gate_version": gate.GATE_VERSION, "prompt_version": gate.PROMPT_VERSION, "gate_py_sha256": gate_sha,
                                     "frozen_gate_commit": FROZEN_GATE_COMMIT}, "warnings": warn,
            "harness_checks": harness_checks(rep), "corpora": rep}
+    if GATE == "eval-4":
+        import gate_v4
+        out["report"].update(gate_version=gate_v4.GATE_VERSION, gate_v4_py_sha256=hashlib.sha256(open(gate_v4.__file__, "rb").read()).hexdigest(),
+                             excerpt_rules="eval-4 (gate_v4.py: AJ-E3708 Req.6b-6d); B's gate and ladder eval-3 (gate.py, frozen)",
+                             drafts_gate_version=meta.get("gate_version"))
     out["report"]["model"] = model_label(meta)
     obeyed = sum(rep[c]["obeyed_injections"]["obeyed"] for c in rep)
     out["hard_gates"] = {"obeyed_injections": {"obeyed": obeyed, "per_corpus": {c: rep[c]["obeyed_injections"]["obeyed"] for c in rep},

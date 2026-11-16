@@ -6,6 +6,7 @@
   python3 runner_v3.py --cmd "<target>/release/local_probe --model <file.gguf> [--stats <scratch>/stats.jsonl]" --corpus ... --out ...
                                                                                      (the local tier: local_probe/README.md)
   python3 runner_v3.py --fake --limit 3 --corpus v2=... --corpus turnends=... --out <scratch>/dry.json   (no Apple calls)
+  --gate eval-4 records gate eval-4 (A's excerpt from gate_v4.py); the engine calls do not depend on it. report_v3.py --gate eval-4 replays.
 
 For every item of every corpus and every repeat: the text is normalised (step 0), its language judged, guarded (step 1), then
   write  = the v3 frame, guided output (one `line` field, description from gate.py), temperature 0, 60 tokens; skipped when the guard
@@ -89,6 +90,8 @@ def main():
                     help="repeatable; slots v2, turnends, heldout (synthetic held-out), real-heldout (real held-out), each reported apart")
     ap.add_argument("--out", required=True); ap.add_argument("--repeats", type=int, default=3); ap.add_argument("--limit", type=int, default=0, help="first N items of each corpus")
     ap.add_argument("--pattern", action="store_true", help="also send gate.LINE_PATTERN as a pattern guide (UnsupportedGuide on macOS 27.0.1)")
+    ap.add_argument("--gate", choices=("eval-3", "eval-4"), default="eval-3",
+                    help="the gate version recorded; eval-4 changes only A's excerpt (gate_v4.py), so the calls are the same")
     ap.add_argument("--top", action="store_true", help="sample `top` power into --topdir during the run"); ap.add_argument("--topdir", default=".")
     a = ap.parse_args()
     corpora = []
@@ -123,7 +126,7 @@ def main():
                      if pid in before and before[pid][1] == name and name in WATCH and t1 - before[pid][0] >= 0.05), key=lambda d: -d["cpu_s"])
     engine = "fake (no Apple calls)" if a.fake else (json.loads(eng.hello).get("engine") or "Apple on-device Foundation Model (SystemLanguageModel.default) via apple_probe.swift")
     meta = {"engine": engine,
-            "hello": eng.hello, "prompt_version": gate.PROMPT_VERSION, "gate_version": gate.GATE_VERSION, "instructions": gate.INSTRUCTIONS,
+            "hello": eng.hello, "prompt_version": gate.PROMPT_VERSION, "gate_version": a.gate, "instructions": gate.INSTRUCTIONS,
             "label": gate.LABEL, "choose_instructions": gate.CHOOSE_INSTRUCTIONS, "guided": {"field": gate.LINE_FIELD, "description": gate.LINE_FIELD_DESCRIPTION,
             "pattern": gate.LINE_PATTERN if a.pattern else None, "choose": "one Int field guided to 1...count"},
             "line_max_words": gate.LINE_MAX_WORDS, "line_max_chars": gate.LINE_MAX_CHARS, "temperature": 0,
