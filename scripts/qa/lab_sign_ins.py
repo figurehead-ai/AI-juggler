@@ -16,9 +16,12 @@ lab, and watches the real home while the maintainer signs lab A in:
       that tool's lab A has its sign-in file and lab B none; without,
       none has one. Files are only looked at by name.
   real --home LAB --save | --compare
-      the real home's sign-in files for the five tools: each one's
-      modification time, by name (never opened), saved in the lab and
-      compared after a sign-in.
+      the real home's sign-in files for the five tools (and Hermes, when
+      the lab has it): each one's modification time, by name (never
+      opened), saved in the lab and compared after a sign-in. The real
+      ~/.codex/auth.json (the 0.4.6 rows' `codex login` in a lab
+      CODEX_HOME) is compared by SHA-256, size and date: its digest is
+      kept in the lab's saved state only, never printed or recorded.
   muse-gate --home LAB --save | --compare
       Muse's build (1.4.13-R6996.1 or stop: the file backend's proof is bound to
       it) and the real Keychain item's modification date, from
@@ -27,11 +30,19 @@ lab, and watches the real home while the maintainer signs lab A in:
       records one run-sheet step's result for one tool in <lab>/steps.json
       (a skip needs its reason in --note; a later result replaces it).
   complete --home LAB [--record FILE]
-      every tool's every required step (STEPS) has a result: the guard
+      every tool's every required step (STEPS) has a result, and the
+      sitting's own two (SITTING: the 0.4.6 session's rows done, the
+      coordinating session's confirmation of the evidence): the guard
       `lab_scenario.sh teardown` runs before it deletes a sign-ins lab
       (the sign-ins are the maintainer's time; 2026-11-16 a teardown after
       step 1 threw five away). `teardown --force-abandon` overrides it.
   --selftest
+
+Hermes (AJ-E1607, D-123) counts only in a lab set up with it
+(`lab_scenario.sh setup T16 --with-hermes`, or Hermes installed): the lab
+then holds `with-hermes`. A dry run's lab (`--standins`) holds
+`standins/INSTALLED`; `check` says so, and fails a lab whose Sign in runs
+a stand-in without it.
 
 `--record FILE` appends what was checked to an evidence file, through the
 repo's anonymizer (scripts/qa/anonymize.py): no real name or path.
@@ -91,6 +102,18 @@ TOOLS: dict[str, Tool] = {
     # HOME=<folder>, XDG_CONFIG_HOME=<folder>/.config, the file backend.
     "muse-code": Tool("Muse Code", ("login",), (".config/muse/auth.json",), (".config/muse/auth.json",)),
 }
+# Hermes (AJ-E1607): in a lab only when it was set up with it (D-123: the
+# maintainer installs Hermes himself). HERMES_HOME=<folder>; `hermes model`.
+HERMES = "hermes-agent"
+OPTIONAL: dict[str, Tool] = {
+    HERMES: Tool("Hermes", ("model",), ("auth.json", "shared/nous_auth.json"),
+                 (".hermes/auth.json", ".hermes/.env", ".hermes/shared/nous_auth.json")),
+}
+WITH_HERMES = "with-hermes"
+STANDINS = "standins"
+# The real Codex CLI sign-in (the 0.4.6 rows' `codex login` runs in a lab
+# CODEX_HOME): compared by digest, size and date, never shown.
+CODEX_AUTH = ".codex/auth.json"
 # The run sheet's steps (docs/qa/0.5-walks/AJ-E1612.md, "The checklist"),
 # each needing a recorded result per tool before the lab may go. Quota
 # exhaustion (step 5) happens or not, so it isn't required.
@@ -101,10 +124,23 @@ STEPS: dict[str, str] = {
     "usage": "4. usage is read (what it shows, its source line)",
     "lab-b": "6. lab B stays out (Not signed in; its session refused)",
 }
+# The sitting's own steps, besides each tool's: the teardown also waits for
+# the 0.4.6 session (its rows use T16's OpenCode lab A in place) and for
+# the coordinating session's look at the evidence.
+SITTING = "sitting"
+SITTING_STEPS: dict[str, str] = {
+    "handover-0.4.6": "the 0.4.6 session's rows done (its Grok and ChatGPT sign-ins, its OpenCode check on T16 lab A)",
+    "evidence-confirmed": "the coordinating session confirmed the evidence",
+}
 RESULTS = ("pass", "fail", "skip")
 MUSE_PROVEN = "1.4.13-R6996.1"
 MUSE_KEYCHAIN = ("ai.meta.dev.credentials", "meta")
 SECURITY = "/usr/bin/security"
+
+
+def tools_of(lab: Path) -> dict[str, Tool]:
+    """The tools this lab holds: the five, and Hermes when set up with it."""
+    return {**TOOLS, **(OPTIONAL if (lab / WITH_HERMES).exists() else {})}
 
 
 def lab_home(text: str) -> Path:
@@ -173,10 +209,10 @@ def read_only(path: Path, query: str) -> list[tuple]:
 
 def check_entry(entry: dict, lab: Path, report: Report) -> None:
     app, tool = entry.get("id", "?"), entry.get("tool", "?")
-    spec = TOOLS.get(tool)
+    spec = tools_of(lab).get(tool)
     folder = str(entry.get("folder", ""))
     if spec is None:
-        report.fail(f"{app}: {tool} isn't one of the five tools")
+        report.fail(f"{app}: {tool} isn't one of this lab's tools")
         return
     if not inside(folder, lab):
         report.fail(f"{app}: its folder {folder} isn't in the lab")
@@ -191,6 +227,8 @@ def check_entry(entry: dict, lab: Path, report: Report) -> None:
     program = str(entry.get("program", ""))
     if not Path(program).exists():
         report.fail(f"{app}: its program {program} isn't there")
+    if inside(program, lab / STANDINS) and not (lab / STANDINS / "INSTALLED").is_file():
+        report.fail(f"{app}: its Sign in runs a stand-in in a lab that isn't a dry run's")
     if not inside(str(entry.get("cwd", "")), lab):
         report.fail(f"{app}: its Sign in runs outside the lab")
     bundle = bundle_of(program)
@@ -226,11 +264,14 @@ def check(lab: Path, signed_in: list[str], record: str | None) -> int:
     if not path.is_file():
         sys.exit(f"lab-sign-ins: {path} isn't there (set the lab up with lab_scenario.sh setup T16)")
     entries = json.loads(path.read_text())
+    tools = tools_of(lab)
+    if (lab / STANDINS / "INSTALLED").is_file():
+        report.ok("DRY RUN: every Sign in runs a lab stand-in (<lab>/standins), nothing real")
     by_tool: dict[str, list[str]] = {}
     for entry in entries:
         by_tool.setdefault(entry.get("tool", "?"), []).append(entry.get("id", "?"))
-    if len(entries) == 10 and set(by_tool) == set(TOOLS) and all(len(ids) == 2 for ids in by_tool.values()):
-        report.ok("ten Apps, two per tool: " + ", ".join(f"{TOOLS[t].name} ×2" for t in TOOLS))
+    if len(entries) == 2 * len(tools) and set(by_tool) == set(tools) and all(len(ids) == 2 for ids in by_tool.values()):
+        report.ok(f"{len(entries)} Apps, two per tool: " + ", ".join(f"{tools[t].name} ×2" for t in tools))
     else:
         report.fail(f"{len(entries)} App(s): {by_tool}")
     folders = [str(entry.get("folder", "")) for entry in entries]
@@ -243,7 +284,7 @@ def check(lab: Path, signed_in: list[str], record: str | None) -> int:
                      "select a.provider_id, a.label, a.state_dir, "
                      "(select count(*) from launch_recipes r where r.account_id = a.id and r.removed_at is null) "
                      "from accounts a")
-    mine = {row[2]: row for row in rows if row[0] in TOOLS}
+    mine = {row[2]: row for row in rows if row[0] in tools}
     for entry in entries:
         row = mine.get(str(entry.get("folder")))
         if row is None:
@@ -261,9 +302,9 @@ def check(lab: Path, signed_in: list[str], record: str | None) -> int:
     # Sign-ins by name only: none in setup; lab A only once signed in.
     for entry in entries:
         tool, app = entry.get("tool"), str(entry.get("id"))
-        if tool not in TOOLS:
+        if tool not in tools:
             continue
-        has = any(any(Path(str(entry["folder"])).glob(name)) for name in TOOLS[tool].lab)
+        has = any(any(Path(str(entry["folder"])).glob(name)) for name in tools[tool].lab)
         want = tool in signed_in and app.endswith("-a")
         if has == want:
             report.ok(f"{app}: {'signed in' if has else 'no sign-in'} in its own folder")
@@ -279,11 +320,22 @@ def steps_path(lab: Path) -> Path:
 def record_step(lab: Path, tool: str, step: str, result: str, note: str) -> int:
     if result == "skip" and not note.strip():
         sys.exit("lab-sign-ins: a skipped step needs its reason (--note)")
+    tools = tools_of(lab)
+    if tool == SITTING:
+        if step not in SITTING_STEPS:
+            sys.exit(f"lab-sign-ins: the sitting's steps are {', '.join(SITTING_STEPS)}")
+        words, name = SITTING_STEPS[step], "the sitting"
+    elif tool not in tools:
+        sys.exit(f"lab-sign-ins: {tool} isn't in this lab" + (" (set it up with --with-hermes)" if tool in OPTIONAL else ""))
+    elif step not in STEPS:
+        sys.exit(f"lab-sign-ins: a tool's steps are {', '.join(STEPS)}")
+    else:
+        words, name = STEPS[step], tools[tool].name
     path = steps_path(lab)
     steps = json.loads(path.read_text()) if path.is_file() else {}
     steps.setdefault(tool, {})[step] = {"result": result, "note": note.strip()}
     path.write_text(json.dumps(steps, indent=1, sort_keys=True))
-    print(f"lab-sign-ins: {TOOLS[tool].name}, step {STEPS[step]}: {result}" + (f" ({note.strip()})" if note.strip() else ""))
+    print(f"lab-sign-ins: {name}, step {words}: {result}" + (f" ({note.strip()})" if note.strip() else ""))
     return 0
 
 
@@ -293,22 +345,23 @@ def complete(lab: Path, record: str | None) -> int:
     report = Report()
     path = steps_path(lab)
     steps = json.loads(path.read_text()) if path.is_file() else {}
-    for tool, spec in TOOLS.items():
-        for step, words in STEPS.items():
+    rows = [(tool, spec.name, STEPS) for tool, spec in tools_of(lab).items()]
+    for tool, name, wanted in [*rows, (SITTING, "The sitting", SITTING_STEPS)]:
+        for step, words in wanted.items():
             got = steps.get(tool, {}).get(step)
             if got is None or got.get("result") not in RESULTS:
-                report.fail(f"{spec.name}: {words}: no result recorded")
+                report.fail(f"{name}: {words}: no result recorded")
             else:
                 note = f" ({got['note']})" if got.get("note") else ""
-                report.ok(f"{spec.name}: {words}: {got['result']}{note}")
+                report.ok(f"{name}: {words}: {got['result']}{note}")
     return report.show(lab, record, "complete: every step has a result")
 
 
-def real_files(home: Path) -> dict[str, int | None]:
+def real_files(home: Path, tools: dict[str, Tool]) -> dict[str, int | None]:
     """Each real sign-in file's modification time (ns), by name; a folder's
     files one by one. Never opened."""
     out: dict[str, int | None] = {}
-    for spec in TOOLS.values():
+    for spec in tools.values():
         for name in spec.real:
             path = home / name
             if path.is_dir():
@@ -321,6 +374,36 @@ def real_files(home: Path) -> dict[str, int | None]:
     return out
 
 
+def codex_auth(home: Path) -> dict | None:
+    """The real ~/.codex/auth.json's SHA-256, size and modification time
+    (ns): read only to hash it, never shown, copied or logged; None when
+    it isn't there."""
+    import hashlib
+
+    path = home / CODEX_AUTH
+    if not path.is_file():
+        return None
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for block in iter(lambda: handle.read(65536), b""):
+            digest.update(block)
+    meta = path.stat()
+    return {"sha256": digest.hexdigest(), "size": meta.st_size, "mtime_ns": meta.st_mtime_ns}
+
+
+def compare_codex(before: dict | None, now: dict | None, report: Report) -> None:
+    """Says only which of digest, size and date changed, never a value."""
+    name = f"~/{CODEX_AUTH} (digest, size, date)"
+    if before == now:
+        report.ok(f"{name}: unchanged" + ("" if now else " (not there)"))
+    elif before is None or now is None:
+        report.fail(f"{name}: CHANGED ({'appeared' if before is None else 'gone'})")
+    else:
+        what = [label for key, label in (("sha256", "content"), ("size", "size"), ("mtime_ns", "date"))
+                if before.get(key) != now.get(key)]
+        report.fail(f"{name}: CHANGED ({', '.join(what)})")
+
+
 def compare(before: dict, now: dict, report: Report) -> None:
     for name in sorted(set(before) | set(now)):
         if before.get(name) == now.get(name):
@@ -331,13 +414,23 @@ def compare(before: dict, now: dict, report: Report) -> None:
 
 def real(lab: Path, save: bool, record: str | None) -> int:
     saved = lab / "real-sign-ins.json"
-    now = real_files(real_home())
+    now = real_files(real_home(), tools_of(lab))
+    codex = codex_auth(real_home())
     if save:
-        saved.write_text(json.dumps(now, indent=1))
-        print(f"lab-sign-ins: the real home's {len(now)} sign-in file(s) recorded by name and date")
+        # The lab is this user's alone (0700); the digest stays in it.
+        fd = os.open(saved, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+        with os.fdopen(fd, "w") as handle:
+            handle.write(json.dumps({"files": now, "codex_auth": codex}, indent=1))
+        print(f"lab-sign-ins: the real home's {len(now)} sign-in file(s) recorded by name and date, "
+              f"~/{CODEX_AUTH} by digest, size and date ({'there' if codex else 'not there'})")
         return 0
     report = Report()
-    compare(json.loads(saved.read_text()), now, report)
+    before = json.loads(saved.read_text())
+    if "files" not in before:  # saved before the Codex compare existed
+        before = {"files": before, "codex_auth": codex}
+        report.fail(f"~/{CODEX_AUTH}: no saved state to compare (save again before the next sign-in)")
+    compare(before["files"], now, report)
+    compare_codex(before.get("codex_auth"), codex, report)
     return report.show(lab, record, "the real home's sign-in files")
 
 
@@ -472,9 +565,57 @@ def selftest() -> int:
         for tool in TOOLS:
             for step in STEPS:
                 record_step(lab, tool, step, "pass", "")
+        # …and the sitting's own two: the 0.4.6 rows, the evidence confirmed.
+        assert complete(lab, None) == 1
+        record_step(lab, SITTING, "handover-0.4.6", "pass", "its rows reported done")
+        assert complete(lab, None) == 1
+        record_step(lab, SITTING, "evidence-confirmed", "pass", "by the coordinating session")
         assert complete(lab, None) == 0
         record_step(lab, "zcode", "usage", "skip", "its store had no window yet")
         assert complete(lab, None) == 0
+        # Hermes counts only in a lab set up with it.
+        try:
+            record_step(lab, HERMES, "sign-in", "pass", "")
+            raise AssertionError("Hermes recorded in a lab without it")
+        except SystemExit:
+            pass
+        (lab / WITH_HERMES).touch()
+        assert complete(lab, None) == 1
+        for step in STEPS:
+            record_step(lab, HERMES, step, "skip", "waiting for install")
+        assert complete(lab, None) == 0
+        assert check(lab, ["muse-code"], None) == 1  # ten Apps in a lab that wants twelve
+        (lab / WITH_HERMES).unlink()
+        # A stand-in's Sign in only in a dry run's lab.
+        standin = lab / STANDINS / "bin" / "opencode"
+        standin.parent.mkdir(parents=True)
+        standin.write_text("#!/bin/sh\n")
+        entries = json.loads((lab / "sign-ins.json").read_text())
+        entries[0]["env"], entries[9]["env"]["TBH_CREDENTIAL_BACKEND"] = {}, "file"
+        (lab / "sign-ins.json").write_text(json.dumps(entries))
+        assert check(lab, ["muse-code", "kimi-code"], None) == 0
+        entries[0]["program"] = str(standin)
+        (lab / "sign-ins.json").write_text(json.dumps(entries))
+        assert check(lab, ["muse-code", "kimi-code"], None) == 1
+        (lab / STANDINS / "INSTALLED").write_text("dry run\n")
+        assert check(lab, ["muse-code", "kimi-code"], None) == 0
+        # The real ~/.codex/auth.json: digest, size and date; never a value shown.
+        home = lab / "home"
+        (home / ".codex").mkdir(parents=True)
+        auth = home / CODEX_AUTH
+        auth.write_text('{"lab": "not-a-token"}')
+        first = codex_auth(home)
+        assert first and first["size"] == auth.stat().st_size and len(first["sha256"]) == 64
+        report = Report()
+        compare_codex(first, codex_auth(home), report)
+        assert not report.failed
+        stamp = auth.stat().st_mtime_ns
+        auth.write_text('{"lab": "not-a-tokeX"}')
+        os.utime(auth, ns=(stamp, stamp))
+        compare_codex(first, codex_auth(home), report)
+        assert report.failed and report.lines[-1].endswith("CHANGED (content)"), report.lines[-1]
+        assert first["sha256"] not in "\n".join(report.lines)
+        assert codex_auth(lab / "nowhere") is None
         try:
             record_step(lab, "zcode", "usage", "skip", " ")
             raise AssertionError("a skip without a reason was recorded")
@@ -496,13 +637,13 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("command", choices=["check", "real", "muse-gate", "step", "complete"])
     parser.add_argument("--home", required=True, help="the lab's HOME (/tmp/aij-lab-…)")
-    parser.add_argument("--signed-in", nargs="*", default=[], choices=sorted(TOOLS), help="tools whose lab A is signed in")
+    parser.add_argument("--signed-in", nargs="*", default=[], choices=sorted({**TOOLS, **OPTIONAL}), help="tools whose lab A is signed in")
     when = parser.add_mutually_exclusive_group()
     when.add_argument("--save", action="store_true", help="record the state before a sign-in")
     when.add_argument("--compare", action="store_true", help="compare with the recorded state")
     parser.add_argument("--record", help="append the result to this evidence file (anonymized)")
-    parser.add_argument("--tool", choices=sorted(TOOLS), help="step: the tool")
-    parser.add_argument("--step", choices=list(STEPS), help="step: the run sheet's step")
+    parser.add_argument("--tool", choices=sorted({**TOOLS, **OPTIONAL}) + [SITTING], help="step: the tool, or the sitting")
+    parser.add_argument("--step", choices=list(STEPS) + list(SITTING_STEPS), help="step: the run sheet's step")
     parser.add_argument("--result", choices=RESULTS, help="step: its result")
     parser.add_argument("--note", default="", help="step: what was seen, or why it was skipped")
     args = parser.parse_args()
