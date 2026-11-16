@@ -18,7 +18,6 @@ import { ReplayDialog } from "../components/ReplayDialog";
 import { DeleteInstanceDialog } from "../components/DeleteInstanceDialog";
 import { EmptyList, PagedSessions, dayWords, useSessionRows, type Row } from "../pages/SessionsList";
 import { Page } from "../components/Page";
-import { useTools } from "../lib/tools";
 import { sessionsQuery, type SessionsCountsInfo } from "../lib/ipc/sessions";
 import { refreshPaged } from "../lib/paged";
 import { historyKey } from "../lib/prefetch-data";
@@ -33,8 +32,14 @@ import type { TranscriptHitInfo } from "../types/generated/TranscriptHitInfo";
 import type { AccountInfo } from "../types/generated/AccountInfo";
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import type { ProjectInfo } from "../types/generated/ProjectInfo";
-import { FilterChip } from "../components/related/FilterChip";
 import { OutsideSearchLink } from "../components/OutsideSearchSetting";
+import { FacetChips, type FacetChip } from "../components/related/FacetChips";
+import { useBelongs } from "../components/related/local";
+import { NO_FILTERS, filtersOn, passesChosen, type FacetKind, type Filters } from "../components/related/order";
+import { chosenKey, useFacetNames, useFacets } from "../components/related/useFacets";
+
+/** History's filters, the related lists' chips (a project's tab: no Project). */
+const CHIPS: readonly FacetChip[] = [{ kind: "project", label: "Project" }, { kind: "app", label: "App" }, { kind: "tool", label: "Tool" }];
 
 type ListId = "ended" | "archived";
 
@@ -98,7 +103,7 @@ export function hitKey(hit: TranscriptHitInfo): string {
   return hit.session_id ?? `${hit.account_id ?? ""}:${hit.conversation_id ?? ""}`;
 }
 
-/** One filter, as a chip: its name and a choice of All or one value. */
+/** Every session that has ended (a project's History tab: its own). */
 export function History({
   sessions,
   projects,
@@ -130,13 +135,12 @@ export function History({
   // AJ-E1538: whether outside sessions' words are searched (opt-in).
   const [everyWord, setEveryWord] = useState(false);
   useEffect(() => void outsideSearchStatus().then((info) => setEveryWord(info.enabled), () => null), []);
-  // Filters (the review of 0.1.4): one project, one profile, one app.
-  const [projectId, setProjectId] = useState<string | null>(fixedProject ?? null);
-  const [accountId, setAccountId] = useState<string | null>(null);
-  const [tool, setTool] = useState<string | null>(null);
-  const tools = useTools().filter((entry) => accounts.some((account) => account.provider === entry.id) || sessions.some((session) => session.provider === entry.id));
-  const toolName = tool ? (tools.find((entry) => entry.id === tool)?.display_name ?? providerDisplayName(tool)) : null;
-  const filtered = projectId !== null || accountId !== null || tool !== null;
+  // Filters (the review of 0.1.4; F-K2-5): a project, an App, a tool,
+  // each offering what the others' choices leave, with its count.
+  const [filters, setFilters] = useState<Filters>(NO_FILTERS);
+  const filtered = filtersOn(filters) > 0;
+  // A session ended, was archived or went: the filters' values read again.
+  const [stamp, setStamp] = useState(0);
   const [replay, setReplay] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
   const searchRef = useRef<HTMLInputElement | null>(null);
@@ -201,9 +205,13 @@ export function History({
         const shelved = session !== null ? archived(session) : row.item.kind === "conversation" && row.item.conversation.archived_here === true;
         return list === "archived" ? shelved : !shelved;
       })
-      .filter((row) => (projectId === null || row.projectId === projectId) && (accountId === null || row.accountId === accountId) && (tool === null || row.tool === tool))
+      .filter((row) => fixedProject === undefined || row.projectId === fixedProject)
       .filter((row) => !searched || snippetOf(row) !== undefined || rowMatches(row, projectName(row.projectId), searched))
       .map((row) => ({ ...row, snippet: snippetOf(row) ?? null }));
+  const belongs = useBelongs(!live);
+  const scope = sessionsQuery({ which: list, text: searched || null, project_id: fixedProject ?? null });
+  const facets = useFacets(`history:${list}|${fixedProject ?? ""}|${searched}`, scope, filters, (chosen) => localRows().filter((row) => passesChosen(belongs(row), chosen)).map(belongs), true, stamp);
+  const nameOf = useFacetNames(accounts, projects, facets);
   const archivedCount = live
     ? (counts?.archived ?? 0)
     : sessions.filter(archived).length + all.filter((row) => !row.live && row.item.kind === "conversation" && row.item.conversation.archived_here === true).length;
@@ -221,9 +229,11 @@ export function History({
     if (!live || readFor.current === changes) return;
     readFor.current = changes;
     refreshPaged("history:");
+    setStamp((now) => now + 1);
   }, [live, changes]);
   const changed = () => {
     refreshPaged("history:");
+    setStamp((now) => now + 1);
     onChanged();
   };
 
@@ -300,18 +310,12 @@ export function History({
             className="h-9 min-w-[min(24rem,100%)] flex-1 rounded-lg border border-hairline bg-surface px-3 text-body text-ink placeholder:text-muted"
             data-testid="history-search"
           />
-          {!fixedProject && <FilterChip label="Project" value={projectId} options={projects.map((project) => ({ id: project.id, label: project.name }))} onChange={setProjectId} testId="history-filter-project" />}
-          {/* D-62: each folder is one App ("Claude Code · Work"); the tool is its own filter. */}
-          <FilterChip label="App" value={accountId} options={accounts.map((account) => ({ id: account.id, label: cliAppName(account.provider, account.label) }))} onChange={setAccountId} testId="history-filter-account" />
-          <FilterChip label="Tool" value={tool} options={tools.map((entry) => ({ id: entry.id, label: entry.display_name }))} onChange={setTool} testId="history-filter-app" />
-          {(fixedProject ? accountId !== null || tool !== null : filtered) && (
+          {/* D-62: an App as the rail and every page name it; the tool is its own filter. */}
+          <FacetChips chips={CHIPS.filter((chip) => !(fixedProject && chip.kind === "project"))} facets={facets} filters={filters} nameOf={nameOf} onChange={(kind: FacetKind, value) => setFilters((now) => ({ ...now, [kind]: value }))} testIdOf={(kind) => `history-filter-${kind}`} />
+          {filtered && (
             <button
               type="button"
-              onClick={() => {
-                setProjectId(fixedProject ?? null);
-                setAccountId(null);
-                setTool(null);
-              }}
+              onClick={() => setFilters(NO_FILTERS)}
               className="h-8 rounded-full px-2.5 text-meta text-accent-hi outline-none hover:underline focus-visible:ring-2 focus-visible:ring-accent/60"
               data-testid="history-filter-clear"
             >
@@ -332,9 +336,9 @@ export function History({
       </p>
       <ActionHostProvider host={historyHost}>
         <PagedSessions
-          listKey={historyKey(list, searched, version) + (filtered ? `|${projectId ?? ""}|${accountId ?? ""}|${tool ?? ""}` : "")}
-          query={sessionsQuery({ which: list, text: [searched, toolName].filter(Boolean).join(" ") || null, project_id: projectId, account_id: accountId })}
-          local={localRows}
+          listKey={historyKey(list, searched, version) + (fixedProject || filtered ? `|${fixedProject ?? ""}|${chosenKey(filters)}` : "")}
+          query={{ ...scope, project_id: filters.project ?? scope.project_id, app_id: filters.app, tool_id: filters.tool }}
+          local={() => localRows().filter((row) => passesChosen(belongs(row), filters))}
           onOpenSession={openSession}
           projects={projects}
           onCounts={setCounts}

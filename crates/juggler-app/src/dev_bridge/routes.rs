@@ -272,7 +272,7 @@ read_routes! {
     "sessions_resume_command" => async_result features::sessions::commands::sessions_resume_command(state; session_id: String);
     "sessions_page" => async_result features::sessions::commands::sessions_page(state; query: features::sessions::rows::SessionsQuery, page: crate::paging::PageRequest);
     "sessions_counts" => async_result features::sessions::commands::sessions_counts(state; query: features::sessions::rows::SessionsQuery);
-    "sessions_facets" => async_result features::sessions::commands::sessions_facets(state; query: features::sessions::rows::SessionsQuery);
+    "sessions_facets" => async_result features::sessions::commands::sessions_facets(state; query: features::sessions::rows::SessionsQuery, filters: Option<features::sessions::facets::FacetFilters>);
     "relations_counts" => async_result features::relations::commands::relations_counts(state; entities: Vec<features::relations::EntityRef>);
     "relations_related" => async_result features::relations::commands::relations_related(state; entity: features::relations::EntityRef, of: features::relations::EntityKind);
     "sessions_get" => async_result features::sessions::commands::sessions_get(state; ids: Vec<String>);

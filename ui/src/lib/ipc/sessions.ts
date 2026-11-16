@@ -10,6 +10,7 @@ import type { SessionsCountsInfo } from "../../types/generated/SessionsCountsInf
 import type { SessionsQuery } from "../../types/generated/SessionsQuery";
 import type { SessionEventInfo } from "../../types/generated/SessionEventInfo";
 import type { SessionsFacetsInfo } from "../../types/generated/SessionsFacetsInfo";
+import type { FacetFilters } from "../../types/generated/FacetFilters";
 
 export type { SessionEventInfo, SessionRowInfo, SessionsCountsInfo, SessionsFacetsInfo, SessionsQuery };
 
@@ -56,9 +57,10 @@ export async function sessionsCounts(query: SessionsQuery): Promise<SessionsCoun
 }
 
 /** E31 (AJ-E3103): what a list's filters offer: the projects, Apps,
- * Accounts and Macs its rows are on, with how many rows each shows. */
-export async function sessionsFacets(query: SessionsQuery): Promise<SessionsFacetsInfo> {
-  return call("sessions_facets", { query });
+ * Accounts, Macs and tools its rows are on, with how many rows each shows
+ * with the other filters as chosen (`filters`; F-K2-5). */
+export async function sessionsFacets(query: SessionsQuery, filters: FacetFilters | null = null): Promise<SessionsFacetsInfo> {
+  return call("sessions_facets", { query, filters });
 }
 
 /** A query with only what's given set (the rest `null`, as serde sends). */

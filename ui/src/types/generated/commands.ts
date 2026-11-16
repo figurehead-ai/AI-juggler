@@ -60,6 +60,7 @@ import type { EditorChoicesInfo } from "./EditorChoicesInfo";
 import type { EntityKind } from "./EntityKind";
 import type { EntityRef } from "./EntityRef";
 import type { ExpertSetupInfo } from "./ExpertSetupInfo";
+import type { FacetFilters } from "./FacetFilters";
 import type { FigureheadStatusInfo } from "./FigureheadStatusInfo";
 import type { FindProfilesInfo } from "./FindProfilesInfo";
 import type { FleetPeerInfo } from "./FleetPeerInfo";
@@ -1017,7 +1018,7 @@ export interface Commands {
   /** Read features::sessions::commands::sessions_counts */
   sessions_counts: { args: { query: SessionsQuery }; result: SessionsCountsInfo };
   /** Read features::sessions::commands::sessions_facets */
-  sessions_facets: { args: { query: SessionsQuery }; result: SessionsFacetsInfo };
+  sessions_facets: { args: { query: SessionsQuery; filters?: FacetFilters | null }; result: SessionsFacetsInfo };
   /** Read features::sessions::commands::sessions_get */
   sessions_get: { args: { ids: string[] }; result: InstanceInfo[] };
   /** Read features::sessions::commands::sessions_history */

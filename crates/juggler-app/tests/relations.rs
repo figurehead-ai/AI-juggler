@@ -40,7 +40,7 @@ use juggler_adapters::{CLAUDE_CODE_ID, ClaudeCodeAdapter};
 use juggler_app::features::cache;
 use juggler_app::features::conversations;
 use juggler_app::features::relations::{self, EntityKind, EntityRef, RelationCountsInfo};
-use juggler_app::features::sessions::facets::sessions_facets_impl;
+use juggler_app::features::sessions::facets::{FacetFilters, FacetInfo, sessions_facets_impl};
 use juggler_app::features::sessions::rows::{
     Rank, SessionRowInfo, SessionsQuery, sessions_counts_impl, sessions_counts_scanned,
     sessions_page_impl,
@@ -610,7 +610,7 @@ fn relation_counts_timings() {
         started.elapsed()
     );
     let started = Instant::now();
-    sessions_facets_impl(state, &project).unwrap();
+    sessions_facets_impl(state, &project, &FacetFilters::default()).unwrap();
     eprintln!(
         "[perf] a project's filters' values, of 10 000: {:?}",
         started.elapsed()
@@ -689,11 +689,8 @@ fn every_list_opens_on_what_needs_you_and_every_filter_narrows_it() {
         let keys: std::collections::HashSet<&str> =
             rows.iter().map(|row| row.key.as_str()).collect();
         assert_eq!(keys.len(), rows.len(), "{page:?}: no row twice");
-        let facets = sessions_facets_impl(state, &query).unwrap();
-        let narrowings: [(
-            &str,
-            &Vec<juggler_app::features::sessions::facets::FacetInfo>,
-        ); 4] = [
+        let facets = sessions_facets_impl(state, &query, &FacetFilters::default()).unwrap();
+        let narrowings: [(&str, &Vec<FacetInfo>); 4] = [
             ("project", &facets.projects),
             ("app", &facets.apps),
             ("account", &facets.subscriptions),
@@ -772,7 +769,8 @@ fn every_list_opens_on_what_needs_you_and_every_filter_narrows_it() {
     }
     assert!(checked > 40, "{checked} filters checked");
     // "No project" is one of the whole list's: the one in nine with none.
-    let all = sessions_facets_impl(state, &SessionsQuery::default()).unwrap();
+    let all =
+        sessions_facets_impl(state, &SessionsQuery::default(), &FacetFilters::default()).unwrap();
     let none = all
         .projects
         .iter()
@@ -820,6 +818,122 @@ fn every_list_opens_on_what_needs_you_and_every_filter_narrows_it() {
     assert_eq!(
         sessions_counts_impl(state, &recent).unwrap().ended,
         shown.len() as u64
+    );
+}
+
+/// The 0.4.6 RC walk K2 (F-K2-5): with App = Codex CLI chosen, History's
+/// Tool menu still offered Claude Code, which would show nothing. Each
+/// kind's values are counted with the other kinds' choices (its own left
+/// out): every value shows as many rows as it says, over the list the
+/// other choices leave, so no menu offers what would show nothing.
+#[test]
+fn each_filters_values_are_counted_with_the_others_chosen() {
+    let fx = fixture(240, 24);
+    let state = &fx.state;
+    let scope = SessionsQuery {
+        which: Some("ended".into()),
+        ..SessionsQuery::default()
+    };
+    let none = sessions_facets_impl(state, &scope, &FacetFilters::default()).unwrap();
+    // The folder whose sessions are on no Account, and a project.
+    let app = none
+        .apps
+        .iter()
+        .find(|facet| facet.id == juggler_core::storage::cli_app_id("acc-3"))
+        .expect("the unsigned folder's App")
+        .id
+        .clone();
+    // acc-3 runs one session in four (n % 4 == 3), project 3 one in twelve (n % 12 == 3).
+    let project = fx.projects[3].clone();
+    let chosen = FacetFilters {
+        app_id: Some(app.clone()),
+        project_id: Some(project.clone()),
+        ..FacetFilters::default()
+    };
+    let narrowed = sessions_facets_impl(state, &scope, &chosen).unwrap();
+    let with = |over: fn(&mut SessionsQuery, String), id: &str, also: &FacetFilters| {
+        let mut query = SessionsQuery {
+            project_id: also.project_id.clone(),
+            app_id: also.app_id.clone(),
+            ..scope.clone()
+        };
+        over(&mut query, id.to_owned());
+        rows_of(state, &query, 200).len() as u64
+    };
+    let both = with(|_, _| {}, "", &chosen);
+    assert!(both > 0, "the app has sessions in the project");
+    // The other kinds: over the rows both choices leave.
+    /// A kind, its values, and how a value narrows a query.
+    type Kind<'a> = (&'a str, &'a Vec<FacetInfo>, fn(&mut SessionsQuery, String));
+    let kinds: [Kind<'_>; 3] = [
+        ("account", &narrowed.subscriptions, |q, id| {
+            q.subscription_id = Some(id)
+        }),
+        ("machine", &narrowed.machines, |q, id| {
+            q.machine_id = Some(id)
+        }),
+        ("tool", &narrowed.tools, |q, id| q.tool_id = Some(id)),
+    ];
+    for (kind, values, over) in kinds {
+        assert_eq!(
+            values.iter().map(|f| f.count).sum::<u64>(),
+            both,
+            "{kind}: every row has one"
+        );
+        for facet in values {
+            assert_eq!(
+                with(over, &facet.id, &chosen),
+                facet.count,
+                "{kind} {}",
+                facet.id
+            );
+        }
+    }
+    assert_eq!(
+        narrowed
+            .subscriptions
+            .iter()
+            .map(|f| f.id.as_str())
+            .collect::<Vec<_>>(),
+        [""],
+        "an unsigned folder's sessions are on no Account: no other Account offered"
+    );
+    // The App's own values: with the project chosen, not the App.
+    let in_project = FacetFilters {
+        project_id: Some(project.clone()),
+        ..FacetFilters::default()
+    };
+    for facet in &narrowed.apps {
+        assert_eq!(
+            with(|q, id| q.app_id = Some(id), &facet.id, &in_project),
+            facet.count,
+            "app {}",
+            facet.id
+        );
+    }
+    assert!(narrowed.apps.len() > 1, "the other Apps stay offered");
+    // The project's own: with the App chosen, not the project.
+    let in_app = FacetFilters {
+        app_id: Some(app.clone()),
+        ..FacetFilters::default()
+    };
+    for facet in &narrowed.projects {
+        assert_eq!(
+            with(|q, id| q.project_id = Some(id), &facet.id, &in_app),
+            facet.count,
+            "project {}",
+            facet.id
+        );
+    }
+    assert_eq!(
+        narrowed.projects.iter().map(|f| f.count).sum::<u64>(),
+        with(|_, _| {}, "", &in_app),
+        "the App's rows, by project"
+    );
+    // Nothing chosen: as before, every kind over the whole list.
+    assert_eq!(
+        none.tools.iter().map(|f| f.count).sum::<u64>(),
+        listed(state, &scope, Some("ended"))
     );
 }
 

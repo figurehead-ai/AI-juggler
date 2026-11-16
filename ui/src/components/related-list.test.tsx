@@ -231,6 +231,23 @@ describe("AJ-E3103 the one list", () => {
     expect(screen.queryByTestId("related-filter-machine")).toBeNull();
   });
 
+  // The 0.4.6 RC walk K2 (F-K2-5): a menu's counts ignored the other
+  // filters chosen, so it offered values that would show nothing.
+  it("each filter's values are counted with the other filters chosen", async () => {
+    renderList("account", 20);
+    await pick("app", "cli:acc-a");
+    fireEvent.click(screen.getByTestId("related-filter-project"));
+    // acc-a runs the even rows: 4 in no project, 3 in each project (of 7, 7 and 6).
+    expect((await screen.findByTestId("related-filter-project-(none)")).textContent).toContain("No project · 4");
+    expect(screen.getByTestId("related-filter-project-p1").textContent).toContain("storefront · 3");
+    expect(screen.getByTestId("related-filter-project-p2").textContent).toContain("billing · 3");
+    fireEvent.keyDown(document.activeElement ?? document.body, { key: "Escape" });
+    // The State filter too: acc-a's ended rows.
+    fireEvent.click(screen.getByTestId("related-filter-state"));
+    const ended = Array.from({ length: 20 }, (_, i) => spec("account", i)).filter((row) => row.folder === "acc-a" && row.kind === "ended").length;
+    expect((await screen.findByTestId("related-filter-state-ended")).textContent).toContain(`Ended · ${ended}`);
+  });
+
   it("the State filter says how many each value shows, as the others do (walk K2)", async () => {
     renderList("app", 20);
     const want = (filter: string) => expected("app", 20, filter, "").length;
