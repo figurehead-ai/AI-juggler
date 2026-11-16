@@ -7,7 +7,7 @@
  * every list again (lib/notices-store). The backend's half — the version
  * moves as the window reads it — is centre/tests.rs and sign_in_ended.rs.
  */
-import { act, cleanup, render, waitFor, within } from "@testing-library/react";
+import { act, cleanup, render, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it } from "vitest";
 import { resetNoticeStandIn, standInNeeds, type StandInNeed } from "../lib/ipc/notices";
 import { applySummary, resetNotices } from "../lib/notices-store";
@@ -64,7 +64,9 @@ function shell() {
   );
 }
 
-const railCount = (view: ReturnType<typeof shell>) => within(view.getByTestId("rail-needs-you")).getByTestId("section-count").textContent;
+/** The head's count, from its words ("Needs you 3"): 0.4.6's head has no
+ * count of its own to find (the fix goes there too). */
+const railCount = (view: ReturnType<typeof shell>) => /Needs you\D*(\d+)/.exec(view.getByTestId("rail-needs-you").textContent ?? "")?.[1];
 const railRows = (view: ReturnType<typeof shell>) => view.getAllByTestId("rail-notice").map((row) => row.textContent ?? "");
 
 it("a sign-in's end takes its row out of the rail's Needs you and its count, with the bell, on the one change event", async () => {
