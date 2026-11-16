@@ -273,6 +273,7 @@
 | AJ-E2110 | Settings panes, docs and the Privacy page | E21-desktop-first.md | P0 | M | AJ-E2101..AJ-E2109 |
 | AJ-E2111 | Open starts an app or profile that isn't running | E21-desktop-first.md | P0 | M | AJ-E2104, AJ-E2105 |
 | AJ-E2112 | Keep alive per app and profile | E21-desktop-first.md | P0 | M | AJ-E2111 |
+| AJ-E2113 | An ended session files under the App whose own list shows it; a running one where it runs | E21-desktop-first.md | P1 | M | ADR-0032, D-102 |
 | AJ-E2201 | The readability scale as tokens | E22-visual-usage.md | P0 | S | — |
 | AJ-E2202 | A hand-built chart kit | E22-visual-usage.md | P0 | M | AJ-E2201 |
 | AJ-E2203 | The usage history's summaries | E22-visual-usage.md | P0 | L | — |
@@ -457,5 +458,5 @@
 | AJ-E3807 | The no-model panel: look-ups that need no AI, and the approved download offer | E38-chat.md | P1 | M | AJ-E3804, AJ-E3803 |
 | AJ-E3808 | Chat history: local, clearable, never off the Mac | E38-chat.md | P1 | S | AJ-E3804 |
 | AJ-E3809 | The newcomer walk: Chat v1 on a real Mac, by hand | E38-chat.md | P0 | M | AJ-E3804…AJ-E3808 |
-Total: 455 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
+Total: 456 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
 Status of every task at generation: TODO. The epic files are canonical; this catalog is an index, never edited to claim progress.
