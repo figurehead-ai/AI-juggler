@@ -148,7 +148,8 @@ function InspectEdge({ pool, canvas, edgeId, names, now }: { pool: PoolInfo; can
       )}
       <Section title="The conversation">
         {edge.thread_id ? (
-          <div className="-mx-2 min-w-0" data-canvas-scroll>
+          // On the panel's gutter, as every section's text (it sat 8 px left).
+          <div className="min-w-0" data-canvas-scroll>
             <ThreadView threadId={edge.thread_id} poolId={pool.id} members={members} now={now} />
           </div>
         ) : (

@@ -34,6 +34,25 @@ describe("lazyNamed and prefetchLazy", () => {
     expect(document.documentElement.hasAttribute("data-loading-parts")).toBe(false);
   });
 
+  // The gate's selection-line: React holds a lazy part's reveal after its
+  // code is here; the mark held only as long as the code loaded, so a
+  // capture could catch the part blank with nothing marked.
+  it("keeps the mark until the part is drawn, not just until its code is here", async () => {
+    vi.resetModules();
+    const { lazyNamed } = await import("./lazy");
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    const Slow = lazyNamed(() => gate.then(() => ({ Panel: () => <p data-testid="panel">Drawn</p> })), "Panel");
+    const view = render(<Slow />);
+    release();
+    await gate;
+    await Promise.resolve();
+    // Code here, part maybe not drawn yet: marked exactly while it isn't.
+    expect(document.documentElement.hasAttribute("data-loading-parts")).toBe(view.queryByTestId("panel") === null);
+    await view.findByTestId("panel");
+    expect(document.documentElement.hasAttribute("data-loading-parts")).toBe(false);
+  });
+
   it("renders a part already fetched in its first frame, never through Suspense (0.3.4)", async () => {
     vi.resetModules();
     vi.useFakeTimers();
@@ -91,5 +110,21 @@ describe("lazyNamed and prefetchLazy", () => {
     for (let i = 0; i < 10; i++) await vi.advanceTimersByTimeAsync(100);
     expect(order).toEqual(["inspector", "settings", "usage"]);
     vi.useRealTimers();
+  });
+});
+
+// The gate's selection-line state: the pool line's conversation was its
+// skeleton in some renders and drawn in others; its first read is counted.
+describe("loadingPart", () => {
+  it("marks <html> while a part's first data loads, and clears it after, failed or not", async () => {
+    const { loadingPart } = await import("./lazy");
+    let done: (value: string) => void = () => undefined;
+    const reading = loadingPart(new Promise<string>((resolve) => (done = resolve)));
+    expect(document.documentElement.hasAttribute("data-loading-parts")).toBe(true);
+    done("thread");
+    await expect(reading).resolves.toBe("thread");
+    expect(document.documentElement.hasAttribute("data-loading-parts")).toBe(false);
+    await expect(loadingPart(Promise.reject(new Error("gone")))).rejects.toThrow("gone");
+    expect(document.documentElement.hasAttribute("data-loading-parts")).toBe(false);
   });
 });

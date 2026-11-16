@@ -1,4 +1,4 @@
-<!-- captures: a6a552922bf3 -->
+<!-- captures: 75ecb78fe2da -->
 # 99-pool-selection: the canvas's selection and the inspector's title (AJ-E3012)
 
 Design critique (D-57, AJ-E2814) against 97-pool-canvas (the canvas before) and the calm UI round 2 rules. The canvas with each kind selected — nothing (the pool), a session, an App, an Account, a Tool, everyone in scope, a line, the pool's own setup opened from the checklist, and the lead's place waiting for an App's next session — dark and light, 1280×800. Fixture names only.
@@ -98,3 +98,7 @@ Checked by eye, dark and light:
 Section titles re-rendered (6db085536): a colour token named like a type size (`--color-section` beside `--text-section`) had Tailwind build `.text-section` as a colour only, so every section title in the captures from 56f98a514 on was about 13 px regular grey. Re-captured and checked by eye against the earlier captures:
 
 - Every capture: the inspector's title (15 px semibold, as Hierarchy says) and its section titles ("Who leads", "Waiting on you", "The conversation") are ink and semibold again; what's under them sits 1-2 px higher. Wording, controls and states are unchanged. Pass.
+
+## The line's conversation, settled and on the gutter (2026-11-16)
+
+- selection-line (both themes): "The conversation" now shows its thread every time ("Round tax per line", "Planner, Fix the cart totals · in «Checkout team»"), its left edge on the panel's 16 px gutter like every section's text (it sat 8 px left). The capture had caught it blank in some runs: the thread's code and its first read now count as a loading part until it's drawn, so the gate waits for it. Compared twice in the pinned image, both green. Pass.

@@ -17,6 +17,7 @@
  * time; a reply goes at the bottom.
  */
 import { useEffect, useState, type JSX } from "react";
+import { loadingPart } from "../../lib/lazy";
 import { Button } from "../../components/primitives";
 import { Pill } from "../../components/Pill";
 import { errorText } from "../../lib/bridge";
@@ -122,8 +123,9 @@ export function ThreadView({ threadId, poolId, members, now }: { threadId: strin
     let alive = true;
     setPage(null);
     setEarlier([]);
-    const read = () =>
-      void messagesThread(threadId).then(
+    // Its first read is a loading part (lib/lazy): a capture waits for it.
+    const read = (first = false) =>
+      void (first ? loadingPart(messagesThread(threadId)) : messagesThread(threadId)).then(
         (next) => {
           if (!alive) return;
           setPage(next);
@@ -132,8 +134,8 @@ export function ThreadView({ threadId, poolId, members, now }: { threadId: strin
         (cause) => alive && setError(errorText(cause)),
       );
     setMore(null);
-    read();
-    const off = onMessagesChanged(read);
+    read(true);
+    const off = onMessagesChanged(() => read());
     return () => {
       alive = false;
       off();
