@@ -178,6 +178,7 @@ The mark's words, its accessible label ("Summary written on this Mac") and every
 ### 2. What gets a line, and what never does
 
 - **Calm items only.** Only finished turns at L0 or L1 (D-117) get a written line, and only once B's shipping rule (§6.1) has turned written lines on.
+- **Only when the facts know the level** (decided 2026-11-16, from the v3 harness). A turn whose facts are unknown (no level, no outcome: an adapter without a journal, or facts that didn't arrive) gets A's excerpt, with no `write` and no `choose`. With no facts, a question or a failure stated only in the text would reach a model, and `choose` would pick the agent's own sentence on a loud item: the harness's fake pass over the 68 realistic items showed 17 such lines from the ladder and 20 from `choose` only. Reading the level from the text instead would be a second, weaker classifier; the excerpt is free and always the agent's own words.
 - **The agent's own words for L2 and L3.** A turn that asks you something (L2), or failed or broke (L3), shows the agent's own question or failure sentence (A's excerpt, chosen by A's rules) and AI Juggler's facts. No model rewrites them, and no model chooses among their sentences either. A1 and A2 of the research can then never lose the question or the failure, and the loud items, D-117's one loud mark per need, rest on facts alone.
 - **Enforced twice: before the engine and in the gate.** The service never calls an engine for an L2 or L3 item, and the gate's step 0 rejects any draft or chosen sentence for one, whatever path brought it there (§6). The level is read from the facts first, before any other check. The v2 run showed why routing alone is not enough: with routing off, the gate let two L3 lines through (R003, R040).
 - **Only in a language the gate can read.** The gate's word lists (§6 steps 2b and 3) are per language. A turn whose text is in a language without them gets A's excerpt, with no `write` and no `choose`. The text's language is judged from the text itself, not the Mac's setting: enough of its words must be on that language's list of common short words (a count, no model). 0.5 ships English and German, the two the fixtures cover; each further language lands with its own fixtures.
@@ -363,7 +364,7 @@ A paused download says why on its status line ("Waiting for Wi-Fi and power"). *
      - makes each list item its own sentence, so `choose` picks whole items, never a fragment cut at a wrap (the 9 fragments of the v2 review).
 
      It is general, not tuned to commit bodies: a clean turn-end message with no wraps or markers passes through unchanged, and a fixture proves it.
-   - **The level from the facts, first.** When the facts say L2 or L3, or the outcome is `Asking` or `Failed`, no engine is called and A's excerpt shows (§2). A draft or a chosen sentence that reaches the gate for such an item anyway is rejected as a bug and never shown. This is the gate's own copy of §2's routing, so a routing bug can't put a model line on a loud item (R003, R040).
+   - **The level from the facts, first.** When the facts say L2 or L3, or the outcome is `Asking` or `Failed`, or the facts are unknown, no engine is called and A's excerpt shows (§2). A draft or a chosen sentence that reaches the gate for such an item anyway is rejected as a bug and never shown. This is the gate's own copy of §2's routing, so a routing bug can't put a model line on a loud item (R003, R040).
    - **The text's language.** A text in a language the gate has no word lists for gets A's excerpt (§2).
 1. **The input guard, before any engine sees the text.** It removes, sentence by sentence:
    - **sentences addressed to the summariser:** they name "the summary", "the summariser", "the AI", "the model", "the assistant", "whoever summarises", or an "above" or "previous" instruction ("Note to the AI summarising this: …", "IGNORE ALL ABOVE …");
@@ -399,7 +400,7 @@ A paused download says why on its status line ("Waiting for Wi-Fi and power"). *
 
      "Says so" means the line holds a completion negation from the same list, or the same N and M. This applies to every rung, `Quoted` too: R020 and R023 were the agent's own sentences, chosen or copied, and still dropped the caveat.
    - **Then the words.** Each outcome or negation word in the draft must appear in the cleaned text, after the stem list's families ("fixed" needs a fix word in the source). This catches the calm items' misses (M04, M29, L21) where the facts know nothing either way.
-   - **Unknown facts** leave the word, outcome-word and caveat-from-text rules. A disagreeing line is never shown: it falls back to the excerpt (the ladder).
+   - **Unknown facts** never reach this step: step 0 sends them to the excerpt, in the service and again in the gate. The harness's "facts unknown" setting still generates the drafts, to measure them (format, entities, non-answers, and how often the word rules alone would have caught a loud item), but no line from it is shown.
 4. **The shape check.**
    - **One pair of surrounding quotation marks is stripped first** (decided): `"…"`, `“…”`, `‘…’`, `'…'`, `«…»`, `„…“`, `「…」`, with the spaces around them. In v2, 24 of 47 reviewed lines were wrapped, and eight would have passed without the marks. A quotation mark left unpaired at either end means a cut-off line, and is rejected.
    - A draft that stopped at the token limit (`finish: length`, §4) is rejected.
@@ -456,7 +457,7 @@ A tier (Apple's model, each local model, later any engine) reaches users only af
   - **at least 60 realistic turn-end messages,** which decide B's shipping rule: the lab's stand-in transcripts (AI Juggler Dev's Lab App, throwaway projects), and messages written in the style of real Claude Code and Codex closing messages. Between them they cover finished, partial, not run, failed, question and refactor turns, with numbers and negations, in English and German. Each item's facts are hand-set and the reason recorded. The maintainer's real transcripts are never used without their yes.
 - **Three facts settings, as in v2:** the design's own ("main"), the gate alone with routing off ("gate only"), and facts unknown.
 - **The harness's own checks** (each a line in the run's report, each must hold):
-  - no L2 or L3 item shows a Written or Quoted line in any setting, routing off included;
+  - no L2 or L3 item shows a Written or Quoted line in any setting, routing off included (under "facts unknown", step 0 sends every item to the excerpt, so this holds by design and the setting measures the drafts only);
   - every shown line on an item whose facts or text carry a caveat carries it;
   - the normaliser leaves every realistic turn-end message unchanged when it has no wraps or markers;
   - repeats at temperature 0 agree, or the disagreements are listed.
