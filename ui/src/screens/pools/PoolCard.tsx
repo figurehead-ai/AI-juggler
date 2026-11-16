@@ -6,7 +6,8 @@
  */
 import { useState, type JSX, type ReactNode } from "react";
 import { useItemMenu } from "../../components/ItemMenu";
-import { Field, Input, Modal } from "../../components/form";
+import { RenameSheet } from "../../components/ManageWork";
+import { Modal } from "../../components/form";
 import { Button } from "../../components/primitives";
 import { showToast } from "../../components/Toast";
 import { errorText } from "../../lib/bridge";
@@ -35,44 +36,24 @@ export function PoolCard({ pool, local, asks, onOpen, children }: { pool: PoolIn
   );
 }
 
+/** A pool's Rename: the one rename sheet (sessions, projects, Apps,
+ * Accounts), its name selected on open so typing replaces it (the 0.4.6
+ * RC walk A8). A pool keeps a name: empty, or the same, changes nothing. */
 export function RenamePool({ pool, onClose }: { pool: PoolInfo; onClose: () => void }): JSX.Element {
-  const [name, setName] = useState(pool.name);
-  const [busy, setBusy] = useState(false);
-  const save = async () => {
-    const words = name.trim();
-    if (!words || words === pool.name) return onClose();
-    setBusy(true);
-    try {
-      setPools(await poolRename(pool.id, words));
-      onClose();
-    } catch (cause) {
-      showToast({ message: "Couldn't rename the pool", detail: errorText(cause), tone: "error" });
-      setBusy(false);
-    }
-  };
   return (
-    <Modal title="Rename pool" onClose={onClose} testId="pool-rename">
-      <form
-        className="flex flex-col gap-3"
-        onSubmit={(event) => {
-          event.preventDefault();
-          void save();
-        }}
-      >
-        <Field label="Name">
-          {/* eslint-disable-next-line jsx-a11y/no-autofocus -- the sheet is for this one field */}
-          <Input autoFocus value={name} onChange={(event) => setName(event.target.value)} data-testid="pool-rename-input" />
-        </Field>
-        <span className="flex justify-end gap-2">
-          <Button variant="ghost" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button variant="primary" type="submit" disabled={busy || !name.trim()} data-testid="pool-rename-save">
-            Rename
-          </Button>
-        </span>
-      </form>
-    </Modal>
+    <RenameSheet
+      title={`Rename ${pool.name}`}
+      initial={pool.name}
+      placeholder={pool.name}
+      hint="Shown wherever this pool is named."
+      testId="pool-rename"
+      onSave={async (next) => {
+        const words = next.trim();
+        if (words && words !== pool.name) setPools(await poolRename(pool.id, words));
+        onClose();
+      }}
+      onClose={onClose}
+    />
   );
 }
 
