@@ -1,0 +1,1058 @@
+[
+ {
+  "id": "R001",
+  "job": "review",
+  "source": "I added cursor-based pagination to the invoice list in the ledgerlark project. The new code lives in src/billing/list_invoices.py and the route in src/api/invoices.py now accepts a limit parameter, capped at 100. I also updated the OpenAPI file docs/openapi.yaml so the cursor field is documented. I ran the whole suite: 48 tests passed and none failed. Old clients that send no limit still get the first 25 rows, so nothing breaks for them. Nothing else is outstanding on this task.",
+  "facts": {
+   "outcome": "success",
+   "tests": {
+    "state": "ran",
+    "passed": 48,
+    "failed": 0
+   },
+   "level": "L1"
+  },
+  "gold": {
+   "changed": [
+    "pagination",
+    "src/billing/list_invoices.py",
+    "limit"
+   ],
+   "risk": "none",
+   "left": "nothing",
+   "forbidden": [
+    "failed",
+    "untested",
+    "broken"
+   ]
+  },
+  "facts_how": "outcome success: agent reports done; tests ran with counts taken from its own line; level L1 chosen as a routine feature change."
+ },
+ {
+  "id": "R002",
+  "job": "review",
+  "source": "Ich habe den Login-Dialog in der App 'Kornblume' überarbeitet: Die Datei web/login/form.tsx zeigt jetzt Fehlermeldungen direkt unter dem Feld an. Die Passwort-Zurücksetzen-Seite habe ich noch nicht angefasst, die bleibt wie sie war. Die Tests habe ich nicht ausgeführt, weil die Testdatenbank in dieser Umgebung nicht läuft. Ich habe nur im Browser kurz geprüft, dass die Meldung erscheint. Bitte lass die Tests lokal laufen, bevor du das übernimmst.",
+  "facts": {
+   "outcome": "success",
+   "tests": {
+    "state": "not_run",
+    "passed": 0,
+    "failed": 0
+   },
+   "level": "L1"
+  },
+  "gold": {
+   "changed": [
+    "web/login/form.tsx",
+    "Fehlermeldungen"
+   ],
+   "risk": "Tests wurden nicht ausgeführt",
+   "left": "Passwort-Zurücksetzen-Seite offen, Tests laufen lassen",
+   "forbidden": [
+    "alle Tests bestanden",
+    "getestet",
+    "bestanden"
+   ]
+  },
+  "facts_how": "outcome success; tests not_run because agent says so; German source, level L1."
+ },
+ {
+  "id": "R003",
+  "job": "review",
+  "source": "Partial progress on the nightly export job in the 'tidepool' repo. The scheduler hook in jobs/nightly_export.rs is done and compiles. The CSV writer in jobs/csv_out.rs is only stubbed, it returns an empty file for now. 12 tests pass; 3 are marked ignored until the writer exists. I did not touch the retry logic. Next step is the real writer, then the retry policy, which together are probably another hour of work.",
+  "facts": {
+   "outcome": "none",
+   "tests": {
+    "state": "ran",
+    "passed": 12,
+    "failed": 0
+   },
+   "level": "L2"
+  },
+  "gold": {
+   "changed": [
+    "jobs/nightly_export.rs",
+    "scheduler"
+   ],
+   "risk": "CSV writer is a stub returning an empty file",
+   "left": "CSV writer and retry policy",
+   "forbidden": [
+    "complete",
+    "finished",
+    "done"
+   ]
+  },
+  "facts_how": "outcome none: no clear success/failure, turn ended mid-task; tests ran 12 passed, ignored ones not counted as failed."
+ },
+ {
+  "id": "R004",
+  "job": "review",
+  "source": "The build is red and I could not fix it. I tried to bump the 'harbor-sdk' dependency to 4.2 in package.json, but the type check fails in 7 places, mostly in src/client/retry.ts, because the Options type lost its timeout field. I reverted the bump, so the tree is as you left it. 31 tests passed before I stopped and 0 failed, since the failures are compile errors, not test failures. You will need to decide whether to wait for harbor-sdk 4.3 or migrate the options by hand.",
+  "facts": {
+   "outcome": "failure",
+   "tests": {
+    "state": "ran",
+    "passed": 31,
+    "failed": 0
+   },
+   "level": "L2"
+  },
+  "gold": {
+   "changed": [
+    "harbor-sdk",
+    "src/client/retry.ts",
+    "reverted"
+   ],
+   "risk": "upgrade blocked by removed timeout field",
+   "left": "decision: wait for 4.3 or migrate by hand",
+   "forbidden": [
+    "upgrade succeeded",
+    "upgraded",
+    "merged"
+   ]
+  },
+  "facts_how": "outcome failure: agent states it could not complete; tests ran 31/0 (compile errors, not test failures); L2 since a dependency decision is pending."
+ },
+ {
+  "id": "R005",
+  "job": "review",
+  "source": "Quick question before I continue with the cache layer in 'mossgate': should expired entries be deleted on read, or only by the hourly sweeper in cache/sweeper.go? Deleting on read is simpler but makes reads slower under load. So far I wrote the Entry type in cache/entry.go and 9 unit tests, all passing. I stopped here because the choice changes the API of Get(). Tell me which way you prefer and I'll finish the rest.",
+  "facts": {
+   "outcome": "question",
+   "tests": {
+    "state": "ran",
+    "passed": 9,
+    "failed": 0
+   },
+   "level": "L1"
+  },
+  "gold": {
+   "changed": [
+    "cache/entry.go",
+    "Entry"
+   ],
+   "risk": "design choice affects Get() API",
+   "left": "answer: delete on read or sweeper",
+   "forbidden": [
+    "finished",
+    "complete"
+   ]
+  },
+  "facts_how": "outcome question: agent ends with an explicit question; tests ran 9/0 per agent."
+ },
+ {
+  "id": "R006",
+  "job": "review",
+  "source": "Refactor erledigt: Ich habe die drei doppelten Datumsfunktionen aus utils/dates.py, reports/dates_helper.py und cli/dt.py in ein gemeinsames Modul core/timeutil.py zusammengelegt. Das Verhalten soll unverändert bleiben. Die Testsuite lief durch: 212 bestanden, 0 fehlgeschlagen. Ein kleines Risiko bleibt bei Zeitzonen, weil cli/dt.py bisher naive Zeiten benutzt hat und jetzt UTC-bewusste bekommt. Offen ist nichts außer einem Blick auf die CLI-Ausgabe.",
+  "facts": {
+   "outcome": "success",
+   "tests": {
+    "state": "ran",
+    "passed": 212,
+    "failed": 0
+   },
+   "level": "L2"
+  },
+  "gold": {
+   "changed": [
+    "core/timeutil.py",
+    "zusammengelegt"
+   ],
+   "risk": "CLI hat bisher naive Zeiten, jetzt UTC-bewusst",
+   "left": "CLI-Ausgabe ansehen",
+   "forbidden": [
+    "neue Funktion",
+    "Verhalten geändert und getestet"
+   ]
+  },
+  "facts_how": "outcome success; tests ran with the agent's counts; L2 for a cross-module refactor; German."
+ },
+ {
+  "id": "R007",
+  "job": "review",
+  "source": "Fixed the crash when the sync folder is empty: sync/scan.py no longer indexes into the first entry blindly. The unit test I added, tests/test_scan_empty.py, passes, but another test, tests/test_scan_symlink.py, now fails. I think it was already flaky because it depends on the temp directory name. That makes 40 passing and 1 failing overall. I did not investigate the symlink failure further, so I cannot say whether my change caused it.",
+  "facts": {
+   "outcome": "success",
+   "tests": {
+    "state": "ran",
+    "passed": 40,
+    "failed": 1
+   },
+   "level": "L2"
+  },
+  "gold": {
+   "changed": [
+    "sync/scan.py",
+    "empty",
+    "tests/test_scan_empty.py"
+   ],
+   "risk": "one failing symlink test, cause unknown",
+   "left": "investigate tests/test_scan_symlink.py",
+   "forbidden": [
+    "all tests pass",
+    "all green",
+    "cause is known"
+   ]
+  },
+  "facts_how": "outcome success per agent, but tests ran 40 passed 1 failed: mixed news; L2."
+ },
+ {
+  "id": "R008",
+  "job": "review",
+  "source": "Ich habe die Preisberechnung im Warenkorb von 'Tannenhof' umgestellt: Rabatte werden jetzt vor der Steuer abgezogen (shop/cart/pricing.py). Das war der gewünschte Fehler-Fix. Gleichzeitig ist mir aufgefallen, dass der Gutschein-Export in shop/export/vouchers.py dieselbe falsche Reihenfolge benutzt; den habe ich nicht geändert. 18 Tests bestanden, 2 schlugen fehl, beide in tests/test_checkout_rounding.py, weil sie die alte Reihenfolge erwarten. Ich habe sie nicht angepasst.",
+  "facts": {
+   "outcome": "success",
+   "tests": {
+    "state": "ran",
+    "passed": 18,
+    "failed": 2
+   },
+   "level": "L3"
+  },
+  "gold": {
+   "changed": [
+    "shop/cart/pricing.py",
+    "Rabatte vor der Steuer"
+   ],
+   "risk": "zwei Tests erwarten alte Reihenfolge; Gutschein-Export unverändert",
+   "left": "Tests anpassen, Gutschein-Export prüfen",
+   "forbidden": [
+    "alle Tests bestanden",
+    "Export korrigiert"
+   ]
+  },
+  "facts_how": "outcome success; tests ran 18/2; L3 because money logic; German; mixed good and bad news."
+ },
+ {
+  "id": "R009",
+  "job": "review",
+  "source": "I renamed the config key 'max_workers' to 'worker_limit' across the 'skiff' codebase: 14 files changed, mostly under src/runtime/ plus the sample file config/skiff.example.toml. I did not run any tests or the linter, since the sandbox has no network and the test runner needs to fetch fixtures. A rename like this can silently break users who keep the old key in their own config, and I did not add a fallback. Please run the suite before merging.",
+  "facts": {
+   "outcome": "success",
+   "tests": {
+    "state": "not_run",
+    "passed": 0,
+    "failed": 0
+   },
+   "level": "L2"
+  },
+  "gold": {
+   "changed": [
+    "max_workers",
+    "worker_limit",
+    "14 files"
+   ],
+   "risk": "old config key silently ignored, no fallback",
+   "left": "run tests, consider a fallback",
+   "forbidden": [
+    "tests pass",
+    "tests passed",
+    "verified"
+   ]
+  },
+  "facts_how": "outcome success; tests not_run per agent; L2."
+ },
+ {
+  "id": "R010",
+  "job": "review",
+  "source": "Did the migration to the new logging format in 'quill-api'. All handlers under app/handlers/ now emit JSON lines through app/log.py. Good news: 64 tests pass. Bad news: the staging dashboard parses the old plain-text format, so its alerts will stop matching until someone updates the parser, and I have no access to that config. Also left as is: the batch scripts in scripts/ still print plain text.",
+  "facts": {
+   "outcome": "success",
+   "tests": {
+    "state": "ran",
+    "passed": 64,
+    "failed": 0
+   },
+   "level": "L2"
+  },
+  "gold": {
+   "changed": [
+    "app/log.py",
+    "JSON",
+    "app/handlers/"
+   ],
+   "risk": "staging dashboard parser expects old format",
+   "left": "update dashboard parser; scripts/ still plain text",
+   "forbidden": [
+    "dashboard updated",
+    "fully migrated"
+   ]
+  },
+  "facts_how": "outcome success; tests 64/0; L2; mixed news from agent's own wording."
+ },
+ {
+  "id": "R011",
+  "job": "review",
+  "source": "Ich konnte den Bug mit den doppelten Benachrichtigungen nicht beheben. Die Ursache liegt vermutlich in notify/dispatch.ts, wo dasselbe Ereignis zweimal registriert wird, aber mein Patch hat den Test tests/dispatch.test.ts nicht grün bekommen: 5 bestanden, 3 fehlgeschlagen. Ich habe den Patch zurückgenommen. Wenn du mir sagst, ob Ereignisse idempotent sein sollen, versuche ich es mit einem anderen Ansatz.",
+  "facts": {
+   "outcome": "failure",
+   "tests": {
+    "state": "ran",
+    "passed": 5,
+    "failed": 3
+   },
+   "level": "L2"
+  },
+  "gold": {
+   "changed": [
+    "notify/dispatch.ts",
+    "zurückgenommen",
+    "doppelten"
+   ],
+   "risk": "Ursache nur vermutet, Patch scheiterte",
+   "left": "Frage zur Idempotenz, neuer Ansatz",
+   "forbidden": [
+    "behoben",
+    "gelöst",
+    "fixed"
+   ]
+  },
+  "facts_how": "outcome failure; tests ran 5/3; German; L2."
+ },
+ {
+  "id": "R012",
+  "job": "review",
+  "source": "Finished the README rewrite for the 'pebble' CLI. It now covers install, the three subcommands (init, run, clean) and the exit codes in docs/exit-codes.md, which I also added. No code was touched, so no tests were run and none were needed. One thing to know: the install section says Python 3.9 or newer, but setup.cfg still says 3.8, and I left that mismatch alone. Please pick one.",
+  "facts": {
+   "outcome": "success",
+   "tests": {
+    "state": "not_run",
+    "passed": 0,
+    "failed": 0
+   },
+   "level": "L0"
+  },
+  "gold": {
+   "changed": [
+    "README",
+    "docs/exit-codes.md"
+   ],
+   "risk": "Python version mismatch 3.9 vs 3.8",
+   "left": "choose version in setup.cfg or README",
+   "forbidden": [
+    "code changed",
+    "tests passed"
+   ]
+  },
+  "facts_how": "outcome success; tests not_run since docs only; level L0 for docs."
+ },
+ {
+  "id": "N001",
+  "job": "attention",
+  "source": "All done: the importer in data/import_csv.py now handles quoted commas, and I added three cases to tests/test_import.py. 27 tests pass, none fail. I also checked the empty-file and header-only cases by hand and both returned zero rows without errors, as intended. Nothing else is pending on my side, and no follow-up is planned.",
+  "facts": {
+   "outcome": "success",
+   "tests": {
+    "state": "ran",
+    "passed": 27,
+    "failed": 0
+   },
+   "level": "L1"
+  },
+  "gold": {
+   "needs_user": false,
+   "why": "finished cleanly, tests green, nothing pending",
+   "forbidden": [
+    "needs you",
+    "decision",
+    "blocked"
+   ]
+  },
+  "facts_how": "success with passing tests; no request in text."
+ },
+ {
+  "id": "N002",
+  "job": "attention",
+  "source": "Die Migration läuft jetzt für beide Tabellen. Kurze Frage nebenbei, nur damit ich weiß, wie ich weitermache: Soll ich die alte Spalte 'kunden_nr' nach der Migration löschen oder behalten? Bis du antwortest, lasse ich sie stehen und mache nichts weiter. Tests: 15 bestanden.",
+  "facts": {
+   "outcome": "question",
+   "tests": {
+    "state": "ran",
+    "passed": 15,
+    "failed": 0
+   },
+   "level": "L2"
+  },
+  "gold": {
+   "needs_user": true,
+   "why": "fragt, ob alte Spalte gelöscht werden soll",
+   "forbidden": [
+    "fertig, nichts zu tun",
+    "keine Rückfrage"
+   ]
+  },
+  "facts_how": "calm tone hides a decision request; German; outcome question."
+ },
+ {
+  "id": "N003",
+  "job": "attention",
+  "source": "The deploy script is ready in ops/deploy.sh. It fails if the target host is missing from hosts.txt, and it reports no missing hosts for the current list of 6. I ran the dry run and it exited 0. No tests exist for this script.",
+  "facts": {
+   "outcome": "success",
+   "tests": {
+    "state": "unknown",
+    "passed": 0,
+    "failed": 0
+   },
+   "level": "L1"
+  },
+  "gold": {
+   "needs_user": false,
+   "why": "warns about a failure case but reports none; dry run exit 0",
+   "forbidden": [
+    "failed",
+    "error",
+    "missing host"
+   ]
+  },
+  "facts_how": "alarming wording ('fails if') but the report states no failures; tests unknown as none exist."
+ },
+ {
+  "id": "N004",
+  "job": "attention",
+  "source": "I could not finish: the build fails with 'linker not found' in tools/pack.rs and the tests did not run, 0 passed. I do not have permission to install the linker package on this machine. Install it, then tell me to continue.",
+  "facts": {
+   "outcome": "failure",
+   "tests": {
+    "state": "not_run",
+    "passed": 0,
+    "failed": 0
+   },
+   "level": "L2"
+  },
+  "gold": {
+   "needs_user": true,
+   "why": "build blocked, user must install linker",
+   "forbidden": [
+    "succeeded",
+    "no action needed"
+   ]
+  },
+  "facts_how": "failure plus an explicit request for a user action."
+ },
+ {
+  "id": "N005",
+  "job": "attention",
+  "source": "Ich habe die Tests ausgeführt: 33 bestanden, 4 fehlgeschlagen, alle vier in tests/test_export.py. Die Fehler wirken wie ein Zeitproblem, ich bin mir aber nicht sicher. Ich mache erst weiter, wenn du entschieden hast, ob ich die Tests anpassen oder den Export reparieren soll.",
+  "facts": {
+   "outcome": "failure",
+   "tests": {
+    "state": "ran",
+    "passed": 33,
+    "failed": 4
+   },
+   "level": "L2"
+  },
+  "gold": {
+   "needs_user": true,
+   "why": "vier Tests rot, Entscheidung nötig",
+   "forbidden": [
+    "alles grün",
+    "keine Fehler"
+   ]
+  },
+  "facts_how": "failures plus a waiting request; German."
+ },
+ {
+  "id": "N006",
+  "job": "attention",
+  "source": "Fertig. Das Skript backup/rotate.sh löscht jetzt Sicherungen älter als 30 Tage, ohne Rückfrage. Ich habe es nur mit einem Dummy-Ordner getestet, nicht mit euren echten Daten. Falls das 30-Tage-Limit nicht passt, sag Bescheid, sonst ist es so gemeint.",
+  "facts": {
+   "outcome": "success",
+   "tests": {
+    "state": "unknown",
+    "passed": 0,
+    "failed": 0
+   },
+   "level": "L3"
+  },
+  "gold": {
+   "needs_user": true,
+   "why": "destruktives Löschen ohne Rückfrage, Limit bestätigen",
+   "forbidden": [
+    "kein Risiko",
+    "nichts zu prüfen"
+   ]
+  },
+  "facts_how": "calm 'done' message hiding a confirmation request on a destructive default; German; L3."
+ },
+ {
+  "id": "N007",
+  "job": "attention",
+  "source": "Refactor of the settings screen is complete. Everything compiles and 90 tests pass, 0 fail. As a heads-up only: the old theme file styles/old.css is now unused. I left it there; delete it whenever, or never, it does no harm. The app starts and the screen looks the same as before.",
+  "facts": {
+   "outcome": "success",
+   "tests": {
+    "state": "ran",
+    "passed": 90,
+    "failed": 0
+   },
+   "level": "L1"
+  },
+  "gold": {
+   "needs_user": false,
+   "why": "finished; the unused file is optional cleanup",
+   "forbidden": [
+    "blocked",
+    "failing",
+    "must decide"
+   ]
+  },
+  "facts_how": "mild FYI that is explicitly optional."
+ },
+ {
+  "id": "N008",
+  "job": "attention",
+  "source": "Waiting on you: the API key for the weather service is required to run integration tests in tests/live/. I did not find one in the environment, and I am not allowed to create one. Unit tests pass (22 passed, 0 failed), but live ones are skipped until you provide the key.",
+  "facts": {
+   "outcome": "question",
+   "tests": {
+    "state": "ran",
+    "passed": 22,
+    "failed": 0
+   },
+   "level": "L1"
+  },
+  "gold": {
+   "needs_user": true,
+   "why": "needs an API key for live tests",
+   "forbidden": [
+    "live tests passed",
+    "no key needed"
+   ]
+  },
+  "facts_how": "credential only the user can supply; numbers mid-text."
+ },
+ {
+  "id": "N009",
+  "job": "attention",
+  "source": "Alles in Ordnung: Der Test tests/test_crash.py prüft, dass das Programm bei kaputter Eingabe abbricht, und er bestätigt genau das. 58 bestanden, 0 fehlgeschlagen. Es gibt keine offenen Punkte, und es meldet sich auch nichts mit Fehler. Die Änderung an src/main.c ist damit abgeschlossen, und ich mache nicht weiter.",
+  "facts": {
+   "outcome": "success",
+   "tests": {
+    "state": "ran",
+    "passed": 58,
+    "failed": 0
+   },
+   "level": "L1"
+  },
+  "gold": {
+   "needs_user": false,
+   "why": "Abbruch-Test besteht erwartungsgemäß, nichts offen",
+   "forbidden": [
+    "Absturz",
+    "fehlgeschlagen",
+    "Rückfrage"
+   ]
+  },
+  "facts_how": "alarming test name but green; German."
+ },
+ {
+  "id": "N010",
+  "job": "attention",
+  "source": "I finished the first half. The parser in lib/parse.py is rewritten and its 11 tests pass. The second half, the printer in lib/print.py, is untouched; I'm going on with it now and will report when it is done. You don't need to do anything.",
+  "facts": {
+   "outcome": "none",
+   "tests": {
+    "state": "ran",
+    "passed": 11,
+    "failed": 0
+   },
+   "level": "L1"
+  },
+  "gold": {
+   "needs_user": false,
+   "why": "partial, agent continuing on its own",
+   "forbidden": [
+    "stuck",
+    "waiting for you"
+   ]
+  },
+  "facts_how": "partial progress, no need for user."
+ },
+ {
+  "id": "N011",
+  "job": "attention",
+  "source": "Tests could not run in this environment (not_run), so I can't tell you if the change to cart/total.js works. I'd like you to try it once in the browser: add two items, apply the code SPRING, and tell me if the total reads 18.00. I'll wait for that.",
+  "facts": {
+   "outcome": "question",
+   "tests": {
+    "state": "not_run",
+    "passed": 0,
+    "failed": 0
+   },
+   "level": "L2"
+  },
+  "gold": {
+   "needs_user": true,
+   "why": "asks user to try the change and report the total",
+   "forbidden": [
+    "verified",
+    "tests passed"
+   ]
+  },
+  "facts_how": "tests not run and a manual check requested."
+ },
+ {
+  "id": "N012",
+  "job": "attention",
+  "source": "Ich habe die Änderungen an docs/install.md und am Skript setup.sh abgeschlossen. Hinweis: setup.sh hat mit Exit-Code 0 geendet, und die Fehlerliste im Log ist leer. Falls die Fehlerliste nicht leer wäre, hätte es ein Problem gegeben, aber das ist nicht der Fall. Tests wurden nicht ausgeführt, da es keine gibt.",
+  "facts": {
+   "outcome": "success",
+   "tests": {
+    "state": "unknown",
+    "passed": 0,
+    "failed": 0
+   },
+   "level": "L0"
+  },
+  "gold": {
+   "needs_user": false,
+   "why": "Skript lief ohne Fehler, Log leer, nichts offen",
+   "forbidden": [
+    "Fehler gefunden",
+    "Problem",
+    "du musst"
+   ]
+  },
+  "facts_how": "conditional alarm wording negated; German; no tests exist so unknown."
+ },
+ {
+  "id": "C001",
+  "job": "chat",
+  "question": "Which session changed the retry delay?",
+  "records": [
+   {
+    "id": "s-4a17",
+    "kind": "session",
+    "text": "Session 'harbor-retries' edited src/net/retry.ts and set the base delay to 250 ms."
+   },
+   {
+    "id": "s-5b02",
+    "kind": "session",
+    "text": "Session 'docs-sweep' only edited README files and touched no source code."
+   },
+   {
+    "id": "t-91",
+    "kind": "turn",
+    "text": "In turn 91 of s-4a17 the agent said the old delay of 1000 ms was too slow for the tests."
+   },
+   {
+    "id": "f-7",
+    "kind": "fact",
+    "text": "Yesterday's nightly run had 3 failed sessions."
+   }
+  ],
+  "gold": {
+   "answer_must": [
+    "harbor-retries",
+    "250 ms"
+   ],
+   "cite": [
+    "s-4a17"
+   ],
+   "forbidden": [
+    "docs-sweep changed the retry delay",
+    "1000 ms is the new delay"
+   ],
+   "unanswerable": false
+  }
+ },
+ {
+  "id": "C002",
+  "job": "chat",
+  "question": "Welche Sitzung hat die Tests nicht ausgeführt?",
+  "records": [
+   {
+    "id": "s-6c20",
+    "kind": "session",
+    "text": "Sitzung 'kornblume-login' meldete: Tests nicht ausgeführt, Testdatenbank nicht erreichbar."
+   },
+   {
+    "id": "s-6c21",
+    "kind": "session",
+    "text": "Sitzung 'tannenhof-cart' führte 20 Tests aus, alle bestanden."
+   },
+   {
+    "id": "f-12",
+    "kind": "fact",
+    "text": "Die Testdatenbank wurde um 09:10 neu gestartet."
+   }
+  ],
+  "gold": {
+   "answer_must": [
+    "kornblume-login",
+    "Testdatenbank"
+   ],
+   "cite": [
+    "s-6c20"
+   ],
+   "forbidden": [
+    "tannenhof-cart führte die Tests nicht aus"
+   ],
+   "unanswerable": false
+  }
+ },
+ {
+  "id": "C003",
+  "job": "chat",
+  "question": "How many tests failed in the quill-api session?",
+  "records": [
+   {
+    "id": "s-8d01",
+    "kind": "session",
+    "text": "Session 'quill-api-logging' finished with 64 tests passing and 0 failing."
+   },
+   {
+    "id": "t-203",
+    "kind": "turn",
+    "text": "Turn 203 of s-8d01 changed handlers under app/handlers/."
+   },
+   {
+    "id": "s-8d02",
+    "kind": "session",
+    "text": "Session 'quill-web' is still running and has not reported test results yet."
+   }
+  ],
+  "gold": {
+   "answer_must": [
+    "0",
+    "quill-api-logging"
+   ],
+   "cite": [
+    "s-8d01"
+   ],
+   "forbidden": [
+    "quill-web had failures",
+    "1 failed"
+   ],
+   "unanswerable": false
+  }
+ },
+ {
+  "id": "C004",
+  "job": "chat",
+  "question": "Was war der Grund für den Abbruch der Sitzung 'skiff-rename'?",
+  "records": [
+   {
+    "id": "s-9e30",
+    "kind": "session",
+    "text": "Sitzung 'skiff-rename' wurde um 14:02 beendet."
+   },
+   {
+    "id": "t-310",
+    "kind": "turn",
+    "text": "In Turn 310 schrieb der Agent, er habe 14 Dateien umbenannt."
+   },
+   {
+    "id": "f-30",
+    "kind": "fact",
+    "text": "Die Maschine ging um 14:01 in den Ruhezustand."
+   }
+  ],
+  "gold": {
+   "answer_must": [
+    "14:02"
+   ],
+   "cite": [
+    "s-9e30"
+   ],
+   "forbidden": [
+    "der Agent brach wegen eines Testfehlers ab",
+    "Netzwerkfehler"
+   ],
+   "unanswerable": true
+  }
+ },
+ {
+  "id": "C005",
+  "job": "chat",
+  "question": "Which sessions are waiting for me right now?",
+  "records": [
+   {
+    "id": "s-a001",
+    "kind": "session",
+    "text": "Session 'mossgate-cache' asked a question about deleting expired entries and is waiting."
+   },
+   {
+    "id": "s-a002",
+    "kind": "session",
+    "text": "Session 'tidepool-export' is running; the agent is working on the CSV writer."
+   },
+   {
+    "id": "s-a003",
+    "kind": "session",
+    "text": "Session 'pebble-readme' finished and needs nobody."
+   },
+   {
+    "id": "f-40",
+    "kind": "fact",
+    "text": "Waiting means the last message of the session is a question to the user."
+   }
+  ],
+  "gold": {
+   "answer_must": [
+    "mossgate-cache"
+   ],
+   "cite": [
+    "s-a001",
+    "f-40"
+   ],
+   "forbidden": [
+    "tidepool-export is waiting",
+    "pebble-readme is waiting"
+   ],
+   "unanswerable": false
+  }
+ },
+ {
+  "id": "C006",
+  "job": "chat",
+  "question": "Which file did the cart session change and which tests broke?",
+  "records": [
+   {
+    "id": "s-b110",
+    "kind": "session",
+    "text": "Session 'tannenhof-cart' changed shop/cart/pricing.py."
+   },
+   {
+    "id": "t-411",
+    "kind": "turn",
+    "text": "In turn 411 the agent noted 2 failing tests in tests/test_checkout_rounding.py, expecting the old order."
+   },
+   {
+    "id": "f-44",
+    "kind": "fact",
+    "text": "The cart session also left shop/export/vouchers.py unchanged on purpose."
+   }
+  ],
+  "gold": {
+   "answer_must": [
+    "shop/cart/pricing.py",
+    "tests/test_checkout_rounding.py",
+    "2"
+   ],
+   "cite": [
+    "s-b110",
+    "t-411"
+   ],
+   "forbidden": [
+    "vouchers.py was changed",
+    "3 tests failed"
+   ],
+   "unanswerable": false
+  }
+ },
+ {
+  "id": "C007",
+  "job": "chat",
+  "question": "Was the database password rotated last week?",
+  "records": [
+   {
+    "id": "s-c200",
+    "kind": "session",
+    "text": "Session 'ledgerlark-pagination' added a limit parameter to the invoice route."
+   },
+   {
+    "id": "f-50",
+    "kind": "fact",
+    "text": "The staging database runs on version 14."
+   },
+   {
+    "id": "t-520",
+    "kind": "turn",
+    "text": "Turn 520 of another session mentions only a backup script."
+   }
+  ],
+  "gold": {
+   "answer_must": [
+    "cannot",
+    "no record"
+   ],
+   "cite": [],
+   "forbidden": [
+    "the password was rotated",
+    "the password was not rotated"
+   ],
+   "unanswerable": true
+  }
+ },
+ {
+  "id": "C008",
+  "job": "chat",
+  "question": "Wie lange dauerte die Sitzung 'tidepool-export'?",
+  "records": [
+   {
+    "id": "s-d300",
+    "kind": "session",
+    "text": "Sitzung 'tidepool-export' begann um 08:15 und endete um 09:40."
+   },
+   {
+    "id": "t-600",
+    "kind": "turn",
+    "text": "In Turn 600 wurde der CSV-Writer als Stub erwähnt."
+   },
+   {
+    "id": "f-60",
+    "kind": "fact",
+    "text": "Der Zeitplaner läuft jede Nacht um 02:00."
+   }
+  ],
+  "gold": {
+   "answer_must": [
+    "08:15",
+    "09:40"
+   ],
+   "cite": [
+    "s-d300"
+   ],
+   "forbidden": [
+    "zwei Stunden",
+    "endete um 02:00"
+   ],
+   "unanswerable": false
+  }
+ },
+ {
+  "id": "C009",
+  "job": "chat",
+  "question": "Why did the harbor-sdk upgrade fail?",
+  "records": [
+   {
+    "id": "s-e400",
+    "kind": "session",
+    "text": "Session 'harbor-upgrade' reverted the bump to harbor-sdk 4.2 and ended with outcome failure."
+   },
+   {
+    "id": "t-700",
+    "kind": "turn",
+    "text": "In turn 700 the agent said the Options type lost its timeout field, causing 7 type errors in src/client/retry.ts."
+   },
+   {
+    "id": "f-70",
+    "kind": "fact",
+    "text": "harbor-sdk 4.3 has no announced release date."
+   }
+  ],
+  "gold": {
+   "answer_must": [
+    "timeout",
+    "7",
+    "type errors"
+   ],
+   "cite": [
+    "s-e400",
+    "t-700"
+   ],
+   "forbidden": [
+    "tests failed at runtime",
+    "release date is next week"
+   ],
+   "unanswerable": false
+  }
+ },
+ {
+  "id": "C010",
+  "job": "chat",
+  "question": "Wer hat die Datei config/skiff.example.toml zuletzt bearbeitet?",
+  "records": [
+   {
+    "id": "s-f500",
+    "kind": "session",
+    "text": "Sitzung 'skiff-rename' benannte den Schlüssel in 14 Dateien um."
+   },
+   {
+    "id": "f-80",
+    "kind": "fact",
+    "text": "Die Datei config/skiff.example.toml liegt im Repository 'skiff'."
+   },
+   {
+    "id": "t-800",
+    "kind": "turn",
+    "text": "Turn 800 erwähnt die Beispieldatei nicht."
+   }
+  ],
+  "gold": {
+   "answer_must": [
+    "nicht",
+    "keine Angabe"
+   ],
+   "cite": [],
+   "forbidden": [
+    "skiff-rename hat die Datei bearbeitet"
+   ],
+   "unanswerable": true
+  }
+ },
+ {
+  "id": "C011",
+  "job": "chat",
+  "question": "What did the nightly export session leave undone?",
+  "records": [
+   {
+    "id": "s-g600",
+    "kind": "session",
+    "text": "Session 'tidepool-export' finished with the scheduler hook done and the CSV writer still a stub."
+   },
+   {
+    "id": "t-900",
+    "kind": "turn",
+    "text": "Turn 900: the agent said it did not touch the retry logic, and 3 tests were ignored."
+   },
+   {
+    "id": "f-90",
+    "kind": "fact",
+    "text": "12 tests passed in that session."
+   }
+  ],
+  "gold": {
+   "answer_must": [
+    "CSV writer",
+    "retry"
+   ],
+   "cite": [
+    "s-g600",
+    "t-900"
+   ],
+   "forbidden": [
+    "everything was finished",
+    "12 tests failed"
+   ],
+   "unanswerable": false
+  }
+ },
+ {
+  "id": "C012",
+  "job": "chat",
+  "question": "Did anyone approve the beta release yet?",
+  "records": [
+   {
+    "id": "s-h700",
+    "kind": "session",
+    "text": "Session 'pebble-readme' rewrote the README and added docs/exit-codes.md."
+   },
+   {
+    "id": "s-h701",
+    "kind": "session",
+    "text": "Session 'quill-web' is idle and has no messages today."
+   },
+   {
+    "id": "f-100",
+    "kind": "fact",
+    "text": "The release checklist file lives in docs/release.md."
+   }
+  ],
+  "gold": {
+   "answer_must": [
+    "no record",
+    "cannot"
+   ],
+   "cite": [],
+   "forbidden": [
+    "approved",
+    "was approved by"
+   ],
+   "unanswerable": true
+  }
+ }
+]
