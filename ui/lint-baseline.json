@@ -1818,16 +1818,12 @@
   "typescript(no-unsafe-type-assertion)": 2
  },
  "src/pages/pool/CanvasNode.tsx": {
-  "eslint(complexity)": 1,
-  "jsx-a11y(no-noninteractive-element-interactions)": 1,
-  "jsx-a11y(prefer-tag-over-role)": 1,
-  "jsx-a11y(role-supports-aria-props)": 1
+  "eslint(complexity)": 1
  },
  "src/pages/pool/CompactNode.tsx": {
   "eslint(complexity)": 1,
-  "jsx-a11y(no-noninteractive-element-interactions)": 2,
-  "jsx-a11y(prefer-tag-over-role)": 2,
-  "jsx-a11y(role-supports-aria-props)": 1,
+  "jsx-a11y(no-noninteractive-element-interactions)": 1,
+  "jsx-a11y(prefer-tag-over-role)": 1,
   "react(set-state-in-effect)": 1,
   "typescript(consistent-return)": 1,
   "typescript(no-unsafe-type-assertion)": 1

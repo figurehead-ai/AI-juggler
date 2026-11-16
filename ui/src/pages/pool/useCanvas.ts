@@ -27,6 +27,7 @@ import { layout, type Point } from "./layout";
 import { nameOf } from "./actions";
 import { namedByFacts, tellApart } from "../../lib/session-titles";
 import { rememberCanvas, rememberedCanvas } from "./prefetch";
+import { nodeTitles, type NodeTitle } from "./node-title";
 
 /** The most members drawn on one canvas (smooth at that many). */
 export const CANVAS_NODES = 60;
@@ -42,8 +43,9 @@ const CARDS_EVERY_MS = 15_000;
 export const PULSE_MS = 1_600;
 
 /** `name`: the session's name, told apart from a member of the same name
- * by its start ("web · started 03:07"; the P7 and P11 walks). */
-export type MemberNode = { id: string; session: InstanceInfo; card: ContextCard; role: string; name: string; pending?: boolean };
+ * by its start ("web · started 03:07"; the P7 and P11 walks). `title`:
+ * what its node leads with, and when it started second (D-126 §4a). */
+export type MemberNode = { id: string; session: InstanceInfo; card: ContextCard; role: string; name: string; pending?: boolean; title?: NodeTitle };
 
 /** Each name once: where two sessions share one, each says when it started. */
 export function distinctNames<T extends { session: InstanceInfo }>(rows: readonly T[]): (T & { name: string })[] {
@@ -127,10 +129,10 @@ export function useCanvas(poolId: string, sessions: InstanceInfo[], desktop: rea
     settleAdds(poolId, new Set(drawn.map((member) => `session:${member.id}`)));
     settleRoles(poolId, new Map(drawn.map((member) => [member.id, member.role])));
   }, [poolId, drawn]);
-  const members: MemberNode[] = useMemo(
-    () => drawn.map((member) => (pendingRoles.has(member.id) ? { ...member, role: pendingRoles.get(member.id)!, pending: true } : member)),
-    [drawn, pendingRoles],
-  );
+  const members: MemberNode[] = useMemo(() => {
+    const titles = nodeTitles(drawn);
+    return drawn.map((member) => ({ ...member, title: titles.get(member.id), ...(pendingRoles.has(member.id) ? { role: pendingRoles.get(member.id)!, pending: true } : {}) }));
+  }, [drawn, pendingRoles]);
   const desktopKey = desktop.join("|");
   const ids = useMemo(() => [...members.map((member) => member.id), ...(desktopKey ? desktopKey.split("|") : [])], [members, desktopKey]);
   const idsKey = ids.join("|");

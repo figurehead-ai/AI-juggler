@@ -11,34 +11,41 @@
  * its words is under 12 px; CompactNode below, the same box with its
  * words at screen size.
  */
-import { memo, type JSX, type MouseEvent } from "react";
+import { memo, useState, type JSX, type MouseEvent } from "react";
 import { appName } from "../../lib/app-name";
 
-import { AppIcon } from "../../components/AppIcon";
+import { ToolLogo } from "../../components/ToolLogo";
 import { useActionHost } from "../../components/ItemMenu";
-import { appOfSession } from "../../lib/app-of";
 import { ShellOnly } from "../../components/ShellOnly";
-import { IconLead, IconMore } from "../../components/icons-canvas";
+import { IconMore } from "../../components/icons-canvas";
 import { sessionState, STATE_TONE } from "../../lib/rail-items";
 import { NODE_H, NODE_W, nodeForm } from "./layout";
-import { FOCUS_RING } from "./selection";
 import { CompactNode } from "./CompactNode";
-import { AskLine, NO_TASK, NodeRoom, nameWraps, nodeBorder, RoleChip, sessionAlert, useNodeDescription, type NodeProps } from "./NodeParts";
+import { NodeButton, RoleWords, titleOf } from "./NodeButton";
+import { AskLine, NO_TASK, NodeRoom, nameWraps, nodeBorder, sessionAlert, useNodeDescription, type NodeProps } from "./NodeParts";
 
-/** Its full card from 100 % up, its compact form below (semantic zoom). */
+/** Its full card from 100 % up, its compact form below (semantic zoom).
+ * It fades in only when it changes form (a zoom across 100 %), never when
+ * the diagram is drawn again (Diagram → List → Diagram, the rc2 walk:
+ * WebKit holds a hidden window's animations at their first frame, and the
+ * first frame was invisible). */
 export const CanvasNode = memo(function CanvasNode(props: NodeProps): JSX.Element {
-  return nodeForm(props.scale).full ? <FullNode {...props} /> : <CompactNode {...props} />;
+  const full = nodeForm(props.scale).full;
+  const [born] = useState(full);
+  const fade = born !== full;
+  return full ? <FullNode {...props} fade={fade} /> : <CompactNode {...props} fade={fade} />;
 });
 
-function FullNode({ member, at, asks, held, selected, tabStop, dragging, onSelect, onMenu, onPointerDown, onKey }: NodeProps): JSX.Element {
+function FullNode({ member, at, asks, held, selected, tabStop, dragging, fade = false, onSelect, onMenu, onPointerDown, onKey }: NodeProps): JSX.Element {
   const state = sessionState(member.session);
   const alert = sessionAlert(member);
   const lead = member.role === "lead";
-  const name = member.name;
+  const title = titleOf(member);
   const waits = asks.length + held + (alert ? 1 : 0);
   const description = useNodeDescription(member, state.word, waits);
-  // The card says "None" when it holds no task (cards.rs's NO_TASK).
-  const task = member.card.task.value === NO_TASK ? null : member.card.task.value;
+  // The card says "None" when it holds no task (cards.rs's NO_TASK); a
+  // task that is the node's title isn't said twice.
+  const task = member.card.task.value === NO_TASK || member.card.task.value === title.title ? null : member.card.task.value;
   const account = member.card.account;
   const host = useActionHost();
   const ended = state.state === "ended";
@@ -49,10 +56,9 @@ function FullNode({ member, at, asks, held, selected, tabStop, dragging, onSelec
     onMenu(member.id, event.detail === 0 || event.type === "click" ? { x: box.left, y: box.bottom + 4 } : { x: event.clientX, y: event.clientY });
   };
   const border = nodeBorder(selected, waits > 0, lead);
+  const app = member.card.tool ? appName(member.card.tool, account) : account;
   return (
     <div
-      role="group"
-      aria-label={`${name}${lead ? ", lead" : ""}`}
       data-testid="canvas-node"
       data-node={member.id}
       data-lead={lead || undefined}
@@ -65,66 +71,52 @@ function FullNode({ member, at, asks, held, selected, tabStop, dragging, onSelec
       onContextMenu={openMenu}
       style={{ transform: `translate(${at.x}px, ${at.y}px)`, width: NODE_W, minHeight: NODE_H }}
       className={
-        "absolute left-0 top-0 flex touch-none select-none flex-col gap-1.5 rounded-xl border p-2.5 data-[pending]:opacity-70 motion-safe:animate-[aij-fade-in_140ms_ease-out] " +
+        "absolute left-0 top-0 flex touch-none select-none flex-col gap-2 rounded-xl border p-3 data-[pending]:opacity-70 " +
+        (fade ? "motion-safe:animate-[aij-fade-in_140ms_ease-out] " : "") +
         border +
         (dragging ? " z-20 cursor-grabbing opacity-90 shadow-lg" : " cursor-grab") +
         (ended && !selected ? " opacity-75" : "")
       }
     >
       {waits > 0 && (
-        <span className="absolute -right-2 -top-2 rounded-full bg-warning px-1.5 font-mono text-label font-semibold leading-5 text-canvas" aria-hidden="true" data-testid="node-badge">
+        <span className="absolute -right-2 -top-2 z-10 rounded-full bg-warning px-1.5 font-mono text-label font-semibold leading-5 text-canvas" aria-hidden="true" data-testid="node-badge">
           {waits}
         </span>
       )}
-      <div className="flex min-w-0 items-center gap-2">
-        {/* Its App's own icon (design review #14: the tool's letter was "C"
-            for Claude Code and Codex alike). */}
-        <AppIcon {...appOfSession(member.session)} size={24} />
-        <button
-          type="button"
-          tabIndex={tabStop ? 0 : -1}
-          data-node-name={member.id}
-          aria-pressed={selected}
-          aria-keyshortcuts="Enter Delete ArrowUp ArrowDown ArrowLeft ArrowRight"
-          aria-description={description}
-          onClick={(event) => onSelect(member.id, event.detail === 0)}
-          onKeyDown={(event) => onKey(member.id, event)}
-          className={"min-w-0 flex-1 rounded text-left text-sm font-semibold text-ink [overflow-wrap:normal] " + (nameWraps(name, NODE_W - 72, 14) ? "line-clamp-2 " : "truncate ") + FOCUS_RING}
-          title={name}
-        >
-          {name}
-        </button>
+      <div className="flex min-w-0 items-start gap-2.5">
+        {/* Its App's own icon, a CLI's with its terminal badge (D-126). */}
+        <ToolLogo tool={member.session.provider} kind={member.session.kind === "desktop" ? "desktop" : "cli"} size={32} />
+        <div className="flex min-w-0 flex-1 flex-col">
+          {/* The node is this button (P5, AJ-E3304 L4: an accessibility
+              press on the node did nothing): it covers the card, so a
+              click, a press or Enter anywhere on it opens it. */}
+          <NodeButton member={member} title={title} selected={selected} tabStop={tabStop} description={description} onSelect={onSelect} onKey={onKey} className={"text-body leading-snug " + (nameWraps(title.title, NODE_W - 96, 14) ? "line-clamp-2" : "truncate")} />
+          <span className="relative z-10 flex min-w-0 items-center gap-1.5 truncate text-label text-muted">
+            <RoleWords role={member.role} />
+            <ShellOnly tool={member.session.provider} account={member.session.account_id} project={member.session.project_id} inRow />
+            <NodeRoom profileId={member.session.account_id} />
+            <span aria-hidden="true">·</span>
+            {/* Its App's page, one click (design review #14). */}
+            {host.openAccountById && member.session.account_id ? (
+              <button type="button" onClick={() => member.session.account_id && host.openAccountById?.(member.session.account_id)} className="min-w-0 truncate rounded text-left outline-none hover:text-ink hover:underline focus-visible:ring-1 focus-visible:ring-accent/60" data-testid="node-app">
+                {app}
+              </button>
+            ) : (
+              <span className="truncate">{app}</span>
+            )}
+          </span>
+        </div>
         <button
           type="button"
           onClick={openMenu}
-          aria-label={`More for ${name}`}
+          aria-label={`More for ${member.name}`}
           aria-haspopup="menu"
-          className="flex size-6 shrink-0 items-center justify-center rounded-md text-faint outline-none hover:bg-surface-2 hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60"
+          className="relative z-10 flex size-6 shrink-0 items-center justify-center rounded-md text-faint outline-none hover:bg-surface-2 hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60"
           data-testid="node-more"
         >
           <IconMore width={16} height={16} />
         </button>
       </div>
-      <span className="flex min-w-0 items-center gap-1.5 truncate text-label text-muted">
-        {lead && (
-          <span className="inline-flex shrink-0 items-center gap-1 rounded-md bg-accent-soft px-1.5 font-medium text-accent-hi" data-testid="node-lead">
-            <IconLead width={12} height={12} aria-hidden="true" />
-            Lead
-          </span>
-        )}
-        {/* Every role shows (the rc19 walk: Member only read in the List view's expanded row), in the List view's words. */}
-        <RoleChip role={member.role} shape="rounded-md px-1.5" />
-        <ShellOnly tool={member.session.provider} account={member.session.account_id} project={member.session.project_id} inRow />
-        <NodeRoom profileId={member.session.account_id} />
-        {/* Its App's page, one click (design review #14). */}
-        {host.openAccountById && member.session.account_id ? (
-          <button type="button" onClick={() => member.session.account_id && host.openAccountById?.(member.session.account_id)} className="min-w-0 truncate rounded text-left outline-none hover:text-ink hover:underline focus-visible:ring-1 focus-visible:ring-accent/60" data-testid="node-app">
-            {member.card.tool ? appName(member.card.tool, account) : account}
-          </button>
-        ) : (
-          <span className="truncate">{member.card.tool ? appName(member.card.tool, account) : account}</span>
-        )}
-      </span>
       <span className="flex min-w-0 items-center gap-1.5 text-label" data-testid="node-state">
         <span aria-hidden="true" className={"size-2 shrink-0 rounded-full " + (alert?.tone === "danger" ? "bg-danger" : STATE_TONE[state.state].dot) + (state.state === "working" ? " shadow-[0_0_0_3px_var(--color-live-soft)]" : "")} />
         <span className={"shrink-0 " + (alert?.tone === "danger" ? "text-danger" : state.tone)}>{alert?.word ?? state.word}</span>
@@ -133,18 +125,24 @@ function FullNode({ member, at, asks, held, selected, tabStop, dragging, onSelec
             · {task}
           </span>
         )}
-        {alert && (
-          <button type="button" onClick={() => onSelect(member.id, true)} className="ml-auto shrink-0 rounded px-1 font-medium text-ink underline-offset-2 outline-none hover:underline focus-visible:ring-1 focus-visible:ring-accent/60" data-testid="node-alert">
+        {alert ? (
+          <button type="button" onClick={() => onSelect(member.id, true)} className="relative z-10 ml-auto shrink-0 rounded px-1 font-medium text-ink underline-offset-2 outline-none hover:underline focus-visible:ring-1 focus-visible:ring-accent/60" data-testid="node-alert">
             {member.session.status === "waiting_user" ? "Answer" : "See"}
-            <span className="sr-only"> {name}</span>
+            <span className="sr-only"> {member.name}</span>
           </button>
+        ) : (
+          title.when && (
+            <span className="ml-auto shrink-0 whitespace-nowrap text-faint" data-testid="node-when">
+              {title.when}
+            </span>
+          )
         )}
       </span>
       {asks.slice(0, 1).map((ask) => (
         <AskLine key={ask.id} ask={ask} />
       ))}
       {asks.length > 1 && (
-        <button type="button" onClick={() => onSelect(member.id, true)} className="self-start rounded text-label text-warning outline-none hover:underline focus-visible:ring-1 focus-visible:ring-accent/60">
+        <button type="button" onClick={() => onSelect(member.id, true)} className="relative z-10 self-start rounded text-label text-warning outline-none hover:underline focus-visible:ring-1 focus-visible:ring-accent/60">
           {asks.length - 1} more {asks.length === 2 ? "ask" : "asks"}
         </button>
       )}

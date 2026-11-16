@@ -456,7 +456,8 @@ describe("semantic zoom (the 0.3 review: 9–10 px words at fit)", () => {
     expect(within(asker()).queryByTestId("node-ask")).toBeNull();
     const name = asker().querySelector(`[data-node-name="${second.id}"]`) as HTMLElement;
     expect(name.getAttribute("aria-keyshortcuts")).toBe("Enter Delete ArrowUp ArrowDown ArrowLeft ArrowRight");
-    expect(name.getAttribute("aria-description")).toContain("waiting on you");
+    // Its description, by reference (P5: a button carries no aria-description).
+    expect(document.getElementById(name.getAttribute("aria-describedby")!)!.textContent).toContain("waiting on you");
     const badge = within(asker()).getByTestId("node-badge");
     expect(badge.tagName).toBe("BUTTON");
     fireEvent.click(badge);

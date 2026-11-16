@@ -8,7 +8,6 @@ import { useState, type JSX, type KeyboardEvent, type PointerEvent } from "react
 
 import { useShellOnly } from "../../components/ShellOnly";
 import { errorText } from "../../lib/bridge";
-import { roleLabel } from "../../lib/pools";
 import { messagesAnswer } from "../../lib/ipc/messages";
 import { tasksAnswer } from "../../lib/ipc/tasks";
 import type { NodeAskInfo } from "../../lib/ipc/pool-canvas";
@@ -49,7 +48,7 @@ export function AskLine({ ask }: { ask: NodeAskInfo }): JSX.Element {
   };
   const button = "rounded-md border px-1.5 py-0.5 text-label outline-none transition-colors focus-visible:ring-1 focus-visible:ring-accent/60 disabled:opacity-60";
   return (
-    <div className="flex flex-col gap-1 rounded-lg border border-warning/40 bg-warning-soft px-2 py-1.5" data-testid="node-ask">
+    <div className="relative z-10 flex flex-col gap-1 rounded-lg border border-warning/40 bg-warning-soft px-2 py-1.5" data-testid="node-ask">
       <span className="line-clamp-2 text-label text-ink" title={ask.title}>
         {ask.title}
       </span>
@@ -87,6 +86,8 @@ export type NodeProps = {
   /** The canvas's zoom: under 100 % the node draws its words at screen
    * size (CompactNode). */
   scale: number;
+  /** It changed form (a zoom across 100 %): it fades in. */
+  fade?: boolean;
   onSelect: (id: string, focusInspector: boolean) => void;
   onMenu: (id: string, at: { x: number; y: number }) => void;
   onPointerDown: (id: string, event: PointerEvent<HTMLDivElement>) => void;
@@ -99,18 +100,6 @@ export type NodeProps = {
 export function useNodeDescription(member: MemberNode, word: string, waits: number): string {
   const shell = useShellOnly(member.session.provider, member.session.account_id, member.session.project_id);
   return `${word}${waits > 0 ? `, ${waits} waiting on you` : ""}${shell ? `. Shell only: ${shell}` : ""}`;
-}
-
-/** A node's role, for every role but the lead (its own mark), in the
- * List view's words (the rc19 walk: Member read only in an expanded
- * row). `shape`: the full card's or the compact node's corners and room. */
-export function RoleChip({ role, shape }: { role: string; shape: string }): JSX.Element | null {
-  if (role === "lead") return null;
-  return (
-    <span className={"shrink-0 bg-surface-2 " + shape} data-testid="node-role">
-      {roleLabel(role)}
-    </span>
-  );
 }
 
 /** A node's surface and edge (AJ-E3012, D-117): one selection treatment
