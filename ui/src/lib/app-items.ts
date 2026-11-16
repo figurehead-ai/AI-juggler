@@ -9,6 +9,7 @@ import { useMemo } from "react";
 import { useRelatedCounts } from "./relation-counts";
 import type { EntityKind } from "./ipc/relations";
 import type { ProjectInfo } from "../types/generated/ProjectInfo";
+import { lastWorked } from "./project-words";
 
 /** Running in its app now, in the background too (a pin doesn't make it
  * so here). */
@@ -52,7 +53,10 @@ export function appProjects(items: readonly RailItem[]): AppProject[] {
 /** `base` with each project's sessions as the backend counts them, and
  * the projects the window's sample missed added (walk K1: an App with
  * 334 sessions said "35 sessions" and "33 sessions" from its newest few
- * hundred). Their last activity is the project's own when not sampled. */
+ * hundred). Their last activity is the project's own when not sampled:
+ * when it was last worked in (`lastWorked`), outside AI Juggler too (the
+ * 0.4.6 rc2 walk: a project only other apps worked in has no AI Juggler
+ * session's time, and read "20773 d ago"). */
 export function withProjectCounts(base: readonly AppProject[], counts: ReadonlyMap<string, number> | undefined, projects: readonly ProjectInfo[]): AppProject[] {
   if (!counts) return [...base];
   const byId = new Map(base.map((row) => [row.id, { ...row }]));
@@ -61,7 +65,7 @@ export function withProjectCounts(base: readonly AppProject[], counts: ReadonlyM
     if (known) known.sessions = sessions;
     else {
       const project = projects.find((one) => one.id === id);
-      byId.set(id, { id, name: project?.name ?? "A project", sessions, lastMs: project?.last_activity_ms ?? 0 });
+      byId.set(id, { id, name: project?.name ?? "A project", sessions, lastMs: project ? lastWorked(project) : 0 });
     }
   }
   return [...byId.values()].sort((a, b) => b.lastMs - a.lastMs || a.name.localeCompare(b.name));

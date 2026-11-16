@@ -21,7 +21,7 @@ import type { ActionHost } from "../../lib/action-host";
 import type { AppModel } from "../../lib/apps";
 import { openHere, type AppProject } from "../../lib/app-items";
 import type { RailItem } from "../../lib/rail-items";
-import { agoWords } from "../../lib/time-words";
+import { agoWords, knownMs } from "../../lib/time-words";
 
 /** Inactive sessions the Overview shows before "All sessions". */
 const RECENT_SHOWN = 5;
@@ -170,7 +170,9 @@ export function ProjectRows({ projects, now, onOpenProject }: { projects: AppPro
             <IconFolder className="h-4 w-4 shrink-0 text-muted" aria-hidden="true" />
             <span className="min-w-0 flex-1 truncate text-body font-medium text-ink">{project.name}</span>
             <span className="shrink-0 text-meta text-ink-2">
-              {project.sessions === 1 ? "1 session" : `${project.sessions} sessions`} · {agoWords(project.lastMs, now)}
+              {project.sessions === 1 ? "1 session" : `${project.sessions} sessions`}
+              {/* A time that isn't known says nothing (never "20773 d ago"). */}
+              {knownMs(project.lastMs) && ` · ${agoWords(project.lastMs, now)}`}
             </span>
           </button>
         </li>
