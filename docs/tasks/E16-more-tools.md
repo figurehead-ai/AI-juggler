@@ -198,6 +198,20 @@
 **Research basis**: `antigravity.md`.
 **Handover note**: The maintainer pointed out (2026-10-21) that Muse, Cursor, Antigravity and Kiro all have subscriptions; the aim is subscription accounts wherever terms and isolation allow.
 
+### AJ-E1614 Spot a running tool by more than its file name | Status: TODO (finding, 2026-11-16, AJ-E1612 sitting 2's build) | Priority P2 | Effort S | Depends: AJ-E1602, AJ-E1604
+**Goal**: A running process is called a tool's session only when something the tool alone has says so, not just its executable's file name.
+**User story**: As a user who renamed a tool's binary, or who runs another program that happens to share a tool's name, I still see the right sessions and no wrong ones.
+**Finding**: The OpenCode and Grok Build adapters tell a running process is theirs by its executable's file name (`opencode`, `grok`). A renamed binary is missed, and a different tool named the same way is mistaken for it.
+**Requirements**:
+1. Each adapter's process match (`session_process`) also checks something the tool alone has: its resolved install path, or its bundle or package location.
+2. Fixtures with a renamed binary and a same-named impostor, per adapter.
+3. No other adapter is changed unless it uses the same name-only match. By reading `crates/juggler-adapters/src/` (2026-11-16), the file-name-only matchers are OpenCode (`opencode.rs`, also accepts an `opencode-ai` argument) and Grok Build (`grok_build.rs`, name only); Kimi Code (`kimi_code.rs`, `kimi`, or the `@moonshot-ai/kimi-code` argument), Codex (`codex_conversations.rs`, `codex`, or `@openai/codex`), Hermes (`hermes.rs`, `hermes` or `hermes_cli.main`) and Muse (`muse.rs`, `muse` or `muse-bin-*`) match the same way with a package or module word as a second route, so they are checked in this task and changed only if the impostor fixture fails. Claude Code (`claude_code.rs` `is_cli_process`) also checks its versioned install path; ZCode matches its engine file by name plus its runner.
+**Note**: Not fixed in 0.5's sitting unless the dry run trips on it (coordinating session, 2026-11-16).
+**Quality gates**: the fixtures above; the conformance kit.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E1614/manifest.md`.
+**Files to touch**: `crates/juggler-adapters/src/opencode.rs`, `grok_build.rs`.
+**Handover note**: —
+
 ### AJ-E1610 Desktop apps: open, keep alive, focus, and reply where a route exists | Status: IN-PROGRESS (built 2026-11-15 on fixtures: one table of the AI desktop apps in `juggler-adapters` (`desktop_apps.json`), each found by its bundle or bundle id (Kimi Code by its own folder), offered when seen running, opened, kept alive and focused as every App; only documented or live-checked links are sent, the Claude app's `code/continue` and `needs-input` declared unverified; replies only through Hermes' gateway; each track-only part says why on the App page; Antigravity's consumer plans never driven; every live part pending AJ-E1612) | Priority P1 | Effort M | Depends: AJ-E413, AJ-E414
 **Goal**: Every AI desktop app on the Mac shows up in AI Juggler as an App, opens, stays alive and comes into focus like every other App, and takes replies and shows its sessions wherever a sanctioned route exists (D-105, D-66, D-106).
 **User story**: As a user with the Claude app, Cursor, Kiro IDE and Antigravity open, I see them in This Mac and the rail, open or keep each one running, jump to the right window, and answer their sessions from AI Juggler where the app allows it.

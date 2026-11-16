@@ -15,7 +15,7 @@ The agents tell you when a page is waiting. Each page waits up to 15 minutes. If
 | 5 | Grok Build | An xAI sign-in page from `grok login`. | Sign in with your xAI or X account. (This is the second Grok sign-in. Each line has its own lab.) |
 | 6 | ZCode | A Z.AI sign-in page. No ZCode window opens. | Sign in with the same Z.AI account as your ZCode. Your own ZCode stays signed in as it is. |
 | 7 | Muse Code | A Meta page asking you to approve a sign-in code (`muse login`, kept in the lab's own file, not your Keychain). | Approve the code with your Meta account. **Only if the agent reports that your real Muse sign-in's date changed:** run `muse login` once in your own terminal to restore it. |
-| 8 | Hermes, only if you've installed it | Hermes asks which provider to use. The agent asks you which one, then a page from that provider opens. | Name the provider, then sign in on its page. Not installed yet: this row is skipped, and nothing is installed for you. |
+| 8 | Hermes, only if you've installed it | Hermes asks which provider to use. The agent asks you which one, then a page from that provider opens. | Name the provider, then sign in on its page. Not installed yet: this row is skipped, and nothing is installed for you. Hermes joins the sitting by itself once it is installed (the lab's `--with-hermes` turns on when `hermes` is found); until then its row reads "skipped, waiting for install". |
 
 Rows 1, 2 and the 0.4.6 session's OpenCode check afterwards are driven by the 0.4.6 session in the same sitting. It uses lab A of OpenCode as it is: there's no second OpenCode sign-in.
 
