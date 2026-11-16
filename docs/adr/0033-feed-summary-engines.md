@@ -124,7 +124,7 @@ pub fn frame(cleaned: &str) -> String   // LABEL, "\n", QUOTE, "\n", cleaned wit
 // The output's shape, enforced by the engine while it generates, not only asked for in words:
 pub const LINE_MAX_WORDS: u8 = 20;
 pub const LINE_MAX_CHARS: u16 = 160;
-pub fn line_grammar() -> &'static str   // for the local engine: one line, 1 to 20 words, no line break, no quotation mark (GBNF, built from the two limits)
+pub fn line_grammar() -> &'static str   // for the local engine: one line, no line break, no quotation mark, at most LINE_MAX_CHARS (GBNF); no word cap (amended 2026-11-16: a cap in the grammar made models glue words once it was reached; the gate's shape check enforces 20 words)
 ```
 
 - **The quote can't be closed from inside.** Any run of three or more quotation marks in the agent's text becomes two before framing, so the text can't end the block and write outside it. A test proves it for every quotation-mark run and for a text that repeats the label.
