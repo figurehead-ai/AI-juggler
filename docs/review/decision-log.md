@@ -3280,9 +3280,9 @@ The design that follows from it:
 **Ruling.** The maintainer, 2026-11-16, on the research in `docs/research/feed-summaries-and-orchestrator-options.md`: "Yes let's do A and B now in 0.5, C - let's save that for last, when we can actually get permissions from those providers. Plan D and E in follow on versions… Make sure that all of the features are implemented in smart way and gracefully degrade, for example if mac or some small model is supported and is not heavy and user machine can support it, we enable it and let user know and also have settings to disable it… research it all well from multiple angles… most important is ease of use, we should never ask user to download models… offer as much automation as possible."
 
 1. **A (0.5): the agents' own excerpts.** The Home feed carries per-agent excerpts from what agents already write: Claude Code's turn-end `last_assistant_message` through hooks, Codex exec and rollout events (agent message, plan update, file changes, commands), task lists where present, and git facts (files, tests, commits). All of it goes through each adapter, never a per-tool branch outside the adapters. Extends D-118's (a+) and F2 and F3.
-2. **B (0.5): on-device AI lines.** On-device AI turns an agent's own text into one clean line and never adds facts. It is automatic when the Mac can do it comfortably; the user is told once and can switch it off in Settings; the app never says "please download a model". It degrades in order:
+2. **B (0.5): on-device AI lines.** On-device AI turns an agent's own text into one clean line and never adds facts. It is automatic for Apple's own model when the Mac can do it comfortably; the user is told once and can switch it off in Settings. A downloaded model is never automatic (see "Amended 2026-11-16"). It degrades in order:
    1. Apple's Foundation Models on macOS 26+ with Apple Intelligence on (no download);
-   2. else a small open model fetched automatically in the background, only on suitable hardware (Apple silicon, enough RAM and disk), on Wi-Fi or another unmetered link, on power, respecting Low Data Mode; checksummed, resumable, with a disk cap;
+   2. else a small open model, offered to the user and downloaded only on their click (see "Amended 2026-11-16"), only on suitable hardware (Apple silicon, enough RAM and disk), on Wi-Fi or another unmetered link, on power, respecting Low Data Mode; checksummed, resumable, with a disk cap;
    3. else A's excerpts only.
 
    The user's own running Ollama or LM Studio may be used if present, never required. Nothing leaves the Mac.
@@ -3292,3 +3292,12 @@ The design that follows from it:
 - **Tasks:** AJ-E3708 (A), AJ-E3709 (B research), AJ-E3710 (B design, the ADR), AJ-E3711 (B build), in E37.
 - **Amends:** D-118 point 4 ("summaries written by a model (b) are not in 0.5"): on-device lines (b) are now in 0.5, as above; cloud and the user's-CLI routes stay out.
 - Sources: the coordinating session's relay of the maintainer, 2026-11-16, and `docs/research/feed-summaries-and-orchestrator-options.md`.
+
+**Amended 2026-11-16.** The maintainer, on the tier 2 download: "if we are going to download 2GB model for our users, than it should always be an option or as a backup to maybe mac … we can't download 2GB models without user approval". This replaces the automatic fetch in point 2 and the phrase "we should never ask user to download models" for tier 2 only.
+
+- **Tier 1 stays automatic.** Apple's on-device model needs no download: the user is told once and can switch it off in Settings.
+- **Tier 2 is offered, never auto-downloaded.** An offer card says what the user gets, the size (about 2 GB) and that the model stays on the Mac. One click downloads it, under all the safety rules: a SHA-256 pinned in the app, a revision-pinned source URL, Wi-Fi or another unmetered link and power, a disk cap, and resume. It can be removed in Settings. It is offered mainly on Macs without Apple Intelligence, and as an optional upgrade on the others. It is not offered on 8 GB Macs.
+- **Hosting and licence (decided by the coordinating session, 2026-11-16).** A SHA-256 compiled into the notarized app plus a Hugging Face URL pinned to a revision (no new signing key; a self-hosted mirror may come later behind the same hash). The model's licence must allow redistribution (Apache-2.0 or MIT preferred).
+- **Build order.** A, then tier 1 with the extractive check, then tier 2.
+- **Open idea, not scope.** Users who download the model might get "some conversation with it too" (asking questions about their sessions on-device). Noted for a later decision.
+- **Development download.** The maintainer approves the download used for measurement only after the coordinating session's model-selection study names the model and its pinned source.
