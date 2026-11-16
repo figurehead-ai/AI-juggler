@@ -738,6 +738,7 @@ fn forty_connectors_and_a_hostile_loop_stay_bounded_and_members_still_wake() {
                 folder: FOLDER.into(),
                 conversation: conversation(n),
                 tool_pid: 1,
+                tool_start: juggler_core::model::Timestamp::now().millis() / 1_000,
                 can_wake: true,
                 facts: facts_of(n),
             })
@@ -907,6 +908,7 @@ fn members_still_wake_promptly_during_and_right_after_a_flood() {
             folder: FOLDER.into(),
             conversation: conversation(n),
             tool_pid: u32::MAX,
+            tool_start: juggler_core::model::Timestamp::now().millis() / 1_000,
             can_wake: true,
             facts: facts_of(n),
         })
@@ -1057,6 +1059,206 @@ fn a_full_table_of_attested_processes_drops_the_oldest_only() {
     );
 }
 
+/// The A9 lab walk (2026-11-15): an idle desktop member never woke for
+/// the person's message sent with Deliver. Its connector's first waits
+/// were refused (the start race), and then: a person's message never
+/// counted for a wake, even delivered, and what came before the first
+/// answered wait was taken as already seen. Now the person's Deliver wakes
+/// it, and a message since its Claude Code started counts, however late
+/// the first answered wait comes. A person's message without Deliver
+/// still waits for its turn (D-119).
+#[test]
+fn the_persons_deliver_wakes_a_desktop_member_even_after_a_refused_start() {
+    use crate::features::messages::send::{self, Author, Outgoing};
+    use juggler_agentbridge::wire::Wait;
+    use std::sync::atomic::{AtomicBool, Ordering};
+    use std::time::Duration;
+    let dir = tempfile::tempdir().unwrap();
+    let (state, pool) = lab(dir.path());
+    {
+        let storage = state.storage.lock().unwrap();
+        storage
+            .pools()
+            .join(
+                &pool,
+                &MemberRef::Conversation {
+                    folder: FOLDER.into(),
+                    id: conversation(60),
+                },
+                &[],
+                PoolRole::Member,
+                None,
+            )
+            .unwrap();
+        storage.attested().put(facts_of(60));
+    }
+    let started = juggler_core::model::Timestamp::now().millis() / 1_000 - 60;
+    let ready = Arc::new(AtomicBool::new(false));
+    let attestor: super::desktop::Attestor = {
+        let ready = Arc::clone(&ready);
+        Arc::new(move |_state, _peer| {
+            if !ready.load(Ordering::SeqCst) {
+                return Err(
+                    "the caller wasn't started by a Code-tab session of this Claude app profile"
+                        .to_owned(),
+                );
+            }
+            Ok(super::attest::DesktopCaller {
+                session: desktop_id(FOLDER, &conversation(60)),
+                app_id: "app:claude-app:/x".into(),
+                folder: FOLDER.into(),
+                conversation: conversation(60),
+                tool_pid: u32::MAX,
+                tool_start: started,
+                can_wake: true,
+                facts: facts_of(60),
+            })
+        })
+    };
+    let peer = juggler_platform::local_ipc::Peer {
+        pid: Some(6_060),
+        pid_version: Some(1),
+        accepted: std::time::SystemTime::now(),
+    };
+    let wait = |state: &Arc<AppState>, attestor: &super::desktop::Attestor| {
+        tauri::async_runtime::block_on(super::desktop::wait_with(
+            Arc::clone(state),
+            Wait {
+                v: juggler_agentbridge::wire::VERSION,
+                token: String::new(),
+                wait_secs: 1,
+            },
+            peer,
+            Arc::clone(attestor),
+            Duration::from_millis(50),
+        ))
+    };
+    let member = format!("conversation:{FOLDER}/{}", conversation(60));
+    let person = |deliver: bool, n: u32| {
+        send::send(
+            &state,
+            &Outgoing {
+                pool_id: pool.clone(),
+                from: Author::User,
+                to: member.clone(),
+                kind: None,
+                subject: Some(format!("lab wake {n}")),
+                body: format!("Lab wake {n} from the person."),
+                thread: None,
+                reply_to: None,
+                deliver,
+            },
+        )
+        .unwrap()
+    };
+    // Its connector's first wait: refused (the start race).
+    let first = wait(&state, &attestor);
+    assert_eq!(first.refused, Some(Refusal::Unattested));
+    // The person's message without Deliver: it waits for its turn.
+    let plain = person(false, 1);
+    assert!(
+        plain
+            .routes
+            .iter()
+            .any(|(_, how)| *how == send::DESKTOP_NEXT_TURN),
+        "{:?}",
+        plain.routes
+    );
+    ready.store(true, Ordering::SeqCst);
+    let quiet = wait(&state, &attestor);
+    assert!(
+        quiet.result.unwrap()["wake"].is_null(),
+        "a person's message alone"
+    );
+    // With Deliver: queued by the click, and the next wait wakes it.
+    let delivered = person(true, 2);
+    assert!(
+        delivered
+            .routes
+            .iter()
+            .any(|(_, how)| *how == send::DESKTOP_WOKEN),
+        "{:?}",
+        delivered.routes
+    );
+    let woke = wait(&state, &attestor);
+    let notice = woke.result.unwrap()["wake"]
+        .as_str()
+        .unwrap_or_default()
+        .to_owned();
+    assert!(
+        notice.contains("You"),
+        "the person's Deliver wakes it: {notice}"
+    );
+}
+
+/// The A9 lab walk: an agent's message that came while the connector's
+/// first waits were refused still wakes the member at its first answered
+/// wait (since its Claude Code started, not since that wait).
+#[test]
+fn a_message_from_before_the_first_answered_wait_still_wakes() {
+    use juggler_agentbridge::wire::Wait;
+    use std::time::Duration;
+    let dir = tempfile::tempdir().unwrap();
+    let (state, pool) = lab(dir.path());
+    {
+        let storage = state.storage.lock().unwrap();
+        storage
+            .agent_access()
+            .set_level(&pool, AccessLevel::Full, &std::collections::BTreeSet::new())
+            .unwrap();
+        storage
+            .pools()
+            .join(
+                &pool,
+                &MemberRef::Conversation {
+                    folder: FOLDER.into(),
+                    id: conversation(61),
+                },
+                &[],
+                PoolRole::Member,
+                None,
+            )
+            .unwrap();
+        storage.attested().put(facts_of(61));
+    }
+    let started = juggler_core::model::Timestamp::now().millis() / 1_000 - 60;
+    // The message comes before any wait was answered.
+    message_for(&state, &pool, "m-61", &conversation(61));
+    std::thread::sleep(Duration::from_millis(20));
+    let attestor: super::desktop::Attestor = Arc::new(move |_state, _peer| {
+        Ok(super::attest::DesktopCaller {
+            session: desktop_id(FOLDER, &conversation(61)),
+            app_id: "app:claude-app:/x".into(),
+            folder: FOLDER.into(),
+            conversation: conversation(61),
+            tool_pid: u32::MAX,
+            tool_start: started,
+            can_wake: true,
+            facts: facts_of(61),
+        })
+    });
+    let woke = tauri::async_runtime::block_on(super::desktop::wait_with(
+        Arc::clone(&state),
+        Wait {
+            v: juggler_agentbridge::wire::VERSION,
+            token: String::new(),
+            wait_secs: 1,
+        },
+        juggler_platform::local_ipc::Peer {
+            pid: Some(6_061),
+            pid_version: Some(1),
+            accepted: std::time::SystemTime::now(),
+        },
+        attestor,
+        Duration::from_millis(50),
+    ));
+    let notice = woke.result.unwrap()["wake"]
+        .as_str()
+        .unwrap_or_default()
+        .to_owned();
+    assert!(notice.contains("Planner"), "{notice}");
+}
+
 /// Desktop member `n`'s conversation.
 fn conversation(n: u32) -> String {
     format!("conv-{n}")
@@ -1155,6 +1357,7 @@ fn a_notice_is_dropped_when_the_conversation_changed_during_the_wait() {
                     folder: FOLDER.into(),
                     conversation: conversation(n),
                     tool_pid: 1,
+                    tool_start: juggler_core::model::Timestamp::now().millis() / 1_000,
                     can_wake: true,
                     facts: facts_of(n),
                 })

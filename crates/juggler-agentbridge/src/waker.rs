@@ -33,8 +33,16 @@ pub const NOTICE_MAX: usize = 300;
 
 /// The shortest and longest pause after AI Juggler didn't answer or
 /// refused (limited, not attested, can't be woken); a [`Refusal::Busy`]
-/// is tried again after [`MIN_PAUSE`] instead.
-const BACKOFF: (Duration, Duration) = (Duration::from_secs(15), Duration::from_secs(300));
+/// is tried again after [`MIN_PAUSE`] instead. At most a minute (the A9
+/// lab walk, 2026-11-15: five minutes kept a member's wake away long after
+/// the refusal had passed).
+const BACKOFF: (Duration, Duration) = (Duration::from_secs(15), Duration::from_secs(60));
+
+/// AJ-E3013 (the A9 lab walk): how long after the waker starts a "not
+/// attested" is tried again after [`MIN_PAUSE`], with no back-off: a
+/// Code-tab session's records come a few seconds after it starts (the
+/// start race), and a refusal then is no reason to wait minutes.
+pub const START_GRACE: Duration = Duration::from_secs(120);
 
 /// M2: the least time between two waits, whatever the answer: an answer
 /// that comes back at once (a wake, or none) never makes a busy loop.
@@ -47,6 +55,9 @@ pub struct Pace {
     pub min: Duration,
     /// The first and the longest pause after a refusal.
     pub backoff: (Duration, Duration),
+    /// How long after it starts, until a wait is first answered, a "not
+    /// attested" is tried again after `min`.
+    pub start_grace: Duration,
 }
 
 impl Default for Pace {
@@ -54,6 +65,7 @@ impl Default for Pace {
         Self {
             min: MIN_PAUSE,
             backoff: BACKOFF,
+            start_grace: START_GRACE,
         }
     }
 }
@@ -168,17 +180,24 @@ pub fn run(app: &Path, inbox: &Inbox) {
 pub fn run_until(app: &Path, inbox: &Inbox, pace: Pace, go_on: &dyn Fn() -> bool) -> usize {
     let mut pause = pace.backoff.0;
     let mut asked = 0;
+    let began = std::time::Instant::now();
+    let mut answered = false;
     while go_on() {
         let started = std::time::Instant::now();
         asked += 1;
         let answer = wait_once(app);
         let busy = matches!(&answer, Err(CallError::Refused(Refusal::Busy, _)));
+        // The start race: not attested yet, early on, is asked again soon.
+        let racing = !answered
+            && began.elapsed() < pace.start_grace
+            && matches!(&answer, Err(CallError::Refused(Refusal::Unattested, _)));
         if let Ok(found) = answer {
+            answered = true;
             if let Some(notice) = found {
                 let _ = post(inbox, &notice);
             }
             pause = pace.backoff.0;
-        } else if !busy {
+        } else if !busy && !racing {
             std::thread::sleep(pause);
             pause = (pause * 2).min(pace.backoff.1);
             continue;
@@ -312,6 +331,7 @@ mod tests {
         let pace = Pace {
             min: Duration::from_millis(200),
             backoff: (Duration::from_millis(200), Duration::from_millis(400)),
+            start_grace: Duration::ZERO,
         };
         let until = std::time::Instant::now() + Duration::from_millis(1_000);
         let asked = run_until(&socket, &inbox, pace, &|| std::time::Instant::now() < until);
@@ -326,7 +346,7 @@ mod tests {
     fn busy_is_tried_again_after_the_least_pause_and_other_refusals_back_off() {
         use std::io::{BufRead, Write as _};
         use std::os::unix::fs::PermissionsExt;
-        let asked_in_a_second = |answer: &'static [u8]| {
+        let asked_in_a_second = |answer: &'static [u8], start_grace: Duration| {
             let root = tempfile::tempdir().unwrap();
             let dir = root.path().join("agent");
             std::fs::create_dir(&dir).unwrap();
@@ -348,19 +368,40 @@ mod tests {
             let pace = Pace {
                 min: Duration::from_millis(100),
                 backoff: (Duration::from_millis(600), Duration::from_millis(2_000)),
+                start_grace,
             };
             let until = std::time::Instant::now() + Duration::from_millis(1_000);
             run_until(&socket, &inbox, pace, &|| std::time::Instant::now() < until)
         };
-        let busy = asked_in_a_second(b"{\"refused\":\"busy\",\"reason\":\"busy\"}\n");
+        let busy = asked_in_a_second(
+            b"{\"refused\":\"busy\",\"reason\":\"busy\"}\n",
+            Duration::ZERO,
+        );
         assert!(
             (6..=11).contains(&busy),
             "{busy} waits in a second when busy"
         );
-        let limited = asked_in_a_second(b"{\"refused\":\"limit\",\"reason\":\"limit\"}\n");
+        let limited = asked_in_a_second(
+            b"{\"refused\":\"limit\",\"reason\":\"limit\"}\n",
+            Duration::ZERO,
+        );
         assert!(
             (1..=2).contains(&limited),
             "{limited} waits in a second when limited"
+        );
+        // AJ-E3013 (the A9 lab walk): "not attested" in the start race is
+        // asked again after the least pause, never backed off; once the
+        // grace is over, it backs off as any refusal does.
+        let unattested = b"{\"refused\":\"unattested\",\"reason\":\"not yet\"}\n";
+        let racing = asked_in_a_second(unattested, Duration::from_secs(60));
+        assert!(
+            (6..=11).contains(&racing),
+            "{racing} waits in a second in the start race"
+        );
+        let after = asked_in_a_second(unattested, Duration::ZERO);
+        assert!(
+            (1..=2).contains(&after),
+            "{after} waits in a second after the grace"
         );
     }
 }

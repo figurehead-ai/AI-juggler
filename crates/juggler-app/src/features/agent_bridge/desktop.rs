@@ -137,23 +137,35 @@ pub(crate) fn look_for(state: &Arc<AppState>, session: &SessionId) -> Option<Loo
     if last.is_some_and(|at| now.duration_since(at) < WAKE_EVERY) {
         return None;
     }
-    let (rows, newest) = {
+    let (rows, newest, delivered) = {
         let storage = state.storage.lock().ok()?;
         let refs = crate::features::messages::refs_of(&storage, session);
         let repo = storage.messages();
         let rows: Vec<_> = repo
-            .inbox(&refs, &[RecipientState::Unread], None, None, 50)
+            .inbox(
+                &refs,
+                &[RecipientState::Unread, RecipientState::Queued],
+                None,
+                None,
+                50,
+            )
             .ok()?
             .into_iter()
-            .filter(|row| row.message.created_at > seen)
+            .filter(|row| when(row) > seen)
             .collect();
-        let newest = rows
-            .iter()
-            .map(|row| row.message.created_at)
-            .max()
-            .unwrap_or(seen);
+        let newest = rows.iter().map(when).max().unwrap_or(seen);
+        // AJ-E3013 (the A9 lab walk): the person's Deliver (their compose
+        // with Deliver, or the Deliver on a waiting copy) is their click,
+        // the permission: it wakes the member, whoever sent it.
+        let (delivered, rows): (Vec<_>, Vec<_>) =
+            rows.into_iter().partition(by_the_user);
+        let delivered: Vec<String> = delivered
+            .into_iter()
+            .map(|row| row.message.sender_name)
+            .collect();
         let open: Vec<_> = rows
             .into_iter()
+            .filter(|row| row.recipient.state == RecipientState::Unread)
             .filter(|row| row.message.sender_kind != SENDER_USER)
             .filter(|row| {
                 crate::features::messages::delivery::may_deliver_now(&storage, &row.message)
@@ -164,10 +176,16 @@ pub(crate) fn look_for(state: &Arc<AppState>, session: &SessionId) -> Option<Loo
                 Some((sender, row))
             })
             .collect();
-        (open, newest)
+        (open, newest, delivered)
     };
     let mut senders: Vec<String> = Vec::new();
     let mut count = 0;
+    for name in delivered {
+        count += 1;
+        if !senders.contains(&name) {
+            senders.push(name);
+        }
+    }
     for (sender, row) in &rows {
         let taken = row.message.hop.saturating_sub(1);
         if crate::features::pools::access::allowed(
@@ -186,6 +204,22 @@ pub(crate) fn look_for(state: &Arc<AppState>, session: &SessionId) -> Option<Loo
     }
     let notice = juggler_core::messaging::unread_note(count, &senders);
     Some(Look { notice, newest })
+}
+
+/// When a copy became wake-worthy: a delivered one when the person
+/// delivered it, any other when it was written.
+fn when(row: &juggler_core::storage::InboxRow) -> i64 {
+    if by_the_user(row) {
+        row.recipient.state_at
+    } else {
+        row.message.created_at
+    }
+}
+
+/// A copy the person delivered (queued by their click).
+fn by_the_user(row: &juggler_core::storage::InboxRow) -> bool {
+    row.recipient.state == RecipientState::Queued
+        && row.recipient.via.as_deref() == Some(crate::features::messages::delivery::BY_USER)
 }
 
 /// D-119: a connector's wake wait. The caller is attested (or refused);
@@ -252,11 +286,14 @@ pub(crate) async fn wait_with(
     let Ok(_slot) = Arc::clone(&waits.slots).try_acquire_owned() else {
         return Response::refused(Refusal::Limit, "Too many sessions wait now.");
     };
-    // What came before the first wait isn't a wake (its note says it).
+    // What came before its Claude Code started isn't a wake (its note
+    // says it). Not the first wait's time (the A9 lab walk: a message that
+    // came while the connector's first waits were refused, the start race,
+    // was taken for an old one and never woke it).
     if let Ok(mut woken) = woken().lock() {
         woken
             .entry(caller.session.as_str().to_owned())
-            .or_insert((None, juggler_core::model::Timestamp::now().millis()));
+            .or_insert((None, caller.tool_start.saturating_mul(1_000)));
     }
     let until =
         Instant::now() + Duration::from_secs(u64::from(wait.wait_secs.min(wire::WAIT_MAX_SECS)));

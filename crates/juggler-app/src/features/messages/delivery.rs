@@ -67,6 +67,23 @@ fn queue_as(state: &Arc<AppState>, message_id: &str, session: &SessionId, by: &s
     kick(state, session);
 }
 
+/// AJ-E3013 (the A9 lab walk): the person's Deliver for a recipient with
+/// no session AI Juggler runs (a connected desktop member): its copy is
+/// queued by their click, which wakes it (D-119) when its app can be.
+pub(crate) fn queue_ref(state: &Arc<AppState>, message_id: &str, recipient: &str) {
+    if let Ok(storage) = state.storage.lock() {
+        let _ = storage.messages().set_state(
+            &[message_id.to_owned()],
+            &[recipient.to_owned()],
+            &[RecipientState::Unread, RecipientState::Read],
+            RecipientState::Queued,
+            Some(BY_USER),
+            SENDER_USER,
+            "queued",
+        );
+    }
+}
+
 /// Whether the pool's level or a rule delivers an agent's message into a
 /// member's session (`deliver_to_session`: the pool at Full, or a rule the
 /// user made), before the hop limit: so an ask is the hop limit's, and

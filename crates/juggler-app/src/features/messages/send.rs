@@ -767,8 +767,9 @@ pub(crate) fn route(
 enum Target {
     /// Into its inbox, or (a session AI Juggler runs) its next turn.
     Inbox(&'static str, Option<SessionId>),
-    /// A connected desktop member: whether its App can be woken now.
-    Desktop(bool),
+    /// A connected desktop member: its ref, whether the pool wakes it, and
+    /// whether its App can be woken at all.
+    Desktop(String, bool, bool),
 }
 
 /// [`route`] with the pool's desktop conversations already read.
@@ -797,7 +798,10 @@ fn route_with(
             .iter()
             .find(|one| one.connected && one.member == recipient.recipient_ref)
         {
-            targets.push((name, Target::Desktop(one.wakes)));
+            targets.push((
+                name,
+                Target::Desktop(one.member.clone(), one.wakes, one.can_wake),
+            ));
             continue;
         }
         let session = super::live_session_of(&storage, &recipient.recipient_ref)
@@ -808,7 +812,21 @@ fn route_with(
     let mut routes = Vec::new();
     for (name, target) in targets {
         let (inbox, session) = match target {
-            Target::Desktop(wakes) => {
+            // AJ-E3013 (the A9 lab walk): the person's compose with
+            // Deliver queues its copy (their click), which wakes it.
+            Target::Desktop(member, _, can_wake) if matches!(from, Author::User) && deliver => {
+                super::delivery::queue_ref(state, &message.id, &member);
+                routes.push((
+                    name,
+                    if can_wake {
+                        DESKTOP_WOKEN
+                    } else {
+                        DESKTOP_NEXT_TURN
+                    },
+                ));
+                continue;
+            }
+            Target::Desktop(_, wakes, _) => {
                 routes.push((name, desktop_how(state, message, from, wakes)));
                 continue;
             }

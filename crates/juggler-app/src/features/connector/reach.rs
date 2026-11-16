@@ -56,6 +56,9 @@ pub(crate) struct DesktopConversation {
     /// A new pool message wakes it (D-119); else it reads it on its next
     /// turn. Never for a Watched member.
     pub wakes: bool,
+    /// Its App can be woken at all (the person's Deliver wakes it, the
+    /// pool's level aside). Never for a Watched member.
+    pub can_wake: bool,
 }
 
 impl DesktopConversation {
@@ -180,6 +183,7 @@ pub(crate) fn of_pool(state: &Arc<AppState>, pool_id: &str) -> AppResult<Vec<Des
                 role: one.role,
                 connected,
                 wakes: connected && info.is_some_and(|info| info.wake == "wakes"),
+                can_wake: connected && info.is_some_and(|info| info.wake != "cant_wake"),
                 member: one.member,
             }
         })
@@ -244,6 +248,7 @@ fn through_others(
             role: role.as_str().to_owned(),
             connected: true,
             wakes: wakes && app.is_some_and(|app| can_wake(state, app)),
+            can_wake: app.is_some_and(|app| can_wake(state, app)),
             member,
         })
         .collect()

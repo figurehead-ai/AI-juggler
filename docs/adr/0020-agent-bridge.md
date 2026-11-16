@@ -537,7 +537,13 @@ its own rate limit on top of ours.
   paused nor stopped that `allowed(sender, pool, deliver_to_session, hop)`
   lets it deliver (the pool at Full, or a rule; the hop limit), at most one
   wake a minute per session, and answers with the facts-only note
-  (`messaging::unread_note`). A person's message waits for the turn.
+  (`messaging::unread_note`). A person's message waits for the turn,
+  unless they Deliver it (their compose with Deliver, or Deliver on the
+  waiting copy): their click is the permission, and it wakes the member
+  (the A9 lab walk, 2026-11-15). What counts as new is what came since the
+  session's Claude Code started, not since the first answered wait, and the
+  connector asks again every 5 s while it isn't attested yet in its first
+  two minutes (the start race), backing off to at most a minute after that.
 - **Which variables the server has (checked statically, 2026-11-15; lab
   A9 proves it live).** The bundled Claude Code 2.1.325 sets
   `process.env.CLAUDE_CODE_MESSAGING_SOCKET` when it binds the inbox, so

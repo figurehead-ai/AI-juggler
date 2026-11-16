@@ -50,6 +50,9 @@ pub struct DesktopCaller {
     pub conversation: String,
     /// The tool's process the caller descends from.
     pub tool_pid: u32,
+    /// When that process started, epoch seconds (the A9 lab walk: a
+    /// message since then may wake it).
+    pub tool_start: i64,
     /// Whether its App's sessions can be woken (D-119).
     pub can_wake: bool,
     /// L3: the facts this call was attested with, carried through it (the
@@ -790,6 +793,7 @@ fn attest_inner(state: &Arc<AppState>, peer: Peer) -> Result<DesktopCaller, Stri
         folder: candidate.folder.clone(),
         conversation: session.conversation,
         tool_pid: session.tool_pid,
+        tool_start: session.tool_start,
         can_wake: candidate
             .adapter
             .desktop_peer()
