@@ -25,6 +25,7 @@ verify-static:
     just terminology
     python3 scripts/rust_tests.py --selftest
     python3 scripts/bundle_check.py --selftest
+    bash scripts/qa/lab_env.sh --selftest
     just tool-literals
     just platform
     just webview
