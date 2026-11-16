@@ -474,6 +474,14 @@ What held: no invented numbers, no model line on an L2 or L3 item in any setting
 | Qwen3-1.7B, Q8_0 (the Q8 upper bound) | 9.8 / 45.6 / 58.3 % | 92.1 / 95.6 / 95.8 % | 2.4 GB | ~240 tokens/s |
 | Nemotron 3 Nano 4B, Q4_K_M | 77.5 / 95.6 / 95.8 % | 98.0 / 92.7 / 91.7 % | 3.0 GB | ~150 tokens/s |
 
+**Is it the engine?** No (classified 2026-11-16, Sonnet draft checked by Opus). Of the drafts that failed the format check, none had think tags, a preamble or chat-template markup: the probe ran each GGUF's own template with thinking off, under a one-line grammar. Every failure was the model's:
+- lines cut at the 160-character or 60-token cap, which were already past 20 words when cut (Qwen 216, Nemotron 21);
+- finished sentences of over 20 words (Qwen 81, Nemotron 57, almost all Nemotron's 21 to 24 words);
+- two sentences on one line (Qwen 63, Nemotron 3);
+- Chinese mixed into the line (Qwen 57).
+
+A word cap enforced by the grammar would only cut Nemotron's overruns short. Nemotron also misses the entity bar (92.7 and 91.7 %), which measures content, not format. So the verdict stands without a re-run.
+
 The Q8 upper bound fails, so a Q4 Qwen would too, and none is tried. Scripted polarity is also over the bar for both, unchecked by eye, since format already decides. So 0.5 ships no written lines on any engine: the feed shows A's excerpt, and the local model is not offered for summaries. B's next attempt needs a new engine or prompt, measured on the real held-out set (D-124), which holds for both Apple's model and the local tier. Chat v1's own gates (ADR-0034) are a separate run.
 
 **What the run found in A itself (decided; handed to AJ-E3708).** A ships regardless of B, and two of the blind review's FAILs were A's excerpt:
