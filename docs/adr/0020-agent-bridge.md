@@ -501,6 +501,15 @@ chain ends at `launchd`) is refused.
   and `connector_preview` say `unavailable` ("Codex can't yet tell which
   thread is calling", from its adapter's `DesktopPeer::not_offered`) and
   `connector_add` refuses, until lab probe C2 proves which thread calls.
+- **Probe C2 runs headless, at the CLI's own app-server (option 2,
+  2026-11-16).** `scripts/qa/c2_probe.py` starts one `codex app-server`
+  (the `codex` CLI, on a lab home) with two threads and records what the
+  MCP server it spawns can see (`docs/qa/evidence/AJ-E3013/c2-runbook.md`).
+  The ChatGPT desktop UI's own wiring to its app-server is **inferred**
+  (the app spawns the same `codex app-server`, from its bundled CLI), **not
+  observed**: no ChatGPT app is launched. A result carries to the app only
+  as far as that inference and the version gap (the CLI 0.163.0, the app's
+  bundled 0.169.0-alpha.11.1) allow.
 
 ### STRIDE, added
 
