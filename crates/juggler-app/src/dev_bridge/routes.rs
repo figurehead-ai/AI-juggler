@@ -342,6 +342,7 @@ read_routes! {
     "connector_preview" => async_result features::connector::commands::connector_preview(state; app_id: String);
     "connector_status" => async_result features::connector::commands::connector_status(state; app_id: String);
     "connector_desktop_members" => async_result features::connector::commands::connector_desktop_members(state; pool_id: String);
+    "connector_desktop_sessions" => async_result features::connector::commands::connector_desktop_sessions(state; pool_id: String);
     "runtime_get" => async_result features::runtime::commands::runtime_get(state; session_id: String);
     "runtime_asks" => async_result features::runtime::commands::runtime_asks(state; offset: Option<u32>, limit: Option<u32>);
     "runtime_trust" => async_result features::runtime::trust::runtime_trust(state; profile_id: String, cwd: Option<String>);

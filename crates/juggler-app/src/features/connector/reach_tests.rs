@@ -380,3 +380,49 @@ fn the_roster_and_whoami_speak_of_a_connected_desktop_member_as_a_member() {
     );
     assert!(tool.is_some_and(|tool| tool.contains("Claude")), "its tool");
 }
+
+/// Item 4 (the lab's A6/A9): a connected desktop session held through its
+/// App is listed for the pool's member and recipient lists, with the ref a
+/// message to it takes; a Watched one isn't (pools_watched has it).
+#[test]
+fn a_connected_desktop_session_is_listed_for_the_members_and_recipients() {
+    let lab = lab();
+    let listed = super::desktop_sessions_impl(&lab.state, &lab.pool).unwrap();
+    assert!(listed.is_empty(), "Watched only: {listed:?}");
+    let apps = {
+        let storage = lab.state.storage.lock().unwrap();
+        let apps = storage.pools().create("Apps", None).unwrap().id;
+        storage
+            .pools()
+            .join(
+                &apps,
+                &MemberRef::App(lab.app.clone()),
+                &[],
+                PoolRole::Member,
+                None,
+            )
+            .unwrap();
+        apps
+    };
+    lab.attest();
+    let listed = super::desktop_sessions_impl(&lab.state, &apps).unwrap();
+    assert_eq!(listed.len(), 1, "{listed:?}");
+    let one = &listed[0];
+    assert_eq!(one.member, MEMBER);
+    assert_eq!(
+        one.session_id.as_deref(),
+        Some(desktop_id(FOLDER, CONVERSATION).as_str())
+    );
+    assert_eq!(one.via, "app");
+    assert_eq!(one.app_id.as_deref(), Some(lab.app.as_str()));
+    assert_eq!(one.wake, "next_turn");
+    assert!(
+        one.place
+            .as_deref()
+            .is_some_and(|place| place.contains("Claude"))
+    );
+    // In its own conversation's pool too, named on its own.
+    let own = super::desktop_sessions_impl(&lab.state, &lab.pool).unwrap();
+    assert_eq!(own.len(), 1);
+    assert_eq!(own[0].via, "conversation");
+}

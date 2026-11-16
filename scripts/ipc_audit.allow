@@ -9,6 +9,7 @@
 # each listed one says why its list stays small, or "TO PAGE" with what reads it.
 # uncalled entries carry the date they were listed: 2026-10-21.
 uncalled account_audit
+uncalled connector_desktop_sessions  # 2026-11-16: the desktop sessions for the pool's member and recipient lists (AJ-E3013, lab A6/A9); the UI builder's round adds them
 uncalled connector_remove_anyway  # 2026-11-16: the backend of Remove anyway (AJ-E3013, lab A11); the UI's confirm comes with the UI builder's round
 uncalled harnesses_list_alias
 uncalled isolation_check
@@ -55,6 +56,7 @@ unbounded cleanup_tier2_decide  # bounded: a fixed set (settings, checks, choice
 unbounded cloud_backup_list  # TO PAGE: every cloud backup
 unbounded cloud_backup_prepare_restore  # bounded: a fixed set (settings, checks, choices or tools)
 unbounded connector_add  # bounded: the connector's few files (two for the Claude app, one for the Codex app)
+unbounded connector_desktop_sessions  # bounded: the connected desktop sessions of one pool (each a Code-tab conversation the user runs)
 unbounded connector_desktop_members  # bounded: the desktop members the user named in one pool (the canvas shows at most 60)
 unbounded connector_preview  # bounded: the connector's few files (two for the Claude app, one for the Codex app)
 unbounded connector_remove  # bounded: the connector's few files (two for the Claude app, one for the Codex app)

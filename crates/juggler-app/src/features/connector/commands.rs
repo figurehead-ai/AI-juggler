@@ -5,6 +5,7 @@ use std::sync::Arc;
 
 use super::dto::{
     ConnectorPreviewInfo, ConnectorRemovalInfo, ConnectorStatusInfo, DesktopMemberInfo,
+    DesktopSessionInfo,
 };
 use crate::error::AppResult;
 use crate::state::AppState;
@@ -89,6 +90,24 @@ pub async fn connector_status(
 ) -> AppResult<ConnectorStatusInfo> {
     crate::ipc::blocking(state.inner(), "AI Juggler's connector", move |state| {
         super::status_impl(state, &app_id)
+    })
+    .await
+}
+
+/// A pool's desktop sessions that read their messages through AI
+/// Juggler's connector, for its member and recipient lists (the lab's
+/// A6/A9).
+///
+/// # Errors
+///
+/// As [`super::desktop_sessions_impl`].
+#[tauri::command]
+pub async fn connector_desktop_sessions(
+    state: tauri::State<'_, Arc<AppState>>,
+    pool_id: String,
+) -> AppResult<Vec<DesktopSessionInfo>> {
+    crate::ipc::blocking(state.inner(), "the pool's desktop sessions", move |state| {
+        super::desktop_sessions_impl(state, &pool_id)
     })
     .await
 }

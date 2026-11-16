@@ -59,6 +59,11 @@ pub(crate) struct DesktopConversation {
     /// Its App can be woken at all (the person's Deliver wakes it, the
     /// pool's level aside). Never for a Watched member.
     pub can_wake: bool,
+    /// Its desktop App (`apps.id`), when known.
+    pub app_id: Option<String>,
+    /// How it's in the pool: `conversation` (named on its own) or the
+    /// broad member that brought it in (`app`, `account`, …).
+    pub via: String,
 }
 
 impl DesktopConversation {
@@ -184,6 +189,10 @@ pub(crate) fn of_pool(state: &Arc<AppState>, pool_id: &str) -> AppResult<Vec<Des
                 connected,
                 wakes: connected && info.is_some_and(|info| info.wake == "wakes"),
                 can_wake: connected && info.is_some_and(|info| info.wake != "cant_wake"),
+                app_id: info
+                    .and_then(|info| info.app_id.clone())
+                    .or_else(|| facts.and_then(|facts| facts.app.clone())),
+                via: "conversation".to_owned(),
                 member: one.member,
             }
         })
@@ -222,7 +231,7 @@ fn through_others(
         let app = apps
             .iter()
             .find(|app| Some(app.id.as_str()) == facts.app.as_deref());
-        others.push((member, facts, place.role, app));
+        others.push((member, facts, place.role, place.via().as_str(), app));
     }
     if others.is_empty() {
         return Vec::new();
@@ -235,7 +244,7 @@ fn through_others(
             .collect();
     others
         .into_iter()
-        .map(|(member, facts, role, app)| DesktopConversation {
+        .map(|(member, facts, role, via, app)| DesktopConversation {
             name: facts
                 .conversation
                 .as_ref()
@@ -249,6 +258,8 @@ fn through_others(
             connected: true,
             wakes: wakes && app.is_some_and(|app| can_wake(state, app)),
             can_wake: app.is_some_and(|app| can_wake(state, app)),
+            app_id: facts.app.clone(),
+            via: via.to_owned(),
             member,
         })
         .collect()

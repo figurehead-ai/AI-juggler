@@ -46,6 +46,7 @@ import type { DebugModeInfo } from "./DebugModeInfo";
 import type { DeletePreviewInfo } from "./DeletePreviewInfo";
 import type { DesktopLaunchInfo } from "./DesktopLaunchInfo";
 import type { DesktopMemberInfo } from "./DesktopMemberInfo";
+import type { DesktopSessionInfo } from "./DesktopSessionInfo";
 import type { DiagnosticsPreviewInfo } from "./DiagnosticsPreviewInfo";
 import type { DiagnosticsSavedInfo } from "./DiagnosticsSavedInfo";
 import type { DiscoveredInfo } from "./DiscoveredInfo";
@@ -397,6 +398,8 @@ export interface Commands {
   connector_add: { args: { appId: string }; result: ConnectorStatusInfo };
   /** Read features::connector::commands::connector_desktop_members */
   connector_desktop_members: { args: { poolId: string }; result: DesktopMemberInfo[] };
+  /** Read features::connector::commands::connector_desktop_sessions */
+  connector_desktop_sessions: { args: { poolId: string }; result: DesktopSessionInfo[] };
   /** Read features::connector::commands::connector_preview */
   connector_preview: { args: { appId: string }; result: ConnectorPreviewInfo };
   /** Write features::connector::commands::connector_remove */

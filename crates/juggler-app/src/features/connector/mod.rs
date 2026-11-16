@@ -463,6 +463,36 @@ pub fn desktop_members_impl(
     Ok(out)
 }
 
+/// AJ-E3013 (the lab's A6/A9): the desktop sessions `pool_id` holds that
+/// read their messages through AI Juggler's connector, for its member and
+/// recipient lists ([`DesktopSessionInfo`]); Watched ones are
+/// `pools_watched`'s.
+///
+/// # Errors
+///
+/// [`AppError::Refused`] for a pool that isn't there; storage failures.
+pub fn desktop_sessions_impl(
+    state: &Arc<AppState>,
+    pool_id: &str,
+) -> AppResult<Vec<dto::DesktopSessionInfo>> {
+    Ok(reach::of_pool(state, pool_id)?
+        .into_iter()
+        .filter(|one| one.connected)
+        .map(|one| dto::DesktopSessionInfo {
+            wake: if one.wakes { "wakes" } else { "next_turn" }.to_owned(),
+            member: one.member,
+            session_id: one.session,
+            name: one.name,
+            place: one.place,
+            tool: one.tool,
+            account: one.account,
+            role: one.role,
+            app_id: one.app_id,
+            via: one.via,
+        })
+        .collect())
+}
+
 #[cfg(test)]
 mod reach_tests;
 #[cfg(test)]

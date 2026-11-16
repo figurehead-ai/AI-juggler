@@ -431,6 +431,7 @@ macro_rules! app_commands {
             Write features::connector::commands::connector_remove_anyway,
             Read  features::connector::commands::connector_status,
             Read  features::connector::commands::connector_desktop_members,
+            Read  features::connector::commands::connector_desktop_sessions,
             Read  features::runtime::commands::runtime_get,
             Read  features::processes::commands::processes_page,
             Read  features::processes::commands::processes_counts,

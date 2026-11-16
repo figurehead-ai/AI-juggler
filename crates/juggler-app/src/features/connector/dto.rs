@@ -74,6 +74,42 @@ pub struct ConnectorRemovalInfo {
     pub kept: Vec<String>,
 }
 
+/// AJ-E3013 (the lab's A6/A9): one desktop session a pool holds that
+/// reads its messages through AI Juggler's connector, for the pool's
+/// member and recipient lists beside its sessions AI Juggler runs (which
+/// come from `pools_members`): the Messages "To" list and the diagram's
+/// member nodes.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
+pub struct DesktopSessionInfo {
+    /// What a message to it takes as `to` (`conversation:<folder>/<id>`),
+    /// and its node's key on the diagram.
+    pub member: String,
+    /// Its attested session's id (`desktop:<folder>/<id>`) while one of its
+    /// calls is attested (the last ten minutes); `null` for one whose App
+    /// has the connector but that hasn't called lately.
+    pub session_id: Option<String>,
+    /// Its conversation's title, else "A session in another app".
+    pub name: String,
+    /// Where it runs: its App, in words ("Claude app · Work").
+    pub place: Option<String>,
+    /// Its tool, in words.
+    pub tool: Option<String>,
+    /// Its account's label, when the conversation index knows it.
+    pub account: Option<String>,
+    /// Its role in the pool (`lead`, `member`, `reviewer`, `observer`).
+    pub role: String,
+    /// Its desktop App (`apps.id`), when known.
+    pub app_id: Option<String>,
+    /// How it's in the pool: `conversation` (named on its own) or the broad
+    /// member that brought it in (`app`, `account`, `tool`, `mac`,
+    /// `everyone`).
+    pub via: String,
+    /// `wakes` (a new pool message wakes it: D-119) | `next_turn` (it reads
+    /// it at its next turn).
+    pub wake: String,
+}
+
 /// A pool's desktop member, for the canvas (D-116, D-119).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
 #[ts(export, export_to = "../../../ui/src/types/generated/")]
