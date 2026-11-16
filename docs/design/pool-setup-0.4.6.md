@@ -118,3 +118,17 @@ Both after-walks reached S with no detour (ease 5/7, value 5/7, feeling +1; befo
 16. **The "Subagents" tab and "Settings › Agent access"** were not understood: say what each is where it appears (a one-line hint or tooltip with words, not a bare name).
 17. **The role menu clipped at 1024×768** (seen once; at 1280×800 it fits): menus near the window edge flip or shift inside the window at every size from 1024×680.
 18. **"No lead for now" preselected** while Apps are in: the step's why-line says "Pick one to be in charge, or leave it for now", so leaving it is a visible choice.
+
+## Round 5 (after Sam on the bundled build, SD 4/7), consistent with D-55
+
+D-55 (the maintainer's ruling: "A pool is one live canvas you watch and edit in place") and the view-and-edit-in-place rule stay in force. Round 5 keeps them:
+
+1. **An empty pool (no members) opens the guided setup.** It is the same component as New pool's steps, prefilled with the pool's projects (and its name, for a project's own pool), with "Show the diagram". This is onboarding, the one flow from both doors. While the pool is still empty, a checklist item may open its step full width.
+2. **Once the pool has members, everything is edited in place on the diagram.** The checklist and the settings never send the user away from it. The side panel is fixed instead:
+   - the inspector is wider and resizable, about 360–420 px (default about 380), its width remembered per viewer;
+   - the control being edited is scrolled into view and focused (a checklist item or a header link opens the panel at that section);
+   - the panel's sections are in setup order: who's in, who leads, everyone else, who may message whom, on their own, then more settings;
+   - "Who leads" and the role menu are never off-screen: at 1024×768 and 1280×800 the opened section's control is fully visible and its menu opens inside the window (tested).
+3. **No layout shift on Add**, measured by a test.
+4. **A project's own pool draws no "Everyone in web" card.** Its scope is said in the header ("Every session in web is part of this team"), and its join role in Everyone else.
+5. **The question card's cost line:** "It costs nothing extra. Your assistants use their own turns only when they act."
