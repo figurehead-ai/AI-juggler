@@ -72,7 +72,12 @@ heading and one line on why, and every choice reads back as a sentence
 9. **Review**: the whole pool in sentences, with what happens next in one
    line, naming which session to open first ("Open Claude Code · Work in
    web first: it leads; Codex checks its work; their messages show
-   here"), then **Make pool**.
+   here"), what to tell it first, with **Copy** ("Then tell Claude Code ·
+   Work: "Plan the work in web, hand out tasks, and ask Codex to
+   review.""), then **Make pool**. If something it needs can't work (the
+   team tools can't run here, or an app's connector isn't in it), Review
+   says so first. A member you chose that the pool doesn't keep is named
+   after Make pool, with why.
 
 A project's **Pools** tab opens its own pool ("web's own pool: every
 session in web, as one team"), and **Move to pool…** on a session's menu
@@ -101,6 +106,10 @@ you chose; making a pool doesn't change it. Home stays the whole desktop:
 a pool's own view is its page.
 
 ## A pool's page
+
+From a project (its **New pool for web…**, at the top of its Pools tab, or
+its own pool), Start from scratch is the open path and the templates wait
+under **Or start from a template**.
 
 A pool with no members yet opens in its setup: New pool's own steps, on
 the pool's page, with its projects (and name) filled in. A project's own

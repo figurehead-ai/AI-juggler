@@ -17,9 +17,8 @@ import { agentToolsWhy, shellOnlyWhy, switchedOffWhy } from "./agent-tools";
 import type { AgentBridgeInfo } from "../types/generated/AgentBridgeInfo";
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import type { ConversationInfo } from "./ipc/conversations";
-import { memberRef, poolJoin, poolSetScope, poolSetSealed, poolSetTalk, type MemberKind, type TalkRule } from "./ipc/pool-model";
-import { poolCreate, poolSetAccess, poolSetSpansMacs, type PoolInfo, type PoolRole, type PoolsInfo } from "./ipc/pools";
-import { poolSetLeadNext } from "./ipc/pool-model";
+import { memberRef, type MemberKind, type TalkRule } from "./ipc/pool-model";
+import type { PoolInfo, PoolRole, PoolsInfo } from "./ipc/pools";
 import { pairKey, ruleOf, templateById, TALK_ROLES, type PairKey, type PoolTemplate } from "./pool-templates";
 import { sessionState } from "./rail-items";
 import { namedByFacts, tellApart } from "./session-titles";
@@ -370,25 +369,7 @@ export function talkChanges(talk: Draft["talk"]): { from: string; to: string; ru
 /** Makes the pool the draft describes, or (`into`) sets an existing one
  * up as it says; its id. Every step is the user's own call; nothing
  * starts a session. */
-export async function makePool(draft: Draft, into?: string, { keepScope = false }: { keepScope?: boolean } = {}): Promise<string> {
-  let made: PoolInfo | undefined;
-  if (into) made = { id: into } as PoolInfo;
-  else {
-    const before = await poolCreate(draft.name.trim(), draft.every || draft.projects.length !== 1 ? null : draft.projects[0] ?? null);
-    made = before.pools.find((pool) => pool.name === draft.name.trim() && pool.kind === "user");
-  }
-  if (!made) throw new Error("The pool wasn't made");
-  // A project's own pool works in its project: its scope isn't set.
-  if (!keepScope) await poolSetScope(made.id, draft.every, draft.every ? [] : draft.projects);
-  if (draft.level !== "work_together") await poolSetAccess(made.id, draft.level);
-  for (const member of draft.members) await poolJoin(made.id, member.ref, member.role, member.level);
-  for (const change of talkChanges(draft.talk)) await poolSetTalk(made.id, change.from, change.to, change.rule);
-  // AJ-E3011: its App's next session leads, once the App is in.
-  if (draft.leadNext && !draft.members.some((member) => member.role === "lead")) await poolSetLeadNext(made.id, draft.leadNext.slice("app:".length));
-  if (draft.sealed) await poolSetSealed(made.id, true);
-  if (draft.spansMacs) await poolSetSpansMacs(made.id, true);
-  return made.id;
-}
+export { makePool, type NotAdded } from "./new-pool-make";
 
 export { pairKey };
 export { leadCandidates, leadOf, withLead, type LeadChoice } from "./new-pool-lead";

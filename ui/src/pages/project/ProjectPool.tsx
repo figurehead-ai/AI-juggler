@@ -39,6 +39,15 @@ export function ProjectPool({ project, sessions, now }: { project: ProjectInfo; 
   const open = (id: string) => host.openPool?.(id);
   return (
     <div className="flex w-full max-w-content flex-col gap-grid" data-testid="project-pool">
+      {/* Round 6 (Casey's run): "New pool for web…" sat under the own
+          pool's rows, which load late and pushed it down under the
+          pointer: a click landed on a session. It's at the tab's top now,
+          where nothing that loads later moves it. */}
+      <div className="flex justify-end">
+        <Button size="sm" variant="secondary" onClick={() => newPoolFor(project.id)} data-testid="project-pool-new">
+          New pool for {project.name}…
+        </Button>
+      </div>
       {/* AJ-E3011 §10: a project's own pool says what it is, apart from the
           pools you made. */}
       <Section
@@ -72,16 +81,7 @@ export function ProjectPool({ project, sessions, now }: { project: ProjectInfo; 
       )}
       {/* AJ-E3011 §1: the project's door to the same guided setup as New
           pool, its project filled in. */}
-      <Section
-        title="Its other pools"
-        sub="pools of yours that hold its sessions, or were made for it"
-        actions={
-          <Button size="sm" variant="ghost" onClick={() => newPoolFor(project.id)} data-testid="project-pool-new">
-            New pool for {project.name}…
-          </Button>
-        }
-        testId="project-pool-yours"
-      >
+      <Section title="Its other pools" sub="pools of yours that hold its sessions, or were made for it" testId="project-pool-yours">
         <RelatedPools
           pools={others}
           testId="project-other-pools"

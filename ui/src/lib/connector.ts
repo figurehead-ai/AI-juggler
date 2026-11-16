@@ -13,13 +13,14 @@
  *   every few seconds only while its guide is open), a pool's desktop
  *   members (again when the pool or a connector changes; never polled).
  */
-import { useCallback, useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { sharedReads, useSharedRead } from "./shared-read";
 import { POOLS_GUIDE } from "./pool-words";
 import { CONNECTOR_CHANGED, connectorDesktopMembers, connectorStatus, type ConnectorStatusInfo, type DesktopMemberInfo } from "./ipc/connector";
 import { POOL_RULES_CHANGED } from "./ipc/pool-model";
 import type { AppModel } from "./apps";
+import type { AgentBridgeInfo } from "./ipc/agent-bridge";
 
 /** The guide's section on desktop apps in a pool. */
 export const CONNECTOR_GUIDE = `${POOLS_GUIDE}#desktop-apps-in-a-pool`;
@@ -94,8 +95,31 @@ export const removeLine = (path: string) => `Deletes ${shortPath(path)}`;
 /** A file someone changed since Add: Remove leaves it, named. */
 export const keptLine = (path: string) => `Leaves ${shortPath(path)}: it changed since AI Juggler wrote it`;
 
+/** Why the connector can't go into an App, in the user's words, never
+ * the backend's own text (round 6, Casey's run: "juggler-agent isn't
+ * beside it, or isn't safe to run"). A reason code (`unavailable`, when
+ * the status carries one) decides; until then the agent program's own
+ * (the team tools' `AgentBridgeInfo`: the same program) does. */
+export function unavailableWords(status: ConnectorStatusInfo, bridge: AgentBridgeInfo | null): string {
+  const code: unknown = Reflect.get(status, "unavailable");
+  const folder: unknown = Reflect.get(status, "unsafe_folder");
+  const program = bridge && !bridge.available ? (bridge.unavailable ?? "missing") : null;
+  const kind = typeof code === "string" ? code : program;
+  const where = typeof folder === "string" ? folder : (bridge?.unsafe_folder ?? null);
+  switch (kind) {
+    case "missing":
+      return "This build of AI Juggler doesn't include its helper.";
+    case "unsafe_location":
+      return `AI Juggler's helper can't run from a folder others can write${where ? ` (${where})` : ""}. Move AI Juggler to Applications, then open it again.`;
+    case "not_offered":
+      return "AI Juggler can't add its connector to this app yet: it can't tell this app's sessions apart.";
+    default:
+      return "AI Juggler can't add its connector to this app yet.";
+  }
+}
+
 /** Where the connector stands, when it isn't simply there. */
-export function statusLine(status: ConnectorStatusInfo): string | null {
+export function statusLine(status: ConnectorStatusInfo, bridge: AgentBridgeInfo | null = null): string | null {
   switch (status.state) {
     case "current":
       return "AI Juggler's connector is in this app.";
@@ -104,7 +128,7 @@ export function statusLine(status: ConnectorStatusInfo): string | null {
     case "changed":
       return `AI Juggler's connector here was changed${status.changed.length > 0 ? ` (${status.changed.map(shortPath).join(", ")})` : ""}, so AI Juggler leaves it alone. Remove takes out the rest; then Add writes it again.`;
     case "unavailable":
-      return `AI Juggler can't add its connector here: ${status.why_not ?? "this app has no way in yet"}.`;
+      return unavailableWords(status, bridge);
     default:
       return null;
   }
@@ -184,6 +208,27 @@ export function useDesktopMembers(poolId: string | undefined, polling = false): 
   const value = useSharedRead(source, { pollMs: polling ? GUIDE_POLL_MS : 0 });
   useReadAgain(useCallback(() => void source?.refresh(), [source]), poolId);
   return useMemo(() => (value ? new Map(value.map((one) => [one.member, one])) : undefined), [value]);
+}
+
+/** Several Apps' connectors at once (a step listing them), read on mount
+ * and again on every Add and Remove; `undefined` for one not read yet. */
+export function useConnectorStatuses(appIds: readonly string[]): ReadonlyMap<string, ConnectorStatusInfo> {
+  const key = appIds.join("\n");
+  const [found, setFound] = useState<ReadonlyMap<string, ConnectorStatusInfo>>(new Map());
+  useEffect(() => {
+    let alive = true;
+    const read = () =>
+      void Promise.all(key ? key.split("\n").map((id) => connectorStatus(id).then((status) => [id, status] as const, () => null)) : []).then((rows) => {
+        if (alive) setFound(new Map(rows.filter((row): row is readonly [string, ConnectorStatusInfo] => row !== null)));
+      });
+    read();
+    window.addEventListener(CONNECTOR_CHANGED, read);
+    return () => {
+      alive = false;
+      window.removeEventListener(CONNECTOR_CHANGED, read);
+    };
+  }, [key]);
+  return found;
 }
 
 /** Tells every view the connector changed in `appId`. */

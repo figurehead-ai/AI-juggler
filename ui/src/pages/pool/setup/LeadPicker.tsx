@@ -31,6 +31,11 @@ export interface LeadApp {
   name: string;
   /** A session of it can start here (a CLI App, the pool made). */
   startable?: boolean;
+  /** Why it can't lead (round 6: a desktop App whose connector can't go
+   * in), said beside it; `null`/absent: it can. */
+  blocked?: string | null;
+  /** Its line, when not the usual "It takes charge as soon as…". */
+  note?: string | null;
 }
 
 const same = (a: LeadChoice, b: LeadChoice) =>
@@ -60,13 +65,14 @@ export function LeadPicker({
   const starting = value.kind === "next" && onStart ? apps.find((app) => app.ref === value.app && app.startable) : undefined;
   const chosenSession = value.kind === "session" ? sessions.find((one) => one.ref === value.ref) : undefined;
   const chosenApp = value.kind === "next" ? apps.find((app) => app.ref === value.app) : undefined;
-  const row = (choice: LeadChoice, title: string, detail: string, key: string, kind: string) => (
+  const row = (choice: LeadChoice, title: string, detail: string, key: string, kind: string, blocked: string | null = null) => (
     <ChoiceOption
       key={key}
       type="radio"
       name={`${testId}-choice`}
       checked={same(choice, value)}
-      disabled={disabled}
+      disabled={disabled || blocked !== null}
+      reason={blocked ?? undefined}
       onChange={() => onChange(choice)}
       label={title}
       hint={detail}
@@ -94,7 +100,7 @@ export function LeadPicker({
           <span className="section-label">Next session</span>
           <div className="flex flex-col gap-0.5">
             {apps.map((app) =>
-              row({ kind: "next", app: app.ref }, nextSessionWords(app.name), `It takes charge as soon as one of its sessions starts in ${where}.`, app.ref, "next"),
+              row({ kind: "next", app: app.ref }, nextSessionWords(app.name), app.note ?? `It takes charge as soon as one of its sessions starts in ${where}.`, app.ref, "next", app.blocked ?? null),
             )}
           </div>
           {starting && onStart && (

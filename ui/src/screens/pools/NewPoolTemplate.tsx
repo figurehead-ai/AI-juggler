@@ -11,6 +11,7 @@
  */
 import type { JSX } from "react";
 
+import { Disclosure } from "../../components/controls";
 import { IconPlus } from "../../components/icons-actions";
 import { POOL_TEMPLATES, type PoolTemplate } from "../../lib/pool-templates";
 import { PoolIntro } from "../../pages/pool/setup/PoolIntro";
@@ -40,19 +41,31 @@ function Card({ template, on, onChoose }: { template: PoolTemplate; on: boolean;
   );
 }
 
-export function NewPoolTemplate({ chosen, onChoose, first }: { chosen: string; onChoose: (id: string) => void; first: boolean }): JSX.Element {
+export function NewPoolTemplate({ chosen, onChoose, first, fold = false }: { chosen: string; onChoose: (id: string) => void; first: boolean; fold?: boolean }): JSX.Element {
   const scratch = POOL_TEMPLATES.find((template) => template.id === "blank")!;
   const templates = POOL_TEMPLATES.filter((template) => template.id !== "blank");
+  const cards = templates.map((template) => <Card key={template.id} template={template} on={template.id === chosen} onChoose={onChoose} />);
   return (
     <div className="flex flex-col gap-5" data-testid="new-pool-step-template">
       <PoolIntro first={first} testId="new-pool-intro" />
       <StepHead step="template" />
-      <div role="radiogroup" aria-label="How to start" className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3" data-testid="new-pool-templates">
-        <Card template={scratch} on={chosen === scratch.id} onChoose={onChoose} />
-        {templates.map((template) => (
-          <Card key={template.id} template={template} on={template.id === chosen} onChoose={onChoose} />
-        ))}
-      </div>
+      {fold ? (
+        // Round 6 (Sam, from a project's own pool): nine cards of jargon to
+        // someone who wants none. Start from scratch is the open path.
+        <div role="radiogroup" aria-label="How to start" className="flex flex-col gap-3" data-testid="new-pool-templates">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <Card template={scratch} on={chosen === scratch.id} onChoose={onChoose} />
+          </div>
+          <Disclosure summary="Or start from a template" open={chosen !== scratch.id} testId="new-pool-templates-fold">
+            <div className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">{cards}</div>
+          </Disclosure>
+        </div>
+      ) : (
+        <div role="radiogroup" aria-label="How to start" className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3" data-testid="new-pool-templates">
+          <Card template={scratch} on={chosen === scratch.id} onChoose={onChoose} />
+          {cards}
+        </div>
+      )}
     </div>
   );
 }

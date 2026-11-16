@@ -219,3 +219,44 @@ for (const size of [
     }
   });
 }
+
+// Round 6 #4 (Casey's run): the project page's "New pool for web…" went to
+// the Pools list, not the setup. It opens New pool, on that project.
+test("a project's New pool for … stays put as the tab loads, and opens New pool on that project", async ({ page }) => {
+  await open(page, { width: 1280, height: 800 });
+  await goTo(page, "Projects");
+  await page.locator("main").getByText("storefront", { exact: true }).first().click();
+  await page.getByRole("tablist", { name: "Project tabs" }).getByRole("tab", { name: /^Pools/ }).click();
+  // Casey's run: the door moved under the pointer as the tab loaded. Its
+  // box from first paint is its box once all has loaded.
+  const door = page.getByTestId("project-pool-new");
+  await expect(door).toBeVisible();
+  const first = await box(door);
+  await page.waitForLoadState("networkidle");
+  await page.waitForTimeout(800);
+  expect(await box(door), "New pool for … didn't move as the tab loaded").toEqual(first);
+  await door.click();
+  await expect(page.getByTestId("new-pool")).toBeVisible();
+  // Round 6 #7: from a project, Start from scratch is the open path.
+  await expect(page.getByTestId("new-pool-templates-fold")).not.toHaveAttribute("open", "");
+  await page.getByTestId("new-pool-next").click();
+  await expect(page.getByTestId("new-pool-projects")).toContainText("storefront");
+});
+
+// Round 6 #6 (Casey's run): a note at the window's foot covered New pool's
+// Next and Make pool. Toasts sit above that footer.
+test("a toast never covers New pool's footer", async ({ page }) => {
+  await open(page, { width: 1280, height: 800 });
+  await goTo(page, "Pools");
+  await page.getByTestId("pools-new").click();
+  // A toast of its own: Make pool with no project ("Pick a project first").
+  await page.getByTestId("new-pool-next").click();
+  for (const out of await page.getByTestId("new-pool-projects").getByRole("button", { name: /^Take .* out$/ }).all()) await out.click();
+  await page.getByTestId("new-pool-next").click();
+  await page.getByTestId("new-pool-make").click();
+  const stack = page.getByTestId("toast-stack");
+  await expect(stack).toBeVisible();
+  const toasts = (await stack.boundingBox())!;
+  const next = (await page.getByTestId("new-pool-next").boundingBox())!;
+  expect(toasts.y + toasts.height, "the toasts end above the footer's buttons").toBeLessThanOrEqual(next.y);
+});

@@ -18,6 +18,8 @@ import { draftPlaces, type ToolsPlace } from "../../lib/team-tools";
 import { PoolSentences, Sentence, type SentenceRow } from "../../pages/pool/setup/PoolSentences";
 import { useTeamTools } from "../../pages/pool/setup/TeamTools";
 import { StepHead } from "./StepHead";
+import { SetupBlockers } from "../../pages/pool/setup/SetupBlockers";
+import { FirstPrompt } from "../../pages/pool/setup/FirstPrompt";
 
 const CAN: Record<Reach, string> = {
   full: "sees · messages · tasks · can be asked",
@@ -91,10 +93,13 @@ export function NewPoolReview({
           </ul>
         </section>
       )}
+      {/* Round 6: what can't work yet, before anything says what's next. */}
+      <SetupBlockers refs={draft.members.map((member) => member.ref)} tools={tools} testId="new-pool-review-blocked" />
       {/* Round 4 (#3): what happens once it's made, the diagram's own line. */}
       <p className="text-meta text-ink" data-testid="new-pool-review-next">
         <span className="font-medium">What happens next:</span> {nextLine(shape, where)}.
       </p>
+      <FirstPrompt shape={shape} where={where} testId="new-pool-first-prompt" />
       <p className="text-meta text-ink-2">You can change all of this on the pool's diagram.</p>
     </div>
   );

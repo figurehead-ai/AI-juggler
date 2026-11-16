@@ -24,6 +24,7 @@ import { CONNECTOR, CONNECTOR_GUIDE, connectorChanged, previewSentence, shortPat
 import { Disclosure } from "../../../components/controls";
 import { connectorAdd, connectorPreview, connectorRemove, type ConnectorPreviewInfo, type ConnectorRemovalInfo, type ConnectorStatusInfo } from "../../../lib/ipc/connector";
 import { trustOpen } from "../../../lib/ipc/trust";
+import { useAgentBridge, type AgentBridgeInfo } from "../../../lib/ipc/agent-bridge";
 import { useReveal } from "../../../lib/reveal";
 import { ConnectorFiles, RemoveFiles } from "./ConnectorFiles";
 import { ConnectorGuide } from "./ConnectorGuide";
@@ -45,6 +46,8 @@ interface Parts {
   busy: boolean;
   heading: 3 | 4;
   state: string;
+  /** The agent program's state (why the connector can't go in, in words). */
+  bridge: AgentBridgeInfo | null;
   /** The App as the preview's sentence says it ("your Claude app (Work Max)"). */
   who: { name: string; kind?: string; profile?: string | null };
   where: string;
@@ -91,6 +94,7 @@ export function ConnectorCard({
   testId?: string;
 }): JSX.Element | null {
   const status = useConnectorStatus(appId);
+  const bridge = useAgentBridge();
   const [phase, setPhase] = useState<Phase>({ kind: "idle" });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -146,6 +150,7 @@ export function ConnectorCard({
     busy,
     heading,
     state: status.state,
+    bridge,
     who: { name: app, kind, profile },
     where,
     failed,
@@ -165,7 +170,7 @@ export function ConnectorCard({
   if (status.state === "current") {
     return (
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-meta text-ink-2" data-testid={`${testId}-there`}>
-        <span>{statusLine(status)}</span>
+        <span>{statusLine(status, bridge)}</span>
         <Button size="sm" variant="ghost" disabled={busy} onClick={() => void actions.askRemove()} data-testid={`${testId}-remove`}>
           {CONNECTOR.remove}
         </Button>
@@ -201,7 +206,7 @@ function Resting({ status, parts, where, onReview, onGuide, onRemove }: { status
     return (
       <Card parts={parts} title={`${app} can't take AI Juggler's connector yet`}>
         <p className="text-meta text-ink" data-testid={`${testId}-why-not`}>
-          {statusLine(status)}
+          {statusLine(status, parts.bridge)}
         </p>
         <p className="text-meta text-ink-2" data-testid={`${testId}-guide-none`}>
           There's no guide for it either, so its sessions stay Watched in pools: shown and counted, without the pool's tools.
@@ -214,7 +219,7 @@ function Resting({ status, parts, where, onReview, onGuide, onRemove }: { status
     return (
       <Card parts={parts} title={`AI Juggler's connector in ${app} was changed`}>
         <p className="text-meta text-ink" data-testid={`${testId}-changed`}>
-          {statusLine(status)}
+          {statusLine(status, parts.bridge)}
         </p>
         <span className="flex flex-wrap gap-2">
           <Button size="sm" variant="secondary" disabled={busy} onClick={onRemove} data-testid={`${testId}-remove`}>
@@ -292,7 +297,7 @@ function PhaseView({ phase, status, parts, onAdd, onRemove }: { phase: Exclude<P
     case "guide":
       return (
         <Card parts={parts} title={`Add AI Juggler's connector to ${app} by hand`}>
-          <ConnectorGuide appId={appId} app={app} guide={phase.preview?.guide ?? null} poolId={poolId} why={status.state === "unavailable" ? statusLine(status) : null} testId={testId} />
+          <ConnectorGuide appId={appId} app={app} guide={phase.preview?.guide ?? null} poolId={poolId} why={status.state === "unavailable" ? statusLine(status, parts.bridge) : null} testId={testId} />
           <span className="flex gap-2">{cancel}</span>
         </Card>
       );

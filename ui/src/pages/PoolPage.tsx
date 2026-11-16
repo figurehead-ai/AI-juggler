@@ -25,7 +25,7 @@ import { startNextLead } from "../lib/start-lead";
 import { useMoreCandidates, useRuleLabel, useRuleTool } from "./pool/pool-page-reads";
 import { ScopeSheet } from "./pool/ScopeSheet";
 import { NewPool } from "../screens/pools/NewPool";
-import { EmptyPoolSetup } from "./pool/EmptyPoolSetup";
+import { EmptyPoolSetup, SetupSkeleton } from "./pool/EmptyPoolSetup";
 import type { PoolRules } from "../lib/pool-rules";
 import { FOCUS_THREAD, useMessageNeeds } from "../lib/ipc/messages";
 import { FOCUS_TASK, focusTask, useTaskNeeds, type TaskInfo } from "../lib/ipc/tasks";
@@ -91,9 +91,7 @@ function PoolGate(props: PageProps): JSX.Element {
   const rules = usePoolRules(props.poolId);
   const [diagramChosen, chooseDiagram] = useDiagramChosen(pool.id);
   const peopled = hasWhoIsIn(pool.members, hasMemberRules(pool, rules));
-  if (!peopled && rules.rules === null) {
-    return <output className="block h-full rounded-card bg-surface-2 motion-safe:animate-pulse" aria-label="Reading the pool" data-testid="pool-page-loading" />;
-  }
+  if (!peopled && rules.rules === null) return <SetupSkeleton title={`Set up ${pool.name}`} />;
   if (opensInSetup({ peopled, rulesRead: true, diagramChosen })) {
     return <EmptyPoolSetup pool={pool} rules={rules} projects={props.projects} sessions={props.sessions} accounts={props.accounts} onDiagram={chooseDiagram} />;
   }

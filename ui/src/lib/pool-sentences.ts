@@ -110,6 +110,20 @@ export function nextLine(shape: Pick<PoolShape, "members" | "leadNext">, where: 
   return parts.join("; ");
 }
 
+/** The lead's first message, from the roles (round 6, Sam's walk): whom
+ * to tell, and what — "Plan the work in web, hand out tasks, and ask
+ * Codex to review." `null` without a lead. */
+export function firstPrompt(shape: Pick<PoolShape, "members" | "leadNext">, where: string): { to: string; words: string } | null {
+  const session = shape.members.find((member) => member.role === "lead" && member.ref.startsWith("session:"));
+  const next = shape.leadNext ? shape.members.find((member) => member.ref === shape.leadNext) : undefined;
+  const lead = session ?? next;
+  if (!lead) return null;
+  // A reviewer by its tool's name ("Codex"), not its whole App name.
+  const reviewers = shape.members.filter((member) => member.role === "reviewer").map((member) => member.label.split(" · ")[0]!);
+  const review = reviewers.length > 0 ? `, and ask ${listWords(reviewers)} to review` : "";
+  return { to: lead.label, words: `Plan the work in ${where}, hand out tasks${review}.` };
+}
+
 /** A made pool's talk rows (`role:…` pairs) as a grid. */
 export function talkOf(rows: readonly { from: string; to: string; rule: string }[]): Partial<Record<PairKey, TalkRule>> {
   const out: Partial<Record<PairKey, TalkRule>> = {};

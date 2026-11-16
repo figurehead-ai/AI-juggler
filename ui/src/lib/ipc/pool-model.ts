@@ -41,6 +41,9 @@ type Seams = {
   /** A Watched member's title, tool and account, by its ref (what the
    * conversation index says of it live). */
   __AIJ_POOL_WATCHED__?: Record<string, Partial<WatchedMemberInfo>>;
+  /** Members a join answers for but doesn't keep (round 6: Casey's run,
+   * where two Apps were dropped without a word). */
+  __AIJ_POOL_JOIN_DROPS__?: string[];
 };
 const seams = () => globalThis as unknown as Seams;
 const record = (called: string) => (seams().__AIJ_POOL_CALLS__ ??= []).push(called);
@@ -69,6 +72,7 @@ export async function poolJoin(poolId: string, member: string, role: PoolRole, l
   if (!hasLiveBackend()) {
     const rules = rulesOf(poolId);
     record(`join:${poolId}:${member}:${role}:${level ?? ""}`);
+    if (seams().__AIJ_POOL_JOIN_DROPS__?.includes(member)) return previewPoolsInfo();
     const row = rules.members.find((one) => one.member === member);
     if (row) Object.assign(row, { role, level });
     else rules.members.push({ member, kind: kindOf(member), role, level, joined_at: Date.now(), sessions: 0, session_ids: [] });

@@ -332,7 +332,7 @@ describe("AJ-E3007, AJ-E3011 the setup, start to end", () => {
   it("makes the wait for the App's next session the pool's own setting", async () => {
     const apps = [{ ref: "app:cli:a", kind: "app" as const, label: "Claude Code · Work", role: "member" as const, level: null, reach: "later" as const }];
     const draft: Draft = { ...draftOf(templateById("blank"), "web"), name: "Web team", members: apps, leadNext: "app:cli:a" };
-    const id = await makePool(draft);
+    const { id } = await makePool(draft);
     expect(seams().__AIJ_POOL_CALLS__).toContain(`lead_next:${id}:cli:a`);
   });
 

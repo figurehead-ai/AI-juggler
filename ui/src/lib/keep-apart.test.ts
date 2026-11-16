@@ -3,7 +3,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { PROJECT } from "./action-specs-setup";
-import { onNewPoolRequest, requestNewPool, takeNewPoolRequest } from "./pools";
+import { doneNewPoolRequest, onNewPoolRequest, requestNewPool, takeNewPoolRequest } from "./pools";
 import { project as fixtureProject } from "../test/fixtures";
 
 describe("Keep it apart…", () => {
@@ -18,12 +18,14 @@ describe("Keep it apart…", () => {
     expect(keep).toHaveBeenCalledWith(project);
   });
 
-  it("hands the Pools screen one request, once", () => {
+  it("hands the Pools screen one request, kept until its setup closes (round 6: a screen mounted again still opens it)", () => {
     const heard = vi.fn();
     const stop = onNewPoolRequest(heard);
     requestNewPool({ template: "sealed-client", project: "p1" });
     expect(heard).toHaveBeenCalledOnce();
     expect(takeNewPoolRequest()).toEqual({ template: "sealed-client", project: "p1" });
+    expect(takeNewPoolRequest()).toEqual({ template: "sealed-client", project: "p1" });
+    doneNewPoolRequest();
     expect(takeNewPoolRequest()).toBeNull();
     stop();
   });

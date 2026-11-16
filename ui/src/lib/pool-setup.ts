@@ -9,6 +9,8 @@
  * convenience, never the pool's state.
  */
 import { SETUP_STEPS, type SetupStep } from "./pool-words";
+import { teamToolsLine, type TeamTools } from "./team-tools";
+import type { DesktopReach } from "./connector";
 
 const KEY = (poolId: string) => `aij.pool-setup.${poolId}`;
 
@@ -82,4 +84,21 @@ export function setupRows(facts: SetupFacts, seen: ReadonlySet<SetupStep>): Setu
  * have defaults. */
 export function setupReady(rows: readonly SetupRow[], toolsOn: boolean): boolean {
   return toolsOn && rows.every((row) => row.done);
+}
+
+/** Round 6 (Casey's run: "6 of 6 done" while nothing could work): what
+ * keeps the pool from working, each in a plain line. The team tools that
+ * can't run here (no one can message), and each desktop member whose app
+ * has no connector it can use. While any is said, the setup is never
+ * "done" or "ready". */
+/** A sentence carried on after a colon: its first letter lowered, unless
+ * it starts a name in capitals ("AI Juggler"). */
+export const lowerFirst = (words: string): string => (/^[A-Z]{2}/.test(words) ? words : `${words.charAt(0).toLowerCase()}${words.slice(1)}`);
+
+export function setupBlockers(tools: TeamTools | null, desktop: readonly { name: string; reach: DesktopReach }[]): string[] {
+  const lower = lowerFirst;
+  const out: string[] = [];
+  if (tools && (tools.kind === "missing" || tools.kind === "unsafe")) out.push(`The team tools can't run, so no one here can message: ${lower(teamToolsLine(tools))}`);
+  for (const one of desktop) if (one.reach.kind === "watched") out.push(`${one.name} can't talk here yet: ${lower(one.reach.line)}.`);
+  return out;
 }

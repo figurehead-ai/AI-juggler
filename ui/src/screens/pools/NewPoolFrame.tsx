@@ -8,7 +8,11 @@ import { useEffect, type JSX, type ReactNode, type RefObject } from "react";
 
 import { keepTabInside } from "../../components/form";
 import type { PoolRole } from "../../lib/ipc/pools";
-import { EVERYONE, type Draft } from "../../lib/new-pool";
+import { EVERYONE, type Draft, type NotAdded } from "../../lib/new-pool";
+import { showToast } from "../../components/Toast";
+import { unavailableWords } from "../../lib/connector";
+import { connectorStatus } from "../../lib/ipc/connector";
+import type { AgentBridgeInfo } from "../../lib/ipc/agent-bridge";
 
 /** The setup's frame: over the whole window (New pool), or in place on an
  * empty pool's page (round 5) with "Show the diagram" beside its title. */
@@ -78,3 +82,30 @@ export function fitExisting(draft: Draft, existing: ExistingPool | undefined): D
   const role = existing.everyoneRole ?? everyone?.role ?? "member";
   return { ...draft, every: existing.every, projects: [...existing.projects], members: everyone ? [{ ...everyone, role }, ...others] : others };
 }
+
+/** Round 6 (Casey's run: two ticked Apps missing after Make pool, without
+ * a word): says which chosen members the made pool doesn't hold, and why
+ * — for a desktop App whose connector can't go in, that reason in words;
+ * else what the pool said. Each can still be added on the diagram. */
+export async function sayNotAdded(rows: readonly NotAdded[], bridge: AgentBridgeInfo | null): Promise<void> {
+  if (rows.length === 0) return;
+  const reasons = await Promise.all(
+    rows.map(async (row) => {
+      const desktop = row.ref.startsWith("app:") && !row.ref.startsWith("app:cli:");
+      const status = desktop ? await connectorStatus(row.ref.slice("app:".length)).catch(() => null) : null;
+      const why = status?.state === "unavailable" ? unavailableWords(status, bridge) : row.why;
+      return `${row.label}: ${why}`;
+    }),
+  );
+  const names = rows.map((row) => row.label);
+  showToast({
+    message: names.length === 1 ? `${names[0]} isn't in the pool` : `${names.length} you chose aren't in the pool`,
+    detail: `${reasons.join(" · ")} · Add them on its diagram once that's fixed.`,
+    tone: "warning",
+    testId: "new-pool-not-added",
+  });
+}
+
+/** Round 6 (Sam): from a project or its own pool, the templates fold away
+ * behind "Or start from a template". */
+export const foldsTemplates = (fromProject: boolean | undefined, existing: ExistingPool | undefined): boolean => fromProject === true || existing?.fixedScope === true;

@@ -22,7 +22,8 @@ import { sessionAlert } from "./NodeParts";
 import { PoolChecklist } from "./setup/PoolChecklist";
 import { PoolSummary, shapeOfPool } from "./PoolSummary";
 import { useTeamTools } from "./setup/TeamTools";
-import { setupReady, type SetupRow } from "../../lib/pool-setup";
+import { setupBlockers, setupReady, type SetupRow } from "../../lib/pool-setup";
+import { FirstPrompt } from "./setup/FirstPrompt";
 import { nextLine } from "../../lib/pool-sentences";
 import { toolsLeftLine, type ToolsPlace } from "../../lib/team-tools";
 
@@ -249,13 +250,17 @@ type Step = (typeof SETUP_STEPS)[number];
  * done), then the checklist. */
 function PoolProgress({ kind, setup, pool, rules, members, ruleLabel, where, needs }: { kind: Selection["kind"]; setup: InspectorSetup; pool: PoolInfo; rules: PoolRules; members: readonly MemberNode[]; ruleLabel: (rule: PoolRuleInfo) => string; where: string; needs: number }): JSX.Element | null {
   const tools = useTeamTools(setup.tools.projects, setup.tools.apps);
+  const desktop = useDesktopMembers(pool.id);
   if (kind !== "none" && kind !== "pool") return null;
   const shape = shapeOfPool(pool, rules.rules, members, ruleLabel);
-  const ready = setupReady(setup.rows, tools?.kind === "on");
+  // Round 6: what can't work is said, and the pool is never "ready" then.
+  const names = new Map<string, string>([...(rules.rules?.members ?? []).map((rule) => [rule.member, ruleLabel(rule)] as const), ...rules.watched.map((one) => [one.member, one.title ?? "A session in another app"] as const)]);
+  const blockers = setupBlockers(tools, [...(desktop?.values() ?? [])].map((one) => ({ name: names.get(one.member) ?? "A desktop member", reach: reachOf(one) })));
+  const ready = setupReady(setup.rows, tools?.kind === "on") && blockers.length === 0;
   return (
     <>
       <PoolSummary shape={shape} where={where} needs={needs} tools={setup.tools} onOpen={setup.onOpen} />
-      <PoolChecklist rows={setup.rows} onOpen={setup.onOpen} compact={kind === "pool"} ready={ready} next={ready ? nextLine(shape, where) : null} toolsLeft={toolsLeftLine(tools)} />
+      <PoolChecklist rows={setup.rows} onOpen={setup.onOpen} compact={kind === "pool"} ready={ready} next={ready ? nextLine(shape, where) : null} toolsLeft={toolsLeftLine(tools)} blockers={blockers} prompt={<FirstPrompt shape={shape} where={where} testId="pool-first-prompt" />} />
     </>
   );
 }

@@ -49,15 +49,21 @@ export function NewPoolEveryone({ draft, onDraft, where, nameOf }: { draft: Draf
       {named.length > 0 && (
         <div className="flex flex-col gap-2">
           <span className="section-label">Each member</span>
+          {/* Round 6 (Sam): "On its own: Same as the pool" said nothing. */}
+          <p className="-mt-1 text-meta text-ink-2" data-testid="new-pool-own-hint">
+            Its role, and On its own: what this member may do without asking, if different from the pool.
+          </p>
           <ul className="flex flex-col gap-1" data-testid="new-pool-roles">
             {named.map((member) => {
               const name = nameOf(member.ref, member.label);
               const leadsNext = member.ref === draft.leadNext;
               return (
                 <li key={member.ref} className="flex flex-col gap-1.5 rounded-xl bg-surface-2 px-3 py-2.5" data-testid="new-pool-member-row" data-leads-next={leadsNext || undefined}>
-                  <span className="flex flex-wrap items-center gap-2">
-                    <span className="flex min-w-0 flex-1 flex-col">
-                      <span className="text-body font-medium text-ink">{name}</span>
+                  {/* Round 6 (Sam): the name had a narrow column ("Claude / Code /
+                      CLI ·"); it takes the row's width, the pickers under it. */}
+                  <span className="flex flex-col gap-1.5">
+                    <span className="flex min-w-0 flex-col">
+                      <span className="text-body font-medium text-ink" data-testid="new-pool-member-name">{name}</span>
                       {leadsNext && (
                         // As its card on the diagram says it; the sentence
                         // below reads the rest back.
@@ -67,6 +73,7 @@ export function NewPoolEveryone({ draft, onDraft, where, nameOf }: { draft: Draf
                         </span>
                       )}
                     </span>
+                    <span className="flex flex-wrap items-center gap-2">
                     <RolePicker
                       member={member.kind}
                       name={name}
@@ -81,6 +88,7 @@ export function NewPoolEveryone({ draft, onDraft, where, nameOf }: { draft: Draf
                       testId="new-pool-member-role"
                     />
                     <MemberOwnLevel name={name} value={member.level} poolLevel={draft.level} onChange={(level) => setMember(member.ref, { level })} testId="new-pool-member-level" />
+                    </span>
                   </span>
                   <RoleWhy member={member.kind} testId="new-pool-member-lead-why" />
                   <span className="text-meta text-ink-2" data-testid="new-pool-member-sentence">

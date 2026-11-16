@@ -21,7 +21,7 @@ import { useMessageNeeds } from "../../lib/ipc/messages";
 import { onTasksChanged, useTaskNeeds } from "../../lib/ipc/tasks";
 import { poolCanvasPreviews, type PoolPreviewInfo } from "../../lib/ipc/pool-canvas";
 import type { PoolInfo } from "../../lib/ipc/pools";
-import { needWords, onNewPoolRequest, poolIdsOf, poolNeedCount, roleOf, scopeLabel, takeNewPoolRequest, usePools, warmPool, type NewPoolRequest } from "../../lib/pools";
+import { doneNewPoolRequest, needWords, onNewPoolRequest, poolIdsOf, poolNeedCount, roleOf, scopeLabel, takeNewPoolRequest, usePools, warmPool, type NewPoolRequest } from "../../lib/pools";
 import { sessionState } from "../../lib/rail-items";
 import { NewPool } from "./NewPool";
 import { PoolMini, type MiniNode } from "./PoolMini";
@@ -173,7 +173,11 @@ export function PoolsScreen({ sessions, projects, accounts }: { sessions: Instan
           accounts={accounts}
           project={wizard.project}
           startWith={wizard.template}
-          onClose={() => setWizard(false)}
+          fromProject={wizard.project !== null && wizard.template === "blank"}
+          onClose={() => {
+            doneNewPoolRequest();
+            setWizard(false);
+          }}
         />
       )}
       {pools === null ? (

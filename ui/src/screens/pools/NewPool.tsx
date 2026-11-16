@@ -31,7 +31,7 @@ import { useConversations } from "../../lib/conversations";
 import { useAgentBridge } from "../../lib/ipc/agent-bridge";
 import { MEMBER_KINDS, type MemberKind } from "../../lib/ipc/pool-model";
 import { broadCandidates, draftOf, makePool, sessionCandidates, thisMacOf, type Candidate, type Draft } from "../../lib/new-pool";
-import { NewPoolFrame, fitExisting, type ExistingPool } from "./NewPoolFrame";
+import { NewPoolFrame, fitExisting, foldsTemplates, sayNotAdded, type ExistingPool } from "./NewPoolFrame";
 import { usePairedMacs } from "../../lib/ipc/fleet-launch";
 import { templateById, type PoolTemplate } from "../../lib/pool-templates";
 import { hasUserPools, refreshPools, usePools } from "../../lib/pools";
@@ -111,7 +111,11 @@ export function NewPool({
   startAt,
   embedded = false,
   existing,
+  fromProject,
 }: {
+  /** Opened from a project (round 6): its templates fold away behind
+   * "Or start from a template". */
+  fromProject?: boolean;
   /** AJ-E3011 round 5: an empty pool's own page shows this setup in
    * place (not over the window); its "Show the diagram" is `onClose`. */
   embedded?: boolean;
@@ -217,12 +221,14 @@ export function NewPool({
     }
     setBusy(true);
     try {
-      const id = await makePool({ ...draft, name }, into?.id, { keepScope: existing?.fixedScope === true });
+      const { id, notAdded } = await makePool({ ...draft, name }, into?.id, { keepScope: existing?.fixedScope === true });
       // The canvas's checklist: the steps walked here are seen.
       markSeen(id, steps.slice(1, Math.max(step, furthest) + 1));
       await refreshPools();
       onClose();
       host.openPool?.(id);
+      // Round 6: a chosen member is never dropped silently.
+      void sayNotAdded(notAdded, bridge);
     } catch (cause) {
       showToast({ message: "Couldn't make the pool", detail: errorText(cause), tone: "error" });
     } finally {
@@ -278,7 +284,7 @@ export function NewPool({
         </nav>
         <main className="min-w-0 flex-1 overflow-y-auto bg-canvas px-6 py-5">
           <div className="mx-auto flex max-w-5xl flex-col gap-4">
-            {current === "template" && <NewPoolTemplate chosen={draft.template} onChoose={choose} first={firstPool} />}
+            {current === "template" && <NewPoolTemplate chosen={draft.template} onChoose={choose} first={firstPool} fold={foldsTemplates(fromProject, existing)} />}
             {current === "where" && <NewPoolWhere draft={draft} onDraft={setDraft} projects={stepCandidates.projects} nameFixed={!!into} suggestedName={suggestedName} scopeFixed={existing?.fixedScope ? `Every session in ${where} is part of this team.` : undefined} />}
             {current === "who" && <NewPoolWho draft={draft} onDraft={setDraft} candidates={candidates} onFix={fix} nameOf={memberName} where={where} />}
             {current === "lead" && <NewPoolLead draft={draft} onDraft={setDraft} sessions={candidates.session} nameOf={memberName} where={where} />}
@@ -340,7 +346,7 @@ function NewPoolFooter({
   const last = step === steps.length - 1;
   const makeWords = into ? "Set up the pool" : "Make pool";
   return (
-    <footer className="flex items-center gap-2 bg-surface px-5 py-3">
+    <footer className="flex items-center gap-2 bg-surface px-5 py-3" data-toast-avoid>
       {prefilled ? (
         <p className="min-w-0 flex-1 text-meta text-ink-2" data-testid="new-pool-prefilled">
           <span className="font-medium text-ink">The rest is filled in.</span> {prefilled}

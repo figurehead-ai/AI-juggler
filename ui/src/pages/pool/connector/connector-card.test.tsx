@@ -112,7 +112,8 @@ describe("AJ-E3013: the connector's consent card", () => {
 
   it("an app that can't take it (the Codex app): why, plainly, and that no guide can do it either", async () => {
     card(CODEX);
-    expect((await screen.findByTestId("c-why-not")).textContent).toBe("AI Juggler can't add its connector here: Codex can't yet tell which thread is calling.");
+    // Round 6: never the backend's own text; this preview has no reason code.
+    expect((await screen.findByTestId("c-why-not")).textContent).toBe("AI Juggler can't add its connector to this app yet.");
     expect(screen.getByTestId("c-guide-none").textContent).toContain("no guide for it either");
     expect(screen.queryByTestId("c-add")).toBeNull();
   });

@@ -53,3 +53,33 @@ export function EmptyPoolSetup({ pool, rules, projects, sessions, accounts, onDi
     </div>
   );
 }
+
+/** Round 6 (Sam: "Open the pool" showed a blank panel for ~3 s): the
+ * setup's own frame at once while the pool is read — its title, its
+ * steps and a step's place — so nothing is blank and nothing jumps. */
+export function SetupSkeleton({ title }: { title: string }): JSX.Element {
+  const bar = "rounded-md bg-surface-3 motion-safe:animate-pulse";
+  return (
+    <output aria-label="Reading the pool" className="flex h-full min-h-0 flex-col overflow-hidden rounded-card border border-hairline bg-surface" data-testid="pool-page-loading">
+      <span className="flex items-center gap-3 bg-surface px-5 py-3">
+        <span className="text-title font-semibold text-ink">{title}</span>
+      </span>
+      <span className="flex min-h-0 flex-1">
+        <span className="flex w-60 shrink-0 flex-col gap-2 bg-surface p-3">
+          {Array.from({ length: 8 }, (_, at) => (
+            <span key={at} className={bar + " h-7"} />
+          ))}
+        </span>
+        <span className="flex min-w-0 flex-1 flex-col gap-3 bg-canvas px-6 py-5">
+          <span className={bar + " h-5 w-48"} />
+          <span className={bar + " h-4 w-80"} />
+          <span className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {Array.from({ length: 3 }, (_, at) => (
+              <span key={at} className={bar + " h-28"} />
+            ))}
+          </span>
+        </span>
+      </span>
+    </output>
+  );
+}

@@ -1503,8 +1503,7 @@
  },
  "src/lib/new-pool.ts": {
   "typescript(consistent-return)": 1,
-  "typescript(no-unnecessary-type-assertion)": 1,
-  "typescript(no-unsafe-type-assertion)": 1
+  "typescript(no-unnecessary-type-assertion)": 1
  },
  "src/lib/new-session-choice.test.ts": {
   "typescript(no-unnecessary-type-assertion)": 1,

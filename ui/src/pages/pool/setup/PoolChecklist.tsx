@@ -10,7 +10,7 @@
  * sentences'). Where something else is selected it shrinks to one line
  * that opens it again.
  */
-import type { JSX } from "react";
+import type { JSX, ReactNode } from "react";
 
 import { IconCheck } from "../../../components/icons-controls";
 import { SELECTED_FILL } from "../../../components/controls/selected";
@@ -26,7 +26,14 @@ export function PoolChecklist({
   ready = false,
   next: nextWords = null,
   toolsLeft = null,
+  blockers = [],
+  prompt = null,
 }: {
+  /** Round 6: what to tell the lead first, with Copy (`FirstPrompt`). */
+  prompt?: ReactNode;
+  /** Round 6: what keeps the pool from working (`setupBlockers`): said
+   * plainly, and the setup is never "done" or "ready" while any is. */
+  blockers?: readonly string[];
   rows: readonly SetupRow[];
   onOpen: (step: Step) => void;
   compact?: boolean;
@@ -38,7 +45,8 @@ export function PoolChecklist({
   toolsLeft?: string | null;
 }): JSX.Element | null {
   const done = rows.filter((row) => row.done).length;
-  if (ready) return <Ready next={nextWords} compact={compact} />;
+  const blocked = blockers.length > 0;
+  if (ready && !blocked) return <Ready next={nextWords} compact={compact} prompt={prompt} />;
   // Every step done but the team tools off: the list stays, all ticked,
   // and says what's left (the question or its Turn on is at the top).
   const next = rows.find((row) => !row.done);
@@ -52,7 +60,7 @@ export function PoolChecklist({
       >
         <span className="section-label">Setup</span>
         <span className="min-w-0 flex-1 truncate">
-          {done} of {rows.length} done · {next ? `next: ${STEP_WORDS[next.step].title}` : "ready once the team tools are on"}
+          {blocked ? `Can't work yet: ${blockers[0]}` : `${done} of ${rows.length} done · ${next ? `next: ${STEP_WORDS[next.step].title}` : "ready once the team tools are on"}`}
         </span>
       </button>
     );
@@ -63,8 +71,8 @@ export function PoolChecklist({
         <h4 id="pool-checklist-title" className="text-body font-semibold text-ink">
           Set up this pool
         </h4>
-        <span className="text-meta text-muted" data-testid="pool-checklist-count">
-          {done} of {rows.length} done
+        <span className={"text-meta " + (blocked ? "font-medium text-warning" : "text-muted")} data-testid="pool-checklist-count">
+          {blocked ? "Can't work yet" : `${done} of ${rows.length} done`}
         </span>
       </div>
       <ol className="flex flex-col gap-0.5">
@@ -105,7 +113,16 @@ export function PoolChecklist({
           );
         })}
       </ol>
-      {!next && toolsLeft && (
+      {blocked && (
+        <ul className="flex flex-col gap-1 px-2" data-testid="pool-checklist-blocked">
+          {blockers.map((line) => (
+            <li key={line} className="text-meta text-warning">
+              {line}
+            </li>
+          ))}
+        </ul>
+      )}
+      {!blocked && !next && toolsLeft && (
         <p className="px-2 text-meta text-ink-2" data-testid="pool-checklist-tools-left">
           {toolsLeft}
         </p>
@@ -115,7 +132,7 @@ export function PoolChecklist({
 }
 
 /** Ready: the pool works as it is; what happens next, in one line. */
-function Ready({ next, compact }: { next: string | null; compact: boolean }): JSX.Element {
+function Ready({ next, compact, prompt }: { next: string | null; compact: boolean; prompt: ReactNode }): JSX.Element {
   if (compact)
     return (
       <p className="mx-4 mb-2 flex items-center gap-2 rounded-lg bg-surface-2 px-3 py-1.5 text-meta text-ink-2" data-testid="pool-checklist-line">
@@ -134,6 +151,7 @@ function Ready({ next, compact }: { next: string | null; compact: boolean }): JS
           <span className="font-medium text-ink">What happens next:</span> {next}.
         </p>
       )}
+      {prompt}
     </section>
   );
 }
