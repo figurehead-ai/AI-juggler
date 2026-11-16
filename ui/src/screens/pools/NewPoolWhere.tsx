@@ -61,7 +61,6 @@ export function NewPoolWhere({
       <fieldset className="flex min-w-0 flex-col gap-2">
         <legend className="mb-2 text-meta font-medium text-ink">Which projects its sessions come from</legend>
         <Segmented
-          calm
           label="Which projects its sessions come from"
           value={draft.every ? "every" : "these"}
           segments={[

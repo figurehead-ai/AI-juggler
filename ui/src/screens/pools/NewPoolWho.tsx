@@ -146,7 +146,6 @@ export function NewPoolWho({
           </span>
           <span className="flex flex-wrap items-center gap-2">
             <Segmented<MemberKind | "more">
-              calm
               wrap
               label="Kind of member"
               value={isMore(kind) ? "more" : kind}

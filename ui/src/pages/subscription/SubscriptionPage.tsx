@@ -17,7 +17,7 @@ import { Button } from "../../components/primitives";
 import { useActionHost } from "../../components/ItemMenu";
 import { accountColor } from "../../lib/marks";
 import { UsageDashboard } from "../../components/usage/Dashboard";
-import { Segmented } from "../../components/usage/controls";
+import { Segmented } from "../../components/controls";
 import { useRange } from "../../components/usage/useUsage";
 import { PageShell, showTab } from "../PageShell";
 import { PageHeader } from "../PageHeader";
@@ -44,7 +44,7 @@ import { appByConversation, appByFolder, appKeyOf } from "../../lib/rail-apps";
 import { itemsOf, type RailItem } from "../../lib/rail-items";
 import { renewalLabel, renewalRowVisible } from "../../lib/renewal";
 import { RenewalChip } from "../../components/RenewalChip";
-import { RANGES } from "../../lib/usage/range";
+import { RANGE_SEGMENTS } from "../../lib/usage/range";
 import { useSeen } from "../../lib/seen";
 import { useShownConversations } from "../../lib/shown-apps";
 import { accountDisplay, accountLine, accountName, staleSubscriptions, useSubscriptions, type SubscriptionInfo } from "../../lib/subscriptions";
@@ -333,7 +333,7 @@ function AccountUsageTab({ name, folders, accounts }: { name: string; folders: s
     <section aria-label="Usage" className="flex flex-col gap-3" data-testid="account-usage">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h3 className="text-section text-ink">Usage on {name}</h3>
-        <Segmented label="Range" options={RANGES.map(({ id, label }) => ({ id, label }))} value={range} onChange={setRange} />
+        <Segmented label="Range" segments={RANGE_SEGMENTS} value={range} onChange={setRange} />
       </div>
       <UsageDashboard kind="profile" scope={{ profiles: folders }} range={range} accounts={accounts.filter((account) => folders.includes(account.id))} testId="account-usage-dashboard" />
     </section>

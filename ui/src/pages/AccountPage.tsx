@@ -10,10 +10,11 @@ import { runwayOf } from "../components/AccountRunway";
 import { UsageDashboard } from "../components/usage/Dashboard";
 import { nothingRead, RunwayPanel } from "../components/usage/Runway";
 import { useWeekByProfile } from "../components/usage/RunwayCards";
-import { IconGauge, Segmented } from "../components/usage/controls";
+import { IconGauge } from "../components/usage/controls";
+import { Segmented } from "../components/controls";
 import { useRange } from "../components/usage/useUsage";
 import { accountColor } from "../lib/marks";
-import { RANGES } from "../lib/usage/range";
+import { RANGE_SEGMENTS } from "../lib/usage/range";
 import { quotaDisplay, type QuotaDisplayData } from "../lib/ipc/quota";
 import { MeasureLimits } from "../components/MeasureLimits";
 import type { AccountInfo } from "../types/generated/AccountInfo";
@@ -69,7 +70,7 @@ export function AccountUsage({ account, accounts }: { account: AccountInfo; acco
     <section aria-label="Usage" className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h3 className="text-section text-ink">Usage on {account.label}</h3>
-        <Segmented label="Range" options={RANGES.map(({ id, label }) => ({ id, label }))} value={range} onChange={setRange} />
+        <Segmented label="Range" segments={RANGE_SEGMENTS} value={range} onChange={setRange} />
       </div>
       <UsageDashboard kind="profile" scope={{ profile: account.id }} range={range} accounts={accounts} testId="account-usage-dashboard" />
     </section>
