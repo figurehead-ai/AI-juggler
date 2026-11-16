@@ -16,6 +16,7 @@ import { setPools } from "../../lib/pools";
 import { SAME_AS_POOL, ownLabel, wakeWords } from "../../lib/pool-words";
 import { MemberOwnLevel } from "./setup/OwnLevelChoice";
 import { useSessionPools } from "../session/useSessionPools";
+import { Section } from "./Section";
 
 const ROLES: readonly PoolRole[] = ["lead", "member", "reviewer", "observer"];
 const roleOf = (word: string): PoolRole => ROLES.find((one) => one === word) ?? "member";
@@ -28,7 +29,10 @@ export function keptLevelWords(via: string, level: string | null, poolLevel: str
   return `Same as its ${VIA_WORD[via] ?? "member"} (${ownLabel(level ?? poolLevel)})`;
 }
 
-export function MemberLevel({ pool, sessionId, memberRole }: { pool: PoolInfo; sessionId: string; memberRole: string }): JSX.Element | null {
+/** `look`: a section of its own in the member's inspector, or a row's
+ * detail in the List view, whose term says what it is (the rc2 walk P5,
+ * AJ-E3304 L4: reachable from both, the walker found it on neither). */
+export function MemberLevel({ pool, sessionId, memberRole, name = "it", look = "section" }: { pool: PoolInfo; sessionId: string; memberRole: string; name?: string; look?: "section" | "row" }): JSX.Element | null {
   const info = useSessionPools(sessionId);
   const [busy, setBusy] = useState(false);
   const place = info?.pools.find((one) => one.pool_id === pool.id);
@@ -49,13 +53,12 @@ export function MemberLevel({ pool, sessionId, memberRole }: { pool: PoolInfo; s
       setBusy(false);
     }
   };
-  return (
+  const body = (
     <div className="flex flex-col gap-1.5" data-testid="inspect-node-level">
-      <span className="text-meta font-medium text-ink">What it may do on its own</span>
       {/* Round 3: the members' one control for this (MemberOwnLevel). */}
       <MemberOwnLevel
         prefix=""
-        name="it"
+        name={name}
         value={value === "keep" ? null : value}
         poolLevel={pool.access.level}
         kept={keptLevelWords(place.via, place.level, pool.access.level)}
@@ -68,5 +71,10 @@ export function MemberLevel({ pool, sessionId, memberRole }: { pool: PoolInfo; s
         Messages: it {wakeWords(place.level ?? pool.access.level)}.
       </span>
     </div>
+  );
+  return look === "row" ? body : (
+    <Section title="What it may do on its own" testId="inspect-node-own">
+      {body}
+    </Section>
   );
 }

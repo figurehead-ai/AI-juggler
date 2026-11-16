@@ -328,7 +328,7 @@ function PoolCanvasPage({ poolId, sessions, projects, accounts, now, rules }: Pa
               }
             />
           ) : (
-            <MemberList data={data} canvas={data.canvas} sessions={sessions} names={names} now={now} onSelect={(next) => select(next, true)} />
+            <MemberList pool={pool} data={data} canvas={data.canvas} sessions={sessions} names={names} now={now} onSelect={(next) => select(next, true)} />
           )}
           {panel && (
             <section

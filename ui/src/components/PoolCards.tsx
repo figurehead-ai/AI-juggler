@@ -1,4 +1,4 @@
-import { useState, type JSX } from "react";
+import { useState, type JSX, type ReactNode } from "react";
 
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import type { CardField, ContextCard, PoolMemberRow } from "../lib/ipc/pools";
@@ -25,7 +25,10 @@ import { ShellOnly, useShellOnly } from "./ShellOnly";
  * ran. A member the rail holds shows its live state; the rest, the state
  * their page was read with.
  */
-export function PoolCardRows({ list, sessions, now }: { list: Paged<PoolMemberRow>; sessions: InstanceInfo[]; now: number }): JSX.Element {
+/** `renderOwn`: a row's own choices in its pool, behind its disclosure
+ * (the pool page's List view: what it may do on its own there, the rc2
+ * walk P5). */
+export function PoolCardRows({ list, sessions, now, renderOwn }: { list: Paged<PoolMemberRow>; sessions: InstanceInfo[]; now: number; renderOwn?: (row: PoolMemberRow, name: string) => ReactNode }): JSX.Element {
   return (
     <PagedList
       list={list}
@@ -35,14 +38,14 @@ export function PoolCardRows({ list, sessions, now }: { list: Paged<PoolMemberRo
       skeletonRows={3}
       testId="pool-cards"
       empty={<p className="text-xs text-ink-2">No sessions here yet. Move one in from its menu in the list.</p>}
-      renderRow={(row) => <CardRow card={row.card} session={sessions.find((session) => session.id === row.session.id) ?? row.session} now={now} heldBy={row.held_by} />}
+      renderRow={(row) => <CardRow card={row.card} session={sessions.find((session) => session.id === row.session.id) ?? row.session} now={now} heldBy={row.held_by} own={renderOwn ? (name) => renderOwn(row, name) : undefined} />}
     />
   );
 }
 
 /** `heldBy`: a sealed pool holds it out of this one (D-62, the P7 walk):
  * shown greyed, saying where it is. */
-function CardRow({ card, session, now, heldBy = null }: { card: ContextCard; session: InstanceInfo; now: number; heldBy?: string | null }): JSX.Element {
+function CardRow({ card, session, now, heldBy = null, own }: { card: ContextCard; session: InstanceInfo; now: number; heldBy?: string | null; own?: (name: string) => ReactNode }): JSX.Element {
   const host = useActionHost();
   const [open, setOpen] = useState(false);
   // The rail's words and dot (Asks you, Working, Idle, Ended).
@@ -125,6 +128,12 @@ function CardRow({ card, session, now, heldBy = null }: { card: ContextCard; ses
         <dl id={detailId} className="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1.5 border-t border-hairline/40 px-4 py-2.5 text-label" data-testid="pool-card-detail">
           <dt className="text-muted">Role</dt>
           <dd className="text-ink">{roleLabel(card.role)}</dd>
+          {own && !heldBy && (
+            <>
+              <dt className="pt-1 text-muted">On its own</dt>
+              <dd data-testid="pool-card-own">{own(name)}</dd>
+            </>
+          )}
           <dt className="text-muted">It says</dt>
           <dd data-testid="pool-card-said">
             <Field field={card.said} said />

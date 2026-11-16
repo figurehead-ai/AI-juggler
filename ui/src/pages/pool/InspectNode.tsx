@@ -131,6 +131,10 @@ export function InspectNode({
         </Section>
       )}
 
+      {/* Its own choice here, near the top (the rc2 walk P5: the walker
+          didn't find it at the foot, under Usage). */}
+      <MemberLevel pool={pool} sessionId={member.id} memberRole={member.role} />
+
       <Section title="What it's doing">
         {member.card.said.value ? (
           <p className="text-body text-ink">
@@ -201,7 +205,6 @@ export function InspectNode({
       </Section>
 
       <Section title="Rules">
-        <MemberLevel pool={pool} sessionId={member.id} memberRole={member.role} />
         <p className="text-label text-muted">
           It works under the pool's rules: {pool.rules.length === 0 ? "nothing always allowed yet" : `${pool.rules.length} always allowed`}.{" "}
           <button type="button" onClick={onSelectPool} className="rounded text-accent-hi underline-offset-2 outline-none hover:underline focus-visible:ring-1 focus-visible:ring-accent/60">
