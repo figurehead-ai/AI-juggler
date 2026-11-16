@@ -435,14 +435,20 @@ export function HomeScreen({
           <HomeCards area="foot" ctx={cards} />
         </>
       ) : (
-        <div className={"grid min-h-0 flex-1 gap-6 " + COLUMNS}>
+        // Each column is `relative`: an absolutely placed child (a row's
+        // sr-only words, its hover actions) then takes the column as its
+        // box and is clipped there. Without it they escaped to the page's
+        // scroller (pages.tsx, `relative`) and gave it a scroll of its own,
+        // so a wheel moved both columns up and left a gap (CI run
+        // 43857640404, home-scrolled).
+        <div className={"grid min-h-0 flex-1 gap-6 " + COLUMNS} data-testid="home-columns">
           <div
             ref={(node) => {
               feedBox.current = node;
               return feedScroll(node);
             }}
             onScroll={edge}
-            className="scroll-edge min-h-0 min-w-0 overflow-y-auto overscroll-contain pb-10 pr-1"
+            className="scroll-edge relative min-h-0 min-w-0 overflow-y-auto overscroll-contain pb-10 pr-1"
             data-testid="home-main"
           >
             <div className="flex w-full max-w-[720px] flex-col gap-5">
@@ -450,7 +456,7 @@ export function HomeScreen({
               <HomeCards area="foot" ctx={cards} />
             </div>
           </div>
-          <div onScroll={edge} className="scroll-edge min-h-0 min-w-0 overflow-y-auto overscroll-contain pb-10 pr-1" data-testid="home-side-scroll">
+          <div onScroll={edge} className="scroll-edge relative min-h-0 min-w-0 overflow-y-auto overscroll-contain pb-10 pr-1" data-testid="home-side-scroll">
             {side}
           </div>
         </div>

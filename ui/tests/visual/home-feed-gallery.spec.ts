@@ -158,6 +158,55 @@ for (const theme of ["dark", "light"] as const) {
   });
 }
 
+/**
+ * D-118 R1: in two columns only the columns scroll. The page's own
+ * scroller (`home-scroll`) has nothing to scroll, each column fills the
+ * height under the head to the work area's foot, and scrolling the feed
+ * moves only the feed. CI run 43857640404: a row's absolutely placed words
+ * escaped the columns, gave the page a scroll of its own, and a scroll
+ * moved both columns up and left a gap under them.
+ */
+for (const size of [{ width: 1024, height: 680 }, { width: 1280, height: 800 }]) {
+  test(`home feed — two columns, only the columns scroll — ${size.width}x${size.height}`, async ({ page }) => {
+    await seed(page, allStatuses, "dark", size, { feed: busyFeed(T0), summary: away(T0, 9) });
+    await expect(page.getByTestId("home")).toHaveAttribute("data-layout", "columns");
+    await expect(page.getByTestId("feed-card").first()).toBeVisible();
+    const boxes = () =>
+      page.evaluate(() => {
+        const at = (id: string) => document.querySelector<HTMLElement>(`[data-testid="${id}"]`)!;
+        const outer = at("home-scroll");
+        const work = outer.parentElement!.closest("main")!;
+        const pad = parseFloat(getComputedStyle(work).paddingBottom);
+        const box = (node: HTMLElement) => node.getBoundingClientRect();
+        return {
+          outer: { scroll: outer.scrollHeight, client: outer.clientHeight, top: outer.scrollTop },
+          foot: box(work).bottom - pad,
+          main: { top: box(at("home-main")).top, bottom: box(at("home-main")).bottom, scroll: at("home-main").scrollHeight, client: at("home-main").clientHeight },
+          side: { top: box(at("home-side-scroll")).top, bottom: box(at("home-side-scroll")).bottom },
+          sideFirst: box(at("home-side")).top,
+        };
+      });
+    const before = await boxes();
+    expect(before.outer.scroll, "the page has no scroll of its own").toBe(before.outer.client);
+    expect(Math.abs(before.main.bottom - before.foot), "the feed column reaches the work area's foot").toBeLessThanOrEqual(1);
+    expect(Math.abs(before.side.bottom - before.foot), "the right column reaches the work area's foot").toBeLessThanOrEqual(1);
+    expect(before.main.bottom, "…which is the window's foot, less the work area's padding").toBeGreaterThan(size.height - 32);
+    expect(before.main.scroll, "busy's feed is longer than its column").toBeGreaterThan(before.main.client);
+    // Scroll the feed to its end: the page and the right column stay put.
+    await page.getByTestId("home-main").evaluate((node) => node.scrollTo(0, node.scrollHeight));
+    await page.mouse.move(size.width / 3, size.height / 2);
+    await page.mouse.wheel(0, 2_000);
+    await expect.poll(() => page.getByTestId("home-main").evaluate((node) => node.scrollTop)).toBeGreaterThan(0);
+    const after = await boxes();
+    expect(after.outer.top, "the page did not scroll").toBe(0);
+    expect(after.outer.scroll).toBe(after.outer.client);
+    expect(after.side, "the right column did not move").toEqual(before.side);
+    expect(after.sideFirst, "nor did its contents").toBe(before.sideFirst);
+    expect(after.main.top, "the feed column's box stayed under the head").toBe(before.main.top);
+    expect(after.main.bottom).toBe(before.main.bottom);
+  });
+}
+
 /** The toolbar's boxes: the chips' row, each chip, the picker and the ⋯,
  * with whether any of them is cut (its words wider than its box, or past
  * the toolbar's edge). */

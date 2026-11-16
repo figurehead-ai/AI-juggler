@@ -149,14 +149,24 @@ for (const theme of THEMES) {
 
       // AJ-E1021: Home's lower half — parked, pick up where you left off
       // (Mark reviewed, Show all) and the keyboard line — scrolled into view.
+      // D-118 R1: in two columns only the columns scroll, so the feed's
+      // column is scrolled to its end (the page itself has no scroll and
+      // must stay put: CI run 43857640404 moved both columns up a gap);
+      // stacked, the page scrolls as one.
       test(`home scrolled — ${cell}`, async ({ page }) => {
         await open(page, theme, density, vp, PARKED);
         const home = page.getByTestId("home");
         await expect(home.getByTestId("home-parked")).toBeVisible();
-        await home.evaluate((node) => {
-          const scroller = node.parentElement!;
-          scroller.scrollTop = scroller.scrollHeight;
+        const columns = (await home.getAttribute("data-layout")) === "columns";
+        const scroller = columns ? home.getByTestId("home-main") : page.getByTestId("home-scroll");
+        const moved = await scroller.evaluate((node) => {
+          node.scrollTop = node.scrollHeight;
+          return node.scrollTop;
         });
+        expect(moved, "Home's lower half is below the fold, so the scroll moves").toBeGreaterThan(0);
+        if (columns) {
+          await expect.poll(() => page.getByTestId("home-scroll").evaluate((node) => node.scrollTop)).toBe(0);
+        }
         await page.mouse.move(0, 0);
         await settle(page);
         await expect.soft(page).toHaveScreenshot(`home-scrolled-${cell}.png`, SCREEN);
@@ -618,6 +628,13 @@ test("status is never colour-only", async ({ page }) => {
   // lens's state marks, no per-state glyph): every state mark has its word
   // beside it and in its row's name.
   await projectLens(page);
+  // Its rows read once they are placed: the board holds its place until
+  // Needs you is known (D-103.6), and a row that needs you is in Needs you,
+  // not under its project (AJ-E2103) — the same rows the App lens's Needs
+  // you held. Read before then, a row left under the loop (CI run
+  // 43857640404).
+  await expect(rail.getByRole("status", { name: "Loading sessions" })).toHaveCount(0);
+  await expect(rail.getByTestId("rail-needs-you").locator("[data-rail-item]"), "Needs you, placed").toHaveCount(needs.length);
   await expect(rail.locator("[data-state-glyph]")).toHaveCount(0);
   const glyphs = await rail.locator("button[data-instance-id] [data-state-dot]").all();
   expect(glyphs.length, "the Project lens's rows").toBeGreaterThan(0);
