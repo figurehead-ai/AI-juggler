@@ -146,6 +146,111 @@ pub fn instances_unmark_reviewed_impl(
         .record_lifecycle_many(&ids, "unreviewed")?)
 }
 
+/// What Home's "Mark all N reviewed" did: how many it marked, and when
+/// (its batch, for the toast's Undo).
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, ts_rs::TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
+pub struct ReviewedAllInfo {
+    /// How many were marked.
+    #[ts(type = "number")]
+    pub count: u64,
+    /// When, epoch ms: the batch's stamp.
+    #[ts(type = "number")]
+    pub at_ms: i64,
+}
+
+/// Core (the 0.4.6 RC walk K2, F-K2-7a): Home's "Mark all N reviewed"
+/// marks every session its list holds (`query`'s, read as `to_review`:
+/// the same rows its count and its pages are), not only those the app
+/// holds, in one transaction.
+///
+/// # Errors
+///
+/// The typed storage error.
+pub fn sessions_mark_reviewed_impl(
+    state: &Arc<AppState>,
+    query: &crate::features::sessions::rows::SessionsQuery,
+) -> AppResult<ReviewedAllInfo> {
+    let ids: Vec<SessionId> = crate::features::sessions::rows::to_review_ids(state, query)?
+        .into_iter()
+        .map(SessionId::new)
+        .collect();
+    let at_ms = if ids.is_empty() {
+        juggler_core::model::Timestamp::now().millis()
+    } else {
+        crate::commands::lock_storage_arc(state)?
+            .sessions()
+            .record_lifecycle_many(&ids, "reviewed")?
+    };
+    Ok(ReviewedAllInfo {
+        count: ids.len() as u64,
+        at_ms,
+    })
+}
+
+/// Core (F-K2-7a): undoes one "Mark all N reviewed" (batch `at_ms`): puts
+/// back on the list each session whose latest state is still that batch's
+/// "reviewed" (one archived or reviewed again since stays as it is).
+/// Returns how many.
+///
+/// # Errors
+///
+/// The typed storage error.
+pub fn sessions_unmark_reviewed_impl(state: &Arc<AppState>, at_ms: i64) -> AppResult<u64> {
+    let storage = crate::commands::lock_storage_arc(state)?;
+    let ids: Vec<SessionId> = storage
+        .sessions()
+        .lifecycle_latest()?
+        .into_iter()
+        .filter(|(_, (event, at))| event == "reviewed" && *at == at_ms)
+        .map(|(id, _)| SessionId::new(id))
+        .collect();
+    if !ids.is_empty() {
+        storage
+            .sessions()
+            .record_lifecycle_many(&ids, "unreviewed")?;
+    }
+    Ok(ids.len() as u64)
+}
+
+/// F-K2-7a: Home's Mark all N reviewed, every one its list holds.
+///
+/// # Errors
+///
+/// As [`sessions_mark_reviewed_impl`].
+#[tauri::command]
+pub async fn sessions_mark_reviewed(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, Arc<AppState>>,
+    query: crate::features::sessions::rows::SessionsQuery,
+) -> AppResult<ReviewedAllInfo> {
+    crate::ipc::blocking(state.inner(), "mark all reviewed", move |state| {
+        let done = sessions_mark_reviewed_impl(state, &query)?;
+        crate::features::sessions::read_model::emit_sessions(&app, state)?;
+        Ok(done)
+    })
+    .await
+}
+
+/// F-K2-7a: undoes one Mark all N reviewed.
+///
+/// # Errors
+///
+/// As [`sessions_unmark_reviewed_impl`].
+#[tauri::command]
+pub async fn sessions_unmark_reviewed(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, Arc<AppState>>,
+    at_ms: i64,
+) -> AppResult<u64> {
+    crate::ipc::blocking(state.inner(), "unmark all reviewed", move |state| {
+        let count = sessions_unmark_reviewed_impl(state, at_ms)?;
+        crate::features::sessions::read_model::emit_sessions(&app, state)?;
+        Ok(count)
+    })
+    .await
+}
+
 /// AJ-E2910: Home's Mark all reviewed.
 ///
 /// # Errors

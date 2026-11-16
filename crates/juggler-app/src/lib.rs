@@ -555,6 +555,9 @@ macro_rules! app_commands {
             // AJ-E2910: Home's Mark all reviewed, and its Undo.
             Write lifecycle::instances_mark_reviewed,
             Write lifecycle::instances_unmark_reviewed,
+            // F-K2-7a: every one its list holds, and its Undo.
+            Write lifecycle::sessions_mark_reviewed,
+            Write lifecycle::sessions_unmark_reviewed,
             Read  manage::editor_choices,
             Write manage::editor_set,
             Write manage::project_rename,

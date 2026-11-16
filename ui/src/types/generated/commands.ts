@@ -167,6 +167,7 @@ import type { ResetQueueInfo } from "./ResetQueueInfo";
 import type { RestorePlanInfo } from "./RestorePlanInfo";
 import type { RestoreResultInfo } from "./RestoreResultInfo";
 import type { RetentionPreviewInfo } from "./RetentionPreviewInfo";
+import type { ReviewedAllInfo } from "./ReviewedAllInfo";
 import type { RulePreviewInfo } from "./RulePreviewInfo";
 import type { RulesDiffInfo } from "./RulesDiffInfo";
 import type { RulesSyncInfo } from "./RulesSyncInfo";
@@ -1025,12 +1026,16 @@ export interface Commands {
   sessions_history: { args: { sessionId: string; page: PageRequest }; result: Page<SessionEventInfo> };
   /** Read features::sessions::commands::sessions_list_alias */
   sessions_list_alias: { args: Record<string, never>; result: InstanceInfo[] };
+  /** Write lifecycle::sessions_mark_reviewed */
+  sessions_mark_reviewed: { args: { query: SessionsQuery }; result: ReviewedAllInfo };
   /** Read features::sessions::commands::sessions_page */
   sessions_page: { args: { query: SessionsQuery; page: PageRequest }; result: Page<SessionRowInfo> };
   /** Write features::sessions::commands::sessions_restart_choice_set */
   sessions_restart_choice_set: { args: { recipeId: string; restart?: boolean | null }; result: void };
   /** Read features::sessions::commands::sessions_resume_command */
   sessions_resume_command: { args: { sessionId: string }; result: string };
+  /** Write lifecycle::sessions_unmark_reviewed */
+  sessions_unmark_reviewed: { args: { atMs: number }; result: number };
   /** Write features::account::commands::source_inspect */
   source_inspect: { args: { harness: string; sourcePath: string }; result: SourceInspectInfo };
   /** Read features::staging::staging_ready */

@@ -62,7 +62,10 @@ pub struct SessionsQuery {
     #[serde(default)]
     #[ts(optional = nullable, type = "number | null")]
     pub since_ms: Option<i64>,
-    /// `all` (the default), `open`, `ended` (not archived) or `archived`.
+    /// `all` (the default), `open`, `ended` (not archived), `archived`, or
+    /// `to_review`: AI Juggler's own sessions that finished or were
+    /// stopped and aren't marked reviewed or archived (Home's "Pick up
+    /// where you left off", with `since_ms` its window).
     #[serde(default)]
     pub which: Option<String>,
     /// Words that must each match the row (its title, project, account,
@@ -118,6 +121,8 @@ pub(super) struct Candidate {
     pub(super) key: String,
     pub(super) live: bool,
     pub(super) archived: bool,
+    /// One of AI Juggler's sessions to review ([`Which::ToReview`]).
+    pub(super) review: bool,
     /// Where it stands in the order ([`Rank`]).
     rank: Rank,
     last_ms: i64,
@@ -197,7 +202,8 @@ impl Candidate {
         SortKey::new([self.rank as i64, -self.last_ms], self.key.clone())
     }
 
-    /// Does it pass the filters a row is built without (its Mac, since)?
+    /// Does it pass the filters a row is built without (its Mac, tool,
+    /// since, and whether it's one to review)?
     fn passes(&self, query: &SessionsQuery) -> bool {
         query
             .machine_id
@@ -208,6 +214,7 @@ impl Candidate {
                 .as_ref()
                 .is_none_or(|tool| *tool == self.of.tool)
             && query.since_ms.is_none_or(|since| self.last_ms >= since)
+            && (Which::of(query) != Which::ToReview || self.review)
     }
 
     pub(super) fn shown_by(&self, which: Which) -> bool {
@@ -216,6 +223,7 @@ impl Candidate {
             Which::Open => self.live,
             Which::Ended => !self.live && !self.archived,
             Which::Archived => !self.live && self.archived,
+            Which::ToReview => self.review,
         }
     }
 }
@@ -226,6 +234,10 @@ pub(super) enum Which {
     Open,
     Ended,
     Archived,
+    /// AI Juggler's own sessions to pick up: they finished or were
+    /// stopped, and aren't marked reviewed or archived (the 0.4.6 RC walk
+    /// K2, F-K2-7a: Home counted only the ones the app holds).
+    ToReview,
 }
 
 impl Which {
@@ -234,6 +246,7 @@ impl Which {
             Some("open") => Self::Open,
             Some("ended") => Self::Ended,
             Some("archived") => Self::Archived,
+            Some("to_review") => Self::ToReview,
             _ => Self::All,
         }
     }
@@ -604,12 +617,20 @@ pub(super) fn read(state: &Arc<AppState>, query: &SessionsQuery, facets: bool) -
             .then(|| state.runtime.info(record.id.as_str()))
             .flatten()
             .and_then(|info| info.state);
+        let state_event = lifecycle
+            .get(record.id.as_str())
+            .map(|(event, _)| event.as_str());
         let candidate = Candidate {
             key,
             live,
-            archived: lifecycle
-                .get(record.id.as_str())
-                .is_some_and(|(event, _)| event == "archived"),
+            archived: state_event == Some("archived"),
+            // Finished or stopped (a failed one needs you; a handed-over
+            // one goes on in its successor), not reviewed or archived.
+            review: matches!(
+                record.status,
+                juggler_core::model::SessionStatus::Finished
+                    | juggler_core::model::SessionStatus::Stopped
+            ) && !matches!(state_event, Some("reviewed" | "archived")),
             rank: Rank::of_session(record.status, runtime.as_deref()),
             last_ms: record
                 .last_activity
@@ -675,6 +696,7 @@ fn conversation_candidate(
         live: conversation.live,
         // 0.4.1: one archived in AI Juggler is under Archived.
         archived: !conversation.live && conversation.archived_here,
+        review: false,
         rank: Rank::of_conversation(conversation.live, conversation.state.as_deref()),
         last_ms: conversation
             .last_activity_ms
@@ -768,12 +790,13 @@ pub fn sessions_counts_impl(
 /// The entity whose sessions `query`'s list is, when it is a whole one.
 fn whole_list(query: &SessionsQuery) -> Option<crate::features::relations::EntityRef> {
     use crate::features::relations::{EntityKind, EntityRef};
-    // A search, a Mac, a time, "No project" or "No account" narrow what no entity's
-    // counts hold.
-    if query
-        .text
-        .as_deref()
-        .is_some_and(|text| !text.trim().is_empty())
+    // A search, a Mac, a time, "No project", "No account" or the sessions
+    // to review narrow what no entity's counts hold.
+    if Which::of(query) == Which::ToReview
+        || query
+            .text
+            .as_deref()
+            .is_some_and(|text| !text.trim().is_empty())
         || query.machine_id.is_some()
         || query.since_ms.is_some()
         || query.project_id.as_deref() == Some("")
@@ -798,6 +821,27 @@ fn whole_list(query: &SessionsQuery) -> Option<crate::features::relations::Entit
         (Some((kind, id)), None) => Some(EntityRef { kind, id }),
         _ => None,
     }
+}
+
+/// The ids of AI Juggler's sessions to review in `query`'s list (its
+/// scope, search, filters and time, read as [`Which::ToReview`]): what
+/// Home's "Mark all N reviewed" marks, every one, not only those the app
+/// holds (the 0.4.6 RC walk K2, F-K2-7a).
+///
+/// # Errors
+///
+/// Storage errors.
+pub fn to_review_ids(state: &Arc<AppState>, query: &SessionsQuery) -> AppResult<Vec<String>> {
+    let query = SessionsQuery {
+        which: Some("to_review".to_owned()),
+        ..query.clone()
+    };
+    Ok(read(state, &query, false)?
+        .candidates
+        .into_iter()
+        .filter(|candidate| candidate.review)
+        .filter_map(|candidate| candidate.key.strip_prefix("s/").map(str::to_owned))
+        .collect())
 }
 
 /// [`sessions_counts_impl`] counted from the rows themselves, whatever the

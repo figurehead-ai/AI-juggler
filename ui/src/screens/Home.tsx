@@ -24,7 +24,7 @@ import { ListBuilding } from "../components/ListBuilding";
 import { useKeys } from "../lib/use-keys";
 import { useResource } from "../lib/use-resource";
 import { focusHandoverSoon } from "../lib/handover-focus";
-import { instancesMarkReviewed } from "../lib/ipc/review";
+import { useReviewList } from "../lib/home-review";
 import { useCallback, useEffect, useMemo, useRef, useState, type JSX, type KeyboardEvent } from "react";
 import { runwayOf } from "../components/AccountRunway";
 import { useMachineLevel, type ThisMacInfo } from "../lib/machine";
@@ -63,21 +63,10 @@ import { placeOf } from "../lib/project-words";
 
 const NEEDS = ["waiting_user", "stuck", "quota_blocked", "failed"] as const;
 type Need = (typeof NEEDS)[number];
-const ENDED = ["finished", "stopped", "handed_over"];
-/** Ended sessions older than this are left to History (AJ-E1007). */
-const TO_REVIEW_WINDOW_MS = 7 * 24 * 3_600_000;
 /** "Pick up where you left off" shows this many, the rest on request. */
 const RECENT_SHOWN = 3;
 
-/** Ended this week (not handed over) and not yet marked reviewed or archived. */
-export function toReview(session: InstanceInfo, now: number): boolean {
-  if (!ENDED.includes(session.status)) return false;
-  // A handed-over session goes on elsewhere; its successor is the one to
-  // pick up (as Triage had it).
-  if (session.status === "handed_over") return false;
-  if (session.lifecycle === "reviewed" || session.lifecycle === "archived") return false;
-  return now - (session.last_activity_ms ?? session.started_at_ms) <= TO_REVIEW_WINDOW_MS;
-}
+export { toReview } from "../lib/home-review";
 
 /** A session's need, from the status or the attention flag. */
 export function needOf(session: InstanceInfo): Need | null {
@@ -310,14 +299,14 @@ export function HomeScreen({
   const parked = sessions
     .filter((s) => s.parked)
     .sort((a, b) => (a.parked_resets_at_ms ?? Number.MAX_SAFE_INTEGER) - (b.parked_resets_at_ms ?? Number.MAX_SAFE_INTEGER));
-  const review = sessions
-    .filter((s) => toReview(s, now))
-    .sort((a, b) => (b.last_activity_ms ?? b.started_at_ms) - (a.last_activity_ms ?? a.started_at_ms));
+  // F-K2-7a: every one to review (the backend's count and pages), not
+  // only those the app holds; its rows from the working set at once.
+  const toPick = useReviewList(sessions, now, showAll);
+  const review = toPick.rows;
   const reviewAll = async () => {
-    const ids = review.map((session) => session.id);
     try {
-      await instancesMarkReviewed(ids);
-      showToast({ id: "reviewed:all", message: `Marked ${ids.length} reviewed.`, undo: { onUndo: async () => { await instancesMarkReviewed(ids, true); onChanged?.(); }, done: "They're back on the list." } });
+      const done = await toPick.markAll();
+      showToast({ id: "reviewed:all", message: `Marked ${done.count} reviewed.`, undo: { onUndo: async () => { await done.undo(); onChanged?.(); }, done: "They're back on the list." } });
       onChanged?.();
     } catch (cause) {
       showToast({ tone: "error", message: `Couldn't mark them reviewed: ${errorText(cause)}` });
@@ -415,7 +404,7 @@ export function HomeScreen({
     const what = row.credits ? row.words : `${row.left}% left`;
     return { left: row.left, words: shown ? what : `${whose} · ${what}` };
   };
-  const recentArea = <HomeRecent recent={recent} total={review.length} shown={RECENT_SHOWN} showAll={showAll} onShowAll={() => setShowAll((open) => !open)} projects={projects} now={now} busy={busy} onOpen={onOpenSession} onReviewed={(session) => void act(session, "reviewed")} onReviewAll={() => void reviewAll()} />;
+  const recentArea = <HomeRecent recent={recent} total={toPick.total ?? review.length} counted={toPick.total !== null} paged={toPick.paged} shown={RECENT_SHOWN} showAll={showAll} onShowAll={() => setShowAll((open) => !open)} projects={projects} now={now} busy={busy} onOpen={onOpenSession} onReviewed={(session) => void act(session, "reviewed")} onReviewAll={() => void reviewAll()} />;
   // AJ-E2018: the cards themselves are a registry (screens/home-cards).
   const cards: HomeCardContext = {
     sessions, conversations, accounts, projects, subscriptions, now, items, allNeeds, capNeeds, messageNeeds, taskNeeds,
