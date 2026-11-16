@@ -252,6 +252,8 @@ read_routes! {
     // release/0.1's reads (AJ-E1525, E1502, E1504, E1529, E1533).
     "tools_catalog" => async_result features::tools::commands::tools_catalog(state);
     "tool_updates_status" => async_result features::tool_updates::commands::tool_updates_status(state; tool: String);
+    // D-118: Home's activity feed, one keyset page.
+    "feed_page" => async_result features::feed::commands::feed_page(state; request: crate::paging::PageRequest, filters: features::feed::dto::FeedFiltersInfo);
     "conversations_list" => async_result features::conversations::commands::conversations_list(state);
     "conversations_building" => async_result features::conversations::commands::conversations_building(state);
     // 0.3.3: the apps and profiles remembered (reads only; Open and Keep
