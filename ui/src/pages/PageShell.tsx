@@ -201,8 +201,11 @@ export function PageShell({
                 pick(tabs[next]!.id);
                 tabsRef.current?.querySelectorAll<HTMLButtonElement>("[role='tab']")[next]?.focus();
               }}
+              // The chosen tab lights at once, never faded in: a fade
+              // WebKit pauses in a window not shown left the old tab lit
+              // over the new panel (the 0.4.6 RC walks A8 and K2).
               className={
-                "rounded-lg px-2.5 py-1 text-meta font-medium outline-none transition-colors focus-visible:ring-1 focus-visible:ring-accent/60 " +
+                "rounded-lg px-2.5 py-1 text-meta font-medium outline-none focus-visible:ring-1 focus-visible:ring-accent/60 " +
                 (tab === entry.id ? "bg-accent-soft text-accent-hi" : "text-muted hover:bg-surface hover:text-ink")
               }
             >

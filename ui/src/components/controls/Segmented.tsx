@@ -88,7 +88,7 @@ export function Segmented<T extends string>({
             // quarters cut "Account" to "Accou…" beside a short "App"
             // and "Pool" (the 0.3 re-render).
             className={
-              (wrap ? "min-h-6 flex-none whitespace-nowrap " : "min-h-6 min-w-0 flex-auto truncate ") + "rounded-[7px] px-1 py-0.5 text-label outline-none transition-colors focus-visible:ring-2 focus-visible:ring-accent/60 " +
+              (wrap ? "min-h-6 flex-none whitespace-nowrap " : "min-h-6 min-w-0 flex-auto truncate ") + "rounded-[7px] px-1 py-0.5 text-label outline-none focus-visible:ring-2 focus-visible:ring-accent/60 " +
               // The chosen one in the accent's tint and ink, in both themes: a
               // lighter grey in dark couldn't be told without reading (the 0.4
               // design review, 32).
