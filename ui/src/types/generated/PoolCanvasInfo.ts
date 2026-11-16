@@ -35,4 +35,12 @@ stream: Array<StreamLineInfo>,
 /**
  * Edges count from here, epoch ms.
  */
-since_ms: number, };
+since_ms: number, 
+/**
+ * Round 7 #7: each shown node's anchor, by its id as the canvas was
+ * asked for it: the ref `pools_set_talk` stores for it and the pool's
+ * talk rows name it by (`work:<id>` for a session in a Work item,
+ * else `session:<id>`; a desktop session's own `conversation:` ref).
+ * A line's own rule is the talk row whose ends are its two anchors.
+ */
+anchors: { [key in string]: string }, };

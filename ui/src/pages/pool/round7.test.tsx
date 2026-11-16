@@ -13,7 +13,7 @@ import { CONNECTOR, desktopRecipients, useDesktopSessions } from "../../lib/conn
 import { PREVIEW_SESSIONS_UPDATED } from "../../lib/ipc/instances";
 import { usePoolRules } from "../../lib/pool-rules";
 import { resetPreviewConnector } from "../../lib/ipc/connector";
-import { lineEndRef, poolJoin, poolRules, resetPreviewPoolModel, type MemberKind } from "../../lib/ipc/pool-model";
+import { lineEndRef, poolEdgeTalk, poolJoin, poolRules, poolSetTalk, resetPreviewPoolModel, type MemberKind } from "../../lib/ipc/pool-model";
 import * as poolCanvasIpc from "../../lib/ipc/pool-canvas";
 import { setPools } from "../../lib/pools";
 import { previewPoolsInfo, resetPreviewPools } from "../../lib/ipc/pools";
@@ -248,7 +248,7 @@ describe("round 7 #7: lines to desktop sessions", () => {
   it("its own rule shows on it and in the inspector: a desktop end is its conversation ref", async () => {
     expect(lineEndRef(LAB)).toBe("session:s-lab");
     expect(lineEndRef(AIJ)).toBe(AIJ);
-    const rules = ownLineRules([{ from: "session:s-lab", to: AIJ, rule: "allowed" }, { from: "role:member", to: "role:member", rule: "blocked" }]);
+    const rules = ownLineRules([{ from: "session:s-lab", to: AIJ, rule: "allowed" }, { from: "role:member", to: "role:member", rule: "blocked" }], { [LAB]: "session:s-lab", [AIJ]: AIJ });
     expect([...rules]).toEqual([[`${LAB}>${AIJ}`, "allowed"]]);
     const ends: Record<string, { x: number; y: number; row: boolean }> = { [LAB]: { x: 300, y: 200, row: false }, [AIJ]: { x: 900, y: 400, row: true } };
     expect(desktopLines({ edges: [edge(LAB, AIJ, 2)], endOf: (id) => ends[id] ?? null, names, lineRules: rules, selection: { kind: "none" } })[0]!.count).toBe("2 messages · Allowed here");
@@ -267,23 +267,42 @@ describe("round 7 #7: lines to desktop sessions", () => {
 });
 
 // A session that belongs to a Work item has its line's own rule stored as
-// `work:<id>`; the badge showed for none of them.
+// `work:<id>`; the badge showed for none of them. The canvas says each
+// node's anchor (6dca611c6), an App-brought Work session's too.
 describe("a line's own rule for a session in a Work item", () => {
-  it("maps work: rows back to that Work's sessions on the canvas; one-way", () => {
-    const members = [{ member: "work:w-1", session_ids: ["s-cart"] }];
+  it("matches talk rows by the canvas's anchors, an App-brought Work session included; one-way", () => {
+    const anchors = { "s-cart": "work:w-1", "s-app": "work:w-2", "s-plan": "session:s-plan", "conversation:claude-aij/c1": "conversation:claude-aij/c1" };
     const rules = ownLineRules(
       [
         { from: "work:w-1", to: "session:s-plan", rule: "blocked" },
-        { from: "session:s-plan", to: "conversation:claude-aij/c1", rule: "ask" },
-        { from: "work:w-gone", to: "session:s-plan", rule: "allowed" },
+        // s-app came in through an App: no member row of its own.
+        { from: "session:s-plan", to: "work:w-2", rule: "ask" },
+        { from: "session:s-plan", to: "conversation:claude-aij/c1", rule: "allowed" },
+        // Stored for the session, but the session is in a Work item now.
+        { from: "session:s-cart", to: "session:s-plan", rule: "ask" },
       ],
-      members,
+      anchors,
     );
-    expect([...rules]).toEqual([
+    expect([...rules].sort(([a], [b]) => a.localeCompare(b))).toEqual([
       ["s-cart>s-plan", "blocked"],
-      ["s-plan>conversation:claude-aij/c1", "ask"],
+      ["s-plan>conversation:claude-aij/c1", "allowed"],
+      ["s-plan>s-app", "ask"],
     ]);
     // Rules are one-way: s-plan → s-cart follows its pair.
     expect(rules.has("s-plan>s-cart")).toBe(false);
+  });
+
+  it("the preview's canvas and the line's talk read use the same anchors", async () => {
+    Object.assign(window, { __AIJ_POOL_CANVAS__: { "pool-careful": { anchors: { "s-cart": "work:w-1" } } }, __AIJ_POOLS__: { pools: [{ id: "pool-careful", name: "Careful", rules: [] }], members: [] } });
+    resetPreviewPools();
+    resetPreviewPoolModel();
+    const canvas = await poolCanvasIpc.poolCanvas("pool-careful", ["s-cart", "s-plan", "conversation:claude-aij/c1"]);
+    expect(canvas.anchors).toEqual({ "s-cart": "work:w-1", "s-plan": "session:s-plan", "conversation:claude-aij/c1": "conversation:claude-aij/c1" });
+    await poolSetTalk("pool-careful", "work:w-1", "session:s-plan", "blocked");
+    expect((await poolEdgeTalk("pool-careful", "s-cart", "s-plan")).own).toBe(true);
+    expect((await poolEdgeTalk("pool-careful", "s-plan", "s-cart")).own).toBe(false);
+    Object.assign(window, { __AIJ_POOL_CANVAS__: undefined, __AIJ_POOLS__: undefined });
+    resetPreviewPools();
+    resetPreviewPoolModel();
   });
 });

@@ -109,7 +109,7 @@ describe("edges and a node's menu (AJ-E2808 R2, R3)", () => {
     const own = ownLineRules([
       { from: "role:member", to: "role:member", rule: "ask" },
       { from: "session:b", to: "session:c", rule: "blocked" },
-    ]);
+    ], { b: "session:b", c: "session:c" });
     expect([...own]).toEqual([["b>c", "blocked"]]);
     const at = Date.now();
     const edges = [{ from_session_id: "b", to_session_id: "c", messages: 1, tasks: 0, last_at_ms: at, thread_id: "thr2", pending: [] }];

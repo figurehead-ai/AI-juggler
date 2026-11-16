@@ -33,23 +33,18 @@ export function edgeWords(edge: CanvasEdgeInfo, from: string, to: string, own?: 
   return { count, aria: `${count}, ${from} to ${to}` };
 }
 
-/** The lines with their own rule, by edge key, from a pool's talk
- * settings (`session:<from>` → `session:<to>`; round 7 #7: a desktop
- * session's end is its own `conversation:` ref, as its line keys it).
- * A session that belongs to a Work item has its rule stored as
- * `work:<id>`: it's mapped back to that Work's sessions on the canvas
- * through the pool's member of that ref (its `session_ids`). */
-export function ownLineRules(talk: readonly { from: string; to: string; rule: string }[], members: readonly { member: string; session_ids: string[] }[] = []): LineRules {
+/** The lines with their own rule, by edge key: the pool's talk rows
+ * whose `from` and `to` are a line's two ends' anchors (the canvas's
+ * `anchors`, by node id: `work:<id>` for a session in a Work item, an
+ * App's too; else `session:<id>`; a desktop node's `conversation:` ref).
+ * One-way: A→B's own rule leaves B→A to its pair. */
+export function ownLineRules(talk: readonly { from: string; to: string; rule: string }[], anchors: Readonly<Record<string, string>> = {}): LineRules {
   const out = new Map<string, TalkRule>();
-  const ends = (ref: string): string[] => {
-    if (ref.startsWith("session:")) return [ref.slice("session:".length)];
-    if (ref.startsWith("conversation:")) return [ref];
-    if (ref.startsWith("work:")) return members.find((row) => row.member === ref)?.session_ids ?? [];
-    return [];
-  };
+  const nodes = new Map<string, string[]>();
+  for (const [id, anchor] of Object.entries(anchors)) nodes.set(anchor, [...(nodes.get(anchor) ?? []), id]);
   for (const { from, to, rule } of talk) {
     if (rule !== "allowed" && rule !== "ask" && rule !== "blocked") continue;
-    for (const a of ends(from)) for (const b of ends(to)) out.set(edgeKey(a, b), rule);
+    for (const a of nodes.get(from) ?? []) for (const b of nodes.get(to) ?? []) out.set(edgeKey(a, b), rule);
   }
   return out;
 }

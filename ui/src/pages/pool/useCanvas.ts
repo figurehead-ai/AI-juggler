@@ -151,7 +151,7 @@ export function useCanvas(poolId: string, sessions: InstanceInfo[], desktop: rea
     if (ids.length === 0) {
       // No member drawn: nothing to place or join, but the pool's stream
       // is still its own (the one who just left says so, P5 step 4).
-      setCanvas((was) => (was && was.pool_id === poolId && was.edges.length === 0 ? was : { pool_id: poolId, positions: [], edges: [], asks: [], stream: [], since_ms: Date.now() }));
+      setCanvas((was) => (was && was.pool_id === poolId && was.edges.length === 0 ? was : { pool_id: poolId, positions: [], edges: [], asks: [], stream: [], since_ms: Date.now(), anchors: {} }));
       try {
         const next = await poolCanvas(poolId, []);
         setCanvas((was) => (was && was.pool_id === poolId && sameStream(was.stream, next.stream) ? was : { ...next, positions: [], edges: [], asks: [] }));

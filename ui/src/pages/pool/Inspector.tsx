@@ -111,7 +111,7 @@ function InspectEdge({ pool, canvas, edgeId, names, now }: { pool: PoolInfo; can
   const edge = canvas?.edges.find((row) => edgeKey(row.from_session_id, row.to_session_id) === edgeId);
   const [fromId = "", toId = ""] = edgeId.split(">");
   // D-62: the line's talk rule, whether or not anything passed yet.
-  const talk = <EdgeTalk poolId={pool.id} from={fromId} to={toId} fromName={names.get(fromId) ?? "A member"} toName={names.get(toId) ?? "a member"} />;
+  const talk = <EdgeTalk poolId={pool.id} from={fromId} to={toId} anchors={canvas?.anchors} fromName={names.get(fromId) ?? "A member"} toName={names.get(toId) ?? "a member"} />;
   if (!edge) {
     return (
       <div className="flex flex-col gap-3" data-testid="inspect-edge">

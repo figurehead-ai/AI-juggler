@@ -12,6 +12,7 @@
 import { call } from "./transport";
 import { hasLiveBackend, refused } from "../bridge";
 import { previewPlaceSession, previewPoolToChange, previewPoolsInfo, type PoolRole, type PoolsInfo } from "./pools";
+import { previewAnchorOf } from "./pool-canvas";
 import type { PoolRuleInfo } from "../../types/generated/PoolRuleInfo";
 import type { PoolRulesInfo } from "../../types/generated/PoolRulesInfo";
 import type { PoolTalkInfo } from "../../types/generated/PoolTalkInfo";
@@ -213,11 +214,13 @@ export const lineEndRef = (id: string): string => (id.startsWith("conversation:"
 export async function poolEdgeTalk(poolId: string, from: string, to: string): Promise<EdgeTalkInfo> {
   if (!hasLiveBackend()) {
     const rules = rulesOf(poolId);
-    const role = (id: string) => rules.members.find((row) => row.member === lineEndRef(id))?.role ?? "member";
-    const own = rules.talk.find((row) => row.from === lineEndRef(from) && row.to === lineEndRef(to));
-    const pair = rules.talk.find((row) => row.from === `role:${role(from)}` && row.to === `role:${role(to)}`);
+    // By each end's anchor, as the backend matches its talk rows.
+    const [a, b] = [previewAnchorOf(poolId, from), previewAnchorOf(poolId, to)];
+    const role = (anchor: string) => rules.members.find((row) => row.member === anchor)?.role ?? "member";
+    const own = rules.talk.find((row) => row.from === a && row.to === b);
+    const pair = rules.talk.find((row) => row.from === `role:${role(a)}` && row.to === `role:${role(b)}`);
     const pairRule = pair?.rule ?? "allowed";
-    return { rule: own?.rule ?? pairRule, pair_rule: pairRule, own: !!own, from_role: role(from), to_role: role(to) };
+    return { rule: own?.rule ?? pairRule, pair_rule: pairRule, own: !!own, from_role: role(a), to_role: role(b) };
   }
   return call("pools_edge_talk", { poolId, from, to });
 }
