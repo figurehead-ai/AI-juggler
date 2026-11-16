@@ -13,13 +13,14 @@
  * (`AccountAvatar`). Decorative but for the pill's words: the row or
  * header names the profile anyway.
  */
-import type { JSX } from "react";
+import { memo, type JSX } from "react";
 import { appColor, appInk, appSlotKnown, useMarks, type AppMark } from "../lib/marks";
 import { cliAppId } from "../lib/app-name";
 
 export type ProfileBadgeVariant = "dot" | "pill";
 
-export function ProfileBadge({
+/** AJ-E812: draws again only when its own props or the marks change. */
+export const ProfileBadge = memo(function ProfileBadge({
   app,
   name,
   variant = "dot",
@@ -69,7 +70,7 @@ export function ProfileBadge({
       style={{ width: size, height: size, background: color, boxShadow: ring ? `0 0 0 1.5px ${ring}` : undefined }}
     />
   );
-}
+});
 
 /** Up to `max` Apps' dots, the Apps that worked somewhere, barely
  * overlapping (each a whole dot: the 0.4 review saw slivers), then "+N" for the rest: a project's

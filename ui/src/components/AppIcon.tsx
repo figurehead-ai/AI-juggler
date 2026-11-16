@@ -14,7 +14,7 @@
  *
  * Decorative (`alt=""`): the app's name is always beside it in words.
  */
-import { useEffect, useRef, useState, type JSX } from "react";
+import { memo, useEffect, useRef, useState, type JSX } from "react";
 import { appIconRead, type AppIconAsk, type AppIconPixels } from "../lib/ipc/appIcons";
 import { IconJuggler } from "./icons";
 import { OWN_PLACE } from "../lib/rail-items";
@@ -135,8 +135,11 @@ export interface AppIconProps {
 
 /** Any size: `AppIcon` keeps callers to the four sizes; a page header
  * that predates them (the session page's) draws larger through
- * `PlaceMark`. */
-export function AppIconTile({ appId, appPid = null, name, size, alt = "", className = "" }: Omit<AppIconProps, "size"> & { size: number }): JSX.Element {
+ * `PlaceMark`. AJ-E812: an icon draws again only when its own props or
+ * its read change, never because the row, tile or page around it did
+ * (Home's tiles and the rail's rows drew every icon on each list read,
+ * about 60 a minute with ten sessions at work). */
+export const AppIconTile = memo(function AppIconTile({ appId, appPid = null, name, size, alt = "", className = "" }: Omit<AppIconProps, "size"> & { size: number }): JSX.Element {
   const box = useRef<HTMLSpanElement | null>(null);
   const px = pixelsFor(size);
   const cached = keyOf({ appId, appPid }, px);
@@ -186,8 +189,8 @@ export function AppIconTile({ appId, appPid = null, name, size, alt = "", classN
       {own && <IconJuggler width={glyph} height={glyph} className="text-accent-hi" />}
     </span>
   );
-}
+});
 
-export function AppIcon({ size = 20, ...props }: AppIconProps): JSX.Element {
+export const AppIcon = memo(function AppIcon({ size = 20, ...props }: AppIconProps): JSX.Element {
   return <AppIconTile {...props} size={size} />;
-}
+});
