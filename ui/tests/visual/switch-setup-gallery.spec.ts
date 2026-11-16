@@ -112,7 +112,7 @@ for (const theme of ["dark", "light"] as const) {
     // short); Details says the target has it all.
     await expect(page.getByTestId("switch-setup")).toHaveCount(0);
     const details = page.getByTestId("switch-details");
-    if ((await details.getAttribute("open")) === null) await details.locator(":scope > summary").click();
+    if ((await details.getAttribute("data-open")) === null) await page.getByTestId("switch-details-toggle").click();
     await expect(details).toContainText("Personal already has 3 of the 3 things this app has set up.");
     await page.getByTestId("switch-oneclick").screenshot({ path: resolve(OUT, `nothing-missing-${theme}.png`) });
     await axeClean(page, "nothing missing");
@@ -158,7 +158,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.mouse.move(0, 0);
     await page.getByTestId("switch-flow").screenshot({ path: resolve(OUT, `where-desktop-${theme}.png`) });
     await axeClean(page, "the last step, Desktop");
-    await page.getByTestId("switch-carry-summary").locator(":scope > summary").click();
+    await page.getByTestId("switch-carry-summary-toggle").click();
     await page.getByTestId("switch-carry-summary").screenshot({ path: resolve(OUT, `where-carry-open-${theme}.png`) });
     await axeClean(page, "what goes along, open");
   });

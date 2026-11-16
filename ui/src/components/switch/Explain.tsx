@@ -7,16 +7,13 @@
  */
 import type { JSX } from "react";
 import { trustOpen } from "../../lib/ipc/trust";
-import { FoldChevron } from "../this-mac-memory";
+import { Disclosure } from "../controls";
 
 export function Explain({ tips, guide, testId }: { tips: string[]; guide: string; testId?: string }): JSX.Element {
   return (
-    <details className="group rounded-lg text-meta text-ink" data-testid={testId ?? "switch-explain"}>
-      {/* 0.3: the app's disclosure chevron, never the browser's triangle. */}
-      <summary className="inline-flex min-h-6 cursor-pointer list-none items-center gap-1 rounded text-accent-hi outline-none hover:underline focus-visible:ring-1 focus-visible:ring-accent/60 [&::-webkit-details-marker]:hidden">
-        <FoldChevron />
-        What does this mean?
-      </summary>
+    // The app's disclosure, a button an accessibility press opens (the
+    // 0.4.6 rc2 walk P9), in a link's look.
+    <Disclosure tone="link" className="rounded-lg text-meta text-ink" summary="What does this mean?" testId={testId ?? "switch-explain"}>
       <ul className="mt-1.5 flex list-disc flex-col gap-1 pl-5 leading-relaxed">
         {tips.map((tip) => (
           <li key={tip}>{tip}</li>
@@ -30,6 +27,6 @@ export function Explain({ tips, guide, testId }: { tips: string[]; guide: string
       >
         Learn more in the guide ↗
       </button>
-    </details>
+    </Disclosure>
   );
 }

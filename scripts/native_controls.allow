@@ -5,6 +5,4 @@
 # rc2 walk P9): the native disclosures left when the lint learnt them,
 # each going to the shared Disclosure.
 ui/src/components/HandoverSection.tsx details 1
-ui/src/components/switch/CarrySummary.tsx details 1
-ui/src/components/switch/Explain.tsx details 1
 ui/src/pages/session/ContinueOn.tsx details 1

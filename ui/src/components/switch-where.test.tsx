@@ -200,15 +200,19 @@ describe("0.3.5 simple by default, details on demand", () => {
     localStorage.setItem("aij.switch.details", "open");
     const view = mount(OUTSIDE, EXAMPLE_DESTINATIONS_DESKTOP);
     await waitFor(() => expect(view.getByTestId("switch-details")).toBeTruthy());
-    expect(view.getByTestId("switch-details").hasAttribute("open")).toBe(false);
-    for (const fold of view.getByTestId("switch-flow").querySelectorAll("details")) expect(fold.hasAttribute("open")).toBe(false);
+    expect(view.getByTestId("switch-details-toggle").getAttribute("aria-expanded")).toBe("false");
+    // Every fold is the app's disclosure, a button (the 0.4.6 rc2 walk P9), each closed.
+    const folds = [...view.getByTestId("switch-flow").querySelectorAll("[data-disclosure] > button")];
+    expect(folds.length).toBeGreaterThan(1);
+    for (const fold of folds) expect(fold.getAttribute("aria-expanded")).toBe("false");
   });
 
   it("says what goes along in one line that opens to the list, chips tinted and with an icon each", async () => {
     const view = mount(ONECLICK, EXAMPLE_DESTINATIONS);
     await waitFor(() => expect(view.getByTestId("switch-carry-summary")).toBeTruthy());
     const summary = view.getByTestId("switch-carry-summary");
-    expect(summary.hasAttribute("open")).toBe(false);
+    const fold = within(summary).getByRole("button", { name: "Everything goes along · 3 items" });
+    expect(fold.getAttribute("aria-expanded")).toBe("false");
     expect(within(summary).getByTestId("switch-carry-words").textContent).toBe("Everything goes along · 3 items");
     const moves = within(summary).getByTestId("switch-carry-moves");
     expect(moves.querySelectorAll("svg").length).toBe(2);
@@ -248,7 +252,7 @@ describe("0.3.5 never 'here in AI Juggler'", () => {
         const next = view.queryByTestId("switch-continue");
         if (next) fireEvent.click(next, { detail: 1 });
       }
-      for (const fold of view.getByTestId("switch-flow").querySelectorAll("details")) fold.setAttribute("open", "");
+      for (const fold of view.getByTestId("switch-flow").querySelectorAll<HTMLButtonElement>("[data-disclosure] > button[aria-expanded='false']")) fireEvent.click(fold);
       expect(view.getByTestId("switch-flow").textContent).not.toMatch(PHRASE);
       fireEvent.click(view.getByTestId("switch-confirm"), { detail: 1 });
       await waitFor(() => expect(view.getByTestId("switch-done")).toBeTruthy());
