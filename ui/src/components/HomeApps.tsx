@@ -54,14 +54,17 @@ function start(place: KnownPlaceInfo, name: string): void {
 
 const GHOST = "btn-ghost shrink-0 rounded-md px-2.5 py-1 text-meta font-medium outline-none focus-visible:ring-1 focus-visible:ring-accent/60 disabled:cursor-not-allowed disabled:opacity-50";
 
-/** One row: icon, name and profile line, the needs mark, the action. */
-function Row({ id, icon, app, profile, slot, line, needs, level, broken, action, testId, place, lit }: {
+/** One row: icon, name and profile line, the needs mark, the action.
+ * `kept`: kept alive (0.3.3), said at the end of its line in the line's
+ * own muted words, never a second mark. */
+function Row({ id, icon, app, profile, slot, line, kept = false, needs, level, broken, action, testId, place, lit }: {
   id: string | null;
   icon: JSX.Element;
   app: string;
   profile: string | null;
   slot: string | number;
   line: string;
+  kept?: boolean;
   needs: number;
   level: AttentionLevel;
   broken: readonly string[];
@@ -91,7 +94,16 @@ function Row({ id, icon, app, profile, slot, line, needs, level, broken, action,
               <span aria-hidden="true">·</span>
             </>
           )}
-          <span className="truncate">{line}</span>
+          {/* Kept alive is part of the line, cut with it, never squeezing the profile (0.4.1). */}
+          <span className="truncate" title={kept ? `${line} · kept alive` : undefined}>
+            {line}
+            {kept && (
+              <>
+                {" · "}
+                <span data-testid="home-app-kept-mark" title="Kept alive: AI Juggler starts it again if it stops">kept alive</span>
+              </>
+            )}
+          </span>
         </span>
       </span>
       {needs > 0 && (
@@ -107,7 +119,7 @@ function Row({ id, icon, app, profile, slot, line, needs, level, broken, action,
   );
 }
 
-function OpenRow({ group, appId }: { group: RailGroup; appId: string | null }): JSX.Element {
+function OpenRow({ group, appId, kept }: { group: RailGroup; appId: string | null; kept: boolean }): JSX.Element {
   const place = group.place!;
   // D-117: L2 and L3 counted; its mark takes the highest.
   const loud = group.items.filter((item) => counted(itemLevel(item)));
@@ -122,6 +134,7 @@ function OpenRow({ group, appId }: { group: RailGroup; appId: string | null }): 
       profile={place.profile ?? null}
       slot={place.key}
       line={`${count} open`}
+      kept={kept}
       needs={loud.length}
       level={level}
       broken={brokenOf(loud, itemLevel, (item) => item.need)}
@@ -230,7 +243,7 @@ export function HomeApps({ items, strip = false }: { items: RailItem[]; strip?: 
         <ul className="flex flex-col">
           {running.map((row) =>
             "group" in row ? (
-              <OpenRow key={row.group.key} group={row.group} appId={row.group.place ? appIdOfRailKey(row.group.place.key, folderOf(row.group), known) : null} />
+              <OpenRow key={row.group.key} group={row.group} appId={row.group.place ? appIdOfRailKey(row.group.place.key, folderOf(row.group), known) : null} kept={placeFor(known, row.group.place?.appPid ?? null)?.keep_alive === true} />
             ) : (
               <KeptRow key={row.place.id} place={row.place} />
             ),
