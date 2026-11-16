@@ -49,14 +49,24 @@ export function besides(open: Element): Element[] {
   return out;
 }
 
-/** Makes everything but `ref`'s element inert while `on`. */
+/** Makes everything but `ref`'s element inert while `on`.
+ *
+ * Its opener (what had focus as it opened) gets focus back when it closes
+ * if focus was left nowhere: a close that hands focus back in the same
+ * turn (Escape: `setOpen(false); button.focus()`) does so while the
+ * opener is still inert, and an inert element takes no focus, so focus
+ * fell to the page (0.4.6 RC, the legend's "?" and six more). */
 export function useInertOutside(ref: RefObject<HTMLElement | null>, on = true): void {
   useLayoutEffect(() => {
     const open = ref.current;
     const others = on && open ? besides(open).filter((one) => !one.contains(open)) : [];
+    const focused = document.activeElement;
+    const opener = others.length > 0 && focused instanceof HTMLElement && focused !== document.body && !open?.contains(focused) ? focused : null;
     for (const one of others) hold(one);
     return () => {
       for (const one of others) release(one);
+      const now = document.activeElement;
+      if (opener?.isConnected && (now === null || now === document.body || (open?.contains(now) ?? false))) opener.focus({ preventScroll: true });
     };
   }, [ref, on]);
 }

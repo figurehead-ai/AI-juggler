@@ -1,0 +1,52 @@
+/**
+ * 0.4.6 RC: closing a menu or popover handed focus back to its opener
+ * while the opener was still inert (an inert element takes no focus), so
+ * focus fell to the page. useInertOutside gives it back to the opener
+ * once the page is let go. jsdom has no inert, so the lost focus is made
+ * by hand (blur in the close), as the browser does it.
+ */
+import { act, cleanup, render } from "@testing-library/react";
+import { useRef, useState, type JSX } from "react";
+import { afterEach, describe, expect, it } from "vitest";
+import { releaseAllInert, useInertOutside } from "./inert";
+
+afterEach(() => {
+  cleanup();
+  releaseAllInert();
+});
+
+let close: () => void = () => {};
+
+function Popover(): JSX.Element {
+  const [open, setOpen] = useState(false);
+  const button = useRef<HTMLButtonElement | null>(null);
+  const panel = useRef<HTMLDivElement | null>(null);
+  useInertOutside(panel, open);
+  close = () => {
+    setOpen(false);
+    // What the browser does to `button.focus()` while the button is inert.
+    const active = document.activeElement;
+    if (active instanceof HTMLElement) active.blur();
+  };
+  return (
+    <div>
+      <button ref={button} type="button" onClick={() => setOpen(true)}>
+        Open
+      </button>
+      <div>{open && <div ref={panel} role="dialog" aria-label="Panel">inside</div>}</div>
+    </div>
+  );
+}
+
+describe("useInertOutside gives focus back to the opener", () => {
+  it("when a close left focus on the page", () => {
+    const view = render(<Popover />);
+    const button = view.getByRole("button", { name: "Open" });
+    button.focus();
+    act(() => button.click());
+    expect(view.getByRole("dialog")).toBeTruthy();
+    act(() => close());
+    expect(view.queryByRole("dialog")).toBeNull();
+    expect(document.activeElement).toBe(button);
+  });
+});
