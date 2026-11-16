@@ -466,12 +466,8 @@ pub fn edge_talk_impl(
     use juggler_core::pools::talk::PoolTalk;
     let storage = lock_storage_arc(state)?;
     live_pool(&storage, pool_id)?;
-    let gone = || AppError::Refused("That session isn't in this pool any more".to_owned());
-    let (from_session, to_session) = (SessionId::new(from), SessionId::new(to));
-    let from_role = members::role_in(&storage, &from_session, pool_id)?.ok_or_else(gone)?;
-    let to_role = members::role_in(&storage, &to_session, pool_id)?.ok_or_else(gone)?;
-    let (from_ref, _) = super::member_of(&storage, &from_session)?;
-    let (to_ref, _) = super::member_of(&storage, &to_session)?;
+    let (from_ref, from_role) = line_end(&storage, pool_id, from)?;
+    let (to_ref, to_role) = line_end(&storage, pool_id, to)?;
     let rows = storage.pools().talk()?;
     let talk = PoolTalk::new(
         rows.iter()
@@ -487,6 +483,49 @@ pub fn edge_talk_impl(
         from_role: from_role.as_str().to_owned(),
         to_role: to_role.as_str().to_owned(),
     })
+}
+
+/// One end of a line: its member ref and its role in the pool. A session
+/// by its id stands for its Work item, as its member rows do; a desktop
+/// session (round 7 #7) by its own `conversation:` ref: its row's role
+/// when it's named on its own, else the role of the member that brings
+/// it in while one of its calls is attested.
+fn line_end(storage: &Storage, pool_id: &str, end: &str) -> AppResult<(MemberRef, PoolRole)> {
+    let gone = || AppError::Refused("That session isn't in this pool any more".to_owned());
+    if let Some(member @ MemberRef::Conversation { .. }) = MemberRef::parse(end) {
+        if let Some(row) = storage
+            .pools()
+            .members()?
+            .into_iter()
+            .find(|row| row.pool_id == pool_id && row.member == member)
+        {
+            return Ok((member, row.role));
+        }
+        let memberships = members::memberships(storage)?;
+        let role = storage
+            .attested()
+            .fresh()
+            .iter()
+            .filter(|facts| {
+                facts.conversation.as_ref().is_some_and(|(folder, id)| {
+                    MemberRef::Conversation {
+                        folder: folder.clone(),
+                        id: id.clone(),
+                    } == member
+                })
+            })
+            .find_map(|facts| {
+                memberships
+                    .resolve(facts)
+                    .in_pool(pool_id)
+                    .map(|place| place.role)
+            })
+            .ok_or_else(gone)?;
+        return Ok((member, role));
+    }
+    let session = SessionId::new(end);
+    let role = members::role_in(storage, &session, pool_id)?.ok_or_else(gone)?;
+    Ok((super::member_of(storage, &session)?.0, role))
 }
 
 /// The most sessions a rule names for its lines (the canvas draws 60).

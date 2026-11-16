@@ -617,3 +617,60 @@ fn messages_name_a_desktop_session_as_sender_and_recipient() {
         Some(desk.as_str())
     );
 }
+
+/// Round 7 #7: a desktop session's node is its own `conversation:` ref.
+/// A message between it and a CLI session draws their line with its
+/// count; a Blocked rule set on that line (that pair's own) refuses the
+/// send at the bridge, while the role pair's rule stays as it was.
+#[test]
+fn a_line_between_a_cli_and_a_desktop_session_counts_and_its_own_rule_holds() {
+    use crate::features::pools::{canvas, model};
+    use juggler_core::pools::talk::RefuseReason;
+
+    let lab = lab();
+    lab.attest();
+    let desk = desktop_id(FOLDER, CONVERSATION);
+    lab.send("s-cli", "session:s-cli", MEMBER, 1).unwrap();
+    lab.send(desk.as_str(), MEMBER, "s-cli", 2).unwrap();
+    lab.send(desk.as_str(), MEMBER, "s-cli", 3).unwrap();
+    let drawn =
+        canvas::canvas_impl(&lab.state, &lab.pool, vec!["s-cli".into(), MEMBER.into()]).unwrap();
+    let line = |from: &str, to: &str| {
+        drawn
+            .edges
+            .iter()
+            .find(|edge| edge.from_session_id == from && edge.to_session_id == to)
+            .map(|edge| edge.messages)
+    };
+    assert_eq!(line("s-cli", MEMBER), Some(1));
+    assert_eq!(line(MEMBER, "s-cli"), Some(2));
+
+    // The line's own rule, as the window sets it (its ends' refs).
+    let rules = model::set_talk_impl(
+        &lab.state,
+        &lab.pool,
+        "session:s-cli",
+        MEMBER,
+        Some("blocked"),
+    )
+    .unwrap();
+    assert_eq!(rules.talk.len(), 1, "the pair's own, no role pair's");
+    assert_eq!(
+        (rules.talk[0].from.as_str(), rules.talk[0].to.as_str()),
+        ("session:s-cli", MEMBER)
+    );
+    let edge = model::edge_talk_impl(&lab.state, &lab.pool, "s-cli", MEMBER).unwrap();
+    assert_eq!(
+        (edge.rule.as_str(), edge.pair_rule.as_str(), edge.own),
+        ("blocked", "allowed", true)
+    );
+    let refused = lab.send("s-cli", "session:s-cli", MEMBER, 4).unwrap_err();
+    assert_eq!(
+        refused.reason.as_deref(),
+        Some(RefuseReason::Blocked.words())
+    );
+    // The other way is its own line, following the role pair.
+    let back = model::edge_talk_impl(&lab.state, &lab.pool, MEMBER, "s-cli").unwrap();
+    assert_eq!((back.rule.as_str(), back.own), ("allowed", false));
+    assert!(lab.send(desk.as_str(), MEMBER, "s-cli", 5).is_ok());
+}
