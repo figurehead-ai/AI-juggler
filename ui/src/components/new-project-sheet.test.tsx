@@ -97,7 +97,7 @@ describe("AJ-E305 NewProjectSheet — flow (b) in ≤3 clicks", () => {
     { id: "acc-a", provider: "claude-code", label: "Work", plan: null, login_state: "logged_in", cleanup_opt_in: false, renewal_date: null, preview_opt_in: false, in_place: false },
   ];
 
-  const mountSheet = (extra: { recipes?: LaunchRecipeInfo[] } = {}) => {
+  const mountSheet = (extra: { recipes?: LaunchRecipeInfo[]; onClose?: () => void } = {}) => {
     const launchSpy = vi
       .spyOn(bridgeModuleLaunch, "launchSession")
       .mockResolvedValue({ session_id: "s1" } as never);
@@ -111,7 +111,7 @@ describe("AJ-E305 NewProjectSheet — flow (b) in ≤3 clicks", () => {
         projects={[project("/Users/you/dev-api", ["Work"])]}
         accounts={accounts}
         initialDirectory={null}
-        onClose={() => {}}
+        onClose={extra.onClose ?? (() => {})}
         onLaunched={launched}
         openLoginTerminal={() => {}}
         onAccountsChanged={() => {}}
@@ -166,6 +166,31 @@ describe("AJ-E305 NewProjectSheet — flow (b) in ≤3 clicks", () => {
       expect(container.querySelector("[data-testid='first-run'][data-mode='add']")).not.toBeNull(),
     );
     expect(container.textContent).toContain("Starting in dev-api");
+  });
+
+  it("Escape leaves the detour and keeps the sheet, the folder still chosen (Req.7)", async () => {
+    const onClose = vi.fn();
+    const { container } = mountSheet({ recipes: [], onClose });
+    const tiles = await waitFor(() => {
+      const found = container.querySelectorAll("[data-testid='project-tiles'] button[data-tile]");
+      expect(found.length).toBeGreaterThan(0);
+      return found;
+    });
+    fireEvent.click(tiles[0]!);
+    const add = await waitFor(() => {
+      const button = container.querySelector("[data-testid='no-account-detour'] button");
+      expect(button).not.toBeNull();
+      return button!;
+    });
+    fireEvent.click(add);
+    await waitFor(() => expect(container.querySelector("[data-testid='first-run'][data-mode='add']")).not.toBeNull());
+    fireEvent.keyDown(window, { key: "Escape" });
+    await waitFor(() => expect(container.querySelector("[data-testid='first-run']")).toBeNull());
+    expect(onClose).not.toHaveBeenCalled();
+    expect(container.textContent).toContain("Starting in dev-api");
+    // With the detour gone, Escape closes the sheet as before.
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(onClose).toHaveBeenCalledTimes(1);
   });
 
   it("an unsigned-in recommendation disables Start and says why (honest before commit)", async () => {
