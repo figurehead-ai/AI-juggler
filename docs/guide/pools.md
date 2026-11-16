@@ -41,9 +41,9 @@ heading and one line on why, and every choice reads back as a sentence
    words: "2 apps, and every new session in web".
 4. **Who leads**: one session leads (it plans the work and hands out
    tasks). Pick one to be in charge, or leave it for now: a session open
-   now; or **[App]'s next session** ("Claude Code · Work leads from its
-   next session in web"): the next session that App starts in this pool's
-   projects joins as the Lead. On the pool's diagram that App is one card,
+   now; or **[App]'s next session** ("Claude Code · Work takes charge as
+   soon as one of its sessions starts in web"): until then nobody is in
+   charge. On the pool's diagram that App is one card,
    "Its next session leads · its others join as Member", with **Start one
    now**: it opens New session on that App in the pool's project, and the
    session you start leads. An App's role picker offers the same: **Lead:
@@ -64,10 +64,13 @@ heading and one line on why, and every choice reads back as a sentence
 7. **What they may do on their own** (see below): how they work together
    through AI Juggler. What each may change in your files stays with its
    own app's settings. Then **Seal** if you want its work kept apart.
-8. **Review**: the whole pool in sentences, then **Make pool**. Its last
-   line is the **team tools**: "Team tools: off — they can't message yet",
-   with **Turn on**, so it's decided before the pool is made (see
+8. **Team tools**, only until you've answered it once: "Let the sessions
+   in your pools message each other and share notes and tasks?", with
+   **Yes, let them work together** or **Not now** (see
    [Team tools](#team-tools)).
+9. **Review**: the whole pool in sentences, with what happens next in one
+   line ("Open Claude Code · Work in web: it leads; Codex checks its work;
+   their messages show here"), then **Make pool**.
 
 A project's **Pools** tab opens its own pool ("web's own pool: every
 session in web, as one team"), and **Move to pool…** on a session's menu
@@ -80,9 +83,14 @@ opens on a short summary in the Review's own sentences (who's in, who
 leads, what they may do on their own, the team tools) and what waits for
 you in **Needs you** (the list of things waiting for your OK, on Home).
 **Set up this pool** keeps the setup's order below it, a tick on each
-step done, until every step is: each step opens the same control as the
+step done; a step left at its default counts as done ("default"). Once
+who's in is set and the team tools are on, it says **This pool is
+ready** and what happens next. Each step opens the same control as the
 setup. The rest of the pool's settings are folds, closed at first, each
-with a line on what it controls.
+with a line on what it controls; the rarer ones (kept apart, your other
+Macs, other pools its agents may write to) are under **More settings**.
+Adding a member or changing a role shows at once, dimmed, until AI
+Juggler has saved it; if it can't, it goes back and says why.
 
 Once a pool of yours exists, the list's **View** (⇧V) offers **Group by ›
 Pool** (greyed until then): Open now shows your sessions under their
@@ -123,11 +131,13 @@ starts or connects in your pools, never a session outside a pool, and
 cost nothing extra: a session uses its own turns only when it acts.
 Without them, a pool is set up, but nobody in it can message.
 
-AI Juggler asks once, the first time you use pools (**Turn on team
-tools**, on Review or on the pool's page). After that they're on, and you
-can switch them off for a project or an app in **Settings › Agent access
-› Agent tools in sessions**. A pool whose project or app has them off says
-so ("Team tools: off for web — they can't message there") with **Turn on**.
+AI Juggler asks once, the first time you use pools: at the top of the
+pool's page, as New pool's own step, and in Settings › Agent access, the
+same question with **Yes, let them work together** and **Not now**. Once
+you've answered, it doesn't ask again; you can switch them off per project
+or app in **Settings › Agent access › Agent tools in sessions**. After
+**Not now**, or with them off for the pool's project or app, the pool
+says so in one quiet line with **Turn on** beside it.
 
 ## What agents may do
 
