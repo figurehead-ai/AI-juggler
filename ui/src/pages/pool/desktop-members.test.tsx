@@ -177,7 +177,7 @@ describe("AJ-E3013: desktop sessions under their App", () => {
     seed([member(ref, { connector: "current", connected: true })], { [WORK]: { state: "current" } });
     render(<RuleNodes poolId={POOL} rules={[{ member: ref, kind: "app", role: "member", level: null, joined_at: 1, sessions: 2, session_ids: [] }]} watched={[]} labelOf={() => "Claude app · Work Max"} selection={{ kind: "none" }} onSelect={() => undefined} />);
     const rows = await screen.findAllByTestId("canvas-desktop-session");
-    expect(rows.map((row) => row.textContent)).toEqual(["Fix sign-in copyMemberWakes on new messages", "Tidy the testsReviewerReads messages on its next turn"]);
+    expect(rows.map((row) => row.textContent)).toEqual(["Active lately: Fix sign-in copyMember · wakes on new messages", "Quiet lately: Tidy the testsReviewer · reads messages on its next turn"]);
   });
 });
 

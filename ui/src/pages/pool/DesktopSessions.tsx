@@ -24,22 +24,31 @@ export function sessionsUnder(rule: PoolRuleInfo, sessions: readonly DesktopSess
   });
 }
 
+/** How many of them haven't called lately (one that has is an attested
+ * session, already in its member's open count). */
+export const quiet = (sessions: readonly DesktopSessionInfo[]) => sessions.filter((one) => one.session_id === null).length;
+
 export function DesktopSessions({ sessions }: { sessions: readonly DesktopSessionInfo[] }): JSX.Element | null {
   if (sessions.length === 0) return null;
   return (
     <ul className="pointer-events-auto -mt-0.5 mb-1.5 ml-3 flex flex-col gap-1 border-l border-hairline pl-2" aria-label="Its sessions in this pool" data-testid="canvas-desktop-sessions">
-      {sessions.map((one) => (
-        <li key={one.member} className="flex flex-col rounded-lg bg-surface px-2.5 py-1.5 shadow-card" data-testid="canvas-desktop-session" data-member={one.member}>
-          <span className="flex items-center gap-1.5">
-            <span aria-hidden="true" className={"size-1.5 shrink-0 rounded-full " + (one.session_id ? "bg-success" : "bg-muted")} />
-            <span className="min-w-0 flex-1 truncate text-meta font-medium text-ink" title={one.name}>
-              {one.name}
+      {sessions.map((one) => {
+        const state = one.session_id ? "Active lately" : "Quiet lately";
+        return (
+          <li key={one.member} className="flex flex-col gap-0.5 rounded-lg bg-surface px-2.5 py-1.5 shadow-card" data-testid="canvas-desktop-session" data-member={one.member}>
+            <span className="flex items-start gap-1.5">
+              <span aria-hidden="true" title={state} className={"mt-1.5 size-1.5 shrink-0 rounded-full " + (one.session_id ? "bg-success" : "bg-muted")} />
+              <span className="sr-only">{state}: </span>
+              <span className="line-clamp-2 min-w-0 text-meta font-medium text-ink [overflow-wrap:normal]" title={one.name}>
+                {one.name}
+              </span>
             </span>
-            <span className="shrink-0 text-label text-muted">{roleLabel(one.role)}</span>
-          </span>
-          <span className="text-label text-ink-2">{wakeLine(one.wake)}</span>
-        </li>
-      ))}
+            <span className="text-label text-ink-2">
+              {roleLabel(one.role)} · {wakeLine(one.wake).toLowerCase()}
+            </span>
+          </li>
+        );
+      })}
     </ul>
   );
 }

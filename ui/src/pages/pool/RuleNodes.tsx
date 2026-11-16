@@ -25,7 +25,7 @@ import { MACHINE_WORD } from "../../lib/machine-words";
 import type { PoolRuleInfo, WatchedMemberInfo } from "../../lib/ipc/pool-model";
 import { levelLabel, roleLabel } from "../../lib/pools";
 import { reachOf, useDesktopMembers, useDesktopSessions } from "../../lib/connector";
-import { DesktopSessions, sessionsUnder } from "./DesktopSessions";
+import { DesktopSessions, quiet, sessionsUnder } from "./DesktopSessions";
 import { DesktopMemberCard } from "./DesktopMemberCard";
 import { everyoneJoins, openNowWords } from "../../lib/pool-open-now";
 import { LEADS_WHEN, LEAD_WOULD, nextLeadsLine, wakeWords } from "../../lib/pool-words";
@@ -96,6 +96,7 @@ export function RuleNodes({
   // the desktop sessions an App brings in through it, under their App.
   const desktop = useDesktopMembers(poolId);
   const desktopSessions = useDesktopSessions(poolId);
+  const under = (rule: PoolRuleInfo) => sessionsUnder(rule, desktopSessions, broad, labelOf);
   const waiting = watched.filter((one) => one.continued_session === null);
   // Round 4 (#5): a member being added shows at once, pending, until the
   // rules read back have it; its role change likewise.
@@ -198,19 +199,15 @@ export function RuleNodes({
             </span>
           )}
           <span className="text-meta text-ink-2" data-testid="canvas-rule-open">
-            {rule.member === "all" ? everyoneJoins(rule.sessions, where) : openNowWords(rule.sessions, where)}
+            {rule.member === "all" ? everyoneJoins(rule.sessions, where) : openNowWords(rule.sessions, where, quiet(under(rule)))}
             {rule.level ? ` · its own choice: ${levelLabel(rule.level)}` : ""}
           </span>
           <span className="text-label text-muted" data-testid="canvas-rule-wake">
             {desktop?.has(rule.member) ? desktopLine(desktop.get(rule.member)) : `Its sessions ${wakeWords(rule.level ?? poolLevel, false, true)}`}
           </span>
         </button>
-        <DesktopSessions sessions={sessionsUnder(rule, desktopSessions, broad, labelOf)} />
-        {desktop?.has(rule.member) && addsConnector(desktop.get(rule.member)) && (
-          <Button size="sm" variant="accent" className="pointer-events-auto self-start" aria-label={`Add AI Juggler's connector to ${labelOf(rule)}`} onClick={() => onSelect({ kind: "rule", ref: rule.member })} data-testid="canvas-rule-connector-add">
-            Add
-          </Button>
-        )}
+        <DesktopSessions sessions={under(rule)} />
+        <ConnectorFix info={desktop?.get(rule.member)} label={labelOf(rule)} onOpen={() => onSelect({ kind: "rule", ref: rule.member })} />
         {rule.member === nextRef && onStartLead && cliFolderOf(rule.member) && (
           <StartLeadButton member={rule.member} name={labelOf(rule)} where={where ?? "these projects"} onStart={onStartLead} className="pointer-events-auto self-start" testId="canvas-rule-start-lead" />
         )}
@@ -226,9 +223,17 @@ export function RuleNodes({
 }
 
 /** Whether a desktop member's Add (or Fix) is its way in. */
-function addsConnector(info: Parameters<typeof reachOf>[0]): boolean {
-  const reach = reachOf(info);
-  return reach.kind === "watched" && reach.fix !== null;
+/** An App's card: Add its connector, or Fix a changed one (as a
+ * session's own card says it), opening the consent card. */
+function ConnectorFix({ info, label, onOpen }: { info: Parameters<typeof reachOf>[0] | undefined; label: string; onOpen: () => void }): JSX.Element | null {
+  const reach = info ? reachOf(info) : null;
+  if (reach?.kind !== "watched" || reach.fix === null) return null;
+  const word = reach.fix === "add" ? "Add" : "Fix";
+  return (
+    <Button size="sm" variant="accent" className="pointer-events-auto self-start" aria-label={`${word} AI Juggler's connector ${word === "Add" ? "to" : "in"} ${label}`} onClick={onOpen} data-testid="canvas-rule-connector-add">
+      {word}
+    </Button>
+  );
 }
 
 /** A desktop App member's sessions: how a message reaches them through

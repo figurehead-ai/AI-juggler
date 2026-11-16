@@ -76,7 +76,10 @@ export function everyoneJoins(count: number, where?: string): string {
 /** A broad member's open sessions now, as Review and its diagram card say
  * it: "1 open now · new ones in web join", "No session open yet · new ones
  * in web join" (round 2, #15: "none open now" read as broken). */
-export function openNowWords(count: number, where?: string): string {
+export function openNowWords(count: number, where?: string, quiet = 0): string {
   const joins = !where ? "new ones join" : where === "every project" ? "new ones in any project join" : `new ones in ${where} join`;
-  return `${count > 0 ? `${count} open now` : "No session open yet"} · ${joins}`;
+  // AJ-E3013: a desktop App's sessions in the pool that haven't called
+  // lately are in it, drawn under its card: never "No session open yet".
+  const none = quiet > 0 ? `${quiet} in the pool, quiet lately` : "No session open yet";
+  return `${count > 0 ? `${count} open now` : none} · ${joins}`;
 }

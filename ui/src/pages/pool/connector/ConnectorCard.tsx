@@ -195,6 +195,10 @@ export function ConnectorCard({
   return <Resting status={status} parts={parts} where={where} onReview={() => void actions.review()} onGuide={() => void actions.guide()} onRemove={() => void actions.askRemove()} />;
 }
 
+/** The danger button's tint on this card's raised surface: at /15 its red
+ * stands 4.48:1 there in dark (axe, Remove anyway); at /10, 4.87:1. */
+const DANGER_ON_CARD = "bg-danger/10! hover:bg-danger/20!";
+
 /** A step that opens in the panel: in view in its list, Cancel focused
  * (the aij-test proof: a confirmation clipped at the panel's foot), once
  * it can take focus (Cancel is disabled while a call runs). */
@@ -336,11 +340,11 @@ function PhaseView({ phase, status, parts, onAdd, onRemove, onRemoveAnyway }: { 
           )}
           <span className="mt-1 flex flex-wrap gap-2">
             {phase.changed.length > 0 ? (
-              <Button size="sm" variant="danger" disabled={busy} onClick={onRemoveAnyway} data-testid={`${testId}-remove-anyway`}>
+              <Button size="sm" variant="danger" className={DANGER_ON_CARD} disabled={busy} onClick={onRemoveAnyway} data-testid={`${testId}-remove-anyway`}>
                 Remove anyway (also deletes {changedWords(phase.changed)})
               </Button>
             ) : (
-              <Button size="sm" variant="danger" disabled={busy} onClick={onRemove} data-testid={`${testId}-confirm-remove`}>
+              <Button size="sm" variant="danger" className={DANGER_ON_CARD} disabled={busy} onClick={onRemove} data-testid={`${testId}-confirm-remove`}>
                 {CONNECTOR.confirmRemove(app)}
               </Button>
             )}

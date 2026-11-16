@@ -35,10 +35,25 @@ const WORK = "app:claude-app:/Users/you/Profiles/Work";
 const PERSONAL = "app:claude-app:/Users/you/Profiles/Personal";
 const CODEX = "app:codex-app:";
 
+/** The pool's members: the Work App (with `open` of its sessions open now)
+ * and three desktop sessions named on their own. */
+function poolRules(t0: number, open: number) {
+  const rule = (member: string, kind: string, role: string, sessions = 0) => ({ member, kind, role, level: null, joined_at: t0 - 3_600_000, sessions, session_ids: [] });
+  return {
+    [POOL]: {
+      members: [
+        rule(`app:${WORK}`, "app", "member", open),
+        rule("conversation:claude-personal/outside-4", "session", "reviewer"),
+        rule("conversation:claude-work/outside-3", "session", "member"),
+        rule("conversation:codex/outside-6", "session", "member"),
+      ],
+    },
+  };
+}
+
 function seed(t0: number) {
   const base = canvasSeed(t0);
   const place = (id: string, app_id: string, app: string, instance: string | null, profile: string | null, label: string, account_id: string) => ({ id, app_id, app, instance, profile, label, account_id, app_pid: null, lost: false, keep_alive: false, paused: null, seen_ms: t0 - 3_600_000, cannot_start: null, recent: [], found: false });
-  const rule = (member: string, kind: string, role: string) => ({ member, kind, role, level: null, joined_at: t0 - 3_600_000, sessions: 0, session_ids: [] });
   return {
     ...base,
     __AIJ_PLACES__: {
@@ -48,16 +63,7 @@ function seed(t0: number) {
         place(CODEX, "codex-app", "ChatGPT", null, null, "ChatGPT", "codex"),
       ],
     },
-    __AIJ_POOL_RULES__: {
-      [POOL]: {
-        members: [
-          rule(`app:${WORK}`, "app", "member"),
-          rule("conversation:claude-personal/outside-4", "session", "reviewer"),
-          rule("conversation:claude-work/outside-3", "session", "member"),
-          rule("conversation:codex/outside-6", "session", "member"),
-        ],
-      },
-    },
+    __AIJ_POOL_RULES__: poolRules(t0, 0),
     __AIJ_POOL_WATCHED__: {
       "conversation:claude-personal/outside-4": { title: "Plan the trip notes app", tool: "Claude app" },
       "conversation:claude-work/outside-3": { title: "Migrate the billing webhooks", tool: "Claude app" },
@@ -75,7 +81,28 @@ function seed(t0: number) {
   };
 }
 
-async function open(page: Page, theme: "dark" | "light") {
+// AJ-E3013 (f1b9bd354, 93b495f28): the Work App with its connector and
+// two of its sessions in the pool through it; or a file in it changed.
+function workConnector(state: "current" | "changed") {
+  const changed = state === "changed" ? ["/Users/you/Profiles/Work/claude-code/skills/ai-juggler/skills/pool-tasks/SKILL.md"] : [];
+  const session = (id: string, name: string, role: string, fresh: boolean) => ({ member: `conversation:claude-work/${id}`, session_id: fresh ? `desktop:claude-work/${id}` : null, name, place: "Claude app · Work Max", tool: "Claude Code", account: "Work Max", role, app_id: WORK, via: "app", wake: "next_turn" });
+  return {
+    __AIJ_CONNECTOR__: { [PERSONAL]: { state: "current" }, [WORK]: { state, changed } },
+    __AIJ_DESKTOP_MEMBERS__: {
+      [POOL]: [
+        { member: `app:${WORK}`, app_id: WORK, connector: state, connected: state === "current", wake: "next_turn" },
+        { member: "conversation:claude-personal/outside-4", app_id: PERSONAL, connector: "current", connected: true, wake: "next_turn" },
+        { member: "conversation:claude-work/outside-3", app_id: WORK, connector: state, connected: false, wake: "next_turn" },
+        { member: "conversation:codex/outside-6", app_id: CODEX, connector: "unavailable", connected: false, wake: "cant_wake" },
+      ],
+    },
+    __AIJ_DESKTOP_SESSIONS__: { [POOL]: state === "current" ? [session("outside-7", "Tidy the checkout tests", "member", true), session("outside-8", "Fix the coupon rounding", "reviewer", false)] : [] },
+    // The backend counts an attested session among its App's open ones.
+    __AIJ_POOL_RULES__: poolRules(GATE_NOW, state === "current" ? 1 : 0),
+  };
+}
+
+async function open(page: Page, theme: "dark" | "light", extra: Record<string, unknown> = {}) {
   await page.clock.setFixedTime(GATE_NOW);
   await page.addInitScript(
     ({ theme, seed }) => {
@@ -85,7 +112,7 @@ async function open(page: Page, theme: "dark" | "light") {
       localStorage.setItem("aij.smoother.dismissed", JSON.stringify(["all"]));
       sessionStorage.setItem("aij.ready.skipped", "1");
     },
-    { theme, seed: seed(GATE_NOW) },
+    { theme, seed: { ...seed(GATE_NOW), ...extra } },
   );
   await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
   await page.setViewportSize({ width: 1280, height: 800 });
@@ -156,7 +183,8 @@ for (const theme of ["dark", "light"] as const) {
     await open(page, theme);
     await poolPage(page);
     await page.getByTestId("canvas-watched-node").nth(0).getByRole("button", { name: /Plan the trip notes app/ }).click();
-    await expect(page.getByTestId("inspect-rule-reach")).toHaveText("It talks in this pool through AI Juggler's connector. Reads messages on its next turn.");
+    // D-119 (5): a person's Deliver wakes it whatever the pool's level.
+    await expect(page.getByTestId("inspect-rule-reach")).toHaveText("It talks in this pool through AI Juggler's connector. Reads messages on its next turn. A message you send with Deliver wakes it, whatever the pool's level.");
     await expect(page.getByTestId("inspect-connector-there")).toContainText("AI Juggler's connector is in this app.");
     await axe(page, `connected ${theme}`);
     await shoot(page, `connected-1280x800-${theme}.png`);
@@ -170,5 +198,41 @@ for (const theme of ["dark", "light"] as const) {
     await expect(card.locator("h4")).toHaveText("Add AI Juggler's connector to Claude app · Work Max so its sessions can talk in this pool");
     await axe(page, `new pool ${theme}`);
     await shoot(page, `new-pool-1280x800-${theme}.png`);
+  });
+
+  test(`desktop sessions under their App, and each a recipient in Messages — ${theme}`, async ({ page }) => {
+    await open(page, theme, workConnector("current"));
+    await poolPage(page);
+    const sessions = page.getByTestId("canvas-desktop-session");
+    await expect(sessions).toHaveCount(2);
+    await expect(sessions.nth(0)).toHaveText("Active lately: Tidy the checkout testsMember · reads messages on its next turn");
+    await expect(page.locator(`[data-rule-ref="app:${WORK}"]`).getByTestId("canvas-rule-open")).toHaveText("1 open now · new ones in any project join");
+    await expect(sessions.nth(1)).toHaveAttribute("data-member", "conversation:claude-work/outside-8");
+    await axe(page, `sessions ${theme}`);
+    await shoot(page, `sessions-1280x800-${theme}.png`);
+
+    await page.getByTestId("pool-panel-messages").click();
+    await page.getByTestId("messages-new").click();
+    const form = page.getByRole("form", { name: "New message" });
+    await form.getByTestId("compose-to").click();
+    await expect(page.getByTestId("compose-to-conversation:claude-work/outside-7")).toHaveText(/Tidy the checkout tests · Claude app · Work Max/);
+    await expect(page.getByTestId("compose-to-conversation:claude-work/outside-8")).toBeVisible();
+    await axe(page, `recipients ${theme}`);
+    await shoot(page, `recipients-1280x800-${theme}.png`);
+  });
+
+  test(`Remove refused by a changed file: Remove anyway, Cancel focused — ${theme}`, async ({ page }) => {
+    await open(page, theme, workConnector("changed"));
+    await poolPage(page);
+    await expect(page.getByTestId("canvas-rule-connector-add")).toHaveText("Fix");
+    await page.locator(`[data-rule-ref="app:${WORK}"]`).click();
+    await expect(page.getByTestId("inspect-connector-changed")).toContainText("SKILL.md");
+    await page.getByTestId("inspect-connector-remove").click();
+    await expect(page.getByTestId("inspect-connector-remove-changed")).toContainText("SKILL.md changed since AI Juggler added it, so Remove takes nothing out.");
+    await expect(page.getByTestId("inspect-connector-remove-anyway")).toHaveText("Remove anyway (also deletes SKILL.md)");
+    await expect(page.getByTestId("inspect-connector-cancel")).toBeFocused();
+    await expect(page.getByTestId("inspect-connector-remove-anyway")).toBeInViewport();
+    await axe(page, `remove anyway ${theme}`);
+    await shoot(page, `remove-anyway-1280x800-${theme}.png`);
   });
 }
