@@ -1,0 +1,100 @@
+{
+ "missing": [],
+ "unreadable": [],
+ "variants": {
+  "ladder": {
+   "pairs": 8,
+   "b_wins": 2,
+   "a_wins": 3,
+   "same": 3,
+   "b_fail": [
+    [
+     "P002",
+     "H007"
+    ],
+    [
+     "P004",
+     "H005"
+    ],
+    [
+     "P010",
+     "H023"
+    ]
+   ],
+   "a_fail": [
+    [
+     "P002",
+     "H007"
+    ],
+    [
+     "P004",
+     "H005"
+    ],
+    [
+     "P005",
+     "H008"
+    ]
+   ],
+   "b_verdicts": {
+    "PASS": 4,
+    "FAIL": 3,
+    "WEAK": 1
+   },
+   "a_verdicts": {
+    "PASS": 4,
+    "FAIL": 3,
+    "WEAK": 1
+   },
+   "preferred": false,
+   "zero_b_fails": false,
+   "b_ships_by_the_rule": false
+  },
+  "choose_only": {
+   "pairs": 2,
+   "b_wins": 0,
+   "a_wins": 2,
+   "same": 0,
+   "b_fail": [],
+   "a_fail": [],
+   "b_verdicts": {
+    "WEAK": 2
+   },
+   "a_verdicts": {
+    "WEAK": 1,
+    "PASS": 1
+   },
+   "preferred": false,
+   "zero_b_fails": true,
+   "b_ships_by_the_rule": false
+  }
+ },
+ "singles": {
+  "by_level": {
+   "L0": {
+    "WEAK": 1,
+    "PASS": 1
+   },
+   "L3": {
+    "FAIL": 1,
+    "PASS": 2,
+    "WEAK": 1
+   },
+   "L1": {
+    "PASS": 4
+   },
+   "L2": {
+    "PASS": 2,
+    "WEAK": 2
+   }
+  },
+  "fail": [
+   [
+    "S002",
+    "H016",
+    "L3",
+    "excerpt_routed"
+   ]
+  ]
+ },
+ "rule": "B ships for calm items only if b_wins > a_wins + same (a 'same' answer is a tie and counts as A's) and B has zero FAILs"
+}

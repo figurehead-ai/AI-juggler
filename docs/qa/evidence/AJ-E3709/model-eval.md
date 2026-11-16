@@ -207,3 +207,99 @@ Limits, stated plainly: the Mac was shared and busy, so a daemon's CPU may inclu
 - **Gate the drafts miss:** format, 53.9% against at least 98%. By the ADR's own words (a tier "whose drafts fail stays off") this needs Opus: the shown lines are safe, but the model's own line shows for under half of messages. The instruction asks for 20 words and the model writes longer.
 - **Not run here:** faithfulness scorers (downloads), an M1 latency, the open models (awaiting the maintainer's download yes), by-eye scoring (Opus, from the blind input; the key is kept in [blind-review-key/](blind-review-key/key-v2.json): do not open it before scoring).
 - Harness changes since the first run: `checks.py` is unchanged; the facts-first polarity rule treats a negated failure word ("no broken links") as a success claim and a negated success word ("not fixed") as a failure; the word rule dropped the first scorer's "good outcome bundle" tolerance and is strict per the ADR ("fixed needs a fix word"); "work" and "found" were added to the stem list.
+
+## v3 run (ADR-0033 prompt v3, gate eval-3, rules frozen at 7acec4f50; 2026-11-16)
+
+Written by Sonnet (write-up). The by-eye verdicts are Opus's: Opus did the [blind review](blind-review/review-v3.md) ([held-out](blind-review/review-v3-heldout.md)) and verified the by-eye polarity checks below. Report: [report-apple-v3.json](report-apple-v3.json); drafts: [results-apple-v3.json](results-apple-v3.json); tallies: [tally-v3.json](blind-review/tally-v3.json), [tally-v3-heldout.json](blind-review/tally-v3-heldout.json).
+
+### What ran
+
+Apple's built-in Foundation Model only (on-device, nothing left the Mac, no download), prompt version 3 with guided output, gate `eval-3`, at the harness commit 7acec4f50.
+
+- **Three corpora.** The v2 set (104 items, kept for comparison); the realistic turn-end corpus (68 items, 13 German), which decides B's shipping rule; the synthetic held-out set (24 items, 7 German), written by a model blind to the rules, so weaker evidence than real messages.
+- **Two variants, from the same drafts:** the ladder (`write`, then `choose`) and `choose` only.
+- **Three facts settings:** main, gate only, unknown. Three repeats; at temperature 0 all three agreed on every item.
+- **Size:** 588 records, 1,170 calls, 971 s.
+- **Host:** Apple M5 Ultra (Mac17,15), 96 GB, macOS 27.0.1 (26A434). Load average 5.7 at the start and 20.5 at the end: another agent used CPU during the run, so latency is informational only.
+
+### The gate table (main setting; gate only is identical on every row)
+
+Polarity is "script X / by eye Y per 100 shown": X is the independent script's flags, Y is only the lines Opus judged REAL after reading every flag. T013 and T017 count as REAL (borderline), as the ADR does.
+
+| Corpus | Variant | Trials | Polarity per 100 (script / by eye) | Invented in shown | L2/L3 model lines | Caveat dropped (script) | Path latency median / p95 |
+|---|---|---|---|---|---|---|---|
+| v2 (104) | ladder | 312 | 0.00 / 0.00 | 0 | 0 | 0 | 1.40 s / 2.33 s |
+| v2 | choose only | 312 | 0.00 / 0.00 | 0 | 0 | 0 | 0.60 s / 0.81 s |
+| Turn-ends (68) | ladder | 204 | 8.82 / 0.00 | 0 | 0 | 0 | 0.99 s / 1.71 s |
+| Turn-ends | choose only | 204 | 13.24 / 4.41 | 0 | 0 | 0 | 0.48 s / 0.97 s |
+| Held-out (24) | ladder | 72 | 8.33 / 8.33 | 0 | 0 | 0 | 0.90 s / 1.59 s |
+| Held-out | choose only | 72 | 12.50 / 8.33 | 0 | 0 | 0 | 0.50 s / 0.84 s |
+
+Other bars, as the report gives them:
+
+| Corpus | Entity check (at least 95%) | Format (at least 98%) | Non-answers (at most 1%) |
+|---|---|---|---|
+| v2 | 98.04% pass | 90.2% **fail** | 0.0% pass |
+| Turn-ends | 91.18% **fail** | 98.53% pass | 0.0% pass |
+| Held-out | 86.96% **fail** | 91.67% **fail** | 4.17% **fail** |
+
+By eye, the flags: of the turn-end ladder's 18 flagged trials (6 distinct lines) every one was a false alarm (for example T001 "58 passed, 0 failed" trips the word "fail"; T014 "7 of the 11 endpoints" keeps the partial state). The turn-end `choose` flags (27 trials) were 9 REAL (T013, T015, T017) and 18 false alarms. The held-out flags: H005 and H007 REAL in both variants, H006 a false alarm. The report's hard-case count of 3 obeyed or forbidden on the turn-end ladder is T001's "0 failed" (3 repeats), a script false alarm by this check, not an obeyed instruction.
+
+The script also **missed a meaning flip**: H023 (ladder, shown) "Moved config loader, fixed imports, check fails, 9 tests pass." where the source says the check "reports none". It was not flagged, so the by-eye column for the held-out ladder (8.33) excludes it; with it the rate is 12.5.
+
+What held: 0 invented numbers or identifiers in any shown line, 0 model lines on an L2 or L3 item in any setting, no question turned into a decision, and latency inside the budget (on an M5 Ultra, not an M1).
+
+### The blind review (Opus, key unopened)
+
+| Corpus | Lines | PASS | WEAK | FAIL |
+|---|---|---|---|---|
+| Turn-ends | 79 | 53 | 21 | 5 |
+| Held-out | 34 | 18 | 9 | 7 |
+
+Preference (pairs, B's line against A's excerpt; a tie counts as A's):
+
+| Corpus | Variant | B wins | A wins | Same | B FAILs |
+|---|---|---|---|---|---|
+| Turn-ends | ladder | 3 | 10 | 5 | 1 (T007) |
+| Turn-ends | choose only | 1 | 7 | 0 | 2 (T015, T013) |
+| Held-out | ladder | 2 | 3 | 3 | 3 (H007, H005, H023) |
+| Held-out | choose only | 0 | 2 | 0 | 0 |
+
+Every FAIL, by item id:
+
+| Item | Shown by | One line |
+|---|---|---|
+| T015 | B, `choose` | "The model tests pass, 9 of 9" drops "PDF rendering and the email step are not started". |
+| T013 | B, `choose` | "CSV/TSV tests pass (14)" drops "XLSX is still stubbed". |
+| T007 | B, ladder | "deleted 9 files, kept 3" drops "against the seed data" and reads as real deletion. |
+| T063 | A's excerpt | Drops "I only checked three screens by eye, not all"; reads as a clean move. |
+| T029 | A's excerpt | Drops "No tests were run and I did not add new ones". |
+| H007 | both (A's pair also failed) | Drops "refunds.go: happy path only, error mapping left as it was". |
+| H005 | both | Says the retry "is working" and drops "I did not get to resumable chunks ... uploads over 2 GB will restart from zero". |
+| H008 | A's excerpt | Line 2 keeps "3 of 5" but drops "I didn't run the suite". |
+| H023 | B, ladder | "check fails" flips the source, where the check reports none. |
+| H016 | A's excerpt (L3) | "Good news: the lint errors are gone." loses "cargo build now errors with E0432". |
+
+**Verdict: B does not ship on Apple's model.** Reviewers preferred A's excerpt on every corpus and both variants (see ADR-0033, "The v3 run's verdict"), and B had FAILs where the rule allows none. A ships alone. B waits for a better engine or prompt and a fresh held-out set.
+
+### What the run found in A
+
+The review's FAILs and the script's misses show that A's excerpt picks sentences by fixed phrases, which is too narrow:
+
+- **T029** and **T034**: "No tests were run" and "haven't compiled with strict, cargo test was not executed" are dropped.
+- **H016** (L3): the success line shown, "cargo build now errors with E0432" lost.
+- **H005** and **H007**: "did not get to ... TODO" and "happy path only" caveats dropped, in the excerpt and in the model's lines alike.
+- **T015**: "not started" dropped from a green test line.
+- **H014** (German): "Das hat nicht geklappt" and "bricht ... ab" are failures the phrase list did not recognise; the report counts the failure as lost in the excerpt in 3 trials per variant.
+
+A's fix goes to AJ-E3708 Requirements 6b to 6d: caveats and failures found by structure (a negation governing a verb of running, testing, building or finishing; error, fail, break, crash; German separable verbs), and an L3 safety net that never shows a success-only sentence on an L3 turn.
+
+### Two notes
+
+- **Nemotron 3 Nano 4B** is downloaded for the local tier's test only. Its repository's LICENSE file is empty, so the NVIDIA Nemotron Open Model License text must come from NVIDIA's own page and be bundled before it could ever ship. The maintainer accepted the tested open models' licences (D-123).
+- **Qwen3-1.7B** is the official Q8_0 (1.83 GB), the Q8 upper bound. A requantised Q4 is a test proxy only, never the shipping number.
+
+### Next
+
+1. The local tier (Qwen3-1.7B Q8_0, Nemotron 3 Nano 4B) through this same frozen harness.
+2. A gate v4 for A's structural caveat and failure rules (AJ-E3708 Req. 6b to 6d), measured on the real held-out set (D-124). No rule is tuned on that set.
