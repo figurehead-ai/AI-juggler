@@ -3274,3 +3274,21 @@ The design that follows from it:
 - **Tasks:** E37 (AJ-E3701…AJ-E3707).
 - **Amends:** AJ-E2105's Home layout (its needs and apps move into the feed's pinned zone and the right column); AJ-E1004 R2's morning summary card (its data and its last-seen key move into the away digest); the proposal's "placement is the maintainer's call" (it is 0.5).
 - Sources: the coordinating session's relays of the maintainer, 2026-11-14.
+
+### D-120 Feed summaries: A (agents' own excerpts) and B (on-device AI lines) in 0.5; C last, with providers' permission; D and E later — SETTLED (2026-11-16)
+
+**Ruling.** The maintainer, 2026-11-16, on the research in `docs/research/feed-summaries-and-orchestrator-options.md`: "Yes let's do A and B now in 0.5, C - let's save that for last, when we can actually get permissions from those providers. Plan D and E in follow on versions… Make sure that all of the features are implemented in smart way and gracefully degrade, for example if mac or some small model is supported and is not heavy and user machine can support it, we enable it and let user know and also have settings to disable it… research it all well from multiple angles… most important is ease of use, we should never ask user to download models… offer as much automation as possible."
+
+1. **A (0.5): the agents' own excerpts.** The Home feed carries per-agent excerpts from what agents already write: Claude Code's turn-end `last_assistant_message` through hooks, Codex exec and rollout events (agent message, plan update, file changes, commands), task lists where present, and git facts (files, tests, commits). All of it goes through each adapter, never a per-tool branch outside the adapters. Extends D-118's (a+) and F2 and F3.
+2. **B (0.5): on-device AI lines.** On-device AI turns an agent's own text into one clean line and never adds facts. It is automatic when the Mac can do it comfortably; the user is told once and can switch it off in Settings; the app never says "please download a model". It degrades in order:
+   1. Apple's Foundation Models on macOS 26+ with Apple Intelligence on (no download);
+   2. else a small open model fetched automatically in the background, only on suitable hardware (Apple silicon, enough RAM and disk), on Wi-Fi or another unmetered link, on power, respecting Low Data Mode; checksummed, resumable, with a disk cap;
+   3. else A's excerpts only.
+
+   The user's own running Ollama or LM Studio may be used if present, never required. Nothing leaves the Mac.
+3. **C: last,** and only once the providers give permission (the user's own Claude, Codex or Gemini doing the summarising). **D and E** (a cloud service and the orchestrator bot) are a later release; the maintainer is choosing which. None of C, D or E is scheduled.
+4. **Process.** A Sonnet multi-angle research pass, then an Opus ADR for a pluggable `SummaryEngine` seam (Apple, local model and extractive implementations), with the design brought to the coordinating session before building. Shipping auto-download to users is product behaviour this ruling covers; downloads during development still need the maintainer's yes.
+
+- **Tasks:** AJ-E3708 (A), AJ-E3709 (B research), AJ-E3710 (B design, the ADR), AJ-E3711 (B build), in E37.
+- **Amends:** D-118 point 4 ("summaries written by a model (b) are not in 0.5"): on-device lines (b) are now in 0.5, as above; cloud and the user's-CLI routes stay out.
+- Sources: the coordinating session's relay of the maintainer, 2026-11-16, and `docs/research/feed-summaries-and-orchestrator-options.md`.
