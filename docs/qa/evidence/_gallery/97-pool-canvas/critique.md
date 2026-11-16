@@ -1,4 +1,4 @@
-<!-- captures: b16f5a710262 -->
+<!-- captures: a8f05dbe1159 -->
 # 97-pool-canvas: the Pools screen and a pool's canvas
 
 Design critique (D-57, AJ-E2814) against the reference screens: the row menus (77-menus), the rail's order menu, Usage and Processes. The baseline note says what changed on purpose; this says whether it is good.
@@ -100,3 +100,12 @@ canvas, inspect-* and new-pool-* (both widths and themes): the header's switch r
 - Every capture with the inspector: 380 px at first (was 340), resizable 360-420 from its left edge; the canvas gives up the 40 px.
 - An empty pool's page opens in its guided setup (98-pool-setup/empty-pool-setup); these captures' pools have members, so they stay on the diagram.
 - Adding from the palette keeps the added row in place, marked Added, so the next Add doesn't move (a browser test measures it).
+
+## 0.4.6 round 6 (AJ-E3011)
+
+Checked by eye, dark and light:
+
+- canvas, canvas-badge-open, canvas-edge-badge-open, canvas-full (1280×800), list: the ready box ends with the first prompt to give and a Copy link: "Then tell Planner: “Plan the work in every project, hand out tasks.” Copy" (round 6 #10). Pass.
+- new-pool-everyone (both sizes): the member's name takes its row's width, its Role and On its own pickers on the line under it (round 6 #8); the hint reads "Its role, and On its own: what this member may do without asking, if different from the pool." (#9). Pass.
+- The 1024×700 canvas captures, inspect-member, inspect-pool and messages-panel re-rendered with under 50 px of noise and were left as committed.
+- Weak: "in every project" makes the prompt read long for an every-project pool ("Plan the work in every project").

@@ -1,4 +1,4 @@
-<!-- captures: e3f72e71db2b -->
+<!-- captures: c3944dcc9f37 -->
 # 99-pool-selection: the canvas's selection and the inspector's title (AJ-E3012)
 
 Design critique (D-57, AJ-E2814) against 97-pool-canvas (the canvas before) and the calm UI round 2 rules. The canvas with each kind selected — nothing (the pool), a session, an App, an Account, a Tool, everyone in scope, a line, the pool's own setup opened from the checklist, and the lead's place waiting for an App's next session — dark and light, 1280×800. Fixture names only.
@@ -84,3 +84,11 @@ Checked by eye, dark and light:
 - opened-lead (new): Who leads opened from the summary's Change sits at the panel's top with the chosen radio focused (its ring visible), the whole list in view at 1280×800. A browser test checks the same at 1024×768 and that the role menu and the join menu open inside the window. Pass.
 - The talk table's cells look like buttons ("Click a cell to change it." above it). Pass.
 - Weak: at 1280×800 the opened Who leads list pushes its read-back to the panel's foot.
+
+## Round 6 (AJ-E3011)
+
+Checked by eye, dark and light:
+
+- selection-pool and header-custom: the ready box ends with the first prompt to give, with Copy ("Then tell Planner: “Plan the work in every project, hand out tasks, and ask Claude Code CLI to review.”" on selection-pool). Pass.
+- Weak: at 1280×800 selection-pool's prompt line sits at the panel's foot, its second line below the fold (the panel scrolls).
+- selection-app-role re-rendered with 9 px of noise and was left as committed.

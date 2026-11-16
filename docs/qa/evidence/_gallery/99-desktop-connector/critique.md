@@ -1,4 +1,4 @@
-<!-- captures: 3a65dcd7892e -->
+<!-- captures: e4b1a610ddbc -->
 # 99-desktop-connector: desktop apps in a pool through AI Juggler's connector (AJ-E3013)
 
 Design critique (D-57, AJ-E2814) against 99-pool-selection (the canvas and inspector around it), 92-agent-tools (the team tools card, the same card shape) and the calm UI round 2 rules. The Checkout team pool with a Claude app profile as an App member (no connector), a Claude app session connected, another Watched, and a ChatGPT (Codex app) thread; dark and light, 1280×800. Fixtures only: nothing is written or run.
@@ -45,3 +45,16 @@ Design critique (D-57, AJ-E2814) against 99-pool-selection (the canvas and inspe
 
 - guide: the card's step now opens in view in the panel (the list scrolls to it), its Cancel focused; so do the preview and Remove, and the pool's delete and seal confirmations (a browser test at 1761×1348, 1280×800 and 1024×768). Pass.
 - After Remove, a member's words follow the connector: Watched with the reason, never "Wakes on new messages" (unit-tested; no capture).
+
+## The backend's round (desktop sessions, Remove anyway, reason codes, D-119)
+
+Checked by eye, dark and light:
+
+- sessions (new): the Claude app · Work Max App with the connector, its two sessions in the pool drawn under its card on a hairline: "Tidy the checkout tests" (a green dot: active lately) and "Fix the coupon rounding" (a grey dot: quiet lately), each name at the row's width, then "Member · reads messages on its next turn" / "Reviewer · …". The App card reads "1 open now" (never "No session open yet" over its own sessions). Pass.
+- recipients (new): New message's To list has each desktop session by name and place, "Tidy the checkout tests · Claude app · Work Max" under Open now and "Fix the coupon rounding · Claude app · Work Max" under All. Pass.
+- remove-anyway (new): a file in the Work App's connector changed: its card says Watched with "Fix" (as a session's card says it, was Add); its inspector's Remove step lists what it deletes, the changed SKILL.md in the warning colour, then "SKILL.md changed since AI Juggler added it, so Remove takes nothing out. Remove anyway takes the connector out whole, deleting that file too.", the danger button "Remove anyway (also deletes SKILL.md)" and Cancel, focused. The danger tint is lighter on this card so its red clears AA (4.87:1 in dark). Pass.
+- connected: the connected session's line adds "A message you send with Deliver wakes it, whatever the pool's level." (D-119 5); Messages' Deliver says the same. Pass.
+- members: the pool's checklist stays open with "Can't work yet" (the Claude app App has no connector yet), never "This pool is ready" (round 6 #2). Pass.
+- Every reason a connector can't be added is worded (missing, unsafe location with its folder, not offered, unknown app, no folder, no connector); never the backend's own text (unit-tested; the ChatGPT card's line is unchanged).
+- Weak: the danger button and Cancel don't fit one row in the 380 px inspector, so Cancel wraps under it.
+- Weak: a desktop session's node isn't selectable on its own; its App's card is its door (role and level are the App's).
