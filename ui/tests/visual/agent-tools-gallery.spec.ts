@@ -86,7 +86,7 @@ for (const theme of ["dark", "light"] as const) {
     const question = page.getByTestId("pool-team-tools");
     await expect(question.getByRole("heading")).toHaveText("Let the sessions in your pools message each other and share notes and tasks?");
     await expect(question).toContainText("It costs nothing extra");
-    await expect(question).toContainText("You can switch it off per project or app in Settings.");
+    await expect(question).toContainText("This is for every pool you make; you can switch it off for a project or an app in Settings.");
     await expect(question.getByRole("button", { name: "Yes, let them work together" })).toBeVisible();
     await expect(question.getByRole("button", { name: "Not now" })).toBeVisible();
     // At the top: above the diagram, not low in the side panel.

@@ -1,4 +1,4 @@
-<!-- captures: 06071ee4a8c4 -->
+<!-- captures: b2b5b3321e62 -->
 # 99-pool-selection: the canvas's selection and the inspector's title (AJ-E3012)
 
 Design critique (D-57, AJ-E2814) against 97-pool-canvas (the canvas before) and the calm UI round 2 rules. The canvas with each kind selected — nothing (the pool), a session, an App, an Account, a Tool, everyone in scope, a line, the pool's own setup opened from the checklist, and the lead's place waiting for an App's next session — dark and light, 1280×800. Fixture names only.
@@ -71,3 +71,9 @@ Checked by eye, dark and light:
 - selection-pool-setup: the rarer settings (Kept apart, Your other Macs, Pools its agents may write to) sit under one closed "More settings", so Who may message whom opens higher. Pass.
 - Take out of the pool is held like Stop (a toast with Undo); nothing changes on these captures.
 - Weak (unchanged): at the 38 % fit the line from "Fix the cart…" crosses the "Checko…" and "Review…" names.
+
+## Sam's round-4 follow-ups (AJ-E3011)
+
+- header-custom (new): Custom chosen in the header opens its list in place, under the control: "Custom: what they may do on their own", "On their own they may do the 11 things you picked, under Custom actions.", and the pool's own Custom list (the inspector's and Settings' one list), Done at its foot; the page under it is inert. The inspector's summary reads the same count ("On their own they may do the 11 things you picked"). Checked dark and light. Pass.
+- Weak: at 1280×800 the list's Done sits below the popover's fold (it scrolls inside); Escape and a press outside close it too.
+- The ready line names which to open first when an App's next session leads ("Open Claude Code CLI · Work Max in web first: it leads; …"); none of these captures has that state in view.

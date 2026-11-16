@@ -214,6 +214,20 @@ for (const theme of ["dark", "light"] as const) {
     await expect(page.getByTestId("canvas-rule-start-lead")).toBeVisible();
     await shoot(page, SELECTION, `selection-lead-next-1280x800-${theme}.png`);
   });
+
+  // Sam's round-4 walk: Custom in the header opens its list in place, and
+  // the sentence counts what's picked.
+  test(`the header's Custom, its list in place — ${theme}`, async ({ page }) => {
+    await open(page, theme, canvasSeed(GATE_NOW));
+    await goTo(page, "Pools");
+    await page.getByTestId("pool-card-tile").filter({ hasText: "Checkout team" }).click();
+    await expect(page.getByTestId("pool-canvas")).toBeVisible();
+    await page.getByTestId("pool-header-level").click();
+    await page.getByRole("menuitemradio", { name: /^Custom/ }).click();
+    await expect(page.getByTestId("pool-header-custom-sentence")).toHaveText("On their own they may do the 11 things you picked, under Custom actions.");
+    await axe(page, `header custom ${theme}`);
+    await shoot(page, SELECTION, `header-custom-1280x800-${theme}.png`);
+  });
 }
 
 for (const size of [

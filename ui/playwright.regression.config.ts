@@ -22,8 +22,9 @@ const GALLERY_SPECS = [
   // pool canvas, what the other tool was told, and the Subagents tab.
   "controls-gallery", "handover-told-gallery", "nav-gallery", "pool-canvas-gallery", "subagents-gallery",
   // 0.4.6's (AJ-E3011, AJ-E3012): the pool setup, every step, and the
-  // canvas with each kind selected.
-  "pool-setup-gallery",
+  // canvas with each kind selected; (AJ-E3013) desktop apps in a pool
+  // through AI Juggler's connector.
+  "pool-setup-gallery", "connector-gallery",
 ];
 
 // AJ-E803: the visual regression gate. Baselines are rendered in the

@@ -1,4 +1,4 @@
-<!-- captures: f13aed031b4a -->
+<!-- captures: c63a4231f477 -->
 # 92-agent-tools: agent tools, the question on a pool's canvas and the setting with where they are off
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design passes.
@@ -33,3 +33,7 @@ agent-tools-question (both themes): the question is no longer in the inspector. 
 - Weak: the card takes about 190 px above the diagram at 1280×800 until it's answered.
 - Weak: while unanswered, the inspector's summary repeats it as "Team tools: Not answered yet…" with Turn on.
 - settings-agent-tools is unchanged by this round (left as committed).
+
+## 0.4.6 round 4 follow-up (Sam's walk)
+
+agent-tools-question (both themes): the card's scope line reads "This is for every pool you make; you can switch it off for a project or an app in Settings." ("your pools" alone was vague). Pass.

@@ -1,4 +1,4 @@
-<!-- captures: ee3141d659f6 -->
+<!-- captures: 84bb864c98e8 -->
 # 98-pool-setup: the pool setup a newcomer understands (AJ-E3011)
 
 Design critique (D-57, AJ-E2814) against the reference screens: Settings' choice lines, the switch dialog's "What does this mean?", and the calm UI round 2 mocks (levels, section labels, surface tone). Every step of New pool, empty (the first pool: the intro full, nothing chosen, the defaults filled in) and filled (a name, two Apps, an App's next session leading, a Reviewer, a pair blocked, waking, the seal), dark and light, 1280×800. Fixture names only.
@@ -77,3 +77,7 @@ Checked by eye, dark and light, empty and filled (the container's baselines and 
 - Review: Team tools is one line (with Turn on while unanswered; "On: …" once answered), the card having its own step; under the sentences, "What happens next: Open a session in ai-juggler: it joins; their messages show here." from the shared sentences (the diagram's ready box says the same). Pass.
 - Weak: Review filled at 1280×800 puts What each member can do and What happens next below the fold (the column scrolls; Make pool stays in the foot).
 - Weak: while unanswered, Review's Team tools row offers Turn on right after the step that asked; both are the same action, said once each.
+
+## Sam's round-4 follow-ups
+
+- setup-tools-empty: the question's scope line reads "This is for every pool you make; you can switch it off for a project or an app in Settings." (was "You can switch it off per project or app in Settings."). Checked dark and light. Pass.
