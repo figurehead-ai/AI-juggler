@@ -74,7 +74,7 @@ export function NewSessionModal({
   onLaunched: (sessionId: string, title: string) => void;
   /** AJ-E306 Req.8: the Sign-in-first detour opens the vendor login
    * terminal beside this sheet — the sheet stays and waits. */
-  openLoginTerminal?: (id: string, title: string) => void;
+  openLoginTerminal?: (id: string, title: string, options?: { account?: string }) => void;
   /** AJ-E309 Req.5: the Expert hatch's [Manage Launch settings →]. */
   onManageLaunchSettings?: () => void;
   /** A project's default App was set or cleared here: reload the projects. */
@@ -309,7 +309,7 @@ export function NewSessionModal({
             onAlways={(id) => void setDefault(id)}
             onSignIn={async (id, name) => {
               const terminal = await terminalSpawnLogin(id);
-              openLoginTerminal?.(terminal.id, `Sign in · ${name}`);
+              openLoginTerminal?.(terminal.id, `Sign in · ${name}`, { account: id });
             }}
             onAddApp={onManageLaunchSettings}
             sessionName={sessionName}

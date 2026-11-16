@@ -33,8 +33,11 @@ import type { Selection } from "./selection";
 /** AJ-E1103: the board became interactive once, after launch. */
 let boardInteractiveCounted = false;
 
-/** A sign-in's terminal, in the Sessions list until closed. */
-export type LoginTerminal = { id: string; title: string; ended: boolean };
+/** A sign-in's terminal, in the Sessions list until closed; `account`:
+ * the App (account id) it signs in, so its words name that App's tool. */
+export type LoginTerminal = { id: string; title: string; ended: boolean; account?: string };
+/** How a sign-in's terminal joins: shown at once or not, and its App. */
+export type LoginTerminalOptions = { select?: boolean; account?: string };
 
 export function useAppData(selection: Selection, openPage: (next: Selection) => void) {
   // Freshness per Instance id: when each value class was last sampled.
@@ -167,12 +170,12 @@ export function useAppData(selection: Selection, openPage: (next: Selection) => 
 
   // Login flows (Accounts screen) hand their terminal here; it joins the
   // Sessions rail list and gets selected.
-  const openLoginTerminal = useCallback((id: string, title: string, options?: { select?: boolean }) => {
+  const openLoginTerminal = useCallback((id: string, title: string, options?: LoginTerminalOptions) => {
     // A sign-in may change what the accounts read says: the next view of
     // them reads it again.
     staleSubscriptions();
     setLoginTerminals((current) =>
-      current.some((t) => t.id === id) ? current : [...current, { id, title, ended: false }],
+      current.some((t) => t.id === id) ? current : [...current, { id, title, ended: false, account: options?.account }],
     );
     if (options?.select === false) return; // Add account shows it in its own step
     openPage({ kind: "login", id }); // the panel must show the terminal, not stay on Accounts

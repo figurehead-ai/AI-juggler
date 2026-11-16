@@ -728,7 +728,7 @@ function SigninStep({
 }: {
   provider: string;
   queue: Signin[];
-  openLoginTerminal: (id: string, title: string, options?: { select?: boolean }) => void;
+  openLoginTerminal: (id: string, title: string, options?: { select?: boolean; account?: string }) => void;
   onDone: () => void;
 }): JSX.Element {
   const [terminals, setTerminals] = useState<Record<string, string>>({});
@@ -747,7 +747,7 @@ function SigninStep({
           setTerminals((current) => ({ ...current, [entry.accountId]: terminal.id }));
           // Known to the window too (it stays reachable after this flow
           // closes), but not shown there: two views would fight its size.
-          openLoginTerminal(terminal.id, `Sign in · ${entry.label}`, { select: false });
+          openLoginTerminal(terminal.id, `Sign in · ${entry.label}`, { select: false, account: entry.accountId });
         },
         (cause) => setError(errorText(cause)),
       );
@@ -1057,7 +1057,7 @@ export function FirstRun({
   startAt?: "found" | "fresh";
   /** An account was created or brought in (the caller refreshes). */
   onAccountsChanged?: () => void;
-  openLoginTerminal: (id: string, title: string, options?: { select?: boolean }) => void;
+  openLoginTerminal: (id: string, title: string, options?: { select?: boolean; account?: string }) => void;
   /** Back after Reopen AI Juggler: start at the access step. */
   resumeAtAccess?: boolean;
 }): JSX.Element {

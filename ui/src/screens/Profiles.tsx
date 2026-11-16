@@ -72,7 +72,7 @@ export function ProfilesScreen({
   /** D-97 (3): the empty page's Find my apps: first run's scan and found
    * step (absent: Add an app's flow). */
   onFindApps?: () => void;
-  openTerminal: (id: string, title: string) => void;
+  openTerminal: (id: string, title: string, options?: { account?: string }) => void;
   /** D-25: what runs where (open counts, runway fallback). */
   sessions?: InstanceInfo[];
   onInspectAccount?: (id: string) => void;
