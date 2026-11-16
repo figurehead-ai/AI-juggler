@@ -6,6 +6,8 @@
 #   - 200 % zoom and reduced-motion captures of rail, inspector, wizard;
 #   - the rail's Apps with nothing open: Inactive apps, an App's last 3
 #     under "Recent", then "All N sessions ›" (D-103.1/.2);
+#   - what the 0.4.6 RC walks found cut or scrolling sideways, measured
+#     (fits-its-room);
 #   - the measured contrast table.
 # Extra arguments go to Playwright (the release workflow passes
 # `--shard=i/n`; each shard sets A11Y_SKIP_SUMMARY=1 and one final job
@@ -27,6 +29,7 @@ AJ_AXE_GALLERY=1 AJ_A11Y_EVIDENCE=1 pnpm exec playwright test \
   tests/visual/idle.spec.ts \
   tests/visual/menus-a11y.spec.ts \
   tests/visual/pool-layout.spec.ts \
+  tests/visual/fits-its-room.spec.ts \
   "$@"
 tests=$?
 summary=0

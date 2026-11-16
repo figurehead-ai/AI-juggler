@@ -167,42 +167,51 @@ export function AccountCard(props: AccountCardProps): JSX.Element {
   const appCount = known?.ids.length ?? null;
   return (
     <Card className="@container overflow-hidden" data-testid="account-card" data-state={sub.state} data-service={service?.id}>
+      {/* The 0.4.6 RC walk A9: its mark and name take the room they need
+          (flex-auto; the name's flex-1, a zero basis, kept everything on
+          one line and cut "w…@example.invalid" to "w…@exam…" beside a long
+          chip); what follows wraps as one group, under them on the right,
+          when both don't fit. The name is cut only when it alone doesn't. */}
       <div className="flex flex-wrap items-center gap-3 border-b border-hairline px-5 py-4">
-        <span aria-hidden="true" className="size-2.5 shrink-0 rounded-full" style={{ background: accountColor(sub) }} title="This account's colour in the charts" />
-        <div className="min-w-0 flex-1">
-          <h3 className="truncate text-section text-ink" data-testid="account-name">
-            {sub.account_id ? (
-              <button type="button" onClick={() => openAccount(sub.account_id!)} title={`Open ${name}'s page`} className="max-w-full truncate rounded text-left outline-none hover:underline focus-visible:ring-1 focus-visible:ring-accent/60" data-testid="account-page">
-                {name}
-              </button>
-            ) : (
-              name
-            )}
-          </h3>
-          <p className="truncate text-meta text-ink-2" data-testid="account-line">
-            {signedOut
-              ? `${profiles.length === 1 ? "This app isn't" : "These apps aren't"} signed in, so ${profiles.length === 1 ? "its" : "their"} account isn't known yet.`
-              : sub.state === "unverified" && !service
-                ? `${providerDisplayName(sub.tool)} · ${sub.reason ?? "its sign-in can't be read"}`
-                : line.join(" · ") || providerDisplayName(sub.tool)}
-          </p>
+        <div className="flex min-w-0 flex-auto items-center gap-3">
+          <span aria-hidden="true" className="size-2.5 shrink-0 rounded-full" style={{ background: accountColor(sub) }} title="This account's colour in the charts" />
+          <div className="min-w-0 flex-1">
+            <h3 className="truncate text-section text-ink" data-testid="account-name">
+              {sub.account_id ? (
+                <button type="button" onClick={() => openAccount(sub.account_id!)} title={`Open ${name}'s page`} className="max-w-full truncate rounded text-left outline-none hover:underline focus-visible:ring-1 focus-visible:ring-accent/60" data-testid="account-page">
+                  {name}
+                </button>
+              ) : (
+                name
+              )}
+            </h3>
+            <p className="truncate text-meta text-ink-2" data-testid="account-line">
+              {signedOut
+                ? `${profiles.length === 1 ? "This app isn't" : "These apps aren't"} signed in, so ${profiles.length === 1 ? "its" : "their"} account isn't known yet.`
+                : sub.state === "unverified" && !service
+                  ? `${providerDisplayName(sub.tool)} · ${sub.reason ?? "its sign-in can't be read"}`
+                  : line.join(" · ") || providerDisplayName(sub.tool)}
+            </p>
+          </div>
         </div>
-        <RenewalChip renewal={renewal} />
-        {/* D-62 (AJ-E3202 req. 4): its Apps said different things; chosen once on its Settings. */}
-        <ChooseChip sub={sub} onOpen={() => openAccount(sub.account_id!, "settings")} />
-        {/* Every App listed below: its folders and the desktop Apps on them (walk A2). */}
-        {appCount === null && !signedOut && <span aria-hidden="true" className="h-3 w-36 animate-pulse rounded bg-skeleton" data-testid="account-profiles-count-pending" />}
-        {appCount !== null && appCount > 1 && !signedOut && (
-          <span className="text-meta text-muted" data-testid="account-profiles-count">
-            {appCount} apps share this account
-          </span>
-        )}
-        {menu.actions.length > 0 && menu.button({ label: `Account actions for ${name}`, shown: true, testId: "subscription-menu" })}
-        {service && first && (
-          <button type="button" className="text-label text-muted underline decoration-hairline underline-offset-2 hover:text-ink" onClick={() => setNewKey(true)} data-testid="account-new-key">
-            {sub.state === "signed_in" ? "Replace key…" : "Add its key…"}
-          </button>
-        )}
+        <div className="ml-auto flex min-w-0 flex-wrap items-center justify-end gap-3 empty:hidden" data-testid="account-card-aside">
+          <RenewalChip renewal={renewal} />
+          {/* D-62 (AJ-E3202 req. 4): its Apps said different things; chosen once on its Settings. */}
+          <ChooseChip sub={sub} onOpen={() => openAccount(sub.account_id!, "settings")} />
+          {/* Every App listed below: its folders and the desktop Apps on them (walk A2). */}
+          {appCount === null && !signedOut && <span aria-hidden="true" className="h-3 w-36 animate-pulse rounded bg-skeleton" data-testid="account-profiles-count-pending" />}
+          {appCount !== null && appCount > 1 && !signedOut && (
+            <span className="text-meta text-muted" data-testid="account-profiles-count">
+              {appCount} apps share this account
+            </span>
+          )}
+          {menu.actions.length > 0 && menu.button({ label: `Account actions for ${name}`, shown: true, testId: "subscription-menu" })}
+          {service && first && (
+            <button type="button" className="text-label text-muted underline decoration-hairline underline-offset-2 hover:text-ink" onClick={() => setNewKey(true)} data-testid="account-new-key">
+              {sub.state === "signed_in" ? "Replace key…" : "Add its key…"}
+            </button>
+          )}
+        </div>
       </div>
       {menu.element}
       {props.out !== undefined && <OutLine mark={accountMark(sub, props.displays, props.now)} target={props.out} self={name} />}
