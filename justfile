@@ -138,11 +138,15 @@ load-gate:
     cd ui && AJ_LOAD_GATE=1 pnpm exec playwright test tests/visual/load.spec.ts
     # AJ-E1906: 200 task rows in under 100 ms (a wall clock, so timed here only).
     cd ui && AJ_LOAD_GATE=1 pnpm exec vitest run src/pages/tasks/tasks.test.tsx -t "200 tasks"
+    # AJ-E817: the palette's open and keystroke budgets (AJ-E2901).
+    cd ui && AJ_LOAD_GATE=1 pnpm exec vitest run src/components/palette/palette-timing.test.ts
     cargo test -p juggler-app --test load_budgets -- --nocapture
     cargo test -p juggler-app --test load_budgets -- --ignored --test-threads=1 --nocapture
     cargo test -p juggler-handover --test pack_load -- --nocapture
     # AJ-E2902: "Usage cost cuts, 2,000 sessions", and the dollars reconciled.
     cargo test -p juggler-app --test cost_cuts_load -- --ignored --nocapture
+    # AJ-E817: tokens/min over 100k events, the old 5 ms budget reported only.
+    cargo test -p juggler-core --test quality_signals -- --ignored --nocapture
 
 # The system's own file events reach the folder wake (not in the default
 # run: FSEvents' delivery time is the OS's, minutes on a loaded Mac; the
