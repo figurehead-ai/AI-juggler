@@ -46,6 +46,8 @@ verify-static:
     just qa-kit
     python3 scripts/ci_parity.py --selftest
     python3 scripts/ci_parity.py
+    python3 scripts/visual_specs_check.py --selftest
+    python3 scripts/visual_specs_check.py
     cargo fmt --all --check
     cargo clippy --workspace --all-targets -- -D warnings
     cargo clippy --workspace --all-targets --no-default-features -- -D warnings

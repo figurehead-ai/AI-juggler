@@ -1,0 +1,45 @@
+# scripts/visual_specs_check.py: the visual specs no CI job runs, each with
+# why. `<kind> <spec> <reason>`, the spec named as in GALLERY_SPECS (its
+# path under ui/tests/visual/ without ".spec.ts").
+#   elsewhere  tags a gate() state but is run by another job (name it), not
+#              the gallery gate;
+#   local      never in CI by design (a wall-clock budget, a run behind its
+#              own switch);
+#   gap        could run in CI, no job does yet. Only shrinks: a spec that
+#              moves into a job leaves this list (the check fails until it does).
+
+# Local by design.
+local load                     AJ-E805 wall-clock budgets on the reference Mac: `just load-gate`
+local pool-canvas-frames       AJ-E2808 frame-time trace, skipped unless AIJ_FRAMES=1 (a timing run)
+local pool-open                D-62.20 first paint <= 100 ms, a wall-clock budget a shared runner can't hold
+local readme-shots             the README's screenshots, skipped unless `just readme-shots` sets AIJ_README_SHOTS
+local l3-canvas                L3 validation journeys (0.4 plan §4): every click timed <= 100 ms, evidence to docs/qa/evidence/l3/
+local l3-new-session           L3 validation journeys (0.4 plan §4): every click timed <= 100 ms, evidence to docs/qa/evidence/l3/
+local l3-pages                 L3 validation journeys (0.4 plan §4): every click timed <= 100 ms, evidence to docs/qa/evidence/l3/
+local l3-wizard                L3 validation journeys (0.4 plan §4): every click timed <= 100 ms, evidence to docs/qa/evidence/l3/
+
+# Known gaps (found 2026-11-16): assertion specs and evidence galleries
+# without a gate state that no CI job runs; they run only when someone runs
+# Playwright by hand or regenerates the gallery.
+gap a11y                       AJ-E402 axe on the rail fixture, both themes (assertions; no job runs it)
+gap accounts-out-filter        0.4.2 "N accounts out" lands on the Out filter (assertions; no job runs it)
+gap caret-mark                 rc24/25 K1 no input-source mark after a session page (assertions; no job runs it)
+gap cursor                     0.0.7 clickable things show the hand cursor (assertions; no job runs it)
+gap fleet-pairing              AJ-E704 pairing wizard end to end on the mock bridge (assertions; no job runs it)
+gap flows-cde                  AJ-E306 daily flows c/d/e click-count contracts (assertions; no job runs it)
+gap idle                       AJ-E805 0.4.5 an untouched window stops drawing (assertions; no job runs it)
+gap new-project                AJ-E305 New project in <= 3 clicks, ⌘⇧N (assertions; no job runs it)
+gap new-session-narrow         AJ-E3306 New session at 800x600 cuts nothing (assertions; no job runs it)
+gap replica-journey            AJ-E1529 the journey on the committed replica fixture (assertions; no job runs it)
+gap session-app-chip-narrow    0.4.1 A3 the App chip keeps the profile at 1024x680 (assertions; no job runs it)
+gap settings-nav-selection     AJ-E3306 X2 one Settings item looks selected (assertions; no job runs it)
+gap toast-narrow               rc31 NY1 Undo never covers the toast's words (assertions; no job runs it)
+gap account-page-gallery       AJ-E3205 evidence gallery with no gate() state; its expects run only on a local regenerate
+gap app-icons-gallery          D-38 evidence gallery with no gate() state; its expects run only on a local regenerate
+gap app-page-gallery           AJ-E3204 evidence gallery with no gate() state; its expects run only on a local regenerate
+gap app-profiles-gallery       AJ-E3203 evidence gallery with no gate() state; its expects run only on a local regenerate
+gap conversation-feed-gallery  0.3.5 evidence gallery with no gate() state; its expects run only on a local regenerate
+gap keep-alive-gallery         D-63 evidence gallery with no gate() state; its expects run only on a local regenerate
+gap new-session-gallery        AJ-E3207 evidence gallery with no gate() state; its expects run only on a local regenerate
+gap outside-search             AJ-E1538 evidence gallery with no gate() state; its expects run only on a local regenerate
+gap related-list-gallery       AJ-E3103 evidence gallery with no gate() state; its expects run only on a local regenerate
