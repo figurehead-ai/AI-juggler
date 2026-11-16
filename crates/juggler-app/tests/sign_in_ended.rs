@@ -4,7 +4,7 @@
 //! reuses that check for half a minute, so Home and the rail said "lab A
 //! needs its sign-in" after Kimi Code's sign-in had finished).
 
-#![allow(clippy::unwrap_used)]
+#![allow(clippy::unwrap_used, reason = "test code")]
 
 use std::sync::Arc;
 
