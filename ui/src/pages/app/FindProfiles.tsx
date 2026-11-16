@@ -12,6 +12,7 @@ import { errorText } from "../../lib/bridge";
 import type { AppModel } from "../../lib/apps";
 import { askFolder, findNow, useFindProfiles } from "../../lib/find-profiles";
 import { OfferRow, usePlaceOffers } from "../../components/PlaceOffers";
+import { PathText } from "../../components/PathText";
 
 export function FindProfiles({ app }: { app: AppModel }): JSX.Element | null {
   const { info, answer } = useFindProfiles();
@@ -77,7 +78,7 @@ export function FindProfiles({ app }: { app: AppModel }): JSX.Element | null {
       <span className="flex min-w-0 max-w-[68ch] flex-1 flex-col gap-1">
         <span className="text-body font-medium text-ink">Find this app's other profiles</span>
         <span className="text-meta text-ink-2">
-          {app.app} keeps each profile in a folder of its own, in <span className="break-all font-mono text-ink">{folder}</span>. AI Juggler can read the names of the folders there, and nothing inside them, so the profiles that aren't running show too.
+          {app.app} keeps each profile in a folder of its own, in <PathText path={folder} className="text-ink" />. AI Juggler can read the names of the folders there, and nothing inside them, so the profiles that aren't running show too.
         </span>
         <span className="text-meta text-muted">You're asked once. Settings › Desktop apps can turn it off later.</span>
       </span>
