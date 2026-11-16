@@ -11,7 +11,8 @@ For every item of every corpus and every repeat: the text is normalised (step 0)
   choose = the same frame around at most 8 numbered candidate sentences, guided to one integer.
 Both are made for every item, whatever its facts, so report_v3.py can replay the gate and the ladder offline under the three facts
 settings (main, gate only, facts unknown) and both B variants (the ladder; choose only) from the same drafts. Routing (section 2) is
-applied by the report: under 'main' an L2/L3 item's calls are simply not used.
+applied by the report: under 'main' an L2/L3 item's calls are simply not used, and under 'unknown' step 0 shows A's excerpt
+(ADR-0033 ffb384489), so those calls serve only to measure the drafts (format, entity check, non-answers).
 Records the probe's hello, prompt and gate versions, macOS version and the machine (no host name), CPU of the probe and Apple's named
 model daemons, their resident memory, and the load average (the Mac is shared)."""
 import argparse, hashlib, json, os, shlex, subprocess, time

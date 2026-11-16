@@ -381,8 +381,11 @@ def facts_norm(f):
 def facts_loud(F): return bool(F) and (F["level"] in ("L2", "L3") or F["outcome"] in ("asking", "failed"))
 
 # ---------- step 0b: the level from the facts, first; and the language ----------
-def step0(facts, lang):
+def step0(facts, lang, unknown_rule=True):
+    """the level first (section 2 and section 6 step 0, as amended in ffb384489): loud facts, or facts unknown, mean A's excerpt.
+    unknown_rule=False exists only for report_v3's information count ("would the word rules alone have caught it")."""
     errs = []; F = facts_norm(facts)
+    if F is None and unknown_rule: errs.append("step 0: the facts are unknown; A's excerpt shows, no write and no choose (ADR-0033 ffb384489)")
     if facts_loud(F): errs.append(f"step 0: the facts say {F['level']} / {F['outcome']}; a model line here is a bug, never shown (section 2)")
     if lang is None: errs.append("step 0: the text's language has no word lists here; A's excerpt shows")
     return (not errs), errs
@@ -625,10 +628,10 @@ def prepare(source):
     """the text every engine, the gate and the excerpt read: normalised (step 0), language judged, guarded (step 1), candidates"""
     normalised = normalise(source); cleaned, removed = guard(normalised)
     return {"normalised": normalised, "lang": language(cleaned), "cleaned": cleaned, "removed": removed, "cands": candidates_v3(cleaned)}
-def gate_v3(ctx, line, facts, finish="stop", refused=False):
+def gate_v3(ctx, line, facts, finish="stop", refused=False, unknown_rule=True):
     """ctx: prepare(...). -> (steps{name: (ok, errs)}, shown, quoted)"""
     cleaned = ctx["cleaned"]; pre, _ = strip_quote_pair((line or "").strip())
-    g = {"0": step0(facts, ctx["lang"]), "2": step2_v3(cleaned, pre, facts), "2b": step2b(cleaned, pre, ctx["lang"]),
+    g = {"0": step0(facts, ctx["lang"], unknown_rule), "2": step2_v3(cleaned, pre, facts), "2b": step2b(cleaned, pre, ctx["lang"]),
          "3": step3_v3(cleaned, pre, facts)}
     ok4, e4, shown, quoted = step4_v3(cleaned, line, finish, refused)
     g["4"] = (ok4, e4); g["5"] = step5(ctx["removed"], pre)
@@ -661,7 +664,7 @@ def _pick_index(choose_out, n):
     else:
         m = re.search(r"\d+", choose_out.get("text") or ""); idx = int(m.group(0)) - 1 if m else -1
     return idx if 0 <= idx < n else -1
-def ladder_v3(item, facts, write_out, choose_out, route=True, variant="ladder", ctx=None):
+def ladder_v3(item, facts, write_out, choose_out, route=True, variant="ladder", ctx=None, unknown_rule=True):
     """item: {source}; facts: corpus facts or None (unknown). write_out: {text, finish, refused, error} or None (not asked);
     choose_out: {text|pick, error} or None. variant: 'ladder' (write, then choose) or 'choose_only'.
     -> {shown, kind: written|quoted|excerpt|excerpt_routed, trace[], write_gate, choose_gate, excerpt, caveat_line, lang, cleaned, removed}"""
@@ -672,6 +675,7 @@ def ladder_v3(item, facts, write_out, choose_out, route=True, variant="ladder", 
     def done(shown, kind, trace, **kw): return {**base, **kw, "shown": shown, "kind": kind, "trace": trace}
     F = facts_norm(facts)
     if route and facts_loud(F): return done(exc, "excerpt_routed", ["section 2: L2/L3 show the agent's own words; no engine called"])
+    if route and F is None and unknown_rule: return done(exc, "excerpt_routed", ["step 0: facts unknown; A's excerpt, no engine called"])
     if route and ctx["lang"] is None: return done(exc, "excerpt_routed", ["section 2: no word lists for the text's language; no engine called"])
     trace = []; wg = None
     def fmt(g): return {k: [v[0], v[1]] for k, v in g.items()}
@@ -680,7 +684,7 @@ def ladder_v3(item, facts, write_out, choose_out, route=True, variant="ladder", 
         elif write_out is None: trace.append("no write made")
         else:
             text = (write_out.get("text") or "").strip()
-            g, shown, quoted = gate_v3(ctx, text, facts, write_out.get("finish", "stop"), bool(write_out.get("refused")) or bool(write_out.get("error")))
+            g, shown, quoted = gate_v3(ctx, text, facts, write_out.get("finish", "stop"), bool(write_out.get("refused")) or bool(write_out.get("error")), unknown_rule)
             wg = fmt(g); failed = [k for k, v in g.items() if not v[0]]
             if not failed: return done(shown, "quoted" if quoted else "written", ["write passed the gate"], write_gate=wg)
             trace.append("write failed step(s) " + ",".join(failed))
@@ -690,7 +694,7 @@ def ladder_v3(item, facts, write_out, choose_out, route=True, variant="ladder", 
     if not ctx["cands"]: return done(exc, "excerpt", trace + ["no candidate sentences"], write_gate=wg)
     if idx is None: return done(exc, "excerpt", trace + ["no choose made"], write_gate=wg)
     if idx < 0: return done(exc, "excerpt", trace + ["choose gave no valid number"], write_gate=wg)
-    g, shown, _q = gate_v3(ctx, ctx["cands"][idx], facts)
+    g, shown, _q = gate_v3(ctx, ctx["cands"][idx], facts, unknown_rule=unknown_rule)
     cg = fmt(g); failed = [k for k, v in g.items() if not v[0]]
     if not failed: return done(shown, "quoted", trace + [f"choose ({idx + 1}) passed the gate"], write_gate=wg, choose_gate=cg)
     return done(exc, "excerpt", trace + [f"chosen sentence {idx + 1} failed step(s) " + ",".join(failed)], write_gate=wg, choose_gate=cg)
@@ -738,6 +742,14 @@ def selftest():
         check(f"step 0: L3 never written, even a faithful line ({var})", r["kind"] == "excerpt" and "fail" in r["shown"], r)
     r = ladder_v3({"source": "J'ai corrigé le bug du cache et ajouté trois tests pour la page des réglages."}, calm, {"text": "Corrigé le bug du cache."}, {"text": "1"})
     check("step 0: a language without word lists gets the excerpt, no engine", r["kind"] == "excerpt_routed", r)
+    # step 0: facts unknown -> A's excerpt, no write and no choose (ffb384489), on every path
+    calm_src = {"source": "Added retry with backoff to client.py. I added three tests for it."}
+    for route in (True, False):
+        for var in ("ladder", "choose_only"):
+            r = ladder_v3(calm_src, None, {"text": "Added retry with backoff to client.py."}, {"text": "1"}, route=route, variant=var)
+            check(f"step 0: facts unknown show A's excerpt (route={route}, {var})", r["kind"] in ("excerpt", "excerpt_routed") and r["shown"] == r["excerpt"], r)
+    r = ladder_v3(q, None, None, {"text": "1"}, route=False, variant="choose_only", unknown_rule=False)
+    check("step 0: unknown_rule=False (the report's information count) lets the word rules decide", r["kind"] == "quoted", r)
     # step 3: a polarity flip is rejected
     ok, bad, _, _ = passes(f3["source"], "All tests pass and the cache layer works.", f3["facts"])
     check("step 3: polarity flip rejected (facts failed)", not ok and "3" in bad, bad)

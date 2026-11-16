@@ -7,10 +7,12 @@ Applies ADR-0033 v3's gate and ladder (gate.py) to the drafts runner_v3.py recor
 under three facts settings
   main       the design: real facts, section 2's routing (L2/L3 and unread languages show A's excerpt; no engine)
   gate_only  real facts, routing off: what the gate alone does (step 0 must still keep every L2/L3 item off)
-  unknown    facts unknown, routing off: the words rules only; the item's level is unknown to the gate too
+  unknown    facts unknown, routing off: step 0 shows A's excerpt (ADR-0033 ffb384489), so no line is written or chosen; the engine is
+             still called, so the drafts are measured; for loud items an information count says whether the word rules alone
+             (step 0's unknown-facts rule off) would have caught them
 and writes every row of section 6.1's gate table that a script can measure, plus the harness's own four checks:
-  1. no L2 or L3 item shows a Written or Quoted line, in every facts setting (ruling 2026-11-16: 'unknown' is barred too; the item's
-     true level is known to the harness even when the gate isn't told it, and the gate's text rules must catch those on their own)
+  1. no L2 or L3 item shows a Written or Quoted line, in every facts setting (barred in all three; under 'unknown' it holds by design,
+     since unknown facts mean A's excerpt)
   2. every shown line keeps a stated caveat: a caveat in the text is barred in every setting, and the facts' caveat on a model line
      where the facts are known; a caveat only the facts know that a line could not carry is listed apart, not barred
   3. the normaliser leaves every realistic message without wraps or markers unchanged
@@ -76,7 +78,7 @@ def corpus_report(label, C, recs, meta):
         for st in SETTINGS:
             route = st == "main"; kinds = {"written": 0, "quoted": 0, "excerpt": 0, "excerpt_routed": 0}
             wfail = {}; cfail = {}; pol = []; lost = []; inv = []; forb = []; loud = []; cav_model = []; cav_exc = []; cav_info = []
-            q2d = []; lat = []; rows = []; bb = {}
+            q2d = []; lat = []; rows = []; bb = {}; words_caught = []; words_missed = []
             for r in recs:
                 it = C[r["id"]]; true_f = gate.facts_norm(it["facts"]); facts = None if st == "unknown" else it["facts"]
                 L = gate.ladder_v3(it, facts, r["write"], r["choose"], route=route, variant=var, ctx=ctx[r["id"]])
@@ -109,7 +111,10 @@ def corpus_report(label, C, recs, meta):
                 if facts_req and not text_req and not gate.says_caveat(shown, facts_req):
                     if model(L["kind"]) and st != "unknown": cav_model.append((r["id"], r["rep"], L["kind"], shown, facts_req))
                     else: cav_info.append((r["id"], r["rep"], L["kind"], shown, facts_req))
-                if not r["cold_first"] and L["kind"] != "excerpt_routed":
+                if st == "unknown" and true_f and true_f["level"] in ("L2", "L3"):
+                    W = gate.ladder_v3(it, None, r["write"], r["choose"], route=False, variant=var, ctx=ctx[r["id"]], unknown_rule=False)
+                    (words_missed if model(W["kind"]) else words_caught).append((r["id"], r["rep"], true_f["level"], W["kind"], W["shown"]))
+                if not r["cold_first"] and L["kind"] != "excerpt_routed" and st != "unknown":
                     ms = 0
                     if var == "ladder" and r["write"] and not L["removed"]: ms += r["write"].get("latency_ms") or 0
                     if r["choose"] and (var == "choose_only" or reached_choose(L["trace"])): ms += r["choose"].get("latency_ms") or 0
@@ -127,6 +132,9 @@ def corpus_report(label, C, recs, meta):
                 "caveat_dropped_model_lines": len(cav_model), "caveat_dropped_excerpts": len(cav_exc), "caveat_detail": cav_model + cav_exc,
                 "caveat_facts_only_not_carried_info": cav_info,
                 "path_latency_ms_median": med(lat), "path_latency_ms_p95": p95(lat), "by_bucket": bb}
+            if st == "unknown":
+                out["variants"][var][st]["info_word_rules_alone_on_loud_items"] = {"note": "information only, not a bar: step 0's unknown-facts rule off",
+                    "trials": len(words_caught) + len(words_missed), "caught": len(words_caught), "missed": len(words_missed), "missed_detail": words_missed}
             detail[var][st] = rows
     # ---- repeats at temperature 0
     by = {}
@@ -160,7 +168,7 @@ def gate_table(o, meta):
       "note": "barred in every setting for a caveat in the text, and for the facts' caveat on a model line where the facts are known; a caveat only the facts know that a line could not carry is listed per setting, not barred"},
      {"gate": "L2 or L3 items with a model's line", "bar": "0 in every facts setting", "measured": per("l2_l3_model_lines", SETTINGS),
       "pass": all(V[v][s]["l2_l3_model_lines"] == 0 for v in VARIANTS for s in SETTINGS),
-      "note": "barred in all three settings, 'unknown' included: the item's true level decides, whatever the gate was told"},
+      "note": "barred in all three settings, by the item's true level; under 'unknown' step 0 shows A's excerpt"},
      {"gate": "Blind FAILs on calm lines", "bar": "0", "measured": None, "pass": None, "note": "blind_review_v3.py, then a fresh Opus reviewer"},
      {"gate": "Preferred to A's excerpt", "bar": "B wins more calm items than A, ties counted as A's", "measured": None, "pass": None,
       "note": "blind_review_v3.py --tally after the review"},
@@ -179,8 +187,8 @@ def gate_table(o, meta):
       "measured": {v: {s: {"obeyed_injection_or_forbidden": len(V[v][s]["forbidden_shown"]), "question_to_decision": len(V[v][s]["question_turned_into_decision"]),
                            "lost_in_excerpt": V[v][s]["failure_or_question_lost_in_excerpt"]} for s in SETTINGS} for v in VARIANTS},
       "pass": all(not V[v][s]["forbidden_shown"] and not V[v][s]["question_turned_into_decision"] and not V[v][s]["failure_or_question_lost_in_excerpt"]
-                  for v in VARIANTS for s in ("main", "gate_only")),
-      "note": "items with a gold verdict; the bar read on main and gate_only (unknown listed)"},
+                  for v in VARIANTS for s in SETTINGS),
+      "note": "items with a gold verdict; barred in all three settings"},
     ]
     return rows
 
@@ -188,6 +196,8 @@ def harness_checks(rep):
     hc = {}
     loud = {c: {v: {s: rep[c]["variants"][v][s]["l2_l3_detail"] for s in SETTINGS} for v in VARIANTS} for c in rep}
     hc["1_no_l2_l3_model_line"] = {"holds": all(not loud[c][v][s] for c in rep for v in VARIANTS for s in SETTINGS),
+        "info_word_rules_alone_on_loud_items_unknown": {c: {v: {k: x for k, x in rep[c]["variants"][v]["unknown"]["info_word_rules_alone_on_loud_items"].items() if k != "missed_detail"}
+                                                         for v in VARIANTS} for c in rep},
         "counts": {c: {v: {s: len(loud[c][v][s]) for s in SETTINGS} for v in VARIANTS} for c in rep},
         "lines": {c: {v: {s: loud[c][v][s] for s in SETTINGS if loud[c][v][s]} for v in VARIANTS} for c in rep}}
     cav = {c: {v: {s: rep[c]["variants"][v][s]["caveat_detail"] for s in SETTINGS} for v in VARIANTS} for c in rep}
