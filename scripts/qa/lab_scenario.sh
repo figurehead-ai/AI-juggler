@@ -112,6 +112,10 @@ case "$cmd" in
     # ADR-0027: the same, with the lab write mode — the walk makes pools,
     # starts, switches and stops sessions from the browser. The app checks
     # the HOME itself and refuses to start the bridge on anything but a lab.
+    # The pool tools' program (juggler-agent) must sit beside the app's own
+    # executable, so it is built for the same profile first (0.4.6: a walk
+    # build without it read as "not in this build").
+    (cd "$root" && "$root/scripts/qa/lab_env.sh" cargo build -q --offline -p juggler-agentbridge --bin juggler-agent ${AIJ_LAB_PROFILE:+--profile "$AIJ_LAB_PROFILE"}) || { echo "lab-scenario: juggler-agent didn't build" >&2; exit 1; }
     (cd "$root" && HOME="$lab" AIJ_DEV_BRIDGE=1 AIJ_LAB_BRIDGE=1 "$root/scripts/qa/lab_env.sh" cargo run -q --offline -p juggler-app ${AIJ_LAB_PROFILE:+--profile "$AIJ_LAB_PROFILE"} --features lab-bridge) &
     echo "lab-scenario: the lab's backend (LAB WRITE MODE) is starting (pid $!); its page: HOME=$lab python3 scripts/dev_bridge_url.py"
     ;;
