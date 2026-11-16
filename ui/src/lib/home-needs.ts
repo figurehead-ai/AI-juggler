@@ -59,8 +59,14 @@ export function homeNeeds({ items, signIns, signInDetail, mac, heavy, leftovers 
     const kind: HomeNeedKind = item.need === "limit" ? "limit" : item.need === "failed" ? "failed" : "session";
     out.push({ key: item.key, kind, title: item.title, detail: where(item), severe: kind !== "session", item });
   }
+  // Short, by its label ("lab A needs its sign-in"), unless another App's
+  // sign-in reads the same: then each such one by its App's full name (the
+  // 0.4.6 RC walk P8: OpenCode's and Kimi Code's both read "default needs
+  // its sign-in"), so no two rows read the same.
+  const shared = new Set(signIns.map((account) => account.label).filter((label, at, all) => all.indexOf(label) !== at));
   for (const account of signIns) {
-    out.push({ key: `signin:${account.id}`, kind: "signin", title: `${account.label} needs its sign-in`, detail: signInDetail(account), severe: false, account });
+    const name = shared.has(account.label) ? cliAppName(account.provider, account.label) : account.label;
+    out.push({ key: `signin:${account.id}`, kind: "signin", title: `${name} needs its sign-in`, detail: signInDetail(account), severe: false, account });
   }
   if (mac) out.push({ key: "mac", kind: "mac", title: mac.title, detail: mac.detail, severe: mac.severe });
   for (const tree of heavy) {
