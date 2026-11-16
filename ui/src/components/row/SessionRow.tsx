@@ -30,7 +30,7 @@ import { PinMark } from "../RailProjectRows";
 import type { Arrangeable } from "../RowTools";
 import { shortHeavy, useHeavyNote } from "../../lib/machine";
 import { STATE_TONE, needWord, type RailItem } from "../../lib/rail-items";
-import { attentionLevel, itemLevel, levelTone, type AttentionLevel } from "../../lib/attention";
+import { itemLevel, levelTone, type AttentionLevel } from "../../lib/attention";
 import { agoWords } from "../../lib/time-words";
 import type { AppRef } from "../../lib/app-of";
 import { RowShell } from "./RowShell";
@@ -114,13 +114,15 @@ export function SessionRow(props: SessionRowProps): JSX.Element {
   const title = props.title ?? item.title;
   const state = rowState(item);
   const low = item.session ? lowLeftWords(item.session) : null;
-  // D-117: low room on a live session is L1 at 11–25 %, L2 at 10 % or
-  // less, L3 when out (its own fact, drawn with its own level). A session
-  // its limit stopped: the figure is that limit, at the row's own level
-  // (L2 "Limit reached", calm while parked): the inspector-folded capture's
-  // "Limit reached" row read "0% left" in red.
-  const lowLevel = !low || !item.session?.quota ? 0 : item.session.status === "quota_blocked" ? state.level : attentionLevel({ need: "quota", left: Math.max(0, Math.round(100 - item.session.quota.used_percentage)), liveSessions: 1 });
-  const lowTone = lowLevel >= 2 ? levelTone(lowLevel).text : "text-muted";
+  // D-117 (the 0.5 design call): a row's figures follow the row's own
+  // level (itemLevel → attentionLevel(), the one rule): its low room is
+  // amber when the row waits on you (L2: it asks, is stuck or its limit
+  // stopped it), red only when the row itself is broken (L3), muted at
+  // L0/L1, and muted while parked. The Account's own runway line keeps
+  // the Account's level (red when out with live work): the inspector's
+  // captures read an asking row's "0% left" in red beside it.
+  const lowLevel: AttentionLevel = low ? state.level : 0;
+  const lowTone = levelTone(lowLevel).text;
   const heavyNote = useHeavyNote(item.session?.id ?? "");
   const heavy = heavyNote ? shortHeavy(heavyNote) : null;
   const when = props.when ?? rowWhen(item, now);

@@ -1,7 +1,7 @@
 /**
  * AJ-E2104 R2: a session row shows its account's runway only when it is
- * low (25 % left or less), in its level's colour (D-117) and in what a screen
- * reader hears; otherwise the row says nothing of it. Other apps' rows
+ * low (25 % left or less), in its row's own level's colour (D-117, the
+ * 0.5 design call) and in what a screen reader hears; otherwise the row says nothing of it. Other apps' rows
  * never do: AI Juggler reads room for the sessions it runs.
  */
 import { cleanup, render, screen } from "@testing-library/react";
@@ -21,24 +21,50 @@ const row = (used: number) =>
     </ul>,
   );
 
-it("says how much is left only when it's low, in its level's colour and in its name", () => {
-  // D-117: 11–25 % on a live session is a note (muted, L1); 10 % or less
-  // waits on you (amber, L2); out, it is broken (red, L3).
+it("says how much is left only when it's low, in its row's colour and in its name", () => {
+  // D-117 (the 0.5 design call): the figure follows the row's own level,
+  // not the room's: a row that is working (L0) shows it muted however
+  // low; the Account's own runway line carries the Account's level.
   row(80);
   const low = screen.getByText("20% left");
   expect(low.className).toContain("text-muted");
-  expect(low.getAttribute("data-level")).toBe("1");
+  expect(low.getAttribute("data-level")).toBe("0");
   // What a screen reader hears of the row says it too.
   expect([...document.querySelectorAll(".sr-only")].some((words) => (words.textContent ?? "").includes("20% left"))).toBe(true);
   cleanup();
-  row(92);
-  expect(screen.getByText("8% left").className).toContain("text-warning");
-  cleanup();
-  row(100);
-  expect(screen.getByText("0% left").className).toContain("text-danger");
-  cleanup();
+  for (const used of [92, 100]) {
+    row(used);
+    const figure = screen.getByText(`${100 - used}% left`);
+    expect(figure.className).toContain("text-muted");
+    expect(figure.className).not.toMatch(/text-(warning|danger)/);
+    expect(figure.getAttribute("data-level")).toBe("0");
+    cleanup();
+  }
   row(50);
   expect(screen.queryByText(/% left/)).toBeNull();
+});
+
+// D-117 (the 0.5 design call): a row's figures follow the row's own level.
+// An asking or stuck session (L2) on an Account at 0 % shows "0% left" in
+// amber, never red; red only when the row itself is broken (L3).
+it("a row's figure takes the row's level: amber when it asks (L2), red only when it broke (L3)", () => {
+  const out = (over: Parameters<typeof instance>[0]) =>
+    render(
+      <SessionRow item={sessionItem(instance({ id: "s-out", quota: { used_percentage: 100, resets_at_ms: null, confidence: "exact" }, ...over }), () => "shop", false)} density="cozy" now={Date.now()} onSelect={vi.fn()} />,
+    );
+  for (const status of ["waiting_user", "stuck"] as const) {
+    out({ status, needs_attention: status });
+    const figure = screen.getByText("0% left");
+    expect(figure.className).toContain("text-warning");
+    expect(figure.className).not.toContain("text-danger");
+    expect(figure.getAttribute("data-level")).toBe("2");
+    cleanup();
+  }
+  // Broken (L3): the one place its figure is red.
+  out({ status: "running", needs_attention: "failed" });
+  const broken = screen.getByText("0% left");
+  expect(broken.className).toContain("text-danger");
+  expect(broken.getAttribute("data-level")).toBe("3");
 });
 
 // D-117 (AJ-E3602), the inspector-folded captures: a "Limit reached" row

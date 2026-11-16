@@ -336,7 +336,8 @@ const LEGEND_STATES: { state: RailState; probably?: boolean; meaning: string }[]
 /** The notes a rail row adds only when they matter (D-25). */
 const LEGEND_NOTES: { sample: string; tone: string; meaning: string }[] = [
   { sample: "Limit reached", tone: "text-warning", meaning: "why it needs you" },
-  { sample: "18% left", tone: "text-warning", meaning: "its account is running low" },
+  // D-117: in the row's own colour (amber only when it waits on you).
+  { sample: "18% left", tone: "text-muted", meaning: "its account is running low" },
   { sample: "Parked 2h 10m", tone: "text-ink", meaning: "waiting for the limit to reset" },
   { sample: "3 changed", tone: "text-muted", meaning: "files not committed yet" },
   { sample: "not signed in", tone: "text-muted", meaning: "its app needs you to sign in" },
