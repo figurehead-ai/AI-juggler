@@ -12,6 +12,7 @@
  *   limit, stop-all, a rule taken back, delete says what it does first),
  *   deep links into Messages, Tasks and Agent access.
  */
+import { flushHeld } from "../../components/Toast";
 import { act, cleanup, fireEvent, render, renderHook, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -312,14 +313,21 @@ describe("a pool's page: its canvas", () => {
     await waitFor(() => expect(seams().__AIJ_MESSAGES_CALLS__).toContain("answer:ask-1:once"));
   });
 
-  it("takes a member out with Delete, and Undo puts it back", async () => {
+  it("takes a member out with Delete through the held action: Undo in time keeps it, letting it run takes it out (round 4)", async () => {
     seedTeam();
     const view = await openPage();
     const name = view.container.querySelector(`[data-node-name="${second.id}"]`) as HTMLElement;
+    const moved = `move:${second.id}:${defaultPoolIdOf(second.project_id)}`;
     fireEvent.keyDown(name, { key: "Delete" });
-    await waitFor(() => expect(seams().__AIJ_POOL_CALLS__).toContain(`move:${second.id}:${defaultPoolIdOf(second.project_id)}`));
+    // Held: nothing is sent yet; Undo keeps it.
     fireEvent.click(await view.findByTestId("canvas-removed"));
-    await waitFor(() => expect(seams().__AIJ_POOL_CALLS__).toContain(`move:${second.id}:pool-team`));
+    await flushHeld();
+    expect(seams().__AIJ_POOL_CALLS__ ?? []).not.toContain(moved);
+    // Again, and let it run: it's taken out.
+    fireEvent.keyDown(name, { key: "Delete" });
+    await view.findByTestId("canvas-removed");
+    await act(async () => flushHeld());
+    await waitFor(() => expect(seams().__AIJ_POOL_CALLS__).toContain(moved));
   });
 
   it("renames your pool in its header; a project's own pool keeps its name", async () => {

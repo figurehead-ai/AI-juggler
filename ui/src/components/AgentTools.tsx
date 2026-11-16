@@ -16,6 +16,7 @@ import type { AccountInfo } from "../types/generated/AccountInfo";
 import type { ProjectInfo } from "../types/generated/ProjectInfo";
 import { cliAppName } from "../lib/app-name";
 import { agentBridgeAnswer, agentBridgeSet, useAgentBridge, type AgentBridgeInfo, type AgentToolsScope } from "../lib/ipc/agent-bridge";
+import { unavailableLine } from "../lib/team-tools";
 import { TeamToolsQuestion, useToolsSave } from "../pages/pool/setup/TeamTools";
 import { Card } from "./primitives";
 import { SettingSwitch } from "./SettingSwitch";
@@ -32,7 +33,8 @@ export function AgentToolsSettings(): JSX.Element {
       </Card>
     );
   }
-  if (!info.asked) {
+  // Unable to run here, there's nothing to ask: the switch says why.
+  if (!info.asked && info.available) {
     return (
       <div data-testid="settings-agent-tools">
         {/* D-30's one question, the pool page's and New pool's own (round 4). */}
@@ -47,8 +49,9 @@ export function AgentToolsSettings(): JSX.Element {
         label="Agent tools in the sessions AI Juggler starts"
         hint="Who's in their pool, what each is doing, and their own status line. Sessions get them, or lose them, when they next start or continue in AI Juggler."
         checked={info.on}
-        disabled={busy}
-        note={info.available ? null : "This build of AI Juggler doesn't include them."}
+        // Never a way to turn on what can't run (AJ-E3013).
+        disabled={busy || (!info.on && !info.available)}
+        note={unavailableLine(info)}
         onChange={(on) => run(() => agentBridgeAnswer(on))}
       />
       {info.on && <OffWhere info={info} busy={busy} run={run} />}

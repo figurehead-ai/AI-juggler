@@ -24,7 +24,7 @@ import { PoolSummary, shapeOfPool } from "./PoolSummary";
 import { useTeamTools } from "./setup/TeamTools";
 import { setupReady, type SetupRow } from "../../lib/pool-setup";
 import { nextLine } from "../../lib/pool-sentences";
-import type { ToolsPlace } from "../../lib/team-tools";
+import { toolsLeftLine, type ToolsPlace } from "../../lib/team-tools";
 
 import type { ProjectInfo } from "../../types/generated/ProjectInfo";
 import type { PoolCanvasInfo } from "../../lib/ipc/pool-canvas";
@@ -244,7 +244,7 @@ function PoolProgress({ kind, setup, pool, rules, members, ruleLabel, where, nee
   return (
     <>
       <PoolSummary shape={shape} where={where} needs={needs} tools={setup.tools} onOpen={setup.onOpen} />
-      <PoolChecklist rows={setup.rows} onOpen={setup.onOpen} compact={kind === "pool"} ready={ready} next={ready ? nextLine(shape, where) : null} />
+      <PoolChecklist rows={setup.rows} onOpen={setup.onOpen} compact={kind === "pool"} ready={ready} next={ready ? nextLine(shape, where) : null} toolsLeft={toolsLeftLine(tools)} />
     </>
   );
 }

@@ -9,6 +9,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CanvasTeach, hasWhoIsIn } from "./CanvasTeach";
 import { PoolChecklist } from "./setup/PoolChecklist";
 import { markSeen, seenSteps, setupReady, setupRows } from "../../lib/pool-setup";
+import { toolsLeftLine } from "../../lib/team-tools";
 
 afterEach(cleanup);
 beforeEach(() => localStorage.clear());
@@ -68,9 +69,14 @@ describe("the setup checklist (AJ-E3011 §1)", () => {
     expect(open).toHaveBeenCalledWith("who");
     // Members added, the team tools still off: all ticked, and it says what's left.
     const rows = setupRows({ ...facts, whoIn: true }, new Set());
-    rerender(<PoolChecklist rows={rows} onOpen={open} ready={setupReady(rows, false)} />);
+    rerender(<PoolChecklist rows={rows} onOpen={open} ready={setupReady(rows, false)} toolsLeft={toolsLeftLine({ kind: "ask" })} />);
     expect(screen.getByTestId("pool-checklist-count").textContent).toBe("6 of 6 done");
-    expect(screen.getByTestId("pool-checklist-tools-left").textContent).toContain("Ready once the team tools are on");
+    expect(screen.getByTestId("pool-checklist-tools-left").textContent).toBe("Ready once the team tools are on: answer the question at the top.");
+    // What's left follows where they stand: never a question that isn't there.
+    expect(toolsLeftLine({ kind: "off" })).toBe("Ready once the team tools are on: Turn on is at the top.");
+    expect(toolsLeftLine({ kind: "unsafe", folder: "~/Downloads" })).toBe("Ready once the team tools can run: what to do is at the top.");
+    expect(toolsLeftLine({ kind: "missing" })).toBe("Ready once the team tools are on: they're not in this build of AI Juggler.");
+    expect(toolsLeftLine({ kind: "on" })).toBeNull();
     // The team tools on: ready, and the next line.
     rerender(<PoolChecklist rows={rows} onOpen={open} ready={setupReady(rows, true)} next="Open Claude Code · Work in web: it leads; their messages show here" />);
     expect(screen.queryByTestId("pool-checklist")).toBeNull();

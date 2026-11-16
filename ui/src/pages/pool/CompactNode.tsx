@@ -11,6 +11,7 @@
  * the full card's name, description and keys; the badge follows it.
  */
 import { useEffect, useRef, useState, type JSX, type MouseEvent } from "react";
+import { useInertOutside } from "../../lib/inert";
 import { appName } from "../../lib/app-name";
 
 import { AppIcon } from "../../components/AppIcon";
@@ -27,6 +28,8 @@ export function CompactNode({ member, at, asks, held, selected, tabStop, draggin
   const box = useRef<HTMLDivElement | null>(null);
   const badge = useRef<HTMLButtonElement | null>(null);
   const panel = useRef<HTMLDivElement | null>(null);
+  // AJ-E3011 round 4: the page under its asks is inert while they're open.
+  useInertOutside(panel, open);
   const state = sessionState(member.session);
   const alert = sessionAlert(member);
   const lead = member.role === "lead";

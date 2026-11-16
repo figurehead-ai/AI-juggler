@@ -15,7 +15,7 @@ import { ShellOnly } from "../../components/ShellOnly";
 import { showToast } from "../../components/Toast";
 import { errorText } from "../../lib/bridge";
 import { useConversations } from "../../lib/conversations";
-import { poolJoin, poolLeave, type PoolRuleInfo, type WatchedMemberInfo } from "../../lib/ipc/pool-model";
+import { poolJoin, type PoolRuleInfo, type WatchedMemberInfo } from "../../lib/ipc/pool-model";
 import type { PoolInfo, PoolRole } from "../../lib/ipc/pools";
 import { CONTINUE_WATCHED, setPools } from "../../lib/pools";
 import { asRole, leadSentence, wakeWords } from "../../lib/pool-words";
@@ -23,6 +23,7 @@ import { cliFolderOf } from "../../lib/start-lead";
 import { usePendingRoles, withPendingRole } from "../../lib/pool-pending";
 import type { LeadChoice } from "../../lib/new-pool";
 import { MemberOwnLevel } from "./setup/OwnLevelChoice";
+import { takeOutMember } from "./actions";
 import { RolePicker, RoleWhy } from "./setup/RoleCards";
 import { StartLeadButton } from "./setup/StartLead";
 
@@ -117,20 +118,11 @@ export function InspectRule({
         </div>
       )}
       {!fixed && (
-        <Button
-          variant="secondary"
-          size="sm"
-          className="self-start"
-          disabled={busy}
-          onClick={() =>
-            void run("take it out", async () => {
-              const info = await poolLeave(pool.id, member);
-              onGone();
-              return info;
-            })
-          }
-          data-testid="inspect-rule-leave"
-        >
+        // Held, like Stop (round 4): Undo in the toast keeps it.
+        <Button variant="secondary" size="sm" className="self-start" disabled={busy} onClick={() => {
+            takeOutMember(pool, member, label);
+            onGone();
+          }} data-testid="inspect-rule-leave">
           Take out of the pool
         </Button>
       )}

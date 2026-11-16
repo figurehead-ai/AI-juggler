@@ -421,7 +421,7 @@
   "react(exhaustive-effect-dependencies)": 1,
   "react(refs)": 1,
   "react-hooks(exhaustive-deps)": 1,
-  "typescript(no-unsafe-type-assertion)": 4
+  "typescript(no-unsafe-type-assertion)": 3
  },
  "src/components/RuntimeSettings.tsx": {
   "typescript(no-unsafe-type-assertion)": 1
@@ -1894,7 +1894,7 @@
   "jsx-a11y(prefer-tag-over-role)": 1
  },
  "src/pages/pool/actions.ts": {
-  "typescript(no-unsafe-type-assertion)": 2
+  "typescript(no-unsafe-type-assertion)": 1
  },
  "src/pages/pool/canvas-view.ts": {
   "react(exhaustive-effect-dependencies)": 1,

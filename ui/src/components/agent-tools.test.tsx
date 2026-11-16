@@ -13,7 +13,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { MOCK_PROJECTS } from "../preview/fixtures";
 import { resetPreviewAgentBridge } from "../lib/ipc/agent-bridge";
 import { AgentToolsSettings } from "./AgentTools";
-import { TEAM_TOOLS } from "../lib/team-tools";
+import { TEAM_TOOLS, teamTools, teamToolsLine } from "../lib/team-tools";
 import { TeamToolsQuestion } from "../pages/pool/setup/TeamTools";
 
 type Seams = { __AIJ_AGENT_BRIDGE__?: unknown; __AIJ_AGENT_BRIDGE_CALLS__?: string[] };
@@ -112,5 +112,50 @@ describe("Settings › Agent access", () => {
     expect(line()).not.toContain("Its sessions get the agent tools.");
     await act(async () => fireEvent.click(row));
     await waitFor(() => expect(line()).toContain("Its sessions get the agent tools."));
+  });
+});
+
+// AJ-E3013: run from a folder others can write, the bridge is never run;
+// the Dev window said "Not in this build". Each place says which it is,
+// and none offers Yes or Turn on for what can't run.
+describe("when the team tools can't run", () => {
+  const UNSAFE = "AI Juggler's team tools can't run from a folder others can write (~/Downloads/AI Juggler.app). Move AI Juggler to Applications, then open it again.";
+  const unsafe = { available: false, unavailable: "unsafe_location", unsafe_folder: "~/Downloads/AI Juggler.app" };
+
+  it.each([
+    ["unanswered", { asked: false, on: false }],
+    ["answered Not now", { asked: true, on: false }],
+  ])("from a folder others can write (%s): the card's quiet line says why and what to do, with no Yes or Turn on", async (_, answer) => {
+    seams().__AIJ_AGENT_BRIDGE__ = { ...answer, ...unsafe };
+    const { findByTestId, queryByTestId } = render(<TeamToolsQuestion />);
+    expect((await findByTestId("team-tools-line")).textContent).toBe(UNSAFE);
+    expect(teamToolsLine(teamTools({ ...answer, ...unsafe, off_projects: [], off_profiles: [] }, [], []))).toBe(UNSAFE);
+    for (const button of ["team-tools", "team-tools-yes", "team-tools-not-now", "team-tools-on"]) expect(queryByTestId(button)).toBeNull();
+  });
+
+  it("from a folder others can write: Settings says the same, its switch can't turn them on", async () => {
+    seams().__AIJ_AGENT_BRIDGE__ = { asked: false, on: false, ...unsafe };
+    const { findByTestId, queryByTestId } = render(<AgentToolsSettings />);
+    const row = await findByTestId("pref-agent-tools");
+    expect(row.textContent).toContain(UNSAFE);
+    expect(row.querySelector("input")!.disabled).toBe(true);
+    expect(queryByTestId("settings-team-tools-yes")).toBeNull();
+  });
+
+  it("not in this build: the line says so; no card, no Yes, no Turn on, and Settings can't turn them on", async () => {
+    const missing = { asked: true, on: false, available: false, unavailable: "missing" };
+    expect(teamToolsLine(teamTools({ ...missing, off_projects: [], off_profiles: [] }, [], []))).toBe("Not in this build of AI Juggler.");
+    seams().__AIJ_AGENT_BRIDGE__ = missing;
+    const card = render(<TeamToolsQuestion />);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    for (const button of ["team-tools", "team-tools-quiet", "team-tools-yes", "team-tools-on"]) expect(card.queryByTestId(button)).toBeNull();
+    card.unmount();
+    seams().__AIJ_AGENT_BRIDGE__ = { ...missing, asked: false };
+    resetPreviewAgentBridge();
+    const { findByTestId, queryByTestId } = render(<AgentToolsSettings />);
+    const row = await findByTestId("pref-agent-tools");
+    expect(row.textContent).toContain("Not in this build of AI Juggler.");
+    expect(row.querySelector("input")!.disabled).toBe(true);
+    expect(queryByTestId("settings-team-tools")).toBeNull();
   });
 });

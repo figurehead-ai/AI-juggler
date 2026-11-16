@@ -10,6 +10,9 @@
  * - Answered Not now, or off for this pool's project or App: one quiet
  *   line with Turn on beside it ({@link TeamToolsFix}); nowhere says
  *   "can't message" without that one-click fix.
+ * - Can't run from where AI Juggler is (AJ-E3013, a folder others can
+ *   write): the same quiet line says so and what to do, with no Yes or
+ *   Turn on. Not in this build at all: nothing here (Settings says it).
  */
 import { useState, type JSX } from "react";
 
@@ -73,7 +76,8 @@ export function TeamToolsFix({ state, testId }: { state: TeamTools; testId: stri
 }
 
 /** D-30's question while unanswered; once answered Not now (or off for
- * this pool), its quiet line with Turn on; nothing once on. */
+ * this pool), its quiet line with Turn on; nothing once on. Unable to run
+ * from AI Juggler's folder: the quiet line, why and what to do. */
 export function TeamToolsQuestion({
   projects = [],
   apps = [],

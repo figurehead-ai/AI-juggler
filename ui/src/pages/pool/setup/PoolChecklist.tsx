@@ -25,6 +25,7 @@ export function PoolChecklist({
   compact = false,
   ready = false,
   next: nextWords = null,
+  toolsLeft = null,
 }: {
   rows: readonly SetupRow[];
   onOpen: (step: Step) => void;
@@ -33,6 +34,8 @@ export function PoolChecklist({
   ready?: boolean;
   /** What happens next, once ready (`nextLine`). */
   next?: string | null;
+  /** Every step done, the team tools not on: what's left (`toolsLeftLine`). */
+  toolsLeft?: string | null;
 }): JSX.Element | null {
   const done = rows.filter((row) => row.done).length;
   if (ready) return <Ready next={nextWords} compact={compact} />;
@@ -102,9 +105,9 @@ export function PoolChecklist({
           );
         })}
       </ol>
-      {!next && (
+      {!next && toolsLeft && (
         <p className="px-2 text-meta text-ink-2" data-testid="pool-checklist-tools-left">
-          Ready once the team tools are on: answer the question at the top.
+          {toolsLeft}
         </p>
       )}
     </section>

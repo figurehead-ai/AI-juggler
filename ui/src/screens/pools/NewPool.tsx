@@ -35,6 +35,7 @@ import { broadCandidates, draftOf, makePool, sessionCandidates, thisMacOf, type 
 import { usePairedMacs } from "../../lib/ipc/fleet-launch";
 import { templateById, type PoolTemplate } from "../../lib/pool-templates";
 import { hasUserPools, refreshPools, usePools } from "../../lib/pools";
+import { asksInNewPool } from "../../lib/team-tools";
 import { markSeen } from "../../lib/pool-setup";
 import { everyoneLabel, joinSentence, ownLabel, STEP_WORDS, whereWords, type SetupStep } from "../../lib/pool-words";
 import { sessionState } from "../../lib/rail-items";
@@ -165,7 +166,7 @@ export function NewPool({
   // D-30's question is a step while unanswered; answering it there keeps
   // the step (it then says where they stand).
   const [answeredHere, setAnsweredHere] = useState(false);
-  const steps = stepsFor(bridge !== null && (!bridge.asked || answeredHere));
+  const steps = stepsFor(asksInNewPool(bridge, answeredHere));
   const paired = usePairedMacs();
   const candidates = useMemo(() => {
     const now = Date.now();

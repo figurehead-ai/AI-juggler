@@ -25,7 +25,10 @@ export type TeamTools =
   /** On, but off for some of this pool's projects or Apps. */
   | { kind: "off-here"; places: (ToolsPlace & { scope: AgentToolsScope })[] }
   /** This build has none. */
-  | { kind: "missing" };
+  | { kind: "missing" }
+  /** AJ-E3013: there, but in a folder others can write, so never run
+   * (`folder`: the one that failed the check, home as ~). */
+  | { kind: "unsafe"; folder: string };
 
 /** D-30's one question, asked once, the first time pools are used (main's
  * ruling after three walks: a question, not a switch to find). */
@@ -44,7 +47,7 @@ export const TEAM_TOOLS = {
 export const AGENT_ACCESS = "Settings";
 
 export function teamTools(info: AgentBridgeInfo, projects: readonly ToolsPlace[], apps: readonly ToolsPlace[]): TeamTools {
-  if (!info.available) return { kind: "missing" };
+  if (!info.available) return info.unavailable === "unsafe_location" ? { kind: "unsafe", folder: info.unsafe_folder ?? "" } : { kind: "missing" };
   if (!info.asked) return { kind: "ask" };
   if (!info.on) return { kind: "off" };
   const places = [
@@ -73,10 +76,41 @@ export function teamToolsLine(state: TeamTools): string {
       return `Off for ${names(state.places)}: they can't message each other there.`;
     case "missing":
       return "Not in this build of AI Juggler.";
+    case "unsafe":
+      return `AI Juggler's team tools can't run from a folder others can write${state.folder ? ` (${state.folder})` : ""}. Move AI Juggler to Applications, then open it again.`;
     default:
       return "Off: they can't message each other yet.";
   }
 }
+
+/** Why they can't run here, in one line; null when they can. Never with
+ * Yes or Turn on beside it. */
+export const unavailableLine = (info: AgentBridgeInfo): string | null => (info.available ? null : teamToolsLine(teamTools(info, [], [])));
+
+/** The setup checklist's last line, every step done but the tools not on:
+ * what's left and where (null once on). */
+export function toolsLeftLine(state: TeamTools | null): string | null {
+  switch (state?.kind) {
+    case undefined:
+    case "on":
+      return null;
+    case "ask":
+      return "Ready once the team tools are on: answer the question at the top.";
+    case "missing":
+      return "Ready once the team tools are on: they're not in this build of AI Juggler.";
+    case "unsafe":
+      return "Ready once the team tools can run: what to do is at the top.";
+    default:
+      return "Ready once the team tools are on: Turn on is at the top.";
+  }
+}
+
+/** Whether New pool asks D-30's question as its own step: unanswered (or
+ * answered there, the step then says where they stand), and either able to
+ * run or unable from AI Juggler's folder (the step says why and what to
+ * do). Not in this build at all: nothing to ask. */
+export const asksInNewPool = (info: AgentBridgeInfo | null, answeredHere: boolean): boolean =>
+  info !== null && (!info.asked || answeredHere) && (info.available || info.unavailable === "unsafe_location");
 
 /** Whether the line needs its one-click fix beside it. */
 export const needsTurnOn = (state: TeamTools): boolean => state.kind === "ask" || state.kind === "off" || state.kind === "off-here";

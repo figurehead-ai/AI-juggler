@@ -159,7 +159,7 @@ export function Canvas({
     return next;
   }, [points, drag, dragAt]);
 
-  const remove = useCallback((member: MemberNode) => void removeFromPool(pool, member, points.get(member.id), place), [pool, points, place]);
+  const remove = useCallback((member: MemberNode) => removeFromPool(pool, member), [pool]);
 
   // One drag at a time, followed on the window (it may leave the canvas).
   useEffect(() => {
