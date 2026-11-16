@@ -171,8 +171,8 @@
 > (on-device AI lines) are in 0.5: AJ-E3708 to AJ-E3711. Research:
 > [`docs/research/feed-summaries-and-orchestrator-options.md`](../research/feed-summaries-and-orchestrator-options.md).
 > **Not scheduled:** C (the user's own Claude, Codex or Gemini summarising)
-> goes last, only once providers give permission; D (a cloud service) and E
-> (the orchestrator bot) are a later release, which the maintainer is choosing.
+> goes last, only once providers give permission; D (a cloud service) is
+> later and unplaced; E (the orchestrator bot) is planned for 0.6 (D-123).
 > Don't build hooks for C, D or E.
 
 ### AJ-E3708 Per-agent excerpts from what agents already write, through the adapters (A) | Status: TODO | Priority P0 | Effort L | Depends: AJ-E3702
@@ -229,7 +229,7 @@
 **Visual testing**: none; wireframes of the notice and the Settings control, plain words only.
 **Files to touch**: `docs/adr/` (a new ADR), `docs/qa/evidence/AJ-E3710/`.
 **Research basis**: AJ-E3709's research; `docs/research/feed-summaries-and-orchestrator-options.md`; D-120 point 4; the architecture standard.
-**Handover note**: the seam must also serve a later cloud or orchestrator engine (D and E, not scheduled) without change, but build no hook for them now. The design is [ADR-0033](../adr/0033-feed-summary-engines.md) (Proposed, 2026-11-16), written to D-120 as amended: Apple's model automatic, the local model offered on one click with its model left as a slot for the selection study. Open, both the maintainer's: Q1 (the measurement download) and Q5 (the battery measurement).
+**Handover note**: the seam must also serve a later cloud or orchestrator engine (D unplaced; E planned for 0.6 under D-123) without change, but build no hook for them now. The design is [ADR-0033](../adr/0033-feed-summary-engines.md) (Proposed, 2026-11-16), written to D-120 as amended: Apple's model automatic, the local model offered on one click with its model left as a slot for the selection study. Open, both the maintainer's: Q1 (the measurement download) and Q5 (the battery measurement).
 
 ### AJ-E3711 On-device summary lines: detection, the three tiers, the tier 2 offer card and one-click download, the notice and the Settings switch (B build) | Status: TODO | Priority P0 | Effort XL | Depends: AJ-E3710
 **Goal**: The feed shows one clean line per agent when the Mac can write it comfortably (no step from the user for Apple's own model, one click for the optional download), and falls back to excerpts when it can't.

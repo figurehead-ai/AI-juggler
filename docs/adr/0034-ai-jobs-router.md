@@ -13,7 +13,7 @@
   - Apple's model obeyed injected orders until the text was framed as quoted data and the orders were removed before generation. The gate caught none of the calm-line FAILs that changed a verb without inventing a name. Faithfulness has to rest on AI Juggler's facts, not on the model.
   - The calm-line FAILs came from rewriting free prose. A Chat answer is built from look-up rows with ids and states, which a check can compare against exactly. That is a better fit for a 3B model than free summarising.
 - **Apple's model has limits a router must respect** ([research](../research/feed-summaries-on-device.md)): 4,096 tokens of context on macOS 26 and 8,192 on 27; one request at a time per session (`concurrentRequests`); 0.5 to 1.5 s a call warm. Tool definitions and results count against that context.
-- **The options research** ([`feed-summaries-and-orchestrator-options.md`](../research/feed-summaries-and-orchestrator-options.md)) puts the orchestrator (E) behind pool levels, approvals and an audit log. D-121 keeps it unscheduled.
+- **The options research** ([`feed-summaries-and-orchestrator-options.md`](../research/feed-summaries-and-orchestrator-options.md)) puts the orchestrator (E) behind pool levels, approvals and an audit log. D-123 places it in 0.6; 0.5 builds nothing of it.
 - **The tasks** (E38): AJ-E3801 is this ADR; AJ-E3802 the router; AJ-E3803 the disk rules; AJ-E3804 to AJ-E3808 Chat's panel, tools, guard, no-model panel and history; AJ-E3809 the newcomer walk. AJ-E3801 asks for a small seam: three needs, three capabilities.
 
 ## Decision
@@ -421,7 +421,7 @@ Recorded with the run, not a bar: the share of answerable questions that got a w
 
 ### 8. Where the orchestrator would attach (not built)
 
-D-121 leaves the orchestrator unscheduled; it needs its own ruling. The seam leaves room without building anything:
+D-123 places the orchestrator in 0.6; 0.5 builds nothing of it, and it needs its own design ruling. The seam leaves room without building anything:
 
 - **A job,** `Orchestrate`, needing a large context, tools and `Tier::Strong`. No engine has that tier, so the router hides it; no code for it exists.
 - **A separate tool registry,** `ActTool`, whose calls go through the existing commands and the pool levels (Read / Work together / Full), with an approval step and an audit record per act. It can never be added to Chat's registry (§6.2).

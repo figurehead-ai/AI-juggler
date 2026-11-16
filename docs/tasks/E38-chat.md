@@ -27,10 +27,10 @@
 > total disk the models use, with Remove. No download when free disk is
 > below the model's size plus 10 GB. Clear cache never touches the models.
 >
-> **Not scheduled.** The orchestrator bot (a model that acts: sending,
-> switching, stopping, approving). It would sit on this router and Chat,
-> behind pool levels and approvals, and needs its own ruling. Nothing in
-> this epic acts.
+> **Planned for 0.6 (D-123).** The orchestrator bot (a model that acts:
+> sending, switching, stopping, approving). It will sit on this router and
+> Chat, behind pool levels, approvals and its own design. Nothing in this
+> epic (0.5) acts.
 >
 > **Order.** AJ-E3708 (A, the excerpts) first; then the router ADR and seam
 > (AJ-E3801, AJ-E3802); then the disk rules and Chat v1 on Apple's model;
