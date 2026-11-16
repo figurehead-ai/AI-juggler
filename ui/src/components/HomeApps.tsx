@@ -54,9 +54,13 @@ function start(place: KnownPlaceInfo, name: string): void {
 
 const GHOST = "btn-ghost shrink-0 rounded-md px-2.5 py-1 text-meta font-medium outline-none focus-visible:ring-1 focus-visible:ring-accent/60 disabled:cursor-not-allowed disabled:opacity-50";
 
-/** One row: icon, name and profile line, the needs mark, the action.
- * `kept`: kept alive (0.3.3), said at the end of its line in the line's
- * own muted words, never a second mark. */
+/** One row (D-118 R2), two lines so a 320 px column (1280 px with the rail
+ * open) reads whole: the App's name and its profile (dot and name) on the
+ * first, wrapping the profile under the name only when both can't fit;
+ * then what's open, kept alive (0.3.3) and the needs mark on the second,
+ * wrapping as words do (the mark's dot is its own separator). Nothing is cut; the second line's tooltip says it
+ * all. The action stays on the right. Calm (D-117): the same muted words
+ * and the one needs mark, no new mark. */
 function Row({ id, icon, app, profile, slot, line, kept = false, needs, level, broken, action, testId, place, lit }: {
   id: string | null;
   icon: JSX.Element;
@@ -74,46 +78,51 @@ function Row({ id, icon, app, profile, slot, line, kept = false, needs, level, b
   lit: boolean;
 }): JSX.Element {
   const name = appName(app, profile);
+  const needWords = `${needs} ${needs === 1 ? "needs" : "need"} you`;
+  const full = [line, kept ? "kept alive" : null, needs > 0 ? needWords : null].filter(Boolean).join(" · ");
+  const dot = <span aria-hidden="true"> · </span>;
   return (
     <li className="tone-host flex min-w-0 items-center gap-3 rounded-lg px-2 py-1.5 hover:bg-surface-2" data-testid={testId} data-place={place} data-level={level} data-lit={lit || undefined}>
       {icon}
-      <span className="flex min-w-0 flex-1 flex-col">
-        {id === null ? (
-          <span className="truncate text-body font-semibold text-ink">{app}</span>
-        ) : (
-          <button type="button" onClick={() => openApp(id)} title={`Open ${name}'s page`} className="truncate rounded text-left text-body font-semibold text-ink outline-none hover:underline focus-visible:ring-1 focus-visible:ring-accent/60" data-testid="home-app-page">
-            {app}
-            <span className="sr-only">, {name}'s page</span>
-          </button>
-        )}
-        <span className="flex min-w-0 items-center gap-1 text-label text-muted">
+      <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+        <span className="flex min-w-0 flex-wrap items-center gap-x-1.5">
+          {id === null ? (
+            <span className="max-w-full truncate text-body font-semibold text-ink">{app}</span>
+          ) : (
+            <button type="button" onClick={() => openApp(id)} title={`Open ${name}'s page`} className="max-w-full truncate rounded text-left text-body font-semibold text-ink outline-none hover:underline focus-visible:ring-1 focus-visible:ring-accent/60" data-testid="home-app-page">
+              {app}
+              <span className="sr-only">, {name}'s page</span>
+            </button>
+          )}
           {profile && (
-            <>
+            <span className="flex min-w-0 items-center gap-1 text-label font-medium text-ink-2">
               <ProfileBadge app={slot} name={profile} />
-              <span className="truncate font-medium text-ink-2" title={profile}>{profile}</span>
-              <span aria-hidden="true">·</span>
+              <span className="min-w-0 break-words" data-testid="home-app-profile">{profile}</span>
+            </span>
+          )}
+        </span>
+        <span className="block text-label text-muted" title={full} data-testid="home-app-line">
+          {line}
+          {kept && (
+            <>
+              {dot}
+              <span data-testid="home-app-kept-mark" title="Kept alive: AI Juggler starts it again if it stops">kept alive</span>
             </>
           )}
-          {/* Kept alive is part of the line, cut with it, never squeezing the profile (0.4.1). */}
-          <span className="truncate" title={kept ? `${line} · kept alive` : undefined}>
-            {line}
-            {kept && (
-              <>
-                {" · "}
-                <span data-testid="home-app-kept-mark" title="Kept alive: AI Juggler starts it again if it stops">kept alive</span>
-              </>
-            )}
-          </span>
+          {needs > 0 && (
+            <>
+              {/* D-117: a mark, not a pill: the words in ink-2 by the level's
+                  dot, which is its separator (a wrap never leaves a "·"). */}
+              <span className="sr-only">, </span>
+              <span className="ml-1.5 inline-flex items-center gap-1.5 whitespace-nowrap align-middle font-medium text-ink-2" data-testid="home-app-needs" data-level={level} title="Pinned under Needs you now">
+                <span aria-hidden="true" className="level-mark" data-level={level === 3 ? 3 : 2} />
+                {needWords}
+                {broken.length > 0 && <span className="sr-only">, {brokenParts(broken)}</span>}
+              </span>
+            </>
+          )}
         </span>
       </span>
-      {needs > 0 && (
-        // D-117: a mark, not a pill: the words in ink-2 by the level's dot.
-        <span className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap text-label font-medium text-ink-2" data-testid="home-app-needs" data-level={level} title="Pinned under Needs you now">
-          <span aria-hidden="true" className="level-mark" data-level={level === 3 ? 3 : 2} />
-          {needs} {needs === 1 ? "needs" : "need"} you
-          {broken.length > 0 && <span className="sr-only">, {brokenParts(broken)}</span>}
-        </span>
-      )}
       {action}
     </li>
   );

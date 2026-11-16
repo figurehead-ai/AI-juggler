@@ -79,7 +79,11 @@ describe("Home, desktop first", () => {
     const rows = await view.findAllByTestId("home-app-tile");
     expect(new Set(rows.map((row) => row.dataset.place))).toEqual(new Set(["app|codex-app|", "app|claude-app|Personal", "app|claude-app|Work", "cli|claude-code|claude-work"]));
     const work = rows.find((row) => row.dataset.place === "app|claude-app|Work")!;
-    expect(work.textContent).toContain("Work Max·2 open");
+    // Two lines (readable at 1280 with the rail open): the profile by the
+    // name, then what's open with the needs mark.
+    expect(within(work).getByTestId("home-app-profile").textContent).toBe("Work Max");
+    expect(within(work).getByTestId("home-app-line").textContent).toBe("2 open, 1 needs you");
+    expect(within(work).getByTestId("home-app-line").title).toBe("2 open · 1 needs you");
     expect(within(work).getByTestId("home-app-needs").textContent).toBe("1 needs you");
     expect(within(work).getByRole("button", { name: /^Open Claude/ })).toBeTruthy();
     // The rows sit in the right column, under its own head.
