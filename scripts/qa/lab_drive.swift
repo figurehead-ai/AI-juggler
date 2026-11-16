@@ -24,7 +24,8 @@
 //   guard                         the guard's verdict at Dev's window, nothing sent
 //   texts [--in TEXT]             the words Dev shows (role, label, value), read only
 //   buttons [--in TEXT]           the controls that can be pressed, with their exact titles
-//   press TITLE [--in TEXT]       presses the one control titled exactly TITLE
+//   press TITLE [--in TEXT …]     presses the one control titled exactly TITLE (each --in
+//                                 adds words its region must hold)
 //   focus TITLE [--in TEXT]       puts the cursor in the field titled TITLE
 //   focus-terminal [--in TEXT]    puts the cursor in AI Juggler's terminal (its input)
 //   type TEXT                     types TEXT where the cursor is (keys posted to Dev's pid)
@@ -42,7 +43,8 @@
 // The run sheet's steps (docs/qa/0.5-walks/AJ-E1612.md), each a few of the
 // above; each prints every primitive it runs, so a step that stops can be
 // finished by hand with the same words:
-//   sign-in ROWTEXT               Home's Needs-you row holding ROWTEXT: its Sign in;
+//   sign-in ROWTEXT [ROWTEXT …]   Home's Needs-you row holding every ROWTEXT (e.g. "lab A
+//                                 needs its sign-in" "OpenCode's own sign-in"): its Sign in;
 //                                 waits for the sign-in terminal ("Sign in · …")
 //   read-label APP                the sign-in words beside APP (Signed in / Not signed in …)
 //   new-session TOOL APP PROJECT  New session → Change app → APP → Change folder →
@@ -275,29 +277,32 @@ func controls(_ nodes: [Node], titled title: String, roles: Set<String>) -> [Int
     return found
 }
 
-/// Of `candidates`, the one in the tightest region holding `region`'s
-/// words: the deepest common ancestor of a candidate and a node whose own
-/// words contain them. Ambiguous or none: nil, with the reason.
-func pick(_ nodes: [Node], _ candidates: [Int], within region: String?) -> (Int?, String) {
-    guard let region else {
+/// Of `candidates`, the one in the tightest region holding every one of
+/// `regions`' words: for each candidate, its deepest ancestor that also
+/// holds a node with each text. Ambiguous or none: nil, with the reason.
+func pick(_ nodes: [Node], _ candidates: [Int], within regions: [String]) -> (Int?, String) {
+    guard !regions.isEmpty else {
         if candidates.count == 1 { return (candidates[0], "") }
         return (nil, candidates.isEmpty ? "none found" : "\(candidates.count) found: say which with --in TEXT")
     }
-    let marks = nodes.indices.filter { nodes[$0].words.contains(region) }
-    if marks.isEmpty { return (nil, "no words \"\(region)\" on screen") }
-    var best: [(Int, Int)] = []  // (candidate, the common ancestor's depth)
-    for c in candidates {
-        let up = Set(ancestors(nodes, c))
-        var deepest = -1
-        for m in marks {
-            if let common = ancestors(nodes, m).first(where: { up.contains($0) }) { deepest = max(deepest, nodes[common].depth) }
-        }
-        if deepest >= 0 { best.append((c, deepest)) }
+    var markUps: [[Set<Int>]] = []  // per region text: each mark's ancestors
+    for region in regions {
+        let marks = nodes.indices.filter { nodes[$0].words.contains(region) }
+        if marks.isEmpty { return (nil, "no words \"\(region)\" on screen") }
+        markUps.append(marks.map { Set(ancestors(nodes, $0)) })
     }
-    guard let top = best.map({ $0.1 }).max() else { return (nil, "none found near \"\(region)\"") }
+    var best: [(Int, Int)] = []  // (candidate, its region's depth)
+    for c in candidates {
+        // The first ancestor (from the control up) holding every text.
+        if let region = ancestors(nodes, c).first(where: { a in markUps.allSatisfy { ups in ups.contains { $0.contains(a) } } }) {
+            best.append((c, nodes[region].depth))
+        }
+    }
+    let named = regions.map { "\"\($0)\"" }.joined(separator: " + ")
+    guard let top = best.map({ $0.1 }).max() else { return (nil, "none found in a region with \(named)") }
     let winners = best.filter { $0.1 == top }.map { $0.0 }
     if winners.count == 1 { return (winners[0], "") }
-    return (nil, "\(winners.count) found equally near \"\(region)\": narrow --in")
+    return (nil, "\(winners.count) found equally near \(named): add another --in")
 }
 
 func center(_ e: AXUIElement) -> CGPoint? {
@@ -397,7 +402,7 @@ func shows(_ words: [String], _ needle: String) -> Bool {
 
 struct Opts {
     var positional: [String] = []
-    var within: String?
+    var within: [String] = []
     var timeout: Double = 30
     var ocr = false
     var gone = false
@@ -418,7 +423,7 @@ func parse(_ raw: [String]) -> Opts {
     }
     while i < raw.count {
         switch raw[i] {
-        case "--in": o.within = value()
+        case "--in": o.within.append(value())
         case "--timeout": o.timeout = Double(value()) ?? 30
         case "--ocr": o.ocr = true
         case "--gone": o.gone = true
@@ -437,8 +442,8 @@ func parse(_ raw: [String]) -> Opts {
 /// Presses it; with `soft`, a control that is there but disabled is
 /// reported (false) instead of stopping.
 @discardableResult
-func press(_ pid: pid_t, _ title: String, within: String?, soft: Bool = false) -> Bool {
-    say("» press \"\(title)\"" + (within.map { " --in \"\($0)\"" } ?? ""))
+func press(_ pid: pid_t, _ title: String, within: [String], soft: Bool = false) -> Bool {
+    say("» press \"\(title)\"" + within.map { " --in \"\($0)\"" }.joined())
     let nodes = tree(pid)
     let (chosen, why) = pick(nodes, controls(nodes, titled: title, roles: pressRoles), within: within)
     guard let i = chosen else { stop(4, "no single control titled exactly \"\(title)\": \(why). Nothing pressed. (`buttons` lists them.)") }
@@ -455,8 +460,8 @@ func press(_ pid: pid_t, _ title: String, within: String?, soft: Bool = false) -
     return true
 }
 
-func focusField(_ pid: pid_t, _ title: String, within: String?) {
-    say("» focus \"\(title)\"" + (within.map { " --in \"\($0)\"" } ?? ""))
+func focusField(_ pid: pid_t, _ title: String, within: [String]) {
+    say("» focus \"\(title)\"" + within.map { " --in \"\($0)\"" }.joined())
     let nodes = tree(pid)
     let (chosen, why) = pick(nodes, controls(nodes, titled: title, roles: fieldRoles), within: within)
     guard let i = chosen else { stop(4, "no single field titled exactly \"\(title)\": \(why)") }
@@ -467,8 +472,8 @@ func focusField(_ pid: pid_t, _ title: String, within: String?) {
 
 /// AI Juggler's terminal input: xterm's text area, the one whose
 /// description names the terminal, else the only text area in the region.
-func focusTerminal(_ pid: pid_t, within: String?) {
-    say("» focus-terminal" + (within.map { " --in \"\($0)\"" } ?? ""))
+func focusTerminal(_ pid: pid_t, within: [String]) {
+    say("» focus-terminal" + within.map { " --in \"\($0)\"" }.joined())
     let nodes = tree(pid)
     let areas = nodes.indices.filter { nodes[$0].role == "AXTextArea" && (nodes[$0].label.lowercased().contains("terminal")) }
     let fallback = nodes.indices.filter { nodes[$0].role == "AXTextArea" }
@@ -497,12 +502,11 @@ func waitFor(_ pid: pid_t, _ needle: String, timeout: Double, ocr: Bool, gone: B
     }
 }
 
-func listTexts(_ pid: pid_t, within: String?, pressable: Bool) {
+func listTexts(_ pid: pid_t, within: [String], pressable: Bool) {
     let nodes = tree(pid)
     var keep = Set(nodes.indices)
-    if let within {
-        // The smallest region holding the words: the deepest node whose
-        // subtree contains a node with them.
+    if let within = within.first {
+        // The region around the first node with the words.
         let marks = nodes.indices.filter { nodes[$0].words.contains(within) }
         guard let mark = marks.first else { stop(4, "no words \"\(within)\" on screen") }
         // Widen to the first ancestor that holds a control, so a row's
@@ -548,7 +552,7 @@ func shot(_ pid: pid_t, _ o: Opts) {
 
 // MARK: - the run sheet's steps
 
-func signIn(_ pid: pid_t, row: String) {
+func signIn(_ pid: pid_t, row: [String]) {
     press(pid, "Sign in", within: row)
     waitFor(pid, "Sign in ·", timeout: 20, ocr: false, gone: false)
     say("the sign-in terminal is open: answer its menu with `key`/`type`, read it with `read --ocr`")
@@ -573,20 +577,20 @@ func readLabel(_ pid: pid_t, app: String) {
 
 func newSession(_ pid: pid_t, tool: String, app: String, project: String, labB: Bool = false) {
     say("new session: \(tool) on \(app) in \(project)")
-    press(pid, "New session", within: nil)
+    press(pid, "New session", within: [])
     waitFor(pid, "Change app", timeout: 10, ocr: false, gone: false)
-    press(pid, "Change app", within: "New session")
+    press(pid, "Change app", within: ["New session"])
     waitFor(pid, app, timeout: 10, ocr: false, gone: false)
-    press(pid, app, within: "Which app")
-    press(pid, "Change folder", within: "New session")
+    press(pid, app, within: ["Which app"])
+    press(pid, "Change folder", within: ["New session"])
     waitFor(pid, "Where to work", timeout: 10, ocr: false, gone: false)
-    press(pid, project, within: "Where to work")
-    let started = press(pid, "Start in \(project)", within: "New session", soft: labB)
+    press(pid, project, within: ["Where to work"])
+    let started = press(pid, "Start in \(project)", within: ["New session"], soft: labB)
     if labB { say(started ? "  Start was pressed: see what Dev shows next" : "  Dev didn't offer Start on lab B") }
 }
 
 func send(_ pid: pid_t, _ words: String, field: String?) {
-    if let field { focusField(pid, field, within: nil) } else { focusTerminal(pid, within: nil) }
+    if let field { focusField(pid, field, within: []) } else { focusTerminal(pid, within: []) }
     say("» type \"\(words)\" + return")
     typeText(pid, words)
     pressKey(pid, "return")
@@ -632,6 +636,33 @@ func selftest() {
            .covered("AI Juggler Dev (AI Juggler · Home), layer 0"), "a twin by name")
     expect(judge(dev: dev, frontmost: 4243, frontmostName: "AI Juggler Dev", windows: [devWin], point: inside),
            .notFrontmost("AI Juggler Dev"), "a twin in front")
+    // Exact titles in a region: Home's two "lab A needs its sign-in" rows,
+    // OpenCode's and Kimi Code's, each with a Sign in (a made-up tree).
+    let dummy = AXUIElementCreateApplication(0)
+    func n(_ role: String, _ label: String, _ value: String, _ parent: Int?, _ depth: Int) -> Node {
+        Node(element: dummy, role: role, label: label, value: value, parent: parent, depth: depth)
+    }
+    let rows: [Node] = [
+        n("AXWindow", "AI Juggler · Home", "", nil, 0),
+        n("AXGroup", "", "", 0, 1),                                             // 1: row OpenCode
+        n("AXStaticText", "", "lab A needs its sign-in", 1, 2),
+        n("AXStaticText", "", "OpenCode's own sign-in, in a terminal here", 1, 2),
+        n("AXButton", "", "", 1, 2),                                            // 4
+        n("AXStaticText", "", "Sign in", 4, 3),
+        n("AXGroup", "", "", 0, 1),                                             // 6: row Kimi
+        n("AXStaticText", "", "lab A needs its sign-in", 6, 2),
+        n("AXStaticText", "", "Kimi Code's own sign-in, in a terminal here", 6, 2),
+        n("AXButton", "Sign in", "", 6, 2),                                     // 9
+        n("AXButton", "Sign in to everything", "", 0, 1),                       // 10: not exact
+    ]
+    let signIns = controls(rows, titled: "Sign in", roles: pressRoles)
+    if signIns != [4, 9] { failures.append("exact titles: \(signIns)") }
+    if pick(rows, signIns, within: ["lab A needs its sign-in", "OpenCode's own sign-in"]).0 != 4 { failures.append("pick OpenCode's row") }
+    if pick(rows, signIns, within: ["Kimi Code's own sign-in"]).0 != 9 { failures.append("pick Kimi's row") }
+    if pick(rows, signIns, within: ["lab A needs its sign-in"]).0 != nil { failures.append("an ambiguous region picked one") }
+    if pick(rows, signIns, within: []).0 != nil { failures.append("two Sign in without a region picked one") }
+    if pick(rows, signIns, within: ["Grok Build's own sign-in"]).0 != nil { failures.append("a missing region picked one") }
+    if controls(rows, titled: "Sign", roles: pressRoles) != [] { failures.append("a prefix matched") }
     // Words: exact, squashed.
     if squash("  Sign\u{00a0}in \n") != "Sign in" { failures.append("squash") }
     if !shows(["OpenCode CLI · lab A needs its sign-in"], "lab A needs its sign-in") { failures.append("shows") }
@@ -640,7 +671,7 @@ func selftest() {
     for k in ["return", "down", "up", "escape", "tab", "space"] where keyCodes[k] == nil { failures.append("key \(k)") }
     // Options parse.
     let o = parse(["Sign in", "--in", "lab A needs its sign-in", "--timeout", "900", "--ocr"])
-    if o.positional != ["Sign in"] || o.within != "lab A needs its sign-in" || o.timeout != 900 || !o.ocr { failures.append("parse") }
+    if o.positional != ["Sign in"] || o.within != ["lab A needs its sign-in"] || o.timeout != 900 || !o.ocr { failures.append("parse") }
     if failures.isEmpty { say("lab_drive: selftest passed (the guard's logic; nothing pressed or typed)"); exit(0) }
     failures.forEach { say("FAIL \($0)") }
     exit(1)
@@ -675,22 +706,22 @@ case "key":
 case "wait": need(1, "wait TEXT [--timeout S] [--ocr] [--gone]"); waitFor(pid, o.positional[0], timeout: o.timeout, ocr: o.ocr, gone: o.gone)
 case "read": screenWords(pid, ocr: o.ocr).forEach { say($0) }
 case "shot": shot(pid, o)
-case "sign-in": need(1, "sign-in ROWTEXT"); signIn(pid, row: o.positional[0])
+case "sign-in": need(1, "sign-in ROWTEXT [ROWTEXT …]"); signIn(pid, row: o.positional + o.within)
 case "read-label": need(1, "read-label APP"); readLabel(pid, app: o.positional[0])
 case "new-session": need(3, "new-session TOOL APP PROJECT"); newSession(pid, tool: o.positional[0], app: o.positional[1], project: o.positional[2])
 case "send": need(1, "send TEXT [--field TITLE]"); send(pid, o.positional.joined(separator: " "), field: o.field)
-case "end-session": need(1, "end-session ROWTEXT"); press(pid, "Stop this session", within: o.positional[0])
-case "resume": need(1, "resume ROWTEXT"); press(pid, "Resume", within: o.positional[0])
+case "end-session": need(1, "end-session ROWTEXT [ROWTEXT …]"); press(pid, "Stop this session", within: o.positional + o.within)
+case "resume": need(1, "resume ROWTEXT [ROWTEXT …]"); press(pid, "Resume", within: o.positional + o.within)
 case "open-usage":
     need(1, "open-usage APP")
-    press(pid, "Usage", within: nil)
+    press(pid, "Usage", within: [])
     waitFor(pid, o.positional[0], timeout: 15, ocr: false, gone: false)
-    listTexts(pid, within: o.positional[0], pressable: false)
+    listTexts(pid, within: [o.positional[0]], pressable: false)
 case "lab-b-session":
     need(3, "lab-b-session TOOL APP PROJECT")
     newSession(pid, tool: o.positional[0], app: o.positional[1], project: o.positional[2], labB: true)
     usleep(1_500_000)
     say("what Dev says now (lab B must be refused or asked to sign in, never run on lab A's account):")
-    listTexts(pid, within: "New session", pressable: false)
+    listTexts(pid, within: ["New session"], pressable: false)
 default: stop(2, "unknown command \(command)")
 }
