@@ -13,7 +13,7 @@ import styles from "../styles.css?raw";
 import { contrast, hexLuminance } from "./oklch";
 
 const SURFACES = ["canvas", "canvas-hi", "surface", "surface-2", "surface-3"] as const;
-const TEXT = ["ink", "ink-2", "section", "muted", "faint", "warning", "danger", "success", "live"] as const;
+const TEXT = ["ink", "ink-2", "section-label", "muted", "faint", "warning", "danger", "success", "live"] as const;
 
 /** A theme's own block: the first `@theme {`, or `[data-theme="light"] {`. */
 function block(theme: "dark" | "light"): string {
@@ -53,8 +53,8 @@ describe.each(["dark", "light"] as const)("the calm-attention tokens (%s)", (the
   it("a section label sits between ink-2 and muted", () => {
     for (const surface of SURFACES) {
       const bg = token(theme, surface);
-      expect(ratio(token(theme, "section"), bg), `section vs ink-2 on ${surface}`).toBeLessThan(ratio(token(theme, "ink-2"), bg));
-      expect(ratio(token(theme, "section"), bg), `section vs muted on ${surface}`).toBeGreaterThan(ratio(token(theme, "muted"), bg));
+      expect(ratio(token(theme, "section-label"), bg), `section-label vs ink-2 on ${surface}`).toBeLessThan(ratio(token(theme, "ink-2"), bg));
+      expect(ratio(token(theme, "section-label"), bg), `section-label vs muted on ${surface}`).toBeGreaterThan(ratio(token(theme, "muted"), bg));
     }
   });
 
