@@ -128,11 +128,11 @@ export async function messagesThread(threadId: string, cursor: string | null = n
  * subject, cut at a word near the end and marked "…" when cut. */
 export function subjectFrom(line: string, max: number): string {
   const whole = line.replace(/\s+/g, " ").trim();
-  const chars = [...whole];
+  const chars = Array.from(whole);
   if (chars.length <= max || max < 2) return chars.slice(0, max).join("");
   const kept = chars.slice(0, max - 1).join("");
   const space = kept.lastIndexOf(" ");
-  const atWord = space >= 0 && [...kept.slice(0, space)].length * 4 >= (max - 1) * 3 ? kept.slice(0, space) : kept;
+  const atWord = space >= 0 && Array.from(kept.slice(0, space)).length * 4 >= (max - 1) * 3 ? kept.slice(0, space) : kept;
   return `${atWord.replace(/[ ,;:-]+$/, "")}…`;
 }
 
