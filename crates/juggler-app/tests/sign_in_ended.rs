@@ -10,7 +10,7 @@ use std::sync::Arc;
 
 use juggler_adapter::AdapterRegistry;
 use juggler_adapters::{KIMI_CODE_ID, KimiCodeAdapter};
-use juggler_app::features::notifications::{centre, needs, tray};
+use juggler_app::features::notifications::{centre, needs, tray, views};
 use juggler_app::state::AppState;
 use juggler_core::model::Timestamp;
 
@@ -66,6 +66,7 @@ fn a_sign_in_that_ends_takes_its_need_away_at_once() {
     );
 
     // The Sign in terminal's end re-reads it now.
+    let before = views::summary_now(&state);
     assert!(
         needs::sign_in_ended(&state),
         "Needs you changed, so the views are told"
@@ -74,6 +75,22 @@ fn a_sign_in_that_ends_takes_its_need_away_at_once() {
         sign_in_needs(&state).is_empty(),
         "signed in: no sign-in need"
     );
+    // Dry run 2: the bell followed but the rail kept the row. The views are
+    // told the summary; the rail (and every list) reads Needs you again
+    // only when its version moves as the window reads it (an f64).
+    let after = views::summary_now(&state);
+    assert_eq!(after.count + 1, before.count, "the bell's count follows");
+    assert_ne!(
+        as_window(before.version),
+        as_window(after.version),
+        "the window sees the version move, so the rail reads its list again"
+    );
+}
+
+/// A number as the window reads it (JSON into JavaScript: an f64).
+fn as_window(version: i64) -> u64 {
+    let json = serde_json::to_string(&version).unwrap();
+    serde_json::from_str::<f64>(&json).unwrap().to_bits()
 }
 
 #[test]
