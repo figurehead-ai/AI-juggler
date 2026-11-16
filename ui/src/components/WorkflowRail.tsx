@@ -339,7 +339,7 @@ export function InstanceBoard({
   const filtered = filterSessions(onAccount, filters, parsed.text, projects);
   const sorted = sortSessions(filtered, "needs", snooze, now, projects, accounts);
   // D-49: what is in Needs you is the backend's.
-  const { needOf } = useBackendNeeds();
+  const { needOf, known: needsKnown } = useBackendNeeds();
   const isNeed = (row: InstanceInfo) => needOf.has(`s:${row.id}`);
   const effectiveGroup: GroupBy = "project";
   const sessionGroups = groupSessions(sorted, effectiveGroup, projects);
@@ -349,6 +349,11 @@ export function InstanceBoard({
   // AJ-E2104: the Project lens with Show › Ended on is the whole board,
   // every session under its project (its Also line's parts stay its own).
   const order = quietView(effectiveGroup, filters, parsed.text) && !view.show.ended ? railOrder(sorted, isNeed, now) : null;
+  // D-103.6, as Home's Needs you: a row that needs you leaves its project
+  // for Needs you, so until the backend's list is known the board holds
+  // its place; nothing moves when the needs arrive (a row drawn under its
+  // project a moment, then gone, closed a menu opened on it).
+  const holding = order !== null && !needsKnown;
   const groups = openGroups(order, withOutsideGroups(sessionGroups, conversations, projects, scope), conversations, scope, new Set(projects.filter((p) => p.pinned).map((p) => p.id)));
   const shownRows = order?.shown ?? ((rows: InstanceInfo[]) => rows);
   // D-25: a project with no sessions still has a place in the rail (one
@@ -441,8 +446,8 @@ export function InstanceBoard({
           <PlaceBoard sessions={sessions} projects={projects} accounts={accounts} snooze={snooze} now={now} selectedId={selectedId} onSelect={onSelect} query={query} scroll={{ top: scrollTop, height: viewportH, box: scrollRef.current }} density={effectiveDensity} cueSlot={cueSlot} />
         )}
         {byProject && <>
-        {showLocal && order && <NeedsYouSection rows={order.needs} sessions={sessions} projects={projects} onSelect={onSelect} selectedId={selectedId} density={effectiveDensity} now={now} />}
-        {!showLocal ? null : loading && sessions.length === 0 ? (
+        {showLocal && order && !holding && <NeedsYouSection rows={order.needs} sessions={sessions} projects={projects} onSelect={onSelect} selectedId={selectedId} density={effectiveDensity} now={now} />}
+        {!showLocal ? null : (loading && sessions.length === 0) || holding ? (
           <RowPlaceholders shape="rail" rows={4} label="Loading sessions" />
         ) : sorted.length === 0 && idleProjects.length === 0 && !groups.some((g) => railSlice(conversations, g.id, scope).shown.length > 0) ? (
           sessions.length === 0 ? (
