@@ -165,6 +165,12 @@ export function leadSentence(lead: string | null, next: string | null, where = "
   return NO_LEAD;
 }
 
+/** The lead read back when it has ended (the 0.4.6 RC walk X1: the panel
+ * said "No lead for now" under a diagram whose card said Lead). */
+export function endedLeadSentence(lead: string): string {
+  return `${lead} leads, but it has ended: nobody plans the work until you pick an open session or an App's next one.`;
+}
+
 /** An App whose next session leads, as one member (round 2, #2): its
  * role line, the others' role after it. */
 export function nextLeadsLine(othersRole: string): string {

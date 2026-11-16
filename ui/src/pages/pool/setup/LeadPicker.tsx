@@ -15,7 +15,7 @@ import type { JSX } from "react";
 import { ChoiceOption } from "../../../components/controls";
 import { SELECTED_FILL } from "../../../components/controls/selected";
 import type { LeadChoice } from "../../../lib/new-pool";
-import { LEAD_WOULD, leadSentence, nextSessionWords } from "../../../lib/pool-words";
+import { LEAD_WOULD, endedLeadSentence, leadSentence, nextSessionWords } from "../../../lib/pool-words";
 import { StartLeadButton } from "./StartLead";
 
 export interface LeadSession {
@@ -49,6 +49,7 @@ export function LeadPicker({
   disabled = false,
   where = "these projects",
   onStart,
+  ended = null,
   testId = "lead-picker",
 }: {
   sessions: readonly LeadSession[];
@@ -60,10 +61,15 @@ export function LeadPicker({
   where?: string;
   /** A made pool: starts the chosen App's session that will lead. */
   onStart?: (app: string) => void;
+  /** The pool's lead when it isn't open now (it ended): listed, chosen,
+   * and read back as ended, never as "No lead for now" (the 0.4.6 RC walk
+   * X1). */
+  ended?: LeadSession | null;
   testId?: string;
 }): JSX.Element {
   const starting = value.kind === "next" && onStart ? apps.find((app) => app.ref === value.app && app.startable) : undefined;
-  const chosenSession = value.kind === "session" ? sessions.find((one) => one.ref === value.ref) : undefined;
+  const endedLead = ended && value.kind === "session" && ended.ref === value.ref && !sessions.some((one) => one.ref === ended.ref) ? ended : null;
+  const chosenSession = value.kind === "session" ? (sessions.find((one) => one.ref === value.ref) ?? endedLead ?? undefined) : undefined;
   const chosenApp = value.kind === "next" ? apps.find((app) => app.ref === value.app) : undefined;
   const row = (choice: LeadChoice, title: string, detail: string, key: string, kind: string, blocked: string | null = null) => (
     <ChoiceOption
@@ -85,6 +91,12 @@ export function LeadPicker({
   return (
     <fieldset className="flex min-w-0 flex-col gap-3" data-testid={testId}>
       <legend className="sr-only">Who leads</legend>
+      {endedLead && (
+        <div className="flex flex-col gap-1" data-testid={`${testId}-ended`}>
+          <span className="section-label">Leads now</span>
+          <div className="flex flex-col gap-0.5">{row({ kind: "session", ref: endedLead.ref }, endedLead.name, endedLead.detail, endedLead.ref, "session")}</div>
+        </div>
+      )}
       <div className="flex flex-col gap-1">
         <span className="section-label">Open now</span>
         {sessions.length === 0 ? (
@@ -114,7 +126,7 @@ export function LeadPicker({
       <div className="flex flex-col gap-0.5">{row({ kind: "none" }, "No lead for now", LEAD_WOULD, "none", "none")}</div>
       {/* Round 3: the read-back is the control's own, in both paths. */}
       <p className="text-meta text-ink" data-testid={`${testId}-sentence`}>
-        {leadSentence(chosenSession?.name ?? null, chosenApp?.name ?? null, where)}
+        {endedLead ? endedLeadSentence(endedLead.name) : leadSentence(chosenSession?.name ?? null, chosenApp?.name ?? null, where)}
       </p>
     </fieldset>
   );

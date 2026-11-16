@@ -130,6 +130,7 @@ export function PoolSetupSections({
             disabled={busy}
             where={where}
             onStart={(app) => startNextLead(app, leadDir)}
+            ended={leads[0] && sessionState(leads[0].session).state === "ended" ? { ref: leads[0].id, name: leads[0].name, detail: sessionState(leads[0].session).word } : null}
             testId="pool-lead"
           />
         </Section>
