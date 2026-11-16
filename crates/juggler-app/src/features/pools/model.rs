@@ -222,7 +222,8 @@ pub fn join_impl(
         // AJ-E3011: a Lead picked by hand ends the wait for a next one.
         super::lead_next::picked(&storage, &pool.id)?;
     }
-    membership_changed(state, "joined", &pool.id, &member);
+    // With the role it joined as (the 0.4.6 RC walk X2 read "role=-").
+    membership_step(state, "joined", &pool.id, &member, Some(role));
     pools_info(&storage)
 }
 
@@ -238,7 +239,7 @@ fn join_checked(
     let storage = lock_storage_arc(state)?;
     let member = member_from(&storage, member)?;
     storage.pools().join(&pool.id, &member, &[], role, level)?;
-    membership_changed(state, "joined", &pool.id, &member);
+    membership_step(state, "joined", &pool.id, &member, Some(role));
     pools_info(&storage)
 }
 
