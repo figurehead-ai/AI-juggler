@@ -296,6 +296,7 @@
 | AJ-E3601 | (no claims yet) | 2026-11-14 | [manifest](AJ-E3601/manifest.md) |
 | AJ-E3701 | PASS4 | 2026-11-14 | [manifest](AJ-E3701/manifest.md) |
 | AJ-E3702 | PASS13 | 2026-11-15 | [manifest](AJ-E3702/manifest.md) |
+| AJ-E3709 | FAIL3 PASS5 UNPROVEN3 | 2026-11-16 | [manifest](AJ-E3709/manifest.md) |
 | AJ-E401 | PASS9 | 2026-10-13 | [manifest](AJ-E401/manifest.md) |
 | AJ-E402 | PASS11 | 2026-10-13 | [manifest](AJ-E402/manifest.md) |
 | AJ-E403 | PASS10 | 2026-10-13 | [manifest](AJ-E403/manifest.md) |
