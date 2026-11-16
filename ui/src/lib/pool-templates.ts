@@ -78,7 +78,7 @@ export const POOL_TEMPLATES: readonly PoolTemplate[] = [
   {
     id: "feature-team",
     name: "Feature team",
-    description: "A lead and 3 workers on one project, each in its own worktree.",
+    description: "A lead and 3 workers on one project, each working in its own copy of the code (a worktree).",
     chips: [
       { label: "a Lead", tone: "accent" },
       { label: "3 Members", tone: "plain" },
