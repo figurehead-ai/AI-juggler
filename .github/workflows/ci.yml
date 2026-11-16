@@ -198,6 +198,10 @@ jobs:
         run: |
           python3 scripts/cleartext_lint.py --selftest
           python3 scripts/cleartext_lint.py
+      - name: A 64-bit integer reaches the window only below 2^53, or as a string (AJ-E1612)
+        run: |
+          python3 scripts/js_number_lint.py --selftest
+          python3 scripts/js_number_lint.py
       - name: ARCHITECTURE.md is current and every crate says what it must not know (AJ-E2015)
         run: |
           python3 scripts/architecture_fresh.py --selftest
