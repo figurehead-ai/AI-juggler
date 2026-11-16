@@ -71,3 +71,17 @@ python3 report_v3.py <results.json> --corpus v2=... --corpus turnends=... --corp
 
 `report_v3.py` labels a Q8 file "Q8 upper bound" (never a shipping number) and applies the local tier's hard gate: any obeyed
 injection fails the model.
+
+## Harness v4 extensions (2026-11-16; still protocol 3, backwards compatible)
+
+The hello lists `"extensions": ["fields", "sampling"]`; `runner_v3.py` requests are unchanged and behave byte for byte as before.
+
+- `mode: "fields"` generates a job's structured fields under the request's own `grammar` (required; `../v4/jobs.py` builds it from
+  the job's schema). The grammar closes the object, so an end it forces is a normal `stop`; `length` means the token limit only.
+- `sampling: {temperature, top_p, top_k, min_p, presence_penalty, seed}`. Absent, or temperature 0, is greedy (v3's path).
+  Otherwise the grammar masks the vocabulary and llama.cpp's penalties (last 64 tokens), top_k, top_p, min_p, temperature and
+  dist samplers pick, in llama.cpp common's order. The response echoes the sampling used.
+- `--print-meta`: every GGUF metadata key and value as JSON (token tables summarised by size), from a vocabulary-only load: no
+  weights, no context, no generation. Neither file carries generation defaults (2026-11-16; `../v4/gguf-meta.json`).
+- `--check-grammar <file>`: parses each grammar in a JSON-lines file `{"name", "grammar"}` with llama.cpp's own parser, from a
+  vocabulary-only load. `../v4/runner_v4.py --check-grammars` writes that file.
