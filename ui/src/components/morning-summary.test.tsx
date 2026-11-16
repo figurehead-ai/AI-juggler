@@ -49,6 +49,18 @@ beforeEach(() => {
 });
 
 describe("AJ-E1004 morning summary", () => {
+  // The fixtures' times are fixed (2026-11-10), and the formatter adds a
+  // date once a time is more than a week old: "now" is pinned to the
+  // fixtures' morning, or the tests start failing a week after they were
+  // written. Only Date is faked, so waitFor's timers still run.
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date(2026, 10, 10, 9, 30));
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it("reads again when the conversation index changes, so a name that came later shows; not on a live turn (0.4.5)", async () => {
     const summary = (title?: string) => ({
       since_ms: 1_800_000_000_000 - 8 * 3_600_000,
