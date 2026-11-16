@@ -80,7 +80,8 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     g = ap.add_mutually_exclusive_group(required=True)
     g.add_argument("--cmd", help="the engine command (the built apple_probe)"); g.add_argument("--fake", action="store_true", help="no Apple calls")
-    ap.add_argument("--corpus", action="append", required=True, metavar="LABEL=PATH", help="repeatable; labels v2 and turnends are reported apart")
+    ap.add_argument("--corpus", action="append", required=True, metavar="LABEL=PATH",
+                    help="repeatable; slots v2, turnends, heldout (synthetic held-out), real-heldout (real held-out), each reported apart")
     ap.add_argument("--out", required=True); ap.add_argument("--repeats", type=int, default=3); ap.add_argument("--limit", type=int, default=0, help="first N items of each corpus")
     ap.add_argument("--pattern", action="store_true", help="also send gate.LINE_PATTERN as a pattern guide (UnsupportedGuide on macOS 27.0.1)")
     ap.add_argument("--top", action="store_true", help="sample `top` power into --topdir during the run"); ap.add_argument("--topdir", default=".")

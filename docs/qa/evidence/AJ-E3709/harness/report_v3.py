@@ -1,5 +1,11 @@
 #!/usr/bin/env python3
-"""report_v3.py RESULTS.json --corpus v2=PATH --corpus turnends=PATH [--md OUT.md] > report-v3.json   (stdlib only)
+"""FROZEN: gate.py (gate, ladder and A's excerpt rules) frozen at commit 7acec4f50 (2026-11-16) for the v3 Apple run; no rule changes before it.
+
+report_v3.py RESULTS.json --corpus v2=PATH --corpus turnends=PATH [--corpus heldout=PATH] [--md OUT.md] > report-v3.json   (stdlib only)
+
+Corpus slots, each reported apart with its own gate table, checks and excerpt numbers: v2 (the 104-item set), turnends (the realistic
+turn-end messages; they decide B's shipping rule), heldout ("synthetic held-out": written by a model blind to the gate's rules, so
+weaker evidence than real messages), real-heldout ("real held-out": planned before B's ship decision; listed as empty until given).
 
 Applies ADR-0033 v3's gate and ladder (gate.py) to the drafts runner_v3.py recorded, per corpus (reported apart), for both B variants
   ladder       write, then the gate; on a step 2/2b/4 failure one choose; step 0/3/5 straight to A's excerpt
@@ -20,7 +26,15 @@ and writes every row of section 6.1's gate table that a script can measure, plus
 Rows that need eyes (blind FAILs, the preference count) are left to blind_review_v3.py and the reviewer."""
 import argparse, hashlib, json, re, statistics, sys
 import checks, gate
+FROZEN_GATE_COMMIT = "7acec4f50"   # the FROZEN line above; the report also records gate.py's sha256
 VARIANTS = ("ladder", "choose_only"); SETTINGS = ("main", "gate_only", "unknown")
+# corpus slots, reported apart (--corpus LABEL=PATH); a known slot that is not given is listed as empty
+SLOTS = {
+ "v2": {"title": "v2 set (90 commit bodies, 14 hard cases)", "note": "kept for comparison with v1 and v2"},
+ "turnends": {"title": "realistic turn-end messages", "note": "decides B's shipping rule (section 6.1)"},
+ "heldout": {"title": "synthetic held-out", "note": "written by a model blind to the gate's rules: weaker evidence than real messages"},
+ "real-heldout": {"title": "real held-out", "note": "real messages, planned before B's ship decision; empty until then"},
+}
 def pct(v, den): return round(100.0 * v / den, 2) if den else None
 def p95(v):
     v = sorted(v); return v[min(len(v) - 1, int(round(0.95 * (len(v) - 1))))] if v else None
@@ -120,6 +134,7 @@ def corpus_report(label, C, recs, meta):
                     if r["choose"] and (var == "choose_only" or reached_choose(L["trace"])): ms += r["choose"].get("latency_ms") or 0
                     if ms: lat.append(ms)
                 rows.append({"id": r["id"], "rep": r["rep"], "kind": L["kind"], "shown": shown, "excerpt": L["excerpt"], "caveat_line": L["caveat_line"],
+                             "second_line": L.get("second_line"),
                              "trace": L["trace"], "write_gate": L["write_gate"], "choose_gate": L["choose_gate"],
                              "draft": (r["write"] or {}).get("text") if var == "ladder" else None, "choose": (r["choose"] or {}).get("text")})
             N = len(recs)
@@ -150,6 +165,17 @@ def corpus_report(label, C, recs, meta):
     out["latency"] = {"write_median_ms": med(wl), "write_p95_ms": p95(wl), "choose_median_ms": med(cl), "choose_p95_ms": p95(cl),
                       "cold_first_ms": next(((r["write"] or r["choose"] or {}).get("latency_ms") for r in recs if r["cold_first"]), None),
                       "writes": len(wl), "chooses": len(cl)}
+    # ---- A's excerpt: how many lines, and which second/third lines (per item, repeat 0; the excerpt does not depend on the variant)
+    ex = {}
+    for st in SETTINGS:
+        rows0 = [r for r in detail["ladder"][st] if r["rep"] == 0]; lines = {1: 0, 2: 0, 3: 0}; kinds = {}
+        for r in rows0:
+            n_ = r["excerpt"].count("\n") + 1; lines[n_] = lines.get(n_, 0) + 1
+            k = r.get("second_line") or "none"; kinds[k] = kinds.get(k, 0) + 1
+        ex[st] = {"items": len(rows0), "lines": lines, "second_line_kinds": kinds,
+                  "three_line_items": [r["id"] for r in rows0 if r["excerpt"].count("\n") == 2],
+                  "over_three_lines": [r["id"] for r in rows0 if r["excerpt"].count("\n") > 2]}
+    out["excerpts"] = ex
     out["gate_table"] = gate_table(out, meta)
     out["_detail"] = detail
     return out
@@ -220,7 +246,9 @@ def markdown(out):
         cnt = f" `{json.dumps(v['counts'])}`" if "counts" in v else ""
         L.append(f"| {k} | {'yes' if v['holds'] else '**no**'}{cnt} |")
     for c, o in out["corpora"].items():
-        L += ["", f"## Corpus `{c}` ({o['items']} items, {o['records']} trials)", "", "| Gate | Bar | Measured | Pass |", "|---|---|---|---|"]
+        sl = SLOTS.get(c, {"title": c, "note": ""})
+        L += ["", f"## Corpus: {sl['title']} (`{c}`, {o['items']} items, {o['records']} trials)", "", f"_{sl['note']}._" if sl["note"] else "",
+              "", "| Gate | Bar | Measured | Pass |", "|---|---|---|---|"]
         for r in o["gate_table"]:
             L.append(f"| {r['gate']} | {r['bar']} | `{json.dumps(r['measured'], ensure_ascii=False)}` | {'—' if r['pass'] is None else ('yes' if r['pass'] else '**no**')} |")
         L += ["", "| Variant | Setting | Written | Quoted | Excerpt | Polarity /100 | L2/L3 lines | Caveat dropped |", "|---|---|---|---|---|---|---|---|"]
@@ -229,6 +257,7 @@ def markdown(out):
                 x = o["variants"][v][s]
                 L.append(f"| {v} | {s} | {x['written_pct']} % | {x['quoted_pct']} % | {x['excerpt_pct']} % | {x['polarity_per_100']} | {x['l2_l3_model_lines']} | {x['caveat_dropped_model_lines'] + x['caveat_dropped_excerpts']} |")
         d = o["drafts"]
+        L += ["", "A's excerpt, lines per item: " + "; ".join(f"{s} {o['excerpts'][s]['lines']}" for s in SETTINGS) + "."]
         L += ["", f"Drafts: {d['writes']}; token-limit hits {d['token_limit_hits']}; wrapped in quotes {d['wrapped_in_quotes']}; "
               f"format {d['format_pct']} %; non-answers {d['non_answer_pct']} %. Repeats agree on {o['repeats']['items_all_repeats_agree']} of {o['repeats']['items']} items."]
     return "\n".join(L) + "\n"
@@ -251,8 +280,14 @@ def main():
         recs = [r for r in R["results"] if r["corpus"] == label]
         C = {i: C[i] for i in dict.fromkeys(r["id"] for r in recs)}
         rep[label] = corpus_report(label, C, recs, meta)
-    out = {"meta": meta, "report": {"gate_version": gate.GATE_VERSION, "prompt_version": gate.PROMPT_VERSION}, "warnings": warn,
+    gate_sha = hashlib.sha256(open(gate.__file__, "rb").read()).hexdigest()
+    out = {"meta": meta, "report": {"gate_version": gate.GATE_VERSION, "prompt_version": gate.PROMPT_VERSION, "gate_py_sha256": gate_sha,
+                                    "frozen_gate_commit": FROZEN_GATE_COMMIT}, "warnings": warn,
            "harness_checks": harness_checks(rep), "corpora": rep}
-    if a.md: open(a.md, "w").write(markdown(out))
+    out["slots"] = {k: {**v, "present": k in rep} for k, v in SLOTS.items()}
+    if a.md:
+        md = markdown(out)
+        empty = [f"- {v['title']} (`{k}`): empty. {v['note']}." for k, v in SLOTS.items() if k not in rep]
+        open(a.md, "w").write(md + ("\n## Empty slots\n\n" + "\n".join(empty) + "\n" if empty else ""))
     print(json.dumps(out, indent=1, default=str, ensure_ascii=False))
 if __name__ == "__main__": main()
