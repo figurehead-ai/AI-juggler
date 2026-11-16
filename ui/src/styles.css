@@ -59,14 +59,17 @@
   --color-danger-soft: #ff857824;
 
   /* 0.5 (D-117) — calm surroundings. Agreed names: 0.4.6's pools use
-     them exactly, so never rename.
-     section: section labels (Needs you, Open now; 12 px / 500, capitals),
+     them exactly, so never rename. A colour's name never repeats a
+     --text-* size's: Tailwind makes both `text-<name>`, and the colour
+     wins (--color-section turned all 101 `text-section` titles into
+     grey 13 px words; theme-namespaces.test.ts guards it).
+     section-label: section labels (Needs you, Open now; 12 px / 500, capitals),
        between ink-2 and muted (8.82–11.71:1, Lc 70–74).
      fill: a filled control in place of its outline (search, segments).
      divider: the one hairline left, the rail/main split (decorative).
      count / count-ink: the neutral count badge (13.5:1);
      count-alarm / -ink: the count badge at L3 only (8.2:1). */
-  --color-section: #c3cad5;
+  --color-section-label: #c3cad5;
   --color-fill: #181d27;
   --color-divider: #232a36;
   --color-count: #d2d8e1;
@@ -214,7 +217,7 @@ body {
   --color-danger-soft: #b91c1c14;
 
   /* 0.5 (D-117): section 7.80–9.66:1; count 12.7:1; count-alarm 6.5:1. */
-  --color-section: #3d4553;
+  --color-section-label: #3d4553;
   --color-fill: #ffffff;
   --color-divider: #e2e6ed;
   --color-count: #2c3341;
@@ -244,7 +247,7 @@ body {
   :root,
   [data-theme="light"] {
     --color-hairline: var(--color-faint);
-    --color-section: var(--color-ink-2);
+    --color-section-label: var(--color-ink-2);
   }
 }
 
@@ -338,7 +341,7 @@ body {
 @layer components {
   /* A section's label: Needs you, Open now, Inactive apps, Your apps. */
   .section-label {
-    color: var(--color-section);
+    color: var(--color-section-label);
     font-size: var(--text-label);
     line-height: var(--text-label--line-height);
     font-weight: 500;
