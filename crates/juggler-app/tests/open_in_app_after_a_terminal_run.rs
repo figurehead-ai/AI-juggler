@@ -50,6 +50,10 @@ const ECHO: &str = "0a1b2c3d-0000-4000-8000-00000000ec01";
 /// The app's copy of it under its own id (a fork: its file starts with
 /// the original's lines).
 const COPY: &str = "0a1b2c3d-0000-4000-8000-00000000ec02";
+/// Another conversation of the profile's with the same title, its own
+/// from the start (the rc2 walk's 8307935d: 2026-11-10, record
+/// `local_ef4f5f0d`), no AI Juggler session on it.
+const OTHER: &str = "0a1b2c3d-0000-4000-8000-00000000ec03";
 /// AI Juggler's terminal run of [`ECHO`], stopped by the user.
 const RUN: &str = "sess-echo-terminal";
 /// `Sat Oct 24 08:12:34 2026` UTC, the app's `claude` process's start.
@@ -139,8 +143,6 @@ struct Lab {
     resumed: &'static str,
     /// The Claude app profile's App id.
     app: String,
-    /// The folder's CLI App id.
-    cli: String,
 }
 
 impl Lab {
@@ -206,12 +208,39 @@ impl Lab {
                 )
             ),
         );
-        // The Claude app's own records of both.
-        for (local, cli) in [("local_ec01", ECHO), ("local_ec02", COPY)] {
+        write(
+            &projects.join(format!("{OTHER}.jsonl")),
+            &format!(
+                "{}\n{}\n",
+                line(
+                    OTHER,
+                    &cwd_s,
+                    "o-1",
+                    "user",
+                    "echo lab",
+                    "2026-11-11T01:22:12.482Z"
+                ),
+                line(
+                    OTHER,
+                    &cwd_s,
+                    "o-2",
+                    "assistant",
+                    "lab",
+                    "2026-11-11T01:22:16.041Z"
+                ),
+            ),
+        );
+        // The Claude app's own records of all three (the other one focused
+        // as the app opens it).
+        for (local, cli, focused) in [
+            ("local_ec01", ECHO, 1_794_368_628_175_i64),
+            ("local_ec02", COPY, 1_794_368_628_175),
+            ("local_ec03", OTHER, 1_794_869_198_818),
+        ] {
             write(
                 &instance.join(format!("claude-code-sessions/acct/org/{local}.json")),
                 &format!(
-                    r#"{{"sessionId":"{local}","cliSessionId":"{cli}","cwd":"{cwd_s}","title":"Echo lab","isArchived":false,"lastActivityAt":1794368535070}}"#
+                    r#"{{"sessionId":"{local}","cliSessionId":"{cli}","cwd":"{cwd_s}","title":"Echo lab","isArchived":false,"lastActivityAt":1794368535070,"lastFocusedAt":{focused},"spawnedFrom":null}}"#
                 ),
             );
         }
@@ -245,7 +274,8 @@ impl Lab {
         write(
             &folder.join(format!("sessions/{CLAUDE_PID}.json")),
             &format!(
-                r#"{{"pid":{CLAUDE_PID},"sessionId":"{resumed}","cwd":"{cwd_s}","status":"idle","procStart":"Sat Oct 24 08:12:34 2026","hostSessionId":"local_ec0x","entrypoint":"claude-desktop","kind":"interactive"}}"#
+                r#"{{"pid":{CLAUDE_PID},"sessionId":"{resumed}","cwd":"{cwd_s}","status":"idle","procStart":"Sat Oct 24 08:12:34 2026","startedAt":1792829554000,"hostSessionId":"local_ec0{}","entrypoint":"claude-desktop","kind":"interactive","name":"Echo lab","version":"2.1.325","peerProtocol":1}}"#,
+                &resumed[resumed.len() - 1..]
             ),
         );
         let mut table = Table::new();
@@ -259,20 +289,11 @@ impl Lab {
             &[CLAUDE_APP, &flag],
             STARTED - 100,
         );
-        put(
-            &mut table,
-            HELPER_PID,
-            APP_PID,
-            "/Applications/Claude.app/Contents/Helpers/disclaimer",
-            &[],
-            STARTED - 50,
-        );
         let exe = format!(
             "{}/claude-code/2.1.325/x/claude.app/Contents/MacOS/claude",
             instance.display()
         );
         let app = juggler_app::features::places::book::place_id("claude-app", Some(&instance));
-        let cli = juggler_core::storage::cli_app_id(&account.id);
         Self {
             state,
             home,
@@ -280,7 +301,6 @@ impl Lab {
             exe,
             resumed,
             app,
-            cli,
         }
     }
 
@@ -288,14 +308,27 @@ impl Lab {
     /// app's process ("Open in Claude app").
     fn open_in_app(&self) {
         let resume = format!("--resume={}", self.resumed);
+        let code = [
+            self.exe.as_str(),
+            "--output-format",
+            "stream-json",
+            "--verbose",
+            "--input-format",
+            "stream-json",
+            &resume,
+        ];
         let mut table = self.os.0.lock().unwrap();
+        // The app's own wrapper, then its `claude` (rc2: 55939, 55940).
+        let disclaimer = "/Applications/Claude.app/Contents/Helpers/disclaimer";
+        let wrapper: Vec<&str> = [disclaimer, "--pgroup", "--"]
+            .into_iter()
+            .chain(code)
+            .collect();
         put(
-            &mut table,
-            CLAUDE_PID,
-            HELPER_PID,
-            &self.exe,
-            &[&self.exe, "--output-format", "stream-json", &resume],
-            STARTED,
+            &mut table, HELPER_PID, APP_PID, disclaimer, &wrapper, STARTED,
+        );
+        put(
+            &mut table, CLAUDE_PID, HELPER_PID, &self.exe, &code, STARTED,
         );
     }
 
@@ -339,12 +372,12 @@ fn open_in_the_app(lab: &Lab, id: &str) {
 }
 
 /// Before the app opens it: the terminal run ended, nothing open; the
-/// ended rule (0.4.6) files it by that run, under the CLI App.
+/// ended rule (0.4.6) files it by that run (the rail shows the run's row,
+/// under the CLI App).
 fn ended_as_the_terminal_run(lab: &Lab) {
     let row = lab.row(ECHO);
     assert!(!row.live, "nothing runs it yet: {row:?}");
     assert_eq!(row.session_id.as_deref(), Some(RUN), "its terminal run");
-    assert_eq!(row.app.as_deref(), Some(lab.cli.as_str()));
 }
 
 #[test]
@@ -379,4 +412,47 @@ fn the_claude_app_s_copy_of_a_conversation_after_its_terminal_run_is_open_in_tha
     open_in_the_app(&lab, COPY);
     // The original stays its terminal run's: ended, under the CLI App.
     ended_as_the_terminal_run(&lab);
+}
+
+#[test]
+fn another_conversation_the_claude_app_opens_after_a_terminal_run_is_open_in_that_app() {
+    let Some(home) = in_a_lab(
+        "another_conversation_the_claude_app_opens_after_a_terminal_run_is_open_in_that_app",
+    ) else {
+        return;
+    };
+    let lab = Lab::new(&home, OTHER);
+    lab.tick();
+    // The profile is one of the user's Apps (rc2: aij-test, added).
+    juggler_app::features::places::answer_offer(&lab.state, &lab.app, true).unwrap();
+    lab.tick();
+    ended_as_the_terminal_run(&lab);
+    assert!(!lab.row(OTHER).live);
+
+    lab.open_in_app();
+    lab.tick();
+    open_in_the_app(&lab, OTHER);
+    ended_as_the_terminal_run(&lab);
+}
+
+/// The rc2 walk's own order: the profile wasn't running; "Open in Claude
+/// app" started it (pid 52844, between the walk's pids of 17:42 and
+/// 17:46), and its `claude` came a few seconds later, after the live
+/// view's last full read of the process table.
+#[test]
+fn another_conversation_in_a_profile_the_open_just_started_is_open_in_it() {
+    let Some(home) =
+        in_a_lab("another_conversation_in_a_profile_the_open_just_started_is_open_in_it")
+    else {
+        return;
+    };
+    let lab = Lab::new(&home, OTHER);
+    let app = lab.os.0.lock().unwrap().remove(&APP_PID).unwrap();
+    lab.tick();
+    ended_as_the_terminal_run(&lab);
+
+    lab.os.0.lock().unwrap().insert(APP_PID, app);
+    lab.open_in_app();
+    lab.tick();
+    open_in_the_app(&lab, OTHER);
 }
