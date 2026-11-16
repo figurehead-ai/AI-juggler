@@ -53,4 +53,13 @@ debug_bin="${CARGO_TARGET_DIR:-target}/debug/juggler-app"
 if [[ "${1:-}" != "--quick" && -x "$debug_bin" ]]; then
   scripts/release_seams_check.sh --selftest "$debug_bin"
 fi
+# AJ-E3013: juggler-agent's lab probe is in its debug build (so the
+# release check, run on every shipped binary at signing, can see it).
+debug_agent="${CARGO_TARGET_DIR:-target}/debug/juggler-agent"
+if [[ "${1:-}" != "--quick" && -x "$debug_agent" ]]; then
+  if ! strings -a "$debug_agent" | grep -q AIJ_PROBE_V1; then
+    echo "dev-bridge: the debug juggler-agent has no probe marker, so the release check can't see one" >&2
+    exit 1
+  fi
+fi
 echo "dev-bridge: off by default, in no release workflow, refused by release builds"

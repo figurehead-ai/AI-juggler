@@ -59,6 +59,8 @@ fn main() -> ExitCode {
             }
             ExitCode::SUCCESS
         }
+        Ok(Command::McpProbe(out)) => probe_mcp(&out),
+        Ok(Command::ProbeShell) => probe_shell(),
         Ok(Command::Help) => {
             println!("{USAGE}");
             ExitCode::SUCCESS
@@ -101,6 +103,57 @@ fn main() -> ExitCode {
             ExitCode::from(64)
         }
     }
+}
+
+/// AJ-E3013 (lab proof C2): the probe's MCP server (debug builds only).
+#[cfg(all(debug_assertions, unix))]
+fn probe_mcp(out: &str) -> ExitCode {
+    let home = std::env::var_os("HOME").map(std::path::PathBuf::from);
+    let stdin = std::io::stdin();
+    let stdout = std::io::stdout();
+    match juggler_agentbridge::probe::serve(
+        std::path::Path::new(out),
+        home.as_deref(),
+        stdin.lock(),
+        stdout.lock(),
+    ) {
+        Ok(()) => ExitCode::SUCCESS,
+        Err(why) => {
+            let _ = writeln!(std::io::stderr(), "juggler-agent: {why}");
+            ExitCode::from(64)
+        }
+    }
+}
+
+/// AJ-E3013 (lab proof C3): `CODEX_THREAD_ID` and the parent chain.
+#[cfg(all(debug_assertions, unix))]
+fn probe_shell() -> ExitCode {
+    for line in juggler_agentbridge::probe::shell_lines() {
+        println!("{line}");
+    }
+    ExitCode::SUCCESS
+}
+
+/// A release build has no probe.
+#[cfg(not(all(debug_assertions, unix)))]
+fn probe_mcp(_out: &str) -> ExitCode {
+    not_in_this_build()
+}
+
+/// A release build has no probe.
+#[cfg(not(all(debug_assertions, unix)))]
+fn probe_shell() -> ExitCode {
+    not_in_this_build()
+}
+
+/// What a release build says to the probe's flags.
+#[cfg(not(all(debug_assertions, unix)))]
+fn not_in_this_build() -> ExitCode {
+    let _ = writeln!(
+        std::io::stderr(),
+        "juggler-agent: the probe is not in this build (debug builds only)"
+    );
+    ExitCode::from(64)
 }
 
 /// Prints a call's result (stdout) or why not (stderr), and its code.

@@ -106,6 +106,11 @@ pub enum Command {
     /// (`hook <event> --connector`): the inbox note, attested, and nothing
     /// in a session AI Juggler started (its launch's own hooks report).
     ConnectorHook(String),
+    /// AJ-E3013 (lab proof C2): `--mcp --probe <out-file>`, the probe's
+    /// MCP server. Debug builds only: a release build refuses it.
+    McpProbe(String),
+    /// AJ-E3013 (lab proof C3): `--probe-shell`. Debug builds only.
+    ProbeShell,
 }
 
 /// Reads the arguments (without the program's name).
@@ -134,6 +139,8 @@ pub fn parse(args: &[String]) -> Result<Command, String> {
     match words.as_slice() {
         ["--mcp"] => Ok(Command::Mcp),
         ["--mcp", "--plugin"] => Ok(Command::McpPlugin),
+        ["--mcp", "--probe", out] => Ok(Command::McpProbe((*out).to_owned())),
+        ["--probe-shell"] => Ok(Command::ProbeShell),
         [] | ["--help" | "-h" | "help"] => Ok(Command::Help),
         ["--version" | "-V"] => Ok(Command::Version),
         ["hook", event] => Ok(Command::Hook((*event).to_owned())),

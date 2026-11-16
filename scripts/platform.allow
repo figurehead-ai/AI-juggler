@@ -17,6 +17,7 @@ crates/juggler-adapters/src/tool_summary.rs slash-split 1
 crates/juggler-adapters/src/transcript_tail.rs unix-api 1
 crates/juggler-agentbridge/src/client.rs unix-api 2
 crates/juggler-agentbridge/src/client.rs unix-socket 2
+crates/juggler-agentbridge/src/probe.rs unix-api 1
 crates/juggler-app/src/activation.rs mac-words 3
 crates/juggler-app/src/crash.rs unix-api 1
 crates/juggler-app/src/dev_bridge.rs unix-api 1
