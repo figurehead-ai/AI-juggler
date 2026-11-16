@@ -1118,9 +1118,6 @@
   "eslint(complexity)": 1,
   "jsx-a11y(prefer-tag-over-role)": 1
  },
- "src/components/usage/controls.tsx": {
-  "jsx-a11y(prefer-tag-over-role)": 1
- },
  "src/components/usage/useUsage.ts": {
   "react(memo-dependencies)": 1,
   "react-hooks(exhaustive-deps)": 2,
