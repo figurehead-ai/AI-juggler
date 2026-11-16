@@ -25,6 +25,8 @@ pub mod calls;
 pub mod commands;
 pub mod desktop;
 pub mod dto;
+#[cfg(test)]
+mod flood_tests;
 pub mod server;
 pub mod settings;
 
