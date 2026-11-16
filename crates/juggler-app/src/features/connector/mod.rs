@@ -390,7 +390,7 @@ pub fn remove_impl(state: &Arc<AppState>, app_id: &str) -> AppResult<ConnectorRe
     remove_as(state, app_id, false)
 }
 
-/// The person's "Remove anyway (also deletes <file>)", after the window
+/// The person's "Remove anyway (also deletes `<file>`)", after the window
 /// confirmed it: the connector taken out whole, a changed file too.
 ///
 /// # Errors
@@ -538,7 +538,7 @@ pub fn desktop_members_impl(
 
 /// AJ-E3013 (the lab's A6/A9): the desktop sessions `pool_id` holds that
 /// read their messages through AI Juggler's connector, for its member and
-/// recipient lists ([`DesktopSessionInfo`]); Watched ones are
+/// recipient lists ([`dto::DesktopSessionInfo`]); Watched ones are
 /// `pools_watched`'s.
 ///
 /// # Errors

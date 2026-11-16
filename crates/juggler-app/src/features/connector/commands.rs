@@ -60,7 +60,7 @@ pub async fn connector_remove(
     .await
 }
 
-/// The person's "Remove anyway (also deletes <file>)" for the desktop App
+/// The person's "Remove anyway (also deletes `<file>`)" for the desktop App
 /// `app_id`, after the window confirmed it: the connector taken out
 /// whole, a file changed since Add too.
 ///
