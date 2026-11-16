@@ -1,25 +1,26 @@
-# The 0.5 sign-in sitting: your one page
+# The 0.5 sign-in sitting (second time): your one page
 
-Agents drive everything else: they set up the lab, press each Sign in in AI Juggler Dev, and run every check. Your part is one step per tool, in your browser. No step needs a password typed into AI Juggler.
+Agents drive everything else. They set up the lab, press each Sign in in AI Juggler Dev, answer each tool's menu in AI Juggler's terminal, and run every check. The whole run has already been rehearsed on stand-in tools. Your part is one browser page per tool, one page at a time. No step needs a password typed into AI Juggler, and no app window of the tools opens.
 
-Each tool has two lab Apps in AI Juggler Dev. You sign in **lab A** only. **Lab B** stays signed out, to prove that your sign-in stays in lab A. Your real setups aren't touched. The agents check that afterwards.
+Each tool has two lab Apps in AI Juggler Dev. You sign in **lab A** only. **Lab B** stays signed out, which proves that your sign-in stays in lab A. Your real setups aren't touched; the agents check that afterwards.
 
-The agents go one or two tools at a time and tell you when a page is waiting for you.
+The agents tell you when a page is waiting. Each page waits up to 15 minutes. If it runs out, they stop that sign-in and move on, and nothing is lost. All the sign-ins come one after another. After the last one you're done: the agents run the rest without you, and the lab stays until every check has a result.
 
-| Tool | What appears | Your one step |
-|---|---|---|
-| OpenCode | A browser page from OpenAI, opened by OpenCode's sign-in in lab A (the agent chose OpenAI → ChatGPT). | Sign in with ChatGPT, using your existing ChatGPT subscription. |
-| Kimi Code | A Kimi (Moonshot) page asking for a device code. AI Juggler's terminal shows the same code. | Sign in to your Kimi account and approve the code. |
-| Grok Build | An xAI sign-in page opened by `grok login`. | Sign in with your xAI or X account. |
-| ZCode | A Z.AI sign-in page opened by ZCode's sign-in. No ZCode window opens. | Sign in with the same Z.AI account as your ZCode. Your own ZCode stays signed in as it is. |
-| Muse Code | A Meta page asking you to approve a sign-in code (`muse login`, kept in the lab's own file, not your Keychain). | Approve the code with your Meta account. **Only if the agent reports that your real Muse sign-in's date changed:** run `muse login` once in your own terminal to restore it. |
-| Grok Build (0.4.6) | A sign-in in the window AI Juggler Dev 0.4.6 opens. | Sign in with your xAI/X account. |
-| ChatGPT app (Codex), for the 0.4.6 line's C2 proof | A separate ChatGPT window showing ChatGPT's sign-in. The 0.4.6 session's driver opens it with its own lab folders, so your real ChatGPT setup isn't used. | Sign in with your ChatGPT account. |
+| # | Tool | What appears | Your one step |
+|---|---|---|---|
+| 1 | ChatGPT, for the 0.4.6 line's proof | An OpenAI page in your browser, opened by `codex login` in a lab folder. No ChatGPT app opens, and your own `~/.codex` isn't used. | Sign in with your ChatGPT account and allow Codex. The page then says you can close it. |
+| 2 | Grok Build, for 0.4.6 | An xAI sign-in page from the 0.4.6 session's own lab. | Sign in with your xAI or X account. |
+| 3 | OpenCode | An OpenAI page. The agent has already chosen OpenAI, then "ChatGPT Pro/Plus (browser)", in OpenCode's menu, so no API key is asked for. | Sign in with ChatGPT, using your existing ChatGPT subscription, and allow OpenCode. |
+| 4 | Kimi Code | A Kimi (Moonshot) page with a device code. AI Juggler's terminal shows the same code. | Sign in to your Kimi account, check the code matches, approve. |
+| 5 | Grok Build | An xAI sign-in page from `grok login`. | Sign in with your xAI or X account. (This is the second Grok sign-in. Each line has its own lab.) |
+| 6 | ZCode | A Z.AI sign-in page. No ZCode window opens. | Sign in with the same Z.AI account as your ZCode. Your own ZCode stays signed in as it is. |
+| 7 | Muse Code | A Meta page asking you to approve a sign-in code (`muse login`, kept in the lab's own file, not your Keychain). | Approve the code with your Meta account. **Only if the agent reports that your real Muse sign-in's date changed:** run `muse login` once in your own terminal to restore it. |
+| 8 | Hermes, only if you've installed it | Hermes asks which provider to use. The agent asks you which one, then a page from that provider opens. | Name the provider, then sign in on its page. Not installed yet: this row is skipped, and nothing is installed for you. |
 
-The ChatGPT app row is driven by the 0.4.6 session, in the same sitting. The 0.5 session hands it AI Juggler Dev and the screen for that step, and takes them back afterwards. Afterwards the driver checks that your real `~/.codex` is untouched (file dates by name only).
+Rows 1, 2 and the 0.4.6 session's OpenCode check afterwards are driven by the 0.4.6 session in the same sitting. It uses lab A of OpenCode as it is: there's no second OpenCode sign-in.
 
-In the 0.4.6 session's turn it also uses T16's OpenCode lab A folder in place (no second OpenCode sign-in) and makes its own Grok home. That is why Grok signs in twice: once for 0.5's T16 lab A, once for 0.4.6.
+ChatGPT (row 1) and OpenCode (row 3) both use the same local port for their pages, so they never run at the same time.
 
-If a page asks for anything other than signing in or approving a code, close it and tell the agent.
+If a page asks for anything other than signing in, approving a code, or allowing the tool, close it and tell the agent.
 
-Afterwards the agents record what happened for each tool: separate sign-ins, a session started and resumed, and usage read. They then quit the lab and remove it.
+Afterwards the agents record, for each tool: separate sign-ins, a session started and resumed, usage read, and lab B kept out. The coordinating session checks the evidence. Only then is the lab removed, and your lab sign-ins with it.
