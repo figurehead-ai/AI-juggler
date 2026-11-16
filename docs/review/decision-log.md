@@ -3340,3 +3340,20 @@ The design that follows from it:
 
 - **Amends:** D-120 ("D and E later" becomes "E in 0.6, D unplaced") and D-121 ("Not scheduled: the orchestrator bot" becomes 0.6).
 - Sources: the coordinating session's relay of the maintainer, 2026-11-16.
+
+### D-124 The final AI-summary check may use ~20 of the maintainer's own turn-end messages, redacted and local only — SETTLED (2026-11-16)
+
+**Ruling.** The maintainer, 2026-11-16, asked whether the real-message check before B's ship decision (D-120/D-121, ADR-0033) may use about 20 of their own agents' end-of-turn messages from this Mac's Claude Code sessions, chose "Use mine, redacted".
+
+1. **What's allowed:** about 20 turn-end messages (the agent's closing text only) from this Mac's Claude Code sessions.
+   - Each is redacted with the fail-closed tool and its sidecar before any harness reads it: names, home paths and emails removed.
+   - An item that fails redaction is dropped, never used raw.
+2. **Local only:**
+   - The items, model outputs and reviewer sheets stay in a git-ignored folder on this Mac.
+   - They're never committed, attached to a PR, captured into the evidence gallery, or sent to any service.
+   - Only aggregate numbers, and item ids without their text, go into reports.
+   - The folder is deleted once B's ship decision is recorded.
+3. **Its role:** the held-out real-message check, reported separately from the tuned corpora and from the 24-item synthetic held-out set. No excerpt or prompt rule is tuned on it. If its numbers are clearly worse than the tuned ones, B's calm lines don't ship until the maintainer has seen them.
+4. **Scope:** this answer covers this one check. Any other use of the maintainer's transcripts needs a fresh yes (ADR-0033).
+
+- Sources: the maintainer's answer to the coordinating session's question, 2026-11-16.
