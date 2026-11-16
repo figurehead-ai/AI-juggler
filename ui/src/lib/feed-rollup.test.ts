@@ -128,12 +128,13 @@ describe("D-118 R6 — the reader's place", () => {
 });
 
 describe("AJ-E3701 R4 — Home's layout by its main area's width", () => {
-  it("is two columns from about 1,000 px (960: a 1280 px window with the rail open), stacked under it, a strip of App icons under 640", () => {
+  it("is two columns from 860 px (a 1024 px window, ≈ 924, and 1200 with the rail open, ≈ 896, keep Your apps beside the feed), stacked under it, a strip of App icons under 640", () => {
     expect(homeLayout(1280)).toBe("columns");
-    expect(homeLayout(990)).toBe("columns");
-    expect(homeLayout(959)).toBe("stacked");
+    expect(homeLayout(924)).toBe("columns");
+    expect(homeLayout(896)).toBe("columns");
+    expect(homeLayout(860)).toBe("columns");
+    expect(homeLayout(859)).toBe("stacked");
     expect(homeLayout(740)).toBe("stacked");
-    expect(homeLayout(900)).toBe("stacked");
     expect(homeLayout(639)).toBe("strip");
     // Not measured yet (a test's DOM): the columns.
     expect(homeLayout(0)).toBe("columns");

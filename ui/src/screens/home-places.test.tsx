@@ -235,9 +235,9 @@ describe("Home, desktop first", () => {
     expect(view.queryByTestId("home-recent")).toBeNull();
   });
 
-  it("stacks under about 1,000 px, the feed first, with Apps & runway ↓ in the head; a strip of App icons under 640 (AJ-E3701 R4)", async () => {
+  it("stacks under 860 px of main area, the feed first, with Apps & runway ↓ in the head; a strip of App icons under 640 (AJ-E3701 R4)", async () => {
     const width = (px: number) => vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue({ width: px, height: 800, top: 0, left: 0, right: px, bottom: 800, x: 0, y: 0, toJSON: () => ({}) });
-    const spy = width(900);
+    const spy = width(816); // a 1120 px window with the rail open
     const view = home([], placesConversations(NOW));
     const root = await view.findByTestId("home");
     expect(root.dataset.layout).toBe("stacked");

@@ -157,17 +157,20 @@ for (const theme of ["dark", "light"] as const) {
  * apps): every App is in it, the CLI Apps too, so someone with an Account
  * always has it, whether their sessions run in AI Juggler's own terminal
  * (needs-you, all-clear) or none runs (no-sessions). At the window's real
- * sizes: 1024 (its minimum, the rail as icons, stacked under the feed),
- * 1200 with the rail open (stacked) and 1440 (two columns, in sight).
+ * sizes, by the 860 px stack point (AJ-E3701 R4): beside the feed, in
+ * sight, at 1024 (its minimum, the rail as icons, ≈ 924 px of main area),
+ * 1200 with the rail open (≈ 896) and 1440; under the feed, reached by
+ * "Apps & runway ↓", at 1120 with the rail open (≈ 816, stacked).
  */
 const YOUR_APPS_SIZES = [
-  { name: "1024x680", width: 1024, height: 680, rail: "icons" },
-  { name: "1200x900", width: 1200, height: 900, rail: "open" },
-  { name: "1440x900", width: 1440, height: 900, rail: "open" },
+  { name: "1024x680", width: 1024, height: 680, rail: "icons", layout: "columns" },
+  { name: "1120x800", width: 1120, height: 800, rail: "open", layout: "stacked" },
+  { name: "1200x900", width: 1200, height: 900, rail: "open", layout: "columns" },
+  { name: "1440x900", width: 1440, height: 900, rail: "open", layout: "columns" },
 ] as const;
 for (const theme of ["dark", "light"] as const) {
   for (const state of STATES.filter((one) => one.name !== "no-accounts")) {
-    test(`home — Your apps shows at 1024, 1200 (rail open) and 1440 — ${state.name} — ${theme}`, async ({ page }) => {
+    test(`home — Your apps beside the feed at 1024, 1200 (rail open) and 1440, under it at 1120 — ${state.name} — ${theme}`, async ({ page }) => {
       await seed(page, state.fixture, theme, YOUR_APPS_SIZES[0]);
       await expect(page.getByRole("main")).toContainText(state.expect);
       for (const size of YOUR_APPS_SIZES) {
@@ -187,16 +190,17 @@ for (const theme of ["dark", "light"] as const) {
           return apps !== null && runway !== null && (apps.compareDocumentPosition(runway) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0;
         });
         expect(order, `Your apps before Runway at ${size.name}`).toBe(true);
-        const layout = await page.getByTestId("home").getAttribute("data-layout");
-        if (layout === "columns") await expect(apps, `Your apps in sight at ${size.name}`).toBeInViewport();
-        else {
+        await expect(page.getByTestId("home"), `the layout at ${size.name}`).toHaveAttribute("data-layout", size.layout);
+        if (size.layout === "columns") {
+          await expect(page.getByTestId("home-side-link"), `no Apps & runway link at ${size.name}`).toHaveCount(0);
+          await expect(apps, `Your apps in sight at ${size.name}`).toBeInViewport();
+        } else {
           // Stacked (E37 R4): under the feed, one jump away by the head's link.
           await page.getByTestId("home-side-link").click();
           await expect(apps, `Your apps reached at ${size.name}`).toBeInViewport();
           await page.getByTestId("home-scroll").evaluate((box) => box.scrollTo(0, 0)).catch(() => undefined);
         }
       }
-      expect(await page.getByTestId("home").getAttribute("data-layout"), "two columns at 1440").toBe("columns");
     });
   }
 }

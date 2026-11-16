@@ -2,16 +2,18 @@
  * D-118 (AJ-E3701 R1, R4) — Home's layout by the width of its main area:
  * two columns that scroll on their own (the feed `minmax(480px, 1fr)`
  * capped at 720 px for reading, the right column `clamp(320px, 30%,
- * 400px)`, 24 px apart); below about 1,000 px they stack, the feed first;
+ * 400px)`, 24 px apart); below 860 px they stack, the feed first;
  * under 640 px Your apps is a strip of icons.
  */
 import { useCallback, useState } from "react";
 
-/** Below this main-area width the columns stack: "about 1,000 px" (the
- * ruling), set so a 1280 px window with the rail open (≈ 990 px of main
- * area, the mock's wide frame) keeps two columns and a 1024 px one (≈ 740)
- * stacks; the columns' own minimum is 824 px (480 + 24 + 320). */
-const STACK_BELOW = 960;
+/** Below this main-area width the columns stack (D-118: "narrow widths
+ * stack"). Set just above the columns' own minimum, 824 px (480 + 24 +
+ * 320), so the app's common sizes keep Your apps beside the feed: a 1024 px
+ * window (the rail folds to icons below 1,100: ≈ 924 px of main area) and
+ * a 1200 px one with the rail open (≈ 896). Only the narrowest windows
+ * stack (0.5 session's design call, 2026-11-16). */
+const STACK_BELOW = 860;
 /** Below this, Your apps is a strip of icons. */
 const STRIP_BELOW = 640;
 

@@ -6,7 +6,7 @@
  * on their own (lib/home-layout): on the left, the open needs pinned on
  * top ("Needs you now", each loud once there), then the activity feed,
  * newest first, rolled up, with the away digest at the last look; on the
- * right, Your apps and Runway by account. Below about 1,000 px they stack,
+ * right, Your apps and Runway by account. Below 860 px of main area they stack,
  * the feed first (one page, then Show more) and the head gains "Apps &
  * runway ↓". The head's title is in ink: the pinned zone's count carries
  * the colour (D-117). No Account yet: today's welcome and first run.

@@ -1,6 +1,8 @@
 /**
  * D-118 (AJ-E3701 / AJ-E3702, "Visual testing") gallery: Home's two columns
- * and its activity feed — 1024, 1280 and 1440 wide, stacked at 900, both
+ * and its activity feed — two columns at 1024 (the rail as icons), 1280
+ * and 1440; stacked at 1120 with the rail open (≈ 816 px of main area,
+ * under the 860 px stack point: a real window size that stacks); both
  * themes, on the all-clear, typical, busy (every kind of feed item, a
  * rollup, the away digest) and flood fixtures; each section folded; the
  * empty feed; the paging quality gate (three pages by themselves, then
@@ -33,11 +35,14 @@ const flood: FixtureSet = {
   }),
 };
 
+/** The layout each width's main area gives (lib/home-layout: two columns
+ * from 860 px of main area; the rail folds to 60 px icons under 1,100 px
+ * and is 264 px open). */
 const WIDTHS = [
-  { name: "1024", width: 1024, height: 768 },
-  { name: "1280", width: 1280, height: 800 }, // the open rail leaves ~950 px: either layout, the capture shows which
-  { name: "1440", width: 1440, height: 900 },
-  { name: "stacked-900", width: 900, height: 800 }, // below ~1000 px of main area the columns stack
+  { name: "1024", width: 1024, height: 768, layout: "columns" }, // the rail as icons: ≈ 924 px of main area
+  { name: "1280", width: 1280, height: 800, layout: "columns" }, // the rail open: ≈ 976
+  { name: "1440", width: 1440, height: 900, layout: "columns" },
+  { name: "stacked-1120-rail-open", width: 1120, height: 800, layout: "stacked" }, // the rail open: ≈ 816, the columns stack
 ] as const;
 
 type Seams = { feed?: unknown[]; summary?: unknown; storage?: Record<string, string> };
@@ -91,13 +96,14 @@ for (const theme of ["dark", "light"] as const) {
     for (const state of STATES) {
       test(`home feed — ${state.name} — ${size.name} — ${theme}`, gate("68-home-feed"), async ({ page }) => {
         await seed(page, state.fixture, theme, size, state.seams);
-        // The layout follows the main area's width (the open rail takes ~300 px of the window).
-        const layout = size.width >= 1440 ? "columns" : size.width <= 1024 ? "stacked" : null;
-        if (layout) await expect(page.getByTestId("home")).toHaveAttribute("data-layout", layout);
+        // The layout follows the main area's width (AJ-E3701 R4: stacked under 860 px).
+        await expect(page.getByTestId("home")).toHaveAttribute("data-layout", size.layout);
         await expect(page.getByTestId("home-side")).toBeAttached();
-        if (layout === "stacked") await expect(page.getByTestId("home-side-link")).toBeVisible();
-        // Stacked or not, as this width's main area came out (1280 may be either).
-        const stacked = (await page.getByTestId("home").getAttribute("data-layout")) === "stacked";
+        const stacked = size.layout === "stacked";
+        // Stacked, Your apps and Runway sit under the feed, one jump away by the head's link;
+        // in two columns they are beside it and the link is gone.
+        await expect(page.getByTestId("home-side-link")).toHaveCount(stacked ? 1 : 0);
+        if (stacked) await expect(page.getByTestId("home-side-link")).toBeVisible();
         if (state.name === "busy") {
           await expect(page.getByTestId("feed-card").first()).toBeVisible();
           if (stacked) {
@@ -154,8 +160,8 @@ for (const theme of ["dark", "light"] as const) {
 
 /**
  * AJ-E3702's quality gate (R8): 5,000 items, each its own card, in the two
- * columns (1440 wide: at 1280 the open rail leaves a main area under
- * ~1000 px, which stacks and pages differently). Reaching
+ * columns (1440 wide; stacked, the feed pages differently: one page, then
+ * Show more). Reaching
  * the end of the feed column loads exactly three pages by itself, then
  * "Load more"; no request ever asks for more than one page (30); Load more
  * makes the fourth.
