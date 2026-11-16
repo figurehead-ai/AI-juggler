@@ -21,6 +21,18 @@ const GALLERY_SPECS = [
   // 0.3's (E28): the shared controls, the header and its screens, the
   // pool canvas, what the other tool was told, and the Subagents tab.
   "controls-gallery", "handover-told-gallery", "nav-gallery", "pool-canvas-gallery", "subagents-gallery",
+  // Families that tagged a gate state but were never listed, so CI never
+  // compared them: 0.1.3's places and session pages (E21), 0.3.0's local
+  // cache, and 0.4's new screens (account quality, cost cuts, first-run
+  // confidence, the Floor's controls, the palette, Settings › Keyboard,
+  // and the seven in release-04-screens).
+  "places-gallery", "session-pages-gallery", "local-cache-gallery",
+  "account-quality-gallery", "cost-cuts-gallery", "first-run-confidence-gallery", "floor-controls-gallery",
+  "palette-gallery", "release-04-screens-gallery", "settings-keyboard-gallery",
+  // 0.5's (D-118, E37): Home's two columns and its activity feed.
+  "home-feed-gallery",
+  // Not here: a11y-glyph-names (scripts/a11y_gate.sh runs it) and
+  // attention-budget (an assertion spec, no gate state).
 ];
 
 // AJ-E803: the visual regression gate. Baselines are rendered in the
