@@ -257,8 +257,10 @@ for (const theme of ["dark", "light"] as const) {
       await poolsScreen(page);
       await page.getByTestId("pools-new").click();
       await expect(page.getByTestId("new-pool")).toBeVisible();
-      // AJ-E3011: eight steps in order, each with a heading and a line on why.
-      for (const step of ["template", "where", "who", "lead", "everyone", "talk", "own", "review"]) {
+      // AJ-E3011: the steps in order, each with a heading and a line on why;
+      // D-30's question is its own step while unanswered (round 4).
+      for (const step of ["template", "where", "who", "lead", "everyone", "talk", "own", "tools", "review"]) {
+        if (step === "tools" && (await page.getByTestId("new-pool-step-tools").count()) === 0) continue;
         await expect(page.getByTestId(`new-pool-step-${step}`)).toBeVisible();
         await page.mouse.move(0, 0);
         await page.screenshot({ path: resolve(OUT, `new-pool-${step}-${width}x${height}-${theme}.png`) });
@@ -337,11 +339,15 @@ test("keyboard: arrows between nodes, Enter, Option+arrows, Delete with Undo, an
   await page.keyboard.press("Alt+ArrowRight");
   expect((await calls(page, "__AIJ_POOL_CANVAS_CALLS__")).join("\n")).toMatch(/s-cart@/);
 
+  // Held, like Stop (round 4): the toast's Undo keeps it in the pool,
+  // and nothing is sent.
   await page.locator('[data-node-name="s-spike"]').focus();
   await page.keyboard.press("Delete");
-  await expect(page.getByTestId("canvas-node")).toHaveCount(5);
+  await expect(page.getByTestId("canvas-removed-toast")).toBeVisible();
   await page.getByTestId("canvas-removed").click();
+  await expect(page.getByTestId("canvas-removed-toast")).toHaveCount(0);
   await expect(page.getByTestId("canvas-node")).toHaveCount(6);
+  expect((await calls(page, "__AIJ_POOL_CALLS__")).join("\n")).not.toMatch(/move:s-spike/);
 
   // At fit the node is compact: its badge opens the ask, answered there.
   await page.locator('[data-node="s-copy"]').getByTestId("node-badge").focus();

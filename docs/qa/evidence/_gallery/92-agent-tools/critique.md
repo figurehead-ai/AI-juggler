@@ -1,4 +1,4 @@
-<!-- captures: fd5a0b1dafeb -->
+<!-- captures: f13aed031b4a -->
 # 92-agent-tools: agent tools, the question on a pool's canvas and the setting with where they are off
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design passes.
@@ -25,3 +25,11 @@ agent-tools-question (both themes) no longer has a card over the canvas: the new
 agent-tools-question (both themes): run 2 left the card unanswered over "one switch for every pool". It is now "Let your assistants work as a team": what it gives (messages, shared notes and tasks) with its example, who it covers (sessions AI Juggler starts or connects in your pools, never one outside a pool), that it costs nothing extra, that without it the pool is set up but nobody can message (in ink, the one line that matters most), then "Asked once. After that you can switch it off for a project or an app in Settings › Agent access" with that place as a link, and a tinted "Turn on team tools" beside a ghost Not now. It sits above the checklist now (not inside it), so it stays once every step is done, and says "Off for web: they can't message there." when the pool's project or App has it off. Review in the setup says the same as a line. Checked dark and light: the facts are ink-2 at 13 px, the link underlined in ink.
 
 - Weak: seven short lines in the 340 px column; it pushes the checklist below the fold at 800 px while unanswered.
+
+## 0.4.6 round 4 (AJ-E3011, main's ruling on D-30): one question, at the top of the pool's page
+
+agent-tools-question (both themes): the question is no longer in the inspector. It is one card across the top of the pool's page while unanswered, the same component as New pool's Team tools step and Settings › Agent access: "Let the sessions in your pools message each other and share notes and tasks?", what they get with its example, "It costs nothing extra: a session uses its own turns only when it acts.", "You can switch it off per project or app in Settings." (Settings a link), then a filled "Yes, let them work together" and a secondary "Not now". Answered, it's gone; Not now leaves one quiet line with Turn on. When the tools can't run from AI Juggler's folder (AJ-E3013), the same place says why and to move it to Applications, with no Yes or Turn on (unit-tested; no capture). Checked dark and light: one primary on the page, the body ink-2 at 13 px.
+
+- Weak: the card takes about 190 px above the diagram at 1280×800 until it's answered.
+- Weak: while unanswered, the inspector's summary repeats it as "Team tools: Not answered yet…" with Turn on.
+- settings-agent-tools is unchanged by this round (left as committed).

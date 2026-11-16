@@ -79,20 +79,19 @@ for (const theme of ["dark", "light"] as const) {
   test(`the one-time question on a pool's page — ${theme}`, gate("92-agent-tools"), async ({ page }) => {
     await open(page, theme, null);
     await poolPage(page);
-    // AJ-E3011 §7, round 2 (#1, D-30): no banner over the work; a compact
-    // card above the pool's setup checklist saying what the team tools
-    // give, who, the cost, what happens without them, an example, and that
-    // they're asked once and switched off per project or app.
+    // AJ-E3011 round 4 (main's ruling, D-30): one question, asked once, at
+    // the top of the pool page while unanswered: what it gives, that it
+    // costs nothing extra, where to switch it off, Yes and Not now.
     await expect(page.getByTestId("agent-tools-question")).toHaveCount(0);
-    const question = page.getByTestId("pool-checklist-tools");
-    await expect(question.getByRole("heading")).toHaveText("Let your assistants work as a team");
-    await expect(question).toContainText("They can message each other and share notes and tasks.");
-    await expect(question).toContainText("Example: Claude sees that Codex is reviewing and sends it a note.");
-    await expect(question).toContainText("Without it, the pool is set up, but nobody in it can message.");
-    await expect(question).toContainText("Asked once. After that you can switch it off for a project or an app in Settings › Agent access.");
-    await expect(question).not.toContainText(/one switch|every pool/i);
-    await expect(question.getByRole("button", { name: "Turn on team tools" })).toBeVisible();
+    const question = page.getByTestId("pool-team-tools");
+    await expect(question.getByRole("heading")).toHaveText("Let the sessions in your pools message each other and share notes and tasks?");
+    await expect(question).toContainText("It costs nothing extra");
+    await expect(question).toContainText("You can switch it off per project or app in Settings.");
+    await expect(question.getByRole("button", { name: "Yes, let them work together" })).toBeVisible();
     await expect(question.getByRole("button", { name: "Not now" })).toBeVisible();
+    // At the top: above the diagram, not low in the side panel.
+    const top = (await question.boundingBox())!.y;
+    expect(top).toBeLessThan((await page.getByTestId("pool-inspector").boundingBox())!.y);
     await page.mouse.move(0, 0);
     await page.screenshot({ path: resolve(OUT, `agent-tools-question-1280x800-${theme}.png`) });
     await axe(page, `the question ${theme}`);

@@ -1,4 +1,4 @@
-<!-- captures: 7c9eeaeb2910 -->
+<!-- captures: 06071ee4a8c4 -->
 # 99-pool-selection: the canvas's selection and the inspector's title (AJ-E3012)
 
 Design critique (D-57, AJ-E2814) against 97-pool-canvas (the canvas before) and the calm UI round 2 rules. The canvas with each kind selected — nothing (the pool), a session, an App, an Account, a Tool, everyone in scope, a line, the pool's own setup opened from the checklist, and the lead's place waiting for an App's next session — dark and light, 1280×800. Fixture names only.
@@ -60,3 +60,14 @@ The walk set a project's own pool up on the diagram and found it said less than 
 - The header reads "On their own (everyone in this pool): Work together", the setup's own control as a menu.
 - Everyone's card reads "Every new session in any project joins here, now and later".
 - Weak: the summary's Who's in names three and "and N more"; at 1280×800 the checklist starts below the fold when the team tools card shows.
+
+## Round 4 (AJ-E3011): ready with what happens next, "takes charge", More settings
+
+Checked by eye, dark and light:
+
+- selection-pool: the pool is ready (who's in set, defaults count as done, the team tools on), so the checklist gives way to "This pool is ready" and "What happens next: Planner leads; Claude Code CLI · Personal checks its work; their messages show here." (the same sentence New pool's Review ends with). Pass.
+- selection-app-role: the App's role menu reads "Lead, once one of its sessions starts" with "It takes charge as soon as one of its sessions starts in the pool's projects. Its other sessions keep their role." While it's open the page under it is inert (menus-a11y.spec checks a press on Reviewer can't reach Take out of the pool). Pass.
+- selection-lead-next: the App card's badge "Lead when a session starts", its line "Takes charge as soon as one of its sessions starts · its others join as Member"; the inspector's Who leads sentence and role picker say the same. Pass.
+- selection-pool-setup: the rarer settings (Kept apart, Your other Macs, Pools its agents may write to) sit under one closed "More settings", so Who may message whom opens higher. Pass.
+- Take out of the pool is held like Stop (a toast with Undo); nothing changes on these captures.
+- Weak (unchanged): at the 38 % fit the line from "Fix the cart…" crosses the "Checko…" and "Review…" names.

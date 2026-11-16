@@ -32,7 +32,7 @@ test.beforeAll(() => {
   mkdirSync(SELECTION, { recursive: true });
 });
 
-const STEPS = ["template", "where", "who", "lead", "everyone", "talk", "own", "review"] as const;
+const STEPS = ["template", "where", "who", "lead", "everyone", "talk", "own", "tools", "review"] as const;
 const POOL = "pool-checkout";
 const CREW = "pool-crew";
 
@@ -127,6 +127,7 @@ for (const theme of ["dark", "light"] as const) {
     await newPool(page);
     // The first pool: the intro is full.
     await expect(page.getByTestId("new-pool-intro")).toHaveAttribute("data-open", "true");
+    // Nothing answered yet: D-30's question is its own step (round 4).
     for (const step of STEPS) {
       await expect(page.getByTestId(`new-pool-step-${step}`)).toBeVisible();
       await shoot(page, SETUP, `setup-${step}-empty-1280x800-${theme}.png`);
@@ -140,13 +141,14 @@ for (const theme of ["dark", "light"] as const) {
     await newPool(page);
     // A pool exists: the intro is one line.
     await expect(page.getByTestId("new-pool-intro").locator("summary")).toContainText("What a pool is");
-    for (const step of STEPS) {
+    // Answered already (the seed): no question step.
+    for (const step of STEPS.filter((one) => one !== "tools")) {
       await expect(page.getByTestId(`new-pool-step-${step}`)).toBeVisible();
       await fill(page, step);
       await shoot(page, SETUP, `setup-${step}-filled-1280x800-${theme}.png`);
       if (step !== "review") await page.getByTestId("new-pool-next").click();
     }
-    await expect(page.getByTestId("new-pool-review")).toContainText("leads from its next session in storefront");
+    await expect(page.getByTestId("new-pool-review")).toContainText("takes charge as soon as one of its sessions starts in storefront");
     await expect(page.getByTestId("new-pool-review")).toContainText("Sealed");
   });
 
@@ -182,7 +184,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.locator('[data-rule-ref="app:cli:claude-personal"]').scrollIntoViewIfNeeded();
     await page.locator('[data-rule-ref="app:cli:claude-personal"]').click();
     await page.getByTestId("inspect-rule-role").click();
-    await expect(page.getByRole("menuitemradio", { name: /^Lead: its next session leads/ })).toBeEnabled();
+    await expect(page.getByRole("menuitemradio", { name: /^Lead, once one of its sessions starts/ })).toBeEnabled();
     await shoot(page, SELECTION, `selection-app-role-1280x800-${theme}.png`);
     await page.keyboard.press("Escape");
 
@@ -192,10 +194,13 @@ for (const theme of ["dark", "light"] as const) {
     await expect(title).toHaveText("Planner → Fix the cart totals");
     await shoot(page, SELECTION, `selection-line-1280x800-${theme}.png`);
 
-    // The pool's own setup, from the checklist: who leads.
+    // The pool's own settings (ready, round 4: its checklist says so), Who
+    // may message whom unfolded.
     await page.getByTestId("inspector-back").click();
-    await page.locator('[data-testid=pool-checklist-step][data-step="talk"]').click();
-    await expect(page.getByTestId("pool-setup-talk")).toBeVisible();
+    await expect(page.getByTestId("pool-ready")).toContainText("This pool is ready");
+    await page.getByTestId("inspect-open-settings").click();
+    await page.getByTestId("pool-setup-talk-fold").locator("summary").click();
+    await expect(page.getByTestId("pool-talk")).toBeVisible();
     await shoot(page, SELECTION, `selection-pool-setup-1280x800-${theme}.png`);
 
     // A pool waiting for an App's next session to lead: that App is one
@@ -205,7 +210,7 @@ for (const theme of ["dark", "light"] as const) {
     await expect(page.getByTestId("canvas-lead-card")).toHaveCount(0);
     await page.locator('[data-rule-ref="app:cli:claude-work"]').click();
     await expect(title).toHaveText("Claude Code CLI · Work Max");
-    await expect(page.getByTestId("inspect-rule-leads-next")).toContainText("leads from its next session");
+    await expect(page.getByTestId("inspect-rule-leads-next")).toContainText("takes charge as soon as one of its sessions starts");
     await expect(page.getByTestId("canvas-rule-start-lead")).toBeVisible();
     await shoot(page, SELECTION, `selection-lead-next-1280x800-${theme}.png`);
   });
@@ -252,7 +257,7 @@ for (const size of [
     await open1("inspect-node-level-picker", "a session's On its own");
     // The pool's own setup: how everyone else joins.
     await page.getByTestId("inspector-back").click();
-    await page.locator('[data-testid=pool-checklist-step][data-step="everyone"]').click();
+    await page.getByTestId("inspect-open-settings").click();
     await open1("pool-join-picker", "the pool's join as");
   });
 }

@@ -1,4 +1,4 @@
-<!-- captures: 5bc128822297 -->
+<!-- captures: 7d5adab0ca3e -->
 # 97-pool-canvas: the Pools screen and a pool's canvas
 
 Design critique (D-57, AJ-E2814) against the reference screens: the row menus (77-menus), the rail's order menu, Usage and Processes. The baseline note says what changed on purpose; this says whether it is good.
@@ -87,3 +87,10 @@ new-pool-* (both widths, both themes) now walks eight steps instead of four: How
 ## 0.4.6 round 2 (AJ-E3011)
 
 canvas, inspect-* and new-pool-* (both widths and themes): the header's switch reads **Diagram | List** (the walks read "Canvas" as a drawing area); broad cards say "No session open yet · new ones in any project join"; new-pool-* carry the round 2 words (the chips, Who's in in words, the labelled pickers, On their own's radios, Review's Team tools line; see 98-pool-setup).
+
+## 0.4.6 round 4 (AJ-E3011)
+
+- canvas, canvas-badge-open, canvas-edge-badge-open, canvas-full (1280×800), list: the pool is ready, so the inspector shows "This pool is ready" and "What happens next: Planner leads; their messages show here." in place of the setup checklist; inspect-pool's compact setup line reads Ready. Checked dark and light. Pass.
+- new-pool-lead (both sizes): an App's next session "takes charge as soon as one of its sessions starts in storefront". new-pool-review: Team tools as one line, then "What happens next: Open a session in storefront: it joins; their messages show here." Pass.
+- Delete on a node (and the inspector's Take out of the pool) is held like Stop: a toast with Undo; letting it run takes it out (the keyboard test checks Undo keeps it and nothing is sent).
+- The 1024×700 captures re-rendered with under 50 px of noise and were left as committed.
