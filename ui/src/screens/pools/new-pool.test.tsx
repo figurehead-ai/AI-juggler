@@ -167,13 +167,14 @@ describe("AJ-E3007, AJ-E3011 the setup, start to end", () => {
     expect(calls).toContain(`talk:${opened}:role:member:role:member:blocked`);
   });
 
-  it("the steps in order, each with a heading and a line on why", () => {
+  it("the steps in order, each with a heading and a line on why; D-30's question its own step while unanswered", async () => {
     render(<NewPool sessions={MOCK_SESSIONS} projects={MOCK_PROJECTS} accounts={[]} project={null} onClose={() => undefined} />);
-    expect(screen.getAllByTestId("new-pool-step").map((step) => step.textContent?.replace(/^\d/, ""))).toEqual(["Start", "Where", "Who's in", "Who leads", "Everyone else", "Who may message whom", "On their own", "Review"]);
+    await waitFor(() => expect(screen.getAllByTestId("new-pool-step")).toHaveLength(9));
+    expect(screen.getAllByTestId("new-pool-step").map((step) => step.textContent?.replace(/^\d/, ""))).toEqual(["Start", "Where", "Who's in", "Who leads", "Everyone else", "Who may message whom", "On their own", "Team tools", "Review"]);
     const seen: string[] = [];
-    for (let n = 0; n < 8; n += 1) {
+    for (let n = 0; n < 9; n += 1) {
       seen.push(`${screen.getByTestId("new-pool-step-title").textContent}: ${screen.getByTestId("new-pool-step-why").textContent}`);
-      if (n < 7) fireEvent.click(screen.getByTestId("new-pool-next"));
+      if (n < 8) fireEvent.click(screen.getByTestId("new-pool-next"));
     }
     expect(seen).toEqual([
       "How to start: A template fills in roles and who may message whom; you can change any of it.",
@@ -183,6 +184,7 @@ describe("AJ-E3007, AJ-E3011 the setup, start to end", () => {
       "Everyone else: What each member does, and how new sessions join.",
       "Who may message whom: Set an exception only where you want one; the rest is allowed.",
       "What they may do on their own: Anything more waits for your OK in Needs you.",
+      "Team tools: Asked once, the first time you make a pool.",
       "Review: The whole pool in sentences, before it's made.",
     ]);
   });
@@ -304,25 +306,25 @@ describe("AJ-E3007, AJ-E3011 the setup, start to end", () => {
       { ref: "app:cli:b", kind: "app" as const, label: "Codex · Personal", role: "reviewer" as const, level: null, reach: "later" as const },
     ];
     let draft: Draft = { ...draftOf(templateById("writer-reviewer"), "web"), members: apps };
-    const lead = render(<NewPoolLead draft={draft} onDraft={(next) => (draft = next)} sessions={[]} nameOf={(_, label) => label} where="web" openNow={new Map([["app:cli:a", 0]])} />);
+    const lead = render(<NewPoolLead draft={draft} onDraft={(next) => (draft = next)} sessions={[]} nameOf={(_, label) => label} where="web" />);
     const options = lead.getAllByTestId("new-pool-lead-option");
     expect(options.map((one) => one.dataset.kind)).toEqual(["next", "next", "none"]);
     expect(lead.getByTestId("new-pool-lead-none-open").textContent).toBe("No session is open in these projects now.");
     expect(lead.container.textContent).toContain("Claude Code · Work's next session");
-    // Round 2 (#3): it leads from its next session in web, and the pool's
+    // Round 4 (#4): it takes charge as soon as one of its sessions starts, and the pool's
     // diagram can start one once it's made.
-    expect(lead.container.textContent).toContain("It leads from its next session in web.");
+    expect(lead.container.textContent).toContain("It takes charge as soon as one of its sessions starts in web.");
     expect(lead.getByTestId("new-pool-lead-start-later").textContent).toBe("Once the pool is made, Start one now on its App's card starts that session.");
     fireEvent.click(options[0]!);
     expect(draft.leadNext).toBe("app:cli:a");
-    lead.rerender(<NewPoolLead draft={draft} onDraft={(next) => (draft = next)} sessions={[]} nameOf={(_, label) => label} where="web" openNow={new Map([["app:cli:a", 0]])} />);
-    expect(lead.getByTestId("new-pool-lead-sentence").textContent).toBe("Claude Code · Work leads from its next session in web (none is open now): it plans the work and hands out tasks.");
+    lead.rerender(<NewPoolLead draft={draft} onDraft={(next) => (draft = next)} sessions={[]} nameOf={(_, label) => label} where="web" />);
+    expect(lead.getByTestId("new-pool-lead-sentence").textContent).toBe("Claude Code · Work takes charge as soon as one of its sessions starts in web: it plans the work and hands out tasks.");
     lead.unmount();
     const review = render(<NewPoolReview draft={draft} name="Web team" where="web" openNow={new Map([["app:cli:a", 0]])} />);
-    expect(review.getByTestId("new-pool-review").textContent).toContain("Claude Code · Work leads from its next session in web (none is open now): it plans the work and hands out tasks.");
+    expect(review.getByTestId("new-pool-review").textContent).toContain("Claude Code · Work takes charge as soon as one of its sessions starts in web: it plans the work and hands out tasks.");
     // Round 2 (#2): one member, not a Lead beside a Member.
     expect(review.getAllByTestId("new-pool-review-role").map((line) => line.textContent)).toEqual([
-      "Claude Code · Work: its next session leads; its others join as Member and may Work together, as the pool.",
+      "Claude Code · Work takes charge as soon as one of its sessions starts; its others join as Member and may Work together, as the pool.",
       "Codex · Personal is a Reviewer and may Work together, as the pool.",
     ]);
   });

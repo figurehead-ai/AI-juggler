@@ -8,7 +8,7 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CanvasTeach, hasWhoIsIn } from "./CanvasTeach";
 import { PoolChecklist } from "./setup/PoolChecklist";
-import { markSeen, seenSteps, setupRows } from "../../lib/pool-setup";
+import { markSeen, seenSteps, setupReady, setupRows } from "../../lib/pool-setup";
 
 afterEach(cleanup);
 beforeEach(() => localStorage.clear());
@@ -48,36 +48,43 @@ describe("the setup checklist (AJ-E3011 §1)", () => {
   it("keeps the setup's order and ticks where, who's in and who leads from the pool", () => {
     const rows = setupRows({ ...facts, whoIn: true, leadNext: true }, new Set());
     expect(rows.map((row) => row.step)).toEqual(["where", "who", "lead", "everyone", "talk", "own"]);
-    expect(rows.map((row) => row.done)).toEqual([true, true, true, false, false, false]);
-    // A pool on every project chose where only once it was seen.
-    expect(setupRows({ ...facts, every: true }, new Set())[0]!.done).toBe(false);
-    expect(setupRows({ ...facts, every: true }, new Set(["where"]))[0]!.done).toBe(true);
+    // Round 4 (#2): a step left at its default counts as done.
+    expect(rows.map((row) => row.done)).toEqual([true, true, true, true, true, true]);
+    expect(rows.map((row) => row.byDefault)).toEqual([false, false, false, true, true, true]);
+    // A pool on every project: where is its default until it's seen.
+    expect(setupRows({ ...facts, every: true }, new Set())[0]).toMatchObject({ done: true, byDefault: true });
+    expect(setupRows({ ...facts, every: true }, new Set(["where"]))[0]).toMatchObject({ done: true, byDefault: false });
   });
 
-  it("never vanishes when members are added; goes once every step is done", () => {
+  it("counts defaults as done (round 4 #2); ready once who's in is set and the team tools are on, with what happens next", () => {
     const open = vi.fn();
     const { rerender } = render(<PoolChecklist rows={setupRows(facts, new Set())} onOpen={open} />);
-    expect(screen.getByTestId("pool-checklist-count").textContent).toBe("1 of 6 done");
-    // Members added: still there, Who's in ticked.
-    rerender(<PoolChecklist rows={setupRows({ ...facts, whoIn: true }, new Set())} onOpen={open} />);
-    expect(screen.getByTestId("pool-checklist")).toBeTruthy();
-    expect(screen.getAllByTestId("pool-checklist-step").map((step) => step.dataset.done)).toEqual(["true", "true", "false", "false", "false", "false"]);
-    // The next step is the current one; each opens its control.
-    const lead = screen.getAllByTestId("pool-checklist-step")[2]!;
-    expect(lead.getAttribute("aria-current")).toBe("step");
-    fireEvent.click(lead);
-    expect(open).toHaveBeenCalledWith("lead");
-    rerender(<PoolChecklist rows={setupRows({ ...facts, whoIn: true, led: true }, new Set(["everyone", "talk", "own"]))} onOpen={open} />);
+    // Only who's in has no default.
+    expect(screen.getByTestId("pool-checklist-count").textContent).toBe("5 of 6 done");
+    expect(screen.getAllByTestId("pool-checklist-default")).toHaveLength(4);
+    const who = screen.getAllByTestId("pool-checklist-step")[1]!;
+    expect(who.getAttribute("aria-current")).toBe("step");
+    fireEvent.click(who);
+    expect(open).toHaveBeenCalledWith("who");
+    // Members added, the team tools still off: all ticked, and it says what's left.
+    const rows = setupRows({ ...facts, whoIn: true }, new Set());
+    rerender(<PoolChecklist rows={rows} onOpen={open} ready={setupReady(rows, false)} />);
+    expect(screen.getByTestId("pool-checklist-count").textContent).toBe("6 of 6 done");
+    expect(screen.getByTestId("pool-checklist-tools-left").textContent).toContain("Ready once the team tools are on");
+    // The team tools on: ready, and the next line.
+    rerender(<PoolChecklist rows={rows} onOpen={open} ready={setupReady(rows, true)} next="Open Claude Code · Work in web: it leads; their messages show here" />);
     expect(screen.queryByTestId("pool-checklist")).toBeNull();
+    expect(screen.getByTestId("pool-ready").textContent).toContain("This pool is ready");
+    expect(screen.getByTestId("pool-ready-next").textContent).toBe("What happens next: Open Claude Code · Work in web: it leads; their messages show here.");
   });
 
   it("shrinks to one line while something else is selected, which opens the next step", () => {
     const open = vi.fn();
-    render(<PoolChecklist rows={setupRows({ ...facts, whoIn: true }, new Set())} onOpen={open} compact />);
+    render(<PoolChecklist rows={setupRows(facts, new Set())} onOpen={open} compact />);
     const line = screen.getByTestId("pool-checklist-line");
-    expect(line.textContent).toContain("2 of 6 done · next: Who leads");
+    expect(line.textContent).toContain("5 of 6 done · next: Who's in");
     fireEvent.click(line);
-    expect(open).toHaveBeenCalledWith("lead");
+    expect(open).toHaveBeenCalledWith("who");
   });
 
   it("remembers the steps seen per pool on this Mac", () => {

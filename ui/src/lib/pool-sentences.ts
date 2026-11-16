@@ -47,13 +47,13 @@ export function whoSentence(shape: Pick<PoolShape, "members">): string {
   return `${names}. ${named.some((member) => member.later) ? "Their new sessions here join by themselves." : "Nothing else joins by itself."}`;
 }
 
-/** Who leads, read back: the session, the App from its next session in
- * `where` ("(none is open now)" when `open` says so), or none. */
-export function leadLine(shape: Pick<PoolShape, "members" | "leadNext">, where: string, open?: (ref: string) => number | undefined): string {
+/** Who leads, read back: the session, the App that takes charge as soon
+ * as one of its sessions starts in `where`, or none. */
+export function leadLine(shape: Pick<PoolShape, "members" | "leadNext">, where: string): string {
   const lead = shape.members.find((member) => member.role === "lead" && member.ref.startsWith("session:"));
   if (lead) return leadSentence(lead.label, null);
   const next = shape.leadNext ? shape.members.find((member) => member.ref === shape.leadNext) : undefined;
-  return leadSentence(null, next?.label ?? null, where, next ? open?.(next.ref) : undefined);
+  return leadSentence(null, next?.label ?? null, where);
 }
 
 /** Everyone else: how new sessions join, then each named member's role
@@ -90,6 +90,22 @@ export const ownLine = (shape: Pick<PoolShape, "level">): string => levelSentenc
 /** Whether it's kept apart. */
 export const sealLine = (shape: Pick<PoolShape, "sealed">): string =>
   shape.sealed ? "Sealed: its sessions are in no other pool, and nothing leaves it through AI Juggler." : "Not sealed: its sessions can be in other pools too.";
+
+/** "A", "A and B", "A, B and C". */
+const listWords = (names: readonly string[]) => (names.length <= 1 ? (names[0] ?? "") : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`);
+
+/** What happens next, in one line, once the pool is ready (round 4 #3):
+ * "Open Claude Code · Work in web: it leads; Codex checks its work;
+ * their messages show here". The diagram's checklist and Review say it. */
+export function nextLine(shape: Pick<PoolShape, "members" | "leadNext">, where: string): string {
+  const session = shape.members.find((member) => member.role === "lead" && member.ref.startsWith("session:"));
+  const next = shape.leadNext ? shape.members.find((member) => member.ref === shape.leadNext) : undefined;
+  const reviewers = shape.members.filter((member) => member.role === "reviewer").map((member) => member.label);
+  const parts = [session ? `${session.label} leads` : next ? `Open ${next.label} in ${where}: it leads` : `Open a session in ${where}: it joins`];
+  if (reviewers.length > 0) parts.push(`${listWords(reviewers)} ${reviewers.length === 1 ? "checks" : "check"} ${session || next ? "its" : "their"} work`);
+  parts.push("their messages show here");
+  return parts.join("; ");
+}
 
 /** A made pool's talk rows (`role:…` pairs) as a grid. */
 export function talkOf(rows: readonly { from: string; to: string; rule: string }[]): Partial<Record<PairKey, TalkRule>> {

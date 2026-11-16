@@ -31,8 +31,6 @@ export interface LeadApp {
   name: string;
   /** A session of it can start here (a CLI App, the pool made). */
   startable?: boolean;
-  /** Its sessions open in the pool's projects now, when known. */
-  open?: number;
 }
 
 const same = (a: LeadChoice, b: LeadChoice) =>
@@ -96,7 +94,7 @@ export function LeadPicker({
           <span className="section-label">Next session</span>
           <div className="flex flex-col gap-0.5">
             {apps.map((app) =>
-              row({ kind: "next", app: app.ref }, nextSessionWords(app.name), `It leads from its next session in ${where}.`, app.ref, "next"),
+              row({ kind: "next", app: app.ref }, nextSessionWords(app.name), `It takes charge as soon as one of its sessions starts in ${where}.`, app.ref, "next"),
             )}
           </div>
           {starting && onStart && (
@@ -110,7 +108,7 @@ export function LeadPicker({
       <div className="flex flex-col gap-0.5">{row({ kind: "none" }, "No lead for now", LEAD_WOULD, "none", "none")}</div>
       {/* Round 3: the read-back is the control's own, in both paths. */}
       <p className="text-meta text-ink" data-testid={`${testId}-sentence`}>
-        {leadSentence(chosenSession?.name ?? null, chosenApp?.name ?? null, where, chosenApp?.open)}
+        {leadSentence(chosenSession?.name ?? null, chosenApp?.name ?? null, where)}
       </p>
     </fieldset>
   );

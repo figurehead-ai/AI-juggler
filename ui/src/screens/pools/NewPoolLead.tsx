@@ -18,7 +18,6 @@ export function NewPoolLead({
   sessions,
   nameOf,
   where = "these projects",
-  openNow,
 }: {
   draft: Draft;
   onDraft: (next: Draft) => void;
@@ -26,15 +25,13 @@ export function NewPoolLead({
   nameOf: (ref: string, label: string) => string;
   /** Its projects in words ("web"). */
   where?: string;
-  /** Each member's open sessions here now: "(none is open now)". */
-  openNow?: ReadonlyMap<string, number>;
 }): JSX.Element {
   const open = leadCandidates(sessions);
   // A session named in the draft that leads, though it isn't open (a
   // template's), stays offered.
   const picked = draft.members.filter((member) => member.kind === "session" && member.reach !== "watched" && !open.some((row) => row.ref === member.ref));
   const rows = [...picked.map((member) => ({ ref: member.ref, name: member.label, detail: "In this pool" })), ...open.map((row) => ({ ref: row.ref, name: row.label, detail: row.detail }))];
-  const apps = draft.members.filter((member) => member.kind === "app").map((member) => ({ ref: member.ref, name: nameOf(member.ref, member.label), open: openNow?.get(member.ref) }));
+  const apps = draft.members.filter((member) => member.kind === "app").map((member) => ({ ref: member.ref, name: nameOf(member.ref, member.label) }));
   const choice = leadOf(draft);
   return (
     <div className="flex max-w-3xl flex-col gap-4" data-testid="new-pool-step-lead">

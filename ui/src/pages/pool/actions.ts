@@ -7,6 +7,7 @@
 import { errorText } from "../../lib/bridge";
 import type { InstanceInfo } from "../../types/generated/InstanceInfo";
 import { poolMove, poolSetRole, type PoolInfo } from "../../lib/ipc/pools";
+import { withPendingAdd, withPendingRole } from "../../lib/pool-pending";
 import { memberRef, poolJoin, poolLeave } from "../../lib/ipc/pool-model";
 import { defaultPoolIdOf, setPools, type PoolRole } from "../../lib/pools";
 import { showToast } from "../../components/Toast";
@@ -45,8 +46,9 @@ export async function addToPool(pool: PoolInfo, session: InstanceInfo, at: Point
   }
   const ref = memberRef("session", session.id);
   try {
-    if (pool.sealed) setPools(await poolMove(session.id, pool.id));
-    else setPools(await poolJoin(pool.id, ref, "member"));
+    // Round 4 (#5): shown as being added at once; settles when the canvas has it.
+    const join = () => (pool.sealed ? poolMove(session.id, pool.id) : poolJoin(pool.id, ref, "member"));
+    setPools(await withPendingAdd({ poolId: pool.id, ref: `session:${session.id}`, label: nameOf(session), kind: "session" }, join));
     if (at) await place([{ session_id: session.id, x: at.x, y: at.y }]);
     const moved = pool.sealed && from !== null && from !== pool.id;
     showToast({
@@ -100,7 +102,7 @@ export async function makeLead(pool: PoolInfo, member: MemberNode, members: Memb
   const was = member.role as PoolRole;
   try {
     for (const lead of before) await poolSetRole(lead.id, "member", pool.id);
-    setPools(await poolSetRole(member.id, "lead", pool.id));
+    setPools(await withPendingRole({ poolId: pool.id, ref: member.id, role: "lead" }, () => poolSetRole(member.id, "lead", pool.id)));
     showToast({
       message: `${member.name} leads now`,
       detail: before.length > 0 ? `${before.map((lead) => nameOf(lead.session)).join(", ")} ${before.length === 1 ? "is a member" : "are members"} again.` : undefined,
@@ -119,7 +121,7 @@ export async function makeLead(pool: PoolInfo, member: MemberNode, members: Memb
 /** Sets a member's role in `pool` (member, reviewer or observer). */
 export async function setRole(pool: PoolInfo, member: MemberNode, role: PoolRole): Promise<void> {
   try {
-    setPools(await poolSetRole(member.id, role, pool.id));
+    setPools(await withPendingRole({ poolId: pool.id, ref: member.id, role }, () => poolSetRole(member.id, role, pool.id)));
   } catch (cause) {
     failed("Couldn't change its role")(cause);
   }

@@ -20,7 +20,7 @@ import { LEVELS, levelLabel } from "../../../lib/pools";
 import { JoinAs } from "./JoinAs";
 import { LeadPicker } from "./LeadPicker";
 import { MemberOwnLevel, OwnLevelChoice } from "./OwnLevelChoice";
-import { PoolToolsCard } from "./PoolToolsCard";
+import { TeamToolsQuestion } from "./TeamTools";
 import { RoleCards, RolePicker, RoleWhy, holdersOf } from "./RoleCards";
 import { TalkTable } from "./TalkTable";
 
@@ -48,10 +48,9 @@ describe("the sentences each choice reads back as", () => {
 
   it("who leads, and what a pool without one lacks", () => {
     expect(leadSentence("Planner", null)).toBe("Planner leads: it plans the work and hands out tasks.");
-    expect(leadSentence(null, "Claude Code · Work")).toBe("Claude Code · Work leads from its next session in these projects: it plans the work and hands out tasks.");
-    // Round 2 (#3): where, and that none is open yet.
-    expect(leadSentence(null, "Claude Code · Work", "web", 0)).toBe("Claude Code · Work leads from its next session in web (none is open now): it plans the work and hands out tasks.");
-    expect(leadSentence(null, "Claude Code · Work", "web", 2)).toBe("Claude Code · Work leads from its next session in web: it plans the work and hands out tasks.");
+    // Round 4 (#4): nobody is in charge until a session starts, said so.
+    expect(leadSentence(null, "Claude Code · Work")).toBe("Claude Code · Work takes charge as soon as one of its sessions starts in these projects: it plans the work and hands out tasks.");
+    expect(leadSentence(null, "Claude Code · Work", "web")).toBe("Claude Code · Work takes charge as soon as one of its sessions starts in web: it plans the work and hands out tasks.");
     expect(leadSentence(null, null)).toMatch(/^No lead for now: nobody splits the work into tasks/);
   });
 
@@ -96,7 +95,7 @@ describe("the controls", () => {
     render(<RolePicker member="app" name="Claude Code · Work" value="member" onChange={change} testId="role" />);
     fireEvent.click(screen.getByTestId("role"));
     const lead = screen.getAllByRole("menuitemradio").find((line) => line.textContent?.startsWith("Lead"))!;
-    expect(lead.textContent).toContain("Lead: its next session leads");
+    expect(lead.textContent).toContain("Lead, once one of its sessions starts");
     expect(lead instanceof HTMLButtonElement && lead.disabled).toBe(false);
     expect(screen.getAllByRole("menuitemradio").map((line) => line.textContent)).toContain("ReviewerReads everything, checks work in review and gives its verdict. Doesn't build.");
     fireEvent.click(lead);
@@ -192,43 +191,16 @@ describe("the controls", () => {
     expect(none instanceof HTMLInputElement && none.checked).toBe(true);
   });
 
-  it("the team tools (round 2, #1, D-30): what they give, who, the cost, without them, asked once and off per project or app", async () => {
-    render(<PoolToolsCard />);
-    const card = await screen.findByTestId("pool-tools-card");
-    expect(card.querySelector("h4")?.textContent).toBe("Let your assistants work as a team");
-    for (const words of [
-      "They can message each other and share notes and tasks.",
-      "Example: Claude sees that Codex is reviewing and sends it a note.",
-      "never a session outside a pool",
-      "Nothing extra: a session uses its own turns only when it acts.",
-      "Without it, the pool is set up, but nobody in it can message.",
-      "Asked once. After that you can switch it off for a project or an app in Settings › Agent access.",
-    ])
-      expect(card.textContent).toContain(words);
-    // Never "one switch for every pool" (run 2 left it off for that).
-    expect(card.textContent).not.toMatch(/one switch|every pool/i);
-    expect(screen.getByTestId("pool-tools-card-on").textContent).toBe("Turn on team tools");
-    // The link opens Settings › Agent access at its agent tools.
-    const opened: string[] = [];
-    const listen = (event: Event) => opened.push(event instanceof CustomEvent ? JSON.stringify(event.detail) : "");
-    window.addEventListener("aij:open-settings", listen);
-    fireEvent.click(screen.getByTestId("team-tools-settings"));
-    window.removeEventListener("aij:open-settings", listen);
-    expect(opened).toEqual([JSON.stringify({ section: "agent-tools" })]);
-    fireEvent.click(screen.getByTestId("pool-tools-card-not-now"));
-    expect((await screen.findByTestId("pool-tools-card-state")).textContent).toBe("Off: they can't message yet.");
-    fireEvent.click(screen.getByTestId("pool-tools-card-on"));
-    await vi.waitFor(() => expect(screen.queryByTestId("pool-tools-card")).toBeNull());
-  });
-
-  it("the team tools off for one of the pool's projects: the card says where, and Turn on switches that project back on", async () => {
+  it("the team tools off for one of the pool's projects: one quiet line says where, and Turn on switches that project back on", async () => {
     Object.assign(window, { __AIJ_AGENT_BRIDGE__: { asked: true, on: true, off_projects: ["p-web"] } });
     resetPreviewAgentBridge();
-    render(<PoolToolsCard projects={[{ id: "p-web", name: "web" }, { id: "p-docs", name: "docs" }]} />);
-    expect((await screen.findByTestId("pool-tools-card-state")).textContent).toBe("Off for web: they can't message there.");
-    expect(screen.queryByTestId("pool-tools-card-not-now")).toBeNull();
-    fireEvent.click(screen.getByTestId("pool-tools-card-on"));
-    await vi.waitFor(() => expect(screen.queryByTestId("pool-tools-card")).toBeNull());
+    render(<TeamToolsQuestion projects={[{ id: "p-web", name: "web" }, { id: "p-docs", name: "docs" }]} />);
+    expect((await screen.findByTestId("team-tools-line")).textContent).toBe("Off for web: they can't message each other there.");
+    // Asked already: no question, no Not now.
+    expect(screen.queryByTestId("team-tools")).toBeNull();
+    expect(screen.queryByTestId("team-tools-not-now")).toBeNull();
+    fireEvent.click(screen.getByTestId("team-tools-on"));
+    await vi.waitFor(() => expect(screen.queryByTestId("team-tools-quiet")).toBeNull());
     // web's own switch is back on; nothing else changed.
     expect(await agentBridgeGet()).toMatchObject({ asked: true, on: true, off_projects: [] });
     Object.assign(window, { __AIJ_AGENT_BRIDGE__: undefined });

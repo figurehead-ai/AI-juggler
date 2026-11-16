@@ -14,7 +14,7 @@ import { talkOf, type PoolShape } from "../../lib/pool-sentences";
 import { NEEDS_YOU_WHAT, asRole, type SETUP_STEPS } from "../../lib/pool-words";
 import type { ToolsPlace } from "../../lib/team-tools";
 import { PoolSentences, type SentenceRow } from "./setup/PoolSentences";
-import { useTeamTools } from "./setup/PoolToolsCard";
+import { useTeamTools } from "./setup/TeamTools";
 import type { MemberNode } from "./useCanvas";
 
 type Step = (typeof SETUP_STEPS)[number];
@@ -55,14 +55,12 @@ export function NeedsYou(): JSX.Element {
 export function PoolSummary({
   shape,
   where,
-  rules,
   needs,
   tools,
   onOpen,
 }: {
   shape: PoolShape;
   where: string;
-  rules: readonly PoolRuleInfo[];
   /** What waits on the user here. */
   needs: number;
   tools: { projects: readonly ToolsPlace[]; apps: readonly ToolsPlace[] };
@@ -76,7 +74,6 @@ export function PoolSummary({
         shape={shape}
         where={where}
         rows={ROWS}
-        open={(ref) => rules.find((rule) => rule.member === ref)?.sessions}
         tools={state}
         changeOf={(row) => {
           const step = STEP_OF[row];

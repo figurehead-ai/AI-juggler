@@ -14,7 +14,7 @@ it("Add a session tells alike untitled sessions apart", () => {
   const at = new Date(2026, 10, 10, 9, 25).getTime();
   const lab = (id: string, started: number) => instance({ id, cwd: "/Users/dev/team", account_label: "Lab", started_at_ms: started });
   const sessions = [lab("a", at), lab("b", at + 20_000), lab("c", at - 60_000), lab("d", at - 50_000)];
-  const view = render(<Palette sessions={sessions} projects={[]} removing={null} open onOpen={vi.fn()} onStartDrag={vi.fn()} onAdd={vi.fn()} />);
+  const view = render(<Palette poolId="pool-p" sessions={sessions} projects={[]} removing={null} open onOpen={vi.fn()} onStartDrag={vi.fn()} onAdd={vi.fn()} />);
   const names = view.getAllByTestId("canvas-palette-item").map((item) => item.querySelector("span.text-ink")?.textContent ?? "");
   expect(names).toHaveLength(4);
   expect(new Set(names).size).toBe(4);

@@ -10,6 +10,7 @@
  * An edge whose newest activity moved since the last read pulses once.
  */
 import { isActiveStatus } from "../../components/indicator";
+import { settleAdds, settleRoles, usePendingRoles } from "../../lib/pool-pending";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { errorText } from "../../lib/bridge";
@@ -42,7 +43,7 @@ export const PULSE_MS = 1_600;
 
 /** `name`: the session's name, told apart from a member of the same name
  * by its start ("web · started 03:07"; the P7 and P11 walks). */
-export type MemberNode = { id: string; session: InstanceInfo; card: ContextCard; role: string; name: string };
+export type MemberNode = { id: string; session: InstanceInfo; card: ContextCard; role: string; name: string; pending?: boolean };
 
 /** Each name once: where two sessions share one, each says when it started. */
 export function distinctNames<T extends { session: InstanceInfo }>(rows: readonly T[]): (T & { name: string })[] {
@@ -115,7 +116,18 @@ export function useCanvas(poolId: string, sessions: InstanceInfo[]) {
   // end) stays in the pool and the List view, counted on the canvas's
   // "more in the List view" (the P3 walk).
   const total = list.total ?? items.length;
-  const members: MemberNode[] = useMemo(() => drawnMembers(items, live, total).slice(0, CANVAS_NODES), [items, live, total]);
+  const drawn: MemberNode[] = useMemo(() => drawnMembers(items, live, total).slice(0, CANVAS_NODES), [items, live, total]);
+  // Round 4 (#5): a role being changed shows at once, pending, until the
+  // backend's answer reaches these rows; the adds and roles they show settle.
+  const pendingRoles = usePendingRoles(poolId);
+  useEffect(() => {
+    settleAdds(poolId, new Set(drawn.map((member) => `session:${member.id}`)));
+    settleRoles(poolId, new Map(drawn.map((member) => [member.id, member.role])));
+  }, [poolId, drawn]);
+  const members: MemberNode[] = useMemo(
+    () => drawn.map((member) => (pendingRoles.has(member.id) ? { ...member, role: pendingRoles.get(member.id)!, pending: true } : member)),
+    [drawn, pendingRoles],
+  );
   const ids = useMemo(() => members.map((member) => member.id), [members]);
   const idsKey = ids.join("|");
 

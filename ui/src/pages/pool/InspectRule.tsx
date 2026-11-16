@@ -20,6 +20,7 @@ import type { PoolInfo, PoolRole } from "../../lib/ipc/pools";
 import { CONTINUE_WATCHED, setPools } from "../../lib/pools";
 import { asRole, leadSentence, wakeWords } from "../../lib/pool-words";
 import { cliFolderOf } from "../../lib/start-lead";
+import { usePendingRoles, withPendingRole } from "../../lib/pool-pending";
 import type { LeadChoice } from "../../lib/new-pool";
 import { MemberOwnLevel } from "./setup/OwnLevelChoice";
 import { RolePicker, RoleWhy } from "./setup/RoleCards";
@@ -104,7 +105,7 @@ export function InspectRule({
           </span>
         </div>
       )}
-      <RoleSection member={member} label={label} role={role} lead={lead} open={rule?.sessions} busy={busy} onRole={(next) => roleChange(next, { lead, run, poolId: pool.id, member, level })} />
+      <RoleSection member={member} label={label} role={role} lead={lead} poolId={pool.id} busy={busy} onRole={(next) => roleChange(next, { lead, run, poolId: pool.id, member, level })} />
       {!watched && (
         <div className="flex flex-col gap-1.5">
           <span className="text-meta font-medium text-ink">What its sessions may do on their own</span>
@@ -139,11 +140,11 @@ export function InspectRule({
 
 /** Round 2 (#2, #3): this App leads from its next session in the pool's
  * projects; "Start one now" opens New session on it there (a CLI App). */
-function LeadsNext({ member, label, open, where, onStart, onChange }: { member: string; label: string; open: number | undefined } & RuleLead): JSX.Element {
+function LeadsNext({ member, label, where, onStart, onChange }: { member: string; label: string } & RuleLead): JSX.Element {
   return (
     <div className="flex flex-col gap-1.5" data-testid="inspect-rule-leads-next">
       <span className="text-meta font-medium text-ink">Who leads</span>
-      <span className="text-meta text-ink-2">{leadSentence(null, label, where, open)}</span>
+      <span className="text-meta text-ink-2">{leadSentence(null, label, where)}</span>
       <span className="flex flex-wrap gap-2">
         {cliFolderOf(member) && <StartLeadButton member={member} name={label} where={where} onStart={onStart} testId="inspect-rule-start-lead" />}
         <Button size="sm" variant="ghost" onClick={onChange} data-testid="inspect-rule-change-lead">
@@ -159,27 +160,37 @@ function LeadsNext({ member, label, open, where, onStart, onChange }: { member: 
  * that wait first. */
 function roleChange(next: PoolRole, input: { lead: RuleLead | null; run: (what: string, call: () => Promise<unknown>) => Promise<void>; poolId: string; member: string; level: string | null }): void {
   const { lead, run, poolId, member, level } = input;
+  // Round 4 (#5): the new role shows at once, pending, until the rules read back.
+  const pending = { poolId, ref: member, role: next };
   if (next === "lead" && lead && member.startsWith("app:")) {
-    void run("change who leads", () => lead.onLead({ kind: "next", app: member }));
+    void run("change who leads", () => withPendingRole(pending, () => lead.onLead({ kind: "next", app: member })));
   } else {
-    void run("change its role", async () => {
-      if (lead?.leadsNext) await lead.onLead({ kind: "none" });
-      return poolJoin(poolId, member, next, level);
-    });
+    void run("change its role", () =>
+      withPendingRole(pending, async () => {
+        if (lead?.leadsNext) await lead.onLead({ kind: "none" });
+        return poolJoin(poolId, member, next, level);
+      }),
+    );
   }
 }
 
 /** Who leads from here (an App whose next session leads: its line,
  * Start one now, Change), then its role, Lead included on an App, and why
  * a wider member can't lead, beside it. */
-function RoleSection({ member, label, role, lead, open, busy, onRole }: { member: string; label: string; role: PoolRole; lead: RuleLead | null; open: number | undefined; busy: boolean; onRole: (role: PoolRole) => void }): JSX.Element {
-  const leadsNext = lead?.leadsNext === true;
+function RoleSection({ member, label, role, lead, busy, onRole, poolId }: { member: string; label: string; role: PoolRole; lead: RuleLead | null; busy: boolean; onRole: (role: PoolRole) => void; poolId: string }): JSX.Element {
+  const pending = usePendingRoles(poolId).get(member);
+  const leadsNext = pending ? pending === "lead" && member.startsWith("app:") : lead?.leadsNext === true;
   return (
     <>
-      {lead && leadsNext && <LeadsNext member={member} label={label} open={open} {...lead} />}
+      {lead && leadsNext && <LeadsNext member={member} label={label} {...lead} />}
       <div className="flex flex-col gap-1.5">
         <span className="text-meta font-medium text-ink">Its role</span>
-        <RolePicker prefix="" member={member} name={label} value={role} leadsNext={leadsNext} onChange={onRole} disabled={busy} testId="inspect-rule-role" />
+        <RolePicker prefix="" member={member} name={label} value={pending && pending !== "lead" ? asRole(pending) : role} leadsNext={leadsNext} onChange={onRole} disabled={busy} testId="inspect-rule-role" />
+        {pending && (
+          <output className="text-label text-muted" data-testid="inspect-rule-role-saving">
+            Saving…
+          </output>
+        )}
         <RoleWhy member={member} testId="inspect-rule-lead-hint" />
       </div>
     </>

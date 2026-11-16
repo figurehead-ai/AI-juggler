@@ -12,6 +12,7 @@ import { MACHINES_WORD } from "../../lib/machine-words";
 import { showToast } from "../../components/Toast";
 import { errorText } from "../../lib/bridge";
 import { poolJoin } from "../../lib/ipc/pool-model";
+import { usePendingAdds, withPendingAdd } from "../../lib/pool-pending";
 import { REACH_WORDS, type Candidate } from "../../lib/new-pool";
 import { setPools } from "../../lib/pools";
 
@@ -41,9 +42,11 @@ export function PaletteMore({
   const kinds = (Object.keys(WORDS) as MoreKind[]).filter((kind) => kind === "everyone" || lists[kind].length > 0);
   const [kind, setKind] = useState<MoreKind>(kinds[0] ?? "everyone");
   const rows = lists[kind] ?? [];
+  const adding = new Set(usePendingAdds(poolId).map((one) => one.ref));
   const add = async (row: Candidate) => {
     try {
-      setPools(await poolJoin(poolId, row.ref, "member"));
+      // Round 4 (#5): its card shows at once, pending, until the pool says so.
+      setPools(await withPendingAdd({ poolId, ref: row.ref, label: row.label, kind: row.kind }, () => poolJoin(poolId, row.ref, "member")));
       onAdded();
       showToast({ message: `${row.label} is in the pool`, detail: row.reach === "watched" ? "Watched: it can't act until it's continued in AI Juggler." : row.note ?? (row.reach === "later" ? "Its sessions here join by themselves, now and later." : undefined), testId: "canvas-added" });
     } catch (cause) {
@@ -71,7 +74,12 @@ export function PaletteMore({
                 <span className={"truncate text-meta " + (row.blocked ? "text-ink-2" : "text-ink")}>{row.label}</span>
                 <span className="truncate text-label text-faint">{row.reach === "later" && !row.blocked && row.kind !== "everyone" ? `${row.detail} · ${REACH_WORDS.later}` : row.detail}</span>
               </span>
-              {!row.blocked && (
+              {!row.blocked && adding.has(row.ref) && (
+                <output className="shrink-0 text-label text-muted" data-testid="canvas-palette-more-adding">
+                  Adding…
+                </output>
+              )}
+              {!row.blocked && !adding.has(row.ref) && (
                 <button
                   type="button"
                   onClick={() => void add(row)}

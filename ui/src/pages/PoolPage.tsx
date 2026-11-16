@@ -20,6 +20,7 @@ import { poolSetScope } from "../lib/ipc/pool-model";
 import { CanvasTeach, hasWhoIsIn } from "./pool/CanvasTeach";
 import { PaletteMore } from "./pool/PaletteMore";
 import { RuleNodes } from "./pool/RuleNodes";
+import { TeamToolsQuestion } from "./pool/setup/TeamTools";
 import { startNextLead } from "../lib/start-lead";
 import { useMoreCandidates, useRuleLabel, useRuleTool } from "./pool/pool-page-reads";
 import { ScopeSheet } from "./pool/ScopeSheet";
@@ -231,8 +232,15 @@ function PoolCanvasPage({ poolId, sessions, projects, accounts, now }: { poolId:
         />
       )}
       <PoolHeader pool={pool} facts={facts} scope={scopeWords === null ? undefined : { words: scopeWords, onOpen: () => setScopeOpen(true) }} mode={mode} panel={panel} onMode={setMode} onPanel={setPanel} />
-      {/* D-30: asked once, the first time pools are used; never on a sealed
-          pool, where "see each other" read as the opposite of sealing. */}
+      {/* D-30: asked once, the first time pools are used, at the top while
+          unanswered (round 4); answered Not now, its quiet line with Turn
+          on. Never on a sealed pool, where "see each other" read as the
+          opposite of sealing. */}
+      {!pool.sealed && (
+        <div className="mx-4 mt-3 empty:hidden">
+          <TeamToolsQuestion projects={setup.tools.projects} apps={setup.tools.apps} testId="pool-team-tools" />
+        </div>
+      )}
       {unplaced.length > 0 && (
         <p className="mx-4 mt-3 rounded-lg border border-warning/40 bg-warning-soft px-3 py-2 text-meta text-ink" data-testid="pool-unplaced-asks">
           {unplaced.length === 1 ? "An agent that isn't on the diagram asks you something" : `${unplaced.length} agents that aren't on the diagram ask you something`}: answer it in Needs you, or in the List view.
@@ -278,6 +286,7 @@ function PoolCanvasPage({ poolId, sessions, projects, accounts, now }: { poolId:
                   placeOf={placeOf}
                   lead={setup.leadCard}
                   leadNext={setup.leadNext}
+                  poolId={pool.id}
                   where={where}
                   onStartLead={(member) => startNextLead(member, setup.leadDir)}
                   poolLevel={pool.access.level}

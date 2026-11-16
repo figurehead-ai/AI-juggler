@@ -58,11 +58,16 @@ export interface SetupFacts {
 export interface SetupRow {
   step: (typeof SETUP_STEPS)[number];
   done: boolean;
+  /** Done by being left at its default (round 4 #2: "No lead for now",
+   * everyone as Member, everyone may message, Work together are all
+   * fine as they come). */
+  byDefault: boolean;
 }
 
-/** Each step, in order, and whether it's done. */
+/** Each step, in order, and whether it's done: set or seen here, or left
+ * at its default. Only who's in has no default. */
 export function setupRows(facts: SetupFacts, seen: ReadonlySet<SetupStep>): SetupRow[] {
-  const done: Record<(typeof SETUP_STEPS)[number], boolean> = {
+  const set: Record<(typeof SETUP_STEPS)[number], boolean> = {
     where: facts.own || !facts.every || seen.has("where"),
     who: facts.whoIn,
     lead: facts.led || facts.leadNext || seen.has("lead"),
@@ -70,5 +75,11 @@ export function setupRows(facts: SetupFacts, seen: ReadonlySet<SetupStep>): Setu
     talk: seen.has("talk"),
     own: seen.has("own"),
   };
-  return SETUP_STEPS.map((step) => ({ step, done: done[step] }));
+  return SETUP_STEPS.map((step) => ({ step, done: set[step] || step !== "who", byDefault: !set[step] && step !== "who" }));
+}
+
+/** Round 4 #2: who's in and the team tools on make a pool ready; the rest
+ * have defaults. */
+export function setupReady(rows: readonly SetupRow[], toolsOn: boolean): boolean {
+  return toolsOn && rows.every((row) => row.done);
 }

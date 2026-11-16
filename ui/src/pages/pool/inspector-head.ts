@@ -8,7 +8,7 @@
  */
 import type { AttentionLevel } from "../../lib/attention";
 import { MACHINE_WORD } from "../../lib/machine-words";
-import { roleCard } from "../../lib/pool-words";
+import { LEADS_WHEN, roleCard } from "../../lib/pool-words";
 
 export interface InspectorHead {
   title: string;
@@ -41,7 +41,7 @@ export function inspectorHead(of: HeadOf): InspectorHead {
       return {
         title: of.label,
         // Round 2 (#2): an App whose next session leads says so, not "Member".
-        subtitle: `${KIND_WORDS[of.memberKind] ?? "Member"} · ${of.leadsNext ? "Leads next" : roleCard(of.role).label}`,
+        subtitle: `${KIND_WORDS[of.memberKind] ?? "Member"} · ${of.leadsNext ? LEADS_WHEN : roleCard(of.role).label}`,
         pill: { words: of.open > 0 ? `${of.open} open now` : "None open now", level: 0 },
       };
     case "watched":

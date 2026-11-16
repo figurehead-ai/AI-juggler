@@ -15,14 +15,15 @@ import { AppIcon } from "../../components/AppIcon";
 import { appOfSession } from "../../lib/app-of";
 import { appName } from "../../lib/app-name";
 import { sessionState } from "../../lib/rail-items";
-import type { SetupRow } from "../../lib/pool-setup";
 import type { SETUP_STEPS } from "../../lib/pool-words";
 import { inspectorHead, type HeadOf, type InspectorHead } from "./inspector-head";
 import { SELECTED_EDGE } from "./selection";
 import { sessionAlert } from "./NodeParts";
 import { PoolChecklist } from "./setup/PoolChecklist";
 import { PoolSummary, shapeOfPool } from "./PoolSummary";
-import { PoolToolsCard } from "./setup/PoolToolsCard";
+import { useTeamTools } from "./setup/TeamTools";
+import { setupReady, type SetupRow } from "../../lib/pool-setup";
+import { nextLine } from "../../lib/pool-sentences";
 import type { ToolsPlace } from "../../lib/team-tools";
 
 import type { ProjectInfo } from "../../types/generated/ProjectInfo";
@@ -236,14 +237,14 @@ type Step = (typeof SETUP_STEPS)[number];
  * (round 2, #1: above the checklist, and still there once every step is
  * done), then the checklist. */
 function PoolProgress({ kind, setup, pool, rules, members, ruleLabel, where, needs }: { kind: Selection["kind"]; setup: InspectorSetup; pool: PoolInfo; rules: PoolRules; members: readonly MemberNode[]; ruleLabel: (rule: PoolRuleInfo) => string; where: string; needs: number }): JSX.Element | null {
+  const tools = useTeamTools(setup.tools.projects, setup.tools.apps);
   if (kind !== "none" && kind !== "pool") return null;
+  const shape = shapeOfPool(pool, rules.rules, members, ruleLabel);
+  const ready = setupReady(setup.rows, tools?.kind === "on");
   return (
     <>
-      <PoolSummary shape={shapeOfPool(pool, rules.rules, members, ruleLabel)} where={where} rules={rules.rules?.members ?? []} needs={needs} tools={setup.tools} onOpen={setup.onOpen} />
-      <div className="mx-4 mb-3 empty:hidden">
-        <PoolToolsCard testId="pool-checklist-tools" projects={setup.tools.projects} apps={setup.tools.apps} />
-      </div>
-      <PoolChecklist rows={setup.rows} onOpen={setup.onOpen} compact={kind === "pool"} />
+      <PoolSummary shape={shape} where={where} needs={needs} tools={setup.tools} onOpen={setup.onOpen} />
+      <PoolChecklist rows={setup.rows} onOpen={setup.onOpen} compact={kind === "pool"} ready={ready} next={ready ? nextLine(shape, where) : null} />
     </>
   );
 }

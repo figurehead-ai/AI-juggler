@@ -58,12 +58,14 @@ function FullNode({ member, at, asks, held, selected, tabStop, dragging, onSelec
       data-lead={lead || undefined}
       data-selected={selected || undefined}
       aria-current={selected ? "true" : undefined}
+      aria-busy={member.pending || undefined}
+      data-pending={member.pending || undefined}
       data-form="full"
       onPointerDown={(event) => onPointerDown(member.id, event)}
       onContextMenu={openMenu}
       style={{ transform: `translate(${at.x}px, ${at.y}px)`, width: NODE_W, minHeight: NODE_H }}
       className={
-        "absolute left-0 top-0 flex touch-none select-none flex-col gap-1.5 rounded-xl border p-2.5 motion-safe:animate-[aij-fade-in_140ms_ease-out] " +
+        "absolute left-0 top-0 flex touch-none select-none flex-col gap-1.5 rounded-xl border p-2.5 data-[pending]:opacity-70 motion-safe:animate-[aij-fade-in_140ms_ease-out] " +
         border +
         (dragging ? " z-20 cursor-grabbing opacity-90 shadow-lg" : " cursor-grab") +
         (ended && !selected ? " opacity-75" : "")

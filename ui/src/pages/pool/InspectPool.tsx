@@ -6,8 +6,10 @@
  * next request. AJ-E3011 round 3 (#2): after the summary, each of these is
  * a fold, closed at first, with one plain line on what it controls ("the
  * wall" the walk met), in plain words (no bare "Deliver" or "Pause after").
+ * Round 4 (#6): the rarer ones (kept apart, your other Macs, other pools
+ * its agents may write to) under one closed "More settings".
  */
-import { useEffect, useState, type JSX } from "react";
+import { useEffect, useState, type JSX, type ReactNode } from "react";
 
 import { errorText } from "../../lib/bridge";
 import type { ProjectInfo } from "../../types/generated/ProjectInfo";
@@ -106,27 +108,28 @@ export function InspectPool({
         )}
       </FoldSection>
 
-      <FoldSection title="Your other Macs" line="Whether this pool's work may travel to your paired Macs.">
-        <ChoiceOption
-          type="checkbox"
-          className="-mx-2"
-          label="Include my paired Macs"
-          hint="Message and task content will travel to your other Macs, directly and encrypted."
-          checked={pool.spans_macs}
-          disabled={busy}
-          onChange={(event) => void run(() => poolSetSpansMacs(pool.id, event.target.checked))}
-          data-testid="pool-spans-macs"
-        />
-      </FoldSection>
-
-      {pool.kind === "user" && (
-        <Section title="Kept apart" testId="pool-seal-section">
-          <SealSetting pool={pool} members={members} />
-        </Section>
-      )}
-
-      <FoldSection title="Pools its agents may write to" line="Other pools its agents may send messages and notes to.">
-        <PoolLinks poolId={pool.id} />
+      {/* Round 4 (#6): the rarer settings, under one fold closed at first. */}
+      <FoldSection title="More settings" line="Keep this pool apart, let its work reach your other Macs, or let its agents write to other pools." testId="pool-more">
+        {pool.kind === "user" && (
+          <MoreGroup title="Kept apart" testId="pool-seal-section">
+            <SealSetting pool={pool} members={members} />
+          </MoreGroup>
+        )}
+        <MoreGroup title="Your other Macs">
+          <ChoiceOption
+            type="checkbox"
+            className="-mx-2"
+            label="Include my paired Macs"
+            hint="Message and task content will travel to your other Macs, directly and encrypted."
+            checked={pool.spans_macs}
+            disabled={busy}
+            onChange={(event) => void run(() => poolSetSpansMacs(pool.id, event.target.checked))}
+            data-testid="pool-spans-macs"
+          />
+        </MoreGroup>
+        <MoreGroup title="Pools its agents may write to">
+          <PoolLinks poolId={pool.id} />
+        </MoreGroup>
       </FoldSection>
 
       {pool.kind === "user" && (
@@ -161,6 +164,16 @@ export function InspectPool({
           {error}
         </p>
       )}
+    </div>
+  );
+}
+
+/** One of More settings' groups: its title over its control. */
+function MoreGroup({ title, children, testId }: { title: string; children: ReactNode; testId?: string }): JSX.Element {
+  return (
+    <div className="flex flex-col gap-1.5" data-testid={testId}>
+      <h5 className="text-meta font-semibold text-ink">{title}</h5>
+      {children}
     </div>
   );
 }

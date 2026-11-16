@@ -2,20 +2,21 @@
  * AJ-E3007 step 4, AJ-E3011's Review (§1, §2): the whole pool read back
  * in sentences — its name and where, who's in, who leads, how everyone
  * else joins, who may message whom, what they may do on their own, the
- * seal and the team tools — then what each member can actually do here,
- * and the team tools card. Round 3: the sentences and the card are the
- * pool inspector's own (PoolSentences, PoolToolsCard), from one shape, so
- * the two paths can't say a pool differently. Make pool follows.
+ * seal and the team tools (with Turn on beside them while they're off) —
+ * then what each member can actually do here. Round 3: the sentences are
+ * the pool inspector's own (PoolSentences), from one shape, so the two
+ * paths can't say a pool differently; the team tools' question is its own
+ * step before this one (round 4, D-30). Make pool follows.
  */
 import type { JSX } from "react";
 
 import type { Draft, Reach } from "../../lib/new-pool";
 import { roleCard, type SetupStep } from "../../lib/pool-words";
 import { openNowWords } from "../../lib/pool-open-now";
-import { shapeOfDraft } from "../../lib/pool-sentences";
+import { nextLine, shapeOfDraft } from "../../lib/pool-sentences";
 import { draftPlaces, type ToolsPlace } from "../../lib/team-tools";
 import { PoolSentences, Sentence, type SentenceRow } from "../../pages/pool/setup/PoolSentences";
-import { PoolToolsCard, useTeamTools } from "../../pages/pool/setup/PoolToolsCard";
+import { useTeamTools } from "../../pages/pool/setup/TeamTools";
 import { StepHead } from "./StepHead";
 
 const CAN: Record<Reach, string> = {
@@ -67,7 +68,6 @@ export function NewPoolReview({
         shape={shape}
         where={where}
         rows={ROWS}
-        open={(ref) => openNow?.get(ref)}
         tools={tools}
         changeOf={changeOf}
         first={
@@ -91,7 +91,10 @@ export function NewPoolReview({
           </ul>
         </section>
       )}
-      <PoolToolsCard testId="new-pool-tools" projects={places.projects} apps={places.apps} />
+      {/* Round 4 (#3): what happens once it's made, the diagram's own line. */}
+      <p className="text-meta text-ink" data-testid="new-pool-review-next">
+        <span className="font-medium">What happens next:</span> {nextLine(shape, where)}.
+      </p>
       <p className="text-meta text-ink-2">You can change all of this on the pool's diagram.</p>
     </div>
   );

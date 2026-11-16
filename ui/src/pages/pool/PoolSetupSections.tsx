@@ -78,7 +78,7 @@ export function PoolSetupSections({
       .finally(() => setBusy(false));
   };
   const memberRules = rules.rules?.members ?? [];
-  const apps = memberRules.filter((rule) => rule.kind === "app").map((rule) => ({ ref: rule.member, name: ruleLabel(rule), startable: cliFolderOf(rule.member) !== null, open: rule.sessions }));
+  const apps = memberRules.filter((rule) => rule.kind === "app").map((rule) => ({ ref: rule.member, name: ruleLabel(rule), startable: cliFolderOf(rule.member) !== null }));
   const leads = members.filter((member) => member.role === "lead");
   const open = members.filter((member) => sessionState(member.session).state !== "ended");
   const leadNext = rules.rules?.lead_next ?? null;

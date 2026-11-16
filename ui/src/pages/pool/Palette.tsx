@@ -5,6 +5,7 @@
  * to take it out of the pool. Folds to a single line.
  */
 import { useState, type JSX, type PointerEvent, type ReactNode } from "react";
+import { usePendingAdds } from "../../lib/pool-pending";
 
 import { AppIcon } from "../../components/AppIcon";
 import { AppKindBadge } from "../../components/AppKindBadge";
@@ -22,6 +23,7 @@ const SEARCH_FROM = 8;
 const SHOWN = 30;
 
 export function Palette({
+  poolId,
   sessions,
   projects,
   removing,
@@ -31,6 +33,8 @@ export function Palette({
   onAdd,
   more,
 }: {
+  /** Its pool: a row being added shows so at once (round 4 #5). */
+  poolId: string;
   sessions: InstanceInfo[];
   /** D-62: every other candidate, by kind, with its reason. */
   more?: ReactNode;
@@ -45,6 +49,7 @@ export function Palette({
   onAdd: (session: InstanceInfo) => void;
 }): JSX.Element {
   const [words, setWords] = useState("");
+  const adding = new Set(usePendingAdds(poolId).map((one) => one.ref));
   const query = words.trim().toLowerCase();
   const projectOf = (session: InstanceInfo) => projects.find((project) => project.id === session.project_id)?.name ?? null;
   // D-96 D: alike names told apart, as the nodes are (the rc27 pool pass).
@@ -125,15 +130,21 @@ export function Palette({
                       <span className="truncate text-meta text-ink">{named(session)}</span>
                       <span className="truncate text-label text-faint">{[projectOf(session), session.account_label].filter(Boolean).join(" · ")}</span>
                     </span>
-                    <button
-                      type="button"
-                      onClick={() => onAdd(session)}
-                      aria-label={`Add ${named(session)} to this pool`}
-                      className="flex size-6 shrink-0 items-center justify-center rounded-md text-muted outline-none hover:bg-accent-soft hover:text-accent-hi focus-visible:ring-1 focus-visible:ring-accent/60"
-                      data-testid="canvas-palette-add"
-                    >
-                      <IconPlus width={14} height={14} />
-                    </button>
+                    {adding.has(`session:${session.id}`) ? (
+                      <output className="shrink-0 text-label text-muted" data-testid="canvas-palette-adding">
+                        Adding…
+                      </output>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => onAdd(session)}
+                        aria-label={`Add ${named(session)} to this pool`}
+                        className="flex size-6 shrink-0 items-center justify-center rounded-md text-muted outline-none hover:bg-accent-soft hover:text-accent-hi focus-visible:ring-1 focus-visible:ring-accent/60"
+                        data-testid="canvas-palette-add"
+                      >
+                        <IconPlus width={14} height={14} />
+                      </button>
+                    )}
                   </li>
                 ))}
               </ul>

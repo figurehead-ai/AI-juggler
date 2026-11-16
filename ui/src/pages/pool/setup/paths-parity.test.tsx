@@ -20,7 +20,10 @@ import { NewPoolOwn } from "../../../screens/pools/NewPoolOwn";
 import { NewPoolReview } from "../../../screens/pools/NewPoolReview";
 import { PoolSetupSections } from "../PoolSetupSections";
 import { PoolSummary, shapeOfPool } from "../PoolSummary";
-import { PoolToolsCard } from "./PoolToolsCard";
+import { nextLine, shapeOfDraft } from "../../../lib/pool-sentences";
+import { NewPoolTools } from "../../../screens/pools/NewPoolTools";
+import { agentBridgeAnswer } from "../../../lib/ipc/agent-bridge";
+import { TeamToolsQuestion } from "./TeamTools";
 
 beforeEach(() => resetPreviewAgentBridge());
 afterEach(cleanup);
@@ -79,33 +82,38 @@ function snapshot(shown: HTMLElement): { radios: string[]; buttons: string[]; te
 
 /** The setup path's three areas and its Review sentences. */
 async function setupPath() {
-  const lead = render(<NewPoolLead draft={draft} onDraft={() => undefined} sessions={[]} nameOf={nameOf} where={WHERE} openNow={new Map([["app:cli:work", 0]])} />);
+  const lead = render(<NewPoolLead draft={draft} onDraft={() => undefined} sessions={[]} nameOf={nameOf} where={WHERE} />);
   const leadArea = snapshot(lead.getByTestId("new-pool-lead"));
   lead.unmount();
   const own = render(<NewPoolOwn draft={draft} onDraft={() => undefined} where={WHERE} />);
   const ownArea = snapshot(own.getByTestId("new-pool-level"));
   own.unmount();
+  // D-30's question: New pool's own step (round 4).
+  const step = render(<NewPoolTools />);
+  const toolsArea = snapshot(await step.findByTestId("new-pool-tools"));
+  step.unmount();
   const review = render(<NewPoolReview draft={draft} name="web team" where={WHERE} nameOf={nameOf} openNow={new Map([["app:cli:work", 0]])} projects={[{ id: "p-web", name: WHERE }]} />);
-  const toolsArea = snapshot(await review.findByTestId("new-pool-tools"));
+  await review.findByTestId("new-pool-review-tools-line");
   const sentence = (row: string) => review.getByTestId("new-pool-review").querySelector(`[data-row="${row}"] dd`)?.textContent ?? "";
   const sentences = { lead: sentence("lead"), own: sentence("own"), tools: sentence("tools"), who: sentence("who") };
   review.unmount();
   return { lead: leadArea, own: ownArea, tools: toolsArea, sentences };
 }
 
-/** The diagram path: the pool's own inspector (its summary, the team
- * tools card and its setup sections). */
+/** The diagram path: the pool page's question at its top, and the pool's
+ * own inspector (its summary and its setup sections). */
 async function diagramPath() {
   const view = render(
     <>
-      <PoolSummary shape={shapeOfPool(pool, rulesInfo, [], label)} where={WHERE} rules={rulesInfo.members} needs={0} tools={tools} onOpen={() => undefined} />
-      <PoolToolsCard testId="pool-checklist-tools" projects={tools.projects} apps={tools.apps} />
+      <PoolSummary shape={shapeOfPool(pool, rulesInfo, [], label)} where={WHERE} needs={0} tools={tools} onOpen={() => undefined} />
+      <TeamToolsQuestion testId="pool-team-tools" projects={tools.projects} apps={tools.apps} />
       <PoolSetupSections pool={pool} rules={{ rules: rulesInfo, watched: [], reload: () => undefined }} members={[]} ruleLabel={label} where={WHERE} selection={{ kind: "pool" }} onAddMembers={() => undefined} />
     </>,
   );
   const lead = snapshot(view.getByTestId("pool-lead"));
   const own = snapshot(view.getByTestId("pool-own"));
-  const toolsArea = snapshot(await view.findByTestId("pool-checklist-tools"));
+  const toolsArea = snapshot(await view.findByTestId("pool-team-tools"));
+  await view.findByTestId("pool-summary-sentences-tools-line");
   const sentence = (row: string) => view.getByTestId("pool-summary-sentences").querySelector(`[data-row="${row}"] dd`)?.textContent ?? "";
   return { lead, own, tools: toolsArea, sentences: { lead: sentence("lead"), own: sentence("own"), tools: sentence("tools"), who: sentence("who") } };
 }
@@ -118,17 +126,39 @@ describe("AJ-E3011 round 3: New pool and the diagram say one pool the same way",
     // A made pool also offers Start one now (no session can start into a
     // pool that isn't made); the rest is the same control.
     expect(diagram.lead).toEqual(setup.lead);
-    expect(setup.lead.radios.some((name) => name.startsWith(`${APP}'s next session | It leads from its next session in web.`))).toBe(true);
-    expect(setup.lead.text).toContain(`${APP} leads from its next session in web (none is open now)`);
+    expect(setup.lead.radios.some((name) => name.startsWith(`${APP}'s next session | It takes charge as soon as one of its sessions starts in web.`))).toBe(true);
+    expect(setup.lead.text).toContain(`${APP} takes charge as soon as one of its sessions starts in web`);
   });
 
-  it("the team tools: the same card, words and buttons", async () => {
+  it("the team tools: D-30's one question, the same card, words and buttons on both paths while unanswered", async () => {
     const setup = await setupPath();
     cleanup();
     const diagram = await diagramPath();
     expect(diagram.tools).toEqual(setup.tools);
-    expect(setup.tools.buttons).toEqual(expect.arrayContaining(["Turn on team tools", "Not now", "Settings › Agent access"]));
-    expect(setup.tools.text).toContain("Let your assistants work as a team");
+    expect(setup.tools.buttons).toEqual(["Settings", "Yes, let them work together", "Not now"]);
+    expect(setup.tools.text).toContain("Let the sessions in your pools message each other and share notes and tasks?");
+    expect(setup.tools.text).toContain("nothing extra");
+    // The sentence beside it, with its one-click fix, in Review and the summary alike.
+    expect(diagram.sentences.tools).toBe(setup.sentences.tools);
+    expect(setup.sentences.tools).toContain("Turn on");
+  });
+
+  it("answered Not now: no question on either path, the same quiet line with Turn on", async () => {
+    await agentBridgeAnswer(false);
+    resetPreviewAgentBridge();
+    Object.assign(window, { __AIJ_AGENT_BRIDGE__: { asked: true, on: false } });
+    resetPreviewAgentBridge();
+    const step = render(<NewPoolTools />);
+    expect(await step.findByTestId("new-pool-tools-quiet")).toBeTruthy();
+    expect(step.queryByTestId("new-pool-tools")).toBeNull();
+    const setupLine = snapshot(step.getByTestId("new-pool-tools-quiet"));
+    step.unmount();
+    const page = render(<TeamToolsQuestion testId="pool-team-tools" projects={tools.projects} apps={tools.apps} />);
+    expect(await page.findByTestId("pool-team-tools-quiet")).toBeTruthy();
+    expect(page.queryByTestId("pool-team-tools")).toBeNull();
+    expect(snapshot(page.getByTestId("pool-team-tools-quiet"))).toEqual(setupLine);
+    expect(setupLine.buttons).toEqual(["Turn on"]);
+    Object.assign(window, { __AIJ_AGENT_BRIDGE__: undefined });
   });
 
   it("on their own: the same choice, its scope line and the example", async () => {
@@ -148,5 +178,7 @@ describe("AJ-E3011 round 3: New pool and the diagram say one pool the same way",
     expect(diagram.sentences.own).toBe(setup.sentences.own);
     expect(diagram.sentences.tools).toBe(setup.sentences.tools);
     expect(diagram.sentences.who).toBe(setup.sentences.who);
+    // Round 4 (#3): what happens next, from the same shapes.
+    expect(nextLine(shapeOfPool(pool, rulesInfo, [], label), WHERE)).toBe(nextLine(shapeOfDraft(draft, nameOf), WHERE));
   });
 });

@@ -6,7 +6,8 @@
 import type { JSX, ReactNode } from "react";
 
 import { everyoneLines, leadLine, ownLine, sealLine, talkSentence, whoSentence, type PoolShape } from "../../../lib/pool-sentences";
-import { teamToolsLine, type TeamTools } from "../../../lib/team-tools";
+import type { TeamTools } from "../../../lib/team-tools";
+import { TeamToolsFix } from "./TeamTools";
 
 export type SentenceRow = "who" | "lead" | "everyone" | "talk" | "own" | "sealed" | "tools";
 
@@ -24,7 +25,6 @@ export function PoolSentences({
   shape,
   where,
   rows,
-  open,
   tools,
   first,
   changeOf,
@@ -37,8 +37,6 @@ export function PoolSentences({
   /** Its projects in words ("web", "every project"). */
   where: string;
   rows: readonly SentenceRow[];
-  /** A member's sessions open now (the lead's "(none is open now)"). */
-  open?: (ref: string) => number | undefined;
   /** Where the team tools stand (null: still reading). */
   tools?: TeamTools | null;
   /** A row before them (Review's name and where). */
@@ -52,7 +50,7 @@ export function PoolSentences({
       case "who":
         return whoSentence(shape);
       case "lead":
-        return leadLine(shape, where, open);
+        return leadLine(shape, where);
       case "everyone": {
         const [join, ...each] = everyoneLines(shape, where);
         return (
@@ -73,7 +71,8 @@ export function PoolSentences({
       case "sealed":
         return sealLine(shape);
       default:
-        return <span data-testid={`${testId}-tools-line`}>{tools ? teamToolsLine(tools) : "Reading…"}</span>;
+        // Round 4: never "can't message" without its Turn on beside it.
+        return tools ? <TeamToolsFix state={tools} testId={`${testId}-tools`} /> : "Reading…";
     }
   };
   return (

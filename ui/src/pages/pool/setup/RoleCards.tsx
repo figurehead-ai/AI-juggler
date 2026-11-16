@@ -51,7 +51,7 @@ export function RoleCards({ holders, testId = "role-cards" }: { holders: Partial
 }
 
 /** Round 3 (#1): an App's Lead, which its next session takes. */
-export const NEXT_LEAD_OPTION = { label: "Lead: its next session leads", hint: "One session leads: this App's next session in the pool's projects. Its other sessions keep their role." };
+export const NEXT_LEAD_OPTION = { label: "Lead, once one of its sessions starts", hint: "It takes charge as soon as one of its sessions starts in the pool's projects. Its other sessions keep their role." };
 
 /** Whether a member is an App (its next session can lead). */
 const isApp = (member: string) => member === "app" || member.startsWith("app:");

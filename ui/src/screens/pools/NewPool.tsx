@@ -51,9 +51,13 @@ import { NewPoolTalk } from "./NewPoolTalk";
 import { NewPoolTemplate } from "./NewPoolTemplate";
 import { NewPoolWhere } from "./NewPoolWhere";
 import { NewPoolWho } from "./NewPoolWho";
+import { NewPoolTools } from "./NewPoolTools";
 
 /** The steps, in order (AJ-E3011 §1). */
 export const STEPS: readonly SetupStep[] = ["template", "where", "who", "lead", "everyone", "talk", "own", "review"];
+/** With D-30's question still unanswered, it's its own step before
+ * Review (round 4, main's ruling). */
+export const stepsFor = (ask: boolean): readonly SetupStep[] => (ask ? [...STEPS.slice(0, -1), "tools", "review"] : STEPS);
 /** From this step on, Make pool is enabled (a name and its projects make
  * a working pool). */
 const MAKE_FROM = STEPS.indexOf("who");
@@ -158,6 +162,10 @@ export function NewPool({
   const name = draft.name.trim() || suggestedName;
   const thisMac = useMemo(() => thisMacOf(sessions), [sessions]);
   const bridge = useAgentBridge();
+  // D-30's question is a step while unanswered; answering it there keeps
+  // the step (it then says where they stand).
+  const [answeredHere, setAnsweredHere] = useState(false);
+  const steps = stepsFor(bridge !== null && (!bridge.asked || answeredHere));
   const paired = usePairedMacs();
   const candidates = useMemo(() => {
     const now = Date.now();
@@ -195,14 +203,14 @@ export function NewPool({
   const make = async () => {
     if (!draft.every && draft.projects.length === 0) {
       showToast({ message: "Pick a project first", detail: "Where: only sessions in its projects can join.", tone: "warning" });
-      go(STEPS.indexOf("where"));
+      go(steps.indexOf("where"));
       return;
     }
     setBusy(true);
     try {
       const id = await makePool({ ...draft, name }, into?.id);
       // The canvas's checklist: the steps walked here are seen.
-      markSeen(id, STEPS.slice(1, Math.max(step, furthest) + 1));
+      markSeen(id, steps.slice(1, Math.max(step, furthest) + 1));
       await refreshPools();
       onClose();
       host.openPool?.(id);
@@ -212,8 +220,8 @@ export function NewPool({
       setBusy(false);
     }
   };
-  const last = step === STEPS.length - 1;
-  const current = STEPS[step]!;
+  const last = step === steps.length - 1;
+  const current = steps[step]!;
   const everyone = draft.members.find((member) => member.ref === "all");
   // What the rest is filled in with, said on every step Make is enabled.
   // The Review's own talk sentence (as the backend enforces it), or its gist.
@@ -252,7 +260,7 @@ export function NewPool({
       </header>
       <div className="flex min-h-0 flex-1">
         <nav aria-label="Steps" className="flex w-60 shrink-0 flex-col gap-0.5 bg-surface p-3">
-          {STEPS.map((id, at) => {
+          {steps.map((id, at) => {
             const reachable = at <= furthest || furthest >= MAKE_FROM;
             const done = at < step || (at <= furthest && at !== step);
             return (
@@ -287,16 +295,18 @@ export function NewPool({
             {current === "template" && <NewPoolTemplate chosen={draft.template} onChoose={choose} first={firstPool} />}
             {current === "where" && <NewPoolWhere draft={draft} onDraft={setDraft} projects={stepCandidates.projects} nameFixed={!!into} suggestedName={suggestedName} />}
             {current === "who" && <NewPoolWho draft={draft} onDraft={setDraft} candidates={candidates} onFix={fix} nameOf={memberName} where={where} />}
-            {current === "lead" && <NewPoolLead draft={draft} onDraft={setDraft} sessions={candidates.session} nameOf={memberName} where={where} openNow={openNow} />}
+            {current === "lead" && <NewPoolLead draft={draft} onDraft={setDraft} sessions={candidates.session} nameOf={memberName} where={where} />}
             {current === "everyone" && <NewPoolEveryone draft={draft} onDraft={setDraft} where={where} nameOf={memberName} />}
             {current === "talk" && <NewPoolTalk draft={draft} onDraft={setDraft} />}
             {current === "own" && <NewPoolOwn draft={draft} onDraft={setDraft} where={where} />}
-            {current === "review" && <NewPoolReview draft={draft} name={name} where={where} nameOf={memberName} openNow={openNow} projects={projects} onChange={(to) => go(STEPS.indexOf(to))} />}
+            {current === "tools" && <NewPoolTools onAnswer={() => setAnsweredHere(true)} />}
+            {current === "review" && <NewPoolReview draft={draft} name={name} where={where} nameOf={memberName} openNow={openNow} projects={projects} onChange={(to) => go(steps.indexOf(to))} />}
           </div>
         </main>
       </div>
       <NewPoolFooter
         step={step}
+        steps={steps}
         prefilled={step >= MAKE_FROM && !last ? prefilled : null}
         into={!!into}
         busy={busy}
@@ -314,6 +324,7 @@ export function NewPool({
  * Cancel, Back, Make pool, and Next (or Make pool on the last step). */
 function NewPoolFooter({
   step,
+  steps,
   prefilled,
   into,
   busy,
@@ -324,6 +335,7 @@ function NewPoolFooter({
   onNext,
 }: {
   step: number;
+  steps: readonly SetupStep[];
   /** What the rest is filled in with; `null` before Who's in and on Review. */
   prefilled: string | null;
   into: boolean;
@@ -334,7 +346,7 @@ function NewPoolFooter({
   onMake: () => void;
   onNext: () => void;
 }): JSX.Element {
-  const last = step === STEPS.length - 1;
+  const last = step === steps.length - 1;
   const makeWords = into ? "Set up the pool" : "Make pool";
   return (
     <footer className="flex items-center gap-2 bg-surface px-5 py-3">
@@ -359,7 +371,7 @@ function NewPoolFooter({
         </Button>
       )}
       <Button ref={primaryRef} variant="primary" disabled={busy} onClick={last ? onMake : onNext} data-testid="new-pool-next">
-        {last ? makeWords : `Next: ${STEP_WORDS[STEPS[step + 1]!].nav}`}
+        {last ? makeWords : `Next: ${STEP_WORDS[steps[step + 1]!].nav}`}
       </Button>
     </footer>
   );

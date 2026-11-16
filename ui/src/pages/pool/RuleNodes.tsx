@@ -16,7 +16,7 @@
  * others join as Member"), with "Start one now" under it (New session on
  * that App, in the pool's project; the user starts it).
  */
-import { useLayoutEffect, useRef, useState, type JSX } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type JSX } from "react";
 
 import { Chip } from "../../components/primitives";
 import { StartLeadButton } from "./setup/StartLead";
@@ -29,8 +29,9 @@ import { useConversations } from "../../lib/conversations";
 import type { PoolRuleInfo, WatchedMemberInfo } from "../../lib/ipc/pool-model";
 import { CONTINUE_WATCHED, CONTINUE_WATCHED_SHORT, levelLabel, roleLabel } from "../../lib/pools";
 import { everyoneJoins, openNowWords } from "../../lib/pool-open-now";
-import { LEAD_WOULD, nextLeadsLine, wakeWords } from "../../lib/pool-words";
+import { LEADS_WHEN, LEAD_WOULD, nextLeadsLine, wakeWords } from "../../lib/pool-words";
 import { cliFolderOf } from "../../lib/start-lead";
+import { settleAdds, settleRoles, usePendingAdds, usePendingRoles } from "../../lib/pool-pending";
 import { IconLead } from "../../components/icons-canvas";
 import type { Selection } from "./Canvas";
 import { FOCUS_RING, SELECTED } from "./selection";
@@ -65,7 +66,10 @@ export function RuleNodes({
   poolLevel = "work_together",
   where,
   onStartLead,
+  poolId,
 }: {
+  /** Its pool: members being added show at once, pending (round 4 #5). */
+  poolId?: string;
   /** AJ-E3011: the lead's place, drawn while no session leads. */
   lead?: boolean;
   /** The App whose next session will lead (null: no lead for now). */
@@ -92,6 +96,15 @@ export function RuleNodes({
   const { all } = useConversations();
   const broad = broadOf(rules);
   const waiting = watched.filter((one) => one.continued_session === null);
+  // Round 4 (#5): a member being added shows at once, pending, until the
+  // rules read back have it; its role change likewise.
+  const adding = usePendingAdds(poolId ?? "").filter((one) => one.kind !== "session" && !broad.some((rule) => rule.member === one.ref));
+  const pendingRoles = usePendingRoles(poolId ?? "");
+  useEffect(() => {
+    if (!poolId) return;
+    settleAdds(poolId, new Set(broad.map((rule) => rule.member)));
+    settleRoles(poolId, new Map([...broad.map((rule) => [rule.member, rule.role] as const), ...(leadNext ? [[leadNext.ref, "lead"] as const] : [])]));
+  });
   const column = useRef<HTMLDivElement | null>(null);
   const [lines, setLines] = useState<{ key: string; x1: number; y1: number; x2: number; y2: number; on: boolean }[]>([]);
   // Each group node's line to every session it brings in, from its left
@@ -114,7 +127,7 @@ export function RuleNodes({
   // lead's place is drawn only while no one leads and none is waited for.
   const nextRef = leadPlace && leadNext ? leadNext.ref : null;
   const noLead = leadPlace && nextRef === null;
-  if (broad.length === 0 && waiting.length === 0 && !noLead) return null;
+  if (broad.length === 0 && waiting.length === 0 && !noLead && adding.length === 0) return null;
   const selected = (ref: string) => selection.kind === "rule" && selection.ref === ref;
   return (
     <>
@@ -142,6 +155,13 @@ export function RuleNodes({
           <span className="text-meta text-ink-2">{LEAD_WOULD}</span>
         </button>
       )}
+      {adding.map((one) => (
+        <div key={one.ref} aria-busy="true" className={"pointer-events-auto mb-1.5 flex flex-col gap-1 rounded-xl bg-surface px-3 py-2 opacity-70 " + STACK} data-testid="canvas-rule-node-adding" data-rule-ref={one.ref}>
+          <span className="text-label font-medium text-muted">{KIND_WORD[one.kind] ?? one.kind}</span>
+          <span className="line-clamp-2 text-body font-semibold text-ink [overflow-wrap:normal]">{one.label}</span>
+          <span className="text-meta text-ink-2">Adding…</span>
+        </div>
+      ))}
       {broad.map((rule) => (
         <div key={rule.member} className="flex flex-col gap-1">
         <button
@@ -149,7 +169,8 @@ export function RuleNodes({
           onClick={() => onSelect({ kind: "rule", ref: rule.member })}
           aria-pressed={selected(rule.member)}
           aria-current={selected(rule.member) ? "true" : undefined}
-          className={"pointer-events-auto mb-1.5 flex flex-col gap-1 rounded-xl px-3 py-2 text-left " + FOCUS_RING + " " + (selected(rule.member) ? SELECTED : `bg-surface ${STACK} hover:bg-surface-2`)}
+          aria-busy={pendingRoles.has(rule.member) || undefined}
+          className={"pointer-events-auto mb-1.5 flex flex-col gap-1 rounded-xl px-3 py-2 text-left " + FOCUS_RING + " " + (selected(rule.member) ? SELECTED : `bg-surface ${STACK} hover:bg-surface-2`) + (pendingRoles.has(rule.member) ? " opacity-70" : "")}
           data-testid="canvas-rule-node"
           data-kind={rule.kind}
           data-rule-ref={rule.member}
@@ -157,13 +178,13 @@ export function RuleNodes({
         >
           <span className="flex items-center gap-1.5">
             <span className="text-label font-medium text-muted">{KIND_WORD[rule.kind] ?? rule.kind}</span>
-            {rule.member === nextRef ? (
+            {rule.member === nextRef || pendingRoles.get(rule.member) === "lead" ? (
               <span className="inline-flex items-center gap-1 text-label font-medium text-ink-2" data-testid="canvas-rule-leads-next">
                 <IconLead aria-hidden="true" width={12} height={12} />
-                Leads next
+                {LEADS_WHEN}
               </span>
             ) : (
-              <Chip tone="neutral">{roleLabel(rule.role)}</Chip>
+              <Chip tone="neutral">{roleLabel(pendingRoles.get(rule.member) ?? rule.role)}</Chip>
             )}
             <RuleShellOnly shared={toolOf?.(rule) ?? null} />
           </span>

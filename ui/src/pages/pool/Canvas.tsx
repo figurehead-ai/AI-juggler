@@ -124,8 +124,7 @@ export function Canvas({
   useEffect(() => {
     if (paletteOpen === null && size.w > 0 && canvas && !data.list.loading) setPaletteOpen(size.w >= 900 || members.length === 0);
   }, [paletteOpen, size.w, canvas, members.length, data.list.loading]);
-  // The palette sits over the top left: fit what's beside it (or below
-  // its folded line).
+  // The palette sits over the top left: fit what's beside it (or below its folded line).
   const { view, latest, setView, fit, forget, hold } = useCanvasView(
     pool.id,
     () => fitView(points.values(), size.w, size.h, 48, paletteOpen ? 260 : 0, paletteOpen ? 0 : 44, TOOLBAR_H, overlayRoom),
@@ -364,6 +363,7 @@ export function Canvas({
       <div className="pointer-events-none absolute bottom-16 left-3 top-3 flex flex-col">
         <div ref={palette} className="flex min-h-0 flex-col">
         <Palette
+          poolId={pool.id}
           sessions={candidates}
           projects={projects}
           removing={dragged ? { over: overPalette, why: cannotRemove(pool) } : null}

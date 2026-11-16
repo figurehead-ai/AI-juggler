@@ -135,26 +135,31 @@ export function levelSentence(level: string): string {
   return `On their own they may ${ownLabel(level)}. ${ownLevel(level).line}`;
 }
 
-/** The lead, read back. `next`: the App whose next session leads, in
- * `where`; `open`: its sessions open there now, when known (round 2, #3:
- * "next session" read as "not in charge now"). */
-export function leadSentence(lead: string | null, next: string | null, where = "these projects", open?: number): string {
+/** An App whose next session will lead, in short (its card, its row, its
+ * inspector's subtitle; round 4 #4: "Leads next" read as "in charge now"). */
+export const LEADS_WHEN = "Lead when a session starts";
+
+/** The lead, read back. `next`: the App that takes charge as soon as one
+ * of its sessions starts in `where` (round 4 #4, the shared lead control's
+ * own words in both paths). */
+export function leadSentence(lead: string | null, next: string | null, where = "these projects"): string {
   if (lead) return `${lead} leads: it plans the work and hands out tasks.`;
-  if (next) return `${next} leads from its next session in ${where}${open === 0 ? " (none is open now)" : ""}: it plans the work and hands out tasks.`;
+  if (next) return `${next} takes charge as soon as one of its sessions starts in ${where}: it plans the work and hands out tasks.`;
   return NO_LEAD;
 }
 
 /** An App whose next session leads, as one member (round 2, #2): its
  * role line, the others' role after it. */
 export function nextLeadsLine(othersRole: string): string {
-  return `Its next session leads · its others join as ${roleCard(othersRole).label}`;
+  return `Takes charge as soon as one of its sessions starts · its others join as ${roleCard(othersRole).label}`;
 }
 
-/** That App read back: "Claude Code · Work: its next session leads; its
- * others join as Member and may Work together, as the pool." */
+/** That App read back: "Claude Code · Work takes charge as soon as one of
+ * its sessions starts; its others join as Member and may Work together,
+ * as the pool." */
 export function nextLeadsSentence(name: string, othersRole: string, level: string | null, poolLevel: string): string {
   const may = level === null ? `${ownLabel(poolLevel)}, as the pool` : ownLabel(level);
-  return `${name}: its next session leads; its others join as ${roleCard(othersRole).label} and may ${may}.`;
+  return `${name} takes charge as soon as one of its sessions starts; its others join as ${roleCard(othersRole).label} and may ${may}.`;
 }
 
 /** What a pool without a lead lacks, said where the lead would be. */
@@ -210,7 +215,7 @@ export function wakeWords(level: string, cantWake = false, many = false): string
 /** The setup's steps, in order, each with its heading and one line on
  * why (the setup's steps and the canvas's checklist say the same). */
 export const SETUP_STEPS = ["where", "who", "lead", "everyone", "talk", "own"] as const;
-export type SetupStep = (typeof SETUP_STEPS)[number] | "template" | "review";
+export type SetupStep = (typeof SETUP_STEPS)[number] | "template" | "tools" | "review";
 
 export const STEP_WORDS: Record<SetupStep, { title: string; nav: string; why: string }> = {
   template: { title: "How to start", nav: "Start", why: "A template fills in roles and who may message whom; you can change any of it." },
@@ -220,5 +225,7 @@ export const STEP_WORDS: Record<SetupStep, { title: string; nav: string; why: st
   everyone: { title: "Everyone else", nav: "Everyone else", why: "What each member does, and how new sessions join." },
   talk: { title: "Who may message whom", nav: "Who may message whom", why: "Set an exception only where you want one; the rest is allowed." },
   own: { title: "What they may do on their own", nav: "On their own", why: "Anything more waits for your OK in Needs you." },
+  // Round 4 (D-30): the one question, its own step while unanswered.
+  tools: { title: "Team tools", nav: "Team tools", why: "Asked once, the first time you make a pool." },
   review: { title: "Review", nav: "Review", why: "The whole pool in sentences, before it's made." },
 };

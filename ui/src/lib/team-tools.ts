@@ -1,14 +1,11 @@
 /**
- * AJ-E3011 round 2 (#1), D-30: the pool's "team tools" (AI Juggler's
- * agent tools in the sessions it starts) as a newcomer reads them: what
- * they give, who they cover, what they cost, what happens without them,
- * and where to switch them off. D-30 asks once, the first time pools are
- * used; after that they're on, switched off per project or app in
- * Settings › Agent access (never "one switch for every pool": that read
- * made run 2's tester leave them off).
- *
- * The card (the setup's Review line, the pool's inspector) and Review's
- * "Team tools" line read one state, so they can't disagree.
+ * AJ-E3011, D-30: the pool's "team tools" (AI Juggler's agent tools in
+ * the sessions it starts). D-30 asks once, the first time pools are used:
+ * a question with Yes and Not now, on the pool page, as New pool's own
+ * step and in Settings, one component (round 4, main's ruling). After
+ * that they're on, switched off per project or app in Settings › Agent
+ * access. Answered Not now (or off for one of the pool's projects or
+ * Apps), every place that says so offers Turn on beside it.
  */
 import { agentBridgeAnswer, agentBridgeSet, type AgentBridgeInfo, type AgentToolsScope } from "./ipc/agent-bridge";
 
@@ -30,20 +27,21 @@ export type TeamTools =
   /** This build has none. */
   | { kind: "missing" };
 
+/** D-30's one question, asked once, the first time pools are used (main's
+ * ruling after three walks: a question, not a switch to find). */
 export const TEAM_TOOLS = {
-  title: "Let your assistants work as a team",
-  gives: "They can message each other and share notes and tasks.",
-  example: "Example: Claude sees that Codex is reviewing and sends it a note.",
-  who: "It covers the sessions AI Juggler starts or connects in your pools, never a session outside a pool.",
-  cost: "Nothing extra: a session uses its own turns only when it acts.",
-  without: "Without it, the pool is set up, but nobody in it can message.",
-  where: "Asked once. After that you can switch it off for a project or an app in",
-  button: "Turn on team tools",
+  question: "Let the sessions in your pools message each other and share notes and tasks?",
+  gives: "They see who else is in their pool and what each is doing, and send each other notes and tasks: Claude sees that Codex is reviewing and sends it a note.",
+  cost: "It costs nothing extra: a session uses its own turns only when it acts.",
+  where: "You can switch it off per project or app in",
+  yes: "Yes, let them work together",
+  notNow: "Not now",
+  turnOn: "Turn on",
 };
 
 /** Settings › Agent access, its agent tools section (the switches per
  * project and app). */
-export const AGENT_ACCESS = "Settings › Agent access";
+export const AGENT_ACCESS = "Settings";
 
 export function teamTools(info: AgentBridgeInfo, projects: readonly ToolsPlace[], apps: readonly ToolsPlace[]): TeamTools {
   if (!info.available) return { kind: "missing" };
@@ -62,20 +60,26 @@ const names = (places: readonly ToolsPlace[]) => {
   return all.length <= 1 ? (all[0] ?? "") : `${all.slice(0, -1).join(", ")} and ${all[all.length - 1]}`;
 };
 
-/** Review's line: "On: …", "Off: they can't message yet.", "Off for web:
- * they can't message there." */
+/** Where the team tools stand, in one line (the summary, Review, the
+ * pool page's quiet line). Never "can't message" without its Turn on
+ * beside it ({@link needsTurnOn}). */
 export function teamToolsLine(state: TeamTools): string {
   switch (state.kind) {
     case "on":
       return "On: they can message each other and share notes and tasks.";
+    case "ask":
+      return "Not answered yet: they can't message each other until you say yes.";
     case "off-here":
-      return `Off for ${names(state.places)}: they can't message there.`;
+      return `Off for ${names(state.places)}: they can't message each other there.`;
     case "missing":
-      return "Not in this build of AI Juggler: they can't message.";
+      return "Not in this build of AI Juggler.";
     default:
-      return "Off: they can't message yet.";
+      return "Off: they can't message each other yet.";
   }
 }
+
+/** Whether the line needs its one-click fix beside it. */
+export const needsTurnOn = (state: TeamTools): boolean => state.kind === "ask" || state.kind === "off" || state.kind === "off-here";
 
 /** Turn on what's off for this pool: the one question's yes, or the
  * project's and App's own switches. */

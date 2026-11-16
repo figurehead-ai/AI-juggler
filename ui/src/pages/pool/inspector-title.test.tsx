@@ -28,7 +28,7 @@ describe("the inspector's title, by what is selected", () => {
     [{ kind: "watched", title: "Refactor the settings", app: "claude-code", role: "member" } as const, "Refactor the settings", "Session · claude-code · Watched · Member", "Can't reply here yet"],
     [{ kind: "edge", from: "Planner", to: "Tests", count: "3 messages this week", waits: false } as const, "Planner → Tests", "Line · what passes between these two", "3 messages this week"],
     // An App whose next session leads is one member (AJ-E3011 round 2, #2).
-    [{ kind: "rule", label: "Claude Code · Work", memberKind: "app", role: "member", open: 0, leadsNext: true } as const, "Claude Code · Work", "App · Leads next", "None open now"],
+    [{ kind: "rule", label: "Claude Code · Work", memberKind: "app", role: "member", open: 0, leadsNext: true } as const, "Claude Code · Work", "App · Lead when a session starts", "None open now"],
     [{ kind: "pool", name: "web", own: "web", where: "web", sessions: 3, sealed: false, needs: 0 } as const, "web", "Pool · web's own pool: every session in web, as one team", "3 sessions"],
     [{ kind: "pool", name: "Checkout team", own: null, where: "web and docs", sessions: 1, sealed: true, needs: 0 } as const, "Checkout team", "Pool · in web and docs", "Sealed"],
   ])("%o", (of, title, subtitle, pill) => {

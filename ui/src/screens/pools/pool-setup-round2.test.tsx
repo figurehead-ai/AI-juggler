@@ -29,15 +29,14 @@ describe("AJ-E3011 round 2", () => {
   it("#1: Review says the team tools as a line, decided before Make pool, and names a project they're off for", async () => {
     const draft: Draft = { ...draftOf(templateById("blank"), "p-web"), members: [app("app:cli:work", "Claude Code · Work")] };
     const review = render(<NewPoolReview draft={draft} name="web team" where="web" projects={[{ id: "p-web", name: "web" }]} />);
-    // Round 3: Review's line and the card are the diagram's own.
-    expect((await review.findByTestId("new-pool-review-tools-line")).textContent).toBe("Off: they can't message yet.");
-    expect(review.getByTestId("new-pool-tools").textContent).toContain("switch it off for a project or an app in Settings › Agent access");
-    fireEvent.click(review.getByTestId("new-pool-tools-on"));
+    // Round 4 (D-30): Review's line never says "can't message" without Turn on beside it.
+    expect((await review.findByTestId("new-pool-review-tools-line")).textContent).toBe("Not answered yet: they can't message each other until you say yes.");
+    fireEvent.click(review.getByTestId("new-pool-review-tools-on"));
     await review.findByText("On: they can message each other and share notes and tasks.");
-    expect(review.queryByTestId("new-pool-tools")).toBeNull();
+    expect(review.queryByTestId("new-pool-review-tools-on")).toBeNull();
     // On, but off for web: Review names it.
     const off = teamTools({ asked: true, on: true, available: true, off_projects: ["p-web"], off_profiles: [] }, draftPlaces(draft, [{ id: "p-web", name: "web" }]).projects, []);
-    expect(teamToolsLine(off)).toBe("Off for web: they can't message there.");
+    expect(teamToolsLine(off)).toBe("Off for web: they can't message each other there.");
     // A CLI App's folder is the switch an App has.
     expect(draftPlaces(draft, []).apps).toEqual([{ id: "work", name: "Claude Code · Work" }]);
   });
@@ -67,8 +66,8 @@ describe("AJ-E3011 round 2", () => {
     // No Lead placeholder beside the App's own card.
     expect(screen.queryByTestId("canvas-lead-card")).toBeNull();
     const card = screen.getByTestId("canvas-rule-node");
-    expect(within(card).getByTestId("canvas-rule-leads-next").textContent).toBe("Leads next");
-    expect(within(card).getByTestId("canvas-rule-next-line").textContent).toBe("Its next session leads · its others join as Member");
+    expect(within(card).getByTestId("canvas-rule-leads-next").textContent).toBe("Lead when a session starts");
+    expect(within(card).getByTestId("canvas-rule-next-line").textContent).toBe("Takes charge as soon as one of its sessions starts · its others join as Member");
     expect(card.textContent).toContain("No session open yet · new ones in web join");
     expect(card.textContent).not.toContain("Member ");
     // Nothing starts until the click, and the click only opens the sheet.
@@ -92,10 +91,10 @@ describe("AJ-E3011 round 2", () => {
     const draft: Draft = { ...draftOf(templateById("blank"), "p-web"), members: [app("app:cli:work", "Claude Code · Work"), app("app:cli:codex", "Codex · Personal", "reviewer")], leadNext: "app:cli:work" };
     render(<NewPoolEveryone draft={draft} onDraft={() => undefined} where="web" nameOf={(_, label) => label} />);
     const rows = screen.getAllByTestId("new-pool-member-row");
-    expect(within(rows[0]!).getByTestId("new-pool-member-leads-next").textContent).toBe("Leads next");
-    expect(within(rows[0]!).getByTestId("new-pool-member-sentence").textContent).toBe("Claude Code · Work: its next session leads; its others join as Member and may Work together, as the pool.");
+    expect(within(rows[0]!).getByTestId("new-pool-member-leads-next").textContent).toBe("Lead when a session starts");
+    expect(within(rows[0]!).getByTestId("new-pool-member-sentence").textContent).toBe("Claude Code · Work takes charge as soon as one of its sessions starts; its others join as Member and may Work together, as the pool.");
     // Round 3 (#1): its Lead reads as its next session's, in the same picker.
-    expect(within(rows[0]!).getByTestId("new-pool-member-role").textContent).toBe("Role:Lead: its next session leads");
+    expect(within(rows[0]!).getByTestId("new-pool-member-role").textContent).toBe("Role:Lead, once one of its sessions starts");
     expect(within(rows[1]!).getByTestId("new-pool-member-role").textContent).toContain("Role:");
     expect(within(rows[1]!).getByTestId("new-pool-member-level").textContent).toContain("On its own:");
     expect(within(rows[1]!).getByTestId("new-pool-member-level").textContent).toContain("Same as the pool (Work together)");
@@ -108,7 +107,7 @@ describe("AJ-E3011 round 2", () => {
     const view = render(<NewPoolEveryone draft={draft} onDraft={(next) => (draft = next)} where="web" nameOf={(_, label) => label} />);
     const rows = screen.getAllByTestId("new-pool-member-row");
     fireEvent.click(within(rows[0]!).getByTestId("new-pool-member-role"));
-    fireEvent.click(screen.getByRole("menuitemradio", { name: /^Lead: its next session leads/ }));
+    fireEvent.click(screen.getByRole("menuitemradio", { name: /^Lead, once one of its sessions starts/ }));
     expect(draft.leadNext).toBe("app:cli:work");
     view.rerender(<NewPoolEveryone draft={draft} onDraft={(next) => (draft = next)} where="web" nameOf={(_, label) => label} />);
     fireEvent.click(within(screen.getAllByTestId("new-pool-member-row")[1]!).getByTestId("new-pool-member-role"));

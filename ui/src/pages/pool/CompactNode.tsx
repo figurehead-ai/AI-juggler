@@ -152,6 +152,8 @@ export function CompactNode({ member, at, asks, held, selected, tabStop, draggin
       data-lead={lead || undefined}
       data-selected={selected || undefined}
       aria-current={selected ? "true" : undefined}
+      aria-busy={member.pending || undefined}
+      data-pending={member.pending || undefined}
       data-form="compact"
       onPointerDown={(event) => onPointerDown(member.id, event)}
       onContextMenu={openMenu}
@@ -162,7 +164,7 @@ export function CompactNode({ member, at, asks, held, selected, tabStop, draggin
       <div
         style={{ transform: `scale(${1 / scale})`, transformOrigin: "0 0", width, height }}
         className={
-          "group/node relative flex flex-col justify-center gap-1 rounded-lg border motion-safe:animate-[aij-fade-in_140ms_ease-out] " +
+          "group/node relative flex flex-col justify-center gap-1 rounded-lg border data-[pending]:opacity-70 motion-safe:animate-[aij-fade-in_140ms_ease-out] " +
           (tight ? "px-1.5 py-0.5 " : "px-2 py-1 ") +
           nodeBorder(selected, waits > 0, lead) +
           (dragging ? " cursor-grabbing opacity-90 shadow-lg" : " cursor-grab") +

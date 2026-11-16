@@ -2,7 +2,8 @@
  * AJ-E1704 vitest — the agent tools in sessions (D-30).
  *
  * - The one-time question shows until it's answered, never again after;
- *   "Yes, let them" turns the tools on, "Not now" leaves them off.
+ *   "Yes, let them work together" turns the tools on, "Not now" leaves
+ *   them off with one quiet line and Turn on.
  * - Settings › Agent access: the question until answered, then one
  *   switch for every session and, behind a fold read only when it opens,
  *   a switch per project and per profile.
@@ -11,7 +12,9 @@ import { act, cleanup, fireEvent, render, waitFor } from "@testing-library/react
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { MOCK_PROJECTS } from "../preview/fixtures";
 import { resetPreviewAgentBridge } from "../lib/ipc/agent-bridge";
-import { AgentToolsQuestion, AgentToolsSettings, poolQuestionWords, QUESTION } from "./AgentTools";
+import { AgentToolsSettings } from "./AgentTools";
+import { TEAM_TOOLS } from "../lib/team-tools";
+import { TeamToolsQuestion } from "../pages/pool/setup/TeamTools";
 
 type Seams = { __AIJ_AGENT_BRIDGE__?: unknown; __AIJ_AGENT_BRIDGE_CALLS__?: string[] };
 const seams = () => window as unknown as Seams;
@@ -24,50 +27,47 @@ beforeEach(() => {
 });
 afterEach(() => cleanup());
 
-describe("the one-time question", () => {
-  it("asks once, and yes turns the tools on", async () => {
-    const { findByTestId, queryByTestId, getByText } = render(<AgentToolsQuestion />);
-    await findByTestId("agent-tools-question");
-    expect(getByText(QUESTION)).toBeTruthy();
-    expect(QUESTION).toBe("Let agents in your projects see each other and work together?");
-    await act(async () => fireEvent.click(await findByTestId("agent-tools-yes")));
-    await waitFor(() => expect(queryByTestId("agent-tools-question")).toBeNull());
+describe("the one-time question (D-30; AJ-E3011 round 4: one component everywhere)", () => {
+  it("asks once, and Yes turns the tools on; then it's gone", async () => {
+    const { findByTestId, queryByTestId } = render(<TeamToolsQuestion />);
+    const card = await findByTestId("team-tools");
+    expect(card.querySelector("h3")?.textContent).toBe(TEAM_TOOLS.question);
+    expect(TEAM_TOOLS.question).toBe("Let the sessions in your pools message each other and share notes and tasks?");
+    expect(card.textContent).toContain("It costs nothing extra");
+    expect(card.textContent).toContain("You can switch it off per project or app in Settings.");
+    await act(async () => fireEvent.click(await findByTestId("team-tools-yes")));
+    await waitFor(() => expect(queryByTestId("team-tools")).toBeNull());
+    expect(queryByTestId("team-tools-quiet")).toBeNull();
     expect(calls()).toEqual(["answer:true"]);
   });
 
-  it("not now leaves them off and doesn't ask again", async () => {
-    const first = render(<AgentToolsQuestion />);
-    await act(async () => fireEvent.click(await first.findByTestId("agent-tools-no")));
-    await waitFor(() => expect(first.queryByTestId("agent-tools-question")).toBeNull());
+  it("Not now never asks again, and leaves one quiet line with Turn on", async () => {
+    const first = render(<TeamToolsQuestion />);
+    await act(async () => fireEvent.click(await first.findByTestId("team-tools-not-now")));
+    await waitFor(() => expect(first.queryByTestId("team-tools")).toBeNull());
+    expect((await first.findByTestId("team-tools-line")).textContent).toBe("Off: they can't message each other yet.");
     first.unmount();
-    const again = render(<AgentToolsQuestion />);
-    await new Promise((resolve) => setTimeout(resolve, 0));
-    expect(again.queryByTestId("agent-tools-question")).toBeNull();
-    expect(calls()).toEqual(["answer:false"]);
+    const again = render(<TeamToolsQuestion />);
+    expect(await again.findByTestId("team-tools-quiet")).toBeTruthy();
+    expect(again.queryByTestId("team-tools")).toBeNull();
+    await act(async () => fireEvent.click(again.getByTestId("team-tools-on")));
+    await waitFor(() => expect(again.queryByTestId("team-tools-quiet")).toBeNull());
+    expect(calls()).toEqual(["answer:false", "answer:true"]);
   });
 
-  // The rc26 P3 and P9 walks: on a pool already at Work together or Full,
-  // the question read as asking for that pool's level again.
-  it("on a pool's page, says it's asked once for every pool and keeps the pool's own level", async () => {
-    const { findByTestId } = render(<AgentToolsQuestion quiet poolLevel="Full" />);
-    const line = await findByTestId("agent-tools-question-pool");
-    expect(line.textContent).toBe(poolQuestionWords("Full"));
-    expect(line.textContent).toContain("Asked once, for every pool");
-    expect(line.textContent).toContain("(Agents: Full) is kept");
-  });
-
-  it("says nothing once answered", async () => {
+  it("says nothing once on", async () => {
     seams().__AIJ_AGENT_BRIDGE__ = { asked: true, on: true };
-    const { queryByTestId } = render(<AgentToolsQuestion />);
+    const { queryByTestId } = render(<TeamToolsQuestion />);
     await new Promise((resolve) => setTimeout(resolve, 0));
-    expect(queryByTestId("agent-tools-question")).toBeNull();
+    expect(queryByTestId("team-tools")).toBeNull();
+    expect(queryByTestId("team-tools-quiet")).toBeNull();
   });
 });
 
 describe("Settings › Agent access", () => {
   it("shows the question until it's answered", async () => {
     const { getByTestId } = render(<AgentToolsSettings />);
-    await waitFor(() => expect(getByTestId("settings-agent-tools").textContent).toContain(QUESTION));
+    await waitFor(() => expect(getByTestId("settings-agent-tools").textContent).toContain(TEAM_TOOLS.question));
   });
 
   it("switches off for every session, or a project, read when the fold opens", async () => {
