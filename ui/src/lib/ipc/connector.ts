@@ -40,7 +40,7 @@ const record = (called: string) => (seams().__AIJ_CONNECTOR_CALLS__ ??= []).push
 const store = new Map<string, Seed>();
 
 const CODEX_WHY = "Codex can't yet tell which thread is calling";
-const AGENT = "/Applications/AI Juggler.app/Contents/MacOS/juggler-agent";
+const AGENT = "~/AI Juggler/juggler-agent";
 const SOCKET = "~/Library/Application Support/AI Juggler/agent/bridge.sock";
 
 /** A Claude app profile's Claude Code folder in the preview. */
