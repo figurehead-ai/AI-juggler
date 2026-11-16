@@ -218,9 +218,19 @@ export function chooseApp(inputs: AppInputs): AppChoice | null {
   const apps = appRecipes(inputs.recipes);
   if (apps.length === 0) return null;
   const ranked = appsByRoom(inputs);
-  const of = (id: string | null | undefined) => (id ? apps.find((recipe) => recipe.account_id === id) : undefined);
   const startable = apps.filter((recipe) => canStart(inputs.folders, recipe.account_id));
   const accountOf = inputs.accountOf ?? ((id: string) => id);
+  // The 0.4.6 RC walk A8: a door or a binding may name a folder that isn't
+  // a CLI App (a Claude app profile's, `offeredRecipes`: the Account page's
+  // first folder, a project bound to it before): its Account's own CLI App
+  // stands for it, one that can start first, never another Account's.
+  const of = (id: string | null | undefined) => {
+    if (!id) return undefined;
+    const own = apps.find((recipe) => recipe.account_id === id);
+    if (own) return own;
+    const mine = apps.filter((recipe) => accountOf(recipe.account_id) === accountOf(id));
+    return mine.find((recipe) => canStart(inputs.folders, recipe.account_id)) ?? mine[0];
+  };
   const own = ownApp(apps, { ...inputs, accountOf, canStart: (id) => canStart(inputs.folders, id) });
   const candidates: Array<[LaunchRecipeInfo | undefined, AppWhy]> = [
     [of(inputs.chosen), "chosen"],

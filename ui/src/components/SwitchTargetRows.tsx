@@ -21,7 +21,7 @@ import type { SwitchTargetData } from "../lib/ipc/switch-targets";
 import { lowRoomWords, ROOM_ORDER_WORDS, outOfRoomConsequence, outOfRoomWords } from "../lib/room";
 import { DESKTOP_ONLY, roomless, type TargetRoom } from "../lib/room-targets";
 import { creditsConsequence, usingCreditsWords } from "../lib/credits";
-import { cliAppName } from "../lib/app-name";
+import { useTargetApp } from "../lib/apps";
 
 /** "Suggested": the one with the most room (the one order by room). */
 export function SuggestedMark({ className = "" }: { className?: string }): JSX.Element {
@@ -121,6 +121,9 @@ export function SwitchTargetRows({
 }): JSX.Element {
   const [whyOpen, setWhyOpen] = useState(false);
   const listRef = useRef<HTMLUListElement>(null);
+  // The App each target is reached through (the 0.4.6 RC walk K3: a Claude
+  // app profile's folder read "Claude Code CLI · Work Max").
+  const appOf = useTargetApp();
   // AJ-E1103: a suggestion shown, then taken or passed over.
   const suggested = targets.find((target) => target.suggested && !target.filtered_reason);
   const suggestedProvider = suggested?.provider ?? "other";
@@ -190,7 +193,7 @@ export function SwitchTargetRows({
               >
                 <span className="flex flex-wrap items-center gap-2">
                   <span className={`font-medium ${filtered ? "text-muted" : ""}`}>
-                    {target.provider ? cliAppName(target.provider, target.account_label) : target.account_label}
+                    {appOf({ folder: target.account_id, tool: target.provider, label: target.account_label }).name}
                   </span>
                   <FidelityBadge badge={target.badge} validated={target.validated} />
                   {target.suggested && !filtered && <SuggestedMark />}

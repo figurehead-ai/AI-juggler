@@ -25,7 +25,8 @@ import { SuggestedMark } from "./SwitchTargetRows";
 import { IconClose } from "./icons-controls";
 import { resetsWords, whenWords } from "../lib/time-words";
 import { creditsConsequence, usingCreditsWords } from "../lib/credits";
-import { folderAppName } from "../lib/app-name";
+import { useTargetApp } from "../lib/apps";
+import { knownFolderTool } from "../lib/palette";
 
 function inWords(ms: number): string {
   const minutes = Math.max(0, Math.round(ms / 60_000));
@@ -116,6 +117,10 @@ export function LimitDialog({
   // the folder's own name stands in.
   const who = accountNameOf(accounts, session.account_id, session.account_label);
   const target = targets ? pickTarget(targets, session.account_id, accounts, displays) : null;
+  // The App it's reached through (the 0.4.6 RC walk K3: a Claude app
+  // profile's folder is that profile's, never "Claude Code CLI · Work Max").
+  const appOf = useTargetApp();
+  const targetName = target ? appOf({ folder: target.account_id, tool: target.provider ?? knownFolderTool(target.account_id), label: target.account_label }).name : "";
   const ready = target && staged?.target_account_id === target.account_id ? staged : null;
   const targetLines = target
     ? runwayLines(
@@ -214,12 +219,12 @@ export function LimitDialog({
               ) : target ? (
                 <>
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-sm font-medium">Continue now in {folderAppName(target.account_id, target.account_label)}</span>
+                    <span className="text-sm font-medium">Continue now in {targetName}</span>
                     {target.suggested && <SuggestedMark />}
                   </div>
                   {ready && (
                     <p className="text-xs text-success" data-testid="limit-ready">
-                      Ready to continue in {folderAppName(target.account_id, target.account_label)} · prepared {ago(now - ready.prepared_at_ms)}
+                      Ready to continue in {targetName} · prepared {ago(now - ready.prepared_at_ms)}
                     </p>
                   )}
                   {target.room.kind === "credits" && target.room.credits && (
@@ -250,7 +255,7 @@ export function LimitDialog({
                     </p>
                   )}
                   <Button size="sm" variant="primary" data-autofocus onClick={() => onContinue(target)}>
-                    Continue in {folderAppName(target.account_id, target.account_label)}
+                    Continue in {targetName}
                   </Button>
                 </>
               ) : (

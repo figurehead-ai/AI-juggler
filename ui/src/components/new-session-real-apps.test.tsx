@@ -6,8 +6,10 @@
  * a CLI App (the backend's Apps list, `lib/apps`). The sheet opened on it
  * from the profile's session in the project ("Start in web on Claude Code
  * CLI · Work Max"), an App that doesn't exist, and would have run the
- * CLI on the profile's folder. The pure rule is `offeredRecipes`
- * (`lib/new-session-offered.test.ts`).
+ * CLI on the profile's folder; its Change app listed "Claude Code CLI ·
+ * Work Max" and "· Side" (K4). The pure rule is `offeredRecipes`
+ * (`lib/new-session-offered.test.ts`); a switch's targets, which are real,
+ * are named by their App (`switch-target-apps.test.tsx`).
  */
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -22,17 +24,19 @@ import { account, clearSeams, instance, project, recipe, setSeam, subscription }
 
 const NOW = Date.now();
 
-// A8: cc-work (Claude Code on "work"), app-work (the Claude app's "Work Max" profile on its own folder), cc-personal.
-const FOLDERS = [account({ id: "cc-work", label: "work" }), account({ id: "app-work", label: "Work Max" }), account({ id: "cc-personal", label: "personal" })];
+// A8 and K4: Claude Code on "work" (Work) and "personal" (Personal), and the
+// Claude app's profiles Work Max (Work) and Side (Personal) on their own folders.
+const FOLDERS = [account({ id: "cc-work", label: "work" }), account({ id: "app-work", label: "Work Max" }), account({ id: "cc-personal", label: "personal" }), account({ id: "app-side", label: "Side" })];
 const RECIPES = FOLDERS.map((row) => recipe({ id: `r-${row.id}`, account_id: row.id, account_label: row.label }));
 
-const PROFILE: KnownPlaceInfo = {
-  id: "app:claude-app:/p/Work Max", app_id: "claude-app", app: "Claude", instance: "Work Max", profile: "Work Max", label: "Claude · Work Max", app_pid: 11, lost: false,
-  keep_alive: false, paused: null, account_id: "app-work", seen_ms: NOW, cannot_start: null, recent: [], found: false,
-};
+const profile = (name: string, folder: string): KnownPlaceInfo => ({
+  id: `app:claude-app:/p/${name}`, app_id: "claude-app", app: "Claude", instance: name, profile: name, label: `Claude · ${name}`, app_pid: null, lost: false,
+  keep_alive: false, paused: null, account_id: folder, seen_ms: NOW, cannot_start: null, recent: [], found: false,
+});
+const PLACES = [profile("Work Max", "app-work"), profile("Side", "app-side")];
 const stored = (id: string, folder_id: string): StoredAppInfo => ({ id, kind: id.startsWith("cli:") ? "cli" : "desktop", tool: "claude-code", host_app_id: null, label: null, folder_id, account_id: null, last_seen_ms: 0 });
-// The backend's list (`apps::users_apps`): no CLI App on the profile's folder.
-const STORED = [stored("cli:cc-work", "cc-work"), stored("cli:cc-personal", "cc-personal"), stored(PROFILE.id, "app-work")];
+// The backend's list (`apps::users_apps`): no CLI App on either profile's folder.
+const STORED = [stored("cli:cc-work", "cc-work"), stored("cli:cc-personal", "cc-personal"), ...PLACES.map((place) => stored(place.id, place.account_id ?? ""))];
 
 // The live app's Apps, as `useApps` reads them with the backend's list.
 const joined = new WeakMap<readonly AccountInfo[], AppModel[]>();
@@ -41,7 +45,7 @@ vi.mock("../lib/apps", async (original) => {
   return {
     ...real,
     useApps: (folders: readonly AccountInfo[] = []) => {
-      const apps = joined.get(folders) ?? real.appsOf({ stored: STORED, places: [PROFILE], folders, listed: true });
+      const apps = joined.get(folders) ?? real.appsOf({ stored: STORED, places: PLACES, folders, listed: true });
       joined.set(folders, apps);
       return apps;
     },
@@ -58,7 +62,7 @@ const SESSIONS = [session("w1", "cc-work", "work", "terminal", 10 * 60_000), ses
 const member = (id: string, label: string) => ({ id, label, folder: `/tmp/lab/${id}`, plan: null, renewal_date: null, fee_usd: null });
 const SUBSCRIPTIONS = [
   subscription({ folder: "cc-work", account_id: "acct:work", email: "w…@example.com", profiles: [member("cc-work", "work"), member("app-work", "Work Max")] }),
-  subscription({ folder: "cc-personal", account_id: "acct:personal", email: "p…@example.com" }),
+  subscription({ folder: "cc-personal", account_id: "acct:personal", email: "p…@example.com", profiles: [member("cc-personal", "personal"), member("app-side", "Side")] }),
 ];
 
 beforeEach(async () => {
@@ -77,9 +81,9 @@ afterEach(() => {
   clearSeams("__AIJ_FIXTURE__");
 });
 
-function mountSheet() {
+function mountSheet({ door = null as string | null, web = WEB } = {}) {
   const launchSpy = vi.spyOn(launchModule, "launchSession").mockResolvedValue({ session_id: "s1", pid: 1 });
-  render(<NewSessionModal projects={[WEB]} accounts={FOLDERS} sessions={SESSIONS} recipes={RECIPES} initialDirectory={WEB.root} onClose={() => {}} onLaunched={() => {}} openLoginTerminal={() => {}} />);
+  render(<NewSessionModal projects={[web]} accounts={FOLDERS} sessions={SESSIONS} recipes={RECIPES} initialDirectory={web.root} initialAccount={door} onClose={() => {}} onLaunched={() => {}} openLoginTerminal={() => {}} />);
   return { launchSpy };
 }
 
@@ -93,13 +97,27 @@ describe("F-A8-1 New session offers and names only real Apps", () => {
     expect(screen.getByTestId("launch-always").textContent).not.toContain("Work Max");
   });
 
-  it("Change app lists the CLI Apps only, never one on the profile's folder", async () => {
+  it("Change app lists the CLI Apps only, never one on a profile's folder (K4: \"Claude Code CLI · Work Max\" and \"· Side\")", async () => {
     mountSheet();
     fireEvent.click(screen.getByTestId("change-app"));
     expect(await screen.findByTestId("change-app-cc-work")).toBeTruthy();
     expect(screen.getByTestId("change-app-cc-personal")).toBeTruthy();
     expect(screen.queryByTestId("change-app-app-work")).toBeNull();
-    expect(screen.queryByText(/Work Max/)).toBeNull();
+    expect(screen.queryByTestId("change-app-app-side")).toBeNull();
+    expect(screen.queryByText(/Work Max|Side/)).toBeNull();
+  });
+
+  it("a door that names the profile's folder (the Account page's New session: its first folder) opens on its Account's CLI App", async () => {
+    const { launchSpy } = mountSheet({ door: "app-work" });
+    expect(screen.getByTestId("new-session-sentence").textContent).toBe("Start in web on Claude Code CLI · work");
+    fireEvent.keyDown(window, { key: "Enter", metaKey: true });
+    await vi.waitFor(() => expect(launchSpy).toHaveBeenCalled());
+    expect(launchSpy.mock.calls[0]?.[0]).toBe("r-cc-work");
+  });
+
+  it("a project bound to the profile's folder in rc1 (\"Always start web on Claude Code CLI · Work Max\") stays on its Account", () => {
+    mountSheet({ web: { ...WEB, default_account_id: "app-work" } });
+    expect(screen.getByTestId("new-session-sentence").textContent).toBe("Start in web on Claude Code CLI · work — your default here");
   });
 
   it("⌘↩ starts the CLI App's own launch settings, never the profile folder's", async () => {

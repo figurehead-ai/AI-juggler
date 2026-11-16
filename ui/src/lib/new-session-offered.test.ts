@@ -2,11 +2,12 @@
  * The 0.4.6 RC walk A8 (D-62, D-84): New session offers a CLI App's
  * launch settings only. A Claude app profile's folder has launch settings
  * too, but it is a CLI App only once a terminal session ran there or the
- * user named it (`lib/apps`); the sheet's case is
+ * user named it (`lib/apps`). A door or binding that names such a folder
+ * opens on its Account's CLI App. The sheet's case is
  * `components/new-session-real-apps.test.tsx`.
  */
 import { describe, expect, it } from "vitest";
-import { offeredRecipes } from "./new-session-choice";
+import { chooseApp, offeredRecipes } from "./new-session-choice";
 import { account, recipe } from "../test/fixtures";
 
 const cc = recipe({ id: "r-cc", account_id: "cc-work", account_label: "work" });
@@ -28,5 +29,21 @@ describe("the Apps New session offers", () => {
     const all = [cc, profile, gone];
     expect(offeredRecipes(all, folders, null)).toBe(all);
     expect(offeredRecipes(all, folders, new Set(["cc-work"]))).toEqual([cc, gone]);
+  });
+});
+
+describe("a folder that isn't offered, named by a door or a binding", () => {
+  const personal = recipe({ id: "r-me", account_id: "cc-me", account_label: "personal" });
+  const offered = [personal, cc];
+  const three = [account({ id: "cc-me" }), account({ id: "cc-work" }), account({ id: "app-work" })];
+  const accountOf = (id: string) => (id === "cc-me" ? "k-me" : id === "removed" ? "removed" : "k-work");
+  const room = () => ({ left: null, resetsAtMs: null, credits: false });
+
+  it("opens on its Account's CLI App, never another Account's", () => {
+    expect(chooseApp({ recipes: offered, project: null, folders: three, roomOf: room, accountOf, chosen: "app-work" })).toMatchObject({ recipe: cc, why: "chosen" });
+  });
+
+  it("a gone one still gives way to the next reason", () => {
+    expect(chooseApp({ recipes: offered, project: null, folders: three, roomOf: room, accountOf, chosen: "removed" })?.why).not.toBe("chosen");
   });
 });
