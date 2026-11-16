@@ -3256,7 +3256,7 @@ for (const theme of THEMES) {
       await page.goto("/");
       await goTo(page, "Accounts");
       // D-25: the matrix sits behind its disclosure on Accounts.
-      await page.getByTestId("accounts-beta-matrix").locator("summary").click();
+      await page.getByTestId("accounts-beta-matrix-toggle").click();
       await expect(page.getByTestId("beta-matrix")).toBeVisible();
       // AJ-E808: the matrix in view, not the Accounts above it (the
       // disclosure sits at the screen's foot).

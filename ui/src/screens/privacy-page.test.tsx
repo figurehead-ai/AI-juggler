@@ -28,7 +28,8 @@ describe("AJ-E1518 the Privacy page", () => {
       const section = view.getByTestId(`privacy-${group.id}`);
       expect(within(section).getByRole("heading").textContent).toBe(group.title);
       const rows = within(section).getAllByTestId("privacy-claim");
-      expect(rows.map((row) => row.querySelector("summary")?.textContent)).toEqual(group.claims.map((claim) => claim.text));
+      // Each line is its disclosure's button (an accessibility press opens it).
+      expect(rows.map((row) => within(row).getByRole("button", { expanded: false }).textContent)).toEqual(group.claims.map((claim) => claim.text));
     }
   });
 
@@ -36,9 +37,10 @@ describe("AJ-E1518 the Privacy page", () => {
     const view = render(<PrivacyScreen />);
     const claim = claims.groups.flatMap((group) => group.claims).find((entry) => entry.id === "no-ai-provider")!;
     const row = view.getAllByTestId("privacy-claim").find((entry) => entry.textContent?.startsWith(claim.text))!;
-    const details = row.querySelector("details")!;
-    expect(details.open).toBe(false);
-    fireEvent.click(row.querySelector("summary")!);
+    const fold = within(row).getByRole("button", { name: claim.text });
+    expect(fold.getAttribute("aria-expanded")).toBe("false");
+    fireEvent.click(fold);
+    expect(fold.getAttribute("aria-expanded")).toBe("true");
     const tests = within(row).getByTestId("privacy-tests");
     expect(tests.textContent).toContain(`Checked by these ${claim.tests.length} tests:`);
     const links = within(tests).getAllByRole("button");

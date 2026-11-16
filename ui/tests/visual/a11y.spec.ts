@@ -1054,7 +1054,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/");
     await goTo(page, "Accounts");
-    await page.getByTestId("accounts-beta-matrix").locator("summary").click(); // D-25: behind a disclosure
+    await page.getByTestId("accounts-beta-matrix-toggle").click(); // D-25: behind a disclosure
     await expect(page.getByTestId("beta-matrix-table")).toBeVisible();
     // Real table semantics: scoped column + row headers.
     await expect(page.getByTestId("beta-matrix-table").locator("th[scope='col']").first()).toBeVisible();
@@ -1399,7 +1399,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.goto("/");
     await goTo(page, "Fleet");
     // 0.1.5: the fingerprint folds away while Link is off; open it to check it.
-    const fold = page.locator("#fleet-fingerprint-label");
+    const fold = page.getByRole("button", { name: "Fingerprint, to check when you pair" });
     if (!(await page.getByLabel("Machine fingerprint").isVisible())) await fold.click();
     const fingerprint = page.getByLabel("Machine fingerprint");
     await expect(fingerprint).toBeVisible();

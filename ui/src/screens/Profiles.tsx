@@ -27,6 +27,7 @@ import { pickDirectory } from "../lib/ipc/project-folders";
 import type { AccountInfo } from "../types/generated/AccountInfo";
 import type { LaunchRecipeInfo } from "../types/generated/LaunchRecipeInfo";
 import { errorText } from "../lib/bridge";
+import { Disclosure } from "../components/controls";
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
 
 export { placementWords } from "./accounts/UseOriginal";
@@ -236,14 +237,11 @@ export function ProfilesScreen({
         </button>
         .
       </p>
-      <details className="group" data-testid="accounts-beta-matrix">
-        <summary className="cursor-pointer text-xs text-muted outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60">
-          Which switches between apps are proven
-        </summary>
+      <Disclosure summary="Which switches between apps are proven" testId="accounts-beta-matrix">
         <div className="mt-3">
           <BetaMatrix />
         </div>
-      </details>
+      </Disclosure>
 
       {newProfileFor && (
         <NewProfileModal

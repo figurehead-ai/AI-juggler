@@ -46,6 +46,7 @@ import { SessionTerminal } from "../pages/session/SessionTerminal";
 import { RemoteTabBody, type RemoteContext } from "./RemoteTabs";
 import { launchSettingsName } from "../lib/account-words";
 import { memorySize } from "../lib/compact";
+import { Disclosure } from "./controls";
 
 /**
  * RightInspector — the page of a session, a project, an account or a
@@ -433,11 +434,16 @@ function InstanceOverview(props: PanelProps) {
           return null;
         })()}
         <SessionNotes session={session} live={live} now={props.now} />
-        <details className="group text-meta" data-testid="instance-details">
-          {/* Says what's inside (the review of 0.1.4: an empty strip). */}
-          <summary className="w-fit cursor-pointer select-none rounded text-muted outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60">
-            Details <span className="text-muted">· launch settings and session id</span>
-          </summary>
+        <Disclosure
+          className="text-meta"
+          // Says what's inside (the review of 0.1.4: an empty strip).
+          summary={
+            <span>
+              Details <span className="text-muted">· launch settings and session id</span>
+            </span>
+          }
+          testId="instance-details"
+        >
           <div className="mt-2 flex flex-col gap-2">
         <div className="flex flex-wrap items-center gap-1.5">
           <ToolChip tool={session.provider} />
@@ -487,7 +493,7 @@ function InstanceOverview(props: PanelProps) {
           </span>
         </div>
           </div>
-        </details>
+        </Disclosure>
       </div>
     );
     // A terminal's session: the page every session has (its terminal the

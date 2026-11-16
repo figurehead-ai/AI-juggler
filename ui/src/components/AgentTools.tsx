@@ -19,6 +19,7 @@ import { agentBridgeAnswer, agentBridgeSet, useAgentBridge, type AgentBridgeInfo
 import { unavailableLine } from "../lib/team-tools";
 import { TeamToolsQuestion, useToolsSave } from "../pages/pool/setup/TeamTools";
 import { Card } from "./primitives";
+import { Disclosure } from "./controls";
 import { SettingSwitch } from "./SettingSwitch";
 
 /** Settings › Agent access: the question until it's answered, then the
@@ -83,12 +84,16 @@ function OffWhere({ info, busy, run }: { info: AgentBridgeInfo; busy: boolean; r
   };
   const toggle = (scope: AgentToolsScope, id: string, on: boolean) => run(() => agentBridgeSet(scope, id, on));
   return (
-    <details className="group ml-5 rounded-lg border border-hairline/60 px-3 py-2" onToggle={(event) => load(event.currentTarget.open)} data-testid="agent-tools-where">
-      <summary className="flex cursor-pointer select-none items-center gap-2 text-xs outline-none focus-visible:ring-1 focus-visible:ring-accent/60">
-        <span aria-hidden="true" className="text-faint transition-transform group-open:rotate-90">›</span>
-        <span className="flex-1 font-medium text-ink">Where they're off</span>
-        <span className="text-muted">{off === 0 ? "None" : `${off} off`}</span>
-      </summary>
+    <Disclosure
+      className="ml-5 rounded-lg border border-hairline/60 px-3 py-2"
+      onToggle={load}
+      summary={
+        <span>
+          <span className="font-medium text-ink">Where they're off</span> <span className="text-muted">· {off === 0 ? "None" : `${off} off`}</span>
+        </span>
+      }
+      testId="agent-tools-where"
+    >
       {error && (
         <p className="mt-2 text-xs text-danger" role="alert">
           {error}
@@ -125,7 +130,7 @@ function OffWhere({ info, busy, run }: { info: AgentBridgeInfo; busy: boolean; r
           </Group>
         </div>
       )}
-    </details>
+    </Disclosure>
   );
 }
 

@@ -11,6 +11,7 @@ import { SmootherCard } from "./SmootherCard";
 import type { JSX } from "react";
 import { useResource } from "../lib/use-resource";
 import { Button, Card } from "./primitives";
+import { Disclosure } from "./controls";
 import { IconDashboard, IconJuggler, IconProjects, IconSessions, IconShield, IconTerminal, IconUsage } from "./icons";
 import { providersDiscover, type ProviderInstallData } from "../lib/ipc/providers";
 import { useTools } from "../lib/tools";
@@ -135,10 +136,7 @@ export function Welcome({
         </p>
       </section>
 
-      <details className="group text-sm" data-testid="welcome-how">
-        <summary className="w-fit cursor-pointer rounded-md text-meta font-medium text-muted outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60">
-          How it works
-        </summary>
+      <Disclosure className="text-sm" summary={<span className="font-medium">How it works</span>} testId="welcome-how">
         <ol className="mt-4 flex flex-col gap-3">
           {STEPS.map((step, index) => (
             <li key={step.title} className="flex items-start gap-3">
@@ -152,7 +150,7 @@ export function Welcome({
             </li>
           ))}
         </ol>
-      </details>
+      </Disclosure>
     </div>
   );
 }

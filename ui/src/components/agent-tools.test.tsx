@@ -72,17 +72,15 @@ describe("Settings › Agent access", () => {
 
   it("switches off for every session, or a project, read when the fold opens", async () => {
     seams().__AIJ_AGENT_BRIDGE__ = { asked: true, on: true };
-    const { findByTestId, queryByText, findByLabelText, getByTestId } = render(<AgentToolsSettings />);
+    const { findByTestId, queryByText, findByLabelText, getByTestId, getByRole } = render(<AgentToolsSettings />);
     const all = (await findByTestId("pref-agent-tools")).querySelector("input")!;
     expect(all.checked).toBe(true);
-    const fold = getByTestId("agent-tools-where") as HTMLDetailsElement;
-    expect(fold.textContent).toContain("None");
+    // The app's disclosure, a button an accessibility press opens.
+    const fold = getByRole("button", { name: "Where they're off · None" });
+    expect(fold.getAttribute("aria-expanded")).toBe("false");
     const project = MOCK_PROJECTS[0]!;
     expect(queryByText(project.name), "nothing is read before the fold opens").toBeNull();
-    await act(async () => {
-      fold.open = true;
-      fireEvent(fold, new Event("toggle"));
-    });
+    await act(async () => fireEvent.click(fold));
     const row = (await findByLabelText(project.name)) as HTMLInputElement;
     expect(row.checked).toBe(true);
     await act(async () => fireEvent.click(row));
@@ -98,11 +96,7 @@ describe("Settings › Agent access", () => {
     seams().__AIJ_AGENT_BRIDGE__ = { asked: true, on: true };
     const { findByTestId, findByLabelText, getByTestId } = render(<AgentToolsSettings />);
     await findByTestId("pref-agent-tools");
-    const fold = getByTestId("agent-tools-where");
-    await act(async () => {
-      fold.setAttribute("open", "");
-      fireEvent(fold, new Event("toggle"));
-    });
+    await act(async () => fireEvent.click(getByTestId("agent-tools-where-toggle")));
     const project = MOCK_PROJECTS[0]!;
     const row = await findByLabelText(project.name);
     const line = () => getByTestId(`pref-agent-tools-project-${project.id}`).textContent ?? "";

@@ -4,9 +4,11 @@
  * that names the machine (Cancel focused by default), Reset identity,
  * and the fail-closed "Trust broken" banner with an explicit reset.
  */
-import { act, fireEvent, render, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it } from "vitest";
 import { FleetScreen } from "../screens/FleetScreen";
+import { ThisMacCard } from "./FleetThisMac";
+import type { FleetSelfInfo } from "../types/generated/FleetSelfInfo";
 
 const w = () => window as unknown as Record<string, unknown>;
 
@@ -176,3 +178,19 @@ describe("AJ-E703 connection states", () => {
   });
 });
 
+describe("the fingerprint's fold (the 0.4.6 rc2 walk P9)", () => {
+  it("is a button an accessibility press opens, open while Link is on and folded again as it turns off", () => {
+    const self: FleetSelfInfo = { machine_id: "studio", label: "Studio", fingerprint: "3F2A 0000", trust: "ok", trust_reason: null, peer_count: 0 };
+    const card = (linkOn: boolean) => <ThisMacCard self={self} linkOn={linkOn} onRename={() => {}} onResetIdentity={() => {}} />;
+    const view = render(card(false));
+    const fold = () => within(view.container).getByRole("button", { name: "Fingerprint, to check when you pair" });
+    expect(fold().getAttribute("aria-expanded")).toBe("false");
+    fireEvent.click(fold());
+    expect(fold().getAttribute("aria-expanded")).toBe("true");
+    expect(within(view.container).getByLabelText("Machine fingerprint").textContent).toBe("3F2A 0000");
+    view.rerender(card(true));
+    expect(fold().getAttribute("aria-expanded")).toBe("true");
+    view.rerender(card(false));
+    expect(fold().getAttribute("aria-expanded")).toBe("false");
+  });
+});
