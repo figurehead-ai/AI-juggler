@@ -334,24 +334,33 @@ function PhaseView({ phase, status, parts, onAdd, onRemove, onRemoveAnyway }: { 
         </Card>
       );
     case "remove":
-      return (
-        <Card parts={parts} title={`What Remove takes out of ${app}`}>
-          <RemoveFiles files={phase.files} changed={phase.changed} testId={testId} />
-          {phase.changed.length > 0 && (
+      // Round 7 #8 (aij-test run 3): refused, Remove deleted nothing; the
+      // card listed "Deletes …" as if it would. It says so plainly, then
+      // what Remove anyway would delete.
+      if (phase.changed.length > 0) {
+        return (
+          <Card parts={parts} title={`Nothing was taken out of ${app}`}>
             <p className="text-meta text-ink" data-testid={`${testId}-remove-changed`}>
-              {changedWords(phase.changed)} changed since AI Juggler added it, so Remove takes nothing out. Remove anyway takes the connector out whole, deleting {phase.changed.length === 1 ? "that file" : "those files"} too.
+              {changedWords(phase.changed)} changed since AI Juggler added it, so Remove leaves the connector as it is.
             </p>
-          )}
-          <span className="mt-1 flex flex-wrap gap-2">
-            {phase.changed.length > 0 ? (
+            <span className="text-meta text-ink-2">Remove anyway would delete:</span>
+            <RemoveFiles files={phase.files} changed={phase.changed} anyway testId={testId} />
+            <span className="mt-1 flex flex-wrap gap-2">
               <Button size="sm" variant="danger" disabled={busy} onClick={onRemoveAnyway} data-testid={`${testId}-remove-anyway`}>
                 Remove anyway (also deletes {changedWords(phase.changed)})
               </Button>
-            ) : (
-              <Button size="sm" variant="danger" disabled={busy} onClick={onRemove} data-testid={`${testId}-confirm-remove`}>
-                {CONNECTOR.confirmRemove(app)}
-              </Button>
-            )}
+              {cancel}
+            </span>
+          </Card>
+        );
+      }
+      return (
+        <Card parts={parts} title={`What Remove takes out of ${app}`}>
+          <RemoveFiles files={phase.files} changed={phase.changed} testId={testId} />
+          <span className="mt-1 flex flex-wrap gap-2">
+            <Button size="sm" variant="danger" disabled={busy} onClick={onRemove} data-testid={`${testId}-confirm-remove`}>
+              {CONNECTOR.confirmRemove(app)}
+            </Button>
             {cancel}
           </span>
         </Card>

@@ -13,6 +13,7 @@ import { MACHINES_WORD } from "../../lib/machine-words";
 import { showToast } from "../../components/Toast";
 import { errorText } from "../../lib/bridge";
 import { poolJoin } from "../../lib/ipc/pool-model";
+import { DesktopListNote, DesktopReachTag } from "./connector/DesktopReach";
 import { usePendingAdds, withPendingAdd } from "../../lib/pool-pending";
 import { REACH_WORDS, type Candidate } from "../../lib/new-pool";
 import { setPools } from "../../lib/pools";
@@ -73,6 +74,8 @@ export function PaletteMore({
         }}
         testId="canvas-palette-kind"
       />
+      {/* Round 7 #9: how a desktop session takes part, once for the list. */}
+      <DesktopListNote notes={rows.map(({ row }) => (row.blocked ? undefined : row.note))} testId="canvas-palette-more-note" />
       <ul className="flex flex-col gap-1">
         {rows.map(({ row, added }, at) => (
           <li key={row.ref} className="flex flex-col gap-0.5 rounded-lg border border-dashed border-hairline bg-surface px-2 py-1.5" data-testid="canvas-palette-more-item">
@@ -81,6 +84,7 @@ export function PaletteMore({
                 <span className={"truncate text-meta " + (row.blocked ? "text-ink-2" : "text-ink")}>{row.label}</span>
                 <span className="truncate text-label text-faint">{row.reach === "later" && !row.blocked && row.kind !== "everyone" ? `${row.detail} · ${REACH_WORDS.later}` : row.detail}</span>
               </span>
+              {!row.blocked && row.note && <DesktopReachTag member={row.ref} testId="canvas-palette-more-reach" />}
               {added && (
                 <output className="shrink-0 px-1.5 py-0.5 text-label text-muted" data-testid="canvas-palette-more-added">
                   Added
@@ -106,11 +110,6 @@ export function PaletteMore({
                 </button>
               )}
             </span>
-            {!row.blocked && row.note && (
-              <span className="text-label text-warning" data-testid="canvas-palette-more-note">
-                {row.note}
-              </span>
-            )}
             {row.blocked && (
               <span className="flex flex-wrap items-center gap-1.5 text-label text-warning">
                 {row.blocked}

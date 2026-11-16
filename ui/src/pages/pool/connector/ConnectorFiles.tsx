@@ -7,7 +7,7 @@
 import type { JSX } from "react";
 
 import { Disclosure } from "../../../components/controls";
-import { fileLine, keptLine, removeLine } from "../../../lib/connector";
+import { fileLine, keptLine, removeLine, shortPath } from "../../../lib/connector";
 import type { ConnectorFileInfo } from "../../../lib/ipc/connector";
 
 /** Each file Add would write, with its text. */
@@ -33,13 +33,15 @@ export function ConnectorFiles({ files, testId }: { files: readonly ConnectorFil
   );
 }
 
-/** What Remove deletes, and what it leaves because someone changed it. */
-export function RemoveFiles({ files, changed, testId }: { files: readonly string[]; changed: readonly string[]; testId: string }): JSX.Element {
+/** What Remove deletes ("Deletes ~/…"); or, `anyway`, what Remove anyway
+ * would delete, each by its path, the changed one said so. */
+export function RemoveFiles({ files, changed, anyway = false, testId }: { files: readonly string[]; changed: readonly string[]; anyway?: boolean; testId: string }): JSX.Element {
+  const line = (path: string) => (changed.includes(path) ? keptLine(path) : anyway ? shortPath(path) : removeLine(path));
   return (
-    <ul className="flex flex-col gap-1" data-testid={`${testId}-remove-files`}>
+    <ul className={"flex flex-col gap-1" + (anyway ? " list-disc pl-5" : "")} data-testid={`${testId}-remove-files`}>
       {files.map((path) => (
         <li key={path} className={"text-meta [overflow-wrap:anywhere] " + (changed.includes(path) ? "text-warning" : "text-ink")} data-testid={`${testId}-remove-file`}>
-          {changed.includes(path) ? keptLine(path) : removeLine(path)}
+          {line(path)}
         </li>
       ))}
     </ul>

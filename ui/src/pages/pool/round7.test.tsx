@@ -7,12 +7,16 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import { CONNECTOR } from "../../lib/connector";
+import type { JSX } from "react";
+
+import { CONNECTOR, desktopRecipients, useDesktopSessions } from "../../lib/connector";
+import { PREVIEW_SESSIONS_UPDATED } from "../../lib/ipc/instances";
+import { usePoolRules } from "../../lib/pool-rules";
 import { resetPreviewConnector } from "../../lib/ipc/connector";
-import { poolJoin, type MemberKind } from "../../lib/ipc/pool-model";
+import { poolJoin, poolRules, resetPreviewPoolModel, type MemberKind } from "../../lib/ipc/pool-model";
 import { setPools } from "../../lib/pools";
 import { previewPoolsInfo, resetPreviewPools } from "../../lib/ipc/pools";
-import { draftOf, type Candidate, type Draft } from "../../lib/new-pool";
+import { DESKTOP_NOTE, draftOf, type Candidate, type Draft } from "../../lib/new-pool";
 import { templateById } from "../../lib/pool-templates";
 import { firstPrompt } from "../../lib/pool-sentences";
 import { STEP_WORDS } from "../../lib/pool-words";
@@ -48,13 +52,15 @@ describe("round 7 #2: the connector on Who's in's own row", () => {
   });
 
   it("checked, its row says Watched: can't talk in the pool yet, with Add; Add is the consent card's own preview, then added", async () => {
-    const row: Candidate = { ref: `app:${WORK}`, kind: "app", label: "Claude app · Work Max", detail: "none open now", group: "all", reach: "later", blocked: null, note: "Runs in the Claude app: …", lastMs: 0 };
+    const row: Candidate = { ref: `app:${WORK}`, kind: "app", label: "Claude app · Work Max", detail: "none open now", group: "all", reach: "later", blocked: null, note: DESKTOP_NOTE, lastMs: 0 };
     const candidates = { session: [], app: [row], account: [], tool: [], mac: [], everyone: [] } as Record<MemberKind, Candidate[]>;
     let draft: Draft = { ...draftOf(templateById("blank"), null), members: [] };
     const view = render(<NewPoolWho draft={draft} onDraft={(next) => (draft = next)} candidates={candidates} onFix={() => undefined} />);
     fireEvent.click(screen.getByRole("radio", { name: /Apps/ }));
-    // Not in yet: what joining means, said once.
-    expect(screen.getByTestId("new-pool-candidate-note")).toBeTruthy();
+    // Not in yet: what joining means, said once for the list (#9), and the
+    // row's own state in a word.
+    expect(screen.getByTestId("new-pool-desktop-note").textContent).toBe(DESKTOP_NOTE);
+    expect((await screen.findByTestId("new-pool-candidate-reach")).textContent).toBe("Watched");
     fireEvent.click(within(screen.getByTestId("new-pool-candidate")).getByRole("checkbox"));
     view.rerender(<NewPoolWho draft={draft} onDraft={(next) => (draft = next)} candidates={candidates} onFix={() => undefined} />);
     const state = await screen.findByTestId("new-pool-connector-card");
@@ -62,7 +68,7 @@ describe("round 7 #2: the connector on Who's in's own row", () => {
     expect(state.getAttribute("data-state")).toBe("absent");
     expect(state.textContent).toContain("Watched: can't talk in the pool yet.");
     expect(state.textContent).toContain("AI Juggler's connector (a small helper AI Juggler adds to an app");
-    expect(screen.queryByTestId("new-pool-candidate-note")).toBeNull();
+    expect(screen.queryByTestId("new-pool-candidate-reach")).toBeNull();
     await act(async () => fireEvent.click(screen.getByTestId("new-pool-connector-card-add")));
     expect(screen.getByTestId("new-pool-connector-card-preview-sentence").textContent).toContain("This adds a small helper to your Claude app (Work Max)");
     await act(async () => fireEvent.click(screen.getByTestId("new-pool-connector-card-confirm")));
@@ -147,5 +153,70 @@ describe("round 7 #5: the desktop lists follow the pool's members", () => {
     desktop("current", true);
     await act(async () => setPools(await poolJoin(POOL, ref, "member")));
     await waitFor(() => expect(screen.getByTestId("canvas-rule-wake").textContent).toBe("Its sessions: reads messages on its next turn"));
+  });
+});
+
+// #6 (aij-test run 3): the pool page was open before the aij-test session
+// started and never showed it; after aij-test quit its App still said
+// "1 open now". The page follows the app's session events, live.
+describe("round 7 #6: the pool page follows sessions live", () => {
+  const POOL = "pool-live";
+  const APP = "app:claude-app:/Users/you/Profiles/aij-test";
+  const ref = `app:${APP}`;
+  const session = { member: "conversation:claude-aij/c1", session_id: "desktop:claude-aij/c1", name: "Say hello to lab", place: "Claude app · aij-test", tool: "Claude Code", account: null, role: "member", app_id: APP, via: "app", wake: "next_turn" };
+  function Page(): JSX.Element {
+    const { rules } = usePoolRules(POOL);
+    const sessions = useDesktopSessions(POOL);
+    return (
+      <>
+        {rules && <RuleNodes poolId={POOL} rules={rules.members} watched={[]} labelOf={() => "Claude app · aij-test"} selection={{ kind: "none" }} onSelect={() => undefined} />}
+        <ul data-testid="to-list">
+          {desktopRecipients(sessions).map((one) => (
+            <li key={one.session_id}>{one.name}</li>
+          ))}
+        </ul>
+      </>
+    );
+  }
+  beforeEach(() => {
+    forgetSharedReads();
+    resetPreviewConnector();
+    resetPreviewPools();
+    Object.assign(window, {
+      __AIJ_POOLS__: { pools: [{ id: POOL, name: "Lab pair", rules: [] }], members: [] },
+      __AIJ_POOL_RULES__: { [POOL]: { members: [{ member: ref, kind: "app", role: "member", level: null, joined_at: 1, sessions: 0, session_ids: [] }] } },
+      __AIJ_DESKTOP_MEMBERS__: { [POOL]: [{ member: ref, app_id: APP, connector: "current", connected: true, wake: "next_turn" }] },
+      __AIJ_DESKTOP_SESSIONS__: { [POOL]: [] },
+      __AIJ_CONNECTOR__: { [APP]: { state: "current" } },
+    });
+  });
+  afterEach(() => {
+    cleanup();
+    Object.assign(window, { __AIJ_POOLS__: undefined, __AIJ_POOL_RULES__: undefined, __AIJ_DESKTOP_MEMBERS__: undefined, __AIJ_DESKTOP_SESSIONS__: undefined, __AIJ_CONNECTOR__: undefined });
+    resetPreviewPools();
+    resetPreviewPoolModel();
+  });
+
+  it("a session event, with no navigation, adds the node and the recipient; an end event takes away the open count", async () => {
+    render(<Page />);
+    await waitFor(() => expect(screen.getByTestId("canvas-rule-open").textContent).toBe("No session open yet · new ones join"));
+    expect(screen.queryByTestId("canvas-desktop-session")).toBeNull();
+    expect(screen.getByTestId("to-list").textContent).toBe("");
+
+    // aij-test starts and calls: the app says the sessions changed.
+    (await poolRules(POOL)).members[0]!.sessions = 1;
+    Object.assign(window, { __AIJ_DESKTOP_SESSIONS__: { [POOL]: [session] } });
+    act(() => void window.dispatchEvent(new Event(PREVIEW_SESSIONS_UPDATED)));
+    expect((await screen.findByTestId("canvas-desktop-session")).textContent).toContain("Say hello to lab");
+    expect(screen.getByTestId("to-list").textContent).toBe("Say hello to lab · Claude app · aij-test");
+    await waitFor(() => expect(screen.getByTestId("canvas-rule-open").textContent).toBe("1 open now · new ones join"));
+
+    // aij-test quits: its conversation closes (the conversations' event).
+    (await poolRules(POOL)).members[0]!.sessions = 0;
+    Object.assign(window, { __AIJ_DESKTOP_SESSIONS__: { [POOL]: [] } });
+    act(() => void window.dispatchEvent(new Event("aij:preview-conversations-changed")));
+    await waitFor(() => expect(screen.getByTestId("canvas-rule-open").textContent).toBe("No session open yet · new ones join"));
+    expect(screen.queryByTestId("canvas-desktop-session")).toBeNull();
+    expect(screen.getByTestId("to-list").textContent).toBe("");
   });
 });

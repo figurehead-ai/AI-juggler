@@ -175,7 +175,13 @@ describe("AJ-E3013: Remove anyway", () => {
     Object.assign(window, { __AIJ_CONNECTOR__: { [WORK]: { state: "changed", changed: [changed] } } });
     card();
     await act(async () => fireEvent.click(await screen.findByTestId("c-remove")));
-    expect(screen.getByTestId("c-remove-changed").textContent).toContain("SKILL.md changed since AI Juggler added it, so Remove takes nothing out.");
+    // Round 7 #8: it says nothing was taken out, then what Remove anyway
+    // would delete; never "Deletes …" as if Remove will.
+    expect(screen.getByTestId("c").querySelector("h3")!.textContent).toBe("Nothing was taken out of Claude · Work");
+    expect(screen.getByTestId("c-remove-changed").textContent).toBe("SKILL.md changed since AI Juggler added it, so Remove leaves the connector as it is.");
+    expect(screen.getByTestId("c").textContent).toContain("Remove anyway would delete:");
+    expect(screen.getAllByTestId("c-remove-file").map((one) => one.textContent)).toEqual([`${FOLDER}/skills/ai-juggler/.claude-plugin/plugin.json`, `${FOLDER}/skills/ai-juggler/skills/pool-tasks/SKILL.md changed since AI Juggler wrote it`]);
+    expect(screen.getByTestId("c").textContent).not.toMatch(/Deletes /);
     const anyway = screen.getByTestId("c-remove-anyway");
     expect(anyway.textContent).toBe("Remove anyway (also deletes SKILL.md)");
     expect(document.activeElement).toBe(screen.getByTestId("c-cancel"));

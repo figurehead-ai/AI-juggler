@@ -4,7 +4,7 @@
  * part before it's added (AJ-E3013: through its app's connector).
  */
 import { describe, expect, it } from "vitest";
-import { draftOf, sessionCandidates } from "./new-pool";
+import { DESKTOP_NOTE, draftOf, sessionCandidates } from "./new-pool";
 import { templateById } from "./pool-templates";
 import type { ConversationInfo } from "../types/generated/ConversationInfo";
 
@@ -47,7 +47,8 @@ describe("a session another app runs, offered to a pool", () => {
     const row = rows.find((one) => one.ref === "conversation:acc/c1");
     expect(row?.reach).toBe("watched");
     expect(row?.blocked).toBeNull();
-    expect(row?.note).toBe("Runs in the Claude app: with AI Juggler's connector in its app (a small helper, added with your OK) it talks in the pool; without it, it's Watched.");
+    // Round 7 #9: one sentence for the list, the same for every such row.
+    expect(row?.note).toBe(DESKTOP_NOTE);
     expect(row?.fix).toBeUndefined();
   });
 });

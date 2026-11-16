@@ -23,6 +23,7 @@ import { Picker, Segmented } from "../../components/controls";
 import { ShellOnlyChip } from "../../components/ShellOnly";
 import { MEMBER_KINDS, type MemberKind } from "../../lib/ipc/pool-model";
 import { ConnectorCard } from "../../pages/pool/connector/ConnectorCard";
+import { DesktopListNote, DesktopReachTag } from "../../pages/pool/connector/DesktopReach";
 import { useApps, type AppModel } from "../../lib/apps";
 import { desktopAppsOf } from "../../lib/connector";
 import { nextRole, REACH_WORDS, type Candidate, type Draft, type DraftMember } from "../../lib/new-pool";
@@ -188,6 +189,8 @@ export function NewPoolWho({
               className="seg-fill h-8 rounded-lg bg-fill px-2.5 text-meta text-ink outline-none placeholder:text-muted focus-visible:ring-2 focus-visible:ring-accent/60"
             />
           )}
+          {/* Round 7 #9: how a desktop session takes part, once for the list. */}
+          <DesktopListNote notes={rows.map((row) => (row.blocked ? undefined : row.note))} testId="new-pool-desktop-note" />
           <div className="flex flex-col gap-3" data-testid="new-pool-candidates">
             {GROUPS.map((group) => {
               const inGroup = rows.filter((row) => row.group === group.id);
@@ -273,21 +276,16 @@ function CandidateRow({ row, on, desktop, onToggle, onFix }: { row: Candidate; o
         {/* A row that can't join has no reach to promise (the P6 walk: a
             paired Mac said "new ones join" beside why it can't). */}
         {!blocked && <span className="shrink-0 text-meta text-muted">{REACH_WORDS[row.reach]}</span>}
+        {/* Round 7 #9: where its app stands, in a word (the list says why). */}
+        {!blocked && row.note && !on && <DesktopReachTag member={row.ref} testId="new-pool-candidate-reach" />}
         {!blocked && row.shell && <ShellOnlyChip why={row.shell} inRow />}
       </button>
       {/* Round 7: once in, a desktop App's row says where its connector
           stands, with Add (the consent card's own preview), before Next. */}
-      {on && desktop ? (
+      {on && desktop && (
         <div className="pl-6">
           <ConnectorCard compact appId={desktop.id} app={desktop.name} kind={desktop.app} profile={desktop.profile} heading={4} testId="new-pool-connector-card" />
         </div>
-      ) : (
-        !row.blocked &&
-        row.note && (
-          <span className="pl-6 text-meta text-ink-2" data-testid="new-pool-candidate-note">
-            {row.note}
-          </span>
-        )
       )}
       {(row.blocked || (row.fix && row.reach === "watched")) && (
         <span className="flex flex-wrap items-center gap-2 pl-6 text-meta text-ink-2">

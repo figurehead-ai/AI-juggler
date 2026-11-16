@@ -13,13 +13,12 @@
  *   every few seconds only while its guide is open), a pool's desktop
  *   members (again when the pool or a connector changes; never polled).
  */
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { sharedReads, useSharedRead } from "./shared-read";
 import { POOLS_GUIDE } from "./pool-words";
 import { CONNECTOR_CHANGED, connectorDesktopMembers, connectorDesktopSessions, connectorStatus, type ConnectorStatusInfo, type DesktopMemberInfo, type DesktopSessionInfo } from "./ipc/connector";
-import { POOL_RULES_CHANGED } from "./ipc/pool-model";
-import { usePools } from "./pools";
+import { usePoolEvents } from "./pool-live";
 import type { AppModel } from "./apps";
 import type { AgentBridgeInfo } from "./ipc/agent-bridge";
 
@@ -191,30 +190,12 @@ const statuses = sharedReads(connectorStatus);
 const members = sharedReads(connectorDesktopMembers);
 const sessions = sharedReads(connectorDesktopSessions);
 
-/** Read again on Add, Remove, and a pool's change. */
-function useReadAgain(refresh: () => void, poolId?: string): void {
-  // Round 7 #5 (aij-test run 2): after an Add in "Add a session" the new
-  // node read "Its app has no AI Juggler connector", from a list read
-  // before it. Every change to a pool's members (Add, Take out, Undo, a
-  // move) lands in the pools store; read again then, as the pool's rules
-  // do (lib/pool-rules), but not twice on open.
-  const pools = usePools();
-  const seen = useRef(pools);
+/** A connector's state, read again on Add and Remove. */
+function useReadAgain(refresh: () => void): void {
   useEffect(() => {
-    if (seen.current !== null && seen.current !== pools) refresh();
-    seen.current = pools;
-  }, [pools, refresh]);
-  useEffect(() => {
-    const again = (event: Event) => {
-      if (!(event instanceof CustomEvent) || !poolId || event.type === CONNECTOR_CHANGED || event.detail === poolId) refresh();
-    };
-    window.addEventListener(CONNECTOR_CHANGED, again);
-    if (poolId) window.addEventListener(POOL_RULES_CHANGED, again);
-    return () => {
-      window.removeEventListener(CONNECTOR_CHANGED, again);
-      window.removeEventListener(POOL_RULES_CHANGED, again);
-    };
-  }, [refresh, poolId]);
+    window.addEventListener(CONNECTOR_CHANGED, refresh);
+    return () => window.removeEventListener(CONNECTOR_CHANGED, refresh);
+  }, [refresh]);
 }
 
 /** Where the connector stands in `appId` (`undefined` until read); read
@@ -232,7 +213,7 @@ export function useConnectorStatus(appId: string | null, polling = false): Conne
 export function useDesktopMembers(poolId: string | undefined, polling = false): ReadonlyMap<string, DesktopMemberInfo> | undefined {
   const source = poolId ? members(poolId) : null;
   const value = useSharedRead(source, { pollMs: polling ? GUIDE_POLL_MS : 0 });
-  useReadAgain(useCallback(() => void source?.refresh(), [source]), poolId);
+  usePoolEvents(poolId, useCallback(() => void source?.refresh(), [source]));
   return useMemo(() => (value ? new Map(value.map((one) => [one.member, one])) : undefined), [value]);
 }
 
@@ -241,7 +222,7 @@ export function useDesktopMembers(poolId: string | undefined, polling = false): 
 export function useDesktopSessions(poolId: string | undefined): readonly DesktopSessionInfo[] {
   const source = poolId ? sessions(poolId) : null;
   const value = useSharedRead(source);
-  useReadAgain(useCallback(() => void source?.refresh(), [source]), poolId);
+  usePoolEvents(poolId, useCallback(() => void source?.refresh(), [source]));
   return value ?? NONE;
 }
 

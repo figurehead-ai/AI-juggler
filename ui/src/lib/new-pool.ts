@@ -131,20 +131,11 @@ export interface Candidate {
   lastMs: number;
 }
 
-/** A desktop App member: it may join (decision 15 offers it, never
- * greyed), and says what its sessions can do here (the rc26 P1 walk: the
- * Claude app read "none open now · new ones join" beside Add, as if they
- * would act). AJ-E3013: they talk through AI Juggler's connector, added
- * with the user's OK; Watched without it. */
-function desktopAppNote(app: string): string {
-  return `Runs in the ${app}: with AI Juggler's connector in it (a small helper, added with your OK) its sessions talk in the pool; without it they're Watched.`;
-}
-
-/** A session another app runs: how it takes part, said before it's added
- * (P1 step 8; AJ-E3013). */
-function watchedNote(where: string): string {
-  return `Runs in ${where}: with AI Juggler's connector in its app (a small helper, added with your OK) it talks in the pool; without it, it's Watched.`;
-}
+/** A desktop App, or a session another app runs: how it takes part, said
+ * before it's added (the rc26 P1 walk; P1 step 8; AJ-E3013). Round 7 #9
+ * (aij-test run 3): said once for the list, not on every row (each row
+ * says only where it stands: Watched, or can talk). */
+export const DESKTOP_NOTE = "Sessions in a desktop app talk in the pool once AI Juggler's connector (a small helper, added with your OK) is in their app; until then they're Watched: shown and counted, without the pool's tools.";
 
 const DAY = 24 * 60 * 60 * 1000;
 
@@ -215,7 +206,7 @@ export function sessionCandidates(input: {
         group: (conversation.live ? "open" : now - lastMs < 7 * DAY ? "recent" : "all") as Candidate["group"],
         reach: "watched" as const,
         // P1 step 8 (the rc29 walk): its reason before it's added.
-        note: watchedNote(where),
+        note: DESKTOP_NOTE,
         lastMs,
       };
       if (!inScope(draft, project)) return { ...base, blocked: `Works in ${projectName(project)}, not in this pool's projects.`, fix: { label: `Add ${projectName(project)}`, action: "scope" as const, arg: project ?? "" } };
@@ -325,7 +316,7 @@ export function broadCandidates(input: {
     case "app":
       return input.apps.map((app) => {
         const one = row(memberRef("app", app.id), "app", app.name, open((session) => app.folder !== null && session.account_id === app.folder.id));
-        return app.kind === "desktop" ? { ...one, note: desktopAppNote(app.app) } : one;
+        return app.kind === "desktop" ? { ...one, note: DESKTOP_NOTE } : one;
       });
     case "account":
       // The stored Account, never the list's key (the pools L2 on the
