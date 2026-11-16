@@ -3290,6 +3290,7 @@ The design that follows from it:
 4. **Process.** A Sonnet multi-angle research pass, then an Opus ADR for a pluggable `SummaryEngine` seam (Apple, local model and extractive implementations), with the design brought to the coordinating session before building. Shipping auto-download to users is product behaviour this ruling covers; downloads during development still need the maintainer's yes.
 
 - **Tasks:** AJ-E3708 (A), AJ-E3709 (B research), AJ-E3710 (B design, the ADR), AJ-E3711 (B build), in E37.
+- **Amended by D-121** (2026-11-16): the engines sit behind one AI-jobs router, at most one downloaded model, and Chat v1.
 - **Amends:** D-118 point 4 ("summaries written by a model (b) are not in 0.5"): on-device lines (b) are now in 0.5, as above; cloud and the user's-CLI routes stay out.
 - Sources: the coordinating session's relay of the maintainer, 2026-11-16, and `docs/research/feed-summaries-and-orchestrator-options.md`.
 
@@ -3301,3 +3302,23 @@ The design that follows from it:
 - **Build order.** A, then tier 1 with the extractive check, then tier 2.
 - **Open idea, not scope.** Users who download the model might get "some conversation with it too" (asking questions about their sessions on-device). Noted for a later decision.
 - **Development download.** The maintainer approves the download used for measurement only after the coordinating session's model-selection study names the model and its pinned source.
+
+### D-121 AI jobs through one router; Chat v1 (read-only) in 0.5; one downloaded model at most — amends D-120 — SETTLED (2026-11-16)
+
+**Ruling.** The maintainer, 2026-11-16, after the on-device summary evaluation: "not every model needs to be used for everything… Mac models if available could be used for summarization, and querying about things, while maybe more powerful model enable bot orchestration capabilities… our system can be smart about it". On chat: "if we are going to use models from getgo, I think we should enable chat section, a separate icon top right allowing you to chat about everything that is going on with the model… Eventually that turns into also an orchestrator bot too". On disk: "multiple models… eat up user disk space, so all of that needs to be optional… we can have a router but we just have to be smart about disk space usage".
+
+1. **One router for AI jobs.** ADR-0033's `SummaryEngine` seam is generalised into one AI-jobs seam. Jobs (summarise, answer and look up, later orchestrate) declare what they need: how much context, whether they use tools, a quality tier. Engines (Apple's model, a local model, the user's own server, later a cloud engine) declare what they can do. The router picks the best available engine for each job. A job with no capable engine is hidden, never shown broken. An ADR (an amendment to 0033 or a new 0034) comes before any building.
+2. **Disk.**
+   1. Apple's model is preferred: it costs no disk.
+   2. At most one downloaded model by default, shared by every job it can serve, never one model per job.
+   3. A second or larger model only with the user's explicit approval, which shows its size.
+   4. Settings shows the total disk the AI models use, with a Remove button.
+   5. No download when free disk is below the model's size plus 10 GB.
+   6. The models are never touched by Clear cache.
+3. **Chat v1, read-only.** A chat icon at the top right opens a side panel. It answers questions through look-ups over AI Juggler's own data (sessions, feed events, tasks, pools, usage, runway), never by putting raw transcripts into the model's context (Apple's Foundation Models Tool protocol fits). Every answer cites its sources as links and says "I don't know" when the look-ups find nothing. It never acts: no sending, switching, stopping or approving. Acting comes with the orchestrator, behind pool levels and approvals. Chat history is local and clearable. The same faithfulness and injection guard applies, with tool results treated as quoted data. With no capable model, the icon opens a panel with suggested look-ups that need no AI and the approved download offer. Calm design, the ui-consistency rule, the a11y gates and a newcomer walk apply.
+4. **Order.** A (excerpts, AJ-E3708); then the router and Chat v1 on Apple's model; then B's calm-line rewriting, only if blind reviewers prefer it over A's excerpt on the realistic corpus with zero FAILs; then the local tier, after the download approval and the model tests.
+
+- **Not scheduled:** the orchestrator bot. It builds on the router and Chat, and needs its own ruling.
+- **Tasks:** E38 (AJ-E3801…AJ-E3810); AJ-E3711's handover now points at the router and B's shipping rule.
+- **Amends:** D-120 (point 2's tier list becomes engines behind the router; B's calm lines ship only on the rule in point 4; the "conversation" open idea becomes Chat v1).
+- Sources: the coordinating session's relay of the maintainer, 2026-11-16.
