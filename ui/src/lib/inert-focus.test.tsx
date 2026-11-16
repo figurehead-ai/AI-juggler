@@ -6,7 +6,7 @@
  * by hand (blur in the close), as the browser does it.
  */
 import { act, cleanup, render } from "@testing-library/react";
-import { useRef, useState, type JSX } from "react";
+import { useEffect, useRef, useState, type JSX } from "react";
 import { afterEach, describe, expect, it } from "vitest";
 import { releaseAllInert, useInertOutside } from "./inert";
 
@@ -17,30 +17,32 @@ afterEach(() => {
 
 let close: () => void = () => {};
 
-function Popover(): JSX.Element {
+function Popover({ onClose }: { onClose: (close: () => void) => void }): JSX.Element {
   const [open, setOpen] = useState(false);
   const button = useRef<HTMLButtonElement | null>(null);
-  const panel = useRef<HTMLDivElement | null>(null);
+  const panel = useRef<HTMLDialogElement | null>(null);
   useInertOutside(panel, open);
-  close = () => {
-    setOpen(false);
-    // What the browser does to `button.focus()` while the button is inert.
-    const active = document.activeElement;
-    if (active instanceof HTMLElement) active.blur();
-  };
+  useEffect(() => {
+    onClose(() => {
+      setOpen(false);
+      // What the browser does to `button.focus()` while the button is inert.
+      const active = document.activeElement;
+      if (active instanceof HTMLElement) active.blur();
+    });
+  }, [onClose]);
   return (
     <div>
       <button ref={button} type="button" onClick={() => setOpen(true)}>
         Open
       </button>
-      <div>{open && <div ref={panel} role="dialog" aria-label="Panel">inside</div>}</div>
+      <div>{open && (<dialog ref={panel} open aria-label="Panel">inside</dialog>)}</div>
     </div>
   );
 }
 
 describe("useInertOutside gives focus back to the opener", () => {
   it("when a close left focus on the page", () => {
-    const view = render(<Popover />);
+    const view = render(<Popover onClose={(fn) => (close = fn)} />);
     const button = view.getByRole("button", { name: "Open" });
     button.focus();
     act(() => button.click());
