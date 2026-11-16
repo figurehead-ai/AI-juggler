@@ -22,7 +22,9 @@ import { Button } from "../../components/primitives";
 import { Picker, Segmented } from "../../components/controls";
 import { ShellOnlyChip } from "../../components/ShellOnly";
 import { MEMBER_KINDS, type MemberKind } from "../../lib/ipc/pool-model";
-import { DesktopConnectors } from "../../pages/pool/connector/DesktopConnectors";
+import { ConnectorCard } from "../../pages/pool/connector/ConnectorCard";
+import { useApps, type AppModel } from "../../lib/apps";
+import { desktopAppsOf } from "../../lib/connector";
 import { nextRole, REACH_WORDS, type Candidate, type Draft, type DraftMember } from "../../lib/new-pool";
 import { MACHINE_WORD, MACHINES_WORD } from "../../lib/machine-words";
 import { templateById } from "../../lib/pool-templates";
@@ -129,6 +131,9 @@ export function NewPoolWho({
     setMore({});
   };
   const named = draft.members.filter((member) => member.ref !== "all");
+  // Round 7: a desktop App's row asks for its connector itself.
+  const apps = useApps();
+  const desktopOf = (ref: string) => desktopAppsOf([ref], apps ?? [])[0];
   const everyone = draft.members.find((member) => member.ref === "all");
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1.6fr)_minmax(240px,1fr)]" data-testid="new-pool-step-who">
@@ -196,7 +201,7 @@ export function NewPoolWho({
                   </span>
                   <ul className="flex flex-col gap-0.5 rounded-xl bg-surface p-1">
                     {cut.map((row) => (
-                      <CandidateRow key={row.ref} row={row} on={has(row.ref)} onToggle={() => toggle(row)} onFix={() => onFix(row)} />
+                      <CandidateRow key={row.ref} row={row} on={has(row.ref)} desktop={desktopOf(row.ref)} onToggle={() => toggle(row)} onFix={() => onFix(row)} />
                     ))}
                   </ul>
                   {cut.length < inGroup.length && (
@@ -241,14 +246,12 @@ export function NewPoolWho({
           </ul>
         )}
       </aside>
-      {/* AJ-E3013: a desktop App in it gets AI Juggler's connector here, with consent. */}
-      <DesktopConnectors refs={draft.members.map((member) => member.ref)} testId="new-pool-connector" />
       </div>
     </div>
   );
 }
 
-function CandidateRow({ row, on, onToggle, onFix }: { row: Candidate; on: boolean; onToggle: () => void; onFix: () => void }): JSX.Element {
+function CandidateRow({ row, on, desktop, onToggle, onFix }: { row: Candidate; on: boolean; desktop: AppModel | undefined; onToggle: () => void; onFix: () => void }): JSX.Element {
   const blocked = row.blocked !== null;
   return (
     <li className={"flex flex-col gap-1 rounded-lg px-3 py-2 " + (on ? "bg-surface-3" : blocked ? "" : "hover:bg-surface-2")} data-testid="new-pool-candidate" data-ref={row.ref}>
@@ -272,10 +275,19 @@ function CandidateRow({ row, on, onToggle, onFix }: { row: Candidate; on: boolea
         {!blocked && <span className="shrink-0 text-meta text-muted">{REACH_WORDS[row.reach]}</span>}
         {!blocked && row.shell && <ShellOnlyChip why={row.shell} inRow />}
       </button>
-      {!row.blocked && row.note && (
-        <span className="pl-6 text-meta text-ink-2" data-testid="new-pool-candidate-note">
-          {row.note}
-        </span>
+      {/* Round 7: once in, a desktop App's row says where its connector
+          stands, with Add (the consent card's own preview), before Next. */}
+      {on && desktop ? (
+        <div className="pl-6">
+          <ConnectorCard compact appId={desktop.id} app={desktop.name} kind={desktop.app} profile={desktop.profile} heading={4} testId="new-pool-connector-card" />
+        </div>
+      ) : (
+        !row.blocked &&
+        row.note && (
+          <span className="pl-6 text-meta text-ink-2" data-testid="new-pool-candidate-note">
+            {row.note}
+          </span>
+        )
       )}
       {(row.blocked || (row.fix && row.reach === "watched")) && (
         <span className="flex flex-wrap items-center gap-2 pl-6 text-meta text-ink-2">

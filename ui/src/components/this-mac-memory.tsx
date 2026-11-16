@@ -16,16 +16,13 @@ import { memoryBasisWords } from "./this-mac-parts";
 import { bytesWords, type ThisMacInfo } from "../lib/machine";
 import { memoryParts, otherAppBytes, PRESSURE_MORE, PRESSURE_SHORT, underPressure } from "../lib/machine-memory";
 
-/** The rail's fold chevron: one look for every disclosure. */
-export function FoldChevron({ group = "group" }: { group?: "group" | "group/more" }): JSX.Element {
+/** The rail's fold chevron: one look for every disclosure. Turned by its
+ * `<details>` group's open state, or by `open` (the app's Disclosure, a
+ * button). */
+export function FoldChevron({ group = "group", open }: { group?: "group" | "group/more"; open?: boolean }): JSX.Element {
+  const turned = open !== undefined ? (open ? "rotate-90" : "") : group === "group" ? "group-open:rotate-90" : "group-open/more:rotate-90";
   return (
-    <svg
-      aria-hidden="true"
-      width="12"
-      height="12"
-      viewBox="0 0 10 10"
-      className={`shrink-0 text-muted transition-transform motion-reduce:transition-none ${group === "group" ? "group-open:rotate-90" : "group-open/more:rotate-90"}`}
-    >
+    <svg aria-hidden="true" width="12" height="12" viewBox="0 0 10 10" className={`shrink-0 text-muted transition-transform motion-reduce:transition-none ${turned}`}>
       <path d="M3.5 2 L7 5 L3.5 8" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );

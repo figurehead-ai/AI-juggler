@@ -207,7 +207,7 @@ for (const size of [
       ["pool-delete", "pool-delete-confirm", "pool-delete-keep"],
       ["pool-seal-open", "pool-seal-yes", "pool-seal-no"],
     ] as const) {
-      if (open === "pool-seal-open") await page.getByTestId("pool-more-fold").locator("summary").first().click();
+      if (open === "pool-seal-open") await page.getByTestId("pool-more-fold-toggle").click();
       await page.getByTestId(open).scrollIntoViewIfNeeded();
       await page.getByTestId(open).click();
       const button = page.getByTestId(confirm);
@@ -238,7 +238,7 @@ test("a project's New pool for … stays put as the tab loads, and opens New poo
   await door.click();
   await expect(page.getByTestId("new-pool")).toBeVisible();
   // Round 6 #7: from a project, Start from scratch is the open path.
-  await expect(page.getByTestId("new-pool-templates-fold")).not.toHaveAttribute("open", "");
+  await expect(page.getByTestId("new-pool-templates-fold")).not.toHaveAttribute("data-open", "true");
   await page.getByTestId("new-pool-next").click();
   await expect(page.getByTestId("new-pool-projects")).toContainText("storefront");
 });

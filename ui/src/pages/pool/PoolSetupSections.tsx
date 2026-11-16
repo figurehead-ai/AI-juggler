@@ -135,7 +135,7 @@ export function PoolSetupSections({
         </Section>
       </div>
       <div id="pool-setup-everyone">
-        <Section title="Everyone else" testId="pool-setup-everyone">
+        <Section title={STEP_WORDS.everyone.title} testId="pool-setup-everyone">
           <JoinAs
             where={where}
             value={(everyone ? asRole(everyone.role) : null)}

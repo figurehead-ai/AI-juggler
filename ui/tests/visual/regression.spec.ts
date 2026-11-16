@@ -333,7 +333,7 @@ for (const theme of THEMES) {
         await open(page, theme, density, vp);
         await goTo(page, "Settings");
         await await settingsPane(page, "Sessions");
-        await page.getByTestId("settings-terminal").locator("summary").click();
+        await page.getByTestId("settings-terminal-toggle").click();
         await expect(page.getByLabel("Scrollback")).toBeVisible();
         await page.mouse.move(0, 0);
         await settle(page);

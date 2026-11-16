@@ -2510,7 +2510,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.goto("/");
     await goTo(page, "Settings");
     await await settingsPane(page, "Sessions");
-    const terminal = page.getByTestId("settings-terminal").locator("summary");
+    const terminal = page.getByTestId("settings-terminal-toggle");
     await terminal.focus();
     await page.keyboard.press("Enter");
     for (const label of ["Stuck after", "Font size", "Scrollback"]) {

@@ -765,8 +765,8 @@
   "typescript(no-unsafe-type-assertion)": 1
  },
  "src/components/launch-sheet.test.tsx": {
-  "typescript(no-unnecessary-type-assertion)": 6,
-  "typescript(no-unsafe-type-assertion)": 5
+  "typescript(no-unnecessary-type-assertion)": 5,
+  "typescript(no-unsafe-type-assertion)": 4
  },
  "src/components/limit-dialog.test.tsx": {
   "eslint(no-shadow)": 1,
@@ -789,9 +789,6 @@
   "typescript(no-unsafe-type-assertion)": 5
  },
  "src/components/new-session-drop.test.tsx": {
-  "typescript(no-unsafe-type-assertion)": 1
- },
- "src/components/notification-cards.test.tsx": {
   "typescript(no-unsafe-type-assertion)": 1
  },
  "src/components/notifications.test.tsx": {
@@ -961,7 +958,7 @@
  },
  "src/components/report-bug.test.tsx": {
   "typescript(no-floating-promises)": 1,
-  "typescript(no-unsafe-type-assertion)": 3
+  "typescript(no-unsafe-type-assertion)": 2
  },
  "src/components/row/RowParts.tsx": {
   "typescript(no-unnecessary-type-assertion)": 2
@@ -982,7 +979,7 @@
  },
  "src/components/session-prefs.test.tsx": {
   "typescript(no-unnecessary-type-assertion)": 2,
-  "typescript(no-unsafe-type-assertion)": 7
+  "typescript(no-unsafe-type-assertion)": 6
  },
  "src/components/settings-revert.test.tsx": {
   "typescript(no-unsafe-type-assertion)": 2
@@ -1030,7 +1027,7 @@
   "typescript(no-unsafe-type-assertion)": 8
  },
  "src/components/switch-setup.test.tsx": {
-  "typescript(no-unsafe-type-assertion)": 21
+  "typescript(no-unsafe-type-assertion)": 19
  },
  "src/components/switch-where.test.tsx": {
   "typescript(no-unnecessary-type-assertion)": 2,
@@ -2487,7 +2484,7 @@
  },
  "src/screens/settings/local-cache.test.tsx": {
   "typescript(no-unnecessary-type-assertion)": 1,
-  "typescript(no-unsafe-type-assertion)": 5
+  "typescript(no-unsafe-type-assertion)": 4
  },
  "src/screens/settings/parts.tsx": {
   "jsx-a11y(prefer-tag-over-role)": 2,
@@ -2497,7 +2494,7 @@
   "eslint(no-unused-vars)": 1
  },
  "src/screens/settings/settings-search.test.tsx": {
-  "typescript(no-unsafe-type-assertion)": 3
+  "typescript(no-unsafe-type-assertion)": 2
  },
  "src/screens/system-notifications.test.tsx": {
   "typescript(no-unnecessary-type-assertion)": 1,

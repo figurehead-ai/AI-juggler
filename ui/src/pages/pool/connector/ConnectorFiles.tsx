@@ -6,7 +6,7 @@
  */
 import type { JSX } from "react";
 
-import { FoldChevron } from "../../../components/this-mac-memory";
+import { Disclosure } from "../../../components/controls";
 import { fileLine, keptLine, removeLine } from "../../../lib/connector";
 import type { ConnectorFileInfo } from "../../../lib/ipc/connector";
 
@@ -18,16 +18,14 @@ export function ConnectorFiles({ files, testId }: { files: readonly ConnectorFil
         <li key={file.path} className="flex flex-col gap-0.5" data-action={file.action} data-testid={`${testId}-file`}>
           <span className={"text-meta [overflow-wrap:anywhere] " + (file.action === "refuse" ? "text-warning" : "text-ink")}>{fileLine(file.action, file.path)}</span>
           {file.action !== "same" && file.action !== "refuse" && (
-            <details className="group text-meta">
-              <summary className="inline-flex min-h-6 cursor-pointer list-none items-center gap-1 rounded text-accent-hi outline-none hover:underline focus-visible:ring-1 focus-visible:ring-accent/60 [&::-webkit-details-marker]:hidden" data-testid={`${testId}-file-show`}>
-                <FoldChevron />
-                {file.before === null ? "Its text" : "Its text, after"}
-              </summary>
+            // Round 7: the app's Disclosure (a button), which an
+            // accessibility press opens; a flex <summary> wasn't one.
+            <Disclosure tone="link" summary={file.before === null ? "Its text" : "Its text, after"} testId={`${testId}-file-show`}>
               {/* Its whole text, wrapped (no scrolling box of its own). */}
               <pre className="mt-1 whitespace-pre-wrap break-words rounded-lg bg-surface px-3 py-2 font-mono text-label text-ink" data-testid={`${testId}-file-text`}>
                 {file.after}
               </pre>
-            </details>
+            </Disclosure>
           )}
         </li>
       ))}

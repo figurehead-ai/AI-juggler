@@ -239,7 +239,9 @@ export const STEP_WORDS: Record<SetupStep, { title: string; nav: string; why: st
   where: { title: "Where", nav: "Where", why: "Sessions in these projects can join." },
   who: { title: "Who's in", nav: "Who's in", why: "Only these work together." },
   lead: { title: "Who leads", nav: "Who leads", why: "The lead plans and hands out the work. Pick one to be in charge, or leave it for now." },
-  everyone: { title: "Everyone else", nav: "Everyone else", why: "What each member does, and how new sessions join." },
+  // Round 7 (Sam's walk): the title says what's chosen here, the checker
+  // too (it read "Everyone else", and he missed where the reviewer is).
+  everyone: { title: "Who builds, who checks", nav: "Who builds, who checks", why: "Each member's role, and how new sessions join." },
   talk: { title: "Who may message whom", nav: "Who may message whom", why: "Set an exception only where you want one; the rest is allowed." },
   own: { title: "What they may do on their own", nav: "On their own", why: "Anything more waits for your OK in Needs you." },
   // Round 4 (D-30): the one question, its own step while unanswered.

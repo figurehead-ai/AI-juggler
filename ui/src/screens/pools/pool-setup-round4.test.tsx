@@ -153,7 +153,7 @@ describe("AJ-E3011 round 4", () => {
     render(<InspectPool pool={pool} project={undefined} now={0} onDeleted={() => undefined} />);
     const more = screen.getByTestId("pool-more-fold");
     expect(more.hasAttribute("open")).toBe(false);
-    expect(more.querySelector("summary")?.textContent).toContain("More settings");
+    expect(more.querySelector("button[aria-expanded]")?.textContent).toContain("More settings");
     for (const inside of ["pool-seal-section", "pool-spans-macs"]) expect(more.querySelector(`[data-testid="${inside}"]`)).not.toBeNull();
     expect(more.textContent).toContain("Pools its agents may write to");
   });

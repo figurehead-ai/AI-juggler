@@ -6021,7 +6021,7 @@ for (const theme of THEMES) {
     await openSettings(page, theme, { width: 1280, height: 800 }, {
       __AIJ_SESSION_PREFS__: { stuck_after_minutes: 10, terminal_font_size: 12.5, terminal_scrollback_lines: 5000 },
     }, "Sessions");
-    await page.getByTestId("settings-terminal").locator("summary").click();
+    await page.getByTestId("settings-terminal-toggle").click();
     await expect(page.getByLabel("Scrollback")).toBeVisible();
     await expect(page.getByTestId("pref-stuck_after_minutes-reset")).toHaveText("Reset to 5");
     await page.mouse.move(0, 0);

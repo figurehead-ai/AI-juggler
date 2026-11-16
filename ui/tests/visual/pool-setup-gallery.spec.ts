@@ -140,7 +140,7 @@ for (const theme of ["dark", "light"] as const) {
     await open(page, theme, canvasSeed(GATE_NOW));
     await newPool(page);
     // A pool exists: the intro is one line.
-    await expect(page.getByTestId("new-pool-intro").locator("summary")).toContainText("What a pool is");
+    await expect(page.getByTestId("new-pool-intro-toggle")).toContainText("What a pool is");
     // Answered already (the seed): no question step.
     for (const step of STEPS.filter((one) => one !== "tools")) {
       await expect(page.getByTestId(`new-pool-step-${step}`)).toBeVisible();
@@ -199,7 +199,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.getByTestId("inspector-back").click();
     await expect(page.getByTestId("pool-ready")).toContainText("This pool is ready");
     await page.getByTestId("inspect-open-settings").click();
-    await page.getByTestId("pool-setup-talk-fold").locator("summary").click();
+    await page.getByTestId("pool-setup-talk-fold-toggle").click();
     await expect(page.getByTestId("pool-talk")).toBeVisible();
     await shoot(page, SELECTION, `selection-pool-setup-1280x800-${theme}.png`);
 

@@ -92,7 +92,7 @@ for (const theme of ["dark", "light"] as const) {
     const list = page.getByTestId("switch-setup");
     await list.getByRole("button", { name: "Show me how to turn on computer-use" }).click();
     await expect(list.getByTestId("turn-on-steps")).toContainText("Sign in to claude.ai as Personal.");
-    await expect(list.getByTestId("switch-setup-unused")).not.toHaveAttribute("open", "");
+    await expect(list.getByTestId("switch-setup-unused")).not.toHaveAttribute("data-open", "true");
     await list.screenshot({ path: resolve(OUT, `turn-on-${theme}.png`) });
     await axeClean(page, "the list, steps open");
   });
@@ -154,7 +154,7 @@ for (const theme of ["dark", "light"] as const) {
     await expect(page.getByTestId("switch-step-confirm")).toBeVisible();
     await expect(page.getByRole("radio", { name: /^Desktop/ })).toBeChecked();
     await expect(page.getByTestId("switch-confirm")).toHaveText("Switch to Desktop");
-    await expect(page.getByTestId("switch-details")).not.toHaveAttribute("open", "");
+    await expect(page.getByTestId("switch-details")).not.toHaveAttribute("data-open", "true");
     await page.mouse.move(0, 0);
     await page.getByTestId("switch-flow").screenshot({ path: resolve(OUT, `where-desktop-${theme}.png`) });
     await axeClean(page, "the last step, Desktop");

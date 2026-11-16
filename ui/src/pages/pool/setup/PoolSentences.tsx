@@ -8,13 +8,14 @@ import type { JSX, ReactNode } from "react";
 import { everyoneLines, leadLine, ownLine, sealLine, talkSentence, whoSentence, type PoolShape } from "../../../lib/pool-sentences";
 import type { TeamTools } from "../../../lib/team-tools";
 import { TeamToolsFix } from "./TeamTools";
+import { STEP_WORDS } from "../../../lib/pool-words";
 
 export type SentenceRow = "who" | "lead" | "everyone" | "talk" | "own" | "sealed" | "tools";
 
 export const SENTENCE_TITLES: Record<SentenceRow, string> = {
   who: "Who's in",
   lead: "Who leads",
-  everyone: "Everyone else",
+  everyone: STEP_WORDS.everyone.nav,
   talk: "Who may message whom",
   own: "On their own",
   sealed: "Kept apart",

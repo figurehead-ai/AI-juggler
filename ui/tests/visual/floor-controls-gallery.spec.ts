@@ -34,7 +34,7 @@ for (const theme of THEMES) {
       await settingsPane(page, "The Floor");
       await expect(page.getByTestId("floor-per-floor-value")).toHaveText("8");
       await shot(page, PANE, `pane-${where}`);
-      await page.getByTestId("floor-hidden").locator("summary").click();
+      await page.getByTestId("floor-hidden-toggle").click();
       await page.getByTestId("floor-hidden").scrollIntoViewIfNeeded();
       await shot(page, PANE, `hidden-${where}`);
       await page.getByTestId("floor-recreate-open").click();

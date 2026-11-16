@@ -163,7 +163,7 @@ for (const r of ROWS) {
     const seal = page.getByTestId("pool-seal");
     await act(page.getByTestId("inspect-open-settings"));
     // Round 4 (#6): sealing is under More settings, closed at first.
-    await act(page.getByTestId("pool-more-fold").locator("summary"));
+    await act(page.getByTestId("pool-more-fold-toggle"));
     await expect(seal).toBeVisible();
     await act(seal.getByTestId("pool-seal-open"));
     const confirm = page.getByTestId("pool-seal-confirm");

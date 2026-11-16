@@ -217,8 +217,8 @@ describe("Always use for a project", () => {
 describe("N3 the rare options, folded", () => {
   it("the fold is closed and its label says their values; inside: how it runs and the rest", () => {
     mountSheet();
-    const fold = screen.getByTestId("new-session-more") as HTMLDetailsElement;
-    expect(fold.open).toBe(false);
+    const fold = screen.getByTestId("new-session-more");
+    expect(fold.hasAttribute("data-open")).toBe(false);
     // The 0.4 design review, 51 and 71: the model as people say it, and How
     // it runs only once it differs from the launch settings (inside, it
     // says "As its launch settings say").
@@ -234,7 +234,7 @@ describe("N3 the rare options, folded", () => {
   // The next New session opens on the defaults, and nothing offers to keep it.
   it("a changed option is for this start only: the next New session opens on the defaults again", async () => {
     const first = mountSheet();
-    screen.getByTestId("new-session-more").setAttribute("open", "");
+    fireEvent.click(screen.getByTestId("new-session-more-toggle"));
     fireEvent.click(within(screen.getByTestId("runtime-pick")).getByRole("button"));
     fireEvent.click(await screen.findByText("Start in terminal"));
     await waitFor(() => expect(screen.getByTestId("new-session-more-values").textContent).toBe("· Opus · runs in its terminal"));
@@ -251,7 +251,7 @@ describe("N3 the rare options, folded", () => {
     w().__AIJ_RECIPES__ = [...RECIPES, quick];
     const { launchSpy } = mountSheet({ kept: [...RECIPES, quick] });
     await waitFor(() => expect(screen.getByTestId("new-session-more-values").textContent).toBe("· Main · Opus"));
-    (screen.getByTestId("new-session-more") as HTMLDetailsElement).open = true;
+    fireEvent.click(screen.getByTestId("new-session-more-toggle"));
     fireEvent.click(screen.getByTestId("new-session-settings").querySelector("button")!);
     fireEvent.click(await screen.findByText("Quick fixes"));
     await waitFor(() => expect(screen.getByTestId("new-session-more-values").textContent).toBe("· Quick fixes · Sonnet"));

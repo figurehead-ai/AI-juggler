@@ -252,15 +252,28 @@ describe("Segmented", () => {
 });
 
 describe("Disclosure", () => {
-  it("is a details with the app's chevron, not the browser's triangle", () => {
+  // Round 7 (AJ-E3011): a button with aria-expanded, not <details>: a
+  // flex <summary> isn't a disclosure to WebKit's accessibility, so an
+  // accessibility press (the aij-test driver's) did nothing.
+  it("is a button with aria-expanded and the app's chevron; a press opens and closes it, its body kept in the page", () => {
     render(
       <Disclosure summary="Terminal" testId="d">
         <p>Inside</p>
       </Disclosure>,
     );
-    const summary = screen.getByText("Terminal").closest("summary")!;
-    expect(summary.className).toContain("list-none");
-    expect(summary.querySelector("svg")).not.toBeNull();
+    const toggle = screen.getByRole("button", { name: "Terminal" });
+    expect(toggle.getAttribute("type")).toBe("button");
+    expect(toggle.getAttribute("aria-expanded")).toBe("false");
+    expect(toggle.querySelector("svg")).not.toBeNull();
+    const body = document.getElementById(toggle.getAttribute("aria-controls")!)!;
+    expect(body.hidden).toBe(true);
+    expect(body.textContent).toBe("Inside");
+    fireEvent.click(toggle);
+    expect(toggle.getAttribute("aria-expanded")).toBe("true");
+    expect(body.hidden).toBe(false);
+    expect(screen.getByTestId("d").hasAttribute("data-open")).toBe(true);
+    fireEvent.click(toggle);
+    expect(toggle.getAttribute("aria-expanded")).toBe("false");
   });
 });
 

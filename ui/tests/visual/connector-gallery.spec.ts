@@ -164,11 +164,11 @@ for (const theme of ["dark", "light"] as const) {
     await axe(page, `preview ${theme}`);
     await shoot(page, `preview-1280x800-${theme}.png`);
     // Show the files: each file, and its exact text in its own fold.
-    await page.getByTestId("inspect-connector-files-fold").locator("summary").first().click();
+    await page.getByTestId("inspect-connector-files-fold-toggle").click();
     await expect(page.getByTestId("inspect-connector-file")).toHaveCount(2);
-    await page.getByTestId("inspect-connector-file-show").first().click();
+    await page.getByTestId("inspect-connector-file-show-toggle").first().click();
     await expect(page.getByTestId("inspect-connector-file-text").first()).toContainText('"mcpServers"');
-    await page.getByTestId("inspect-connector-file-show").first().scrollIntoViewIfNeeded();
+    await page.getByTestId("inspect-connector-file-show-toggle").first().scrollIntoViewIfNeeded();
     await shoot(page, `preview-text-1280x800-${theme}.png`);
 
     await page.getByTestId("inspect-connector-cancel").click();
@@ -194,10 +194,23 @@ for (const theme of ["dark", "light"] as const) {
     for (let n = 0; n < 4 && !(await page.getByTestId("new-pool-step-who").isVisible()); n += 1) await page.getByTestId("new-pool-next").click();
     await page.getByRole("radiogroup", { name: "Kind of member" }).getByRole("radio", { name: /^Apps/ }).click();
     await page.getByTestId("new-pool-candidate").filter({ hasText: "Claude app · Work Max" }).getByRole("checkbox").click();
-    const card = page.getByTestId("new-pool-connector-card");
-    await expect(card.locator("h4")).toHaveText("Add AI Juggler's connector to Claude app · Work Max so its sessions can talk in this pool");
+    // Round 7 (Casey's worst moment): the App's own row says it can't talk
+    // yet, with Add, before Next.
+    const row = page.getByTestId("new-pool-candidate").filter({ hasText: "Claude app · Work Max" });
+    const state = row.getByTestId("new-pool-connector-card");
+    await expect(state).toHaveAttribute("data-state", "absent");
+    await expect(state).toContainText("Watched: can't talk in the pool yet.");
+    await expect(row.getByTestId("new-pool-connector-card-add")).toBeVisible();
     await axe(page, `new pool ${theme}`);
     await shoot(page, `new-pool-1280x800-${theme}.png`);
+
+    // Add: the consent card's own preview in the row, then added.
+    await row.getByTestId("new-pool-connector-card-add").click();
+    await expect(page.getByTestId("new-pool-connector-card-preview-sentence")).toContainText("This adds a small helper to your Claude app (Work Max)");
+    await page.getByTestId("new-pool-connector-card-confirm").click();
+    await expect(page.getByTestId("new-pool-connector-card-added")).toBeVisible();
+    await axe(page, `new pool added ${theme}`);
+    await shoot(page, `new-pool-added-1280x800-${theme}.png`);
   });
 
   test(`desktop sessions under their App, and each a recipient in Messages — ${theme}`, async ({ page }) => {

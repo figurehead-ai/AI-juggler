@@ -170,7 +170,7 @@ describe("AJ-E3007, AJ-E3011 the setup, start to end", () => {
   it("the steps in order, each with a heading and a line on why; D-30's question its own step while unanswered", async () => {
     render(<NewPool sessions={MOCK_SESSIONS} projects={MOCK_PROJECTS} accounts={[]} project={null} onClose={() => undefined} />);
     await waitFor(() => expect(screen.getAllByTestId("new-pool-step")).toHaveLength(9));
-    expect(screen.getAllByTestId("new-pool-step").map((step) => step.textContent?.replace(/^\d/, ""))).toEqual(["Start", "Where", "Who's in", "Who leads", "Everyone else", "Who may message whom", "On their own", "Team tools", "Review"]);
+    expect(screen.getAllByTestId("new-pool-step").map((step) => step.textContent?.replace(/^\d/, ""))).toEqual(["Start", "Where", "Who's in", "Who leads", "Who builds, who checks", "Who may message whom", "On their own", "Team tools", "Review"]);
     const seen: string[] = [];
     for (let n = 0; n < 9; n += 1) {
       seen.push(`${screen.getByTestId("new-pool-step-title").textContent}: ${screen.getByTestId("new-pool-step-why").textContent}`);
@@ -181,7 +181,7 @@ describe("AJ-E3007, AJ-E3011 the setup, start to end", () => {
       "Where: Sessions in these projects can join.",
       "Who's in: Only these work together.",
       "Who leads: The lead plans and hands out the work. Pick one to be in charge, or leave it for now.",
-      "Everyone else: What each member does, and how new sessions join.",
+      "Who builds, who checks: Each member's role, and how new sessions join.",
       "Who may message whom: Set an exception only where you want one; the rest is allowed.",
       "What they may do on their own: Anything more waits for your OK in Needs you.",
       "Team tools: Asked once, the first time you make a pool.",
@@ -236,9 +236,8 @@ describe("AJ-E3007, AJ-E3011 the setup, start to end", () => {
     first.unmount();
     const later = render(<PoolIntro first={false} />);
     const fold = later.getByTestId("pool-intro");
-    expect(fold.tagName).toBe("DETAILS");
-    expect(fold.hasAttribute("open")).toBe(false);
-    expect(fold.querySelector("summary")!.textContent).toContain("What a pool is");
+    expect(fold.hasAttribute("data-open")).toBe(false);
+    expect(fold.querySelector("button[aria-expanded]")!.textContent).toContain("What a pool is");
   });
 
   it("AJ-E3007 R5: Back keeps every choice — the template, the members, the talk and the name", () => {

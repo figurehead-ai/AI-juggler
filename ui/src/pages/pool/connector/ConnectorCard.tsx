@@ -28,6 +28,7 @@ import { useAgentBridge, type AgentBridgeInfo } from "../../../lib/ipc/agent-bri
 import { useReveal } from "../../../lib/reveal";
 import { ConnectorFiles, RemoveFiles } from "./ConnectorFiles";
 import { ConnectorGuide } from "./ConnectorGuide";
+import { ConnectorRowState } from "./ConnectorRow";
 
 type Phase =
   | { kind: "idle" }
@@ -78,7 +79,11 @@ export function ConnectorCard({
   testId = "connector",
   kind,
   profile,
+  compact = false,
 }: {
+  /** In a list's row (New pool's Who's in): where it stands in a line,
+   * with Add; its preview and after are the card's own. */
+  compact?: boolean;
   /** The App's kind and profile, for the preview's sentence ("Claude
    * app", "Work Max"). */
   kind?: string;
@@ -180,6 +185,9 @@ export function ConnectorCard({
         <PhaseView phase={phase} status={status} parts={parts} onAdd={() => void actions.add()} onRemove={() => void actions.remove()} onRemoveAnyway={() => void actions.removeAnyway()} />
       </Revealed>
     );
+  }
+  if (compact && status.state !== "changed") {
+    return <ConnectorRowState status={status} bridge={bridge} testId={testId} busy={busy} failed={failed} onReview={() => void actions.review()} onGuide={() => void actions.guide()} />;
   }
   if (status.state === "current") {
     return (
