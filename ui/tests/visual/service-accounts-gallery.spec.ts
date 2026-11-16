@@ -136,7 +136,7 @@ for (const theme of ["dark", "light"] as const) {
     await seed(page, theme, fixture(false));
     await goTo(page, "Accounts");
     await page.getByTestId("add-account").click();
-    await page.getByTestId("add-more").locator("summary").click();
+    await page.getByTestId("add-more-toggle").click();
     await expect(page.getByTestId("service-card")).toHaveCount(2);
     await shoot(page, "add-account-more", theme);
   });
@@ -145,7 +145,7 @@ for (const theme of ["dark", "light"] as const) {
     await seed(page, theme, fixture(false));
     await goTo(page, "Accounts");
     await page.getByTestId("add-account").click();
-    await page.getByTestId("add-more").locator("summary").click();
+    await page.getByTestId("add-more-toggle").click();
     await page.getByTestId("service-card").filter({ hasText: "OpenCode Go" }).getByTestId("service-choose").click();
     await page.getByTestId("service-key").fill("fixture-key-for-the-gallery-0000");
     await page.getByTestId("service-tool").filter({ hasText: "Codex" }).getByTestId("service-tool-on").check();

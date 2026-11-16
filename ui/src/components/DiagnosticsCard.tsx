@@ -85,11 +85,14 @@ export function DiagnosticsCard(): JSX.Element {
           <ul className="flex flex-col gap-1">
             {preview.files.map((file) => (
               <li key={file.name} data-testid="diagnostics-file">
-                <details>
-                  <summary className="cursor-pointer text-xs">
-                    <span className="font-mono text-ink">{file.name}</span>
-                    <span className="text-muted"> · {file.about} · {byteSize(bytesOf(file.text))}</span>
-                  </summary>
+                <Disclosure
+                  summary={
+                    <span>
+                      <span className="font-mono text-ink">{file.name}</span>
+                      <span className="text-muted"> · {file.about} · {byteSize(bytesOf(file.text))}</span>
+                    </span>
+                  }
+                >
                   <pre
                     className="mt-1 max-h-56 overflow-auto whitespace-pre-wrap break-all rounded bg-canvas p-2 font-mono text-label text-ink"
                     aria-label={`${file.name} (read-only)`}
@@ -97,7 +100,7 @@ export function DiagnosticsCard(): JSX.Element {
                   >
                     {file.text}
                   </pre>
-                </details>
+                </Disclosure>
               </li>
             ))}
           </ul>
