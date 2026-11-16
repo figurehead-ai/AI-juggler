@@ -13,12 +13,13 @@
  *   every few seconds only while its guide is open), a pool's desktop
  *   members (again when the pool or a connector changes; never polled).
  */
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { sharedReads, useSharedRead } from "./shared-read";
 import { POOLS_GUIDE } from "./pool-words";
 import { CONNECTOR_CHANGED, connectorDesktopMembers, connectorDesktopSessions, connectorStatus, type ConnectorStatusInfo, type DesktopMemberInfo, type DesktopSessionInfo } from "./ipc/connector";
 import { POOL_RULES_CHANGED } from "./ipc/pool-model";
+import { usePools } from "./pools";
 import type { AppModel } from "./apps";
 import type { AgentBridgeInfo } from "./ipc/agent-bridge";
 
@@ -192,6 +193,17 @@ const sessions = sharedReads(connectorDesktopSessions);
 
 /** Read again on Add, Remove, and a pool's change. */
 function useReadAgain(refresh: () => void, poolId?: string): void {
+  // Round 7 #5 (aij-test run 2): after an Add in "Add a session" the new
+  // node read "Its app has no AI Juggler connector", from a list read
+  // before it. Every change to a pool's members (Add, Take out, Undo, a
+  // move) lands in the pools store; read again then, as the pool's rules
+  // do (lib/pool-rules), but not twice on open.
+  const pools = usePools();
+  const seen = useRef(pools);
+  useEffect(() => {
+    if (seen.current !== null && seen.current !== pools) refresh();
+    seen.current = pools;
+  }, [pools, refresh]);
   useEffect(() => {
     const again = (event: Event) => {
       if (!(event instanceof CustomEvent) || !poolId || event.type === CONNECTOR_CHANGED || event.detail === poolId) refresh();

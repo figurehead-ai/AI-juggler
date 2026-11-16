@@ -4,12 +4,14 @@
  * connector asked for on Who's in's own rows; the roles step's title says
  * what's chosen there; Show the files opens on an accessibility press.
  */
-import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { CONNECTOR } from "../../lib/connector";
 import { resetPreviewConnector } from "../../lib/ipc/connector";
-import type { MemberKind } from "../../lib/ipc/pool-model";
+import { poolJoin, type MemberKind } from "../../lib/ipc/pool-model";
+import { setPools } from "../../lib/pools";
+import { previewPoolsInfo, resetPreviewPools } from "../../lib/ipc/pools";
 import { draftOf, type Candidate, type Draft } from "../../lib/new-pool";
 import { templateById } from "../../lib/pool-templates";
 import { firstPrompt } from "../../lib/pool-sentences";
@@ -17,6 +19,7 @@ import { STEP_WORDS } from "../../lib/pool-words";
 import { forgetSharedReads } from "../../lib/shared-read";
 import { NewPoolWho } from "../../screens/pools/NewPoolWho";
 import { ConnectorCard } from "./connector/ConnectorCard";
+import { RuleNodes } from "./RuleNodes";
 import { SENTENCE_TITLES } from "./setup/PoolSentences";
 
 describe("round 7 #1: the ready line names the member, not the tool", () => {
@@ -111,5 +114,38 @@ describe("round 7 #4: Show the files opens on an accessibility press", () => {
     fireEvent.click(text);
     expect(text.getAttribute("aria-expanded")).toBe("true");
     expect(document.getElementById(text.getAttribute("aria-controls")!)!.hidden).toBe(false);
+  });
+});
+
+// #5 (aij-test run 2): after Add in "Add a session", the new node read
+// "Its app has no AI Juggler connector" from a list read before the Add.
+// Every change to the pool's members reads the desktop lists again.
+describe("round 7 #5: the desktop lists follow the pool's members", () => {
+  const APP = "app:claude-app:/Users/you/Profiles/aij-test";
+  const ref = `app:${APP}`;
+  beforeEach(() => {
+    forgetSharedReads();
+    resetPreviewConnector();
+  });
+  afterEach(() => {
+    cleanup();
+    Object.assign(window, { __AIJ_DESKTOP_MEMBERS__: undefined, __AIJ_CONNECTOR__: undefined, __AIJ_POOLS__: undefined });
+    resetPreviewPools();
+  });
+
+  it("an Add changes the App node's words from the stale ones to the App's", async () => {
+    const POOL = "pool-careful";
+    Object.assign(window, { __AIJ_POOLS__: { pools: [{ id: POOL, name: "Careful", rules: [] }], members: [] } });
+    resetPreviewPools();
+    const desktop = (connector: string, connected: boolean) => Object.assign(window, { __AIJ_DESKTOP_MEMBERS__: { [POOL]: [{ member: ref, app_id: APP, connector, connected, wake: "next_turn" }] }, __AIJ_CONNECTOR__: { [APP]: { state: connector } } });
+    setPools(previewPoolsInfo());
+    desktop("absent", false);
+    render(<RuleNodes poolId={POOL} rules={[{ member: ref, kind: "app", role: "member", level: null, joined_at: 1, sessions: 0, session_ids: [] }]} watched={[]} labelOf={() => "Claude app · aij-test"} selection={{ kind: "none" }} onSelect={() => undefined} />);
+    await waitFor(() => expect(screen.getByTestId("canvas-rule-wake").textContent).toBe("Watched: its app has no AI Juggler connector"));
+    // The backend now has it right (the App's connector in, its session
+    // calling); the person's Add, as "Add a session" makes it:
+    desktop("current", true);
+    await act(async () => setPools(await poolJoin(POOL, ref, "member")));
+    await waitFor(() => expect(screen.getByTestId("canvas-rule-wake").textContent).toBe("Its sessions: reads messages on its next turn"));
   });
 });
