@@ -3397,3 +3397,4 @@ The design that follows from it:
 
 - **Amends:** D-117 (its calm rules apply to monitoring surfaces only).
 - Sources: the maintainer's messages with two screenshots, 2026-11-16.
+- **Clarified the same day:** the maintainer added "We keep going in circles, you keep swinging from one extreme to totally other side of extreme." D-126 is not a swing to colourful screens. It means one design language, with the same tokens, type, icons and craft on every screen. Only the amount of status and accent colour differs: scarce on monitoring screens, used for selection, progress and previews on making and editing screens. No decoration for its own sake. A wizard next to Home must read as the same product.
