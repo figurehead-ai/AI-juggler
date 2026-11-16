@@ -9,11 +9,6 @@
 # each listed one says why its list stays small, or "TO PAGE" with what reads it.
 # uncalled entries carry the date they were listed: 2026-10-21.
 uncalled account_audit
-uncalled connector_add  # 2026-11-15: the pool page's connector card (AJ-E3013) calls it in 0.4.6
-uncalled connector_desktop_members  # 2026-11-15: the pool canvas (AJ-E3013) calls it in 0.4.6
-uncalled connector_preview  # 2026-11-15: the pool page's connector card (AJ-E3013) calls it in 0.4.6
-uncalled connector_remove  # 2026-11-15: the App's connector menu (AJ-E3013) calls it in 0.4.6
-uncalled connector_status  # 2026-11-15: the pool page's connector card (AJ-E3013) calls it in 0.4.6
 uncalled harnesses_list_alias
 uncalled isolation_check
 uncalled parked_list
