@@ -894,7 +894,15 @@ impl ToolQuota for MuseAdapter {
     ) -> Option<Result<juggler_adapter::plan_usage::PlanReading, String>> {
         self.plan_usage_offered(&account.state_dir).then(|| {
             let bin = self.require_bin().map_err(|error| error.to_string())?;
-            let env = self.isolation_env(&account.state_dir);
+            // The sign-in's own environment too (AJ-E1612): with separate
+            // sign-ins on, an App's `muse serve`/`muse usage` must run on
+            // its file backend, or Muse reads (and may refresh) the Mac's
+            // one Keychain sign-in, the user's own; and only on a build
+            // whose file backend was proven, as its Sign in.
+            self.refuse_unproven_backend(&bin, &account.state_dir)
+                .map_err(|error| error.to_string())?;
+            let mut env = self.isolation_env(&account.state_dir);
+            env.extend(self.sign_in_env(&account.state_dir, None));
             crate::muse_usage::usage(&bin, &account.state_dir, &env)
         })
     }
