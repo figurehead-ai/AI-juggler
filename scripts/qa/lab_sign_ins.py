@@ -23,6 +23,14 @@ lab, and watches the real home while the maintainer signs lab A in:
       Muse's build (1.4.13-R6996.1 or stop: the file backend's proof is bound to
       it) and the real Keychain item's modification date, from
       `security find-generic-password` without -w (never the secret).
+  step --home LAB --tool TOOL --step STEP --result pass|fail|skip [--note TEXT]
+      records one run-sheet step's result for one tool in <lab>/steps.json
+      (a skip needs its reason in --note; a later result replaces it).
+  complete --home LAB [--record FILE]
+      every tool's every required step (STEPS) has a result: the guard
+      `lab_scenario.sh teardown` runs before it deletes a sign-ins lab
+      (the sign-ins are the maintainer's time; 2026-11-16 a teardown after
+      step 1 threw five away). `teardown --force-abandon` overrides it.
   --selftest
 
 `--record FILE` appends what was checked to an evidence file, through the
@@ -83,6 +91,17 @@ TOOLS: dict[str, Tool] = {
     # HOME=<folder>, XDG_CONFIG_HOME=<folder>/.config, the file backend.
     "muse-code": Tool("Muse Code", ("login",), (".config/muse/auth.json",), (".config/muse/auth.json",)),
 }
+# The run sheet's steps (docs/qa/0.5-walks/AJ-E1612.md, "The checklist"),
+# each needing a recorded result per tool before the lab may go. Quota
+# exhaustion (step 5) happens or not, so it isn't required.
+STEPS: dict[str, str] = {
+    "sign-in": "1. the sign-in stays separate (Dev's Sign in, its Signed in label, check, real, muse-gate)",
+    "session": "2. a session starts and answers",
+    "resume": "3. it resumes with its earlier turn",
+    "usage": "4. usage is read (what it shows, its source line)",
+    "lab-b": "6. lab B stays out (Not signed in; its session refused)",
+}
+RESULTS = ("pass", "fail", "skip")
 MUSE_PROVEN = "1.4.13-R6996.1"
 MUSE_KEYCHAIN = ("ai.meta.dev.credentials", "meta")
 SECURITY = "/usr/bin/security"
@@ -253,6 +272,38 @@ def check(lab: Path, signed_in: list[str], record: str | None) -> int:
     return report.show(lab, record, "check" + (f" (signed in: {', '.join(signed_in)})" if signed_in else ""))
 
 
+def steps_path(lab: Path) -> Path:
+    return lab / "steps.json"
+
+
+def record_step(lab: Path, tool: str, step: str, result: str, note: str) -> int:
+    if result == "skip" and not note.strip():
+        sys.exit("lab-sign-ins: a skipped step needs its reason (--note)")
+    path = steps_path(lab)
+    steps = json.loads(path.read_text()) if path.is_file() else {}
+    steps.setdefault(tool, {})[step] = {"result": result, "note": note.strip()}
+    path.write_text(json.dumps(steps, indent=1, sort_keys=True))
+    print(f"lab-sign-ins: {TOOLS[tool].name}, step {STEPS[step]}: {result}" + (f" ({note.strip()})" if note.strip() else ""))
+    return 0
+
+
+def complete(lab: Path, record: str | None) -> int:
+    """Every tool's every required step has a result (pass, fail or a
+    reasoned skip)."""
+    report = Report()
+    path = steps_path(lab)
+    steps = json.loads(path.read_text()) if path.is_file() else {}
+    for tool, spec in TOOLS.items():
+        for step, words in STEPS.items():
+            got = steps.get(tool, {}).get(step)
+            if got is None or got.get("result") not in RESULTS:
+                report.fail(f"{spec.name}: {words}: no result recorded")
+            else:
+                note = f" ({got['note']})" if got.get("note") else ""
+                report.ok(f"{spec.name}: {words}: {got['result']}{note}")
+    return report.show(lab, record, "complete: every step has a result")
+
+
 def real_files(home: Path) -> dict[str, int | None]:
     """Each real sign-in file's modification time (ns), by name; a folder's
     files one by one. Never opened."""
@@ -416,6 +467,19 @@ def selftest() -> int:
         entries[9]["env"]["TBH_CREDENTIAL_BACKEND"] = "keychain"
         (lab / "sign-ins.json").write_text(json.dumps(entries))
         assert check(lab, ["muse-code"], None) == 1
+        # The teardown guard: incomplete until every tool's every step has a result.
+        assert complete(lab, None) == 1
+        for tool in TOOLS:
+            for step in STEPS:
+                record_step(lab, tool, step, "pass", "")
+        assert complete(lab, None) == 0
+        record_step(lab, "zcode", "usage", "skip", "its store had no window yet")
+        assert complete(lab, None) == 0
+        try:
+            record_step(lab, "zcode", "usage", "skip", " ")
+            raise AssertionError("a skip without a reason was recorded")
+        except SystemExit:
+            pass
         # The real home's files, compared by date.
         report = Report()
         compare({"~/a": 1, "~/b": None}, {"~/a": 1, "~/b": None}, report)
@@ -430,15 +494,25 @@ def main() -> int:
     if sys.argv[1:] == ["--selftest"]:
         return selftest()
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("command", choices=["check", "real", "muse-gate"])
+    parser.add_argument("command", choices=["check", "real", "muse-gate", "step", "complete"])
     parser.add_argument("--home", required=True, help="the lab's HOME (/tmp/aij-lab-…)")
     parser.add_argument("--signed-in", nargs="*", default=[], choices=sorted(TOOLS), help="tools whose lab A is signed in")
     when = parser.add_mutually_exclusive_group()
     when.add_argument("--save", action="store_true", help="record the state before a sign-in")
     when.add_argument("--compare", action="store_true", help="compare with the recorded state")
     parser.add_argument("--record", help="append the result to this evidence file (anonymized)")
+    parser.add_argument("--tool", choices=sorted(TOOLS), help="step: the tool")
+    parser.add_argument("--step", choices=list(STEPS), help="step: the run sheet's step")
+    parser.add_argument("--result", choices=RESULTS, help="step: its result")
+    parser.add_argument("--note", default="", help="step: what was seen, or why it was skipped")
     args = parser.parse_args()
     lab = lab_home(args.home)
+    if args.command == "step":
+        if not (args.tool and args.step and args.result):
+            parser.error("step needs --tool, --step and --result")
+        return record_step(lab, args.tool, args.step, args.result, args.note)
+    if args.command == "complete":
+        return complete(lab, args.record)
     if args.command == "check":
         return check(lab, args.signed_in, args.record)
     if not (args.save or args.compare):

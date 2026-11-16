@@ -13,7 +13,11 @@
 #   scripts/qa/lab_scenario.sh lab-bridge P1 [--home …]  # the same, with the lab write mode (ADR-0027)
 #   scripts/qa/lab_scenario.sh start-apps PL1 [--home …] # its running Claude app profiles, as Open starts them
 #   scripts/qa/lab_scenario.sh stop-apps PL1 [--home …]  # quits them (teardown does too)
-#   scripts/qa/lab_scenario.sh teardown P1 [--home …]
+#   scripts/qa/lab_scenario.sh teardown P1 [--home …] [--force-abandon]
+#
+# A sign-ins lab (T16) is torn down only once every tool's every run-sheet
+# step has a recorded result (`lab_sign_ins.py complete`); --force-abandon
+# throws the lab and its sign-ins away regardless, and says so.
 #
 # --import brings the replica's setups in where they are first (as
 # `just dev-bridge-data` does on a real Mac), for walks on its Apps.
@@ -29,14 +33,16 @@
 set -euo pipefail
 root="$(cd "$(dirname "$0")/../.." && pwd)"
 cmd="${1:-}"; id="${2:-}"
-[ -n "$cmd" ] && [ -n "$id" ] || { sed -n '2,16p' "$0"; exit 2; }
+[ -n "$cmd" ] && [ -n "$id" ] || { sed -n '2,21p' "$0"; exit 2; }
 shift 2
 lab="/tmp/aij-lab-$(echo "$id" | tr '[:upper:]' '[:lower:]')"
 import=0
+force_abandon=0
 while [ $# -gt 0 ]; do
   case "$1" in
     --home) lab="$2"; shift 2 ;;
     --import) import=1; shift ;;
+    --force-abandon) force_abandon=1; shift ;;
     *) echo "lab-scenario: unknown option $1" >&2; exit 2 ;;
   esac
 done
@@ -179,6 +185,14 @@ case "$cmd" in
     ;;
   teardown)
     [ -d "$lab" ] || { echo "lab-scenario: nothing at $lab"; exit 0; }
+    if [ "$lab_sign_ins" = 1 ] && [ -f "$lab/sign-ins.json" ]; then
+      if [ "$force_abandon" = 1 ]; then
+        echo "lab-scenario: --force-abandon: removing $lab and every sign-in in it, steps recorded or not" >&2
+      elif ! python3 -I "$root/scripts/qa/lab_sign_ins.py" complete --home "$lab"; then
+        echo "lab-scenario: refusing to tear down $lab: run-sheet steps have no result (the sign-ins are the maintainer's time). Record them with lab_sign_ins.py step, or pass --force-abandon." >&2
+        exit 1
+      fi
+    fi
     # The lab's Claude app instances first, by their --user-data-dir under
     # the lab: asked to quit, with their helpers.
     python3 -I "$root/scripts/qa/lab_apps.py" stop --home "$lab" || true
@@ -197,5 +211,5 @@ case "$cmd" in
     rm -rf "$lab"
     echo "lab-scenario: $lab removed; nothing of it runs"
     ;;
-  *) sed -n '2,16p' "$0"; exit 2 ;;
+  *) sed -n '2,21p' "$0"; exit 2 ;;
 esac
