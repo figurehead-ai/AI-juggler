@@ -13,6 +13,9 @@ The agents go one or two tools at a time and tell you when a page is waiting for
 | Grok Build | An xAI sign-in page opened by `grok login`. | Sign in with your xAI or X account. |
 | ZCode | A Z.AI sign-in page opened by ZCode's sign-in. No ZCode window opens. | Sign in with the same Z.AI account as your ZCode. Your own ZCode stays signed in as it is. |
 | Muse Code | A Meta page asking you to approve a sign-in code (`muse login`, kept in the lab's own file, not your Keychain). | Approve the code with your Meta account. **Only if the agent reports that your real Muse sign-in's date changed:** run `muse login` once in your own terminal to restore it. |
+| ChatGPT app (Codex), for the 0.4.6 line's C2 proof | A separate ChatGPT window showing ChatGPT's sign-in. The 0.4.6 session's driver opens it with its own lab folders, so your real ChatGPT setup isn't used. | Sign in with your ChatGPT account. |
+
+The ChatGPT app row is driven by the 0.4.6 session, in the same sitting. The 0.5 session hands it AI Juggler Dev and the screen for that step, and takes them back afterwards. Afterwards the driver checks that your real `~/.codex` is untouched (file dates by name only).
 
 If a page asks for anything other than signing in or approving a code, close it and tell the agent.
 
