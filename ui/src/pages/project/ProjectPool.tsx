@@ -33,7 +33,10 @@ export function ProjectPool({ project, sessions, now }: { project: ProjectInfo; 
   const waiting = useTaskNeeds().filter((need) => need.pool_id === poolId);
   const counted = useRelationCounts("pool", poolId);
   const summary = poolStates(
-    list.items.map((row) => sessionState(sessions.find((s) => s.id === row.session.id) ?? row.session).word),
+    list.items.map((row) => {
+      const { state, word } = sessionState(sessions.find((s) => s.id === row.session.id) ?? row.session);
+      return { word, ended: state === "ended" };
+    }),
     counted?.sessions.ended ?? null,
   );
   const open = (id: string) => host.openPool?.(id);
@@ -105,12 +108,15 @@ function newPoolFor(project: string): void {
 /** Each state word, counted: "2 working · 1 asks you · 498 ended". The
  * live ones from the members' first page (open ones come first); the
  * ended ones from the pool's count once it's known, not that page's
- * (walk K2: a 500-session pool said "50 ended"). */
-export function poolStates(words: readonly string[], ended: number | null): string {
+ * (walk K2: a 500-session pool said "50 ended"). An ended row is skipped
+ * by its state, whatever its word says of how it ended (the 0.4.6 RC:
+ * "500 sessions · 50 finished · 500 ended", its first page's "Finished"
+ * counted beside the pool's ended ones). */
+export function poolStates(rows: readonly { word: string; ended: boolean }[], ended: number | null): string {
   const states = new Map<string, number>();
-  for (const word of words) {
-    if (ended !== null && word === "Ended") continue;
-    states.set(word, (states.get(word) ?? 0) + 1);
+  for (const row of rows) {
+    if (ended !== null && row.ended) continue;
+    states.set(row.word, (states.get(row.word) ?? 0) + 1);
   }
   if (ended !== null && ended > 0) states.set("Ended", ended);
   return [...states].map(([word, n]) => `${n} ${word.toLowerCase()}`).join(" · ");
