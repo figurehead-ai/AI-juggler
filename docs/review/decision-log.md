@@ -3209,6 +3209,10 @@ Each ships with tests that fail without it and a design critique; the M2, D2 and
      messages on its next turn", from its level and rules.
   4. Codex app threads can't be woken (one shared app-server, no
      per-thread inbox); the canvas says so.
+  5. A person's own Deliver wakes a desktop member at any pool level,
+     exactly as Deliver already does for a CLI member: that is the user
+     acting (ADR-0003's "sessions act only when you act"). The gate in 1
+     is for agents' messages (coordinating session, 2026-11-16).
 - **Why the gate stays:** waking starts a turn, and a turn uses the
   user's subscription.
 - **Amends:** D-116's "waking stays the honest limit (D-66)" for the
