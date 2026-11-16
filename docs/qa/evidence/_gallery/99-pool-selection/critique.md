@@ -1,4 +1,4 @@
-<!-- captures: 75ecb78fe2da -->
+<!-- captures: c6800245933e -->
 # 99-pool-selection: the canvas's selection and the inspector's title (AJ-E3012)
 
 Design critique (D-57, AJ-E2814) against 97-pool-canvas (the canvas before) and the calm UI round 2 rules. The canvas with each kind selected — nothing (the pool), a session, an App, an Account, a Tool, everyone in scope, a line, the pool's own setup opened from the checklist, and the lead's place waiting for an App's next session — dark and light, 1280×800. Fixture names only.
@@ -102,3 +102,7 @@ Section titles re-rendered (6db085536): a colour token named like a type size (`
 ## The line's conversation, settled and on the gutter (2026-11-16)
 
 - selection-line (both themes): "The conversation" now shows its thread every time ("Round tax per line", "Planner, Fix the cart totals · in «Checkout team»"), its left edge on the panel's 16 px gutter like every section's text (it sat 8 px left). The capture had caught it blank in some runs: the thread's code and its first read now count as a loading part until it's drawn, so the gate waits for it. Compared twice in the pinned image, both green. Pass.
+
+## The inspector's scroll edge (2026-11-16)
+
+- opened-lead and selection-pool-setup (both themes): the inspector's body is scrolled to its section, so the app's scroll edge (a hairline with a soft shadow) runs under the inspector's title and pill. At rest, unscrolled, there is no edge. Nothing else moved. Pass.

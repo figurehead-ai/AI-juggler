@@ -1,4 +1,4 @@
-<!-- captures: 1db62b88c030 -->
+<!-- captures: cfcb6dc4078b -->
 # 99-desktop-connector: desktop apps in a pool through AI Juggler's connector (AJ-E3013)
 
 Design critique (D-57, AJ-E2814) against 99-pool-selection (the canvas and inspector around it), 92-agent-tools (the team tools card, the same card shape) and the calm UI round 2 rules. The Checkout team pool with a Claude app profile as an App member (no connector), a Claude app session connected, another Watched, and a ChatGPT (Codex app) thread; dark and light, 1280×800. Fixtures only: nothing is written or run.
@@ -86,3 +86,7 @@ Checked by eye, dark and light:
 - desktop-line-selected (new): the "2 messages" line selected (accent): the inspector reads "Planner → Tidy the checkout tests", its Talk rule set to Ask first, "This line has its own rule; the role pair Member → Member says Allowed…", and the label reads "2 messages · Ask first here" (wrapped in two lines between the node and the row). Pass.
 - The pool page following sessions live (round 7 #6) has no capture: a unit test drives a session's start and end events with no navigation.
 - Weak: at 33 % the line from Planner's node runs close to the "1 waiting" chip; the labels sit on the lines' straight middle.
+
+## The inspector's scroll edge (2026-11-16)
+
+- guide, preview, preview-text, remove-anyway (both themes): the inspector's body is scrolled to the step, so a hairline with a soft shadow now runs under the title, kind and status pill (the app's scroll edge, as the rail's list has). The section sliding under it reads as more above, not as a clipped line. Nothing else moved. Pass.
