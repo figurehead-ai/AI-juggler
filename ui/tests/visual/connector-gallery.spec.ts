@@ -258,6 +258,8 @@ for (const theme of ["dark", "light"] as const) {
     await expect(page.getByTestId("inspect-connector")).not.toContainText("Deletes ");
     await expect(page.getByTestId("inspect-connector-remove-anyway")).toHaveText("Remove anyway (also deletes SKILL.md)");
     await expect(page.getByTestId("inspect-connector-cancel")).toBeFocused();
+    // Scrolled to the step: the app's edge under the inspector's head.
+    await expect(page.getByTestId("inspector-body")).toHaveAttribute("data-scrolled", "");
     await expect(page.getByTestId("inspect-connector-remove-anyway")).toBeInViewport();
     await axe(page, `remove anyway ${theme}`);
     await shoot(page, `remove-anyway-1280x800-${theme}.png`);

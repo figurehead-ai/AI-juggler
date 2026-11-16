@@ -17,6 +17,7 @@ import { appName } from "../../lib/app-name";
 import { sessionState } from "../../lib/rail-items";
 import type { SETUP_STEPS } from "../../lib/pool-words";
 import { inspectorHead, type HeadOf, type InspectorHead } from "./inspector-head";
+import { ScrollEdge } from "../../components/ScrollEdge";
 import { SELECTED_EDGE } from "./selection";
 import { sessionAlert } from "./NodeParts";
 import { PoolChecklist } from "./setup/PoolChecklist";
@@ -330,7 +331,7 @@ export const Inspector = forwardRef<HTMLHeadingElement, {
       </div>
       {/* A new selection opens at its top (the list kept the last one's
           scroll: the pool's settings opened halfway down). */}
-      <div key={JSON.stringify(selection)} className="min-h-0 flex-1 overflow-y-auto pb-6" data-canvas-scroll>
+      <ScrollEdge key={JSON.stringify(selection)} className="min-h-0 flex-1 overflow-y-auto pb-6" data-canvas-scroll data-testid="inspector-body">
         <PoolProgress kind={selection.kind} setup={setup} pool={pool} rules={rules} members={members} ruleLabel={ruleLabel} where={where} needs={needs} />
         {selection.kind === "pool" ? (
           <>
@@ -366,7 +367,7 @@ export const Inspector = forwardRef<HTMLHeadingElement, {
         ) : (
           <Activity pool={pool} canvas={canvas} now={now} onSelect={onSelect} />
         )}
-      </div>
+      </ScrollEdge>
     </aside>
   );
 });
