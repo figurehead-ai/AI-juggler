@@ -1,3 +1,26 @@
 # AJ-E2801 R5: raw system controls in shipped UI code, `path kind count`
-# (kind: select, checkbox, radio, date). Only shrinks. Empty since 0.3: every
-# choice uses the shared controls in ui/src/components/controls/.
+# (kind: select, checkbox, radio, date, details). Only shrinks. Every
+# choice uses the shared controls in ui/src/components/controls/; select,
+# checkbox, radio and date have been empty since 0.3. details (the 0.4.6
+# rc2 walk P9): the native disclosures left when the lint learnt them,
+# each going to the shared Disclosure.
+ui/src/components/AgentTools.tsx details 1
+ui/src/components/DiagnosticsCard.tsx details 1
+ui/src/components/FleetThisMac.tsx details 1
+ui/src/components/HandoverSection.tsx details 1
+ui/src/components/HandoverView.tsx details 1
+ui/src/components/RightInspector.tsx details 1
+ui/src/components/UpdatesCard.tsx details 2
+ui/src/components/Welcome.tsx details 1
+ui/src/components/switch/CarrySummary.tsx details 1
+ui/src/components/switch/Explain.tsx details 1
+ui/src/components/switch/FailedStep.tsx details 1
+ui/src/components/this-mac-memory.tsx details 2
+ui/src/pages/project/Overview.tsx details 1
+ui/src/pages/session/ContinueOn.tsx details 1
+ui/src/screens/AddProviderSheet.tsx details 1
+ui/src/screens/FirstRun.tsx details 1
+ui/src/screens/FleetScreen.tsx details 1
+ui/src/screens/PrivacyScreen.tsx details 1
+ui/src/screens/Profiles.tsx details 1
+ui/src/screens/ThisMacScreen.tsx details 1
