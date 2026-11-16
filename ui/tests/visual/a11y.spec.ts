@@ -2166,8 +2166,8 @@ for (const theme of ["dark", "light"] as const) {
       if (name === "going-back") {
         // Keyboard only: open the disclosure, choose, confirm is focused,
         // Cancel returns to the choice.
-        const summary = page.getByText("Go back to an earlier version", { exact: true });
-        await summary.focus();
+        const fold = page.getByRole("button", { name: "Go back to an earlier version" });
+        await fold.focus();
         await page.keyboard.press("Enter");
         await page.getByTestId("going-back-27").focus();
         await page.keyboard.press("Enter");

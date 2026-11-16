@@ -10,7 +10,6 @@ ui/src/components/FleetThisMac.tsx details 1
 ui/src/components/HandoverSection.tsx details 1
 ui/src/components/HandoverView.tsx details 1
 ui/src/components/RightInspector.tsx details 1
-ui/src/components/UpdatesCard.tsx details 2
 ui/src/components/Welcome.tsx details 1
 ui/src/components/switch/CarrySummary.tsx details 1
 ui/src/components/switch/Explain.tsx details 1
