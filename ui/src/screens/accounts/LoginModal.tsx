@@ -14,7 +14,7 @@ export function LoginModal({
   onClose,
 }: {
   account: AccountInfo;
-  openTerminal: (id: string, title: string) => void;
+  openTerminal: (id: string, title: string, options?: { account?: string }) => void;
   onClose: () => void;
 }) {
   return (
@@ -31,7 +31,7 @@ export function LoginModal({
         providerName={providerDisplayName(account.provider)}
         initialState={account.login_state}
         onSpawned={(terminalId) => {
-          openTerminal(terminalId, `Sign in · ${cliAppName(account.provider, account.label)}`);
+          openTerminal(terminalId, `Sign in · ${cliAppName(account.provider, account.label)}`, { account: account.id });
           onClose();
         }}
         onDone={onClose}

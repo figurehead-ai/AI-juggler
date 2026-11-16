@@ -137,7 +137,7 @@ export function HomeScreen({
   onLimit?: (id: string) => void;
   /** D-25: an account that needs its sign-in is a "Needs you" item; its
    * Sign in opens the vendor's own login in an embedded terminal. */
-  openLoginTerminal?: (id: string, title: string) => void;
+  openLoginTerminal?: (id: string, title: string, options?: { account?: string }) => void;
   /** Called when a sign-in started here completes (the app refreshes). */
   onAccountsChanged?: () => void;
   /** A row's action changed a session (resumed, marked reviewed). */
@@ -296,7 +296,7 @@ export function HomeScreen({
     setSignInError(null);
     setSigningIn(account.id);
     void terminalSpawnLogin(account.id).then(
-      (terminal) => openLoginTerminal?.(terminal.id, `Sign in · ${account.label}`),
+      (terminal) => openLoginTerminal?.(terminal.id, `Sign in · ${account.label}`, { account: account.id }),
       (cause) => setSignInError(errorText(cause)),
     );
   };

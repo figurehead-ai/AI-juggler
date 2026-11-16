@@ -56,7 +56,7 @@ export function NewProjectSheet({
   initialDirectory: string | null;
   onClose: () => void;
   onLaunched: (sessionId: string, title: string) => void;
-  openLoginTerminal: (id: string, title: string) => void;
+  openLoginTerminal: (id: string, title: string, options?: { select?: boolean; account?: string }) => void;
   onAccountsChanged: () => void;
   /** AJ-E309 Req.5: the Expert hatch's [Manage Launch settings →]. */
   onManageLaunchSettings?: () => void;
