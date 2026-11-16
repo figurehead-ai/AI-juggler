@@ -339,7 +339,7 @@ fn switching_it_continues_the_conversation_and_leaves_the_original_alone() {
                 .conversation_links()
                 .unwrap()
                 .iter()
-                .all(|(account, conversation, _)| account != &w.work.0 || conversation != NATIVE),
+                .all(|link| link.account != w.work.0 || link.conversation != NATIVE),
             "no session of ours claims the original"
         );
     }

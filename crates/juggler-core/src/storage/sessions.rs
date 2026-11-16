@@ -31,6 +31,20 @@ pub struct SessionBrief {
     pub last_ms: i64,
 }
 
+/// One session's conversation: [`SessionsRepo::conversation_links`].
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ConversationLink {
+    /// The account (tool folder) its launch settings run on.
+    pub account: String,
+    /// The tool's id for the conversation.
+    pub conversation: String,
+    /// The session.
+    pub session: String,
+    /// It has ended (finished, stopped, failed, handed over, or exited at a
+    /// limit): no process of it runs the conversation now.
+    pub ended: bool,
+}
+
 /// Typed read/write access to the `sessions` table.
 #[derive(Debug)]
 pub struct SessionsRepo<'a> {
@@ -649,22 +663,30 @@ impl SessionsRepo<'_> {
         rows.map(|row| row.map_err(CoreError::Storage)).collect()
     }
 
-    /// Each session's conversation, `(account, conversation, session)`,
-    /// oldest session first: one cheap read for the conversations list
-    /// (never the sessions' whole rows). The account tells one copy of a
-    /// conversation from another: a switch to another account of the same
-    /// tool continues the conversation under the same id there.
+    /// Each session's conversation ([`ConversationLink`]), oldest session
+    /// first: one cheap read for the conversations list (never the
+    /// sessions' whole rows). The account tells one copy of a conversation
+    /// from another: a switch to another account of the same tool
+    /// continues the conversation under the same id there.
     ///
     /// # Errors
     ///
     /// Returns [`CoreError::Storage`] on SQLite failures.
-    pub fn conversation_links(&self) -> Result<Vec<(String, String, String)>, CoreError> {
-        let mut stmt = self.conn.prepare(
-            "SELECT r.account_id, i.conversation_id, i.id FROM instances i \
+    pub fn conversation_links(&self) -> Result<Vec<ConversationLink>, CoreError> {
+        let mut stmt = self.conn.prepare(&format!(
+            "SELECT r.account_id, i.conversation_id, i.id, \
+                    i.status IN {ENDED} OR i.status = 'quota_blocked' FROM instances i \
              JOIN launch_recipes r ON r.id = i.launch_recipe_id \
-             WHERE i.conversation_id IS NOT NULL ORDER BY i.started_at, i.id",
-        )?;
-        let rows = stmt.query_map([], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)))?;
+             WHERE i.conversation_id IS NOT NULL ORDER BY i.started_at, i.id"
+        ))?;
+        let rows = stmt.query_map([], |row| {
+            Ok(ConversationLink {
+                account: row.get(0)?,
+                conversation: row.get(1)?,
+                session: row.get(2)?,
+                ended: row.get(3)?,
+            })
+        })?;
         rows.map(|row| row.map_err(CoreError::Storage)).collect()
     }
 

@@ -92,7 +92,7 @@ pub use profiles::ProfilesRepo;
 pub use projects::ProjectsRepo;
 pub use projects::{WorktreeHome, project_root, project_root_with, worktree_repo_root};
 pub use relations::{InstanceColumn, RelationsRepo, SessionFacet, StampReader, StoredStamps};
-pub use sessions::{SessionBrief, SessionMarks, SessionsRepo};
+pub use sessions::{ConversationLink, SessionBrief, SessionMarks, SessionsRepo};
 pub use settings::AppSettingsRepo;
 pub use sightings::{
     MarkKind, ProcessMark, SIGHTING_COLUMNS, SIGHTING_DAYS, SIGHTING_KEEP_MS, Sighting,
