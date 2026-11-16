@@ -27,7 +27,7 @@ import { focusHandoverSoon } from "../lib/handover-focus";
 import { instancesMarkReviewed } from "../lib/ipc/review";
 import { useCallback, useEffect, useMemo, useRef, useState, type JSX, type KeyboardEvent } from "react";
 import { runwayOf } from "../components/AccountRunway";
-import { useThisMacInfo, type ThisMacInfo } from "../lib/machine";
+import { useMachineLevel, type ThisMacInfo } from "../lib/machine";
 import { LegendPopover } from "../components/LegendPopover";
 import { sessionLabel } from "../lib/stop";
 import { matches, type KeyLike } from "../lib/shortcuts";
@@ -150,7 +150,8 @@ export function HomeScreen({
   /** AJ-E1528: the This Mac page. */
   onOpenThisMac?: () => void;
 } & Pick<HomeCardContext, "onSearch">): JSX.Element {
-  const thisMac = useThisMacInfo(given);
+  // AJ-E813: the level alone, so a 5 s reading at the same level draws nothing.
+  const macLevel = useMachineLevel(given);
   const actionKeys = useKeys("home-action");
   // 0.0.11 walk (Q3): a tool without a limits feed says so in its row.
   // The runways kept from the last read (any screen's) show at once; read
@@ -380,7 +381,7 @@ export function HomeScreen({
     return <Welcome onFindAccounts={onAddAccounts} onFreshAccount={onFreshAccount ?? onAddAccounts} />;
   }
 
-  const allNeeds = homeNeedsOf(needsNow.rows, items, accounts, sessions, thisMac, now, known ?? []);
+  const allNeeds = homeNeedsOf(needsNow.rows, items, accounts, sessions, macLevel, now, known ?? []);
   // The heading counts the rows it sits over (the 0.2 walk, F4: "2
   // sessions need you" over four rows): the backend's needs Home lists,
   // and the caps, agents' messages and tasks with their own rows.

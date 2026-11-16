@@ -8,7 +8,6 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useSyncExternalStore } from "react";
 import { archivedHere, subscribeArchived, withoutArchived } from "./archived-here";
-import type { ThisMacInfo } from "./machine";
 import type { HomeNeed, HomeNeedKind } from "./home-needs";
 import { placeWords, type Need, type RailItem } from "./rail-items";
 import { readSnooze, forgetSnooze, type SnoozeState } from "./railview";
@@ -78,7 +77,7 @@ export function liveOn(sessions: InstanceInfo[], accountId: string | null | unde
  * agents' messages and tasks have their own rows (their own controls).
  * ADR-0032 (0.4.4): a session is named by the App that owns it, as the
  * rail's Needs you names it (`ownersOf`, given the remembered `known`). */
-export function homeNeedsOf(rows: NoticeInfo[], items: RailItem[], accounts: AccountInfo[], sessions: InstanceInfo[], thisMac: ThisMacInfo | null, now: number, known: readonly KnownPlaceInfo[] = []): HomeNeed[] {
+export function homeNeedsOf(rows: NoticeInfo[], items: RailItem[], accounts: AccountInfo[], sessions: InstanceInfo[], macLevel: string | null, now: number, known: readonly KnownPlaceInfo[] = []): HomeNeed[] {
   const { theirs } = ownersOf(known);
   const byKey = new Map(items.map((item) => [item.key, theirs(item)]));
   const out: HomeNeed[] = [];
@@ -104,7 +103,7 @@ export function homeNeedsOf(rows: NoticeInfo[], items: RailItem[], accounts: Acc
       kind,
       title: row.title,
       detail: row.kind === "quota" ? quotaDetail(row, now) : row.detail,
-      severe: kind === "mac" && thisMac?.machine.summary.level === "pressure",
+      severe: kind === "mac" && macLevel === "pressure",
       account,
       sessionId: row.kind === "quota" ? liveOn(sessions, row.target.account_id)?.id : (row.target.session_id ?? undefined),
       conversation: row.kind === "quota" ? openElsewhere(items, row.target.account_id) : undefined,
