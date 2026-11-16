@@ -3,9 +3,9 @@
  * of AI Juggler's, drawn on the canvas as group nodes (wireframe 6): an
  * App, Account, Tool, Mac or everyone in scope says how many of the
  * sessions it brings are open now and that new ones join (its ended ones
- * are in the List view); a Watched session (one another app runs) says it
- * can't reply, with its one fix, Continue in AI Juggler. Selecting one
- * opens it in the inspector.
+ * are in the List view); a session another app runs is a member through
+ * its app's connector, or Watched with why and Add (AJ-E3013,
+ * DesktopMemberCard). Selecting one opens it in the inspector.
  *
  * 0.4.6: a broad member is a stacked card, never a dashed one (AJ-E3012:
  * dashes never mean selection; the selected one has the one ring). Its
@@ -18,16 +18,14 @@
  */
 import { useEffect, useLayoutEffect, useRef, useState, type JSX } from "react";
 
-import { Chip } from "../../components/primitives";
+import { Button, Chip } from "../../components/primitives";
 import { StartLeadButton } from "./setup/StartLead";
 import { ShellOnly } from "../../components/ShellOnly";
-import { WhyButton } from "../../components/WhyTip";
-import { continueWhy } from "../../lib/resume-refusal";
 import { MACHINE_WORD } from "../../lib/machine-words";
-import { useActionHost } from "../../components/ItemMenu";
-import { useConversations } from "../../lib/conversations";
 import type { PoolRuleInfo, WatchedMemberInfo } from "../../lib/ipc/pool-model";
-import { CONTINUE_WATCHED, CONTINUE_WATCHED_SHORT, levelLabel, roleLabel } from "../../lib/pools";
+import { levelLabel, roleLabel } from "../../lib/pools";
+import { reachOf, useDesktopMembers } from "../../lib/connector";
+import { DesktopMemberCard } from "./DesktopMemberCard";
 import { everyoneJoins, openNowWords } from "../../lib/pool-open-now";
 import { LEADS_WHEN, LEAD_WOULD, nextLeadsLine, wakeWords } from "../../lib/pool-words";
 import { cliFolderOf } from "../../lib/start-lead";
@@ -92,9 +90,9 @@ export function RuleNodes({
   selection: Selection;
   onSelect: (selection: Selection) => void;
 }): JSX.Element | null {
-  const host = useActionHost();
-  const { all } = useConversations();
   const broad = broadOf(rules);
+  // AJ-E3013: the desktop members' connectors (an App's, a session's).
+  const desktop = useDesktopMembers(poolId);
   const waiting = watched.filter((one) => one.continued_session === null);
   // Round 4 (#5): a member being added shows at once, pending, until the
   // rules read back have it; its role change likewise.
@@ -201,56 +199,39 @@ export function RuleNodes({
             {rule.level ? ` · its own choice: ${levelLabel(rule.level)}` : ""}
           </span>
           <span className="text-label text-muted" data-testid="canvas-rule-wake">
-            Its sessions {wakeWords(rule.level ?? poolLevel, false, true)}
+            {desktop?.has(rule.member) ? desktopLine(desktop.get(rule.member)) : `Its sessions ${wakeWords(rule.level ?? poolLevel, false, true)}`}
           </span>
         </button>
+        {desktop?.has(rule.member) && addsConnector(desktop.get(rule.member)) && (
+          <Button size="sm" variant="accent" className="pointer-events-auto self-start" aria-label={`Add AI Juggler's connector to ${labelOf(rule)}`} onClick={() => onSelect({ kind: "rule", ref: rule.member })} data-testid="canvas-rule-connector-add">
+            Add
+          </Button>
+        )}
         {rule.member === nextRef && onStartLead && cliFolderOf(rule.member) && (
           <StartLeadButton member={rule.member} name={labelOf(rule)} where={where ?? "these projects"} onStart={onStartLead} className="pointer-events-auto self-start" testId="canvas-rule-start-lead" />
         )}
         </div>
       ))}
-      {waiting.map((one) => {
-        const conversation = all.find((row) => row.account_id === one.folder && row.id === one.conversation_id);
-        return (
-          <div
-            key={one.member}
-            className={"pointer-events-auto flex flex-col gap-1 rounded-xl px-3 py-2 " + (selected(one.member) ? SELECTED : "bg-surface shadow-card")}
-            data-testid="canvas-watched-node"
-          >
-            <button type="button" aria-pressed={selected(one.member)} onClick={() => onSelect({ kind: "rule", ref: one.member })} className={"flex flex-col gap-1 rounded-lg text-left " + FOCUS_RING}>
-              <span className="flex items-center gap-1.5">
-                <Chip tone="neutral">Watched</Chip>
-                <span className="text-label text-muted">{roleLabel(one.role)}</span>
-              </span>
-              <span className="line-clamp-2 text-body font-semibold text-ink">{one.title ?? "A session in another app"}</span>
-              <span className="text-meta text-ink-2">{[one.tool, "can't reply"].filter(Boolean).join(" · ")}</span>
-            </button>
-            {conversation && (
-              // rc31: open in the Claude app, it says so here (not only in
-              // the app's log), as a greyed Resume does (rc21).
-              <WhyButton
-                size="sm"
-                variant="ghost"
-                why={continueWhy(conversation)}
-                onClick={() => void host.continueConversation?.(conversation)}
-                title={CONTINUE_WATCHED}
-                className="self-start text-meta font-medium text-accent-hi"
-                data-testid="canvas-watched-continue"
-              >
-                Continue in AI Juggler
-              </WhyButton>
-            )}
-            {conversation && (
-              <span className="text-meta text-ink-2" data-testid="canvas-watched-continue-what">
-                {CONTINUE_WATCHED_SHORT}
-              </span>
-            )}
-          </div>
-        );
-      })}
+      {waiting.map((one) => (
+        // AJ-E3013: connected through its app's connector, or Watched with why.
+        <DesktopMemberCard key={one.member} one={one} desktop={desktop?.get(one.member)} selected={selected(one.member)} onSelect={() => onSelect({ kind: "rule", ref: one.member })} />
+      ))}
     </div>
     </>
   );
+}
+
+/** Whether a desktop member's Add (or Fix) is its way in. */
+function addsConnector(info: Parameters<typeof reachOf>[0]): boolean {
+  const reach = reachOf(info);
+  return reach.kind === "watched" && reach.fix !== null;
+}
+
+/** A desktop App member's sessions: how a message reaches them through
+ * its connector, or why they're Watched (AJ-E3013). */
+function desktopLine(info: Parameters<typeof reachOf>[0]): string {
+  const reach = reachOf(info);
+  return reach.kind === "watched" ? `Watched: ${reach.line.charAt(0).toLowerCase()}${reach.line.slice(1)}` : `Its sessions: ${reach.line.charAt(0).toLowerCase()}${reach.line.slice(1)}`;
 }
 
 /** A broad member's "Shell only", as its sessions' nodes say it. */

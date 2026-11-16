@@ -46,6 +46,8 @@ import { setPoolLead } from "./pool-lead";
 import { startNextLead } from "../../lib/start-lead";
 import type { PoolRules } from "../../lib/pool-rules";
 import type { PoolRuleInfo } from "../../lib/ipc/pool-model";
+import { reachOf, useDesktopMembers } from "../../lib/connector";
+import type { DesktopMemberInfo } from "../../lib/ipc/connector";
 
 const ThreadView = lazyNamed(() => import("../messages/ThreadView"), "ThreadView");
 
@@ -189,11 +191,14 @@ function selectionHead(input: {
   project: ProjectInfo | undefined;
   where: string;
   needs: number;
+  /** AJ-E3013: the pool's desktop members' connectors. */
+  desktop?: ReadonlyMap<string, DesktopMemberInfo>;
 }): HeadOf {
   const { selection, member, rule, watched, pool } = input;
   if (member) return sessionHead(member);
+  // A session another app runs is its own, whatever its rule row says.
+  if (watched) return { kind: "watched", title: watched.title ?? "A session in another app", app: watched.tool, role: watched.role, reach: reachOf(input.desktop?.get(watched.member)) };
   if (rule) return { kind: "rule", label: input.ruleLabel(rule), memberKind: rule.kind, role: rule.role, open: rule.sessions, leadsNext: input.lead?.leadsNext };
-  if (watched) return { kind: "watched", title: watched.title ?? "A session in another app", app: watched.tool, role: watched.role };
   if (selection.kind === "edge") {
     const [fromId = "", toId = ""] = selection.key.split(">");
     const edge = input.canvas?.edges.find((row) => edgeKey(row.from_session_id, row.to_session_id) === selection.key);
@@ -284,7 +289,8 @@ export const Inspector = forwardRef<HTMLHeadingElement, {
   const rule = selection.kind === "rule" ? rules.rules?.members.find((row) => row.member === selection.ref) : undefined;
   const watched = selection.kind === "rule" ? rules.watched.find((row) => row.member === selection.ref) : undefined;
   const lead = ruleLeadOf(rule, rules, members, { poolId: pool.id, where, dir: leadDir, onChange: () => setup.onOpen("lead") });
-  const of = selectionHead({ selection, member, rule, watched, canvas, names, ruleLabel, lead, pool, project, where, needs });
+  const desktop = useDesktopMembers(pool.id);
+  const of = selectionHead({ selection, member, rule, watched, canvas, names, ruleLabel, lead, pool, project, where, needs, desktop });
   const head = inspectorHead(of);
   // The selected card and the inspector are linked by the same accent.
   const linked = of.kind !== "pool";
@@ -334,7 +340,7 @@ export const Inspector = forwardRef<HTMLHeadingElement, {
             pool={pool}
             rule={rule}
             watched={watched}
-            label={rule ? ruleLabel(rule) : (watched?.title ?? "A session in another app")}
+            label={watched ? (watched.title ?? "A session in another app") : rule ? ruleLabel(rule) : "A member"}
             shared={rule ? (ruleTool?.(rule) ?? null) : null}
             lead={lead}
             onChanged={rules.reload}

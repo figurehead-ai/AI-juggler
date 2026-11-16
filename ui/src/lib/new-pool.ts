@@ -135,15 +135,16 @@ export interface Candidate {
 /** A desktop App member: it may join (decision 15 offers it, never
  * greyed), and says what its sessions can do here (the rc26 P1 walk: the
  * Claude app read "none open now · new ones join" beside Add, as if they
- * would act). */
+ * would act). AJ-E3013: they talk through AI Juggler's connector, added
+ * with the user's OK; Watched without it. */
 function desktopAppNote(app: string): string {
-  return `Runs in the ${app}: its sessions join watched (they can't reply) until continued in AI Juggler.`;
+  return `Runs in the ${app}: with AI Juggler's connector in it (added with your OK) its sessions talk in the pool; without it they're Watched.`;
 }
 
-/** A session another app runs: it joins watched, and says it can't reply
- * here before it's added (P1 step 8). */
+/** A session another app runs: how it takes part, said before it's added
+ * (P1 step 8; AJ-E3013). */
 function watchedNote(where: string): string {
-  return `Runs in ${where}: it can't reply here until it's continued in AI Juggler.`;
+  return `Runs in ${where}: with AI Juggler's connector in its app (added with your OK) it talks in the pool; without it, it's Watched.`;
 }
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -219,7 +220,9 @@ export function sessionCandidates(input: {
         lastMs,
       };
       if (!inScope(draft, project)) return { ...base, blocked: `Works in ${projectName(project)}, not in this pool's projects.`, fix: { label: `Add ${projectName(project)}`, action: "scope" as const, arg: project ?? "" } };
-      return { ...base, blocked: null, fix: { label: "Continue in AI Juggler", action: "continue" as const, arg: `${conversation.account_id}/${conversation.id}` } };
+      // AJ-E3013: its way in is its app's connector (Who's in shows the
+      // consent card once it's in); Continue as CLI stays in its menu.
+      return { ...base, blocked: null };
     });
   return [...own, ...theirs].sort((a, b) => b.lastMs - a.lastMs);
 }

@@ -22,6 +22,7 @@ import { Button } from "../../components/primitives";
 import { Picker, Segmented } from "../../components/controls";
 import { ShellOnlyChip } from "../../components/ShellOnly";
 import { MEMBER_KINDS, type MemberKind } from "../../lib/ipc/pool-model";
+import { DesktopConnectors } from "../../pages/pool/connector/DesktopConnectors";
 import { nextRole, REACH_WORDS, type Candidate, type Draft, type DraftMember } from "../../lib/new-pool";
 import { MACHINE_WORD, MACHINES_WORD } from "../../lib/machine-words";
 import { templateById } from "../../lib/pool-templates";
@@ -217,7 +218,8 @@ export function NewPoolWho({
         </section>
       </div>
 
-      <aside className="flex flex-col gap-2 self-start rounded-xl bg-surface-2 p-3" aria-label="In this pool" data-testid="new-pool-side">
+      <div className="flex flex-col gap-3 self-start">
+      <aside className="flex flex-col gap-2 rounded-xl bg-surface-2 p-3" aria-label="In this pool" data-testid="new-pool-side">
         <span className="text-body font-semibold text-ink">In this pool</span>
         <p className="text-meta text-ink" data-testid="new-pool-side-words">
           {whoInWords(draft.members, where)}
@@ -239,6 +241,9 @@ export function NewPoolWho({
           </ul>
         )}
       </aside>
+      {/* AJ-E3013: a desktop App in it gets AI Juggler's connector here, with consent. */}
+      <DesktopConnectors refs={draft.members.map((member) => member.ref)} testId="new-pool-connector" />
+      </div>
     </div>
   );
 }

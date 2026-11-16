@@ -2,22 +2,26 @@
  * D-62 (AJ-E3008): a member rule in the inspector: what it brings in
  * (its sessions now, and new ones), its role and what its sessions may do
  * on their own ("Same as the pool" by default), how they hear a message
- * (D-119), and taking it out. A Watched member says what it can't do and
- * offers Continue in AI Juggler. Its name, kind and role are the
- * inspector's title and subtitle (AJ-E3012).
+ * (D-119), and taking it out. A desktop member (an App, or a session
+ * another app runs) says how it's reached through its app's connector, or
+ * why it's Watched, with the consent card (AJ-E3013); Continue as CLI is
+ * in its card's menu. Its name, kind and role are the inspector's title
+ * and subtitle (AJ-E3012).
  */
 import { useState, type JSX } from "react";
 
 import { Button } from "../../components/primitives";
 
-import { useActionHost } from "../../components/ItemMenu";
 import { ShellOnly } from "../../components/ShellOnly";
 import { showToast } from "../../components/Toast";
 import { errorText } from "../../lib/bridge";
-import { useConversations } from "../../lib/conversations";
 import { poolJoin, type PoolRuleInfo, type WatchedMemberInfo } from "../../lib/ipc/pool-model";
 import type { PoolInfo, PoolRole } from "../../lib/ipc/pools";
-import { CONTINUE_WATCHED, setPools } from "../../lib/pools";
+import { setPools } from "../../lib/pools";
+import { useApps } from "../../lib/apps";
+import { reachOf, useDesktopMembers, wakeLine } from "../../lib/connector";
+import type { DesktopMemberInfo } from "../../lib/ipc/connector";
+import { ConnectorCard } from "./connector/ConnectorCard";
 import { asRole, leadSentence, wakeWords } from "../../lib/pool-words";
 import { cliFolderOf } from "../../lib/start-lead";
 import { usePendingRoles, withPendingRole } from "../../lib/pool-pending";
@@ -62,8 +66,6 @@ export function InspectRule({
   onChanged: () => void;
   onGone: () => void;
 }): JSX.Element {
-  const host = useActionHost();
-  const { all } = useConversations();
   const [busy, setBusy] = useState(false);
   const member = rule?.member ?? watched?.member ?? "";
   const role: PoolRole = asRole(rule?.role ?? watched?.role ?? "member");
@@ -80,8 +82,8 @@ export function InspectRule({
       setBusy(false);
     }
   };
-  const conversation = watched ? all.find((row) => row.account_id === watched.folder && row.id === watched.conversation_id) : undefined;
   const fixed = pool.kind === "default" && member === "all";
+  const desktop = useDesktopMembers(pool.id)?.get(member);
   return (
     <div className="flex flex-col gap-4 px-4" data-testid="inspect-rule">
       <div className="flex flex-col gap-1">
@@ -90,24 +92,15 @@ export function InspectRule({
             <ShellOnly tool={shared.tool} account={shared.account} />
           </span>
         )}
-        <span className="text-meta text-ink-2">
-          {watched
-            ? "Runs in another app: shown here and counted, with no tools and no rules, until it's continued in AI Juggler."
-            : `${rule?.sessions ? `${rule.sessions} open here now` : "None open here now"}; its new sessions in this pool's projects join by themselves, and its ended ones are in the List view.`}
-        </span>
-      </div>
-      {conversation && (
-        <div className="flex flex-col gap-1">
-          <Button variant="primary" size="sm" className="self-start" onClick={() => void host.continueConversation?.(conversation)} data-testid="inspect-rule-continue">
-            Continue in AI Juggler
-          </Button>
-          <span className="text-meta text-ink-2" data-testid="inspect-rule-continue-what">
-            {CONTINUE_WATCHED}
+        {!watched && (
+          <span className="text-meta text-ink-2">
+            {`${rule?.sessions ? `${rule.sessions} open here now` : "None open here now"}; its new sessions in this pool's projects join by themselves, and its ended ones are in the List view.`}
           </span>
-        </div>
-      )}
+        )}
+      </div>
+      {(watched || desktop) && <DesktopSection poolId={pool.id} member={member} watched={!!watched} desktop={desktop} />}
       <RoleSection member={member} label={label} role={role} lead={lead} poolId={pool.id} busy={busy} onRole={(next) => roleChange(next, { lead, run, poolId: pool.id, member, level })} />
-      {!watched && (
+      {!watched && !desktop && (
         <div className="flex flex-col gap-1.5">
           <span className="text-meta font-medium text-ink">What its sessions may do on their own</span>
           <MemberOwnLevel prefix="" name={label} value={level} poolLevel={pool.access.level} disabled={busy} onChange={(next) => void run("change what its sessions may do", () => poolJoin(pool.id, member, role, next))} testId="inspect-rule-level" />
@@ -126,6 +119,32 @@ export function InspectRule({
           Take out of the pool
         </Button>
       )}
+    </div>
+  );
+}
+
+/** AJ-E3013: a desktop member, through its app's connector or Watched:
+ * how a message reaches it, or why it can't take part, then the consent
+ * card for its app (Add, or where it stands and Remove). */
+function DesktopSection({ poolId, member, watched, desktop }: { poolId: string; member: string; watched: boolean; desktop: DesktopMemberInfo | undefined }): JSX.Element {
+  const apps = useApps();
+  const reach = reachOf(desktop);
+  const app = desktop?.app_id ? apps?.find((one) => one.id === desktop.app_id) : undefined;
+  const name = app?.name ?? "its app";
+  const who = watched ? "It" : "Its sessions";
+  const wake = desktop ? wakeLine(desktop.wake) : "";
+  const words =
+    reach.kind === "watched"
+      ? `Watched: ${reach.line.charAt(0).toLowerCase()}${reach.line.slice(1)}. ${who} ${watched ? "is" : "are"} shown and counted here, without the pool's tools.`
+      : reach.kind === "added"
+        ? `AI Juggler's connector is in ${name}. ${who} ${watched ? "joins" : "join"} at the next start; then: ${wake.charAt(0).toLowerCase()}${wake.slice(1)}.`
+        : `${who} ${watched ? "talks" : "talk"} in this pool through AI Juggler's connector. ${wake}.`;
+  return (
+    <div className="flex flex-col gap-2" data-testid="inspect-rule-desktop" data-reach={reach.kind} data-member={member}>
+      <span className="text-meta text-ink-2" data-testid="inspect-rule-reach">
+        {words}
+      </span>
+      {desktop?.app_id && <ConnectorCard appId={desktop.app_id} app={name} poolId={poolId} heading={4} testId="inspect-connector" />}
     </div>
   );
 }

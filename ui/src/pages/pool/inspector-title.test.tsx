@@ -25,7 +25,9 @@ describe("the inspector's title, by what is selected", () => {
     [{ kind: "rule", label: "Codex", memberKind: "tool", role: "observer", open: 2 } as const, "Codex", "Tool · Observer", "2 open now"],
     [{ kind: "rule", label: "This Mac", memberKind: "mac", role: "member", open: 3 } as const, "This Mac", "Mac · Member", "3 open now"],
     [{ kind: "rule", label: "Everyone in web", memberKind: "everyone", role: "member", open: 4 } as const, "Everyone in web", "Everyone in scope · Member", "4 open now"],
-    [{ kind: "watched", title: "Refactor the settings", app: "claude-code", role: "member" } as const, "Refactor the settings", "Session · claude-code · Watched · Member", "Can't reply here yet"],
+    // AJ-E3013: Watched only without a connector, and it says why; through one, how a message reaches it.
+    [{ kind: "watched", title: "Refactor the settings", app: "claude-code", role: "member", reach: { kind: "watched", line: "Its app has no AI Juggler connector", fix: "add" } } as const, "Refactor the settings", "Session · claude-code · Watched · Member", "No connector in its app"],
+    [{ kind: "watched", title: "Refactor the settings", app: "claude-code", role: "member", reach: { kind: "connected", line: "Wakes on new messages" } } as const, "Refactor the settings", "Session · claude-code · Member", "Wakes on new messages"],
     [{ kind: "edge", from: "Planner", to: "Tests", count: "3 messages this week", waits: false } as const, "Planner → Tests", "Line · what passes between these two", "3 messages this week"],
     // An App whose next session leads is one member (AJ-E3011 round 2, #2).
     [{ kind: "rule", label: "Claude Code · Work", memberKind: "app", role: "member", open: 0, leadsNext: true } as const, "Claude Code · Work", "App · Lead when a session starts", "None open now"],

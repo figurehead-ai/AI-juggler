@@ -33,6 +33,9 @@ import type { CleanupTierSettings } from "./CleanupTierSettings";
 import type { CloudBackupInfo } from "./CloudBackupInfo";
 import type { CloudBackupStatusInfo } from "./CloudBackupStatusInfo";
 import type { ComposeInput } from "./ComposeInput";
+import type { ConnectorPreviewInfo } from "./ConnectorPreviewInfo";
+import type { ConnectorRemovalInfo } from "./ConnectorRemovalInfo";
+import type { ConnectorStatusInfo } from "./ConnectorStatusInfo";
 import type { ConversationDeltaInfo } from "./ConversationDeltaInfo";
 import type { ConversationInfo } from "./ConversationInfo";
 import type { ConversationSnapshotInfo } from "./ConversationSnapshotInfo";
@@ -42,6 +45,7 @@ import type { CrashInfo } from "./CrashInfo";
 import type { DebugModeInfo } from "./DebugModeInfo";
 import type { DeletePreviewInfo } from "./DeletePreviewInfo";
 import type { DesktopLaunchInfo } from "./DesktopLaunchInfo";
+import type { DesktopMemberInfo } from "./DesktopMemberInfo";
 import type { DiagnosticsPreviewInfo } from "./DiagnosticsPreviewInfo";
 import type { DiagnosticsSavedInfo } from "./DiagnosticsSavedInfo";
 import type { DiscoveredInfo } from "./DiscoveredInfo";
@@ -389,6 +393,16 @@ export interface Commands {
   cloud_backup_set_schedule: { args: { schedule: string }; result: CloudBackupStatusInfo };
   /** Write cloud_backup::cloud_backup_status */
   cloud_backup_status: { args: Record<string, never>; result: CloudBackupStatusInfo };
+  /** Write features::connector::commands::connector_add */
+  connector_add: { args: { appId: string }; result: ConnectorStatusInfo };
+  /** Read features::connector::commands::connector_desktop_members */
+  connector_desktop_members: { args: { poolId: string }; result: DesktopMemberInfo[] };
+  /** Read features::connector::commands::connector_preview */
+  connector_preview: { args: { appId: string }; result: ConnectorPreviewInfo };
+  /** Write features::connector::commands::connector_remove */
+  connector_remove: { args: { appId: string }; result: ConnectorRemovalInfo };
+  /** Read features::connector::commands::connector_status */
+  connector_status: { args: { appId: string }; result: ConnectorStatusInfo };
   /** Write features::conversations::archive::conversations_archive */
   conversations_archive: { args: { accountId: string; conversationId: string; archived: boolean }; result: void };
   /** Write features::conversations::commands::conversations_bring_forward */

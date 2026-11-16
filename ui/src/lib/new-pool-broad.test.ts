@@ -95,10 +95,10 @@ describe("App members to add", () => {
   const apps = [appModel("cli:claude-work", "cli", "Claude Code", "Claude Code · Work · work"), appModel("app:claude:work-max", "desktop", "Claude app", "Claude app · Work Max")];
   const rows = () => broadCandidates({ kind: "app", apps, subscriptions: [], tools: [], sessions: [], thisMac: "this-mac", paired: [] });
 
-  it("offers a desktop App to add, saying its sessions join watched", () => {
+  it("offers a desktop App to add, saying its sessions talk through AI Juggler's connector (AJ-E3013), Watched without it", () => {
     const desktop = rows().find((row) => row.label === "Claude app · Work Max")!;
     expect(desktop.blocked).toBeNull();
-    expect(desktop.note).toBe("Runs in the Claude app: its sessions join watched (they can't reply) until continued in AI Juggler.");
+    expect(desktop.note).toBe("Runs in the Claude app: with AI Juggler's connector in it (added with your OK) its sessions talk in the pool; without it they're Watched.");
   });
 
   it("says nothing more for an App whose sessions AI Juggler starts", () => {

@@ -22,7 +22,7 @@ import { StepHead } from "./StepHead";
 const CAN: Record<Reach, string> = {
   full: "sees · messages · tasks · can be asked",
   shell: "acts through its shell: the juggler-agent command",
-  watched: "watched: shown, can't act until continued in AI Juggler",
+  watched: "through its app's AI Juggler connector; Watched without it",
   later: "its sessions here join by themselves, now and later",
 };
 

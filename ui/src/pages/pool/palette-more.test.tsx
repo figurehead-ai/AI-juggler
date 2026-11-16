@@ -34,8 +34,8 @@ describe("the add palette's other candidates (AJ-E3008 R3)", () => {
   });
 
   // The rc26 P1 walk: a desktop App's Add read as if its sessions would act.
-  it("a desktop App keeps its Add and says its sessions join watched", () => {
-    const desktop: Candidate = { ...app("d1"), label: "Claude app · Work Max", detail: "none open now", note: "Runs in the Claude app: its sessions join watched (they can't reply) until continued in AI Juggler." };
+  it("a desktop App keeps its Add and says how its sessions take part (AJ-E3013)", () => {
+    const desktop: Candidate = { ...app("d1"), label: "Claude app · Work Max", detail: "none open now", note: "Runs in the Claude app: with AI Juggler's connector in it (added with your OK) its sessions talk in the pool; without it they're Watched." };
     render(<PaletteMore poolId="pool-1" lists={{ ...lists(), app: [desktop] }} onFix={() => undefined} onAdded={() => undefined} />);
     const row = screen.getByTestId("canvas-palette-more-item");
     expect(within(row).getByTestId("canvas-palette-more-add")).toBeTruthy();

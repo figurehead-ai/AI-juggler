@@ -35,7 +35,13 @@ export const memberRef = (kind: MemberKind, id = ""): string => (kind === "every
 
 // Specs may seed a pool's talk rules, its member rules and the wait for
 // an App's next session to lead (`__AIJ_POOL_RULES__`, by pool id).
-type Seams = { __AIJ_POOL_CALLS__?: string[]; __AIJ_POOL_RULES__?: Record<string, { talk?: PoolTalkInfo[]; lead_next?: string | null; members?: PoolRuleInfo[] }> };
+type Seams = {
+  __AIJ_POOL_CALLS__?: string[];
+  __AIJ_POOL_RULES__?: Record<string, { talk?: PoolTalkInfo[]; lead_next?: string | null; members?: PoolRuleInfo[] }>;
+  /** A Watched member's title, tool and account, by its ref (what the
+   * conversation index says of it live). */
+  __AIJ_POOL_WATCHED__?: Record<string, Partial<WatchedMemberInfo>>;
+};
 const seams = () => globalThis as unknown as Seams;
 const record = (called: string) => (seams().__AIJ_POOL_CALLS__ ??= []).push(called);
 
@@ -222,7 +228,7 @@ export async function poolWatched(poolId: string): Promise<WatchedMemberInfo[]> 
       .members.filter((row) => row.member.startsWith("conversation:"))
       .map((row) => {
         const [folder = "", id = ""] = row.member.slice("conversation:".length).split("/");
-        return { member: row.member, folder, conversation_id: id, title: null, tool: null, account_label: null, project_id: null, role: row.role, continued_session: null };
+        return { member: row.member, folder, conversation_id: id, title: null, tool: null, account_label: null, project_id: null, role: row.role, continued_session: null, ...seams().__AIJ_POOL_WATCHED__?.[row.member] };
       });
   }
   return call("pools_watched", { poolId });

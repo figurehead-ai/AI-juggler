@@ -1,8 +1,9 @@
 /**
  * D-62 (AJ-E3008 req. 3, AJ-E3006): the palette lists every candidate,
- * not only the open sessions that can join: sessions other apps run (to
- * add as Watched), Apps, Accounts, Tools, Macs and everyone in scope
- * (their sessions join by themselves), and the sessions that can't join
+ * not only the open sessions that can join: sessions other apps run
+ * (Watched until their app has AI Juggler's connector), Apps, Accounts,
+ * Tools, Macs and everyone in scope (their sessions join by
+ * themselves), and the sessions that can't join
  * yet, each with its reason in amber and the step that would let it in.
  */
 import { useState, type JSX } from "react";
@@ -48,7 +49,7 @@ export function PaletteMore({
       // Round 4 (#5): its card shows at once, pending, until the pool says so.
       setPools(await withPendingAdd({ poolId, ref: row.ref, label: row.label, kind: row.kind }, () => poolJoin(poolId, row.ref, "member")));
       onAdded();
-      showToast({ message: `${row.label} is in the pool`, detail: row.reach === "watched" ? "Watched: it can't act until it's continued in AI Juggler." : row.note ?? (row.reach === "later" ? "Its sessions here join by themselves, now and later." : undefined), testId: "canvas-added" });
+      showToast({ message: `${row.label} is in the pool`, detail: row.reach === "watched" ? "It talks here once its app has AI Juggler's connector: Add is on its card." : row.note ?? (row.reach === "later" ? "Its sessions here join by themselves, now and later." : undefined), testId: "canvas-added" });
     } catch (cause) {
       showToast({ message: `Couldn't add ${row.label}`, detail: errorText(cause), tone: "warning" });
     }
@@ -83,11 +84,11 @@ export function PaletteMore({
                 <button
                   type="button"
                   onClick={() => void add(row)}
-                  aria-label={`${row.reach === "watched" ? "Add as watched" : "Add"}: ${row.label}`}
+                  aria-label={`Add: ${row.label}`}
                   className="shrink-0 rounded-md px-1.5 py-0.5 text-label font-medium text-accent-hi outline-none hover:bg-accent-soft focus-visible:ring-1 focus-visible:ring-accent/60"
                   data-testid="canvas-palette-more-add"
                 >
-                  {row.reach === "watched" ? "Add as watched" : "Add"}
+                  Add
                 </button>
               )}
             </span>

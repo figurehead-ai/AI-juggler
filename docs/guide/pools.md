@@ -139,6 +139,49 @@ or app in **Settings › Agent access › Agent tools in sessions**. After
 **Not now**, or with them off for the pool's project or app, the pool
 says so in one quiet line with **Turn on** beside it.
 
+## Desktop apps in a pool
+
+A session in the Claude app's Code tab is a pool member like a terminal
+one: it reads and sends the pool's messages, shared notes and tasks, under
+the pool's rules. It does that through **AI Juggler's connector**, which
+you add to that app profile once, with your OK.
+
+When a Claude app profile, or one of its sessions, is in a pool without
+the connector, its card says **Watched: its app has no AI Juggler
+connector**, with **Add**. Watched means shown and counted, without the
+pool's tools. **Add** opens one card: "Add AI Juggler's connector to
+Claude · Work so its sessions can talk in this pool", what it does, an
+example, and this section.
+
+- **Add** first shows exactly what it writes: each file ("Creates
+  ~/…/skills/ai-juggler/.claude-plugin/plugin.json") with its text under
+  it. Nothing is written until you click **Add to Claude · Work**. It
+  writes only AI Juggler's own folder in that profile's Claude Code
+  settings: its pool tools and a note on new messages. Never a secret,
+  never your Keychain, and nothing of yours changes.
+- **After Add**: a running session picks it up at its next start; new
+  sessions have it at once. AI Juggler doesn't restart a session for you.
+- **Remove** shows exactly what it deletes first. If you changed one of
+  its files since, Remove leaves that file and names it.
+- **Add it yourself instead** shows the steps to install AI Juggler's
+  plugin from the app (**+ › Add plugins**), with a **Copy** button for
+  the command. While the steps are open, AI Juggler watches for it and
+  says when it's done: the connector is there, or one of the app's
+  sessions called AI Juggler.
+
+Once connected, a member's card says how a new message reaches it:
+**Wakes on new messages** (the pool lets its members be woken: at Full,
+or a rule you made) or **Reads messages on its next turn**. AI Juggler
+never types into the app's window.
+
+The ChatGPT Codex app can't take the connector yet (AI Juggler can't tell
+which of its threads is calling), and its threads can't be woken: they
+stay Watched, and their cards say so.
+
+To carry on a Watched session in AI Juggler instead, use **Continue as
+CLI** in its card's menu: a new process here resumes it, with the pool's
+tools.
+
 ## What agents may do
 
 Agents reach their pool through AI Juggler's agent tools, in the sessions
