@@ -3213,6 +3213,15 @@ Each ships with tests that fail without it and a design critique; the M2, D2 and
      exactly as Deliver already does for a CLI member: that is the user
      acting (ADR-0003's "sessions act only when you act"). The gate in 1
      is for agents' messages (coordinating session, 2026-11-16).
+  6. A pool-wide message is copied into the inboxes of **open** members
+     only; an ended member gets no copy. When one is resumed, its first
+     inbox read includes the pool messages sent while it was gone, from
+     the pool's own log: at most 50, newest first, with "N earlier" said
+     when there were more. A direct message to a named ended member still
+     lands in its inbox, as before. Why: a pool scoped to a project holds
+     its old ended sessions (about 35 in the aij-test proof's lab), and a
+     copy each was noise nobody reads; a resumed session still catches up
+     (coordinating session's design call, 2026-11-16).
 - **Why the gate stays:** waking starts a turn, and a turn uses the
   user's subscription.
 - **Amends:** D-116's "waking stays the honest limit (D-66)" for the
