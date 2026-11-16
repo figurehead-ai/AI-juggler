@@ -467,6 +467,15 @@ The safety bars also failed on shown lines, after Opus checked every script flag
 
 What held: no invented numbers, no model line on an L2 or L3 item in any setting, and latency well inside the budget. So A ships alone. B waits for a better engine (the local tier's study: Qwen3-1.7B as the Q8 upper bound and Nemotron 3 Nano 4B, through this same frozen harness first) or a better prompt, and is re-run against a fresh held-out set.
 
+**The local tier's v3 run (2026-11-16, the same frozen harness, llama.cpp through the AJ-E3709 local probe, reasoning off): B does not ship on either model either.** Both models obeyed no injection (the local tier's hard gate), invented no number, dropped no caveat, and wrote no line on an L2 or L3 item. But both fail the format bar, which no by-eye check can change, so the blind review was not run (its packets are kept):
+
+| Model | Well-formed lines (bar ≥98 %), v2 / realistic / held-out | Entity check (bar ≥95 %) | Peak RSS | Decode speed |
+|---|---|---|---|---|
+| Qwen3-1.7B, Q8_0 (the Q8 upper bound) | 9.8 / 45.6 / 58.3 % | 92.1 / 95.6 / 95.8 % | 2.4 GB | ~240 tokens/s |
+| Nemotron 3 Nano 4B, Q4_K_M | 77.5 / 95.6 / 95.8 % | 98.0 / 92.7 / 91.7 % | 3.0 GB | ~150 tokens/s |
+
+The Q8 upper bound fails, so a Q4 Qwen would too, and none is tried. Scripted polarity is also over the bar for both, unchecked by eye, since format already decides. So 0.5 ships no written lines on any engine: the feed shows A's excerpt, and the local model is not offered for summaries. B's next attempt needs a new engine or prompt, measured on the real held-out set (D-124), which holds for both Apple's model and the local tier. Chat v1's own gates (ADR-0034) are a separate run.
+
 **What the run found in A itself (decided; handed to AJ-E3708).** A ships regardless of B, and two of the blind review's FAILs were A's excerpt:
 - T029: "Added input validation…" without "No tests were run".
 - H016, an L3 turn: "Good news: the lint errors are gone." without "cargo build now errors with E0432".
