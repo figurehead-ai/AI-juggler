@@ -90,22 +90,28 @@ export function HomeFeedFilters({ filters, onChange, facets, toReview, onReviewA
   const what = [chip !== "all" ? chipName : null, facet !== "all" ? facetName : null].filter(Boolean).join(" · ");
   return (
     <div className="flex flex-col gap-1.5" data-testid="feed-filters">
-      <div className="flex flex-wrap items-center gap-2">
-        <Segmented label="Show in the feed" value={chip} segments={CHIPS} wrap testId="feed-chip" onChange={(value) => onChange({ ...filters, category: value === "all" ? null : value })} />
-        <Picker
-          value={facet}
-          options={options}
-          groups={[{ label: "Recent projects", values: suggested }]}
-          onChange={(value) => onChange(withFacet(filters, value, facets))}
-          ariaLabel="Show one project, App, pool or Account"
-          heading="Show one"
-          allHeading="All"
-          searchLabel="Search projects, Apps and pools"
-          size="sm"
-          look="quiet"
-          testId="feed-facet"
-        />
-        <button type="button" aria-label="More feed options" aria-haspopup="menu" aria-expanded={menu !== null} onClick={(event) => setMenu(menuPoint(event))} className="btn-ghost ml-auto flex size-7 items-center justify-center rounded-md text-label outline-none focus-visible:ring-1 focus-visible:ring-accent/60" data-testid="feed-more">
+      {/* The ⋯ holds the row's end at every feed width (down to D-118's
+          480 px column): the chips and the picker wrap among themselves
+          beside it, the picker under the chips first, so no line is left
+          holding the ⋯ alone (the empty band at 1200 with the rail open). */}
+      <div className="flex items-start gap-2" data-testid="feed-toolbar">
+        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1.5">
+          <Segmented label="Show in the feed" value={chip} segments={CHIPS} wrap testId="feed-chip" onChange={(value) => onChange({ ...filters, category: value === "all" ? null : value })} />
+          <Picker
+            value={facet}
+            options={options}
+            groups={[{ label: "Recent projects", values: suggested }]}
+            onChange={(value) => onChange(withFacet(filters, value, facets))}
+            ariaLabel="Show one project, App, pool or Account"
+            heading="Show one"
+            allHeading="All"
+            searchLabel="Search projects, Apps and pools"
+            size="sm"
+            look="quiet"
+            testId="feed-facet"
+          />
+        </div>
+        <button type="button" aria-label="More feed options" aria-haspopup="menu" aria-expanded={menu !== null} onClick={(event) => setMenu(menuPoint(event))} className="btn-ghost flex size-7 shrink-0 items-center justify-center rounded-md text-label outline-none focus-visible:ring-1 focus-visible:ring-accent/60" data-testid="feed-more">
           ⋯
         </button>
         {menu && (

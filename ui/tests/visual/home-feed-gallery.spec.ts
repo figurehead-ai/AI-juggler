@@ -158,6 +158,55 @@ for (const theme of ["dark", "light"] as const) {
   });
 }
 
+/** The toolbar's boxes: the chips' row, each chip, the picker and the ⋯,
+ * with whether any of them is cut (its words wider than its box, or past
+ * the toolbar's edge). */
+async function toolbarBoxes(page: Page) {
+  return page.getByTestId("feed-toolbar").evaluate((bar) => {
+    const box = (node: Element) => {
+      const r = node.getBoundingClientRect();
+      return { left: r.left, right: r.right, top: r.top, bottom: r.bottom };
+    };
+    const at = (id: string) => bar.querySelector(`[data-testid="${id}"]`)!;
+    const parts = [...bar.querySelectorAll('[data-testid^="feed-chip-"]'), at("feed-facet"), at("feed-more")];
+    const edge = box(bar);
+    const cut = parts
+      .filter((node) => {
+        const r = box(node);
+        const words = node.scrollWidth > node.clientWidth + 0.5;
+        return words || r.left < edge.left - 0.5 || r.right > edge.right + 0.5;
+      })
+      .map((node) => node.getAttribute("data-testid"));
+    return { bar: edge, chips: box(at("feed-chip")), more: box(at("feed-more")), cut };
+  });
+}
+
+/** D-118: the ⋯ holds the end of the chips' row down to the feed column's
+ * minimum (480 px) — at 1200 with the rail open (≈ 548 px) it wrapped onto
+ * a line of its own, an empty band over the first day — and nothing in
+ * the toolbar is cut. */
+test("home feed — the toolbar keeps the ⋯ on the chips' row — 1200 rail open and a 480 px column", async ({ page }) => {
+  await seed(page, allStatuses, "dark", { width: 1200, height: 900 });
+  await expect(page.getByTestId("home")).toHaveAttribute("data-layout", "columns");
+  const check = async (what: string) => {
+    const { bar, chips, more, cut } = await toolbarBoxes(page);
+    expect(more.top, `${what}: the ⋯ starts on the chips' row`).toBeGreaterThanOrEqual(chips.top - 0.5);
+    expect(more.top, `${what}: the ⋯ starts on the chips' row`).toBeLessThan(chips.bottom);
+    expect(Math.abs(more.right - bar.right), `${what}: the ⋯ at the row's end`).toBeLessThanOrEqual(0.5);
+    expect(cut, `${what}: nothing in the toolbar cut`).toEqual([]);
+    return bar.right - bar.left;
+  };
+  // The rail open at 1200 leaves the feed column ≈ 548 px: under the
+  // chips + picker + ⋯ on one line.
+  expect(await check("1200 rail open")).toBeLessThan(576);
+  // The column's minimum (minmax(480px, 1fr)); no real window gives it
+  // (the columns stack first), so the feed's box is held there.
+  await page.getByTestId("feed-filters").evaluate((node) => {
+    (node as HTMLElement).style.width = "480px";
+  });
+  expect(await check("480 px column")).toBeCloseTo(480, 0);
+});
+
 /**
  * AJ-E3702's quality gate (R8): 5,000 items, each its own card, in the two
  * columns (1440 wide; stacked, the feed pages differently: one page, then
