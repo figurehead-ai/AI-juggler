@@ -3239,3 +3239,11 @@ Each ships with tests that fail without it and a design critique; the M2, D2 and
   unless a lab probe proves which thread calls.
 - Sources: the coordinating session's message, 2026-11-15; the research
   doc's §§1.1, 5.2, 8.
+
+### D-122 The Codex app's thread identity (AJ-E3013 C2) stays in 0.4.6: the lab Codex sign-in comes first, in the planned sitting, before 0.4.6 ships — SETTLED (2026-11-16)
+
+- **Ruling** (the maintainer, through the coordinating session, 2026-11-16): asked whether C2 is proven before 0.4.6 goes Stable or deferred with a D-number, the maintainer chose **"I'll do the sitting first"**.
+- **Decision:** AJ-E3013 R1's Codex-app part (C1/C2: which thread of the shared Codex app-server calls) stays in 0.4.6's scope. The maintainer's one lab Codex sign-in happens in the planned sign-in sitting before 0.4.6 ships; the C2 probe (`juggler-agent --mcp --probe` / `--probe-shell`) is kept ready for that slot, and its outcome is recorded either way: a Codex app thread as a member, or Watched with the researched reason.
+- **Why:** 0.4.6 is the first Stable candidate (D-114); the Stable gate (D-85, D-99) takes the whole 0.4, and the maintainer would rather do the sign-in than defer the route's proof.
+- **Also settled, the same answer round:** "jive-code-graph" and "Jive CLI" in PRINCIPLES.md, ADR-0032, the decision log and fixtures are fine in public ("They're fine public"); nothing changes.
+- Sources: the coordinating session's message, 2026-11-16, quoting the maintainer.
