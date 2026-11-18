@@ -17,7 +17,7 @@ import { resolve } from "node:path";
 import type { FixtureSet } from "../../src/preview/fixtures";
 import { placesConversations } from "../../src/preview/places";
 import { allStatuses } from "./fixtures";
-import { away, BUSY_AWAY, busyFeed, digestFeed, manyFeed } from "./fixtures/home-feed";
+import { away, BUSY_AWAY, busyFeed, digestFeed, manyFeed, MOCK_T0, mockHome } from "./fixtures/home-feed";
 
 const OUT = resolve(process.cwd(), "../docs/qa/evidence/_gallery/68-home-feed");
 const T0 = 1_728_800_000_000;
@@ -45,7 +45,8 @@ const WIDTHS = [
   { name: "stacked-1120-rail-open", width: 1120, height: 800, layout: "stacked" }, // the rail open: ≈ 816, the columns stack
 ] as const;
 
-type Seams = { feed?: unknown[]; summary?: unknown; storage?: Record<string, string> };
+/** `globals`: more `window.__AIJ_*__` seams (the mock state's quota, places, messages). */
+type Seams = { feed?: unknown[]; summary?: unknown; storage?: Record<string, string>; globals?: Record<string, unknown>; now?: number };
 
 test.beforeAll(() => mkdirSync(OUT, { recursive: true }));
 
@@ -54,6 +55,7 @@ async function seed(page: Page, fixture: FixtureSet, theme: "dark" | "light", si
     ({ fixture, theme, t0, seams }) => {
       const w = window as unknown as Record<string, unknown>;
       w.__AIJ_FIXTURE__ = fixture;
+      for (const [key, value] of Object.entries(seams.globals ?? {})) w[key] = value;
       if (seams.feed) w.__AIJ_FEED__ = seams.feed;
       if (seams.summary) w.__AIJ_SUMMARY__ = seams.summary;
       for (const [key, value] of Object.entries(seams.storage ?? {})) localStorage.setItem(key, value);
@@ -62,7 +64,7 @@ async function seed(page: Page, fixture: FixtureSet, theme: "dark" | "light", si
       sessionStorage.setItem("aij.ready.skipped", "1");
       Date.now = () => t0;
     },
-    { fixture, theme, t0: T0, seams },
+    { fixture, theme, t0: seams.now ?? T0, seams },
   );
   await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
   await page.setViewportSize(size);
@@ -315,4 +317,30 @@ test("home feed paging — 5,000 items: three pages by themselves, then Load mor
   await expect.poll(calls).toBe(4);
   const after = await page.evaluate(() => (window as unknown as { __AIJ_FEED_CALLS__: Array<{ limit: number }> }).__AIJ_FEED_CALLS__);
   expect(Math.max(...after.map((call) => call.limit))).toBe(30);
+});
+
+/**
+ * The approved mock-up's data ("mock" state, 1280x800, both themes): the
+ * mock's two needs, five apps, runway and feed, for side-by-sides with
+ * the design refs' mock-home-feed-<theme>.png. Read in UTC and en-US so
+ * the times are the mock's. Capture only this:
+ *   playwright test home-feed-gallery -g "the mock-up's data"
+ */
+test.describe("the mock-up's data", () => {
+  test.use({ locale: "en-US", timezoneId: "UTC" });
+  for (const theme of ["dark", "light"] as const) {
+    test(`home feed — mock — 1280 — ${theme}`, async ({ page }) => {
+      const mock = mockHome(MOCK_T0);
+      await seed(page, mock.fixture, theme, { width: 1280, height: 800 }, {
+        feed: mock.feed,
+        summary: mock.summary,
+        now: MOCK_T0,
+        globals: { __AIJ_QUOTA_DISPLAY__: mock.quota, __AIJ_PLACES__: mock.places, __AIJ_MESSAGES__: mock.messages },
+      });
+      await expect(page.getByTestId("home")).toHaveAttribute("data-layout", "columns");
+      await expect(page.getByTestId("feed-card").first()).toBeVisible();
+      await page.mouse.move(0, 0);
+      await page.screenshot({ path: resolve(OUT, `mock-1280-${theme}.png`) });
+    });
+  }
 });
