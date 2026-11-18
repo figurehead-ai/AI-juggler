@@ -17,6 +17,9 @@ juggler-account = ["juggler-platform"]
 # no state and only speaks to the app over its socket).
 juggler-agentbridge = []
 juggler-stats = []
+# ADR-0035: the signed remote configuration; knows no feature, so it
+# depends on nothing of ours (sections and the transport are handed in).
+juggler-remote-config = []
 juggler-scap-init = []
 # D-26: the audited SMAppService shim (open at login); depends on nothing of ours.
 juggler-login-item = []

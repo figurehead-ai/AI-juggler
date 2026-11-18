@@ -3132,6 +3132,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "juggler-remote-config"
+version = "0.4.0"
+dependencies = [
+ "base64 0.23.1",
+ "ed25519-dalek",
+ "getrandom 0.4.3",
+ "proptest",
+ "serde",
+ "serde_json",
+ "sha2 0.11.1",
+ "thiserror 2.0.21",
+ "tracing",
+]
+
+[[package]]
 name = "juggler-scap-init"
 version = "0.4.0"
 dependencies = [
