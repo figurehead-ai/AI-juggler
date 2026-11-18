@@ -1105,6 +1105,41 @@ fn a_target_not_signed_in_is_the_users_to_clear() {
     );
 }
 
+/// 5.x (2026-11-18): a member whose messages wait to be sent in the app
+/// (`waiting-input/`) holds the move back, as the user's to clear; the
+/// folder itself (empty, or another conversation's) doesn't.
+#[test]
+fn a_member_with_messages_waiting_to_be_sent_waits() {
+    let lab = Lab::new();
+    let (a, b) = (lab.account("a"), lab.account("b"));
+    let cwd = lab.cwd();
+    record(&a, "local_main", "main", None, false, &cwd);
+    record(&a, "local_other", "other", None, false, &cwd);
+    history(&a, SLUG, "main", 2, "a");
+    std::fs::create_dir_all(a.folder.join("waiting-input")).unwrap();
+    std::fs::write(a.folder.join("waiting-input/local_other.json"), "{}").unwrap();
+    let plan = ClaudeMove.plan(&lab.request(&a, &b, "main")).unwrap();
+    assert!(
+        !plan
+            .refusals
+            .iter()
+            .any(|r| r.words.contains("waiting to be sent")),
+        "{:?}",
+        plan.refusals
+    );
+    assert!(plan.shape.is_empty(), "{:?}", plan.shape);
+    std::fs::write(a.folder.join("waiting-input/local_main.json"), "{}").unwrap();
+    let plan = ClaudeMove.plan(&lab.request(&a, &b, "main")).unwrap();
+    assert!(
+        plan.refusals
+            .iter()
+            .any(|r| r.kind == RefusalKind::UserCanClear
+                && r.words.ends_with("Move becomes available once it's sent")),
+        "{:?}",
+        plan.refusals
+    );
+}
+
 /// Review fixes: a member also started from a conversation outside the
 /// family would keep a link to a record left behind: refused.
 #[test]

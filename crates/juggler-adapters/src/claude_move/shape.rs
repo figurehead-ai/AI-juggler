@@ -11,7 +11,9 @@
 //!   `local_<…>.json` record per conversation and, beside them, the app's
 //!   own account-level files it knows: the archived-sessions hint (5.x,
 //!   `{"v":1,"archived":[…]}`, which the app rebuilds from the records),
-//!   scheduled tasks, artifacts, and the task backlog folder;
+//!   scheduled tasks, artifacts, and the task backlog folder; and the
+//!   `waiting-input/` folder (5.x), where a session's messages wait to be
+//!   sent, by record id (a move waits for a member's to be sent);
 //! - each record's own id (`sessionId`, its file's name) and its
 //!   conversation (`cliSessionId`), and the typed fields the plan reads
 //!   (`spawnedFrom.sessionId`, `forkedFromSessionId`, `isArchived`, `cwd`);
@@ -34,6 +36,26 @@ const ARCHIVE_HINT_V: u64 = 1;
 const ACCOUNT_FILES: [&str; 2] = ["scheduled-tasks.json", "artifacts.json"];
 /// Account-level folders beside the records a move leaves where they are.
 const ACCOUNT_FOLDERS: [&str; 1] = ["backlog"];
+/// 5.x: the folder beside the records where a session's messages wait to
+/// be sent, one entry per record (`<id>`, `<id>.json…`).
+pub(super) const WAITING_INPUT: &str = "waiting-input";
+
+/// How many messages-waiting entries the record `id` has beside its file
+/// at `record` (5.x `waiting-input/`).
+pub(super) fn waiting_for(record: &Path, id: &str) -> usize {
+    let Some(folder) = record.parent().map(|dir| dir.join(WAITING_INPUT)) else {
+        return 0;
+    };
+    std::fs::read_dir(folder).map_or(0, |entries| {
+        entries
+            .flatten()
+            .filter(|entry| {
+                let name = entry.file_name().to_string_lossy().into_owned();
+                name == id || name.starts_with(&format!("{id}.json"))
+            })
+            .count()
+    })
+}
 
 /// What in `instance`'s session records doesn't have the shape a move
 /// relies on, in words (empty: it fits). Reads only; a profile with no
@@ -93,7 +115,7 @@ fn org_folder(folder: &Path, out: &mut BTreeSet<String>) {
             continue;
         }
         let account_level = if is_dir {
-            ACCOUNT_FOLDERS.contains(&name.as_str())
+            ACCOUNT_FOLDERS.contains(&name.as_str()) || name == WAITING_INPUT
         } else {
             ACCOUNT_FILES.contains(&name.as_str())
         };
@@ -252,6 +274,8 @@ mod tests {
             &serde_json::json!({"scheduledTasks": []}),
         );
         std::fs::create_dir_all(org.join("backlog")).unwrap();
+        std::fs::create_dir_all(org.join(WAITING_INPUT)).unwrap();
+        std::fs::write(org.join("local_a.json.tmp"), b"{").unwrap();
         std::fs::write(org.join(".DS_Store"), b"").unwrap();
         assert_eq!(app_mismatches(tmp.path()), Vec::<String>::new());
     }

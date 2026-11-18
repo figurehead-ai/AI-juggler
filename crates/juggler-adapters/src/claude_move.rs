@@ -679,6 +679,17 @@ impl InPlaceMove for ClaudeMove {
             .filter(|id| !target_aliases.contains(id))
             .filter(|id| !moved_conversations.contains(&target_records[id].conversation))
             .collect();
+        // 5.x: a member with messages waiting to be sent in the app; they
+        // are the app's to send first (the user's to clear).
+        for id in &family {
+            let record = &source_records[id];
+            if shape::waiting_for(&record.path, id) > 0 {
+                b.wait(format!(
+                    "“{}” has a message waiting to be sent in the Claude app; Move becomes available once it's sent",
+                    record.title().unwrap_or_else(|| record.conversation.clone())
+                ));
+            }
+        }
         // A record AI Juggler can't read that names the family could be a
         // member or an alias it would miss: the family wouldn't move whole.
         let family_ids: BTreeSet<String> = family
