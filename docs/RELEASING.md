@@ -609,32 +609,55 @@ the app's build).
 **Publish config** (`publish-config.yml`) for the channel: it validates,
 stamps the next serial and 14 days, signs, verifies as the app does,
 uploads, and checks the public URL. It waits for the `release`
-environment's approval. Every Monday it re-signs all three channels (the
-same approval), and every day a job with no secret fails if a live file
-is within 3 days of expiry.
+environment's approval. New or changed content only ever goes this way.
+
+**Unattended, weekly:** every Monday each live file is re-signed with only
+a new serial and dates, in two environments with no reviewer:
+`config-resign` signs (`remote-config-publish resign`: it reads no source,
+and refuses a result whose canonical content differs from the live file's
+by a byte), and `config-upload` checks that again against the live file
+as it is then, and uploads. Every day a job with no secret fails if a live
+file is within 3 days of expiry.
 
 **One-time setup (maintainer):**
 
-1. **The keys.** On a Mac with the repository, for each key:
-   `cargo run -q -p juggler-remote-config --bin remote-config-publish -- keygen --id rc-2026-a | gh secret set REMOTE_CONFIG_SIGNING_KEY --env release`
-   The private seed goes straight into the secret; it is never shown or
-   saved. The public line it prints goes into
-   `crates/juggler-remote-config/src/keys.rs`, `COMPILED_KEYS`, with its
-   role (`KeyRole::Current`). Make the `next` and `emergency` keys the same
-   way, kept apart from `current` (their own secrets, not used by the
-   workflow until a rotation or a revocation). The same change fills
+1. **The environments.** In the repository's settings, Environments:
+   - `config-resign`: no required reviewer; deployment branches: `main`
+     only; one secret, `REMOTE_CONFIG_SIGNING_KEY` (step 2).
+   - `config-upload`: no required reviewer; deployment branches: `main`
+     only; the two storage secrets (step 4) and nothing else.
+   - `release` already exists; it gets the signing key and the storage
+     secrets too.
+2. **The `current` key.** On a Mac with the repository, in zsh or bash:
+   `cargo run -q -p juggler-remote-config --bin remote-config-publish -- keygen --id rc-2026-a | tee >(gh secret set REMOTE_CONFIG_SIGNING_KEY --env release) | gh secret set REMOTE_CONFIG_SIGNING_KEY --env config-resign`
+   The seed passes through memory only, straight into both secrets; it is
+   never shown or stored on the Mac. The public line `keygen` prints goes
+   into `crates/juggler-remote-config/src/keys.rs`, `COMPILED_KEYS`, as
+   `KeyRole::Current`.
+3. **The `next` and `emergency` keys** (standby, like the updater's): their
+   private halves stay offline in your password manager, never as GitHub
+   secrets. For each, run `… keygen --id rc-2026-b` with nothing after it:
+   the seed is printed once in the terminal. Paste it into a new
+   password-manager item, then clear the terminal (⌘K). Printing once is
+   the safer of the two ways: a file written and then deleted can't be
+   reliably erased from the Mac's disk (copy-on-write, Time Machine,
+   Spotlight, synced folders), while terminal text is only in memory. Don't
+   copy it through the clipboard either (clipboard history and Universal
+   Clipboard keep it). Their public lines go into `COMPILED_KEYS` as
+   `KeyRole::Next` and `KeyRole::Emergency`. The same change fills
    `COMPILED_FLOORS` in `state.rs` (a build that pins keys without floors
    doesn't compile): `(Channel::Stable, 0)` and so on before the first
-   file.
-2. **The storage token.** In Cloudflare, an R2 API token with Object Read
-   and Write on the `figurehead-config` bucket only. Its access key id and
-   secret go into the `release` environment as `R2_CONFIG_ACCESS_KEY_ID`
-   and `R2_CONFIG_SECRET_ACCESS_KEY`.
-3. **The host.** Connect `config.figurehead.ai` as the bucket's custom
+   file. At a rotation, `next`'s seed goes from the password manager into
+   the two secrets the same way.
+4. **The bucket and its token.** In Cloudflare, create the R2 bucket
+   `figurehead-config`. Then an R2 API token with Object Read and Write on
+   that bucket only; its access key id and secret go into `release` and
+   `config-upload` as `R2_CONFIG_ACCESS_KEY_ID` and
+   `R2_CONFIG_SECRET_ACCESS_KEY`.
+5. **The host.** Connect `config.figurehead.ai` as the bucket's custom
    domain in the `figurehead.ai` zone, with no redirect rule on it. The
    workflow needs no zone ID: files are cached for 5 minutes at most
-   (`max-age=300`), so nothing is purged. A purge step would need the
-   zone ID and a cache-purge token.
+   (`max-age=300`), so nothing is purged.
 
 ## If a key leaks (AJ-E2009)
 
