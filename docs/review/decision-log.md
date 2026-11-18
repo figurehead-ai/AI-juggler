@@ -3526,3 +3526,25 @@ The two open questions in ADR-0035 (hosting; the default on) go to the maintaine
   - **Value:** preferred in ≥60 % of decided pairs.
   - **Larger models** may be downloaded for comparison, without further approval: Granite 4.1 3B, Qwen3-4B-Instruct-2507, Gemma 4 E2B. Each has a pinned revision and SHA-256, and is test-only until one ships.
   - **The orchestrator bot (0.6, D-123)** decides and acts for the user. It gets its own, much stricter harness and acceptance criteria. These 0.5 criteria never carry over to it.
+
+### D-131 A Models area: one recommended model per Mac, a short list of tested models to choose from, install and remove with sizes shown — amends D-121 §2 — SETTLED (2026-11-18)
+
+**Ruling.** The maintainer, 2026-11-18: "we should have an area where we managing these models in our tool, we should have a model we recommend to user, but should also allow users to select from few of the models we support and have tested our app."
+
+1. **Settings › AI › Models,** a making-and-editing screen in D-126's rich mode:
+   - **Recommended for this Mac:** one model, chosen from this Mac's chip, memory, free disk and whether Apple Intelligence is on. Apple's built-in model is first when it passes our tests, since it needs no download. It says why it's recommended in one plain line.
+   - **Other tested models:** a short list (3–5) of models that passed our harness. Each card shows:
+     - its download size and memory use;
+     - how fast it is on this Mac;
+     - which jobs it handles (feed lines, reviews, hints, Chat), with our test verdict in plain words;
+     - its licence.
+   - **Installed:** each model's disk use, with Remove; the total disk used by AI models; and which model each job uses now, with an optional per-job override (Automatic is the default, through D-121's router).
+2. **Nothing downloads without the user's click,** with the size shown and a check for free disk space (the model's size plus 10 GB). D-121's "at most one downloaded model by default" stays the *default*. A user may install more with explicit approval each time, and the total is always shown.
+3. **The supported list comes from the signed remote config** (ADR-0035): a `models` section with the model id, a pinned download URL on an allow-listed host, the SHA-256, size, licence, minimum hardware, and the test verdict per job.
+   - This lets us add a model that has passed our harness, or withdraw one, without an app release.
+   - The app runs only formats its engines already support (GGUF through the local engine, and Apple's model). The section can't add a new engine.
+   - A withdrawn model stays usable until removed, with a plain note.
+4. **Only tested models.** A model is listed only after it passes the D-130 criteria for at least one job on our harness, and its verdicts are shown per job.
+
+- **Amends:** D-121 §2.
+- Sources: the maintainer's message, 2026-11-18.
