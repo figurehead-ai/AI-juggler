@@ -163,10 +163,12 @@ pub enum VersionProbe {
         /// The command's name (`claude`).
         program: String,
     },
-    /// A desktop app: its bundle's `CFBundleShortVersionString`.
-    AppBundle {
-        /// The bundle's usual place (`/Applications/Claude.app`).
-        path: String,
+    /// A desktop app, by its name (`Claude`): where it is installed is
+    /// each OS's own place, which its reader knows (on macOS, the bundle
+    /// in the Applications folder and its `CFBundleShortVersionString`).
+    DesktopApp {
+        /// The app's name, as installed (`Claude`).
+        name: String,
     },
 }
 

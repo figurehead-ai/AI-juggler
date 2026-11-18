@@ -36,7 +36,7 @@ export function memberKindWords(member: Pick<DraftMember, "ref" | "kind">, apps:
     if (!app) return member.ref.startsWith("app:cli:") ? APP_KIND_WORDS.cli : "App";
     return [APP_KIND_WORDS[app.kind], app.profile ? `Profile ${app.profile}` : null].filter(Boolean).join(" · ");
   }
-  return { session: "One session", account: "Every session of an account", tool: "Every session of a tool", mac: "Every session on a Mac", everyone: JOINS_BY_ITSELF }[member.kind];
+  return { session: "One session", account: "Every session of an account", tool: "Every session of a tool", mac: "Every session on a computer", everyone: JOINS_BY_ITSELF }[member.kind];
 }
 
 function RoleControl({ name, value, onChange }: { name: string; value: PoolRole; onChange: (role: PoolRole) => void }): JSX.Element {

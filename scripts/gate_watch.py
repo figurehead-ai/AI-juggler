@@ -96,7 +96,7 @@ def probes(directory: Path = ADAPTERS) -> list[Probe]:
         tool = re.search(r'pub const [A-Z_]+_ID: &str = "([a-z0-9-]+)";', text)
         if not tool or tool.group(1) in NOT_TOOLS:
             continue
-        for match in re.finditer(r'VersionProbe::(Command|AppBundle)\s*\{\s*(program|path):\s*"([^"]+)"', text):
+        for match in re.finditer(r'VersionProbe::(Command|DesktopApp)\s*\{\s*(program|name):\s*"([^"]+)"', text):
             variant, _, value = match.groups()
             found.append(Probe(tool.group(1), "command" if variant == "Command" else "app", value))
     return found
@@ -110,10 +110,22 @@ def clean_env() -> dict[str, str]:
     return keep
 
 
+def app_place(name: str) -> Path | None:
+    """Where a desktop app named `name` is installed, on this OS: macOS's
+    bundle in the Applications folder. Other systems have no app probe
+    yet (None: not watched)."""
+    if sys.platform == "darwin":
+        return Path("/Applications") / f"{name}.app"
+    return None
+
+
 def read_version(probe: Probe) -> str | None:
     """The installed version, read only; None when it isn't installed."""
     if probe.kind == "app":
-        plist = Path(probe.ref) / "Contents/Info.plist"
+        place = app_place(probe.ref)
+        if place is None:
+            return None
+        plist = place / "Contents/Info.plist"
         try:
             with plist.open("rb") as handle:
                 value = plistlib.load(handle).get("CFBundleShortVersionString")
@@ -210,9 +222,9 @@ def selftest() -> int:
     (data / SHAPE_FILE).write_text(json.dumps({"v": 1, "seen": [
         {"tool": "claude-code", "app": True, "version": "6.0.1", "feature": "move",
          "what": "a file beside the records AI Juggler doesn't know (sessions.db)", "at_ms": 1}]}), encoding="utf-8")
-    made_up = [Probe("claude-code", "command", "claude"), Probe("claude-code", "app", "/Applications/Claude.app"),
+    made_up = [Probe("claude-code", "command", "claude"), Probe("claude-code", "app", "Claude"),
                Probe("codex", "command", "codex")]
-    versions = {"claude": "2.4.1", "/Applications/Claude.app": "6.0.1", "codex": "1.2.0"}
+    versions = {"claude": "2.4.1", "Claude": "6.0.1", "codex": "1.2.0"}
     report = watch(register, made_up, lambda probe: versions.get(probe.ref), [data])
     # A patch or minor update (2.1.310 → 2.4.1) is never due; a major
     # (0.163.0 → 1.2.0) is; a side through another service is its tool's
