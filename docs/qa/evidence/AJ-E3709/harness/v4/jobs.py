@@ -695,23 +695,156 @@ def text_checks(source, text, facts, removed, lang):
 # (b) review: composer, checks, deterministic baseline
 # ======================================================================================================================
 REVIEW_HEAD = {"en": {"changed": "Changed", "not_checked": "Not checked", "left": "Left", "risk": "Risk", "nothing": "nothing stated",
-                      "risk_unknown": "not stated", "facts_tests": "Tests (AI Juggler): not run"},
+                      "risk_unknown": "not stated", "facts_tests": "Tests (AI Juggler): not run", "question": "Question",
+                      "failed": "Failed", "reverted": "Reverted", "facts_asking": "Status (AI Juggler): waiting for you",
+                      "facts_failed": "Status (AI Juggler): failed"},
                "de": {"changed": "Geändert", "not_checked": "Nicht geprüft", "left": "Offen", "risk": "Risiko", "nothing": "nichts genannt",
-                      "risk_unknown": "nicht genannt", "facts_tests": "Tests (AI Juggler): nicht ausgeführt"}}
+                      "risk_unknown": "nicht genannt", "facts_tests": "Tests (AI Juggler): nicht ausgeführt", "question": "Frage",
+                      "failed": "Fehlgeschlagen", "reverted": "Zurückgenommen", "facts_asking": "Status (AI Juggler): wartet auf dich",
+                      "facts_failed": "Status (AI Juggler): fehlgeschlagen"}}
 RISK_WORDS = {"en": {"low": "low", "medium": "medium", "high": "high"}, "de": {"low": "niedrig", "medium": "mittel", "high": "hoch"}}
+
+# ---------- what the review must carry, by construction: the agent's question, its failure, and no reverted change as made ----------
+# A request for the user's choice or go-ahead without a question mark (gate_v4._asks reads the mark only). A generic sign-off
+# ("let me know if you need anything else") is not a question: "let me know if" counts only with a choice or a go-ahead after it.
+ASK_PHRASE = re.compile(r"""\b(?:
+    let\s+me\s+know\s+(?:which|whether|what|how)
+  | let\s+me\s+know\s+if\s+(?:i\s+should|you(?:'d|\s+would)?\s+(?:prefer|rather|want\s+me\s+to|like\s+me\s+to)|(?:it's|it\s+is|that's|that\s+is|this\s+is)\s+(?:ok|okay|fine|alright))
+  | tell\s+me\s+(?:which|whether|if\s+i\s+should)
+  | shall\s+i | should\s+i | do\s+you\s+want | would\s+you\s+(?:like|prefer|rather) | which\s+(?:one\s+)?(?:do\s+)?you\s+prefer
+  | soll\s+ich | sollen\s+wir | darf\s+ich | dürfen\s+wir | möchtest\s+du | willst\s+du | möchten\s+sie | wollen\s+sie
+  | (?:gib|sag)\s+(?:mir\s+)?(?:\w+\s+){0,2}?bescheid | lass\s+(?:es\s+)?mich\s+wissen
+)""", re.I | re.X)
+def text_asks(s): return gate_v4._asks(s) or bool(ASK_PHRASE.search(s))
+def _contains(texts, sentence):
+    """the sentence word for word (case and whitespace folded, end punctuation ignored) inside one of the texts"""
+    k = _norm_ws(sentence).lower().strip(" .!?;:")
+    return bool(k) and any(k in _norm_ws(t).lower() for t in texts)
+def _excerpt_sentences(cleaned, facts):
+    """A's excerpt (eval-4) mapped back to the text's sentences, in the excerpt's order"""
+    alls = gate.sentences_v3(cleaned); out = []
+    for line in gate_v4.excerpt_v4(cleaned, facts)[0].split("\n"):
+        core = line.strip().strip(".").strip()
+        s = next((x for x in alls if gate._cap(x) == line or (core and core in x)), None)
+        if s and s not in out: out.append(s)
+    return out
+def must_carry(cleaned, facts):
+    """-> [(kind, the agent's sentence or None)], kind 'question' or 'failure': what the review must carry. A question when the facts
+    say the turn asks (outcome asking or L2) or a sentence asks (a question mark, or a choice or go-ahead phrased without one); a
+    failure when the facts say it failed (outcome failed or L3) or a sentence reports one (eval-4's structure). The sentence is A's
+    excerpt line of that kind first, else the text's first such sentence; on loud facts with no such sentence, None (AI Juggler's own
+    status line carries it)."""
+    F = gate.facts_norm(facts); out = []
+    order = _excerpt_sentences(cleaned, facts); order += [s for s in gate.sentences_v3(cleaned) if s not in order]
+    for kind, test, loud in (("question", text_asks, bool(F) and (F["outcome"] == "asking" or F["level"] == "L2")),
+                             ("failure", lambda s: bool(gate_v4.reports_failure_v4(s)), bool(F) and (F["outcome"] == "failed" or F["level"] == "L3"))):
+        s = next((x for x in order if test(x)), None)
+        if s is None and loud and kind == "question":          # A's L2 pick: the first sentence with a question mark
+            s = next((x for x in order if "?" in x), None)
+        if s is not None or loud: out.append((kind, s))
+    return out
+
+# A change the text says was reverted, rolled back or undone (past or perfect only: "you can revert it" and "should I roll it back?"
+# report nothing). Clause-level: each sentence's clauses (gate_v4.clauses), split again at and/then/und/dann.
+REVERT_RX = re.compile(r"\b(?:reverted|rolled\s+(?:[\w`'./-]+\s+){0,3}?back|undid|(?:was|were|been|got)\s+undone|backed\s+(?:[\w`'./-]+\s+){0,3}?out"
+                       r"|zurückgenommen|zurückgerollt|zurückgedreht|rückgängig\s+gemacht|machte\s+(?:\S+\s+){0,4}?rückgängig)\b", re.I)
+REVERT_VERBS = {"reverted", "rolled", "back", "undid", "undone", "backed", "out", "zurückgenommen", "zurückgerollt", "zurückgedreht",
+                "rückgängig", "gemacht", "machte", "was", "were", "been", "got"}
+REVERT_NOT_AFTER = {"the", "a", "an", "for", "of", "all", "any", "as", "show", "shows", "shown", "mark", "marks", "marked", "als", "die",
+                    "der", "das", "den", "alle"}           # "a style for reverted rows": an adjective, nothing was reverted
+REVERT_MODAL = gate.MODAL_WORDS | {"can", "will", "shall", "must", "kann", "können", "wird", "werden", "soll", "sollen", "muss", "müssen"}
+PART_SPLIT = re.compile(r"\b(?:and|then|und|dann)\b", re.I)
+REF_STOP = {"i", "we", "you", "it", "its", "they", "them", "this", "that", "these", "those", "the", "a", "an", "my", "our", "to", "of",
+            "in", "on", "at", "for", "with", "by", "from", "into", "again", "also", "later", "afterwards", "back", "out", "is", "are", "was",
+            "were", "be", "been", "have", "has", "had", "change", "changes", "commit", "ich", "wir", "du", "es", "sie", "er", "ihn", "das",
+            "dies", "diese", "dieser", "dieses", "der", "die", "den", "dem", "des", "ein", "eine", "einen", "einem", "habe", "haben", "hat",
+            "hatte", "wurde", "wurden", "ist", "sind", "wieder", "auch", "später", "danach", "zu", "im", "am", "auf", "für", "mit", "von",
+            "änderung", "änderungen", "so", "now", "jetzt", "just", "only", "nur"}
+REF_END = re.compile(r"\b(?:because|since|as|after|before|when|while|so\s+that|weil|da|denn|nachdem|bevor|wegen|sodass)\b", re.I)
+def _content(s): return {w for w in gate_v4._tk(s) if w not in REF_STOP and w not in REVERT_VERBS and len(w) > 1}
+def _revert_match(part, sentence):
+    """-> the match of a reported revert in this part, or None (asked, negated, conditional, modal or adjectival uses report none)"""
+    if text_asks(sentence): return None
+    m = REVERT_RX.search(part)
+    if not m: return None
+    before = gate_v4._tk(part[:m.start()]); sent_before = gate_v4._tk(sentence[:sentence.find(part)] if part in sentence else "") + before
+    if any(gate._is_neg(t) or gate_v4._neg_particle(t) for t in before[-3:]): return None
+    if any(t in gate.COND_WORDS for t in sent_before): return None
+    if any(t in REVERT_MODAL for t in before[-4:]): return None
+    if before and before[-1] in REVERT_NOT_AFTER: return None
+    return m
+def revert_parts(cleaned):
+    """-> (parts, reverted): parts [(sentence index, text, content words)] of the whole text, and {part index: the agent's words
+    that report its revert}. A revert's object is the words inside or after the verb ("rolled the cache back", "reverted the
+    cache"), else before it ("the cache was reverted", "die Umbenennung habe ich zurückgenommen"); with only a pronoun or a general
+    word ("reverted it", "undid that change") it is the clause before in the sentence, or every clause of the sentence before. A named object also
+    marks every earlier clause that names it."""
+    sents = gate.sentences_v3(cleaned); parts = []
+    for si, s in enumerate(sents):
+        for c in gate_v4.clauses(s):
+            for p in PART_SPLIT.split(c):
+                if p.strip(): parts.append((si, p.strip(), _content(p)))
+    reverted = {}
+    for pi, (si, p, _c) in enumerate(parts):
+        m = _revert_match(p, sents[si])
+        if not m: continue
+        words = sents[si]; reverted[pi] = words
+        tail = p[m.end():]; e = REF_END.search(tail); tail = tail[:e.start()] if e else tail
+        obj = _content(m.group(0)) or _content(tail) or _content(p[:m.start()])
+        if obj:
+            for pj in range(pi):
+                if len(obj & parts[pj][2]) >= max(1, math.ceil(0.6 * len(obj))): reverted.setdefault(pj, words if parts[pj][0] == si else sents[parts[pj][0]] + " " + words)
+        elif pi > 0 and parts[pi - 1][0] == si:
+            reverted.setdefault(pi - 1, words)
+        elif pi > 0:                            # across a sentence: every clause of the one before ("I tried X but Y holds Z. I reverted it.")
+            for pj in (j for j in range(pi) if parts[j][0] == parts[pi - 1][0]):
+                reverted.setdefault(pj, sents[parts[pj][0]] + " " + words)
+    return parts, reverted
+def reverted_item(item, parts, reverted):
+    """-> the agent's words reporting the revert when the item names a reverted change, else None: the item reports a revert itself,
+    or the clause it matches best (its content words) is a reverted one and no clause that stayed matches as well"""
+    if not reverted: return None
+    ci = _content(item)
+    score = [len(ci & c) / len(ci) if ci else 0 for _si, _p, c in parts]
+    if _revert_match(item, item):
+        return reverted[max(reverted, key=lambda i: score[i])]
+    best = max(score, default=0)
+    if best < 0.5: return None
+    tops = [i for i, x in enumerate(score) if x == best]
+    return reverted[tops[0]] if all(i in reverted for i in tops) else None
+
 def compose_review(fields, ctx, facts):
     """fields (unmarked) -> (lines, notes, model_items). Caveats the text states and the fields miss are added as the agent's own
-    clauses (unverified kinds under Not checked, the rest under Left). A facts-only 'tests not run' gets AI Juggler's own line."""
+    clauses (unverified kinds under Not checked, the rest under Left). A facts-only 'tests not run' gets AI Juggler's own line.
+    By construction, as the caveat: a changed item that names a reverted change leaves Changed (the agent's words go under
+    Reverted); the agent's question and failure sentence (must_carry) get their own line when no field holds them word for word,
+    and loud facts with no such sentence get AI Juggler's own status line."""
     lang = ctx.get("lang") or "en"; H = REVIEW_HEAD.get(lang, REVIEW_HEAD["en"]); notes = []
     ch = [_tidy(x) for x in fields.get("changed", []) if not is_none(x)]
     nc = [_tidy(x) for x in fields.get("not_checked", []) if not is_none(x)]
     lf = [_tidy(x) for x in fields.get("left", []) if not is_none(x)]
     rr = "" if is_none(fields.get("risk_reason")) else _tidy(fields["risk_reason"])
+    parts, rev = revert_parts(ctx["cleaned"]); rv = []; kept = []
+    for x in ch:
+        w = reverted_item(x, parts, rev)
+        if w is None: kept.append(x); continue
+        notes.append("reverted, out of Changed: " + x)
+        w = gate._cap(_tidy(w), 200)
+        if w not in rv: rv.append(w)
+    ch = kept
     model_items = ch + nc + lf + ([rr] if rr else [])
     for c in keep_caveats(model_items, ctx["cleaned"]):
         (nc if "unverified" in gate_v4.caveat_kinds(c) else lf).append(c); notes.append("caveat kept by the composer: " + c)
     F = gate.facts_norm(facts)
-    lines = [f"{H['changed']}: " + "; ".join(ch)] if ch else []
+    lines = [f"{H['changed']}: " + ("; ".join(ch) if ch else H["nothing"])] if ch or rv else []
+    if rv: lines.append(f"{H['reverted']}: " + "; ".join(rv))
+    held = ch + nc + lf + ([rr] if rr else [])
+    for kind, s in must_carry(ctx["cleaned"], facts):
+        if s is None:
+            lines.append(H["facts_asking" if kind == "question" else "facts_failed"]); notes.append(f"facts-only {kind}: AI Juggler's own line")
+        elif not _contains(held, s):
+            lines.append(f"{H['question' if kind == 'question' else 'failed']}: " + gate._cap(_tidy(s), 200))
+            notes.append(f"{kind} kept by the composer: " + s)
     if nc: lines.append(f"{H['not_checked']}: " + "; ".join(nc))
     if F and F["tests_state"] == "not_run" and not any(gate_v4.caveat_kinds(x) & {"unverified"} for x in nc):
         lines.append(H["facts_tests"]); notes.append("facts-only caveat: AI Juggler's own line")
@@ -742,7 +875,11 @@ def review_checks(fields, ctx, facts):
     if (kinds or counts) and risk == "low": errs.append("contradiction: risk low while the message states a caveat")
     mk, mc = carries(lines, kinds, counts)
     if mk or mc: errs.append(f"caveat dropped: {sorted(mk)} {mc}")
+    for kind, s in must_carry(ctx["cleaned"], facts):          # by construction; checked as the caveat is
+        key = gate._cap(_norm_ws(s), 200).removesuffix("...") if s else H_ANY_STATUS
+        if not _contains(lines, key): errs.append(f"{kind} dropped: {key[:60]!r}")
     return errs
+H_ANY_STATUS = "(AI Juggler)"
 
 def baseline_review(ctx, facts):
     """the deterministic review B is judged against: A's opening as Changed, the caveat sentences (eval-4's kinds) as Not checked
@@ -1067,6 +1204,81 @@ def selftest():
     ex4 = EXAMPLES["review"][3]; c4 = gate.prepare(ex4["message"])
     check("review: risk low on a failed turn is a contradiction", any("risk low on a failed" in e for e in review_checks({**ex4["out"], "risk": "low"}, c4, EX_FACTS["failed"])))
     check("review: an invented file is rejected", any("invented" in e for e in review_checks({**ex4["out"], "changed": ["refactored parse/osprey.ts"]}, c4, EX_FACTS["failed"])))
+    # the review carries the agent's question and failure, and no reverted change as made (fresh made-up texts, EN and DE)
+    def rv(msg, facts, changed, left=(), nc=(), rr="none", risk="unknown"):
+        cx = gate.prepare(msg); flds = {"changed": list(changed), "not_checked": list(nc), "left": list(left), "risk_reason": rr, "risk": risk}
+        ls, nts, _ = compose_review(flds, cx, facts)
+        return ls, review_checks(flds, cx, facts)
+    def has(ls, head, words=None): return any(x.startswith(head + ":") and (words is None or words in x) for x in ls)
+    L2 = {"outcome": "question", "level": "L2", "tests": {"state": "unknown"}}
+    L1 = EX_FACTS["calm_note"]; L3 = {"outcome": "failure", "level": "L3", "tests": {"state": "unknown"}}
+    ls, er = rv("Moved the otter config loader into cfg/otter.py. Do you want the old path kept as an alias, or removed? I also updated "
+                "the two imports in cli/main.py.", L1, ["moved the otter config loader into cfg/otter.py", "updated the two imports in cli/main.py"])
+    check("review: a question placed mid-text gets its own line (calm facts)", has(ls, "Question", "Do you want the old path kept as an alias, or removed?") and not er, (ls, er))
+    ls, er = rv("Split the walrus report builder into two modules. Let me know which name you prefer for the second one, walrus_rows or "
+                "walrus_table.", L2, ["split the walrus report builder into two modules"], left=["a name for the second module"])
+    check("review: a question with no question mark is kept", has(ls, "Question", "Let me know which name you prefer") and not er, (ls, er))
+    ls, er = rv("Ich habe den Export der Möwen-Liste auf UTF-8 umgestellt. Soll ich die alte Latin-1-Variante behalten, gib mir einfach "
+                "Bescheid.", L1, ["den Export der Möwen-Liste auf UTF-8 umgestellt"])
+    check("review: a German question with no question mark is kept (Frage)", has(ls, "Frage", "Soll ich die alte Latin-1-Variante behalten") and not er, (ls, er))
+    ls, er = rv("Die Kachel-Ansicht lädt jetzt verzögert. Darf ich den alten Fallback entfernen? Die Tests für die Liste habe ich angepasst.",
+                L2, ["die Kachel-Ansicht lädt jetzt verzögert"], left=["den alten Fallback entfernen"])
+    check("review: a German question mid-text is kept", has(ls, "Frage", "Darf ich den alten Fallback entfernen?") and not er, (ls, er))
+    ls, er = rv("Renamed the stoat flag to `useStoatV2`. Should I delete the old flag now?", L2, ["renamed the stoat flag to `useStoatV2`"],
+                left=["Should I delete the old flag now?"])
+    check("review: a question a field holds word for word is not repeated", not has(ls, "Question") and not er, (ls, er))
+    ls, er = rv("Updated the stoat flag wiring in app/flags.ts.", L2, ["updated the stoat flag wiring in app/flags.ts"], left=["the stoat flag wiring"])
+    check("review: asking facts with no question in the text get AI Juggler's status line", "Status (AI Juggler): waiting for you" in ls and not has(ls, "Question") and not er, (ls, er))
+    for msg in ("Added a dark mode toggle to the vole settings page. Let me know if you need anything else.",
+                "Added a dark mode toggle to the vole settings page. You should clear the cache once after updating.",
+                "Added a dark mode toggle to the vole settings page; it asks the user which theme they prefer on first launch."):
+        ls, er = rv(msg, L1, ["added a dark mode toggle to the vole settings page"])
+        check(f"review: no question line for {msg[52:90]!r}", not has(ls, "Question") and not any("AI Juggler" in x for x in ls) and not er, (ls, er))
+    ls, er = rv("Updated the eslint config for the pelican app. Lint passes, but the build now fails with a missing module.", L1,
+                ["updated the eslint config for the pelican app"], rr="lint passes")
+    check("review: mixed news keeps the agent's failure sentence", has(ls, "Failed", "Lint passes, but the build now fails with a missing module") and not er, (ls, er))
+    ls, er = rv("Ich habe die Seitenleiste der Reiher-App neu angeordnet. Der Build bricht jetzt mit einem Typfehler ab.", L1,
+                ["die Seitenleiste der Reiher-App neu angeordnet"])
+    check("review: a German failure is kept (Fehlgeschlagen)", has(ls, "Fehlgeschlagen", "Der Build bricht jetzt mit einem Typfehler ab") and not er, (ls, er))
+    ls, er = rv("Reworked the gecko upload retries. The upload test still fails on large files.", L3, ["reworked the gecko upload retries"],
+                left=["The upload test still fails on large files"], risk="high")
+    check("review: a failure a field holds word for word is not repeated", not has(ls, "Failed") and not er, (ls, er))
+    ls, er = rv("Reworked the gecko upload retries.", L3, ["reworked the gecko upload retries"], risk="high")
+    check("review: failed facts with no failure sentence get AI Juggler's status line", "Status (AI Juggler): failed" in ls and not er, (ls, er))
+    for msg in ("Fixed the crash on startup in the gecko viewer. The flaky upload test no longer fails.",
+                "Added error handling for failed uploads in the gecko viewer; 0 failed, 18 passed.",
+                "Die Fehlermeldung beim Hochladen in der Gecko-Ansicht ist jetzt verständlicher."):
+        ls, er = rv(msg, L1, [gate.sentences_v3(msg)[0].rstrip(".")])
+        check(f"review: no failure line for {msg[:40]!r}", not has(ls, "Failed") and not has(ls, "Fehlgeschlagen") and not er, (ls, er))
+    msg = ("Added a cache to the badger loader, but reverted it because it doubled the memory use. Renamed `loadBadger` to `readBadger` "
+           "in its three callers.")
+    ls, er = rv(msg, L1, ["added a cache to the badger loader", "renamed `loadBadger` to `readBadger` in its three callers"])
+    check("review: a reverted change leaves Changed and shows under Reverted", ls[0] == "Changed: renamed `loadBadger` to `readBadger` in its three callers"
+          and has(ls, "Reverted", "reverted it because it doubled the memory use") and not er, (ls, er))
+    ls, er = rv("Switched the mole queue to batches of 50. Later I rolled that back, since the latency got worse. The queue metrics page "
+                "now shows the depth.", L1, ["switched the mole queue to batches of 50", "the queue metrics page now shows the depth"])
+    check("review: a revert of the sentence before (a pronoun) is found", ls[0] == "Changed: the queue metrics page now shows the depth" and has(ls, "Reverted"), (ls, er))
+    ls, er = rv("Added a retry to the mink client. Renamed the mink config file. Then I reverted the mink client retry.", L1,
+                ["added a retry to the mink client", "renamed the mink config file"])
+    check("review: a named revert later in the text removes the earlier change", ls[0] == "Changed: renamed the mink config file", (ls, er))
+    ls, er = rv("Reverted the mole queue batching. The depth gauge is new.", L1, ["reverted the mole queue batching", "the depth gauge is new"])
+    check("review: an item that itself reports a revert moves to Reverted", ls[0] == "Changed: the depth gauge is new" and has(ls, "Reverted"), (ls, er))
+    ls, er = rv("Ich habe die Umbenennung der Dachs-Tabelle wieder rückgängig gemacht. Die neue Spalte `created_at` ist drin.", L1,
+                ["die Umbenennung der Dachs-Tabelle", "die neue Spalte `created_at` ist drin"])
+    check("review: a German revert (rückgängig gemacht) leaves Geändert", ls[0] == "Geändert: die neue Spalte `created_at` ist drin" and has(ls, "Zurückgenommen"), (ls, er))
+    ls, er = rv("Den Zwischenspeicher im Dachs-Lader habe ich zurückgenommen. Der Lader liest jetzt in Blöcken.", L1,
+                ["den Zwischenspeicher im Dachs-Lader", "der Lader liest jetzt in Blöcken"])
+    check("review: a German revert (zurückgenommen) leaves Geändert", ls[0] == "Geändert: der Lader liest jetzt in Blöcken", (ls, er))
+    ls, er = rv("Added a cache to the badger loader. I reverted it.", L1, ["added a cache to the badger loader"])
+    check("review: when every change was reverted, Changed says nothing stated", ls[0] == "Changed: nothing stated" and has(ls, "Reverted"), (ls, er))
+    for msg in ("Added a cache to the badger loader. If it misbehaves, it can be reverted with one commit.",
+                "Added a cache to the badger loader. I didn't revert the old index, and it was not reverted by the merge either.",
+                "Added a cache to the badger loader. Should I roll it back if memory grows?",
+                "Added a grey style for reverted rows in the badger diff view.",
+                "Den Zwischenspeicher im Dachs-Lader habe ich nicht zurückgenommen."):
+        ls, er = rv(msg, L1, [gate.sentences_v3(msg)[0].rstrip(".")])
+        check(f"review: nothing reverted in {msg[35:75]!r}", ls[0].startswith(("Changed: ", "Geändert: ")) and "nothing" not in ls[0] and "nichts" not in ls[0]
+              and not has(ls, "Reverted") and not has(ls, "Zurückgenommen"), (ls, er))
     bl = baseline_review(c, f)
     check("review: the baseline carries the caveats", any("haven't tested" in x for x in bl) and bl[-1].startswith("Risk: medium"), bl)
     # ---- (c) attention: never lowers, evidence word for word
