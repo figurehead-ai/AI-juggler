@@ -725,6 +725,8 @@ fn every_source(state: &Arc<AppState>, dir: &Path) -> needs::NeedSources {
             title: "An agent asks to read the roster".to_owned(),
             detail: "From reviewer".to_owned(),
             preview: None,
+            sender: None,
+            thread: None,
             at_ms: 1_000,
             line: None,
         }],

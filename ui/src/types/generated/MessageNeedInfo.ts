@@ -56,6 +56,16 @@ detail: string,
  */
 preview: string | null, 
 /**
+ * Who sent it (an agent's name: "builder-1"), when it is a message's:
+ * Home's card leads with it, as the feed does (D-118's mock).
+ */
+sender?: string | null, 
+/**
+ * Its thread's subject, plain ("Export flow"), when it has one: what
+ * it is about, the first line of the rail's row (D-118's mock).
+ */
+thread?: string | null, 
+/**
  * Since when, ms.
  */
 at_ms: number, };

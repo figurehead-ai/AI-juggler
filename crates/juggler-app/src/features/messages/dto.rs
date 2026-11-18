@@ -233,6 +233,14 @@ pub struct MessageNeedInfo {
     pub detail: String,
     /// The message's first lines, for `ask` and `question`.
     pub preview: Option<String>,
+    /// Who sent it (an agent's name: "builder-1"), when it is a message's:
+    /// Home's card leads with it, as the feed does (D-118's mock).
+    #[ts(optional = nullable)]
+    pub sender: Option<String>,
+    /// Its thread's subject, plain ("Export flow"), when it has one: what
+    /// it is about, the first line of the rail's row (D-118's mock).
+    #[ts(optional = nullable)]
+    pub thread: Option<String>,
     /// Since when, ms.
     #[ts(type = "number")]
     pub at_ms: i64,

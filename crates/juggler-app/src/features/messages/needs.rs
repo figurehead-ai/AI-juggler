@@ -215,6 +215,11 @@ pub fn needs(state: &Arc<AppState>) -> AppResult<Vec<MessageNeedInfo>> {
                 &storage,
                 &message.body,
             ))),
+            sender: Some(message.sender_name.clone()),
+            thread: Some(crate::features::tasks::words::name_tasks(
+                &storage,
+                &message.subject,
+            )),
             at_ms: ask.created_at,
             line: Some(line),
         });
@@ -236,6 +241,8 @@ pub fn needs(state: &Arc<AppState>) -> AppResult<Vec<MessageNeedInfo>> {
             offer_always: false,
             detail: reason,
             preview: None,
+            sender: None,
+            thread: None,
             at_ms: at,
             line: None,
         });
@@ -263,6 +270,11 @@ pub fn needs(state: &Arc<AppState>) -> AppResult<Vec<MessageNeedInfo>> {
             offer_always: false,
             detail: thread.state_reason.unwrap_or_else(|| "paused".to_owned()),
             preview: None,
+            sender: None,
+            thread: Some(crate::features::tasks::words::name_tasks(
+                &storage,
+                &thread.subject,
+            )),
             at_ms: thread.updated_at,
             line: None,
         });
@@ -295,6 +307,11 @@ pub fn needs(state: &Arc<AppState>) -> AppResult<Vec<MessageNeedInfo>> {
                 &storage,
                 &row.message.body,
             ))),
+            sender: Some(row.message.sender_name.clone()),
+            thread: Some(crate::features::tasks::words::name_tasks(
+                &storage,
+                &row.message.subject,
+            )),
             message_id: Some(row.message.id),
             session_id: None,
             ask_id: None,
@@ -339,6 +356,11 @@ pub fn needs(state: &Arc<AppState>) -> AppResult<Vec<MessageNeedInfo>> {
                 &storage,
                 &newest.message.body,
             ))),
+            sender: Some(newest.message.sender_name.clone()),
+            thread: Some(crate::features::tasks::words::name_tasks(
+                &storage,
+                &newest.message.subject,
+            )),
             at_ms: newest.message.created_at,
             line: None,
         });
