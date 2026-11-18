@@ -153,8 +153,11 @@ for (const theme of ["dark", "light"] as const) {
         }),
       );
       expect(titles.filter((one) => one.cutOnOne).map((one) => one.text), "no title cut on one line").toEqual([]);
+      // The long ones wrap rather than cut: one line where it fits whole
+      // (the rc3 fit, about 64 %), never more than two.
       for (const long of ["Fix the cart totals", "Checkout copy pass", "Review the checkout steps", "Spike: payment sandbox", "Tax rules research"]) {
-        expect(titles.find((one) => one.text === long)?.lines, `${long}: on two lines`).toBe(2);
+        const lines = titles.find((one) => one.text === long)?.lines ?? 0;
+        expect(lines >= 1 && lines <= 2, `${long}: on one or two lines (${lines})`).toBe(true);
       }
       // The rc3 critique ("Spike: payment…", "Review the checkout…" at
       // 53 %): at the default view of a 1280 window, the titles read whole.
@@ -253,14 +256,23 @@ for (const theme of ["dark", "light"] as const) {
       // The caption is under the team and over the toolbar, or not shown
       // (the rc3 critique at 1280 × 800: it sat on the row, then under the
       // toolbar); at the mock's 1440 × 900 it shows.
-      const captionClear = async () => {
-        const next = page.getByTestId("planned-team-next");
-        if (!(await next.getAttribute("data-fits"))) return expect(next).toBeHidden();
-        const [box, bar] = await Promise.all([next.boundingBox(), page.locator("[data-canvas-toolbar]").boundingBox()]);
-        const lowest = Math.max(...(await page.getByTestId("planned-card").evaluateAll((all) => all.map((one) => one.getBoundingClientRect().bottom))));
-        expect(box!.y, "the caption under every card").toBeGreaterThanOrEqual(lowest + 16);
-        expect(box!.y + box!.height, "the caption over the toolbar").toBeLessThanOrEqual(bar!.y);
-      };
+      // Read once the canvas has measured itself again (a resize lands a
+      // frame later than the new window size).
+      const captionClear = () =>
+        expect
+          .poll(
+            async () => {
+              const next = page.getByTestId("planned-team-next");
+              if (!(await next.getAttribute("data-fits"))) return (await next.isVisible()) ? "shown though it doesn't fit" : "ok";
+              const [box, bar] = await Promise.all([next.boundingBox(), page.locator("[data-canvas-toolbar]").boundingBox()]);
+              const lowest = Math.max(...(await page.getByTestId("planned-card").evaluateAll((all) => all.map((one) => one.getBoundingClientRect().bottom))));
+              if (box!.y < lowest + 16) return `into the cards (${box!.y} < ${lowest} + 16)`;
+              if (box!.y + box!.height > bar!.y) return `under the toolbar (${box!.y + box!.height} > ${bar!.y})`;
+              return "ok";
+            },
+            { message: "the caption under the team and over the toolbar, or hidden" },
+          )
+          .toBe("ok");
       await captionClear();
       if (width === 1280) {
         await page.setViewportSize({ width: 1440, height: 900 });
