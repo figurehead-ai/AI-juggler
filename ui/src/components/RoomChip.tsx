@@ -90,7 +90,11 @@ export function ProfileRoomChip({ profileId, size, compact, testId }: { profileI
 /** D-87, 0.4.1: the top bar's calm count of Accounts out of room or low
  * ("1 account out"), with the gauge, beside This Mac's line; a click
  * opens Accounts on the out ones (0.4.2), or the low ones when none is
- * out. Nothing when every account has room. */
+ * out. Nothing when every account has room. D-117 (c2) and D-118's mock:
+ * chrome spends no colour on a note: a ghost button, no fill or border
+ * (no amber fill anywhere, budget rule 2); low room is a note (L1) in
+ * muted words, Out keeps the danger word. Runway by account and Needs
+ * you carry the loud copy when live work is on it. */
 export function RoomCount(): JSX.Element | null {
   const { displays } = useQuotaDisplays();
   const accounts = useSubscriptions();
@@ -108,7 +112,7 @@ export function RoomCount(): JSX.Element | null {
       title={`${words}: show ${counts[out ? "out" : "low"] === 1 ? "it" : "them"} in Accounts`}
       data-testid="header-room-count"
       data-kind={out ? "out" : "low"}
-      className={`inline-flex h-7 shrink-0 items-center gap-1 whitespace-nowrap rounded-full border px-2 text-label font-semibold outline-none transition-colors focus-visible:ring-2 focus-visible:ring-accent/60 ${TONE[out ? "out" : "low"]}`}
+      className={`btn-ghost inline-flex h-7 shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-2 text-meta font-medium outline-none focus-visible:ring-2 focus-visible:ring-accent/60 ${out ? "text-danger" : "text-muted"}`}
     >
       <Icon aria-hidden="true" width={13} height={13} />
       {/* Its number alone until the bar has room for its words (the

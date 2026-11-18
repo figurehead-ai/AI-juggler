@@ -68,11 +68,12 @@ describe("Home, desktop first", () => {
     const counts = view.getByTestId("home-counts");
     // D-47: open counts every open session, the ones that need you too
     // (they stay in their places in Open now); Needs you counts them once.
-    expect(counts.textContent).toMatch(/7 open.*1 to review.*1 inactive.*1 ended today/);
+    // D-118's mock order: open, finished today, to review; then what is
+    // set aside. "Ended today" is the rail's own view (its Also line).
+    expect(counts.textContent).toMatch(/^7 open.*1 to review.*1 inactive session$/);
+    expect(counts.textContent).not.toContain("ended today");
     fireEvent.click(within(counts).getByRole("button", { name: "1 inactive session" }));
     expect(railView().show.inactive).toBe(true);
-    fireEvent.click(within(counts).getByRole("button", { name: "1 ended today" }));
-    expect(railView().show.ended).toBe(true);
   });
 
   it("Your apps (D-118): a compact row per running app and profile, most recently used first, with its count, needs mark and Open; eight, then Show all", async () => {
@@ -80,21 +81,26 @@ describe("Home, desktop first", () => {
     const rows = await view.findAllByTestId("home-app-tile");
     expect(new Set(rows.map((row) => row.dataset.place))).toEqual(new Set(["app|codex-app|", "app|claude-app|Personal", "app|claude-app|Work", "cli|claude-code|claude-work"]));
     const work = rows.find((row) => row.dataset.place === "app|claude-app|Work")!;
-    // Two lines (readable at 1280 with the rail open): the profile by the
-    // name, then what's open with the needs mark.
+    // The mock's two lines: the name, then the profile and what's open;
+    // the needs mark on the right by Open.
     expect(within(work).getByTestId("home-app-profile").textContent).toBe("Work Max");
-    expect(within(work).getByTestId("home-app-line").textContent).toBe("2 open, 1 needs you");
-    expect(within(work).getByTestId("home-app-line").title).toBe("2 open · 1 needs you");
+    expect(within(work).getByTestId("home-app-line").textContent).toBe("2 open");
+    expect(within(work).getByTestId("home-app-line").parentElement!.title).toBe("Work Max · 2 open · 1 needs you");
     expect(within(work).getByTestId("home-app-needs").textContent).toBe("1 needs you");
     expect(within(work).getByRole("button", { name: /^Open Claude/ })).toBeTruthy();
     // The rows sit in the right column, under its own head.
     expect(view.getByTestId("home-side").contains(work)).toBe(true);
     // A CLI App with nothing open is under Not running, its page by its
-    // name, nothing to start (D-100).
+    // name, Start opening New session on it (D-100, the mock's Start).
     const idle = await view.findByTestId("home-app-cli");
     expect(idle.dataset.place).toBe("cli|claude-code|claude-personal");
     expect(within(idle).getByTestId("home-app-line").textContent).toBe("Nothing open");
     expect(within(idle).getByRole("button", { name: /Claude Code CLI · Personal's page/ })).toBeTruthy();
+    const asked = vi.fn();
+    window.addEventListener("aij:new-session", asked);
+    fireEvent.click(within(idle).getByRole("button", { name: "Start a new session in Claude Code CLI · Personal" }));
+    window.removeEventListener("aij:new-session", asked);
+    expect(asked).toHaveBeenCalledTimes(1);
     expect(view.getByTestId("home-apps-down").compareDocumentPosition(idle) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     cleanup();
     // Ten places and the two CLI Apps: eight rows, then "Show all 12".
@@ -120,10 +126,12 @@ describe("Home, desktop first", () => {
     const view = home([own("w1"), own("w2", { status: "waiting_user", needs_attention: "waiting_user" })], []);
     const running = await view.findByTestId("home-app-tile");
     expect(running.dataset.place).toBe("cli|claude-code|claude-work");
-    expect(within(running).getByTestId("home-app-line").textContent).toBe("2 open, 1 needs you");
-    // You're in it: nothing to bring forward, its name opens its page.
-    expect(within(running).queryByRole("button", { name: /^Open Claude Code CLI/ })).toBeNull();
-    expect(within(running).getByRole("button", { name: /Claude Code CLI · Work Max's page/ })).toBeTruthy();
+    expect(within(running).getByTestId("home-app-line").textContent).toBe("2 open");
+    expect(within(running).getByTestId("home-app-needs").textContent).toBe("1 needs you");
+    // You're in it: nothing to bring forward, so Open (the mock's Open on
+    // every running row) is its page, as its name is.
+    expect(within(running).getByTestId("home-app-open-page").getAttribute("aria-label")).toBe("Open Claude Code CLI · Work Max's page");
+    expect(within(running).getAllByRole("button", { name: /Claude Code CLI · Work Max's page/ })).toHaveLength(2);
     expect((await view.findByTestId("home-app-cli")).dataset.place).toBe("cli|claude-code|claude-personal");
     expect(view.getByTestId("home-apps-section").textContent).toMatch(/^Your apps 2/);
   });

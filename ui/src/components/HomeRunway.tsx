@@ -1,7 +1,10 @@
 /**
  * AJ-E2105 — Runway by account: each account's room left (the tighter of
- * its windows, as measured), its meter, the profiles that use it, and
- * when it resets, or "Measure its limits ›" when it isn't measured yet.
+ * its windows, as measured), its meter, and when it resets ("Low" and the
+ * sessions on it beside), or "Measure its limits ›" when it isn't measured
+ * yet. D-118's mock: an 8 px disc, the name, the figure, a thin meter, one
+ * line of facts; its plan or email and its Apps in the name's tooltip and
+ * said to a screen reader.
  *
  * Accounts are subscriptions (D-35): profiles grouped by their sign-in
  * (AJ-E2109's `subscriptions_list`), one runway for all of an account's
@@ -9,9 +12,8 @@
  * No summary sentence under the rows: it only repeated them (the 0.4
  * design review, 42); unknown room is one line, never also a "—".
  */
-import { RoomChip } from "./RoomChip";
 import { MeasureLimits } from "./MeasureLimits";
-import { roomMarkFrom } from "../lib/room-mark";
+import { LOW_LEFT } from "../lib/room";
 import type { JSX } from "react";
 import { AccountAvatar } from "./Avatar";
 import { HomeSection } from "./HomeSection";
@@ -107,15 +109,30 @@ export function appsOn(group: AccountGroup, apps: AppModel[] | null): string[] |
   })?.map((app) => app.name) ?? null;
 }
 
-/** An Account's Apps line; a placeholder while they're read. */
-function RunwayApps({ named }: { named: string[] | null }): JSX.Element | null {
-  if (named === null) return <span aria-hidden="true" className="h-3 w-48 animate-pulse rounded bg-skeleton" data-testid="home-runway-apps-pending" />;
-  return named.length > 0 ? <span className="text-label text-muted">Apps: {named.join(", ")}</span> : null;
+/** An Account's Apps, said to a screen reader and in its name's tooltip
+ * (D-118's mock draws the row as a name, its room, a meter and when it
+ * resets; the Apps are one hover or the Account's page away). */
+function appsWords(named: string[] | null): string | null {
+  return named && named.length > 0 ? `Apps: ${named.join(", ")}` : null;
+}
+
+/** The line under the meter (the mock's "low · resets 3:13 PM · 2
+ * sessions on it"): "Low" at 25 % or less with room left, when it resets
+ * (else the runway's words), and the live sessions on it. */
+export function runwayFacts(row: RunwayLine, live: number): string {
+  const low = row.left !== null && row.left > 0 && row.left <= LOW_LEFT;
+  const sessions = live > 0 ? `${live} ${live === 1 ? "session" : "sessions"} on it` : null;
+  // Without a reset, the runway's words less the figure the row shows
+  // ("58% left, from its latest session" → "from its latest session").
+  const when = row.resets ?? (row.words.replace(/^\d+% left,?\s*/, "") || null);
+  const lower = (part: string) => part.charAt(0).toLowerCase() + part.slice(1);
+  const line = [low ? "low" : null, when && lower(when), sessions].filter(Boolean).join(" · ");
+  return line.charAt(0).toUpperCase() + line.slice(1);
 }
 
 export function HomeRunway({ accounts, quota, quotaKnown = true, sessions }: { accounts: AccountInfo[]; quota: QuotaDisplayData[]; quotaKnown?: boolean; sessions: InstanceInfo[] }): JSX.Element {
   const subscriptions = useSubscriptions();
-  const apps = useApps(accounts);
+  const appModels = useApps(accounts);
   const lineOf = (group: AccountGroup): RunwayLine => groupRunway(group, quota, sessions);
   return (
     <HomeSection id="home-runway" label="Runway by account">
@@ -123,35 +140,39 @@ export function HomeRunway({ accounts, quota, quotaKnown = true, sessions }: { a
         {accountGroups(accounts, subscriptions).map((group) => {
           const first = group.profiles[0]!;
           const row = lineOf(group);
+          const live = liveOn(group, sessions);
           // D-117: neutral, amber at 10 % or less with a live session, red
           // when out with live work (the one level table).
-          const level = runwayLevel(row.left, liveOn(group, sessions));
+          const level = runwayLevel(row.left, live);
           // 0.3.2: used up, but its credits carry its work on.
           const credits = row.credits != null;
+          const out = !credits && row.left !== null && row.left <= 0;
+          const apps = appsWords(appsOn(group, appModels));
+          const named = [group.detail, apps].filter(Boolean).join(" · ");
           return (
-            <div key={group.key} className="flex flex-col gap-1.5 py-2.5" data-testid="home-runway-account" data-level={level}>
+            <div key={group.key} className="flex flex-col gap-1.5 py-2" data-testid="home-runway-account" data-level={level}>
               <div className="flex items-center justify-between gap-3 text-sm">
-                <span className="flex min-w-0 items-center gap-2">
-                  {/* An Account in its colour; a group not signed in is no Account yet: neutral. */}
-                  <AccountAvatar tone={group.subscription?.state === "signed_in" ? "colour" : "neutral"} account={group.subscription ?? { folder: first.id }} label={group.name} size={18} />
-                  <span className="flex min-w-0 flex-col">
-                    {group.subscription?.account_id ? (
-                      // D-62 (AJ-E3205): the account's name opens its page.
-                      <button type="button" onClick={() => openAccount(group.subscription!.account_id!)} title={`Open ${group.name}'s page`} className="truncate rounded text-left font-medium text-ink outline-none hover:underline focus-visible:ring-1 focus-visible:ring-accent/60" data-testid="home-runway-name">
-                        {group.name}
-                      </button>
-                    ) : (
-                      <span className="truncate font-medium text-ink">{group.name}</span>
-                    )}
-                    {group.detail && <span className="truncate text-label text-muted">{group.detail}</span>}
-                  </span>
+                <span className="flex min-w-0 items-center gap-2" title={named || undefined}>
+                  {/* D-117 (c2): an 8 px disc in the Account's colour; a group
+                      not signed in is no Account yet: neutral. */}
+                  <AccountAvatar tone={group.subscription?.state === "signed_in" ? "colour" : "neutral"} account={group.subscription ?? { folder: first.id }} label={group.name} size={8} />
+                  {group.subscription?.account_id ? (
+                    // D-62 (AJ-E3205): the account's name opens its page.
+                    <button type="button" onClick={() => openAccount(group.subscription!.account_id!)} title={`Open ${group.name}'s page`} className="truncate rounded text-left font-medium text-ink outline-none hover:underline focus-visible:ring-1 focus-visible:ring-accent/60" data-testid="home-runway-name">
+                      {group.name}
+                    </button>
+                  ) : (
+                    <span className="truncate font-medium text-ink">{group.name}</span>
+                  )}
+                  {named && <span className="sr-only" data-testid="home-runway-apps">, {named}</span>}
                 </span>
                 {/* Unknown room is said once, on its own line below (the 0.4
-                    design review, 82): no "—" figure here. */}
-                {/* 0.4.1: an Account out of room says Out, as everywhere else
-                    (its reset is the line below). */}
-                {!credits && row.left !== null && row.left <= 0 ? (
-                  <RoomChip mark={roomMarkFrom(row.left, null)} size="md" testId="home-runway-out" />
+                    design review, 82): no "—" figure here. 0.4.1: an Account
+                    out of room says Out, as everywhere else: a word in the
+                    figure's place (red only with live work on it, D-117),
+                    its reset on the line below. */}
+                {out ? (
+                  <span className={"shrink-0 text-body font-semibold " + LEVEL_TEXT[level]} data-testid="home-runway-out">Out</span>
                 ) : (credits || row.left !== null) && (
                   <span className={"shrink-0 text-body font-semibold tabular-nums " + LEVEL_TEXT[level]}>
                     {credits ? "On credits" : `${row.left}% left`}
@@ -160,20 +181,19 @@ export function HomeRunway({ accounts, quota, quotaKnown = true, sessions }: { a
               </div>
               {/* Before the first reading its meter's track holds the row's
                   height, so the reading doesn't push what's below. */}
-              {!quotaKnown && row.left === null && <div className="h-1.5 rounded-full bg-surface-3" aria-hidden="true" data-testid="home-runway-meter-pending" />}
+              {!quotaKnown && row.left === null && <div className="h-1 rounded-full bg-surface-3" aria-hidden="true" data-testid="home-runway-meter-pending" />}
               {row.left !== null && (
-                <div className="h-1.5 overflow-hidden rounded-full bg-surface-3" role="meter" aria-valuemin={0} aria-valuemax={100} aria-valuenow={row.left} aria-label={`${group.name}: ${row.words}`}>
+                <div className="h-1 overflow-hidden rounded-full bg-surface-3" role="meter" aria-valuemin={0} aria-valuemax={100} aria-valuenow={row.left} aria-label={`${group.name}: ${row.words}`}>
                   <div className={"h-full rounded-full " + LEVEL_FILL[level]} style={{ width: `${row.left}%` }} />
                 </div>
               )}
-              <RunwayApps named={appsOn(group, apps)} />
               {credits ? (
                 <span className="flex flex-col text-label" data-testid="home-runway-credits">
                   <span className="text-ink">{row.words}</span>
                   {row.resets && <span className="text-muted">{row.resets}</span>}
                 </span>
               ) : row.left !== null ? (
-                <span className="text-label text-muted">{row.resets ?? row.words}</span>
+                <span className="text-label text-muted" data-testid="home-runway-facts">{runwayFacts(row, live)}</span>
               ) : (
                 <span className="flex flex-wrap items-baseline gap-x-2 text-label text-muted">
                 {row.words}

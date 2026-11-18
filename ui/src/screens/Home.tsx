@@ -39,8 +39,9 @@ import { shortName } from "../lib/session-titles";
 import type { FeedItemInfo } from "../lib/ipc/feed";
 import { headCount, needsHeading } from "../lib/home-needs";
 import { HomeExtras } from "../components/HomeExtras";
-import { endedToday, itemsOf, openNow } from "../lib/rail-items";
-import { showInRail } from "../lib/rail-view";
+import { itemsOf, openNow } from "../lib/rail-items";
+import { useNoticeSummary } from "../lib/notices-store";
+import { homeCounts } from "../lib/home-counts";
 import { isSnoozed } from "../lib/railview";
 import { useShownConversations } from "../lib/shown-apps";
 import { useSeen } from "../lib/seen";
@@ -172,6 +173,7 @@ export function HomeScreen({
   const capNeeds = useMemo(() => ({ ...capsRead, caps: shownRows.caps }), [capsRead, shownRows.caps]);
   const { messages: messageNeeds, tasks: taskNeeds } = shownRows;
   const seen = useSeen();
+  const finishedToday = useNoticeSummary()?.digest.finished ?? 0;
   // AJ-E501: process tracking degraded — said here, only when it is.
   const ledgerDegraded = useResource("dashboard-stats", dashboardStats).data?.ledger_degraded === true;
   const [busy, setBusy] = useState<string | null>(null);
@@ -337,15 +339,7 @@ export function HomeScreen({
     anything: sessions.length + conversations.length > 0, known: needsNow.known,
   });
   const openCount = items.filter(openNow).length;
-  const sessionsWords = (count: number, what: string) => `${count} ${what} ${count === 1 ? "session" : "sessions"}`;
-  const counts: { key: string; words: string; run: () => void }[] = [
-    { key: "open", words: `${openCount} open`, run: () => document.querySelector<HTMLElement>("[data-testid='rail'] [data-rail-item]")?.focus() },
-    { key: "review", words: `${notes} to review`, run: () => document.querySelector<HTMLElement>("[data-testid='home-needs']")?.scrollIntoView?.({ block: "nearest" }) },
-    // "23 inactive" read as apps or anything (the maintainer, 0.3.3).
-    { key: "inactive", words: sessionsWords(items.filter((item) => item.inactive).length, "inactive"), run: () => showInRail("inactive") },
-    { key: "ended", words: `${items.filter((item) => endedToday(item, now)).length} ended today`, run: () => showInRail("ended") },
-    ...hiddenApps.map((part) => ({ key: `hidden-${part.app}`, words: `${part.count} in ${part.app} hidden`, run: () => window.dispatchEvent(new CustomEvent("aij:open-screen", { detail: { id: "settings" } })) })),
-  ].filter((part) => !part.words.startsWith("0 "));
+  const counts = homeCounts({ open: openCount, finishedToday, toReview: notes, inactive: items.filter((item) => item.inactive).length, hidden: hiddenApps });
   // D-118: the feed (its handlers are Home's: the session's page, Mark
   // reviewed as Home marks it, the rail's row for ↗).
   const feed = (

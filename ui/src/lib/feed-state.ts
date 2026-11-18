@@ -10,7 +10,7 @@
  * has been in front 10 s with the digest on screen; *read* is per item,
  * set when it is opened or acted on, and clears its unread dot.
  */
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { keep, readKept } from "./local-store";
 import type { FeedFiltersInfo, FeedItemInfo } from "./ipc/feed";
 import type { Page } from "./paged";
@@ -49,14 +49,30 @@ export function keptFilters(): FeedFiltersInfo {
   return { category: text(kept.category), project: text(kept.project), pool: text(kept.pool), folders: folders && folders.length > 0 ? folders : null, include_mine: kept.include_mine === true };
 }
 
+/** The feeds drawn now, told when the filters are set from elsewhere
+ * (Home's counts line: "6 finished today" shows the Finished chip). */
+const shown = new Set<(next: FeedFiltersInfo) => void>();
+
 /** The feed's filters, remembered per viewer. */
 export function useFeedFilters(): [FeedFiltersInfo, (next: FeedFiltersInfo) => void] {
   const [filters, setFilters] = useState(keptFilters);
+  useEffect(() => {
+    shown.add(setFilters);
+    return () => void shown.delete(setFilters);
+  }, []);
   const set = useCallback((next: FeedFiltersInfo) => {
     setFilters(next);
     keep(FILTERS, JSON.stringify(next));
   }, []);
   return [filters, set];
+}
+
+/** Shows one chip of the feed (`category`, as the chips name it), its
+ * other filters kept, and remembers it as a click on the chip would. */
+export function showInFeed(category: string): void {
+  const next = { ...keptFilters(), category };
+  keep(FILTERS, JSON.stringify(next));
+  for (const set of shown) set(next);
 }
 
 /** Whether `filters` narrow the feed (the "Filtered: … ×" line). */

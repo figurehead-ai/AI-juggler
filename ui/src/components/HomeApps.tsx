@@ -12,9 +12,9 @@
  *
  * Every App is here, as the rail's Open now and Inactive apps have them:
  * a CLI App with sessions in AI Juggler's own terminal runs (its sessions
- * are open, so it's no less running for being here; no Open, you're in
- * it), and a CLI App with nothing open is under "Not running" (D-100: the
- * Apps list's CLI Apps). Leaving them out left a user whose sessions all
+ * are open, so it's no less running for being here; its Open is its page),
+ * and a CLI App with nothing open is under "Not running" with Start (New
+ * session on it; D-100: the Apps list's CLI Apps). Leaving them out left a user whose sessions all
  * run in AI Juggler with no Your apps at all.
  */
 import { useState, type JSX } from "react";
@@ -65,13 +65,12 @@ function start(place: KnownPlaceInfo, name: string): void {
 
 const GHOST = "btn-ghost shrink-0 rounded-md px-2.5 py-1 text-meta font-medium outline-none focus-visible:ring-1 focus-visible:ring-accent/60 disabled:cursor-not-allowed disabled:opacity-50";
 
-/** One row (D-118 R2), two lines so a 320 px column (1280 px with the rail
- * open) reads whole: the App's name and its profile (dot and name) on the
- * first, wrapping the profile under the name only when both can't fit;
- * then what's open, kept alive (0.3.3) and the needs mark on the second,
- * wrapping as words do (the mark's dot is its own separator). Nothing is cut; the second line's tooltip says it
- * all. The action stays on the right. Calm (D-117): the same muted words
- * and the one needs mark, no new mark. */
+/** One row (D-118 R2, the approved mock): the App's name on the first
+ * line; its profile (dot and name), what's open and kept alive (0.3.3) on
+ * the second, wrapping as words do so nothing is cut at 320 px; the needs
+ * mark (its level's dot and "n needs you") at the first line's end; the
+ * ghost action on the right. Calm (D-117): muted words and the one needs mark, whose
+ * loud copy is the pinned need's. The second line's tooltip says it all. */
 function Row({ id, icon, app, profile, slot, line, kept = false, needs, level, broken, action, testId, place, lit }: {
   id: string | null;
   icon: JSX.Element;
@@ -90,13 +89,13 @@ function Row({ id, icon, app, profile, slot, line, kept = false, needs, level, b
 }): JSX.Element {
   const name = appName(app, profile);
   const needWords = `${needs} ${needs === 1 ? "needs" : "need"} you`;
-  const full = [line, kept ? "kept alive" : null, needs > 0 ? needWords : null].filter(Boolean).join(" · ");
+  const full = [profile, line, kept ? "kept alive" : null, needs > 0 ? needWords : null].filter(Boolean).join(" · ");
   const dot = <span aria-hidden="true"> · </span>;
   return (
     <li className="tone-host flex min-w-0 items-center gap-3 rounded-lg px-2 py-1.5 hover:bg-surface-2" data-testid={testId} data-place={place} data-level={level} data-lit={lit || undefined}>
       {icon}
       <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-        <span className="flex min-w-0 flex-wrap items-center gap-x-1.5">
+        <span className="flex min-w-0 items-center gap-2">
           {id === null ? (
             <span className="max-w-full truncate text-body font-semibold text-ink">{app}</span>
           ) : (
@@ -105,33 +104,36 @@ function Row({ id, icon, app, profile, slot, line, kept = false, needs, level, b
               <span className="sr-only">, {name}'s page</span>
             </button>
           )}
-          {profile && (
-            <span className="flex min-w-0 items-center gap-1 text-label font-medium text-ink-2">
-              <ProfileBadge app={slot} name={profile} />
-              <span className="min-w-0 break-words" data-testid="home-app-profile">{profile}</span>
+          {needs > 0 && <span className="sr-only">, </span>}
+          {needs > 0 && (
+            // D-117: a mark, not a pill: the words in ink-2 by the level's dot,
+            // at the first line's end so the second keeps its words whole.
+            <span className="ml-auto inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap text-label font-medium text-ink-2" data-testid="home-app-needs" data-level={level} title="Pinned under Needs you now">
+              <span aria-hidden="true" className="level-mark" data-level={level === 3 ? 3 : 2} />
+              {needWords}
+              {broken.length > 0 && <span className="sr-only">, {brokenParts(broken)}</span>}
             </span>
           )}
         </span>
-        <span className="block text-label text-muted" title={full} data-testid="home-app-line">
-          {line}
-          {kept && (
+        {/* Inline words, so a wrap falls between words, never leaving a
+            line of a lone "·". */}
+        <span className="block min-w-0 break-words text-label text-muted" title={full}>
+          {profile && (
             <>
+              <ProfileBadge app={slot} name={profile} className="mr-1 inline-block align-middle" />
+              <span className="font-medium text-ink-2" data-testid="home-app-profile">{profile}</span>
               {dot}
-              <span data-testid="home-app-kept-mark" title="Kept alive: AI Juggler starts it again if it stops">kept alive</span>
             </>
           )}
-          {needs > 0 && (
-            <>
-              {/* D-117: a mark, not a pill: the words in ink-2 by the level's
-                  dot, which is its separator (a wrap never leaves a "·"). */}
-              <span className="sr-only">, </span>
-              <span className="ml-1.5 inline-flex items-center gap-1.5 whitespace-nowrap align-middle font-medium text-ink-2" data-testid="home-app-needs" data-level={level} title="Pinned under Needs you now">
-                <span aria-hidden="true" className="level-mark" data-level={level === 3 ? 3 : 2} />
-                {needWords}
-                {broken.length > 0 && <span className="sr-only">, {brokenParts(broken)}</span>}
-              </span>
-            </>
-          )}
+          <span data-testid="home-app-line">
+            {line}
+            {kept && (
+              <>
+                {dot}
+                <span data-testid="home-app-kept-mark" title="Kept alive: AI Juggler starts it again if it stops">kept alive</span>
+              </>
+            )}
+          </span>
         </span>
       </span>
       {action}
@@ -161,14 +163,25 @@ function OpenRow({ group, appId, kept }: { group: RailGroup; appId: string | nul
       testId="home-app-tile"
       place={place.key}
       lit={level >= 2}
-      action={place.appPid !== null ? <button type="button" className={GHOST} aria-label={`Open ${name}`} onClick={() => bringForward(place.appPid, name)}>Open</button> : null}
+      action={
+        place.appPid !== null ? (
+          <button type="button" className={GHOST} aria-label={`Open ${name}`} onClick={() => bringForward(place.appPid, name)}>Open</button>
+        ) : appId !== null ? (
+          // In AI Juggler's own terminal there's nothing to bring forward:
+          // Open is its page, where its sessions are (the mock's Open on
+          // every running row).
+          <button type="button" className={GHOST} aria-label={`Open ${name}'s page`} title={`Open ${name}'s page`} onClick={() => openApp(appId)} data-testid="home-app-open-page">Open</button>
+        ) : null
+      }
     />
   );
 }
 
-/** A CLI App with nothing open (D-100): its page by its name; nothing to
- * start (a CLI App runs in a session). */
+/** A CLI App with nothing open (D-100): its page by its name; Start opens
+ * New session on it (a CLI App runs in a session), as the rail's idle CLI
+ * App does. */
 function CliRow({ app }: { app: AppModel }): JSX.Element {
+  const name = appName(app.app, app.profile);
   return (
     <Row
       id={app.id}
@@ -183,7 +196,11 @@ function CliRow({ app }: { app: AppModel }): JSX.Element {
       testId="home-app-cli"
       place={app.railKey}
       lit={false}
-      action={null}
+      action={
+        <button type="button" className={GHOST} aria-label={`Start a new session in ${name}`} title={`New session in ${name}`} onClick={() => window.dispatchEvent(new CustomEvent("aij:new-session", { detail: { accountId: app.accountId } }))}>
+          Start
+        </button>
+      }
     />
   );
 }

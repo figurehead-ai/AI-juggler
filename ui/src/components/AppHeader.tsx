@@ -10,7 +10,6 @@
  */
 import { RoomCount } from "./RoomChip";
 import type { JSX } from "react";
-import { Button } from "./primitives";
 import { IconTerminal } from "./icons";
 import { IconChevronRight } from "./icons-controls";
 import { keysOf } from "../lib/shortcuts";
@@ -60,7 +59,9 @@ export function AppHeader({
       className="@container/header relative z-30 flex min-h-14 shrink-0 flex-wrap items-center gap-x-3 gap-y-1 border-b border-hairline bg-surface/50 px-5 py-2 backdrop-blur-xl"
     >
       <h1 className="sr-only">{title}</h1>
-      {back && <BackForward {...back} />}
+      {/* D-127: never an unusable control. ‹ › show once there is a page
+          to go back or forward to (⌘[ ⌘] work either way). */}
+      {back && (back.canBack || back.canForward) && <BackForward {...back} />}
       <MainNav primary={PRIMARY_NAV} global={global} page={page} pairedCount={pairedCount} onPick={onPick} />
       {/* From 960 px the rest always fits one row beside the tabs, so the
           cluster takes the room left and This Mac's line shortens (…)
@@ -77,10 +78,19 @@ export function AppHeader({
         <RoomCount />
         {/* 0.4.2: "3 to clean up" lands on Needs attention (lib/landing). */}
         <CleanupPill count={cleanupCount} shown={global !== "cleanup"} onOpen={() => openScreenOn("cleanup", CLEAN_UP_VIEW)} />
-        <Button size="sm" variant="accent" onClick={onNewSession} disabled={downSince !== null} title={downSince !== null ? "Waits until AI Juggler's service answers again" : undefined} className="ml-1 shrink-0">
-          <IconTerminal width={14} height={14} />
+        {/* D-117 (c2): accent words, no fill: on every page the page's
+            own primary is the one filled button (principle 9). */}
+        <button
+          type="button"
+          onClick={onNewSession}
+          disabled={downSince !== null}
+          title={downSince !== null ? "Waits until AI Juggler's service answers again" : undefined}
+          className="ml-1 inline-flex h-7 shrink-0 items-center gap-1.5 rounded-lg px-2 text-meta font-medium text-accent-hi outline-none transition-colors hover:bg-surface-2 focus-visible:ring-2 focus-visible:ring-accent/60 disabled:cursor-default disabled:opacity-50"
+          data-testid="header-new-session"
+        >
+          <IconTerminal width={14} height={14} aria-hidden="true" />
           New session
-        </Button>
+        </button>
         <span className="ml-1.5 flex shrink-0 items-center gap-2">
           <NotificationBell sessions={sessions} />
           <FloorButton />

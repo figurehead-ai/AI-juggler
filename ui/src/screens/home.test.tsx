@@ -232,7 +232,9 @@ describe("D-25 Home — the screen", () => {
       { account: "work", five_hour: { percentage: 90, state: "measured", resets_at_ms: null }, weekly: { percentage: 20, state: "measured", resets_at_ms: null } },
     ];
     const { getByTestId } = renderHome([mk("r")]);
-    await waitFor(() => expect(getByTestId("home").textContent).toContain("10% left in the 5-hour window"));
+    // D-118's mock: the figure, then the facts line under the meter.
+    await waitFor(() => expect(getByTestId("home").textContent).toContain("10% left"));
+    expect(getByTestId("home").textContent).toContain("Low · in the 5-hour window");
     expect(getByTestId("home").textContent).toContain("Not measured yet");
   });
 
@@ -243,11 +245,11 @@ describe("D-25 Home — the screen", () => {
     const first = renderHome([mk("r")]);
     // The first frame: no reading yet, each row's meter track holds its place.
     expect(first.getAllByTestId("home-runway-meter-pending")).toHaveLength(2);
-    await waitFor(() => expect(first.getByTestId("home").textContent).toContain("10% left in the 5-hour window"));
+    await waitFor(() => expect(first.getByTestId("home").textContent).toContain("Low · in the 5-hour window"));
     expect(first.queryAllByTestId("home-runway-meter-pending")).toHaveLength(0);
     first.unmount();
     const again = renderHome([mk("r")]);
-    expect(again.getByTestId("home").textContent).toContain("10% left in the 5-hour window");
+    expect(again.getByTestId("home").textContent).toContain("Low · in the 5-hour window");
     expect(again.queryAllByTestId("home-runway-meter-pending")).toHaveLength(0);
     delete w().__AIJ_QUOTA_DISPLAY__;
   });

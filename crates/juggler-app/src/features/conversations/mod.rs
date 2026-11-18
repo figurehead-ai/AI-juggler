@@ -658,11 +658,13 @@ pub fn titled(
         .into_iter()
         .filter_map(|c| Some(((c.account_id, c.summary.id), c.summary.title?)))
         .collect();
+    // Over the title the row came with (its task's, `sessions::list`), only
+    // when the conversation has one: an unread index keeps the task's.
     for row in &mut rows {
-        if let (Some(account), Some(conversation)) = (&row.account_id, &row.conversation_id) {
-            row.title = titles
-                .get(&(account.clone(), conversation.clone()))
-                .cloned();
+        if let (Some(account), Some(conversation)) = (&row.account_id, &row.conversation_id)
+            && let Some(title) = titles.get(&(account.clone(), conversation.clone()))
+        {
+            row.title = Some(title.clone());
         }
     }
     Ok(rows)
