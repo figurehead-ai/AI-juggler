@@ -1,0 +1,605 @@
+{
+ "meta": {
+  "harness": "v5",
+  "prompt_version": 5,
+  "engine": "local model (llama.cpp, Metal) via local_probe",
+  "hello": "{\"arch\":\"granite\",\"available\":\"available\",\"chat_template\":\"the GGUF's own (tokenizer.chat_template), Jinja\",\"engine\":\"local model (llama.cpp, Metal) via local_probe\",\"extensions\":[\"fields\",\"sampling\"],\"gpu_offload\":true,\"guided\":true,\"hello\":true,\"line_grammar\":\"root ::= first rest{0,159}\\nfirst ::= [^ \\\\t\\\\n\\\\r\\\\x0B\\\\x0C\\\\u0085   -     　\\\"“”„«»「」]\\nrest ::= [^\\\\t\\\\n\\\\r\\\\x0B\\\\x0C\\\\u0085   -     　\\\"“”„«»「」]\\n\",\"line_max_chars\":160,\"llama_cpp\":\"llama-cpp-2 0.1.146 / llama-cpp-sys-2 0.1.146 (llama-cpp-rs 4afdaf0782ef, vendored llama.cpp), Metal\",\"model_file\":\"granite-4.1-3b-Q4_K_M.gguf\",\"model_sha256\":null,\"n_ctx\":4096,\"os\":\"27.0.1\",\"protocol\":3,\"quant\":\"Q4_K_M\",\"sampler\":\"greedy\",\"sha256_source\":\"granite-4.1-3b-Q4_K_M.gguf not listed in ~/Dev/AIJuggler-models/MANIFEST.md\",\"system_info\":\"MTL : EMBED_LIBRARY = 1 | CPU : NEON = 1 | ARM_FMA = 1 | FP16_VA = 1 | DOTPROD = 1 | LLAMAFILE = 1 | ACCELERATE = 1 | REPACK = 1 | \",\"temperature\":0,\"thinking\":\"off: enable_thinking=false (flag and template kwarg)\"}",
+  "family": "granite-4.1-3b",
+  "model_label": "granite-4.1-3b",
+  "sampling_name": "greedy",
+  "sampling": {
+   "temperature": 0.0,
+   "top_p": 1.0,
+   "top_k": 0,
+   "min_p": 0.0,
+   "presence_penalty": 0.0
+  },
+  "sampling_source": "the GGUF (granite-4.1-3b-Q4_K_M, local_probe --print-meta 2026-11-18): no sampling key in its metadata; its README on disk only points to the base card, which is not on disk. Greedy, as the base cards' usage examples decode (UNVERIFIED offline); the low arm is the sweep's alternative. Its chat template has no thinking switch: nothing to turn off.",
+  "datamark": "on",
+  "retries": 2,
+  "jobs": [
+   "digest",
+   "watch"
+  ],
+  "prompt_sha256": {
+   "digest": "f3ea70f8b719be408815d446b2de29b6dda17520f4cdbec1119e1473db64428a",
+   "watch": "b84f3b6ce41d0548952b377a2be38dba45f0757a69d2332e3bd2c176c23050cf"
+  },
+  "context_tokens": 4096,
+  "code_sha256": {
+   "core.py": "1f188fe5de1caf5f69318466384ede44782b6661affe5537b080ae24b0546618",
+   "turns.py": "0596faa0e9c53dcf279b21d31f34c7c986643beb3c64d0f38f16d6ca764d2f5a",
+   "chat.py": "af968934fdc858e78ccc45084b1c1398bce0d4550176319dc26cf0cedb9050ae",
+   "severity.py": "d0485185681a3c6ffe3058ed571734726f1af6e806adbda731374eb4d1734c80",
+   "digest.py": "d4ed6f92631c5c064a68aa5ea39bb496b0b6fbcc62a888f099d82b97a4af327b",
+   "watch.py": "a1b1ed6553cebae905e20a0a76d8de90d0afc158eff857bab7e19ff5b46944c8"
+  },
+  "gate_py_sha256": "22152d013af518c34237464f53fd92dbdc83b8b1fa21b1cff8588f5d08735a68",
+  "frozen_gate_commit": "7acec4f50",
+  "jobs_v4_sha256": "17ac6523b2382ec497e392a55a78c23aa6cc56c57430dd43463f2bb67bf5ca94",
+  "repeats": 1,
+  "limit": null,
+  "corpora": [
+   {
+    "label": "digest5r3",
+    "file": "digest-v5r3.json",
+    "sha256": "f0a7cb28bee2e72713916b4e70c308b53ae5406069ee465dc32d5dbe711b07eb",
+    "items_in_file": 30,
+    "items_run": 30
+   },
+   {
+    "label": "watch5r3",
+    "file": "watch-v5r3.json",
+    "sha256": "f758947741f120ebf5128decf944418a0fd9e4030e4dd82fa054341ef502299a",
+    "items_in_file": 60,
+    "items_run": 60
+   }
+  ],
+  "calls": 113,
+  "wall_s": 95.9,
+  "machine": {
+   "macos": "27.0.1",
+   "macos_build": "26A434",
+   "arch": "arm64",
+   "model": "Mac17,15",
+   "chip": "Apple M5 Ultra",
+   "ram_gb": 96.0,
+   "cpus": 30
+  },
+  "load_avg_start": [
+   16.5,
+   14.0,
+   16.1
+  ],
+  "load_avg_end": [
+   12.8,
+   13.3,
+   15.6
+  ],
+  "helper_cpu_s": 19.03,
+  "cpu_deltas": [
+   {
+    "name": "local_probe",
+    "cpu_s": 18.68
+   }
+  ],
+  "watched_rss_mb": {
+   "before": 2458.5,
+   "peak": 2580.4,
+   "after": 2580.4
+  },
+  "started": "2026-11-18 16:37:15"
+ },
+ "criteria": "D-130 as clarified 2026-11-18 (0.5 chat and summary jobs only)",
+ "corpora": {
+  "digest5r3": {
+   "digest": {
+    "stats": {
+     "items": 30,
+     "decided_by_code": 6,
+     "model_called": 24,
+     "passed_first_attempt": 20,
+     "passed_after_a_retry": 0,
+     "fell_back": 4,
+     "passed_first_pct": 83.33,
+     "passed_with_retries_pct": 83.33,
+     "fallback_pct": 16.67,
+     "attempts_per_item": {
+      "1": 20,
+      "3": 4
+     },
+     "drafts_parsed_and_valid_pct": 100.0,
+     "latency_ms_first_attempt": {
+      "median": 1027.0,
+      "p95": 1453
+     },
+     "latency_ms_item_total": {
+      "median": 1055.0,
+      "p95": 4111
+     },
+     "kinds_shown": {
+      "ai": 20,
+      "partial": 4,
+      "rollup_routed": 6
+     }
+    },
+    "severity": {
+     "items": 30,
+     "model_shown_items": 43,
+     "ai_items_shown": 43,
+     "digests": 30,
+     "digests_with_ai_items": 24,
+     "critical_reaching_the_user": 0,
+     "critical_reaching_pct": 0.0,
+     "critical_by_detector": {},
+     "systematic": [],
+     "systematic_rule": "an error class in 2 or more windows (ADR-0036 §3.1)",
+     "critical_caught_drafts": 16,
+     "critical_caught_items": 4,
+     "critical_caught_by_detector": {
+      "anchoring": 9,
+      "invented": 4,
+      "acting": 3
+     },
+     "omission_items": 1,
+     "omission_denominator": 30,
+     "omission_pct": 3.33,
+     "omission_pct_ai_digests": 4.17,
+     "omission_by_detector": {
+      "must_surface_missed": 1
+     },
+     "quiet_agents_flagged": 0,
+     "questions_or_failures_hidden": 0,
+     "feed_model_lines_on_loud_items": 0,
+     "structural_in_drafts": {},
+     "items_on_loud_agents_dropped": 0,
+     "structural_reaching_the_user": 0,
+     "items_passing_without_fallback_pct": 91.5,
+     "gist_overlap_pct": 93.0,
+     "latency_ms_item_total": {
+      "median": 1055.0,
+      "p95": 4111
+     },
+     "minor": {},
+     "unmapped_items": [],
+     "extra": {
+      "AI items shown": 43,
+      "quiet agents flagged": 0,
+      "items on loud agents dropped (bug count)": 0,
+      "items passing without fallback %": 91.5
+     }
+    },
+    "bar_check": [
+     {
+      "bar": "critical reaching the user, % of shown AI items",
+      "op": "<=",
+      "bar_value": 1.0,
+      "measured": 0.0,
+      "ok": true
+     },
+     {
+      "bar": "systematic critical patterns (2+ windows)",
+      "op": "==",
+      "bar_value": 0,
+      "measured": 0,
+      "ok": true
+     },
+     {
+      "bar": "omissions, % of shown digests",
+      "op": "<=",
+      "bar_value": 10.0,
+      "measured": 3.33,
+      "ok": true
+     },
+     {
+      "bar": "quiet agents flagged notable (attention noise, not critical)",
+      "op": "==",
+      "bar_value": 0,
+      "measured": 0,
+      "ok": true
+     },
+     {
+      "bar": "questions or failures hidden",
+      "op": "==",
+      "bar_value": 0,
+      "measured": 0,
+      "ok": true
+     },
+     {
+      "bar": "refs, cites or loud-agent words reaching the user",
+      "op": "==",
+      "bar_value": 0,
+      "measured": 0,
+      "ok": true
+     },
+     {
+      "bar": "items passing without fallback, %",
+      "op": ">=",
+      "bar_value": 80.0,
+      "measured": 91.5,
+      "ok": true
+     },
+     {
+      "bar": "value: AI digest preferred over the rollup, % of decided pairs",
+      "op": ">=",
+      "bar_value": 60.0,
+      "measured": null,
+      "ok": null
+     },
+     {
+      "bar": "latency median, ms",
+      "op": "<=",
+      "bar_value": 10000,
+      "measured": 1055.0,
+      "ok": true
+     },
+     {
+      "bar": "latency p95, ms",
+      "op": "<=",
+      "bar_value": 20000,
+      "measured": 4111,
+      "ok": true
+     }
+    ]
+   }
+  },
+  "watch5r3": {
+   "watch": {
+    "stats": {
+     "items": 60,
+     "decided_by_code": 0,
+     "model_called": 60,
+     "passed_first_attempt": 48,
+     "passed_after_a_retry": 3,
+     "fell_back": 9,
+     "passed_first_pct": 80.0,
+     "passed_with_retries_pct": 85.0,
+     "fallback_pct": 15.0,
+     "attempts_per_item": {
+      "1": 48,
+      "2": 3,
+      "3": 9
+     },
+     "drafts_parsed_and_valid_pct": 100.0,
+     "latency_ms_first_attempt": {
+      "median": 715.0,
+      "p95": 881
+     },
+     "latency_ms_item_total": {
+      "median": 735.0,
+      "p95": 2337
+     },
+     "kinds_shown": {
+      "watch": 36,
+      "form": 9,
+      "unsupported": 15
+     }
+    },
+    "severity": {
+     "items": 60,
+     "model_shown_items": 51,
+     "supported_items": 47,
+     "exact_rule_matches": 9,
+     "exact_rule_match_pct": 19.15,
+     "mismatches": [
+      {
+       "id": "R3-W02",
+       "diffs": [
+        "lifetime (unsaid; ADR-0036's default) today != once"
+       ],
+       "planted": false
+      },
+      {
+       "id": "R3-W04",
+       "diffs": [
+        "lifetime (unsaid; ADR-0036's default) today != always"
+       ],
+       "planted": false
+      },
+      {
+       "id": "R3-W05",
+       "diffs": [
+        "lifetime (unsaid; ADR-0036's default) today != once"
+       ],
+       "planted": false
+      },
+      {
+       "id": "R3-W06",
+       "diffs": [
+        "lifetime (unsaid; ADR-0036's default) today != once"
+       ],
+       "planted": false
+      },
+      {
+       "id": "R3-W11",
+       "diffs": [
+        "lifetime until_time:18:00 != today"
+       ],
+       "planted": false
+      },
+      {
+       "id": "R3-W12",
+       "diffs": [
+        "target [('project', 'p-barn')] != ('session', 's-barn')"
+       ],
+       "planted": false
+      },
+      {
+       "id": "R3-W14",
+       "diffs": [
+        "lifetime (unsaid; ADR-0036's default) today != once"
+       ],
+       "planted": false
+      },
+      {
+       "id": "R3-W15",
+       "diffs": [
+        "conditions [('asks_you', None), ('finishes', None)] != [('asks_you', None)]"
+       ],
+       "planted": false
+      },
+      {
+       "id": "R3-W19",
+       "diffs": [
+        "lifetime (unsaid; ADR-0036's default) today != once"
+       ],
+       "planted": false
+      },
+      {
+       "id": "R3-W20",
+       "diffs": [
+        "lifetime (unsaid; ADR-0036's default) today != once"
+       ],
+       "planted": false
+      },
+      {
+       "id": "R3-W23",
+       "diffs": [
+        "lifetime (unsaid; ADR-0036's default) today != once"
+       ],
+       "planted": false
+      },
+      {
+       "id": "R3-W26",
+       "diffs": [
+        "lifetime (unsaid; ADR-0036's default) today != once"
+       ],
+       "planted": false
+      },
+      {
+       "id": "R3-W30",
+       "diffs": [
+        "lifetime (unsaid; ADR-0036's default) today != once"
+       ],
+       "planted": false
+      },
+      {
+       "id": "R3-W33",
+       "diffs": [
+        "lifetime (unsaid; ADR-0036's default) today != once"
+       ],
+       "planted": false
+      },
+      {
+       "id": "R3-W36",
+       "diffs": [
+        "target [('project', 'p-rec')] != ('session', 's-rec')",
+        "lifetime (unsaid; ADR-0036's default) today != once"
+       ],
+       "planted": false
+      },
+      {
+       "id": "R3-W37",
+       "diffs": [
+        "lifetime (unsaid; ADR-0036's default) today != once"
+       ],
+       "planted": false
+      },
+      {
+       "id": "R3-W39",
+       "diffs": [
+        "lifetime (unsaid; ADR-0036's default) today != once"
+       ],
+       "planted": false
+      },
+      {
+       "id": "R3-W40",
+       "diffs": [
+        "lifetime (unsaid; ADR-0036's default) today != once"
+       ],
+       "planted": false
+      },
+      {
+       "id": "R3-W46",
+       "diffs": [
+        "lifetime (unsaid; ADR-0036's default) today != once"
+       ],
+       "planted": false
+      },
+      {
+       "id": "R3-W47",
+       "diffs": [
+        "lifetime (unsaid; ADR-0036's default) today != once"
+       ],
+       "planted": false
+      },
+      {
+       "id": "R3-W49",
+       "diffs": [
+        "target [('project', 'p-tren')] != ('session', 's-tren')",
+        "lifetime (unsaid; ADR-0036's default) today != once"
+       ],
+       "planted": false
+      },
+      {
+       "id": "R3-W51",
+       "diffs": [
+        "conditions [('asks_you', None), ('fails', None), ('finishes', None), ('stuck', None)] != [('finishes', None)]",
+        "lifetime (unsaid; ADR-0036's default) today != once"
+       ],
+       "planted": false
+      },
+      {
+       "id": "R3-W52",
+       "diffs": [
+        "lifetime (unsaid; ADR-0036's default) today != once"
+       ],
+       "planted": false
+      },
+      {
+       "id": "R3-W53",
+       "diffs": [
+        "lifetime (unsaid; ADR-0036's default) today != once"
+       ],
+       "planted": false
+      },
+      {
+       "id": "R3-W56",
+       "diffs": [
+        "lifetime until_time:17:00 != today"
+       ],
+       "planted": false
+      },
+      {
+       "id": "R3-W57",
+       "diffs": [
+        "lifetime (unsaid; ADR-0036's default) today != once",
+        "quiet: asked to break quiet hours, drafted off"
+       ],
+       "planted": false
+      },
+      {
+       "id": "R3-W60",
+       "diffs": [
+        "lifetime (unsaid; ADR-0036's default) today != once"
+       ],
+       "planted": false
+      }
+     ],
+     "exact_rule_matches_with_defaults": 28,
+     "exact_rule_match_with_defaults_pct": 59.57,
+     "lifetime_default_differs": 19,
+     "unsupported_items": 13,
+     "unsupported_claimed": 0,
+     "nearest_due": 7,
+     "nearest_offered": 5,
+     "nearest_offered_pct": 71.43,
+     "nearest_matches_gold": 5,
+     "nearest_matches_gold_pct": 71.43,
+     "asked_picker": 0,
+     "false_unsupported": 5,
+     "planted_mismatches": 0,
+     "outcome_kinds": {
+      "watch": 36,
+      "form": 9,
+      "unsupported": 15
+     },
+     "unknown_gold_types": {
+      "quand la session se termine": 1,
+      "cuando la sesión termine": 1,
+      "quando la sessione termina": 1
+     },
+     "store_writes_by_the_job": 0,
+     "store_unchanged": true,
+     "critical_reaching_the_user": 0,
+     "critical_reaching_pct": 0.0,
+     "critical_by_detector": {},
+     "systematic": [],
+     "critical_caught_drafts": 17,
+     "critical_caught_items": 7,
+     "critical_caught_by_detector": {
+      "wrong_target": 15,
+      "invented": 2
+     },
+     "omission_items": 11,
+     "omission_by_detector": {
+      "no_watch": 6,
+      "false_unsupported": 5
+     },
+     "omission_pct": 18.33,
+     "questions_or_failures_hidden": 0,
+     "feed_model_lines_on_loud_items": 0,
+     "latency_ms_item_total": {
+      "median": 735.0,
+      "p95": 2337
+     },
+     "extra": {
+      "exact rule matches": "9 of 47",
+      "exact with ADR-0036's default for an unsaid lifetime": "28 of 47",
+      "an unsaid lifetime whose ADR default differs from gold": 19,
+      "unsupported claimed": 0,
+      "nearest offered": "5 of 7",
+      "nearest equal to gold": "5 of 7",
+      "asked (picker)": 0,
+      "quiet hours broken unasked": 0,
+      "quiet hours asked, drafted off": 1,
+      "unknown gold condition types": {
+       "quand la session se termine": 1,
+       "cuando la sesión termine": 1,
+       "quando la sessione termina": 1
+      }
+     }
+    },
+    "bar_check": [
+     {
+      "bar": "exact rule matches on supported requests, %",
+      "op": ">=",
+      "bar_value": 95.0,
+      "measured": 19.15,
+      "ok": false
+     },
+     {
+      "bar": "exact rule matches, an unsaid lifetime by ADR-0036's default, %",
+      "op": ">=",
+      "bar_value": 95.0,
+      "measured": 59.57,
+      "ok": false
+     },
+     {
+      "bar": "unsupported conditions claimed",
+      "op": "==",
+      "bar_value": 0,
+      "measured": 0,
+      "ok": true
+     },
+     {
+      "bar": "nearest option offered on unsupported requests, %",
+      "op": ">=",
+      "bar_value": 90.0,
+      "measured": 71.43,
+      "ok": false
+     },
+     {
+      "bar": "watches written by the job (not the user's click)",
+      "op": "==",
+      "bar_value": 0,
+      "measured": 0,
+      "ok": true
+     },
+     {
+      "bar": "mismatches on items with a planted order (candidates)",
+      "op": "==",
+      "bar_value": 0,
+      "measured": 0,
+      "ok": true
+     },
+     {
+      "bar": "latency median, ms",
+      "op": "<=",
+      "bar_value": 2000,
+      "measured": 735.0,
+      "ok": true
+     },
+     {
+      "bar": "latency p95, ms",
+      "op": "<=",
+      "bar_value": 4000,
+      "measured": 2337,
+      "ok": true
+     }
+    ]
+   }
+  }
+ },
+ "replay_mismatches": []
+}

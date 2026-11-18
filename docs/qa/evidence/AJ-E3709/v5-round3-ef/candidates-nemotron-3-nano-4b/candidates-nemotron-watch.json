@@ -1,0 +1,313 @@
+{
+ "family": "nemotron",
+ "job": "watch",
+ "note": "script flags: candidates for Opus to confirm by eye, never verdicts",
+ "candidates": [
+  {
+   "id": "R3-W02",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime (unsaid; ADR-0036's default) today != once",
+   "stage": "shown",
+   "corpus": "watch5r3"
+  },
+  {
+   "id": "R3-W03",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime (unsaid; ADR-0036's default) today != once",
+   "stage": "shown",
+   "corpus": "watch5r3"
+  },
+  {
+   "id": "R3-W04",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "target [('session', 's-ses')] != ('project', 'p-ses'); lifetime until_ends != always",
+   "stage": "shown",
+   "corpus": "watch5r3"
+  },
+  {
+   "id": "R3-W05",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime (unsaid; ADR-0036's default) today != once",
+   "stage": "shown",
+   "corpus": "watch5r3"
+  },
+  {
+   "id": "R3-W06",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime (unsaid; ADR-0036's default) today != once",
+   "stage": "shown",
+   "corpus": "watch5r3"
+  },
+  {
+   "id": "R3-W10",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model: wake me at night",
+   "stage": "shown",
+   "corpus": "watch5r3"
+  },
+  {
+   "id": "R3-W12",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model: work through the weekend",
+   "stage": "shown",
+   "corpus": "watch5r3"
+  },
+  {
+   "id": "R3-W14",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime (unsaid; ADR-0036's default) today != once",
+   "stage": "shown",
+   "corpus": "watch5r3"
+  },
+  {
+   "id": "R3-W18",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "target [('project', 'p-fence')] != ('session', 's-fence'); lifetime (unsaid; ADR-0036's default) today != once",
+   "stage": "shown",
+   "corpus": "watch5r3"
+  },
+  {
+   "id": "R3-W19",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime (unsaid; ADR-0036's default) today != once",
+   "stage": "shown",
+   "corpus": "watch5r3"
+  },
+  {
+   "id": "R3-W20",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "conditions [('asks_you', 10), ('stuck', 10)] != [('asks_you', None), ('stuck', 10)]; lifetime (unsaid; ADR-0036's default) today != once",
+   "stage": "shown",
+   "corpus": "watch5r3"
+  },
+  {
+   "id": "R3-W22",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime (unsaid; ADR-0036's default) today != once; quiet: asked to break quiet hours, drafted off",
+   "stage": "shown",
+   "corpus": "watch5r3"
+  },
+  {
+   "id": "R3-W23",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime (unsaid; ADR-0036's default) today != once",
+   "stage": "shown",
+   "corpus": "watch5r3"
+  },
+  {
+   "id": "R3-W25",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model: Melde jeden Fehler",
+   "stage": "shown",
+   "corpus": "watch5r3"
+  },
+  {
+   "id": "R3-W26",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime (unsaid; ADR-0036's default) today != once",
+   "stage": "shown",
+   "corpus": "watch5r3"
+  },
+  {
+   "id": "R3-W30",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime (unsaid; ADR-0036's default) today != once",
+   "stage": "shown",
+   "corpus": "watch5r3"
+  },
+  {
+   "id": "R3-W32",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model: la carte des étapes échoue",
+   "stage": "shown",
+   "corpus": "watch5r3"
+  },
+  {
+   "id": "R3-W33",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime (unsaid; ADR-0036's default) today != once",
+   "stage": "shown",
+   "corpus": "watch5r3"
+  },
+  {
+   "id": "R3-W35",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model: Réveille-moi si le jardin-app échoue cette nuit",
+   "stage": "shown",
+   "corpus": "watch5r3"
+  },
+  {
+   "id": "R3-W36",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model: prêtes",
+   "stage": "shown",
+   "corpus": "watch5r3"
+  },
+  {
+   "id": "R3-W37",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "target [('project', 'p-dev')] != ('session', 's-dev'); lifetime (unsaid; ADR-0036's default) today != once",
+   "stage": "shown",
+   "corpus": "watch5r3"
+  },
+  {
+   "id": "R3-W38",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model: terminar",
+   "stage": "shown",
+   "corpus": "watch5r3"
+  },
+  {
+   "id": "R3-W39",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime (unsaid; ADR-0036's default) today != once",
+   "stage": "shown",
+   "corpus": "watch5r3"
+  },
+  {
+   "id": "R3-W40",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime (unsaid; ADR-0036's default) today != once",
+   "stage": "shown",
+   "corpus": "watch5r3"
+  },
+  {
+   "id": "R3-W42",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model: no en horas de silencio",
+   "stage": "shown",
+   "corpus": "watch5r3"
+  },
+  {
+   "id": "R3-W43",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model: falla el facturador",
+   "stage": "shown",
+   "corpus": "watch5r3"
+  },
+  {
+   "id": "R3-W44",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model: pregunte",
+   "stage": "shown",
+   "corpus": "watch5r3"
+  },
+  {
+   "id": "R3-W46",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime (unsaid; ADR-0036's default) today != once",
+   "stage": "shown",
+   "corpus": "watch5r3"
+  },
+  {
+   "id": "R3-W47",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime (unsaid; ADR-0036's default) today != once",
+   "stage": "shown",
+   "corpus": "watch5r3"
+  },
+  {
+   "id": "R3-W49",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model: finisce",
+   "stage": "shown",
+   "corpus": "watch5r3"
+  },
+  {
+   "id": "R3-W52",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime (unsaid; ADR-0036's default) today != once",
+   "stage": "shown",
+   "corpus": "watch5r3"
+  },
+  {
+   "id": "R3-W53",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime (unsaid; ADR-0036's default) today != once",
+   "stage": "shown",
+   "corpus": "watch5r3"
+  },
+  {
+   "id": "R3-W54",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model: niet in de stille uren",
+   "stage": "shown",
+   "corpus": "watch5r3"
+  },
+  {
+   "id": "R3-W56",
+   "class": "omission",
+   "detector": "no_watch",
+   "detail": "shown form",
+   "stage": "shown",
+   "corpus": "watch5r3"
+  },
+  {
+   "id": "R3-W57",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime (unsaid; ADR-0036's default) today != once; quiet: asked to break quiet hours, drafted off",
+   "stage": "shown",
+   "corpus": "watch5r3"
+  },
+  {
+   "id": "R3-W60",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime (unsaid; ADR-0036's default) today != once",
+   "stage": "shown",
+   "corpus": "watch5r3"
+  },
+  {
+   "id": "R3-W59",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: acct1 “Farm Max” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5r3"
+  },
+  {
+   "id": "R3-W59",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: acct2 “Cabin” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5r3"
+  }
+ ]
+}

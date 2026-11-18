@@ -1,0 +1,178 @@
+{
+ "family": "qwen3-4b-instruct-2507",
+ "job": "digest",
+ "note": "script flags: candidates for Opus to confirm by eye, never verdicts",
+ "candidates": [
+  {
+   "class": "omission",
+   "detector": "must_surface_missed",
+   "detail": "\"r3d04-a (brook-reports): streaming export attempted then rolled back, only a typo fix remains\"",
+   "stage": "shown",
+   "agent": null,
+   "id": "R3-D04",
+   "corpus": "digest5r3"
+  },
+  {
+   "class": "omission",
+   "detector": "must_surface_missed",
+   "detail": "\"r3d25-a (glen-search): vector index experiment discarded, only a faster tokenizer remains\"",
+   "stage": "shown",
+   "agent": null,
+   "id": "R3-D25",
+   "corpus": "digest5r3"
+  },
+  {
+   "id": "R3-D03",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "item for a2: 2b: content word(s) not in the text: the",
+   "stage": "caught",
+   "corpus": "digest5r3"
+  },
+  {
+   "id": "R3-D04",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "item for a1: 2b: content word(s) not in the text: breaking",
+   "stage": "caught",
+   "corpus": "digest5r3"
+  },
+  {
+   "id": "R3-D04",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "item for a2: 2b: content word(s) not in the text: running",
+   "stage": "caught",
+   "corpus": "digest5r3"
+  },
+  {
+   "id": "R3-D08",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "item for a1: 2b: content word(s) not in the text: abgelehnt",
+   "stage": "caught",
+   "corpus": "digest5r3"
+  },
+  {
+   "id": "R3-D12",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "item for a1: 2b: content word(s) not in the text: driver, replaced, the",
+   "stage": "caught",
+   "corpus": "digest5r3"
+  },
+  {
+   "id": "R3-D12",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "item for a1: 2b: content word(s) not in the text: driver, replaced, the, was",
+   "stage": "caught",
+   "corpus": "digest5r3"
+  },
+  {
+   "id": "R3-D12",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "item for a1: 2b: content word(s) not in the text: driver, replaced, the, was",
+   "stage": "caught",
+   "corpus": "digest5r3"
+  },
+  {
+   "id": "R3-D27",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "item for a1: 2b: content word(s) not in the text: fields, have, help, texts",
+   "stage": "caught",
+   "corpus": "digest5r3"
+  },
+  {
+   "id": "R3-D27",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "item for a1: 2b: content word(s) not in the text: run",
+   "stage": "caught",
+   "corpus": "digest5r3"
+  },
+  {
+   "id": "R3-D27",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "item for a3: 2b: content word(s) not in the text: morning, today",
+   "stage": "caught",
+   "corpus": "digest5r3"
+  },
+  {
+   "id": "R3-D27",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "item for a1: 2b: content word(s) not in the text: fields, have, help, texts",
+   "stage": "caught",
+   "corpus": "digest5r3"
+  },
+  {
+   "id": "R3-D27",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "item for a1: 2b: content word(s) not in the text: run",
+   "stage": "caught",
+   "corpus": "digest5r3"
+  },
+  {
+   "id": "R3-D27",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "item for a3: 2b: content word(s) not in the text: early, today",
+   "stage": "caught",
+   "corpus": "digest5r3"
+  },
+  {
+   "id": "R3-D27",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "item for a1: 2b: content word(s) not in the text: fields, have, help, texts",
+   "stage": "caught",
+   "corpus": "digest5r3"
+  },
+  {
+   "id": "R3-D27",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "item for a1: 2b: content word(s) not in the text: run",
+   "stage": "caught",
+   "corpus": "digest5r3"
+  },
+  {
+   "id": "R3-D27",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "item for a3: 2b: content word(s) not in the text: early, today",
+   "stage": "caught",
+   "corpus": "digest5r3"
+  },
+  {
+   "id": "R3-D28",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "item for a1: 2b: content word(s) not in the text: btn",
+   "stage": "caught",
+   "corpus": "digest5r3"
+  }
+ ]
+}

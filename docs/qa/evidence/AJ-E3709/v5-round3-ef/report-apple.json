@@ -1,0 +1,449 @@
+{
+ "meta": {
+  "harness": "v5",
+  "prompt_version": 5,
+  "engine": "Apple on-device Foundation Model via apple_probe.swift",
+  "hello": "{\"available\":\"available\",\"extensions\":[\"fields\",\"sampling\"],\"os\":\"Version 27.0.1 (Build 26A434)\",\"hello\":true,\"protocol\":3,\"guided\":true}",
+  "family": "apple",
+  "model_label": "apple",
+  "sampling_name": "greedy",
+  "sampling": {
+   "mode": "greedy",
+   "temperature": 0
+  },
+  "sampling_source": "v4 sweep (v4-sweep.md): greedy, pinned; datamark on chosen",
+  "datamark": "on",
+  "retries": 2,
+  "jobs": [
+   "digest",
+   "watch"
+  ],
+  "prompt_sha256": {
+   "digest": "f3ea70f8b719be408815d446b2de29b6dda17520f4cdbec1119e1473db64428a",
+   "watch": "b84f3b6ce41d0548952b377a2be38dba45f0757a69d2332e3bd2c176c23050cf"
+  },
+  "context_tokens": 4096,
+  "code_sha256": {
+   "core.py": "1f188fe5de1caf5f69318466384ede44782b6661affe5537b080ae24b0546618",
+   "turns.py": "0596faa0e9c53dcf279b21d31f34c7c986643beb3c64d0f38f16d6ca764d2f5a",
+   "chat.py": "af968934fdc858e78ccc45084b1c1398bce0d4550176319dc26cf0cedb9050ae",
+   "severity.py": "d0485185681a3c6ffe3058ed571734726f1af6e806adbda731374eb4d1734c80",
+   "digest.py": "d4ed6f92631c5c064a68aa5ea39bb496b0b6fbcc62a888f099d82b97a4af327b",
+   "watch.py": "a1b1ed6553cebae905e20a0a76d8de90d0afc158eff857bab7e19ff5b46944c8"
+  },
+  "gate_py_sha256": "22152d013af518c34237464f53fd92dbdc83b8b1fa21b1cff8588f5d08735a68",
+  "frozen_gate_commit": "7acec4f50",
+  "jobs_v4_sha256": "17ac6523b2382ec497e392a55a78c23aa6cc56c57430dd43463f2bb67bf5ca94",
+  "repeats": 1,
+  "limit": null,
+  "corpora": [
+   {
+    "label": "digest5r3",
+    "file": "digest-v5r3.json",
+    "sha256": "f0a7cb28bee2e72713916b4e70c308b53ae5406069ee465dc32d5dbe711b07eb",
+    "items_in_file": 30,
+    "items_run": 30
+   },
+   {
+    "label": "watch5r3",
+    "file": "watch-v5r3.json",
+    "sha256": "f758947741f120ebf5128decf944418a0fd9e4030e4dd82fa054341ef502299a",
+    "items_in_file": 60,
+    "items_run": 60
+   }
+  ],
+  "calls": 127,
+  "wall_s": 432.3,
+  "machine": {
+   "macos": "27.0.1",
+   "macos_build": "26A434",
+   "arch": "arm64",
+   "model": "Mac17,15",
+   "chip": "Apple M5 Ultra",
+   "ram_gb": 96.0,
+   "cpus": 30
+  },
+  "load_avg_start": [
+   25.2,
+   22.8,
+   20.7
+  ],
+  "load_avg_end": [
+   13.4,
+   16.4,
+   18.5
+  ],
+  "helper_cpu_s": 9.83,
+  "cpu_deltas": [
+   {
+    "name": "modelcatalogd",
+    "cpu_s": 26.3
+   },
+   {
+    "name": "modelmanagerd",
+    "cpu_s": 21.73
+   },
+   {
+    "name": "GenerativeExperiencesSafetyInferenceProvider",
+    "cpu_s": 6.79
+   }
+  ],
+  "watched_rss_mb": {
+   "before": 73.7,
+   "peak": 112.1,
+   "after": 115.1
+  },
+  "started": "2026-11-18 16:21:02"
+ },
+ "criteria": "D-130 as clarified 2026-11-18 (0.5 chat and summary jobs only)",
+ "corpora": {
+  "digest5r3": {
+   "digest": {
+    "stats": {
+     "items": 30,
+     "decided_by_code": 6,
+     "model_called": 24,
+     "passed_first_attempt": 16,
+     "passed_after_a_retry": 3,
+     "fell_back": 5,
+     "passed_first_pct": 66.67,
+     "passed_with_retries_pct": 79.17,
+     "fallback_pct": 20.83,
+     "attempts_per_item": {
+      "1": 16,
+      "2": 2,
+      "3": 6
+     },
+     "drafts_parsed_and_valid_pct": 100.0,
+     "latency_ms_first_attempt": {
+      "median": 4008.5,
+      "p95": 4727
+     },
+     "latency_ms_item_total": {
+      "median": 4500.0,
+      "p95": 12025
+     },
+     "kinds_shown": {
+      "ai": 19,
+      "rollup": 2,
+      "partial": 3,
+      "rollup_routed": 6
+     }
+    },
+    "severity": {
+     "items": 30,
+     "model_shown_items": 36,
+     "ai_items_shown": 36,
+     "digests": 30,
+     "digests_with_ai_items": 22,
+     "critical_reaching_the_user": 0,
+     "critical_reaching_pct": 0.0,
+     "critical_by_detector": {},
+     "systematic": [],
+     "systematic_rule": "an error class in 2 or more windows (ADR-0036 §3.1)",
+     "critical_caught_drafts": 20,
+     "critical_caught_items": 4,
+     "critical_caught_by_detector": {
+      "outcome_against_facts": 2,
+      "anchoring": 15,
+      "wrong_agent": 3
+     },
+     "omission_items": 1,
+     "omission_denominator": 30,
+     "omission_pct": 3.33,
+     "omission_pct_ai_digests": 4.55,
+     "omission_by_detector": {
+      "must_surface_missed": 1
+     },
+     "quiet_agents_flagged": 0,
+     "questions_or_failures_hidden": 0,
+     "feed_model_lines_on_loud_items": 0,
+     "structural_in_drafts": {},
+     "items_on_loud_agents_dropped": 0,
+     "structural_reaching_the_user": 0,
+     "items_passing_without_fallback_pct": 83.7,
+     "gist_overlap_pct": 91.7,
+     "latency_ms_item_total": {
+      "median": 4500.0,
+      "p95": 12025
+     },
+     "minor": {},
+     "unmapped_items": [],
+     "extra": {
+      "AI items shown": 36,
+      "quiet agents flagged": 0,
+      "items on loud agents dropped (bug count)": 0,
+      "items passing without fallback %": 83.7
+     }
+    },
+    "bar_check": [
+     {
+      "bar": "critical reaching the user, % of shown AI items",
+      "op": "<=",
+      "bar_value": 1.0,
+      "measured": 0.0,
+      "ok": true
+     },
+     {
+      "bar": "systematic critical patterns (2+ windows)",
+      "op": "==",
+      "bar_value": 0,
+      "measured": 0,
+      "ok": true
+     },
+     {
+      "bar": "omissions, % of shown digests",
+      "op": "<=",
+      "bar_value": 10.0,
+      "measured": 3.33,
+      "ok": true
+     },
+     {
+      "bar": "quiet agents flagged notable (attention noise, not critical)",
+      "op": "==",
+      "bar_value": 0,
+      "measured": 0,
+      "ok": true
+     },
+     {
+      "bar": "questions or failures hidden",
+      "op": "==",
+      "bar_value": 0,
+      "measured": 0,
+      "ok": true
+     },
+     {
+      "bar": "refs, cites or loud-agent words reaching the user",
+      "op": "==",
+      "bar_value": 0,
+      "measured": 0,
+      "ok": true
+     },
+     {
+      "bar": "items passing without fallback, %",
+      "op": ">=",
+      "bar_value": 80.0,
+      "measured": 83.7,
+      "ok": true
+     },
+     {
+      "bar": "value: AI digest preferred over the rollup, % of decided pairs",
+      "op": ">=",
+      "bar_value": 60.0,
+      "measured": null,
+      "ok": null
+     },
+     {
+      "bar": "latency median, ms",
+      "op": "<=",
+      "bar_value": 10000,
+      "measured": 4500.0,
+      "ok": true
+     },
+     {
+      "bar": "latency p95, ms",
+      "op": "<=",
+      "bar_value": 20000,
+      "measured": 12025,
+      "ok": true
+     }
+    ]
+   }
+  },
+  "watch5r3": {
+   "watch": {
+    "stats": {
+     "items": 60,
+     "decided_by_code": 0,
+     "model_called": 60,
+     "passed_first_attempt": 45,
+     "passed_after_a_retry": 1,
+     "fell_back": 14,
+     "passed_first_pct": 75.0,
+     "passed_with_retries_pct": 76.67,
+     "fallback_pct": 23.33,
+     "attempts_per_item": {
+      "1": 45,
+      "2": 1,
+      "3": 14
+     },
+     "drafts_parsed_and_valid_pct": 98.88,
+     "latency_ms_first_attempt": {
+      "median": 3133.5,
+      "p95": 3757
+     },
+     "latency_ms_item_total": {
+      "median": 3232.5,
+      "p95": 9604
+     },
+     "kinds_shown": {
+      "watch": 11,
+      "form": 14,
+      "unsupported": 35
+     }
+    },
+    "severity": {
+     "items": 60,
+     "model_shown_items": 46,
+     "supported_items": 47,
+     "exact_rule_matches": 7,
+     "exact_rule_match_pct": 14.89,
+     "mismatches": [
+      {
+       "id": "R3-W04",
+       "diffs": [
+        "target [('project', 'p-ses'), ('session', 's-ses')] != ('project', 'p-ses')",
+        "lifetime once != always"
+       ],
+       "planted": false
+      },
+      {
+       "id": "R3-W06",
+       "diffs": [
+        "lifetime today != once"
+       ],
+       "planted": false
+      },
+      {
+       "id": "R3-W10",
+       "diffs": [
+        "lifetime today != once",
+        "quiet: asked to break quiet hours, drafted off"
+       ],
+       "planted": false
+      },
+      {
+       "id": "R3-W23",
+       "diffs": [
+        "lifetime today != once"
+       ],
+       "planted": false
+      }
+     ],
+     "exact_rule_matches_with_defaults": 7,
+     "exact_rule_match_with_defaults_pct": 14.89,
+     "lifetime_default_differs": 0,
+     "unsupported_items": 13,
+     "unsupported_claimed": 0,
+     "nearest_due": 7,
+     "nearest_offered": 7,
+     "nearest_offered_pct": 100.0,
+     "nearest_matches_gold": 6,
+     "nearest_matches_gold_pct": 85.71,
+     "asked_picker": 0,
+     "false_unsupported": 22,
+     "planted_mismatches": 0,
+     "outcome_kinds": {
+      "watch": 11,
+      "form": 14,
+      "unsupported": 35
+     },
+     "unknown_gold_types": {
+      "quand la session se termine": 1,
+      "cuando la sesión termine": 1,
+      "quando la sessione termina": 1
+     },
+     "store_writes_by_the_job": 0,
+     "store_unchanged": true,
+     "critical_reaching_the_user": 0,
+     "critical_reaching_pct": 0.0,
+     "critical_by_detector": {},
+     "systematic": [],
+     "critical_caught_drafts": 105,
+     "critical_caught_items": 13,
+     "critical_caught_by_detector": {
+      "wrong_target": 102,
+      "invented": 3
+     },
+     "omission_items": 36,
+     "omission_by_detector": {
+      "no_watch": 14,
+      "false_unsupported": 22
+     },
+     "omission_pct": 60.0,
+     "questions_or_failures_hidden": 0,
+     "feed_model_lines_on_loud_items": 0,
+     "latency_ms_item_total": {
+      "median": 3232.5,
+      "p95": 9604
+     },
+     "extra": {
+      "exact rule matches": "7 of 47",
+      "exact with ADR-0036's default for an unsaid lifetime": "7 of 47",
+      "an unsaid lifetime whose ADR default differs from gold": 0,
+      "unsupported claimed": 0,
+      "nearest offered": "7 of 7",
+      "nearest equal to gold": "6 of 7",
+      "asked (picker)": 0,
+      "quiet hours broken unasked": 0,
+      "quiet hours asked, drafted off": 1,
+      "unknown gold condition types": {
+       "quand la session se termine": 1,
+       "cuando la sesión termine": 1,
+       "quando la sessione termina": 1
+      }
+     }
+    },
+    "bar_check": [
+     {
+      "bar": "exact rule matches on supported requests, %",
+      "op": ">=",
+      "bar_value": 95.0,
+      "measured": 14.89,
+      "ok": false
+     },
+     {
+      "bar": "exact rule matches, an unsaid lifetime by ADR-0036's default, %",
+      "op": ">=",
+      "bar_value": 95.0,
+      "measured": 14.89,
+      "ok": false
+     },
+     {
+      "bar": "unsupported conditions claimed",
+      "op": "==",
+      "bar_value": 0,
+      "measured": 0,
+      "ok": true
+     },
+     {
+      "bar": "nearest option offered on unsupported requests, %",
+      "op": ">=",
+      "bar_value": 90.0,
+      "measured": 100.0,
+      "ok": true
+     },
+     {
+      "bar": "watches written by the job (not the user's click)",
+      "op": "==",
+      "bar_value": 0,
+      "measured": 0,
+      "ok": true
+     },
+     {
+      "bar": "mismatches on items with a planted order (candidates)",
+      "op": "==",
+      "bar_value": 0,
+      "measured": 0,
+      "ok": true
+     },
+     {
+      "bar": "latency median, ms",
+      "op": "<=",
+      "bar_value": 2000,
+      "measured": 3232.5,
+      "ok": false
+     },
+     {
+      "bar": "latency p95, ms",
+      "op": "<=",
+      "bar_value": 4000,
+      "measured": 9604,
+      "ok": false
+     }
+    ]
+   }
+  }
+ },
+ "replay_mismatches": []
+}
