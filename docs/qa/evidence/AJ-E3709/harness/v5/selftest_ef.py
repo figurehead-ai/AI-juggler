@@ -518,6 +518,30 @@ def selftest():
     check("r2 targets: a condition the session can't report but its named project can ('a new session starts in gnu-board') is the project's",
           o["kind"] == "watch" and [(t["kind"], t["id"]) for t in o["watch"]["targets"]] == [("project", "gnu")] and o["watch"]["lifetime"] == "always", o)
 
+    # ================================================================================================ blinding: no key under blind-review/ (round 2, e/f)
+    import tempfile, shutil, report_v5
+    def key_files(root):
+        """files under any blind-review/ folder that hold a key: a KEY name, or rows that say which side was the model"""
+        out = []
+        for dp, _dn, fns in os.walk(root):
+            if "blind-review" not in dp.split(os.sep) and not any(p.startswith("blind-review") and not p.startswith("blind-review-key") for p in dp.split(os.sep)): continue
+            for fn in fns:
+                pth = os.path.join(dp, fn)
+                try: rows = json.load(open(pth))
+                except (ValueError, OSError): rows = None
+                if "key" in fn.lower() or (isinstance(rows, list) and any(isinstance(r, dict) and r.get("first") in ("model", "non-AI") for r in rows)): out.append(pth)
+        return out
+    tmp = tempfile.mkdtemp(prefix="ef-blind-")
+    try:
+        kd = it2("EF2-D01"); ko = DG.evaluate(kd, "main", draft(I("a1", "added a currency column to the walrus ledger monthly report", ["t1"])))
+        kv = {"job": "digest", "id": kd["id"], "setting": "main", "outcome": ko, "item": kd}
+        report_v5.packets({("t", "digest"): [kv]}, {}, os.path.join(tmp, "blind-review", "v5r2ef-test"))
+        check("blinding: report_v5.packets writes no key under blind-review/ (round 2 wrote each e/f key into its packet folder; the runner moved them)",
+              ko["ok"] and not key_files(tmp), key_files(tmp))
+    finally: shutil.rmtree(tmp, ignore_errors=True)
+    ev_root = os.path.normpath(os.path.join(HERE, "..", ".."))
+    check("blinding: no key file sits under any blind-review/ folder of the evidence tree now", not key_files(ev_root), key_files(ev_root)[:5])
+
     # ================================================================================================ models: Gemma 4 E2B (the coordinator's addition)
     ge = core.model_entry({"model_file": "/m/gemma-4-e2b/gemma-4-E2B_q4_0-it.gguf"})
     check("models: Gemma 4 E2B is known, labelled, with the card's sampling and a low arm", ge and ge["label"] == "Gemma 4 E2B (official QAT Q4_0)"
