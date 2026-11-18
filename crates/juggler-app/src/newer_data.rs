@@ -14,9 +14,13 @@
 //!   plain words and, when there is something it can read — a
 //!   `before-v<N>` copy or a backup in `backups/` (every update writes one
 //!   first) — offers to go back to it ([`at_launch`], [`go_back`]): the
-//!   newer database is moved aside (`juggler.sqlite.from-newer-<ms>`, never
-//!   deleted), the copy is put in place or the backup verified and
-//!   restored, and the app starts on it.
+//!   newer database is moved aside (`juggler.sqlite.from-newer-<ms>`), the
+//!   copy is put in place or the backup verified and restored, and the app
+//!   starts on it.
+//!
+//! ADR-0037 §1.5: the data kept aside (`from-v<N>-<ms>`, `from-newer-<ms>`)
+//! holds no memory (a forget made later couldn't reach it), and the sweep
+//! at start removes it after [`crate::backup::GO_BACK_COPY_KEEP_MS`].
 //!
 //! Account folders are not part of the data being swapped: they stay
 //! where they are, so the accounts find their own folders. Any failure on
@@ -209,7 +213,13 @@ pub fn go_back(
             }),
     };
     match restored {
-        Ok(next_steps) => Ok(WentBack { kept, next_steps }),
+        Ok(next_steps) => {
+            // ADR-0037 §1.5: the newer data kept aside holds no memory.
+            if let Err(error) = juggler_core::storage::memory::backup::scrub_copy(&kept) {
+                tracing::warn!(%error, "the newer data kept aside couldn't be scrubbed");
+            }
+            Ok(WentBack { kept, next_steps })
+        }
         Err(error) => {
             // Put everything back as it was: what was tried aside, the
             // newer data where it was.
@@ -333,6 +343,10 @@ pub fn going_back_prepare_at(
         juggler_core::model::Timestamp::now().millis()
     ));
     storage.snapshot_to(&kept)?;
+    // ADR-0037 §1.5: the copy kept aside holds no memory; if it can't be
+    // emptied, nothing is replaced.
+    juggler_core::storage::memory::backup::scrub_copy(&kept)
+        .map_err(juggler_core::CoreError::from)?;
     storage.replace_with_older(&copy)?;
     // The older build finds it all in the database file itself.
     let _ = storage

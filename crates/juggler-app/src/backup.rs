@@ -858,10 +858,18 @@ fn apply_tombstones(staged: &Path, before: &Path) -> AppResult<()> {
 const WORK_DIRS: [&str; 3] = ["backup-work-", "cloud-backup-work-", STAGING_DIR];
 /// The database copies AI Juggler keeps beside the live one (restores):
 /// `(name prefix, how long it is kept)`; `None` is never pruned.
-const KEPT_COPIES: [(&str, Option<i64>); 2] = [
+const KEPT_COPIES: [(&str, Option<i64>); 5] = [
     (RESTORE_COPY_PREFIX, Some(RESTORE_COPY_KEEP_MS)),
     ("juggler.sqlite.before-failed-restore-", None),
+    // Going back (`newer_data`): the data as it was, the newer data an
+    // older build moved aside, and a copy a failed going-back tried.
+    ("juggler.sqlite.from-v", Some(GO_BACK_COPY_KEEP_MS)),
+    ("juggler.sqlite.from-newer-", Some(GO_BACK_COPY_KEEP_MS)),
+    ("juggler.sqlite.unused-", Some(GO_BACK_COPY_KEEP_MS)),
 ];
+/// How long the data kept aside when going back is kept: a month to come
+/// forward again (ADR-0037 §1.5; it holds no memory from the next start).
+pub const GO_BACK_COPY_KEEP_MS: i64 = 30 * 24 * 3_600_000;
 const DB_SUFFIXES: [&str; 3] = ["-wal", "-shm", "-journal"];
 
 /// The database file a name belongs to (its `-wal`, `-shm` or `-journal`
@@ -1134,6 +1142,37 @@ mod tests {
         }
         sweep_kept_copies(data, now + RESTORE_COPY_KEEP_MS + 1);
         assert!(!crashed.exists(), "a day on, the copy is gone");
+    }
+
+    /// The re-review's N2: the data kept aside when going back (by this
+    /// build, or by an older one that knows nothing of memory) is emptied
+    /// of memory at the next start and goes after a month.
+    #[test]
+    fn the_sweep_scrubs_and_ages_out_the_going_back_copies() {
+        let dir = tempfile::tempdir().unwrap();
+        let data = dir.path();
+        let live = Storage::open(&data.join("juggler.sqlite")).unwrap();
+        live.raw_conn().execute_batch(memory::V54).unwrap();
+        canary_note(&live);
+        let now = 100 * 86_400_000;
+        let copies = [
+            data.join(format!("juggler.sqlite.from-v54-{now}")),
+            data.join(format!("juggler.sqlite.from-newer-{now}")),
+            data.join(format!("juggler.sqlite.unused-{now}")),
+        ];
+        for copy in &copies {
+            live.snapshot_to(copy).unwrap();
+            assert!(holds(copy));
+        }
+        sweep_kept_copies(data, now + 1);
+        for copy in &copies {
+            assert!(copy.exists() && !holds(copy), "{}", copy.display());
+        }
+        sweep_kept_copies(data, now + GO_BACK_COPY_KEEP_MS + 1);
+        assert!(
+            copies.iter().all(|copy| !copy.exists()),
+            "a month on, they're gone"
+        );
     }
 
     /// AI Juggler's own copy (before an update) holds no memory; the
