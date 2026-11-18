@@ -13,6 +13,7 @@ import { templateById } from "../../lib/pool-templates";
 import { LeadCards } from "./LeadCards";
 import { NewPoolLead } from "./NewPoolLead";
 import { NewPoolTalk } from "./NewPoolTalk";
+import { NewPoolOwn } from "./NewPoolOwn";
 
 beforeEach(() => resetPreviewAgentBridge());
 afterEach(cleanup);
@@ -38,6 +39,25 @@ describe("Who may message whom (D-126 presets)", () => {
     // Feature team's table is Members ask you first.
     view.rerender(<NewPoolTalk draft={draftOf(templateById("feature-team"), "web")} onDraft={() => undefined} />);
     expect(within(ways).getByRole("radio", { name: "Members ask you first" })).toHaveProperty("checked", true);
+  });
+});
+
+describe("On their own (D-126 cards)", () => {
+  it("three ways as cards with a drawing each, the chosen one's example and the wake one's cost said; the seal a switch", () => {
+    let draft: Draft = draftOf(templateById("blank"), "web");
+    const view = render(<NewPoolOwn draft={draft} onDraft={(next) => (draft = next)} where="web" />);
+    const ways = screen.getByRole("radiogroup", { name: "What sessions in this pool may do on their own" });
+    expect(within(ways).getAllByRole("radio").map((radio) => document.getElementById(radio.getAttribute("aria-labelledby")!)?.textContent)).toEqual(["Look only", "Work together", "Work together and wake each other"]);
+    expect(within(ways).getByRole("radio", { name: "Work together" })).toHaveProperty("checked", true);
+    expect(screen.getByTestId("new-pool-level-example").textContent).toMatch(/^Example: /);
+    expect(screen.getByTestId("new-pool-level-example-full").textContent).toMatch(/^Example: /);
+    fireEvent.keyDown(within(ways).getByRole("radio", { name: "Work together" }), { key: "ArrowUp" });
+    expect(draft.level).toBe("read");
+    const seal = screen.getByRole("switch", { name: "Keep this pool's work apart" });
+    fireEvent.click(seal);
+    expect(draft.sealed).toBe(true);
+    view.rerender(<NewPoolOwn draft={draft} onDraft={(next) => (draft = next)} where="web" />);
+    expect(screen.getByRole("switch", { name: "Keep this pool's work apart" }).getAttribute("aria-checked")).toBe("true");
   });
 });
 
