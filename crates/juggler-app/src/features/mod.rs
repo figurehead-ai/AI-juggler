@@ -48,6 +48,7 @@ pub mod ranking;
 pub mod recovery;
 pub mod redaction;
 pub mod relations;
+pub mod remote_config;
 pub mod reset_queue;
 pub mod runtime;
 pub mod service_accounts;

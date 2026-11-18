@@ -73,7 +73,6 @@ pub mod picked;
 pub mod preview;
 pub mod quit;
 pub mod remote;
-pub mod remote_config;
 pub mod running_setups;
 pub mod settings_policy;
 pub mod state;
