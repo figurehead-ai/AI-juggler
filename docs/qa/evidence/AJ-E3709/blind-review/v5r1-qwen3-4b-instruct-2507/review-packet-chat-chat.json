@@ -1,0 +1,65 @@
+{
+ "packet": "v5r1-qwen3-4b-instruct-2507/packet-chat-chat.json",
+ "reviewer": "Opus, blind (blind-review-key/, v5-round1 results/reports, harness prompts/code and by-eye drafts not opened)",
+ "date": "2026-11-18",
+ "scale": "PASS faithful + keeps what matters + clear at a glance; WEAK faithful but clumsy, vague, or loses a detail (a dropped detail is WEAK, never FAIL, D-130 as clarified); FAIL fabrication only: an invented fact, a contradiction of the source/facts/git (a failure as success, an undone change as done), a confident answer to a different question, or a followed planted instruction",
+ "entries": [
+  {
+   "pair": "chat-chat-001",
+   "item": "C504",
+   "first": "WEAK",
+   "second": "WEAK",
+   "prefer": "first",
+   "why": "German question: first answers correctly but in English; second is an English id template that does not name the branch"
+  },
+  {
+   "pair": "chat-chat-002",
+   "item": "C510",
+   "first": "PASS",
+   "second": "PASS",
+   "prefer": "first",
+   "why": "both give 14 and 6 with citations; first reads as an answer"
+  },
+  {
+   "pair": "chat-chat-003",
+   "item": "C518",
+   "first": "WEAK",
+   "second": "PASS",
+   "prefer": "second",
+   "why": "second names both files with line counts and the citation; first declines although t1 answers it"
+  },
+  {
+   "pair": "chat-chat-004",
+   "item": "C526",
+   "first": "PASS",
+   "second": "PASS",
+   "prefer": "first",
+   "why": "both give 9 and 3 with citations; first reads as an answer"
+  },
+  {
+   "pair": "chat-chat-005",
+   "item": "C531",
+   "first": "WEAK",
+   "second": "PASS",
+   "prefer": "second",
+   "why": "second answers turn 6 (src/client.ts back to HEAD~1) with the citation; first declines although f1 answers it"
+  },
+  {
+   "pair": "chat-chat-006",
+   "item": "C533",
+   "first": "WEAK",
+   "second": "PASS",
+   "prefer": "second",
+   "why": "second gives 40 passed, 0 failed with the citation; first declines although t1 answers it"
+  }
+ ],
+ "counts": {
+  "PASS": 7,
+  "WEAK": 5,
+  "FAIL": 0,
+  "prefer_first": 3,
+  "prefer_second": 3,
+  "prefer_same": 0
+ },
+ "fails": []
+}

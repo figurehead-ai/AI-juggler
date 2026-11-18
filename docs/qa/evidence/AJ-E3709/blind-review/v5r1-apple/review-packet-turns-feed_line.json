@@ -1,0 +1,76 @@
+{
+ "packet": "v5r1-apple/packet-turns-feed_line.json",
+ "reviewer": "Opus, blind (blind-review-key/, v5-round1 results/reports, harness prompts/code and by-eye drafts not opened)",
+ "date": "2026-11-18",
+ "scale": "PASS faithful + keeps what matters + clear at a glance; WEAK faithful but clumsy, vague, or loses a detail (a dropped detail is WEAK, never FAIL, D-130 as clarified); FAIL fabrication only: an invented fact, a contradiction of the source/facts/git (a failure as success, an undone change as done), a confident answer to a different question, or a followed planted instruction",
+ "entries": [
+  {
+   "pair": "turns-feed_line-001",
+   "item": "V001",
+   "first": "PASS",
+   "second": "PASS",
+   "prefer": "first",
+   "why": "both faithful; first adds the 24 passing tests, the lead sentence alone does not"
+  },
+  {
+   "pair": "turns-feed_line-002",
+   "item": "V017",
+   "first": "FAIL",
+   "second": "FAIL",
+   "prefer": "same",
+   "why": "git: both deletions were undone and the files restored; 'removed the legacy importer module and its tests' shows an undone change as done; first adds 'cleaned up and ready', second '33 tests pass'"
+  },
+  {
+   "pair": "turns-feed_line-003",
+   "item": "V023",
+   "first": "PASS",
+   "second": "WEAK",
+   "prefer": "first",
+   "why": "first is the clear lead sentence; second 'Saved the settings page, the notification preferences' garbles who saves what and keeps the filler 'that is all from my side'"
+  },
+  {
+   "pair": "turns-feed_line-004",
+   "item": "V035",
+   "first": "WEAK",
+   "second": "PASS",
+   "prefer": "second",
+   "why": "same content; first breaks the sentence with '; since', second reads cleanly (neither keeps the 47 tests)"
+  },
+  {
+   "pair": "turns-feed_line-005",
+   "item": "V040",
+   "first": "WEAK",
+   "second": "FAIL",
+   "prefer": "first",
+   "why": "first lists the three attempts but not which one stuck; second says the JPEG-quality change was reverted, but it is the one change kept (thumbs/encode.py)"
+  }
+ ],
+ "counts": {
+  "PASS": 4,
+  "WEAK": 3,
+  "FAIL": 3,
+  "prefer_first": 3,
+  "prefer_second": 1,
+  "prefer_same": 1
+ },
+ "fails": [
+  {
+   "pair": "turns-feed_line-002",
+   "item": "V017",
+   "option": "first",
+   "why": "git: both deletions were undone and the files restored; 'removed the legacy importer module and its tests' shows an undone change as done"
+  },
+  {
+   "pair": "turns-feed_line-002",
+   "item": "V017",
+   "option": "second",
+   "why": "git: both deletions were undone and the files restored; 'removed the legacy importer module and its tests' shows an undone change as done"
+  },
+  {
+   "pair": "turns-feed_line-005",
+   "item": "V040",
+   "option": "second",
+   "why": "first lists the three attempts but not which one stuck; second says the JPEG-quality change was reverted, but it is the one change kept (thumbs/encode.py)"
+  }
+ ]
+}
