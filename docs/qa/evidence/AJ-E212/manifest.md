@@ -24,6 +24,14 @@ profile made for it.
 | R14 | PASS | Live, 2026-11-08, Claude app 4.x, harness `crates/juggler-adapters/tests/move_live.rs` (the real planner and engine), slot handed over by the 0.4.1 session. A synthetic family (parent, child A, child B archived, grandchild; histories forked from a throwaway lab conversation, a nested agent with its sidecar, a rewind point) seeded in `aij-test`; each profile quit by its pid (start time checked) and started with its own `--user-data-dir` and `CLAUDE_CONFIG_DIR`. `aij-test` → scratch: 4 members, 59/59 checks before reopening, 36/36 after, 0 lines added. Back to `aij-test`: 55/55 and 36/36, 0 lines added; the resume link sent to `aij-test`'s new pid opened the parent, and its window (found by CGWindow id among that pid's windows, never by app name) showed child A and the grandchild nested under it (child B archived, hidden as archived); child A's link opened its saved history. A second round trip passed the same; both moves were then undone (later first): `aij-test` listed the family again, nested, and the scratch profile held no records or histories. No model prompt was sent; no other profile was touched; the seeded family and the scratch profile were removed afterwards. Captures looked at by eye, kept out of the repo (they show the test account's name). Learned: a side session's record needs the app's own `spawnedFrom.taskId` to nest; the first seed lacked it, the moves had carried its records unchanged. |
 | R15 | PASS | `docs/research/claude-move-switch.md`, `docs/adr/0031-switch-by-move.md`, SPEC §7.7, `docs/guide/switching.md` (Move or copy), `docs/releases/0.4.1.md`. |
 
+## The Claude app 5.x (2026-11-18, D-127/D-128)
+
+The version list is gone; the move checks the records' shape instead. The
+5.x changes it now knows, and a live round trip on 5.11492.5 through the
+`aij-test` profile (60/60 and 36/36, then 55/55 and 36/36, opened nested in
+the profile's own window, both undone, the profile byte-identical after):
+`claude-app-5x-2026-11-18.md`.
+
 ## Review
 
 An independent review of the code (Opus, read-only, 2026-11-08) found 12
