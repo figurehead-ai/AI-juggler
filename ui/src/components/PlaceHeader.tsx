@@ -155,38 +155,37 @@ export function PlaceHeader({
             </>
           ))}
           {place?.profile && <ProfileBadge app={place.key} name={place.profile} size={6} className={appTone(level >= 2 || lit)} />}
-          {/* D-100 (the 0.4.2 review): the App's own name gives way last.
-              It takes its own width (cut, at its end, its full name on
-              hover, only when nothing else is left to give); its secondary
-              words (a folded App's summary, "nothing open") take what's
-              left, each whole or hidden; the marks after it give way
-              first, to their icon. */}
+          {/* D-118's mock (round 3): the account, then the app, always
+              ("Work Max Claude app", "Work Max Claude Code CLI"): two Apps
+              on one Account read "Work Max" twice when the app word gave
+              way, told apart by their icons alone. Both take their own
+              width (cut at their end, the whole name on hover, only when
+              nothing else is left to give). An App with no profile
+              (ChatGPT) is its name alone. */}
           <span className="ml-0.5 min-w-0 truncate text-label font-semibold leading-[18px] text-ink" data-testid={place?.profile ? "place-profile" : undefined} title={name}>
             {place?.profile ?? label}
           </span>
-          {/* D-118's mock (round 3): the account, then the app, always
-              ("Work Max Claude app", "Work Max Claude Code CLI"): two Apps on
-              one Account were told apart by their icons alone when the app
-              word gave way. It shares the room with the name (each cut at
-              its end only when nothing else is left, its whole name on
-              hover); the marks after it give way first. An App with no
-              profile (ChatGPT) is its name alone. */}
           {place?.profile && (
             <span className="min-w-0 truncate whitespace-nowrap text-label leading-[18px] text-muted" data-testid="place-app-word" title={name}>
               {label}
             </span>
           )}
-          <span ref={extra} className="flex h-[18px] min-w-0 flex-1 basis-0 items-center gap-x-[3px] overflow-hidden" data-testid="place-name-line">
+          {/* D-100: what's left after the name holds the rest, each whole or
+              hidden (its spoken name says them all): its needs' mark first
+              (D-117; the loud copy is Needs you's row), "nothing open"
+              (0.4.4), a folded App's summary, then its Out or low mark
+              (0.4.1; the count steps aside for it) or its count, at the
+              end. */}
+          <span ref={extra} className={"flex h-[18px] min-w-0 flex-1 basis-0 items-center gap-x-[3px] overflow-hidden" + (folded === null && !empty ? " justify-end" : "")} data-testid="place-name-line">
             {folded !== null && needs === 0 && <span className="shrink-0 whitespace-nowrap text-label leading-[18px] text-muted">{folded.slice(folded.indexOf("·") + 1).trim()}</span>}
-            {/* 0.4.4: placed first, so it wins over the app word (the kind mark and icon say the app). */}
             {empty && <span className="shrink-0 whitespace-nowrap text-label leading-[18px] text-muted" data-testid="place-nothing-open" data-fit="first">nothing open</span>}
+            {needs > 0 && (
+              <span className="flex shrink-0" data-fit="first">
+                <HeadNeeds needs={needs} level={level} probably={probably} />
+              </span>
+            )}
+            {room ? <span className="flex shrink-0">{room}</span> : folded === null && !empty && <span className="shrink-0 text-label tabular-nums text-muted" title={`${count} open here`}>{count}</span>}
           </span>
-          {/* D-117: its needs' mark (the loud copy is Needs you's row). */}
-          <HeadNeeds needs={needs} level={level} probably={probably} className="shrink-[1000]" />
-          {/* 0.4.1: out of room or low, its mark; the count steps aside
-              for it (its rows show what's open; the name above keeps it),
-              so the profile's name keeps its room. */}
-          {room ?? (folded === null && !empty && <span className="min-w-0 shrink-[1000] overflow-hidden text-label tabular-nums text-muted" title={`${count} open here`}>{count}</span>)}
         </span>
       </button>
       {arrange?.enabled && (

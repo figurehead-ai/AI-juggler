@@ -83,11 +83,20 @@ describe("D-100 / D-118 an Open now header: its Account, then its app, always", 
     const writes: MutationRecord[] = [];
     const watch = new MutationObserver((records) => writes.push(...records));
     watch.observe(line, { subtree: true, attributes: true });
-    for (const needs of [1, 2, 0]) rerender(<PlaceHeader place={place} label="Claude app" count={0} needs={needs} folded={null} onToggle={() => {}} foldable={false} />);
+    // Renders whose words are the same (a new handler, a new level): its
+    // needs' mark is one of its words now (D-118), so it isn't varied.
+    for (const level of [2, 3, 0] as const) rerender(<PlaceHeader place={place} label="Claude app" count={0} needs={0} level={level} folded={null} onToggle={() => {}} foldable={false} />);
     await Promise.resolve();
     watch.disconnect();
     expect(writes).toEqual([]);
     expect(shown("place-nothing-open")).toBe(true);
+  });
+
+  it("its needs' mark comes before its count, whole or not at all, after the names", () => {
+    render(<PlaceHeader place={place} label="Claude app" count={2} needs={1} level={2} folded={null} onToggle={() => {}} />);
+    const line = screen.getByTestId("place-name-line");
+    expect(line.querySelector("[data-testid='place-needs']")).not.toBeNull();
+    expect(line.lastElementChild?.textContent).toBe("2");
   });
 
   it("with something open: no \"nothing open\"", () => {
