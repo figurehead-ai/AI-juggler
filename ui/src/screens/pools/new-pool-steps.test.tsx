@@ -4,7 +4,7 @@
  * Review — each as the kit's cards, with the same words and choices as
  * before (paths-parity keeps the diagram's alike).
  */
-import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { resetPreviewAgentBridge } from "../../lib/ipc/agent-bridge";
@@ -15,6 +15,7 @@ import { NewPoolLead } from "./NewPoolLead";
 import { NewPoolTalk } from "./NewPoolTalk";
 import { NewPoolOwn } from "./NewPoolOwn";
 import { NewPoolTools } from "./NewPoolTools";
+import { NewPoolReview } from "./NewPoolReview";
 
 beforeEach(() => resetPreviewAgentBridge());
 afterEach(cleanup);
@@ -69,6 +70,32 @@ describe("Team tools (D-126 cards)", () => {
     expect(within(question).getByTestId("new-pool-art-tools")).toBeTruthy();
     expect(within(question).getAllByRole("button").map((one) => one.textContent)).toEqual(["Settings", "Yes, let them work together", "Not now"]);
     expect(question.querySelectorAll("[data-primary]")).toHaveLength(0);
+  });
+});
+
+describe("Review (D-126)", () => {
+  const draft = (): Draft => ({ ...draftOf(templateById("blank"), "web"), members: [app("app:cli:work", "Claude Code · Work"), app("app:cli:codex", "Codex · Personal", "reviewer")], leadNext: "app:cli:work" });
+
+  it("says first what still keeps it from working (team tools not answered), then each sentence with its Change", async () => {
+    const steps: string[] = [];
+    render(<NewPoolReview draft={draft()} name="web team" where="web" onChange={(step) => steps.push(step)} />);
+    expect(screen.getByRole("heading", { name: "Ready to make “web team”" })).toBeTruthy();
+    await screen.findByTestId("new-pool-review-tools-line");
+    expect(screen.getByTestId("new-pool-review-state").dataset.state).toBe("needs");
+    expect(screen.getByTestId("new-pool-review-state").textContent).toContain("Not answered yet: they can't message each other until you say yes.");
+    expect(screen.getAllByRole("term").map((term) => term.textContent)).toEqual(["Where", "Who's in", "Lead", "Roles", "Messages", "On their own", "Kept apart", "Team tools"]);
+    fireEvent.click(screen.getByRole("button", { name: "Change roles" }));
+    fireEvent.click(screen.getByRole("button", { name: "Change kept apart" }));
+    expect(steps).toEqual(["everyone", "own"]);
+  });
+
+  it("with the team tools on and nothing waiting: everything it needs is set", async () => {
+    Object.assign(window, { __AIJ_AGENT_BRIDGE__: { asked: true, on: true } });
+    resetPreviewAgentBridge();
+    render(<NewPoolReview draft={draft()} name="web team" where="web" />);
+    await waitFor(() => expect(screen.getByTestId("new-pool-review-state").dataset.state).toBe("set"));
+    expect(screen.getByTestId("new-pool-review-state").textContent).toBe("Everything it needs is setTeam tools are on. Nothing is waiting on you.");
+    Object.assign(window, { __AIJ_AGENT_BRIDGE__: undefined });
   });
 });
 

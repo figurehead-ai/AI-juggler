@@ -1,26 +1,40 @@
 /**
  * AJ-E3007 step 4, AJ-E3011's Review (§1, §2): the whole pool read back
- * in sentences — its name and where, who's in, who leads, how everyone
- * else joins, who may message whom, what they may do on their own, the
+ * in sentences — its name and where, who's in, who leads, who builds and
+ * who checks, who may message whom, what they may do on their own, the
  * seal and the team tools (with Turn on beside them while they're off) —
- * then what each member can actually do here. Round 3: the sentences are
- * the pool inspector's own (PoolSentences), from one shape, so the two
- * paths can't say a pool differently; the team tools' question is its own
- * step before this one (round 4, D-30). Make pool follows.
+ * then what each member can do here, and what happens next. Round 3: the
+ * sentences are the pool inspector's own (lib/pool-sentences), from one
+ * shape, so the two paths can't say a pool differently. Make pool
+ * follows.
+ *
+ * D-126: a state card first — "Everything it needs is set", or what
+ * still keeps it from working (round 6: said before it's made) — then
+ * the sentences in one card, each with its icon and Change, and what
+ * happens next as three cards. The first thing to tell the lead is the
+ * side's (LeadPrompt).
  */
-import type { JSX } from "react";
+import type { JSX, ReactNode, SVGProps } from "react";
 
+import { Alert } from "../../components/Alert";
+import { IconCompare, IconKey } from "../../components/icons-actions";
+import { IconLead, IconMessage } from "../../components/icons-canvas";
+import { IconCheck } from "../../components/icons-controls";
+import { IconProfiles, IconProjects, IconShield, IconSessions } from "../../components/icons";
+import { LogoTile } from "../../components/ToolLogo";
+import { useApps } from "../../lib/apps";
+import { desktopAppsOf, isAdded, useConnectorStatuses } from "../../lib/connector";
 import type { Draft, Reach } from "../../lib/new-pool";
 import { roleCard, type SetupStep } from "../../lib/pool-words";
 import { openNowWords } from "../../lib/pool-open-now";
-import { nextLine, shapeOfDraft } from "../../lib/pool-sentences";
-import { draftPlaces, type ToolsPlace } from "../../lib/team-tools";
-import { PoolSentences, Sentence, type SentenceRow } from "../../pages/pool/setup/PoolSentences";
-import { useTeamTools } from "../../pages/pool/setup/TeamTools";
-import { StepHead } from "./StepHead";
-import { reviewTitle } from "../../lib/pool-wizard-words";
+import { everyoneLines, leadLine, nextParts, ownLine, sealLine, shapeOfDraft, talkSentence, whoSentence, type PoolShape } from "../../lib/pool-sentences";
+import { listWords, reviewTitle } from "../../lib/pool-wizard-words";
+import { draftPlaces, teamToolsLine, type TeamTools, type ToolsPlace } from "../../lib/team-tools";
+import { TeamToolsFix, useTeamTools } from "../../pages/pool/setup/TeamTools";
 import { SetupBlockers } from "../../pages/pool/setup/SetupBlockers";
-import { FirstPrompt } from "../../pages/pool/setup/FirstPrompt";
+import { StepHead } from "./StepHead";
+
+type Icon = (props: SVGProps<SVGSVGElement>) => JSX.Element;
 
 const CAN: Record<Reach, string> = {
   full: "sees · messages · tasks · can be asked",
@@ -29,9 +43,87 @@ const CAN: Record<Reach, string> = {
   later: "its sessions here join by themselves, now and later",
 };
 
-/** Review's rows, and the step each one's Change goes back to. */
-const ROWS: readonly SentenceRow[] = ["who", "lead", "everyone", "talk", "own", "sealed", "tools"];
-const STEP_OF: Partial<Record<SentenceRow, SetupStep>> = { who: "who", lead: "lead", everyone: "everyone", talk: "talk", own: "own", sealed: "own" };
+type Row = "where" | "who" | "lead" | "everyone" | "talk" | "own" | "sealed" | "tools";
+
+/** Each row's title, icon and the step its Change goes back to. */
+const ROWS: readonly { row: Row; title: string; icon: Icon; step?: SetupStep }[] = [
+  { row: "where", title: "Where", icon: IconProjects, step: "where" },
+  { row: "who", title: "Who's in", icon: IconProfiles, step: "who" },
+  { row: "lead", title: "Lead", icon: IconLead, step: "lead" },
+  { row: "everyone", title: "Roles", icon: IconShield, step: "everyone" },
+  { row: "talk", title: "Messages", icon: IconMessage, step: "talk" },
+  { row: "own", title: "On their own", icon: IconCompare, step: "own" },
+  { row: "sealed", title: "Kept apart", icon: IconKey, step: "own" },
+  { row: "tools", title: "Team tools", icon: IconSessions },
+];
+
+/** A row's words: the pool inspector's own sentences. */
+function words(row: Row, shape: PoolShape, where: string, name: string, tools: TeamTools | null): ReactNode {
+  switch (row) {
+    case "where":
+      return `«${name}» works in ${where}.`;
+    case "who":
+      return whoSentence(shape);
+    case "lead":
+      return leadLine(shape, where);
+    case "everyone": {
+      const [join, ...each] = everyoneLines(shape, where);
+      return (
+        <>
+          {join}
+          {each.map((line) => (
+            <span key={line} className="block" data-testid="new-pool-review-role">
+              {line}
+            </span>
+          ))}
+        </>
+      );
+    }
+    case "talk":
+      return talkSentence(shape);
+    case "own":
+      return ownLine(shape);
+    case "sealed":
+      return sealLine(shape);
+    default:
+      // Round 4: never "can't message" without its Turn on beside it.
+      return tools ? <TeamToolsFix state={tools} testId="new-pool-review-tools" /> : "Reading…";
+  }
+}
+
+/** First: everything it needs is set, or what still keeps it from
+ * working (the team tools; a desktop App's connector). */
+function StateCard({ draft, tools }: { draft: Draft; tools: TeamTools | null }): JSX.Element {
+  const apps = useApps();
+  const desktop = desktopAppsOf(
+    draft.members.map((member) => member.ref),
+    apps ?? [],
+  );
+  const statuses = useConnectorStatuses(desktop.map((app) => app.id));
+  const connected = desktop.filter((app) => isAdded(statuses.get(app.id)?.state));
+  const set = tools?.kind === "on" && connected.length === desktop.length;
+  if (set) {
+    const added = connected.length === 0 ? "" : `, and ${listWords(connected.map((app) => `${app.name}'s`))} connector ${connected.length === 1 ? "is" : "are"} added`;
+    return (
+      <div className="flex items-center gap-3.5 rounded-card bg-[color-mix(in_srgb,var(--color-accent)_9%,var(--color-surface))] px-4 py-3.5 inset-ring-[1.5px] inset-ring-accent" data-testid="new-pool-review-state" data-state="set">
+        <span aria-hidden="true" className="flex size-9 shrink-0 items-center justify-center rounded-[10px] bg-accent-fill text-white">
+          <IconCheck width={18} height={18} strokeWidth={2.4} />
+        </span>
+        <span className="flex min-w-0 flex-col">
+          <span className="text-body font-semibold text-ink">Everything it needs is set</span>
+          <span className="text-meta text-ink-2">Team tools are on{added}. Nothing is waiting on you.</span>
+        </span>
+      </div>
+    );
+  }
+  return (
+    <Alert level="needs-you" stack title="Before it can work" testId="new-pool-review-state" data-state="needs">
+      {tools && tools.kind !== "on" && tools.kind !== "missing" && tools.kind !== "unsafe" && <p>{teamToolsLine(tools)}</p>}
+      {/* Round 6: what can't work yet, before it's made. */}
+      <SetupBlockers refs={draft.members.map((member) => member.ref)} tools={tools} testId="new-pool-review-blocked" />
+    </Alert>
+  );
+}
 
 export function NewPoolReview({
   draft,
@@ -60,28 +152,32 @@ export function NewPoolReview({
   const places = draftPlaces(draft, projects);
   const tools = useTeamTools(places.projects, places.apps);
   const named = draft.members.filter((member) => member.ref !== "all");
-  const changeOf = (row: SentenceRow) => {
-    const step = STEP_OF[row];
-    return onChange && step ? () => onChange(step) : undefined;
-  };
+  const [first, ...rest] = nextParts(shape, where);
+  const upper = (line: string) => line.charAt(0).toUpperCase() + line.slice(1);
+  const lead = shape.members.some((member) => member.role === "lead") || shape.leadNext !== null;
+  const team = listWords([...named.map((member) => nameOf(member.ref, member.label)), ...(draft.members.some((member) => member.ref === "all") ? [nameOf("all", "everyone").replace(/^Everyone/, "everyone")] : [])]);
   return (
-    <div className="flex max-w-3xl flex-col gap-5" data-testid="new-pool-step-review">
+    <div className="flex flex-col gap-6" data-testid="new-pool-step-review">
       <StepHead step="review" title={reviewTitle(name)} />
-      <PoolSentences
-        shape={shape}
-        where={where}
-        rows={ROWS}
-        tools={tools}
-        changeOf={changeOf}
-        first={
-          <Sentence title="Name and where" onChange={onChange ? () => onChange("where") : undefined} testId="new-pool-review">
-            «{name}» works in {where}.
-          </Sentence>
-        }
-        testId="new-pool-review"
-      />
+      <StateCard draft={draft} tools={tools} />
+      <dl className="flex flex-col rounded-card bg-surface py-1 inset-ring-1 inset-ring-hairline/75" data-testid="new-pool-review">
+        {ROWS.map(({ row, title, icon, step }) => (
+          <div key={row} className="grid grid-cols-[28px_minmax(0,1fr)_auto] items-start gap-x-3.5 gap-y-0.5 border-t border-divider px-4 py-2.5 first:border-t-0 sm:grid-cols-[28px_7rem_minmax(0,1fr)_auto]" data-row={row}>
+            <LogoTile icon={icon} size={24} />
+            <dt className="pt-0.5 text-meta text-muted">{title}</dt>
+            <dd className="col-start-2 pt-0.5 text-body text-ink sm:col-start-3">{words(row, shape, where, name, tools)}</dd>
+            {onChange && step && (
+              <dd className="col-start-3 row-start-1 sm:col-start-4">
+                <button type="button" onClick={() => onChange(step)} aria-label={`Change ${title.toLowerCase()}`} className="rounded-md px-1.5 py-0.5 text-meta font-medium text-accent-hi outline-none hover:underline focus-visible:ring-2 focus-visible:ring-accent/60" data-testid="new-pool-review-change">
+                  Change
+                </button>
+              </dd>
+            )}
+          </div>
+        ))}
+      </dl>
       {named.length > 0 && (
-        <section className="flex flex-col gap-1.5" aria-label="What each member can do here">
+        <section className="flex flex-col gap-2" aria-label="What each member can do here">
           <span className="section-label">What each member can do here</span>
           <ul className="flex flex-col gap-0.5">
             {named.map((member) => (
@@ -94,14 +190,29 @@ export function NewPoolReview({
           </ul>
         </section>
       )}
-      {/* Round 6: what can't work yet, before anything says what's next. */}
-      <SetupBlockers refs={draft.members.map((member) => member.ref)} tools={tools} testId="new-pool-review-blocked" />
-      {/* Round 4 (#3): what happens once it's made, the diagram's own line. */}
-      <p className="text-meta text-ink" data-testid="new-pool-review-next">
-        <span className="font-medium">What happens next:</span> {nextLine(shape, where)}.
-      </p>
-      <FirstPrompt shape={shape} where={where} testId="new-pool-first-prompt" />
-      <p className="text-meta text-ink-2">You can change all of this on the pool's diagram.</p>
+      {/* Round 4 (#3): what happens once it's made, the diagram's own line, a card a part. */}
+      <section aria-labelledby="new-pool-next-title" className="flex flex-col gap-3" data-testid="new-pool-review-next">
+        <h4 id="new-pool-next-title" className="section-label">
+          What happens next
+        </h4>
+        <ol className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
+          {[
+            { title: "The pool is made", line: team ? `Its diagram opens with ${team}.` : "Its diagram opens, ready for its members." },
+            { title: lead ? "Start the lead" : "Open a session", line: `${upper(first!)}.` },
+            { title: "Tell it the goal", line: `${upper(rest.join("; "))}.` },
+          ].map((card, at) => (
+            <li key={card.title} className="flex flex-col gap-1.5 rounded-xl bg-surface-2 p-3.5" data-testid="new-pool-review-next-step">
+              <span className="flex items-center gap-2">
+                <span aria-hidden="true" className="flex size-[22px] shrink-0 items-center justify-center rounded-full bg-accent-soft text-label font-semibold text-accent-hi">
+                  {at + 1}
+                </span>
+                <span className="text-meta font-semibold text-ink">{card.title}</span>
+              </span>
+              <span className="text-meta text-ink-2">{card.line}</span>
+            </li>
+          ))}
+        </ol>
+      </section>
     </div>
   );
 }

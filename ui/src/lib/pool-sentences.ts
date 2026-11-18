@@ -98,8 +98,15 @@ const listWords = (names: readonly string[]) => (names.length <= 1 ? (names[0] ?
 
 /** What happens next, in one line, once the pool is ready (round 4 #3):
  * "Open Claude Code · Work in web first: it leads; Codex checks its work;
- * their messages show here". The diagram's checklist and Review say it. */
+ * their messages show here". The diagram's checklist and Review say it
+ * (Review as {@link nextParts}, a card each). */
 export function nextLine(shape: Pick<PoolShape, "members" | "leadNext">, where: string): string {
+  return nextParts(shape, where).join("; ");
+}
+
+/** What happens next, in parts: who to open first (and that it leads),
+ * then who checks, then that their messages show here. */
+export function nextParts(shape: Pick<PoolShape, "members" | "leadNext">, where: string): string[] {
   const session = shape.members.find((member) => member.role === "lead" && member.ref.startsWith("session:"));
   const next = shape.leadNext ? shape.members.find((member) => member.ref === shape.leadNext) : undefined;
   const reviewers = shape.members.filter((member) => member.role === "reviewer").map((member) => member.label);
@@ -107,7 +114,7 @@ export function nextLine(shape: Pick<PoolShape, "members" | "leadNext">, where: 
   const parts = [session ? `${session.label} leads` : next ? `Open ${next.label} in ${where} first: it leads` : `Open a session in ${where}: it joins`];
   if (reviewers.length > 0) parts.push(`${listWords(reviewers)} ${reviewers.length === 1 ? "checks" : "check"} ${session || next ? "its" : "their"} work`);
   parts.push("their messages show here");
-  return parts.join("; ");
+  return parts;
 }
 
 /** The lead's first message, from the roles (round 6, Sam's walk): whom

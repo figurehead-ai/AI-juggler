@@ -83,7 +83,14 @@ describe("AJ-E3011 round 4", () => {
     const line = nextLine(shapeOfDraft(draft, (_, label) => label), "web");
     expect(line).toBe("Open Claude Code · Work in web first: it leads; Codex · Personal checks its work; their messages show here");
     render(<NewPoolReview draft={draft} name="web team" where="web" />);
-    expect(screen.getByTestId("new-pool-review-next").textContent).toBe(`What happens next: ${line}.`);
+    // D-126: Review says it as cards, a part each, from the same line.
+    const cards = screen.getAllByTestId("new-pool-review-next-step").map((card) => card.textContent);
+    expect(cards).toEqual([
+      "1The pool is madeIts diagram opens with Claude Code · Work and Codex · Personal.",
+      "2Start the leadOpen Claude Code · Work in web first: it leads.",
+      "3Tell it the goalCodex · Personal checks its work; their messages show here.",
+    ]);
+    expect(cards.slice(1).map((card) => card.replace(/^\d(Start the lead|Tell it the goal)/, "").replace(/\.$/, "")).join("; ").toLowerCase()).toBe(line.toLowerCase());
   });
 
   it("#5: an add shows at once, pending, and settles when read back; refused, it rolls back", async () => {
