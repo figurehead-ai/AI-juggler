@@ -58,6 +58,12 @@ const PRIMARY: Record<string, string> = {
   thread_paused: "Resume",
 };
 
+/** Its line: its pool, then where in it or why ("Release pool · «Export
+ * flow»"); a paused pool's title names it already. */
+function whereOf(need: MessageNeedInfo): string {
+  return need.kind === "pool_paused" ? need.detail : [need.pool_name, need.detail].filter(Boolean).join(" · ");
+}
+
 export function MessageNeeds({ needs }: { needs: MessageNeedInfo[] }): JSX.Element | null {
   const host = useActionHost();
   if (needs.length === 0) return null;
@@ -103,7 +109,7 @@ export function MessageNeeds({ needs }: { needs: MessageNeedInfo[] }): JSX.Eleme
               </span>
               <span className="flex min-w-0 flex-1 flex-col">
                 <span className="truncate text-meta font-medium text-ink">{need.title}</span>
-                <span className="truncate text-label text-muted">{need.detail}</span>
+                <span className="truncate text-label text-muted">{whereOf(need)}</span>
               </span>
               {need.kind !== "question" && need.thread_id && (
                 <Button size="sm" variant="ghost" onClick={() => open(need)}>

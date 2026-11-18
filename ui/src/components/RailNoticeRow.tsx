@@ -11,6 +11,11 @@ import { NoticeMark } from "./NoticeRow";
 import { needLine, primaryWords } from "../lib/notice-words";
 import type { NoticeInfo } from "../lib/ipc/notices";
 
+/** Kinds whose title is a session's own (its state said apart from it):
+ * every other notice's title says the need itself ("builder-1 asks you",
+ * "Work needs its sign-in"). */
+const SESSION_TITLED = new Set(["asks", "stuck"]);
+
 /** One title line's height (`leading-[18px]`); a taller title wrapped. */
 const TITLE_LINE = 18;
 
@@ -45,11 +50,18 @@ export function RailNoticeRow({ notice, now, onOpen, canHandOver }: { notice: No
   // on you, stays (the rc19 walk: "Ask first in «Team»" was out of sight).
   const plainOpen = action === "Open";
   const showLine = Boolean(line) && (!long || plainOpen);
-  const showAction = Boolean(action) && !(long && plainOpen && line);
-  // D-117: its action word in its level's colour (amber L2, red L3; no
-  // tinted row in the rail, D-118's one quiet mark per need); a note's
-  // (L1: low room nothing live is on, leftovers) muted.
+  // D-118's mock: a bare "Open" is the row itself (a click opens it), so
+  // it isn't written under a title that says the need ("builder-1 asks
+  // you"): that title is the row's mark instead. A session's title keeps
+  // its word, its state said apart from it.
+  const titleMarks = plainOpen && !SESSION_TITLED.has(notice.kind);
+  const showAction = Boolean(action) && !titleMarks && !(long && plainOpen && line);
+  // D-117: its one quiet mark in its level's colour (amber L2, red L3; no
+  // tinted row in the rail, D-118's one quiet mark per need): the action
+  // word, else the title; a note's (L1: low room nothing live is on,
+  // leftovers) muted.
   const level = noticeLevel(notice);
+  const tone = level >= 2 ? levelTone(level).text : "text-ink";
   return (
     <button
       type="button"
@@ -61,18 +73,18 @@ export function RailNoticeRow({ notice, now, onOpen, canHandOver }: { notice: No
       title={line ? `${notice.title} — ${line}` : undefined}
       className={"flex h-[62px] w-full min-w-0 items-start gap-2.5 rounded-lg pb-2.5 pl-2 pr-2 pt-2 text-left outline-none transition-colors hover:bg-surface/60 focus-visible:ring-1 focus-visible:ring-accent/60"}
     >
-      <span className="sr-only">{[notice.title, line, action].filter(Boolean).join(", ")}</span>
+      <span className="sr-only">{[notice.title, line, showAction ? action : null].filter(Boolean).join(", ")}</span>
       <span aria-hidden="true" className="mt-0.5 flex shrink-0">
         <NoticeMark kind={notice.kind} small />
       </span>
       <span aria-hidden="true" className="flex min-w-0 flex-1 flex-col">
-        <span ref={titleRef} className="line-clamp-2 text-meta font-semibold leading-[18px] text-ink">{notice.title}</span>
+        <span ref={titleRef} className={"line-clamp-2 text-meta font-semibold leading-[18px] " + (titleMarks ? tone : "text-ink")} data-testid="rail-notice-title">{notice.title}</span>
         {showLine && (
           <span className="truncate text-label leading-4 text-muted" data-testid="rail-notice-line">
             {line}
           </span>
         )}
-        {showAction && <span className={"truncate text-label leading-4 " + (level >= 2 ? "font-semibold " + levelTone(level).text : "text-muted")}>{action}</span>}
+        {showAction && <span className={"truncate text-label leading-4 " + (level >= 2 ? "font-semibold " + tone : "text-muted")} data-testid="rail-notice-action">{action}</span>}
       </span>
     </button>
   );

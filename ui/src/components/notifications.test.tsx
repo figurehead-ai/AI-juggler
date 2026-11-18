@@ -352,6 +352,20 @@ it("walk A5: the rail names a hand-over as it will act, the switch with somethin
 });
 
 
+// D-118's mock: an agent's question in the rail reads "builder-1 asks
+// you" (amber, its one mark) over "Release pool · «Export flow»", with no
+// "Open" under it: the row itself opens it. Its pool is said once.
+it("a pool member's question: the title is the mark, no bare Open, its pool once", async () => {
+  const { RailNoticeRow } = await import("./RailNoticeRow");
+  const asked = notice({ id: 10, kind: "message", needs: true, unread: true, title: "builder-1 asks you", detail: "Release pool · «Export flow»", action: "pool" });
+  const view = render(<RailNoticeRow notice={asked} now={Date.now()} onOpen={() => undefined} canHandOver={false} />);
+  expect(view.getByTestId("rail-notice-title").className).toContain("text-warning");
+  expect(view.queryByTestId("rail-notice-action")).toBeNull();
+  expect(view.getByTestId("rail-notice-line").textContent).toBe("Release pool · «Export flow»");
+  expect(view.getByRole("button").textContent).not.toMatch(/Open$/);
+  view.unmount();
+});
+
 // The rc19 walk: a held message's row read "«Untitled session · r3-tools
 // started 01:15 PM» wants t…", and its reason (Ask first) was out of
 // sight. A title on two lines keeps the reason; only a bare "Open" gives

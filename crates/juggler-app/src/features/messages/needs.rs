@@ -282,10 +282,12 @@ pub fn needs(state: &Arc<AppState>) -> AppResult<Vec<MessageNeedInfo>> {
             kind: "question".to_owned(),
             pool_name: name_of(&row.message.pool_id),
             title: format!("«{}» asks you", row.message.sender_name),
+            // Where in its pool: its thread. The pool's name is its own
+            // field, joined where it's shown (the rail's row said "Release
+            // pool · «Export flow» · Release pool").
             detail: format!(
-                "«{}» · {}",
-                crate::features::tasks::words::name_tasks(&storage, &row.message.subject),
-                name_of(&row.message.pool_id)
+                "«{}»",
+                crate::features::tasks::words::name_tasks(&storage, &row.message.subject)
             ),
             pool_id: row.message.pool_id,
             thread_id: Some(row.message.thread_id),
@@ -325,11 +327,8 @@ pub fn needs(state: &Arc<AppState>) -> AppResult<Vec<MessageNeedInfo>> {
             } else {
                 format!("{name} has {count} messages waiting")
             },
-            detail: format!(
-                "from {} · {}",
-                newest.message.sender_name,
-                name_of(&newest.message.pool_id)
-            ),
+            // Who from; its pool is `pool_name`, joined where it's shown.
+            detail: format!("from {}", newest.message.sender_name),
             pool_id: newest.message.pool_id.clone(),
             thread_id: Some(newest.message.thread_id.clone()),
             message_id: Some(newest.message.id.clone()),
