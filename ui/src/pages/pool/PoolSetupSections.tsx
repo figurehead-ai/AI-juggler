@@ -26,6 +26,8 @@ import { JoinAs } from "./setup/JoinAs";
 import { LeadPicker } from "./setup/LeadPicker";
 import { OwnLevelChoice } from "./setup/OwnLevelChoice";
 import { RoleCards, holdersOf } from "./setup/RoleCards";
+import { RoleHolders, type HolderRow } from "./RoleHolders";
+import { titleOf } from "./NodeButton";
 import { TalkTable } from "./setup/TalkTable";
 import type { MemberNode } from "./useCanvas";
 import type { Selection } from "./Canvas";
@@ -47,6 +49,19 @@ function roleRule(rules: PoolRules["rules"], from: PoolRole, to: PoolRole): Talk
   return asTalkRule(row?.rule);
 }
 
+/** Every member by its title and role, for Who holds each role: the
+ * sessions, then the Apps and groups (an App whose next session leads as
+ * Lead), then everyone in its projects. */
+function holderRows(members: readonly MemberNode[], rules: readonly PoolRuleInfo[], label: (rule: PoolRuleInfo) => string, leadNext: string | null): HolderRow[] {
+  return [
+    ...members.map((member) => {
+      const { title, when } = titleOf(member);
+      return { key: member.id, name: title, when, role: member.role, select: { kind: "node", id: member.id } as const };
+    }),
+    ...rules.filter((rule) => rule.kind !== "session").map((rule) => ({ key: rule.member, name: label(rule), role: rule.member === `app:${leadNext}` ? "lead" : rule.role, select: { kind: "rule", ref: rule.member } as const })),
+  ];
+}
+
 export function PoolSetupSections({
   pool,
   rules,
@@ -56,7 +71,10 @@ export function PoolSetupSections({
   selection,
   onAddMembers,
   leadDir = null,
+  onSelect,
 }: {
+  /** Opens a member (its row in Who holds each role) in the inspector. */
+  onSelect?: (selection: Selection) => void;
   pool: PoolInfo;
   rules: PoolRules;
   /** The canvas's session members. */
@@ -152,7 +170,8 @@ export function PoolSetupSections({
           <p className="text-meta text-ink-2" data-testid="pool-join-sentence">
             {joinSentence(where, (everyone ? asRole(everyone.role) : null), everyone?.level ?? level, pickedCount(pool))}
           </p>
-          <RoleCards holders={holders} testId="pool-role-cards" />
+          <RoleCards holders={holders} narrow testId="pool-role-cards" />
+          <RoleHolders rows={holderRows(members, memberRules, ruleLabel, leadNext)} onSelect={onSelect} />
           <p className="text-meta text-muted">Change one member's role by clicking its card on the diagram.</p>
         </Section>
       </div>

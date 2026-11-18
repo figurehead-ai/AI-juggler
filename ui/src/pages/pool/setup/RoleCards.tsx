@@ -25,22 +25,34 @@ export function RoleIcon({ role, size = 14 }: { role: string; size?: number }): 
   return <Shape aria-hidden="true" width={size} height={size} className="shrink-0 text-muted" />;
 }
 
-/** The four roles as a reference; `holders` names who holds each now. */
-export function RoleCards({ holders, testId = "role-cards" }: { holders: Partial<Record<PoolRole, string[]>>; testId?: string }): JSX.Element {
+/** At most this many names on a role's line; then "and N more" (X2 §4b:
+ * fifty names wrapped down a narrow column). */
+const NAMES = 3;
+
+/** "Now: A, B, C and 47 more". */
+export function holdersLine(who: readonly string[]): string {
+  if (who.length === 0) return "No one yet";
+  const shown = who.slice(0, NAMES);
+  return who.length > NAMES ? `Now: ${shown.join(", ")} and ${who.length - NAMES} more` : `Now: ${shown.join(", ")}`;
+}
+
+/** The four roles as a reference; `holders` names who holds each now.
+ * `narrow`: one column (the inspector's panel, whatever the window). */
+export function RoleCards({ holders, narrow = false, testId = "role-cards" }: { holders: Partial<Record<PoolRole, string[]>>; narrow?: boolean; testId?: string }): JSX.Element {
   return (
-    <ul className="grid grid-cols-1 gap-x-6 gap-y-2.5 sm:grid-cols-2" aria-label="What each role does" data-testid={testId}>
+    <ul className={"grid min-w-0 grid-cols-1 gap-x-6 gap-y-2.5 " + (narrow ? "" : "sm:grid-cols-2")} aria-label="What each role does" data-testid={testId}>
       {ROLE_CARDS.map((card) => {
         const who = holders[card.id] ?? [];
         return (
-          <li key={card.id} className="flex gap-2" data-testid="role-card" data-role={card.id}>
+          <li key={card.id} className="flex min-w-0 gap-2" data-testid="role-card" data-role={card.id}>
             <span className="pt-0.5">
               <RoleIcon role={card.id} />
             </span>
             <span className="flex min-w-0 flex-col gap-0.5">
               <span className="text-meta font-semibold text-ink">{card.label}</span>
               <span className="text-meta text-ink-2">{card.line}</span>
-              <span className="text-label text-muted" data-testid="role-card-holders">
-                {who.length === 0 ? "No one yet" : `Now: ${who.join(", ")}`}
+              <span className="text-label text-muted [overflow-wrap:anywhere]" data-testid="role-card-holders">
+                {holdersLine(who)}
               </span>
             </span>
           </li>

@@ -375,6 +375,7 @@ function PoolCanvasPage({ poolId, sessions, projects, accounts, now, rules }: Pa
               where={where}
               selection={selection}
               onAddMembers={() => setup.open("who")}
+              onSelect={(next) => select(next, true)}
               leadDir={setup.leadDir}
             />
           }
