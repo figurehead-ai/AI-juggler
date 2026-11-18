@@ -319,6 +319,9 @@ for (const theme of ["dark", "light"] as const) {
 
   for (const [width, height] of [[1280, 800], [1024, 720]] as const) {
     test(`the new pool setup, each step — ${width}x${height} ${theme}`, async ({ page }) => {
+      // Nine steps, a full axe scan on each: near 30 s in the gate's
+      // emulated container (it timed out at 1024 on rc3's render).
+      test.slow();
       await open(page, theme, width, height);
       await poolsScreen(page);
       await page.getByTestId("pools-new").click();
