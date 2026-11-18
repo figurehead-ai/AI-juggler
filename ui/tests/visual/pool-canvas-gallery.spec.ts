@@ -121,9 +121,11 @@ for (const theme of ["dark", "light"] as const) {
       await expect(page.getByTestId("edge-badge").first()).toBeVisible();
       await expect(page.getByTestId("canvas-palette").getByRole("button", { name: /Add a member/ })).toBeVisible();
       await expect(page.getByTestId("inspect-stream")).toContainText("Planner gave «Checkout copy» to Checkout copy pass");
-      // Nothing on a node drawn under 12 px.
+      // Nothing on a node drawn under 12 px. Only what's drawn: a node's
+      // words for screen readers (its hidden description, D-126) have no
+      // height, and measured they'd read 0/0.
       const smallest = await page.locator("[data-node] *").evaluateAll((all) =>
-        Math.min(...all.filter((el) => el.childNodes.length > 0 && [...el.childNodes].some((n) => n.nodeType === 3 && n.textContent!.trim())).map((el) => parseFloat(getComputedStyle(el).fontSize) * (el.getBoundingClientRect().height / ((el as HTMLElement).offsetHeight || el.getBoundingClientRect().height)))),
+        Math.min(...all.filter((el) => el.getBoundingClientRect().height > 0 && el.childNodes.length > 0 && [...el.childNodes].some((n) => n.nodeType === 3 && n.textContent!.trim())).map((el) => parseFloat(getComputedStyle(el).fontSize) * (el.getBoundingClientRect().height / ((el as HTMLElement).offsetHeight || el.getBoundingClientRect().height)))),
       );
       // (Measured through the transforms: a hair under 12 is rounding.)
       expect(smallest, "node text 12 px or more on screen").toBeGreaterThanOrEqual(11.5);
