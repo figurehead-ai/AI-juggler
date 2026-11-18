@@ -3584,3 +3584,18 @@ The two open questions in ADR-0035 (hosting; the default on) go to the maintaine
 5. **Design:** an ADR (Opus), informed by a research pass over jive-code-graph's memory architecture, before building. It's tested through the same harness (D-130): a remembered answer must never be invented or outdated.
 
 - Sources: the maintainer's message, 2026-11-18.
+- **Extended the same day (design for 0.6 now):** the maintainer: "remember we have to think about 0.6 where bot comes in. Bot is not going to be a separate feature it is going to be an extension of our existing chat, with backend infrastructure to support bot capabilities… we should think for both. We don't want to be constantly rewriting our memory and context system."
+
+  So ADR-0036 designs **one** memory and context system for both 0.5 Chat and the 0.6 bot, and 0.5 builds the subset it needs on the final shape:
+  - **One store, one schema from day one.** Each memory carries:
+    - its *scope* (global, project, pool, session);
+    - its *kind* (preference, standing request or watch, remembered answer; reserved for 0.6: policy or rule, decision, action and outcome);
+    - its *authority* (said by the user, observed from AI Juggler's data, inferred by a model, written by the bot);
+    - its *provenance*, *confidence*, *as-of* time and *superseded-by* link.
+
+    Agent text never becomes a memory without "untrusted" provenance.
+  - **One context assembler, with pluggable sections and per-job budgets.** 0.5's small budgets (Apple 4K/8K) and 0.6's larger ones (local or cloud models, bot jobs) are the same code with different budget data.
+  - **One retrieval interface.** v1 is keyword, priority and recency. Embeddings or entity relations can be added behind it in 0.6 without changing callers.
+  - **An append-only event and audit log from 0.5.** Watches, alerts and chat turns are logged now, and the bot's decisions, approvals and actions join the same log in 0.6.
+  - **Bot-only parts are designed, not built, in 0.5:** policy memory, decision records, approval links, and stricter write rules.
+  - **Migrations are versioned,** so 0.6 only adds.
