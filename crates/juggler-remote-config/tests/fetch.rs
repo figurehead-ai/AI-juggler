@@ -10,17 +10,17 @@
 
 mod support;
 
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use juggler_remote_config::state::StoreError;
 use juggler_remote_config::{
-    AppContext, Attempt, Channel, ConfigRequest, ConfigResponse, Endpoints, Failure, FetchPolicy,
-    Fetcher, MemoryStore, NetworkError, Recorder, RecordingTransport, Rejection, ReplayTransport,
-    StateStore, Transport, TrustState, Version,
+    AppContext, Attempt, Baseline, Channel, ConfigRequest, ConfigResponse, Endpoints, Failure,
+    FetchPolicy, Fetcher, MemoryStore, NetworkError, Recorder, RecordingTransport, Rejection,
+    ReplayTransport, StateStore, Transport, TrustState, Version,
 };
 use serde_json::json;
-use support::{CURRENT, DAY, Lab, NOW, envelope};
+use support::{CURRENT, DAY, Lab, NEXT, NOW, envelope};
 
 const BASE: &str = "https://config.example.test/aij";
 const URL: &str = "https://config.example.test/aij/remote-config/v1/stable.json";
@@ -265,7 +265,7 @@ fn the_cache_is_re_verified_on_load() {
         Some(3)
     );
     // Someone edits the cached file on disk.
-    let mut state = rig.store.load().unwrap();
+    let mut state = rig.store.load().unwrap().unwrap();
     let slot = state.channels.get_mut(&Channel::Stable).unwrap();
     let accepted = slot.accepted.as_mut().unwrap();
     accepted.file = accepted
@@ -282,7 +282,7 @@ fn a_revocation_retires_the_cached_file() {
     let _ = rig.fetcher.refresh(&rig.at(NOW));
     // A file whose config part is junk but whose revocation list is good.
     let mut file: serde_json::Value = serde_json::from_slice(&rig.good(4)).unwrap();
-    file["revocations"] = serde_json::to_value(rig.lab.revocations(&[CURRENT])).unwrap();
+    file["revocations"] = json!([rig.lab.revocations(&[CURRENT])]);
     file["config"]["signature"] = json!("AAAA");
     rig.transport
         .respond(200, &serde_json::to_vec(&file).unwrap());
@@ -292,11 +292,18 @@ fn a_revocation_retires_the_cached_file() {
         Attempt::Failed(Failure::Rejected(_))
     ));
     assert_eq!(refresh.file, None, "the cached file's key is now revoked");
-    assert!(rig.store.load().unwrap().revoked.contains(CURRENT));
+    assert!(
+        rig.store
+            .load()
+            .unwrap()
+            .unwrap()
+            .revoked
+            .contains(&rig.lab.print(CURRENT))
+    );
 }
 
 #[test]
-fn off_no_endpoint_and_an_unreadable_store_send_nothing() {
+fn off_and_no_endpoint_send_nothing() {
     let off = Rig::with(
         FetchPolicy {
             enabled: false,
@@ -311,50 +318,76 @@ fn off_no_endpoint_and_an_unreadable_store_send_nothing() {
         none.fetcher.refresh(&none.at(NOW)).attempt,
         Attempt::NoEndpoint
     );
+    assert!(off.transport.requests().is_empty() && none.transport.requests().is_empty());
+}
 
-    struct Broken;
-    impl StateStore for Broken {
-        fn load(&self) -> Result<TrustState, StoreError> {
+/// H1: an unreadable state fails safe: the compiled baseline's floor and
+/// revocations hold, never "no floor".
+#[test]
+fn an_unreadable_state_falls_back_to_the_compiled_baseline() {
+    struct Corrupt(MemoryStore);
+    impl StateStore for Corrupt {
+        fn load(&self) -> Result<Option<TrustState>, StoreError> {
             Err(StoreError("corrupt".to_owned()))
         }
-        fn save(&self, _: &TrustState) -> Result<(), StoreError> {
-            Err(StoreError("read-only".to_owned()))
+        fn save(&self, state: &TrustState) -> Result<(), StoreError> {
+            self.0.save(state)
         }
     }
     let lab = Lab::new();
     let transport = Arc::new(RecordingTransport::default());
+    let baseline = Baseline {
+        floors: [(Channel::Stable, 10)].into(),
+        revoked: [lab.print(NEXT)].into(),
+    };
     let fetcher = Fetcher::new(
         transport.clone(),
         Endpoints::new([BASE]).unwrap(),
-        lab.ring,
-        Arc::new(Broken),
+        lab.ring.clone(),
+        Arc::new(Corrupt(MemoryStore::default())),
         FetchPolicy::default(),
-    );
+    )
+    .with_baseline(baseline);
     let app: Version = "0.5.0".parse().unwrap();
-    let refresh = fetcher.refresh(&AppContext {
+    let at = |now| AppContext {
         channel: Channel::Stable,
         app_version: &app,
-        now: NOW,
-    });
-    assert_eq!(refresh.file, None);
+        now,
+    };
+    // An old, validly signed file below the compiled floor is refused.
+    transport.respond(200, &lab.file(&envelope(CURRENT, "stable", 9, json!({}))));
     assert_eq!(
-        refresh.attempt,
-        Attempt::Failed(Failure::Store("corrupt".to_owned()))
+        fetcher.refresh(&at(NOW)).attempt,
+        Attempt::Failed(Failure::Rejected(Rejection::Rollback {
+            serial: 9,
+            floor: 10
+        }))
     );
-    for rig_requests in [
-        off.transport.requests(),
-        none.transport.requests(),
-        transport.requests(),
-    ] {
-        assert!(rig_requests.is_empty());
-    }
+    // A compiled revocation holds too.
+    let by_next = support::wrap(
+        Some(lab.config_part(&lab.next, NEXT, &envelope(NEXT, "stable", 11, json!({})))),
+        None,
+    );
+    transport.respond(200, &by_next);
+    assert_eq!(
+        fetcher.refresh(&at(NOW + DAY)).attempt,
+        Attempt::Failed(Failure::Rejected(Rejection::RevokedKey(NEXT.to_owned())))
+    );
+    // The floor's own file is accepted.
+    transport.respond(200, &lab.file(&envelope(CURRENT, "stable", 10, json!({}))));
+    assert_eq!(
+        fetcher.refresh(&at(NOW + 2 * DAY)).attempt,
+        Attempt::Accepted { serial: 10 }
+    );
 }
 
+/// L1: when the state can't be saved, nothing new is used (its floor and
+/// revocations weren't kept), and the daily limit still holds in memory.
 #[test]
-fn a_store_that_cannot_save_still_serves_the_fetched_file() {
+fn a_store_that_cannot_save_serves_nothing_new() {
     struct ReadOnly(MemoryStore);
     impl StateStore for ReadOnly {
-        fn load(&self) -> Result<TrustState, StoreError> {
+        fn load(&self) -> Result<Option<TrustState>, StoreError> {
             self.0.load()
         }
         fn save(&self, _: &TrustState) -> Result<(), StoreError> {
@@ -365,19 +398,26 @@ fn a_store_that_cannot_save_still_serves_the_fetched_file() {
     let transport = Arc::new(RecordingTransport::default());
     transport.respond(200, &lab.file(&envelope(CURRENT, "stable", 1, json!({}))));
     let fetcher = Fetcher::new(
-        transport,
+        transport.clone(),
         Endpoints::new([BASE]).unwrap(),
         lab.ring.clone(),
         Arc::new(ReadOnly(MemoryStore::default())),
         FetchPolicy::default(),
     );
     let app: Version = "0.5.0".parse().unwrap();
-    let refresh = fetcher.refresh(&AppContext {
+    let at = |now| AppContext {
         channel: Channel::Stable,
         app_version: &app,
-        now: NOW,
-    });
-    assert_eq!(refresh.attempt, Attempt::Accepted { serial: 1 });
+        now,
+    };
+    let refresh = fetcher.refresh(&at(NOW));
+    assert_eq!(refresh.file, None);
+    assert_eq!(
+        refresh.attempt,
+        Attempt::Failed(Failure::Store("disk full".to_owned()))
+    );
+    assert_eq!(fetcher.refresh(&at(NOW + 60)).attempt, Attempt::NotDue);
+    assert_eq!(transport.requests().len(), 1);
 }
 
 #[test]
@@ -494,4 +534,187 @@ fn the_transport_is_recorded_and_replayed() {
         if_none_match: None,
     };
     assert!(strict.get(&other).is_err());
+}
+
+/// L5: an entity tag longer than 128 bytes is not kept or sent.
+#[test]
+fn an_overlong_entity_tag_is_not_kept() {
+    let rig = Rig::with(
+        FetchPolicy {
+            conditional: true,
+            ..FetchPolicy::default()
+        },
+        &[BASE],
+    );
+    rig.transport.push(Ok(ConfigResponse {
+        status: 200,
+        etag: Some("x".repeat(129)),
+        body: rig.good(1),
+    }));
+    let _ = rig.fetcher.refresh(&rig.at(NOW));
+    rig.transport.respond(304, b"");
+    let _ = rig.fetcher.refresh(&rig.at(NOW + DAY));
+    assert_eq!(rig.transport.requests()[1].if_none_match, None);
+}
+
+/// M2: two refreshes race over one store (two fetchers, so no shared
+/// lock). The slow one fails and saves what it loaded before the fast one
+/// accepted a newer file that revokes the old key: the floor and the
+/// revocation survive, and the slow caller doesn't get the revoked file.
+#[test]
+fn racing_refreshes_never_lower_the_floor_or_lose_a_revocation() {
+    use std::sync::mpsc;
+
+    struct Gate {
+        entered: Mutex<mpsc::Sender<()>>,
+        release: Mutex<mpsc::Receiver<()>>,
+    }
+    impl Transport for Gate {
+        fn get(&self, _: &ConfigRequest) -> Result<ConfigResponse, NetworkError> {
+            self.entered.lock().unwrap().send(()).unwrap();
+            self.release.lock().unwrap().recv().unwrap();
+            Err(NetworkError("slow, then down".to_owned()))
+        }
+    }
+
+    let lab = Arc::new(Lab::new());
+    let store = Arc::new(MemoryStore::default());
+    let app: Version = "0.5.0".parse().unwrap();
+    // Both start from serial 5, signed by the current key.
+    let mut start = TrustState::default();
+    support::accept(
+        &lab,
+        &mut start,
+        &lab.file(&envelope(CURRENT, "stable", 5, json!({}))),
+    );
+    store.save(&start).unwrap();
+
+    let (entered_tx, entered_rx) = mpsc::channel();
+    let (release_tx, release_rx) = mpsc::channel();
+    let slow = Fetcher::new(
+        Arc::new(Gate {
+            entered: Mutex::new(entered_tx),
+            release: Mutex::new(release_rx),
+        }),
+        Endpoints::new([BASE]).unwrap(),
+        lab.ring.clone(),
+        store.clone(),
+        FetchPolicy::default(),
+    );
+    let fast_transport = Arc::new(RecordingTransport::default());
+    fast_transport.respond(
+        200,
+        &support::wrap(
+            Some(lab.config_part(&lab.next, NEXT, &envelope(NEXT, "stable", 9, json!({})))),
+            Some(lab.revocations(&[CURRENT])),
+        ),
+    );
+    let fast = Fetcher::new(
+        fast_transport,
+        Endpoints::new([BASE]).unwrap(),
+        lab.ring.clone(),
+        store.clone(),
+        FetchPolicy::default(),
+    );
+
+    let slow_result = std::thread::scope(|scope| {
+        let slow_app = app.clone();
+        let handle = scope.spawn(move || {
+            slow.refresh(&AppContext {
+                channel: Channel::Stable,
+                app_version: &slow_app,
+                now: NOW + DAY,
+            })
+        });
+        entered_rx.recv().unwrap();
+        let fast_result = fast.refresh(&AppContext {
+            channel: Channel::Stable,
+            app_version: &app,
+            now: NOW + DAY,
+        });
+        assert_eq!(fast_result.attempt, Attempt::Accepted { serial: 9 });
+        release_tx.send(()).unwrap();
+        handle.join().unwrap()
+    });
+
+    let state = store.load().unwrap().unwrap();
+    assert_eq!(state.floor(Channel::Stable), Some(9));
+    assert!(state.revoked.contains(&lab.print(CURRENT)));
+    assert_eq!(slow_result.file.map(|f| f.envelope.serial), Some(9));
+}
+
+/// M2: one fetcher serialises its own refreshes: the second waits for the
+/// first, then finds it not due.
+#[test]
+fn one_fetcher_refreshes_one_at_a_time() {
+    let rig = Rig::new();
+    rig.transport.respond(200, &rig.good(1));
+    rig.transport.respond(200, &rig.good(2));
+    let attempts = std::thread::scope(|scope| {
+        let a = scope.spawn(|| rig.fetcher.refresh(&rig.at(NOW)).attempt);
+        let b = scope.spawn(|| rig.fetcher.refresh(&rig.at(NOW)).attempt);
+        [a.join().unwrap(), b.join().unwrap()]
+    });
+    assert!(attempts.contains(&Attempt::Accepted { serial: 1 }));
+    assert!(attempts.contains(&Attempt::NotDue));
+    assert_eq!(rig.transport.requests().len(), 1);
+}
+
+/// H1: the durable store. Missing is "nothing saved"; a corrupt or
+/// tampered file is an error (the caller then uses the baseline); a save
+/// merges forward; no temp file is left behind.
+#[test]
+fn the_file_store_is_durable_checksummed_and_forward_only() {
+    use juggler_remote_config::FileStore;
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("remote-config-state.json");
+    let store = FileStore::new(&path);
+    assert_eq!(store.load(), Ok(None));
+
+    let lab = Lab::new();
+    let mut high = TrustState::default();
+    support::accept(
+        &lab,
+        &mut high,
+        &lab.file(&envelope(CURRENT, "stable", 8, json!({}))),
+    );
+    store.save(&high).unwrap();
+    assert_eq!(
+        store.load().unwrap().unwrap().floor(Channel::Stable),
+        Some(8)
+    );
+    // A stale state saved later can't lower the floor.
+    let mut low = TrustState::default();
+    support::accept(
+        &lab,
+        &mut low,
+        &lab.file(&envelope(CURRENT, "stable", 3, json!({}))),
+    );
+    store.save(&low).unwrap();
+    let loaded = store.load().unwrap().unwrap();
+    assert_eq!(loaded.floor(Channel::Stable), Some(8));
+    assert_eq!(
+        loaded.channels[&Channel::Stable]
+            .accepted
+            .as_ref()
+            .unwrap()
+            .serial,
+        8
+    );
+    let entries: Vec<_> = std::fs::read_dir(dir.path()).unwrap().collect();
+    assert_eq!(entries.len(), 1, "no temp file left");
+
+    // A flipped byte inside the state fails its checksum.
+    let text = std::fs::read_to_string(&path).unwrap();
+    std::fs::write(&path, text.replacen("8", "9", 1)).unwrap();
+    assert!(store.load().unwrap_err().0.contains("corrupt"));
+    // Garbage, or a torn write, is corrupt too.
+    std::fs::write(&path, &text.as_bytes()[..text.len() / 2]).unwrap();
+    assert!(store.load().is_err());
+    // A save over a corrupt file starts again from what it is given.
+    store.save(&high).unwrap();
+    assert_eq!(
+        store.load().unwrap().unwrap().floor(Channel::Stable),
+        Some(8)
+    );
 }

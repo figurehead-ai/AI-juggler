@@ -21,4 +21,8 @@ thiserror = { workspace = true }
 tracing = { workspace = true }
 
 [dev-dependencies]
+# Already in the lock through ed25519-dalek: crafted points for the
+# verify_strict and torsion tests.
+curve25519-dalek = "5.0.0"
 proptest = { workspace = true }
+tempfile = { workspace = true }

@@ -17,7 +17,8 @@ use juggler_remote_config::envelope::{CONFIG_CONTEXT, REVOCATIONS_CONTEXT};
 use juggler_remote_config::{Channel, Rejection, SignedPart, TrustState, check_file};
 use serde_json::json;
 use support::{
-    CURRENT, DAY, EMERGENCY, Lab, NEXT, NOW, accept, app, envelope, fresh_key, sign_part, wrap,
+    CURRENT, DAY, EMERGENCY, Lab, NEXT, NOW, accept, app, envelope, fresh_key, revocation_part,
+    sign_part, wrap, wrap_many,
 };
 
 fn check(lab: &Lab, file: &[u8], state: &TrustState) -> Result<u64, Rejection> {
@@ -128,8 +129,8 @@ fn a_revoked_key_fails() {
         Err(Rejection::RevokedKey(CURRENT.to_owned()))
     );
     assert!(
-        checked.newly_revoked.contains(CURRENT),
-        "the revocation is kept"
+        checked.newly_revoked.contains(&lab.print(CURRENT)),
+        "the revocation is kept, by fingerprint"
     );
 
     // Remembered: a later file from that key, with no list, still fails.
@@ -159,9 +160,18 @@ fn only_the_emergency_key_signs_revocations_and_it_signs_nothing_else() {
         Some(lab.config_part(&lab.current, CURRENT, &stable(7))),
         Some(forged),
     );
+    // The forged list is skipped, never applied; the file itself stands.
+    let app = app();
+    let checked = check_file(
+        &file,
+        &lab.ctx(Channel::Stable, &app, NOW),
+        &TrustState::default(),
+    );
+    assert_eq!(checked.result.map(|v| v.envelope.serial), Ok(7));
+    assert!(checked.newly_revoked.is_empty());
     assert_eq!(
-        check(&lab, &file, &TrustState::default()),
-        Err(Rejection::WrongKeyRole(CURRENT.to_owned()))
+        checked.skipped_revocations,
+        vec![Rejection::WrongKeyRole(CURRENT.to_owned())]
     );
     // A configuration signed by the emergency key.
     let file = wrap(
@@ -471,4 +481,291 @@ fn the_app_version_range_is_honoured() {
         check(&lab, &lab.file(&ranged), &TrustState::default()),
         Ok(7)
     );
+}
+
+fn checked(lab: &Lab, file: &[u8], state: &TrustState) -> juggler_remote_config::Checked {
+    let app = app();
+    check_file(file, &lab.ctx(Channel::Stable, &app, NOW), state)
+}
+
+/// M3: a revocation part from a key this app doesn't pin (a retired
+/// emergency key's, kept for older apps) is skipped, not fatal; a second
+/// part from this app's emergency key still applies.
+#[test]
+fn a_revocation_part_from_an_unpinned_key_is_skipped() {
+    let lab = Lab::new();
+    let retired = fresh_key();
+    let old = revocation_part(
+        &retired,
+        "rc-emergency-old",
+        &json!({
+            "format": 1, "key_id": "rc-emergency-old", "issued_at": NOW,
+            "revoked": [lab.print(NEXT)]
+        }),
+    );
+    let file = wrap_many(
+        Some(lab.config_part(&lab.current, CURRENT, &stable(7))),
+        vec![old, lab.revocations(&[NEXT])],
+    );
+    let got = checked(&lab, &file, &TrustState::default());
+    assert_eq!(got.result.map(|v| v.envelope.serial), Ok(7));
+    assert_eq!(
+        got.skipped_revocations,
+        vec![Rejection::UnknownKey("rc-emergency-old".to_owned())]
+    );
+    assert_eq!(got.newly_revoked, [lab.print(NEXT)].into());
+}
+
+/// M4: only fingerprints of keys this build pins are kept: a list can't
+/// pre-revoke a future key, can't name ids, and can't revoke the
+/// emergency key.
+#[test]
+fn revocations_name_pinned_fingerprints_only() {
+    let lab = Lab::new();
+    let future = juggler_remote_config::keys::fingerprint(&fresh_key().verifying_key().to_bytes());
+    let file = wrap(
+        Some(lab.config_part(&lab.current, CURRENT, &stable(7))),
+        Some(lab.revocations(&[future.as_str(), EMERGENCY, NEXT])),
+    );
+    let got = checked(&lab, &file, &TrustState::default());
+    assert_eq!(
+        got.newly_revoked,
+        [lab.print(NEXT)].into(),
+        "the future key and the emergency key stay"
+    );
+    // By id instead of fingerprint: the list is malformed and skipped.
+    let by_id = revocation_part(
+        &lab.emergency,
+        EMERGENCY,
+        &json!({
+            "format": 1, "key_id": EMERGENCY, "issued_at": NOW, "revoked": [NEXT]
+        }),
+    );
+    let file = wrap(
+        Some(lab.config_part(&lab.current, CURRENT, &stable(7))),
+        Some(by_id),
+    );
+    let got = checked(&lab, &file, &TrustState::default());
+    assert!(got.newly_revoked.is_empty());
+    assert!(matches!(
+        got.skipped_revocations.as_slice(),
+        [Rejection::BadEnvelope(_)]
+    ));
+}
+
+/// L5: each check on a revocation list (the id cap, its signed key id, its
+/// format) skips the list when it fails.
+#[test]
+fn a_revocation_list_breaking_its_rules_is_skipped() {
+    let lab = Lab::new();
+    let next = lab.print(NEXT);
+    let too_many: Vec<String> = std::iter::repeat_n(next.clone(), 65).collect();
+    let lists = [
+        json!({"format": 1, "key_id": EMERGENCY, "issued_at": NOW, "revoked": too_many}),
+        json!({"format": 1, "key_id": CURRENT, "issued_at": NOW, "revoked": [next]}),
+        json!({"format": 2, "key_id": EMERGENCY, "issued_at": NOW, "revoked": [next]}),
+    ];
+    let expected = [
+        Rejection::BadEnvelope("revoked fingerprints".to_owned()),
+        Rejection::KeyIdMismatch,
+        Rejection::UnsupportedFormat(2),
+    ];
+    for (list, why) in lists.iter().zip(expected) {
+        let part = revocation_part(&lab.emergency, EMERGENCY, list);
+        let file = wrap(
+            Some(lab.config_part(&lab.current, CURRENT, &stable(7))),
+            Some(part),
+        );
+        let got = checked(&lab, &file, &TrustState::default());
+        assert!(got.newly_revoked.is_empty(), "{list}");
+        assert_eq!(got.skipped_revocations, vec![why]);
+        assert!(got.result.is_ok());
+    }
+    // Exactly 64 is allowed.
+    let sixty_four: Vec<String> = std::iter::repeat_n(next.clone(), 64).collect();
+    let part = revocation_part(
+        &lab.emergency,
+        EMERGENCY,
+        &json!({
+            "format": 1, "key_id": EMERGENCY, "issued_at": NOW, "revoked": sixty_four
+        }),
+    );
+    let file = wrap(
+        Some(lab.config_part(&lab.current, CURRENT, &stable(7))),
+        Some(part),
+    );
+    assert_eq!(
+        checked(&lab, &file, &TrustState::default()).newly_revoked,
+        [next].into()
+    );
+}
+
+/// L5: the envelope's own format is checked after verification.
+#[test]
+fn an_envelope_of_another_format_is_rejected() {
+    let lab = Lab::new();
+    let mut future = stable(7);
+    future["format"] = json!(2);
+    assert_eq!(
+        check(&lab, &lab.file(&future), &TrustState::default()),
+        Err(Rejection::UnsupportedFormat(2))
+    );
+}
+
+/// M1: a file issued in the future (beyond a 10-minute skew) is refused.
+#[test]
+fn a_future_issued_at_is_rejected() {
+    let lab = Lab::new();
+    let at = |issued: u64| {
+        let mut e = stable(7);
+        e["issued_at"] = json!(issued);
+        e["expires_at"] = json!(issued + 14 * DAY);
+        check(&lab, &lab.file(&e), &TrustState::default())
+    };
+    assert_eq!(at(NOW + 600), Ok(7));
+    assert_eq!(
+        at(NOW + 601),
+        Err(Rejection::IssuedInFuture {
+            issued_at: NOW + 601,
+            now: NOW
+        })
+    );
+    assert!(matches!(
+        at(NOW + 10 * 365 * DAY),
+        Err(Rejection::IssuedInFuture { .. })
+    ));
+}
+
+/// M1: expiry is judged against max(now, the newest issued_at accepted),
+/// so a clock set back can't revive an expired file.
+#[test]
+fn a_clock_set_back_does_not_revive_an_expired_file() {
+    let lab = Lab::new();
+    let old = lab.file(&stable(3));
+    let mut state = TrustState::default();
+    // Fifteen days later a newer file is accepted.
+    let later = NOW + 15 * DAY;
+    let mut fresh = stable(4);
+    fresh["issued_at"] = json!(later);
+    fresh["expires_at"] = json!(later + 14 * DAY);
+    let fresh = lab.file(&fresh);
+    let app = app();
+    let verified = check_file(&fresh, &lab.ctx(Channel::Stable, &app, later), &state)
+        .result
+        .unwrap();
+    juggler_remote_config::envelope::record_accepted(
+        &mut state,
+        Channel::Stable,
+        &verified,
+        &fresh,
+    )
+    .unwrap();
+    assert_eq!(state.trusted_time, later);
+    // The clock goes back to NOW, when the old file was still valid.
+    state.channels.clear();
+    let got = check_file(&old, &lab.ctx(Channel::Stable, &app, NOW), &state).result;
+    assert!(
+        matches!(got, Err(Rejection::Expired { now, .. }) if now == later),
+        "{got:?}"
+    );
+}
+
+/// L5: verify_strict, not verify: a signature with a small-order R that
+/// cofactorless `verify` accepts is refused.
+#[test]
+fn a_small_order_r_signature_is_refused() {
+    use curve25519_dalek::constants::ED25519_BASEPOINT_POINT;
+    use curve25519_dalek::edwards::CompressedEdwardsY;
+    use curve25519_dalek::scalar::Scalar;
+    use ed25519_dalek::{Verifier as _, VerifyingKey};
+    use juggler_remote_config::envelope::signing_message;
+    use juggler_remote_config::{KeyRing, KeyRole, PinnedKey};
+    use sha2::{Digest as _, Sha512};
+
+    let mut seed = [0u8; 32];
+    getrandom::fill(&mut seed).unwrap();
+    let a = Scalar::from_bytes_mod_order(seed);
+    let public = (ED25519_BASEPOINT_POINT * a).compress().to_bytes();
+    let ring = KeyRing::new(vec![
+        PinnedKey::new(CURRENT, KeyRole::Current, &public).unwrap(),
+    ])
+    .unwrap();
+
+    let payload = juggler_remote_config::canonical::to_canonical_bytes(&stable(7)).unwrap();
+    let message = signing_message(CONFIG_CONTEXT, &payload);
+    // R = the identity (small order); S = k·a makes [S]B = R + [k]A hold.
+    let r = CompressedEdwardsY::from_slice(&{
+        let mut id = [0u8; 32];
+        id[0] = 1;
+        id
+    })
+    .unwrap()
+    .to_bytes();
+    let k = Scalar::from_bytes_mod_order_wide(
+        &Sha512::new()
+            .chain_update(r)
+            .chain_update(public)
+            .chain_update(&message)
+            .finalize()
+            .into(),
+    );
+    let mut signature = [0u8; 64];
+    signature[..32].copy_from_slice(&r);
+    signature[32..].copy_from_slice((k * a).as_bytes());
+
+    // The vector is real: plain cofactorless verification accepts it...
+    let key = VerifyingKey::from_bytes(&public).unwrap();
+    assert!(
+        key.verify(&message, &ed25519_dalek::Signature::from_bytes(&signature))
+            .is_ok()
+    );
+    // ...and the pinned-key check refuses it.
+    let part = SignedPart {
+        key_id: CURRENT.to_owned(),
+        payload: BASE64.encode(&payload),
+        signature: BASE64.encode(signature),
+    };
+    let app = app();
+    let ctx = juggler_remote_config::VerifyContext {
+        keys: &ring,
+        channel: Channel::Stable,
+        app_version: &app,
+        now: NOW,
+    };
+    assert_eq!(
+        check_file(&wrap(Some(part), None), &ctx, &TrustState::default()).result,
+        Err(Rejection::BadSignature)
+    );
+}
+
+/// L5: with no compiled key (today's build), nothing verifies.
+#[test]
+fn the_empty_compiled_ring_verifies_nothing() {
+    let lab = Lab::new();
+    let ring = juggler_remote_config::KeyRing::compiled().unwrap();
+    let app = app();
+    let ctx = juggler_remote_config::VerifyContext {
+        keys: &ring,
+        channel: Channel::Stable,
+        app_version: &app,
+        now: NOW,
+    };
+    let got = check_file(&lab.file(&stable(7)), &ctx, &TrustState::default()).result;
+    assert_eq!(got, Err(Rejection::UnknownKey(CURRENT.to_owned())));
+}
+
+/// Info 3: the unsigned wrapper refuses fields it doesn't know.
+#[test]
+fn the_wrapper_refuses_unknown_fields() {
+    let lab = Lab::new();
+    let mut file: serde_json::Value = serde_json::from_slice(&lab.file(&stable(7))).unwrap();
+    file["extra"] = json!([[[[1]]]]);
+    assert!(matches!(
+        check(
+            &lab,
+            &serde_json::to_vec(&file).unwrap(),
+            &TrustState::default()
+        ),
+        Err(Rejection::Malformed(_))
+    ));
 }

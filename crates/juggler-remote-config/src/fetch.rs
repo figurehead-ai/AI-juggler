@@ -14,8 +14,17 @@
 //!   else to the compiled defaults (no layer). Missing, invalid, unsigned
 //!   or expired files, network errors, a full or broken store: none of
 //!   them stops the app.
+//! - **One refresh at a time** per fetcher (a lock around load, fetch and
+//!   save), and the store's save only moves forward, so racing refreshes
+//!   (two fetchers, or two calls) can't lower the floor or lose a
+//!   revocation. The file returned is re-read from the store after the
+//!   save, so a caller never gets a file a concurrent refresh revoked.
+//! - **A failed save serves nothing new:** the fetched file's floor and
+//!   revocations weren't kept, so the previous cached file (or the
+//!   defaults) stays in use, and the attempt time is kept in memory so the
+//!   daily limit still holds.
 
-use std::collections::VecDeque;
+use std::collections::{BTreeMap, VecDeque};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -23,7 +32,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::envelope::{Channel, Verified, VerifyContext, check_file, record_accepted};
 use crate::keys::KeyRing;
-use crate::state::{StateStore, TrustState};
+use crate::state::{Baseline, StateStore, TrustState};
 use crate::version::Version;
 use crate::{MAX_FILE_BYTES, Rejection};
 
@@ -366,6 +375,10 @@ pub struct Fetcher {
     keys: KeyRing,
     store: Arc<dyn StateStore>,
     policy: FetchPolicy,
+    baseline: Baseline,
+    /// Held across a whole refresh; maps a channel to its last attempt, in
+    /// memory, for when the store can't keep it.
+    attempts: Mutex<BTreeMap<Channel, u64>>,
 }
 
 impl std::fmt::Debug for Fetcher {
@@ -389,7 +402,7 @@ pub struct AppContext<'a> {
 }
 
 impl Fetcher {
-    /// A fetcher over the given seams.
+    /// A fetcher over the given seams, with the compiled [`Baseline`].
     #[must_use]
     pub fn new(
         transport: Arc<dyn Transport>,
@@ -404,7 +417,30 @@ impl Fetcher {
             keys,
             store,
             policy,
+            baseline: Baseline::compiled(),
+            attempts: Mutex::new(BTreeMap::new()),
         }
+    }
+
+    /// The same, starting from another baseline (tests).
+    #[must_use]
+    pub fn with_baseline(mut self, baseline: Baseline) -> Self {
+        self.baseline = baseline;
+        self
+    }
+
+    /// The saved state raised to the baseline; a missing or corrupt state
+    /// is the baseline alone (fail safe, never "no floor").
+    fn load(&self) -> TrustState {
+        let mut state = match self.store.load() {
+            Ok(state) => state.unwrap_or_default(),
+            Err(e) => {
+                tracing::warn!(error = %e, "remote config: state unreadable; the compiled baseline");
+                TrustState::default()
+            }
+        };
+        state.apply_baseline(&self.baseline);
+        state
     }
 
     /// The cached file, re-verified, with no network: what the app uses at
@@ -414,8 +450,7 @@ impl Fetcher {
         if !self.policy.enabled {
             return None;
         }
-        let state = self.store.load().ok()?;
-        self.verify_cached(&state, app)
+        self.verify_cached(&self.load(), app)
     }
 
     fn verify_cached(&self, state: &TrustState, app: &AppContext<'_>) -> Option<Verified> {
@@ -448,16 +483,12 @@ impl Fetcher {
                 attempt: Attempt::Disabled,
             };
         }
-        let mut state = match self.store.load() {
-            Ok(state) => state,
-            Err(e) => {
-                tracing::warn!(error = %e, "remote config: state unreadable; compiled defaults");
-                return Refresh {
-                    file: None,
-                    attempt: Attempt::Failed(Failure::Store(e.0)),
-                };
-            }
+        // One refresh at a time: the lock is held to the end.
+        let mut attempts = match self.attempts.lock() {
+            Ok(guard) => guard,
+            Err(poisoned) => poisoned.into_inner(),
         };
+        let mut state = self.load();
         let cached = self.verify_cached(&state, app);
         let urls = self.endpoints.urls(app.channel);
         if urls.is_empty() {
@@ -467,22 +498,29 @@ impl Fetcher {
             };
         }
         let slot = state.channels.entry(app.channel).or_default();
+        let last = slot.last_attempt.max(attempts.get(&app.channel).copied());
         let interval = self.policy.min_interval.as_secs();
         // A clock set back makes the last attempt look future: then it's due.
-        if slot
-            .last_attempt
-            .is_some_and(|last| last <= app.now && app.now - last < interval)
-        {
+        if last.is_some_and(|last| last <= app.now && app.now - last < interval) {
             return Refresh {
                 file: cached,
                 attempt: Attempt::NotDue,
             };
         }
         slot.last_attempt = Some(app.now);
-        let (file, attempt) = self.fetch(&urls, &mut state, app, cached);
+        attempts.insert(app.channel, app.now);
+        let before = cached;
+        let attempt = self.fetch(&urls, &mut state, app, before.is_some());
         if let Err(e) = self.store.save(&state) {
-            tracing::warn!(error = %e, "remote config: state not saved");
+            tracing::warn!(error = %e, "remote config: state not saved; nothing new is used");
+            // A revocation seen this time still retires the old file.
+            return Refresh {
+                file: before.filter(|file| !state.revoked.contains(&file.key)),
+                attempt: Attempt::Failed(Failure::Store(e.0)),
+            };
         }
+        // What's stored now may be newer than what this refresh saw.
+        let file = self.verify_cached(&self.load(), app);
         Refresh { file, attempt }
     }
 
@@ -491,13 +529,14 @@ impl Fetcher {
         urls: &[String],
         state: &mut TrustState,
         app: &AppContext<'_>,
-        cached: Option<Verified>,
-    ) -> (Option<Verified>, Attempt) {
-        let etag = if self.policy.conditional && cached.is_some() {
+        has_cache: bool,
+    ) -> Attempt {
+        let etag = if self.policy.conditional && has_cache {
             state
                 .channels
                 .get(&app.channel)
-                .and_then(|slot| slot.etag.clone())
+                .and_then(|slot| slot.accepted.as_ref())
+                .and_then(|accepted| accepted.etag.clone())
         } else {
             None
         };
@@ -515,7 +554,7 @@ impl Fetcher {
                 }
             };
             match response.status {
-                304 if cached.is_some() => return (cached, Attempt::NotModified),
+                304 if has_cache => return Attempt::NotModified,
                 200 => {}
                 status => {
                     failure = Failure::Status(status);
@@ -524,8 +563,9 @@ impl Fetcher {
             }
             match self.accept(&response, state, app) {
                 Ok(verified) => {
-                    let serial = verified.envelope.serial;
-                    return (Some(verified), Attempt::Accepted { serial });
+                    return Attempt::Accepted {
+                        serial: verified.envelope.serial,
+                    };
                 }
                 Err(rejection) => {
                     tracing::warn!(%rejection, "remote config: file rejected");
@@ -533,9 +573,7 @@ impl Fetcher {
                 }
             }
         }
-        // Re-checked: a revocation in a rejected file may retire the
-        // cached file's key.
-        (self.verify_cached(state, app), Attempt::Failed(failure))
+        Attempt::Failed(failure)
     }
 
     fn accept(
@@ -552,8 +590,19 @@ impl Fetcher {
         state.revoked.extend(checked.newly_revoked);
         let verified = checked.result?;
         record_accepted(state, app.channel, &verified, &response.body)?;
-        let slot = state.channels.entry(app.channel).or_default();
-        slot.etag = response.etag.clone().filter(|tag| tag.len() <= 128);
+        if let Some(accepted) = state
+            .channels
+            .get_mut(&app.channel)
+            .and_then(|slot| slot.accepted.as_mut())
+        {
+            accepted.etag = response
+                .etag
+                .clone()
+                .filter(|tag| tag.len() <= MAX_ETAG_LEN);
+        }
         Ok(verified)
     }
 }
+
+/// The longest entity tag kept.
+pub const MAX_ETAG_LEN: usize = 128;

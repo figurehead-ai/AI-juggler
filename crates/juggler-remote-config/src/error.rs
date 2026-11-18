@@ -53,7 +53,16 @@ pub enum Rejection {
     Expired {
         /// The file's expiry, Unix seconds.
         expires_at: u64,
-        /// The time checked, Unix seconds.
+        /// The trusted time checked, Unix seconds.
+        now: u64,
+    },
+    /// An `issued_at` further than [`crate::envelope::MAX_SKEW_SECS`] past
+    /// the trusted time.
+    #[error("issued at {issued_at}, in the future (now {now})")]
+    IssuedInFuture {
+        /// The file's `issued_at`.
+        issued_at: u64,
+        /// The trusted time.
         now: u64,
     },
     /// `expires_at` not after `issued_at`, or further than

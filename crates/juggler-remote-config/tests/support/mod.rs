@@ -81,15 +81,28 @@ impl Lab {
         )
     }
 
-    /// A revocation list signed by the emergency key.
+    /// The fingerprint of the lab key with `id` (or `id` itself, for a
+    /// fingerprint no lab key has).
+    pub fn print(&self, id: &str) -> String {
+        let key = match id {
+            CURRENT => &self.current,
+            NEXT => &self.next,
+            EMERGENCY => &self.emergency,
+            other => return other.to_owned(),
+        };
+        juggler_remote_config::keys::fingerprint(&key.verifying_key().to_bytes())
+    }
+
+    /// A revocation list signed by the emergency key, naming lab keys by
+    /// id (turned into fingerprints) or raw strings.
     pub fn revocations(&self, revoked: &[&str]) -> SignedPart {
-        let payload =
-            json!({"format": 1, "key_id": EMERGENCY, "issued_at": NOW, "revoked": revoked});
-        sign_part(
+        let prints: Vec<String> = revoked.iter().map(|id| self.print(id)).collect();
+        revocation_part(
             &self.emergency,
             EMERGENCY,
-            REVOCATIONS_CONTEXT,
-            &to_canonical_bytes(&payload).expect("canonical"),
+            &json!({
+                "format": 1, "key_id": EMERGENCY, "issued_at": NOW, "revoked": prints
+            }),
         )
     }
 
@@ -112,12 +125,26 @@ pub fn sign_part(key: &SigningKey, key_id: &str, context: &[u8], payload: &[u8])
 }
 
 pub fn wrap(config: Option<SignedPart>, revocations: Option<SignedPart>) -> Vec<u8> {
+    wrap_many(config, revocations.into_iter().collect())
+}
+
+pub fn wrap_many(config: Option<SignedPart>, revocations: Vec<SignedPart>) -> Vec<u8> {
     serde_json::to_vec(&SignedFile {
         format: 1,
         config,
         revocations,
     })
     .expect("json")
+}
+
+/// A revocation part over the canonical bytes of `payload`.
+pub fn revocation_part(key: &SigningKey, key_id: &str, payload: &Value) -> SignedPart {
+    sign_part(
+        key,
+        key_id,
+        REVOCATIONS_CONTEXT,
+        &to_canonical_bytes(payload).expect("canonical"),
+    )
 }
 
 /// An envelope for `channel` with `serial`, valid for 14 days from an hour

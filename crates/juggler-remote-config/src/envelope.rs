@@ -6,7 +6,7 @@
 //! {
 //!   "format": 1,
 //!   "config":      { "key_id": "…", "payload": "<base64>", "signature": "<base64>" },
-//!   "revocations": { "key_id": "…", "payload": "<base64>", "signature": "<base64>" }   (optional)
+//!   "revocations": [ { "key_id": "…", "payload": "<base64>", "signature": "<base64>" }, … ]   (optional)
 //! }
 //! ```
 //!
@@ -19,19 +19,29 @@
 //! The configuration payload is the envelope: `format`, `key_id`,
 //! `channel`, `serial`, `issued_at`, `expires_at` (Unix seconds, UTC),
 //! optional `min_app`/`max_app`, and `sections`. The revocation payload is
-//! `format`, `key_id`, `issued_at` and `revoked` (key ids).
+//! `format`, `key_id`, `issued_at` and `revoked`: key **fingerprints**
+//! ([`crate::keys::fingerprint`]), never ids.
 //!
 //! # The order of the checks
 //!
-//! 1. The size cap, then the wrapper: a small fixed shape of strings.
-//! 2. The revocation part, if present: signature first (emergency key
-//!    only), then its canonical payload. Its ids join the revoked set.
+//! 1. The size cap, then the wrapper: a fixed shape of strings, unknown
+//!    fields refused (the wrapper is versioned by `format`).
+//! 2. Each revocation part, if present: signature first (emergency key
+//!    only), then its canonical payload. Fingerprints of keys this build
+//!    pins join the revoked set; others are dropped. A part that doesn't
+//!    verify (a retired emergency key's, say, kept for older apps) is
+//!    skipped, never fatal: ignoring a revocation can only leave trust as
+//!    it was.
 //! 3. The configuration part's signature, by an unrevoked current or next
 //!    key. **Nothing in the payload is parsed before this passes.**
 //! 4. Only then: the payload must be canonical JSON, and an envelope whose
 //!    `key_id` is the key that verified it.
-//! 5. Channel, validity window, expiry, serial (rollback, equivocation),
-//!    and the app-version range.
+//! 5. Channel, validity window, a future `issued_at` (more than
+//!    [`MAX_SKEW_SECS`] past the trusted time), expiry against the trusted
+//!    time, serial (rollback, equivocation), and the app-version range.
+//!
+//! The **trusted time** is `max(now, the highest issued_at ever
+//! accepted)`: setting the clock back can't revive an expired file.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
@@ -44,7 +54,7 @@ use sha2::{Digest as _, Sha256};
 
 use crate::Rejection;
 use crate::canonical::parse_canonical;
-use crate::keys::{KeyRing, Purpose, valid_id};
+use crate::keys::{KeyRing, Purpose, is_fingerprint, valid_id};
 use crate::state::{AcceptedFile, TrustState};
 use crate::version::Version;
 
@@ -55,6 +65,15 @@ pub const MAX_FILE_BYTES: usize = 256 * 1024;
 /// The publisher uses about 14 days (§3); this bounds a mistake or a stolen
 /// key's reach.
 pub const MAX_VALIDITY_SECS: u64 = 31 * 24 * 60 * 60;
+
+/// How far past the trusted time an `issued_at` may lie (clock skew).
+pub const MAX_SKEW_SECS: u64 = 10 * 60;
+
+/// The most revocation parts one file may carry (more are skipped).
+pub const MAX_REVOCATION_PARTS: usize = 4;
+
+/// The most fingerprints one revocation list may name.
+pub const MAX_REVOKED: usize = 64;
 
 /// The wrapper and envelope format this app reads.
 pub const FORMAT: u64 = 1;
@@ -106,6 +125,7 @@ impl fmt::Display for Channel {
 
 /// One signed part of the file.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct SignedPart {
     /// The signing key's id.
     pub key_id: String,
@@ -117,15 +137,16 @@ pub struct SignedPart {
 
 /// The file as served.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct SignedFile {
     /// [`FORMAT`].
     pub format: u64,
     /// The signed envelope. A file without it is an unsigned file.
     #[serde(default)]
     pub config: Option<SignedPart>,
-    /// A signed revocation list, if any.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub revocations: Option<SignedPart>,
+    /// Signed revocation lists, if any (one per emergency-key generation).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub revocations: Vec<SignedPart>,
 }
 
 /// The verified envelope.
@@ -171,7 +192,7 @@ pub struct VerifyContext<'a> {
     pub channel: Channel,
     /// This app's version.
     pub app_version: &'a Version,
-    /// Now, Unix seconds.
+    /// Now (the wall clock), Unix seconds.
     pub now: u64,
 }
 
@@ -182,14 +203,19 @@ pub struct Verified {
     pub envelope: Envelope,
     /// The SHA-256 of the signed payload, hex.
     pub digest: String,
+    /// The signing key's fingerprint.
+    pub key: String,
 }
 
 /// The outcome of checking one file.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Checked {
-    /// Key ids a verified revocation list in the file revoked that weren't
-    /// revoked before. Kept even when the configuration part is rejected.
+    /// Fingerprints a verified revocation list in the file revoked that
+    /// weren't revoked before. Kept even when the configuration part is
+    /// rejected.
     pub newly_revoked: BTreeSet<String>,
+    /// Revocation parts that were skipped, and why.
+    pub skipped_revocations: Vec<Rejection>,
     /// The verified envelope, or why the file was rejected.
     pub result: Result<Verified, Rejection>,
 }
@@ -197,19 +223,20 @@ pub struct Checked {
 /// Runs every check of the module docs over `file`.
 #[must_use]
 pub fn check_file(file: &[u8], ctx: &VerifyContext<'_>, state: &TrustState) -> Checked {
-    let mut newly_revoked = BTreeSet::new();
-    let result = check(file, ctx, state, &mut newly_revoked);
-    Checked {
-        newly_revoked,
-        result,
-    }
+    let mut checked = Checked {
+        newly_revoked: BTreeSet::new(),
+        skipped_revocations: Vec::new(),
+        result: Err(Rejection::Malformed("unchecked")),
+    };
+    checked.result = check(file, ctx, state, &mut checked);
+    checked
 }
 
 fn check(
     file: &[u8],
     ctx: &VerifyContext<'_>,
     state: &TrustState,
-    newly_revoked: &mut BTreeSet<String>,
+    out: &mut Checked,
 ) -> Result<Verified, Rejection> {
     if file.len() > MAX_FILE_BYTES {
         return Err(Rejection::TooLarge(file.len()));
@@ -220,10 +247,18 @@ fn check(
         return Err(Rejection::UnsupportedFormat(wrapper.format));
     }
     let mut revoked = state.revoked.clone();
-    if let Some(part) = &wrapper.revocations {
-        for id in check_revocations(part, ctx.keys, &revoked)? {
-            if revoked.insert(id.clone()) {
-                newly_revoked.insert(id);
+    for part in wrapper.revocations.iter().take(MAX_REVOCATION_PARTS) {
+        match check_revocations(part, ctx.keys, &revoked) {
+            Ok(prints) => {
+                for print in prints {
+                    if revoked.insert(print.clone()) {
+                        out.newly_revoked.insert(print);
+                    }
+                }
+            }
+            Err(rejection) => {
+                tracing::info!(%rejection, "remote config: a revocation part was skipped");
+                out.skipped_revocations.push(rejection);
             }
         }
     }
@@ -231,7 +266,7 @@ fn check(
         .config
         .as_ref()
         .ok_or(Rejection::Malformed("no signed configuration"))?;
-    let payload = verify_part(part, Purpose::Config, CONFIG_CONTEXT, ctx.keys, &revoked)?;
+    let (payload, key) = verify_part(part, Purpose::Config, CONFIG_CONTEXT, ctx.keys, &revoked)?;
 
     // Verified: only now is the payload parsed.
     let value = parse_canonical(&payload).map_err(Rejection::NotCanonical)?;
@@ -254,28 +289,23 @@ fn check(
     {
         return Err(Rejection::BadValidity);
     }
-    if ctx.now >= envelope.expires_at {
-        return Err(Rejection::Expired {
-            expires_at: envelope.expires_at,
-            now: ctx.now,
+    let trusted_now = ctx.now.max(state.trusted_time);
+    if envelope.issued_at > trusted_now.saturating_add(MAX_SKEW_SECS) {
+        return Err(Rejection::IssuedInFuture {
+            issued_at: envelope.issued_at,
+            now: trusted_now,
         });
     }
-    let digest = hex(&Sha256::digest(&payload));
+    if trusted_now >= envelope.expires_at {
+        return Err(Rejection::Expired {
+            expires_at: envelope.expires_at,
+            now: trusted_now,
+        });
+    }
+    let digest = crate::hex(&Sha256::digest(&payload));
     let mut view = state.clone();
     view.revoked = revoked;
-    if let Some(floor) = view.floor(ctx.channel) {
-        if envelope.serial < floor {
-            return Err(Rejection::Rollback {
-                serial: envelope.serial,
-                floor,
-            });
-        }
-        if envelope.serial == floor
-            && view.accepted_digest(ctx.channel, floor) != Some(digest.as_str())
-        {
-            return Err(Rejection::Equivocation(floor));
-        }
-    }
+    check_serial(&view, ctx.channel, envelope.serial, &digest)?;
     let applies = envelope
         .min_app
         .as_ref()
@@ -287,15 +317,42 @@ fn check(
     if !applies {
         return Err(Rejection::NotForThisApp);
     }
-    Ok(Verified { envelope, digest })
+    Ok(Verified {
+        envelope,
+        digest,
+        key,
+    })
 }
 
+/// Rollback and equivocation: below the floor (the compiled one or the
+/// highest accepted from an unrevoked key) is refused; the accepted
+/// serial again is allowed only with the same content.
+fn check_serial(
+    state: &TrustState,
+    channel: Channel,
+    serial: u64,
+    digest: &str,
+) -> Result<(), Rejection> {
+    let pinned = state.pinned_floor.get(&channel).copied().unwrap_or(0);
+    let accepted = state.accepted_floor(channel);
+    let floor = accepted.map_or(pinned, |a| a.max(pinned));
+    if serial < floor {
+        return Err(Rejection::Rollback { serial, floor });
+    }
+    if accepted == Some(serial) && state.accepted_digest(channel, serial) != Some(digest) {
+        return Err(Rejection::Equivocation(serial));
+    }
+    Ok(())
+}
+
+/// Verifies one revocation part; returns the fingerprints it revokes that
+/// mean something to this build.
 fn check_revocations(
     part: &SignedPart,
     keys: &KeyRing,
     revoked: &BTreeSet<String>,
 ) -> Result<Vec<String>, Rejection> {
-    let payload = verify_part(
+    let (payload, _) = verify_part(
         part,
         Purpose::Revocations,
         REVOCATIONS_CONTEXT,
@@ -311,21 +368,25 @@ fn check_revocations(
     if list.key_id != part.key_id {
         return Err(Rejection::KeyIdMismatch);
     }
-    if list.revoked.len() > 64 || !list.revoked.iter().all(|id| valid_id(id)) {
-        return Err(Rejection::BadEnvelope("revoked ids".to_owned()));
+    if list.revoked.len() > MAX_REVOKED || !list.revoked.iter().all(|p| is_fingerprint(p)) {
+        return Err(Rejection::BadEnvelope("revoked fingerprints".to_owned()));
     }
-    Ok(list.revoked)
+    Ok(list
+        .revoked
+        .into_iter()
+        .filter(|print| keys.revocable(print))
+        .collect())
 }
 
 /// Decodes one part and verifies its signature; returns the payload bytes,
-/// unparsed.
+/// unparsed, and the signer's fingerprint.
 fn verify_part(
     part: &SignedPart,
     purpose: Purpose,
     context: &[u8],
     keys: &KeyRing,
     revoked: &BTreeSet<String>,
-) -> Result<Vec<u8>, Rejection> {
+) -> Result<(Vec<u8>, String), Rejection> {
     if !valid_id(&part.key_id) {
         return Err(Rejection::Malformed("key id"));
     }
@@ -337,18 +398,18 @@ fn verify_part(
         .map_err(|_| Rejection::Malformed("signature is not base64"))?
         .try_into()
         .map_err(|_| Rejection::Malformed("signature is not 64 bytes"))?;
-    keys.verify(
+    let key = keys.verify(
         &part.key_id,
         purpose,
         &signing_message(context, &payload),
         &signature,
         revoked,
     )?;
-    Ok(payload)
+    Ok((payload, key.fingerprint().to_owned()))
 }
 
-/// Records an accepted file: its serial against its key, and the file
-/// itself as the last good one.
+/// Records an accepted file: its serial against its key, the trusted time,
+/// and the file itself as the last good one.
 ///
 /// # Errors
 ///
@@ -361,27 +422,17 @@ pub fn record_accepted(
     file: &[u8],
 ) -> Result<(), Rejection> {
     let text = std::str::from_utf8(file).map_err(|_| Rejection::Malformed("not UTF-8"))?;
+    state.trusted_time = state.trusted_time.max(verified.envelope.issued_at);
     let slot = state.channels.entry(channel).or_default();
     let serial = verified.envelope.serial;
-    let held = slot
-        .serials
-        .entry(verified.envelope.key_id.clone())
-        .or_insert(serial);
+    let held = slot.serials.entry(verified.key.clone()).or_insert(serial);
     *held = (*held).max(serial);
     slot.accepted = Some(AcceptedFile {
         serial,
         digest: verified.digest.clone(),
+        key: verified.key.clone(),
         file: text.to_owned(),
+        etag: None,
     });
     Ok(())
-}
-
-fn hex(bytes: &[u8]) -> String {
-    use fmt::Write as _;
-    bytes
-        .iter()
-        .fold(String::with_capacity(bytes.len() * 2), |mut out, b| {
-            let _ = write!(out, "{b:02x}");
-            out
-        })
 }

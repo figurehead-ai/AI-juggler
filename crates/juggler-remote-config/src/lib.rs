@@ -34,21 +34,20 @@
 //!
 //! | Threat | Answer |
 //! |---|---|
-//! | **A tampered file** (CDN, TLS interception, cache on disk) | ed25519 `verify_strict` over a context string plus the exact payload bytes; a cached file is re-verified on every load. A single flipped byte anywhere in the payload or signature fails. |
-//! | **A parser attack before verification** | Before the signature passes, only the size cap (256 KB) and a fixed wrapper of four strings are read; the payload is opaque base64. It is parsed only after verification, and only if it is canonical, so duplicate keys, odd numbers or escapes can't give the signed bytes a second meaning. Depth is capped. |
+//! | **A tampered file** (CDN, TLS interception, cache on disk) | ed25519 `verify_strict` over a context string plus the exact payload bytes; a cached file is re-verified on every load. A single flipped byte anywhere in the payload or signature fails, and so does a small-order `R` that plain verification would take. Pinned keys must be prime-order, and no key's bytes may be pinned under two roles. |
+//! | **A parser attack before verification** | Before the signature passes, only the size cap (256 KB) and the wrapper are read: a fixed shape of strings, unknown fields refused; the payload is opaque base64. It is parsed only after verification, and only if it is canonical, so duplicate keys, odd numbers or escapes can't give the signed bytes a second meaning. Depth is capped. |
 //! | **A downgrade to unsigned** | There is no unsigned path: a file without a signed `config` part, with an unknown key id, or with an unknown `format`, is rejected, and the app keeps its last good file or its compiled defaults. TLS alone is never trusted. |
-//! | **Rollback** (an older, validly signed file) | The highest serial accepted is kept per channel and key; a lower serial is refused, and the same serial is accepted only with byte-identical content (no equivocation). |
-//! | **Replay** | Rollback covers replays after a newer file; `expires_at` (at most 31 days after `issued_at`) bounds how long any file can be replayed at all, including to an install that never saw a newer one; the channel inside the signed envelope stops a beta file being served to stable; context strings stop a revocation signature passing as a configuration one. |
-//! | **Key compromise** | Current or next stolen: the emergency key signs a revocation list; the revoked key's files (cached ones too) stop verifying, and its serials stop holding the floor up, so a burned huge serial doesn't lock publishing out. The file still can only select compiled behaviour, so a stolen key can't add any. Emergency stolen: it signs no configuration, so the worst it can do is revoke current and next, which leaves the app on its compiled defaults until an update ships new keys. |
-//! | **Rotation** | Publish with `next`; ship an app whose `current` is the old `next` with a fresh `next`; retire a key by shipping without it. A revocation only ever grows the revoked set. |
-//! | **Remote code by stealth** | Section values are checked against compiled controls ([`schema`]); a kill switch can't be turned on, a range can't pass its bounds, a choice must be compiled in. A section that breaks its schema is dropped alone. |
+//! | **Rollback** (an older, validly signed file) | The highest serial accepted is kept per channel and key fingerprint; a lower serial is refused, and the same serial is accepted only with byte-identical content (no equivocation). The state lives in a durable, checksummed, atomically written file outside any cache ([`state`]); if it is missing or corrupt the app starts from the release's compiled floor and revocations, never from "no floor". Saves only move forward, and refreshes are serialised, so a race can't lower the floor. |
+//! | **Replay** | Rollback covers replays after a newer file. `expires_at` (at most 31 days after `issued_at`) bounds how long any file can be replayed, judged against the trusted time `max(now, newest issued_at accepted)`, so a clock set back revives nothing; an `issued_at` more than 10 minutes past it is refused, so a file can't carry a validity window into the future. The channel inside the signed envelope stops a beta file being served to stable; context strings stop a revocation signature passing as a configuration one. |
+//! | **Key compromise** | Current or next stolen: **the real defence is a release without that key** (and with the key's fingerprint in the compiled revocations, which reach fresh installs through the signed update channel). In-band revocation helps only installs that fetch a file carrying the list: an attacker who holds the key and controls the CDN or the path simply never serves it, so every install it serves, and every fresh install, keeps trusting the key until the update. Where the list does arrive, the key's files (cached ones too) stop verifying and its serials stop holding the floor up. The file can still only select compiled behaviour, so a stolen key adds none. Emergency stolen: it signs no configuration, and a list may only name fingerprints of keys this build pins, so it can't pre-revoke a later release's keys; the worst it does is revoke current and next here, leaving the compiled defaults until an update. |
+//! | **Rotation** | Publish with `next`; ship an app whose `current` is the old `next` with a fresh `next`; retire a key by shipping without it. A file may carry several revocation parts (one per emergency-key generation); a part this app can't verify is skipped, never fatal. A revocation only ever grows the revoked set. |
+//! | **Remote code by stealth** | Section values are checked against compiled controls ([`schema`]); a kill switch can't be turned on, a range can't pass its bounds, a choice must be compiled in. What an app can't read is dropped one value at a time, and kills and compat narrowing always reach older apps. Only an `OffOnly` switch's kill beats the user; an `OnOff` or `Rollout` "off" is a preference. |
 //! | **Tracking on the fetch** | A request type with no field for an id, cookie, account or query; a fixed URL per channel; targeting and buckets evaluated locally from a random id that is never sent ([`target::InstallId`]). `If-None-Match` is off by default (a unique entity tag would work as a cookie). |
-//! | **Outages and bad state** | Missing, invalid, unsigned, expired or oversize files, network errors and a store that can't be written all fall back; a store that can't be *read* fails closed (no remote file is trusted without its rollback floor). |
+//! | **Outages and bad state** | Missing, invalid, unsigned, expired or oversize files and network errors fall back to the last good file or the compiled defaults; a state that can't be saved serves nothing new (its floor wasn't kept), with the daily limit kept in memory; a state that can't be read fails safe to the compiled baseline. |
 //!
-//! **Out of scope.** An attacker who can write the app's own state store or
-//! binary already controls the app. A user's clock set far back revives
-//! nothing below the serial floor, and one set forward only makes files
-//! expire early (compiled defaults).
+//! **Out of scope.** An attacker who can write the app's own state file or
+//! binary already controls the app. Two app processes saving at once are
+//! serialised only by the atomic rename (the app runs one instance).
 
 #![cfg_attr(
     test,
@@ -85,6 +84,17 @@ pub use merge::{Effective, Layer, Resolved, UserChoices, merge};
 pub use schema::{
     Control, LayerValues, Registry, RemoteMode, SectionIssue, SectionSpec, Setting, SettingKey,
 };
-pub use state::{MemoryStore, StateStore, TrustState};
+pub use state::{Baseline, FileStore, MemoryStore, StateStore, TrustState};
 pub use target::{Facts, InstallId, Os};
 pub use version::{Version, VersionRange};
+
+/// Lower-case hex.
+pub(crate) fn hex(bytes: &[u8]) -> String {
+    use std::fmt::Write as _;
+    bytes
+        .iter()
+        .fold(String::with_capacity(bytes.len() * 2), |mut out, b| {
+            let _ = write!(out, "{b:02x}");
+            out
+        })
+}
