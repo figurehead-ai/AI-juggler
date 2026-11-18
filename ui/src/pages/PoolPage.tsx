@@ -21,7 +21,8 @@ import { CanvasTeach, hasWhoIsIn } from "./pool/CanvasTeach";
 import { PaletteMore } from "./pool/PaletteMore";
 import { RuleNodes } from "./pool/RuleNodes";
 import { startNextLead } from "../lib/start-lead";
-import { useMoreCandidates, useRuleLabel, useRuleTool } from "./pool/pool-page-reads";
+import { useMoreCandidates, useRuleLabel, useRuleLogo, useRuleTool } from "./pool/pool-page-reads";
+import { PlannedTeam } from "./pool/PlannedTeam";
 import { ScopeSheet } from "./pool/ScopeSheet";
 import { NewPool } from "../screens/pools/NewPool";
 import { EmptyPoolSetup, SetupSkeleton } from "./pool/EmptyPoolSetup";
@@ -115,6 +116,7 @@ function PoolCanvasPage({ poolId, sessions, projects, accounts, now, rules }: Pa
   const data = useCanvas(poolId, sessions, desktop.refs);
   const ruleLabel = useRuleLabel(accounts, sessions, everyoneOf(pool, projects));
   const ruleTool = useRuleTool(accounts);
+  const ruleLogo = useRuleLogo(accounts);
   const memberRules = rules.rules?.members ?? [];
   const lineRules = useMemo(() => ownLineRules(rules.rules?.talk ?? [], data.canvas?.anchors), [rules.rules, data.canvas?.anchors]);
   const hasRules = hasMemberRules(pool, rules);
@@ -223,6 +225,9 @@ function PoolCanvasPage({ poolId, sessions, projects, accounts, now, rules }: Pa
     onStep: (step) => select({ kind: "pool", focus: step }),
   });
   const { where } = setup;
+  // D-126 §3: before any session joins, the canvas draws the planned team.
+  const broad = drawnRules(pool, memberRules).filter((rule) => rule.kind !== "session" && !rule.member.startsWith("conversation:"));
+  const planned = data.members.length === 0 && desktop.refs.length === 0 && broad.length > 0;
   // D-126 §3: setting up (its checklist, the planned team) until a session
   // has joined and the setup is done, or Hide setup; then the calm view.
   const progress = useSetupProgress({ pool, rows: setup.rows, places: setup.tools, rules, ruleLabel });
@@ -283,7 +288,10 @@ function PoolCanvasPage({ poolId, sessions, projects, accounts, now, rules }: Pa
               }
               overlayRoom={setup.room}
               lineRules={lineRules}
-              overlay={(placeOf) => (
+              overlay={(placeOf, view) =>
+                planned ? (
+                  <PlannedTeam poolId={pool.id} rules={broad} labelOf={ruleLabel} logoOf={ruleLogo} leadNext={setup.leadNext?.ref ?? null} noLead={setup.leadCard} where={where} view={view} selection={selection} onSelect={(next) => select(next, true)} onStartLead={(member) => startNextLead(member, setup.leadDir)} talk={rules.rules?.talk} />
+                ) : (
                 <RuleNodes
                   rules={drawnRules(pool, memberRules)}
                   watched={rules.watched}
@@ -304,7 +312,7 @@ function PoolCanvasPage({ poolId, sessions, projects, accounts, now, rules }: Pa
                 />
               )}
               empty={(paletteOpen, openPalette) =>
-                peopled ? (
+                planned ? null : peopled ? (
                   <p className={"pointer-events-none absolute inset-x-0 bottom-16 text-center text-meta text-ink-2" + (paletteOpen ? " pl-[16.5rem]" : "")} data-testid="canvas-rules-only">
                     {/* Walk K1: sessions in it, none open (no member to click). */}
                     {hasRules ? "Its sessions show here as they start. Click a member for its role and what it may do." : "None of its sessions is open: they show here as they start, and every one is in the List view."}{" "}

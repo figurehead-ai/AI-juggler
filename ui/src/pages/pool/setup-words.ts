@@ -56,3 +56,17 @@ export function leftWords(left: number, toolsLeft: boolean): string {
   if (left === 1) return toolsLeft ? "One thing left before they can talk" : "One thing left";
   return `${left} things left`;
 }
+
+/** The planned team on the diagram, before any session has joined. */
+export const PLANNED = {
+  title: "Your team is drawn. No one has joined yet.",
+  line: (where: string) => `Sessions show up here as they start in ${where}. Click a card to see what it may do.`,
+  leadSub: (where: string) => `Lead · its next session in ${where}`,
+  leadBody: "No session yet. Start one and it takes the lead.",
+  appBody: (where: string) => `Its sessions in ${where} join as they start.`,
+  everyoneSub: "every new session",
+  everyoneBody: "Joins by itself, now and later.",
+  /** An App's kind, as Who's in names it. */
+  appKind: { desktop: "Desktop app", cli: "Terminal" } as const,
+  adding: "Adding…",
+};

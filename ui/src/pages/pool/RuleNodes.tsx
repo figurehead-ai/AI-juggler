@@ -40,9 +40,9 @@ import { FOCUS_RING, SELECTED } from "./selection";
 
 /** A broad member's stack: two cards' edges behind it (surface tone, no
  * border), so it reads as many sessions, not one. */
-const STACK = "shadow-[0_3px_0_-1px_var(--color-surface-3),0_6px_0_-2px_var(--color-surface-2)]";
+export const STACK = "shadow-[0_3px_0_-1px_var(--color-surface-3),0_6px_0_-2px_var(--color-surface-2)]";
 
-const KIND_WORD: Record<string, string> = { app: "App", account: "Account", tool: "Tool", mac: MACHINE_WORD, everyone: "Everyone" };
+export const KIND_WORD: Record<string, string> = { app: "App", account: "Account", tool: "Tool", mac: MACHINE_WORD, everyone: "Everyone" };
 
 /** The member rules drawn as group nodes: an App, Account, Tool, Mac or
  * everyone (a session's own rule is its node). */
@@ -240,7 +240,7 @@ export function RuleNodes({
 /** Whether a desktop member's Add (or Fix) is its way in. */
 /** An App's card: Add its connector, or Fix a changed one (as a
  * session's own card says it), opening the consent card. */
-function ConnectorFix({ info, label, onOpen }: { info: Parameters<typeof reachOf>[0] | undefined; label: string; onOpen: () => void }): JSX.Element | null {
+export function ConnectorFix({ info, label, onOpen }: { info: Parameters<typeof reachOf>[0] | undefined; label: string; onOpen: () => void }): JSX.Element | null {
   const reach = info ? reachOf(info) : null;
   if (reach?.kind !== "watched" || reach.fix === null) return null;
   const word = reach.fix === "add" ? "Add" : "Fix";
