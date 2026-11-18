@@ -55,7 +55,7 @@ describe("round 7 #2: the connector on Who's in's own row", () => {
     Object.assign(window, { __AIJ_PLACES__: undefined });
   });
 
-  it("checked, its row says Watched: can't talk in the pool yet, with Add; Add is the consent card's own preview, then added", async () => {
+  it("checked, one line says it needs the connector, with Preview and add (D-126); one click is the consent card's own preview, Cancel brings the line back, then added", async () => {
     const row: Candidate = { ref: `app:${WORK}`, kind: "app", label: "Claude app · Work Max", detail: "none open now", group: "all", reach: "later", blocked: null, note: DESKTOP_NOTE, lastMs: 0 };
     const candidates = { session: [], app: [row], account: [], tool: [], mac: [], everyone: [] } as Record<MemberKind, Candidate[]>;
     let draft: Draft = { ...draftOf(templateById("blank"), null), members: [] };
@@ -67,16 +67,30 @@ describe("round 7 #2: the connector on Who's in's own row", () => {
     expect((await screen.findByTestId("new-pool-candidate-reach")).textContent).toBe("Watched");
     fireEvent.click(within(screen.getByTestId("new-pool-candidate")).getByRole("checkbox"));
     view.rerender(<NewPoolWho draft={draft} onDraft={(next) => (draft = next)} candidates={candidates} onFix={() => undefined} />);
-    const state = await screen.findByTestId("new-pool-connector-card");
-    expect(within(screen.getByTestId("new-pool-candidate")).getByTestId("new-pool-connector-card")).toBe(state);
-    expect(state.getAttribute("data-state")).toBe("absent");
-    expect(state.textContent).toContain("Watched: can't talk in the pool yet.");
-    expect(state.textContent).toContain("AI Juggler's connector (a small helper AI Juggler adds to an app");
+    // The mock-up's one line, in the App's own element (for screen readers and the tests).
+    const line = await screen.findByTestId("new-pool-connector-line");
+    expect(within(screen.getByTestId("new-pool-candidate")).getByTestId("new-pool-connector").getAttribute("data-state")).toBe("absent");
+    expect(line.textContent).toBe("Claude app · Work Max needs AI Juggler's connector to message the team. You see the exact change before anything is written.");
     expect(screen.queryByTestId("new-pool-candidate-reach")).toBeNull();
-    await act(async () => fireEvent.click(screen.getByTestId("new-pool-connector-card-add")));
+    // One click: the preview and its Add, nothing written yet.
+    await act(async () => fireEvent.click(screen.getByRole("button", { name: "Preview and add" })));
     expect(screen.getByTestId("new-pool-connector-card-preview-sentence").textContent).toContain("This adds a small helper to your Claude app (Work Max)");
-    await act(async () => fireEvent.click(screen.getByTestId("new-pool-connector-card-confirm")));
+    expect(screen.getByRole("button", { name: "Add to Claude app · Work Max" })).toBeTruthy();
+    expect(Reflect.get(window, "__AIJ_CONNECTOR_CALLS__") ?? []).toEqual([]);
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(screen.getByTestId("new-pool-connector-line")).toBeTruthy();
+    await act(async () => fireEvent.click(screen.getByRole("button", { name: "Preview and add" })));
+    await act(async () => fireEvent.click(screen.getByRole("button", { name: "Add to Claude app · Work Max" })));
     expect(screen.getByTestId("new-pool-connector-card-added").textContent).toBe(CONNECTOR.added);
+  });
+
+  it("started on its preview, the card opens there at once, and its Cancel hands back to its owner", async () => {
+    let back = 0;
+    render(<ConnectorCard appId={WORK} app="Claude app · Work Max" startWith="preview" onCancel={() => (back += 1)} testId="c" />);
+    expect(await screen.findByRole("heading", { name: "What AI Juggler writes into Claude app · Work Max" })).toBeTruthy();
+    expect(screen.queryByTestId("c-add")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(back).toBe(1);
   });
 
   it("with the connector in it, the row says it can talk; one that can't take it says why, with no Add", async () => {

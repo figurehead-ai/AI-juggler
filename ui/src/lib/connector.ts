@@ -65,6 +65,12 @@ export const CONNECTOR = {
   showGuide: "Show me how to add it by hand",
   meaning: `AI Juggler's connector is ${CONNECTOR_MEANING}.`,
   showFiles: "Show the files",
+  // D-126: New pool's one-line notice under a chosen App's card.
+  needs: (app: string) => `${app} needs AI Juggler's connector to message the team.`,
+  older: (app: string) => `${app} has an older edition of AI Juggler's connector.`,
+  seeFirst: "You see the exact change before anything is written.",
+  previewAndAdd: "Preview and add",
+  previewAndUpdate: "Preview and update",
 };
 
 /** Home as `~`, so a path reads short (and names no one). */
@@ -87,6 +93,12 @@ export function fileLine(action: string, path: string): string {
     default:
       return `Won't replace ${where}: something AI Juggler didn't write is there`;
   }
+}
+
+/** Changed files by name ("SKILL.md", "plugin.json and SKILL.md"). */
+export function changedWords(paths: readonly string[]): string {
+  const names = paths.map((path) => path.split("/").pop() ?? path);
+  return names.length <= 1 ? (names[0] ?? "a file") : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
 }
 
 /** What Remove deletes, in a line per file. */

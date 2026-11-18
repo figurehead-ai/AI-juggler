@@ -15,12 +15,15 @@
  * - Changed, an older edition's, or a preview that refuses: said, with
  *   what fixes it; can't be added here (the Codex app): why, and that no
  *   guide can do it either.
+ * - D-126: opened by its owner's own "Preview and add" (New pool's
+ *   one-line notice, ConnectorNotice), it starts on its preview, so that
+ *   one click was its Add; Cancel hands back to the owner.
  */
-import { useRef, useState, type JSX, type ReactNode } from "react";
+import { useEffect, useRef, useState, type JSX, type ReactNode } from "react";
 
 import { Button } from "../../../components/primitives";
 import { errorText } from "../../../lib/bridge";
-import { CONNECTOR, CONNECTOR_GUIDE, connectorChanged, previewSentence, shortPath, statusLine, useConnectorStatus } from "../../../lib/connector";
+import { CONNECTOR, CONNECTOR_GUIDE, changedWords, connectorChanged, previewSentence, shortPath, statusLine, useConnectorStatus } from "../../../lib/connector";
 import { Disclosure } from "../../../components/controls";
 import { connectorAdd, connectorPreview, connectorRemove, connectorRemoveAnyway, connectorStatus, type ConnectorPreviewInfo, type ConnectorRemovalInfo, type ConnectorStatusInfo } from "../../../lib/ipc/connector";
 import { trustOpen } from "../../../lib/ipc/trust";
@@ -80,7 +83,13 @@ export function ConnectorCard({
   kind,
   profile,
   compact = false,
+  startWith,
+  onCancel,
 }: {
+  /** "preview": open on its preview at once (its owner's button was the Add). */
+  startWith?: "preview";
+  /** Cancel hands back to its owner instead of the card's resting ask. */
+  onCancel?: () => void;
   /** In a list's row (New pool's Who's in): where it stands in a line,
    * with Add; its preview and after are the card's own. */
   compact?: boolean;
@@ -103,6 +112,8 @@ export function ConnectorCard({
   const [phase, setPhase] = useState<Phase>({ kind: "idle" });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Its preview, read once at the start when its owner's button was the Add.
+  const [opening, setOpening] = useState(startWith === "preview");
   const act = async (work: () => Promise<void>) => {
     setBusy(true);
     setError(null);
@@ -149,7 +160,9 @@ export function ConnectorCard({
         setPhase({ kind: "removed", removal });
       }),
   };
-  if (status === undefined) {
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- once, as it opens
+  useEffect(() => void (opening && actions.review().finally(() => setOpening(false))), []);
+  if (status === undefined || (opening && phase.kind === "idle")) {
     return (
       <p className="text-meta text-muted" data-testid={`${testId}-loading`}>
         Checking {app} for AI Juggler's connector…
@@ -174,7 +187,7 @@ export function ConnectorCard({
     where,
     failed,
     cancel: (
-      <Button size="sm" variant="ghost" disabled={busy} onClick={() => setPhase({ kind: "idle" })} data-autofocus data-testid={`${testId}-cancel`}>
+      <Button size="sm" variant="ghost" disabled={busy} onClick={onCancel ?? (() => setPhase({ kind: "idle" }))} data-autofocus data-testid={`${testId}-cancel`}>
         {CONNECTOR.cancel}
       </Button>
     ),
@@ -368,12 +381,6 @@ function PhaseView({ phase, status, parts, onAdd, onRemove, onRemoveAnyway }: { 
     default:
       return <Removed removal={phase.removal} parts={parts} />;
   }
-}
-
-/** Changed files by name ("SKILL.md", "plugin.json and SKILL.md"). */
-function changedWords(paths: readonly string[]): string {
-  const names = paths.map((path) => path.split("/").pop() ?? path);
-  return names.length <= 1 ? (names[0] ?? "a file") : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
 }
 
 /** What Remove did: all of it out, or what it left, named. */

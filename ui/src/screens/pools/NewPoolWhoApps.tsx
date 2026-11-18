@@ -2,9 +2,9 @@
  * 0.4.6 (D-126): Who's in's Apps as logo cards — Desktop app or
  * Terminal, then the profile, then what's open in the pool's projects
  * now — each ticked into the team. A chosen desktop App that still
- * needs AI Juggler's connector says so right under the cards, on its own
- * row with the consent card's own Add (round 7: asked for before Next,
- * one component on both paths). Under them, the sessions open now that
+ * needs AI Juggler's connector says so right under the cards, in one line
+ * with Preview and add, which opens the consent card's own preview (round
+ * 7: asked for before Next, one component on both paths; D-126's mock). Under them, the sessions open now that
  * the chosen Apps (or everyone) bring in, so nobody wonders.
  *
  * The cards sit in a dense grid: a chosen App's connector row spans the
@@ -16,7 +16,6 @@ import { useState, type JSX } from "react";
 
 import { CheckCard } from "../../components/controls";
 import { Button } from "../../components/primitives";
-import { IconConnect } from "../../components/icons-menu";
 import { IconCheck } from "../../components/icons-controls";
 import { ShellOnlyChip } from "../../components/ShellOnly";
 import type { AppModel } from "../../lib/apps";
@@ -26,7 +25,7 @@ import { shortNames } from "../../lib/pool-values";
 import { APP_KIND_WORDS } from "../../lib/pool-words";
 import { sessionState } from "../../lib/rail-items";
 import type { InstanceInfo } from "../../types/generated/InstanceInfo";
-import { ConnectorCard } from "../../pages/pool/connector/ConnectorCard";
+import { ConnectorNotice } from "../../pages/pool/connector/ConnectorNotice";
 import { DesktopListNote, DesktopReachTag } from "../../pages/pool/connector/DesktopReach";
 import { logoOf, MemberLogo } from "../../components/MemberLogo";
 
@@ -88,15 +87,7 @@ function AppCard({ row, app, on, open, where, onToggle }: { row: Candidate; app:
         )}
         {blocked && <span className="text-label text-ink-2">{row.blocked}</span>}
       </CheckCard>
-      {on && desktop && app && (
-        <div className="col-span-full flex items-start gap-3 rounded-xl bg-surface-2 px-3.5 py-3" data-testid="new-pool-connector">
-          <IconConnect aria-hidden="true" width={16} height={16} className="mt-0.5 shrink-0 text-faint" />
-          <div className="flex min-w-0 flex-1 flex-col gap-1">
-            <p className="text-meta font-medium text-ink">{app.name}</p>
-            <ConnectorCard compact appId={app.id} app={app.name} kind={app.app} profile={app.profile} heading={4} testId="new-pool-connector-card" />
-          </div>
-        </div>
-      )}
+      {on && desktop && app && <ConnectorNotice appId={app.id} app={app.name} kind={app.app} profile={app.profile} testId="new-pool-connector" />}
     </div>
   );
 }

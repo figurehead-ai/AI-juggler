@@ -202,19 +202,21 @@ for (const theme of ["dark", "light"] as const) {
     await page.getByTestId("pools-new").click();
     for (let n = 0; n < 4 && !(await page.getByTestId("new-pool-step-who").isVisible()); n += 1) await page.getByTestId("new-pool-next").click();
     await page.getByRole("radiogroup", { name: "Kind of member" }).getByRole("radio", { name: /^Apps/ }).click();
-    await page.getByTestId("new-pool-candidate").filter({ hasText: "Claude app · Work Max" }).getByRole("checkbox").click();
-    // Round 7 (Casey's worst moment): the App's own row says it can't talk
-    // yet, with Add, before Next.
-    const row = page.getByTestId("new-pool-candidate").filter({ hasText: "Claude app · Work Max" });
-    const state = row.getByTestId("new-pool-connector-card");
-    await expect(state).toHaveAttribute("data-state", "absent");
-    await expect(state).toContainText("Watched: can't talk in the pool yet.");
-    await expect(row.getByTestId("new-pool-connector-card-add")).toBeVisible();
+    // D-126: an App is a logo card (its checkbox in its label), found by its ref.
+    const row = page.locator(`[data-testid="new-pool-candidate"][data-ref="app:${WORK}"]`);
+    await row.locator("label").first().click();
+    await expect(row.getByRole("checkbox")).toBeChecked();
+    // Round 7 (Casey's worst moment), D-126's mock: one line under the App's
+    // card says it needs the connector, with Preview and add, before Next.
+    const notice = row.getByTestId("new-pool-connector");
+    await expect(notice).toHaveAttribute("data-state", "absent");
+    await expect(notice.getByTestId("new-pool-connector-line")).toHaveText("Claude app · Work Max needs AI Juggler's connector to message the team. You see the exact change before anything is written.");
+    await expect(notice.getByRole("button", { name: "Preview and add" })).toBeVisible();
     await axe(page, `new pool ${theme}`);
     await shoot(page, `new-pool-1280x800-${theme}.png`);
 
-    // Add: the consent card's own preview in the row, then added.
-    await row.getByTestId("new-pool-connector-card-add").click();
+    // One click: the consent card's own preview in the row, then added.
+    await notice.getByRole("button", { name: "Preview and add" }).click();
     await expect(page.getByTestId("new-pool-connector-card-preview-sentence")).toContainText("This adds a small helper to your Claude app (Work Max)");
     await page.getByTestId("new-pool-connector-card-confirm").click();
     await expect(page.getByTestId("new-pool-connector-card-added")).toBeVisible();
