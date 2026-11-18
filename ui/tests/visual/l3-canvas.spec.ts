@@ -9,8 +9,9 @@
  * also in 0, 1 or 2 other pools), its role pair Member → Member set as
  * the wizard's grid would; opened from its card on Pools (the canvas
  * chosen where a narrow window opens it as rows). The row's member kind
- * joins from the palette (a session is already there; an App, Account,
- * Tool, Mac or everyone joins later; a session in another app as
+ * joins from the palette, behind Add a member (a session is already
+ * there; an App, Account, Tool, Mac or everyone joins later, drawn as the
+ * planned team while no session has joined; a session in another app as
  * watched). The line between the first two: its rule shown, the pair's
  * ("This line follows it") or set for that line only. Sealing: it says
  * first who leaves which pool, and seals on Seal it; unsealed rows read
@@ -153,6 +154,9 @@ for (const r of ROWS) {
       await act(add);
       await expect(page.getByTestId("canvas-added-toast")).toBeVisible();
       if (r.member === "watched") await expect(page.getByTestId("canvas-watched-node")).toHaveCount(1);
+      // D-126 §3: before any session joins, the diagram draws the planned
+      // team (a card each); once one has, the members' column.
+      else if (r.members === 0) await expect(page.locator(`[data-testid="planned-card"][data-rule-ref]`).first()).toBeVisible();
       else await expect(page.getByTestId("canvas-rule-node").first()).toBeVisible();
       // Folded again, as you would to reach a node under it.
       if ((await fold.getAttribute("aria-expanded")) === "true") await act(fold);
