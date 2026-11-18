@@ -1,0 +1,559 @@
+{
+ "family": "nemotron",
+ "job": "watch",
+ "note": "script flags: candidates for Opus to confirm by eye, never verdicts",
+ "candidates": [
+  {
+   "id": "R2-W02",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "conditions [('asks_you', 0)] != [('asks_you', None)]; lifetime (unsaid; ADR-0036's default) today != once",
+   "stage": "shown",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W03",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime (unsaid; ADR-0036's default) today != once",
+   "stage": "shown",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W04",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime (unsaid; ADR-0036's default) today != once",
+   "stage": "shown",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W05",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model: any session asks me a question",
+   "stage": "shown",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W06",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime (unsaid; ADR-0036's default) today != once",
+   "stage": "shown",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W07",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime (unsaid; ADR-0036's default) today != once",
+   "stage": "shown",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W08",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "observes: starts a new session (Alert rules)",
+   "stage": "shown",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W09",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model: tonight",
+   "stage": "shown",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W11",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "cue net: say",
+   "stage": "shown",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W12",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model: through Sunday",
+   "stage": "shown",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W13",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "conditions [('asks_you', 0)] != [('asks_you', None)]; lifetime (unsaid; ADR-0036's default) today != once",
+   "stage": "shown",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W15",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "conditions [('finishes', None), ('idle_for', 5)] != [('finishes', None)]; lifetime (unsaid; ADR-0036's default) today != once",
+   "stage": "shown",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W16",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model: break through quiet hours",
+   "stage": "shown",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W18",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime (unsaid; ADR-0036's default) today != once",
+   "stage": "shown",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W30",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime (unsaid; ADR-0036's default) today != once",
+   "stage": "shown",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W31",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime (unsaid; ADR-0036's default) today != once",
+   "stage": "shown",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W32",
+   "class": "omission",
+   "detector": "no_watch",
+   "detail": "shown form",
+   "stage": "shown",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W33",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime (unsaid; ADR-0036's default) today != once",
+   "stage": "shown",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W34",
+   "class": "omission",
+   "detector": "no_watch",
+   "detail": "shown form",
+   "stage": "shown",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W35",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime until_time:15:00 != today",
+   "stage": "shown",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W36",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "target [('session', 's-wetter')] != ('app', 'app-cursor'); conditions [('finishes', None)] != [('ends', None)]",
+   "stage": "shown",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W37",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model: nicht in der Ruhezeit bitte",
+   "stage": "shown",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W38",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime (unsaid; ADR-0036's default) today != always",
+   "stage": "shown",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W39",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model: Inventur",
+   "stage": "shown",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W46",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime (unsaid; ADR-0036's default) today != once",
+   "stage": "shown",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W48",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model: avísame",
+   "stage": "shown",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W49",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model: klaar",
+   "stage": "shown",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W50",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model: seulement aujourd'hui",
+   "stage": "shown",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W51",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime until_time:17:00 != today",
+   "stage": "shown",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W52",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime today != once",
+   "stage": "shown",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W53",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model: la tienda falla",
+   "stage": "shown",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W54",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime (unsaid; ADR-0036's default) today != once",
+   "stage": "shown",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W56",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime (unsaid; ADR-0036's default) today != once",
+   "stage": "shown",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W05",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s1 “Label printer fix” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W05",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s2 “Album sorting” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W05",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s3 “Playlist import” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W05",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s5 “Webhook retries” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W05",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s6 “Archive pruning” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W26",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s1 “Label printer fix” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W34",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s1 “Monatsabschluss” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W34",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s2 “Haltestellen-Suche” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W34",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s3 “Inventur-Export” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W34",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s4 “Bilder skalieren” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W34",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s5 “Prognose-Cache” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W34",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "invented",
+   "detail": "invented: unsupported_asked is not the request's words (2b: content word(s) not in the text: etwas)",
+   "stage": "caught",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W34",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "invented",
+   "detail": "invented: unsupported_asked is not the request's words (2b: content word(s) not in the text: etwas)",
+   "stage": "caught",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W41",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s4 “Bilder skalieren” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W41",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s1 “Monatsabschluss” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W41",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s2 “Haltestellen-Suche” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W41",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s3 “Inventur-Export” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W41",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s4 “Bilder skalieren” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W41",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s5 “Prognose-Cache” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W41",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s1 “Monatsabschluss” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W41",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s2 “Haltestellen-Suche” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W41",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s3 “Inventur-Export” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W41",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s4 “Bilder skalieren” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W41",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s5 “Prognose-Cache” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W43",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: acct1 “Büro” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W43",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: acct1 “Büro” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W43",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: acct1 “Büro” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W48",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s1 “Relances clients” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W48",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s2 “Géocodage” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W48",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s3 “Carrito de compra” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W48",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s4 “Mapa offline” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5r2"
+  },
+  {
+   "id": "R2-W48",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s5 “BTW-aangifte” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5r2"
+  }
+ ]
+}

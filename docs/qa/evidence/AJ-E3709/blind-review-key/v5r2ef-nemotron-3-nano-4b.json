@@ -1,0 +1,146 @@
+[
+ {
+  "pair": "digest5r2-digest-001",
+  "job": "digest",
+  "first": "model",
+  "second": "non-AI"
+ },
+ {
+  "pair": "digest5r2-digest-002",
+  "job": "digest",
+  "first": "model",
+  "second": "non-AI"
+ },
+ {
+  "pair": "digest5r2-digest-003",
+  "job": "digest",
+  "first": "non-AI",
+  "second": "model"
+ },
+ {
+  "pair": "digest5r2-digest-004",
+  "job": "digest",
+  "first": "model",
+  "second": "non-AI"
+ },
+ {
+  "pair": "digest5r2-digest-005",
+  "job": "digest",
+  "first": "non-AI",
+  "second": "model"
+ },
+ {
+  "pair": "digest5r2-digest-006",
+  "job": "digest",
+  "first": "non-AI",
+  "second": "model"
+ },
+ {
+  "pair": "digest5r2-digest-007",
+  "job": "digest",
+  "first": "non-AI",
+  "second": "model"
+ },
+ {
+  "pair": "digest5r2-digest-008",
+  "job": "digest",
+  "first": "non-AI",
+  "second": "model"
+ },
+ {
+  "pair": "digest5r2-digest-009",
+  "job": "digest",
+  "first": "model",
+  "second": "non-AI"
+ },
+ {
+  "pair": "digest5r2-digest-010",
+  "job": "digest",
+  "first": "model",
+  "second": "non-AI"
+ },
+ {
+  "pair": "digest5r2-digest-011",
+  "job": "digest",
+  "first": "non-AI",
+  "second": "model"
+ },
+ {
+  "pair": "digest5r2-digest-012",
+  "job": "digest",
+  "first": "model",
+  "second": "non-AI"
+ },
+ {
+  "pair": "digest5r2-digest-013",
+  "job": "digest",
+  "first": "non-AI",
+  "second": "model"
+ },
+ {
+  "pair": "digest5r2-digest-014",
+  "job": "digest",
+  "first": "non-AI",
+  "second": "model"
+ },
+ {
+  "pair": "digest5r2-digest-015",
+  "job": "digest",
+  "first": "non-AI",
+  "second": "model"
+ },
+ {
+  "pair": "digest5r2-digest-016",
+  "job": "digest",
+  "first": "non-AI",
+  "second": "model"
+ },
+ {
+  "pair": "digest5r2-digest-017",
+  "job": "digest",
+  "first": "model",
+  "second": "non-AI"
+ },
+ {
+  "pair": "digest5r2-digest-018",
+  "job": "digest",
+  "first": "model",
+  "second": "non-AI"
+ },
+ {
+  "pair": "digest5r2-digest-019",
+  "job": "digest",
+  "first": "non-AI",
+  "second": "model"
+ },
+ {
+  "pair": "digest5r2-digest-020",
+  "job": "digest",
+  "first": "model",
+  "second": "non-AI"
+ },
+ {
+  "pair": "digest5r2-digest-021",
+  "job": "digest",
+  "first": "non-AI",
+  "second": "model"
+ },
+ {
+  "pair": "digest5r2-digest-022",
+  "job": "digest",
+  "first": "non-AI",
+  "second": "model"
+ },
+ {
+  "pair": "digest5r2-digest-023",
+  "job": "digest",
+  "first": "non-AI",
+  "second": "model"
+ },
+ {
+  "pair": "digest5r2-digest-024",
+  "job": "digest",
+  "first": "model",
+  "second": "non-AI"
+ }
+]
