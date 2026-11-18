@@ -58,3 +58,5 @@ ui/test-results/
 ui/playwright-report/
 # AJ-E804: per-test axe scans; axe_summary.py commits the combined file.
 docs/qa/evidence/AJ-E804/axe/
+# AJ-E1612: lab_drive's input ledger (its own keys' moments; the run's log beside it is evidence)
+docs/qa/evidence/**/drive-log/*.input.json

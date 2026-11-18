@@ -148,6 +148,15 @@
 //   lab-b-session TOOL APP PROJECT
 //                                 new-session on lab B; prints what Dev says instead
 //
+// THE RUN'S LOG. Every command appends its own lines (the command, each
+// primitive, PAUSED/RESUMED/ACTIVATED/MOVED/HEARTBEAT/STOPPED/WAITING,
+// EVIDENCE/STATE, its exit) with the UTC time to
+// $AIJ_DRIVE_LOG_DIR (default: AIJ_DRIVE_OUT/drive-log)/lab_drive-<run>.log,
+// <run> being AIJ_DRIVE_RUN or Dev's launch time and pid; the input ledger
+// sits beside it. Never a shared /tmp path (dry run 3's log was deleted
+// mid-run by another process). Typed words are kept only by their count,
+// and Dev's page content (read, texts, buttons) is printed, never kept.
+//
 // Exit: 0 done, 2 usage, 3 the guard stopped it (nothing sent), 4 not
 // found / ambiguous (nothing sent), 5 timed out waiting, 6 new input at the
 // Mac after Dev was brought forward (nothing more sent; opportunistic: Dev's
@@ -160,10 +169,50 @@ import Vision
 
 // MARK: - plain helpers
 
-func say(_ text: String) { print(text); fflush(stdout) }
+/// The run's log (`runFile(pid, ".log")`), appended to by every command
+/// of the run; nil: none (a selftest, or it couldn't be opened).
+var logFile: FileHandle?
+
+/// The driver's own line: printed, and kept in the run's log.
+func say(_ text: String) { print(text); fflush(stdout); record(text) }
+
+/// Dev's page content (`read`, `texts`, `buttons`): printed only, never
+/// kept in the log (a terminal's picture can show a sign-in code).
+func show(_ text: String) { print(text); fflush(stdout) }
+
+/// A line as the log keeps it (pure: the selftest): typed words only by
+/// their count (`» type (12 characters)`), stamped with the UTC time.
+func logged(_ text: String, at: Double) -> String {
+    var line = text
+    if line.hasPrefix("» type \"") {
+        let inner = line.dropFirst("» type \"".count)
+        let typed = inner.hasSuffix("\" + return") ? inner.dropLast("\" + return".count) : inner.hasSuffix("\"") ? inner.dropLast() : inner
+        line = "» type (\(characters(typed.count)))" + (inner.hasSuffix(" + return") ? " + return" : "")
+    }
+    return "\(utc(at)) \(line)"
+}
+
+func record(_ text: String) {
+    guard let logFile else { return }
+    logFile.write((logged(text, at: Date().timeIntervalSince1970) + "\n").data(using: .utf8)!)
+}
+
+func characters(_ n: Int) -> String { n == 1 ? "1 character" : "\(n) characters" }
+
+/// The command line as the log keeps it (pure: the selftest): the words
+/// of `type` and `send` only by their count.
+func runLine(_ args: [String]) -> String {
+    guard let command = args.first else { return "RUN (no command)" }
+    let rest = Array(args.dropFirst())
+    let words = ["type", "send"].contains(command)
+        ? "(\(characters(parse(rest).positional.joined(separator: " ").count)))"
+        : rest.map { $0.contains(" ") ? "\"\($0)\"" : $0 }.joined(separator: " ")
+    return "RUN \(command) \(words)".trimmingCharacters(in: .whitespaces)
+}
 
 func stop(_ code: Int32, _ message: String) -> Never {
     FileHandle.standardError.write("lab_drive: \(message)\n".data(using: .utf8)!)
+    record("EXIT \(code) \(message)")
     exit(code)
 }
 
@@ -1244,9 +1293,9 @@ func listTexts(_ pid: pid_t, within: [String], pressable: Bool) {
         if pressable {
             guard pressRoles.contains(n.role) || fieldRoles.contains(n.role) else { continue }
             let title = n.label.isEmpty ? descendants(nodes, i, levels: 3).filter { nodes[$0].role == "AXStaticText" }.map { nodes[$0].words }.joined(separator: " ") : n.label
-            say("\(n.role)\t\"\(title)\"")
+            show("\(n.role)\t\"\(title)\"")
         } else if !n.words.isEmpty || !n.value.isEmpty {
-            say("\(String(repeating: " ", count: min(n.depth, 30)))\(n.role)\t\(n.label)\t\(n.value)")
+            show("\(String(repeating: " ", count: min(n.depth, 30)))\(n.role)\t\(n.label)\t\(n.value)")
         }
     }
 }
@@ -1801,6 +1850,13 @@ func activationSelftest() -> [String] {
         w.inputAt = w.t; w.t += 0.3
         if gate(step: "send", may: true, activatedAt: &at, mac: mac(w), limit: 60) != .inputStopped { failures.append("own keys after ACTIVATED: the person's key didn't stop it") }
     }
+    // The run's log: typed words by their count only, every line stamped.
+    if logged("» type \"reply with the word lab\" + return", at: 0) != "1970-01-01T00:00:00Z » type (23 characters) + return" { failures.append("log: a send's line \(logged("» type \"reply with the word lab\" + return", at: 0))") }
+    if logged("» type \"2\"", at: 0) != "1970-01-01T00:00:00Z » type (1 character)" { failures.append("log: a type's line \(logged("» type \"2\"", at: 0))") }
+    if logged("PAUSED x", at: 0) != "1970-01-01T00:00:00Z PAUSED x" { failures.append("log: a plain line") }
+    if runLine(["send", "reply with the word lab", "--field", "Message"]) != "RUN send (23 characters)" || runLine(["send", "reply with the word lab"]) != "RUN send (23 characters)" { failures.append("log: the send command line \(runLine(["send", "reply with the word lab"]))") }
+    if runLine(["type", "secret"]).contains("secret") { failures.append("log: typed words in the command line") }
+    if runLine(["press", "Sign in to Kimi Code CLI · lab A", "--row", "x"]) != "RUN press \"Sign in to Kimi Code CLI · lab A\" --row x" { failures.append("log: a press's command line \(runLine(["press", "Sign in to Kimi Code CLI · lab A", "--row", "x"]))") }
     // The run's name: given (cleaned), else Dev's launch and pid.
     if runName(given: "dry-run 4/x", pid: 7, launched: nil) != "dry-run4x" { failures.append("run name: given \(runName(given: "dry-run 4/x", pid: 7, launched: nil))") }
     if runName(given: nil, pid: 80373, launched: Date(timeIntervalSince1970: 1_795_000_000)) != "dev80373-20261118T110640Z" {
@@ -2087,6 +2143,19 @@ step = command
 let pid = devPid()
 ledgerFile = runFile(pid, ".input.json")
 loadLedger()
+// The run's log, in the run's own folder, appended to by each command.
+do {
+    let file = runFile(pid, ".log")
+    let fm = FileManager.default
+    let fresh = !fm.fileExists(atPath: file.path)
+    try? fm.createDirectory(at: runDir, withIntermediateDirectories: true)
+    if fresh { fm.createFile(atPath: file.path, contents: nil) }
+    logFile = try? FileHandle(forWritingTo: file)
+    _ = try? logFile?.seekToEnd()
+    if logFile == nil { FileHandle.standardError.write("lab_drive: the run's log \(file.path) couldn't be opened; going on without it\n".data(using: .utf8)!) }
+    if fresh { print("LOG \(file.path)") }
+    record(runLine(args) + " (dev pid \(pid), driver pid \(getpid()))")
+}
 func need(_ n: Int, _ usage: String) { if o.positional.count < n { stop(2, usage) } }
 
 switch command {
@@ -2108,7 +2177,7 @@ case "key":
     say("» key \(o.positional[0])" + (o.repeatCount > 1 ? " ×\(o.repeatCount)" : ""))
     for _ in 0..<o.repeatCount { pressKey(pid, o.positional[0]) }
 case "wait": need(1, "wait TEXT [--timeout S] [--ocr] [--gone]"); waitFor(pid, o.positional[0], timeout: o.timeout, ocr: o.ocr, gone: o.gone)
-case "read": screenWords(pid, ocr: o.ocr).forEach { say($0) }
+case "read": screenWords(pid, ocr: o.ocr).forEach { show($0) }
 case "shot": shot(pid, o)
 case "sign-in": need(1, "sign-in APP (its full name, e.g. \"OpenCode CLI · lab A\")"); signIn(pid, app: o.positional.joined(separator: " "))
 case "read-label": need(1, "read-label APP"); readLabel(pid, app: o.positional[0])
@@ -2131,3 +2200,4 @@ case "lab-b-session":
     listTexts(pid, within: ["New session"], pressable: false)
 default: stop(2, "unknown command \(command)")
 }
+record("EXIT 0")
