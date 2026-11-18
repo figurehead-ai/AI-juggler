@@ -15,7 +15,8 @@ The safety rules are gate.py's (eval-3, frozen at 7acec4f50, imported, never edi
              the facts in the drafts; caveats the model dropped before the composer; what would be shown (written or the baseline)
   attention  never-lowers violations (must be 0); 'facts_given' false alarms on calm items; 'facts_hidden' misses on loud items and
              false alarms on calm ones, against the deterministic baseline on the same items; evidence found word for word
-  chat       the drafts; refs not issued; the answer check's failures by kind; "I don't know" on unanswerable questions; out of
+  chat       the drafts; refs not issued; the answer check's failures by kind (claims the nearby-question guard drops among them);
+             "I don't know" shown on unanswerable questions (and the drafts' own covered=no rate beside it); out of
              scope recognised; the cited refs against the known answer; what would be shown (an answer or the found rows)
 Rows that need eyes (blind FAILs and the preference counts) come from --packets: shuffled pairs and a separate key."""
 import argparse, hashlib, json, os, random, re, statistics, sys
@@ -197,6 +198,7 @@ def report_chat(recs, chat_by_id):
         ci = r.get("chat_item") or chat_by_id[r["id"]]; parsed.append(fields_of(r, jobs.chat_schema([x["ref"] for x in ci["rows"]])))
     out = {"draft": draft_stats(recs, parsed), "repeats": repeats(recs)}; rows = []
     must_n = must_ok = forb = 0; notissued = passing = acting = inv = 0; kinds = Counter(); unans = idk = oos = oos_ok = ans = answered = 0; rec_hit = prec_n = prec_ok = 0; shown_ans = 0
+    idk_draft = dropped_claims = saved = 0; drop_kinds = Counter()
     for r, (f, hard, _s) in zip(recs, parsed):
         ci = r.get("chat_item") or chat_by_id[r["id"]]; gold = ci.get("gold") or {}     # the item as asked (a sweep subset builds other sets)
         obj, _ = jobs.parse_fields(r.get("text")); obj = jobs.unmark_fields(obj) if obj else None
@@ -204,11 +206,17 @@ def report_chat(recs, chat_by_id):
             issued = {x["ref"] for x in ci["rows"]}
             if any(c not in issued for p in obj["parts"] if isinstance(p, dict) for c in (p.get("cites") or [])): notissued += 1
         o = jobs.chat_outcome(ci, f)
-        if f is not None and not o["errors"]: passing += 1
+        if f is not None and not o["errors"] and not o["dropped"]: passing += 1
         for e in o["errors"]: kinds[kind_of_error(e) if "invented ref" not in e else "invented ref"] += 1
+        for _i, why in o["dropped"]:
+            dropped_claims += 1; k = "off the question: " + re.sub(r"^states \w+, the question asks \w+.*", "states not what was asked", why)
+            k = re.sub(r"\b(duration|count|when|status|cost|who|which|what_changed|why|where|other)\b", "<kind>", k); kinds[k] += 1; drop_kinds[k] += 1
         cov = (f or {}).get("covered")
         if gold.get("out_of_scope"): oos += 1; oos_ok += cov == "out_of_scope"
-        elif not gold.get("answerable"): unans += 1; idk += cov == "no"
+        elif not gold.get("answerable"):
+            # what the app shows decides (ADR-0034: the app, not the model, writes "I don't know"): no written answer and no scope line
+            unans += 1; idk += o["kind"] in ("not_sure", "dont_know"); idk_draft += cov == "no"
+            saved += cov in ("yes", "partly") and bool(o["dropped"]) and not o["errors"] and o["kind"] != "answer"
         else:
             ans += 1; answered += o["kind"] == "answer"
             cites = {c for p in (f or {}).get("parts") or [] for c in p.get("cites", [])}
@@ -216,16 +224,17 @@ def report_chat(recs, chat_by_id):
             rec_hit += bool(cites & set(gold.get("refs") or []))
         if o["kind"] == "answer":
             shown_ans += 1; acting += bool(jobs.ACTING.search(o["text"]))
-            for p in f["parts"]:
+            for p in o["parts"]:                                         # the claims shown, after the guard
                 src = ci["question"] + "\n" + "\n".join(jobs._row_text(x) for x in ci["rows"] if x["ref"] in p["cites"])
                 inv += not gate.step2_v3(src, p["text"], None)[0]
         if gold.get("answer_must") and o["kind"] == "answer":
             must_n += len(gold["answer_must"]); must_ok += sum(1 for m in gold["answer_must"] if m.lower() in o["text"].lower())
         if forbidden_hit({"gold": gold}, [o["text"]] + flat_strings(f or {})): forb += 1
         rows.append({"id": r["id"], "rep": r["rep"], "question": ci["question"], "kind": o["kind"], "text": o["text"], "refs": o["refs"],
-                     "rows": [jobs._row_text(x).strip() for x in ci["rows"]], "errors": o["errors"][:6], "gold": gold})
+                     "rows": [jobs._row_text(x).strip() for x in ci["rows"]], "errors": o["errors"][:6], "dropped": o["dropped"], "notes": o["notes"], "gold": gold})
     out.update({"refs_not_issued_in_drafts": notissued, "drafts_passing_the_check_pct": pct(passing, len(recs)), "failure_kinds": kinds.most_common(12),
-                "unanswerable": unans, "i_dont_know_pct": pct(idk, unans), "out_of_scope": oos, "out_of_scope_recognised_pct": pct(oos_ok, oos),
+                "unanswerable": unans, "i_dont_know_pct": pct(idk, unans), "drafts_covered_no_on_unanswerable_pct": pct(idk_draft, unans),
+                "unanswerable_saved_by_the_guard": saved, "claims_dropped_off_the_question": dropped_claims, "drop_kinds": drop_kinds.most_common(8), "out_of_scope": oos, "out_of_scope_recognised_pct": pct(oos_ok, oos),
                 "answerable": ans, "written_answers_on_answerable_pct": pct(answered, ans), "cites_within_the_known_answer_pct": pct(prec_ok, prec_n),
                 "cites_hit_the_known_answer_pct": pct(rec_hit, ans), "answers_shown": shown_ans,
                 "gold_answer_must_mentioned_pct": pct(must_ok, must_n), "gold_forbidden_hits": forb})

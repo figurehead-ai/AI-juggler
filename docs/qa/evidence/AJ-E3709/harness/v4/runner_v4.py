@@ -47,7 +47,8 @@ class Probe:
 
 class Fake:
     """no model: deterministic drafts that exercise every path of the report: good fields built from the text, a dropped caveat, an
-    invented number, a cut (unparseable) answer, a value outside the enum, a paraphrased quote, an invented ref, an acting claim"""
+    invented number, a cut (unparseable) answer, a value outside the enum, a paraphrased quote, an invented ref, an acting claim,
+    a Chat claim off the question (a duration for a status question)"""
     h = {"hello": True, "protocol": 3, "extensions": ["fields", "sampling"], "available": "fake"}
     hello = json.dumps(h)
     def call(s, req):
@@ -79,14 +80,18 @@ class Fake:
         return {"text": text, "finish": "length" if k == 3 else "stop", "out_tokens": len(text) // 4, "refused": False,
                 "retried_permissive": False, "error": "", "latency_ms": 1, "gen_ms": 1}
     def _chat(s, req, k):
-        refs = req["refs"]; q = req["question"]
-        if "function" in q: return {"covered": "out_of_scope", "parts": []}
-        if "cost" in q: return {"covered": "no", "parts": []}
+        refs = req["refs"]; q = req["question"]; asks = jobs.question_asks(q) or "other"
+        head = {"asks_about": asks, "subject": "none"}
+        def claim(text, cites, states=None, **h): return {**head, **h, "covered": "yes", "parts": [{"states": states or asks, "text": text, "cites": cites}]}
+        if "function" in q: return {"asks_about": "other", "subject": "none", "covered": "out_of_scope", "parts": []}
+        if "cost" in q: return {**head, "covered": "no", "parts": []}
         r = refs[0]
-        if k == 1: return {"covered": "yes", "parts": [{"text": "The session finished and all tests passed.", "cites": [r]}]}
-        if k == 2: return {"covered": "yes", "parts": [{"text": "I restarted the session.", "cites": [r]}]}
-        if k == 5: return {"covered": "yes", "parts": [{"text": "The session ended.", "cites": ["r9"]}]}
-        return {"covered": "yes", "parts": [{"text": "The session's state is in the record.", "cites": [r]}]}
+        if k == 1: return claim("The session finished and all tests passed.", [r])
+        if k == 2: return claim("I restarted the session.", [r])
+        if k == 4: return claim("The session took 52 min.", [r], "duration", asks_about="status",   # a nearby fact: the guard drops it
+                                subject=q.rstrip("?").split(" ", 1)[-1][:60])
+        if k == 5: return claim("The session ended.", ["r9"])
+        return claim("The session's state is in the record.", [r], "other")
     def pid(s): return None
     def close(s): pass
 
