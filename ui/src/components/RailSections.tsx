@@ -23,6 +23,7 @@ import { SectionHead, ToReviewCaption } from "./PlaceBoardParts";
 import { NeedRow } from "./PlaceRows";
 import { SELECTED } from "./controls/selected";
 import { loudLines } from "../lib/needs-order";
+import { useMessageAbout } from "../lib/ipc/messages";
 
 const ENDED = new Set(["finished", "stopped", "failed", "handed_over"]);
 
@@ -150,6 +151,7 @@ export function NeedsYouSection({ rows, sessions, projects, onSelect, ...props }
   const { needOf, rows: needs } = useBackendNeeds();
   const seen = useSeen();
   const actions = useNoticeActions(sessions);
+  const about = useMessageAbout(); // D-118: an agent's message, subject first
   const [open, setOpen] = useState(true);
   const asking = outside(all).filter((c) => asksYou(c) && needOf.has(`c:${c.account_id}/${c.id}`));
   const others = needs.filter((row) => !needOf.has(row.subject));
@@ -168,7 +170,7 @@ export function NeedsYouSection({ rows, sessions, projects, onSelect, ...props }
   const needRow = (item: (typeof items)[number]) => (
     <NeedRow key={item.key} item={item} selected={props.selectedId === (item.session?.id ?? item.conversation?.id)} onSelect={onSelect} now={props.now} compact={props.density === "compact"} />
   );
-  const noticeRow = (notice: (typeof others)[number]) => <RailNoticeRow key={notice.subject} notice={notice} now={props.now} onOpen={actions.primary} canHandOver={actions.canHandOver(notice)} />;
+  const noticeRow = (notice: (typeof others)[number]) => <RailNoticeRow key={notice.subject} notice={notice} now={props.now} onOpen={actions.primary} canHandOver={actions.canHandOver(notice)} about={about.get(notice.subject ?? "")} />;
   return (
     <section aria-label="Needs you" data-testid="rail-needs-you" className="mb-1 flex flex-col gap-0.5">
       <SectionHead id="needs" testId={null} count={count} level={level} broken={broken} open={open} onToggle={() => setOpen((now) => !now)} />

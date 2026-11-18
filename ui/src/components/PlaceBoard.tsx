@@ -43,6 +43,7 @@ import { isSnoozed, type SnoozeState } from "../lib/railview";
 import { useBackendNeeds } from "../lib/needs-you";
 import { useNoticeActions } from "../lib/notice-actions";
 import { RailNoticeRow } from "./RailNoticeRow";
+import { useMessageAbout } from "../lib/ipc/messages";
 import { useSeen } from "../lib/seen";
 import { onLine, roveKey } from "../lib/roving";
 import { useRailAccountOf } from "../lib/rail-accounts";
@@ -79,6 +80,7 @@ export function PlaceBoard({ sessions, projects, accounts, snooze, now, selected
   // D-49: Needs you is the backend's: its sessions, and the rest beside.
   const needsNow = useBackendNeeds();
   const actions = useNoticeActions(sessions);
+  const about = useMessageAbout(); // D-118: an agent's message, subject first
   const pins = useMemo(() => new Set(order.pins), [order.pins]);
   const items = useMemo(
     () => itemsOf({ sessions, conversations: all, projects, seen, snoozed: (row) => isSnoozed(row, snooze, now), pins, needOf: needsNow.needOf }),
@@ -286,7 +288,7 @@ export function PlaceBoard({ sessions, projects, accounts, snooze, now, selected
       case "need":
         return <NeedRow item={line.item} selected={selectedId === (line.item.session?.id ?? line.item.conversation?.id)} onSelect={onSelect} now={now} compact={compact} />;
       case "notice":
-        return <RailNoticeRow notice={line.notice} now={now} onOpen={actions.primary} canHandOver={actions.canHandOver(line.notice)} />;
+        return <RailNoticeRow notice={line.notice} now={now} onOpen={actions.primary} canHandOver={actions.canHandOver(line.notice)} about={about.get(line.notice.subject ?? "")} />;
       case "header": {
         const group = line.group;
         const known = knownOf(group);

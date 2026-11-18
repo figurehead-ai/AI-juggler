@@ -38,7 +38,42 @@ function useWraps(): [RefObject<HTMLSpanElement | null>, boolean] {
   return [ref, wraps];
 }
 
-export function RailNoticeRow({ notice, now, onOpen, canHandOver }: { notice: NoticeInfo; now: number; onOpen: (notice: NoticeInfo) => void; canHandOver: boolean }): JSX.Element {
+/** An agent's message, subject first (D-118's mock, round 3), as a
+ * session's need row reads: "Export flow", then "builder-1 asks you" in
+ * its level's colour, then "Release pool". */
+function AboutRow({ notice, about, onOpen }: { notice: NoticeInfo; about: { subject: string; context: string }; onOpen: (notice: NoticeInfo) => void }): JSX.Element {
+  const level = noticeLevel(notice);
+  const tone = level >= 2 ? "font-semibold " + levelTone(level).text : "text-muted";
+  return (
+    <button
+      type="button"
+      data-rail-item={`notice:${notice.subject}`}
+      data-testid="rail-notice"
+      data-kind={notice.kind}
+      data-level={level}
+      data-about="subject"
+      onClick={() => onOpen(notice)}
+      title={`${about.subject} — ${notice.title} — ${about.context}`}
+      className="flex h-[62px] w-full min-w-0 items-start gap-2.5 rounded-lg pb-2.5 pl-2.5 pr-2 pt-2 text-left outline-none transition-colors hover:bg-surface/60 focus-visible:ring-1 focus-visible:ring-accent/60"
+    >
+      <span className="sr-only">{[notice.title, about.subject, about.context].join(", ")}</span>
+      {/* The row's mark: a neutral 6 px dot where a session's row has its App's (an agent has no App). */}
+      <span aria-hidden="true" className="mt-[6px] size-1.5 shrink-0 rounded-full bg-surface-3 ring-1 ring-hairline" />
+      <span aria-hidden="true" className="flex min-w-0 flex-1 flex-col">
+        <span className="truncate text-meta font-semibold leading-[18px] text-ink" data-testid="rail-notice-title">{about.subject}</span>
+        <span className={"truncate text-label leading-4 " + tone} data-testid="rail-notice-action">{notice.title}</span>
+        <span className="truncate text-label leading-4 text-muted" data-testid="rail-notice-line">{about.context}</span>
+      </span>
+    </button>
+  );
+}
+
+export function RailNoticeRow({ notice, now, onOpen, canHandOver, about = null }: { notice: NoticeInfo; now: number; onOpen: (notice: NoticeInfo) => void; canHandOver: boolean; about?: { subject: string; context: string } | null }): JSX.Element {
+  if (about) return <AboutRow notice={notice} about={about} onOpen={onOpen} />;
+  return <TitledRow notice={notice} now={now} onOpen={onOpen} canHandOver={canHandOver} />;
+}
+
+function TitledRow({ notice, now, onOpen, canHandOver }: { notice: NoticeInfo; now: number; onOpen: (notice: NoticeInfo) => void; canHandOver: boolean }): JSX.Element {
   const line = needLine(notice, now);
   const action = primaryWords(notice, canHandOver);
   // A long title takes the detail's line (the row's height is fixed:

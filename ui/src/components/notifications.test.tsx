@@ -366,6 +366,22 @@ it("a pool member's question: the title is the mark, no bare Open, its pool once
   view.unmount();
 });
 
+// D-118's mock (round 3): with what it's about known (its thread, its
+// pool), the row is subject first, as a session's need row: "Export
+// flow", then "builder-1 asks you" in amber, then "Release pool".
+it("a pool member's question, subject first: its thread, then who asks (amber), then its pool", async () => {
+  const { RailNoticeRow } = await import("./RailNoticeRow");
+  const asked = notice({ id: 11, kind: "message", needs: true, unread: true, title: "builder-1 asks you", detail: "Release pool · «Export flow»", action: "pool" });
+  const view = render(<RailNoticeRow notice={asked} now={Date.now()} onOpen={() => undefined} canHandOver={false} about={{ subject: "Export flow", context: "Release pool" }} />);
+  expect(view.getByTestId("rail-notice-title").textContent).toBe("Export flow");
+  expect(view.getByTestId("rail-notice-action").textContent).toBe("builder-1 asks you");
+  expect(view.getByTestId("rail-notice-action").className).toContain("text-warning");
+  expect(view.getByTestId("rail-notice-line").textContent).toBe("Release pool");
+  // Its name says who asks first (the need), then about what and where.
+  expect(view.getByRole("button").textContent).toContain("builder-1 asks you, Export flow, Release pool");
+  view.unmount();
+});
+
 // The rc19 walk: a held message's row read "«Untitled session · r3-tools
 // started 01:15 PM» wants t…", and its reason (Ask first) was out of
 // sight. A title on two lines keeps the reason; only a bare "Open" gives
