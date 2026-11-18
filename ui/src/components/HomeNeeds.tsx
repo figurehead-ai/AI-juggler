@@ -215,7 +215,7 @@ function NeedCardOf({ need, first, now, bubble, keys, run }: { need: HomeNeed; f
                       <span data-testid="need-asks">: “{asks}”</span>
                     ) : (
                       // D-96 A: its app said it asks, never what.
-                      <span className="text-muted" data-testid="need-asks"> — its app doesn't say what; open it to see</span>
+                      <span className="text-muted" data-testid="need-asks"> — open it to see what it asks</span>
                     ))}
                 </span>
               </>

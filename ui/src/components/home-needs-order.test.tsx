@@ -51,7 +51,7 @@ describe("Needs you now: one card each, the one waiting longest first", () => {
     expect(cards[0]!.querySelector("button[aria-keyshortcuts='Enter']")?.textContent).toContain("Open its page");
     expect(cards[1]!.querySelector("button[aria-keyshortcuts='Enter']")).toBeNull();
     // What the session asks, said honestly when its tool didn't say.
-    expect(cards[0]!.querySelector("[data-testid='need-asks']")?.textContent).toContain("open it to see");
+    expect(cards[0]!.querySelector("[data-testid='need-asks']")?.textContent).toBe(" — open it to see what it asks");
     expect(cards[1]!.querySelector("[data-testid='need-asks']")?.textContent).toBe(": “Use the v2 export API, or keep v1 for this release?”");
   });
 });
