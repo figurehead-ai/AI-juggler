@@ -319,7 +319,7 @@ describe("AJ-E3007, AJ-E3011 the setup, start to end", () => {
     let draft: Draft = { ...draftOf(templateById("writer-reviewer"), "web"), members: apps };
     const lead = render(<NewPoolLead draft={draft} onDraft={(next) => (draft = next)} sessions={[]} nameOf={(_, label) => label} where="web" />);
     const options = lead.getAllByTestId("new-pool-lead-option");
-    expect(options.map((one) => one.dataset.kind)).toEqual(["next", "next", "none"]);
+    expect(options.map((one) => one.dataset.value?.split("|")[0])).toEqual(["next", "next", "none"]);
     expect(lead.getByTestId("new-pool-lead-none-open").textContent).toBe("No session is open in these projects now.");
     expect(lead.container.textContent).toContain("Claude Code · Work's next session");
     // Round 4 (#4): it takes charge as soon as one of its sessions starts, and the pool's

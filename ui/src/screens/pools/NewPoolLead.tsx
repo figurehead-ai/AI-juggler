@@ -1,6 +1,8 @@
 /**
  * AJ-E3011 step 3, Who leads: the inline lead picker (§3). Never a dead
  * end: sessions open now, an App's next session, or no lead for now.
+ * D-126: a drawing of what a lead does in three steps, then the choices
+ * as cards with their logos (LeadCards, the diagram's words).
  * Round 2 (#3, #18): the App's row says it leads from its next session in
  * these projects, and that the pool's diagram can start one; the why-line
  * says leaving it for now is a choice.
@@ -9,7 +11,11 @@ import type { JSX } from "react";
 
 import { leadCandidates, leadOf, withLead, type Candidate, type Draft } from "../../lib/new-pool";
 import { nextSessionWords } from "../../lib/pool-words";
-import { LeadPicker } from "../../pages/pool/setup/LeadPicker";
+import { useApps } from "../../lib/apps";
+import { LEAD_STEPS } from "../../lib/pool-wizard-words";
+import type { InstanceInfo } from "../../types/generated/InstanceInfo";
+import { LeadArt } from "./illustrations";
+import { LeadCards } from "./LeadCards";
 import { isAdded, unavailableWords, useConnectorStatuses } from "../../lib/connector";
 import { useAgentBridge } from "../../lib/ipc/agent-bridge";
 import { StepHead } from "./StepHead";
@@ -20,6 +26,7 @@ export function NewPoolLead({
   sessions,
   nameOf,
   where = "these projects",
+  open: instances = [],
 }: {
   draft: Draft;
   onDraft: (next: Draft) => void;
@@ -27,7 +34,10 @@ export function NewPoolLead({
   nameOf: (ref: string, label: string) => string;
   /** Its projects in words ("web"). */
   where?: string;
+  /** The sessions open now (each choice's logo). */
+  open?: readonly InstanceInfo[];
 }): JSX.Element {
+  const known = useApps();
   const open = leadCandidates(sessions);
   // A session named in the draft that leads, though it isn't open (a
   // template's), stays offered.
@@ -50,13 +60,27 @@ export function NewPoolLead({
   const elsewhere = draft.members.filter((member) => member.kind === "session" && member.reach === "watched");
   const choice = leadOf(draft);
   return (
-    <div className="flex max-w-3xl flex-col gap-4" data-testid="new-pool-step-lead">
+    <div className="flex flex-col gap-6" data-testid="new-pool-step-lead">
       <StepHead step="lead" />
-      <LeadPicker
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-3 rounded-card bg-surface py-3 pl-2 pr-5 inset-ring-1 inset-ring-hairline/75" data-testid="new-pool-lead-how">
+        <LeadArt />
+        <ol className="flex flex-col gap-2.5">
+          {LEAD_STEPS.map((line, at) => (
+            <li key={line} className="flex items-center gap-2.5 text-meta text-ink-2">
+              <span aria-hidden="true" className="flex size-5 shrink-0 items-center justify-center rounded-full bg-surface-3 text-label font-semibold text-ink-2">
+                {at + 1}
+              </span>
+              {line}
+            </li>
+          ))}
+        </ol>
+      </div>
+      <LeadCards
         sessions={rows}
         apps={apps}
         value={choice}
         where={where}
+        logos={{ apps: known ?? [], sessions: instances }}
         onChange={(next) => onDraft(withLead(draft, next, next.kind === "session" ? open.find((row) => row.ref === next.ref) : undefined))}
         testId="new-pool-lead"
       />
