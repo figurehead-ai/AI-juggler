@@ -120,3 +120,11 @@ By item, that is 4 code and 11 model. By error count, the feed's not-run catch-2
 1. **Attention `needs_user: true` on 11 L1 turns** (R3T06, 08, 09, 10, 12, 15, 17, 40, 47, 48, 50). The main work was reverted, or the work is uncommitted. D-117 maps these to L1 Note, and v5 §5.3 has code decide needs-you from questions, failures and loud levels only.
 2. **Chat questions in French, Spanish, Dutch and Italian** (R3C07, 08, 09, 11, 20, 42). ADR-0033's Chat reads the asked attribute with an English and German lexicon.
 3. **R3T27's forbidden "finito"** (gold, not ADR). It also matches the agent's honest "quasi finito"; the fabrication there was "In generale funziona".
+
+## Re-checked by the main session (Opus), 2026-11-18
+
+Every REAL verdict above was re-read against the source, facts and git, and the shown text, and is CONFIRMED:
+- R3T48 (systematic): git shows `uncommitted: true`; the feed lines on Apple, Nemotron, Granite, Qwen3-4B and Gemma, and the review glosses on Apple, Granite and Qwen3-4B, state "committed and pushed" (the review directly above its own "Uncommitted (git): yes"). Qwen3-1.7B's feed fallback quotes the agent's own false sentence: not the model's fabrication, but shown to the user, and covered by 7f25278a2.
+- R3T27 (Gemma, review): "In generale funziona" glossed beside 5 failed tests. The test-claims-in-free-text class, in Italian, which the checks don't read (fixed by d57828883: no model text for a language the gate can't read).
+
+Against D-130 (≤1 % reaching the user, none systematic, sets of 50): round 3 fails the feed on five models (R3T48, systematic) and the review on Apple, Granite, Qwen3-4B and Gemma. Attention and Chat have no REAL critical. The fixes were shaped by this set, so the verdict after them needs round 4 on fresh blind sets.
