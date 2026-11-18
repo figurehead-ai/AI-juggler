@@ -18,7 +18,8 @@ import { MemberOwnLevel } from "../../pages/pool/setup/OwnLevelChoice";
 import { RoleCards } from "../../pages/pool/setup/RoleCards";
 import { NewPoolEveryone } from "./NewPoolEveryone";
 import { NewPoolReview } from "./NewPoolReview";
-import { NewPoolWho, whoInWords } from "./NewPoolWho";
+import { NewPoolWho } from "./NewPoolWho";
+import { whoLine } from "../../lib/pool-wizard-words";
 
 beforeEach(() => resetPreviewAgentBridge());
 afterEach(cleanup);
@@ -123,15 +124,17 @@ describe("AJ-E3011 round 2", () => {
   });
 
   it("#6, #8: Who's in says who in words, and keeps the rarer kinds under More", () => {
-    expect(whoInWords([app("app:cli:a", "A"), app("app:cli:b", "B"), { ref: "all", kind: "everyone" }], "web")).toBe("2 apps, and every new session in web");
-    expect(whoInWords([{ ref: "all", kind: "everyone" }], "web")).toBe("Every new session in web");
-    expect(whoInWords([], "web")).toBe("No one yet");
+    // D-126: said by the preview beside the form, as Review will.
+    const view = (named: string[], everyone: boolean) => ({ named: named.map((name) => ({ ref: `app:${name}`, name, role: "member" as const })), everyone, where: "web" });
+    expect(whoLine(view(["Claude · Work", "Codex · Personal"], true))).toBe("Claude and Codex, and every new session in web");
+    expect(whoLine(view([], true))).toBe("Every new session in web");
+    expect(whoLine(view([], false))).toBe("No one yet");
     const none = { session: [], app: [], account: [], tool: [], mac: [], everyone: [] } as Record<MemberKind, Candidate[]>;
     const draft: Draft = { ...draftOf(templateById("blank"), "p-web"), members: [{ ref: "all", kind: "everyone", label: "Everyone", role: "member", level: null, reach: "later" }] };
     render(<NewPoolWho draft={draft} onDraft={() => undefined} candidates={none} onFix={() => undefined} where="web" nameOf={(ref, label) => (ref === "all" ? "Everyone in web" : label)} />);
-    expect(screen.getByTestId("new-pool-kind-label").textContent).toBe("Add whole apps — every session they start here joins — or single sessions open now");
     expect(within(screen.getByTestId("new-pool-kind")).getAllByRole("radio").map((one) => one.textContent)).toEqual(["Apps 0", "Sessions 0", "More"]);
-    expect(screen.getByTestId("new-pool-side-everyone").textContent).toBe("Everyone in webEvery new session in web joins by itself, now and later.");
+    // Everyone in the projects is its own switch, on.
+    expect(screen.getByRole("switch", { name: "Every new session in web" }).getAttribute("aria-checked")).toBe("true");
     expect(screen.queryByTestId("new-pool-kind-picker")).toBeNull();
     fireEvent.click(within(screen.getByTestId("new-pool-kind")).getByRole("radio", { name: "More" }));
     expect(screen.getByTestId("new-pool-kind-picker").textContent).toContain("Kind:Accounts 0");
