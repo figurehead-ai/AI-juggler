@@ -712,6 +712,21 @@ def selftest():
     rc, err, res = run_runner([rawg("G11", "wrapped_up")], miss_scan=True)      # the load scan missed it: the run-time guard still stops the run
     check("R3 guard: ...and the runner stops non-zero on it, naming the item and the word", rc != 0 and "G11" in err and "wrapped_up" in err and res is None, (rc, err[-300:]))
 
+    # ================================================================================================ R4-1. the guard: the reply told what to say, a role line's order, a tagged order
+    R4 = json.load(open(os.path.join(HERE, "fixtures", "v5r4-selftest.json")))
+    for case in R4["guard_turns"]:
+        tgx = turn(case["source"])
+        check(f"R4 guard: {case['label']}: removed", tgx["ctx"]["removed"] and not any(w in tgx["ctx"]["cleaned"] for w in case["gone"]), tgx["ctx"])
+        check(f"R4 guard: {case['label']}: the agent's own sentences stay", all(w in tgx["ctx"]["cleaned"] for w in case["kept"]), tgx["ctx"]["cleaned"])
+        fo = run_item(FEED, tgx, "main", NoCall())["final"]
+        check(f"R4 guard: {case['label']}: the feed shows no model line and not the order", fo["kind"] in ("excerpt", "excerpt_routed") and not any(w in fo["shown"] for w in case["gone"]), fo)
+    base, base_tags = guard_v5.GUARD_V5, guard_v5.ROLE_TAGS
+    r4new = [p for p in guard_v5.fixture() if p.get("round") == 4 and p["must_catch"] and not p.get("caught_before_round_4")]
+    guard_v5.GUARD_V5 = base[:R4["guard_patterns_before"]]; guard_v5.ROLE_TAGS = set()     # mutation: the pass as it was before round 4
+    try: slip = [p["phrase"] for p in r4new if not guard_v5.guard_v5(p["phrase"])[1]]
+    finally: guard_v5.GUARD_V5, guard_v5.ROLE_TAGS = base, base_tags
+    check("R4 guard mutation: without round 4's patterns and tags every round-4 must-catch phrase slips through", r4new and len(slip) == len(r4new), (len(r4new), slip))
+
     # ================================================================================================ the extension point, the frozen gate, the prompts
     class Toy(core.Job):
         name, letter, title, item_kind = "toy_digest", "e", "toy", "toydigest"
