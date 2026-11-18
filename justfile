@@ -293,6 +293,16 @@ switch-lab-notes project claude_a claude_b codex out:
       AIJ_LAB_CODEX="{{codex}}" AIJ_LAB_OUT="{{out}}" \
       cargo test -p juggler-app --test switch_lab_live -- --ignored --nocapture switch_lab_notes_live --exact
 
+# D-127 in the live lab: Claude → Claude, Copy and Move, every area checked
+# with no model call on B (only A spends, with file checkpoints on).
+switch-lab-c2c project claude_a claude_b out probe="aij-lab-probe":
+    cargo test -p juggler-app --test switch_lab_live --no-run
+    ./scripts/qa/lab_env.sh AIJ_LAB_SUITE=c2c AIJ_LAB_FILE_HISTORY=1 \
+      AIJ_LAB_DATA="$(mktemp -d)/data" AIJ_LAB_PROJECT="{{project}}" \
+      AIJ_LAB_CLAUDE_A="{{claude_a}}" AIJ_LAB_CLAUDE_B="{{claude_b}}" \
+      AIJ_LAB_OUT="{{out}}" AIJ_LAB_PROBE="{{probe}}" \
+      cargo test -p juggler-app --test switch_lab_live -- --ignored --nocapture switch_lab_c2c_live --exact
+
 # AJ-E1539 labs 12+ (0.1.8): switches from a session another app runs and the
 # old path, on one Claude profile and the Codex home (see switch_lab_live.rs).
 switch-lab-outside root claude codex out probe="aij-lab-probe" journeys="j1,j2,j3":
