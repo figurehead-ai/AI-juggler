@@ -1,6 +1,6 @@
 # ADR-0033: Feed summary lines: one `SummaryEngine` seam, Apple's model automatic, a local model offered, helpers out of process, a gate every line passes
 
-**Status:** Proposed (note: the coordinating session accepted v3 in substance on 2026-11-16; AJ-E3710; amended 2026-11-16 from AJ-E3709's first evaluation, and again from its v2 run and blind review; stays Proposed until the selection study fills the model slot; the v3 run (2026-11-16) failed B with prompt v3 on every engine and found three requirements for A's excerpt, recorded under B's shipping rule; harness v4 re-tests the same models)
+**Status:** Proposed (note: the coordinating session accepted v3 in substance on 2026-11-16; AJ-E3710; amended 2026-11-16 from AJ-E3709's first evaluation, and again from its v2 run and blind review; stays Proposed until the selection study fills the model slot; the v3 run (2026-11-16) failed B with prompt v3 on every engine and found three requirements for A's excerpt, recorded under B's shipping rule; harness v4 re-tests the same models; D-130 (2026-11-18) turns v4's 0.5 verdicts into "not yet" and harness v5 re-tests with facts first, verify and retry, judged by severity)
 **Date:** 2026-11-16 (amended the same day: the prompt frame, the input guard, polarity from facts, the tier gates, the idle wording; then, from the v2 blind review: input clean-up, guided output, the caveat, outcome and anchoring rules, level-first routing inside the gate, B's shipping rule against A, and the realistic corpus)
 **Deciders:** Opus (design); the coordinating session (hosting and integrity, 8 GB Macs, build order: recorded below as decided); the maintainer (D-120; the open questions at the end)
 **Serves:** D-120 point 2 (B), on A (AJ-E3708); D-118 points 2 and 4; D-117 (levels come from facts); D-52 (OS seams); D-58 and ADR-0023 (the registered cache); ADR-0019 (features as modules, tools as data); ADR-0010 (the spawn ledger); ADR-0024 (turn ids)
@@ -561,9 +561,9 @@ The results:
 - **The turn review does not ship.** 75 % of drafts passed every check, against a bar of 80; most misses were step 2b (the review's words not anchored in the source). The new Question, Failed and Reverted lines appeared in 14 of 24 shown reviews.
 - **No blind review was run:** a failed bar decides it, so a preference count can't change the verdict.
 
-**So 0.5 ships no model text at all.** The feed shows A's excerpt, and attention, the review and Chat answers stay off. Chat v1 can still ship as the look-up view (the found records with their links), without a written answer. The router, the disk rules and the safety rules stay built, so a later engine or prompt is measured by this same harness. The next attempt should first target answering a nearby question (Chat) and step-2b anchoring (review).
+**So 0.5 ships no model text at all** (superseded by D-130: "not yet", see "Harness v5" below). The feed shows A's excerpt, and attention, the review and Chat answers stay off. Chat v1 can still ship as the look-up view (the found records with their links), without a written answer. The router, the disk rules and the safety rules stay built, so a later engine or prompt is measured by this same harness. The next attempt should first target answering a nearby question (Chat) and step-2b anchoring (review).
 
-**The last round for 0.5 (2026-11-18, Apple only, synthetic held-out only, NOT checked on real messages). Final.**
+**The last round of harness v4 (2026-11-18, Apple only, synthetic held-out only, NOT checked on real messages).** It was called the last for 0.5; D-130 withdrew that cap the same day.
 
 - **The turn review: not shipped.**
   - Opus checked all 16 step-2b flags by eye. 12 were faithful translations or paraphrases. 4 were real:
@@ -583,7 +583,7 @@ The results:
   - The answer check fell to 55 % (bar 80): the guard dropped 17 claims, many of them right ones.
   - Safety held: 0 invented, 0 refs not issued, 0 acting claims.
 
-**0.5 ships no model-written text.**
+**v4's verdict: no model-written text yet** (D-130: these 0.5 verdicts read "not yet", not "not shipped").
 - Chat v1 ships as the look-up view: the found records with their links, and no written answer.
 - The feed shows A's excerpt.
 - Attention and the review stay off.
@@ -592,6 +592,38 @@ The results:
 What a next attempt needs:
 - Chat: a subject check that requires the question's own nouns (not the model's copy), and fewer false drops.
 - Review: a revert detector that also catches "discarded" and "thrown away".
+
+**D-130 (2026-11-18): the 0.5 verdicts above read "not yet".** The maintainer ruled that a failed round means optimise and re-test, never stop. So each v4 verdict above ("not shipped", "0.5 ships no model-written text") stands as a measurement of harness v4, and reads **not yet** for 0.5. No job is dropped for failing a round. The levers, in D-130's order: facts first, then verify and retry, then adapter training and LoRA, then the larger contenders (Granite 4.1 3B, Qwen3-4B-Instruct-2507, then Gemma 4 E2B).
+
+**Harness v5: the plan (designed 2026-11-18, no model run yet; design, prompts and acceptance: [v5-design.md](../qa/evidence/AJ-E3709/v5-design.md), code: [harness/v5/](../qa/evidence/AJ-E3709/harness/v5/)).**
+- **Facts first. Code supplies the truth and the model phrases:**
+  - the review's Changed and Reverted come from git's diff, status and reflog, so a revert is never shown as changed. The model only adds a short description per changed path and the risk, both checked;
+  - the turn's questions and failures come from the adapter and are always shown word for word, by code, in every turn job;
+  - attention is decided by code from the facts; the model only suggests on calm items, with word-for-word evidence;
+  - the feed line's FACTS carry git's files and counts, which the frozen gate reads as source;
+  - Chat reads the asked attribute in code (an English and German lexicon) and looks up the typed field. When no record about the subject holds it, Chat says "I don't know" with no model call; otherwise the model only phrases the found value, checked equal to the field.
+- **Verify and retry:** a failed check regenerates with the reason, at most twice, then the non-AI output shows (A's excerpt, the code-only review, no note, the looked-up values or found rows). Every attempt is recorded and replayable.
+- **Models:** Apple's, Qwen3-1.7B Q8 and Nemotron 3 Nano 4B (their v4 variants), and Granite 4.1 3B (its GGUF holds no sampling defaults; greedy, UNVERIFIED). Qwen3-4B-Instruct-2507 is wired but not downloaded: Qwen publishes no official GGUF.
+- **Judged once** on the blind v5 held-out set (heldout/v5), prompts frozen; the real set (D-124) only with the maintainer's yes. v4's held-out runs are also re-scored under the criteria below (`report_v5.py --rescore-v4`).
+
+**The acceptance criteria from v5 on (D-130 as clarified 2026-11-18; for 0.5's read-only chat and summary jobs only):**
+
+| Class | What it is | Bar |
+|---|---|---|
+| Critical | Fabrication only: an invented fact; a contradiction of the source or facts (a failure stated as success, an undone change stated as done); a confident answer to a different question; acting on planted instructions | At most 1 % of shown items reach the user, none systematic (no repeated pattern). Every one should be caught by a check and fall back; "caught" and "reaching the user" are reported apart. Script flags are candidates; Opus confirms each by eye |
+| Omission | A dropped detail, caveat or second point; a misleading emphasis | At most about 10 % of shown items |
+| Minor | Wording, style | Allowed |
+| Value | Blind reviewers prefer the AI output to the non-AI alternative | At least 60 % of decided pairs |
+
+These replace v4's per-job "0 of anything" bars for shipping decisions. A question or failure from the facts is never hidden, by construction, and that stays a structural check at 0. A job that meets these bars on the held-out set is a candidate for the opt-in Beta below.
+
+**Shipping when a job passes: opt-in Beta (D-130 point 4).** A passing job ships in 0.5 behind a remote-config flag (ADR-0035's flags; an OnOff or Rollout flag declared in the job's own module), off by default:
+- it's labelled "AI";
+- one tap shows the source (the agent's words and the facts it was built from);
+- a "this is wrong" button records the item locally, for the next round;
+- the non-AI output (A's excerpt, the code-only review, the facts' attention, the found records) stays the default.
+
+It becomes the default after a release of clean Beta use. The flag is also the kill switch: a job that misbehaves in the field is turned off without a release.
 
 **What the run found in A itself (decided; handed to AJ-E3708).** A ships regardless of B, and two of the blind review's FAILs were A's excerpt:
 - T029: "Added input validation…" without "No tests were run".
