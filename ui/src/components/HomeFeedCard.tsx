@@ -42,7 +42,9 @@ function Avatar({ item }: { item: FeedItemInfo }): JSX.Element {
   if (author.kind === "app" && author.provider && author.folder) {
     return <span className="app-tone inline-flex"><CliAppMark tool={author.provider} folderId={author.folder} folder={author.folder_label ?? ""} size={20} ring="var(--color-canvas)" /></span>;
   }
-  if (author.kind === "account" && author.folder) return <AccountAvatar account={{ folder: author.folder }} label={author.name ?? ""} size={20} />;
+  // D-118's mock: an Account stands alone on its row (no App beside it),
+  // so it wears its own colour, a disc, as on the Runway (Avatar's rule).
+  if (author.kind === "account" && author.folder) return <AccountAvatar account={{ folder: author.folder }} label={author.name ?? ""} size={20} tone="colour" />;
   if (author.kind === "agent" || author.kind === "you") {
     const letters = (author.name ?? (author.kind === "you" ? "You" : "?")).replace(/[^\p{L}\p{N}]/gu, "").slice(0, 2).toLowerCase();
     return <span aria-hidden="true" className="flex size-5 shrink-0 items-center justify-center rounded-full bg-surface-3 text-[10px] font-semibold text-ink-2">{letters}</span>;
