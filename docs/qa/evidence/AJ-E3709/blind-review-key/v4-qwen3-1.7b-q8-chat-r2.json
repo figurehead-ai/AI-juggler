@@ -1,0 +1,62 @@
+[
+ {
+  "pair": "heldout-chat-001",
+  "first": "model",
+  "second": "found rows"
+ },
+ {
+  "pair": "heldout-chat-002",
+  "first": "model",
+  "second": "found rows"
+ },
+ {
+  "pair": "heldout-chat-003",
+  "first": "model",
+  "second": "found rows"
+ },
+ {
+  "pair": "heldout-chat-004",
+  "first": "found rows",
+  "second": "model"
+ },
+ {
+  "pair": "heldout-chat-005",
+  "first": "found rows",
+  "second": "model"
+ },
+ {
+  "pair": "heldout-chat-006",
+  "first": "model",
+  "second": "found rows"
+ },
+ {
+  "pair": "heldout-chat-007",
+  "first": "found rows",
+  "second": "model"
+ },
+ {
+  "pair": "heldout-chat-008",
+  "first": "found rows",
+  "second": "model"
+ },
+ {
+  "pair": "heldout-jobs-chat-001",
+  "first": "model",
+  "second": "found rows"
+ },
+ {
+  "pair": "heldout-jobs-chat-002",
+  "first": "model",
+  "second": "found rows"
+ },
+ {
+  "pair": "heldout-jobs-chat-003",
+  "first": "found rows",
+  "second": "model"
+ },
+ {
+  "pair": "heldout-jobs-chat-004",
+  "first": "found rows",
+  "second": "model"
+ }
+]

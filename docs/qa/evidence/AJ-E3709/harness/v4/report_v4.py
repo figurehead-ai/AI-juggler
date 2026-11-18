@@ -223,7 +223,7 @@ def report_chat(recs, chat_by_id):
             must_n += len(gold["answer_must"]); must_ok += sum(1 for m in gold["answer_must"] if m.lower() in o["text"].lower())
         if forbidden_hit({"gold": gold}, [o["text"]] + flat_strings(f or {})): forb += 1
         rows.append({"id": r["id"], "rep": r["rep"], "question": ci["question"], "kind": o["kind"], "text": o["text"], "refs": o["refs"],
-                     "rows": [jobs.row_line(x) for x in ci["rows"]], "errors": o["errors"][:6], "gold": gold})
+                     "rows": [jobs._row_text(x).strip() for x in ci["rows"]], "errors": o["errors"][:6], "gold": gold})
     out.update({"refs_not_issued_in_drafts": notissued, "drafts_passing_the_check_pct": pct(passing, len(recs)), "failure_kinds": kinds.most_common(12),
                 "unanswerable": unans, "i_dont_know_pct": pct(idk, unans), "out_of_scope": oos, "out_of_scope_recognised_pct": pct(oos_ok, oos),
                 "answerable": ans, "written_answers_on_answerable_pct": pct(answered, ans), "cites_within_the_known_answer_pct": pct(prec_ok, prec_n),
@@ -257,12 +257,12 @@ def report(results, corp):
         out["corpora"].setdefault(label, {})[job] = rep; allrows[(label, job)] = rows
     return out, allrows
 
-def packets(allrows, corp, outdir, seed=4):
+def packets(allrows, corp, outdir, seed=4, only=None, key_name="KEY-do-not-open-before-scoring.json"):
     """blind pairs: (a) B's line vs A's excerpt on calm items where they differ; (b) the review vs the baseline review; (d) the
     answer vs the found rows. Shuffled, unlabelled; the key in a separate file the reviewer never opens."""
     os.makedirs(outdir, exist_ok=True); rnd = random.Random(seed); key = []
     for (label, job), rows in allrows.items():
-        if job == "attention": continue
+        if job == "attention" or (only and job not in only): continue
         pk = []
         for r in rows:
             if r.get("rep"): continue
@@ -279,7 +279,7 @@ def packets(allrows, corp, outdir, seed=4):
             pk.append({"pair": pid, "item": r["id"], **ctxt, "first": pair[0][1], "second": pair[1][1]})
             key.append({"pair": pid, "first": pair[0][0], "second": pair[1][0]})
         if pk: json.dump(pk, open(os.path.join(outdir, f"packet-{label}-{job}.json"), "w"), indent=1, ensure_ascii=False)
-    json.dump(key, open(os.path.join(outdir, "KEY-do-not-open-before-scoring.json"), "w"), indent=1)
+    json.dump(key, open(os.path.join(outdir, key_name), "w"), indent=1)
 
 def markdown(rep):
     L = [f"# Harness v4 report: {rep['meta'].get('engine')} ({rep['meta'].get('family')}, sampling {rep['meta'].get('sampling_name')}, {rep['meta'].get('mark')})", ""]
@@ -359,12 +359,14 @@ def main():
     ap.add_argument("--md"); ap.add_argument("--packets", metavar="DIR"); ap.add_argument("--select", action="store_true",
                     help="the results are the sweep's variants (any models): the choice per model, by the rule in select()")
     ap.add_argument("--select-out", metavar="sampling-chosen.json", help="with --select: write every variant, the choice and why")
+    ap.add_argument("--packets-only", nargs="*", metavar="JOB", help="with --packets: only these jobs (a rebuild that leaves the other packets' keys as they are)")
+    ap.add_argument("--packets-seed", type=int, default=4); ap.add_argument("--key-name", default="KEY-do-not-open-before-scoring.json")
     a = ap.parse_args(); corp = load(a.corpus)
     if a.select: select(a.results, corp, a.select_out); return
     if len(a.results) != 1: ap.error("one RESULTS.json (or --select with several)")
     rep, rows = report(json.load(open(a.results[0])), corp)
     if a.md: open(a.md, "w").write(markdown(rep))
-    if a.packets: packets(rows, corp, a.packets)
+    if a.packets: packets(rows, corp, a.packets, seed=a.packets_seed, only=a.packets_only, key_name=a.key_name)
     json.dump(rep, sys.stdout, indent=1, ensure_ascii=False); print()
 
 if __name__ == "__main__": main()
