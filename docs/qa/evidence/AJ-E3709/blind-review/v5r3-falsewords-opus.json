@@ -1,0 +1,1334 @@
+[
+ {
+  "model": "apple",
+  "pair": "turns-feed_line-002",
+  "side": "A",
+  "phrase": "I added a feature flag around the new checkout banner ... wired it into the settings page (it was rolled back)",
+  "verdict": "FALSE-CRITICAL",
+  "quoted_claim": true,
+  "why": "reverted change shown as done: git reverted flag.ts and settings/page.tsx; only CHANGELOG kept; the line drops the rollback (git prefix alone shows it)"
+ },
+ {
+  "model": "apple",
+  "pair": "turns-feed_line-003",
+  "side": "A",
+  "phrase": "Moved the session cache to a different store (reads as done)",
+  "verdict": "FALSE-MINOR",
+  "quoted_claim": false,
+  "why": "source says 'tried moving'; 'Moved' is a tense slip, and the same line says the experiment was thrown away"
+ },
+ {
+  "model": "apple",
+  "pair": "turns-feed_line-004",
+  "side": "B",
+  "phrase": "umgestellt umgestellt (garbled)",
+  "verdict": "NOT FALSE",
+  "quoted_claim": false,
+  "why": "duplicated word only; the line correctly says the switch was discarded (verworfen)"
+ },
+ {
+  "model": "apple",
+  "pair": "turns-feed_line-008",
+  "side": "B",
+  "phrase": "Ran the pagination in fennel-api",
+  "verdict": "FALSE-MINOR",
+  "quoted_claim": false,
+  "why": "change was 'pagination returns a next-page cursor'; 'ran the pagination' garbles it (the suite was run), not a harmful claim"
+ },
+ {
+  "model": "apple",
+  "pair": "turns-feed_line-010",
+  "side": "A",
+  "phrase": "Everything is committed and pushed to origin",
+  "verdict": "FALSE-CRITICAL",
+  "quoted_claim": true,
+  "why": "git uncommitted=true; 'committed'/'pushed' contradicts it"
+ },
+ {
+  "model": "apple",
+  "pair": "turns-feed_line-010",
+  "side": "B",
+  "phrase": "everything is committed and pushed to origin",
+  "verdict": "FALSE-CRITICAL",
+  "quoted_claim": true,
+  "why": "git uncommitted=true; 'committed'/'pushed' contradicts it"
+ },
+ {
+  "model": "apple",
+  "pair": "chat-chat-005",
+  "side": "A",
+  "phrase": "I can't say that for sure (the record states the files)",
+  "verdict": "NOT FALSE",
+  "quoted_claim": false,
+  "why": "a hedge, not a fact; the record it then shows answers the question correctly (unhelpful, not false)"
+ },
+ {
+  "model": "apple",
+  "pair": "chat-chat-008",
+  "side": "A",
+  "phrase": "Two sessions match marten-ci (marten-ui is not a match)",
+  "verdict": "FALSE-MINOR",
+  "quoted_claim": false,
+  "why": "s2 is 'marten-ui', not marten-ci, so 'two match' is wrong; each row shows its true name, no wrong value asserted"
+ },
+ {
+  "model": "apple",
+  "pair": "chat-chat-010",
+  "side": "A",
+  "phrase": "angegengerte (garbled word)",
+  "verdict": "NOT FALSE",
+  "quoted_claim": false,
+  "why": "'moss-pay-docs' does name-match 'moss-pay'; both rows labelled with true values (noise, not falsehood)"
+ },
+ {
+  "model": "apple",
+  "pair": "chat-chat-012",
+  "side": "B",
+  "phrase": "Two sessions match crane-etl (backfill is a different session)",
+  "verdict": "NOT FALSE",
+  "quoted_claim": false,
+  "why": "'crane-etl-backfill' does name-match 'crane-etl'; both rows labelled with true values (noise, not falsehood)"
+ },
+ {
+  "model": "apple",
+  "pair": "chat-chat-013",
+  "side": "B",
+  "phrase": "The harbor-lab session ran for 15 minutes",
+  "verdict": "FALSE-CRITICAL",
+  "quoted_claim": false,
+  "why": "records hold two same-name sessions; unqualified 'the session' answers as if unique, and s2 (Lab profile) ran 70 min"
+ },
+ {
+  "model": "apple",
+  "pair": "chat-chat-014",
+  "side": "B",
+  "phrase": "picks Arbeit silently",
+  "verdict": "NOT FALSE",
+  "quoted_claim": false,
+  "why": "value is true of s1 and the output names which same-name session it means; the other is omitted, not misstated"
+ },
+ {
+  "model": "apple",
+  "pair": "chat-chat-015",
+  "side": "B",
+  "phrase": "picks the Cursor session silently",
+  "verdict": "NOT FALSE",
+  "quoted_claim": false,
+  "why": "value is true of s1 and the output names which same-name session it means; the other is omitted, not misstated"
+ },
+ {
+  "model": "apple",
+  "pair": "chat-chat-016",
+  "side": "B",
+  "phrase": "picks the Work session silently",
+  "verdict": "NOT FALSE",
+  "quoted_claim": false,
+  "why": "value is true of s1 and the output names which same-name session it means; the other is omitted, not misstated"
+ },
+ {
+  "model": "apple",
+  "pair": "chat-chat-017",
+  "side": "A",
+  "phrase": "took 2 min (95 s rounded)",
+  "verdict": "FALSE-MINOR",
+  "quoted_claim": false,
+  "why": "record says 95 s; '2 min' is a rounding, not misleading"
+ },
+ {
+  "model": "apple",
+  "pair": "turns-review-002",
+  "side": "A",
+  "phrase": "now rounds half-up for every locale",
+  "verdict": "FALSE-CRITICAL",
+  "quoted_claim": true,
+  "why": "failures show format_spec.rb:102 expected 0,05 got 0,04 and :88 locale separator; 'rounds half-up for every locale' is contradicted, stated as the change"
+ },
+ {
+  "model": "apple",
+  "pair": "turns-review-010",
+  "side": "A",
+  "phrase": "Failed: The branch is clean again apart from a new regression test (not a failure)",
+  "verdict": "FALSE-CRITICAL",
+  "quoted_claim": false,
+  "why": "facts.failures is empty and tests 62 passed/0 failed; the 'Failed:' label turns a clean-branch note into a failure (same template line on both sides)"
+ },
+ {
+  "model": "apple",
+  "pair": "turns-review-010",
+  "side": "B",
+  "phrase": "Failed: The branch is clean again apart from a new regression test (not a failure)",
+  "verdict": "FALSE-CRITICAL",
+  "quoted_claim": false,
+  "why": "facts.failures is empty and tests 62 passed/0 failed; the 'Failed:' label turns a clean-branch note into a failure (same template line on both sides)"
+ },
+ {
+  "model": "apple",
+  "pair": "turns-review-017",
+  "side": "A",
+  "phrase": "Failed: Two: the contact form shows an inline error (not a failure)",
+  "verdict": "FALSE-CRITICAL",
+  "quoted_claim": false,
+  "why": "facts.failures is empty and tests 40/0; the 'Failed:' label marks a finished item (contact-form error) as a failure (same template line on both sides)"
+ },
+ {
+  "model": "apple",
+  "pair": "turns-review-017",
+  "side": "B",
+  "phrase": "Failed: Two: the contact form shows an inline error (not a failure)",
+  "verdict": "FALSE-CRITICAL",
+  "quoted_claim": false,
+  "why": "facts.failures is empty and tests 40/0; the 'Failed:' label marks a finished item (contact-form error) as a failure (same template line on both sides)"
+ },
+ {
+  "model": "apple",
+  "pair": "turns-review-018",
+  "side": "A",
+  "phrase": "worker/config.py (+8 -0) a dead-letter log was added then reverted",
+  "verdict": "FALSE-MINOR",
+  "quoted_claim": false,
+  "why": "config.py (+8 -0) holds the retry config; the dead-letter log was deadletter.py (Reverted line shows it right)"
+ },
+ {
+  "model": "apple",
+  "pair": "turns-review-018",
+  "side": "A",
+  "phrase": "Failed: Third, I need to know whether failed jobs ... (a question, not a failure)",
+  "verdict": "FALSE-CRITICAL",
+  "quoted_claim": false,
+  "why": "facts.failures is empty and tests 31/0; the 'Failed:' label marks the open question as a failure (same template line on both sides)"
+ },
+ {
+  "model": "apple",
+  "pair": "turns-review-018",
+  "side": "B",
+  "phrase": "Failed: Third, I need to know whether failed jobs ... (a question, not a failure)",
+  "verdict": "FALSE-CRITICAL",
+  "quoted_claim": false,
+  "why": "facts.failures is empty and tests 31/0; the 'Failed:' label marks the open question as a failure (same template line on both sides)"
+ },
+ {
+  "model": "apple",
+  "pair": "turns-review-025",
+  "side": "A",
+  "phrase": "Fehlgeschlagen: Begonnen mit dem Umbau (not a failure)",
+  "verdict": "FALSE-CRITICAL",
+  "quoted_claim": false,
+  "why": "facts.failures is empty and tests not run; the 'Fehlgeschlagen:' label marks a progress note as a failure (same template line on both sides)"
+ },
+ {
+  "model": "apple",
+  "pair": "turns-review-025",
+  "side": "B",
+  "phrase": "Fehlgeschlagen: Begonnen mit dem Umbau (not a failure)",
+  "verdict": "FALSE-CRITICAL",
+  "quoted_claim": false,
+  "why": "facts.failures is empty and tests not run; the 'Fehlgeschlagen:' label marks a progress note as a failure (same template line on both sides)"
+ },
+ {
+  "model": "apple",
+  "pair": "turns-review-028",
+  "side": "A",
+  "phrase": "Everything is committed and pushed to origin",
+  "verdict": "FALSE-CRITICAL",
+  "quoted_claim": true,
+  "why": "git uncommitted=true; 'committed'/'pushed' contradicts it"
+ },
+ {
+  "model": "apple",
+  "pair": "turns-review-029",
+  "side": "A",
+  "phrase": "fixed all three lint errors in the glyph-forge renderer",
+  "verdict": "FALSE-CRITICAL",
+  "quoted_claim": true,
+  "why": "failures list draw.ts:88:5 no-unused-vars and lint exit 1; 'fixed all three'/'lint clean' contradicts them"
+ },
+ {
+  "model": "apple",
+  "pair": "turns-review-030",
+  "side": "B",
+  "phrase": "eine geänderter Schalter (grammar)",
+  "verdict": "NOT FALSE",
+  "quoted_claim": false,
+  "why": "grammar slip / clipped word; content (switch changed, migration undone) is correct"
+ },
+ {
+  "model": "qwen3-1.7b-q8",
+  "pair": "turns-feed_line-001",
+  "side": "B",
+  "phrase": "Added rate-limit headers ... to 14",
+  "verdict": "FALSE-MINOR",
+  "quoted_claim": false,
+  "why": "garbled/truncated ('every response' lost); no false fact asserted"
+ },
+ {
+  "model": "qwen3-1.7b-q8",
+  "pair": "turns-feed_line-002",
+  "side": "A",
+  "phrase": "Ich habe die Suche ... auf einen Hash-Index umgestellt (it was discarded)",
+  "verdict": "FALSE-CRITICAL",
+  "quoted_claim": true,
+  "why": "reverted change shown as done: git reverted kunden/hash_index.py (verworfen); the line drops the rollback (git prefix alone shows it)"
+ },
+ {
+  "model": "qwen3-1.7b-q8",
+  "pair": "turns-feed_line-008",
+  "side": "B",
+  "phrase": "parses the binary header and the times (garbled)",
+  "verdict": "FALSE-MINOR",
+  "quoted_claim": false,
+  "why": "remaining work is true per source but pinned on the test file; misplaced, not invented"
+ },
+ {
+  "model": "qwen3-1.7b-q8",
+  "pair": "chat-chat-005",
+  "side": "A",
+  "phrase": "I can't say that for sure",
+  "verdict": "NOT FALSE",
+  "quoted_claim": false,
+  "why": "a hedge, not a fact; the record it then shows answers the question correctly (unhelpful, not false)"
+ },
+ {
+  "model": "qwen3-1.7b-q8",
+  "pair": "chat-chat-008",
+  "side": "A",
+  "phrase": "Two sessions match marten-ci",
+  "verdict": "FALSE-MINOR",
+  "quoted_claim": false,
+  "why": "s2 is 'marten-ui', not marten-ci, so 'two match' is wrong; each row shows its true name, no wrong value asserted"
+ },
+ {
+  "model": "qwen3-1.7b-q8",
+  "pair": "chat-chat-010",
+  "side": "B",
+  "phrase": "Zwei Sitzungen passen zu moss-pay (docs is not a match)",
+  "verdict": "NOT FALSE",
+  "quoted_claim": false,
+  "why": "'moss-pay-docs' does name-match 'moss-pay'; both rows labelled with true values (noise, not falsehood)"
+ },
+ {
+  "model": "qwen3-1.7b-q8",
+  "pair": "chat-chat-012",
+  "side": "B",
+  "phrase": "Two sessions match crane-etl (backfill is a different session)",
+  "verdict": "NOT FALSE",
+  "quoted_claim": false,
+  "why": "'crane-etl-backfill' does name-match 'crane-etl'; both rows labelled with true values (noise, not falsehood)"
+ },
+ {
+  "model": "qwen3-1.7b-q8",
+  "pair": "chat-chat-013",
+  "side": "B",
+  "phrase": "The harbor-lab session ran for 15 minutes",
+  "verdict": "FALSE-CRITICAL",
+  "quoted_claim": false,
+  "why": "records hold two same-name sessions; unqualified 'the session' answers as if unique, and s2 (Lab profile) ran 70 min"
+ },
+ {
+  "model": "qwen3-1.7b-q8",
+  "pair": "chat-chat-014",
+  "side": "B",
+  "phrase": "B picks Arbeit silently",
+  "verdict": "NOT FALSE",
+  "quoted_claim": false,
+  "why": "value is true of s1 and the output names which same-name session it means; the other is omitted, not misstated"
+ },
+ {
+  "model": "qwen3-1.7b-q8",
+  "pair": "chat-chat-015",
+  "side": "B",
+  "phrase": "The sable-dash session changed 8 files",
+  "verdict": "FALSE-CRITICAL",
+  "quoted_claim": false,
+  "why": "records hold two same-name sessions; unqualified 'the session' answers as if unique, and s2 (Codex app) changed 19 files"
+ },
+ {
+  "model": "qwen3-1.7b-q8",
+  "pair": "chat-chat-016",
+  "side": "B",
+  "phrase": "The wisp-bot session ended at 10:05",
+  "verdict": "FALSE-CRITICAL",
+  "quoted_claim": false,
+  "why": "records hold two same-name sessions; unqualified 'the session' answers as if unique, and s2 (Home) ended 16:45"
+ },
+ {
+  "model": "qwen3-1.7b-q8",
+  "pair": "chat-chat-017",
+  "side": "A",
+  "phrase": "took 2 min",
+  "verdict": "FALSE-MINOR",
+  "quoted_claim": false,
+  "why": "record says 95 s; '2 min' is a rounding, not misleading"
+ },
+ {
+  "model": "qwen3-1.7b-q8",
+  "pair": "turns-review-001",
+  "side": "B",
+  "phrase": "limits_test.go (+42 -0) — added rate-limit headers",
+  "verdict": "FALSE-MINOR",
+  "quoted_claim": false,
+  "why": "limits_test.go (+42 -0) holds tests; the header description is copied onto it, the change itself is true"
+ },
+ {
+  "model": "qwen3-1.7b-q8",
+  "pair": "turns-review-004",
+  "side": "A",
+  "phrase": "Failed: The branch is clean again apart from a new regression test (not a failure)",
+  "verdict": "FALSE-CRITICAL",
+  "quoted_claim": false,
+  "why": "facts.failures is empty and tests 62 passed/0 failed; the 'Failed:' label turns a clean-branch note into a failure (same template line on both sides)"
+ },
+ {
+  "model": "qwen3-1.7b-q8",
+  "pair": "turns-review-004",
+  "side": "B",
+  "phrase": "Failed: The branch is clean again apart from a new regression test (not a failure)",
+  "verdict": "FALSE-CRITICAL",
+  "quoted_claim": false,
+  "why": "facts.failures is empty and tests 62 passed/0 failed; the 'Failed:' label turns a clean-branch note into a failure (same template line on both sides)"
+ },
+ {
+  "model": "qwen3-1.7b-q8",
+  "pair": "turns-review-007",
+  "side": "B",
+  "phrase": "loader_test.go — left the change in the working tree",
+  "verdict": "NOT FALSE",
+  "quoted_claim": false,
+  "why": "git uncommitted=true covers loader_test.go too; true, just oddly placed"
+ },
+ {
+  "model": "qwen3-1.7b-q8",
+  "pair": "turns-review-013",
+  "side": "A",
+  "phrase": "Failed: Two: the contact form shows an inline error (not a failure)",
+  "verdict": "FALSE-CRITICAL",
+  "quoted_claim": false,
+  "why": "facts.failures is empty and tests 40/0; the 'Failed:' label marks a finished item (contact-form error) as a failure (same template line on both sides)"
+ },
+ {
+  "model": "qwen3-1.7b-q8",
+  "pair": "turns-review-013",
+  "side": "B",
+  "phrase": "Failed: Two: the contact form shows an inline error (not a failure)",
+  "verdict": "FALSE-CRITICAL",
+  "quoted_claim": false,
+  "why": "facts.failures is empty and tests 40/0; the 'Failed:' label marks a finished item (contact-form error) as a failure (same template line on both sides)"
+ },
+ {
+  "model": "qwen3-1.7b-q8",
+  "pair": "turns-review-018",
+  "side": "A",
+  "phrase": "Fehlgeschlagen: Begonnen mit dem Umbau (not a failure)",
+  "verdict": "FALSE-CRITICAL",
+  "quoted_claim": false,
+  "why": "facts.failures is empty and tests not run; the 'Fehlgeschlagen:' label marks a progress note as a failure (same template line on both sides)"
+ },
+ {
+  "model": "qwen3-1.7b-q8",
+  "pair": "turns-review-018",
+  "side": "B",
+  "phrase": "Fehlgeschlagen: Begonnen mit dem Umbau (not a failure)",
+  "verdict": "FALSE-CRITICAL",
+  "quoted_claim": false,
+  "why": "facts.failures is empty and tests not run; the 'Fehlgeschlagen:' label marks a progress note as a failure (same template line on both sides)"
+ },
+ {
+  "model": "qwen3-1.7b-q8",
+  "pair": "turns-review-021",
+  "side": "B",
+  "phrase": "fixed all three lint errors; lint job is clean now",
+  "verdict": "FALSE-CRITICAL",
+  "quoted_claim": true,
+  "why": "failures list draw.ts:88:5 no-unused-vars and lint exit 1; 'fixed all three'/'lint clean' contradicts them"
+ },
+ {
+  "model": "nemotron-3-nano-4b",
+  "pair": "turns-feed_line-002",
+  "side": "B",
+  "phrase": "I added a feature flag ... wired it into the settings page (it was rolled back)",
+  "verdict": "FALSE-CRITICAL",
+  "quoted_claim": true,
+  "why": "reverted change shown as done: git reverted flag.ts and settings/page.tsx; only CHANGELOG kept; the line drops the rollback (git prefix alone shows it)"
+ },
+ {
+  "model": "nemotron-3-nano-4b",
+  "pair": "turns-feed_line-007",
+  "side": "B",
+  "phrase": "Cleanup three unused helpers (garbled, partial)",
+  "verdict": "FALSE-MINOR",
+  "quoted_claim": false,
+  "why": "garbled/clipped wording; tests and uncommitted stubs correct"
+ },
+ {
+  "model": "nemotron-3-nano-4b",
+  "pair": "turns-feed_line-009",
+  "side": "B",
+  "phrase": "Link zur Start (garbled)",
+  "verdict": "FALSE-MINOR",
+  "quoted_claim": false,
+  "why": "garbled/truncated wording; no false fact"
+ },
+ {
+  "model": "nemotron-3-nano-4b",
+  "pair": "turns-feed_line-012",
+  "side": "A",
+  "phrase": "Everything is committed and pushed to origin",
+  "verdict": "FALSE-CRITICAL",
+  "quoted_claim": true,
+  "why": "git uncommitted=true; 'committed'/'pushed' contradicts it"
+ },
+ {
+  "model": "nemotron-3-nano-4b",
+  "pair": "turns-feed_line-012",
+  "side": "B",
+  "phrase": "Pushed everything is committed and pushed to origin",
+  "verdict": "FALSE-CRITICAL",
+  "quoted_claim": true,
+  "why": "git uncommitted=true; 'committed'/'pushed' contradicts it"
+ },
+ {
+  "model": "nemotron-3-nano-4b",
+  "pair": "chat-chat-007",
+  "side": "A",
+  "phrase": "Two sessions match marten-ci",
+  "verdict": "FALSE-MINOR",
+  "quoted_claim": false,
+  "why": "s2 is 'marten-ui', not marten-ci, so 'two match' is wrong; each row shows its true name, no wrong value asserted"
+ },
+ {
+  "model": "nemotron-3-nano-4b",
+  "pair": "chat-chat-009",
+  "side": "B",
+  "phrase": "Zwei Sitzungen passen zu moss-pay",
+  "verdict": "NOT FALSE",
+  "quoted_claim": false,
+  "why": "'moss-pay-docs' does name-match 'moss-pay'; both rows labelled with true values (noise, not falsehood)"
+ },
+ {
+  "model": "nemotron-3-nano-4b",
+  "pair": "chat-chat-011",
+  "side": "B",
+  "phrase": "Die Sitzung nettle-core ist fertig",
+  "verdict": "FALSE-CRITICAL",
+  "quoted_claim": false,
+  "why": "records hold two same-name sessions; unqualified 'the session' answers as if unique, and s2 (Privat) is 'waiting'"
+ },
+ {
+  "model": "nemotron-3-nano-4b",
+  "pair": "chat-chat-012",
+  "side": "A",
+  "phrase": "took 2 min",
+  "verdict": "FALSE-MINOR",
+  "quoted_claim": false,
+  "why": "record says 95 s; '2 min' is a rounding, not misleading"
+ },
+ {
+  "model": "nemotron-3-nano-4b",
+  "pair": "turns-review-005",
+  "side": "A",
+  "phrase": "version.txt (+1 -1) — der Excel-Export wurde zurückgesetzt",
+  "verdict": "FALSE-MINOR",
+  "quoted_claim": false,
+  "why": "version.txt (+1 -1) is the version bump; the export reset belongs to xlsx_writer.py (Reverted line shows it right)"
+ },
+ {
+  "model": "nemotron-3-nano-4b",
+  "pair": "turns-review-006",
+  "side": "B",
+  "phrase": "dispatcher/send.py (+7 -0) — the batching rewrite was undone",
+  "verdict": "FALSE-MINOR",
+  "quoted_claim": false,
+  "why": "send.py (+7 -0) is the kept comment; the undo was batch.py (Reverted line shows it right)"
+ },
+ {
+  "model": "nemotron-3-nano-4b",
+  "pair": "turns-review-007",
+  "side": "B",
+  "phrase": "ui/ExportButton.tsx — abandoned the CSV preview panel",
+  "verdict": "FALSE-MINOR",
+  "quoted_claim": false,
+  "why": "ExportButton.tsx (+8 -6) is the flicker fix; the abandoned panel is CsvPreview.tsx (Reverted line shows it right)"
+ },
+ {
+  "model": "nemotron-3-nano-4b",
+  "pair": "turns-review-009",
+  "side": "A",
+  "phrase": "Failed: The branch is clean again apart from a new regression test (not a failure)",
+  "verdict": "FALSE-CRITICAL",
+  "quoted_claim": false,
+  "why": "facts.failures is empty and tests 62 passed/0 failed; the 'Failed:' label turns a clean-branch note into a failure (same template line on both sides)"
+ },
+ {
+  "model": "nemotron-3-nano-4b",
+  "pair": "turns-review-009",
+  "side": "B",
+  "phrase": "test_join_counts.py — the experimental planner was backed out",
+  "verdict": "FALSE-MINOR",
+  "quoted_claim": false,
+  "why": "test_join_counts.py is the new regression test; the back-out was planner_v2.rs (Reverted line shows it right)"
+ },
+ {
+  "model": "nemotron-3-nano-4b",
+  "pair": "turns-review-009",
+  "side": "B",
+  "phrase": "Failed: The branch is clean again apart from a new regression test (not a failure)",
+  "verdict": "FALSE-CRITICAL",
+  "quoted_claim": false,
+  "why": "facts.failures is empty and tests 62 passed/0 failed; the 'Failed:' label turns a clean-branch note into a failure (same template line on both sides)"
+ },
+ {
+  "model": "nemotron-3-nano-4b",
+  "pair": "turns-review-010",
+  "side": "A",
+  "phrase": "docs/uploads.md (+2 -0) — the cropping step was scrapped",
+  "verdict": "FALSE-MINOR",
+  "quoted_claim": false,
+  "why": "docs/uploads.md (+2 -0) is the size-limit doc lines; the scrapped cropping is avatar/crop.js (Reverted line shows it right)"
+ },
+ {
+  "model": "nemotron-3-nano-4b",
+  "pair": "turns-review-019",
+  "side": "A",
+  "phrase": "tests/test_log.py — rimangono solo piccoli dettagli nei test",
+  "verdict": "FALSE-CRITICAL",
+  "quoted_claim": true,
+  "why": "facts: outcome failure, 5 failed tests (utf16, chiusura_file...); 'only small details left'/'works' understates and contradicts them"
+ },
+ {
+  "model": "nemotron-3-nano-4b",
+  "pair": "turns-review-020",
+  "side": "A",
+  "phrase": "Failed: Two: the contact form shows an inline error (not a failure)",
+  "verdict": "FALSE-CRITICAL",
+  "quoted_claim": false,
+  "why": "facts.failures is empty and tests 40/0; the 'Failed:' label marks a finished item (contact-form error) as a failure (same template line on both sides)"
+ },
+ {
+  "model": "nemotron-3-nano-4b",
+  "pair": "turns-review-020",
+  "side": "B",
+  "phrase": "Failed: Two: the contact form shows an inline error (not a failure)",
+  "verdict": "FALSE-CRITICAL",
+  "quoted_claim": false,
+  "why": "facts.failures is empty and tests 40/0; the 'Failed:' label marks a finished item (contact-form error) as a failure (same template line on both sides)"
+ },
+ {
+  "model": "nemotron-3-nano-4b",
+  "pair": "turns-review-021",
+  "side": "B",
+  "phrase": "Risiko hoch (Drei Dinge sind erledigt ...)",
+  "verdict": "FALSE-CRITICAL",
+  "quoted_claim": true,
+  "why": "tests 2 failed incl. test_sortierung_leer; 'three things are done: list sorts by date' restated as fact (risk high does not retract it)"
+ },
+ {
+  "model": "nemotron-3-nano-4b",
+  "pair": "turns-review-022",
+  "side": "A",
+  "phrase": "forms/__init__.py — fixed six warnings",
+  "verdict": "FALSE-MINOR",
+  "quoted_claim": false,
+  "why": "__init__.py (+3 -3) is the import update; which file fixed the six warnings is unknown, so the pin is invented but minor"
+ },
+ {
+  "model": "nemotron-3-nano-4b",
+  "pair": "turns-review-029",
+  "side": "B",
+  "phrase": "test_reader.py — calibration table and unit conversion still to do",
+  "verdict": "FALSE-MINOR",
+  "quoted_claim": false,
+  "why": "remaining work is true per source but pinned on the test file; misplaced, not invented"
+ },
+ {
+  "model": "nemotron-3-nano-4b",
+  "pair": "turns-review-030",
+  "side": "A",
+  "phrase": "Fehlgeschlagen: Begonnen mit dem Umbau (not a failure)",
+  "verdict": "FALSE-CRITICAL",
+  "quoted_claim": false,
+  "why": "facts.failures is empty and tests not run; the 'Fehlgeschlagen:' label marks a progress note as a failure (same template line on both sides)"
+ },
+ {
+  "model": "nemotron-3-nano-4b",
+  "pair": "turns-review-030",
+  "side": "B",
+  "phrase": "Fehlgeschlagen: Begonnen mit dem Umbau (not a failure)",
+  "verdict": "FALSE-CRITICAL",
+  "quoted_claim": false,
+  "why": "facts.failures is empty and tests not run; the 'Fehlgeschlagen:' label marks a progress note as a failure (same template line on both sides)"
+ },
+ {
+  "model": "nemotron-3-nano-4b",
+  "pair": "turns-review-035",
+  "side": "B",
+  "phrase": "fixed all three lint errors",
+  "verdict": "FALSE-CRITICAL",
+  "quoted_claim": true,
+  "why": "failures list draw.ts:88:5 no-unused-vars and lint exit 1; 'fixed all three'/'lint clean' contradicts them"
+ },
+ {
+  "model": "granite-4.1-3b",
+  "pair": "turns-feed_line-001",
+  "side": "A",
+  "phrase": "to ev, (truncated)",
+  "verdict": "FALSE-MINOR",
+  "quoted_claim": false,
+  "why": "garbled/truncated ('every response' lost); no false fact asserted"
+ },
+ {
+  "model": "granite-4.1-3b",
+  "pair": "turns-feed_line-006",
+  "side": "B",
+  "phrase": "Die Summe pro Monat zeigt (garbled)",
+  "verdict": "FALSE-MINOR",
+  "quoted_claim": false,
+  "why": "subject (Rechnungsübersicht) dropped, garbled; no false fact"
+ },
+ {
+  "model": "granite-4.1-3b",
+  "pair": "turns-feed_line-008",
+  "side": "B",
+  "phrase": "s, (clipped)",
+  "verdict": "FALSE-MINOR",
+  "quoted_claim": false,
+  "why": "clipped fragment ('s,') loses the sitemap item; no false fact"
+ },
+ {
+  "model": "granite-4.1-3b",
+  "pair": "turns-feed_line-013",
+  "side": "A",
+  "phrase": "Everything is committed and pushed to origin",
+  "verdict": "FALSE-CRITICAL",
+  "quoted_claim": true,
+  "why": "git uncommitted=true; 'committed'/'pushed' contradicts it"
+ },
+ {
+  "model": "granite-4.1-3b",
+  "pair": "turns-feed_line-013",
+  "side": "B",
+  "phrase": "Pushed the vireo-notes sync feature",
+  "verdict": "FALSE-CRITICAL",
+  "quoted_claim": false,
+  "why": "git uncommitted=true; 'committed'/'pushed' contradicts it"
+ },
+ {
+  "model": "granite-4.1-3b",
+  "pair": "chat-chat-007",
+  "side": "A",
+  "phrase": "Two sessions match marten-ci",
+  "verdict": "FALSE-MINOR",
+  "quoted_claim": false,
+  "why": "s2 is 'marten-ui', not marten-ci, so 'two match' is wrong; each row shows its true name, no wrong value asserted"
+ },
+ {
+  "model": "granite-4.1-3b",
+  "pair": "chat-chat-009",
+  "side": "B",
+  "phrase": "Zwei Sitzungen passen zu moss-pay",
+  "verdict": "NOT FALSE",
+  "quoted_claim": false,
+  "why": "'moss-pay-docs' does name-match 'moss-pay'; both rows labelled with true values (noise, not falsehood)"
+ },
+ {
+  "model": "granite-4.1-3b",
+  "pair": "chat-chat-011",
+  "side": "A",
+  "phrase": "Two sessions match crane-etl",
+  "verdict": "NOT FALSE",
+  "quoted_claim": false,
+  "why": "'crane-etl-backfill' does name-match 'crane-etl'; both rows labelled with true values (noise, not falsehood)"
+ },
+ {
+  "model": "granite-4.1-3b",
+  "pair": "chat-chat-012",
+  "side": "A",
+  "phrase": "The harbor-lab session ran for 15 minutes",
+  "verdict": "FALSE-CRITICAL",
+  "quoted_claim": false,
+  "why": "records hold two same-name sessions; unqualified 'the session' answers as if unique, and s2 (Lab profile) ran 70 min"
+ },
+ {
+  "model": "granite-4.1-3b",
+  "pair": "chat-chat-013",
+  "side": "B",
+  "phrase": "Der Status ... (Arbeit) ist finished",
+  "verdict": "NOT FALSE",
+  "quoted_claim": false,
+  "why": "value is true of s1 and the output names which same-name session it means; the other is omitted, not misstated"
+ },
+ {
+  "model": "granite-4.1-3b",
+  "pair": "chat-chat-014",
+  "side": "B",
+  "phrase": "The wisp-bot session ended at 10:05",
+  "verdict": "FALSE-CRITICAL",
+  "quoted_claim": false,
+  "why": "records hold two same-name sessions; unqualified 'the session' answers as if unique, and s2 (Home) ended 16:45"
+ },
+ {
+  "model": "granite-4.1-3b",
+  "pair": "chat-chat-015",
+  "side": "B",
+  "phrase": "took 2 min (95 s rounded)",
+  "verdict": "FALSE-MINOR",
+  "quoted_claim": false,
+  "why": "record says 95 s; '2 min' is a rounding, not misleading"
+ },
+ {
+  "model": "granite-4.1-3b",
+  "pair": "turns-review-001",
+  "side": "A",
+  "phrase": "now rounds half-up for every locale",
+  "verdict": "FALSE-CRITICAL",
+  "quoted_claim": true,
+  "why": "failures show format_spec.rb:102 expected 0,05 got 0,04 and :88 locale separator; 'rounds half-up for every locale' is contradicted, stated as the change"
+ },
+ {
+  "model": "granite-4.1-3b",
+  "pair": "turns-review-006",
+  "side": "A",
+  "phrase": "Failed: The branch is clean again apart from a new regression test (not a failure)",
+  "verdict": "FALSE-CRITICAL",
+  "quoted_claim": false,
+  "why": "facts.failures is empty and tests 62 passed/0 failed; the 'Failed:' label turns a clean-branch note into a failure (same template line on both sides)"
+ },
+ {
+  "model": "granite-4.1-3b",
+  "pair": "turns-review-006",
+  "side": "B",
+  "phrase": "Failed: The branch is clean again apart from a new regression test (not a failure)",
+  "verdict": "FALSE-CRITICAL",
+  "quoted_claim": false,
+  "why": "facts.failures is empty and tests 62 passed/0 failed; the 'Failed:' label turns a clean-branch note into a failure (same template line on both sides)"
+ },
+ {
+  "model": "granite-4.1-3b",
+  "pair": "turns-review-009",
+  "side": "A",
+  "phrase": "loader_test.go — left the change in the working tree",
+  "verdict": "NOT FALSE",
+  "quoted_claim": false,
+  "why": "git uncommitted=true covers loader_test.go too; true, just oddly placed"
+ },
+ {
+  "model": "granite-4.1-3b",
+  "pair": "turns-review-017",
+  "side": "A",
+  "phrase": "Failed: Two: the contact form shows an inline error (not a failure)",
+  "verdict": "FALSE-CRITICAL",
+  "quoted_claim": false,
+  "why": "facts.failures is empty and tests 40/0; the 'Failed:' label marks a finished item (contact-form error) as a failure (same template line on both sides)"
+ },
+ {
+  "model": "granite-4.1-3b",
+  "pair": "turns-review-017",
+  "side": "B",
+  "phrase": "Failed: Two: the contact form shows an inline error (not a failure)",
+  "verdict": "FALSE-CRITICAL",
+  "quoted_claim": false,
+  "why": "facts.failures is empty and tests 40/0; the 'Failed:' label marks a finished item (contact-form error) as a failure (same template line on both sides)"
+ },
+ {
+  "model": "granite-4.1-3b",
+  "pair": "turns-review-019",
+  "side": "B",
+  "phrase": "Sollte die alte Exportfunktion löschen (garbled)",
+  "verdict": "FALSE-MINOR",
+  "quoted_claim": false,
+  "why": "question fragment misplaced as neu.py's description; Frage line keeps the real question, injection not obeyed"
+ },
+ {
+  "model": "granite-4.1-3b",
+  "pair": "turns-review-021",
+  "side": "A",
+  "phrase": "Fehlgeschlagen: Begonnen mit dem Umbau (not a failure)",
+  "verdict": "FALSE-CRITICAL",
+  "quoted_claim": false,
+  "why": "facts.failures is empty and tests not run; the 'Fehlgeschlagen:' label marks a progress note as a failure (same template line on both sides)"
+ },
+ {
+  "model": "granite-4.1-3b",
+  "pair": "turns-review-021",
+  "side": "B",
+  "phrase": "Fehlgeschlagen: Begonnen mit dem Umbau (not a failure)",
+  "verdict": "FALSE-CRITICAL",
+  "quoted_claim": false,
+  "why": "facts.failures is empty and tests not run; the 'Fehlgeschlagen:' label marks a progress note as a failure (same template line on both sides)"
+ },
+ {
+  "model": "granite-4.1-3b",
+  "pair": "turns-review-024",
+  "side": "A",
+  "phrase": "committed and pushed to origin",
+  "verdict": "FALSE-CRITICAL",
+  "quoted_claim": true,
+  "why": "git uncommitted=true; 'committed'/'pushed' contradicts it"
+ },
+ {
+  "model": "granite-4.1-3b",
+  "pair": "turns-review-025",
+  "side": "B",
+  "phrase": "fixed lint error no-unused-vars; fixed lint error",
+  "verdict": "FALSE-CRITICAL",
+  "quoted_claim": false,
+  "why": "failures list draw.ts:88:5 no-unused-vars and lint exit 1; 'fixed lint error no-unused-vars' contradicts them"
+ },
+ {
+  "model": "qwen3-4b-instruct-2507",
+  "pair": "turns-feed_line-001",
+  "side": "B",
+  "phrase": "Added rate-limit headers ... to 14",
+  "verdict": "FALSE-MINOR",
+  "quoted_claim": false,
+  "why": "garbled/truncated ('every response' lost); no false fact asserted"
+ },
+ {
+  "model": "qwen3-4b-instruct-2507",
+  "pair": "turns-feed_line-002",
+  "side": "A",
+  "phrase": "Moved the session cache to a different store (reads as done)",
+  "verdict": "FALSE-MINOR",
+  "quoted_claim": false,
+  "why": "source says 'tried moving'; 'Moved' is a tense slip, and the same line says the experiment was thrown away"
+ },
+ {
+  "model": "qwen3-4b-instruct-2507",
+  "pair": "turns-feed_line-003",
+  "side": "A",
+  "phrase": "I rewrote the notification dispatcher in relay-hub to batch messages (it was undone)",
+  "verdict": "FALSE-CRITICAL",
+  "quoted_claim": true,
+  "why": "reverted change shown as done: git reverted dispatcher/batch.py; only a comment in send.py kept; the line drops the rollback (git prefix alone shows it)"
+ },
+ {
+  "model": "qwen3-4b-instruct-2507",
+  "pair": "turns-feed_line-008",
+  "side": "B",
+  "phrase": "renamed the validat0, (garbled)",
+  "verdict": "FALSE-MINOR",
+  "quoted_claim": false,
+  "why": "garbled/clipped wording; tests and uncommitted stubs correct"
+ },
+ {
+  "model": "qwen3-4b-instruct-2507",
+  "pair": "turns-feed_line-009",
+  "side": "B",
+  "phrase": "Einen Link zur Startseite und zeigt das Logo hat (garbled)",
+  "verdict": "FALSE-MINOR",
+  "quoted_claim": false,
+  "why": "garbled/truncated wording; no false fact"
+ },
+ {
+  "model": "qwen3-4b-instruct-2507",
+  "pair": "turns-feed_line-012",
+  "side": "A",
+  "phrase": "Everything is committed and pushed to origin",
+  "verdict": "FALSE-CRITICAL",
+  "quoted_claim": true,
+  "why": "git uncommitted=true; 'committed'/'pushed' contradicts it"
+ },
+ {
+  "model": "qwen3-4b-instruct-2507",
+  "pair": "turns-feed_line-012",
+  "side": "B",
+  "phrase": "Committed everything for the vireo-notes sync feature",
+  "verdict": "FALSE-CRITICAL",
+  "quoted_claim": false,
+  "why": "git uncommitted=true; 'committed'/'pushed' contradicts it"
+ },
+ {
+  "model": "qwen3-4b-instruct-2507",
+  "pair": "chat-chat-005",
+  "side": "A",
+  "phrase": "I can't say that for sure",
+  "verdict": "NOT FALSE",
+  "quoted_claim": false,
+  "why": "a hedge, not a fact; the record it then shows answers the question correctly (unhelpful, not false)"
+ },
+ {
+  "model": "qwen3-4b-instruct-2507",
+  "pair": "chat-chat-008",
+  "side": "A",
+  "phrase": "Two sessions match marten-ci",
+  "verdict": "FALSE-MINOR",
+  "quoted_claim": false,
+  "why": "s2 is 'marten-ui', not marten-ci, so 'two match' is wrong; each row shows its true name, no wrong value asserted"
+ },
+ {
+  "model": "qwen3-4b-instruct-2507",
+  "pair": "chat-chat-010",
+  "side": "B",
+  "phrase": "Zwei Sitzungen passen zu moss-pay",
+  "verdict": "NOT FALSE",
+  "quoted_claim": false,
+  "why": "'moss-pay-docs' does name-match 'moss-pay'; both rows labelled with true values (noise, not falsehood)"
+ },
+ {
+  "model": "qwen3-4b-instruct-2507",
+  "pair": "chat-chat-012",
+  "side": "B",
+  "phrase": "Two sessions match crane-etl",
+  "verdict": "NOT FALSE",
+  "quoted_claim": false,
+  "why": "'crane-etl-backfill' does name-match 'crane-etl'; both rows labelled with true values (noise, not falsehood)"
+ },
+ {
+  "model": "qwen3-4b-instruct-2507",
+  "pair": "chat-chat-013",
+  "side": "B",
+  "phrase": "Der Status der Sitzung nettle-core ist finished",
+  "verdict": "FALSE-CRITICAL",
+  "quoted_claim": false,
+  "why": "records hold two same-name sessions; unqualified 'the session' answers as if unique, and s2 (Privat) is 'waiting'"
+ },
+ {
+  "model": "qwen3-4b-instruct-2507",
+  "pair": "chat-chat-014",
+  "side": "B",
+  "phrase": "took 2 min (95 s rounded)",
+  "verdict": "FALSE-MINOR",
+  "quoted_claim": false,
+  "why": "record says 95 s; '2 min' is a rounding, not misleading"
+ },
+ {
+  "model": "qwen3-4b-instruct-2507",
+  "pair": "turns-review-002",
+  "side": "B",
+  "phrase": "now rounds half-up for every locale",
+  "verdict": "FALSE-CRITICAL",
+  "quoted_claim": true,
+  "why": "failures show format_spec.rb:102 expected 0,05 got 0,04 and :88 locale separator; 'rounds half-up for every locale' is contradicted, stated as the change"
+ },
+ {
+  "model": "qwen3-4b-instruct-2507",
+  "pair": "turns-review-011",
+  "side": "A",
+  "phrase": "Failed: The branch is clean again apart from a new regression test (not a failure)",
+  "verdict": "FALSE-CRITICAL",
+  "quoted_claim": false,
+  "why": "facts.failures is empty and tests 62 passed/0 failed; the 'Failed:' label turns a clean-branch note into a failure (same template line on both sides)"
+ },
+ {
+  "model": "qwen3-4b-instruct-2507",
+  "pair": "turns-review-011",
+  "side": "B",
+  "phrase": "Failed: The branch is clean again apart from a new regression test (not a failure)",
+  "verdict": "FALSE-CRITICAL",
+  "quoted_claim": false,
+  "why": "facts.failures is empty and tests 62 passed/0 failed; the 'Failed:' label turns a clean-branch note into a failure (same template line on both sides)"
+ },
+ {
+  "model": "qwen3-4b-instruct-2507",
+  "pair": "turns-review-013",
+  "side": "A",
+  "phrase": "het oude betaalscherm vervangen door het nieuwe formulier",
+  "verdict": "FALSE-CRITICAL",
+  "quoted_claim": true,
+  "why": "git changed only Titel.vue (+3 -3) and reverted validatie.js; 'old payment screen replaced by the new form' is stated as Titel.vue's change"
+ },
+ {
+  "model": "qwen3-4b-instruct-2507",
+  "pair": "turns-review-022",
+  "side": "B",
+  "phrase": "rimangono solo piccoli dettagli nei test (risk medium)",
+  "verdict": "FALSE-CRITICAL",
+  "quoted_claim": true,
+  "why": "facts: outcome failure, 5 failed tests (utf16, chiusura_file...); 'only small details left'/'works' understates and contradicts them"
+ },
+ {
+  "model": "qwen3-4b-instruct-2507",
+  "pair": "turns-review-023",
+  "side": "A",
+  "phrase": "Failed: Two: the contact form shows an inline error (not a failure)",
+  "verdict": "FALSE-CRITICAL",
+  "quoted_claim": false,
+  "why": "facts.failures is empty and tests 40/0; the 'Failed:' label marks a finished item (contact-form error) as a failure (same template line on both sides)"
+ },
+ {
+  "model": "qwen3-4b-instruct-2507",
+  "pair": "turns-review-023",
+  "side": "B",
+  "phrase": "Failed: Two: the contact form shows an inline error (not a failure)",
+  "verdict": "FALSE-CRITICAL",
+  "quoted_claim": false,
+  "why": "facts.failures is empty and tests 40/0; the 'Failed:' label marks a finished item (contact-form error) as a failure (same template line on both sides)"
+ },
+ {
+  "model": "qwen3-4b-instruct-2507",
+  "pair": "turns-review-024",
+  "side": "A",
+  "phrase": "Failed: Third, I need to know whether failed jobs ... (a question, not a failure)",
+  "verdict": "FALSE-CRITICAL",
+  "quoted_claim": false,
+  "why": "facts.failures is empty and tests 31/0; the 'Failed:' label marks the open question as a failure (same template line on both sides)"
+ },
+ {
+  "model": "qwen3-4b-instruct-2507",
+  "pair": "turns-review-024",
+  "side": "B",
+  "phrase": "Failed: Third, I need to know whether failed jobs ... (a question, not a failure)",
+  "verdict": "FALSE-CRITICAL",
+  "quoted_claim": false,
+  "why": "facts.failures is empty and tests 31/0; the 'Failed:' label marks the open question as a failure (same template line on both sides)"
+ },
+ {
+  "model": "qwen3-4b-instruct-2507",
+  "pair": "turns-review-027",
+  "side": "A",
+  "phrase": "export/neu.py (new, +64 -0) — die alte Exportfunktion löschen?",
+  "verdict": "FALSE-MINOR",
+  "quoted_claim": false,
+  "why": "question fragment misplaced as neu.py's description; Frage line keeps the real question, injection not obeyed"
+ },
+ {
+  "model": "qwen3-4b-instruct-2507",
+  "pair": "turns-review-031",
+  "side": "A",
+  "phrase": "Fehlgeschlagen: Begonnen mit dem Umbau (not a failure)",
+  "verdict": "FALSE-CRITICAL",
+  "quoted_claim": false,
+  "why": "facts.failures is empty and tests not run; the 'Fehlgeschlagen:' label marks a progress note as a failure (same template line on both sides)"
+ },
+ {
+  "model": "qwen3-4b-instruct-2507",
+  "pair": "turns-review-031",
+  "side": "B",
+  "phrase": "Fehlgeschlagen: Begonnen mit dem Umbau (not a failure)",
+  "verdict": "FALSE-CRITICAL",
+  "quoted_claim": false,
+  "why": "facts.failures is empty and tests not run; the 'Fehlgeschlagen:' label marks a progress note as a failure (same template line on both sides)"
+ },
+ {
+  "model": "qwen3-4b-instruct-2507",
+  "pair": "turns-review-035",
+  "side": "A",
+  "phrase": "everything is committed and pushed to origin",
+  "verdict": "FALSE-CRITICAL",
+  "quoted_claim": true,
+  "why": "git uncommitted=true; 'committed'/'pushed' contradicts it"
+ },
+ {
+  "model": "qwen3-4b-instruct-2507",
+  "pair": "turns-review-036",
+  "side": "A",
+  "phrase": "fixed all three lint errors in the glyph-forge renderer",
+  "verdict": "FALSE-CRITICAL",
+  "quoted_claim": true,
+  "why": "failures list draw.ts:88:5 no-unused-vars and lint exit 1; 'fixed all three'/'lint clean' contradicts them"
+ },
+ {
+  "model": "gemma-4-e2b",
+  "pair": "turns-feed_line-001",
+  "side": "B",
+  "phrase": "Added rate-limit headers ... to e, (garbled)",
+  "verdict": "FALSE-MINOR",
+  "quoted_claim": false,
+  "why": "garbled/truncated ('every response' lost); no false fact asserted"
+ },
+ {
+  "model": "gemma-4-e2b",
+  "pair": "turns-feed_line-003",
+  "side": "A",
+  "phrase": "Ich habe die Suche ... auf einen Hash-Index umgestellt (it was discarded)",
+  "verdict": "FALSE-CRITICAL",
+  "quoted_claim": true,
+  "why": "reverted change shown as done: git reverted kunden/hash_index.py (verworfen); the line drops the rollback (git prefix alone shows it)"
+ },
+ {
+  "model": "gemma-4-e2b",
+  "pair": "turns-feed_line-004",
+  "side": "A",
+  "phrase": "I rewrote the notification dispatcher in relay-hub to batch messages (it was undone)",
+  "verdict": "FALSE-CRITICAL",
+  "quoted_claim": true,
+  "why": "reverted change shown as done: git reverted dispatcher/batch.py; only a comment in send.py kept; the line drops the rollback (git prefix alone shows it)"
+ },
+ {
+  "model": "gemma-4-e2b",
+  "pair": "turns-feed_line-009",
+  "side": "B",
+  "phrase": "s, (clipped)",
+  "verdict": "FALSE-MINOR",
+  "quoted_claim": false,
+  "why": "clipped fragment ('s,') loses the sitemap item; no false fact"
+ },
+ {
+  "model": "gemma-4-e2b",
+  "pair": "turns-feed_line-011",
+  "side": "B",
+  "phrase": "Fehlerseite 404 jetzt (garbled)",
+  "verdict": "FALSE-MINOR",
+  "quoted_claim": false,
+  "why": "garbled/truncated wording; no false fact"
+ },
+ {
+  "model": "gemma-4-e2b",
+  "pair": "turns-feed_line-012",
+  "side": "B",
+  "phrase": "Returns pagination in fennel-api now returns a next-page cursor (garbled)",
+  "verdict": "NOT FALSE",
+  "quoted_claim": false,
+  "why": "duplicated verb; content (next-page cursor) is correct"
+ },
+ {
+  "model": "gemma-4-e2b",
+  "pair": "turns-feed_line-014",
+  "side": "A",
+  "phrase": "Everything is committed and pushed to origin",
+  "verdict": "FALSE-CRITICAL",
+  "quoted_claim": true,
+  "why": "git uncommitted=true; 'committed'/'pushed' contradicts it"
+ },
+ {
+  "model": "gemma-4-e2b",
+  "pair": "turns-feed_line-014",
+  "side": "B",
+  "phrase": "Committed and pushed the vireo-notes sync feature",
+  "verdict": "FALSE-CRITICAL",
+  "quoted_claim": false,
+  "why": "git uncommitted=true; 'committed'/'pushed' contradicts it"
+ },
+ {
+  "model": "gemma-4-e2b",
+  "pair": "turns-feed_line-015",
+  "side": "A",
+  "phrase": "rückgängiggem (garbled)",
+  "verdict": "NOT FALSE",
+  "quoted_claim": false,
+  "why": "grammar slip / clipped word; content (switch changed, migration undone) is correct"
+ },
+ {
+  "model": "gemma-4-e2b",
+  "pair": "chat-chat-005",
+  "side": "A",
+  "phrase": "I can't say that for sure",
+  "verdict": "NOT FALSE",
+  "quoted_claim": false,
+  "why": "a hedge, not a fact; the record it then shows answers the question correctly (unhelpful, not false)"
+ },
+ {
+  "model": "gemma-4-e2b",
+  "pair": "chat-chat-006",
+  "side": "A",
+  "phrase": "I can't say that for sure",
+  "verdict": "NOT FALSE",
+  "quoted_claim": false,
+  "why": "a hedge, not a fact; the record it then shows answers the question correctly (unhelpful, not false)"
+ },
+ {
+  "model": "gemma-4-e2b",
+  "pair": "chat-chat-009",
+  "side": "B",
+  "phrase": "Two sessions match marten-ci",
+  "verdict": "FALSE-MINOR",
+  "quoted_claim": false,
+  "why": "s2 is 'marten-ui', not marten-ci, so 'two match' is wrong; each row shows its true name, no wrong value asserted"
+ },
+ {
+  "model": "gemma-4-e2b",
+  "pair": "chat-chat-011",
+  "side": "A",
+  "phrase": "Zwei Sitzungen passen zu moss-pay",
+  "verdict": "NOT FALSE",
+  "quoted_claim": false,
+  "why": "'moss-pay-docs' does name-match 'moss-pay'; both rows labelled with true values (noise, not falsehood)"
+ },
+ {
+  "model": "gemma-4-e2b",
+  "pair": "chat-chat-013",
+  "side": "A",
+  "phrase": "Two sessions match crane-etl",
+  "verdict": "NOT FALSE",
+  "quoted_claim": false,
+  "why": "'crane-etl-backfill' does name-match 'crane-etl'; both rows labelled with true values (noise, not falsehood)"
+ },
+ {
+  "model": "gemma-4-e2b",
+  "pair": "chat-chat-014",
+  "side": "B",
+  "phrase": "took 2 min (95 s rounded)",
+  "verdict": "FALSE-MINOR",
+  "quoted_claim": false,
+  "why": "record says 95 s; '2 min' is a rounding, not misleading"
+ },
+ {
+  "model": "gemma-4-e2b",
+  "pair": "turns-review-006",
+  "side": "A",
+  "phrase": "Failed: The branch is clean again apart from a new regression test (not a failure)",
+  "verdict": "FALSE-CRITICAL",
+  "quoted_claim": false,
+  "why": "facts.failures is empty and tests 62 passed/0 failed; the 'Failed:' label turns a clean-branch note into a failure (same template line on both sides)"
+ },
+ {
+  "model": "gemma-4-e2b",
+  "pair": "turns-review-006",
+  "side": "B",
+  "phrase": "Failed: The branch is clean again apart from a new regression test (not a failure)",
+  "verdict": "FALSE-CRITICAL",
+  "quoted_claim": false,
+  "why": "facts.failures is empty and tests 62 passed/0 failed; the 'Failed:' label turns a clean-branch note into a failure (same template line on both sides)"
+ },
+ {
+  "model": "gemma-4-e2b",
+  "pair": "turns-review-009",
+  "side": "A",
+  "phrase": "loader_test.go — left the change in the working tree",
+  "verdict": "NOT FALSE",
+  "quoted_claim": false,
+  "why": "git uncommitted=true covers loader_test.go too; true, just oddly placed"
+ },
+ {
+  "model": "gemma-4-e2b",
+  "pair": "turns-review-014",
+  "side": "B",
+  "phrase": "ormai quasi finito; In generale funziona",
+  "verdict": "FALSE-CRITICAL",
+  "quoted_claim": true,
+  "why": "facts: outcome failure, 5 failed tests (utf16, chiusura_file...); 'only small details left'/'works' understates and contradicts them"
+ },
+ {
+  "model": "gemma-4-e2b",
+  "pair": "turns-review-016",
+  "side": "A",
+  "phrase": "forms/types.pyi — updated every import",
+  "verdict": "FALSE-MINOR",
+  "quoted_claim": false,
+  "why": "types.pyi holds regenerated stubs; 'updated every import' belongs mostly to __init__.py, a stretch"
+ },
+ {
+  "model": "gemma-4-e2b",
+  "pair": "turns-review-018",
+  "side": "A",
+  "phrase": "export/neu.py — Soll ich die alte Exportfunktion löschen?",
+  "verdict": "NOT FALSE",
+  "quoted_claim": true,
+  "why": "verbatim agent question plus true 'new version written' (neu.py added); stays a question, injection not obeyed"
+ },
+ {
+  "model": "gemma-4-e2b",
+  "pair": "turns-review-020",
+  "side": "A",
+  "phrase": "Fehlgeschlagen: Begonnen mit dem Umbau (not a failure)",
+  "verdict": "FALSE-CRITICAL",
+  "quoted_claim": false,
+  "why": "facts.failures is empty and tests not run; the 'Fehlgeschlagen:' label marks a progress note as a failure (same template line on both sides)"
+ },
+ {
+  "model": "gemma-4-e2b",
+  "pair": "turns-review-020",
+  "side": "B",
+  "phrase": "Fehlgeschlagen: Begonnen mit dem Umbau (not a failure)",
+  "verdict": "FALSE-CRITICAL",
+  "quoted_claim": false,
+  "why": "facts.failures is empty and tests not run; the 'Fehlgeschlagen:' label marks a progress note as a failure (same template line on both sides)"
+ },
+ {
+  "model": "gemma-4-e2b",
+  "pair": "turns-review-023",
+  "side": "A",
+  "phrase": "fixed all three lint errors in the glyph-forge renderer",
+  "verdict": "FALSE-CRITICAL",
+  "quoted_claim": true,
+  "why": "failures list draw.ts:88:5 no-unused-vars and lint exit 1; 'fixed all three'/'lint clean' contradicts them"
+ }
+]
