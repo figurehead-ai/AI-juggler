@@ -21,63 +21,110 @@ project · all sessions**.
 
 ## Make a pool
 
-**Pools › New pool** opens one guided setup, in order. Each step has a
-heading and one line on why, and every choice reads back as a sentence
-("New sessions in web join as Member and may Work together").
+**Pools › New pool** opens one guided setup. Its steps are listed at the
+left in three groups, each with what it's set to under its name ("Who
+leads · Claude's next session"). The form is in the middle. At the right,
+a live preview draws the team as its diagram will look, with a row for
+each choice (Where, Who's in, Who leads, Roles, Messages, On their own);
+it lights the part the step you're on sets. In a narrow window the
+preview folds into a strip above the form. Every choice reads back as a
+sentence ("New sessions in web join as Member and may Work together").
 
-1. **How to start**: **Start from scratch**, or a template (Writer and
-   reviewer, Feature team…) that fills in roles and who may message whom.
-   The first time, a short intro says what a pool is. Each template's card
-   says what it sets in plain words ("everyone may message", "members ask
-   before messaging each other", "look only", "kept apart").
-2. **Where**: its name and which projects. Sessions in these projects can
-   join. A name and its projects already make a working pool: from the
-   next step on, **Make pool** is there, and the rest is filled in
-   (members join as Member, they may Work together, everyone may message
-   everyone; an Observer only reads).
-3. **Who's in**: whole apps (every session they start in these projects
-   joins by itself, now and later) or single sessions open now; Accounts,
-   Tools, Macs and everyone are under **More**. The side says who's in, in
-   words: "2 apps, and every new session in web".
-4. **Who leads**: one session leads (it plans the work and hands out
-   tasks). Pick one to be in charge, or leave it for now: a session open
-   now; or **[App]'s next session** ("Claude Code · Work takes charge as
-   soon as one of its sessions starts in web"): until then nobody is in
-   charge. On the pool's diagram that App is one card,
-   "Its next session leads · its others join as Member", with **Start one
-   now**: it opens New session on that App in the pool's project, and the
-   session you start leads. An App's role picker offers the same: **Lead:
-   its next session leads**. An Account, Tool, Mac or everyone can't lead,
-   and says why beside its role. Or **No lead for now**.
-5. **Everyone else**: **New sessions in web join as [Member]** (or don't
-   join: only who's in), and each member's **Role** and what it may do
-   **On its own** (Same as the pool, at first). What each role does:
+**The basics**
+
+1. **Start**: **Start from scratch**, or a team that's already set up
+   (Writer and reviewer, Feature team…) under **Or start from a
+   template**, each card with a drawing of its team and what it sets in
+   plain words ("everyone may message", "members ask before messaging
+   each other", "look only", "kept apart"). The first time, the side says
+   what a pool does.
+2. **Where**: its name and its projects, each a card that says what's
+   open in it now or when it was last worked in, then **Sessions with no
+   project** and **Every project**. Only sessions in these projects can
+   join.
+3. **Who's in**: **Every new session in web** is a switch: on, any
+   session you start there joins by itself, now and later. Under it, your
+   apps as cards: each app's logo, **Desktop app** or **Terminal**, its
+   profile, and what's open of it there now ("1 open in web"). Tick one
+   and every session it starts there joins. A desktop app that still needs
+   AI Juggler's connector says so in one line under the cards ("Claude ·
+   Work needs AI Juggler's connector to message the team. You see the
+   exact change before anything is written."), with **Preview and add**:
+   one click shows exactly what AI Juggler would write, then **Add to
+   Claude · Work** writes it (see [Desktop apps in a
+   pool](#desktop-apps-in-a-pool)). Under them, the sessions open now that
+   your choice brings in. **Sessions** picks single sessions open now;
+   **More** adds a whole account, tool or Mac.
+
+From Who's in on, **Make pool now** is beside Next: the rest is already
+filled in (members join as Member, everyone may message everyone, they
+may Work together; an Observer only reads), so a name, its projects and
+who's in make a working pool.
+
+**How they work** (marked *prefilled* until you reach it)
+
+4. **Who leads**: the lead turns what you ask into tasks and hands them
+   out; a drawing shows how, in three steps. Pick a card:
+   **[App]'s next session** ("It takes charge as soon as one of its
+   sessions starts in web"; until then nobody is in charge), a session
+   open now, or **No lead for now**. On the pool's diagram that App is one
+   card, "Lead · its next session in web", with **Start one now**: it
+   opens New session on that App in the pool's project, and the session
+   you start leads. An Account, Tool, Mac or everyone can't lead.
+5. **Who builds, who checks**: the four roles, each in a line:
    - **Lead**: plans the work and hands out tasks. One session.
    - **Member**: works on the tasks it's given, and messages the team.
    - **Reviewer**: reads everything, checks work in review and gives its
      verdict. Doesn't build.
    - **Observer**: watches and reads. Changes nothing.
-6. **Who may message whom**: a table by role ("Lead can message…");
-   click a cell to change it (Allowed, Ask first, Blocked).
-   **Allowed** needs nothing from you; **Ask first** waits for your OK in
-   Needs you; **Blocked** stops it. Only the exceptions are in colour. One
-   pair of sessions can differ: click the line between them on the diagram.
-7. **What they may do on their own** (see below): how they work together
-   through AI Juggler. What each may change in your files stays with its
-   own app's settings. Then **Seal** if you want its work kept apart.
-8. **Team tools**, only until you've answered it once: "Let the sessions
-   in your pools message each other and share notes and tasks?", with
-   **Yes, let them work together** or **Not now** (see
-   [Team tools](#team-tools)).
-9. **Review**: the whole pool in sentences, with what happens next in one
-   line, naming which session to open first ("Open Claude Code · Work in
-   web first: it leads; Codex checks its work; their messages show
-   here"), what to tell it first, with **Copy** ("Then tell Claude Code ·
-   Work: "Plan the work in web, hand out tasks, and ask Codex to
-   review.""), then **Make pool**. If something it needs can't work (the
-   team tools can't run here, or an app's connector isn't in it), Review
-   says so first. A member you chose that the pool doesn't keep is named
-   after Make pool, with why.
+
+   Then each member is a row with its logo and its role: **Member**,
+   **Reviewer** or **Observer** (who leads is the step before's; an App
+   whose next session leads sets its other sessions' role here). Every
+   new session's role is the same control. **One member works differently
+   on its own** (optional) sets what one member may do without asking,
+   when it differs from the pool.
+6. **Who may message whom**: three ways, as cards: **Everyone talks
+   freely**, **Members ask you first** (between members, each message
+   waits for your OK) and **Members go through the lead** (members message
+   only the lead and the reviewer). Under them, **Each pair**: a table by
+   role ("Lead can message…"); click a cell to change it. **Allowed**
+   needs nothing from you; **Ask first** waits for your OK in Needs you;
+   **Blocked** stops it. A table changed by hand is **Your own mix**. One
+   pair of sessions can differ: click the line between them on the
+   diagram.
+7. **On their own** (see [What agents may do](#what-agents-may-do)):
+   **Look only**, **Work together**, or **Work together and wake each
+   other**, each a card with a drawing. It's how they work together
+   through AI Juggler; what each may change in your files stays with its
+   own app's settings. Under **Optional**, **Keep this pool's work
+   apart** seals it.
+
+**Finish**
+
+8. **Team tools**, only until you've answered it once: a drawing of two of
+   your team's apps talking through AI Juggler, what it gives, what it
+   costs (nothing extra) and what it changes, then the two answers as
+   cards: **Yes, let them work together** or **Not now** (see [Team
+   tools](#team-tools)).
+9. **Review**: first whether it can work: if something it needs can't
+   (the team tools can't run here, or an app's connector isn't in it),
+   **Before it can work** says so. Then the whole pool in sentences, each
+   with its **Change**, and **What happens next** in three cards: the pool
+   is made, which session to open first ("Open Claude Code · Work in web
+   first: it leads"), and what follows ("Codex checks its work; their
+   messages show here"). Beside them, what to tell the
+   lead first, with **Copy** ("Plan the work in web, hand out tasks, and
+   ask Codex to review."). **Make pool** makes it and opens its page. A
+   member you chose that the pool doesn't keep is named after, with why.
+
+The new pool opens on its diagram, still being set up (see [A pool's
+page](#a-pools-page)): before any session joins, the diagram draws the
+team you planned, and the panel at the right is its setup checklist, each
+step with the same value as the setup's steps and a **Change**. **Add a
+member** at the diagram's top left adds more. **Hide setup** at the
+panel's foot switches to the pool's live view; the checklist steps aside
+by itself once a session has joined and every step is done.
 
 A project's **Pools** tab opens its own pool ("web's own pool: every
 session in web, as one team"), and **Move to pool…** on a session's menu
@@ -85,17 +132,18 @@ still puts one session in a pool of yours.
 
 A pool's page shows it as a **Diagram** (who is in it, and who messages
 whom) or a **List**. Its header's **On their own (everyone in this
-pool)** is the same choice as the setup's. Beside the diagram, the pool
-opens on a short summary in the Review's own sentences (who's in, who
-leads, what they may do on their own, the team tools) and what waits for
-you in **Needs you** (the list of things waiting for your OK, on Home).
-**Set up this pool** keeps the setup's order below it, a tick on each
-step done; a step left at its default counts as done ("default"). Once
-who's in is set and the team tools are on, it says **This pool is
-ready** and what happens next. Each step opens the same control as the
-setup. The rest of the pool's settings are folds, closed at first, each
-with a line on what it controls; the rarer ones (kept apart, your other
-Macs, other pools its agents may write to) are under **More settings**.
+pool)** is the same choice as the setup's. **All of this pool's
+settings** (**Edit setup** once it runs) opens a short summary in the
+Review's own sentences (who's in, who leads, what they may do on their
+own, the team tools) and what waits for you in **Needs you** (the list
+of things waiting for your OK, on Home), with the setup's checklist in
+one line while it isn't done. A step left at its default counts as done
+("default"). Once who's in is set and the team tools are on, it says
+**This pool is ready** and what happens next. Each step opens the same
+control as the setup. The rest of the pool's settings are folds, closed
+at first, each with a line on what it controls; the rarer ones (kept
+apart, your other Macs, other pools its agents may write to) are under
+**More settings**.
 Adding a member or changing a role shows at once, dimmed, until AI
 Juggler has saved it; if it can't, it goes back and says why.
 
@@ -114,7 +162,7 @@ under **Or start from a template**.
 A pool with no members yet opens in its setup: New pool's own steps, on
 the pool's page, with its projects (and name) filled in. A project's own
 pool keeps its project: every session in it is part of the team, and
-**Everyone else** sets the role they join as. **Show the diagram** leaves
+**Who builds, who checks** sets the role they join as. **Show the diagram** leaves
 the setup; once the pool has members, it opens on its diagram.
 
 While a pool is being set up, its header says **Setting up · 5 of 7** and
@@ -198,7 +246,9 @@ the connector, its card says **Watched: its app has no AI Juggler
 connector**, with **Add**. Watched means shown and counted, without the
 pool's tools. **Add** opens one card: "Add AI Juggler's connector to
 Claude · Work so its sessions can talk in this pool", what it does, an
-example, and this section.
+example, and this section. In New pool's Who's in, a desktop app you
+tick says it in one line, with **Preview and add**, which opens straight
+on what Add would write.
 
 - **Add** first says in one sentence what it does ("This adds a small
   helper to your Claude app (Work) so its sessions can talk in this pool:
