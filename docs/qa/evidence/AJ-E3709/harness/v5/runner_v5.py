@@ -86,6 +86,8 @@ def load_corpus(spec, limit, fake, jobs_wanted):
     if fake and label not in FAKE_OK: raise SystemExit(f"--fake runs on the tuned corpora and the (e)/(f) fixtures only ({', '.join(FAKE_OK)}), not {label}")
     raw = open(path, "rb").read(); items = json.loads(raw)
     items = [x for x in items if item_kind(x)]
+    unknown = core.vocab_scan(items, label)          # round 3: every facts word must map before a single model call
+    if unknown: raise SystemExit(f"{label}: {len(unknown)} facts word(s) the gate's mappings don't know; refusing to start:\n  " + "\n  ".join(unknown))
     if label in TUNED and "chat" in jobs_wanted and not any(item_kind(x) == "chat" for x in items):
         items = items + chat.chat_items_tuned(label, items)          # the tuned corpora's Chat items, built by code (chat.py)
     norm = [norm_item(x) for x in items]
@@ -141,7 +143,8 @@ def main():
                             r = dict(req, id=f"{key}:{rep}:a{n}", sampling=core.sampling_for(entry, sname, key + f":a{n}", rep))
                             for k in ("est_tokens", "cut", "path"): r.pop(k, None)
                             out = eng.call(r); ncalls[0] += 1; return out
-                        rec = core.run_item(job, it, setting, call, mark, a.retries)
+                        try: rec = core.run_item(job, it, setting, call, mark, a.retries)
+                        except core.FactsUnmapped as e: eng.close(); raise SystemExit(f"{label}: {e}")
                         fin = rec["final"]
                         res.append({"corpus": label, "job": jn, "setting": setting, "id": it["id"], "rep": rep, "model_called": rec["model_called"],
                                     "used": rec["used"], "attempts": rec["attempts"],

@@ -488,8 +488,11 @@ def selftest():
     check("R3 facts: a 'failed' state with counts reads as ran, 2 failed", tq["F"]["tests_state"] == "ran" and tq["F"]["failed"] == 2 and turns.turn_failed(tq), tq["F"])
     tq = turn("Asked which ring size to use.", {"outcome": "needs_input", "level": "L2", "tests": {"state": "none", "passed": 0, "failed": 0}})
     check("R3 facts: 'needs_input' reads as asking; a 'none' state as tests not run", tq["F"]["outcome"] == "asking" and tq["F"]["tests_state"] == "not_run", tq["F"])
-    tq = turn("x", {"outcome": "completed", "level": "L1", "tests": {"state": "failed"}})
-    check("R3 facts: a 'failed' state with no failed count stays unknown (no count to show)", tq["F"]["tests_state"] == "unknown", tq["F"])
+    tq = turn("x", {"outcome": "failed", "level": "L3", "tests": {"state": "failed", "passed": 0, "failed": 0}}, failures=["pytest: 1 error during collection"])
+    check("R3 facts: a 'failed' state with nothing counted means no test ran (a collection or build error)", tq["F"]["tests_state"] == "not_run", tq["F"])
+    tq = turn("x", {"outcome": "completed", "level": "L1", "tests": {"state": "failed", "passed": 12, "failed": 0}})
+    check("R3 facts: a 'failed' state with passes and no failure stays unknown, and the load scan flags it", tq["F"]["tests_state"] == "unknown"
+          and [f for f, _w in core.vocab_errors(tq["raw"])] == ["tests.state"], tq["F"])
     check("R3 facts: the corpora's own words are unchanged", core.tests_norm({"state": "ran", "passed": 3, "failed": 1}) == {"state": "ran", "passed": 3, "failed": 1}
           and getattr(core, "outcome_norm", str)("success") == "success" and getattr(core, "outcome_norm", str)("question") == "question")
 
@@ -671,6 +674,43 @@ def selftest():
           "no_answer_on_answerable" not in dets({"job": "chat", "id": "q", "item": ci("x", exp, {"attribute": "status", "answer_must": ["blocked"]}), "outcome": fv, "source": "", "attempts": []}))
     check("R3 detail: ...and still an answer to an unanswerable one (flagged)",
           "answered_unanswerable" in dets({"job": "chat", "id": "q", "item": ci("x", exp, {"unanswerable": True}), "outcome": fv, "source": "", "attempts": []}))
+
+    # ================================================================================================ R3-7. the facts guard: no item reaches a model with defined facts unknown
+    import tempfile
+    rawg = lambda iid, oc, st="passed": {"id": iid, "source": "Swapped the kestrel queue to a ring buffer.", "gold": {},
+                                        "facts": {"outcome": oc, "level": "L1", "tests": {"state": st, "passed": 31, "failed": 0}, "questions": [], "failures": []}}
+    check("R3 guard: an unknown outcome word is found at load, naming the item and the word", core.vocab_scan([rawg("G1", "wrapped_up")], "set")
+          == ["set:G1: outcome 'wrapped_up'"], core.vocab_scan([rawg("G1", "wrapped_up")], "set"))
+    check("R3 guard: ...an unknown test state and level too", {f for f, _w in core.vocab_errors(dict(rawg("G2", "completed", "greenish"), facts=dict(rawg("G2", "completed", "greenish")["facts"], level="L9")))}
+          == {"tests.state", "level"})
+    check("R3 guard: known words pass the load scan (completed, passed; success, ran; needs_input, none)",
+          not core.vocab_scan([rawg("G3", "completed"), rawg("G4", "success", "ran"), rawg("G5", "needs_input", "none")]))
+    def run_runner(raws, miss_scan=False):
+        """runner_v5 --fake in its own process (it registers (e) and (f)); -> (exit code, stderr, results)"""
+        d = tempfile.mkdtemp(); sp = os.path.join(d, "set.json"); json.dump(raws, open(sp, "w")); out = os.path.join(d, "out.json")
+        pre = "import core; core.vocab_scan = lambda raws, label='': []; " if miss_scan else ""     # a scan that misses an item
+        code = (f"import sys; sys.path.insert(0, {HERE!r}); {pre}import runner_v5; "
+                f"sys.argv = ['runner_v5.py', '--fake', '--job', 'feed_line', '--corpus', 'turnends={sp}', '--out', {out!r}]; runner_v5.main()")
+        try:
+            pr = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, cwd=HERE)
+            return pr.returncode, pr.stderr, (json.load(open(out)) if os.path.exists(out) else None)
+        finally: [os.remove(os.path.join(d, f)) for f in os.listdir(d)]; os.rmdir(d)
+    rc, err, res = run_runner([rawg("G6", "completed"), rawg("G7", "wrapped_up")])
+    check("R3 guard: the runner refuses to start on an unknown outcome word, loud (non-zero, the item and the word, no output)",
+          rc != 0 and "turnends:G7: outcome 'wrapped_up'" in err and "refusing to start" in err and res is None, (rc, err[-300:]))
+    rc, err, res = run_runner([rawg("G8", "completed")])
+    check("R3 guard: a set whose words all map runs", rc == 0 and res and res["results"][0]["id"] == "G8", (rc, err[-300:]))
+    eng = Script([{"action": "swapped", "object": "the kestrel queue to a ring buffer", "result": "31 passed, 0 failed", "caveat_kind": "none", "caveat": "none"}])
+    run_item(FEED, norm_item(rawg("G9", "completed")), "main", eng)
+    check("R3 guard: a mapped item reaches the model with its facts shown", eng.reqs and "outcome: finished" in eng.reqs[0]["prompt"]
+          and "tests: ran, 31 passed, 0 failed" in eng.reqs[0]["prompt"], eng.reqs[0]["prompt"][:300] if eng.reqs else "no call")
+    eng = Script([{"action": "x", "object": "y", "result": "none", "caveat_kind": "none", "caveat": "none"}])
+    try: run_item(FEED, norm_item(rawg("G10", "wrapped_up")), "main", eng); raised = None
+    except core.FactsUnmapped as e: raised = str(e)
+    check("R3 guard: at run time, an item whose defined facts render unknown is refused before any model call, naming item and word",
+          raised and "G10" in raised and "'wrapped_up'" in raised and not eng.reqs, (raised, len(eng.reqs)))
+    rc, err, res = run_runner([rawg("G11", "wrapped_up")], miss_scan=True)      # the load scan missed it: the run-time guard still stops the run
+    check("R3 guard: ...and the runner stops non-zero on it, naming the item and the word", rc != 0 and "G11" in err and "wrapped_up" in err and res is None, (rc, err[-300:]))
 
     # ================================================================================================ the extension point, the frozen gate, the prompts
     class Toy(core.Job):

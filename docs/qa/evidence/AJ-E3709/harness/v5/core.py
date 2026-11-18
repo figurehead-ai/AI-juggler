@@ -93,15 +93,56 @@ def outcome_norm(o):
     """an outcome word in any vocabulary a writer may use -> the gate's (success, failure, question, stopped, none, unknown)"""
     w = str(o if o is not None else "unknown").strip().lower().replace(" ", "_").replace("-", "_")
     return OUTCOME_WORDS.get(w, w)
+# Round 3 guard (so 242c23c86's class can't recur): every word a set uses for the facts the gate reads must be one these mappings know.
+# vocab_scan() reads a whole set at load (the runner refuses to start on any unknown word); facts_unmapped() checks one item right
+# before its model call (run_item raises FactsUnmapped, naming the item and the word). Neither lives only in a self-test.
+LEVELS = {"L0", "L1", "L2", "L3"}
+class FactsUnmapped(Exception):
+    """a set defines a fact the gate would render as unknown: the run must stop, naming the item and the word"""
+def _known_outcome(w): return outcome_norm(w) in gate.OUTCOMES
+def _known_state(w):
+    return str(w).strip().lower().replace(" ", "_").replace("-", "_").replace("notrun", "not_run") in set(TEST_STATES) | {"unknown"}
+def vocab_errors(raw):
+    """-> [(field, word)] for a raw set item whose facts use a word the mappings don't know (outcome, level, test state), or a test
+    state they can't render honestly (a failed state with passes and no failed count)"""
+    f = raw.get("facts") if isinstance(raw, dict) else None
+    if not isinstance(f, dict): return []
+    out = []
+    if f.get("outcome") is not None and not _known_outcome(f["outcome"]): out.append(("outcome", str(f["outcome"])))
+    if f.get("level") is not None and str(f["level"]) not in LEVELS: out.append(("level", str(f["level"])))
+    t = f.get("tests")
+    if isinstance(t, dict) and t.get("state") not in (None, ""):
+        if not _known_state(t["state"]): out.append(("tests.state", str(t["state"])))
+        elif tests_norm(t)["state"] == "unknown" and str(t["state"]).strip().lower() != "unknown":
+            out.append(("tests.state", f"{t['state']} (with passes and no failed count)"))
+    return out
+def vocab_scan(raws, label=""):
+    """-> ['<label>:<id>: <field> <word>'] over a whole set; empty when every facts word maps"""
+    return [f"{label}:{r.get('id')}: {fld} {w!r}" for r in raws if isinstance(r, dict) for fld, w in vocab_errors(r)]
+def facts_unmapped(item):
+    """-> why an item's defined facts render as unknown in its FACTS block, else None (checked before each model call)"""
+    if item.get("kind") != "turn": return None
+    raw = (item.get("raw") or {}).get("facts")
+    if not isinstance(raw, dict): return None
+    errs = vocab_errors(item["raw"]); F = item.get("F") or {}
+    lines = dict(l.split(": ", 1) for l in facts_lines_v5(item))
+    if raw.get("outcome") not in (None, "", "unknown") and lines.get("outcome") == "unknown": errs.append(("outcome", str(raw["outcome"])))
+    if raw.get("level") not in (None, "") and lines.get("level") == "unknown": errs.append(("level", str(raw["level"])))
+    st = raw["tests"].get("state") if isinstance(raw.get("tests"), dict) else None
+    if st not in (None, "", "unknown") and F.get("tests_state") == "unknown": errs.append(("tests.state", str(st)))
+    if not errs: return None
+    return f"{item.get('id')}: " + "; ".join(f"{fld} {w!r} renders as unknown" for fld, w in dict.fromkeys(errs))
 def tests_norm(t):
     """the facts' tests in any of the shapes a writer may use -> v4's {state, passed, failed}. A state word in AI Juggler's vocabulary
-    (passed, failed, none...) maps to ran or not_run; a 'failed' state with no failed count is unknown (no count to show honestly)."""
+    (passed, failed, none...) maps to ran or not_run; a 'failed' state with nothing counted is not run (no test ran); one with passes
+    and no failure is unknown (vocab_errors flags it at load)."""
     if isinstance(t, dict):
         raw = str(t.get("state", "")).strip().lower().replace(" ", "_").replace("-", "_").replace("notrun", "not_run")
         p, f = int(t.get("passed") or 0), int(t.get("failed") or 0)
         st = TEST_STATES.get(raw, raw)
         if not raw and ("passed" in t or "failed" in t): st = "ran"
-        if raw in _TEST_FAIL_STATES and f == 0: st = "unknown"
+        if raw in _TEST_FAIL_STATES and f == 0: st = "not_run" if p == 0 else "unknown"   # failed with nothing counted: no test ran (a
+        # collection or build error, which the failures line names); failed with passes and no failure: contradictory, flagged at load
         return {"state": st or "unknown", "passed": p, "failed": f}
     s = str(t or "").lower()
     m = TESTS_RX.search(s)
@@ -314,6 +355,8 @@ def run_item(job, item, setting, call, mark=True, retries=MAX_RETRIES, extra=Non
     `call(request) -> {text, finish, refused, error, latency_ms, ...}`. Deterministic given the engine's outputs."""
     pl = job.plan(item, setting, mark)
     if "decided" in pl: return {"model_called": False, "attempts": [], "final": pl["decided"], "used": "code"}
+    bad = facts_unmapped(item)
+    if bad: raise FactsUnmapped(f"refused before the model call: {bad} (map the word in core.outcome_norm or TEST_STATES)")
     attempts = []; note = ""
     for k in range(1 + retries):
         req = pl["build"](note); req = dict(req, **(extra or {}))
