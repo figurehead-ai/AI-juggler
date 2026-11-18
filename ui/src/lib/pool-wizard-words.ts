@@ -94,16 +94,6 @@ export const POOL_DOES: readonly { id: "you" | "lead" | "talk" | "check"; line: 
 /** How a lead works, in three steps (Who leads' picture). */
 export const LEAD_STEPS: readonly string[] = ["You tell the lead what you want.", "It splits that into tasks for the others.", "You approve anything that needs you."];
 
-/** What happens once the pool is made (Review), as three cards. */
-export function nextSteps(lead: string | null, reviewers: readonly string[], where: string, names: string): { title: string; line: string }[] {
-  const check = reviewers.length === 0 ? "" : `; ${reviewers.join(" and ")} ${reviewers.length === 1 ? "checks" : "check"}`;
-  return [
-    { title: "The pool is made", line: `Its diagram opens with ${names}.` },
-    lead ? { title: "Start the lead", line: `Start ${lead}'s session in ${where}. It takes the lead.` } : { title: "Start a session", line: `Start a session in ${where}. It joins the team.` },
-    { title: "Tell it the goal", line: lead ? `It hands out tasks${check}. You approve in Needs you.` : `Each works on what you give it${check}. You approve in Needs you.` },
-  ];
-}
-
 /* ---------------- Messages: the presets ---------------- */
 
 export type TalkPreset = "free" | "ask" | "lead";

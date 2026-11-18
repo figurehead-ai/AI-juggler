@@ -7,7 +7,7 @@ import { describe, expect, it } from "vitest";
 import { draftOf } from "./new-pool";
 import { templateById } from "./pool-templates";
 import { talkSentence } from "./pool-sentences";
-import { eyebrowOf, leadShort, nextSteps, OWN_MIX, presetOf, rolesLine, rolesShort, shortNames, stepValue, TALK_PRESETS, talkShort, whoLine, whoShort, type DraftView } from "./pool-wizard-words";
+import { eyebrowOf, leadShort, OWN_MIX, presetOf, rolesLine, rolesShort, shortNames, stepValue, TALK_PRESETS, talkShort, whoLine, whoShort, type DraftView } from "./pool-wizard-words";
 
 const view = (over: Partial<DraftView> = {}): DraftView => ({
   named: [
@@ -62,14 +62,5 @@ describe("the wizard's words (D-126)", () => {
     expect(presetOf({ ...templateById("blank").talk, "lead>member": "ask" })).toBeNull();
     expect(talkShort({ ...templateById("blank").talk, "lead>member": "ask" })).toBe(OWN_MIX);
     expect(presetOf(draftOf(templateById("reviewer-for-everything"), null).talk)).toBeNull();
-  });
-
-  it("what happens next names the lead and who checks", () => {
-    expect(nextSteps("Claude", ["Codex"], "web", "Claude, Codex and everyone in web").map((step) => step.line)).toEqual([
-      "Its diagram opens with Claude, Codex and everyone in web.",
-      "Start Claude's session in web. It takes the lead.",
-      "It hands out tasks; Codex checks. You approve in Needs you.",
-    ]);
-    expect(nextSteps(null, [], "web", "everyone in web")[1]!.title).toBe("Start a session");
   });
 });
