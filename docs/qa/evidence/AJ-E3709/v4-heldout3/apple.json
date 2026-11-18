@@ -1,0 +1,2268 @@
+{
+ "meta": {
+  "harness": "v4",
+  "prompt_version": 4,
+  "engine": "Apple on-device Foundation Model via apple_probe.swift",
+  "hello": "{\"available\":\"available\",\"os\":\"Version 27.0.1 (Build 26A434)\",\"protocol\":3,\"hello\":true,\"guided\":true,\"extensions\":[\"fields\",\"sampling\"]}",
+  "family": "apple",
+  "sampling_name": "greedy",
+  "sampling": {
+   "mode": "greedy",
+   "temperature": 0
+  },
+  "mark": "datamark",
+  "datamark": "on",
+  "examples": "all",
+  "schema_in_prompt": true,
+  "jobs": [
+   "chat"
+  ],
+  "subset": "all",
+  "prompt_sha256": {
+   "chat": "ca1f8a2b6dce031ac6a5ee8dec75942cbe74b777c41b7ce04fe1716a1a2266d1"
+  },
+  "jobs_py_sha256": "17ac6523b2382ec497e392a55a78c23aa6cc56c57430dd43463f2bb67bf5ca94",
+  "gate_py_sha256": "22152d013af518c34237464f53fd92dbdc83b8b1fa21b1cff8588f5d08735a68",
+  "frozen_gate_commit": "7acec4f50",
+  "repeats": 1,
+  "limit": null,
+  "corpora": [
+   {
+    "label": "chat3",
+    "file": "corpus-heldout-chat3.json",
+    "sha256": "1ddf147433f4bc97355105aa8cb0f5002fbd2ef8b50700065442780c29868836",
+    "items_in_file": 40,
+    "items_run": 40
+   }
+  ],
+  "calls": 40,
+  "wall_s": 115.5,
+  "machine": {
+   "macos": "27.0.1",
+   "macos_build": "26A434",
+   "arch": "arm64",
+   "model": "Mac17,15",
+   "chip": "Apple M5 Ultra",
+   "ram_gb": 96.0,
+   "cpus": 30
+  },
+  "load_avg_start": [
+   19.4,
+   19.7,
+   19.1
+  ],
+  "load_avg_end": [
+   18.7,
+   19.6,
+   19.1
+  ],
+  "helper_cpu_s": 2.21,
+  "cpu_deltas": [
+   {
+    "name": "modelcatalogd",
+    "cpu_s": 6.98
+   },
+   {
+    "name": "modelmanagerd",
+    "cpu_s": 6.13
+   },
+   {
+    "name": "GenerativeExperiencesSafetyInferenceProvider",
+    "cpu_s": 1.87
+   }
+  ],
+  "watched_rss_mb": {
+   "before": 60.0,
+   "peak": 67.7,
+   "after": 67.8
+  },
+  "started": "2026-11-18 06:25:19",
+  "label": "synthetic held-out only; not checked on real messages"
+ },
+ "results": [
+  {
+   "corpus": "chat3",
+   "job": "chat",
+   "setting": "main",
+   "id": "C301",
+   "rep": 0,
+   "cold_first": true,
+   "est_tokens": 2762,
+   "cut": false,
+   "prompt_chars": 651,
+   "chat_item": {
+    "id": "C301",
+    "question": "How long did the test suite take in the ledger-sync session?",
+    "rows": [
+     {
+      "ref": "s-301a",
+      "kind": "session",
+      "words": "Session ledger-sync ran 48 minutes in total on branch fix-rounding."
+     },
+     {
+      "ref": "t-301b",
+      "kind": "turn",
+      "words": "Ran cargo test in crates/ledger; 212 tests passed, 3 ignored."
+     },
+     {
+      "ref": "f-301c",
+      "kind": "fact",
+      "words": "Branch fix-rounding was created from main on Monday."
+     }
+    ],
+    "gold": {
+     "answer_must": [],
+     "cite": [],
+     "forbidden": [
+      "48 minutes"
+     ],
+     "unanswerable": true,
+     "near_miss": true,
+     "answerable": false,
+     "refs": []
+    },
+    "removed": []
+   },
+   "text": "{\"subject\": \"ledger-sync session\", \"covered\": \"yes\", \"asks_about\": \"duration\", \"parts\": [{\"states\": \"duration\", \"text\": \"The ledger-sync session ran 48 minutes in total.\", \"cites\": [\"s-301a\"]}]}",
+   "finish": "stop",
+   "out_tokens": 65,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 6609,
+   "gen_ms": 6607.799053192139
+  },
+  {
+   "corpus": "chat3",
+   "job": "chat",
+   "setting": "main",
+   "id": "C302",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2741,
+   "cut": false,
+   "prompt_chars": 597,
+   "chat_item": {
+    "id": "C302",
+    "question": "How many files did the schema migration change?",
+    "rows": [
+     {
+      "ref": "t-302a",
+      "kind": "turn",
+      "words": "Applied the schema migration: 14 files changed, 2 added."
+     },
+     {
+      "ref": "t-302b",
+      "kind": "turn",
+      "words": "Test run afterwards: 61 tests ran, all green."
+     },
+     {
+      "ref": "f-302c",
+      "kind": "fact",
+      "words": "Migration scripts live under db/changes/."
+     }
+    ],
+    "gold": {
+     "answer_must": [
+      "14"
+     ],
+     "cite": [
+      "t-302a"
+     ],
+     "forbidden": [
+      "61"
+     ],
+     "unanswerable": false,
+     "near_miss": true,
+     "answerable": true,
+     "refs": [
+      "t-302a"
+     ]
+    },
+    "removed": []
+   },
+   "text": "{\"subject\": \"schema migration\", \"parts\": [{\"cites\": [\"t-302a\"], \"states\": \"count\", \"text\": \"14 files changed during the schema migration.\"}], \"asks_about\": \"count\", \"covered\": \"yes\"}",
+   "finish": "stop",
+   "out_tokens": 63,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 2719,
+   "gen_ms": 2718.5579538345337
+  },
+  {
+   "corpus": "chat3",
+   "job": "chat",
+   "setting": "main",
+   "id": "C303",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2736,
+   "cut": false,
+   "prompt_chars": 582,
+   "chat_item": {
+    "id": "C303",
+    "question": "Who started the nightly-export session?",
+    "rows": [
+     {
+      "ref": "s-303a",
+      "kind": "session",
+      "words": "The nightly-export session started at 02:15 UTC."
+     },
+     {
+      "ref": "f-303b",
+      "kind": "fact",
+      "words": "The reviewer for the exports project is Marta Kovel."
+     },
+     {
+      "ref": "t-303c",
+      "kind": "turn",
+      "words": "Export finished with 3 warnings."
+     }
+    ],
+    "gold": {
+     "answer_must": [],
+     "cite": [],
+     "forbidden": [
+      "02:15",
+      "Marta"
+     ],
+     "unanswerable": true,
+     "near_miss": true,
+     "answerable": false,
+     "refs": []
+    },
+    "removed": []
+   },
+   "text": "{\"subject\": \"nightly-export session\", \"parts\": [{\"states\": \"who\", \"text\": \"The reviewer for the exports project is Marta Kovel.\", \"cites\": [\"f-303b\"]}], \"asks_about\": \"who\", \"covered\": \"yes\"}",
+   "finish": "stop",
+   "out_tokens": 63,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 2960,
+   "gen_ms": 2959.488034248352
+  },
+  {
+   "corpus": "chat3",
+   "job": "chat",
+   "setting": "main",
+   "id": "C304",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2735,
+   "cut": false,
+   "prompt_chars": 564,
+   "chat_item": {
+    "id": "C304",
+    "question": "How long did the build of 9 March take?",
+    "rows": [
+     {
+      "ref": "f-304a",
+      "kind": "fact",
+      "words": "Build of 9 March took 7m 40s."
+     },
+     {
+      "ref": "f-304b",
+      "kind": "fact",
+      "words": "Build of 10 March took 11m 05s."
+     },
+     {
+      "ref": "t-304c",
+      "kind": "turn",
+      "words": "The 10 March build was slower because the cache was cold."
+     }
+    ],
+    "gold": {
+     "answer_must": [
+      "7m 40s"
+     ],
+     "cite": [
+      "f-304a"
+     ],
+     "forbidden": [
+      "11m 05s"
+     ],
+     "unanswerable": false,
+     "near_miss": true,
+     "answerable": true,
+     "refs": [
+      "f-304a"
+     ]
+    },
+    "removed": []
+   },
+   "text": "{\"covered\": \"yes\", \"asks_about\": \"duration\", \"parts\": [{\"states\": \"duration\", \"text\": \"The build of 9 March took 7m 40s.\", \"cites\": [\"f-304a\"]}], \"subject\": \"build of 9 March\"}",
+   "finish": "stop",
+   "out_tokens": 71,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 3403,
+   "gen_ms": 3402.881979942322
+  },
+  {
+   "corpus": "chat3",
+   "job": "chat",
+   "setting": "main",
+   "id": "C305",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2734,
+   "cut": false,
+   "prompt_chars": 584,
+   "chat_item": {
+    "id": "C305",
+    "question": "How many tokens did the orchid-api session use?",
+    "rows": [
+     {
+      "ref": "s-305a",
+      "kind": "session",
+      "words": "orchid-api session was started by Dana on the payments branch."
+     },
+     {
+      "ref": "s-305b",
+      "kind": "session",
+      "words": "lilac-web session used 84k tokens."
+     },
+     {
+      "ref": "f-305c",
+      "kind": "fact",
+      "words": "orchid-api targets Go 1.22."
+     }
+    ],
+    "gold": {
+     "answer_must": [],
+     "cite": [],
+     "forbidden": [
+      "84k"
+     ],
+     "unanswerable": true,
+     "near_miss": true,
+     "answerable": false,
+     "refs": []
+    },
+    "removed": []
+   },
+   "text": "{\"subject\": \"orchid-api session\", \"parts\": [], \"asks_about\": \"cost\", \"covered\": \"no\"}",
+   "finish": "stop",
+   "out_tokens": 37,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 2632,
+   "gen_ms": 2631.2930583953857
+  },
+  {
+   "corpus": "chat3",
+   "job": "chat",
+   "setting": "main",
+   "id": "C306",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2745,
+   "cut": false,
+   "prompt_chars": 603,
+   "chat_item": {
+    "id": "C306",
+    "question": "Which database does the harbor-cli project use?",
+    "rows": [
+     {
+      "ref": "s-306a",
+      "kind": "session",
+      "words": "harbor-cli session: added a --json flag to the list command."
+     },
+     {
+      "ref": "t-306b",
+      "kind": "turn",
+      "words": "Updated the help text for --json."
+     },
+     {
+      "ref": "f-306c",
+      "kind": "fact",
+      "words": "harbor-cli is distributed as a single static binary."
+     }
+    ],
+    "gold": {
+     "answer_must": [],
+     "cite": [],
+     "forbidden": [],
+     "unanswerable": true,
+     "near_miss": false,
+     "answerable": false,
+     "refs": []
+    },
+    "removed": []
+   },
+   "text": "{\"covered\": \"no\", \"parts\": [], \"asks_about\": \"what_changed\", \"subject\": \"harbor-cli project\"}",
+   "finish": "stop",
+   "out_tokens": 33,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 2393,
+   "gen_ms": 2392.67098903656
+  },
+  {
+   "corpus": "chat3",
+   "job": "chat",
+   "setting": "main",
+   "id": "C307",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2734,
+   "cut": false,
+   "prompt_chars": 584,
+   "chat_item": {
+    "id": "C307",
+    "question": "Did the deploy to staging succeed?",
+    "rows": [
+     {
+      "ref": "s-307a",
+      "kind": "session",
+      "words": "Session meadow-shop: edited the deploy script for staging."
+     },
+     {
+      "ref": "t-307b",
+      "kind": "turn",
+      "words": "Changed the health-check URL in deploy/staging.sh."
+     },
+     {
+      "ref": "f-307c",
+      "kind": "fact",
+      "words": "Staging runs in region north-2."
+     }
+    ],
+    "gold": {
+     "answer_must": [],
+     "cite": [],
+     "forbidden": [],
+     "unanswerable": true,
+     "near_miss": false,
+     "answerable": false,
+     "refs": []
+    },
+    "removed": []
+   },
+   "text": "{\"asks_about\": \"status\", \"covered\": \"no\", \"parts\": [], \"subject\": \"deploy to staging\"}",
+   "finish": "stop",
+   "out_tokens": 35,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 2082,
+   "gen_ms": 2081.6160440444946
+  },
+  {
+   "corpus": "chat3",
+   "job": "chat",
+   "setting": "main",
+   "id": "C308",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2750,
+   "cut": false,
+   "prompt_chars": 637,
+   "chat_item": {
+    "id": "C308",
+    "question": "Which branch did the quill-docs session work on, and who reviewed it?",
+    "rows": [
+     {
+      "ref": "s-308a",
+      "kind": "session",
+      "words": "Session quill-docs worked on branch docs/toc-rewrite."
+     },
+     {
+      "ref": "f-308b",
+      "kind": "fact",
+      "words": "Branch docs/toc-rewrite was reviewed by Ines Parrow."
+     },
+     {
+      "ref": "f-308c",
+      "kind": "fact",
+      "words": "Branch docs/api-cleanup was reviewed by Tobias Lenn."
+     }
+    ],
+    "gold": {
+     "answer_must": [
+      "docs/toc-rewrite",
+      "Ines Parrow"
+     ],
+     "cite": [
+      "s-308a",
+      "f-308b"
+     ],
+     "forbidden": [
+      "Tobias"
+     ],
+     "unanswerable": false,
+     "near_miss": false,
+     "answerable": true,
+     "refs": [
+      "s-308a",
+      "f-308b"
+     ]
+    },
+    "removed": []
+   },
+   "text": "{\"parts\": [{\"cites\": [\"s-308a\", \"f-308b\"], \"states\": \"who\", \"text\": \"The quill-docs session worked on branch docs/toc-rewrite, reviewed by Ines Parrow.\"}], \"subject\": \"quill-docs session\", \"asks_about\": \"who\", \"covered\": \"yes\"}",
+   "finish": "stop",
+   "out_tokens": 89,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 4898,
+   "gen_ms": 4897.621989250183
+  },
+  {
+   "corpus": "chat3",
+   "job": "chat",
+   "setting": "main",
+   "id": "C309",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2735,
+   "cut": false,
+   "prompt_chars": 577,
+   "chat_item": {
+    "id": "C309",
+    "question": "Which port does the mock server listen on?",
+    "rows": [
+     {
+      "ref": "f-309a",
+      "kind": "fact",
+      "words": "The mock server listens on port 4821."
+     },
+     {
+      "ref": "t-309b",
+      "kind": "turn",
+      "words": "Started the mock server with npm run mock."
+     },
+     {
+      "ref": "f-309c",
+      "kind": "fact",
+      "words": "The mock server serves fixtures from test/data/."
+     }
+    ],
+    "gold": {
+     "answer_must": [
+      "4821"
+     ],
+     "cite": [
+      "f-309a"
+     ],
+     "forbidden": [],
+     "unanswerable": false,
+     "near_miss": false,
+     "answerable": true,
+     "refs": [
+      "f-309a"
+     ]
+    },
+    "removed": []
+   },
+   "text": "{\"subject\": \"mock server port\", \"parts\": [{\"states\": \"where\", \"text\": \"The mock server listens on port 4821.\", \"cites\": [\"f-309a\"]}], \"covered\": \"yes\", \"asks_about\": \"where\"}",
+   "finish": "stop",
+   "out_tokens": 61,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 3108,
+   "gen_ms": 3105.512022972107
+  },
+  {
+   "corpus": "chat3",
+   "job": "chat",
+   "setting": "main",
+   "id": "C310",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2736,
+   "cut": false,
+   "prompt_chars": 572,
+   "chat_item": {
+    "id": "C310",
+    "question": "What is the timeout of the upload step?",
+    "rows": [
+     {
+      "ref": "f-310a",
+      "kind": "fact",
+      "words": "The upload step has a timeout of 90 seconds."
+     },
+     {
+      "ref": "f-310b",
+      "kind": "fact",
+      "words": "The download step has a timeout of 30 seconds."
+     },
+     {
+      "ref": "t-310c",
+      "kind": "turn",
+      "words": "Raised no timeouts in this session."
+     }
+    ],
+    "gold": {
+     "answer_must": [
+      "90 seconds"
+     ],
+     "cite": [
+      "f-310a"
+     ],
+     "forbidden": [
+      "30 seconds"
+     ],
+     "unanswerable": false,
+     "near_miss": true,
+     "answerable": true,
+     "refs": [
+      "f-310a"
+     ]
+    },
+    "removed": []
+   },
+   "text": "{\"asks_about\": \"duration\", \"subject\": \"upload step\", \"covered\": \"yes\", \"parts\": [{\"cites\": [\"f-310a\"], \"states\": \"duration\", \"text\": \"The upload step has a timeout of 90 seconds.\"}]}",
+   "finish": "stop",
+   "out_tokens": 69,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 2554,
+   "gen_ms": 2552.5859594345093
+  },
+  {
+   "corpus": "chat3",
+   "job": "chat",
+   "setting": "main",
+   "id": "C311",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2734,
+   "cut": false,
+   "prompt_chars": 585,
+   "chat_item": {
+    "id": "C311",
+    "question": "What did the cedar-notes session cost in the end?",
+    "rows": [
+     {
+      "ref": "s-311a",
+      "kind": "session",
+      "words": "cedar-notes session: refactored the sync module."
+     },
+     {
+      "ref": "t-311b",
+      "kind": "turn",
+      "words": "Split sync.rs into three files."
+     },
+     {
+      "ref": "f-311c",
+      "kind": "fact",
+      "words": "The cedar-notes repository has 41 open issues."
+     }
+    ],
+    "gold": {
+     "answer_must": [],
+     "cite": [],
+     "forbidden": [],
+     "unanswerable": true,
+     "near_miss": false,
+     "answerable": false,
+     "refs": []
+    },
+    "removed": []
+   },
+   "text": "{\"covered\": \"no\", \"subject\": \"cedar-notes session\", \"parts\": [], \"asks_about\": \"cost\"}",
+   "finish": "stop",
+   "out_tokens": 39,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 2024,
+   "gen_ms": 2023.6279964447021
+  },
+  {
+   "corpus": "chat3",
+   "job": "chat",
+   "setting": "main",
+   "id": "C312",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2733,
+   "cut": false,
+   "prompt_chars": 577,
+   "chat_item": {
+    "id": "C312",
+    "question": "How many tests were added across the parser and lexer turns?",
+    "rows": [
+     {
+      "ref": "t-312a",
+      "kind": "turn",
+      "words": "Added 5 tests in the parser module."
+     },
+     {
+      "ref": "t-312b",
+      "kind": "turn",
+      "words": "Added 3 tests in the lexer module."
+     },
+     {
+      "ref": "f-312c",
+      "kind": "fact",
+      "words": "Test files follow the pattern *_spec.rs."
+     }
+    ],
+    "gold": {
+     "answer_must": [
+      "8"
+     ],
+     "cite": [
+      "t-312a",
+      "t-312b"
+     ],
+     "forbidden": [],
+     "unanswerable": false,
+     "near_miss": false,
+     "answerable": true,
+     "refs": [
+      "t-312a",
+      "t-312b"
+     ]
+    },
+    "removed": []
+   },
+   "text": "{\"subject\": \"tests added across the parser and lexer turns\", \"asks_about\": \"count\", \"parts\": [{\"cites\": [\"t-312a\"], \"states\": \"count\", \"text\": \"5 tests were added in the parser module.\"}, {\"states\": \"count\", \"text\": \"3 tests were added in the lexer module.\", \"cites\": [\"t-312b\"]}], \"covered\": \"yes\"}",
+   "finish": "stop",
+   "out_tokens": 101,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 3299,
+   "gen_ms": 3298.241972923279
+  },
+  {
+   "corpus": "chat3",
+   "job": "chat",
+   "setting": "main",
+   "id": "C313",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2740,
+   "cut": false,
+   "prompt_chars": 593,
+   "chat_item": {
+    "id": "C313",
+    "question": "Which version of Node does the project require?",
+    "rows": [
+     {
+      "ref": "f-313a",
+      "kind": "fact",
+      "words": "The project requires Python 3.12 for the build scripts."
+     },
+     {
+      "ref": "t-313b",
+      "kind": "turn",
+      "words": "Ran the build scripts under Python 3.12."
+     },
+     {
+      "ref": "s-313c",
+      "kind": "session",
+      "words": "Session tidepool-ui: fixed a layout bug."
+     }
+    ],
+    "gold": {
+     "answer_must": [],
+     "cite": [],
+     "forbidden": [
+      "3.12"
+     ],
+     "unanswerable": true,
+     "near_miss": true,
+     "answerable": false,
+     "refs": []
+    },
+    "removed": []
+   },
+   "text": "{\"covered\": \"no\", \"asks_about\": \"what_changed\", \"subject\": \"Node version required\", \"parts\": []}",
+   "finish": "stop",
+   "out_tokens": 39,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 2173,
+   "gen_ms": 2172.42693901062
+  },
+  {
+   "corpus": "chat3",
+   "job": "chat",
+   "setting": "main",
+   "id": "C314",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2726,
+   "cut": false,
+   "prompt_chars": 554,
+   "chat_item": {
+    "id": "C314",
+    "question": "Why was the rollout paused?",
+    "rows": [
+     {
+      "ref": "t-314a",
+      "kind": "turn",
+      "words": "Rollout of release 2.8 paused at 14:20 UTC."
+     },
+     {
+      "ref": "f-314b",
+      "kind": "fact",
+      "words": "Rollouts proceed in three waves."
+     },
+     {
+      "ref": "s-314c",
+      "kind": "session",
+      "words": "Session rollout-watch ran for 55 minutes."
+     }
+    ],
+    "gold": {
+     "answer_must": [],
+     "cite": [],
+     "forbidden": [
+      "14:20"
+     ],
+     "unanswerable": true,
+     "near_miss": true,
+     "answerable": false,
+     "refs": []
+    },
+    "removed": []
+   },
+   "text": "{\"parts\": [{\"cites\": [\"t-314a\"], \"states\": \"why\", \"text\": \"The rollout was paused at 14:20 UTC.\"}], \"asks_about\": \"why\", \"subject\": \"rollout\", \"covered\": \"no\"}",
+   "finish": "stop",
+   "out_tokens": 61,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 2653,
+   "gen_ms": 2652.6559591293335
+  },
+  {
+   "corpus": "chat3",
+   "job": "chat",
+   "setting": "main",
+   "id": "C315",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2731,
+   "cut": false,
+   "prompt_chars": 580,
+   "chat_item": {
+    "id": "C315",
+    "question": "Which files did the user ask to exclude from linting?",
+    "rows": [
+     {
+      "ref": "s-315a",
+      "kind": "session",
+      "words": "Session pebble-cli: enabled stricter lint rules."
+     },
+     {
+      "ref": "t-315b",
+      "kind": "turn",
+      "words": "Fixed 9 lint warnings in src/args.rs."
+     },
+     {
+      "ref": "f-315c",
+      "kind": "fact",
+      "words": "Lint config is in .lintrc.toml."
+     }
+    ],
+    "gold": {
+     "answer_must": [],
+     "cite": [],
+     "forbidden": [],
+     "unanswerable": true,
+     "near_miss": false,
+     "answerable": false,
+     "refs": []
+    },
+    "removed": []
+   },
+   "text": "{\"covered\": \"no\", \"asks_about\": \"what_changed\", \"parts\": [], \"subject\": \"files excluded from linting\"}",
+   "finish": "stop",
+   "out_tokens": 33,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 2072,
+   "gen_ms": 2072.1590518951416
+  },
+  {
+   "corpus": "chat3",
+   "job": "chat",
+   "setting": "main",
+   "id": "C316",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2738,
+   "cut": false,
+   "prompt_chars": 589,
+   "chat_item": {
+    "id": "C316",
+    "question": "What did the assistant do after the failing test?",
+    "rows": [
+     {
+      "ref": "t-316a",
+      "kind": "turn",
+      "words": "Test test_decode_utf8 failed with a version mismatch."
+     },
+     {
+      "ref": "t-316b",
+      "kind": "turn",
+      "words": "Pinned serde to 1.0.200 and reran; the test passed."
+     },
+     {
+      "ref": "f-316c",
+      "kind": "fact",
+      "words": "The crate uses edition 2021."
+     }
+    ],
+    "gold": {
+     "answer_must": [
+      "pinned serde",
+      "1.0.200"
+     ],
+     "cite": [
+      "t-316b"
+     ],
+     "forbidden": [],
+     "unanswerable": false,
+     "near_miss": false,
+     "answerable": true,
+     "refs": [
+      "t-316b"
+     ]
+    },
+    "removed": []
+   },
+   "text": "{\"parts\": [{\"cites\": [\"t-316b\"], \"states\": \"status\", \"text\": \"The test passed after pinning serde to 1.0.200 and rerunning.\"}], \"asks_about\": \"other\", \"subject\": \"what happened after the failing test\", \"covered\": \"no\"}",
+   "finish": "stop",
+   "out_tokens": 71,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 2847,
+   "gen_ms": 2846.93706035614
+  },
+  {
+   "corpus": "chat3",
+   "job": "chat",
+   "setting": "main",
+   "id": "C317",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2731,
+   "cut": false,
+   "prompt_chars": 574,
+   "chat_item": {
+    "id": "C317",
+    "question": "How many retries are configured for the sync job?",
+    "rows": [
+     {
+      "ref": "f-317a",
+      "kind": "fact",
+      "words": "The sync job retries 3 times."
+     },
+     {
+      "ref": "f-317b",
+      "kind": "fact",
+      "words": "The sync job's maximum backoff is 45 seconds."
+     },
+     {
+      "ref": "s-317c",
+      "kind": "session",
+      "words": "Session sync-tune adjusted job settings."
+     }
+    ],
+    "gold": {
+     "answer_must": [
+      "3"
+     ],
+     "cite": [
+      "f-317a"
+     ],
+     "forbidden": [
+      "45"
+     ],
+     "unanswerable": false,
+     "near_miss": true,
+     "answerable": true,
+     "refs": [
+      "f-317a"
+     ]
+    },
+    "removed": []
+   },
+   "text": "{\"covered\": \"yes\", \"subject\": \"sync job retries\", \"asks_about\": \"count\", \"parts\": [{\"cites\": [\"f-317a\"], \"states\": \"count\", \"text\": \"The sync job retries 3 times.\"}]}",
+   "finish": "stop",
+   "out_tokens": 67,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 2512,
+   "gen_ms": 2511.7430686950684
+  },
+  {
+   "corpus": "chat3",
+   "job": "chat",
+   "setting": "main",
+   "id": "C318",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2732,
+   "cut": false,
+   "prompt_chars": 586,
+   "chat_item": {
+    "id": "C318",
+    "question": "Welche Datei wurde in der Sitzung geändert?",
+    "rows": [
+     {
+      "ref": "s-318a",
+      "kind": "session",
+      "words": "Sitzung zinnober-api: Limits für Anfragen angepasst."
+     },
+     {
+      "ref": "t-318b",
+      "kind": "turn",
+      "words": "Geändert wurde nur config/limits.toml."
+     },
+     {
+      "ref": "f-318c",
+      "kind": "fact",
+      "words": "Die Konfiguration wird beim Start geladen."
+     }
+    ],
+    "gold": {
+     "answer_must": [
+      "config/limits.toml"
+     ],
+     "cite": [
+      "t-318b"
+     ],
+     "forbidden": [],
+     "unanswerable": false,
+     "near_miss": false,
+     "answerable": true,
+     "refs": [
+      "t-318b"
+     ]
+    },
+    "removed": []
+   },
+   "text": "{\"subject\": \"Sitzung zinnober-api\", \"asks_about\": \"which\", \"covered\": \"yes\", \"parts\": [{\"cites\": [\"t-318b\"], \"states\": \"where\", \"text\": \"nur config/limits.toml wurde geändert.\"}]}",
+   "finish": "stop",
+   "out_tokens": 65,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 2811,
+   "gen_ms": 2810.6579780578613
+  },
+  {
+   "corpus": "chat3",
+   "job": "chat",
+   "setting": "main",
+   "id": "C319",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2733,
+   "cut": false,
+   "prompt_chars": 588,
+   "chat_item": {
+    "id": "C319",
+    "question": "Wie viele Nutzer waren vom Fehler betroffen?",
+    "rows": [
+     {
+      "ref": "s-319a",
+      "kind": "session",
+      "words": "Sitzung birkenhof-app: Fehler beim Login untersucht."
+     },
+     {
+      "ref": "t-319b",
+      "kind": "turn",
+      "words": "Ursache war ein abgelaufenes Zertifikat."
+     },
+     {
+      "ref": "f-319c",
+      "kind": "fact",
+      "words": "Das Zertifikat wurde am Freitag erneuert."
+     }
+    ],
+    "gold": {
+     "answer_must": [],
+     "cite": [],
+     "forbidden": [],
+     "unanswerable": true,
+     "near_miss": false,
+     "answerable": false,
+     "refs": []
+    },
+    "removed": []
+   },
+   "text": "{\"covered\": \"no\", \"parts\": [], \"asks_about\": \"who\", \"subject\": \"Neutziger betroffen\"}",
+   "finish": "stop",
+   "out_tokens": 37,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 2025,
+   "gen_ms": 2024.6829986572266
+  },
+  {
+   "corpus": "chat3",
+   "job": "chat",
+   "setting": "main",
+   "id": "C320",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2727,
+   "cut": false,
+   "prompt_chars": 563,
+   "chat_item": {
+    "id": "C320",
+    "question": "Wie lange dauerte der Lint-Lauf?",
+    "rows": [
+     {
+      "ref": "s-320a",
+      "kind": "session",
+      "words": "Die Sitzung dauerte insgesamt 35 Minuten."
+     },
+     {
+      "ref": "t-320b",
+      "kind": "turn",
+      "words": "Lint-Lauf in packages/web gestartet; 12 Warnungen."
+     },
+     {
+      "ref": "f-320c",
+      "kind": "fact",
+      "words": "Lint läuft über npm run lint."
+     }
+    ],
+    "gold": {
+     "answer_must": [],
+     "cite": [],
+     "forbidden": [
+      "35 Minuten"
+     ],
+     "unanswerable": true,
+     "near_miss": true,
+     "answerable": false,
+     "refs": []
+    },
+    "removed": []
+   },
+   "text": "{\"asks_about\": \"duration\", \"subject\": \"Lint-Lauf\", \"covered\": \"no\", \"parts\": [{\"cites\": [\"s-320a\"], \"states\": \"duration\", \"text\": \"Der Lint-Lauf dauerte insgesamt 35 Minuten.\"}]}",
+   "finish": "stop",
+   "out_tokens": 65,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 2918,
+   "gen_ms": 2918.136954307556
+  },
+  {
+   "corpus": "chat3",
+   "job": "chat",
+   "setting": "main",
+   "id": "C321",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2734,
+   "cut": false,
+   "prompt_chars": 588,
+   "chat_item": {
+    "id": "C321",
+    "question": "Wie viele Tests sind im letzten Lauf fehlgeschlagen?",
+    "rows": [
+     {
+      "ref": "t-321a",
+      "kind": "turn",
+      "words": "Letzter Lauf: 140 Tests, 2 fehlgeschlagen."
+     },
+     {
+      "ref": "t-321b",
+      "kind": "turn",
+      "words": "Vorlauf am Montag: 7 Tests fehlgeschlagen."
+     },
+     {
+      "ref": "f-321c",
+      "kind": "fact",
+      "words": "Fehlgeschlagen sind beide Tests in tests/io."
+     }
+    ],
+    "gold": {
+     "answer_must": [
+      "2"
+     ],
+     "cite": [
+      "t-321a"
+     ],
+     "forbidden": [
+      "7"
+     ],
+     "unanswerable": false,
+     "near_miss": true,
+     "answerable": true,
+     "refs": [
+      "t-321a"
+     ]
+    },
+    "removed": []
+   },
+   "text": "{\"asks_about\": \"count\", \"covered\": \"yes\", \"parts\": [{\"cites\": [\"t-321a\", \"f-321c\"], \"states\": \"count\", \"text\": \"Zwei Tests sind im letzten Lauf fehlgeschlagen.\"}], \"subject\": \"Tests im letzten Lauf\"}",
+   "finish": "stop",
+   "out_tokens": 77,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 2901,
+   "gen_ms": 2900.95591545105
+  },
+  {
+   "corpus": "chat3",
+   "job": "chat",
+   "setting": "main",
+   "id": "C322",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2723,
+   "cut": false,
+   "prompt_chars": 566,
+   "chat_item": {
+    "id": "C322",
+    "question": "Welche Lizenz hat die Bibliothek kieselbach?",
+    "rows": [
+     {
+      "ref": "s-322a",
+      "kind": "session",
+      "words": "Sitzung kieselbach: Dokumentation überarbeitet."
+     },
+     {
+      "ref": "t-322b",
+      "kind": "turn",
+      "words": "README um ein Beispiel ergänzt."
+     },
+     {
+      "ref": "f-322c",
+      "kind": "fact",
+      "words": "kieselbach hat 18 Abhängigkeiten."
+     }
+    ],
+    "gold": {
+     "answer_must": [],
+     "cite": [],
+     "forbidden": [],
+     "unanswerable": true,
+     "near_miss": false,
+     "answerable": false,
+     "refs": []
+    },
+    "removed": []
+   },
+   "text": "{\"asks_about\": \"who\", \"parts\": [], \"covered\": \"no\", \"subject\": \"kieselbach\"}",
+   "finish": "stop",
+   "out_tokens": 35,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 1974,
+   "gen_ms": 1973.4079837799072
+  },
+  {
+   "corpus": "chat3",
+   "job": "chat",
+   "setting": "main",
+   "id": "C323",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2734,
+   "cut": false,
+   "prompt_chars": 593,
+   "chat_item": {
+    "id": "C323",
+    "question": "In welchem Verzeichnis liegt das Skript, das den Export startet?",
+    "rows": [
+     {
+      "ref": "f-323a",
+      "kind": "fact",
+      "words": "Der Export wird von run_export.sh gestartet."
+     },
+     {
+      "ref": "f-323b",
+      "kind": "fact",
+      "words": "run_export.sh liegt in tools/batch/."
+     },
+     {
+      "ref": "f-323c",
+      "kind": "fact",
+      "words": "Das Skript backup.sh liegt in tools/ops/."
+     }
+    ],
+    "gold": {
+     "answer_must": [
+      "tools/batch"
+     ],
+     "cite": [
+      "f-323a",
+      "f-323b"
+     ],
+     "forbidden": [
+      "tools/ops"
+     ],
+     "unanswerable": false,
+     "near_miss": false,
+     "answerable": true,
+     "refs": [
+      "f-323a",
+      "f-323b"
+     ]
+    },
+    "removed": []
+   },
+   "text": "{\"parts\": [{\"cites\": [\"f-323a\"], \"states\": \"where\", \"text\": \"Der Export wird von run_export.sh gestartet.\"}], \"asks_about\": \"where\", \"covered\": \"yes\", \"subject\": \"Skript, das den Export startet\"}",
+   "finish": "stop",
+   "out_tokens": 69,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 2983,
+   "gen_ms": 2982.9310178756714
+  },
+  {
+   "corpus": "chat3",
+   "job": "chat",
+   "setting": "main",
+   "id": "C324",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2731,
+   "cut": false,
+   "prompt_chars": 581,
+   "chat_item": {
+    "id": "C324",
+    "question": "Wer hat den Pull-Request geöffnet?",
+    "rows": [
+     {
+      "ref": "t-324a",
+      "kind": "turn",
+      "words": "Der Pull-Request wurde am Dienstag geöffnet."
+     },
+     {
+      "ref": "f-324b",
+      "kind": "fact",
+      "words": "Reviewer des Pull-Requests ist Jonas Hellmer."
+     },
+     {
+      "ref": "s-324c",
+      "kind": "session",
+      "words": "Sitzung weidenau-core: Fehlerbehebung im Cache."
+     }
+    ],
+    "gold": {
+     "answer_must": [],
+     "cite": [],
+     "forbidden": [
+      "Jonas"
+     ],
+     "unanswerable": true,
+     "near_miss": true,
+     "answerable": false,
+     "refs": []
+    },
+    "removed": []
+   },
+   "text": "{\"asks_about\": \"who\", \"subject\": \"der Pull-Request\", \"covered\": \"yes\", \"parts\": [{\"cites\": [\"t-324a\"], \"states\": \"who\", \"text\": \"Der Pull-Request wurde am Dienstag geöffnet.\"}]}",
+   "finish": "stop",
+   "out_tokens": 67,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 2619,
+   "gen_ms": 2619.072914123535
+  },
+  {
+   "corpus": "chat3",
+   "job": "chat",
+   "setting": "main",
+   "id": "C325",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2723,
+   "cut": false,
+   "prompt_chars": 553,
+   "chat_item": {
+    "id": "C325",
+    "question": "Welcher Fehlercode trat beim Build auf?",
+    "rows": [
+     {
+      "ref": "t-325a",
+      "kind": "turn",
+      "words": "Der Build brach mit Fehlercode E0432 ab."
+     },
+     {
+      "ref": "t-325b",
+      "kind": "turn",
+      "words": "Fehlender Import in src/util.rs ergänzt."
+     },
+     {
+      "ref": "f-325c",
+      "kind": "fact",
+      "words": "Der Build nutzt Rust 1.80."
+     }
+    ],
+    "gold": {
+     "answer_must": [
+      "E0432"
+     ],
+     "cite": [
+      "t-325a"
+     ],
+     "forbidden": [],
+     "unanswerable": false,
+     "near_miss": false,
+     "answerable": true,
+     "refs": [
+      "t-325a"
+     ]
+    },
+    "removed": []
+   },
+   "text": "{\"parts\": [{\"cites\": [\"t-325a\"], \"states\": \"who\", \"text\": \"Der Build trat den Fehlercode E0432 auf.\"}], \"asks_about\": \"who\", \"covered\": \"yes\", \"subject\": \"Build Fehlercode\"}",
+   "finish": "stop",
+   "out_tokens": 63,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 2784,
+   "gen_ms": 2784.0240001678467
+  },
+  {
+   "corpus": "chat3",
+   "job": "chat",
+   "setting": "main",
+   "id": "C326",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2732,
+   "cut": false,
+   "prompt_chars": 565,
+   "chat_item": {
+    "id": "C326",
+    "question": "Wie groß ist das Backup von Projekt Birke?",
+    "rows": [
+     {
+      "ref": "f-326a",
+      "kind": "fact",
+      "words": "Das Backup von Projekt Birke ist 2,4 GB groß."
+     },
+     {
+      "ref": "f-326b",
+      "kind": "fact",
+      "words": "Das Backup von Projekt Erle ist 7,9 GB groß."
+     },
+     {
+      "ref": "f-326c",
+      "kind": "fact",
+      "words": "Backups laufen jede Nacht."
+     }
+    ],
+    "gold": {
+     "answer_must": [
+      "2,4 GB"
+     ],
+     "cite": [
+      "f-326a"
+     ],
+     "forbidden": [
+      "7,9"
+     ],
+     "unanswerable": false,
+     "near_miss": true,
+     "answerable": true,
+     "refs": [
+      "f-326a"
+     ]
+    },
+    "removed": []
+   },
+   "text": "{\"asks_about\": \"duration\", \"subject\": \"Backup von Projekt Birke\", \"covered\": \"yes\", \"parts\": [{\"cites\": [\"f-326a\"], \"states\": \"duration\", \"text\": \"Das Backup von Projekt Birke ist 2,4 GB groß.\"}]}",
+   "finish": "stop",
+   "out_tokens": 69,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 2951,
+   "gen_ms": 2950.25098323822
+  },
+  {
+   "corpus": "chat3",
+   "job": "chat",
+   "setting": "main",
+   "id": "C327",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2743,
+   "cut": false,
+   "prompt_chars": 612,
+   "chat_item": {
+    "id": "C327",
+    "question": "Hat der Nutzer die Änderung am Schema genehmigt?",
+    "rows": [
+     {
+      "ref": "t-327a",
+      "kind": "turn",
+      "words": "Der Assistent schlug vor, die Spalte status umzubenennen."
+     },
+     {
+      "ref": "s-327b",
+      "kind": "session",
+      "words": "Sitzung lindenhof-db: Schema-Änderung vorbereitet."
+     },
+     {
+      "ref": "f-327c",
+      "kind": "fact",
+      "words": "Die Spalte status wird von 3 Diensten gelesen."
+     }
+    ],
+    "gold": {
+     "answer_must": [],
+     "cite": [],
+     "forbidden": [],
+     "unanswerable": true,
+     "near_miss": false,
+     "answerable": false,
+     "refs": []
+    },
+    "removed": []
+   },
+   "text": "{\"parts\": [], \"asks_about\": \"status\", \"covered\": \"no\", \"subject\": \"die Änderung am Schema\"}",
+   "finish": "stop",
+   "out_tokens": 37,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 2144,
+   "gen_ms": 2144.1750526428223
+  },
+  {
+   "corpus": "chat3",
+   "job": "chat",
+   "setting": "main",
+   "id": "C328",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2728,
+   "cut": false,
+   "prompt_chars": 563,
+   "chat_item": {
+    "id": "C328",
+    "question": "Was hat Sitzung B gekostet?",
+    "rows": [
+     {
+      "ref": "s-328a",
+      "kind": "session",
+      "words": "Sitzung A kostete 3,20 USD."
+     },
+     {
+      "ref": "s-328b",
+      "kind": "session",
+      "words": "Sitzung B: Tests für das Modul fjord-auth geschrieben."
+     },
+     {
+      "ref": "f-328c",
+      "kind": "fact",
+      "words": "Beide Sitzungen liefen im selben Projekt."
+     }
+    ],
+    "gold": {
+     "answer_must": [],
+     "cite": [],
+     "forbidden": [
+      "3,20"
+     ],
+     "unanswerable": true,
+     "near_miss": true,
+     "answerable": false,
+     "refs": []
+    },
+    "removed": []
+   },
+   "text": "{\"asks_about\": \"cost\", \"parts\": [{\"cites\": [\"s-328b\"], \"states\": \"cost\", \"text\": \"Sitzung B: Tests für das Modul fjord-auth geschrieben.\"}], \"covered\": \"yes\", \"subject\": \"Sitzung B\"}",
+   "finish": "stop",
+   "out_tokens": 69,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 3044,
+   "gen_ms": 3043.4000492095947
+  },
+  {
+   "corpus": "chat3",
+   "job": "chat",
+   "setting": "main",
+   "id": "C329",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2719,
+   "cut": false,
+   "prompt_chars": 546,
+   "chat_item": {
+    "id": "C329",
+    "question": "Wie viele Dateien wurden insgesamt umbenannt?",
+    "rows": [
+     {
+      "ref": "t-329a",
+      "kind": "turn",
+      "words": "12 Dateien in src/ umbenannt."
+     },
+     {
+      "ref": "t-329b",
+      "kind": "turn",
+      "words": "5 Dateien in docs/ umbenannt."
+     },
+     {
+      "ref": "f-329c",
+      "kind": "fact",
+      "words": "Namen folgen dem Muster snake_case."
+     }
+    ],
+    "gold": {
+     "answer_must": [
+      "17"
+     ],
+     "cite": [
+      "t-329a",
+      "t-329b"
+     ],
+     "forbidden": [],
+     "unanswerable": false,
+     "near_miss": false,
+     "answerable": true,
+     "refs": [
+      "t-329a",
+      "t-329b"
+     ]
+    },
+    "removed": []
+   },
+   "text": "{\"covered\": \"no\", \"subject\": \"Dateien umbenannt\", \"parts\": [{\"cites\": [\"t-329a\"], \"states\": \"count\", \"text\": \"12 Dateien wurden umbenannt in src/ umbenannt.\"}, {\"cites\": [\"t-329b\"], \"states\": \"count\", \"text\": \"5 Dateien wurden umbenannt in docs/ umbenannt.\"}], \"asks_about\": \"count\"}",
+   "finish": "stop",
+   "out_tokens": 109,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 3825,
+   "gen_ms": 3824.147939682007
+  },
+  {
+   "corpus": "chat3",
+   "job": "chat",
+   "setting": "main",
+   "id": "C330",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2729,
+   "cut": false,
+   "prompt_chars": 576,
+   "chat_item": {
+    "id": "C330",
+    "question": "Wann wurde das Release 1.4 veröffentlicht?",
+    "rows": [
+     {
+      "ref": "s-330a",
+      "kind": "session",
+      "words": "Sitzung sonnenwend-app: Release-Branch für 1.4 geschnitten."
+     },
+     {
+      "ref": "t-330b",
+      "kind": "turn",
+      "words": "Changelog für 1.4 geschrieben."
+     },
+     {
+      "ref": "f-330c",
+      "kind": "fact",
+      "words": "Releases werden von der CI gebaut."
+     }
+    ],
+    "gold": {
+     "answer_must": [],
+     "cite": [],
+     "forbidden": [],
+     "unanswerable": true,
+     "near_miss": false,
+     "answerable": false,
+     "refs": []
+    },
+    "removed": []
+   },
+   "text": "{\"covered\": \"no\", \"asks_about\": \"when\", \"subject\": \"Release 1.4\", \"parts\": [{\"cites\": [\"s-330a\"], \"states\": \"what_changed\", \"text\": \"Release-Branch für 1.4 geschnitten wurde.\"}]}",
+   "finish": "stop",
+   "out_tokens": 69,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 2589,
+   "gen_ms": 2588.5419845581055
+  },
+  {
+   "corpus": "chat3",
+   "job": "chat",
+   "setting": "main",
+   "id": "C331",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2732,
+   "cut": false,
+   "prompt_chars": 574,
+   "chat_item": {
+    "id": "C331",
+    "question": "What memory limit is set for the worker?",
+    "rows": [
+     {
+      "ref": "f-331a",
+      "kind": "fact",
+      "words": "The worker is limited to 2 CPU cores."
+     },
+     {
+      "ref": "t-331b",
+      "kind": "turn",
+      "words": "Updated the worker's Dockerfile base image."
+     },
+     {
+      "ref": "s-331c",
+      "kind": "session",
+      "words": "Session crane-queue: tuned the worker pool."
+     }
+    ],
+    "gold": {
+     "answer_must": [],
+     "cite": [],
+     "forbidden": [
+      "2 CPU cores",
+      "2 cores"
+     ],
+     "unanswerable": true,
+     "near_miss": true,
+     "answerable": false,
+     "refs": []
+    },
+    "removed": []
+   },
+   "text": "{\"asks_about\": \"other\", \"parts\": [], \"covered\": \"no\", \"subject\": \"worker\"}",
+   "finish": "stop",
+   "out_tokens": 31,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 2385,
+   "gen_ms": 2384.582042694092
+  },
+  {
+   "corpus": "chat3",
+   "job": "chat",
+   "setting": "main",
+   "id": "C332",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2727,
+   "cut": false,
+   "prompt_chars": 562,
+   "chat_item": {
+    "id": "C332",
+    "question": "Which editor does the user prefer?",
+    "rows": [
+     {
+      "ref": "s-332a",
+      "kind": "session",
+      "words": "Session larch-ops: rewrote the cleanup script."
+     },
+     {
+      "ref": "t-332b",
+      "kind": "turn",
+      "words": "Replaced a shell loop with find -delete."
+     },
+     {
+      "ref": "f-332c",
+      "kind": "fact",
+      "words": "The cleanup script runs weekly."
+     }
+    ],
+    "gold": {
+     "answer_must": [],
+     "cite": [],
+     "forbidden": [],
+     "unanswerable": true,
+     "near_miss": false,
+     "answerable": false,
+     "refs": []
+    },
+    "removed": []
+   },
+   "text": "{\"covered\": \"no\", \"asks_about\": \"other\", \"subject\": \"editor\", \"parts\": []}",
+   "finish": "stop",
+   "out_tokens": 31,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 2117,
+   "gen_ms": 2116.154909133911
+  },
+  {
+   "corpus": "chat3",
+   "job": "chat",
+   "setting": "main",
+   "id": "C333",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2742,
+   "cut": false,
+   "prompt_chars": 595,
+   "chat_item": {
+    "id": "C333",
+    "question": "Which command reproduced the crash?",
+    "rows": [
+     {
+      "ref": "t-333a",
+      "kind": "turn",
+      "words": "Reproduced the crash with ./bin/render --input fixtures/big.svg."
+     },
+     {
+      "ref": "t-333b",
+      "kind": "turn",
+      "words": "The crash was a stack overflow in the path parser."
+     },
+     {
+      "ref": "f-333c",
+      "kind": "fact",
+      "words": "The fixtures folder holds 6 SVG files."
+     }
+    ],
+    "gold": {
+     "answer_must": [
+      "./bin/render --input fixtures/big.svg"
+     ],
+     "cite": [
+      "t-333a"
+     ],
+     "forbidden": [],
+     "unanswerable": false,
+     "near_miss": false,
+     "answerable": true,
+     "refs": [
+      "t-333a"
+     ]
+    },
+    "removed": []
+   },
+   "text": "{\"subject\": \"command that reproduced the crash\", \"covered\": \"yes\", \"asks_about\": \"which\", \"parts\": [{\"states\": \"which\", \"text\": \"./bin/render --input fixtures/big.svg reproduced the crash.\", \"cites\": [\"t-333a\"]}]}",
+   "finish": "stop",
+   "out_tokens": 71,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 2865,
+   "gen_ms": 2864.767074584961
+  },
+  {
+   "corpus": "chat3",
+   "job": "chat",
+   "setting": "main",
+   "id": "C334",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2758,
+   "cut": false,
+   "prompt_chars": 651,
+   "chat_item": {
+    "id": "C334",
+    "question": "Which session fixed the flaky test, and what was the cause?",
+    "rows": [
+     {
+      "ref": "s-334a",
+      "kind": "session",
+      "words": "Session reed-sync fixed the flaky test test_lock_order."
+     },
+     {
+      "ref": "f-334b",
+      "kind": "fact",
+      "words": "The flakiness in test_lock_order came from two threads taking locks in opposite order."
+     },
+     {
+      "ref": "f-334c",
+      "kind": "fact",
+      "words": "test_lock_order lives in tests/locks.rs."
+     }
+    ],
+    "gold": {
+     "answer_must": [
+      "reed-sync",
+      "opposite order"
+     ],
+     "cite": [
+      "s-334a",
+      "f-334b"
+     ],
+     "forbidden": [],
+     "unanswerable": false,
+     "near_miss": false,
+     "answerable": true,
+     "refs": [
+      "s-334a",
+      "f-334b"
+     ]
+    },
+    "removed": []
+   },
+   "text": "{\"covered\": \"yes\", \"asks_about\": \"who\", \"subject\": \"session fixed the flaky test\", \"parts\": [{\"cites\": [\"s-334a\"], \"states\": \"who\", \"text\": \"Session reed-sync fixed the flaky test.\"}, {\"states\": \"why\", \"text\": \"The flakiness in test_lock_order came from two threads taking locks in opposite order.\", \"cites\": [\"f-334b\"]}]}",
+   "finish": "stop",
+   "out_tokens": 103,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 4440,
+   "gen_ms": 4439.826011657715
+  },
+  {
+   "corpus": "chat3",
+   "job": "chat",
+   "setting": "main",
+   "id": "C335",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2726,
+   "cut": false,
+   "prompt_chars": 563,
+   "chat_item": {
+    "id": "C335",
+    "question": "How many commits were squashed?",
+    "rows": [
+     {
+      "ref": "t-335a",
+      "kind": "turn",
+      "words": "Squashed 6 commits into one before opening the review."
+     },
+     {
+      "ref": "f-335b",
+      "kind": "fact",
+      "words": "The branch is named feature/export-v2."
+     },
+     {
+      "ref": "s-335c",
+      "kind": "session",
+      "words": "Session mist-export finished."
+     }
+    ],
+    "gold": {
+     "answer_must": [
+      "6"
+     ],
+     "cite": [
+      "t-335a"
+     ],
+     "forbidden": [],
+     "unanswerable": false,
+     "near_miss": false,
+     "answerable": true,
+     "refs": [
+      "t-335a"
+     ]
+    },
+    "removed": []
+   },
+   "text": "{\"subject\": \"commits squashed\", \"covered\": \"yes\", \"asks_about\": \"count\", \"parts\": [{\"states\": \"count\", \"text\": \"6 commits were squashed.\", \"cites\": [\"t-335a\"]}]}",
+   "finish": "stop",
+   "out_tokens": 59,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 2713,
+   "gen_ms": 2712.684988975525
+  },
+  {
+   "corpus": "chat3",
+   "job": "chat",
+   "setting": "main",
+   "id": "C336",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2725,
+   "cut": false,
+   "prompt_chars": 546,
+   "chat_item": {
+    "id": "C336",
+    "question": "Who approved the release?",
+    "rows": [
+     {
+      "ref": "f-336a",
+      "kind": "fact",
+      "words": "Release 3.1 was approved by Tomas Vell."
+     },
+     {
+      "ref": "f-336b",
+      "kind": "fact",
+      "words": "The release notes for 3.1 were drafted by Priya Anand."
+     },
+     {
+      "ref": "t-336c",
+      "kind": "turn",
+      "words": "Tagged v3.1 on main."
+     }
+    ],
+    "gold": {
+     "answer_must": [
+      "Tomas Vell"
+     ],
+     "cite": [
+      "f-336a"
+     ],
+     "forbidden": [
+      "Priya"
+     ],
+     "unanswerable": false,
+     "near_miss": true,
+     "answerable": true,
+     "refs": [
+      "f-336a"
+     ]
+    },
+    "removed": []
+   },
+   "text": "{\"subject\": \"release approval\", \"parts\": [{\"cites\": [\"f-336a\"], \"states\": \"who\", \"text\": \"Release 3.1 was approved by Tomas Vell.\"}], \"covered\": \"yes\", \"asks_about\": \"who\"}",
+   "finish": "stop",
+   "out_tokens": 67,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 2960,
+   "gen_ms": 2959.633946418762
+  },
+  {
+   "corpus": "chat3",
+   "job": "chat",
+   "setting": "main",
+   "id": "C337",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2728,
+   "cut": false,
+   "prompt_chars": 559,
+   "chat_item": {
+    "id": "C337",
+    "question": "What is the default log level?",
+    "rows": [
+     {
+      "ref": "f-337a",
+      "kind": "fact",
+      "words": "The default log level is warn."
+     },
+     {
+      "ref": "t-337b",
+      "kind": "turn",
+      "words": "Added a --verbose flag that sets the level to debug."
+     },
+     {
+      "ref": "s-337c",
+      "kind": "session",
+      "words": "Session gull-agent: logging cleanup."
+     }
+    ],
+    "gold": {
+     "answer_must": [
+      "warn"
+     ],
+     "cite": [
+      "f-337a"
+     ],
+     "forbidden": [],
+     "unanswerable": false,
+     "near_miss": false,
+     "answerable": true,
+     "refs": [
+      "f-337a"
+     ]
+    },
+    "removed": []
+   },
+   "text": "{\"covered\": \"yes\", \"asks_about\": \"what_changed\", \"parts\": [{\"cites\": [\"f-337a\"], \"states\": \"status\", \"text\": \"The default log level is warn.\"}], \"subject\": \"default log level\"}",
+   "finish": "stop",
+   "out_tokens": 65,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 3283,
+   "gen_ms": 3282.9020023345947
+  },
+  {
+   "corpus": "chat3",
+   "job": "chat",
+   "setting": "main",
+   "id": "C338",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2722,
+   "cut": false,
+   "prompt_chars": 548,
+   "chat_item": {
+    "id": "C338",
+    "question": "What was said about the Windows build?",
+    "rows": [
+     {
+      "ref": "t-338a",
+      "kind": "turn",
+      "words": "The macOS build passed on CI."
+     },
+     {
+      "ref": "f-338b",
+      "kind": "fact",
+      "words": "The Linux build uses musl."
+     },
+     {
+      "ref": "s-338c",
+      "kind": "session",
+      "words": "Session slate-ci: reviewed the build matrix."
+     }
+    ],
+    "gold": {
+     "answer_must": [],
+     "cite": [],
+     "forbidden": [
+      "macOS build passed"
+     ],
+     "unanswerable": true,
+     "near_miss": true,
+     "answerable": false,
+     "refs": []
+    },
+    "removed": []
+   },
+   "text": "{\"covered\": \"no\", \"subject\": \"Windows build\", \"asks_about\": \"status\", \"parts\": []}",
+   "finish": "stop",
+   "out_tokens": 33,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 2060,
+   "gen_ms": 2059.6829652786255
+  },
+  {
+   "corpus": "chat3",
+   "job": "chat",
+   "setting": "main",
+   "id": "C339",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2723,
+   "cut": false,
+   "prompt_chars": 548,
+   "chat_item": {
+    "id": "C339",
+    "question": "Where is the cache directory?",
+    "rows": [
+     {
+      "ref": "f-339a",
+      "kind": "fact",
+      "words": "The cache directory is ~/.cache/finch."
+     },
+     {
+      "ref": "t-339b",
+      "kind": "turn",
+      "words": "Cleared the cache and reran the index."
+     },
+     {
+      "ref": "f-339c",
+      "kind": "fact",
+      "words": "The index file is called index.bin."
+     }
+    ],
+    "gold": {
+     "answer_must": [
+      "~/.cache/finch"
+     ],
+     "cite": [
+      "f-339a"
+     ],
+     "forbidden": [],
+     "unanswerable": false,
+     "near_miss": false,
+     "answerable": true,
+     "refs": [
+      "f-339a"
+     ]
+    },
+    "removed": []
+   },
+   "text": "{\"asks_about\": \"where\", \"subject\": \"cache directory\", \"covered\": \"yes\", \"parts\": [{\"cites\": [\"f-339a\"], \"states\": \"where\", \"text\": \"The cache directory is located at ~/.cache/finch.\"}]}",
+   "finish": "stop",
+   "out_tokens": 61,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 2938,
+   "gen_ms": 2937.6420974731445
+  },
+  {
+   "corpus": "chat3",
+   "job": "chat",
+   "setting": "main",
+   "id": "C340",
+   "rep": 0,
+   "cold_first": false,
+   "est_tokens": 2746,
+   "cut": false,
+   "prompt_chars": 623,
+   "chat_item": {
+    "id": "C340",
+    "question": "Which project does session s-340a belong to, and what is its main language?",
+    "rows": [
+     {
+      "ref": "s-340a",
+      "kind": "session",
+      "words": "Session s-340a belongs to project marsh-gateway."
+     },
+     {
+      "ref": "f-340b",
+      "kind": "fact",
+      "words": "marsh-gateway is written mainly in Kotlin."
+     },
+     {
+      "ref": "f-340c",
+      "kind": "fact",
+      "words": "The project reed-proxy is written mainly in Go."
+     }
+    ],
+    "gold": {
+     "answer_must": [
+      "marsh-gateway",
+      "Kotlin"
+     ],
+     "cite": [
+      "s-340a",
+      "f-340b"
+     ],
+     "forbidden": [
+      "Go"
+     ],
+     "unanswerable": false,
+     "near_miss": false,
+     "answerable": true,
+     "refs": [
+      "s-340a",
+      "f-340b"
+     ]
+    },
+    "removed": []
+   },
+   "text": "{\"subject\": \"session s-340a\", \"covered\": \"yes\", \"asks_about\": \"who\", \"parts\": [{\"cites\": [\"s-340a\"], \"states\": \"who\", \"text\": \"Session s-340a belongs to project marsh-gateway.\"}]}",
+   "finish": "stop",
+   "out_tokens": 73,
+   "refused": false,
+   "retried_permissive": false,
+   "error": "",
+   "latency_ms": 3046,
+   "gen_ms": 3045.876979827881
+  }
+ ]
+}
