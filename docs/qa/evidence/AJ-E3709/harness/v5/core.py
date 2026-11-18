@@ -78,12 +78,31 @@ def norm_item(raw):
 # The v5 turn item: source, facts {outcome, level, tests, questions, failures}, git {changed, reverted, reflog, uncommitted}, gold
 # ======================================================================================================================
 TESTS_RX = re.compile(r"(\d+)\s*passed\D+(\d+)\s*failed", re.I)
+# Round 3 (v5 round 2's sets): the facts' words in AI Juggler's own vocabulary ("completed", "needs_input"; tests "passed", "failed",
+# "none") reached the frozen gate, which knows only the corpora's words (success, failure, question; ran, not_run): every round-2 item
+# showed the models "outcome: unknown" and "tests: unknown", and the checks read no test counts. Both are mapped here, before the gate.
+TEST_STATES = {"ran": "ran", "run": "ran", "passed": "ran", "pass": "ran", "passing": "ran", "green": "ran", "ok": "ran", "success": "ran",
+               "succeeded": "ran", "failed": "ran", "fail": "ran", "failing": "ran", "failure": "ran", "red": "ran",
+               "not_run": "not_run", "none": "not_run", "skipped": "not_run", "no_tests": "not_run", "not_executed": "not_run", "unrun": "not_run"}
+_TEST_FAIL_STATES = {"failed", "fail", "failing", "failure", "red"}
+OUTCOME_WORDS = {"completed": "success", "complete": "success", "done": "success", "succeeded": "success", "ok": "success",
+                 "needs_input": "question", "needs_you": "question", "waiting_for_input": "question", "awaiting_input": "question",
+                 "asked": "question", "error": "failure", "errored": "failure", "crashed": "failure",
+                 "cancelled": "stopped", "canceled": "stopped", "interrupted": "stopped", "aborted": "stopped"}
+def outcome_norm(o):
+    """an outcome word in any vocabulary a writer may use -> the gate's (success, failure, question, stopped, none, unknown)"""
+    w = str(o if o is not None else "unknown").strip().lower().replace(" ", "_").replace("-", "_")
+    return OUTCOME_WORDS.get(w, w)
 def tests_norm(t):
-    """the facts' tests in any of the shapes a writer may use -> v4's {state, passed, failed}"""
+    """the facts' tests in any of the shapes a writer may use -> v4's {state, passed, failed}. A state word in AI Juggler's vocabulary
+    (passed, failed, none...) maps to ran or not_run; a 'failed' state with no failed count is unknown (no count to show honestly)."""
     if isinstance(t, dict):
-        st = str(t.get("state", "")).lower().replace(" ", "_").replace("notrun", "not_run")
-        if not st and ("passed" in t or "failed" in t): st = "ran"
-        return {"state": st or "unknown", "passed": int(t.get("passed") or 0), "failed": int(t.get("failed") or 0)}
+        raw = str(t.get("state", "")).strip().lower().replace(" ", "_").replace("-", "_").replace("notrun", "not_run")
+        p, f = int(t.get("passed") or 0), int(t.get("failed") or 0)
+        st = TEST_STATES.get(raw, raw)
+        if not raw and ("passed" in t or "failed" in t): st = "ran"
+        if raw in _TEST_FAIL_STATES and f == 0: st = "unknown"
+        return {"state": st or "unknown", "passed": p, "failed": f}
     s = str(t or "").lower()
     m = TESTS_RX.search(s)
     if m: return {"state": "ran", "passed": int(m[1]), "failed": int(m[2])}
@@ -126,6 +145,7 @@ def norm_turn(raw):
     if isinstance(f, dict):
         facts4 = {k: v for k, v in f.items() if k not in ("questions", "failures")}
         facts4["tests"] = tests_norm(f.get("tests"))
+        if "outcome" in f: facts4["outcome"] = outcome_norm(f.get("outcome"))
         files = list(f.get("files") or []) + [c["path"] for c in kept_changes(git)]
         if files: facts4["files"] = files
     ctx = prepare_v5(raw.get("source") or "")

@@ -461,6 +461,19 @@ def selftest():
     ld = REVIEW.fallback(tdn, "main")["shown"]
     check("cosmetic: AI Juggler's own German line says 'Tests nicht ausgeführt (laut AI Juggler)'", "Tests nicht ausgeführt (laut AI Juggler)" in ld and "Tests (AI Juggler)" not in ld, ld)
 
+    # ================================================================================================ R3-1. the facts' own vocabulary reaches the gate
+    tq = turn("Swapped the kestrel queue to a ring buffer.", {"outcome": "completed", "level": "L1", "tests": {"state": "passed", "passed": 31, "failed": 0}})
+    blk = core.facts_block_v5(tq)
+    check("R3 facts: 'completed' and a 'passed' state read as finished, ran 31 passed", "outcome: finished" in blk and "tests: ran, 31 passed, 0 failed" in blk, blk)
+    tq = turn("Kestrel ring buffer, two specs red.", {"outcome": "failed", "level": "L3", "tests": {"state": "failed", "passed": 29, "failed": 2}})
+    check("R3 facts: a 'failed' state with counts reads as ran, 2 failed", tq["F"]["tests_state"] == "ran" and tq["F"]["failed"] == 2 and turns.turn_failed(tq), tq["F"])
+    tq = turn("Asked which ring size to use.", {"outcome": "needs_input", "level": "L2", "tests": {"state": "none", "passed": 0, "failed": 0}})
+    check("R3 facts: 'needs_input' reads as asking; a 'none' state as tests not run", tq["F"]["outcome"] == "asking" and tq["F"]["tests_state"] == "not_run", tq["F"])
+    tq = turn("x", {"outcome": "completed", "level": "L1", "tests": {"state": "failed"}})
+    check("R3 facts: a 'failed' state with no failed count stays unknown (no count to show)", tq["F"]["tests_state"] == "unknown", tq["F"])
+    check("R3 facts: the corpora's own words are unchanged", core.tests_norm({"state": "ran", "passed": 3, "failed": 1}) == {"state": "ran", "passed": 3, "failed": 1}
+          and getattr(core, "outcome_norm", str)("success") == "success" and getattr(core, "outcome_norm", str)("question") == "question")
+
     # ================================================================================================ the extension point, the frozen gate, the prompts
     class Toy(core.Job):
         name, letter, title, item_kind = "toy_digest", "e", "toy", "toydigest"
@@ -484,8 +497,9 @@ def selftest():
     for f in ("runner_v5.py", "report_v5.py"):
         src = open(os.path.join(HERE, f)).read()
         check(f"registry: {f} names no turn job (it iterates the registry)", not re.search(r"\"(?:feed_line|review|attention)\"", src))
-    root = subprocess.run(["git", "rev-parse", "--show-toplevel"], capture_output=True, text=True, cwd=HERE).stdout.strip()
-    d = subprocess.run(["git", "diff", "--quiet", "7acec4f50", "--", os.path.relpath(gate.__file__, root)], cwd=root)
+    gp = os.path.realpath(gate.__file__)          # the real file (a work copy of v5 may reach the harness through links)
+    root = subprocess.run(["git", "rev-parse", "--show-toplevel"], capture_output=True, text=True, cwd=os.path.dirname(gp)).stdout.strip()
+    d = subprocess.run(["git", "diff", "--quiet", "7acec4f50", "--", os.path.relpath(gp, root)], cwd=root)
     check("gate.py is byte-identical to 7acec4f50", d.returncode == 0)
     for jn, job in REGISTRY.items():
         p = os.path.join(HERE, "prompts", f"{jn}.md")
