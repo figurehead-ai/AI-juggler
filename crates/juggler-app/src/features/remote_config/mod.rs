@@ -8,15 +8,26 @@
 //! `Accept`, `Content-Type`): never a bearer, a cookie or an id. A URL
 //! off the allow-listed host (D-129) is refused before anything is sent.
 //!
-//! [`spawn`] runs the daily fetch and applies what's in effect.
+//! [`spawn`] runs the daily fetch and applies what's in effect: the
+//! adapters' compat gate, and the [`Snapshot`] every other section's
+//! reader (the flags, the notices) and the window read from memory
+//! ([`current`]); a change is told to the window
+//! (`remote-config://changed`). [`commands`] are `useRemote(section)`'s
+//! values and "About this configuration".
 
 use std::sync::Arc;
 
 use juggler_remote_config::{ConfigRequest, ConfigResponse, NetworkError, Transport};
 
+pub mod commands;
+pub mod dto;
 mod service;
+mod snapshot;
 
 pub use service::{CHECK_KEY, STATE_FILE, registry, spawn};
+#[cfg(test)]
+pub(crate) use snapshot::fixtures as snapshot_fixtures;
+pub use snapshot::{FileFacts, Snapshot, current, install};
 
 /// The remote-configuration transport over the account client's.
 pub struct RemoteConfigTransport(pub Arc<dyn juggler_account::Transport>);

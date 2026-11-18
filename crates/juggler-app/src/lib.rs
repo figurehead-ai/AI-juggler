@@ -454,6 +454,10 @@ macro_rules! app_commands {
             Write features::cache::commands::cache_set_on,
             Write features::cache::commands::cache_set_limit,
             Write features::cache::commands::cache_clear,
+            Read  features::remote_config::commands::remote_config_values,
+            Read  features::remote_config::commands::remote_config_about,
+            Read  features::notices::commands::notices_list,
+            Write features::notices::commands::notices_dismiss,
             Write features::switch::commands::switch_execute,
             Write features::switch::commands::switch_undo,
             Read  features::switch::commands::switch_back_plan,
@@ -1412,6 +1416,7 @@ fn spawn_read_model_ticks(
     let processes_app = app.clone();
     let subagents_app = app.clone();
     let conversations_app = app.clone();
+    features::remote_config::spawn(app.clone(), quota_state.clone()); // ADR-0035: daily, after paint.
     let index_state = quota_state.clone();
     ticks::every("resources", std::time::Duration::from_secs(5), move || {
         let _ = features::sessions::read_model::emit_resources(&app, &resource_state);
@@ -1490,15 +1495,5 @@ fn spawn_read_model_ticks(
     // AJ-E3102: every page's counts, built once the app is up.
     features::relations::start(&index_state);
     features::tool_updates::spawn(index_state.clone()); // AJ-E1611: tool versions, daily.
-    features::remote_config::spawn(index_state.clone()); // ADR-0035: daily, after paint.
-    // AJ-E1007: the transcript search index, kept up to date in the
-    // background (incremental: unchanged transcripts cost one metadata
-    // read), so a search never waits for a first build.
-    ticks::every(
-        "transcript-index",
-        std::time::Duration::from_secs(60),
-        move || {
-            let _ = history::index_transcripts(&index_state);
-        },
-    );
+    history::spawn_index(index_state); // AJ-E1007: the transcript search index, every minute.
 }

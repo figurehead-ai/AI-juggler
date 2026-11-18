@@ -210,7 +210,11 @@ RelationCountsInfo.pools                           # a count of things on this M
 RelationCountsInfo.projects                        # a count of things on this Mac, far below 2^53
 RelationCountsInfo.subscriptions                   # a count of things on this Mac, far below 2^53
 RelationCountsInfo.tools                           # a count of things on this Mac, far below 2^53
+RemoteAboutInfo.last_checked_ms                    # ms epoch, < 2^53 until year 287396
 RemoteAlertInfo.at_ms                              # ms epoch, < 2^53 until year 287396
+RemoteFileInfo.expires_at_ms                       # ms epoch, < 2^53 until year 287396
+RemoteFileInfo.issued_at_ms                        # ms epoch, < 2^53 until year 287396
+RemoteFileInfo.serial                              # +1 per published file, < 2^53 for millions of years
 RemoteInstanceInfo.last_activity_ms                # ms epoch, < 2^53 until year 287396
 RemoteInstanceInfo.measured_at_ms                  # ms epoch, < 2^53 until year 287396
 RemoteInstanceInfo.rss_bytes                       # bytes, < 2^53 is 8 PiB

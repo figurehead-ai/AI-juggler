@@ -52,6 +52,81 @@
       },
       "name": "compat",
       "schema": 1
+    },
+    {
+      "controls": {
+        "notices_on": {
+          "switch": {
+            "default": true,
+            "remote": "off_only"
+          }
+        }
+      },
+      "name": "flags",
+      "schema": 1
+    },
+    {
+      "controls": {},
+      "list": {
+        "fields": {
+          "body": {
+            "kind": {
+              "text": {
+                "max_chars": 280
+              }
+            },
+            "optional": true
+          },
+          "dismissable": {
+            "kind": "flag",
+            "optional": true
+          },
+          "expires_at": {
+            "kind": "time",
+            "optional": true
+          },
+          "level": {
+            "kind": {
+              "choice": {
+                "options": [
+                  "info",
+                  "needs_you",
+                  "broken"
+                ]
+              }
+            }
+          },
+          "link": {
+            "kind": {
+              "link": {
+                "hosts": [
+                  "figurehead.ai",
+                  "www.figurehead.ai"
+                ]
+              }
+            },
+            "optional": true
+          },
+          "link_label": {
+            "kind": {
+              "text": {
+                "max_chars": 40
+              }
+            },
+            "optional": true
+          },
+          "title": {
+            "kind": {
+              "text": {
+                "max_chars": 80
+              }
+            }
+          }
+        },
+        "max_items": 16
+      },
+      "name": "notices",
+      "schema": 1
     }
   ]
 }

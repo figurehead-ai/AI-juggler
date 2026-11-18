@@ -120,6 +120,8 @@ unbounded messages_set_pool  # bounded: a page of 30 threads (its own cursor: vi
 unbounded messages_set_thread  # bounded: a page of 30 messages (its own cursor: views::MESSAGES_PAGE)
 unbounded messages_thread  # bounded: a page of 30 messages (its own cursor: views::MESSAGES_PAGE)
 unbounded messages_threads  # bounded: a page of 30 threads (its own cursor: views::THREADS_PAGE)
+unbounded notices_dismiss  # bounded: at most 16 notices in a file (notices::MAX_NOTICES)
+unbounded notices_list  # bounded: at most 16 notices in a file (notices::MAX_NOTICES)
 unbounded notification_prefs_get  # bounded: a fixed set (settings, checks, choices or tools)
 unbounded notification_prefs_set  # bounded: a fixed set (settings, checks, choices or tools)
 unbounded os_access_list  # bounded: one row per account, tool, launch setting or paired Mac
@@ -174,6 +176,7 @@ unbounded ranking_rows  # bounded: one row per account, tool, launch setting or 
 unbounded recommendation_for  # bounded: a fixed set (settings, checks, choices or tools)
 unbounded relations_counts  # bounded: at most 200 entities asked for at once (relations::MAX_ASKED), one fixed-size answer each
 unbounded relations_related  # bounded: at most MAX_ASKED (200) ids, `more` past that; a page's pools or Apps
+unbounded remote_config_about  # bounded: one row per compiled control and listed record (a few dozen)
 unbounded reset_queue_list  # bounded: one per queued resume
 unbounded retention_preview  # TO PAGE: what a retention cleanup would delete
 unbounded runtime_asks  # bounded: at most 100 open questions a page (ASKS_PAGE_MAX)

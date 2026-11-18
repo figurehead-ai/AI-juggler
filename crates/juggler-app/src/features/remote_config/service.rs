@@ -1,8 +1,9 @@
 //! ADR-0035 §7, D-129: the public channel file, fetched at most daily, off
 //! the main thread and after the first paint, and applied live.
 //!
-//! - **The sections** are registered in one place ([`registry`]): today
-//!   the adapters' `compat` section (D-128).
+//! - **The sections** are registered in one place ([`registry`]), each
+//!   declared by the module that owns it: the adapters' `compat` (D-128),
+//!   the features' `flags` and the `notices` (AJ-E2023).
 //! - **The trust state** lives in the app's durable data folder
 //!   (Application Support), `remote-config/trust-state.json`, through
 //!   [`FileStore`]: never in a cache, so clearing the cache never touches
@@ -12,8 +13,9 @@
 //! - **With no pinned key** (today, until the maintainer makes them)
 //!   nothing could verify, so nothing is fetched at all: the app sends no
 //!   request it can't use, and runs on its compiled defaults.
-//! - **Applying:** after each pass, the merged values reach the adapters
-//!   as a compat [`Gate`].
+//! - **Applying:** at start the compiled values are put in effect; after
+//!   each pass the merged values reach the adapters as a compat [`Gate`],
+//!   and the [`Snapshot`] is installed; if it changed, the window is told.
 
 use std::collections::BTreeMap;
 use std::sync::Arc;
@@ -22,10 +24,13 @@ use std::time::Duration;
 use juggler_adapter::compat::{self, Gate};
 use juggler_remote_config::{
     AppContext, Channel, Endpoints, Facts, FetchPolicy, Fetcher, FileStore, InstallId, KeyRing, Os,
-    Registry, UserChoices, Version, merge,
+    Registry, Verified, Version,
 };
 
 use super::RemoteConfigTransport;
+use super::snapshot::{self, Snapshot};
+use crate::events::{AppEvent, EmitEvent as _};
+use crate::features::{flags, notices};
 use crate::state::AppState;
 
 /// The trust state's file under the data folder.
@@ -53,11 +58,24 @@ pub fn registry(adapters: &juggler_adapter::AdapterRegistry) -> Result<Registry,
     let mut registry = Registry::new();
     let compat = compat::section(&adapters.compat_features()).map_err(|e| e.to_string())?;
     registry.register(compat).map_err(|e| e.to_string())?;
+    registry
+        .register(flags::section(flags::DECLARED)?)
+        .map_err(|e| e.to_string())?;
+    registry
+        .register(notices::section())
+        .map_err(|e| e.to_string())?;
     Ok(registry)
 }
 
+/// What every snapshot of this run shares.
+#[derive(Clone, Copy)]
+struct Run {
+    checking: bool,
+    keys_pinned: bool,
+}
+
 /// Starts the background pass (see the module docs).
-pub fn spawn(state: Arc<AppState>) {
+pub fn spawn(app: tauri::AppHandle, state: Arc<AppState>) {
     let registry = match registry(&state.registry) {
         Ok(registry) => registry,
         Err(e) => {
@@ -69,7 +87,19 @@ pub fn spawn(state: Arc<AppState>) {
         tracing::warn!(error = %e, "remote config: compiled keys unusable");
         KeyRing::default()
     });
-    if keys.keys().is_empty() {
+    let run = Run {
+        checking: setting(&state, CHECK_KEY).as_deref() != Some("off"),
+        keys_pinned: !keys.keys().is_empty(),
+    };
+    // The compiled values, in effect from the start (no I/O beyond the
+    // settings already read).
+    snapshot::install(Snapshot {
+        checking: run.checking,
+        keys_pinned: run.keys_pinned,
+        channel: Some(channel(crate::updates::channel_of(&state))),
+        ..Snapshot::build(&registry, None, &facts(&state, app_version()))
+    });
+    if !run.keys_pinned {
         tracing::info!("remote config: no pinned key yet; nothing fetched, compiled defaults");
         return;
     }
@@ -85,7 +115,7 @@ pub fn spawn(state: Arc<AppState>) {
         return;
     }
     let policy = FetchPolicy {
-        enabled: setting(&state, CHECK_KEY).as_deref() != Some("off"),
+        enabled: run.checking,
         ..FetchPolicy::default()
     };
     let fetcher = Fetcher::new(
@@ -100,36 +130,68 @@ pub fn spawn(state: Arc<AppState>) {
         FIRST_PAINT_AT_MOST,
         PASS_EVERY,
         move || {
-            pass(&state, &fetcher, &registry);
+            if pass(&state, &fetcher, &registry, run) {
+                app.emit_event(AppEvent::RemoteConfigChanged, ());
+            }
         },
     );
 }
 
-/// One pass: refresh if due, then apply what's in effect.
-fn pass(state: &Arc<AppState>, fetcher: &Fetcher, registry: &Registry) {
-    let Ok(app_version) = env!("CARGO_PKG_VERSION").parse::<Version>() else {
-        return;
-    };
-    let channel = channel(crate::updates::channel_of(state));
-    let refresh = fetcher.refresh(&AppContext {
-        channel,
-        app_version: &app_version,
-        now: crate::commands::now_millis().max(0).unsigned_abs() / 1000,
-    });
-    tracing::debug!(attempt = ?refresh.attempt, "remote config: pass");
-    let facts = Facts {
+/// This build's version (a release's version always parses).
+fn app_version() -> Version {
+    env!("CARGO_PKG_VERSION")
+        .parse()
+        .unwrap_or_else(|_| Version::new(0, 0, 0))
+}
+
+/// What this app knows about itself, for targeting.
+fn facts(state: &Arc<AppState>, app_version: Version) -> Facts {
+    Facts {
         app_version,
-        channel,
+        channel: channel(crate::updates::channel_of(state)),
         os: Os::this(),
         os_version: None,
         tools: tool_versions(state),
         install: install_id(state),
-    };
-    let public = refresh
-        .file
-        .map(|file| registry.resolve(&file.envelope.sections, &facts).0);
-    let effective = merge(registry, public.as_ref(), None, &UserChoices::new());
-    compat::install(Gate::from_effective(&effective));
+    }
+}
+
+/// One pass: refresh if due, then apply what's in effect; whether it
+/// changed.
+fn pass(state: &Arc<AppState>, fetcher: &Fetcher, registry: &Registry, run: Run) -> bool {
+    let facts = facts(state, app_version());
+    let refresh = fetcher.refresh(&AppContext {
+        channel: facts.channel,
+        app_version: &facts.app_version,
+        now: crate::commands::now_millis().max(0).unsigned_abs() / 1000,
+    });
+    tracing::debug!(attempt = ?refresh.attempt, "remote config: pass");
+    let snapshot = applied(
+        registry,
+        refresh.file.as_ref(),
+        &facts,
+        refresh.checked_at,
+        run,
+    );
+    compat::install(Gate::from_effective(&snapshot.effective));
+    snapshot::install(snapshot)
+}
+
+/// The snapshot a pass puts in effect.
+fn applied(
+    registry: &Registry,
+    file: Option<&Verified>,
+    facts: &Facts,
+    checked_at: Option<u64>,
+    run: Run,
+) -> Snapshot {
+    Snapshot {
+        checked_at,
+        checking: run.checking,
+        keys_pinned: run.keys_pinned,
+        channel: Some(facts.channel),
+        ..Snapshot::build(registry, file, facts)
+    }
 }
 
 /// The update channel's remote-config twin.

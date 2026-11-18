@@ -76,11 +76,14 @@ pub enum AppEvent {
     FloorUnavailable,
     /// The Floor's window is asked to open.
     FloorOpenRequest,
+    /// The remote configuration in effect changed, or a notice was
+    /// dismissed (ADR-0035, AJ-E2023).
+    RemoteConfigChanged,
 }
 
 impl AppEvent {
     /// Every event, in declaration order.
-    pub const ALL: [Self; 30] = [
+    pub const ALL: [Self; 31] = [
         Self::AppReady,
         Self::SessionsUpdated,
         Self::SessionsResources,
@@ -111,6 +114,7 @@ impl AppEvent {
         Self::FloorChanged,
         Self::FloorUnavailable,
         Self::FloorOpenRequest,
+        Self::RemoteConfigChanged,
     ];
 
     /// The wire name the UI listens to.
@@ -147,6 +151,7 @@ impl AppEvent {
             Self::FloorChanged => "floor://changed",
             Self::FloorUnavailable => "floor://unavailable",
             Self::FloorOpenRequest => "floor://open-request",
+            Self::RemoteConfigChanged => "remote-config://changed",
         }
     }
 }

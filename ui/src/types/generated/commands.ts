@@ -154,9 +154,13 @@ import type { RecoverySummaryInfo } from "./RecoverySummaryInfo";
 import type { RedactionPolicyInfo } from "./RedactionPolicyInfo";
 import type { RelatedIdsInfo } from "./RelatedIdsInfo";
 import type { RelationCountsInfo } from "./RelationCountsInfo";
+import type { RemoteAboutInfo } from "./RemoteAboutInfo";
 import type { RemoteCommandOutcomeInfo } from "./RemoteCommandOutcomeInfo";
 import type { RemoteMachineInfo } from "./RemoteMachineInfo";
+import type { RemoteNoticeInfo } from "./RemoteNoticeInfo";
+import type { RemoteSection } from "./RemoteSection";
 import type { RemoteSwitchTargetInfo } from "./RemoteSwitchTargetInfo";
+import type { RemoteValuesInfo } from "./RemoteValuesInfo";
 import type { ReopenBlockInfo } from "./ReopenBlockInfo";
 import type { ReplayInfo } from "./ReplayInfo";
 import type { ResetQueueInfo } from "./ResetQueueInfo";
@@ -663,6 +667,10 @@ export interface Commands {
   messages_threads: { args: { poolId?: string | null; sessionId?: string | null; cursor?: string | null }; result: ThreadsPage };
   /** Write features::messages::commands::messages_typing */
   messages_typing: { args: { sessionId: string; typing: boolean }; result: void };
+  /** Write features::notices::commands::notices_dismiss */
+  notices_dismiss: { args: { id: string }; result: RemoteNoticeInfo[] };
+  /** Read features::notices::commands::notices_list */
+  notices_list: { args: Record<string, never>; result: RemoteNoticeInfo[] };
   /** Read settings_policy::notification_prefs_get */
   notification_prefs_get: { args: Record<string, never>; result: NotificationPrefsInfo };
   /** Write settings_policy::notification_prefs_set */
@@ -939,6 +947,10 @@ export interface Commands {
   relations_counts: { args: { entities: EntityRef[] }; result: RelationCountsInfo[] };
   /** Read features::relations::commands::relations_related */
   relations_related: { args: { entity: EntityRef; of: EntityKind }; result: RelatedIdsInfo };
+  /** Read features::remote_config::commands::remote_config_about */
+  remote_config_about: { args: Record<string, never>; result: RemoteAboutInfo };
+  /** Read features::remote_config::commands::remote_config_values */
+  remote_config_values: { args: { section: RemoteSection }; result: RemoteValuesInfo };
   /** Write features::reset_queue::commands::reset_queue_dismiss */
   reset_queue_dismiss: { args: { id: string }; result: void };
   /** Read features::reset_queue::commands::reset_queue_list */
