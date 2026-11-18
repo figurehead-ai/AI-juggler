@@ -250,6 +250,13 @@ def facts_sentence(t):
     shows undone is in it too ("<path> was reverted", with git's note), so a line may say so honestly; a line naming an undone change
     as made is caught by the revert check (undone_clause, claims_v5), which tells the two apart."""
     g = t["git"]; out = []
+    # round 4: the tests' facts too. The frozen gate wants a not-run caveat on a turn whose facts say the tests were not run (step 3),
+    # and its step 2b wants every word of it in the source: an agent that never mentions tests left no honest line possible ("tests
+    # are not run" refused as "run, tests" not in the text), so every such draft fell back (v5 round 3's most common fallback reason).
+    Fn = t.get("F") or {}
+    if Fn.get("tests_state") == "not_run": out.append("Tests were not run.")
+    elif Fn.get("tests_state") == "ran":     # no "0 failed": a failure word in the source would let a line's "tests failed" pass the words rule
+        out.append(f"Tests: {Fn['passed']} passed" + (f", {Fn['failed']} failed." if Fn.get("failed") else "."))
     kept = kept_changes(g)
     if kept:
         out.append(f"Files changed: {len(kept)}.")

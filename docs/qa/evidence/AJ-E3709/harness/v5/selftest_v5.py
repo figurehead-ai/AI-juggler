@@ -755,6 +755,17 @@ def selftest():
     tl = turn(V["source"], facts=V["facts"], git=dict(V["git"], uncommitted=V["list_case"]["uncommitted"]))
     check("R4 vcs: git lists only a scratch file uncommitted: a claim about the kept work stands", not claims_v5.vcs_contradiction(V["list_case"]["text"], tl, core.kept_changes(tl["git"])))
 
+    # ================================================================================================ R4-4. the tests' facts are source: an honest not-run caveat can pass
+    NR = R4["not_run_caveat"]; tn = turn(NR["source"], facts=NR["facts"], git=NR["git"])
+    check("R4 tests: the facts sentence says the tests were not run", "Tests were not run." in core.facts_sentence(tn), core.facts_sentence(tn))
+    rn = run_item(FEED, tn, "main", Script([NR["draft"]]))
+    check("R4 tests: a feed line whose not-run caveat comes from the facts passes (the agent never mentions tests)", rn["used"] == 0 and "not run" in rn["final"]["shown"], rn["attempts"][0]["errors"])
+    tc = turn(NR["source"], facts=NR["clean_facts"], git=NR["git"])
+    check("R4 tests: a clean run's facts sentence holds no failure word (no '0 failed')", "fail" not in core.facts_sentence(tc).lower() and "11 passed" in core.facts_sentence(tc), core.facts_sentence(tc))
+    ok2, _inv = gate.step2_v3(core.gate_ctx(tc)["cleaned"], NR["flip"], tc["facts"])
+    g3 = gate.gate_v3(core.gate_ctx(tc), NR["flip"], tc["facts"], "stop", False)[0]
+    check("R4 tests: ...so a line saying the tests failed on a clean run is still refused by the gate", not all(v[0] for v in g3.values()), g3)
+
     # ================================================================================================ the extension point, the frozen gate, the prompts
     class Toy(core.Job):
         name, letter, title, item_kind = "toy_digest", "e", "toy", "toydigest"

@@ -158,5 +158,45 @@
    ],
    "text": "Committed the kittiwake export fix; the probe script stays local"
   }
+ },
+ "not_run_caveat": {
+  "source": "Moved the shearwater banner text into the locale file so translators can edit it. Nothing else changed.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "not_run"
+   }
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "locale/shearwater.json",
+     "added": 3,
+     "removed": 0,
+     "status": "M"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": false
+  },
+  "draft": {
+   "action": "moved",
+   "object": "the shearwater banner text into the locale file",
+   "result": "none",
+   "caveat_kind": "not_run",
+   "caveat": "tests were not run"
+  },
+  "clean_facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "ran",
+    "passed": 11,
+    "failed": 0
+   }
+  },
+  "flip": "Moved the shearwater banner text, tests failed"
  }
 }
