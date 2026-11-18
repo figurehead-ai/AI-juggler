@@ -1,6 +1,6 @@
 # ADR-0036: The agent digest and watches: a checked cross-agent digest with a non-AI rollup beneath it, and typed watches that code evaluates and Chat only drafts
 
-**Status:** Proposed (2026-11-18, Opus). Building starts once the coordinating session has reviewed it and ADR-0037's store exists.
+**Status:** Accepted (2026-11-18: the coordinating session, with the maintainer's quiet-hours ruling recorded on the decision log). Building starts once ADR-0037's summary is reviewed, so the store and the log are settled first.
 **Date:** 2026-11-18
 **Deciders:** Opus (design); the coordinating session (review); the maintainer (D-132, and the open question at the end)
 **Serves:** D-132 (the digest and watches), under D-130 as clarified (severity-based acceptance, opt-in Beta); D-133 as extended (one memory and context system; its store, audit log and context assembler are ADR-0037's); D-117 (calm attention, levels from facts); D-118 (the feed); D-126 (rich making and editing); D-127 (never show what can't be used); D-123 (the 0.6 bot, out of scope here); [ADR-0033](./0033-feed-summary-engines.md) (the feed line, A's excerpt, the gate, the levels); [ADR-0034](./0034-ai-jobs-router.md) (the router, the queue, Chat v1 and its look-ups, the shared guard); [ADR-0035](./0035-remote-config.md) (flags and params); [ADR-0019](./0019-extension-architecture.md) (adapters as data, features as modules); E37 ([`E37-home-activity-feed.md`](../tasks/E37-home-activity-feed.md)) and E38 ([`E38-chat.md`](../tasks/E38-chat.md))
@@ -182,7 +182,7 @@ A watch has **no action field and no way to hold one**: its only output is a not
 
 #### 2.2 The closed set of conditions
 
-Each condition maps to observations AI Juggler already makes; nothing here needs a new reader. A condition is offered for a target only when that target's App can report it: each adapter's `ToolSpec` (ADR-0019 §1) gains `observes`, the set of observations its adapter delivers, and the set is checked against the conformance kit's fixtures. Where an App can't report it, the condition is not offered for that App (D-127), and Chat says so (§2.4).
+Each condition maps to observations AI Juggler already makes; nothing here needs a new reader. A condition is offered for a target only when that target's App can report it: each adapter's `ToolSpec` (ADR-0019 §1) gains `observes`, the set of observations its adapter delivers, and the set is checked against the conformance kit's fixtures. `observes` follows D-128: it is proved per tool version, and narrowed or killed through the remote compat section. Where an App can't report a condition, the condition is **hidden** for that App, with no "unsupported" mark (D-127). Chat's "I can't watch for that" names the nearest option this App does support (§2.4).
 
 | Condition | Fires when | Observed from | Parameters | Targets |
 |---|---|---|---|---|
@@ -253,7 +253,7 @@ pub struct WatchDraft {
 - **One notification per thing that happened.** When a watch fires on something that is also a need (it asks you, it failed), the need and the watch are one notification: "web asks you · you asked to be told". The need keeps its level; the watch only makes sure it's told.
 - **Its level:** a watch on a calm event (finishes, ends, a commit) is an L1 note in the feed and the centre, never counted; a watch on a need inherits the need's level, and the need is the loud copy (D-117).
 - **The words** are the app's own, from the typed watch and the facts: "**api** finished · your watch". A click opens the session at the turn that fired it.
-- **Quiet hours always hold** watch alerts in 0.5 (the open question below asks whether a watch may break through).
+- **Quiet hours hold watch alerts, unless the user turns on "Even during quiet hours" for that watch** (decided 2026-11-18). It is off by default, and the confirmation echo states it whenever it is on ("…, even during quiet hours").
 
 #### 2.6 The Watches view (D-126 rich)
 
@@ -354,22 +354,22 @@ The observation bus, the watch engine, the scheduler, the rollup, consolidation 
   - An AI item that fails its check is replaced by the rollup's line; some correct AI lines are lost.
   - Agents cut from the model's context get rollup lines in an otherwise AI digest.
   - No digest on battery-critical, even the rollup; the next one covers the gap.
-  - Quiet hours hold every watch alert in 0.5.
+  - Quiet hours hold every watch alert unless that watch's "Even during quiet hours" is on (off by default).
   - `Commits` is not offered until F3's git journal exists (D-127).
 - **To verify when building** (design facts, not questions): the token cost of the condition and target catalogues in Apple's 4K context; the 60-second batch against macOS's own notification grouping; that every `Observation` site is covered (a test lists the journal writers and fails on one with no publish).
 
 ## Order of work
 
-The task ids are new; the task files are written from this ADR.
+The tasks are in docs/tasks/E37-home-activity-feed.md and E38-chat.md (AJ-E3712, AJ-E3814 to AJ-E3817; the harness for jobs (e) and (f) is AJ-E3818).
 
 1. **E37, AJ-E3712: the digest scheduler, the feed item, consolidation and the rollup.** `features/digest/` (scheduler, `rollup`, the `agent_digest` source on ADR-0037's store), the observation bus (`features/observe/`), the notifications batcher and the Digest kind, `feed-words.ts`. Depends on AJ-E3702 and ADR-0037's store; uses AJ-E3704, AJ-E3705, AJ-E3706 and AJ-E3708's facts as they land (missing facts are left out). Then **AJ-E3713: job (e)** on the router, its rule set on the shared guard, the ladder, the Beta flag, the label, Show source and "this is wrong", and §3.1's run. Without a pass, the rollup ships alone and the next optimisation round follows (D-130).
-2. **E38, AJ-E3810: the watch model and deterministic evaluation.** The `Watch` type, the closed conditions and `ToolSpec.observes`, the engine with deadlines and cursors, expiry, the target picker, the watch store **on ADR-0037's store**, the audit records. Depends on step 1's bus.
-3. **E38, AJ-E3811: Chat creates, edits and removes watches with confirmation.** Job (f), the catalogues as assembler sections, validation, the unsupported net, the code-written echo, the three commands, the `watches` look-up, and §3.2's run, shipped as opt-in Beta behind `watch_draft_beta` (OffOnly, the same rule as §1.8).
-4. **E38, AJ-E3812: the Watches view (D-126 rich).** Mock-ups in both themes first; then the list, the sheet, the session row's Watch…, the empty state, the centre's Watches tab; the a11y gate, the design critique and a Sonnet newcomer walk verified by Opus.
-5. **E38, AJ-E3813: alerts through the existing path.** The `watch` notice kind and `Kind::Watch`, folding with needs, the batch and quiet hours, the replay notification on start, the Settings row.
+2. **E38, AJ-E3814: the watch model and deterministic evaluation.** The `Watch` type, the closed conditions and `ToolSpec.observes`, the engine with deadlines and cursors, expiry, the target picker, the watch store **on ADR-0037's store**, the audit records. Depends on step 1's bus.
+3. **E38, AJ-E3815: Chat creates, edits and removes watches with confirmation.** Job (f), the catalogues as assembler sections, validation, the unsupported net, the code-written echo, the three commands, the `watches` look-up, and §3.2's run, shipped as opt-in Beta behind `watch_draft_beta` (OffOnly, the same rule as §1.8).
+4. **E38, AJ-E3816: the Watches view (D-126 rich).** Mock-ups in both themes first; then the list, the sheet, the session row's Watch…, the empty state, the centre's Watches tab; the a11y gate, the design critique and a Sonnet newcomer walk verified by Opus.
+5. **E38, AJ-E3817: alerts through the existing path.** The `watch` notice kind and `Kind::Watch`, folding with needs, the batch and quiet hours, the replay notification on start, the Settings row.
 
-## Open questions for the maintainer
+## Decided questions
 
-1. **May a watch break through quiet hours?** For example, "tell me even at night when the release build fails". Proposed: not in 0.5; every watch alert waits for quiet hours to end, then comes in one notification. If yes, it would be a per-watch switch ("Even during quiet hours"), off by default and shown in the echo.
+1. **May a watch break through quiet hours?** Decided 2026-11-18: only when the user turns on "Even during quiet hours" for that watch. It's off by default, and the confirmation echo says so when it's on. Every other watch alert waits for quiet hours to end, then comes in one notification.
 
-For the coordinating session, not the maintainer: D-133's "Extended" text names ADR-0036 for the memory and context design; it is ADR-0037, and this ADR refers to it as such. The ADR index (`docs/adr/README.md`) gains this row when the coordinating session accepts it.
+The memory and context design is ADR-0037 (D-133, as extended).
