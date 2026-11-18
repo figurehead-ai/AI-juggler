@@ -328,7 +328,7 @@ fn an_unreadable_state_falls_back_to_the_compiled_baseline() {
     struct Corrupt(MemoryStore);
     impl StateStore for Corrupt {
         fn load(&self) -> Result<Option<TrustState>, StoreError> {
-            Err(StoreError("corrupt".to_owned()))
+            Err(StoreError::Corrupt("checksum".to_owned()))
         }
         fn save(&self, state: &TrustState) -> Result<(), StoreError> {
             self.0.save(state)
@@ -391,7 +391,7 @@ fn a_store_that_cannot_save_serves_nothing_new() {
             self.0.load()
         }
         fn save(&self, _: &TrustState) -> Result<(), StoreError> {
-            Err(StoreError("disk full".to_owned()))
+            Err(StoreError::Unavailable("disk full".to_owned()))
         }
     }
     let lab = Lab::new();
@@ -412,10 +412,10 @@ fn a_store_that_cannot_save_serves_nothing_new() {
     };
     let refresh = fetcher.refresh(&at(NOW));
     assert_eq!(refresh.file, None);
-    assert_eq!(
+    assert!(matches!(
         refresh.attempt,
-        Attempt::Failed(Failure::Store("disk full".to_owned()))
-    );
+        Attempt::Failed(Failure::Store(_))
+    ));
     assert_eq!(fetcher.refresh(&at(NOW + 60)).attempt, Attempt::NotDue);
     assert_eq!(transport.requests().len(), 1);
 }
@@ -701,13 +701,17 @@ fn the_file_store_is_durable_checksummed_and_forward_only() {
             .serial,
         8
     );
-    let entries: Vec<_> = std::fs::read_dir(dir.path()).unwrap().collect();
-    assert_eq!(entries.len(), 1, "no temp file left");
+    let temps = std::fs::read_dir(dir.path())
+        .unwrap()
+        .filter_map(Result::ok)
+        .filter(|e| e.file_name().to_string_lossy().ends_with(".tmp"))
+        .count();
+    assert_eq!(temps, 0, "no temp file left");
 
     // A flipped byte inside the state fails its checksum.
     let text = std::fs::read_to_string(&path).unwrap();
     std::fs::write(&path, text.replacen("8", "9", 1)).unwrap();
-    assert!(store.load().unwrap_err().0.contains("corrupt"));
+    assert!(matches!(store.load(), Err(StoreError::Corrupt(_))));
     // Garbage, or a torn write, is corrupt too.
     std::fs::write(&path, &text.as_bytes()[..text.len() / 2]).unwrap();
     assert!(store.load().is_err());
@@ -717,4 +721,185 @@ fn the_file_store_is_durable_checksummed_and_forward_only() {
         store.load().unwrap().unwrap().floor(Channel::Stable),
         Some(8)
     );
+}
+
+/// N1: a state that can't be read *now* is not corrupt. The refresh fails
+/// closed (no request, no save, nothing new served, the last state this
+/// process knew kept) and the next refresh reads it again.
+#[test]
+fn an_unreadable_state_fails_the_refresh_closed() {
+    use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+    struct Flaky {
+        inner: MemoryStore,
+        down: AtomicBool,
+        saves: AtomicUsize,
+    }
+    impl StateStore for Flaky {
+        fn load(&self) -> Result<Option<TrustState>, StoreError> {
+            if self.down.load(Ordering::SeqCst) {
+                Err(StoreError::Unavailable("EIO".to_owned()))
+            } else {
+                self.inner.load()
+            }
+        }
+        fn save(&self, state: &TrustState) -> Result<(), StoreError> {
+            self.saves.fetch_add(1, Ordering::SeqCst);
+            self.inner.save(state)
+        }
+    }
+    let lab = Lab::new();
+    let store = Arc::new(Flaky {
+        inner: MemoryStore::default(),
+        down: AtomicBool::new(false),
+        saves: AtomicUsize::new(0),
+    });
+    let transport = Arc::new(RecordingTransport::default());
+    let fetcher = Fetcher::new(
+        transport.clone(),
+        Endpoints::new([BASE]).unwrap(),
+        lab.ring.clone(),
+        store.clone(),
+        FetchPolicy::default(),
+    );
+    let app: Version = "0.5.0".parse().unwrap();
+    let at = |now| AppContext {
+        channel: Channel::Stable,
+        app_version: &app,
+        now,
+    };
+    transport.respond(200, &lab.file(&envelope(CURRENT, "stable", 8, json!({}))));
+    assert_eq!(
+        fetcher.refresh(&at(NOW)).attempt,
+        Attempt::Accepted { serial: 8 }
+    );
+    let saves = store.saves.load(Ordering::SeqCst);
+
+    store.down.store(true, Ordering::SeqCst);
+    transport.respond(200, &lab.file(&envelope(CURRENT, "stable", 9, json!({}))));
+    let refresh = fetcher.refresh(&at(NOW + DAY));
+    assert!(matches!(
+        refresh.attempt,
+        Attempt::Failed(Failure::Store(_))
+    ));
+    assert_eq!(
+        refresh.file.map(|f| f.envelope.serial),
+        Some(8),
+        "the last known state is kept"
+    );
+    assert_eq!(transport.requests().len(), 1, "nothing fetched");
+    assert_eq!(store.saves.load(Ordering::SeqCst), saves, "nothing saved");
+    assert_eq!(
+        fetcher.cached(&at(NOW + DAY)).map(|f| f.envelope.serial),
+        Some(8)
+    );
+
+    // Readable again: the next refresh reads it and carries on.
+    store.down.store(false, Ordering::SeqCst);
+    assert_eq!(
+        fetcher.refresh(&at(NOW + DAY)).attempt,
+        Attempt::Accepted { serial: 9 }
+    );
+}
+
+/// N1 (the reviewer's proof of concept): a state at floor 8 that has
+/// revoked the current key is made unreadable, and one refresh runs. The
+/// file must come back unchanged: the floor and the revocation survive,
+/// so an older file from the revoked key still doesn't verify.
+#[cfg(unix)]
+#[test]
+fn a_failed_read_never_wipes_the_saved_state() {
+    use juggler_remote_config::FileStore;
+    use std::os::unix::fs::PermissionsExt as _;
+
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("remote-config-state.json");
+    let store = Arc::new(FileStore::new(&path));
+    let lab = Lab::new();
+    let mut state = TrustState::default();
+    support::accept(
+        &lab,
+        &mut state,
+        &support::wrap(
+            Some(lab.config_part(&lab.next, NEXT, &envelope(NEXT, "stable", 8, json!({})))),
+            Some(lab.revocations(&[CURRENT])),
+        ),
+    );
+    store.save(&state).unwrap();
+    let before = std::fs::read(&path).unwrap();
+
+    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o000)).unwrap();
+    let readable_anyway = std::fs::read(&path).is_ok(); // e.g. running as root
+    let transport = Arc::new(RecordingTransport::default());
+    transport.respond(200, &lab.file(&envelope(CURRENT, "stable", 3, json!({}))));
+    let fetcher = Fetcher::new(
+        transport,
+        Endpoints::new([BASE]).unwrap(),
+        lab.ring.clone(),
+        store.clone(),
+        FetchPolicy::default(),
+    );
+    let app: Version = "0.5.0".parse().unwrap();
+    let refresh = fetcher.refresh(&AppContext {
+        channel: Channel::Stable,
+        app_version: &app,
+        now: NOW + DAY,
+    });
+    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600)).unwrap();
+    if !readable_anyway {
+        assert!(matches!(
+            refresh.attempt,
+            Attempt::Failed(Failure::Store(_))
+        ));
+        assert_eq!(
+            std::fs::read(&path).unwrap(),
+            before,
+            "the file is untouched"
+        );
+    }
+    let saved = store.load().unwrap().unwrap();
+    assert_eq!(saved.floor(Channel::Stable), Some(8));
+    assert!(saved.revoked.contains(&lab.print(CURRENT)));
+}
+
+/// N2: two stores on one path (as two app processes would be) can't lose
+/// each other's updates: each read-modify-write holds the lock.
+#[test]
+fn two_file_stores_on_one_path_keep_every_update() {
+    use juggler_remote_config::FileStore;
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("remote-config-state.json");
+    let rounds = 40u64;
+    std::thread::scope(|scope| {
+        for writer in ["a", "b"] {
+            let store = FileStore::new(&path);
+            scope.spawn(move || {
+                for serial in 1..=rounds {
+                    let mut state = TrustState::default();
+                    state
+                        .channels
+                        .entry(Channel::Stable)
+                        .or_default()
+                        .serials
+                        .insert(writer.repeat(64), serial);
+                    state.revoked.insert(format!("{writer}-{serial}"));
+                    store.save(&state).unwrap();
+                }
+            });
+        }
+    });
+    let saved = FileStore::new(&path).load().unwrap().unwrap();
+    let serials = &saved.channels[&Channel::Stable].serials;
+    assert_eq!(serials["a".repeat(64).as_str()], rounds);
+    assert_eq!(serials["b".repeat(64).as_str()], rounds);
+    assert_eq!(
+        saved.revoked.len(),
+        2 * rounds as usize,
+        "every revocation kept"
+    );
+    let leftovers: Vec<_> = std::fs::read_dir(dir.path())
+        .unwrap()
+        .filter_map(Result::ok)
+        .filter(|e| e.file_name().to_string_lossy().ends_with(".tmp"))
+        .collect();
+    assert!(leftovers.is_empty());
 }

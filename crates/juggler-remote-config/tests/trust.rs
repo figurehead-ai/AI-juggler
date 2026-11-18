@@ -612,7 +612,7 @@ fn an_envelope_of_another_format_is_rejected() {
     );
 }
 
-/// M1: a file issued in the future (beyond a 10-minute skew) is refused.
+/// M1 and N4: a file issued in the future (beyond a day of skew) is refused.
 #[test]
 fn a_future_issued_at_is_rejected() {
     let lab = Lab::new();
@@ -622,11 +622,11 @@ fn a_future_issued_at_is_rejected() {
         e["expires_at"] = json!(issued + 14 * DAY);
         check(&lab, &lab.file(&e), &TrustState::default())
     };
-    assert_eq!(at(NOW + 600), Ok(7));
+    assert_eq!(at(NOW + DAY), Ok(7));
     assert_eq!(
-        at(NOW + 601),
+        at(NOW + DAY + 1),
         Err(Rejection::IssuedInFuture {
-            issued_at: NOW + 601,
+            issued_at: NOW + DAY + 1,
             now: NOW
         })
     );

@@ -32,7 +32,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::envelope::{Channel, Verified, VerifyContext, check_file, record_accepted};
 use crate::keys::KeyRing;
-use crate::state::{Baseline, StateStore, TrustState};
+use crate::state::{Baseline, StateStore, StoreError, TrustState};
 use crate::version::Version;
 use crate::{MAX_FILE_BYTES, Rejection};
 
@@ -355,7 +355,8 @@ pub enum Failure {
     Status(u16),
     /// The file failed a check.
     Rejected(Rejection),
-    /// The state store can't be read; nothing remote is trusted.
+    /// The state store can't be read or written now: nothing was fetched
+    /// or nothing new is used.
     Store(String),
 }
 
@@ -376,9 +377,18 @@ pub struct Fetcher {
     store: Arc<dyn StateStore>,
     policy: FetchPolicy,
     baseline: Baseline,
-    /// Held across a whole refresh; maps a channel to its last attempt, in
-    /// memory, for when the store can't keep it.
-    attempts: Mutex<BTreeMap<Channel, u64>>,
+    /// Held across a whole refresh: what this process remembers.
+    memory: Mutex<Memory>,
+}
+
+/// What a fetcher keeps in memory, for when the store can't be read or
+/// written.
+#[derive(Debug, Default)]
+struct Memory {
+    /// The last attempt per channel.
+    attempts: BTreeMap<Channel, u64>,
+    /// The last state read or saved.
+    state: Option<TrustState>,
 }
 
 impl std::fmt::Debug for Fetcher {
@@ -418,7 +428,7 @@ impl Fetcher {
             store,
             policy,
             baseline: Baseline::compiled(),
-            attempts: Mutex::new(BTreeMap::new()),
+            memory: Mutex::new(Memory::default()),
         }
     }
 
@@ -429,18 +439,32 @@ impl Fetcher {
         self
     }
 
-    /// The saved state raised to the baseline; a missing or corrupt state
-    /// is the baseline alone (fail safe, never "no floor").
-    fn load(&self) -> TrustState {
+    fn memory(&self) -> std::sync::MutexGuard<'_, Memory> {
+        match self.memory.lock() {
+            Ok(guard) => guard,
+            Err(poisoned) => poisoned.into_inner(),
+        }
+    }
+
+    /// The saved state raised to the baseline. A missing or corrupt state
+    /// is the baseline alone (fail safe, never "no floor"); a state that
+    /// can't be read now is an error (fail closed: the caller fetches and
+    /// saves nothing).
+    fn load(&self, memory: &mut Memory) -> Result<TrustState, StoreError> {
         let mut state = match self.store.load() {
             Ok(state) => state.unwrap_or_default(),
-            Err(e) => {
-                tracing::warn!(error = %e, "remote config: state unreadable; the compiled baseline");
+            Err(StoreError::Corrupt(why)) => {
+                tracing::warn!(%why, "remote config: state corrupt; the compiled baseline");
                 TrustState::default()
+            }
+            Err(e) => {
+                tracing::warn!(error = %e, "remote config: state unreadable now; nothing fetched");
+                return Err(e);
             }
         };
         state.apply_baseline(&self.baseline);
-        state
+        memory.state = Some(state.clone());
+        Ok(state)
     }
 
     /// The cached file, re-verified, with no network: what the app uses at
@@ -450,7 +474,14 @@ impl Fetcher {
         if !self.policy.enabled {
             return None;
         }
-        self.verify_cached(&self.load(), app)
+        let mut memory = self.memory();
+        match self.load(&mut memory) {
+            Ok(state) => self.verify_cached(&state, app),
+            Err(_) => memory
+                .state
+                .as_ref()
+                .and_then(|state| self.verify_cached(state, app)),
+        }
     }
 
     fn verify_cached(&self, state: &TrustState, app: &AppContext<'_>) -> Option<Verified> {
@@ -484,11 +515,19 @@ impl Fetcher {
             };
         }
         // One refresh at a time: the lock is held to the end.
-        let mut attempts = match self.attempts.lock() {
-            Ok(guard) => guard,
-            Err(poisoned) => poisoned.into_inner(),
+        let mut memory = self.memory();
+        let mut state = match self.load(&mut memory) {
+            Ok(state) => state,
+            Err(e) => {
+                return Refresh {
+                    file: memory
+                        .state
+                        .as_ref()
+                        .and_then(|state| self.verify_cached(state, app)),
+                    attempt: Attempt::Failed(Failure::Store(e.to_string())),
+                };
+            }
         };
-        let mut state = self.load();
         let cached = self.verify_cached(&state, app);
         let urls = self.endpoints.urls(app.channel);
         if urls.is_empty() {
@@ -498,7 +537,9 @@ impl Fetcher {
             };
         }
         let slot = state.channels.entry(app.channel).or_default();
-        let last = slot.last_attempt.max(attempts.get(&app.channel).copied());
+        let last = slot
+            .last_attempt
+            .max(memory.attempts.get(&app.channel).copied());
         let interval = self.policy.min_interval.as_secs();
         // A clock set back makes the last attempt look future: then it's due.
         if last.is_some_and(|last| last <= app.now && app.now - last < interval) {
@@ -508,7 +549,7 @@ impl Fetcher {
             };
         }
         slot.last_attempt = Some(app.now);
-        attempts.insert(app.channel, app.now);
+        memory.attempts.insert(app.channel, app.now);
         let before = cached;
         let attempt = self.fetch(&urls, &mut state, app, before.is_some());
         if let Err(e) = self.store.save(&state) {
@@ -516,11 +557,12 @@ impl Fetcher {
             // A revocation seen this time still retires the old file.
             return Refresh {
                 file: before.filter(|file| !state.revoked.contains(&file.key)),
-                attempt: Attempt::Failed(Failure::Store(e.0)),
+                attempt: Attempt::Failed(Failure::Store(e.to_string())),
             };
         }
         // What's stored now may be newer than what this refresh saw.
-        let file = self.verify_cached(&self.load(), app);
+        let stored = self.load(&mut memory).unwrap_or(state);
+        let file = self.verify_cached(&stored, app);
         Refresh { file, attempt }
     }
 

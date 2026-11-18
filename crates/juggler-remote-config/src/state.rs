@@ -19,6 +19,13 @@
 //! floor". The baseline is also applied over every loaded state, so the
 //! floor can never sit below it.
 //!
+//! "Corrupt" means read in full and failing its checksum, format or parse.
+//! A file that couldn't be read *now* (permissions, I/O errors, no file
+//! handles) is not corrupt: the refresh fails closed. Nothing is fetched or
+//! saved, nothing new is served, the last state this process knew is kept,
+//! and the next refresh reads the file again. A save never overwrites a
+//! file it couldn't read.
+//!
 //! # Writes only move forward
 //!
 //! [`StateStore::save`] merges into what's stored ([`TrustState::absorb`]):
@@ -189,8 +196,18 @@ impl TrustState {
 
 /// The store couldn't be read or written.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
-#[error("remote-config state: {0}")]
-pub struct StoreError(pub String);
+pub enum StoreError {
+    /// The saved state was read in full and is not a state (bad checksum,
+    /// format or JSON). The caller starts from the [`Baseline`], and a save
+    /// may replace it.
+    #[error("remote-config state is corrupt: {0}")]
+    Corrupt(String),
+    /// The state couldn't be read or written now (permissions, I/O, no
+    /// file handles, a lock). Nothing may be overwritten on its account:
+    /// the refresh fails closed and the next one reads again.
+    #[error("remote-config state unavailable: {0}")]
+    Unavailable(String),
+}
 
 /// Where [`TrustState`] lives.
 pub trait StateStore: Send + Sync {
@@ -198,16 +215,19 @@ pub trait StateStore: Send + Sync {
     ///
     /// # Errors
     ///
-    /// [`StoreError`] when a saved state exists but can't be read, or fails
-    /// its checksum. The caller then starts from the [`Baseline`].
+    /// [`StoreError::Corrupt`] when a saved state was read and isn't one
+    /// (the caller then starts from the [`Baseline`]);
+    /// [`StoreError::Unavailable`] when it couldn't be read now (the caller
+    /// then fetches nothing and saves nothing).
     fn load(&self) -> Result<Option<TrustState>, StoreError>;
 
     /// Merges `state` into what's saved ([`TrustState::absorb`]): a save
     /// never lowers a floor or drops a revocation, whatever ran meanwhile.
+    /// If what's saved can't be read now, nothing is written.
     ///
     /// # Errors
     ///
-    /// [`StoreError`] when it can't be written.
+    /// [`StoreError::Unavailable`] when it can't be read or written.
     fn save(&self, state: &TrustState) -> Result<(), StoreError>;
 }
 
@@ -232,14 +252,14 @@ impl StateStore for MemoryStore {
         self.state
             .lock()
             .map(|state| state.clone())
-            .map_err(|_| StoreError("poisoned".to_owned()))
+            .map_err(|_| StoreError::Unavailable("poisoned".to_owned()))
     }
 
     fn save(&self, state: &TrustState) -> Result<(), StoreError> {
         let mut slot = self
             .state
             .lock()
-            .map_err(|_| StoreError("poisoned".to_owned()))?;
+            .map_err(|_| StoreError::Unavailable("poisoned".to_owned()))?;
         slot.get_or_insert_with(TrustState::default).absorb(state);
         Ok(())
     }
@@ -256,29 +276,59 @@ struct Sealed {
 
 /// The durable store: one checksummed file, written atomically. The path
 /// is the app's to choose, in its durable data folder, never a cache.
+///
+/// Each read-modify-write holds an exclusive advisory lock on
+/// `<path>.lock` (reads hold a shared one), so two stores on one path, in
+/// one process or two, can't lose each other's updates.
 #[derive(Debug)]
 pub struct FileStore {
     path: PathBuf,
-    lock: Mutex<()>,
 }
 
 impl FileStore {
     /// A store at `path` (its folder must exist).
     #[must_use]
     pub fn new(path: impl Into<PathBuf>) -> Self {
-        Self {
-            path: path.into(),
-            lock: Mutex::new(()),
-        }
+        Self { path: path.into() }
     }
 
+    fn lock_path(&self) -> PathBuf {
+        let mut name = self
+            .path
+            .file_name()
+            .map(std::ffi::OsStr::to_os_string)
+            .unwrap_or_default();
+        name.push(".lock");
+        self.path.with_file_name(name)
+    }
+
+    /// Opens the lock file and takes the lock; it is released when the
+    /// returned file is dropped.
+    fn lock(&self, exclusive: bool) -> Result<std::fs::File, StoreError> {
+        let unavailable = |e: std::io::Error| StoreError::Unavailable(format!("lock: {e}"));
+        let file = std::fs::OpenOptions::new()
+            .create(true)
+            .truncate(false)
+            .write(true)
+            .open(self.lock_path())
+            .map_err(unavailable)?;
+        if exclusive {
+            file.lock().map_err(unavailable)?;
+        } else {
+            file.lock_shared().map_err(unavailable)?;
+        }
+        Ok(file)
+    }
+
+    /// Missing is `Ok(None)`; read in full but not a state is `Corrupt`;
+    /// any other failure to read is `Unavailable`.
     fn read(&self) -> Result<Option<TrustState>, StoreError> {
         let bytes = match std::fs::read(&self.path) {
             Ok(bytes) => bytes,
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(None),
-            Err(e) => return Err(StoreError(e.to_string())),
+            Err(e) => return Err(StoreError::Unavailable(e.to_string())),
         };
-        let corrupt = |why: &str| StoreError(format!("corrupt: {why}"));
+        let corrupt = |why: &str| StoreError::Corrupt(why.to_owned());
         let sealed: Sealed = serde_json::from_slice(&bytes).map_err(|_| corrupt("not JSON"))?;
         if sealed.format != 1 {
             return Err(corrupt("format"));
@@ -299,14 +349,19 @@ impl FileStore {
             state: text,
         })
         .map_err(std::io::Error::other)?;
-        let name = self
+        let mut nonce = [0u8; 8];
+        getrandom::fill(&mut nonce).map_err(std::io::Error::other)?;
+        let mut name = self
             .path
             .file_name()
-            .map(|n| n.to_string_lossy().into_owned())
+            .map(std::ffi::OsStr::to_os_string)
             .unwrap_or_default();
-        let temp = self
-            .path
-            .with_file_name(format!("{name}.{}.tmp", std::process::id()));
+        name.push(format!(
+            ".{}.{}.tmp",
+            std::process::id(),
+            crate::hex(&nonce)
+        ));
+        let temp = self.path.with_file_name(name);
         let result = (|| {
             let mut file = std::fs::File::create(&temp)?;
             file.write_all(&sealed)?;
@@ -335,22 +390,83 @@ fn sync_folder(path: &Path) {
 
 impl StateStore for FileStore {
     fn load(&self) -> Result<Option<TrustState>, StoreError> {
-        let _guard = self
-            .lock
-            .lock()
-            .map_err(|_| StoreError("poisoned".to_owned()))?;
+        let _lock = self.lock(false)?;
         self.read()
     }
 
     fn save(&self, state: &TrustState) -> Result<(), StoreError> {
-        let _guard = self
-            .lock
-            .lock()
-            .map_err(|_| StoreError("poisoned".to_owned()))?;
-        // A corrupt file can't be merged; the new state (already raised to
-        // the baseline by its caller) replaces it.
-        let mut merged = self.read().ok().flatten().unwrap_or_default();
+        let _lock = self.lock(true)?;
+        let mut merged = match self.read() {
+            Ok(saved) => saved.unwrap_or_default(),
+            // Read in full and not a state: the new one (already raised to
+            // the baseline by its caller) replaces it.
+            Err(StoreError::Corrupt(why)) => {
+                tracing::warn!(%why, "remote config: replacing a corrupt state");
+                TrustState::default()
+            }
+            // Couldn't read it now: never overwrite what may be good.
+            Err(e) => return Err(e),
+        };
         merged.absorb(state);
-        self.write(&merged).map_err(|e| StoreError(e.to_string()))
+        self.write(&merged)
+            .map_err(|e| StoreError::Unavailable(e.to_string()))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn accepted(serial: u64, key: &str) -> AcceptedFile {
+        AcceptedFile {
+            serial,
+            digest: format!("d{serial}"),
+            key: key.to_owned(),
+            file: String::new(),
+            etag: None,
+        }
+    }
+
+    #[test]
+    fn absorb_takes_the_later_trusted_time() {
+        let mut mine = TrustState {
+            trusted_time: 50,
+            ..TrustState::default()
+        };
+        mine.absorb(&TrustState {
+            trusted_time: 20,
+            ..TrustState::default()
+        });
+        assert_eq!(mine.trusted_time, 50);
+        mine.absorb(&TrustState {
+            trusted_time: 70,
+            ..TrustState::default()
+        });
+        assert_eq!(mine.trusted_time, 70);
+    }
+
+    #[test]
+    fn absorb_prefers_a_file_from_an_unrevoked_key() {
+        // Mine: a burned serial from a key the other state revoked.
+        let mut mine = TrustState::default();
+        mine.channels.entry(Channel::Stable).or_default().accepted = Some(accepted(900, "stolen"));
+        let mut theirs = TrustState::default();
+        theirs.revoked.insert("stolen".to_owned());
+        theirs.channels.entry(Channel::Stable).or_default().accepted = Some(accepted(6, "good"));
+        mine.absorb(&theirs);
+        let kept = mine.channels[&Channel::Stable]
+            .accepted
+            .as_ref()
+            .map(|a| a.serial);
+        assert_eq!(kept, Some(6));
+        // Between unrevoked files, the higher serial.
+        let mut lower = TrustState::default();
+        lower.channels.entry(Channel::Stable).or_default().accepted = Some(accepted(5, "good"));
+        mine.absorb(&lower);
+        let kept = mine.channels[&Channel::Stable]
+            .accepted
+            .as_ref()
+            .map(|a| a.serial);
+        assert_eq!(kept, Some(6));
     }
 }

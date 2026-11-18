@@ -37,7 +37,7 @@
 //! 4. Only then: the payload must be canonical JSON, and an envelope whose
 //!    `key_id` is the key that verified it.
 //! 5. Channel, validity window, a future `issued_at` (more than
-//!    [`MAX_SKEW_SECS`] past the trusted time), expiry against the trusted
+//!    [`MAX_SKEW_SECS`], a day, past the trusted time), expiry against the trusted
 //!    time, serial (rollback, equivocation), and the app-version range.
 //!
 //! The **trusted time** is `max(now, the highest issued_at ever
@@ -66,8 +66,11 @@ pub const MAX_FILE_BYTES: usize = 256 * 1024;
 /// key's reach.
 pub const MAX_VALIDITY_SECS: u64 = 31 * 24 * 60 * 60;
 
-/// How far past the trusted time an `issued_at` may lie (clock skew).
-pub const MAX_SKEW_SECS: u64 = 10 * 60;
+/// How far past the trusted time an `issued_at` may lie: a day, so a slow
+/// or wrong clock isn't shut out. A file still can't carry its validity
+/// window far into the future (at most a day plus [`MAX_VALIDITY_SECS`]
+/// from the trusted time), and only a pinned key can sign one.
+pub const MAX_SKEW_SECS: u64 = 24 * 60 * 60;
 
 /// The most revocation parts one file may carry (more are skipped).
 pub const MAX_REVOCATION_PARTS: usize = 4;
