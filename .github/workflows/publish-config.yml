@@ -1,12 +1,11 @@
 # ADR-0035 §8, D-129: publish one channel's signed remote configuration
 # to https://config.figurehead.ai/v1/<channel>.json.
 #
-# The source is a reviewed, unsigned file in the repository
-# (config/remote/<channel>.json). The publish job runs in the `release`
-# environment, behind the same approval as Promote, and is the only job
-# that sees the signing key or the storage token:
-#   1. validate the source against the section schemas the app's build
-#      exports (config/remote/schema.json, kept current by a test);
+# New or changed content: `publish`, run by hand for one channel, in the
+# `release` environment behind the same approval as Promote. The source is
+# a reviewed, unsigned file in the repository (config/remote/<channel>.json):
+#   1. validate it against the section schemas the app's build exports
+#      (config/remote/schema.json, kept current by a test);
 #   2. canonicalise it (the tool signs canonical bytes only);
 #   3. serial = the live file's + 1 (read with curl, its signature checked);
 #   4. issued_at now, expires_at 14 days on;
@@ -16,14 +15,25 @@
 #   7. upload it to R2;
 #   8. smoke-check the public URL (200, application/json), then fetch and
 #      verify it again.
-# Weekly, every channel is re-signed the same way (a file lives 14 days);
-# daily, a job with no secret fails when a live file is within 3 days of
-# expiry, so a re-sign that didn't happen (waiting for approval, say) is
-# seen in time.
 #
-# Secrets (names only; their values live in the `release` environment):
+# Weekly, unattended (a file lives 14 days): `resign` in the
+# `config-resign` environment (no reviewer, `main` only, the signing
+# secret only) signs the live file's own content again with only a new
+# serial and dates; it reads no source, and the tool refuses a result
+# whose canonical content differs from the live file's by a byte. Then
+# `resign-upload` in the `config-upload` environment (no reviewer, `main`
+# only, the storage secrets only) checks that again against the live file
+# as it is then, and uploads it. The signer can't upload; the uploader
+# can't sign, and can only put up a re-sign of what is already live.
+#
+# Daily, `expiry` (no environment, no secret) fails when a live file is
+# within 3 days of expiry, so a re-sign that didn't happen is seen in time.
+#
+# Secrets, by environment (names only): `release`:
 # REMOTE_CONFIG_SIGNING_KEY, R2_CONFIG_ACCESS_KEY_ID,
-# R2_CONFIG_SECRET_ACCESS_KEY. docs/RELEASING.md "Remote configuration".
+# R2_CONFIG_SECRET_ACCESS_KEY; `config-resign`: REMOTE_CONFIG_SIGNING_KEY;
+# `config-upload`: R2_CONFIG_ACCESS_KEY_ID, R2_CONFIG_SECRET_ACCESS_KEY.
+# docs/RELEASING.md "Remote configuration".
 name: Publish config
 
 on:
@@ -63,6 +73,7 @@ jobs:
     permissions: {}
     outputs:
       publish: ${{ steps.plan.outputs.publish }}
+      resign: ${{ steps.plan.outputs.resign }}
       check: ${{ steps.plan.outputs.check }}
     steps:
       - name: Which channels
@@ -74,17 +85,16 @@ jobs:
         run: |
           set -euo pipefail
           all='["nightly","beta","stable"]'
+          publish='[]' resign='[]' check='[]'
           if [ "$EVENT" = workflow_dispatch ]; then
             [[ "$CHANNEL" =~ ^(nightly|beta|stable)$ ]] || { echo "::error::bad channel $CHANNEL"; exit 1; }
-            echo "publish=[\"$CHANNEL\"]" >> "$GITHUB_OUTPUT"
-            echo "check=[]" >> "$GITHUB_OUTPUT"
+            publish="[\"$CHANNEL\"]"
           elif [ "$SCHEDULE" = "17 6 * * 1" ]; then
-            echo "publish=$all" >> "$GITHUB_OUTPUT"
-            echo "check=[]" >> "$GITHUB_OUTPUT"
+            resign="$all"
           else
-            echo "publish=[]" >> "$GITHUB_OUTPUT"
-            echo "check=$all" >> "$GITHUB_OUTPUT"
+            check="$all"
           fi
+          { echo "publish=$publish"; echo "resign=$resign"; echo "check=$check"; } >> "$GITHUB_OUTPUT"
 
   # Daily: no environment, no secret. Fails when a live file is within 3
   # days of expiry, or is there but doesn't verify.
@@ -124,7 +134,7 @@ jobs:
           left=$(( expires_at - $(date +%s) ))
           echo "$CHANNEL expires in $(( left / 3600 )) h" >> "$GITHUB_STEP_SUMMARY"
           if [ "$left" -lt $(( 3 * 86400 )) ]; then
-            echo "::error::$CHANNEL's live configuration expires within 3 days: run Publish config for it (or approve the waiting re-sign)"
+            echo "::error::$CHANNEL's live configuration expires within 3 days: the weekly re-sign didn't land; run Publish config for it"
             exit 1
           fi
 
@@ -140,7 +150,6 @@ jobs:
     environment: release
     strategy:
       fail-fast: false
-      max-parallel: 1
       matrix:
         channel: ${{ fromJSON(needs.plan.outputs.publish) }}
     env:
@@ -223,3 +232,101 @@ jobs:
           curl -sSf --proto '=https' --max-redirs 0 --max-time 30 -o "$RUNNER_TEMP/served.json" "$url"
           target/release/remote-config-publish verify --file "$RUNNER_TEMP/served.json" --channel "$CHANNEL" --serial "$SERIAL"
           echo "$CHANNEL → serial $SERIAL" >> "$GITHUB_STEP_SUMMARY"
+
+  # Weekly, no reviewer: the live content, signed again, nothing else.
+  resign:
+    name: re-sign ${{ matrix.channel }}
+    needs: plan
+    if: needs.plan.outputs.resign != '[]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    # `main` only, no reviewer, the signing secret only.
+    environment: config-resign
+    strategy:
+      fail-fast: false
+      matrix:
+        channel: ${{ fromJSON(needs.plan.outputs.resign) }}
+    env:
+      CHANNEL: ${{ matrix.channel }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - name: The tool
+        run: cargo build --locked --release -p juggler-remote-config --bin remote-config-publish
+      - name: Re-sign the live content (serial and dates only)
+        env:
+          REMOTE_CONFIG_SIGNING_KEY: ${{ secrets.REMOTE_CONFIG_SIGNING_KEY }}
+        run: |
+          set -euo pipefail
+          out="$RUNNER_TEMP/resign" && mkdir -p "$out"
+          code="$(curl -sS --proto '=https' --max-redirs 0 --max-time 30 -o "$out/live.json" -w '%{http_code}' "$BASE_URL/$CHANNEL.json")"
+          if [ "$code" = 404 ]; then
+            echo "::notice::$CHANNEL: nothing published yet, nothing to re-sign"
+            : > "$out/none"
+            exit 0
+          fi
+          [ "$code" = 200 ] || { echo "::error::$CHANNEL: HTTP $code"; exit 1; }
+          [ -n "$REMOTE_CONFIG_SIGNING_KEY" ] || { echo "::error::REMOTE_CONFIG_SIGNING_KEY is not set in config-resign"; exit 1; }
+          target/release/remote-config-publish resign --live "$out/live.json" --channel "$CHANNEL" \
+            --now "$(date +%s)" --days 14 --out "$out/$CHANNEL.json"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: resign-${{ matrix.channel }}
+          path: ${{ runner.temp }}/resign/
+          retention-days: 90
+
+  # Uploads only a re-sign of what is live now.
+  resign-upload:
+    name: upload re-signed ${{ matrix.channel }}
+    needs: [plan, resign]
+    if: needs.plan.outputs.resign != '[]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    # `main` only, no reviewer, the storage secrets only.
+    environment: config-upload
+    strategy:
+      fail-fast: false
+      matrix:
+        channel: ${{ fromJSON(needs.plan.outputs.resign) }}
+    env:
+      CHANNEL: ${{ matrix.channel }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: resign-${{ matrix.channel }}
+          path: ${{ runner.temp }}/resign/
+      - name: The tool
+        run: cargo build --locked --release -p juggler-remote-config --bin remote-config-publish
+      - name: Check it against the live file, then upload and smoke-check
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_CONFIG_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_CONFIG_SECRET_ACCESS_KEY }}
+        run: |
+          set -euo pipefail
+          dir="$RUNNER_TEMP/resign"
+          [ -e "$dir/none" ] && { echo "::notice::$CHANNEL: nothing to upload"; exit 0; }
+          tool=target/release/remote-config-publish
+          # The live file as it is now: a publish since the re-sign makes
+          # this refuse (its content would be undone).
+          curl -sSf --proto '=https' --max-redirs 0 --max-time 30 -o "$dir/now.json" "$BASE_URL/$CHANNEL.json"
+          "$tool" check-resign --live "$dir/now.json" --file "$dir/$CHANNEL.json" --channel "$CHANNEL"
+          "$tool" verify --file "$dir/$CHANNEL.json" --channel "$CHANNEL"
+          aws s3 cp "$dir/$CHANNEL.json" "s3://figurehead-config/v1/$CHANNEL.json" \
+            --endpoint-url https://8f0dd95e3750b5d173fca59fae54401b.r2.cloudflarestorage.com \
+            --region auto --content-type application/json --cache-control "public, max-age=300"
+          serial="$("$tool" inspect --file "$dir/$CHANNEL.json" --channel "$CHANNEL" | sed -n 's/^serial=//p')"
+          url="$BASE_URL/$CHANNEL.json?publish=$serial"
+          headers="$(curl -sSI --proto '=https' --max-redirs 0 --max-time 30 "$url")"
+          echo "$headers" | head -1 | grep -qE '^HTTP/[0-9.]+ 200' || { echo "::error::not 200"; exit 1; }
+          echo "$headers" | grep -qiE '^content-type: *application/json' || { echo "::error::not application/json"; exit 1; }
+          curl -sSf --proto '=https' --max-redirs 0 --max-time 30 -o "$dir/served.json" "$url"
+          "$tool" verify --file "$dir/served.json" --channel "$CHANNEL" --serial "$serial"
+          echo "$CHANNEL re-signed → serial $serial" >> "$GITHUB_STEP_SUMMARY"
