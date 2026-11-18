@@ -117,7 +117,11 @@ fn an_older_build_refuses_newer_data_and_offers_the_backup_from_before() {
     let (title, text, button) = newer_data::launch_message("AI Juggler Dev", "0.0.8", Some(&offer));
     assert_eq!(title, "This data is from a newer AI Juggler Dev");
     assert!(text.contains("AI Juggler Dev 0.0.8 can't open"), "{text}");
-    assert!(text.contains("nothing is deleted"), "{text}");
+    assert!(
+        text.contains("leaves out Chat's memory and conversation history"),
+        "{text}"
+    );
+    assert!(text.contains("nothing else changes"), "{text}");
     assert!(button.unwrap().starts_with("Use the backup from "));
     assert!(
         text.contains("sign in to each account again"),

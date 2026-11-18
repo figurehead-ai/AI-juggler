@@ -19,8 +19,9 @@
 //!   starts on it.
 //!
 //! ADR-0037 §1.5: the data kept aside (`from-v<N>-<ms>`, `from-newer-<ms>`)
-//! holds no memory (a forget made later couldn't reach it), and the sweep
-//! at start removes it after [`crate::backup::GO_BACK_COPY_KEEP_MS`].
+//! holds no memory or Chat history (a forget made later couldn't reach
+//! it); the sweep at start empties any such copy an older build left.
+//! Nothing else in it changes, and it is never deleted.
 //!
 //! Account folders are not part of the data being swapped: they stay
 //! where they are, so the accounts find their own folders. Any failure on
@@ -486,7 +487,7 @@ pub fn launch_message(
             (
                 title,
                 format!(
-                    "{opening}\n\nYou can go back to {what}. {comes_back} What the newer version saved is kept beside it in the data folder; nothing is deleted.\n\nOr quit, and install the newer version again to keep working with its data."
+                    "{opening}\n\nYou can go back to {what}. {comes_back} What the newer version saved is kept beside it in the data folder. That copy leaves out Chat's memory and conversation history, which this version doesn't use; nothing else changes.\n\nOr quit, and install the newer version again to keep working with its data."
                 ),
                 Some(match offer.kind {
                     Source::Copy => format!("Use the data from {when}"),

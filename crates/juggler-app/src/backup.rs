@@ -879,14 +879,12 @@ const KEPT_COPIES: [(&str, Option<i64>); 5] = [
     (RESTORE_COPY_PREFIX, Some(RESTORE_COPY_KEEP_MS)),
     ("juggler.sqlite.before-failed-restore-", None),
     // Going back (`newer_data`): the data as it was, the newer data an
-    // older build moved aside, and a copy a failed going-back tried.
-    ("juggler.sqlite.from-v", Some(GO_BACK_COPY_KEEP_MS)),
-    ("juggler.sqlite.from-newer-", Some(GO_BACK_COPY_KEEP_MS)),
-    ("juggler.sqlite.unused-", Some(GO_BACK_COPY_KEEP_MS)),
+    // older build moved aside, and a copy a failed going-back tried. Kept
+    // (the user's way forward), emptied of memory only (ADR-0037 §1.5).
+    ("juggler.sqlite.from-v", None),
+    ("juggler.sqlite.from-newer-", None),
+    ("juggler.sqlite.unused-", None),
 ];
-/// How long the data kept aside when going back is kept: a month to come
-/// forward again (ADR-0037 §1.5; it holds no memory from the next start).
-pub const GO_BACK_COPY_KEEP_MS: i64 = 30 * 24 * 3_600_000;
 const DB_SUFFIXES: [&str; 3] = ["-wal", "-shm", "-journal"];
 
 /// The database file a name belongs to (its `-wal`, `-shm` or `-journal`
@@ -1161,11 +1159,12 @@ mod tests {
         assert!(!crashed.exists(), "a day on, the copy is gone");
     }
 
-    /// The re-review's N2: the data kept aside when going back (by this
-    /// build, or by an older one that knows nothing of memory) is emptied
-    /// of memory at the next start and goes after a month.
+    /// The re-review's N2 and the second re-check's N6: the data kept aside
+    /// when going back (by this build, or by an older one that knows
+    /// nothing of memory) is emptied of memory at the next start, and is
+    /// otherwise kept: never deleted, however old.
     #[test]
-    fn the_sweep_scrubs_and_ages_out_the_going_back_copies() {
+    fn the_sweep_scrubs_and_keeps_the_going_back_copies() {
         let dir = tempfile::tempdir().unwrap();
         let data = dir.path();
         let live = Storage::open(&data.join("juggler.sqlite")).unwrap();
@@ -1185,10 +1184,10 @@ mod tests {
         for copy in &copies {
             assert!(copy.exists() && !holds(copy), "{}", copy.display());
         }
-        sweep_kept_copies(data, now + GO_BACK_COPY_KEEP_MS + 1);
+        sweep_kept_copies(data, now + 3_650 * 86_400_000);
         assert!(
-            copies.iter().all(|copy| !copy.exists()),
-            "a month on, they're gone"
+            copies.iter().all(|copy| copy.exists()),
+            "ten years on, they're still kept"
         );
     }
 
