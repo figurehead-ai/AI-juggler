@@ -141,20 +141,27 @@ export function PlannedTeam({
   const picked = (ref: string) => selection.kind === "rule" && selection.ref === ref;
   // The rc3 critique at 1280 × 800: the caption sat a fixed 80 px off the
   // canvas's floor and ran into the row's cards. It sits there while it
-  // can (the mock), and under the team as drawn when the team reaches it.
+  // can (the mock), under the team as drawn when the team reaches it, and
+  // only where it has room clear of the canvas's toolbar: it says what the
+  // checklist beside it says, so a short canvas goes without it.
   const team = useRef<HTMLDivElement>(null);
+  const caption = useRef<HTMLDivElement>(null);
   const [drawnTo, setDrawnTo] = useState(0);
+  const [room, setRoom] = useState({ height: 0, caption: 0 });
   useLayoutEffect(() => {
     const root = team.current;
     if (!root) return undefined;
     const cards = () => Array.from(root.querySelectorAll<HTMLElement>("[data-testid='planned-card']"));
-    const read = () => setDrawnTo(Math.max(0, ...cards().map((one) => one.offsetTop + one.offsetHeight)));
+    const read = () => {
+      setDrawnTo(Math.max(0, ...cards().map((one) => one.offsetTop + one.offsetHeight)));
+      setRoom({ height: root.parentElement?.clientHeight ?? 0, caption: caption.current?.offsetHeight ?? 0 });
+    };
     // A card grows as its words or its Add change; one comes, goes or
     // moves (the row under a taller lead) without a size of its own.
     const sizes = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(read);
     const watch = () => {
       sizes?.disconnect();
-      for (const one of cards()) sizes?.observe(one);
+      for (const one of [...cards(), root.parentElement, caption.current]) if (one) sizes?.observe(one);
       read();
     };
     watch();
@@ -165,6 +172,10 @@ export function PlannedTeam({
       moves?.disconnect();
     };
   }, []);
+  // The toolbar's band at the canvas's foot (bottom-3, its height, a gap).
+  const TOOLBAR = 64;
+  const captionTop = Math.max(Math.round(view.y + drawnTo * view.scale + 40), room.height - 152);
+  const captionFits = room.height === 0 || captionTop + room.caption <= room.height - TOOLBAR;
   return (
     <>
       <div ref={team} className="pointer-events-none absolute left-0 top-0 origin-top-left" style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.scale})` }} data-testid="planned-team">
@@ -194,7 +205,7 @@ export function PlannedTeam({
           </PlannedCard>
         ))}
       </div>
-      <div className="pointer-events-none absolute inset-x-0 flex flex-col items-center gap-2 px-6 text-center" style={{ top: `max(${Math.round(view.y + drawnTo * view.scale + 40)}px, calc(100% - 152px))` }} data-testid="planned-team-next">
+      <div ref={caption} className={"pointer-events-none absolute inset-x-0 flex flex-col items-center gap-2 px-6 text-center" + (captionFits ? "" : " invisible")} style={{ top: captionTop }} aria-hidden={captionFits ? undefined : true} data-testid="planned-team-next" data-fits={captionFits || undefined}>
         <p className="type-section">{PLANNED.title}</p>
         <p className="max-w-[26rem] text-meta text-ink-2">{PLANNED.line(where)}</p>
       </div>

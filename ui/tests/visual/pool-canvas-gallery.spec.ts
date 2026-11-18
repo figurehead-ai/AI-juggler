@@ -233,11 +233,25 @@ for (const theme of ["dark", "light"] as const) {
       await expect(primary).toBeInViewport({ ratio: 1 });
       const [it, panel] = await Promise.all([primary.boundingBox(), page.getByTestId("inspector-body").boundingBox()]);
       expect(it!.y >= panel!.y && it!.y + it!.height <= panel!.y + panel!.height, "Turn on team tools whole in the panel's view").toBe(true);
-      // The caption is under the team, never into its cards (the rc3
-      // critique at 1280 × 800: it sat 80 px off the floor, on the row).
-      const caption = await page.getByTestId("planned-team-next").boundingBox();
-      const lowest = Math.max(...(await page.getByTestId("planned-card").evaluateAll((all) => all.map((one) => one.getBoundingClientRect().bottom))));
-      expect(caption!.y, "the caption under every card").toBeGreaterThanOrEqual(lowest + 16);
+      // The caption is under the team and over the toolbar, or not shown
+      // (the rc3 critique at 1280 × 800: it sat on the row, then under the
+      // toolbar); at the mock's 1440 × 900 it shows.
+      const captionClear = async () => {
+        const next = page.getByTestId("planned-team-next");
+        if (!(await next.getAttribute("data-fits"))) return expect(next).toBeHidden();
+        const [box, bar] = await Promise.all([next.boundingBox(), page.locator("[data-canvas-toolbar]").boundingBox()]);
+        const lowest = Math.max(...(await page.getByTestId("planned-card").evaluateAll((all) => all.map((one) => one.getBoundingClientRect().bottom))));
+        expect(box!.y, "the caption under every card").toBeGreaterThanOrEqual(lowest + 16);
+        expect(box!.y + box!.height, "the caption over the toolbar").toBeLessThanOrEqual(bar!.y);
+      };
+      await captionClear();
+      if (width === 1280) {
+        await page.setViewportSize({ width: 1440, height: 900 });
+        await expect(page.getByTestId("planned-team-next")).toHaveAttribute("data-fits", "true");
+        await captionClear();
+        await page.setViewportSize({ width, height });
+        await captionClear();
+      }
       await page.mouse.move(0, 0);
       await page.screenshot({ path: resolve(OUT, `canvas-setup-${size}-${theme}.png`) });
       await axe(page, `setting-up canvas ${size} ${theme}`);
