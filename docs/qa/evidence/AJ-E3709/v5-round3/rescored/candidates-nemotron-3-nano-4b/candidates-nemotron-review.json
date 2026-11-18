@@ -1,0 +1,466 @@
+{
+ "family": "nemotron",
+ "job": "review",
+ "note": "script flags: candidates for Opus to confirm by eye, never verdicts",
+ "candidates": [
+  {
+   "id": "R3T02",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'the test suite runs 33 tests pass': contradiction: test outcome ('test suite runs 33 tests pass'): AI Juggler shows the tests from its own facts; leave test results out of this field, even the agent's",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T02",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the test suite runs 33 tests pass': 2b: content word(s) not in the text: runs",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T02",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'the test suite runs 33 tests pass': contradiction: test outcome ('test suite runs 33 tests pass'): AI Juggler shows the tests from its own facts; leave test results out of this field, even the agent's",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T02",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the test suite runs 33 tests pass': 2b: content word(s) not in the text: runs",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T06",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'added a feature flag around the new chec': contradiction: describes a change that was undone (git: src/banner/flag.ts was undone)",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T07",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "invented",
+   "detail": "'moving to HEAD': invented: proper head",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T07",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'moving to HEAD': 2b: content word(s) not in the text: head",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T07",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'the session cache moved to a different s': contradiction: describes a change that was undone (git: sessions/ was undone (names store))",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T07",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'the session cache moved to a different s': contradiction: describes a change that was undone (git: sessions/ was undone (names store))",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T08",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'die Suche nach Kundennummern auf einen H': contradiction: describes a change that was undone (git: kunden/hash_index.py was undone (names hash))",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T08",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'die Suche nach Kundennummern auf einen H': contradiction: describes a change that was undone (git: kunden/hash_index.py was undone (names hash))",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T08",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'die Suche nach Kundennummern auf einen H': contradiction: describes a change that was undone (git: kunden/hash_index.py was undone (names hash))",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T10",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'rewrote the notification dispatcher in r': contradiction: describes a change that was undone (git: dispatcher/batch.py was undone)",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T10",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "risk reason: contradiction: describes a change that was undone (git: dispatcher/batch.py was undone)",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T12",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'Migrated the plugin loader of lumen-edit': contradiction: describes a change that was undone (git: src/plugins/loader.ts was undone)",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T15",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "risk reason: contradiction: describes a change that was undone (git: web/betaal/validatie.js was undone)",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T15",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "risk reason: contradiction: describes a change that was undone (git: web/betaal/validatie.js was undone)",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T15",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "risk reason: contradiction: describes a change that was undone (git: web/betaal/validatie.js was undone)",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T18",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'no changes': words: a negation with none in the source",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T18",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'no changes': words: a negation with none in the source",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T18",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'no changes': words: a negation with none in the source",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T20",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'ich habe die aufräumfunktion für alte se': 2b: content word(s) not in the text: sessions",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T26",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the database migration for the loyalty p': 2b: content word(s) not in the text: got",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T26",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the database migration for the loyalty p': 2b: content word(s) not in the text: got",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T26",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the database migration for the loyalty p': 2b: content word(s) not in the text: got",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T29",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'retry delay is now configurable default ': 2b: drops 'stays' from between 'default' and 'seconds'",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T29",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "risk reason: contradiction: describes a change that was undone (Second, I added a dead-letter log, but then reverted it because it doubled disk writes.)",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T29",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'retry delay is now configurable default ': 2b: drops 'stays' from between 'default' and 'seconds'",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T29",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "risk reason: contradiction: describes a change that was undone (Second, I added a dead-letter log, but then reverted it because it doubled disk writes.)",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T29",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'retry delay is now configurable default ': 2b: drops 'stays' from between 'default' and 'seconds'",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T29",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "risk reason: contradiction: describes a change that was undone (Second, I added a dead-letter log, but then reverted it because it doubled disk writes.)",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T31",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "contradiction: risk low while the message states a caveat",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T32",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "contradiction: risk low with tests not run",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T33",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "contradiction: risk low with tests not run",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T34",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "contradiction: risk low with tests not run",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T35",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "contradiction: risk low with tests not run",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T38",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'neu.py new': 2b: content word(s) not in the text: new",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T38",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'neu.py written': 2b: content word(s) not in the text: written",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T38",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'neu.py new': 2b: content word(s) not in the text: new",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T40",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'la nouvelle bibliothèque de dates dans l': contradiction: describes a change that was undone (git: planif/nouvelle_lib.py was undone (names bibliothèque, nouvelle))",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T40",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "risk reason: contradiction: describes a change that was undone (git: planif/nouvelle_lib.py was undone (names bibliothèque, nouvelle))",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T40",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'une nouvelle bibliothèque de dates dans ': contradiction: describes a change that was undone (git: planif/nouvelle_lib.py was undone (names bibliothèque, nouvelle))",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T40",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "risk reason: contradiction: describes a change that was undone (git: planif/nouvelle_lib.py was undone (names bibliothèque, nouvelle))",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T40",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'la nouvelle bibliothèque de dates dans l': contradiction: describes a change that was undone (git: planif/nouvelle_lib.py was undone (names bibliothèque, nouvelle))",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T40",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "risk reason: contradiction: describes a change that was undone (git: planif/nouvelle_lib.py was undone (names bibliothèque, nouvelle))",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T44",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the 404 page has a link to the homepage ': 2b: content word(s) not in the text: and, has, homepage, page, the",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T44",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the 404 test file changed': 2b: content word(s) not in the text: the",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T44",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the 404 page has a link to the homepage ': 2b: content word(s) not in the text: and, has, homepage, page, the",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T44",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the 404 test file changed': 2b: content word(s) not in the text: the",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T44",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the 404 page has a link to the homepage ': 2b: content word(s) not in the text: and, has, homepage, page, the",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T44",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the 404 test file changed': 2b: content word(s) not in the text: the",
+   "stage": "caught",
+   "corpus": "turns"
+  }
+ ]
+}
