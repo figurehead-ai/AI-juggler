@@ -90,6 +90,11 @@ def feed_excerpt(t):
 def feed_shown(t, body):
     lead = git_lead(t)
     return "\n".join(([lead] if lead else []) + list(body))
+# Round 4 (v5 round 3: Gemma's "In generale funziona" stood beside five failed tests on an Italian turn): the checks read English and
+# German only. A text in a language they have no word lists for can't be checked, so no job shows a model's words on it: the feed
+# showed A's excerpt already; the review now shows the code-only review and attention the facts' level, with no model call.
+NO_WORD_LISTS = "no word lists for the language: our checks can't read it, so no model text (no call)"
+def unreadable(t): return t["ctx"].get("lang") is None
 def turn_failed(t):
     F = t["F"]
     return bool(t["failures"]) or bool(F) and (F["outcome"] == "failed" or F["level"] == "L3" or (F["tests_state"] == "ran" and F["failed"] > 0))
@@ -354,6 +359,7 @@ class Review(Job):
         return REVIEW_INSTR.format(never=j4.NEVER_INVENT, keep=j4.KEEP_CAVEATS, untrusted=j4.untrusted_rule(mark)) + "\n\n" + \
                render_examples(REVIEW_EX, mark, example_turn)
     def plan(self, t, setting, mark=True):
+        if unreadable(t): return {"decided": dict(self.fallback(t, setting), notes=[NO_WORD_LISTS])}
         sys_t = self.system(mark); src = t["ctx"]["cleaned"] + "\n" + facts_sentence(t); schema = j4.with_script_guide(review_schema(t), src)
         def build(note):
             p, est, cut = fit("review", sys_t, schema, lambda mx: message_prompt_v5(REVIEW_TASK, t, f"v5:{t['id']}:review", mark, False, mx), note)
@@ -430,6 +436,7 @@ class Attention(Job):
             note = W[k] + (f": “{s}”" if s else "")
             return {"decided": {"ok": True, "kind": "code", "needs_you": True, "level": level_of(t), "note": note, "shown": note,
                                 "model_text": [], "errors": [], "notes": ["decided by the facts (no call)"]}}
+        if unreadable(t): return {"decided": dict(self.fallback(t, setting), notes=[NO_WORD_LISTS])}
         sys_t = self.system(mark); src = t["ctx"]["cleaned"] + "\n" + facts_sentence(t); schema = j4.schema_for("attention", source=src)
         def build(note):
             p, est, cut = fit("attention", sys_t, schema, lambda mx: message_prompt_v5(j4.TASK["attention"], t, f"v5:{t['id']}:attention", mark, False, mx), note)

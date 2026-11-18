@@ -25,5 +25,72 @@
     "Soll ich den alten Osprey-Importer entfernen?"
    ]
   }
+ ],
+ "unreadable_turns": [
+  {
+   "label": "an Italian turn with failed tests",
+   "source": "Ho riscritto il modulo delle ricevute del progetto falco; quasi pronto, restano dettagli. Nel complesso funziona bene.",
+   "facts": {
+    "outcome": "failure",
+    "level": "L3",
+    "tests": {
+     "state": "ran",
+     "passed": 20,
+     "failed": 2
+    }
+   },
+   "failures": [
+    "FAILED tests/test_ricevute.py::test_totale_zero"
+   ],
+   "git": {
+    "changed": [
+     {
+      "path": "falco/ricevute.py",
+      "added": 30,
+      "removed": 8,
+      "status": "M"
+     }
+    ],
+    "reverted": [],
+    "reflog": [],
+    "uncommitted": false
+   },
+   "review_has": [
+    "Changed (git): falco/ricevute.py",
+    "Tests: 20 passed, 2 failed",
+    "Failed: FAILED tests/test_ricevute.py::test_totale_zero",
+    "Risk: high"
+   ]
+  },
+  {
+   "label": "a calm Dutch turn",
+   "source": "De kopregel van het falco-dashboard is aangepast en de kleur van de knop is nu donkerder. Alle 9 tests slagen.",
+   "facts": {
+    "outcome": "success",
+    "level": "L1",
+    "tests": {
+     "state": "ran",
+     "passed": 9,
+     "failed": 0
+    }
+   },
+   "git": {
+    "changed": [
+     {
+      "path": "falco/dashboard.vue",
+      "added": 4,
+      "removed": 2,
+      "status": "M"
+     }
+    ],
+    "reverted": [],
+    "reflog": [],
+    "uncommitted": false
+   },
+   "review_has": [
+    "Changed (git): falco/dashboard.vue",
+    "Tests: 9 passed, 0 failed"
+   ]
+  }
  ]
 }

@@ -727,6 +727,18 @@ def selftest():
     finally: guard_v5.GUARD_V5, guard_v5.ROLE_TAGS = base, base_tags
     check("R4 guard mutation: without round 4's patterns and tags every round-4 must-catch phrase slips through", r4new and len(slip) == len(r4new), (len(r4new), slip))
 
+    # ================================================================================================ R4-2. a language the checks can't read: no model text in any turn job
+    for case in R4["unreadable_turns"]:
+        tu = turn(case["source"], facts=case["facts"], git=case["git"], failures=case.get("failures", ()))
+        check(f"R4 language: {case['label']}: the checks have no word lists for it", tu["ctx"]["lang"] is None, tu["ctx"]["lang"])
+        for jn in ("feed_line", "review", "attention"):
+            try: ro = run_item(REGISTRY[jn], tu, "main", NoCall()); called = False
+            except AssertionError: ro, called = None, True
+            check(f"R4 language: {case['label']}: {jn} makes no model call and shows no model text", not called and not ro["final"].get("model_text"), ro and ro["final"])
+        try: rv = run_item(REVIEW, tu, "main", NoCall())["final"]
+        except AssertionError: rv = {"kind": "the model was called", "shown": ""}
+        check(f"R4 language: {case['label']}: the review is the code-only one, its facts lines intact", rv["kind"] == "baseline" and all(w in rv["shown"] for w in case["review_has"]), rv["shown"])
+
     # ================================================================================================ the extension point, the frozen gate, the prompts
     class Toy(core.Job):
         name, letter, title, item_kind = "toy_digest", "e", "toy", "toydigest"
