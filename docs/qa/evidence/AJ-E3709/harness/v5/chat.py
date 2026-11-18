@@ -46,15 +46,15 @@ ATTR_LEXICON = [   # (fields, kind, pattern, cue words: the words of the cue, dr
  (("cost_usd",), "cost", r"how much did .{0,60}?(?:cost|spend)|\bcost(?:s|ed)?\b|\bspen[dt]\b|was hat .{0,60}?gekostet|\bkosten\b|\bgekostet\b",
   "cost costs costed spend spent kosten gekostet usd dollars"),
  (("ended_at",), "when", r"how long ago|wie lange (?:[\w.-]+ ){0,4}?her\b|when did .{0,80}?\b(?:finish|end|complete|stop|wrap up|get done)|what time did .{0,80}?\b(?:finish|end)|"
-                         r"wann (?:[\w.-]+ ){0,6}?(?:fertig|beendet|geendet|abgeschlossen|aufgehört|zu ende)|\bend(?:ed)? at\b|\bendzeit\b",
-  "ago finish finished end ended complete completed stop stopped wrap up get done her fertig beendet geendet abgeschlossen aufgehört ende endzeit geworden"),
+                         r"wann (?:[\w.-]+ ){0,6}?(?:fertig|beendet|geendet|abgeschlossen|aufgehört|zu ende)|wann (?:endete|endeten|beendete|schloss)\b|\bend(?:ed)? at\b|\bendzeit\b",
+  "ago finish finished end ended complete completed stop stopped wrap up get done her fertig beendet geendet abgeschlossen aufgehört ende endzeit geworden endete endeten beendete"),
  (("started_at",), "when", r"when did .{0,80}?\b(?:start|begin|kick off)|what time did .{0,80}?\bstart|wann (?:[\w.-]+ ){0,6}?(?:gestartet|begonnen|angefangen|losgegangen|los)\b|"
-                           r"\bstart(?:ed)? at\b|\bstartzeit\b",
-  "start started begin began kick off gestartet begonnen angefangen losgegangen los startzeit"),
+                           r"wann (?:begann|begannen|startete|starteten|fing)\b|\bstart(?:ed)? at\b|\bstartzeit\b",
+  "start started begin began kick off gestartet begonnen angefangen losgegangen los startzeit begann begannen startete starteten fing an"),
  (("duration_s",), "duration", r"how long\b|wie lange\b|how much time|wie viel zeit|\bduration\b|\bdauer\b|how many (?:seconds|minutes|hours)|wie viele (?:sekunden|minuten|stunden)",
   "duration dauer seconds minutes hours sekunden minuten stunden zeit last lasted runtime laufzeit elapsed"),
  (("branch",), "string", r"(?:which|what|on what|on which) branch|(?:auf )?welche[mrns]? (?:branch|zweig)", "branch zweig"),
- (("author",), "string", r"\bwho\b|\bwer\b|\bauthor\b|\bautor(?:in)?\b", "author autor autorin wrote written made authored geschrieben gemacht"),
+ (("author",), "string", r"\bwho\b|\bwer\b|\bauthor\b|\bautor(?:in)?\b", "author autor autorin wrote written made authored geschrieben gemacht committed eingecheckt pushed gepusht"),
  (("path",), "string", r"\bwhere\b|(?:which|what) (?:file|path)\b|\bwo\b|welche[rs]? (?:datei|pfad)", "file path datei pfad located live lives liegt"),
  (("status",), "status", r"did .{0,80}?\b(?:finish|succeed|complete|fail|pass)\b|is .{0,80}?\b(?:done|finished|still running|running|stuck|waiting|complete)\b|"
                          r"what(?:'s| is) the (?:status|state)|how did .{0,80}?\b(?:end|go)\b|\bstatus\b|ist .{0,80}?\b(?:fertig|durch|abgeschlossen|fehlgeschlagen)\b|"
@@ -107,11 +107,17 @@ times there here any all so far total overall whole entire just also still ever 
 wie was welche welcher welches welchen welchem wann wo wer wem wen hat haben hatte hatten ist sind war waren wurde wurden werden wird der die
 das den dem des ein eine einen einem einer im in am an auf von für mit bei zu zum zur es mir mich ich du dir uns hier da dauern dauerte
 gedauert gebraucht braucht lange viele viel noch jetzt heute gestern letzte letzten letzter letztes bitte mal eigentlich insgesamt gesamt
-denn schon so nun und oder aber nicht kein keine""".split())
+denn schon so nun und oder aber nicht kein keine
+hold holds held contain contains contained belong belongs sit sits live lives land landed
+liegt liegen lag lagen steht stehen stand gehört gehören enthält enthalten geändert geänderte geänderten geänderter geändertes gemacht
+änderung änderungen""".split())   # round 3: the question's frame verbs
 SYN = [{"session", "sessions", "sitzung", "sitzungen"}, {"test", "tests", "testsuite", "testsuites", "suite", "suites", "testlauf", "testläufe"},
        {"build", "builds", "kompilierung"}, {"lint", "linter", "linting"}, {"deploy", "deployment", "deployments", "rollout", "bereitstellung"},
        {"branch", "branches", "zweig"}, {"file", "files", "datei", "dateien"}, {"agent", "agents"}, {"commit", "commits"},
-       {"migration", "migrations", "migrationen"}]
+       {"migration", "migrations", "migrationen"},
+       {"config", "configs", "configuration", "konfiguration", "konfigurationen", "konfig", "settings", "einstellungen"},   # round 3: EN/DE nouns
+       {"docs", "doc", "documentation", "dokumentation", "doku"}, {"task", "tasks", "aufgabe", "aufgaben"}, {"run", "runs", "lauf", "läufe"}]
+KIND_WORDS = set().union(*SYN[:10]) | {"task", "tasks", "aufgabe", "aufgaben"}   # words that name a kind of record: matched on its kind or name only
 SYN_OF = {w: g for g in SYN for w in g}
 IDENT_KEYS = ("name", "title", "label", "step", "job", "task", "suite", "workflow", "target", "type", "tool", "check")
 LINK_KEYS = ("session", "parent", "project", "repo", "app", "agent", "branch", "pool", "turn")
@@ -121,19 +127,31 @@ def wmatch(a, b):
     g = SYN_OF.get(a); return bool(g) and b in g
 def _has_all(keys, pool): return all(any(wmatch(k, p) for p in pool) for k in keys)
 LEAD = re.compile(r"^\s*([^:.;!?\n]{1,60}?):\s")
+LABEL_WORDS = 8               # a record's text this short is its label (round 2's sets: "export session", "checkout-fix", "Limits angepasst")
+VALUE_KEYS = ("path", "branch")   # string values that name the work (a branch "fix/timeout-guard", a path "config/limits.toml")
+def text_label(r):
+    """the record's own text as its label: the whole text when it is short, else its first clause, capped (round 3: the found list
+    showed placeholders such as 'session r1' for records named only by their text)"""
+    t = re.sub(r"\s+", " ", r.get("text") or "").strip()
+    if not t: return ""
+    if len(toks(t)) <= LABEL_WORDS: return t.rstrip(".")
+    first = re.split(r"(?<=[.;!?])\s|\s+—\s+", t)[0]
+    return gate._cap(first.rstrip("."), 60)
 def record_label(r):
     f = r["fields"]
     for k in IDENT_KEYS[:3]:
         if isinstance(f.get(k), str) and f[k].strip(): return f[k].strip()
     m = LEAD.match(r["text"] or "")
     if m: return m[1].strip()
-    return f"{r['kind']} {r['id']}"
+    return text_label(r) or f"{r['kind']} {r['id']}"
 def record_tokens(r):
+    """-> (ident, link, label): the record's identity (kind, id, name-like fields, lead label), its links, and the words that name its
+    work: a short text (its label), the start of a long one, and its path and branch values (round 3)"""
     f = r["fields"]; m = LEAD.match(r["text"] or "")
     ident = set(toks(r["kind"])) | set(toks(r["id"])) | {w for k in IDENT_KEYS if isinstance(f.get(k), str) for w in toks(f[k])} | (set(toks(m[1])) if m else set())
     link = {w for k in LINK_KEYS if f.get(k) not in (None, "") for w in toks(k) + toks(f[k])}
-    head = set(toks(r["text"])[:5])
-    return ident, link, head
+    tw = toks(r["text"]); label = set(tw if len(tw) <= LABEL_WORDS else tw[:6]) | {w for k in VALUE_KEYS if isinstance(f.get(k), str) for w in toks(f[k])}
+    return ident, link, label
 def subject_alternatives(question, cue=frozenset()):
     """the question's words less the cue's and the stop words -> [key-word lists], one per subject ("the ochre relay and slate
     importer sessions" gives two)"""
@@ -142,13 +160,21 @@ def subject_alternatives(question, cue=frozenset()):
         keys = [w for w in toks(chunk) if w not in STOP and w not in cue and w not in QUANTIFIERS and len(w) > 1 and not w.isdigit()]
         if keys: alts.append(list(dict.fromkeys(keys)))
     return alts
-def match(records, keys):
-    """-> [(score, record)] of the records whose identity and links hold every key; score = keys held by the identity alone. The
-    record's free text never identifies it: a session's text that mentions "the test suite" is not the test suite's record."""
+QUOTED = re.compile(r"[\"'“”„‘’«»‚]([^\"'“”„‘’«»‚]{2,60})[\"'“”„‘’«»‚]")
+def quoted_words(question):
+    """the words the question puts in quotes: a name ('import-test' names a record; its 'test' is no kind)"""
+    return {w for m in QUOTED.finditer(question or "") for w in toks(m[1])}
+def match(records, keys, names=frozenset()):
+    """-> [(score, record)] of the records that hold every key; score = keys held by the identity alone. A word that names a kind of
+    record (session, test, build, commit…) must be the record's kind or name: a session's text that mentions "the test suite" is not
+    the test suite's record. Any other key may also be in the record's label words (its short text, the start of a long one, its path
+    or branch: round 3, records named only by their text were "about nothing" in round 2)."""
     out = []
     for r in records:
-        ident, link, _h = record_tokens(r)
-        if _has_all(keys, ident | link): out.append((sum(1 for k in keys if any(wmatch(k, p) for p in ident)), r))
+        ident, link, label = record_tokens(r)
+        kind_word = lambda k: k not in names and (k in KIND_WORDS or bool(SYN_OF.get(k, set()) & KIND_WORDS))
+        if all(any(wmatch(k, p) for p in (ident | link if kind_word(k) else ident | link | label)) for k in keys):
+            out.append((sum(1 for k in keys if any(wmatch(k, p) for p in ident)), r))
     return out
 QUANTIFIERS = {"both", "beide", "beiden", "each", "every", "jede", "jeder", "jeden", "jedes"}
 PLURAL_CUES = {"sessions", "sitzungen", "both", "beide", "beiden", "all", "alle", "allen", "each", "every", "jede", "jeder", "jeden", "runs", "läufe",
@@ -164,14 +190,15 @@ def lookup(item, fields):
             if len(hold) == 1 else ([], "no subject words, and not exactly one record holds the field")
     found = []
     for keys in alts:
-        m = match(recs, keys)
+        m = match(recs, keys, quoted_words(item["question"]))
         if not m: return [], f"no record is about {' '.join(keys)!r}"
         best = max(s for s, _r in m); top = [r for s, r in m if s == best]
         hold = [r for r in top if has_field(r, fields)]
         if not hold: return [], f"the records about {' '.join(keys)!r} hold no {'/'.join(fields)} (a nearby record may: not the answer)"
         if len(hold) > 3: return [], f"{len(hold)} records match {' '.join(keys)!r}: too many to answer"
         if len(hold) > 1 and not (set(toks(item["question"])) & PLURAL_CUES):
-            return [(r, {f: r["fields"][f] for f in fields if r["fields"].get(f) not in (None, "")}) for r in hold], "ambiguous: " + " ".join(keys)
+            same = len({record_label(r).lower() for r in hold}) == 1
+            return [(r, {f: r["fields"][f] for f in fields if r["fields"].get(f) not in (None, "")}) for r in hold], ("same name: " if same else "ambiguous: ") + " ".join(keys)
         for r in hold:
             if all(r is not x for x, _v in found): found.append((r, {f: r["fields"][f] for f in fields if r["fields"].get(f) not in (None, "")}))
     return found, "found"
@@ -285,8 +312,19 @@ def phrase_system():
 # The job
 # ======================================================================================================================
 SCOPE_RX = re.compile(r"\b(?:write|code|regex|function|implement|refactor|translate|poem|joke|recipe|weather|schreib\w*|funktion|programmier\w*|übersetz\w*|witz|rezept|wetter)\b", re.I)
-def rows_text(item, ids=None):
-    return "\n".join(f"[{r['id']}] {r['kind']} \"{record_label(r)}\"" for r in item["records"] if ids is None or r["id"] in ids)
+def fields_text(r, hide=(), cap=4):
+    """a record's field values, less those of the asked kind (`hide`): a near miss's value never stands beside "I don't know"
+    (round 1: the session's 48 min under "how long did the test suite take")"""
+    vs = [f"{FIELD_WORDS.get(k, k)}: {fmt_value(k, v)}" for k, v in r["fields"].items()
+          if v not in (None, "") and k not in IDENT_KEYS[:3] and FIELD_KIND.get(k, "string") not in hide and k not in hide]
+    return "; ".join(vs[:cap])
+def rows_text(item, ids=None, hide=()):
+    """the found rows: each record's own label (its name, or its text: round 3) and its other field values, never a placeholder"""
+    return "\n".join(f"[{r['id']}] {r['kind']} \"{record_label(r)}\"" + (f" | {fields_text(r, hide)}" if fields_text(r, hide) else "")
+                     for r in item["records"] if ids is None or r["id"] in ids)
+def asked_kinds(fields):
+    """the kinds (and fields) a question asks: their values are hidden from the found rows"""
+    return tuple({FIELD_KIND.get(f, "string") for f in fields or ()} | set(fields or ()))
 KIND_PLURAL = {"en": {"session": "sessions", "test_run": "test runs", "record": "records"}, "de": {"session": "Sitzungen", "test_run": "Testläufe", "record": "Einträge"}}
 NUM_WORD = {"en": {2: "Two", 3: "Three"}, "de": {2: "Zwei", 3: "Drei"}}
 def ambiguous(item, found, why):
@@ -303,9 +341,55 @@ def ambiguous(item, found, why):
     else: head = f"{NUM_WORD['en'].get(n, n)} {plural} " + ("are called" if len(labels) == 1 else "match") + f" “{name}”:"
     return {"ok": True, "kind": "ambiguous", "shown": head + "\n" + "\n".join(found_lines(found)), "refs": [r["id"] for r, _v in found],
             "model_text": [], "errors": [], "notes": [why + " (no call)"], "found": [r["id"] for r, _v in found]}
-def dont_know(item, why):
+COUNT_WORDS = {"en": {"files_changed": "files changed"}, "de": {"files_changed": "Dateien geändert"}}
+SAME_NAME = {"en": ("{n} {plural} are called “{label}”: ", "started", "ended"), "de": ("{n} {plural} heißen „{label}“: ", "gestartet", "beendet")}
+def _when_of(r, lang):
+    W = SAME_NAME[lang]
+    for f, word in (("started_at", W[1]), ("ended_at", W[2])):
+        v = r["fields"].get(f)
+        if v not in (None, ""): return f"{word} {fmt_when(v).split(' ')[0]}"
+    return ""
+def same_name(item, found):
+    """round 3: two or three records equally named (a session run twice): each one's value with its record and its date, by code, as
+    the answer ("20 min (started 2026-11-02) [r1]; 5 min (started 2026-11-09) [r2]")"""
+    lang = "de" if item.get("lang") == "de" else "en"; n = len(found)
+    kinds = {r["kind"] for r, _v in found}; kind = kinds.pop() if len(kinds) == 1 else "record"
+    plural = KIND_PLURAL[lang].get(kind) or (kind + "s" if lang == "en" else "Einträge")
+    head = SAME_NAME[lang][0].format(n=NUM_WORD[lang].get(n, n), plural=plural, label=record_label(found[0][0]))
+    def val(vals):
+        return ", ".join(f"{fmt_value(f, v)} {COUNT_WORDS[lang][f]}" if f in COUNT_WORDS[lang] else fmt_value(f, v) for f, v in vals.items())
+    parts = [val(vals) + (f" ({_when_of(r, lang)})" if _when_of(r, lang) else "") + f" [{r['id']}]" for r, vals in found]
+    return {"ok": True, "kind": "answer", "shown": head + "; ".join(parts) + ".", "refs": [r["id"] for r, _v in found], "model_text": [], "errors": [],
+            "notes": ["equally named records: each value, by code (no call)"], "found": [r["id"] for r, _v in found],
+            "values": [{"id": r["id"], **vals} for r, vals in found]}
+PICK_SCHEMA = lambda ids: j4.O("ChatPick", [
+    ("pick", j4.E(list(ids) + ["unclear"], "The one CANDIDATES record the QUESTION asks about, or unclear when its words don't tell them apart.")),
+    ("answer", j4.S(200, 1, "One short sentence answering the QUESTION with that record's value, copied exactly, or none when unclear. At most 200 characters."))])
+PICK_INSTR = ("You are AI Juggler's Chat. AI Juggler watches a developer's coding agents. The developer asked a QUESTION, and AI Juggler found "
+  "more than one record that could be meant: the CANDIDATES lines, each with its own words and its exact value.\n\nRules:\n"
+  "- Pick the one candidate the QUESTION's words are about. When its words fit more than one, or none, pick unclear: never guess.\n"
+  "- Answer with the picked record's value exactly as written. Never add a number, name, time or state that is not in its line.\n"
+  "- Answer only the QUESTION. Never say you did or will do anything.\n- Write in the question's language.\n\nFields, in this order:\n"
+  "- pick: a candidate id, or unclear.\n- answer: one short sentence, at most 200 characters, or none when unclear.")
+PICK_EX = [
+ {"question": "Where is the changed lint rule?",
+  "found": [({"id": "c-1", "kind": "commit", "fields": {"path": "lint/rules.yaml"}, "text": "tightened the lint rules"}, {"path": "lint/rules.yaml"}),
+            ({"id": "c-2", "kind": "commit", "fields": {"path": "docs/lint.md"}, "text": "notes on linting"}, {"path": "docs/lint.md"})],
+  "out": {"pick": "c-1", "answer": "The changed lint rule is in lint/rules.yaml."}},
+ {"question": "How long did the plover session take?",
+  "found": [({"id": "s-1", "kind": "session", "fields": {"name": "plover sync"}, "text": ""}, {"duration_s": 720}),
+            ({"id": "s-2", "kind": "session", "fields": {"name": "plover backfill"}, "text": ""}, {"duration_s": 2400})],
+  "out": {"pick": "unclear", "answer": "none"}},
+]
+def pick_prompt(question, found): return "QUESTION (from the developer): " + question + "\n\nCANDIDATES (found by AI Juggler; exact values):\n" + \
+    "\n".join(found_lines(found)) + "\n\nPick the candidate the QUESTION is about, or unclear, and answer with its value."
+def pick_system():
+    ex = [f"Example {i}\n{pick_prompt(e['question'], e['found'])}\nOUTPUT: {j4.to_grammar_json(e['out'])}" for i, e in enumerate(PICK_EX, 1)]
+    return PICK_INSTR + "\n\n" + "\n\n".join(ex)
+def dont_know(item, why, fields=None):
     lead = j4.FIXED["dont_know"] if not item["records"] else j4.FIXED["not_sure"]
-    return {"ok": True, "kind": "dont_know", "shown": lead + ("\n" + rows_text(item) if item["records"] else ""), "refs": [r["id"] for r in item["records"]],
+    hide = asked_kinds(fields) if fields else tuple(FIELD_KIND.values())        # the asked kind's values hidden; unknown ask: no values
+    return {"ok": True, "kind": "dont_know", "shown": lead + ("\n" + rows_text(item, None, hide) if item["records"] else ""), "refs": [r["id"] for r in item["records"]],
             "model_text": [], "errors": [], "notes": [why], "found": []}
 def v4_item(item):
     """the v4 Chat path's item: each record a row whose words are its text and its typed fields (code-rendered)"""
@@ -319,15 +403,24 @@ class Chat(Job):
         fs, kind, _cue = classify(item["question"])
         if fs:
             found, why = lookup(item, fs)
-            return ("lookup", fs, found, why)
+            return ("pick" if why.startswith("ambiguous") else "lookup", fs, found, why)
         alts = subject_alternatives(item["question"])
         if SCOPE_RX.search(item["question"]) and not any(match(item["records"], k) for k in alts): return ("scope", None, [], "not about AI Juggler's records")
         return ("open", None, [], "the lexicon names no typed field: v4's Chat path")
     def plan(self, item, setting, mark=True):
         path, fs, found, why = self.route(item)
         if path == "scope": return {"decided": {"ok": True, "kind": "scope", "shown": j4.FIXED["scope"], "refs": [], "model_text": [], "errors": [], "notes": [why], "found": []}}
-        if path == "lookup" and not found: return {"decided": dont_know(item, why)}
-        if path == "lookup" and why.startswith("ambiguous"): return {"decided": ambiguous(item, found, why)}
+        if path == "lookup" and not found: return {"decided": dont_know(item, why, fs)}
+        if path == "lookup" and why.startswith("same name"): return {"decided": same_name(item, found)}
+        if path == "pick":
+            ids = [r["id"] for r, _v in found]; schema = PICK_SCHEMA(ids); sys_t = pick_system(); src = item["question"] + "\n" + "\n".join(found_lines(found))
+            schema = j4.with_script_guide(schema, src)
+            def build(note):
+                p = pick_prompt(item["question"], found) + note
+                return {"job": "chat", "mode": "fields", "system": sys_t, "prompt": p, "schema": schema, "grammar": j4.gbnf(schema, src), "max_tokens": 200,
+                        "est_tokens": j4.est_tokens(sys_t) + j4.est_tokens(p) + j4.est_tokens(json.dumps(schema)) + 200, "cut": False,
+                        "refs": ids, "question": item["question"], "path": "pick"}
+            return {"build": build, "schema": schema}
         if path == "lookup":
             ids = [r["id"] for r, _v in found]; schema = PHRASE_SCHEMA(ids); sys_t = phrase_system(); src = item["question"] + "\n" + "\n".join(found_lines(found))
             schema = j4.with_script_guide(schema, src)
@@ -344,9 +437,21 @@ class Chat(Job):
                     "est_tokens": est + j4.est_tokens(note), "cut": cut, "refs": [r["ref"] for r in ci["rows"]], "question": item["question"], "path": "open"}
         return {"build": build, "schema": j4.chat_schema([r["ref"] for r in ci["rows"]])}
     def evaluate(self, item, setting, fields, finish="stop", refused=False):
-        path, fs, found, _why = self.route(item)
+        path, fs, found, why = self.route(item)
+        if path == "pick": return self._eval_pick(item, fields, found, why, finish)
         if path == "lookup": return self._eval_lookup(item, fields, found, finish)
         return self._eval_open(item, fields, finish)
+    def _eval_pick(self, item, fields, found, why, finish):
+        """round 3: several records match the subject and code can't tell them apart: the model picks one by the question's words, or
+        unclear. Code checks the answer against the picked record alone (its value; no other candidate's) and cites it by code."""
+        pick = fields.get("pick")
+        if pick == "unclear": return dict(ambiguous(item, found, why), notes=["the model found the question unclear: the candidates, by code"])
+        chosen = [(r, v) for r, v in found if r["id"] == pick]
+        if not chosen: return {"ok": False, "kind": "rejected", "errors": [f"pick: {pick!r} is not a candidate"], "model_text": []}
+        # the picked record alone is the source: another candidate's value is then "invented" or a wrong value (step 2, value_errors)
+        res = self._eval_lookup(item, {"answer": fields.get("answer", ""), "cites": [pick]}, chosen, finish)
+        if not res["ok"]: return res
+        return dict(res, notes=res["notes"] + [f"picked {pick} of {[r['id'] for r, _v in found]}"])
     def _eval_lookup(self, item, fields, found, finish):
         if not found: return {"ok": False, "kind": "rejected", "errors": ["nothing was looked up: code says I don't know"], "model_text": []}
         ids = [r["id"] for r, _v in found]; ans = re.sub(r"\s*\[[^\]]{1,40}\]", "", j4._tidy(fields.get("answer", ""))).strip()
@@ -389,22 +494,23 @@ class Chat(Job):
             found, why = lookup(item, hint)
             # no record at the subject holds the asked field (a start time for "when did it start"): I don't know and the found rows,
             # whatever the parts say (round 2: an end time and a duration answered a start question)
-            if not found: return {**dont_know(item, f"the question asks {'/'.join(hint)}; {why}"), "notes": ["the asked field overrode a written answer"]}
+            if not found: return {**dont_know(item, f"the question asks {'/'.join(hint)}; {why}", hint), "notes": ["the asked field overrode a written answer"]}
             if not errs:
                 ve = value_errors(o["text"], found, item)
                 if ve: errs += ve
         if errs: return {"ok": False, "kind": "rejected", "errors": errs, "model_text": []}
         kind = {"answer": "answer", "scope": "scope"}.get(o["kind"], "dont_know")
-        return {"ok": True, "kind": kind, "shown": o["text"] + ("\n" + rows_text(item, o["refs"]) if kind == "dont_know" else ""), "refs": o["refs"],
+        return {"ok": True, "kind": kind, "shown": o["text"] + ("\n" + rows_text(item, o["refs"], tuple(set(FIELD_KIND.values()))) if kind == "dont_know" else ""), "refs": o["refs"],
                 "model_text": [p["text"] for p in o.get("parts") or []] if kind == "answer" else [], "errors": [], "notes": o["notes"], "found": []}
     def fallback(self, item, setting):
         path, fs, found, why = self.route(item)
-        if path == "lookup" and why.startswith("ambiguous"): return ambiguous(item, found, why)
+        if path == "pick": return ambiguous(item, found, why)
+        if path == "lookup" and why.startswith("same name"): return same_name(item, found)
         if path == "lookup" and found:
             lines = [f"{record_label(r)} [{r['id']}]: {display(vals)}" for r, vals in found]
             return {"ok": True, "kind": "found_values", "shown": "\n".join(lines), "refs": [r["id"] for r, _v in found], "model_text": [], "errors": [],
                     "notes": ["every attempt failed its checks: the looked-up values, by code"], "found": [r["id"] for r, _v in found]}
-        return {**dont_know(item, "every attempt failed its checks: the found rows"), "kind": "found_rows"}
+        return {**dont_know(item, "every attempt failed its checks: the found rows", fs), "kind": "found_rows"}
     def alternative(self, item, setting):
         f = self.fallback(item, setting); return f["shown"]
     def write_prompts(self):
@@ -416,6 +522,8 @@ class Chat(Job):
                phrase_prompt(e["question"], e["found"]), "```", "", "## Look-up path: fields", "", "```json",
                json.dumps(PHRASE_SCHEMA(["s-41"]), indent=1, ensure_ascii=False), "```", "", "## Look-up path: GBNF", "", "```gbnf",
                j4.gbnf(PHRASE_SCHEMA(["s-41"])).rstrip("\n"), "```", "",
+               "## Pick path (round 3: several records match and code can't tell them apart): system prompt", "", "```text", pick_system(), "```", "",
+               "## Pick path: fields", "", "```json", json.dumps(PICK_SCHEMA(["c-1", "c-2"]), indent=1, ensure_ascii=False), "```", "",
                "## The lexicon (code, not the model: what the question asks for)", "", "| Fields | Kind | Pattern |", "|---|---|---|"]
         doc += [f"| {', '.join(fs)} | {k} | `{rx.pattern.replace('|', '¦')}` |" for fs, k, rx, _cw in ATTR_LEXICON]
         return "\n".join(doc) + "\n"

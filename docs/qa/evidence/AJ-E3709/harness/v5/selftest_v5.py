@@ -390,12 +390,26 @@ def selftest():
     # ================================================================================================ R2-3. Chat: two records match the subject
     h1 = {"id": "s-h1", "kind": "session", "fields": {"name": "heron api", "files_changed": 11}, "text": ""}
     h2 = {"id": "s-h2", "kind": "session", "fields": {"name": "heron api older run", "files_changed": 4}, "text": ""}
-    nc = NoCall(); rec = run_item(CHAT, chat_item("How many files did the heron api session change?", [h1, h2]), "main", nc)
-    check("same name: two records at the subject -> said so, each with its value, no call", not rec["model_called"] and rec["final"]["kind"] == "ambiguous"
+    ith = chat_item("How many files did the heron api session change?", [h1, h2])
+    eng = Script([{"pick": "s-h1", "answer": "The heron api session changed 11 files."}]); rec = run_item(CHAT, ith, "main", eng)
+    check("R3 pick: two differently named records at the subject -> the model picks one; code cites it", rec["used"] == 0 and rec["final"]["kind"] == "answer"
+          and rec["final"]["refs"] == ["s-h1"] and rec["final"]["shown"].endswith("[s-h1]") and "CANDIDATES" in eng.reqs[0]["prompt"], rec)
+    rec = run_item(CHAT, ith, "main", Script([{"pick": "unclear", "answer": "none"}]))
+    check("R3 pick: 'unclear' -> said so, each record with its value (round 2's listing)", rec["used"] == 0 and rec["final"]["kind"] == "ambiguous"
           and rec["final"]["shown"].startswith("Two sessions match “heron api”:") and "11" in rec["final"]["shown"] and "4" in rec["final"]["shown"], rec["final"])
+    rec = run_item(CHAT, ith, "main", Script([{"pick": "s-h1", "answer": "The heron api session changed 4 files."}] * 3))
+    check("R3 pick: an answer with the other record's value is refused, then the listing", rec["used"] == "fallback" and rec["final"]["kind"] == "ambiguous"
+          and any("value" in e for e in rec["attempts"][0]["errors"]), rec["attempts"][0]["errors"])
+    rec = run_item(CHAT, ith, "main", Script([{"pick": "s-h2", "answer": "The heron api older run changed 4 files."}]))
+    check("R3 pick: the picked record's own value passes", rec["used"] == 0 and rec["final"]["refs"] == ["s-h2"], rec["attempts"])
+    lp = [{"id": "c-7", "kind": "commit", "fields": {"path": "kiln/rules.toml"}, "text": "kiln rules tightened"}, {"id": "c-8", "kind": "commit", "fields": {"path": "kiln/rules.md"}, "text": "kiln rules explained"}]
+    itl = chat_item("Where are the kiln rules?", lp)
+    rec = run_item(CHAT, itl, "main", Script([{"pick": "c-7", "answer": "The kiln rules are in kiln/rules.toml, explained in kiln/rules.md."}] * 3))
+    check("R3 pick: an answer naming the other candidate's value too is refused", rec["used"] == "fallback" and any(("invented" in e and "rules.md" in e) or "value" in e for e in rec["attempts"][0]["errors"]), rec["attempts"][0]["errors"])
     h2b = dict(h2, fields={"name": "heron api", "files_changed": 4})
     rec = run_item(CHAT, chat_item("Wie viele Dateien hat die Sitzung heron api geändert?", [h1, h2b]), "main", NoCall())
-    check("same name (German, identical names): 'Zwei Sitzungen heißen …'", rec["final"]["shown"].startswith("Zwei Sitzungen heißen „heron api“:"), rec["final"]["shown"])
+    check("R3 same name (German, identical names): each value with its record, as the answer, no call",
+          rec["final"]["kind"] == "answer" and rec["final"]["shown"] == "Zwei Sitzungen heißen „heron api“: 11 Dateien geändert [s-h1]; 4 Dateien geändert [s-h2].", rec["final"]["shown"])
     path, _fs, found, why = CHAT.route(chat_item("How many files did both heron api sessions change?", [h1, h2]))
     check("same name: a plural question lists both (no ambiguity)", path == "lookup" and len(found) == 2 and why == "found", why)
 
@@ -568,6 +582,40 @@ def selftest():
     check("R3 review: ...its note shows beside git's one file", rec["used"] == 0 and rec["final"]["lines"][0] == "Geändert (git): ammer/flush.py (+22 -9) — der Ammer-Flush schreibt jetzt in Blöcken", rec["final"])
     rec = run_item(REVIEW, t1, "main", Script([{"notes": [{"path": "ammer/flush.py", "says": "der Ammer-Flush schreibt jetzt in Blöcken"}], "risk_reason": "none", "risk": "low"}]))
     check("R3 review: ...and a recorded draft in the list shape still replays", rec["used"] == 0 and "— der Ammer-Flush" in rec["final"]["lines"][0], rec["attempts"])
+
+    # ================================================================================================ R3-4. Chat: records named by their text
+    def ci(q, recs, gold=None): return chat_item(q, [dict({"kind": "session", "text": ""}, **r) for r in recs], gold)
+    def routed(q, recs): p_, _f, fd, w = CHAT.route(ci(q, recs)); return p_, [r["id"] for r, _v in fd], w
+    exp = [{"id": "r1", "kind": "session", "fields": {"status": "blocked"}, "text": "vole export session"},
+           {"id": "r2", "kind": "test_run", "fields": {"status": "passed"}, "text": "vole export tests"}]
+    check("R3 chat: a record named only by its text is found (kind 'session' and the text's 'vole export')", routed("What is the status of the vole export session?", exp)[:2] == ("lookup", ["r1"]))
+    rec = run_item(CHAT, ci("What is the status of the vole export session?", exp), "main", Script([{"answer": "The vole export session is blocked.", "cites": ["r1"]}]))
+    check("R3 chat: ...and answered from its own field", rec["used"] == 0 and rec["final"]["refs"] == ["r1"], rec["attempts"])
+    check("R3 chat: the found line shows the record's text, never a placeholder", chat.found_lines([(ci("x", exp)["records"][0], {"status": "blocked"})]) == ['[r1] session "vole export session" | status: blocked'])
+    wr = [{"id": "r1", "kind": "session", "fields": {"duration_s": 2900}, "text": "wren tests rewrite"}]
+    check("R3 chat: a kind word ('tests') must be the record's kind or name, not its text: near miss stays I don't know",
+          routed("How long did the wren tests take?", wr)[:2] == ("lookup", []), routed("How long did the wren tests take?", wr))
+    rec = run_item(CHAT, ci("How long did the wren tests take?", wr), "main", NoCall())
+    check("R3 chat: ...and its rows show the record's text without the asked kind's value", rec["final"]["kind"] == "dont_know" and "wren tests rewrite" in rec["final"]["shown"]
+          and "48" not in rec["final"]["shown"] and "min" not in rec["final"]["shown"], rec["final"]["shown"])
+    br = [{"id": "c1", "kind": "commit", "fields": {"branch": "fix/cache-ttl"}, "text": "cache fix for the ttl"}, {"id": "k2", "kind": "task", "fields": {"branch": "main"}, "text": "release train"}]
+    check("R3 chat: a frame verb ('holds') is no subject: 'Which branch holds the cache fix?' finds the commit", routed("Which branch holds the cache fix?", br)[:2] == ("lookup", ["c1"]))
+    dk = [{"id": "c1", "kind": "commit", "fields": {"path": "docs/importer.md"}, "text": "Importer-Doku"}, {"id": "c2", "kind": "commit", "fields": {"path": "src/importer.py"}, "text": "Importer umgebaut"}]
+    check("R3 chat: German and English nouns ('Dokumentation' ~ docs, doku) find the record by its text and path", routed("Wo liegt die Dokumentation zum Importer?", dk)[:2] == ("lookup", ["c1"]),
+          routed("Wo liegt die Dokumentation zum Importer?", dk))
+    lt = [{"id": "s1", "kind": "session", "fields": {"ended_at": "2026-10-04T17:20:00Z"}, "text": "lint-test"}]
+    check("R3 chat: a quoted name's words are a name ('lint-test': its 'test' is no kind); the German preterite 'endete' asks the end",
+          routed("Wann endete 'lint-test'?", lt)[:2] == ("lookup", ["s1"]) and chat.classify("Wann endete 'lint-test'?")[0] == ("ended_at",), routed("Wann endete 'lint-test'?", lt))
+    check("R3 chat: ...unquoted, 'test' is a kind and the session is not a test run", routed("When did the lint test end?", lt)[:2] == ("lookup", []))
+    check("R3 chat: 'Wann begann …' asks the start", chat.classify("Wann begann der Testlauf 'smoke-2'?")[0] == ("started_at",))
+    kf = [{"id": "s1", "fields": {"duration_s": 1500, "started_at": "2026-10-03T09:00:00Z"}, "text": "kiln-fix"},
+          {"id": "s2", "fields": {"duration_s": 600, "started_at": "2026-10-08T09:00:00Z"}, "text": "kiln-fix"}]
+    rec = run_item(CHAT, ci("How long did kiln-fix take?", kf), "main", NoCall())
+    check("R3 chat: equally named records -> each value with its record and date, as the answer, no call",
+          rec["final"]["kind"] == "answer" and rec["final"]["shown"] == "Two sessions are called “kiln-fix”: 25 min (started 2026-10-03) [s1]; 10 min (started 2026-10-08) [s2].", rec["final"]["shown"])
+    vo = [{"id": "s1", "fields": {"cost_usd": 2.1}, "text": "vole import"}]
+    rec = run_item(CHAT, ci("What did the vole export cost?", vo), "main", NoCall())
+    check("R3 chat: a near-miss distractor (vole import for 'vole export') stays I don't know, its cost unshown", rec["final"]["kind"] == "dont_know" and "2.10" not in rec["final"]["shown"], rec["final"])
 
     # ================================================================================================ the extension point, the frozen gate, the prompts
     class Toy(core.Job):

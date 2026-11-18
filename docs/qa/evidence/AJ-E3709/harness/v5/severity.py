@@ -208,7 +208,7 @@ def chat_findings(view):
             ok, bad = gate.step2_v3(src, m, None)
             if not ok: out.append(F("critical", "invented", f"{m[:120]!r}: " + ", ".join(f"{c} {x}" for c, x in bad)))
             if j4.ACTING.search(m): out.append(F("critical", "acting", m[:160]))
-        if view.get("found_pairs"):
+        if view.get("found_pairs") and mt:                 # round 3: a code-written answer (equally named records) has no model words to check
             ve = chatmod.value_errors(" ".join(mt), view["found_pairs"], it)
             if ve: out.append(F("critical", "wrong_value", "; ".join(ve)[:200]))
         fb = _forbidden(g, mt)

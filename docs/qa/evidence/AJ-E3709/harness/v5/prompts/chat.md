@@ -118,6 +118,77 @@ chatphrase-cites-arr ::= "[" ws chatphrase-cites-item-enum (ws "," ws chatphrase
 chatphrase-obj ::= "{" ws "\"answer\":" ws str1x200 ws "," ws "\"cites\":" ws chatphrase-cites-arr ws "}"
 ```
 
+## Pick path (round 3: several records match and code can't tell them apart): system prompt
+
+```text
+You are AI Juggler's Chat. AI Juggler watches a developer's coding agents. The developer asked a QUESTION, and AI Juggler found more than one record that could be meant: the CANDIDATES lines, each with its own words and its exact value.
+
+Rules:
+- Pick the one candidate the QUESTION's words are about. When its words fit more than one, or none, pick unclear: never guess.
+- Answer with the picked record's value exactly as written. Never add a number, name, time or state that is not in its line.
+- Answer only the QUESTION. Never say you did or will do anything.
+- Write in the question's language.
+
+Fields, in this order:
+- pick: a candidate id, or unclear.
+- answer: one short sentence, at most 200 characters, or none when unclear.
+
+Example 1
+QUESTION (from the developer): Where is the changed lint rule?
+
+CANDIDATES (found by AI Juggler; exact values):
+[c-1] commit "tightened the lint rules" | path: lint/rules.yaml
+[c-2] commit "notes on linting" | path: docs/lint.md
+
+Pick the candidate the QUESTION is about, or unclear, and answer with its value.
+OUTPUT: {"pick": "c-1", "answer": "The changed lint rule is in lint/rules.yaml."}
+
+Example 2
+QUESTION (from the developer): How long did the plover session take?
+
+CANDIDATES (found by AI Juggler; exact values):
+[s-1] session "plover sync" | duration: 12 min
+[s-2] session "plover backfill" | duration: 40 min
+
+Pick the candidate the QUESTION is about, or unclear, and answer with its value.
+OUTPUT: {"pick": "unclear", "answer": "none"}
+```
+
+## Pick path: fields
+
+```json
+{
+ "type": "object",
+ "name": "ChatPick",
+ "description": "",
+ "properties": [
+  {
+   "name": "pick",
+   "description": "The one CANDIDATES record the QUESTION asks about, or unclear when its words don't tell them apart.",
+   "schema": {
+    "type": "enum",
+    "values": [
+     "c-1",
+     "c-2",
+     "unclear"
+    ],
+    "description": "The one CANDIDATES record the QUESTION asks about, or unclear when its words don't tell them apart."
+   }
+  },
+  {
+   "name": "answer",
+   "description": "One short sentence answering the QUESTION with that record's value, copied exactly, or none when unclear. At most 200 characters.",
+   "schema": {
+    "type": "string",
+    "max": 200,
+    "min": 1,
+    "description": "One short sentence answering the QUESTION with that record's value, copied exactly, or none when unclear. At most 200 characters."
+   }
+  }
+ ]
+}
+```
+
 ## The lexicon (code, not the model: what the question asks for)
 
 | Fields | Kind | Pattern |
@@ -127,8 +198,8 @@ chatphrase-obj ::= "{" ws "\"answer\":" ws str1x200 ws "," ws "\"cites\":" ws ch
 | tests_passed, tests_failed | tests | `did (?:the ¦all ¦all the )?(?:[\w.-]+ )?tests? pass¦(?:were¦are) (?:all )?(?:the )?tests? (?:green¦passing¦ok)¦test results?¦(?:sind¦waren) (?:die ¦alle )?tests? (?:[\w.-]+ ){0,6}?(?:durch¦grün¦bestanden¦ok)\b¦haben (?:die ¦alle )?tests? bestanden¦testergebnis(?:se)?` |
 | files_changed | count | `how many files¦wie viele dateien¦number of (?:changed )?files¦anzahl (?:der )?(?:geänderten )?dateien` |
 | cost_usd | cost | `how much did .{0,60}?(?:cost¦spend)¦\bcost(?:s¦ed)?\b¦\bspen[dt]\b¦was hat .{0,60}?gekostet¦\bkosten\b¦\bgekostet\b` |
-| ended_at | when | `how long ago¦wie lange (?:[\w.-]+ ){0,4}?her\b¦when did .{0,80}?\b(?:finish¦end¦complete¦stop¦wrap up¦get done)¦what time did .{0,80}?\b(?:finish¦end)¦wann (?:[\w.-]+ ){0,6}?(?:fertig¦beendet¦geendet¦abgeschlossen¦aufgehört¦zu ende)¦\bend(?:ed)? at\b¦\bendzeit\b` |
-| started_at | when | `when did .{0,80}?\b(?:start¦begin¦kick off)¦what time did .{0,80}?\bstart¦wann (?:[\w.-]+ ){0,6}?(?:gestartet¦begonnen¦angefangen¦losgegangen¦los)\b¦\bstart(?:ed)? at\b¦\bstartzeit\b` |
+| ended_at | when | `how long ago¦wie lange (?:[\w.-]+ ){0,4}?her\b¦when did .{0,80}?\b(?:finish¦end¦complete¦stop¦wrap up¦get done)¦what time did .{0,80}?\b(?:finish¦end)¦wann (?:[\w.-]+ ){0,6}?(?:fertig¦beendet¦geendet¦abgeschlossen¦aufgehört¦zu ende)¦wann (?:endete¦endeten¦beendete¦schloss)\b¦\bend(?:ed)? at\b¦\bendzeit\b` |
+| started_at | when | `when did .{0,80}?\b(?:start¦begin¦kick off)¦what time did .{0,80}?\bstart¦wann (?:[\w.-]+ ){0,6}?(?:gestartet¦begonnen¦angefangen¦losgegangen¦los)\b¦wann (?:begann¦begannen¦startete¦starteten¦fing)\b¦\bstart(?:ed)? at\b¦\bstartzeit\b` |
 | duration_s | duration | `how long\b¦wie lange\b¦how much time¦wie viel zeit¦\bduration\b¦\bdauer\b¦how many (?:seconds¦minutes¦hours)¦wie viele (?:sekunden¦minuten¦stunden)` |
 | branch | string | `(?:which¦what¦on what¦on which) branch¦(?:auf )?welche[mrns]? (?:branch¦zweig)` |
 | author | string | `\bwho\b¦\bwer\b¦\bauthor\b¦\bautor(?:in)?\b` |

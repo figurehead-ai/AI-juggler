@@ -38,7 +38,8 @@ def chat_view_extras(item, outcome):
     path, fs, found, _why = REGISTRY["chat"].route(item)
     src = item["question"] + "\n" + "\n".join(chat.found_lines(found)) + "\n" + "\n".join(
         r["text"] + " " + " ".join(f"{k}: {chat.fmt_value(k, v)}" for k, v in r["fields"].items()) for r in item["records"])
-    return {"source": src, "found_pairs": found if (path == "lookup" and outcome.get("kind") == "answer") else None}
+    if path == "pick" and outcome.get("kind") == "answer": found = [(r, v) for r, v in found if r["id"] in (outcome.get("refs") or [])]   # round 3
+    return {"source": src, "found_pairs": found if (path in ("lookup", "pick") and outcome.get("kind") == "answer") else None}
 def view_of(job, item, rec, final):
     v = {"job": job.name, "id": item["id"], "setting": rec.get("setting"), "outcome": final, "attempts": rec.get("attempts"),
          "model_called": rec.get("model_called"), "used": rec.get("used")}
