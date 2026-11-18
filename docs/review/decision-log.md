@@ -3400,3 +3400,25 @@ The design that follows from it:
 - Sources: the maintainer's messages with two screenshots, 2026-11-16.
 - **Clarified the same day:** the maintainer added "We keep going in circles, you keep swinging from one extreme to totally other side of extreme." D-126 is not a swing to colourful screens. It means one design language, with the same tokens, type, icons and craft on every screen. Only the amount of status and accent colour differs: scarce on monitoring screens, used for selection, progress and previews on making and editing screens. No decoration for its own sake. A wizard next to Home must read as the same product.
 - **Scope widened the same day:** "You need to check all the screens… and fix them all… In both things need to be easy to read and see." Every screen is audited, and each is classed as monitoring (dashboards, feeds, lists, where the user watches for things) or making and editing (where the user creates and adjusts). Both kinds must be easy to read and look polished. Recurring problems are fixed once, at the token and component level, then screen by screen.
+
+### D-127 Never show an option the user can't use on their setup; re-prove version-gated features when a tool updates — SETTLED (2026-11-18)
+
+**Ruling.** On 2026-11-18 the maintainer, testing a switch, found "Move to account" shown but disabled: "A move between Claude app profiles is proven for version 4.x; this one is 5.11492.5". Their words: "I thought you built in 4.* moving in place, but than when I tried it, it shows it is not there??? … we SHOULD NEVER EVER ENABLE IN UI/UX a not completed functionality, what is the purpose of that???"
+
+**The facts:**
+- Move in place was built and proven on 2026-11-08 (ADR-0031, D-93), on the Claude app 4.x.
+- The Claude app on this Mac has since updated to 5.11492.5.
+- The move's safety gate (`PROVEN_APP_MAJORS = ["4"]` in crates/juggler-adapters/src/claude_move.rs) refuses an unproven version, and the switch sheet showed the refused option, greyed out, with an engineering reason.
+
+**The ruling:**
+1. **Never show an option that can't work on the user's setup.**
+   - If a capability is unsupported for the user's versions, tools or disks, it's hidden. The working choice is shown alone, with no "not proven" text.
+   - An option is shown disabled only when the user can unblock it themselves, and it says how. For example: "4 sessions are working in this profile; Move becomes available once they finish."
+   - Reasons are in plain words, never internal ones ("proven", "major").
+2. **Version gates are watched, not left to rot.**
+   - When an app or CLI updates past a proven version, AI Juggler records it.
+   - The release flow's scope check lists every gate whose tool has moved past it on the reference Mac.
+   - That gate is re-proven in the lab and widened, or the hidden option stays hidden by design, before the next release.
+3. **Claude app 5.x moves:** re-prove move in place on the Claude app 5.x in the lab (the aij-test profile, ADR-0031's checklist). If the records and launch are unchanged, widen the gate. This is a 0.4.6 fix: a shipped feature that quietly disappeared after the app updated.
+
+- Sources: the maintainer's message with a screenshot, 2026-11-18.
