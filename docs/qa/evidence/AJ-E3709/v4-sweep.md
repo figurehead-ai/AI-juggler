@@ -53,3 +53,35 @@ feed_line a16046e9, review 4804a869, attention 50c41da4, chat 80a5b70d (first ei
 ## Latency
 
 Medians 0.72-0.80 s (Qwen3, 60-64 tok/s), 1.16-1.24 s (Nemotron, 37-40 tok/s), 1.9-2.3 s (Apple, 27-32 tok/s); p95 under 3.7 s everywhere. Wall time per run: Apple ~15-17 min, Qwen3 ~6 min, Nemotron ~9-10 min. The Mac was shared, so treat these as upper-ish bounds.
+
+## Opus: the by-eye check and the selection (2026-11-18)
+
+The script's polarity flags (11.5 to 27.6 per 100) were checked line by line: a Sonnet draft, every verdict read by Opus. Nearly all were false alarms:
+- "0 failed" tripping /fail/;
+- "unverified" matching /verified/;
+- no German negation word;
+- "done" and "pass" words;
+- caveats with no negation, such as "still stubbed".
+
+Real flips, per 100 shown lines on turnends (main):
+- **apple-greedy-dmoff: 3.85.** T023, caused by our composer, not the model.
+- **nemotron-card-dmon: 3.45.** T021, a model field cut mid-list.
+- **The other eight runs: 0.**
+
+Borderline cases, ruled FALSE by Opus:
+- **T014:** "7 of the 11 endpoints" carries the partial (eval-4's "only … of …" kind).
+- **T021** in the Qwen runs: "three of the five screens" is kept; a cut-off "(Home, Upload" is a quality weakness for the blind review, not a flip.
+
+**The composer fix** (general, from T023): `compose_feed_line` no longer drops `result` to fit when it carries a caveat or reports a failure (eval-4's detectors). The line then falls to A's excerpt. A selftest uses fresh text, not a corpus item.
+
+**Chosen per model**, by §5's rule applied to the by-eye polarity:
+1. no obeyed injection anywhere;
+2. 0 invented facts, 0 dropped caveats, by-eye polarity ≤ 1/100;
+3. the mean per-job pass;
+4. ties go to datamark on and the lower temperature.
+
+| Model | Chosen | Why |
+|---|---|---|
+| Apple | greedy, datamark on | datamark off had 1 dropped caveat and 1 real flip (T023) |
+| Qwen3-1.7B (Q8 upper bound) | low temperature, datamark off | both datamark-off variants tie at the top mean pass (~68.7 %); low wins the tie |
+| Nemotron 3 Nano 4B | low temperature, datamark off | highest mean pass (71.3 %); card + datamark on had a real flip (T021) |

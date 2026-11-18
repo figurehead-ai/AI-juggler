@@ -636,7 +636,11 @@ def compose_feed_line(fields, ctx, lang=None):
         return line + ("; " + "; ".join(_lc_first(t) for t in tail) if tail else "")
     extra = keep_caveats([build(True, [])], ctx["cleaned"])
     if extra: notes.append("caveat kept by the composer: " + " | ".join(extra))
-    for with_result in (True, False):
+    # The result is dropped to fit only when it carries no caveat and reports no failure (eval-4's detectors): a model
+    # may put the load-bearing limit there ("does not work across the two instances yet", sweep T023), and dropping it
+    # would hide what the gate protects. Then the line doesn't fit: A's excerpt, which carries it.
+    droppable = not result or not (gate_v4.caveat_kinds(result) or gate_v4.reports_failure_v4(result))
+    for with_result in ((True, False) if droppable else (True,)):
         line = build(with_result, extra)
         if len(line.split()) <= gate.LINE_MAX_WORDS and len(line) <= gate.LINE_MAX_CHARS:
             if not with_result and result: notes.append("result dropped to fit; the caveat kept")
@@ -1028,6 +1032,12 @@ def selftest():
              "result": "every one of the twelve upload tests in the suite pass", "caveat_kind": "not_run", "caveat": "the integration suite has not been run"}
     l3, n3 = compose_feed_line(longf, ctx)
     check("feed_line: too long drops the result first and keeps the caveat", l3 and "integration suite" in l3 and "twelve" not in l3, (l3, n3))
+    # a result carrying the load-bearing limit is never dropped to fit (fresh text, not a corpus item)
+    ctxr = gate.prepare("I added the cache layer to the heron reader, but it does not survive a restart yet because it lives in memory only.")
+    limf = {"action": "added", "object": "the cache layer to the heron reader in reader/cache.py with a 30 second time to live",
+            "result": "it does not survive a restart yet", "caveat_kind": "incomplete", "caveat": "it lives in memory only for now"}
+    l4, n4 = compose_feed_line(limf, ctxr)
+    check("feed_line: a result that carries a limit is kept or the line falls to A's excerpt", l4 is None or "does not survive" in l4, (l4, n4))
     l4, n4 = compose_feed_line({**longf, "object": "x " * 30}, ctx)
     check("feed_line: a caveat that can't fit means no line (A's excerpt)", l4 is None, l4)
     # the composed example lines pass the frozen gate as designed (they are what we teach)
