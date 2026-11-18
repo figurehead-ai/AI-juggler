@@ -88,6 +88,7 @@ pub fn drain(
             headers: vec![("X-Sentry-Auth", delivery.auth)],
             body: delivery.body,
             long_transfer: false,
+            max_body: None,
         };
         match transport.send(&request) {
             Ok(response) if (200..300).contains(&response.status) => {

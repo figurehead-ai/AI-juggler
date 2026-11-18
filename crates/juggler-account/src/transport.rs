@@ -25,7 +25,14 @@ pub struct HttpRequest {
     /// A large transfer (backup upload/download): allowed
     /// [`LONG_TIMEOUT`] instead of [`TIMEOUT`].
     pub long_transfer: bool,
+    /// The most response-body bytes read; `None` is [`MAX_BODY`]. A
+    /// longer body is a [`NetworkError`], so a hostile host can't make the
+    /// app hold more than the caller expects.
+    pub max_body: Option<u64>,
 }
+
+/// The default cap on a response body (a backup download).
+pub const MAX_BODY: u64 = 32 * 1024 * 1024;
 
 /// The timeout for a backup upload or download (up to 25 MB).
 pub const LONG_TIMEOUT: Duration = Duration::from_secs(180);
@@ -175,7 +182,7 @@ impl Transport for UreqTransport {
         let body = response
             .body_mut()
             .with_config()
-            .limit(32 * 1024 * 1024)
+            .limit(request.max_body.unwrap_or(MAX_BODY))
             .read_to_vec()
             .map_err(|e| NetworkError(e.to_string()))?;
         Ok(HttpResponse {

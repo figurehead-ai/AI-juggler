@@ -202,6 +202,7 @@ pub fn check_due(state: &Arc<AppState>, transport: &dyn Transport, now_ms: i64) 
             headers: Vec::new(),
             body: Vec::new(),
             long_transfer: false,
+            max_body: None,
         };
         sent += 1;
         // A failed or odd answer is asked again tomorrow, keeping what was

@@ -49,6 +49,8 @@ impl Transport for RemoteConfigTransport {
                 headers,
                 body: Vec::new(),
                 long_transfer: false,
+                // The cap is enforced while reading, not after (§7).
+                max_body: Some(juggler_remote_config::MAX_FILE_BYTES as u64 + 1),
             })
             .map_err(|e| NetworkError(e.0))?;
         Ok(ConfigResponse {
@@ -85,6 +87,11 @@ mod tests {
         assert!(request.bearer.is_none(), "never authenticated");
         assert!(request.headers.is_empty(), "no extra header");
         assert!(request.body.is_empty());
+        assert_eq!(
+            request.max_body,
+            Some(juggler_remote_config::MAX_FILE_BYTES as u64 + 1),
+            "the size cap is enforced while reading"
+        );
         assert!(!request.url.contains('?'));
     }
 }
