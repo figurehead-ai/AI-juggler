@@ -251,7 +251,11 @@ export function NewPool({
         <FlowLayout
           label={WIZARD_HEADS[current].title}
           steps={<NewPoolSteps steps={steps} step={step} furthest={furthest} valueOf={valueOf} onPick={go} />}
-          {...sideFor({ current, draft, name, where, shape, visited, sources: { apps: apps ?? [], sessions }, memberName, first: firstPool })}
+          {...sideFor({
+            current, draft, name, where, shape, visited, sources: { apps: apps ?? [], sessions }, memberName, first: firstPool,
+            // A preview row goes to its step once that step is reached.
+            pick: { go: (row) => go(steps.indexOf(row)), can: (row) => steps.indexOf(row) >= 0 && steps.indexOf(row) <= furthest },
+          })}
           foot={
             <FlowFoot
               ref={primaryRef}

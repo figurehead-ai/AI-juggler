@@ -128,7 +128,13 @@ export function PreviewDiagram({ lead, members, reached, focus }: { lead: Previe
 }
 
 /** Its settings, a line each; the step being set is lit. */
-function PreviewRows({ rows, current }: { rows: readonly PreviewRow[]; current: PreviewRowId | null }): JSX.Element {
+/** A row's step: going there from the preview, when it's reached. */
+export interface PreviewPick {
+  go: (row: PreviewRowId) => void;
+  can: (row: PreviewRowId) => boolean;
+}
+
+function PreviewRows({ rows, current, pick }: { rows: readonly PreviewRow[]; current: PreviewRowId | null; pick?: PreviewPick }): JSX.Element {
   return (
     <dl className="flex flex-col gap-0.5 px-2 pb-2.5 pt-3" data-testid="new-pool-preview-rows">
       {rows.map((row) => {
@@ -137,7 +143,18 @@ function PreviewRows({ rows, current }: { rows: readonly PreviewRow[]; current: 
         return (
           <div key={row.id} className={"flex items-start gap-2.5 rounded-lg px-2.5 py-[7px] text-meta " + (on ? "bg-accent-soft shadow-[inset_3px_0_0_var(--color-accent)]" : "")} data-testid="new-pool-preview-row" data-row={row.id} data-current={on || undefined}>
             <Shape aria-hidden="true" width={16} height={16} className={"mt-px shrink-0 " + (on ? "text-accent-hi" : "text-faint")} />
-            <dt className="w-[92px] shrink-0 text-muted">{row.label}</dt>
+            <dt className="w-[92px] shrink-0 text-muted">
+              {/* A door to its step (rc3: and the rows, which scroll on a
+                  short window, are reached by the keyboard through it). */}
+              {pick ? (
+                <button type="button" disabled={!pick.can(row.id)} onClick={() => pick.go(row.id)} className="rounded-sm text-left outline-none hover:text-ink hover:underline focus-visible:ring-2 focus-visible:ring-accent/60 disabled:no-underline disabled:hover:text-muted" data-testid="new-pool-preview-go">
+                  {row.label}
+                  <span className="sr-only">, go to its step</span>
+                </button>
+              ) : (
+                row.label
+              )}
+            </dt>
             <dd className={"min-w-0 " + (row.pending ? "text-ink-2" : "text-ink")} data-testid="new-pool-preview-value">
               {row.value}
               {row.prefilled && <span className="text-faint"> · prefilled</span>}
@@ -159,6 +176,7 @@ export function NewPoolPreview({
   current,
   extra,
   foot = true,
+  pick,
 }: {
   name: string;
   subtitle?: string;
@@ -168,6 +186,8 @@ export function NewPoolPreview({
   /** In place of the rows (Review: what to tell the lead first). */
   extra?: ReactNode;
   foot?: boolean;
+  /** Each row a door to its step. */
+  pick?: PreviewPick;
 }): JSX.Element {
   return (
     // At most the window's height less its head and foot (D-126 critique:
@@ -184,11 +204,11 @@ export function NewPoolPreview({
         </span>
       </div>
       <div className="shrink-0">{diagram}</div>
-      {/* WCAG 2.1.1 (axe scrollable-region-focusable): it scrolls when the
-          window is short, so the keyboard can reach and scroll it too. */}
-      <section aria-label="The team in words" tabIndex={0} className="min-h-0 overflow-y-auto rounded-md outline-none focus-visible:ring-2 focus-visible:ring-accent/60" data-testid="new-pool-preview-scroll">
-        {extra ?? <PreviewRows rows={rows} current={current} />}
-      </section>
+      {/* It scrolls on a short window; its rows' doors (or Review's Copy)
+          are how the keyboard reaches it (axe scrollable-region-focusable). */}
+      <div className="min-h-0 overflow-y-auto" data-testid="new-pool-preview-scroll">
+        {extra ?? <PreviewRows rows={rows} current={current} pick={pick} />}
+      </div>
       {foot && (
         <p className="flex shrink-0 items-center gap-2 border-t border-divider px-[18px] pb-3.5 pt-2.5 text-label text-faint">
           <IconInfo aria-hidden="true" width={14} height={14} className="shrink-0" />

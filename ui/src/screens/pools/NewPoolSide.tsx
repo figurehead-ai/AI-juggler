@@ -12,7 +12,7 @@ import type { SetupStep } from "../../lib/pool-words";
 import { firstPrompt, type PoolShape } from "../../lib/pool-sentences";
 import type { LogoSources } from "../../components/MemberLogo";
 import { LeadPrompt } from "./LeadPrompt";
-import { NewPoolPreview, PreviewDiagram, PreviewStrip, type PreviewFocus } from "./NewPoolPreview";
+import { NewPoolPreview, PreviewDiagram, PreviewStrip, type PreviewFocus, type PreviewPick } from "./NewPoolPreview";
 import { NewPoolStartSide } from "./NewPoolStartSide";
 import { previewNodes, previewRows, rowOf } from "./preview-model";
 
@@ -28,6 +28,7 @@ export function sideFor({
   sources,
   memberName,
   first,
+  pick,
 }: {
   current: SetupStep;
   draft: Draft;
@@ -41,6 +42,8 @@ export function sideFor({
   memberName: (ref: string, label: string) => string;
   /** No pool of the user's yet (the intro is for a newcomer). */
   first: boolean;
+  /** Going to a reached step from its preview row. */
+  pick?: PreviewPick;
 }): { preview: ReactNode; summary: ReactNode } {
   const hasProject = draft.every || draft.projects.length > 0;
   const rows = previewRows(shape, where, current, visited, hasProject);
@@ -57,5 +60,5 @@ export function sideFor({
       summary,
     };
   }
-  return { preview: <NewPoolPreview name={name} diagram={diagram} rows={rows} current={rowOf(current)} />, summary };
+  return { preview: <NewPoolPreview name={name} diagram={diagram} rows={rows} current={rowOf(current)} pick={pick} />, summary };
 }

@@ -4,7 +4,7 @@
  * its head away. Two CLI Apps of one tool ("Claude Code CLI · Work Max",
  * "Claude Code CLI · Personal") are the case it found.
  */
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { within, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { MOCK_ACCOUNTS, MOCK_PROJECTS, MOCK_SESSIONS } from "../../preview/fixtures";
@@ -65,9 +65,14 @@ describe("the rc3 critique", () => {
     await waitFor(() => expect(screen.getByTestId("new-pool-preview")).toBeTruthy());
     expect(screen.getByTestId("new-pool-preview").className).toMatch(/max-h-\[calc\(100dvh-\d+px\)\]/);
     expect(screen.getByTestId("new-pool-preview-scroll").className).toContain("overflow-y-auto");
-    // It scrolls on a short window, so the keyboard reaches it (axe scrollable-region-focusable).
-    const words = screen.getByRole("region", { name: "The team in words" });
-    expect(words.getAttribute("tabindex")).toBe("0");
+    // It scrolls on a short window: its rows are doors to their steps, so the
+    // keyboard reaches it (axe scrollable-region-focusable), a reached one
+    // goes there, one not reached yet can't be picked.
+    const scroll = screen.getByTestId("new-pool-preview-scroll");
+    expect(within(scroll).getByRole("button", { name: "Where, go to its step" })).toHaveProperty("disabled", false);
+    expect(within(scroll).getByRole("button", { name: "On their own, go to its step" })).toHaveProperty("disabled", true);
+    fireEvent.click(within(scroll).getByRole("button", { name: "Where, go to its step" }));
+    await waitFor(() => expect(document.querySelector('[data-testid="flow-step"][aria-current="step"]')?.getAttribute("data-step")).toBe("where"));
     // In the layout's sticky column, beside the form.
     expect(screen.getByTestId("flow-preview").className).toContain("sticky");
   });
