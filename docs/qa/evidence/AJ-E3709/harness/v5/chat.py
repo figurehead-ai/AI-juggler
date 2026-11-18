@@ -34,21 +34,21 @@ register_item_kind("chat", is_chat, norm_chat)
 # What the question asks for: the lexicon (English and German; first match wins; a cue's span is removed before the subject is read)
 # ======================================================================================================================
 ATTR_LEXICON = [   # (fields, kind, pattern, cue words: the words of the cue, dropped before the subject is read). Specific before general.
- (("tests_failed",), "count", r"how many (?:of the )?tests? (?:have |had |did |are )?(?:failed|fail|failing)|wie viele tests? (?:[\w-]+ ){0,6}?(?:fehlgeschlagen|gescheitert|rot)\b|failing tests|fehlgeschlagene tests",
+ (("tests_failed",), "count", r"how many (?:of the )?tests? (?:have |had |did |are )?(?:failed|fail|failing)|wie viele tests? (?:[\w.-]+ ){0,6}?(?:fehlgeschlagen|gescheitert|rot)\b|failing tests|fehlgeschlagene tests",
   "tests failed fail failing fehlgeschlagen fehlgeschlagene gescheitert rot"),
- (("tests_passed",), "count", r"how many (?:of the )?tests? (?:have |had |did |are )?(?:passed|pass|passing|green)|wie viele tests? (?:[\w-]+ ){0,6}?(?:bestanden|durchgelaufen|grün)\b",
+ (("tests_passed",), "count", r"how many (?:of the )?tests? (?:have |had |did |are )?(?:passed|pass|passing|green)|wie viele tests? (?:[\w.-]+ ){0,6}?(?:bestanden|durchgelaufen|grün)\b",
   "tests passed pass passing green bestanden durchgelaufen grün"),
- (("tests_passed", "tests_failed"), "tests", r"did (?:the |all |all the )?(?:\w+ )?tests? pass|(?:were|are) (?:all )?(?:the )?tests? (?:green|passing|ok)|test results?|"
-                                             r"(?:sind|waren) (?:die |alle )?tests? (?:[\w-]+ ){0,6}?(?:durch|grün|bestanden|ok)\b|haben (?:die |alle )?tests? bestanden|testergebnis(?:se)?",
+ (("tests_passed", "tests_failed"), "tests", r"did (?:the |all |all the )?(?:[\w.-]+ )?tests? pass|(?:were|are) (?:all )?(?:the )?tests? (?:green|passing|ok)|test results?|"
+                                             r"(?:sind|waren) (?:die |alle )?tests? (?:[\w.-]+ ){0,6}?(?:durch|grün|bestanden|ok)\b|haben (?:die |alle )?tests? bestanden|testergebnis(?:se)?",
   "tests pass passed passing green ok result results durch grün bestanden testergebnis testergebnisse"),
  (("files_changed",), "count", r"how many files|wie viele dateien|number of (?:changed )?files|anzahl (?:der )?(?:geänderten )?dateien",
   "files file number changed change touched anzahl dateien geänderten geändert"),
  (("cost_usd",), "cost", r"how much did .{0,60}?(?:cost|spend)|\bcost(?:s|ed)?\b|\bspen[dt]\b|was hat .{0,60}?gekostet|\bkosten\b|\bgekostet\b",
   "cost costs costed spend spent kosten gekostet usd dollars"),
- (("ended_at",), "when", r"how long ago|wie lange (?:\w+ ){0,4}?her\b|when did .{0,80}?\b(?:finish|end|complete|stop|wrap up|get done)|what time did .{0,80}?\b(?:finish|end)|"
-                         r"wann (?:\w+ ){0,6}?(?:fertig|beendet|geendet|abgeschlossen|aufgehört|zu ende)|\bend(?:ed)? at\b|\bendzeit\b",
+ (("ended_at",), "when", r"how long ago|wie lange (?:[\w.-]+ ){0,4}?her\b|when did .{0,80}?\b(?:finish|end|complete|stop|wrap up|get done)|what time did .{0,80}?\b(?:finish|end)|"
+                         r"wann (?:[\w.-]+ ){0,6}?(?:fertig|beendet|geendet|abgeschlossen|aufgehört|zu ende)|\bend(?:ed)? at\b|\bendzeit\b",
   "ago finish finished end ended complete completed stop stopped wrap up get done her fertig beendet geendet abgeschlossen aufgehört ende endzeit geworden"),
- (("started_at",), "when", r"when did .{0,80}?\b(?:start|begin|kick off)|what time did .{0,80}?\bstart|wann (?:\w+ ){0,6}?(?:gestartet|begonnen|angefangen|losgegangen|los)\b|"
+ (("started_at",), "when", r"when did .{0,80}?\b(?:start|begin|kick off)|what time did .{0,80}?\bstart|wann (?:[\w.-]+ ){0,6}?(?:gestartet|begonnen|angefangen|losgegangen|los)\b|"
                            r"\bstart(?:ed)? at\b|\bstartzeit\b",
   "start started begin began kick off gestartet begonnen angefangen losgegangen los startzeit"),
  (("duration_s",), "duration", r"how long\b|wie lange\b|how much time|wie viel zeit|\bduration\b|\bdauer\b|how many (?:seconds|minutes|hours)|wie viele (?:sekunden|minuten|stunden)",
@@ -64,12 +64,35 @@ ATTR_LEXICON = [   # (fields, kind, pattern, cue words: the words of the cue, dr
 ]
 ATTR_LEXICON = [(f, k, re.compile(rx, re.I), frozenset(cw.split())) for f, k, rx, cw in ATTR_LEXICON]
 FIELD_KIND = {f: k for fs, k, _r, _c in ATTR_LEXICON for f in fs}
+# "when" is two attributes (round 2: an end time answered "when did it start"): the question's own verb decides, the last start or end
+# word wins ("when did the end-to-end suite start" asks the start), English and German
+WHEN_START = re.compile(r"\b(?:start|started|starts|starting|begin|began|begun|begins|kick(?:ed)?\s+off|launch(?:ed)?|gestartet|begonnen|angefangen"
+                        r"|losgegangen|los|begann|startete|fing|startzeit|beginn)\b", re.I)
+WHEN_END = re.compile(r"\b(?:end|ended|ends|finish|finished|finishes|complete|completed|stop|stopped|done|wrap(?:ped)?\s+up|ago|fertig|beendet"
+                      r"|geendet|endete|abgeschlossen|aufgehört|ende|endzeit|her)\b", re.I)
+def when_split(question):
+    """-> 'started_at', 'ended_at', or None when the question's words name neither (or a start and an end at the same place)"""
+    q = re.sub(r"\b[\w.]*-[\w.-]*\b", " ", question or "")          # a hyphenated name ("end-to-end", "ibis-mobile") holds no verb
+    s = [m.end() for m in WHEN_START.finditer(q)]; e = [m.end() for m in WHEN_END.finditer(q)]
+    if not s and not e: return None
+    return "started_at" if (max(s) if s else -1) > (max(e) if e else -1) else "ended_at"
+def part_when(text):
+    """what a claim states about time: 'ended_at' (an end word, or a duration: 'after 33 min'), 'started_at', or None"""
+    if WHEN_END.search(text or "") or j4._durations(text or "")[0]: return "ended_at"
+    if WHEN_START.search(text or ""): return "started_at"
+    return None
 def classify(question):
     """-> (fields tuple, kind, cue words) or (None, None, frozenset()) when the question's own words name no typed field"""
     for fs, k, rx, cw in ATTR_LEXICON:
-        if rx.search(question or ""): return fs, k, cw
+        if rx.search(question or ""):
+            if k == "when": fs = (when_split(question) or fs[0],)
+            return fs, k, cw
     return None, None, frozenset()
 HINT_FIELD = {"duration": ("duration_s",), "cost": ("cost_usd",), "who": ("author",), "where": ("path",)}   # the model's asks_about, a hint only
+def hint_fields(asks, question):
+    """the typed field(s) the model's asks_about (after the question's words override it) points to; 'when' by the question's verb"""
+    if asks == "when": return (when_split(question),) if when_split(question) else ("started_at", "ended_at")
+    return HINT_FIELD.get(asks)
 
 # ======================================================================================================================
 # The subject: the question's words left after the cue, against each record's identity (kind, id, name-like fields, lead label) and
@@ -116,7 +139,7 @@ def subject_alternatives(question, cue=frozenset()):
     importer sessions" gives two)"""
     alts = []
     for chunk in re.split(r"\s*(?:,|;|\band\b|\bor\b|\bund\b|\boder\b|\bvs\.?)\s*", question or "", flags=re.I):
-        keys = [w for w in toks(chunk) if w not in STOP and w not in cue and len(w) > 1 and not w.isdigit()]
+        keys = [w for w in toks(chunk) if w not in STOP and w not in cue and w not in QUANTIFIERS and len(w) > 1 and not w.isdigit()]
         if keys: alts.append(list(dict.fromkeys(keys)))
     return alts
 def match(records, keys):
@@ -127,6 +150,9 @@ def match(records, keys):
         ident, link, _h = record_tokens(r)
         if _has_all(keys, ident | link): out.append((sum(1 for k in keys if any(wmatch(k, p) for p in ident)), r))
     return out
+QUANTIFIERS = {"both", "beide", "beiden", "each", "every", "jede", "jeder", "jeden", "jedes"}
+PLURAL_CUES = {"sessions", "sitzungen", "both", "beide", "beiden", "all", "alle", "allen", "each", "every", "jede", "jeder", "jeden", "runs", "läufe",
+               "records", "einträge"}
 def has_field(r, fields): return any(r["fields"].get(f) not in (None, "") for f in fields)
 def lookup(item, fields):
     """-> (found [(record, {field: value})], why). Found is empty when no record at the best subject match holds the field."""
@@ -144,6 +170,8 @@ def lookup(item, fields):
         hold = [r for r in top if has_field(r, fields)]
         if not hold: return [], f"the records about {' '.join(keys)!r} hold no {'/'.join(fields)} (a nearby record may: not the answer)"
         if len(hold) > 3: return [], f"{len(hold)} records match {' '.join(keys)!r}: too many to answer"
+        if len(hold) > 1 and not (set(toks(item["question"])) & PLURAL_CUES):
+            return [(r, {f: r["fields"][f] for f in fields if r["fields"].get(f) not in (None, "")}) for r in hold], "ambiguous: " + " ".join(keys)
         for r in hold:
             if all(r is not x for x, _v in found): found.append((r, {f: r["fields"][f] for f in fields if r["fields"].get(f) not in (None, "")}))
     return found, "found"
@@ -259,6 +287,22 @@ def phrase_system():
 SCOPE_RX = re.compile(r"\b(?:write|code|regex|function|implement|refactor|translate|poem|joke|recipe|weather|schreib\w*|funktion|programmier\w*|übersetz\w*|witz|rezept|wetter)\b", re.I)
 def rows_text(item, ids=None):
     return "\n".join(f"[{r['id']}] {r['kind']} \"{record_label(r)}\"" for r in item["records"] if ids is None or r["id"] in ids)
+KIND_PLURAL = {"en": {"session": "sessions", "test_run": "test runs", "record": "records"}, "de": {"session": "Sitzungen", "test_run": "Testläufe", "record": "Einträge"}}
+NUM_WORD = {"en": {2: "Two", 3: "Three"}, "de": {2: "Zwei", 3: "Drei"}}
+def ambiguous(item, found, why):
+    """two or three records at the same best subject match: code says so, with each one's value, instead of the model listing both
+    values as one answer (round 2). No model call."""
+    lang = "de" if item.get("lang") == "de" else "en"; n = len(found)
+    kinds = {r["kind"] for r, _v in found}; kind = kinds.pop() if len(kinds) == 1 else "record"
+    plural = KIND_PLURAL[lang].get(kind) or (kind + "s" if lang == "en" else "Einträge")
+    labels = {record_label(r).lower() for r, _v in found}
+    keys = [k for k in why.split(":", 1)[1].strip().split() if not any(wmatch(k, w) for w in toks(kind) + ["record", "records"])]
+    m = re.search(r"[\w.]*" + r"[\s_-]+".join(re.escape(k) for k in keys) + r"[\w.]*", item["question"], re.I) if keys else None
+    name = m.group(0) if m else " ".join(keys)
+    if lang == "de": head = f"{NUM_WORD['de'].get(n, n)} {plural} " + ("heißen" if len(labels) == 1 else "passen zu") + f" „{name}“:"
+    else: head = f"{NUM_WORD['en'].get(n, n)} {plural} " + ("are called" if len(labels) == 1 else "match") + f" “{name}”:"
+    return {"ok": True, "kind": "ambiguous", "shown": head + "\n" + "\n".join(found_lines(found)), "refs": [r["id"] for r, _v in found],
+            "model_text": [], "errors": [], "notes": [why + " (no call)"], "found": [r["id"] for r, _v in found]}
 def dont_know(item, why):
     lead = j4.FIXED["dont_know"] if not item["records"] else j4.FIXED["not_sure"]
     return {"ok": True, "kind": "dont_know", "shown": lead + ("\n" + rows_text(item) if item["records"] else ""), "refs": [r["id"] for r in item["records"]],
@@ -283,6 +327,7 @@ class Chat(Job):
         path, fs, found, why = self.route(item)
         if path == "scope": return {"decided": {"ok": True, "kind": "scope", "shown": j4.FIXED["scope"], "refs": [], "model_text": [], "errors": [], "notes": [why], "found": []}}
         if path == "lookup" and not found: return {"decided": dont_know(item, why)}
+        if path == "lookup" and why.startswith("ambiguous"): return {"decided": ambiguous(item, found, why)}
         if path == "lookup":
             ids = [r["id"] for r, _v in found]; schema = PHRASE_SCHEMA(ids); sys_t = phrase_system(); src = item["question"] + "\n" + "\n".join(found_lines(found))
             schema = j4.with_script_guide(schema, src)
@@ -316,6 +361,9 @@ class Chat(Job):
         for fam in sorted(gate.families_v3(ans) - gate.families_v3(src)): errs.append(f"words: a {fam} word the records don't hold")
         if j4.ACTING.search(ans): errs.append("an acting claim")
         errs += value_errors(ans, found, item)
+        looked = {f for _r, v in found for f in v}
+        if looked == {"started_at"} and part_when(ans) == "ended_at": errs.append("off the question: the start time was asked; the answer speaks of an end or a duration")
+        if looked == {"ended_at"} and part_when(ans) == "started_at": errs.append("off the question: the end time was asked; the answer speaks of a start")
         if errs: return {"ok": False, "kind": "rejected", "errors": errs, "model_text": [], "found": [r["id"] for r, _v in found]}
         shown = ans.rstrip() + "".join(f" [{i}]" for i in ids)
         return {"ok": True, "kind": "answer", "shown": shown, "refs": ids, "model_text": [ans], "errors": [], "notes": ["looked up: " + ", ".join(fs for _r, v in found for fs in v)],
@@ -327,18 +375,31 @@ class Chat(Job):
         if o["dropped"] and o["kind"] != "answer": errs += [f"off the question: {why}" for _i, why in o["dropped"]]
         hint = None
         if fields.get("covered") in ("yes", "partly"):
-            asks = j4.chat_relevance(fields, ci)["asks"]; hint = HINT_FIELD.get(asks)
-        if not errs and hint and o["kind"] == "answer":
+            asks = j4.chat_relevance(fields, ci)["asks"]; hint = hint_fields(asks, item["question"])
+            if o["kind"] == "answer" and asks not in j4.FREE_ASKS:
+                # round 2: each shown part's states must be the question's attribute, rechecked after code overrode asks_about
+                for p in o.get("parts") or []:
+                    st = p.get("states")
+                    if st != asks: errs.append(f"{j4._tidy(p.get('text', ''))[:40]!r}: off the question: states {st}, the question asks {asks}")
+                    if asks == "when" and when_split(item["question"]) == "started_at" and part_when(p.get("text", "")) == "ended_at":
+                        errs.append(f"{j4._tidy(p.get('text', ''))[:40]!r}: off the question: the start was asked; it states an end or a duration")
+                    if asks == "when" and when_split(item["question"]) == "ended_at" and part_when(p.get("text", "")) == "started_at" and not WHEN_END.search(p.get("text", "")):
+                        errs.append(f"{j4._tidy(p.get('text', ''))[:40]!r}: off the question: the end was asked; it states a start")
+        if not o["errors"] and hint and o["kind"] == "answer":
             found, why = lookup(item, hint)
-            if not found: return {**dont_know(item, f"the model reads it as {hint[0]}; {why}"), "notes": ["the hint overrode a written answer"]}
-            ve = value_errors(o["text"], found, item)
-            if ve: errs += ve
+            # no record at the subject holds the asked field (a start time for "when did it start"): I don't know and the found rows,
+            # whatever the parts say (round 2: an end time and a duration answered a start question)
+            if not found: return {**dont_know(item, f"the question asks {'/'.join(hint)}; {why}"), "notes": ["the asked field overrode a written answer"]}
+            if not errs:
+                ve = value_errors(o["text"], found, item)
+                if ve: errs += ve
         if errs: return {"ok": False, "kind": "rejected", "errors": errs, "model_text": []}
         kind = {"answer": "answer", "scope": "scope"}.get(o["kind"], "dont_know")
         return {"ok": True, "kind": kind, "shown": o["text"] + ("\n" + rows_text(item, o["refs"]) if kind == "dont_know" else ""), "refs": o["refs"],
                 "model_text": [p["text"] for p in o.get("parts") or []] if kind == "answer" else [], "errors": [], "notes": o["notes"], "found": []}
     def fallback(self, item, setting):
         path, fs, found, why = self.route(item)
+        if path == "lookup" and why.startswith("ambiguous"): return ambiguous(item, found, why)
         if path == "lookup" and found:
             lines = [f"{record_label(r)} [{r['id']}]: {display(vals)}" for r, vals in found]
             return {"ok": True, "kind": "found_values", "shown": "\n".join(lines), "refs": [r["id"] for r, _v in found], "model_text": [], "errors": [],

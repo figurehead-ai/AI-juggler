@@ -23,6 +23,7 @@ for p in (os.path.join(HARNESS, "v4"), HARNESS):
 import jobs as j4                                  # noqa: E402  (harness v4: fences, schemas, grammars, composers, the chat guard)
 import gate, gate_v4, checks                       # noqa: E402  (eval-3 frozen; eval-4 excerpt and caveat kinds; v1 entity checks)
 from guard_v5 import prepare_v5                    # noqa: E402  (the v5 guard pass after the frozen guard: its re.X miss, EN+DE)
+import claims_v5                                   # noqa: E402  (round 2: success and agent claims, cut fields, git's undone topics)
 
 PROMPT_VERSION = 5
 MAX_RETRIES = 2                                    # D-130 lever 2: "up to two times, before falling back"
@@ -110,10 +111,11 @@ def git_norm(g):
     return {"known": True, "changed": [c for c in ch if c["path"]], "reverted": [r for r in rv if r["path"]], "reflog": rl, "uncommitted": un}
 REFLOG_UNDO = re.compile(r"\b(?:revert|reset|rebase\s*\(abort\)|checkout\s+--|restore|stash)\b", re.I)
 def reflog_undos(git): return [r for r in git["reflog"] if REFLOG_UNDO.search(r)]
+UNDO_STATUS = {"restored", "reverted", "discarded", "reset", "undone", "dropped"}
 def kept_changes(git):
-    """git's changed files minus the reverted ones: a revert is never shown as changed"""
+    """git's changed files minus the reverted ones (and an entry whose status says restored or undone): a revert is never shown as changed"""
     gone = {r["path"] for r in git["reverted"]}
-    return [c for c in git["changed"] if c["path"] not in gone]
+    return [c for c in git["changed"] if c["path"] not in gone and str(c.get("status") or "").lower() not in UNDO_STATUS]
 
 def norm_turn(raw):
     """a turn item (v5 schema, or v4's: no git, no questions) -> the dict every turn job reads"""
@@ -183,8 +185,9 @@ def facts_block_v5(t, hide=False): return "FACTS (from AI Juggler, trusted):\n" 
 def facts_inline_v5(t, hide=False): return " | ".join(facts_lines_v5(t, hide))
 def facts_sentence(t):
     """the facts as plain sentences the frozen gate may read as source text, so a number or path that comes from git or the adapter is
-    allowed in a line, as one from the agent's text is ("any number or path must exist in the facts or the text"). Reverted paths are
-    not in it: a line naming one is caught by the revert check, not allowed by the gate."""
+    allowed in a line, as one from the agent's text is ("any number or path must exist in the facts or the text"). Round 2: what git
+    shows undone is in it too ("<path> was reverted", with git's note), so a line may say so honestly; a line naming an undone change
+    as made is caught by the revert check (undone_clause, claims_v5), which tells the two apart."""
     g = t["git"]; out = []
     kept = kept_changes(g)
     if kept:
@@ -194,6 +197,8 @@ def facts_sentence(t):
             out.append(c["path"] + (f": {a} lines added" if a is not None else "") + (f", {r} removed" if r is not None else "") + ".")
         tot_a = sum(_n(c.get("added")) or 0 for c in kept); tot_r = sum(_n(c.get("removed")) or 0 for c in kept)
         if len(kept) > 1: out.append(f"In all {tot_a} lines added, {tot_r} removed.")
+    for p, note, _tp in claims_v5.undone_entries(g):
+        out.append(f"{p} was reverted" + (f" ({note.rstrip('.')})" if note and not claims_v5.REFLOG_RESTORE.search(note) else "") + ".")
     out += [q if q.rstrip().endswith(("?", ".", "!")) else q + "." for q in t["questions"] + t["failures"]]
     return " ".join(out)
 def gate_ctx(t):
@@ -228,7 +233,7 @@ def undone_clause(text, t):
         if p in low or (len(base) >= 5 and re.search(r"(?<![\w.-])" + re.escape(base) + r"(?![\w-])", low)):
             return f"git: {r['path']} was reverted"
     parts, rev = j4.revert_parts(undo_normalise(t["ctx"]["cleaned"]))
-    return j4.reverted_item(text, parts, rev)
+    return j4.reverted_item(text, parts, rev) or claims_v5.undone_named(text, t, kept_changes(t["git"]))   # round 2: path, stem, topic
 
 # ======================================================================================================================
 # Prompts: fit Apple's 4,096 tokens (v4's estimate), the agent's text fenced and datamarked (v4's), the retry note appended last

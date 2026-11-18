@@ -122,13 +122,13 @@ chatphrase-obj ::= "{" ws "\"answer\":" ws str1x200 ws "," ws "\"cites\":" ws ch
 
 | Fields | Kind | Pattern |
 |---|---|---|
-| tests_failed | count | `how many (?:of the )?tests? (?:have ¦had ¦did ¦are )?(?:failed¦fail¦failing)¦wie viele tests? (?:[\w-]+ ){0,6}?(?:fehlgeschlagen¦gescheitert¦rot)\b¦failing tests¦fehlgeschlagene tests` |
-| tests_passed | count | `how many (?:of the )?tests? (?:have ¦had ¦did ¦are )?(?:passed¦pass¦passing¦green)¦wie viele tests? (?:[\w-]+ ){0,6}?(?:bestanden¦durchgelaufen¦grün)\b` |
-| tests_passed, tests_failed | tests | `did (?:the ¦all ¦all the )?(?:\w+ )?tests? pass¦(?:were¦are) (?:all )?(?:the )?tests? (?:green¦passing¦ok)¦test results?¦(?:sind¦waren) (?:die ¦alle )?tests? (?:[\w-]+ ){0,6}?(?:durch¦grün¦bestanden¦ok)\b¦haben (?:die ¦alle )?tests? bestanden¦testergebnis(?:se)?` |
+| tests_failed | count | `how many (?:of the )?tests? (?:have ¦had ¦did ¦are )?(?:failed¦fail¦failing)¦wie viele tests? (?:[\w.-]+ ){0,6}?(?:fehlgeschlagen¦gescheitert¦rot)\b¦failing tests¦fehlgeschlagene tests` |
+| tests_passed | count | `how many (?:of the )?tests? (?:have ¦had ¦did ¦are )?(?:passed¦pass¦passing¦green)¦wie viele tests? (?:[\w.-]+ ){0,6}?(?:bestanden¦durchgelaufen¦grün)\b` |
+| tests_passed, tests_failed | tests | `did (?:the ¦all ¦all the )?(?:[\w.-]+ )?tests? pass¦(?:were¦are) (?:all )?(?:the )?tests? (?:green¦passing¦ok)¦test results?¦(?:sind¦waren) (?:die ¦alle )?tests? (?:[\w.-]+ ){0,6}?(?:durch¦grün¦bestanden¦ok)\b¦haben (?:die ¦alle )?tests? bestanden¦testergebnis(?:se)?` |
 | files_changed | count | `how many files¦wie viele dateien¦number of (?:changed )?files¦anzahl (?:der )?(?:geänderten )?dateien` |
 | cost_usd | cost | `how much did .{0,60}?(?:cost¦spend)¦\bcost(?:s¦ed)?\b¦\bspen[dt]\b¦was hat .{0,60}?gekostet¦\bkosten\b¦\bgekostet\b` |
-| ended_at | when | `how long ago¦wie lange (?:\w+ ){0,4}?her\b¦when did .{0,80}?\b(?:finish¦end¦complete¦stop¦wrap up¦get done)¦what time did .{0,80}?\b(?:finish¦end)¦wann (?:\w+ ){0,6}?(?:fertig¦beendet¦geendet¦abgeschlossen¦aufgehört¦zu ende)¦\bend(?:ed)? at\b¦\bendzeit\b` |
-| started_at | when | `when did .{0,80}?\b(?:start¦begin¦kick off)¦what time did .{0,80}?\bstart¦wann (?:\w+ ){0,6}?(?:gestartet¦begonnen¦angefangen¦losgegangen¦los)\b¦\bstart(?:ed)? at\b¦\bstartzeit\b` |
+| ended_at | when | `how long ago¦wie lange (?:[\w.-]+ ){0,4}?her\b¦when did .{0,80}?\b(?:finish¦end¦complete¦stop¦wrap up¦get done)¦what time did .{0,80}?\b(?:finish¦end)¦wann (?:[\w.-]+ ){0,6}?(?:fertig¦beendet¦geendet¦abgeschlossen¦aufgehört¦zu ende)¦\bend(?:ed)? at\b¦\bendzeit\b` |
+| started_at | when | `when did .{0,80}?\b(?:start¦begin¦kick off)¦what time did .{0,80}?\bstart¦wann (?:[\w.-]+ ){0,6}?(?:gestartet¦begonnen¦angefangen¦losgegangen¦los)\b¦\bstart(?:ed)? at\b¦\bstartzeit\b` |
 | duration_s | duration | `how long\b¦wie lange\b¦how much time¦wie viel zeit¦\bduration\b¦\bdauer\b¦how many (?:seconds¦minutes¦hours)¦wie viele (?:sekunden¦minuten¦stunden)` |
 | branch | string | `(?:which¦what¦on what¦on which) branch¦(?:auf )?welche[mrns]? (?:branch¦zweig)` |
 | author | string | `\bwho\b¦\bwer\b¦\bauthor\b¦\bautor(?:in)?\b` |

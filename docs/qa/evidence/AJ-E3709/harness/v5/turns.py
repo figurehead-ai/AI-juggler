@@ -15,19 +15,28 @@ import json, os, re, sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from core import (Job, register, register_item_kind, j4, gate, gate_v4, is_turn, norm_turn, needs_you, level_of, kept_changes,  # noqa: E402
                   reflog_undos, change_text, facts_inline_v5, message_prompt_v5, fit, gate_ctx, facts_sentence, undone_clause, PROMPT_VERSION)
+import claims_v5                                                                                                                # noqa: E402
 
 register_item_kind("turn", is_turn, norm_turn)
 
 HEAD = {"en": {"changed": "Changed (git)", "changed_nogit": "Changed", "reverted": "Reverted (git)", "uncommitted": "Uncommitted (git)",
                "question": "Question", "failure": "Failed", "not_checked": "Not checked", "left": "Left", "risk": "Risk",
                "no_files": "no files changed", "nothing": "nothing stated", "nothing_else": "nothing else stated", "risk_unknown": "not stated",
-               "tests_not_run": "Tests (AI Juggler): not run", "asking": "Status (AI Juggler): waiting for you",
-               "failed_status": "Status (AI Juggler): failed", "history": "history"},
+               "tests_not_run": "tests not run (per AI Juggler)", "asking": "Needs you (per AI Juggler)",
+               "failed_status": "Failed (per AI Juggler)", "history": "history", "yes": "yes", "files": "{n} files"},
         "de": {"changed": "Geändert (git)", "changed_nogit": "Geändert", "reverted": "Zurückgenommen (git)", "uncommitted": "Nicht committet (git)",
                "question": "Frage", "failure": "Fehlgeschlagen", "not_checked": "Nicht geprüft", "left": "Offen", "risk": "Risiko",
                "no_files": "keine Dateien geändert", "nothing": "nichts genannt", "nothing_else": "sonst nichts genannt", "risk_unknown": "nicht genannt",
-               "tests_not_run": "Tests (AI Juggler): nicht ausgeführt", "asking": "Status (AI Juggler): wartet auf dich",
-               "failed_status": "Status (AI Juggler): fehlgeschlagen", "history": "Verlauf"}}
+               "tests_not_run": "Tests nicht ausgeführt (laut AI Juggler)", "asking": "Braucht dich (laut AI Juggler)",
+               "failed_status": "Fehlgeschlagen (laut AI Juggler)", "history": "Verlauf", "yes": "ja", "files": "{n} Dateien"}}
+# Round 2 (cosmetic): AI Juggler's own lines use the app's state words (D-117's "Needs you", ADR-0033's "Failed"; German as the
+# attention note's "Braucht dich") with the source said plainly, never "Tests (AI Juggler):", which read as AI Juggler's own tests;
+# a git value is never shown as a raw True/False.
+def git_value(u, H):
+    if u is True: return H["yes"]
+    if isinstance(u, list): return ", ".join(u)
+    if isinstance(u, int) and not isinstance(u, bool): return H["files"].format(n=u)
+    return str(u)
 def heads(t): return HEAD.get(t["ctx"].get("lang") or "en", HEAD["en"])
 
 # ---------- the questions and failures, always shown, verbatim, by code ----------
@@ -52,6 +61,15 @@ def failure_on_success(text, t):
     if not gate.verdict_words_v3(text)["fail"]: return False
     if t["failures"] or (t["F"] and (t["F"]["outcome"] == "failed" or t["F"]["level"] == "L3" or t["F"]["failed"])): return False
     return not any(gate_v4.reports_failure_v4(s) or gate.verdict_words_v3(s)["fail"] for s in gate.sentences_v3(t["ctx"]["cleaned"]))
+GIT_UNDONE_LINE = {"en": "git: {path} was reverted", "de": "git: {path} wurde zurückgenommen"}
+def excerpt_v5(t):
+    """A's excerpt (eval-4), facts first (AJ-E3708 Req. 6e): when its sentence names a change git shows undone (reverted, restored,
+    reset), git's own line is added beside it, as a caveat is kept, so the agent's words never stand alone against the facts"""
+    exc = gate_v4.excerpt_v4(t["ctx"]["cleaned"], t["facts"])[0]
+    hits = claims_v5.undone_hits(exc, t, kept_changes(t["git"]))
+    if not hits: return exc
+    w = GIT_UNDONE_LINE.get(t["ctx"].get("lang") or "en", GIT_UNDONE_LINE["en"])
+    return "\n".join([exc] + [w.format(path=p) for p, _why in hits])
 def turn_failed(t):
     F = t["F"]
     return bool(t["failures"]) or bool(F) and (F["outcome"] == "failed" or F["level"] == "L3" or (F["tests_state"] == "ran" and F["failed"] > 0))
@@ -121,7 +139,7 @@ class FeedLine(Job):
               render_examples(FEED_V5_EXTRA, mark, example_turn).replace("Example 1", f"Example {len(j4.EXAMPLES['feed_line']) + 1}", 1)
         return base + "\n\n" + exs
     def plan(self, t, setting, mark=True):
-        exc = gate_v4.excerpt_v4(t["ctx"]["cleaned"], t["facts"])[0]; qf = qf_lines(t, False)
+        exc = excerpt_v5(t); qf = qf_lines(t, False)
         def decided(kind, why):
             return {"decided": {"ok": True, "kind": kind, "shown": "\n".join([exc] + qf), "line": None, "excerpt": exc, "model_text": [],
                                 "errors": [], "notes": [why], "qf": qf}}
@@ -136,7 +154,7 @@ class FeedLine(Job):
                     "max_tokens": j4.MAX_OUTPUT["feed_line"], "est_tokens": est, "cut": cut}
         return {"build": build, "schema": schema}
     def evaluate(self, t, setting, fields, finish="stop", refused=False):
-        exc = gate_v4.excerpt_v4(t["ctx"]["cleaned"], t["facts"])[0]; qf = qf_lines(t, False)
+        exc = excerpt_v5(t); qf = qf_lines(t, False)
         base = {"excerpt": exc, "qf": qf, "line": None}
         bad = j4.fields_foreign(fields, t["ctx"]["cleaned"] + "\n" + facts_sentence(t))
         if bad: return {**base, "ok": False, "kind": "rejected", "errors": ["a letter outside the text's scripts: " + "".join(bad)], "model_text": []}
@@ -147,15 +165,21 @@ class FeedLine(Job):
                 for k, v in g.items() if not v[0]]
         u = undone_clause(line, t)
         if u: errs.append(f"contradiction: names a change that was undone ({u[:100]})")
+        k = claims_v5.kept_called_undone(line, t, kept_changes(t["git"]))
+        if k: errs.append(f"contradiction: {k[:120]}")
         if failure_on_success(line, t): errs.append("contradiction: states a failure, while the facts and the message report none")
+        sc = claims_v5.success_claim(line)
+        if sc and turn_failed(t): errs.append(f"contradiction: a success claim ({sc!r}) on a turn AI Juggler's facts show failed")
+        if t["ctx"].get("lang") == "de" and claims_v5.english_in_german(fields.get("action"), t["ctx"]["cleaned"]):
+            errs.append(f"language: the action {fields.get('action')!r} is English in a German line: write the German participle")
         if errs: return {**base, "ok": False, "kind": "rejected", "line": line, "errors": errs, "model_text": [], "notes": notes}
         return {**base, "ok": True, "kind": "quoted" if quoted else "written", "line": line, "shown": "\n".join([shown] + qf),
                 "model_text": [shown], "errors": [], "notes": notes}
     def fallback(self, t, setting):
-        exc = gate_v4.excerpt_v4(t["ctx"]["cleaned"], t["facts"])[0]; qf = qf_lines(t, False)
+        exc = excerpt_v5(t); qf = qf_lines(t, False)
         return {"ok": True, "kind": "excerpt", "shown": "\n".join([exc] + qf), "line": None, "excerpt": exc, "model_text": [], "errors": [],
                 "notes": ["every attempt failed its checks: A's excerpt"], "qf": qf}
-    def alternative(self, t, setting): return "\n".join([gate_v4.excerpt_v4(t["ctx"]["cleaned"], t["facts"])[0]] + qf_lines(t, False))
+    def alternative(self, t, setting): return "\n".join([excerpt_v5(t)] + qf_lines(t, False))
     def write_prompts(self):
         t = ex_turn("The agent's own closing message goes here.", j4.EX_FACTS["calm_ran"],
                     {"changed": [{"path": "src/example.rs", "added": 10, "removed": 2}], "reverted": [], "reflog": []})
@@ -166,6 +190,7 @@ FEED = register(FeedLine())
 # (b) turn review
 # ======================================================================================================================
 THIS_TURN = "(this turn)"
+REVIEW_FIELD_MAX = 90         # the grammar's bound on a note and the risk reason; a field that fills it was cut (claims_v5.cut_field)
 def review_paths(t):
     kept = [c["path"] for c in kept_changes(t["git"])]
     return kept if kept else [THIS_TURN]
@@ -173,9 +198,9 @@ def review_schema(t):
     paths = review_paths(t); mx = min(5, len(paths)) if paths != [THIS_TURN] else (3 if not t["git"]["known"] else 1)
     return j4.O("TurnReview", [
         ("notes", j4.A(j4.O("Note", [("path", j4.E(paths, "One of git's changed files, as listed in FACTS.")),
-                                     ("says", j4.S(90, 1, "What the MESSAGE says about that file's change, in its words. At most 90 characters."))]),
+                                     ("says", j4.S(REVIEW_FIELD_MAX, 1, "What the MESSAGE says about that file's change, in its words. At most 90 characters."))]),
                        mx, 0, "A short description per changed file, from the MESSAGE; leave a file out when the MESSAGE says nothing about it.")),
-        ("risk_reason", j4.S(90, 1, "Why the risk is what it is, in the message's words, or none. At most 90 characters.")),
+        ("risk_reason", j4.S(REVIEW_FIELD_MAX, 1, "Why the risk is what it is, in the message's words, or none. At most 90 characters.")),
         ("risk", j4.E(j4.RISKS, "low, medium, high, or unknown when the message and facts don't say."))])
 REVIEW_INSTR = (j4.ROLE + " When the developer opens a finished turn, AI Juggler shows a review: the files git says changed, what was "
   "reverted, the agent's questions and failures and what it left open, all from its own facts. You add two things: a short description "
@@ -208,7 +233,7 @@ def compose_review_v5(t, fields):
         rv = [r["path"] + (f" ({r['note']})" if r["note"] else "") for r in g["reverted"]] + [f"{H['history']}: {x}" for x in reflog_undos(g)]
         if rv: lines.append(f"{H['reverted']}: " + "; ".join(rv))
         u = g["uncommitted"]
-        if u not in (None, [], 0, False): lines.append(f"{H['uncommitted']}: " + (", ".join(u) if isinstance(u, list) else str(u)))
+        if u not in (None, [], 0, False): lines.append(f"{H['uncommitted']}: " + git_value(u, H))
     else:
         items = says.get(THIS_TURN) or [gate_v4.excerpt_v4(t["ctx"]["cleaned"], t["facts"])[0].split("\n")[0]]
         lines.append(f"{H['changed_nogit']}: " + "; ".join(items))
@@ -233,24 +258,31 @@ def review_checks_v5(t, fields):
     allowed = set(review_paths(t)); seen = set()
     bad = j4.fields_foreign(fields, src)
     if bad: errs.append("a letter outside the text's scripts: " + "".join(bad))
-    texts = []
+    failed = turn_failed(t); kept = kept_changes(t["git"])
+    def field_checks(label, raw, s):
+        """round 2: every model-written field gets the same checks (the risk reason went unchecked for success claims in round 1)"""
+        out = []
+        c = claims_v5.cut_field(raw, REVIEW_FIELD_MAX)
+        if c: out.append(f"{label}: {c}")
+        out += claims_v5.claim_errors(s, t, label, failed)
+        for e in j4.text_checks(src, claims_v5.strip_attribution(s), t["facts"], t["ctx"]["removed"], lang): out.append(f"{label}: {e}")
+        u = undone_clause(s, t)
+        if u: out.append(f"{label}: contradiction: describes a change that was undone ({u[:90]})")
+        k = claims_v5.kept_called_undone(s, t, kept)
+        if k: out.append(f"{label}: contradiction: {k[:120]}")
+        if failure_on_success(s, t): out.append(f"{label}: contradiction: states a failure the facts and the message don't report")
+        if failed and gate.UNIVERSAL.search(s) and not gate.verdict_words_v3(s)["fail"]: out.append(f"{label}: contradiction: a success claim on a failed turn")
+        return out
     for n in fields.get("notes") or []:
-        p, s = n.get("path"), j4._tidy(n.get("says", ""))
+        p, raw = n.get("path"), n.get("says", ""); s = j4._tidy(raw)
         if p not in allowed: errs.append(f"{p!r}: not one of git's changed files"); continue
         if p in seen and p != THIS_TURN: errs.append(f"{p!r}: described twice")
         seen.add(p)
         if j4.is_none(s): continue
-        texts.append(s)
-        for e in j4.text_checks(src, s, t["facts"], t["ctx"]["removed"], lang): errs.append(f"{s[:40]!r}: {e}")
         if len(s) > 135: errs.append(f"{s[:40]!r}: over 135 characters")
-        u = undone_clause(s, t)
-        if u: errs.append(f"{s[:40]!r}: contradiction: describes a change that was undone ({u[:90]})")
-        if failure_on_success(s, t): errs.append(f"{s[:40]!r}: contradiction: states a failure the facts and the message don't report")
-        if turn_failed(t) and gate.UNIVERSAL.search(s) and not gate.verdict_words_v3(s)["fail"]: errs.append(f"{s[:40]!r}: contradiction: a success claim on a failed turn")
+        errs += field_checks(f"{s[:40]!r}", raw, s)
     rr = fields.get("risk_reason")
-    if not j4.is_none(rr):
-        for e in j4.text_checks(src, j4._tidy(rr), t["facts"], t["ctx"]["removed"], lang): errs.append(f"risk reason: {e}")
-        if failure_on_success(rr, t): errs.append("risk reason: contradiction: states a failure the facts and the message don't report")
+    if not j4.is_none(rr): errs += field_checks("risk reason", rr, j4._tidy(rr))
     risk = fields.get("risk")
     if risk == "low":
         if turn_failed(t): errs.append("contradiction: risk low on a failed turn")
@@ -299,6 +331,7 @@ NEEDS_NOTE = {"en": {"question": "Needs you: the agent asks", "failure": "Needs 
               "de": {"question": "Braucht dich: der Agent fragt", "failure": "Braucht dich: etwas ist fehlgeschlagen"}}
 class Attention(Job):
     name, letter, title = "attention", "c", "attention suggestion"
+    omission_over_all_items = True    # round 2: every item shows a level (a note or none), so a miss or a false alarm counts over all items
     def system(self, mark=True):
         base = j4.INSTR["attention"].format(untrusted=j4.untrusted_rule(mark))
         base = base.replace("AI Juggler's FACTS decide how loud a turn is.", "AI Juggler's FACTS decide how loud a turn is; a turn whose "
