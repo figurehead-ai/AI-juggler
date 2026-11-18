@@ -35,6 +35,7 @@ pub use juggler_core::backup_archive::{
 pub(crate) use juggler_core::backup_archive::{MAX_FILE_BYTES, MAX_FILES, MAX_TOTAL_BYTES};
 use juggler_core::model::Timestamp;
 use juggler_core::storage::Storage;
+use juggler_core::storage::memory::backup::Destination as MemoryDestination;
 use sha2::{Digest, Sha256};
 
 use crate::error::{AppError, AppResult};
@@ -174,8 +175,9 @@ fn counts(storage: &Storage) -> AppResult<BTreeMap<String, u64>> {
 }
 
 /// Removes what only means something on this Mac and blanks environment
-/// values; returns what was withheld.
-fn scrub(snapshot: &Path) -> AppResult<Vec<String>> {
+/// values; returns what was withheld. The memory store's rows go by
+/// D-133's backup rule for `memory` (ADR-0037 §1.8).
+fn scrub(snapshot: &Path, memory: MemoryDestination) -> AppResult<Vec<String>> {
     let storage = Storage::open(snapshot)?;
     let conn = storage.raw_conn();
     let core = juggler_core::CoreError::from;
@@ -198,6 +200,7 @@ fn scrub(snapshot: &Path) -> AppResult<Vec<String>> {
     ] {
         conn.execute(sql, []).map_err(core)?;
     }
+    juggler_core::storage::memory::backup::scrub_snapshot(conn, memory)?;
     let mut withheld = Vec::new();
     // Every account's, removed ones too (AJ-E1501): their launch
     // settings are still in the database.
@@ -334,13 +337,43 @@ pub fn backup_before_update(
     backup_write(state, dest, progress, Purpose::StaysOnThisMac)
 }
 
-/// Where a backup goes, which decides whether a secret look-alike stops it.
+/// The backup for the encrypted cloud copy: as [`backup_export_impl`],
+/// but of Chat's memory only the watches and preferences the user stated
+/// (ADR-0037 §1.8, D-133): Chat's history, remembered answers, notes and
+/// inferred memories stay in this Mac's own backups.
+///
+/// # Errors
+///
+/// As [`backup_export_impl`].
+pub fn backup_for_cloud(
+    state: &Arc<AppState>,
+    dest: &Path,
+    progress: Progress<'_>,
+) -> AppResult<BackupExportInfo> {
+    backup_write(state, dest, progress, Purpose::Cloud)
+}
+
+/// Where a backup goes, which decides whether a secret look-alike stops it
+/// and which of Chat's memory goes with it.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 enum Purpose {
-    /// An export or a cloud copy: anything secret-looking stops it.
+    /// An export: anything secret-looking stops it.
     LeavesTheMac,
+    /// The cloud copy: anything secret-looking stops it, and Chat's words
+    /// stay behind.
+    Cloud,
     /// The copy before an update, in AI Juggler's own folder.
     StaysOnThisMac,
+}
+
+impl Purpose {
+    /// The memory store's destination class (ADR-0037 §1.8).
+    const fn memory(self) -> MemoryDestination {
+        match self {
+            Self::Cloud => MemoryDestination::Cloud,
+            Self::LeavesTheMac | Self::StaysOnThisMac => MemoryDestination::Local,
+        }
+    }
 }
 
 fn backup_write(
@@ -408,7 +441,7 @@ fn export_from(
 ) -> AppResult<BackupExportInfo> {
     let snapshot = work.join("juggler.sqlite");
     crate::commands::lock_storage_arc(state)?.snapshot_to(&snapshot)?;
-    let withheld = scrub(&snapshot)?;
+    let withheld = scrub(&snapshot, purpose.memory())?;
     let counts = counts(&Storage::open(&snapshot)?)?;
 
     let sources = sources(&state.data_dir, &snapshot);
@@ -721,8 +754,8 @@ pub fn read_manifest(path: &Path) -> AppResult<BackupManifestInfo> {
 }
 
 /// Puts back what belongs to this Mac, not to the backup: its process
-/// ledger, its Fleet sync state and its machine-only settings (the
-/// backup carries none of them).
+/// ledger, its Fleet sync state, its machine-only settings and its memory
+/// forget tombstones (the backup carries none of them).
 fn keep_this_macs_rows(storage: &Storage, before: &Path) -> AppResult<()> {
     use std::fmt::Write as _;
     let conn = storage.raw_conn();
@@ -747,7 +780,11 @@ fn keep_this_macs_rows(storage: &Storage, before: &Path) -> AppResult<()> {
          INSERT OR REPLACE INTO main.app_settings SELECT * FROM prior.app_settings WHERE {cond};",
         cond = machine_only_where("key")
     );
-    let copied = conn.execute_batch(&sql).map_err(core);
+    // What this Mac forgot stays forgotten (ADR-0037 §1.5): its
+    // tombstones are kept and drop those subjects from what came back.
+    let copied = conn.execute_batch(&sql).map_err(core).and_then(|()| {
+        juggler_core::storage::memory::backup::after_restore(conn, "prior").map(drop)
+    });
     conn.execute("DETACH DATABASE prior", []).map_err(core)?;
     copied?;
     Ok(())

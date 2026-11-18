@@ -196,7 +196,7 @@ pub fn cloud_backup_now_impl(
     })?;
     let result = (|| {
         let archive = work.join("upload.ajbackup");
-        crate::backup::backup_export_impl(state, &archive, &mut |_, _| {})?;
+        crate::backup::backup_for_cloud(state, &archive, &mut |_, _| {})?;
         let sealed = crate::vault::seal_backup(&archive, &key)?;
         let (client, token) = crate::figurehead::session(state)?;
         let label = format!(

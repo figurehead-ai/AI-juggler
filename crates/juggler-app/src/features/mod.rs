@@ -5,6 +5,7 @@
 pub mod account;
 pub mod account_settings;
 pub mod agent_bridge;
+pub mod ai;
 pub mod alerts;
 pub mod app;
 pub mod app_icons;
