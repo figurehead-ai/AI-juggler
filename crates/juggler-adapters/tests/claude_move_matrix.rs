@@ -15,7 +15,8 @@
 use std::path::{Path, PathBuf};
 
 use juggler_adapter::moving::{
-    InPlaceMove, MemberSide, MovePlan, MoveRequest, MoveSide, NotesChoice,
+    HoldWhy, InPlaceMove, MemberSide, MovePlan, MoveRequest, MoveSide, MoveStep, NotesChoice,
+    RefusalKind,
 };
 use juggler_adapter::transfer::file_id;
 use juggler_adapters::claude_move::ClaudeMove;
@@ -505,36 +506,42 @@ fn row07_shared_notes_conflict() {
     }
 }
 
-/// Row 9: what isn't proven is refused before anything: an app version not
-/// proven, a link, a hard-linked history, app to terminal, another disk.
+/// Row 9: what a move can't do is refused before anything, as a refusal
+/// the user can't clear (D-127: Move isn't shown): a records shape it
+/// doesn't know (D-128, on any version), a link, a hard-linked history,
+/// app to terminal, another disk.
 #[test]
-fn row09_unsupported_version_link_and_device() {
+fn row09_unsupported_shape_link_and_device() {
     let lab = Lab::new();
     let (a, b) = (lab.account("a"), lab.account("b"));
     let cwd = lab.cwd();
     record(&a, "local_main", "main", None, false, &cwd);
     let main = history(&a, SLUG, "main", 2, "a");
-    // A version not proven.
-    let mut request = lab.request(&a, &b, "main");
-    request.target.version = Some("5.0.0".into());
+    // A records layout it doesn't know, on the version that was proven:
+    // refused, and named for the gate watch.
+    std::fs::write(b.folder.join("sessions.db"), b"").unwrap();
+    let plan = ClaudeMove.plan(&lab.request(&a, &b, "main")).unwrap();
     assert!(
-        ClaudeMove
-            .plan(&request)
-            .unwrap()
-            .refusals
-            .iter()
-            .any(|r| r.contains("proven for version"))
+        plan.refusals.iter().any(|r| r.kind == RefusalKind::Setup),
+        "{:?}",
+        plan.refusals
     );
+    assert!(
+        plan.shape.iter().any(|what| what.contains("sessions.db")),
+        "{:?}",
+        plan.shape
+    );
+    std::fs::remove_file(b.folder.join("sessions.db")).unwrap();
     // App to terminal.
     let mut request = lab.request(&a, &b, "main");
     request.target.host_dir = None;
+    let plan = ClaudeMove.plan(&request).unwrap();
     assert!(
-        ClaudeMove
-            .plan(&request)
-            .unwrap()
-            .refusals
+        plan.refusals
             .iter()
-            .any(|r| r.contains("isn't proven yet"))
+            .any(|r| r.words.contains("terminal") && r.kind == RefusalKind::Setup),
+        "{:?}",
+        plan.refusals
     );
     // A link inside the family's folder.
     #[cfg(unix)]
@@ -551,7 +558,7 @@ fn row09_unsupported_version_link_and_device() {
         std::fs::hard_link(&main, lab.tmp.path().join("second-name")).unwrap();
         let plan = ClaudeMove.plan(&lab.request(&a, &b, "main")).unwrap();
         assert!(
-            plan.refusals.iter().any(|r| r.contains("hard link")),
+            plan.refusals.iter().any(|r| r.words.contains("hard link")),
             "{:?}",
             plan.refusals
         );
@@ -564,7 +571,7 @@ fn row09_unsupported_version_link_and_device() {
     assert!(
         refusals
             .iter()
-            .any(|r| r.contains("another disk") || r.contains("clone")),
+            .any(|r| r.words.contains("another disk") || r.words.contains("clone")),
         "{refusals:?}"
     );
     assert!(main.is_file(), "nothing moved");
@@ -891,7 +898,9 @@ fn an_unreadable_record_naming_the_family_refuses() {
     .unwrap();
     let plan = ClaudeMove.plan(&lab.request(&a, &b, "main")).unwrap();
     assert!(
-        plan.refusals.iter().any(|r| r.contains("can't be read")),
+        plan.refusals
+            .iter()
+            .any(|r| r.words.contains("can't be read")),
         "{:?}",
         plan.refusals
     );
@@ -914,6 +923,188 @@ fn an_unreadable_record_naming_the_family_refuses() {
     }
 }
 
+/// D-128: no version number gates a move. The Claude app 5.x's records
+/// (2026-11-18): a side session carries a start chain naming the first
+/// record of its chain, and an archived-sessions hint sits beside the
+/// records. On a new major whose shape fits, the family moves: the
+/// moved conversation's own links to a parent left behind go (its start
+/// chain too), a target child's chain is re-pointed at the moved record,
+/// and both folders' hints are put aside for the app to make again.
+#[test]
+fn a_new_major_whose_records_fit_moves_with_its_start_chain_and_hint() {
+    let lab = Lab::new();
+    let (a, b) = (lab.account("a"), lab.account("b"));
+    let cwd = lab.cwd();
+    // The moved conversation was itself started from one that stays.
+    record(&a, "local_top", "top", None, false, &cwd);
+    std::fs::write(
+        a.folder.join("local_main.json"),
+        format!(
+            r#"{{"sessionId":"local_main","cliSessionId":"main","cwd":"{cwd}","isArchived":false,"lastActivityAt":1,"spawnedFrom":{{"sessionId":"local_top","taskId":"t0","sideSession":true}},"startChain":{{"depth":1,"firstSessionId":"local_top"}}}}"#
+        ),
+    )
+    .unwrap();
+    std::fs::write(
+        a.folder.join("local_kid.json"),
+        format!(
+            r#"{{"sessionId":"local_kid","cliSessionId":"kid","cwd":"{cwd}","isArchived":true,"lastActivityAt":2,"spawnedFrom":{{"sessionId":"local_main","taskId":"t1","sideSession":true}},"startChain":{{"depth":1,"firstSessionId":"local_main"}}}}"#
+        ),
+    )
+    .unwrap();
+    // The target has an older record of the same conversation (an alias)
+    // and a child whose chain starts at it.
+    record(&b, "local_old", "main", None, false, &cwd);
+    std::fs::write(
+        b.folder.join("local_bkid.json"),
+        format!(
+            r#"{{"sessionId":"local_bkid","cliSessionId":"bkid","cwd":"{cwd}","isArchived":true,"lastActivityAt":3,"spawnedFrom":{{"sessionId":"local_old","taskId":"t2","sideSession":true}},"startChain":{{"depth":1,"firstSessionId":"local_old"}}}}"#
+        ),
+    )
+    .unwrap();
+    for account in [&a, &b] {
+        std::fs::write(
+            account.folder.join("archived-sessions.idx"),
+            r#"{"v":1,"archived":["local_kid"]}"#,
+        )
+        .unwrap();
+        std::fs::write(
+            account.folder.join("scheduled-tasks.json"),
+            r#"{"scheduledTasks":[]}"#,
+        )
+        .unwrap();
+        std::fs::create_dir_all(account.folder.join("backlog")).unwrap();
+    }
+    history(&a, SLUG, "main", 2, "a");
+    history(&a, SLUG, "kid", 2, "k");
+    let mut request = lab.request(&a, &b, "main");
+    request.source.version = Some("5.11492.5".into());
+    request.target.version = Some("5.11492.5".into());
+    let plan = ClaudeMove.plan(&request).unwrap();
+    if !clones() {
+        return; // Linux CI's ext4: the clone refusal is the whole list.
+    }
+    assert!(plan.can_move(), "{:?} {:?}", plan.refusals, plan.shape);
+    assert!(plan.shape.is_empty(), "{:?}", plan.shape);
+    let written = |id: &str| {
+        plan.steps
+            .iter()
+            .find_map(|step| match step {
+                MoveStep::WriteRecord { path, value } if path.ends_with(format!("{id}.json")) => {
+                    Some(value.clone())
+                }
+                _ => None,
+            })
+            .expect("each record is written")
+    };
+    let main = written("local_main");
+    assert!(
+        main.get("spawnedFrom").is_none() && main.get("startChain").is_none(),
+        "{main}"
+    );
+    assert_eq!(
+        written("local_kid")["startChain"]["firstSessionId"],
+        "local_main"
+    );
+    assert_eq!(
+        written("local_bkid")["startChain"]["firstSessionId"],
+        "local_main"
+    );
+    let hints: Vec<&PathBuf> = plan
+        .steps
+        .iter()
+        .filter_map(|step| match step {
+            MoveStep::Hold {
+                path,
+                why: HoldWhy::AppHint,
+            } => Some(path),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(hints.len(), 2, "{hints:?}");
+    let mut txn = Transaction::begin(
+        &lab.moves,
+        "m-5x",
+        "claude-code",
+        request.clone(),
+        plan.clone(),
+        None,
+        1,
+    )
+    .unwrap();
+    txn.back_up(&Stopped::checked()).unwrap();
+    txn.apply(&Stopped::checked(), 0).unwrap();
+    let report = txn.verify_cold(ClaudeMove.verify(&request, &plan)).unwrap();
+    assert!(report.passed(), "{:?}", report.failures());
+    assert!(!a.folder.join("archived-sessions.idx").exists());
+    assert!(!b.folder.join("archived-sessions.idx").exists());
+    txn.undo(&Stopped::checked(), 3).unwrap();
+    assert!(
+        a.folder.join("archived-sessions.idx").is_file(),
+        "Undo brings the hints back"
+    );
+}
+
+/// D-128: a record that names another under a field the move doesn't know
+/// could tie the family together in a way the plan would cut (here a child
+/// hangs from the moved conversation by a new field, not `spawnedFrom`):
+/// refused, as one the user can't clear, and named, on the version that
+/// was proven too.
+#[test]
+fn a_record_linked_by_a_field_the_move_doesnt_know_refuses() {
+    let lab = Lab::new();
+    let (a, b) = (lab.account("a"), lab.account("b"));
+    let cwd = lab.cwd();
+    record(&a, "local_main", "main", None, false, &cwd);
+    std::fs::write(
+        a.folder.join("local_kid.json"),
+        format!(
+            r#"{{"sessionId":"local_kid","cliSessionId":"kid","cwd":"{cwd}","isArchived":false,"lastActivityAt":2,"family":{{"parentRecord":"local_main"}}}}"#
+        ),
+    )
+    .unwrap();
+    history(&a, SLUG, "main", 2, "a");
+    history(&a, SLUG, "kid", 2, "k");
+    let plan = ClaudeMove.plan(&lab.request(&a, &b, "main")).unwrap();
+    assert!(!plan.can_move(), "the child would be left behind");
+    assert!(
+        plan.refusals.iter().all(|r| r.kind == RefusalKind::Setup),
+        "{:?}",
+        plan.refusals
+    );
+    assert!(
+        plan.shape
+            .iter()
+            .any(|what| what.contains("family.parentRecord")),
+        "{:?}",
+        plan.shape
+    );
+}
+
+/// D-127: a target profile not signed in yet is the user's to clear, and
+/// says how.
+#[test]
+fn a_target_not_signed_in_is_the_users_to_clear() {
+    let lab = Lab::new();
+    let (a, b) = (lab.account("a"), lab.account("b"));
+    record(&a, "local_main", "main", None, false, &lab.cwd());
+    history(&a, SLUG, "main", 2, "a");
+    std::fs::remove_file(b.code.join(".claude.json")).unwrap();
+    std::fs::remove_dir_all(b.host.join("claude-code-sessions")).unwrap();
+    let plan = ClaudeMove.plan(&lab.request(&a, &b, "main")).unwrap();
+    let waits: Vec<_> = plan
+        .refusals
+        .iter()
+        .filter(|r| r.kind == RefusalKind::UserCanClear)
+        .collect();
+    assert!(
+        waits
+            .iter()
+            .any(|r| r.words.contains("Move becomes available once you sign in")),
+        "{:?}",
+        plan.refusals
+    );
+}
+
 /// Review fixes: a member also started from a conversation outside the
 /// family would keep a link to a record left behind: refused.
 #[test]
@@ -934,7 +1125,7 @@ fn a_second_parent_outside_the_family_refuses() {
     assert!(
         plan.refusals
             .iter()
-            .any(|r| r.contains("isn't part of this family")),
+            .any(|r| r.words.contains("isn't part of this family")),
         "{:?}",
         plan.refusals
     );

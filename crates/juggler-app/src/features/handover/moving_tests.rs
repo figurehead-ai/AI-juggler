@@ -330,7 +330,7 @@ fn a_busy_profile_refuses_before_anything_is_quit_or_written() {
     let error = run(&lab.state, &lab.sides, &system)
         .unwrap_err()
         .to_string();
-    assert!(error.contains("2 sessions working"), "{error}");
+    assert!(error.contains("2 sessions are working"), "{error}");
     assert!(system.quits.lock().unwrap().is_empty());
     assert!(unchanged(&lab));
     assert!(!lab.state.data_dir.join("moves").exists(), "no move begun");
@@ -488,4 +488,92 @@ fn undo_refuses_a_profile_ai_juggler_no_longer_knows() {
         lab.b_folder.join("local_main.json").is_file(),
         "nothing undone"
     );
+}
+
+/// D-127: busy work is the user's to clear: Move waits, and says how.
+#[test]
+fn a_busy_profile_waits_in_the_offer_and_says_how() {
+    let lab = lab();
+    let system = Scripted {
+        working: 2,
+        ..running_both(&lab)
+    };
+    let offer = offer_of(&lab.state, &lab.sides, &system);
+    assert!(offer.applies);
+    let waits: Vec<&MoveBlockInfo> = offer
+        .blocks
+        .iter()
+        .filter(|b| b.kind == MoveBlockKind::UserCanClear)
+        .collect();
+    assert!(
+        waits
+            .iter()
+            .any(|b| b.words.contains("2 sessions are working in")
+                && b.words.ends_with("Move becomes available once they finish")),
+        "{:?}",
+        offer.blocks
+    );
+    if clones() {
+        assert!(
+            offer
+                .blocks
+                .iter()
+                .all(|b| b.kind == MoveBlockKind::UserCanClear),
+            "{:?}",
+            offer.blocks
+        );
+    }
+}
+
+/// D-128: a new major of the app whose records fit is offered (the 0.4.6
+/// rc2 walk: the Claude app had updated to 5.11492.5 and Move showed
+/// greyed with "proven for version 4.x").
+#[test]
+fn a_new_major_whose_records_fit_is_offered() {
+    let mut lab = lab();
+    lab.sides.request.source.version = Some("5.11492.5".into());
+    lab.sides.request.target.version = Some("5.11492.5".into());
+    let offer = offer_of(&lab.state, &lab.sides, &Scripted::default());
+    assert!(offer.applies);
+    if clones() {
+        assert!(offer.blocks.is_empty(), "{:?}", offer.blocks);
+    }
+    assert!(
+        !lab.state.data_dir.join(SHAPE_FILE).exists(),
+        "nothing to note"
+    );
+}
+
+/// D-127/D-128: records of a shape the move doesn't know are a block the
+/// user can't clear (the switch screen hides Move), and what didn't fit is
+/// kept with the app's version for the gate watch.
+#[test]
+fn records_the_move_doesnt_know_hide_it_and_are_kept_for_the_gate_watch() {
+    let mut lab = lab();
+    lab.sides.request.source.version = Some("6.0.1".into());
+    lab.sides.request.target.version = Some("6.0.1".into());
+    std::fs::write(lab.b_folder.join("sessions.db"), b"").unwrap();
+    let offer = offer_of(&lab.state, &lab.sides, &Scripted::default());
+    assert!(
+        offer.blocks.iter().any(|b| b.kind == MoveBlockKind::Setup),
+        "{:?}",
+        offer.blocks
+    );
+    let kept: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(lab.state.data_dir.join(SHAPE_FILE)).unwrap())
+            .unwrap();
+    let seen = kept["seen"].as_array().unwrap();
+    assert!(
+        seen.iter().any(|e| e["tool"] == "claude-code"
+            && e["version"] == "6.0.1"
+            && e["feature"] == "move"
+            && e["what"].as_str().unwrap().contains("sessions.db")),
+        "{kept}"
+    );
+    // Asked again: one entry, not two.
+    let _ = offer_of(&lab.state, &lab.sides, &Scripted::default());
+    let kept: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(lab.state.data_dir.join(SHAPE_FILE)).unwrap())
+            .unwrap();
+    assert_eq!(kept["seen"].as_array().unwrap().len(), seen.len());
 }

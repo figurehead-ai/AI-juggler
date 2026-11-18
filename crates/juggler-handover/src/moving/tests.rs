@@ -339,7 +339,7 @@ fn a_step_outside_the_roots_is_refused_before_anything() {
     });
     let refusals = preflight(&plan, &lab.moves);
     assert!(
-        refusals.iter().any(|r| r.contains("outside")),
+        refusals.iter().any(|r| r.words.contains("outside")),
         "{refusals:?}"
     );
     assert!(Transaction::begin(&lab.moves, "m10", "fake", request(&lab), plan, None, 1).is_err());
