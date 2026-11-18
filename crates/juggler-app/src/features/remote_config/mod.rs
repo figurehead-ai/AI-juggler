@@ -5,11 +5,18 @@
 //! The request is exactly what [`juggler_remote_config::ConfigRequest`]
 //! holds (a URL, and `If-None-Match` only when the policy allows it) plus
 //! the account client's generic headers (`User-Agent: AIJuggler/<version>`,
-//! `Accept`, `Content-Type`): never a bearer, a cookie or an id.
+//! `Accept`, `Content-Type`): never a bearer, a cookie or an id. A URL
+//! off the allow-listed host (D-129) is refused before anything is sent.
+//!
+//! [`spawn`] runs the daily fetch and applies what's in effect.
 
 use std::sync::Arc;
 
 use juggler_remote_config::{ConfigRequest, ConfigResponse, NetworkError, Transport};
+
+mod service;
+
+pub use service::{CHECK_KEY, STATE_FILE, registry, spawn};
 
 /// The remote-configuration transport over the account client's.
 pub struct RemoteConfigTransport(pub Arc<dyn juggler_account::Transport>);
@@ -34,6 +41,9 @@ impl RemoteConfigTransport {
 
 impl Transport for RemoteConfigTransport {
     fn get(&self, request: &ConfigRequest) -> Result<ConfigResponse, NetworkError> {
+        if !juggler_remote_config::fetch::allowed_url(&request.url) {
+            return Err(NetworkError("not the configuration host".to_owned()));
+        }
         let headers = request
             .if_none_match
             .iter()
@@ -72,7 +82,7 @@ mod tests {
         let transport = RemoteConfigTransport(account.clone());
         let response = transport
             .get(&ConfigRequest {
-                url: "https://config.example.test/remote-config/v1/stable.json".to_owned(),
+                url: "https://config.figurehead.ai/v1/stable.json".to_owned(),
                 if_none_match: None,
             })
             .unwrap();
@@ -93,5 +103,23 @@ mod tests {
             "the size cap is enforced while reading"
         );
         assert!(!request.url.contains('?'));
+    }
+
+    #[test]
+    fn a_url_off_the_configuration_host_is_never_sent() {
+        let account = Arc::new(juggler_account::RecordingTransport::default());
+        let transport = RemoteConfigTransport(account.clone());
+        for url in [
+            "https://config.figurehead.ai.example.test/v1/stable.json",
+            "http://config.figurehead.ai/v1/stable.json",
+            "https://example.test/v1/stable.json",
+        ] {
+            let request = ConfigRequest {
+                url: url.to_owned(),
+                if_none_match: None,
+            };
+            assert!(transport.get(&request).is_err(), "{url}");
+        }
+        assert!(account.requests().is_empty());
     }
 }

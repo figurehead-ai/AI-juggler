@@ -1,0 +1,9 @@
+{
+  "channel": "nightly",
+  "sections": {
+    "compat": {
+      "schema": 1,
+      "values": {}
+    }
+  }
+}

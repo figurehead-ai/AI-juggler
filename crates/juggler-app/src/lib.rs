@@ -1489,8 +1489,8 @@ fn spawn_read_model_ticks(
     features::cache::start(&index_state);
     // AJ-E3102: every page's counts, built once the app is up.
     features::relations::start(&index_state);
-    // AJ-E1611: new tool versions, once a day, well after start.
-    features::tool_updates::spawn(index_state.clone());
+    features::tool_updates::spawn(index_state.clone()); // AJ-E1611: tool versions, daily.
+    features::remote_config::spawn(index_state.clone()); // ADR-0035: daily, after paint.
     // AJ-E1007: the transcript search index, kept up to date in the
     // background (incremental: unchanged transcripts cost one metadata
     // read), so a search never waits for a first build.

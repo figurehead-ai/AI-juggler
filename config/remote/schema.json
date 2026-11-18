@@ -1,0 +1,57 @@
+{
+  "format": 1,
+  "sections": [
+    {
+      "controls": {
+        "claude_app_move_on": {
+          "switch": {
+            "default": true,
+            "remote": "off_only"
+          }
+        },
+        "claude_app_move_shape": {
+          "number": {
+            "default": 1,
+            "max": 1000000,
+            "min": 1
+          }
+        },
+        "claude_app_move_versions": {
+          "versions": {
+            "bounds": {
+              "min": "4.0.0"
+            },
+            "default": {
+              "min": "4.0.0"
+            }
+          }
+        },
+        "claude_code_move_on": {
+          "switch": {
+            "default": true,
+            "remote": "off_only"
+          }
+        },
+        "claude_code_move_shape": {
+          "number": {
+            "default": 1,
+            "max": 1000000,
+            "min": 1
+          }
+        },
+        "claude_code_move_versions": {
+          "versions": {
+            "bounds": {
+              "min": "2.0.0"
+            },
+            "default": {
+              "min": "2.0.0"
+            }
+          }
+        }
+      },
+      "name": "compat",
+      "schema": 1
+    }
+  ]
+}
