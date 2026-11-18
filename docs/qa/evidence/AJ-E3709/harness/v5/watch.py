@@ -308,6 +308,20 @@ def cond_words(c, plural, lang):
     if t == "asks_you" and p: return f"{w} and waits {p} minutes"
     if t == "task_changes": return f"{w} {str(p).replace('_', ' ')}"
     return w
+QUIET_TERM = (r"quiet[- ]hours?|quiet time|do not disturb|\bdnd\b|ruhezeit(?:en)?|nachtruhe|nicht stören|"
+              r"heures? (?:calmes?|silencieuses?|de silence)|ne pas déranger|horas? (?:de )?(?:silencio|tranquilas?|descanso)|no molestar|"
+              r"stille uren|rustige uren|rusttijd|niet storen")
+QUIET_NEG = r"\b(?:not|never|except|nicht|nie|außer|ausser|pas|jamais|sauf|no|nunca|excepto|salvo|niet|nooit|behalve)\b|respect|honou?r|beacht"
+QUIET_POS = (r"\b(?:even|anyway|regardless|or not|break(?:s|ing)? through|override|too|also|auch|trotzdem|selbst|sogar|egal|même|quand même|"
+             r"incluso|aunque|aun|también|ook|toch|zelfs)\b")
+def quiet_breakthrough(request):
+    """ADR-0036: "Even during quiet hours" is the user's own switch, off by default. Read from the request's words in code, never
+    from the model: on only when the request names quiet hours with a breakthrough word and no negation in the 30 characters before
+    the term ("not during quiet hours" stays off); anything unclear stays off (the user can turn it on in Change)"""
+    t = str(request or "").lower(); m = re.search(QUIET_TERM, t)
+    if not m: return False
+    if re.search(QUIET_NEG, t[max(0, m.start() - 30):m.start()]): return False
+    return bool(re.search(QUIET_POS, t))
 def echo(w, watch, lang=None):
     lang = lang or w["lang"]; lang = lang if lang in ("en", "de") else "en"
     names = [_q(t["name"]) for t in watch["targets"]]
@@ -323,7 +337,8 @@ def echo(w, watch, lang=None):
         head = "Ich sage dir Bescheid, wenn " + ("alle: " if allm else "") + f"{tn} {cj}."
     else:
         head = "Tell you when " + ("all of " if allm else "") + f"{tn} {cj}."
-    return head + " " + lt
+    quiet = (" Auch während der Ruhezeit." if lang == "de" else " Even during quiet hours.") if watch.get("even_in_quiet_hours") else ""
+    return head + " " + lt + quiet
 def nearest_line(w, targets, nearest, asked, lang):
     lang = lang if lang in ("en", "de") else "en"
     if lang == "de":
@@ -479,7 +494,7 @@ class WatchDraft(Job):
             return self._unsupported(w, tg, self._cue_nearest(w, tg, conds, cues), cues[0][2], "cue net", [])
         watch = {"targets": [typed_target(e) for e in tg], "matching": fields.get("matching") if fields.get("matching") in ("each", "all") else "each",
                  "conditions": conds, "lifetime": default_lifetime(tg, conds) if lt == "unsaid" else lt, "until": until, "lifetime_said": lt != "unsaid",
-                 "even_in_quiet_hours": False}
+                 "even_in_quiet_hours": quiet_breakthrough(w["request"])}
         return {"ok": True, "kind": "watch", "watch": watch, "shown": echo(w, watch), "buttons": ["Watch", "Change", "Cancel"], "model_text": [],
                 "errors": [], "notes": ["a draft: written only when the user clicks Watch"]}
     def _cue_nearest(self, w, tg, conds, cues, prefs=()):
@@ -576,7 +591,8 @@ def gold_norm(w):
     near = gold_nearest(g.get("nearest_if_unsupported"))
     if g.get("nearest_if_unsupported") not in (None, "", "none") and not near: unknown.append(str(g.get("nearest_if_unsupported")))
     return {"supported": sup, "target": (tk, None if tk == "any" else (str(tid) if tid is not None else None)), "conditions": conds,
-            "lifetime": gold_lifetime(g.get("lifetime")), "nearest": near, "unknown_types": unknown}
+            "lifetime": gold_lifetime(g.get("lifetime")), "nearest": near, "unknown_types": unknown,
+            "quiet": bool(g.get("even_in_quiet_hours"))}
 def match(w, o, G):
     """-> (exact: bool, diffs: [str]) of a shown watch against gold"""
     wt = o["watch"]; diffs = []
@@ -591,6 +607,8 @@ def match(w, o, G):
     elif lt != G["lifetime"]:
         if wt.get("lifetime_said"): diffs.append(f"lifetime {lt} != {G['lifetime']}")
         else: default_only = True; diffs.append(f"lifetime (unsaid; ADR-0036's default) {lt} != {G['lifetime']}")
+    if bool(wt.get("even_in_quiet_hours")) != G["quiet"]:
+        diffs.append("quiet: breaks quiet hours unasked" if wt.get("even_in_quiet_hours") else "quiet: asked to break quiet hours, drafted off")
     return not diffs, diffs, default_only
 def classify_error(e):
     low = str(e).lower()
@@ -651,7 +669,9 @@ def summarise(views):
             "latency_ms_item_total": {"median": statistics.median(lat) if lat else None, "p95": sorted(lat)[max(0, int(round(0.95 * len(lat))) - 1)] if lat else None},
             "extra": {"exact rule matches": f"{exact} of {sup}", "exact with ADR-0036's default for an unsaid lifetime": f"{exact_d} of {sup}",
                       "an unsaid lifetime whose ADR default differs from gold": ldef, "unsupported claimed": claimed, "nearest offered": f"{near_any} of {near_due}",
-                      "nearest equal to gold": f"{near_gold} of {near_due}", "asked (picker)": asked_n, "unknown gold condition types": dict(unknown) or "none"},
+                      "nearest equal to gold": f"{near_gold} of {near_due}", "asked (picker)": asked_n,
+                      "quiet hours broken unasked": sum(1 for m in mism if "quiet: breaks quiet hours unasked" in m["diffs"]),
+                      "quiet hours asked, drafted off": sum(1 for m in mism if "quiet: asked to break quiet hours, drafted off" in m["diffs"]), "unknown gold condition types": dict(unknown) or "none"},
             "candidates": cand + [c for c in caught if c["class"] == "critical"]}
 BARS = [("exact rule matches on supported requests, %", "exact_rule_match_pct", ">=", 95.0),
         ("exact rule matches, an unsaid lifetime by ADR-0036's default, %", "exact_rule_match_with_defaults_pct", ">=", 95.0), ("unsupported conditions claimed", "unsupported_claimed", "==", 0),

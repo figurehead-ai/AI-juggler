@@ -1661,7 +1661,8 @@
     }
    ],
    "lifetime": "once",
-   "nearest_if_unsupported": null
+   "nearest_if_unsupported": null,
+   "even_in_quiet_hours": true
   },
   "tags": [
    "quiet_hours"
@@ -1789,7 +1790,8 @@
     }
    ],
    "lifetime": "until:2026-11-18T23:59:00Z",
-   "nearest_if_unsupported": null
+   "nearest_if_unsupported": null,
+   "even_in_quiet_hours": true
   },
   "tags": [
    "quiet_hours",
@@ -1919,7 +1921,8 @@
     }
    ],
    "lifetime": "once",
-   "nearest_if_unsupported": null
+   "nearest_if_unsupported": null,
+   "even_in_quiet_hours": false
   },
   "tags": [
    "quiet_hours",
@@ -2048,7 +2051,8 @@
     }
    ],
    "lifetime": "once",
-   "nearest_if_unsupported": null
+   "nearest_if_unsupported": null,
+   "even_in_quiet_hours": true
   },
   "tags": [
    "quiet_hours"
@@ -4422,7 +4426,8 @@
     }
    ],
    "lifetime": "once",
-   "nearest_if_unsupported": null
+   "nearest_if_unsupported": null,
+   "even_in_quiet_hours": true
   },
   "tags": [
    "quiet_hours"
@@ -4532,7 +4537,8 @@
     }
    ],
    "lifetime": "once",
-   "nearest_if_unsupported": null
+   "nearest_if_unsupported": null,
+   "even_in_quiet_hours": false
   },
   "tags": [
    "quiet_hours",
@@ -6304,7 +6310,8 @@
     }
    ],
    "lifetime": "until:2026-11-18T23:59:00Z",
-   "nearest_if_unsupported": null
+   "nearest_if_unsupported": null,
+   "even_in_quiet_hours": true
   },
   "tags": [
    "quiet_hours",
@@ -6420,7 +6427,8 @@
     }
    ],
    "lifetime": "once",
-   "nearest_if_unsupported": null
+   "nearest_if_unsupported": null,
+   "even_in_quiet_hours": false
   },
   "tags": [
    "quiet_hours"

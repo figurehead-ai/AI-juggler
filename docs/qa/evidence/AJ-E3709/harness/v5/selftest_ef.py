@@ -206,6 +206,25 @@ def selftest():
     check("watch: a plain request becomes a typed draft, the echo by code, lifetime filled as once", o["kind"] == "watch" and o["watch"]["lifetime"] == "once"
           and o["shown"] == "Tell you when “otter-api” finishes. Once." and o["buttons"] == ["Watch", "Change", "Cancel"], o)
     check("watch: it matches the gold rule exactly", W.match(w1, o, W.gold_norm(w1))[0], W.match(w1, o, W.gold_norm(w1)))
+    # ADR-0036: "Even during quiet hours" is off by default; on only when the request asks for it in words (read in code), and echoed
+    qb = W.quiet_breakthrough
+    check("quiet hours: asked to break through, in several languages, turns the switch on",
+          all(qb(s) for s in ("ping me when otter-api stops, quiet hours or not", "alert me even in quiet hours", "override do not disturb for this one",
+                              "sag Bescheid, auch während der Ruhezeit", "préviens-moi même pendant les heures calmes", "avísame incluso en horas de descanso",
+                              "laat het weten, ook tijdens stille uren")))
+    check("quiet hours: a negation, no mention, or a bare mention keeps it off",
+          not any(qb(s) for s in ("tell me when it's done but not during quiet hours", "bitte nicht in der Ruhezeit", "pas pendant les heures calmes",
+                                  "tell me when otter-api finishes", "respect quiet hours, tell me after", "niet tijdens rustige uren alsjeblieft",
+                                  "remind me about quiet hours")))
+    wq = norm_item(dict(fixtures()["EF-W01"], id="T-Q", request=fixtures()["EF-W01"]["request"] + ", even during quiet hours",
+                        gold=dict(fixtures()["EF-W01"]["gold"], even_in_quiet_hours=True)))
+    oq = WJ.evaluate(wq, "main", wd(["s1"], [("finishes", "none")]))
+    check("quiet hours: the draft carries the switch, the echo states it, and it matches a gold that asks for it",
+          oq["kind"] == "watch" and oq["watch"]["even_in_quiet_hours"] is True and oq["shown"].endswith(" Even during quiet hours.") and W.match(wq, oq, W.gold_norm(wq))[0], oq)
+    check("quiet hours: a draft that breaks quiet hours unasked is a mismatch",
+          (lambda m: not m[0] and "quiet: breaks quiet hours unasked" in m[1])(W.match(w1, oq, W.gold_norm(w1))))
+    check("quiet hours: a gold that asks for it, drafted off, is a mismatch",
+          (lambda m: not m[0] and "quiet: asked to break quiet hours, drafted off" in m[1])(W.match(wq, o, W.gold_norm(wq))))
     w2 = it("EF-W02")
     o = WJ.evaluate(w2, "main", wd(["s1"], [("finishes", "none"), ("stuck", "15")], "until_ends"))
     check("combined: two conditions, a parameter, until it ends; exact match; the echo says it all", o["kind"] == "watch" and W.match(w2, o, W.gold_norm(w2))[0]
