@@ -19,6 +19,11 @@
 //! There is no control that carries code, markup, a path, a command or a
 //! URL: the file can only select among behaviour already in the app.
 //!
+//! A section may also carry a **list** of records ([`crate::list`]), such
+//! as short messages: each record's fields are as closed as a control
+//! (plain text of a compiled length, a compiled option, a link only to a
+//! compiled host).
+//!
 //! # A section in the file
 //!
 //! ```text
@@ -59,6 +64,7 @@ use std::collections::BTreeMap;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
+use crate::list::ListSpec;
 use crate::target::{Facts, When};
 use crate::version::VersionRange;
 
@@ -262,6 +268,11 @@ pub struct SectionSpec {
     name: String,
     schema: u32,
     controls: BTreeMap<String, Control>,
+    /// The records it lists, if it lists any ([`crate::list`]). Left out
+    /// of the export when there are none, so a section of controls only
+    /// exports as it always did.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    list: Option<ListSpec>,
 }
 
 impl SectionSpec {
@@ -273,7 +284,21 @@ impl SectionSpec {
             name: name.to_owned(),
             schema,
             controls: BTreeMap::new(),
+            list: None,
         }
+    }
+
+    /// Makes it list records of the shape `list` declares (its `items`).
+    #[must_use]
+    pub fn list(mut self, list: ListSpec) -> Self {
+        self.list = Some(list);
+        self
+    }
+
+    /// The records it lists, if any.
+    #[must_use]
+    pub const fn listed(&self) -> Option<&ListSpec> {
+        self.list.as_ref()
     }
 
     /// Adds a control (a later one with the same name replaces it; the
@@ -301,6 +326,34 @@ impl SectionSpec {
     pub const fn controls(&self) -> &BTreeMap<String, Control> {
         &self.controls
     }
+
+    /// How much of a file's section this app may read (see the module
+    /// docs), or why it can't read it at all.
+    pub(crate) fn reading(&self, raw: &Value) -> (Option<Reading>, Option<SectionIssue>) {
+        let invalid = |reason: &str| SectionIssue::Invalid {
+            section: self.name.clone(),
+            reason: reason.to_owned(),
+        };
+        let Some(object) = raw.as_object() else {
+            return (None, Some(invalid("a section is an object")));
+        };
+        match object.get("schema").and_then(Value::as_u64) {
+            Some(schema) if schema >= 1 && schema <= u64::from(self.schema) => {
+                (Some(Reading::Full), None)
+            }
+            Some(schema) if schema > u64::from(self.schema) => (
+                Some(Reading::SafetyOnly),
+                Some(SectionIssue::Newer {
+                    section: self.name.clone(),
+                    schema,
+                }),
+            ),
+            _ => (
+                Some(Reading::SafetyOnly),
+                Some(invalid("a section needs a schema number")),
+            ),
+        }
+    }
 }
 
 /// A section that can't be registered.
@@ -327,7 +380,7 @@ pub enum RegistryError {
     BadSchema(String),
 }
 
-fn valid_name(name: &str) -> bool {
+pub(crate) fn valid_name(name: &str) -> bool {
     !name.is_empty()
         && name.len() <= MAX_NAME_LEN
         && name
@@ -444,6 +497,14 @@ impl Registry {
                     reason,
                 })?;
         }
+        if let Some(list) = &spec.list {
+            list.check_declaration()
+                .map_err(|(field, reason)| RegistryError::BadControl {
+                    section: spec.name.clone(),
+                    control: field,
+                    reason,
+                })?;
+        }
         if self.sections.contains_key(&spec.name) {
             return Err(RegistryError::Duplicate(spec.name));
         }
@@ -469,6 +530,12 @@ impl Registry {
     /// The registered sections, by name.
     pub fn sections(&self) -> impl Iterator<Item = &SectionSpec> {
         self.sections.values()
+    }
+
+    /// The section registered as `name`, if any.
+    #[must_use]
+    pub fn section(&self, name: &str) -> Option<&SectionSpec> {
+        self.sections.get(name)
     }
 
     /// The schema the publisher validates a file against (ADR-0035 §8):
@@ -527,13 +594,30 @@ impl Registry {
                 continue;
             };
             for field in object.keys() {
-                if field != "schema" && field != "values" {
+                let known = field == "schema"
+                    || field == "values"
+                    || (field == "items" && spec.list.is_some());
+                if !known {
                     problem(format!("unknown field {field:?}"));
                 }
             }
             match object.get("schema").and_then(Value::as_u64) {
                 Some(schema) if schema >= 1 && schema <= u64::from(spec.schema) => {}
                 _ => problem(format!("`schema` is a number from 1 to {}", spec.schema)),
+            }
+            if let Some(list) = &spec.list {
+                match object.get("items") {
+                    None => {}
+                    Some(items) => {
+                        for what in list.validate(items) {
+                            problem(what);
+                        }
+                    }
+                }
+                // A list section's `values` is optional.
+                if !object.contains_key("values") {
+                    continue;
+                }
             }
             let Some(entries) = object.get("values").and_then(Value::as_object) else {
                 problem("`values` is an object".to_owned());
@@ -569,33 +653,19 @@ impl Registry {
                 issues.push(SectionIssue::Unknown(name.clone()));
                 continue;
             };
-            let invalid = |reason: &str| SectionIssue::Invalid {
-                section: name.clone(),
-                reason: reason.to_owned(),
-            };
-            let Some(object) = raw.as_object() else {
-                issues.push(invalid("a section is an object"));
+            let (reading, issue) = spec.reading(raw);
+            issues.extend(issue);
+            let Some(reading) = reading else {
                 continue;
             };
-            let reading = match object.get("schema").and_then(Value::as_u64) {
-                Some(schema) if schema >= 1 && schema <= u64::from(spec.schema) => Reading::Full,
-                Some(schema) if schema > u64::from(spec.schema) => {
-                    issues.push(SectionIssue::Newer {
-                        section: name.clone(),
-                        schema,
-                    });
-                    Reading::SafetyOnly
-                }
-                _ => {
-                    issues.push(invalid("a section needs a schema number"));
-                    Reading::SafetyOnly
-                }
-            };
-            let entries = match object.get("values") {
+            let entries = match raw.get("values") {
                 None => continue,
                 Some(Value::Object(entries)) => entries,
                 Some(_) => {
-                    issues.push(invalid("`values` is an object"));
+                    issues.push(SectionIssue::Invalid {
+                        section: name.clone(),
+                        reason: "`values` is an object".to_owned(),
+                    });
                     continue;
                 }
             };
@@ -687,7 +757,7 @@ fn validate_entry(control: &Control, entry: &Value) -> Vec<String> {
 
 /// How much of a section this app may read.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum Reading {
+pub(crate) enum Reading {
     /// A schema this app knows: every readable value.
     Full,
     /// A newer or missing schema: only kills and narrowings.

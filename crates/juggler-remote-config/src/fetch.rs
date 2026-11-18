@@ -58,7 +58,7 @@ pub const ALLOWED_HOSTS: &[&str] = &["config.figurehead.ai"];
 const PATH: &str = "/v1/";
 
 /// The host of an `https://` URL, if it has one with no port or user.
-fn https_host(url: &str) -> Option<&str> {
+pub(crate) fn https_host(url: &str) -> Option<&str> {
     let host = url
         .strip_prefix("https://")?
         .split(['/', '?', '#'])
@@ -393,6 +393,9 @@ pub struct Refresh {
     pub file: Option<Verified>,
     /// What this refresh did.
     pub attempt: Attempt,
+    /// When a fetch was last attempted for this channel, Unix seconds (any
+    /// outcome; this refresh's if it fetched), when known: "last checked".
+    pub checked_at: Option<u64>,
 }
 
 /// Fetches, verifies and caches the public file for one channel.
@@ -538,6 +541,7 @@ impl Fetcher {
             return Refresh {
                 file: None,
                 attempt: Attempt::Disabled,
+                checked_at: None,
             };
         }
         // One refresh at a time: the lock is held to the end.
@@ -551,6 +555,7 @@ impl Fetcher {
                         .as_ref()
                         .and_then(|state| self.verify_cached(state, app)),
                     attempt: Attempt::Failed(Failure::Store(e.to_string())),
+                    checked_at: memory.attempts.get(&app.channel).copied(),
                 };
             }
         };
@@ -560,6 +565,7 @@ impl Fetcher {
             return Refresh {
                 file: cached,
                 attempt: Attempt::NoEndpoint,
+                checked_at: None,
             };
         }
         let slot = state.channels.entry(app.channel).or_default();
@@ -572,6 +578,7 @@ impl Fetcher {
             return Refresh {
                 file: cached,
                 attempt: Attempt::NotDue,
+                checked_at: last,
             };
         }
         slot.last_attempt = Some(app.now);
@@ -584,12 +591,17 @@ impl Fetcher {
             return Refresh {
                 file: before.filter(|file| !state.revoked.contains(&file.key)),
                 attempt: Attempt::Failed(Failure::Store(e.to_string())),
+                checked_at: Some(app.now),
             };
         }
         // What's stored now may be newer than what this refresh saw.
         let stored = self.load(&mut memory).unwrap_or(state);
         let file = self.verify_cached(&stored, app);
-        Refresh { file, attempt }
+        Refresh {
+            file,
+            attempt,
+            checked_at: Some(app.now),
+        }
     }
 
     fn fetch(

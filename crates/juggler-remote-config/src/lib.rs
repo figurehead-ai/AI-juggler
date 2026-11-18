@@ -13,6 +13,8 @@
 //! - [`state`]: the rollback floor, revoked keys and the last good file,
 //!   behind an injectable store.
 //! - [`schema`]: the section registry and what a value may do.
+//! - [`list`]: sections that list records (short messages), each field as
+//!   closed as a control.
 //! - [`merge`](mod@merge): defaults, then public, then account, then the user.
 //! - [`target`]: targeting and rollout buckets, evaluated locally.
 //! - [`fetch`]: the daily anonymous fetch through an injected transport,
@@ -67,6 +69,7 @@ pub mod envelope;
 mod error;
 pub mod fetch;
 pub mod keys;
+pub mod list;
 pub mod merge;
 pub mod publish;
 pub mod schema;
@@ -84,6 +87,7 @@ pub use fetch::{
     NetworkError, Recorder, RecordingTransport, Refresh, ReplayTransport, Transport,
 };
 pub use keys::{KeyRing, KeyRole, PinnedKey};
+pub use list::{Field, FieldKind, FieldValue, Item, ListSpec, Lists};
 pub use merge::{Effective, Layer, Resolved, UserChoices, merge};
 pub use schema::{
     Control, LayerValues, Registry, RemoteMode, SectionIssue, SectionSpec, Setting, SettingKey,
