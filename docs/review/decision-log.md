@@ -3487,3 +3487,8 @@ The two open questions in ADR-0035 (hosting; the default on) go to the maintaine
 - **Amends:** D-128 §3.
 - Sources: the maintainer's message, 2026-11-18.
 - **Hosting decided (2026-11-18):** the maintainer: "host it on our website - remote config". The public channel files are served from the Figurehead website's CDN, at a fixed URL per channel, and that host is added to the compiled endpoint allow-list. The default for "Check for configuration updates" is **on** (the coordinating session's call, as proposed in ADR-0035 §7): kill switches and version support must reach people, the fetch is anonymous, and the Privacy page says exactly what is fetched. The maintainer may reverse it.
+- **Publishing details (2026-11-18, coordinating session):**
+  - **Weekly re-signing** runs in a separate `config-resign` environment with no reviewer. It's limited to `main` and holds only the signing secret, and it may only re-sign the live content unchanged (serial and expiry). Content changes always pass the release-gated Publish config.
+  - **The `current` signing key** is generated on the maintainer's Mac and piped straight into the GitHub secret, never stored there.
+  - **The `next` and `emergency` keys** stay offline in the maintainer's password manager, like the updater's standby key.
+  - **No zone ID is needed:** files carry a 5-minute cache, so nothing is ever purged.
