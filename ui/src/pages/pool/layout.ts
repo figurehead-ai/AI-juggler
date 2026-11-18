@@ -127,10 +127,18 @@ export function fitView(points: Iterable<Point>, width: number, height: number, 
   const room = both >= width / 2 ? both : Math.max(width - right, width / 2);
   const middle = width - right - room / 2;
   if (!box || width <= 0 || height <= 0) return { x: middle - NODE_W / 2, y: pad, scale: 1 };
-  // A node grows below its box with what waits on it: room for that too.
-  const tall = box.h + NODE_H;
   const high = height - top - bottom;
-  const readable = clampScale(Math.max(FIT_MIN_SCALE, Math.min(1, (room - pad * 2) / box.w, (high - pad * 2) / tall)));
+  const fitFor = (tall: number) => clampScale(Math.max(FIT_MIN_SCALE, Math.min(1, (room - pad * 2) / box.w, (high - pad * 2) / tall)));
+  // A full card grows below its box with an ask: room for that too. Under
+  // 100 % a node answers in a panel beside it and grows only for its
+  // title's second line (the rc3 critique: the full card's room shrank a
+  // six-member fit to 53 %, its titles cut), so a compact fit keeps a
+  // quarter node, and stays compact.
+  const full = fitFor(box.h + NODE_H);
+  const compact = Math.min(fitFor(box.h + NODE_H / 4), FULL_SCALE - 0.01);
+  const fitsFull = full >= FULL_SCALE - 0.005;
+  const tall = fitsFull || compact <= full ? box.h + NODE_H : box.h + NODE_H / 4;
+  const readable = fitsFull ? full : Math.max(full, compact);
   // With a column over the right edge, members never go under it (rc5
   // walk: adding a Tool rule hid two nodes): below the readable floor, to
   // the least scale, a node is its name and its state's dot.

@@ -2,7 +2,10 @@
  * One member on a pool's canvas: its tool, its name, its account, its
  * state in the rail's one vocabulary (AJ-E2104), what it holds, and the
  * lead marked. What waits on you about it sits on it with its answer in
- * place (D-28's three choices), and a badge counts it.
+ * place (D-28's three choices; a line paused into it at the hop limit,
+ * Let it continue or Don't deliver): one mark a need, no badge besides
+ * (the rc3 critique, calm). Its App's logo is muted at rest, in full
+ * colour when it needs you or is chosen, hovered or focused.
  *
  * The node's name is its one tab stop (the canvas moves between names
  * with the arrow keys); its answers and its ⋯ follow it.
@@ -13,6 +16,7 @@
  */
 import { memo, type JSX, type MouseEvent } from "react";
 import { appName } from "../../lib/app-name";
+import { appTone } from "../../lib/attention";
 
 import { logoOf, MemberLogo } from "../../components/MemberLogo";
 import { useActionHost } from "../../components/ItemMenu";
@@ -22,7 +26,8 @@ import { sessionState, STATE_TONE } from "../../lib/rail-items";
 import { NODE_H, NODE_W, nodeForm } from "./layout";
 import { CompactNode } from "./CompactNode";
 import { NodeButton, RoleWords, titleOf } from "./NodeButton";
-import { AskLine, NO_TASK, NodeRoom, nameWraps, nodeBorder, sessionAlert, useNodeDescription, type NodeProps } from "./NodeParts";
+import { AskLine, NO_TASK, NodeRoom, PausedLine, nameWraps, nodeBorder, nodeNeed, sessionAlert, useNodeDescription, type NodeProps } from "./NodeParts";
+import { edgeKey } from "./useCanvas";
 
 /** Its full card from 100 % up, its compact form below (semantic zoom).
  * It never fades in: WebKit holds a hidden window's animations at their
@@ -34,12 +39,12 @@ export const CanvasNode = memo(function CanvasNode(props: NodeProps): JSX.Elemen
   return nodeForm(props.scale).full ? <FullNode {...props} /> : <CompactNode {...props} />;
 });
 
-function FullNode({ member, at, asks, held, selected, tabStop, dragging, onSelect, onMenu, onPointerDown, onKey }: NodeProps): JSX.Element {
+function FullNode({ member, at, asks, paused, hops, selected, tabStop, dragging, onSelect, onMenu, onPointerDown, onKey }: NodeProps): JSX.Element {
   const state = sessionState(member.session);
   const alert = sessionAlert(member);
   const lead = member.role === "lead";
   const title = titleOf(member);
-  const waits = asks.length + held + (alert ? 1 : 0);
+  const waits = nodeNeed(member, asks, paused)?.waits ?? 0;
   const description = useNodeDescription(member, state.word, waits);
   // The card says "None" when it holds no task (cards.rs's NO_TASK); a
   // task that is the node's title isn't said twice.
@@ -69,21 +74,18 @@ function FullNode({ member, at, asks, held, selected, tabStop, dragging, onSelec
       onContextMenu={openMenu}
       style={{ transform: `translate(${at.x}px, ${at.y}px)`, width: NODE_W, minHeight: NODE_H }}
       className={
-        "absolute left-0 top-0 flex touch-none select-none flex-col gap-2 rounded-xl border p-3 data-[pending]:opacity-70 " +
+        "tone-host absolute left-0 top-0 flex touch-none select-none flex-col gap-2 rounded-xl border p-3 data-[pending]:opacity-70 " +
         border +
         (dragging ? " z-20 cursor-grabbing opacity-90 shadow-lg" : " cursor-grab") +
         (ended && !selected ? " opacity-75" : "")
       }
     >
-      {waits > 0 && (
-        <span className="absolute -right-2 -top-2 z-10 rounded-full bg-warning px-1.5 font-mono text-label font-semibold leading-5 text-canvas" aria-hidden="true" data-testid="node-badge">
-          {waits}
-        </span>
-      )}
       <div className="flex min-w-0 items-start gap-2.5">
         {/* Its App's own icon, a CLI's with its terminal badge: a member's
             one logo (D-126), its role in words beside it. */}
-        <MemberLogo spec={logoOf(`session:${member.session.id}`, { apps: [], sessions: [member.session] })} size={32} />
+        <span className={"flex shrink-0 " + appTone(selected || waits > 0)} data-testid="node-logo">
+          <MemberLogo spec={logoOf(`session:${member.session.id}`, { apps: [], sessions: [member.session] })} size={32} />
+        </span>
         <div className="flex min-w-0 flex-1 flex-col">
           {/* The node is this button (P5, AJ-E3304 L4: an accessibility
               press on the node did nothing): it covers the card, so a
@@ -146,6 +148,9 @@ function FullNode({ member, at, asks, held, selected, tabStop, dragging, onSelec
           {asks.length - 1} more {asks.length === 2 ? "ask" : "asks"}
         </button>
       )}
+      {paused.map((one) => (
+        <PausedLine key={edgeKey(one.edge.from_session_id, one.edge.to_session_id)} paused={one} hops={hops} />
+      ))}
     </div>
   );
 }

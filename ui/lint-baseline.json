@@ -1808,14 +1808,12 @@
   "jsx-a11y(no-noninteractive-element-interactions)": 1,
   "jsx-a11y(prefer-tag-over-role)": 1,
   "react-hooks(exhaustive-deps)": 3,
-  "typescript(consistent-return)": 4,
+  "typescript(consistent-return)": 3,
   "typescript(no-unsafe-type-assertion)": 5
  },
  "src/pages/pool/CanvasEdges.tsx": {
-  "jsx-a11y(no-static-element-interactions)": 1,
   "jsx-a11y(prefer-tag-over-role)": 1,
-  "typescript(consistent-return)": 1,
-  "typescript(no-unsafe-type-assertion)": 2
+  "typescript(no-unsafe-type-assertion)": 1
  },
  "src/pages/pool/CanvasNode.tsx": {
   "eslint(complexity)": 1

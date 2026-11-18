@@ -119,8 +119,15 @@ for (const theme of ["dark", "light"] as const) {
       // At fit, under 100 %: every node compact, its words at screen size.
       await expect(page.locator("[data-form='full']")).toHaveCount(0);
       await expect(page.locator('[data-node="s-plan"]').getByTestId("node-lead")).toBeVisible();
-      await expect(page.locator('[data-node="s-copy"]').getByTestId("node-badge")).toBeVisible();
-      await expect(page.getByTestId("edge-badge").first()).toBeVisible();
+      // The rc3 critique (calm): what waits on you is one mark on its node,
+      // its word in place of its state; a line says nothing at rest.
+      await expect(page.locator('[data-node="s-copy"]').getByTestId("node-need")).toHaveText("Asks you");
+      await expect(page.locator('[data-node="s-review"]').getByTestId("node-need")).toHaveText("Asks you +1");
+      await expect(page.getByTestId("node-badge")).toHaveCount(0);
+      await expect(page.getByTestId("edge-label")).toHaveCount(0);
+      // Logos muted at rest, lit where a node needs you.
+      await expect(page.locator('[data-node="s-cart"]').getByTestId("node-logo")).not.toHaveClass(/is-lit/);
+      await expect(page.locator('[data-node="s-copy"]').getByTestId("node-logo")).toHaveClass(/is-lit/);
       // D-126 §3, as mocked: its setup done and its sessions in it, the
       // calm running view; no palette (Edit setup brings it back).
       await expect(page.getByTestId("pool-running")).toBeVisible();
@@ -142,22 +149,25 @@ for (const theme of ["dark", "light"] as const) {
         all.map((el) => {
           const line = parseFloat(getComputedStyle(el).lineHeight);
           const height = el.getBoundingClientRect().height;
-          return { text: el.textContent ?? "", lines: Math.round(height / line), cutOnOne: height < line * 1.5 && el.scrollWidth > el.clientWidth + 1 };
+          return { text: el.textContent ?? "", lines: Math.round(height / line), cutOnOne: height < line * 1.5 && el.scrollWidth > el.clientWidth + 1, cutOnTwo: el.scrollHeight > el.clientHeight + 1 };
         }),
       );
       expect(titles.filter((one) => one.cutOnOne).map((one) => one.text), "no title cut on one line").toEqual([]);
       for (const long of ["Fix the cart totals", "Checkout copy pass", "Review the checkout steps", "Spike: payment sandbox", "Tax rules research"]) {
         expect(titles.find((one) => one.text === long)?.lines, `${long}: on two lines`).toBe(2);
       }
+      // The rc3 critique ("Spike: payment…", "Review the checkout…" at
+      // 53 %): at the default view of a 1280 window, the titles read whole.
+      if (width === 1280) expect(titles.filter((one) => one.cutOnTwo).map((one) => one.text), "no title cut on two lines").toEqual([]);
       await page.mouse.move(0, 0);
       await page.screenshot({ path: resolve(OUT, `canvas-${size}-${theme}.png`) });
       await axe(page, `canvas ${size} ${theme}`);
     });
 
-    test(`a node's waiting badge opened, its ask answered in place — ${size} ${theme}`, async ({ page }) => {
+    test(`a node's need opened, its ask answered in place — ${size} ${theme}`, async ({ page }) => {
       await open(page, theme, width, height);
       await canvas(page);
-      await page.locator('[data-node="s-copy"]').getByTestId("node-badge").click();
+      await page.locator('[data-node="s-copy"]').getByTestId("node-need").click();
       const panel = page.locator('[data-node="s-copy"]').getByTestId("node-popover");
       await expect(panel.getByTestId("node-ask")).toContainText("wants to message Planner");
       await expect(panel.getByTestId("node-ask-once")).toBeFocused();
@@ -166,16 +176,21 @@ for (const theme of ["dark", "light"] as const) {
       await axe(page, `node badge open ${size} ${theme}`);
     });
 
-    test(`an edge's waiting badge opened — ${size} ${theme}`, async ({ page }) => {
+    // The rc3 critique: a line paused at the hop limit waits on the node
+    // it was going to, answered from its one mark (the capture keeps its
+    // name, so the gallery's set stays whole).
+    test(`a paused line answered on its node — ${size} ${theme}`, async ({ page }) => {
       await open(page, theme, width, height);
       await canvas(page);
-      const paused = page.getByTestId("edge-badge").filter({ hasText: "Paused" });
-      await paused.click();
-      await expect(page.getByTestId("edge-badge-panel").getByTestId("edge-deliver")).toHaveText("Let it continue");
-      await expect(page.getByTestId("edge-badge-panel").getByTestId("edge-dont-deliver")).toBeVisible();
+      const review = page.locator('[data-node="s-review"]');
+      await review.getByTestId("node-need").click();
+      const paused = review.getByTestId("node-popover").getByTestId("node-paused");
+      await expect(paused).toContainText("Fix the cart totals: Paused after");
+      await expect(paused.getByTestId("edge-deliver")).toHaveText("Let it continue");
+      await expect(paused.getByTestId("edge-dont-deliver")).toBeVisible();
       await page.mouse.move(0, 0);
       await page.screenshot({ path: resolve(OUT, `canvas-edge-badge-open-${size}-${theme}.png`) });
-      await axe(page, `edge badge open ${size} ${theme}`);
+      await axe(page, `paused line open ${size} ${theme}`);
     });
 
     test(`the canvas at 100 %: full cards — ${size} ${theme}`, async ({ page }) => {
@@ -183,7 +198,9 @@ for (const theme of ["dark", "light"] as const) {
       await canvas(page);
       await fullCards(page);
       await expect(page.locator('[data-node="s-copy"]').getByTestId("node-ask")).toContainText("wants to message Planner");
-      await expect(page.getByTestId("edge-pending").first()).toBeVisible();
+      // The paused line on the card it was going to; no line says it at rest.
+      await expect(page.locator('[data-node="s-review"]').getByTestId("node-paused")).toBeVisible();
+      await expect(page.getByTestId("edge-label")).toHaveCount(0);
       await page.mouse.move(0, 0);
       await page.screenshot({ path: resolve(OUT, `canvas-full-${size}-${theme}.png`) });
       await axe(page, `canvas full ${size} ${theme}`);
@@ -435,8 +452,8 @@ test("keyboard: arrows between nodes, Enter, Option+arrows, Delete with Undo, an
   await expect(page.getByTestId("canvas-node")).toHaveCount(6);
   expect((await calls(page, "__AIJ_POOL_CALLS__")).join("\n")).not.toMatch(/move:s-spike/);
 
-  // At fit the node is compact: its badge opens the ask, answered there.
-  await page.locator('[data-node="s-copy"]').getByTestId("node-badge").focus();
+  // At fit the node is compact: its one mark opens the ask, answered there.
+  await page.locator('[data-node="s-copy"]').getByTestId("node-need").focus();
   await page.keyboard.press("Enter");
   await page.keyboard.press("Enter");
   await expect(page.locator('[data-node="s-copy"]').getByTestId("node-ask")).toHaveCount(0);

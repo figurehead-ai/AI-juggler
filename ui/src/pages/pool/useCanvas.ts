@@ -5,13 +5,14 @@
  * canvas read for those members, read again when messages, tasks or
  * sessions change (the backend's events, a burst read once); and where
  * the user put each node, changed at once and saved behind it. With no
- * member drawn, only the pool's stream is read.
+ * member drawn, only the pool's stream is read. A pool never laid out
+ * opens tidy, once (the rc3 critique: its lines crossed).
  *
  * An edge whose newest activity moved since the last read pulses once.
  */
 import { isActiveStatus } from "../../components/indicator";
 import { settleAdds, settleRoles, usePendingRoles } from "../../lib/pool-pending";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import { errorText } from "../../lib/bridge";
 import { onSessionsUpdated } from "../../lib/ipc/instances";
@@ -24,6 +25,7 @@ import { POOL_MEMBERS, usePoolMembers } from "../../lib/pools";
 import { prefetchPaged, rememberedPage } from "../../lib/paged";
 import { showToast } from "../../components/Toast";
 import { layout, type Point } from "./layout";
+import { tidyLayout } from "./tidy-layout";
 import { nameOf } from "./actions";
 import { namedByFacts, tellApart } from "../../lib/session-titles";
 import { rememberCanvas, rememberedCanvas } from "./prefetch";
@@ -60,6 +62,9 @@ export function distinctNames<T extends { session: InstanceInfo }>(rows: readonl
 }
 
 export const edgeKey = (from: string, to: string) => `${from}>${to}`;
+
+/** Places as the backend keeps them. */
+const rowsOf = (at: ReadonlyMap<string, Point>): NodePositionInfo[] => [...at].map(([id, point]) => ({ session_id: id, x: point.x, y: point.y }));
 
 /** Whether two reads of a stream say the same lines. */
 const sameStream = (a: PoolCanvasInfo["stream"], b: PoolCanvasInfo["stream"]) => a.length === b.length && a.every((line, at) => line.at_ms === b[at]?.at_ms && line.words === b[at]?.words);
@@ -223,7 +228,29 @@ export function useCanvas(poolId: string, sessions: InstanceInfo[], desktop: rea
     for (const [id, at] of mine) out.set(id, at);
     return out;
   }, [canvas, mine, poolId]);
-  const points = useMemo(() => layout(members.map((member) => ({ id: member.id, role: member.role })), saved), [members, saved]);
+  const boxes = useMemo(() => members.map((member) => ({ id: member.id, role: member.role })), [members]);
+  const points = useMemo(() => layout(boxes, saved), [boxes, saved]);
+
+  // The rc3 critique: a pool never laid out (no place kept) opens tidy —
+  // on its first open whose read has lines, its members go where their
+  // lines cross least, and those places are kept, so nothing moves on its
+  // own after (a line that starts later moves nothing); the user's own
+  // places are kept from then on. Before the frame shows, so it never
+  // jumps.
+  const opened = useRef<string | null>(null);
+  const current = canvas?.pool_id === poolId ? canvas : null;
+  // Its members listed, and the canvas read for them (each has its anchor).
+  const listed = !loading && !(hasMore && items.length < CANVAS_NODES) && !!current && boxes.every((box) => box.id in current.anchors);
+  useLayoutEffect(() => {
+    if (opened.current === poolId || !current || !listed) return;
+    opened.current = poolId;
+    const tidied = saved.size === 0 ? tidyLayout(boxes, current.edges) : null;
+    if (!tidied) return;
+    // As read back (the read kept for the next open says so too).
+    setCanvas((was) => (was && was.pool_id === poolId ? { ...was, positions: rowsOf(tidied) } : was));
+    // Kept quietly: a place not saved is tidied again next time.
+    poolCanvasPlace(poolId, rowsOf(tidied)).catch(() => undefined);
+  }, [poolId, current, listed, saved, boxes, setCanvas]);
 
   /** Saves where nodes are. The first time the user arranges a pool,
    * every shown node is saved where it is, so the rest stay put. */
@@ -248,14 +275,16 @@ export function useCanvas(poolId: string, sessions: InstanceInfo[], desktop: rea
     [poolId, points, saved, read],
   );
 
-  /** Tidy up: forgets every place and lays the pool out again; Undo puts
-   * them back. */
+  /** Tidy up: forgets every place and lays the pool out again, tidy
+   * (its lines crossing least, kept); Undo puts them back. */
   const tidy = useCallback(async () => {
-    const before = [...saved].map(([id, at]) => ({ session_id: id, x: at.x, y: at.y }));
+    const before = rowsOf(saved);
     try {
       await poolCanvasTidy(poolId);
+      const laid = tidyLayout(boxes, canvas?.pool_id === poolId ? canvas.edges : []);
+      if (laid) await poolCanvasPlace(poolId, rowsOf(laid));
       setMine(new Map());
-      setCanvas((was) => (was ? { ...was, positions: [] } : was));
+      setCanvas((was) => (was ? { ...was, positions: laid ? rowsOf(laid) : [] } : was));
       if (before.length > 0) {
         showToast({
           message: "Laid out again",
@@ -270,7 +299,7 @@ export function useCanvas(poolId: string, sessions: InstanceInfo[], desktop: rea
     } catch (cause) {
       showToast({ message: "Couldn't tidy up", detail: errorText(cause), tone: "error" });
     }
-  }, [poolId, saved, setCanvas]);
+  }, [poolId, saved, setCanvas, boxes, canvas]);
 
   return {
     list,

@@ -53,7 +53,7 @@ describe("a node leads with its title or task, the time second (D-126 §4a)", ()
 
   it("the full card shows the title, and the time on its state line", () => {
     const one = { ...member(untitled("s-12")), title: { title: "web (12)", when: "started 5:16 PM" } };
-    render(<CanvasNode member={one} at={{ x: 0, y: 0 }} asks={[]} held={0} selected={false} tabStop dragging={false} scale={1} onSelect={() => {}} onMenu={() => {}} onPointerDown={() => {}} onKey={() => {}} />);
+    render(<CanvasNode member={one} at={{ x: 0, y: 0 }} asks={[]} paused={[]} selected={false} tabStop dragging={false} scale={1} onSelect={() => {}} onMenu={() => {}} onPointerDown={() => {}} onKey={() => {}} />);
     const node = screen.getByTestId("canvas-node");
     expect(node.querySelector("[data-node-name]")!.textContent).toBe("web (12)");
     expect(screen.getByTestId("node-when").textContent).toBe("started 5:16 PM");
@@ -64,7 +64,7 @@ describe("a node leads with its title or task, the time second (D-126 §4a)", ()
 describe("a compact node at fit (the coordinator's critique: \"Checkout …\" at 53 %)", () => {
   it.each([0.53, 0.5])("at %s it wraps its title over two lines before it cuts it, its box growing to hold them", (scale) => {
     const long = { ...member(untitled("s-9")), title: { title: "Review the checkout steps", when: null } };
-    render(<CanvasNode member={long} at={{ x: 0, y: 0 }} asks={[]} held={0} selected={false} tabStop dragging={false} scale={scale} onSelect={() => {}} onMenu={() => {}} onPointerDown={() => {}} onKey={() => {}} />);
+    render(<CanvasNode member={long} at={{ x: 0, y: 0 }} asks={[]} paused={[]} selected={false} tabStop dragging={false} scale={scale} onSelect={() => {}} onMenu={() => {}} onPointerDown={() => {}} onKey={() => {}} />);
     const node = screen.getByTestId("canvas-node");
     const text = node.querySelector<HTMLElement>("[data-node-name-text]")!;
     expect(text.className.split(" ")).toContain("line-clamp-2");
@@ -81,7 +81,7 @@ describe("every node is a real button (the rc2 walk P5, AJ-E3304 L4)", () => {
 
   it.each([1, 0.6, 0.35])("at %s the node is a button by role and name, not a group around one", (scale) => {
     const select = vi.fn();
-    render(<CanvasNode member={titled} at={{ x: 0, y: 0 }} asks={[]} held={0} selected={false} tabStop dragging={false} scale={scale} onSelect={select} onMenu={() => {}} onPointerDown={() => {}} onKey={() => {}} />);
+    render(<CanvasNode member={titled} at={{ x: 0, y: 0 }} asks={[]} paused={[]} selected={false} tabStop dragging={false} scale={scale} onSelect={select} onMenu={() => {}} onPointerDown={() => {}} onKey={() => {}} />);
     expect(screen.queryAllByRole("group")).toEqual([]);
     const node = screen.getByRole("button", { name: "web (7), started 5:16 PM" });
     expect(document.getElementById(node.getAttribute("aria-describedby")!)!.textContent).toMatch(/^Lead\. /);
@@ -93,7 +93,7 @@ describe("every node is a real button (the rc2 walk P5, AJ-E3304 L4)", () => {
 
   it("takes keyboard focus and Enter", async () => {
     const select = vi.fn();
-    render(<CanvasNode member={titled} at={{ x: 0, y: 0 }} asks={[]} held={0} selected={false} tabStop dragging={false} scale={1} onSelect={select} onMenu={() => {}} onPointerDown={() => {}} onKey={() => {}} />);
+    render(<CanvasNode member={titled} at={{ x: 0, y: 0 }} asks={[]} paused={[]} selected={false} tabStop dragging={false} scale={1} onSelect={select} onMenu={() => {}} onPointerDown={() => {}} onKey={() => {}} />);
     await userEvent.tab();
     const node = screen.getByRole("button", { name: "web (7), started 5:16 PM" });
     expect(document.activeElement).toBe(node);
@@ -119,7 +119,7 @@ describe("Diagram → List → Diagram draws the nodes at once (the rc2 walk)", 
 
   it("a node never fades in, nor when it changes form (a pool's first fit swaps every node's form)", () => {
     const one = member(untitled("s-1"));
-    const props = { member: one, at: { x: 0, y: 0 }, asks: [], held: 0, selected: false, tabStop: true, dragging: false, onSelect: () => {}, onMenu: () => {}, onPointerDown: () => {}, onKey: () => {} };
+    const props = { member: one, at: { x: 0, y: 0 }, asks: [], paused: [], selected: false, tabStop: true, dragging: false, onSelect: () => {}, onMenu: () => {}, onPointerDown: () => {}, onKey: () => {} };
     const view = render(<CanvasNode {...props} scale={1} />);
     expect(view.getByTestId("canvas-node").outerHTML).not.toContain("aij-fade-in");
     view.rerender(<CanvasNode {...props} scale={0.6} />);

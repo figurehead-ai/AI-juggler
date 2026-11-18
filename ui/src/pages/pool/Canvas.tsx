@@ -25,12 +25,14 @@ import type { PoolInfo } from "../../lib/ipc/pools";
 import { CanvasEdges, type LineRules } from "./CanvasEdges";
 import { CanvasToolbar } from "./CanvasToolbar";
 import { CanvasNode } from "./CanvasNode";
+import type { Paused } from "./NodeParts";
 import { NodeMenu } from "./NodeMenu";
 import { Palette } from "./Palette";
 import { cannotRemove, nameOf, removeFromPool } from "./actions";
 import { fitView, neighbour, NODE_H, NODE_W, toCanvas, zoomAt, type Point, type View } from "./layout";
 import type { CanvasData, MemberNode } from "./useCanvas";
 import { useCanvasView } from "./canvas-view";
+import { useReducedMotion } from "../../lib/reduced-motion";
 
 /** `pool`'s `focus`: the setup step it opens on (AJ-E3011). */
 export type Selection = { kind: "none" } | { kind: "pool"; focus?: string } | { kind: "node"; id: string } | { kind: "edge"; key: string } | { kind: "rule"; ref: string };
@@ -45,18 +47,6 @@ type Drag =
 const NUDGE = 8;
 /** The zoom bar's height and its gap at the canvas's foot. */
 const TOOLBAR_H = 52;
-
-function useReducedMotion(): boolean {
-  const query = typeof window !== "undefined" && window.matchMedia ? window.matchMedia("(prefers-reduced-motion: reduce)") : null;
-  const [reduced, setReduced] = useState(query?.matches ?? false);
-  useEffect(() => {
-    if (!query) return;
-    const change = () => setReduced(query.matches);
-    query.addEventListener?.("change", change);
-    return () => query.removeEventListener?.("change", change);
-  }, [query]);
-  return reduced;
-}
 
 const inside = (box: DOMRect | undefined, at: Point) => !!box && at.x >= box.left && at.x <= box.right && at.y >= box.top && at.y <= box.bottom;
 
@@ -127,9 +117,10 @@ export function Canvas({
   // The palette sits over the top left: fit what's beside it (or below its folded line).
   const { view, latest, setView, fit, forget, hold } = useCanvasView(
     pool.id,
-    () => fitView(points.values(), size.w, size.h, 48, paletteOpen ? 260 : 0, paletteOpen ? 0 : 44, TOOLBAR_H, overlayRoom),
+    // Running (quiet), the folded palette isn't drawn: no room kept for it (the rc3 critique's 53 % fit).
+    () => fitView(points.values(), size.w, size.h, 48, paletteOpen ? 260 : 0, paletteOpen || paletteQuiet ? 0 : 44, TOOLBAR_H, overlayRoom),
     size.w > 0 && members.length > 0 && !!canvas && paletteOpen !== null,
-    [size.w, size.h, members.length, paletteOpen, overlayRoom, [...points].map(([id, at]) => `${id}:${at.x},${at.y}`).join(" ")],
+    [size.w, size.h, members.length, paletteOpen, paletteQuiet, overlayRoom, [...points].map(([id, at]) => `${id}:${at.x},${at.y}`).join(" ")],
   );
   const placeHeld = (rows: Parameters<typeof place>[0]) => (hold(), place(rows));
   const shown = view ?? { x: size.w / 2 - NODE_W / 2, y: 48, scale: 1 };
@@ -280,14 +271,14 @@ export function Canvas({
     for (const ask of canvas?.asks ?? []) if (ask.session_id) out.set(ask.session_id, [...(out.get(ask.session_id) ?? []), ask]);
     return out;
   }, [canvas]);
-  const heldFor = useMemo(() => {
-    const out = new Map<string, number>();
+  // A line paused at the hop limit waits on the node it was going to (one mark, there).
+  const pausedFor = useMemo(() => {
+    const out = new Map<string, Paused[]>();
     for (const edge of canvas?.edges ?? []) {
-      const held = edge.pending.filter((p) => p.kind === "hop_limit").length;
-      if (held > 0) out.set(edge.to_session_id, (out.get(edge.to_session_id) ?? 0) + held);
+      if (edge.pending.some((p) => p.kind === "hop_limit")) out.set(edge.to_session_id, [...(out.get(edge.to_session_id) ?? []), { edge, from: names.get(edge.from_session_id) ?? "A member" }]);
     }
     return out;
-  }, [canvas]);
+  }, [canvas, names]);
   const firstStop = tabStop && byId.has(tabStop) ? tabStop : selection.kind === "node" && byId.has(selection.id) ? selection.id : (members[0]?.id ?? null);
   const dragged = drag?.kind === "node" && drag.moved ? byId.get(drag.id) : undefined;
   const menuMember = menu ? byId.get(menu.id) : undefined;
@@ -332,7 +323,8 @@ export function Canvas({
               member={member}
               at={at}
               asks={asksFor.get(member.id) ?? []}
-              held={heldFor.get(member.id) ?? 0}
+              paused={pausedFor.get(member.id) ?? []}
+              hops={pool.access.hop_limit}
               selected={selection.kind === "node" && selection.id === member.id}
               tabStop={firstStop === member.id}
               dragging={drag?.kind === "node" && drag.id === member.id && drag.moved}

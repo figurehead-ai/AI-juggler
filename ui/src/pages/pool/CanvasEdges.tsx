@@ -2,11 +2,17 @@
  * The pool canvas's edges: messages and task hand-offs from one member to
  * another over the last week, one arrow a direction, thicker the more
  * there were. New activity sends a dot along its edge (a brief glow
- * instead when you'd rather have less motion). What waits on an edge
- * sits on it with its answer: Deliver for a message waiting for a session
- * run here; Let it continue or Don't deliver for a chain at the hop limit.
+ * instead when you'd rather have less motion).
+ *
+ * Calm (the rc3 critique, D-117): at rest a line is quiet and says
+ * nothing; hovered or chosen it takes its colour and its words ("3
+ * messages · Paused"), dashed while something on it waits. What waits on
+ * you is its member's one mark: a chain paused at the hop limit on the
+ * node it was going to (Let it continue, Don't deliver: `PausedLine`),
+ * an agent's ask on its sender's; a message waiting for a session run
+ * here goes in at its next turn, its Deliver in the line's inspector.
  */
-import { memo, useEffect, useMemo, useRef, useState, type JSX } from "react";
+import { memo, useMemo, useState, type JSX } from "react";
 
 import { errorText } from "../../lib/bridge";
 import { messagesAnswer, messagesDeliver } from "../../lib/ipc/messages";
@@ -75,8 +81,9 @@ export function pendingWords(edge: CanvasEdgeInfo, hops?: number): { label: stri
   return { label: actionable.length === 1 ? "1 message waiting" : `${actionable.length} messages waiting`, short: `${actionable.length} waiting`, hop };
 }
 
-/** The answer an edge carries in place (the first that waits). */
-export function PendingChip({ edge, compact = false, hops }: { edge: CanvasEdgeInfo; compact?: boolean; hops?: number }): JSX.Element | null {
+/** The answer an edge carries (the first that waits): in the inspector
+ * and the List view; `bare`, its buttons only (on its node's line). */
+export function PendingChip({ edge, compact = false, bare = false, hops }: { edge: CanvasEdgeInfo; compact?: boolean; bare?: boolean; hops?: number }): JSX.Element | null {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const actionable = edge.pending.filter((p) => p.kind !== "asked");
@@ -98,8 +105,8 @@ export function PendingChip({ edge, compact = false, hops }: { edge: CanvasEdgeI
   const label = words.label;
   const button = "whitespace-nowrap rounded-md border px-1.5 py-0.5 text-label outline-none focus-visible:ring-1 focus-visible:ring-accent/60 disabled:opacity-60";
   return (
-    <span className="flex flex-col items-center gap-1 rounded-lg border border-warning/50 bg-surface px-2 py-1 shadow-card" data-testid="edge-pending" role="group" aria-label={label}>
-      {!compact && <span className="whitespace-nowrap text-label text-warning">{label}</span>}
+    <span className={bare ? "flex flex-col gap-1" : "flex flex-col items-center gap-1 rounded-lg border border-warning/50 bg-surface px-2 py-1 shadow-card"} data-testid="edge-pending" role="group" aria-label={label}>
+      {!compact && !bare && <span className="whitespace-nowrap text-label text-warning">{label}</span>}
       <span className="flex gap-1">
         <button type="button" disabled={busy} onClick={() => run(true)} className={button + " border-warning/60 bg-warning/15 font-medium text-ink hover:bg-warning/25"} data-testid="edge-deliver">
           {hop ? "Let it continue" : "Deliver"}
@@ -119,9 +126,9 @@ export function PendingChip({ edge, compact = false, hops }: { edge: CanvasEdgeI
   );
 }
 
-/** A label's room in canvas units: the full card's chip (about 120 × 48;
- * a node grows below its box with an ask), or a compact badge at screen
- * size (about 110 × 26, so larger in canvas units the further out). */
+/** A label's room in canvas units: its words at 100 % and up (about 120
+ * × 48; a node grows below its box with an ask), or at screen size below
+ * (about 110 × 26, so larger in canvas units the further out). */
 const FULL_ROOM: LabelRoom = { w: 120, h: 48, below: 60 };
 
 /** Where an edge's label goes: on its own line, at its middle or further
@@ -149,11 +156,9 @@ function apart<T extends { key: string; mid: Point; along: Point[] }>(labels: T[
 /** Where along its own line an edge's label may sit, best first. */
 const ALONG = [0.5, 0.4, 0.6, 0.3, 0.7];
 
-/** `waits`: something waits on the edge (it draws dashed); `answers`: it
- * carries an answer here (a badge or chip). An agent's ask waits on its
- * sender's node, so its edge is dashed but has no label: it must not
- * take a label's room and push another edge's badge off its line. */
-type Drawn = { edge: CanvasEdgeInfo; key: string; d: string; mid: Point; along: Point[]; line: Point[]; width: number; waits: boolean; answers: boolean; tasksOnly: boolean };
+/** `waits`: something waits on the edge (hovered or chosen, it draws
+ * dashed). */
+type Drawn = { edge: CanvasEdgeInfo; key: string; d: string; mid: Point; along: Point[]; line: Point[]; width: number; waits: boolean; tasksOnly: boolean };
 
 export const CanvasEdges = memo(function CanvasEdges({
   edges,
@@ -173,8 +178,8 @@ export const CanvasEdges = memo(function CanvasEdges({
   selected: string | null;
   pulses: ReadonlyMap<string, number>;
   reducedMotion: boolean;
-  /** The canvas's zoom: under 100 % labels draw at screen size, and what
-   * waits on an edge is a badge that opens its answers (semantic zoom). */
+  /** The canvas's zoom: under 100 % labels draw at screen size (semantic
+   * zoom). */
   scale: number;
   /** The pool's replies in a row before a chain pauses. */
   hops?: number;
@@ -207,7 +212,7 @@ export const CanvasEdges = memo(function CanvasEdges({
       const curve = edgeCurve(from, to, keys.has(back), around, busy, room);
       const total = edge.messages + edge.tasks;
       const at = (t: number) => curvePoint(curve.start, curve.control, curve.end, t);
-      out.push({ edge, key, d: curve.d, mid: curve.mid, along: ALONG.map(at), line: Array.from({ length: 17 }, (_, n) => at(n / 16)), width: Math.min(4, 1.5 + Math.log2(1 + total) * 0.6), waits: edge.pending.length > 0, answers: pendingWords(edge) !== null, tasksOnly: edge.messages === 0 && edge.tasks > 0 });
+      out.push({ edge, key, d: curve.d, mid: curve.mid, along: ALONG.map(at), line: Array.from({ length: 17 }, (_, n) => at(n / 16)), width: Math.min(4, 1.5 + Math.log2(1 + total) * 0.6), waits: edge.pending.length > 0, tasksOnly: edge.messages === 0 && edge.tasks > 0 });
     }
     return out;
   }, [edges, points, room]);
@@ -215,17 +220,20 @@ export const CanvasEdges = memo(function CanvasEdges({
     <>
       <svg className="pointer-events-none absolute left-0 top-0 overflow-visible" width="1" height="1" aria-hidden="true" data-testid="canvas-edges">
         <defs>
-          {(["msg", "task", "wait", "sel"] as const).map((kind) => (
+          {(["rest", "msg", "task", "sel"] as const).map((kind) => (
             <marker key={kind} id={`canvas-arrow-${kind}`} viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-              <path d="M0 1 L9 5 L0 9 Z" className={kind === "msg" ? "fill-accent" : kind === "task" ? "fill-live" : kind === "wait" ? "fill-warning" : "fill-accent-hi"} />
+              <path d="M0 1 L9 5 L0 9 Z" className={kind === "rest" ? "fill-muted" : kind === "msg" ? "fill-accent" : kind === "task" ? "fill-live" : "fill-accent-hi"} />
             </marker>
           ))}
         </defs>
         {drawn.map(({ key, d, width, waits, tasksOnly }) => {
           const on = selected === key;
+          // Hovered or chosen, a line says what it is (its colour, dashed
+          // while something on it waits); at rest it is quiet.
+          const lit = on || hover === key;
           const pulse = pulses.has(key);
           const own = lineRules?.get(key);
-          const tone = on ? "stroke-accent-hi" : waits ? "stroke-warning" : own === "blocked" ? "stroke-danger" : tasksOnly ? "stroke-live" : "stroke-accent";
+          const tone = on ? "stroke-accent-hi" : own === "blocked" ? "stroke-danger" : !lit ? "stroke-muted" : tasksOnly ? "stroke-live" : "stroke-accent";
           return (
             <g key={key} data-edge={key}>
               <path
@@ -244,9 +252,9 @@ export const CanvasEdges = memo(function CanvasEdges({
                 d={d}
                 fill="none"
                 strokeWidth={on || (pulse && reducedMotion) ? width + 1.5 : width}
-                strokeDasharray={waits ? "6 5" : own === "blocked" ? "2 4" : undefined}
-                markerEnd={`url(#canvas-arrow-${on ? "sel" : waits ? "wait" : tasksOnly ? "task" : "msg"})`}
-                className={tone + " transition-[stroke-width] duration-200" + (on ? "" : " opacity-80")}
+                strokeDasharray={waits && lit ? "6 5" : own === "blocked" ? "2 4" : undefined}
+                markerEnd={`url(#canvas-arrow-${on ? "sel" : !lit ? "rest" : tasksOnly ? "task" : "msg"})`}
+                className={tone + " transition-[stroke-width] duration-200" + (lit ? "" : " opacity-80")}
               />
               {pulse && !reducedMotion && (
                 <circle r="4.5" className="fill-accent-hi" data-testid="edge-pulse">
@@ -259,14 +267,17 @@ export const CanvasEdges = memo(function CanvasEdges({
         })}
       </svg>
       {apart(
-        drawn.filter(({ key, answers }) => answers || selected === key || hover === key || lineRules?.has(key)),
+        drawn.filter(({ key }) => selected === key || hover === key || lineRules?.has(key)),
         points.values(),
         drawn.map(({ key, line }) => ({ key, points: line })),
         room,
-      ).map(({ edge, key, mid, answers }) => {
+      ).map(({ edge, key, mid }) => {
           const from = names.get(edge.from_session_id) ?? "A member";
           const own = lineRules?.get(key);
-          const words = edgeWords(edge, from, names.get(edge.to_session_id) ?? "a member", own);
+          const said = edgeWords(edge, from, names.get(edge.to_session_id) ?? "a member", own);
+          // What waits on it, in its words, quiet ("2 messages · Paused").
+          const waiting = selected === key || hover === key ? pendingWords(edge, hops)?.short : undefined;
+          const words = waiting ? { count: `${said.count} · ${waiting}`, aria: `${said.count} · ${waiting}, ${from} to ${names.get(edge.to_session_id) ?? "a member"}` } : said;
           return (
             <div
               key={key}
@@ -293,66 +304,9 @@ export const CanvasEdges = memo(function CanvasEdges({
                 {words.count}
               </button>
               )}
-              {answers && (compact ? <EdgeBadge edge={edge} about={words.aria} hops={hops} /> : <PendingChip edge={edge} compact={false} hops={hops} />)}
             </div>
           );
         })}
     </>
   );
 });
-
-/** Below 100 %: what waits on an edge as a small badge ("1 waiting",
- * "Paused"), its answers a click away in a small panel under it (the
- * full card's chip, at screen size). Esc or a click elsewhere closes it. */
-function EdgeBadge({ edge, about, hops }: { edge: CanvasEdgeInfo; about: string; hops?: number }): JSX.Element | null {
-  const [open, setOpen] = useState(false);
-  const box = useRef<HTMLSpanElement | null>(null);
-  const button = useRef<HTMLButtonElement | null>(null);
-  const words = pendingWords(edge, hops);
-  useEffect(() => {
-    if (!open) return;
-    box.current?.querySelector<HTMLButtonElement>("[data-testid='edge-pending'] button")?.focus();
-    const away = (event: PointerEvent) => {
-      if (!box.current?.contains(event.target as Node)) setOpen(false);
-    };
-    window.addEventListener("pointerdown", away);
-    return () => window.removeEventListener("pointerdown", away);
-  }, [open]);
-  if (!words) return null;
-  return (
-    <span
-      ref={box}
-      className="relative flex flex-col items-center gap-1"
-      onKeyDown={(event) => {
-        if (event.key !== "Escape" || !open) return;
-        event.preventDefault();
-        event.stopPropagation();
-        setOpen(false);
-        button.current?.focus();
-      }}
-    >
-      <button
-        ref={button}
-        type="button"
-        aria-expanded={open}
-        // Its name starts with what it shows (axe: label-content-name-mismatch).
-        aria-label={`${words.short}: ${words.label}, ${about}`}
-        title={words.label}
-        onClick={(event) => {
-          event.stopPropagation();
-          setOpen((now) => !now);
-        }}
-        className="flex items-center gap-1.5 whitespace-nowrap rounded-full border border-warning/60 bg-surface px-2 py-0.5 text-label font-medium text-warning shadow-card outline-none hover:bg-warning-soft focus-visible:ring-2 focus-visible:ring-accent/60"
-        data-testid="edge-badge"
-      >
-        <span aria-hidden="true" className="size-1.5 rounded-full bg-warning" />
-        {words.short}
-      </button>
-      {open && (
-        <span className="absolute top-full z-20 mt-1.5" data-testid="edge-badge-panel">
-          <PendingChip edge={edge} hops={hops} />
-        </span>
-      )}
-    </span>
-  );
-}
