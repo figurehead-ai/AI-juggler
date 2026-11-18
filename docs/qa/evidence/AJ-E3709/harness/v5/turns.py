@@ -84,9 +84,14 @@ def git_lead(t):
     ks = "; ".join(change_text(c) for c in kept[:3]) + (f" (+{len(kept) - 3})" if len(kept) > 3 else "") if kept else W[1]
     us = ", ".join(undone[:3]) + (f" (+{len(undone) - 3})" if len(undone) > 3 else "")
     return W[0].format(kept=ks, undone=us)
+GIT_UNCOMMITTED_LINE = {"en": "git: the changes are not committed", "de": "git: die Änderungen sind nicht committet"}
 def feed_excerpt(t):
-    """the feed's excerpt: with git's lead, the excerpt alone (the lead already says what git undid); else excerpt_v5 (Req. 6e)"""
-    return gate_v4.excerpt_v4(t["ctx"]["cleaned"], t["facts"])[0] if git_lead(t) else excerpt_v5(t)
+    """the feed's excerpt: with git's lead, the excerpt alone (the lead already says what git undid); else excerpt_v5 (Req. 6e). Round 4:
+    an excerpt that says the work was committed or pushed while git shows it uncommitted gets git's line beside it, as a revert does"""
+    exc = gate_v4.excerpt_v4(t["ctx"]["cleaned"], t["facts"])[0] if git_lead(t) else excerpt_v5(t)
+    if claims_v5.vcs_contradiction(exc, t, kept_changes(t["git"])):
+        exc += "\n" + GIT_UNCOMMITTED_LINE.get(t["ctx"].get("lang") or "en", GIT_UNCOMMITTED_LINE["en"])
+    return exc
 def feed_shown(t, body):
     lead = git_lead(t)
     return "\n".join(([lead] if lead else []) + list(body))
@@ -193,6 +198,8 @@ class FeedLine(Job):
         k = claims_v5.kept_called_undone(line, t, kept_changes(t["git"]))
         if k: errs.append(f"contradiction: {k[:120]}")
         if failure_on_success(line, t): errs.append("contradiction: states a failure, while the facts and the message report none")
+        vc = claims_v5.vcs_contradiction(line, t, kept_changes(t["git"]))
+        if vc: errs.append(f"contradiction: {vc}: leave it out, AI Juggler shows git's state")
         sc = claims_v5.success_claim(line)
         if sc and turn_failed(t): errs.append(f"contradiction: a success claim ({sc!r}) on a turn AI Juggler's facts show failed")
         if t["ctx"].get("lang") == "de" and claims_v5.english_in_german(fields.get("action"), t["ctx"]["cleaned"]):
@@ -321,6 +328,8 @@ def review_checks_v5(t, fields):
         k = claims_v5.kept_called_undone(s, t, kept)
         if k: out.append(f"{label}: contradiction: {k[:120]}")
         if failure_on_success(s, t): out.append(f"{label}: contradiction: states a failure the facts and the message don't report")
+        vc = claims_v5.vcs_contradiction(s, t, kept)
+        if vc: out.append(f"{label}: contradiction: {vc}: leave it out, AI Juggler shows git's state")
         if failed and gate.UNIVERSAL.search(s) and not gate.verdict_words_v3(s)["fail"]: out.append(f"{label}: contradiction: a success claim on a failed turn")
         return out
     for n in fields.get("notes") or []:

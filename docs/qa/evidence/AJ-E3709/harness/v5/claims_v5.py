@@ -317,3 +317,40 @@ def english_in_german(field_text, source):
     w = (field_text or "").strip()
     if not EN_ONLY.match(w): return False
     return not re.search(r"(?<!\w)" + re.escape(w) + r"(?!\w)", source or "", re.I)
+
+# ---------------------------------------------------------------------------------------------------------------- a commit or push claim (round 4)
+# v5 round 3: the agent's "Everything is committed and pushed to origin" reached the feed line (five models) and the review's note
+# (three) while git showed the work uncommitted. Facts first: git's working tree decides. A text that states the work was committed,
+# pushed, merged or checked in (EN and DE, not negated, not conditional, not a plan) contradicts git when git shows it uncommitted.
+VCS_CLAIM = re.compile(r"\b(?:committed|pushed|merged|checked\s+in|eingecheckt|committet|commitet|gepusht|gepushed|gemergt|gemerged)\b", re.I)
+_VCS_NEG = {"not", "nothing", "never", "no", "none", "yet", "uncommitted", "unpushed", "nicht", "nichts", "kein", "keine", "keiner", "noch", "nie",
+            "isn't", "aren't", "wasn't", "weren't", "hasn't", "haven't", "didn't", "don't", "doesn't"}
+_VCS_PLAN = {"will", "would", "should", "shall", "can", "could", "must", "need", "needs", "to", "be", "ready", "before", "after", "wird", "werden",
+             "soll", "sollte", "muss", "kann", "bevor", "nachdem", "zu", "vor"}
+_VCS_WHOLE = re.compile(r"\b(?:everything|all|it\s+all|the\s+whole|alles|sämtliche|die\s+ganze|das\s+ganze)\b", re.I)
+def vcs_claim(text):
+    """-> the words of a claim that the work was committed, pushed or merged, else None. A clause with a negation (not committed yet,
+    eingecheckt ist noch nichts), a condition (once it is pushed) or a plan (ready to be merged, will push) states none."""
+    for cl in re.split(r"[.;:!?\n]|,\s*(?:but|aber|while|während)\b|\s+—\s+|\s+(?:but|aber)\s+", text or ""):
+        for m in VCS_CLAIM.finditer(cl):
+            w = _words(cl); before = _words(cl[:m.start()])
+            if any(x in _VCS_NEG for x in w): continue
+            if any(x in _COND for x in w) or any(x in _VCS_PLAN for x in before[-3:]): continue
+            return m.group(0)
+    return None
+def uncommitted_known(git):
+    """git shows uncommitted work: True, a count above zero, or a list of paths"""
+    u = (git or {}).get("uncommitted")
+    return bool(u) and u is not False
+def vcs_contradiction(text, t, kept):
+    """-> why `text` contradicts git by claiming the work committed or pushed, else None. With git's uncommitted paths listed, a claim
+    contradicts when the claim is about everything or every kept change is among them; with only a flag (or a count), any claim does."""
+    g = t.get("git") or {}
+    if not g.get("known") or not uncommitted_known(g): return None
+    c = vcs_claim(text)
+    if not c: return None
+    u = g.get("uncommitted")
+    if isinstance(u, list):
+        paths = {str(x).strip() for x in u}
+        if not (_VCS_WHOLE.search(text or "") or (kept and all(k["path"] in paths for k in kept))): return None
+    return f"says the work was {c.lower()}; git shows uncommitted changes"

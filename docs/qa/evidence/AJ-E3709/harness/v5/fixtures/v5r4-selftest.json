@@ -92,5 +92,71 @@
     "Tests: 9 passed, 0 failed"
    ]
   }
- ]
+ ],
+ "vcs": {
+  "source": "All of the kittiwake export work is committed and pushed to origin, and the 18 tests pass.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "ran",
+    "passed": 18,
+    "failed": 0
+   }
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "kittiwake/export.py",
+     "added": 40,
+     "removed": 6,
+     "status": "M"
+    },
+    {
+     "path": "kittiwake/export_test.py",
+     "added": 25,
+     "removed": 0,
+     "status": "A"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": true
+  },
+  "feed_draft": {
+   "action": "pushed",
+   "object": "the kittiwake export",
+   "result": "18 tests pass",
+   "caveat_kind": "none",
+   "caveat": "none"
+  },
+  "review_draft": {
+   "notes": [
+    {
+     "path": "kittiwake/export.py",
+     "says": "the kittiwake export work is committed and pushed to origin"
+    }
+   ],
+   "risk_reason": "none",
+   "risk": "low"
+  },
+  "claims": [
+   "Pushed the kittiwake export, 18 tests pass",
+   "Alles ist eingecheckt und gepusht.",
+   "Committed everything for the kittiwake export"
+  ],
+  "not_claims": [
+   "the kittiwake stubs are not committed yet",
+   "Eingecheckt ist beim Kittiwake-Export noch nichts.",
+   "nothing was pushed to the kittiwake remote",
+   "ready to be merged once the kittiwake CI is green",
+   "I will push the kittiwake branch after review"
+  ],
+  "list_case": {
+   "uncommitted": [
+    "scratch/kittiwake_probe.sh"
+   ],
+   "text": "Committed the kittiwake export fix; the probe script stays local"
+  }
+ }
 }

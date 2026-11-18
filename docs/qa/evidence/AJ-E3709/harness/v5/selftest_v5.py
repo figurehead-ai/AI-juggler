@@ -739,6 +739,22 @@ def selftest():
         except AssertionError: rv = {"kind": "the model was called", "shown": ""}
         check(f"R4 language: {case['label']}: the review is the code-only one, its facts lines intact", rv["kind"] == "baseline" and all(w in rv["shown"] for w in case["review_has"]), rv["shown"])
 
+    # ================================================================================================ R4-3. git shows it uncommitted: a commit or push claim is a contradiction
+    V = R4["vcs"]; tv = turn(V["source"], facts=V["facts"], git=V["git"]); keptv = core.kept_changes(tv["git"])
+    for c in V["claims"]: check(f"R4 vcs: a claim: {c!r}", claims_v5.vcs_contradiction(c, tv, keptv), c)
+    for c in V["not_claims"]: check(f"R4 vcs: no claim (negated, a plan, a condition): {c!r}", not claims_v5.vcs_contradiction(c, tv, keptv), c)
+    rf = run_item(FEED, tv, "main", Script([V["feed_draft"]]))
+    check("R4 vcs: the feed refuses a line that says pushed while git shows uncommitted work", rf["used"] == "fallback" and any("git shows uncommitted" in e for e in rf["attempts"][0]["errors"]), rf["attempts"][0]["errors"])
+    check("R4 vcs: ...and A's excerpt, which says it, gets git's line beside it", "git: the changes are not committed" in rf["final"]["shown"], rf["final"]["shown"])
+    rr = run_item(REVIEW, tv, "main", Script([V["review_draft"]]))
+    check("R4 vcs: the review refuses a note that says committed and pushed", rr["used"] == "fallback" and any("git shows uncommitted" in e for e in rr["attempts"][0]["errors"]), rr["attempts"][0]["errors"])
+    vv = {"job": "review", "t": tv, "outcome": {"kind": "written", "shown": "x", "model_text": [V["review_draft"]["notes"][0]["says"]], "risk": "low"}, "setting": "main"}
+    check("R4 vcs: shown, the detector flags it critical even when copied from the agent", any(f["detector"] == "vcs_contradiction" and f["class"] == "critical" for f in severity.findings(vv)), severity.findings(vv))
+    tclean = turn(V["source"], facts=V["facts"], git=dict(V["git"], uncommitted=False))
+    check("R4 vcs: with git clean, the same claim is no contradiction", not claims_v5.vcs_contradiction(V["claims"][0], tclean, core.kept_changes(tclean["git"])))
+    tl = turn(V["source"], facts=V["facts"], git=dict(V["git"], uncommitted=V["list_case"]["uncommitted"]))
+    check("R4 vcs: git lists only a scratch file uncommitted: a claim about the kept work stands", not claims_v5.vcs_contradiction(V["list_case"]["text"], tl, core.kept_changes(tl["git"])))
+
     # ================================================================================================ the extension point, the frozen gate, the prompts
     class Toy(core.Job):
         name, letter, title, item_kind = "toy_digest", "e", "toy", "toydigest"
