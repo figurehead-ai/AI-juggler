@@ -94,7 +94,22 @@ def write_candidates(rep, outdir, family):
 def strip_candidates(rep):
     for js in rep["corpora"].values():
         for b in js.values(): b.pop("_candidates", None)
-def packets(views, corp, outdir, seed=5, key_name="KEY-do-not-open-before-scoring.json"):
+def key_path(outdir, key_name=None):
+    """where a packet folder's key goes: never inside any blind-review/ folder (a key beside its packet breaks the blinding, round 2's
+    e/f keys landed there). By default blind-review-key/<packet folder>.json beside blind-review/; a given name that resolves under a
+    blind-review/ folder is refused"""
+    outdir = os.path.abspath(outdir); parent = os.path.dirname(outdir)
+    if key_name in (None, "", "KEY-do-not-open-before-scoring.json"):
+        base = os.path.dirname(parent) if os.path.basename(parent) == "blind-review" else parent
+        path = os.path.join(base, "blind-review-key", os.path.basename(outdir) + ".json")
+    else:
+        path = os.path.abspath(os.path.join(outdir, key_name))
+    if any(part == "blind-review" or (part.startswith("blind-review") and not part.startswith("blind-review-key")) for part in path.split(os.sep)) \
+            or path.startswith(outdir + os.sep):
+        raise SystemExit(f"report_v5: the key would sit beside its packets ({path}); write it under blind-review-key/")
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    return path
+def packets(views, corp, outdir, seed=5, key_name=None):
     """blind pairs: the AI output against the job's non-AI alternative (A's excerpt; the code-only review; the facts-only attention; the
     looked-up values or the found rows), shuffled and unlabelled; the key, with each pair's job, in a separate file"""
     os.makedirs(outdir, exist_ok=True); rnd = random.Random(seed); key = []
@@ -112,7 +127,7 @@ def packets(views, corp, outdir, seed=5, key_name="KEY-do-not-open-before-scorin
             pk.append({"pair": pid, "item": v["id"], **ctxt, "first": pair[0][1], "second": pair[1][1]})
             key.append({"pair": pid, "job": jn, "first": pair[0][0], "second": pair[1][0]})
         if pk: json.dump(pk, open(os.path.join(outdir, f"packet-{label}-{jn}.json"), "w"), indent=1, ensure_ascii=False)
-    json.dump(key, open(os.path.join(outdir, key_name), "w"), indent=1)
+    json.dump(key, open(key_path(outdir, key_name), "w"), indent=1)
 def markdown(rep, title):
     L = [f"# {title}", "", f"Criteria: {rep.get('criteria')}. Critical = fabrication only; omissions tolerated to ~10 %. "
          "Script flags are candidates: Opus confirms every critical by eye.", ""]
@@ -215,7 +230,7 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("results", nargs="*"); ap.add_argument("--corpus", action="append", default=[], metavar="LABEL=PATH")
     ap.add_argument("--md"); ap.add_argument("--candidates", metavar="DIR"); ap.add_argument("--packets", metavar="DIR")
-    ap.add_argument("--packets-seed", type=int, default=5); ap.add_argument("--key-name", default="KEY-do-not-open-before-scoring.json")
+    ap.add_argument("--packets-seed", type=int, default=5); ap.add_argument("--key-name", default=None, help="the key's path relative to the packet folder; default blind-review-key/<packet folder>.json, never inside blind-review/")
     ap.add_argument("--value", nargs=2, metavar=("REVIEW.json", "KEY.json"), help="the value bar from a scored blind review")
     ap.add_argument("--rescore-v4", metavar="V4RESULTS.json")
     ap.add_argument("--select", action="store_true", help="the results are one model's sweep variants (tuned corpora only): the choice by v4's rule")
