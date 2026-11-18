@@ -118,4 +118,26 @@ describe("FlowLayout", () => {
     expect(screen.getByTestId("flow-preview").className).toContain("max-[960px]:hidden");
     expect(body.firstElementChild).toBe(summary);
   });
+
+  it("opens a new step at its top, keeping the place while the step stays (the rc3 critique: Review opened mid-way)", () => {
+    const { rerender } = render(
+      <FlowLayout label="New pool" at="own">
+        <p>On their own</p>
+      </FlowLayout>,
+    );
+    const form = screen.getByRole("region", { name: "New pool" });
+    form.scrollTop = 420; // down to the seal, its last control
+    rerender(
+      <FlowLayout label="New pool" at="own">
+        <p>On their own, sealed</p>
+      </FlowLayout>,
+    );
+    expect(form.scrollTop).toBe(420);
+    rerender(
+      <FlowLayout label="New pool" at="review">
+        <p>Review</p>
+      </FlowLayout>,
+    );
+    expect(form.scrollTop).toBe(0);
+  });
 });

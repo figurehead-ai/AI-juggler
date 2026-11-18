@@ -151,6 +151,9 @@ for (const theme of ["dark", "light"] as const) {
     // Answered already (the seed): no question step.
     for (const step of STEPS.filter((one) => one !== "tools")) {
       await expect(page.getByTestId(`new-pool-step-${step}`)).toBeVisible();
+      // Each step opens at its top, after one scrolled down to its last
+      // control (the rc3 critique: Review opened mid-way after the seal).
+      await expect(page.getByTestId(`new-pool-step-${step}`).getByTestId("new-pool-step-title")).toBeInViewport();
       await fill(page, step);
       await shoot(page, SETUP, `setup-${step}-filled-1280x800-${theme}.png`);
       if (step !== "review") await page.getByTestId("new-pool-next").click();

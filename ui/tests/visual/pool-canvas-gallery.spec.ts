@@ -233,6 +233,11 @@ for (const theme of ["dark", "light"] as const) {
       await expect(primary).toBeInViewport({ ratio: 1 });
       const [it, panel] = await Promise.all([primary.boundingBox(), page.getByTestId("inspector-body").boundingBox()]);
       expect(it!.y >= panel!.y && it!.y + it!.height <= panel!.y + panel!.height, "Turn on team tools whole in the panel's view").toBe(true);
+      // The caption is under the team, never into its cards (the rc3
+      // critique at 1280 × 800: it sat 80 px off the floor, on the row).
+      const caption = await page.getByTestId("planned-team-next").boundingBox();
+      const lowest = Math.max(...(await page.getByTestId("planned-card").evaluateAll((all) => all.map((one) => one.getBoundingClientRect().bottom))));
+      expect(caption!.y, "the caption under every card").toBeGreaterThanOrEqual(lowest + 16);
       await page.mouse.move(0, 0);
       await page.screenshot({ path: resolve(OUT, `canvas-setup-${size}-${theme}.png`) });
       await axe(page, `setting-up canvas ${size} ${theme}`);
@@ -330,7 +335,8 @@ for (const theme of ["dark", "light"] as const) {
         if (step === "who") await page.getByTestId("new-pool-candidate").first().locator("label, button[role=checkbox]").first().click();
         if (step !== "review") await page.getByTestId("new-pool-next").click();
       }
-      await expect(page.getByTestId("new-pool-review")).toBeVisible();
+      // Review: a short sentence a row (its full rules one click away).
+      await expect(page.getByTestId("new-pool-review-rows")).toBeVisible();
       await page.keyboard.press("Escape");
       await expect(page.getByTestId("new-pool")).toHaveCount(0);
     });

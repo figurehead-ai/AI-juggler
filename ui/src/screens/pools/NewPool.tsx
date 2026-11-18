@@ -250,6 +250,7 @@ export function NewPool({
       <StepEyebrow.Provider value={eyebrowOf(steps, current)}>
         <FlowLayout
           label={WIZARD_HEADS[current].title}
+          at={current}
           steps={<NewPoolSteps steps={steps} step={step} furthest={furthest} valueOf={valueOf} onPick={go} />}
           {...sideFor({
             current, draft, name, where, shape, visited, sources: { apps: apps ?? [], sessions }, memberName, first: firstPool,

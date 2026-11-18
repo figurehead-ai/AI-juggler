@@ -11,7 +11,7 @@
  * focus and Enter). Once a session joins, the diagram is its sessions,
  * the members in their column (RuleNodes).
  */
-import { useCallback, useId, useState, type JSX, type ReactNode, type Ref } from "react";
+import { useCallback, useId, useLayoutEffect, useRef, useState, type JSX, type ReactNode, type Ref } from "react";
 
 import { LogoTile } from "../../components/ToolLogo";
 import { IconLead } from "../../components/icons-canvas";
@@ -139,9 +139,35 @@ export function PlannedTeam({
     if (next && next.y === at.y && mayTalk(rest[i]!.role, rest[i + 1]!.role)) lines.push(`M${at.x + NODE_W} ${at.y + 48} H${next.x}`);
   });
   const picked = (ref: string) => selection.kind === "rule" && selection.ref === ref;
+  // The rc3 critique at 1280 × 800: the caption sat a fixed 80 px off the
+  // canvas's floor and ran into the row's cards. It sits there while it
+  // can (the mock), and under the team as drawn when the team reaches it.
+  const team = useRef<HTMLDivElement>(null);
+  const [drawnTo, setDrawnTo] = useState(0);
+  useLayoutEffect(() => {
+    const root = team.current;
+    if (!root) return undefined;
+    const cards = () => Array.from(root.querySelectorAll<HTMLElement>("[data-testid='planned-card']"));
+    const read = () => setDrawnTo(Math.max(0, ...cards().map((one) => one.offsetTop + one.offsetHeight)));
+    // A card grows as its words or its Add change; one comes, goes or
+    // moves (the row under a taller lead) without a size of its own.
+    const sizes = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(read);
+    const watch = () => {
+      sizes?.disconnect();
+      for (const one of cards()) sizes?.observe(one);
+      read();
+    };
+    watch();
+    const moves = typeof MutationObserver === "undefined" ? null : new MutationObserver(watch);
+    moves?.observe(root, { childList: true, subtree: true, attributes: true, attributeFilter: ["style"] });
+    return () => {
+      sizes?.disconnect();
+      moves?.disconnect();
+    };
+  }, []);
   return (
     <>
-      <div className="pointer-events-none absolute left-0 top-0 origin-top-left" style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.scale})` }} data-testid="planned-team">
+      <div ref={team} className="pointer-events-none absolute left-0 top-0 origin-top-left" style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.scale})` }} data-testid="planned-team">
         <svg aria-hidden="true" className="absolute left-0 top-0 overflow-visible" width="1" height="1" data-testid="planned-team-lines">
           {lines.map((d) => (
             <path key={d} d={d} fill="none" strokeWidth={1.5} className="stroke-hairline" />
@@ -168,7 +194,7 @@ export function PlannedTeam({
           </PlannedCard>
         ))}
       </div>
-      <div className="pointer-events-none absolute inset-x-0 bottom-20 flex flex-col items-center gap-2 px-6 text-center" data-testid="planned-team-next">
+      <div className="pointer-events-none absolute inset-x-0 flex flex-col items-center gap-2 px-6 text-center" style={{ top: `max(${Math.round(view.y + drawnTo * view.scale + 40)}px, calc(100% - 152px))` }} data-testid="planned-team-next">
         <p className="type-section">{PLANNED.title}</p>
         <p className="max-w-[26rem] text-meta text-ink-2">{PLANNED.line(where)}</p>
       </div>

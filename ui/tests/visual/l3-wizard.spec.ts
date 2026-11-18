@@ -293,6 +293,9 @@ for (const r of ROWS) {
     if (await page.getByTestId("new-pool-step-tools").isVisible()) await page.getByTestId("new-pool-next").click();
 
     // 4. The review says it; Make makes it with the user's own calls.
+    // Every rule in full, one click away (962e6f617: Review says each in
+    // one short sentence; the canvas's own words are under this).
+    await page.getByTestId("new-pool-review-full-toggle").click();
     const review = page.getByTestId("new-pool-review");
     await expect(review).toBeVisible();
     // The changed cell, in the review's words: named as an exception, or

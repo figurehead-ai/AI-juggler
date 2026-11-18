@@ -11,7 +11,7 @@
  * - `FlowFoot`: Cancel on the left; Back, a secondary, then the view's
  *   one filled primary on the right (D-126: one primary per view).
  */
-import { forwardRef, useId, type JSX, type ReactNode, type Ref } from "react";
+import { forwardRef, useId, useLayoutEffect, useRef, type JSX, type ReactNode, type Ref } from "react";
 import { Button } from "./primitives";
 import { IconCheck } from "./icons-controls";
 
@@ -22,10 +22,13 @@ export function FlowLayout({
   foot,
   children,
   label,
+  at,
   testId,
 }: {
   /** The steps beside the form (`FlowSteps`). */
   steps?: ReactNode;
+  /** The step on screen: a new one opens at its top. */
+  at?: string;
   /** The live preview, right of the form, matching it as it changes. */
   preview?: ReactNode;
   /** The preview folded: a strip above the form under 960 px. */
@@ -38,6 +41,16 @@ export function FlowLayout({
   label?: string;
   testId?: string;
 }): JSX.Element {
+  // The rc3 critique (Review filled): a step scrolled down to its last
+  // control (On their own's seal) left the next one opened mid-way, its
+  // heading out of view. A new step opens at its top.
+  const form = useRef<HTMLElement>(null);
+  const shown = useRef(at);
+  useLayoutEffect(() => {
+    if (shown.current === at) return;
+    shown.current = at;
+    if (form.current) form.current.scrollTop = 0;
+  }, [at]);
   return (
     <div className="flex min-h-0 flex-1 flex-col" data-testid={testId}>
       <div className="flex min-h-0 flex-1">
@@ -46,7 +59,7 @@ export function FlowLayout({
             {steps}
           </div>
         )}
-        <section aria-label={label} className="min-w-0 flex-1 overflow-y-auto bg-canvas">
+        <section ref={form} aria-label={label} className="min-w-0 flex-1 overflow-y-auto bg-canvas" data-testid="flow-scroll">
           <div className="flex max-w-[1180px] items-start gap-10 px-8 pb-6 pt-7 max-[960px]:flex-col max-[960px]:gap-5 max-[960px]:px-6 min-[1360px]:px-12 min-[1360px]:pt-9" data-testid="flow-body">
             {summary && (
               <div className="hidden w-full max-[960px]:block" data-testid="flow-summary">
