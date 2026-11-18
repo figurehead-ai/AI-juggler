@@ -44,7 +44,13 @@ use crate::envelope::Channel;
 
 /// Per-channel compiled floors: the serial of the newest file known when
 /// this release was built. Filled by the publish workflow with the release.
-pub const COMPILED_FLOORS: &[(Channel, u64)] = &[];
+pub const COMPILED_FLOORS: &[(Channel, u64)] = &[
+    // No file published yet when rc-2026-a was pinned (2026-11-18): the
+    // first publish gets serial 1. Raise these with each release.
+    (Channel::Nightly, 0),
+    (Channel::Beta, 0),
+    (Channel::Stable, 0),
+];
 
 /// Compiled revocations: fingerprints of keys revoked when this release
 /// was built, so a revocation reaches fresh installs through the signed

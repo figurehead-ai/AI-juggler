@@ -46,7 +46,21 @@ pub const MAX_KEYS: usize = 3;
 /// `current`, then `next` and `emergency` (their seeds kept apart, §3).
 /// The same change must fill [`crate::state::COMPILED_FLOORS`] (a build
 /// that pins keys without floors doesn't compile).
-pub const COMPILED_KEYS: &[(&str, KeyRole, [u8; 32])] = &[];
+pub const COMPILED_KEYS: &[(&str, KeyRole, [u8; 32])] = &[
+    // The current key, made by the maintainer on 2026-11-18 (the keygen pipe:
+    // the seed went straight into the `config-publish` and `config-resign`
+    // environments' secret, never stored). SHA-256 fingerprint
+    // 8fd1bdd196d3c9d1004e6f15399371355fb0ff9c22de33dbd127c0fe7c99ecb3.
+    (
+        "rc-2026-a",
+        KeyRole::Current,
+        [
+            0xff, 0xb7, 0x29, 0xa2, 0x88, 0x63, 0x1e, 0x0d, 0x23, 0x2b, 0x56, 0x79, 0x82, 0x19,
+            0xfe, 0xe7, 0x48, 0x56, 0xd1, 0x23, 0x20, 0xa2, 0x45, 0xd6, 0x9d, 0xe2, 0xdb, 0xc2,
+            0x41, 0xd0, 0xb4, 0x1b,
+        ],
+    ),
+];
 
 /// What a pinned key may sign.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -340,6 +354,29 @@ mod tests {
             PinnedKey::new("m", KeyRole::Current, &mixed),
             Err(KeyError::BadKey(_))
         ));
+    }
+
+    #[test]
+    fn the_pinned_current_key_is_the_maintainers() {
+        // The fingerprint the maintainer's keygen printed (2026-11-18); a
+        // wrong byte here would trust a key whose secret nobody holds.
+        let pinned: Vec<_> = COMPILED_KEYS
+            .iter()
+            .filter(|(id, ..)| *id == "rc-2026-a")
+            .collect();
+        assert_eq!(pinned.len(), 1);
+        let (_, role, public) = pinned[0];
+        assert_eq!(*role, KeyRole::Current);
+        assert_eq!(
+            fingerprint(public),
+            "8fd1bdd196d3c9d1004e6f15399371355fb0ff9c22de33dbd127c0fe7c99ecb3"
+        );
+        assert!(
+            COMPILED_KEYS
+                .iter()
+                .all(|(_, _, key)| !fingerprint(key).starts_with("b30e618b")),
+            "the earlier, never-stored key must not be pinned"
+        );
     }
 
     #[test]
