@@ -1,25 +1,27 @@
 /**
  * D-62 decision 18 (AJ-E3007), AJ-E3011: New pool and a project's pool
- * open this one guided setup, in order, each step with a heading and one
- * line on why: how to start (the templates, and "Start from scratch" as a
- * full card), where, who's in, who leads, everyone else, who may message
- * whom, what they may do on their own (then the seal), and a review in
- * sentences.
+ * open this one guided setup, in order, each step with its question and
+ * one line on why: how to start (the templates, and "Start from scratch"
+ * as a full card), where, who's in, who leads, who builds and who
+ * checks, who may message whom, what they may do on their own (then the
+ * seal), the team tools while unanswered, and a review in sentences.
  *
  * - A name and its projects make a working pool: from Who's in on, Make
- *   pool is enabled, and the footer says what the rest is filled in with.
+ *   pool is enabled, and the foot says the rest is prefilled.
  * - Back keeps every choice; Escape and Cancel leave nothing made. Making
  *   the pool is the user's own calls in one go, then its canvas opens,
  *   its checklist ticked for the steps walked here.
  *
- * It covers the window like the app's other full sheets, with the steps
- * down the side (wireframes 1–4).
+ * D-126: the making screens' layout (FlowLayout) — the steps beside in
+ * three groups, each with its value under its name; the form; a live
+ * preview of the pool's diagram matching the form on every step; the
+ * actions at the foot, one filled primary. It covers the window like the
+ * app's other full sheets (wireframes 1–4).
  */
 import { useEffect, useMemo, useRef, useState, type JSX } from "react";
 
-import { Button } from "../../components/primitives";
-import { IconCheck } from "../../components/icons-controls";
-import { SELECTED } from "../../components/controls/selected";
+import { FlowFoot, FlowLayout } from "../../components/FlowLayout";
+import { IconCheck, IconChevronRight } from "../../components/icons-controls";
 import { useActionHost } from "../../components/ItemMenu";
 import { showToast } from "../../components/Toast";
 import { errorText } from "../../lib/bridge";
@@ -37,22 +39,18 @@ import { templateById, type PoolTemplate } from "../../lib/pool-templates";
 import { hasUserPools, refreshPools, usePools } from "../../lib/pools";
 import { asksInNewPool } from "../../lib/team-tools";
 import { markSeen } from "../../lib/pool-setup";
-import { everyoneLabel, joinSentence, ownLabel, STEP_WORDS, whereWords, type SetupStep } from "../../lib/pool-words";
+import { everyoneLabel, whereWords, type SetupStep } from "../../lib/pool-words";
+import { eyebrowOf, stepValue, WIZARD_HEADS } from "../../lib/pool-wizard-words";
 import { sessionState } from "../../lib/rail-items";
 import { useSubscriptions } from "../../lib/subscriptions";
 import { useTools } from "../../lib/tools";
 import { nameOf } from "../../pages/pool/actions";
-import { NewPoolReview } from "./NewPoolReview";
-import { talkSentence } from "../../lib/pool-sentences";
 import { openNowByMember } from "../../lib/pool-open-now";
-import { NewPoolEveryone } from "./NewPoolEveryone";
-import { NewPoolLead } from "./NewPoolLead";
-import { NewPoolOwn } from "./NewPoolOwn";
-import { NewPoolTalk } from "./NewPoolTalk";
-import { NewPoolTemplate } from "./NewPoolTemplate";
-import { NewPoolWhere } from "./NewPoolWhere";
-import { NewPoolWho } from "./NewPoolWho";
-import { NewPoolTools } from "./NewPoolTools";
+import { NewPoolSteps } from "./NewPoolSteps";
+import { sideFor } from "./NewPoolSide";
+import { NewPoolStep } from "./NewPoolStep";
+import { draftView, navOf } from "./preview-model";
+import { StepEyebrow } from "./StepHead";
 
 /** The steps, in order (AJ-E3011 §1). */
 export const STEPS: readonly SetupStep[] = ["template", "where", "who", "lead", "everyone", "talk", "own", "review"];
@@ -237,141 +235,78 @@ export function NewPool({
   };
   const last = step === steps.length - 1;
   const current = steps[step]!;
-  const everyone = draft.members.find((member) => member.ref === "all");
-  // What the rest is filled in with, said on every step Make is enabled.
-  // The Review's own talk sentence (as the backend enforces it), or its gist.
-  const talk = talkSentence(draft);
-  const prefilled = [
-    everyone ? joinSentence(where, everyone.role, everyone.level ?? draft.level) : `They may ${ownLabel(draft.level)} on their own.`,
-    talk.startsWith("Everyone may") ? talk : "Some pairs ask you first or are blocked.",
-  ].join(" ");
-  const stepCandidates = {
-    projects: projects.map((one) => ({ id: one.id, name: one.name, root: one.root, open: sessions.some((session) => session.project_id === one.id && sessionState(session).state !== "ended") })),
-  };
+  const view = draftView(draft, memberName, where);
+  const toolsValue = answeredHere ? (bridge?.on ? "On" : "Not now") : "Asked once";
+  const valueOf = (id: SetupStep) => stepValue(id, { ...view, template: draft.template === "blank" ? "From scratch" : templateById(draft.template).name, tools: toolsValue });
+  const makeWords = into ? "Set up the pool" : "Make pool";
+  const prefilled = step >= MAKE_FROM && !last;
+  const visited = (id: SetupStep) => steps.indexOf(id) <= furthest && steps.indexOf(id) !== step;
+  const stepProjects = projects.map((one) => ({ id: one.id, name: one.name, root: one.root, open: sessions.some((session) => session.project_id === one.id && sessionState(session).state !== "ended") }));
   return (
     <NewPoolFrame embedded={embedded} dialogRef={dialogRef} onClose={onClose} title={into ? `Set up ${into.name}` : "New pool"} name={step > 0 ? name : null}>
-      <div className="flex min-h-0 flex-1">
-        <nav aria-label="Steps" className="flex w-60 shrink-0 flex-col gap-0.5 bg-surface p-3">
-          {steps.map((id, at) => {
-            const reachable = at <= furthest || furthest >= MAKE_FROM;
-            const done = at < step || (at <= furthest && at !== step);
-            return (
-              <button
-                key={id}
-                type="button"
-                onClick={() => reachable && go(at)}
-                aria-current={at === step ? "step" : undefined}
-                disabled={!reachable}
-                className={
-                  "flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-meta outline-none focus-visible:ring-2 focus-visible:ring-accent/60 " +
-                  (at === step ? SELECTED : "text-ink-2 hover:bg-surface-2 disabled:text-muted disabled:hover:bg-transparent")
-                }
-                data-testid="new-pool-step"
-                data-step={id}
-              >
-                <span
-                  className={
-                    "flex size-5 shrink-0 items-center justify-center rounded-full text-label font-semibold " +
-                    (at === step ? "bg-accent text-white" : done ? "bg-surface-3 text-ink-2" : "shadow-[inset_0_0_0_1px_var(--color-hairline)] text-muted")
-                  }
-                >
-                  {done ? <IconCheck aria-hidden="true" width={11} height={11} strokeWidth={2.5} /> : at + 1}
-                </span>
-                {STEP_WORDS[id].nav}
-              </button>
-            );
-          })}
-        </nav>
-        <main className="min-w-0 flex-1 overflow-y-auto bg-canvas px-6 py-5">
-          <div className="mx-auto flex max-w-5xl flex-col gap-4">
-            {current === "template" && <NewPoolTemplate chosen={draft.template} onChoose={choose} first={firstPool} fold={foldsTemplates(fromProject, existing)} />}
-            {current === "where" && <NewPoolWhere draft={draft} onDraft={setDraft} projects={stepCandidates.projects} nameFixed={!!into} suggestedName={suggestedName} scopeFixed={existing?.fixedScope ? `Every session in ${where} is part of this team.` : undefined} />}
-            {current === "who" && <NewPoolWho draft={draft} onDraft={setDraft} candidates={candidates} onFix={fix} nameOf={memberName} where={where} />}
-            {current === "lead" && <NewPoolLead draft={draft} onDraft={setDraft} sessions={candidates.session} nameOf={memberName} where={where} />}
-            {current === "everyone" && <NewPoolEveryone draft={draft} onDraft={setDraft} where={where} nameOf={memberName} />}
-            {current === "talk" && <NewPoolTalk draft={draft} onDraft={setDraft} />}
-            {current === "own" && <NewPoolOwn draft={draft} onDraft={setDraft} where={where} />}
-            {current === "tools" && <NewPoolTools onAnswer={() => setAnsweredHere(true)} />}
-            {current === "review" && <NewPoolReview draft={draft} name={name} where={where} nameOf={memberName} openNow={openNow} projects={projects} onChange={(to) => go(steps.indexOf(to))} />}
-          </div>
-        </main>
-      </div>
-      <NewPoolFooter
-        step={step}
-        steps={steps}
-        prefilled={step >= MAKE_FROM && !last ? prefilled : null}
-        into={!!into}
-        cancel={!embedded}
-        busy={busy}
-        primaryRef={primaryRef}
-        onClose={onClose}
-        onBack={() => go(step - 1)}
-        onMake={() => void make()}
-        onNext={() => go(step + 1)}
-      />
+      <StepEyebrow.Provider value={eyebrowOf(steps, current)}>
+        <FlowLayout
+          label={WIZARD_HEADS[current].title}
+          steps={<NewPoolSteps steps={steps} step={step} furthest={furthest} valueOf={valueOf} onPick={go} />}
+          {...sideFor({ current, draft, name, where, view, visited, sources: { apps: apps ?? [], sessions }, memberName, first: firstPool })}
+          foot={
+            <FlowFoot
+              ref={primaryRef}
+              cancel={embedded ? undefined : { label: "Cancel", onClick: onClose, testId: "new-pool-cancel" }}
+              back={step > 0 ? { label: "Back", onClick: () => go(step - 1), testId: "new-pool-back" } : undefined}
+              secondary={prefilled ? { label: `${makeWords} now`, onClick: () => void make(), disabled: busy, testId: "new-pool-make" } : undefined}
+              note={
+                prefilled ? (
+                  <span className="inline-flex items-center gap-2" data-testid="new-pool-prefilled">
+                    <IconCheck aria-hidden="true" width={15} height={15} strokeWidth={2.4} className="shrink-0 text-accent-hi" />
+                    The rest is prefilled. You can make the pool now.
+                  </span>
+                ) : undefined
+              }
+              primary={{
+                label: last ? (
+                  <>
+                    <IconCheck aria-hidden="true" width={16} height={16} strokeWidth={2.4} className="mr-1.5" />
+                    {makeWords}
+                  </>
+                ) : (
+                  <>
+                    Next: {navOf(steps[step + 1]!)}
+                    <IconChevronRight aria-hidden="true" width={16} height={16} className="ml-1" />
+                  </>
+                ),
+                onClick: last ? () => void make() : () => go(step + 1),
+                disabled: busy,
+                testId: "new-pool-next",
+              }}
+            />
+          }
+          testId="new-pool-flow"
+        >
+          <NewPoolStep
+            current={current}
+            draft={draft}
+            setDraft={setDraft}
+            name={name}
+            where={where}
+            memberName={memberName}
+            candidates={candidates}
+            sessions={sessions}
+            projects={projects}
+            stepProjects={stepProjects}
+            openNow={openNow}
+            onFix={fix}
+            onChoose={choose}
+            onGo={(to) => go(steps.indexOf(to))}
+            onToolsAnswer={() => setAnsweredHere(true)}
+            firstPool={firstPool}
+            foldTemplates={foldsTemplates(fromProject, existing)}
+            nameFixed={!!into}
+            suggestedName={suggestedName}
+            scopeFixed={existing?.fixedScope ? `Every session in ${where} is part of this team.` : undefined}
+          />
+        </FlowLayout>
+      </StepEyebrow.Provider>
     </NewPoolFrame>
-  );
-}
-
-/** The setup's foot: what the rest is filled in with (from Who's in on),
- * Cancel, Back, Make pool, and Next (or Make pool on the last step). */
-function NewPoolFooter({
-  step,
-  steps,
-  prefilled,
-  into,
-  cancel,
-  busy,
-  primaryRef,
-  onClose,
-  onBack,
-  onMake,
-  onNext,
-}: {
-  step: number;
-  steps: readonly SetupStep[];
-  /** What the rest is filled in with; `null` before Who's in and on Review. */
-  prefilled: string | null;
-  into: boolean;
-  /** Cancel, unless it's in place on an empty pool's page (its "Show
-   * the diagram" is above). */
-  cancel: boolean;
-  busy: boolean;
-  primaryRef: React.RefObject<HTMLButtonElement | null>;
-  onClose: () => void;
-  onBack: () => void;
-  onMake: () => void;
-  onNext: () => void;
-}): JSX.Element {
-  const last = step === steps.length - 1;
-  const makeWords = into ? "Set up the pool" : "Make pool";
-  return (
-    <footer className="flex items-center gap-2 bg-surface px-5 py-3" data-toast-avoid>
-      {prefilled ? (
-        <p className="min-w-0 flex-1 text-meta text-ink-2" data-testid="new-pool-prefilled">
-          <span className="font-medium text-ink">The rest is filled in.</span> {prefilled}
-        </p>
-      ) : (
-        <span className="flex-1" />
-      )}
-      {cancel && (
-        <Button variant="ghost" onClick={onClose} data-testid="new-pool-cancel">
-          Cancel
-        </Button>
-      )}
-      {step > 0 && (
-        <Button variant="ghost" onClick={onBack} data-testid="new-pool-back">
-          Back
-        </Button>
-      )}
-      {prefilled && (
-        <Button variant="secondary" disabled={busy} onClick={onMake} data-testid="new-pool-make">
-          {makeWords}
-        </Button>
-      )}
-      <Button ref={primaryRef} variant="primary" disabled={busy} onClick={last ? onMake : onNext} data-testid="new-pool-next">
-        {last ? makeWords : `Next: ${STEP_WORDS[steps[step + 1]!].nav}`}
-      </Button>
-    </footer>
   );
 }

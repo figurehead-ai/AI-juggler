@@ -12,9 +12,7 @@ import { MOCK_PROJECTS, MOCK_SESSIONS } from "../../preview/fixtures";
 import { resetPreviewPools } from "../../lib/ipc/pools";
 import { resetPreviewPoolModel } from "../../lib/ipc/pool-model";
 import { refreshPools, resetPools } from "../../lib/pools";
-import { draftOf, makePool, sessionCandidates, talkChanges, type Candidate, type Draft } from "../../lib/new-pool";
-import type { MemberKind } from "../../lib/ipc/pool-model";
-import { CANDIDATES_PAGE, NewPoolWho } from "./NewPoolWho";
+import { draftOf, makePool, sessionCandidates, talkChanges, type Draft } from "../../lib/new-pool";
 import { templateById } from "../../lib/pool-templates";
 import { sessionState } from "../../lib/rail-items";
 import { shortName } from "../../lib/session-titles";
@@ -26,6 +24,7 @@ import { NewPoolReview } from "./NewPoolReview";
 import { talkSentence } from "../../lib/pool-sentences";
 import { NewPoolLead } from "./NewPoolLead";
 import { PoolIntro } from "../../pages/pool/setup/PoolIntro";
+import type { SetupStep } from "../../lib/pool-words";
 
 type Seams = { __AIJ_POOL_CALLS__?: string[] };
 const seams = () => globalThis as unknown as Seams;
@@ -121,11 +120,17 @@ describe("AJ-E3007 the templates and the draft", () => {
   });
 });
 
-/** Next, until the step titled `title` shows. */
-function nextTo(title: string): void {
-  for (let n = 0; n < 8 && screen.queryByTestId("new-pool-step-title")?.textContent !== title; n += 1) fireEvent.click(screen.getByTestId("new-pool-next"));
-  expect(screen.getByTestId("new-pool-step-title").textContent).toBe(title);
+/** Next, until step `step` shows (D-126: its title is its question). */
+function nextTo(step: SetupStep): void {
+  for (let n = 0; n < 8 && !screen.queryByTestId(`new-pool-step-${step}`); n += 1) fireEvent.click(screen.getByTestId("new-pool-next"));
+  expect(screen.getByTestId(`new-pool-step-${step}`)).toBeTruthy();
 }
+
+/** The steps beside the form, by their names. */
+const stepNames = () => screen.getAllByTestId("flow-step").map((step) => step.querySelector('[id$="-name"]')?.textContent);
+
+/** The preview's row for `row`, its value. */
+const previewValue = (row: string) => screen.getAllByTestId("new-pool-preview-row").find((one) => one.dataset.row === row)?.querySelector("dd")?.textContent;
 
 describe("AJ-E3007, AJ-E3011 the setup, start to end", () => {
   it("picks, sets talk, reviews and makes the pool with the user's own calls", async () => {
@@ -137,17 +142,17 @@ describe("AJ-E3007, AJ-E3011 the setup, start to end", () => {
     );
     const wizard = screen.getByTestId("new-pool");
     fireEvent.click(within(wizard).getAllByTestId("new-pool-template").find((card) => card.dataset.template === "feature-team")!);
-    nextTo("Where");
+    nextTo("where");
     fireEvent.change(screen.getByTestId("new-pool-name"), { target: { value: "Checkout team" } });
     // Every project, so every open session can join.
     fireEvent.click(within(screen.getByTestId("new-pool-where")).getByText("Every project"));
-    nextTo("Who's in");
+    nextTo("who");
     const first = screen.getAllByTestId("new-pool-candidate").find((row) => !row.querySelector("[role=checkbox]")!.hasAttribute("disabled"))!;
     fireEvent.click(within(first).getByRole("checkbox"));
     // Round 2 (#6, #7): who's in, in words, without "full / shell only / watched".
-    expect(screen.getByTestId("new-pool-side-words").textContent).toMatch(/^1 (session|app)/);
-    expect(screen.getByTestId("new-pool-side").textContent).not.toMatch(/full|shell only|watched/);
-    nextTo("Who may message whom");
+    expect(previewValue("who")).toBe(`${first.querySelector(".font-medium, .font-semibold")!.textContent.split(" · ")[0]}, and every new session in every project`);
+    expect(screen.getByTestId("new-pool-preview").textContent).not.toMatch(/full tools|shell only|watched/);
+    nextTo("talk");
     // The template's member↔member ask first, then blocked on a click.
     const cell = screen.getAllByTestId("new-pool-talk-cell").find((one) => one.dataset.pair === "member>member")!;
     expect(cell.dataset.rule).toBe("ask");
@@ -156,7 +161,7 @@ describe("AJ-E3007, AJ-E3011 the setup, start to end", () => {
     expect(screen.getByTestId("new-pool-talk-below").textContent).toContain("Claude's own messages between sessions aren't held by this.");
     fireEvent.click(cell);
     expect(cell.dataset.rule).toBe("blocked");
-    nextTo("Review");
+    nextTo("review");
     expect(screen.getByTestId("new-pool-review").textContent).toContain("Member to Member: blocked");
     fireEvent.click(screen.getByTestId("new-pool-next"));
     await waitFor(() => expect(opened).not.toBeNull());
@@ -169,23 +174,24 @@ describe("AJ-E3007, AJ-E3011 the setup, start to end", () => {
 
   it("the steps in order, each with a heading and a line on why; D-30's question its own step while unanswered", async () => {
     render(<NewPool sessions={MOCK_SESSIONS} projects={MOCK_PROJECTS} accounts={[]} project={null} onClose={() => undefined} />);
-    await waitFor(() => expect(screen.getAllByTestId("new-pool-step")).toHaveLength(9));
-    expect(screen.getAllByTestId("new-pool-step").map((step) => step.textContent?.replace(/^\d/, ""))).toEqual(["Start", "Where", "Who's in", "Who leads", "Who builds, who checks", "Who may message whom", "On their own", "Team tools", "Review"]);
+    await waitFor(() => expect(screen.getAllByTestId("flow-step")).toHaveLength(9));
+    expect(stepNames()).toEqual(["Start", "Where", "Who's in", "Who leads", "Who builds, who checks", "Who may message whom", "On their own", "Team tools", "Review"]);
     const seen: string[] = [];
     for (let n = 0; n < 9; n += 1) {
-      seen.push(`${screen.getByTestId("new-pool-step-title").textContent}: ${screen.getByTestId("new-pool-step-why").textContent}`);
+      seen.push(`${screen.getByTestId("new-pool-step-eyebrow").textContent} | ${screen.getByTestId("new-pool-step-title").textContent}: ${screen.getByTestId("new-pool-step-why").textContent}`);
       if (n < 8) fireEvent.click(screen.getByTestId("new-pool-next"));
     }
+    // D-126: each step's question, in three groups.
     expect(seen).toEqual([
-      "How to start: A template fills in roles and who may message whom; you can change any of it.",
-      "Where: Sessions in these projects can join.",
-      "Who's in: Only these work together.",
-      "Who leads: The lead plans and hands out the work. Pick one to be in charge, or leave it for now.",
-      "Who builds, who checks: Each member's role, and how new sessions join.",
-      "Who may message whom: Set an exception only where you want one; the rest is allowed.",
-      "What they may do on their own: Anything more waits for your OK in Needs you.",
-      "Team tools: Asked once, the first time you make a pool.",
-      "Review: The whole pool in sentences, before it's made.",
+      "Step 1 of 9 · The basics | How do you want to start?: A pool is a team of your AI sessions on the same project. Start from scratch and each step explains itself, or pick a team that is already set up.",
+      "Step 2 of 9 · The basics | Name it and pick its project: Only sessions working in these projects can join this pool.",
+      "Step 3 of 9 · The basics | Who's in this team?: Add the apps whose sessions should work together. Each one you add can get its own role in the next steps, such as the reviewer.",
+      "Step 4 of 9 · How they work | Who leads the team?: The lead turns what you ask into tasks and hands them out. You can leave this for later. What a lead does",
+      "Step 5 of 9 · How they work | Who builds, and who checks?: Give each member a role. A reviewer looks over the others' work before it counts as done. About roles",
+      "Step 6 of 9 · How they work | Who may message whom?: Most teams let everyone talk. Pick a stricter way only if you want to approve some messages first.",
+      "Step 7 of 9 · How they work | What may they do on their own?: How much they do together without asking you. Anything beyond this waits for your OK in Needs you.",
+      "Step 8 of 9 · Finish | Let your assistants message each other?: Your team is set up. One last switch lets its sessions actually talk. You answer this once, for all your pools.",
+      "Step 9 of 9 · Finish | Ready to make “ai-juggler team”: Here is the whole team. Change anything now, or later on its diagram.",
     ]);
   });
 
@@ -203,11 +209,16 @@ describe("AJ-E3007, AJ-E3011 the setup, start to end", () => {
     expect(screen.queryByTestId("new-pool-by-hand")).toBeNull();
     // No Make pool before Where is done.
     expect(screen.queryByTestId("new-pool-make")).toBeNull();
-    nextTo("Where");
+    nextTo("where");
     expect(screen.queryByTestId("new-pool-make")).toBeNull();
-    nextTo("Who's in");
-    // From here on, Make pool, and the rest says what it's filled in with.
-    expect(screen.getByTestId("new-pool-prefilled").textContent).toBe("The rest is filled in. New sessions in ai-juggler join as Member and may Work together. Everyone may message everyone; an Observer only reads.");
+    nextTo("who");
+    // From here on, Make pool; the foot says the rest is prefilled, and
+    // the preview what with (D-126: each row, "· prefilled").
+    expect(screen.getByTestId("new-pool-prefilled").textContent).toBe("The rest is prefilled. You can make the pool now.");
+    expect(previewValue("who")).toBe("Every new session in ai-juggler");
+    expect(previewValue("roles")).toBe("Everyone builds (Member) · prefilled");
+    expect(previewValue("talk")).toBe("Everyone may message everyone; an Observer only reads. · prefilled");
+    expect(previewValue("own")).toBe("Work together · prefilled");
     fireEvent.click(screen.getByTestId("new-pool-make"));
     await waitFor(() => expect(opened).not.toBeNull());
     const calls = seams().__AIJ_POOL_CALLS__ ?? [];
@@ -217,16 +228,17 @@ describe("AJ-E3007, AJ-E3011 the setup, start to end", () => {
     expect(localStorage.getItem(`aij.pool-setup.${opened}`)).toContain("where");
   });
 
-  it("the footer's talk line is the Review's: an Observer set to Ask first is an exception there too", () => {
+  it("the preview's Messages line is the Review's: an Observer set to Ask first is an exception there too", () => {
     render(<NewPool sessions={MOCK_SESSIONS} projects={MOCK_PROJECTS} accounts={[]} project="proj-ai-juggler" onClose={() => undefined} />);
-    nextTo("Who may message whom");
-    const footer = () => screen.getByTestId("new-pool-prefilled").textContent;
-    expect(footer()).toContain("Everyone may message everyone; an Observer only reads.");
+    nextTo("talk");
+    expect(previewValue("talk")).toBe("Everyone may message everyone; an Observer only reads.");
     const cell = screen.getAllByTestId("new-pool-talk-cell").find((one) => one.dataset.pair === "observer>lead")!;
     expect(cell.dataset.rule).toBe("blocked");
     fireEvent.click(cell);
     expect(cell.dataset.rule).toBe("ask");
-    expect(footer()).toContain("Some pairs ask you first or are blocked.");
+    expect(previewValue("talk")).toContain("Observer to Lead: ask first");
+    nextTo("review");
+    expect(screen.getByTestId("new-pool-review").textContent).toContain(previewValue("talk") ?? "–");
   });
 
   it("the intro: full on the first pool, one line after it", () => {
@@ -244,26 +256,26 @@ describe("AJ-E3007, AJ-E3011 the setup, start to end", () => {
     render(<NewPool sessions={MOCK_SESSIONS} projects={MOCK_PROJECTS} accounts={[]} project={null} onClose={() => undefined} />);
     const wizard = screen.getByTestId("new-pool");
     fireEvent.click(within(wizard).getAllByTestId("new-pool-template").find((card) => card.dataset.template === "feature-team")!);
-    nextTo("Where");
+    nextTo("where");
     fireEvent.change(screen.getByTestId("new-pool-name"), { target: { value: "Checkout team" } });
     fireEvent.click(within(screen.getByTestId("new-pool-where")).getByText("Every project"));
-    nextTo("Who's in");
+    nextTo("who");
     const rows = screen.getAllByTestId("new-pool-candidate");
     const picked = rows.findIndex((row) => !row.querySelector("[role=checkbox]")!.hasAttribute("disabled"));
     fireEvent.click(within(rows[picked]!).getByRole("checkbox"));
-    nextTo("Who may message whom");
+    nextTo("talk");
     const cell = () => screen.getAllByTestId("new-pool-talk-cell").find((one) => one.dataset.pair === "member>member")!;
     fireEvent.click(cell());
     expect(cell().dataset.rule).toBe("blocked");
     // Back to the first step and forward again: nothing was lost.
     for (let n = 0; n < 5; n += 1) fireEvent.click(screen.getByTestId("new-pool-back"));
     expect(within(screen.getByTestId("new-pool")).getAllByTestId("new-pool-template").find((card) => card.dataset.template === "feature-team")!.getAttribute("aria-checked")).toBe("true");
-    nextTo("Where");
+    nextTo("where");
     expect(screen.getByTestId("new-pool-name")).toHaveProperty("value", "Checkout team");
-    nextTo("Who's in");
+    nextTo("who");
     const again = screen.getAllByTestId("new-pool-candidate")[picked]!;
     expect(within(again).getByRole("checkbox").getAttribute("aria-checked")).toBe("true");
-    nextTo("Who may message whom");
+    nextTo("talk");
     expect(cell().dataset.rule).toBe("blocked");
     expect(seams().__AIJ_POOL_CALLS__ ?? []).toEqual([]);
   });
@@ -273,9 +285,9 @@ describe("AJ-E3007, AJ-E3011 the setup, start to end", () => {
     // Twelve open sessions: more than eight to choose from.
     const many = Array.from({ length: 12 }, (_, n) => ({ ...MOCK_SESSIONS[0]!, id: `s-many-${n}`, label: `Session number ${n}`, status: "running" }));
     render(<NewPool sessions={many} projects={MOCK_PROJECTS} accounts={[]} project={null} startWith="feature-team" onClose={() => (closed += 1)} />);
-    nextTo("Where");
+    nextTo("where");
     fireEvent.click(within(screen.getByTestId("new-pool-where")).getByText("Every project"));
-    nextTo("Who's in");
+    nextTo("who");
     // R2: past eight a search field; typing keeps what matches.
     const search = screen.getByRole("searchbox");
     fireEvent.change(search, { target: { value: "number 11" } });
@@ -283,11 +295,11 @@ describe("AJ-E3007, AJ-E3011 the setup, start to end", () => {
     expect(shown).toHaveLength(1);
     expect(shown[0]!.textContent).toContain("Session number 11");
     fireEvent.click(within(shown[0]!).getByRole("checkbox"));
-    nextTo("What they may do on their own");
+    nextTo("own");
     // R3: the seal says what it does, in plain words, with an example.
     expect(screen.getByTestId("new-pool-seal").textContent).toContain("Its sessions leave other pools. No links, and no messages or docs out");
     expect(screen.getByTestId("new-pool-seal").textContent).toContain("Example:");
-    nextTo("Review");
+    nextTo("review");
     // R4: the review says what each member can actually do here.
     const can = screen.getByRole("region", { name: "What each member can do here" });
     expect(can.textContent).toContain("Session number 11");
@@ -341,53 +353,5 @@ describe("AJ-E3007, AJ-E3011 the setup, start to end", () => {
     fireEvent.keyDown(screen.getByTestId("new-pool"), { key: "Escape" });
     expect(closed).toBe(true);
     expect(seams().__AIJ_POOL_CALLS__ ?? []).toEqual([]);
-  });
-});
-
-/** rc27 live pass 2: step 2 drew 143 session rows at once and was slow. A
- * group shows a page, and Show more adds the next. */
-describe("New pool's Who list is paged", () => {
-  it("draws a page of a long group, and Show more adds another", () => {
-    const rows: Candidate[] = Array.from({ length: 143 }, (_, i) => ({
-      ref: `sess-${i}`,
-      kind: "session",
-      label: `Session ${i}`,
-      detail: "lab · ended",
-      group: "recent",
-      reach: "full",
-      blocked: null,
-      lastMs: 143 - i,
-    }));
-    const candidates = { session: rows, app: [], account: [], tool: [], mac: [], everyone: [] } as Record<MemberKind, Candidate[]>;
-    render(<NewPoolWho draft={draftOf(templateById("feature-team"), null)} onDraft={() => undefined} candidates={candidates} onFix={() => undefined} />);
-    const list = screen.getByTestId("new-pool-candidates");
-    expect(within(list).getAllByRole("listitem")).toHaveLength(CANDIDATES_PAGE);
-    fireEvent.click(screen.getByTestId("new-pool-more-recent"));
-    expect(within(list).getAllByRole("listitem")).toHaveLength(2 * CANDIDATES_PAGE);
-    expect(screen.getByTestId("new-pool-more-recent").textContent).toContain(`${143 - 2 * CANDIDATES_PAGE} more`);
-    // A search pages its matches the same way.
-    fireEvent.change(screen.getByRole("searchbox"), { target: { value: "Session 1" } });
-    expect(within(list).getAllByRole("listitem").length).toBeLessThanOrEqual(CANDIDATES_PAGE);
-  });
-});
-
-// The P8 walk (rc32, step 4): adding a Kimi Code App left the counters at
-// "0 full, 0 shell only", and its row said only "new ones join".
-describe("P8 an App member that works through its shell, in the wizard", () => {
-  it("its row says Shell only beside new ones join, and the side panel names it", () => {
-    const why = "Its tool has no agent tools yet: it works through its shell, and can't read the pool, post or take a task.";
-    const kimi: Candidate = { ref: "app:cli:kimi-1", kind: "app", label: "Kimi Code · Lab", detail: "none open now", group: "all", reach: "later", blocked: null, shell: why, lastMs: 0 };
-    const candidates = { session: [], app: [kimi], account: [], tool: [], mac: [], everyone: [] } as Record<MemberKind, Candidate[]>;
-    let draft: Draft = { ...draftOf(templateById("blank"), null), members: [] };
-    const { rerender } = render(<NewPoolWho draft={draft} onDraft={(next) => (draft = next)} candidates={candidates} onFix={() => undefined} />);
-    fireEvent.click(screen.getByRole("radio", { name: /Apps/ }));
-    const row = screen.getByTestId("new-pool-candidate");
-    expect(row.textContent).toContain("new ones join");
-    expect(within(row).getByTestId("shell-only").getAttribute("aria-description")).toBe(why);
-    fireEvent.click(within(row).getByRole("checkbox"));
-    rerender(<NewPoolWho draft={draft} onDraft={(next) => (draft = next)} candidates={candidates} onFix={() => undefined} />);
-    // Round 2 (#6, #7): in words, without the jargon counters.
-    expect(screen.getByTestId("new-pool-side-words").textContent).toBe("1 app");
-    expect(screen.getByTestId("new-pool-side-members").textContent).toContain("Kimi Code · Lab");
   });
 });

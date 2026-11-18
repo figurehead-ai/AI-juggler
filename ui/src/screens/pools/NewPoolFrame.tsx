@@ -7,6 +7,8 @@
 import { useEffect, type JSX, type ReactNode, type RefObject } from "react";
 
 import { keepTabInside } from "../../components/form";
+import { IconPool } from "../../components/icons-actions";
+import { LogoTile } from "../../components/ToolLogo";
 import type { PoolRole } from "../../lib/ipc/pools";
 import { EVERYONE, type Draft, type NotAdded } from "../../lib/new-pool";
 import { showToast } from "../../components/Toast";
@@ -31,16 +33,20 @@ export function NewPoolFrame({ embedded, dialogRef, onClose, title, name, childr
     frame.addEventListener("keydown", onKey);
     return () => frame.removeEventListener("keydown", onKey);
   }, [embedded, dialogRef, onClose]);
+  // D-126: the pool's tile in the accent, its name beside the title.
   const heading = (
-    <h2 className="text-title font-semibold text-ink">
-      {title}
-      {name && <span className="text-ink-2"> · {name}</span>}
-    </h2>
+    <span className="flex min-w-0 items-center gap-3">
+      <LogoTile icon={IconPool} size={32} on />
+      <h2 className="min-w-0 truncate type-section">
+        {title}
+        {name && <span className="font-medium text-muted"> · {name}</span>}
+      </h2>
+    </span>
   );
   if (embedded) {
     return (
       <section aria-label={title} className="flex h-full min-h-0 flex-col bg-canvas" data-testid="new-pool" data-embedded="true">
-        <header className="flex items-center gap-3 bg-surface px-5 py-3">
+        <header className="flex items-center gap-3 border-b border-divider bg-surface px-6 py-3">
           {heading}
           <span className="flex-1" />
           <button type="button" onClick={onClose} className="rounded text-meta font-medium text-ink-2 outline-none hover:text-ink hover:underline focus-visible:ring-1 focus-visible:ring-accent/60" data-testid="new-pool-show-diagram">
@@ -56,7 +62,7 @@ export function NewPoolFrame({ embedded, dialogRef, onClose, title, name, childr
       {/* rc5 walk: the wizard takes the whole window, so its title starts
           below the window's traffic lights (the overlay title bar's top
           28 px, as the rail's does), and the bar moves the window. */}
-      <header data-tauri-drag-region className="flex items-center gap-3 bg-surface px-5 pb-3 pt-8">
+      <header data-tauri-drag-region className="flex items-center gap-3 border-b border-divider bg-surface px-6 pb-3 pt-8">
         {heading}
       </header>
       {children}

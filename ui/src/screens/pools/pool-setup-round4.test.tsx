@@ -32,17 +32,21 @@ afterEach(cleanup);
 
 const app = (ref: string, label: string, role: "member" | "reviewer" = "member") => ({ ref, kind: "app" as const, label, role, level: null, reach: "later" as const });
 
-function nextTo(title: string): void {
-  for (let n = 0; n < 9 && screen.queryByTestId("new-pool-step-title")?.textContent !== title; n += 1) fireEvent.click(screen.getByTestId("new-pool-next"));
-  expect(screen.getByTestId("new-pool-step-title").textContent).toBe(title);
+/** Next, until step `step` shows. */
+function nextTo(step: string): void {
+  for (let n = 0; n < 9 && !screen.queryByTestId(`new-pool-step-${step}`); n += 1) fireEvent.click(screen.getByTestId("new-pool-next"));
+  expect(screen.getByTestId(`new-pool-step-${step}`)).toBeTruthy();
 }
+
+/** The steps beside the form, by their names. */
+const stepNames = () => screen.getAllByTestId("flow-step").map((step) => step.querySelector('[id$="-name"]')?.textContent);
 
 describe("AJ-E3011 round 4", () => {
   it("#1 (D-30): New pool asks the one question as its own step while unanswered; Yes turns them on", async () => {
     render(<NewPool sessions={MOCK_SESSIONS} projects={MOCK_PROJECTS} accounts={[]} project="proj-ai-juggler" onClose={() => undefined} />);
-    await waitFor(() => expect(screen.getAllByTestId("new-pool-step").map((step) => step.textContent)).toContain("8Team tools"));
-    nextTo("Team tools");
-    expect(screen.getByTestId("new-pool-tools").querySelector("h3")?.textContent).toBe("Let the sessions in your pools message each other and share notes and tasks?");
+    await waitFor(() => expect(stepNames()[7]).toBe("Team tools"));
+    nextTo("tools");
+    expect(screen.getByTestId("new-pool-tools").querySelector("h3, h4")?.textContent).toBe("Let the sessions in your pools message each other and share notes and tasks?");
     await act(async () => fireEvent.click(screen.getByTestId("new-pool-tools-yes")));
     await waitFor(() => expect(screen.queryByTestId("new-pool-tools")).toBeNull());
     // Answered here: the step stays, and says where they stand.
@@ -54,16 +58,16 @@ describe("AJ-E3011 round 4", () => {
     resetPreviewAgentBridge();
     render(<NewPool sessions={MOCK_SESSIONS} projects={MOCK_PROJECTS} accounts={[]} project="proj-ai-juggler" onClose={() => undefined} />);
     await new Promise((resolve) => setTimeout(resolve, 0));
-    expect(screen.getAllByTestId("new-pool-step").map((step) => step.textContent)).not.toContain("8Team tools");
-    expect(screen.getAllByTestId("new-pool-step")).toHaveLength(8);
+    expect(stepNames()).not.toContain("Team tools");
+    expect(screen.getAllByTestId("flow-step")).toHaveLength(8);
   });
 
   it("AJ-E3013: from a folder others can write, New pool's step says why the tools can't run and what to do, with no Yes; not in this build, no step", async () => {
     Object.assign(window, { __AIJ_AGENT_BRIDGE__: { asked: false, on: false, available: false, unavailable: "unsafe_location", unsafe_folder: "~/Downloads" } });
     resetPreviewAgentBridge();
     const view = render(<NewPool sessions={MOCK_SESSIONS} projects={MOCK_PROJECTS} accounts={[]} project="proj-ai-juggler" onClose={() => undefined} />);
-    await waitFor(() => expect(screen.getAllByTestId("new-pool-step").map((step) => step.textContent)).toContain("8Team tools"));
-    nextTo("Team tools");
+    await waitFor(() => expect(stepNames()[7]).toBe("Team tools"));
+    nextTo("tools");
     expect(screen.getByTestId("new-pool-tools-line").textContent).toBe("AI Juggler's team tools can't run from a folder others can write (~/Downloads). Move AI Juggler to Applications, then open it again.");
     for (const button of ["new-pool-tools-yes", "new-pool-tools-not-now", "new-pool-tools-on"]) expect(screen.queryByTestId(button)).toBeNull();
     view.unmount();
@@ -71,7 +75,7 @@ describe("AJ-E3011 round 4", () => {
     resetPreviewAgentBridge();
     render(<NewPool sessions={MOCK_SESSIONS} projects={MOCK_PROJECTS} accounts={[]} project="proj-ai-juggler" onClose={() => undefined} />);
     await new Promise((resolve) => setTimeout(resolve, 0));
-    expect(screen.getAllByTestId("new-pool-step")).toHaveLength(8);
+    expect(screen.getAllByTestId("flow-step")).toHaveLength(8);
   });
 
   it("#3: what happens next, in one line, from the shared sentences: Review and the diagram alike", () => {

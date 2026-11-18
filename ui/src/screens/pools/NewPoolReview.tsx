@@ -18,6 +18,7 @@ import { draftPlaces, type ToolsPlace } from "../../lib/team-tools";
 import { PoolSentences, Sentence, type SentenceRow } from "../../pages/pool/setup/PoolSentences";
 import { useTeamTools } from "../../pages/pool/setup/TeamTools";
 import { StepHead } from "./StepHead";
+import { reviewTitle } from "../../lib/pool-wizard-words";
 import { SetupBlockers } from "../../pages/pool/setup/SetupBlockers";
 import { FirstPrompt } from "../../pages/pool/setup/FirstPrompt";
 
@@ -65,7 +66,7 @@ export function NewPoolReview({
   };
   return (
     <div className="flex max-w-3xl flex-col gap-5" data-testid="new-pool-step-review">
-      <StepHead step="review" />
+      <StepHead step="review" title={reviewTitle(name)} />
       <PoolSentences
         shape={shape}
         where={where}
