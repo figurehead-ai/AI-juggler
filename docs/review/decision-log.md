@@ -3586,7 +3586,7 @@ The two open questions in ADR-0035 (hosting; the default on) go to the maintaine
 - Sources: the maintainer's message, 2026-11-18.
 - **Extended the same day (design for 0.6 now):** the maintainer: "remember we have to think about 0.6 where bot comes in. Bot is not going to be a separate feature it is going to be an extension of our existing chat, with backend infrastructure to support bot capabilities… we should think for both. We don't want to be constantly rewriting our memory and context system."
 
-  So ADR-0036 designs **one** memory and context system for both 0.5 Chat and the 0.6 bot, and 0.5 builds the subset it needs on the final shape:
+  So ADR-0037 designs **one** memory and context system for both 0.5 Chat and the 0.6 bot, and 0.5 builds the subset it needs on the final shape:
   - **One store, one schema from day one.** Each memory carries:
     - its *scope* (global, project, pool, session);
     - its *kind* (preference, standing request or watch, remembered answer; reserved for 0.6: policy or rule, decision, action and outcome);
@@ -3599,3 +3599,5 @@ The two open questions in ADR-0035 (hosting; the default on) go to the maintaine
   - **An append-only event and audit log from 0.5.** Watches, alerts and chat turns are logged now, and the bot's decisions, approvals and actions join the same log in 0.6.
   - **Bot-only parts are designed, not built, in 0.5:** policy memory, decision records, approval links, and stricter write rules.
   - **Migrations are versioned,** so 0.6 only adds.
+- **Numbering note (2026-11-18):** the digest and watches design is ADR-0036; the memory and context design (D-133) is ADR-0037.
+- **Quiet hours (ADR-0036's question, the coordinating session's call):** a watch may break through quiet hours only if the user turns on "Even during quiet hours" for that watch. It's off by default and shown in plain words when the watch is confirmed. Every other alert waits for quiet hours to end, as before.
