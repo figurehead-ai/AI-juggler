@@ -3486,3 +3486,4 @@ The two open questions in ADR-0035 (hosting; the default on) go to the maintaine
 
 - **Amends:** D-128 §3.
 - Sources: the maintainer's message, 2026-11-18.
+- **Hosting decided (2026-11-18):** the maintainer: "host it on our website - remote config". The public channel files are served from the Figurehead website's CDN, at a fixed URL per channel, and that host is added to the compiled endpoint allow-list. The default for "Check for configuration updates" is **on** (the coordinating session's call, as proposed in ADR-0035 §7): kill switches and version support must reach people, the fetch is anonymous, and the Privacy page says exactly what is fetched. The maintainer may reverse it.
