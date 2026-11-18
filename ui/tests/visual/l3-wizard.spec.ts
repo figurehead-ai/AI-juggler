@@ -39,8 +39,9 @@ const ROWS = readFileSync(resolve(process.cwd(), "../docs/qa/pairwise/wizard.csv
 /** The table's template names, as the wizard's cards are keyed. */
 const TEMPLATE: Record<string, string> = { "writer-and-reviewer": "writer-reviewer" };
 // D-126: everyone in scope is Who's in's switch, not a kind.
-const KIND: Record<string, RegExp> = { session: /^Sessions/, app: /^Apps/, account: /^Accounts/, tool: /^Tools/, mac: /^Macs/ };
-const REACH: Record<string, string> = { full: "full tools", shell: "shell only", watched: "watched" };
+// A row's reach, as its data-reach says it (a session another member
+// brings in says "In, with …" where its reach would be).
+const REACH: Record<string, string> = { full: "full", shell: "shell", watched: "watched" };
 // AJ-E3011: the words for what sessions may do on their own ("Level" is gone).
 const LEVEL: Record<string, string> = { read: "Look only", "work-together": "Work together", full: "Work together and wake each other", custom: "Work together" };
 /** D-126: each of them a card, by its level's id. */
@@ -95,24 +96,26 @@ test.afterAll(() => {
   writeFileSync(resolve(out, "wizard.json"), JSON.stringify({ table: "docs/qa/pairwise/wizard.csv", rows: ROWS.length, clicks: all.length, feedback_p95_ms: p95, feedback_max_ms: all.at(-1) ?? null, budget_ms: 100, per_row_ms: times }, null, 2) + "\n");
 });
 
-/** AJ-E3011 round 2 (#8): Apps and Sessions are segments; the rarer
- * kinds are under More, picked from its menu. */
-async function chooseKind(page: Page, member: string): Promise<void> {
-  const kinds = page.getByTestId("new-pool-kind");
-  if (member === "session" || member === "app") return kinds.getByRole("radio", { name: KIND[member]! }).click();
-  await kinds.getByRole("radio", { name: "More" }).click();
-  await page.getByTestId("new-pool-kind-picker").click();
-  await page.getByRole("menuitemradio", { name: KIND[member]! }).click();
+/** The rc3 critique: no kind switch. Apps are Your apps' cards; sessions
+ * the ones open now, with the earlier ones and other projects' in a fold
+ * (opened here); Accounts, Tools and Macs under More ways to add (opened
+ * here). Where that kind's rows are. */
+async function chooseKind(page: Page, member: string): Promise<Locator> {
+  if (member === "app") return page.getByTestId("new-pool-apps");
+  const fold = page.getByTestId(member === "session" ? "new-pool-sessions-other-toggle" : "new-pool-more-toggle");
+  if ((await fold.count()) > 0 && (await fold.getAttribute("aria-expanded")) !== "true") await fold.click();
+  return page.getByTestId(member === "session" ? "new-pool-sessions" : `new-pool-kind-${member}`);
 }
 
-/** Picks the first row that can join, of the kind shown, whose reach
- * says `reach` (any when null): its ref, and its name (an App's card
- * names it in two lines, so its name is read where Who leads offers it). */
-async function pick(page: Page, reach: string | null): Promise<{ ref: string; label: string }> {
+/** Picks the first row in `scope` that can join, whose reach is `reach`
+ * (any when null): its ref, and its name (an App's card names it in two
+ * lines, so its name is read where Who leads offers it). */
+async function pick(scope: Locator, reach: string | null): Promise<{ ref: string; label: string }> {
   // D-126: an App is a logo card (a checkbox in its label); the other
   // kinds are rows (a checkbox button).
-  const rows = page.getByTestId("new-pool-candidate").filter({ has: page.locator("button[role=checkbox]:not([disabled]), input[type=checkbox]:not([disabled])") });
-  const row = reach ? rows.filter({ hasText: reach }).first() : rows.first();
+  const page = scope.page();
+  const rows = (reach ? scope.locator(`[data-testid="new-pool-candidate"][data-reach="${reach}"]`) : scope.getByTestId("new-pool-candidate")).filter({ has: page.locator("button[role=checkbox]:not([disabled]), input[type=checkbox]:not([disabled])") });
+  const row = rows.first();
   const target = row.locator("label, button[role=checkbox]").first();
   await expect(target).toBeVisible();
   const ref = (await row.getAttribute("data-ref")) ?? "";
@@ -185,8 +188,8 @@ for (const r of ROWS) {
     let member = { ref: "", label: "" };
     if (r.member === "not-matched") {
       // A session it can't take as it is: greyed, its reason and its fix.
-      await chooseKind(page, "session");
-      const blocked = page.getByTestId("new-pool-candidate").filter({ has: page.locator("button[role=checkbox][disabled]") });
+      const sessions = await chooseKind(page, "session");
+      const blocked = sessions.getByTestId("new-pool-candidate").filter({ has: page.locator("button[role=checkbox][disabled]") });
       await expect(blocked.first()).toBeVisible();
       await expect(blocked.first()).toContainText(/Ended|not in this pool's projects|sealed/);
       await expect(blocked.first().getByTestId("new-pool-fix")).toBeVisible();
@@ -196,12 +199,10 @@ for (const r of ROWS) {
       if ((await all.getAttribute("aria-checked")) !== "true") await all.click();
       await expect(all).toHaveAttribute("aria-checked", "true");
     } else if (r.member !== "session") {
-      await chooseKind(page, r.member);
-      member = await pick(page, r.member === "app" ? null : "new ones join");
+      member = await pick(await chooseKind(page, r.member), r.member === "app" ? null : "later");
       label = member.label;
     }
-    await chooseKind(page, "session");
-    const session = await pick(page, REACH[r.capability]!);
+    const session = await pick(await chooseKind(page, "session"), REACH[r.capability]!);
     const reachLabel = session.label;
     if (r.member === "session" || r.member === "not-matched") label = reachLabel;
     // Round 2 (#6, #7): the preview beside names who's in, in words.

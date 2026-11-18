@@ -104,8 +104,9 @@ async function newPool(page: Page) {
 async function fill(page: Page, step: (typeof STEPS)[number]) {
   if (step === "where") await page.getByTestId("new-pool-name").fill("Storefront team");
   if (step === "who") {
-    // D-126: each App a logo card, its checkbox in the card's label (a session a row).
-    for (const row of await page.getByTestId("new-pool-candidate").all()) await row.locator("label, button[role=checkbox]").first().click();
+    // D-126: each App a logo card, its checkbox in the card's label (the
+    // rc3 critique: the sessions open now are their own section under them).
+    for (const row of await page.getByTestId("new-pool-apps").getByTestId("new-pool-candidate").all()) await row.locator("label").first().click();
   }
   if (step === "lead") {
     // D-126: each choice a card; its value says which ("next|<App>").

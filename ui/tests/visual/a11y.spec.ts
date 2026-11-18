@@ -2608,8 +2608,9 @@ test.describe("the pool setup and the canvas's selection", () => {
         await expect(page.getByTestId("new-pool-step-title")).not.toBeEmpty();
         expect(await unnamed(wizard), step).toEqual([]);
         expect(await scanSeriousWithConfirm(page), `${step} ${theme}`).toHaveLength(0);
-        // An App is a logo card (its checkbox in its label), a session a row.
-        if (step === "who") await page.getByTestId("new-pool-candidate").first().locator("label, button[role=checkbox]").first().click();
+        // An App is a logo card (its checkbox in its label); the rc3 critique:
+        // Your apps first, the sessions open now their own section.
+        if (step === "who") await page.getByTestId("new-pool-apps").getByTestId("new-pool-candidate").first().locator("label").first().click();
         if (step !== "review") await page.getByTestId("new-pool-next").click();
       }
     });

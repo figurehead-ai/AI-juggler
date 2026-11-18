@@ -348,8 +348,9 @@ for (const theme of ["dark", "light"] as const) {
         await page.mouse.move(0, 0);
         await page.screenshot({ path: resolve(OUT, `new-pool-${step}-${width}x${height}-${theme}.png`) });
         await axe(page, `new pool ${step} ${width} ${theme}`);
-        // D-126: an App is a logo card (its checkbox in its label), a session a row.
-        if (step === "who") await page.getByTestId("new-pool-candidate").first().locator("label, button[role=checkbox]").first().click();
+        // D-126: an App is a logo card (its checkbox in its label); the rc3
+        // critique: Your apps first, the sessions open now their own section.
+        if (step === "who") await page.getByTestId("new-pool-apps").getByTestId("new-pool-candidate").first().locator("label").first().click();
         if (step !== "review") await page.getByTestId("new-pool-next").click();
       }
       // Review: a short sentence a row (its full rules one click away).

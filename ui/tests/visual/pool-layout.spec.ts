@@ -186,10 +186,11 @@ test("Who leads: one choice checked at a time", async ({ page }) => {
   await goTo(page, "Pools");
   await page.getByTestId("pools-new").click();
   for (let n = 0; n < 4 && !(await page.getByTestId("new-pool-step-who").isVisible()); n += 1) await page.getByTestId("new-pool-next").click();
-  await page.getByRole("radiogroup", { name: "Kind of member" }).getByRole("radio", { name: /^Apps/ }).click();
-  // Both Claude app profiles, as Casey did (D-126: each App a logo card,
-  // its app's name over its profile).
-  for (const profile of ["Work Max", "Side"]) await page.getByTestId("new-pool-candidate").filter({ hasText: "Claude app" }).filter({ hasText: `Profile ${profile}` }).locator("label").first().click();
+  // Both Claude app profiles, as Casey did (D-126: each App a logo card;
+  // the rc3 critique: two of one app lead with their profiles, "Claude
+  // app · Desktop app" under them).
+  const apps = page.getByTestId("new-pool-apps");
+  for (const profile of ["Work Max", "Side"]) await apps.getByTestId("new-pool-candidate").filter({ hasText: "Claude app · Desktop app" }).filter({ has: page.getByRole("checkbox", { name: profile, exact: true }) }).locator("label").first().click();
   await page.getByTestId("new-pool-next").click();
   const picker = page.getByTestId("new-pool-step-lead");
   // D-126: each choice a card, its value "next|<App>", "session|<ref>" or "none".

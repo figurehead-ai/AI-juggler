@@ -127,7 +127,7 @@ describe("AJ-E3011 round 2", () => {
     expect(screen.getByTestId("own").textContent).toBe("On its own:Same as the pool (Work together)");
   });
 
-  it("#6, #8: Who's in says who in words, and keeps the rarer kinds under More", () => {
+  it("#6, #8: Who's in says who in words, and keeps the rarer kinds under More ways to add", () => {
     // D-126: said by the preview beside the form, as Review will.
     const shape = (named: string[], everyone: boolean) => ({ members: [...named.map((label) => ({ ref: `app:${label}`, label, role: "member" as const, level: null, later: true })), ...(everyone ? [{ ref: "all", label: "Everyone in web", role: "member" as const, level: null, later: false }] : [])] });
     expect(whoLine(shape(["Claude · Work", "Codex · Personal"], true), "web")).toBe("Claude and Codex, and every new session in web");
@@ -136,13 +136,14 @@ describe("AJ-E3011 round 2", () => {
     const none = { session: [], app: [], account: [], tool: [], mac: [], everyone: [] } as Record<MemberKind, Candidate[]>;
     const draft: Draft = { ...draftOf(templateById("blank"), "p-web"), members: [{ ref: "all", kind: "everyone", label: "Everyone", role: "member", level: null, reach: "later" }] };
     render(<NewPoolWho draft={draft} onDraft={() => undefined} candidates={none} onFix={() => undefined} where="web" nameOf={(ref, label) => (ref === "all" ? "Everyone in web" : label)} />);
-    expect(within(screen.getByTestId("new-pool-kind")).getAllByRole("radio").map((one) => one.textContent)).toEqual(["Apps 0", "Sessions 0", "More"]);
+    // The rc3 critique: no kind switch; the rarer kinds are a fold, closed.
+    expect(screen.queryByTestId("new-pool-kind")).toBeNull();
     // Everyone in the projects is its own switch, on.
     expect(screen.getByRole("switch", { name: "Every new session in web" }).getAttribute("aria-checked")).toBe("true");
-    expect(screen.queryByTestId("new-pool-kind-picker")).toBeNull();
-    fireEvent.click(within(screen.getByTestId("new-pool-kind")).getByRole("radio", { name: "More" }));
-    expect(screen.getByTestId("new-pool-kind-picker").textContent).toContain("Kind:Accounts 0");
-    expect(within(screen.getByTestId("new-pool-kind")).getByRole("radio", { name: "More" }).getAttribute("aria-checked")).toBe("true");
+    const more = screen.getByRole("button", { name: /^More ways to add: a Mac, an account or a tool/ });
+    expect(more.getAttribute("aria-expanded")).toBe("false");
+    fireEvent.click(more);
+    expect(screen.getByRole("region", { name: "Accounts" }).textContent).toContain("No accounts yet.");
   });
 
   it("#9: the roles are a plain reference, not cards that look like buttons", () => {

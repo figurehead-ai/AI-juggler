@@ -1,22 +1,27 @@
 /**
- * 0.4.6 (D-126): Who's in's Apps as logo cards — Desktop app or
- * Terminal, then the profile, then what's open in the pool's projects
- * now — each ticked into the team. A chosen desktop App that still
- * needs AI Juggler's connector says so right under the cards, in one line
- * with Preview and add, which opens the consent card's own preview (round
- * 7: asked for before Next, one component on both paths; D-126's mock). Under them, the sessions open now that
- * the chosen Apps (or everyone) bring in, so nobody wonders.
+ * 0.4.6 (D-126): Who's in's Apps as logo cards, each ticked into the
+ * team. A chosen desktop App that still needs AI Juggler's connector says
+ * so right under the cards, in one line with Preview and add, which opens
+ * the consent card's own preview (round 7: asked for before Next, one
+ * component on both paths; D-126's mock).
+ *
+ * A card leads with what tells it apart (the rc3 critique: two "Claude
+ * Code CLI" cards): its title is the App's short name, as the preview and
+ * the canvas's planned cards say it (`shortNames`: "Work Max" and
+ * "Personal" where two share a tool, a lone one its app word, "Claude");
+ * under it, its tool and kind ("Claude Code CLI · Terminal"), its profile
+ * when the title isn't it, and what's open in the pool's projects now.
  *
  * The cards sit in a dense grid: a chosen App's connector row spans the
  * grid's width and the next cards fill in above it, so the row reads as
  * the cards' footnote while it stays its App's (its own element, for
- * screen readers and the tests).
+ * screen readers and the tests). The sessions open now are Who's in's
+ * own section under them (NewPoolWho), each saying who brings it in.
  */
-import { useState, type JSX } from "react";
+import { useId, useState, type JSX } from "react";
 
 import { CheckCard } from "../../components/controls";
 import { Button } from "../../components/primitives";
-import { IconCheck } from "../../components/icons-controls";
 import { ShellOnlyChip } from "../../components/ShellOnly";
 import type { AppModel } from "../../lib/apps";
 import type { Candidate, Draft } from "../../lib/new-pool";
@@ -56,9 +61,18 @@ export function coveredSessions(draft: Pick<Draft, "every" | "projects" | "membe
     });
 }
 
-function AppCard({ row, app, on, open, where, onToggle }: { row: Candidate; app: AppModel | undefined; on: boolean; open: number | null; where: string; onToggle: () => void }): JSX.Element {
+/** A card's words under its title: its tool and kind ("Claude Code CLI ·
+ * Terminal"; the tool left out where it is the title), then its profile
+ * where the title isn't it. */
+export function appCardLines(title: string, app: AppModel): { sub: string; profile: string | null } {
+  const sub = [app.app === title ? null : app.app, APP_KIND_WORDS[app.kind]].filter(Boolean).join(" · ");
+  return { sub, profile: app.profile && app.profile !== title ? app.profile : null };
+}
+
+function AppCard({ row, title, app, on, open, where, onToggle }: { row: Candidate; title: string; app: AppModel | undefined; on: boolean; open: number | null; where: string; onToggle: () => void }): JSX.Element {
   const blocked = row.blocked !== null;
   const desktop = app?.kind === "desktop";
+  const lines = app ? appCardLines(title, app) : null;
   return (
     // Its own element (its connector row goes in it), laid out by the grid.
     <div className="contents" data-testid="new-pool-candidate" data-ref={row.ref}>
@@ -69,10 +83,10 @@ function AppCard({ row, app, on, open, where, onToggle }: { row: Candidate; app:
         disabled={blocked}
         reason={row.blocked ?? undefined}
         logo={<MemberLogo spec={logoOf(row.ref, { apps: app ? [app] : [], sessions: [] })} size={40} />}
-        title={app?.app ?? row.label}
-        sub={app ? APP_KIND_WORDS[app.kind] : row.detail}
+        title={title}
+        sub={lines?.sub ?? row.detail}
       >
-        {app?.profile && <span className="text-label text-muted">Profile {app.profile}</span>}
+        {lines?.profile && <span className="text-label text-muted">Profile {lines.profile}</span>}
         <span className="text-label text-faint">{open === null ? row.detail : openInWords(open, where)}</span>
         {/* Where its app stands, in a word (the list says why, once). */}
         {!blocked && row.note && !on && (
@@ -98,42 +112,45 @@ export function NewPoolWhoApps({
   apps,
   sessions,
   where,
-  everyone,
-  sessionRows = [],
   onToggle,
 }: {
   rows: readonly Candidate[];
-  /** The session candidates, for an open session's name and line. */
-  sessionRows?: readonly Candidate[];
   draft: Draft;
   apps: readonly AppModel[];
   /** What's open now (to count each App's in the pool's projects). */
   sessions: readonly InstanceInfo[] | undefined;
   where: string;
-  /** Everyone's name ("everyone in web"). */
-  everyone: string;
   onToggle: (row: Candidate) => void;
 }): JSX.Element {
   const [all, setAll] = useState(false);
+  const title = useId();
   const has = (ref: string) => draft.members.some((member) => member.ref === ref);
   // Chosen ones and the ones open now first; a page, then Show all.
   const order = [...rows].sort((a, b) => Number(has(b.ref)) - Number(has(a.ref)) || (a.group === "open" ? 0 : 1) - (b.group === "open" ? 0 : 1));
   const shown = all ? order : order.slice(0, APP_CARDS);
   const openOf = (row: Candidate) =>
     sessions ? (openNowByMember({ every: draft.every, projects: draft.projects, members: [{ ref: row.ref, kind: row.kind, label: row.label, role: "member", level: null, reach: row.reach }] }, sessions, { apps, subscriptions: [] }).get(row.ref) ?? 0) : null;
-  const covered = sessions ? coveredSessions(draft, sessions, apps, everyone) : [];
+  // Every card by its short name among all of them, so two of one tool
+  // are told apart whether or not both are chosen.
+  const short = shortNames(
+    rows.map((row) => row.label),
+    rows.map((row) => row.ref),
+  );
+  const titles = new Map(rows.map((row, at) => [row.ref, short[at]!]));
   return (
-    <div className="flex flex-col gap-3" data-testid="new-pool-apps">
-      <p className="flex flex-wrap items-baseline gap-x-2.5">
-        <span className="section-label">Your apps</span>
+    <section aria-labelledby={title} className="flex flex-col gap-3" data-testid="new-pool-apps">
+      <h4 className="flex flex-wrap items-baseline gap-x-2.5">
+        <span id={title} className="section-label">
+          Your apps
+        </span>
         <span className="text-label text-faint">Each one: every session it starts in {where} joins</span>
-      </p>
+      </h4>
       {rows.length === 0 ? (
         <p className="text-meta text-ink-2">No apps yet.</p>
       ) : (
-        <div className="grid grid-flow-row-dense grid-cols-1 gap-2.5 sm:grid-cols-3" data-testid="new-pool-candidates">
+        <div className="grid grid-flow-row-dense grid-cols-1 gap-2.5 sm:grid-cols-3" data-testid="new-pool-app-cards">
           {shown.map((row) => (
-            <AppCard key={row.ref} row={row} app={apps.find((one) => `app:${one.id}` === row.ref)} on={has(row.ref)} open={openOf(row)} where={where} onToggle={() => onToggle(row)} />
+            <AppCard key={row.ref} row={row} title={titles.get(row.ref) ?? row.label} app={apps.find((one) => `app:${one.id}` === row.ref)} on={has(row.ref)} open={openOf(row)} where={where} onToggle={() => onToggle(row)} />
           ))}
         </div>
       )}
@@ -144,33 +161,6 @@ export function NewPoolWhoApps({
       )}
       {/* Round 7 #9: how a desktop session takes part, once for the list. */}
       <DesktopListNote notes={rows.map((row) => (row.blocked ? undefined : row.note))} testId="new-pool-desktop-note" />
-      {covered.length > 0 && (
-        <section aria-labelledby="new-pool-covered-title" className="mt-3 flex flex-col gap-2.5" data-testid="new-pool-covered">
-          <h4 id="new-pool-covered-title" className="flex items-baseline gap-2.5">
-            <span className="section-label">Sessions open now in {where}</span>
-            <span className="text-label text-faint">{covered.length}</span>
-          </h4>
-          <ul className="flex flex-col rounded-card bg-surface p-1 inset-ring-1 inset-ring-hairline/75">
-            {covered.slice(0, 5).map(({ session, by }) => {
-              const row = sessionRows.find((one) => one.ref === `session:${session.id}`);
-              return (
-              <li key={session.id} className="flex items-center gap-3 px-3 py-2">
-                <MemberLogo spec={logoOf(`session:${session.id}`, { apps, sessions: [session] })} size={24} />
-                <span className="flex min-w-0 flex-1 flex-col">
-                  <span className="truncate text-body font-medium text-ink">{row?.label ?? session.title ?? session.id}</span>
-                  <span className="truncate text-meta text-faint">{row?.detail ?? session.account_label}</span>
-                </span>
-                <span className="shrink-0 text-meta text-muted">{by}</span>
-                <span aria-hidden="true" className="flex size-5 shrink-0 items-center justify-center rounded-md bg-surface-3 text-faint">
-                  <IconCheck width={12} height={12} strokeWidth={3} />
-                </span>
-              </li>
-              );
-            })}
-            {covered.length > 5 && <li className="px-3 py-2 text-meta text-muted">and {covered.length - 5} more</li>}
-          </ul>
-        </section>
-      )}
-    </div>
+    </section>
   );
 }

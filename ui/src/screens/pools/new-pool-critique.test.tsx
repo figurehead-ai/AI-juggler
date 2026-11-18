@@ -22,12 +22,19 @@ beforeEach(async () => {
 });
 afterEach(cleanup);
 
+/** Who's in's App cards, once New pool's own Apps are read (the
+ * sessions open now are rows of their own under them). */
+async function appCards(): Promise<HTMLElement[]> {
+  await waitFor(() => expect(within(screen.getByTestId("new-pool-apps")).getAllByTestId("new-pool-candidate").some((card) => card.dataset.ref === "app:cli:claude-work")).toBe(true));
+  return within(screen.getByTestId("new-pool-apps")).getAllByTestId("new-pool-candidate");
+}
+
 /** New pool on Who's in with both CLI Apps ticked, its lead the first's
  * next session. */
 async function twoCliApps(): Promise<void> {
   render(<NewPool sessions={MOCK_SESSIONS} projects={MOCK_PROJECTS} accounts={MOCK_ACCOUNTS} project="proj-ai-juggler" onClose={() => undefined} />);
   for (let n = 0; n < 2; n += 1) fireEvent.click(screen.getByTestId("new-pool-next"));
-  const cards = await screen.findAllByTestId("new-pool-candidate");
+  const cards = await appCards();
   for (const ref of ["app:cli:claude-work", "app:cli:claude-personal"]) fireEvent.click(cards.find((card) => card.dataset.ref === ref)!.querySelector("input")!);
   fireEvent.click(screen.getByTestId("new-pool-next"));
   fireEvent.click(screen.getByRole("radio", { name: /^Claude Code CLI · Work Max's next session/ }));
@@ -46,7 +53,7 @@ describe("the rc3 critique", () => {
   it("#2: three across, everyone's card is \"Everyone / in ai-juggler\", as the mock draws it", async () => {
     render(<NewPool sessions={MOCK_SESSIONS} projects={MOCK_PROJECTS} accounts={MOCK_ACCOUNTS} project="proj-ai-juggler" onClose={() => undefined} />);
     for (let n = 0; n < 2; n += 1) fireEvent.click(screen.getByTestId("new-pool-next"));
-    for (const card of await screen.findAllByTestId("new-pool-candidate")) fireEvent.click(card.querySelector("input")!);
+    for (const card of await appCards()) fireEvent.click(card.querySelector("input")!);
     expect(screen.getAllByTestId("new-pool-preview-node").map((node) => node.textContent)).toEqual(["Work MaxMember", "PersonalMember", "Everyonein ai-juggler"]);
   });
 

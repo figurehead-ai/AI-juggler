@@ -279,7 +279,7 @@ describe("AJ-E3007, AJ-E3011 the setup, start to end", () => {
     // R2: past eight a search field; typing keeps what matches.
     const search = screen.getByRole("searchbox");
     fireEvent.change(search, { target: { value: "number 11" } });
-    const shown = screen.getAllByTestId("new-pool-candidate");
+    const shown = within(screen.getByTestId("new-pool-sessions-open")).getAllByTestId("new-pool-candidate");
     expect(shown).toHaveLength(1);
     expect(shown[0]!.textContent).toContain("Session number 11");
     fireEvent.click(within(shown[0]!).getByRole("checkbox"));

@@ -201,8 +201,8 @@ for (const theme of ["dark", "light"] as const) {
     await goTo(page, "Pools");
     await page.getByTestId("pools-new").click();
     for (let n = 0; n < 4 && !(await page.getByTestId("new-pool-step-who").isVisible()); n += 1) await page.getByTestId("new-pool-next").click();
-    await page.getByRole("radiogroup", { name: "Kind of member" }).getByRole("radio", { name: /^Apps/ }).click();
-    // D-126: an App is a logo card (its checkbox in its label), found by its ref.
+    // D-126: an App is a logo card (its checkbox in its label), found by its
+    // ref (the rc3 critique: Your apps is on the page, no kind switch).
     const row = page.locator(`[data-testid="new-pool-candidate"][data-ref="app:${WORK}"]`);
     await row.locator("label").first().click();
     await expect(row.getByRole("checkbox")).toBeChecked();

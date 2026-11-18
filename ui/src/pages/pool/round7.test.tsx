@@ -60,7 +60,6 @@ describe("round 7 #2: the connector on Who's in's own row", () => {
     const candidates = { session: [], app: [row], account: [], tool: [], mac: [], everyone: [] } as Record<MemberKind, Candidate[]>;
     let draft: Draft = { ...draftOf(templateById("blank"), null), members: [] };
     const view = render(<NewPoolWho draft={draft} onDraft={(next) => (draft = next)} candidates={candidates} onFix={() => undefined} />);
-    fireEvent.click(screen.getByRole("radio", { name: /Apps/ }));
     // Not in yet: what joining means, said once for the list (#9), and the
     // row's own state in a word.
     expect(screen.getByTestId("new-pool-desktop-note").textContent).toBe(DESKTOP_NOTE);

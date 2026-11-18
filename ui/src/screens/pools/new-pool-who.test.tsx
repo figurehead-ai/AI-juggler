@@ -1,15 +1,18 @@
 /**
  * AJ-E3007, AJ-E3011, D-126: New pool's Who's in — paged, the shell-only
- * App said, and (D-126) the Apps as logo cards.
+ * App said, and (D-126) the Apps as logo cards; the rc3 critique: no kind
+ * switch, the mock-up's sections in order, and two Apps of one tool told
+ * apart by what differs.
  */
-import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { draftOf, type Candidate, type Draft } from "../../lib/new-pool";
+import { draftOf, type Candidate, type Draft, type DraftMember } from "../../lib/new-pool";
 import type { MemberKind } from "../../lib/ipc/pool-model";
 import { templateById } from "../../lib/pool-templates";
 import { CANDIDATES_PAGE, NewPoolWho } from "./NewPoolWho";
 import { APP_CARDS, coveredSessions, openInWords } from "./NewPoolWhoApps";
+import { previewNodes } from "./preview-model";
 import { MOCK_ACCOUNTS, MOCK_PROJECTS, MOCK_SESSIONS } from "../../preview/fixtures";
 import { NewPool } from "./NewPool";
 import type { AppModel } from "../../lib/apps";
@@ -33,7 +36,9 @@ describe("New pool's Who list is paged", () => {
     }));
     const candidates = { session: rows, app: [], account: [], tool: [], mac: [], everyone: [] } as Record<MemberKind, Candidate[]>;
     render(<NewPoolWho draft={draftOf(templateById("feature-team"), null)} onDraft={() => undefined} candidates={candidates} onFix={() => undefined} />);
-    const list = screen.getByTestId("new-pool-candidates");
+    // Earlier sessions fold under the ones open now.
+    fireEvent.click(screen.getByRole("button", { name: /^Earlier sessions, or in another project/ }));
+    const list = screen.getByTestId("new-pool-sessions-earlier");
     expect(within(list).getAllByRole("listitem")).toHaveLength(CANDIDATES_PAGE);
     fireEvent.click(screen.getByTestId("new-pool-more-recent"));
     expect(within(list).getAllByRole("listitem")).toHaveLength(2 * CANDIDATES_PAGE);
@@ -53,9 +58,9 @@ describe("P8 an App member that works through its shell, in the wizard", () => {
     const candidates = { session: [], app: [kimi], account: [], tool: [], mac: [], everyone: [] } as Record<MemberKind, Candidate[]>;
     let draft: Draft = { ...draftOf(templateById("blank"), null), members: [] };
     const { rerender } = render(<NewPoolWho draft={draft} onDraft={(next) => (draft = next)} candidates={candidates} onFix={() => undefined} />);
-    fireEvent.click(screen.getByRole("radio", { name: /Apps/ }));
     const row = screen.getByTestId("new-pool-candidate");
-    expect(row.textContent).toContain("Kimi Code · Lab");
+    // A lone App of its tool goes by its app word (the rc3 critique: its short name).
+    expect(within(row).getByRole("checkbox", { name: "Kimi Code" })).toBeTruthy();
     expect(within(row).getByTestId("shell-only").getAttribute("aria-description")).toBe(why);
     fireEvent.click(within(row).getByRole("checkbox"));
     expect(draft.members.map((member) => [member.ref, member.kind])).toEqual([["app:cli:kimi-1", "app"]]);
@@ -75,7 +80,7 @@ describe("Who's in's Apps as cards (D-126)", () => {
     const cards = screen.getAllByTestId("new-pool-candidate");
     expect(cards).toHaveLength(APP_CARDS);
     expect(cards[0]!.dataset.ref).toBe("app:cli:a7");
-    expect(within(cards[0]!).getByRole("checkbox", { name: "App 7 · Work" })).toBeTruthy();
+    expect(within(cards[0]!).getByRole("checkbox", { name: "App 7" })).toBeTruthy();
     expect(within(cards[0]!).getByTestId("member-logo")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Show all 8 apps" }));
     expect(screen.getAllByTestId("new-pool-candidate")).toHaveLength(8);
@@ -112,18 +117,120 @@ describe("Who's in's Apps as cards (D-126)", () => {
   // The in-app check: a CLI App's card fell back to its row's words
   // ("Claude Code CLI · Work Max", "1 open now") where Who's in read the
   // Apps without the folders; New pool's own Apps (with them) say what
-  // it is, its profile and what's open in the pool's projects.
-  it("a CLI App's card says Terminal, its profile and what's open here, from New pool's own Apps", async () => {
+  // it is and what's open in the pool's projects. The rc3 critique: two
+  // cards read "Claude Code CLI"; each leads with its profile now, as the
+  // preview names it.
+  it("a CLI App's card leads with its profile, then Claude Code CLI · Terminal and what's open here, from New pool's own Apps", async () => {
     render(<NewPool sessions={MOCK_SESSIONS} projects={MOCK_PROJECTS} accounts={MOCK_ACCOUNTS} project="proj-ai-juggler" onClose={() => undefined} />);
     for (let n = 0; n < 2; n += 1) fireEvent.click(screen.getByTestId("new-pool-next"));
-    const card = (await screen.findAllByTestId("new-pool-candidate")).find((one) => one.dataset.ref === "app:cli:claude-work")!;
-    expect(within(card).getByRole("checkbox", { name: "Claude Code CLI" })).toBeTruthy();
-    expect(card.textContent).toContain("TerminalProfile Work Max");
+    const apps = screen.getByTestId("new-pool-apps");
+    await waitFor(() => expect(within(apps).getAllByTestId("new-pool-candidate").some((one) => one.dataset.ref === "app:cli:claude-work")).toBe(true));
+    const card = within(apps).getAllByTestId("new-pool-candidate").find((one) => one.dataset.ref === "app:cli:claude-work")!;
+    expect(within(card).getByRole("checkbox", { name: "Work Max" })).toBeTruthy();
+    expect(card.textContent).toContain("Work MaxClaude Code CLI · Terminal");
+    expect(card.textContent).not.toContain("Profile Work Max");
     expect(card.textContent).toMatch(/open in ai-juggler$/);
+    const other = within(apps).getAllByTestId("new-pool-candidate").find((one) => one.dataset.ref === "app:cli:claude-personal")!;
+    expect(within(other).getByRole("checkbox", { name: "Personal" })).toBeTruthy();
   });
 
   it("says what's open of an App in the pool's projects", () => {
     expect(openInWords(1, "web")).toBe("1 open in web");
     expect(openInWords(0, "every project")).toBe("Nothing open in any project");
+  });
+});
+
+// The rc3 critique (the maintainer: "cryptic"): Who's in had an "Apps N |
+// Sessions N | More" switch and a line explaining it. Now every kind is on
+// the page in the mock-up's order, and nothing the switch reached is lost.
+describe("Who's in without a kind switch (the rc3 critique)", () => {
+  const base = MOCK_SESSIONS.find((one) => one.status === "running") ?? MOCK_SESSIONS[0]!;
+  const sessions: InstanceInfo[] = [{ ...base, id: "s1", status: "running", project_id: "web", account_id: "work" }];
+  const app = (id: string, label: string, profile: string, folder: string, kind: "cli" | "desktop" = "cli", word = "Claude Code CLI"): AppModel => ({ id, kind, tool: "claude-code", appId: kind === "desktop" ? "claude-app" : null, app: word, profile, name: label, defaultName: label, named: false, railKey: id, folder: { ...MOCK_ACCOUNTS[0]!, id: folder }, accountId: null, place: null, slot: 0 });
+  const appRow = (one: AppModel): Candidate => ({ ref: `app:${one.id}`, kind: "app", label: one.name, detail: "none open now", group: "all", reach: "later", blocked: null, lastMs: 0 });
+  const row = (ref: string, kind: MemberKind, label: string, group: Candidate["group"], extra: Partial<Candidate> = {}): Candidate => ({ ref, kind, label, detail: `${label}'s line`, group, reach: kind === "session" ? "full" : "later", blocked: null, lastMs: 0, ...extra });
+  const work = app("cli:work", "Claude Code CLI · Work Max", "Work Max", "work");
+  const candidates = {
+    app: [appRow(work)],
+    session: [
+      row("session:s1", "session", "Draft the settings page", "open"),
+      row("session:s2", "session", "Add the export button", "open"),
+      row("session:s3", "session", "Yesterday's spike", "recent"),
+      row("session:s4", "session", "Api cleanup", "open", { blocked: "Works in api, not in this pool's projects.", fix: { label: "Add api", action: "scope", arg: "api" } }),
+    ],
+    account: [row("account:a1", "account", "Work Max account", "open")],
+    tool: [row("tool:codex", "tool", "Codex", "all")],
+    mac: [row("mac:m1", "mac", "This Mac", "open")],
+    everyone: [],
+  } as Record<MemberKind, Candidate[]>;
+  const member = (one: Candidate): DraftMember => ({ ref: one.ref, kind: one.kind, label: one.label, role: "member", level: null, reach: one.reach });
+
+  it("has no switch: Your apps, then the sessions open now in web with their checks, then More ways to add, in that order", () => {
+    let draft: Draft = { ...draftOf(templateById("blank"), "web"), projects: ["web"], members: [member(candidates.app[0]!)] };
+    render(<NewPoolWho draft={draft} onDraft={(next) => (draft = next)} candidates={candidates} onFix={() => undefined} where="web" sessions={sessions} apps={[work]} />);
+    expect(screen.queryByRole("radiogroup", { name: "Kind of member" })).toBeNull();
+    expect(screen.queryByTestId("new-pool-kind-line")).toBeNull();
+    const yours = screen.getByRole("region", { name: /^Your apps/ });
+    const open = screen.getByRole("region", { name: "Sessions open now in web" });
+    expect(within(open).getByRole("heading").textContent).toBe("Sessions open now in web2");
+    const more = screen.getByRole("button", { name: "More ways to add: a Mac, an account or a tool · for bigger setups" });
+    expect(yours.compareDocumentPosition(open) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(open.compareDocumentPosition(more) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // Each open session its own row with its check: in with its App
+    // (the mock's quiet check), or ticked by itself.
+    const rows = within(open).getAllByRole("checkbox");
+    expect(rows.map((one) => one.textContent)).toEqual(["Draft the settings pageDraft the settings page's lineIn, with Claude Code CLI", "Add the export buttonAdd the export button's linefull tools"]);
+    expect(rows.map((one) => one.getAttribute("aria-checked"))).toEqual(["false", "false"]);
+    expect(within(open).getAllByTestId("new-pool-candidate")[0]!.dataset.brought).toBe("true");
+    fireEvent.click(rows[1]!);
+    expect(draft.members.map((one) => one.ref)).toEqual(["app:cli:work", "session:s2"]);
+  });
+
+  it("keeps what the switch reached: earlier sessions and other projects' under a fold, Accounts, Tools and Macs under More ways to add (closed)", () => {
+    let draft: Draft = { ...draftOf(templateById("blank"), "web"), projects: ["web"], members: [] };
+    const fixed: string[] = [];
+    render(<NewPoolWho draft={draft} onDraft={(next) => (draft = next)} candidates={candidates} onFix={(one) => fixed.push(one.ref)} where="web" sessions={sessions} apps={[work]} />);
+    const earlier = screen.getByRole("button", { name: "Earlier sessions, or in another project · 2" });
+    expect(earlier.getAttribute("aria-expanded")).toBe("false");
+    fireEvent.click(earlier);
+    const folded = screen.getByTestId("new-pool-sessions-earlier");
+    expect(within(folded).getAllByRole("checkbox").map((one) => one.textContent?.slice(0, 15))).toEqual(["Api cleanupApi ", "Yesterday's spi"]);
+    fireEvent.click(within(folded).getByRole("button", { name: "Add api" }));
+    expect(fixed).toEqual(["session:s4"]);
+    const more = screen.getByRole("button", { name: /^More ways to add/ });
+    expect(more.getAttribute("aria-expanded")).toBe("false");
+    expect(screen.queryByRole("region", { name: /^Accounts/ })).toBeNull();
+    fireEvent.click(more);
+    for (const [name, label] of [["Accounts", "Work Max account"], ["Tools", "Codex"], ["Macs", "This Mac"]] as const) {
+      expect(within(screen.getByRole("region", { name })).getByRole("checkbox", { name: new RegExp(`^${label}`) })).toBeTruthy();
+    }
+    fireEvent.click(within(screen.getByRole("region", { name: "Tools" })).getByRole("checkbox"));
+    expect(draft.members.map((one) => [one.ref, one.kind])).toEqual([["tool:codex", "tool"]]);
+  });
+
+  it("opens More ways to add when the pool starts with an Account", () => {
+    render(<NewPoolWho draft={{ ...draftOf(templateById("rules-by-account"), "web"), members: [] }} onDraft={() => undefined} candidates={candidates} onFix={() => undefined} where="web" />);
+    expect(screen.getByRole("button", { name: /^More ways to add/ }).getAttribute("aria-expanded")).toBe("true");
+    expect(screen.getByRole("region", { name: "Accounts" })).toBeTruthy();
+  });
+
+  it("names two Apps of one tool by their profiles, as the preview does, and a lone one by its app word", () => {
+    const personal = app("cli:personal", "Claude Code CLI · Personal", "Personal", "personal");
+    const desktop = app("app:claude-app:/p/Work", "Claude app · Work", "Work", "desktop-work", "desktop", "Claude app");
+    const apps = [work, personal, desktop];
+    const rows = apps.map(appRow);
+    const draft: Draft = { ...draftOf(templateById("blank"), "web"), projects: ["web"], members: rows.map(member) };
+    render(<NewPoolWho draft={draft} onDraft={() => undefined} candidates={{ ...candidates, app: rows, session: [] }} onFix={() => undefined} where="web" sessions={[]} apps={apps} />);
+    const cards = within(screen.getByTestId("new-pool-apps")).getAllByRole("checkbox");
+    const names = cards.map((one) => document.getElementById(one.getAttribute("aria-labelledby")!)!.textContent);
+    expect(names).toEqual(["Work Max", "Personal", "Claude app"]);
+    const nodes = previewNodes(draft, (_, label) => label, "web", { apps, sessions: [] }).members.map((node) => node.name);
+    expect(nodes).toEqual(names);
+    const text = within(screen.getByTestId("new-pool-apps")).getAllByTestId("new-pool-candidate").map((one) => one.textContent);
+    expect(text[0]).toContain("Work MaxClaude Code CLI · Terminal");
+    expect(text[0]).not.toContain("Profile Work Max");
+    expect(text[1]).toContain("PersonalClaude Code CLI · Terminal");
+    expect(text[1]).not.toContain("Profile Personal");
+    expect(text[2]).toContain("Claude appDesktop appProfile Work");
   });
 });
