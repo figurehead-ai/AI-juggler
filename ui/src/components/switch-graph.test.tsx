@@ -74,14 +74,17 @@ const TARGETS: SwitchTargetData[] = [
 ];
 
 describe("AJ-E209 SwitchTargetRows — the badged ranked entry", () => {
-  it("renders badge + Not proven yet + Drop list + top factors on the cross-Provider row", () => {
+  it("renders badge + Drop list + top factors on the cross-Provider row, a beta one marked Beta and never 'proven'", () => {
     const picks: SwitchTargetData[] = [];
     const { container } = render(
       <SwitchTargetRows targets={TARGETS} onPick={(target) => picks.push(target)} />,
     );
     const badge = container.querySelector('[data-testid="fidelity-badge"]')!;
-    expect(badge.textContent).toContain("Full story, fresh start · Beta");
-    expect(badge.textContent).toContain("Not proven yet");
+    // D-127 (the maintainer, 2026-11-18: "why are we still saying things
+    // have not been proven yet??"): a switch listed in beta says Beta,
+    // in plain words, and nothing more.
+    expect(badge.textContent).toBe("Full story, fresh start · Beta");
+    expect(container.textContent).not.toMatch(/proven/i);
     expect(badge.getAttribute("data-validated")).toBe("false");
     expect(
       container.querySelector('[data-testid="target-drop-list"]')!.textContent,
@@ -90,6 +93,15 @@ describe("AJ-E209 SwitchTargetRows — the badged ranked entry", () => {
     expect(container.textContent).toContain("exhausts ≈262 min");
     expect(container.textContent).toContain("Computed");
     expect(container.textContent).toContain("Suggested");
+  });
+
+  it("a tested switch reads what it carries alone: no Beta, no 'proven'", () => {
+    const tested: SwitchTargetData[] = [{ ...TARGETS[0]!, badge: "Full story, fresh start", validated: true }];
+    const { container } = render(<SwitchTargetRows targets={tested} onPick={() => undefined} />);
+    const badge = container.querySelector('[data-testid="fidelity-badge"]')!;
+    expect(badge.textContent).toBe("Full story, fresh start");
+    expect(badge.getAttribute("data-validated")).toBe("true");
+    expect(container.textContent).not.toMatch(/proven|Beta/i);
   });
 
   it("the Why expander shows every input incl. switch cost; click is suggest-only", () => {
@@ -301,8 +313,8 @@ describe("AJ-E209 copy lint — beta is never lossless (D-04/D-11)", () => {
   });
 
   it("cross-Provider badges always carry the beta qualifier in copy and fixtures", () => {
-    // Component copy says it explicitly…
-    expect(rowsSource).toContain("Not proven yet");
+    // Component copy never says "proven" (D-127)…
+    expect(rowsSource).not.toMatch(/Not proven yet/);
     expect(rowsSource).toContain("What carries is checked for each pair of tools, never assumed.");
     // …and the bridge fixtures honour it (cross-Provider ⇒ Beta).
     const badges = Array.from(bridgeSource.matchAll(/badge: "([^"]*· [^"]*)"/g)).map(
@@ -310,7 +322,8 @@ describe("AJ-E209 copy lint — beta is never lossless (D-04/D-11)", () => {
     );
     expect(badges.length).toBeGreaterThan(0);
     for (const badge of badges) {
-      expect(badge).toMatch(/Beta|Proven/);
+      expect(badge).toMatch(/Beta/);
+      expect(badge).not.toMatch(/proven/i);
       expect(badge).not.toMatch(/lossless/i);
     }
   });

@@ -83,8 +83,10 @@ function roomWords(name: string, room: TargetRoom, testId: string): JSX.Element 
 }
 
 /** The badge chip: solid when validated, hatched while beta. The text
- * label (the badge string itself + the validated line) carries the
- * state — the hatching is decoration only, legible in greyscale. */
+ * carries the state (a beta switch's badge ends "· Beta", from the
+ * backend; D-127: a switch is listed in beta only when the user turned
+ * beta switches on, and never says "proven") — the hatching is
+ * decoration only, legible in greyscale. */
 export function FidelityBadge({ badge, validated }: { badge: string; validated: boolean }) {
   return (
     <span
@@ -98,15 +100,14 @@ export function FidelityBadge({ badge, validated }: { badge: string; validated: 
         validated
           ? undefined
           : {
-              // Hatched fill marks "beta, not yet validated" — the
-              // words say it too; this is never the only signal.
+              // Hatched fill marks a beta switch — the words say it
+              // too; this is never the only signal.
               backgroundImage:
                 "repeating-linear-gradient(45deg, transparent 0 3px, rgba(217,119,6,0.18) 3px 5px)",
             }
       }
     >
       {badge}
-      {!validated && " · Not proven yet"}
     </span>
   );
 }

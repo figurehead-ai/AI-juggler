@@ -277,7 +277,7 @@ pub struct PairFidelity {
     /// pair caps at F1, so it never gets the one-click door).
     pub label: FidelityLabel,
     /// What the move does, in the label the user reads: every cap but
-    /// the unvalidated pair's (QA P23). "Not proven yet" is said beside
+    /// the unvalidated pair's (QA P23). "Beta" is said beside
     /// it, never by renaming a transplant "Full story, fresh start".
     pub described: FidelityLabel,
     /// Caps applied, in order.

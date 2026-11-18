@@ -13,14 +13,16 @@
 //!    adapter and the app's switch); `ZCode` rows record
 //!    `ci_green: false` — unproven, never silently skipped.
 //! 3. **`dogfood`** — one live cell on real binaries, recorded by a
-//!    human (before/after sha256 + continuity verdict). A FAILING
-//!    cell lowers the advertised ceiling one level until fixed
-//!    (Req.4); a PASSING cell validates the pair only when
-//!    `ci_green` is also true.
+//!    human on this Mac (before/after sha256 + continuity verdict). A
+//!    FAILING cell lowers the advertised ceiling one level until fixed
+//!    (Req.4) and holds the pair back.
 //!
-//! A pair advertises "F-label · Proven" only when `validated()`
-//! is true; everything else reads "Beta — not proven yet"
-//! (D-11: never "lossless").
+//! D-127: a pair is **validated**, and the product offers it, when its
+//! CI row is green and every area of it was decided live in the AJ-E808
+//! register (the lab's runs are the live cells; `Register::pair_validated`).
+//! Its badge is then the fidelity words alone. Any other pair is hidden
+//! unless the user turned on beta switches (Settings › Switching), and
+//! reads "… · Beta" there. Never "proven" or "lossless" on screen (D-11).
 
 use crate::fidelity::FidelityLabel;
 
@@ -108,93 +110,73 @@ impl PairCell {
         }
     }
 
-    /// Validated = real CI row green AND a PASSING live cell (Req.4)
-    /// AND every area of the pair PASS in the AJ-E808 register. Fake-
-    /// harness mechanism green never counts (handover rule). Without
-    /// installed versions; the app uses [`Self::validated_for`].
+    /// Validated (D-127: the product offers it) = the real CI row green,
+    /// every area of the pair decided live in the AJ-E808 register, and
+    /// no live cell recorded on this Mac failing. Fake-harness mechanism
+    /// green never counts (handover rule), and no version number gates it
+    /// (D-128: a new major only makes the register's cells due).
     #[must_use]
     pub fn validated(&self) -> bool {
-        self.validated_for(&crate::register::unknown_versions, false)
+        self.validated_against(crate::register::embedded())
     }
 
-    /// [`Self::validated`] for the installed Provider versions: a
-    /// register PASS recorded against other versions reads UNVALIDATED
-    /// (AJ-E808 Req.4); with `strict`, an unknown version can't confirm
-    /// one either.
+    /// [`Self::validated`] against a given register.
     #[must_use]
-    pub fn validated_for(&self, installed: crate::register::Versions<'_>, strict: bool) -> bool {
-        self.validated_against(crate::register::embedded(), installed, strict)
+    pub fn validated_against(&self, register: &crate::register::Register) -> bool {
+        let failed = self
+            .dogfood
+            .as_ref()
+            .is_some_and(|cell| matches!(cell.verdict, DogfoodVerdict::Fail { .. }));
+        self.ci_green && !failed && register.pair_validated(&self.from, &self.to)
     }
 
-    /// [`Self::validated_for`] against a given register.
-    #[must_use]
-    pub fn validated_against(
-        &self,
-        register: &crate::register::Register,
-        installed: crate::register::Versions<'_>,
-        strict: bool,
-    ) -> bool {
-        self.ci_green
-            && self
-                .dogfood
-                .as_ref()
-                .is_some_and(|cell| matches!(cell.verdict, DogfoodVerdict::Pass { .. }))
-            && register.pair_validated(&self.from, &self.to, installed, strict)
-    }
-
-    /// The wire badge the UI renders ("Full story, fresh start · Beta" / "Same conversation, another app · Proven")
-    /// — never "lossless" below F4 (D-11).
+    /// The wire badge the UI renders: what the switch carries in words
+    /// ("Same conversation, another app"), and "· Beta" on one the user
+    /// sees only with beta switches on — never "lossless" below F4
+    /// (D-11), never "proven" (D-127).
     #[must_use]
     pub fn badge(&self) -> String {
-        self.badge_for(&crate::register::unknown_versions, false)
+        let words = self.advertised_ceiling().user_label();
+        if self.validated() {
+            words.to_owned()
+        } else {
+            format!("{words} · Beta")
+        }
     }
 
-    /// [`Self::badge`] for the installed Provider versions.
-    #[must_use]
-    pub fn badge_for(&self, installed: crate::register::Versions<'_>, strict: bool) -> String {
-        format!(
-            "{} · {}",
-            self.advertised_ceiling().user_label(),
-            if self.validated_for(installed, strict) {
-                "Proven"
-            } else {
-                "Beta"
-            }
-        )
-    }
-
-    /// The one-line status for the Settings → Beta table.
+    /// The one-line status for the table of which switches are tested
+    /// (Accounts), in plain words.
     #[must_use]
     pub fn status_words(&self) -> String {
-        match (&self.dogfood, self.ci_green) {
-            (Some(cell), _) => match &cell.verdict {
-                DogfoodVerdict::Pass { .. } if self.validated() => format!(
-                    "Proven: tried by hand {} on a {} project",
-                    cell.at, cell.project_shape
-                ),
-                DogfoodVerdict::Pass { .. } if self.ci_green => format!(
-                    "Tried by hand {}, but not every part of the switch is proven yet, so it stays in beta",
-                    cell.at
-                ),
-                DogfoodVerdict::Pass { .. } => format!(
-                    "Tried by hand {}, but the automatic tests with the real tools don't pass yet, so it stays in beta",
-                    cell.at
-                ),
-                DogfoodVerdict::Fail { reason } => {
-                    format!(
-                        "Failed when tried by hand {}: {reason}. It promises one level less until fixed",
-                        cell.at
-                    )
-                }
-            },
-            (None, true) => {
-                "Automatic tests pass with the real tools; not tried by hand yet".to_owned()
-            }
-            (None, false) => {
-                "Automatic tests with the real tools aren't in place; not tried by hand yet"
-                    .to_owned()
-            }
+        if let Some(DogfoodCell {
+            at,
+            verdict: DogfoodVerdict::Fail { reason },
+            ..
+        }) = &self.dogfood
+        {
+            return format!(
+                "Failed when tried by hand {at}: {reason}. It promises one level less until fixed"
+            );
         }
+        if self.validated() {
+            return "Tested: every part of the switch was tried with the real tools".to_owned();
+        }
+        if !self.ci_green {
+            return "In beta: the automatic tests with the real tools aren't in place yet"
+                .to_owned();
+        }
+        let decided = crate::register::embedded()
+            .pair(&self.from, &self.to)
+            .map_or(0, |pair| {
+                pair.cells
+                    .iter()
+                    .filter(|cell| cell.verdict != crate::register::Verdict::Unvalidated)
+                    .count()
+            });
+        format!(
+            "In beta: {decided} of {} parts tried with the real tools so far",
+            crate::register::AREAS.len()
+        )
     }
 }
 
@@ -527,18 +509,38 @@ mod tests {
                 row.badge()
             );
         }
-        assert_eq!(
-            pair_cell("claude-code", "codex").unwrap().badge(),
-            "Full story, fresh start · Beta"
+        assert!(
+            pair_cell("claude-code", "codex")
+                .unwrap()
+                .badge()
+                .starts_with("Full story, fresh start")
         );
     }
 
     #[test]
-    fn nothing_validates_without_a_live_cell_and_real_ci() {
+    fn a_row_validates_only_with_real_ci_and_every_area_decided_live() {
         for row in validation_matrix() {
-            assert!(!row.validated(), "{}→{} ships Beta", row.from, row.to);
-            assert!(row.badge().contains("Beta"));
-            assert!(!row.badge().to_lowercase().contains("lossless"));
+            let decided = crate::register::embedded().pair_validated(&row.from, &row.to);
+            assert_eq!(
+                row.validated(),
+                row.ci_green && decided,
+                "{}→{}",
+                row.from,
+                row.to
+            );
+            assert_eq!(row.badge().ends_with(" · Beta"), !row.validated());
+            for word in ["lossless", "proven"] {
+                assert!(
+                    !row.badge().to_lowercase().contains(word),
+                    "{}",
+                    row.badge()
+                );
+                assert!(
+                    !row.status_words().to_lowercase().contains(word),
+                    "{}",
+                    row.status_words()
+                );
+            }
         }
     }
 
@@ -548,18 +550,16 @@ mod tests {
             pair_cell("claude-code", "claude-code").unwrap(),
             passing_cell(),
         );
-        // AJ-E808: a passing live cell alone no longer promotes — every
-        // area must PASS in the register, and today none is validated.
-        assert!(!claude.validated());
-        assert_eq!(claude.badge(), "Same conversation, another app · Beta");
-        assert!(
-            claude
-                .status_words()
-                .contains("not every part of the switch is proven"),
-            "{}",
-            claude.status_words()
-        );
-        // With every area PASS on the installed versions, it validates.
+        // AJ-E808: a passing live cell alone doesn't validate — every
+        // area must be decided in the register.
+        let open = crate::register::Register {
+            schema: 1,
+            note: String::new(),
+            pairs: vec![],
+        };
+        assert!(!claude.validated_against(&open));
+        // With every area PASS, it validates, on any version of the tools
+        // (D-128: a new major only makes the cells due).
         let register = crate::register::Register {
             schema: 1,
             note: String::new(),
@@ -572,24 +572,11 @@ mod tests {
                     .collect(),
             }],
         };
-        let installed = |_: &str| Some("2.1.296".to_owned());
-        assert!(claude.validated_against(&register, &installed, true));
-        let upgraded = |_: &str| Some("2.2.0".to_owned());
-        assert!(
-            !claude.validated_against(&register, &upgraded, true),
-            "an upgrade resets the badge"
-        );
-
+        assert!(claude.validated_against(&register));
         let codex = with_dogfood(pair_cell("codex", "codex").unwrap(), passing_cell());
         assert!(
-            !codex.validated(),
-            "no pair validates while its register cells are unvalidated"
-        );
-        assert_eq!(codex.badge(), "Same conversation, another app · Beta");
-        assert!(
-            codex.status_words().contains("stays in beta"),
-            "{}",
-            codex.status_words()
+            !codex.validated_against(&open),
+            "no pair validates while its register cells are open"
         );
     }
 
@@ -623,8 +610,19 @@ mod tests {
             .find(|r| r.from == "claude-code" && r.to == "zcode")
             .unwrap();
         assert_eq!(claude_zcode.researched_ceiling, L::F0, "prime stays F0");
-        let pending = rows.iter().find(|r| r.ci_green).unwrap();
-        assert!(pending.status_words().contains("not tried by hand yet"));
+        // A real-tool row not decided in every part says how far it got.
+        if let Some(pending) = rows.iter().find(|r| r.ci_green && !r.validated()) {
+            assert!(
+                pending.status_words().starts_with("In beta: "),
+                "{}",
+                pending.status_words()
+            );
+            assert!(
+                pending
+                    .status_words()
+                    .contains("parts tried with the real tools")
+            );
+        }
     }
 
     #[test]

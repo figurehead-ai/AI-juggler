@@ -108,11 +108,29 @@ fn matrix_reads_honestly_and_cells_persist_across_restart() {
         .find(|row| row.from == "claude-code" && row.to == "claude-code")
         .unwrap();
     assert!(claude.ci_green && claude.mechanism_green);
-    assert!(!claude.validated);
-    assert_eq!(claude.badge, "Same conversation, another app · Beta");
-    assert!(claude.status.contains("not tried by hand yet"));
+    // D-127: validated exactly when every part was decided in the lab;
+    // the words never say "proven".
+    let decided =
+        juggler_handover::register::embedded().pair_validated("claude-code", "claude-code");
+    assert_eq!(claude.validated, decided);
+    assert_eq!(
+        claude.badge.ends_with(" · Beta"),
+        !decided,
+        "{}",
+        claude.badge
+    );
     for row in &rows {
         assert!(!row.badge.to_lowercase().contains("lossless"));
+        assert!(
+            !row.badge.to_lowercase().contains("proven"),
+            "{}",
+            row.badge
+        );
+        assert!(
+            !row.status.to_lowercase().contains("proven"),
+            "{}",
+            row.status
+        );
         if !row.ci_green {
             assert!(!row.notes.is_empty(), "unproven rows say why");
         }
@@ -212,7 +230,30 @@ fn switch_target_badges_derive_from_the_recorded_cells() {
     juggler_app::features::profile::create_profile(&state, &account_b.id, "Main", None, None)
         .unwrap();
 
-    // Baseline: the same-provider target reads the researched badge.
+    // D-127: a switch not decided live in every part isn't listed at all
+    // (no "Not proven yet" row) until the user turns on beta switches.
+    let offered = juggler_handover::validation::pair_cell("claude-code", "claude-code")
+        .unwrap()
+        .validated();
+    let targets =
+        juggler_app::features::switch::targets::switch_targets_impl(&state, &source).unwrap();
+    assert_eq!(
+        targets.iter().any(|t| t.account_label == "Personal"),
+        offered,
+        "listed exactly when validated"
+    );
+    if offered {
+        return; // the rest is about a beta switch's words
+    }
+    juggler_app::settings_policy::app_setting_set_impl(
+        &state,
+        juggler_app::features::validation::BETA_SWITCHES_KEY,
+        "1",
+    )
+    .unwrap();
+
+    // Turned on: the same-provider target reads the researched badge,
+    // marked Beta.
     let targets =
         juggler_app::features::switch::targets::switch_targets_impl(&state, &source).unwrap();
     let target = targets

@@ -48,7 +48,16 @@ fn app_state(dir: &Path) -> Arc<AppState> {
     registry.register(claude.clone());
     registry.register_handover(claude);
     registry.register(Arc::new(FakeHarnessAdapter::new(dir.join("fake-harness"))));
-    Arc::new(AppState::init_with_registry(dir.join("app-data"), registry).unwrap())
+    let state = Arc::new(AppState::init_with_registry(dir.join("app-data"), registry).unwrap());
+    // D-127: these rows are about ranking and readiness, not about which
+    // switches are tested yet: beta switches are on, so every route lists.
+    juggler_app::settings_policy::app_setting_set_impl(
+        &state,
+        juggler_app::features::validation::BETA_SWITCHES_KEY,
+        "1",
+    )
+    .unwrap();
+    state
 }
 
 fn config_dir_of(state: &Arc<AppState>, account_id: &str) -> PathBuf {

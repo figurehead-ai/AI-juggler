@@ -626,7 +626,7 @@ const DOOR_WIZARD_FIXTURE = {
   zombies: [],
   diff_snapshotted: true,
   source_live: true,
-  experimental_copy: "Beta, not proven yet: the whole session moves, with its subagents and file history. The source stays resumable.",
+  experimental_copy: "Beta: the whole session moves, with its subagents and file history. The source stays resumable.",
   door: "wizard" as const,
   wizard_steps: ["Target", "What's carried", "Confirm"],
   wizard_reasons: ["This move hasn't been proven on a real setup yet."],
@@ -1062,7 +1062,7 @@ for (const theme of ["dark", "light"] as const) {
     await expect(rowHeader).toContainText("→");
     // Status in text, never colour-only.
     await expect(page.getByTestId("beta-matrix-row").first()).toContainText(
-      "Beta — not proven yet",
+      "Beta: still being tested",
     );
     const scan = await new AxeBuilder({ page })
       .include("[data-testid='beta-matrix']")
@@ -1773,7 +1773,7 @@ for (const theme of ["dark", "light"] as const) {
           machine_id: "machine-mini", machine_label: "Mac mini", recipe_id: "rec-mini", recipe_name: "Main",
           account_label: "Team", provider: "claude-code", mechanism: "transplant", readiness: "needs_mapping",
           blockers: ["ai-juggler isn't at the same path on Mac mini — pick its copy there (you confirm the mapping) or use “Full story, fresh start”."],
-          fidelity: "F3", badge: "Same conversation, another app · Not proven yet", validated: false, carried: ["The whole conversation"], regenerated: [],
+          fidelity: "F3", badge: "Same conversation, another app · Beta", validated: false, carried: ["The whole conversation"], regenerated: [],
           dropped: ["The task list"], same_path_project: null,
           projects: [{ project_id: "proj-m1", name: "ai-juggler", same_path: false, same_name: true }],
           replay_available: true, version_here: "2.1.0", version_there: "2.1.0",

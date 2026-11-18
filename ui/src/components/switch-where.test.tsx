@@ -25,7 +25,7 @@ const ONECLICK = {
   diff_snapshotted: false,
   source_live: true,
   source_keeps_running: false,
-  experimental_copy: "Beta, not proven yet: the whole session is carried over. The source stays resumable.",
+  experimental_copy: "Beta: the whole session is carried over. The source stays resumable.",
   door: "one-click",
   wizard_steps: [],
   wizard_reasons: [],
@@ -43,7 +43,7 @@ const ONECLICK = {
   target_tool: "claude-code",
 } as unknown as PreflightInfoData;
 
-const WIZARD = { ...ONECLICK, door: "wizard", wizard_steps: ["Target", "What's carried", "Confirm"], wizard_reasons: ["This switch hasn't been proven on a real setup yet."] } as PreflightInfoData;
+const WIZARD = { ...ONECLICK, door: "wizard", wizard_steps: ["Target", "What's carried", "Confirm"], wizard_reasons: ["This switch is in beta: AI Juggler is still testing it with these tools."] } as PreflightInfoData;
 
 /** A session another app (the Claude app) runs. */
 const OUTSIDE = { ...ONECLICK, source_keeps_running: true, source_outside: true, source_app: "Claude" } as PreflightInfoData;

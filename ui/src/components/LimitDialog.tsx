@@ -238,7 +238,7 @@ export function LimitDialog({
                     </p>
                   )}
                   <p className="text-xs leading-relaxed text-ink-2">
-                    Takes the conversation, the branch and the project's context with it. Switching is in beta ({target.badge}):{" "}
+                    Takes the conversation, the branch and the project's context with it ({target.badge}):{" "}
                     <button
                       type="button"
                       aria-expanded={carry}

@@ -130,7 +130,7 @@ const FROM_DESKTOP = {
   source_keeps_running: true,
   source_outside: true,
   source_app: "Claude",
-  experimental_copy: "Beta, not proven yet: the whole session is carried over, with its subagents and file history. The source stays resumable.",
+  experimental_copy: "Beta: the whole session is carried over, with its subagents and file history. The source stays resumable.",
   destinations: EXAMPLE_DESTINATIONS_DESKTOP,
 };
 const NOTES_ONLY = { ...EXAMPLE_SETUP_NOTES, offers: EXAMPLE_SETUP_NOTES.offers.filter((offer) => offer.kind === "memory").map((offer) => ({ ...offer, note: null })) };

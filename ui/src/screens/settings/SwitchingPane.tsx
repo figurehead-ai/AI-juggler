@@ -1,9 +1,11 @@
 /**
  * AJ-E2110 — Settings › Switching: how a context pack treats the keys
- * and tokens it finds when work moves to another account (D-14).
+ * and tokens it finds when work moves to another account (D-14), and
+ * (D-127) whether switches still in beta are listed.
  */
 import type { JSX } from "react";
 import { PackSecretsCard } from "../../components/PackSecretsCard";
+import { BetaSwitchesSection } from "./BetaSwitchesSection";
 import { useAccounts } from "./AccountsPane";
 import { Pane, PaneSection } from "./parts";
 
@@ -20,6 +22,7 @@ export function SwitchingPane({ anchor }: { anchor?: string }): JSX.Element {
       >
         <PackSecretsCard providers={providers} />
       </PaneSection>
+      <BetaSwitchesSection />
     </Pane>
   );
 }

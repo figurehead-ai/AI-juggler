@@ -35,7 +35,7 @@ pub fn user_copy(situation: CopySituation) -> String {
             "Continues on {account_b} with the full conversation. Running tools and subagents stop; {account_a} stays resumable."
         ),
         CopySituation::TransplantUnproven { account_a } => format!(
-            "Beta, not proven yet: the whole session is carried over, with its subagents and file history. {account_a} stays resumable."
+            "Beta: the whole session is carried over, with its subagents and file history. {account_a} stays resumable."
         ),
         CopySituation::ReplayCrossProvider {
             provider_b,

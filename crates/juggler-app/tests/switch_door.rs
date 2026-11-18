@@ -162,7 +162,7 @@ fn preflight_opens_the_wizard_until_the_pair_is_proven() {
     )
     .unwrap();
 
-    // §8: an unproven pair opens the wizard — exactly the
+    // §8: an unvalidated pair opens the wizard — exactly the
     // non-trivial steps, never phantom ones.
     assert_eq!(info.door, "wizard");
     assert_eq!(
@@ -190,14 +190,21 @@ fn preflight_opens_the_wizard_until_the_pair_is_proven() {
     );
     if !info.validated {
         assert_eq!(info.fidelity, "F1", "the door keeps the honesty cap");
-        assert!(info.experimental_copy.starts_with("Beta, not proven yet:"));
+        assert!(info.experimental_copy.starts_with("Beta: "));
         assert!(
-            info.wizard_reasons
-                .iter()
-                .any(|reason| reason == "This switch hasn't been proven on a real setup yet."),
+            info.wizard_reasons.iter().any(|reason| reason
+                == "This switch is in beta: AI Juggler is still testing it with these tools."),
             "{:?}",
             info.wizard_reasons
         );
+    }
+    // D-127: no internal words on the switch screen.
+    for words in info
+        .wizard_reasons
+        .iter()
+        .chain([&info.experimental_copy, &info.fidelity_words])
+    {
+        assert!(!words.to_lowercase().contains("proven"), "{words}");
     }
     // AJ-E1541: the task list is rebuilt from the conversation (proven by
     // the lab and the handover tests), and the carry-list says so, never

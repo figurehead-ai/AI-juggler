@@ -224,7 +224,7 @@ export function ProfilesScreen({
       )}
 
       {/* D-25: the pack-secrets policy lives in Settings; the matrix of
-          proven switches is one click away, not on every visit. */}
+          tested switches is one click away, not on every visit. */}
       <p className="text-xs text-ink-2">
         What happens to keys and passwords in a conversation you carry to another app is in{" "}
         <button
@@ -237,7 +237,7 @@ export function ProfilesScreen({
         </button>
         .
       </p>
-      <Disclosure summary="Which switches between apps are proven" testId="accounts-beta-matrix">
+      <Disclosure summary="Which switches between apps are tested" testId="accounts-beta-matrix">
         <div className="mt-3">
           <BetaMatrix />
         </div>

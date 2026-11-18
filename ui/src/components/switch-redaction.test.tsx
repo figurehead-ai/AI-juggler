@@ -22,7 +22,7 @@ const TRANSPLANT: PreflightInfoData = {
   diff_snapshotted: false,
   source_live: false,
   source_keeps_running: false,
-  experimental_copy: "Beta, not proven yet: the whole session moves.",
+  experimental_copy: "Beta: the whole session moves.",
   door: "one-click",
   wizard_steps: [],
   wizard_reasons: [],

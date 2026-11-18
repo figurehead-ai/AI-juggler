@@ -8,9 +8,11 @@
 //!   fixture ID and the evidence path. Fixture and fake-harness runs
 //!   never promote a cell (Req.3).
 //! - A FAIL carries the user-facing drop note (Req.5).
-//! - A Provider upgrade resets its PASS cells to UNVALIDATED by itself
-//!   (Req.4): the effective verdict compares the cell's recorded
-//!   versions with the installed ones.
+//! - D-128: a decided cell holds across patch and minor updates of the
+//!   tools, and the product never gates on a version number. A new
+//!   major of either tool marks the cell **due** for a re-check
+//!   ([`Register::due`]); the release flow's gate watch lists it and the
+//!   lab runs it again. The user never sees a re-check.
 //!
 //! The data lives in `data/fidelity-register.json`;
 //! `docs/qa/evidence/AJ-E808/register.md` is rendered from it.
@@ -134,6 +136,18 @@ pub fn unknown_versions(_: &str) -> Option<String> {
     None
 }
 
+/// A version's major: its first number ("2" of "2.1.322", "5" of
+/// "5.11492.5"; a leading `v` and anything after the number ignored).
+#[must_use]
+pub fn major(version: &str) -> Option<u64> {
+    version
+        .trim()
+        .trim_start_matches(['v', 'V'])
+        .split(|c: char| !c.is_ascii_digit())
+        .next()
+        .and_then(|n| n.parse().ok())
+}
+
 /// The register compiled into this build. A file that doesn't parse
 /// reads as an empty register — nothing validates, the safe direction;
 /// `the_committed_register_is_well_formed_and_covers_the_matrix` keeps
@@ -237,65 +251,107 @@ impl Register {
         out
     }
 
-    /// A cell's verdict for the installed versions: a PASS or FAIL
-    /// recorded against other versions than the installed ones reads
-    /// UNVALIDATED (Req.4 — the upgrade resets it, nobody has to
-    /// remember to). With `strict`, an unknown installed version can't
-    /// confirm a PASS either.
+    /// A cell's verdict, and whether a new major of a tool since its run
+    /// makes it due for a re-check (D-128). The verdict holds across
+    /// patch and minor updates, and across a major too (the product never
+    /// gates on a version number): the note says it's due. A decided cell
+    /// with no recorded version reads UNVALIDATED (`problems` refuses it).
     #[must_use]
     pub fn effective(
         cell: &Cell,
         from: &str,
         to: &str,
         installed: Versions<'_>,
-        strict: bool,
     ) -> (Verdict, Option<String>) {
         if cell.verdict == Verdict::Unvalidated {
             return (Verdict::Unvalidated, None);
         }
-        for (provider, recorded) in [(from, &cell.source_version), (to, &cell.target_version)] {
+        let mut due = None;
+        for (side, recorded) in [(from, &cell.source_version), (to, &cell.target_version)] {
             let Some(recorded) = recorded else {
                 return (Verdict::Unvalidated, Some("no recorded version".to_owned()));
             };
-            match installed(provider) {
-                Some(now) if &now != recorded => {
-                    return (
-                        Verdict::Unvalidated,
-                        Some(format!(
-                            "reset: {provider} is {now}, the run used {recorded}"
-                        )),
-                    );
-                }
-                None if strict => {
-                    return (
-                        Verdict::Unvalidated,
-                        Some(format!("{provider}'s installed version is unknown")),
-                    );
-                }
-                _ => {}
+            let tool = crate::validation::side_tool(side);
+            if let Some(now) = installed(tool)
+                && major(&now) != major(recorded)
+            {
+                due = Some(format!(
+                    "due: {tool} is {now}, the run used {recorded} (a new major)"
+                ));
             }
         }
-        (cell.verdict, None)
+        (cell.verdict, due)
     }
 
-    /// Every area of the pair passed for the installed versions — the
-    /// register's half of "Validated".
+    /// Every area of the pair decided live (D-127: what makes a route one
+    /// the product offers): PASS, or, between two tools, FAIL with the
+    /// drop note the switch shows. A same-tool pair must PASS everywhere.
     #[must_use]
-    pub fn pair_validated(
-        &self,
-        from: &str,
-        to: &str,
-        installed: Versions<'_>,
-        strict: bool,
-    ) -> bool {
+    pub fn pair_validated(&self, from: &str, to: &str) -> bool {
+        let cross = crate::validation::side_tool(from) != crate::validation::side_tool(to);
         self.pair(from, to).is_some_and(|pair| {
             AREAS.iter().all(|area| {
                 pair.cells.iter().any(|cell| {
                     cell.area == *area
-                        && Self::effective(cell, from, to, installed, strict).0 == Verdict::Pass
+                        && match Self::effective(cell, from, to, &unknown_versions).0 {
+                            Verdict::Pass => true,
+                            Verdict::Fail => {
+                                cross
+                                    && cell
+                                        .drop_note
+                                        .as_deref()
+                                        .is_some_and(|note| !note.trim().is_empty())
+                            }
+                            Verdict::Unvalidated => false,
+                        }
                 })
             })
         })
+    }
+
+    /// D-128: the routes whose decided cells ran on another major of a
+    /// tool than the installed one, one line per pair and tool ("claude-
+    /// code→codex: codex is 1.0.0, the runs used 0.163.0 (8 areas)"). The
+    /// gate watch lists them; the lab runs them again.
+    #[must_use]
+    pub fn due(&self, installed: Versions<'_>) -> Vec<String> {
+        let mut out = Vec::new();
+        for pair in &self.pairs {
+            let mut by_tool: std::collections::BTreeMap<
+                (String, String, String),
+                std::collections::BTreeSet<&str>,
+            > = std::collections::BTreeMap::new();
+            for cell in pair
+                .cells
+                .iter()
+                .filter(|c| c.verdict != Verdict::Unvalidated)
+            {
+                for (side, recorded) in [
+                    (&pair.from, &cell.source_version),
+                    (&pair.to, &cell.target_version),
+                ] {
+                    let tool = crate::validation::side_tool(side);
+                    if let (Some(recorded), Some(now)) = (recorded, installed(tool))
+                        && major(&now) != major(recorded)
+                    {
+                        by_tool
+                            .entry((tool.to_owned(), now, recorded.clone()))
+                            .or_default()
+                            .insert(cell.area.as_str());
+                    }
+                }
+            }
+            for ((tool, now, recorded), areas) in by_tool {
+                out.push(format!(
+                    "{}→{}: {tool} is {now}, the runs used {recorded} ({} area{})",
+                    pair.from,
+                    pair.to,
+                    areas.len(),
+                    if areas.len() == 1 { "" } else { "s" }
+                ));
+            }
+        }
+        out
     }
 
     /// Beta-exit (Req.5) for the pairs that ship a switch (pack-only
@@ -303,11 +359,7 @@ impl Register {
     /// cell; cross-Provider pairs PASS or FAIL with a drop note. Returns
     /// what is still open; empty means met.
     #[must_use]
-    pub fn beta_exit_open(
-        &self,
-        installed: Versions<'_>,
-        pack_only: &dyn Fn(&str, &str) -> bool,
-    ) -> Vec<String> {
+    pub fn beta_exit_open(&self, pack_only: &dyn Fn(&str, &str) -> bool) -> Vec<String> {
         let mut open = Vec::new();
         for pair in self
             .pairs
@@ -316,7 +368,7 @@ impl Register {
         {
             let same = pair.from == pair.to;
             for cell in &pair.cells {
-                let (verdict, _) = Self::effective(cell, &pair.from, &pair.to, installed, false);
+                let (verdict, _) = Self::effective(cell, &pair.from, &pair.to, &unknown_versions);
                 let ok = match verdict {
                     Verdict::Pass => true,
                     Verdict::Fail => !same && cell.drop_note.is_some(),
@@ -359,11 +411,13 @@ pub fn render_markdown(register: &Register) -> String {
         "Rendered from `crates/juggler-handover/data/fidelity-register.json` by `just fidelity-register`;\n\
          a test fails when this file is out of date. UNVALIDATED is the default. A cell turns PASS\n\
          or FAIL only from a live run on real binaries with a sacrificial project: fixture and\n\
-         fake-harness runs never decide a cell. A Provider upgrade resets its cells by itself: the\n\
-         app compares each cell's recorded versions with the installed ones. A pair shows\n\
-         \"Validated\" only when its CI row is green, a live cell passed, and every area below is PASS.\n"
+         fake-harness runs never decide a cell. A decided cell holds across patch and minor updates\n\
+         of the tools; a new major marks it due for a re-check, which the release flow's gate watch\n\
+         lists (D-128). A switch is offered only when its CI row is green and every area below is\n\
+         decided live: PASS, or, between two tools, FAIL with its drop note (D-127). Any other is\n\
+         hidden unless the user turned on beta switches in Settings › Switching.\n"
     );
-    let open = register.beta_exit_open(&unknown_versions, &pack_only);
+    let open = register.beta_exit_open(&pack_only);
     let _ = writeln!(
         out,
         "**Beta-exit (Req.5):** {} — same-Provider pairs PASS on every area; cross-Provider pairs PASS or FAIL with a drop note (pack-only pairs excluded: F0 by definition).\n",
@@ -422,7 +476,7 @@ fn render_matrix(out: &mut String, register: &Register, matrix: &[crate::validat
     use std::fmt::Write as _;
     let _ = writeln!(
         out,
-        "| Pair | Switch rows show | Settings › Beta shows | {} |",
+        "| Pair | Switch rows show | Accounts › Which switches are tested shows | {} |",
         AREAS.join(" | ")
     );
     let _ = writeln!(
@@ -441,9 +495,12 @@ fn render_matrix(out: &mut String, register: &Register, matrix: &[crate::validat
             crate::validation::PairCell::badge,
         );
         let (switch_rows, settings) = if validated {
-            (badge, "Proven ✓")
+            (badge, "Tested ✓")
         } else {
-            (format!("{badge} · Not proven yet"), "Beta — not proven yet")
+            (
+                format!("hidden; with beta switches on: {badge}"),
+                "Beta: still being tested",
+            )
         };
         let cells: Vec<String> = AREAS
             .iter()
@@ -483,7 +540,7 @@ fn render_decided(out: &mut String, register: &Register) {
     if decided.is_empty() {
         let _ = writeln!(
             out,
-            "None yet — no cell has run live. Every pair reads Beta in the product."
+            "None yet — no cell has run live. Every switch is hidden unless beta switches are on."
         );
     } else {
         let _ = writeln!(
@@ -608,11 +665,35 @@ pub(crate) mod tests {
         );
     }
 
+    /// D-127: a route the product offers is one whose every area was
+    /// decided live: exactly the pairs with no open beta-exit cell.
     #[test]
-    fn unvalidated_is_the_default_and_nothing_validates_yet() {
+    fn a_pair_validates_exactly_when_no_cell_is_open() {
         for pair in &embedded().pairs {
-            assert!(!embedded().pair_validated(&pair.from, &pair.to, &unknown_versions, false));
+            let mut one = embedded().clone();
+            one.pairs.retain(|p| p.from == pair.from && p.to == pair.to);
+            assert_eq!(
+                embedded().pair_validated(&pair.from, &pair.to),
+                one.beta_exit_open(&|_, _| false).is_empty(),
+                "{}→{}",
+                pair.from,
+                pair.to
+            );
         }
+        // Unvalidated is the default.
+        let mut register = all_pass("claude-code", "claude-code");
+        register.pairs[0].cells[4].verdict = Verdict::Unvalidated;
+        assert!(!register.pair_validated("claude-code", "claude-code"));
+        // Between two tools a FAIL with its drop note is decided; within one
+        // tool it isn't.
+        let mut cross = all_pass("claude-code", "codex");
+        cross.pairs[0].cells[3].verdict = Verdict::Fail;
+        cross.pairs[0].cells[3].drop_note = Some("Subagents stay on Claude Code.".to_owned());
+        assert!(cross.pair_validated("claude-code", "codex"));
+        let mut same = all_pass("claude-code", "claude-code");
+        same.pairs[0].cells[3].verdict = Verdict::Fail;
+        same.pairs[0].cells[3].drop_note = Some("x".to_owned());
+        assert!(!same.pair_validated("claude-code", "claude-code"));
     }
 
     #[test]
@@ -642,28 +723,38 @@ pub(crate) mod tests {
         );
     }
 
+    /// D-128 (the maintainer, 2026-11-18: claude-code passed 7 of 8 areas
+    /// on 2.1.310 and read "not proven" on 2.1.322 within days): a decided
+    /// cell holds across patch and minor updates, and a new major only
+    /// marks it due for the gate watch; nothing reads UNVALIDATED for it.
     #[test]
-    fn a_provider_upgrade_resets_its_cells_by_itself() {
+    fn a_pass_holds_across_updates_and_a_new_major_makes_it_due() {
         let register = all_pass("claude-code", "claude-code");
-        let same = |_: &str| Some("2.1.296".to_owned());
-        let upgraded = |_: &str| Some("2.2.0".to_owned());
-        assert!(register.pair_validated("claude-code", "claude-code", &same, true));
-        assert!(!register.pair_validated("claude-code", "claude-code", &upgraded, true));
-        let (verdict, why) = Register::effective(
-            &register.pairs[0].cells[0],
-            "claude-code",
-            "claude-code",
-            &upgraded,
-            true,
+        let cell = &register.pairs[0].cells[0];
+        for now in ["2.1.296", "2.1.322", "2.4.0"] {
+            let installed = move |_: &str| Some(now.to_owned());
+            assert_eq!(
+                Register::effective(cell, "claude-code", "claude-code", &installed),
+                (Verdict::Pass, None),
+                "{now}"
+            );
+            assert!(register.due(&installed).is_empty(), "{now}");
+        }
+        let next_major = |_: &str| Some("3.0.1".to_owned());
+        let (verdict, note) = Register::effective(cell, "claude-code", "claude-code", &next_major);
+        assert_eq!(verdict, Verdict::Pass, "the user never sees a re-check");
+        assert!(note.unwrap().starts_with("due: claude-code is 3.0.1"));
+        assert_eq!(
+            register.due(&next_major),
+            vec!["claude-code→claude-code: claude-code is 3.0.1, the runs used 2.1.296 (8 areas)"]
         );
-        assert_eq!(verdict, Verdict::Unvalidated);
-        assert!(
-            why.unwrap()
-                .contains("reset: claude-code is 2.2.0, the run used 2.1.296")
-        );
-        // Strict: an unknown installed version can't confirm a PASS.
-        assert!(!register.pair_validated("claude-code", "claude-code", &unknown_versions, true));
-        assert!(register.pair_validated("claude-code", "claude-code", &unknown_versions, false));
+        assert!(register.pair_validated("claude-code", "claude-code"));
+        // A side through another service is its tool's version.
+        let mut service = all_pass("claude-code", "claude-code+service");
+        service.pairs[0].cells.truncate(1);
+        assert_eq!(service.due(&next_major).len(), 1);
+        assert_eq!(major("v2.1.322 (Claude Code)"), Some(2));
+        assert_eq!(major("5.11492.5"), Some(5));
     }
 
     #[test]
@@ -682,31 +773,23 @@ pub(crate) mod tests {
     fn beta_exit_needs_same_provider_pass_and_cross_provider_drop_notes() {
         let not_pack_only = |_: &str, _: &str| false;
         let mut register = all_pass("claude-code", "codex");
-        assert!(
-            register
-                .beta_exit_open(&unknown_versions, &not_pack_only)
-                .is_empty()
-        );
+        assert!(register.beta_exit_open(&not_pack_only).is_empty());
         register.pairs[0].cells[2].verdict = Verdict::Fail;
         register.pairs[0].cells[2].drop_note =
             Some("Your todo list stays on Claude Code.".to_owned());
         assert!(
-            register
-                .beta_exit_open(&unknown_versions, &not_pack_only)
-                .is_empty(),
+            register.beta_exit_open(&not_pack_only).is_empty(),
             "cross-provider FAIL with drop note is allowed"
         );
         let mut same = all_pass("claude-code", "claude-code");
         same.pairs[0].cells[2].verdict = Verdict::Fail;
         same.pairs[0].cells[2].drop_note = Some("x".to_owned());
         assert_eq!(
-            same.beta_exit_open(&unknown_versions, &not_pack_only).len(),
+            same.beta_exit_open(&not_pack_only).len(),
             1,
             "same-provider must PASS"
         );
-        let open = embedded().beta_exit_open(&unknown_versions, &|_, to| {
-            to == "gemini-cli" || to == "opencode"
-        });
+        let open = embedded().beta_exit_open(&|_, to| to == "gemini-cli" || to == "opencode");
         // The live labs (AJ-E1539) passed eighteen cells. Labs 5–8
         // (2026-10-22): claude→claude transcript, todos and MCP;
         // claude→codex those three and switch-back. Labs 9 and 10

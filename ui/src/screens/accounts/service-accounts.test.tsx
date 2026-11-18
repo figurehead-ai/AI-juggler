@@ -221,7 +221,7 @@ describe("the switching matrix", () => {
     const row = await screen.findByTestId("beta-matrix-row");
     expect(row.textContent).toContain("Claude Code → Claude Code through another service");
     expect(row.getAttribute("data-validated")).toBe("false");
-    expect(row.textContent).toContain("Beta — not proven yet");
+    expect(row.textContent).toContain("Beta: still being tested");
   });
 });
 

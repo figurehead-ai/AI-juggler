@@ -29,6 +29,14 @@ fn a_session_with_nothing_to_carry_says_why_on_every_target() {
     let state = Arc::new(
         AppState::init_with_registry(dir.path().join("data"), default_registry()).unwrap(),
     );
+    // D-127: these rows are about ranking and readiness, not about which
+    // switches are tested yet: beta switches are on, so every route lists.
+    juggler_app::settings_policy::app_setting_set_impl(
+        &state,
+        juggler_app::features::validation::BETA_SWITCHES_KEY,
+        "1",
+    )
+    .unwrap();
     let made = |label: &str| {
         let account =
             juggler_app::features::account::create_account(&state, "claude-code", label, None)

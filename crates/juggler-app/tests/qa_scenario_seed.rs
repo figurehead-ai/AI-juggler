@@ -2272,6 +2272,15 @@ fn pm4_offers_her_other_claude_once_the_session_has_turns() {
         .into_iter()
         .find(|account| account.name.as_deref() == Some("Personal"))
         .expect("an Account named Personal");
+    // D-127: Claude → Claude lists once it's tested in every part, or with
+    // beta switches on; the scenario is about her other Claude being
+    // offered at all.
+    juggler_app::settings_policy::app_setting_set_impl(
+        &state,
+        juggler_app::features::validation::BETA_SWITCHES_KEY,
+        "1",
+    )
+    .unwrap();
     let targets =
         juggler_app::features::switch::targets::switch_targets_impl(&state, "writer").unwrap();
     let other_claude: Vec<_> = targets
@@ -2296,6 +2305,12 @@ fn pm4_offers_her_other_claude_once_the_session_has_turns() {
     let mut fresh = seed;
     fresh["sessions"][0]["conversation"] = Value::Bool(false);
     let (_lab, state) = seeded(&fresh, "pm4-fresh");
+    juggler_app::settings_policy::app_setting_set_impl(
+        &state,
+        juggler_app::features::validation::BETA_SWITCHES_KEY,
+        "1",
+    )
+    .unwrap();
     let targets =
         juggler_app::features::switch::targets::switch_targets_impl(&state, "writer").unwrap();
     assert!(
