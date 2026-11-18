@@ -1,0 +1,6 @@
+{
+ "family": "nemotron-v4",
+ "job": "attention:facts_given",
+ "note": "script flags: candidates for Opus to confirm by eye, never verdicts",
+ "candidates": []
+}

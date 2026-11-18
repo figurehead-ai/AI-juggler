@@ -1,0 +1,565 @@
+{
+ "family": "qwen3-4b-instruct-2507",
+ "job": "feed_line",
+ "note": "script flags: candidates for Opus to confirm by eye, never verdicts",
+ "candidates": [
+  {
+   "class": "critical",
+   "detector": "polarity_script",
+   "detail": "'Warenkorb-Zähler im Header fixed, alle 41 Tests sind grün': fixed word in output with none in source",
+   "stage": "shown",
+   "attempt": null,
+   "id": "V013",
+   "corpus": "turns"
+  },
+  {
+   "id": "V002",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "contradiction: names a change that was undone (git: rates/client.py was reverted)",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V002",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "contradiction: names a change that was undone (git: rates/client.py was reverted)",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V005",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "gate step 2b: 2b: content word(s) not in the text: gefasst, overhauled, the",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V005",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "invented",
+   "detail": "gate step 2: invented code derdesktop",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V005",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "gate step 2b: 2b: content word(s) not in the text: gefasst, the",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V005",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "outcome_or_caveat",
+   "detail": "gate step 3: outcome: a finished turn; the line states a failure with no word of resolution (the problem, not the outcome)",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V005",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "gate step 2b: 2b: content word(s) not in the text: gefasst",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V005",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "outcome_or_caveat",
+   "detail": "gate step 3: outcome: a finished turn; the line states a failure with no word of resolution (the problem, not the outcome)",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V007",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "invented",
+   "detail": "gate step 2: invented proper request",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V007",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "gate step 2b: 2b: content word(s) not in the text: for, the, with",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V007",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "outcome_or_caveat",
+   "detail": "gate step 3: caveat: dropped (facts: tests not run)",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V007",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "gate step 2b: 2b: content word(s) not in the text: for, the",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V007",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "outcome_or_caveat",
+   "detail": "gate step 3: caveat: dropped (facts: tests not run)",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V007",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "gate step 2b: 2b: content word(s) not in the text: for, the",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V007",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "outcome_or_caveat",
+   "detail": "gate step 3: caveat: dropped (facts: tests not run)",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V008",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "invented",
+   "detail": "gate step 2: invented number 10",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V008",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "invented",
+   "detail": "gate step 2: invented number 10",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V008",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "invented",
+   "detail": "gate step 2: invented number 10",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V013",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "gate step 2b: 2b: content word(s) not in the text: are, cart, counter, the",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V019",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "outcome_or_caveat",
+   "detail": "gate step 3: caveat: dropped (facts: tests not run)",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V019",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "outcome_or_caveat",
+   "detail": "gate step 3: caveat: dropped (facts: tests not run)",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V019",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "outcome_or_caveat",
+   "detail": "gate step 3: caveat: dropped (facts: tests not run)",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V021",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "gate step 2b: 2b: content word(s) not in the text: fulf",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V021",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "gate step 2b: 2b: content word(s) not in the text: fulf",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V021",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "gate step 2b: 2b: content word(s) not in the text: fulf",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V022",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "invented",
+   "detail": "gate step 2: invented proper email; proper password",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V022",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "gate step 2b: 2b: content word(s) not in the text: addressed, and, email, interfaces, modified, new, other, sender, shortened, subject, the, were, with",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V022",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "gate step 3: facts: finished cleanly; the line claims a failure the cleaned text does not state; words: pending word in the line with none in the cleaned text",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V022",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "gate step 2b: 2b: content word(s) not in the text: addressed, and, for, interfaces, other, run, send, the, twelve, were",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V022",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "gate step 3: facts: finished cleanly; the line claims a failure the cleaned text does not state; words: pending word in the line with none in the cleaned text",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V022",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "gate step 2b: 2b: content word(s) not in the text: addressed, and, for, interfaces, other, run, send, the, twelve, were",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V022",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "gate step 3: facts: finished cleanly; the line claims a failure the cleaned text does not state; words: pending word in the line with none in the cleaned text",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V025",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "outcome_or_caveat",
+   "detail": "gate step 3: caveat: dropped (facts: tests not run)",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V025",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "gate step 2b: 2b: content word(s) not in the text: run, tests",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V025",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "gate step 3: words: negation word in the line with none in the cleaned text",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V025",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "outcome_or_caveat",
+   "detail": "gate step 3: caveat: dropped (facts: tests not run)",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V027",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "invented",
+   "detail": "gate step 2: invented proper produktion-m",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V027",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "invented",
+   "detail": "gate step 2: invented proper produktion-m",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V027",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "invented",
+   "detail": "gate step 2: invented proper produktion-m",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V029",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "gate step 2b: 2b: content word(s) not in the text: allimports",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V029",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "gate step 2b: 2b: content word(s) not in the text: allimports",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V029",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "gate step 2b: 2b: content word(s) not in the text: allimports",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V030",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "gate step 2b: 2b: content word(s) not in the text: sah",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V030",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "outcome_or_caveat",
+   "detail": "gate step 3: caveat: dropped (facts: tests not run)",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V030",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "gate step 2b: 2b: content word(s) not in the text: sah",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V030",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "outcome_or_caveat",
+   "detail": "gate step 3: caveat: dropped (facts: tests not run)",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V030",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "gate step 2b: 2b: content word(s) not in the text: sah",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V030",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "outcome_or_caveat",
+   "detail": "gate step 3: caveat: dropped (facts: tests not run)",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V031",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "gate step 3: facts: no tests ran; the line says tests pass; caveat: dropped (facts: tests not run)",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V031",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "gate step 3: facts: no tests ran; the line says tests pass; caveat: dropped (facts: tests not run)",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V031",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "gate step 3: facts: no tests ran; the line says tests pass; caveat: dropped (facts: tests not run)",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V032",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "gate step 2b: 2b: content word(s) not in the text: addressed, and, how, interfaces, other, semicolon, separator, the, were, with",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V032",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "gate step 3: facts: finished cleanly; the line claims a failure the cleaned text does not state; words: pending word in the line with none in the cleaned text",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V032",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "gate step 2b: 2b: content word(s) not in the text: addressed, before, delimiter, interfaces, other, semicolon, with",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V032",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "gate step 3: facts: finished cleanly; the line claims a failure the cleaned text does not state; words: pending word in the line with none in the cleaned text",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V032",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "gate step 2b: 2b: content word(s) not in the text: addressed, before, interfaces, other, semicolon, separator, with",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V032",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "gate step 3: facts: finished cleanly; the line claims a failure the cleaned text does not state; words: pending word in the line with none in the cleaned text",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V039",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "gate step 2b: 2b: content word(s) not in the text: gefasst",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V039",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "outcome_or_caveat",
+   "detail": "gate step 3: caveat: dropped (facts: tests not run)",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V039",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "outcome_or_caveat",
+   "detail": "gate step 3: caveat: dropped (facts: tests not run)",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V039",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "outcome_or_caveat",
+   "detail": "gate step 3: caveat: dropped (facts: tests not run)",
+   "stage": "caught",
+   "corpus": "turns"
+  }
+ ]
+}

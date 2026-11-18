@@ -1,0 +1,70 @@
+{
+ "family": "qwen3-v4",
+ "job": "review",
+ "note": "script flags: candidates for Opus to confirm by eye, never verdicts",
+ "candidates": [
+  {
+   "class": "omission",
+   "detector": "detail_dropped",
+   "detail": "refactor",
+   "stage": "shown",
+   "attempt": null,
+   "id": "H021",
+   "corpus": "heldout"
+  },
+  {
+   "class": "omission",
+   "detector": "detail_dropped",
+   "detail": "Nothing functional changed|reports none",
+   "stage": "shown",
+   "attempt": null,
+   "id": "H023",
+   "corpus": "heldout"
+  },
+  {
+   "class": "critical",
+   "detector": "gold_forbidden",
+   "detail": "/failed/ in the model's words",
+   "stage": "shown",
+   "attempt": null,
+   "id": "R001",
+   "corpus": "heldout-jobs"
+  },
+  {
+   "class": "critical",
+   "detector": "gold_forbidden",
+   "detail": "/done/ in the model's words",
+   "stage": "shown",
+   "attempt": null,
+   "id": "R003",
+   "corpus": "heldout-jobs"
+  },
+  {
+   "class": "omission",
+   "detector": "emphasis",
+   "detail": "risk high; the facts' rule says low",
+   "stage": "shown",
+   "attempt": null,
+   "id": "R010",
+   "corpus": "heldout-jobs"
+  },
+  {
+   "class": "omission",
+   "detector": "detail_dropped",
+   "detail": "zurückgenommen",
+   "stage": "shown",
+   "attempt": null,
+   "id": "R011",
+   "corpus": "heldout-jobs"
+  },
+  {
+   "class": "omission",
+   "detector": "detail_dropped",
+   "detail": "docs/exit-codes.md",
+   "stage": "shown",
+   "attempt": null,
+   "id": "R012",
+   "corpus": "heldout-jobs"
+  }
+ ]
+}

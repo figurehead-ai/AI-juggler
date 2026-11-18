@@ -1,0 +1,1 @@
+unknown model: add it to core.MODELS (its card's or GGUF's sampling) first

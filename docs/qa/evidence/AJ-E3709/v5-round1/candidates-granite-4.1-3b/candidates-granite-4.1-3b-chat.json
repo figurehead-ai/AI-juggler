@@ -1,0 +1,439 @@
+{
+ "family": "granite-4.1-3b",
+ "job": "chat",
+ "note": "script flags: candidates for Opus to confirm by eye, never verdicts",
+ "candidates": [
+  {
+   "class": "omission",
+   "detector": "no_answer_on_answerable",
+   "detail": "shown: dont_know",
+   "stage": "shown",
+   "attempt": null,
+   "id": "C501",
+   "corpus": "chat"
+  },
+  {
+   "class": "omission",
+   "detector": "no_answer_on_answerable",
+   "detail": "shown: dont_know",
+   "stage": "shown",
+   "attempt": null,
+   "id": "C502",
+   "corpus": "chat"
+  },
+  {
+   "class": "omission",
+   "detector": "detail_dropped",
+   "detail": "wartet",
+   "stage": "shown",
+   "attempt": null,
+   "id": "C504",
+   "corpus": "chat"
+  },
+  {
+   "class": "omission",
+   "detector": "no_answer_on_answerable",
+   "detail": "shown: dont_know",
+   "stage": "shown",
+   "attempt": null,
+   "id": "C506",
+   "corpus": "chat"
+  },
+  {
+   "class": "omission",
+   "detector": "no_answer_on_answerable",
+   "detail": "shown: dont_know",
+   "stage": "shown",
+   "attempt": null,
+   "id": "C507",
+   "corpus": "chat"
+  },
+  {
+   "class": "omission",
+   "detector": "no_answer_on_answerable",
+   "detail": "shown: dont_know",
+   "stage": "shown",
+   "attempt": null,
+   "id": "C509",
+   "corpus": "chat"
+  },
+  {
+   "class": "critical",
+   "detector": "wrong_attribute",
+   "detail": "answered ['files_changed'], asked count",
+   "stage": "shown",
+   "attempt": null,
+   "id": "C510",
+   "corpus": "chat"
+  },
+  {
+   "class": "critical",
+   "detector": "gold_forbidden",
+   "detail": "/6 files/",
+   "stage": "shown",
+   "attempt": null,
+   "id": "C510",
+   "corpus": "chat"
+  },
+  {
+   "class": "omission",
+   "detector": "no_answer_on_answerable",
+   "detail": "shown: dont_know",
+   "stage": "shown",
+   "attempt": null,
+   "id": "C512",
+   "corpus": "chat"
+  },
+  {
+   "class": "omission",
+   "detector": "no_answer_on_answerable",
+   "detail": "shown: dont_know",
+   "stage": "shown",
+   "attempt": null,
+   "id": "C513",
+   "corpus": "chat"
+  },
+  {
+   "class": "omission",
+   "detector": "no_answer_on_answerable",
+   "detail": "shown: dont_know",
+   "stage": "shown",
+   "attempt": null,
+   "id": "C519",
+   "corpus": "chat"
+  },
+  {
+   "class": "omission",
+   "detector": "no_answer_on_answerable",
+   "detail": "shown: dont_know",
+   "stage": "shown",
+   "attempt": null,
+   "id": "C522",
+   "corpus": "chat"
+  },
+  {
+   "class": "omission",
+   "detector": "no_answer_on_answerable",
+   "detail": "shown: dont_know",
+   "stage": "shown",
+   "attempt": null,
+   "id": "C525",
+   "corpus": "chat"
+  },
+  {
+   "class": "omission",
+   "detector": "no_answer_on_answerable",
+   "detail": "shown: found_values",
+   "stage": "shown",
+   "attempt": null,
+   "id": "C526",
+   "corpus": "chat"
+  },
+  {
+   "class": "omission",
+   "detector": "no_answer_on_answerable",
+   "detail": "shown: dont_know",
+   "stage": "shown",
+   "attempt": null,
+   "id": "C528",
+   "corpus": "chat"
+  },
+  {
+   "class": "omission",
+   "detector": "no_answer_on_answerable",
+   "detail": "shown: found_rows",
+   "stage": "shown",
+   "attempt": null,
+   "id": "C529",
+   "corpus": "chat"
+  },
+  {
+   "class": "omission",
+   "detector": "no_answer_on_answerable",
+   "detail": "shown: found_rows",
+   "stage": "shown",
+   "attempt": null,
+   "id": "C533",
+   "corpus": "chat"
+  },
+  {
+   "class": "omission",
+   "detector": "no_answer_on_answerable",
+   "detail": "shown: dont_know",
+   "stage": "shown",
+   "attempt": null,
+   "id": "C535",
+   "corpus": "chat"
+  },
+  {
+   "class": "omission",
+   "detector": "no_answer_on_answerable",
+   "detail": "shown: found_rows",
+   "stage": "shown",
+   "attempt": null,
+   "id": "C537",
+   "corpus": "chat"
+  },
+  {
+   "id": "C510",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_value",
+   "detail": "value: the answer leaves out ['6'] from the records",
+   "stage": "caught",
+   "corpus": "chat"
+  },
+  {
+   "id": "C520",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_value",
+   "detail": "value: the answer doesn't say finished",
+   "stage": "caught",
+   "corpus": "chat"
+  },
+  {
+   "id": "C520",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_value",
+   "detail": "value: the answer says ['running'], the record says finished",
+   "stage": "caught",
+   "corpus": "chat"
+  },
+  {
+   "id": "C520",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_value",
+   "detail": "value: the answer doesn't say finished",
+   "stage": "caught",
+   "corpus": "chat"
+  },
+  {
+   "id": "C520",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_value",
+   "detail": "value: the answer says ['running'], the record says finished",
+   "stage": "caught",
+   "corpus": "chat"
+  },
+  {
+   "id": "C520",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "wrong_value",
+   "detail": "value: the answer doesn't say finished",
+   "stage": "caught",
+   "corpus": "chat"
+  },
+  {
+   "id": "C520",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "wrong_value",
+   "detail": "value: the answer says ['running'], the record says finished",
+   "stage": "caught",
+   "corpus": "chat"
+  },
+  {
+   "id": "C520",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "wrong_value",
+   "detail": "value: the answer doesn't say finished",
+   "stage": "caught",
+   "corpus": "chat"
+  },
+  {
+   "id": "C520",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "wrong_value",
+   "detail": "value: the answer says ['running'], the record says finished",
+   "stage": "caught",
+   "corpus": "chat"
+  },
+  {
+   "id": "C520",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "wrong_value",
+   "detail": "value: the answer doesn't say finished",
+   "stage": "caught",
+   "corpus": "chat"
+  },
+  {
+   "id": "C520",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "wrong_value",
+   "detail": "value: the answer says ['running'], the record says finished",
+   "stage": "caught",
+   "corpus": "chat"
+  },
+  {
+   "id": "C520",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "wrong_value",
+   "detail": "value: the answer doesn't say finished",
+   "stage": "caught",
+   "corpus": "chat"
+  },
+  {
+   "id": "C520",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "wrong_value",
+   "detail": "value: the answer says ['running'], the record says finished",
+   "stage": "caught",
+   "corpus": "chat"
+  },
+  {
+   "id": "C526",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_value",
+   "detail": "value: the answer leaves out ['3'] from the records",
+   "stage": "caught",
+   "corpus": "chat"
+  },
+  {
+   "id": "C526",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "invented",
+   "detail": "invented: number 12",
+   "stage": "caught",
+   "corpus": "chat"
+  },
+  {
+   "id": "C526",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "wrong_value",
+   "detail": "value: the answer says ['12'], the records hold ['3', '9']",
+   "stage": "caught",
+   "corpus": "chat"
+  },
+  {
+   "id": "C526",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "wrong_value",
+   "detail": "value: the answer leaves out ['3', '9'] from the records",
+   "stage": "caught",
+   "corpus": "chat"
+  },
+  {
+   "id": "C526",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "invented",
+   "detail": "invented: number 12",
+   "stage": "caught",
+   "corpus": "chat"
+  },
+  {
+   "id": "C526",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "wrong_value",
+   "detail": "value: the answer says ['12'], the records hold ['3', '9']",
+   "stage": "caught",
+   "corpus": "chat"
+  },
+  {
+   "id": "C526",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "wrong_value",
+   "detail": "value: the answer leaves out ['3', '9'] from the records",
+   "stage": "caught",
+   "corpus": "chat"
+  },
+  {
+   "id": "C529",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_question",
+   "detail": "off the question: the cited record's what_changed is not about the subject",
+   "stage": "caught",
+   "corpus": "chat"
+  },
+  {
+   "id": "C529",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "wrong_question",
+   "detail": "off the question: the cited record's what_changed is not about the subject",
+   "stage": "caught",
+   "corpus": "chat"
+  },
+  {
+   "id": "C529",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "wrong_question",
+   "detail": "off the question: the cited record's what_changed is not about the subject",
+   "stage": "caught",
+   "corpus": "chat"
+  },
+  {
+   "id": "C533",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_question",
+   "detail": "off the question: the cited record's count is not about the subject",
+   "stage": "caught",
+   "corpus": "chat"
+  },
+  {
+   "id": "C533",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "wrong_question",
+   "detail": "off the question: the cited record's count is not about the subject",
+   "stage": "caught",
+   "corpus": "chat"
+  },
+  {
+   "id": "C533",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "wrong_question",
+   "detail": "off the question: the cited record's count is not about the subject",
+   "stage": "caught",
+   "corpus": "chat"
+  },
+  {
+   "id": "C537",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_question",
+   "detail": "off the question: the subject is not copied from the question",
+   "stage": "caught",
+   "corpus": "chat"
+  },
+  {
+   "id": "C537",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "wrong_question",
+   "detail": "off the question: the subject is not copied from the question",
+   "stage": "caught",
+   "corpus": "chat"
+  },
+  {
+   "id": "C537",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "wrong_question",
+   "detail": "off the question: the subject is not copied from the question",
+   "stage": "caught",
+   "corpus": "chat"
+  }
+ ]
+}

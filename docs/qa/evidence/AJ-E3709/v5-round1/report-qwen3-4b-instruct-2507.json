@@ -1,0 +1,516 @@
+{
+ "meta": {
+  "harness": "v5",
+  "prompt_version": 5,
+  "engine": "local model (llama.cpp, Metal) via local_probe",
+  "hello": "{\"arch\":\"qwen3\",\"available\":\"available\",\"chat_template\":\"the GGUF's own (tokenizer.chat_template), Jinja\",\"engine\":\"local model (llama.cpp, Metal) via local_probe\",\"extensions\":[\"fields\",\"sampling\"],\"gpu_offload\":true,\"guided\":true,\"hello\":true,\"line_grammar\":\"root ::= first rest{0,159}\\nfirst ::= [^ \\\\t\\\\n\\\\r\\\\x0B\\\\x0C\\\\u0085   -     　\\\"“”„«»「」]\\nrest ::= [^\\\\t\\\\n\\\\r\\\\x0B\\\\x0C\\\\u0085   -     　\\\"“”„«»「」]\\n\",\"line_max_chars\":160,\"llama_cpp\":\"llama-cpp-2 0.1.146 / llama-cpp-sys-2 0.1.146 (llama-cpp-rs 4afdaf0782ef, vendored llama.cpp), Metal\",\"model_file\":\"Qwen3-4B-Instruct-2507-Q4_K_M.gguf\",\"model_sha256\":null,\"n_ctx\":4096,\"os\":\"27.0.1\",\"protocol\":3,\"quant\":\"Q4_K_M\",\"sampler\":\"greedy\",\"sha256_source\":\"Qwen3-4B-Instruct-2507-Q4_K_M.gguf not listed in ~/Dev/AIJuggler-models/MANIFEST.md\",\"system_info\":\"MTL : EMBED_LIBRARY = 1 | CPU : NEON = 1 | ARM_FMA = 1 | FP16_VA = 1 | DOTPROD = 1 | LLAMAFILE = 1 | ACCELERATE = 1 | REPACK = 1 | \",\"temperature\":0,\"thinking\":\"off: enable_thinking=false (flag and template kwarg)\"}",
+  "family": "qwen3-4b-instruct-2507",
+  "sampling_name": "card",
+  "sampling": {
+   "temperature": 0.7,
+   "top_p": 0.8,
+   "top_k": 20,
+   "min_p": 0.0,
+   "presence_penalty": 0.0
+  },
+  "sampling_source": "the base model card (Qwen/Qwen3-4B-Instruct-2507): Temperature 0.7, TopP 0.8, TopK 20, MinP 0; presence_penalty 0-2 'to reduce endless repetitions' (0 here: grammar-bounded fields). UNVERIFIED against a GGUF: none is downloaded (MANIFEST.md: no official GGUF repository). A non-thinking model: no think block. Re-read the card and the GGUF metadata on download.",
+  "datamark": "on",
+  "retries": 2,
+  "jobs": [
+   "feed_line",
+   "review",
+   "attention",
+   "chat",
+   "digest",
+   "watch"
+  ],
+  "prompt_sha256": {
+   "feed_line": "26dea99d99f27f4b86718cdb64447788f722590db65d95ee3cd9f786a147f458",
+   "review": "a848b539958cbadef034879e6255468cab2a921174fdba60db7a7ef54ff2fa61",
+   "attention": "cffa6cbd59b3f204d666fc444d799db3bf1d99bce4be50216ae6fb7fc440b083",
+   "chat": "d1f89296583ee7986890e564fca069b5825c3387794999c632c54ad8497dd939",
+   "digest": "9146a005e1a212b59b652ec0e3b00cefa6da7377ab99a6b9ae86c13e1ecbb1f6",
+   "watch": "b84f3b6ce41d0548952b377a2be38dba45f0757a69d2332e3bd2c176c23050cf"
+  },
+  "context_tokens": 4096,
+  "code_sha256": {
+   "core.py": "fabf8436de8d224b5bd3756d1db1dcd492e6d87f3361486bd318ac59045eb66e",
+   "turns.py": "d50d4d425ff5aa487f95369bb85263c3e77e177f64c18fc89fa69530992239c8",
+   "chat.py": "e8adb5a70d6fb4724113a079caa779426801d22b815efbb8cc63e3b6eafc0909",
+   "severity.py": "4f3b90974fa75dab71ffda5e80546b76aa67d33f1e5b2ee48ecf53f9ff333319",
+   "digest.py": "e4f230e3c23596e9224193b09051dc16d17418283564041af059dfa8ea1ce743",
+   "watch.py": "bac5db2ff1b6a2ac1463eb6abe4dc35822a417ddcef61816f1cd0a05ac2c5df4"
+  },
+  "gate_py_sha256": "22152d013af518c34237464f53fd92dbdc83b8b1fa21b1cff8588f5d08735a68",
+  "frozen_gate_commit": "7acec4f50",
+  "jobs_v4_sha256": "17ac6523b2382ec497e392a55a78c23aa6cc56c57430dd43463f2bb67bf5ca94",
+  "repeats": 1,
+  "limit": null,
+  "corpora": [
+   {
+    "label": "turns",
+    "file": "turns-v5.json",
+    "sha256": "73960bf03f4d52557179b77561e105f6139daaaa0e58b7a17908d973549a4b30",
+    "items_in_file": 40,
+    "items_run": 40
+   },
+   {
+    "label": "chat",
+    "file": "chat-v5.json",
+    "sha256": "19a3bf0c8bc0db689fa0b4b7e34915ccedd07c44445fa05292d17f99f5e266a4",
+    "items_in_file": 40,
+    "items_run": 40
+   }
+  ],
+  "calls": 174,
+  "wall_s": 206.3,
+  "machine": {
+   "macos": "27.0.1",
+   "macos_build": "26A434",
+   "arch": "arm64",
+   "model": "Mac17,15",
+   "chip": "Apple M5 Ultra",
+   "ram_gb": 96.0,
+   "cpus": 30
+  },
+  "load_avg_start": [
+   10.6,
+   14.3,
+   14.2
+  ],
+  "load_avg_end": [
+   13.5,
+   12.9,
+   13.5
+  ],
+  "helper_cpu_s": 106.19,
+  "cpu_deltas": [
+   {
+    "name": "local_probe",
+    "cpu_s": 105.86
+   }
+  ],
+  "watched_rss_mb": {
+   "before": 3134.5,
+   "peak": 3325.7,
+   "after": 3321.9
+  },
+  "started": "2026-11-18 11:21:46"
+ },
+ "criteria": "D-130 as clarified 2026-11-18 (0.5 chat and summary jobs only)",
+ "corpora": {
+  "chat": {
+   "chat": {
+    "stats": {
+     "items": 40,
+     "decided_by_code": 26,
+     "model_called": 14,
+     "passed_first_attempt": 8,
+     "passed_after_a_retry": 3,
+     "fell_back": 3,
+     "passed_first_pct": 57.14,
+     "passed_with_retries_pct": 78.57,
+     "fallback_pct": 21.43,
+     "attempts_per_item": {
+      "1": 8,
+      "2": 3,
+      "3": 3
+     },
+     "drafts_parsed_and_valid_pct": 100.0,
+     "latency_ms_first_attempt": {
+      "median": 1178.5,
+      "p95": 1549
+     },
+     "latency_ms_item_total": {
+      "median": 1408.5,
+      "p95": 4085
+     },
+     "kinds_shown": {
+      "dont_know": 29,
+      "answer": 6,
+      "scope": 2,
+      "found_values": 1,
+      "found_rows": 2
+     }
+    },
+    "severity": {
+     "items": 40,
+     "model_shown_items": 6,
+     "critical_reaching_the_user": 2,
+     "critical_reaching_pct": 33.33,
+     "critical_reaching_pct_of_all_items": 5.0,
+     "critical_by_detector": {
+      "wrong_attribute": 2,
+      "gold_forbidden": 1
+     },
+     "systematic": [],
+     "critical_caught_drafts": 21,
+     "critical_caught_items": 6,
+     "critical_caught_by_detector": {
+      "wrong_value": 13,
+      "wrong_question": 8
+     },
+     "omission_items": 15,
+     "omission_denominator": 40,
+     "omission_pct": 37.5,
+     "omission_by_detector": {
+      "no_answer_on_answerable": 14,
+      "detail_dropped": 1
+     },
+     "questions_or_failures_hidden": 0,
+     "feed_model_lines_on_loud_items": 0,
+     "minor": {}
+    },
+    "bar_check": [
+     {
+      "bar": "critical reaching the user, % of shown model items",
+      "op": "<=",
+      "bar_value": 1.0,
+      "measured": 33.33,
+      "ok": false
+     },
+     {
+      "bar": "systematic critical patterns",
+      "op": "==",
+      "bar_value": 0,
+      "measured": 0,
+      "ok": true
+     },
+     {
+      "bar": "omissions, % of shown items (Chat: of all questions)",
+      "op": "<=",
+      "bar_value": 10.0,
+      "measured": 37.5,
+      "ok": false
+     },
+     {
+      "bar": "questions or failures hidden",
+      "op": "==",
+      "bar_value": 0,
+      "measured": 0,
+      "ok": true
+     },
+     {
+      "bar": "model text on a turn that needs you (feed)",
+      "op": "==",
+      "bar_value": 0,
+      "measured": 0,
+      "ok": true
+     },
+     {
+      "bar": "value: AI preferred, % of decided pairs",
+      "op": ">=",
+      "bar_value": 60.0,
+      "measured": null,
+      "ok": null
+     }
+    ]
+   }
+  },
+  "turns": {
+   "attention": {
+    "stats": {
+     "items": 40,
+     "decided_by_code": 14,
+     "model_called": 26,
+     "passed_first_attempt": 26,
+     "passed_after_a_retry": 0,
+     "fell_back": 0,
+     "passed_first_pct": 100.0,
+     "passed_with_retries_pct": 100.0,
+     "fallback_pct": 0.0,
+     "attempts_per_item": {
+      "1": 26
+     },
+     "drafts_parsed_and_valid_pct": 100.0,
+     "latency_ms_first_attempt": {
+      "median": 871.5,
+      "p95": 1007
+     },
+     "latency_ms_item_total": {
+      "median": 871.5,
+      "p95": 1007
+     },
+     "kinds_shown": {
+      "calm": 26,
+      "code": 14
+     }
+    },
+    "severity": {
+     "items": 40,
+     "model_shown_items": 0,
+     "critical_reaching_the_user": 0,
+     "critical_reaching_pct": 0.0,
+     "critical_reaching_pct_of_all_items": 0.0,
+     "critical_by_detector": {},
+     "systematic": [],
+     "critical_caught_drafts": 0,
+     "critical_caught_items": 0,
+     "critical_caught_by_detector": {},
+     "omission_items": 0,
+     "omission_denominator": 0,
+     "omission_pct": 0.0,
+     "omission_by_detector": {
+      "attention_miss": 7,
+      "question_or_failure_hidden": 13
+     },
+     "questions_or_failures_hidden": 13,
+     "feed_model_lines_on_loud_items": 0,
+     "minor": {}
+    },
+    "bar_check": [
+     {
+      "bar": "critical reaching the user, % of shown model items",
+      "op": "<=",
+      "bar_value": 1.0,
+      "measured": 0.0,
+      "ok": true
+     },
+     {
+      "bar": "systematic critical patterns",
+      "op": "==",
+      "bar_value": 0,
+      "measured": 0,
+      "ok": true
+     },
+     {
+      "bar": "omissions, % of shown items (Chat: of all questions)",
+      "op": "<=",
+      "bar_value": 10.0,
+      "measured": 0.0,
+      "ok": true
+     },
+     {
+      "bar": "questions or failures hidden",
+      "op": "==",
+      "bar_value": 0,
+      "measured": 13,
+      "ok": false
+     },
+     {
+      "bar": "model text on a turn that needs you (feed)",
+      "op": "==",
+      "bar_value": 0,
+      "measured": 0,
+      "ok": true
+     },
+     {
+      "bar": "value: AI preferred, % of decided pairs",
+      "op": ">=",
+      "bar_value": 60.0,
+      "measured": null,
+      "ok": null
+     }
+    ]
+   },
+   "feed_line": {
+    "stats": {
+     "items": 40,
+     "decided_by_code": 14,
+     "model_called": 26,
+     "passed_first_attempt": 8,
+     "passed_after_a_retry": 1,
+     "fell_back": 17,
+     "passed_first_pct": 30.77,
+     "passed_with_retries_pct": 34.62,
+     "fallback_pct": 65.38,
+     "attempts_per_item": {
+      "1": 8,
+      "2": 1,
+      "3": 17
+     },
+     "drafts_parsed_and_valid_pct": 100.0,
+     "latency_ms_first_attempt": {
+      "median": 1167.0,
+      "p95": 1297
+     },
+     "latency_ms_item_total": {
+      "median": 3213.5,
+      "p95": 3868
+     },
+     "kinds_shown": {
+      "written": 7,
+      "excerpt": 17,
+      "excerpt_routed": 14,
+      "quoted": 2
+     }
+    },
+    "severity": {
+     "items": 40,
+     "model_shown_items": 9,
+     "critical_reaching_the_user": 1,
+     "critical_reaching_pct": 11.11,
+     "critical_reaching_pct_of_all_items": 2.5,
+     "critical_by_detector": {
+      "polarity_script": 1
+     },
+     "systematic": [],
+     "critical_caught_drafts": 61,
+     "critical_caught_items": 15,
+     "critical_caught_by_detector": {
+      "contradiction": 12,
+      "anchoring": 24,
+      "invented": 9,
+      "outcome_or_caveat": 16
+     },
+     "omission_items": 0,
+     "omission_denominator": 9,
+     "omission_pct": 0.0,
+     "omission_by_detector": {},
+     "questions_or_failures_hidden": 0,
+     "feed_model_lines_on_loud_items": 0,
+     "minor": {}
+    },
+    "bar_check": [
+     {
+      "bar": "critical reaching the user, % of shown model items",
+      "op": "<=",
+      "bar_value": 1.0,
+      "measured": 11.11,
+      "ok": false
+     },
+     {
+      "bar": "systematic critical patterns",
+      "op": "==",
+      "bar_value": 0,
+      "measured": 0,
+      "ok": true
+     },
+     {
+      "bar": "omissions, % of shown items (Chat: of all questions)",
+      "op": "<=",
+      "bar_value": 10.0,
+      "measured": 0.0,
+      "ok": true
+     },
+     {
+      "bar": "questions or failures hidden",
+      "op": "==",
+      "bar_value": 0,
+      "measured": 0,
+      "ok": true
+     },
+     {
+      "bar": "model text on a turn that needs you (feed)",
+      "op": "==",
+      "bar_value": 0,
+      "measured": 0,
+      "ok": true
+     },
+     {
+      "bar": "value: AI preferred, % of decided pairs",
+      "op": ">=",
+      "bar_value": 60.0,
+      "measured": null,
+      "ok": null
+     }
+    ]
+   },
+   "review": {
+    "stats": {
+     "items": 40,
+     "decided_by_code": 0,
+     "model_called": 40,
+     "passed_first_attempt": 24,
+     "passed_after_a_retry": 11,
+     "fell_back": 5,
+     "passed_first_pct": 60.0,
+     "passed_with_retries_pct": 87.5,
+     "fallback_pct": 12.5,
+     "attempts_per_item": {
+      "1": 24,
+      "2": 8,
+      "3": 8
+     },
+     "drafts_parsed_and_valid_pct": 100.0,
+     "latency_ms_first_attempt": {
+      "median": 1461.0,
+      "p95": 2092
+     },
+     "latency_ms_item_total": {
+      "median": 1664.0,
+      "p95": 4669
+     },
+     "kinds_shown": {
+      "written": 35,
+      "baseline": 5
+     }
+    },
+    "severity": {
+     "items": 40,
+     "model_shown_items": 31,
+     "critical_reaching_the_user": 4,
+     "critical_reaching_pct": 12.9,
+     "critical_reaching_pct_of_all_items": 10.0,
+     "critical_by_detector": {
+      "polarity_script": 3,
+      "gold_forbidden": 4
+     },
+     "systematic": [
+      "gold_forbidden",
+      "polarity_script"
+     ],
+     "critical_caught_drafts": 37,
+     "critical_caught_items": 16,
+     "critical_caught_by_detector": {
+      "anchoring": 20,
+      "contradiction": 10,
+      "invented": 7
+     },
+     "omission_items": 0,
+     "omission_denominator": 31,
+     "omission_pct": 0.0,
+     "omission_by_detector": {},
+     "questions_or_failures_hidden": 0,
+     "feed_model_lines_on_loud_items": 0,
+     "minor": {}
+    },
+    "bar_check": [
+     {
+      "bar": "critical reaching the user, % of shown model items",
+      "op": "<=",
+      "bar_value": 1.0,
+      "measured": 12.9,
+      "ok": false
+     },
+     {
+      "bar": "systematic critical patterns",
+      "op": "==",
+      "bar_value": 0,
+      "measured": 2,
+      "ok": false
+     },
+     {
+      "bar": "omissions, % of shown items (Chat: of all questions)",
+      "op": "<=",
+      "bar_value": 10.0,
+      "measured": 0.0,
+      "ok": true
+     },
+     {
+      "bar": "questions or failures hidden",
+      "op": "==",
+      "bar_value": 0,
+      "measured": 0,
+      "ok": true
+     },
+     {
+      "bar": "model text on a turn that needs you (feed)",
+      "op": "==",
+      "bar_value": 0,
+      "measured": 0,
+      "ok": true
+     },
+     {
+      "bar": "value: AI preferred, % of decided pairs",
+      "op": ">=",
+      "bar_value": 60.0,
+      "measured": null,
+      "ok": null
+     }
+    ]
+   }
+  }
+ },
+ "replay_mismatches": []
+}

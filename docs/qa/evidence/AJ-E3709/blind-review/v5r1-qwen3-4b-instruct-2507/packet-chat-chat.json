@@ -1,0 +1,150 @@
+[
+ {
+  "pair": "chat-chat-001",
+  "item": "C504",
+  "question": "Was ist der Status der Sitzung mit dem Branch feat/mailer?",
+  "records": [
+   {
+    "id": "s1",
+    "kind": "session",
+    "fields": {
+     "status": "waiting",
+     "branch": "feat/mailer"
+    },
+    "text": "Sitzung auf feat/mailer wartet auf Antwort des Nutzers"
+   },
+   {
+    "id": "s2",
+    "kind": "session",
+    "fields": {
+     "status": "finished",
+     "branch": "feat/pdf"
+    },
+    "text": "Sitzung auf feat/pdf ist abgeschlossen"
+   }
+  ],
+  "first": "The session with the branch feat/mailer is waiting [s1]",
+  "second": "session s1 [s1]: waiting"
+ },
+ {
+  "pair": "chat-chat-002",
+  "item": "C510",
+  "question": "How many files did the ledger-core session change?",
+  "records": [
+   {
+    "id": "s1",
+    "kind": "session",
+    "fields": {
+     "files_changed": 14,
+     "branch": "feat/vat"
+    },
+    "text": "ledger-core session: 14 files changed, branch feat/vat"
+   },
+   {
+    "id": "s2",
+    "kind": "session",
+    "fields": {
+     "files_changed": 6
+    },
+    "text": "ledger-core older session: 6 files changed"
+   }
+  ],
+  "first": "The ledger-core session changed 14 files; the ledger-core older session changed 6 files [s1] [s2]",
+  "second": "ledger-core session [s1]: 14\nledger-core older session [s2]: 6"
+ },
+ {
+  "pair": "chat-chat-003",
+  "item": "C518",
+  "question": "What changed in turn 2 of mosaic-api?",
+  "records": [
+   {
+    "id": "t1",
+    "kind": "turn",
+    "fields": {
+     "files_changed": 2,
+     "path": "handlers/user.go"
+    },
+    "text": "Turn 2 in mosaic-api changed handlers/user.go (+30/-4) and handlers/user_test.go (+22/-0)"
+   },
+   {
+    "id": "t2",
+    "kind": "turn",
+    "fields": {
+     "files_changed": 1,
+     "path": "handlers/team.go"
+    },
+    "text": "Turn 3 in mosaic-api changed handlers/team.go"
+   }
+  ],
+  "first": "I can't say that for sure. Here's what I found:\n[t1] turn \"turn t1\"\n[t2] turn \"turn t2\"",
+  "second": "In turn 2 of mosaic-api, handlers/user.go was changed with +30/-4 and handlers/user_test.go was changed with +22/-0. [t1]"
+ },
+ {
+  "pair": "chat-chat-004",
+  "item": "C526",
+  "question": "Wie viele Dateien hat die Sitzung gale-admin geändert?",
+  "records": [
+   {
+    "id": "s1",
+    "kind": "session",
+    "fields": {
+     "files_changed": 9
+    },
+    "text": "Sitzung gale-admin: 9 Dateien geändert, 120 Zeilen hinzugefügt"
+   },
+   {
+    "id": "s2",
+    "kind": "session",
+    "fields": {
+     "files_changed": 3
+    },
+    "text": "Sitzung gale-admin zweiter Lauf: 3 Dateien geändert"
+   }
+  ],
+  "first": "Die Sitzung gale-admin hat 9 Dateien geändert; die Sitzung gale-admin zweiter Lauf hat 3 Dateien geändert [s1] [s2]",
+  "second": "Sitzung gale-admin [s1]: 9\nSitzung gale-admin zweiter Lauf [s2]: 3"
+ },
+ {
+  "pair": "chat-chat-005",
+  "item": "C531",
+  "question": "Which turns of amber-sdk were reverted?",
+  "records": [
+   {
+    "id": "f1",
+    "kind": "fact",
+    "fields": {
+     "path": "src/client.ts"
+    },
+    "text": "amber-sdk turn 6: changes to src/client.ts reverted (reset to HEAD~1)"
+   },
+   {
+    "id": "t1",
+    "kind": "turn",
+    "fields": {
+     "files_changed": 0
+    },
+    "text": "amber-sdk turn 6 finished, 0 files changed"
+   }
+  ],
+  "first": "I can't say that for sure. Here's what I found:\n[f1] fact \"amber-sdk turn 6\"\n[t1] turn \"turn t1\"",
+  "second": "Turn 6 of amber-sdk was reverted, with changes to src/client.ts reverted to HEAD~1. [f1]"
+ },
+ {
+  "pair": "chat-chat-006",
+  "item": "C533",
+  "question": "How many tests ran in turn 3 of lotus-pay?",
+  "records": [
+   {
+    "id": "t1",
+    "kind": "turn",
+    "fields": {
+     "tests_passed": 40,
+     "tests_failed": 0
+    },
+    "text": "lotus-pay turn 3: 40 passed, 0 failed"
+   }
+  ],
+  "first": "I can't say that for sure. Here's what I found:\n[t1] turn \"lotus-pay turn 3\"",
+  "second": "40 tests passed and 0 failed in turn 3 of lotus-pay. [t1]"
+ }
+]
