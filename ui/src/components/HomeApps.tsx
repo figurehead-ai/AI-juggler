@@ -95,11 +95,14 @@ function Row({ id, icon, app, profile, slot, line, kept = false, needs, level, b
     <li className="tone-host flex min-w-0 items-center gap-3 rounded-lg px-2 py-1.5 hover:bg-surface-2" data-testid={testId} data-place={place} data-level={level} data-lit={lit || undefined}>
       {icon}
       <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-        <span className="flex min-w-0 items-center gap-2">
+        {/* The name and, at the line's end, the needs mark; a name too long
+            for both sends the mark under it, right-aligned: nothing cut
+            (85488fac0's rule at 320 px). */}
+        <span className="flex min-w-0 flex-wrap items-center gap-x-2">
           {id === null ? (
-            <span className="max-w-full truncate text-body font-semibold text-ink">{app}</span>
+            <span className="min-w-0 break-words text-body font-semibold text-ink">{app}</span>
           ) : (
-            <button type="button" onClick={() => openApp(id)} title={`Open ${name}'s page`} className="max-w-full truncate rounded text-left text-body font-semibold text-ink outline-none hover:underline focus-visible:ring-1 focus-visible:ring-accent/60" data-testid="home-app-page">
+            <button type="button" onClick={() => openApp(id)} title={`Open ${name}'s page`} className="min-w-0 break-words rounded text-left text-body font-semibold text-ink outline-none hover:underline focus-visible:ring-1 focus-visible:ring-accent/60" data-testid="home-app-page">
               {app}
               <span className="sr-only">, {name}'s page</span>
             </button>
