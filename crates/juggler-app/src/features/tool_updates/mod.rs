@@ -58,6 +58,12 @@ pub fn feed_url(feed: &ReleaseFeed) -> String {
         ReleaseFeed::Npm { package } => {
             format!("{NPM_REGISTRY}/{}/latest", package.replace('/', "%2F"))
         }
+        // The other feeds are the version watcher's (D-128), never asked
+        // by the app; their addresses are still plain.
+        ReleaseFeed::GithubRelease { repo } => {
+            format!("https://api.github.com/repos/{repo}/releases/latest")
+        }
+        ReleaseFeed::Appcast { url } => url.clone(),
     }
 }
 

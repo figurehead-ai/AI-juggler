@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
+  <channel>
+    <item>
+      <title>0.50.1</title>
+      <link>https://example.com/app/changelog</link>
+      <enclosure url="https://example.com/app/App.zip" sparkle:version="5001" sparkle:shortVersionString="0.50.1" length="1" type="application/octet-stream"/>
+    </item>
+  </channel>
+</rss>

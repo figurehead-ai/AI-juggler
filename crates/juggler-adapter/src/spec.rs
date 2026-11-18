@@ -138,6 +138,10 @@ pub struct ToolSpec {
     /// AJ-E1611: where its new versions are published, for the
     /// once-a-day check; `None` when there's no public list to ask.
     pub release_feed: Option<ReleaseFeed>,
+    /// D-128: other public lists of this tool's new versions (its desktop
+    /// app's update feed, its GitHub releases), read only by the daily
+    /// version watcher (`scripts/tool_versions.py`); the app never asks them.
+    pub more_release_feeds: Vec<ReleaseFeed>,
     /// AJ-E1611: the command the user runs to update it themselves. AI
     /// Juggler shows it and never runs it.
     pub update_command: Option<String>,
@@ -152,6 +156,16 @@ pub enum ReleaseFeed {
     Npm {
         /// The package's name (`@scope/name` or `name`).
         package: String,
+    },
+    /// D-128: a GitHub repository's latest release (`owner/name`).
+    GithubRelease {
+        /// The repository, as `owner/name`.
+        repo: String,
+    },
+    /// D-128: a desktop app's Sparkle appcast (an XML list of versions).
+    Appcast {
+        /// The appcast's address.
+        url: String,
     },
 }
 
@@ -209,6 +223,7 @@ impl ToolSpec {
             flags: ToolFlags::default(),
             terms: None,
             release_feed: None,
+            more_release_feeds: Vec::new(),
             update_command: None,
             floor: FloorFamilies::default(),
         }

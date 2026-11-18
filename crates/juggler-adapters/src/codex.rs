@@ -1002,6 +1002,11 @@ pub fn codex_spec() -> juggler_adapter::ToolSpec {
         release_feed: Some(juggler_adapter::ReleaseFeed::Npm {
             package: "@openai/codex".to_owned(),
         }),
+        // D-128: the Codex app inside ChatGPT.app updates through this
+        // Sparkle appcast (read from the installed app's own bundle).
+        more_release_feeds: vec![juggler_adapter::ReleaseFeed::Appcast {
+            url: "https://persistent.oaistatic.com/codex-app-prod/appcast.xml".to_owned(),
+        }],
         update_command: Some("npm install -g @openai/codex@latest".to_owned()),
         floor: juggler_adapter::FloorFamilies::all("industrial"),
     }

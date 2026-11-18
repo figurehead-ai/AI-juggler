@@ -43,6 +43,7 @@ verify-static:
     just polling-audit
     just release-selftest
     python3 scripts/capabilities.py check
+    python3 scripts/tool_versions.py --selftest
     LC_ALL=en_US.UTF-8 ./scripts/qa/runtime_lab_snapshot.sh selftest
     just qa-kit
     python3 scripts/ci_parity.py --selftest

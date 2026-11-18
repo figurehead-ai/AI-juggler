@@ -878,6 +878,7 @@ pub fn opencode_spec() -> juggler_adapter::ToolSpec {
         release_feed: Some(juggler_adapter::ReleaseFeed::Npm {
             package: "opencode-ai".to_owned(),
         }),
+        more_release_feeds: Vec::new(),
         update_command: Some("opencode upgrade".to_owned()),
         floor: juggler_adapter::FloorFamilies::all("maker-garage"),
     }
