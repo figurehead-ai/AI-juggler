@@ -21,7 +21,7 @@ import { CanvasTeach, hasWhoIsIn } from "./pool/CanvasTeach";
 import { PaletteMore } from "./pool/PaletteMore";
 import { RuleNodes } from "./pool/RuleNodes";
 import { startNextLead } from "../lib/start-lead";
-import { useMoreCandidates, useRuleLabel, useRuleLogo, useRuleTool } from "./pool/pool-page-reads";
+import { useLogoSources, useMoreCandidates, useRuleLabel, useRuleTool } from "./pool/pool-page-reads";
 import { PlannedTeam } from "./pool/PlannedTeam";
 import { ScopeSheet } from "./pool/ScopeSheet";
 import { NewPool } from "../screens/pools/NewPool";
@@ -116,7 +116,7 @@ function PoolCanvasPage({ poolId, sessions, projects, accounts, now, rules }: Pa
   const data = useCanvas(poolId, sessions, desktop.refs);
   const ruleLabel = useRuleLabel(accounts, sessions, everyoneOf(pool, projects));
   const ruleTool = useRuleTool(accounts);
-  const ruleLogo = useRuleLogo(accounts);
+  const logos = useLogoSources(accounts, sessions);
   const memberRules = rules.rules?.members ?? [];
   const lineRules = useMemo(() => ownLineRules(rules.rules?.talk ?? [], data.canvas?.anchors), [rules.rules, data.canvas?.anchors]);
   const hasRules = hasMemberRules(pool, rules);
@@ -290,7 +290,7 @@ function PoolCanvasPage({ poolId, sessions, projects, accounts, now, rules }: Pa
               lineRules={lineRules}
               overlay={(placeOf, view) =>
                 planned ? (
-                  <PlannedTeam poolId={pool.id} rules={broad} labelOf={ruleLabel} logoOf={ruleLogo} leadNext={setup.leadNext?.ref ?? null} noLead={setup.leadCard} where={where} view={view} selection={selection} onSelect={(next) => select(next, true)} onStartLead={(member) => startNextLead(member, setup.leadDir)} talk={rules.rules?.talk} />
+                  <PlannedTeam poolId={pool.id} rules={broad} labelOf={ruleLabel} logos={logos} leadNext={setup.leadNext?.ref ?? null} noLead={setup.leadCard} where={where} view={view} selection={selection} onSelect={(next) => select(next, true)} onStartLead={(member) => startNextLead(member, setup.leadDir)} talk={rules.rules?.talk} />
                 ) : (
                 <RuleNodes
                   rules={drawnRules(pool, memberRules)}

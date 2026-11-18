@@ -23,7 +23,7 @@ import type { SetupRow } from "../../../lib/pool-setup";
 import type { TeamTools } from "../../../lib/team-tools";
 import { openAgentAccess } from "../../../lib/team-tools";
 import { STEP_WORDS, type SETUP_STEPS } from "../../../lib/pool-words";
-import { CHECK_TITLES, OPEN_ACTION, TOOLS_ITEM, leftWords } from "../setup-words";
+import { OPEN_ACTION, TOOLS_ITEM, leftWords } from "../setup-words";
 import { SetupRing } from "../SetupRing";
 import { ToolsItemBody } from "./ToolsItem";
 
@@ -170,7 +170,7 @@ function ChecklistHead({ title, done, total, blocked, toolsOpen }: { title: stri
 /** One step: ticked with its value and Change, or open, expanded with
  * what it does and its action. */
 function StepRow({ row, n, open, value, primary, onOpen }: { row: SetupRow; n: number; open: boolean; value: string | undefined; primary: boolean; onOpen: (step: Step) => void }): JSX.Element {
-  const name = CHECK_TITLES[row.step];
+  const name = STEP_WORDS[row.step].short;
   const state = <span className="sr-only">{row.byDefault ? ", left at its default" : row.done ? ", done" : ", to do"}</span>;
   if (open)
     return (

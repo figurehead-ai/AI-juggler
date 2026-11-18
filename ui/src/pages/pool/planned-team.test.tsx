@@ -64,6 +64,14 @@ describe("the planned team on the diagram (D-126 §3)", () => {
     expect(view.queryByTestId("canvas-rule-nodes")).toBeNull();
   });
 
+  it("each card's logo is the member's one logo (as New pool draws it): the lead's crown and the reviewer's shield at its corner", async () => {
+    const view = await openPlanned();
+    const cards = within(await view.findByTestId("planned-team")).getAllByTestId("planned-card");
+    const mark = (card: HTMLElement) => within(card).getByTestId("member-logo").querySelector<HTMLElement>('[data-testid="member-logo-role"]')?.dataset.role ?? null;
+    expect(cards.map(mark)).toEqual(["lead", "reviewer", null]);
+    expect(within(cards[2]!).getByTestId("member-logo").dataset.logo).toBe("tile");
+  });
+
   it("each card is a button by its name; a press opens it in the inspector", async () => {
     const view = await openPlanned();
     const team = await view.findByTestId("planned-team");

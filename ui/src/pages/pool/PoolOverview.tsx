@@ -22,6 +22,7 @@ import type { PoolRuleInfo } from "../../lib/ipc/pool-model";
 import type { PoolInfo } from "../../lib/ipc/pools";
 import { useTaskCounts } from "../../lib/ipc/tasks";
 import { nextLine } from "../../lib/pool-sentences";
+import { stepValues } from "../../lib/pool-values";
 import type { SetupRow } from "../../lib/pool-setup";
 import type { PoolRules } from "../../lib/pool-rules";
 import { nextSessionWords, ownMay, pickedCount, type SETUP_STEPS } from "../../lib/pool-words";
@@ -33,7 +34,6 @@ import { PoolSummary, shapeOfPool } from "./PoolSummary";
 import { Section } from "./Section";
 import { FirstPrompt } from "./setup/FirstPrompt";
 import { PoolChecklist } from "./setup/PoolChecklist";
-import { checklistValues } from "./setup-values";
 import type { SetupPhase, SetupProgress } from "./setup-progress";
 import { SETUP } from "./setup-words";
 import { edgeKey, type MemberNode } from "./useCanvas";
@@ -80,7 +80,7 @@ export function SetupView(props: OverviewProps): JSX.Element {
         title={SETUP.title(pool.name)}
         rows={setup.rows}
         onOpen={setup.onOpen}
-        values={checklistValues(shape, where)}
+        values={stepValues(shape, where)}
         tools={progress.toolsItem ? progress.tools : null}
         ready={progress.complete}
         next={progress.complete ? nextLine(shape, where) : null}

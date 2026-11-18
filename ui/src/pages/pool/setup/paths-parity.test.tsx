@@ -28,6 +28,10 @@ import { MOCK_PROJECTS, MOCK_SESSIONS } from "../../../preview/fixtures";
 import { NewPool } from "../../../screens/pools/NewPool";
 import { EmptyPoolSetup, existingOf } from "../EmptyPoolSetup";
 import { opensInSetup } from "../mode";
+import { SetupView } from "../PoolOverview";
+import { setupRows } from "../../../lib/pool-setup";
+import { stepValue } from "../../../lib/pool-wizard-words";
+import { SETUP_STEPS, STEP_WORDS } from "../../../lib/pool-words";
 
 beforeEach(() => resetPreviewAgentBridge());
 afterEach(cleanup);
@@ -236,5 +240,54 @@ describe("AJ-E3011 round 5: an empty pool's setup is New pool's flow", () => {
     expect(opensInSetup({ peopled: true, rulesRead: true, diagramChosen: false })).toBe(false);
     expect(opensInSetup({ peopled: false, rulesRead: false, diagramChosen: false })).toBe(false);
     expect(opensInSetup({ peopled: false, rulesRead: true, diagramChosen: true })).toBe(false);
+  });
+});
+
+// D-126: each step's value under its name — New pool's steps and the
+// canvas's checklist — is one function of one shape. The same pool (an
+// App whose next session leads, Codex reviewing, everyone in web, Members
+// ask you first) made both ways must read the same, word for word: before
+// the consolidation the checklist said "Codex · Personal checks the work"
+// and "Some ask you first" where the steps said "Codex checks the work" and
+// "Members ask you first".
+describe("D-126: the wizard's steps and the diagram's checklist say each value the same", () => {
+  const NAMES: Record<string, string> = { "app:cli:work": APP, "app:app:codex": "Codex · Personal", all: "Everyone in web" };
+  const team: Draft = {
+    ...draftOf(templateById("feature-team"), "p-web"),
+    members: [
+      { ref: "app:cli:work", kind: "app", label: APP, role: "member", level: null, reach: "later" },
+      { ref: "app:app:codex", kind: "app", label: NAMES["app:app:codex"]!, role: "reviewer", level: null, reach: "later" },
+      { ref: "all", kind: "everyone", label: "Everyone", role: "member", level: null, reach: "later" },
+    ],
+    leadNext: "app:cli:work",
+  };
+  const made: PoolRulesInfo = {
+    pool_id: pool.id,
+    members: [rule("app:cli:work", "app"), { ...rule("app:app:codex", "app"), role: "reviewer" }, rule("all", "everyone")],
+    talk: [...rulesInfo.talk, { from: "role:member", to: "role:member", rule: "ask" }],
+    lead_next: "cli:work",
+  };
+
+  it("each of the six, as the checklist shows it under the step's name", () => {
+    const shape = shapeOfDraft(team, (ref, text) => NAMES[ref] ?? text);
+    const wizard = SETUP_STEPS.map((step) => `${STEP_WORDS[step].short}: ${stepValue(step, { shape, where: WHERE, template: null, tools: null })}`);
+    const view = render(
+      <SetupView
+        pool={pool}
+        canvas={null}
+        members={[]}
+        rules={{ rules: made, watched: [], reload: () => undefined }}
+        ruleLabel={(one) => NAMES[one.member]!}
+        where={WHERE}
+        needs={0}
+        now={0}
+        setup={{ rows: setupRows({ own: false, every: false, whoIn: true, led: false, leadNext: true }, new Set(SETUP_STEPS)), onOpen: () => undefined, tools: { projects: [], apps: [] } }}
+        progress={{ tools: null, toolsItem: false, blockers: [], done: 6, total: 6, complete: false }}
+        onSelect={() => undefined}
+      />,
+    );
+    const checklist = view.getAllByTestId("pool-checklist-step").map((row) => `${STEP_WORDS[SETUP_STEPS.find((step) => step === row.dataset.step)!].short}: ${row.querySelector('[data-testid="pool-checklist-value"]')?.textContent ?? ""}`);
+    expect(checklist).toEqual(wizard);
+    expect(wizard).toEqual(["Where: web", "Who's in: Claude Code, Codex, everyone in web", "Who leads: Claude Code's next session", "Roles: Codex checks the work", "Messages: Members ask you first", "On their own: Work together"]);
   });
 });

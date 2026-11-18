@@ -5,6 +5,7 @@
  */
 import { useCallback, useMemo, useState } from "react";
 
+import type { LogoSources } from "../../components/MemberLogo";
 import type { AccountInfo } from "../../types/generated/AccountInfo";
 import type { InstanceInfo } from "../../types/generated/InstanceInfo";
 import type { ProjectInfo } from "../../types/generated/ProjectInfo";
@@ -76,24 +77,9 @@ export function useRuleTool(accounts: AccountInfo[]): (rule: PoolRuleInfo) => { 
   return useCallback((rule: PoolRuleInfo) => memberTool(rule.member, apps ?? []), [apps]);
 }
 
-
-/** D-126 §3: a member's logo on the planned team: an App's own (a
- * desktop App's installed icon, a CLI App's vendor app with its terminal
- * badge), a Tool's; `null` for the rest (an Account, a Mac, everyone:
- * their kind's tile). */
-export type RuleLogo = { tool: string; kind: "desktop" | "cli"; appId: string | null; name: string };
-
-export function useRuleLogo(accounts: AccountInfo[]): (rule: PoolRuleInfo) => RuleLogo | null {
+/** D-126 §3: where a member's logo is looked up (its Apps, the sessions
+ * open now), for the shared MemberLogo. */
+export function useLogoSources(accounts: AccountInfo[], sessions: InstanceInfo[]): LogoSources {
   const apps = useApps(accounts);
-  return useCallback(
-    (rule: PoolRuleInfo) => {
-      const [kind, ...rest] = rule.member.split(":");
-      const id = rest.join(":");
-      // A Tool's sessions run in its terminal or its app: its app's icon.
-      if (kind === "tool") return { tool: id, kind: "desktop", appId: null, name: id };
-      const app = kind === "app" ? apps?.find((one) => one.id === id) : undefined;
-      return app ? { tool: app.tool ?? "", kind: app.kind, appId: app.appId, name: app.app } : null;
-    },
-    [apps],
-  );
+  return useMemo(() => ({ apps: apps ?? [], sessions }), [apps, sessions]);
 }

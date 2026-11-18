@@ -39,6 +39,7 @@ import { templateById, type PoolTemplate } from "../../lib/pool-templates";
 import { hasUserPools, refreshPools, usePools } from "../../lib/pools";
 import { asksInNewPool } from "../../lib/team-tools";
 import { markSeen } from "../../lib/pool-setup";
+import { shapeOfDraft } from "../../lib/pool-sentences";
 import { everyoneLabel, whereWords, type SetupStep } from "../../lib/pool-words";
 import { eyebrowOf, stepValue, WIZARD_HEADS } from "../../lib/pool-wizard-words";
 import { sessionState } from "../../lib/rail-items";
@@ -49,7 +50,7 @@ import { openNowByMember } from "../../lib/pool-open-now";
 import { NewPoolSteps } from "./NewPoolSteps";
 import { sideFor } from "./NewPoolSide";
 import { NewPoolStep } from "./NewPoolStep";
-import { draftView, navOf } from "./preview-model";
+import { navOf } from "./preview-model";
 import { StepEyebrow } from "./StepHead";
 
 /** The steps, in order (AJ-E3011 §1). */
@@ -235,9 +236,11 @@ export function NewPool({
   };
   const last = step === steps.length - 1;
   const current = steps[step]!;
-  const view = draftView(draft, memberName, where);
+  // The draft as its words read it: the steps' values and the preview's
+  // rows from the same shape as the canvas checklist's.
+  const shape = shapeOfDraft(draft, memberName);
   const toolsValue = answeredHere ? (bridge?.on ? "On" : "Not now") : "Asked once";
-  const valueOf = (id: SetupStep) => stepValue(id, { ...view, template: draft.template === "blank" ? "From scratch" : templateById(draft.template).name, tools: toolsValue });
+  const valueOf = (id: SetupStep) => stepValue(id, { shape, where, template: draft.template === "blank" ? "From scratch" : templateById(draft.template).name, tools: toolsValue });
   const makeWords = into ? "Set up the pool" : "Make pool";
   const prefilled = step >= MAKE_FROM && !last;
   const visited = (id: SetupStep) => steps.indexOf(id) <= furthest && steps.indexOf(id) !== step;
@@ -248,7 +251,7 @@ export function NewPool({
         <FlowLayout
           label={WIZARD_HEADS[current].title}
           steps={<NewPoolSteps steps={steps} step={step} furthest={furthest} valueOf={valueOf} onPick={go} />}
-          {...sideFor({ current, draft, name, where, view, visited, sources: { apps: apps ?? [], sessions }, memberName, first: firstPool })}
+          {...sideFor({ current, draft, name, where, shape, visited, sources: { apps: apps ?? [], sessions }, memberName, first: firstPool })}
           foot={
             <FlowFoot
               ref={primaryRef}

@@ -12,7 +12,7 @@ import type { JSX } from "react";
 import { RadioCard, RadioCards } from "../../components/controls";
 import type { Draft } from "../../lib/new-pool";
 import { nextRule, pairKey, ruleOf } from "../../lib/pool-templates";
-import { OWN_MIX, presetOf, TALK_PRESETS } from "../../lib/pool-wizard-words";
+import { OWN_MIX, presetOf, TALK_PRESETS } from "../../lib/pool-words";
 import { TalkTable } from "../../pages/pool/setup/TalkTable";
 import { TalkArt } from "./illustrations";
 import { StepHead } from "./StepHead";

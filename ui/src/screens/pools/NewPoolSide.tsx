@@ -8,10 +8,9 @@
 import type { ReactNode } from "react";
 
 import type { Draft } from "../../lib/new-pool";
-import type { DraftView } from "../../lib/pool-wizard-words";
 import type { SetupStep } from "../../lib/pool-words";
-import { firstPrompt, shapeOfDraft } from "../../lib/pool-sentences";
-import type { LogoSources } from "./MemberLogo";
+import { firstPrompt, type PoolShape } from "../../lib/pool-sentences";
+import type { LogoSources } from "../../components/MemberLogo";
 import { LeadPrompt } from "./LeadPrompt";
 import { NewPoolPreview, PreviewDiagram, PreviewStrip, type PreviewFocus } from "./NewPoolPreview";
 import { NewPoolStartSide } from "./NewPoolStartSide";
@@ -24,7 +23,7 @@ export function sideFor({
   draft,
   name,
   where,
-  view,
+  shape,
   visited,
   sources,
   memberName,
@@ -34,7 +33,8 @@ export function sideFor({
   draft: Draft;
   name: string;
   where: string;
-  view: DraftView;
+  /** The draft as its words read it (`shapeOfDraft`). */
+  shape: PoolShape;
   /** A step walked already (its value chosen). */
   visited: (step: SetupStep) => boolean;
   sources: LogoSources;
@@ -43,14 +43,13 @@ export function sideFor({
   first: boolean;
 }): { preview: ReactNode; summary: ReactNode } {
   const hasProject = draft.every || draft.projects.length > 0;
-  const rows = previewRows(view, current, visited, hasProject);
+  const rows = previewRows(shape, where, current, visited, hasProject);
   const summary = <PreviewStrip name={name} rows={rows} />;
   if (current === "template") return { preview: <NewPoolStartSide first={first} />, summary: null };
   const reached = visited("who") || current === "who";
   const nodes = previewNodes(draft, memberName, where, sources);
   const diagram = <PreviewDiagram lead={nodes.lead} members={nodes.members} reached={reached} focus={FOCUS[current] ?? null} />;
   if (current === "review") {
-    const shape = shapeOfDraft(draft, memberName);
     // No lead: nothing to tell one; its rows instead.
     const prompt = firstPrompt(shape, where) ? <LeadPrompt shape={shape} where={where} testId="new-pool-first-prompt" /> : undefined;
     return {

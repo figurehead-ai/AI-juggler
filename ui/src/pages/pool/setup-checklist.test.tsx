@@ -11,10 +11,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { primariesIn } from "../../components/primitives";
 import { resetPreviewAgentBridge } from "../../lib/ipc/agent-bridge";
 import { setupRows } from "../../lib/pool-setup";
-import type { PoolShape } from "../../lib/pool-sentences";
 import { PoolChecklist } from "./setup/PoolChecklist";
 import { SetupRing } from "./SetupRing";
-import { checklistValues } from "./setup-values";
 import { setupPhase, useSetupHidden } from "./setup-progress";
 import { openPage, resetCanvasTests, seams, seedTeam } from "./canvas.test-kit";
 
@@ -48,38 +46,6 @@ describe("SetupRing", () => {
   it("beside its words, it's no image of its own", () => {
     render(<SetupRing done={1} total={6} decorative />);
     expect(screen.queryByRole("img")).toBeNull();
-  });
-});
-
-describe("a step's value under its name", () => {
-  const shape: PoolShape = {
-    members: [
-      { ref: "app:claude-app:/w", label: "Claude", role: "member", level: null, later: true },
-      { ref: "app:codex:/c", label: "Codex", role: "reviewer", level: null, later: true },
-      { ref: "all", label: "Everyone in web", role: "member", level: null, later: false },
-    ],
-    leadNext: "app:claude-app:/w",
-    talk: {},
-    level: "work_together",
-    sealed: false,
-  };
-
-  it("reads as the mock-up's: where, who's in, who leads, roles, messages, on their own", () => {
-    expect(checklistValues(shape, "web")).toEqual({
-      where: "web",
-      who: "Claude, Codex, everyone in web",
-      lead: "Claude's next session",
-      everyone: "Codex checks the work",
-      talk: "Everyone, freely",
-      own: "Work together",
-    });
-  });
-
-  it("an Observer only reads, so it's no exception; a blocked pair is", () => {
-    expect(checklistValues({ ...shape, talk: { "observer>lead": "blocked" } }, "web").talk).toBe("Everyone, freely");
-    expect(checklistValues({ ...shape, talk: { "member>reviewer": "ask" } }, "web").talk).toBe("Some ask you first");
-    expect(checklistValues({ ...shape, talk: { "lead>member": "blocked" } }, "web").talk).toBe("Some may not message");
-    expect(checklistValues({ ...shape, members: [], leadNext: null }, "web")).toMatchObject({ who: "No one yet", lead: "No lead for now", everyone: "Everyone builds" });
   });
 });
 

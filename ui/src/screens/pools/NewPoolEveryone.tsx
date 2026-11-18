@@ -20,10 +20,10 @@ import { LogoTile } from "../../components/ToolLogo";
 import { useApps, type AppModel } from "../../lib/apps";
 import type { PoolRole } from "../../lib/ipc/pools";
 import type { Draft, DraftMember } from "../../lib/new-pool";
-import { ROLE_CARDS, roleCard } from "../../lib/pool-words";
+import { APP_KIND_WORDS, JOINS_BY_ITSELF, ROLE_CARDS, roleCard } from "../../lib/pool-words";
 import type { InstanceInfo } from "../../types/generated/InstanceInfo";
 import { MemberOwnLevel } from "../../pages/pool/setup/OwnLevelChoice";
-import { logoOf, MemberLogo, ROLE_ICONS } from "./MemberLogo";
+import { logoOf, MemberLogo, ROLE_ICONS } from "../../components/MemberLogo";
 import { StepHead } from "./StepHead";
 
 /** The roles a member's control offers (the lead is Who leads'). */
@@ -33,10 +33,10 @@ const CHOOSE: readonly PoolRole[] = ["member", "reviewer", "observer"];
 export function memberKindWords(member: Pick<DraftMember, "ref" | "kind">, apps: readonly AppModel[]): string {
   if (member.kind === "app") {
     const app = apps.find((one) => `app:${one.id}` === member.ref);
-    if (!app) return member.ref.startsWith("app:cli:") ? "Terminal" : "App";
-    return [app.kind === "desktop" ? "Desktop app" : "Terminal", app.profile ? `Profile ${app.profile}` : null].filter(Boolean).join(" · ");
+    if (!app) return member.ref.startsWith("app:cli:") ? APP_KIND_WORDS.cli : "App";
+    return [APP_KIND_WORDS[app.kind], app.profile ? `Profile ${app.profile}` : null].filter(Boolean).join(" · ");
   }
-  return { session: "One session", account: "Every session of an account", tool: "Every session of a tool", mac: "Every session on a Mac", everyone: "Joins by itself, now and later" }[member.kind];
+  return { session: "One session", account: "Every session of an account", tool: "Every session of a tool", mac: "Every session on a Mac", everyone: JOINS_BY_ITSELF }[member.kind];
 }
 
 function RoleControl({ name, value, onChange }: { name: string; value: PoolRole; onChange: (role: PoolRole) => void }): JSX.Element {
@@ -117,7 +117,7 @@ export function NewPoolEveryone({
               <MemberLogo spec={logoOf("all", { apps, sessions: open })} size={32} badge={everyone.role} />
               <span className="flex min-w-0 flex-1 flex-col">
                 <span className="truncate text-body font-semibold text-ink">Every new session in {where}</span>
-                <span className="text-meta text-ink-2">Joins by itself, now and later</span>
+                <span className="text-meta text-ink-2">{JOINS_BY_ITSELF}</span>
               </span>
               <RoleControl name="Every new session" value={everyone.role === "lead" ? "member" : everyone.role} onChange={(role) => setMember("all", { role })} />
             </li>

@@ -17,7 +17,8 @@ import { IconLead, IconMessage } from "../../components/icons-canvas";
 import { IconProfiles, IconProjects, IconShield } from "../../components/icons";
 import { LogoTile } from "../../components/ToolLogo";
 import type { PoolRole } from "../../lib/ipc/pools";
-import { MemberLogo, type LogoSpec } from "./MemberLogo";
+import { NO_LEAD_YET } from "../../lib/pool-words";
+import { MemberLogo, type LogoSpec } from "../../components/MemberLogo";
 
 /** One card on the drawing. */
 export interface PreviewNode {
@@ -86,7 +87,7 @@ function Ghost({ icon: Shape, words, at }: { icon: Icon; words: string; at: { le
 }
 
 /** The drawing: the lead (or its place) on top, the members below. */
-export function PreviewDiagram({ lead, members, reached, focus, noLead = "No lead yet" }: { lead: PreviewNode | null; members: readonly PreviewNode[]; reached: boolean; focus: PreviewFocus; noLead?: string }): JSX.Element {
+export function PreviewDiagram({ lead, members, reached, focus }: { lead: PreviewNode | null; members: readonly PreviewNode[]; reached: boolean; focus: PreviewFocus }): JSX.Element {
   const shown = members.length > ROW_MAX ? members.slice(0, ROW_MAX - 1) : members;
   const more = members.length - shown.length;
   const count = reached ? Math.max(1, shown.length + (more > 0 ? 1 : 0)) : 2;
@@ -112,7 +113,7 @@ export function PreviewDiagram({ lead, members, reached, focus, noLead = "No lea
         </>
       ) : (
         <>
-          {lead ? <Node node={lead} lit={lit(lead)} across={1} at={{ left: "50%", top: 20 }} /> : <Ghost icon={IconLead} words={noLead} at={{ left: "50%", top: 24 }} />}
+          {lead ? <Node node={lead} lit={lit(lead)} across={1} at={{ left: "50%", top: 20 }} /> : <Ghost icon={IconLead} words={NO_LEAD_YET} at={{ left: "50%", top: 24 }} />}
           {shown.map((node, at) => (
             <Node key={node.ref} node={node} lit={lit(node)} across={across.length} at={{ left: `${across[at]}%`, top: 128 }} />
           ))}

@@ -1,7 +1,8 @@
 /**
  * D-126: New pool in the making screens' layout — the steps beside with
  * their values, the live preview matching the form, the start's side,
- * the first thing to tell the lead, and each member's logo.
+ * the first thing to tell the lead (a member's logo is
+ * components/member-logo.test.tsx's).
  */
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -10,10 +11,7 @@ import { MOCK_PROJECTS, MOCK_SESSIONS } from "../../preview/fixtures";
 import { resetPreviewPools } from "../../lib/ipc/pools";
 import { resetPreviewPoolModel } from "../../lib/ipc/pool-model";
 import { refreshPools, resetPools } from "../../lib/pools";
-import type { AppModel } from "../../lib/apps";
-import type { InstanceInfo } from "../../types/generated/InstanceInfo";
 import { LeadPrompt } from "./LeadPrompt";
-import { logoOf, MemberLogo } from "./MemberLogo";
 import { NewPool } from "./NewPool";
 import { NewPoolPreview, PreviewDiagram, PreviewStrip, type PreviewNode, type PreviewRow } from "./NewPoolPreview";
 import { NewPoolStartSide } from "./NewPoolStartSide";
@@ -22,6 +20,7 @@ import { NewPoolTemplate } from "./NewPoolTemplate";
 import { cardProjects, NewPoolWhere, PROJECT_CARDS, projectLine } from "./NewPoolWhere";
 import { draftOf } from "../../lib/new-pool";
 import { templateById } from "../../lib/pool-templates";
+import type { InstanceInfo } from "../../types/generated/InstanceInfo";
 import { StepEyebrow, StepHead } from "./StepHead";
 
 beforeEach(async () => {
@@ -222,25 +221,5 @@ describe("the first thing to tell the lead (Review)", () => {
     view.unmount();
     const none = render(<LeadPrompt shape={{ members, leadNext: null }} where="web" testId="p" />);
     expect(none.container.textContent).toBe("");
-  });
-});
-
-describe("a member's logo", () => {
-  const app = (id: string, kind: AppModel["kind"], tool: string, appId: string, name: string): AppModel => ({ id, kind, tool, appId, app: name, profile: null, name, defaultName: name, named: false, railKey: id, folder: null, accountId: null, place: null, slot: 0 });
-  const apps = [app("cli:work", "cli", "claude-code", "claude-app", "Claude Code"), app("app:codex-app:/p", "desktop", "codex", "codex-app", "Codex")];
-  const sessions: InstanceInfo[] = [{ ...MOCK_SESSIONS[0]!, id: "s1", provider: "claude-code", app_id: null }];
-
-  it("is its tool's logo for an App or a session (a CLI with its badge), a tile for the rest", () => {
-    expect(logoOf("app:cli:work", { apps, sessions })).toEqual({ kind: "tool", tool: "claude-code", look: "cli", name: "Claude Code" });
-    expect(logoOf("app:app:codex-app:/p", { apps, sessions })).toMatchObject({ kind: "tool", tool: "codex", look: "desktop", appId: "codex-app" });
-    expect(logoOf("session:s1", { apps, sessions })).toMatchObject({ kind: "tool", tool: "claude-code", look: "cli" });
-    for (const ref of ["all", "account:a", "mac:m", "session:gone"]) expect(logoOf(ref, { apps, sessions }).kind).toBe("tile");
-  });
-
-  it("carries the lead's crown or a reviewer's shield at its corner, and nothing for a member", () => {
-    const view = render(<MemberLogo spec={logoOf("all", { apps, sessions })} badge="lead" />);
-    expect(view.getByTestId("member-logo-role").dataset.role).toBe("lead");
-    view.rerender(<MemberLogo spec={logoOf("all", { apps, sessions })} badge="member" />);
-    expect(view.queryByTestId("member-logo-role")).toBeNull();
   });
 });

@@ -22,7 +22,7 @@ import { agentBridgeAnswer } from "../../lib/ipc/agent-bridge";
 import { AGENT_ACCESS, TEAM_TOOLS, openAgentAccess, teamToolsLine } from "../../lib/team-tools";
 import { TeamToolsQuestion, useTeamTools, useToolsSave } from "../../pages/pool/setup/TeamTools";
 import { ToolsArt } from "./illustrations";
-import { logoOf, MemberLogo, type LogoSpec } from "./MemberLogo";
+import { logoOf, MemberLogo, type LogoSpec } from "../../components/MemberLogo";
 import { useApps, type AppModel } from "../../lib/apps";
 import type { InstanceInfo } from "../../types/generated/InstanceInfo";
 import { StepHead } from "./StepHead";

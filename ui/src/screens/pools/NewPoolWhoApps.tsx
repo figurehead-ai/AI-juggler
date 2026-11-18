@@ -22,12 +22,13 @@ import { ShellOnlyChip } from "../../components/ShellOnly";
 import type { AppModel } from "../../lib/apps";
 import type { Candidate, Draft } from "../../lib/new-pool";
 import { openNowByMember } from "../../lib/pool-open-now";
-import { shortNames } from "../../lib/pool-wizard-words";
+import { shortNames } from "../../lib/pool-values";
+import { APP_KIND_WORDS } from "../../lib/pool-words";
 import { sessionState } from "../../lib/rail-items";
 import type { InstanceInfo } from "../../types/generated/InstanceInfo";
 import { ConnectorCard } from "../../pages/pool/connector/ConnectorCard";
 import { DesktopListNote, DesktopReachTag } from "../../pages/pool/connector/DesktopReach";
-import { logoOf, MemberLogo } from "./MemberLogo";
+import { logoOf, MemberLogo } from "../../components/MemberLogo";
 
 /** App cards shown at first; Show all adds the rest (instant and paged). */
 export const APP_CARDS = 6;
@@ -70,7 +71,7 @@ function AppCard({ row, app, on, open, where, onToggle }: { row: Candidate; app:
         reason={row.blocked ?? undefined}
         logo={<MemberLogo spec={logoOf(row.ref, { apps: app ? [app] : [], sessions: [] })} size={40} />}
         title={app?.app ?? row.label}
-        sub={app ? (desktop ? "Desktop app" : "Terminal") : row.detail}
+        sub={app ? APP_KIND_WORDS[app.kind] : row.detail}
       >
         {app?.profile && <span className="text-label text-muted">Profile {app.profile}</span>}
         <span className="text-label text-faint">{open === null ? row.detail : openInWords(open, where)}</span>

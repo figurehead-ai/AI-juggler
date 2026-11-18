@@ -2,7 +2,7 @@
  * 0.4.6 (D-126 §3): a pool being set up, before any session has joined,
  * draws its planned team on the diagram — the lead on top (the App whose
  * next session leads, with Start one now where it can start one, or "No
- * lead for now"), the other members in a row under it (an App with its
+ * lead yet"), the other members in a row under it (an App with its
  * own logo and kind, the reviewer marked, everyone in its projects as a
  * stack), a line from the lead to each, and a line between two that may
  * message each other — with what happens next under them. It pans and
@@ -13,19 +13,17 @@
  */
 import { useCallback, useId, useState, type JSX, type ReactNode, type Ref } from "react";
 
-import { LogoTile, ToolLogo } from "../../components/ToolLogo";
-import { IconProfiles, IconSessions, IconShield } from "../../components/icons";
-import { IconComputer } from "../../components/icons-actions";
+import { LogoTile } from "../../components/ToolLogo";
 import { IconLead } from "../../components/icons-canvas";
+import { logoOf, MemberLogo, type LogoSources } from "../../components/MemberLogo";
 import { useDesktopMembers } from "../../lib/connector";
 import type { PoolRuleInfo } from "../../lib/ipc/pool-model";
 import { usePendingAdds } from "../../lib/pool-pending";
-import { LEAD_WOULD, asTalkRule } from "../../lib/pool-words";
+import { APP_KIND_WORDS, JOINS_BY_ITSELF, LEAD_WOULD, NO_LEAD_YET, asRole, asTalkRule, leadNextLine } from "../../lib/pool-words";
 import { roleLabel } from "../../lib/pools";
 import { cliFolderOf } from "../../lib/start-lead";
 import type { Selection } from "./Canvas";
 import { NODE_W, type View } from "./layout";
-import type { RuleLogo } from "./pool-page-reads";
 import { ConnectorFix, KIND_WORD, STACK } from "./RuleNodes";
 import { SELECTED } from "./selection";
 import { StartLeadButton } from "./setup/StartLead";
@@ -52,27 +50,11 @@ export function plannedPlaces(count: number, top: number): { x: number; y: numbe
   });
 }
 
-/** A member's logo: its own, or its kind's tile; its role's mark on it. */
-function Logo({ logo, kind, role }: { logo: RuleLogo | null; kind: string; role: string }): JSX.Element {
-  const Tile = kind === "account" ? IconProfiles : kind === "mac" ? IconComputer : IconSessions;
-  const mark = role === "lead" ? { box: "bg-accent-fill text-white", Icon: IconLead } : role === "reviewer" ? { box: "bg-surface-3 text-ink", Icon: IconShield } : null;
-  return (
-    <span className="relative shrink-0">
-      {logo ? <ToolLogo tool={logo.tool} kind={logo.kind} appId={logo.appId} name={logo.name} size={32} /> : <LogoTile icon={Tile} size={32} />}
-      {mark && (
-        <span aria-hidden="true" className={"absolute -left-1.5 -top-1.5 flex size-[18px] items-center justify-center rounded-full shadow-[0_0_0_2px_var(--color-surface)] " + mark.box}>
-          <mark.Icon width={11} height={11} strokeWidth={2.4} />
-        </span>
-      )}
-    </span>
-  );
-}
-
 export function PlannedTeam({
   poolId,
   rules,
   labelOf,
-  logoOf,
+  logos,
   leadNext,
   noLead,
   where,
@@ -86,7 +68,8 @@ export function PlannedTeam({
   /** Its broad members (an App, Account, Tool, Mac, everyone). */
   rules: readonly PoolRuleInfo[];
   labelOf: (rule: PoolRuleInfo) => string;
-  logoOf: (rule: PoolRuleInfo) => RuleLogo | null;
+  /** Where its members' logos are looked up (its Apps). */
+  logos: LogoSources;
   /** The App whose next session leads, by ref. */
   leadNext: string | null;
   /** No session leads and none is waited for: "No lead for now" on top. */
@@ -115,16 +98,18 @@ export function PlannedTeam({
     return () => observer?.disconnect();
   }, []);
   const card = (rule: PoolRuleInfo): Card => {
-    const logo = logoOf(rule);
+    const logo = logoOf(rule.member, logos);
     const lead = rule.member === leadNext;
-    const kind = rule.kind === "app" && logo ? PLANNED.appKind[logo.kind] : rule.member === "all" ? PLANNED.everyoneSub : (KIND_WORD[rule.kind] ?? rule.kind);
+    const kind = rule.kind === "app" && logo.kind === "tool" ? APP_KIND_WORDS[logo.look] : rule.member === "all" ? PLANNED.everyoneSub : (KIND_WORD[rule.kind] ?? rule.kind);
+    const role = lead ? "lead" : asRole(rule.role);
     return {
       ref: rule.member,
       label: labelOf(rule),
-      sub: lead ? PLANNED.leadSub(where) : `${roleLabel(rule.role)} · ${kind}`,
-      body: lead ? PLANNED.leadBody : rule.member === "all" ? PLANNED.everyoneBody : PLANNED.appBody(where),
-      role: lead ? "lead" : rule.role,
-      logo: <Logo logo={logo} kind={rule.kind} role={lead ? "lead" : rule.role} />,
+      sub: lead ? leadNextLine(where) : `${roleLabel(rule.role)} · ${kind}`,
+      body: lead ? PLANNED.leadBody : rule.member === "all" ? `${JOINS_BY_ITSELF}.` : PLANNED.appBody(where),
+      role,
+      // Its role's mark only for a lead or a reviewer (MemberLogo's own rule).
+      logo: <MemberLogo spec={logo} size={32} badge={role} />,
       broad: rule.kind !== "app" && rule.kind !== "tool",
       start: lead && !!onStartLead && cliFolderOf(rule.member) !== null,
     };
@@ -133,7 +118,7 @@ export function PlannedTeam({
   const head: Card | null = leadRule ? card(leadRule) : null;
   const rest: Card[] = [
     ...rules.filter((rule) => rule !== leadRule).map(card),
-    ...adding.map((one) => ({ ref: one.ref, label: one.label, sub: KIND_WORD[one.kind] ?? one.kind, body: PLANNED.adding, role: "member", logo: <LogoTile icon={IconSessions} size={32} />, broad: true, pending: true })),
+    ...adding.map((one) => ({ ref: one.ref, label: one.label, sub: KIND_WORD[one.kind] ?? one.kind, body: PLANNED.adding, role: "member", logo: <MemberLogo spec={logoOf(one.ref, logos)} size={32} />, broad: true, pending: true })),
   ];
   const hasTop = head !== null || noLead;
   const rowTop = hasTop ? TOP + leadH + DROP : TOP;
@@ -161,7 +146,7 @@ export function PlannedTeam({
         )}
         {!head && noLead && (
           <PlannedCard
-            card={{ ref: "lead", label: "No lead for now", sub: "Lead", body: LEAD_WOULD, role: "lead", logo: <LogoTile icon={IconLead} size={32} />, broad: false }}
+            card={{ ref: "lead", label: NO_LEAD_YET, sub: roleLabel("lead"), body: LEAD_WOULD, role: "lead", logo: <LogoTile icon={IconLead} size={32} />, broad: false }}
             at={{ x: 0, y: TOP }}
             box={top}
             selected={selection.kind === "pool" && selection.focus === "lead"}

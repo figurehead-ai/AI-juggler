@@ -19,7 +19,7 @@ import { RoleCards } from "../../pages/pool/setup/RoleCards";
 import { NewPoolEveryone } from "./NewPoolEveryone";
 import { NewPoolReview } from "./NewPoolReview";
 import { NewPoolWho } from "./NewPoolWho";
-import { whoLine } from "../../lib/pool-wizard-words";
+import { whoLine } from "../../lib/pool-values";
 
 beforeEach(() => resetPreviewAgentBridge());
 afterEach(cleanup);
@@ -129,10 +129,10 @@ describe("AJ-E3011 round 2", () => {
 
   it("#6, #8: Who's in says who in words, and keeps the rarer kinds under More", () => {
     // D-126: said by the preview beside the form, as Review will.
-    const view = (named: string[], everyone: boolean) => ({ named: named.map((name) => ({ ref: `app:${name}`, name, role: "member" as const })), everyone, where: "web" });
-    expect(whoLine(view(["Claude · Work", "Codex · Personal"], true))).toBe("Claude and Codex, and every new session in web");
-    expect(whoLine(view([], true))).toBe("Every new session in web");
-    expect(whoLine(view([], false))).toBe("No one yet");
+    const shape = (named: string[], everyone: boolean) => ({ members: [...named.map((label) => ({ ref: `app:${label}`, label, role: "member" as const, level: null, later: true })), ...(everyone ? [{ ref: "all", label: "Everyone in web", role: "member" as const, level: null, later: false }] : [])] });
+    expect(whoLine(shape(["Claude · Work", "Codex · Personal"], true), "web")).toBe("Claude and Codex, and every new session in web");
+    expect(whoLine(shape([], true), "web")).toBe("Every new session in web");
+    expect(whoLine(shape([], false), "web")).toBe("No one yet");
     const none = { session: [], app: [], account: [], tool: [], mac: [], everyone: [] } as Record<MemberKind, Candidate[]>;
     const draft: Draft = { ...draftOf(templateById("blank"), "p-web"), members: [{ ref: "all", kind: "everyone", label: "Everyone", role: "member", level: null, reach: "later" }] };
     render(<NewPoolWho draft={draft} onDraft={() => undefined} candidates={none} onFix={() => undefined} where="web" nameOf={(ref, label) => (ref === "all" ? "Everyone in web" : label)} />);

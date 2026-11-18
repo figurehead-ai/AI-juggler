@@ -7,7 +7,9 @@
  */
 import type { PoolRole } from "./ipc/pools";
 import type { TalkRule } from "./ipc/pool-model";
+import { listWords } from "./account-terms";
 import { effectiveRule, ruleOf, TALK_ROLES, type PairKey } from "./pool-templates";
+import { shortNames } from "./pool-values";
 import { TALK_WORDS, joinSentence, leadSentence, levelSentence, memberSentence, nextLeadsSentence, roleCard } from "./pool-words";
 
 /** One member, by its name on screen. */
@@ -93,9 +95,6 @@ export const ownLine = (shape: Pick<PoolShape, "level" | "picked">): string => l
 export const sealLine = (shape: Pick<PoolShape, "sealed">): string =>
   shape.sealed ? "Sealed: its sessions are in no other pool, and nothing leaves it through AI Juggler." : "Not sealed: its sessions can be in other pools too.";
 
-/** "A", "A and B", "A, B and C". */
-const listWords = (names: readonly string[]) => (names.length <= 1 ? (names[0] ?? "") : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`);
-
 /** What happens next, in one line, once the pool is ready (round 4 #3):
  * "Open Claude Code · Work in web first: it leads; Codex checks its work;
  * their messages show here". The diagram's checklist and Review say it
@@ -129,9 +128,8 @@ export function firstPrompt(shape: Pick<PoolShape, "members" | "leadNext">, wher
   // round 7: by its whole name, as its card says it, where another member
   // shares that tool's name (two profiles of the Claude app: "Claude app ·
   // Side", never "Claude app" for both).
-  const short = (label: string) => label.split(" · ")[0]!;
-  const shared = (label: string) => shape.members.filter((member) => short(member.label) === short(label)).length > 1;
-  const reviewers = shape.members.filter((member) => member.role === "reviewer").map((member) => (shared(member.label) ? member.label : short(member.label)));
+  const names = shortNames(shape.members.map((member) => member.label));
+  const reviewers = shape.members.flatMap((member, at) => (member.role === "reviewer" ? [names[at]!] : []));
   const review = reviewers.length > 0 ? `, and ask ${listWords(reviewers)} to review` : "";
   return { to: lead.label, words: `Plan the work in ${where}, hand out tasks${review}.` };
 }

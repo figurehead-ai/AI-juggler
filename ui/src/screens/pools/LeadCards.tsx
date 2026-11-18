@@ -14,7 +14,7 @@ import { LogoTile } from "../../components/ToolLogo";
 import type { LeadChoice } from "../../lib/new-pool";
 import { LEAD_WOULD, leadSentence, nextSessionWords } from "../../lib/pool-words";
 import type { LeadApp, LeadSession } from "../../pages/pool/setup/LeadPicker";
-import { logoOf, MemberLogo, type LogoSources } from "./MemberLogo";
+import { logoOf, MemberLogo, type LogoSources } from "../../components/MemberLogo";
 
 /** A choice as its card's value: `session|<ref>`, `next|<app>`, `none`. */
 export const leadValue = (choice: LeadChoice): string => (choice.kind === "none" ? "none" : choice.kind === "session" ? `session|${choice.ref}` : `next|${choice.app}`);

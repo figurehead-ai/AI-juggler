@@ -94,7 +94,8 @@ describe("round 7 #2: the connector on Who's in's own row", () => {
 // #3 (Sam's walk): the roles step's title says what's chosen there.
 describe("round 7 #3: the roles step's title", () => {
   it("reads Who builds, who checks, in the setup's steps and the pool's own sections", () => {
-    expect(STEP_WORDS.everyone).toEqual({ title: "Who builds, who checks", nav: "Who builds, who checks", why: "Each member's role, and how new sessions join." });
+    // D-126: its short name in the checklist and the preview's rows is the mock-ups' "Roles".
+    expect(STEP_WORDS.everyone).toEqual({ title: "Who builds, who checks", nav: "Who builds, who checks", short: "Roles", why: "Each member's role, and how new sessions join." });
     expect(SENTENCE_TITLES.everyone).toBe("Who builds, who checks");
   });
 });

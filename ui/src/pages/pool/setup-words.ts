@@ -1,23 +1,14 @@
 /**
- * 0.4.6 (D-126 §3): the words of a pool's page while it's being set up —
- * its checklist (short names, each with its value under it, the open one
- * with what it does), the header's progress, and the calm live view once
- * it runs. The wizard's words are
- * its own (lib/pool-wizard-words); these are the made pool's.
+ * 0.4.6 (D-126 §3): the words only a pool's page says while it's being
+ * set up — its checklist's open item and what's left, the header's
+ * progress, the panel's foot, and the planned team's own lines. The
+ * wizard's own words are lib/pool-wizard-words'; what both say — each
+ * step's short name, a role's, a lead's, an App's kind, the Messages
+ * ways — is lib/pool-words', and each step's value lib/pool-values'.
  */
 import { POOLS_GUIDE, type SETUP_STEPS } from "../../lib/pool-words";
 
 type Step = (typeof SETUP_STEPS)[number];
-
-/** The checklist's rows by their short names (the mock-up's). */
-export const CHECK_TITLES: Record<Step, string> = {
-  where: "Where",
-  who: "Who's in",
-  lead: "Who leads",
-  everyone: "Roles",
-  talk: "Messages",
-  own: "On their own",
-};
 
 /** The team tools as the checklist's last item (D-30's one question,
  * there instead of a banner over the page). */
@@ -57,16 +48,13 @@ export function leftWords(left: number, toolsLeft: boolean): string {
   return `${left} things left`;
 }
 
-/** The planned team on the diagram, before any session has joined. */
+/** The planned team on the diagram, before any session has joined (its
+ * cards' kinds, the lead's line and everyone's are pool-words'). */
 export const PLANNED = {
   title: "Your team is drawn. No one has joined yet.",
   line: (where: string) => `Sessions show up here as they start in ${where}. Click a card to see what it may do.`,
-  leadSub: (where: string) => `Lead · its next session in ${where}`,
   leadBody: "No session yet. Start one and it takes the lead.",
   appBody: (where: string) => `Its sessions in ${where} join as they start.`,
   everyoneSub: "every new session",
-  everyoneBody: "Joins by itself, now and later.",
-  /** An App's kind, as Who's in names it. */
-  appKind: { desktop: "Desktop app", cli: "Terminal" } as const,
   adding: "Adding…",
 };

@@ -14,7 +14,7 @@
 import { memo, useState, type JSX, type MouseEvent } from "react";
 import { appName } from "../../lib/app-name";
 
-import { ToolLogo } from "../../components/ToolLogo";
+import { logoOf, MemberLogo } from "../../components/MemberLogo";
 import { useActionHost } from "../../components/ItemMenu";
 import { ShellOnly } from "../../components/ShellOnly";
 import { IconMore } from "../../components/icons-canvas";
@@ -84,8 +84,9 @@ function FullNode({ member, at, asks, held, selected, tabStop, dragging, fade = 
         </span>
       )}
       <div className="flex min-w-0 items-start gap-2.5">
-        {/* Its App's own icon, a CLI's with its terminal badge (D-126). */}
-        <ToolLogo tool={member.session.provider} kind={member.session.kind === "desktop" ? "desktop" : "cli"} size={32} />
+        {/* Its App's own icon, a CLI's with its terminal badge: a member's
+            one logo (D-126), its role in words beside it. */}
+        <MemberLogo spec={logoOf(`session:${member.session.id}`, { apps: [], sessions: [member.session] })} size={32} />
         <div className="flex min-w-0 flex-1 flex-col">
           {/* The node is this button (P5, AJ-E3304 L4: an accessibility
               press on the node did nothing): it covers the card, so a

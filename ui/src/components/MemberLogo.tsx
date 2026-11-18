@@ -1,8 +1,10 @@
 /**
- * 0.4.6 (D-126): a pool member's logo on the making screens and the
- * Pools card. An App or a session shows its tool's logo (ToolLogo: the
- * app's own icon, read at run time from this Mac, D-38; a CLI its
- * vendor's app icon with a terminal badge); what has no logo of its own
+ * 0.4.6 (D-126): a pool member's logo, wherever one is drawn — New
+ * pool's screens, the Pools card, and the pool's diagram (its planned
+ * team and its session nodes): one function from a member's ref to its
+ * logo, one component. An App or a session shows its tool's logo
+ * (ToolLogo: the app's own icon, read at run time from this Mac, D-38; a
+ * CLI its vendor's app icon with a terminal badge); what has no logo of its own
  * (everyone in the projects, an Account, a Mac) a tile with its icon.
  * A small mark at the corner says a role: the lead's crown in the
  * accent, a reviewer's shield. Decorative: the member's name is always
@@ -10,15 +12,15 @@
  */
 import type { JSX } from "react";
 
-import type { ControlIcon } from "../../components/controls";
-import { IconComputer } from "../../components/icons-actions";
-import { IconLead, IconTasks } from "../../components/icons-canvas";
-import { IconView } from "../../components/icons-places";
-import { IconProfiles, IconSessions, IconShield, IconTerminal } from "../../components/icons";
-import { LogoTile, ToolLogo, type ToolLogoSize } from "../../components/ToolLogo";
-import type { AppModel } from "../../lib/apps";
-import type { PoolRole } from "../../lib/ipc/pools";
-import type { InstanceInfo } from "../../types/generated/InstanceInfo";
+import type { ControlIcon } from "./controls";
+import { IconComputer } from "./icons-actions";
+import { IconLead, IconTasks } from "./icons-canvas";
+import { IconView } from "./icons-places";
+import { IconProfiles, IconSessions, IconShield, IconTerminal } from "./icons";
+import { LogoTile, ToolLogo, type ToolLogoSize } from "./ToolLogo";
+import type { AppModel } from "../lib/apps";
+import type { PoolRole } from "../lib/ipc/pools";
+import type { InstanceInfo } from "../types/generated/InstanceInfo";
 
 /** Each role's icon on the making screens (the roles' tiles, the role
  * control, the mark on a logo). */
@@ -53,7 +55,8 @@ export function logoOf(ref: string, { apps, sessions }: LogoSources): LogoSpec {
       if (!session) return { kind: "tile", icon: IconSessions };
       const app = session.app_id ? apps.find((one) => one.id === session.app_id) : undefined;
       if (app) return app.kind === "desktop" ? { kind: "tool", tool: session.provider, look: "desktop", appId: app.appId, name: app.app } : { kind: "tool", tool: session.provider, look: "cli", name: app.app };
-      return { kind: "tool", tool: session.provider, look: "cli", name: session.provider };
+      // Its App not listed: its own kind still says which look.
+      return { kind: "tool", tool: session.provider, look: session.kind === "desktop" ? "desktop" : "cli", name: session.provider };
     }
     case "tool":
       return { kind: "tool", tool: id, look: "desktop", name: id };

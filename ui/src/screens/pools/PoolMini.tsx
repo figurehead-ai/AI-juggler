@@ -13,7 +13,7 @@ import type { PoolRole } from "../../lib/ipc/pools";
 import type { PoolRulesInfo } from "../../lib/ipc/pool-model";
 import { asRole } from "../../lib/pool-words";
 import type { InstanceInfo } from "../../types/generated/InstanceInfo";
-import { logoOf, MemberLogo, type LogoSources, type LogoSpec } from "./MemberLogo";
+import { logoOf, MemberLogo, type LogoSources, type LogoSpec } from "../../components/MemberLogo";
 
 export interface MiniMember {
   ref: string;

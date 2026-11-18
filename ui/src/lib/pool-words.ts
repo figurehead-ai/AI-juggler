@@ -14,6 +14,7 @@
  */
 import type { PoolRole } from "./ipc/pools";
 import type { TalkRule } from "./ipc/pool-model";
+import { observerReadsOnly, ruleOf, TALK_ROLES, type PairKey } from "./pool-templates";
 
 /** The guide's page on pools (opened in the browser by the app). */
 export const POOLS_GUIDE = "pools";
@@ -195,6 +196,22 @@ export const LEAD_WOULD = "A lead would split the work into tasks and hand them 
 /** "[App]'s next session" as the picker and the canvas name it. */
 export const nextSessionWords = (app: string): string => `${app}'s next session`;
 
+/** No lead chosen, as a step's value and New pool's drawing say it. */
+export const NO_LEAD_YET = "No lead yet";
+
+/** An App whose next session leads, under its name on a card: "Lead ·
+ * its next session" (New pool's preview), "… in web" (the diagram's
+ * planned team). */
+export const leadNextLine = (where?: string): string => `Lead · its next session${where ? ` in ${where}` : ""}`;
+
+/** Every new session in the pool's projects, under its name (Who builds'
+ * row, the planned team's card). */
+export const JOINS_BY_ITSELF = "Joins by itself, now and later";
+
+/** An App's kind in a word (Who's in's cards, Who builds' rows, the
+ * planned team's cards). */
+export const APP_KIND_WORDS: Record<"desktop" | "cli", string> = { desktop: "Desktop app", cli: "Terminal" };
+
 /** The talk table's words for each rule, and their attention level:
  * Allowed is calm (L0), Ask first needs you (L2), Blocked stops (L3). */
 export const TALK_WORDS: Record<TalkRule, { label: string; level: 0 | 2 | 3 }> = {
@@ -205,6 +222,44 @@ export const TALK_WORDS: Record<TalkRule, { label: string; level: 0 | 2 | 3 }> =
 
 /** A stored talk rule as a rule (allowed otherwise). */
 export const asTalkRule = (rule: string | null | undefined): TalkRule => (rule === "ask" || rule === "blocked" ? rule : "allowed");
+
+/** D-126: who may message whom, three ways (New pool's cards, the value
+ * under Messages on both paths). Each is a whole talk grid of the rules
+ * there are (no new backend). */
+export type TalkPreset = "free" | "ask" | "lead";
+
+export interface TalkPresetWords {
+  id: TalkPreset;
+  label: string;
+  line: string;
+  /** Its value under the step's name. */
+  short: string;
+  grid: Partial<Record<PairKey, TalkRule>>;
+}
+
+export const TALK_PRESETS: readonly TalkPresetWords[] = [
+  { id: "free", label: "Everyone talks freely", line: "Any member may message any other.", short: "Everyone, freely", grid: observerReadsOnly },
+  { id: "ask", label: "Members ask you first", line: "Between members, each message waits for your OK.", short: "Members ask you first", grid: { ...observerReadsOnly, "member>member": "ask" } },
+  {
+    id: "lead",
+    label: "Members go through the lead",
+    line: "Members message only the lead and the reviewer.",
+    short: "Through the lead",
+    grid: { ...observerReadsOnly, "member>member": "blocked", "member>observer": "blocked" },
+  },
+];
+
+/** A grid no way matches (a cell changed by hand). */
+export const OWN_MIX = "Your own mix";
+
+/** The way a talk grid is, cell for cell; `null`: none (its own mix). An
+ * Observer only reads (its messages are blocked or wait for you), so its
+ * row is no exception and isn't compared. */
+export function presetOf(talk: Partial<Record<PairKey, TalkRule>>): TalkPreset | null {
+  const senders = TALK_ROLES.filter((from) => from !== "observer");
+  const same = (grid: Partial<Record<PairKey, TalkRule>>) => senders.every((from) => TALK_ROLES.every((to) => ruleOf(talk, from, to) === ruleOf(grid, from, to)));
+  return TALK_PRESETS.find((preset) => same(preset.grid))?.id ?? null;
+}
 
 /** What "Needs you" is, said at its first mention on the pool screens
  * (round 3, #5: the walk didn't know it). */
@@ -240,17 +295,20 @@ export function wakeWords(level: string, cantWake = false, many = false): string
 export const SETUP_STEPS = ["where", "who", "lead", "everyone", "talk", "own"] as const;
 export type SetupStep = (typeof SETUP_STEPS)[number] | "template" | "tools" | "review";
 
-export const STEP_WORDS: Record<SetupStep, { title: string; nav: string; why: string }> = {
-  template: { title: "How to start", nav: "Start", why: "A template fills in roles and who may message whom; you can change any of it." },
-  where: { title: "Where", nav: "Where", why: "Sessions in these projects can join." },
-  who: { title: "Who's in", nav: "Who's in", why: "Only these work together." },
-  lead: { title: "Who leads", nav: "Who leads", why: "The lead plans and hands out the work. Pick one to be in charge, or leave it for now." },
+/** Each step's heading, its name in New pool's steps (`nav`), its short
+ * name (`short`: the canvas checklist's rows and New pool's preview rows,
+ * D-126's mock-ups) and one line on why. */
+export const STEP_WORDS: Record<SetupStep, { title: string; nav: string; short: string; why: string }> = {
+  template: { title: "How to start", nav: "Start", short: "Start", why: "A template fills in roles and who may message whom; you can change any of it." },
+  where: { title: "Where", nav: "Where", short: "Where", why: "Sessions in these projects can join." },
+  who: { title: "Who's in", nav: "Who's in", short: "Who's in", why: "Only these work together." },
+  lead: { title: "Who leads", nav: "Who leads", short: "Who leads", why: "The lead plans and hands out the work. Pick one to be in charge, or leave it for now." },
   // Round 7 (Sam's walk): the title says what's chosen here, the checker
   // too (it read "Everyone else", and he missed where the reviewer is).
-  everyone: { title: "Who builds, who checks", nav: "Who builds, who checks", why: "Each member's role, and how new sessions join." },
-  talk: { title: "Who may message whom", nav: "Who may message whom", why: "Set an exception only where you want one; the rest is allowed." },
-  own: { title: "What they may do on their own", nav: "On their own", why: "Anything more waits for your OK in Needs you." },
+  everyone: { title: "Who builds, who checks", nav: "Who builds, who checks", short: "Roles", why: "Each member's role, and how new sessions join." },
+  talk: { title: "Who may message whom", nav: "Who may message whom", short: "Messages", why: "Set an exception only where you want one; the rest is allowed." },
+  own: { title: "What they may do on their own", nav: "On their own", short: "On their own", why: "Anything more waits for your OK in Needs you." },
   // Round 4 (D-30): the one question, its own step while unanswered.
-  tools: { title: "Team tools", nav: "Team tools", why: "Asked once, the first time you make a pool." },
-  review: { title: "Review", nav: "Review", why: "The whole pool in sentences, before it's made." },
+  tools: { title: "Team tools", nav: "Team tools", short: "Team tools", why: "Asked once, the first time you make a pool." },
+  review: { title: "Review", nav: "Review", short: "Review", why: "The whole pool in sentences, before it's made." },
 };
