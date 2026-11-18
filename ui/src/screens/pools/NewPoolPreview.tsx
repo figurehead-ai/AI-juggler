@@ -184,7 +184,9 @@ export function NewPoolPreview({
         </span>
       </div>
       <div className="shrink-0">{diagram}</div>
-      <div className="min-h-0 overflow-y-auto" data-testid="new-pool-preview-scroll">
+      {/* WCAG 2.1.1 (axe scrollable-region-focusable): it scrolls when the
+          window is short, so the keyboard can reach and scroll it too. */}
+      <div role="region" aria-label="The team in words" tabIndex={0} className="min-h-0 overflow-y-auto rounded-md outline-none focus-visible:ring-2 focus-visible:ring-accent/60" data-testid="new-pool-preview-scroll">
         {extra ?? <PreviewRows rows={rows} current={current} />}
       </div>
       {foot && (

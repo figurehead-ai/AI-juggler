@@ -65,6 +65,9 @@ describe("the rc3 critique", () => {
     await waitFor(() => expect(screen.getByTestId("new-pool-preview")).toBeTruthy());
     expect(screen.getByTestId("new-pool-preview").className).toMatch(/max-h-\[calc\(100dvh-\d+px\)\]/);
     expect(screen.getByTestId("new-pool-preview-scroll").className).toContain("overflow-y-auto");
+    // It scrolls on a short window, so the keyboard reaches it (axe scrollable-region-focusable).
+    const words = screen.getByRole("region", { name: "The team in words" });
+    expect(words.getAttribute("tabindex")).toBe("0");
     // In the layout's sticky column, beside the form.
     expect(screen.getByTestId("flow-preview").className).toContain("sticky");
   });
