@@ -3572,3 +3572,15 @@ The two open questions in ADR-0035 (hosting; the default on) go to the maintaine
 
 - **Amends:** D-121 (Chat v1 read-only, now plus watches) and D-118's feed (a digest item type).
 - Sources: the maintainer's message, 2026-11-18.
+
+### D-133 Chat has short- and long-term memory, with careful context budgeting — SETTLED (2026-11-18)
+
+**Ruling.** The maintainer, 2026-11-18: "0.5 should have a memory, short and long term, and being able to remember what user has previously asked the chat. But we have to be very smart with context." They pointed to jive-code-graph's smart-context and world-model memory as a source of ideas, not as a system to copy.
+
+1. **Short-term memory:** the current conversation, plus a rolling summary of earlier turns, kept within a fixed token budget.
+2. **Long-term memory:** what the user asked before, their standing requests and watches (D-132), and their stated preferences. Each memory carries where it came from and when. It's stored locally (SQLite), never synced, and visible, editable and clearable in Settings.
+3. **Facts about agents, projects and sessions are not memories.** They're read live from AI Juggler's own data when a question needs them, so they're never stale.
+4. **Context assembly works to a budget** that fits Apple's model (about 4K tokens on macOS 26, 8K on 27). Each section (instructions, memories, live facts, the conversation) gets a share, and retrieval ranks what earns a place.
+5. **Design:** an ADR (Opus), informed by a research pass over jive-code-graph's memory architecture, before building. It's tested through the same harness (D-130): a remembered answer must never be invented or outdated.
+
+- Sources: the maintainer's message, 2026-11-18.
