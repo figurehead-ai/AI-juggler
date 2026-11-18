@@ -124,16 +124,22 @@ Every write passes, in order, in one short hold (ADR-0030), with the record's lo
 
 #### 1.5 "Forget" really deletes
 
-Forgetting a record forgets its **subject**: every version of that subject key. One transaction, run with `PRAGMA secure_delete = ON` for that hold (SQLite overwrites the freed pages with zeros), then a `wal_checkpoint(TRUNCATE)`:
+Forgetting a record forgets its **subject**: every version of that subject key. One transaction, run with `PRAGMA secure_delete = ON` (SQLite overwrites the freed cells and pages with zeros) and `recursive_triggers` on for that hold, then a `wal_checkpoint(TRUNCATE)`. As built after the independent security review (`docs/security/review-memory-forget-step1.md`, its highs and mediums fixed):
 
-1. the rows of every version, and their `memory_entities` rows (cascade);
-2. their `memory_fts` entries (removed at once: the index is created with FTS5's `secure-delete` option, so nothing lingers as a tombstone until a merge);
-3. the log's text sidecars about that subject (`ai_log_text` rows with its `subject_key`, §7); the log's spine rows keep only ids and codes, so they say "a memory was forgotten" and nothing of what it said;
-4. for an `asked` subject, its `answer` subject too, and the conversation turns it was recorded from when the user chose "Forget this conversation".
+1. the rows of every version, and their `memory_entities` rows;
+2. their `memory_fts` entries, removed at once (FTS5's `secure-delete` option); **then the index is rewritten** (`optimize`) in the same transaction, because `secure-delete` leaves each page's separator in `memory_fts_idx`, the prefix of the page's first term, so a forgotten word that started a page would otherwise survive almost whole (the review's H1);
+3. **the Chat turns it came from or was used in** (its versions' `source_id`, and `chat_turn_memory`, the link each turn's receipt writes): their words are redacted (the question emptied, the shown answer cleared, the turn marked `redacted`), and a conversation whose title was taken from one (`title_turn`) is renamed from its first turn left, else "Earlier conversation" (H2). The turns stay as rows, so a conversation keeps its shape and the ledger (§5.4) counts what's left;
+4. the log's text sidecars about it: by its random `subject_id` (`memory_subject`, §7.1), by an event naming one of its versions, and by an event naming one of its turns. The spine's rows keep only ids and codes, so they say "a memory was forgotten" and nothing of what it said;
+5. for an `asked` subject, its `answer` subject too; "Forget this conversation" removes the conversation's turns as well;
+6. a **tombstone** (`memory_forgotten`: the subject's random id and when, never its key or text, on this Mac only).
 
-**The same deletion reaches every copy AI Juggler keeps:**
-- **Pre-migration copies** (`<file>.before-v<N>`): when a copy is written, the memory, conversation and log-text tables are emptied in the copy with `secure_delete` on before it is flushed. A copy exists for going back to an older build; going back costs the memory, which is the safe direction.
-- **Backups** (ADR-0016): by §1.8's rule. A backup is a snapshot of the database as it is now, so a forgotten subject is in no backup made after the forget; its scrub runs with `secure_delete` on and compacts the file, so no freed page carries it either. A forget also leaves a **tombstone** (`memory_forgotten`: the subject's random id and when, never its key or text, on this Mac only), and a restore drops every subject the tombstones name, so restoring an older backup on this Mac doesn't bring a forgotten memory back. Backups already made still hold what they held; the backup page says so (§1.8).
+**The same deletion reaches every copy AI Juggler keeps, or the copy keeps no memory at all:**
+- **AI Juggler's own copies hold no memory:** the copy before a migration (`<file>.before-v<N>`), the backup before an update, and the copy before a restore are emptied of memory, conversations and sidecars, with `secure_delete` on, before they are kept. A later forget couldn't reach them, so they never hold what it would need to reach; going back costs the memory, which is the safe direction.
+- **The copy before a restore** (`juggler.sqlite.before-restore-<stamp>`) keeps no memory however the restore ends, and is deleted after a day (at start and at each restore), H3. A restore that fails its count check keeps its copy under its own name, as the way back, unpruned.
+- **A restore** applies this Mac's tombstones to the staged backup **before** it replaces anything (M1), then again after, as a check, so a backup made before a forget brings nothing forgotten back, turns included.
+- **Backups** (ADR-0016): by §1.8's rule. Each is a snapshot taken now, so a forgotten subject is in none made after the forget; its scrub builds the FTS index fresh from the rows left and compacts the file, so neither a freed page nor an index separator carries it.
+- **Backup files the user exported before the forget** are theirs: AI Juggler can't reach a file once it's saved, and such files don't rotate. The backup page and the forget sheet say so plainly (`features::ai::memory::FORGET_AND_BACKUPS`: "A backup file you exported before still holds them until you delete that file"). Scrubbing them was rejected: they may be anywhere (another disk, a cloud folder), and rewriting a user's archive behind their back could break the one copy they trusted.
+- **Out of reach by design:** the file system's own copies of freed blocks (APFS snapshots, Time Machine). A WAL fold blocked by another connection's open read leaves the frames until the next full checkpoint (`Forgotten::wal_folded`; maintenance retries it, step 3).
 
 **Clear actions** (Settings › AI › Memory, §9) are forgets over sets of subjects: "Forget everything about web" (by `memory_entities`), "Forget this conversation", "Forget all memory".
 
@@ -169,16 +175,18 @@ CREATE TABLE chat_turns (id TEXT PRIMARY KEY,
 
 The coordinating session's call on this ADR's open question (2026-11-18), recorded in [D-133](../review/decision-log.md). Memory is split by what it is; the split is by row, decided by the record's kind and authority, and lives in one place (`storage::memory::backup`), which the backup's scrub calls for every destination:
 
-| What | Local backups (Export, the copy before an update) | The encrypted cloud backup (when it is on) |
-|---|---|---|
-| **Stated settings:** `standing_request` and `preference` versions whose authority is `user` (the watches and preferences the user set up), with their `memory_entities` rows | yes | yes |
-| **Chat's words and what was derived from them:** every other record (`note`, `asked`, `answer`, `digest`, anything `model`- or `agent`-authored, an earlier model-noted version of a preference), `chat_conversations`, `chat_turns`, the log (`ai_log`, its sidecars, its watermarks) | yes | **never** (D-121: Chat's content never leaves the Mac) |
-| **Forget tombstones** (`memory_forgotten`) | no: this Mac's own, kept on restore | no |
+| What | The user's export | AI Juggler's own copies (before an update, a migration, a restore) | The encrypted cloud backup (when it is on) |
+|---|---|---|---|
+| **Stated settings:** a `standing_request`, or a `preference` that names an entity in a label of at most 60 characters; by the user, trusted, from a setting's source (Settings, the Watches view, a confirmed Chat draft); with its `memory_entities` rows | yes | no | yes |
+| **Chat's words and what was derived from them:** every other record (`note`, `asked`, `answer`, `digest`, anything `model`- or `agent`-authored, an earlier model-noted version of a preference), `chat_conversations`, `chat_turns`, the log's sidecars | yes | no | **never** (D-121: Chat's content never leaves the Mac) |
+| **The log's spine** (ids and codes) | yes | yes | no |
+| **Forget tombstones** (`memory_forgotten`) | no: this Mac's own, kept on restore | no | no |
 
-- **A note is Chat's words.** The user stated it, but in free words typed into Chat, which can hold anything; so it travels as chat history does: local backups only. Watches and preferences are typed settings from a closed set of slots (§1.1).
+- **A note is Chat's words.** The user stated it, but in free words typed into Chat, which can hold anything; so it travels as chat history does: local backups only. Watches and preferences are typed settings: a preference must name an entity in a short label, and the write gate refuses any other shape (`PreferenceShape`), so the remember flow keeps free words as a note (the review's M3).
+- **Who may claim a setting** (the review's M2): a `KindWriter` can't be made outside the store; `Writers::issue` hands each owner its one writer at start, and the gate refuses a kind, authority or source it doesn't cover. A label holding agent words is `RecordText::Untrusted`, by type, and an untrusted record is never a stated setting.
 - **A stated setting goes with its history, minus what isn't a setting:** an earlier, model-noted version of a preference the user then restated stays out of the cloud copy, and the link to it is cut (`supersedes` set to NULL, the one change the content triggers allow, §1.4).
-- **The cloud copy's FTS index is kept in step by its own triggers** as rows are removed (a rebuild would index superseded rows too), and the log's watermarks move past what was removed (as Clear AI activity does, §7.3), so the copy's own triggers hold.
-- **Forget reaches the next backup** (§1.5): the backup page says, beside the memory line, "Forgotten memories are left out of every backup made after you forget them. Backups you made before still hold them; restoring one on this Mac doesn't bring them back."
+- **The cloud copy is a filtered export:** the stated settings are read out, every memory table is emptied, and they are written back as new rows into an empty index (only current, trusted rows are indexed), so nothing of the source file's memory or its index structure travels; the log's watermarks move past what was removed (as Clear AI activity does, §7.3), so the copy's own triggers hold; and the backup's compaction rebuilds every page. The user's export gets the same fresh index.
+- **Forget reaches the next backup** (§1.5): the backup page and the forget sheet say "Forgotten memories are left out of every backup made after you forget them. A backup file you exported before still holds them until you delete that file: AI Juggler can't reach a file once it's saved. AI Juggler's own copies, kept before an update or a restore, hold no memories at all." Restoring an older export on this Mac doesn't bring them back (the tombstones).
 - **Restoring a cloud backup:** what it carries replaces the stated settings; whether this Mac's own Chat history is kept beside them, rather than replaced by the backup's (which has none), is decided with the backup page (AJ-E3819 step 4), and until then a restore replaces everything, as it does today.
 
 ### 2. Tiers, promotion, decay and maintenance
