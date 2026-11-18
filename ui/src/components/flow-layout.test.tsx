@@ -27,26 +27,29 @@ const GROUPS = [
   { id: "finish", label: "Finish" },
 ];
 
+/** A step button by its step name (its name goes on with its value). */
+const STEP = (name: string) => new RegExp(`^${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(\\s|$)`);
+
 describe("FlowSteps", () => {
   it("is a nav of steps in groups, each named, its value said with it, the current one marked", () => {
     render(<FlowSteps steps={STEPS} groups={GROUPS} onPick={() => {}} />);
     const nav = screen.getByRole("navigation", { name: "Steps" });
     expect(within(nav).getByText("How they work")).toBeTruthy();
     expect(within(nav).getByText("prefilled")).toBeTruthy();
-    const where = screen.getByRole("button", { name: "Where" });
-    expect(where.getAttribute("aria-describedby")).toBeTruthy();
-    expect(document.getElementById(where.getAttribute("aria-describedby")!)!.textContent).toBe("web · done");
-    expect(screen.getByRole("button", { name: "Who's in" }).getAttribute("aria-current")).toBe("step");
-    expect(screen.getByRole("button", { name: "Who leads" }).getAttribute("aria-current")).toBeNull();
+    // WCAG 2.5.3: a step's name is what it shows, the step and its value.
+    const where = screen.getByRole("button", { name: "Where web, done" });
+    expect(where.getAttribute("aria-describedby")).toBeNull();
+    expect(screen.getByRole("button", { name: STEP("Who's in") }).getAttribute("aria-current")).toBe("step");
+    expect(screen.getByRole("button", { name: STEP("Who leads") }).getAttribute("aria-current")).toBeNull();
   });
 
   it("numbers the steps across groups and goes back to a done one; one not reachable yet can't be picked", () => {
     const pick = vi.fn();
     render(<FlowSteps steps={STEPS} groups={GROUPS} onPick={pick} />);
-    expect(screen.getByRole("button", { name: "Who leads" }).textContent).toContain("4");
-    fireEvent.click(screen.getByRole("button", { name: "Where" }));
+    expect(screen.getByRole("button", { name: STEP("Who leads") }).textContent).toContain("4");
+    fireEvent.click(screen.getByRole("button", { name: STEP("Where") }));
     expect(pick).toHaveBeenCalledWith("where");
-    expect(screen.getByRole("button", { name: "Review" }).matches(":disabled")).toBe(true);
+    expect(screen.getByRole("button", { name: STEP("Review") }).matches(":disabled")).toBe(true);
   });
 });
 

@@ -37,6 +37,9 @@ const nextTo = (step: string) => {
   expect(screen.getByTestId(`new-pool-step-${step}`)).toBeTruthy();
 };
 
+/** A step button by its step name (its name goes on with its value). */
+const STEP = (name: string) => new RegExp(`^${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(\\s|$)`);
+
 describe("the steps beside the form (D-126)", () => {
   // Each step's value under its name: what it's set to once walked, what
   // it's filled in with before; The basics say nothing yet.
@@ -48,8 +51,8 @@ describe("the steps beside the form (D-126)", () => {
     expect(value("talk")).toBe("Everyone, freely");
     expect(value("own")).toBe("Work together");
     nextTo("who");
-    expect(value("template")).toBe("From scratch · done");
-    expect(value("where")).toBe("ai-juggler · done");
+    expect(value("template")).toBe("From scratch, done");
+    expect(value("where")).toBe("ai-juggler, done");
     // How they work says it's prefilled until it's reached.
     expect(screen.getByTestId("new-pool-steps").textContent).toContain("prefilled");
     nextTo("lead");
@@ -60,9 +63,9 @@ describe("the steps beside the form (D-126)", () => {
     let picked = -1;
     render(<NewPoolSteps steps={["template", "where", "who", "lead", "review"]} step={1} furthest={1} valueOf={() => null} onPick={(at) => (picked = at)} />);
     const nav = screen.getByRole("navigation", { name: "Steps" });
-    expect(within(nav).getByRole("button", { name: "Where" }).getAttribute("aria-current")).toBe("step");
-    expect(within(nav).getByRole("button", { name: "Who leads" })).toHaveProperty("disabled", true);
-    fireEvent.click(within(nav).getByRole("button", { name: "Start" }));
+    expect(within(nav).getByRole("button", { name: STEP("Where") }).getAttribute("aria-current")).toBe("step");
+    expect(within(nav).getByRole("button", { name: STEP("Who leads") })).toHaveProperty("disabled", true);
+    fireEvent.click(within(nav).getByRole("button", { name: STEP("Start") }));
     expect(picked).toBe(0);
     expect(within(nav).getByRole("button", { name: "Read the 2-minute guide" })).toBeTruthy();
   });

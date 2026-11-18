@@ -137,8 +137,9 @@ export function FlowSteps({
                     onClick={() => onPick(step.id)}
                     disabled={step.disabled}
                     aria-current={step.state === "current" ? "step" : undefined}
-                    aria-labelledby={`${id}-name`}
-                    aria-describedby={`${id}-more`}
+                    // WCAG 2.5.3: its name holds what it shows, the step and
+                    // its value ("Who's in, Claude and Codex"), not the step alone.
+                    aria-labelledby={`${id}-name ${id}-more`}
                     className={"flex w-full items-start gap-3 rounded-[10px] px-2.5 py-2 text-left outline-none focus-visible:ring-2 focus-visible:ring-accent/60 disabled:cursor-default " + (step.state === "current" ? "bg-surface-2" : "hover:bg-surface-2 disabled:hover:bg-transparent")}
                     data-testid="flow-step"
                     data-step={step.id}
@@ -151,7 +152,8 @@ export function FlowSteps({
                       </span>
                       <span id={`${id}-more`} className={"-mt-0.5 text-label " + (step.state === "done" ? "text-muted" : "text-faint")}>
                         {step.value}
-                        {step.state === "done" && <span className="sr-only">{step.value ? " · done" : "Done"}</span>}
+                        {/* Part of its name: "Where web, done" (a leading space would be dropped). */}
+                        {step.state === "done" && <span className="sr-only">{step.value ? ", done" : "done"}</span>}
                       </span>
                     </span>
                   </button>
