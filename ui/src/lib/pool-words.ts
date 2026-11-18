@@ -19,13 +19,6 @@ import { observerReadsOnly, ruleOf, TALK_ROLES, type PairKey } from "./pool-temp
 /** The guide's page on pools (opened in the browser by the app). */
 export const POOLS_GUIDE = "pools";
 
-/** What a pool is, why, and what happens once it's made (the intro). */
-export const INTRO = {
-  what: "A pool is a team of your AI sessions working on the same projects.",
-  why: "They share messages, notes and tasks, and you approve what matters.",
-  after: "Once it's made, its sessions join as they start, and its diagram shows who does what.",
-};
-
 export interface RoleCard {
   id: PoolRole;
   label: string;

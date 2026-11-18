@@ -8,7 +8,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { resetPreviewAgentBridge } from "../../lib/ipc/agent-bridge";
 import { draftOf, type Candidate, type Draft } from "../../lib/new-pool";
 import { POOL_TEMPLATES, templateById } from "../../lib/pool-templates";
-import { INTRO } from "../../lib/pool-words";
+import { WIZARD_HEADS } from "../../lib/pool-wizard-words";
 import { cliFolderOf, leadFolder, startNextLead } from "../../lib/start-lead";
 import { draftPlaces, teamTools, teamToolsLine } from "../../lib/team-tools";
 import type { MemberKind } from "../../lib/ipc/pool-model";
@@ -157,9 +157,11 @@ describe("AJ-E3011 round 2", () => {
     expect(words).toEqual(expect.arrayContaining(["everyone may message", "look only", "members ask before messaging each other", "kept apart"]));
   });
 
-  it("#12, #13: a pool is defined in the intro's first line, and it's a diagram", () => {
-    expect(INTRO.what).toBe("A pool is a team of your AI sessions working on the same projects.");
-    expect(INTRO.after).toContain("diagram");
+  it("#12, #13: a pool is defined in the first step's first line, and it's a diagram", () => {
+    // D-126: How to start's own line defines it; the preview beside every
+    // later step is how its diagram will look.
+    expect(WIZARD_HEADS.template.why).toMatch(/^A pool is a team of your AI sessions on the same project\./);
+    expect(WIZARD_HEADS.review.why).toContain("diagram");
   });
 
   it("#16: the Subagents and Agent access tabs say what they are", () => {

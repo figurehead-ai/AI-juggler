@@ -23,7 +23,6 @@ import { NewPool, busiestProject, freeName, nameOnChoose } from "./NewPool";
 import { NewPoolReview } from "./NewPoolReview";
 import { talkSentence } from "../../lib/pool-sentences";
 import { NewPoolLead } from "./NewPoolLead";
-import { PoolIntro } from "../../pages/pool/setup/PoolIntro";
 import type { SetupStep } from "../../lib/pool-words";
 
 type Seams = { __AIJ_POOL_CALLS__?: string[] };
@@ -239,17 +238,6 @@ describe("AJ-E3007, AJ-E3011 the setup, start to end", () => {
     expect(previewValue("talk")).toContain("Observer to Lead: ask first");
     nextTo("review");
     expect(screen.getByTestId("new-pool-review").textContent).toContain(previewValue("talk") ?? "–");
-  });
-
-  it("the intro: full on the first pool, one line after it", () => {
-    const first = render(<PoolIntro first />);
-    expect(first.getByTestId("pool-intro").dataset.open).toBe("true");
-    expect(first.getByTestId("pool-intro-lines").textContent).toContain("A pool is a team of your AI sessions working on the same projects.");
-    first.unmount();
-    const later = render(<PoolIntro first={false} />);
-    const fold = later.getByTestId("pool-intro");
-    expect(fold.hasAttribute("data-open")).toBe(false);
-    expect(fold.querySelector("button[aria-expanded]")!.textContent).toContain("What a pool is");
   });
 
   it("AJ-E3007 R5: Back keeps every choice — the template, the members, the talk and the name", () => {
