@@ -16,7 +16,7 @@ import { NewPoolReview } from "./NewPoolReview";
 import { NewPoolTalk } from "./NewPoolTalk";
 import { NewPoolTemplate } from "./NewPoolTemplate";
 import { NewPoolTools } from "./NewPoolTools";
-import { NewPoolWhere } from "./NewPoolWhere";
+import { NewPoolWhere, type WhereProject } from "./NewPoolWhere";
 import { NewPoolWho } from "./NewPoolWho";
 
 export function NewPoolStep({
@@ -27,6 +27,7 @@ export function NewPoolStep({
   where,
   memberName,
   candidates,
+  sessions,
   projects,
   stepProjects,
   openNow,
@@ -49,7 +50,7 @@ export function NewPoolStep({
   candidates: Record<MemberKind, Candidate[]>;
   sessions: InstanceInfo[];
   projects: ProjectInfo[];
-  stepProjects: { id: string; name: string; root?: string; open: boolean }[];
+  stepProjects: WhereProject[];
   openNow: ReadonlyMap<string, number>;
   onFix: (row: Candidate) => void;
   onChoose: (template: string) => void;
@@ -65,7 +66,7 @@ export function NewPoolStep({
     case "template":
       return <NewPoolTemplate chosen={draft.template} onChoose={onChoose} first={firstPool} fold={foldTemplates} />;
     case "where":
-      return <NewPoolWhere draft={draft} onDraft={setDraft} projects={stepProjects} nameFixed={nameFixed} suggestedName={suggestedName} scopeFixed={scopeFixed} />;
+      return <NewPoolWhere draft={draft} onDraft={setDraft} projects={stepProjects} sessions={sessions} nameFixed={nameFixed} suggestedName={suggestedName} scopeFixed={scopeFixed} />;
     case "who":
       return <NewPoolWho draft={draft} onDraft={setDraft} candidates={candidates} onFix={onFix} nameOf={memberName} where={where} />;
     case "lead":

@@ -19,6 +19,9 @@ import { NewPoolPreview, PreviewDiagram, PreviewStrip, type PreviewNode, type Pr
 import { NewPoolStartSide } from "./NewPoolStartSide";
 import { NewPoolSteps } from "./NewPoolSteps";
 import { NewPoolTemplate } from "./NewPoolTemplate";
+import { cardProjects, NewPoolWhere, PROJECT_CARDS, projectLine } from "./NewPoolWhere";
+import { draftOf } from "../../lib/new-pool";
+import { templateById } from "../../lib/pool-templates";
 import { StepEyebrow, StepHead } from "./StepHead";
 
 beforeEach(async () => {
@@ -142,6 +145,45 @@ describe("How to start (D-126 cards)", () => {
     expect(chosen).toEqual(["writer-reviewer"]);
     view.rerender(<NewPoolTemplate chosen="blank" onChoose={() => undefined} first={false} />);
     expect(screen.queryByText("Suggested for a first pool")).toBeNull();
+  });
+});
+
+describe("Where (D-126 cards)", () => {
+  const NOW = 1_800_000_000_000;
+  const at = (id: string, project: string, status: string, ms: number): InstanceInfo => ({ ...MOCK_SESSIONS[0]!, id, project_id: project, provider: "claude-code", status, started_at_ms: ms, last_activity_ms: ms });
+  const sessions = [at("a", "web", "running", NOW - 60_000), at("b", "web", "running", NOW - 30_000), at("c", "api", "finished", NOW - 3 * 3_600_000)];
+  const projects = [
+    { id: "web", name: "web", open: true },
+    { id: "api", name: "api", open: false },
+  ];
+
+  it("each project's card says what's open in it now, or when it was last worked in", () => {
+    expect(projectLine("web", sessions, NOW)).toMatch(/^2 sessions open now · /);
+    expect(projectLine("api", sessions, NOW)).toBe("Nothing open now · last used 3 h ago");
+    expect(projectLine("docs", sessions, NOW)).toBe("Nothing open now");
+  });
+
+  it("shows the chosen, then open now, then the latest, at most six; the rest a search away", () => {
+    const many = Array.from({ length: 9 }, (_, n) => ({ id: `p${n}`, name: `p${n}`, open: n === 7 }));
+    const shown = cardProjects(many, ["p8"], []).map((one) => one.id);
+    expect(shown.slice(0, 2)).toEqual(["p8", "p7"]);
+    expect(shown).toHaveLength(PROJECT_CARDS);
+  });
+
+  it("the projects are checkboxes; Every project takes them all in; none chosen asks for one", () => {
+    let draft = { ...draftOf(templateById("blank"), "web") };
+    const view = render(<NewPoolWhere draft={draft} onDraft={(next) => (draft = next)} projects={projects} sessions={sessions} suggestedName="web team" now={NOW} />);
+    const group = screen.getByRole("group", { name: "Which project" });
+    expect(within(group).getByRole("checkbox", { name: "web" })).toHaveProperty("checked", true);
+    fireEvent.click(within(group).getByRole("checkbox", { name: "api" }));
+    expect(draft.projects).toEqual(["web", "api"]);
+    fireEvent.click(within(group).getByRole("checkbox", { name: "Every project" }));
+    expect(draft.every).toBe(true);
+    view.rerender(<NewPoolWhere draft={draft} onDraft={(next) => (draft = next)} projects={projects} sessions={sessions} suggestedName="web team" now={NOW} />);
+    expect(within(group).getByRole("checkbox", { name: "web" })).toHaveProperty("disabled", true);
+    view.rerender(<NewPoolWhere draft={{ ...draft, every: false, projects: [] }} onDraft={() => undefined} projects={projects} sessions={sessions} suggestedName="web team" now={NOW} />);
+    expect(screen.getByTestId("new-pool-where-words").dataset.level).toBe("needs-you");
+    expect(screen.getByRole("textbox", { name: "Pool name" })).toHaveProperty("placeholder", "web team");
   });
 });
 
