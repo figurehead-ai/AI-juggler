@@ -212,7 +212,7 @@
 **Files to touch**: `crates/juggler-adapters/src/opencode.rs`, `grok_build.rs`.
 **Handover note**: —
 
-### AJ-E1615 The sign-in surface: each App's own accessible name, the right provider, a fresh state on exit | Status: IN-PROGRESS (found 2026-11-16 by the AJ-E1612 sitting-2 dry run, `docs/qa/evidence/AJ-E1612/dry-run.md`; also on release/0.4.6: findings 1 and 2 are in 0.4.6's code and the 0.4.6 session cherry-picks the fixes there) | Priority P1 | Effort S | Depends: AJ-E1612
+### AJ-E1615 The sign-in surface: each App's own accessible name, the right provider, a fresh state on exit | Status: IN-PROGRESS (found 2026-11-16 by the AJ-E1612 sitting-2 dry run, `docs/qa/evidence/AJ-E1612/dry-run.md`; all three fixes are built on release/0.5: finding 1 in 11f3df7b3, finding 2 in 67266d82f, finding 3 in b1f51a136 and 045c97acb, with tests; also on release/0.4.6, where findings 1 and 2 are cherry-picked. Open: the a11y gate on the Sign in terminal page, [manifest](../qa/evidence/AJ-E1615/manifest.md) R4) | Priority P1 | Effort S | Depends: AJ-E1612
 **Goal**: The sign-in row, its button and its terminal belong to one App, name the right provider, and leave Home correct when the sign-in ends.
 **User story**: As a user with two Apps of the same label, or an assistive-tech user, I start the sign-in of the App I mean, and Home stops asking once I have signed in.
 **Findings**:
@@ -262,7 +262,7 @@
 **Research basis**: SPEC §10; EPICS M5-3.
 **Handover note**: —
 
-### AJ-E1612 Live checks in separate lab profiles | Status: IN-PROGRESS (staged 2026-11-14: scenario T16 seeds two fresh Apps per installed tool in a throwaway lab, the lab's Muse switch and its 1.4.13 gate are built, the run sheet `docs/qa/0.5-walks/AJ-E1612.md` and the maintainer's page beside it are written; the sitting itself pending) | Priority P0 | Effort M | Depends: AJ-E1601..AJ-E1609
+### AJ-E1612 Live checks in separate lab profiles | Status: IN-PROGRESS (staged 2026-11-14: scenario T16 seeds two fresh Apps per installed tool in a throwaway lab, the lab's Muse switch and its 1.4.13 gate are built, the run sheet `docs/qa/0.5-walks/AJ-E1612.md` and the maintainer's page beside it are written. Sitting 1 (2026-11-16) proved step 1 only, separate sign-in, for five tools; steps 2-6 not run. Dry run 1 on stand-ins was BLOCKED (Dev never frontmost; it found the wrong-row Sign in pick and the footer naming Anthropic) and dry run 2 was PARTIAL (the fixes AJ-E1615 passed for OpenCode, Kimi Code and Grok Build; it stopped after ZCode's sign-in when Dev's window left the screen); no per-tool session, resume, usage or lab-B result yet; Hermes and the desktop apps skipped; sitting 2 pending; the 2^53 guard it found is AJ-E2024) | Priority P0 | Effort M | Depends: AJ-E1601..AJ-E1609
 **Goal**: Each new tool is proven live once, on the maintainer's existing accounts in separate lab profiles (D-107).
 **User story**: As the maintainer, I sign each tool's lab profile in once, all tools in one sitting; agents run the checklists and the evidence records what really happened.
 **Requirements**: For each tool, a checklist covering: sign-in stays separate across two homes, a session starts and resumes, usage is read, and quota exhaustion is seen. The captures go to `docs/qa/evidence/AJ-E1612/`.

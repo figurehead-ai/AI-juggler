@@ -2,7 +2,7 @@
 
 Task: `docs/tasks/E16-more-tools.md` AJ-E1612 (the new tools' live check, D-107).
 Run sheet: [`docs/qa/0.5-walks/AJ-E1612.md`](../../0.5-walks/AJ-E1612.md) (sitting 2); the maintainer's page beside it.
-Status: **IN PROGRESS.** Sitting 1 (2026-11-16) proved step 1 only. The tools for sitting 2 are built: the guarded driver, stand-ins, setup switches and teardown guard. The dry run on stand-ins comes next (sonnet), then sitting 2.
+Status: **IN PROGRESS.** Sitting 1 (2026-11-16) proved step 1 only. The tools for sitting 2 are built: the guarded driver, stand-ins, setup switches and teardown guard. Dry run 1 (BLOCKED, Dev never frontmost: [dry-run.md](dry-run.md), 7c79495c8) and dry run 2 (PARTIAL, stopped after ZCode: [dry-run-2.md](dry-run-2.md), 949d8e231) are done; the fixes they found are AJ-E1615 (done, one open gate) and AJ-E2024. Sitting 2 is next.
 2026-11-16, reviewer claude-opus.
 
 ## The sitting's tools (built 2026-11-16)
@@ -27,7 +27,7 @@ Status: **IN PROGRESS.** Sitting 1 (2026-11-16) proved step 1 only. The tools fo
 | The click guard: nothing is sent unless Dev is frontmost and topmost at the point; exact titles in a region, no prefix, ambiguity refused; a non-Dev pid refused | `swiftc -O -o $S/lab_drive scripts/qa/lab_drive.swift && $S/lab_drive --selftest`; `AIJ_DEV_PID=<Finder's pid> $S/lab_drive guard` | selftest passes; exit 2 | passes; "isn't AI Juggler Dev … refusing", exit 2 | PASS | 5ba4d5cce | 2026-11-16 | claude-opus |
 | The guard live: Dev behind another window gets `WAITING`, and nothing is sent | the dry run's on-purpose guard check | WAITING printed, no press | not run yet | UNPROVEN | — | 2026-11-16 | claude-opus |
 | Stand-ins: each answers its adapter's commands in a lab only, with no network | `python3 -I scripts/qa/standins/install.py --selftest` (each stand-in's selftest + an install into a throwaway lab) | all pass | all six pass | PASS | 6ed14639c | 2026-11-16 | claude-opus |
-| The dry run of the whole sheet on stand-ins (sonnet), before the maintainer is invited | run sheet "The dry run" → `dry-run.md` with the labels table | every step with a result; findings fixed | not run yet | UNPROVEN | — | 2026-11-16 | claude-opus |
+| The dry run of the whole sheet on stand-ins (sonnet), before the maintainer is invited | run sheet "The dry run" → `dry-run.md`, `dry-run-2.md` | every step with a result; findings fixed | run 1 blocked; run 2 passed sign-in for OpenCode, Kimi Code, Grok Build only; session, resume, usage, lab B, Muse, Hermes not run | UNPROVEN (two partial runs) | 7c79495c8, 949d8e231 | 2026-11-16 | claude-opus |
 | Muse's usage read runs on the App's file backend (never the Mac's Keychain sign-in) and only on the proven build | ad1bd25ae; `cargo check` + the Muse adapter tests (pending: the machine's CPU window) | builds, tests pass | written, not yet built | UNPROVEN | ad1bd25ae | 2026-11-16 | claude-opus |
 | Hermes (AJ-E1607) | skipped, waiting for install (D-123); its Apps, steps and stand-in are ready behind `--with-hermes` | — | — | UNPROVEN | — | 2026-11-16 | claude-opus |
 | AJ-E1610's desktop-app parts | skipped: the sheet forbids opening the tools' own app windows | — | — | UNPROVEN | — | 2026-11-16 | claude-opus |
