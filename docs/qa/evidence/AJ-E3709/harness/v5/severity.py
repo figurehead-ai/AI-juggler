@@ -29,8 +29,7 @@ BARS = {"critical reaching the user, % of shown model items": ("<=", 1.0), "syst
         "omissions, % of shown items (Chat: of all questions)": ("<=", 10.0), "questions or failures hidden": ("==", 0),
         "model text on a turn that needs you (feed)": ("==", 0), "value: AI preferred, % of decided pairs": (">=", 60.0)}
 SYSTEMATIC_AT = 3            # the same detector firing this often in one job is a pattern, not a one-off
-ATTENTION_BARS = {"attention misses, % of items that need you (facts given)": ("<=", 10.0),
-                  "attention false alarms, % of calm items (facts given)": ("<=", 10.0)}
+ATTENTION_BARS = {"misses": ("<=", 10.0), "false_alarms": ("<=", 10.0)}     # D-130's omission bar (about 10 %), per error, per setting
 
 # ---------------------------------------------------------------------------------------------------------------- caught (rejected drafts)
 ERROR_CLASSES = [   # (substring of a check's reason, class, detector); first match wins
@@ -269,7 +268,8 @@ def attention_rates(views):
             "false_alarms": len(fa), "false_alarm_pct": round(100.0 * len(fa) / len(neg), 2) if neg else None,
             "false_alarms_by_the_model": len(fam), "false_alarms_by_the_facts": len(fac),
             "missed_ids": miss, "false_alarm_ids_model": fam, "false_alarm_ids_facts": fac}
-    out.setdefault("facts_hidden", "not run (v5 decides attention from the facts; a facts-hidden setting exists only in v4's re-score)")
+    if "facts_given" in out and "facts_hidden" not in out:
+        out["facts_hidden"] = "not in this group (v5 decides attention from the facts; v4's re-score reports facts hidden as its own group)"
     return out
 def bar_rows(sev, value_pct=None):
     rows = [("critical reaching the user, % of shown model items", sev["critical_reaching_pct"]), ("systematic critical patterns", len(sev["systematic"])),
@@ -280,11 +280,12 @@ def bar_rows(sev, value_pct=None):
         op, b = BARS[name]
         ok = None if v is None else (v == b if op == "==" else v <= b if op == "<=" else v >= b)
         out.append({"bar": name, "op": op, "bar_value": b, "measured": v, "ok": ok})
-    att = (sev.get("attention") or {}).get("facts_given")
-    if isinstance(att, dict):
-        for name, v in (("attention misses, % of items that need you (facts given)", att["miss_pct"]),
-                        ("attention false alarms, % of calm items (facts given)", att["false_alarm_pct"])):
-            op, b = ATTENTION_BARS[name]; out.append({"bar": name, "op": op, "bar_value": b, "measured": v, "ok": None if v is None else v <= b})
+    for label, att in (sev.get("attention") or {}).items():
+        if not isinstance(att, dict): continue
+        lab = label.replace("_", " ")
+        for key, name, v in (("misses", f"attention misses, % of items that need you ({lab})", att["miss_pct"]),
+                             ("false_alarms", f"attention false alarms, % of calm items ({lab})", att["false_alarm_pct"])):
+            op, b = ATTENTION_BARS[key]; out.append({"bar": name, "op": op, "bar_value": b, "measured": v, "ok": None if v is None else v <= b})
     return out
 def value_from_review(review, key):
     """a blind review file (entries: pair, prefer first|second|same) and its key (pair -> first/second labels) -> per job: AI preferred %

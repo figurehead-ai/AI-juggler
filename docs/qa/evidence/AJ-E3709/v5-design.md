@@ -305,7 +305,7 @@ Structural rows, which must stay at 0 by construction: a question or failure fro
 
 ```sh
 cd docs/qa/evidence/AJ-E3709/harness/v5
-python3 selftest_v5.py                                         # 175 checks
+python3 selftest_v5.py                                         # 261 checks
 O=<scratch>/v5; mkdir -p "$O"
 A="$O/apple_probe"; swiftc -O -parse-as-library ../apple_probe.swift -o "$A"          # the system compiler; no download
 P=$HOME/Dev/AIJuggler-shared-target/r05-probe/release/local_probe; M=$HOME/Dev/AIJuggler-models
@@ -551,3 +551,21 @@ any · every session on this Mac
 REQUEST (from the developer): Gib mir Bescheid, sobald eine Sitzung im Projekt quarz dich etwas fragt.
 OUTPUT: {"intent": "create", "targets": ["p1"], "matching": "each", "conditions": [{"type": "asks_you", "param": "none"}], "lifetime": "unsaid", "until": "none", "unsupported_asked": "none", "nearest": "none"}
 ```
+
+## 12. Round 2: what round 1 found, fixed generically (2026-11-18)
+
+Round 1's by-eye check (Opus-confirmed) and blind review found these classes. Every fix is a rule about words and facts, tested on fresh made-up items (`selftest_v5.py`, 261 checks); nothing is tuned to a held-out item, and a fresh blind set judges round 2. The prompts are unchanged (the retry note carries each new reason); `prompts/chat.md` changed only in its lexicon table.
+
+| Round-1 class | Fix | Where |
+|---|---|---|
+| 7 of the 9 real criticals: the agent's false success claim echoed beside AI Juggler's Failed lines, in the risk reason or a note ("everything passes", "alles ist bestanden", "alle Tests sind erfolgreich") | Every model-written review field passes the same checks. A whole-run success claim (EN and DE, not negated, not conditional, not in a text that states a failure) on a turn the facts show failed is refused, attributed or not; an agent's verification or completeness claim (verified, ready to review, lückenlos, funktioniert…) is shown only attributed ("the agent says …"); refused means a retry with the reason, then the code-only review | `claims_v5.success_claim`, `claim_errors`; `turns.review_checks_v5` |
+| A risk reason cut mid-expression ("Decimal(-", "\| FA") | A field that fills the grammar's 90-character bound without ending a sentence, or leaves a bracket or quote open, is refused and retried shorter (Apple has no grammar: a complete field over the bound is not "cut") | `claims_v5.cut_field` |
+| An undone change shown as done in the feed, in the model's line and in A's excerpt (the agent claimed what git reverted or restored); a kept change called "reverted" | Git's undone changes (reverted, restored or reset in the reflog naming a path, a changed entry whose status says restored) are matched by path, file stem, or the change's own words (its path's words and git's revert note; a match needs the file's own name word or two words, and a word a kept path holds never counts). A line naming one is refused; a line calling a change undone that git keeps (or none of git's reverts names) is refused; A's excerpt naming one gains "git: <path> was reverted" (AJ-E3708 Req. 6e). The gate's facts sentence now states each undone path as reverted, so an honest line may say so | `claims_v5.undone_hits`, `kept_called_undone`; `core.undone_clause`, `core.facts_sentence`; `turns.excerpt_v5` |
+| Chat: an end time and a duration answered "when did it start" | "When" is two fields: the question's last start or end verb decides (EN and DE; a hyphenated name holds no verb). The lexicon reads hyphenated names. On the open path the asked field is looked up after the code's override of asks_about: no record holds it, "I don't know" and the found rows; each shown part's `states` must equal the asked attribute, and a part stating an end or duration for a start question is refused | `chat.when_split`, `part_when`, `hint_fields`, `Chat._eval_open` |
+| Chat: two records match the subject; both values listed as one answer | Code says so with no model call: "Two sessions match “X”:" ("are called" when the names are equal; German "Zwei Sitzungen passen zu / heißen") and each record's value; a plural question ("both", "sessions") still lists them | `chat.ambiguous`, `lookup` |
+| Attention "omissions 100 %" | The denominator was the items with a model-written note (often one), and code-decided misses weren't counted. Attention is now scored as a **miss rate** (items gold says need you that show no needs-you, over those items) and a **false-alarm rate** (calm items flagged, over calm items; split by model and facts), per setting (facts given; facts hidden where v4's re-score has it), each against D-130's omission bar of about 10 %; omissions count over all items | `severity.attention_rates`, `bar_rows` |
+| Detector false alarms | `polarity_script` reads the facts too (outcome, test counts, failures); `gold_forbidden` skips a hit inside a run of 4 or more words copied from the agent's text (never for an injection item); Chat's `wrong_attribute` accepts a field of the asked kind when the question's words name it (count of files answered by files_changed) | `severity.facts_text`, `_forbidden_unquoted`, `attr_matches` |
+| Cosmetic | AI Juggler's own lines use the app's state words ("Needs you", "Failed"; "Braucht dich", "Fehlgeschlagen") with "(per AI Juggler)" / "(laut AI Juggler)", and "tests not run (per AI Juggler)" in Not checked; a git flag shows "yes", never "True"; a feed line's English action in a German line is refused | `turns.HEAD`, `git_value`, `claims_v5.english_in_german` |
+| The guard's verbose-flag bug (§11) | `guard_v5.py` on every job's input; the shared fixture | `guard_v5.py`, `fixtures/guard-phrases.json` |
+
+Round 1 was re-scored with these rules from its recorded attempts, and v4's held-out runs re-scored too (no model re-run; the blind packets and keys were not rebuilt): `v5-round1/README.md` lists what moved per model. A draft the new rules reject has no recorded retry, so its replay shows the fallback; the next run retries it.
