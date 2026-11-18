@@ -6,7 +6,12 @@
 
 use std::collections::BTreeSet;
 
-use juggler_core::storage::memory::{SecretScan, Writers};
+use std::sync::Arc;
+
+use juggler_core::storage::memory::{Actor, Forgotten, MemoryError, SecretScan, Writers};
+
+use crate::error::{AppError, AppResult};
+use crate::state::AppState;
 use juggler_handover::redaction;
 
 /// The memory store's writers, taken once when the app's state is built
@@ -28,6 +33,36 @@ impl MemoryWriters {
     pub fn take(&self) -> Option<Writers> {
         self.0.lock().ok().and_then(|mut writers| writers.take())
     }
+}
+
+/// The app's one way to forget a subject (step 4's surfaces call it): the
+/// store's forget, then, in the same storage hold, the backup a verify
+/// staged is dropped, so no copy made before the forget outlives it in the
+/// data folder (the second re-check's L5). A restore asks to verify again.
+///
+/// # Errors
+///
+/// The store's refusal or storage failure; removing the staged backup.
+pub fn forget(state: &Arc<AppState>, subject_key: &str, actor: &Actor) -> AppResult<Forgotten> {
+    let storage = crate::commands::lock_storage_arc(state)?;
+    let now = juggler_core::model::Timestamp::now().millis();
+    let forgotten =
+        storage
+            .memory()
+            .forget(subject_key, actor, now)
+            .map_err(|error| match error {
+                MemoryError::Core(core) => AppError::from(core),
+                MemoryError::Refused(refusal) => AppError::Validation {
+                    subject: "memory",
+                    message: refusal.code().to_owned(),
+                },
+                other => AppError::Validation {
+                    subject: "memory",
+                    message: other.to_string(),
+                },
+            })?;
+    crate::backup::drop_staged(&storage, &state.data_dir)?;
+    Ok(forgotten)
 }
 
 /// What the backup page and the forget sheet say about backups (ADR-0037
@@ -71,6 +106,80 @@ mod tests {
         )
         .unwrap();
         assert!(Writers::issue().is_none(), "a writer could still be minted");
+    }
+
+    /// L5 (second re-check): a backup verified before a forget, never
+    /// restored, holds the words no more once the forget is done.
+    #[test]
+    fn a_forget_drops_the_backup_a_verify_staged() {
+        const CANARY: &str = "qzxwvstagedcanary";
+        let dir = tempfile::tempdir().unwrap();
+        let data = dir.path().to_path_buf();
+        let state = Arc::new(
+            AppState::init_with_registry(data.clone(), juggler_adapter::AdapterRegistry::new())
+                .unwrap(),
+        );
+        {
+            let storage = state.storage.lock().unwrap();
+            storage
+                .raw_conn()
+                .execute_batch(juggler_core::storage::memory::V54)
+                .unwrap();
+            storage
+                .raw_conn()
+                .execute(
+                    "INSERT INTO memory_records (id, subject_key, subject_id, version, kind,
+                         scope_kind, tier, priority, authority, untrusted, source_kind,
+                         confidence, as_of_ms, text, created_ms)
+                     VALUES ('r1', 'note:gone', 'sub-gone', 1, 'note', 'global', 'long', 1,
+                             'user', 0, 'settings', 1, 1, ?1, 1)",
+                    [format!("remember {CANARY}")],
+                )
+                .unwrap();
+            // As a verify leaves it: the backup staged, its confirmation set.
+            std::fs::create_dir_all(data.join("restore-staging/db")).unwrap();
+            storage
+                .snapshot_to(&data.join("restore-staging/db/juggler.sqlite"))
+                .unwrap();
+            storage
+                .app_settings()
+                .set("restore_token", "tok:x")
+                .unwrap();
+        }
+        let gone = forget(&state, "note:gone", &Actor::User).unwrap();
+        assert_eq!(gone.subjects, 1);
+        assert!(
+            !data.join("restore-staging").exists(),
+            "the staged backup is still there"
+        );
+        let storage = state.storage.lock().unwrap();
+        let token = storage.app_settings().get("restore_token").unwrap();
+        assert!(
+            token.unwrap_or_default().is_empty(),
+            "the confirmation stands"
+        );
+        storage
+            .raw_conn()
+            .query_row("PRAGMA wal_checkpoint(TRUNCATE)", [], |_| Ok(()))
+            .unwrap();
+        drop(storage);
+        let mut stack = vec![data];
+        let mut holding = Vec::new();
+        while let Some(at) = stack.pop() {
+            for entry in std::fs::read_dir(&at).unwrap().flatten() {
+                let path = entry.path();
+                if path.is_dir() {
+                    stack.push(path);
+                } else if std::fs::read(&path)
+                    .unwrap_or_default()
+                    .windows(CANARY.len())
+                    .any(|w| w == CANARY.as_bytes())
+                {
+                    holding.push(path);
+                }
+            }
+        }
+        assert!(holding.is_empty(), "these still hold it: {holding:?}");
     }
 
     #[test]

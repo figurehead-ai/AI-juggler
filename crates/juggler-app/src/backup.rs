@@ -808,6 +808,23 @@ fn keep_this_macs_rows(storage: &Storage, before: &Path) -> AppResult<()> {
     Ok(())
 }
 
+/// Drops the backup a verify staged and its confirmation (the second
+/// re-check's L5): a forget calls this under the same storage hold, so a
+/// staged backup made before the forget never outlives it; the user
+/// verifies again to restore.
+///
+/// # Errors
+///
+/// The typed storage error clearing the confirmation.
+pub(crate) fn drop_staged(storage: &Storage, data_dir: &Path) -> AppResult<()> {
+    storage.app_settings().set(TOKEN_KEY, "")?;
+    let staging = data_dir.join(STAGING_DIR);
+    if staging.exists() {
+        std::fs::remove_dir_all(&staging).map_err(|e| io_error("forget", &e))?;
+    }
+    Ok(())
+}
+
 /// The name a database copy kept before a restore starts with.
 const RESTORE_COPY_PREFIX: &str = "juggler.sqlite.before-restore-";
 /// How long a database copy kept before a restore is kept: a day to go
