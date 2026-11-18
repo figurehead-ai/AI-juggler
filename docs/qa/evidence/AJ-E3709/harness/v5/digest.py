@@ -132,6 +132,18 @@ def quoted_spans(a):
     order's words into the digest (the agent had refused it; the digest showed the order, cut). An item relays the agent, never a
     quote inside it; the rollup's excerpt is A's, unchanged"""
     return [m[1] for t in a["turns"] for m in QUOTED.finditer(t["ctx"]["cleaned"])]
+UNDO = re.compile(r"\b(?:revert(?:ed|s)?|rolled\s+(?:it\s+|them\s+|this\s+|that\s+)?back|undid|undone|zurückgenommen|zurückgesetzt|rückgängig\s+gemacht)\b", re.I)
+def undo_word(a):
+    """the facts' word when the agent's newest turn says it undid its change ("…so I reverted the whole change"), else None. Round 2:
+    every model but one, and the rollup's first-sentence excerpt, showed "switched the parser to the new date library" for a change
+    the same turn reverted; like "tests failed", the word is code's, added to any line that doesn't already say it"""
+    n = a["newest"]
+    if not n: return None
+    for s in gate.sentences_v3(n["ctx"]["cleaned"]):
+        for m in UNDO.finditer(s):
+            if not any(gate._is_neg(t) for t in gate._toks3(s[:m.start()])[-3:]):
+                return "zurückgenommen" if (a["lang"] or "en") == "de" else "reverted"
+    return None
 def tests_word(a):
     for t in a["turns_newest_first"]:
         F = t["F"] or {}
@@ -209,6 +221,8 @@ def rollup_line(a):
     if a["turns"]: bits.append(f"{len(a['turns'])} turn" + ("s" if len(a["turns"]) != 1 else ""))
     tw = tests_word(a)
     if tw: bits.append(tw)
+    uw = undo_word(a)
+    if uw: bits.append(uw)
     line = " · ".join(bits)
     if n and n["ctx"]["cleaned"].strip():
         ex = gate_v4.excerpt_v4(n["ctx"]["cleaned"], n["facts"])[0].split("\n")
@@ -506,6 +520,8 @@ class Digest(Job):
         cw = " · ".join(dict.fromkeys(x for x in (CAVEAT_WORDS["not_run"] if facts_nr else None, CAVEAT_WORDS.get(cav)) if x)) or None
         tf = any((t["F"] or {}).get("tests_state") == "ran" and (t["F"] or {}).get("failed") for t in (cited_turns or a["turns_newest_first"][:1]))
         if tf: cw = "tests failed" + (f" · {cw}" if cw else "")         # the facts' outcome, by code: never left to the model
+        uw = undo_word(a)
+        if uw and not UNDO.search(doing + " " + detail): cw = (f"{cw} · " if cw else "") + uw
         sd, st = doing + ("…" if cut_d else ""), detail + ("…" if cut_t and detail else "")
         line = self.item_line(a, nk, sd, st, cw, cited_events)
         if over_cap(line):

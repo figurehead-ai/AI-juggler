@@ -470,6 +470,14 @@ def selftest():
     check("r2 must_surface mutation: an ended line that says nothing ('ended · done') is a miss", surf(g4[2], {"a3": "lemur-cli · ended · ended · done"}) is False)
     check("r2 must_surface: whole numbers ('2' is not in '12')", surf(g4[3], {}) is False, lines["a4"])
 
+    e5 = it2("EF2-D05")
+    o = DG.evaluate(e5, "main", draft(I("a1", "moved the okapi config loader to the new toml parser", ["t1"])))
+    check("r2 undone: a change the same turn reverted shows code's 'reverted' (round 2: 'switched the parser…' for a reverted change)",
+          o["ok"] and any(x["agent"] == "a1" and x["line"].endswith("· reverted") for x in o["items"]), o.get("errors") or o.get("items"))
+    check("r2 undone: the rollup line says it too, and German says 'zurückgenommen'", "· reverted ·" in D.rollup_line(e5["by_ref"]["a1"])
+          and D.undo_word(e5["by_ref"]["a3"]) == "zurückgenommen", D.rollup_line(e5["by_ref"]["a1"]))
+    check("r2 undone mutation: 'did not revert' adds nothing", D.undo_word(e5["by_ref"]["a2"]) is None and "reverted" not in D.rollup_line(e5["by_ref"]["a2"]))
+
     # ================================================================================================ round 2's diagnosis, (f) (2026-11-18): each failed before its fix
     def wev(fid, *a, **k): return WJ.evaluate(it2(fid), "main", wd(*a, **k))
     o = wev("EF2-W01", ["s1"], [("finishes", "none")], asked="the yak-ingest work finishes, even during quiet hours", nearest="finishes")

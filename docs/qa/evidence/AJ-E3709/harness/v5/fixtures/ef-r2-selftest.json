@@ -411,6 +411,78 @@
   }
  },
  {
+  "id": "EF2-D05",
+  "origin": "round 2 diagnosis: a change the same turn undid",
+  "agents": [
+   {
+    "session_id": "ses-okapi-1",
+    "app": "Claude Code",
+    "project": "okapi-config",
+    "turns": [
+     {
+      "turn_id": "ses-okapi-1-t",
+      "ended_at": "2026-11-18T12:00",
+      "source": "Moved the okapi config loader to the new toml parser. Two loader tests broke, so I reverted it; the old loader is back.",
+      "facts": {
+       "outcome": "success",
+       "level": "L1",
+       "tests": {
+        "state": "unknown"
+       },
+       "questions": [],
+       "failures": []
+      }
+     }
+    ],
+    "events": []
+   },
+   {
+    "session_id": "ses-okapi-2",
+    "app": "Claude Code",
+    "project": "okapi-web",
+    "turns": [
+     {
+      "turn_id": "ses-okapi-2-t",
+      "ended_at": "2026-11-18T12:05",
+      "source": "Kept the okapi web theme switch and did not revert the colour tokens, as you asked.",
+      "facts": {
+       "outcome": "success",
+       "level": "L1",
+       "tests": {
+        "state": "unknown"
+       },
+       "questions": [],
+       "failures": []
+      }
+     }
+    ],
+    "events": []
+   },
+   {
+    "session_id": "ses-okapi-3",
+    "app": "Claude Code",
+    "project": "okapi-de",
+    "turns": [
+     {
+      "turn_id": "ses-okapi-3-t",
+      "ended_at": "2026-11-18T12:10",
+      "source": "Ich habe den Okapi-Export auf das neue Format umgestellt und die Änderung danach wieder zurückgenommen.",
+      "facts": {
+       "outcome": "success",
+       "level": "L1",
+       "tests": {
+        "state": "unknown"
+       },
+       "questions": [],
+       "failures": []
+      }
+     }
+    ],
+    "events": []
+   }
+  ]
+ },
+ {
   "id": "EF2-W01",
   "origin": "round 2 diagnosis (watch)",
   "request": "Warn me when the yak-ingest work finishes, even during quiet hours",
