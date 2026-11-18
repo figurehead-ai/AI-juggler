@@ -117,10 +117,31 @@ pool keeps its project: every session in it is part of the team, and
 **Everyone else** sets the role they join as. **Show the diagram** leaves
 the setup; once the pool has members, it opens on its diagram.
 
+While a pool is being set up, its header says **Setting up · 5 of 7** and
+the panel at the right is its checklist: a ring with how far it is, then
+each step (Where, Who's in, Who leads, Roles, Messages, On their own, and
+**Let them message each other**, the team tools) with what it's set to
+and a **Change**. The first step not done is open, with what it does and
+the one button that does it. Before any session joins, the diagram draws
+the planned team: the lead on top, the other members under it, each card
+opening in the panel. **Add a member** at the diagram's top left lists
+the sessions open now and the Apps and groups that can join.
+
+Once a session has joined and every step is done, or when you pick
+**Hide setup**, the panel is the pool's live view: what's happening now,
+its tasks, its lead, what they may do on their own, its messages this
+week and Live. **Edit setup** opens all of its settings; **Show setup**
+brings a hidden checklist back while it isn't done.
+
 On the diagram, the panel at the right follows what you select. Drag its
 left edge (or focus it and use ← →) to make it wider, 360 to 420 px; the
 width is kept. A **Change** or a checklist item opens its section at the
-top of the panel, its control ready.
+top of the panel, its control ready. Every card on the diagram is a
+button: click it, press Enter on it, or use VoiceOver's press. A
+session's card leads with its own title, else its task, else its folder
+numbered where two read alike ("web (12)"), with when it started under it.
+A member's own choice of what it may do on its own in this pool is near
+the top of its panel, and in the List view behind its row's arrow.
 
 - **Members**: each session in the pool, as a row like Home's: its name and
   state (in the list's words: Asks you, Working, Idle, Ended), where it
@@ -132,6 +153,8 @@ top of the panel, its control ready.
   - **Task**: the task it's on (in progress, in review or blocked), with
     its id, or **None**. See [Tasks](#tasks) below.
   - **Files changed**: the files it changed most recently.
+  - **On its own**: what it may do on its own in this pool, the same choice
+    as its panel's.
   - What AI Juggler doesn't know says **Unavailable** and why. It never
     guesses. What a session says and changes is read from its transcript
     while it runs in AI Juggler.
@@ -155,12 +178,13 @@ act. It's a setting in AI Juggler and changes nothing in your apps.
 Without them, a pool is set up, but nobody in it can message.
 
 It's for every pool you make. AI Juggler asks once, the first time you
-use pools: at the top of the pool's page, as New pool's own step, and in
-Settings › Agent access, the same question with **Yes, let them work together** and **Not now**. Once
+use pools: as New pool's own step and in Settings › Agent access (**Yes,
+let them work together** or **Not now**), and as the last item of a
+pool's setup checklist (**Turn on team tools** or **Not now**). Once
 you've answered, it doesn't ask again; you can switch them off per project
 or app in **Settings › Agent access › Agent tools in sessions**. After
 **Not now**, or with them off for the pool's project or app, the pool
-says so in one quiet line with **Turn on** beside it.
+says so in its setup checklist, with **Turn on team tools**.
 
 ## Desktop apps in a pool
 
