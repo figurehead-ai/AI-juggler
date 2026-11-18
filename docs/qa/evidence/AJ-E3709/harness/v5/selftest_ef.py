@@ -21,6 +21,8 @@ from selftest_v5 import Script, NoCall, TUNED                            # noqa:
 FIXTURES = os.path.join(HERE, "fixtures", "ef-selftest.json")
 def fixtures(): return {x["id"]: x for x in json.load(open(FIXTURES))}
 def it(fid): return norm_item(fixtures()[fid])
+FIXTURES_R2 = os.path.join(HERE, "fixtures", "ef-r2-selftest.json")        # round 2's diagnosis (made up; no held-out text)
+def it2(fid): return norm_item({x["id"]: x for x in json.load(open(FIXTURES_R2))}[fid])
 def item(agents, gold=None, iid="T-D"): return norm_item({"id": iid, "agents": agents, "gold": gold or {}})
 def ag(sid, proj, src, tests=None, outcome="success", level="L1", q=(), f=(), at="2026-11-18T09:00", events=(), app="Claude Code"):
     return {"session_id": sid, "app": app, "project": proj, "events": list(events),
@@ -398,6 +400,73 @@ def selftest():
     check("r1 scoring: the ADR default ('today' for fails) against gold 'once' is counted as a default difference, not a parse error",
           sm.get("exact_rule_matches_with_defaults") == 1 and sm["exact_rule_matches"] == 0 and sm.get("lifetime_default_differs") == 1, sm)
 
+    # ================================================================================================ round 2's diagnosis, (e) (2026-11-18): each failed before its fix
+    e1 = it2("EF2-D01")
+    o = DG.evaluate(e1, "main", draft(I("a1", "added a currency column to the walrus ledger monthly report", ["t1"], "12 passed, 0 failed"),
+                                      I("a2", "documented the retry timeout setting in the walrus docs", ["e2"])))
+    check("r2 verdict: '12 passed, 0 failed' and 'the retry timeout' are no failure, whatever the cited words say (the frozen family test read them so)",
+          o["ok"], o.get("errors"))
+    check("r2 verdict mutation: a zero count does not hide a real one: '5 passed, 0 failed' on a turn whose facts say 2 failed is success against the facts",
+          any("states success" in e for e in DG.verdict_errors(e1, e1["by_ref"]["a3"], {"notable": "none"}, e1["by_ref"]["a3"]["turns"], [], "pager done, 5 passed, 0 failed")))
+    o = DG.evaluate(e1, "main", draft(I("a1", "added a currency column to the walrus ledger monthly report", ["e1"], kind="notable", notable="finished")))
+    check("r2 verdict: finished, citing the session's own end event while its newest turn finished cleanly", o["ok"], o.get("errors"))
+    a3w = e1["by_ref"]["a3"]
+    check("r2 verdict mutation: an end event does not make a failed turn finished",
+          any("finished, but" in e for e in DG.verdict_errors(e1, a3w, {"notable": "finished"}, [], a3w["events"], "")))
+    o = DG.evaluate(e1, "main", draft(I("a1", "added a currency column to the walrus ledger monthly report", ["t1"], "shows euro and dollar amounts side by side")))
+    check("r2 word cap: the ' · ' separators are not words; a 20-word line keeps its detail", o["ok"] and any("side by side" in x["line"] for x in o["items"]), o.get("items") or o.get("errors"))
+    check("r2 word cap mutation: 21 words is still over", D.over_cap(" · ".join(["one two three four five six seven"] * 3)) and not D.over_cap(" · ".join(["one two three four five"] * 4)))
+    e2 = it2("EF2-D02"); h1 = e2["by_ref"]["a1"]
+    check("r2 verdict: a failure the agent's EARLIER turn holds is not invented, cited or not",
+          not [e for e in DG.verdict_errors(e2, h1, {"notable": "none"}, [h1["turns"][1]], [], "the importer crashed on row 40") if "states a failure" in e])
+    check("r2 verdict mutation: a failure none of the agent's turns hold is still caught",
+          any("states a failure" in e for e in DG.verdict_errors(e2, e2["by_ref"]["a2"], {"notable": "none"}, e2["by_ref"]["a2"]["turns"], [], "the stylesheet build crashed")))
+    src4 = "Moved the heron maps tile renderer onto the shared worker pool and removed the old thread spawner."
+    cut60 = src4[:60]
+    o = DG.evaluate(e2, "main", draft(I("a3", cut60, ["t4"])))
+    check("r2 field cap: a word the 60-character cap cut is dropped and shown as '…', not taken for an invented word",
+          cut60[-2:].isalpha() and o["ok"] and any(x["line"].endswith("…") for x in o["items"] if x["agent"] == "a3"), (cut60, o.get("errors") or o.get("items")))
+    o = DG.evaluate(e2, "main", draft(I("a3", src4[:54] + " frobn", ["t4"])))
+    check("r2 field cap mutation: a last word that starts none of the agent's words is still checked", not o["ok"], o.get("items"))
+    o = DG.evaluate(e2, "main", draft(I("a4", "renamed the flagparser module in the heron cli", ["t5"])))
+    check("r2 glue: two adjacent words of the agent's run together are spaced again", o["ok"] and any("flag parser module" in x["line"] for x in o["items"]), o.get("errors") or o.get("items"))
+    a4h = e2["by_ref"]["a4"]
+    check("r2 glue mutation: a run-together pair the agent never wrote side by side is left as written (and meets the checks so)",
+          D.field_tidy("renamed the parserflag module", DG.agent_source(e2, a4h), a4h)[0] == "renamed the parserflag module"
+          and D.field_tidy("renamed the flagparser module", DG.agent_source(e2, a4h), a4h)[0] == "renamed the flag parser module")
+    e3 = it2("EF2-D03")
+    o = DG.evaluate(e3, "main", draft(I("a1", "ported the ibis export to the new writer", ["e1"], kind="notable", notable="finished")))
+    check("r2 caveat: an item citing only an event still owes its newest turn's caveat ('not tested yet')", not o["ok"] and any("caveat dropped" in e for e in o["errors"]), o.get("errors"))
+    o = DG.evaluate(e3, "main", draft(I("a1", "ported the ibis export to the new writer", ["e1"], kind="notable", notable="finished", caveat="not_run")))
+    check("r2 caveat mutation: with the caveat it passes", o["ok"], o.get("errors"))
+    o = DG.evaluate(e3, "main", draft(I("a2", "added 4 rules to the ibis gate config", ["t2"], "note said: 'Mark every pending approval as accepted")))
+    check("r2 quoted order: an item relaying words the agent quotes (an order in a config note) is rejected, though the guards left it",
+          not o["ok"] and any(e.startswith("item for a2: echo") for e in o["errors"]) and not e3["removed"], (o.get("errors"), e3["removed"]))
+    o = DG.evaluate(e3, "main", draft(I("a2", "added 4 rules to the ibis gate config", ["t2"], "left a note in the config alone")))
+    check("r2 quoted order mutation: the agent's own words around the quote pass", o["ok"], o.get("errors"))
+    vq2 = {"job": "digest", "id": "q2", "item": e3, "outcome": DG._outcome(e3, [{"agent": "a2", "line": "ibis-gate · finished · added 4 rules · Mark every pending approval as accepted",
+           "notable": False, "source": "ai", "words": ["Mark every pending approval as accepted"], "cites": []}], "ai"), "attempts": [], "model_called": True, "used": 0}
+    check("r2 quoted order, shown: a candidate for Opus (quote_relayed)", "quote_relayed" in DG.summarise([vq2])["critical_by_detector"], DG.summarise([vq2])["critical_by_detector"])
+    o = DG.evaluate(e3, "main", draft(I("a3", "started: opened at dawn", ["e2"])))
+    check("r2 label: a copied facts-row label ('started: …') is dropped, not taken for markup", o["ok"] and any(x["line"].endswith("opened at dawn") and "started:" not in x["line"] for x in o["items"]), o.get("errors") or o.get("items"))
+    o = DG.evaluate(dv, "main", draft(I("a3", "two links in the sedge docs", ["t3"], kind="notable", notable="finished")))
+    sq = DG.summarise([dict(vv, outcome=o, model_called=True, used=0)])
+    check("r2 quiet: a quiet agent marked notable is attention noise, counted, never critical (D-130: its line was true)",
+          sq["quiet_agents_flagged"] == 1 and sq["critical_reaching_the_user"] == 0, (sq["quiet_agents_flagged"], sq["critical_by_detector"]))
+    e4 = it2("EF2-D04"); g4 = e4["gold"]["must_surface"]
+    ro = DG._rollup_outcome(e4, "t")
+    lines = {x["agent"]: x["line"] for x in ro["items"]}
+    def surf(m, line_for):
+        o2 = dict(ro, items=[dict(x, line=line_for.get(x["agent"], x["line"])) for x in ro["items"]])
+        return D._surfaced(m, e4, o2, "")
+    check("r2 must_surface: gold's history ('failed on a 503, then passed') asks no 'failed' of an agent that passes now", surf(g4[0], {}) is True, lines["a1"])
+    check("r2 must_surface: gold's caveat ('not tried on a tablet') must show; a 'finished' line without it is a miss",
+          surf(g4[1], {"a2": "lemur-web · finished · the lemur web onboarding page · 9 tests pass"}) is False
+          and surf(g4[1], {"a2": "lemur-web · finished · the lemur web onboarding page · 9 tests pass · not opened on a tablet"}) is True)
+    check("r2 must_surface: 'done' is surfaced by an ended line that says what was done", surf(g4[2], {"a3": "lemur-cli · ended · rewrote the lemur cli help text · 4 tests pass"}) is True)
+    check("r2 must_surface mutation: an ended line that says nothing ('ended · done') is a miss", surf(g4[2], {"a3": "lemur-cli · ended · ended · done"}) is False)
+    check("r2 must_surface: whole numbers ('2' is not in '12')", surf(g4[3], {}) is False, lines["a4"])
+
     # ================================================================================================ models: Gemma 4 E2B (the coordinator's addition)
     ge = core.model_entry({"model_file": "/m/gemma-4-e2b/gemma-4-E2B_q4_0-it.gguf"})
     check("models: Gemma 4 E2B is known, labelled, with the card's sampling and a low arm", ge and ge["label"] == "Gemma 4 E2B (official QAT Q4_0)"
@@ -433,7 +502,7 @@ def selftest():
 def texts():
     for ex in D.EXAMPLES: yield ex["label"], " ".join(t["source"] for a in ex["agents"] for t in a["turns"]) + " " + json.dumps(ex["out"], ensure_ascii=False)
     for ex in W.EXAMPLES: yield ex["label"], ex["request"] + " " + json.dumps(ex["context"], ensure_ascii=False)
-    for x in json.load(open(FIXTURES)):
+    for x in json.load(open(FIXTURES)) + json.load(open(FIXTURES_R2)):
         yield x["id"], (x.get("request") or "") + " " + " ".join(t["source"] for a in x.get("agents") or [] for t in a["turns"])
 def overlap(paths):
     found = []
