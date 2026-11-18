@@ -608,28 +608,32 @@ the app's build).
 **A change** is a pull request to `config/remote/<channel>.json`. Then run
 **Publish config** (`publish-config.yml`) for the channel: it validates,
 stamps the next serial and 14 days, signs, verifies as the app does,
-uploads, and checks the public URL. It waits for the `release`
-environment's approval. New or changed content only ever goes this way.
+uploads, and checks the public URL. It runs in the `config-publish`
+environment and waits for its required reviewer. New or changed content
+only ever goes this way.
 
 **Unattended, weekly:** every Monday each live file is re-signed with only
-a new serial and dates, in two environments with no reviewer:
-`config-resign` signs (`remote-config-publish resign`: it reads no source,
-and refuses a result whose canonical content differs from the live file's
-by a byte), and `config-upload` checks that again against the live file
-as it is then, and uploads. Every day a job with no secret fails if a live
-file is within 3 days of expiry.
+a new serial and dates, in the `config-resign` environment (no reviewer).
+`remote-config-publish resign` reads no source and refuses a result whose
+canonical content differs from the live file's by a byte; the same check
+runs again against the live file just before the upload, then the file is
+verified, uploaded and smoke-checked. Every day a job with no secret fails
+if a live file is within 3 days of expiry.
 
-**One-time setup (maintainer):**
+**Setup (maintainer):** the two environments exist, the
+`figurehead-config` bucket is created, `config.figurehead.ai` is
+connected as its custom domain, and Logpush is off. What's left:
 
-1. **The environments.** In the repository's settings, Environments:
-   - `config-resign`: no required reviewer; deployment branches: `main`
-     only; one secret, `REMOTE_CONFIG_SIGNING_KEY` (step 2).
-   - `config-upload`: no required reviewer; deployment branches: `main`
-     only; the two storage secrets (step 4) and nothing else.
-   - `release` already exists; it gets the signing key and the storage
-     secrets too.
+1. **The environments' secrets.** Both get the same three:
+   `REMOTE_CONFIG_SIGNING_KEY` (step 2), `R2_CONFIG_ACCESS_KEY_ID` and
+   `R2_CONFIG_SECRET_ACCESS_KEY` (step 4).
+   - `config-publish`: a required reviewer; deployment branches: `main`
+     only.
+   - `config-resign`: no reviewer; deployment branches: `main` only.
+
+   Not `release`: it has no required reviewer for these jobs.
 2. **The `current` key.** On a Mac with the repository, in zsh or bash:
-   `cargo run -q -p juggler-remote-config --bin remote-config-publish -- keygen --id rc-2026-a | tee >(gh secret set REMOTE_CONFIG_SIGNING_KEY --env release) | gh secret set REMOTE_CONFIG_SIGNING_KEY --env config-resign`
+   `cargo run -q -p juggler-remote-config --bin remote-config-publish -- keygen --id rc-2026-a | tee >(gh secret set REMOTE_CONFIG_SIGNING_KEY --env config-publish) | gh secret set REMOTE_CONFIG_SIGNING_KEY --env config-resign`
    The seed passes through memory only, straight into both secrets; it is
    never shown or stored on the Mac. The public line `keygen` prints goes
    into `crates/juggler-remote-config/src/keys.rs`, `COMPILED_KEYS`, as
@@ -649,15 +653,13 @@ file is within 3 days of expiry.
    doesn't compile): `(Channel::Stable, 0)` and so on before the first
    file. At a rotation, `next`'s seed goes from the password manager into
    the two secrets the same way.
-4. **The bucket and its token.** In Cloudflare, create the R2 bucket
-   `figurehead-config`. Then an R2 API token with Object Read and Write on
-   that bucket only; its access key id and secret go into `release` and
-   `config-upload` as `R2_CONFIG_ACCESS_KEY_ID` and
-   `R2_CONFIG_SECRET_ACCESS_KEY`.
-5. **The host.** Connect `config.figurehead.ai` as the bucket's custom
-   domain in the `figurehead.ai` zone, with no redirect rule on it. The
-   workflow needs no zone ID: files are cached for 5 minutes at most
-   (`max-age=300`), so nothing is purged.
+4. **The storage token.** In Cloudflare, an R2 API token with Object Read
+   and Write on the `figurehead-config` bucket only. Its access key id and
+   secret go into `config-publish` and `config-resign` as
+   `R2_CONFIG_ACCESS_KEY_ID` and `R2_CONFIG_SECRET_ACCESS_KEY`.
+
+The workflow needs no zone ID: files are cached for 5 minutes at most
+(`max-age=300`), so nothing is purged.
 
 ## If a key leaks (AJ-E2009)
 
