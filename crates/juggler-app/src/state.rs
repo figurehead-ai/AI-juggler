@@ -178,6 +178,8 @@ pub struct AppState {
     /// D-62: the Accounts by folder the last read gave, for a read that
     /// fails ([`crate::features::subscriptions::folder_accounts`]).
     pub folder_accounts: crate::features::subscriptions::LastRead,
+    /// ADR-0037 §1.1: the memory store's writers, taken at start.
+    pub memory_writers: crate::features::ai::memory::MemoryWriters,
 }
 
 impl Drop for AppState {
@@ -468,6 +470,7 @@ impl AppState {
             ended_by_crash: std::sync::Mutex::new(ended_by_crash),
             watchdog: std::sync::Mutex::default(),
             notifier: crate::features::notifications::Notifier::default(),
+            memory_writers: crate::features::ai::memory::MemoryWriters::taken_at_start(),
             service_keys: crate::features::service_accounts::ServiceKeys::default(),
             folder_accounts: crate::features::subscriptions::LastRead::default(),
             preview: Mutex::new(None),

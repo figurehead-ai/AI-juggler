@@ -6,8 +6,29 @@
 
 use std::collections::BTreeSet;
 
-use juggler_core::storage::memory::SecretScan;
+use juggler_core::storage::memory::{SecretScan, Writers};
 use juggler_handover::redaction;
+
+/// The memory store's writers, taken once when the app's state is built
+/// (the composition root), so no code later in the process can mint one
+/// (the security review's M2): `Writers::issue` answers `None` from then
+/// on. Each owning module takes its own writer from here as it starts.
+#[derive(Debug)]
+pub struct MemoryWriters(std::sync::Mutex<Option<Writers>>);
+
+impl MemoryWriters {
+    /// Takes the process's writers (`None` inside when another state took
+    /// them first: a second state in a test process).
+    #[must_use]
+    pub fn taken_at_start() -> Self {
+        Self(std::sync::Mutex::new(Writers::issue()))
+    }
+
+    /// Hands the writers over, once.
+    pub fn take(&self) -> Option<Writers> {
+        self.0.lock().ok().and_then(|mut writers| writers.take())
+    }
+}
 
 /// What the backup page and the forget sheet say about backups (ADR-0037
 /// §1.8; shown from step 4). A backup file the user exported is theirs:
@@ -36,7 +57,21 @@ impl SecretScan for RedactionSecrets {
 
 #[cfg(test)]
 mod tests {
+    #![allow(clippy::unwrap_used, reason = "a test: a failed step fails the test")]
+
     use super::*;
+
+    /// M2: once the app's state is built, no code can mint a writer.
+    #[test]
+    fn the_writers_are_taken_when_the_state_is_built() {
+        let dir = tempfile::tempdir().unwrap();
+        let _state = crate::state::AppState::init_with_registry(
+            dir.path().to_path_buf(),
+            juggler_adapter::AdapterRegistry::new(),
+        )
+        .unwrap();
+        assert!(Writers::issue().is_none(), "a writer could still be minted");
+    }
 
     #[test]
     fn the_backup_words_say_what_forget_cant_reach() {

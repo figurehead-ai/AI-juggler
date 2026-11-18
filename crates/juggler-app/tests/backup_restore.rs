@@ -948,7 +948,7 @@ fn a_restore_brings_back_nothing_forgotten_and_no_kept_copy_holds_it() {
     let mac = work.path().join("mac");
     let a = app_state(&mac);
     let now = Timestamp::now().millis();
-    let writers = memory::Writers::issue().unwrap();
+    let writers = a.memory_writers.take().unwrap();
     let note = |key: &str, text: String| NewRecord {
         subject_key: key.to_owned(),
         kind: Kind::Note,

@@ -949,6 +949,125 @@ fn the_cloud_copy_holds_no_local_only_or_forgotten_word() {
     }
 }
 
+/// The cloud filter's own checks (the re-review's M2 and M3 at the cloud
+/// layer): rows the gate would refuse, written straight to the table (an
+/// older build, a bug), stay out of the cloud copy unless each part of a
+/// stated setting holds.
+#[test]
+fn the_cloud_filter_takes_only_typed_trusted_stated_settings() {
+    let dir = tempfile::tempdir().unwrap();
+    let live = installed_storage();
+    let row = |id: &str,
+               kind: &str,
+               authority: &str,
+               untrusted: i64,
+               source: &str,
+               text: &str,
+               entity: bool| {
+        live.conn
+            .execute(
+                "INSERT INTO memory_records (id, subject_key, subject_id, version, kind, scope_kind,
+                     tier, priority, authority, untrusted, source_kind, confidence, as_of_ms, text,
+                     created_ms)
+                 VALUES (?1, ?1, ?1, 1, ?2, 'global', 'long', 1, ?3, ?4, ?5, 1, 0, ?6, 0)",
+                rusqlite::params![id, kind, authority, untrusted, source, text],
+            )
+            .unwrap();
+        if entity {
+            live.conn
+                .execute(
+                    "INSERT INTO memory_entities VALUES (?1, 'session', 's1')",
+                    [id],
+                )
+                .unwrap();
+        }
+    };
+    row(
+        "pref:ok",
+        "preference",
+        "user",
+        0,
+        "settings",
+        "the web agent",
+        true,
+    );
+    row(
+        "watch:ok",
+        "standing_request",
+        "user",
+        0,
+        "watches_view",
+        "watching web",
+        false,
+    );
+    row(
+        "pref:untrusted",
+        "preference",
+        "user",
+        1,
+        "settings",
+        "the web agent",
+        true,
+    );
+    row(
+        "pref:free",
+        "preference",
+        "user",
+        0,
+        "settings",
+        &"words ".repeat(12),
+        true,
+    );
+    row(
+        "pref:no-entity",
+        "preference",
+        "user",
+        0,
+        "settings",
+        "the web agent",
+        false,
+    );
+    row(
+        "pref:note-job",
+        "preference",
+        "user",
+        0,
+        "note_job",
+        "the web agent",
+        true,
+    );
+    row(
+        "pref:model",
+        "preference",
+        "model",
+        0,
+        "settings",
+        "the web agent",
+        true,
+    );
+    row(
+        "watch:settings",
+        "standing_request",
+        "user",
+        0,
+        "settings",
+        "watching web",
+        false,
+    );
+    row(
+        "watch:untrusted",
+        "standing_request",
+        "user",
+        1,
+        "watches_view",
+        "watching web",
+        false,
+    );
+    let cloud = snapshot(&live, dir.path(), "cloud.sqlite");
+    scrub_snapshot(&cloud.conn, Destination::Cloud).unwrap();
+    assert_eq!(ids_in(&cloud), ["pref:ok", "watch:ok"]);
+}
+
 fn spot(bytes: &[u8], needle: &str) -> bool {
     bytes
         .windows(needle.len())
