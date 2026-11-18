@@ -194,7 +194,7 @@ export function ConnectorCard({
   };
   if (phase.kind !== "idle") {
     return (
-      <Revealed key={phase.kind === "remove" && phase.changed.length > 0 ? "remove-changed" : phase.kind} on={!busy}>
+      <Revealed key={phase.kind === "remove" && phase.changed.length > 0 ? "remove-changed" : phase.kind} on={!busy} top={!compact}>
         <PhaseView phase={phase} status={status} parts={parts} onAdd={() => void actions.add()} onRemove={() => void actions.remove()} onRemoveAnyway={() => void actions.removeAnyway()} />
       </Revealed>
     );
@@ -218,10 +218,13 @@ export function ConnectorCard({
 
 /** A step that opens in the panel: in view in its list, Cancel focused
  * (the aij-test proof: a confirmation clipped at the panel's foot), once
- * it can take focus (Cancel is disabled while a call runs). */
-function Revealed({ children, on }: { children: ReactNode; on: boolean }): JSX.Element {
+ * it can take focus (Cancel is disabled while a call runs). `top` (the
+ * inspector): its top under the panel's head, read from its heading (the
+ * gallery's Remove refused stayed put when it only just fitted); in New
+ * pool's row, just into view. */
+function Revealed({ children, on, top }: { children: ReactNode; on: boolean; top: boolean }): JSX.Element {
   const ref = useRef<HTMLDivElement | null>(null);
-  useReveal(ref, on);
+  useReveal(ref, on, top);
   return <div ref={ref}>{children}</div>;
 }
 

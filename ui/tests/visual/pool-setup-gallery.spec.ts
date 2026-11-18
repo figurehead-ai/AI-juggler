@@ -160,6 +160,12 @@ for (const theme of ["dark", "light"] as const) {
   });
 
   test(`the canvas, each kind selected — ${theme}`, gate(`99-pool-selection-${theme}`), async ({ page }) => {
+    // Ten gate captures in one walk: a capture that differs from its
+    // baseline retries its comparison for the expect's whole 5 s before it
+    // fails softly, so a run after a design change (D-126 changed all ten)
+    // passed 30 s and timed out in whatever page.evaluate came next, never
+    // writing the rest. Room for every capture's actual (l3-canvas's too).
+    test.setTimeout(120_000);
     await open(page, theme, selectionSeed(GATE_NOW));
     await goTo(page, "Pools");
     await page.getByTestId("pool-card-tile").filter({ hasText: "Checkout team" }).click();

@@ -18,23 +18,26 @@ function scroller(element: HTMLElement): HTMLElement | null {
   return null;
 }
 
-/** Scrolls `element` fully into its list's view (a margin around it). */
-export function revealInList(element: HTMLElement, margin = 12): void {
+/** Scrolls `element` fully into its list's view (a margin around it);
+ * `top`: its top to the list's top, under the panel's head, as far as the
+ * list scrolls (a step that replaces a card reads from its heading). */
+export function revealInList(element: HTMLElement, margin = 12, top = false): void {
   const list = scroller(element);
   if (!list) return;
   const it = element.getBoundingClientRect();
   const room = list.getBoundingClientRect();
-  if (it.bottom > room.bottom - margin) list.scrollTop += it.bottom - room.bottom + margin;
+  if (top) list.scrollTop += it.top - room.top - margin;
+  else if (it.bottom > room.bottom - margin) list.scrollTop += it.bottom - room.bottom + margin;
   else if (it.top < room.top + margin) list.scrollTop -= room.top + margin - it.top;
 }
 
 /** While `on`, `ref`'s element is in its list's view and its safe choice
  * has focus. */
-export function useReveal(ref: RefObject<HTMLElement | null>, on = true): void {
+export function useReveal(ref: RefObject<HTMLElement | null>, on = true, top = false): void {
   useLayoutEffect(() => {
     const element = ref.current;
     if (!on || !element) return;
-    revealInList(element);
+    revealInList(element, 12, top);
     (element.querySelector<HTMLElement>("[data-autofocus]") ?? element.querySelector<HTMLElement>("button:not(:disabled)"))?.focus({ preventScroll: true });
-  }, [ref, on]);
+  }, [ref, on, top]);
 }
