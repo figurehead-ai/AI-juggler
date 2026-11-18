@@ -69,6 +69,19 @@ describe("the steps beside the form (D-126)", () => {
   });
 });
 
+describe("one primary (D-126)", () => {
+  it("one filled primary in the whole view, on every step", () => {
+    render(<NewPool sessions={MOCK_SESSIONS} projects={MOCK_PROJECTS} accounts={[]} project="proj-ai-juggler" onClose={() => undefined} />);
+    for (let n = 0; n < 9; n += 1) {
+      const step = screen.getByTestId("new-pool-step-title").textContent;
+      const primaries = [...document.querySelectorAll("[data-primary]")].map((one) => `${step}: ${one.textContent}`);
+      expect(primaries.length, primaries.join(" | ")).toBe(1);
+      if (screen.queryByTestId("new-pool-step-review")) break;
+      fireEvent.click(screen.getByTestId("new-pool-next"));
+    }
+  });
+});
+
 describe("the step's head", () => {
   it("says where it is from the wizard around it, its question, and a guide link where it has one", () => {
     render(

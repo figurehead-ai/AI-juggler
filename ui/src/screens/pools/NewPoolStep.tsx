@@ -78,7 +78,7 @@ export function NewPoolStep({
     case "own":
       return <NewPoolOwn draft={draft} onDraft={setDraft} where={where} />;
     case "tools":
-      return <NewPoolTools onAnswer={onToolsAnswer} />;
+      return <NewPoolTools onAnswer={onToolsAnswer} members={draft.members.map((member) => member.ref)} open={sessions} />;
     case "review":
       return <NewPoolReview draft={draft} name={name} where={where} nameOf={memberName} openNow={openNow} projects={projects} onChange={onGo} />;
     default:

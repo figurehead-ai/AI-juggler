@@ -14,6 +14,7 @@ import { LeadCards } from "./LeadCards";
 import { NewPoolLead } from "./NewPoolLead";
 import { NewPoolTalk } from "./NewPoolTalk";
 import { NewPoolOwn } from "./NewPoolOwn";
+import { NewPoolTools } from "./NewPoolTools";
 
 beforeEach(() => resetPreviewAgentBridge());
 afterEach(cleanup);
@@ -58,6 +59,16 @@ describe("On their own (D-126 cards)", () => {
     expect(draft.sealed).toBe(true);
     view.rerender(<NewPoolOwn draft={draft} onDraft={(next) => (draft = next)} where="web" />);
     expect(screen.getByRole("switch", { name: "Keep this pool's work apart" }).getAttribute("aria-checked")).toBe("true");
+  });
+});
+
+describe("Team tools (D-126 cards)", () => {
+  it("the question drawn, what it gives, costs and changes side by side, its two answers as cards (no filled primary)", async () => {
+    render(<NewPoolTools />);
+    const question = await screen.findByRole("region", { name: "Let the sessions in your pools message each other and share notes and tasks?" });
+    expect(within(question).getByTestId("new-pool-art-tools")).toBeTruthy();
+    expect(within(question).getAllByRole("button").map((one) => one.textContent)).toEqual(["Settings", "Yes, let them work together", "Not now"]);
+    expect(question.querySelectorAll("[data-primary]")).toHaveLength(0);
   });
 });
 

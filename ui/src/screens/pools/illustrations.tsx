@@ -12,9 +12,9 @@ const EDGE = "var(--color-hairline)";
 const ACCENT = "var(--color-accent)";
 const NODE = "var(--color-surface-3)";
 
-function Art({ width, height, children, testId, fluid = false }: { width: number; height: number; children: ReactNode; testId?: string; fluid?: boolean }): JSX.Element {
+function Art({ width, height, children, testId, fluid = false, fill = false }: { width: number; height: number; children: ReactNode; testId?: string; fluid?: boolean; fill?: boolean }): JSX.Element {
   return (
-    <svg aria-hidden="true" width={fluid ? "100%" : width} height={height} viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="xMidYMid meet" fill="none" data-testid={testId}>
+    <svg aria-hidden="true" width={fluid || fill ? "100%" : width} height={fill ? "100%" : height} viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="xMidYMid meet" fill="none" data-testid={testId}>
       {children}
     </svg>
   );
@@ -186,11 +186,12 @@ export function TemplateArt({ shape }: { shape: string }): JSX.Element {
   );
 }
 
-/** Team tools: two apps' sessions talking through AI Juggler. `left`
- * and `right` are their logos, drawn by the caller over the ends. */
+/** Team tools: two apps' sessions talking through AI Juggler, filling
+ * its box; their logos and AI Juggler's are drawn by the caller over the
+ * ends and the middle. */
 export function ToolsArt(): JSX.Element {
   return (
-    <Art width={420} height={110} testId="new-pool-art-tools">
+    <Art width={420} height={110} fill testId="new-pool-art-tools">
       <path d="M96 52H178M242 52H324" {...LINE} />
       <circle cx={210} cy={52} r={32} fill="color-mix(in srgb, var(--color-accent) 20%, var(--color-surface))" stroke={ACCENT} strokeWidth={1.5} />
       <Envelope x={126} y={26} on />
