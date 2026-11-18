@@ -1847,9 +1847,6 @@
   "typescript(no-unnecessary-type-assertion)": 1,
   "typescript(no-unsafe-type-assertion)": 1
  },
- "src/pages/pool/Inspector.tsx": {
-  "jsx-a11y(prefer-tag-over-role)": 1
- },
  "src/pages/pool/NodeParts.tsx": {
   "jsx-a11y(prefer-tag-over-role)": 1
  },
@@ -2344,9 +2341,6 @@
   "react-hooks(exhaustive-deps)": 2,
   "typescript(no-meaningless-void-operator)": 1,
   "typescript(no-unsafe-type-assertion)": 1
- },
- "src/screens/pools/NewPoolTemplate.tsx": {
-  "jsx-a11y(prefer-tag-over-role)": 1
  },
  "src/screens/pools/NewPoolWho.tsx": {
   "jsx-a11y(prefer-tag-over-role)": 1

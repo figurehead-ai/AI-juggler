@@ -18,6 +18,7 @@ import { NewPool } from "./NewPool";
 import { NewPoolPreview, PreviewDiagram, PreviewStrip, type PreviewNode, type PreviewRow } from "./NewPoolPreview";
 import { NewPoolStartSide } from "./NewPoolStartSide";
 import { NewPoolSteps } from "./NewPoolSteps";
+import { NewPoolTemplate } from "./NewPoolTemplate";
 import { StepEyebrow, StepHead } from "./StepHead";
 
 beforeEach(async () => {
@@ -124,6 +125,23 @@ describe("the live preview", () => {
     const row = screen.getAllByTestId("new-pool-candidate").find((one) => !one.querySelector("[role=checkbox]")!.hasAttribute("disabled"))!;
     fireEvent.click(within(row).getByRole("checkbox"));
     expect(screen.getAllByTestId("new-pool-preview-node")).toHaveLength(before + 1);
+  });
+});
+
+describe("How to start (D-126 cards)", () => {
+  it("is one radio group: Start from scratch first and suggested for a first pool, each template with its drawing; the arrows choose", () => {
+    const chosen: string[] = [];
+    const view = render(<NewPoolTemplate chosen="blank" onChoose={(id) => chosen.push(id)} first />);
+    const group = screen.getByRole("radiogroup", { name: "How to start" });
+    const scratch = within(group).getByRole("radio", { name: /^Start from scratch/ });
+    expect(scratch).toHaveProperty("checked", true);
+    expect(screen.getByText("Suggested for a first pool")).toBeTruthy();
+    expect(within(group).getAllByRole("radio")).toHaveLength(9);
+    expect(screen.getAllByTestId("new-pool-art-template")).toHaveLength(8);
+    fireEvent.keyDown(scratch, { key: "ArrowDown" });
+    expect(chosen).toEqual(["writer-reviewer"]);
+    view.rerender(<NewPoolTemplate chosen="blank" onChoose={() => undefined} first={false} />);
+    expect(screen.queryByText("Suggested for a first pool")).toBeNull();
   });
 });
 

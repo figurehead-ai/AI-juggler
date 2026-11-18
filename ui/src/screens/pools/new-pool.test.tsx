@@ -141,7 +141,7 @@ describe("AJ-E3007, AJ-E3011 the setup, start to end", () => {
       </ActionHostProvider>,
     );
     const wizard = screen.getByTestId("new-pool");
-    fireEvent.click(within(wizard).getAllByTestId("new-pool-template").find((card) => card.dataset.template === "feature-team")!);
+    fireEvent.click(within(within(wizard).getAllByTestId("new-pool-template").find((card) => card.dataset.template === "feature-team")!).getByRole("radio"));
     nextTo("where");
     fireEvent.change(screen.getByTestId("new-pool-name"), { target: { value: "Checkout team" } });
     // Every project, so every open session can join.
@@ -205,7 +205,7 @@ describe("AJ-E3007, AJ-E3011 the setup, start to end", () => {
     const cards = screen.getAllByTestId("new-pool-template");
     expect(cards[0]!.dataset.template).toBe("blank");
     expect(cards[0]!.textContent).toContain("Start from scratch");
-    expect(cards[0]!.getAttribute("aria-checked")).toBe("true");
+    expect(within(cards[0]!).getByRole("radio")).toHaveProperty("checked", true);
     expect(screen.queryByTestId("new-pool-by-hand")).toBeNull();
     // No Make pool before Where is done.
     expect(screen.queryByTestId("new-pool-make")).toBeNull();
@@ -255,7 +255,7 @@ describe("AJ-E3007, AJ-E3011 the setup, start to end", () => {
   it("AJ-E3007 R5: Back keeps every choice — the template, the members, the talk and the name", () => {
     render(<NewPool sessions={MOCK_SESSIONS} projects={MOCK_PROJECTS} accounts={[]} project={null} onClose={() => undefined} />);
     const wizard = screen.getByTestId("new-pool");
-    fireEvent.click(within(wizard).getAllByTestId("new-pool-template").find((card) => card.dataset.template === "feature-team")!);
+    fireEvent.click(within(within(wizard).getAllByTestId("new-pool-template").find((card) => card.dataset.template === "feature-team")!).getByRole("radio"));
     nextTo("where");
     fireEvent.change(screen.getByTestId("new-pool-name"), { target: { value: "Checkout team" } });
     fireEvent.click(within(screen.getByTestId("new-pool-where")).getByText("Every project"));
@@ -269,7 +269,7 @@ describe("AJ-E3007, AJ-E3011 the setup, start to end", () => {
     expect(cell().dataset.rule).toBe("blocked");
     // Back to the first step and forward again: nothing was lost.
     for (let n = 0; n < 5; n += 1) fireEvent.click(screen.getByTestId("new-pool-back"));
-    expect(within(screen.getByTestId("new-pool")).getAllByTestId("new-pool-template").find((card) => card.dataset.template === "feature-team")!.getAttribute("aria-checked")).toBe("true");
+    expect(within(within(screen.getByTestId("new-pool")).getAllByTestId("new-pool-template").find((card) => card.dataset.template === "feature-team")!).getByRole("radio")).toHaveProperty("checked", true);
     nextTo("where");
     expect(screen.getByTestId("new-pool-name")).toHaveProperty("value", "Checkout team");
     nextTo("who");
