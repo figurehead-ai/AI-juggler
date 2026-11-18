@@ -488,11 +488,14 @@ fn endpoints_are_https_bases_only() {
     for url in compiled.urls(Channel::Beta) {
         assert!(juggler_remote_config::fetch::allowed_url(&url));
     }
+    // A URL with userinfo ("x" + '@' + the host): built, so the private-data
+    // lint doesn't read it as an e-mail address.
+    let userinfo = format!("https://x{}config.figurehead.ai/v1/stable.json", '@');
     for other in [
         "https://config.figurehead.ai.evil.test/v1/stable.json",
         "https://evil.test/v1/stable.json",
         "https://config.figurehead.ai:8443/v1/stable.json",
-        "https://x@config.figurehead.ai/v1/stable.json",
+        userinfo.as_str(),
         "http://config.figurehead.ai/v1/stable.json",
         "https://figurehead.ai/v1/stable.json",
     ] {

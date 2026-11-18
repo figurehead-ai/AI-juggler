@@ -54,6 +54,7 @@ RULES: tuple[tuple[str, bool, str], ...] = (
     ("ui/playwright*.config.ts", False, "Playwright's configuration"),
     ("ui/vitest.config.ts", False, "Vitest's configuration"),
     ("**/*.md", False, "documentation: the app includes none (the self-test checks)"),
+    ("config/remote/**", False, "the remote configuration's sources and schema: publish-config.yml signs and uploads them; the app build includes none (ADR-0035)"),
     # The app.
     ("crates/**", True, "the app: Rust code, build scripts, the Tauri configuration, capabilities, icons, Info.plist, entitlements"),
     ("ui/**", True, "the interface `pnpm build` bundles, with its packages and lockfile"),
