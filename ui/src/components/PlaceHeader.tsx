@@ -158,15 +158,25 @@ export function PlaceHeader({
           {/* D-100 (the 0.4.2 review): the App's own name gives way last.
               It takes its own width (cut, at its end, its full name on
               hover, only when nothing else is left to give); its secondary
-              words (its app's word, a folded App's summary) take what's
-              left, each whole or hidden (the kind mark
-              already says Desktop or CLI), "nothing open" before the app
-              word; the marks after it give way first, to their icon. */}
+              words (a folded App's summary, "nothing open") take what's
+              left, each whole or hidden; the marks after it give way
+              first, to their icon. */}
           <span className="ml-0.5 min-w-0 truncate text-label font-semibold leading-[18px] text-ink" data-testid={place?.profile ? "place-profile" : undefined} title={name}>
             {place?.profile ?? label}
           </span>
+          {/* D-118's mock (round 3): the account, then the app, always
+              ("Work Max Claude app", "Work Max Claude Code CLI"): two Apps on
+              one Account were told apart by their icons alone when the app
+              word gave way. It shares the room with the name (each cut at
+              its end only when nothing else is left, its whole name on
+              hover); the marks after it give way first. An App with no
+              profile (ChatGPT) is its name alone. */}
+          {place?.profile && (
+            <span className="min-w-0 truncate whitespace-nowrap text-label leading-[18px] text-muted" data-testid="place-app-word" title={name}>
+              {label}
+            </span>
+          )}
           <span ref={extra} className="flex h-[18px] min-w-0 flex-1 basis-0 items-center gap-x-[3px] overflow-hidden" data-testid="place-name-line">
-            {place?.profile && <span className="shrink-0 whitespace-nowrap text-label leading-[18px] text-muted" data-testid="place-app-word">{label}</span>}
             {folded !== null && needs === 0 && <span className="shrink-0 whitespace-nowrap text-label leading-[18px] text-muted">{folded.slice(folded.indexOf("·") + 1).trim()}</span>}
             {/* 0.4.4: placed first, so it wins over the app word (the kind mark and icon say the app). */}
             {empty && <span className="shrink-0 whitespace-nowrap text-label leading-[18px] text-muted" data-testid="place-nothing-open" data-fit="first">nothing open</span>}
