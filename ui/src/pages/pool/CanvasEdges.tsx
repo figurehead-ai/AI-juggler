@@ -11,6 +11,12 @@
  * node it was going to (Let it continue, Don't deliver: `PausedLine`),
  * an agent's ask on its sender's; a message waiting for a session run
  * here goes in at its next turn, its Deliver in the line's inspector.
+ *
+ * Two members who wrote both ways have one line, an arrowhead at each
+ * end (the coordinator's round-2 note: the mock draws one line a pair;
+ * two curves side by side were the canvas's last busy thing). It leads
+ * with the way that needs you, else the busier one: a click chooses that
+ * way, and its inspector offers the other.
  */
 import { memo, useMemo, useState, type JSX } from "react";
 
@@ -158,7 +164,50 @@ const ALONG = [0.5, 0.4, 0.6, 0.3, 0.7];
 
 /** `waits`: something waits on the edge (hovered or chosen, it draws
  * dashed). */
-type Drawn = { edge: CanvasEdgeInfo; key: string; d: string; mid: Point; along: Point[]; line: Point[]; width: number; waits: boolean; tasksOnly: boolean };
+type Drawn = { edge: CanvasEdgeInfo; key: string; back: CanvasEdgeInfo | null; backKey: string | null; d: string; mid: Point; along: Point[]; line: Point[]; width: number; waits: boolean; tasksOnly: boolean };
+
+/** Whether `a` leads a pair drawn as one line over `b`: the way that
+ * needs you, else the busier one. */
+function leads(a: CanvasEdgeInfo, b: CanvasEdgeInfo): boolean {
+  const waits = (edge: CanvasEdgeInfo) => edge.pending.length > 0;
+  if (waits(a) !== waits(b)) return waits(a);
+  return a.messages + a.tasks > b.messages + b.tasks;
+}
+
+/** A pair's two ways as one edge, for the line's words when neither way
+ * is chosen ("5 messages · both ways"). */
+function bothWays(a: CanvasEdgeInfo, b: CanvasEdgeInfo): CanvasEdgeInfo {
+  return { ...a, messages: a.messages + b.messages, tasks: a.tasks + b.tasks, pending: [...a.pending, ...b.pending], last_at_ms: Math.max(a.last_at_ms, b.last_at_ms) };
+}
+
+/** Whether a drawn line is `key`'s, either of its ways. */
+const isLine = (line: Pick<Drawn, "key" | "backKey">, key: string | null): boolean => key !== null && (line.key === key || line.backKey === key);
+
+/** How a line draws: chosen, lit (chosen or hovered), its tone and
+ * arrowheads, blocked only when every way it carries is; a dot runs the
+ * way the new activity went (back along the one line for a pair's other
+ * way). */
+function lineLook(line: Drawn, selected: string | null, hover: string | null, pulses: ReadonlyMap<string, number>, lineRules?: LineRules) {
+  const on = isLine(line, selected);
+  const lit = on || hover === line.key;
+  const pulseBack = line.backKey !== null && pulses.has(line.backKey) && !pulses.has(line.key);
+  const pulse = pulses.has(line.key) || pulseBack;
+  const blocked = lineRules?.get(line.key) === "blocked" && (line.backKey === null || lineRules.get(line.backKey) === "blocked");
+  const tone = on ? "stroke-accent-hi" : blocked ? "stroke-danger" : !lit ? "stroke-muted" : line.tasksOnly ? "stroke-live" : "stroke-accent";
+  const marker = `url(#canvas-arrow-${on ? "sel" : !lit ? "rest" : line.tasksOnly ? "task" : "msg"})`;
+  return { on, lit, pulse, pulseBack, blocked, tone, marker };
+}
+
+/** The way a line's label speaks for: the chosen one, else the one with
+ * its own rule; a pair with neither speaks for both ("· both ways"). */
+function labelWay(line: Drawn, selected: string | null, lineRules?: LineRules): { edge: CanvasEdgeInfo; key: string; own: TalkRule | undefined; both: boolean } {
+  const { edge, key, back, backKey } = line;
+  if (!back || !backKey) return { edge, key, own: lineRules?.get(key), both: false };
+  if (selected === backKey) return { edge: back, key: backKey, own: lineRules?.get(backKey), both: false };
+  if (selected === key || lineRules?.has(key)) return { edge, key, own: lineRules?.get(key), both: false };
+  if (lineRules?.has(backKey)) return { edge: back, key: backKey, own: lineRules.get(backKey), both: false };
+  return { edge: bothWays(edge, back), key, own: undefined, both: true };
+}
 
 export const CanvasEdges = memo(function CanvasEdges({
   edges,
@@ -193,7 +242,7 @@ export const CanvasEdges = memo(function CanvasEdges({
   // The routes and their label spots: again only when the nodes, the edges
   // or the zoom change, not on hover or selection.
   const drawn = useMemo(() => {
-    const keys = new Set(edges.map((edge) => edgeKey(edge.from_session_id, edge.to_session_id)));
+    const byKey = new Map(edges.map((edge) => [edgeKey(edge.from_session_id, edge.to_session_id), edge]));
     // Each edge's line from middle to middle: a detour's label keeps off them.
     const lines = edges.flatMap((edge) => {
       const from = points.get(edge.from_session_id);
@@ -201,18 +250,26 @@ export const CanvasEdges = memo(function CanvasEdges({
       return from && to ? [{ key: edgeKey(edge.from_session_id, edge.to_session_id), line: [nodeMiddle(from), nodeMiddle(to)] as const }] : [];
     });
     const out: Drawn[] = [];
-    for (const edge of edges) {
+    const done = new Set<string>();
+    for (const one of edges) {
+      const oneKey = edgeKey(one.from_session_id, one.to_session_id);
+      if (done.has(oneKey)) continue;
+      const twin = byKey.get(edgeKey(one.to_session_id, one.from_session_id)) ?? null;
+      const [edge, back] = twin && leads(twin, one) ? [twin, one] : [one, twin];
+      const key = edgeKey(edge.from_session_id, edge.to_session_id);
+      const backKey = back ? edgeKey(back.from_session_id, back.to_session_id) : null;
+      done.add(key);
+      if (backKey) done.add(backKey);
       const from = points.get(edge.from_session_id);
       const to = points.get(edge.to_session_id);
       if (!from || !to) continue;
-      const key = edgeKey(edge.from_session_id, edge.to_session_id);
-      const back = edgeKey(edge.to_session_id, edge.from_session_id);
       const around = [...points].filter(([id]) => id !== edge.from_session_id && id !== edge.to_session_id).map(([, at]) => at);
-      const busy = lines.filter((other) => other.key !== key && other.key !== back).map((other) => other.line);
-      const curve = edgeCurve(from, to, keys.has(back), around, busy, room);
-      const total = edge.messages + edge.tasks;
+      const busy = lines.filter((other) => other.key !== key && other.key !== backKey).map((other) => other.line);
+      const curve = edgeCurve(from, to, false, around, busy, room, back ? 10 : 0);
+      const all = back ? bothWays(edge, back) : edge;
+      const total = all.messages + all.tasks;
       const at = (t: number) => curvePoint(curve.start, curve.control, curve.end, t);
-      out.push({ edge, key, d: curve.d, mid: curve.mid, along: ALONG.map(at), line: Array.from({ length: 17 }, (_, n) => at(n / 16)), width: Math.min(4, 1.5 + Math.log2(1 + total) * 0.6), waits: edge.pending.length > 0, tasksOnly: edge.messages === 0 && edge.tasks > 0 });
+      out.push({ edge, key, back, backKey, d: curve.d, mid: curve.mid, along: ALONG.map(at), line: Array.from({ length: 17 }, (_, n) => at(n / 16)), width: Math.min(4, 1.5 + Math.log2(1 + total) * 0.6), waits: all.pending.length > 0, tasksOnly: all.messages === 0 && all.tasks > 0 });
     }
     return out;
   }, [edges, points, room]);
@@ -226,16 +283,13 @@ export const CanvasEdges = memo(function CanvasEdges({
             </marker>
           ))}
         </defs>
-        {drawn.map(({ key, d, width, waits, tasksOnly }) => {
-          const on = selected === key;
+        {drawn.map((line) => {
+          const { key, backKey, d, width, waits } = line;
           // Hovered or chosen, a line says what it is (its colour, dashed
           // while something on it waits); at rest it is quiet.
-          const lit = on || hover === key;
-          const pulse = pulses.has(key);
-          const own = lineRules?.get(key);
-          const tone = on ? "stroke-accent-hi" : own === "blocked" ? "stroke-danger" : !lit ? "stroke-muted" : tasksOnly ? "stroke-live" : "stroke-accent";
+          const { on, lit, pulse, pulseBack, blocked, tone, marker } = lineLook(line, selected, hover, pulses, lineRules);
           return (
-            <g key={key} data-edge={key}>
+            <g key={key} data-edge={key} data-edge-back={backKey ?? undefined}>
               <path
                 d={d}
                 fill="none"
@@ -252,13 +306,14 @@ export const CanvasEdges = memo(function CanvasEdges({
                 d={d}
                 fill="none"
                 strokeWidth={on || (pulse && reducedMotion) ? width + 1.5 : width}
-                strokeDasharray={waits && lit ? "6 5" : own === "blocked" ? "2 4" : undefined}
-                markerEnd={`url(#canvas-arrow-${on ? "sel" : !lit ? "rest" : tasksOnly ? "task" : "msg"})`}
+                strokeDasharray={waits && lit ? "6 5" : blocked ? "2 4" : undefined}
+                markerEnd={marker}
+                markerStart={backKey ? marker : undefined}
                 className={tone + " transition-[stroke-width] duration-200" + (lit ? "" : " opacity-80")}
               />
               {pulse && !reducedMotion && (
                 <circle r="4.5" className="fill-accent-hi" data-testid="edge-pulse">
-                  <animateMotion dur="1.2s" repeatCount="1" fill="freeze" path={d} />
+                  <animateMotion dur="1.2s" repeatCount="1" fill="freeze" path={d} {...(pulseBack ? { keyPoints: "1;0", keyTimes: "0;1", calcMode: "linear" } : {})} />
                   <animate attributeName="opacity" values="1;1;0" keyTimes="0;0.8;1" dur="1.2s" fill="freeze" />
                 </circle>
               )}
@@ -267,27 +322,33 @@ export const CanvasEdges = memo(function CanvasEdges({
         })}
       </svg>
       {apart(
-        drawn.filter(({ key }) => selected === key || hover === key || lineRules?.has(key)),
+        drawn.filter((line) => isLine(line, selected) || hover === line.key || lineRules?.has(line.key) || (line.backKey !== null && lineRules?.has(line.backKey))),
         points.values(),
         drawn.map(({ key, line }) => ({ key, points: line })),
         room,
-      ).map(({ edge, key, mid }) => {
+      ).map((line) => {
+          const way = labelWay(line, selected, lineRules);
+          const { edge, key } = way;
+          const on = isLine(line, selected);
           const from = names.get(edge.from_session_id) ?? "A member";
-          const own = lineRules?.get(key);
-          const said = edgeWords(edge, from, names.get(edge.to_session_id) ?? "a member", own);
+          const to = names.get(edge.to_session_id) ?? "a member";
+          const said = edgeWords(edge, from, to, way.own);
+          const both = way.both ? { count: `${said.count} · both ways`, aria: `${said.count}, both ways between ${from} and ${to}` } : said;
           // What waits on it, in its words, quiet ("2 messages · Paused").
-          const waiting = selected === key || hover === key ? pendingWords(edge, hops)?.short : undefined;
-          const words = waiting ? { count: `${said.count} · ${waiting}`, aria: `${said.count} · ${waiting}, ${from} to ${names.get(edge.to_session_id) ?? "a member"}` } : said;
+          const waiting = on || hover === line.key ? pendingWords(edge, hops)?.short : undefined;
+          const words = waiting ? { count: `${both.count} · ${waiting}`, aria: `${both.count} · ${waiting}, ${from} to ${to}` } : both;
+          const { mid } = line;
+          const own = way.own;
           return (
             <div
-              key={key}
+              key={line.key}
               className="absolute left-0 top-0 z-10 flex flex-col items-center gap-1"
               // Below 100 %: undo the canvas's scale, so it reads at screen size.
               style={{ transform: `translate(${mid.x}px, ${mid.y}px)${compact ? ` scale(${unit})` : ""} translate(-50%, -50%)` }}
               data-testid="edge-label"
               data-edge={key}
             >
-              {(selected === key || hover === key || own) && (
+              {(on || hover === line.key || own) && (
               <button
                 type="button"
                 tabIndex={-1}
@@ -298,7 +359,7 @@ export const CanvasEdges = memo(function CanvasEdges({
                 }}
                 className={
                   "whitespace-nowrap rounded-full border bg-surface px-2 py-0.5 text-label outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60 " +
-                  (selected === key ? "border-accent text-ink" : "border-hairline text-muted")
+                  (on ? "border-accent text-ink" : "border-hairline text-muted")
                 }
               >
                 {words.count}

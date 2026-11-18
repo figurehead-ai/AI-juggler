@@ -529,6 +529,24 @@ describe("semantic zoom (the 0.3 review: 9–10 px words at fit)", () => {
     expect(within(view.getByTestId("pool-inspector")).getByTestId("edge-deliver").textContent).toBe("Deliver");
   });
 
+  it("a pair is one line: chosen, its inspector offers the other way, one click (round 2)", async () => {
+    seedTeam();
+    const way = (from: string, to: string, messages: number) => ({ from_session_id: from, to_session_id: to, messages, tasks: 0, last_at_ms: Date.now() - 1000, thread_id: "thr-1", pending: [] });
+    seams().__AIJ_POOL_CANVAS__ = { "pool-team": { edges: [way(first.id, second.id, 3), way(second.id, first.id, 1)] } };
+    const view = await openPage();
+    const key = `${first.id}>${second.id}`;
+    await waitFor(() => expect(view.container.querySelector(`g[data-edge="${key}"]`)).toBeTruthy());
+    expect(view.container.querySelectorAll("g[data-edge]")).toHaveLength(1);
+    fireEvent.click(view.container.querySelector(`g[data-edge="${key}"] path`)!);
+    const inspector = within(view.getByTestId("pool-inspector"));
+    const other = inspector.getByTestId("inspect-edge-other");
+    expect(other.textContent).toMatch(/^The other way: .+ → .+ · 1 message$/);
+    fireEvent.click(other);
+    const label = view.getAllByTestId("edge-label").find((one) => one.dataset.edge === `${second.id}>${first.id}`);
+    expect(label?.textContent).toBe("1 message");
+    expect(within(view.getByTestId("pool-inspector")).getByTestId("inspect-edge-other").textContent).toMatch(/· 3 messages$/);
+  });
+
   it("AJ-E3008 R4: a line paused at the hop limit offers Let it continue and Don't deliver", async () => {
     seedTeam();
     seams().__AIJ_POOL_CANVAS__ = {
@@ -701,7 +719,8 @@ describe("semantic zoom (the 0.3 review: 9–10 px words at fit)", () => {
     view.rerender(<CanvasEdges edges={edges} points={points} names={names} selected="a>b" pulses={new Map()} reducedMotion scale={0.6} onSelect={() => {}} />);
     const labels = view.getAllByTestId("edge-label");
     expect(labels.map((label) => label.dataset.edge)).toEqual(["a>b"]);
-    const mid = edgeCurve(points.get("a")!, points.get("b")!, true).mid;
+    // The pair is one line (round 2): its label at that line's middle.
+    const mid = edgeCurve(points.get("a")!, points.get("b")!, false, [], [], undefined, 10).mid;
     expect(labels[0]!.style.transform.startsWith(`translate(${mid.x}px, ${mid.y}px)`)).toBe(true);
     expect(labels[0]!.textContent).toBe("1 message · 1 waiting");
     expect(view.queryByTestId("edge-badge")).toBeNull();

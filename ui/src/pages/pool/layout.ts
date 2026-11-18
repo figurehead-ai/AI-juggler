@@ -252,6 +252,8 @@ export function edgeCurve(
   around: readonly Point[] = [],
   busy: readonly (readonly [Point, Point])[] = [],
   room: LabelRoom = { w: 60, h: 60, below: 30 },
+  /** Room at the start for an arrowhead too (a pair drawn as one line). */
+  startGap = 0,
 ): { d: string; mid: Point; end: Point; start: Point; control: Point } {
   const a = nodeMiddle(from);
   const b = nodeMiddle(to);
@@ -261,7 +263,7 @@ export function edgeCurve(
   // To the right of the travel: each direction of a pair bends its own way.
   const arc = (bend: number) => {
     const control = { x: (a.x + b.x) / 2 - (dy / length) * bend, y: (a.y + b.y) / 2 + (dx / length) * bend };
-    return { control, start: boxEdge(from, control), end: boxEdge(to, control, 10) };
+    return { control, start: startGap > 0 ? boxEdge(from, control, startGap) : boxEdge(from, control), end: boxEdge(to, control, 10) };
   };
   const bend = bothWays ? 36 : Math.min(28, length * 0.08);
   let path = arc(bend);

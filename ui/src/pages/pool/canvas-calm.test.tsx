@@ -102,6 +102,54 @@ describe("one mark a need, on the node (the rc3 critique)", () => {
   });
 });
 
+describe("a pair is one line (round 2: the mock draws one line a pair)", () => {
+  const points = new Map<string, Point>([["a", { x: 0, y: 0 }], ["b", { x: 400, y: 0 }]]);
+  const names = new Map([["a", "Planner"], ["b", "Fix the cart totals"]]);
+  const way = (from: string, to: string, messages: number, waits = false): CanvasEdgeInfo => ({
+    from_session_id: from,
+    to_session_id: to,
+    messages,
+    tasks: 0,
+    last_at_ms: 0,
+    thread_id: "t",
+    pending: waits ? [{ message_id: `m-${from}`, thread_id: "t", subject: "s", recipient: `session:${to}`, kind: "waiting", ask_id: null, at_ms: 0 }] : [],
+  });
+
+  it("two ways draw one path with an arrowhead at each end; a click chooses the way that needs you, else the busier", () => {
+    const picked: string[] = [];
+    const view = render(<CanvasEdges edges={[way("a", "b", 5), way("b", "a", 2, true)]} points={points} names={names} selected={null} pulses={new Map()} reducedMotion scale={1} onSelect={(key) => picked.push(key)} />);
+    const groups = view.container.querySelectorAll("g[data-edge]");
+    expect(groups).toHaveLength(1);
+    expect(groups[0]!.getAttribute("data-edge")).toBe("b>a");
+    expect(groups[0]!.getAttribute("data-edge-back")).toBe("a>b");
+    const drawnLine = [...groups[0]!.querySelectorAll("path")].find((path) => path.getAttribute("marker-end"))!;
+    expect(drawnLine.getAttribute("marker-start")).toBe(drawnLine.getAttribute("marker-end"));
+    fireEvent.click(groups[0]!.querySelector("path")!);
+    expect(picked).toEqual(["b>a"]);
+    view.unmount();
+    // Nothing waits: the busier way leads.
+    const calm = render(<CanvasEdges edges={[way("a", "b", 5), way("b", "a", 2)]} points={points} names={names} selected={null} pulses={new Map()} reducedMotion scale={1} onSelect={() => {}} />);
+    expect(calm.container.querySelector("g[data-edge]")!.getAttribute("data-edge")).toBe("a>b");
+    // One way only: one arrowhead.
+    calm.rerender(<CanvasEdges edges={[way("a", "b", 5)]} points={points} names={names} selected={null} pulses={new Map()} reducedMotion scale={1} onSelect={() => {}} />);
+    const single = [...calm.container.querySelectorAll("g[data-edge] path")].find((path) => path.getAttribute("marker-end"))!;
+    expect(single.getAttribute("marker-start")).toBeNull();
+  });
+
+  it("hovered with neither way chosen it speaks for both; chosen either way, the line is lit and speaks for that way", () => {
+    const edges = [way("a", "b", 5), way("b", "a", 2)];
+    const view = render(<CanvasEdges edges={edges} points={points} names={names} selected={null} pulses={new Map()} reducedMotion scale={1} onSelect={() => {}} />);
+    fireEvent.mouseEnter(view.container.querySelector('g[data-edge="a>b"] path')!);
+    expect(view.getByTestId("edge-label").textContent).toBe("7 messages · both ways");
+    view.rerender(<CanvasEdges edges={edges} points={points} names={names} selected="b>a" pulses={new Map()} reducedMotion scale={1} onSelect={() => {}} />);
+    const label = view.getByTestId("edge-label");
+    expect(label.dataset.edge).toBe("b>a");
+    expect(label.textContent).toBe("2 messages");
+    const drawnLine = [...view.container.querySelectorAll('g[data-edge="a>b"] path')].find((path) => path.getAttribute("marker-end"))!;
+    expect(drawnLine.getAttribute("class")).toContain("stroke-accent-hi");
+  });
+});
+
 /** The gallery's Checkout team: the lead and five members, the lines
  * between them (the fixture's messages and its one task). */
 const TEAM: LayoutNode[] = [

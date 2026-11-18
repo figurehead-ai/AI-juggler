@@ -53,9 +53,11 @@ import type { DesktopMemberInfo } from "../../lib/ipc/connector";
 
 const ThreadView = lazyNamed(() => import("../messages/ThreadView"), "ThreadView");
 
-function InspectEdge({ pool, canvas, edgeId, names, now }: { pool: PoolInfo; canvas: PoolCanvasInfo | null; edgeId: string; names: ReadonlyMap<string, string>; now: number }): JSX.Element {
+function InspectEdge({ pool, canvas, edgeId, names, now, onOther }: { pool: PoolInfo; canvas: PoolCanvasInfo | null; edgeId: string; names: ReadonlyMap<string, string>; now: number; onOther: (key: string) => void }): JSX.Element {
   const edge = canvas?.edges.find((row) => edgeKey(row.from_session_id, row.to_session_id) === edgeId);
   const [fromId = "", toId = ""] = edgeId.split(">");
+  // A pair is one line on the canvas: its other way, one click from here.
+  const other = canvas?.edges.find((row) => row.from_session_id === toId && row.to_session_id === fromId);
   // D-62: the line's talk rule, whether or not anything passed yet.
   const talk = <EdgeTalk poolId={pool.id} from={fromId} to={toId} anchors={canvas?.anchors} fromName={names.get(fromId) ?? "A member"} toName={names.get(toId) ?? "a member"} />;
   if (!edge) {
@@ -76,6 +78,16 @@ function InspectEdge({ pool, canvas, edgeId, names, now }: { pool: PoolInfo; can
     <div className="flex flex-col" data-testid="inspect-edge">
       <div className="flex flex-col gap-1 px-4 pb-3 pt-1">
         <span className="text-meta text-muted">{edgeWords(edge, from, to).count} this week · last {agoWords(edge.last_at_ms, now)}</span>
+        {other && (
+          <button
+            type="button"
+            onClick={() => onOther(edgeKey(other.from_session_id, other.to_session_id))}
+            className="w-fit rounded text-left text-meta font-medium text-accent-hi outline-none hover:underline focus-visible:ring-2 focus-visible:ring-accent/60"
+            data-testid="inspect-edge-other"
+          >
+            The other way: {to} → {from} · {edgeWords(other, to, from).count}
+          </button>
+        )}
       </div>
       <div className="pb-3">{talk}</div>
       {edge.pending.length > 0 && (
@@ -307,7 +319,7 @@ export const Inspector = forwardRef<HTMLHeadingElement, {
             onGone={() => onSelect({ kind: "none" })}
           />
         ) : selection.kind === "edge" ? (
-          <InspectEdge pool={pool} canvas={canvas} edgeId={selection.key} names={names} now={now} />
+          <InspectEdge pool={pool} canvas={canvas} edgeId={selection.key} names={names} now={now} onOther={(key) => onSelect({ kind: "edge", key })} />
         ) : phase === "setup" ? (
           <SetupView {...overview} />
         ) : (
