@@ -30,6 +30,7 @@ mod floor;
 mod footprints;
 pub mod foreign;
 mod identity;
+pub mod memory;
 mod messages;
 mod notices;
 mod pool_canvas;
@@ -877,6 +878,7 @@ fn keep_pre_migration_copy(conn: &Connection, db: &Path, current: i64) -> Result
             let backup = rusqlite::backup::Backup::new(conn, &mut copy)?;
             backup.run_to_completion(256, std::time::Duration::ZERO, None)?;
         }
+        memory::backup::scrub_copy(&partial)?; // ADR-0037 §1.5: no memory in a copy
         owner_only(&partial);
         // A writable handle: Windows flushes (FlushFileBuffers) only
         // through one, and a read-only flush fails there.
