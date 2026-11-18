@@ -773,6 +773,8 @@ def selftest():
     check("R4 parts: an undo with its result after the composer's comma is not 'a kept change called undone'", not any("calls" in e and "undone" in e for e in rp["attempts"][0]["errors"]), rp["attempts"][0]["errors"])
     rq = run_item(FEED, tp, "main", Script([FP["false"]]))
     check("R4 parts: ...a kept change the line calls reverted is still refused", any("calls" in e and "undone" in e for e in rq["attempts"][0]["errors"]), rq["attempts"][0]["errors"])
+    vp = {"job": "feed_line", "t": tp, "outcome": rp["final"], "attempts": rp["attempts"], "used": rp["used"], "setting": "main"}
+    check("R4 parts: the detector reads the shown line's parts too (no kept_called_undone on the honest line)", rp["used"] == 0 and "kept_called_undone" not in dets(vp, "critical"), severity.findings(vp))
 
     # ================================================================================================ R4-6. Chat: the subject (frame verbs, a container, whole names), picks only with a telling word
     def r4_chat():

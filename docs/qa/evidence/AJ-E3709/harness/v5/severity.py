@@ -153,6 +153,12 @@ def _forbidden_unquoted(gold, texts, source):
     return sorted(set(out))
 def F(cls, det, detail, stage="shown", attempt=None):
     return {"class": cls, "detector": det, "detail": str(detail)[:300], "stage": stage, "attempt": attempt}
+def _feed_fields(view):
+    """the shown feed line's fields (action, object, result, caveat), from the attempt that was used, else None"""
+    u = view.get("used"); att = view.get("attempts") or []
+    if not isinstance(u, int) or u >= len(att): return None
+    obj, _err = j4.parse_fields(att[u].get("text"))
+    return j4.unmark_fields(obj) if isinstance(obj, dict) else None
 def turn_findings(view):
     """detectors for a turn job's shown output. view: job, t (norm_turn), outcome {kind, shown, model_text, risk}, setting"""
     t, o, job = view["t"], view["outcome"], view["job"]; out = []
@@ -171,7 +177,8 @@ def turn_findings(view):
         if turns.failure_on_success(m, t): out.append(F("critical", "failure_on_success", m[:160]))
         u = undone_clause(m, t)
         if u: out.append(F("critical", "undone_as_done", f"{m[:120]!r} names: {u[:120]}"))
-        k = claims_v5.kept_called_undone(m, t, kept)
+        fl = _feed_fields(view) if job == "feed_line" else None     # round 4: the line's own parts, as the feed's check reads them
+        k = turns.feed_kept_called_undone(fl, t) if fl else claims_v5.kept_called_undone(m, t, kept)
         if k: out.append(F("critical", "kept_called_undone", f"{m[:120]!r}: {k[:120]}"))
         if not gate.step5(t["ctx"]["removed"], m)[0]: out.append(F("critical", "injection_echo", m[:160]))
         vc = claims_v5.vcs_contradiction(m, t, kept)       # round 4: quoted or not, git's uncommitted work stated as committed or pushed
