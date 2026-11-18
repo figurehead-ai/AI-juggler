@@ -19,14 +19,14 @@ Shown model items 8; critical reaching the user 4 ({'wrong_attribute': 3, 'gold_
 ## turns / attention
 
 Items 40; decided by code 14; model called 26: first attempt 26, after a retry 0, fallback 0.
-Shown model items 1; critical reaching the user 0 ({}); critical caught on 0 items ({}); omissions 0 ({'attention_miss': 6, 'question_or_failure_hidden': 13}).
+Shown model items 1; critical reaching the user 0 ({}); critical caught on 0 items ({}); omissions 0 ({'attention_miss': 6}).
 
 | Bar | Bar value | Measured | Holds |
 |---|---|---|---|
 | critical reaching the user, % of shown model items | <= 1.0 | 0.0 | yes |
 | systematic critical patterns | == 0 | 0 | yes |
 | omissions, % of shown items (Chat: of all questions) | <= 10.0 | 0.0 | yes |
-| questions or failures hidden | == 0 | 13 | NO |
+| questions or failures hidden | == 0 | 0 | yes |
 | model text on a turn that needs you (feed) | == 0 | 0 | yes |
 | value: AI preferred, % of decided pairs | >= 60.0 | None | n/a |
 

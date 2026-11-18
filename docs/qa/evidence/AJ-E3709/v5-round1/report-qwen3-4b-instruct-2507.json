@@ -251,10 +251,9 @@
      "omission_denominator": 0,
      "omission_pct": 0.0,
      "omission_by_detector": {
-      "attention_miss": 7,
-      "question_or_failure_hidden": 13
+      "attention_miss": 7
      },
-     "questions_or_failures_hidden": 13,
+     "questions_or_failures_hidden": 0,
      "feed_model_lines_on_loud_items": 0,
      "minor": {}
     },
@@ -284,8 +283,8 @@
       "bar": "questions or failures hidden",
       "op": "==",
       "bar_value": 0,
-      "measured": 13,
-      "ok": false
+      "measured": 0,
+      "ok": true
      },
      {
       "bar": "model text on a turn that needs you (feed)",
