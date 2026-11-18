@@ -31,7 +31,7 @@
 > model-written text. Chat v1 ships as the look-up view: the found records
 > with their links, no written answer. Written-answer parts of AJ-E3802 to
 > AJ-E3809 are not shipped by D-120's rule (ADR-0033 verdicts); AJ-E3803
-> (the disk rules) is deferred whole. Each task says which parts.
+> (the disk rules) is part of D-131's Models area (AJ-E3810 to AJ-E3813) now. Each task says which parts.
 >
 > **Planned for 0.6 (D-123).** The orchestrator bot (a model that acts:
 > sending, switching, stopping, approving). It will sit on this router and
@@ -80,8 +80,8 @@
 **Research basis**: AJ-E3801's ADR; ADR-0033; D-121 point 1.
 **Handover note**: Opus builds this. Keep AJ-E3711's tests green through the move; the summary behaviour must not change. A hidden job must be hidden by the one query, never by a per-job check in the UI.
 
-### AJ-E3803 Disk rules: one downloaded model, approval for more, Settings total and Remove, free-disk margin | Status: TODO (rescoped 2026-11-18: Chat v1 ships as the look-up view, ADR-0033 659da7fec) | Priority P0 | Effort M | Depends: AJ-E3802
-**Rescoped 2026-11-18**: Chat v1 ships as the look-up view: found records with links, no written answer (ADR-0033, 659da7fec; D-120's rule, D-121 point 4). R1-R7 are not shipped by D-120's rule (ADR-0033 verdicts): 0.5 offers no downloaded model, so there are no disk rules to apply. They wait for a later engine.
+### AJ-E3803 Disk rules: one downloaded model, approval for more, Settings total and Remove, free-disk margin | Status: TODO (back in 0.5 on 2026-11-18: part of D-131's Models area, with AJ-E3810 to AJ-E3813; D-130 withdrew the deferral) | Priority P0 | Effort M | Depends: AJ-E3802
+**Part of D-131's Models area (2026-11-18)**: these disk rules are no longer deferred. D-130 withdrew the cap on model work and D-131 amends D-121 point 2: one downloaded model is the default, and more need the user's explicit approval each time (AJ-E3813). The Settings total and Remove rows live in the Models screen (AJ-E3812); the rules here are the engine under it.
 **Goal**: AI models never fill the user's disk behind their back: Apple's first, one downloaded model at most, anything more only after the user agrees.
 **User story**: As someone with a nearly full 256 GB Mac, I am never asked to download a second model, I always see how much space the AI uses, and I can remove it in one click.
 **Requirements**:
@@ -213,3 +213,193 @@
 **Files to touch**: `docs/qa/evidence/AJ-E3809/`.
 **Research basis**: D-121; the persona-validation and test-by-hand rules.
 **Handover note**: Set up the persona lab first and validate it on the real app before the testers start (one batch, one report). Redact captures only with the fail-closed tool.
+
+### AJ-E3810 The `models` section of the remote config: an ADR amendment first (D-131) | Status: TODO | Priority P0 | Effort M | Depends: AJ-E3802
+**Goal**: The list of models AI Juggler supports comes from the signed remote config, so a tested model can be added or withdrawn without an app release, and the config can never add an engine.
+**User story**: As the maintainer, I want to list a newly tested model, or withdraw a bad one, by publishing a signed file, with no release.
+**Requirements**:
+1. An amendment to [ADR-0035](../adr/0035-remote-config.md) SHALL be written and accepted before any code: a `models` section whose entries carry the model id, a pinned download URL on an allow-listed host, the SHA-256, the size, the licence, the minimum hardware (chip family, memory, free disk), and the test verdict per job (feed lines, reviews, hints, Chat, digest, watches) in plain words.
+2. The amendment SHALL name the allow-listed hosts, the schema in `config/remote/schema.json`, the trust rules the other sections already use (signature, rollback protection, fail-closed to the last good copy) and the section's kill-switch behaviour.
+3. Only formats the existing engines already run SHALL be accepted (GGUF through the local engine, and Apple's built-in model); an entry with any other format SHALL be rejected whole, so the section can never add an engine.
+4. A withdrawn model SHALL stay usable until the user removes it, with a plain note (AJ-E3812 shows it).
+5. A model SHALL be listed only after it passes D-130's criteria for at least one job on the harness; the amendment SHALL say how a verdict is recorded and by whom.
+6. The app SHALL ship with a built-in fallback list (Apple's model only), so a first run with no network or no config shows a working screen.
+**UI/UX reasoning**: Architecture standard: data, not code, adds a model; secure-by-design: the allow-list, the pin and the hash bound what a config can make the app fetch.
+**Performance budget**: The section is read lazily when Settings > AI > Models opens or a job needs it; no timer (AJ-E2023's rule).
+**Quality gates**: verify-static; schema tests (valid entry, unknown format, host off the allow-list, a missing hash, a downgraded entry, an unknown field); the ADR reviewed by Opus against the architecture and security standards; a config-signing test that an unsigned `models` section is ignored.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E3810/manifest.md`, R1-R6, each row linking the amendment's section and the test that proves it.
+**Visual testing**: none; a worked example entry in the ADR.
+**Files to touch**: `docs/adr/0035-remote-config.md` (an amendment), `config/remote/schema.json`, `crates/juggler-app/src/features/ai/models/` (the typed section), `docs/qa/evidence/AJ-E3810/`.
+**Research basis**: D-131 point 3; ADR-0035; D-130; the public-repo security guide.
+**Handover note**: The amendment comes before the schema and the code. The section describes models; it never carries code, an engine or a URL outside the allow-list. No model is downloaded to build this.
+
+### AJ-E3811 The recommendation: the best model for this Mac, Apple's first when it passes (D-131) | Status: TODO | Priority P0 | Effort M | Depends: AJ-E3810, AJ-E3802
+**Goal**: The app picks one recommended model for this Mac and can say why in one plain line.
+**User story**: As a vibe-coder who does not know what a quantised model is, I see one recommendation and why it fits my Mac.
+**Requirements**:
+1. The recommendation SHALL be computed from this Mac's chip, memory, free disk and whether Apple Intelligence is on, read through the OS seams (D-52), and from the `models` section's minimum hardware and per-job verdicts.
+2. Apple's built-in model SHALL come first whenever it is available and passes the tests for the job, since it needs no download.
+3. With no passing Apple model, it SHALL pick the listed model that passes the most jobs and fits the memory and the disk rule (size plus 10 GB, AJ-E3813); if none fits, it SHALL recommend nothing and say why.
+4. The reason SHALL be one plain line built from the facts (for example: "Fits this Mac's memory and needs no download."), from `feed-words.ts`.
+5. The logic SHALL be pure and deterministic: the same hardware and list give the same answer, with no model in the loop, and a hardware matrix SHALL be a test fixture.
+6. The result SHALL feed the router's Automatic default (AJ-E3802) and the Models screen (AJ-E3812); it SHALL change when the user turns Apple Intelligence on or off, or when the list changes.
+**UI/UX reasoning**: Progressive disclosure: one answer with a reason, depth on demand; never show what the setup cannot use (D-127).
+**Performance budget**: Computed in under 10 ms from cached hardware facts; hardware read once and cached.
+**Quality gates**: verify-static; unit tests over a hardware matrix (8 GB and 16 GB, Apple Intelligence on and off, free disk on both sides of the margin, an empty list, a withdrawn model); the plain-words lint.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E3811/manifest.md`, R1-R6; the matrix output, and a Sonnet read on a real Mac checked by Opus.
+**Visual testing**: none beyond AJ-E3812's captures.
+**Files to touch**: `crates/juggler-app/src/features/ai/models/recommend.rs` (new), the OS seams, `ui/src/lib/feed-words.ts`, `docs/qa/evidence/AJ-E3811/`.
+**Research basis**: D-131 points 1 and 3; D-121; `docs/research/on-device-model-selection.md`.
+**Handover note**: Keep it a table-driven function over the typed section; no per-model branches. A Mac with no Apple Intelligence and under 16 GB may well get no recommendation, and that is a correct answer.
+
+### AJ-E3812 Settings > AI > Models: Recommended, Other tested models, Installed (D-131, D-126 rich mode) | Status: TODO | Priority P0 | Effort XL | Depends: AJ-E3810, AJ-E3811, AJ-E3803, AJ-E3618
+**Goal**: One screen to see, choose, install and remove the AI models, in the making-and-editing design of D-126.
+**User story**: As a user, I see what AI Juggler recommends for my Mac, what else it has tested, what is installed and how much disk it uses, and I can remove anything in one click.
+**Requirements**:
+1. The screen SHALL be Settings > AI > Models, built in D-126's rich mode on the existing kit, with three groups: Recommended for this Mac, Other tested models, Installed.
+2. Recommended SHALL show one model and its reason (AJ-E3811) with its one-click action (Use it, or Download with the size shown).
+3. Other tested models SHALL list 3 to 5 cards, each with the download size and memory use, how fast it is on this Mac, the jobs it handles with the test verdict in plain words, and its licence. A model that cannot run on this Mac is not shown (D-127).
+4. Installed SHALL show each model's disk use with Remove, the total disk used by AI models, and per job which model it uses now, with Automatic as the default and an optional per-job override through the router (AJ-E3802).
+5. A withdrawn model SHALL stay listed as installed with a plain note, and usable until removed. Remove SHALL hide the jobs only that model served.
+6. Every sentence SHALL come from the words file; no internal terms (pack, target). The screen SHALL lazy-load and show cached data at once.
+**UI/UX reasoning**: D-126: wizards, forms, setup and settings get rich design; Nielsen 1 and 3 (the cost is visible before paying; Remove undoes it); pickers show suggested first, then all.
+**Performance budget**: Opens in under 150 ms from the cache, the rest read lazily; scrolling 60 fps; no list walk of disk (totals from the registered cache index).
+**Quality gates**: verify-static; component tests (each state: none installed, one installed, downloading, withdrawn, no list, offline); the a11y gate; the design-quality review; the plain-words lint; the screenshot gallery updated with stamped captures.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E3812/manifest.md`, R1-R6; captures in both themes at three widths checked by eye; a Sonnet walk by hand (open, recommend, remove, per-job override) verified by Opus.
+**Visual testing**: Each group in each state, both themes, narrow and wide.
+**Files to touch**: `ui/src/components/settings/ai/Models*.tsx`, `ui/src/lib/ipc/`, `ui/src/lib/feed-words.ts`, the Settings words file, `docs/qa/evidence/AJ-E3812/`.
+**Research basis**: D-131 point 1; D-126; ui-consistency; the a11y and design-quality reviews.
+**Handover note**: Reuse the Settings storage row and the card pattern of the kit. Design with the stubbed section; no real model is downloaded in development.
+
+### AJ-E3813 Downloads: one click, the size shown, a free-disk check, a verified hash, approval for each extra model (D-131) | Status: TODO | Priority P0 | Effort L | Depends: AJ-E3810, AJ-E3803
+**Goal**: A model is fetched only on the user's click, safely and visibly, and never fills the disk.
+**User story**: As someone with a nearly full Mac, I am told what a download costs before I click and it never starts if it would not fit.
+**Requirements**:
+1. No model bytes SHALL be fetched before the user's click; one click on Download starts it, with the size shown on the button or beside it.
+2. A download SHALL NOT start, and SHALL stop if running, when free disk is below the model's size plus 10 GB; the user is told why in plain words.
+3. The file SHALL come only from the pinned URL on an allow-listed host (AJ-E3810), be resumable, and have its SHA-256 verified before use; on a mismatch it SHALL be deleted and the user told. A model that fails the check SHALL never be loaded.
+4. D-121's one-downloaded-model default stays: a second or further model SHALL need the user's explicit approval each time, on a card showing the size, the new total and that it stays on the Mac; a decline is remembered. The total disk used is always shown.
+5. A download SHALL pause on battery saver, a metered link or low disk, show its progress and be cancellable, and a cancelled or failed download SHALL leave no partial file behind.
+6. Downloaded models SHALL live in the registered cache (D-58) separately from the Clear cache list, so Clear cache never removes them (AJ-E3803 point 6).
+**UI/UX reasoning**: Serious choices explained: the consequence, the size, an example and a docs link; user control at every step.
+**Performance budget**: A download never competes with an agent's work (lowest priority I/O); idle CPU under 2% while paused.
+**Quality gates**: verify-static; unit tests with a stubbed network of the right size: the margin at the boundary (size plus 10 GB, one byte under), the hash mismatch, a host off the allow-list, resume, cancel, the second model needing approval each time, and a network that fails on any request before the click; the a11y gate on the approval card and progress.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E3813/manifest.md`, R1-R6; a Sonnet walk on a real Mac with a disk-limited fixture, verified by Opus. No download in development without the maintainer's explicit yes in chat.
+**Visual testing**: The download button with size, progress, the refusal, the approval card for a second model, both themes.
+**Files to touch**: `crates/juggler-app/src/features/ai/models/download.rs` (new), the cache registry, `ui/src/components/settings/ai/`, `docs/qa/evidence/AJ-E3813/`.
+**Research basis**: D-131 point 2; D-121 point 2; D-58; the public-repo security guide.
+**Handover note**: Use a stub server and a file of the right size; do not fetch a real model while building. The approval is per model and per time; never a standing yes.
+
+### AJ-E3814 The watch model: a typed rule over the event stream, evaluated deterministically (D-132) | Status: TODO | Priority P0 | Effort XL | Depends: AJ-E3802, AJ-E3702
+**Goal**: A watch is a typed, closed-set rule that AI Juggler evaluates itself on its own events, with no model in the loop. The design is [ADR-0036](../adr/0036-digest-and-watches.md).
+**User story**: As a user, I can have "tell me when the api and web agents finish or get stuck" watched reliably, even with no AI available.
+**Requirements**:
+1. A watch SHALL be a typed value: a target (sessions, apps, a project, a pool or an account), one or more conditions from a closed set (finishes, gets stuck, asks or needs you, fails, idle for N minutes, usage or runway below X, leaves processes running, a pool message), and an expiry ("until it finishes", "today", "always").
+2. Evaluation SHALL be deterministic on the existing event stream, with no model in the loop, and the same events SHALL give the same alerts. A new condition SHALL be added by a module registering a rule, with no change to the evaluator.
+3. A target picker SHALL list suggested targets first (running, most used), then all; an ended or removed target SHALL expire its watch with a plain note, never fail silently.
+4. Expiry SHALL be honoured at once and a finished "until it finishes" watch SHALL remove itself after alerting.
+5. Watches SHALL be stored locally, bounded in number, and addressed by a unique id end to end (actions target by id).
+6. A condition outside the closed set SHALL be refused by the model layer (AJ-E3815) with the nearest supported option; the evaluator SHALL never see it.
+**UI/UX reasoning**: Predictability: a watch does what its plain-words form says, every time; calm attention: it alerts once per need.
+**Performance budget**: Evaluation adds under 1 ms per event; idle CPU under 2% with 50 watches.
+**Quality gates**: verify-static; unit tests per condition (fires, does not fire, expiry, a vanished target), a replay test of recorded event streams giving identical alerts twice, a test that adding a condition needs no evaluator change, and a bound on the watch count.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E3814/manifest.md`, R1-R6; the replay output, and a Sonnet lab walk with generic agents (finish, stuck, expiry) verified by Opus.
+**Visual testing**: none beyond AJ-E3816.
+**Files to touch**: `crates/juggler-app/src/features/watches/` (new), `crates/juggler-core/` event types as needed, `docs/qa/evidence/AJ-E3814/`.
+**Research basis**: D-132 point 2; ADR-0036; the architecture standard; actions-target-by-id.
+**Handover note**: Build the model and evaluator first and use them from a plain UI (AJ-E3816) before the model layer exists; Chat is only one way to create a watch.
+
+### AJ-E3815 Chat creates, changes and removes watches, after the user confirms (D-132) | Status: TODO | Priority P0 | Effort L | Depends: AJ-E3814, AJ-E3804, AJ-E3806
+**Goal**: The user can tell Chat what to watch for in plain words, see the rule, confirm it, and trust it.
+**User story**: As a user, I say "let me know when the api agent gets stuck", read "Watch the api session: when it gets stuck", and press Confirm.
+**Requirements**:
+1. Chat SHALL turn a plain-words request into a typed watch (AJ-E3814), show it back in plain words and create, change or remove it only after the user's explicit confirmation. No watch SHALL exist without it.
+2. Chat SHALL remain unable to send, switch, stop, approve or decide anything (D-132 point 3; D-123); watches are the only thing it may write.
+3. A request outside AI Juggler's capabilities SHALL get a plain "I can't watch for that" with the nearest supported option, and SHALL never claim a watch was made.
+4. An ambiguous target SHALL ask which one, using the picker's suggested list.
+5. The rule shown SHALL be built from the typed watch, never from the model's own wording, so what is confirmed is what runs.
+6. Watch parsing SHALL meet D-132 point 4: at least 95 % exact rule matches on a blind set, 0 watches created without confirmation, 0 claimed watches for unsupported conditions, measured under AJ-E3714 (job f). Below that, the feature falls back to the picker of AJ-E3816.
+7. With no capable engine, the Chat entry for watches SHALL be hidden and the Watches view (AJ-E3816) SHALL remain.
+**UI/UX reasoning**: Confirmation before any write; the user sees plain words, not a schema; serious choices explained.
+**Performance budget**: A request becomes a shown rule within the engine's latency from ADR-0034; no model load without a request.
+**Quality gates**: verify-static; unit tests: confirm needed for create, edit and remove; unsupported condition refused; the shown rule equals the typed watch; the allowed-write list is exactly watches; the guard of AJ-E3806 applied to tool results; the a11y gate.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E3815/manifest.md`, R1-R7; the blind-set scores from AJ-E3714 and a Sonnet walk by hand verified by Opus.
+**Visual testing**: The confirmation card, the refusal, the ambiguous-target question, both themes.
+**Files to touch**: `crates/juggler-app/src/features/ai/tools/watches.rs`, `ui/src/components/chat/`, `docs/qa/evidence/AJ-E3815/`.
+**Research basis**: D-132 points 2 to 4; D-123; D-130; ADR-0036.
+**Handover note**: The model proposes; code validates against the closed set and renders the words. A wrong proposal must fail closed to a question, not to a watch.
+
+### AJ-E3816 The Watches view: list, edit and expire watches in rich mode (D-132, D-126) | Status: TODO | Priority P0 | Effort L | Depends: AJ-E3814, AJ-E3618
+**Goal**: Every watch is visible and manageable in one screen, with or without AI.
+**User story**: As a user, I see all my watches in plain words, change a target, extend or end one, and know which have alerted.
+**Requirements**:
+1. A Watches view SHALL list every watch in plain words (target, conditions, expiry, last alert) in D-126's making-and-editing mode, reachable from the header and from Chat.
+2. The user SHALL create a watch there with the target picker (suggested first, then all) and the closed set of conditions, with no AI needed; edit it; and remove it.
+3. Expiry options SHALL be "until it finishes", "today" and "always", changeable at any time.
+4. An expired or orphaned watch SHALL show why in plain words and can be renewed or removed.
+5. The view SHALL be paged and lazy-loaded, show cached data at once, and offer every object an obvious door.
+**UI/UX reasoning**: View and edit in place; D-126 rich design; pickers suggested then all; empty states say what a watch is and how to add one.
+**Performance budget**: Opens in under 150 ms with 50 watches.
+**Quality gates**: verify-static; component tests for each state (empty, a few, expired, orphaned); the a11y gate; the design-quality review; the plain-words lint.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E3816/manifest.md`, R1-R5; captures in both themes checked by eye; a Sonnet walk by hand verified by Opus.
+**Visual testing**: Empty, a few, expired, the create form, both themes, narrow and wide.
+**Files to touch**: `ui/src/components/watches/`, `ui/src/lib/ipc/`, `ui/src/lib/feed-words.ts`, `docs/qa/evidence/AJ-E3816/`.
+**Research basis**: D-132 point 2; D-126; view-and-edit-in-place.
+**Handover note**: This is the only creation path when no engine exists, so build it to stand alone.
+
+### AJ-E3817 Watch alerts through the existing notification path: quiet hours, consolidation, dismissal (D-132) | Status: TODO | Priority P0 | Effort M | Depends: AJ-E3814, AJ-E3712
+**Goal**: A watch alerts the user the way every other need does, once, calmly and consolidated.
+**User story**: As a user with three watches firing together, I get one grouped alert, and none at night.
+**Requirements**:
+1. A watch alert SHALL go through the existing notification path, with its attention level (D-126's four levels), quiet hours, consolidation and dismissal; no second notification channel SHALL be added.
+2. Alerts from several watches in one window SHALL be consolidated with the digest's rule (AJ-E3712 point 3) into one that names them.
+3. An alert SHALL name the watch and the event in plain words and link to the session or object; dismissing it SHALL not delete the watch unless it was "until it finishes".
+4. Alerts SHALL appear on the feed as items (pinned if they need the user) and SHALL never repeat for the same event.
+5. No alert SHALL be sent off the Mac.
+**UI/UX reasoning**: Calm attention: each need loud once per area; the user's quiet hours are respected.
+**Performance budget**: Alert delivery within 1 s of the event; idle under 2% CPU.
+**Quality gates**: verify-static; unit tests for quiet hours, consolidation of 3 watches, dismissal, no repeat for one event, the link target; the a11y gate on the alert.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E3817/manifest.md`, R1-R5; a Sonnet lab walk (quiet hours, grouped alert, dismissal) verified by Opus.
+**Visual testing**: The alert, the grouped alert, the feed item, both themes.
+**Files to touch**: the notification path under `crates/juggler-app/src/features/`, `crates/juggler-app/src/features/watches/`, `ui/src/lib/feed-words.ts`, `docs/qa/evidence/AJ-E3817/`.
+**Research basis**: D-132 point 2; D-126 (calm attention); E25's notification rules.
+**Handover note**: Reuse the path; do not fork it. The same consolidation code serves the digest.
+
+### AJ-E3818 The harness for the digest (job e) and watch parsing (job f), on D-130's criteria | Status: TODO | Priority P0 | Effort L | Depends: AJ-E3709, AJ-E3712, AJ-E3815
+**Goal**: The digest and watch parsing are proven on a held-out harness under D-130's severity criteria before they ship.
+**User story**: As the maintainer, I ship a model-written digest and watch parsing only on measured evidence.
+**Requirements**:
+1. The AJ-E3709 harness SHALL gain job (e), the digest, and job (f), watch parsing, as separate jobs with their own synthetic held-out sets (generic fixtures, no real names or transcripts, D-124).
+2. Job (e) SHALL be scored on D-130's criteria: critical misses (invented progress, a failure stated as success, a hidden question) at 0 in what reaches the user, each caught by a check and falling back; major at most 3 % of shown items; omissions tolerated; value at least 60 % of decided blind pairs against the non-AI rollup (AJ-E3712).
+3. Job (f) SHALL be scored on D-132 point 4: at least 95 % exact rule matches on a blind set, 0 watches created without confirmation, 0 claimed watches for unsupported conditions.
+4. A failed round SHALL produce a diagnosis and the next optimisation in D-130's order (facts first, verify and retry, adapters or LoRA, larger contenders); no job is dropped for one failure.
+5. Each round SHALL record models, prompts, sets, scores and the verdict in `docs/qa/evidence/AJ-E3818/`, and Opus SHALL verify every cheaper-model verdict before it is recorded.
+**UI/UX reasoning**: none; this is the test that decides what ships.
+**Performance budget**: A full round of both jobs on a held-out set finishes in under 2 hours on the lab Mac, with the load bounded and cleaned up.
+**Quality gates**: verify-static; the harness's own self-tests on both jobs; a seeded-failure test showing each critical class is caught.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E3818/manifest.md`, R1-R5; the score tables and the blind reviews, checked by Opus.
+**Visual testing**: none.
+**Files to touch**: the AJ-E3709 harness location, `docs/qa/evidence/AJ-E3818/`.
+**Research basis**: D-130; D-132 point 4; D-124; the model-evals harness rule (real prompts, context and structured output per model).
+**Handover note**: Test a real harness, not a zero-shot prompt. Never ask for real messages; synthetic held-out only.
+
+### AJ-E3819 Chat memory, short and long term, with context budgets (ADR-0037) | Status: TODO | Priority P0 | Effort XL | Depends: AJ-E3804, AJ-E3805, AJ-E3808, AJ-E3815
+**Goal**: Chat remembers what the user asked before and their standing requests, within a small, ranked context budget, and never says anything out of date. The design is ADR-0037 (to be written, after [ADR-0036](../adr/0036-digest-and-watches.md), by Opus, informed by a research pass over published memory and context-assembly designs); build to it once it is accepted.
+**User story**: As a user, I ask "what did I ask about the web agent yesterday?" and Chat remembers, shows how old the memory is, and forgets when I say so.
+**Requirements**:
+1. Short-term memory SHALL hold the current conversation plus a rolling summary of earlier turns, kept within a fixed token budget.
+2. Long-term memory SHALL hold what the user asked before, their standing requests and watches (AJ-E3814), and their stated preferences. Each memory SHALL carry where it came from and when, SHALL be stored locally (SQLite), never synced, and SHALL be visible, editable and clearable in Settings.
+3. Facts about agents, projects and sessions SHALL NOT be memories: they are read live from AI Juggler's data when a question needs them, so they are never stale.
+4. Context SHALL be assembled to a budget that fits Apple's model (about 4K tokens on macOS 26, 8K on 27); each section (instructions, memories, live facts, the conversation) gets a share, and retrieval ranks what earns a place.
+5. A remembered answer SHALL never contradict live facts: where a memory and a live look-up disagree, the live fact wins and the memory is marked outdated.
+6. A memory older than its freshness window SHALL be shown with its age and SHALL be phrased as "you asked this N days ago", never as a current fact.
+7. "Forget" SHALL really delete: a memory the user forgets, or clears in Settings, is removed from the store and from any index or summary derived from it, and is not recalled afterwards. Clear chat history (AJ-E3808) and Clear cache SHALL follow the same rule.
+8. The memory SHALL be tested through the harness (D-130): a remembered answer must never be invented or outdated.
+**UI/UX reasoning**: User control and transparency (Nielsen 1 and 3): memories are visible, dated and removable; calm: Chat does not announce what it remembers.
+**Performance budget**: Context assembly in under 50 ms; the store stays under 20 MB by default, then oldest removed; idle CPU under 2%.
+**Quality gates**: verify-static; tests: a remembered answer never contradicts live facts (a stale memory against a changed live fact, the live fact shown); stale memories shown with their age; "forget" really deletes (the row, the summary and the index, then a recall test that finds nothing); each budget section stays within its share; nothing leaves the Mac (network stubbed); the a11y gate on the Settings memory view; a held-out evaluation under AJ-E3818's harness for invented or outdated recall.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E3819/manifest.md`, R1-R8; the test output, the harness scores and a Sonnet walk (ask, recall with age, edit, forget) verified by Opus.
+**Visual testing**: The Settings memory list (empty, a few, stale), the age label in an answer, both themes.
+**Files to touch**: `crates/juggler-app/src/features/ai/memory/` (new), `crates/juggler-app/src/features/ai/history/`, Settings UI, `ui/src/components/chat/`, `docs/qa/evidence/AJ-E3819/`.
+**Research basis**: D-133; D-130; D-132; AJ-E3808; ADR-0037 (to be written).
+**Handover note**: Write nothing before ADR-0037 is accepted. Memories hold the user's own questions and preferences, never agent facts or raw transcripts.

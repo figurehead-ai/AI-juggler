@@ -151,6 +151,10 @@ under D-24.
 | Calm attention: four levels read from one place, each need loud once per area, a quieter look (section labels, no borders, App icons muted until they need you), every collapsible kept, on every screen: the 0.5 Stable doesn't ship with a screen on the old look (D-117) | E36 |
 | Home as an activity feed: what needs you pinned on top, then what happened, newest first and rolled up, with a "while you were away" digest; Your apps and Runway by account beside it (D-118) | E37 |
 | AI jobs through one router, and Chat v1. **Rescoped 2026-11-18 (ADR-0033, 659da7fec):** 0.5 ships no model-written text; Chat v1 ships as the look-up view (found records with links, no written answer); the downloaded-model parts and written answers are not shipped (D-120, D-121) | E38 |
+| The digest: a cross-agent scheduler posting short items to the feed, consolidated notifications and a non-AI rollup (D-132, ADR-0036) | AJ-E3712 |
+| Watches: a typed, deterministic rule over the event stream, created and edited by talking to Chat with confirmation, a Watches view, alerts through the notification path, and the harness for the digest and watch parsing (D-132, D-130) | AJ-E3814, AJ-E3815, AJ-E3816, AJ-E3817, AJ-E3818 |
+| The Models area: a `models` section of the remote config, a recommendation for this Mac, Settings > AI > Models, downloads with size, free-disk check and hash, and the disk rules of AJ-E3803 (D-131) | AJ-E3803, AJ-E3810, AJ-E3811, AJ-E3812, AJ-E3813 |
+| Chat memory, short and long term, with context budgets (D-133, ADR-0037) | AJ-E3819 |
 | Feed summaries: A's excerpts built in the apps; B's research and its evaluation are done and its design is ADR-0033 (Proposed); B's build is not shipped | AJ-E3708, AJ-E3709, AJ-E3710, AJ-E3711 |
 | The signed remote configuration: the crate and its trust rules (step 1 built and reviewed, ADR-0035), the compat section and its publish workflow, then flags and notices with their screens; hosted on the website, on by default (D-129). Params and endpoints and the account layer (ADR-0035 order, steps 3 and 4) come with the features that need them, in later releases | AJ-E2021, AJ-E2022, AJ-E2023 |
 | The lab-Mac compatibility run on the installed tool versions (D-128) | AJ-E819 |
@@ -160,8 +164,6 @@ under D-24.
 | A 64-bit number reaches the window only below 2^53 (done) | AJ-E2024 |
 
 **Deferred (D-120):** AJ-E3711 — not shipped by D-120's rule (ADR-0033 verdicts: 861ee2015, 1b8b7cbec, 659da7fec; D-121 point 4): written lines ship only if blind reviewers prefer them to A's excerpt with 0 FAILs, and they did not; 0.5 ships A's excerpts and no model text.
-
-**Deferred (D-121):** AJ-E3803 — the disk rules for a downloaded model; not shipped by D-120's rule (ADR-0033 verdicts), since 0.5 offers no downloaded model. The written-answer parts of AJ-E3802, AJ-E3804 to AJ-E3807 and AJ-E3809 are likewise not shipped (each task says which requirements).
 
 Accessibility stays proven by the automated gates on every release
 (axe on every gallery state, keyboard traversals, contrast); the manual
