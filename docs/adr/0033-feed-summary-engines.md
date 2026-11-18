@@ -513,6 +513,41 @@ Prompts are tuned only on the tuned corpora and judged on the held-out sets, the
 
 **One change to B's shipping rule, proposed with v4:** v4 tunes on the realistic turn-end corpus, so that corpus can no longer decide shipping; the preference count moves to the held-out sets (the synthetic ones, then the real one, D-124), with every other part of the rule unchanged.
 
+**Harness v4's results (2026-11-18, AJ-E3709; synthetic held-out only, NOT checked on real messages: the maintainer declined the real set in this session).**
+
+Method:
+- prompts per v4-design.md, with each model's variant chosen on the tuned corpora by the recorded rule (v4-sweep.md: Apple greedy with datamarking, Qwen3-1.7B Q8 and Nemotron low temperature without it);
+- judged once on the synthetic held-out sets (24 feed items; 12 per job for review, attention and Chat), one repeat;
+- gate.py frozen at 7acec4f50;
+- script flags checked by eye (Opus), and a fresh Opus blind review with the keys unopened.
+
+Two of our own bugs were found and fixed on the way, neither of them the models':
+- the feed-line composer dropped a `result` that carried the limit (T023);
+- the attention composer added a note to an item already loud by its outcome (9a6fe1b59).
+
+The Chat packets were rebuilt with the records' text, since the first ones carried only ids (feba0f5d1).
+
+Safety held for every model and job: 0 invented facts, 0 obeyed injections, 0 dropped caveats, 0 model text on L2/L3, 0 refs not issued, 0 level violations, and 100 % valid drafts.
+
+| Job | Apple (on-device) | Qwen3-1.7B (Q8 upper bound) | Nemotron 3 Nano 4B | Verdict |
+|---|---|---|---|---|
+| (a) feed line | gate step 2 90.9 % < 95 | step 2 92.9 % < 95; one mixed-script line | passes the bars (polarity 0 by eye), but the blind review prefers A's excerpt 5 : 2, with 1 FAIL ("Fails the new check" on a success) | **A's excerpt stays.** No model passes. |
+| (b) turn review | bars hold (83 % of drafts pass every check); blind: preferred to the fixed-rule review 8 : 2, but **2 FAILs** (a question lost; a reverted change listed as made) | 66.7 % < 80 | 66.7 % < 80 | **Not shipped.** Apple is close; the fix is generic (below) and needs a fresh held-out set. |
+| (c) attention suggestion | misses 33 % > 25 (facts hidden) | misses 33 % | misses 50 % | **Not shipped.** The facts alone decide attention (D-117), as designed. |
+| (d) Chat v1 answers | bars hold (100 % answer check, 100 % "I don't know"); blind: 0 FAILs, preferred to the found rows 5 : 0 | bars hold (83 %, 100 %); blind: 0 FAILs, preferred 3 : 1 | "I don't know" 75 % < 95; answer check 66.7 % | **Passes on Apple's model** (D-121's Chat v1 on Apple). **Qwen3-1.7B passes as an upper bound only**: a Q4 run is needed before the local tier could offer it. |
+
+**What this decides for 0.5:**
+- Chat v1 may ship on Apple's model.
+- The small sample (12 items, 4 to 5 answers per model) and the missing real-message check are stated wherever Chat's quality is claimed.
+- The feed shows A's excerpt.
+- The review and attention suggestions are not shown.
+
+**Follow-ups (each judged later on a fresh held-out set, never on these items):**
+- the review composer keeps the facts' question or failure from A's excerpt, as the feed line keeps its caveat (R004, R005 class);
+- every grammar bans scripts other than the text's own (Qwen leaked a Cyrillic letter; CJK alone was banned);
+- a Q4 Qwen3-1.7B for Chat;
+- Chat's I-don't-know path on Nemotron.
+
 **What the run found in A itself (decided; handed to AJ-E3708).** A ships regardless of B, and two of the blind review's FAILs were A's excerpt:
 - T029: "Added input validation…" without "No tests were run".
 - H016, an L3 turn: "Good news: the lint errors are gone." without "cargo build now errors with E0432".
