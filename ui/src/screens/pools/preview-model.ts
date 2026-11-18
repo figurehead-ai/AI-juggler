@@ -9,6 +9,7 @@ import type { Draft } from "../../lib/new-pool";
 import { talkSentence, type PoolShape } from "../../lib/pool-sentences";
 import { leadValue, rolesLine, shortNames, whoLine } from "../../lib/pool-values";
 import { leadNextLine, ownLabel, roleCard, STEP_WORDS, type SetupStep } from "../../lib/pool-words";
+import { ROW_WORDS } from "./rows";
 import { logoOf, type LogoSources } from "../../components/MemberLogo";
 import type { PreviewNode, PreviewRow, PreviewRowId } from "./NewPoolPreview";
 
@@ -29,34 +30,29 @@ export function previewNodes(draft: Pick<Draft, "members" | "leadNext" | "every"
   return { lead, members };
 }
 
-/** The step each preview row is set on. */
-export const ROW_STEP: Record<PreviewRowId, SetupStep> = { where: "where", who: "who", lead: "lead", roles: "everyone", talk: "talk", own: "own" };
+const ROW_IDS: readonly PreviewRowId[] = ["where", "who", "lead", "everyone", "talk", "own"];
 
-const ROW_IDS: readonly PreviewRowId[] = ["where", "who", "lead", "roles", "talk", "own"];
-
-/** The preview's rows, each by its step's short name (the canvas
- * checklist's). `visited`: the steps walked so far (their values are
- * chosen; the rest are what they'll be, said as prefilled once Who's in
- * is reached). */
+/** The preview's rows, one per step it's set on, each by Review's own row
+ * title. `visited`: the steps walked so far (their values are chosen; the
+ * rest are what they'll be, said as prefilled once Who's in is reached). */
 export function previewRows(shape: PoolShape, where: string, current: SetupStep, visited: (step: SetupStep) => boolean, hasProject: boolean): PreviewRow[] {
   const whoReached = visited("who") || current === "who";
   const value: Record<PreviewRowId, string> = {
     where: hasProject ? where : "Pick a project",
     who: whoReached ? whoLine(shape, where) : "Next step",
     lead: leadValue(shape, where),
-    roles: rolesLine(shape),
+    everyone: rolesLine(shape),
     talk: talkSentence(shape),
     own: ownLabel(shape.level),
   };
   return ROW_IDS.map((id) => {
-    const step = ROW_STEP[id];
-    const chosen = visited(step) || step === current;
-    return { id, label: STEP_WORDS[step].short, value: value[id], pending: !chosen, prefilled: !chosen && whoReached && id !== "who" && id !== "where" };
+    const chosen = visited(id) || id === current;
+    return { id, label: ROW_WORDS[id].title, value: value[id], pending: !chosen, prefilled: !chosen && whoReached && id !== "who" && id !== "where" };
   });
 }
 
 /** The row the current step sets, if any. */
-export const rowOf = (step: SetupStep): PreviewRowId | null => ROW_IDS.find((id) => ROW_STEP[id] === step) ?? null;
+export const rowOf = (step: SetupStep): PreviewRowId | null => ROW_IDS.find((id) => id === step) ?? null;
 
 /** A step's name in the steps (the canvas checklist's too). */
 export const navOf = (step: SetupStep): string => STEP_WORDS[step].nav;

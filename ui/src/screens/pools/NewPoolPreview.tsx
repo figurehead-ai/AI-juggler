@@ -10,15 +10,16 @@
  * The drawing is decorative (`aria-hidden`): the rows say the same in
  * words, as a list a screen reader reads.
  */
-import type { JSX, ReactNode, SVGProps } from "react";
+import type { JSX, ReactNode } from "react";
 
-import { IconCompare, IconInfo, IconPlus, IconPool } from "../../components/icons-actions";
-import { IconLead, IconMessage } from "../../components/icons-canvas";
-import { IconProfiles, IconProjects, IconShield } from "../../components/icons";
+import { IconInfo, IconPlus, IconPool } from "../../components/icons-actions";
+import { IconLead } from "../../components/icons-canvas";
+import type { ControlIcon } from "../../components/controls";
 import { LogoTile } from "../../components/ToolLogo";
 import type { PoolRole } from "../../lib/ipc/pools";
 import { NO_LEAD_YET } from "../../lib/pool-words";
 import { MemberLogo, type LogoSpec } from "../../components/MemberLogo";
+import { ROW_WORDS, type PoolRow } from "./rows";
 
 /** One card on the drawing. */
 export interface PreviewNode {
@@ -33,7 +34,8 @@ export interface PreviewNode {
   stacked?: boolean;
 }
 
-export type PreviewRowId = "where" | "who" | "lead" | "roles" | "talk" | "own";
+/** A preview row: one of the setup's six steps, by its id (Review's rows too). */
+export type PreviewRowId = Extract<PoolRow, "where" | "who" | "lead" | "everyone" | "talk" | "own">;
 
 export interface PreviewRow {
   id: PreviewRowId;
@@ -47,9 +49,6 @@ export interface PreviewRow {
 
 /** What the drawing lights: the members (Who's in), the lead, or the reviewers. */
 export type PreviewFocus = "members" | "lead" | "reviewers" | null;
-
-type Icon = (props: SVGProps<SVGSVGElement>) => JSX.Element;
-const ROW_ICONS: Record<PreviewRowId, Icon> = { where: IconProjects, who: IconProfiles, lead: IconLead, roles: IconShield, talk: IconMessage, own: IconCompare };
 
 /** At most this many cards in the bottom row; past it, "+N more". */
 const ROW_MAX = 3;
@@ -77,7 +76,7 @@ function Node({ node, lit, at, across = 3 }: { node: PreviewNode; lit: boolean; 
   );
 }
 
-function Ghost({ icon: Shape, words, at }: { icon: Icon; words: string; at: { left: string; top: number } }): JSX.Element {
+function Ghost({ icon: Shape, words, at }: { icon: ControlIcon; words: string; at: { left: string; top: number } }): JSX.Element {
   return (
     <span className={`${NODE} ${GHOST} whitespace-nowrap`} style={{ left: at.left, top: at.top }} data-testid="new-pool-preview-ghost">
       <Shape aria-hidden="true" width={14} height={14} />
@@ -129,7 +128,7 @@ function PreviewRows({ rows, current }: { rows: readonly PreviewRow[]; current: 
   return (
     <dl className="flex flex-col gap-0.5 px-2 pb-2.5 pt-3" data-testid="new-pool-preview-rows">
       {rows.map((row) => {
-        const Shape = ROW_ICONS[row.id];
+        const Shape = ROW_WORDS[row.id].icon;
         const on = row.id === current;
         return (
           <div key={row.id} className={"flex items-start gap-2.5 rounded-lg px-2.5 py-[7px] text-meta " + (on ? "bg-accent-soft shadow-[inset_3px_0_0_var(--color-accent)]" : "")} data-testid="new-pool-preview-row" data-row={row.id} data-current={on || undefined}>

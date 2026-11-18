@@ -215,7 +215,7 @@ describe("AJ-E3007, AJ-E3011 the setup, start to end", () => {
     // the preview what with (D-126: each row, "· prefilled").
     expect(screen.getByTestId("new-pool-prefilled").textContent).toBe("The rest is prefilled. You can make the pool now.");
     expect(previewValue("who")).toBe("Every new session in ai-juggler");
-    expect(previewValue("roles")).toBe("Everyone builds (Member) · prefilled");
+    expect(previewValue("everyone")).toBe("Everyone builds (Member) · prefilled");
     expect(previewValue("talk")).toBe("Everyone may message everyone; an Observer only reads. · prefilled");
     expect(previewValue("own")).toBe("Work together · prefilled");
     fireEvent.click(screen.getByTestId("new-pool-make"));

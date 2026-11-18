@@ -17,10 +17,7 @@
 import type { JSX, ReactNode, SVGProps } from "react";
 
 import { Alert } from "../../components/Alert";
-import { IconCompare, IconKey } from "../../components/icons-actions";
-import { IconLead, IconMessage } from "../../components/icons-canvas";
 import { IconCheck } from "../../components/icons-controls";
-import { IconProfiles, IconProjects, IconShield, IconSessions } from "../../components/icons";
 import { LogoTile } from "../../components/ToolLogo";
 import { useApps } from "../../lib/apps";
 import { desktopAppsOf, isAdded, useConnectorStatuses } from "../../lib/connector";
@@ -33,6 +30,7 @@ import { reviewTitle } from "../../lib/pool-wizard-words";
 import { draftPlaces, teamToolsLine, type TeamTools, type ToolsPlace } from "../../lib/team-tools";
 import { TeamToolsFix, useTeamTools } from "../../pages/pool/setup/TeamTools";
 import { SetupBlockers } from "../../pages/pool/setup/SetupBlockers";
+import { ROW_WORDS, type PoolRow } from "./rows";
 import { StepHead } from "./StepHead";
 
 type Icon = (props: SVGProps<SVGSVGElement>) => JSX.Element;
@@ -44,19 +42,22 @@ const CAN: Record<Reach, string> = {
   later: "its sessions here join by themselves, now and later",
 };
 
-type Row = "where" | "who" | "lead" | "everyone" | "talk" | "own" | "sealed" | "tools";
+type Row = PoolRow;
 
-/** Each row's title, icon and the step its Change goes back to. */
-const ROWS: readonly { row: Row; title: string; icon: Icon; step?: SetupStep }[] = [
-  { row: "where", title: "Where", icon: IconProjects, step: "where" },
-  { row: "who", title: "Who's in", icon: IconProfiles, step: "who" },
-  { row: "lead", title: "Lead", icon: IconLead, step: "lead" },
-  { row: "everyone", title: "Roles", icon: IconShield, step: "everyone" },
-  { row: "talk", title: "Messages", icon: IconMessage, step: "talk" },
-  { row: "own", title: "On their own", icon: IconCompare, step: "own" },
-  { row: "sealed", title: "Kept apart", icon: IconKey, step: "own" },
-  { row: "tools", title: "Team tools", icon: IconSessions },
-];
+/** Each row (its title and icon the preview's too) and the step its
+ * Change goes back to. */
+const ROWS: readonly { row: Row; title: string; icon: Icon; step?: SetupStep }[] = (
+  [
+    ["where", "where"],
+    ["who", "who"],
+    ["lead", "lead"],
+    ["everyone", "everyone"],
+    ["talk", "talk"],
+    ["own", "own"],
+    ["sealed", "own"],
+    ["tools", undefined],
+  ] as const
+).map(([row, step]) => ({ row, ...ROW_WORDS[row], step }));
 
 /** A row's words: the pool inspector's own sentences. */
 function words(row: Row, shape: PoolShape, where: string, name: string, tools: TeamTools | null): ReactNode {
