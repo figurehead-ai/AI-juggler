@@ -289,3 +289,11 @@
 **Evidence/validation proof**: the commits name each test changed and its scratch failure.
 **Files to touch**: the tests above; a work counter in the code under test only where none exists; `justfile` (`load-gate`).
 **Handover note**: AJ-E815 stays the relation counts' task; the brief's rule (2026-11-16, the coordinating session): no wall-clock bounds in gates. Many of the Rust tests already take the best of several runs or scale the bound in debug builds; that narrows the flake but does not remove it.
+
+
+### AJ-E818 A live validation route for switches through another service (the `+service` pairs) | Status: PLANNED (0.5) | Priority P2 | Effort M | Depends: AJ-E808, AJ-E1601
+Since D-127/D-128 (0.4.6), a switch is offered only when every fidelity area is decided for the current versions. The register's `+service` pairs (a tool running through another service, AJ-E1601: OpenCode through OpenCode Go and the like) are hard-coded `ci_green: false`, so they can never validate. They're hidden; Settings › Switching › Beta is their only door, in plain words.
+- R1: a lab route for them. A service-routed lab account in a separate lab profile (existing accounts, never spare ones). The maintainer signs in during one sitting, with the page on screen; the agent drives everything else, every launch through lab_env.sh, verified by ps.
+- R2: the AJ-E808 harness (`just switch-lab`) runs each `+service` pair in all 8 areas on the current versions, with file-history included. Record live cells with versions and evidence, replacing the hard-coded `ci_green: false` per pair only on a recorded run.
+- R3: a validated pair is offered by default with no Beta tag; an unvalidated one stays behind Beta. The gate watch (scripts/gate_watch.py) lists them when due.
+- Done when each `+service` pair the product offers is validated live or stays Beta-only by an explicit, logged choice.

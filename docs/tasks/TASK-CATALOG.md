@@ -98,6 +98,7 @@
 | AJ-E815 | The relation counts' speed test measures the work, not the clock | E8-validation-visual-performance-quality.md | P1 | S | AJ-E3102 |
 | AJ-E816 | Local Playwright runs match CI: the local-only failures | E8-validation-visual-performance-quality.md | P2 | M | AJ-E805 |
 | AJ-E817 | Gate tests measure the work, not the clock: the other wall-clock bounds | E8-validation-visual-performance-quality.md | P1 | M | AJ-E805 |
+| AJ-E818 | A live validation route for switches through another service (the `+service` pairs) | E8-validation-visual-performance-quality.md | P2 | M | AJ-E808, AJ-E1601 |
 | AJ-E901 | SPEC §3 domain-model rewrite (Provider/Instance/Switch Graph/ledger) | E9-docs-adrs-and-plan-rewrite.md | P0 | M | — |
 | AJ-E902 | SPEC §5 supervisor/ledger + §6 two-clock usage rewrite | E9-docs-adrs-and-plan-rewrite.md | P0 | M | AJ-E901 |
 | AJ-E903 | SPEC §7 Switching rewrite (Switch Graph, pack v2, divergence) | E9-docs-adrs-and-plan-rewrite.md | P0 | M | AJ-E901 |
@@ -458,5 +459,5 @@
 | AJ-E3807 | The no-model panel: look-ups that need no AI, and the approved download offer | E38-chat.md | P1 | M | AJ-E3804, AJ-E3803 |
 | AJ-E3808 | Chat history: local, clearable, never off the Mac | E38-chat.md | P1 | S | AJ-E3804 |
 | AJ-E3809 | The newcomer walk: Chat v1 on a real Mac, by hand | E38-chat.md | P0 | M | AJ-E3804…AJ-E3808 |
-Total: 456 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
+Total: 457 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
 Status of every task at generation: TODO. The epic files are canonical; this catalog is an index, never edited to claim progress.
