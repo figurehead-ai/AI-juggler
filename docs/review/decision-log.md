@@ -3464,3 +3464,25 @@ The design that follows from it:
 - **0.5:** the signed remote support list, and the lab-Mac compatibility run.
 
 - Sources: the maintainer's message, 2026-11-18.
+
+### D-129 The support list becomes one general, signed remote configuration with an account layer — amends D-128 §3 — SETTLED (2026-11-18)
+
+**Ruling.** The maintainer, 2026-11-18: "We should probably expand that support for that support list, so it is a general config file, this can be useful to disable or enable certain things or perform other control or maybe messages for the app. For logged in users we should have additional API level capabilities. … architecture this carefully so it is future proof as we keep expanding our app."
+
+**The design is [ADR-0035](../adr/0035-remote-config.md):**
+- **One signed envelope per channel,** with named sections, each owned by a typed feature module: compat, flags, notices, params, endpoints, and future ones.
+- **ed25519 with pinned key ids,** plus serial and expiry against rollback and replay.
+- **Layers, lowest first:** compiled defaults, then the public file, then the account file (signed by the server, linked users only), then user settings. User choices win over preferences, never over safety.
+- **Local targeting and rollout buckets,** so the anonymous fetch sends nothing.
+- **The file only selects behaviour that's already compiled in,** and flags declare in code whether remote may turn them on.
+- **The app works identically with no file.**
+- **Publishing:** reviewed by PR, validated by CI against old app versions, published and re-signed by an approved workflow.
+
+**Order:**
+- **0.5:** the crate, compat, the publish workflow, flags and notices.
+- **Later releases:** params and endpoints as features need them, and the account layer with the next account feature.
+
+The two open questions in ADR-0035 (hosting; the default on) go to the maintainer.
+
+- **Amends:** D-128 §3.
+- Sources: the maintainer's message, 2026-11-18.
