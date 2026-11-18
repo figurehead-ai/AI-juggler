@@ -5,12 +5,12 @@
  * is one entry here.
  *
  * D-118 (AJ-E3701): the areas are the two columns. `top` sits over both
- * (a banner, what setup left to do); `left` is the feed's column: the
- * pinned zone ("Needs you now", L2 and L3 needs, each loud once there),
- * sessions parked until a reset, then the feed; `right` is Your apps and
- * Runway by account; `foot` closes the feed's column. The morning summary
- * became the feed's away digest, and "Pick up where you left off" its
- * Finished filter (D-118 point 3).
+ * (a banner); `left` is the feed's column: the pinned zone ("Needs you
+ * now", L2 and L3 needs, each loud once there), sessions parked until a
+ * reset, then the feed; `right` is Your apps, Runway by account, then
+ * Next steps (the tools setup left out); `foot` closes the feed's column.
+ * The morning summary became the feed's away digest, and "Pick up where
+ * you left off" its Finished filter (D-118 point 3).
  */
 import { Fragment, type ReactNode } from "react";
 import { CapNeedItems, type useCapNeeds } from "../components/BudgetNeeds";
@@ -114,8 +114,6 @@ const HOME_CARDS: readonly HomeCard[] = [
         </div>
       ),
   },
-  // D-97 (1): what setup left to do, until a session has run.
-  { id: "next", area: "top", render: (ctx) => <HomeNext accounts={ctx.accounts} subscriptions={ctx.subscriptions} quota={ctx.quota} quotaKnown={ctx.quotaKnown} sessions={ctx.sessions} /> },
   {
     id: "needs",
     area: "left",
@@ -127,6 +125,9 @@ const HOME_CARDS: readonly HomeCard[] = [
   { id: "feed", area: "left", render: (ctx) => ctx.feed },
   { id: "apps", area: "right", render: (ctx) => <HomeApps items={ctx.items} accounts={ctx.accounts} strip={ctx.strip} /> },
   { id: "runway", area: "right", render: (ctx) => <HomeRunway accounts={ctx.accounts} quota={ctx.quota} quotaKnown={ctx.quotaKnown} sessions={ctx.sessions} /> },
+  // D-97 (1): the tools setup found and left out, until a session has run;
+  // last, under the runway (D-117: setup never above what needs you).
+  { id: "next", area: "right", render: (ctx) => <HomeNext accounts={ctx.accounts} sessions={ctx.sessions} /> },
   // The optional access, once and quietly at the foot (the review of
   // 0.1.4: it took the top of Home until answered).
   { id: "smoother", area: "foot", render: () => <SmootherCard variant="reminder" /> },
