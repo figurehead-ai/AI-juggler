@@ -172,7 +172,7 @@ export function mockHome(now: number) {
     threads: [], messages: {}, paused: [],
     needs: [{
       key: "question:builder-1", kind: "question", pool_id: "pool-release", pool_name: "Release pool", thread_id: "thr-export", message_id: "m-q1", session_id: null, ask_id: null, offer_always: false,
-      title: "builder-1 asks you", detail: "Export flow", preview: "Use the v2 export API, or keep v1 for this release?", at_ms: now - 5 * MIN,
+      title: "builder-1 asks you", detail: "Export flow", preview: "Use the v2 export API, or keep v1 for this release?", sender: "builder-1", thread: "Export flow", at_ms: now - 5 * MIN,
     } satisfies MessageNeedInfo],
   };
 

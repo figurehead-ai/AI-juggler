@@ -22,6 +22,7 @@ import type { ProjectInfo } from "../types/generated/ProjectInfo";
 import { SectionHead, ToReviewCaption } from "./PlaceBoardParts";
 import { NeedRow } from "./PlaceRows";
 import { SELECTED } from "./controls/selected";
+import { loudLines } from "../lib/needs-order";
 
 const ENDED = new Set(["finished", "stopped", "failed", "handed_over"]);
 
@@ -173,8 +174,8 @@ export function NeedsYouSection({ rows, sessions, projects, onSelect, ...props }
       <SectionHead id="needs" testId={null} count={count} level={level} broken={broken} open={open} onToggle={() => setOpen((now) => !now)} />
       {open && (
         <>
-          {loud.map(needRow)}
-          {loudRest.map(noticeRow)}
+          {/* D-118's mock: one order with Home's (the louder, then the one waiting longest). */}
+          {loudLines(loud, loudRest).map((line) => (line.kind === "need" ? needRow(line.item) : line.kind === "notice" ? noticeRow(line.notice) : null))}
           {notes.length + notesRest.length > 0 && <ToReviewCaption />}
           {notes.map(needRow)}
           {notesRest.map(noticeRow)}

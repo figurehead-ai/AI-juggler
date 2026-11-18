@@ -20,7 +20,10 @@ import type { NoticeSummaryInfo } from "../../types/generated/NoticeSummaryInfo"
 export type { NeedSnoozeInfo, NoticeInfo, NoticeMuteInfo, NoticeSummaryInfo };
 
 /** A need as the preview's stand-in for the backend hands it over. */
-export type StandInNeed = Pick<NoticeInfo, "kind" | "title" | "detail" | "project_id" | "project" | "target" | "action"> & { key: string };
+/** `since`: when the thing itself began to wait (an agent's message's
+ * time), the time the backend's tick first writes it within seconds of;
+ * else the stand-in spaces its rows a minute apart. */
+export type StandInNeed = Pick<NoticeInfo, "kind" | "title" | "detail" | "project_id" | "project" | "target" | "action"> & { key: string; since?: number };
 
 export type NoticeSection = "needs" | "earlier" | "banners";
 
@@ -166,7 +169,7 @@ export function standInNeeds(needs: StandInNeed[]): NoticeSummaryInfo {
     const kept = s.keys.get(need.key);
     const row: NoticeInfo = kept
       ? { ...kept, kind: need.kind, title: need.title, detail: need.detail, project_id: need.project_id, project: need.project, target: need.target, action: need.action }
-      : { id: (s.next += 1), kind: need.kind, needs: true, title: need.title, detail: need.detail, project_id: need.project_id, project: need.project, target: need.target, facts: { window: null, resets_at_ms: null, sessions: null, version: null, channel: null, attempt: null, tries: null, account: null }, action: need.action, meter: null, created_ms: Date.now() - (needs.length - index) * 60_000, unread: true, subject: need.key, snoozed: false, snoozed_until_ms: null, muted: false, dismissed: false };
+      : { id: (s.next += 1), kind: need.kind, needs: true, title: need.title, detail: need.detail, project_id: need.project_id, project: need.project, target: need.target, facts: { window: null, resets_at_ms: null, sessions: null, version: null, channel: null, attempt: null, tries: null, account: null }, action: need.action, meter: null, created_ms: need.since ?? Date.now() - (needs.length - index) * 60_000, unread: true, subject: need.key, snoozed: false, snoozed_until_ms: null, muted: false, dismissed: false };
     keys.set(need.key, row);
     return row;
   });

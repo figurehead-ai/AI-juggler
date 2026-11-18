@@ -144,7 +144,9 @@ describe("Home, desktop first", () => {
     const needs = await view.findByTestId("home-needs");
     await waitFor(() => expect(needs.querySelector("[data-first='true']")?.textContent).toContain("Migrate the billing webhooks"));
     const first = needs.querySelector<HTMLElement>("[data-first='true']")!;
-    expect(first.textContent).toContain("payments-api · Claude app · Work Max");
+    // D-118's card: who and where first ("Claude app · Work Max  payments-api").
+    expect(first.textContent).toContain("Claude app · Work Max");
+    expect(first.textContent).toContain("payments-api");
     expect(within(first).getByRole("button", { name: /^Open its page/ })).toBeTruthy();
     expect(within(first).getByRole("button", { name: /^Continue in another app/ })).toBeTruthy();
     const limit = view.getByTestId("home-need-limit");

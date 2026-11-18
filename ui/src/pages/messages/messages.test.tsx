@@ -22,8 +22,9 @@ import PoolLinksSource from "./PoolLinks.tsx?raw";
 import MessageNeedsSource from "../../components/MessageNeeds.tsx?raw";
 import { MessagesView } from "./MessagesView";
 import { SharedDocs } from "./SharedDocs";
-import { MessageNeeds } from "../../components/MessageNeeds";
-import { resetPreviewMessages, type MessageInfo, type MessageNeedInfo, type MessagesSeed, type ThreadInfo } from "../../lib/ipc/messages";
+import { MessageNeedCard, MessageNeeds } from "../../components/MessageNeeds";
+import { ActionHostProvider } from "../../components/ItemMenu";
+import { resetPreviewMessages, takeReplyFocus, type MessageInfo, type MessageNeedInfo, type MessagesSeed, type ThreadInfo } from "../../lib/ipc/messages";
 
 type Seams = { __AIJ_MESSAGES__?: MessagesSeed; __AIJ_MESSAGES_CALLS__?: string[] };
 const seams = () => window as unknown as Seams;
@@ -195,9 +196,31 @@ describe("Needs you", () => {
     expect(getAllByTestId("ask-card")[0]!.textContent).toContain("Don't deliver");
   });
 
+  it("an agent's question is its own card, the question inline; Reply opens its thread at the reply box (D-118's mock)", () => {
+    const opened: string[] = [];
+    const question = need({ key: "question:m-q1", kind: "question", ask_id: null, title: "builder-1 asks you", detail: "Export flow", sender: "builder-1", thread: "Export flow", pool_name: "Release pool", preview: "Use the v2 export API, or keep v1 for this release?", at_ms: NOW - 5 * 60_000 });
+    const { getByTestId } = render(
+      <ActionHostProvider host={{ openPool: (id) => void opened.push(id) }}>
+        <ul><MessageNeedCard need={question} now={NOW} first /></ul>
+      </ActionHostProvider>,
+    );
+    const card = getByTestId("message-need-question");
+    expect(card.textContent).toContain("builder-1");
+    expect(card.textContent).toContain("Release pool · Export flow");
+    expect(card.textContent).toContain("5 min");
+    expect(getByTestId("message-need-said").textContent).toBe("Asks you: “Use the v2 export API, or keep v1 for this release?”");
+    expect(card.getAttribute("aria-label")).toBe("builder-1 asks you: Use the v2 export API, or keep v1 for this release?");
+    expect(within(card).getByRole("button", { name: /^Open the thread/ })).toBeTruthy();
+    fireEvent.click(within(card).getByRole("button", { name: /^Reply/ }));
+    expect(opened).toEqual(["pool-team"]);
+    expect(takeReplyFocus("thr-1")).toBe(true);
+    expect(takeReplyFocus("thr-1")).toBe(false);
+  });
+
   it("messages waiting for a session are one Deliver", async () => {
     const waiting = need({ key: "waiting:sess-done-1", kind: "waiting", ask_id: null, session_id: "sess-done-1", title: "Builder has 2 messages waiting", detail: "from Planner · Checkout redesign" });
-    const { getByTestId } = render(<MessageNeeds needs={[waiting]} />);
+    // Its own card (D-118's mock), in Needs you's one order.
+    const { getByTestId } = render(<ul><MessageNeedCard need={waiting} /></ul>);
     fireEvent.click(within(getByTestId("message-need-waiting")).getByRole("button", { name: /^Deliver/ }));
     await waitFor(() => expect(calls()).toContain("deliver-waiting:sess-done-1"));
   });

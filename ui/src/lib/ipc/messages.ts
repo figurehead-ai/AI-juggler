@@ -186,14 +186,23 @@ export async function messagesDeliverWaiting(sessionId: string): Promise<number>
 }
 
 let focused: string | null = null;
-/** The thread a pool's Messages tab opens on next (from Needs you). */
-export function focusThread(threadId: string | null): void {
+let replying: string | null = null;
+/** The thread a pool's Messages tab opens on next (from Needs you);
+ * `reply`: its reply box takes the focus (Home's Reply, D-118's mock). */
+export function focusThread(threadId: string | null, reply = false): void {
   focused = threadId;
+  replying = reply ? threadId : null;
   // E19: a Messages tab already open (a task's thread) takes it now.
   window.dispatchEvent(new Event(FOCUS_THREAD));
 }
 /** The event a Messages tab already open listens for. */
 export const FOCUS_THREAD = "aij:focus-thread";
+/** Whether this thread's reply box was asked for (taken once). */
+export function takeReplyFocus(threadId: string): boolean {
+  if (replying !== threadId) return false;
+  replying = null;
+  return true;
+}
 /** …taken once. */
 export function takeFocusedThread(): string | null {
   const thread = focused;

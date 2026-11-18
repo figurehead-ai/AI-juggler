@@ -48,7 +48,8 @@ function railWords(): string {
   const built = buildLines({ items, view: DEFAULT_VIEW, query: parseQuery(""), now: NOW, toggled: new Set(), frozen: null, known: [] });
   const need = built.lines.find((line) => line.kind === "need");
   if (need?.kind !== "need") throw new Error("no Needs you row in the rail");
-  return [need.item.project, ...placeWords(need.item.place)].filter(Boolean).join(" · ");
+  // Its App's words (D-118's card leads with them; the project follows).
+  return placeWords(need.item.place).join(" · ");
 }
 
 describe("ADR-0032 Home's Needs you names a session by the App that owns it", () => {

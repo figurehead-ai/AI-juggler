@@ -26,6 +26,7 @@ import { isSearching, matches, type RailQuery, type RailView } from "./rail-view
 import type { NoticeInfo } from "./ipc/notices";
 import type { KnownPlaceInfo } from "./ipc/places";
 import { nestRows } from "./rail-tree";
+import { loudLines } from "./needs-order";
 import { inactiveLines, pinnedLines, pinnedSection, unfoldLines, unfoldsToARow } from "./rail-unfold";
 import { appFolderOf, IDLE_APPS_SHOWN, idleApps, idleSessionsByApp, knownKey, offeredLines, ownersOf, runningGroups, type CliAppFacts, type IdleApp, type OfferLine } from "./rail-apps";
 import { appName } from "./app-name";
@@ -175,8 +176,7 @@ function needsSection(needs: RailItem[], rest: NoticeInfo[]): Line[] {
   const level = highest([...loudNeeds.map(itemLevel), ...loudRest.map(noticeLevel)]);
   return [
     { kind: "section", id: "needs", count: loudNeeds.length + loudRest.length, level, broken: [...brokenOf(loudNeeds, itemLevel, (item) => item.need), ...brokenOf(loudRest, noticeLevel, (notice) => notice.kind)] }, // said aloud: its ✕ is decoration
-    ...loudNeeds.map((item): Line => ({ kind: "need", item })),
-    ...loudRest.map((notice): Line => ({ kind: "notice", notice })),
+    ...loudLines(loudNeeds, loudRest), // one order with Home's (needs-order, D-118)
     ...(notes.length > 0 ? [{ kind: "to-review" } as const, ...notes] : []),
   ];
 }
