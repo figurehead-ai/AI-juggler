@@ -13,6 +13,10 @@ offline, so a rule change re-scores without the model. Models (core.MODELS): App
 --fake runs on the tuned corpora only (v2, turnends): never on a held-out file."""
 import argparse, hashlib, json, os, sys, time
 HERE = os.path.dirname(os.path.abspath(__file__)); sys.path.insert(0, HERE)
+def _no_home(text):
+    """A probe's hello may name a path under the home folder (e.g. its manifest's); the recorded result never does."""
+    home = os.path.expanduser("~")
+    return text.replace(home, "~") if isinstance(text, str) and home and home != "/" else text
 import core                                                          # noqa: E402
 from core import j4, gate, REGISTRY, norm_item, item_kind            # noqa: E402
 import turns, chat                                                   # noqa: E402,F401  (registers the jobs)
@@ -150,7 +154,7 @@ def main():
                      if pid in before and before[pid][1] == nm and nm in WATCH and t1 - before[pid][0] >= 0.05), key=lambda d: -d["cpu_s"])
     prompts = {jn: hashlib.sha256(REGISTRY[jn].write_prompts().encode()).hexdigest() for jn in job_list}
     meta = {"harness": "v5", "prompt_version": core.PROMPT_VERSION, "engine": "fake (no model)" if a.fake else (eng.h.get("engine") or "Apple on-device Foundation Model via apple_probe.swift"),
-            "hello": eng.hello, "family": entry["family"], "model_label": entry.get("label") or entry["family"], "sampling_name": sname, "sampling": entry["sampling"][sname], "sampling_source": entry["source"],
+            "hello": _no_home(eng.hello), "family": entry["family"], "model_label": entry.get("label") or entry["family"], "sampling_name": sname, "sampling": entry["sampling"][sname], "sampling_source": entry["source"],
             "datamark": "on" if mark else "off", "retries": a.retries, "jobs": job_list, "prompt_sha256": prompts, "context_tokens": a.context,
             "code_sha256": {f: sha(os.path.join(HERE, f)) for f in ("core.py", "turns.py", "chat.py", "severity.py", "digest.py", "watch.py")},
             "gate_py_sha256": sha(gate.__file__), "frozen_gate_commit": "7acec4f50", "jobs_v4_sha256": sha(j4.__file__),
