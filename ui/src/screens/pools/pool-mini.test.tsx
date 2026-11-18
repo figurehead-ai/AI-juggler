@@ -58,8 +58,8 @@ describe("a Pools card's team in small", () => {
 
   it("draws the lead on top with its crown, the members with counts, past four a +N; an empty one says so", () => {
     const tile = { kind: "tile" as const, icon: () => <svg /> };
-    const members = ["a", "b", "c", "d", "e"].map((ref, at) => ({ ref, logo: tile, role: "member" as const, count: at + 1 }));
-    const view = render(<PoolMini lead={{ ref: "l", logo: tile, role: "lead", count: 1 }} members={members} />);
+    const members = ["a", "b", "c", "d", "e"].map((ref, at) => ({ ref, logo: tile, role: "member" as const, count: at + 1, name: ref }));
+    const view = render(<PoolMini lead={{ ref: "l", logo: tile, role: "lead", count: 1, name: "Planner" }} members={members} />);
     expect(screen.getByTestId("pool-mini").dataset.lead).toBe("l");
     expect(screen.getAllByTestId("pool-mini-member")).toHaveLength(MINI_ROW - 1);
     expect(screen.getByTestId("pool-mini-more").textContent).toBe("+2");
@@ -68,6 +68,29 @@ describe("a Pools card's team in small", () => {
     expect(screen.getByTestId("pool-mini").textContent).toBe("No one in it yet");
     view.rerender(<PoolMini lead={null} members={[]} known={false} />);
     expect(screen.getByTestId("pool-mini").textContent).toBe("");
+  });
+
+  // The 0.4.6 rc3 Pools render: Checkout team's card said "6 sessions ·
+  // 4 need you" over "No one in it yet": its members are sessions, its
+  // rules none, and the thumbnail drew only the rules.
+  it("a pool whose members are sessions, its rules none, draws those sessions, alike tools together", () => {
+    const base = MOCK_SESSIONS[0]!;
+    const open: InstanceInfo[] = ["a", "b", "c"].map((id) => ({ ...base, id, provider: "claude-code", app_id: null }));
+    const none: PoolRulesInfo = { pool_id: "p", members: [], talk: [], lead_next: null };
+    const team = miniTeam(none, open, (id) => (id === "a" ? "lead" : "member"), NO_SOURCES, (ref) => (ref === "session:a" ? "Planner" : ""));
+    expect(team.lead?.name).toBe("Planner");
+    expect(team.members.map((one) => [one.role, one.count])).toEqual([["member", 2]]);
+    render(<PoolMini lead={team.lead} members={team.members} />);
+    expect(screen.getByTestId("pool-mini").textContent).not.toContain("No one in it yet");
+    expect(screen.getAllByTestId("pool-mini-card").map((card) => card.textContent)).toEqual(["PlannerLead", "Sessions2 open · Member"]);
+  });
+
+  it("a one-session pool draws a card with the session's name, not a lone logo in an empty box", () => {
+    const base = MOCK_SESSIONS[0]!;
+    const team = miniTeam(null, [{ ...base, id: "s", provider: "claude-code", app_id: null }], () => "member", NO_SOURCES, () => "Fix the cart totals");
+    render(<PoolMini lead={team.lead} members={team.members} />);
+    expect(screen.getByTestId("pool-mini").dataset.look).toBe("cards");
+    expect(screen.getByTestId("pool-mini-card").textContent).toBe("Fix the cart totalsMember");
   });
 
   it("on the Pools screen, a card shows its team once read", async () => {

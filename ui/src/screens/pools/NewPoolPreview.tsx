@@ -65,16 +65,34 @@ const GHOST = "inset-ring-1 inset-ring-hairline text-faint";
  * to it: `w-max`, or one at 73 % would shrink to the room right of it). */
 const WIDEST: Record<number, string> = { 1: "60%", 2: "45%", 3: "32%" };
 
-function Node({ node, lit, at, across = 3 }: { node: PreviewNode; lit: boolean; at: { left: string; top: number }; across?: number }): JSX.Element {
+/** A member's card on a drawing: its logo (its role's mark at the
+ * corner), its name and its line. The preview's, and a Pools card's
+ * thumbnail (`oneLine`: its name on one line, in a smaller box). */
+export function PreviewCard({
+  node,
+  lit = false,
+  at,
+  across = 3,
+  oneLine = false,
+  testId = "new-pool-preview-node",
+}: {
+  node: PreviewNode;
+  lit?: boolean;
+  at: { left: string; top: number | string };
+  across?: number;
+  oneLine?: boolean;
+  testId?: string;
+}): JSX.Element {
+  const wrap = oneLine ? "truncate" : "line-clamp-2 break-words";
   return (
-    <span className={`${NODE} ${lit ? NODE_LIT : NODE_AT_REST} ${node.stacked ? STACK : ""}`} style={{ left: at.left, top: at.top, maxWidth: WIDEST[across] ?? "31%" }} data-testid="new-pool-preview-node" data-ref={node.ref} data-role={node.role} data-lit={lit || undefined}>
+    <span className={`${NODE} ${lit ? NODE_LIT : NODE_AT_REST} ${node.stacked ? STACK : ""}`} style={{ left: at.left, top: at.top, maxWidth: WIDEST[across] ?? "31%" }} data-testid={testId} data-ref={node.ref} data-role={node.role} data-lit={lit || undefined}>
       <MemberLogo spec={node.logo} size={24} badge={node.role} />
       <span className="flex min-w-0 flex-col">
         {/* D-126 critique: a name wraps to two lines before it's cut. */}
-        <span className="line-clamp-2 break-words font-semibold text-ink" data-testid="new-pool-preview-node-name">
+        <span className={`${wrap} font-semibold text-ink`} data-testid={`${testId}-name`}>
           {node.name}
         </span>
-        <span className="line-clamp-2 break-words text-muted">{node.line}</span>
+        <span className={`${wrap} text-muted`}>{node.line}</span>
       </span>
     </span>
   );
@@ -116,9 +134,9 @@ export function PreviewDiagram({ lead, members, reached, focus }: { lead: Previe
         </>
       ) : (
         <>
-          {lead ? <Node node={lead} lit={lit(lead)} across={1} at={{ left: "50%", top: 20 }} /> : <Ghost icon={IconLead} words={NO_LEAD_YET} at={{ left: "50%", top: 24 }} />}
+          {lead ? <PreviewCard node={lead} lit={lit(lead)} across={1} at={{ left: "50%", top: 20 }} /> : <Ghost icon={IconLead} words={NO_LEAD_YET} at={{ left: "50%", top: 24 }} />}
           {shown.map((node, at) => (
-            <Node key={node.ref} node={node} lit={lit(node)} across={across.length} at={{ left: `${across[at]}%`, top: 128 }} />
+            <PreviewCard key={node.ref} node={node} lit={lit(node)} across={across.length} at={{ left: `${across[at]}%`, top: 128 }} />
           ))}
           {more > 0 && <Ghost icon={IconPlus} words={`${more} more`} at={{ left: `${across[shown.length]}%`, top: 132 }} />}
         </>

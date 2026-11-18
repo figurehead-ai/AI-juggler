@@ -21,7 +21,8 @@ import { useMessageNeeds } from "../../lib/ipc/messages";
 import { onTasksChanged, useTaskNeeds } from "../../lib/ipc/tasks";
 import { poolCanvasPreviews, type PoolPreviewInfo } from "../../lib/ipc/pool-canvas";
 import { poolRules, type PoolRulesInfo } from "../../lib/ipc/pool-model";
-import { useApps } from "../../lib/apps";
+import { useApps, type AppModel } from "../../lib/apps";
+import { shortName } from "../../lib/session-titles";
 import type { PoolInfo } from "../../lib/ipc/pools";
 import { doneNewPoolRequest, needWords, onNewPoolRequest, poolIdsOf, poolNeedCount, roleOf, scopeLabel, takeNewPoolRequest, usePools, warmPool, type NewPoolRequest } from "../../lib/pools";
 import { sessionState } from "../../lib/rail-items";
@@ -91,6 +92,18 @@ function SkeletonCards(): JSX.Element {
   );
 }
 
+/** A pool member's name on its card's thumbnail: a session's title, an
+ * App's name. */
+function memberNameOf(apps: readonly AppModel[] | null): (ref: string, sessions: readonly InstanceInfo[]) => string {
+  return (ref, sessions) => {
+    if (ref.startsWith("session:")) {
+      const session = sessions.find((one) => `session:${one.id}` === ref);
+      return session ? shortName(session) : "";
+    }
+    return apps?.find((app) => `app:${app.id}` === ref)?.name ?? "";
+  };
+}
+
 export function PoolsScreen({ sessions, projects, accounts }: { sessions: InstanceInfo[]; projects: ProjectInfo[]; accounts: AccountInfo[] }): JSX.Element {
   const pools = usePools();
   const host = useActionHost();
@@ -111,6 +124,7 @@ export function PoolsScreen({ sessions, projects, accounts }: { sessions: Instan
   // D-126 §4d: each shown card's team (its members, their open sessions).
   const [teams, setTeams] = useState<Map<string, PoolRulesInfo>>(new Map());
   const apps = useApps(accounts);
+  const memberName = memberNameOf(apps);
 
   // Each open session (what the rail holds), by its pool.
   const byPool = useMemo(() => {
@@ -196,7 +210,7 @@ export function PoolsScreen({ sessions, projects, accounts }: { sessions: Instan
             {visible.map((pool) => {
               const members = byPool.get(pool.id) ?? [];
               const preview = previews.get(pool.id);
-              const team = miniTeam(teams.get(pool.id) ?? null, members.slice(0, 24), (id) => roleOf(pools, id, pool.id), { apps: apps ?? [], sessions: members });
+              const team = miniTeam(teams.get(pool.id) ?? null, members.slice(0, 24), (id) => roleOf(pools, id, pool.id), { apps: apps ?? [], sessions: members }, (ref) => memberName(ref, members));
               const project = pool.project_id ? projects.find((row) => row.id === pool.project_id) : undefined;
               return (
                 <PoolCard key={pool.id} pool={pool} local={cardHost} asks={asks.get(pool.id) ?? 0} onOpen={() => host.openPool?.(pool.id)}>
