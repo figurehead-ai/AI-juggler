@@ -20,7 +20,7 @@ import { refreshPaged, usePagedList } from "../../lib/paged";
 import { usePoolPlace, usePools } from "../../lib/pools";
 import { rememberTab } from "../registry";
 import { useActionHost } from "../../components/ItemMenu";
-import { focusTask, onTasksChanged, takeFocusedTask, tasksCounts, tasksList, tasksOfSession, tasksPlan, type TaskCounts, type TaskInfo } from "../../lib/ipc/tasks";
+import { focusTask, onTasksChanged, takeFocusedTask, tasksList, tasksOfSession, tasksPlan, useTaskCounts, type TaskCounts, type TaskInfo } from "../../lib/ipc/tasks";
 import { TaskRow } from "./TaskRow";
 import { TaskTree } from "./TaskTree";
 import { TaskView } from "./TaskView";
@@ -67,7 +67,6 @@ export function PoolTasks({ poolId, sessions, projects, now }: { poolId: string;
   const [view, setView] = useState<"list" | "plan">("list");
   const [words, setWords] = useState("");
   const [query, setQuery] = useState("");
-  const [counts, setCounts] = useState<TaskCounts | null>(null);
   const [open, setOpen] = useState<string | null>(takeFocusedTask);
   useTasksRefresh();
   // What's typed is looked for once typing pauses.
@@ -75,16 +74,7 @@ export function PoolTasks({ poolId, sessions, projects, now }: { poolId: string;
     const timer = window.setTimeout(() => setQuery(words.trim()), words ? 200 : 0);
     return () => window.clearTimeout(timer);
   }, [words]);
-  useEffect(() => {
-    let alive = true;
-    const read = () => void tasksCounts(poolId).then((next) => alive && setCounts(next), () => undefined);
-    read();
-    const off = onTasksChanged(read);
-    return () => {
-      alive = false;
-      off();
-    };
-  }, [poolId]);
+  const counts = useTaskCounts(poolId);
   const list = usePagedList(`tasks:${poolId}:${filter}:${query}`, (page) => tasksList(poolId, filter, query || null, page), { pageSize: LIST_PAGE, keyOf: (task) => task.id });
   // The plan's folds.
   const plan = usePagedList(`tasks-plan:${poolId}`, (page) => tasksPlan(poolId, page), { pageSize: PLAN_PAGE, keyOf: (task) => task.id });

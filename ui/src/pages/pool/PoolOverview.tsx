@@ -13,14 +13,14 @@
  * The pool's own settings (selected: the pool) keep its summary in
  * sentences and the checklist as one line (`PoolProgress`).
  */
-import { useEffect, useState, type JSX } from "react";
+import type { JSX } from "react";
 
 import { Alert } from "../../components/Alert";
 import { IconChevronRight } from "../../components/icons-controls";
 import type { PoolCanvasInfo } from "../../lib/ipc/pool-canvas";
 import type { PoolRuleInfo } from "../../lib/ipc/pool-model";
 import type { PoolInfo } from "../../lib/ipc/pools";
-import { onTasksChanged, tasksCounts, type TaskCounts } from "../../lib/ipc/tasks";
+import { useTaskCounts } from "../../lib/ipc/tasks";
 import { nextLine } from "../../lib/pool-sentences";
 import type { SetupRow } from "../../lib/pool-setup";
 import type { PoolRules } from "../../lib/pool-rules";
@@ -103,17 +103,7 @@ function nowWords(members: readonly MemberNode[]): string {
 
 /** "3 open · 1 in review", read with the pool's tasks. */
 function useTaskWords(poolId: string): string | null {
-  const [counts, setCounts] = useState<TaskCounts | null>(null);
-  useEffect(() => {
-    let alive = true;
-    const read = () => void tasksCounts(poolId).then((next) => alive && setCounts(next), () => undefined);
-    read();
-    const off = onTasksChanged(read);
-    return () => {
-      alive = false;
-      off();
-    };
-  }, [poolId]);
+  const counts = useTaskCounts(poolId);
   if (!counts) return null;
   const open = counts.ready + counts.todo + counts.in_progress + counts.in_review + counts.blocked;
   if (open === 0) return "None open";

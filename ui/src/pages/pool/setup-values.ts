@@ -4,6 +4,7 @@
  * the pool's sentences (PoolShape), so the checklist, the summary and New
  * pool's Review never say one pool two ways.
  */
+import { listWords } from "../../lib/account-terms";
 import type { PoolShape } from "../../lib/pool-sentences";
 import { effectiveRule, ruleOf, TALK_ROLES } from "../../lib/pool-templates";
 import { nextSessionWords, ownMay, type SETUP_STEPS } from "../../lib/pool-words";
@@ -12,9 +13,6 @@ type Step = (typeof SETUP_STEPS)[number];
 
 /** At most this many names in a row's value; then "and N more". */
 const NAMES = 3;
-
-/** "A", "A and B", "A, B and C". */
-const listWords = (names: readonly string[]) => (names.length <= 1 ? (names[0] ?? "") : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`);
 
 /** "Claude, Codex, everyone in web"; past three, "and N more". */
 function whoValue(shape: PoolShape, where: string): string {
