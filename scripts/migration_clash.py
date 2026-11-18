@@ -9,8 +9,9 @@ both ship "schema 53" with different tables: a database written by one
 would be taken as up to date by the other. ADR-0037 met this (V53 on
 release/0.4.6, the memory store's V54 on release/0.5).
 
-This compares the versions this tree claims (every `const V<N>: &str`,
-registered in `MIGRATIONS` or not yet) with each other branch below:
+This compares the versions this tree claims (every `const V<N>: &str`
+in the storage folder, registered in `MIGRATIONS` or not yet: the memory
+store's `memory::V54` waits for the 0.4.6 merge) with each other branch below:
 a version both sides added since their merge base, with different
 definitions, is a clash. Refs that aren't here (a CI checkout, an old
 clone) are skipped, and so is a ref without a merge base (a shallow
@@ -28,10 +29,11 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-PATH = "crates/juggler-core/src/storage/mod.rs"
+DIR = "crates/juggler-core/src/storage"
+PATH = f"{DIR}/mod.rs"  # holds MIGRATIONS
 REFS = ("release/0.4.6", "origin/release/0.4.6", "main", "origin/main")
 
-DEF = re.compile(r"^const V(\d+): &str = ", re.M)
+DEF = re.compile(r"^(?:pub(?:\([^)]*\))? )?const V(\d+): &str = ", re.M)
 LIST = re.compile(r"^const MIGRATIONS: &\[&str\] = &\[(.*?)\];", re.M | re.S)
 
 
@@ -61,7 +63,8 @@ def claims(text: str) -> dict[int, str]:
 
 def registered(text: str) -> list[str]:
     m = LIST.search(text)
-    return [n.strip() for n in m.group(1).split(",") if n.strip()] if m else []
+    names = [n.strip() for n in m.group(1).split(",") if n.strip()] if m else []
+    return [n.split("::")[-1] for n in names]
 
 
 def clashes(head: dict[int, str], other: dict[int, str], base: dict[int, str]) -> list[int]:
@@ -83,9 +86,17 @@ def _git(*args: str) -> str | None:
     return run.stdout if run.returncode == 0 else None
 
 
+def _merged(texts: list[str]) -> dict[int, str]:
+    out: dict[int, str] = {}
+    for text in texts:
+        out.update(claims(text))
+    return out
+
+
 def _at(ref: str) -> dict[int, str]:
-    text = _git("show", f"{ref}:{PATH}")
-    return claims(text) if text else {}
+    names = (_git("ls-tree", "-r", "--name-only", ref, f"{DIR}/") or "").split()
+    texts = [_git("show", f"{ref}:{name}") or "" for name in names if name.endswith(".rs")]
+    return _merged(texts)
 
 
 def check() -> list[str]:
@@ -93,7 +104,7 @@ def check() -> list[str]:
     problems = []
     if bad := contiguity(registered(text)):
         problems.append(bad)
-    head = claims(text)
+    head = _merged([f.read_text() for f in sorted((ROOT / DIR).rglob("*.rs"))])
     for ref in REFS:
         if _git("rev-parse", "--verify", "--quiet", f"{ref}^{{commit}}") is None:
             print(f"migration_clash: {ref} isn't here; skipped")
@@ -132,6 +143,9 @@ const MIGRATIONS: &[&str] = &[
     assert got[3] == "pools::LEAD_NEXT_MIGRATION", got[3]
     assert got[4] == '"it\\"s; fine"', got[4]
     assert registered(text) == ["V1", "V2", "V3"]
+    assert registered(text.replace("    V3,", "    V3, memory::V4,")) == ["V1", "V2", "V3", "V4"]
+    assert claims("pub const V54: &str = r#\"x\"#;") == {54: 'r#"x"#'}
+    assert claims("pub(crate) const V9: &str = a::B;") == {9: "a::B"}
     assert contiguity(["V1", "V2", "V3"]) is None
     assert contiguity(["V1", "V3"]) is not None
     assert contiguity(["V2", "V1"]) is not None
