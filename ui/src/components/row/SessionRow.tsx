@@ -114,15 +114,14 @@ export function SessionRow(props: SessionRowProps): JSX.Element {
   const title = props.title ?? item.title;
   const state = rowState(item);
   const low = item.session ? lowLeftWords(item.session) : null;
-  // D-117 (the 0.5 design call): a row's figures follow the row's own
-  // level (itemLevel → attentionLevel(), the one rule): its low room is
-  // amber when the row waits on you (L2: it asks, is stuck or its limit
-  // stopped it), red only when the row itself is broken (L3), muted at
-  // L0/L1, and muted while parked. The Account's own runway line keeps
-  // the Account's level (red when out with live work): the inspector's
-  // captures read an asking row's "0% left" in red beside it.
-  const lowLevel: AttentionLevel = low ? state.level : 0;
-  const lowTone = levelTone(lowLevel).text;
+  // D-118 (one quiet mark per need, the 0.5 review of the rail): a row's
+  // low room is a fact, muted at every level. The need's one loud copy is
+  // its Needs you row; here the row's dot and its word in ink say it (D-47
+  // as amended by D-117), so a row its limit stopped no longer reads
+  // "0% left" in amber beside its Needs you row. The Account's own runway
+  // line keeps the Account's level (red when out with live work).
+  const lowLevel: AttentionLevel = 0;
+  const lowTone = "text-muted";
   const heavyNote = useHeavyNote(item.session?.id ?? "");
   const heavy = heavyNote ? shortHeavy(heavyNote) : null;
   const when = props.when ?? rowWhen(item, now);

@@ -296,9 +296,10 @@
 | AJ-E3519 | PASS5 | 2026-11-06 | [manifest](AJ-E3519/manifest.md) |
 | AJ-E3520 | PASS6 | 2026-11-06 | [manifest](AJ-E3520/manifest.md) |
 | AJ-E3521 | PASS8 | 2026-11-06 | [manifest](AJ-E3521/manifest.md) |
-| AJ-E3601 | (no claims yet) | 2026-11-14 | [manifest](AJ-E3601/manifest.md) |
+| AJ-E3601 | PASS12 | 2026-11-14 | [manifest](AJ-E3601/manifest.md) |
+| AJ-E3603 | PASS6 | 2026-11-18 | [manifest](AJ-E3603/manifest.md) |
 | AJ-E3618 | (directory without manifest — add one) | — | — |
-| AJ-E3701 | PASS4 | 2026-11-14 | [manifest](AJ-E3701/manifest.md) |
+| AJ-E3701 | PASS7 | 2026-11-14 | [manifest](AJ-E3701/manifest.md) |
 | AJ-E3702 | PASS13 | 2026-11-15 | [manifest](AJ-E3702/manifest.md) |
 | AJ-E3709 | FAIL4 PASS12 UNPROVEN5 | 2026-11-16 | [manifest](AJ-E3709/manifest.md) |
 | AJ-E3801 | PASS5 | 2026-11-16 | [manifest](AJ-E3801/manifest.md) |

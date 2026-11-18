@@ -26,9 +26,12 @@ export function RoomChip({ mark, size = "sm", compact = false, iconOnly = false,
   const Icon = mark.kind === "out" ? IconGaugeEmpty : IconGaugeLow;
   // D-100 (the 0.4.2 review): in the rail's App header the mark is its
   // icon alone (its words on hover), so the App's name keeps the room.
+  // D-118 (one quiet mark per need, the rail calm): a glyph, no amber or
+  // red disc: low room is a note (muted), Out its danger glyph; the loud
+  // copy of a need is its Needs you row.
   if (iconOnly) {
     return (
-      <span title={mark.title} data-testid={testId} data-kind={mark.kind} className={`inline-flex size-[18px] shrink-0 items-center justify-center rounded-full border ${TONE[mark.kind]}`}>
+      <span title={mark.title} data-testid={testId} data-kind={mark.kind} className={`inline-flex size-[18px] shrink-0 items-center justify-center ${mark.kind === "out" ? "text-danger" : "text-muted"}`}>
         <Icon aria-hidden="true" width={11} height={11} />
         <span className="sr-only">{mark.title}</span>
       </span>

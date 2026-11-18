@@ -3,8 +3,8 @@
  * lens's rail and the folded icon rail wear the App lens's calm look, from
  * its own parts — the calm section head (`.section-label`, the level's
  * glyph on Needs you's count, L2 and L3 counted), state marks (a level's
- * dot, never a per-state glyph), Needs you rows (NeedRow: the L3 tint, its
- * ✕ hidden), notes last under To review, and App icons muted at rest
+ * dot, never a per-state glyph), Needs you rows (NeedRow: no tint, the L3
+ * ✕ hidden and its red word, D-118), notes last under To review, and App icons muted at rest
  * (`.app-tone`), lit at L2/L3 or when current.
  */
 import { cleanup, fireEvent, render, waitFor, within } from "@testing-library/react";
@@ -92,9 +92,12 @@ describe("every lens's rail is the App lens's calm rail (D-117)", () => {
     const toReview = within(section).getByTestId("rail-to-review");
     const review = section.querySelector<HTMLElement>("[data-need='review']")!;
     expect(toReview.compareDocumentPosition(review) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    // L3: the tint, its ✕ hidden; its name leads with the word.
+    // L3: one quiet mark (D-118): no tinted block, its ✕ hidden and its
+    // word red; its name leads with the word.
     const broke = section.querySelector<HTMLElement>("[data-level='3'][data-need='failed']")!;
-    expect(broke.querySelector(".bg-danger-soft")).toBeTruthy();
+    expect(broke.className).not.toContain("bg-danger-soft");
+    expect(broke.querySelector(".bg-danger-soft")).toBeNull();
+    expect(broke.querySelector("[data-testid='need-word']")!.className).toContain("text-danger");
     expect(within(section).getByRole("button", { name: /^Stopped with an error, / })).toBeTruthy();
     // Open now: the same calm head, and no per-state glyph on any row.
     expect(view.getByTestId("rail-open-now").className).toContain("section-label");

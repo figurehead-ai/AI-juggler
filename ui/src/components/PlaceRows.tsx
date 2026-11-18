@@ -61,15 +61,17 @@ interface RowProps {
 /** A Needs you row (D-117): the App's 6 px dot (in full colour while it
  * needs you, muted for a note), the title in semibold ink, why in its
  * level's colour — amber at L2 (a hollow ring before a guess), red with
- * its ✕ on the L3 tint — or a review's ✓ and muted words (L1), then
- * where. Its ↗ shows on hover, focus or when selected. */
+ * its ✕ at L3 — or a review's ✓ and muted words (L1), then where. One
+ * quiet mark per need (D-118's mock, the 0.5 review's "loud blocks"): no
+ * row is tinted in the rail, so five needs never stack five coloured
+ * blocks; the ✕ and the word tell L3 from L2 by shape, never by a fill.
+ * Its ↗ shows on hover, focus or when selected. */
 export function NeedRow({ compact = false, ...props }: RowProps): JSX.Element {
   const { item } = props;
   const word = needWord(item);
   const where = whereWords(item);
   const level = itemLevel(item);
   const lit = level >= 2 || props.selected;
-  const tint = level === 3 ? " bg-danger-soft" : "";
   const dot = (
     <span aria-hidden="true" className={"flex shrink-0 " + (compact ? "" : "mt-[6px]")} data-testid="place-mark">
       <ProfileBadge app={item.place.key} name={item.place.profile ?? item.accountLabel} size={6} className={appTone(lit)} />
@@ -90,7 +92,7 @@ export function NeedRow({ compact = false, ...props }: RowProps): JSX.Element {
   if (compact) {
     // Two lines: what, and why it needs you (where is in its name).
     return (
-      <RowShell {...props} data={data} label={`${word}, ${item.title}, ${where}`} shape="rounded-lg" className={"h-[44px] items-center gap-2 pl-2" + tint}>
+      <RowShell {...props} data={data} label={`${word}, ${item.title}, ${where}`} shape="rounded-lg" className="h-[44px] items-center gap-2 pl-2">
         {dot}
         <span className="flex min-w-0 flex-1 flex-col">
           <span aria-hidden="true" className="truncate text-meta font-semibold leading-[18px] text-ink">
@@ -102,7 +104,7 @@ export function NeedRow({ compact = false, ...props }: RowProps): JSX.Element {
     );
   }
   return (
-    <RowShell {...props} data={data} label={`${word}, ${item.title}, ${where}`} shape="rounded-lg" className={"h-[62px] items-start gap-2.5 pb-2.5 pl-2.5 pt-2" + tint}>
+    <RowShell {...props} data={data} label={`${word}, ${item.title}, ${where}`} shape="rounded-lg" className="h-[62px] items-start gap-2.5 pb-2.5 pl-2.5 pt-2">
       {dot}
       {/* Three lines, each its own width (the review of 0.1.4: the state
           beside the place cut both to "ai-jug… · T…"): what, why it

@@ -46,8 +46,9 @@ export function RailNoticeRow({ notice, now, onOpen, canHandOver }: { notice: No
   const plainOpen = action === "Open";
   const showLine = Boolean(line) && (!long || plainOpen);
   const showAction = Boolean(action) && !(long && plainOpen && line);
-  // D-117: its action word in its level's colour (amber L2, red L3 on the
-  // tint); a note's (L1: low room nothing live is on, leftovers) muted.
+  // D-117: its action word in its level's colour (amber L2, red L3; no
+  // tinted row in the rail, D-118's one quiet mark per need); a note's
+  // (L1: low room nothing live is on, leftovers) muted.
   const level = noticeLevel(notice);
   return (
     <button
@@ -58,7 +59,7 @@ export function RailNoticeRow({ notice, now, onOpen, canHandOver }: { notice: No
       data-level={level}
       onClick={() => onOpen(notice)}
       title={line ? `${notice.title} — ${line}` : undefined}
-      className={"flex h-[62px] w-full min-w-0 items-start gap-2.5 rounded-lg pb-2.5 pl-2 pr-2 pt-2 text-left outline-none transition-colors hover:bg-surface/60 focus-visible:ring-1 focus-visible:ring-accent/60" + (level === 3 ? " bg-danger-soft" : "")}
+      className={"flex h-[62px] w-full min-w-0 items-start gap-2.5 rounded-lg pb-2.5 pl-2 pr-2 pt-2 text-left outline-none transition-colors hover:bg-surface/60 focus-visible:ring-1 focus-visible:ring-accent/60"}
     >
       <span className="sr-only">{[notice.title, line, action].filter(Boolean).join(", ")}</span>
       <span aria-hidden="true" className="mt-0.5 flex shrink-0">
