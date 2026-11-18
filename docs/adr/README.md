@@ -37,5 +37,7 @@ ADRs capture the *why* behind non-obvious decisions: context, decision, alternat
 | [0031](./0031-switch-by-move.md) | A switch can move: same-tool accounts on one disk move the whole family, journaled and undoable (D-93) | Accepted |
 | [0033](./0033-feed-summary-engines.md) | Feed summary lines: one `SummaryEngine` seam; Apple's model automatic, a local model offered on a click; helpers out of process; one faithfulness gate (D-120) | Proposed |
 | [0034](./0034-ai-jobs-router.md) | AI jobs through one router: jobs declare needs, engines declare capabilities; Chat v1 read-only with cited look-ups; one downloaded model at most (D-121) | Accepted |
+| [0036](./0036-digest-and-watches.md) | The agent digest and watches: a checked cross-agent digest over a non-AI rollup; typed watches that code evaluates and Chat only drafts (D-132) | Accepted |
+| [0037](./0037-memory-and-context.md) | One memory and context system for Chat and the 0.6 bot: a supersede-only store, live facts over stored ones, one assembler with per-job budgets, an append-only log (D-133) | Proposed |
 
 To add one: copy `0000-template.md`, number sequentially, PR it with the change that implements the decision.
