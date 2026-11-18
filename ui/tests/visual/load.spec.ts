@@ -269,9 +269,11 @@ test("New pool opens, and steps Next and Back, in under 100 ms", async ({ page }
   const backs: number[] = [];
   for (let i = 0; i < 5; i++) {
     opens.push(await clickToPaint(page, '[data-testid="pools-new"]', '[data-testid="new-pool-step-template"]'));
-    const steps = await page.getByTestId("new-pool-step").count();
-    for (let at = 1; at < steps; at++) nexts.push(await clickToPaint(page, '[data-testid="new-pool-next"]', `[data-testid="new-pool-step"]:nth-child(${at + 1})[aria-current="step"]`));
-    for (let at = steps - 1; at > 0; at--) backs.push(await clickToPaint(page, '[data-testid="new-pool-back"]', `[data-testid="new-pool-step"]:nth-child(${at})[aria-current="step"]`));
+    // D-126: the steps beside are the kit's FlowSteps (in groups), each by its id.
+    const steps = await page.locator('[data-testid="new-pool-steps"] [data-testid="flow-step"]').evaluateAll((all) => all.map((one) => one.getAttribute("data-step") ?? ""));
+    const current = (step: string) => `[data-testid="new-pool-steps"] [data-testid="flow-step"][data-step="${step}"][aria-current="step"]`;
+    for (let at = 1; at < steps.length; at++) nexts.push(await clickToPaint(page, '[data-testid="new-pool-next"]', current(steps[at]!)));
+    for (let at = steps.length - 2; at >= 0; at--) backs.push(await clickToPaint(page, '[data-testid="new-pool-back"]', current(steps[at]!)));
     await page.keyboard.press("Escape");
     await expect(page.getByTestId("new-pool")).toHaveCount(0);
   }

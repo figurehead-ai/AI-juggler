@@ -2598,15 +2598,18 @@ test.describe("the pool setup and the canvas's selection", () => {
       await openPools(page, theme, null);
       await page.getByTestId("pools-new").click();
       const wizard = page.getByTestId("new-pool");
-      await expect(wizard.locator('[data-template="blank"]')).toHaveAttribute("aria-checked", "true");
+      // D-126: How to start's choices are cards, a radio in each.
+      await expect(wizard.locator('[data-template="blank"]').getByRole("radio")).toBeChecked();
       for (const step of ["template", "where", "who", "lead", "everyone", "talk", "own", "tools", "review"]) {
         if (step === "tools" && (await page.getByTestId("new-pool-step-tools").count()) === 0) continue;
         await expect(page.getByTestId(`new-pool-step-${step}`)).toBeVisible();
-        await expect(wizard.locator(`[data-testid=new-pool-step][data-step="${step}"]`)).toHaveAttribute("aria-current", "step");
+        // D-126: the steps beside are the kit's FlowSteps.
+        await expect(wizard.locator(`[data-testid=new-pool-steps] [data-testid=flow-step][data-step="${step}"]`)).toHaveAttribute("aria-current", "step");
         await expect(page.getByTestId("new-pool-step-title")).not.toBeEmpty();
         expect(await unnamed(wizard), step).toEqual([]);
         expect(await scanSeriousWithConfirm(page), `${step} ${theme}`).toHaveLength(0);
-        if (step === "who") await page.getByTestId("new-pool-candidate").first().getByRole("checkbox").click();
+        // An App is a logo card (its checkbox in its label), a session a row.
+        if (step === "who") await page.getByTestId("new-pool-candidate").first().locator("label, button[role=checkbox]").first().click();
         if (step !== "review") await page.getByTestId("new-pool-next").click();
       }
     });

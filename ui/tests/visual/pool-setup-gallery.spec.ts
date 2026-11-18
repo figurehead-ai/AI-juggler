@@ -104,20 +104,25 @@ async function newPool(page: Page) {
 async function fill(page: Page, step: (typeof STEPS)[number]) {
   if (step === "where") await page.getByTestId("new-pool-name").fill("Storefront team");
   if (step === "who") {
-    for (const row of await page.getByTestId("new-pool-candidate").all()) await row.getByRole("checkbox").click();
+    // D-126: each App a logo card, its checkbox in the card's label (a session a row).
+    for (const row of await page.getByTestId("new-pool-candidate").all()) await row.locator("label, button[role=checkbox]").first().click();
   }
   if (step === "lead") {
+    // D-126: each choice a card; its value says which ("next|<App>").
     await page.getByTestId("new-pool-lead").getByText(/'s next session$/).first().click();
-    await expect(page.locator('[data-testid=new-pool-lead-option][data-kind="next"]').first()).toBeChecked();
+    await expect(page.locator('[data-testid=new-pool-lead-option][data-value^="next|"]').first().getByRole("radio")).toBeChecked();
   }
   if (step === "everyone") {
-    await page.getByTestId("new-pool-member-role").last().click();
-    await page.getByRole("menuitemradio", { name: /^Reviewer/ }).click();
+    // D-126: a role is a segmented control; the last row is every new session's.
+    await page.getByTestId("new-pool-member-role-reviewer").last().click();
+    await expect(page.getByTestId("new-pool-member-role-reviewer").last()).toHaveAttribute("aria-checked", "true");
   }
   if (step === "talk") await page.locator('[data-testid=new-pool-talk-cell][data-pair="member>reviewer"]').click();
   if (step === "own") {
     await page.getByTestId("new-pool-level-choice-full").click();
-    await page.getByTestId("new-pool-seal").getByRole("checkbox").check();
+    // D-126: the seal is a switch under Optional.
+    await page.getByTestId("new-pool-seal-switch").click();
+    await expect(page.getByTestId("new-pool-seal-switch")).toHaveAttribute("aria-checked", "true");
   }
 }
 
@@ -125,8 +130,9 @@ for (const theme of ["dark", "light"] as const) {
   test(`the setup, every step, empty: the first pool — ${theme}`, gate(`98-pool-setup-empty-${theme}`), async ({ page }) => {
     await open(page, theme, null);
     await newPool(page);
-    // The first pool: the intro is full.
+    // The first pool: the intro is full, and says it's the first.
     await expect(page.getByTestId("new-pool-intro")).toHaveAttribute("data-open", "true");
+    await expect(page.getByTestId("new-pool-intro")).toHaveAttribute("data-first", "true");
     // Nothing answered yet: D-30's question is its own step (round 4).
     for (const step of STEPS) {
       await expect(page.getByTestId(`new-pool-step-${step}`)).toBeVisible();
@@ -139,8 +145,9 @@ for (const theme of ["dark", "light"] as const) {
   test(`the setup, every step, filled — ${theme}`, gate(`98-pool-setup-filled-${theme}`), async ({ page }) => {
     await open(page, theme, canvasSeed(GATE_NOW));
     await newPool(page);
-    // A pool exists: the intro is one line.
-    await expect(page.getByTestId("new-pool-intro-toggle")).toContainText("What a pool is");
+    // A pool exists: D-126 shows the intro in full either way, not as the first pool's.
+    await expect(page.getByTestId("new-pool-intro")).toHaveAttribute("data-open", "true");
+    await expect(page.getByTestId("new-pool-intro")).not.toHaveAttribute("data-first");
     // Answered already (the seed): no question step.
     for (const step of STEPS.filter((one) => one !== "tools")) {
       await expect(page.getByTestId(`new-pool-step-${step}`)).toBeVisible();

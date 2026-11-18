@@ -165,7 +165,11 @@ test("an empty pool opens in its guided setup, with Show the diagram", async ({ 
   await pool(page, "Docs crew");
   const setup = page.getByTestId("new-pool");
   await expect(setup).toHaveAttribute("data-embedded", "true");
-  await expect(page.getByTestId("new-pool-step")).toHaveCount(await page.getByTestId("new-pool-step").count());
+  // New pool's own steps beside it (D-126: the kit's FlowSteps), on How to start.
+  const steps = page.getByTestId("new-pool-steps").getByTestId("flow-step");
+  await expect(steps.first()).toHaveAttribute("data-step", "template");
+  await expect(steps.first()).toHaveAttribute("data-state", "current");
+  expect(await steps.count()).toBeGreaterThanOrEqual(8);
   await expect(page.getByTestId("new-pool-step-template")).toBeVisible();
   await page.getByTestId("new-pool-show-diagram").click();
   await expect(page.getByTestId("pool-canvas").or(page.getByTestId("pool-list"))).toBeVisible();
@@ -179,15 +183,17 @@ test("Who leads: one choice checked at a time", async ({ page }) => {
   await page.getByTestId("pools-new").click();
   for (let n = 0; n < 4 && !(await page.getByTestId("new-pool-step-who").isVisible()); n += 1) await page.getByTestId("new-pool-next").click();
   await page.getByRole("radiogroup", { name: "Kind of member" }).getByRole("radio", { name: /^Apps/ }).click();
-  // Both Claude app profiles, as Casey did.
-  for (const name of ["Claude app · Work Max", "Claude app · Side"]) await page.getByTestId("new-pool-candidate").filter({ hasText: name }).getByRole("checkbox").click();
+  // Both Claude app profiles, as Casey did (D-126: each App a logo card,
+  // its app's name over its profile).
+  for (const profile of ["Work Max", "Side"]) await page.getByTestId("new-pool-candidate").filter({ hasText: "Claude app" }).filter({ hasText: `Profile ${profile}` }).locator("label").first().click();
   await page.getByTestId("new-pool-next").click();
   const picker = page.getByTestId("new-pool-step-lead");
-  const radios = page.locator('input[type="radio"][name$="-choice"]');
-  const checked = () => radios.evaluateAll((all) => all.filter((one) => (one as HTMLInputElement).checked).map((one) => one.closest("[data-kind]")?.getAttribute("data-kind")));
+  // D-126: each choice a card, its value "next|<App>", "session|<ref>" or "none".
+  const radios = picker.locator('[data-testid="new-pool-lead-option"] input[type="radio"]');
+  const checked = () => radios.evaluateAll((all) => all.filter((one) => (one as HTMLInputElement).checked).map((one) => (one.closest("[data-value]")?.getAttribute("data-value") ?? "").split("|")[0]));
   await expect(picker).toBeVisible();
   for (const kind of ["next", "none", "next"]) {
-    await page.locator(`[data-kind="${kind}"]`).first().click();
+    await picker.locator(`[data-testid="new-pool-lead-option"][data-value^="${kind}"]`).first().click();
     await expect.poll(checked).toEqual([kind]);
   }
 });
@@ -245,6 +251,8 @@ test("a project's New pool for … stays put as the tab loads, and opens New poo
   await expect(page.getByTestId("new-pool-templates-fold")).not.toHaveAttribute("data-open", "true");
   await page.getByTestId("new-pool-next").click();
   await expect(page.getByTestId("new-pool-projects")).toContainText("storefront");
+  // D-126: each project a card; that project's is chosen.
+  await expect(page.getByTestId("new-pool-project").filter({ hasText: "storefront" }).getByRole("checkbox")).toBeChecked();
 });
 
 // Round 6 #6 (Casey's run): a note at the window's foot covered New pool's
@@ -255,7 +263,11 @@ test("a toast never covers New pool's footer", async ({ page }) => {
   await page.getByTestId("pools-new").click();
   // A toast of its own: Make pool with no project ("Pick a project first").
   await page.getByTestId("new-pool-next").click();
-  for (const out of await page.getByTestId("new-pool-projects").getByRole("button", { name: /^Take .* out$/ }).all()) await out.click();
+  // D-126: each project a card; every chosen one taken out.
+  const every = page.getByTestId("new-pool-project-every");
+  if (await every.getByRole("checkbox").isChecked()) await every.click();
+  const chosen = page.getByTestId("new-pool-projects").locator('[data-testid="new-pool-project"]:has(input:checked), [data-testid="new-pool-project-none"]:has(input:checked)');
+  while ((await chosen.count()) > 0) await chosen.first().click();
   await page.getByTestId("new-pool-next").click();
   await page.getByTestId("new-pool-make").click();
   const stack = page.getByTestId("toast-stack");

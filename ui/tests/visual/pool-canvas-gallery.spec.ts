@@ -265,7 +265,8 @@ for (const theme of ["dark", "light"] as const) {
         await page.mouse.move(0, 0);
         await page.screenshot({ path: resolve(OUT, `new-pool-${step}-${width}x${height}-${theme}.png`) });
         await axe(page, `new pool ${step} ${width} ${theme}`);
-        if (step === "who") await page.getByTestId("new-pool-candidate").first().getByRole("checkbox").click();
+        // D-126: an App is a logo card (its checkbox in its label), a session a row.
+        if (step === "who") await page.getByTestId("new-pool-candidate").first().locator("label, button[role=checkbox]").first().click();
         if (step !== "review") await page.getByTestId("new-pool-next").click();
       }
       await expect(page.getByTestId("new-pool-review")).toBeVisible();
