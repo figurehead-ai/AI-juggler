@@ -112,7 +112,12 @@
 //                                 "Start in PROJECT" (TOOL names the row in the log)
 //   send TEXT [--field TITLE]     types TEXT and Return into the session's terminal
 //                                 (or, for a session without one, the field TITLE)
-//   end-session ROWTEXT           "Stop this session" in the row holding ROWTEXT
+//   end-session ROWTEXT           the session's page (its words ROWTEXT on screen): its one
+//                                 "Stop" (SPEC §9.2's stop; held 5 s with Undo, then the
+//                                 SIGTERM→SIGKILL ladder), then waits until no Stop or
+//                                 "Stopping…" is left and Resume has settled. No "Stop this
+//                                 session" exists (AJ-E1612 dry run 3). Stops (exit 4) with
+//                                 none or two; by hand then: focus-terminal, key ctrl-c
 //   resume ROWTEXT                "Resume" in the row holding ROWTEXT
 //   open-usage APP                the header's Usage (--region "Main": a page's own tab is
 //                                 "Usage (this session)"), then the words beside APP
@@ -1102,6 +1107,34 @@ func newSession(_ pid: pid_t, tool: String, app: String, project: String, labB: 
     if labB { say(started ? "  Start was pressed: see what Dev shows next" : "  Dev didn't offer Start on lab B") }
 }
 
+/// The words the session page's Stop shows, before and while its stop is
+/// held (ui/src/shell/pages.tsx InspectorStop).
+let stopWords = ["Stop", "Stopping…"]
+/// After a stop is sent, Resume takes Stop's place unarmed this long
+/// (ui/src/lib/stop.ts RESUME_SETTLE_MS), plus a margin.
+let resumeSettle: Double = 2.5
+
+/// Ends the session whose page is open (its words `row` on screen) by its
+/// page's own Stop, and waits until it has ended.
+func endSession(_ pid: pid_t, row: [String]) {
+    say("» end-session" + row.map { " \"\($0)\"" }.joined())
+    let words = screenWords(pid, ocr: false)
+    for text in row where !shows(words, text) {
+        stop(4, "\"\(text)\" isn't on screen: open that session's page first (press its row). Nothing pressed.")
+    }
+    press(pid, "Stop", within: [])
+    let start = Date()
+    while true {
+        let nodes = tree(pid)
+        let left = stopWords.filter { !controls(nodes, titled: $0, roles: pressRoles).isEmpty }
+        if left.isEmpty { break }
+        if Date().timeIntervalSince(start) > 45 { stop(5, "the session still shows \(left) 45 s after Stop") }
+        usleep(500_000)
+    }
+    say("  ended after \(Int(Date().timeIntervalSince(start))) s: its page offers no Stop now")
+    usleep(useconds_t(resumeSettle * 1_000_000))
+}
+
 func send(_ pid: pid_t, _ words: String, field: String?) {
     if let field { focusField(pid, field, within: []) } else { focusTerminal(pid, within: []) }
     say("» type \"\(words)\" + return")
@@ -1662,7 +1695,7 @@ case "sign-in": need(1, "sign-in APP (its full name, e.g. \"OpenCode CLI · lab 
 case "read-label": need(1, "read-label APP"); readLabel(pid, app: o.positional[0])
 case "new-session": need(3, "new-session TOOL APP PROJECT"); newSession(pid, tool: o.positional[0], app: o.positional[1], project: o.positional[2])
 case "send": need(1, "send TEXT [--field TITLE]"); send(pid, o.positional.joined(separator: " "), field: o.field)
-case "end-session": need(1, "end-session ROWTEXT [ROWTEXT …]"); press(pid, "Stop this session", within: o.positional + o.within)
+case "end-session": need(1, "end-session ROWTEXT [ROWTEXT …]"); endSession(pid, row: o.positional + o.within)
 case "resume": need(1, "resume ROWTEXT [ROWTEXT …]"); press(pid, "Resume", within: o.positional + o.within)
 case "open-usage":
     need(1, "open-usage APP")
