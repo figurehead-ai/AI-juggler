@@ -198,5 +198,49 @@
    }
   },
   "flip": "Moved the shearwater banner text, tests failed"
+ },
+ "feed_parts": {
+  "source": "Finished the petrel image import. I scrapped the colour-profile step because it was slow, and imports now keep their original look. The import guide got one line about it.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "not_run"
+   }
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "docs/petrel-import.md",
+     "added": 1,
+     "removed": 0,
+     "status": "M"
+    }
+   ],
+   "reverted": [
+    {
+     "path": "petrel/colour_profile.py",
+     "note": "the colour-profile step was scrapped"
+    }
+   ],
+   "reflog": [
+    "reset: moving to HEAD~1"
+   ],
+   "uncommitted": false
+  },
+  "honest": {
+   "action": "scrapped",
+   "object": "the colour-profile step",
+   "result": "imports now keep their original look",
+   "caveat_kind": "not_run",
+   "caveat": "tests were not run"
+  },
+  "false": {
+   "action": "reverted",
+   "object": "the petrel import guide",
+   "result": "none",
+   "caveat_kind": "not_run",
+   "caveat": "tests were not run"
+  }
  }
 }

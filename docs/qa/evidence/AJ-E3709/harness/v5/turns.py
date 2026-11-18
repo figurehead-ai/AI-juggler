@@ -195,7 +195,7 @@ class FeedLine(Job):
                 for k, v in g.items() if not v[0]]
         u = undone_clause(line, t)
         if u: errs.append(f"contradiction: names a change that was undone ({u[:100]})")
-        k = claims_v5.kept_called_undone(line, t, kept_changes(t["git"]))
+        k = feed_kept_called_undone(fields, t)
         if k: errs.append(f"contradiction: {k[:120]}")
         if failure_on_success(line, t): errs.append("contradiction: states a failure, while the facts and the message report none")
         vc = claims_v5.vcs_contradiction(line, t, kept_changes(t["git"]))
@@ -217,6 +217,16 @@ class FeedLine(Job):
                     {"changed": [{"path": "src/example.rs", "added": 10, "removed": 2}], "reverted": [], "reflog": []})
         return prompt_doc(self, self.system(True), message_prompt_v5(j4.TASK["feed_line"], t, "doc", True), j4.schema_for("feed_line"))
 FEED = register(FeedLine())
+def feed_kept_called_undone(fields, t):
+    """round 4: the line's parts read one by one (the action with its object, the result, the caveat), not the composed line, whose
+    commas are the composer's joins: "Scrapped the cropping step, uploads now go through unchanged" called the result undone"""
+    kept = kept_changes(t["git"])
+    parts = [" ".join(x for x in (fields.get("action"), fields.get("object")) if x and not j4.is_none(x)), fields.get("result"), fields.get("caveat")]
+    for p in parts:
+        if p and not j4.is_none(p):
+            k = claims_v5.kept_called_undone(p, t, kept)
+            if k: return k
+    return None
 
 # ======================================================================================================================
 # (b) turn review

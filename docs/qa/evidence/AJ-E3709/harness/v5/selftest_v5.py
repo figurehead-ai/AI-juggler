@@ -766,6 +766,13 @@ def selftest():
     g3 = gate.gate_v3(core.gate_ctx(tc), NR["flip"], tc["facts"], "stop", False)[0]
     check("R4 tests: ...so a line saying the tests failed on a clean run is still refused by the gate", not all(v[0] for v in g3.values()), g3)
 
+    # ================================================================================================ R4-5. the feed's revert check reads the line's parts, not the composer's commas
+    FP = R4["feed_parts"]; tp = turn(FP["source"], facts=FP["facts"], git=FP["git"])
+    rp = run_item(FEED, tp, "main", Script([FP["honest"]]))
+    check("R4 parts: an undo with its result after the composer's comma is not 'a kept change called undone'", not any("calls" in e and "undone" in e for e in rp["attempts"][0]["errors"]), rp["attempts"][0]["errors"])
+    rq = run_item(FEED, tp, "main", Script([FP["false"]]))
+    check("R4 parts: ...a kept change the line calls reverted is still refused", any("calls" in e and "undone" in e for e in rq["attempts"][0]["errors"]), rq["attempts"][0]["errors"])
+
     # ================================================================================================ the extension point, the frozen gate, the prompts
     class Toy(core.Job):
         name, letter, title, item_kind = "toy_digest", "e", "toy", "toydigest"
