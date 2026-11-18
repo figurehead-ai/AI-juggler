@@ -43,11 +43,23 @@
 //     tell: no);
 //   - once per step (one run of this tool), never in a loop: still failing
 //     after it, the guard waits as before.
-// Bringing it forward: un-hide Dev when hidden (NSRunningApplication),
-// un-minimise its main window when minimised (AXMinimized false), then
-// activate it (macOS brings its window to the current Space). Each prints
-// its own line: UNHID / UNMINIMISED / ACTIVATED <UTC time> step=<command>
-// idle=<s>s. After it, any new input at the Mac (the idle time falls back
+// "Dev's window" is its MAIN window, the one titled "AI Juggler" or "AI
+// Juggler · …" (accessibility), matched to CGWindowList by its frame: any
+// other of Dev's windows on screen (dry run 3: a 280x168 one) never stands
+// for it, so the main window on another Space reads as off screen.
+// Bringing it forward, all by Dev's pid and its own windows, never by name
+// (the installed AI Juggler is also juggler-app) and never ⌘⇧M: un-hide Dev
+// when hidden (NSRunningApplication), un-minimise its main window when
+// minimised (AXMinimized false), then make that window main, raise it and
+// make Dev frontmost (AX). macOS doesn't switch Spaces for an app that has
+// any window on the Space in use (dry run 3: ACTIVATED did nothing for
+// hours), so when the main window is still not on screen it is moved here:
+// minimised and restored (a window restored from the Dock opens on the
+// Space in use), raised again. Each prints its own line: UNHID /
+// UNMINIMISED / ACTIVATED / MOVED <UTC time> step=<command> idle=<s>s.
+// Then the guard is checked again: Dev still not frontmost, or its main
+// window still off screen, stops the step at once (exit 3, a STOPPED line
+// saying what was tried; nothing sent), never a wait that can't end. After it, any new input at the Mac (the idle time falls back
 // below the time since the activation) stops the run at once (exit 6):
 // nothing more is sent and Dev is left where it is (not lowered, not raised
 // again). The full guard still runs before every single event.
@@ -282,6 +294,7 @@ enum Raise: String {
     case unhid = "UNHID"
     case unminimised = "UNMINIMISED"
     case activated = "ACTIVATED"
+    case moved = "MOVED"
 }
 
 /// A part done, and whether the system took it.
@@ -356,11 +369,29 @@ func gate(step: String, may: Bool, opportunistic: Bool = false, activatedAt: ino
         case .activate:
             activatedAt = now
             // One line each, in the order done (un-hide, un-minimise, activate).
-            for part in mac.activate() {
+            let parts = mac.activate()
+            for part in parts {
                 mac.log("\(part.what.rawValue) \(utc(now)) step=\(step) idle=\(String(format: "%.1f", p.idle))s"
-                    + (part.ok ? "" : " (the system refused; waiting as before)"))
+                    + (part.ok ? "" : " (the system refused)"))
             }
+            // Checked again: Dev frontmost with its main window on screen,
+            // or the step stops here (never a wait that can't end).
             mac.sleep(0.4)
+            var after = mac.probe()
+            for _ in 0..<5 where after.verdict != .clear {
+                mac.sleep(0.4)
+                after = mac.probe()
+            }
+            switch after.verdict {
+            case .notFrontmost, .offScreen:
+                let tried = parts.map { $0.what.rawValue + ($0.ok ? "" : " (refused)") }.joined(separator: ", ")
+                let why = "\(describe(after.verdict)) after bringing it forward (\(tried))"
+                mac.log("STOPPED \(utc(mac.now())) step=\(step): \(why). Nothing was sent. "
+                    + "Bring AI Juggler Dev's main window to this screen yourself (Mission Control, or its Dock icon), then run the step again.")
+                return .guardStopped(why)
+            default:
+                break // clear, or a window over Dev's: the loop decides
+            }
         case .wait(let why):
             if why != asked {
                 let ask = may
@@ -449,16 +480,75 @@ func onScreenWindows() -> [Win] {
     }
 }
 
-/// Dev's front window (layer 0) on screen: its id and bounds.
-func devWindow(_ pid: pid_t) -> (id: CGWindowID, bounds: CGRect, title: String)? {
-    let list = CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID) as? [[String: Any]] ?? []
-    for w in list where (w[kCGWindowOwnerPID as String] as? pid_t) == pid && (w[kCGWindowLayer as String] as? Int) == 0 {
-        guard let id = w[kCGWindowNumber as String] as? CGWindowID,
+/// One of Dev's windows as CGWindowList has it, on any Space.
+struct CGWin: Equatable {
+    let id: CGWindowID
+    let bounds: CGRect
+    let title: String
+    /// On the Space in use and not minimised or hidden.
+    let onScreen: Bool
+}
+
+/// Dev's windows (layer 0), on every Space.
+func devCGWindows(_ pid: pid_t) -> [CGWin] {
+    let list = CGWindowListCopyWindowInfo([.optionAll, .excludeDesktopElements], kCGNullWindowID) as? [[String: Any]] ?? []
+    return list.compactMap { w in
+        guard (w[kCGWindowOwnerPID as String] as? pid_t) == pid, (w[kCGWindowLayer as String] as? Int) == 0,
+              let id = w[kCGWindowNumber as String] as? CGWindowID,
               let raw = w[kCGWindowBounds as String] as? NSDictionary,
-              let bounds = CGRect(dictionaryRepresentation: raw), bounds.width > 50, bounds.height > 50 else { continue }
-        return (id, bounds, w[kCGWindowName as String] as? String ?? "")
+              let bounds = CGRect(dictionaryRepresentation: raw) else { return nil }
+        return CGWin(id: id, bounds: bounds, title: w[kCGWindowName as String] as? String ?? "",
+                     onScreen: (w[kCGWindowIsOnscreen as String] as? Bool) ?? false)
     }
-    return nil
+}
+
+/// The main window's title: "AI Juggler", or "AI Juggler · <screen>"
+/// (ui/src/lib/window-title.ts).
+func isMainTitle(_ title: String) -> Bool {
+    let t = squash(title)
+    return t == "AI Juggler" || t.hasPrefix("AI Juggler · ")
+}
+
+/// Which of Dev's accessibility windows is its main window (pure: the
+/// selftest): the one with the main window's title; of two, the one
+/// accessibility calls main, else the largest. Never a window of another
+/// title, however it sits (dry run 3's 280x168 one).
+func pickMain(_ windows: [(title: String, frame: CGRect, isMain: Bool)]) -> Int? {
+    let titled = windows.indices.filter { isMainTitle(windows[$0].title) }
+    if titled.count <= 1 { return titled.first }
+    if let main = titled.first(where: { windows[$0].isMain }) { return main }
+    return titled.max { windows[$0].frame.width * windows[$0].frame.height < windows[$1].frame.width * windows[$1].frame.height }
+}
+
+/// The CGWindowList window that is the one framed `frame` (within 2 pt),
+/// the title deciding between two (pure: the selftest).
+func matchWindow(frame: CGRect, title: String, among: [CGWin]) -> CGWin? {
+    let close = { (a: CGFloat, b: CGFloat) in abs(a - b) <= 2 }
+    let same = among.filter { close($0.bounds.minX, frame.minX) && close($0.bounds.minY, frame.minY)
+        && close($0.bounds.width, frame.width) && close($0.bounds.height, frame.height) }
+    if same.count <= 1 { return same.first }
+    let titled = same.filter { squash($0.title) == squash(title) }
+    return titled.count == 1 ? titled.first : nil
+}
+
+/// Dev's main window: its accessibility element and its CGWindowList entry.
+func mainWindow(_ pid: pid_t) -> (ax: AXUIElement, cg: CGWin)? {
+    let app = AXUIElementCreateApplication(pid)
+    let windows = (attr(app, kAXWindowsAttribute) as? [AXUIElement]) ?? []
+    let main = attr(app, kAXMainWindowAttribute)
+    let described = windows.map { w in
+        (title: text(w, kAXTitleAttribute), frame: frame(w) ?? .zero,
+         isMain: main.map { CFGetTypeID($0) == AXUIElementGetTypeID() && CFEqual($0, w) } ?? false)
+    }
+    guard let i = pickMain(described), let cg = matchWindow(frame: described[i].frame, title: described[i].title, among: devCGWindows(pid)) else { return nil }
+    return (windows[i], cg)
+}
+
+/// Dev's main window when it is on screen (the Space in use): its id and
+/// bounds; nil when it is minimised, hidden, on another Space, or gone.
+func devWindow(_ pid: pid_t) -> (id: CGWindowID, bounds: CGRect, title: String)? {
+    guard let main = mainWindow(pid), main.cg.onScreen, main.cg.bounds.width > 50, main.cg.bounds.height > 50 else { return nil }
+    return (main.cg.id, main.cg.bounds, main.cg.title)
 }
 
 /// Seconds since the last input event of any kind, by the HID system's
@@ -568,23 +658,83 @@ func minimisedWindow(_ app: AXUIElement) -> AXUIElement? {
         ?? windows.first(where: minimised)
 }
 
-/// Brings Dev (by pid) forward: un-hides it when hidden, un-minimises its
-/// main window when minimised, then activates it (accessibility, else the
-/// system), so macOS brings its window to the current Space. Nothing is
-/// clicked or typed. Each part done, in order.
-func bringForward(_ pid: pid_t) -> [Raised] {
+/// What bringing Dev forward works on: Dev's own app and main window, by
+/// its pid (the selftest's are made up).
+struct Forward {
+    var hidden: () -> Bool
+    var unhide: () -> Bool
+    var minimised: () -> Bool
+    var unminimise: () -> Bool
+    /// The main window made main and raised, Dev made frontmost.
+    var activate: () -> Bool
+    /// The main window is on screen (the Space in use).
+    var onThisSpace: () -> Bool
+    /// The main window minimised and restored: back on the Space in use.
+    var moveHere: () -> Bool
+    var settle: (Double) -> Void
+}
+
+/// Brings Dev forward, each part done in order (pure: tested by
+/// --selftest): un-hide, un-minimise, activate; still not on this Space,
+/// moved here and activated again.
+func bringForwardSteps(_ f: Forward) -> [Raised] {
     var done: [Raised] = []
-    let running = NSRunningApplication(processIdentifier: pid)
-    if let running, running.isHidden { done.append(Raised(what: .unhid, ok: running.unhide())) }
-    let app = AXUIElementCreateApplication(pid)
-    if let window = minimisedWindow(app) {
-        let ok = AXUIElementSetAttributeValue(window, kAXMinimizedAttribute as CFString, kCFBooleanFalse) == .success
-        done.append(Raised(what: .unminimised, ok: ok))
-    }
-    let front = AXUIElementSetAttributeValue(app, kAXFrontmostAttribute as CFString, kCFBooleanTrue) == .success
-        || (running?.activate(options: []) ?? false)
-    done.append(Raised(what: .activated, ok: front))
+    if f.hidden() { done.append(Raised(what: .unhid, ok: f.unhide())) }
+    if f.minimised() { done.append(Raised(what: .unminimised, ok: f.unminimise())) }
+    done.append(Raised(what: .activated, ok: f.activate()))
+    f.settle(0.6)
+    guard !f.onThisSpace() else { return done }
+    // Activating an app with any window on this Space doesn't switch
+    // Spaces (dry run 3): the main window is brought here instead.
+    let moved = f.moveHere()
+    f.settle(0.4)
+    if moved { _ = f.activate() }
+    done.append(Raised(what: .moved, ok: moved && f.onThisSpace()))
     return done
+}
+
+/// Polls `until` up to `seconds`; whether it held.
+func within(_ seconds: Double, _ until: () -> Bool) -> Bool {
+    let end = Date(timeIntervalSinceNow: seconds)
+    while Date() < end {
+        if until() { return true }
+        usleep(100_000)
+    }
+    return until()
+}
+
+/// Brings Dev (by pid, its own main window) forward; nothing is clicked or typed.
+func bringForward(_ pid: pid_t) -> [Raised] {
+    let running = NSRunningApplication(processIdentifier: pid)
+    let app = AXUIElementCreateApplication(pid)
+    let isMin = { (w: AXUIElement) in (attr(w, kAXMinimizedAttribute) as? Bool) == true }
+    return bringForwardSteps(Forward(
+        hidden: { running?.isHidden ?? false },
+        unhide: { running?.unhide() ?? false },
+        minimised: { minimisedWindow(app) != nil },
+        unminimise: {
+            guard let window = minimisedWindow(app) else { return true }
+            return AXUIElementSetAttributeValue(window, kAXMinimizedAttribute as CFString, kCFBooleanFalse) == .success
+        },
+        activate: {
+            if let main = mainWindow(pid)?.ax {
+                AXUIElementSetAttributeValue(main, kAXMainAttribute as CFString, kCFBooleanTrue)
+                AXUIElementPerformAction(main, kAXRaiseAction as CFString)
+            }
+            return AXUIElementSetAttributeValue(app, kAXFrontmostAttribute as CFString, kCFBooleanTrue) == .success
+                || (running?.activate(options: []) ?? false)
+        },
+        onThisSpace: { within(1.5) { devWindow(pid) != nil } },
+        moveHere: {
+            guard let main = mainWindow(pid)?.ax,
+                  AXUIElementSetAttributeValue(main, kAXMinimizedAttribute as CFString, kCFBooleanTrue) == .success,
+                  within(3, { isMin(main) }) else { return false }
+            AXUIElementSetAttributeValue(main, kAXMinimizedAttribute as CFString, kCFBooleanFalse)
+            guard within(3, { !isMin(main) }) else { return false }
+            AXUIElementPerformAction(main, kAXRaiseAction as CFString)
+            return true
+        },
+        settle: nap))
 }
 
 /// The step (command) this run is, for the activation log.
@@ -1292,6 +1442,13 @@ func activationSelftest() -> [String] {
         var ownAt = -1e9
         /// The HID state counts the driver's sends (dry run 3's Mac).
         var hidCountsOwn = false
+        /// Dev has another (small) window on the Space in use, so
+        /// activating it doesn't switch Spaces (dry run 3).
+        var otherWindowHere = false
+        /// Moving the main window here fails too.
+        var cantMove = false
+        var activateCalls = 0
+        var moves = 0
         var ledger = InputLedger()
         /// Changes at a time (the person locks the screen, another app comes forward…), in order.
         var later: [(Double, (World) -> Void)] = []
@@ -1316,12 +1473,29 @@ func activationSelftest() -> [String] {
                 return Probe(verdict: verdict, idle: idle, locked: w.locked, saver: w.saver, onConsole: true)
             },
             activate: {
+                // The real sequence, on a made-up app and window.
                 w.activations += 1
-                var done: [Raised] = []
-                if w.hidden { done.append(Raised(what: .unhid, ok: !w.refuse)); if !w.refuse { w.hidden = false } }
-                if w.minimised { done.append(Raised(what: .unminimised, ok: !w.refuse)); if !w.refuse { w.minimised = false } }
-                if !w.refuse { w.front = true; w.elsewhere = false }
-                return done + [Raised(what: .activated, ok: !w.refuse)]
+                return bringForwardSteps(Forward(
+                    hidden: { w.hidden },
+                    unhide: { if !w.refuse { w.hidden = false }; return !w.refuse },
+                    minimised: { w.minimised },
+                    unminimise: { if !w.refuse { w.minimised = false }; return !w.refuse },
+                    activate: {
+                        w.activateCalls += 1
+                        guard !w.refuse else { return false }
+                        // Activating switches Spaces only when Dev has no other window here.
+                        w.front = true
+                        if !w.otherWindowHere { w.elsewhere = false }
+                        return true
+                    },
+                    onThisSpace: { !w.hidden && !w.minimised && !w.elsewhere },
+                    moveHere: {
+                        w.moves += 1
+                        guard !w.refuse && !w.cantMove else { return false }
+                        w.minimised = false; w.elsewhere = false
+                        return true
+                    },
+                    settle: { w.t += $0 }))
             },
             log: { w.lines.append($0); w.stamps.append(w.t) })
     }
@@ -1429,7 +1603,7 @@ func activationSelftest() -> [String] {
         var at: Double?
         let end = gate(step: "press", may: true, activatedAt: &at, mac: mac(w), limit: 60)
         let raised = w.lines.filter { $0.hasPrefix("UNHID ") || $0.hasPrefix("UNMINIMISED ") || $0.hasPrefix("ACTIVATED ") }
-        if end != .send || raised.count != 1 || !raised[0].hasPrefix("ACTIVATED ") { failures.append("off screen: another Space (\(end), \(raised))") }
+        if end != .send || raised.count != 1 || !raised[0].hasPrefix("ACTIVATED ") || w.moves != 0 { failures.append("off screen: another Space (\(end), \(raised))") }
     }
     // Off screen and locked, or the screen saver running: never, however idle.
     for (locked, saver) in [(true, false), (false, true)] {
@@ -1438,14 +1612,40 @@ func activationSelftest() -> [String] {
         _ = gate(step: "press", may: true, activatedAt: &at, mac: mac(w), limit: 60)
         if w.activations != 0 || !w.hidden { failures.append("off screen: brought back while \(locked ? "locked" : "the screen saver runs")") }
     }
-    // Refused: one try, each part logged as refused; then waits and stops.
+    // Refused: one try, each part logged as refused, then STOPPED at once
+    // with what was tried (no wait that can't end).
     do {
         let w = World(); w.inputAt = 0; w.minimised = true; w.refuse = true
         var at: Double?
         let end = gate(step: "press", may: true, activatedAt: &at, mac: mac(w), limit: 60)
-        let refused = w.lines.filter { $0.contains("(the system refused; waiting as before)") }
-        if w.activations != 1 || refused.count != 2 { failures.append("off screen: refused (\(w.activations), \(refused))") }
-        if end != .guardStopped("\(offScreenWords); Dev was brought forward once this step and never is again") { failures.append("off screen: refused, then \(end)") }
+        let refused = w.lines.filter { $0.hasSuffix("(the system refused)") }
+        if w.activations != 1 || refused.count != 3 { failures.append("off screen: refused (\(w.activations), \(refused))") }
+        if end != .guardStopped("\(offScreenWords) after bringing it forward (UNMINIMISED (refused), ACTIVATED (refused), MOVED (refused))") { failures.append("off screen: refused, then \(end)") }
+        if count(w, "STOPPED ") != 1 || count(w, "WAITING") != 0 { failures.append("off screen: refused, its STOPPED line \(w.lines)") }
+    }
+    // AJ-E1612 dry run 3: the main window on another Space while a small
+    // Dev window sits on this one, so activating Dev switches no Space.
+    // Activated, still not here: MOVED (minimised and restored here), then
+    // sent; one bring-forward, one move.
+    do {
+        let w = World(); w.inputAt = 0; w.elsewhere = true; w.otherWindowHere = true
+        var at: Double?
+        let end = gate(step: "press", may: true, activatedAt: &at, mac: mac(w), limit: 60)
+        let raised = w.lines.filter { $0.hasPrefix("ACTIVATED ") || $0.hasPrefix("MOVED ") }.map { String($0.prefix(while: { $0 != " " })) }
+        if end != .send || raised != ["ACTIVATED", "MOVED"] || w.activations != 1 || w.moves != 1 { failures.append("another Space: moved here (\(end), \(raised), \(w.moves))") }
+        if w.lines.contains(where: { $0.hasPrefix("MOVED ") && $0.hasSuffix("refused)") }) { failures.append("another Space: MOVED said refused") }
+    }
+    // …and when it can't be moved either: STOPPED at once, saying so; never
+    // the hours of waiting dry run 3 spent (opportunistic or not).
+    for opp in [false, true] {
+        let w = World(); w.inputAt = 0; w.elsewhere = true; w.otherWindowHere = true; w.cantMove = true
+        var at: Double?
+        let start = w.t
+        let end = gate(step: "press", may: true, opportunistic: opp, activatedAt: &at, mac: mac(w), limit: 600)
+        if end != .guardStopped("\(offScreenWords) after bringing it forward (ACTIVATED, MOVED (refused))") { failures.append("another Space, can't move: \(end)") }
+        if w.t - start > 10 || w.activations != 1 || count(w, "HEARTBEAT") != 0 { failures.append("another Space, can't move: took \(w.t - start) s, \(w.activations) tries") }
+        guard let line = w.lines.first(where: { $0.hasPrefix("STOPPED ") }) else { failures.append("another Space, can't move: no STOPPED line"); continue }
+        if !(line.contains("step=press") && line.contains("Nothing was sent") && line.contains("yourself")) { failures.append("another Space, can't move: its line \(line)") }
     }
     // OPPORTUNISTIC. Input mid-step (the person at the Mac from 1001.5 to
     // 1010): PAUSED, nothing sent while paused, Dev not moved; after 20 s
@@ -1495,25 +1695,18 @@ func activationSelftest() -> [String] {
             failures.append("opportunistic: not RESUMED then SENT \(w.lines)")
         }
     }
-    // Two pauses: one activation per resume at most; a refused one isn't
-    // tried again, and the guard then waits with no time limit (3 h here,
-    // AIJ_DRIVE_WAIT 60 s), a heartbeat every 10 min, until the person
-    // brings Dev forward; the step then ends.
+    // Two pauses: one activation per resume at most; the second refused:
+    // STOPPED at once with what was tried, not tried again, no wait (dry
+    // run 3 waited hours behind an activation that did nothing).
     do {
         let w = World(); w.inputAt = 0; w.front = true; w.busyFrom = 1001.5; w.busyUntil = 1010
-        let back = 1000.0 + 3 * 3600
         w.later = [(1005, { $0.front = false }),
-                   (1040, { $0.busyFrom = 1040; $0.busyUntil = 1045; $0.front = false; $0.refuse = true }),
-                   (back, { $0.front = true })]
+                   (1040, { $0.busyFrom = 1040; $0.busyUntil = 1045; $0.front = false; $0.refuse = true })]
         let end = runStep(w, 60)
-        if end != nil || count(w, "SENT ") != 60 { failures.append("opportunistic: stopped while waiting (\(String(describing: end)))") }
+        if case .guardStopped = end {} else { failures.append("opportunistic: a refused bring-forward didn't stop (\(String(describing: end)))") }
         if count(w, "PAUSED ") != 2 || count(w, "RESUMED ") != 2 || w.activations != 2 { failures.append("opportunistic: two resumes, \(w.activations) activations") }
-        if count(w, "ACTIVATED ") != 2 || w.lines.filter({ $0.contains("(the system refused; waiting as before)") }).count != 1 { failures.append("opportunistic: a refused activation tried again") }
-        let waited = beats(w)
-        if waited.count < 15 || !spacedOk(waited) || !w.lines.contains(where: { $0.hasPrefix("HEARTBEAT ") && $0.contains("step=send waiting") }) {
-            failures.append("opportunistic: heartbeats while waiting \(waited.count), spaced \(spacedOk(waited))")
-        }
-        if let s = first(w, "SENT 59"), w.stamps[s] < back { failures.append("opportunistic: sent before Dev was in front") }
+        if count(w, "ACTIVATED ") != 2 || w.lines.filter({ $0.hasPrefix("ACTIVATED ") && $0.hasSuffix("(the system refused)") }).count != 1 { failures.append("opportunistic: a refused activation tried again") }
+        if count(w, "STOPPED ") != 1 || count(w, "HEARTBEAT") != 0 || count(w, "SENT ") >= 60 { failures.append("opportunistic: after the refused one \(w.lines.suffix(4))") }
     }
     // Paused, then the screen locks (or the screen saver starts) with
     // another app in front: no RESUMED and no activation until it is
@@ -1851,6 +2044,24 @@ func selftest() {
     if pick(rail, controls(rail, titled: newSessionButton("Kimi Code CLI · lab A"), roles: pressRoles), within: []).0 != 3 { failures.append("new-session: the App's own action") }
     let parsed = parse(["Usage", "--region", "Main"])
     if parsed.region != "Main" || parsed.positional != ["Usage"] { failures.append("parse --region") }
+    // Dev's main window, never another of its windows (dry run 3: a 280x168
+    // one stood for it, so a control on the main window read "not inside
+    // Dev's window", and the main window on another Space went unseen).
+    let small = (title: "", frame: CGRect(x: 1200, y: 40, width: 280, height: 168), isMain: false)
+    let floor = (title: "The Floor — 3 working", frame: CGRect(x: 0, y: 0, width: 1278, height: 798), isMain: true)
+    let mainWin = (title: "AI Juggler · lab", frame: CGRect(x: 80, y: 60, width: 1360, height: 860), isMain: false)
+    if pickMain([small, floor, mainWin]) != 2 { failures.append("main window: not the one titled AI Juggler") }
+    if pickMain([small, floor]) != nil { failures.append("main window: another window stood for it") }
+    if pickMain([(title: "AI Juggler", frame: CGRect(x: 0, y: 0, width: 1100, height: 700), isMain: false), mainWin]) != 1 { failures.append("main window: of two, the larger") }
+    if pickMain([(title: "AI Juggler", frame: CGRect(x: 0, y: 0, width: 1100, height: 700), isMain: true), mainWin]) != 0 { failures.append("main window: of two, the main one") }
+    if !isMainTitle("AI Juggler") || isMainTitle("AI Juggler Dev") || isMainTitle("Sign in · Kimi") { failures.append("main window: its title") }
+    let cgs = [CGWin(id: 7, bounds: small.frame, title: "", onScreen: true),
+               CGWin(id: 9, bounds: CGRect(x: 81, y: 61, width: 1359, height: 860), title: "AI Juggler · lab", onScreen: false)]
+    if matchWindow(frame: mainWin.frame, title: mainWin.title, among: cgs)?.id != 9 { failures.append("main window: matched by frame") }
+    if matchWindow(frame: CGRect(x: 500, y: 500, width: 1360, height: 860), title: mainWin.title, among: cgs) != nil { failures.append("main window: matched another frame") }
+    let twins = cgs + [CGWin(id: 10, bounds: cgs[1].bounds, title: "AI Juggler · Home", onScreen: true)]
+    if matchWindow(frame: mainWin.frame, title: "AI Juggler · lab", among: twins)?.id != 9 { failures.append("main window: two of one frame, by title") }
+    if matchWindow(frame: mainWin.frame, title: "AI Juggler · Usage", among: twins) != nil { failures.append("main window: two of one frame, neither its title") }
     // Bringing Dev forward: a made-up clock and Mac.
     failures += activationSelftest()
     // Words: exact, squashed.
