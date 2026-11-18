@@ -42,13 +42,35 @@ pub const FETCH_TIMEOUT: Duration = Duration::from_secs(10);
 /// The default least time between two fetches (D-128: at most daily).
 pub const DEFAULT_MIN_INTERVAL: Duration = Duration::from_hours(24);
 
-/// The public files' base URLs, tried in order. Empty until the hosting is
-/// chosen (ADR-0035 open question 1); with none, nothing is fetched and
-/// the app runs on its compiled defaults.
-pub const COMPILED_ENDPOINTS: &[&str] = &[];
+/// The public files' base URLs, tried in order (D-129: served from the
+/// Figurehead website, `https://config.figurehead.ai/v1/<channel>.json`).
+/// Nothing verifies until keys are pinned ([`crate::keys::COMPILED_KEYS`]),
+/// so until then a fetch changes nothing: the compiled defaults stay.
+pub const COMPILED_ENDPOINTS: &[&str] = &["https://config.figurehead.ai"];
 
-/// The path under a base URL: `/remote-config/v1/<channel>.json`.
-const PATH: &str = "/remote-config/v1/";
+/// The only hosts the public file may come from. [`Endpoints::compiled`]
+/// holds the compiled list to it, and the app's transport refuses any
+/// other URL ([`allowed_url`]); it follows no redirect, so a 3xx to
+/// another host (or this one) is a failed fetch.
+pub const ALLOWED_HOSTS: &[&str] = &["config.figurehead.ai"];
+
+/// The path under a base URL: `/v1/<channel>.json`.
+const PATH: &str = "/v1/";
+
+/// The host of an `https://` URL, if it has one with no port or user.
+fn https_host(url: &str) -> Option<&str> {
+    let host = url
+        .strip_prefix("https://")?
+        .split(['/', '?', '#'])
+        .next()?;
+    (!host.is_empty() && !host.contains([':', '@'])).then_some(host)
+}
+
+/// Whether `url` is an `https://` URL on an [`ALLOWED_HOSTS`] host.
+#[must_use]
+pub fn allowed_url(url: &str) -> bool {
+    https_host(url).is_some_and(|host| ALLOWED_HOSTS.contains(&host))
+}
 
 /// Everything a request carries.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -282,12 +304,16 @@ impl Endpoints {
         Ok(Self { bases })
     }
 
-    /// [`COMPILED_ENDPOINTS`].
+    /// [`COMPILED_ENDPOINTS`], each on an [`ALLOWED_HOSTS`] host.
     ///
     /// # Errors
     ///
-    /// As [`Endpoints::new`]; a test holds the compiled list to it.
+    /// As [`Endpoints::new`], and for a base on any other host; a test
+    /// holds the compiled list to it.
     pub fn compiled() -> Result<Self, EndpointError> {
+        if let Some(base) = COMPILED_ENDPOINTS.iter().find(|base| !allowed_url(base)) {
+            return Err(EndpointError((*base).to_owned()));
+        }
         Self::new(COMPILED_ENDPOINTS.iter().copied())
     }
 

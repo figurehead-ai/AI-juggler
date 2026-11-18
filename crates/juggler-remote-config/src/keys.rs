@@ -33,11 +33,19 @@ pub const MAX_KEYS: usize = 3;
 
 /// The release keys compiled into the app: `(id, role, public key)`.
 ///
-/// Empty until the publish workflow's keys exist. Their private halves are
-/// made in, and never leave, the release environment (ADR-0035 §3), so
-/// they can't be generated here; tests make their own key rings. With no
-/// key, nothing verifies and the app runs on its compiled defaults, which
-/// is the fail-closed state.
+/// Empty until the publish workflow's keys exist. With no key, nothing
+/// verifies and the app runs on its compiled defaults, which is the
+/// fail-closed state; tests make their own key rings.
+///
+/// **Where the keys go, once the maintainer makes them** (docs/RELEASING.md,
+/// "Remote configuration"): `remote-config-publish keygen --id <id>` prints
+/// the private seed on stdout, piped straight into the release
+/// environment's secret (`REMOTE_CONFIG_SIGNING_KEY` for `current`), and
+/// on stderr the public key's line for this list, e.g.
+/// `("rc-2026-a", KeyRole::Current, [0x…; 32 bytes])`. One line per key:
+/// `current`, then `next` and `emergency` (their seeds kept apart, §3).
+/// The same change must fill [`crate::state::COMPILED_FLOORS`] (a build
+/// that pins keys without floors doesn't compile).
 pub const COMPILED_KEYS: &[(&str, KeyRole, [u8; 32])] = &[];
 
 /// What a pinned key may sign.

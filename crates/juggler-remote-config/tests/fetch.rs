@@ -23,7 +23,7 @@ use serde_json::json;
 use support::{CURRENT, DAY, Lab, NEXT, NOW, envelope};
 
 const BASE: &str = "https://config.example.test/aij";
-const URL: &str = "https://config.example.test/aij/remote-config/v1/stable.json";
+const URL: &str = "https://config.example.test/aij/v1/stable.json";
 
 struct Rig {
     lab: Lab,
@@ -441,8 +441,8 @@ fn a_second_endpoint_is_tried_when_the_first_fails() {
     assert_eq!(
         urls,
         [
-            "https://a.example.test/remote-config/v1/stable.json",
-            "https://b.example.test/remote-config/v1/stable.json"
+            "https://a.example.test/v1/stable.json",
+            "https://b.example.test/v1/stable.json"
         ]
     );
 }
@@ -475,7 +475,29 @@ fn conditional_requests_when_allowed() {
 
 #[test]
 fn endpoints_are_https_bases_only() {
-    assert!(Endpoints::compiled().is_ok());
+    // D-129: the website's config host, and only it.
+    let compiled = Endpoints::compiled().unwrap();
+    assert_eq!(
+        compiled.urls(Channel::Stable),
+        ["https://config.figurehead.ai/v1/stable.json"]
+    );
+    assert_eq!(
+        compiled.urls(Channel::Nightly),
+        ["https://config.figurehead.ai/v1/nightly.json"]
+    );
+    for url in compiled.urls(Channel::Beta) {
+        assert!(juggler_remote_config::fetch::allowed_url(&url));
+    }
+    for other in [
+        "https://config.figurehead.ai.evil.test/v1/stable.json",
+        "https://evil.test/v1/stable.json",
+        "https://config.figurehead.ai:8443/v1/stable.json",
+        "https://x@config.figurehead.ai/v1/stable.json",
+        "http://config.figurehead.ai/v1/stable.json",
+        "https://figurehead.ai/v1/stable.json",
+    ] {
+        assert!(!juggler_remote_config::fetch::allowed_url(other), "{other}");
+    }
     for bad in [
         "http://config.example.test",
         "https://",
