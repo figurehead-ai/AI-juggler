@@ -70,11 +70,15 @@
 //   guard                         the guard's verdict at Dev's window, nothing sent
 //   texts [--in TEXT]             the words Dev shows (role, label, value), read only
 //   buttons [--in TEXT]           the controls that can be pressed, with their exact titles
-//   press TITLE [--row NAME] [--in TEXT …]
+//   press TITLE [--row NAME | --region NAME] [--in TEXT …]
 //                                 presses the one control titled exactly TITLE; with --row,
 //                                 TITLE must name one control in the whole window, inside
 //                                 the one row named NAME (each --in adds words its region
-//                                 must hold)
+//                                 must hold); with --region, the one control of that title
+//                                 inside the one part of the window named exactly NAME (a
+//                                 landmark such as the header's navigation "Main", a dialog,
+//                                 a row): the region's name and the title are the key, so the
+//                                 title may name other controls outside it
 //   focus TITLE [--in TEXT]       puts the cursor in the field titled TITLE
 //   focus-terminal [--in TEXT]    puts the cursor in AI Juggler's terminal (its input)
 //   type TEXT                     types TEXT where the cursor is (keys posted to Dev's pid)
@@ -101,13 +105,17 @@
 //                                 after its sign-in terminal ended); the App page's own
 //                                 sign-in line verbatim when shown. Prints EVIDENCE: and
 //                                 STATE: not-signed-in | signed-in; else stops (exit 4)
-//   new-session TOOL APP PROJECT  New session → Change app → APP → Change folder →
-//                                 PROJECT → "Start in PROJECT" (TOOL names the row in the log)
+//   new-session TOOL APP PROJECT  the App's own "New session: APP" (the rail's row action; the
+//                                 header's and the rail's foot's "New session" share one
+//                                 name), its sheet's "Change app: APP" checked, Change folder →
+//                                 PROJECT only when "Start in PROJECT" isn't offered, then
+//                                 "Start in PROJECT" (TOOL names the row in the log)
 //   send TEXT [--field TITLE]     types TEXT and Return into the session's terminal
 //                                 (or, for a session without one, the field TITLE)
 //   end-session ROWTEXT           "Stop this session" in the row holding ROWTEXT
 //   resume ROWTEXT                "Resume" in the row holding ROWTEXT
-//   open-usage APP                the Usage screen, then the words beside APP
+//   open-usage APP                the header's Usage (--region "Main": a page's own tab is
+//                                 "Usage (this session)"), then the words beside APP
 //   lab-b-session TOOL APP PROJECT
 //                                 new-session on lab B; prints what Dev says instead
 //
@@ -600,6 +608,30 @@ func pickInRow(_ nodes: [Node], _ candidates: [Int], title: String, row: String)
     return (c, "")
 }
 
+/// Roles that are only ever a control or a word, never a part of the
+/// window that holds controls.
+let leafRoles: Set<String> = ["AXButton", "AXMenuItem", "AXMenuButton", "AXPopUpButton", "AXRadioButton", "AXCheckBox",
+                              "AXLink", "AXTab", "AXDisclosureTriangle", "AXStaticText", "AXImage", "AXHeading",
+                              "AXTextField", "AXTextArea", "AXComboBox", "AXSearchField"]
+
+/// The one control titled `title` inside the one part of the window named
+/// exactly `region` (AJ-E1612 dry run 3: the header's "Usage" and a
+/// session page's own; a landmark's name and a title make a unique key).
+/// Else nil and why: no such part, two parts of that name, none or two of
+/// the title inside it.
+func pickInRegion(_ nodes: [Node], _ candidates: [Int], title: String, region: String) -> (Int?, String) {
+    let name = squash(region)
+    let parts = nodes.indices.filter { !leafRoles.contains(nodes[$0].role) && nodes[$0].label == name }
+    guard parts.count == 1, let r = parts.first else {
+        return (nil, parts.isEmpty ? "no part of the window named exactly \"\(name)\"" : "\(parts.count) parts of the window named \"\(name)\"")
+    }
+    let inside = candidates.filter { ancestors(nodes, $0).contains(r) }
+    guard inside.count == 1, let c = inside.first else {
+        return (nil, inside.isEmpty ? "none titled exactly \"\(title)\" inside \"\(name)\"" : "\(inside.count) controls titled exactly \"\(title)\" inside \"\(name)\"")
+    }
+    return (c, "")
+}
+
 let pressRoles: Set<String> = ["AXButton", "AXMenuItem", "AXMenuButton", "AXPopUpButton", "AXRadioButton", "AXCheckBox",
                                "AXLink", "AXTab", "AXCell", "AXRow", "AXDisclosureTriangle"]
 let fieldRoles: Set<String> = ["AXTextField", "AXTextArea", "AXComboBox", "AXSearchField"]
@@ -800,6 +832,7 @@ struct Opts {
     var positional: [String] = []
     var within: [String] = []
     var row: String?
+    var region: String?
     var timeout: Double = 30
     var ocr = false
     var gone = false
@@ -822,6 +855,7 @@ func parse(_ raw: [String]) -> Opts {
         switch raw[i] {
         case "--in": o.within.append(value())
         case "--row": o.row = value()
+        case "--region": o.region = value()
         case "--timeout": o.timeout = Double(value()) ?? 30
         case "--ocr": o.ocr = true
         case "--gone": o.gone = true
@@ -840,14 +874,18 @@ func parse(_ raw: [String]) -> Opts {
 /// Presses it; with `soft`, a control that is there but disabled is
 /// reported (false) instead of stopping.
 @discardableResult
-func press(_ pid: pid_t, _ title: String, within: [String], row: String? = nil, soft: Bool = false) -> Bool {
-    say("» press \"\(title)\"" + (row.map { " --row \"\($0)\"" } ?? "") + within.map { " --in \"\($0)\"" }.joined())
+func press(_ pid: pid_t, _ title: String, within: [String], row: String? = nil, region: String? = nil, soft: Bool = false) -> Bool {
+    say("» press \"\(title)\"" + (row.map { " --row \"\($0)\"" } ?? "") + (region.map { " --region \"\($0)\"" } ?? "")
+        + within.map { " --in \"\($0)\"" }.joined())
+    if row != nil && region != nil { stop(2, "press takes --row or --region, not both") }
     // One atomic action: after a pause, found again from the start (the
     // page may have changed meanwhile).
     while true {
         let nodes = tree(pid)
         let candidates = controls(nodes, titled: title, roles: pressRoles)
-        let (chosen, why) = row.map { pickInRow(nodes, candidates, title: title, row: $0) } ?? pick(nodes, candidates, within: within)
+        let (chosen, why) = row.map { pickInRow(nodes, candidates, title: title, row: $0) }
+            ?? region.map { pickInRegion(nodes, candidates, title: title, region: $0) }
+            ?? pick(nodes, candidates, within: within)
         guard let i = chosen else { stop(4, "no single control titled exactly \"\(title)\": \(why). Nothing pressed. (`buttons` lists them.)") }
         let e = nodes[i].element
         if soft, (attr(e, kAXEnabledAttribute) as? Bool) == false {
@@ -1037,17 +1075,30 @@ func readLabel(_ pid: pid_t, app: String) {
     say("STATE: \(state.rawValue)")
 }
 
+/// The App's own New session, its row action in the rail ("New session:
+/// Kimi Code CLI · lab A"): one per App, unlike the header's and the
+/// rail's foot's "New session" (one name, one sheet; AJ-E1612 dry run 3).
+func newSessionButton(_ app: String) -> String { "New session: \(squash(app))" }
+/// New session's sheet names the App it starts on.
+func changeAppButton(_ app: String) -> String { "Change app: \(squash(app))" }
+
+/// Whether exactly one control has the title now.
+func offers(_ pid: pid_t, _ title: String) -> Bool { controls(tree(pid), titled: title, roles: pressRoles).count == 1 }
+
 func newSession(_ pid: pid_t, tool: String, app: String, project: String, labB: Bool = false) {
     say("new session: \(tool) on \(app) in \(project)")
-    press(pid, "New session", within: [])
-    waitFor(pid, "Change app", timeout: 10, ocr: false, gone: false)
-    press(pid, "Change app", within: ["New session"])
-    waitFor(pid, app, timeout: 10, ocr: false, gone: false)
-    press(pid, app, within: ["Which app"])
-    press(pid, "Change folder", within: ["New session"])
-    waitFor(pid, "Where to work", timeout: 10, ocr: false, gone: false)
-    press(pid, project, within: ["Where to work"])
-    let started = press(pid, "Start in \(project)", within: ["New session"], soft: labB)
+    press(pid, newSessionButton(app), within: [])
+    waitFor(pid, changeAppButton(app), timeout: 10, ocr: false, gone: false)
+    if !offers(pid, "Start in \(project)") {
+        // Another folder chosen: Change folder (its title names that folder).
+        let nodes = tree(pid)
+        let folder = Set(nodes.indices.filter { pressRoles.contains(nodes[$0].role) && nodes[$0].label.hasPrefix("Change folder") }.map { nodes[$0].label })
+        guard folder.count == 1, let title = folder.first else { stop(4, "New session shows \(folder.count) Change folder controls (\(folder.sorted())); nothing more pressed") }
+        press(pid, title, within: [])
+        waitFor(pid, "Where to work", timeout: 10, ocr: false, gone: false)
+        press(pid, project, within: ["Where to work"])
+    }
+    let started = press(pid, "Start in \(project)", within: [], soft: labB)
     if labB { say(started ? "  Start was pressed: see what Dev shows next" : "  Dev didn't offer Start on lab B") }
 }
 
@@ -1527,6 +1578,40 @@ func selftest() {
     ]
     let paged = signInState(appPage, app: "OpenCode CLI · lab A")
     if paged.appPage != ["Signed in with OpenCode's own sign-in"] || paged.state != .signedIn { failures.append("read-label: the App page's line \(paged.appPage)") }
+    // AJ-E1612 dry run 3: the header's "Usage" (navigation "Main") and a
+    // session page's own tab "Usage": --region "Main" is the header's.
+    let usage: [Node] = [
+        n("AXWindow", "AI Juggler · lab", "", nil, 0),
+        n("AXGroup", "Main", "", 0, 1),                                       // 1: the header's navigation
+        n("AXButton", "Usage", "", 1, 2),                                     // 2
+        n("AXButton", "History", "", 1, 2),
+        n("AXGroup", "Session tabs", "", 0, 1),                               // 4: the page's tabs
+        n("AXRadioButton", "Usage", "", 4, 2),                                // 5: before the a11y fix
+        n("AXHeading", "Main", "", 0, 1),                                     // a heading of that name isn't a region
+    ]
+    let usages = controls(usage, titled: "Usage", roles: pressRoles)
+    if usages != [2, 5] { failures.append("region: the two Usage controls \(usages)") }
+    if pick(usage, usages, within: []).0 != nil { failures.append("region: a bare title chose between two") }
+    if pickInRegion(usage, usages, title: "Usage", region: "Main").0 != 2 { failures.append("region: --region Main missed the header's Usage") }
+    if pickInRegion(usage, usages, title: "Usage", region: "Session tabs").0 != 5 { failures.append("region: --region Session tabs missed the tab") }
+    if pickInRegion(usage, usages, title: "Usage", region: "Sidebar").0 != nil { failures.append("region: no such region, yet one chosen") }
+    if pickInRegion(usage + [n("AXGroup", "Main", "", 0, 1)], usages, title: "Usage", region: "Main").0 != nil { failures.append("region: two regions of one name") }
+    if pickInRegion(usage + [n("AXButton", "Usage", "", 1, 2)], usages + [7], title: "Usage", region: "Main").0 != nil { failures.append("region: two of the title inside it") }
+    // New session: the App's own row action is the key, not the shared title.
+    if newSessionButton(" Kimi Code CLI ·  lab A") != "New session: Kimi Code CLI · lab A" || changeAppButton("Kimi Code CLI · lab A") != "Change app: Kimi Code CLI · lab A" {
+        failures.append("the new-session names")
+    }
+    let rail: [Node] = [
+        n("AXWindow", "AI Juggler · Home", "", nil, 0),
+        n("AXButton", "New session", "", 0, 1),                               // the header's
+        n("AXButton", "New session", "", 0, 1),                               // the rail's foot
+        n("AXButton", "New session: Kimi Code CLI · lab A", "", 0, 1),        // 3
+        n("AXButton", "New session: Kimi Code CLI · lab B", "", 0, 1),
+    ]
+    if pick(rail, controls(rail, titled: "New session", roles: pressRoles), within: []).0 != nil { failures.append("new-session: the shared title chose one") }
+    if pick(rail, controls(rail, titled: newSessionButton("Kimi Code CLI · lab A"), roles: pressRoles), within: []).0 != 3 { failures.append("new-session: the App's own action") }
+    let parsed = parse(["Usage", "--region", "Main"])
+    if parsed.region != "Main" || parsed.positional != ["Usage"] { failures.append("parse --region") }
     // Bringing Dev forward: a made-up clock and Mac.
     failures += activationSelftest()
     // Words: exact, squashed.
@@ -1562,7 +1647,7 @@ case "guard":
     exit(v == .clear ? 0 : 3)
 case "texts": listTexts(pid, within: o.within, pressable: false)
 case "buttons": listTexts(pid, within: o.within, pressable: true)
-case "press": need(1, "press TITLE [--row NAME] [--in TEXT]"); press(pid, o.positional[0], within: o.within, row: o.row)
+case "press": need(1, "press TITLE [--row NAME | --region NAME] [--in TEXT]"); press(pid, o.positional[0], within: o.within, row: o.row, region: o.region)
 case "focus": need(1, "focus TITLE [--in TEXT]"); focusField(pid, o.positional[0], within: o.within)
 case "focus-terminal": focusTerminal(pid, within: o.within)
 case "type": need(1, "type TEXT"); say("» type \"\(o.positional.joined(separator: " "))\""); typeText(pid, o.positional.joined(separator: " "))
@@ -1581,7 +1666,9 @@ case "end-session": need(1, "end-session ROWTEXT [ROWTEXT …]"); press(pid, "St
 case "resume": need(1, "resume ROWTEXT [ROWTEXT …]"); press(pid, "Resume", within: o.positional + o.within)
 case "open-usage":
     need(1, "open-usage APP")
-    press(pid, "Usage", within: [])
+    // The header's Usage screen, by its navigation's name: a page's own
+    // tab is another control (AJ-E1612 dry run 3: two titled "Usage").
+    press(pid, "Usage", within: [], region: "Main")
     waitFor(pid, o.positional[0], timeout: 15, ocr: false, gone: false)
     listTexts(pid, within: [o.positional[0]], pressable: false)
 case "lab-b-session":
