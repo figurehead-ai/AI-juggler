@@ -95,6 +95,14 @@ export function placeWords(place: KnownPlaceInfo, now: number = Date.now()): str
   return `Closed · last open ${agoWords(place.seen_ms, now)}`;
 }
 
+/** Its state under Your apps' "Not running", where "Closed" goes without
+ * saying (D-118's mock: "seen 2 d ago", one line at 1280); every other
+ * state in `placeWords`' words. */
+export function placeShortWords(place: KnownPlaceInfo, now: number = Date.now()): string {
+  const full = placeWords(place, now);
+  return full.startsWith("Closed · last open ") ? `seen ${agoWords(place.seen_ms, now)}` : full;
+}
+
 /** The desktop app (its name, "Claude") another app's session was last
  * seen open in, from the remembered places; `undefined` when none was
  * (0.4.1: a closed one's row names only its tool). */

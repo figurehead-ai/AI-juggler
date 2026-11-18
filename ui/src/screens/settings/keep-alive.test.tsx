@@ -144,6 +144,10 @@ describe("Home: an app that isn't running", () => {
     const [tile, other] = screen.getAllByTestId("home-app-closed");
     expect(tile!.textContent).toContain("Closed · keep alive starts it");
     expect(other!.textContent).toContain("b-off");
+    // D-118's mock: under "Not running", a closed one says only when it was
+    // seen, on one line ("seen 2 d ago"); "Closed · last open …" in its tooltip.
+    expect(within(other!).getByTestId("home-app-line").textContent).toMatch(/^seen /);
+    expect(other!.querySelector("[title*='Closed · last open']")).not.toBeNull();
     expect(within(other!).getByRole("button", { name: "Start Claude app · b-off" })).toBeTruthy();
     fireEvent.click(within(tile!).getByRole("button", { name: "Start Claude app · b-lab" }));
     await waitFor(() => expect(seams().__AIJ_PLACES__!.places[0]!.app_pid).not.toBeNull());

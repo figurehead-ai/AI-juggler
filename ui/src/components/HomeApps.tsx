@@ -26,7 +26,7 @@ import { appTone, brokenOf, brokenParts, counted, highest, itemLevel, type Atten
 import { showGoTo } from "../lib/go-to";
 import { conversationsBringForward } from "../lib/ipc/conversations";
 import { placesOpen, type KnownPlaceInfo } from "../lib/ipc/places";
-import { placeFor, placeWords, useKnownPlaces } from "../lib/places";
+import { placeFor, placeShortWords, placeWords, useKnownPlaces } from "../lib/places";
 import { groupItems, type RailGroup } from "../lib/rail-places";
 import { appFolderOf, knownAppWord, ownersOf } from "../lib/rail-apps";
 import { appIdOfRailKey, openApp, useCliApps, type AppModel } from "../lib/apps";
@@ -71,13 +71,15 @@ const GHOST = "btn-ghost shrink-0 rounded-md px-2.5 py-1 text-meta font-medium o
  * mark (its level's dot and "n needs you") at the first line's end; the
  * ghost action on the right. Calm (D-117): muted words and the one needs mark, whose
  * loud copy is the pinned need's. The second line's tooltip says it all. */
-function Row({ id, icon, app, profile, slot, line, kept = false, needs, level, broken, action, testId, place, lit }: {
+function Row({ id, icon, app, profile, slot, line, long, kept = false, needs, level, broken, action, testId, place, lit }: {
   id: string | null;
   icon: JSX.Element;
   app: string;
   profile: string | null;
   slot: string | number;
   line: string;
+  /** The line in full, for its tooltip, when `line` is a short form. */
+  long?: string;
   kept?: boolean;
   needs: number;
   level: AttentionLevel;
@@ -89,7 +91,7 @@ function Row({ id, icon, app, profile, slot, line, kept = false, needs, level, b
 }): JSX.Element {
   const name = appName(app, profile);
   const needWords = `${needs} ${needs === 1 ? "needs" : "need"} you`;
-  const full = [profile, line, kept ? "kept alive" : null, needs > 0 ? needWords : null].filter(Boolean).join(" · ");
+  const full = [profile, long ?? line, kept ? "kept alive" : null, needs > 0 ? needWords : null].filter(Boolean).join(" · ");
   const dot = <span aria-hidden="true"> · </span>;
   return (
     <li className="tone-host flex min-w-0 items-center gap-3 rounded-lg px-2 py-1.5 hover:bg-surface-2" data-testid={testId} data-place={place} data-level={level} data-lit={lit || undefined}>
@@ -214,8 +216,10 @@ function KeptRow({ place }: { place: KnownPlaceInfo }): JSX.Element {
   const profile = desktopProfile(place.instance, place.profile);
   const name = appName(app, profile);
   const verb = running ? "Open" : "Start";
-  // Its state in the words every place line uses (lib/places).
-  const line = placeWords(place);
+  // Its state in the words every place line uses (lib/places); a closed
+  // one under "Not running" says only when it was seen (the full words
+  // in its tooltip and name).
+  const line = running ? placeWords(place) : placeShortWords(place);
   return (
     <Row
       id={place.id}
@@ -224,6 +228,7 @@ function KeptRow({ place }: { place: KnownPlaceInfo }): JSX.Element {
       profile={profile}
       slot={place.colour_slot ?? place.id}
       line={line}
+      long={placeWords(place)}
       needs={0}
       level={0}
       broken={[]}
