@@ -51,6 +51,25 @@ describe("the rail's list under its head", () => {
     expect(list.hasAttribute("data-scrolled")).toBe(false);
   });
 
+  it("shows the same edge at its foot only while more is below", () => {
+    const view = rail();
+    const list = view.getByTestId("rail-list");
+    Object.defineProperty(list, "clientHeight", { configurable: true, value: 300 });
+    Object.defineProperty(list, "scrollHeight", { configurable: true, value: 900 });
+    scrollTo(list, 0);
+    expect(list.hasAttribute("data-more")).toBe(true);
+    scrollTo(list, 600);
+    expect(list.hasAttribute("data-more")).toBe(false);
+    const rule = /\.scroll-edge::after\s*\{([^}]*)\}/.exec(css)?.[1] ?? "";
+    expect(rule).toMatch(/position:\s*sticky/);
+    expect(rule).toMatch(/bottom:\s*0;/);
+    expect(rule).toMatch(/opacity:\s*0;/);
+    expect(rule).toMatch(/margin-top:\s*-1px/);
+    expect(rule).toMatch(/box-shadow:\s*var\(--shadow-edge-up\)/);
+    expect(css).toMatch(/\.scroll-edge\[data-more\]::after\s*\{\s*opacity:\s*1;/);
+    expect(css).toMatch(/\[data-theme="light"\]\s*\{[^}]*--shadow-edge-up:/);
+  });
+
   it("the edge is drawn at rest invisible, in the flow zero high, in both themes, and fades only with motion", () => {
     const rule = /\.scroll-edge::before\s*\{([^}]*)\}/.exec(css)?.[1] ?? "";
     expect(rule).toMatch(/position:\s*sticky/);

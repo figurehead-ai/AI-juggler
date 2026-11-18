@@ -144,6 +144,7 @@
   --shadow-glow-live: 0 0 24px -6px #22d3ee59;
   /* A scroller's top edge under a fixed head (.scroll-edge). */
   --shadow-edge: 0 2px 6px -1px rgba(0, 0, 0, 0.55);
+  --shadow-edge-up: 0 -2px 6px -1px rgba(0, 0, 0, 0.55);
 }
 
 /*
@@ -191,6 +192,7 @@ body {
   --color-hairline: #d3d8e2;
   --color-skeleton: #ced3dd; /* surface-3 vanished on the grey page; 0.3.2: darker, 1.3:1 on the page */
   --shadow-edge: 0 2px 6px -1px rgba(14, 18, 25, 0.14);
+  --shadow-edge-up: 0 -2px 6px -1px rgba(14, 18, 25, 0.14);
 
   --color-ink: #0e1219;
   --color-ink-2: #2c3341;
@@ -553,6 +555,27 @@ main::-webkit-scrollbar-track {
   transition: opacity 120ms ease-out;
 }
 .scroll-edge[data-scrolled]::before {
+  opacity: 1;
+}
+
+/* The same edge at the foot while more of the list is below (data-more),
+   so a row cut at the bottom reads as more below, not as a stray label. */
+.scroll-edge::after {
+  content: "";
+  position: sticky;
+  bottom: 0;
+  z-index: 20;
+  display: block;
+  height: 1px;
+  margin-top: -1px;
+  background: var(--color-hairline);
+  box-shadow: var(--shadow-edge-up);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 120ms ease-out;
+}
+
+.scroll-edge[data-more]::after {
   opacity: 1;
 }
 
