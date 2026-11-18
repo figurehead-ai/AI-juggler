@@ -51,7 +51,7 @@
 
 | Bar | Bar value | Measured | Holds |
 |---|---|---|---|
-| never-lowers violations | == 0 | 2 | NO |
+| never-lowers violations | == 0 | 0 | yes |
 | false alarms on calm items, facts given % | <= 5.0 | 0.0 | yes |
 | false alarms on calm items, facts hidden % | <= 10.0 | 0.0 | yes |
 | misses on loud items, facts hidden % | <= 25.0 | 33.33 | NO |

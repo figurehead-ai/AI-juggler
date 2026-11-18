@@ -786,7 +786,7 @@ def compose_attention(fields, ctx, facts):
     F = gate.facts_norm(facts); level = (F or {}).get("level")
     out = {"level": level, "note": None, "why": ""}
     if fields is None: out["why"] = "no valid fields"; return out
-    if level in ("L2", "L3"): out["why"] = "already loud: no note"; return out
+    if level in ("L2", "L3") or gate.facts_loud(F): out["why"] = "already loud: no note"; return out   # outcome asking/failed is loud too (ADR-0033 §6 step 0)
     if fields.get("suggest") != "needs_you": out["why"] = f"suggest {fields.get('suggest')}"; return out
     if fields.get("reason") not in NEEDS_REASONS: out["why"] = f"inconsistent: needs_you with reason {fields.get('reason')}"; return out
     ev = fields.get("evidence", "")
