@@ -590,6 +590,52 @@ What goes in is checked before it's built:
   sets `persist-credentials: false`, and every workflow starts from
   read-only or empty permissions.
 
+## Remote configuration (ADR-0035, D-128, D-129)
+
+The app reads one signed file per channel from
+`https://config.figurehead.ai/v1/<channel>.json` (the only host it allows;
+no redirects). Until public keys are compiled in, it fetches nothing and
+runs on its compiled defaults.
+
+**What it governs today:** the `compat` section (D-128). Each adapter
+declares the features it offers only for some tool versions; for each,
+the file can turn it off (`<key>_on: false`), narrow its tool versions or
+widen them up to the compiled hard limits (`<key>_versions`), or require a
+newer shape check (`<key>_shape`). It can't add behaviour.
+`config/remote/schema.json` lists every control (a test keeps it equal to
+the app's build).
+
+**A change** is a pull request to `config/remote/<channel>.json`. Then run
+**Publish config** (`publish-config.yml`) for the channel: it validates,
+stamps the next serial and 14 days, signs, verifies as the app does,
+uploads, and checks the public URL. It waits for the `release`
+environment's approval. Every Monday it re-signs all three channels (the
+same approval), and every day a job with no secret fails if a live file
+is within 3 days of expiry.
+
+**One-time setup (maintainer):**
+
+1. **The keys.** On a Mac with the repository, for each key:
+   `cargo run -q -p juggler-remote-config --bin remote-config-publish -- keygen --id rc-2026-a | gh secret set REMOTE_CONFIG_SIGNING_KEY --env release`
+   The private seed goes straight into the secret; it is never shown or
+   saved. The public line it prints goes into
+   `crates/juggler-remote-config/src/keys.rs`, `COMPILED_KEYS`, with its
+   role (`KeyRole::Current`). Make the `next` and `emergency` keys the same
+   way, kept apart from `current` (their own secrets, not used by the
+   workflow until a rotation or a revocation). The same change fills
+   `COMPILED_FLOORS` in `state.rs` (a build that pins keys without floors
+   doesn't compile): `(Channel::Stable, 0)` and so on before the first
+   file.
+2. **The storage token.** In Cloudflare, an R2 API token with Object Read
+   and Write on the `figurehead-config` bucket only. Its access key id and
+   secret go into the `release` environment as `R2_CONFIG_ACCESS_KEY_ID`
+   and `R2_CONFIG_SECRET_ACCESS_KEY`.
+3. **The host.** Connect `config.figurehead.ai` as the bucket's custom
+   domain in the `figurehead.ai` zone, with no redirect rule on it. The
+   workflow needs no zone ID: files are cached for 5 minutes at most
+   (`max-age=300`), so nothing is purged. A purge step would need the
+   zone ID and a cache-purge token.
+
 ## If a key leaks (AJ-E2009)
 
 Act first, explain after. Each step names who does it. "Maintainer" means
