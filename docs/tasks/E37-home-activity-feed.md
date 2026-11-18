@@ -175,7 +175,7 @@
 > later and unplaced; E (the orchestrator bot) is planned for 0.6 (D-123).
 > Don't build hooks for C, D or E.
 
-### AJ-E3708 Per-agent excerpts from what agents already write, through the adapters (A) | Status: TODO | Priority P0 | Effort L | Depends: AJ-E3702
+### AJ-E3708 Per-agent excerpts from what agents already write, through the adapters (A) | Status: IN-PROGRESS (2026-11-18: the gate for A's excerpt, "eval-4", is built in the AJ-E3709 harness: c2f968512, 1b62e50c0, cc7e59c21 (Req 6b-6d's structure rules, the L3 safety net, A alone beside eval-3). The app's own excerpt code is NOT built: no adapter capability, no hook or rollout reader, no cache entry, no feed use. Req 6d's run on the real held-out set (D-124) is also open; D-124's real-message ask was declined, so it needs the maintainer's new ruling. With no model text in 0.5 (ADR-0033, 659da7fec), A's excerpt is what the feed ships.) | Priority P0 | Effort L | Depends: AJ-E3702
 **Goal**: Each agent's feed item carries a short excerpt of what it is doing or just did, taken from what it already writes, at no model cost and fully local.
 **User story**: As someone scrolling Home, I see per agent "Fixed the login race; 212 tests pass; 2 files changed" or "Waiting: which database should I use?", so I know how each is going without opening it.
 **Requirements**:
@@ -199,7 +199,7 @@
 **Research basis**: `docs/research/feed-summaries-and-orchestrator-options.md` (Option A); `docs/research/home-feed/research.md` §5; D-118 points 4 and 5; D-120 point 1.
 **Handover note**: a hook route for Claude Code may need a hook the user has installed; use what the existing hooks reading already offers first, and research undocumented routes (files, logs, local servers) before calling a source a gap.
 
-### AJ-E3709 On-device summary lines: the multi-angle research pass (B research) | Status: TODO | Priority P0 | Effort M | Depends: AJ-E3702
+### AJ-E3709 On-device summary lines: the multi-angle research pass (B research) | Status: IN-PROGRESS (2026-11-18: the research and the v2, v3 and v4 evaluations are done: `docs/research/feed-summaries-on-device.md`, `on-device-model-selection.md`, `small-model-prompting-v4.md`; `docs/qa/evidence/AJ-E3709/` holds model-eval.md, v4-design.md, v4-sweep.md, v4-heldout, v4-heldout2, v4-heldout3 and the blind reviews, all on synthetic sets. Not done: Req 2's energy and battery per summary (`powermetrics` needs root; the manifest records it as not measured) and the manifest's rows are not yet labelled R1-R5, so the task is not proven DONE) | Priority P0 | Effort M | Depends: AJ-E3702
 **Goal**: The facts the design needs, checked from many angles, so the ADR rests on evidence rather than on the first research doc.
 **User story**: As the maintainer, I want to know what the Mac and a small model can really do for one-line summaries before we design around them.
 **Requirements**:
@@ -217,7 +217,7 @@
 **Research basis**: `docs/research/feed-summaries-and-orchestrator-options.md` (Option B, open questions); D-120 point 2.
 **Handover note**: a Sonnet research agent reads the web; Opus verifies the numbers that drive the design. Never send the user's real transcripts to any outside service; measure on fixtures.
 
-### AJ-E3710 On-device summary lines: the design, an ADR for a pluggable SummaryEngine (B design) | Status: IN-PROGRESS (design awaiting the coordinating session's review: [ADR-0033](../adr/0033-feed-summary-engines.md)) | Priority P0 | Effort M | Depends: AJ-E3709
+### AJ-E3710 On-device summary lines: the design, an ADR for a pluggable SummaryEngine (B design) | Status: IN-PROGRESS (design written: [ADR-0033](../adr/0033-feed-summary-engines.md), whose Status line still reads Proposed, not Accepted; every evaluation verdict is recorded in it: 861ee2015 (harness v4), 1b8b7cbec (the larger Apple-only check) and 659da7fec (the last round: 0.5 ships no model-written text). No `docs/qa/evidence/AJ-E3710/manifest.md` yet) | Priority P0 | Effort M | Depends: AJ-E3709
 **Goal**: One decided, extensible design for summary lines that the coordinating session has seen before any code is written.
 **User story**: As the maintainer, I want one seam that Apple's model, a small local model and plain excerpts all plug into, so a new engine never touches the feed.
 **Requirements**:
@@ -235,7 +235,7 @@
 **Research basis**: AJ-E3709's research; `docs/research/feed-summaries-and-orchestrator-options.md`; D-120 point 4; the architecture standard.
 **Handover note**: the seam must also serve a later cloud or orchestrator engine (D unplaced; E planned for 0.6 under D-123) without change, but build no hook for them now. The design is [ADR-0033](../adr/0033-feed-summary-engines.md) (Proposed, 2026-11-16), written to D-120 as amended: Apple's model automatic, the local model offered on one click with its model left as a slot for the selection study. Open, both the maintainer's: Q1 (the measurement download) and Q5 (the battery measurement).
 
-### AJ-E3711 On-device summary lines: detection, the three tiers, the tier 2 offer card and one-click download, the notice and the Settings switch (B build) | Status: TODO | Priority P0 | Effort XL | Depends: AJ-E3710
+### AJ-E3711 On-device summary lines: detection, the three tiers, the tier 2 offer card and one-click download, the notice and the Settings switch (B build) | Status: DEFERRED, not shipped in 0.5 by D-120's rule (ADR-0033 verdicts: 861ee2015, 1b8b7cbec, 659da7fec; D-121 point 4). Nothing built. | Priority P0 | Effort XL | Depends: AJ-E3710
 **Goal**: The feed shows one clean line per agent when the Mac can write it comfortably (no step from the user for Apple's own model, one click for the optional download), and falls back to excerpts when it can't.
 **User story**: As a vibe-coder with several agents, I see "Fixing the login test; two failures left" instead of a long message, I was told once that my Mac does this itself, and I can turn it off.
 **Requirements**:
@@ -253,4 +253,5 @@
 **Visual testing**: items with a summary line, with the excerpt fallback and with neither; the notice; the Settings control in each tier and off; both themes.
 **Files to touch**: `crates/juggler-app/src/features/feed/summary/` (the seam and engines), `crates/juggler-adapters/` (excerpt input from AJ-E3708), a small Swift bridge for Apple's framework, `crates/juggler-app/src/features/settings/`, `ui/src/lib/feed-words.ts`, `ui/src/components/HomeFeed*.tsx`, Settings UI.
 **Research basis**: AJ-E3709's research file; AJ-E3710's ADR; `docs/research/feed-summaries-and-orchestrator-options.md`; D-120 point 2.
+**Not shipped in 0.5 (2026-11-18):** by D-120's rule, written lines ship only if blind reviewers prefer them to A's excerpt with 0 FAILs (D-121 point 4). ADR-0033's recorded verdicts: the turn review had 4 shown FAILs, Chat's written answers 94.7 % "I don't know" and a 55 % answer check (659da7fec; earlier 861ee2015 and 1b8b7cbec). 0.5 ships no model-written text, so every requirement here (R1-R6) waits for a later engine and a passing check; the feed ships A's excerpts (AJ-E3708).
 **Handover note**: D-120 as amended 2026-11-16: tier 2 is an offer and a one-click download, never automatic ("we can't download 2GB models without user approval"). Downloading a model during development still needs the maintainer's explicit yes in chat, given only after the model-selection study names the model and its pinned source. Build order: A, tier 1 with the extractive check, then tier 2. Build against AJ-E3708's excerpts, which are also the fallback. The design is [ADR-0033](../adr/0033-feed-summary-engines.md); build to it once the coordinating session has reviewed it. D-121 (2026-11-16): this engine now runs through the AI-jobs router of [AJ-E3801](E38-chat.md) and AJ-E3802, and at most one model is ever downloaded (AJ-E3803). B's calm-line rewriting is enabled for calm items only if blind reviewers prefer it over A's excerpt on the realistic corpus with zero FAILs; otherwise A's excerpt stays.

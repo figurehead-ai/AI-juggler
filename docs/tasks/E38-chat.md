@@ -27,6 +27,12 @@
 > total disk the models use, with Remove. No download when free disk is
 > below the model's size plus 10 GB. Clear cache never touches the models.
 >
+> **Rescoped for 0.5 (2026-11-18, ADR-0033 659da7fec).** 0.5 ships no
+> model-written text. Chat v1 ships as the look-up view: the found records
+> with their links, no written answer. Written-answer parts of AJ-E3802 to
+> AJ-E3809 are not shipped by D-120's rule (ADR-0033 verdicts); AJ-E3803
+> (the disk rules) is deferred whole. Each task says which parts.
+>
 > **Planned for 0.6 (D-123).** The orchestrator bot (a model that acts:
 > sending, switching, stopping, approving). It will sit on this router and
 > Chat, behind pool levels, approvals and its own design. Nothing in this
@@ -55,7 +61,8 @@
 **Research basis**: D-121; ADR-0033 and its amendments; the AJ-E3709 evaluation and blind review under `docs/qa/evidence/AJ-E3709/`; `docs/research/feed-summaries-and-orchestrator-options.md`.
 **Handover note**: Opus writes this (architecture). Build nothing here. Keep the seam small: three needs, three capabilities. The router must not know any one tool or model by name outside the engines' own modules.
 
-### AJ-E3802 The router and the seam: jobs, engines, capabilities, hidden when no engine | Status: TODO | Priority P0 | Effort L | Depends: AJ-E3801, AJ-E3708
+### AJ-E3802 The router and the seam: jobs, engines, capabilities, hidden when no engine | Status: TODO (rescoped 2026-11-18: Chat v1 ships as the look-up view, ADR-0033 659da7fec) | Priority P0 | Effort L | Depends: AJ-E3801, AJ-E3708
+**Rescoped 2026-11-18**: Chat v1 ships as the look-up view: found records with links, no written answer (ADR-0033, 659da7fec; D-120's rule, D-121 point 4). Req 2's Apple engine bridge and the local-model stub, and Req 4's move of "AJ-E3711's detection and tiers" (nothing of it is built) are not shipped by D-120's rule (ADR-0033 verdicts). Req 1, 3 and 5 stand for the look-up view, whose job is always available (no engine needed).
 **Goal**: Summaries and Chat both run through one router that picks the best available engine and hides a job nobody can do.
 **User story**: As a user on a Mac without Apple Intelligence and without a downloaded model, I never see a broken AI feature; I see the ones that work, and the others are simply not there.
 **Requirements**:
@@ -73,7 +80,8 @@
 **Research basis**: AJ-E3801's ADR; ADR-0033; D-121 point 1.
 **Handover note**: Opus builds this. Keep AJ-E3711's tests green through the move; the summary behaviour must not change. A hidden job must be hidden by the one query, never by a per-job check in the UI.
 
-### AJ-E3803 Disk rules: one downloaded model, approval for more, Settings total and Remove, free-disk margin | Status: TODO | Priority P0 | Effort M | Depends: AJ-E3802
+### AJ-E3803 Disk rules: one downloaded model, approval for more, Settings total and Remove, free-disk margin | Status: TODO (rescoped 2026-11-18: Chat v1 ships as the look-up view, ADR-0033 659da7fec) | Priority P0 | Effort M | Depends: AJ-E3802
+**Rescoped 2026-11-18**: Chat v1 ships as the look-up view: found records with links, no written answer (ADR-0033, 659da7fec; D-120's rule, D-121 point 4). R1-R7 are not shipped by D-120's rule (ADR-0033 verdicts): 0.5 offers no downloaded model, so there are no disk rules to apply. They wait for a later engine.
 **Goal**: AI models never fill the user's disk behind their back: Apple's first, one downloaded model at most, anything more only after the user agrees.
 **User story**: As someone with a nearly full 256 GB Mac, I am never asked to download a second model, I always see how much space the AI uses, and I can remove it in one click.
 **Requirements**:
@@ -93,7 +101,8 @@
 **Research basis**: D-121 point 2; D-120 as amended; D-58 (the registered cache); the model-selection study's size figures.
 **Handover note**: The 10 GB margin is on top of the model's size, not a share of the disk. A second model needs a new approval each time. Do not download a model while building this; test with a stub of the right size.
 
-### AJ-E3804 Chat v1: the top-right icon, the side panel, calm design and accessibility | Status: TODO | Priority P0 | Effort L | Depends: AJ-E3802, AJ-E3708
+### AJ-E3804 Chat v1: the top-right icon, the side panel, calm design and accessibility | Status: TODO (rescoped 2026-11-18: Chat v1 ships as the look-up view, ADR-0033 659da7fec) | Priority P0 | Effort L | Depends: AJ-E3802, AJ-E3708
+**Rescoped 2026-11-18**: Chat v1 ships as the look-up view: found records with links, no written answer (ADR-0033, 659da7fec; D-120's rule, D-121 point 4). The icon opens the look-up view: found records with links and no written answer. Req 1's "shown only when the answer job is available" becomes always shown; Req 3's "thinking" state and Stop for a running answer are not shipped by D-120's rule. Req 2, 4, 5 and 6 stand.
 **Goal**: A chat icon at the top right opens a calm side panel where the user asks about what is going on and reads the answer.
 **User story**: As a vibe-coder with six agents running, I click the chat icon and ask "what is blocked?" and get an answer I can check, without leaving the screen I was on.
 **Requirements**:
@@ -112,7 +121,8 @@
 **Research basis**: D-121 point 3; D-117 and the calm-attention research; the read-specs rule (wireframes, deep/11 UX spec, SPEC §9).
 **Handover note**: Read the wireframes and the UX spec first; ask for a mock if the header has no room. The panel never acts, so it has no buttons that send, switch, stop or approve anything.
 
-### AJ-E3805 Chat v1's look-up tools over AI Juggler's data, with sources and "I don't know" | Status: TODO | Priority P0 | Effort XL | Depends: AJ-E3802, AJ-E3708
+### AJ-E3805 Chat v1's look-up tools over AI Juggler's data, with sources and "I don't know" | Status: TODO (rescoped 2026-11-18: Chat v1 ships as the look-up view, ADR-0033 659da7fec) | Priority P0 | Effort XL | Depends: AJ-E3802, AJ-E3708
+**Rescoped 2026-11-18**: Chat v1 ships as the look-up view: found records with links, no written answer (ADR-0033, 659da7fec; D-120's rule, D-121 point 4). The look-ups run in the app and return found records with links; no model reads them or writes an answer. Req 1's "the model SHALL reach data", Req 2's context budget, the written answer behind Req 3's "every answer" and the 60-question answer-quality set and blind review of 30 answers are not shipped by D-120's rule. Req 4 becomes a plain "nothing found" with the nearest look-up; Req 5 and 6 stand.
 **Goal**: Chat answers from AI Juggler's own data through small, checked look-ups, never by pouring transcripts into the model.
 **User story**: As a user, I ask "what did the login agent change yesterday?" and the answer names the files and links to the session, or says it doesn't know.
 **Requirements**:
@@ -131,7 +141,8 @@
 **Research basis**: D-121 point 3; Apple's Foundation Models Tool protocol; ADR-0033 and the AJ-E3709 blind review's findings on faithfulness.
 **Handover note**: Build the tools to answer a fixed question set first, then widen. The citation links come from ids, so a model cannot invent a link. A read of a transcript is a tool result, treated as quoted data (AJ-E3806).
 
-### AJ-E3806 The guard for Chat: tool results as quoted data, injection removed, answers checked against the facts | Status: TODO | Priority P0 | Effort M | Depends: AJ-E3805
+### AJ-E3806 The guard for Chat: tool results as quoted data, injection removed, answers checked against the facts | Status: TODO (rescoped 2026-11-18: Chat v1 ships as the look-up view, ADR-0033 659da7fec) | Priority P0 | Effort M | Depends: AJ-E3805
+**Rescoped 2026-11-18**: Chat v1 ships as the look-up view: found records with links, no written answer (ADR-0033, 659da7fec; D-120's rule, D-121 point 4). With no model text there is no model-facing guard to build. Req 1, 2 and 3 (framing for the model, catching an obeying answer, checking an answer against the facts) are not shipped by D-120's rule. Req 4 stands for display (agent-written row text is shown as quoted data, never as an instruction or a link) and Req 5 stands (Chat cannot act).
 **Goal**: Nothing an agent wrote, or a web page it read, can steer Chat or make it say what the data does not say.
 **User story**: As a user, I never get an answer that obeys an instruction hidden in a session's text.
 **Requirements**:
@@ -149,7 +160,8 @@
 **Research basis**: ADR-0033's amended guard; AJ-E3709's v2 harness and blind review; D-121 point 3.
 **Handover note**: Share the guard with the summary path; do not write a second one. Opus owns this task's review.
 
-### AJ-E3807 The no-model panel: look-ups that need no AI, and the approved download offer | Status: TODO | Priority P1 | Effort M | Depends: AJ-E3804, AJ-E3803
+### AJ-E3807 The no-model panel: look-ups that need no AI, and the approved download offer | Status: TODO (rescoped 2026-11-18: Chat v1 ships as the look-up view, ADR-0033 659da7fec) | Priority P1 | Effort M | Depends: AJ-E3804, AJ-E3803
+**Rescoped 2026-11-18**: Chat v1 ships as the look-up view: found records with links, no written answer (ADR-0033, 659da7fec; D-120's rule, D-121 point 4). Req 1 is the look-up view itself and stands. Req 2 and 3 (the download offer, turning into a chat after a download) are not shipped by D-120's rule: no model is offered. Req 4 stands without the offer.
 **Goal**: On a Mac that cannot run a model, the chat icon still helps, and offers the one download only with the user's approval.
 **User story**: As someone with an older Mac, I click the chat icon and get useful shortcuts, and a clear, optional offer to add chat.
 **Requirements**:
@@ -166,7 +178,8 @@
 **Research basis**: D-121 point 3; D-120 as amended; AJ-E3803.
 **Handover note**: The shortcuts are real links to existing screens, not a second implementation of them.
 
-### AJ-E3808 Chat history: local, clearable, never off the Mac | Status: TODO | Priority P1 | Effort S | Depends: AJ-E3804
+### AJ-E3808 Chat history: local, clearable, never off the Mac | Status: TODO (rescoped 2026-11-18: Chat v1 ships as the look-up view, ADR-0033 659da7fec) | Priority P1 | Effort S | Depends: AJ-E3804
+**Rescoped 2026-11-18**: Chat v1 ships as the look-up view: found records with links, no written answer (ADR-0033, 659da7fec; D-120's rule, D-121 point 4). History keeps the user's lookups and the records found, with their ids; Req 4's "the answers" reads as "the found records". The rest stands.
 **Goal**: The user's conversations with Chat stay on the Mac and can be cleared whenever they like.
 **User story**: As a privacy-minded user, I can see that my questions stay local and clear them in one click.
 **Requirements**:
@@ -183,7 +196,8 @@
 **Research basis**: D-121 point 3; D-58; the local cache ruling.
 **Handover note**: A source link from an old answer may point at something since deleted; show it as "no longer here", never as an error.
 
-### AJ-E3809 The newcomer walk: Chat v1 on a real Mac, by hand | Status: TODO | Priority P0 | Effort M | Depends: AJ-E3804, AJ-E3805, AJ-E3806, AJ-E3807, AJ-E3808
+### AJ-E3809 The newcomer walk: Chat v1 on a real Mac, by hand | Status: TODO (rescoped 2026-11-18: Chat v1 ships as the look-up view, ADR-0033 659da7fec) | Priority P0 | Effort M | Depends: AJ-E3804, AJ-E3805, AJ-E3806, AJ-E3807, AJ-E3808
+**Rescoped 2026-11-18**: Chat v1 ships as the look-up view: found records with links, no written answer (ADR-0033, 659da7fec; D-120's rule, D-121 point 4). The walk covers the look-up view only: Req 1's "a Mac with Apple's model and one without" is one run, and the written-answer and "no model offer" steps are not shipped by D-120's rule.
 **Goal**: Chat is proven useful to a person who has never seen it, not just correct in tests.
 **User story**: As a newcomer with a few agents running, I open Chat and get an answer I trust within a minute.
 **Requirements**:
