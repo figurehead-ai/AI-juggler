@@ -320,6 +320,17 @@ MODELS = [   # first match wins (Qwen3-4B before Qwen3-1.7B)
   "source": "the GGUF (granite-4.1-3b-Q4_K_M, local_probe --print-meta 2026-11-18): no sampling key in its metadata; its README on disk "
             "only points to the base card, which is not on disk. Greedy, as the base cards' usage examples decode (UNVERIFIED offline); "
             "the low arm is the sweep's alternative. Its chat template has no thinking switch: nothing to turn off."},
+ {"family": "gemma-4-e2b", "label": "Gemma 4 E2B (official QAT Q4_0)", "match": "gemma-4-e2b",
+  "sampling": {"card": {"temperature": 1.0, "top_p": 0.95, "top_k": 64, "min_p": 0.0, "presence_penalty": 0.0},
+               "low": {"temperature": 0.2, "top_p": 0.95, "top_k": 64, "min_p": 0.0, "presence_penalty": 0.0}},
+  "default": "card", "datamark": "on",
+  "source": "the model folder's README (Google's card, 'Sampling Parameters': temperature 1.0, top_p 0.95, top_k 64, 'across all use "
+            "cases') and the GGUF's own keys (gemma-4-E2B_q4_0-it.gguf, local_probe --print-meta 2026-11-18: general.sampling.temp 1.0, "
+            "top_p 0.95, top_k 64; arch gemma4; base google/gemma-4-E2B-it-qat-q4_0-unquantized): confirmed. min_p and presence_penalty are "
+            "stated by neither: 0 here, UNVERIFIED. The low arm keeps the card's top_p and top_k at temperature 0.2, as the other models' "
+            "low arms do. Thinking: the GGUF's chat template reads enable_thinking (default false) and local_probe sends false, so no "
+            "<|think|> token is rendered; the card says E2B and E4B emit no empty thought block with thinking off. The default (card, "
+            "datamark on) is UNVERIFIED until the tuned-only sweep picks it by v4's rule (report_v5.py --select)."},
 ]
 def model_entry(hello):
     name = (hello.get("model_file") or "").lower()
