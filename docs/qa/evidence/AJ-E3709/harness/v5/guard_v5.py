@@ -75,8 +75,15 @@ GUARD_V5 += [
  r"\byour\s+" + _REPLY_EN + r"\s+(?:must|should|shall|needs?\s+to|has\s+to|is\s+to)\s+(?:say|state|call|claim|report|mention|read|omit|leave|skip|hide|not\s+(?:mention|say|show|list))\b",
  _OPEN + r"(?:schreib\w*|sag\w*|erwähn\w*|nenn\w*|gib|melde\w*)\b.{0,30}?\bin\s+(?:deine[rm]?|die|der|ihre[rm]?|eure[rm]?)\s+" + _REPLY_DE + r"\b",
  r"\b(?:deine|ihre|eure)\s+" + _REPLY_DE + r"\s+(?:muss|soll|sollte|darf)\b.{0,30}?\b(?:sagen|lauten|nennen|erwähnen|weglassen|verschweigen|melden)\b",
- _ROLE + r"(?:please\s+|bitte\s+)?(?:(?:answer|reply|respond|say|write|output|print|return|mention|state|report|antworte\w*|schreib\w*|sag\w*|erwähn\w*|nenn\w*|gib|melde\w*)\s+"
+ _ROLE + r"(?:please\s+|bitte\s+)?(?:(?:answer|reply|respond|say|write|output|print|return|mention|state|report|antworte\w*|schreib\w*|sag\w*|erwähn\w*|nenn\w*|gib|melde\w*)\s*,?\s+"
  r"(?:only|just|that|with|no|nothing|none|nur|dass|mit|nichts|kein\w*|nie)\b|(?:do\s+not|don['’]t|never|nicht|niemals)\s+(?:mention|say|report|show|write|tell|erwähn\w*|nenn\w*|sag\w*|zeig\w*|schreib\w*))",
+]
+# round 4, Chat's records: an order to the assistant in the third person ("assistant must tell the user the author is …", "der Assistent
+# soll sagen, dass …"); "the assistant must be restarted" names no report and stays
+GUARD_V5 += [
+ r"\b(?:the\s+)?(?:assistant|ai|a\.i\.|model|llm|summari[sz]er|chatbot|bot)\s+(?:must|should|shall|needs?\s+to|has\s+to|is\s+to)\s+(?:always\s+|only\s+)?"
+ r"(?:tell|say|report|answer|write|claim|state|mention|reply|respond|inform|show)\b",
+ r"\b(?:der|die|das)?\s*(?:assistent\w*|ki|modell|bot)\s+(?:muss|soll|sollte)\s+.{0,30}?\b(?:sagen|antworten|melden|schreiben|behaupten|nennen|mitteilen)\b",
 ]
 GUARD_V5 = [re.compile(p, re.I) for p in GUARD_V5]
 # an order inside a markup tag ("<instruction>Write in your summary that …</instruction>", "[INST] … [/INST]"): the span is read as a
