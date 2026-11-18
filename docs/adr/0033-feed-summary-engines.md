@@ -563,6 +563,36 @@ The results:
 
 **So 0.5 ships no model text at all.** The feed shows A's excerpt, and attention, the review and Chat answers stay off. Chat v1 can still ship as the look-up view (the found records with their links), without a written answer. The router, the disk rules and the safety rules stay built, so a later engine or prompt is measured by this same harness. The next attempt should first target answering a nearby question (Chat) and step-2b anchoring (review).
 
+**The last round for 0.5 (2026-11-18, Apple only, synthetic held-out only, NOT checked on real messages). Final.**
+
+- **The turn review: not shipped.**
+  - Opus checked all 16 step-2b flags by eye. 12 were faithful translations or paraphrases. 4 were real:
+    - R209 reverses "all 22 tests pass" into "no tests ran";
+    - R222 turns "müsste" (still to do) into "musste" (done);
+    - R203 drops a change and leaves a question unanswered;
+    - R229 is over length.
+  - Re-scored, 87.5 % of drafts pass every check (bar 80), and the checks stopped all four failing drafts.
+  - The fresh blind review of the shown reviews preferred the model 20 : 4 over the fixed-rule review. But it found **4 FAILs in shown model reviews**, against a bar of 0 (c1cffb435):
+    - R207 and R226 list a reverted or discarded change as made;
+    - R230 drops the user's question;
+    - R232 drops a finding and the user's decision.
+  - The fixed-rule review had 6 FAILs, so neither is shown.
+- **Chat v1's written answers: not shipped.** This used the nearby-question guard (25927ddb5: `asks_about`, `subject` and per-claim `states`, checked against the cited records) on a fresh blind set of 40 items, 19 of them unanswerable and 17 near-miss (f291a74c7).
+  - "I don't know" shown on unanswerable questions: 94.7 % (18 of 19), against a bar of 95. The guard saved 3; the model alone was at 79 %.
+  - The miss is real, checked by eye. C301, asked how long the test suite took, answered with the session's 48 minutes. The model copied the subject as the session, not the test suite, which is the guard's known limit.
+  - The answer check fell to 55 % (bar 80): the guard dropped 17 claims, many of them right ones.
+  - Safety held: 0 invented, 0 refs not issued, 0 acting claims.
+
+**0.5 ships no model-written text.**
+- Chat v1 ships as the look-up view: the found records with their links, and no written answer.
+- The feed shows A's excerpt.
+- Attention and the review stay off.
+- The router, the disk rules, the guard and harness v4 stay, so a later engine or prompt is measured the same way.
+
+What a next attempt needs:
+- Chat: a subject check that requires the question's own nouns (not the model's copy), and fewer false drops.
+- Review: a revert detector that also catches "discarded" and "thrown away".
+
 **What the run found in A itself (decided; handed to AJ-E3708).** A ships regardless of B, and two of the blind review's FAILs were A's excerpt:
 - T029: "Added input validation…" without "No tests were run".
 - H016, an L3 turn: "Good news: the lint errors are gone." without "cargo build now errors with E0432".
