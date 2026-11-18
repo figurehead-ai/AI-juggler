@@ -34,12 +34,12 @@ register_item_kind("chat", is_chat, norm_chat)
 # What the question asks for: the lexicon (English and German; first match wins; a cue's span is removed before the subject is read)
 # ======================================================================================================================
 ATTR_LEXICON = [   # (fields, kind, pattern, cue words: the words of the cue, dropped before the subject is read). Specific before general.
- (("tests_failed",), "count", r"how many (?:of the )?tests? (?:have |had |did |are )?(?:failed|fail|failing)|wie viele tests? (?:sind |haben )?(?:fehlgeschlagen|gescheitert|rot)|failing tests|fehlgeschlagene tests",
+ (("tests_failed",), "count", r"how many (?:of the )?tests? (?:have |had |did |are )?(?:failed|fail|failing)|wie viele tests? (?:[\w-]+ ){0,6}?(?:fehlgeschlagen|gescheitert|rot)\b|failing tests|fehlgeschlagene tests",
   "tests failed fail failing fehlgeschlagen fehlgeschlagene gescheitert rot"),
- (("tests_passed",), "count", r"how many (?:of the )?tests? (?:have |had |did |are )?(?:passed|pass|passing|green)|wie viele tests? (?:sind |haben )?(?:bestanden|durchgelaufen|grün)",
+ (("tests_passed",), "count", r"how many (?:of the )?tests? (?:have |had |did |are )?(?:passed|pass|passing|green)|wie viele tests? (?:[\w-]+ ){0,6}?(?:bestanden|durchgelaufen|grün)\b",
   "tests passed pass passing green bestanden durchgelaufen grün"),
  (("tests_passed", "tests_failed"), "tests", r"did (?:the |all |all the )?(?:\w+ )?tests? pass|(?:were|are) (?:all )?(?:the )?tests? (?:green|passing|ok)|test results?|"
-                                             r"(?:sind|waren) (?:die |alle )?tests? (?:durch|grün|bestanden|ok)|haben (?:die |alle )?tests? bestanden|testergebnis(?:se)?",
+                                             r"(?:sind|waren) (?:die |alle )?tests? (?:[\w-]+ ){0,6}?(?:durch|grün|bestanden|ok)\b|haben (?:die |alle )?tests? bestanden|testergebnis(?:se)?",
   "tests pass passed passing green ok result results durch grün bestanden testergebnis testergebnisse"),
  (("files_changed",), "count", r"how many files|wie viele dateien|number of (?:changed )?files|anzahl (?:der )?(?:geänderten )?dateien",
   "files file number changed change touched anzahl dateien geänderten geändert"),
@@ -52,7 +52,7 @@ ATTR_LEXICON = [   # (fields, kind, pattern, cue words: the words of the cue, dr
                            r"\bstart(?:ed)? at\b|\bstartzeit\b",
   "start started begin began kick off gestartet begonnen angefangen losgegangen los startzeit"),
  (("duration_s",), "duration", r"how long\b|wie lange\b|how much time|wie viel zeit|\bduration\b|\bdauer\b|how many (?:seconds|minutes|hours)|wie viele (?:sekunden|minuten|stunden)",
-  "duration dauer seconds minutes hours sekunden minuten stunden zeit last lasted"),
+  "duration dauer seconds minutes hours sekunden minuten stunden zeit last lasted runtime laufzeit elapsed"),
  (("branch",), "string", r"(?:which|what|on what|on which) branch|(?:auf )?welche[mrns]? (?:branch|zweig)", "branch zweig"),
  (("author",), "string", r"\bwho\b|\bwer\b|\bauthor\b|\bautor(?:in)?\b", "author autor autorin wrote written made authored geschrieben gemacht"),
  (("path",), "string", r"\bwhere\b|(?:which|what) (?:file|path)\b|\bwo\b|welche[rs]? (?:datei|pfad)", "file path datei pfad located live lives liegt"),
@@ -270,6 +270,7 @@ def v4_item(item):
     return {"id": item["id"], "question": item["question"], "rows": rows, "removed": item["removed"], "gold": item["gold"]}
 class Chat(Job):
     name, letter, title, item_kind = "chat", "d", "Chat answer", "chat"
+    omission_over_all_items = True
     def route(self, item):
         fs, kind, _cue = classify(item["question"])
         if fs:
@@ -302,6 +303,7 @@ class Chat(Job):
         if path == "lookup": return self._eval_lookup(item, fields, found, finish)
         return self._eval_open(item, fields, finish)
     def _eval_lookup(self, item, fields, found, finish):
+        if not found: return {"ok": False, "kind": "rejected", "errors": ["nothing was looked up: code says I don't know"], "model_text": []}
         ids = [r["id"] for r, _v in found]; ans = re.sub(r"\s*\[[^\]]{1,40}\]", "", j4._tidy(fields.get("answer", ""))).strip()
         errs = []
         if finish == "length": errs.append("cut at the token limit")

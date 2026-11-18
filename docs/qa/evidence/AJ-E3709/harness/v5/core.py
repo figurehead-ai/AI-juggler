@@ -32,6 +32,7 @@ MAX_RETRIES = 2                                    # D-130 lever 2: "up to two t
 class Job:
     """One on-device AI job. Subclasses fill these in; every method gets the normalised item (norm_item)."""
     name = ""; letter = ""; item_kind = "turn"; title = ""
+    omission_over_all_items = False     # True when the job's own no-answer (Chat's "I don't know") is an omission the user sees
     def settings(self, item):
         """-> the settings this item runs in (most jobs: ['main'])"""
         return ["main"]
