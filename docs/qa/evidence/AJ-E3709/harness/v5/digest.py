@@ -24,11 +24,24 @@ import severity                                                                 
 # The item: {id, agents: [{session_id, app, project, turns: [{turn_id, source, facts, ended_at}], events: [{kind, at, detail}]}], gold}
 # ======================================================================================================================
 EVENT_CLASSES = [  # (regex on the event's kind, class); first match wins. A kind no rule knows is 'other' (shown, never notable)
+ (r"turn.*(?:fail|error)", "failed"), (r"turn", "turn"),       # a turn's own start or end is not the session's (round 1: 'ended' everywhere)
  (r"restart|started[_ ]again|keep[_ ]?alive", "restarted"), (r"left|process", "left_processes"), (r"crash", "crashed"),
  (r"stuck|stall|hang", "stuck"), (r"runway|quota|limit", "runway"), (r"reset", "reset"), (r"task.*block|block.*task", "task_blocked"),
  (r"task", "task_done"), (r"pool|message", "pool_message"), (r"commit|push", "commit"), (r"ask|question|approv|need", "asks"),
  (r"fail|error", "failed"), (r"end|clos|exit|finish", "ended"), (r"start|new", "started"),
 ]
+OUTCOME_WORDS = [  # a writer's outcome word -> the frozen gate's (gate.OUTCOMES knows success, finished, failure, failed, question, asking, stopped)
+ (r"fail|error|crash|abort|broke", "failure"), (r"ask|question|wait|input|approv|block", "question"), (r"stop|cancel|interrupt|kill", "stopped"),
+ (r"complet|success|succeed|finish|done|ok\b|idle|ended|resolved|fertig|erledigt|abgeschlossen", "success"),
+]
+def outcome_norm(f):
+    """the facts with their outcome read tolerantly (round 1: a set's 'completed' read as unknown, so no turn ever 'finished')"""
+    if not isinstance(f, dict): return f
+    o = str(f.get("outcome") or "").strip().lower()
+    if not o or o in gate.OUTCOMES: return f
+    for rx, word in OUTCOME_WORDS:
+        if re.search(rx, o): return dict(f, outcome=word)
+    return f
 def event_class(kind):
     k = str(kind or "").lower()
     for rx, cls in EVENT_CLASSES:
@@ -47,7 +60,7 @@ def norm_digest(raw):
         ts = []
         for tr in a.get("turns") or []:
             tn += 1
-            t = norm_turn({"id": str(tr.get("turn_id") or f"turn{tn}"), "source": tr.get("source") or "", "facts": tr.get("facts"),
+            t = norm_turn({"id": str(tr.get("turn_id") or f"turn{tn}"), "source": tr.get("source") or "", "facts": outcome_norm(tr.get("facts")),
                            "origin": tr.get("origin") or ""})
             t.update(ref=f"t{tn}", turn_id=str(tr.get("turn_id") or f"turn{tn}"), ended_at=str(tr.get("ended_at") or ""))
             ts.append(t)
@@ -118,18 +131,27 @@ def tests_word(a):
 # ======================================================================================================================
 def _cap(s, n): s = re.sub(r"\s+", " ", s or "").strip(); return s if len(s) <= n else s[:n - 1].rsplit(" ", 1)[0] + "…"
 def _ev(a, cls): return [e for e in a["events"] if e["cls"] == cls]
+def fact_bits(a, skip=()):
+    """the facts that want a look, in code's words, for a line that would otherwise leave them out (round 1: an agent that failed,
+    or whose AI item said what it was on, hid its runway crossing): stuck, runway, processes left"""
+    out = []
+    for cls, w in (("stuck", "stuck for {} min"), ("runway", "runway below {} %"), ("left_processes", "left {} processes running")):
+        if cls in skip: continue
+        e = (_ev(a, cls) or [None])[-1]
+        if e is not None: out.append(w.format(e["num"]) if e["num"] is not None else w.replace(" {}", "").replace("{} ", ""))
+    return out
 def rollup_line(a):
     """one agent's rollup line: its own question or failure when it needs you; else state, notable facts, counts, tests, last words"""
     n = a["newest"]
     if a["level"] == "L2":
         q = next((q for t in a["turns_newest_first"] for q in t["questions"]), None) or (n and next((s for k, s in j4.must_carry(n["ctx"]["cleaned"], n["facts"]) if k == "question" and s), None))
         ev = next((e["detail"] for e in reversed(_ev(a, "asks")) if e["detail"]), None)
-        return f"{a['name']} · asks you" + (f": “{_cap(q or ev, 110)}”" if (q or ev) else "")
+        return f"{a['name']} · asks you" + (f": “{_cap(q or ev, 110)}”" if (q or ev) else "") + "".join(f" · {b}" for b in fact_bits(a))
     if a["level"] == "L3":
         f = next((f for t in a["turns_newest_first"] for f in t["failures"]), None) or (n and next((s for k, s in j4.must_carry(n["ctx"]["cleaned"], n["facts"]) if k == "failure" and s), None))
         ev = next((e["detail"] for e in reversed(_ev(a, "failed") + _ev(a, "crashed")) if e["detail"]), None)
         tw = tests_word(a)
-        return f"{a['name']} · failed" + (f": “{_cap(f or ev, 110)}”" if (f or ev) else "") + (f" · {tw}" if tw == "tests failed" else "")
+        return f"{a['name']} · failed" + (f": “{_cap(f or ev, 110)}”" if (f or ev) else "") + (f" · {tw}" if tw == "tests failed" else "") + "".join(f" · {b}" for b in fact_bits(a))
     bits = [a["name"], a["state"]]
     for e in _ev(a, "stuck")[-1:]: bits.append(f"stuck for {e['num']} min" if e["num"] is not None else "stuck")
     for e in _ev(a, "left_processes")[-1:]: bits.append(f"left {e['num']} processes running" if e["num"] is not None else "left processes running")
@@ -145,9 +167,12 @@ def rollup_line(a):
         ex = gate_v4.excerpt_v4(n["ctx"]["cleaned"], n["facts"])[0].split("\n")
         line += f" · last: “{_cap(ex[0], 100)}”" + (f" ({_cap(ex[1], 70)})" if len(ex) > 1 and ex[1].strip() else "")
     return line
+STRONG = {"stuck", "runway", "crashed", "restarted", "left_processes", "task_blocked"}
 def order_key(a, notable):
+    """L3, L2, then a notable fact that wants a look (stuck, runway, a crash, processes left, a blocked task), then other notables
+    (finished, ended), then "on X", each by newest activity (round 1: a finished agent outranked a runway crossing and pushed it past 6)"""
     lv = {"L3": 0, "L2": 1}.get(a["level"], 2)
-    return (lv, 0 if notable else 1, _neg(a["newest_at"]))
+    return (lv, 0 if STRONG & set(a["notable_facts"]) else 1 if notable else 2, _neg(a["newest_at"]))
 def _neg(s): return tuple(-ord(c) for c in s)
 def rollup(d):
     """-> {lines: [(agent ref, line, notable)], shown}: every changed agent, ordered and capped as the AI digest is"""
@@ -202,12 +227,17 @@ def event_line(a, e):
 def rank(agents):
     """ADR-0036 §1.2: an agent at L3, then L2, then one whose session ended, then by turns in the window, then by newest activity"""
     return sorted(agents, key=lambda a: ({"L3": 0, "L2": 1}.get(a["level"], 2), 0 if _ev(a, "ended") else 1, -len(a["turns"]), _neg(a["newest_at"])))
+ITEM_TOKENS = 75          # one drafted item in a GGUF tokenizer's count (keys, doing, detail, cites); round 1 cut 6-item drafts at 300
+def out_need(d, tier):
+    """the output cap for this window: ADR-0036's figure, or room for every item it may hold, whichever is larger"""
+    n = min(6, max(1, sum(1 for a in d["agents"] if a["changed"] and not a["loud"])))
+    return max(BUDGETS[tier]["output"], ITEM_TOKENS * n + 25)
 def assemble(d, tier, mark, note_tokens=0, fixed=None):
     """-> {asm, in_context: [agent refs], eligible: [refs the model may write], cites: {ref: agent}, turns_in: [turn refs], words_in}.
     fixed: the instructions' and schema's real tokens; what they take over their budget, and a retry note, come out of agent_words
     first, then agents and events (the facts outrank the agents' words)."""
     asm = Assembler("Digest", tier); b = asm.b
-    over = note_tokens + max(0, (fixed or 0) - b["instructions"])
+    over = note_tokens + max(0, (fixed or 0) - b["instructions"]) + max(0, out_need(d, tier) - b["output"])     # a larger cap comes out of words
     words_budget = max(0, b["agent_words"] - over); ae_budget = b["agents+events"] - max(0, over - b["agent_words"])
     blocks, evl, used, in_ctx, turns_in, cites = [], [], 0, [], [], {}
     for a in rank([a for a in d["agents"] if a["changed"]]):
@@ -334,10 +364,10 @@ class Digest(Job):
             win = f"WINDOW: {d['window_end'] or 'now'} · {sum(1 for a in d['agents'] if a['changed'])} agents changed · {sum(1 for a in d['agents'] if not a['changed'])} quiet"
             p = win + "\n\n" + context_text(A["asm"]) + "\n\n" + TASK + note
             A["asm"].put("instructions", sys_t)
-            est = j4.est_tokens(sys_t) + j4.est_tokens(json.dumps(schema)) + j4.est_tokens(p) + A["asm"].b["output"]
+            est = j4.est_tokens(sys_t) + j4.est_tokens(json.dumps(schema)) + j4.est_tokens(p) + out_need(d, self.context_tokens)
             src = "\n".join(t["ctx"]["cleaned"] for a in d["agents"] for t in a["turns"]) + "\n" + p
             return {"job": "digest", "mode": "fields", "system": sys_t, "prompt": p, "schema": schema, "grammar": j4.gbnf(schema, src),
-                    "max_tokens": A["asm"].b["output"], "est_tokens": est, "cut": bool(A["asm"].cut), "refs": A["eligible"]}
+                    "max_tokens": out_need(d, self.context_tokens), "est_tokens": est, "cut": bool(A["asm"].cut), "refs": A["eligible"]}
         return {"build": build, "schema": None}
     def fixed_tokens(self, d, sys_t, mark):
         """the instructions' and the output schema's tokens (the schema at its largest: every changed agent and ref issued)"""
@@ -354,6 +384,7 @@ class Digest(Job):
             if F.get("tests_state") == "ran": out.append(f"tests ran, {F['passed']} passed, {F['failed']} failed.")
             if F.get("tests_state") == "not_run": out.append("tests not run.")
         out += [f"{e['cls'].replace('_', ' ')} {e['kind']}: {e['detail']}" for e in a["events"]]
+        out += agent_block(a, 99)[0] + [event_line(a, e) for e in a["events"]]          # the facts rows the model saw for it (state, outcome, tests)
         return "\n".join(x for x in out if x)
     def text_errors(self, d, a, text):
         """attribution (ADR-0036 §1.5 rule 3): the frozen gate's steps 2 and 2b and the words rule, scoped to THIS agent's rows; a word
@@ -371,11 +402,11 @@ class Digest(Job):
         if re.search(r"https?://|www\.", text, re.I): errs.append(f"{text[:40]!r}: shape: a URL")
         return errs
     def verdict_errors(self, d, a, it, cited_turns, cited_events, text):
-        errs = []; nk = it["notable"]; cls = {e["cls"] for e in cited_events}
+        errs = []; nk = it["notable"]; cls = {e["cls"] for e in cited_events} | {e["cls"] for e in a["events"]}   # the agent's own events, cited or not
         if nk == "finished" and not any((t["F"] or {}).get("outcome") == "finished" and not turn_failed(t) for t in cited_turns):
             errs.append(f"verdict: finished, but no cited turn of {a['ref']} finished cleanly")
         for k, c in (("stuck", "stuck"), ("runway_low", "runway"), ("left_processes", "left_processes")):
-            if nk == k and c not in cls: errs.append(f"verdict: {k}, but no cited {c.replace('_', ' ')} event of {a['ref']}")
+            if nk == k and c not in cls: errs.append(f"verdict: {k}, but no {c.replace('_', ' ')} event of {a['ref']}")
         if nk == "big_change" and "commit" not in cls and not any(len((t["facts"] or {}).get("files") or []) >= 10 for t in cited_turns):
             errs.append(f"verdict: big_change, but no cited commit or 10 files for {a['ref']}")
         failed = any(turn_failed(t) for t in cited_turns) or any(turn_failed(t) for t in a["turns_newest_first"][:1])
@@ -431,11 +462,13 @@ class Digest(Job):
         bits = [a["name"], a["state"]]
         for k, c in (("stuck", "stuck"), ("left_processes", "left_processes"), ("runway_low", "runway")):
             if nk == k:
-                e = next((e for e in cited_events if e["cls"] == c), None)
+                e = next((e for e in list(cited_events) + sorted(a["events"], key=lambda e: e["at"], reverse=True) if e["cls"] == c), None)
                 if e and e["num"] is not None:
                     bits.append({"stuck": f"stuck for {e['num']} min", "left_processes": f"left {e['num']} processes", "runway_low": f"runway below {e['num']} %"}[k])
                     if bits[1] == "stuck" and k == "stuck": bits.pop(1)
         if nk == "big_change": bits.append("big change")
+        bits += [b for b in fact_bits(a, {"stuck": ("stuck",), "runway_low": ("runway",), "left_processes": ("left_processes",)}.get(nk, ()))
+                 if b not in bits and not (b.startswith("stuck") and "stuck" in bits)]      # the facts that want a look, by code
         bits.append(doing)
         if detail: bits.append(detail)
         for cw in (caveat_words or "").split(" · "):
@@ -521,26 +554,44 @@ def classify_error(e):
         if sub in low: return cls, det
     return severity.classify_error(e)
 def _F(cls, det, detail, item=None): return {"class": cls, "detector": det, "detail": str(detail)[:300], "stage": "shown", "agent": item}
+SURFACE_CLASSES = [  # what a must_surface description is about -> the words a visible line of that kind carries (code's own words)
+ (r"\bask|question|wants? to know|fragt|frage|approv|decide|which\b", ("asks you",)),
+ (r"fail|error|broke|crash|abort|abgebrochen|fehl|warning|leak", ("failed", "tests failed")),
+ (r"stuck|no progress|hang|idle for|keine fortschritt|hängt", ("stuck",)),
+ (r"allowance|runway|quota|percent|prozent|kontingent|limit|%", ("runway",)),
+ (r"process", ("processes",)), (r"\bended|closed|session end|beendet", ("ended",)),
+ (r"finish|done|complet|fertig|abgeschlossen", ("finished",)),
+]
+MS_HEAD = re.compile(r"^\s*([^\s:(]+)\s*(?:\(([^)]*)\))?\s*[:\-–—]?\s*(.+)$", re.S)     # "sid (name): text", "sid: text", "sid text"
 def _surfaced(m, d, o, vis_text):
-    """a gold.must_surface entry, read tolerantly: a session id (that agent has a visible line); text (its content words in the
-    visible lines); or {session_id|agent|session, text|what|kind|detail}. -> True, False, or None when the shape is unknown"""
-    def words_in(s):
-        ws = [w for w in re.findall(r"[^\W\d_]{4,}|\d+", s.lower()) if w not in ("that", "with", "from", "this", "agent", "session")]
-        return bool(ws) and sum(1 for w in ws if w in vis_text.lower()) >= max(1, round(0.6 * len(ws)))
-    vis_agents = {d["by_ref"][r]["session_id"] for r in o.get("visible") or []}
-    if isinstance(m, str):
-        if m in {a["session_id"] for a in d["agents"]}: return m in vis_agents
-        return m.lower() in vis_text.lower() or words_in(m)
+    """a gold.must_surface entry, read tolerantly: a session id; "session id (name): description" (round 1's shape); text; or
+    {session_id|agent|session, text|what|kind|detail}. Surfaced = that agent has a visible line, and the line is of the kind the
+    description names (asks, failed, stuck, runway, ...; code's own words), else shares a third of its content words. -> True,
+    False, or None when the shape is unknown"""
+    sids = {a["session_id"]: a for a in d["agents"]}; vis = set(o.get("visible") or [])
+    sid, txt = None, None
     if isinstance(m, dict):
         sid = m.get("session_id") or m.get("agent") or m.get("session"); txt = m.get("text") or m.get("what") or m.get("detail") or m.get("kind")
-        ok = True
-        if sid is not None: ok = str(sid) in vis_agents or str(sid) in vis_text
-        if ok and txt:
-            a = next((a for a in d["agents"] if a["session_id"] == str(sid)), None)
-            line = next((x["line"] for x in o.get("items") or [] if a and x["agent"] == a["ref"] and a["ref"] in (o.get("visible") or [])), vis_text)
-            ok = str(txt).lower() in line.lower() or words_in(str(txt)) or (a is not None and str(txt).lower().replace("_", " ") in line.lower())
-        return ok
-    return None
+    elif isinstance(m, str):
+        if m in sids: sid = m
+        else:
+            h = MS_HEAD.match(m)
+            if h and h[1] in sids: sid, txt = h[1], h[3]
+            else: txt = m
+    else: return None
+    if sid is not None:
+        a = sids.get(str(sid))
+        if a is None or a["ref"] not in vis: return False
+        line = next((x["line"] for x in o.get("items") or [] if x["agent"] == a["ref"]), "")
+    else: line = "\n".join(vis_text.split("\n")[1:])          # the visible lines, not the header
+    if not txt: return True
+    low, t = line.lower(), str(txt).lower().replace("_", " ")
+    if sid is not None and re.search(r" · (?:asks you|failed)\b", line) and not any(re.search(rx, t) for rx, ws in SURFACE_CLASSES if ws[0] in ("runway", "stuck", "processes")):
+        return True     # the agent's own question or failure, verbatim, is the line: its need is surfaced however gold words it
+    kinds = [ws for rx, ws in SURFACE_CLASSES if re.search(rx, t)]
+    if kinds: return any(w in low for ws in kinds for w in ws) or t in low
+    cw = [w for w in re.findall(r"[^\W\d_]{4,}|\d+", t) if w not in ("that", "with", "from", "this", "agent", "session", "has", "have")]
+    return bool(cw) and sum(1 for w in cw if w in low) >= max(1, round(len(cw) / 3))
 def findings(job, view):
     d, o = view["item"], view["outcome"]; g = d["gold"]; out = []
     vis_text = o.get("shown") or ""
@@ -576,8 +627,11 @@ def findings(job, view):
     qids = {str(x) for x in q} if isinstance(q, list) else set()
     for x in o.get("items") or []:
         a = d["by_ref"][x["agent"]]
-        if a["session_id"] in qids and (x.get("notable") or not a["changed"]):
-            out.append(_F("critical" if x.get("source") == "ai" else "structural", "quiet_flagged", f"{a['session_id']} ({x.get('source')}): {x.get('line', '')[:100]}", a["ref"]))
+        if a["session_id"] not in qids: continue
+        if x.get("source") == "ai" and x.get("notable"):          # the model marked a quiet agent notable
+            out.append(_F("critical", "quiet_flagged", f"{a['session_id']} (ai): {x.get('line', '')[:100]}", a["ref"]))
+        elif a["loud"]:                                           # the facts make it loud while gold calls it quiet: a set/facts disagreement
+            out.append(_F("minor", "quiet_but_loud_facts", f"{a['session_id']}: {x.get('line', '')[:100]}", a["ref"]))
     if isinstance(q, int) and not isinstance(q, bool):
         nq = sum(1 for a in d["agents"] if not a["changed"])
         if nq != q: out.append(_F("minor", "quiet_count", f"{nq} quiet by the facts; gold says {q}"))

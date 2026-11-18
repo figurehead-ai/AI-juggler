@@ -103,8 +103,8 @@ def selftest():
     o = DG.evaluate(d3, "main", draft(I("a1", "I restarted the stoat sync", ["t1"])))
     check("acting: an acting claim is rejected", not o["ok"] and any("acting" in e for e in o["errors"]), o.get("errors"))
     d4 = it("EF-D04")
-    o = DG.evaluate(d4, "main", draft(I("a1", "profiling the elk loader", ["t1"], kind="notable", notable="stuck")))
-    check("verdict: stuck needs the stuck event cited", not o["ok"] and any("stuck" in e for e in o["errors"]), o.get("errors"))
+    o = DG.evaluate(d4, "main", draft(I("a3", "the puma landing page copy", ["t3"], kind="notable", notable="stuck")))
+    check("verdict: stuck needs a stuck event of that agent", not o["ok"] and any("stuck" in e for e in o["errors"]), o.get("errors"))
     o = DG.evaluate(d4, "main", draft(I("a1", "profiling the elk loader", ["t1", "e1"], kind="notable", notable="stuck"), I("a3", "the puma landing page copy", ["t3"], kind="notable", notable="finished")))
     check("verdict: stuck with its event, finished with a clean turn: pass; the minutes come from the event", o["ok"] and "stuck for 18 min" in o["shown"], o.get("errors") or o.get("shown"))
     o = DG.evaluate(d4, "main", draft(I("a1", "profiling the elk loader", ["t1"], kind="notable", notable="runway_low")))
@@ -307,6 +307,77 @@ def selftest():
         check(f"watch example {ex['label']!r}: the grammar accepts it", j4.GbnfMatcher(j4.gbnf(W.watch_schema(ww))).accepts(j4.to_grammar_json(ex["out"])))
     rq = WJ.plan(w2, "main")["build"](core.retry_note("x" * 500, ["y" * 400]))
     check("budget: a watch request with a full retry note fits 4,096", rq["est_tokens"] <= 4096, rq["est_tokens"])
+
+    # ================================================================================================ round 1's diagnosis (2026-11-18): each failed before its fix
+    dv = item([ag("ses-r1", "sedge-api", "I finished the sedge export cleanup and the export runs again.", {"state": "ran", "passed": 9, "failed": 0}, outcome="completed"),
+               ag("ses-r2", "sedge-web", "I am profiling the sedge web bundle before I split it.", outcome="in_progress", at="2026-11-18T09:04",
+                  events=[{"kind": "stuck", "at": "2026-11-18T09:30", "detail": "no output for 22 min"}]),
+               ag("ses-r3", "sedge-docs", "I fixed two links in the sedge docs.", outcome="done", at="2026-11-18T09:06",
+                  events=[{"kind": "turn_ended", "at": "2026-11-18T09:06", "detail": "turn ended"}])],
+              {"must_surface": ["ses-r2 (sedge-web): has made no progress for 22 minutes", "ses-r1 (sedge-api): finished the export cleanup"], "quiet": ["ses-r3"]})
+    check("r1 outcome words: 'completed' and 'done' are finished outcomes", dv["by_ref"]["a1"]["newest"]["F"]["outcome"] == "finished" and dv["by_ref"]["a3"]["newest"]["F"]["outcome"] == "finished",
+          [a["newest"]["F"]["outcome"] for a in dv["agents"]])
+    o = DG.evaluate(dv, "main", draft(I("a1", "the sedge export cleanup", ["t1"], kind="notable", notable="finished"),
+                                      I("a2", "profiling the sedge web bundle", ["t2"], kind="notable", notable="stuck"),
+                                      I("a3", "two links in the sedge docs", ["t3"])))
+    check("r1 verdict: finished on a 'completed' turn; stuck from the agent's own stuck event, cited or not; 'working' is a fact row", o["ok"]
+          and "stuck for 22 min" in o["shown"], o.get("errors") or o.get("shown"))
+    check("r1 attribution: the agent's facts rows (its state and outcome words) are its own rows", "now: stuck" in DG.agent_source(dv, dv["by_ref"]["a2"])
+          and "outcome: unknown" in DG.agent_source(dv, dv["by_ref"]["a2"]))
+    check("r1 events: a turn's own end event is not a session end", dv["by_ref"]["a3"]["state"] == "finished", dv["by_ref"]["a3"]["state"])
+    six = item([ag(f"ses-o{i}", f"rush-{i}", f"I renamed the rush part {i} settings keys and updated the rush part {i} readme.", at=f"2026-11-18T10:{i:02d}") for i in range(6)])
+    rq6 = DG.plan(six, "main")["build"]("")
+    check("r1 output cap: room for six items (about 75 tokens each), not ADR's flat 300 (GGUF drafts were cut at 300)", rq6["max_tokens"] >= 6 * 75 and rq6["est_tokens"] <= 4096,
+          (rq6["max_tokens"], rq6["est_tokens"]))
+    vv = {"job": "digest", "id": "r1", "item": dv, "outcome": DG._rollup_outcome(dv, "t"),
+          "attempts": [], "model_called": False, "used": "code"}
+    sm = DG.summarise([vv])
+    check("r1 must_surface: 'session id (name): description' is that agent's visible line of that kind", sm["omission_items"] == 0, sm["omission_by_detector"])
+    many = item([ag(f"ses-m{i}", f"moss-{i}", f"I tidied the moss part {i} config.", {"state": "ran", "passed": 3, "failed": 0}, at=f"2026-11-18T11:{10 + i:02d}") for i in range(7)]
+                + [ag("ses-mr", "moss-rw", "I updated the moss runway notes.", at="2026-11-18T11:00", events=[{"kind": "runway_crossed", "at": "2026-11-18T11:01", "detail": "below 15 %"}])])
+    check("r1 order: a runway crossing outranks seven finished agents and stays among the 6 visible", "moss-rw" in "\n".join(D.rollup(many)["shown"].split("\n")[1:7]), D.rollup(many)["shown"])
+    loudrw = item([ag("ses-lr", "fern-api", "The fern migration failed on the users table.", outcome="failure", level="L3", f=["migration failed on the users table"],
+                      events=[{"kind": "runway_crossed", "at": "2026-11-18T12:01", "detail": "below 10 %"}], at="2026-11-18T12:00"),
+                   ag("ses-la", "fern-web", "Should the fern login keep the old cookie?", outcome="question", level="L2", q=["Should the fern login keep the old cookie?"], at="2026-11-18T12:02")],
+                  {"must_surface": ["ses-lr the account is almost out of allowance", "ses-la wants a decision about the session cookie"]})
+    vl = {"job": "digest", "id": "l", "item": loudrw, "outcome": DG._rollup_outcome(loudrw, "t"), "attempts": [], "model_called": False, "used": "code"}
+    check("r1 loud lines: a failed agent's line keeps its runway crossing (code's words); an asking agent's own question surfaces its need",
+          "runway below 10 %" in vl["outcome"]["shown"] and DG.summarise([vl])["omission_items"] == 0, (vl["outcome"]["shown"], DG.summarise([vl])["omission_by_detector"]))
+    vm = {"job": "digest", "id": "m", "item": dict(many, gold={"must_surface": ["ses-m0 finished tidying its config", "ses-mr dropped below 15 percent"]}),
+          "outcome": DG._rollup_outcome(many, "t"), "attempts": [], "model_called": False, "used": "code"}
+    check("r1 must_surface: 'session id description' (set B's shape) is that agent's line: one past the 6 visible is missed, the visible one is not",
+          DG.summarise([vm])["omission_by_detector"].get("must_surface_missed") == 1, DG.summarise([vm])["omission_by_detector"])
+    check("r1 quiet: a calm rollup line for a quiet agent is not a flag", sm["quiet_agents_flagged"] == 0 and sm["structural_reaching_the_user"] == 0, sm)
+    o = DG.evaluate(dv, "main", draft(I("a3", "two links in the sedge docs", ["t3"], kind="notable", notable="finished")))
+    vq = dict(vv, outcome=o, model_called=True, used=0)
+    check("r1 quiet: an AI item marking a quiet agent notable is a flag", o["ok"] and DG.summarise([vq])["quiet_agents_flagged"] == 1, o.get("errors"))
+    ctx = {"sessions": [{"id": "S-bill", "name": "billing-refactor", "app": "Claude Code", "project": "ledger"}, {"id": "S-web", "name": "storefront", "app": "Codex", "project": "shop"},
+                        {"id": "S-ba", "name": "billing-api", "app": "Codex", "project": "ledger"}, {"id": "S-bw", "name": "billing-web", "app": "Codex", "project": "shop"}],
+           "apps": [{"id": "claude", "name": "Claude Code"}, {"id": "codex", "name": "Codex"}], "projects": [{"id": "ledger", "name": "ledger"}, {"id": "shop", "name": "shop"}]}
+    wa = norm_item({"id": "r1w", "request": "Tell me when the refactor one finishes.", "context": ctx,
+                    "gold": {"supported": True, "target": {"kind": "session", "id": "S-bill"}, "conditions": [{"type": "finishes", "param": None}], "lifetime": "once"}})
+    o = WJ.evaluate(wa, "main", wd(["s1"], [("finishes", "none")]))
+    check("r1 targets: a name the request says in part ('the refactor one') points at it", o["kind"] == "watch", o.get("errors"))
+    o = WJ.evaluate(wa, "main", wd(["s1"], [("finishes", "none")], asked="the refactor one finishes", nearest="finishes"))
+    check("r1 unsupported: a flag that only restates a request the conditions cover (no cue) is not an unsupported answer", o["kind"] == "watch", o)
+    wb = norm_item({"id": "r1b", "request": "Tell me when the billing api session fails.", "context": ctx})
+    check("r1 targets: of two partial matches the fuller one wins; the other is rejected", WJ.evaluate(wb, "main", wd(["s3"], [("fails", "none")]))["kind"] == "watch"
+          and not WJ.evaluate(wb, "main", wd(["s4"], [("fails", "none")]))["ok"])
+    check("r1 params: 'for_min 15' is 15, a copied range '0-120' is unsaid, a word on a no-parameter condition is ignored, 24:00 is today",
+          W.parse_param("stuck", "for_min 15") == (15, None) and W.parse_param("asks_you", "0-120") == (None, None) and W.parse_param("ends", "session") == (None, None)
+          and WJ.evaluate(wa, "main", wd(["s1"], [("finishes", "none")], "until_time", until="24:00")).get("watch", {}).get("lifetime") == "today")
+    G = W.gold_norm(norm_item({"id": "g", "request": "x", "context": ctx, "gold": {"supported": False, "nearest_if_unsupported": "when a session fails or asks me something"}}))
+    check("r1 gold: a nearest option written as words maps onto the closed set", G["nearest"] == {"fails", "asks_you"} and not G["unknown_types"], G)
+    check("r1 gold: lifetimes 'until_removed' = always, 'until 23:59' = today", W.gold_lifetime("until_removed") == "always" and W.gold_lifetime("until_time 23:59") == "today")
+    rec = run_item(WJ, wa, "main", Script([wd(["s1"], [("finishes", "none")])]))
+    sm = WJ.summarise([{"job": "watch", "id": "r1w", "item": wa, "outcome": rec["final"], "attempts": rec["attempts"], "model_called": True, "used": 0}])
+    check("r1 scoring: gold 'once' against an unsaid lifetime the code filled: exact under the defaults, counted apart from strict", sm.get("exact_rule_matches_with_defaults") == 1
+          and sm["exact_rule_matches"] == 1 and sm.get("lifetime_default_differs") == 0, sm)
+    rec = run_item(WJ, wb, "main", Script([wd(["s3"], [("fails", "none")])]))
+    wbg = dict(wb, gold={"supported": True, "target": {"kind": "session", "id": "S-ba"}, "conditions": [{"type": "fails"}], "lifetime": "once"})
+    sm = WJ.summarise([{"job": "watch", "id": "r1b", "item": wbg, "outcome": rec["final"], "attempts": rec["attempts"], "model_called": True, "used": 0}])
+    check("r1 scoring: the ADR default ('today' for fails) against gold 'once' is counted as a default difference, not a parse error",
+          sm.get("exact_rule_matches_with_defaults") == 1 and sm["exact_rule_matches"] == 0 and sm.get("lifetime_default_differs") == 1, sm)
 
     # ================================================================================================ models: Gemma 4 E2B (the coordinator's addition)
     ge = core.model_entry({"model_file": "/m/gemma-4-e2b/gemma-4-E2B_q4_0-it.gguf"})

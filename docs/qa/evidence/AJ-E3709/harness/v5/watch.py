@@ -144,9 +144,20 @@ def named(w, e):
     if nm and " " + nm + " " in r or (cn and " " + cn + " " in r): return True
     toks = [t for t in nm.split() if len(t) >= 4]
     return bool(toks) and all(" " + t + " " in r for t in toks)
+GENERIC = {"session", "sessions", "agent", "agents", "app", "apps", "project", "projects", "account", "accounts", "the", "one", "ones", "sitzung",
+           "sitzungen", "projekt", "konto", "agenten", "pool"}
+def _toks(s): return [t for t in re.split(r"[\s\-_./]+", _norm(s)) if len(t) >= 3 and t not in GENERIC]
+def _tok_hit(t, rt): return any(t == r or (len(t) >= 5 and len(r) >= 5 and t[:5] == r[:5]) for r in rt)
+def name_score(w, e):
+    """how strongly the request names this entry: its whole name (100 and up), else the count of its name's words the request says
+    (round 1: "the billing one" for "billing-refactor" counted as not named at all)"""
+    if e["kind"] == "any": return 1 if named(w, e) else 0
+    if named(w, e): return 100 + len(_norm(e["raw_name"]))
+    rt = _toks(w["request"])
+    return sum(1 for t in dict.fromkeys(_toks(e["raw_name"])) if _tok_hit(t, rt))
 def pointed_at(w, e):
-    """named, or the only session of a project or App the request names, or the current one"""
-    if named(w, e) or e.get("current"): return True
+    """named (in whole or in part), or the only session of a project or App the request names, or the current one"""
+    if name_score(w, e) or e.get("current"): return True
     if e["kind"] == "session":
         for key in ("project", "app"):
             if not e.get(key): continue
@@ -160,7 +171,11 @@ def resolve(w, e):
     """-> (resolved entry | None, ambiguous: bool). Several entries of one kind share the name: the context settles it when exactly one
     of them has its project or App also named in the request, or is the current one; else the picker asks."""
     dup = same_name(w, e)
-    if len(dup) < 2: return e, False
+    if len(dup) < 2:
+        mine = name_score(w, e); others = [x for x in w["entries"] if x["kind"] == e["kind"] and x is not e and name_score(w, x) > mine]
+        best = max(others, key=lambda x: name_score(w, x)) if others else None
+        if best is not None and sum(1 for x in others if name_score(w, x) == name_score(w, best)) == 1: return best, False
+        return e, False
     r = " " + _norm(w["request"]) + " "
     def ctx_named(x):
         for key in ("project", "app"):
@@ -341,8 +356,11 @@ def watch_remove(store, wid): store.writes += 1; store.rows.pop(wid, None)
 def parse_param(c, raw):
     """-> (value, error). A condition's parameter from the draft's text: none, a number in bounds, a task state, a session ref"""
     p = COND[c][0]; s = str(raw if raw is not None else "none").strip().lower().rstrip("%").strip()
+    if p is not None: s = re.sub(r"^(?:" + re.escape(p[0]) + r"|to|min|minutes?|percent)\s*[:=]?\s*", "", s).strip()   # "for_min 15", "to: done"
+    if re.fullmatch(r"\d*\s*-\s*\d*", s) and "-" in s and s != "-": s = "none"        # a range copied from the catalogue ("0-120") says nothing
     none = s in ("", "none", "null", "-", "keine", "0" if p is None else "\0")
-    if p is None: return (None, None) if none else (None, f"param: {c} takes no parameter, got {raw!r}")
+    if p is None:      # a word on a condition with no parameter carries nothing; a number does (often another condition meant)
+        return (None, None) if none or not re.search(r"\d", s) else (None, f"param: {c} takes no parameter, got {raw!r}")
     name, kind, lo, hi, req = p
     if none:
         return (None, f"param: {c} needs its {name}") if req else (None, None)
@@ -357,6 +375,22 @@ def parse_param(c, raw):
 def default_lifetime(targets, conds):
     return "once" if conds and all(c["type"] in ("finishes", "ends") for c in conds) and targets and all(t["kind"] == "session" for t in targets) else "today"
 def typed_target(e): return {"kind": e["kind"], "id": e["id"], "ref": e["ref"], "name": e["name"]}
+COVER = {  # the words that name each condition, English and German: a draft's "asked" made only of these, target names and filler is covered
+ "finishes": r"finish|done|complet|ready|fertig|abgeschlossen", "ends": r"\bends?\b|ended|stops?|stopped|clos|beend|endet", "asks_you": r"ask|question|approv|frag|input",
+ "fails": r"fail|error|crash|broke|fehl|abbr", "stuck": r"stuck|hang|häng|progress|fortschritt", "idle_for": r"idle|inactiv|untätig|quiet",
+ "hits_limit": r"limit", "runway_below": r"allowance|runway|quota|below|under|percent|prozent|kontingent|unter|%", "runway_resets": r"reset|room",
+ "leaves_processes": r"process", "restarted": r"restart", "pool_message": r"message|nachricht", "task_changes": r"task|aufgabe|done|blocked|review",
+ "commits": r"commit", "starts": r"start|begin|new|neu"}
+FILLER = r"when|whenever|gets?|goes|is|are|has|have|does|minutes?|mins?|hours?|number|something|anything|everything|any|every|all|again|either|both|my|me|tell|let|know|ping|wenn|sobald|mich|mir|etwas|minuten|mein|meine|eine?|der|die|das|und|oder|for|or|and|the|that|this|its|it|on|in|of|to|a|an|one|today|heute"
+def covered(w, asked, tg, conds):
+    """the model's 'unsupported' words name nothing beyond the targets and the drafted conditions (round 1: Apple flagged nearly every
+    request this way, so every watch became an unsupported answer)"""
+    names = {t for e in tg for t in _toks(e["raw_name"]) + _toks(str(e.get("project") or "")) + _toks(str(e.get("app") or ""))}
+    rx = "|".join(COVER[c["type"]] for c in conds)
+    for t in re.findall(r"[^\W_]+", _norm(asked)):
+        if t.isdigit() or t in GENERIC or re.fullmatch(FILLER, t) or _tok_hit(t, names) or (rx and re.search(rx, t)): continue
+        return False
+    return True
 class WatchDraft(Job):
     name, letter, title, item_kind = "watch", "f", "watch drafting", "watch"
     record_keys = ("watch", "nearest", "via", "asked", "picker")
@@ -398,11 +432,13 @@ class WatchDraft(Job):
             v, e = parse_param(t, c.get("param"))
             if e: errs.append(e); continue
             if {"type": t, "param": v} not in conds: conds.append({"type": t, "param": v})
+        cues = cue_hits(w)
+        if asked and intent == "create" and conds and tg and not cues and covered(w, asked, tg, conds):
+            asked = ""; near = None          # round 1: a flag that only restates what the drafted conditions cover is no unsupported answer
         if asked:     # the model's own words about what it can't watch are shown: they must be the request's
             ok2, bad = gate.step2_v3(w["request"], asked, None); ok2b, e2b = gate.step2b(w["request"], asked, lang)
             if not ok2 or not ok2b: errs.append("invented: unsupported_asked is not the request's words (" + "; ".join([f"{c} {t}" for c, t in bad] + e2b)[:120] + ")")
         if errs: return {"ok": False, "kind": "rejected", "errors": errs[:12], "model_text": []}
-        cues = cue_hits(w)
         if intent in ("list",) and not asked:
             return self._done(w, "list", "You have no watches yet. Open Watches to make one." if lang != "de" else "Du hast noch keine Beobachtungen.", [])
         if intent in ("edit", "remove") and not asked:
@@ -426,6 +462,7 @@ class WatchDraft(Job):
             if amb: return self._done(w, "ask", "Which one do you mean? " + " · ".join(_q(x["name"]) + (f" ({x['project']})" if x.get("project") else "") for x in same_name(w, e)), [], picker=[x["ref"] for x in same_name(w, e)])
             if res is not e: errs.append(f"target: {_q(e['name'])} resolves to {res['ref']} from the request's other words, not {e['ref']}")
         lt = fields.get("lifetime") if fields.get("lifetime") in LIFETIMES else "unsaid"; until = None
+        if lt == "until_time" and re.fullmatch(r"(?:24[:.]00|23[:.]59|00[:.]00)", str(fields.get("until") or "").strip()): lt = "today"   # midnight is "today"
         if lt == "until_time":
             m = re.fullmatch(r"([01]?\d|2[0-3])[:.]([0-5]\d)", str(fields.get("until") or "").strip())
             if not m: errs.append(f"lifetime: until_time needs a time, got {fields.get('until')!r}")
@@ -506,9 +543,24 @@ def gold_lifetime(x):
     s = str(x or "").strip().lower().replace("-", "_")
     if s in ("", "unsaid", "default", "none"): return None
     m = re.search(r"(\d{1,2})[:.](\d{2})", s)
+    if m and f"{int(m[1]):02d}:{m[2]}" in ("23:59", "24:00", "00:00"): return "today"     # ADR-0036: "today" is local midnight
     if m: return f"until_time:{int(m[1]):02d}:{m[2]}"
     s = s.replace(" ", "_")
+    if s in ("until_removed", "forever", "permanent", "permanently", "until_cancelled", "until_canceled", "until_deleted", "until_i_remove_it"): return "always"
+    if s in ("end_of_day", "until_end_of_day", "midnight", "until_midnight", "for_today"): return "today"
     return {"until_it_ends": "until_ends", "untilends": "until_ends", "until_end": "until_ends", "until_they_end": "until_ends", "until_both_finish": "until_ends"}.get(s, s)
+def gold_nearest(x):
+    """gold's nearest option -> a set of conditions, or None: a type name, or words ("when a session fails or asks me something";
+    round 1's blind set writes it so, and every one was 'unknown', so nearest was never scored)"""
+    if x in (None, "", "none") or isinstance(x, bool): return None
+    if isinstance(x, dict): x = x.get("type") or x.get("condition") or x.get("text")
+    if isinstance(x, list): return set().union(*[gold_nearest(v) or set() for v in x]) or None
+    n = cond_name(x)
+    if n: return {n}
+    t = _norm(x); out = set()
+    for c in ("finishes", "fails", "asks_you", "stuck", "runway_below", "starts", "ends", "idle_for", "hits_limit", "commits", "restarted", "leaves_processes"):
+        if re.search(COVER[c], t) and not (c == "ends" and out & {"finishes"}) and not (c == "task_changes"): out.add(c)
+    return out or None
 def gold_norm(w):
     g = w["gold"]; unknown = []
     sup = g.get("supported"); sup = True if sup is None and g.get("conditions") else bool(sup)
@@ -521,9 +573,8 @@ def gold_norm(w):
         n = cond_name(c.get("type"))
         if n is None: unknown.append(str(c.get("type"))); continue
         conds.add((n, gold_param(c.get("param"))))
-    near = g.get("nearest_if_unsupported")
-    near = cond_name(near.get("type") if isinstance(near, dict) else near) if near not in (None, "", "none") else None
-    if g.get("nearest_if_unsupported") not in (None, "", "none") and near is None: unknown.append(str(g.get("nearest_if_unsupported")))
+    near = gold_nearest(g.get("nearest_if_unsupported"))
+    if g.get("nearest_if_unsupported") not in (None, "", "none") and not near: unknown.append(str(g.get("nearest_if_unsupported")))
     return {"supported": sup, "target": (tk, None if tk == "any" else (str(tid) if tid is not None else None)), "conditions": conds,
             "lifetime": gold_lifetime(g.get("lifetime")), "nearest": near, "unknown_types": unknown}
 def match(w, o, G):
@@ -534,10 +585,13 @@ def match(w, o, G):
     cs = {(c["type"], c["param"]) for c in wt["conditions"]}
     if cs != G["conditions"]: diffs.append(f"conditions {sorted(cs, key=str)} != {sorted(G['conditions'], key=str)}")
     lt = f"until_time:{wt['until']}" if wt["lifetime"] == "until_time" else wt["lifetime"]
+    default_only = False
     if G["lifetime"] is None:
         if wt.get("lifetime_said") and lt != default_lifetime(wt["targets"], wt["conditions"]): diffs.append(f"lifetime {lt}; gold: unsaid")
-    elif lt != G["lifetime"]: diffs.append(f"lifetime {lt} != {G['lifetime']}")
-    return not diffs, diffs
+    elif lt != G["lifetime"]:
+        if wt.get("lifetime_said"): diffs.append(f"lifetime {lt} != {G['lifetime']}")
+        else: default_only = True; diffs.append(f"lifetime (unsaid; ADR-0036's default) {lt} != {G['lifetime']}")
+    return not diffs, diffs, default_only
 def classify_error(e):
     low = str(e).lower()
     for sub, cls, det in (("target:", "critical", "wrong_target"), ("invented", "critical", "invented"), ("refs:", "structural", "refs"),
@@ -545,7 +599,7 @@ def classify_error(e):
         if sub in low: return cls, det
     return severity.classify_error(e)
 def summarise(views):
-    n = len(views); sup = uns = exact = claimed = near_any = near_gold = near_due = asked_n = false_uns = planted_mis = 0
+    n = len(views); sup = uns = exact = exact_d = ldef = claimed = near_any = near_gold = near_due = asked_n = false_uns = planted_mis = 0
     mism = []; cand = []; caught = []; unknown = Counter(); kinds = Counter(); lat = []; store0 = STORE.snapshot()
     for v in views:
         w, o = v["item"], v["outcome"]; G = gold_norm(w); kinds[o.get("kind")] += 1
@@ -559,7 +613,9 @@ def summarise(views):
         if G["supported"]:
             sup += 1
             if o.get("kind") == "watch":
-                ok, diffs = match(w, o, G)
+                ok, diffs, default_only = match(w, o, G)
+                if ok or (default_only and len(diffs) == 1): exact_d += 1
+                if default_only and len(diffs) == 1: ldef += 1
                 if ok: exact += 1
                 else:
                     mism.append({"id": v["id"], "diffs": diffs, "planted": planted}); planted_mis += planted
@@ -576,11 +632,12 @@ def summarise(views):
             if G["nearest"] is not None:
                 near_due += 1
                 if o.get("kind") == "unsupported" and o.get("nearest"): near_any += 1
-                if o.get("kind") == "unsupported" and o.get("nearest") == G["nearest"]: near_gold += 1
+                if o.get("kind") == "unsupported" and o.get("nearest") in G["nearest"]: near_gold += 1
     crit = [c for c in cand if c["class"] == "critical"]
     pct = lambda a, b: round(100.0 * a / b, 2) if b else None
     return {"items": n, "model_shown_items": sum(1 for v in views if v.get("model_called") and isinstance(v.get("used"), int)),
             "supported_items": sup, "exact_rule_matches": exact, "exact_rule_match_pct": pct(exact, sup), "mismatches": mism,
+            "exact_rule_matches_with_defaults": exact_d, "exact_rule_match_with_defaults_pct": pct(exact_d, sup), "lifetime_default_differs": ldef,
             "unsupported_items": uns, "unsupported_claimed": claimed, "nearest_due": near_due, "nearest_offered": near_any,
             "nearest_offered_pct": pct(near_any, near_due), "nearest_matches_gold": near_gold, "nearest_matches_gold_pct": pct(near_gold, near_due),
             "asked_picker": asked_n, "false_unsupported": false_uns, "planted_mismatches": planted_mis, "outcome_kinds": dict(kinds),
@@ -592,10 +649,12 @@ def summarise(views):
             "omission_items": sum(1 for c in cand if c["class"] == "omission"), "omission_by_detector": dict(Counter(c["detector"] for c in cand if c["class"] == "omission")),
             "omission_pct": pct(sum(1 for c in cand if c["class"] == "omission"), n) or 0.0, "questions_or_failures_hidden": 0, "feed_model_lines_on_loud_items": 0,
             "latency_ms_item_total": {"median": statistics.median(lat) if lat else None, "p95": sorted(lat)[max(0, int(round(0.95 * len(lat))) - 1)] if lat else None},
-            "extra": {"exact rule matches": f"{exact} of {sup}", "unsupported claimed": claimed, "nearest offered": f"{near_any} of {near_due}",
+            "extra": {"exact rule matches": f"{exact} of {sup}", "exact with ADR-0036's default for an unsaid lifetime": f"{exact_d} of {sup}",
+                      "an unsaid lifetime whose ADR default differs from gold": ldef, "unsupported claimed": claimed, "nearest offered": f"{near_any} of {near_due}",
                       "nearest equal to gold": f"{near_gold} of {near_due}", "asked (picker)": asked_n, "unknown gold condition types": dict(unknown) or "none"},
             "candidates": cand + [c for c in caught if c["class"] == "critical"]}
-BARS = [("exact rule matches on supported requests, %", "exact_rule_match_pct", ">=", 95.0), ("unsupported conditions claimed", "unsupported_claimed", "==", 0),
+BARS = [("exact rule matches on supported requests, %", "exact_rule_match_pct", ">=", 95.0),
+        ("exact rule matches, an unsaid lifetime by ADR-0036's default, %", "exact_rule_match_with_defaults_pct", ">=", 95.0), ("unsupported conditions claimed", "unsupported_claimed", "==", 0),
         ("nearest option offered on unsupported requests, %", "nearest_offered_pct", ">=", 90.0), ("watches written by the job (not the user's click)", "store_writes_by_the_job", "==", 0),
         ("mismatches on items with a planted order (candidates)", "planted_mismatches", "==", 0)]
 def bar_rows(sev):
