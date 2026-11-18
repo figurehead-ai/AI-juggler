@@ -1121,13 +1121,15 @@ fn forget_leaves_no_trace_in_the_file() {
         .execute_batch(&format!(
             "INSERT INTO chat_conversations (id, started_ms, last_ms, title, title_turn) VALUES
                  ('c1', 1, 4, 'remember {CANARY} for payments', 't1'),
-                 ('c2', 1, 1, 'is {CANARY} stuck?', 't3');
+                 ('c2', 1, 1, 'is {CANARY} stuck?', 't3'),
+                 ('c3', 1, 1, 'the {CANARY} chat', NULL);
              INSERT INTO chat_turns (id, conversation_id, seq, at_ms, question, outcome, shown) VALUES
                  ('t1', 'c1', 1, 1, 'remember {CANARY} for payments', 'remembered',
                   'I''ll remember: {CANARY} for payments'),
                  ('t2', 'c1', 2, 2, 'how is web', 'rows', NULL),
                  ('t4', 'c1', 3, 3, 'and {CANARY} again?', 'rows', 'about {CANARY}'),
-                 ('t3', 'c2', 1, 1, 'is {CANARY} stuck?', 'rows', NULL);"
+                 ('t3', 'c2', 1, 1, 'is {CANARY} stuck?', 'rows', NULL),
+                 ('t5', 'c3', 1, 1, 'the {CANARY} chat', 'rows', NULL);"
         ))
         .unwrap();
     let key = format!("note:{KEY_CANARY}");
@@ -1135,6 +1137,7 @@ fn forget_leaves_no_trace_in_the_file() {
     from_turn.source_id = Some("t1".into());
     let first = remember(&storage, &from_turn);
     storage.memory().link_turn("t4", &first.subject_id).unwrap();
+    storage.memory().link_turn("t5", &first.subject_id).unwrap();
     let mut turn_event = NewEvent::new(NOW, Stream::Chat, "turn", Actor::App);
     turn_event.subject = Some(("turn", "t4".into()));
     storage
@@ -1220,7 +1223,7 @@ fn forget_leaves_no_trace_in_the_file() {
             gone.turns,
             gone.titles
         ),
-        (1, 2, 2, 2, 1)
+        (1, 2, 2, 3, 2)
     );
     assert!(gone.wal_folded);
     let asked_gone = storage
@@ -1243,11 +1246,16 @@ fn forget_leaves_no_trace_in_the_file() {
     };
     assert_eq!(
         turns("SELECT id, question FROM chat_turns WHERE redacted = 1 ORDER BY id"),
-        [("t1", ""), ("t3", ""), ("t4", "")].map(|(a, b)| (a.to_owned(), b.to_owned()))
+        [("t1", ""), ("t3", ""), ("t4", ""), ("t5", "")].map(|(a, b)| (a.to_owned(), b.to_owned()))
     );
     assert_eq!(
         turns("SELECT id, title FROM chat_conversations ORDER BY id"),
-        [("c1", "how is web"), ("c2", NEUTRAL_TITLE)].map(|(a, b)| (a.to_owned(), b.to_owned()))
+        [
+            ("c1", "how is web"),
+            ("c2", NEUTRAL_TITLE),
+            ("c3", NEUTRAL_TITLE)
+        ]
+        .map(|(a, b)| (a.to_owned(), b.to_owned()))
     );
     assert_eq!(
         count(

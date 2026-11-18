@@ -22,9 +22,10 @@ pub(super) struct Erased {
 /// 1. links the turns its versions came from (`source_kind = chat_turn`);
 /// 2. erases the log sidecars about it: by its subject id, by an event
 ///    naming one of its versions, and by an event naming one of its turns;
-/// 3. redacts those turns' words (`question` emptied, `shown` cleared,
-///    marked `redacted`) and renames every conversation whose title came
-///    from one of them, from its first turn left, else [`NEUTRAL_TITLE`];
+/// 3. renames every conversation whose title came from one of those turns,
+///    or whose title's turn isn't recorded while it holds one, from its
+///    first turn left, else [`NEUTRAL_TITLE`]; then redacts those turns'
+///    words (`question` emptied, `shown` cleared, marked `redacted`);
 /// 4. deletes the links and every version (entities by cascade, index
 ///    entries by trigger).
 pub(super) fn erase_subject(conn: &Connection, subject_id: &str) -> rusqlite::Result<Erased> {
@@ -45,23 +46,34 @@ pub(super) fn erase_subject(conn: &Connection, subject_id: &str) -> rusqlite::Re
                        WHERE m.subject_id = ?1)",
         [subject_id],
     )?;
+    // Titles first, while the turns' words are there to compare: a title
+    // taken from one of the turns (`title_turn`), or one whose turn isn't
+    // recorded (NULL) in a conversation holding such a turn, is renamed
+    // from the first turn the forget leaves (the re-review's N4).
+    out.titles = conn.execute(
+        "UPDATE chat_conversations AS c SET
+             title = COALESCE(
+                 (SELECT substr(t.question, 1, ?2) FROM chat_turns t
+                  WHERE t.conversation_id = c.id AND t.redacted = 0
+                    AND t.id NOT IN (SELECT turn_id FROM chat_turn_memory WHERE subject_id = ?1)
+                  ORDER BY t.seq LIMIT 1),
+                 ?3),
+             title_turn = (SELECT t.id FROM chat_turns t
+                           WHERE t.conversation_id = c.id AND t.redacted = 0
+                             AND t.id NOT IN (SELECT turn_id FROM chat_turn_memory
+                                              WHERE subject_id = ?1)
+                           ORDER BY t.seq LIMIT 1)
+         WHERE c.title_turn IN (SELECT turn_id FROM chat_turn_memory WHERE subject_id = ?1)
+            OR (c.title_turn IS NULL AND EXISTS (
+                    SELECT 1 FROM chat_turns t JOIN chat_turn_memory m ON m.turn_id = t.id
+                    WHERE m.subject_id = ?1 AND t.conversation_id = c.id))",
+        params![subject_id, TITLE_CHARS, NEUTRAL_TITLE],
+    )?;
     out.turns = conn.execute(
         "UPDATE chat_turns SET question = '', shown = NULL, redacted = 1
          WHERE redacted = 0
            AND id IN (SELECT turn_id FROM chat_turn_memory WHERE subject_id = ?1)",
         [subject_id],
-    )?;
-    out.titles = conn.execute(
-        "UPDATE chat_conversations AS c SET
-             title = COALESCE(
-                 (SELECT substr(t.question, 1, ?2) FROM chat_turns t
-                  WHERE t.conversation_id = c.id AND t.redacted = 0 ORDER BY t.seq LIMIT 1),
-                 ?3),
-             title_turn = (SELECT t.id FROM chat_turns t
-                           WHERE t.conversation_id = c.id AND t.redacted = 0
-                           ORDER BY t.seq LIMIT 1)
-         WHERE c.title_turn IN (SELECT turn_id FROM chat_turn_memory WHERE subject_id = ?1)",
-        params![subject_id, TITLE_CHARS, NEUTRAL_TITLE],
     )?;
     conn.execute(
         "DELETE FROM chat_turn_memory WHERE subject_id = ?1",
