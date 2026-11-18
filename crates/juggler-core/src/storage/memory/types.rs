@@ -256,28 +256,144 @@ pub struct Untrusted<T> {
 pub const UNTRUSTED_KEY: &str = "$untrusted";
 
 /// The capability to write some kinds (ADR-0037 §1.1: each kind has one
-/// writer). An owning module is handed its writer at start; the gate
-/// refuses a write whose kind the writer doesn't cover. Which module may
-/// ask for which kinds is the architecture lint's to check (with the
-/// first owner, AJ-E3814's watches).
+/// writer), with the authorities and sources that writer may claim. It
+/// can't be made outside this module: [`Writers::issue`] hands every
+/// owner its one writer, once per process, at start. The gate refuses a
+/// kind, authority or source the writer doesn't cover, so a module can't
+/// declare itself the user (the security review's M2).
 #[derive(Debug)]
 pub struct KindWriter {
-    kinds: Vec<Kind>,
+    kinds: &'static [Kind],
+    authorities: &'static [Authority],
+    sources: &'static [SourceKind],
 }
 
 impl KindWriter {
-    /// A writer for `kinds`.
+    /// It may write `kind`, as `authority`, from `source`.
     #[must_use]
-    pub fn for_kinds(kinds: &[Kind]) -> Self {
+    pub fn covers(&self, kind: Kind, authority: Authority, source: SourceKind) -> bool {
+        self.kinds.contains(&kind)
+            && self.authorities.contains(&authority)
+            && self.sources.contains(&source)
+    }
+    /// A writer covering everything, for the gate's own tests.
+    #[cfg(test)]
+    pub(crate) const fn any() -> Self {
         Self {
-            kinds: kinds.to_vec(),
+            kinds: &[
+                Kind::Preference,
+                Kind::Note,
+                Kind::StandingRequest,
+                Kind::Asked,
+                Kind::Answer,
+                Kind::Digest,
+                Kind::Policy,
+            ],
+            authorities: &[
+                Authority::User,
+                Authority::App,
+                Authority::Model,
+                Authority::Agent,
+                Authority::Bot,
+            ],
+            sources: &[
+                SourceKind::ChatTurn,
+                SourceKind::WatchesView,
+                SourceKind::Settings,
+                SourceKind::DigestJob,
+                SourceKind::NoteJob,
+                SourceKind::Maintenance,
+            ],
+        }
+    }
+}
+
+/// Every writer of the store, one per owning module (ADR-0037 §1.1's
+/// table). Issued once per process; the app hands each module its own.
+#[derive(Debug)]
+pub struct Writers {
+    /// `features/ai/memory`: Chat's remember flow and Settings write the
+    /// user's notes and preferences; the (Beta) note job proposes them.
+    pub memory: KindWriter,
+    /// `features/watches`: a watch, only through its three commands.
+    pub watches: KindWriter,
+    /// `features/ai/chat`: what was asked and what was shown.
+    pub chat: KindWriter,
+    /// `features/digest`: digests (the rollup by the app, items by a
+    /// model, quotes as agent text).
+    pub digest: KindWriter,
+}
+
+static ISSUED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+impl Writers {
+    /// The writers, the first time only (`None` after): the composition
+    /// root takes them at start and hands each module its own.
+    #[must_use]
+    pub fn issue() -> Option<Self> {
+        (!ISSUED.swap(true, std::sync::atomic::Ordering::SeqCst)).then(Self::make)
+    }
+
+    /// A fresh set for a test (each test its own store).
+    #[cfg(test)]
+    pub(crate) fn for_tests() -> Self {
+        Self::make()
+    }
+
+    const fn make() -> Self {
+        Self {
+            memory: KindWriter {
+                kinds: &[Kind::Preference, Kind::Note],
+                authorities: &[Authority::User, Authority::Model],
+                sources: &[
+                    SourceKind::ChatTurn,
+                    SourceKind::Settings,
+                    SourceKind::NoteJob,
+                ],
+            },
+            watches: KindWriter {
+                kinds: &[Kind::StandingRequest],
+                authorities: &[Authority::User],
+                sources: &[SourceKind::WatchesView, SourceKind::ChatTurn],
+            },
+            chat: KindWriter {
+                kinds: &[Kind::Asked, Kind::Answer],
+                authorities: &[Authority::App],
+                sources: &[SourceKind::ChatTurn],
+            },
+            digest: KindWriter {
+                kinds: &[Kind::Digest],
+                authorities: &[Authority::App, Authority::Model, Authority::Agent],
+                sources: &[SourceKind::DigestJob],
+            },
+        }
+    }
+}
+
+/// A record's label, typed by whose words it holds (ADR-0037 §1.2: set by
+/// type, not by care). Agent-written words are `Untrusted`, and the record
+/// is marked so.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum RecordText {
+    /// The user's words, or text the app or a gated model wrote.
+    Trusted(String),
+    /// Agent-written words.
+    Untrusted(String),
+}
+
+impl RecordText {
+    /// The words.
+    #[must_use]
+    pub fn as_str(&self) -> &str {
+        match self {
+            Self::Trusted(text) | Self::Untrusted(text) => text,
         }
     }
 
-    /// It may write `kind`.
+    /// Agent-written.
     #[must_use]
-    pub fn covers(&self, kind: Kind) -> bool {
-        self.kinds.contains(&kind)
+    pub const fn is_untrusted(&self) -> bool {
+        matches!(self, Self::Untrusted(_))
     }
 }
 
@@ -293,7 +409,7 @@ pub trait SecretScan {
 /// Why the gate refused a write. Codes only, never the text.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Refusal {
-    /// The writer doesn't cover the kind.
+    /// The writer doesn't cover the kind, the authority or the source.
     WrongWriter,
     /// A 0.6 kind, or the `bot` authority.
     Reserved,
@@ -314,7 +430,14 @@ pub enum Refusal {
     NotTextFree,
     /// The subject key is empty, too long or not code-like.
     SubjectKey,
+    /// A preference that isn't a setting's shape: it names no entity, or
+    /// its label is over [`PREFERENCE_MAX_CHARS`]. The caller keeps such
+    /// words as a note (local only).
+    PreferenceShape,
 }
+
+/// The longest label a preference may have (an alias, a focus's name).
+pub const PREFERENCE_MAX_CHARS: usize = 60;
 
 impl Refusal {
     /// The code logged with a refusal.
@@ -331,6 +454,7 @@ impl Refusal {
             Self::Confidence => "confidence",
             Self::NotTextFree => "not_text_free",
             Self::SubjectKey => "subject_key",
+            Self::PreferenceShape => "preference_shape",
         }
     }
 }

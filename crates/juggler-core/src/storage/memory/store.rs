@@ -3,11 +3,12 @@
 
 use rusqlite::{Connection, OptionalExtension, Row, params};
 
+use super::erase::{erase_subject, optimize_index};
 use super::log::{Actor, NewEvent, Stream, append_in};
 use super::secure::{SecureHold, fold_wal};
 use super::types::{
-    Authority, EntityKind, EntityRef, Kind, KindWriter, MemoryError, Priority, Refusal, Scope,
-    SecretScan, SourceKind, Tier, UNTRUSTED_KEY, code_like,
+    Authority, EntityKind, EntityRef, Kind, KindWriter, MemoryError, PREFERENCE_MAX_CHARS,
+    Priority, RecordText, Refusal, Scope, SecretScan, SourceKind, Tier, UNTRUSTED_KEY, code_like,
 };
 use crate::storage::write_transaction;
 
@@ -37,9 +38,6 @@ pub struct NewRecord {
     pub priority: Priority,
     /// Whose words it holds.
     pub authority: Authority,
-    /// The label holds agent-written words (the payload's are marked by
-    /// [`super::Untrusted`]).
-    pub text_untrusted: bool,
     /// Where it came from.
     pub source: SourceKind,
     /// The turn, window or view action (a code).
@@ -52,8 +50,8 @@ pub struct NewRecord {
     pub as_of_ms: i64,
     /// An answer's hash of its cited rows' state then.
     pub source_rev: Option<String>,
-    /// The label shown and indexed.
-    pub text: String,
+    /// The label shown and indexed, typed by whose words it holds.
+    pub text: RecordText,
     /// Typed per kind, a JSON object.
     pub payload: serde_json::Value,
     /// When it ends on its own (digests, short-tier rows).
@@ -144,6 +142,10 @@ pub struct Forgotten {
     pub versions: usize,
     /// Log sidecars erased.
     pub sidecars: usize,
+    /// Chat turns the subject came from or was used in, redacted.
+    pub turns: usize,
+    /// Conversation titles taken from such a turn, renamed.
+    pub titles: usize,
     /// The WAL was folded in and truncated (else another reader held it;
     /// the next full checkpoint does it).
     pub wal_folded: bool,
@@ -242,7 +244,7 @@ fn gate(
     record: &NewRecord,
     untrusted: bool,
 ) -> Result<(), Refusal> {
-    if !writer.covers(record.kind) {
+    if !writer.covers(record.kind, record.authority, record.source) {
         return Err(Refusal::WrongWriter);
     }
     if !record.kind.is_built() || record.authority == Authority::Bot {
@@ -251,15 +253,23 @@ fn gate(
     if !code_like(&record.subject_key, SUBJECT_KEY_MAX) {
         return Err(Refusal::SubjectKey);
     }
-    let chars = record.text.trim().chars().count();
-    if chars == 0 || record.text.chars().count() > TEXT_MAX_CHARS {
+    let text = record.text.as_str();
+    let chars = text.chars().count();
+    if text.trim().is_empty() || chars > TEXT_MAX_CHARS {
         return Err(Refusal::TextBounds);
+    }
+    // A preference is a setting: it names an entity, in a short label
+    // (the security review's M3); free words are a note.
+    if record.kind == Kind::Preference
+        && (record.entities.is_empty() || chars > PREFERENCE_MAX_CHARS)
+    {
+        return Err(Refusal::PreferenceShape);
     }
     let payload_len = serde_json::to_string(&record.payload).map_or(usize::MAX, |s| s.len());
     if !record.payload.is_object() || payload_len > PAYLOAD_MAX_BYTES {
         return Err(Refusal::PayloadBounds);
     }
-    let mut words = vec![record.text.clone()];
+    let mut words = vec![text.to_owned()];
     strings(&record.payload, &mut words);
     if words.iter().any(|word| secrets.finds_secret(word)) {
         return Err(Refusal::Secret);
@@ -339,7 +349,7 @@ impl<'c> MemoryStore<'c> {
         record: &NewRecord,
         now_ms: i64,
     ) -> Result<Remembered, MemoryError> {
-        let untrusted = record.text_untrusted || holds_untrusted(&record.payload);
+        let untrusted = record.text.is_untrusted() || holds_untrusted(&record.payload);
         if let Err(refusal) = gate(writer, secrets, record, untrusted) {
             let tx = write_transaction(self.conn)?;
             log_refusal(&tx, record, refusal, now_ms)?;
@@ -355,7 +365,7 @@ impl<'c> MemoryStore<'c> {
                 tx.commit()?;
                 return Err(MemoryError::Refused(Refusal::LowerAuthority));
             }
-            if current.text == record.text
+            if current.text == record.text.as_str()
                 && current.payload == record.payload
                 && current.scope == record.scope
                 && current.authority == record.authority
@@ -422,8 +432,11 @@ impl<'c> MemoryStore<'c> {
 
     /// Forgets a subject (ADR-0037 §1.5): every version of it (and of its
     /// `answer`, for an `asked` subject), their entity rows and index
-    /// entries, and the log's sidecars about it, in one transaction with
-    /// `secure_delete` on; a tombstone (the subject's random id and when)
+    /// entries, the log's sidecars about it, and the words of the Chat turns
+    /// it came from or was used in (redacted, a title taken from one
+    /// renamed), in one transaction with `secure_delete` on; the index
+    /// rewritten (`optimize`), so no page separator keeps a prefix of its
+    /// words; a tombstone (the subject's random id and when)
     /// so a restore of an older backup on this Mac drops it; one
     /// `memory.forgot` event (ids and counts only); then the WAL folded in
     /// and truncated.
@@ -449,31 +462,47 @@ impl<'c> MemoryStore<'c> {
                     .query_map([&key], |row| row.get(0))?
                     .collect::<rusqlite::Result<_>>()?;
                 for subject in subjects {
-                    out.sidecars += tx.execute(
-                        "DELETE FROM ai_log_text WHERE memory_subject = ?1",
-                        [&subject],
-                    )?;
-                    let versions = tx.execute(
-                        "DELETE FROM memory_records WHERE subject_key = ?1 AND subject_id = ?2",
-                        params![key, subject],
-                    )?;
-                    out.versions += versions;
+                    let erased = erase_subject(&tx, &subject)?;
                     out.subjects += 1;
+                    out.versions += erased.versions;
+                    out.sidecars += erased.sidecars;
+                    out.turns += erased.turns;
+                    out.titles += erased.titles;
                     tx.execute(
-                        "INSERT OR REPLACE INTO memory_forgotten (subject_id, forgotten_ms)
-                         VALUES (?1, ?2)",
+                        "INSERT INTO memory_forgotten (subject_id, forgotten_ms) VALUES (?1, ?2)
+                         ON CONFLICT (subject_id) DO UPDATE SET forgotten_ms = excluded.forgotten_ms",
                         params![subject, now_ms],
                     )?;
                     let mut event = NewEvent::new(now_ms, Stream::Memory, "forgot", actor.clone());
                     event.memory_subject = Some(subject);
-                    event.payload = serde_json::json!({ "versions": versions });
+                    event.payload = serde_json::json!({
+                        "versions": erased.versions,
+                        "turns": erased.turns,
+                    });
                     append_in(&tx, &event, None)?;
                 }
+            }
+            if out.subjects > 0 {
+                optimize_index(&tx)?;
             }
             tx.commit()?;
         }
         out.wal_folded = fold_wal(self.conn)?;
         Ok(out)
+    }
+
+    /// Links a Chat turn to a subject it used (the turn's receipt, ADR-0037
+    /// §6), so forgetting the subject redacts the turn too. A turn that
+    /// isn't there is skipped.
+    ///
+    /// # Errors
+    ///
+    /// Storage failures.
+    pub fn link_turn(&self, turn_id: &str, subject_id: &str) -> Result<(), MemoryError> {
+        let tx = write_transaction(self.conn)?;
+        link_turn_in(&tx, turn_id, subject_id)?;
+        tx.commit()?;
+        Ok(())
     }
 
     /// Records that these current records were used (included in an
@@ -549,7 +578,7 @@ fn write_version(
             record.as_of_ms,
             record.source_rev,
             current.map(|c| c.id.as_str()),
-            record.text,
+            record.text.as_str(),
             payload,
             record.expires_ms,
             now_ms,
@@ -561,6 +590,11 @@ fn write_version(
              VALUES (?1, ?2, ?3)",
             params![id, entity.kind.as_str(), entity.id],
         )?;
+    }
+    if record.source == SourceKind::ChatTurn
+        && let Some(turn) = &record.source_id
+    {
+        link_turn_in(tx, turn, &subject_id)?;
     }
     tx.execute(
         "DELETE FROM memory_records WHERE subject_key = ?1 AND version <= ?2",
@@ -588,6 +622,15 @@ fn write_version(
         subject_id,
         unchanged: false,
     })
+}
+
+fn link_turn_in(conn: &Connection, turn_id: &str, subject_id: &str) -> rusqlite::Result<()> {
+    conn.execute(
+        "INSERT OR IGNORE INTO chat_turn_memory (turn_id, subject_id)
+         SELECT id, ?2 FROM chat_turns WHERE id = ?1",
+        params![turn_id, subject_id],
+    )
+    .map(drop)
 }
 
 fn current_in(conn: &Connection, subject_key: &str) -> rusqlite::Result<Option<Record>> {

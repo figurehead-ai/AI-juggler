@@ -19,6 +19,11 @@
 //!   log, its sidecars and the forget tombstones name a subject by it,
 //!   never by its key (a note's key is a hash of its words, so a key kept
 //!   in the append-only spine would outlive the forget as a fingerprint).
+//! - `chat_turn_memory` and `chat_conversations.title_turn`: the turns a
+//!   subject came from or was used in (the receipts' link, written with
+//!   the record and by the turn's receipt), and the turn a conversation's
+//!   title came from, so a forget redacts them too (the security review's
+//!   H2).
 //! - `supersedes … ON DELETE SET NULL`: removing an old version (the
 //!   20-version bound, the cloud backup's scrub) cuts the newer version's
 //!   link to it, the one change the content trigger allows on that column.
@@ -104,6 +109,7 @@ WHEN new.seq IS NOT old.seq OR new.id IS NOT old.id
   OR new.payload IS NOT old.payload OR new.created_ms IS NOT old.created_ms
   OR (new.supersedes IS NOT old.supersedes AND new.supersedes IS NOT NULL)
   OR (old.superseded_by IS NOT NULL AND new.superseded_by IS NOT old.superseded_by)
+  OR new.superseded_by = old.id
 BEGIN
     SELECT RAISE(ABORT, 'memory_records: a record is superseded, never changed');
 END;
@@ -124,6 +130,7 @@ CREATE TABLE chat_conversations (
     started_ms      INTEGER NOT NULL,
     last_ms         INTEGER NOT NULL,
     title           TEXT NOT NULL,
+    title_turn      TEXT,
     has_agent_words INTEGER NOT NULL DEFAULT 0
 );
 CREATE TABLE chat_turns (
@@ -137,8 +144,15 @@ CREATE TABLE chat_turns (
     cites           TEXT NOT NULL DEFAULT '[]',
     entities        TEXT NOT NULL DEFAULT '[]',
     has_agent_words INTEGER NOT NULL DEFAULT 0,
+    redacted        INTEGER NOT NULL DEFAULT 0,
     UNIQUE (conversation_id, seq)
 );
+CREATE TABLE chat_turn_memory (
+    turn_id    TEXT NOT NULL REFERENCES chat_turns(id) ON DELETE CASCADE,
+    subject_id TEXT NOT NULL,
+    PRIMARY KEY (turn_id, subject_id)
+) WITHOUT ROWID;
+CREATE INDEX chat_turn_memory_by_subject ON chat_turn_memory(subject_id);
 
 CREATE TABLE ai_log (
     seq            INTEGER PRIMARY KEY AUTOINCREMENT,

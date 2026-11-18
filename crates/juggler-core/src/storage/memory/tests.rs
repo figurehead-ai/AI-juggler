@@ -35,15 +35,14 @@ fn installed_storage() -> Storage {
 }
 
 fn all() -> KindWriter {
-    KindWriter::for_kinds(&[
-        Kind::Preference,
-        Kind::Note,
-        Kind::StandingRequest,
-        Kind::Asked,
-        Kind::Answer,
-        Kind::Digest,
-        Kind::Policy,
-    ])
+    KindWriter::any()
+}
+
+fn session(id: &str) -> EntityRef {
+    EntityRef {
+        kind: EntityKind::Session,
+        id: id.into(),
+    }
 }
 
 fn record(key: &str, kind: Kind, text: &str) -> NewRecord {
@@ -54,17 +53,21 @@ fn record(key: &str, kind: Kind, text: &str) -> NewRecord {
         tier: Tier::Long,
         priority: Priority::Normal,
         authority: Authority::User,
-        text_untrusted: false,
         source: SourceKind::ChatTurn,
         source_id: Some("turn-1".into()),
         engine: None,
         confidence: 1.0,
         as_of_ms: NOW,
         source_rev: None,
-        text: text.to_owned(),
+        text: RecordText::Trusted(text.to_owned()),
         payload: serde_json::json!({}),
         expires_ms: None,
-        entities: Vec::new(),
+        // A preference is a setting: it names an entity.
+        entities: if kind == Kind::Preference {
+            vec![session("s1")]
+        } else {
+            Vec::new()
+        },
     }
 }
 
@@ -94,7 +97,8 @@ fn count(storage: &Storage, sql: &str) -> i64 {
 fn v54_waits_for_v53() {
     assert!(
         crate::storage::MIGRATIONS.len() < 53,
-        "V53 has landed: register memory::V54 in MIGRATIONS now (ADR-0037 §1.7)"
+        "V53 has landed: register memory::V54 in MIGRATIONS now (ADR-0037 §1.7), and un-ignore \
+         backup_restore.rs's a_restore_brings_back_nothing_forgotten_and_no_kept_copy_holds_it"
     );
     let storage = Storage::open_in_memory().unwrap();
     assert!(!installed(&storage.conn).unwrap());
@@ -284,11 +288,53 @@ fn an_in_place_update_is_refused() {
 fn the_write_gate_refuses_and_logs_without_the_text() {
     let storage = installed_storage();
     let memory = storage.memory();
-    let notes_only = KindWriter::for_kinds(&[Kind::Note]);
-    let watch = record("watch:w1", Kind::StandingRequest, "watching api: finishes");
+    // Each owner's writer covers its kinds, authorities and sources only.
+    let writers = Writers::for_tests();
+    let mut watch = record("watch:w1", Kind::StandingRequest, "watching api: finishes");
+    watch.source = SourceKind::WatchesView;
     assert_eq!(
-        refusal(memory.remember(&notes_only, &Secrets, &watch, NOW)),
+        refusal(memory.remember(&writers.memory, &Secrets, &watch, NOW)),
         Some(Refusal::WrongWriter)
+    );
+    let mut as_app = record("note:a", Kind::Note, "a note");
+    as_app.authority = Authority::App;
+    assert_eq!(
+        refusal(memory.remember(&writers.memory, &Secrets, &as_app, NOW)),
+        Some(Refusal::WrongWriter),
+        "the memory writer can't claim the app"
+    );
+    let mut from_digest = record("note:b", Kind::Note, "a note");
+    from_digest.source = SourceKind::DigestJob;
+    assert_eq!(
+        refusal(memory.remember(&writers.memory, &Secrets, &from_digest, NOW)),
+        Some(Refusal::WrongWriter),
+        "nor a digest's source"
+    );
+    let mut user_digest = record("digest:u", Kind::Digest, "a digest");
+    user_digest.source = SourceKind::DigestJob;
+    assert_eq!(
+        refusal(memory.remember(&writers.digest, &Secrets, &user_digest, NOW)),
+        Some(Refusal::WrongWriter),
+        "the digest can't claim the user"
+    );
+    memory
+        .remember(&writers.watches, &Secrets, &watch, NOW)
+        .unwrap();
+    assert!(
+        Writers::issue().is_some() && Writers::issue().is_none(),
+        "issued once"
+    );
+    // A preference is a setting's shape; free words are a note.
+    let mut sentence = record("focus:global", Kind::Preference, &"x".repeat(61));
+    assert_eq!(
+        refusal(memory.remember(&all(), &Secrets, &sentence, NOW)),
+        Some(Refusal::PreferenceShape)
+    );
+    sentence.text = RecordText::Trusted("the api project".into());
+    sentence.entities.clear();
+    assert_eq!(
+        refusal(memory.remember(&all(), &Secrets, &sentence, NOW)),
+        Some(Refusal::PreferenceShape)
     );
     assert_eq!(
         refusal(memory.remember(
@@ -344,7 +390,7 @@ fn the_write_gate_refuses_and_logs_without_the_text() {
         &record("focus:global", Kind::Preference, "the web project"),
     );
     let mut back = inferred.clone();
-    back.text = "the docs project".into();
+    back.text = RecordText::Trusted("the docs project".into());
     assert_eq!(
         refusal(memory.remember(&all(), &Secrets, &back, NOW)),
         Some(Refusal::LowerAuthority)
@@ -380,7 +426,7 @@ fn the_write_gate_refuses_and_logs_without_the_text() {
         .into_iter()
         .filter(|event| event.verb == "refused")
         .collect::<Vec<_>>();
-    assert_eq!(refused.len(), 10);
+    assert_eq!(refused.len(), 15);
     let all_payloads =
         serde_json::to_string(&refused.iter().map(|e| &e.payload).collect::<Vec<_>>()).unwrap();
     assert!(!all_payloads.contains("sk-"));
@@ -593,6 +639,206 @@ fn retrieval_ranks_by_words_priority_and_recency() {
     assert_eq!(fts_query(" \"* "), None);
 }
 
+/// `n` notes written in one transaction, so their index is one segment of
+/// many pages: each holds a long word, `{word}{n:05}q`, and a longer tail.
+fn bulk_notes(storage: &Storage, word: &str, n: usize) {
+    bulk(storage, word, n, usize::MAX);
+}
+
+/// [`bulk_notes`], every `stated`th row a stated preference instead (by
+/// the user, from Settings, naming a session, "web pref {i}"): in the same
+/// segment as the notes, as a store that grew over time has them.
+fn bulk(storage: &Storage, word: &str, n: usize, stated: usize) {
+    let tx = crate::storage::write_transaction(&storage.conn).unwrap();
+    for i in 0..n {
+        let id = format!("bulk-{i}-{}", word.len());
+        let preference = i % stated == stated - 1;
+        let (kind, text) = if preference {
+            ("preference", format!("web pref {i}"))
+        } else {
+            (
+                "note",
+                format!("{word}{i:05}q and a longer tail of other words {i}"),
+            )
+        };
+        tx.execute(
+            "INSERT INTO memory_records (id, subject_key, subject_id, version, kind, scope_kind,
+                 tier, priority, authority, untrusted, source_kind, confidence, as_of_ms, text,
+                 created_ms)
+             VALUES (?1, ?2, ?3, 1, ?4, 'global', 'long', 1, 'user', 0, 'settings', 1, 0,
+                     ?5, 0)",
+            rusqlite::params![
+                id,
+                format!("{kind}:bulk{i}{}", word.len()),
+                format!("sub-{i}-{}", word.len()),
+                kind,
+                text
+            ],
+        )
+        .unwrap();
+        if preference {
+            tx.execute(
+                "INSERT INTO memory_entities (record_id, entity_kind, entity_id)
+                 VALUES (?1, 'session', 's1')",
+                [&id],
+            )
+            .unwrap();
+        }
+    }
+    tx.commit().unwrap();
+}
+
+/// The FTS index's page separators (`memory_fts_idx`) holding `word`.
+fn separators(storage: &Storage, word: &str) -> Vec<String> {
+    let mut stmt = storage
+        .conn
+        .prepare("SELECT term FROM memory_fts_idx")
+        .unwrap();
+    stmt.query_map([], |row| row.get::<_, Vec<u8>>(0))
+        .unwrap()
+        .map(|term| String::from_utf8_lossy(&term.unwrap()).into_owned())
+        .filter_map(|term| term.find(word).map(|at| term[at..].to_owned()))
+        .collect()
+}
+
+/// H1 of the security review: FTS5's `secure-delete` leaves a page's
+/// separator (the prefix of its first term) in `memory_fts_idx`. Forget
+/// rewrites the index, so a forgotten word that started a page is gone
+/// from the index and the file. Fails without the `optimize` in forget.
+#[test]
+fn forget_clears_the_index_page_separators() {
+    const WORD: &str = "diagnosisword";
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("juggler.sqlite");
+    let storage = Storage::open(&path).unwrap();
+    storage.conn.execute_batch(V54).unwrap();
+    bulk_notes(&storage, WORD, 4000);
+    storage
+        .conn
+        .execute_batch("PRAGMA wal_checkpoint(TRUNCATE);")
+        .unwrap();
+    let found = separators(&storage, WORD);
+    assert!(found.len() >= 5, "a multi-page index: {}", found.len());
+    let separator = found[found.len() / 2].clone();
+    assert!(separator.len() > WORD.len() + 2, "{separator}");
+    assert!(
+        spot(&file_bytes(&path), &separator),
+        "the search finds it before"
+    );
+    // Forget every subject whose word the separator starts.
+    let keys: Vec<String> = storage
+        .conn
+        .prepare("SELECT subject_key FROM memory_records WHERE instr(text, ?1) > 0")
+        .unwrap()
+        .query_map([&separator], |row| row.get(0))
+        .unwrap()
+        .collect::<Result<_, _>>()
+        .unwrap();
+    assert!(!keys.is_empty());
+    for key in &keys {
+        storage.memory().forget(key, &Actor::User, NOW).unwrap();
+    }
+    assert!(
+        !separators(&storage, WORD)
+            .iter()
+            .any(|s| s.starts_with(&separator)),
+        "the separator is still in the index"
+    );
+    storage
+        .conn
+        .execute_batch("INSERT INTO memory_fts(memory_fts) VALUES ('integrity-check')")
+        .unwrap();
+    drop(storage);
+    assert!(
+        !spot(&file_bytes(&path), &separator),
+        "the separator {separator} is still in the file"
+    );
+}
+
+/// H1 of the security review, the backups: the cloud copy, a filtered
+/// export rebuilt by the backup's own steps, holds no local-only or
+/// forgotten word, not even as an index separator; a local backup holds
+/// no forgotten one (fails without the scrub's fresh index).
+#[test]
+fn the_cloud_copy_holds_no_local_only_or_forgotten_word() {
+    const LOCAL: &str = "localonlyword";
+    const FORGOTTEN: &str = "forgottencanary";
+    let dir = tempfile::tempdir().unwrap();
+    let live_path = dir.path().join("live.sqlite");
+    let live = Storage::open(&live_path).unwrap();
+    live.conn.execute_batch(V54).unwrap();
+    bulk(&live, LOCAL, 3000, 50);
+    let gone = remember(
+        &live,
+        &record("note:gone", Kind::Note, &format!("{FORGOTTEN} words")),
+    );
+    live.conn
+        .execute(
+            "INSERT INTO memory_forgotten (subject_id, forgotten_ms) VALUES (?1, 1)",
+            [&gone.subject_id],
+        )
+        .unwrap();
+    let mut watch = record("watch:w1", Kind::StandingRequest, "watching web: finishes");
+    watch.source = SourceKind::WatchesView;
+    remember(&live, &watch);
+    let mut alias = record("alias:session:s1", Kind::Preference, "the web agent");
+    alias.source = SourceKind::Settings;
+    remember(&live, &alias);
+    // A forgotten word that starts an index page (a restored older copy
+    // still holds it, with this Mac's tombstone).
+    let found = separators(&live, LOCAL);
+    assert!(found.len() >= 3, "a multi-page index");
+    let separator = found[found.len() / 2].clone();
+    live.conn
+        .execute(
+            "INSERT INTO memory_forgotten (subject_id, forgotten_ms)
+             SELECT subject_id, 1 FROM memory_records WHERE instr(text, ?1) > 0",
+            [&separator],
+        )
+        .unwrap();
+
+    for (name, dest) in [
+        ("cloud.sqlite", Destination::Cloud),
+        ("local.sqlite", Destination::Local),
+    ] {
+        let path = dir.path().join(name);
+        live.snapshot_to(&path).unwrap();
+        let copy = Storage::open(&path).unwrap();
+        scrub_snapshot(&copy.conn, dest).unwrap();
+        // The app's own last steps (`backup::scrub`).
+        copy.conn
+            .execute_batch("PRAGMA wal_checkpoint(TRUNCATE); PRAGMA journal_mode = DELETE; VACUUM;")
+            .unwrap();
+        copy.conn
+            .execute_batch("INSERT INTO memory_fts(memory_fts) VALUES ('integrity-check')")
+            .unwrap();
+        assert_eq!(
+            count(
+                &copy,
+                "SELECT COUNT(*) FROM memory_fts WHERE memory_fts MATCH '\"web\"'"
+            ),
+            62,
+            "{name}: the stated settings are found"
+        );
+        if dest == Destination::Cloud {
+            assert!(separators(&copy, LOCAL).is_empty());
+            assert_eq!(count(&copy, "SELECT COUNT(*) FROM memory_records"), 62);
+        }
+        drop(copy);
+        let bytes = file_bytes(&path);
+        assert!(!spot(&bytes, FORGOTTEN), "{name} holds the forgotten word");
+        assert!(
+            !spot(&bytes, &separator),
+            "{name} holds the forgotten separator {separator}"
+        );
+        assert_eq!(
+            spot(&bytes, LOCAL),
+            dest == Destination::Local,
+            "{name}: local-only words go to local backups only"
+        );
+    }
+}
+
 fn spot(bytes: &[u8], needle: &str) -> bool {
     bytes
         .windows(needle.len())
@@ -617,18 +863,45 @@ fn forget_leaves_no_trace_in_the_file() {
     let path = dir.path().join("juggler.sqlite");
     let storage = Storage::open(&path).unwrap();
     storage.conn.execute_batch(V54).unwrap();
-    // Neighbours on the same pages, so the forgotten cells sit among live ones.
-    for n in 0..30 {
-        remember(
-            &storage,
-            &record(&format!("note:n{n}"), Kind::Note, &format!("keep note {n}")),
-        );
-    }
+    // Neighbours on the same pages, so the forgotten cells sit among live
+    // ones; enough long words for an index of many pages.
+    bulk_notes(&storage, "keep note neighbourword", 3000);
+    // The conversation the note came from, and one that used it.
+    storage
+        .conn
+        .execute_batch(&format!(
+            "INSERT INTO chat_conversations (id, started_ms, last_ms, title, title_turn) VALUES
+                 ('c1', 1, 4, 'remember {CANARY} for payments', 't1'),
+                 ('c2', 1, 1, 'is {CANARY} stuck?', 't3');
+             INSERT INTO chat_turns (id, conversation_id, seq, at_ms, question, outcome, shown) VALUES
+                 ('t1', 'c1', 1, 1, 'remember {CANARY} for payments', 'remembered',
+                  'I''ll remember: {CANARY} for payments'),
+                 ('t2', 'c1', 2, 2, 'how is web', 'rows', NULL),
+                 ('t4', 'c1', 3, 3, 'and {CANARY} again?', 'rows', 'about {CANARY}'),
+                 ('t3', 'c2', 1, 1, 'is {CANARY} stuck?', 'rows', NULL);"
+        ))
+        .unwrap();
     let key = format!("note:{KEY_CANARY}");
-    remember(
-        &storage,
-        &record(&key, Kind::Note, &format!("remember {CANARY} for payments")),
-    );
+    let mut from_turn = record(&key, Kind::Note, &format!("remember {CANARY} for payments"));
+    from_turn.source_id = Some("t1".into());
+    let first = remember(&storage, &from_turn);
+    storage.memory().link_turn("t4", &first.subject_id).unwrap();
+    let mut turn_event = NewEvent::new(NOW, Stream::Chat, "turn", Actor::App);
+    turn_event.subject = Some(("turn", "t4".into()));
+    storage
+        .ai_log()
+        .append(
+            &turn_event,
+            Some((
+                &NewSidecar {
+                    body: &format!("the turn quoted {CANARY}"),
+                    untrusted: false,
+                    expires_ms: NOW + DAY,
+                },
+                &Secrets,
+            )),
+        )
+        .unwrap();
     let edited = remember(
         &storage,
         &record(
@@ -643,6 +916,7 @@ fn forget_leaves_no_trace_in_the_file() {
         &format!("is {CANARY} stuck?"),
     );
     asked.authority = Authority::App;
+    asked.source_id = Some("t3".into());
     remember(&storage, &asked);
     let mut answer = record(
         &format!("answer:{KEY_CANARY}"),
@@ -689,7 +963,16 @@ fn forget_leaves_no_trace_in_the_file() {
         .memory()
         .forget(&key, &Actor::User, NOW + 1)
         .unwrap();
-    assert_eq!((gone.subjects, gone.versions, gone.sidecars), (1, 2, 1));
+    assert_eq!(
+        (
+            gone.subjects,
+            gone.versions,
+            gone.sidecars,
+            gone.turns,
+            gone.titles
+        ),
+        (1, 2, 2, 2, 1)
+    );
     assert!(gone.wal_folded);
     let asked_gone = storage
         .memory()
@@ -700,6 +983,31 @@ fn forget_leaves_no_trace_in_the_file() {
         (2, 2),
         "asked takes its answer"
     );
+    // The turns it came from or was used in are redacted; a title taken
+    // from one is renamed from what's left, else neutral.
+    let turns = |sql: &str| -> Vec<(String, String)> {
+        let mut stmt = storage.conn.prepare(sql).unwrap();
+        stmt.query_map([], |row| Ok((row.get(0)?, row.get(1)?)))
+            .unwrap()
+            .collect::<Result<_, _>>()
+            .unwrap()
+    };
+    assert_eq!(
+        turns("SELECT id, question FROM chat_turns WHERE redacted = 1 ORDER BY id"),
+        [("t1", ""), ("t3", ""), ("t4", "")].map(|(a, b)| (a.to_owned(), b.to_owned()))
+    );
+    assert_eq!(
+        turns("SELECT id, title FROM chat_conversations ORDER BY id"),
+        [("c1", "how is web"), ("c2", NEUTRAL_TITLE)].map(|(a, b)| (a.to_owned(), b.to_owned()))
+    );
+    assert_eq!(
+        count(
+            &storage,
+            "SELECT COUNT(*) FROM chat_turns WHERE shown IS NOT NULL"
+        ),
+        0
+    );
+    assert_eq!(count(&storage, "SELECT COUNT(*) FROM chat_turn_memory"), 0);
 
     assert_eq!(
         count(
@@ -723,7 +1031,7 @@ fn forget_leaves_no_trace_in_the_file() {
             &storage,
             "SELECT COUNT(*) FROM memory_fts WHERE memory_fts MATCH '\"keep\"'"
         ),
-        30,
+        3000,
         "the neighbours are still found"
     );
     storage
@@ -918,6 +1226,26 @@ fn backup_inclusion_follows_the_rule() {
             .conn
             .execute("UPDATE memory_records SET text = 'x'", [])
             .is_err()
+    );
+
+    // AI Juggler's own copy (before an update): no memory at all.
+    let own = snapshot(&live, dir.path(), "own.sqlite");
+    scrub_snapshot(&own.conn, Destination::OwnCopy).unwrap();
+    for table in [
+        "memory_records",
+        "memory_entities",
+        "chat_turns",
+        "ai_log_text",
+    ] {
+        assert_eq!(
+            count(&own, &format!("SELECT COUNT(*) FROM {table}")),
+            0,
+            "{table}"
+        );
+    }
+    assert!(
+        count(&own, "SELECT COUNT(*) FROM ai_log") > 0,
+        "the spine holds no words"
     );
 
     // A restore on this Mac drops what this Mac forgot.
