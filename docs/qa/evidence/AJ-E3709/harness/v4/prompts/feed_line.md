@@ -76,32 +76,32 @@ Fill the fields for the MESSAGE above. Use only its words and the FACTS, keep an
  "properties": [
   {
    "name": "action",
-   "description": "What the agent did: its main verb from the message, past tense. At most 30 characters.",
+   "description": "What the agent did: its main verb from the message, past tense. At most 30 characters. Write in Latin script only.",
    "schema": {
     "type": "string",
     "max": 30,
     "min": 1,
-    "description": "What the agent did: its main verb from the message, past tense. At most 30 characters."
+    "description": "What the agent did: its main verb from the message, past tense. At most 30 characters. Write in Latin script only."
    }
   },
   {
    "name": "object",
-   "description": "What it acted on, in the message's words. At most 70 characters.",
+   "description": "What it acted on, in the message's words. At most 70 characters. Write in Latin script only.",
    "schema": {
     "type": "string",
     "max": 70,
     "min": 1,
-    "description": "What it acted on, in the message's words. At most 70 characters."
+    "description": "What it acted on, in the message's words. At most 70 characters. Write in Latin script only."
    }
   },
   {
    "name": "result",
-   "description": "The outcome the message states, or none. At most 50 characters.",
+   "description": "The outcome the message states, or none. At most 50 characters. Write in Latin script only.",
    "schema": {
     "type": "string",
     "max": 50,
     "min": 1,
-    "description": "The outcome the message states, or none. At most 50 characters."
+    "description": "The outcome the message states, or none. At most 50 characters. Write in Latin script only."
    }
   },
   {
@@ -122,12 +122,12 @@ Fill the fields for the MESSAGE above. Use only its words and the FACTS, keep an
   },
   {
    "name": "caveat",
-   "description": "The message's own words for the caveat, or none. At most 60 characters.",
+   "description": "The message's own words for the caveat, or none. At most 60 characters. Write in Latin script only.",
    "schema": {
     "type": "string",
     "max": 60,
     "min": 1,
-    "description": "The message's own words for the caveat, or none. At most 60 characters."
+    "description": "The message's own words for the caveat, or none. At most 60 characters. Write in Latin script only."
    }
   }
  ]
@@ -139,7 +139,7 @@ Fill the fields for the MESSAGE above. Use only its words and the FACTS, keep an
 ```gbnf
 root ::= feedline-obj
 ws ::= [ \t\n]{0,8}
-ch ::= [^"\\\x00-\x1F\x7F\u02C6\u2028-\u2029\u3000-\u9FFF\uAC00-\uD7AF\uF900-\uFAFF\uFF00-\uFFEF]
+ch ::= [\x20-\x21\x23-\x5B\x5D-\x7E\xA0-\xAC\xAE-\u024F\u0300-\u036F\u1E00-\u1EFF\u2010-\u2027\u2030-\u205E\u20A0-\u20C0]
 str1x30 ::= "\"" ch{1,30} "\""
 str1x70 ::= "\"" ch{1,70} "\""
 str1x50 ::= "\"" ch{1,50} "\""

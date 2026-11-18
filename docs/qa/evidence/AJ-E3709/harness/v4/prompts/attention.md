@@ -74,12 +74,12 @@ Suggest whether this turn needs the developer. Copy the evidence exactly, and ne
  "properties": [
   {
    "name": "evidence",
-   "description": "The exact words from the message that show it, copied, or none. At most 100 characters.",
+   "description": "The exact words from the message that show it, copied, or none. At most 100 characters. Write in Latin script only.",
    "schema": {
     "type": "string",
     "max": 100,
     "min": 1,
-    "description": "The exact words from the message that show it, copied, or none. At most 100 characters."
+    "description": "The exact words from the message that show it, copied, or none. At most 100 characters. Write in Latin script only."
    }
   },
   {
@@ -121,7 +121,7 @@ Suggest whether this turn needs the developer. Copy the evidence exactly, and ne
 ```gbnf
 root ::= attention-obj
 ws ::= [ \t\n]{0,8}
-ch ::= [^"\\\x00-\x1F\x7F\u02C6\u2028-\u2029\u3000-\u9FFF\uAC00-\uD7AF\uF900-\uFAFF\uFF00-\uFFEF]
+ch ::= [\x20-\x21\x23-\x5B\x5D-\x7E\xA0-\xAC\xAE-\u024F\u0300-\u036F\u1E00-\u1EFF\u2010-\u2027\u2030-\u205E\u20A0-\u20C0]
 str1x100 ::= "\"" ch{1,100} "\""
 attention-reason-enum ::= "\"asks_question\"" | "\"asks_approval\"" | "\"reports_failure\"" | "\"blocked\"" | "\"not_verified\"" | "\"work_done\"" | "\"nothing_to_review\""
 attention-suggest-enum ::= "\"needs_you\"" | "\"can_wait\"" | "\"unclear\""

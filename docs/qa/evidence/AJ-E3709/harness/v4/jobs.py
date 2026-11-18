@@ -19,7 +19,7 @@ What lives here, and nowhere else (the runner, the report and prompts/*.md read 
   - the per-model sampling (SAMPLING) and the context budget (Apple: 4,096 tokens in all).
 
 `python3 jobs.py --selftest` runs the self-tests; `python3 jobs.py --write-prompts` regenerates prompts/<job>.md."""
-import hashlib, json, math, os, re, sys, unicodedata
+import bisect, functools, hashlib, json, math, os, re, sys, unicodedata
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.dirname(HERE))          # harness/: gate.py (frozen, eval-3), gate_v4.py (A's excerpt, eval-4), checks.py
@@ -140,13 +140,102 @@ def chat_schema(refs):
         ("parts", A(O("Part", [("text", S(160, 1, "One claim, one sentence, at most 160 characters.")),
                                ("cites", A(E(refs), 2, 1, "The refs this claim rests on, 1 or 2."))]), 3, 0,
                     "The answer, at most 3 claims; empty when covered is no or out_of_scope."))])
-def schema_for(job, refs=None):
-    return chat_schema(refs or ["r1"]) if job == "chat" else SCHEMA[job]
+def schema_for(job, refs=None, source=None):
+    """the job's schema with each string field's guide naming the scripts it may use (Apple reads a property's description as its
+    guide; its pattern guides are unsupported on macOS 27.0.1, so the description says it and the checks enforce it)"""
+    return with_script_guide(chat_schema(refs or ["r1"]) if job == "chat" else SCHEMA[job], source)
 
-# ---------- GBNF (llama.cpp). Every string is bounded (x{m,n}, never repeated x?); no quotation mark, backslash, control
-# character, DATAMARK, line separator or CJK/Hangul/full-width character inside a field (v3: Qwen mixed Chinese into 57 lines).
-GB_CHAR = r'[^"\\\x00-\x1F\x7F\u02C6\u2028-\u2029\u3000-\u9FFF\uAC00-\uD7AF\uF900-\uFAFF\uFF00-\uFFEF]'   # GBNF escapes (llama.cpp's parser and GbnfMatcher read \x and \u)
-def gbnf(schema):
+# ======================================================================================================================
+# Scripts: a field may use Latin (with its diacritics) and common punctuation, plus the scripts and characters the source itself
+# uses, and nothing else (v3: Qwen mixed Chinese into 57 lines; v4: a Cyrillic letter in an English line, while only CJK was
+# banned). Built per call from the source text: a Russian text allows Cyrillic, an English or German one does not. Never, whatever
+# the source holds: the quotation mark and backslash (the grammar's own syntax), DATAMARK, control and format characters (zero-
+# width, bidi overrides), private use, surrogates, line and paragraph separators.
+# ======================================================================================================================
+BASE_RANGES = ((0x20, 0x7E), (0xA0, 0x24F), (0x300, 0x36F), (0x1E00, 0x1EFF), (0x2010, 0x2027), (0x2030, 0x205E), (0x20A0, 0x20C0))
+CJK_PUNCT = ((0x3000, 0x303F), (0xFF01, 0xFFEF))
+SCRIPT_RANGES = {        # a script any letter, mark or digit of the source belongs to (unicodedata's name) is allowed whole
+    "GREEK": ((0x370, 0x3FF), (0x1F00, 0x1FFF)),
+    "CYRILLIC": ((0x400, 0x52F), (0x1C80, 0x1C8F), (0x2DE0, 0x2DFF), (0xA640, 0xA69F)),
+    "ARMENIAN": ((0x531, 0x58F),), "HEBREW": ((0x591, 0x5F4), (0xFB1D, 0xFB4F)),
+    "ARABIC": ((0x600, 0x6FF), (0x750, 0x77F), (0x8A0, 0x8FF), (0xFB50, 0xFDFF), (0xFE70, 0xFEFF)),
+    "DEVANAGARI": ((0x900, 0x97F),), "BENGALI": ((0x980, 0x9FF),), "TAMIL": ((0xB80, 0xBFF),), "THAI": ((0xE00, 0xE7F),),
+    "GEORGIAN": ((0x10A0, 0x10FF), (0x2D00, 0x2D2F)),
+    "HANGUL": ((0x1100, 0x11FF), (0x3130, 0x318F), (0xAC00, 0xD7AF)) + CJK_PUNCT,
+    "HIRAGANA": ((0x3040, 0x309F),) + CJK_PUNCT, "KATAKANA": ((0x30A0, 0x30FF), (0x31F0, 0x31FF)) + CJK_PUNCT,
+    "CJK": ((0x2E80, 0x2FDF), (0x3400, 0x4DBF), (0x4E00, 0x9FFF), (0xF900, 0xFAFF)) + CJK_PUNCT,
+}
+SCRIPT_NAMES = {"CJK": "Han"}
+NEVER_CHARS = {'"', "\\", DATAMARK}
+NEVER_CATS = {"Cc", "Cf", "Cs", "Co", "Zl", "Zp"}
+def _ok_char(cp): return chr(cp) not in NEVER_CHARS and unicodedata.category(chr(cp)) not in NEVER_CATS
+def _compress(cps):
+    out = []
+    for c in sorted(cps):
+        if out and c == out[-1][1] + 1: out[-1][1] = c
+        else: out.append([c, c])
+    return tuple((a, b) for a, b in out)
+BASE = _compress({c for lo, hi in BASE_RANGES for c in range(lo, hi + 1) if _ok_char(c)})
+def _in(cp, ranges):
+    i = bisect.bisect_right(ranges, (cp, 0x10FFFF)) - 1
+    return i >= 0 and ranges[i][0] <= cp <= ranges[i][1]
+def _script(ch):
+    if unicodedata.category(ch)[0] not in "LMN": return None
+    w = re.split(r"[ -]", unicodedata.name(ch, ""), 1)[0]
+    return w if w in SCRIPT_RANGES else None
+def source_scripts(source):
+    """-> (the other scripts the source's letters use, every other character it uses): beyond BASE only"""
+    scripts, extra = set(), set()
+    src = source or ""
+    for ch in set(src + unicodedata.normalize("NFC", src)):
+        if _in(ord(ch), BASE): continue
+        sc = _script(ch)
+        if sc: scripts.add(sc)
+        elif _ok_char(ord(ch)): extra.add(ord(ch))
+    return tuple(sorted(scripts)), tuple(sorted(extra))
+@functools.lru_cache(maxsize=64)
+def _allowed(scripts, extra):
+    cps = {c for s in scripts for lo, hi in SCRIPT_RANGES[s] for c in range(lo, hi + 1) if _ok_char(c)} | set(extra)
+    return _compress(cps | {c for lo, hi in BASE for c in range(lo, hi + 1)})
+def allowed_ranges(source): return _allowed(*source_scripts(source))
+def script_names(source): return ["Latin"] + [SCRIPT_NAMES.get(s, s.title()) for s in source_scripts(source)[0]]
+def script_guide(source):
+    n = script_names(source)
+    return "Write in " + (n[0] if len(n) == 1 else ", ".join(n[:-1]) + " or " + n[-1]) + " script only."
+def with_script_guide(schema, source):
+    """a copy of the schema whose string fields (and arrays of strings) carry the guide in their descriptions"""
+    guide = script_guide(source)
+    def walk(node):
+        node = dict(node)
+        if node["type"] == "object":
+            props = []
+            for p in node["properties"]:
+                sch = walk(p["schema"]); p = dict(p, schema=sch)
+                if sch["type"] == "string" or (sch["type"] == "array" and sch["items"]["type"] == "string"):
+                    p["description"] = (p["description"] + " " + guide).strip(); sch["description"] = p["description"]
+                props.append(p)
+            node["properties"] = props
+        elif node["type"] == "array": node["items"] = walk(node["items"])
+        return node
+    return walk(schema)
+def foreign_letters(text, source):
+    """-> the letters, marks and digits of `text` outside the source's scripts (Apple has no grammar: this check enforces it)"""
+    ok = allowed_ranges(source)
+    return sorted({ch for ch in (text or "") if unicodedata.category(ch)[0] in "LMN" and not _in(ord(ch), ok)})
+def fields_foreign(fields, source):
+    def strings(o):
+        if isinstance(o, str): return [o]
+        if isinstance(o, list): return [x for v in o for x in strings(v)]
+        if isinstance(o, dict): return [x for v in o.values() for x in strings(v)]
+        return []
+    return sorted({ch for t in strings(fields) for ch in foreign_letters(t, source)})
+def message_source(ctx, facts, hide=False): return ctx["cleaned"] + "\n" + facts_block(facts, hide)
+
+# ---------- GBNF (llama.cpp). Every string is bounded (x{m,n}, never repeated x?); its characters are the source's allowed class
+# above, written as escapes (llama.cpp's parser and GbnfMatcher read \x, \u and \U).
+def _gb_esc(c): return f"\\x{c:02X}" if c < 0x100 else f"\\u{c:04X}" if c < 0x10000 else f"\\U{c:08X}"
+def gb_class(ranges): return "[" + "".join(_gb_esc(a) if a == b else _gb_esc(a) + "-" + _gb_esc(b) for a, b in ranges) + "]"
+def gbnf(schema, source=None):
     rules = {}; order = []
     def add(name, body):
         if name not in rules: rules[name] = body; order.append(name)
@@ -169,7 +258,7 @@ def gbnf(schema):
             return add(path + "-obj", '"{"' + "".join(parts) + ' ws "}"')
         raise ValueError(t)
     root = node(schema, schema.get("name", "root").lower())
-    out = [f"root ::= {root}", "ws ::= [ \\t\\n]{0,8}", f"ch ::= {GB_CHAR}"]
+    out = [f"root ::= {root}", "ws ::= [ \\t\\n]{0,8}", f"ch ::= {gb_class(allowed_ranges(source))}"]
     return "\n".join(out + [f"{n} ::= {rules[n]}" for n in order]) + "\n"
 
 class GbnfMatcher:
@@ -204,6 +293,7 @@ class GbnfMatcher:
         c = s.src[s.i]; s.i += 1
         if c == "x": v = int(s.src[s.i:s.i + 2], 16); s.i += 2; return chr(v)
         if c == "u": v = int(s.src[s.i:s.i + 4], 16); s.i += 4; return chr(v)
+        if c == "U": v = int(s.src[s.i:s.i + 8], 16); s.i += 8; return chr(v)
         return {"n": "\n", "t": "\t", "r": "\r"}.get(c, c)
     def _atom(s):
         c = s.src[s.i]
@@ -536,15 +626,16 @@ def fit_prompt(job, build, sys_text, schema):
     return p, fixed + est_tokens(p), cut
 
 def request(job, ctx=None, facts=None, key="", mark=True, hide_facts=False, chat_item=None, n_examples=None):
-    """-> (system, prompt, schema, grammar, max_tokens, est_tokens, cut). One call, one job."""
+    """-> (system, prompt, schema, grammar, max_tokens, est_tokens, cut). One call, one job. The schema's guides and the grammar's
+    character class are built from this call's source (the text and its facts; Chat: the question and the rows)."""
     sys_text = instructions(job, mark, n_examples)
     if job == "chat":
-        refs = [r["ref"] for r in chat_item["rows"]]; schema = chat_schema(refs)
+        refs = [r["ref"] for r in chat_item["rows"]]; src = chat_source(chat_item); schema = schema_for("chat", refs, src)
         prompt = chat_prompt(chat_item, mark); total = est_tokens(sys_text) + est_tokens(json.dumps(schema)) + MAX_OUTPUT[job] + est_tokens(prompt); cut = False
     else:
-        schema = SCHEMA[job]
+        src = message_source(ctx, facts, hide_facts); schema = schema_for(job, source=src)
         prompt, total, cut = fit_prompt(job, lambda mx: message_prompt(job, ctx, facts, key, mark, hide_facts, mx), sys_text, schema)
-    return sys_text, prompt, schema, gbnf(schema), MAX_OUTPUT[job], total, cut
+    return sys_text, prompt, schema, gbnf(schema, src), MAX_OUTPUT[job], total, cut
 
 # ======================================================================================================================
 # Sampling per model (research §2; the coordinating session's sweep rule: the card's values against a low temperature, on the
@@ -658,6 +749,8 @@ def feed_line_outcome(ctx, facts, fields, finish="stop", refused=False, route=Tr
     if route and ctx["lang"] is None: return {**base, "shown": exc, "kind": "excerpt_routed", "notes": ["no word lists for the language"]}
     if ctx["removed"]: return {**base, "shown": exc, "kind": "excerpt", "notes": ["the guard removed a sentence: no written line"]}
     if fields is None: return {**base, "shown": exc, "kind": "excerpt", "notes": ["no valid fields"]}
+    bad = fields_foreign(fields, message_source(ctx, facts))
+    if bad: return {**base, "shown": exc, "kind": "excerpt", "notes": ["a letter outside the text's scripts: " + "".join(bad)]}
     line, notes = compose_feed_line(fields, ctx)
     if line is None: return {**base, "shown": exc, "kind": "excerpt", "notes": notes}
     g, shown, quoted = gate.gate_v3(ctx, line, facts, finish, refused, unknown_rule)
@@ -860,6 +953,8 @@ def review_checks(fields, ctx, facts):
     errs = []; F = gate.facts_norm(facts); lang = ctx.get("lang")
     lines, _notes, items = compose_review(fields, ctx, facts)
     if not fields.get("changed"): errs.append("changed: empty")
+    bad = fields_foreign(fields, message_source(ctx, facts))
+    if bad: errs.append("a letter outside the text's scripts: " + "".join(bad))
     for it in items:
         for e in text_checks(ctx["cleaned"], it, facts, ctx["removed"], lang): errs.append(f"{it[:40]!r}: {e}")
         if len(it) > 135: errs.append(f"{it[:40]!r}: over 135 characters")
@@ -1008,6 +1103,7 @@ STATE_FAMILY = {"finished": {"finished", "done", "completed", "complete", "ended
                 "needs you": {"waiting", "asks", "asked", "asking", "question", "needs"}}
 def _row_text(r):
     return row_line(r) + "\n" + (r.get("words") or "")
+def chat_source(item): return item["question"] + "\n" + "\n".join(_row_text(r) for r in item["rows"])
 def compose_chat(fields, item):
     """-> {kind: answer|dont_know|not_sure|scope, text, refs}. Links come from refs only; the fixed sentences are the app's."""
     if fields is None: return {"kind": "not_sure", "text": FIXED["not_sure"], "refs": [r["ref"] for r in item["rows"]]}
@@ -1027,6 +1123,8 @@ def chat_checks(fields, item):
     if fields is None: return ["no valid fields"]
     if fields.get("covered") in ("no", "out_of_scope"):
         return []
+    bad = fields_foreign(fields, chat_source(item))
+    if bad: errs.append("a letter outside the records' scripts: " + "".join(bad))
     words = 0
     for p in fields.get("parts") or []:
         t = _tidy(p.get("text", "")); words += len(t.split())
@@ -1149,6 +1247,51 @@ def selftest():
     check("review: the grammar rejects no changed item", not Mr.accepts(to_grammar_json({**EXAMPLES["review"][0]["out"], "changed": []})))
     check("feed_line: German umlauts and backticks pass the character class", GbnfMatcher(gbnf(SCHEMA["feed_line"])).accepts(
         to_grammar_json({**EXAMPLES["feed_line"][0]["out"], "object": "die Prüfung für `löschen()`"})))
+    # ---- every grammar bans scripts other than the source's own (fresh made-up texts)
+    EN = "Moved the ferret export into lib/ferret.py and updated its two callers."
+    DE = "Ich habe den Export der Frettchen-Liste nach lib/frettchen.py verschoben und die Größenprüfung ergänzt."
+    RU = "Перенёс экспорт хорька в lib/ferret.py и обновил два вызова."
+    ZH = "已将雪貂导出移到 lib/ferret.py。"
+    good = EXAMPLES["feed_line"][0]["out"]
+    def fl(src, **kw): return GbnfMatcher(gbnf(SCHEMA["feed_line"], src)).accepts(to_grammar_json({**good, **kw}))
+    cyr = "moved the еxport"                       # a Cyrillic "е" (U+0435) in an English phrase
+    for name, src in (("English", EN), ("German", DE), ("no", None)):
+        check(f"scripts: a Cyrillic letter in a field is rejected for {name} source", not fl(src, object=cyr), gbnf(SCHEMA["feed_line"], src).split("\n")[2])
+        check(f"scripts: a Han character in a field is rejected for {name} source", not fl(src, object="moved the 导出"))
+        check(f"scripts: German umlauts and ß are allowed for {name} source", fl(src, object="die Größenprüfung für Übergänge"))
+    check("scripts: Cyrillic is allowed for a Russian text", fl(RU, object="экспорт хорька в lib/ferret.py"), gbnf(SCHEMA["feed_line"], RU).split("\n")[2])
+    check("scripts: umlauts stay allowed for a Russian text", fl(RU, object="die Größenprüfung"))
+    check("scripts: a Russian text still bans Han, the datamark and the quotation mark", not fl(RU, object="экспорт 导出")
+          and not fl(RU, object="экспорт" + DATAMARK + "хорька") and not fl(RU, object='экспорт \\"x'))
+    check("scripts: a Russian text allows no Greek", not fl(RU, object="экспорт α"))
+    check("scripts: Han is allowed for a Chinese text, with its full-width punctuation", fl(ZH, object="雪貂导出。"))
+    check("scripts: a symbol the source uses is allowed (beyond the BMP too), not otherwise",
+          fl(EN + " Tests pass ✅ 🎉", result="tests pass ✅ 🎉") and not fl(EN, result="tests pass ✅") and not fl(EN, result="tests pass 🎉"))
+    check("scripts: zero-width and bidi characters stay banned even when the source holds them",
+          not fl(EN + " a\u200bb \u202e", object="moved\u200bthe export") and not fl(EN + " \u202e", object="moved \u202ethe export"))
+    check("scripts: Latin punctuation (dashes, curly quotes, ellipsis, euro) is allowed", fl(EN, object="the ‘ferret’ export – done… €5"))
+    check("scripts: the guide names the scripts per source", script_guide(EN) == "Write in Latin script only." and script_guide(DE) == script_guide(EN)
+          and script_guide(RU) == "Write in Latin or Cyrillic script only.", (script_guide(EN), script_guide(RU)))
+    sr = schema_for("review", source=RU); sc = schema_for("chat", ["r1"], RU)
+    check("scripts: Apple's guides (property descriptions) carry it on every string field",
+          all(p["description"].endswith("Write in Latin or Cyrillic script only.") for p in sr["properties"] if p["name"] != "risk")
+          and not sr["properties"][-1]["description"].endswith("only.") and sc["properties"][1]["schema"]["items"]["properties"][0]["description"].endswith("Cyrillic script only."),
+          [p["description"] for p in sr["properties"]])
+    check("scripts: the base schema is not changed", not any("script only" in p["description"] for p in SCHEMA["review"]["properties"]))
+    for name, src, ok in (("English", EN, False), ("Russian", RU, True)):
+        g = request("review", gate.prepare(src), EX_FACTS["calm_note"], "s")[3]
+        check(f"scripts: request()'s grammar for a {name} text {'accepts' if ok else 'rejects'} Cyrillic", GbnfMatcher(g).accepts(
+              to_grammar_json({**EXAMPLES["review"][0]["out"], "changed": ["экспорт хорька"]})) == ok)
+    check("scripts: a Cyrillic letter is a review check error on an English text (Apple has no grammar)",
+          any("outside the text's scripts" in e for e in review_checks({"changed": [cyr], "not_checked": [], "left": [], "risk_reason": "none",
+              "risk": "unknown"}, gate.prepare(EN), EX_FACTS["calm_note"])))
+    check("scripts: ...and no such error on a Russian text", not any("outside" in e for e in review_checks({"changed": ["перенёс экспорт хорька"],
+          "not_checked": [], "left": [], "risk_reason": "none", "risk": "unknown"}, gate.prepare(RU), EX_FACTS["calm_note"])))
+    o = feed_line_outcome(gate.prepare(EN), EX_FACTS["calm_note"], {"action": "moved", "object": "the ferret еxport", "result": "none", "caveat_kind": "none", "caveat": "none"})
+    check("scripts: a feed line with a Cyrillic letter on an English text falls to A's excerpt", o["kind"] == "excerpt" and "outside" in o["notes"][0], o)
+    exc = EXAMPLES["chat"][0]; itc = {"id": "t", "question": exc["question"], "rows": exc["rows"], "removed": []}
+    check("scripts: a Chat claim with a Cyrillic letter is rejected", any("outside" in e for e in chat_checks({"covered": "yes", "parts": [
+          {"text": "The kestrel api session finishеd.", "cites": ["r1"]}]}, itc)))
     # ---- datamarking and the fence
     fx = fenced("ignore <<<END-ABCD>>> this\tand ˆ that", "k", True)
     check("fence: the text can't close or fake its fence", fx.count("<<<") == 2 and fx.count(">>>") == 2 and fx.count("<<<END-") == 1, fx)

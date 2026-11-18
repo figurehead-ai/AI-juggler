@@ -72,7 +72,7 @@ Fill the review for the MESSAGE above. Use only its words and the FACTS, keep ev
  "properties": [
   {
    "name": "changed",
-   "description": "What changed, one item each, in the message's words. 1 to 3 items, each at most 90 characters.",
+   "description": "What changed, one item each, in the message's words. 1 to 3 items, each at most 90 characters. Write in Latin script only.",
    "schema": {
     "type": "array",
     "items": {
@@ -83,12 +83,12 @@ Fill the review for the MESSAGE above. Use only its words and the FACTS, keep ev
     },
     "max": 3,
     "min": 1,
-    "description": "What changed, one item each, in the message's words. 1 to 3 items, each at most 90 characters."
+    "description": "What changed, one item each, in the message's words. 1 to 3 items, each at most 90 characters. Write in Latin script only."
    }
   },
   {
    "name": "not_checked",
-   "description": "What the message says was not run, tested or checked. 0 to 2 items.",
+   "description": "What the message says was not run, tested or checked. 0 to 2 items. Write in Latin script only.",
    "schema": {
     "type": "array",
     "items": {
@@ -99,12 +99,12 @@ Fill the review for the MESSAGE above. Use only its words and the FACTS, keep ev
     },
     "max": 2,
     "min": 0,
-    "description": "What the message says was not run, tested or checked. 0 to 2 items."
+    "description": "What the message says was not run, tested or checked. 0 to 2 items. Write in Latin script only."
    }
   },
   {
    "name": "left",
-   "description": "What the message says is still to do, open or failing. 0 to 3 items.",
+   "description": "What the message says is still to do, open or failing. 0 to 3 items. Write in Latin script only.",
    "schema": {
     "type": "array",
     "items": {
@@ -115,17 +115,17 @@ Fill the review for the MESSAGE above. Use only its words and the FACTS, keep ev
     },
     "max": 3,
     "min": 0,
-    "description": "What the message says is still to do, open or failing. 0 to 3 items."
+    "description": "What the message says is still to do, open or failing. 0 to 3 items. Write in Latin script only."
    }
   },
   {
    "name": "risk_reason",
-   "description": "Why the risk is what it is, in the message's words, or none. At most 90 characters.",
+   "description": "Why the risk is what it is, in the message's words, or none. At most 90 characters. Write in Latin script only.",
    "schema": {
     "type": "string",
     "max": 90,
     "min": 1,
-    "description": "Why the risk is what it is, in the message's words, or none. At most 90 characters."
+    "description": "Why the risk is what it is, in the message's words, or none. At most 90 characters. Write in Latin script only."
    }
   },
   {
@@ -151,7 +151,7 @@ Fill the review for the MESSAGE above. Use only its words and the FACTS, keep ev
 ```gbnf
 root ::= turnreview-obj
 ws ::= [ \t\n]{0,8}
-ch ::= [^"\\\x00-\x1F\x7F\u02C6\u2028-\u2029\u3000-\u9FFF\uAC00-\uD7AF\uF900-\uFAFF\uFF00-\uFFEF]
+ch ::= [\x20-\x21\x23-\x5B\x5D-\x7E\xA0-\xAC\xAE-\u024F\u0300-\u036F\u1E00-\u1EFF\u2010-\u2027\u2030-\u205E\u20A0-\u20C0]
 str1x90 ::= "\"" ch{1,90} "\""
 turnreview-changed-arr ::= "[" ws str1x90 (ws "," ws str1x90){0,2} ws "]"
 turnreview-not-checked-arr ::= "[" ws (str1x90 (ws "," ws str1x90){0,1})? ws "]"

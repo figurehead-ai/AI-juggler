@@ -98,12 +98,12 @@ Answer the QUESTION from the RECORDS above, citing a ref for every claim. If the
      "properties": [
       {
        "name": "text",
-       "description": "One claim, one sentence, at most 160 characters.",
+       "description": "One claim, one sentence, at most 160 characters. Write in Latin script only.",
        "schema": {
         "type": "string",
         "max": 160,
         "min": 1,
-        "description": "One claim, one sentence, at most 160 characters."
+        "description": "One claim, one sentence, at most 160 characters. Write in Latin script only."
        }
       },
       {
@@ -140,7 +140,7 @@ Answer the QUESTION from the RECORDS above, citing a ref for every claim. If the
 ```gbnf
 root ::= chatanswer-obj
 ws ::= [ \t\n]{0,8}
-ch ::= [^"\\\x00-\x1F\x7F\u02C6\u2028-\u2029\u3000-\u9FFF\uAC00-\uD7AF\uF900-\uFAFF\uFF00-\uFFEF]
+ch ::= [\x20-\x21\x23-\x5B\x5D-\x7E\xA0-\xAC\xAE-\u024F\u0300-\u036F\u1E00-\u1EFF\u2010-\u2027\u2030-\u205E\u20A0-\u20C0]
 chatanswer-covered-enum ::= "\"yes\"" | "\"partly\"" | "\"no\"" | "\"out_of_scope\""
 str1x160 ::= "\"" ch{1,160} "\""
 chatanswer-parts-item-cites-item-enum ::= "\"r1\"" | "\"r2\""
