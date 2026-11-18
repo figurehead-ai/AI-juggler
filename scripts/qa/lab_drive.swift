@@ -4,9 +4,21 @@
 // Juggler has the same process name, juggler-app), and refuses any pid
 // that isn't an "AI Juggler Dev.app". Never moves the pointer and never
 // sends a key or a click to another app: buttons are pressed through
-// accessibility, keys are posted to Dev's pid only (from a private event
-// source, so they never count as the person's input). It raises nothing
+// accessibility, keys are posted to Dev's pid only. It raises nothing
 // unless --may-activate says so (below).
+//
+// THE PERSON'S INPUT, NOT THE DRIVER'S. The HID system's idle time counts
+// the driver's own posted keys too (AJ-E1612 dry run 3: every typed key
+// read as the person's, PAUSED idle=0.0s and 20 s lost per character), so
+// the idle time the rules below read is the person's: the driver keeps
+// when it posted each key (the run's input ledger, beside its log, kept
+// across its commands), and an input event at one of those moments
+// (15 ms before to 60 ms after) is its own. Anything else is the person's:
+// any pointer event (the driver never posts one, so moves, clicks and
+// scrolls are always theirs), and any key between two of the driver's
+// (it waits 0.1 s after each key so such a key shows). Only a key of the
+// person's within those few ms of one of the driver's can pass as its own;
+// the frontmost+topmost guard still runs before every key.
 //
 // THE CLICK GUARD. Before every press and every keystroke, both must hold:
 //   - the frontmost app (NSWorkspace) is Dev's pid;
@@ -385,6 +397,32 @@ let opportunistic = rawArgs.contains("--opportunistic") || env["AIJ_DRIVE_OPPORT
 let args = rawArgs.filter { $0 != "--may-activate" && $0 != "--opportunistic" }
 let outDir = URL(fileURLWithPath: env["AIJ_DRIVE_OUT"] ?? FileManager.default.currentDirectoryPath)
 let waitLimit = Double(env["AIJ_DRIVE_WAIT"] ?? "") ?? 120
+/// The run's own folder, for its log and its input ledger: AIJ_DRIVE_LOG_DIR,
+/// else drive-log/ in the run's evidence folder (AIJ_DRIVE_OUT); never a
+/// shared /tmp path another process's cleanup can sweep (dry run 3 lost
+/// its log so).
+let runDir = URL(fileURLWithPath: env["AIJ_DRIVE_LOG_DIR"] ?? outDir.appendingPathComponent("drive-log").path)
+
+/// The run's name (pure: the selftest): AIJ_DRIVE_RUN (letters, digits,
+/// . _ - only), else Dev's launch time and pid, so every command of one
+/// Dev launch shares it and no other run does.
+func runName(given: String?, pid: pid_t, launched: Date?) -> String {
+    if let given {
+        let kept = String(given.unicodeScalars.filter { CharacterSet.alphanumerics.contains($0) && $0.isASCII || "._-".unicodeScalars.contains($0) })
+        if !kept.isEmpty { return kept }
+    }
+    let f = DateFormatter()
+    f.locale = Locale(identifier: "en_US_POSIX")
+    f.timeZone = TimeZone(identifier: "UTC")
+    f.dateFormat = "yyyyMMdd'T'HHmmss'Z'"
+    return "dev\(pid)-\(launched.map(f.string) ?? "unknown")"
+}
+
+/// The run's file named `suffix`, in its folder.
+func runFile(_ pid: pid_t, _ suffix: String) -> URL {
+    let name = runName(given: env["AIJ_DRIVE_RUN"], pid: pid, launched: NSRunningApplication(processIdentifier: pid)?.launchDate)
+    return runDir.appendingPathComponent("lab_drive-\(name)\(suffix)")
+}
 
 func devPid() -> pid_t {
     guard let text = env["AIJ_DEV_PID"], let pid = pid_t(text), pid > 1 else {
@@ -423,10 +461,84 @@ func devWindow(_ pid: pid_t) -> (id: CGWindowID, bounds: CGRect, title: String)?
     return nil
 }
 
-/// Seconds since the person's last input: keys, pointer, trackpad (the HID
-/// system's own state; the driver's private-source keys don't count).
+/// Seconds since the last input event of any kind, by the HID system's
+/// state (keys, pointer, trackpad), the driver's own posted keys included.
 func hidIdle() -> Double {
     CGEventSource.secondsSinceLastEventType(.hidSystemState, eventType: CGEventType(rawValue: ~0)!)
+}
+
+/// The pointer's events, and the trackpad's gestures (NSEvent's gesture,
+/// magnify, swipe, rotate, smart magnify): never posted by the driver.
+let pointerEvents: [CGEventType] = [.mouseMoved, .leftMouseDown, .leftMouseUp, .rightMouseDown, .rightMouseUp,
+                                    .otherMouseDown, .otherMouseUp, .leftMouseDragged, .rightMouseDragged,
+                                    .otherMouseDragged, .scrollWheel, .tabletPointer, .tabletProximity]
+    + [29, 30, 31, 18, 32].compactMap { CGEventType(rawValue: $0) }
+
+/// Seconds since the person's last pointer or trackpad input.
+func pointerIdle() -> Double {
+    pointerEvents.map { CGEventSource.secondsSinceLastEventType(.hidSystemState, eventType: $0) }.min() ?? 0
+}
+
+/// An event this long before or after one of the driver's own posts is
+/// its own (the window server stamps it a moment after the post).
+let ownBefore = 0.015
+let ownAfter = 0.06
+/// After each key, a pause before the next, so a key of the person's
+/// between two of the driver's shows as the latest input (pure: the selftest).
+let keyGap = 0.1
+
+/// The driver's own posts and the person's last input it has seen, kept
+/// across its commands (pure: tested by --selftest).
+struct InputLedger: Codable, Equatable {
+    /// When each of the driver's own key events was posted (seconds since
+    /// 1970), the last two minutes' only.
+    var own: [Double] = []
+    /// The person's last input seen (seconds since 1970); nil: none yet.
+    var personAt: Double?
+
+    func isOwn(_ at: Double) -> Bool { own.contains { at >= $0 - ownBefore && at <= $0 + ownAfter } }
+
+    /// Seconds since the person's last input. `any`: since the last input
+    /// event of any kind (the HID state, the driver's keys included);
+    /// `pointer`: since the last pointer or trackpad event (never the
+    /// driver's). The latest event one of the driver's own: the person's
+    /// last is the one seen before it, or a pointer event since; none seen
+    /// (the ledger lost): `any`, as before (a pause, never a send early).
+    mutating func personIdle(any: Double, pointer: Double, now: Double) -> Double {
+        let last = now - any
+        if isOwn(last) { return min(pointer, personAt.map { now - $0 } ?? any) }
+        personAt = max(personAt ?? last, last)
+        return any
+    }
+
+    mutating func noteOwn(_ at: Double) {
+        own.append(at)
+        own.removeAll { at - $0 > 120 }
+    }
+}
+
+/// The run's input ledger, beside its log (`runFile`); nil: a selftest.
+var ledgerFile: URL?
+var ledger = InputLedger()
+
+func loadLedger() {
+    guard let file = ledgerFile, let data = try? Data(contentsOf: file),
+          let kept = try? JSONDecoder().decode(InputLedger.self, from: data) else { return }
+    ledger = kept
+}
+
+func saveLedger() {
+    guard let file = ledgerFile, let data = try? JSONEncoder().encode(ledger) else { return }
+    try? FileManager.default.createDirectory(at: file.deletingLastPathComponent(), withIntermediateDirectories: true)
+    try? data.write(to: file, options: .atomic)
+}
+
+/// Seconds since the person's last input (not the driver's own keys).
+func personIdle() -> Double {
+    let before = ledger
+    let idle = ledger.personIdle(any: hidIdle(), pointer: pointerIdle(), now: Date().timeIntervalSince1970)
+    if ledger != before { saveLedger() }
+    return idle
 }
 
 /// The login session's lock and console state; can't tell: locked, off console.
@@ -513,7 +625,7 @@ func guarded(_ pid: pid_t, at point: CGPoint?) -> Go {
                       windows: onScreenWindows(), point: point ?? CGPoint(x: win.bounds.midX, y: win.bounds.midY))
             } ?? .offScreen
             let s = session()
-            return Probe(verdict: verdict, idle: hidIdle(), locked: s.locked, saver: screenSaverRuns(), onConsole: s.onConsole)
+            return Probe(verdict: verdict, idle: personIdle(), locked: s.locked, saver: screenSaverRuns(), onConsole: s.onConsole)
         },
         activate: { bringForward(pid) },
         log: say)
@@ -767,8 +879,9 @@ func post(_ pid: pid_t, code: CGKeyCode, flags: CGEventFlags = [], unicode: Stri
         guard guarded(pid, at: keyPoint(pid)) == .restart else { break }
         restoreFocus(pid, before)
     }
-    // A private source: these keys never count as the person's input (the
-    // idle time --may-activate reads stays theirs).
+    // A private source; the HID state still counts these keys, so each
+    // one's moment goes in the run's ledger (the person's idle time
+    // leaves them out).
     let source = CGEventSource(stateID: .privateState)
     for down in [true, false] {
         guard let event = CGEvent(keyboardEventSource: source, virtualKey: code, keyDown: down) else { stop(3, "no key event") }
@@ -777,9 +890,13 @@ func post(_ pid: pid_t, code: CGKeyCode, flags: CGEventFlags = [], unicode: Stri
             let units = Array(unicode.utf16)
             event.keyboardSetUnicodeString(stringLength: units.count, unicodeString: units)
         }
+        ledger.noteOwn(Date().timeIntervalSince1970)
         event.postToPid(pid)
         usleep(12_000)
     }
+    saveLedger()
+    // A key of the person's after this one shows as the latest input.
+    usleep(useconds_t(keyGap * 1_000_000))
 }
 
 func typeText(_ pid: pid_t, _ s: String) {
@@ -1166,6 +1283,16 @@ func activationSelftest() -> [String] {
         var activations = 0
         var busyFrom = 0.0
         var busyUntil = 0.0
+        /// The person's input while busy is keys only (no pointer event).
+        var keysOnly = false
+        /// The person's last pointer event (besides `inputAt`, which is any
+        /// of theirs, keys only when `keysOnly`).
+        var pointerAt = -1e9
+        /// The driver's own last key, as the HID state counts it.
+        var ownAt = -1e9
+        /// The HID state counts the driver's sends (dry run 3's Mac).
+        var hidCountsOwn = false
+        var ledger = InputLedger()
         /// Changes at a time (the person locks the screen, another app comes forward…), in order.
         var later: [(Double, (World) -> Void)] = []
         var lines: [String] = []
@@ -1182,7 +1309,11 @@ func activationSelftest() -> [String] {
             probe: {
                 let verdict: Verdict = w.hidden || w.minimised || w.elsewhere ? .offScreen
                     : !w.front ? .notFrontmost("Aside") : w.covered ? .covered("Notification Center, layer 23") : .clear
-                return Probe(verdict: verdict, idle: w.t - w.inputAt, locked: w.locked, saver: w.saver, onConsole: true)
+                let person = max(w.inputAt, w.pointerAt)
+                let any = w.t - max(person, w.ownAt)
+                let pointer = w.t - (w.keysOnly ? w.pointerAt : person)
+                let idle = w.ledger.personIdle(any: any, pointer: pointer, now: w.t)
+                return Probe(verdict: verdict, idle: idle, locked: w.locked, saver: w.saver, onConsole: true)
             },
             activate: {
                 w.activations += 1
@@ -1197,12 +1328,16 @@ func activationSelftest() -> [String] {
     /// A step of `n` events as the driver runs one, opportunistic: each
     /// waits at the gate (a pause restarts it), then is sent ("SENT i"),
     /// taking 1 s. Ends early only if the gate stops it.
-    func runStep(_ w: World, _ n: Int, step: String = "send") -> GateEnd? {
+    func runStep(_ w: World, _ n: Int, step: String = "send", gap: Double = 1) -> GateEnd? {
         var at: Double?
         var i = 0
         while i < n {
             switch gate(step: step, may: true, opportunistic: true, activatedAt: &at, mac: mac(w), limit: 60) {
-            case .send: w.lines.append("SENT \(i)"); w.stamps.append(w.t); i += 1; mac(w).sleep(1)
+            case .send:
+                w.lines.append("SENT \(i)"); w.stamps.append(w.t); i += 1
+                // The driver's key, posted now: the HID state counts it; its ledger too.
+                if w.hidCountsOwn { w.ownAt = w.t; w.ledger.noteOwn(w.t) }
+                mac(w).sleep(gap)
             case .restart: continue
             case let end: return end
             }
@@ -1423,6 +1558,77 @@ func activationSelftest() -> [String] {
         var vat: Double?
         if case .guardStopped = gate(step: "press", may: true, activatedAt: &vat, mac: mac(v), limit: 60) {} else { failures.append("without --opportunistic the limit went") }
         if count(v, "HEARTBEAT ") != 0 || count(v, "PAUSED ") != 0 { failures.append("without --opportunistic: heartbeat or pause lines") }
+    }
+    // AJ-E1612 dry run 3: the HID state counts the driver's own keys. A
+    // send of 24 characters (one key each, 0.1 s apart) with nobody at the
+    // Mac: no PAUSED, all sent at once (it paused 20 s per key).
+    do {
+        let w = World(); w.inputAt = 0; w.front = true; w.hidCountsOwn = true
+        let end = runStep(w, 24, gap: keyGap)
+        if end != nil || count(w, "SENT ") != 24 || count(w, "PAUSED ") != 0 { failures.append("own keys: paused the step (\(count(w, "PAUSED ")) PAUSED)") }
+        if let last = w.stamps.last, last - 1000 > 24 * keyGap + 1 { failures.append("own keys: 24 keys took \(last - 1000) s") }
+    }
+    // The same without the ledger (dry run 3's driver): every key pauses.
+    do {
+        let w = World(); w.inputAt = 0; w.front = true; w.hidCountsOwn = true
+        var at: Double?
+        _ = gate(step: "send", may: true, opportunistic: true, activatedAt: &at, mac: mac(w), limit: 60)
+        w.ownAt = w.t // a key the ledger never heard of: the person's, as far as it knows
+        if case .pause = decide(mac(w).probe(), may: true, activatedAt: nil, now: w.t, opportunistic: true) {} else { failures.append("own keys: a key not in the ledger didn't pause") }
+    }
+    // The person types (keys only, no pointer) mid-send: PAUSED, nothing
+    // sent while they type, RESUMED 20 s after their last key, then the rest.
+    do {
+        let w = World(); w.inputAt = 0; w.front = true; w.hidCountsOwn = true
+        w.keysOnly = true; w.busyFrom = 1000.55; w.busyUntil = 1003
+        let end = runStep(w, 24, gap: keyGap)
+        if end != nil || count(w, "SENT ") != 24 { failures.append("person's keys: the step didn't finish (\(String(describing: end)))") }
+        if count(w, "PAUSED ") < 1 { failures.append("person's keys: no PAUSED while they typed \(w.lines.prefix(12))") }
+        if let r = first(w, "RESUMED "), w.stamps[r] - w.inputAt < minIdle { failures.append("person's keys: resumed after only \(w.stamps[r] - w.inputAt) s") }
+        let sentWhileTyping = w.lines.indices.filter { w.lines[$0].hasPrefix("SENT ") && w.stamps[$0] > 1000.7 && w.stamps[$0] < 1003 }
+        if !sentWhileTyping.isEmpty { failures.append("person's keys: sent while they typed \(sentWhileTyping.map { w.lines[$0] })") }
+    }
+    // The person moves the mouse mid-send: PAUSED (pointer events are never the driver's).
+    do {
+        let w = World(); w.inputAt = 0; w.front = true; w.hidCountsOwn = true
+        w.later = [(1000.5, { $0.pointerAt = $0.t })]
+        _ = runStep(w, 24, gap: keyGap)
+        if count(w, "PAUSED ") != 1 { failures.append("pointer: a mouse move mid-send didn't pause it once (\(count(w, "PAUSED ")))") }
+    }
+    // Not opportunistic, after Dev was brought forward: its own keys don't
+    // stop the run; the person's next key does.
+    do {
+        let w = World(); w.inputAt = 0; w.hidCountsOwn = true
+        var at: Double?
+        for i in 0..<5 {
+            if gate(step: "send", may: true, activatedAt: &at, mac: mac(w), limit: 60) != .send { failures.append("own keys after ACTIVATED: key \(i) didn't send") }
+            w.ownAt = w.t; w.ledger.noteOwn(w.t); mac(w).sleep(keyGap)
+        }
+        if w.activations != 1 { failures.append("own keys after ACTIVATED: \(w.activations) activations") }
+        w.inputAt = w.t; w.t += 0.3
+        if gate(step: "send", may: true, activatedAt: &at, mac: mac(w), limit: 60) != .inputStopped { failures.append("own keys after ACTIVATED: the person's key didn't stop it") }
+    }
+    // The run's name: given (cleaned), else Dev's launch and pid.
+    if runName(given: "dry-run 4/x", pid: 7, launched: nil) != "dry-run4x" { failures.append("run name: given \(runName(given: "dry-run 4/x", pid: 7, launched: nil))") }
+    if runName(given: nil, pid: 80373, launched: Date(timeIntervalSince1970: 1_795_000_000)) != "dev80373-20261118T110640Z" {
+        failures.append("run name: from Dev \(runName(given: nil, pid: 80373, launched: Date(timeIntervalSince1970: 1_795_000_000)))")
+    }
+    // The ledger itself.
+    do {
+        var l = InputLedger()
+        if l.personIdle(any: 300, pointer: 300, now: 2000) != 300 || l.personAt != 1700 { failures.append("ledger: the first reading") }
+        l.noteOwn(2000)
+        if l.personIdle(any: 0.02, pointer: 300.02, now: 2000.02) != 300.02 { failures.append("ledger: its own key counted") }
+        if l.personIdle(any: 0.01, pointer: 300.2, now: 2000.2) != 0.01 || l.personAt != 2000.19 { failures.append("ledger: a key 0.19 s after its own wasn't the person's") }
+        var m = InputLedger(); m.noteOwn(2000)
+        if m.personIdle(any: 0.02, pointer: 50, now: 2000.02) != 0.02 { failures.append("ledger: nothing seen of the person: not the old reading") }
+        var n = InputLedger(own: [], personAt: 1000); n.noteOwn(2000)
+        if n.personIdle(any: 0.01, pointer: 3, now: 2000.01) != 3 { failures.append("ledger: a pointer event under its own key") }
+        n.noteOwn(2200)
+        if n.own != [2200] { failures.append("ledger: old posts kept \(n.own)") }
+        if InputLedger(own: [10], personAt: nil).isOwn(10 + ownAfter + 0.001) || !InputLedger(own: [10], personAt: nil).isOwn(10 - ownBefore) { failures.append("ledger: its window") }
+        let coded = try? JSONDecoder().decode(InputLedger.self, from: JSONEncoder().encode(n))
+        if coded != n { failures.append("ledger: kept and read back") }
     }
     // The pure rule, opportunistic.
     let clearNow = Probe(verdict: .clear, idle: 19.9, locked: false, saver: false, onConsole: true)
@@ -1668,6 +1874,8 @@ if command == "--selftest" { selftest() }
 let o = parse(Array(args.dropFirst()))
 step = command
 let pid = devPid()
+ledgerFile = runFile(pid, ".input.json")
+loadLedger()
 func need(_ n: Int, _ usage: String) { if o.positional.count < n { stop(2, usage) } }
 
 switch command {
