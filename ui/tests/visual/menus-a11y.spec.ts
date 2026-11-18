@@ -185,6 +185,8 @@ test("a pool's page: the diagram, an App's role menu over Take out of the pool, 
   await page.getByRole("menuitemradio", { name: /^Observer/ }).click();
   await expect(page.getByTestId("pool-take-out")).toHaveCount(0);
   await page.getByTestId("inspector-back").click();
+  // D-126: a running pool shows its setup again by Edit setup.
+  if (await page.getByTestId("pool-edit-setup").isVisible()) await page.getByTestId("pool-edit-setup").click();
   await page.getByTestId("inspect-open-settings").click();
   await auditScreen(page, "Pool page › its settings", main);
 });

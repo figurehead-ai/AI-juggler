@@ -50,6 +50,27 @@ export function useSetupProgress(input: { pool: Pick<PoolInfo, "id" | "sealed">;
 
 export type SetupPhase = "setup" | "running";
 
+/** The page's phase, and the ways between them: Hide setup (kept per pool
+ * while the setup isn't done; a done one with a session in it runs
+ * anyway) and Edit setup (the checklist again, for this visit). */
+export function useSetupPhase(poolId: string, joined: boolean, complete: boolean): { phase: SetupPhase; hidden: boolean; hide: () => void; edit: () => void } {
+  const [hidden, setHidden] = useSetupHidden(poolId);
+  const [editing, setEditing] = useState(false);
+  const runs = joined && complete;
+  return {
+    phase: editing ? "setup" : setupPhase({ joined, complete, hidden }),
+    hidden: hidden && !runs,
+    hide: () => {
+      setEditing(false);
+      setHidden(!runs);
+    },
+    edit: () => {
+      setHidden(false);
+      setEditing(true);
+    },
+  };
+}
+
 /** Setting up until a session has joined and the setup is done, or the
  * user hid it. */
 export function setupPhase({ joined, complete, hidden }: { joined: boolean; complete: boolean; hidden: boolean }): SetupPhase {

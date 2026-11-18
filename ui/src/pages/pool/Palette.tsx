@@ -38,7 +38,11 @@ export function Palette({
   onStartDrag,
   onAdd,
   more,
+  quiet = false,
 }: {
+  /** The pool runs (D-126): no Add a member until it's asked for (Edit
+   * setup's Who's in opens it); dragging a member out still shows here. */
+  quiet?: boolean;
   /** Its pool: a row being added shows so at once (round 4 #5). */
   poolId: string;
   sessions: InstanceInfo[];
@@ -53,7 +57,7 @@ export function Palette({
   onOpen: (open: boolean) => void;
   onStartDrag: (session: InstanceInfo, event: PointerEvent<HTMLElement>) => void;
   onAdd: (session: InstanceInfo) => void;
-}): JSX.Element {
+}): JSX.Element | null {
   const [words, setWords] = useState("");
   const adding = new Set(usePendingAdds(poolId).map((one) => one.ref));
   // Round 5: an added row stays where it was, marked added (no jump).
@@ -88,6 +92,7 @@ export function Palette({
     setKept(new Map());
     onOpen(!open);
   };
+  if (!open && quiet) return null;
   if (!open)
     return (
       <section data-canvas-palette aria-label="Add a member" className="pointer-events-auto w-fit" data-testid="canvas-palette">

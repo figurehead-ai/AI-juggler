@@ -205,6 +205,8 @@ for (const theme of ["dark", "light"] as const) {
     // calm live view and its Edit setup), Who may message whom unfolded.
     await page.getByTestId("inspector-back").click();
     await expect(page.getByTestId("pool-running")).toBeVisible();
+    // D-126: a running pool shows its setup again by Edit setup.
+    if (await page.getByTestId("pool-edit-setup").isVisible()) await page.getByTestId("pool-edit-setup").click();
     await page.getByTestId("inspect-open-settings").click();
     await page.getByTestId("pool-setup-talk-fold-toggle").click();
     await expect(page.getByTestId("pool-talk")).toBeVisible();
@@ -238,6 +240,8 @@ for (const theme of ["dark", "light"] as const) {
     await goTo(page, "Pools");
     await page.getByTestId("pool-card-tile").filter({ hasText: "Checkout team" }).click();
     await expect(page.getByTestId("pool-canvas")).toBeVisible();
+    // D-126: a running pool shows its setup again by Edit setup.
+    if (await page.getByTestId("pool-edit-setup").isVisible()) await page.getByTestId("pool-edit-setup").click();
     await page.getByTestId("inspect-open-settings").click();
     await page.locator('[data-testid="pool-summary"] [data-row="lead"] [data-testid$="-change"]').click();
     await expect(page.locator("#pool-setup-lead :focus")).toHaveCount(1);
@@ -301,6 +305,8 @@ for (const size of [
     await open1("inspect-node-level-picker", "a session's On its own");
     // The pool's own setup: how everyone else joins.
     await page.getByTestId("inspector-back").click();
+    // D-126: a running pool shows its setup again by Edit setup.
+    if (await page.getByTestId("pool-edit-setup").isVisible()) await page.getByTestId("pool-edit-setup").click();
     await page.getByTestId("inspect-open-settings").click();
     await open1("pool-join-picker", "the pool's join as");
   });

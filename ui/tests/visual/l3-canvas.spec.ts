@@ -144,6 +144,8 @@ for (const r of ROWS) {
 
     // The row's member kind joins from the palette.
     if (r.member !== "session") {
+      // D-126: a running pool shows its setup again by Edit setup.
+      if (await page.getByTestId("pool-edit-setup").isVisible()) await page.getByTestId("pool-edit-setup").click();
       const palette = page.getByTestId("canvas-palette");
       const fold = palette.getByRole("button", { name: /Add a member/ });
       if ((await fold.getAttribute("aria-expanded")) === "false") await act(fold);
@@ -165,6 +167,8 @@ for (const r of ROWS) {
     // Sealing says first who leaves which pool.
     // (First, while the inspector shows the pool: its settings.)
     const seal = page.getByTestId("pool-seal");
+    // D-126: a running pool shows its setup again by Edit setup.
+    if (await page.getByTestId("pool-edit-setup").isVisible()) await page.getByTestId("pool-edit-setup").click();
     await act(page.getByTestId("inspect-open-settings"));
     // Round 4 (#6): sealing is under More settings, closed at first.
     await act(page.getByTestId("pool-more-fold-toggle"));

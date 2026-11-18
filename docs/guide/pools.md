@@ -133,7 +133,7 @@ still puts one session in a pool of yours.
 A pool's page shows it as a **Diagram** (who is in it, and who messages
 whom) or a **List**. Its header's **On their own (everyone in this
 pool)** is the same choice as the setup's. **All of this pool's
-settings** (**Edit setup** once it runs) opens a short summary in the
+settings**, at the foot of its setup checklist, opens a short summary in the
 Review's own sentences (who's in, who leads, what they may do on their
 own, the team tools) and what waits for you in **Needs you** (the list
 of things waiting for your OK, on Home), with the setup's checklist in
@@ -178,8 +178,9 @@ the sessions open now and the Apps and groups that can join.
 Once a session has joined and every step is done, or when you pick
 **Hide setup**, the panel is the pool's live view: what's happening now,
 its tasks, its lead, what they may do on their own, its messages this
-week and Live. **Edit setup** opens all of its settings; **Show setup**
-brings a hidden checklist back while it isn't done.
+week and Live; the diagram has no **Add a member** then. **Edit setup**
+at the panel's foot brings the checklist (and **Add a member**) back; a
+hidden setup that isn't done says how far it got above it.
 
 On the diagram, the panel at the right follows what you select. Drag its
 left edge (or focus it and use ← →) to make it wider, 360 to 420 px; the

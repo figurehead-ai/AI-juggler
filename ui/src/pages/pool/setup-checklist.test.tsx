@@ -132,9 +132,9 @@ describe("the pool page while it's set up (D-126 §3)", () => {
     fireEvent.click(view.getByRole("button", { name: "Hide setup" }));
     expect(await view.findByTestId("pool-running")).toBeTruthy();
     expect(view.queryByTestId("pool-header-setup")).toBeNull();
-    expect(view.getByTestId("inspect-open-settings").textContent).toBe("Edit setup");
-    // Hidden but not done: it says so, and Show setup brings it back.
-    fireEvent.click(view.getByTestId("pool-setup-show"));
+    // Hidden but not done: it says how far, and Edit setup brings it back.
+    expect(view.getByTestId("pool-setup-hidden").textContent).toBe("Setup hidden: 6 of 7 done.");
+    fireEvent.click(view.getByRole("button", { name: "Edit setup" }));
     expect(await view.findByTestId("pool-checklist")).toBeTruthy();
   });
 

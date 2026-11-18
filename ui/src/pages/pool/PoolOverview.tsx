@@ -190,32 +190,36 @@ function Live({ pool, canvas, now, onSelect, quietWhenEmpty = false }: OverviewP
 }
 
 /** The panel's foot: setting up, what happens once a session joins with
- * Hide setup, and all of the pool's settings; running, Edit setup (and
- * Show setup while a hidden setup isn't done). */
-export function OverviewFoot({ phase, progress, hidden, onHidden, onSettings }: { phase: SetupPhase; progress: SetupProgress; hidden: boolean; onHidden: (hidden: boolean) => void; onSettings: () => void }): JSX.Element {
+ * Hide setup, and all of the pool's settings; running, Edit setup (the
+ * checklist again), saying how far a hidden setup got. */
+export function OverviewFoot({ phase, progress, hidden, onHide, onEdit, onSettings }: { phase: SetupPhase; progress: SetupProgress; hidden: boolean; onHide: () => void; onEdit: () => void; onSettings: () => void }): JSX.Element {
   const link = "inline-flex w-fit items-center gap-1 rounded text-meta font-medium text-accent-hi outline-none hover:underline focus-visible:ring-2 focus-visible:ring-accent/60";
   return (
     <div className="flex shrink-0 flex-col gap-3 px-4 pb-4 pt-2" data-testid="pool-overview-foot">
       {phase === "setup" && (
         <Alert level="info" live={null} className="text-label" testId="pool-setup-foot">
           {SETUP.foot}{" "}
-          <button type="button" onClick={() => onHidden(true)} className="rounded font-medium text-accent-hi outline-none hover:underline focus-visible:ring-2 focus-visible:ring-accent/60" data-testid="pool-setup-hide">
+          <button type="button" onClick={onHide} className="rounded font-medium text-accent-hi outline-none hover:underline focus-visible:ring-2 focus-visible:ring-accent/60" data-testid="pool-setup-hide">
             {SETUP.hide}
           </button>
         </Alert>
       )}
-      {phase === "running" && hidden && !progress.complete && (
+      {phase === "running" && hidden && (
         <p className="text-meta text-ink-2" data-testid="pool-setup-hidden">
-          Setup: {progress.done} of {progress.total} done.{" "}
-          <button type="button" onClick={() => onHidden(false)} className="rounded font-medium text-accent-hi outline-none hover:underline focus-visible:ring-2 focus-visible:ring-accent/60" data-testid="pool-setup-show">
-            Show setup
-          </button>
+          Setup hidden: {progress.done} of {progress.total} done.
         </p>
       )}
-      <button type="button" onClick={onSettings} className={link} data-testid="inspect-open-settings">
-        {phase === "setup" ? SETUP.settings : SETUP.edit}
-        <IconChevronRight aria-hidden="true" width={13} height={13} />
-      </button>
+      {phase === "setup" ? (
+        <button type="button" onClick={onSettings} className={link} data-testid="inspect-open-settings">
+          {SETUP.settings}
+          <IconChevronRight aria-hidden="true" width={13} height={13} />
+        </button>
+      ) : (
+        <button type="button" onClick={onEdit} className={link} data-testid="pool-edit-setup">
+          {SETUP.edit}
+          <IconChevronRight aria-hidden="true" width={13} height={13} />
+        </button>
+      )}
     </div>
   );
 }

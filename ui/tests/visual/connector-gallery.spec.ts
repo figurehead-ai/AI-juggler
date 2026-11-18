@@ -290,6 +290,8 @@ for (const theme of ["dark", "light"] as const) {
   test(`Add a session: the desktop note once, each row Watched or Can talk — ${theme}`, async ({ page }) => {
     await open(page, theme);
     await poolPage(page);
+    // D-126: a running pool shows its setup again by Edit setup.
+    if (await page.getByTestId("pool-edit-setup").isVisible()) await page.getByTestId("pool-edit-setup").click();
     const palette = page.getByTestId("canvas-palette");
     if (!(await page.getByTestId("canvas-palette-body").isVisible())) await palette.getByRole("button", { name: /Add a member/ }).click();
     await page.getByTestId("canvas-palette-kind").click();

@@ -61,6 +61,16 @@ describe("a node leads with its title or task, the time second (D-126 §4a)", ()
   });
 });
 
+describe("a compact node at fit (the coordinator's critique: \"Checkout c…\" at 54 %)", () => {
+  it("wraps its title over two lines before it cuts it", () => {
+    const long = { ...member(untitled("s-9")), title: { title: "Review the checkout steps", when: null } };
+    render(<CanvasNode member={long} at={{ x: 0, y: 0 }} asks={[]} held={0} selected={false} tabStop dragging={false} scale={0.54} onSelect={() => {}} onMenu={() => {}} onPointerDown={() => {}} onKey={() => {}} />);
+    const text = screen.getByTestId("canvas-node").querySelector<HTMLElement>("[data-node-name-text]")!;
+    expect(text.className.split(" ")).toContain("line-clamp-2");
+    expect(text.textContent).toBe("Review the checkout steps");
+  });
+});
+
 describe("every node is a real button (the rc2 walk P5, AJ-E3304 L4)", () => {
   const titled = { ...member(untitled("s-7")), role: "lead", title: { title: "web (7)", when: "started 5:16 PM" } };
 

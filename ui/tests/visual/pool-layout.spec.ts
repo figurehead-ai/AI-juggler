@@ -83,6 +83,8 @@ test("Add keeps the next Add where it was: the palette and its More", async ({ p
   await open(page, { width: 1280, height: 800 });
   await pool(page, "Checkout team");
   await expect(page.getByTestId("pool-canvas")).toBeVisible();
+  // D-126: a running pool shows its setup again by Edit setup.
+  if (await page.getByTestId("pool-edit-setup").isVisible()) await page.getByTestId("pool-edit-setup").click();
   const palette = page.getByTestId("canvas-palette");
   if (!(await page.getByTestId("canvas-palette-body").isVisible())) await palette.getByRole("button", { name: /Add a member/ }).click();
   const adds = page.getByTestId("canvas-palette-add");
@@ -124,6 +126,8 @@ for (const size of [
     for (const row of ["lead", "own"] as const) {
       if (await page.getByTestId("inspector-back").isVisible()) await page.getByTestId("inspector-back").click();
       // D-126 §3: the summary in sentences is in the pool's settings.
+      // D-126: a running pool shows its setup again by Edit setup.
+      if (await page.getByTestId("pool-edit-setup").isVisible()) await page.getByTestId("pool-edit-setup").click();
       await page.getByTestId("inspect-open-settings").click();
       await page.locator(`[data-testid="pool-summary"] [data-row="${row}"] [data-testid$="-change"]`).click();
       const section = page.locator(`#pool-setup-${row}`);
@@ -211,6 +215,8 @@ for (const size of [
     // A pool of the user's own (a project's own can't be deleted).
     await pool(page, "Checkout team");
     if (await page.getByTestId("pool-mode").isVisible()) await page.getByTestId("pool-mode").getByRole("radio", { name: "Diagram" }).click();
+    // D-126: a running pool shows its setup again by Edit setup.
+    if (await page.getByTestId("pool-edit-setup").isVisible()) await page.getByTestId("pool-edit-setup").click();
     await page.getByTestId("inspect-open-settings").click();
     const list = page.locator('[data-testid="pool-inspector"] [data-canvas-scroll]').first();
     for (const [open, confirm, safe] of [

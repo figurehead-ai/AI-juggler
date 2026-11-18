@@ -53,7 +53,7 @@ import type { Point } from "./pool/layout";
 import { isActiveStatus } from "../components/indicator";
 import { Alert } from "../components/Alert";
 import { PoolPanel } from "./pool/PoolPanel";
-import { setupPhase, useSetupHidden, useSetupProgress } from "./pool/setup-progress";
+import { useSetupPhase, useSetupProgress } from "./pool/setup-progress";
 
 export { poolCountWords } from "./pool/pool-count";
 import { poolCountWords } from "./pool/pool-count";
@@ -231,8 +231,7 @@ function PoolCanvasPage({ poolId, sessions, projects, accounts, now, rules }: Pa
   // D-126 §3: setting up (its checklist, the planned team) until a session
   // has joined and the setup is done, or Hide setup; then the calm view.
   const progress = useSetupProgress({ pool, rows: setup.rows, places: setup.tools, rules, ruleLabel });
-  const [hidden, setHidden] = useSetupHidden(pool.id);
-  const phase = setupPhase({ joined: pool.members > 0, complete: progress.complete, hidden });
+  const { phase, hidden, hide, edit } = useSetupPhase(pool.id, pool.members > 0, progress.complete);
   const openProjects = new Set(sessions.filter((session) => sessionState(session).state !== "ended" && session.project_id).map((session) => session.project_id!));
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-card border border-hairline bg-surface" data-testid="pool-page">
@@ -271,6 +270,7 @@ function PoolCanvasPage({ poolId, sessions, projects, accounts, now, rules }: Pa
               onSelect={select}
               onAdd={add}
               paletteRequest={paletteRequest}
+              paletteQuiet={phase === "running"}
               paletteMore={
                 <PaletteMore
                   poolId={pool.id}
@@ -363,7 +363,8 @@ function PoolCanvasPage({ poolId, sessions, projects, accounts, now, rules }: Pa
           phase={phase}
           progress={progress}
           hidden={hidden}
-          onHidden={setHidden}
+          onHide={hide}
+          onEdit={edit}
           leadNext={setup.leadNext?.name ?? null}
           leadDir={setup.leadDir}
           setupSections={

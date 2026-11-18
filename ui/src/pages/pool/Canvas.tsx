@@ -71,7 +71,7 @@ export function Canvas({
   empty,
   overlay,
   overlayRoom = 0, lineRules,
-  paletteMore,
+  paletteMore, paletteQuiet = false,
   paletteRequest = 0,
 }: {
   pool: PoolInfo;
@@ -86,7 +86,7 @@ export function Canvas({
    * lay over the lead and took its clicks). */
   overlayRoom?: number; lineRules?: LineRules;
   /** The palette's other candidates (D-62). */
-  paletteMore?: ReactNode;
+  paletteMore?: ReactNode; /** D-126: running, no Add a member (Edit setup brings it back). */ paletteQuiet?: boolean;
   /** AJ-E3011: bumped to open the palette (the checklist's Who's in). */
   paletteRequest?: number;
   candidates: InstanceInfo[];
@@ -374,7 +374,7 @@ export function Canvas({
             setDrag({ kind: "session", session, start: { x: event.clientX, y: event.clientY }, moved: false });
           }}
           onAdd={(session) => onAdd(session, null)}
-          more={paletteMore}
+          more={paletteMore} quiet={paletteQuiet}
         />
         </div>
       </div>

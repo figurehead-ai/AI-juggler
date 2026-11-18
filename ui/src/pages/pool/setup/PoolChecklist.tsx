@@ -84,7 +84,15 @@ export function PoolChecklist({
   const done = rows.filter((row) => row.done).length + (tools && toolsDone ? 1 : 0);
   const total = rows.length + (tools ? 1 : 0);
   const blocked = blockers.length > 0;
-  if (ready && !blocked) return <Ready next={nextWords} compact={compact} prompt={prompt} done={done} total={total} />;
+  const steps = (
+    <ol className="flex flex-col gap-0.5">
+      {rows.map((row, at) => (
+        <StepRow key={row.step} row={row} n={at + 1} open={false} value={values[row.step]} primary={primary} onOpen={onOpen} />
+      ))}
+      {tools && <ToolsRow state={tools} n={rows.length + 1} open={false} primary={primary} />}
+    </ol>
+  );
+  if (ready && !blocked) return <Ready next={nextWords} compact={compact} prompt={prompt} done={done} total={total} steps={steps} />;
   // Every step done but the team tools off: the list stays, all ticked,
   // the team tools open as its last item (or the line says what's left).
   const next = rows.find((row) => !row.done);
@@ -259,7 +267,7 @@ function ToolsRow({ state, n, open, primary }: { state: TeamTools; n: number; op
 
 /** Ready: the pool works as it is; its ring full, and what happens next,
  * in one line. */
-function Ready({ next, compact, prompt, done, total }: { next: string | null; compact: boolean; prompt: ReactNode; done: number; total: number }): JSX.Element {
+function Ready({ next, compact, prompt, done, total, steps }: { next: string | null; compact: boolean; prompt: ReactNode; done: number; total: number; steps: ReactNode }): JSX.Element {
   if (compact)
     return (
       <p className="mx-4 mb-2 flex items-center gap-2 rounded-lg bg-surface-2 px-3 py-1.5 text-meta text-ink-2" data-testid="pool-checklist-line">
@@ -276,6 +284,9 @@ function Ready({ next, compact, prompt, done, total }: { next: string | null; co
           <IconCheck aria-hidden="true" width={14} height={14} strokeWidth={2.5} className="text-success" />
         </h4>
       </div>
+      {/* Every step, ticked, each with its Change (Edit setup brings
+          them back). */}
+      {steps}
       {next && (
         <p className="text-meta text-ink-2" data-testid="pool-ready-next">
           <span className="font-medium text-ink">What happens next:</span> {next}.

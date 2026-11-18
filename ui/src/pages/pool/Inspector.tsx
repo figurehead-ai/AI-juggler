@@ -245,10 +245,12 @@ export const Inspector = forwardRef<HTMLHeadingElement, {
   phase: SetupPhase;
   progress: SetupProgress;
   hidden: boolean;
-  onHidden: (hidden: boolean) => void;
+  onHide: () => void;
+  /** Edit setup: the checklist again. */
+  onEdit: () => void;
   /** The App whose next session leads, by name. */
   leadNext: string | null;
-}>(function Inspector({ pool, project, canvas, members, names, selection, now, onSelect, onOpenTask, onDeleted, rules, ruleLabel, ruleTool, where, needs, setup, leadDir, setupSections, phase, progress, hidden, onHidden, leadNext }, heading): JSX.Element {
+}>(function Inspector({ pool, project, canvas, members, names, selection, now, onSelect, onOpenTask, onDeleted, rules, ruleLabel, ruleTool, where, needs, setup, leadDir, setupSections, phase, progress, hidden, onHide, onEdit, leadNext }, heading): JSX.Element {
   const member = selection.kind === "node" ? members.find((row) => row.id === selection.id) : undefined;
   const rule = selection.kind === "rule" ? rules.rules?.members.find((row) => row.member === selection.ref) : undefined;
   const watched = selection.kind === "rule" ? rules.watched.find((row) => row.member === selection.ref) : undefined;
@@ -309,7 +311,7 @@ export const Inspector = forwardRef<HTMLHeadingElement, {
           <RunningSummary {...overview} leadNext={leadNext} />
         )}
       </ScrollEdge>
-      {selection.kind === "none" && <OverviewFoot phase={phase} progress={progress} hidden={hidden} onHidden={onHidden} onSettings={() => onSelect({ kind: "pool" })} />}
+      {selection.kind === "none" && <OverviewFoot phase={phase} progress={progress} hidden={hidden} onHide={onHide} onEdit={onEdit} onSettings={() => onSelect({ kind: "pool" })} />}
     </aside>
   );
 });

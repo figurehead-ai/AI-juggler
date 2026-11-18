@@ -49,7 +49,10 @@ export function CompactNode({ member, at, asks, held, selected, tabStop, draggin
   // whole at fit, not cut at "Checkout cop…"); at the smallest, the name
   // on two lines with no state line (rc7 walk: at a 30 % fit every node
   // read "we…").
-  const wrap = (lines === 2 && height >= 62) || (lines === 1 && height >= 32);
+  // The coordinator's critique (D-126): at a 54 % fit a title read
+  // "Checkout c…"; from 60 px a two-line box has room for it on two
+  // lines (12 px, tight) over its state.
+  const wrap = (lines === 2 && height >= 60) || (lines === 1 && height >= 32);
   const tight = lines === 1;
   // A narrow box (fit in a small window, ~130 px): the name at 12 px, so
   // "Spike: payment sandbox" reads whole on its two lines, not "Spike:

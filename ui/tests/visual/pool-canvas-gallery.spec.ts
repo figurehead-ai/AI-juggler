@@ -38,7 +38,7 @@ const SIZES = [
   [1024, 700],
 ] as const;
 
-async function open(page: Page, theme: "dark" | "light", width: number, height: number) {
+async function open(page: Page, theme: "dark" | "light", width: number, height: number, extra: Record<string, unknown> = {}) {
   await page.clock.setFixedTime(GATE_NOW);
   await page.addInitScript(
     ({ theme, seed }) => {
@@ -48,7 +48,7 @@ async function open(page: Page, theme: "dark" | "light", width: number, height: 
       localStorage.setItem("aij.smoother.dismissed", JSON.stringify(["all"]));
       sessionStorage.setItem("aij.ready.skipped", "1");
     },
-    { theme, seed: canvasSeed(GATE_NOW) },
+    { theme, seed: { ...canvasSeed(GATE_NOW), ...extra } },
   );
   await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
   await page.setViewportSize({ width, height });
@@ -89,6 +89,8 @@ async function fullCards(page: Page) {
 
 /** The palette, unfolded (D-126: it starts as its Add a member button). */
 async function palette(page: Page) {
+  // D-126: a running pool shows its setup again by Edit setup.
+  if (await page.getByTestId("pool-edit-setup").isVisible()) await page.getByTestId("pool-edit-setup").click();
   const fold = page.getByTestId("canvas-palette").getByRole("button", { name: /Add a member/ });
   if ((await fold.getAttribute("aria-expanded")) !== "true") await fold.click();
   await expect(page.getByTestId("canvas-palette-item").first()).toBeVisible();
@@ -119,7 +121,11 @@ for (const theme of ["dark", "light"] as const) {
       await expect(page.locator('[data-node="s-plan"]').getByTestId("node-lead")).toBeVisible();
       await expect(page.locator('[data-node="s-copy"]').getByTestId("node-badge")).toBeVisible();
       await expect(page.getByTestId("edge-badge").first()).toBeVisible();
-      await expect(page.getByTestId("canvas-palette").getByRole("button", { name: /Add a member/ })).toBeVisible();
+      // D-126 §3, as mocked: its setup done and its sessions in it, the
+      // calm running view; no palette (Edit setup brings it back).
+      await expect(page.getByTestId("pool-running")).toBeVisible();
+      await expect(page.getByTestId("canvas-palette")).toHaveCount(0);
+      await expect(page.getByTestId("pool-edit-setup")).toBeVisible();
       await expect(page.getByTestId("inspect-stream")).toContainText("Planner gave «Checkout copy» to Checkout copy pass");
       // Nothing on a node drawn under 12 px. Only what's drawn: a node's
       // words for screen readers (its hidden description, D-126) have no
@@ -182,6 +188,29 @@ for (const theme of ["dark", "light"] as const) {
     });
   }
 
+  // D-126 §3: the other view, as mocked — a pool being set up, before any
+  // session joins: the planned team drawn, the checklist with its ring
+  // and the team tools as its open item, "Setting up" in the header, Add
+  // a member. Beside the running Checkout team (canvas-1280x800).
+  test(`the setting-up canvas: the planned team and the checklist — 1280x800 ${theme}`, async ({ page }) => {
+    const seed = canvasSeed(GATE_NOW);
+    const rule = (member: string, kind: string, role: string) => ({ member, kind, role, level: null, joined_at: 1, sessions: 0, session_ids: [] });
+    await open(page, theme, 1280, 800, {
+      __AIJ_POOLS__: { ...seed.__AIJ_POOLS__, pools: [...seed.__AIJ_POOLS__.pools, { id: "pool-web", name: "Web team", rules: [] }] },
+      __AIJ_POOL_RULES__: { "pool-web": { members: [rule("app:cli:claude-work", "app", "member"), rule("app:cli:claude-personal", "app", "reviewer"), rule("all", "everyone", "member")], talk: [], lead_next: "cli:claude-work" } },
+      __AIJ_AGENT_BRIDGE__: { asked: false, on: false },
+    });
+    await poolsScreen(page);
+    await page.getByTestId("pool-card-tile").filter({ hasText: "Web team" }).click();
+    await expect(page.getByTestId("planned-team").getByTestId("planned-card")).toHaveCount(3);
+    await expect(page.getByTestId("pool-header-setup")).toContainText("Setting up ·");
+    await expect(page.getByTestId("pool-checklist-open")).toContainText("Let them message each other");
+    await expect(page.getByTestId("canvas-palette").getByRole("button", { name: "Add a member" })).toBeVisible();
+    await page.mouse.move(0, 0);
+    await page.screenshot({ path: resolve(OUT, `canvas-setup-1280x800-${theme}.png`) });
+    await axe(page, `setting-up canvas ${theme}`);
+  });
+
   test(`an edge's conversation — 1280x800 ${theme}`, async ({ page }) => {
     await open(page, theme, 1280, 800);
     await canvas(page);
@@ -199,6 +228,8 @@ for (const theme of ["dark", "light"] as const) {
   test(`the pool's settings — 1280x800 ${theme}`, async ({ page }) => {
     await open(page, theme, 1280, 800);
     await canvas(page);
+    // D-126: a running pool shows its setup again by Edit setup.
+    if (await page.getByTestId("pool-edit-setup").isVisible()) await page.getByTestId("pool-edit-setup").click();
     await page.getByTestId("inspect-open-settings").click();
     await expect(page.getByTestId("inspect-pool")).toBeVisible();
     await expect(page.getByTestId("pool-rule")).toContainText("Take a task");
