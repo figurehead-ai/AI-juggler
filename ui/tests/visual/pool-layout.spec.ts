@@ -215,9 +215,14 @@ for (const size of [
     // A pool of the user's own (a project's own can't be deleted).
     await pool(page, "Checkout team");
     if (await page.getByTestId("pool-mode").isVisible()) await page.getByTestId("pool-mode").getByRole("radio", { name: "Diagram" }).click();
-    // D-126: a running pool shows its setup again by Edit setup.
-    if (await page.getByTestId("pool-edit-setup").isVisible()) await page.getByTestId("pool-edit-setup").click();
-    await page.getByTestId("inspect-open-settings").click();
+    // D-126: a running pool's foot says Edit setup (its setup again, whose
+    // foot holds the settings); one still being set up says the settings.
+    // Wait for whichever its panel draws: a one-off isVisible() raced it.
+    const edit = page.getByTestId("pool-edit-setup");
+    const settings = page.getByTestId("inspect-open-settings");
+    await expect(edit.or(settings).first()).toBeVisible();
+    if (await edit.isVisible()) await edit.click();
+    await settings.click();
     const list = page.locator('[data-testid="pool-inspector"] [data-canvas-scroll]').first();
     for (const [open, confirm, safe] of [
       ["pool-delete", "pool-delete-confirm", "pool-delete-keep"],

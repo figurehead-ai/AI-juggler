@@ -3292,7 +3292,7 @@ for (const theme of THEMES) {
     test(`beta — validated pair graduates — ${vp.name} — ${theme}`, async ({ page }) => {
       await openProfiles(page, MATRIX_MIXED);
       await expect(page.getByTestId("beta-matrix-summary")).toContainText(
-        "1 of 2 switches proven",
+        "1 of 2 switches tested", // D-127: "proven" is never said on screen
       );
       await expect(page.getByTestId("beta-matrix-row").first()).toContainText("Tested ✓");
       await page.screenshot({
