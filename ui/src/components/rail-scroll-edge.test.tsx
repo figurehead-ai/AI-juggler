@@ -51,7 +51,7 @@ describe("the rail's list under its head", () => {
     expect(list.hasAttribute("data-scrolled")).toBe(false);
   });
 
-  it("shows the same edge at its foot only while more is below", () => {
+  it("fades its foot only while more is below", () => {
     const view = rail();
     const list = view.getByTestId("rail-list");
     Object.defineProperty(list, "clientHeight", { configurable: true, value: 300 });
@@ -60,17 +60,11 @@ describe("the rail's list under its head", () => {
     expect(list.hasAttribute("data-more")).toBe(true);
     scrollTo(list, 600);
     expect(list.hasAttribute("data-more")).toBe(false);
-    const rule = /\.scroll-edge::after\s*\{([^}]*)\}/.exec(css)?.[1] ?? "";
-    expect(rule).toMatch(/position:\s*sticky/);
-    expect(rule).toMatch(/bottom:\s*calc\(-1 \* var\(--edge-pad, 0px\)\);/);
-    // The rail's own bottom padding (pb-2) is its edge pad, so the line sits at its real foot.
-    expect(list.className).toContain("pb-2");
-    expect(list.className).toContain("[--edge-pad:0.5rem]");
-    expect(rule).toMatch(/opacity:\s*0;/);
-    expect(rule).toMatch(/margin-top:\s*-1px/);
-    expect(rule).toMatch(/box-shadow:\s*var\(--shadow-edge-up\)/);
-    expect(css).toMatch(/\.scroll-edge\[data-more\]::after\s*\{\s*opacity:\s*1;/);
-    expect(css).toMatch(/\[data-theme="light"\]\s*\{[^}]*--shadow-edge-up:/);
+    // Its last 20 px fade by a mask (any surface behind), only while more is below.
+    const rule = /\.scroll-edge\[data-more\]\s*\{([^}]*)\}/.exec(css)?.[1] ?? "";
+    expect(rule).toMatch(/(?:^|[^-])mask-image:\s*linear-gradient\(to bottom, #000 calc\(100% - 20px\), transparent\);/);
+    expect(rule).toMatch(/-webkit-mask-image:/);
+    expect(css).not.toMatch(/\.scroll-edge\s*\{[^}]*mask-image/);
   });
 
   it("the edge is drawn at rest invisible, in the flow zero high, in both themes, and fades only with motion", () => {

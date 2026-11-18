@@ -434,7 +434,7 @@ export function InstanceBoard({
 
       {/* 0.4.1: the new-above pill's bar (no box while empty); the list's edge (rail-list-scroll). */}
       <div ref={setCueSlot} data-testid="rail-cue-slot" className="contents" />
-      <div ref={scrollRef} data-testid="rail-list" className="rail-scroll scroll-edge relative -mr-2 min-h-0 flex-1 overflow-y-auto overflow-x-hidden pb-2 pr-2 [--edge-pad:0.5rem]" {...listProps}>
+      <div ref={scrollRef} data-testid="rail-list" className="rail-scroll scroll-edge relative -mr-2 min-h-0 flex-1 overflow-y-auto overflow-x-hidden pb-2 pr-2" {...listProps}>
         {hasRemote && showLocal && (
           <p className="px-3 pb-0.5 pt-1 text-meta font-semibold text-ink-2" data-testid="board-machine-local">
             This Mac

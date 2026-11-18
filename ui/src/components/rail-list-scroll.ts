@@ -3,8 +3,8 @@
  * scroll and view height (the list's windowing reads them), whether it's
  * scrolled down (styles.css .scroll-edge draws a hairline and a soft
  * shadow under the head only then, so a row cut at the top reads as more
- * above, not as the list's start), whether more is below (the same edge
- * at its foot, so a row cut at the bottom reads as more below), and the slot between the head and the
+ * above, not as the list's start), whether more is below (its foot fades,
+ * so a row cut at the bottom reads as more below), and the slot between the head and the
  * list where the "new above" pill takes its own space (rail-hold: it
  * pushes the list's view down while it shows, never covers a line).
  */
