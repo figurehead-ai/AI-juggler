@@ -13,6 +13,14 @@
 //!
 //! A user's explicit choice wins over a remote *preference*, never over
 //! remote *safety*: a kill switch and compat narrowing beat it.
+//!
+//! **Only an `OffOnly` switch set off is a kill.** An `OnOff` or `Rollout`
+//! switch set off is a preference: the user and the account layer can
+//! override it. So an emergency "kill" must target an `OffOnly` switch
+//! (the publish workflow's `--kill` should refuse anything else). The
+//! account layer may also widen a public compat narrowing back, within the
+//! compiled bounds; whether it should is decided with the account layer
+//! (ADR-0035 step 4).
 
 use std::collections::BTreeMap;
 

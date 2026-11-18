@@ -31,16 +31,25 @@
 //! A value is either plain (for everyone) or a list of rules, the first
 //! matching rule wins, and no match leaves the control to the layer below.
 //!
-//! # What is ignored and what is rejected
+//! # Tolerant by value, never by section (an old app meets a new file)
 //!
-//! - An unknown section, or an unknown control in a known section, is
-//!   ignored (an old app meeting a new file).
-//! - A section whose `schema` is newer than the module reads is ignored
-//!   until the app updates.
-//! - Anything else that doesn't fit the schema (a wrong type, a kill switch
-//!   turned on, a range past its bounds, an option not compiled in, a
-//!   malformed rule) drops that whole section, alone; the other sections
-//!   still apply.
+//! An older app must keep receiving kill switches and compat narrowing
+//! from files written for newer apps, so nothing it can't read takes
+//! anything else down with it:
+//!
+//! - An unknown section, or an unknown control, is ignored.
+//! - A rule is evaluated only if it matches this app. A rule that doesn't
+//!   match (a rule gated to newer app versions, say) is skipped without
+//!   reading its value, and a `when` this app can't read never matches.
+//! - The first matching rule wins. If its value can't be read here (a wider
+//!   bound, a new option, a kill switch turned on, a new field in a range),
+//!   that one control is dropped and reported, and the first later
+//!   matching rule that is a **kill** (a switch set off) or a
+//!   **narrowing** (a range inside the compiled default) applies instead:
+//!   fail toward safety.
+//! - A section whose `schema` is newer than this app reads, or missing,
+//!   applies only its kills and narrowings. Only a section that isn't an
+//!   object, or whose `values` isn't one, gives nothing.
 
 use std::collections::BTreeMap;
 
@@ -317,17 +326,30 @@ pub type LayerValues = BTreeMap<SettingKey, Setting>;
 pub enum SectionIssue {
     /// No module registered it (kept in the file, ignored).
     Unknown(String),
-    /// Its schema is newer than this app reads.
+    /// Its schema is newer than this app reads: only its kills and
+    /// narrowings apply.
     Newer {
         /// The section.
         section: String,
         /// Its schema.
         schema: u64,
     },
-    /// It broke its schema and was dropped.
+    /// Its structure is broken (not an object, no schema, `values` not an
+    /// object). With no readable schema, only kills and narrowings apply.
     Invalid {
         /// The section.
         section: String,
+        /// Why.
+        reason: String,
+    },
+    /// One control's value couldn't be read (a newer value type, option or
+    /// bound) and was dropped alone; a later matching kill or narrowing
+    /// may stand in for it.
+    ValueDropped {
+        /// The section.
+        section: String,
+        /// The control.
+        control: String,
         /// Why.
         reason: String,
     },
@@ -397,8 +419,7 @@ impl Registry {
     /// Validates a file's sections and evaluates their rules against
     /// `facts`: the values this layer sets, and what was left out and why.
     ///
-    /// Each section is validated whole before any of it is used, so a bad
-    /// section never half-applies.
+    /// Tolerant by value, never by section: see the module docs.
     #[must_use]
     pub fn resolve(
         &self,
@@ -412,29 +433,54 @@ impl Registry {
                 issues.push(SectionIssue::Unknown(name.clone()));
                 continue;
             };
-            match parse_section(spec, raw) {
-                Ok(Parsed::Newer(schema)) => issues.push(SectionIssue::Newer {
-                    section: name.clone(),
-                    schema,
-                }),
-                Ok(Parsed::Rules(controls)) => {
-                    for (control, rules) in controls {
-                        let key = SettingKey::new(name, &control);
-                        let salt = key.salt();
-                        if let Some((_, setting)) = rules
-                            .into_iter()
-                            .find(|(when, _)| when.matches(facts, &salt))
-                        {
-                            values.insert(key, setting);
-                        }
-                    }
-                }
-                Err(reason) => {
-                    tracing::warn!(section = %name, %reason, "remote config: section dropped");
-                    issues.push(SectionIssue::Invalid {
+            let invalid = |reason: &str| SectionIssue::Invalid {
+                section: name.clone(),
+                reason: reason.to_owned(),
+            };
+            let Some(object) = raw.as_object() else {
+                issues.push(invalid("a section is an object"));
+                continue;
+            };
+            let reading = match object.get("schema").and_then(Value::as_u64) {
+                Some(schema) if schema >= 1 && schema <= u64::from(spec.schema) => Reading::Full,
+                Some(schema) if schema > u64::from(spec.schema) => {
+                    issues.push(SectionIssue::Newer {
                         section: name.clone(),
+                        schema,
+                    });
+                    Reading::SafetyOnly
+                }
+                _ => {
+                    issues.push(invalid("a section needs a schema number"));
+                    Reading::SafetyOnly
+                }
+            };
+            let entries = match object.get("values") {
+                None => continue,
+                Some(Value::Object(entries)) => entries,
+                Some(_) => {
+                    issues.push(invalid("`values` is an object"));
+                    continue;
+                }
+            };
+            for (control_name, entry) in entries {
+                // An unknown control: a newer file; ignored.
+                let Some(control) = spec.controls.get(control_name) else {
+                    continue;
+                };
+                let key = SettingKey::new(name, control_name);
+                let (setting, problem) = resolve_entry(control, entry, facts, &key.salt(), reading);
+                if let Some(reason) = problem {
+                    tracing::warn!(section = %name, control = %control_name, %reason,
+                        "remote config: a value was dropped");
+                    issues.push(SectionIssue::ValueDropped {
+                        section: name.clone(),
+                        control: control_name.clone(),
                         reason,
                     });
+                }
+                if let Some(setting) = setting {
+                    values.insert(key, setting);
                 }
             }
         }
@@ -442,64 +488,81 @@ impl Registry {
     }
 }
 
-enum Parsed {
-    Newer(u64),
-    Rules(Vec<(String, Vec<(When, Setting)>)>),
+/// How much of a section this app may read.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Reading {
+    /// A schema this app knows: every readable value.
+    Full,
+    /// A newer or missing schema: only kills and narrowings.
+    SafetyOnly,
 }
 
-fn parse_section(spec: &SectionSpec, raw: &Value) -> Result<Parsed, String> {
-    let object = raw.as_object().ok_or("a section is an object")?;
-    let schema = object
-        .get("schema")
-        .and_then(Value::as_u64)
-        .filter(|schema| *schema >= 1)
-        .ok_or("a section needs a schema number")?;
-    if schema > u64::from(spec.schema) {
-        return Ok(Parsed::Newer(schema));
+/// A value that only makes the app safer: a switch turned off, or a range
+/// inside the compiled default (compat narrowing).
+fn is_safety(control: &Control, setting: &Setting) -> bool {
+    match (control, setting) {
+        (Control::Switch { .. }, Setting::Switch(on)) => !on,
+        (Control::Versions { default, .. }, Setting::Versions(range)) => range.within(default),
+        _ => false,
     }
-    let values = match object.get("values") {
-        None => return Ok(Parsed::Rules(Vec::new())),
-        Some(values) => values.as_object().ok_or("`values` is an object")?,
+}
+
+/// One control's entry: the first rule that matches this app wins. Rules
+/// that can't match (or can't be read: a newer `when`) are skipped without
+/// reading their value. If the matching rule's value can't be read, the
+/// first later matching rule that is a kill or a narrowing applies instead
+/// (fail toward safety), and the problem is reported.
+fn resolve_entry(
+    control: &Control,
+    entry: &Value,
+    facts: &Facts,
+    salt: &str,
+    reading: Reading,
+) -> (Option<Setting>, Option<String>) {
+    let plain = [(When::Always, Some(entry))];
+    let listed: Vec<(When, Option<&Value>)>;
+    let rules: &[(When, Option<&Value>)] = match entry.as_object().and_then(|o| o.get("rules")) {
+        None => &plain,
+        Some(Value::Array(items)) => {
+            listed = items.iter().take(MAX_RULES).map(parse_rule).collect();
+            &listed
+        }
+        Some(_) => return (None, Some("`rules` is a list".to_owned())),
     };
-    let mut out = Vec::new();
-    for (name, entry) in values {
-        // An unknown control: a newer file; ignored.
-        let Some(control) = spec.controls.get(name) else {
+    let mut problem = None;
+    for (when, value) in rules {
+        if !when.matches(facts, salt) {
             continue;
-        };
-        let rules = match entry.as_object().and_then(|o| o.get("rules")) {
-            Some(rules) => parse_rules(control, rules).map_err(|e| format!("{name}: {e}"))?,
-            None => vec![(
-                When::Always,
-                control
-                    .remote_value(entry, false)
-                    .map_err(|e| format!("{name}: {e}"))?,
-            )],
-        };
-        out.push((name.clone(), rules));
+        }
+        let read = value
+            .ok_or_else(|| "a rule needs a value".to_owned())
+            .and_then(|value| control.remote_value(value, when.is_bucketed()));
+        match (read, &problem) {
+            (Ok(setting), None) => {
+                return match reading {
+                    Reading::SafetyOnly if !is_safety(control, &setting) => (None, None),
+                    _ => (Some(setting), None),
+                };
+            }
+            // After an unreadable match, only a kill or narrowing applies.
+            (Ok(setting), Some(_)) if is_safety(control, &setting) => {
+                return (Some(setting), problem);
+            }
+            (Err(reason), None) => problem = Some(reason),
+            (_, Some(_)) => {}
+        }
     }
-    Ok(Parsed::Rules(out))
+    (None, problem)
 }
 
-fn parse_rules(control: &Control, rules: &Value) -> Result<Vec<(When, Setting)>, String> {
-    let rules = rules.as_array().ok_or("`rules` is a list")?;
-    if rules.len() > MAX_RULES {
-        return Err("too many rules".to_owned());
-    }
-    rules
-        .iter()
-        .map(|rule| {
-            let rule = rule.as_object().ok_or("a rule is an object")?;
-            let when = match rule.get("when") {
-                Some(when) => When::parse(when).map_err(|e| e.to_string())?,
-                None => When::Always,
-            };
-            let value = rule.get("value").ok_or("a rule needs a value")?;
-            // A rule this app can't read never applies, so a newer file's
-            // rollout isn't refused for lacking buckets it may well have.
-            let bucketed = when.is_bucketed() || when == When::Unknown;
-            let setting = control.remote_value(value, bucketed)?;
-            Ok((when, setting))
-        })
-        .collect()
+/// A rule's `when` and value. A `when` this app can't read never matches.
+fn parse_rule(rule: &Value) -> (When, Option<&Value>) {
+    let Some(rule) = rule.as_object() else {
+        return (When::Unknown, None);
+    };
+    let when = match rule.get("when") {
+        Some(when) => When::parse(when).unwrap_or(When::Unknown),
+        None => When::Always,
+    };
+    (when, rule.get("value"))
 }

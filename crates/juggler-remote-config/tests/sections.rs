@@ -89,7 +89,7 @@ fn unknown_sections_controls_and_newer_schemas_are_ignored() {
     let (values, issues) = layer(json!({
         "future": {"schema": 1, "values": {"x": 1}},
         "flags": {"schema": 1, "values": {"toggle": true, "not_yet": {"rules": "anything"}}},
-        "compat": {"schema": 3, "values": {"tool_move": "garbage"}},
+        "compat": {"schema": 3, "values": {"tool_move": {"min": "1.5.0", "max": "9.9.9"}}},
     }));
     assert_eq!(
         values,
@@ -110,17 +110,20 @@ fn a_value_may_only_select_what_is_compiled_in() {
         json!({"toggle": "yes"}),
         json!({"mode": "reckless"}),
         json!({"interval_s": 1.5}),
-        json!({"toggle": {"rules": [{"when": {"buckets": [9, 0]}, "value": true}]}}),
         json!({"toggle": {"rules": [{"value": "on"}]}}),
     ];
     for values in refused {
         let (got, issues) = layer(json!({"flags": {"schema": 1, "values": values.clone()}}));
         assert!(got.is_empty(), "{values} applied");
         assert!(
-            matches!(issues.as_slice(), [SectionIssue::Invalid { section, .. }] if section == "flags"),
+            matches!(issues.as_slice(), [SectionIssue::ValueDropped { section, .. }] if section == "flags"),
             "{values}: {issues:?}"
         );
     }
+    // A `when` this app can't read never matches (it isn't an error).
+    let (got, issues) = layer(json!({"flags": {"schema": 1, "values":
+        {"toggle": {"rules": [{"when": {"buckets": [9, 0]}, "value": true}]}}}}));
+    assert!(got.is_empty() && issues.is_empty());
     // Ranges: never past the compiled bounds; anything within is fine.
     let (got, _) =
         layer(json!({"compat": {"schema": 1, "values": {"tool_move": {"min": "0.8.0"}}}}));
@@ -138,20 +141,161 @@ fn a_value_may_only_select_what_is_compiled_in() {
 }
 
 #[test]
-fn a_bad_section_is_dropped_alone() {
+fn a_bad_value_is_dropped_alone() {
     let (values, issues) = layer(json!({
         "flags": {"schema": 1, "values": {"toggle": true, "kill_me": true}},
         "compat": {"schema": 1, "values": {"tool_move": {"min": "1.5.0", "max": "2.0.0"}}},
     }));
     assert_eq!(
         values,
-        LayerValues::from([(
-            key("compat", "tool_move"),
-            Setting::Versions(range("1.5.0", "2.0.0"))
-        )]),
-        "flags.toggle was valid but its section broke, so none of it applies"
+        LayerValues::from([
+            (
+                key("compat", "tool_move"),
+                Setting::Versions(range("1.5.0", "2.0.0"))
+            ),
+            (key("flags", "toggle"), Setting::Switch(true)),
+        ]),
+        "flags.kill_me can't be turned on; flags.toggle still applies"
     );
-    assert_eq!(issues.len(), 1);
+    assert!(matches!(issues.as_slice(),
+        [SectionIssue::ValueDropped { control, .. }] if control == "kill_me"));
+}
+
+/// H2 (the reviewer's proof of concept): one value a 0.5.0 app can't read
+/// must not take the section's kill switch, or the compat narrowing, with it.
+#[test]
+fn one_unreadable_value_keeps_the_sections_kill_switches() {
+    let (values, issues) = layer(json!({
+        "flags": {"schema": 1, "values": {
+            "kill_me": false,
+            "mode": "turbo",
+        }},
+        "compat": {"schema": 1, "values": {
+            "tool_move": {"min": "1.2.0", "max": "1.4.0", "exclude": ["1.3.0"]},
+        }},
+    }));
+    assert_eq!(
+        values.get(&key("flags", "kill_me")),
+        Some(&Setting::Switch(false))
+    );
+    assert!(
+        !values.contains_key(&key("flags", "mode")),
+        "the new option is dropped alone"
+    );
+    assert!(
+        !values.contains_key(&key("compat", "tool_move")),
+        "a new range field is unreadable"
+    );
+    assert_eq!(issues.len(), 2);
+}
+
+/// H2: a rule gated to newer app versions is never read by this app, so a
+/// value only they understand can't break anything here.
+#[test]
+fn a_rule_gated_to_newer_apps_is_not_read() {
+    let (values, issues) = layer(json!({"flags": {"schema": 1, "values": {
+        "kill_me": {"rules": [
+            {"when": {"app": {"min": "0.6.0"}}, "value": true},
+            {"value": false},
+        ]},
+        "mode": {"rules": [
+            {"when": {"app": {"min": "0.6.0"}}, "value": "turbo"},
+            {"when": {"app": {"min": "0.6.0", "future_clause": 1}}, "value": {"new": "shape"}},
+        ]},
+    }}}));
+    assert_eq!(
+        values.get(&key("flags", "kill_me")),
+        Some(&Setting::Switch(false))
+    );
+    assert!(!values.contains_key(&key("flags", "mode")));
+    assert!(issues.is_empty(), "{issues:?}");
+}
+
+/// H2: the four ordinary schema changes the review names, each in a rule
+/// that does match this app: only that control is dropped, and a later
+/// matching kill or narrowing stands in (fail toward safety).
+#[test]
+fn newer_values_drop_one_control_and_fall_back_to_safety() {
+    let cases = [
+        // A newer app's wider compiled bounds.
+        (
+            "compat",
+            "tool_move",
+            json!({"min": "0.1.0", "max": "9.0.0"}),
+            json!({"min": "1.0.0", "max": "1.5.0"}),
+            Setting::Versions(range("1.0.0", "1.5.0")),
+        ),
+        // A newer app's new option (no safety value for a choice).
+        (
+            "flags",
+            "mode",
+            json!("turbo"),
+            json!("eager"),
+            Setting::Choice("steady".to_owned()),
+        ),
+        // A switch that a newer app made a rollout: true with buckets.
+        (
+            "flags",
+            "kill_me",
+            json!(true),
+            json!(false),
+            Setting::Switch(false),
+        ),
+        // A new field inside a range.
+        (
+            "compat",
+            "tool_move",
+            json!({"min": "1.1.0", "step": 2}),
+            json!({"min": "1.2.0", "max": "2.0.0"}),
+            Setting::Versions(range("1.2.0", "2.0.0")),
+        ),
+    ];
+    for (section, control, newer, fallback, expected) in cases {
+        let schema = if section == "compat" { 2 } else { 1 };
+        let (values, issues) = layer(
+            json!({section: {"schema": schema, "values": {control: {"rules": [
+                {"value": newer},
+                {"value": fallback},
+            ]}}}}),
+        );
+        assert!(
+            matches!(issues.as_slice(), [SectionIssue::ValueDropped { .. }]),
+            "{section}.{control}: {issues:?}"
+        );
+        match expected {
+            // A choice has no safe value: the control is left to the layer below.
+            Setting::Choice(_) => assert!(values.is_empty(), "{values:?}"),
+            expected => assert_eq!(values.get(&key(section, control)), Some(&expected)),
+        }
+    }
+}
+
+/// H2: a section with a newer schema, or none, still applies its kills and
+/// narrowings, and nothing else.
+#[test]
+fn a_newer_schema_still_applies_kills_and_narrowing() {
+    for schema in [json!(9), json!(null)] {
+        let (values, issues) = layer(json!({
+            "flags": {"schema": schema, "values": {"kill_me": false, "toggle": true, "interval_s": 99}},
+            "compat": {"schema": schema, "values": {"tool_move": {"min": "1.2.0", "max": "1.8.0"}}},
+        }));
+        assert_eq!(
+            values,
+            LayerValues::from([
+                (
+                    key("compat", "tool_move"),
+                    Setting::Versions(range("1.2.0", "1.8.0"))
+                ),
+                (key("flags", "kill_me"), Setting::Switch(false)),
+            ]),
+            "schema {schema}"
+        );
+        assert_eq!(issues.len(), 2);
+    }
+    // A widening is not a safety value: not applied from a newer schema.
+    let (values, _) = layer(json!({"compat": {"schema": 9, "values":
+        {"tool_move": {"min": "0.9.0", "max": "3.0.0"}}}}));
+    assert!(values.is_empty());
 }
 
 #[test]
