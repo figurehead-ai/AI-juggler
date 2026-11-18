@@ -112,7 +112,9 @@ pub fn attention_level(kind: &str, facts: LevelFacts) -> u8 {
         return 0;
     }
     match kind {
-        "failed" => 3,
+        // A session stopped with an error or crashed, a switch that failed
+        // or rolled back, readings that degraded.
+        "failed" | "crashed" | "switch_failed" | "degraded" => 3,
         "limit" => {
             if facts.no_room {
                 3
@@ -135,7 +137,10 @@ pub fn attention_level(kind: &str, facts: LevelFacts) -> u8 {
                 _ => 1,
             }
         }
-        "review" | "leftovers" => 1,
+        // Notes: done work to review, leftovers, an update, a renewal, kept
+        // alive or paused, not measured yet, uncommitted files.
+        "review" | "leftovers" | "update" | "renewal" | "app-started" | "keep-alive-paused"
+        | "unmeasured" | "uncommitted" => 1,
         _ => 2,
     }
 }

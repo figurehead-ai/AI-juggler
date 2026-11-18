@@ -91,8 +91,14 @@ export interface AttentionSubject {
 
 /** The kinds that are a decision waiting (L2) whatever their facts. */
 const WAITS = new Set(["asks", "stuck", "cut_off", "signin", "cap", "message", "task", "heavy"]);
-/** The kinds that are a note (L1). */
-const NOTES = new Set(["review", "leftovers"]);
+/** The kinds that are a note (L1): done work to review, leftovers, and
+ * the proposal's other notes (an update, a renewal within 7 days, kept
+ * alive or paused, not measured yet, uncommitted files). */
+const NOTES = new Set(["review", "leftovers", "update", "renewal", "app-started", "keep-alive-paused", "unmeasured", "uncommitted"]);
+/** The kinds that are broken (L3) whatever their facts: a session that
+ * stopped with an error or crashed, a switch that failed or rolled back,
+ * readings that degraded. */
+const BROKEN = new Set(["failed", "crashed", "switch_failed", "degraded"]);
 
 /** Its level (see above). An unknown need is a need (L2): a new kind is
  * never quieter than it should be until it is placed here. */
@@ -100,7 +106,7 @@ export function attentionLevel(subject: AttentionSubject): AttentionLevel {
   const { need } = subject;
   if (subject.parked) return 0;
   if (need) {
-    if (need === "failed") return 3;
+    if (BROKEN.has(need)) return 3;
     if (need === "limit") return subject.noRoom ? 3 : 2;
     if (need === "room") return subject.critical ? 3 : 2;
     if (need === "quota") {

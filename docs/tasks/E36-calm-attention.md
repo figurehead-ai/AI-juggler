@@ -60,7 +60,7 @@
 > screens by traffic ([0.5-order.md](../plan/0.5-order.md) batch 5);
 > AJ-E3617 closes the epic before the 0.5 Stable.
 
-### AJ-E3601 The calm foundation: tokens, attentionLevel(), the OS settings, the beta-only classic flag and the validation kit | Status: TODO | Priority P0 | Effort L | Depends: —
+### AJ-E3601 The calm foundation: tokens, attentionLevel(), the OS settings, the beta-only classic flag and the validation kit | Status: IN-PROGRESS (R1–R7, R9 done; R8's baseline run and the Increase Contrast captures left: docs/qa/evidence/AJ-E3601/manifest.md) | Priority P0 | Effort L | Depends: —
 **Goal**: One source for how loud anything is, the tokens that draw it, and the tests that keep the noise from growing back.
 **User story**: As someone with eight sessions on three Apps, I see at a glance the two things that need me, because nothing else on screen is shouting.
 **Requirements**:
