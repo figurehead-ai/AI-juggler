@@ -297,3 +297,20 @@ Since D-127/D-128 (0.4.6), a switch is offered only when every fidelity area is 
 - R2: the AJ-E808 harness (`just switch-lab`) runs each `+service` pair in all 8 areas on the current versions, with file-history included. Record live cells with versions and evidence, replacing the hard-coded `ci_green: false` per pair only on a recorded run.
 - R3: a validated pair is offered by default with no Beta tag; an unvalidated one stays behind Beta. The gate watch (scripts/gate_watch.py) lists them when due.
 - Done when each `+service` pair the product offers is validated live or stays Beta-only by an explicit, logged choice.
+
+### AJ-E819 The lab-Mac compatibility run: the adapters' suite on the installed tool versions (D-128 point 2) | Status: PLANNED (0.5) | Priority P1 | Effort M | Depends: AJ-E808, AJ-E2022
+**Goal**: When a tool updates, a scheduled run on the lab Mac says whether AI Juggler still reads and switches it correctly, and posts the result where the update was noticed.
+**User story**: As the maintainer, I get one issue per tool update with "parsers pass, shapes match, switch routes pass" or the failing line, so a patch is a queue item, not a surprise.
+**Requirements**:
+1. A scheduled check on the lab Mac SHALL run the adapters' compatibility suite (parsers on fresh fixtures, the shape checks of the write paths, the AJ-E808 switch routes) against each installed tool's current version.
+2. It SHALL post the result to the `tool-update` issue the daily GitHub watcher opened for that tool and version (D-128 point 2; the watcher itself ships in 0.4.6 as repo tooling).
+3. A failure SHALL be recorded as a bug against the tool and version, and, once AJ-E2022 ships, SHALL be able to produce a compat-file entry that hides only the failing option.
+4. It SHALL use lab profiles only, every launch through `lab_env.sh` and verified by `ps`, and read-only on real accounts.
+**UI/UX reasoning**: n/a (repo tooling).
+**Performance budget**: runs off-hours; bounded lifetime and cleaned up after.
+**Quality gates**: a selftest with a fixture that changes shape and fails; the run's output kept as evidence.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E819/manifest.md`, R1 to R4.
+**Visual testing**: n/a.
+**Files to touch**: `scripts/qa/`, `scripts/gate_watch.py`, `.github/workflows/`.
+**Research basis**: D-128 point 2; D-127.
+**Handover note**: AJ-E818 is the sibling for the `+service` pairs.

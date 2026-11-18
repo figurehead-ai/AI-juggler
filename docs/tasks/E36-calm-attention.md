@@ -399,3 +399,36 @@
 **Files to touch**: `ui/src/lib/attention.ts`, `docs/design/PRINCIPLES.md`, `docs/guide/`, `ui/src/components/LegendPopover.tsx`.
 **Research basis**: D-117 point 4 and point 6.
 **Handover note**: if the maintainer asks for a user-facing choice after living with the calm default, the proposal's §(e) "Emphasis: Standard / Strong" is the 0.6 candidate; it needs its own ruling.
+
+### AJ-E3618 Making and editing screens, rich: the audit's worst list and the shared kit (D-126) | Status: TODO | Priority P0 | Effort M | Depends: AJ-E3601
+**Goal**: Every wizard, create or edit page and setup flow is classed and ranked, so the worst are fixed first, with 0.4.6's pool-wizard kit as the one design language.
+**User story**: As someone adding an account or an app, I see a screen that looks as considered as the rest of the product, not a bare form.
+**Requirements**:
+1. Every screen SHALL be audited and classed as monitoring (calm, D-117) or making and editing (rich, D-126), and the worst 25 listed with a reason each, in `docs/research/screen-audit.md`. (The audit's list was asked for by D-126's widened scope on 2026-11-16 and is not in the repository at 2026-11-18; this requirement produces it.)
+2. Recurring problems SHALL be fixed once at the token and component level, reusing the 0.4.6 kit (FlowSteps, choice cards with previews, tinted surfaces, a live summary), before any screen is touched.
+3. Mock-ups in both themes SHALL go to the maintainer before building (D-126 point 3).
+**UI/UX reasoning**: one design language, with scarce status colour on monitoring screens and the accent used for selection, progress and previews on making and editing screens (D-126's clarification).
+**Performance budget**: unchanged.
+**Quality gates**: verify-static; the design-quality critique; ui-consistency.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E3618/manifest.md`, R1 to R3; the audit file.
+**Visual testing**: the mock-ups, both themes.
+**Files to touch**: `docs/research/screen-audit.md`, `ui/src/components/` (the kit), `ui/src/lib/`.
+**Research basis**: D-126; 0.4.6's pool wizard.
+**Handover note**: read the wireframes and the UX spec first (read-specs rule).
+
+### AJ-E3619 Making and editing screens, rich: the worst 25 rebuilt, starting with Notifications, Add app and Add account (D-126) | Status: TODO | Priority P0 | Effort XL | Depends: AJ-E3618
+**Goal**: The screens where a user creates or edits things look great and read easily, as D-126 asks, in 0.5.
+**User story**: As a newcomer, adding my first account or app feels guided and polished, with a preview of what I'm about to do.
+**Requirements**:
+1. Notifications, Add app and Add account SHALL be rebuilt first, then the rest of AJ-E3618's list, each with the app's accent and tinted surfaces, icons and logos on every choice, choice cards with previews instead of bare checkboxes, clear step progress, a live summary and short copy with depth behind "Learn more".
+2. Every other wizard, create or edit page and setup flow in AJ-E3618's list SHALL follow, none left on the plain look.
+3. Each rebuilt screen SHALL pass the a11y gate and the design-quality critique, with before and after captures that say what changed.
+4. A newcomer persona SHALL walk the three first screens by hand (Sonnet, verified by Opus).
+**UI/UX reasoning**: D-126: calm never means plain; a wizard next to Home must read as the same product.
+**Performance budget**: each screen opens in under 150 ms from cache; no loops at idle.
+**Quality gates**: verify-static; the a11y gate; the attention-budget test; baselines once per round.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E3619/manifest.md`, R1 to R4.
+**Visual testing**: each screen, both themes, narrow and wide.
+**Files to touch**: `ui/src/screens/`, `ui/src/components/`, `ui/src/lib/`.
+**Research basis**: D-126; the screen audit (AJ-E3618).
+**Handover note**: 0.4.6 has the pool wizard; 0.5 covers everything else.

@@ -99,6 +99,7 @@
 | AJ-E816 | Local Playwright runs match CI: the local-only failures | E8-validation-visual-performance-quality.md | P2 | M | AJ-E805 |
 | AJ-E817 | Gate tests measure the work, not the clock: the other wall-clock bounds | E8-validation-visual-performance-quality.md | P1 | M | AJ-E805 |
 | AJ-E818 | A live validation route for switches through another service (the `+service` pairs) | E8-validation-visual-performance-quality.md | P2 | M | AJ-E808, AJ-E1601 |
+| AJ-E819 | The lab-Mac compatibility run: the adapters' suite on the installed tool versions | E8-validation-visual-performance-quality.md | P1 | M | AJ-E808, AJ-E2022 |
 | AJ-E901 | SPEC §3 domain-model rewrite (Provider/Instance/Switch Graph/ledger) | E9-docs-adrs-and-plan-rewrite.md | P0 | M | — |
 | AJ-E902 | SPEC §5 supervisor/ledger + §6 two-clock usage rewrite | E9-docs-adrs-and-plan-rewrite.md | P0 | M | AJ-E901 |
 | AJ-E903 | SPEC §7 Switching rewrite (Switch Graph, pack v2, divergence) | E9-docs-adrs-and-plan-rewrite.md | P0 | M | AJ-E901 |
@@ -262,6 +263,10 @@
 | AJ-E2018 | UI: split bridge.ts, keep preview out of production, a shell registry | E20-engineering-and-security.md | P1 | L | AJ-E2012 |
 | AJ-E2019 | Typed command wrappers | E20-engineering-and-security.md | P2 | M | AJ-E2018 |
 | AJ-E2020 | Release speed: promote the tested nightly, build CI once, test only what changed | E20-engineering-and-security.md | P1 | L | AJ-E2019 |
+| AJ-E2021 | Remote configuration, step 1: the signed envelope and its trust rules | E20-engineering-and-security.md | P0 | L | ADR-0035 |
+| AJ-E2022 | Remote configuration: the compat section, the app's wiring and the publish workflow | E20-engineering-and-security.md | P0 | L | AJ-E2021 |
+| AJ-E2023 | Remote configuration, step 2: flags, notices and their screens | E20-engineering-and-security.md | P1 | M | AJ-E2021 |
+| AJ-E2024 | Numbers the window can't hold: a 64-bit value reaches the UI only below 2^53 | E20-engineering-and-security.md | P1 | S | — |
 | AJ-E2101 | Live sessions from the apps' own files | E21-desktop-first.md | P0 | L | — |
 | AJ-E2102 | Go to it | E21-desktop-first.md | P0 | M | AJ-E2101 |
 | AJ-E2103 | Open first: the rail's order | E21-desktop-first.md | P0 | S | AJ-E2101 |
@@ -439,6 +444,8 @@
 | AJ-E3615 | The menu-bar menu and notifications, calm | E36-calm-attention.md | P1 | S | AJ-E3601, AJ-E3602 |
 | AJ-E3616 | The Floor's HUD and list, calm where it applies | E36-calm-attention.md | P1 | S | AJ-E3601, AJ-E3603 |
 | AJ-E3617 | The calm app closed: the classic flag removed, the principles and the guide written, the whole app walked | E36-calm-attention.md | P0 | S | AJ-E3602…AJ-E3616, AJ-E3701 |
+| AJ-E3618 | Making and editing screens, rich: the audit's worst list and the shared kit | E36-calm-attention.md | P0 | M | AJ-E3601 |
+| AJ-E3619 | Making and editing screens, rich: the worst 25 rebuilt, starting with Notifications, Add app and Add account | E36-calm-attention.md | P0 | XL | AJ-E3618 |
 | AJ-E3701 | Home in two columns: the layout, Your apps and Runway by account (Home's calm pass) | E37-home-activity-feed.md | P0 | M | AJ-E3601, AJ-E3602 |
 | AJ-E3702 | The feed: pinned needs, the stream, rollups, the away digest, the new-updates pill, filters, paging and the voice (F1) | E37-home-activity-feed.md | P0 | XL | AJ-E3701 |
 | AJ-E3703 | The agent's own last reply, quoted behind "show last messages" (a+) | E37-home-activity-feed.md | P1 | S | AJ-E3702 |
@@ -459,5 +466,5 @@
 | AJ-E3807 | The no-model panel: look-ups that need no AI, and the approved download offer | E38-chat.md | P1 | M | AJ-E3804, AJ-E3803 |
 | AJ-E3808 | Chat history: local, clearable, never off the Mac | E38-chat.md | P1 | S | AJ-E3804 |
 | AJ-E3809 | The newcomer walk: Chat v1 on a real Mac, by hand | E38-chat.md | P0 | M | AJ-E3804…AJ-E3808 |
-Total: 457 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
+Total: 464 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
 Status of every task at generation: TODO. The epic files are canonical; this catalog is an index, never edited to claim progress.

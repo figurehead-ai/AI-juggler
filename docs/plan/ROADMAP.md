@@ -150,7 +150,18 @@ under D-24.
 | Release speed: beta promotes the tested nightly, CI builds once and tests what changed (D-99; planned after 0.4.1) | AJ-E2020 |
 | Calm attention: four levels read from one place, each need loud once per area, a quieter look (section labels, no borders, App icons muted until they need you), every collapsible kept, on every screen: the 0.5 Stable doesn't ship with a screen on the old look (D-117) | E36 |
 | Home as an activity feed: what needs you pinned on top, then what happened, newest first and rolled up, with a "while you were away" digest; Your apps and Runway by account beside it (D-118) | E37 |
-| AI jobs through one router (summaries and Chat share it; a job no engine can do is hidden), one downloaded model at most, and Chat v1: a read-only panel that answers from your own sessions, tasks, pools and usage with sources (D-121) | E38 |
+| AI jobs through one router, and Chat v1. **Rescoped 2026-11-18 (ADR-0033, 659da7fec):** 0.5 ships no model-written text; Chat v1 ships as the look-up view (found records with links, no written answer); the downloaded-model parts and written answers are not shipped (D-120, D-121) | E38 |
+| Feed summaries: A's excerpts built in the apps; B's research and its evaluation are done and its design is ADR-0033 (Proposed); B's build is not shipped | AJ-E3708, AJ-E3709, AJ-E3710, AJ-E3711 |
+| The signed remote configuration: the crate and its trust rules (step 1 built and reviewed, ADR-0035), the compat section and its publish workflow, then flags and notices with their screens; hosted on the website, on by default (D-129). Params and endpoints and the account layer (ADR-0035 order, steps 3 and 4) come with the features that need them, in later releases | AJ-E2021, AJ-E2022, AJ-E2023 |
+| The lab-Mac compatibility run on the installed tool versions (D-128) | AJ-E819 |
+| Making and editing screens get a rich, polished design, from the screen audit's worst-25 list (Notifications, Add app and Add account first), built on 0.4.6's pool-wizard kit (D-126) | AJ-E3618, AJ-E3619 |
+| Switches through another service (the `+service` pairs) validated live, or kept Beta-only by a logged choice (D-127, D-128) | AJ-E818 |
+| The sign-in surface fixes the sign-in sitting found; an ended session filed under the App whose own list shows it (D-102) | AJ-E1615, AJ-E2113 |
+| A 64-bit number reaches the window only below 2^53 (done) | AJ-E2024 |
+
+**Deferred (D-120):** AJ-E3711 — not shipped by D-120's rule (ADR-0033 verdicts: 861ee2015, 1b8b7cbec, 659da7fec; D-121 point 4): written lines ship only if blind reviewers prefer them to A's excerpt with 0 FAILs, and they did not; 0.5 ships A's excerpts and no model text.
+
+**Deferred (D-121):** AJ-E3803 — the disk rules for a downloaded model; not shipped by D-120's rule (ADR-0033 verdicts), since 0.5 offers no downloaded model. The written-answer parts of AJ-E3802, AJ-E3804 to AJ-E3807 and AJ-E3809 are likewise not shipped (each task says which requirements).
 
 Accessibility stays proven by the automated gates on every release
 (axe on every gallery state, keyboard traversals, contrast); the manual
