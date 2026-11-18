@@ -84,7 +84,7 @@ test("Add keeps the next Add where it was: the palette and its More", async ({ p
   await pool(page, "Checkout team");
   await expect(page.getByTestId("pool-canvas")).toBeVisible();
   const palette = page.getByTestId("canvas-palette");
-  if (!(await page.getByTestId("canvas-palette-body").isVisible())) await palette.getByRole("button", { name: /Add a session/ }).click();
+  if (!(await page.getByTestId("canvas-palette-body").isVisible())) await palette.getByRole("button", { name: /Add a member/ }).click();
   const adds = page.getByTestId("canvas-palette-add");
   await expect(adds).toHaveCount(2);
   const next = await box(adds.nth(1));

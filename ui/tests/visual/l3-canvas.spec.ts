@@ -144,7 +144,7 @@ for (const r of ROWS) {
     // The row's member kind joins from the palette.
     if (r.member !== "session") {
       const palette = page.getByTestId("canvas-palette");
-      const fold = palette.getByRole("button", { name: /Add a session/ });
+      const fold = palette.getByRole("button", { name: /Add a member/ });
       if ((await fold.getAttribute("aria-expanded")) === "false") await act(fold);
       const kind = page.getByTestId("canvas-palette-kind");
       await act(kind);

@@ -105,8 +105,8 @@ export function Canvas({
   const [overPalette, setOverPalette] = useState(false);
   const [menu, setMenu] = useState<{ id: string; at: Point } | null>(null);
   const [tabStop, setTabStop] = useState<string | null>(null);
-  // The palette starts open where there's room for it beside the nodes,
-  // or when the pool is empty (it's how one starts).
+  // D-126 §3: the palette starts closed, as its "Add a member" button
+  // (the checklist's own Add a member opens it too).
   const [paletteOpen, setPaletteOpen] = useState<boolean | null>(null);
   const justDragged = useRef(false);
   const reducedMotion = useReducedMotion();
@@ -122,8 +122,8 @@ export function Canvas({
     return () => observer?.disconnect();
   }, []);
   useEffect(() => {
-    if (paletteOpen === null && size.w > 0 && canvas && !data.list.loading) setPaletteOpen(size.w >= 900 || members.length === 0);
-  }, [paletteOpen, size.w, canvas, members.length, data.list.loading]);
+    if (paletteOpen === null && size.w > 0 && canvas && !data.list.loading) setPaletteOpen(false);
+  }, [paletteOpen, size.w, canvas, data.list.loading]);
   // The palette sits over the top left: fit what's beside it (or below its folded line).
   const { view, latest, setView, fit, forget, hold } = useCanvasView(
     pool.id,

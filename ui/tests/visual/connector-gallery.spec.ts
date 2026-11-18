@@ -289,7 +289,7 @@ for (const theme of ["dark", "light"] as const) {
     await open(page, theme);
     await poolPage(page);
     const palette = page.getByTestId("canvas-palette");
-    if (!(await page.getByTestId("canvas-palette-body").isVisible())) await palette.getByRole("button", { name: /Add a session/ }).click();
+    if (!(await page.getByTestId("canvas-palette-body").isVisible())) await palette.getByRole("button", { name: /Add a member/ }).click();
     await page.getByTestId("canvas-palette-kind").click();
     await page.getByRole("menuitemradio", { name: /^Apps/ }).click();
     await expect(page.getByTestId("canvas-palette-more-note")).toHaveCount(1);

@@ -2,13 +2,18 @@
  * The canvas's palette: the open sessions this pool could take, to drag
  * onto the canvas (or add with the keyboard: Add puts it in the next free
  * place). While a member is dragged, it turns into the place to drop it
- * to take it out of the pool. Folds to a single line.
+ * to take it out of the pool.
+ *
+ * D-126 §3: closed, it's one button, "Add a member", at the canvas's top
+ * left (it was an always-open list beside the diagram); open, the same
+ * button heads the list and folds it again.
  */
 import { useState, type JSX, type PointerEvent, type ReactNode } from "react";
 import { usePendingAdds } from "../../lib/pool-pending";
 import { keep, keepInPlace, type Kept } from "../../lib/in-place";
 
 import { AppIcon } from "../../components/AppIcon";
+import { Button } from "../../components/primitives";
 import { AppKindBadge } from "../../components/AppKindBadge";
 import { appOfSession } from "../../lib/app-of";
 import { IconGrip } from "../../components/icons-places";
@@ -79,27 +84,40 @@ export function Palette({
       </div>
     );
   }
+  const toggle = () => {
+    setKept(new Map());
+    onOpen(!open);
+  };
+  if (!open)
+    return (
+      <section data-canvas-palette aria-label="Add a member" className="pointer-events-auto w-fit" data-testid="canvas-palette">
+        <Button size="sm" variant="secondary" aria-expanded={false} onClick={toggle} className="shadow-card" data-testid="canvas-add-member">
+          <IconPlus width={14} height={14} aria-hidden="true" />
+          Add a member
+        </Button>
+      </section>
+    );
   return (
-    <section data-canvas-palette aria-label="Add a session" className="pointer-events-auto flex max-h-full w-60 flex-col rounded-xl border border-hairline bg-surface/95 shadow-card backdrop-blur" data-testid="canvas-palette">
+    <section data-canvas-palette aria-label="Add a member" className="pointer-events-auto flex max-h-full w-60 flex-col rounded-xl border border-hairline bg-surface/95 shadow-card backdrop-blur" data-testid="canvas-palette">
       <button
         type="button"
-        aria-expanded={open}
-        onClick={() => {
-          setKept(new Map());
-          onOpen(!open);
-        }}
-        className="flex items-center gap-2 rounded-xl px-3 py-2 text-left text-meta font-semibold text-ink-2 outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60"
+        aria-expanded
+        onClick={toggle}
+        className="flex items-center gap-2 rounded-xl px-3 py-2 text-left text-meta font-semibold text-ink outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60"
+        data-testid="canvas-add-member"
       >
-        <span className="flex-1">Add a session</span>
-        <span className="font-mono normal-case tracking-normal">{sessions.length}</span>
+        <IconPlus width={14} height={14} aria-hidden="true" />
+        <span className="flex-1">Add a member</span>
+        <span className="font-mono text-muted" aria-label={`${sessions.length} open ${sessions.length === 1 ? "session" : "sessions"} can join`}>
+          {sessions.length}
+        </span>
         <svg aria-hidden="true" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
-          <path d={open ? "M6 15l6-6 6 6" : "M6 9l6 6 6-6"} />
+          <path d="M6 15l6-6 6 6" />
         </svg>
       </button>
       {/* One scroll area under the header (the P6 walk at 1024 × 700: the
           list and More squeezed over each other and ran under the zoom bar). */}
-      {open && (
-        <div className="flex min-h-0 flex-col overflow-y-auto overscroll-contain" data-canvas-scroll data-testid="canvas-palette-body">
+      <div className="flex min-h-0 flex-col overflow-y-auto overscroll-contain" data-canvas-scroll data-testid="canvas-palette-body">
           <div className="flex flex-col gap-1.5 px-2 pb-2">
           {sessions.length === 0 ? (
             <p className="px-1 pb-1 text-label text-muted" data-testid="canvas-palette-empty">
@@ -167,8 +185,7 @@ export function Palette({
           )}
           </div>
           {more}
-        </div>
-      )}
+      </div>
     </section>
   );
 }
