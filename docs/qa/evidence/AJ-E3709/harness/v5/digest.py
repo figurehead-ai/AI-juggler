@@ -19,6 +19,7 @@ from collections import Counter
 HERE = os.path.dirname(os.path.abspath(__file__)); sys.path.insert(0, HERE)
 from core import Job, register, register_item_kind, j4, gate, gate_v4, checks, norm_turn, needs_you, level_of, facts_sentence, PROMPT_VERSION, prepare_v5  # noqa: E402
 import severity                                                                                                   # noqa: E402
+import guard_v5                                                                                                   # noqa: E402
 
 # ======================================================================================================================
 # The item: {id, agents: [{session_id, app, project, turns: [{turn_id, source, facts, ended_at}], events: [{kind, at, detail}]}], gold}
@@ -460,6 +461,8 @@ class Digest(Job):
                     break
         q = quoted_spans(a)
         if q and not gate.step5(q, text)[0]: errs.append(f"echo: {text[:40]!r} relays words {a['ref']} quotes (a file's, a comment's or a page's words, not its own)")
+        if guard_v5.caught(text) or guard_v5._quoted_hits(text):     # the guard's own test on the model's words: an order to the reader
+            errs.append(f"echo: {text[:40]!r} carries an order to the reader or the user")
         if j4.ACTING.search(text): errs.append(f"{text[:40]!r}: an acting claim")
         if OTHERS.search(text): errs.append(f"attribution: {text[:40]!r} speaks for agents other than {a['ref']}")
         if re.search(r"https?://|www\.", text, re.I): errs.append(f"{text[:40]!r}: shape: a URL")
@@ -709,6 +712,7 @@ def findings(job, view):
             ok, errs = checks.polarity_check(own, m, None)
             if not ok: out.append(_F("critical", "polarity_script", f"{a['ref']} {m[:100]!r}: " + "; ".join(errs), a["ref"]))
             if not gate.step5(d["removed"], m)[0]: out.append(_F("critical", "injection_echo", f"{a['ref']} {m[:120]!r}", a["ref"]))
+            if guard_v5.caught(m) or guard_v5._quoted_hits(m): out.append(_F("critical", "order_to_reader", f"{a['ref']} {m[:120]!r}", a["ref"]))
             if quoted_spans(a) and not gate.step5(quoted_spans(a), m)[0]:     # a candidate: Opus reads whether the quote is an order
                 out.append(_F("critical", "quote_relayed", f"{a['ref']} {m[:120]!r}", a["ref"]))
             if j4.ACTING.search(m): out.append(_F("critical", "acting", m[:120], a["ref"]))
