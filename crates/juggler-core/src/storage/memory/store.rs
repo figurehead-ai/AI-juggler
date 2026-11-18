@@ -7,8 +7,8 @@ use super::erase::{erase_subject, reindex};
 use super::log::{Actor, NewEvent, Stream, append_in};
 use super::secure::{SecureHold, fold_wal};
 use super::types::{
-    Authority, EntityKind, EntityRef, Kind, KindWriter, MemoryError, PREFERENCE_MAX_CHARS,
-    Priority, RecordText, Refusal, Scope, SecretScan, SourceKind, Tier, UNTRUSTED_KEY, code_like,
+    Authority, EntityKind, EntityRef, Kind, KindWriter, MemoryError, Priority, RecordText, Refusal,
+    Scope, SecretScan, SourceKind, Tier, UNTRUSTED_KEY, code_like,
 };
 use crate::storage::write_transaction;
 
@@ -259,9 +259,10 @@ fn gate(
         return Err(Refusal::TextBounds);
     }
     // A preference is a setting: it names an entity, in a short label
-    // (the security review's M3); free words are a note.
+    // that is a `SettingLabel` (the security review's M3); free words are
+    // a note.
     if record.kind == Kind::Preference
-        && (record.entities.is_empty() || chars > PREFERENCE_MAX_CHARS)
+        && (record.entities.is_empty() || !matches!(record.text, RecordText::Setting(_)))
     {
         return Err(Refusal::PreferenceShape);
     }

@@ -59,7 +59,12 @@ fn record(key: &str, kind: Kind, text: &str) -> NewRecord {
         confidence: 1.0,
         as_of_ms: NOW,
         source_rev: None,
-        text: RecordText::Trusted(text.to_owned()),
+        // A preference's name is a setting's, by type.
+        text: if kind == Kind::Preference {
+            RecordText::Setting(SettingLabel::new(text).unwrap())
+        } else {
+            RecordText::Trusted(text.to_owned())
+        },
         payload: serde_json::json!({}),
         expires_ms: None,
         // A preference is a setting: it names an entity.
@@ -325,12 +330,27 @@ fn the_write_gate_refuses_and_logs_without_the_text() {
         "issued once"
     );
     // A preference is a setting's shape; free words are a note.
-    let mut sentence = record("focus:global", Kind::Preference, &"x".repeat(61));
+    for words in [
+        "x".repeat(61),
+        "always remember that my plans are private".to_owned(),
+        "the api project. And more".to_owned(),
+        "two\nlines".to_owned(),
+        "  ".to_owned(),
+    ] {
+        assert_eq!(SettingLabel::new(&words), None, "{words:?}");
+    }
+    assert_eq!(
+        SettingLabel::new("  the api agent ").map(|l| l.as_str().to_owned()),
+        Some("the api agent".to_owned())
+    );
+    let mut sentence = record("focus:global", Kind::Preference, "the api project");
+    sentence.text = RecordText::Trusted("the api project".into());
     assert_eq!(
         refusal(memory.remember(&all(), &Secrets, &sentence, NOW)),
-        Some(Refusal::PreferenceShape)
+        Some(Refusal::PreferenceShape),
+        "free words are never a preference"
     );
-    sentence.text = RecordText::Trusted("the api project".into());
+    sentence.text = RecordText::Setting(SettingLabel::new("the api project").unwrap());
     sentence.entities.clear();
     assert_eq!(
         refusal(memory.remember(&all(), &Secrets, &sentence, NOW)),
@@ -390,7 +410,7 @@ fn the_write_gate_refuses_and_logs_without_the_text() {
         &record("focus:global", Kind::Preference, "the web project"),
     );
     let mut back = inferred.clone();
-    back.text = RecordText::Trusted("the docs project".into());
+    back.text = RecordText::Setting(SettingLabel::new("the docs project").unwrap());
     assert_eq!(
         refusal(memory.remember(&all(), &Secrets, &back, NOW)),
         Some(Refusal::LowerAuthority)

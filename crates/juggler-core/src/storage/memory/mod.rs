@@ -104,8 +104,8 @@ pub use store::{
 };
 pub use types::{
     Authority, EntityKind, EntityRef, Kind, KindWriter, MemoryError, PREFERENCE_MAX_CHARS,
-    Priority, RecordText, Refusal, Scope, SecretScan, SourceKind, Tier, UNTRUSTED_KEY, Untrusted,
-    Writers, code_like,
+    Priority, RecordText, Refusal, Scope, SecretScan, SettingLabel, SourceKind, Tier,
+    UNTRUSTED_KEY, Untrusted, Writers, code_like,
 };
 
 impl super::Storage {

@@ -379,6 +379,9 @@ pub enum RecordText {
     Trusted(String),
     /// Agent-written words.
     Untrusted(String),
+    /// A setting's name: the only label a preference may have (the
+    /// security review's M3).
+    Setting(SettingLabel),
 }
 
 impl RecordText {
@@ -387,6 +390,7 @@ impl RecordText {
     pub fn as_str(&self) -> &str {
         match self {
             Self::Trusted(text) | Self::Untrusted(text) => text,
+            Self::Setting(label) => label.as_str(),
         }
     }
 
@@ -394,6 +398,39 @@ impl RecordText {
     #[must_use]
     pub const fn is_untrusted(&self) -> bool {
         matches!(self, Self::Untrusted(_))
+    }
+}
+
+/// A setting's name (an alias for a session, the name of what matters
+/// most): one short line, a few words, not a sentence. Made only through
+/// [`SettingLabel::new`], so a preference can't carry free words; what
+/// doesn't fit is kept as a note (local only, ADR-0037 §1.8).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct SettingLabel(String);
+
+impl SettingLabel {
+    /// The most words a setting's name has.
+    pub const MAX_WORDS: usize = 6;
+
+    /// The name, trimmed, when it is one: 1 to [`PREFERENCE_MAX_CHARS`]
+    /// characters, at most [`Self::MAX_WORDS`] words, one line, no control
+    /// characters and no sentence punctuation.
+    #[must_use]
+    pub fn new(text: &str) -> Option<Self> {
+        let name = text.trim();
+        let fits = !name.is_empty()
+            && name.chars().count() <= PREFERENCE_MAX_CHARS
+            && name.split_whitespace().count() <= Self::MAX_WORDS
+            && !name
+                .chars()
+                .any(|c| c.is_control() || matches!(c, '.' | '!' | '?' | ';' | ':' | '\n'));
+        fits.then(|| Self(name.to_owned()))
+    }
+
+    /// The name.
+    #[must_use]
+    pub fn as_str(&self) -> &str {
+        &self.0
     }
 }
 
@@ -431,8 +468,8 @@ pub enum Refusal {
     /// The subject key is empty, too long or not code-like.
     SubjectKey,
     /// A preference that isn't a setting's shape: it names no entity, or
-    /// its label is over [`PREFERENCE_MAX_CHARS`]. The caller keeps such
-    /// words as a note (local only).
+    /// its label isn't a [`SettingLabel`]. The caller keeps such words as a
+    /// note (local only).
     PreferenceShape,
 }
 
