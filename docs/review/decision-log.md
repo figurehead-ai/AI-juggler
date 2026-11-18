@@ -3422,3 +3422,17 @@ The design that follows from it:
 3. **Claude app 5.x moves:** re-prove move in place on the Claude app 5.x in the lab (the aij-test profile, ADR-0031's checklist). If the records and launch are unchanged, widen the gate. This is a 0.4.6 fix: a shipped feature that quietly disappeared after the app updated.
 
 - Sources: the maintainer's message with a screenshot, 2026-11-18.
+- **Extended the same day (the "Not proven yet" badge):** the maintainer saw "Same conversation, another app · Beta · Not proven yet" and the alert "This switch hasn't been proven on a real setup yet" on a Claude-to-Claude switch: "why are we still saying things have not been proven yet?? I thought we had proven it??"
+
+  **The facts** (crates/juggler-handover/data/fidelity-register.json):
+  - claude-code → claude-code passed 7 of 8 areas on 2026-11 lab runs, on Claude Code 2.1.310.
+  - file-history was never run.
+  - Every pair involving the Claude app (`claude-code+service`) has no runs at all.
+  - The register resets a PASS when the installed version differs *at all* from the run's. Claude Code is now 2.1.322, so even the passed cells read "not proven" within days of each auto-update.
+
+  **Ruling:**
+  1. **Before Stable (0.4.6),** every switch route the product offers is validated live in the lab on current versions, in every area, the Claude app pairs included.
+  2. **A PASS holds across patch updates of the same major.minor.** A minor or major bump triggers an automatic lab re-validation, and the release scope check lists any route that's due. The user never sees a re-check as "not proven".
+  3. **The switch sheet doesn't show "Beta · Not proven yet" or the warning alert on a route the product offers.**
+     - A route that isn't validated isn't offered by default (D-127).
+     - It appears only for a user who turned it on in Settings › Beta, and is labelled there in plain words.
