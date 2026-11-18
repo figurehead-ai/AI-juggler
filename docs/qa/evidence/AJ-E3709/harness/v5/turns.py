@@ -70,6 +70,24 @@ def excerpt_v5(t):
     if not hits: return exc
     w = GIT_UNDONE_LINE.get(t["ctx"].get("lang") or "en", GIT_UNDONE_LINE["en"])
     return "\n".join([exc] + [w.format(path=p) for p, _why in hits])
+GIT_LEAD = {"en": ("git: kept {kept}; reverted {undone}", "no file"), "de": ("git: behalten {kept}; zurückgenommen {undone}", "keine Datei")}
+def git_lead(t):
+    """round 3, facts first: when git shows a change undone, the feed leads with what git shows remains and what it undid, by code
+    ("git: kept src/a.rs (+2 -0); reverted src/b.rs, Cargo.toml"), so a line or an excerpt about the undone work never stands alone"""
+    g = t["git"]
+    if not g.get("known"): return None
+    undone = [p for p, _n, _tp in claims_v5.undone_entries(g)]
+    if not undone: return None
+    W = GIT_LEAD.get(t["ctx"].get("lang") or "en", GIT_LEAD["en"]); kept = kept_changes(g)
+    ks = "; ".join(change_text(c) for c in kept[:3]) + (f" (+{len(kept) - 3})" if len(kept) > 3 else "") if kept else W[1]
+    us = ", ".join(undone[:3]) + (f" (+{len(undone) - 3})" if len(undone) > 3 else "")
+    return W[0].format(kept=ks, undone=us)
+def feed_excerpt(t):
+    """the feed's excerpt: with git's lead, the excerpt alone (the lead already says what git undid); else excerpt_v5 (Req. 6e)"""
+    return gate_v4.excerpt_v4(t["ctx"]["cleaned"], t["facts"])[0] if git_lead(t) else excerpt_v5(t)
+def feed_shown(t, body):
+    lead = git_lead(t)
+    return "\n".join(([lead] if lead else []) + list(body))
 def turn_failed(t):
     F = t["F"]
     return bool(t["failures"]) or bool(F) and (F["outcome"] == "failed" or F["level"] == "L3" or (F["tests_state"] == "ran" and F["failed"] > 0))
@@ -139,9 +157,9 @@ class FeedLine(Job):
               render_examples(FEED_V5_EXTRA, mark, example_turn).replace("Example 1", f"Example {len(j4.EXAMPLES['feed_line']) + 1}", 1)
         return base + "\n\n" + exs
     def plan(self, t, setting, mark=True):
-        exc = excerpt_v5(t); qf = qf_lines(t, False)
+        exc = feed_excerpt(t); qf = qf_lines(t, False)
         def decided(kind, why):
-            return {"decided": {"ok": True, "kind": kind, "shown": "\n".join([exc] + qf), "line": None, "excerpt": exc, "model_text": [],
+            return {"decided": {"ok": True, "kind": kind, "shown": feed_shown(t, [exc] + qf), "line": None, "excerpt": exc, "model_text": [],
                                 "errors": [], "notes": [why], "qf": qf}}
         if needs_you(t): return decided("excerpt_routed", "a question, a failure or loud facts: the agent's own words (no call)")
         if t["F"] is None: return decided("excerpt_routed", "facts unknown")
@@ -154,7 +172,7 @@ class FeedLine(Job):
                     "max_tokens": j4.MAX_OUTPUT["feed_line"], "est_tokens": est, "cut": cut}
         return {"build": build, "schema": schema}
     def evaluate(self, t, setting, fields, finish="stop", refused=False):
-        exc = excerpt_v5(t); qf = qf_lines(t, False)
+        exc = feed_excerpt(t); qf = qf_lines(t, False)
         base = {"excerpt": exc, "qf": qf, "line": None}
         bad = j4.fields_foreign(fields, t["ctx"]["cleaned"] + "\n" + facts_sentence(t))
         if bad: return {**base, "ok": False, "kind": "rejected", "errors": ["a letter outside the text's scripts: " + "".join(bad)], "model_text": []}
@@ -173,13 +191,13 @@ class FeedLine(Job):
         if t["ctx"].get("lang") == "de" and claims_v5.english_in_german(fields.get("action"), t["ctx"]["cleaned"]):
             errs.append(f"language: the action {fields.get('action')!r} is English in a German line: write the German participle")
         if errs: return {**base, "ok": False, "kind": "rejected", "line": line, "errors": errs, "model_text": [], "notes": notes}
-        return {**base, "ok": True, "kind": "quoted" if quoted else "written", "line": line, "shown": "\n".join([shown] + qf),
+        return {**base, "ok": True, "kind": "quoted" if quoted else "written", "line": line, "shown": feed_shown(t, [shown] + qf),
                 "model_text": [shown], "errors": [], "notes": notes}
     def fallback(self, t, setting):
-        exc = excerpt_v5(t); qf = qf_lines(t, False)
-        return {"ok": True, "kind": "excerpt", "shown": "\n".join([exc] + qf), "line": None, "excerpt": exc, "model_text": [], "errors": [],
+        exc = feed_excerpt(t); qf = qf_lines(t, False)
+        return {"ok": True, "kind": "excerpt", "shown": feed_shown(t, [exc] + qf), "line": None, "excerpt": exc, "model_text": [], "errors": [],
                 "notes": ["every attempt failed its checks: A's excerpt"], "qf": qf}
-    def alternative(self, t, setting): return "\n".join([excerpt_v5(t)] + qf_lines(t, False))
+    def alternative(self, t, setting): return feed_shown(t, [feed_excerpt(t)] + qf_lines(t, False))
     def write_prompts(self):
         t = ex_turn("The agent's own closing message goes here.", j4.EX_FACTS["calm_ran"],
                     {"changed": [{"path": "src/example.rs", "added": 10, "removed": 2}], "reverted": [], "reflog": []})

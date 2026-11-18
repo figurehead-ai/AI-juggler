@@ -439,7 +439,8 @@ def selftest():
     o = FEED.evaluate(tp, "main", {"action": "tidied", "object": "the plover api docstrings", "result": "18 tests pass", "caveat_kind": "partial", "caveat": "the rate cache was reverted"})
     check("undone: a line that itself says the cache was reverted is honest", o["ok"], o.get("errors"))
     fb = FEED.fallback(tp, "main")
-    check("undone: A's excerpt names the reverted change, so git's line is shown beside it", "git: plover/rate_cache.py was reverted" in fb["shown"], fb["shown"])
+    check("undone: A's excerpt names the reverted change, so git's line is shown beside it", "git: plover/rate_cache.py was reverted" in turns.excerpt_v5(tp), turns.excerpt_v5(tp))
+    check("undone: the feed's fallback leads with git's kept and reverted changes (facts first)", fb["shown"].startswith("git: kept plover/api.py") and "reverted plover/rate_cache.py" in fb["shown"].split("\n")[0], fb["shown"])
     check("undone: an excerpt about the kept change gets no git line", "git:" not in turns.excerpt_v5(turn("I tidied the plover api docstrings. 18 tests pass.", git=GP)))
     check("undone: the detector counts a reverted change shown as done (topic match)", "undone_as_done" in dets(tv(tp, "written", "x", ["Added a caching layer for the plover rate lookups"]), "critical"))
     check("undone: the detector counts a kept change called reverted", "kept_called_undone" in dets(tv(tp, "written", "x", ["Reverted the plover api docstrings"]), "critical"))
@@ -473,6 +474,47 @@ def selftest():
     check("R3 facts: a 'failed' state with no failed count stays unknown (no count to show)", tq["F"]["tests_state"] == "unknown", tq["F"])
     check("R3 facts: the corpora's own words are unchanged", core.tests_norm({"state": "ran", "passed": 3, "failed": 1}) == {"state": "ran", "passed": 3, "failed": 1}
           and getattr(core, "outcome_norm", str)("success") == "success" and getattr(core, "outcome_norm", str)("question") == "question")
+
+    # ================================================================================================ R3-2. a reverted change shown as done (feed and review)
+    def feed(t_, action, obj, result="none", ck="none", cv="none"):
+        return FEED.evaluate(t_, "main", {"action": action, "object": obj, "result": result, "caveat_kind": ck, "caveat": cv})
+    GH = {"changed": [{"path": "heron/queue.py", "added": 3, "removed": 0, "status": "M"}],
+          "reverted": [{"path": "heron/buffer_big.py", "note": "larger buffer dropped"}], "reflog": ["9f8e7d6 reset --hard origin/trunk"]}
+    th = turn("Ich habe den Puffer der Reiherschlange erst vergrößert, dann alles wieder verworfen, der Speicher stieg zu stark. Stand ist wie vorher, ich habe nur einen Docstring ergänzt.",
+              {"outcome": "completed", "level": "L1", "tests": {"state": "passed", "passed": 14, "failed": 0}}, GH)
+    o = feed(th, "vergrößert", "den Puffer der Reiherschlange")
+    check("R3 revert: 'dann alles wieder verworfen' undoes the clause before; a line claiming it is refused", not o["ok"] and any("undone" in x for x in o["errors"]), o.get("errors"))
+    o = feed(th, "vergrößert", "den Puffer", cv="der Speicher stieg zu stark", ck="partial")
+    check("R3 revert: a compound line whose first clause is the reverted work is refused (clause by clause)", not o["ok"] and any("undone" in x for x in o["errors"]), o.get("errors"))
+    o = feed(th, "ergänzt", "einen Docstring")
+    check("R3 revert: a line about what remains passes", o["ok"], o.get("errors")); o.setdefault("shown", "")
+    check("R3 revert: ...and the feed leads with git's facts (kept, reverted), in German", o["shown"].split("\n")[0] == "git: behalten heron/queue.py (+3 -0); zurückgenommen heron/buffer_big.py", o["shown"])
+    check("R3 revert: a reflog ref (origin/trunk) is not an undone file", [p for p, _n, _t in claims_v5.undone_entries(th["git"])] == ["heron/buffer_big.py"], claims_v5.undone_entries(th["git"]))
+    te = turn("I swapped the parser for a streaming one, then undid everything because memory spiked. Only a typo fix in the guide remains.",
+              None, {"changed": [{"path": "docs/guide.md", "added": 1, "removed": 1}], "reverted": [{"path": "parse/stream.rs", "note": "streaming parser removed"}]})
+    check("R3 revert: 'then undid everything' (English) undoes the clause before", core.undone_clause("Swapped the parser for a streaming one", te) is not None)
+    check("R3 revert: ...the kept typo fix is not called undone", core.undone_clause("Fixed a typo in the guide", te) is None)
+    GT = {"changed": [{"path": "docs/readme.md", "added": 30, "removed": 2}], "reverted": [{"path": "lexer/quick_scan.rs", "note": "alternative tokenizer removed"}]}
+    tt = turn("Swapped in a quicker scanner, then threw all of it away. README typo fixed and the install section rewritten.", None, GT)
+    check("R3 revert: one note word that is the undo's own ('tokenizer': no kept path, no kept clause) names the undone change",
+          claims_v5.undone_named("Swapped the tokenizer", tt, core.kept_changes(tt["git"])) is not None)
+    check("R3 revert: ...a word a kept clause of the agent's text uses does not ('readme')",
+          claims_v5.undone_named("Rewrote the README install section", tt, core.kept_changes(tt["git"])) is None)
+    GN = {"changed": [{"path": "docs/notes.md", "added": 1, "removed": 0}], "reverted": [{"path": "lexer/quick_scan.rs", "note": "alternative tokenizer removed"}]}
+    tn = turn("Replaced the tokenizer with a hand-written one. Added a note to the docs.", None, GN)
+    check("R3 revert: git's net change tiny next to its reverts: one note word in a done-claim is enough",
+          claims_v5.undone_named("Replaced the tokenizer", tn, core.kept_changes(tn["git"])) is not None)
+    tbig = turn("Replaced the tokenizer with a hand-written one. Added a note to the docs.", None, dict(GN, changed=[{"path": "docs/notes.md", "added": 80, "removed": 3}]))
+    check("R3 revert: ...not when the kept change is large and the agent's own kept clause uses the word",
+          claims_v5.undone_named("Replaced the tokenizer", tbig, core.kept_changes(tbig["git"])) is None)
+    check("R3 revert: a failure report is no done-claim (one note word never flags it)",
+          claims_v5.undone_named("The tokenizer test fails", tn, core.kept_changes(tn["git"])) is None)
+    check("R3 revert: the detector counts the reverted work shown as done",
+          "undone_as_done" in dets(tv(th, "written", "x", ["Den Puffer der Reiherschlange vergrößert"]), "critical"))
+    e = turns.review_checks_v5(th, {"notes": [{"path": "heron/queue.py", "says": "den Puffer der Reiherschlange vergrößert"}], "risk_reason": "none", "risk": "unknown"})
+    check("R3 revert: a review gloss on the kept file claiming the reverted work is refused", any("undone" in x for x in e), e)
+    e = turns.review_checks_v5(th, {"notes": [{"path": "heron/queue.py", "says": "den Puffer erst vergrößert, dann alles wieder verworfen"}], "risk_reason": "none", "risk": "unknown"})
+    check("R3 revert: ...a gloss that itself says 'dann alles wieder verworfen' is honest (no kept change called undone)", not any("undone" in x or "kept" in x for x in e), e)
 
     # ================================================================================================ the extension point, the frozen gate, the prompts
     class Toy(core.Job):

@@ -237,8 +237,17 @@ UNDO_REWRITE = [
  (re.compile(r"\bgit\s+(?:checkout\s+--|restore)\b", re.I), "reverted"),
  (re.compile(r"\b(?:verworfen|weggeworfen|zurückgesetzt)\b", re.I), "zurückgenommen"),
 ]
+# Round 3: an undo whose object is the whole earlier work ("dann alles wieder verworfen", "then undid everything", "threw it all away")
+# names no change of its own; v4's detector then took "alles" as the object and matched no clause, so the clause before ("den Logger
+# erst ersetzt") stood as kept. The whole-reference word becomes a pronoun, which v4 reads as the clause before.
+_UNDO_VERB_AFTER = r"(?:zurückgenommen|reverted|undone|rückgängig)"
+WHOLE_REF = [
+ (re.compile(r"\b(?:das\s+)?(?:alles|beides|everything|all\s+of\s+(?:it|that|this)|it\s+all|both)\b(?=(?:\s+[\w-]+){0,3}?\s+" + _UNDO_VERB_AFTER + r"\b)", re.I), "es"),
+ (re.compile(r"\b(reverted|undid|zurückgenommen)\s+(?:everything|all\s+of\s+(?:it|that|this)|it\s+all|alles|beides|both)\b", re.I), r"\1 it"),
+]
 def undo_normalise(text):
     for rx, rep in UNDO_REWRITE: text = rx.sub(rep, text)
+    for rx, rep in WHOLE_REF: text = rx.sub(rep, text)
     return text
 def undo_reported(s):
     """a phrase reports that a change was undone (v4's detector over the rewritten words): not asked, negated, conditional or modal"""
@@ -253,7 +262,16 @@ def undone_clause(text, t):
         if p in low or (len(base) >= 5 and re.search(r"(?<![\w.-])" + re.escape(base) + r"(?![\w-])", low)):
             return f"git: {r['path']} was reverted"
     parts, rev = j4.revert_parts(undo_normalise(t["ctx"]["cleaned"]))
-    return j4.reverted_item(text, parts, rev) or claims_v5.undone_named(text, t, kept_changes(t["git"]))   # round 2: path, stem, topic
+    hit = j4.reverted_item(text, parts, rev) or claims_v5.undone_named(text, t, kept_changes(t["git"]))   # round 2: path, stem, topic
+    if hit: return hit
+    # round 3: each clause of the text on its own ("Den Logger ersetzt; die neue Variante war langsamer": the whole line matched the
+    # kept reason best, its first clause is the reverted work). A clause needs two content words to stand for a change.
+    for cl in LINE_CLAUSES.split(text or ""):
+        if len(j4._content(cl)) >= 2:
+            w = j4.reverted_item(cl, parts, rev)
+            if w: return w
+    return None
+LINE_CLAUSES = re.compile(r"\s*[;,:]\s*|\s+—\s+|\s+(?:and|und|then|dann|but|aber)\s+", re.I)
 
 # ======================================================================================================================
 # Prompts: fit Apple's 4,096 tokens (v4's estimate), the agent's text fenced and datamarked (v4's), the retry note appended last

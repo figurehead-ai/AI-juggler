@@ -127,9 +127,11 @@ toml txt cfg ini lock css html sh sql swift kt rb java app apps file files modul
 and of in on for with to from by its it this that only again then fully back form rewrite rewritten change changes changed deletion deleted
 delete restored restore reverted revert undone undo removed remove created create added add remain remains kept left still also call calls
 sites site edit edits edited docs doc readme config configs settings setting script scripts build builds dist out tmp data default
-wurde wurden die der das den dem des und mit von zur zum ein eine datei dateien änderung änderungen zurückgenommen wiederhergestellt""".split())
+wurde wurden die der das den dem des und mit von zur zum ein eine datei dateien änderung änderungen zurückgenommen wiederhergestellt
+dann danach erst zuerst first es alles everything beides both wieder""".split())     # round 3: fillers around a whole-reference undo
 REFLOG_RESTORE = re.compile(r"\b(?:revert|reset|restore|restoring|checkout\s+--|discard)\b", re.I)
 PATH_RX = re.compile(r"[\w.-]+(?:/[\w.-]+)+|[\w-]+\.[A-Za-z]{1,5}\b")
+GIT_REF = re.compile(r"^(?:origin|upstream|remotes?|refs|heads|tags|HEAD)(?:/|$)|@\{|[~^]\d*$", re.I)   # round 3: "reset --hard origin/release" names a ref, not a file
 def _split_ident(s):
     out = []
     for w in re.split(r"[/._\-\s]+", s or ""):
@@ -160,7 +162,7 @@ def undone_entries(git):
     for line in git.get("reflog") or []:
         if REFLOG_RESTORE.search(line):
             for p in PATH_RX.findall(line):
-                if "/" in p or "." in p: ents.append((p, line))
+                if ("/" in p or "." in p) and not GIT_REF.match(p): ents.append((p, line))
     out, seen = [], set()
     for p, note in ents:
         if p in seen: continue
@@ -178,14 +180,40 @@ def undone_hits(text, t, kept):
     from core import undo_reported
     if undo_reported(text): return []
     low = (text or "").lower(); kt = kept_topics(g, kept); tw = [w for w in _words(text) if w not in GENERIC]; out = []
+    own_words = _agent_kept_words(t); tiny = tiny_net(g, kept)
+    done_claim = not (states_failure(text) or "?" in (text or ""))      # a failure report or a question claims no work done
     for p, _note, topics in undone_entries(g):
         base = p.rsplit("/", 1)[-1].lower(); stem = base.rsplit(".", 1)[0]
         if p.lower() in low or (len(stem) >= 4 and re.search(r"(?<![\w.-])" + re.escape(stem) + r"(?:\.\w+)?(?![\w-])", low)):
             out.append((p, f"git: {p} was undone")); continue
         # a topic hit counts when it is the file's own name word, or when two of the change's words are named ("the session store
         # test" names a reverted session-mock fixture's one word, not the fixture)
-        if _names_entry(tw, p, topics, kt): out.append((p, f"git: {p} was undone (names {', '.join(_hits(tw, topics - kt)[:3])})"))
+        if _names_entry(tw, p, topics, kt): out.append((p, f"git: {p} was undone (names {', '.join(_hits(tw, topics - kt)[:3])})")); continue
+        # round 3: one word of the undone change is enough when it is the undo's own (no kept path holds it, and no clause of the
+        # agent's text that stayed uses it: "Den Logger ersetzt" against git's "alternative logger deleted"), or when git's net change
+        # is tiny next to its reverts (a line about the reverted work is then the turn's whole claim)
+        if done_claim is False: continue
+        h = _hits(tw, topics - kt)
+        distinct = [w for w in h if not any(_stem_eq(w, o) for o in own_words)]
+        if distinct or (h and tiny):
+            out.append((p, f"git: {p} was undone (names {', '.join((distinct or h)[:3])})"))
     return out
+TINY_NET_LINES = 10
+def tiny_net(git, kept):
+    """git's net change is tiny next to its reverts: some change undone, and the kept changes add and remove at most TINY_NET_LINES lines"""
+    if not undone_entries(git): return False
+    tot = 0
+    for c in kept:
+        for k in ("added", "removed"):
+            if c.get(k) is None: return False                   # a count git didn't give: not known to be tiny
+            try: tot += int(c[k])
+            except (TypeError, ValueError): return False
+    return tot <= TINY_NET_LINES
+def _agent_kept_words(t):
+    """the content words of the agent's clauses that report no undo and that v4's detector doesn't mark as reverted"""
+    from core import undo_normalise
+    parts, rev = j4.revert_parts(undo_normalise(t["ctx"]["cleaned"]))
+    return {w for i, (_si, p, _c) in enumerate(parts) if i not in rev and not UNDO_LINE_RX.search(p) for w in _words(p) if w not in GENERIC and len(w) >= 3}
 def undone_named(text, t, kept):
     """-> why the text names a change git shows undone, else None (a text that itself reports the undo is honest)"""
     h = undone_hits(text, t, kept)
@@ -226,6 +254,7 @@ def kept_called_undone(text, t, kept):
     agent_said = set().union(*[parts[i][2] for i in rev]) if rev else set()
     for it in undo_items(text):
         iw = [w for w in _words(it) if w not in GENERIC]
+        if not iw: continue                                                      # "dann alles wieder verworfen": names no change
         if any(_hits(iw, tp - kt_all) for _p, _n, tp in undone): continue      # inside a revert clause one of the change's words is enough
         if _hits(iw, kt): return f"calls {it!r} undone; git shows it kept"
         if undone and not _hits(iw, _topic(agent_said)): return f"calls {it!r} undone; git's reverts don't name it"
