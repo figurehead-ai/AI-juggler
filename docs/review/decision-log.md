@@ -3548,3 +3548,27 @@ The two open questions in ADR-0035 (hosting; the default on) go to the maintaine
 
 - **Amends:** D-121 §2.
 - Sources: the maintainer's message, 2026-11-18.
+
+### D-132 0.5's AI purpose: a cross-agent digest that consolidates notifications, and watches set up by talking to Chat — amends D-121 (Chat v1 read-only) — SETTLED (2026-11-18)
+
+**Ruling.** The maintainer, 2026-11-18: "the main benefits of these notification and chat models in 0.5 is the summaries of what agents are doing, and alerting and consolidating notifications. For example if someone has 7 agents we need a model to process messages from all 7 and summarize in short descriptions / almost like tweets, every once in a while on the feed, bringing noticeable things to user… instead of user constantly scanning and watching, chat summarizes and notifies it." And: "user should be able to chat and tell our system to watch for certain things. That should be feature of 0.5. Like: 'Hey chat, let me know when this and that agent finishes or it gets stuck'… All the things that are within our tool capabilities."
+
+1. **The digest is 0.5's main AI job.**
+   - Every so often (adaptive: about every 15–30 minutes while agents work, and at once when something notable happens), the model reads what *all* running agents did since the last digest and posts a few short, tweet-like items to the Home feed: what each agent is on, and what's notable (finished, stuck, asking, failing, big change).
+   - Related notifications are consolidated into one, so 7 agents finishing doesn't mean 7 pings.
+   - It's built on AI Juggler's facts and the agents' own text. The same fabrication rule applies (D-130): no invented progress, no failure stated as success. Omitting a minor item is fine.
+   - Without a capable model, the digest falls back to a non-AI rollup, built from facts and excerpts.
+2. **Watches through Chat:**
+   - The user says what to watch for in plain words ("tell me when the api and web agents finish or get stuck").
+   - The model turns that into a **typed watch**: a target (sessions, apps, a project, a pool, an account) and conditions from AI Juggler's closed set (finishes, gets stuck, asks or needs you, fails, idle for N min, usage or runway below X, leaves processes running, a pool message, and so on).
+   - The user sees the watch in plain words and confirms it.
+   - Monitoring is then **deterministic**, on AI Juggler's existing event stream, with no model in the loop. Alerts go through the existing notification path, with quiet hours, consolidation and dismissal.
+   - Watches are listed and editable in a Watches view (rich making-and-editing mode, D-126), with expiry options ("until it finishes", "today", "always").
+   - A request outside AI Juggler's capabilities gets a plain "I can't watch for that", with the nearest supported option. It never pretends.
+3. **Chat v1 is no longer read-only in one bounded way:** it may *create, change or remove watches* after the user confirms. It still never sends, switches, stops, approves or decides anything. Those remain the 0.6 bot's, with its stricter bar (D-123, D-130).
+4. **Tests (the D-130 criteria):**
+   - **The digest:** fabrication-critical; omissions tolerated; value judged against the non-AI rollup.
+   - **Watch parsing:** the rule shown must match the request, with ≥95 % exact rule matches on a blind set; 0 watches created without confirmation; 0 claimed watches for unsupported conditions.
+
+- **Amends:** D-121 (Chat v1 read-only, now plus watches) and D-118's feed (a digest item type).
+- Sources: the maintainer's message, 2026-11-18.
