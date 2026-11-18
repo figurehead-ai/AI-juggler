@@ -12,12 +12,34 @@ import { draftOf, type Draft } from "../../lib/new-pool";
 import { templateById } from "../../lib/pool-templates";
 import { LeadCards } from "./LeadCards";
 import { NewPoolLead } from "./NewPoolLead";
+import { NewPoolTalk } from "./NewPoolTalk";
 
 beforeEach(() => resetPreviewAgentBridge());
 afterEach(cleanup);
 
 const app = (ref: string, label: string, role: "member" | "reviewer" = "member") => ({ ref, kind: "app" as const, label, role, level: null, reach: "later" as const });
 const NO_LOGOS = { apps: [], sessions: [] };
+
+describe("Who may message whom (D-126 presets)", () => {
+  it("three ways as cards set the whole table; a cell changed by hand is its own mix, no way chosen", () => {
+    let draft: Draft = draftOf(templateById("blank"), "web");
+    const view = render(<NewPoolTalk draft={draft} onDraft={(next) => (draft = next)} />);
+    const ways = screen.getByRole("radiogroup", { name: "Who may message whom" });
+    expect(within(ways).getByRole("radio", { name: "Everyone talks freely" })).toHaveProperty("checked", true);
+    fireEvent.click(within(ways).getByRole("radio", { name: "Members ask you first" }));
+    expect(draft.talk["member>member"]).toBe("ask");
+    view.rerender(<NewPoolTalk draft={draft} onDraft={(next) => (draft = next)} />);
+    const cell = screen.getAllByTestId("new-pool-talk-cell").find((one) => one.dataset.pair === "member>member")!;
+    expect(cell.dataset.rule).toBe("ask");
+    fireEvent.click(screen.getAllByTestId("new-pool-talk-cell").find((one) => one.dataset.pair === "lead>member")!);
+    view.rerender(<NewPoolTalk draft={draft} onDraft={(next) => (draft = next)} />);
+    expect(within(ways).getAllByRole("radio").filter((radio) => radio instanceof HTMLInputElement && radio.checked)).toEqual([]);
+    expect(screen.getByTestId("new-pool-talk-mix").textContent).toBe("Your own mix");
+    // Feature team's table is Members ask you first.
+    view.rerender(<NewPoolTalk draft={draftOf(templateById("feature-team"), "web")} onDraft={() => undefined} />);
+    expect(within(ways).getByRole("radio", { name: "Members ask you first" })).toHaveProperty("checked", true);
+  });
+});
 
 describe("Who leads (D-126 cards)", () => {
   it("one radio group of cards with logos: open sessions, each App's next session, no lead; the arrows choose", () => {
