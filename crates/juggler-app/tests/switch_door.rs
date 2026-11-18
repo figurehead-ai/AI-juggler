@@ -124,7 +124,7 @@ fn door_counters(state: &Arc<AppState>) -> std::collections::BTreeMap<String, u6
 }
 
 #[test]
-fn preflight_opens_the_wizard_until_the_pair_is_proven() {
+fn preflight_opens_the_wizard_until_the_pair_is_proven_then_one_click() {
     let work = tempfile::tempdir().unwrap();
     let state = app_state(work.path());
     let project_dir = work.path().join("storefront");
@@ -162,17 +162,13 @@ fn preflight_opens_the_wizard_until_the_pair_is_proven() {
     )
     .unwrap();
 
-    // §8: an unvalidated pair opens the wizard — exactly the
-    // non-trivial steps, never phantom ones.
-    assert_eq!(info.door, "wizard");
-    assert_eq!(
-        info.wizard_steps,
-        vec![
-            "Target".to_owned(),
-            "What's carried".to_owned(),
-            "Confirm".to_owned()
-        ]
-    );
+    // §8: an unvalidated pair opens the wizard, exactly its non-trivial
+    // steps (door.rs's tests: each failing leaf, the steps). Claude →
+    // Claude passed every area live (file history last: the c2c suite,
+    // 2026-11-18, D-127), carries all of it, so it is one screen.
+    assert!(info.validated, "claude → claude passed every area live");
+    assert_eq!(info.door, "one-click");
+    assert!(info.wizard_steps.is_empty(), "{:?}", info.wizard_steps);
     assert!(
         !info.usual_account,
         "no history for B on this project ⇒ not the usual account"
@@ -240,9 +236,7 @@ fn preflight_opens_the_wizard_until_the_pair_is_proven() {
     )
     .unwrap();
     assert_eq!(
-        door_counters(&state)
-            .get("switch_wizard[Target,What's carried,Confirm]")
-            .copied(),
+        door_counters(&state).get("switch_oneclick").copied(),
         Some(1),
         "local door counter recorded"
     );
@@ -309,9 +303,23 @@ fn lossy_pair_is_never_reachable_in_one_click() {
     )
     .unwrap();
     assert!(info.usual_account, "B dominates the project history");
-    assert_eq!(
-        info.door, "wizard",
-        "a listed Drop (todos) must never ride 1-click — P0 threshold"
+    // A listed Drop never rides one click (the P0 threshold; door.rs pins
+    // the rule leaf by leaf). Claude → Claude now drops nothing (the task
+    // list is rebuilt, every area passed live), so it is one click; a
+    // drop on this route would put the wizard back.
+    if info.carry.dropped.is_empty() {
+        assert_eq!(info.door, "one-click", "nothing dropped: {:?}", info.carry);
+    } else {
+        assert_eq!(
+            info.door, "wizard",
+            "a listed Drop: {:?}",
+            info.carry.dropped
+        );
+    }
+    assert!(
+        info.carry.dropped.is_empty(),
+        "claude → claude drops nothing: {:?}",
+        info.carry.dropped
     );
 }
 

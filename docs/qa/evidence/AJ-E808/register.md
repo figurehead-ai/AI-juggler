@@ -9,13 +9,13 @@ lists (D-128). A switch is offered only when its CI row is green and every area 
 decided live: PASS, or, between two tools, FAIL with its drop note (D-127). Any other is
 hidden unless the user turned on beta switches in Settings › Switching.
 
-**Beta-exit (Req.5):** 95 cells open — same-Provider pairs PASS on every area; cross-Provider pairs PASS or FAIL with a drop note (pack-only pairs excluded: F0 by definition).
+**Beta-exit (Req.5):** 94 cells open — same-Provider pairs PASS on every area; cross-Provider pairs PASS or FAIL with a drop note (pack-only pairs excluded: F0 by definition).
 
 ## Matrix
 
 | Pair | Switch rows show | Accounts › Which switches are tested shows | transcript-resume | rules-carry | todos | subagents | file-history | mcp-references | cwd-worktree-edges | switch-back |
 |---|---|---|---|---|---|---|---|---|---|---|
-| claude-code→claude-code | hidden; with beta switches on: Same conversation, another app · Beta | Beta: still being tested | PASS | PASS | PASS | PASS | UNVALIDATED | PASS | PASS | PASS |
+| claude-code→claude-code | Same conversation, another app | Tested ✓ | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS |
 | codex→codex | hidden; with beta switches on: Same conversation, another app · Beta | Beta: still being tested | PASS | UNVALIDATED (D-91) | PASS | UNVALIDATED (D-91) | UNVALIDATED (D-91) | UNVALIDATED (D-91) | UNVALIDATED (D-91) | UNVALIDATED (D-91) |
 | zcode→zcode | hidden; with beta switches on: Full story, fresh start · Beta | Beta: still being tested | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED | UNVALIDATED |
 | claude-code→codex | Full story, fresh start | Tested ✓ | PASS | PASS | PASS | FAIL | FAIL | PASS | PASS | PASS |
@@ -39,11 +39,12 @@ hidden unless the user turned on beta switches in Settings › Switching.
 |---|---|---|---|---|---|---|---|
 | claude-code→claude-code | transcript-resume | PASS | 2.1.310 → 2.1.310 | 2026-10-28 | switch-lab lab 19, steps 2 and 7 | [docs/qa/evidence/AJ-E1539/lab-2026-10-28.md](../../../../docs/qa/evidence/AJ-E1539/lab-2026-10-28.md) |  |
 | claude-code→claude-code | rules-carry | PASS | 2.1.310 → 2.1.310 | 2026-10-28 | switch-lab lab 19, step 2 | [docs/qa/evidence/AJ-E1539/lab-2026-10-28.md](../../../../docs/qa/evidence/AJ-E1539/lab-2026-10-28.md) |  |
-| claude-code→claude-code | todos | PASS | 2.1.310 → 2.1.310 | 2026-10-28 | switch-lab lab 19, step 2 | [docs/qa/evidence/AJ-E1539/lab-2026-10-28.md](../../../../docs/qa/evidence/AJ-E1539/lab-2026-10-28.md) |  |
-| claude-code→claude-code | subagents | PASS | 2.1.310 → 2.1.310 | 2026-10-28 | switch-lab lab 19, step 2 | [docs/qa/evidence/AJ-E1539/lab-2026-10-28.md](../../../../docs/qa/evidence/AJ-E1539/lab-2026-10-28.md) |  |
-| claude-code→claude-code | mcp-references | PASS | 2.1.310 → 2.1.310 | 2026-10-28 | switch-lab lab 19, step 2 (AIJ_LAB_PROBE) | [docs/qa/evidence/AJ-E1539/lab-2026-10-28.md](../../../../docs/qa/evidence/AJ-E1539/lab-2026-10-28.md) |  |
+| claude-code→claude-code | todos | PASS | 2.1.322 → 2.1.322 | 2026-11-18 | switch-lab c2c run 4, step 2 | [docs/qa/evidence/AJ-E1539/c2c-2026-11-18.md](../../../../docs/qa/evidence/AJ-E1539/c2c-2026-11-18.md) |  |
+| claude-code→claude-code | subagents | PASS | 2.1.322 → 2.1.322 | 2026-11-18 | switch-lab c2c run 4, step 2 | [docs/qa/evidence/AJ-E1539/c2c-2026-11-18.md](../../../../docs/qa/evidence/AJ-E1539/c2c-2026-11-18.md) |  |
+| claude-code→claude-code | file-history | PASS | 2.1.322 → 2.1.322 | 2026-11-18 | switch-lab c2c run 4, steps 2-4 (Copy, back, Move+Undo; no turn on the target) | [docs/qa/evidence/AJ-E1539/c2c-2026-11-18.md](../../../../docs/qa/evidence/AJ-E1539/c2c-2026-11-18.md) |  |
+| claude-code→claude-code | mcp-references | PASS | 2.1.322 → 2.1.322 | 2026-11-18 | switch-lab c2c run 4, step 2 (AIJ_LAB_PROBE, connected on B) | [docs/qa/evidence/AJ-E1539/c2c-2026-11-18.md](../../../../docs/qa/evidence/AJ-E1539/c2c-2026-11-18.md) |  |
 | claude-code→claude-code | cwd-worktree-edges | PASS | 2.1.310 → 2.1.310 | 2026-10-28 | switch-lab lab 19, steps 7 and 7b (git worktree) | [docs/qa/evidence/AJ-E1539/lab-2026-10-28.md](../../../../docs/qa/evidence/AJ-E1539/lab-2026-10-28.md) |  |
-| claude-code→claude-code | switch-back | PASS | 2.1.310 → 2.1.310 | 2026-10-28 | switch-lab lab 19, step 7b | [docs/qa/evidence/AJ-E1539/lab-2026-10-28.md](../../../../docs/qa/evidence/AJ-E1539/lab-2026-10-28.md) |  |
+| claude-code→claude-code | switch-back | PASS | 2.1.322 → 2.1.322 | 2026-11-18 | switch-lab c2c run 4, step 3 (A answers) | [docs/qa/evidence/AJ-E1539/c2c-2026-11-18.md](../../../../docs/qa/evidence/AJ-E1539/c2c-2026-11-18.md) |  |
 | codex→codex | transcript-resume | PASS | 0.163.0 → 0.163.0 | 2026-10-23 | switch-lab lab 11 | [docs/qa/evidence/AJ-E1539/manifest.md](../../../../docs/qa/evidence/AJ-E1539/manifest.md) |  |
 | codex→codex | todos | PASS | 0.163.0 → 0.163.0 | 2026-10-23 | switch-lab lab 11 | [docs/qa/evidence/AJ-E1539/manifest.md](../../../../docs/qa/evidence/AJ-E1539/manifest.md) |  |
 | claude-code→codex | transcript-resume | PASS | 2.1.310 → 0.163.0 | 2026-10-26 | switch-lab lab 14, J1 and J3 | [docs/qa/evidence/AJ-E1539/manifest.md](../../../../docs/qa/evidence/AJ-E1539/manifest.md) |  |

@@ -790,7 +790,7 @@ pub(crate) mod tests {
             "same-provider must PASS"
         );
         let open = embedded().beta_exit_open(&|_, to| to == "gemini-cli" || to == "opencode");
-        // The live labs (AJ-E1539) passed eighteen cells. Labs 5–8
+        // The live labs (AJ-E1539) passed nineteen cells. Labs 5–8
         // (2026-10-22): claude→claude transcript, todos and MCP;
         // claude→codex those three and switch-back. Labs 9 and 10
         // (2026-10-23): claude→claude rules, subagents, folder and
@@ -801,12 +801,14 @@ pub(crate) mod tests {
         // history as FAILs with their drop notes; codex→claude MCP and
         // folder and worktree edges. The outside suite's J2 (2026-11-07,
         // AJ-E808): codex→claude subagents and file history as FAILs with
-        // their drop notes. Every other shipped cell is open, the six
-        // through-another-service pairs' too (AJ-E1601).
+        // their drop notes. The c2c suite (2026-11-18, D-127): claude→
+        // claude file history, with no model call on the target. Every
+        // other shipped cell is open, the six through-another-service
+        // pairs' too (AJ-E1601).
         assert_eq!(
             open.len(),
-            (9 + 6) * AREAS.len() - 25,
-            "only the labs' twenty-five decided cells are closed"
+            (9 + 6) * AREAS.len() - 26,
+            "only the labs' twenty-six decided cells are closed"
         );
     }
 }

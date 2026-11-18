@@ -631,9 +631,13 @@ mod tests {
             advertised_badge("claude-code", "unknown-cli", None),
             "Handover notes · Beta"
         );
+        // A pair not decided in every part is still in beta …
+        assert!(researched_badge("codex", "codex").ends_with(" · Beta"));
+        // … and Claude → Claude graduated once its file history passed
+        // live (the c2c suite, 2026-11-18, D-127).
         assert_eq!(
             researched_badge("claude-code", "claude-code"),
-            "Same conversation, another app · Beta"
+            "Same conversation, another app"
         );
     }
 

@@ -137,7 +137,7 @@ fn mcp_get(config: &Path, cwd: &Path, name: &str) -> Value {
             .args(["mcp", "get", name]),
         Duration::from_secs(60),
     );
-    json!({"ok": ok, "names_server": out.contains("server.py"), "said": out.lines().take(6).collect::<Vec<_>>(), "error": err.lines().take(3).collect::<Vec<_>>()})
+    json!({"ok": ok, "names_server": out.contains("server.py"), "connected": out.contains("Connected") && !out.contains("Failed to connect"), "said": out.lines().take(14).collect::<Vec<_>>(), "error": err.lines().take(3).collect::<Vec<_>>()})
 }
 
 pub fn journey() {
@@ -270,7 +270,7 @@ pub fn journey() {
             let mcp = lab
                 .probe
                 .as_ref()
-                .map(|name| mcp_get(&claude_b, &project, name));
+                .map(|name| json!({"on_b": mcp_get(&claude_b, &project, name), "on_a": mcp_get(&claude_a, &project, name)}));
             let resumes = argv.iter().any(|a| a == "--resume") && argv.contains(&resume_id);
             let a_after = tree(&claude_a.join("file-history").join(&native));
             away = Some(done.session_id.clone());
@@ -280,7 +280,7 @@ pub fn journey() {
                 "subagents": on_b["subagents"] == on_a["subagents"] && on_a["subagents"].as_u64().unwrap_or(0) > 0,
                 "todos": tasks_differ.is_empty() && !a_tasks.is_empty(),
                 "file_history": history_differs.is_empty() && !a_history.is_empty() && on_b["snapshot_backups_missing"].as_array().is_some_and(Vec::is_empty),
-                "mcp_references": mcp.as_ref().is_none_or(|m| m["ok"] == true && m["names_server"] == true),
+                "mcp_references": mcp.as_ref().is_none_or(|m| m["on_b"]["ok"] == true && m["on_b"]["names_server"] == true && m["on_b"]["connected"] == true),
                 "a_kept_its_copy": same_files(&a_history, &a_after).is_empty(),
             });
             let all = checks.as_object().unwrap().values().all(|v| v == true);
