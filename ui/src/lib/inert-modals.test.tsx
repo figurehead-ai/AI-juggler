@@ -87,4 +87,46 @@ describe("a modal dialog's window is inert under it", () => {
     expect(under.contains(document.activeElement)).toBe(true);
     expect(screen.getByTestId("page").hasAttribute("inert")).toBe(true);
   });
+
+  it("gives focus to the opener drawn again while the dialog was open (Processes' Stop… sheet)", async () => {
+    function List(): JSX.Element {
+      useModalsInert();
+      const [open, setOpen] = useState(false);
+      const [draw, setDraw] = useState(0);
+      return (
+        <div>
+          <main>
+            <button key={draw} type="button" data-testid="row-8123" onClick={() => setOpen(true)}>
+              Row
+            </button>
+          </main>
+          {open && (
+            <dialog open aria-modal="true" aria-label="Stop">
+              <button
+                type="button"
+                onClick={() => {
+                  setDraw((n) => n + 1); // the list draws its rows again
+                  setOpen(false);
+                }}
+              >
+                Cancel
+              </button>
+            </dialog>
+          )}
+        </div>
+      );
+    }
+    render(<List />);
+    const row = screen.getByTestId("row-8123");
+    row.focus();
+    fireEvent.click(row);
+    await settle();
+    const cancel = screen.getByRole("button", { name: "Cancel" });
+    cancel.focus();
+    fireEvent.click(cancel);
+    cancel.blur();
+    await settle();
+    expect(screen.getByTestId("row-8123")).not.toBe(row);
+    expect(document.activeElement).toBe(screen.getByTestId("row-8123"));
+  });
 });

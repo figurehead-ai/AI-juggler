@@ -121,7 +121,7 @@ export function useModalsInert(): void {
         if (lost()) top.querySelector<HTMLElement>(FOCUSABLE)?.focus({ preventScroll: true });
         return;
       }
-      if (opener?.isConnected && lost()) opener.focus({ preventScroll: true });
+      if (lost()) again(opener)?.focus({ preventScroll: true });
       opener = null;
     };
     let queued = false;
@@ -142,6 +142,17 @@ export function useModalsInert(): void {
       for (const one of others) release(one);
     };
   }, []);
+}
+
+/** The opener, or the element that took its place: a dialog's own close
+ * hands focus to its trigger while the page is still inert (that fails),
+ * and a list may have drawn the row again meanwhile (the 0.4.6 rc3 gate:
+ * Processes' Stop… sheet, Esc, focus on the page); found by its test id. */
+function again(opener: HTMLElement | null): HTMLElement | null {
+  if (!opener) return null;
+  if (opener.isConnected) return opener;
+  const key = opener.getAttribute("data-testid");
+  return key ? document.querySelector<HTMLElement>(`[data-testid="${CSS.escape(key)}"]`) : null;
 }
 
 /** What takes focus in a dialog. */
