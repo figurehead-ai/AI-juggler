@@ -302,10 +302,12 @@ def message_prompt_v5(job_task, t, key, mark=True, hide=False, max_text_chars=No
 # ======================================================================================================================
 # Verify and retry (D-130 lever 2): generate; check; on failure regenerate with the reason, at most MAX_RETRIES times; then fall back
 # ======================================================================================================================
-def parse(job_schema, text):
+def parse(job_schema, text, job=None):
     obj, err = j4.parse_fields(text)
     if obj is None: return None, [err or "unparsed"], []
-    obj = j4.unmark_fields(obj); hard, soft = j4.validate(job_schema, obj)
+    obj = j4.unmark_fields(obj)
+    if job is not None and hasattr(job, "adapt_fields"): obj = job.adapt_fields(obj, job_schema)   # a job reading an older shape too
+    hard, soft = j4.validate(job_schema, obj)
     return (None if hard else obj), hard, soft
 def run_item(job, item, setting, call, mark=True, retries=MAX_RETRIES, extra=None):
     """-> record {model_called, attempts: [{text, finish, latency_ms, errors, ok}], final: outcome, used: index | 'fallback' | 'code'}.
@@ -316,7 +318,7 @@ def run_item(job, item, setting, call, mark=True, retries=MAX_RETRIES, extra=Non
     for k in range(1 + retries):
         req = pl["build"](note); req = dict(req, **(extra or {}))
         out = call(req)
-        fields, hard, soft = parse(req["schema"], out.get("text"))
+        fields, hard, soft = parse(req["schema"], out.get("text"), job)
         errs = list(hard)
         res = job.evaluate(item, setting, fields, out.get("finish", "stop"), bool(out.get("refused")) or bool(out.get("error"))) if fields is not None else None
         if res is not None: errs += res["errors"]

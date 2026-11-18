@@ -66,6 +66,55 @@ def success_claim(text):
             return m.group(0)
     return None
 
+# ---------------------------------------------------------------------------------------------------------------- test outcomes (round 3)
+# Facts first: a test outcome is AI Juggler's to render, from facts.tests, by code. Round 2 showed the agent's false claim copied into
+# the review's free text ("Risiko: hoch (Tests laufen durch)", "tests/x.py — suite passes now") beside AI Juggler's Failed lines, in
+# phrasings no phrase list held. So a statement of a test outcome is found by structure: a test word (tests, suite, specs, Testlauf,
+# a test_* name, a test runner) and an outcome word (pass, fail, green, red, durch, bestanden, fehlgeschlagen, not run...) in one
+# sentence within a few words, either order; or a count with an outcome ("41 passed", "2 fehlgeschlagen"). Any polarity, attributed or
+# not: none of it is the model's to say. A conditional ("once the tests pass") states nothing. fixtures/guard-phrases.json holds
+# made-up phrases that must and must not count (test_outcome_phrases), EN and DE.
+TEST_NOUN = re.compile(r"^(?:tests?|testing|suites?|testsuites?|specs?|testfälle?|testfall|testläufe?|testlauf|testergebnis(?:se)?|ci|pipeline"
+                       r"|unit|e2e|integration|pytest|jest|vitest|mocha|rspec|junit|ctest|test_\w+|\w+_test"
+                       r"|(?:unit|integration|integrations|snapshot|smoke|regression|regressions|e2e|last|lade|komponenten|ui|api|browser|end-to-end)-?tests?)$", re.I)
+_OUT_PASS = r"pass|passes|passed|passing|green|grün|ok|okay|succeeds?|succeeded|succeeding|bestanden|besteht|bestehen|erfolgreich|durchgelaufen|clean"
+_OUT_FAIL = r"fail|fails|failed|failing|red|rot|broken|breaks?|broke|crash(?:es|ed)?|fehlgeschlagen|scheitert|scheitern|gescheitert|kaputt"
+_OUT_NOTRUN = r"unrun|skipped|übersprungen"
+OUTCOME_WORD = re.compile(rf"^(?:{_OUT_PASS}|{_OUT_FAIL}|{_OUT_NOTRUN})$", re.I)
+OUTCOME_PHRASE = re.compile(r"\b(?:laufen|läuft|liefen|lief)\s+(?:\w+\s+){0,3}?durch\b|\bschlägt\s+(?:\w+\s+){0,3}?fehl\b|\bschlagen\s+(?:\w+\s+){0,3}?fehl\b"
+                            r"|\bschlug(?:en)?\s+(?:\w+\s+){0,3}?fehl\b|\b(?:not|never|nicht|nie)\s+(?:been\s+)?(?:run|ran|executed|ausgeführt|gelaufen|gestartet)\b"
+                            r"|\bnot\s+yet\s+run\b|\b(?:still\s+)?(?:pending|ausstehend)\b", re.I)
+COUNT_OUTCOME = re.compile(r"\b\d+\s+(?:of\s+\d+\s+|von\s+\d+\s+)?(?:\w+\s+){0,1}?(?:passed|failed|failing|passing|failures?|bestanden|fehlgeschlagen\w*|grün|rot)\b", re.I)
+_TCOND = {"if", "once", "when", "whenever", "until", "unless", "whether", "after", "wenn", "sobald", "falls", "bis", "ob", "nachdem", "sofern"}
+_POL_FAIL = re.compile(rf"^(?:{_OUT_FAIL})$|fehl", re.I)
+def test_outcome(text):
+    """-> (the matched words, polarity: 'pass' | 'fail' | 'not_run') when the text states a test outcome, else None"""
+    for sent in re.split(r"(?<=[.;!?])\s+|\n", text or ""):
+        toks = re.findall(r"[^\W\d][\w-]*|\d+", sent)
+        low = [w.lower() for w in toks]
+        def cond_before(i): return any(w in _TCOND for w in low[max(0, i - 6):i])
+        cm = [m for m in COUNT_OUTCOME.finditer(sent) if not cond_before(len(re.findall(r"[^\W\d][\w-]*|\d+", sent[:m.start()])))]
+        if cm:     # counts: 'fail' with a nonzero failed count, 'pass' when they state zero failed, else 'count' (a true partial count)
+            fails = [m for m in cm if _POL_FAIL.search(m.group(0).split()[-1]) or re.search(r"\brot\b", m.group(0), re.I)]
+            pol = "fail" if any(not re.match(r"0\b", m.group(0)) for m in fails) else "pass" if fails else "count"
+            return cm[0].group(0), pol
+        nouns = [i for i, w in enumerate(low) if TEST_NOUN.match(w) and not re.match(r"^(?:testing|unit|integration)$", w) or w in ("testing",)]
+        if not nouns: continue
+        for i in nouns:
+            win = range(max(0, i - 6), min(len(low), i + 7))
+            for j in win:
+                if j == i or not OUTCOME_WORD.match(low[j]) or cond_before(j): continue
+                if low[j] in ("ok", "okay", "clean") and abs(j - i) > 2: continue          # "ok"/"clean" only right beside the test word
+                pol = "fail" if _POL_FAIL.search(low[j]) else "not_run" if re.match(_OUT_NOTRUN, low[j]) else "pass"
+                return " ".join(toks[min(i, j):max(i, j) + 1]), pol
+        for m in OUTCOME_PHRASE.finditer(sent):
+            k = len(re.findall(r"[^\W\d][\w-]*|\d+", sent[:m.start()]))
+            if any(abs(k - i) <= 6 for i in nouns) and not cond_before(min([k] + nouns)):
+                g = m.group(0).lower()
+                pol = "not_run" if re.search(r"run|ran|executed|ausgeführt|gelaufen|gestartet|pending|ausstehend", g) else "fail" if "fehl" in g else "pass"
+                return m.group(0), pol
+    return None
+
 # ---------------------------------------------------------------------------------------------------------------- agent claims, attribution
 AGENT_CLAIM_RX = re.compile(
  r"\b(?:verified|confirmed|thoroughly|fully\s+tested|fully\s+covered|production[\s-]ready|ready\s+(?:to|for)\s+(?:review|merge|ship|deploy|production)"

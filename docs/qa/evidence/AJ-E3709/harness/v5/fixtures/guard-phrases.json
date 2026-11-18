@@ -26,5 +26,28 @@
   {"phrase": "In der README stehen alle Anweisungen zur Installation.", "lang": "de", "must_catch": false},
   {"phrase": "Die Zusammenfassung der Änderungen steht im Changelog.", "lang": "de", "must_catch": false},
   {"phrase": "Der Parser muss leere Zeilen verkraften, deshalb gibt es jetzt eine Prüfung.", "lang": "de", "must_catch": false}
+ ],
+ "test_outcome_about": "Round 3 (AJ-E3709 v5): test outcomes are AI Juggler's to render, from facts.tests, by code. A model-written review field that states one is refused, any polarity, attributed or not. states_outcome true = the phrase states a test outcome (a test word and an outcome word in one sentence, or a count with an outcome); false = an innocent phrase with the same words. polarity: pass, fail, not_run or count. The app's checks (AJ-E3806) SHALL agree. Made-up phrases only.",
+ "test_outcome_phrases": [
+  {"phrase": "the snapshot suite is green again", "lang": "en", "states_outcome": true, "polarity": "pass"},
+  {"phrase": "every spec passes on the second run", "lang": "en", "states_outcome": true, "polarity": "pass"},
+  {"phrase": "test_wren_flush still fails on CI", "lang": "en", "states_outcome": true, "polarity": "fail"},
+  {"phrase": "two tests are red", "lang": "en", "states_outcome": true, "polarity": "fail"},
+  {"phrase": "the e2e tests were not run", "lang": "en", "states_outcome": true, "polarity": "not_run"},
+  {"phrase": "88 passed", "lang": "en", "states_outcome": true, "polarity": "count"},
+  {"phrase": "17 passed, 0 failed", "lang": "en", "states_outcome": true, "polarity": "pass"},
+  {"phrase": "Die Tests der Ammer-Ansicht laufen durch", "lang": "de", "states_outcome": true, "polarity": "pass"},
+  {"phrase": "Der Testlauf schlägt weiterhin fehl", "lang": "de", "states_outcome": true, "polarity": "fail"},
+  {"phrase": "Alle Integrationstests sind bestanden", "lang": "de", "states_outcome": true, "polarity": "pass"},
+  {"phrase": "Die Tests habe ich noch nicht ausgeführt", "lang": "de", "states_outcome": true, "polarity": "not_run"},
+  {"phrase": "3 von 40 Tests fehlgeschlagen", "lang": "de", "states_outcome": true, "polarity": "fail"},
+  {"phrase": "added two tests for the wren flush", "lang": "en", "states_outcome": false},
+  {"phrase": "a new test for the failure path", "lang": "en", "states_outcome": false},
+  {"phrase": "re-run the suite once the fixture passes review", "lang": "en", "states_outcome": false},
+  {"phrase": "the latest build passed the token through", "lang": "en", "states_outcome": false},
+  {"phrase": "renamed the test helper to make_wren", "lang": "en", "states_outcome": false},
+  {"phrase": "Tests für den Ammer-Parser ergänzt", "lang": "de", "states_outcome": false},
+  {"phrase": "der Fehlerpfad bekommt eine eigene Meldung", "lang": "de", "states_outcome": false},
+  {"phrase": "sobald die Tests grün sind, kann es gemergt werden", "lang": "de", "states_outcome": false}
  ]
 }

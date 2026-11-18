@@ -55,8 +55,10 @@ def selftest():
     check("revert: ...and lists it under Reverted, with the reflog's revert", any(x.startswith("Reverted (git): src/wren/cache.rs") and "revert:" in x for x in lines), lines)
     check("revert: the reverted file is not in the review's path enum", turns.review_paths(t) == ["src/wren/api.rs"], turns.review_paths(t))
     g = j4.gbnf(turns.review_schema(t)); M = j4.GbnfMatcher(g)
-    check("revert: the grammar rejects a note on the reverted file", not M.accepts(j4.to_grammar_json({"notes": [{"path": "src/wren/cache.rs", "says": "added an LRU cache"}],
-          "risk_reason": "none", "risk": "unknown"})) and M.accepts(j4.to_grammar_json({"notes": [{"path": "src/wren/api.rs", "says": "the wren api now returns ETags"}], "risk_reason": "none", "risk": "unknown"})))
+    check("revert: the one-path grammar holds no path at all (code names git's one kept file), so the reverted file can't be named",
+          not M.accepts(j4.to_grammar_json({"notes": [{"path": "src/wren/cache.rs", "says": "added an LRU cache"}], "risk_reason": "none", "risk": "unknown"}))
+          and M.accepts(j4.to_grammar_json({"note": "the wren api now returns ETags", "risk_reason": "none", "risk": "unknown"}))
+          and turns.compose_review_v5(t, turns.review_fields(t, {"note": "the wren api now returns ETags", "risk_reason": "none", "risk": "unknown"}))[0].startswith("Changed (git): src/wren/api.rs (+12 -1) — the wren api now returns ETags"))
     e = turns.review_checks_v5(t, {"notes": [{"path": "src/wren/api.rs", "says": "added an LRU cache to the wren reader"}], "risk_reason": "none", "risk": "unknown"})
     check("revert: a description that names the reverted change is rejected (Apple has no grammar)", any("undone" in x for x in e), e)
     e = turns.review_checks_v5(t, {"notes": [{"path": "src/wren/api.rs", "says": "the wren api now returns ETags"}], "risk_reason": "none", "risk": "unknown"})
@@ -335,15 +337,17 @@ def selftest():
         check(f"review gate (German): {says!r} on a failed turn is refused", any("success claim" in x for x in e), e)
     e = turns.review_checks_v5(tw, rv_(rr="the agent says everything passes"))
     check("review gate: attributing the claim doesn't make it shown against the facts", any("success claim" in x for x in e), e)
-    check("review gate: a true count beside the failures passes", not turns.review_checks_v5(tw, rv_(rr="52 passed, 3 failed")), turns.review_checks_v5(tw, rv_(rr="52 passed, 3 failed")))
+    e = turns.review_checks_v5(tw, rv_(rr="52 passed, 3 failed"))     # round 3: tests are code's to show, a true count too (no contradiction)
+    check("review gate: a true count beside the failures is a test outcome, refused, not a contradiction", e and all("test outcome" in x and "contradiction" not in x for x in e), e)
     tcl = turn("Rewrote the wagtail tally rounding in tally/wagtail.py and verified it against the old ledger. 52 tests pass.",
                facts={"outcome": "success", "level": "L1", "tests": {"state": "ran", "passed": 52, "failed": 0}}, git=GW)
     e = turns.review_checks_v5(tcl, rv_(says="rewrote the wagtail tally rounding, verified against the old ledger", risk="low"))
     check("review gate: an agent's claim (verified) stated as fact is refused", any("agent's claim" in x for x in e), e)
     e = turns.review_checks_v5(tcl, rv_(says="the agent says it verified the rounding against the old ledger", risk="low"))
     check("review gate: ...and passes attributed ('the agent says …')", not e, e)
-    check("review gate: on a clean run, 'all 52 tests pass' agrees with the facts and needs no attribution", not turns.review_checks_v5(tcl, rv_(rr="all 52 tests pass", risk="low")))
-    eng = Script([rv_(rr="everything passes, including the leap-year cases"), rv_(rr="three tests still fail")])
+    e = turns.review_checks_v5(tcl, rv_(rr="all 52 tests pass", risk="low"))
+    check("review gate: on a clean run, 'all 52 tests pass' agrees with the facts: refused as a test outcome only (round 3), never a contradiction", e and not any("contradiction" in x for x in e), e)
+    eng = Script([rv_(rr="everything passes, including the leap-year cases"), rv_(rr="the rounding of the wagtail tally changed")])
     tw2 = turn(msgw + " Three tests still fail.", facts=FW, git=GW)
     rec = run_item(REVIEW, tw2, "main", eng)
     check("review gate: the refused claim is retried with the reason, and the retry passes", rec["used"] == 1 and "success claim" in eng.reqs[1]["prompt"].split("rejected because:")[1], rec["attempts"])
@@ -515,6 +519,55 @@ def selftest():
     check("R3 revert: a review gloss on the kept file claiming the reverted work is refused", any("undone" in x for x in e), e)
     e = turns.review_checks_v5(th, {"notes": [{"path": "heron/queue.py", "says": "den Puffer erst vergrößert, dann alles wieder verworfen"}], "risk_reason": "none", "risk": "unknown"})
     check("R3 revert: ...a gloss that itself says 'dann alles wieder verworfen' is honest (no kept change called undone)", not any("undone" in x or "kept" in x for x in e), e)
+
+    # ================================================================================================ R3-3. test outcomes in the review: code's alone
+    tph = json.load(open(guard_v5.FIXTURE))
+    for x in tph.get("test_outcome_phrases") or []:
+        r = claims_v5.test_outcome(x["phrase"])
+        check(f"R3 test outcome ({x['lang']}): {x['phrase']!r} " + ("states one" if x["states_outcome"] else "states none"),
+              bool(r) == x["states_outcome"] and (not r or r[1] == x["polarity"]), r)
+    check("R3 test outcome: the fixture holds both kinds in both languages", {(x["lang"], x["states_outcome"]) for x in tph.get("test_outcome_phrases") or []}
+          == {("en", True), ("en", False), ("de", True), ("de", False)})
+    GA = {"changed": [{"path": "ammer/flush.py", "added": 22, "removed": 9, "status": "M"}, {"path": "ammer/tests/test_flush.py", "added": 14, "removed": 2, "status": "M"}],
+          "reverted": [], "reflog": []}
+    ta = turn("Der Ammer-Flush schreibt jetzt in Blöcken (ammer/flush.py). Tests laufen durch, auch die neuen in ammer/tests/test_flush.py.",
+              {"outcome": "failed", "level": "L3", "tests": {"state": "failed", "passed": 40, "failed": 2}}, GA, failures=["test_flush_empty: AssertionError"])
+    def rva(rr="none", says=None, risk="high"):
+        return {"notes": [{"path": "ammer/flush.py", "says": says or "der Ammer-Flush schreibt jetzt in Blöcken"}], "risk_reason": rr, "risk": risk}
+    e = turns.review_checks_v5(ta, rva(rr="Tests laufen durch"))
+    check("R3 review: 'Tests laufen durch' as the risk reason on a failed turn is refused as a contradiction", any("test outcome" in x and "contradiction" in x for x in e), e)
+    e = turns.review_checks_v5(ta, {"notes": [{"path": "ammer/tests/test_flush.py", "says": "the flush suite passes now"}], "risk_reason": "none", "risk": "high"})
+    check("R3 review: a gloss 'the flush suite passes now' on a failed turn is refused", any("test outcome" in x and "contradiction" in x for x in e), e)
+    e = turns.review_checks_v5(ta, rva(rr="zwei Tests schlagen noch fehl"))
+    check("R3 review: even a true outcome ('zwei Tests schlagen noch fehl') is refused, not as a contradiction", e and all("contradiction" not in x for x in e), e)
+    check("R3 review: a reason with no test outcome passes", not turns.review_checks_v5(ta, rva(rr="der Flush schreibt jetzt in Blöcken")),
+          turns.review_checks_v5(ta, rva(rr="der Flush schreibt jetzt in Blöcken")))
+    lines = turns.compose_review_v5(ta, None)
+    check("R3 review: the tests line is code's, from the facts, in German", "Tests: 40 bestanden, 2 fehlgeschlagen (laut AI Juggler)" in lines, lines)
+    lines = turns.compose_review_v5(turn("Tidied the wren docs.", {"outcome": "completed", "level": "L1", "tests": {"state": "passed", "passed": 9, "failed": 0}}, {"changed": [{"path": "docs/wren.md", "added": 3, "removed": 1}]}), None)
+    check("R3 review: ...and in English", "Tests: 9 passed, 0 failed (per AI Juggler)" in lines, lines)
+    eng = Script([rva(rr="Tests laufen durch"), rva(rr="der Flush schreibt jetzt in Blöcken")])
+    rec = run_item(REVIEW, ta, "main", eng)
+    check("R3 review: the refused outcome is retried with the reason, and the retry passes", rec["used"] == 1 and "test outcome" in eng.reqs[1]["prompt"].split("rejected because:")[1], rec["attempts"])
+    check("R3 review: the system prompt tells the model to leave test results out", turns.TESTS_RULE in REVIEW.system(True))
+    check("R3 severity: a shown review text stating a test outcome against the facts is critical",
+          "test_outcome_contradiction" in dets(tv(ta, "written", "x", ["the flush suite passes now"], job="review"), "critical"))
+    check("R3 severity: ...a true one is minor", dets(tv(ta, "written", "x", ["zwei Tests schlagen noch fehl"], job="review")) & {"test_outcome_in_text"}
+          and "test_outcome_contradiction" not in dets(tv(ta, "written", "x", ["zwei Tests schlagen noch fehl"], job="review")))
+    # one changed file: one note (Apple's generator failed every one-path review in rounds 1 and 2: error 1032, an array max 1 min 0)
+    t1 = turn("Der Ammer-Flush schreibt jetzt in Blöcken.", {"outcome": "completed", "level": "L1", "tests": {"state": "passed", "passed": 9, "failed": 0}},
+              {"changed": [{"path": "ammer/flush.py", "added": 22, "removed": 9}]})
+    def walk(sch):
+        yield sch
+        for p_ in sch.get("properties") or []: yield from walk(p_["schema"])
+        if sch.get("items"): yield from walk(sch["items"])
+    req = REVIEW.plan(t1, "main")["build"]("")
+    check("R3 review: a one-path request holds no array of at most one element and at least none (Apple's error 1032, probed)",
+          not any(x.get("type") == "array" and (x.get("max") or 9) < 2 and not (x.get("min") or 0) for x in walk(req["schema"])), req["schema"])
+    rec = run_item(REVIEW, t1, "main", Script([{"note": "der Ammer-Flush schreibt jetzt in Blöcken", "risk_reason": "none", "risk": "low"}]))
+    check("R3 review: ...its note shows beside git's one file", rec["used"] == 0 and rec["final"]["lines"][0] == "Geändert (git): ammer/flush.py (+22 -9) — der Ammer-Flush schreibt jetzt in Blöcken", rec["final"])
+    rec = run_item(REVIEW, t1, "main", Script([{"notes": [{"path": "ammer/flush.py", "says": "der Ammer-Flush schreibt jetzt in Blöcken"}], "risk_reason": "none", "risk": "low"}]))
+    check("R3 review: ...and a recorded draft in the list shape still replays", rec["used"] == 0 and "— der Ammer-Flush" in rec["final"]["lines"][0], rec["attempts"])
 
     # ================================================================================================ the extension point, the frozen gate, the prompts
     class Toy(core.Job):
