@@ -939,44 +939,31 @@ fn the_rails_order_survives_a_restore_and_a_machine_only_setting_does_not() {
             holding the store's tables is refused by the schema check; backup.rs's own tests \
             cover the steps"]
 fn a_restore_brings_back_nothing_forgotten_and_no_kept_copy_holds_it() {
-    use juggler_app::features::ai::memory::RedactionSecrets;
-    use juggler_core::storage::memory::{
-        self, Actor, Authority, Kind, NewRecord, Priority, RecordText, Scope, SourceKind, Tier,
-    };
+    use juggler_core::storage::memory::{self, Actor};
     const CANARY: &str = "qzxwvrestorecanary";
     let work = tempfile::tempdir().unwrap();
     let mac = work.path().join("mac");
     let a = app_state(&mac);
     let now = Timestamp::now().millis();
-    let writers = a.memory_writers.take().unwrap();
-    let note = |key: &str, text: String| NewRecord {
-        subject_key: key.to_owned(),
-        kind: Kind::Note,
-        scope: Scope::Global,
-        tier: Tier::Long,
-        priority: Priority::Normal,
-        authority: Authority::User,
-        source: SourceKind::Settings,
-        source_id: None,
-        engine: None,
-        confidence: 1.0,
-        as_of_ms: now,
-        source_rev: None,
-        text: RecordText::Trusted(text),
-        payload: serde_json::json!({}),
-        expires_ms: None,
-        entities: Vec::new(),
-    };
+    // Written as the store writes them (no writer: another test's state
+    // in this process may have taken them).
     {
         let storage = a.storage.lock().unwrap();
         storage.raw_conn().execute_batch(memory::V54).unwrap();
-        for (key, text) in [
-            ("note:kept", "the api project matters most".to_owned()),
-            ("note:gone", format!("remember {CANARY} please")),
+        for (id, key, text) in [
+            ("r1", "note:kept", "the api project matters most".to_owned()),
+            ("r2", "note:gone", format!("remember {CANARY} please")),
         ] {
             storage
-                .memory()
-                .remember(&writers.memory, &RedactionSecrets, &note(key, text), now)
+                .raw_conn()
+                .execute(
+                    "INSERT INTO memory_records (id, subject_key, subject_id, version, kind,
+                         scope_kind, tier, priority, authority, untrusted, source_kind,
+                         confidence, as_of_ms, text, created_ms)
+                     VALUES (?1, ?2, ?1, 1, 'note', 'global', 'long', 1, 'user', 0, 'settings',
+                             1, ?3, ?4, ?3)",
+                    rusqlite::params![id, key, now, text],
+                )
                 .unwrap();
         }
     }

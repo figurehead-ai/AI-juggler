@@ -1175,6 +1175,91 @@ mod tests {
         );
     }
 
+    /// The re-review's N5 (its second re-check's appendix): a forget asked
+    /// for while a restore holds the storage waits, then applies to the
+    /// restored data; the forgotten words come back nowhere in the data
+    /// folder. The forget starts only once the copy before the restore
+    /// exists (inside the hold), so the order is fixed. Fails when the hold
+    /// is split, or when `ScrubOnDrop` does nothing.
+    #[test]
+    fn a_forget_during_a_restore_applies_to_the_restored_data() {
+        let dir = tempfile::tempdir().unwrap();
+        let out = tempfile::tempdir().unwrap();
+        let data = dir.path().to_path_buf();
+        let state = Arc::new(
+            AppState::init_with_registry(data.clone(), juggler_adapter::AdapterRegistry::new())
+                .unwrap(),
+        );
+        {
+            let storage = state.storage.lock().unwrap();
+            storage.raw_conn().execute_batch(memory::V54).unwrap();
+            canary_note(&storage);
+        }
+        let archive = out.path().join("before.ajbackup");
+        backup_export_impl(&state, &archive, &mut |_, _| {}).unwrap();
+        // Verify stages it, then refuses V54's tables until V54 is
+        // registered; the confirmation is set as verify sets it.
+        let _ = backup_verify_impl(&state, &archive);
+        assert!(data.join(STAGING_DIR).join("db/juggler.sqlite").exists());
+        state
+            .storage
+            .lock()
+            .unwrap()
+            .app_settings()
+            .set(TOKEN_KEY, &format!("tok:{}", archive.display()))
+            .unwrap();
+
+        let forgetter = {
+            let state = Arc::clone(&state);
+            let data = data.clone();
+            std::thread::spawn(move || {
+                let start = std::time::Instant::now();
+                while !std::fs::read_dir(&data).unwrap().flatten().any(|e| {
+                    e.file_name()
+                        .to_string_lossy()
+                        .starts_with(RESTORE_COPY_PREFIX)
+                }) {
+                    assert!(start.elapsed().as_secs() < 30, "no restore started");
+                    // poll: a test waiting for the restore's copy to appear.
+                    std::thread::sleep(std::time::Duration::from_millis(1));
+                }
+                crate::commands::lock_storage_arc(&state)
+                    .unwrap()
+                    .memory()
+                    .forget("note:gone", &Actor::User, 5)
+                    .unwrap()
+            })
+        };
+        backup_restore_impl(&state, &archive, "tok").unwrap();
+        let forgot = forgetter.join().unwrap();
+        assert_eq!(forgot.subjects, 1, "the forget found the restored subject");
+        {
+            let storage = state.storage.lock().unwrap();
+            assert!(storage.memory().current("note:gone").unwrap().is_none());
+            storage
+                .raw_conn()
+                .query_row("PRAGMA wal_checkpoint(TRUNCATE)", [], |_| Ok(()))
+                .unwrap();
+        }
+        let mut stack = vec![data.clone()];
+        let mut holding = Vec::new();
+        while let Some(at) = stack.pop() {
+            for entry in std::fs::read_dir(&at).unwrap().flatten() {
+                let path = entry.path();
+                if path.is_dir() {
+                    stack.push(path);
+                } else if std::fs::read(&path)
+                    .unwrap_or_default()
+                    .windows(CANARY.len())
+                    .any(|w| w == CANARY.as_bytes())
+                {
+                    holding.push(path);
+                }
+            }
+        }
+        assert!(holding.is_empty(), "these still hold it: {holding:?}");
+    }
+
     /// AI Juggler's own copy (before an update) holds no memory; the
     /// user's export and the cloud copy go by ADR-0037 §1.8.
     #[test]
