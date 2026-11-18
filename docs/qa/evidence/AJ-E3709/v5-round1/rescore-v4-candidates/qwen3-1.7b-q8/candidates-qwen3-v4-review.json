@@ -22,24 +22,6 @@
    "corpus": "heldout"
   },
   {
-   "class": "critical",
-   "detector": "gold_forbidden",
-   "detail": "/failed/ in the model's words",
-   "stage": "shown",
-   "attempt": null,
-   "id": "R001",
-   "corpus": "heldout-jobs"
-  },
-  {
-   "class": "critical",
-   "detector": "gold_forbidden",
-   "detail": "/done/ in the model's words",
-   "stage": "shown",
-   "attempt": null,
-   "id": "R003",
-   "corpus": "heldout-jobs"
-  },
-  {
    "class": "omission",
    "detector": "emphasis",
    "detail": "risk high; the facts' rule says low",

@@ -98,11 +98,11 @@
      "items": 40,
      "decided_by_code": 26,
      "model_called": 14,
-     "passed_first_attempt": 8,
+     "passed_first_attempt": 4,
      "passed_after_a_retry": 3,
      "fell_back": 3,
-     "passed_first_pct": 57.14,
-     "passed_with_retries_pct": 78.57,
+     "passed_first_pct": 28.57,
+     "passed_with_retries_pct": 50.0,
      "fallback_pct": 21.43,
      "attempts_per_item": {
       "1": 8,
@@ -120,35 +120,30 @@
      },
      "kinds_shown": {
       "dont_know": 30,
-      "answer": 5,
+      "answer": 2,
+      "ambiguous": 3,
       "scope": 2,
       "found_rows": 3
      }
     },
     "severity": {
      "items": 40,
-     "model_shown_items": 5,
-     "critical_reaching_the_user": 3,
-     "critical_reaching_pct": 60.0,
-     "critical_reaching_pct_of_all_items": 7.5,
-     "critical_by_detector": {
-      "wrong_attribute": 3,
-      "gold_forbidden": 1,
-      "answered_unanswerable": 1
-     },
-     "systematic": [
-      "wrong_attribute"
-     ],
+     "model_shown_items": 2,
+     "critical_reaching_the_user": 0,
+     "critical_reaching_pct": 0.0,
+     "critical_reaching_pct_of_all_items": 0.0,
+     "critical_by_detector": {},
+     "systematic": [],
      "critical_caught_drafts": 13,
      "critical_caught_items": 6,
      "critical_caught_by_detector": {
       "wrong_question": 13
      },
-     "omission_items": 17,
+     "omission_items": 19,
      "omission_denominator": 40,
-     "omission_pct": 42.5,
+     "omission_pct": 47.5,
      "omission_by_detector": {
-      "no_answer_on_answerable": 16,
+      "no_answer_on_answerable": 18,
       "detail_dropped": 1
      },
      "questions_or_failures_hidden": 0,
@@ -160,21 +155,21 @@
       "bar": "critical reaching the user, % of shown model items",
       "op": "<=",
       "bar_value": 1.0,
-      "measured": 60.0,
-      "ok": false
+      "measured": 0.0,
+      "ok": true
      },
      {
       "bar": "systematic critical patterns",
       "op": "==",
       "bar_value": 0,
-      "measured": 1,
-      "ok": false
+      "measured": 0,
+      "ok": true
      },
      {
       "bar": "omissions, % of shown items (Chat: of all questions)",
       "op": "<=",
       "bar_value": 10.0,
-      "measured": 42.5,
+      "measured": 47.5,
       "ok": false
      },
      {
@@ -242,16 +237,50 @@
      "critical_caught_drafts": 0,
      "critical_caught_items": 0,
      "critical_caught_by_detector": {},
-     "omission_items": 1,
-     "omission_denominator": 1,
-     "omission_pct": 100.0,
+     "omission_items": 8,
+     "omission_denominator": 40,
+     "omission_pct": 20.0,
      "omission_by_detector": {
       "attention_miss": 7,
       "emphasis": 1
      },
      "questions_or_failures_hidden": 0,
      "feed_model_lines_on_loud_items": 0,
-     "minor": {}
+     "minor": {},
+     "attention": {
+      "facts_given": {
+       "items": 40,
+       "need_you": 20,
+       "calm": 20,
+       "no_gold": 0,
+       "missed": 7,
+       "miss_pct": 35.0,
+       "false_alarms": 2,
+       "false_alarm_pct": 10.0,
+       "false_alarms_by_the_model": 1,
+       "false_alarms_by_the_facts": 1,
+       "missed_ids": [
+        "V002",
+        "V007",
+        "V012",
+        "V017",
+        "V022",
+        "V025",
+        "V028"
+       ],
+       "false_alarm_ids_model": [
+        "V036"
+       ],
+       "false_alarm_ids_facts": [
+        "V014"
+       ]
+      },
+      "facts_hidden": "not in this group (v5 decides attention from the facts; v4's re-score reports facts hidden as its own group)"
+     },
+     "extra": {
+      "facts_given": "miss 7/20 (35.0 %), false alarms 2/20 (10.0 %; model 1, facts 1)",
+      "facts_hidden": "not in this group (v5 decides attention from the facts; v4's re-score reports facts hidden as its own group)"
+     }
     },
     "bar_check": [
      {
@@ -272,7 +301,7 @@
       "bar": "omissions, % of shown items (Chat: of all questions)",
       "op": "<=",
       "bar_value": 10.0,
-      "measured": 100.0,
+      "measured": 20.0,
       "ok": false
      },
      {
@@ -295,6 +324,20 @@
       "bar_value": 60.0,
       "measured": null,
       "ok": null
+     },
+     {
+      "bar": "attention misses, % of items that need you (facts given)",
+      "op": "<=",
+      "bar_value": 10.0,
+      "measured": 35.0,
+      "ok": false
+     },
+     {
+      "bar": "attention false alarms, % of calm items (facts given)",
+      "op": "<=",
+      "bar_value": 10.0,
+      "measured": 10.0,
+      "ok": true
      }
     ]
    },
@@ -303,12 +346,12 @@
      "items": 40,
      "decided_by_code": 14,
      "model_called": 26,
-     "passed_first_attempt": 15,
+     "passed_first_attempt": 12,
      "passed_after_a_retry": 0,
-     "fell_back": 11,
-     "passed_first_pct": 57.69,
-     "passed_with_retries_pct": 57.69,
-     "fallback_pct": 42.31,
+     "fell_back": 14,
+     "passed_first_pct": 46.15,
+     "passed_with_retries_pct": 46.15,
+     "fallback_pct": 53.85,
      "attempts_per_item": {
       "1": 15,
       "3": 11
@@ -323,29 +366,29 @@
       "p95": 4485
      },
      "kinds_shown": {
-      "written": 13,
+      "written": 11,
+      "excerpt": 14,
       "excerpt_routed": 14,
-      "excerpt": 11,
-      "quoted": 2
+      "quoted": 1
      }
     },
     "severity": {
      "items": 40,
-     "model_shown_items": 15,
+     "model_shown_items": 12,
      "critical_reaching_the_user": 0,
      "critical_reaching_pct": 0.0,
      "critical_reaching_pct_of_all_items": 0.0,
      "critical_by_detector": {},
      "systematic": [],
-     "critical_caught_drafts": 36,
-     "critical_caught_items": 10,
+     "critical_caught_drafts": 42,
+     "critical_caught_items": 13,
      "critical_caught_by_detector": {
+      "contradiction": 18,
       "outcome_or_caveat": 14,
-      "anchoring": 10,
-      "contradiction": 12
+      "anchoring": 10
      },
      "omission_items": 0,
-     "omission_denominator": 15,
+     "omission_denominator": 12,
      "omission_pct": 0.0,
      "omission_by_detector": {},
      "questions_or_failures_hidden": 0,
@@ -402,16 +445,16 @@
      "items": 40,
      "decided_by_code": 0,
      "model_called": 40,
-     "passed_first_attempt": 19,
-     "passed_after_a_retry": 6,
-     "fell_back": 15,
-     "passed_first_pct": 47.5,
-     "passed_with_retries_pct": 62.5,
-     "fallback_pct": 37.5,
+     "passed_first_attempt": 18,
+     "passed_after_a_retry": 5,
+     "fell_back": 17,
+     "passed_first_pct": 45.0,
+     "passed_with_retries_pct": 57.5,
+     "fallback_pct": 42.5,
      "attempts_per_item": {
-      "1": 19,
+      "1": 20,
       "2": 6,
-      "3": 15
+      "3": 14
      },
      "drafts_parsed_and_valid_pct": 100.0,
      "latency_ms_first_attempt": {
@@ -419,36 +462,31 @@
       "p95": 2431
      },
      "latency_ms_item_total": {
-      "median": 2271.0,
+      "median": 2230.0,
       "p95": 7068
      },
      "kinds_shown": {
-      "baseline": 15,
-      "written": 25
+      "baseline": 17,
+      "written": 23
      }
     },
     "severity": {
      "items": 40,
-     "model_shown_items": 24,
-     "critical_reaching_the_user": 4,
-     "critical_reaching_pct": 16.67,
-     "critical_reaching_pct_of_all_items": 10.0,
-     "critical_by_detector": {
-      "polarity_script": 4,
-      "gold_forbidden": 2
-     },
-     "systematic": [
-      "polarity_script"
-     ],
-     "critical_caught_drafts": 99,
+     "model_shown_items": 22,
+     "critical_reaching_the_user": 0,
+     "critical_reaching_pct": 0.0,
+     "critical_reaching_pct_of_all_items": 0.0,
+     "critical_by_detector": {},
+     "systematic": [],
+     "critical_caught_drafts": 101,
      "critical_caught_items": 21,
      "critical_caught_by_detector": {
-      "contradiction": 45,
-      "anchoring": 49,
+      "contradiction": 54,
+      "anchoring": 42,
       "invented": 5
      },
      "omission_items": 0,
-     "omission_denominator": 24,
+     "omission_denominator": 22,
      "omission_pct": 0.0,
      "omission_by_detector": {},
      "questions_or_failures_hidden": 0,
@@ -460,15 +498,15 @@
       "bar": "critical reaching the user, % of shown model items",
       "op": "<=",
       "bar_value": 1.0,
-      "measured": 16.67,
-      "ok": false
+      "measured": 0.0,
+      "ok": true
      },
      {
       "bar": "systematic critical patterns",
       "op": "==",
       "bar_value": 0,
-      "measured": 1,
-      "ok": false
+      "measured": 0,
+      "ok": true
      },
      {
       "bar": "omissions, % of shown items (Chat: of all questions)",
@@ -502,5 +540,138 @@
    }
   }
  },
- "replay_mismatches": []
+ "replay_mismatches": [
+  {
+   "id": "V002",
+   "job": "feed_line",
+   "run": [
+    0,
+    "written"
+   ],
+   "replay": [
+    "fallback",
+    "excerpt"
+   ]
+  },
+  {
+   "id": "V017",
+   "job": "feed_line",
+   "run": [
+    0,
+    "quoted"
+   ],
+   "replay": [
+    "fallback",
+    "excerpt"
+   ]
+  },
+  {
+   "id": "V028",
+   "job": "feed_line",
+   "run": [
+    0,
+    "written"
+   ],
+   "replay": [
+    "fallback",
+    "excerpt"
+   ]
+  },
+  {
+   "id": "V008",
+   "job": "review",
+   "run": [
+    0,
+    "written"
+   ],
+   "replay": [
+    "fallback",
+    "baseline"
+   ]
+  },
+  {
+   "id": "V015",
+   "job": "review",
+   "run": [
+    1,
+    "written"
+   ],
+   "replay": [
+    "fallback",
+    "baseline"
+   ]
+  },
+  {
+   "id": "V028",
+   "job": "review",
+   "run": [
+    "fallback",
+    "baseline"
+   ],
+   "replay": [
+    0,
+    "written"
+   ]
+  },
+  {
+   "id": "V037",
+   "job": "review",
+   "run": [
+    0,
+    "written"
+   ],
+   "replay": [
+    "fallback",
+    "baseline"
+   ]
+  },
+  {
+   "id": "C510",
+   "job": "chat",
+   "run": [
+    0,
+    "answer"
+   ],
+   "replay": [
+    "code",
+    "ambiguous"
+   ]
+  },
+  {
+   "id": "C517",
+   "job": "chat",
+   "run": [
+    0,
+    "dont_know"
+   ],
+   "replay": [
+    "code",
+    "dont_know"
+   ]
+  },
+  {
+   "id": "C520",
+   "job": "chat",
+   "run": [
+    0,
+    "answer"
+   ],
+   "replay": [
+    "code",
+    "ambiguous"
+   ]
+  },
+  {
+   "id": "C526",
+   "job": "chat",
+   "run": [
+    0,
+    "answer"
+   ],
+   "replay": [
+    "code",
+    "ambiguous"
+   ]
+  }
+ ]
 }

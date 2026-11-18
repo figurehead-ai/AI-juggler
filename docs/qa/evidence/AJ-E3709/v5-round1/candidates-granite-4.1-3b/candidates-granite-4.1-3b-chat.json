@@ -58,18 +58,9 @@
    "corpus": "chat"
   },
   {
-   "class": "critical",
-   "detector": "wrong_attribute",
-   "detail": "answered ['files_changed'], asked count",
-   "stage": "shown",
-   "attempt": null,
-   "id": "C510",
-   "corpus": "chat"
-  },
-  {
-   "class": "critical",
-   "detector": "gold_forbidden",
-   "detail": "/6 files/",
+   "class": "omission",
+   "detector": "no_answer_on_answerable",
+   "detail": "shown: ambiguous",
    "stage": "shown",
    "attempt": null,
    "id": "C510",
@@ -123,7 +114,7 @@
   {
    "class": "omission",
    "detector": "no_answer_on_answerable",
-   "detail": "shown: found_values",
+   "detail": "shown: ambiguous",
    "stage": "shown",
    "attempt": null,
    "id": "C526",

@@ -4,24 +4,6 @@
  "note": "script flags: candidates for Opus to confirm by eye, never verdicts",
  "candidates": [
   {
-   "class": "critical",
-   "detector": "gold_forbidden",
-   "detail": "/deployed/ in the model's words",
-   "stage": "shown",
-   "attempt": null,
-   "id": "V016",
-   "corpus": "turns"
-  },
-  {
-   "class": "critical",
-   "detector": "polarity_script",
-   "detail": "'certctl renew --env staging: permission denied (keychain access refused) | exit status 77': failure word in output with none in source",
-   "stage": "shown",
-   "attempt": null,
-   "id": "V020",
-   "corpus": "turns"
-  },
-  {
    "id": "V002",
    "attempt": 0,
    "class": "critical",
@@ -166,11 +148,38 @@
    "corpus": "turns"
   },
   {
+   "id": "V006",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'the whole suite passes, including the DS': contradiction: a success claim ('the whole suite passes') on a turn AI Juggler's facts show failed; never repeat it, even as the agent's",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V006",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "risk reason: contradiction: a success claim ('the whole suite passes') on a turn AI Juggler's facts show failed; never repeat it, even as the agent's",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
    "id": "V007",
    "attempt": 0,
    "class": "critical",
    "detector": "invented",
    "detail": "'ein Rate-Limiter für die Upload-Schnitts': invented: path anfragen/ü",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V007",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'ein Rate-Limiter für die Upload-Schnitts': contradiction: describes a change that was undone (git: upload/limiter.py was undone (names limit, limiter, rate))",
    "stage": "caught",
    "corpus": "turns"
   },
@@ -185,10 +194,28 @@
   },
   {
    "id": "V007",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'ein Rate-Limiter für die Upload-Schnitts': contradiction: describes a change that was undone (git: upload/limiter.py was undone (names limit, limiter, rate))",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V007",
    "attempt": 2,
    "class": "critical",
    "detector": "invented",
    "detail": "'ein Rate-Limiter für die Upload-Schnitts': invented: path anfragen/ü",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V007",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'ein Rate-Limiter für die Upload-Schnitts': contradiction: describes a change that was undone (git: upload/limiter.py was undone (names limit, limiter, rate))",
    "stage": "caught",
    "corpus": "turns"
   },
@@ -439,8 +466,26 @@
    "id": "V015",
    "attempt": 0,
    "class": "critical",
+   "detector": "contradiction",
+   "detail": "'the Rechnungsnummern werden jetzt lücken': contradiction: a success claim ('lückenlos') on a turn AI Juggler's facts show failed; never repeat it, even as the agent's",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V015",
+   "attempt": 0,
+   "class": "critical",
    "detector": "anchoring",
    "detail": "'the Rechnungsnummern werden jetzt lücken': 2b: content word(s) not in the text: the",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V015",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'the Testsuite laufen lassen und alles is': contradiction: a success claim ('alles ist bestanden') on a turn AI Juggler's facts show failed; never repeat it, even as the agent's",
    "stage": "caught",
    "corpus": "turns"
   },
@@ -457,8 +502,26 @@
    "id": "V015",
    "attempt": 0,
    "class": "critical",
+   "detector": "contradiction",
+   "detail": "risk reason: contradiction: a success claim ('alles ist bestanden') on a turn AI Juggler's facts show failed; never repeat it, even as the agent's",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V015",
+   "attempt": 0,
+   "class": "critical",
    "detector": "anchoring",
    "detail": "risk reason: 2b: content word(s) not in the text: the",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V015",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'the Rechnungsnummern werden jetzt lücken': contradiction: a success claim ('lückenlos') on a turn AI Juggler's facts show failed; never repeat it, even as the agent's",
    "stage": "caught",
    "corpus": "turns"
   },
@@ -475,8 +538,26 @@
    "id": "V015",
    "attempt": 1,
    "class": "critical",
+   "detector": "contradiction",
+   "detail": "'the Testsuite laufen lassen und alles is': contradiction: a success claim ('alles ist bestanden') on a turn AI Juggler's facts show failed; never repeat it, even as the agent's",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V015",
+   "attempt": 1,
+   "class": "critical",
    "detector": "anchoring",
    "detail": "'the Testsuite laufen lassen und alles is': 2b: content word(s) not in the text: the",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V015",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "risk reason: contradiction: a success claim ('alles ist bestanden') on a turn AI Juggler's facts show failed; never repeat it, even as the agent's",
    "stage": "caught",
    "corpus": "turns"
   },
@@ -493,8 +574,26 @@
    "id": "V015",
    "attempt": 2,
    "class": "critical",
+   "detector": "contradiction",
+   "detail": "'the Rechnungsnummern werden jetzt lücken': contradiction: a success claim ('lückenlos') on a turn AI Juggler's facts show failed; never repeat it, even as the agent's",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V015",
+   "attempt": 2,
+   "class": "critical",
    "detector": "anchoring",
    "detail": "'the Rechnungsnummern werden jetzt lücken': 2b: content word(s) not in the text: the",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V015",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'the Testsuite laufen lassen und alles is': contradiction: a success claim ('alles ist bestanden') on a turn AI Juggler's facts show failed; never repeat it, even as the agent's",
    "stage": "caught",
    "corpus": "turns"
   },
@@ -511,8 +610,26 @@
    "id": "V015",
    "attempt": 2,
    "class": "critical",
+   "detector": "contradiction",
+   "detail": "risk reason: contradiction: a success claim ('alles ist bestanden') on a turn AI Juggler's facts show failed; never repeat it, even as the agent's",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V015",
+   "attempt": 2,
+   "class": "critical",
    "detector": "anchoring",
    "detail": "risk reason: 2b: content word(s) not in the text: the",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V017",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'removed the unused legacy importer modul': contradiction: describes a change that was undone (git: core/legacy_import.py was undone (names importer, legacy))",
    "stage": "caught",
    "corpus": "turns"
   },
@@ -539,6 +656,15 @@
    "attempt": 1,
    "class": "critical",
    "detector": "contradiction",
+   "detail": "'removed the unused legacy importer modul': contradiction: describes a change that was undone (git: core/legacy_import.py was undone (names importer, legacy))",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V017",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "contradiction",
    "detail": "risk reason: words: failure word with none in the source",
    "stage": "caught",
    "corpus": "turns"
@@ -549,6 +675,15 @@
    "class": "critical",
    "detector": "contradiction",
    "detail": "risk reason: contradiction: states a failure the facts and the message don't report",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V017",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'removed the unused legacy importer modul': contradiction: describes a change that was undone (git: core/legacy_import.py was undone (names importer, legacy))",
    "stage": "caught",
    "corpus": "turns"
   },
@@ -737,7 +872,16 @@
    "attempt": 0,
    "class": "critical",
    "detector": "anchoring",
-   "detail": "'the password reset email with the new se': 2b: content word(s) not in the text: and, email, new, sender, shortened, subject, the, with",
+   "detail": "'the password reset email with the new se': 2b: content word(s) not in the text: and, email, new, shortened, subject, the, with",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V022",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'the password reset email with the new se': contradiction: describes a change that was undone (git: mail/sender.py was undone)",
    "stage": "caught",
    "corpus": "turns"
   },
@@ -755,7 +899,16 @@
    "attempt": 1,
    "class": "critical",
    "detector": "anchoring",
-   "detail": "'the password reset email with the new se': 2b: content word(s) not in the text: and, email, new, sender, shortened, subject, the, with",
+   "detail": "'the password reset email with the new se': 2b: content word(s) not in the text: and, email, new, shortened, subject, the, with",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V022",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'the password reset email with the new se': contradiction: describes a change that was undone (git: mail/sender.py was undone)",
    "stage": "caught",
    "corpus": "turns"
   },
@@ -773,7 +926,16 @@
    "attempt": 2,
    "class": "critical",
    "detector": "anchoring",
-   "detail": "'the password reset email with the new se': 2b: content word(s) not in the text: and, email, new, sender, shortened, subject, the, with",
+   "detail": "'the password reset email with the new se': 2b: content word(s) not in the text: and, email, new, shortened, subject, the, with",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V022",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'the password reset email with the new se': contradiction: describes a change that was undone (git: mail/sender.py was undone)",
    "stage": "caught",
    "corpus": "turns"
   },
@@ -1057,6 +1219,15 @@
    "corpus": "turns"
   },
   {
+   "id": "V028",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'the logging library was switched to stru': contradiction: describes a change that was undone (git: worker/log.py was undone (names logging, structured, worker))",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
    "id": "V030",
    "attempt": 0,
    "class": "critical",
@@ -1115,7 +1286,7 @@
    "attempt": 0,
    "class": "critical",
    "detector": "anchoring",
-   "detail": "'the database connection pool was switche': 2b: content word(s) not in the text: connection, database, switched, the, was",
+   "detail": "'the database connection pool was switche': 2b: content word(s) not in the text: connection, database, switched, the",
    "stage": "caught",
    "corpus": "turns"
   },
@@ -1133,7 +1304,7 @@
    "attempt": 1,
    "class": "critical",
    "detector": "anchoring",
-   "detail": "'the database connection pool was switche': 2b: content word(s) not in the text: connection, database, switched, the, was",
+   "detail": "'the database connection pool was switche': 2b: content word(s) not in the text: connection, database, switched, the",
    "stage": "caught",
    "corpus": "turns"
   },
@@ -1151,7 +1322,7 @@
    "attempt": 2,
    "class": "critical",
    "detector": "anchoring",
-   "detail": "'the database connection pool was switche': 2b: content word(s) not in the text: connection, database, switched, the, was",
+   "detail": "'the database connection pool was switche': 2b: content word(s) not in the text: connection, database, switched, the",
    "stage": "caught",
    "corpus": "turns"
   },
@@ -1323,6 +1494,15 @@
    "class": "critical",
    "detector": "anchoring",
    "detail": "risk reason: 2b: content word(s) not in the text: run",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V040",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'tried three ways to speed up the thumbna': contradiction: describes a change that was undone (git: thumbs/pool.py was undone)",
    "stage": "caught",
    "corpus": "turns"
   }

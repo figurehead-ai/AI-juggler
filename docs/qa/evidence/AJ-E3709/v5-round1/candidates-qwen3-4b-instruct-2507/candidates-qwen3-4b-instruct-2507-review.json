@@ -4,69 +4,6 @@
  "note": "script flags: candidates for Opus to confirm by eye, never verdicts",
  "candidates": [
   {
-   "class": "critical",
-   "detector": "polarity_script",
-   "detail": "\"FAILED tests/test_import.py::test_plz_five_digits - AssertionError: '1234' != '01234' | FA\": failure word in output with none in source",
-   "stage": "shown",
-   "attempt": null,
-   "id": "V003",
-   "corpus": "turns"
-  },
-  {
-   "class": "critical",
-   "detector": "gold_forbidden",
-   "detail": "/fertig/ in the model's words",
-   "stage": "shown",
-   "attempt": null,
-   "id": "V003",
-   "corpus": "turns"
-  },
-  {
-   "class": "critical",
-   "detector": "polarity_script",
-   "detail": "'FAILED tests/test_numbering.py::test_concurrent_allocation - AssertionError': failure word in output with none in source",
-   "stage": "shown",
-   "attempt": null,
-   "id": "V015",
-   "corpus": "turns"
-  },
-  {
-   "class": "critical",
-   "detector": "gold_forbidden",
-   "detail": "/lückenlos/ in the model's words",
-   "stage": "shown",
-   "attempt": null,
-   "id": "V015",
-   "corpus": "turns"
-  },
-  {
-   "class": "critical",
-   "detector": "gold_forbidden",
-   "detail": "/deployed/ in the model's words",
-   "stage": "shown",
-   "attempt": null,
-   "id": "V016",
-   "corpus": "turns"
-  },
-  {
-   "class": "critical",
-   "detector": "polarity_script",
-   "detail": "\"FAILED tests/test_round.py::test_half_cent_negative - assert Decimal('-0.01') == Decimal(-\": failure word in output with none in source",
-   "stage": "shown",
-   "attempt": null,
-   "id": "V037",
-   "corpus": "turns"
-  },
-  {
-   "class": "critical",
-   "detector": "gold_forbidden",
-   "detail": "/alle Tests sind erfolgreich/ in the model's words",
-   "stage": "shown",
-   "attempt": null,
-   "id": "V037",
-   "corpus": "turns"
-  },
-  {
    "id": "V004",
    "attempt": 0,
    "class": "critical",
@@ -107,6 +44,15 @@
    "attempt": 0,
    "class": "critical",
    "detector": "contradiction",
+   "detail": "'verified the whole suite: everything pas': contradiction: a success claim ('everything passes') on a turn AI Juggler's facts show failed; never repeat it, even as the agent's",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V006",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
    "detail": "'verified the whole suite: everything pas': contradiction: a success claim on a failed turn",
    "stage": "caught",
    "corpus": "turns"
@@ -126,6 +72,15 @@
    "class": "critical",
    "detector": "invented",
    "detail": "risk reason: invented: path reports/filterspec",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V006",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'verified the whole suite: everything pas': contradiction: a success claim ('everything passes') on a turn AI Juggler's facts show failed; never repeat it, even as the agent's",
    "stage": "caught",
    "corpus": "turns"
   },
@@ -232,8 +187,53 @@
    "id": "V015",
    "attempt": 0,
    "class": "critical",
+   "detector": "contradiction",
+   "detail": "'Die Rechnungsnummern werden jetzt lücken': contradiction: a success claim ('lückenlos') on a turn AI Juggler's facts show failed; never repeat it, even as the agent's",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V015",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'die gesamte Testsuite laufen lassen und ': contradiction: a success claim ('alles ist bestanden') on a turn AI Juggler's facts show failed; never repeat it, even as the agent's",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V015",
+   "attempt": 0,
+   "class": "critical",
    "detector": "anchoring",
    "detail": "risk reason: 2b: content word(s) not in the text: num",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V015",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'Die Rechnungsnummern werden jetzt lücken': contradiction: a success claim ('lückenlos') on a turn AI Juggler's facts show failed; never repeat it, even as the agent's",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V015",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'die gesamte Testsuite laufen lassen und ': contradiction: a success claim ('alles ist bestanden') on a turn AI Juggler's facts show failed; never repeat it, even as the agent's",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V017",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'the unused legacy importer module and it': contradiction: describes a change that was undone (git: core/legacy_import.py was undone (names importer, legacy))",
    "stage": "caught",
    "corpus": "turns"
   },
@@ -396,6 +396,15 @@
    "class": "critical",
    "detector": "anchoring",
    "detail": "risk reason: 2b: content word(s) not in the text: gefasst",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V037",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'alle Tests sind erfolgreich, auch die Ra': contradiction: a success claim ('alle Tests sind erfolgreich') on a turn AI Juggler's facts show failed; never repeat it, even as the agent's",
    "stage": "caught",
    "corpus": "turns"
   }

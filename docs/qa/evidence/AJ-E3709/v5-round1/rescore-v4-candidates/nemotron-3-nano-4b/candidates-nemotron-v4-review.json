@@ -22,15 +22,6 @@
    "corpus": "heldout"
   },
   {
-   "class": "critical",
-   "detector": "polarity_script",
-   "detail": "'no Node install': negation word in output with none in source",
-   "stage": "shown",
-   "attempt": null,
-   "id": "H010",
-   "corpus": "heldout"
-  },
-  {
    "class": "omission",
    "detector": "detail_dropped",
    "detail": "contact\\.ts",
@@ -65,15 +56,6 @@
    "attempt": null,
    "id": "H023",
    "corpus": "heldout"
-  },
-  {
-   "class": "critical",
-   "detector": "gold_forbidden",
-   "detail": "/done/ in the model's words",
-   "stage": "shown",
-   "attempt": null,
-   "id": "R003",
-   "corpus": "heldout-jobs"
   },
   {
    "class": "omission",

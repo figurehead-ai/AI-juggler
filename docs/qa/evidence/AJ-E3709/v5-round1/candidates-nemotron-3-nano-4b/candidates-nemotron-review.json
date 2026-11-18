@@ -4,60 +4,6 @@
  "note": "script flags: candidates for Opus to confirm by eye, never verdicts",
  "candidates": [
   {
-   "class": "critical",
-   "detector": "polarity_script",
-   "detail": "'4 failed tests': failure word in output with none in source",
-   "stage": "shown",
-   "attempt": null,
-   "id": "V003",
-   "corpus": "turns"
-  },
-  {
-   "class": "critical",
-   "detector": "polarity_script",
-   "detail": "'FAILED tests/test_numbering.py::test_concurrent_allocation - AssertionError: duplicate': failure word in output with none in source",
-   "stage": "shown",
-   "attempt": null,
-   "id": "V015",
-   "corpus": "turns"
-  },
-  {
-   "class": "critical",
-   "detector": "gold_forbidden",
-   "detail": "/lückenlos/ in the model's words",
-   "stage": "shown",
-   "attempt": null,
-   "id": "V015",
-   "corpus": "turns"
-  },
-  {
-   "class": "critical",
-   "detector": "polarity_script",
-   "detail": "'certctl renew --env staging: permission denied (keychain access refused)': failure word in output with none in source",
-   "stage": "shown",
-   "attempt": null,
-   "id": "V020",
-   "corpus": "turns"
-  },
-  {
-   "class": "critical",
-   "detector": "polarity_script",
-   "detail": "\"FAILED tests/test_round.py::test_half_cent_negative - assert Decimal('-0.01') == Decimal(-\": failure word in output with none in source",
-   "stage": "shown",
-   "attempt": null,
-   "id": "V037",
-   "corpus": "turns"
-  },
-  {
-   "class": "critical",
-   "detector": "gold_forbidden",
-   "detail": "/alle Tests sind erfolgreich/ in the model's words",
-   "stage": "shown",
-   "attempt": null,
-   "id": "V037",
-   "corpus": "turns"
-  },
-  {
    "id": "V001",
    "attempt": 0,
    "class": "critical",
@@ -115,8 +61,8 @@
    "id": "V002",
    "attempt": 0,
    "class": "critical",
-   "detector": "anchoring",
-   "detail": "'the new cache module was created then re': 2b: content word(s) not in the text: again, created, removed",
+   "detector": "contradiction",
+   "detail": "'the new cache module was created then re': contradiction: describes a change that was undone (git: rates/cache.py was undone)",
    "stage": "caught",
    "corpus": "turns"
   },
@@ -124,8 +70,8 @@
    "id": "V002",
    "attempt": 0,
    "class": "critical",
-   "detector": "anchoring",
-   "detail": "risk reason: 2b: content word(s) not in the text: again, created, removed",
+   "detector": "contradiction",
+   "detail": "risk reason: contradiction: describes a change that was undone (git: rates/cache.py was undone)",
    "stage": "caught",
    "corpus": "turns"
   },
@@ -180,6 +126,15 @@
    "class": "critical",
    "detector": "contradiction",
    "detail": "risk reason: words: passed word with none in the source",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V006",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'the whole suite passes, including the DS': contradiction: a success claim ('the whole suite passes') on a turn AI Juggler's facts show failed; never repeat it, even as the agent's",
    "stage": "caught",
    "corpus": "turns"
   },
@@ -277,6 +232,15 @@
    "id": "V015",
    "attempt": 0,
    "class": "critical",
+   "detector": "contradiction",
+   "detail": "'die Rechnungsnummern werden jetzt lücken': contradiction: a success claim ('lückenlos') on a turn AI Juggler's facts show failed; never repeat it, even as the agent's",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V015",
+   "attempt": 0,
+   "class": "critical",
    "detector": "invented",
    "detail": "'neue Datei hinzugefügt': invented: proper datei",
    "stage": "caught",
@@ -288,6 +252,15 @@
    "class": "critical",
    "detector": "anchoring",
    "detail": "'neue Datei hinzugefügt': 2b: content word(s) not in the text: datei, hinzugefügt, neue",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V015",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'die Rechnungsnummern werden jetzt lücken': contradiction: a success claim ('lückenlos') on a turn AI Juggler's facts show failed; never repeat it, even as the agent's",
    "stage": "caught",
    "corpus": "turns"
   },
@@ -305,6 +278,15 @@
    "attempt": 0,
    "class": "critical",
    "detector": "contradiction",
+   "detail": "'the unused legacy importer module remove': contradiction: describes a change that was undone (git: core/legacy_import.py was undone (names importer, legacy))",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V017",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
    "detail": "risk reason: words: failure word with none in the source",
    "stage": "caught",
    "corpus": "turns"
@@ -323,6 +305,15 @@
    "attempt": 1,
    "class": "critical",
    "detector": "contradiction",
+   "detail": "'the unused legacy importer module remove': contradiction: describes a change that was undone (git: core/legacy_import.py was undone (names importer, legacy))",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V017",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "contradiction",
    "detail": "risk reason: words: failure word with none in the source",
    "stage": "caught",
    "corpus": "turns"
@@ -333,6 +324,15 @@
    "class": "critical",
    "detector": "contradiction",
    "detail": "risk reason: contradiction: states a failure the facts and the message don't report",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V017",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'the unused legacy importer module remove': contradiction: describes a change that was undone (git: core/legacy_import.py was undone (names importer, legacy))",
    "stage": "caught",
    "corpus": "turns"
   },
@@ -585,51 +585,6 @@
    "class": "critical",
    "detector": "anchoring",
    "detail": "risk reason: 2b: content word(s) not in the text: must, run",
-   "stage": "caught",
-   "corpus": "turns"
-  },
-  {
-   "id": "V028",
-   "attempt": 0,
-   "class": "critical",
-   "detector": "anchoring",
-   "detail": "risk reason: 2b: content word(s) not in the text: fully, reverted, rewrite",
-   "stage": "caught",
-   "corpus": "turns"
-  },
-  {
-   "id": "V028",
-   "attempt": 1,
-   "class": "critical",
-   "detector": "anchoring",
-   "detail": "'no files changed': 2b: content word(s) not in the text: changed, files",
-   "stage": "caught",
-   "corpus": "turns"
-  },
-  {
-   "id": "V028",
-   "attempt": 1,
-   "class": "critical",
-   "detector": "anchoring",
-   "detail": "risk reason: 2b: content word(s) not in the text: changed, files",
-   "stage": "caught",
-   "corpus": "turns"
-  },
-  {
-   "id": "V028",
-   "attempt": 2,
-   "class": "critical",
-   "detector": "anchoring",
-   "detail": "'no files changed': 2b: content word(s) not in the text: changed, files",
-   "stage": "caught",
-   "corpus": "turns"
-  },
-  {
-   "id": "V028",
-   "attempt": 2,
-   "class": "critical",
-   "detector": "anchoring",
-   "detail": "risk reason: 2b: content word(s) not in the text: fully, reverted, rewrite",
    "stage": "caught",
    "corpus": "turns"
   },
@@ -891,6 +846,15 @@
    "class": "critical",
    "detector": "contradiction",
    "detail": "'the parser tests 16 passed 0 failed': words: passed word with none in the source",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V037",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'alle Tests sind erfolgreich': contradiction: a success claim ('alle Tests sind erfolgreich') on a turn AI Juggler's facts show failed; never repeat it, even as the agent's",
    "stage": "caught",
    "corpus": "turns"
   },

@@ -22,15 +22,6 @@
    "corpus": "heldout"
   },
   {
-   "class": "critical",
-   "detector": "gold_forbidden",
-   "detail": "/still imports/ in the model's words",
-   "stage": "shown",
-   "attempt": null,
-   "id": "H023",
-   "corpus": "heldout"
-  },
-  {
    "class": "omission",
    "detector": "detail_dropped",
    "detail": "Nothing functional changed|reports none",
@@ -40,30 +31,12 @@
    "corpus": "heldout"
   },
   {
-   "class": "critical",
-   "detector": "gold_forbidden",
-   "detail": "/failed/ in the model's words",
-   "stage": "shown",
-   "attempt": null,
-   "id": "R001",
-   "corpus": "heldout-jobs"
-  },
-  {
    "class": "omission",
    "detector": "detail_dropped",
    "detail": "src/billing/list_invoices.py",
    "stage": "shown",
    "attempt": null,
    "id": "R001",
-   "corpus": "heldout-jobs"
-  },
-  {
-   "class": "critical",
-   "detector": "gold_forbidden",
-   "detail": "/done/ in the model's words",
-   "stage": "shown",
-   "attempt": null,
-   "id": "R003",
    "corpus": "heldout-jobs"
   },
   {

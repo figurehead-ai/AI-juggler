@@ -4,15 +4,6 @@
  "note": "script flags: candidates for Opus to confirm by eye, never verdicts",
  "candidates": [
   {
-   "class": "critical",
-   "detector": "gold_forbidden",
-   "detail": "/missing host/ in the model's words",
-   "stage": "shown",
-   "attempt": null,
-   "id": "N003",
-   "corpus": "heldout-jobs"
-  },
-  {
    "class": "omission",
    "detector": "emphasis",
    "detail": "a 'might need you' note on a calm turn",

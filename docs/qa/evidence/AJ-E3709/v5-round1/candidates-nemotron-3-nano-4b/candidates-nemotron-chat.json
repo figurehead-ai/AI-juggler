@@ -58,18 +58,9 @@
    "corpus": "chat"
   },
   {
-   "class": "critical",
-   "detector": "wrong_attribute",
-   "detail": "answered ['files_changed'], asked count",
-   "stage": "shown",
-   "attempt": null,
-   "id": "C510",
-   "corpus": "chat"
-  },
-  {
-   "class": "critical",
-   "detector": "gold_forbidden",
-   "detail": "/6 files/",
+   "class": "omission",
+   "detector": "no_answer_on_answerable",
+   "detail": "shown: ambiguous",
    "stage": "shown",
    "attempt": null,
    "id": "C510",
@@ -112,24 +103,6 @@
    "corpus": "chat"
   },
   {
-   "class": "critical",
-   "detector": "answered_unanswerable",
-   "detail": "'Both session s1 and session s2 are finished [s1] [s2]' (gold: unanswerable, near miss)",
-   "stage": "shown",
-   "attempt": null,
-   "id": "C520",
-   "corpus": "chat"
-  },
-  {
-   "class": "critical",
-   "detector": "wrong_attribute",
-   "detail": "answered ['status'], asked which",
-   "stage": "shown",
-   "attempt": null,
-   "id": "C520",
-   "corpus": "chat"
-  },
-  {
    "class": "omission",
    "detector": "no_answer_on_answerable",
    "detail": "shown: dont_know",
@@ -148,9 +121,9 @@
    "corpus": "chat"
   },
   {
-   "class": "critical",
-   "detector": "wrong_attribute",
-   "detail": "answered ['files_changed'], asked count",
+   "class": "omission",
+   "detector": "no_answer_on_answerable",
+   "detail": "shown: ambiguous",
    "stage": "shown",
    "attempt": null,
    "id": "C526",

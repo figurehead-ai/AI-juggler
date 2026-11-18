@@ -18,6 +18,11 @@ Shown model items 0; critical reaching the user 0 ({}); critical caught on 0 ite
 | questions or failures hidden | == 0 | 0 | yes |
 | model text on a turn that needs you (feed) | == 0 | 0 | yes |
 | value: AI preferred, % of decided pairs | >= 60.0 | None | n/a |
+| attention misses, % of items that need you (facts given) | <= 10.0 | None | n/a |
+| attention false alarms, % of calm items (facts given) | <= 10.0 | None | n/a |
+
+- facts_given: miss 0/0 (None %), false alarms 0/0 (None %; model 0, facts 0)
+- facts_hidden: not in this group (v5 decides attention from the facts; v4's re-score reports facts hidden as its own group)
 
 ## heldout / attention:facts_hidden (facts_hidden)
 
@@ -31,6 +36,10 @@ Shown model items 8; critical reaching the user 0 ({}); critical caught on 0 ite
 | questions or failures hidden | == 0 | 0 | yes |
 | model text on a turn that needs you (feed) | == 0 | 0 | yes |
 | value: AI preferred, % of decided pairs | >= 60.0 | None | n/a |
+| attention misses, % of items that need you (facts hidden) | <= 10.0 | None | n/a |
+| attention false alarms, % of calm items (facts hidden) | <= 10.0 | None | n/a |
+
+- facts_hidden: miss 0/0 (None %), false alarms 0/0 (None %; model 0, facts 0)
 
 ## heldout / chat (main)
 
@@ -60,11 +69,11 @@ Shown model items 7; critical reaching the user 0 ({}); critical caught on 0 ite
 
 ## heldout / review (main)
 
-Shown model items 18; critical reaching the user 1 ({'gold_forbidden': 1}); critical caught on 0 items ({}); omissions 3 ({'detail_dropped': 3}).
+Shown model items 18; critical reaching the user 0 ({}); critical caught on 0 items ({}); omissions 3 ({'detail_dropped': 3}).
 
 | Bar | Bar value | Measured | Holds |
 |---|---|---|---|
-| critical reaching the user, % of shown model items | <= 1.0 | 5.56 | NO |
+| critical reaching the user, % of shown model items | <= 1.0 | 0.0 | yes |
 | systematic critical patterns | == 0 | 0 | yes |
 | omissions, % of shown items (Chat: of all questions) | <= 10.0 | 16.67 | NO |
 | questions or failures hidden | == 0 | 0 | yes |
@@ -83,19 +92,28 @@ Shown model items 0; critical reaching the user 0 ({}); critical caught on 0 ite
 | questions or failures hidden | == 0 | 0 | yes |
 | model text on a turn that needs you (feed) | == 0 | 0 | yes |
 | value: AI preferred, % of decided pairs | >= 60.0 | None | n/a |
+| attention misses, % of items that need you (facts given) | <= 10.0 | 0.0 | yes |
+| attention false alarms, % of calm items (facts given) | <= 10.0 | 0.0 | yes |
+
+- facts_given: miss 0/1 (0.0 %), false alarms 0/6 (0.0 %; model 0, facts 0)
+- facts_hidden: not in this group (v5 decides attention from the facts; v4's re-score reports facts hidden as its own group)
 
 ## heldout-jobs / attention:facts_hidden (facts_hidden)
 
-Shown model items 5; critical reaching the user 1 ({'gold_forbidden': 1}); critical caught on 0 items ({}); omissions 1 ({'emphasis': 1, 'attention_miss': 2}).
+Shown model items 5; critical reaching the user 0 ({}); critical caught on 0 items ({}); omissions 3 ({'emphasis': 1, 'attention_miss': 2}).
 
 | Bar | Bar value | Measured | Holds |
 |---|---|---|---|
-| critical reaching the user, % of shown model items | <= 1.0 | 20.0 | NO |
+| critical reaching the user, % of shown model items | <= 1.0 | 0.0 | yes |
 | systematic critical patterns | == 0 | 0 | yes |
-| omissions, % of shown items (Chat: of all questions) | <= 10.0 | 20.0 | NO |
+| omissions, % of shown items (Chat: of all questions) | <= 10.0 | 25.0 | NO |
 | questions or failures hidden | == 0 | 0 | yes |
 | model text on a turn that needs you (feed) | == 0 | 0 | yes |
 | value: AI preferred, % of decided pairs | >= 60.0 | None | n/a |
+| attention misses, % of items that need you (facts hidden) | <= 10.0 | 33.33 | NO |
+| attention false alarms, % of calm items (facts hidden) | <= 10.0 | 16.67 | NO |
+
+- facts_hidden: miss 2/6 (33.33 %), false alarms 1/6 (16.67 %; model 1, facts 0)
 
 ## heldout-jobs / chat (main)
 
@@ -112,11 +130,11 @@ Shown model items 4; critical reaching the user 0 ({}); critical caught on 0 ite
 
 ## heldout-jobs / review (main)
 
-Shown model items 10; critical reaching the user 2 ({'gold_forbidden': 2}); critical caught on 0 items ({}); omissions 2 ({'detail_dropped': 2}).
+Shown model items 10; critical reaching the user 0 ({}); critical caught on 0 items ({}); omissions 2 ({'detail_dropped': 2}).
 
 | Bar | Bar value | Measured | Holds |
 |---|---|---|---|
-| critical reaching the user, % of shown model items | <= 1.0 | 20.0 | NO |
+| critical reaching the user, % of shown model items | <= 1.0 | 0.0 | yes |
 | systematic critical patterns | == 0 | 0 | yes |
 | omissions, % of shown items (Chat: of all questions) | <= 10.0 | 20.0 | NO |
 | questions or failures hidden | == 0 | 0 | yes |
@@ -142,6 +160,11 @@ Shown model items 2; critical reaching the user 0 ({}); critical caught on 0 ite
 | questions or failures hidden | == 0 | 0 | yes |
 | model text on a turn that needs you (feed) | == 0 | 0 | yes |
 | value: AI preferred, % of decided pairs | >= 60.0 | None | n/a |
+| attention misses, % of items that need you (facts given) | <= 10.0 | None | n/a |
+| attention false alarms, % of calm items (facts given) | <= 10.0 | None | n/a |
+
+- facts_given: miss 0/0 (None %), false alarms 0/0 (None %; model 0, facts 0)
+- facts_hidden: not in this group (v5 decides attention from the facts; v4's re-score reports facts hidden as its own group)
 
 ## heldout / attention:facts_hidden (facts_hidden)
 
@@ -155,6 +178,10 @@ Shown model items 5; critical reaching the user 0 ({}); critical caught on 0 ite
 | questions or failures hidden | == 0 | 0 | yes |
 | model text on a turn that needs you (feed) | == 0 | 0 | yes |
 | value: AI preferred, % of decided pairs | >= 60.0 | None | n/a |
+| attention misses, % of items that need you (facts hidden) | <= 10.0 | None | n/a |
+| attention false alarms, % of calm items (facts hidden) | <= 10.0 | None | n/a |
+
+- facts_hidden: miss 0/0 (None %), false alarms 0/0 (None %; model 0, facts 0)
 
 ## heldout / chat (main)
 
@@ -207,19 +234,28 @@ Shown model items 0; critical reaching the user 0 ({}); critical caught on 0 ite
 | questions or failures hidden | == 0 | 0 | yes |
 | model text on a turn that needs you (feed) | == 0 | 0 | yes |
 | value: AI preferred, % of decided pairs | >= 60.0 | None | n/a |
+| attention misses, % of items that need you (facts given) | <= 10.0 | 0.0 | yes |
+| attention false alarms, % of calm items (facts given) | <= 10.0 | 0.0 | yes |
+
+- facts_given: miss 0/1 (0.0 %), false alarms 0/6 (0.0 %; model 0, facts 0)
+- facts_hidden: not in this group (v5 decides attention from the facts; v4's re-score reports facts hidden as its own group)
 
 ## heldout-jobs / attention:facts_hidden (facts_hidden)
 
-Shown model items 4; critical reaching the user 0 ({}); critical caught on 0 items ({}); omissions 0 ({'attention_miss': 2}).
+Shown model items 4; critical reaching the user 0 ({}); critical caught on 0 items ({}); omissions 2 ({'attention_miss': 2}).
 
 | Bar | Bar value | Measured | Holds |
 |---|---|---|---|
 | critical reaching the user, % of shown model items | <= 1.0 | 0.0 | yes |
 | systematic critical patterns | == 0 | 0 | yes |
-| omissions, % of shown items (Chat: of all questions) | <= 10.0 | 0.0 | yes |
+| omissions, % of shown items (Chat: of all questions) | <= 10.0 | 16.67 | NO |
 | questions or failures hidden | == 0 | 0 | yes |
 | model text on a turn that needs you (feed) | == 0 | 0 | yes |
 | value: AI preferred, % of decided pairs | >= 60.0 | None | n/a |
+| attention misses, % of items that need you (facts hidden) | <= 10.0 | 33.33 | NO |
+| attention false alarms, % of calm items (facts hidden) | <= 10.0 | 0.0 | yes |
+
+- facts_hidden: miss 2/6 (33.33 %), false alarms 0/6 (0.0 %; model 0, facts 0)
 
 ## heldout-jobs / chat (main)
 
@@ -236,11 +272,11 @@ Shown model items 3; critical reaching the user 0 ({}); critical caught on 0 ite
 
 ## heldout-jobs / review (main)
 
-Shown model items 8; critical reaching the user 2 ({'gold_forbidden': 2}); critical caught on 0 items ({}); omissions 3 ({'emphasis': 1, 'detail_dropped': 2}).
+Shown model items 8; critical reaching the user 0 ({}); critical caught on 0 items ({}); omissions 3 ({'emphasis': 1, 'detail_dropped': 2}).
 
 | Bar | Bar value | Measured | Holds |
 |---|---|---|---|
-| critical reaching the user, % of shown model items | <= 1.0 | 25.0 | NO |
+| critical reaching the user, % of shown model items | <= 1.0 | 0.0 | yes |
 | systematic critical patterns | == 0 | 0 | yes |
 | omissions, % of shown items (Chat: of all questions) | <= 10.0 | 37.5 | NO |
 | questions or failures hidden | == 0 | 0 | yes |
@@ -266,6 +302,11 @@ Shown model items 1; critical reaching the user 0 ({}); critical caught on 0 ite
 | questions or failures hidden | == 0 | 0 | yes |
 | model text on a turn that needs you (feed) | == 0 | 0 | yes |
 | value: AI preferred, % of decided pairs | >= 60.0 | None | n/a |
+| attention misses, % of items that need you (facts given) | <= 10.0 | None | n/a |
+| attention false alarms, % of calm items (facts given) | <= 10.0 | None | n/a |
+
+- facts_given: miss 0/0 (None %), false alarms 0/0 (None %; model 0, facts 0)
+- facts_hidden: not in this group (v5 decides attention from the facts; v4's re-score reports facts hidden as its own group)
 
 ## heldout / attention:facts_hidden (facts_hidden)
 
@@ -279,6 +320,10 @@ Shown model items 7; critical reaching the user 0 ({}); critical caught on 0 ite
 | questions or failures hidden | == 0 | 0 | yes |
 | model text on a turn that needs you (feed) | == 0 | 0 | yes |
 | value: AI preferred, % of decided pairs | >= 60.0 | None | n/a |
+| attention misses, % of items that need you (facts hidden) | <= 10.0 | None | n/a |
+| attention false alarms, % of calm items (facts hidden) | <= 10.0 | None | n/a |
+
+- facts_hidden: miss 0/0 (None %), false alarms 0/0 (None %; model 0, facts 0)
 
 ## heldout / chat (main)
 
@@ -308,11 +353,11 @@ Shown model items 9; critical reaching the user 0 ({}); critical caught on 0 ite
 
 ## heldout / review (main)
 
-Shown model items 20; critical reaching the user 1 ({'polarity_script': 1}); critical caught on 0 items ({}); omissions 6 ({'detail_dropped': 6}).
+Shown model items 20; critical reaching the user 0 ({}); critical caught on 0 items ({}); omissions 6 ({'detail_dropped': 6}).
 
 | Bar | Bar value | Measured | Holds |
 |---|---|---|---|
-| critical reaching the user, % of shown model items | <= 1.0 | 5.0 | NO |
+| critical reaching the user, % of shown model items | <= 1.0 | 0.0 | yes |
 | systematic critical patterns | == 0 | 0 | yes |
 | omissions, % of shown items (Chat: of all questions) | <= 10.0 | 30.0 | NO |
 | questions or failures hidden | == 0 | 0 | yes |
@@ -331,19 +376,28 @@ Shown model items 0; critical reaching the user 0 ({}); critical caught on 0 ite
 | questions or failures hidden | == 0 | 0 | yes |
 | model text on a turn that needs you (feed) | == 0 | 0 | yes |
 | value: AI preferred, % of decided pairs | >= 60.0 | None | n/a |
+| attention misses, % of items that need you (facts given) | <= 10.0 | 0.0 | yes |
+| attention false alarms, % of calm items (facts given) | <= 10.0 | 0.0 | yes |
+
+- facts_given: miss 0/1 (0.0 %), false alarms 0/6 (0.0 %; model 0, facts 0)
+- facts_hidden: not in this group (v5 decides attention from the facts; v4's re-score reports facts hidden as its own group)
 
 ## heldout-jobs / attention:facts_hidden (facts_hidden)
 
-Shown model items 3; critical reaching the user 0 ({}); critical caught on 0 items ({}); omissions 0 ({'attention_miss': 3}).
+Shown model items 3; critical reaching the user 0 ({}); critical caught on 0 items ({}); omissions 3 ({'attention_miss': 3}).
 
 | Bar | Bar value | Measured | Holds |
 |---|---|---|---|
 | critical reaching the user, % of shown model items | <= 1.0 | 0.0 | yes |
 | systematic critical patterns | == 0 | 0 | yes |
-| omissions, % of shown items (Chat: of all questions) | <= 10.0 | 0.0 | yes |
+| omissions, % of shown items (Chat: of all questions) | <= 10.0 | 25.0 | NO |
 | questions or failures hidden | == 0 | 0 | yes |
 | model text on a turn that needs you (feed) | == 0 | 0 | yes |
 | value: AI preferred, % of decided pairs | >= 60.0 | None | n/a |
+| attention misses, % of items that need you (facts hidden) | <= 10.0 | 50.0 | NO |
+| attention false alarms, % of calm items (facts hidden) | <= 10.0 | 0.0 | yes |
+
+- facts_hidden: miss 3/6 (50.0 %), false alarms 0/6 (0.0 %; model 0, facts 0)
 
 ## heldout-jobs / chat (main)
 
@@ -360,11 +414,11 @@ Shown model items 4; critical reaching the user 0 ({}); critical caught on 0 ite
 
 ## heldout-jobs / review (main)
 
-Shown model items 8; critical reaching the user 2 ({'gold_forbidden': 1, 'undone_as_done': 1}); critical caught on 0 items ({}); omissions 4 ({'detail_dropped': 3, 'emphasis': 1}).
+Shown model items 8; critical reaching the user 1 ({'undone_as_done': 1}); critical caught on 0 items ({}); omissions 4 ({'detail_dropped': 3, 'emphasis': 1}).
 
 | Bar | Bar value | Measured | Holds |
 |---|---|---|---|
-| critical reaching the user, % of shown model items | <= 1.0 | 25.0 | NO |
+| critical reaching the user, % of shown model items | <= 1.0 | 12.5 | NO |
 | systematic critical patterns | == 0 | 0 | yes |
 | omissions, % of shown items (Chat: of all questions) | <= 10.0 | 50.0 | NO |
 | questions or failures hidden | == 0 | 0 | yes |
@@ -423,4 +477,5 @@ Shown model items 6; critical reaching the user 1 ({'answered_unanswerable': 1, 
 | questions or failures hidden | == 0 | 0 | yes |
 | model text on a turn that needs you (feed) | == 0 | 0 | yes |
 | value: AI preferred, % of decided pairs | >= 60.0 | None | n/a |
+
 

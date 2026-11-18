@@ -23,6 +23,15 @@
   },
   {
    "id": "V007",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "contradiction: names a change that was undone (git: upload/limiter.py was undone (names limiter, rate))",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V007",
    "attempt": 1,
    "class": "critical",
    "detector": "anchoring",
@@ -41,6 +50,15 @@
   },
   {
    "id": "V007",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "contradiction: names a change that was undone (git: upload/limiter.py was undone (names limiter, rate))",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V007",
    "attempt": 2,
    "class": "critical",
    "detector": "anchoring",
@@ -54,6 +72,24 @@
    "class": "critical",
    "detector": "outcome_or_caveat",
    "detail": "gate step 3: caveat: dropped (facts: tests not run)",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V007",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "contradiction: names a change that was undone (git: upload/limiter.py was undone (names limiter, rate))",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V017",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "contradiction: names a change that was undone (git: core/legacy_import.py was undone (names importer, legacy))",
    "stage": "caught",
    "corpus": "turns"
   },
@@ -108,6 +144,15 @@
    "class": "critical",
    "detector": "outcome_or_caveat",
    "detail": "gate step 3: caveat: dropped (facts: tests not run)",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "V040",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "contradiction: calls 'lowering the JPEG quality' undone; git's reverts don't name it",
    "stage": "caught",
    "corpus": "turns"
   }
