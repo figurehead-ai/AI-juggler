@@ -1,0 +1,278 @@
+[
+ {
+  "pair": "heldout-review-001",
+  "item": "H001",
+  "source": "Done. The CSV export now streams rows instead of buffering the whole file, so the 400 MB sample in fixtures/big.csv stays under 80 MB of memory. Changed src/export/stream.ts and src/export/index.ts. I ran npm test: 58 passed, 0 failed.",
+  "facts": {
+   "outcome": "success",
+   "tests": {
+    "state": "ran",
+    "passed": 58,
+    "failed": 0
+   },
+   "level": "L0"
+  },
+  "first": "Changed: The CSV export now streams rows instead of buffering the whole file, so the 400 MB sample in fixtures/big.csv stays under 80 MB of memory.\nLeft: nothing stated\nRisk: low",
+  "second": "Changed: the CSV export now streams rows instead of buffering the whole file; changed src/export/stream.ts and src/export/index.ts\nLeft: nothing stated\nRisk: low (58 passed, 0 failed)"
+ },
+ {
+  "pair": "heldout-review-002",
+  "item": "H002",
+  "source": "Fertig: Der Login-Timeout liegt jetzt bei 30 Minuten statt 5 (config/session.yaml). Alle 14 Tests in tests/test_session.py laufen durch.",
+  "facts": {
+   "outcome": "success",
+   "tests": {
+    "state": "ran",
+    "passed": 14,
+    "failed": 0
+   },
+   "level": "L0"
+  },
+  "first": "Geändert: Der Login-Timeout liegt jetzt bei 30 Minuten statt 5 (config/session.yaml)\nOffen: nichts genannt\nRisiko: niedrig (Alle 14 Tests in tests/test_session.py laufen durch)",
+  "second": "Geändert: Fertig: Der Login-Timeout liegt jetzt bei 30 Minuten statt 5 (config/session.yaml).\nOffen: nichts genannt\nRisiko: niedrig"
+ },
+ {
+  "pair": "heldout-review-003",
+  "item": "H003",
+  "source": "Renamed the flag to --dry-run everywhere, docs updated too.",
+  "facts": {
+   "outcome": "success",
+   "tests": {
+    "state": "unknown"
+   },
+   "level": "L0"
+  },
+  "first": "Changed: renamed the flag to --dry-run everywhere; docs updated too\nLeft: nothing stated\nRisk: not stated",
+  "second": "Changed: Renamed the flag to --dry-run everywhere, docs updated too.\nLeft: nothing stated\nRisk: not stated"
+ },
+ {
+  "pair": "heldout-review-004",
+  "item": "H004",
+  "source": "The new check in scripts/verify_lock.sh fails if package-lock.json is older than package.json, so a stale lockfile can no longer slip into a release. It passes on the current tree. I ran the 3 shell tests in scripts/test/ and all 3 pass.",
+  "facts": {
+   "outcome": "success",
+   "tests": {
+    "state": "ran",
+    "passed": 3,
+    "failed": 0
+   },
+   "level": "L0"
+  },
+  "first": "Changed: The new check in scripts/verify_lock.sh fails if package-lock.json is older than package.json, so a stale lockfile can no longer slip into a release.\nLeft: nothing stated\nRisk: low",
+  "second": "Changed: new check in scripts/verify_lock.sh\nLeft: nothing stated\nRisk: low (all 3 pass)"
+ },
+ {
+  "pair": "heldout-review-005",
+  "item": "H005",
+  "source": "I got the retry logic working for the upload client (lib/upload/retry.py), including exponential backoff capped at 60 s. I did not get to resumable chunks: that is still a TODO at line 88 and uploads over 2 GB will restart from zero. 9 tests pass.",
+  "facts": {
+   "outcome": "success",
+   "tests": {
+    "state": "ran",
+    "passed": 9,
+    "failed": 0
+   },
+   "level": "L1"
+  },
+  "first": "Changed: I got the retry logic working for the upload client (lib/upload/retry.py), including exponential backoff capped at 60 s.\nLeft: I did not get to resumable chunks: that is still a TODO at line 88 and uploads over 2 GB will restart from zero.\nRisk: medium",
+  "second": "Changed: got the retry logic working for the upload client (lib/upload/retry.py), including exponential backoff capped at 60 s\nNot checked: did not get to resumable chunks\nLeft: that is still a TODO at line 88 and uploads over 2 GB will restart from zero\nRisk: medium (uploads over 2 GB will restart from zero)"
+ },
+ {
+  "pair": "heldout-review-006",
+  "item": "H006",
+  "source": "Teilweise erledigt: Die Übersetzungen für Deutsch und Französisch sind drin (i18n/de.json, i18n/fr.json). Spanisch fehlt noch, weil die Quelldatei leer war. Tests: 21 bestanden, 0 fehlgeschlagen.",
+  "facts": {
+   "outcome": "success",
+   "tests": {
+    "state": "ran",
+    "passed": 21,
+    "failed": 0
+   },
+   "level": "L1"
+  },
+  "first": "Geändert: Die Übersetzungen für Deutsch und Französisch sind drin; Spanisch fehlt noch, weil die Quelldatei leer war\nOffen: Spanisch fehlt noch, weil die Quelldatei leer war; Teilweise erledigt\nRisiko: mittel (Spanisch fehlt noch, weil die Quelldatei leer war)",
+  "second": "Geändert: Teilweise erledigt: Die Übersetzungen für Deutsch und Französisch sind drin (i18n/de.json, i18n/fr.json).\nOffen: Teilweise erledigt: Die Übersetzungen für Deutsch und Französisch sind drin (i18n/de.json, i18n/fr.json).\nRisiko: mittel"
+ },
+ {
+  "pair": "heldout-review-007",
+  "item": "H008",
+  "source": "Migrated 3 of 5 services to the new logger. billing and search still use the old one because they pin an older shared lib, so the migration is not finished. I didn't run the suite.",
+  "facts": {
+   "outcome": "success",
+   "tests": {
+    "state": "not_run"
+   },
+   "level": "L1"
+  },
+  "first": "Changed: Migrated 3 of 5 services to the new logger. billing and search still use the old one because they pin an older shared lib, so the migration is not finished.\nNot checked: I didn't run the suite.\nLeft: Migrated 3 of 5 services to the new logger. billing and search still use the old one because they pin an older...\nRisk: medium",
+  "second": "Changed: migrated 3 of 5 services to the new logger\nNot checked: didn't run the suite\nLeft: billing and search still use the old one because they pin an older shared lib\nRisk: high (migration is not finished)"
+ },
+ {
+  "pair": "heldout-review-008",
+  "item": "H009",
+  "source": "I changed the cron expression in deploy/jobs.yaml from every 15 to every 30 minutes. I haven't run anything.",
+  "facts": {
+   "outcome": "success",
+   "tests": {
+    "state": "not_run"
+   },
+   "level": "L1"
+  },
+  "first": "Changed: I changed the cron expression in deploy/jobs.yaml from every 15 to every 30 minutes.\nNot checked: I haven't run anything.\nLeft: nothing stated\nRisk: medium",
+  "second": "Changed: changed the cron expression in deploy/jobs.yaml from every 15 to every 30 minutes\nNot checked: haven't run anything\nLeft: nothing stated\nRisk: high (not run)"
+ },
+ {
+  "pair": "heldout-review-009",
+  "item": "H010",
+  "source": "Die Validierung für das Kontaktformular ist umgebaut (src/forms/contact.ts). Ich habe die Tests nicht ausgeführt, da in dieser Umgebung kein Node installiert ist.",
+  "facts": {
+   "outcome": "success",
+   "tests": {
+    "state": "not_run"
+   },
+   "level": "L1"
+  },
+  "first": "Geändert: Die Validierung für das Kontaktformular ist umgebaut (src/forms/contact.ts)\nNicht geprüft: die Tests nicht ausgeführt; da in dieser Umgebung kein Node installiert ist\nOffen: nichts genannt\nRisiko: hoch (Tests nicht ausgeführt, kein Node installiert)",
+  "second": "Geändert: Die Validierung für das Kontaktformular ist umgebaut (src/forms/contact.ts).\nNicht geprüft: Ich habe die Tests nicht ausgeführt, da in dieser Umgebung kein Node installiert ist.\nOffen: nichts genannt\nRisiko: mittel"
+ },
+ {
+  "pair": "heldout-review-010",
+  "item": "H012",
+  "source": "Patched the off-by-one in paginate() in src/list.rs, didn't run tests. Should be fine.",
+  "facts": {
+   "outcome": "success",
+   "tests": {
+    "state": "not_run"
+   },
+   "level": "L1"
+  },
+  "first": "Changed: patched the off-by-one in paginate() in src/list.rs\nNot checked: didn't run tests\nLeft: nothing stated\nRisk: high (tests not run)",
+  "second": "Changed: Patched the off-by-one in paginate() in src/list.rs, didn't run tests.\nNot checked: Patched the off-by-one in paginate() in src/list.rs, didn't run tests.\nLeft: nothing stated\nRisk: medium"
+ },
+ {
+  "pair": "heldout-review-011",
+  "item": "H013",
+  "source": "I couldn't get the build to pass. After bumping the compiler target, 12 tests in tests/render fail with 'undefined symbol: gl_init' (44 others pass). The branch is currently broken and I have not reverted anything.",
+  "facts": {
+   "outcome": "failure",
+   "tests": {
+    "state": "ran",
+    "passed": 44,
+    "failed": 12
+   },
+   "level": "L3"
+  },
+  "first": "Changed: After bumping the compiler target, 12 tests in tests/render fail with 'undefined symbol: gl_init' (44 others pass).\nLeft: nothing stated\nRisk: high",
+  "second": "Changed: bumping the compiler target; 12 tests in tests/render fail with 'undefined symbol: gl_init'; the branch is currently broken\nLeft: the branch is currently broken; I have not reverted anything\nRisk: high (12 tests in tests/render fail with 'undefined symbol: gl_init')"
+ },
+ {
+  "pair": "heldout-review-012",
+  "item": "H015",
+  "source": "Tried three approaches to fix the flaky websocket test and none worked. It still fails about 1 run in 4, so I gave up; notes are in notes/ws-flaky.md. The other 7 tests in that file pass.",
+  "facts": {
+   "outcome": "failure",
+   "tests": {
+    "state": "ran",
+    "passed": 7,
+    "failed": 1
+   },
+   "level": "L3"
+  },
+  "first": "Changed: It still fails about 1 run in 4, so I gave up; notes are in notes/ws-flaky.md.\nLeft: It still fails about 1 run in 4, so I gave up; notes are in notes/ws-flaky.md.\nRisk: high",
+  "second": "Changed: tried three approaches to fix the flaky websocket test; none worked; it still fails about 1 run in 4\nLeft: the other 7 tests in that file pass\nRisk: high (none worked, it still fails about 1 run in 4)"
+ },
+ {
+  "pair": "heldout-review-013",
+  "item": "H016",
+  "source": "Good news: the lint errors are gone. Bad news: while removing unused imports I deleted a re-export that cli/main.rs needs, so cargo build now errors with E0432. I haven't fixed it yet.",
+  "facts": {
+   "outcome": "failure",
+   "tests": {
+    "state": "unknown"
+   },
+   "level": "L3"
+  },
+  "first": "Changed: removing unused imports; deleted a re-export that cli/main.rs needs\nLeft: cargo build now errors with E0432; I haven't fixed it yet\nRisk: high (cargo build errors with E0432)",
+  "second": "Changed: Bad news: while removing unused imports I deleted a re-export that cli/main.rs needs, so cargo build now errors with E0432.\nLeft: I haven't fixed it yet.\nRisk: high"
+ },
+ {
+  "pair": "heldout-review-014",
+  "item": "H020",
+  "source": "Implemented the importer in tools/import.py; 5 tests passed, none failed. One thing to decide: it overwrites existing rows with the same id. OK to proceed like that, or should it skip duplicates instead?",
+  "facts": {
+   "outcome": "question",
+   "tests": {
+    "state": "ran",
+    "passed": 5,
+    "failed": 0
+   },
+   "level": "L2"
+  },
+  "first": "Changed: Implemented the importer in tools/import.py; 5 tests passed, none failed\nNot checked: OK to proceed like that, or should it skip duplicates instead?\nLeft: it overwrites existing rows with the same id\nRisk: not stated",
+  "second": "Changed: OK to proceed like that, or should it skip duplicates instead?\nLeft: OK to proceed like that, or should it skip duplicates instead?\nRisk: medium"
+ },
+ {
+  "pair": "heldout-review-015",
+  "item": "H021",
+  "source": "Pure refactor: extracted the retry loop from three handlers into utils/retry.js. No behaviour change; 112 tests pass, the same as before.",
+  "facts": {
+   "outcome": "success",
+   "tests": {
+    "state": "ran",
+    "passed": 112,
+    "failed": 0
+   },
+   "level": "L0"
+  },
+  "first": "Changed: extracted the retry loop from three handlers into utils/retry.js\nLeft: nothing stated\nRisk: low (112 tests pass, the same as before)",
+  "second": "Changed: Pure refactor: extracted the retry loop from three handlers into utils/retry.js.\nLeft: nothing stated\nRisk: low"
+ },
+ {
+  "pair": "heldout-review-016",
+  "item": "H022",
+  "source": "Ich habe die Klasse OrderService in drei kleinere Module aufgeteilt (services/order/*.py). Das Verhalten ist unverändert, alle 76 Tests bestehen weiterhin.",
+  "facts": {
+   "outcome": "success",
+   "tests": {
+    "state": "ran",
+    "passed": 76,
+    "failed": 0
+   },
+   "level": "L0"
+  },
+  "first": "Geändert: Ich habe die Klasse OrderService in drei kleinere Module aufgeteilt (services/order/*.py).\nOffen: nichts genannt\nRisiko: niedrig",
+  "second": "Geändert: die Klasse OrderService in drei kleineren Module aufgeteilt\nOffen: nichts genannt\nRisiko: niedrig (alle 76 Tests bestehen weiterhin)"
+ },
+ {
+  "pair": "heldout-review-017",
+  "item": "H023",
+  "source": "Moved the config loader from core/ to platform/config/ and fixed the imports. Nothing functional changed. The check in ci/imports.sh fails if anything still imports core.config, and it reports none. 9 unit tests pass.",
+  "facts": {
+   "outcome": "success",
+   "tests": {
+    "state": "ran",
+    "passed": 9,
+    "failed": 0
+   },
+   "level": "L0"
+  },
+  "first": "Changed: moved the config loader from core/ to platform/config/ and fixed the imports\nLeft: the check in ci/imports.sh fails if anything still imports core.config\nRisk: low",
+  "second": "Changed: Moved the config loader from core/ to platform/config/ and fixed the imports.\nLeft: nothing stated\nRisk: low"
+ },
+ {
+  "pair": "heldout-review-018",
+  "item": "H024",
+  "source": "Variablen umbenannt und tote Funktionen entfernt (util/helpers.go). Keine Änderung am Verhalten; go vet ist sauber, 33 Tests ok.",
+  "facts": {
+   "outcome": "success",
+   "tests": {
+    "state": "ran",
+    "passed": 33,
+    "failed": 0
+   },
+   "level": "L0"
+  },
+  "first": "Geändert: variablen umbenannt und tote Funktionen entfernt; keine Änderung am Verhalten\nOffen: nichts genannt\nRisiko: niedrig (33 Tests ok)",
+  "second": "Geändert: Variablen umbenannt und tote Funktionen entfernt (util/helpers.go).\nOffen: nichts genannt\nRisiko: niedrig"
+ }
+]

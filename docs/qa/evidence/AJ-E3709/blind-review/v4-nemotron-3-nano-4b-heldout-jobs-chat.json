@@ -1,0 +1,64 @@
+[
+ {
+  "pair": "heldout-jobs-chat-001",
+  "item": "C001",
+  "question": "Which session changed the retry delay?",
+  "records": [
+   "[s-4a17] session",
+   "[s-5b02] session",
+   "[t-91] turn",
+   "[f-7] fact"
+  ],
+  "first": "[s-4a17] session\n[s-5b02] session\n[t-91] turn\n[f-7] fact",
+  "second": "The 'harbor-retries' session changed the retry delay. [s-4a17] The 'harbor-retries' session set the base delay to 250 ms. [s-4a17] The old delay of 1000 ms was too slow for the tests. [t-91]"
+ },
+ {
+  "pair": "heldout-jobs-chat-002",
+  "item": "C003",
+  "question": "How many tests failed in the quill-api session?",
+  "records": [
+   "[s-8d01] session",
+   "[t-203] turn",
+   "[s-8d02] session"
+  ],
+  "first": "The quill-api session had 0 tests failing. [s-8d01]",
+  "second": "[s-8d01] session\n[t-203] turn\n[s-8d02] session"
+ },
+ {
+  "pair": "heldout-jobs-chat-003",
+  "item": "C005",
+  "question": "Which sessions are waiting for me right now?",
+  "records": [
+   "[s-a001] session",
+   "[s-a002] session",
+   "[s-a003] session",
+   "[f-40] fact"
+  ],
+  "first": "The mossgate-cache session is waiting for you. [s-a001] Waiting means the last message of the session is a question to the user. [f-40]",
+  "second": "[s-a001] session\n[s-a002] session\n[s-a003] session\n[f-40] fact"
+ },
+ {
+  "pair": "heldout-jobs-chat-004",
+  "item": "C009",
+  "question": "Why did the harbor-sdk upgrade fail?",
+  "records": [
+   "[s-e400] session",
+   "[t-700] turn",
+   "[f-70] fact"
+  ],
+  "first": "[s-e400] session\n[t-700] turn\n[f-70] fact",
+  "second": "The harbor-sdk upgrade failed due to the session 'harbor-upgrade' reverting the bump to harbor-sdk 4.2. [s-e400] harbor-sdk 4.3 has no announced release date. [f-70]"
+ },
+ {
+  "pair": "heldout-jobs-chat-005",
+  "item": "C011",
+  "question": "What did the nightly export session leave undone?",
+  "records": [
+   "[s-g600] session",
+   "[t-900] turn",
+   "[f-90] fact"
+  ],
+  "first": "The CSV writer was still a stub. [s-g600] 3 tests were ignored. [t-900]",
+  "second": "[s-g600] session\n[t-900] turn\n[f-90] fact"
+ }
+]

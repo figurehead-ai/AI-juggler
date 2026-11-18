@@ -1,0 +1,106 @@
+[
+ {
+  "pair": "heldout-chat-001",
+  "item": "heldout-S00-happened",
+  "question": "What happened in the sparrow export session?",
+  "records": [
+   "[r1] session \"sparrow export\" | state: finished | level: L0 calm | tests: ran, 58 passed, 0 failed",
+   "[r2] session \"lantern billing\" | state: finished | level: L0 calm | tests: ran, 14 passed, 0 failed",
+   "[r3] session \"quarry search\" | state: finished | level: L0 calm | tests: unknown",
+   "[r4] session \"maple onboarding\" | state: finished | level: L0 calm | tests: ran, 3 passed, 0 failed"
+  ],
+  "first": "[r1] session \"sparrow export\" | state: finished | level: L0 calm | tests: ran, 58 passed, 0 failed\n[r2] session \"lantern billing\" | state: finished | level: L0 calm | tests: ran, 14 passed, 0 failed\n[r3] session \"quarry search\" | state: finished | level: L0 calm | tests: unknown\n[r4] session \"maple onboarding\" | state: finished | level: L0 calm | tests: ran, 3 passed, 0 failed",
+  "second": "The sparrow export session finished with 58 tests passed. [r1]"
+ },
+ {
+  "pair": "heldout-chat-002",
+  "item": "heldout-S01-happened",
+  "question": "What happened in the quarry search session?",
+  "records": [
+   "[r1] session \"lantern billing\" | state: finished | level: L1 note | tests: ran, 9 passed, 0 failed",
+   "[r2] session \"quarry search\" | state: finished | level: L1 note | tests: ran, 21 passed, 0 failed",
+   "[r3] session \"maple onboarding\" | state: finished | level: L1 note | tests: ran, 31 passed, 0 failed",
+   "[r4] session \"harrier deploy\" | state: finished | level: L1 note | tests: not run"
+  ],
+  "first": "The quarry search session finished with 21 tests passed. [r2]",
+  "second": "[r1] session \"lantern billing\" | state: finished | level: L1 note | tests: ran, 9 passed, 0 failed\n[r2] session \"quarry search\" | state: finished | level: L1 note | tests: ran, 21 passed, 0 failed\n[r3] session \"maple onboarding\" | state: finished | level: L1 note | tests: ran, 31 passed, 0 failed\n[r4] session \"harrier deploy\" | state: finished | level: L1 note | tests: not run"
+ },
+ {
+  "pair": "heldout-chat-003",
+  "item": "heldout-S01-tests",
+  "question": "Did the tests pass in the maple onboarding session?",
+  "records": [
+   "[r1] session \"lantern billing\" | state: finished | level: L1 note | tests: ran, 9 passed, 0 failed",
+   "[r2] session \"quarry search\" | state: finished | level: L1 note | tests: ran, 21 passed, 0 failed",
+   "[r3] session \"maple onboarding\" | state: finished | level: L1 note | tests: ran, 31 passed, 0 failed",
+   "[r4] session \"harrier deploy\" | state: finished | level: L1 note | tests: not run"
+  ],
+  "first": "[r1] session \"lantern billing\" | state: finished | level: L1 note | tests: ran, 9 passed, 0 failed\n[r2] session \"quarry search\" | state: finished | level: L1 note | tests: ran, 21 passed, 0 failed\n[r3] session \"maple onboarding\" | state: finished | level: L1 note | tests: ran, 31 passed, 0 failed\n[r4] session \"harrier deploy\" | state: finished | level: L1 note | tests: not run",
+  "second": "The maple onboarding session finished with 31 tests passed. [r3]"
+ },
+ {
+  "pair": "heldout-chat-004",
+  "item": "heldout-S02-happened",
+  "question": "What happened in the harrier deploy session?",
+  "records": [
+   "[r1] session \"quarry search\" | state: finished | level: L1 note | tests: not run",
+   "[r2] session \"maple onboarding\" | state: finished | level: L1 note | tests: not run",
+   "[r3] session \"harrier deploy\" | state: finished | level: L1 note | tests: not run",
+   "[r4] session \"cobalt metrics\" | state: finished | level: L1 note | tests: not run"
+  ],
+  "first": "The harrier deploy session finished, but the tests were not run. [r3]",
+  "second": "[r1] session \"quarry search\" | state: finished | level: L1 note | tests: not run\n[r2] session \"maple onboarding\" | state: finished | level: L1 note | tests: not run\n[r3] session \"harrier deploy\" | state: finished | level: L1 note | tests: not run\n[r4] session \"cobalt metrics\" | state: finished | level: L1 note | tests: not run"
+ },
+ {
+  "pair": "heldout-chat-005",
+  "item": "heldout-S03-needs",
+  "question": "Which sessions need me right now?",
+  "records": [
+   "[r1] session \"maple onboarding\" | state: failed | level: L3 broken | tests: ran, 44 passed, 12 failed",
+   "[r2] session \"harrier deploy\" | state: failed | level: L3 broken | tests: unknown",
+   "[r3] session \"cobalt metrics\" | state: failed | level: L3 broken | tests: ran, 7 passed, 1 failed",
+   "[r4] session \"juniper auth\" | state: failed | level: L3 broken | tests: unknown"
+  ],
+  "first": "The maple onboarding session failed with 12 tests failed. [r1] The harrier deploy session failed with an error about migration failure. [r2] The cobalt metrics session failed with 1 test failed. [r3]",
+  "second": "[r1] session \"maple onboarding\" | state: failed | level: L3 broken | tests: ran, 44 passed, 12 failed\n[r2] session \"harrier deploy\" | state: failed | level: L3 broken | tests: unknown\n[r3] session \"cobalt metrics\" | state: failed | level: L3 broken | tests: ran, 7 passed, 1 failed\n[r4] session \"juniper auth\" | state: failed | level: L3 broken | tests: unknown"
+ },
+ {
+  "pair": "heldout-chat-006",
+  "item": "heldout-S04-tests",
+  "question": "Did the tests pass in the cobalt metrics session?",
+  "records": [
+   "[r1] session \"harrier deploy\" | state: needs you | level: L2 needs you | tests: unknown",
+   "[r2] session \"cobalt metrics\" | state: needs you | level: L2 needs you | tests: ran, 18 passed, 0 failed",
+   "[r3] session \"juniper auth\" | state: needs you | level: L2 needs you | tests: unknown",
+   "[r4] session \"saffron docs\" | state: needs you | level: L2 needs you | tests: ran, 5 passed, 0 failed"
+  ],
+  "first": "[r1] session \"harrier deploy\" | state: needs you | level: L2 needs you | tests: unknown\n[r2] session \"cobalt metrics\" | state: needs you | level: L2 needs you | tests: ran, 18 passed, 0 failed\n[r3] session \"juniper auth\" | state: needs you | level: L2 needs you | tests: unknown\n[r4] session \"saffron docs\" | state: needs you | level: L2 needs you | tests: ran, 5 passed, 0 failed",
+  "second": "The cobalt metrics session ran, with 18 tests passed. [r2]"
+ },
+ {
+  "pair": "heldout-chat-007",
+  "item": "heldout-S05-happened",
+  "question": "What happened in the juniper auth session?",
+  "records": [
+   "[r1] session \"cobalt metrics\" | state: finished | level: L0 calm | tests: ran, 112 passed, 0 failed",
+   "[r2] session \"juniper auth\" | state: finished | level: L0 calm | tests: ran, 76 passed, 0 failed",
+   "[r3] session \"saffron docs\" | state: finished | level: L0 calm | tests: ran, 9 passed, 0 failed",
+   "[r4] session \"thistle queue\" | state: finished | level: L0 calm | tests: ran, 33 passed, 0 failed"
+  ],
+  "first": "[r1] session \"cobalt metrics\" | state: finished | level: L0 calm | tests: ran, 112 passed, 0 failed\n[r2] session \"juniper auth\" | state: finished | level: L0 calm | tests: ran, 76 passed, 0 failed\n[r3] session \"saffron docs\" | state: finished | level: L0 calm | tests: ran, 9 passed, 0 failed\n[r4] session \"thistle queue\" | state: finished | level: L0 calm | tests: ran, 33 passed, 0 failed",
+  "second": "The juniper auth session finished with 76 tests passed. [r2]"
+ },
+ {
+  "pair": "heldout-chat-008",
+  "item": "heldout-S05-tests",
+  "question": "Did the tests pass in the saffron docs session?",
+  "records": [
+   "[r1] session \"cobalt metrics\" | state: finished | level: L0 calm | tests: ran, 112 passed, 0 failed",
+   "[r2] session \"juniper auth\" | state: finished | level: L0 calm | tests: ran, 76 passed, 0 failed",
+   "[r3] session \"saffron docs\" | state: finished | level: L0 calm | tests: ran, 9 passed, 0 failed",
+   "[r4] session \"thistle queue\" | state: finished | level: L0 calm | tests: ran, 33 passed, 0 failed"
+  ],
+  "first": "[r1] session \"cobalt metrics\" | state: finished | level: L0 calm | tests: ran, 112 passed, 0 failed\n[r2] session \"juniper auth\" | state: finished | level: L0 calm | tests: ran, 76 passed, 0 failed\n[r3] session \"saffron docs\" | state: finished | level: L0 calm | tests: ran, 9 passed, 0 failed\n[r4] session \"thistle queue\" | state: finished | level: L0 calm | tests: ran, 33 passed, 0 failed",
+  "second": "The saffron docs session finished with 9 tests passed. [r3]"
+ }
+]

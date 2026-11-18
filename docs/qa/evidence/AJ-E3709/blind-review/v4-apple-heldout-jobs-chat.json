@@ -1,0 +1,64 @@
+[
+ {
+  "pair": "heldout-jobs-chat-001",
+  "item": "C001",
+  "question": "Which session changed the retry delay?",
+  "records": [
+   "[s-4a17] session",
+   "[s-5b02] session",
+   "[t-91] turn",
+   "[f-7] fact"
+  ],
+  "first": "[s-4a17] session\n[s-5b02] session\n[t-91] turn\n[f-7] fact",
+  "second": "The 'harbor-retries' session edited src/net/retry.ts and set the base delay to 250 ms. [s-4a17] The 'docs-sweep' session only edited README files and touched no source code. [s-5b02]"
+ },
+ {
+  "pair": "heldout-jobs-chat-002",
+  "item": "C002",
+  "question": "Welche Sitzung hat die Tests nicht ausgeführt?",
+  "records": [
+   "[s-6c20] session",
+   "[s-6c21] session",
+   "[f-12] fact"
+  ],
+  "first": "[s-6c20] session\n[s-6c21] session\n[f-12] fact",
+  "second": "Die Sitzung 'kornblume-login' hat die Tests nicht ausgeführt. [s-6c20] Die Sitzung 'tannenhof-cart' hat alle bestanden. [s-6c21]"
+ },
+ {
+  "pair": "heldout-jobs-chat-003",
+  "item": "C005",
+  "question": "Which sessions are waiting for me right now?",
+  "records": [
+   "[s-a001] session",
+   "[s-a002] session",
+   "[s-a003] session",
+   "[f-40] fact"
+  ],
+  "first": "[s-a001] session\n[s-a002] session\n[s-a003] session\n[f-40] fact",
+  "second": "The 'mossgate-cache' session is waiting for a question about deleting expired entries. [s-a001] The 'tidepool-export' session is running with the agent working on the CSV writer. [s-a002]"
+ },
+ {
+  "pair": "heldout-jobs-chat-004",
+  "item": "C006",
+  "question": "Which file did the cart session change and which tests broke?",
+  "records": [
+   "[s-b110] session",
+   "[t-411] turn",
+   "[f-44] fact"
+  ],
+  "first": "The cart session changed shop/cart/pricing.py. [s-b110] 2 failing tests in tests/test_checkout_rounding.py were noted. [t-411]",
+  "second": "[s-b110] session\n[t-411] turn\n[f-44] fact"
+ },
+ {
+  "pair": "heldout-jobs-chat-005",
+  "item": "C008",
+  "question": "Wie lange dauerte die Sitzung 'tidepool-export'?",
+  "records": [
+   "[s-d300] session",
+   "[t-600] turn",
+   "[f-60] fact"
+  ],
+  "first": "Die Sitzung 'tidepool-export' dauerte von 08:15 bis 09:40. [s-d300] Der Zeitplaner läuft jede Nacht um 02:00. [f-60]",
+  "second": "[s-d300] session\n[t-600] turn\n[f-60] fact"
+ }
+]

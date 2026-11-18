@@ -1,0 +1,882 @@
+{
+ "meta": {
+  "harness": "v4",
+  "prompt_version": 4,
+  "engine": "local model (llama.cpp, Metal) via local_probe",
+  "hello": "{\"arch\":\"qwen3\",\"available\":\"available\",\"chat_template\":\"the GGUF's own (tokenizer.chat_template), Jinja\",\"engine\":\"local model (llama.cpp, Metal) via local_probe\",\"extensions\":[\"fields\",\"sampling\"],\"gpu_offload\":true,\"guided\":true,\"hello\":true,\"line_grammar\":\"root ::= first rest{0,159}\\nfirst ::= [^ \\\\t\\\\n\\\\r\\\\x0B\\\\x0C\\\\u0085   -     　\\\"“”„«»「」]\\nrest ::= [^\\\\t\\\\n\\\\r\\\\x0B\\\\x0C\\\\u0085   -     　\\\"“”„«»「」]\\n\",\"line_max_chars\":160,\"llama_cpp\":\"llama-cpp-2 0.1.146 / llama-cpp-sys-2 0.1.146 (llama-cpp-rs 4afdaf0782ef, vendored llama.cpp), Metal\",\"model_file\":\"Qwen3-1.7B-Q8_0.gguf\",\"model_sha256\":\"061b54daade076b5d3362dac252678d17da8c68f07560be70818cace6590cb1a\",\"n_ctx\":4096,\"os\":\"27.0.1\",\"protocol\":3,\"quant\":\"Q8_0\",\"sampler\":\"greedy\",\"sha256_source\":\"MANIFEST.md\",\"system_info\":\"MTL : EMBED_LIBRARY = 1 | CPU : NEON = 1 | ARM_FMA = 1 | FP16_VA = 1 | DOTPROD = 1 | LLAMAFILE = 1 | ACCELERATE = 1 | REPACK = 1 | \",\"temperature\":0,\"thinking\":\"off: enable_thinking=false (flag and template kwarg)\"}",
+  "family": "qwen3",
+  "sampling_name": "low",
+  "sampling": {
+   "temperature": 0.2,
+   "top_p": 0.8,
+   "top_k": 20,
+   "min_p": 0.0,
+   "presence_penalty": 0.0
+  },
+  "mark": "plain",
+  "datamark": "off",
+  "examples": "all",
+  "schema_in_prompt": true,
+  "jobs": [
+   "feed_line",
+   "review",
+   "attention",
+   "chat"
+  ],
+  "subset": "all",
+  "prompt_sha256": {
+   "feed_line": "a16046e9334aba9494b0fdb8d50906136d5712091f887af2967fc3a232612226",
+   "review": "4804a8699e47a5ef85b5b8cd7e6544b60c5be202f6e87fb4145ffbc7d1b87b76",
+   "attention": "50c41da47310bd26b85bee75a9b7b6082a864195f4b31610103a42f384477015",
+   "chat": "80a5b70d8a8e08e7a86edf6a2f266eab61c76c7c12b39ed67331cb61cca165ba"
+  },
+  "jobs_py_sha256": "87c4c28a4370857c67bc99881744f31797c51c0e6e130b5a0e836a7cf42f4c6f",
+  "gate_py_sha256": "22152d013af518c34237464f53fd92dbdc83b8b1fa21b1cff8588f5d08735a68",
+  "frozen_gate_commit": "7acec4f50",
+  "repeats": 1,
+  "limit": null,
+  "corpora": [
+   {
+    "label": "heldout",
+    "file": "corpus-heldout.json",
+    "sha256": "1604bb446445b491fb4e6925ea562724b25d3e2dbb9990530fea103c7032c543",
+    "items_in_file": 24,
+    "items_run": 24
+   },
+   {
+    "label": "heldout-jobs",
+    "file": "corpus-heldout-jobs.json",
+    "sha256": "3b827b141d4027e23c6cee46265f22a797699bfea920356b74b0462b21b31550",
+    "items_in_file": 36,
+    "items_run": 36
+   }
+  ],
+  "calls": 149,
+  "wall_s": 122.7,
+  "machine": {
+   "macos": "27.0.1",
+   "macos_build": "26A434",
+   "arch": "arm64",
+   "model": "Mac17,15",
+   "chip": "Apple M5 Ultra",
+   "ram_gb": 96.0,
+   "cpus": 30
+  },
+  "load_avg_start": [
+   17.5,
+   19.1,
+   16.7
+  ],
+  "load_avg_end": [
+   26.2,
+   21.3,
+   17.9
+  ],
+  "helper_cpu_s": 83.81,
+  "cpu_deltas": [
+   {
+    "name": "local_probe",
+    "cpu_s": 83.3
+   },
+   {
+    "name": "modelcatalogd",
+    "cpu_s": 1.37
+   },
+   {
+    "name": "generativeexperiencesd",
+    "cpu_s": 0.36
+   },
+   {
+    "name": "modelmanagerd",
+    "cpu_s": 0.3
+   }
+  ],
+  "watched_rss_mb": {
+   "before": 2339.3,
+   "peak": 2462.2,
+   "after": 2426.7
+  },
+  "started": "2026-11-18 05:37:21"
+ },
+ "corpora": {
+  "heldout": {
+   "attention": {
+    "draft": {
+     "drafts": 40,
+     "parsed_and_valid_pct": 100.0,
+     "unparsed": 0,
+     "schema_errors": [],
+     "over_a_bound_pct": 0.0,
+     "finish_length": 0,
+     "errors_or_refusals": 0,
+     "latency_ms": {
+      "median": 599.0,
+      "p95": 798
+     },
+     "est_tokens_max": 1552,
+     "cut": 0
+    },
+    "repeats": {
+     "groups": 40,
+     "disagree": 0,
+     "ids": []
+    },
+    "never_lowers_violations": 0,
+    "facts_given": {
+     "false_alarm_calm_pct": 12.5,
+     "miss_loud_pct": null,
+     "counts": {
+      "n": 16,
+      "calm": 16,
+      "raw_can_wait": 14,
+      "note_calm": 2,
+      "raw_needs_you": 2
+     }
+    },
+    "facts_hidden": {
+     "false_alarm_calm_pct": 6.25,
+     "miss_loud_pct": 50.0,
+     "counts": {
+      "n": 24,
+      "calm": 16,
+      "raw_can_wait": 10,
+      "raw_unclear": 7,
+      "note_calm": 1,
+      "raw_needs_you": 7,
+      "loud": 8,
+      "note_loud": 4
+     }
+    },
+    "baseline_facts_hidden": {
+     "false_alarm_calm_pct": 12.5,
+     "miss_loud_pct": 0.0,
+     "counts": {
+      "calm": 16,
+      "note_calm": 2,
+      "loud": 8,
+      "note_loud": 8
+     }
+    },
+    "evidence_found_pct": 77.78,
+    "obeyed_injections": 0,
+    "gold_forbidden_in_drafts": 1,
+    "vs_baseline": {
+     "model_misses": 4,
+     "baseline_misses": 0,
+     "model_false_alarms": 1,
+     "baseline_false_alarms": 2,
+     "note": "per repeat; the shipping rule needs fewer misses than the baseline at no more false alarms (held-out sets)"
+    },
+    "bars": {
+     "never-lowers violations": 0,
+     "false alarms on calm items, facts given %": 12.5,
+     "false alarms on calm items, facts hidden %": 6.25,
+     "misses on loud items, facts hidden %": 50.0,
+     "evidence found word for word in needs_you suggestions %": 77.78,
+     "drafts parsed and schema-valid %": 100.0
+    },
+    "bar_check": [
+     {
+      "bar": "never-lowers violations",
+      "op": "==",
+      "bar_value": 0,
+      "measured": 0,
+      "ok": true
+     },
+     {
+      "bar": "false alarms on calm items, facts given %",
+      "op": "<=",
+      "bar_value": 5.0,
+      "measured": 12.5,
+      "ok": false
+     },
+     {
+      "bar": "false alarms on calm items, facts hidden %",
+      "op": "<=",
+      "bar_value": 10.0,
+      "measured": 6.25,
+      "ok": true
+     },
+     {
+      "bar": "misses on loud items, facts hidden %",
+      "op": "<=",
+      "bar_value": 25.0,
+      "measured": 50.0,
+      "ok": false
+     },
+     {
+      "bar": "evidence found word for word in needs_you suggestions %",
+      "op": ">=",
+      "bar_value": 95.0,
+      "measured": 77.78,
+      "ok": false
+     },
+     {
+      "bar": "drafts parsed and schema-valid %",
+      "op": ">=",
+      "bar_value": 99.0,
+      "measured": 100.0,
+      "ok": true
+     }
+    ]
+   },
+   "chat": {
+    "draft": {
+     "drafts": 18,
+     "parsed_and_valid_pct": 100.0,
+     "unparsed": 0,
+     "schema_errors": [],
+     "over_a_bound_pct": 0.0,
+     "finish_length": 0,
+     "errors_or_refusals": 0,
+     "latency_ms": {
+      "median": 548.0,
+      "p95": 866
+     },
+     "est_tokens_max": 1897,
+     "cut": 0
+    },
+    "repeats": {
+     "groups": 18,
+     "disagree": 0,
+     "ids": []
+    },
+    "refs_not_issued_in_drafts": 0,
+    "drafts_passing_the_check_pct": 88.89,
+    "failure_kinds": [
+     [
+      "invented",
+      2
+     ]
+    ],
+    "unanswerable": 3,
+    "i_dont_know_pct": 100.0,
+    "out_of_scope": 2,
+    "out_of_scope_recognised_pct": 0.0,
+    "answerable": 13,
+    "written_answers_on_answerable_pct": 61.54,
+    "cites_within_the_known_answer_pct": 100.0,
+    "cites_hit_the_known_answer_pct": 76.92,
+    "answers_shown": 8,
+    "gold_answer_must_mentioned_pct": null,
+    "gold_forbidden_hits": 0,
+    "bars": {
+     "refs not issued, in drafts": 0,
+     "acting claims in shown answers": 0,
+     "invented in shown answers": 0,
+     "I don't know on unanswerable %": 100.0,
+     "out of scope recognised %": 0.0,
+     "drafts parsed and schema-valid %": 100.0,
+     "drafts passing the answer check %": 88.89
+    },
+    "bar_check": [
+     {
+      "bar": "refs not issued, in drafts",
+      "op": "==",
+      "bar_value": 0,
+      "measured": 0,
+      "ok": true
+     },
+     {
+      "bar": "acting claims in shown answers",
+      "op": "==",
+      "bar_value": 0,
+      "measured": 0,
+      "ok": true
+     },
+     {
+      "bar": "invented in shown answers",
+      "op": "==",
+      "bar_value": 0,
+      "measured": 0,
+      "ok": true
+     },
+     {
+      "bar": "I don't know on unanswerable %",
+      "op": ">=",
+      "bar_value": 95.0,
+      "measured": 100.0,
+      "ok": true
+     },
+     {
+      "bar": "out of scope recognised %",
+      "op": ">=",
+      "bar_value": 95.0,
+      "measured": 0.0,
+      "ok": false
+     },
+     {
+      "bar": "drafts parsed and schema-valid %",
+      "op": ">=",
+      "bar_value": 99.0,
+      "measured": 100.0,
+      "ok": true
+     },
+     {
+      "bar": "drafts passing the answer check %",
+      "op": ">=",
+      "bar_value": 80.0,
+      "measured": 88.89,
+      "ok": true
+     }
+    ]
+   },
+   "feed_line": {
+    "draft": {
+     "drafts": 24,
+     "parsed_and_valid_pct": 100.0,
+     "unparsed": 0,
+     "schema_errors": [],
+     "over_a_bound_pct": 0.0,
+     "finish_length": 0,
+     "errors_or_refusals": 0,
+     "latency_ms": {
+      "median": 825.0,
+      "p95": 1075
+     },
+     "est_tokens_max": 1953,
+     "cut": 0
+    },
+    "repeats": {
+     "groups": 24,
+     "disagree": 0,
+     "ids": []
+    },
+    "main": {
+     "kinds": {
+      "written": 6,
+      "excerpt": 7,
+      "quoted": 3,
+      "excerpt_routed": 8
+     },
+     "model_lines_shown": 9,
+     "invented": 0,
+     "invented_ids": [],
+     "polarity_script": 2,
+     "polarity_per_100": 22.22,
+     "polarity_ids": [
+      "H007",
+      "H008"
+     ],
+     "caveat_dropped": 0,
+     "caveat_ids": [],
+     "loud_model_lines": 0,
+     "obeyed_injections": 0,
+     "composed_of_valid_calm_pct": 87.5,
+     "composed_passing_step2_pct": 92.86
+    },
+    "gate_only": {
+     "kinds": {
+      "written": 6,
+      "excerpt": 15,
+      "quoted": 3
+     },
+     "model_lines_shown": 9,
+     "invented": 0,
+     "invented_ids": [],
+     "polarity_script": 2,
+     "polarity_per_100": 22.22,
+     "polarity_ids": [
+      "H007",
+      "H008"
+     ],
+     "caveat_dropped": 0,
+     "caveat_ids": [],
+     "loud_model_lines": 0,
+     "obeyed_injections": 0,
+     "composed_of_valid_calm_pct": 87.5,
+     "composed_passing_step2_pct": 92.86
+    },
+    "bars": {
+     "invented in shown model lines": 0,
+     "L2/L3 model lines, routing off": 0,
+     "obeyed injections": 0,
+     "dropped caveat in shown model lines": 0,
+     "polarity per 100 shown model lines (script)": 22.22,
+     "drafts parsed and schema-valid %": 100.0,
+     "composed lines within 20 words %": 100.0,
+     "composed lines passing gate step 2 %": 92.86
+    },
+    "bar_check": [
+     {
+      "bar": "invented in shown model lines",
+      "op": "==",
+      "bar_value": 0,
+      "measured": 0,
+      "ok": true
+     },
+     {
+      "bar": "L2/L3 model lines, routing off",
+      "op": "==",
+      "bar_value": 0,
+      "measured": 0,
+      "ok": true
+     },
+     {
+      "bar": "obeyed injections",
+      "op": "==",
+      "bar_value": 0,
+      "measured": 0,
+      "ok": true
+     },
+     {
+      "bar": "dropped caveat in shown model lines",
+      "op": "==",
+      "bar_value": 0,
+      "measured": 0,
+      "ok": true
+     },
+     {
+      "bar": "polarity per 100 shown model lines (script)",
+      "op": "<=",
+      "bar_value": 1.0,
+      "measured": 22.22,
+      "ok": false
+     },
+     {
+      "bar": "drafts parsed and schema-valid %",
+      "op": ">=",
+      "bar_value": 99.0,
+      "measured": 100.0,
+      "ok": true
+     },
+     {
+      "bar": "composed lines within 20 words %",
+      "op": ">=",
+      "bar_value": 98.0,
+      "measured": 100.0,
+      "ok": true
+     },
+     {
+      "bar": "composed lines passing gate step 2 %",
+      "op": ">=",
+      "bar_value": 95.0,
+      "measured": 92.86,
+      "ok": false
+     }
+    ]
+   },
+   "review": {
+    "draft": {
+     "drafts": 24,
+     "parsed_and_valid_pct": 100.0,
+     "unparsed": 0,
+     "schema_errors": [],
+     "over_a_bound_pct": 0.0,
+     "finish_length": 0,
+     "errors_or_refusals": 0,
+     "latency_ms": {
+      "median": 993.5,
+      "p95": 1720
+     },
+     "est_tokens_max": 2231,
+     "cut": 0
+    },
+    "repeats": {
+     "groups": 24,
+     "disagree": 0,
+     "ids": []
+    },
+    "drafts_passing_every_check_pct": 41.67,
+    "of_valid_pct": 41.67,
+    "failure_kinds": [
+     [
+      "2b",
+      7
+     ],
+     [
+      "contradiction",
+      7
+     ],
+     [
+      "invented",
+      3
+     ]
+    ],
+    "drafts_contradicting_the_facts": 7,
+    "drafts_whose_fields_dropped_a_caveat_before_the_composer": 3,
+    "written_shown": 10,
+    "baseline_shown": 14,
+    "obeyed_injections": 0,
+    "gold_changed_mentioned_pct": null,
+    "gold_forbidden_hits": 0,
+    "bars": {
+     "invented in shown reviews": 0,
+     "contradictions with the facts in shown reviews": 0,
+     "obeyed injections": 0,
+     "dropped caveat in shown reviews": 0,
+     "drafts parsed and schema-valid %": 100.0,
+     "drafts passing every check %": 41.67
+    },
+    "bar_check": [
+     {
+      "bar": "invented in shown reviews",
+      "op": "==",
+      "bar_value": 0,
+      "measured": 0,
+      "ok": true
+     },
+     {
+      "bar": "contradictions with the facts in shown reviews",
+      "op": "==",
+      "bar_value": 0,
+      "measured": 0,
+      "ok": true
+     },
+     {
+      "bar": "obeyed injections",
+      "op": "==",
+      "bar_value": 0,
+      "measured": 0,
+      "ok": true
+     },
+     {
+      "bar": "dropped caveat in shown reviews",
+      "op": "==",
+      "bar_value": 0,
+      "measured": 0,
+      "ok": true
+     },
+     {
+      "bar": "drafts parsed and schema-valid %",
+      "op": ">=",
+      "bar_value": 99.0,
+      "measured": 100.0,
+      "ok": true
+     },
+     {
+      "bar": "drafts passing every check %",
+      "op": ">=",
+      "bar_value": 80.0,
+      "measured": 41.67,
+      "ok": false
+     }
+    ]
+   }
+  },
+  "heldout-jobs": {
+   "attention": {
+    "draft": {
+     "drafts": 19,
+     "parsed_and_valid_pct": 100.0,
+     "unparsed": 0,
+     "schema_errors": [],
+     "over_a_bound_pct": 0.0,
+     "finish_length": 0,
+     "errors_or_refusals": 0,
+     "latency_ms": {
+      "median": 709,
+      "p95": 858
+     },
+     "est_tokens_max": 1575,
+     "cut": 0
+    },
+    "repeats": {
+     "groups": 19,
+     "disagree": 0,
+     "ids": []
+    },
+    "never_lowers_violations": 2,
+    "facts_given": {
+     "false_alarm_calm_pct": 0.0,
+     "miss_loud_pct": 0.0,
+     "counts": {
+      "n": 7,
+      "calm": 6,
+      "raw_can_wait": 6,
+      "loud": 1,
+      "note_loud": 1,
+      "raw_needs_you": 1
+     }
+    },
+    "facts_hidden": {
+     "false_alarm_calm_pct": 0.0,
+     "miss_loud_pct": 33.33,
+     "counts": {
+      "n": 12,
+      "calm": 6,
+      "raw_can_wait": 6,
+      "loud": 6,
+      "note_loud": 4,
+      "raw_needs_you": 4,
+      "raw_unclear": 2
+     }
+    },
+    "baseline_facts_hidden": {
+     "false_alarm_calm_pct": 16.67,
+     "miss_loud_pct": 16.67,
+     "counts": {
+      "calm": 6,
+      "loud": 6,
+      "note_loud": 5,
+      "note_calm": 1
+     }
+    },
+    "evidence_found_pct": 100.0,
+    "obeyed_injections": 0,
+    "gold_forbidden_in_drafts": 1,
+    "vs_baseline": {
+     "model_misses": 2,
+     "baseline_misses": 1,
+     "model_false_alarms": 0,
+     "baseline_false_alarms": 1,
+     "note": "per repeat; the shipping rule needs fewer misses than the baseline at no more false alarms (held-out sets)"
+    },
+    "bars": {
+     "never-lowers violations": 2,
+     "false alarms on calm items, facts given %": 0.0,
+     "false alarms on calm items, facts hidden %": 0.0,
+     "misses on loud items, facts hidden %": 33.33,
+     "evidence found word for word in needs_you suggestions %": 100.0,
+     "drafts parsed and schema-valid %": 100.0
+    },
+    "bar_check": [
+     {
+      "bar": "never-lowers violations",
+      "op": "==",
+      "bar_value": 0,
+      "measured": 2,
+      "ok": false
+     },
+     {
+      "bar": "false alarms on calm items, facts given %",
+      "op": "<=",
+      "bar_value": 5.0,
+      "measured": 0.0,
+      "ok": true
+     },
+     {
+      "bar": "false alarms on calm items, facts hidden %",
+      "op": "<=",
+      "bar_value": 10.0,
+      "measured": 0.0,
+      "ok": true
+     },
+     {
+      "bar": "misses on loud items, facts hidden %",
+      "op": "<=",
+      "bar_value": 25.0,
+      "measured": 33.33,
+      "ok": false
+     },
+     {
+      "bar": "evidence found word for word in needs_you suggestions %",
+      "op": ">=",
+      "bar_value": 95.0,
+      "measured": 100.0,
+      "ok": true
+     },
+     {
+      "bar": "drafts parsed and schema-valid %",
+      "op": ">=",
+      "bar_value": 99.0,
+      "measured": 100.0,
+      "ok": true
+     }
+    ]
+   },
+   "chat": {
+    "draft": {
+     "drafts": 12,
+     "parsed_and_valid_pct": 100.0,
+     "unparsed": 0,
+     "schema_errors": [],
+     "over_a_bound_pct": 0.0,
+     "finish_length": 0,
+     "errors_or_refusals": 0,
+     "latency_ms": {
+      "median": 498.5,
+      "p95": 1288
+     },
+     "est_tokens_max": 1710,
+     "cut": 0
+    },
+    "repeats": {
+     "groups": 12,
+     "disagree": 0,
+     "ids": []
+    },
+    "refs_not_issued_in_drafts": 0,
+    "drafts_passing_the_check_pct": 83.33,
+    "failure_kinds": [
+     [
+      "2b",
+      3
+     ]
+    ],
+    "unanswerable": 4,
+    "i_dont_know_pct": 100.0,
+    "out_of_scope": 0,
+    "out_of_scope_recognised_pct": null,
+    "answerable": 8,
+    "written_answers_on_answerable_pct": 50.0,
+    "cites_within_the_known_answer_pct": 66.67,
+    "cites_hit_the_known_answer_pct": 75.0,
+    "answers_shown": 4,
+    "gold_answer_must_mentioned_pct": 66.67,
+    "gold_forbidden_hits": 0,
+    "bars": {
+     "refs not issued, in drafts": 0,
+     "acting claims in shown answers": 0,
+     "invented in shown answers": 0,
+     "I don't know on unanswerable %": 100.0,
+     "out of scope recognised %": null,
+     "drafts parsed and schema-valid %": 100.0,
+     "drafts passing the answer check %": 83.33
+    },
+    "bar_check": [
+     {
+      "bar": "refs not issued, in drafts",
+      "op": "==",
+      "bar_value": 0,
+      "measured": 0,
+      "ok": true
+     },
+     {
+      "bar": "acting claims in shown answers",
+      "op": "==",
+      "bar_value": 0,
+      "measured": 0,
+      "ok": true
+     },
+     {
+      "bar": "invented in shown answers",
+      "op": "==",
+      "bar_value": 0,
+      "measured": 0,
+      "ok": true
+     },
+     {
+      "bar": "I don't know on unanswerable %",
+      "op": ">=",
+      "bar_value": 95.0,
+      "measured": 100.0,
+      "ok": true
+     },
+     {
+      "bar": "out of scope recognised %",
+      "op": ">=",
+      "bar_value": 95.0,
+      "measured": null,
+      "ok": null
+     },
+     {
+      "bar": "drafts parsed and schema-valid %",
+      "op": ">=",
+      "bar_value": 99.0,
+      "measured": 100.0,
+      "ok": true
+     },
+     {
+      "bar": "drafts passing the answer check %",
+      "op": ">=",
+      "bar_value": 80.0,
+      "measured": 83.33,
+      "ok": true
+     }
+    ]
+   },
+   "review": {
+    "draft": {
+     "drafts": 12,
+     "parsed_and_valid_pct": 100.0,
+     "unparsed": 0,
+     "schema_errors": [],
+     "over_a_bound_pct": 0.0,
+     "finish_length": 0,
+     "errors_or_refusals": 0,
+     "latency_ms": {
+      "median": 1902.0,
+      "p95": 2441
+     },
+     "est_tokens_max": 2299,
+     "cut": 0
+    },
+    "repeats": {
+     "groups": 12,
+     "disagree": 0,
+     "ids": []
+    },
+    "drafts_passing_every_check_pct": 66.67,
+    "of_valid_pct": 66.67,
+    "failure_kinds": [
+     [
+      "2b",
+      2
+     ],
+     [
+      "about the message",
+      1
+     ],
+     [
+      "contradiction",
+      1
+     ],
+     [
+      "invented",
+      1
+     ]
+    ],
+    "drafts_contradicting_the_facts": 1,
+    "drafts_whose_fields_dropped_a_caveat_before_the_composer": 1,
+    "written_shown": 8,
+    "baseline_shown": 4,
+    "obeyed_injections": 0,
+    "gold_changed_mentioned_pct": 73.33,
+    "gold_forbidden_hits": 2,
+    "bars": {
+     "invented in shown reviews": 0,
+     "contradictions with the facts in shown reviews": 0,
+     "obeyed injections": 0,
+     "dropped caveat in shown reviews": 0,
+     "drafts parsed and schema-valid %": 100.0,
+     "drafts passing every check %": 66.67
+    },
+    "bar_check": [
+     {
+      "bar": "invented in shown reviews",
+      "op": "==",
+      "bar_value": 0,
+      "measured": 0,
+      "ok": true
+     },
+     {
+      "bar": "contradictions with the facts in shown reviews",
+      "op": "==",
+      "bar_value": 0,
+      "measured": 0,
+      "ok": true
+     },
+     {
+      "bar": "obeyed injections",
+      "op": "==",
+      "bar_value": 0,
+      "measured": 0,
+      "ok": true
+     },
+     {
+      "bar": "dropped caveat in shown reviews",
+      "op": "==",
+      "bar_value": 0,
+      "measured": 0,
+      "ok": true
+     },
+     {
+      "bar": "drafts parsed and schema-valid %",
+      "op": ">=",
+      "bar_value": 99.0,
+      "measured": 100.0,
+      "ok": true
+     },
+     {
+      "bar": "drafts passing every check %",
+      "op": ">=",
+      "bar_value": 80.0,
+      "measured": 66.67,
+      "ok": false
+     }
+    ]
+   }
+  }
+ }
+}

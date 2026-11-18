@@ -1,0 +1,150 @@
+[
+ {
+  "pair": "heldout-review-001",
+  "item": "H003",
+  "source": "Renamed the flag to --dry-run everywhere, docs updated too.",
+  "facts": {
+   "outcome": "success",
+   "tests": {
+    "state": "unknown"
+   },
+   "level": "L0"
+  },
+  "first": "Changed: renamed the flag to --dry-run everywhere, docs updated too\nLeft: nothing stated\nRisk: not stated",
+  "second": "Changed: Renamed the flag to --dry-run everywhere, docs updated too.\nLeft: nothing stated\nRisk: not stated"
+ },
+ {
+  "pair": "heldout-review-002",
+  "item": "H009",
+  "source": "I changed the cron expression in deploy/jobs.yaml from every 15 to every 30 minutes. I haven't run anything.",
+  "facts": {
+   "outcome": "success",
+   "tests": {
+    "state": "not_run"
+   },
+   "level": "L1"
+  },
+  "first": "Changed: I changed the cron expression in deploy/jobs.yaml from every 15 to every 30 minutes.\nNot checked: I haven't run anything.\nLeft: nothing stated\nRisk: medium",
+  "second": "Changed: I changed the cron expression in deploy/jobs.yaml from every 15 to every 30 minutes\nNot checked: I haven't run anything\nLeft: nothing stated\nRisk: medium (I haven't run anything)"
+ },
+ {
+  "pair": "heldout-review-003",
+  "item": "H010",
+  "source": "Die Validierung für das Kontaktformular ist umgebaut (src/forms/contact.ts). Ich habe die Tests nicht ausgeführt, da in dieser Umgebung kein Node installiert ist.",
+  "facts": {
+   "outcome": "success",
+   "tests": {
+    "state": "not_run"
+   },
+   "level": "L1"
+  },
+  "first": "Geändert: Die Validierung für das Kontaktformular ist umgebaut (src/forms/contact.ts).\nNicht geprüft: Ich habe die Tests nicht ausgeführt, da in dieser Umgebung kein Node installiert ist.\nOffen: nichts genannt\nRisiko: mittel",
+  "second": "Geändert: die Validierung für das Kontaktformular ist umgebaut (src/forms/contact.ts)\nNicht geprüft: ich habe die Tests nicht ausgeführt, da in dieser Umgebung kein Node installiert ist\nOffen: nichts genannt\nRisiko: mittel (Tests nicht ausgeführt, da in dieser Umgebung kein Node installiert ist)"
+ },
+ {
+  "pair": "heldout-review-004",
+  "item": "H011",
+  "source": "The Dockerfile now uses a multi-stage build and drops the dev toolchain from the final layer. I couldn't build the image here (no Docker daemon), so the size reduction is unverified and the entrypoint path in docker/run.sh is untested.",
+  "facts": {
+   "outcome": "success",
+   "tests": {
+    "state": "not_run"
+   },
+   "level": "L1"
+  },
+  "first": "Changed: the Dockerfile now uses a multi-stage build and drops the dev toolchain from the final lay\nNot checked: I couldn't build the image here (no Docker daemon); the size reduction is unverified\nLeft: the entrypoint path in docker/run.sh is untested\nRisk: medium (I couldn't build the image here (no Docker daemon))",
+  "second": "Changed: The Dockerfile now uses a multi-stage build and drops the dev toolchain from the final layer.\nNot checked: I couldn't build the image here (no Docker daemon), so the size reduction is unverified and the entrypoint path in...\nLeft: nothing stated\nRisk: medium"
+ },
+ {
+  "pair": "heldout-review-005",
+  "item": "H012",
+  "source": "Patched the off-by-one in paginate() in src/list.rs, didn't run tests. Should be fine.",
+  "facts": {
+   "outcome": "success",
+   "tests": {
+    "state": "not_run"
+   },
+   "level": "L1"
+  },
+  "first": "Changed: patched the off-by-one in paginate() in src/list.rs\nNot checked: didn't run tests\nLeft: should be fine\nRisk: medium (didn't run tests)",
+  "second": "Changed: Patched the off-by-one in paginate() in src/list.rs, didn't run tests.\nNot checked: Patched the off-by-one in paginate() in src/list.rs, didn't run tests.\nLeft: nothing stated\nRisk: medium"
+ },
+ {
+  "pair": "heldout-review-006",
+  "item": "H013",
+  "source": "I couldn't get the build to pass. After bumping the compiler target, 12 tests in tests/render fail with 'undefined symbol: gl_init' (44 others pass). The branch is currently broken and I have not reverted anything.",
+  "facts": {
+   "outcome": "failure",
+   "tests": {
+    "state": "ran",
+    "passed": 44,
+    "failed": 12
+   },
+   "level": "L3"
+  },
+  "first": "Changed: After bumping the compiler target, 12 tests in tests/render fail with 'undefined symbol: gl_init' (44 others pass).\nLeft: nothing stated\nRisk: high",
+  "second": "Changed: I couldn't get the build to pass. After bumping the compiler target, 12 tests in tests/re\nNot checked: the branch is currently broken and I have not reverted anything\nLeft: 12 tests in tests/render fail with 'undefined symbol: gl_init' (44 others pass)\nRisk: high (12 tests in tests/render fail with 'undefined symbol: gl_init')"
+ },
+ {
+  "pair": "heldout-review-007",
+  "item": "H015",
+  "source": "Tried three approaches to fix the flaky websocket test and none worked. It still fails about 1 run in 4, so I gave up; notes are in notes/ws-flaky.md. The other 7 tests in that file pass.",
+  "facts": {
+   "outcome": "failure",
+   "tests": {
+    "state": "ran",
+    "passed": 7,
+    "failed": 1
+   },
+   "level": "L3"
+  },
+  "first": "Changed: It still fails about 1 run in 4, so I gave up; notes are in notes/ws-flaky.md.\nLeft: It still fails about 1 run in 4, so I gave up; notes are in notes/ws-flaky.md.\nRisk: high",
+  "second": "Changed: tried three approaches to fix the flaky websocket test and none worked\nLeft: it still fails about 1 run in 4, so I gave up; notes are in notes/ws-flaky.md\nRisk: high (it still fails about 1 run in 4)"
+ },
+ {
+  "pair": "heldout-review-008",
+  "item": "H016",
+  "source": "Good news: the lint errors are gone. Bad news: while removing unused imports I deleted a re-export that cli/main.rs needs, so cargo build now errors with E0432. I haven't fixed it yet.",
+  "facts": {
+   "outcome": "failure",
+   "tests": {
+    "state": "unknown"
+   },
+   "level": "L3"
+  },
+  "first": "Changed: good news: the lint errors are gone; while removing unused imports I deleted a re-export that cli/main.rs needs\nLeft: I haven't fixed it yet\nRisk: high (cargo build now errors with E0432)",
+  "second": "Changed: Bad news: while removing unused imports I deleted a re-export that cli/main.rs needs, so cargo build now errors with E0432.\nLeft: I haven't fixed it yet.\nRisk: high"
+ },
+ {
+  "pair": "heldout-review-009",
+  "item": "H021",
+  "source": "Pure refactor: extracted the retry loop from three handlers into utils/retry.js. No behaviour change; 112 tests pass, the same as before.",
+  "facts": {
+   "outcome": "success",
+   "tests": {
+    "state": "ran",
+    "passed": 112,
+    "failed": 0
+   },
+   "level": "L0"
+  },
+  "first": "Changed: extracted the retry loop from three handlers into utils/retry.js\nLeft: nothing stated\nRisk: not stated (112 tests pass, the same as before)",
+  "second": "Changed: Pure refactor: extracted the retry loop from three handlers into utils/retry.js.\nLeft: nothing stated\nRisk: low"
+ },
+ {
+  "pair": "heldout-review-010",
+  "item": "H023",
+  "source": "Moved the config loader from core/ to platform/config/ and fixed the imports. Nothing functional changed. The check in ci/imports.sh fails if anything still imports core.config, and it reports none. 9 unit tests pass.",
+  "facts": {
+   "outcome": "success",
+   "tests": {
+    "state": "ran",
+    "passed": 9,
+    "failed": 0
+   },
+   "level": "L0"
+  },
+  "first": "Changed: moved the config loader from core/ to platform/config/; fixed the imports\nLeft: nothing stated\nRisk: low (9 unit tests pass)",
+  "second": "Changed: Moved the config loader from core/ to platform/config/ and fixed the imports.\nLeft: nothing stated\nRisk: low"
+ }
+]

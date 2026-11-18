@@ -1,0 +1,130 @@
+[
+ {
+  "pair": "heldout-jobs-review-001",
+  "item": "R002",
+  "source": "Ich habe den Login-Dialog in der App 'Kornblume' überarbeitet: Die Datei web/login/form.tsx zeigt jetzt Fehlermeldungen direkt unter dem Feld an. Die Passwort-Zurücksetzen-Seite habe ich noch nicht angefasst, die bleibt wie sie war. Die Tests habe ich nicht ausgeführt, weil die Testdatenbank in dieser Umgebung nicht läuft. Ich habe nur im Browser kurz geprüft, dass die Meldung erscheint. Bitte lass die Tests lokal laufen, bevor du das übernimmst.",
+  "facts": {
+   "outcome": "success",
+   "tests": {
+    "state": "not_run",
+    "passed": 0,
+    "failed": 0
+   },
+   "level": "L1"
+  },
+  "first": "Geändert: Ich habe den Login-Dialog in der App 'Kornblume' überarbeitet\nNicht geprüft: Tests habe ich nicht ausgeführt\nOffen: die Passwort-Zurücksetzen-Seite habe ich noch nicht angefasst\nRisiko: mittel (Tests nicht ausgeführt, weil Testdatenbank nicht läuft)",
+  "second": "Geändert: Ich habe den Login-Dialog in der App 'Kornblume' überarbeitet: Die Datei web/login/form.tsx zeigt jetzt Fehlermeldungen direkt unter dem Feld an.\nNicht geprüft: Die Tests habe ich nicht ausgeführt, weil die Testdatenbank in dieser Umgebung nicht läuft.\nOffen: Die Passwort-Zurücksetzen-Seite habe ich noch nicht angefasst, die bleibt wie sie war.; Ich habe nur im Browser kurz geprüft, dass die Meldung erscheint.\nRisiko: mittel"
+ },
+ {
+  "pair": "heldout-jobs-review-002",
+  "item": "R003",
+  "source": "Partial progress on the nightly export job in the 'tidepool' repo. The scheduler hook in jobs/nightly_export.rs is done and compiles. The CSV writer in jobs/csv_out.rs is only stubbed, it returns an empty file for now. 12 tests pass; 3 are marked ignored until the writer exists. I did not touch the retry logic. Next step is the real writer, then the retry policy, which together are probably another hour of work.",
+  "facts": {
+   "outcome": "none",
+   "tests": {
+    "state": "ran",
+    "passed": 12,
+    "failed": 0
+   },
+   "level": "L2"
+  },
+  "first": "Changed: partial progress on the nightly export job in the 'tidepool' repo; the scheduler hook in jobs/nightly_export.rs is done and compiles; the CSV writer in jobs/csv_out.rs is only stubbed, it returns an empty file for now\nNot checked: I did not touch the retry logic\nLeft: 3 are marked ignored until the writer exists; the real writer; the retry policy\nRisk: medium (3 are marked ignored until the writer exists)",
+  "second": "Changed: Partial progress on the nightly export job in the 'tidepool' repo.\nLeft: Partial progress on the nightly export job in the 'tidepool' repo.; The CSV writer in jobs/csv_out.rs is only stubbed, it returns an empty file for now.\nRisk: medium"
+ },
+ {
+  "pair": "heldout-jobs-review-003",
+  "item": "R005",
+  "source": "Quick question before I continue with the cache layer in 'mossgate': should expired entries be deleted on read, or only by the hourly sweeper in cache/sweeper.go? Deleting on read is simpler but makes reads slower under load. So far I wrote the Entry type in cache/entry.go and 9 unit tests, all passing. I stopped here because the choice changes the API of Get(). Tell me which way you prefer and I'll finish the rest.",
+  "facts": {
+   "outcome": "question",
+   "tests": {
+    "state": "ran",
+    "passed": 9,
+    "failed": 0
+   },
+   "level": "L1"
+  },
+  "first": "Changed: wrote the Entry type in cache/entry.go\nLeft: choice changes the API of Get()\nRisk: medium (choice changes the API of Get())",
+  "second": "Changed: Quick question before I continue with the cache layer in 'mossgate': should expired entries be deleted on read, or only by the hourly sweeper in cache/sweeper.go?\nLeft: Quick question before I continue with the cache layer in 'mossgate': should expired entries be deleted on read, or...\nRisk: medium"
+ },
+ {
+  "pair": "heldout-jobs-review-004",
+  "item": "R007",
+  "source": "Fixed the crash when the sync folder is empty: sync/scan.py no longer indexes into the first entry blindly. The unit test I added, tests/test_scan_empty.py, passes, but another test, tests/test_scan_symlink.py, now fails. I think it was already flaky because it depends on the temp directory name. That makes 40 passing and 1 failing overall. I did not investigate the symlink failure further, so I cannot say whether my change caused it.",
+  "facts": {
+   "outcome": "success",
+   "tests": {
+    "state": "ran",
+    "passed": 40,
+    "failed": 1
+   },
+   "level": "L2"
+  },
+  "first": "Changed: fixed the crash when the sync folder is empty; sync/scan.py no longer indexes into the first entry blindly; unit test tests/test_scan_empty.py passes\nNot checked: another test tests/test_scan_symlink.py fails; so I cannot say whether my change caused it\nLeft: tests/test_scan_symlink.py fails; I did not investigate the symlink failure further\nRisk: medium (40 passing and 1 failing overall)",
+  "second": "Changed: Fixed the crash when the sync folder is empty: sync/scan.py no longer indexes into the first entry blindly.\nNot checked: I did not investigate the symlink failure further, so I cannot say whether my change caused it.\nLeft: nothing stated\nRisk: high"
+ },
+ {
+  "pair": "heldout-jobs-review-005",
+  "item": "R009",
+  "source": "I renamed the config key 'max_workers' to 'worker_limit' across the 'skiff' codebase: 14 files changed, mostly under src/runtime/ plus the sample file config/skiff.example.toml. I did not run any tests or the linter, since the sandbox has no network and the test runner needs to fetch fixtures. A rename like this can silently break users who keep the old key in their own config, and I did not add a fallback. Please run the suite before merging.",
+  "facts": {
+   "outcome": "success",
+   "tests": {
+    "state": "not_run",
+    "passed": 0,
+    "failed": 0
+   },
+   "level": "L2"
+  },
+  "first": "Changed: I renamed the config key 'max_workers' to 'worker_limit' across the 'skiff' codebase: 14 files changed, mostly under src/runtime/ plus the sample file config/skiff.example.toml.\nNot checked: I did not run any tests or the linter, since the sandbox has no network and the test runner needs to fetch fixtures.\nLeft: nothing stated\nRisk: medium",
+  "second": "Changed: renamed the config key 'max_workers' to 'worker_limit' across the 'skiff' codebase\nNot checked: did not run any tests or the linter\nLeft: a rename like this can silently break users who keep the old key in their own config; I did not add a fallback\nRisk: high (a rename like this can silently break users who keep the old key in their own config)"
+ },
+ {
+  "pair": "heldout-jobs-review-006",
+  "item": "R010",
+  "source": "Did the migration to the new logging format in 'quill-api'. All handlers under app/handlers/ now emit JSON lines through app/log.py. Good news: 64 tests pass. Bad news: the staging dashboard parses the old plain-text format, so its alerts will stop matching until someone updates the parser, and I have no access to that config. Also left as is: the batch scripts in scripts/ still print plain text.",
+  "facts": {
+   "outcome": "success",
+   "tests": {
+    "state": "ran",
+    "passed": 64,
+    "failed": 0
+   },
+   "level": "L2"
+  },
+  "first": "Changed: Did the migration to the new logging format in 'quill-api'.\nLeft: nothing stated\nRisk: low",
+  "second": "Changed: migration to the new logging format in 'quill-api'; all handlers under app/handlers/ now emit JSON lines through app/log.py; 64 tests pass\nLeft: staging dashboard parses the old plain-text format; its alerts will stop matching until someone updates the parser; batch scripts in scripts/ still print plain text\nRisk: high (staging dashboard parses the old plain-text format)"
+ },
+ {
+  "pair": "heldout-jobs-review-007",
+  "item": "R011",
+  "source": "Ich konnte den Bug mit den doppelten Benachrichtigungen nicht beheben. Die Ursache liegt vermutlich in notify/dispatch.ts, wo dasselbe Ereignis zweimal registriert wird, aber mein Patch hat den Test tests/dispatch.test.ts nicht grün bekommen: 5 bestanden, 3 fehlgeschlagen. Ich habe den Patch zurückgenommen. Wenn du mir sagst, ob Ereignisse idempotent sein sollen, versuche ich es mit einem anderen Ansatz.",
+  "facts": {
+   "outcome": "failure",
+   "tests": {
+    "state": "ran",
+    "passed": 5,
+    "failed": 3
+   },
+   "level": "L2"
+  },
+  "first": "Geändert: Ich konnte den Bug mit den doppelten Benachrichtigungen nicht beheben\nNicht geprüft: mein Patch hat den Test tests/dispatch.test.ts nicht grün bekommen\nOffen: 5 bestanden, 3 fehlgeschlagen\nRisiko: hoch (5 bestanden, 3 fehlgeschlagen)",
+  "second": "Geändert: Ich konnte den Bug mit den doppelten Benachrichtigungen nicht beheben.\nOffen: nichts genannt\nRisiko: hoch"
+ },
+ {
+  "pair": "heldout-jobs-review-008",
+  "item": "R012",
+  "source": "Finished the README rewrite for the 'pebble' CLI. It now covers install, the three subcommands (init, run, clean) and the exit codes in docs/exit-codes.md, which I also added. No code was touched, so no tests were run and none were needed. One thing to know: the install section says Python 3.9 or newer, but setup.cfg still says 3.8, and I left that mismatch alone. Please pick one.",
+  "facts": {
+   "outcome": "success",
+   "tests": {
+    "state": "not_run",
+    "passed": 0,
+    "failed": 0
+   },
+   "level": "L0"
+  },
+  "first": "Changed: finished the README rewrite for the 'pebble' CLI\nNot checked: no tests were run\nLeft: setup.cfg still says 3.8; one thing to know: the install section says Python 3.9 or newer\nRisk: medium (no tests were run)",
+  "second": "Changed: Finished the README rewrite for the 'pebble' CLI.\nNot checked: No code was touched, so no tests were run and none were needed.\nLeft: nothing stated\nRisk: medium"
+ }
+]
