@@ -101,6 +101,35 @@ describe("the checklist (D-126 §3)", () => {
   });
 });
 
+describe("the open item stays in view (the coordinator's critique: Turn on under the panel's foot at 1280 × 800)", () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it("the panel scrolls the open item whole into view as the checklist opens", () => {
+    // A panel 300 px tall; the open item, last, drawn at 400 to 560.
+    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (this: HTMLElement) {
+      const [top, bottom] = this.hasAttribute("data-canvas-scroll") ? [0, 300] : this.dataset.testid === "pool-checklist-open" ? [400, 560] : [0, 0];
+      return { top, bottom, left: 0, right: 100, width: 100, height: bottom - top, x: 0, y: top, toJSON: () => ({}) };
+    });
+    const view = render(
+      <div data-canvas-scroll>
+        <PoolChecklist rows={setupRows(facts, new Set())} onOpen={() => undefined} tools={{ kind: "ask" }} />
+      </div>,
+    );
+    expect(view.getByTestId("pool-checklist-open").textContent).toContain("Let them message each other");
+    expect(view.container.querySelector<HTMLElement>("[data-canvas-scroll]")!.scrollTop).toBe(272);
+  });
+
+  it("the panel's foot is in the list's flow, under the items, never fixed over them", async () => {
+    resetCanvasTests();
+    bridge({ asked: false, on: false });
+    seedTeam();
+    const view = await openPage();
+    const foot = await view.findByTestId("pool-overview-foot");
+    expect(view.getByTestId("inspector-body").contains(foot)).toBe(true);
+    expect(view.getByTestId("inspector-body").lastElementChild).toBe(foot);
+  });
+});
+
 describe("setting up or running", () => {
   it("running once a session has joined and setup is done, or on Hide setup", () => {
     expect(setupPhase({ joined: false, complete: true, hidden: false })).toBe("setup");

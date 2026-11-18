@@ -195,7 +195,7 @@ function Live({ pool, canvas, now, onSelect, quietWhenEmpty = false }: OverviewP
 export function OverviewFoot({ phase, progress, hidden, onHide, onEdit, onSettings }: { phase: SetupPhase; progress: SetupProgress; hidden: boolean; onHide: () => void; onEdit: () => void; onSettings: () => void }): JSX.Element {
   const link = "inline-flex w-fit items-center gap-1 rounded text-meta font-medium text-accent-hi outline-none hover:underline focus-visible:ring-2 focus-visible:ring-accent/60";
   return (
-    <div className="flex shrink-0 flex-col gap-3 px-4 pb-4 pt-2" data-testid="pool-overview-foot">
+    <div className="mt-auto flex shrink-0 flex-col gap-3 px-4 pb-4 pt-2" data-testid="pool-overview-foot">
       {phase === "setup" && (
         <Alert level="info" live={null} className="text-label" testId="pool-setup-foot">
           {SETUP.foot}{" "}

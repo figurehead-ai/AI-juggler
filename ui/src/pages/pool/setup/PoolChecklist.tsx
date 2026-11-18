@@ -15,7 +15,7 @@
  * never "done" (round 6). Where something else is selected it shrinks to
  * one line that opens it again.
  */
-import type { JSX, ReactNode } from "react";
+import { useLayoutEffect, useRef, type JSX, type ReactNode } from "react";
 
 import { Button } from "../../../components/primitives";
 import { IconCheck } from "../../../components/icons-controls";
@@ -26,6 +26,7 @@ import { STEP_WORDS, type SETUP_STEPS } from "../../../lib/pool-words";
 import { OPEN_ACTION, TOOLS_ITEM, leftWords } from "../setup-words";
 import { SetupRing } from "../SetupRing";
 import { ToolsItemBody } from "./ToolsItem";
+import { revealInList } from "../../../lib/reveal";
 
 type Step = (typeof SETUP_STEPS)[number];
 
@@ -101,14 +102,14 @@ export function PoolChecklist({
   return (
     <section aria-labelledby="pool-checklist-title" className="mx-4 mb-3 flex flex-col gap-3" data-testid="pool-checklist">
       <ChecklistHead title={title} done={done} total={total} blocked={blocked} toolsOpen={toolsOpen} />
-      <ol className="flex flex-col gap-0.5">
+      <OpenInView open={openOf(next, toolsOpen)}>
         {rows.map((row, at) => (
           <StepRow key={row.step} row={row} n={at + 1} open={row.step === next?.step} value={values[row.step]} primary={primary} onOpen={onOpen} />
         ))}
         {tools && (
           <ToolsRow state={tools} n={rows.length + 1} open={toolsOpen} primary={primary} />
         )}
-      </ol>
+      </OpenInView>
       <ChecklistFoot blockers={blockers} toolsLeft={!next && !tools ? toolsLeft : null} />
     </section>
   );
@@ -134,6 +135,25 @@ function ChecklistFoot({ blockers, toolsLeft }: { blockers: readonly string[]; t
     </p>
   );
 }
+
+/** The steps; the open one whole in the panel's view, as the checklist
+ * opens and when it moves on (at 1280 × 800 the last one, with the view's
+ * one primary, sat under the panel's foot). */
+function OpenInView({ open, children }: { open: string | null; children: ReactNode }): JSX.Element {
+  const list = useRef<HTMLOListElement | null>(null);
+  useLayoutEffect(() => {
+    const item = list.current?.querySelector<HTMLElement>('[data-testid="pool-checklist-open"]');
+    if (open && item) revealInList(item);
+  }, [open]);
+  return (
+    <ol ref={list} className="flex flex-col gap-0.5">
+      {children}
+    </ol>
+  );
+}
+
+/** Which item is open: the first step not done, else the team tools. */
+const openOf = (next: SetupRow | undefined, toolsOpen: boolean): string | null => next?.step ?? (toolsOpen ? "tools" : null);
 
 /** What's next, for the one line. */
 function nextWordsOf(next: SetupRow | undefined, toolsOpen: boolean): string {

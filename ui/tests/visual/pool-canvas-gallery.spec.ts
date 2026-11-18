@@ -206,24 +206,38 @@ for (const theme of ["dark", "light"] as const) {
   // session joins: the planned team drawn, the checklist with its ring
   // and the team tools as its open item, "Setting up" in the header, Add
   // a member. Beside the running Checkout team (canvas-1280x800).
-  test(`the setting-up canvas: the planned team and the checklist — 1280x800 ${theme}`, async ({ page }) => {
-    const seed = canvasSeed(GATE_NOW);
-    const rule = (member: string, kind: string, role: string) => ({ member, kind, role, level: null, joined_at: 1, sessions: 0, session_ids: [] });
-    await open(page, theme, 1280, 800, {
-      __AIJ_POOLS__: { ...seed.__AIJ_POOLS__, pools: [...seed.__AIJ_POOLS__.pools, { id: "pool-web", name: "Web team", rules: [] }] },
-      __AIJ_POOL_RULES__: { "pool-web": { members: [rule("app:cli:claude-work", "app", "member"), rule("app:cli:claude-personal", "app", "reviewer"), rule("all", "everyone", "member")], talk: [], lead_next: "cli:claude-work" } },
-      __AIJ_AGENT_BRIDGE__: { asked: false, on: false },
+  for (const [width, height] of SIZES) {
+    const size = `${width}x${height}`;
+    test(`the setting-up canvas: the planned team and the checklist — ${size} ${theme}`, async ({ page }) => {
+      const seed = canvasSeed(GATE_NOW);
+      const rule = (member: string, kind: string, role: string) => ({ member, kind, role, level: null, joined_at: 1, sessions: 0, session_ids: [] });
+      await open(page, theme, width, height, {
+        __AIJ_POOLS__: { ...seed.__AIJ_POOLS__, pools: [...seed.__AIJ_POOLS__.pools, { id: "pool-web", name: "Web team", rules: [] }] },
+        __AIJ_POOL_RULES__: { "pool-web": { members: [rule("app:cli:claude-work", "app", "member"), rule("app:cli:claude-personal", "app", "reviewer"), rule("all", "everyone", "member")], talk: [], lead_next: "cli:claude-work" } },
+        __AIJ_AGENT_BRIDGE__: { asked: false, on: false },
+      });
+      await poolsScreen(page);
+      await page.getByTestId("pool-card-tile").filter({ hasText: "Web team" }).click();
+      // Under 1100 px a pool opens as rows until you choose the canvas.
+      if (width < 1100) await page.getByTestId("pool-mode-canvas").click();
+      await expect(page.getByTestId("planned-team").getByTestId("planned-card")).toHaveCount(3);
+      // Each by its one short identity, as the mock's cards (the critique:
+      // "Claude Code CLI · Wo…").
+      await expect(page.locator("[data-planned-name]")).toHaveText(["Work Max", "Personal", "Everyone in every project"]);
+      await expect(page.getByTestId("pool-header-setup")).toContainText("Setting up ·");
+      await expect(page.getByTestId("pool-checklist-open")).toContainText("Let them message each other");
+      await expect(page.getByTestId("canvas-palette").getByRole("button", { name: "Add a member" })).toBeVisible();
+      // The open item's primary is whole in the panel's view, never under
+      // its foot (the critique at 1280 × 800).
+      const primary = page.getByTestId("pool-checklist-open").getByRole("button", { name: "Turn on team tools" });
+      await expect(primary).toBeInViewport({ ratio: 1 });
+      const [it, panel] = await Promise.all([primary.boundingBox(), page.getByTestId("inspector-body").boundingBox()]);
+      expect(it!.y >= panel!.y && it!.y + it!.height <= panel!.y + panel!.height, "Turn on team tools whole in the panel's view").toBe(true);
+      await page.mouse.move(0, 0);
+      await page.screenshot({ path: resolve(OUT, `canvas-setup-${size}-${theme}.png`) });
+      await axe(page, `setting-up canvas ${size} ${theme}`);
     });
-    await poolsScreen(page);
-    await page.getByTestId("pool-card-tile").filter({ hasText: "Web team" }).click();
-    await expect(page.getByTestId("planned-team").getByTestId("planned-card")).toHaveCount(3);
-    await expect(page.getByTestId("pool-header-setup")).toContainText("Setting up ·");
-    await expect(page.getByTestId("pool-checklist-open")).toContainText("Let them message each other");
-    await expect(page.getByTestId("canvas-palette").getByRole("button", { name: "Add a member" })).toBeVisible();
-    await page.mouse.move(0, 0);
-    await page.screenshot({ path: resolve(OUT, `canvas-setup-1280x800-${theme}.png`) });
-    await axe(page, `setting-up canvas ${theme}`);
-  });
+  }
 
   test(`an edge's conversation — 1280x800 ${theme}`, async ({ page }) => {
     await open(page, theme, 1280, 800);

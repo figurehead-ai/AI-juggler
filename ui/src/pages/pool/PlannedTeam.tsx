@@ -19,6 +19,7 @@ import { logoOf, MemberLogo, type LogoSources } from "../../components/MemberLog
 import { useDesktopMembers } from "../../lib/connector";
 import type { PoolRuleInfo } from "../../lib/ipc/pool-model";
 import { usePendingAdds } from "../../lib/pool-pending";
+import { shortNames } from "../../lib/pool-values";
 import { APP_KIND_WORDS, JOINS_BY_ITSELF, LEAD_WOULD, NO_LEAD_YET, asRole, asTalkRule, leadNextLine } from "../../lib/pool-words";
 import { roleLabel } from "../../lib/pools";
 import { cliFolderOf } from "../../lib/start-lead";
@@ -38,7 +39,9 @@ const TOP = 24;
 const PITCH = 200;
 const PER_ROW = 3;
 
-type Card = { ref: string; label: string; sub: string; body: string; role: string; logo: ReactNode; broad: boolean; pending?: boolean; start?: boolean };
+/** `label`: its short identity on the card; `full`: its whole name (the
+ * tooltip, the inspector's title). */
+type Card = { ref: string; label: string; full?: string; sub: string; body: string; role: string; logo: ReactNode; broad: boolean; pending?: boolean; start?: boolean };
 
 /** Each card's place under the lead: centred rows of up to three. */
 export function plannedPlaces(count: number, top: number): { x: number; y: number }[] {
@@ -97,6 +100,11 @@ export function PlannedTeam({
     observer?.observe(node);
     return () => observer?.disconnect();
   }, []);
+  // D-126 (the mock's "Claude", "Codex", "Everyone in web"): each card by
+  // the one short identity the wizard and the checklist use — an App's
+  // app word where it's the only one, its profile where two share it.
+  const shorts = shortNames(rules.map(labelOf), rules.map((one) => one.member));
+  const short = new Map(rules.map((rule, at) => [rule.member, rule.member === "all" ? `Everyone in ${where}` : shorts[at]!] as const));
   const card = (rule: PoolRuleInfo): Card => {
     const logo = logoOf(rule.member, logos);
     const lead = rule.member === leadNext;
@@ -104,7 +112,8 @@ export function PlannedTeam({
     const role = lead ? "lead" : asRole(rule.role);
     return {
       ref: rule.member,
-      label: labelOf(rule),
+      label: short.get(rule.member) ?? labelOf(rule),
+      full: labelOf(rule),
       sub: lead ? leadNextLine(where) : `${roleLabel(rule.role)} · ${kind}`,
       body: lead ? PLANNED.leadBody : rule.member === "all" ? `${JOINS_BY_ITSELF}.` : PLANNED.appBody(where),
       role,
@@ -140,8 +149,8 @@ export function PlannedTeam({
         </svg>
         {head && (
           <PlannedCard card={head} at={{ x: 0, y: TOP }} lead box={top} selected={picked(head.ref)} onSelect={() => onSelect({ kind: "rule", ref: head.ref })}>
-            {head.start && onStartLead && <StartLeadButton member={head.ref} name={head.label} where={where} onStart={onStartLead} testId="planned-start-lead" />}
-            <ConnectorFix info={desktop?.get(head.ref)} label={head.label} onOpen={() => onSelect({ kind: "rule", ref: head.ref })} />
+            {head.start && onStartLead && <StartLeadButton member={head.ref} name={head.full ?? head.label} where={where} onStart={onStartLead} testId="planned-start-lead" />}
+            <ConnectorFix info={desktop?.get(head.ref)} label={head.full ?? head.label} onOpen={() => onSelect({ kind: "rule", ref: head.ref })} />
           </PlannedCard>
         )}
         {!head && noLead && (
@@ -155,7 +164,7 @@ export function PlannedTeam({
         )}
         {rest.map((one, at) => (
           <PlannedCard key={one.ref} card={one} at={places[at]!} selected={picked(one.ref)} onSelect={() => onSelect({ kind: "rule", ref: one.ref })}>
-            <ConnectorFix info={one.pending ? undefined : desktop?.get(one.ref)} label={one.label} onOpen={() => onSelect({ kind: "rule", ref: one.ref })} />
+            <ConnectorFix info={one.pending ? undefined : desktop?.get(one.ref)} label={one.full ?? one.label} onOpen={() => onSelect({ kind: "rule", ref: one.ref })} />
           </PlannedCard>
         ))}
       </div>
@@ -191,12 +200,16 @@ function PlannedCard({ card, at, lead = false, box, selected, onSelect, children
             onClick={onSelect}
             aria-pressed={selected}
             aria-describedby={`${id}-sub ${id}-body`}
-            className="truncate rounded text-left text-body font-semibold text-ink outline-none after:absolute after:inset-0 after:rounded-[14px] focus-visible:after:outline-2 focus-visible:after:outline-offset-4 focus-visible:after:outline-ink-2"
-            title={card.label}
+            className="rounded text-left text-body font-semibold text-ink outline-none after:absolute after:inset-0 after:rounded-[14px] focus-visible:after:outline-2 focus-visible:after:outline-offset-4 focus-visible:after:outline-ink-2"
+            title={card.full ?? card.label}
           >
-            {card.label}
+            {/* Two lines before it's cut (WebKit clamps a span, not a
+                button's own text). */}
+            <span className="line-clamp-2 [overflow-wrap:anywhere]" data-planned-name>
+              {card.label}
+            </span>
           </button>
-          <span id={`${id}-sub`} className="truncate text-label text-muted">
+          <span id={`${id}-sub`} className="line-clamp-2 text-label text-muted">
             {card.sub}
           </span>
         </span>

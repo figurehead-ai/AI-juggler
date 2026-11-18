@@ -272,7 +272,10 @@ export const Inspector = forwardRef<HTMLHeadingElement, {
       <HeadOfInspector head={head} member={member} kind={selection.kind} quiet={quietHead} linked={linked} heading={heading} onBack={() => onSelect({ kind: "none" })} />
       {/* A new selection opens at its top (the list kept the last one's
           scroll: the pool's settings opened halfway down). */}
-      <ScrollEdge key={JSON.stringify(selection)} className={"min-h-0 flex-1 overflow-y-auto " + (quietHead ? "pb-4 pt-4" : "pb-6")} data-canvas-scroll data-testid="inspector-body">
+      {/* With nothing selected its foot is in the list's flow, under the
+          items, at the panel's foot when they're short (the mock's; fixed
+          over the list it hid the open item's Turn on at 1280 × 800). */}
+      <ScrollEdge key={JSON.stringify(selection)} className={"flex min-h-0 flex-1 flex-col overflow-y-auto [&>*]:shrink-0 " + (selection.kind === "none" ? (quietHead ? "pt-4" : "") : "pb-6")} data-canvas-scroll data-testid="inspector-body">
         {selection.kind === "pool" ? (
           <>
             <PoolProgress {...overview} />
@@ -310,8 +313,8 @@ export const Inspector = forwardRef<HTMLHeadingElement, {
         ) : (
           <RunningSummary {...overview} leadNext={leadNext} />
         )}
+        {selection.kind === "none" && <OverviewFoot phase={phase} progress={progress} hidden={hidden} onHide={onHide} onEdit={onEdit} onSettings={() => onSelect({ kind: "pool" })} />}
       </ScrollEdge>
-      {selection.kind === "none" && <OverviewFoot phase={phase} progress={progress} hidden={hidden} onHide={onHide} onEdit={onEdit} onSettings={() => onSelect({ kind: "pool" })} />}
     </aside>
   );
 });

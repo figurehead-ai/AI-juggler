@@ -72,12 +72,24 @@ describe("the planned team on the diagram (D-126 §3)", () => {
     expect(within(cards[2]!).getByTestId("member-logo").dataset.logo).toBe("tile");
   });
 
+  it("each card says its member by the one short identity, on two lines before it's cut (the coordinator's critique: \"Claude Code CLI · Wo…\")", async () => {
+    const view = await openPlanned();
+    const cards = within(await view.findByTestId("planned-team")).getAllByTestId("planned-card");
+    const names = cards.map((card) => card.querySelector<HTMLElement>("[data-planned-name]"));
+    // Two Apps of one tool: by their profiles; everyone by where it is.
+    expect(names.map((name) => name?.textContent)).toEqual(["Work Max", "Personal", "Everyone in every project"]);
+    for (const name of names) expect(name!.className.split(" ")).toContain("line-clamp-2");
+    // The whole name stays its tooltip.
+    expect(within(cards[0]!).getByRole("button", { name: "Work Max" }).getAttribute("title")).toBe("Claude Code CLI · Work Max");
+  });
+
   it("each card is a button by its name; a press opens it in the inspector", async () => {
     const view = await openPlanned();
     const team = await view.findByTestId("planned-team");
     const everyone = within(team).getByRole("button", { name: /^Everyone/ });
     fireEvent.click(everyone, { detail: 0 });
-    await waitFor(() => expect(view.getByTestId("inspector-title").textContent).toBe(everyone.textContent));
+    // Its whole name is the inspector's title (the card says it short).
+    await waitFor(() => expect(view.getByTestId("inspector-title").textContent).toBe(everyone.getAttribute("title")));
     expect(everyone.getAttribute("aria-pressed")).toBe("true");
   });
 
