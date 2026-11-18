@@ -1,6 +1,6 @@
 # ADR-0037: One memory and context system for Chat now and the 0.6 bot later: a supersede-only store, live facts over stored ones, one assembler with per-job budgets, and an append-only log
 
-**Status:** Proposed (2026-11-18, Opus). Building starts once the coordinating session has reviewed it; ADR-0036's building waits on its store and log (§11).
+**Status:** Accepted (2026-11-18, the coordinating session), with §1.8's backup rule (D-133's backup ruling) in place of the proposal that memory never travels in a backup. ADR-0036's building waits on this ADR's store and log (Order of work, step 1).
 **Date:** 2026-11-18
 **Deciders:** Opus (design); the coordinating session (review); the maintainer (D-133, and the open question at the end)
 **Serves:** D-133 as extended (one memory and context system for 0.5 Chat and the 0.6 bot); D-130 as clarified (the read-only jobs' severity rules; the bot's own, stricter harness); D-132 and [ADR-0036](./0036-digest-and-watches.md) (the digest and watches, which live on this store, write this log and use this assembler); [ADR-0034](./0034-ai-jobs-router.md) (the router, the queue, Chat v1, its look-ups, §6.4's budget, §6.7's history); [ADR-0033](./0033-feed-summary-engines.md) (the guard, agent text as untrusted data); [ADR-0035](./0035-remote-config.md) (flags); [ADR-0019](./0019-extension-architecture.md) (features as modules); [ADR-0023](./0023-local-cache.md) (the cache registry); [ADR-0030](./0030-storage-concurrency.md) (one writer lock, short holds); [ADR-0016](./0016-backup-archive-format.md) (the backup's scrub); D-14 (secrets hidden); D-52 (OS seams); D-117 (levels from facts); D-123 (the bot in 0.6); D-126 (rich settings); D-127 (never show what can't be used); E38 ([`E38-chat.md`](../tasks/E38-chat.md), AJ-E3819)
@@ -128,7 +128,7 @@ Forgetting a record forgets its **subject**: every version of that subject key. 
 
 **The same deletion reaches every copy AI Juggler keeps:**
 - **Pre-migration copies** (`<file>.before-v<N>`): when a copy is written, the memory, conversation and log-text tables are emptied in the copy with `secure_delete` on before it is flushed. A copy exists for going back to an older build; going back costs the memory, which is the safe direction.
-- **Backups** (ADR-0016): the same tables join `MACHINE_ONLY_TABLES`, and the scrub runs with `secure_delete` on. A backup never carries memory; a restore keeps this Mac's own (as it does for the other machine-only tables).
+- **Backups** (ADR-0016): by §1.8's rule. A backup is a snapshot of the database as it is now, so a forgotten subject is in no backup made after the forget; its scrub runs with `secure_delete` on and compacts the file, so no freed page carries it either. A forget also leaves a **tombstone** (`memory_forgotten`: the subject's random id and when, never its key or text, on this Mac only), and a restore drops every subject the tombstones name, so restoring an older backup on this Mac doesn't bring a forgotten memory back. Backups already made still hold what they held; the backup page says so (§1.8).
 
 **Clear actions** (Settings › AI › Memory, §9) are forgets over sets of subjects: "Forget everything about web" (by `memory_entities`), "Forget this conversation", "Forget all memory".
 
@@ -159,6 +159,22 @@ CREATE TABLE chat_turns (id TEXT PRIMARY KEY,
 - **The tables take V54**: the next free version after release/0.5 (V52) and release/0.4.6 (V53, which reaches release/0.5 when 0.4.6 merges). One migration holds every 0.5 table of this ADR: `memory_records`, `memory_entities`, `memory_fts` with its triggers, `chat_conversations`, `chat_turns`, `ai_log`, `ai_log_text`, `ai_log_prune` and their triggers. The number is checked again across every local and remote branch when AJ-E3819's first step is built, as D-numbers are; if a newer migration has landed by then, this one takes the next free number.
 - **0.6 adds and never rewrites:** new tables (`memory_links`, §8.1), new indexes and triggers, new kinds and log streams (the `kind`, `authority` and `stream` columns are text, checked in Rust, so no table rebuild is needed), and dropping the 0.5 trigger `memory_reserved_kinds`, which refuses the reserved kinds and the `bot` authority until then. No 0.5 column changes meaning.
 - **A forward-only test** opens a V53 fixture database, migrates it, and checks the new tables are empty and every existing table is byte-identical.
+
+#### 1.8 Backups: settings travel, Chat's words stay on this Mac's own backups (D-133's backup ruling)
+
+The coordinating session's call on this ADR's open question (2026-11-18), recorded in [D-133](../review/decision-log.md). Memory is split by what it is; the split is by row, decided by the record's kind and authority, and lives in one place (`storage::memory::backup`), which the backup's scrub calls for every destination:
+
+| What | Local backups (Export, the copy before an update) | The encrypted cloud backup (when it is on) |
+|---|---|---|
+| **Stated settings:** `standing_request` and `preference` versions whose authority is `user` (the watches and preferences the user set up), with their `memory_entities` rows | yes | yes |
+| **Chat's words and what was derived from them:** every other record (`note`, `asked`, `answer`, `digest`, anything `model`- or `agent`-authored, an earlier model-noted version of a preference), `chat_conversations`, `chat_turns`, the log (`ai_log`, its sidecars, its watermarks) | yes | **never** (D-121: Chat's content never leaves the Mac) |
+| **Forget tombstones** (`memory_forgotten`) | no: this Mac's own, kept on restore | no |
+
+- **A note is Chat's words.** The user stated it, but in free words typed into Chat, which can hold anything; so it travels as chat history does: local backups only. Watches and preferences are typed settings from a closed set of slots (§1.1).
+- **A stated setting goes with its history, minus what isn't a setting:** an earlier, model-noted version of a preference the user then restated stays out of the cloud copy, and the link to it is cut (`supersedes` set to NULL, the one change the content triggers allow, §1.4).
+- **The cloud copy's FTS index is rebuilt** from what remains, and the log's watermarks move past what was removed (as Clear AI activity does, §7.3), so the copy's own triggers hold.
+- **Forget reaches the next backup** (§1.5): the backup page says, beside the memory line, "Forgotten memories are left out of every backup made after you forget them. Backups you made before still hold them; restoring one on this Mac doesn't bring them back."
+- **Restoring a cloud backup:** what it carries replaces the stated settings; whether this Mac's own Chat history is kept beside them, rather than replaced by the backup's (which has none), is decided with the backup page (AJ-E3819 step 4), and until then a restore replaces everything, as it does today.
 
 ### 2. Tiers, promotion, decay and maintenance
 
@@ -474,7 +490,7 @@ D-123 places the bot in 0.6 as an extension of Chat. It uses this store, this lo
 
 ### 9. Privacy
 
-- **Everything on this Mac.** The store, conversations and log are in AI Juggler's local database: never in the Fleet outbox or on a paired Mac, never in a backup (§1.5), never in usage statistics, crash reports or the app's logs (tracing gets ids and codes; a test greps captured logs for fixture memory text). The AI helpers keep ADR-0033 §4's no-network sandbox and never read the database (ADR-0034 §6.3).
+- **Everything on this Mac.** The store, conversations and log are in AI Juggler's local database: never in the Fleet outbox or on a paired Mac, in a cloud backup only as the stated watches and preferences (§1.8), never in usage statistics, crash reports or the app's logs (tracing gets ids and codes; a test greps captured logs for fixture memory text). The AI helpers keep ADR-0033 §4's no-network sandbox and never read the database (ADR-0034 §6.3).
 - **Settings › AI › Memory** (D-126's rich mode, reached also from Chat's panel and from each "What I used" line):
   - every current memory, grouped by kind (Your notes, Names you use, What matters to you, Watches, What you asked), each with its text, who it came from in plain words ("you said", "noted by AI (Beta)", "AI Juggler recorded"), its scope, its age, "used N times", and **Edit** (a new version), **Pin**, **Forget**; paged, never loaded all at once;
   - **Remember what I ask** (on by default): off stops new `asked` and `answer` records and forgets the existing ones, after a sheet that says so;
@@ -484,7 +500,7 @@ D-123 places the bot in 0.6 as an extension of Chat. It uses this store, this lo
 - **No secrets stored** (§1.3 step 4): a record holding one is refused, a question holding one is stored masked.
 - **Agent text is untrusted** everywhere it lands (§1.2): not indexed, not recalled, guarded where a job reads it, and gone when Last messages goes off.
 - **The trust guide's "AI on this Mac"** gains one row per claim, each with its named test (§10.1).
-- **STRIDE, briefly:** spoofing (a "What I used" line or a memory link opening something else: links come from ids, never from text); tampering (a planted order writing a memory: only the user's words after a cue, or a verbatim span of the user's message, can become one; agent text never); repudiation (every memory change, watch change, fire, alert, digest and turn is logged with its actor); information disclosure (no secrets kept; nothing leaves the Mac; forget scrubs pages, WAL, copies and backups); denial of service (the caps, the batches, the 600-character question); elevation (memory can't act; a remembered note is the user's words, framed as the user's, and a memory ref can't back a state claim, §3).
+- **STRIDE, briefly:** spoofing (a "What I used" line or a memory link opening something else: links come from ids, never from text); tampering (a planted order writing a memory: only the user's words after a cue, or a verbatim span of the user's message, can become one; agent text never); repudiation (every memory change, watch change, fire, alert, digest and turn is logged with its actor); information disclosure (no secrets kept; Chat's words reach only this Mac's own backups, the cloud backup carrying only the stated settings, §1.8; forget scrubs pages, the index, the WAL and the pre-migration copies, and no backup made after it holds the subject); denial of service (the caps, the batches, the 600-character question); elevation (memory can't act; a remembered note is the user's words, framed as the user's, and a memory ref can't back a state claim, §3).
 
 ### 10. Tests
 
@@ -542,7 +558,7 @@ The store, the log, the retriever, the assembler and the ledger are OS-neutral S
   - Forget has to reach the copies and the backup scrub, and its test reads raw file bytes.
   - Budget rows are a release artefact: a change re-runs the job's harness.
 - **Accepted:**
-  - Going back to an older build, or restoring a backup, keeps no memory from the copy.
+  - Going back to an older build keeps no memory from the pre-migration copy. A backup made before a forget still holds what was forgotten (only a restore on this Mac drops it, §1.5).
   - The ledger is plainer than a written summary; it keeps no answer content, so a follow-up looks again.
   - Inferred notes wait for their harness; until then Chat remembers only what the user said, asked and set.
   - The spine of the log keeps ids and codes for 90 days after the words are forgotten.
@@ -561,6 +577,6 @@ The store, the log, the retriever, the assembler and the ledger are OS-neutral S
 
 ## Open questions for the maintainer
 
-1. **Should memory travel in your backups?** Proposed: no. A backup file can be copied anywhere and kept for years, and "forget" can't reach it once it has left AI Juggler's folder; restoring keeps this Mac's own memory as it is. If yes, it would be a switch on the backup sheet, "Include what Chat remembers", off by default, saying that forgetting later won't reach that file.
+1. ~~**Should memory travel in your backups?**~~ **Decided** (the coordinating session, 2026-11-18, D-133's backup ruling): the stated watches and preferences travel as settings, locally and to the encrypted cloud backup; Chat's history, remembered answers, notes and inferred memories go to local backups only; Forget reaches the next backup and the backup page says so (§1.8).
 
 For the coordinating session: ADR-0036's seams (§1.2's `memory` section, §1.9's digest records, §2.4's assembler, §2.7's watch records and log, §4's untrusted marking) are all met here as written, so ADR-0036 needs no change. Two task-file notes: AJ-E3712, AJ-E3814 and AJ-E3817 should depend on AJ-E3819's step 1 (and AJ-E3815 on its step 2), and ADR-0036's order of work still names "AJ-E3713: job (e)", which has no task file; job (e)'s run is AJ-E3818.
