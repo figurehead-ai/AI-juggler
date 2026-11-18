@@ -457,7 +457,7 @@
 | AJ-E3709 | On-device summary lines: the multi-angle research pass (B research) | E37-home-activity-feed.md | P0 | M | AJ-E3702 |
 | AJ-E3710 | On-device summary lines: the design, an ADR for a pluggable SummaryEngine (B design) | E37-home-activity-feed.md | P0 | M | AJ-E3709 |
 | AJ-E3711 | On-device summary lines: detection, the three tiers, the automatic fetch, the notice and the Settings switch (B build) | E37-home-activity-feed.md | P0 | XL | AJ-E3710 |
-| AJ-E3712 | The digest: a cross-agent scheduler, the feed's digest item, consolidated notifications and the non-AI rollup | E37-home-activity-feed.md | P0 | XL | AJ-E3702, AJ-E3708, AJ-E3802 |
+| AJ-E3712 | The digest: a cross-agent scheduler, the feed's digest item, consolidated notifications and the non-AI rollup | E37-home-activity-feed.md | P0 | XL | AJ-E3702, AJ-E3708, AJ-E3802, AJ-E3819 |
 | AJ-E3801 | The AI-jobs router: the ADR (jobs, engines, capabilities) | E38-chat.md | P0 | M | AJ-E3710 |
 | AJ-E3802 | The router and the seam: jobs, engines, capabilities, hidden when no engine | E38-chat.md | P0 | L | AJ-E3801, AJ-E3708 |
 | AJ-E3803 | Disk rules: one downloaded model, approval for more, Settings total and Remove, free-disk margin | E38-chat.md | P0 | M | AJ-E3802 |
@@ -471,10 +471,10 @@
 | AJ-E3811 | The recommendation: the best model for this Mac, Apple's first when it passes | E38-chat.md | P0 | M | AJ-E3810, AJ-E3802 |
 | AJ-E3812 | Settings > AI > Models: Recommended, Other tested models, Installed | E38-chat.md | P0 | XL | AJ-E3810, AJ-E3811, AJ-E3803, AJ-E3618 |
 | AJ-E3813 | Downloads: one click, the size shown, a free-disk check, a verified hash, approval for each extra model | E38-chat.md | P0 | L | AJ-E3810, AJ-E3803 |
-| AJ-E3814 | The watch model: a typed rule over the event stream, evaluated deterministically | E38-chat.md | P0 | XL | AJ-E3802, AJ-E3702 |
+| AJ-E3814 | The watch model: a typed rule over the event stream, evaluated deterministically | E38-chat.md | P0 | XL | AJ-E3802, AJ-E3702, AJ-E3819 |
 | AJ-E3815 | Chat creates, changes and removes watches, after the user confirms | E38-chat.md | P0 | L | AJ-E3814, AJ-E3804, AJ-E3806 |
 | AJ-E3816 | The Watches view: list, edit and expire watches in rich mode | E38-chat.md | P0 | L | AJ-E3814, AJ-E3618 |
-| AJ-E3817 | Watch alerts through the existing notification path: quiet hours, consolidation, dismissal | E38-chat.md | P0 | M | AJ-E3814, AJ-E3712 |
+| AJ-E3817 | Watch alerts through the existing notification path: quiet hours, consolidation, dismissal | E38-chat.md | P0 | M | AJ-E3814, AJ-E3712, AJ-E3819 |
 | AJ-E3818 | The harness for the digest (job e) and watch parsing (job f), on D-130's criteria | E38-chat.md | P0 | L | AJ-E3709, AJ-E3712, AJ-E3815 |
 | AJ-E3819 | Chat memory, short and long term, with context budgets (ADR-0037) | E38-chat.md | P0 | XL | AJ-E3804, AJ-E3805, AJ-E3808, AJ-E3815 |
 Total: 475 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.

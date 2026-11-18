@@ -290,7 +290,7 @@
 **Research basis**: D-131 point 2; D-121 point 2; D-58; the public-repo security guide.
 **Handover note**: Use a stub server and a file of the right size; do not fetch a real model while building. The approval is per model and per time; never a standing yes.
 
-### AJ-E3814 The watch model: a typed rule over the event stream, evaluated deterministically (D-132) | Status: TODO | Priority P0 | Effort XL | Depends: AJ-E3802, AJ-E3702
+### AJ-E3814 The watch model: a typed rule over the event stream, evaluated deterministically (D-132) | Status: TODO | Priority P0 | Effort XL | Depends: AJ-E3802, AJ-E3702, AJ-E3819 (step 1: the store and log)
 **Goal**: A watch is a typed, closed-set rule that AI Juggler evaluates itself on its own events, with no model in the loop. The design is [ADR-0036](../adr/0036-digest-and-watches.md).
 **User story**: As a user, I can have "tell me when the api and web agents finish or get stuck" watched reliably, even with no AI available.
 **Requirements**:
@@ -347,7 +347,7 @@
 **Research basis**: D-132 point 2; D-126; view-and-edit-in-place.
 **Handover note**: This is the only creation path when no engine exists, so build it to stand alone.
 
-### AJ-E3817 Watch alerts through the existing notification path: quiet hours, consolidation, dismissal (D-132) | Status: TODO | Priority P0 | Effort M | Depends: AJ-E3814, AJ-E3712
+### AJ-E3817 Watch alerts through the existing notification path: quiet hours, consolidation, dismissal (D-132) | Status: TODO | Priority P0 | Effort M | Depends: AJ-E3814, AJ-E3712, AJ-E3819 (step 1: the store and log)
 **Goal**: A watch alerts the user the way every other need does, once, calmly and consolidated.
 **User story**: As a user with three watches firing together, I get one grouped alert, and none at night.
 **Requirements**:
