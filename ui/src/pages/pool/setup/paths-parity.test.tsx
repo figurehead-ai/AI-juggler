@@ -192,7 +192,13 @@ describe("AJ-E3011 round 3: New pool and the diagram say one pool the same way",
 // scope). Same steps, same step components, the same controls; if either
 // drifts, this fails.
 describe("AJ-E3011 round 5: an empty pool's setup is New pool's flow", () => {
-  const steps = () => [...document.querySelectorAll('[data-testid="new-pool-step"]')].map((step) => step.textContent);
+  // D-126: the steps are the kit's FlowSteps; each says its value too, which
+  // a prefilled pool's differs in by design, so the same steps means the
+  // same ids and the same names.
+  const steps = () =>
+    [...document.querySelectorAll<HTMLElement>('[data-testid="flow-step"]')].map(
+      (step) => `${step.dataset.step}: ${document.getElementById(step.getAttribute("aria-labelledby") ?? "")?.textContent ?? ""}`,
+    );
   const stepTitle = () => document.querySelector('[data-testid="new-pool-step-title"]')?.textContent;
 
   it("the same steps and the same first step, in place, with Show the diagram for Cancel", async () => {
