@@ -180,7 +180,8 @@ def turn_findings(view):
     return out
 GOLD_KIND = {"count": "count", "when": "when", "duration": "duration", "cost": "cost", "status": "status", "who": "string", "where": "string",
              "which": "string", "tests": "tests"}
-GOLD_KIND_FIELDS = {"who": {"author"}, "where": {"path"}, "which": {"branch", "path", "author"}, "count": {"files_changed", "tests_passed", "tests_failed"}}
+GOLD_KIND_FIELDS = {"who": {"author"}, "where": {"path"}, "which": {"branch", "path", "author", "failed_tests", "failing_tests", "failures", "passed_tests",
+                                                                     "changed_files", "files", "paths"}, "count": {"files_changed", "tests_passed", "tests_failed"}}
 def attr_matches(gold_attr, field, question=""):
     """the gold's attribute (a typed field, or a kind such as count or when) against a looked-up field: a field of the asked kind is
     the asked attribute when the question's own words name that field or none (round 2: 'count' asked and files_changed answered for

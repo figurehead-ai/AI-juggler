@@ -193,6 +193,9 @@ OUTPUT: {"pick": "unclear", "answer": "none"}
 
 | Fields | Kind | Pattern |
 |---|---|---|
+| failed_tests | names | `\b(?:which¦what)\s+(?:of\s+the\s+)?(?:[\w.-]+\s+)?tests?\s+(?:have\s+¦had\s+¦did\s+¦are\s+¦were\s+¦is\s+¦was\s+)?(?:fail¦failed¦failing¦broke¦break¦red)\b¦\bwelche[nrs]?\s+(?:[\w.-]+\s+)?tests?\b.{0,50}?\b(?:fehlgeschlagen¦gescheitert¦rot¦fehl¦kaputt)\b¦\bnames?\s+of\s+the\s+(?:failing¦failed)\s+tests?\b` |
+| passed_tests | names | `\b(?:which¦what)\s+(?:of\s+the\s+)?(?:[\w.-]+\s+)?tests?\s+(?:have\s+¦had\s+¦did\s+¦are\s+¦were\s+)?(?:pass¦passed¦passing¦green)\b¦\bwelche[nrs]?\s+(?:[\w.-]+\s+)?tests?\b.{0,50}?\b(?:bestanden¦grün¦durchgelaufen)\b` |
+| changed_files | names | `\b(?:which¦what)\s+files\s+(?:[\w.-]+\s+){0,4}?(?:changed¦change¦touched¦modified)\b¦\bwelche\s+dateien\s+(?:[\w.-]+\s+){0,4}?(?:geändert¦angefasst¦bearbeitet)\b` |
 | tests_failed | count | `how many (?:of the )?tests? (?:have ¦had ¦did ¦are )?(?:failed¦fail¦failing)¦wie viele tests? (?:[\w.-]+ ){0,6}?(?:fehlgeschlagen¦gescheitert¦rot)\b¦failing tests¦fehlgeschlagene tests` |
 | tests_passed | count | `how many (?:of the )?tests? (?:have ¦had ¦did ¦are )?(?:passed¦pass¦passing¦green)¦wie viele tests? (?:[\w.-]+ ){0,6}?(?:bestanden¦durchgelaufen¦grün)\b` |
 | tests_passed, tests_failed | tests | `did (?:the ¦all ¦all the )?(?:[\w.-]+ )?tests? pass¦(?:were¦are) (?:all )?(?:the )?tests? (?:green¦passing¦ok)¦test results?¦(?:sind¦waren) (?:die ¦alle )?tests? (?:[\w.-]+ ){0,6}?(?:durch¦grün¦bestanden¦ok)\b¦haben (?:die ¦alle )?tests? bestanden¦testergebnis(?:se)?` |

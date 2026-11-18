@@ -34,6 +34,15 @@ register_item_kind("chat", is_chat, norm_chat)
 # What the question asks for: the lexicon (English and German; first match wins; a cue's span is removed before the subject is read)
 # ======================================================================================================================
 ATTR_LEXICON = [   # (fields, kind, pattern, cue words: the words of the cue, dropped before the subject is read). Specific before general.
+ # round 3: "which tests failed" asks for names, not a count (a count answered it in round 2); its record field is a list of names
+ (("failed_tests",), "names", r"\b(?:which|what)\s+(?:of\s+the\s+)?(?:[\w.-]+\s+)?tests?\s+(?:have\s+|had\s+|did\s+|are\s+|were\s+|is\s+|was\s+)?(?:fail|failed|failing|broke|break|red)\b"
+                             r"|\bwelche[nrs]?\s+(?:[\w.-]+\s+)?tests?\b.{0,50}?\b(?:fehlgeschlagen|gescheitert|rot|fehl|kaputt)\b|\bnames?\s+of\s+the\s+(?:failing|failed)\s+tests?\b",
+  "tests test failed fail failing broke break red fehlgeschlagen gescheitert rot fehl kaputt names name which welche welcher welches welchen"),
+ (("passed_tests",), "names", r"\b(?:which|what)\s+(?:of\s+the\s+)?(?:[\w.-]+\s+)?tests?\s+(?:have\s+|had\s+|did\s+|are\s+|were\s+)?(?:pass|passed|passing|green)\b"
+                             r"|\bwelche[nrs]?\s+(?:[\w.-]+\s+)?tests?\b.{0,50}?\b(?:bestanden|grün|durchgelaufen)\b",
+  "tests test passed pass passing green bestanden grün durchgelaufen which welche welcher welches welchen"),
+ (("changed_files",), "names", r"\b(?:which|what)\s+files\s+(?:[\w.-]+\s+){0,4}?(?:changed|change|touched|modified)\b|\bwelche\s+dateien\s+(?:[\w.-]+\s+){0,4}?(?:geändert|angefasst|bearbeitet)\b",
+  "files file changed change touched modified dateien datei geändert angefasst bearbeitet which welche wurden were did has have hat haben"),
  (("tests_failed",), "count", r"how many (?:of the )?tests? (?:have |had |did |are )?(?:failed|fail|failing)|wie viele tests? (?:[\w.-]+ ){0,6}?(?:fehlgeschlagen|gescheitert|rot)\b|failing tests|fehlgeschlagene tests",
   "tests failed fail failing fehlgeschlagen fehlgeschlagene gescheitert rot"),
  (("tests_passed",), "count", r"how many (?:of the )?tests? (?:have |had |did |are )?(?:passed|pass|passing|green)|wie viele tests? (?:[\w.-]+ ){0,6}?(?:bestanden|durchgelaufen|grün)\b",
@@ -180,6 +189,28 @@ QUANTIFIERS = {"both", "beide", "beiden", "each", "every", "jede", "jeder", "jed
 PLURAL_CUES = {"sessions", "sitzungen", "both", "beide", "beiden", "all", "alle", "allen", "each", "every", "jede", "jeder", "jeden", "runs", "läufe",
                "records", "einträge"}
 def has_field(r, fields): return any(r["fields"].get(f) not in (None, "") for f in fields)
+NAMES_FIELDS = {"failed_tests": ("failed_tests", "failing_tests", "failures"), "passed_tests": ("passed_tests",), "changed_files": ("changed_files", "files", "paths")}
+COUNT_OF = {"failed_tests": "tests_failed", "passed_tests": "tests_passed", "changed_files": "files_changed"}
+for _f in [x for v in NAMES_FIELDS.values() for x in v]: FIELD_KIND.setdefault(_f, "names")
+COUNT_ONLY = {"en": {"tests_failed": "“{label}” shows {n} failed, but not which ones [{id}].", "tests_passed": "“{label}” shows {n} passed, but not which ones [{id}].",
+                     "files_changed": "“{label}” shows {n} files changed, but not which ones [{id}].",
+                     "zero_tests_failed": "“{label}” shows no failed tests [{id}].", "zero_tests_passed": "“{label}” shows no passed tests [{id}].",
+                     "zero_files_changed": "“{label}” shows no files changed [{id}]."},
+              "de": {"tests_failed": "„{label}“ zeigt {n} fehlgeschlagen, aber nicht welche [{id}].", "tests_passed": "„{label}“ zeigt {n} bestanden, aber nicht welche [{id}].",
+                     "files_changed": "„{label}“ zeigt {n} geänderte Dateien, aber nicht welche [{id}].",
+                     "zero_tests_failed": "„{label}“ zeigt keine fehlgeschlagenen Tests [{id}].", "zero_tests_passed": "„{label}“ zeigt keine bestandenen Tests [{id}].",
+                     "zero_files_changed": "„{label}“ zeigt keine geänderten Dateien [{id}]."}}
+def count_only(item, found):
+    """round 3: "which tests failed" with records that hold only a count: say the count and that the record doesn't say which, by code
+    (round 2: a model answered "2 tests failed", a count for a which-question). Zero is a full answer: none."""
+    lang = "de" if item.get("lang") == "de" else "en"; W = COUNT_ONLY[lang]; lines = []; zero = True
+    for r, vals in found:
+        for f, v in vals.items():
+            n = int(v); zero = zero and n == 0
+            lines.append((W["zero_" + f] if n == 0 else W[f]).format(label=record_label(r), n=n, id=r["id"]))
+    return {"ok": True, "kind": "answer" if zero else "count_only", "shown": "\n".join(lines), "refs": [r["id"] for r, _v in found], "model_text": [],
+            "errors": [], "notes": ["a which-question; the records hold only a count (no call)"], "found": [r["id"] for r, _v in found],
+            "values": [{"id": r["id"], **vals} for r, vals in found]}
 def lookup(item, fields):
     """-> (found [(record, {field: value})], why). Found is empty when no record at the best subject match holds the field."""
     cue = classify(item["question"])[2] | {w for f in fields for _fs, _k, _r, cw in ATTR_LEXICON if f in _fs for w in cw}
@@ -219,6 +250,7 @@ def fmt_when(v):
     except ValueError: return str(v)
 def fmt_value(field, v):
     k = FIELD_KIND.get(field, "string")
+    if isinstance(v, (list, tuple)): return ", ".join(str(x) for x in v)
     if k == "duration": return fmt_duration(v)
     if k == "when": return fmt_when(v)
     if k == "cost": return f"${float(v):.2f}"
@@ -275,6 +307,9 @@ def value_errors(answer, found, item):
             if got - allw: errs.append(f"value: the answer says {sorted(got - allw)}, the record says {v}")
         elif k == "string":
             if str(v).lower() not in answer.lower(): errs.append(f"value: the answer doesn't name {v}")
+        elif k == "names":
+            for x in (v if isinstance(v, (list, tuple)) else re.split(r"\s*[,;]\s*", str(v))):
+                if str(x).strip() and str(x).lower() not in answer.lower(): errs.append(f"value: the answer doesn't name {x}")
     return errs
 
 # ======================================================================================================================
@@ -324,7 +359,7 @@ def rows_text(item, ids=None, hide=()):
                      for r in item["records"] if ids is None or r["id"] in ids)
 def asked_kinds(fields):
     """the kinds (and fields) a question asks: their values are hidden from the found rows"""
-    return tuple({FIELD_KIND.get(f, "string") for f in fields or ()} | set(fields or ()))
+    return tuple({FIELD_KIND.get(f, "string") for f in fields or ()} | set(fields or ()) | ({"count", "tests"} if {"names"} & {FIELD_KIND.get(f) for f in fields or ()} else set()))
 KIND_PLURAL = {"en": {"session": "sessions", "test_run": "test runs", "record": "records"}, "de": {"session": "Sitzungen", "test_run": "Testläufe", "record": "Einträge"}}
 NUM_WORD = {"en": {2: "Two", 3: "Three"}, "de": {2: "Zwei", 3: "Drei"}}
 def ambiguous(item, found, why):
@@ -401,6 +436,15 @@ class Chat(Job):
     omission_over_all_items = True
     def route(self, item):
         fs, kind, _cue = classify(item["question"])
+        if fs and kind == "names":
+            nf = NAMES_FIELDS.get(fs[0], fs)
+            found, why = lookup(item, nf)
+            if found: return ("pick" if why.startswith("ambiguous") else "lookup", nf, found, why)
+            cf = (COUNT_OF[fs[0]],) if fs[0] in COUNT_OF else None
+            if cf:
+                cfound, cwhy = lookup(item, cf)
+                if cfound and cwhy.startswith(("found", "no subject")): return ("count_only", cf, cfound, "which: only a count: " + cwhy)
+            return ("lookup", nf, [], why)
         if fs:
             found, why = lookup(item, fs)
             return ("pick" if why.startswith("ambiguous") else "lookup", fs, found, why)
@@ -411,6 +455,7 @@ class Chat(Job):
         path, fs, found, why = self.route(item)
         if path == "scope": return {"decided": {"ok": True, "kind": "scope", "shown": j4.FIXED["scope"], "refs": [], "model_text": [], "errors": [], "notes": [why], "found": []}}
         if path == "lookup" and not found: return {"decided": dont_know(item, why, fs)}
+        if path == "count_only": return {"decided": count_only(item, found)}
         if path == "lookup" and why.startswith("same name"): return {"decided": same_name(item, found)}
         if path == "pick":
             ids = [r["id"] for r, _v in found]; schema = PICK_SCHEMA(ids); sys_t = pick_system(); src = item["question"] + "\n" + "\n".join(found_lines(found))
@@ -505,6 +550,7 @@ class Chat(Job):
     def fallback(self, item, setting):
         path, fs, found, why = self.route(item)
         if path == "pick": return ambiguous(item, found, why)
+        if path == "count_only": return count_only(item, found)
         if path == "lookup" and why.startswith("same name"): return same_name(item, found)
         if path == "lookup" and found:
             lines = [f"{record_label(r)} [{r['id']}]: {display(vals)}" for r, vals in found]

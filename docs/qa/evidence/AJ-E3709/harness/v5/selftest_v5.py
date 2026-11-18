@@ -583,7 +583,7 @@ def selftest():
     rec = run_item(REVIEW, t1, "main", Script([{"notes": [{"path": "ammer/flush.py", "says": "der Ammer-Flush schreibt jetzt in Blöcken"}], "risk_reason": "none", "risk": "low"}]))
     check("R3 review: ...and a recorded draft in the list shape still replays", rec["used"] == 0 and "— der Ammer-Flush" in rec["final"]["lines"][0], rec["attempts"])
 
-    # ================================================================================================ R3-4. Chat: records named by their text
+    # ================================================================================================ R3-4. Chat: records named by their text; which-questions
     def ci(q, recs, gold=None): return chat_item(q, [dict({"kind": "session", "text": ""}, **r) for r in recs], gold)
     def routed(q, recs): p_, _f, fd, w = CHAT.route(ci(q, recs)); return p_, [r["id"] for r, _v in fd], w
     exp = [{"id": "r1", "kind": "session", "fields": {"status": "blocked"}, "text": "vole export session"},
@@ -616,6 +616,21 @@ def selftest():
     vo = [{"id": "s1", "fields": {"cost_usd": 2.1}, "text": "vole import"}]
     rec = run_item(CHAT, ci("What did the vole export cost?", vo), "main", NoCall())
     check("R3 chat: a near-miss distractor (vole import for 'vole export') stays I don't know, its cost unshown", rec["final"]["kind"] == "dont_know" and "2.10" not in rec["final"]["shown"], rec["final"])
+    tr3 = [{"id": "t1", "kind": "test_run", "fields": {"tests_passed": 40, "tests_failed": 3}, "text": "nightly suite"}]
+    rec = run_item(CHAT, ci("Which tests failed?", tr3, {"unanswerable": True, "attribute": "which"}), "main", NoCall())
+    check("R3 which: 'which tests failed' with only a count -> the count and 'not which ones', by code", rec["final"]["kind"] == "count_only"
+          and rec["final"]["shown"] == "“nightly suite” shows 3 failed, but not which ones [t1].", rec["final"])
+    check("R3 which: ...not an answer to the which-question (no critical, no 'answered')", "answered_unanswerable" not in dets({"job": "chat", "id": "q", "item": ci("Which tests failed?", tr3, {"unanswerable": True}),
+          "outcome": rec["final"], "source": "", "attempts": []}))
+    rec = run_item(CHAT, ci("Welche Tests sind fehlgeschlagen?", tr3), "main", NoCall())
+    check("R3 which (German)", rec["final"]["shown"] == "„nightly suite“ zeigt 3 fehlgeschlagen, aber nicht welche [t1].", rec["final"]["shown"])
+    rec = run_item(CHAT, ci("Which tests failed?", [dict(tr3[0], fields={"tests_passed": 43, "tests_failed": 0})]), "main", NoCall())
+    check("R3 which: zero failed is the full answer", rec["final"]["kind"] == "answer" and "no failed tests" in rec["final"]["shown"], rec["final"])
+    tn3 = [dict(tr3[0], fields={"tests_failed": 2, "failed_tests": ["test_kiln_heat", "test_kiln_cool"]})]
+    rec = run_item(CHAT, ci("Which tests failed?", tn3), "main", Script([{"answer": "test_kiln_heat and test_kiln_cool failed.", "cites": ["t1"]}]))
+    check("R3 which: a record holding the names answers with them, checked", rec["used"] == 0 and rec["final"]["kind"] == "answer", rec["attempts"])
+    rec = run_item(CHAT, ci("Which tests failed?", tn3), "main", Script([{"answer": "test_kiln_heat failed.", "cites": ["t1"]}] * 3))
+    check("R3 which: ...a name left out is refused", rec["used"] == "fallback", rec["attempts"][0]["errors"])
 
     # ================================================================================================ the extension point, the frozen gate, the prompts
     class Toy(core.Job):
