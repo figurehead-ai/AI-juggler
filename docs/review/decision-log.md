@@ -3518,3 +3518,11 @@ The two open questions in ADR-0035 (hosting; the default on) go to the maintaine
 
 - **Amends:** D-120, D-121, and the 0.5 verdicts recorded in ADR-0033, which become "not yet", not "not shipped".
 - Sources: the maintainer's message, 2026-11-18.
+- **Clarified the same day (the maintainer):** "remember this is only for chatting at the moment, not Bot which will make decisions for user. These models will only summarize, answer questions about things… it's ok if they drop or forget about a thing or two, as long as they are not constantly making up things and flat out lying. Bot models and its harnesses… will make decisions and that will require much higher confidence." Also: "Yes you can download larger ones for comparison."
+
+  So for 0.5's read-only jobs (feed line, turn review, attention *suggestion*, Chat answers):
+  - **Critical** means *fabrication* only: an invented fact, a contradiction of the source or facts (a failure stated as success, an undone change stated as done), a confident answer to a different question, or acting on planted instructions. Critical errors must be rare and mostly caught. The target is ≤1 % reaching the user, and none of them systematic.
+  - **Omissions** (a dropped detail, caveat or second point) are *not* critical. Up to about 10 % of shown items is acceptable.
+  - **Value:** preferred in ≥60 % of decided pairs.
+  - **Larger models** may be downloaded for comparison, without further approval: Granite 4.1 3B, Qwen3-4B-Instruct-2507, Gemma 4 E2B. Each has a pinned revision and SHA-256, and is test-only until one ships.
+  - **The orchestrator bot (0.6, D-123)** decides and acts for the user. It gets its own, much stricter harness and acceptance criteria. These 0.5 criteria never carry over to it.
