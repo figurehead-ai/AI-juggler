@@ -22,6 +22,7 @@ import { LeadPicker } from "./LeadPicker";
 import { MemberOwnLevel, OwnLevelChoice } from "./OwnLevelChoice";
 import { TeamToolsQuestion } from "./TeamTools";
 import { RoleCards, RolePicker, RoleWhy, holdersOf } from "./RoleCards";
+import { ROLE_ICONS } from "../../../components/MemberLogo";
 import { TalkTable } from "./TalkTable";
 
 afterEach(() => {
@@ -88,6 +89,19 @@ describe("the controls", () => {
     expect(cards[2]!.textContent).toContain("Doesn't build.");
     expect(within(cards[0]!).getByTestId("role-card-holders").textContent).toBe("Now: Planner");
     expect(within(cards[3]!).getByTestId("role-card-holders").textContent).toBe("No one yet");
+  });
+
+  it("each role's icon is New pool's own (D-126: one map; the reviewer's shield, not a tick)", () => {
+    render(<RoleCards holders={{}} />);
+    const drawn = screen.getAllByTestId("role-card").map((card) => card.querySelector("svg")!.innerHTML);
+    const own = (["lead", "member", "reviewer", "observer"] as const).map((role) => {
+      const Shape = ROLE_ICONS[role];
+      const { container, unmount } = render(<Shape />);
+      const inner = container.querySelector("svg")!.innerHTML;
+      unmount();
+      return inner;
+    });
+    expect(drawn).toEqual(own);
   });
 
   it("a member's role picker shows the same lines; an App's Lead is its next session's, a wider group's is greyed with its reason in view (D-92, round 3 #1)", () => {

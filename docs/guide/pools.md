@@ -25,7 +25,7 @@ project · all sessions**.
 left in three groups, each with what it's set to under its name ("Who
 leads · Claude's next session"). The form is in the middle. At the right,
 a live preview draws the team as its diagram will look, with a row for
-each choice (Where, Who's in, Who leads, Roles, Messages, On their own);
+each choice (Where, Who's in, Lead, Roles, Messages, On their own);
 it lights the part the step you're on sets. In a narrow window the
 preview folds into a strip above the form. Every choice reads back as a
 sentence ("New sessions in web join as Member and may Work together").

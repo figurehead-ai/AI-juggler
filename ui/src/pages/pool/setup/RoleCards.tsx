@@ -6,22 +6,18 @@
  * each role does"), text with an icon: no surface, edge or hover, since
  * nothing is chosen from it (the cards read as buttons).
  */
-import type { JSX, SVGProps } from "react";
+import type { JSX } from "react";
 
 import { Picker } from "../../../components/controls";
-import { IconLead, IconTasks } from "../../../components/icons-canvas";
-import { IconDone } from "../../../components/icons-menu";
-import { IconView } from "../../../components/icons-places";
+import { ROLE_ICONS } from "../../../components/MemberLogo";
 import type { PoolRole } from "../../../lib/ipc/pools";
 import { ROLE_CARDS, asRole, roleCard } from "../../../lib/pool-words";
 import { leadHint, rolesFor } from "../../../lib/pools";
 
-type Icon = (props: SVGProps<SVGSVGElement>) => JSX.Element;
-
-const ICONS: Record<PoolRole, Icon> = { lead: IconLead, member: IconTasks, reviewer: IconDone, observer: IconView };
-
+/** A role's icon: New pool's (its role tiles, the mark on a member's
+ * logo), one map for both paths (D-126). */
 export function RoleIcon({ role, size = 14 }: { role: string; size?: number }): JSX.Element {
-  const Shape = ICONS[asRole(role)];
+  const Shape = ROLE_ICONS[asRole(role)];
   return <Shape aria-hidden="true" width={size} height={size} className="shrink-0 text-muted" />;
 }
 
