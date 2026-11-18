@@ -9,7 +9,10 @@
 //!   [`RemoteMode`] says which: `OffOnly` (a kill switch: the file may only
 //!   say `false`), `OnOff`, or `Rollout` (on only for a bucketed rule).
 //! - [`Control::Versions`]: widen or narrow a version range, never past the
-//!   compiled `bounds` (what the code's shape checks support).
+//!   compiled `bounds` (what the code's shape checks support). A range
+//!   that reaches past them is clamped to them (intersected: every limit
+//!   the file sets still holds), unless a later matching rule is a kill or
+//!   a narrowing, which then stands in (see below).
 //! - [`Control::Number`]: a tunable, clamped into its compiled bounds.
 //! - [`Control::Choice`]: pick one of the compiled options.
 //!
@@ -53,6 +56,7 @@
 
 use std::collections::BTreeMap;
 
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::target::{Facts, When};
@@ -65,7 +69,8 @@ pub const MAX_NAME_LEN: usize = 64;
 pub const MAX_RULES: usize = 32;
 
 /// What the remote file may do to a switch.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum RemoteMode {
     /// The file may only turn it off (a kill switch).
     OffOnly,
@@ -76,7 +81,11 @@ pub enum RemoteMode {
 }
 
 /// One compiled-in thing the file may adjust.
-#[derive(Debug, Clone, PartialEq, Eq)]
+///
+/// Serialised (externally tagged, `snake_case`) only for the schema the
+/// publisher validates against ([`Registry::export`]).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case", deny_unknown_fields)]
 pub enum Control {
     /// A feature switch.
     Switch {
@@ -123,6 +132,29 @@ pub enum Setting {
     Choice(String),
 }
 
+/// A remote value this app can't take as written: why, and, for a range
+/// past its compiled bounds, the range clamped to them.
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct Unreadable {
+    reason: String,
+    clamped: Option<Setting>,
+}
+
+impl From<&str> for Unreadable {
+    fn from(reason: &str) -> Self {
+        reason.to_owned().into()
+    }
+}
+
+impl From<String> for Unreadable {
+    fn from(reason: String) -> Self {
+        Self {
+            reason,
+            clamped: None,
+        }
+    }
+}
+
 impl Control {
     /// The compiled default.
     #[must_use]
@@ -153,7 +185,7 @@ impl Control {
 
     /// Parses and checks a remote value; `bucketed` says whether its rule
     /// is limited to rollout buckets.
-    fn remote_value(&self, value: &Value, bucketed: bool) -> Result<Setting, String> {
+    fn remote_value(&self, value: &Value, bucketed: bool) -> Result<Setting, Unreadable> {
         match self {
             Self::Switch { remote, .. } => {
                 let on = value.as_bool().ok_or("a switch takes true or false")?;
@@ -170,12 +202,17 @@ impl Control {
                 }
             }
             Self::Versions { bounds, .. } => {
-                let range: VersionRange =
-                    serde_json::from_value(value.clone()).map_err(|e| e.to_string())?;
+                let range: VersionRange = serde_json::from_value(value.clone())
+                    .map_err(|e| Unreadable::from(e.to_string()))?;
                 if range.within(bounds) {
                     Ok(Setting::Versions(range))
                 } else {
-                    Err("a range past its compiled bounds".into())
+                    // Every limit the file sets still holds; the code's
+                    // own hard limits are added to them.
+                    Err(Unreadable {
+                        reason: "a range past its compiled bounds".to_owned(),
+                        clamped: Some(Setting::Versions(range.intersect(bounds))),
+                    })
                 }
             }
             Self::Number { min, max, .. } => {
@@ -215,7 +252,12 @@ impl Control {
 }
 
 /// A section a module registers.
-#[derive(Debug, Clone, PartialEq, Eq)]
+///
+/// Serialised only for the schema the publisher validates against
+/// ([`Registry::export`]); a deserialised one is checked by
+/// [`Registry::register`] like any other.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct SectionSpec {
     name: String,
     schema: u32,
@@ -353,6 +395,14 @@ pub enum SectionIssue {
         /// Why.
         reason: String,
     },
+    /// A range reached past its compiled bounds and, with no later
+    /// matching kill or narrowing, was clamped to them.
+    Clamped {
+        /// The section.
+        section: String,
+        /// The control.
+        control: String,
+    },
 }
 
 /// The registered sections. Built in one place at start-up (ENGINEERING-
@@ -416,6 +466,92 @@ impl Registry {
         })
     }
 
+    /// The registered sections, by name.
+    pub fn sections(&self) -> impl Iterator<Item = &SectionSpec> {
+        self.sections.values()
+    }
+
+    /// The schema the publisher validates a file against (ADR-0035 §8):
+    /// every registered section and its controls, as the app's build
+    /// declares them. `config/remote/schema.json` is this, kept current by
+    /// a test.
+    #[must_use]
+    pub fn export(&self) -> Value {
+        serde_json::json!({
+            "format": SCHEMA_FORMAT,
+            "sections": self.sections.values().collect::<Vec<_>>(),
+        })
+    }
+
+    /// A registry from an [`Registry::export`]ed schema, each section
+    /// registered (so checked) as a module's would be.
+    ///
+    /// # Errors
+    ///
+    /// Why the schema can't be read or a section can't be registered.
+    pub fn import(schema: &Value) -> Result<Self, String> {
+        #[derive(Deserialize)]
+        #[serde(deny_unknown_fields)]
+        struct Exported {
+            format: u64,
+            sections: Vec<SectionSpec>,
+        }
+        let exported: Exported =
+            serde_json::from_value(schema.clone()).map_err(|e| e.to_string())?;
+        if exported.format != SCHEMA_FORMAT {
+            return Err(format!("schema format {} is unknown", exported.format));
+        }
+        let mut registry = Self::new();
+        for spec in exported.sections {
+            registry.register(spec).map_err(|e| e.to_string())?;
+        }
+        Ok(registry)
+    }
+
+    /// The publisher's strict check of a file's sections (ADR-0035 §8):
+    /// every problem, in words. Where the app is tolerant (an unknown
+    /// section, control or `when` key, a newer schema, a value it can't
+    /// read, a range past its bounds), publishing is not: each is a
+    /// mistake for the app this schema came from.
+    #[must_use]
+    pub fn validate(&self, sections: &BTreeMap<String, Value>) -> Vec<String> {
+        let mut problems = Vec::new();
+        for (name, raw) in sections {
+            let mut problem = |what: String| problems.push(format!("{name}: {what}"));
+            let Some(spec) = self.sections.get(name) else {
+                problem("no module reads this section".to_owned());
+                continue;
+            };
+            let Some(object) = raw.as_object() else {
+                problem("a section is an object".to_owned());
+                continue;
+            };
+            for field in object.keys() {
+                if field != "schema" && field != "values" {
+                    problem(format!("unknown field {field:?}"));
+                }
+            }
+            match object.get("schema").and_then(Value::as_u64) {
+                Some(schema) if schema >= 1 && schema <= u64::from(spec.schema) => {}
+                _ => problem(format!("`schema` is a number from 1 to {}", spec.schema)),
+            }
+            let Some(entries) = object.get("values").and_then(Value::as_object) else {
+                problem("`values` is an object".to_owned());
+                continue;
+            };
+            for (control_name, entry) in entries {
+                let Some(control) = spec.controls.get(control_name) else {
+                    problem(format!("{control_name}: no such control"));
+                    continue;
+                };
+                for what in validate_entry(control, entry) {
+                    problem(format!("{control_name}: {what}"));
+                }
+            }
+        }
+        problems
+    }
+
     /// Validates a file's sections and evaluates their rules against
     /// `facts`: the values this layer sets, and what was left out and why.
     ///
@@ -470,14 +606,25 @@ impl Registry {
                 };
                 let key = SettingKey::new(name, control_name);
                 let (setting, problem) = resolve_entry(control, entry, facts, &key.salt(), reading);
-                if let Some(reason) = problem {
-                    tracing::warn!(section = %name, control = %control_name, %reason,
-                        "remote config: a value was dropped");
-                    issues.push(SectionIssue::ValueDropped {
-                        section: name.clone(),
-                        control: control_name.clone(),
-                        reason,
-                    });
+                match problem {
+                    Some(Problem::Dropped(reason)) => {
+                        tracing::warn!(section = %name, control = %control_name, %reason,
+                            "remote config: a value was dropped");
+                        issues.push(SectionIssue::ValueDropped {
+                            section: name.clone(),
+                            control: control_name.clone(),
+                            reason,
+                        });
+                    }
+                    Some(Problem::Clamped) => {
+                        tracing::warn!(section = %name, control = %control_name,
+                            "remote config: a range was clamped to its compiled bounds");
+                        issues.push(SectionIssue::Clamped {
+                            section: name.clone(),
+                            control: control_name.clone(),
+                        });
+                    }
+                    None => {}
                 }
                 if let Some(setting) = setting {
                     values.insert(key, setting);
@@ -486,6 +633,56 @@ impl Registry {
         }
         (values, issues)
     }
+}
+
+/// The [`Registry::export`] format.
+pub const SCHEMA_FORMAT: u64 = 1;
+
+/// The publisher's check of one control's entry (see [`Registry::validate`]).
+fn validate_entry(control: &Control, entry: &Value) -> Vec<String> {
+    let check = |when: &When, value: Option<&Value>| match value {
+        None => Some("a rule needs a value".to_owned()),
+        Some(value) => control
+            .remote_value(value, when.is_bucketed())
+            .err()
+            .map(|unreadable| unreadable.reason),
+    };
+    let mut problems = Vec::new();
+    match entry.as_object().and_then(|o| o.get("rules")) {
+        None => problems.extend(check(&When::Always, Some(entry))),
+        Some(Value::Array(rules)) => {
+            if rules.len() > MAX_RULES {
+                problems.push(format!("at most {MAX_RULES} rules"));
+            }
+            if entry.as_object().is_some_and(|o| o.len() != 1) {
+                problems.push("an entry with `rules` has nothing else".to_owned());
+            }
+            for rule in rules {
+                let Some(object) = rule.as_object() else {
+                    problems.push("a rule is an object".to_owned());
+                    continue;
+                };
+                if object.keys().any(|key| key != "when" && key != "value") {
+                    problems.push("a rule has only `when` and `value`".to_owned());
+                }
+                let when = match object.get("when").map(When::parse) {
+                    None => When::Always,
+                    Some(Ok(When::Unknown)) => {
+                        problems.push("`when` uses a key the app doesn't know".to_owned());
+                        continue;
+                    }
+                    Some(Ok(when)) => when,
+                    Some(Err(e)) => {
+                        problems.push(e.to_string());
+                        continue;
+                    }
+                };
+                problems.extend(check(&when, object.get("value")));
+            }
+        }
+        Some(_) => problems.push("`rules` is a list".to_owned()),
+    }
+    problems
 }
 
 /// How much of a section this app may read.
@@ -507,18 +704,29 @@ fn is_safety(control: &Control, setting: &Setting) -> bool {
     }
 }
 
+/// What [`resolve_entry`] reports besides the value.
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum Problem {
+    /// The matching value couldn't be read, and nothing (or a later kill
+    /// or narrowing) stands in for it.
+    Dropped(String),
+    /// The matching range reached past its bounds and was clamped.
+    Clamped,
+}
+
 /// One control's entry: the first rule that matches this app wins. Rules
 /// that can't match (or can't be read: a newer `when`) are skipped without
 /// reading their value. If the matching rule's value can't be read, the
 /// first later matching rule that is a kill or a narrowing applies instead
-/// (fail toward safety), and the problem is reported.
+/// (fail toward safety), and the problem is reported. With none, a range
+/// that only reached past its compiled bounds applies clamped to them.
 fn resolve_entry(
     control: &Control,
     entry: &Value,
     facts: &Facts,
     salt: &str,
     reading: Reading,
-) -> (Option<Setting>, Option<String>) {
+) -> (Option<Setting>, Option<Problem>) {
     let plain = [(When::Always, Some(entry))];
     let listed: Vec<(When, Option<&Value>)>;
     let rules: &[(When, Option<&Value>)] = match entry.as_object().and_then(|o| o.get("rules")) {
@@ -527,15 +735,17 @@ fn resolve_entry(
             listed = items.iter().take(MAX_RULES).map(parse_rule).collect();
             &listed
         }
-        Some(_) => return (None, Some("`rules` is a list".to_owned())),
+        Some(_) => {
+            return (None, Some(Problem::Dropped("`rules` is a list".to_owned())));
+        }
     };
-    let mut problem = None;
+    let mut problem: Option<Unreadable> = None;
     for (when, value) in rules {
         if !when.matches(facts, salt) {
             continue;
         }
         let read = value
-            .ok_or_else(|| "a rule needs a value".to_owned())
+            .ok_or_else(|| Unreadable::from("a rule needs a value"))
             .and_then(|value| control.remote_value(value, when.is_bucketed()));
         match (read, &problem) {
             (Ok(setting), None) => {
@@ -545,14 +755,25 @@ fn resolve_entry(
                 };
             }
             // After an unreadable match, only a kill or narrowing applies.
-            (Ok(setting), Some(_)) if is_safety(control, &setting) => {
-                return (Some(setting), problem);
+            (Ok(setting), Some(first)) if is_safety(control, &setting) => {
+                return (Some(setting), Some(Problem::Dropped(first.reason.clone())));
             }
-            (Err(reason), None) => problem = Some(reason),
+            (Err(unreadable), None) => problem = Some(unreadable),
             (_, Some(_)) => {}
         }
     }
-    (None, problem)
+    match problem {
+        // Nothing stands in: a range past its bounds applies clamped, as
+        // any value would, within what this reading allows.
+        Some(Unreadable {
+            clamped: Some(clamped),
+            ..
+        }) if reading == Reading::Full || is_safety(control, &clamped) => {
+            (Some(clamped), Some(Problem::Clamped))
+        }
+        Some(unreadable) => (None, Some(Problem::Dropped(unreadable.reason))),
+        None => (None, None),
+    }
 }
 
 /// A rule's `when` and value. A `when` this app can't read never matches.

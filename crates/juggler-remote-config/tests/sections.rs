@@ -124,10 +124,25 @@ fn a_value_may_only_select_what_is_compiled_in() {
     let (got, issues) = layer(json!({"flags": {"schema": 1, "values":
         {"toggle": {"rules": [{"when": {"buckets": [9, 0]}, "value": true}]}}}}));
     assert!(got.is_empty() && issues.is_empty());
-    // Ranges: never past the compiled bounds; anything within is fine.
-    let (got, _) =
+    // Ranges: never past the compiled bounds (clamped to them, every limit
+    // the file set kept); anything within is fine.
+    let (got, issues) =
         layer(json!({"compat": {"schema": 1, "values": {"tool_move": {"min": "0.8.0"}}}}));
-    assert!(got.is_empty());
+    assert_eq!(
+        got[&key("compat", "tool_move")],
+        Setting::Versions(range("0.9.0", "3.0.0"))
+    );
+    assert!(
+        matches!(issues.as_slice(), [SectionIssue::Clamped { control, .. }] if control == "tool_move")
+    );
+    let (got, _) = layer(
+        json!({"compat": {"schema": 1, "values": {"tool_move": {"min": "0.5.0", "max": "1.8.0"}}}}),
+    );
+    assert_eq!(
+        got[&key("compat", "tool_move")],
+        Setting::Versions(range("0.9.0", "1.8.0")),
+        "the file's own narrowing at the top still holds"
+    );
     let (got, _) = layer(
         json!({"compat": {"schema": 1, "values": {"tool_move": {"min": "0.9.0", "max": "3.0.0"}}}}),
     );

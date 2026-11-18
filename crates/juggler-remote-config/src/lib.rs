@@ -17,6 +17,9 @@
 //! - [`target`]: targeting and rollout buckets, evaluated locally.
 //! - [`fetch`]: the daily anonymous fetch through an injected transport,
 //!   the cache and every fallback.
+//! - [`publish`]: the publisher's side (§8): validate a source against the
+//!   exported schemas, stamp, sign, and verify as the app does (the
+//!   `remote-config-publish` tool the `Publish config` workflow runs).
 //!
 //! Must not know: any feature, tool, screen, Tauri or the UI. Sections,
 //! their controls and the transport are handed in.
@@ -65,6 +68,7 @@ mod error;
 pub mod fetch;
 pub mod keys;
 pub mod merge;
+pub mod publish;
 pub mod schema;
 pub mod state;
 pub mod target;
