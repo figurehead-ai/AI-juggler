@@ -103,13 +103,24 @@ export function useModalsInert(): void {
     // dialog's own effect moved focus inside before this saw it.
     const active = document.activeElement;
     let outside: HTMLElement | null = active instanceof HTMLElement && active !== document.body ? active : null;
+    // A dialog's own frame counts as the dialog: some focus the overlay
+    // that holds their aria-modal box (the rc3 gate: the Stop… sheet focused
+    // its root, which was taken for the opener).
     const focused = (event: FocusEvent) => {
-      if (event.target instanceof HTMLElement && !event.target.closest('[aria-modal="true"]')) outside = event.target;
+      const at = event.target;
+      if (at instanceof HTMLElement && !at.closest('[aria-modal="true"]') && !at.querySelector('[aria-modal="true"]')) outside = at;
     };
-    const lost = () => document.activeElement === null || document.activeElement === document.body;
+    // Focus left nowhere: on the page, or still on an element the closed
+    // dialog took with it (the browser moves it to the page only at its
+    // next drawing, after this has run: the rc3 gate's Stop… sheet).
+    const lost = (gone: HTMLElement | null = null) => {
+      const now = document.activeElement;
+      return now === null || now === document.body || !now.isConnected || (gone?.contains(now) ?? false);
+    };
     const update = () => {
       const top = topModal();
       if (top === shown) return;
+      const was = shown;
       for (const one of others) release(one);
       others = [];
       shown = top;
@@ -118,10 +129,10 @@ export function useModalsInert(): void {
         others = besides(top).filter((one) => !one.contains(top));
         for (const one of others) hold(one);
         // A dialog closed over this one left focus nowhere: back inside.
-        if (lost()) top.querySelector<HTMLElement>(FOCUSABLE)?.focus({ preventScroll: true });
+        if (lost(was)) top.querySelector<HTMLElement>(FOCUSABLE)?.focus({ preventScroll: true });
         return;
       }
-      if (lost()) again(opener)?.focus({ preventScroll: true });
+      if (lost(was)) again(opener)?.focus({ preventScroll: true });
       opener = null;
     };
     let queued = false;

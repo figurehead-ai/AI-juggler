@@ -129,4 +129,38 @@ describe("a modal dialog's window is inert under it", () => {
     expect(screen.getByTestId("row-8123")).not.toBe(row);
     expect(document.activeElement).toBe(screen.getByTestId("row-8123"));
   });
+
+  it("never takes a dialog's own frame for its opener (a sheet that focuses the overlay around its box)", async () => {
+    function Sheet(): JSX.Element {
+      useModalsInert();
+      const [open, setOpen] = useState(false);
+      return (
+        <div>
+          <main>
+            <button type="button" data-testid="row" onClick={() => setOpen(true)}>
+              Row
+            </button>
+          </main>
+          {open && (
+            <div tabIndex={-1} data-testid="frame" ref={(frame) => frame?.focus()}>
+              <dialog open aria-modal="true" aria-label="Stop">
+                <button type="button" onClick={() => setOpen(false)}>
+                  Cancel
+                </button>
+              </dialog>
+            </div>
+          )}
+        </div>
+      );
+    }
+    render(<Sheet />);
+    const row = screen.getByTestId("row");
+    row.focus();
+    fireEvent.click(row);
+    await settle();
+    const cancel = screen.getByRole("button", { name: "Cancel" });
+    fireEvent.click(cancel);
+    await settle();
+    expect(document.activeElement).toBe(screen.getByTestId("row"));
+  });
 });
