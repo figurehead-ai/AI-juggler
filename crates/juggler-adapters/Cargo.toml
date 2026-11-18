@@ -41,6 +41,8 @@ zstd = { workspace = true }
 juggler-platform = { version = "0.4.0", path = "../juggler-platform" }
 # The real-size switch run drives the real pipeline (tests/switch_real_size.rs).
 juggler-handover = { version = "0.4.0", path = "../juggler-handover" }
+# D-128: the compat tests resolve a remote section as the app does.
+juggler-remote-config = { version = "0.4.0", path = "../juggler-remote-config" }
 tempfile = { workspace = true }
 
 [[bin]]

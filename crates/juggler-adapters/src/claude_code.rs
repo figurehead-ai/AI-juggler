@@ -152,6 +152,9 @@ impl ToolIdentity for ClaudeCodeAdapter {
     fn verified_against(&self) -> &'static [&'static str] {
         VERIFIED_AGAINST
     }
+    fn compat_features(&self) -> &'static [juggler_adapter::compat::CompatFeature] {
+        crate::claude_move::COMPAT
+    }
 }
 
 impl ToolDiscovery for ClaudeCodeAdapter {

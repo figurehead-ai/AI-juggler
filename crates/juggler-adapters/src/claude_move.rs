@@ -28,11 +28,55 @@
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::path::{Path, PathBuf};
 
+use juggler_adapter::compat::{CompatFeature, Gate, Span};
 use juggler_adapter::error::AdapterError;
 use juggler_adapter::moving::{
     Appended, HoldWhy, InPlaceMove, MemberSide, MoveCheck, MoveMember, MovePlan, MoveRequest,
     MoveStep, NotesChoice, Retained,
 };
+
+/// D-128, ADR-0035 §2: a move between Claude app profiles, in the remote
+/// `compat` section: offered for the app's 4.x and later (where its
+/// records were read and the move proven), the hard limit too; the shape
+/// check is revision 1.
+pub const COMPAT_APP_MOVE: CompatFeature = CompatFeature {
+    key: "claude_app_move",
+    versions: Span::from("4.0.0"),
+    bounds: Span::from("4.0.0"),
+    shape: 1,
+};
+
+/// The same for a move between Claude Code folders (2.x and later).
+pub const COMPAT_CODE_MOVE: CompatFeature = CompatFeature {
+    key: "claude_code_move",
+    versions: Span::from("2.0.0"),
+    bounds: Span::from("2.0.0"),
+    shape: 1,
+};
+
+/// This adapter's compat features ([`juggler_adapter::ToolIdentity::compat_features`]).
+pub const COMPAT: &[CompatFeature] = &[COMPAT_APP_MOVE, COMPAT_CODE_MOVE];
+
+/// What the remote compat list says about this move: a refusal per side
+/// it turns the move off for (the gate is handed in, so a test needs no
+/// process-wide state).
+fn compat_refusals(gate: &Gate, request: &MoveRequest) -> Vec<String> {
+    let feature = if request.source.host_dir.is_some() {
+        &COMPAT_APP_MOVE
+    } else {
+        &COMPAT_CODE_MOVE
+    };
+    let mut refusals: Vec<String> = Vec::new();
+    for side in [&request.source, &request.target] {
+        if let Err(off) = gate.check(feature, side.version.as_deref()) {
+            let why = format!("Move is {off}. Copy still works");
+            if !refusals.contains(&why) {
+                refusals.push(why);
+            }
+        }
+    }
+    refusals
+}
 
 /// The prefix of every app record's id and file name.
 const LOCAL: &str = "local_";
@@ -580,6 +624,10 @@ impl InPlaceMove for ClaudeMove {
             b.refuse(
                 "this disk can't make the clone backups a move keeps for Undo (it needs a file system that makes clones)",
             );
+        }
+        // D-128: the remote compat list may narrow or turn the move off.
+        for why in compat_refusals(&juggler_adapter::compat::current(), request) {
+            b.refuse(why);
         }
 
         // The family, by app records (an app side) or the one conversation.
@@ -1150,6 +1198,69 @@ fn depth(all: &BTreeMap<String, Record>, id: &str, root: &str) -> usize {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// D-128: the remote compat list turns the move off where it says,
+    /// for the kind of sides the move is between; the compiled list offers
+    /// what it did before.
+    #[test]
+    fn the_compat_list_can_turn_the_move_off() {
+        use juggler_remote_config::{Channel, Facts, InstallId, Os, Registry, UserChoices, merge};
+        let side = |host: bool, version: Option<&str>| juggler_adapter::moving::MoveSide {
+            tool_dir: PathBuf::from("/x/tool"),
+            host_dir: host.then(|| PathBuf::from("/x/host")),
+            version: version.map(str::to_owned),
+        };
+        let request = |host: bool, version: Option<&str>| MoveRequest {
+            conversation: "c".to_owned(),
+            source: side(host, version),
+            target: side(host, version),
+            notes: juggler_adapter::moving::NotesChoice::default(),
+        };
+        let gate = |values: serde_json::Value| {
+            let mut registry = Registry::new();
+            registry
+                .register(juggler_adapter::compat::section(COMPAT).unwrap())
+                .unwrap();
+            let sections = BTreeMap::from([(
+                "compat".to_owned(),
+                serde_json::json!({"schema": 1, "values": values}),
+            )]);
+            let facts = Facts {
+                app_version: "0.5.0".parse().unwrap(),
+                channel: Channel::Stable,
+                os: Os::Macos,
+                os_version: None,
+                tools: BTreeMap::new(),
+                install: InstallId::from_bytes([0; 16]),
+            };
+            let (layer, _) = registry.resolve(&sections, &facts);
+            Gate::from_effective(&merge(&registry, Some(&layer), None, &UserChoices::new()))
+        };
+        let compiled = Gate::default();
+        assert!(compat_refusals(&compiled, &request(true, Some("5.11492.5"))).is_empty());
+        assert!(compat_refusals(&compiled, &request(false, Some("2.1.4"))).is_empty());
+        assert_eq!(
+            compat_refusals(&compiled, &request(true, Some("3.9.0"))).len(),
+            1,
+            "one refusal for both sides"
+        );
+        let killed = gate(serde_json::json!({"claude_app_move_on": false}));
+        assert_eq!(
+            compat_refusals(&killed, &request(true, Some("5.0.0"))),
+            [
+                "Move is turned off for now while AI Juggler checks a problem with it. Copy still works"
+            ]
+        );
+        assert!(
+            compat_refusals(&killed, &request(false, Some("2.1.4"))).is_empty(),
+            "the Claude Code move is its own feature"
+        );
+        let narrowed = gate(
+            serde_json::json!({"claude_code_move_versions": {"min": "2.0.0", "max": "2.1.0"}}),
+        );
+        assert!(compat_refusals(&narrowed, &request(false, Some("2.0.9"))).is_empty());
+        assert!(!compat_refusals(&narrowed, &request(false, Some("2.1.4"))).is_empty());
+    }
 
     #[test]
     fn a_system_notice_is_not_a_turn() {
