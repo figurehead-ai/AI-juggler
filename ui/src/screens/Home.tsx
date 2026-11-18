@@ -37,8 +37,7 @@ import { usePools } from "../lib/pools";
 import { useScrollMemory } from "../lib/scroll-memory";
 import { shortName } from "../lib/session-titles";
 import type { FeedItemInfo } from "../lib/ipc/feed";
-import { headCount, needsHeading } from "../lib/home-needs";
-import { HomeExtras } from "../components/HomeExtras";
+import { headCount, needsHeading, needsParts } from "../lib/home-needs";
 import { itemsOf, openNow } from "../lib/rail-items";
 import { useNoticeSummary } from "../lib/notices-store";
 import { homeCounts } from "../lib/home-counts";
@@ -329,8 +328,8 @@ export function HomeScreen({
   // The heading counts the rows it sits over (the 0.2 walk, F4: "2
   // sessions need you" over four rows): the backend's needs Home lists,
   // and the caps, agents' messages and tasks with their own rows.
-  const { sessions: sessionNeeds, others: otherNeeds, notes } = headCount(allNeeds, capNeeds.caps.length + messageNeeds.length + taskNeeds.length);
-  const headline = needsHeading({ sessions: sessionNeeds, others: otherNeeds }, {
+  const { count: needCount, notes } = headCount(allNeeds, capNeeds.caps.length + messageNeeds.length + taskNeeds.length);
+  const headline = needsHeading(needCount, {
     // 0.3.2: one carrying on with its credits hasn't run out. D-62: the
     // room is the Account's, so it's named once by it, however many of
     // its folders show it.
@@ -338,6 +337,8 @@ export function HomeScreen({
     running: items.some((item) => item.live && item.state === "working") || items.some(openNow),
     anything: sessions.length + conversations.length > 0, known: needsNow.known,
   });
+  // The heading's parts, said with it (its visible words are one count).
+  const parts = needCount > 0 ? needsParts(allNeeds, { caps: capNeeds.caps.map(capTitle), messages: messageNeeds.length, tasks: taskNeeds.length }) : [];
   const openCount = items.filter(openNow).length;
   const counts = homeCounts({ open: openCount, finishedToday, toReview: notes, inactive: items.filter((item) => item.inactive).length, hidden: hiddenApps });
   // D-118: the feed (its handlers are Home's: the session's page, Mark
@@ -393,7 +394,10 @@ export function HomeScreen({
       <header className="flex shrink-0 flex-col gap-1">
         <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
           {/* D-117: the title in ink; the pinned zone's count carries the colour. */}
-          <h1 className="text-title text-ink" data-testid="home-heading">{headline}</h1>
+          <h1 className="text-title text-ink" data-testid="home-heading">
+            {headline}
+            {parts.length > 0 && <span className="sr-only" data-testid="home-heading-parts">: {parts.join(", ")}</span>}
+          </h1>
           {counts.length > 0 && (
             <p className="flex flex-wrap items-center gap-x-1.5 text-body text-ink-2" data-testid="home-counts">
               {counts.map((part, index) => (
@@ -414,7 +418,6 @@ export function HomeScreen({
             </a>
           )}
         </div>
-        <HomeExtras pending={!needsNow.known} shown={sessionNeeds > 0 && otherNeeds > 0} needs={allNeeds} more={{ caps: capNeeds.caps.map(capTitle), messages: messageNeeds.length, tasks: taskNeeds.length }} />
         <ListBuilding place="home" />
       </header>
 

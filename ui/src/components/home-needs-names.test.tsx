@@ -9,7 +9,7 @@
 import { cleanup, render, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { HomeNeeds } from "./HomeNeeds";
-import { headlineExtras, type HomeNeed } from "../lib/home-needs";
+import { needsParts, type HomeNeed } from "../lib/home-needs";
 import { genericTool, setToolsForTests } from "../lib/tools";
 import { account } from "../test/fixtures";
 
@@ -46,10 +46,8 @@ describe("Needs you rows and their Sign in, for assistive tech", () => {
     expect(within(kimi).getByRole("button").textContent?.startsWith("Sign in")).toBe(true);
   });
 
-  it("names the heading's sign-in extras by their App too, words unchanged", () => {
-    const extras = headlineExtras([signIn("opencode"), signIn("kimi-code")], { caps: [], messages: 0, tasks: 0 });
-    expect(extras.map((extra) => extra.words)).toEqual(["lab A needs its sign-in", "lab A needs its sign-in"]);
-    expect(extras.map((extra) => extra.name)).toEqual(["OpenCode CLI · lab A needs its sign-in", "Kimi Code CLI · lab A needs its sign-in"]);
+  it("names the heading's sign-ins by their App in its spoken parts", () => {
+    expect(needsParts([signIn("opencode"), signIn("kimi-code")], { caps: [], messages: 0, tasks: 0 })).toEqual(["OpenCode CLI · lab A needs its sign-in", "Kimi Code CLI · lab A needs its sign-in"]);
   });
 
   it("keeps a need that knows no App as it was", () => {

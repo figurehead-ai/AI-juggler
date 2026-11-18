@@ -90,27 +90,19 @@ function isSessionNeed(need: HomeNeed): boolean {
 }
 
 /** The heading's counts (D-117): what waits on you or broke (L2, L3) —
- * its sessions, and the rest with `own` (caps, agents' messages and
- * tasks, all L2) — and the notes listed but not counted ("1 to review"). */
-export function headCount(needs: HomeNeed[], own: number): { sessions: number; others: number; notes: number } {
-  const loud = needs.filter((need) => counted(homeNeedLevel(need)));
-  const sessions = loud.filter(isSessionNeed).length;
-  return { sessions, others: loud.length - sessions + own, notes: needs.length - loud.length };
+ * Home's own needs and `own` (caps, agents' messages and tasks, all L2),
+ * one number — and the notes listed but not counted ("1 to review"). */
+export function headCount(needs: HomeNeed[], own: number): { count: number; notes: number } {
+  const loud = needs.filter((need) => counted(homeNeedLevel(need))).length;
+  return { count: loud + own, notes: needs.length - loud };
 }
 
-/** The heading: one sentence about what needs the user; with nothing,
- * whether anything has run out, then whether anything runs. Sessions are
- * counted as the rail's Needs you counts them, so the two agree ("3
- * sessions need you" beside "Needs you 3"); a sign-in, the Mac, a cap or
- * leftovers are the "more" (the review of 0.1.4: "4 things" beside 3). */
-export function needsHeading(count: number | { sessions: number; others: number }, calm: { runOut: string[]; running: boolean; anything: boolean; known?: boolean }): string {
-  const { sessions, others } = typeof count === "number" ? { sessions: 0, others: count } : count;
-  if (sessions > 0) {
-    const them = sessions === 1 ? "1 session" : `${sessions} sessions`;
-    if (others === 0) return `${them} ${sessions === 1 ? "needs" : "need"} you`;
-    return `${them} and ${others} more ${others === 1 ? "thing" : "things"} need you`;
-  }
-  if (others > 0) return others === 1 ? "1 thing needs you" : `${others} things need you`;
+/** The heading (D-118's mock, "2 need you"): one count of what needs the
+ * user, the same number as the rail's Needs you and the bell (AJ-E3602),
+ * its parts said to assistive tech (`needsParts`); with nothing, whether
+ * anything has run out, then whether anything runs. */
+export function needsHeading(count: number, calm: { runOut: string[]; running: boolean; anything: boolean; known?: boolean }): string {
+  if (count > 0) return `${count} ${count === 1 ? "needs" : "need"} you`;
   // D-103.6: never "All clear" before the needs have loaded.
   if (calm.known === false) return "Checking what needs you…";
   // QA batch 9: never "All clear" while an account has run out (D-62:
@@ -118,6 +110,24 @@ export function needsHeading(count: number | { sessions: number; others: number 
   if (calm.runOut.length === 1) return `${calm.runOut[0]} has run out`;
   if (calm.runOut.length > 1) return `${calm.runOut.length} accounts have run out`;
   return calm.running ? "All clear — nothing needs you" : calm.anything ? "All clear" : "Ready when you are";
+}
+
+/** What the heading's count is made of, for assistive tech (the visible
+ * words stay "2 need you"): its sessions by count, then each other need
+ * by its full name (a sign-in's App, `needName`), caps by their titles,
+ * and agents' messages and tasks by their count. D-96 B's named parts,
+ * now in the heading's spoken name: the visible "and 2 more things" they
+ * explained is gone. */
+export function needsParts(needs: HomeNeed[], more: { caps: string[]; messages: number; tasks: number }): string[] {
+  const loud = needs.filter((need) => counted(homeNeedLevel(need)));
+  const sessions = loud.filter(isSessionNeed).length;
+  return [
+    ...(sessions > 0 ? [sessions === 1 ? "1 session" : `${sessions} sessions`] : []),
+    ...loud.filter((need) => !isSessionNeed(need)).map(needName),
+    ...more.caps,
+    ...(more.messages > 0 ? [more.messages === 1 ? "1 message from an agent" : `${more.messages} messages from agents`] : []),
+    ...(more.tasks > 0 ? [more.tasks === 1 ? "1 task waits on you" : `${more.tasks} tasks wait on you`] : []),
+  ];
 }
 
 /** What the item's primary says, by kind. */
@@ -167,36 +177,4 @@ export function needName(need: Pick<HomeNeed, "kind" | "account" | "title">): st
 export function primaryName(need: HomeNeed): string {
   const app = signInApp(need);
   return app ? `${primaryWords(need)} to ${app}` : `${primaryWords(need)} — ${need.title}`;
-}
-
-/** One of the heading's "more things", by name, and where its row is. */
-export interface HeadlineExtra {
-  key: string;
-  words: string;
-  /** Its name for assistive tech, when its words alone don't tell it
-   * apart (a sign-in's App, `needName`). */
-  name?: string;
-  /** The row it opens to on Home (a CSS selector inside Needs you). */
-  target: string;
-}
-
-/** Past this many, the rest are one "N more" (to the Needs you card). */
-const EXTRAS_SHOWN = 3;
-
-/**
- * D-96 B (AJ-E3307 M2): the heading's "2 more things", named right under
- * it ("Work is almost out of room · ChatGPT needs its sign-in"), each a
- * click to its row. Every part the heading counts as "more" is named:
- * Home's own non-session needs by their titles, then monthly caps,
- * agents' messages and tasks by their count.
- */
-export function headlineExtras(needs: HomeNeed[], more: { caps: string[]; messages: number; tasks: number }): HeadlineExtra[] {
-  const all: HeadlineExtra[] = [
-    ...needs.filter((need) => !isSessionNeed(need)).map((need) => ({ key: need.key, words: need.title, ...(needName(need) === need.title ? {} : { name: needName(need) }), target: `[data-need-key="${CSS.escape(need.key)}"]` })),
-    ...more.caps.map((words, index) => ({ key: `cap:${index}`, words, target: `[data-testid="home-cap"]:nth-of-type(${index + 1})` })),
-    ...(more.messages > 0 ? [{ key: "messages", words: more.messages === 1 ? "1 message from an agent" : `${more.messages} messages from agents`, target: '[data-testid="message-needs"]' }] : []),
-    ...(more.tasks > 0 ? [{ key: "tasks", words: more.tasks === 1 ? "1 task waits on you" : `${more.tasks} tasks wait on you`, target: '[data-testid="task-needs"]' }] : []),
-  ];
-  if (all.length <= EXTRAS_SHOWN + 1) return all;
-  return [...all.slice(0, EXTRAS_SHOWN), { key: "more", words: `${all.length - EXTRAS_SHOWN} more`, target: '[data-testid="home-needs"]' }];
 }

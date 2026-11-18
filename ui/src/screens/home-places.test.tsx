@@ -64,7 +64,7 @@ describe("Home, desktop first", () => {
     const view = home([], placesConversations(NOW));
     // D-117: the two that ask are counted; the one done, to review, is
     // listed and named in the counts line, never counted.
-    await waitFor(() => expect(view.getByTestId("home-heading").textContent).toBe("2 sessions need you"));
+    await waitFor(() => expect(view.getByTestId("home-heading").textContent).toBe("2 need you: 2 sessions"));
     const counts = view.getByTestId("home-counts");
     // D-47: open counts every open session, the ones that need you too
     // (they stay in their places in Open now); Needs you counts them once.
@@ -154,7 +154,7 @@ describe("Home, desktop first", () => {
     // feed's Finished filter, the leftovers the top bar's Clean up.
     expect(view.queryByTestId("home-need-leftovers")).toBeNull();
     expect(onOpenCleanup).not.toHaveBeenCalled();
-    expect(view.getByTestId("home-heading").textContent).toBe("3 sessions need you");
+    expect(view.getByTestId("home-heading").textContent).toBe("3 need you: 3 sessions");
     expect(within(view.getByTestId("home-needs-now-section")).getByTestId("section-count").textContent).toBe("3");
     expect(view.getByTestId("home-counts").textContent).toContain("2 to review");
   });

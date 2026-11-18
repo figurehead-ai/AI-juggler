@@ -154,7 +154,7 @@ describe("D-25 Home — the screen", () => {
     );
     const home = getByTestId("home");
     // AJ-E2105: one sentence; the other counts are links under it.
-    expect(getByTestId("home-heading").textContent).toBe("2 sessions need you");
+    expect(getByTestId("home-heading").textContent).toBe("2 need you: 2 sessions");
     // D-47: the one asking is open too (the failed one has ended).
     expect(getByTestId("home-counts").textContent).toContain("2 open");
     // Its page here (the maintainer's review of 0.1.4: a click never leaves).
@@ -173,16 +173,15 @@ describe("D-25 Home — the screen", () => {
     const { notificationsSummary } = await import("../lib/ipc/notices");
     const now = await notificationsSummary();
     act(() => applySummary({ ...now, count: now.count - 1 }));
-    expect(view.getByTestId("home-heading").textContent).toBe("2 sessions and 1 more thing need you");
+    expect(view.getByTestId("home-heading").textContent).toBe("3 need you: 2 sessions, Claude Code CLI · Spare needs its sign-in");
   });
 
-  it("names its \"more things\" under the heading, each a click to its row (D-96 B, AJ-E3307 M2)", async () => {
+  it("one count in sight, its parts in its spoken name (D-118's mock: \"2 need you\"; D-96 B's names)", async () => {
     const view = renderHome([mk("w", { status: "waiting_user" }), mk("r")], [...ACCOUNTS, folderFixture({ id: "out", label: "Spare", login_state: "signed_out" })]);
-    await waitFor(() => expect(view.getByTestId("home-heading").textContent).toBe("1 session and 1 more thing need you"));
-    const extras = view.getByTestId("home-extras");
-    const link = within(extras).getByRole("button", { name: "Claude Code CLI · Spare needs its sign-in" });
-    fireEvent.click(link);
-    await waitFor(() => expect(document.activeElement?.closest("[data-need-key='signin:out']")).not.toBeNull());
+    await waitFor(() => expect(view.getByTestId("home-heading").textContent).toBe("2 need you: 1 session, Claude Code CLI · Spare needs its sign-in"));
+    // The parts are said, not shown: the visible line is the count alone.
+    expect(view.getByTestId("home-heading-parts").className).toContain("sr-only");
+    expect(view.queryByTestId("home-extras")).toBeNull();
   });
 
   it("all clear while something runs; ready when nothing does", () => {

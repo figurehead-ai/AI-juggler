@@ -9,7 +9,7 @@
  * session's last message when its page's reader provides one (AJ-E2108).
  */
 import { useKeys } from "../lib/use-keys";
-import { useEffect, useState, type JSX, type ReactNode } from "react";
+import { useEffect, useRef, useState, type JSX, type ReactNode } from "react";
 import { Button } from "./primitives";
 import { useActionHost, useItemMenu } from "./ItemMenu";
 import { PlaceMark } from "./PlaceMarks";
@@ -104,15 +104,6 @@ function useRun(handlers: NeedHandlers): (need: HomeNeed, second?: boolean) => v
 /** Pinned needs shown before "+n more need you" (D-118 R2). */
 export const PINNED_SHOWN = 3;
 
-/** D-96 B: the heading's extras open to their row here: every need
- * shown, the row in view, its first control focused. */
-const revealers = new Set<(target: string) => void>();
-
-/** Shows the row `target` (a selector inside Needs you) and focuses it. */
-export function revealNeed(target: string): void {
-  for (const reveal of revealers) reveal(target);
-}
-
 /** AJ-E2910: what Home's row keys read: its session, and whether it has a
  * conversation to carry over. */
 function rowData(need: HomeNeed): Record<string, string | undefined> {
@@ -181,24 +172,14 @@ export function HomeNeeds({
   // D-118 (AJ-E3702 R2): past 3, the rest wait behind "+n more need you"
   // (the pinned zone stays short; the count above says them all).
   const [more, setMore] = useState(false);
+  // Opened, focus goes to the first need it held (its button goes away).
+  const reveal = useRef<string | null>(null);
   useEffect(() => {
-    let timer = 0;
-    const reveal = (target: string) => {
-      setMore(true);
-      // After the render that shows them all: the row in view, its control focused.
-      window.clearTimeout(timer);
-      timer = window.setTimeout(() => {
-        const row = document.querySelector<HTMLElement>(`[data-testid="home-needs"] ${target}, [data-testid="home-needs"]${target}`);
-        row?.scrollIntoView?.({ block: "center" });
-        (row?.querySelector<HTMLElement>("button") ?? row)?.focus();
-      }, 0);
-    };
-    revealers.add(reveal);
-    return () => {
-      revealers.delete(reveal);
-      window.clearTimeout(timer);
-    };
-  }, []);
+    const key = reveal.current;
+    if (!more || key === null) return;
+    reveal.current = null;
+    document.querySelector<HTMLElement>(`[data-testid="home-needs"] [data-need-key="${CSS.escape(key)}"] button`)?.focus();
+  }, [more]);
   const [first, ...others] = needs;
   const rest = more ? others : others.slice(0, PINNED_SHOWN - 1);
   const held = others.length - rest.length;
@@ -283,7 +264,7 @@ export function HomeNeeds({
           </ul>
         )}
         {held > 0 && (
-          <button type="button" aria-expanded={false} onClick={() => setMore(true)} className="self-start rounded text-meta text-ink-2 outline-none hover:underline focus-visible:ring-1 focus-visible:ring-accent/60" data-testid="home-needs-more">
+          <button type="button" aria-expanded={false} onClick={() => { reveal.current = others[rest.length]?.key ?? null; setMore(true); }} className="self-start rounded text-meta text-ink-2 outline-none hover:underline focus-visible:ring-1 focus-visible:ring-accent/60" data-testid="home-needs-more">
             +{held} more {held === 1 ? "needs" : "need"} you
           </button>
         )}

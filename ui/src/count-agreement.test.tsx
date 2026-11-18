@@ -33,9 +33,8 @@ afterEach(() => {
   sessionStorage.clear();
 });
 
-/** Home's heading's count: "2 things need you", or "3 sessions and 2
- * more things need you" (both parts). */
-const count = (heading: string) => [...heading.matchAll(/(\d+) (?:sessions?|more|things?)/g)].reduce((sum, match) => sum + Number(match[1]), 0);
+/** Home's heading's count: "3 need you" (D-118's mock: one number). */
+const count = (heading: string) => Number(/^(\d+) needs? you/.exec(heading)?.[1] ?? 0);
 
 it("the bell, Home and the rail show one Needs you count, the model's own needs included", async () => {
   w().__AIJ_NOTICES__ = {

@@ -6,7 +6,7 @@
  */
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { HomeNeeds, PINNED_SHOWN, revealNeed } from "./HomeNeeds";
+import { HomeNeeds, PINNED_SHOWN } from "./HomeNeeds";
 import { primaryWords, type HomeNeed } from "../lib/home-needs";
 
 afterEach(cleanup);
@@ -35,13 +35,9 @@ describe("D-118 — the pinned zone", () => {
     expect(screen.getByTestId("home-needs-more").textContent).toBe("+2 more need you");
     fireEvent.click(screen.getByTestId("home-needs-more"));
     expect(screen.getAllByTestId("home-need-signin")).toHaveLength(5);
+    // Focus moves to the first one it held (its button is gone).
+    expect(document.activeElement?.closest("[data-need-key]")?.getAttribute("data-need-key")).toBe(many(5)[3]!.key);
     expect(screen.queryByTestId("home-needs-more")).toBeNull();
-  });
-
-  it("opens to a held need when the heading names it", async () => {
-    render(<HomeNeeds needs={many(5)} handlers={{ onOpenSession: vi.fn() }} />);
-    revealNeed("[data-need-key='signin:4']");
-    expect(await screen.findByText("Account 4 needs its sign-in")).toBeTruthy();
   });
 });
 

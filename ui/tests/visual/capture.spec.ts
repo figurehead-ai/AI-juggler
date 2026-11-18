@@ -2194,13 +2194,13 @@ for (const theme of THEMES) {
       // item (its banner is for the other screens); the renewal line is
       // under Earlier in the notification centre, never a window alert.
       // D-118 R2: past 3 pinned needs it waits behind "+n more need you",
-      // named under the heading (D-96 B), one click to its row.
-      await expect(page.getByTestId("home-extras")).toContainText("Claude Max 20x is almost out of room");
-      await page.getByTestId("home-extras").getByRole("button", { name: "Claude Max 20x is almost out of room" }).click();
+      // one click away; the heading says it among its parts.
+      await expect(page.getByTestId("home-heading-parts")).toContainText("Claude Max 20x is almost out of room");
+      await page.getByTestId("home-needs-more").click();
       const quotaNeed = page.getByTestId("home-need-quota");
       await expect(quotaNeed).toContainText("Claude Max 20x is almost out of room");
       await expect(quotaNeed).toContainText("8% of its 5-hour window left");
-      await expect(quotaNeed.getByRole("button", { name: "Continue in another app… — Claude Max 20x is almost out of room" })).toBeFocused(); // its hand-over
+      await expect(quotaNeed.getByRole("button", { name: "Continue in another app… — Claude Max 20x is almost out of room" })).toBeVisible(); // its hand-over
       // D-118: the renewal line is also one of the feed's items (what happened).
       await expect(page.getByTestId("feed")).toContainText("p…@example.com: Renews in 6 days — check your plan");
       await page.getByTestId("notification-bell").click();

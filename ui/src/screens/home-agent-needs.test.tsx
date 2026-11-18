@@ -86,7 +86,7 @@ it("lists and counts only the messages the bell counts, while a newer one waits 
     </ConversationsProvider>,
   );
   await waitFor(() => expect(view.getAllByTestId("message-need-waiting")).toHaveLength(1));
-  expect(view.getByTestId("home-heading").textContent).toBe("1 thing needs you");
+  expect(view.getByTestId("home-heading").textContent).toBe("1 needs you: 1 message from an agent");
   expect(view.getByTestId("home-needs").textContent).toContain("Planner wrote to you");
   expect(view.getByTestId("home-needs").textContent).not.toContain("Builder wrote to you");
 });
