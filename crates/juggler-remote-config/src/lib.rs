@@ -13,7 +13,7 @@
 //! - [`state`]: the rollback floor, revoked keys and the last good file,
 //!   behind an injectable store.
 //! - [`schema`]: the section registry and what a value may do.
-//! - [`merge`]: defaults, then public, then account, then the user.
+//! - [`merge`](mod@merge): defaults, then public, then account, then the user.
 //! - [`target`]: targeting and rollout buckets, evaluated locally.
 //! - [`fetch`]: the daily anonymous fetch through an injected transport,
 //!   the cache and every fallback.
