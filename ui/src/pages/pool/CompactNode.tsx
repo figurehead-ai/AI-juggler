@@ -23,7 +23,7 @@ import { NODE_H, NODE_W, nodeForm } from "./layout";
 import { NodeButton, RoleWords, titleOf } from "./NodeButton";
 import { AskLine, NO_TASK, NodeRoom, nameWraps, nodeBorder, sessionAlert, useNodeDescription, type NodeProps } from "./NodeParts";
 
-export function CompactNode({ member, at, asks, held, selected, tabStop, dragging, scale, fade = false, onSelect, onMenu, onPointerDown, onKey }: NodeProps): JSX.Element {
+export function CompactNode({ member, at, asks, held, selected, tabStop, dragging, scale, onSelect, onMenu, onPointerDown, onKey }: NodeProps): JSX.Element {
   const [open, setOpen] = useState(false);
   const box = useRef<HTMLDivElement | null>(null);
   const badge = useRef<HTMLButtonElement | null>(null);
@@ -49,10 +49,12 @@ export function CompactNode({ member, at, asks, held, selected, tabStop, draggin
   // whole at fit, not cut at "Checkout cop…"); at the smallest, the name
   // on two lines with no state line (rc7 walk: at a 30 % fit every node
   // read "we…").
-  // The coordinator's critique (D-126): at a 54 % fit a title read
-  // "Checkout c…"; from 60 px a two-line box has room for it on two
-  // lines (12 px, tight) over its state.
-  const wrap = (lines === 2 && height >= 60) || (lines === 1 && height >= 32);
+  // The coordinator's critique (D-126): at a 53 % fit every title read
+  // "Checkout …" on one line. A two-line box always wraps its title over
+  // two lines (12 px, tight) before it cuts it; the box grows into the
+  // room the layout keeps under each node (GAP_Y) when the two lines and
+  // the state need more than its height.
+  const wrap = lines === 2 || (lines === 1 && height >= 32);
   const tight = lines === 1;
   // A narrow box (fit in a small window, ~130 px): the name at 12 px, so
   // "Spike: payment sandbox" reads whole on its two lines, not "Spike:
@@ -68,7 +70,11 @@ export function CompactNode({ member, at, asks, held, selected, tabStop, draggin
   const gaps = 6 * (lines === 1 && lead ? 3 : 2);
   // Its mark: the App's logo from two lines up (20 or 16 px), else the dot.
   const mark = lines === 3 ? 20 : lines === 2 ? 16 : 8;
-  const room = (width - (tight ? 12 : 16) - 2 - mark - (lines === 1 && lead ? 12 : 0) - gaps - (selected && width >= 140 ? 20 : 0)) / 1.1;
+  const space = width - (tight ? 12 : 16) - 2 - mark - (lines === 1 && lead ? 12 : 0) - gaps - (selected && width >= 140 ? 20 : 0);
+  // The two-line form measures its words in the page's own font, so 2 px
+  // to spare is enough (a tenth more cut "Checkout" at a 45 % fit, the
+  // coordinator's critique); elsewhere a tenth, as the gallery's "Planne".
+  const room = lines === 2 ? space - 2 : space / 1.1;
   const wrapWords = wrap && nameWraps(title.title, room, fontPx);
 
   useEffect(() => {
@@ -161,10 +167,10 @@ export function CompactNode({ member, at, asks, held, selected, tabStop, draggin
     >
       {/* Undo the canvas's scale: what's in here is drawn at screen size. */}
       <div
-        style={{ transform: `scale(${1 / scale})`, transformOrigin: "0 0", width, height }}
+        style={{ transform: `scale(${1 / scale})`, transformOrigin: "0 0", width, ...(lines === 2 && wrapWords ? { minHeight: height } : { height }) }}
+        data-grows={(lines === 2 && wrapWords) || undefined}
         className={
           "group/node relative flex flex-col justify-center gap-1 rounded-lg border data-[pending]:opacity-70 " +
-          (fade ? "motion-safe:animate-[aij-fade-in_140ms_ease-out] " : "") +
           (tight ? "px-1.5 py-0.5 " : "px-2 py-1 ") +
           nodeBorder(selected, waits > 0, lead) +
           (dragging ? " cursor-grabbing opacity-90 shadow-lg" : " cursor-grab") +

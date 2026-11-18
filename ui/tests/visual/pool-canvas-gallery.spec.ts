@@ -135,6 +135,20 @@ for (const theme of ["dark", "light"] as const) {
       );
       // (Measured through the transforms: a hair under 12 is rounding.)
       expect(smallest, "node text 12 px or more on screen").toBeGreaterThanOrEqual(11.5);
+      // D-126 (the coordinator's critique at a 53 % fit: "Checkout …"): a
+      // compact node's title wraps over two lines before it's cut, in the
+      // real layout. No title is cut on one line, and these show two.
+      const titles = await page.locator("[data-form='compact'] [data-node-name-text]").evaluateAll((all) =>
+        all.map((el) => {
+          const line = parseFloat(getComputedStyle(el).lineHeight);
+          const height = el.getBoundingClientRect().height;
+          return { text: el.textContent ?? "", lines: Math.round(height / line), cutOnOne: height < line * 1.5 && el.scrollWidth > el.clientWidth + 1 };
+        }),
+      );
+      expect(titles.filter((one) => one.cutOnOne).map((one) => one.text), "no title cut on one line").toEqual([]);
+      for (const long of ["Fix the cart totals", "Checkout copy pass", "Review the checkout steps", "Spike: payment sandbox", "Tax rules research"]) {
+        expect(titles.find((one) => one.text === long)?.lines, `${long}: on two lines`).toBe(2);
+      }
       await page.mouse.move(0, 0);
       await page.screenshot({ path: resolve(OUT, `canvas-${size}-${theme}.png`) });
       await axe(page, `canvas ${size} ${theme}`);

@@ -86,8 +86,6 @@ export type NodeProps = {
   /** The canvas's zoom: under 100 % the node draws its words at screen
    * size (CompactNode). */
   scale: number;
-  /** It changed form (a zoom across 100 %): it fades in. */
-  fade?: boolean;
   onSelect: (id: string, focusInspector: boolean) => void;
   onMenu: (id: string, at: { x: number; y: number }) => void;
   onPointerDown: (id: string, event: PointerEvent<HTMLDivElement>) => void;

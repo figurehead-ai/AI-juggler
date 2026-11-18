@@ -11,7 +11,7 @@
  * its words is under 12 px; CompactNode below, the same box with its
  * words at screen size.
  */
-import { memo, useState, type JSX, type MouseEvent } from "react";
+import { memo, type JSX, type MouseEvent } from "react";
 import { appName } from "../../lib/app-name";
 
 import { logoOf, MemberLogo } from "../../components/MemberLogo";
@@ -25,18 +25,16 @@ import { NodeButton, RoleWords, titleOf } from "./NodeButton";
 import { AskLine, NO_TASK, NodeRoom, nameWraps, nodeBorder, sessionAlert, useNodeDescription, type NodeProps } from "./NodeParts";
 
 /** Its full card from 100 % up, its compact form below (semantic zoom).
- * It fades in only when it changes form (a zoom across 100 %), never when
- * the diagram is drawn again (Diagram → List → Diagram, the rc2 walk:
- * WebKit holds a hidden window's animations at their first frame, and the
- * first frame was invisible). */
+ * It never fades in: WebKit holds a hidden window's animations at their
+ * first frame, and a fade's first frame is invisible — the rc2 walk's
+ * nodes undrawn after Diagram → List → Diagram, and a pool's first fit
+ * (100 % → its fit swaps every node's form) drew them faint until the
+ * window showed again. */
 export const CanvasNode = memo(function CanvasNode(props: NodeProps): JSX.Element {
-  const full = nodeForm(props.scale).full;
-  const [born] = useState(full);
-  const fade = born !== full;
-  return full ? <FullNode {...props} fade={fade} /> : <CompactNode {...props} fade={fade} />;
+  return nodeForm(props.scale).full ? <FullNode {...props} /> : <CompactNode {...props} />;
 });
 
-function FullNode({ member, at, asks, held, selected, tabStop, dragging, fade = false, onSelect, onMenu, onPointerDown, onKey }: NodeProps): JSX.Element {
+function FullNode({ member, at, asks, held, selected, tabStop, dragging, onSelect, onMenu, onPointerDown, onKey }: NodeProps): JSX.Element {
   const state = sessionState(member.session);
   const alert = sessionAlert(member);
   const lead = member.role === "lead";
@@ -72,7 +70,6 @@ function FullNode({ member, at, asks, held, selected, tabStop, dragging, fade = 
       style={{ transform: `translate(${at.x}px, ${at.y}px)`, width: NODE_W, minHeight: NODE_H }}
       className={
         "absolute left-0 top-0 flex touch-none select-none flex-col gap-2 rounded-xl border p-3 data-[pending]:opacity-70 " +
-        (fade ? "motion-safe:animate-[aij-fade-in_140ms_ease-out] " : "") +
         border +
         (dragging ? " z-20 cursor-grabbing opacity-90 shadow-lg" : " cursor-grab") +
         (ended && !selected ? " opacity-75" : "")

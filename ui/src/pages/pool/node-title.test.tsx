@@ -61,13 +61,18 @@ describe("a node leads with its title or task, the time second (D-126 §4a)", ()
   });
 });
 
-describe("a compact node at fit (the coordinator's critique: \"Checkout c…\" at 54 %)", () => {
-  it("wraps its title over two lines before it cuts it", () => {
+describe("a compact node at fit (the coordinator's critique: \"Checkout …\" at 53 %)", () => {
+  it.each([0.53, 0.5])("at %s it wraps its title over two lines before it cuts it, its box growing to hold them", (scale) => {
     const long = { ...member(untitled("s-9")), title: { title: "Review the checkout steps", when: null } };
-    render(<CanvasNode member={long} at={{ x: 0, y: 0 }} asks={[]} held={0} selected={false} tabStop dragging={false} scale={0.54} onSelect={() => {}} onMenu={() => {}} onPointerDown={() => {}} onKey={() => {}} />);
-    const text = screen.getByTestId("canvas-node").querySelector<HTMLElement>("[data-node-name-text]")!;
+    render(<CanvasNode member={long} at={{ x: 0, y: 0 }} asks={[]} held={0} selected={false} tabStop dragging={false} scale={scale} onSelect={() => {}} onMenu={() => {}} onPointerDown={() => {}} onKey={() => {}} />);
+    const node = screen.getByTestId("canvas-node");
+    const text = node.querySelector<HTMLElement>("[data-node-name-text]")!;
     expect(text.className.split(" ")).toContain("line-clamp-2");
     expect(text.textContent).toBe("Review the checkout steps");
+    // Its box isn't held to the scaled height: two lines and the state fit.
+    const box = node.querySelector<HTMLElement>("[data-grows]")!;
+    expect(box.style.height).toBe("");
+    expect(parseFloat(box.style.minHeight)).toBeCloseTo(112 * scale);
   });
 });
 
@@ -112,12 +117,12 @@ describe("Diagram → List → Diagram draws the nodes at once (the rc2 walk)", 
     for (const node of nodes) expect(node.outerHTML).not.toContain("aij-fade-in");
   });
 
-  it("a node fades in only when it changes form (a zoom across 100 %)", () => {
+  it("a node never fades in, nor when it changes form (a pool's first fit swaps every node's form)", () => {
     const one = member(untitled("s-1"));
     const props = { member: one, at: { x: 0, y: 0 }, asks: [], held: 0, selected: false, tabStop: true, dragging: false, onSelect: () => {}, onMenu: () => {}, onPointerDown: () => {}, onKey: () => {} };
     const view = render(<CanvasNode {...props} scale={1} />);
     expect(view.getByTestId("canvas-node").outerHTML).not.toContain("aij-fade-in");
     view.rerender(<CanvasNode {...props} scale={0.6} />);
-    expect(view.getByTestId("canvas-node").outerHTML).toContain("aij-fade-in");
+    expect(view.getByTestId("canvas-node").outerHTML).not.toContain("aij-fade-in");
   });
 });
