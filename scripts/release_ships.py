@@ -77,6 +77,7 @@ RULES: tuple[tuple[str, bool, str], ...] = (
     ("scripts/downgrade_note.py", True, "adds the downgrade note to those notes"),
     ("scripts/release_notes_check.sh", True, "checks those notes before the build"),
     ("scripts/release_scope.py", True, "refuses a nightly whose version's scope isn't proven or deferred"),
+    ("scripts/gate_watch.py", True, "release_scope prints its gate watch: the routes whose tool moved past what was checked (D-127/D-128)"),
     ("scripts/install_release_tool.sh", True, "installs the pinned tools the release build runs (cargo-auditable, cargo-cyclonedx)"),
     ("scripts/cargo_auditable_runner.sh", True, "builds the app with its dependency list embedded"),
     ("scripts/js_sbom.py", True, "writes the interface's bill of materials the release carries"),
