@@ -41,7 +41,7 @@ export function FloorButton(): JSX.Element {
   const close = () => setAt(null);
   return (
     <span className="group/floor flex h-9 items-stretch overflow-hidden rounded-lg transition-colors hover:bg-surface" data-testid="floor-split">
-      <button type="button" aria-label="The Floor" aria-keyshortcuts={keys.aria} title={`The Floor (${keys.words})`} onClick={open} className={`${PART} w-8 pl-1`} data-testid="floor-button">
+      <button type="button" aria-label="The Floor" aria-keyshortcuts={keys.aria} title={`The Floor (${keys.words})`} onClick={open} className={`${PART} w-7 pl-0.5`} data-testid="floor-button">
         <IconFloor width={17} height={17} aria-hidden="true" />
       </button>
       <button
@@ -51,7 +51,7 @@ export function FloorButton(): JSX.Element {
         aria-expanded={at !== null}
         onClick={(event) => setAt(at ? null : menuPoint(event))}
         title="The Floor's menu: open it, its list, its settings"
-        className={`${PART} w-4 pr-0.5`}
+        className={`${PART} w-6`}
         data-testid="floor-menu-button"
       >
         <IconChevronDown width={10} height={10} aria-hidden="true" />

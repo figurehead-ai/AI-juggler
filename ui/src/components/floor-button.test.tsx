@@ -24,9 +24,10 @@ describe("the Floor's split button", () => {
     expect(open.getAttribute("title")).toMatch(/^The Floor \(/);
     expect(menu.getAttribute("aria-label")).toBe("More of the Floor");
     expect(menu.getAttribute("title")).toBe("The Floor's menu: open it, its list, its settings");
-    // Hit areas: the whole height of the control (36 px, the bell's), 32 + 16 px wide.
-    expect(open.className).toContain("w-8");
-    expect(menu.className).toContain("w-4");
+    // Hit areas: the whole height of the control (36 px, the bell's), 28 + 24 px wide:
+    // neither half under WCAG 2.5.8's 24 px target (axe target-size), the halves flush.
+    expect(open.className).toContain("w-7");
+    expect(menu.className).toContain("w-6");
   });
 
   it("sits apart from the avatar", async () => {
