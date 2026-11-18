@@ -3601,3 +3601,7 @@ The two open questions in ADR-0035 (hosting; the default on) go to the maintaine
   - **Migrations are versioned,** so 0.6 only adds.
 - **Numbering note (2026-11-18):** the digest and watches design is ADR-0036; the memory and context design (D-133) is ADR-0037.
 - **Quiet hours (ADR-0036's question, the coordinating session's call):** a watch may break through quiet hours only if the user turns on "Even during quiet hours" for that watch. It's off by default and shown in plain words when the watch is confirmed. Every other alert waits for quiet hours to end, as before.
+- **Backups (ADR-0037's question, the coordinating session's call, 2026-11-18):** memory is split by what it is.
+  - **Watches and preferences the user stated** are settings. They go wherever settings go: local backups, and the encrypted cloud backup if the user has it on. That way a restore brings back what the user set up.
+  - **Chat history, remembered answers and model-inferred memories** go into local backups only, never the cloud backup, in line with D-121's "never off the Mac".
+  - **"Forget"** also removes the item from the next backup, and the backup page says so.
