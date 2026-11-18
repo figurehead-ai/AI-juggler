@@ -645,6 +645,10 @@ pub fn kimi_code_spec() -> juggler_adapter::ToolSpec {
         release_feed: Some(juggler_adapter::ReleaseFeed::Npm {
             package: "@moonshot-ai/kimi-code".to_owned(),
         }),
+        // D-128: read only, by the release flow's gate watch.
+        version_probes: vec![juggler_adapter::VersionProbe::Command {
+            program: "kimi".to_owned(),
+        }],
         more_release_feeds: Vec::new(),
         update_command: Some("kimi upgrade".to_owned()),
         // The plain office, on purpose: campus and lab are kept for the

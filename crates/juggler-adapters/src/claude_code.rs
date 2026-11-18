@@ -1369,6 +1369,8 @@ pub fn claude_code_spec() -> juggler_adapter::ToolSpec {
         release_feed: Some(juggler_adapter::ReleaseFeed::Npm {
             package: "@anthropic-ai/claude-code".to_owned(),
         }),
+        // D-128: read only, by the release flow's gate watch.
+        version_probes: vec![juggler_adapter::VersionProbe::Command { program: "claude".to_owned() }, juggler_adapter::VersionProbe::AppBundle { path: "/Applications/Claude.app".to_owned() }],
         more_release_feeds: Vec::new(),
         update_command: Some("claude update".to_owned()),
         // The Floor: a warm workshop for the CLI, a pale studio for the

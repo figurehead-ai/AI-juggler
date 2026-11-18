@@ -84,6 +84,7 @@ pub use runtime::{
 };
 pub use spec::{
     FloorFamilies, ReleaseFeed, SetupGroup, SignInWords, ToolFlags, ToolKind, ToolSpec, ToolTerms,
+    VersionProbe,
 };
 pub use subagents::{
     Asked, LinesChanged, Subagent, SubagentCommand, SubagentConversations, SubagentDetails,

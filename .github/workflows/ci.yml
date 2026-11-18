@@ -251,6 +251,7 @@ jobs:
           python3 scripts/promotion_rules.py --selftest
           python3 scripts/stats_config_check.py --selftest
           python3 scripts/release_scope.py --selftest
+          python3 scripts/gate_watch.py --selftest
           python3 scripts/release_scope.py report 0.4 >/dev/null
           python3 scripts/signoff_record.py --selftest
           python3 scripts/apple_retry.py --selftest

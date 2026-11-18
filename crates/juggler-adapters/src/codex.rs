@@ -1004,6 +1004,10 @@ pub fn codex_spec() -> juggler_adapter::ToolSpec {
         }),
         // D-128: the Codex app inside ChatGPT.app updates through this
         // Sparkle appcast (read from the installed app's own bundle).
+        // D-128: read only, by the release flow's gate watch.
+        version_probes: vec![juggler_adapter::VersionProbe::Command {
+            program: "codex".to_owned(),
+        }],
         more_release_feeds: vec![juggler_adapter::ReleaseFeed::Appcast {
             url: "https://persistent.oaistatic.com/codex-app-prod/appcast.xml".to_owned(),
         }],

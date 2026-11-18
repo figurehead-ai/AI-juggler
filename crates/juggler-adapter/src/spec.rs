@@ -142,11 +142,32 @@ pub struct ToolSpec {
     /// app's update feed, its GitHub releases), read only by the daily
     /// version watcher (`scripts/tool_versions.py`); the app never asks them.
     pub more_release_feeds: Vec<ReleaseFeed>,
+    /// D-128: how the release flow's gate watch (`scripts/gate_watch.py`)
+    /// reads the installed version on the reference Mac, read only: the
+    /// tool's command, and its desktop app's bundle where it has one. The
+    /// app itself reads versions through the adapter.
+    pub version_probes: Vec<VersionProbe>,
     /// AJ-E1611: the command the user runs to update it themselves. AI
     /// Juggler shows it and never runs it.
     pub update_command: Option<String>,
     /// The Floor's style family for its Apps (AJ-E3504).
     pub floor: FloorFamilies,
+}
+
+/// D-128: where the installed version of a tool can be read, read only.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum VersionProbe {
+    /// A command that prints its version with `--version` (found on PATH
+    /// or in the installer's usual places).
+    Command {
+        /// The command's name (`claude`).
+        program: String,
+    },
+    /// A desktop app: its bundle's `CFBundleShortVersionString`.
+    AppBundle {
+        /// The bundle's usual place (`/Applications/Claude.app`).
+        path: String,
+    },
 }
 
 /// AJ-E1611: a public list of a tool's released versions.
@@ -224,6 +245,7 @@ impl ToolSpec {
             terms: None,
             release_feed: None,
             more_release_feeds: Vec::new(),
+            version_probes: Vec::new(),
             update_command: None,
             floor: FloorFamilies::default(),
         }

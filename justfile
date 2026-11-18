@@ -126,6 +126,7 @@ release-selftest:
     python3 scripts/updater_sig_check.py --selftest
     python3 scripts/plugin_package.py --selftest
     python3 scripts/release_scope.py --selftest
+    python3 scripts/gate_watch.py --selftest
     python3 scripts/release_scope.py report 0.4 >/dev/null
     python3 scripts/signoff_record.py --selftest
 
