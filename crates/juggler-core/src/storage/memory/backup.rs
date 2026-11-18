@@ -20,7 +20,7 @@
 
 use rusqlite::Connection;
 
-use super::erase::{erase_subject, optimize_index, reindex};
+use super::erase::{erase_subject, reindex};
 use super::schema::{installed, installed_in};
 use super::secure::{SecureHold, fold_wal};
 use crate::error::CoreError;
@@ -190,7 +190,7 @@ fn count(conn: &Connection, table: &str) -> rusqlite::Result<usize> {
 /// just restored: the tombstones of the database it replaces (attached as
 /// `prior`) are kept, and every subject they name is erased from it (its
 /// turns redacted too), so restoring a backup made before a forget doesn't
-/// bring the forgotten memory back. Then the index is rewritten and the
+/// bring the forgotten memory back. Then the index is rebuilt and the
 /// WAL folded. Returns the record versions dropped.
 ///
 /// # Errors
@@ -215,7 +215,7 @@ pub fn after_restore(conn: &Connection, prior: &str) -> Result<usize, CoreError>
         }
         let dropped = drop_tombstoned(&tx)?;
         if dropped > 0 {
-            optimize_index(&tx)?;
+            reindex(&tx)?;
         }
         tx.commit()?;
         dropped

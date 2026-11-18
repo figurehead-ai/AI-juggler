@@ -701,6 +701,116 @@ fn separators(storage: &Storage, word: &str) -> Vec<String> {
         .collect()
 }
 
+/// Picks a page separator holding `word` from the middle of the index and
+/// forgets every subject whose words it starts; returns it.
+fn forget_a_separator(storage: &Storage, word: &str) -> String {
+    let found = separators(storage, word);
+    assert!(found.len() >= 3, "a multi-page index: {}", found.len());
+    let separator = found[found.len() / 2].clone();
+    assert!(separator.len() > word.len() + 2, "{separator}");
+    for key in keys_holding(storage, &separator) {
+        storage.memory().forget(&key, &Actor::User, NOW).unwrap();
+    }
+    separator
+}
+
+fn keys_holding(storage: &Storage, text: &str) -> Vec<String> {
+    let keys: Vec<String> = storage
+        .conn
+        .prepare("SELECT subject_key FROM memory_records WHERE instr(text, ?1) > 0")
+        .unwrap()
+        .query_map([text], |row| row.get(0))
+        .unwrap()
+        .collect::<Result<_, _>>()
+        .unwrap();
+    assert!(!keys.is_empty());
+    keys
+}
+
+/// Neither the index nor the file (with its WAL) holds `separator`.
+fn assert_separator_gone(storage: &Storage, path: &std::path::Path, word: &str, separator: &str) {
+    assert!(
+        !separators(storage, word)
+            .iter()
+            .any(|s| s.starts_with(separator)),
+        "{separator} is still in the index"
+    );
+    assert!(
+        !spot(&file_bytes(path), separator),
+        "{separator} is still in the file"
+    );
+}
+
+fn store_on_disk(dir: &std::path::Path, name: &str) -> (Storage, std::path::PathBuf) {
+    let path = dir.join(name);
+    let storage = Storage::open(&path).unwrap();
+    storage.conn.execute_batch(V54).unwrap();
+    (storage, path)
+}
+
+/// The re-review's RX1: a second forget with no write since the first,
+/// when the first left the index one segment. Fails with `optimize`.
+#[test]
+fn a_second_forget_in_a_row_clears_its_separator() {
+    const WORD: &str = "secondword";
+    let dir = tempfile::tempdir().unwrap();
+    let (storage, path) = store_on_disk(dir.path(), "juggler.sqlite");
+    bulk_notes(&storage, WORD, 4000);
+    forget_a_separator(&storage, WORD);
+    let second = forget_a_separator(&storage, WORD);
+    assert_separator_gone(&storage, &path, WORD, &second);
+}
+
+/// The re-review's RX2: a store whose index is one segment already (after
+/// an automerge or an earlier forget). Fails with `optimize`.
+#[test]
+fn a_forget_on_a_one_segment_index_clears_its_separator() {
+    const WORD: &str = "onesegmentword";
+    let dir = tempfile::tempdir().unwrap();
+    let (storage, path) = store_on_disk(dir.path(), "juggler.sqlite");
+    bulk_notes(&storage, WORD, 4000);
+    storage
+        .conn
+        .execute_batch("INSERT INTO memory_fts(memory_fts) VALUES ('optimize');")
+        .unwrap();
+    let separator = forget_a_separator(&storage, WORD);
+    assert_separator_gone(&storage, &path, WORD, &separator);
+}
+
+/// The re-review's RX3: an export (its index built fresh, one segment)
+/// restored on this Mac after a forget: the tombstone pass drops the
+/// subject and its separator from the file that replaces the live one.
+/// Fails with `optimize`.
+#[test]
+fn a_restore_of_an_older_export_drops_the_forgotten_separator() {
+    const WORD: &str = "restoredword";
+    let dir = tempfile::tempdir().unwrap();
+    let (live, live_path) = store_on_disk(dir.path(), "live.sqlite");
+    bulk_notes(&live, WORD, 4000);
+    let export_path = dir.path().join("export.sqlite");
+    live.snapshot_to(&export_path).unwrap();
+    let export = Storage::open(&export_path).unwrap();
+    scrub_snapshot(&export.conn, Destination::Local).unwrap();
+    // This Mac forgets, after the export, a word that starts an index page
+    // of the export.
+    let found = separators(&export, WORD);
+    assert!(found.len() >= 3, "a multi-page export index");
+    let separator = found[found.len() / 2].clone();
+    for key in keys_holding(&live, &separator) {
+        live.memory().forget(&key, &Actor::User, NOW).unwrap();
+    }
+    export
+        .conn
+        .execute(
+            "ATTACH DATABASE ?1 AS prior",
+            [live_path.to_string_lossy().as_ref()],
+        )
+        .unwrap();
+    assert!(after_restore(&export.conn, "prior").unwrap() > 0);
+    export.conn.execute("DETACH DATABASE prior", []).unwrap();
+    assert_separator_gone(&export, &export_path, WORD, &separator);
+}
+
 /// H1 of the security review: FTS5's `secure-delete` leaves a page's
 /// separator (the prefix of its first term) in `memory_fts_idx`. Forget
 /// rewrites the index, so a forgotten word that started a page is gone

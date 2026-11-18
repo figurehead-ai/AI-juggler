@@ -40,9 +40,10 @@
 //!    they free, and a `REPLACE` fires the index's delete trigger (L3).
 //! 3. **The index.** `memory_fts` uses FTS5's `secure-delete`, which removes
 //!    a row's terms from the leaves but not the page separators in
-//!    `memory_fts_idx` (H1). So forget rewrites the index (`optimize`) in
-//!    the same transaction, and every backup scrub builds it fresh from the
-//!    rows left. Untrusted rows are never indexed; the index is keyed by an
+//!    `memory_fts_idx` (H1), and `optimize` does nothing on a one-segment
+//!    index (the re-review). So forget, a restore's tombstone pass and
+//!    every backup scrub rebuild the index from the rows left (`reindex`),
+//!    in the same transaction. Untrusted rows are never indexed; the index is keyed by an
 //!    explicit `seq`, so a `VACUUM` can't misalign it.
 //! 4. **Chat (H2).** The turns the subject came from (`source_id`) or was
 //!    used in (`chat_turn_memory`, the receipts' link) are redacted (the
@@ -77,7 +78,7 @@
 //! 10. **Checked by tests,** each failing without its fix:
 //!     `forget_leaves_no_trace_in_the_file` (raw file and WAL bytes, the
 //!     turns and titles, `fts5vocab`), `forget_clears_the_index_page_separators`
-//!     (fails without `optimize`), `the_cloud_copy_holds_no_local_only_or_forgotten_word`
+//!     and the three re-review cases (each fails with `optimize`), `the_cloud_copy_holds_no_local_only_or_forgotten_word`
 //!     (fails without the fresh index), and the app's
 //!     `a_restore_drops_the_forgotten_and_keeps_no_copy_holding_it`.
 

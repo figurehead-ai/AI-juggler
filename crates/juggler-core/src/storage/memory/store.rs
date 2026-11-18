@@ -3,7 +3,7 @@
 
 use rusqlite::{Connection, OptionalExtension, Row, params};
 
-use super::erase::{erase_subject, optimize_index};
+use super::erase::{erase_subject, reindex};
 use super::log::{Actor, NewEvent, Stream, append_in};
 use super::secure::{SecureHold, fold_wal};
 use super::types::{
@@ -435,7 +435,7 @@ impl<'c> MemoryStore<'c> {
     /// entries, the log's sidecars about it, and the words of the Chat turns
     /// it came from or was used in (redacted, a title taken from one
     /// renamed), in one transaction with `secure_delete` on; the index
-    /// rewritten (`optimize`), so no page separator keeps a prefix of its
+    /// rebuilt, so no page separator keeps a prefix of its
     /// words; a tombstone (the subject's random id and when)
     /// so a restore of an older backup on this Mac drops it; one
     /// `memory.forgot` event (ids and counts only); then the WAL folded in
@@ -483,7 +483,7 @@ impl<'c> MemoryStore<'c> {
                 }
             }
             if out.subjects > 0 {
-                optimize_index(&tx)?;
+                reindex(&tx)?;
             }
             tx.commit()?;
         }

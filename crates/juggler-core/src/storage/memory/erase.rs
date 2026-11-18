@@ -74,18 +74,14 @@ pub(super) fn erase_subject(conn: &Connection, subject_id: &str) -> rusqlite::Re
     Ok(out)
 }
 
-/// Rewrites the FTS index into one segment (`optimize`). `secure-delete`
-/// removes a deleted row's entries from the leaves but leaves the page
-/// separators in `memory_fts_idx`, each the prefix of a page's first term
-/// (the security review's H1); a rewrite makes new separators from the
-/// terms left, and the old pages are freed zeroed (`SecureHold`).
-pub(super) fn optimize_index(conn: &Connection) -> rusqlite::Result<()> {
-    conn.execute("INSERT INTO memory_fts(memory_fts) VALUES ('optimize')", [])
-        .map(drop)
-}
-
 /// Drops the whole index and builds it fresh from the current, trusted
-/// rows (a backup's copy: nothing of the source file's index travels).
+/// rows. `secure-delete` removes a deleted row's entries from the leaves
+/// but leaves each page's separator in `memory_fts_idx` (the prefix of the
+/// page's first term), and `optimize` is a no-op on an index of one
+/// segment (the security review's H1 and its re-review), so forget, a
+/// restore's tombstone pass and every backup scrub rebuild it: the old
+/// segments are freed zeroed (`SecureHold`), the new separators come from
+/// the terms left. The index is small (the store's cap is 20 MB).
 pub(super) fn reindex(conn: &Connection) -> rusqlite::Result<()> {
     conn.execute_batch(
         "INSERT INTO memory_fts(memory_fts) VALUES ('delete-all');
