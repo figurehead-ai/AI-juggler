@@ -72,7 +72,7 @@ export function NewPoolStep({
     case "lead":
       return <NewPoolLead draft={draft} onDraft={setDraft} sessions={candidates.session} nameOf={memberName} where={where} open={sessions} />;
     case "everyone":
-      return <NewPoolEveryone draft={draft} onDraft={setDraft} where={where} nameOf={memberName} />;
+      return <NewPoolEveryone draft={draft} onDraft={setDraft} where={where} nameOf={memberName} open={sessions} />;
     case "talk":
       return <NewPoolTalk draft={draft} onDraft={setDraft} />;
     case "own":

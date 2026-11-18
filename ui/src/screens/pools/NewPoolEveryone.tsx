@@ -1,104 +1,138 @@
 /**
- * AJ-E3011 step 4, Everyone else (§2, §4): "New sessions in web join as
- * [Member ▾]" — the old "Everyone in this pool's projects" row as a
- * labelled control that reads back as a sentence — then the four roles as
- * cards, and each member's role and what it may do on its own ("Same as
- * the pool" first), each row read back as a sentence. Round 2 (#2): an
- * App whose next session leads is one row: "Its next session leads · its
- * others join as [Member ▾]"; the roles are a plain reference (#9), and
- * each picker has its label ("Role:", "On its own:", #10).
+ * AJ-E3011 step 4, Who builds, who checks (§2, §4): the four roles as a
+ * plain reference, then each member's role, everyone in the projects
+ * too, and (if wanted) what one member may do on its own when it differs
+ * from the pool.
+ *
+ * D-126: each member a row with its logo (its role's mark at the
+ * corner), its name and what it is, and its role as one segmented
+ * control: Member, Reviewer, Observer. Who leads is the step before's: a
+ * session that leads says so here; an App whose next session leads says
+ * "Its next session leads. Its other sessions:" and its control sets the
+ * others' role, keeping the lead (round 2, #2: one row, not a Lead
+ * beside a Member). Every new session's role is the same control
+ * (everyone joins at all is Who's in's switch).
  */
 import type { JSX } from "react";
 
-import { EVERYONE, withLead, type Draft, type DraftMember } from "../../lib/new-pool";
+import { Disclosure, Segmented } from "../../components/controls";
+import { LogoTile } from "../../components/ToolLogo";
+import { useApps, type AppModel } from "../../lib/apps";
 import type { PoolRole } from "../../lib/ipc/pools";
-import { LEADS_WHEN, joinSentence, memberSentence, nextLeadsLine, nextLeadsSentence, nextSessionWords } from "../../lib/pool-words";
-import { IconLead } from "../../components/icons-canvas";
-import { JoinAs } from "../../pages/pool/setup/JoinAs";
+import type { Draft, DraftMember } from "../../lib/new-pool";
+import { ROLE_CARDS, roleCard } from "../../lib/pool-words";
+import type { InstanceInfo } from "../../types/generated/InstanceInfo";
 import { MemberOwnLevel } from "../../pages/pool/setup/OwnLevelChoice";
-import { RoleCards, RolePicker, RoleWhy, holdersOf } from "../../pages/pool/setup/RoleCards";
+import { logoOf, MemberLogo, ROLE_ICONS } from "./MemberLogo";
 import { StepHead } from "./StepHead";
 
-export function NewPoolEveryone({ draft, onDraft, where, nameOf }: { draft: Draft; onDraft: (next: Draft) => void; where: string; nameOf: (ref: string, label: string) => string }): JSX.Element {
+/** The roles a member's control offers (the lead is Who leads'). */
+const CHOOSE: readonly PoolRole[] = ["member", "reviewer", "observer"];
+
+/** What a member is, in a few words: "Desktop app · Profile Personal". */
+export function memberKindWords(member: Pick<DraftMember, "ref" | "kind">, apps: readonly AppModel[]): string {
+  if (member.kind === "app") {
+    const app = apps.find((one) => `app:${one.id}` === member.ref);
+    if (!app) return member.ref.startsWith("app:cli:") ? "Terminal" : "App";
+    return [app.kind === "desktop" ? "Desktop app" : "Terminal", app.profile ? `Profile ${app.profile}` : null].filter(Boolean).join(" · ");
+  }
+  return { session: "One session", account: "Every session of an account", tool: "Every session of a tool", mac: "Every session on a Mac", everyone: "Joins by itself, now and later" }[member.kind];
+}
+
+function RoleControl({ name, value, onChange }: { name: string; value: PoolRole; onChange: (role: PoolRole) => void }): JSX.Element {
+  return (
+    <Segmented<PoolRole>
+      label={`${name}'s role`}
+      value={value}
+      segments={CHOOSE.map((role) => ({ value: role, label: roleCard(role).label, icon: ROLE_ICONS[role] }))}
+      onChange={onChange}
+      testId="new-pool-member-role"
+      className="shrink-0"
+    />
+  );
+}
+
+export function NewPoolEveryone({ draft, onDraft, where, nameOf, open = [] }: { draft: Draft; onDraft: (next: Draft) => void; where: string; nameOf: (ref: string, label: string) => string; open?: readonly InstanceInfo[] }): JSX.Element {
+  const apps = useApps() ?? [];
   const setMember = (ref: string, change: Partial<DraftMember>) => onDraft({ ...draft, members: draft.members.map((member) => (member.ref === ref ? { ...member, ...change } : member)) });
   const everyone = draft.members.find((member) => member.ref === "all");
-  const setJoin = (role: PoolRole | null) => {
-    if (role === null) onDraft({ ...draft, members: draft.members.filter((member) => member.ref !== "all") });
-    else if (everyone) setMember("all", { role });
-    else onDraft({ ...draft, members: [...draft.members, { ...EVERYONE, role }] });
-  };
   const named = draft.members.filter((member) => member.ref !== "all");
-  const holders = holdersOf([
-    ...named.map((member) => ({ name: member.ref === draft.leadNext ? `${nameOf(member.ref, member.label)}'s other sessions` : nameOf(member.ref, member.label), role: member.role })),
-    ...(everyone ? [{ name: "new sessions", role: everyone.role }] : []),
-    ...(draft.leadNext ? [{ name: nextSessionWords(nameOf(draft.leadNext, draft.members.find((member) => member.ref === draft.leadNext)?.label ?? "An App")), role: "lead" }] : []),
-  ]);
+  const own = named.some((member) => member.level !== null);
   return (
-    <div className="flex max-w-3xl flex-col gap-5" data-testid="new-pool-step-everyone">
+    <div className="flex flex-col gap-7" data-testid="new-pool-step-everyone">
       <StepHead step="everyone" />
-      <div className="flex flex-col gap-1.5">
-        <JoinAs where={where} value={everyone?.role ?? null} onChange={setJoin} testId="new-pool-join" />
-        <p className="text-meta text-ink" data-testid="new-pool-join-sentence">
-          {joinSentence(where, everyone?.role ?? null, everyone?.level ?? draft.level)}
-        </p>
-      </div>
-      <div className="flex flex-col gap-2">
-        <span className="section-label">What each role does</span>
-        <RoleCards holders={holders} testId="new-pool-role-cards" />
-      </div>
+      <ul aria-label="What each role does" className="grid grid-cols-2 gap-2.5 sm:grid-cols-4" data-testid="new-pool-role-cards">
+        {ROLE_CARDS.map((card) => (
+          <li key={card.id} className="flex flex-col gap-2 rounded-xl bg-surface-2 p-3" data-testid="role-card" data-role={card.id}>
+            <LogoTile icon={ROLE_ICONS[card.id]} size={24} />
+            <span className="flex flex-col">
+              <span className="text-meta font-semibold text-ink">{card.label}</span>
+              <span className="text-label text-muted">{card.line}</span>
+            </span>
+          </li>
+        ))}
+      </ul>
+      <section aria-labelledby="new-pool-each-title" className="flex flex-col gap-2.5">
+        <h4 id="new-pool-each-title" className="section-label">
+          Each member
+        </h4>
+        <ul className="flex flex-col gap-2" data-testid="new-pool-roles">
+          {named.map((member) => {
+            const name = nameOf(member.ref, member.label);
+            const leadsNext = member.ref === draft.leadNext;
+            const leads = member.role === "lead";
+            return (
+              <li key={member.ref} className="flex flex-wrap items-center gap-x-3.5 gap-y-2 rounded-card bg-surface px-3.5 py-3 inset-ring-1 inset-ring-hairline/75" data-testid="new-pool-member-row" data-leads-next={leadsNext || undefined}>
+                <MemberLogo spec={logoOf(member.ref, { apps, sessions: open })} size={32} badge={leads || leadsNext ? "lead" : member.role} />
+                <span className="flex min-w-0 flex-1 flex-col">
+                  <span className="truncate text-body font-semibold text-ink" data-testid="new-pool-member-name">
+                    {name}
+                  </span>
+                  <span className="text-meta text-ink-2" data-testid="new-pool-member-line">
+                    {leads ? "Leads the team. Change it in Who leads." : leadsNext ? "Its next session leads. Its other sessions:" : memberKindWords(member, apps)}
+                  </span>
+                </span>
+                {!leads && <RoleControl name={leadsNext ? `${name}'s other sessions` : name} value={member.role} onChange={(role) => setMember(member.ref, { role })} />}
+              </li>
+            );
+          })}
+          {everyone && (
+            <li className="flex flex-wrap items-center gap-x-3.5 gap-y-2 rounded-card bg-surface px-3.5 py-3 inset-ring-1 inset-ring-hairline/75" data-testid="new-pool-member-row" data-everyone>
+              <MemberLogo spec={logoOf("all", { apps, sessions: open })} size={32} badge={everyone.role} />
+              <span className="flex min-w-0 flex-1 flex-col">
+                <span className="truncate text-body font-semibold text-ink">Every new session in {where}</span>
+                <span className="text-meta text-ink-2">Joins by itself, now and later</span>
+              </span>
+              <RoleControl name="Every new session" value={everyone.role === "lead" ? "member" : everyone.role} onChange={(role) => setMember("all", { role })} />
+            </li>
+          )}
+          {named.length === 0 && !everyone && <li className="text-meta text-ink-2">No one yet: add members in Who's in.</li>}
+        </ul>
+      </section>
       {named.length > 0 && (
-        <div className="flex flex-col gap-2">
-          <span className="section-label">Each member</span>
+        <Disclosure
+          open={own}
+          summary={
+            <span>
+              One member works differently on its own <span className="font-normal text-faint">· optional, per member</span>
+            </span>
+          }
+          tone="heading"
+          testId="new-pool-own-fold"
+        >
           {/* Round 6 (Sam): "On its own: Same as the pool" said nothing. */}
-          <p className="-mt-1 text-meta text-ink-2" data-testid="new-pool-own-hint">
-            Its role, and On its own: what this member may do without asking, if different from the pool.
+          <p className="mt-2 text-meta text-ink-2" data-testid="new-pool-own-hint">
+            What this member may do without asking, if different from the pool.
           </p>
-          <ul className="flex flex-col gap-1" data-testid="new-pool-roles">
-            {named.map((member) => {
-              const name = nameOf(member.ref, member.label);
-              const leadsNext = member.ref === draft.leadNext;
-              return (
-                <li key={member.ref} className="flex flex-col gap-1.5 rounded-xl bg-surface-2 px-3 py-2.5" data-testid="new-pool-member-row" data-leads-next={leadsNext || undefined}>
-                  {/* Round 6 (Sam): the name had a narrow column ("Claude / Code /
-                      CLI ·"); it takes the row's width, the pickers under it. */}
-                  <span className="flex flex-col gap-1.5">
-                    <span className="flex min-w-0 flex-col">
-                      <span className="text-body font-medium text-ink" data-testid="new-pool-member-name">{name}</span>
-                      {leadsNext && (
-                        // As its card on the diagram says it; the sentence
-                        // below reads the rest back.
-                        <span className="inline-flex items-center gap-1 text-label font-medium text-ink-2" data-testid="new-pool-member-leads-next" title={nextLeadsLine(member.role)}>
-                          <IconLead aria-hidden="true" width={12} height={12} />
-                          {LEADS_WHEN}
-                        </span>
-                      )}
-                    </span>
-                    <span className="flex flex-wrap items-center gap-2">
-                    <RolePicker
-                      member={member.kind}
-                      name={name}
-                      value={member.role}
-                      leadsNext={leadsNext}
-                      onChange={(role) => {
-                        // An App's Lead: its next session leads (round 3, #1), as Who leads sets it.
-                        if (role === "lead") return onDraft(withLead(draft, member.kind === "app" ? { kind: "next", app: member.ref } : { kind: "session", ref: member.ref }));
-                        const base = leadsNext ? withLead(draft, { kind: "none" }) : draft;
-                        onDraft({ ...base, members: base.members.map((one) => (one.ref === member.ref ? { ...one, role } : one)) });
-                      }}
-                      testId="new-pool-member-role"
-                    />
-                    <MemberOwnLevel name={name} value={member.level} poolLevel={draft.level} onChange={(level) => setMember(member.ref, { level })} testId="new-pool-member-level" />
-                    </span>
-                  </span>
-                  <RoleWhy member={member.kind} testId="new-pool-member-lead-why" />
-                  <span className="text-meta text-ink-2" data-testid="new-pool-member-sentence">
-                    {leadsNext ? nextLeadsSentence(name, member.role, member.level, draft.level) : memberSentence(name, member.role, member.level, draft.level)}
-                  </span>
-                </li>
-              );
-            })}
+          <ul className="mt-2 flex flex-col gap-1.5">
+            {named.map((member) => (
+              <li key={member.ref} className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                <span className="min-w-0 flex-1 truncate text-meta text-ink">{nameOf(member.ref, member.label)}</span>
+                <MemberOwnLevel name={nameOf(member.ref, member.label)} value={member.level} poolLevel={draft.level} onChange={(level) => setMember(member.ref, { level })} testId="new-pool-member-level" />
+              </li>
+            ))}
           </ul>
-        </div>
+        </Disclosure>
       )}
     </div>
   );

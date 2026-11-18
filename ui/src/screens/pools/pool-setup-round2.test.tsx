@@ -88,34 +88,38 @@ describe("AJ-E3011 round 2", () => {
     expect(leadFolder({ scope_all: false, scope: ["p-web", "p-docs"] }, projects)).toBeNull();
   });
 
-  it("#2, #10: Everyone else names the App's role line and labels each picker", () => {
-    const draft: Draft = { ...draftOf(templateById("blank"), "p-web"), members: [app("app:cli:work", "Claude Code · Work"), app("app:cli:codex", "Codex · Personal", "reviewer")], leadNext: "app:cli:work" };
-    render(<NewPoolEveryone draft={draft} onDraft={() => undefined} where="web" nameOf={(_, label) => label} />);
-    const rows = screen.getAllByTestId("new-pool-member-row");
-    expect(within(rows[0]!).getByTestId("new-pool-member-leads-next").textContent).toBe("Lead when a session starts");
-    expect(within(rows[0]!).getByTestId("new-pool-member-sentence").textContent).toBe("Claude Code · Work takes charge as soon as one of its sessions starts; its others join as Member and may Work together, as the pool.");
-    // Round 3 (#1): its Lead reads as its next session's, in the same picker.
-    expect(within(rows[0]!).getByTestId("new-pool-member-role").textContent).toBe("Role:Lead, once one of its sessions starts");
-    expect(within(rows[1]!).getByTestId("new-pool-member-role").textContent).toContain("Role:");
-    expect(within(rows[1]!).getByTestId("new-pool-member-level").textContent).toContain("On its own:");
-    expect(within(rows[1]!).getByTestId("new-pool-member-level").textContent).toContain("Same as the pool (Work together)");
-    // Its others, by name, in the roles' reference; not a second Member.
-    expect(within(screen.getByTestId("new-pool-role-cards")).getByText(/Claude Code · Work's other sessions/)).toBeTruthy();
-  });
-
-  it("round 3 #1: Lead in Everyone else is an App's next session, but a session's own", () => {
-    let draft: Draft = { ...draftOf(templateById("blank"), "p-web"), members: [app("app:cli:work", "Claude Code · Work"), { ref: "session:s1", kind: "session", label: "Planner", role: "member", level: null, reach: "full" }] };
+  it("#2, #10 (D-126): the App whose next session leads is one row, its control setting its others' role; each control labelled", () => {
+    let draft: Draft = { ...draftOf(templateById("blank"), "p-web"), members: [app("app:cli:work", "Claude Code · Work"), app("app:cli:codex", "Codex · Personal", "reviewer")], leadNext: "app:cli:work" };
     const view = render(<NewPoolEveryone draft={draft} onDraft={(next) => (draft = next)} where="web" nameOf={(_, label) => label} />);
     const rows = screen.getAllByTestId("new-pool-member-row");
-    fireEvent.click(within(rows[0]!).getByTestId("new-pool-member-role"));
-    fireEvent.click(screen.getByRole("menuitemradio", { name: /^Lead, once one of its sessions starts/ }));
+    // One row for the App, not a Lead beside a Member; its others named.
+    expect(rows).toHaveLength(2);
+    expect(within(rows[0]!).getByTestId("new-pool-member-line").textContent).toBe("Its next session leads. Its other sessions:");
+    const others = within(rows[0]!).getByRole("radiogroup", { name: "Claude Code · Work's other sessions's role" });
+    expect(within(others).getAllByRole("radio").map((one) => one.textContent)).toEqual(["Member", "Reviewer", "Observer"]);
+    // Its others' role changes; it keeps the lead.
+    fireEvent.click(within(others).getByRole("radio", { name: "Observer" }));
     expect(draft.leadNext).toBe("app:cli:work");
+    expect(draft.members[0]!.role).toBe("observer");
     view.rerender(<NewPoolEveryone draft={draft} onDraft={(next) => (draft = next)} where="web" nameOf={(_, label) => label} />);
-    fireEvent.click(within(screen.getAllByTestId("new-pool-member-row")[1]!).getByTestId("new-pool-member-role"));
-    fireEvent.click(screen.getByRole("menuitemradio", { name: /^Lead/ }));
-    // One session leads (D-92): the session takes it, the wait for the App ends.
-    expect(draft.leadNext).toBeNull();
-    expect(draft.members.find((member) => member.ref === "session:s1")?.role).toBe("lead");
+    expect(within(screen.getByRole("radiogroup", { name: "Codex · Personal's role" })).getByRole("radio", { name: "Reviewer" }).getAttribute("aria-checked")).toBe("true");
+    // #10: what one member may do on its own, under its fold, labelled.
+    fireEvent.click(within(screen.getByTestId("new-pool-own-fold")).getByRole("button", { expanded: false }));
+    const levels = screen.getAllByTestId("new-pool-member-level");
+    expect(levels[1]!.textContent).toContain("On its own:");
+    expect(levels[1]!.textContent).toContain("Same as the pool (Work together)");
+  });
+
+  it("round 3 #1, D-126: the lead is Who leads' choice; a session that leads says so here, with no role control", () => {
+    const draft: Draft = { ...draftOf(templateById("blank"), "p-web"), members: [app("app:cli:work", "Claude Code · Work"), { ref: "session:s1", kind: "session", label: "Planner", role: "lead", level: null, reach: "full" }, { ref: "all", kind: "everyone", label: "Everyone", role: "member", level: null, reach: "later" }] };
+    render(<NewPoolEveryone draft={draft} onDraft={() => undefined} where="web" nameOf={(_, label) => label} />);
+    const rows = screen.getAllByTestId("new-pool-member-row");
+    expect(within(rows[1]!).getByTestId("new-pool-member-line").textContent).toBe("Leads the team. Change it in Who leads.");
+    expect(within(rows[1]!).queryByRole("radiogroup")).toBeNull();
+    expect(within(rows[1]!).getByTestId("member-logo-role").dataset.role).toBe("lead");
+    // Every new session's role: the same control, on everyone's row (and
+    // everyone in at all is Who's in's switch).
+    expect(screen.getByRole("radiogroup", { name: "Every new session's role" })).toBeTruthy();
   });
 
   it("#10: a member's own choice says On its own: before its value", () => {
