@@ -34,14 +34,15 @@ it("lights Fleet on a paired Mac's session, as its breadcrumb starts", () => {
   expect(navLit("home", null, "remote")).toBe(false);
 });
 
-it("is calm chrome (D-117 c2, D-118's mock): ‹ › only with somewhere to go, New session as accent words with no fill", async () => {
+it("is calm chrome (D-117 c2, D-118's mock): ‹ › always there, greyed with nowhere to go (the tabs never move), New session as accent words with no fill", async () => {
   const { fireEvent, render: draw, screen } = await import("@testing-library/react");
   const onBack = () => {};
   const view = draw(
     <AppHeader title="Home" global={null} page="home" pairedCount={0} cleanupCount={0} sessions={[]} onPick={() => {}} onOpenThisMac={() => {}} onNewSession={() => {}} back={{ canBack: false, canForward: false, onBack, onForward: onBack }} />,
   );
-  // D-127: nothing to go back or forward to, so no greyed arrows.
-  expect(view.queryByTestId("header-back-forward")).toBeNull();
+  // Nothing to go back or forward to: both greyed, but there, so the tabs keep their place.
+  expect(view.getByTestId("header-back").hasAttribute("disabled")).toBe(true);
+  expect(view.getByTestId("header-forward").hasAttribute("disabled")).toBe(true);
   const start = screen.getByTestId("header-new-session");
   expect(start.className).toContain("text-accent-hi");
   expect(start.className).not.toMatch(/\bbg-accent/);

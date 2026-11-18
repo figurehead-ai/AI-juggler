@@ -59,9 +59,11 @@ export function AppHeader({
       className="@container/header relative z-30 flex min-h-14 shrink-0 flex-wrap items-center gap-x-3 gap-y-1 border-b border-hairline bg-surface/50 px-5 py-2 backdrop-blur-xl"
     >
       <h1 className="sr-only">{title}</h1>
-      {/* D-127: never an unusable control. ‹ › show once there is a page
-          to go back or forward to (⌘[ ⌘] work either way). */}
-      {back && (back.canBack || back.canForward) && <BackForward {...back} />}
+      {/* ‹ › always, greyed with nowhere to go (Finder, a browser): hiding
+          them moved every tab 65 px on the first click away from Home, so
+          the pointer landed on the next tab. D-127 allows a disabled
+          control the user's own use clears, and going to a page does. */}
+      {back && <BackForward {...back} />}
       <MainNav primary={PRIMARY_NAV} global={global} page={page} pairedCount={pairedCount} onPick={onPick} />
       {/* From 960 px the rest always fits one row beside the tabs, so the
           cluster takes the room left and This Mac's line shortens (…)
