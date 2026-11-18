@@ -313,3 +313,132 @@ There is also no test for:
 ## Reproducing
 
 The proof-of-concept tests and the mutation script were run from a scratch copy of the crate, outside the repo, with offline dependencies only. They are not committed. Each one is described above, and the names quoted are its test functions. To reproduce one, copy it into `tests/` in a scratch checkout. All ten pass today, which confirms each finding; each should fail once its fix lands.
+
+---
+
+## Re-check after the fixes (2026-11-18)
+
+**What was checked:** the fix commits 1fa860c64 (H2, L4), 0e2c06e9c (H1, M1–M5, L1, L3, L5 and hardening) and 24fe4cefd (L2), plus the ADR amendment 9847a53ab.
+
+**Method:**
+- read every changed line;
+- re-ran the original proofs of concept against a fresh scratch copy (offline, outside the repo);
+- removed each new defence one at a time to see whether a test fails (36 mutations, with one redone after a mutation that didn't compile);
+- wrote four new proofs of concept aimed at the fixes themselves.
+
+The repo was not changed apart from this file.
+
+**Result:** 13 findings FIXED, 2 PARTLY, none NOT FIXED. One new Medium was found in the H1 fix.
+
+### Status of each finding
+
+| Finding | Status | Evidence | Test fails if the defence is removed? |
+|---|---|---|---|
+| H1: durable trust state | **PARTLY** | A checksummed `FileStore`, outside the cache, written atomically (temp file, fsync, rename, fsync the folder). Saves only move forward. A missing or corrupt file falls back to the compiled `Baseline` floor and revocations. Two gaps remain: N1 below, and N3 (nothing makes the floors be compiled in alongside the keys). The app doesn't use `FileStore` yet. | Yes for the checksum, merge, baseline, compiled revocations and pinned floor. No for `fsync` or rename atomicity (F09/F10 survive; they can't reasonably be unit-tested). |
+| H2: one bad value drops its section | **FIXED** | A rule that can't match isn't read. An unreadable value drops only that control, and a later kill or narrowing in the same rule list stands in for it. A newer or missing `schema` still applies kills and compat narrowing (`Reading::SafetyOnly`). My two PoCs now keep the section's kills. | Yes (F01–F05). |
+| M1: future `issued_at`, clock set back | **FIXED** | An `issued_at` more than `MAX_SKEW_SECS` (10 min) past `max(now, trusted_time)` is refused. Expiry is judged against that trusted time. `trusted_time` can rise by at most 10 minutes per accepted file, so a key holder can't push it far ahead. New issue: N4. | Yes (F11–F13). F16 (`absorb` replacing `trusted_time` instead of taking the maximum) survives. |
+| M2: racing refreshes | **FIXED** | One lock per `Fetcher` covers the whole refresh, and `save` merges with `absorb` (floors and times by maximum, revocations by union). My two-thread PoC now keeps both the floor and the revocation. New issue: N2. | Yes (F14, F15, F17). F34 (`absorb` preferring an unrevoked file) survives. |
+| M3: unknown revocation part rejects the file | **FIXED** | A part that fails to verify is skipped and reported in `skipped_revocations`. A file can carry several parts. New issue: N5. | Yes (F18). |
+| M4: revocation by id | **FIXED** | Revocations name fingerprints. Only fingerprints of pinned, non-emergency keys are kept, so future keys can't be revoked in advance. | Yes (F19, F20). |
+| M5: in-band revocation | **FIXED** (docs and mechanism) | The self-review and ADR §3 are corrected. `COMPILED_REVOKED` reaches fresh installs. The publisher's "keep the list in every file" CI check belongs to the publish workflow, which isn't built yet. | Yes (F35). |
+| L1: save failure serves the new file | **FIXED** | Nothing new is used after a failed save, a revocation seen this time still retires the old file, and the daily limit is kept in memory. | Yes (F21, F33). |
+| L2: 32 MiB read | **FIXED** | `HttpRequest.max_body` exists, and remote config passes `MAX_FILE_BYTES + 1` to ureq's `limit`. The other four callers (account client, crash sending, tool updates, usage stats) pass `None`, which keeps 32 MiB, so their behaviour is unchanged. Every `HttpRequest` literal in the workspace sets the field. | Only the field is asserted; no test drives a 257 KB body through `UreqTransport` (Info, N7). |
+| L3: one key under two roles | **FIXED** | Duplicate key bytes are refused. | Yes (F22, re-run). |
+| L4: kills of `OnOff`/`Rollout` | **PARTLY** | Documented in `merge.rs` and the self-review. The `--kill` refusal waits for the publish workflow. | Not applicable. |
+| L5: test gaps | **FIXED** | All six earlier survivors are now caught: F24 (`verify_strict`, by a small-order-R vector), F26–F30. Also new: an empty compiled ring verifies nothing, and the wrapper refuses unknown fields. | Yes. |
+| Info 1, 3, 4, 6 | **FIXED** | `next` kept apart (ADR); strict wrapper (F25 caught); ADR drift corrected; torsion-free keys (F23 caught). |  |
+| Info 7: TLS reuse and proxy from the environment | **NOT FIXED** (Info) | Unchanged. |  |
+| Info 8: floor drop after a revocation | **PARTLY** | The compiled floor now bounds the drop. |  |
+
+### New findings
+
+#### N1 (Medium): a transient read error makes the next save wipe the stored floor and revocations
+
+**Where:**
+- `crates/juggler-remote-config/src/state.rs:352`: `self.read().ok().flatten().unwrap_or_default()`;
+- `src/state.rs:275-279`: every I/O error other than `NotFound` becomes `Err`;
+- `src/fetch.rs:434-445`: on a load error, `refresh` carries on from the baseline and then saves.
+
+**Attack:** `FileStore::save` treats any read error as "corrupt" and replaces the file with what it was given. `Fetcher::load` also treats any load error as "start from the baseline". A transient error has this effect:
+- the trigger can be `EACCES`, `EIO` or `EMFILE` (descriptor exhaustion in a long-running app);
+- the next `refresh` overwrites a valid state with the bare baseline;
+- floors above the compiled floor, `trusted_time` and every revocation learned in-band are lost.
+
+The PoC `poc_transient_read_error_wipes_floor_and_revocations` shows it. A state at floor 8 that has revoked `current` is made unreadable, and one failed refresh runs. Afterwards the floor is `None` and the revoked set is empty, so an older file signed by the revoked `current` key verifies again.
+
+**Impact:** H1's guarantee is undone silently by an ordinary I/O failure rather than by corruption. A stolen, revoked key becomes usable again on that install for anyone who controls the host.
+
+**Fix:**
+- Make `read()` tell three cases apart: missing (`Ok(None)`), corrupt (parse, checksum or format failure), and I/O error.
+- On an I/O error, have `save` fail (and so serve nothing new, as L1 does), never overwrite.
+- In `Fetcher::load`, start from the baseline and go on to fetch only when the file is definitely corrupt. On an I/O error, use the cached view and skip both the fetch and the save.
+- Add a test that makes the file unreadable and shows the saved state is unchanged afterwards.
+
+#### N2 (Low): two `FileStore`s on one path race
+
+**Where:** `src/state.rs:260-263` and `:345-355`. The lock belongs to each instance, and the temp file name is per process (`<name>.<pid>.tmp`).
+
+**Attack:** two instances on the same path in one process share the same temp file, and their read-merge-write cycles race. The same happens across two app processes. The PoC `poc_two_file_stores_on_one_path_lose_updates` lost one save's contribution in 200 of 200 rounds; a sequential control merges correctly. The self-review assumes "the app runs one instance", but a relaunch overlapping a crash or keep-alive restart can break that assumption.
+
+**Fix:**
+- Take an advisory `flock` on a lock file beside the state, held across read, merge and write.
+- Make `FileStore` one per path (a process-wide registry).
+- Use a unique temp name (pid plus a random suffix).
+
+#### N3 (Low): nothing requires the compiled floors to ship with the keys
+
+**Where:** `src/state.rs:40` (`COMPILED_FLOORS = &[]`) and `src/keys.rs:41`.
+
+**Attack:** if a release compiles in keys but the publish workflow leaves `COMPILED_FLOORS` empty, a missing or corrupt state means no floor at all, which is the original H1 condition.
+
+**Fix:** add a unit test that fails when `COMPILED_KEYS` is non-empty and any channel lacks a compiled floor.
+
+#### N4 (Low): a 10-minute skew shuts out devices whose clocks run slow
+
+**Where:** `src/envelope.rs:70` and `:292-298`.
+
+**Attack and impact:**
+- A clock 20 minutes slow refuses a file issued just now (`poc_slow_clock_rejects_fresh_files`).
+- A device a day or more slow never accepts a file that is re-signed daily, so it loses kill switches and compat updates.
+- `trusted_time` doesn't help, because nothing gets accepted to raise it.
+
+**Fix:** raise the skew to about one day. The validity window stays bounded (`trusted_now + skew + 31 days`), and the clock-set-back protection is unaffected.
+
+#### N5 (Info): junk revocation parts can crowd out a real one
+
+**Where:** `src/envelope.rs:250` (`take(MAX_REVOCATION_PARTS)`).
+
+**Attack:** four junk parts placed before a real one hide it (`poc_junk_parts_crowd_out_a_revocation`). This adds no attacker capability beyond M5 (a host attacker can strip the list anyway).
+
+**Fix:** a cheap hardening is to skip parts whose `key_id` isn't pinned before counting toward the cap.
+
+#### N6 (Info): fix-adjacent test gaps
+
+- F16: `absorb` taking `trusted_time` from the other state instead of the maximum survives.
+- F34: `absorb`'s preference for an unrevoked file survives.
+- F09 and F10 (`fsync` and the atomic rename) can't be shown by unit tests; a fault-injection harness would be needed.
+
+#### N7 (Info): smaller loose ends
+
+- No test drives an oversized body through `UreqTransport` to show the read-time cap. A loopback server test would cover it.
+- A crash between creating the temp file and the rename leaves `<name>.<pid>.tmp` behind, and nothing ever removes it. Removing stale `*.tmp` files on load would cover it.
+
+### Re-check summary
+
+| Severity | Count |
+|---|---|
+| Blocker | 0 |
+| High | 0 |
+| Medium | 1 (N1) |
+| Low | 3 (N2, N3, N4) |
+| Info | 3 (N5, N6, N7) |
+
+Fix N1 before the app wires in `FileStore`, and N3 before any key is compiled in.
+
+### Mutation results
+
+| Batch | Run | Caught | Survived |
+|---|---|---|---|
+| Fixes (F01–F36) | 36 | 32 | 4 |
+
+The four that survived are F09 and F10 (`fsync` and rename atomicity, not unit-testable) and F16 and F34 (N6). F22 at first failed to compile; re-run correctly, it is caught.
