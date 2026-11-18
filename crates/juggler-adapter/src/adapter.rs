@@ -69,6 +69,15 @@ pub trait ToolIdentity: Send + Sync {
     /// Harness versions this adapter was validated against (spec §4
     /// version-pinning rule). Discovery compares against this list.
     fn verified_against(&self) -> &'static [&'static str];
+    /// D-128, ADR-0035 §2: the features this adapter offers only for some
+    /// of its tool's versions, with their compiled ranges, hard limits and
+    /// shape-check revisions. They make up the remote configuration's
+    /// `compat` section, which can narrow or turn them off; the adapter
+    /// asks [`crate::compat::current`] where it decides to offer each. The
+    /// default: none.
+    fn compat_features(&self) -> &'static [crate::compat::CompatFeature] {
+        &[]
+    }
 }
 
 /// AJ-E2016: Finding the tool on this computer: its installs, managers, aliases, program and own desktop apps.

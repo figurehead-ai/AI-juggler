@@ -20,6 +20,7 @@ pub mod adapter;
 pub mod agent_bridge;
 pub mod automation;
 pub mod capabilities;
+pub mod compat;
 pub mod conversation;
 pub mod desktop_app;
 pub mod discovery;

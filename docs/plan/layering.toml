@@ -31,7 +31,9 @@ juggler-proc-list = []
 # local sockets, program trust. Knows no tool and no product, so it sits
 # below everything and depends on nothing of ours.
 juggler-platform = []
-juggler-adapter = ["juggler-core", "juggler-platform"]
+# D-128, ADR-0035 §2: the adapters' compat section (each adapter declares
+# the features it gates; the remote file narrows or kills them).
+juggler-adapter = ["juggler-core", "juggler-platform", "juggler-remote-config"]
 juggler-adapters = ["juggler-adapter", "juggler-core"]
 juggler-supervisor = ["juggler-adapter", "juggler-core", "juggler-proc-list", "juggler-vm-stats"]
 juggler-handover = ["juggler-adapter", "juggler-core", "juggler-platform"]
