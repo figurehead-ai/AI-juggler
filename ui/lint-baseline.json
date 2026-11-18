@@ -2345,9 +2345,6 @@
  "src/screens/pools/NewPoolWho.tsx": {
   "jsx-a11y(prefer-tag-over-role)": 1
  },
- "src/screens/pools/PoolMini.tsx": {
-  "typescript(no-unsafe-type-assertion)": 1
- },
  "src/screens/pools/PoolsScreen.tsx": {
   "jsx-a11y(prefer-tag-over-role)": 1,
   "typescript(consistent-return)": 1
