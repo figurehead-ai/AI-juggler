@@ -73,14 +73,33 @@ def _gold_must(gold):
     out = [("text", x) for x in (g.get("changed") or []) if isinstance(x, str)] + [("text", x) for x in (g.get("answer_must") or []) if isinstance(x, str)]
     out += [("regex", x) for x in (g.get("must_match") or []) if isinstance(x, str)]
     return out
+_HM = re.compile(r"\b(\d+)\s*h\s*(\d{1,2})\b(?:\s*min)?", re.I)
+def _durs(text, bare_seconds=False):
+    """durations in seconds a text states: v4's reader, "1h30", and (for a duration gold) a bare number as seconds"""
+    d = set(j4._durations(text or "")[0]) | {int(a) * 3600 + int(b) * 60 for a, b in _HM.findall(text or "")}
+    if _HM.search(text or ""): d -= {float(int(a) * 3600) for a, _b in _HM.findall(text or "")} | {float(int(b) * 60) for _a, b in _HM.findall(text or "")}
+    if bare_seconds and not d and re.fullmatch(r"\s*\d+(?:\.\d+)?\s*(?:s|sec|seconds|sekunden)?\s*", text or ""): d.add(float(re.findall(r"\d+(?:\.\d+)?", text)[0]))
+    return d
+def _dur_close(a, b):
+    tol = 0.5 if min(a, b) < 90 else 30 if min(a, b) < 3 * 3600 else 180          # chat.fmt_duration's own rounding (s, min, h)
+    return abs(a - b) <= tol
+def _must_hit(m, shown, attr=None):
+    """one gold must-have against the shown text: any of its alternatives ("5400 seconds / 1h30"), as words, or as the same duration
+    in another unit when the gold asks a duration (round 3: "90 min" is "5400 seconds"; "5 min" is "312" seconds, as shown rounded)"""
+    low = (shown or "").lower()
+    for alt in [a.strip() for a in re.split(r"\s+/\s+|\s*\|\s*|\s+or\s+|\s+oder\s+", m) if a.strip()]:
+        if alt.lower() in low: return True
+        want = _durs(alt, bare_seconds=attr in ("duration", "duration_s"))
+        if want and any(_dur_close(w, g) for w in want for g in _durs(shown)): return True
+    return False
 def _must_missing(gold, shown):
-    miss = []
+    miss = []; attr = (gold or {}).get("attribute")
     for kind, m in _gold_must(gold):
         if kind == "regex":
             try:
                 if not re.search(m, shown or "", re.I): miss.append(m)
             except re.error: pass
-        elif m.lower() not in (shown or "").lower(): miss.append(m)
+        elif not _must_hit(m, shown, attr): miss.append(m)
     return miss
 def facts_text(t):
     """AI Juggler's facts as words a detector may read as source (round 2: polarity_script read the agent's text only, so a true
@@ -198,7 +217,7 @@ def chat_findings(view):
     answerable = not g.get("unanswerable", not g.get("answerable", True)) and not g.get("out_of_scope")
     mt = [m for m in o.get("model_text") or [] if m]; kind = o.get("kind")
     src = view["source"]
-    if kind == "answer":
+    if kind in ("answer", "found_values"):     # round 3: the looked-up value shown by code (every phrasing refused) answers the question too
         if not answerable: out.append(F("critical", "answered_unanswerable", f"{(o.get('shown') or '')[:160]!r} (gold: unanswerable{', near miss' if g.get('near_miss') else ''})"))
         attr = g.get("attribute")
         if isinstance(attr, str) and attr and o.get("values") and not any(attr_matches(attr, k, it.get("question") or "") for v in o["values"] for k in v if k != "id"):

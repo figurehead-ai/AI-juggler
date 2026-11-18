@@ -658,6 +658,20 @@ def selftest():
     check("R3 attention: the refused suggestion is retried with the reason, and the retry passes calm", rec["used"] == 1 and rec["final"]["kind"] == "calm"
           and "doesn't state its reason" in eng.reqs[1]["prompt"], rec["attempts"])
 
+    # ================================================================================================ R3-6. a gold must-have read as values, not only as words
+    g_ = {"attribute": "duration", "answer_must": ["2700 seconds / 0h45"]}
+    check("R3 detail: a gold with alternatives ('2700 seconds / 0h45') is met by the same duration in minutes", not severity._must_missing(g_, "The plover session took 45 min [s1]."))
+    check("R3 detail: ...a bare number on a duration gold is seconds ('250' is met by '4 min', rounded as shown)",
+          not severity._must_missing({"attribute": "duration", "answer_must": ["250"]}, "The tern tests took 4 min [r2]."))
+    check("R3 detail: ...a different duration still misses it", severity._must_missing({"attribute": "duration", "answer_must": ["250"]}, "The tern tests took 9 min [r2]."))
+    check("R3 detail: ...and a bare number on a count gold stays a word", severity._must_missing({"attribute": "count", "answer_must": ["250"]}, "4 min"))
+
+    fv = {"ok": True, "kind": "found_values", "shown": "vole export session [r1]: blocked", "refs": ["r1"], "model_text": []}
+    check("R3 detail: the looked-up value shown by code (every phrasing refused) is no omission on an answerable question",
+          "no_answer_on_answerable" not in dets({"job": "chat", "id": "q", "item": ci("x", exp, {"attribute": "status", "answer_must": ["blocked"]}), "outcome": fv, "source": "", "attempts": []}))
+    check("R3 detail: ...and still an answer to an unanswerable one (flagged)",
+          "answered_unanswerable" in dets({"job": "chat", "id": "q", "item": ci("x", exp, {"unanswerable": True}), "outcome": fv, "source": "", "attempts": []}))
+
     # ================================================================================================ the extension point, the frozen gate, the prompts
     class Toy(core.Job):
         name, letter, title, item_kind = "toy_digest", "e", "toy", "toydigest"

@@ -1,0 +1,106 @@
+{
+ "family": "qwen3-4b-instruct-2507",
+ "job": "chat",
+ "note": "script flags: candidates for Opus to confirm by eye, never verdicts",
+ "candidates": [
+  {
+   "class": "omission",
+   "detector": "no_answer_on_answerable",
+   "detail": "shown: found_rows",
+   "stage": "shown",
+   "attempt": null,
+   "id": "R2C40",
+   "corpus": "chat"
+  },
+  {
+   "class": "omission",
+   "detector": "no_answer_on_answerable",
+   "detail": "shown: dont_know",
+   "stage": "shown",
+   "attempt": null,
+   "id": "R2C44",
+   "corpus": "chat"
+  },
+  {
+   "class": "omission",
+   "detector": "no_answer_on_answerable",
+   "detail": "shown: dont_know",
+   "stage": "shown",
+   "attempt": null,
+   "id": "R2C50",
+   "corpus": "chat"
+  },
+  {
+   "class": "omission",
+   "detector": "no_answer_on_answerable",
+   "detail": "shown: dont_know",
+   "stage": "shown",
+   "attempt": null,
+   "id": "R2C51",
+   "corpus": "chat"
+  },
+  {
+   "id": "R2C11",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_question",
+   "detail": "off the question: no cited record holds a why",
+   "stage": "caught",
+   "corpus": "chat"
+  },
+  {
+   "id": "R2C12",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_question",
+   "detail": "off the question: the cited record's count is not about the subject",
+   "stage": "caught",
+   "corpus": "chat"
+  },
+  {
+   "id": "R2C12",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "wrong_question",
+   "detail": "off the question: the cited record's which is not about the subject",
+   "stage": "caught",
+   "corpus": "chat"
+  },
+  {
+   "id": "R2C12",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "wrong_question",
+   "detail": "off the question: the cited record's which is not about the subject",
+   "stage": "caught",
+   "corpus": "chat"
+  },
+  {
+   "id": "R2C40",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_question",
+   "detail": "off the question: its count is not in the cited record",
+   "stage": "caught",
+   "corpus": "chat"
+  },
+  {
+   "id": "R2C40",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "wrong_question",
+   "detail": "off the question: its count is not in the cited record",
+   "stage": "caught",
+   "corpus": "chat"
+  },
+  {
+   "id": "R2C40",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "wrong_question",
+   "detail": "off the question: its count is not in the cited record",
+   "stage": "caught",
+   "corpus": "chat"
+  }
+ ]
+}

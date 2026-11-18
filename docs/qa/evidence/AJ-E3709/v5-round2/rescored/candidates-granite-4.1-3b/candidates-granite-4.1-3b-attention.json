@@ -1,0 +1,6 @@
+{
+ "family": "granite-4.1-3b",
+ "job": "attention",
+ "note": "script flags: candidates for Opus to confirm by eye, never verdicts",
+ "candidates": []
+}
