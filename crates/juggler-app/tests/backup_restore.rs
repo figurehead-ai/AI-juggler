@@ -929,3 +929,108 @@ fn the_rails_order_survives_a_restore_and_a_machine_only_setting_does_not() {
         "this Mac keeps its own label"
     );
 }
+
+/// ADR-0037 §1.5 and the security review's H3 and M1: restoring a backup
+/// made before a forget brings nothing forgotten back, and no file AI
+/// Juggler keeps (the copy before the restore, the staged backup) holds
+/// it; the copy before the restore is gone after a day.
+#[test]
+#[ignore = "end to end once V54 is registered (the 0.4.6 -> 0.5 merge): until then a backup \
+            holding the store's tables is refused by the schema check; backup.rs's own tests \
+            cover the steps"]
+fn a_restore_brings_back_nothing_forgotten_and_no_kept_copy_holds_it() {
+    use juggler_app::features::ai::memory::RedactionSecrets;
+    use juggler_core::storage::memory::{
+        self, Actor, Authority, Kind, NewRecord, Priority, RecordText, Scope, SourceKind, Tier,
+    };
+    const CANARY: &str = "qzxwvrestorecanary";
+    let work = tempfile::tempdir().unwrap();
+    let mac = work.path().join("mac");
+    let a = app_state(&mac);
+    let now = Timestamp::now().millis();
+    let writers = memory::Writers::issue().unwrap();
+    let note = |key: &str, text: String| NewRecord {
+        subject_key: key.to_owned(),
+        kind: Kind::Note,
+        scope: Scope::Global,
+        tier: Tier::Long,
+        priority: Priority::Normal,
+        authority: Authority::User,
+        source: SourceKind::Settings,
+        source_id: None,
+        engine: None,
+        confidence: 1.0,
+        as_of_ms: now,
+        source_rev: None,
+        text: RecordText::Trusted(text),
+        payload: serde_json::json!({}),
+        expires_ms: None,
+        entities: Vec::new(),
+    };
+    {
+        let storage = a.storage.lock().unwrap();
+        storage.raw_conn().execute_batch(memory::V54).unwrap();
+        for (key, text) in [
+            ("note:kept", "the api project matters most".to_owned()),
+            ("note:gone", format!("remember {CANARY} please")),
+        ] {
+            storage
+                .memory()
+                .remember(&writers.memory, &RedactionSecrets, &note(key, text), now)
+                .unwrap();
+        }
+    }
+    let archive = work.path().join("before-the-forget.ajbackup");
+    backup::backup_export_impl(&a, &archive, &mut |_, _| {}).unwrap();
+    a.storage
+        .lock()
+        .unwrap()
+        .memory()
+        .forget("note:gone", &Actor::User, now)
+        .unwrap();
+
+    let plan = backup::backup_verify_impl(&a, &archive).unwrap();
+    backup::backup_restore_impl(&a, &archive, &plan.token).unwrap();
+    {
+        let storage = a.storage.lock().unwrap();
+        assert!(storage.memory().current("note:gone").unwrap().is_none());
+        assert!(storage.memory().current("note:kept").unwrap().is_some());
+    }
+    // No file in the data folder holds the forgotten words.
+    let mut stack = vec![mac.clone()];
+    let mut holding = Vec::new();
+    while let Some(dir) = stack.pop() {
+        for entry in std::fs::read_dir(&dir).unwrap().flatten() {
+            let path = entry.path();
+            if path.is_dir() {
+                stack.push(path);
+            } else if std::fs::read(&path)
+                .unwrap_or_default()
+                .windows(CANARY.len())
+                .any(|w| w == CANARY.as_bytes())
+            {
+                holding.push(path);
+            }
+        }
+    }
+    assert!(holding.is_empty(), "these still hold it: {holding:?}");
+    assert!(
+        !mac.join("restore-staging").exists(),
+        "the staged backup is gone"
+    );
+    // The copy kept before the restore lives a day.
+    let copies = |mac: &Path| {
+        std::fs::read_dir(mac)
+            .unwrap()
+            .flatten()
+            .filter(|e| {
+                e.file_name()
+                    .to_string_lossy()
+                    .starts_with("juggler.sqlite.before-restore-")
+            })
+            .count()
+    };
+    assert!(copies(&mac) >= 1);
+    backup::prune_restore_copies(&mac, now + 2 * 86_400_000);
+    assert_eq!(copies(&mac), 0);
+}

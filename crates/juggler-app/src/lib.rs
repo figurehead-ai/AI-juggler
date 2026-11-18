@@ -1102,6 +1102,11 @@ pub fn run() {
             updates::spawn_launch_check(app.handle().clone(), update_state);
             // AJ-E1205: the backup schedule (nothing runs while Cloud
             // backup is off or the recovery code isn't saved).
+            // ADR-0037 §1.5: a copy kept before a restore lives a day.
+            backup::prune_restore_copies(
+                &cloud_backup_state.data_dir,
+                juggler_core::model::Timestamp::now().millis(),
+            );
             cloud_backup::spawn_schedule(cloud_backup_state);
             // AJ-E1102: usage stats start only if the user opted in (and
             // no override says off); off creates nothing.
