@@ -1,0 +1,34 @@
+{
+ "family": "apple",
+ "job": "attention",
+ "note": "script flags: candidates for Opus to confirm by eye, never verdicts",
+ "candidates": [
+  {
+   "class": "omission",
+   "detector": "emphasis",
+   "detail": "a 'might need you' note on a calm turn",
+   "stage": "shown",
+   "attempt": null,
+   "id": "R2T12",
+   "corpus": "turns"
+  },
+  {
+   "class": "omission",
+   "detector": "emphasis",
+   "detail": "a 'might need you' note on a calm turn",
+   "stage": "shown",
+   "attempt": null,
+   "id": "R2T17",
+   "corpus": "turns"
+  },
+  {
+   "class": "omission",
+   "detector": "emphasis",
+   "detail": "a 'might need you' note on a calm turn",
+   "stage": "shown",
+   "attempt": null,
+   "id": "R2T38",
+   "corpus": "turns"
+  }
+ ]
+}

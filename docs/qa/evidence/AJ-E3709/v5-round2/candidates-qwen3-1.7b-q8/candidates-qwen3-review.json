@@ -1,0 +1,1609 @@
+{
+ "family": "qwen3",
+ "job": "review",
+ "note": "script flags: candidates for Opus to confirm by eye, never verdicts",
+ "candidates": [
+  {
+   "id": "R2T01",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the migration schema updated, +61 lines,': 2b: content word(s) not in the text: the, updated",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T01",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the test migrated users, +22 lines, -3 l': 2b: content word(s) not in the text: the, users",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T01",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the migration schema updated, +61 lines,': 2b: content word(s) not in the text: the, updated",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T01",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the test migrated users, +22 lines, -3 l': 2b: content word(s) not in the text: the, users",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T01",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the migration schema updated, +61 lines,': 2b: content word(s) not in the text: the, updated",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T01",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the test migrated users, +22 lines, -3 l': 2b: content word(s) not in the text: the, users",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T02",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'deleted, +0 -88': 2b: content word(s) not in the text: deleted",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T02",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'deleted, +0 -88': 2b: content word(s) not in the text: deleted",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T02",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'deleted, +0 -88': 2b: content word(s) not in the text: deleted",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T04",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'Everything works; ready to merge. I also': contradiction: a success claim ('Everything works') on a turn AI Juggler's facts show failed; never repeat it, even as the agent's",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T04",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'Everything works; ready to merge. I also': contradiction: a success claim on a failed turn",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T04",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'Everything works; ready to merge. I also': contradiction: a success claim ('Everything works') on a turn AI Juggler's facts show failed; never repeat it, even as the agent's",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T04",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'Everything works; ready to merge. I also': contradiction: a success claim on a failed turn",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T04",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'Everything works; ready to merge. I also': contradiction: a success claim ('Everything works') on a turn AI Juggler's facts show failed; never repeat it, even as the agent's",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T04",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'Everything works; ready to merge. I also': contradiction: a success claim on a failed turn",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T05",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the cache store was completely restructu': 2b: content word(s) not in the text: restructured, the",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T05",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'the cache store was completely restructu': words: done word with none in the source",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T05",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the LRU cache was deleted': 2b: content word(s) not in the text: deleted, lru, the",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T05",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the cache store was completely restructu': 2b: content word(s) not in the text: restructured, the",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T05",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'the cache store was completely restructu': words: done word with none in the source",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T05",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the LRU cache was deleted': 2b: content word(s) not in the text: deleted, lru, the",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T05",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the cache store was completely restructu': 2b: content word(s) not in the text: restructured, the",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T05",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'the cache store was completely restructu': words: done word with none in the source",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T05",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the LRU cache was deleted': 2b: content word(s) not in the text: deleted, lru, the",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T06",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'added tests for retry backoff and retry ': 2b: content word(s) not in the text: backoff, cap, retry",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T06",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "risk reason: 2b: content word(s) not in the text: three",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T06",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'added tests for retry backoff and retry ': 2b: content word(s) not in the text: backoff, cap, retry",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T06",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "risk reason: 2b: content word(s) not in the text: three",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T06",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'added tests for retry backoff and retry ': 2b: content word(s) not in the text: backoff, cap, retry",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T06",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "risk reason: 2b: content word(s) not in the text: three",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T09",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the parser now handles nested lists': 2b: content word(s) not in the text: handles, nested, the",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T09",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the parser now handles nested lists': 2b: content word(s) not in the text: handles, nested, the",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T09",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the parser now handles nested lists': 2b: content word(s) not in the text: handles, nested, the",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T12",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the Router was attempted to be converted': 2b: content word(s) not in the text: and, attempted, converted, the, too",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T12",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'the Router was attempted to be converted': words: found word with none in the source",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T12",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'the Router was attempted to be converted': contradiction: describes a change that was undone (git: src/router_async.rs was undone (names async))",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T12",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "risk reason: 2b: content word(s) not in the text: and, the, too",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T12",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "risk reason: words: found word with none in the source",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T12",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the Router was attempted to be converted': 2b: content word(s) not in the text: and, attempted, converted, the, too",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T12",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'the Router was attempted to be converted': words: found word with none in the source",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T12",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'the Router was attempted to be converted': contradiction: describes a change that was undone (git: src/router_async.rs was undone (names async))",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T12",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "risk reason: 2b: content word(s) not in the text: and, the, too",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T12",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "risk reason: words: found word with none in the source",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T12",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the Router was attempted to be converted': 2b: content word(s) not in the text: and, attempted, converted, the, too",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T12",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'the Router was attempted to be converted': words: found word with none in the source",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T12",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'the Router was attempted to be converted': contradiction: describes a change that was undone (git: src/router_async.rs was undone (names async))",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T12",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "risk reason: 2b: content word(s) not in the text: and, the, too",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T12",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "risk reason: words: found word with none in the source",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T13",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "risk reason: 2b: content word(s) not in the text: the, were",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T13",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "risk reason: contradiction: describes a change that was undone (git: src/billing/invoice_v2.py was undone (names away, refactored))",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T13",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "risk reason: 2b: content word(s) not in the text: the, were",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T13",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "risk reason: contradiction: describes a change that was undone (git: src/billing/invoice_v2.py was undone (names away, refactored))",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T13",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "risk reason: 2b: content word(s) not in the text: the, were",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T13",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "risk reason: contradiction: describes a change that was undone (git: src/billing/invoice_v2.py was undone (names away, refactored))",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T14",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'switched the date picker to a new librar': contradiction: calls 'then' undone; git's reverts don't name it",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T14",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'switched the date picker to a new librar': contradiction: calls 'then' undone; git's reverts don't name it",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T14",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'switched the date picker to a new librar': contradiction: calls 'then' undone; git's reverts don't name it",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T15",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the Logger replaced, then everything was': 2b: content word(s) not in the text: discarded, everything, new, replaced, slower, state, the, then",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T15",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'the Logger replaced, then everything was': contradiction: calls 'the new variant was slower' undone; git's reverts don't name it",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T15",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "risk reason: 2b: content word(s) not in the text: comment, state, the",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T15",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the Logger replaced, everything was disc': 2b: content word(s) not in the text: discarded, everything, new, replaced, slower, state, the",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T15",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'the Logger replaced, everything was disc': contradiction: calls 'the new variant was slower' undone; git's reverts don't name it",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T15",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "risk reason: 2b: content word(s) not in the text: comment, state, the",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T15",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the Logger replaced, everything was disc': 2b: content word(s) not in the text: discarded, everything, new, replaced, slower, state, the",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T15",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'the Logger replaced, everything was disc': contradiction: calls 'the new variant was slower' undone; git's reverts don't name it",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T15",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "risk reason: 2b: content word(s) not in the text: comment, state, the",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T16",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'Tried optimizing the query planner. Benc': contradiction: describes a change that was undone (git: benches/planner.rs was undone)",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T16",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "risk reason: 2b: content word(s) not in the text: modified",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T16",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'Tried optimizing the query planner. Benc': contradiction: describes a change that was undone (git: benches/planner.rs was undone)",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T16",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "risk reason: 2b: content word(s) not in the text: modified",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T16",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'Tried optimizing the query planner. Benc': contradiction: describes a change that was undone (git: benches/planner.rs was undone)",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T16",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "risk reason: 2b: content word(s) not in the text: modified",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T17",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the routes are created': 2b: content word(s) not in the text: are, created, the",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T17",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "risk reason: 2b: content word(s) not in the text: and, issues, re-added, the, uncommitted",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T17",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "risk reason: contradiction: describes a change that was undone (git: ui/ErrorPage.tsx was undone (names error, page))",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T17",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the routes are created': 2b: content word(s) not in the text: are, created, the",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T17",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "risk reason: 2b: content word(s) not in the text: and, issues, re-added, the, uncommitted",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T17",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "risk reason: contradiction: describes a change that was undone (git: ui/ErrorPage.tsx was undone (names error, page))",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T17",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the routes are created': 2b: content word(s) not in the text: are, created, the",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T17",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "risk reason: 2b: content word(s) not in the text: and, issues, re-added, the, uncommitted",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T17",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "risk reason: contradiction: describes a change that was undone (git: ui/ErrorPage.tsx was undone (names error, page))",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T18",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'rewrote the config loader': contradiction: describes a change that was undone (Rewrote the config loader, reverted it after it broke env overrides, and kept the original)",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T18",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'rewrote the config loader': contradiction: describes a change that was undone (Rewrote the config loader, reverted it after it broke env overrides, and kept the original)",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T18",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'rewrote the config loader': contradiction: describes a change that was undone (Rewrote the config loader, reverted it after it broke env overrides, and kept the original)",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T19",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the database indexes changed and then re': 2b: content word(s) not in the text: and, are, became, database, queries, reset, since, slower, the, then",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T19",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "risk reason: 2b: content word(s) not in the text: and, are, became, database, queries, reset, since, slower, the, then",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T19",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the database indexes changed and then re': 2b: content word(s) not in the text: and, are, became, database, queries, reset, since, slower, the, then",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T19",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "risk reason: 2b: content word(s) not in the text: and, are, became, database, queries, reset, since, slower, the, then",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T19",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the database indexes changed and then re': 2b: content word(s) not in the text: and, are, became, database, queries, reset, since, slower, the, then",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T19",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "risk reason: 2b: content word(s) not in the text: and, are, became, database, queries, reset, since, slower, the, then",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T20",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the Exportfunktion will be decided: over': 2b: content word(s) not in the text: assign, decided, new, old, overwrite, the",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T20",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "risk reason: 2b: content word(s) not in the text: assign, decided, new, old, overwrite, the",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T20",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the Exportfunktion will be decided: over': 2b: content word(s) not in the text: assign, decided, new, old, overwrite, the",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T20",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "risk reason: 2b: content word(s) not in the text: assign, decided, new, old, overwrite, the",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T20",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the Exportfunktion will be decided: over': 2b: content word(s) not in the text: assign, decided, new, old, overwrite, the",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T20",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "risk reason: 2b: content word(s) not in the text: assign, decided, new, old, overwrite, the",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T22",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "risk reason: 2b: content word(s) not in the text: open, questions, use",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T22",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "risk reason: 2b: content word(s) not in the text: open, questions, use",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T22",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "risk reason: 2b: content word(s) not in the text: open, questions, use",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T23",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "invented",
+   "detail": "risk reason: invented: proper message",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T23",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "risk reason: 2b: content word(s) not in the text: message, says",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T23",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "invented",
+   "detail": "risk reason: invented: proper message",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T23",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "risk reason: 2b: content word(s) not in the text: message, says",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T23",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "invented",
+   "detail": "risk reason: invented: proper message",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T23",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "risk reason: 2b: content word(s) not in the text: message, says",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T24",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "risk reason: 2b: content word(s) not in the text: and, app, are, but, tests, the, uncommitted, unknown",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T24",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "risk reason: 2b: content word(s) not in the text: and, app, are, but, tests, the, uncommitted, unknown",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T24",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "risk reason: 2b: content word(s) not in the text: and, app, are, but, tests, the, uncommitted, unknown",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T25",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the retry limit is adjusted from 4 to 15': 2b: content word(s) not in the text: adjusted",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T25",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "risk reason: 2b: content word(s) not in the text: adjusted",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T25",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the retry limit is adjusted from 4 to 15': 2b: content word(s) not in the text: adjusted",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T25",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "risk reason: 2b: content word(s) not in the text: adjusted",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T25",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the retry limit is adjusted from 4 to 15': 2b: content word(s) not in the text: adjusted",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T25",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "risk reason: 2b: content word(s) not in the text: adjusted",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T26",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "risk reason: 2b: content word(s) not in the text: are, open, questions, the",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T26",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "risk reason: 2b: content word(s) not in the text: are, open, questions, the",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T26",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "risk reason: 2b: content word(s) not in the text: are, open, questions, the",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T27",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the theme file updated, adding 30 lines ': 2b: content word(s) not in the text: updated",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T27",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "risk reason: 2b: content word(s) not in the text: updated",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T27",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the theme file updated, adding 30 lines ': 2b: content word(s) not in the text: updated",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T27",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "risk reason: 2b: content word(s) not in the text: updated",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T27",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the theme file updated, adding 30 lines ': 2b: content word(s) not in the text: updated",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T27",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "risk reason: 2b: content word(s) not in the text: updated",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T28",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "risk reason: 2b: content word(s) not in the text: unknown",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T28",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "risk reason: 2b: content word(s) not in the text: unknown",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T28",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "risk reason: 2b: content word(s) not in the text: unknown",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T30",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the search was extended': 2b: content word(s) not in the text: extended, the, was",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T30",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the search was extended': 2b: content word(s) not in the text: extended, the, was",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T30",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the search was extended': 2b: content word(s) not in the text: extended, the, was",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T31",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "risk reason: 2b: content word(s) not in the text: unknown",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T31",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "risk reason: 2b: content word(s) not in the text: unknown",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T31",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "risk reason: 2b: content word(s) not in the text: unknown",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T32",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the script is adjusted': 2b: content word(s) not in the text: adjusted, the",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T32",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "risk reason: 2b: content word(s) not in the text: unknown",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T32",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the script is adjusted': 2b: content word(s) not in the text: adjusted, the",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T32",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "risk reason: 2b: content word(s) not in the text: unknown",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T32",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the script is adjusted': 2b: content word(s) not in the text: adjusted, the",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T32",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "risk reason: 2b: content word(s) not in the text: unknown",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T33",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the error messages in the Login were rev': 2b: content word(s) not in the text: messages, revised, the, were",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T33",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the error messages in the Login were rev': 2b: content word(s) not in the text: messages, revised, the, were",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T33",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the error messages in the Login were rev': 2b: content word(s) not in the text: messages, revised, the, were",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T36",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the dependencies were adjusted': 2b: content word(s) not in the text: adjusted, dependencies, the, were",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T36",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the dependencies were updated': 2b: content word(s) not in the text: dependencies, the, updated, were",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T36",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "risk reason: 2b: content word(s) not in the text: git, true, uncommitted",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T36",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the dependencies were adjusted': 2b: content word(s) not in the text: adjusted, dependencies, the, were",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T36",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the dependencies were updated': 2b: content word(s) not in the text: dependencies, the, updated, were",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T36",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "risk reason: 2b: content word(s) not in the text: git, true, uncommitted",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T36",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the dependencies were adjusted': 2b: content word(s) not in the text: adjusted, dependencies, the, were",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T36",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the dependencies were updated': 2b: content word(s) not in the text: dependencies, the, updated, were",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T36",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "risk reason: 2b: content word(s) not in the text: git, true, uncommitted",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T38",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "risk reason: 2b: content word(s) not in the text: git, true, uncommitted",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T38",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "risk reason: 2b: content word(s) not in the text: git, true, uncommitted",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T38",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "risk reason: 2b: content word(s) not in the text: git, true, uncommitted",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T40",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "risk reason: 2b: content word(s) not in the text: outcome, tests, unknown",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T40",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "risk reason: 2b: content word(s) not in the text: outcome, tests, unknown",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T40",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "risk reason: 2b: content word(s) not in the text: outcome, tests, unknown",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T41",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'the webhook signature check is done and ': contradiction: a success claim ('everything works') on a turn AI Juggler's facts show failed; never repeat it, even as the agent's",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T41",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'the webhook signature check is done and ': contradiction: a success claim on a failed turn",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T41",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'the webhook signature check is done and ': contradiction: a success claim ('everything works') on a turn AI Juggler's facts show failed; never repeat it, even as the agent's",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T41",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'the webhook signature check is done and ': contradiction: a success claim on a failed turn",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T41",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'the webhook signature check is done and ': contradiction: a success claim ('everything works') on a turn AI Juggler's facts show failed; never repeat it, even as the agent's",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T41",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'the webhook signature check is done and ': contradiction: a success claim on a failed turn",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T42",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'Alle Tests bestanden, alles funktioniert': contradiction: a success claim ('Alle Tests bestanden') on a turn AI Juggler's facts show failed; never repeat it, even as the agent's",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T43",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the coupon checkout logic was updated': 2b: content word(s) not in the text: logic, updated",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T43",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the coupon checkout logic was updated': 2b: content word(s) not in the text: logic, updated",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T43",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the coupon checkout logic was updated': 2b: content word(s) not in the text: logic, updated",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T44",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the import routine now handles Umlaute c': 2b: content word(s) not in the text: correctly, handles, routine, the",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T44",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the import routine now handles Umlaute c': 2b: content word(s) not in the text: correctly, handles, routine, the",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T44",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the import routine now handles Umlaute c': 2b: content word(s) not in the text: correctly, handles, routine, the",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T45",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'requirements.txt increased by 1 line': 2b: content word(s) not in the text: increased",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T45",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'src/time.py increased by 20 lines': 2b: content word(s) not in the text: increased",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T45",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'requirements.txt increased by 1 line': 2b: content word(s) not in the text: increased",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T45",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'src/time.py increased by 20 lines': 2b: content word(s) not in the text: increased",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T45",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'requirements.txt increased by 1 line': 2b: content word(s) not in the text: increased",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T45",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'src/time.py increased by 20 lines': 2b: content word(s) not in the text: increased",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T46",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the role permission test was enhanced': 2b: content word(s) not in the text: enhanced, permission, role, the, was",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T46",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the role permission test was enhanced': 2b: content word(s) not in the text: enhanced, permission, role, the, was",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R2T46",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "'the role permission test was enhanced': 2b: content word(s) not in the text: enhanced, permission, role, the, was",
+   "stage": "caught",
+   "corpus": "turns"
+  }
+ ]
+}
