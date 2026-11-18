@@ -62,7 +62,10 @@ describe("the rail's list under its head", () => {
     expect(list.hasAttribute("data-more")).toBe(false);
     const rule = /\.scroll-edge::after\s*\{([^}]*)\}/.exec(css)?.[1] ?? "";
     expect(rule).toMatch(/position:\s*sticky/);
-    expect(rule).toMatch(/bottom:\s*0;/);
+    expect(rule).toMatch(/bottom:\s*calc\(-1 \* var\(--edge-pad, 0px\)\);/);
+    // The rail's own bottom padding (pb-2) is its edge pad, so the line sits at its real foot.
+    expect(list.className).toContain("pb-2");
+    expect(list.className).toContain("[--edge-pad:0.5rem]");
     expect(rule).toMatch(/opacity:\s*0;/);
     expect(rule).toMatch(/margin-top:\s*-1px/);
     expect(rule).toMatch(/box-shadow:\s*var\(--shadow-edge-up\)/);

@@ -563,7 +563,9 @@ main::-webkit-scrollbar-track {
 .scroll-edge::after {
   content: "";
   position: sticky;
-  bottom: 0;
+  /* A sticky edge stops above the scroller's bottom padding; --edge-pad
+     (that padding) puts the line at the box's real foot, over the cut row. */
+  bottom: calc(-1 * var(--edge-pad, 0px));
   z-index: 20;
   display: block;
   height: 1px;
