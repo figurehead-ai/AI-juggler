@@ -19,8 +19,10 @@
  * - **When** it was last active (or last looked at), never cut.
  *
  * Densities, never fields merged per screen (relations-map "One list"):
- * `cozy` and `compact` are the rail's (AJ-E403: Compact keeps the state's
- * word), `list` a page's or Home's (body text, the App icon, the tools in
+ * `cozy` and `compact` are the rail's, one line each (D-118's mock, round
+ * 3: the title, then its state at the right; where and when in its
+ * tooltip and name; AJ-E403: Compact keeps the state's word and adds the
+ * time), `list` a page's or Home's (body text, the App icon, the tools in
  * a gutter of their own). A click opens its page here; ↗ goes to its app.
  */
 import type { JSX, ReactNode } from "react";
@@ -35,7 +37,7 @@ import { agoWords } from "../../lib/time-words";
 import type { AppRef } from "../../lib/app-of";
 import { RowShell } from "./RowShell";
 import { needWait } from "../../lib/waiting";
-import { PlaceLine, RowProject, RowSubagents, appWords } from "./RowParts";
+import { PlaceLine, RowSubagents, appWords } from "./RowParts";
 
 export type RowDensity = "cozy" | "compact" | "list";
 
@@ -217,24 +219,24 @@ export function SessionRow(props: SessionRowProps): JSX.Element {
       </RowShell>
     );
   }
+  // D-118's mock (round 3): one line, the title then its state at the
+  // right, so more of the list fits; where and when it was (project ·
+  // time, and where else it is open) are in its tooltip and its name.
+  const hover = [title, line, also].filter(Boolean).join(" — ");
   return (
-    <RowShell {...shell} indent shape="rounded-lg" className="h-[44px] gap-2 py-1 pl-2.5">
+    <RowShell {...shell} indent shape="rounded-lg" className="h-[32px] gap-2 pl-2.5">
       {dot}
-      {/* The title has its line to itself; its state ends the line under
-          it, after the project and the time (the review of 0.1.4). */}
-      <span className="flex min-w-0 flex-1 flex-col gap-px">
-        <span aria-hidden="true" className="flex min-w-0 items-center gap-1">
-          <span className={"truncate text-meta " + railTitle} title={title} data-testid="row-title">{title}</span>
-          {pinned && <PinMark />}
-          {exception}
-        </span>
-        <span className="flex min-w-0 items-center gap-2 text-label text-muted">
-          <span className="flex min-w-0 flex-1 items-center">
-            <RowProject item={projectShown ? item : { ...item, project: null }} rest={when} whole />
-            {also && <span aria-hidden="true" className="shrink-0 whitespace-pre" data-testid="row-also"> · {also}</span>}
-            {helpers && <RowSubagents item={item} words={helpers} onSelect={props.onSelect} />}
+      <span className="flex min-w-0 flex-1 items-center gap-1.5">
+        <span aria-hidden="true" className={"min-w-0 truncate text-meta " + railTitle} title={hover} data-testid="row-title">{title}</span>
+        {pinned && (
+          <span aria-hidden="true" className="flex">
+            <PinMark />
           </span>
-          <span aria-hidden="true" className={"shrink-0 text-label font-medium leading-[14px] " + railWord} data-testid="state-word">
+        )}
+        <span className="ml-auto flex shrink-0 items-center gap-2">
+          {exception && <span aria-hidden="true" className="flex">{exception}</span>}
+          {helpers && <RowSubagents item={item} words={helpers} onSelect={props.onSelect} />}
+          <span aria-hidden="true" className={"shrink-0 text-label font-medium " + railWord} data-testid="state-word">
             {state.word}
           </span>
         </span>

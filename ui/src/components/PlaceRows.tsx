@@ -5,8 +5,9 @@
  *   it needs you in its level's colour, then "project · app · profile";
  *   its ↗ on hover, focus or when selected.
  * - An **Open now** row, under its place: indented, a state mark, the
- *   title, "project · viewed N min ago", and the state word (a need's in
- *   ink beside its amber mark, D-117). Runway shows only when low.
+ *   title and the state word on one line (a need's in ink beside its
+ *   amber mark, D-117); "project · viewed N min ago" in its tooltip and
+ *   name (D-118's mock, round 3). Runway shows only when low.
  * - A **place header**: a fold chevron, the app's icon and name, the
  *   profile's badge and name, and a count (a click opens the profile's page here), and
  *   its ↗ (Open), which brings the running app forward (never launches it).
