@@ -1,0 +1,588 @@
+[
+ {
+  "pair": "turns-feed_line-001",
+  "item": "R3T01",
+  "source": "I added rate-limit headers (X-RateLimit-Remaining and X-RateLimit-Reset) to every response of the quartz-api gateway. The values come from the existing counter, so no new storage was needed. All 14 tests in the middleware package pass.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "ran",
+    "passed": 14,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "gateway/middleware/limits.go",
+     "added": 31,
+     "removed": 4,
+     "status": "M"
+    },
+    {
+     "path": "gateway/middleware/limits_test.go",
+     "added": 42,
+     "removed": 0,
+     "status": "M"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": false
+  },
+  "first": "I added rate-limit headers (X-RateLimit-Remaining and X-RateLimit-Reset) to every response of the quartz-api gateway.",
+  "second": "Added rate-limit headers (X-RateLimit-Remaining and X-RateLimit-Reset) to e, all 14 tests in the middleware package pass"
+ },
+ {
+  "pair": "turns-feed_line-002",
+  "item": "R3T07",
+  "source": "I tried moving the session cache to a different store and then threw the experiment away, because the latency got worse. What is left is a cleaner log message when the cache misses. 11 tests pass.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "ran",
+    "passed": 11,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "sessions/cache.py",
+     "added": 5,
+     "removed": 5,
+     "status": "M"
+    }
+   ],
+   "reverted": [
+    {
+     "path": "sessions/",
+     "note": "the alternative cache store experiment was thrown away"
+    }
+   ],
+   "reflog": [
+    "reset: moving to HEAD"
+   ],
+   "uncommitted": false
+  },
+  "first": "git: kept sessions/cache.py (+5 -5); reverted sessions/\nTried moving the session cache to a different store, 11 tests pass; the experiment was thrown away",
+  "second": "git: kept sessions/cache.py (+5 -5); reverted sessions/\nI tried moving the session cache to a different store and then threw the experiment away, because the latency got worse."
+ },
+ {
+  "pair": "turns-feed_line-003",
+  "item": "R3T08",
+  "source": "Ich habe die Suche nach Kundennummern auf einen Hash-Index umgestellt. Nach dem Benchmark habe ich die Umstellung wieder verworfen, weil sie bei kleinen Tabellen langsamer war. Geblieben ist nur eine bessere Beschreibung im Code. Die 9 Tests laufen.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "ran",
+    "passed": 9,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "kunden/suche.py",
+     "added": 6,
+     "removed": 2,
+     "status": "M"
+    }
+   ],
+   "reverted": [
+    {
+     "path": "kunden/hash_index.py",
+     "note": "die Hash-Index-Umstellung wurde verworfen"
+    }
+   ],
+   "reflog": [
+    "reset: moving to HEAD~1"
+   ],
+   "uncommitted": false
+  },
+  "first": "git: behalten kunden/suche.py (+6 -2); zurückgenommen kunden/hash_index.py\nIch habe die Suche nach Kundennummern auf einen Hash-Index umgestellt.",
+  "second": "git: behalten kunden/suche.py (+6 -2); zurückgenommen kunden/hash_index.py\nDie Suche nach Kundennummern auf einen Hash-Index umgestellt; die Umstellung wurde wieder verworfen, weil sie bei kleinen"
+ },
+ {
+  "pair": "turns-feed_line-004",
+  "item": "R3T10",
+  "source": "I rewrote the notification dispatcher in relay-hub to batch messages. It caused duplicate sends in my manual run, so I undid it. The repository is back at the earlier behaviour with one extra comment explaining the retry order. Tests: 27 pass.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "ran",
+    "passed": 27,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "dispatcher/send.py",
+     "added": 7,
+     "removed": 0,
+     "status": "M"
+    }
+   ],
+   "reverted": [
+    {
+     "path": "dispatcher/batch.py",
+     "note": "the batching rewrite was undone"
+    }
+   ],
+   "reflog": [
+    "reset: moving to HEAD~1",
+    "checkout: moving from feat/batch to feat/batch"
+   ],
+   "uncommitted": false
+  },
+  "first": "git: kept dispatcher/send.py (+7 -0); reverted dispatcher/batch.py\nI rewrote the notification dispatcher in relay-hub to batch messages.",
+  "second": "git: kept dispatcher/send.py (+7 -0); reverted dispatcher/batch.py\nRewrote the notification dispatcher in relay-hub to batch messages, 27 pass; undid it"
+ },
+ {
+  "pair": "turns-feed_line-005",
+  "item": "R3T11",
+  "source": "I started building a CSV preview panel for the report builder but abandoned it halfway, as the layout library cannot do sticky columns. I kept a small fix that stops the export button from flickering. 19 tests pass.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "ran",
+    "passed": 19,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "ui/ExportButton.tsx",
+     "added": 8,
+     "removed": 6,
+     "status": "M"
+    }
+   ],
+   "reverted": [
+    {
+     "path": "ui/CsvPreview.tsx",
+     "note": "the preview panel was abandoned and removed"
+    }
+   ],
+   "reflog": [
+    "reset: moving to HEAD"
+   ],
+   "uncommitted": false
+  },
+  "first": "git: kept ui/ExportButton.tsx (+8 -6); reverted ui/CsvPreview.tsx\nI started building a CSV preview panel for the report builder but abandoned it halfway, as the layout library cannot do sticky columns.",
+  "second": "git: kept ui/ExportButton.tsx (+8 -6); reverted ui/CsvPreview.tsx\nKept a small fix that stops the export button from flickering, 19 tests pass"
+ },
+ {
+  "pair": "turns-feed_line-006",
+  "item": "R3T13",
+  "source": "I backed out the experimental query planner in grain-db after it produced wrong row counts on joins. The branch is clean again apart from a new regression test that documents the bug. 62 tests pass, including the new one.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "ran",
+    "passed": 62,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "tests/test_join_counts.py",
+     "added": 38,
+     "removed": 0,
+     "status": "A"
+    }
+   ],
+   "reverted": [
+    {
+     "path": "engine/planner_v2.rs",
+     "note": "the experimental planner was backed out"
+    }
+   ],
+   "reflog": [
+    "reset: moving to HEAD~3"
+   ],
+   "uncommitted": false
+  },
+  "first": "git: kept tests/test_join_counts.py (new, +38 -0); reverted engine/planner_v2.rs\nBacked out the experimental query planner in grain-db; the branch is clean again apart from a new regression test",
+  "second": "git: kept tests/test_join_counts.py (new, +38 -0); reverted engine/planner_v2.rs\nI backed out the experimental query planner in grain-db after it produced wrong row counts on joins."
+ },
+ {
+  "pair": "turns-feed_line-007",
+  "item": "R3T17",
+  "source": "Die Rechnungsübersicht zeigt jetzt die Summe pro Monat an. Ich habe ein Hilfsskript zum Testen angelegt und liegen lassen. 15 Tests sind erfolgreich. Eingecheckt ist noch nichts.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "ran",
+    "passed": 15,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "rechnung/uebersicht.py",
+     "added": 39,
+     "removed": 11,
+     "status": "M"
+    },
+    {
+     "path": "scripts/probelauf.sh",
+     "added": 12,
+     "removed": 0,
+     "status": "A"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": true
+  },
+  "first": "Die Rechnungsübersicht zeigt jetzt die Summe pro Monat an.",
+  "second": "Ein Hilfsskript zum Testen angelegt, 15 Tests sind erfolgreich; eingecheckt ist noch nichts"
+ },
+ {
+  "pair": "turns-feed_line-008",
+  "item": "R3T18",
+  "source": "I removed the dead feature switches from the nimbus-gateway config loader and left the change in the working tree for you to look at. Tests: 17 pass.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "ran",
+    "passed": 17,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "config/loader.go",
+     "added": 5,
+     "removed": 48,
+     "status": "M"
+    },
+    {
+     "path": "config/loader_test.go",
+     "added": 0,
+     "removed": 22,
+     "status": "M"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": true
+  },
+  "first": "I removed the dead feature switches from the nimbus-gateway config loader and left the change in the working tree for you to look at.",
+  "second": "Removed the dead feature switches from the nimbus-gateway config loader, 17 pass"
+ },
+ {
+  "pair": "turns-feed_line-009",
+  "item": "R3T28",
+  "source": "Four things are done in the tilework-site repo. One: the footer links now open in a new tab. Two: the contact form shows an inline error for bad email addresses. Three: the sitemap includes the new blog pages. Four: the image lazy-loading attribute is added to all gallery images. I ran the whole suite and all 40 tests pass. No other modules were touched.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "ran",
+    "passed": 40,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "templates/footer.html",
+     "added": 6,
+     "removed": 6,
+     "status": "M"
+    },
+    {
+     "path": "forms/contact.py",
+     "added": 22,
+     "removed": 4,
+     "status": "M"
+    },
+    {
+     "path": "seo/sitemap.py",
+     "added": 11,
+     "removed": 1,
+     "status": "M"
+    },
+    {
+     "path": "templates/gallery.html",
+     "added": 9,
+     "removed": 9,
+     "status": "M"
+    },
+    {
+     "path": "tests/test_contact.py",
+     "added": 26,
+     "removed": 0,
+     "status": "M"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": false
+  },
+  "first": "Four things are done in the tilework-site repo.",
+  "second": "Added footer links now open in a new tab, contact form shows inline error, s, all 40 tests pass"
+ },
+ {
+  "pair": "turns-feed_line-010",
+  "item": "R3T31",
+  "source": "Cleanup in the dune-forms project: removed three unused helpers, renamed the validators module to checks, updated every import, regenerated the type stubs, bumped the lint rule set and fixed six warnings that came with it. 58 tests pass. The regenerated stubs are not committed yet.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "ran",
+    "passed": 58,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "forms/helpers.py",
+     "added": 0,
+     "removed": 61,
+     "status": "M"
+    },
+    {
+     "path": "forms/checks.py",
+     "added": 0,
+     "removed": 0,
+     "status": "R"
+    },
+    {
+     "path": "forms/types.pyi",
+     "added": 120,
+     "removed": 95,
+     "status": "M"
+    },
+    {
+     "path": "lint.toml",
+     "added": 4,
+     "removed": 1,
+     "status": "M"
+    },
+    {
+     "path": "forms/__init__.py",
+     "added": 3,
+     "removed": 3,
+     "status": "M"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": true
+  },
+  "first": "Cleanup in the dune-forms project: removed three unused helpers, renamed the validators module to checks, updated every import, regenerated the type stubs, bumped the lint rule set and fixed six...\nThe regenerated stubs are not committed yet.",
+  "second": "Removed three unused helpers, renamed the validators module to checks, updated; the regenerated stubs are not committed yet"
+ },
+ {
+  "pair": "turns-feed_line-011",
+  "item": "R3T44",
+  "source": "Die Fehlerseite 404 hat jetzt einen Link zur Startseite und zeigt das Logo. Die 6 Tests laufen durch.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "ran",
+    "passed": 6,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "seiten/404.html",
+     "added": 14,
+     "removed": 3,
+     "status": "M"
+    },
+    {
+     "path": "seiten/test_404.py",
+     "added": 10,
+     "removed": 0,
+     "status": "M"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": false
+  },
+  "first": "Die Fehlerseite 404 hat jetzt einen Link zur Startseite und zeigt das Logo.",
+  "second": "Fehlerseite 404 jetzt, 6 Tests laufen durch"
+ },
+ {
+  "pair": "turns-feed_line-012",
+  "item": "R3T46",
+  "source": "The pagination in fennel-api now returns a next-page cursor. I ran the suite 3 times because one test was flaky on the first run, and the final run shows 40 pass, 0 fail.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "ran",
+    "passed": 40,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "api/paging.py",
+     "added": 26,
+     "removed": 5,
+     "status": "M"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": false
+  },
+  "first": "The pagination in fennel-api now returns a next-page cursor.",
+  "second": "Returns pagination in fennel-api now returns a next-page cursor; one test was flaky on the first run"
+ },
+ {
+  "pair": "turns-feed_line-013",
+  "item": "R3T47",
+  "source": "The thumbnail cache cleanup in saffron-media is rewritten and it should work now. I did not run anything, but the logic is simple.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "unknown",
+    "passed": 0,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "media/cleanup.py",
+     "added": 40,
+     "removed": 22,
+     "status": "M"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": true
+  },
+  "first": "The thumbnail cache cleanup in saffron-media is rewritten and it should work now.\nI did not run anything, but the logic is simple.",
+  "second": "Rewritten the thumbnail cache cleanup in saffron-media, should work now; I did not run anything"
+ },
+ {
+  "pair": "turns-feed_line-014",
+  "item": "R3T48",
+  "source": "Everything is committed and pushed to origin for the vireo-notes sync feature, and the 22 tests pass.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "ran",
+    "passed": 22,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "sync/engine.py",
+     "added": 52,
+     "removed": 10,
+     "status": "M"
+    },
+    {
+     "path": "sync/engine_test.py",
+     "added": 30,
+     "removed": 0,
+     "status": "A"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": true
+  },
+  "first": "Everything is committed and pushed to origin for the vireo-notes sync feature, and the 22 tests pass.",
+  "second": "Committed and pushed the vireo-notes sync feature, 22 tests pass"
+ },
+ {
+  "pair": "turns-feed_line-015",
+  "item": "R3T50",
+  "source": "Ich habe die komplette Datenbank-Migration für die Bestellhistorie geschrieben und danach rückgängig gemacht, weil sie auf der Testkopie zu lange lief. Übrig ist nur ein geänderter Schalter in der Konfiguration. Tests: 14 bestanden.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "ran",
+    "passed": 14,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "config/db.toml",
+     "added": 1,
+     "removed": 1,
+     "status": "M"
+    }
+   ],
+   "reverted": [
+    {
+     "path": "db/migrations/0090_bestellhistorie.sql",
+     "note": "die Migration wurde rückgängig gemacht"
+    }
+   ],
+   "reflog": [
+    "reset: moving to HEAD~2"
+   ],
+   "uncommitted": false
+  },
+  "first": "git: behalten config/db.toml (+1 -1); zurückgenommen db/migrations/0090_bestellhistorie.sql\nDie komplette Datenbank-Migration für die Bestellhistorie geschrieben und rückgängiggem, 14 bestanden; die Migration wurde rückgängig gemacht",
+  "second": "git: behalten config/db.toml (+1 -1); zurückgenommen db/migrations/0090_bestellhistorie.sql\nIch habe die komplette Datenbank-Migration für die Bestellhistorie geschrieben und danach rückgängig gemacht, weil sie auf der Testkopie zu lange lief."
+ }
+]

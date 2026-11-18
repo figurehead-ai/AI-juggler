@@ -1,0 +1,484 @@
+{
+ "family": "granite-4.1-3b",
+ "job": "feed_line",
+ "note": "script flags: candidates for Opus to confirm by eye, never verdicts",
+ "candidates": [
+  {
+   "class": "critical",
+   "detector": "gold_forbidden",
+   "detail": "/pushed/ in the model's words",
+   "stage": "shown",
+   "attempt": null,
+   "id": "R3T48",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T06",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "contradiction: names a change that was undone (git: src/banner/flag.ts was undone)",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T08",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "contradiction: names a change that was undone (git: kunden/hash_index.py was undone (names hash))",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T08",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "contradiction: names a change that was undone (git: kunden/hash_index.py was undone (names hash))",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T08",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "contradiction: names a change that was undone (git: kunden/hash_index.py was undone (names hash))",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T09",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "gate step 2b: 2b: content word(s) not in the text: reset, the",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T09",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "outcome_or_caveat",
+   "detail": "gate step 3: caveat: dropped (facts: tests not run)",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T09",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "contradiction: names a change that was undone (git: export/xlsx_writer.py was undone (names excel))",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T09",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "gate step 2b: 2b: content word(s) not in the text: reset, run, tests, the",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T09",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "contradiction: names a change that was undone (git: export/xlsx_writer.py was undone (names excel))",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T09",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "gate step 2b: 2b: content word(s) not in the text: adjusted, run, tests, the",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T09",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "contradiction: names a change that was undone (git: export/xlsx_writer.py was undone (names excel))",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T12",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "contradiction: names a change that was undone (git: src/plugins/loader.ts was undone)",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T12",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "contradiction: names a change that was undone (git: src/plugins/loader.ts was undone)",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T12",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "contradiction: names a change that was undone (git: src/plugins/loader.ts was undone)",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T14",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "outcome_or_caveat",
+   "detail": "gate step 3: caveat: dropped (facts: tests not run)",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T14",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "gate step 2b: 2b: content word(s) not in the text: run, tests",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T14",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "gate step 3: words: negation word in the line with none in the cleaned text",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T14",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "gate step 2b: 2b: content word(s) not in the text: run, tests",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T14",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "gate step 3: words: negation word in the line with none in the cleaned text",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T32",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "gate step 2b: 2b: content word(s) not in the text: run, tests",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T32",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "gate step 2b: 2b: content word(s) not in the text: run, tests",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T32",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "gate step 2b: 2b: content word(s) not in the text: run, tests",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T33",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "outcome_or_caveat",
+   "detail": "gate step 3: caveat: dropped (facts: tests not run)",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T33",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "gate step 2b: 2b: content word(s) not in the text: run, tests",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T33",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "gate step 2b: 2b: content word(s) not in the text: run, tests",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T34",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "gate step 2b: 2b: content word(s) not in the text: already, did, file, the, translation, was",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T34",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "gate step 3: caveat: dropped (facts: tests not run); words: done word in the line with none in the cleaned text",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T34",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "gate step 2b: 2b: content word(s) not in the text: already, did, file, run, tests, the, translation, was",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T34",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "gate step 3: words: done word in the line with none in the cleaned text",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T34",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "gate step 2b: 2b: content word(s) not in the text: already, did, file, run, tests, the, translation, was",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T34",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "gate step 3: words: done word in the line with none in the cleaned text",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T35",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "gate step 2b: 2b: content word(s) not in the text: tests",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T35",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "gate step 2b: 2b: content word(s) not in the text: explained, tests",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T35",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "gate step 2b: 2b: content word(s) not in the text: tests",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T41",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "gate step 2b: 2b: content word(s) not in the text: run, tests",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T41",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "gate step 2b: 2b: content word(s) not in the text: run, tests",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T41",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "gate step 2b: 2b: content word(s) not in the text: run, tests",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T43",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "gate step 2b: 2b: content word(s) not in the text: are, prü, run, tests",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T43",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "gate step 3: words: negation word in the line with none in the cleaned text",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T43",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "gate step 2b: 2b: content word(s) not in the text: are, prü, run, tests",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T43",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "gate step 3: words: negation word in the line with none in the cleaned text",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T43",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "gate step 2b: 2b: content word(s) not in the text: are, prü, run, tests",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T43",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "gate step 3: words: negation word in the line with none in the cleaned text",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T44",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "outcome_or_caveat",
+   "detail": "gate step 3: outcome: a finished turn; the line states a failure with no word of resolution (the problem, not the outcome)",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T44",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "gate step 2b: 2b: content word(s) not in the text: hinzugefügt",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T44",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "outcome_or_caveat",
+   "detail": "gate step 3: outcome: a finished turn; the line states a failure with no word of resolution (the problem, not the outcome)",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T44",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "gate step 2b: 2b: content word(s) not in the text: hinzugefuegt",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T44",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "outcome_or_caveat",
+   "detail": "gate step 3: outcome: a finished turn; the line states a failure with no word of resolution (the problem, not the outcome)",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T50",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "gate step 2b: 2b: content word(s) not in the text: and, database, for, the, then, undid, wrote",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T50",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "gate step 3: words: done word in the line with none in the cleaned text",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T50",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "contradiction: calls 'wrote' undone; git's reverts don't name it",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T50",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "contradiction: names a change that was undone (Ich habe die komplette Datenbank-Migration für die Bestellhistorie geschrieben und danach rückgängig)",
+   "stage": "caught",
+   "corpus": "turns"
+  }
+ ]
+}

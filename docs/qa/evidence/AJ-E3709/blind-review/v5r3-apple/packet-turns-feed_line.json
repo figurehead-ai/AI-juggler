@@ -1,0 +1,360 @@
+[
+ {
+  "pair": "turns-feed_line-001",
+  "item": "R3T01",
+  "source": "I added rate-limit headers (X-RateLimit-Remaining and X-RateLimit-Reset) to every response of the quartz-api gateway. The values come from the existing counter, so no new storage was needed. All 14 tests in the middleware package pass.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "ran",
+    "passed": 14,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "gateway/middleware/limits.go",
+     "added": 31,
+     "removed": 4,
+     "status": "M"
+    },
+    {
+     "path": "gateway/middleware/limits_test.go",
+     "added": 42,
+     "removed": 0,
+     "status": "M"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": false
+  },
+  "first": "I added rate-limit headers (X-RateLimit-Remaining and X-RateLimit-Reset) to every response of the quartz-api gateway.",
+  "second": "Added rate-limit headers (X-RateLimit-Remaining and X-RateLimit-Reset) to every response of the quartz-api gateway"
+ },
+ {
+  "pair": "turns-feed_line-002",
+  "item": "R3T06",
+  "source": "I added a feature flag around the new checkout banner in ember-store and wired it into the settings page. After review of the diff I rolled the whole wiring back because it touched the payment flow, so only the changelog line is left. Tests: 21 pass.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "ran",
+    "passed": 21,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "CHANGELOG.md",
+     "added": 2,
+     "removed": 0,
+     "status": "M"
+    }
+   ],
+   "reverted": [
+    {
+     "path": "src/banner/flag.ts",
+     "note": "the feature flag module was rolled back"
+    },
+    {
+     "path": "src/settings/page.tsx",
+     "note": "the settings wiring was rolled back"
+    }
+   ],
+   "reflog": [
+    "reset: moving to HEAD~1"
+   ],
+   "uncommitted": false
+  },
+  "first": "git: kept CHANGELOG.md (+2 -0); reverted src/banner/flag.ts, src/settings/page.tsx\nI added a feature flag around the new checkout banner in ember-store and wired it into the settings page.",
+  "second": "git: kept CHANGELOG.md (+2 -0); reverted src/banner/flag.ts, src/settings/page.tsx\nRolled back the whole wiring back because it touched the payment flow, 21 pass; only the changelog line is left"
+ },
+ {
+  "pair": "turns-feed_line-003",
+  "item": "R3T07",
+  "source": "I tried moving the session cache to a different store and then threw the experiment away, because the latency got worse. What is left is a cleaner log message when the cache misses. 11 tests pass.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "ran",
+    "passed": 11,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "sessions/cache.py",
+     "added": 5,
+     "removed": 5,
+     "status": "M"
+    }
+   ],
+   "reverted": [
+    {
+     "path": "sessions/",
+     "note": "the alternative cache store experiment was thrown away"
+    }
+   ],
+   "reflog": [
+    "reset: moving to HEAD"
+   ],
+   "uncommitted": false
+  },
+  "first": "git: kept sessions/cache.py (+5 -5); reverted sessions/\nMoved the session cache to a different store, 11 tests pass; the experiment was thrown away",
+  "second": "git: kept sessions/cache.py (+5 -5); reverted sessions/\nI tried moving the session cache to a different store and then threw the experiment away, because the latency got worse."
+ },
+ {
+  "pair": "turns-feed_line-004",
+  "item": "R3T08",
+  "source": "Ich habe die Suche nach Kundennummern auf einen Hash-Index umgestellt. Nach dem Benchmark habe ich die Umstellung wieder verworfen, weil sie bei kleinen Tabellen langsamer war. Geblieben ist nur eine bessere Beschreibung im Code. Die 9 Tests laufen.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "ran",
+    "passed": 9,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "kunden/suche.py",
+     "added": 6,
+     "removed": 2,
+     "status": "M"
+    }
+   ],
+   "reverted": [
+    {
+     "path": "kunden/hash_index.py",
+     "note": "die Hash-Index-Umstellung wurde verworfen"
+    }
+   ],
+   "reflog": [
+    "reset: moving to HEAD~1"
+   ],
+   "uncommitted": false
+  },
+  "first": "git: behalten kunden/suche.py (+6 -2); zurückgenommen kunden/hash_index.py\nIch habe die Suche nach Kundennummern auf einen Hash-Index umgestellt.",
+  "second": "git: behalten kunden/suche.py (+6 -2); zurückgenommen kunden/hash_index.py\nDie Suche nach Kundennummern auf einen Hash-Index umgestellt umgestellt, die 9 Tests laufen; die Umstellung wurde verworfen"
+ },
+ {
+  "pair": "turns-feed_line-005",
+  "item": "R3T16",
+  "source": "The PDF thumbnails for the docvault viewer are generated on upload now, with a 200 pixel cap. I wrote a test for the empty-file case. 23 tests pass. The new fixture file is still untracked.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "ran",
+    "passed": 23,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "vault/thumbs.py",
+     "added": 64,
+     "removed": 3,
+     "status": "M"
+    },
+    {
+     "path": "tests/test_thumbs.py",
+     "added": 30,
+     "removed": 0,
+     "status": "A"
+    },
+    {
+     "path": "tests/fixtures/empty.pdf",
+     "added": 0,
+     "removed": 0,
+     "status": "A"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": true
+  },
+  "first": "The PDF thumbnails for the docvault viewer are generated on upload now, with a 200 pixel cap.",
+  "second": "Wrote a test for the empty-file case, 23 tests pass; the new fixture file is still untracked"
+ },
+ {
+  "pair": "turns-feed_line-006",
+  "item": "R3T18",
+  "source": "I removed the dead feature switches from the nimbus-gateway config loader and left the change in the working tree for you to look at. Tests: 17 pass.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "ran",
+    "passed": 17,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "config/loader.go",
+     "added": 5,
+     "removed": 48,
+     "status": "M"
+    },
+    {
+     "path": "config/loader_test.go",
+     "added": 0,
+     "removed": 22,
+     "status": "M"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": true
+  },
+  "first": "I removed the dead feature switches from the nimbus-gateway config loader and left the change in the working tree for you to look at.",
+  "second": "Removed the dead feature switches from the nimbus-gateway config loader, 17 pass"
+ },
+ {
+  "pair": "turns-feed_line-007",
+  "item": "R3T35",
+  "source": "You asked how the token refresh in sparrow-auth works. It checks the expiry every 60 seconds, calls the refresh endpoint once and keeps the new token in memory only. I did not edit any file or run anything.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "not_run",
+    "passed": 0,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": false
+  },
+  "first": "You asked how the token refresh in sparrow-auth works.",
+  "second": "Did not edit any file or run anything, not run; I did not edit any file or run anything"
+ },
+ {
+  "pair": "turns-feed_line-008",
+  "item": "R3T46",
+  "source": "The pagination in fennel-api now returns a next-page cursor. I ran the suite 3 times because one test was flaky on the first run, and the final run shows 40 pass, 0 fail.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "ran",
+    "passed": 40,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "api/paging.py",
+     "added": 26,
+     "removed": 5,
+     "status": "M"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": false
+  },
+  "first": "The pagination in fennel-api now returns a next-page cursor.",
+  "second": "Ran the pagination in fennel-api, 40 pass, 0 fail; one test was flaky on the first run"
+ },
+ {
+  "pair": "turns-feed_line-009",
+  "item": "R3T47",
+  "source": "The thumbnail cache cleanup in saffron-media is rewritten and it should work now. I did not run anything, but the logic is simple.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "unknown",
+    "passed": 0,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "media/cleanup.py",
+     "added": 40,
+     "removed": 22,
+     "status": "M"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": true
+  },
+  "first": "The thumbnail cache cleanup in saffron-media is rewritten and it should work now.\nI did not run anything, but the logic is simple.",
+  "second": "Rewritten the thumbnail cache cleanup in saffron-media, it should work now; I did not run anything"
+ },
+ {
+  "pair": "turns-feed_line-010",
+  "item": "R3T48",
+  "source": "Everything is committed and pushed to origin for the vireo-notes sync feature, and the 22 tests pass.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "ran",
+    "passed": 22,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "sync/engine.py",
+     "added": 52,
+     "removed": 10,
+     "status": "M"
+    },
+    {
+     "path": "sync/engine_test.py",
+     "added": 30,
+     "removed": 0,
+     "status": "A"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": true
+  },
+  "first": "Everything is committed and pushed to origin for the vireo-notes sync feature, and the 22 tests pass.",
+  "second": "Committed the vireo-notes sync feature, the 22 tests pass; everything is committed and pushed to origin"
+ }
+]
