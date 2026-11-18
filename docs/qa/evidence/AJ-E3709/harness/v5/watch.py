@@ -337,17 +337,37 @@ def cond_words(c, plural, lang):
 QUIET_TERM = (r"quiet[- ]hours?|quiet time|do not disturb|\bdnd\b|ruhezeit(?:en)?|nachtruhe|nicht stören|"
               r"heures? (?:calmes?|silencieuses?|de silence)|ne pas déranger|horas? (?:de )?(?:silencio|tranquilas?|descanso)|no molestar|"
               r"stille uren|rustige uren|rusttijd|niet storen")
-QUIET_NEG = r"\b(?:not|never|except|nicht|nie|außer|ausser|pas|jamais|sauf|no|nunca|excepto|salvo|niet|nooit|behalve)\b|respect|honou?r|beacht"
+QUIET_NEG = (r"\b(?:not|never|except|nicht|nie|außer|ausser|pas|jamais|sauf|no|nunca|excepto|salvo|niet|nooit|behalve|kein\w*)\b"
+             r"|\b(?:don['’]?t|do\s+not|doesn['’]?t|won['’]?t)\b|respect|honou?r|beacht")
 QUIET_POS = (r"\b(?:even|anyway|regardless|or not|break(?:s|ing)? through|override|too|also|auch|trotzdem|selbst|sogar|egal|même|quand même|"
              r"incluso|aunque|aun|también|ook|toch|zelfs)\b")
+# round 3 (its blind test: 3 of 5 asked breakthroughs drafted off, every miss English or German): the user asked without naming quiet
+# hours. Three phrasing classes: a night time with a breakthrough word ("auch mitten in der Nacht"), being woken at night ("wake me at
+# night"), and not minding the hour ("I don't care if it's 3 am", "egal ob nachts"). Read as the quiet term is; a negation before the
+# night words keeps it off ("don't wake me at night").
+QUIET_INDIFF = (r"\b(?:i\s+)?(?:don['’]?t|do\s+not|doesn['’]?t|does\s+not)\s+(?:care|mind|matter)\b|\bno\s+matter\b|\bwhatever\s+the\s+(?:time|hour)\b"
+                r"|\b(?:ist\s+)?(?:mir\s+)?egal\b|\bganz\s+gleich\b|\bpeu\s+importe\b|\bme\s+da\s+igual\b|\bno\s+importa\b|\bmaakt\s+(?:me\s+)?niet\s+uit\b")
+QUIET_NIGHT = (r"\b(?:at\s+night|in\s+the\s+night|during\s+the\s+night|overnight|(?:in\s+the\s+)?middle\s+of\s+the\s+night|night[- ]?time|"
+               r"(?:[1-5]|1[12])(?:[:.]\d\d)?\s*(?:am|a\.m\.)|(?:mitten\s+)?in\s+der\s+nacht|während\s+der\s+nacht|nachts|[1-5]\s+uhr\s+(?:nachts|früh|morgens)|"
+               r"la\s+nuit|pendant\s+la\s+nuit|en\s+pleine\s+nuit|de\s+noche|por\s+la\s+noche|durante\s+la\s+noche|en\s+plena\s+noche|"
+               r"['’]s\s+nachts|(?:midden\s+)?in\s+de\s+nacht|tijdens\s+de\s+nacht)(?!\w)")
+QUIET_ANYHOUR = (r"\bno\s+matter\s+(?:the\s+|what\s+)?(?:hour|time)\b|\bwhatever\s+the\s+(?:hour|time)\b|\bat\s+any\s+hour\b|\begal\s+wie\s+spät\b"
+                 r"|\bzu\s+jeder\s+(?:uhrzeit|stunde)\b|\begal\s+(?:um\s+)?welche\s+uhrzeit\b|\bà\s+toute\s+heure\b|\ba\s+cualquier\s+hora\b|\bop\s+elk\s+uur\b")
+QUIET_WAKE = r"\b(?:wake\s+me(?:\s+up)?|weck(?:e|t)?\s+mich(?:\s+auf)?|réveille[sz]?[- ]moi|despiértame|maak\s+me\s+wakker)\b"
 def quiet_breakthrough(request):
     """ADR-0036: "Even during quiet hours" is the user's own switch, off by default. Read from the request's words in code, never
-    from the model: on only when the request names quiet hours with a breakthrough word and no negation in the 30 characters before
-    the term ("not during quiet hours" stays off); anything unclear stays off (the user can turn it on in Change)"""
-    t = str(request or "").lower(); m = re.search(QUIET_TERM, t)
-    if not m: return False
-    if re.search(QUIET_NEG, t[max(0, m.start() - 30):m.start()]): return False
-    return bool(re.search(QUIET_POS, t))
+    from the model: on only when the request names quiet hours, or the night, with a breakthrough word (or, for the night, asks to be
+    woken), and no negation in the 30 characters before those words ("not during quiet hours", "don't wake me at night" stay off);
+    anything unclear stays off (the user can turn it on in Change)"""
+    t = unicodedata.normalize("NFKC", str(request or "")).lower()
+    anyhour = re.search(QUIET_ANYHOUR, t)
+    if anyhour and not re.search(QUIET_NEG, t[max(0, anyhour.start() - 30):anyhour.start()]): return True
+    t = re.sub(QUIET_INDIFF, " even ", t)
+    m = re.search(QUIET_TERM, t); night = None if m else re.search(QUIET_NIGHT, t)
+    hit = m or night
+    if not hit: return False
+    if re.search(QUIET_NEG, t[max(0, hit.start() - 30):hit.start()]): return False
+    return bool(re.search(QUIET_POS, t)) or bool(night and re.search(QUIET_WAKE, t))
 def echo(w, watch, lang=None):
     lang = lang or w["lang"]; lang = lang if lang in ("en", "de") else "en"
     names = [_q(t["name"]) for t in watch["targets"]]
@@ -443,7 +463,9 @@ def covered(w, asked, tg, conds):
     generic noun for the target ("the webhook work") or a paraphrase ("drops below", "jede Rückfrage") counted as unwatchable"""
     names = {t for e in tg for t in _toks(e["raw_name"]) + _toks(str(e.get("project") or "")) + _toks(str(e.get("app") or ""))}
     rx = "|".join(COVER[c["type"]] + ("|" + COVER_MORE[c["type"]] if c["type"] in COVER_MORE else "") for c in conds)
-    a = re.sub(QUIET_TERM + "|" + LIFE_ALWAYS.pattern + "|" + LIFE_TODAY.pattern, " ", _norm(asked), flags=re.I)
+    a = re.sub(QUIET_ANYHOUR + "|" + QUIET_INDIFF + "|" + QUIET_WAKE + "|" + QUIET_NIGHT + "|" + QUIET_TERM + "|" + LIFE_ALWAYS.pattern + "|" + LIFE_TODAY.pattern, " ",
+               unicodedata.normalize("NFKC", str(asked or "")).lower(), flags=re.I)
+    a = _norm(re.sub(r"\b(?:keep|stay|be)\s+(?:it\s+)?(?:quiet|silent)\b|\b(?:and\s+)?yes\b|\bja\b", " ", a))
     for t in re.findall(r"[^\W_]+", a):
         if t.isdigit() or t in GENERIC or re.fullmatch(FILLER, t) or re.fullmatch(FILLER_MORE, t) or _tok_hit(t, names) or (rx and re.search(rx, t)): continue
         return False

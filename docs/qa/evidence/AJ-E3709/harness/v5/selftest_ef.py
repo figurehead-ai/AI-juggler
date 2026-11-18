@@ -657,6 +657,30 @@ def selftest_r3(check, WJ):
          "asked": "x", "nearest": "fails"}
     sm = W.summarise([{"id": "T-W", "item": w, "outcome": o, "attempts": [], "model_called": True, "used": 0}])
     check("scoring: a removed order shown to the user is a critical candidate (planted_echo)", sm["critical_by_detector"].get("planted_echo") == 1, sm["critical_by_detector"])
+    # ---- quiet hours asked without naming them (round 3's blind test of quiet_breakthrough): a night time with a breakthrough word,
+    # being woken at night, not minding the hour; and their negations. New made-up phrasings, English and German (FR, ES, NL in the tables)
+    for req in ("ping me when the kiln job fails, even overnight", "if the scraper asks something, wake me up during the night",
+                "no matter the hour, tell me when the glaze export finishes", "I don't mind if it's 4am, alert me when the scraper is stuck",
+                "Weck mich nachts, wenn der Export fehlschlägt", "Auch nachts Bescheid sagen, wenn die Synchronisierung hängt",
+                "Egal wie spät, sag mir, wenn der Upload fertig ist", "Mir ist egal, ob es 2 Uhr nachts ist: melde dich, wenn der Import fragt",
+                "Préviens-moi si l'import échoue, même la nuit", "Despiértame si la copia falla, también de noche", "Maak me wakker als de upload faalt, ook 's nachts"):
+        check(f"quiet: on for {req!r}", W.quiet_breakthrough(req))
+    for req in ("don't wake me at night, just tell me when the kiln job fails", "tell me at night when the glaze export finishes",
+                "notify me when the night build fails", "tell me tonight when the scraper is done", "never at 3 am, ping me when the import fails",
+                "Weck mich nicht nachts, sag Bescheid, wenn der Export fehlschlägt", "Sag mir morgens, wenn der Upload fertig ist",
+                "Sag mir, wenn der Import fertig ist, aber nicht in der Nacht", "tell me when the kiln job fails, but respect quiet hours"):
+        check(f"quiet: off for {req!r}", not W.quiet_breakthrough(req))
+    ses = [{"id": "s-gl", "app": "Codex", "project": "glaze", "title": "Glaze export"}]
+    w = wi("tell me when glaze export fails, and wake me up in the middle of the night", ses, [{"id": "codex", "name": "Codex"}])
+    o = WJ.evaluate(w, "main", wd(["s1"], [("fails", "none")], asked="wake me up in the middle of the night", nearest="fails"))
+    check("quiet: the breakthrough words are no unsupported condition; the watch breaks through, and says so", o["kind"] == "watch"
+          and o["watch"]["even_in_quiet_hours"] and o["shown"].endswith("Even during quiet hours."), o.get("shown"))
+    w = wi("Sag mir, wenn Glaze export fehlschlägt, egal wie spät", ses, [{"id": "codex", "name": "Codex"}])
+    o = WJ.evaluate(w, "main", wd(["s1"], [("fails", "none")], asked="egal wie spät", nearest="fails"))
+    check("quiet: German, the same", o["kind"] == "watch" and o["shown"].endswith("Auch während der Ruhezeit."), o.get("shown"))
+    w = wi("tell me when glaze export fails, but stay quiet during quiet hours", ses, [{"id": "codex", "name": "Codex"}])
+    o = WJ.evaluate(w, "main", wd(["s1"], [("fails", "none")], asked="stay quiet during quiet hours", nearest="fails"))
+    check("quiet: kept quiet is no unsupported condition either, and stays off", o["kind"] == "watch" and not o["watch"]["even_in_quiet_hours"], o.get("shown"))
 
 def texts():
     for ex in D.EXAMPLES: yield ex["label"], " ".join(t["source"] for a in ex["agents"] for t in a["turns"]) + " " + json.dumps(ex["out"], ensure_ascii=False)
