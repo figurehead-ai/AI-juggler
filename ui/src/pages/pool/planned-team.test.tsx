@@ -97,5 +97,8 @@ describe("once a session has joined", () => {
     );
     await screen.findByTestId("canvas-rule-nodes");
     expect(screen.queryByTestId("planned-team")).toBeNull();
+    // An App's card in the column is a button too (the rc2 walk P5).
+    const app = screen.getByTestId("canvas-rule-node");
+    expect(screen.getAllByRole("button", { name: /Claude Code CLI · Personal/ })).toContain(app);
   });
 });
