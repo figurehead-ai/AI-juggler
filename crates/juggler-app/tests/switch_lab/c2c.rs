@@ -21,7 +21,8 @@
 //!    codename only the conversation holds; its file history is whole.
 //! 3. Move A → B (in place), then Undo: the transcript and the file
 //!    history are at B under the same id, byte-identical and gone from A;
-//!    Undo puts every byte back on A and leaves none on B.
+//!    Undo puts every byte back on A and B back as it was before the move
+//!    (it holds step 1's copy under the same id).
 //!
 //! Every set-up is undone and the probe removed from A at the end. The
 //! report (real paths: keep it out of the repository) lists every step;
@@ -339,6 +340,12 @@ pub fn journey() {
             tree(&claude_a.join("file-history").join(&native)),
             transcript_in(&claude_a, &native).map(|p| std::fs::read(p).unwrap_or_default()),
         );
+        // B may hold the earlier Copy under the same id (a copy keeps it
+        // across two folders): Undo puts B back to that, not to nothing.
+        let b_before = (
+            tree(&claude_b.join("file-history").join(&native)),
+            transcript_in(&claude_b, &native).map(|p| std::fs::read(p).unwrap_or_default()),
+        );
         let offer = moving::offer(&state, session, &profile_b);
         let step4 = match &offer {
             Ok(offer) if offer.applies && offer.blocks.is_empty() => {
@@ -362,8 +369,10 @@ pub fn journey() {
                             && transcript_in(&claude_a, &native)
                                 .map(|p| std::fs::read(p).unwrap_or_default())
                                 == before_move.1
-                            && transcript_in(&claude_b, &native).is_none()
-                            && tree(&claude_b.join("file-history").join(&native)).is_empty();
+                            && transcript_in(&claude_b, &native)
+                                .map(|p| std::fs::read(p).unwrap_or_default())
+                                == b_before.1
+                            && tree(&claude_b.join("file-history").join(&native)) == b_before.0;
                         json!({"step": "4 Move A→B, then Undo", "ok": moved && restored, "moved_whole": moved, "undo_restored": restored,
                            "holds_on_b": on_b, "move_id": done.move_id, "undo": undone.map_err(|e| format!("{e:?}"))})
                     }
