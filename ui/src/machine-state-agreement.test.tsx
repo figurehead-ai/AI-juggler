@@ -109,7 +109,7 @@ describe("every surface says the same state", () => {
       expect(words).toBe("Under memory pressure");
       expect(need!.textContent).toContain("Your Mac is under memory pressure");
       expect(need!.textContent).toContain("The Claude app is using about 15 GB of memory across 3 windows");
-      expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("1 thing needs you");
+      expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("1 needs you: Your Mac is under memory pressure");
     } else {
       expect(need).toBeNull();
     }
