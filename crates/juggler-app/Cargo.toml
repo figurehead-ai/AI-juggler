@@ -50,6 +50,8 @@ flate2 = { workspace = true }
 png = { workspace = true }
 juggler-adapter = { version = "0.4.0", path = "../juggler-adapter" }
 juggler-account = { version = "0.4.0", path = "../juggler-account" }
+# ADR-0035: the signed remote configuration (fetched over juggler-account's client).
+juggler-remote-config = { version = "0.4.0", path = "../juggler-remote-config" }
 juggler-agentbridge = { version = "0.4.0", path = "../juggler-agentbridge" }
 juggler-adapters = { version = "0.4.0", path = "../juggler-adapters" }
 juggler-core = { version = "0.4.0", path = "../juggler-core", features = ["ts"] }

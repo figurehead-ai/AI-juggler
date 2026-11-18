@@ -2967,6 +2967,7 @@ dependencies = [
  "juggler-login-item",
  "juggler-platform",
  "juggler-proc-list",
+ "juggler-remote-config",
  "juggler-scap-init",
  "juggler-stats",
  "juggler-supervisor",

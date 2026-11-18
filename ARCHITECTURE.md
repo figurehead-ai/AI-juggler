@@ -71,6 +71,11 @@ asks the adapter contract, never a tool's files or names directly.
 - `crates/juggler-floor`, `juggler-floor-render` — the Floor's model and
   its native wgpu window.
 - `crates/juggler-stats` — opt-in, identifier-free usage statistics.
+- `crates/juggler-remote-config` — the signed remote configuration
+  (ADR-0035): canonical bytes, pinned-key verification before any parse,
+  rollback and expiry state, the typed section registry, the layer merge,
+  local targeting and rollout buckets, and the fetch through an injected
+  transport. Knows no feature, tool or screen.
 - Audited shims, each a handful of `unsafe` calls behind a safe API:
   `juggler-login-item`, `juggler-proc-list`, `juggler-scap-init`,
   `juggler-vm-stats`, `juggler-window-events`.
