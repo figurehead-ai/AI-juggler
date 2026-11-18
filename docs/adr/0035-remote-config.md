@@ -77,9 +77,16 @@ The rule that keeps this safe, and keeps it future-proof: **the file only select
 
 ### 3. Trust: signing, keys, rollback
 
-- **ed25519 signatures** over a canonical serialisation (sorted keys, no insignificant whitespace). Verification happens before any parse into sections.
-- **Pinned keys with key ids.** The app ships 2–3 public keys: the current one, the next one, and one for emergencies. A key is retired by shipping an app without it. Keys can also be revoked through a `revoked_keys` list in a file signed by another pinned key. The private keys live only in the release environment, as GitHub environment secrets behind the same approval as Promote, never in the repo or on a laptop.
-- **Rollback protection:** the app stores the highest `serial` it has accepted per channel, and rejects a lower one. It also rejects files past `expires_at`, about 14 days by default, so a stale file can't be replayed forever. The publisher must re-sign periodically. A CI job does this, and it alerts if the live file is within 3 days of expiry.
+- **ed25519 signatures** (`verify_strict`) over a context string and the canonical bytes (sorted keys, no insignificant whitespace, integers only). The file carries the payload as opaque base64 beside its signature, and verification happens before any parse of it.
+- **Pinned keys with key ids and roles.** The app ships 2–3 public keys: the current one and the next one, which sign configuration, and an emergency one, which signs only revocation lists. A key is retired by shipping an app without it; **for a stolen configuration key, that release is the real defence.**
+- **Revocation lists** (amended 2026-11-18 after the step-1 security review):
+  - signed by the emergency key only; a file may carry several, one per emergency-key generation, and a list this app can't verify is skipped, never fatal;
+  - they name keys by **fingerprint** (SHA-256 of the public key), and an app keeps only fingerprints of keys it pins, so a list can't pre-revoke a later release's keys;
+  - they are in-band, so an attacker who holds a stolen key and controls the host can withhold them. Each release therefore also compiles in the revoked fingerprints known at build time, and the publisher keeps the list in every file until no supported app pins the revoked key.
+- The private keys live only in the release environment, as GitHub environment secrets behind the same approval as Promote, never in the repo or on a laptop. `next` is kept apart from `current` (its own secret and approval), since before a rotation its only job is availability.
+- **Rollback protection:** the app stores the highest `serial` it has accepted per channel and key, and rejects a lower one (the same serial only with identical content). It also rejects files past `expires_at`, about 14 days by default and at most 31 days after `issued_at`, so a stale file can't be replayed forever. The publisher must re-sign periodically. A CI job does this, and it alerts if the live file is within 3 days of expiry.
+- **Time:** expiry is judged against `max(now, the newest issued_at accepted)`, so setting the clock back revives nothing, and an `issued_at` more than 10 minutes in the future is rejected.
+- **Where the trust state lives:** the floors, the revoked fingerprints and the trusted time are security state, not cache. They live in their own checksummed file in the app's durable data folder (Application Support, never Caches), written atomically (temp file, fsync, rename, fsync the folder). **Clearing the cache never touches it.** A save only moves forward (floors by maximum, revocations by union), and refreshes are serialised. If the file is missing or corrupt, the app fails safe: it starts from the floor and revocations compiled into the release (the serial of the newest file known at build time), never from "no floor".
 - **Channel binding:** a file for `beta` is rejected by a `stable` app.
 
 ### 4. Layers and precedence
@@ -115,14 +122,15 @@ Unlinked users get layers 1, 2 and 4 only, and lose no core feature (D-18).
 
 ### 7. Fetching, caching, failure
 
-- **When:** at launch (after first paint, per the lazy-load rule) and then at most every 6 h, with jitter. The background fetch skips Low Power Mode and metered connections where the OS says so.
+- **When:** at launch (after first paint, per the lazy-load rule) and then at most once a day (D-128), failed attempts included. The background fetch skips Low Power Mode and metered connections where the OS says so.
 - **How:**
-  - one GET to a fixed URL per channel, with `If-None-Match`;
+  - one GET to a fixed URL per channel; `If-None-Match` only if a policy turns it on (off by default: a host could hand each install a unique entity tag and so recognise it);
   - no cookies;
   - a generic user agent (`AIJuggler/<version>`), with no install id, no account and no query string;
   - a timeout of 10 s;
   - a size cap of 256 KB.
-- **Cache:** the last *accepted* envelope is stored in the registered cache (ADR-0023), together with its serial. A new file is used only after full verification. On any failure (network, signature, serial, expiry, size, parse), the app keeps the last good file, or falls back to compiled defaults if it's past its expiry.
+- **Cache:** the last *accepted* file is kept with the trust state (§3) and re-verified on every load. A new file is used only after full verification and after the state recording it has been saved; if that save fails, nothing new is used. On any failure (network, signature, serial, expiry, size, parse), the app keeps the last good file, or falls back to compiled defaults if it's past its expiry. Clearing the registered cache (ADR-0023) never touches the trust state.
+- **Old apps, new files:** a value an app can't read (a wider bound, a new option, a new field) drops only that value; a rule gated to newer app versions isn't read at all; kills and compat narrowing always apply, even from a section with a newer schema.
 - **Off switch:** Settings › Privacy offers "Check for configuration updates". It's on by default, because it carries kill switches and compat; it's anonymous, and the page says what it fetches. Turning it off uses compiled defaults plus the account layer, if linked.
 - **Applying:** sections apply live through a change event (no restart), in a module-defined order. A change that can't apply live is marked `on next launch`.
 
