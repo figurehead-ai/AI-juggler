@@ -16,11 +16,13 @@ HERE = os.path.dirname(os.path.abspath(__file__)); sys.path.insert(0, HERE)
 import core                                                          # noqa: E402
 from core import j4, gate, REGISTRY, norm_item, item_kind            # noqa: E402
 import turns, chat                                                   # noqa: E402,F401  (registers the jobs)
+import digest, watch                                                 # noqa: E402,F401  (ADR-0036's (e) and (f): registered the same way)
 from runner_v4 import Probe                                          # noqa: E402  (protocol 3 with the v4 extensions: fields, sampling)
 from runner_v2 import WATCH, cpu_seconds, snapshot, rss_of           # noqa: E402
 from runner_v3 import machine, sh                                    # noqa: E402
 WATCH = WATCH + ["local_probe"]
 TUNED = ("v2", "turnends")
+FAKE_OK = TUNED + ("ef-fixtures",)                                   # --fake also runs (e) and (f) on their selftest fixtures (fixtures/ef-selftest.json)
 
 class Fake:
     """no model: deterministic drafts by a hash of the prompt (without its retry note) and the attempt number, so every path runs:
@@ -30,7 +32,8 @@ class Fake:
         p = req["prompt"]; base = p.split("\n\nYour previous answer was rejected because:")[0]
         attempt = p.count("Your previous answer was rejected because:"); k = int(hashlib.sha256(base.encode()).hexdigest(), 16) % 6
         bad = (k == 1 and attempt == 0) or k == 2 or (k == 4 and attempt == 0)
-        obj = getattr(s, "_" + req["job"])(req, base, bad, k)
+        own = getattr(s, "_" + req["job"], None)
+        obj = own(req, base, bad, k) if own else REGISTRY[req["job"]].fake_draft(req, base, bad, k)    # a registered job brings its own fake drafts
         text = json.dumps(obj, ensure_ascii=False, separators=(", ", ": "))
         if k == 3 and attempt == 0: text = text[: len(text) // 2]
         return {"text": text, "finish": "length" if (k == 3 and attempt == 0) else "stop", "out_tokens": len(text) // 4, "refused": False,
@@ -76,7 +79,7 @@ class Fake:
 def load_corpus(spec, limit, fake, jobs_wanted):
     label, _, path = spec.partition("=")
     if not path: raise SystemExit(f"--corpus wants LABEL=PATH, got {spec}")
-    if fake and label not in TUNED: raise SystemExit(f"--fake runs on the tuned corpora only ({', '.join(TUNED)}), not {label}")
+    if fake and label not in FAKE_OK: raise SystemExit(f"--fake runs on the tuned corpora and the (e)/(f) fixtures only ({', '.join(FAKE_OK)}), not {label}")
     raw = open(path, "rb").read(); items = json.loads(raw)
     items = [x for x in items if item_kind(x)]
     if label in TUNED and "chat" in jobs_wanted and not any(item_kind(x) == "chat" for x in items):
@@ -101,6 +104,8 @@ def main():
     ap.add_argument("--retries", type=int, default=core.MAX_RETRIES, help="regenerations after a failed check (D-130: 2)")
     ap.add_argument("--sampling", help="a config name from the model's entry in core.MODELS (default: its v4 choice or card)")
     ap.add_argument("--datamark", choices=("on", "off"), help="default: the model's v4 choice (core.MODELS)")
+    ap.add_argument("--context", type=int, default=4096, help="the context tier for jobs with budget tiers (the digest: 4096 or 8192; "
+                    "local_probe needs the same --ctx in --cmd). Other jobs keep their 4,096 budget")
     a = ap.parse_args()
     if not a.corpus: ap.error("at least one --corpus")
     job_list = list(REGISTRY) if a.job == "all" else [j.strip() for j in a.job.split(",")]
@@ -112,6 +117,10 @@ def main():
     sname = a.sampling or entry["default"]
     if sname not in entry["sampling"]: raise SystemExit(f"no sampling {sname} for {entry['family']}: {list(entry['sampling'])}")
     mark = (a.datamark or entry["datamark"]) == "on"
+    for j in job_list:
+        if hasattr(REGISTRY[j], "context_tiers"):
+            if a.context not in REGISTRY[j].context_tiers: ap.error(f"--context {a.context}: {j} has budgets for {REGISTRY[j].context_tiers}")
+            REGISTRY[j].context_tokens = a.context
     corpora = [load_corpus(c, a.limit, a.fake, job_list) for c in a.corpus]
     before = {} if a.fake else snapshot(); rss0 = 0 if a.fake else rss_of(WATCH); peak = rss0; load0 = os.getloadavg()
     t0 = time.time(); res = []; ncalls = [0]
@@ -132,7 +141,7 @@ def main():
                         fin = rec["final"]
                         res.append({"corpus": label, "job": jn, "setting": setting, "id": it["id"], "rep": rep, "model_called": rec["model_called"],
                                     "used": rec["used"], "attempts": rec["attempts"],
-                                    "final": {k: fin.get(k) for k in ("kind", "shown", "model_text", "refs", "risk", "needs_you", "notes") if k in fin}})
+                                    "final": {k: fin.get(k) for k in ("kind", "shown", "model_text", "refs", "risk", "needs_you", "notes") + tuple(getattr(job, "record_keys", ())) if k in fin}})
                         if not a.fake and ncalls[0] % 20 == 0: peak = max(peak, rss_of(WATCH))
     wall = time.time() - t0
     helper_cpu = cpu_seconds(sh(["ps", "-o", "time=", "-p", str(eng.pid())]) or "0") if eng.pid() else 0.0
@@ -141,9 +150,9 @@ def main():
                      if pid in before and before[pid][1] == nm and nm in WATCH and t1 - before[pid][0] >= 0.05), key=lambda d: -d["cpu_s"])
     prompts = {jn: hashlib.sha256(REGISTRY[jn].write_prompts().encode()).hexdigest() for jn in job_list}
     meta = {"harness": "v5", "prompt_version": core.PROMPT_VERSION, "engine": "fake (no model)" if a.fake else (eng.h.get("engine") or "Apple on-device Foundation Model via apple_probe.swift"),
-            "hello": eng.hello, "family": entry["family"], "sampling_name": sname, "sampling": entry["sampling"][sname], "sampling_source": entry["source"],
-            "datamark": "on" if mark else "off", "retries": a.retries, "jobs": job_list, "prompt_sha256": prompts,
-            "code_sha256": {f: sha(os.path.join(HERE, f)) for f in ("core.py", "turns.py", "chat.py", "severity.py")},
+            "hello": eng.hello, "family": entry["family"], "model_label": entry.get("label") or entry["family"], "sampling_name": sname, "sampling": entry["sampling"][sname], "sampling_source": entry["source"],
+            "datamark": "on" if mark else "off", "retries": a.retries, "jobs": job_list, "prompt_sha256": prompts, "context_tokens": a.context,
+            "code_sha256": {f: sha(os.path.join(HERE, f)) for f in ("core.py", "turns.py", "chat.py", "severity.py", "digest.py", "watch.py")},
             "gate_py_sha256": sha(gate.__file__), "frozen_gate_commit": "7acec4f50", "jobs_v4_sha256": sha(j4.__file__),
             "repeats": a.repeats, "limit": a.limit or None,
             "corpora": [{"label": l, "file": os.path.basename(p), "sha256": d, "items_in_file": n, "items_run": len(i)} for l, p, d, i, n in corpora],
