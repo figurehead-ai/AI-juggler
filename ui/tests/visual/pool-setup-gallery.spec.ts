@@ -194,10 +194,10 @@ for (const theme of ["dark", "light"] as const) {
     await expect(title).toHaveText("Planner → Fix the cart totals");
     await shoot(page, SELECTION, `selection-line-1280x800-${theme}.png`);
 
-    // The pool's own settings (ready, round 4: its checklist says so), Who
-    // may message whom unfolded.
+    // The pool's own settings (ready, with sessions in it: D-126 §3, the
+    // calm live view and its Edit setup), Who may message whom unfolded.
     await page.getByTestId("inspector-back").click();
-    await expect(page.getByTestId("pool-ready")).toContainText("This pool is ready");
+    await expect(page.getByTestId("pool-running")).toBeVisible();
     await page.getByTestId("inspect-open-settings").click();
     await page.getByTestId("pool-setup-talk-fold-toggle").click();
     await expect(page.getByTestId("pool-talk")).toBeVisible();
@@ -231,6 +231,7 @@ for (const theme of ["dark", "light"] as const) {
     await goTo(page, "Pools");
     await page.getByTestId("pool-card-tile").filter({ hasText: "Checkout team" }).click();
     await expect(page.getByTestId("pool-canvas")).toBeVisible();
+    await page.getByTestId("inspect-open-settings").click();
     await page.locator('[data-testid="pool-summary"] [data-row="lead"] [data-testid$="-change"]').click();
     await expect(page.locator("#pool-setup-lead :focus")).toHaveCount(1);
     await axe(page, `opened section ${theme}`);

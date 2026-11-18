@@ -79,19 +79,19 @@ for (const theme of ["dark", "light"] as const) {
   test(`the one-time question on a pool's page — ${theme}`, gate("92-agent-tools"), async ({ page }) => {
     await open(page, theme, null);
     await poolPage(page);
-    // AJ-E3011 round 4 (main's ruling, D-30): one question, asked once, at
-    // the top of the pool page while unanswered: what it gives, that it
-    // costs nothing extra, where to switch it off, Yes and Not now.
+    // D-30's one question, asked once, while unanswered: D-126 §3 made it
+    // the setup checklist's last item, open, in the panel (no banner over
+    // the page, X2 §4c): what it gives, that it costs nothing extra, Learn
+    // more, Turn on team tools (the view's one primary) and Not now.
     await expect(page.getByTestId("agent-tools-question")).toHaveCount(0);
-    const question = page.getByTestId("pool-team-tools");
-    await expect(question.getByRole("heading")).toHaveText("Let the sessions in your pools message each other and share notes and tasks?");
-    await expect(question).toContainText("It costs nothing extra");
-    await expect(question).toContainText("This is for every pool you make; you can switch it off for a project or an app in Settings.");
-    await expect(question.getByRole("button", { name: "Yes, let them work together" })).toBeVisible();
+    await expect(page.getByTestId("pool-team-tools")).toHaveCount(0);
+    const question = page.getByTestId("pool-inspector").getByTestId("pool-checklist-open");
+    await expect(question).toContainText("Let them message each other");
+    await expect(question).toContainText("Nothing extra to pay; nothing changes in your apps.");
+    await expect(question.getByRole("button", { name: "Learn more" })).toBeVisible();
+    await expect(question.getByRole("button", { name: "Turn on team tools" })).toBeVisible();
     await expect(question.getByRole("button", { name: "Not now" })).toBeVisible();
-    // At the top: above the diagram, not low in the side panel.
-    const top = (await question.boundingBox())!.y;
-    expect(top).toBeLessThan((await page.getByTestId("pool-inspector").boundingBox())!.y);
+    await expect(page.getByTestId("pool-header-setup")).toContainText("Setting up ·");
     await page.mouse.move(0, 0);
     await page.screenshot({ path: resolve(OUT, `agent-tools-question-1280x800-${theme}.png`) });
     await axe(page, `the question ${theme}`);

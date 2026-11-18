@@ -1,0 +1,187 @@
+/**
+ * D-126 §3: the pool canvas while it's being set up — no banner over the
+ * page (its question is the checklist's last item), one checklist with a
+ * ring, each step's value, the open item expanded as the view's one
+ * primary, "Setting up · n of 7" in the header, and the calm running view
+ * once a session has joined and setup is done, or on Hide setup.
+ */
+import { act, cleanup, fireEvent, render, renderHook, screen, waitFor, within } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import { primariesIn } from "../../components/primitives";
+import { resetPreviewAgentBridge } from "../../lib/ipc/agent-bridge";
+import { setupRows } from "../../lib/pool-setup";
+import type { PoolShape } from "../../lib/pool-sentences";
+import { PoolChecklist } from "./setup/PoolChecklist";
+import { SetupRing } from "./SetupRing";
+import { checklistValues } from "./setup-values";
+import { setupPhase, useSetupHidden } from "./setup-progress";
+import { openPage, resetCanvasTests, seams, seedTeam } from "./canvas.test-kit";
+
+const facts = { own: false, every: false, whoIn: true, led: false, leadNext: true };
+const bridge = (seed: Record<string, unknown> | undefined) => {
+  Object.assign(window, { __AIJ_AGENT_BRIDGE__: seed });
+  resetPreviewAgentBridge();
+};
+
+beforeEach(() => localStorage.clear());
+afterEach(() => {
+  cleanup();
+  bridge(undefined);
+});
+
+describe("SetupRing", () => {
+  it("is one image named in words, its count in it", () => {
+    render(<SetupRing done={5} total={7} />);
+    const ring = screen.getByRole("img", { name: "5 of 7 done" });
+    expect(ring.textContent).toBe("5/7");
+  });
+
+  it("never full while something can't work, and says so", () => {
+    render(<SetupRing done={7} total={7} blocked testId="ring" />);
+    expect(screen.getByRole("img", { name: "Can't work yet" })).toBeTruthy();
+    const arc = screen.getByTestId("ring").querySelectorAll("circle")[1]!;
+    const [drawn, round] = arc.getAttribute("stroke-dasharray")!.split(" ").map(Number);
+    expect(drawn!).toBeLessThan(round!);
+  });
+
+  it("beside its words, it's no image of its own", () => {
+    render(<SetupRing done={1} total={6} decorative />);
+    expect(screen.queryByRole("img")).toBeNull();
+  });
+});
+
+describe("a step's value under its name", () => {
+  const shape: PoolShape = {
+    members: [
+      { ref: "app:claude-app:/w", label: "Claude", role: "member", level: null, later: true },
+      { ref: "app:codex:/c", label: "Codex", role: "reviewer", level: null, later: true },
+      { ref: "all", label: "Everyone in web", role: "member", level: null, later: false },
+    ],
+    leadNext: "app:claude-app:/w",
+    talk: {},
+    level: "work_together",
+    sealed: false,
+  };
+
+  it("reads as the mock-up's: where, who's in, who leads, roles, messages, on their own", () => {
+    expect(checklistValues(shape, "web")).toEqual({
+      where: "web",
+      who: "Claude, Codex, everyone in web",
+      lead: "Claude's next session",
+      everyone: "Codex checks the work",
+      talk: "Everyone, freely",
+      own: "Work together",
+    });
+  });
+
+  it("an Observer only reads, so it's no exception; a blocked pair is", () => {
+    expect(checklistValues({ ...shape, talk: { "observer>lead": "blocked" } }, "web").talk).toBe("Everyone, freely");
+    expect(checklistValues({ ...shape, talk: { "member>reviewer": "ask" } }, "web").talk).toBe("Some ask you first");
+    expect(checklistValues({ ...shape, talk: { "lead>member": "blocked" } }, "web").talk).toBe("Some may not message");
+    expect(checklistValues({ ...shape, members: [], leadNext: null }, "web")).toMatchObject({ who: "No one yet", lead: "No lead for now", everyone: "Everyone builds" });
+  });
+});
+
+describe("the checklist (D-126 §3)", () => {
+  const rows = setupRows(facts, new Set());
+
+  it("the team tools are its last item, open with the view's one primary; the rest ticked with their values and Change", () => {
+    const open = vi.fn();
+    const view = render(<PoolChecklist title="Set up web team" rows={rows} onOpen={open} values={{ where: "web", lead: "Claude's next session" }} tools={{ kind: "ask" }} />);
+    expect(screen.getByRole("heading", { name: "Set up web team" })).toBeTruthy();
+    expect(screen.getByTestId("pool-checklist-count").textContent).toBe("6 of 7 done");
+    expect(screen.getByTestId("pool-checklist").textContent).toContain("One thing left before they can talk");
+    const item = screen.getByTestId("pool-checklist-open");
+    expect(item.textContent).toContain("Let them message each other");
+    const on = within(item).getByRole("button", { name: "Turn on team tools" });
+    expect(primariesIn(view.container)).toEqual([on]);
+    expect(within(item).getByRole("button", { name: "Not now" })).toBeTruthy();
+    expect(screen.getAllByTestId("pool-checklist-value").map((one) => one.textContent)).toEqual(["web", "Claude's next session"]);
+    fireEvent.click(screen.getByRole("button", { name: /^Who leads/ }));
+    expect(open).toHaveBeenCalledWith("lead");
+  });
+
+  it("Turn on answers the one question; then the item is ticked, its Change in Settings", async () => {
+    bridge({ asked: false, on: false });
+    const { rerender } = render(<PoolChecklist rows={rows} onOpen={() => undefined} tools={{ kind: "ask" }} />);
+    fireEvent.click(screen.getByRole("button", { name: "Turn on team tools" }));
+    await waitFor(() => expect(Reflect.get(window, "__AIJ_AGENT_BRIDGE_CALLS__")).toContain("answer:true"));
+    rerender(<PoolChecklist rows={rows} onOpen={() => undefined} tools={{ kind: "on" }} ready={false} />);
+    expect(screen.getByTestId("pool-checklist-count").textContent).toBe("7 of 7 done");
+    const settings = vi.fn();
+    window.addEventListener("aij:open-settings", settings);
+    fireEvent.click(screen.getByRole("button", { name: /^Let them message each other, ?done ?On ?Change$/ }));
+    expect(settings).toHaveBeenCalledTimes(1);
+    window.removeEventListener("aij:open-settings", settings);
+  });
+
+  it("answered Not now: Turn on stays, with where they stand; can't run: why, and no button", () => {
+    const { rerender } = render(<PoolChecklist rows={rows} onOpen={() => undefined} tools={{ kind: "off" }} />);
+    expect(screen.getByRole("button", { name: "Turn on team tools" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Not now" })).toBeNull();
+    rerender(<PoolChecklist rows={rows} onOpen={() => undefined} tools={{ kind: "unsafe", folder: "~/Downloads" }} />);
+    expect(screen.queryByRole("button", { name: "Turn on team tools" })).toBeNull();
+    expect(screen.getByTestId("pool-checklist-tools-line").textContent).toContain("~/Downloads");
+  });
+
+  it("who's in not set: it's the open item, Add a member its primary", () => {
+    const open = vi.fn();
+    const view = render(<PoolChecklist rows={setupRows({ ...facts, whoIn: false }, new Set())} onOpen={open} tools={{ kind: "ask" }} />);
+    const add = within(screen.getByTestId("pool-checklist-open")).getByRole("button", { name: "Add a member" });
+    expect(primariesIn(view.container)).toEqual([add]);
+    fireEvent.click(add);
+    expect(open).toHaveBeenCalledWith("who");
+  });
+});
+
+describe("setting up or running", () => {
+  it("running once a session has joined and setup is done, or on Hide setup", () => {
+    expect(setupPhase({ joined: false, complete: true, hidden: false })).toBe("setup");
+    expect(setupPhase({ joined: true, complete: false, hidden: false })).toBe("setup");
+    expect(setupPhase({ joined: true, complete: true, hidden: false })).toBe("running");
+    expect(setupPhase({ joined: false, complete: false, hidden: true })).toBe("running");
+  });
+
+  it("Hide setup is kept per pool on this Mac", () => {
+    const { result } = renderHook(() => useSetupHidden("pool-a"));
+    act(() => result.current[1](true));
+    expect(renderHook(() => useSetupHidden("pool-a")).result.current[0]).toBe(true);
+    expect(renderHook(() => useSetupHidden("pool-b")).result.current[0]).toBe(false);
+  });
+});
+
+describe("the pool page while it's set up (D-126 §3)", () => {
+  beforeEach(resetCanvasTests);
+
+  it("no banner over the page; the header says how far; the checklist holds the one primary; Hide setup is the calm view", async () => {
+    bridge({ asked: false, on: false });
+    seedTeam();
+    const view = await openPage();
+    await waitFor(() => expect(view.getByTestId("pool-header-setup").textContent).toBe("Setting up · 6 of 7"));
+    // The question isn't a banner over the page (X2 §4c): it's the last item.
+    expect(view.queryByTestId("pool-team-tools")).toBeNull();
+    expect(within(view.getByTestId("pool-checklist-open")).getByRole("button", { name: "Turn on team tools" })).toBeTruthy();
+    expect(primariesIn(view.container)).toHaveLength(1);
+    fireEvent.click(view.getByRole("button", { name: "Hide setup" }));
+    expect(await view.findByTestId("pool-running")).toBeTruthy();
+    expect(view.queryByTestId("pool-header-setup")).toBeNull();
+    expect(view.getByTestId("inspect-open-settings").textContent).toBe("Edit setup");
+    // Hidden but not done: it says so, and Show setup brings it back.
+    fireEvent.click(view.getByTestId("pool-setup-show"));
+    expect(await view.findByTestId("pool-checklist")).toBeTruthy();
+  });
+
+  it("a session in it and every step done (the team tools on): the calm view, on its own", async () => {
+    bridge({ asked: true, on: true });
+    seedTeam();
+    seams().__AIJ_POOL_CANVAS__ = { "pool-team": { stream: [] } };
+    const view = await openPage();
+    const running = await view.findByTestId("pool-running");
+    expect(view.queryByTestId("pool-checklist")).toBeNull();
+    expect(view.queryByTestId("pool-header-setup")).toBeNull();
+    expect([...running.querySelectorAll("dt")].map((term) => term.textContent)).toEqual(["Now", "Tasks", "Lead", "On their own", "Messages this week"]);
+    expect(within(running).getByText("Work together")).toBeTruthy();
+    expect(primariesIn(view.container)).toHaveLength(0);
+  });
+});

@@ -123,6 +123,8 @@ for (const size of [
     // (Who's in opens the palette on the diagram, not a section.)
     for (const row of ["lead", "own"] as const) {
       if (await page.getByTestId("inspector-back").isVisible()) await page.getByTestId("inspector-back").click();
+      // D-126 §3: the summary in sentences is in the pool's settings.
+      await page.getByTestId("inspect-open-settings").click();
       await page.locator(`[data-testid="pool-summary"] [data-row="${row}"] [data-testid$="-change"]`).click();
       const section = page.locator(`#pool-setup-${row}`);
       await expect(section).toBeVisible();
@@ -150,7 +152,9 @@ test("at 1280×800 the inspector's first section fits without scrolling", async 
   await open(page, { width: 1280, height: 800 });
   await pool(page, "Checkout team");
   const list = page.locator('[data-testid="pool-inspector"] [data-canvas-scroll]').first();
-  const summary = page.getByTestId("pool-summary");
+  // D-126 §3: the panel opens on the checklist while it's set up, else
+  // on the calm live view.
+  const summary = page.locator('[data-testid="pool-checklist"], [data-testid="pool-ready"], [data-testid="pool-running"]').first();
   await expect(summary).toBeVisible();
   expect(await inView(page, summary, list)).toBe(true);
   expect(await list.evaluate((el) => el.scrollTop)).toBe(0);

@@ -9,24 +9,18 @@
  * carries the selected card's accent. AJ-E3011: the setup's checklist is
  * its side card, in order, until every step is done.
  */
-import { forwardRef, useState, type JSX, type ReactNode } from "react";
+import { forwardRef, useState, type ForwardedRef, type JSX, type ReactNode } from "react";
 
 import { AppIcon } from "../../components/AppIcon";
 import { appOfSession } from "../../lib/app-of";
 import { appName } from "../../lib/app-name";
 import { sessionState } from "../../lib/rail-items";
-import type { SETUP_STEPS } from "../../lib/pool-words";
 import { inspectorHead, type HeadOf, type InspectorHead } from "./inspector-head";
 import { ScrollEdge } from "../../components/ScrollEdge";
 import { SELECTED_EDGE } from "./selection";
 import { sessionAlert } from "./NodeParts";
-import { PoolChecklist } from "./setup/PoolChecklist";
-import { PoolSummary, shapeOfPool } from "./PoolSummary";
-import { useTeamTools } from "./setup/TeamTools";
-import { setupBlockers, setupReady, type SetupRow } from "../../lib/pool-setup";
-import { FirstPrompt } from "./setup/FirstPrompt";
-import { nextLine } from "../../lib/pool-sentences";
-import { toolsLeftLine, type ToolsPlace } from "../../lib/team-tools";
+import { OverviewFoot, PoolProgress, RunningSummary, SetupView, type InspectorSetup } from "./PoolOverview";
+import type { SetupPhase, SetupProgress } from "./setup-progress";
 
 import type { ProjectInfo } from "../../types/generated/ProjectInfo";
 import type { PoolCanvasInfo } from "../../lib/ipc/pool-canvas";
@@ -58,54 +52,6 @@ export const INSPECTOR_EDGE: SplitterEdge = { min: 360, max: 420, initial: 380, 
 import type { DesktopMemberInfo } from "../../lib/ipc/connector";
 
 const ThreadView = lazyNamed(() => import("../messages/ThreadView"), "ThreadView");
-
-function Activity({ pool, canvas, now, onSelect }: { pool: PoolInfo; canvas: PoolCanvasInfo | null; now: number; onSelect: (selection: Selection) => void }): JSX.Element {
-  // An empty pool says it's empty once, on its canvas (design review #85).
-  // Round 3 (#2): the pool in short is the summary above, in sentences;
-  // here the way to all its settings, and what happens live.
-  const empty = pool.members === 0;
-  // Live shows while the pool has members, and for an empty one while its
-  // stream says something (who just left, P5 step 4).
-  const live = !empty || (canvas?.stream.length ?? 0) > 0;
-  return (
-    <div className="flex flex-col" data-testid="inspect-activity">
-      <div className="px-4 pb-3">
-        <button type="button" onClick={() => onSelect({ kind: "pool" })} className="rounded text-meta text-accent-hi underline-offset-2 outline-none hover:underline focus-visible:ring-1 focus-visible:ring-accent/60" data-testid="inspect-open-settings">
-          All of this pool's settings…
-        </button>
-      </div>
-      {live && (
-        <Section title="Live" testId="inspect-stream">
-          {canvas === null ? (
-            <span className="h-16 rounded-lg bg-skeleton motion-safe:animate-pulse" role="status" aria-label="Reading the pool's activity" />
-          ) : canvas.stream.length === 0 ? (
-            <p className="text-label text-muted">Nothing yet. Messages and task changes between its agents show here as they happen.</p>
-          ) : (
-            <ol className="flex flex-col gap-2" aria-live="polite" aria-relevant="additions">
-              {canvas.stream.map((line, index) => (
-                <li key={`${line.at_ms}-${index}`} className="flex gap-2 text-meta">
-                  <span className="w-[4.75rem] shrink-0 whitespace-nowrap text-label tabular-nums text-faint">{agoWords(line.at_ms, now)}</span>
-                  {line.session_id ? (
-                    <button
-                      type="button"
-                      onClick={() => onSelect(line.other_session_id ? { kind: "edge", key: edgeKey(line.session_id!, line.other_session_id) } : { kind: "node", id: line.session_id! })}
-                      className="min-w-0 rounded text-left text-ink outline-none hover:text-accent-hi focus-visible:ring-1 focus-visible:ring-accent/60"
-                    >
-                      {line.words}
-                    </button>
-                  ) : (
-                    <span className="min-w-0 text-ink">{line.words}</span>
-                  )}
-                </li>
-              ))}
-            </ol>
-          )}
-          {!empty && <p className="text-label text-faint">Select a member or an edge and this panel shows its tasks, messages, usage and rules.</p>}
-        </Section>
-      )}
-    </div>
-  );
-}
 
 function InspectEdge({ pool, canvas, edgeId, names, now }: { pool: PoolInfo; canvas: PoolCanvasInfo | null; edgeId: string; names: ReadonlyMap<string, string>; now: number }): JSX.Element {
   const edge = canvas?.edges.find((row) => edgeKey(row.from_session_id, row.to_session_id) === edgeId);
@@ -243,33 +189,30 @@ export function StatusPill({ pill }: { pill: NonNullable<InspectorHead["pill"]> 
   );
 }
 
-type Step = (typeof SETUP_STEPS)[number];
-
-/** The pool's setup progress: the checklist on the pool, one line over
- * its settings; none over a member, a line or the lead's card. */
-/** The pool's own inspector: the team tools while they're off for it
- * (round 2, #1: above the checklist, and still there once every step is
- * done), then the checklist. */
-function PoolProgress({ kind, setup, pool, rules, members, ruleLabel, where, needs }: { kind: Selection["kind"]; setup: InspectorSetup; pool: PoolInfo; rules: PoolRules; members: readonly MemberNode[]; ruleLabel: (rule: PoolRuleInfo) => string; where: string; needs: number }): JSX.Element | null {
-  const tools = useTeamTools(setup.tools.projects, setup.tools.apps);
-  const desktop = useDesktopMembers(pool.id);
-  if (kind !== "none" && kind !== "pool") return null;
-  const shape = shapeOfPool(pool, rules.rules, members, ruleLabel);
-  // Round 6: what can't work is said, and the pool is never "ready" then.
-  const names = new Map<string, string>([...(rules.rules?.members ?? []).map((rule) => [rule.member, ruleLabel(rule)] as const), ...rules.watched.map((one) => [one.member, one.title ?? "A session in another app"] as const)]);
-  const blockers = setupBlockers(tools, [...(desktop?.values() ?? [])].map((one) => ({ name: names.get(one.member) ?? "A desktop member", reach: reachOf(one) })));
-  const ready = setupReady(setup.rows, tools?.kind === "on") && blockers.length === 0;
+/** The inspector's head: what is selected, its kind and App, its status;
+ * Done or Pool back. Setting up with nothing selected, it's for screen
+ * readers and focus only (the checklist's title heads the panel). */
+function HeadOfInspector({ head, member, kind, quiet, linked, heading, onBack }: { head: InspectorHead; member: MemberNode | undefined; kind: Selection["kind"]; quiet: boolean; linked: boolean; heading: ForwardedRef<HTMLHeadingElement>; onBack: () => void }): JSX.Element {
   return (
-    <>
-      <PoolSummary shape={shape} where={where} needs={needs} tools={setup.tools} onOpen={setup.onOpen} />
-      <PoolChecklist rows={setup.rows} onOpen={setup.onOpen} compact={kind === "pool"} ready={ready} next={ready ? nextLine(shape, where) : null} toolsLeft={toolsLeftLine(tools)} blockers={blockers} prompt={<FirstPrompt shape={shape} where={where} testId="pool-first-prompt" />} />
-    </>
+    <div className={(quiet ? "sr-only " : "flex shrink-0 items-start gap-2.5 px-4 pb-3 pt-4 ") + (linked ? SELECTED_EDGE : "")} data-testid="inspector-head">
+      {member && <AppIcon {...appOfSession(member.session)} size={32} />}
+      <div className="flex min-w-0 flex-1 flex-col gap-1">
+        <h3 id="pool-inspector-title" ref={heading} tabIndex={-1} className="text-section font-semibold leading-snug text-ink outline-none [overflow-wrap:anywhere]" data-testid="inspector-title">
+          {head.title}
+        </h3>
+        <p className="text-meta text-muted" data-testid="inspector-subtitle">
+          {head.subtitle}
+        </p>
+        {head.pill && <StatusPill pill={head.pill} />}
+      </div>
+      {kind !== "none" && (
+        <button type="button" onClick={onBack} className="shrink-0 rounded-md px-1.5 py-0.5 text-label text-muted outline-none hover:bg-surface-2 hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60" data-testid="inspector-back">
+          {kind === "pool" ? "Done" : "Pool"}
+        </button>
+      )}
+    </div>
   );
 }
-
-/** The setup's checklist, opening one of its steps, and where the team
- * tools are switched (its projects and CLI Apps). */
-type InspectorSetup = { rows: readonly SetupRow[]; onOpen: (step: Step) => void; tools: { projects: readonly ToolsPlace[]; apps: readonly ToolsPlace[] } };
 
 export const Inspector = forwardRef<HTMLHeadingElement, {
   pool: PoolInfo;
@@ -297,7 +240,15 @@ export const Inspector = forwardRef<HTMLHeadingElement, {
   leadDir: string | null;
   /** The pool's setup controls (who leads, everyone else, talk, on their own). */
   setupSections?: ReactNode;
-}>(function Inspector({ pool, project, canvas, members, names, selection, now, onSelect, onOpenTask, onDeleted, rules, ruleLabel, ruleTool, where, needs, setup, leadDir, setupSections }, heading): JSX.Element {
+  /** D-126 §3: setting up (the checklist) or running (calm), how far the
+   * setup is, and Hide setup. */
+  phase: SetupPhase;
+  progress: SetupProgress;
+  hidden: boolean;
+  onHidden: (hidden: boolean) => void;
+  /** The App whose next session leads, by name. */
+  leadNext: string | null;
+}>(function Inspector({ pool, project, canvas, members, names, selection, now, onSelect, onOpenTask, onDeleted, rules, ruleLabel, ruleTool, where, needs, setup, leadDir, setupSections, phase, progress, hidden, onHidden, leadNext }, heading): JSX.Element {
   const member = selection.kind === "node" ? members.find((row) => row.id === selection.id) : undefined;
   const rule = selection.kind === "rule" ? rules.rules?.members.find((row) => row.member === selection.ref) : undefined;
   const watched = selection.kind === "rule" ? rules.watched.find((row) => row.member === selection.ref) : undefined;
@@ -308,33 +259,21 @@ export const Inspector = forwardRef<HTMLHeadingElement, {
   const head = inspectorHead(of);
   // The selected card and the inspector are linked by the same accent.
   const linked = of.kind !== "pool";
+  const overview = { pool, canvas, members, rules, ruleLabel, where, needs, now, setup, progress, onSelect };
+  // Setting up, the checklist's title heads the panel (the pool's own
+  // title stays for screen readers and focus).
+  const quietHead = selection.kind === "none" && phase === "setup";
   return (
     <aside id="pool-inspector" aria-labelledby="pool-inspector-title" style={{ width }} className="relative flex h-full min-h-0 shrink-0 flex-col bg-surface-2/40 shadow-[inset_1px_0_0_var(--color-divider)]" data-testid="pool-inspector" data-selected={of.kind}>
       {/* Round 5 (under D-55): wider, and resizable; its width is kept. */}
       <Splitter edge={INSPECTOR_EDGE} width={width} onWidth={setWidth} controls="pool-inspector" />
-      <div className={"flex shrink-0 items-start gap-2.5 px-4 pb-3 pt-3 " + (linked ? SELECTED_EDGE : "")} data-testid="inspector-head">
-        {member && <AppIcon {...appOfSession(member.session)} size={32} />}
-        <div className="flex min-w-0 flex-1 flex-col gap-1">
-          <h3 id="pool-inspector-title" ref={heading} tabIndex={-1} className="text-section font-semibold leading-snug text-ink outline-none [overflow-wrap:anywhere]" data-testid="inspector-title">
-            {head.title}
-          </h3>
-          <p className="text-meta text-muted" data-testid="inspector-subtitle">
-            {head.subtitle}
-          </p>
-          {head.pill && <StatusPill pill={head.pill} />}
-        </div>
-        {selection.kind !== "none" && (
-          <button type="button" onClick={() => onSelect({ kind: "none" })} className="shrink-0 rounded-md px-1.5 py-0.5 text-label text-muted outline-none hover:bg-surface-2 hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60" data-testid="inspector-back">
-            {selection.kind === "pool" ? "Done" : "Pool"}
-          </button>
-        )}
-      </div>
+      <HeadOfInspector head={head} member={member} kind={selection.kind} quiet={quietHead} linked={linked} heading={heading} onBack={() => onSelect({ kind: "none" })} />
       {/* A new selection opens at its top (the list kept the last one's
           scroll: the pool's settings opened halfway down). */}
-      <ScrollEdge key={JSON.stringify(selection)} className="min-h-0 flex-1 overflow-y-auto pb-6" data-canvas-scroll data-testid="inspector-body">
-        <PoolProgress kind={selection.kind} setup={setup} pool={pool} rules={rules} members={members} ruleLabel={ruleLabel} where={where} needs={needs} />
+      <ScrollEdge key={JSON.stringify(selection)} className={"min-h-0 flex-1 overflow-y-auto " + (quietHead ? "pb-4 pt-4" : "pb-6")} data-canvas-scroll data-testid="inspector-body">
         {selection.kind === "pool" ? (
           <>
+            <PoolProgress {...overview} />
             {setupSections}
             <InspectPool pool={pool} project={project} now={now} members={members.map((row) => ({ id: row.id, name: names.get(row.id) ?? row.card.name }))} onDeleted={onDeleted} />
           </>
@@ -364,10 +303,13 @@ export const Inspector = forwardRef<HTMLHeadingElement, {
           />
         ) : selection.kind === "edge" ? (
           <InspectEdge pool={pool} canvas={canvas} edgeId={selection.key} names={names} now={now} />
+        ) : phase === "setup" ? (
+          <SetupView {...overview} />
         ) : (
-          <Activity pool={pool} canvas={canvas} now={now} onSelect={onSelect} />
+          <RunningSummary {...overview} leadNext={leadNext} />
         )}
       </ScrollEdge>
+      {selection.kind === "none" && <OverviewFoot phase={phase} progress={progress} hidden={hidden} onHidden={onHidden} onSettings={() => onSelect({ kind: "pool" })} />}
     </aside>
   );
 });

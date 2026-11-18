@@ -20,7 +20,6 @@ import { poolSetScope } from "../lib/ipc/pool-model";
 import { CanvasTeach, hasWhoIsIn } from "./pool/CanvasTeach";
 import { PaletteMore } from "./pool/PaletteMore";
 import { RuleNodes } from "./pool/RuleNodes";
-import { TeamToolsQuestion } from "./pool/setup/TeamTools";
 import { startNextLead } from "../lib/start-lead";
 import { useMoreCandidates, useRuleLabel, useRuleTool } from "./pool/pool-page-reads";
 import { ScopeSheet } from "./pool/ScopeSheet";
@@ -36,7 +35,6 @@ import { useDesktopOnCanvas } from "./pool/useDesktopOnCanvas";
 import { PoolSetupSections } from "./pool/PoolSetupSections";
 import { liveOutside, useConversations } from "../lib/conversations";
 import { sessionState } from "../lib/rail-items";
-import { lazyNamed } from "../lib/lazy";
 import { globalId } from "../lib/nav";
 import { useActionHost } from "../components/ItemMenu";
 import { showToast } from "../components/Toast";
@@ -52,13 +50,12 @@ import { addToPool, cannotJoin } from "./pool/actions";
 import { useCanvas } from "./pool/useCanvas";
 import type { Point } from "./pool/layout";
 import { isActiveStatus } from "../components/indicator";
+import { Alert } from "../components/Alert";
+import { PoolPanel } from "./pool/PoolPanel";
+import { setupPhase, useSetupHidden, useSetupProgress } from "./pool/setup-progress";
 
 export { poolCountWords } from "./pool/pool-count";
 import { poolCountWords } from "./pool/pool-count";
-
-// Tasks and Messages load only when first opened.
-const PoolMessages = lazyNamed(() => import("./messages/PoolMessages"), "PoolMessages");
-const PoolTasks = lazyNamed(() => import("./tasks/PoolTasks"), "PoolTasks");
 
 /** Where a link in asked the page to open (read once, on arrival). */
 function arrival(): { panel: Panel; settings: boolean } {
@@ -226,6 +223,11 @@ function PoolCanvasPage({ poolId, sessions, projects, accounts, now, rules }: Pa
     onStep: (step) => select({ kind: "pool", focus: step }),
   });
   const { where } = setup;
+  // D-126 §3: setting up (its checklist, the planned team) until a session
+  // has joined and the setup is done, or Hide setup; then the calm view.
+  const progress = useSetupProgress({ pool, rows: setup.rows, places: setup.tools, rules, ruleLabel });
+  const [hidden, setHidden] = useSetupHidden(pool.id);
+  const phase = setupPhase({ joined: pool.members > 0, complete: progress.complete, hidden });
   const openProjects = new Set(sessions.filter((session) => sessionState(session).state !== "ended" && session.project_id).map((session) => session.project_id!));
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-card border border-hairline bg-surface" data-testid="pool-page">
@@ -243,20 +245,14 @@ function PoolCanvasPage({ poolId, sessions, projects, accounts, now, rules }: Pa
           }}
         />
       )}
-      <PoolHeader pool={pool} facts={facts} scope={scopeWords === null ? undefined : { words: scopeWords, onOpen: () => setScopeOpen(true) }} mode={mode} panel={panel} onMode={setMode} onPanel={setPanel} />
-      {/* D-30: asked once, the first time pools are used, at the top while
-          unanswered (round 4); answered Not now, its quiet line with Turn
-          on. Never on a sealed pool, where "see each other" read as the
-          opposite of sealing. */}
-      {!pool.sealed && (
-        <div className="mx-4 mt-3 empty:hidden">
-          <TeamToolsQuestion projects={setup.tools.projects} apps={setup.tools.apps} testId="pool-team-tools" />
-        </div>
-      )}
+      <PoolHeader pool={pool} facts={facts} scope={scopeWords === null ? undefined : { words: scopeWords, onOpen: () => setScopeOpen(true) }} mode={mode} panel={panel} onMode={setMode} onPanel={setPanel} setup={phase === "setup" ? progress : null} />
+      {/* D-126: no banner over the page (it held about 15 rows of the List
+          view, X2 §4c): the team tools question is the setup checklist's
+          last item. Only an ask that waits on you and has no node says so. */}
       {unplaced.length > 0 && (
-        <p className="mx-4 mt-3 rounded-lg border border-warning/40 bg-warning-soft px-3 py-2 text-meta text-ink" data-testid="pool-unplaced-asks">
+        <Alert level="needs-you" className="mx-4 mt-3" testId="pool-unplaced-asks">
           {unplaced.length === 1 ? "An agent that isn't on the diagram asks you something" : `${unplaced.length} agents that aren't on the diagram ask you something`}: answer it in Needs you, or in the List view.
-        </p>
+        </Alert>
       )}
       <div className="flex min-h-0 flex-1">
         <div className="relative min-w-0 flex-1">
@@ -323,6 +319,7 @@ function PoolCanvasPage({ poolId, sessions, projects, accounts, now, rules }: Pa
                   own={pool.kind === "default"}
                   onSetup={() => setTemplate(true)}
                   inset={paletteOpen}
+                  quiet={phase === "setup"}
                 />
                 )
               }
@@ -330,23 +327,7 @@ function PoolCanvasPage({ poolId, sessions, projects, accounts, now, rules }: Pa
           ) : (
             <MemberList pool={pool} data={data} canvas={data.canvas} sessions={sessions} names={names} now={now} onSelect={(next) => select(next, true)} />
           )}
-          {panel && (
-            <section
-              aria-label={panel === "tasks" ? "Tasks" : "Messages"}
-              className="absolute inset-3 z-30 flex min-h-0 flex-col overflow-hidden rounded-xl border border-hairline bg-surface shadow-lg"
-              data-testid={`pool-panel-${panel}-open`}
-            >
-              <div className="flex h-11 shrink-0 items-center gap-2 border-b border-hairline px-4">
-                <h3 className="flex-1 text-section text-ink">{panel === "tasks" ? "Tasks" : "Messages"}</h3>
-                <button type="button" onClick={() => setPanel(null)} className="rounded-md px-2 py-1 text-meta text-muted outline-none hover:bg-surface-2 hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60" data-testid="pool-panel-close">
-                  Back to the canvas
-                </button>
-              </div>
-              <div className="min-h-0 flex-1 overflow-y-auto p-4" data-canvas-scroll>
-                {panel === "tasks" ? <PoolTasks key={taskKey} poolId={poolId} sessions={sessions} projects={projects} now={now} /> : <PoolMessages poolId={poolId} members={members} now={now} />}
-              </div>
-            </section>
-          )}
+          {panel && <PoolPanel panel={panel} poolId={poolId} taskKey={taskKey} sessions={sessions} projects={projects} members={members} now={now} onClose={() => setPanel(null)} />}
         </div>
         {/* Tasks and Messages are the page's other tabs (D-55): open, they
             take the whole width — beside the inspector their list and
@@ -371,6 +352,11 @@ function PoolCanvasPage({ poolId, sessions, projects, accounts, now, rules }: Pa
           where={where}
           needs={needs}
           setup={{ rows: setup.rows, onOpen: setup.open, tools: setup.tools }}
+          phase={phase}
+          progress={progress}
+          hidden={hidden}
+          onHidden={setHidden}
+          leadNext={setup.leadNext?.name ?? null}
           leadDir={setup.leadDir}
           setupSections={
             <PoolSetupSections

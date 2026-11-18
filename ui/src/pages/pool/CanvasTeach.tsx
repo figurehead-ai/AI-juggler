@@ -26,7 +26,10 @@ export function CanvasTeach({
   onAdd,
   onSetup,
   inset,
+  quiet = false,
 }: {
+  /** The setup's checklist beside it holds the view's one primary. */
+  quiet?: boolean;
   /** A project's own pool: its setup is its project's, so no guided setup. */
   own: boolean;
   /** Where it works now, in words. */
@@ -44,7 +47,7 @@ export function CanvasTeach({
         <h3 className="text-section font-semibold text-ink">No one in this pool yet</h3>
         <p className="text-meta text-ink-2">Add an App (its sessions in {scope} join as they start) or a session open now. The checklist on the right walks you through the rest, in order.</p>
         <span className="flex flex-wrap items-center gap-2">
-          <Button size="sm" variant="primary" onClick={onAdd} data-testid="canvas-teach-add">
+          <Button size="sm" variant={quiet ? "secondary" : "primary"} onClick={onAdd} data-testid="canvas-teach-add">
             Add a session or an App
           </Button>
           {!own && (
