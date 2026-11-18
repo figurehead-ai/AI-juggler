@@ -726,8 +726,8 @@ mod tests {
     #[test]
     #[ignore = "needs the Claude app running on its default instance"]
     fn the_running_claude_app_holds_its_instances_storage_lock() {
-        let home = std::env::var_os("HOME").unwrap();
-        let instance = Path::new(&home).join("Library/Application Support/Claude");
+        let home = crate::user::home().unwrap();
+        let instance = home.join("Library/Application Support/Claude");
         let out = std::process::Command::new("/usr/bin/pgrep")
             .args(["-x", "Claude"])
             .output()
