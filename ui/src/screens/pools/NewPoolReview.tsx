@@ -9,14 +9,18 @@
  * follows.
  *
  * D-126: a state card first — "Everything it needs is set", or what
- * still keeps it from working (round 6: said before it's made) — then
- * the sentences in one card, each with its icon and Change, and what
- * happens next as three cards. The first thing to tell the lead is the
- * side's (LeadPrompt).
+ * still keeps it from working (round 6: said before it's made), with
+ * Turn on for the team tools — then the pool in one card, a short
+ * sentence a row as mocked ("Codex checks the work. Everyone else
+ * builds.", the steps' own values), each with its icon and Change; every
+ * rule in full (the canvas's sentences, paths-parity's) one click away
+ * under it; and what happens next as three cards. The first thing to
+ * tell the lead is the side's (LeadPrompt).
  */
 import type { JSX, ReactNode, SVGProps } from "react";
 
 import { Alert } from "../../components/Alert";
+import { Disclosure } from "../../components/controls";
 import { IconCheck } from "../../components/icons-controls";
 import { LogoTile } from "../../components/ToolLogo";
 import { useApps } from "../../lib/apps";
@@ -26,8 +30,9 @@ import { roleCard, type SetupStep } from "../../lib/pool-words";
 import { openNowWords } from "../../lib/pool-open-now";
 import { everyoneLines, leadLine, nextParts, ownLine, sealLine, shapeOfDraft, talkSentence, whoSentence, type PoolShape } from "../../lib/pool-sentences";
 import { listWords } from "../../lib/account-terms";
+import { reviewLines, whoLine } from "../../lib/pool-values";
 import { reviewTitle } from "../../lib/pool-wizard-words";
-import { draftPlaces, teamToolsLine, type TeamTools, type ToolsPlace } from "../../lib/team-tools";
+import { draftPlaces, type TeamTools, type ToolsPlace } from "../../lib/team-tools";
 import { TeamToolsFix, useTeamTools } from "../../pages/pool/setup/TeamTools";
 import { SetupBlockers } from "../../pages/pool/setup/SetupBlockers";
 import { ROW_WORDS, type PoolRow } from "./rows";
@@ -45,7 +50,7 @@ const CAN: Record<Reach, string> = {
 type Row = PoolRow;
 
 /** Each row (its title and icon the preview's too) and the step its
- * Change goes back to. */
+ * Change goes back to; the team tools are the state card's. */
 const ROWS: readonly { row: Row; title: string; icon: Icon; step?: SetupStep }[] = (
   [
     ["where", "where"],
@@ -59,7 +64,7 @@ const ROWS: readonly { row: Row; title: string; icon: Icon; step?: SetupStep }[]
   ] as const
 ).map(([row, step]) => ({ row, ...ROW_WORDS[row], step }));
 
-/** A row's words: the pool inspector's own sentences. */
+/** A row's words in full: the pool inspector's own sentences. */
 function words(row: Row, shape: PoolShape, where: string, name: string, tools: TeamTools | null): ReactNode {
   switch (row) {
     case "where":
@@ -120,7 +125,8 @@ function StateCard({ draft, tools }: { draft: Draft; tools: TeamTools | null }):
   }
   return (
     <Alert level="needs-you" stack title="Before it can work" testId="new-pool-review-state" data-state="needs">
-      {tools && tools.kind !== "on" && tools.kind !== "missing" && tools.kind !== "unsafe" && <p>{teamToolsLine(tools)}</p>}
+      {/* Never "can't message" without its Turn on beside it (round 4). */}
+      {tools && tools.kind !== "on" && tools.kind !== "missing" && tools.kind !== "unsafe" && <TeamToolsFix state={tools} testId="new-pool-review-state-tools" />}
       {/* Round 6: what can't work yet, before it's made. */}
       <SetupBlockers refs={draft.members.map((member) => member.ref)} tools={tools} testId="new-pool-review-blocked" />
     </Alert>
@@ -151,23 +157,28 @@ export function NewPoolReview({
   onChange?: (step: SetupStep) => void;
 }): JSX.Element {
   const shape = shapeOfDraft(draft, nameOf);
+  const short = reviewLines(shape, where, name);
   const places = draftPlaces(draft, projects);
   const tools = useTeamTools(places.projects, places.apps);
   const named = draft.members.filter((member) => member.ref !== "all");
   const [first, ...rest] = nextParts(shape, where);
   const upper = (line: string) => line.charAt(0).toUpperCase() + line.slice(1);
   const lead = shape.members.some((member) => member.role === "lead") || shape.leadNext !== null;
-  const team = listWords([...named.map((member) => nameOf(member.ref, member.label)), ...(draft.members.some((member) => member.ref === "all") ? [nameOf("all", "everyone").replace(/^Everyone/, "everyone")] : [])]);
+  // Who it opens with, by the steps' short names ("Claude and Codex, and
+  // every new session in web").
+  const team = draft.members.length > 0 ? whoLine(shape, where) : "";
   return (
     <div className="flex flex-col gap-6" data-testid="new-pool-step-review">
       <StepHead step="review" title={reviewTitle(name)} />
       <StateCard draft={draft} tools={tools} />
-      <dl className="flex flex-col rounded-card bg-surface py-1 inset-ring-1 inset-ring-hairline/75" data-testid="new-pool-review">
-        {ROWS.map(({ row, title, icon, step }) => (
+      <dl className="flex flex-col rounded-card bg-surface py-1 inset-ring-1 inset-ring-hairline/75" data-testid="new-pool-review-rows">
+        {ROWS.filter(({ row }) => row !== "tools").map(({ row, title, icon, step }) => (
           <div key={row} className="grid grid-cols-[28px_minmax(0,1fr)_auto] items-start gap-x-3.5 gap-y-0.5 border-t border-divider px-4 py-2.5 first:border-t-0 sm:grid-cols-[28px_7rem_minmax(0,1fr)_auto]" data-row={row}>
             <LogoTile icon={icon} size={24} />
             <dt className="pt-0.5 text-meta text-muted">{title}</dt>
-            <dd className="col-start-2 pt-0.5 text-body text-ink sm:col-start-3">{words(row, shape, where, name, tools)}</dd>
+            <dd className="col-start-2 pt-0.5 text-body text-ink sm:col-start-3" data-testid="new-pool-review-line">
+              {row === "tools" ? null : short[row]}
+            </dd>
             {onChange && step && (
               <dd className="col-start-3 row-start-1 sm:col-start-4">
                 <button type="button" onClick={() => onChange(step)} aria-label={`Change ${title.toLowerCase()}`} className="rounded-md px-1.5 py-0.5 text-meta font-medium text-accent-hi outline-none hover:underline focus-visible:ring-2 focus-visible:ring-accent/60" data-testid="new-pool-review-change">
@@ -178,6 +189,17 @@ export function NewPoolReview({
           </div>
         ))}
       </dl>
+      {/* Every rule in full, the canvas's own sentences, one click away. */}
+      <Disclosure summary="Every rule in full" testId="new-pool-review-full" className="-mt-2">
+        <dl className="mt-2 flex flex-col gap-1.5 rounded-xl bg-surface-2 px-4 py-3" data-testid="new-pool-review">
+          {ROWS.map(({ row, title }) => (
+            <div key={row} className="grid grid-cols-1 gap-x-4 gap-y-0.5 sm:grid-cols-[7rem_minmax(0,1fr)]" data-row={row}>
+              <dt className="text-meta text-muted">{title}</dt>
+              <dd className="text-meta text-ink-2">{words(row, shape, where, name, tools)}</dd>
+            </div>
+          ))}
+        </dl>
+      </Disclosure>
       {named.length > 0 && (
         <section className="flex flex-col gap-2" aria-label="What each member can do here">
           <span className="section-label">What each member can do here</span>

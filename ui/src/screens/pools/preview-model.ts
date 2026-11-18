@@ -16,7 +16,10 @@ import type { PreviewNode, PreviewRow, PreviewRowId } from "./NewPoolPreview";
 /** The drawing's cards: who leads on top, the rest below, everyone last. */
 export function previewNodes(draft: Pick<Draft, "members" | "leadNext" | "every">, nameOf: (ref: string, label: string) => string, where: string, sources: LogoSources): { lead: PreviewNode | null; members: PreviewNode[] } {
   const named = draft.members.filter((member) => member.ref !== "all");
-  const short = shortNames(named.map((member) => nameOf(member.ref, member.label)));
+  const short = shortNames(
+    named.map((member) => nameOf(member.ref, member.label)),
+    named.map((member) => member.ref),
+  );
   const names = new Map(named.map((member, at) => [member.ref, short[at]!]));
   const leading = named.find((member) => member.role === "lead") ?? named.find((member) => member.ref === draft.leadNext);
   const lead: PreviewNode | null = leading
@@ -26,7 +29,19 @@ export function previewNodes(draft: Pick<Draft, "members" | "leadNext" | "every"
     .filter((member) => member !== leading)
     .map((member) => ({ ref: member.ref, name: names.get(member.ref)!, line: roleCard(member.role).label, logo: logoOf(member.ref, sources), role: member.role }));
   const everyone = draft.members.find((member) => member.ref === "all");
-  if (everyone) members.push({ ref: "all", name: draft.every ? "Everyone" : `Everyone in ${where}`, line: roleCard(everyone.role).label, logo: logoOf("all", sources), role: everyone.role, stacked: true });
+  if (everyone) {
+    // Three across, "Everyone / in web" (its role is its logo's mark); two
+    // or fewer, "Everyone in web / Member", as the mock-ups draw it.
+    const crowded = members.length >= 2 && !draft.every;
+    members.push({
+      ref: "all",
+      name: draft.every || crowded ? "Everyone" : `Everyone in ${where}`,
+      line: crowded ? `in ${where}` : roleCard(everyone.role).label,
+      logo: logoOf("all", sources),
+      role: everyone.role,
+      stacked: true,
+    });
+  }
   return { lead, members };
 }
 

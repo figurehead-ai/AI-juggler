@@ -86,7 +86,7 @@ describe("AJ-E3011 round 4", () => {
     // D-126: Review says it as cards, a part each, from the same line.
     const cards = screen.getAllByTestId("new-pool-review-next-step").map((card) => card.textContent);
     expect(cards).toEqual([
-      "1The pool is madeIts diagram opens with Claude Code · Work and Codex · Personal.",
+      "1The pool is madeIts diagram opens with Claude Code and Codex.",
       "2Start the leadOpen Claude Code · Work in web first: it leads.",
       "3Tell it the goalCodex · Personal checks its work; their messages show here.",
     ]);

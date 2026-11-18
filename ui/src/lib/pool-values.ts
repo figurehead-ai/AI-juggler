@@ -19,12 +19,25 @@ type Step = (typeof SETUP_STEPS)[number];
 /** At most this many names in a value; then "2 more". */
 const NAMES = 3;
 
-/** Each member by the name its card has, short where nothing else shares
- * it: "Codex" for "Codex · Personal", but both "Claude app · Work" and
- * "Claude app · Side" in full (round 7's rule). */
-export function shortNames(labels: readonly string[]): string[] {
-  const short = (label: string) => label.split(" · ")[0]!;
-  return labels.map((label) => (labels.filter((one) => short(one) === short(label)).length > 1 ? label : short(label)));
+/** Each member by one short identity (D-126: values fit their place):
+ * an App by its app word where no other member shares it ("Claude",
+ * "Codex" for "Codex · Personal"); Apps that share one by their profiles
+ * ("Work Max", "Personal" for two "Claude Code CLI · …"); anything else
+ * that shares a name, whole. `refs`, beside the labels, says which are
+ * Apps; without them every label is taken for one. */
+export function shortNames(labels: readonly string[], refs?: readonly string[]): string[] {
+  const head = (label: string) => label.split(" · ")[0]!;
+  const tail = (label: string) => {
+    const at = label.indexOf(" · ");
+    return at < 0 ? null : label.slice(at + 3);
+  };
+  return labels.map((label, at) => {
+    const shared = labels.filter((one) => head(one) === head(label));
+    if (shared.length === 1) return head(label);
+    const app = refs ? (refs[at] ?? "").startsWith("app:") : true;
+    const profile = tail(label);
+    return app && profile !== null && shared.filter((one) => tail(one) === profile).length === 1 ? profile : label;
+  });
 }
 
 /** Three names, then how many more: ["A", "B", "C", "2 more"]. */
@@ -33,7 +46,10 @@ const fewOf = (names: readonly string[]): string[] => (names.length > NAMES ? [.
 /** The members by their short names (everyone in the projects included,
  * by its own name). */
 function named(shape: Pick<PoolShape, "members">): (ShapeMember & { name: string })[] {
-  const names = shortNames(shape.members.map((member) => member.label));
+  const names = shortNames(
+    shape.members.map((member) => member.label),
+    shape.members.map((member) => member.ref),
+  );
   return shape.members.map((member, at) => ({ ...member, name: names[at]! }));
 }
 
@@ -106,4 +122,30 @@ export function whoLine(shape: Pick<PoolShape, "members">, where: string): strin
 export function rolesLine(shape: Pick<PoolShape, "members">): string {
   const value = rolesValue(shape);
   return value === EVERYONE_BUILDS ? `${EVERYONE_BUILDS} (Member)` : `${value}; the rest build`;
+}
+
+/* ---------------- Review: a short sentence a row ---------------- */
+
+/** What they may do on their own, short: "They work together". */
+const OWN_SHORT: Record<string, string> = { read: "They look only", work_together: "They work together", full: "They work together and wake each other", custom: "They do the things you picked" };
+
+/** Review's rows, one short sentence each, from the same values as the
+ * steps (D-126, the mock-ups': "Codex checks the work. Everyone else
+ * builds."); every rule in full is the canvas's own sentences, one click
+ * away under them. */
+export function reviewLines(shape: Pick<PoolShape, "members" | "leadNext" | "talk" | "level" | "sealed">, where: string, name: string): Record<"where" | "who" | "lead" | "everyone" | "talk" | "own" | "sealed", string> {
+  const lead = leadValue(shape, where);
+  const roles = rolesValue(shape);
+  const preset = presetOf(shape.talk);
+  const way = TALK_PRESETS.find((one) => one.id === preset);
+  const talk = preset === "free" ? "Everyone may message everyone." : (way?.line ?? `${OWN_MIX}: some pairs ask you first or are blocked.`);
+  return {
+    where: `«${name}» works in ${where}.`,
+    who: `${whoLine(shape, where)}.`,
+    lead: lead === NO_LEAD_YET ? `${NO_LEAD_YET}: each session works on what you give it.` : `${lead} leads.`,
+    everyone: roles === EVERYONE_BUILDS ? `${EVERYONE_BUILDS}.` : `${roles}. Everyone else builds.`,
+    talk,
+    own: `${OWN_SHORT[shape.level] ?? OWN_SHORT.work_together}. Anything more asks you.`,
+    sealed: shape.sealed ? "Yes. Nothing goes in or out, and its sessions are in no other pool." : "No. It can link to your other pools.",
+  };
 }

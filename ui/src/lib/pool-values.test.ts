@@ -9,7 +9,7 @@ import { draftOf } from "./new-pool";
 import type { PoolShape } from "./pool-sentences";
 import { talkSentence } from "./pool-sentences";
 import { templateById } from "./pool-templates";
-import { leadValue, rolesLine, rolesValue, shortNames, stepValues, talkValue, whoLine, whoValue } from "./pool-values";
+import { leadValue, reviewLines, rolesLine, rolesValue, shortNames, stepValues, talkValue, whoLine, whoValue } from "./pool-values";
 import { OWN_MIX, presetOf, TALK_PRESETS } from "./pool-words";
 
 const shape = (over: Partial<PoolShape> = {}): PoolShape => ({
@@ -39,7 +39,10 @@ describe("a step's value (D-126: the steps and the checklist say it once)", () =
   });
 
   it("a member is short where nothing else shares its tool's name, whole where something does", () => {
-    expect(shortNames(["Codex · Personal", "Claude app · Work", "Claude app · Side"])).toEqual(["Codex", "Claude app · Work", "Claude app · Side"]);
+    // D-126: two Apps sharing an app word go by their profiles; two
+    // sessions sharing a name stay whole.
+    expect(shortNames(["Codex · Personal", "Claude app · Work", "Claude app · Side"])).toEqual(["Codex", "Work", "Side"]);
+    expect(shortNames(["web · Lab", "web · Personal"], ["session:a", "session:b"])).toEqual(["web · Lab", "web · Personal"]);
   });
 
   it("who's in: no one, only everyone, and past three names the rest counted", () => {
@@ -103,5 +106,44 @@ describe("the Messages ways (D-126: talk grids there are, no new backend)", () =
 
   it("an Observer's cell changed by hand keeps the way: it only reads either way (was its own mix)", () => {
     expect(presetOf({ ...templateById("feature-team").talk, "observer>member": "ask" })).toBe("ask");
+  });
+});
+
+// The 0.4.6 rc3 critique (98-pool-setup at 1280x800): two CLI Apps' full
+// names ran Who's in over four lines and cut the preview's cards.
+describe("one short identity for an App (D-126 critique)", () => {
+  const two = shape({
+    members: [
+      { ref: "app:cli:work", label: "Claude Code CLI · Work Max", role: "member", level: null, later: true },
+      { ref: "app:cli:personal", label: "Claude Code CLI · Personal", role: "reviewer", level: null, later: true },
+      { ref: "all", label: "Everyone in storefront", role: "member", level: null, later: false },
+    ],
+    leadNext: "app:cli:work",
+  });
+
+  it("two Apps that share an app word go by their profiles, in the steps and the lead", () => {
+    expect(stepValues(two, "storefront").who).toBe("Work Max, Personal, everyone in storefront");
+    expect(leadValue(two)).toBe("Work Max's next session");
+    expect(rolesValue(two)).toBe("Personal checks the work");
+  });
+
+  it("Review says each row in one short sentence", () => {
+    expect(reviewLines(shape(), "web", "web team")).toEqual({
+      where: "«web team» works in web.",
+      who: "Claude and Codex, and every new session in web.",
+      lead: "Claude's next session in web leads.",
+      everyone: "Codex checks the work. Everyone else builds.",
+      talk: "Everyone may message everyone.",
+      own: "They work together. Anything more asks you.",
+      sealed: "No. It can link to your other pools.",
+    });
+    const lines = reviewLines(shape({ leadNext: null, members: apps(["A"]), talk: TALK_PRESETS[1]!.grid, level: "read", sealed: true }), "web", "x");
+    expect([lines.lead, lines.everyone, lines.talk, lines.own, lines.sealed]).toEqual([
+      "No lead yet: each session works on what you give it.",
+      "Everyone builds.",
+      "Between members, each message waits for your OK.",
+      "They look only. Anything more asks you.",
+      "Yes. Nothing goes in or out, and its sessions are in no other pool.",
+    ]);
   });
 });

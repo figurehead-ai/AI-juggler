@@ -55,22 +55,26 @@ const ROW_MAX = 3;
 /** The bottom row's cards across, as % of the drawing's width. */
 const ACROSS: Record<number, number[]> = { 1: [50], 2: [27, 73], 3: [17, 50, 83] };
 
-const NODE = "absolute flex -translate-x-1/2 items-center gap-2 rounded-[10px] px-2 py-1.5 text-label leading-tight";
+const NODE = "absolute flex w-max -translate-x-1/2 items-center gap-1.5 rounded-[10px] px-1.5 py-1.5 text-label leading-tight";
 const NODE_AT_REST = "bg-surface shadow-[0_1px_2px_rgba(0,0,0,0.25)] inset-ring-1 inset-ring-hairline/75";
 const NODE_LIT = "bg-surface ring-[4px] ring-accent-soft inset-ring-[1.5px] inset-ring-accent";
 const STACK = "shadow-[3px_3px_0_-1px_var(--color-surface-3),3px_3px_0_0_var(--color-hairline)]";
 const GHOST = "inset-ring-1 inset-ring-hairline text-faint";
 
-/** A card's widest, by how many share its row. */
-const WIDEST: Record<number, string> = { 1: "60%", 2: "45%", 3: "31%" };
+/** A card's widest, by how many share its row (as wide as its words up
+ * to it: `w-max`, or one at 73 % would shrink to the room right of it). */
+const WIDEST: Record<number, string> = { 1: "60%", 2: "45%", 3: "32%" };
 
 function Node({ node, lit, at, across = 3 }: { node: PreviewNode; lit: boolean; at: { left: string; top: number }; across?: number }): JSX.Element {
   return (
     <span className={`${NODE} ${lit ? NODE_LIT : NODE_AT_REST} ${node.stacked ? STACK : ""}`} style={{ left: at.left, top: at.top, maxWidth: WIDEST[across] ?? "31%" }} data-testid="new-pool-preview-node" data-ref={node.ref} data-role={node.role} data-lit={lit || undefined}>
       <MemberLogo spec={node.logo} size={24} badge={node.role} />
       <span className="flex min-w-0 flex-col">
-        <span className="truncate font-semibold text-ink">{node.name}</span>
-        <span className="truncate text-muted">{node.line}</span>
+        {/* D-126 critique: a name wraps to two lines before it's cut. */}
+        <span className="line-clamp-2 break-words font-semibold text-ink" data-testid="new-pool-preview-node-name">
+          {node.name}
+        </span>
+        <span className="line-clamp-2 break-words text-muted">{node.line}</span>
       </span>
     </span>
   );
@@ -166,8 +170,11 @@ export function NewPoolPreview({
   foot?: boolean;
 }): JSX.Element {
   return (
-    <aside aria-label="Preview" className="overflow-hidden rounded-card bg-surface shadow-card inset-ring-1 inset-ring-hairline/75" data-testid="new-pool-preview">
-      <div className="flex items-center gap-2 px-4 pb-3 pt-3.5">
+    // At most the window's height less its head and foot (D-126 critique:
+    // at 1280×800 a taller one scrolled its head away), its rows
+    // scrolling inside, so it stays whole in view beside the form.
+    <aside aria-label="Preview" className="flex max-h-[calc(100dvh-200px)] min-h-0 flex-col overflow-hidden rounded-card bg-surface shadow-card inset-ring-1 inset-ring-hairline/75" data-testid="new-pool-preview">
+      <div className="flex shrink-0 items-center gap-2 px-4 pb-3 pt-3.5">
         <LogoTile icon={IconPool} size={24} on />
         <span className="flex min-w-0 flex-col">
           <span className="truncate type-section" data-testid="new-pool-preview-name">
@@ -176,10 +183,12 @@ export function NewPoolPreview({
           <span className="text-label text-faint">{subtitle}</span>
         </span>
       </div>
-      {diagram}
-      {extra ?? <PreviewRows rows={rows} current={current} />}
+      <div className="shrink-0">{diagram}</div>
+      <div className="min-h-0 overflow-y-auto" data-testid="new-pool-preview-scroll">
+        {extra ?? <PreviewRows rows={rows} current={current} />}
+      </div>
       {foot && (
-        <p className="flex items-center gap-2 border-t border-divider px-[18px] pb-3.5 pt-2.5 text-label text-faint">
+        <p className="flex shrink-0 items-center gap-2 border-t border-divider px-[18px] pb-3.5 pt-2.5 text-label text-faint">
           <IconInfo aria-hidden="true" width={14} height={14} className="shrink-0" />
           Everything here can be changed later on the pool's diagram.
         </p>

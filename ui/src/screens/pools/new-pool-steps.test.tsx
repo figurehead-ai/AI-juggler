@@ -83,10 +83,34 @@ describe("Review (D-126)", () => {
     await screen.findByTestId("new-pool-review-tools-line");
     expect(screen.getByTestId("new-pool-review-state").dataset.state).toBe("needs");
     expect(screen.getByTestId("new-pool-review-state").textContent).toContain("Not answered yet: they can't message each other until you say yes.");
-    expect(screen.getAllByRole("term").map((term) => term.textContent)).toEqual(["Where", "Who's in", "Lead", "Roles", "Messages", "On their own", "Kept apart", "Team tools"]);
+    // Turn on beside it, in the state card (round 4).
+    expect(screen.getByTestId("new-pool-review-state-tools-on")).toBeTruthy();
+    expect(screen.getAllByRole("term").map((term) => term.textContent)).toEqual(["Where", "Who's in", "Lead", "Roles", "Messages", "On their own", "Kept apart"]);
     fireEvent.click(screen.getByRole("button", { name: "Change roles" }));
     fireEvent.click(screen.getByRole("button", { name: "Change kept apart" }));
     expect(steps).toEqual(["everyone", "own"]);
+  });
+
+  // The rc3 critique: Roles read three sentences about each member, the
+  // canvas's own; Review says each row in one short sentence, as mocked,
+  // every rule in full one click away under them.
+  it("each row is one short sentence; every rule in full is one click away; what happens next still shows", async () => {
+    render(<NewPoolReview draft={draft()} name="web team" where="web" />);
+    await screen.findByTestId("new-pool-review-tools-line");
+    const rows = within(screen.getByTestId("new-pool-review-rows"));
+    expect(rows.getAllByTestId("new-pool-review-line").map((line) => line.textContent)).toEqual([
+      "«web team» works in web.",
+      "Claude Code and Codex.",
+      "Claude Code's next session in web leads.",
+      "Codex checks the work. Everyone else builds.",
+      "Everyone may message everyone.",
+      "They work together. Anything more asks you.",
+      "No. It can link to your other pools.",
+    ]);
+    const full = screen.getByTestId("new-pool-review-full");
+    expect(within(full).getByRole("button", { name: "Every rule in full" }).getAttribute("aria-expanded")).toBe("false");
+    expect(screen.getByTestId("new-pool-review").querySelector('[data-row="everyone"] dd')?.textContent).toContain("Codex · Personal is a Reviewer and may Work together, as the pool.");
+    expect(screen.getAllByTestId("new-pool-review-next-step")).toHaveLength(3);
   });
 
   it("with the team tools on and nothing waiting: everything it needs is set", async () => {

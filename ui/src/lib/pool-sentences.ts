@@ -9,7 +9,6 @@ import type { PoolRole } from "./ipc/pools";
 import type { TalkRule } from "./ipc/pool-model";
 import { listWords } from "./account-terms";
 import { effectiveRule, ruleOf, TALK_ROLES, type PairKey } from "./pool-templates";
-import { shortNames } from "./pool-values";
 import { TALK_WORDS, joinSentence, leadSentence, levelSentence, memberSentence, nextLeadsSentence, roleCard } from "./pool-words";
 
 /** One member, by its name on screen. */
@@ -125,10 +124,12 @@ export function firstPrompt(shape: Pick<PoolShape, "members" | "leadNext">, wher
   const lead = session ?? next;
   if (!lead) return null;
   // A reviewer by its tool's name ("Codex"), not its whole App name;
-  // round 7: by its whole name, as its card says it, where another member
-  // shares that tool's name (two profiles of the Claude app: "Claude app ·
-  // Side", never "Claude app" for both).
-  const names = shortNames(shape.members.map((member) => member.label));
+  // round 7: by its whole name where another member shares that tool's
+  // name (two profiles of the Claude app: "Claude app · Side", never
+  // "Claude app" for both). Whole, not the screens' short profile name
+  // ("Side"): these words go to the lead, which must tell them apart.
+  const head = (label: string) => label.split(" · ")[0]!;
+  const names = shape.members.map((member) => (shape.members.filter((one) => head(one.label) === head(member.label)).length > 1 ? member.label : head(member.label)));
   const reviewers = shape.members.flatMap((member, at) => (member.role === "reviewer" ? [names[at]!] : []));
   const review = reviewers.length > 0 ? `, and ask ${listWords(reviewers)} to review` : "";
   return { to: lead.label, words: `Plan the work in ${where}, hand out tasks${review}.` };
