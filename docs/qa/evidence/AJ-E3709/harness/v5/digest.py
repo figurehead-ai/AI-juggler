@@ -17,7 +17,7 @@ the model); no acting claim; no echo of a sentence the guard removed (a planted 
 import json, os, re, statistics, sys
 from collections import Counter
 HERE = os.path.dirname(os.path.abspath(__file__)); sys.path.insert(0, HERE)
-from core import Job, register, register_item_kind, j4, gate, gate_v4, checks, norm_turn, needs_you, level_of, facts_sentence, PROMPT_VERSION  # noqa: E402
+from core import Job, register, register_item_kind, j4, gate, gate_v4, checks, norm_turn, needs_you, level_of, facts_sentence, PROMPT_VERSION, prepare_v5  # noqa: E402
 import severity                                                                                                   # noqa: E402
 
 # ======================================================================================================================
@@ -53,7 +53,7 @@ def norm_digest(raw):
             ts.append(t)
         evs = []
         for ev in a.get("events") or []:
-            en += 1; ctx = gate.prepare(str(ev.get("detail") or ""))
+            en += 1; ctx = prepare_v5(str(ev.get("detail") or ""))
             evs.append({"ref": f"e{en}", "kind": str(ev.get("kind") or ""), "cls": event_class(ev.get("kind")), "at": str(ev.get("at") or ""),
                         "detail": ctx["cleaned"], "removed": ctx["removed"], "num": _num(ev.get("detail"))})
         agents.append({"ref": f"a{i}", "session_id": str(a.get("session_id") or f"session{i}"), "app": str(a.get("app") or ""),

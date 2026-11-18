@@ -22,6 +22,7 @@ for p in (os.path.join(HARNESS, "v4"), HARNESS):
     if p not in sys.path: sys.path.insert(0, p)
 import jobs as j4                                  # noqa: E402  (harness v4: fences, schemas, grammars, composers, the chat guard)
 import gate, gate_v4, checks                       # noqa: E402  (eval-3 frozen; eval-4 excerpt and caveat kinds; v1 entity checks)
+from guard_v5 import prepare_v5                    # noqa: E402  (the v5 guard pass after the frozen guard: its re.X miss, EN+DE)
 
 PROMPT_VERSION = 5
 MAX_RETRIES = 2                                    # D-130 lever 2: "up to two times, before falling back"
@@ -125,7 +126,7 @@ def norm_turn(raw):
         facts4["tests"] = tests_norm(f.get("tests"))
         files = list(f.get("files") or []) + [c["path"] for c in kept_changes(git)]
         if files: facts4["files"] = files
-    ctx = gate.prepare(raw.get("source") or "")
+    ctx = prepare_v5(raw.get("source") or "")
     F = gate.facts_norm(facts4)
     return {"id": raw.get("id"), "kind": "turn", "raw": raw, "source": raw.get("source") or "", "ctx": ctx, "facts": facts4, "F": F,
             "questions": questions, "failures": failures, "git": git, "gold": raw.get("gold") or {}, "origin": raw.get("origin") or ""}

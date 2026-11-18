@@ -16,6 +16,7 @@ import json, os, re, statistics, sys, unicodedata
 from collections import Counter
 HERE = os.path.dirname(os.path.abspath(__file__)); sys.path.insert(0, HERE)
 from core import Job, register, register_item_kind, j4, gate, PROMPT_VERSION      # noqa: E402
+from guard_v5 import guard_v5                                                       # noqa: E402  (the v5 guard pass: names are untrusted text)
 import severity                                                                    # noqa: E402
 
 # ======================================================================================================================
@@ -80,7 +81,7 @@ def _entries(xs, kind):
         if not isinstance(e, dict): continue
         eid = e.get("id") or e.get("session_id") or e.get("key") or e.get("name") or f"{kind}{i}"
         name = str(e.get("name") or e.get("title") or e.get("label") or eid)
-        g = gate.guard(gate.normalise(name)); clean = re.sub(r"\s+", " ", g[0]).strip()
+        g = guard_v5(gate.normalise(name)); clean = re.sub(r"\s+", " ", g[0]).strip()
         out.append({"kind": kind, "id": str(eid), "raw_name": name, "name": clean or "(name hidden)", "removed": g[1],
                     "app": e.get("app") or e.get("app_id"), "project": e.get("project") or e.get("project_id"),
                     "account": e.get("account") or e.get("account_id"), "observes": e.get("observes"),

@@ -13,7 +13,7 @@
          record holds, code says "I don't know"."""
 import datetime, json, os, re, sys, unicodedata
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from core import Job, register, register_item_kind, j4, gate, gate_v4, checks, fit, PROMPT_VERSION  # noqa: E402
+from core import Job, register, register_item_kind, j4, gate, gate_v4, checks, fit, PROMPT_VERSION, prepare_v5  # noqa: E402
 
 # ======================================================================================================================
 # The item
@@ -22,7 +22,7 @@ def is_chat(raw): return bool(raw.get("question")) and isinstance(raw.get("recor
 def norm_chat(raw):
     recs = []; removed = []
     for r in raw["records"]:
-        txt = r.get("text") or ""; ctx = gate.prepare(txt) if txt.strip() else {"cleaned": "", "removed": []}
+        txt = r.get("text") or ""; ctx = prepare_v5(txt) if txt.strip() else {"cleaned": "", "removed": []}
         removed += ctx["removed"]
         recs.append({"id": str(r.get("id")), "kind": r.get("kind") or "record", "fields": dict(r.get("fields") or {}), "text": ctx["cleaned"],
                      "raw_text": txt})
