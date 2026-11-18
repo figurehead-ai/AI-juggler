@@ -3492,3 +3492,29 @@ The two open questions in ADR-0035 (hosting; the default on) go to the maintaine
   - **The `current` signing key** is generated on the maintainer's Mac and piped straight into the GitHub secret, never stored there.
   - **The `next` and `emergency` keys** stay offline in the maintainer's password manager, like the updater's standby key.
   - **No zone ID is needed:** files carry a 5-minute cache, so nothing is ever purged.
+
+### D-130 On-device AI: a failed test means optimise and retest, never stop; severity-based acceptance; ship as opt-in Beta when it passes — amends D-120, D-121 and the 0.5 verdicts in ADR-0033 — SETTLED (2026-11-18)
+
+**Ruling.** The maintainer, 2026-11-18, on hearing that 0.5 would ship no model-written text: "I didn't agree to skip models, just because you had a failed test, that doesn't mean we stop… No model is perfect… if you fail, you try to optimize more, with tooling and everything else." And they asked what was tested and what the acceptance criteria were.
+
+1. **No AI job is dropped for failing a round.** Each failed round produces a diagnosis and the next optimisation, and the work continues in 0.5. The "last round for 0.5" cap is withdrawn.
+2. **Optimisation levers, in this order:**
+   1. **Facts first:** the parts a model got wrong come from AI Juggler's own data instead. Git's diff and status give what changed and what was reverted, the adapter gives the turn's questions and failures, and Chat looks up the asked attribute in code. The model phrases; code supplies the truth.
+   2. **Verify and retry:** a failed check regenerates with the reason, up to two times, before falling back to the excerpt.
+   3. **Apple's adapter training** (the Foundation Models adapter toolkit) and LoRA on the open models, if prompt work plateaus.
+   4. **Larger contenders under D-125:** Granite 4.1 3B and Qwen3-4B-Instruct-2507. D-125's hold condition is met, since the existing models were re-tested and the maintainer has seen the results. Then Gemma 4 E2B.
+3. **Acceptance by severity, not "zero of anything":**
+   - **Critical:** an invented fact, a flipped outcome, a hidden question or failure to the user, an obeyed injection, an answer stated as fact for the wrong question. These must stay at 0 in what reaches the user. Every one must be caught by a check and fall back, measured on held-out sets.
+   - **Major:** a dropped detail or a misleading emphasis. At most 3 % of shown items.
+   - **Minor:** wording or style. Allowed.
+   - **Value:** blind reviewers prefer the AI output over the non-AI alternative in at least 60 % of decided pairs.
+4. **Shipping:** a job that passes ships in 0.5 as **opt-in Beta**, through the remote-config flag (ADR-0035):
+   - it's labelled "AI";
+   - one tap shows the source;
+   - there's a "this is wrong" button that records locally;
+   - the excerpt stays the default.
+
+   It becomes the default after a release of clean Beta use.
+
+- **Amends:** D-120, D-121, and the 0.5 verdicts recorded in ADR-0033, which become "not yet", not "not shipped".
+- Sources: the maintainer's message, 2026-11-18.
