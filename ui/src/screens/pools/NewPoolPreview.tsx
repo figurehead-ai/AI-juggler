@@ -55,15 +55,18 @@ const ROW_MAX = 3;
 /** The bottom row's cards across, as % of the drawing's width. */
 const ACROSS: Record<number, number[]> = { 1: [50], 2: [27, 73], 3: [17, 50, 83] };
 
-const NODE = "absolute flex max-w-[31%] -translate-x-1/2 items-center gap-2 rounded-[10px] px-2 py-1.5 text-label leading-tight";
+const NODE = "absolute flex -translate-x-1/2 items-center gap-2 rounded-[10px] px-2 py-1.5 text-label leading-tight";
 const NODE_AT_REST = "bg-surface shadow-[0_1px_2px_rgba(0,0,0,0.25)] inset-ring-1 inset-ring-hairline/75";
 const NODE_LIT = "bg-surface ring-[4px] ring-accent-soft inset-ring-[1.5px] inset-ring-accent";
 const STACK = "shadow-[3px_3px_0_-1px_var(--color-surface-3),3px_3px_0_0_var(--color-hairline)]";
 const GHOST = "inset-ring-1 inset-ring-hairline text-faint";
 
-function Node({ node, lit, at }: { node: PreviewNode; lit: boolean; at: { left: string; top: number } }): JSX.Element {
+/** A card's widest, by how many share its row. */
+const WIDEST: Record<number, string> = { 1: "60%", 2: "45%", 3: "31%" };
+
+function Node({ node, lit, at, across = 3 }: { node: PreviewNode; lit: boolean; at: { left: string; top: number }; across?: number }): JSX.Element {
   return (
-    <span className={`${NODE} ${lit ? NODE_LIT : NODE_AT_REST} ${node.stacked ? STACK : ""}`} style={{ left: at.left, top: at.top }} data-testid="new-pool-preview-node" data-ref={node.ref} data-role={node.role} data-lit={lit || undefined}>
+    <span className={`${NODE} ${lit ? NODE_LIT : NODE_AT_REST} ${node.stacked ? STACK : ""}`} style={{ left: at.left, top: at.top, maxWidth: WIDEST[across] ?? "31%" }} data-testid="new-pool-preview-node" data-ref={node.ref} data-role={node.role} data-lit={lit || undefined}>
       <MemberLogo spec={node.logo} size={24} badge={node.role} />
       <span className="flex min-w-0 flex-col">
         <span className="truncate font-semibold text-ink">{node.name}</span>
@@ -109,9 +112,9 @@ export function PreviewDiagram({ lead, members, reached, focus, noLead = "No lea
         </>
       ) : (
         <>
-          {lead ? <Node node={lead} lit={lit(lead)} at={{ left: "50%", top: 20 }} /> : <Ghost icon={IconLead} words={noLead} at={{ left: "50%", top: 24 }} />}
+          {lead ? <Node node={lead} lit={lit(lead)} across={1} at={{ left: "50%", top: 20 }} /> : <Ghost icon={IconLead} words={noLead} at={{ left: "50%", top: 24 }} />}
           {shown.map((node, at) => (
-            <Node key={node.ref} node={node} lit={lit(node)} at={{ left: `${across[at]}%`, top: 128 }} />
+            <Node key={node.ref} node={node} lit={lit(node)} across={across.length} at={{ left: `${across[at]}%`, top: 128 }} />
           ))}
           {more > 0 && <Ghost icon={IconPlus} words={`${more} more`} at={{ left: `${across[shown.length]}%`, top: 132 }} />}
         </>

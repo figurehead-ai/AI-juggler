@@ -10,7 +10,8 @@ import type { MemberKind } from "../../lib/ipc/pool-model";
 import { templateById } from "../../lib/pool-templates";
 import { CANDIDATES_PAGE, NewPoolWho } from "./NewPoolWho";
 import { APP_CARDS, coveredSessions, openInWords } from "./NewPoolWhoApps";
-import { MOCK_ACCOUNTS, MOCK_SESSIONS } from "../../preview/fixtures";
+import { MOCK_ACCOUNTS, MOCK_PROJECTS, MOCK_SESSIONS } from "../../preview/fixtures";
+import { NewPool } from "./NewPool";
 import type { AppModel } from "../../lib/apps";
 import type { InstanceInfo } from "../../types/generated/InstanceInfo";
 
@@ -106,6 +107,19 @@ describe("Who's in's Apps as cards (D-126)", () => {
     expect(coveredSessions(draft, sessions, apps, "everyone in web").map((one) => [one.session.id, one.by])).toEqual([["s1", "In, with Claude Code"]]);
     const all = { ...draft, members: [member, { ...member, ref: "all", kind: "everyone" as const }] };
     expect(coveredSessions(all, sessions, apps, "everyone in web").map((one) => one.by)).toEqual(["In, with Claude Code", "In, as everyone in web"]);
+  });
+
+  // The in-app check: a CLI App's card fell back to its row's words
+  // ("Claude Code CLI · Work Max", "1 open now") where Who's in read the
+  // Apps without the folders; New pool's own Apps (with them) say what
+  // it is, its profile and what's open in the pool's projects.
+  it("a CLI App's card says Terminal, its profile and what's open here, from New pool's own Apps", async () => {
+    render(<NewPool sessions={MOCK_SESSIONS} projects={MOCK_PROJECTS} accounts={MOCK_ACCOUNTS} project="proj-ai-juggler" onClose={() => undefined} />);
+    for (let n = 0; n < 2; n += 1) fireEvent.click(screen.getByTestId("new-pool-next"));
+    const card = (await screen.findAllByTestId("new-pool-candidate")).find((one) => one.dataset.ref === "app:cli:claude-work")!;
+    expect(within(card).getByRole("checkbox", { name: "Claude Code CLI" })).toBeTruthy();
+    expect(card.textContent).toContain("TerminalProfile Work Max");
+    expect(card.textContent).toMatch(/open in ai-juggler$/);
   });
 
   it("says what's open of an App in the pool's projects", () => {

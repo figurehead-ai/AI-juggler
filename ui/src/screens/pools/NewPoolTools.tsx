@@ -23,7 +23,7 @@ import { AGENT_ACCESS, TEAM_TOOLS, openAgentAccess, teamToolsLine } from "../../
 import { TeamToolsQuestion, useTeamTools, useToolsSave } from "../../pages/pool/setup/TeamTools";
 import { ToolsArt } from "./illustrations";
 import { logoOf, MemberLogo, type LogoSpec } from "./MemberLogo";
-import { useApps } from "../../lib/apps";
+import { useApps, type AppModel } from "../../lib/apps";
 import type { InstanceInfo } from "../../types/generated/InstanceInfo";
 import { StepHead } from "./StepHead";
 
@@ -118,9 +118,21 @@ function Ask({ logos, onAnswer }: { logos: readonly LogoSpec[]; onAnswer?: () =>
   );
 }
 
-export function NewPoolTools({ onAnswer, members = [], open = [] }: { onAnswer?: () => void; /** The team's members (two of their apps are drawn talking). */ members?: readonly string[]; open?: readonly InstanceInfo[] }): JSX.Element {
+export function NewPoolTools({
+  onAnswer,
+  members = [],
+  open = [],
+  apps: given,
+}: {
+  onAnswer?: () => void;
+  /** The team's members (two of their apps are drawn talking). */
+  members?: readonly string[];
+  open?: readonly InstanceInfo[];
+  apps?: readonly AppModel[] | null;
+}): JSX.Element {
   const state = useTeamTools();
-  const apps = useApps() ?? [];
+  const read = useApps();
+  const apps = given ?? read ?? [];
   const logos = members
     .filter((ref) => ref !== "all")
     .map((ref) => logoOf(ref, { apps, sessions: open }))

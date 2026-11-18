@@ -23,15 +23,8 @@ export interface MiniMember {
   count: number;
 }
 
-/** A pool's team in small: from its member rules once read (each with
- * its open sessions counted), else from its sessions open now, alike
- * tools together. */
-export function miniTeam(rules: PoolRulesInfo | null, open: readonly InstanceInfo[], roleOf: (sessionId: string) => PoolRole, sources: LogoSources): { lead: MiniMember | null; members: MiniMember[] } {
-  if (rules) {
-    const all = rules.members.map((rule) => ({ ref: rule.member, logo: logoOf(rule.member, sources), role: asRole(rule.role), count: rule.sessions }));
-    const lead = all.find((one) => one.role === "lead") ?? all.find((one) => rules.lead_next !== null && one.ref === `app:${rules.lead_next}`) ?? null;
-    return { lead: lead ? { ...lead, role: "lead" } : null, members: all.filter((one) => one !== lead) };
-  }
+/** Sessions open now as members: alike tools together, a lead apart. */
+function bySession(open: readonly InstanceInfo[], roleOf: (sessionId: string) => PoolRole, sources: LogoSources): { lead: MiniMember | null; members: MiniMember[] } {
   let lead: MiniMember | null = null;
   const groups = new Map<string, MiniMember>();
   for (const session of open) {
@@ -45,6 +38,28 @@ export function miniTeam(rules: PoolRulesInfo | null, open: readonly InstanceInf
     groups.set(key, was ? { ...was, count: was.count + 1 } : member);
   }
   return { lead, members: [...groups.values()] };
+}
+
+/** A pool's team in small. Its named members (Apps, sessions) from its
+ * member rules once read, each with its open sessions counted; what its
+ * broad members (everyone, an Account, a Tool, a Mac) bring in now as
+ * the tools of those sessions, alike ones together (their own tile when
+ * nothing is open); before the rules are read, its sessions open now. */
+export function miniTeam(rules: PoolRulesInfo | null, open: readonly InstanceInfo[], roleOf: (sessionId: string) => PoolRole, sources: LogoSources): { lead: MiniMember | null; members: MiniMember[] } {
+  if (!rules) return bySession(open, roleOf, sources);
+  const named = rules.members.filter((rule) => rule.kind === "app" || rule.kind === "session");
+  const broad = rules.members.filter((rule) => !named.includes(rule));
+  const all = named.map((rule) => ({ ref: rule.member, logo: logoOf(rule.member, sources), role: asRole(rule.role), count: rule.sessions }));
+  const leading = all.find((one) => one.role === "lead") ?? all.find((one) => rules.lead_next !== null && one.ref === `app:${rules.lead_next}`);
+  const covered = new Set(named.flatMap((rule) => rule.session_ids));
+  const rest = bySession(
+    open.filter((session) => !covered.has(session.id)),
+    (id) => (roleOf(id) === "lead" ? "lead" : asRole(broad[0]?.role ?? "member")),
+    sources,
+  );
+  const wide = broad.length === 0 ? [] : rest.members.length > 0 ? rest.members : broad.map((rule) => ({ ref: rule.member, logo: logoOf(rule.member, sources), role: asRole(rule.role), count: rule.sessions }));
+  const lead = leading ? { ...leading, role: "lead" as const } : broad.length > 0 ? rest.lead : null;
+  return { lead, members: [...all.filter((one) => one !== leading), ...wide] };
 }
 
 /** Members drawn; past this, "+N". */

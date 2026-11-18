@@ -11,7 +11,7 @@ import type { JSX } from "react";
 
 import { leadCandidates, leadOf, withLead, type Candidate, type Draft } from "../../lib/new-pool";
 import { nextSessionWords } from "../../lib/pool-words";
-import { useApps } from "../../lib/apps";
+import { useApps, type AppModel } from "../../lib/apps";
 import { LEAD_STEPS } from "../../lib/pool-wizard-words";
 import type { InstanceInfo } from "../../types/generated/InstanceInfo";
 import { LeadArt } from "./illustrations";
@@ -27,6 +27,7 @@ export function NewPoolLead({
   nameOf,
   where = "these projects",
   open: instances = [],
+  apps: given,
 }: {
   draft: Draft;
   onDraft: (next: Draft) => void;
@@ -36,8 +37,11 @@ export function NewPoolLead({
   where?: string;
   /** The sessions open now (each choice's logo). */
   open?: readonly InstanceInfo[];
+  /** Every App, the CLI ones too (each choice's logo). */
+  apps?: readonly AppModel[] | null;
 }): JSX.Element {
-  const known = useApps();
+  const read = useApps();
+  const known = given ?? read;
   const open = leadCandidates(sessions);
   // A session named in the draft that leads, though it isn't open (a
   // template's), stays offered.

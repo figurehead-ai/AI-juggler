@@ -285,6 +285,7 @@ export function NewPool({
         >
           <NewPoolStep
             current={current}
+            apps={apps}
             draft={draft}
             setDraft={setDraft}
             name={name}

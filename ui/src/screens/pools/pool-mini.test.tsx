@@ -37,6 +37,17 @@ describe("a Pools card's team in small", () => {
     ]);
   });
 
+  it("what everyone brings in now is drawn as those sessions' tools, alike ones together, beside the named members", () => {
+    const base = MOCK_SESSIONS[0]!;
+    const open: InstanceInfo[] = ["a", "b", "c"].map((id) => ({ ...base, id, provider: "claude-code", app_id: null }));
+    const rules: PoolRulesInfo = { pool_id: "p", members: [{ ...rule("session:c", "reviewer", 1), session_ids: ["c"] }, rule("all", "member", 2)], talk: [], lead_next: null };
+    const team = miniTeam(rules, open, () => "member", NO_SOURCES);
+    expect(team.members.map((one) => [one.ref, one.role, one.count])).toEqual([
+      ["session:c", "reviewer", 1],
+      ["session:a", "member", 2],
+    ]);
+  });
+
   it("before its members are read, from its open sessions, alike tools together, the lead apart", () => {
     const base = MOCK_SESSIONS[0]!;
     const open: InstanceInfo[] = ["a", "b", "c"].map((id) => ({ ...base, id, provider: "claude-code", app_id: null }));

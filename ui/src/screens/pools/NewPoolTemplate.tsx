@@ -35,7 +35,7 @@ const SHAPES: Record<string, string> = {
 /** A template's card: its drawing, name, line, and what it sets. */
 function Card({ template }: { template: PoolTemplate }): JSX.Element {
   return (
-    <div data-testid="new-pool-template" data-template={template.id} className="min-w-0">
+    <div data-testid="new-pool-template" data-template={template.id} className="flex min-w-0">
       <RadioCard
         value={template.id}
         logo={
@@ -56,7 +56,7 @@ function Card({ template }: { template: PoolTemplate }): JSX.Element {
 /** Start from scratch, the full card first. */
 function Scratch({ template, first }: { template: PoolTemplate; first: boolean }): JSX.Element {
   return (
-    <div data-testid="new-pool-template" data-template={template.id} className="min-w-0 sm:col-span-2">
+    <div data-testid="new-pool-template" data-template={template.id} className="flex min-w-0 sm:col-span-2">
       <RadioCard
         value={template.id}
         logo={<LogoTile icon={IconPlus} size={40} on />}

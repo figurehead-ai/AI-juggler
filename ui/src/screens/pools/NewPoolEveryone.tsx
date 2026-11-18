@@ -52,8 +52,24 @@ function RoleControl({ name, value, onChange }: { name: string; value: PoolRole;
   );
 }
 
-export function NewPoolEveryone({ draft, onDraft, where, nameOf, open = [] }: { draft: Draft; onDraft: (next: Draft) => void; where: string; nameOf: (ref: string, label: string) => string; open?: readonly InstanceInfo[] }): JSX.Element {
-  const apps = useApps() ?? [];
+export function NewPoolEveryone({
+  draft,
+  onDraft,
+  where,
+  nameOf,
+  open = [],
+  apps: given,
+}: {
+  draft: Draft;
+  onDraft: (next: Draft) => void;
+  where: string;
+  nameOf: (ref: string, label: string) => string;
+  open?: readonly InstanceInfo[];
+  /** Every App, the CLI ones too (each row's logo and what it is). */
+  apps?: readonly AppModel[] | null;
+}): JSX.Element {
+  const read = useApps();
+  const apps = given ?? read ?? [];
   const setMember = (ref: string, change: Partial<DraftMember>) => onDraft({ ...draft, members: draft.members.map((member) => (member.ref === ref ? { ...member, ...change } : member)) });
   const everyone = draft.members.find((member) => member.ref === "all");
   const named = draft.members.filter((member) => member.ref !== "all");

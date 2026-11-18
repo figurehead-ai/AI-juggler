@@ -80,9 +80,7 @@ export function LeadCards({
             testId={`${testId}-option`}
           />
         ))}
-        <div className="min-w-0 sm:col-start-1">
-          <RadioCard value="none" logo={<LogoTile icon={IconRemove} size={40} />} title="No lead for now" sub={LEAD_WOULD} testId={`${testId}-option`} />
-        </div>
+        <RadioCard value="none" logo={<LogoTile icon={IconRemove} size={40} />} title="No lead for now" sub={LEAD_WOULD} testId={`${testId}-option`} />
       </RadioCards>
       {/* Round 3: the read-back is the control's own, in both paths. */}
       <p className="text-meta text-ink" data-testid={`${testId}-sentence`}>

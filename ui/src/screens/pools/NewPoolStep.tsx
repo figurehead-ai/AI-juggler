@@ -4,6 +4,7 @@
  */
 import type { JSX } from "react";
 
+import type { AppModel } from "../../lib/apps";
 import type { Candidate, Draft } from "../../lib/new-pool";
 import type { MemberKind } from "../../lib/ipc/pool-model";
 import type { SetupStep } from "../../lib/pool-words";
@@ -21,6 +22,7 @@ import { NewPoolWho } from "./NewPoolWho";
 
 export function NewPoolStep({
   current,
+  apps,
   draft,
   setDraft,
   name,
@@ -42,6 +44,8 @@ export function NewPoolStep({
   scopeFixed,
 }: {
   current: SetupStep;
+  /** Every App, the CLI ones too (read with the folders). */
+  apps: readonly AppModel[] | null;
   draft: Draft;
   setDraft: (next: Draft) => void;
   name: string;
@@ -68,17 +72,17 @@ export function NewPoolStep({
     case "where":
       return <NewPoolWhere draft={draft} onDraft={setDraft} projects={stepProjects} sessions={sessions} nameFixed={nameFixed} suggestedName={suggestedName} scopeFixed={scopeFixed} />;
     case "who":
-      return <NewPoolWho draft={draft} onDraft={setDraft} candidates={candidates} onFix={onFix} nameOf={memberName} where={where} sessions={sessions} />;
+      return <NewPoolWho draft={draft} onDraft={setDraft} candidates={candidates} onFix={onFix} nameOf={memberName} where={where} sessions={sessions} apps={apps} />;
     case "lead":
-      return <NewPoolLead draft={draft} onDraft={setDraft} sessions={candidates.session} nameOf={memberName} where={where} open={sessions} />;
+      return <NewPoolLead draft={draft} onDraft={setDraft} sessions={candidates.session} nameOf={memberName} where={where} open={sessions} apps={apps} />;
     case "everyone":
-      return <NewPoolEveryone draft={draft} onDraft={setDraft} where={where} nameOf={memberName} open={sessions} />;
+      return <NewPoolEveryone draft={draft} onDraft={setDraft} where={where} nameOf={memberName} open={sessions} apps={apps} />;
     case "talk":
       return <NewPoolTalk draft={draft} onDraft={setDraft} />;
     case "own":
       return <NewPoolOwn draft={draft} onDraft={setDraft} where={where} />;
     case "tools":
-      return <NewPoolTools onAnswer={onToolsAnswer} members={draft.members.map((member) => member.ref)} open={sessions} />;
+      return <NewPoolTools onAnswer={onToolsAnswer} members={draft.members.map((member) => member.ref)} open={sessions} apps={apps} />;
     case "review":
       return <NewPoolReview draft={draft} name={name} where={where} nameOf={memberName} openNow={openNow} projects={projects} onChange={onGo} />;
     default:

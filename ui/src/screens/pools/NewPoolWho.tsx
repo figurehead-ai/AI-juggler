@@ -23,7 +23,7 @@ import { IconSessions } from "../../components/icons";
 import { ShellOnlyChip } from "../../components/ShellOnly";
 import { MEMBER_KINDS, type MemberKind } from "../../lib/ipc/pool-model";
 import { DesktopListNote, DesktopReachTag } from "../../pages/pool/connector/DesktopReach";
-import { useApps } from "../../lib/apps";
+import { useApps, type AppModel } from "../../lib/apps";
 import { EVERYONE, nextRole, REACH_WORDS, type Candidate, type Draft, type DraftMember } from "../../lib/new-pool";
 import { MACHINE_WORD, MACHINES_WORD } from "../../lib/machine-words";
 import { templateById } from "../../lib/pool-templates";
@@ -75,6 +75,7 @@ export function NewPoolWho({
   nameOf = (_, label) => label,
   where = "these projects",
   sessions,
+  apps: given,
 }: {
   draft: Draft;
   onDraft: (next: Draft) => void;
@@ -86,6 +87,8 @@ export function NewPoolWho({
   where?: string;
   /** What's open now: each App's count here, and who brings each in. */
   sessions?: readonly InstanceInfo[];
+  /** Every App, the CLI ones too (read with the folders). */
+  apps?: readonly AppModel[] | null;
 }): JSX.Element {
   const [kind, setKind] = useState<MemberKind>(() => {
     const first = templateById(draft.template).kinds[0] ?? "app";
@@ -111,7 +114,8 @@ export function NewPoolWho({
     setQuery("");
     setMore({});
   };
-  const apps = useApps();
+  const read = useApps();
+  const apps = given ?? read;
   const everyone = draft.members.find((member) => member.ref === "all");
   const everyoneName = nameOf("all", EVERYONE.label);
   const setEveryone = (on: boolean) =>
