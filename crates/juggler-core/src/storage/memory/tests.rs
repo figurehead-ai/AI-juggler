@@ -1088,6 +1088,83 @@ fn the_cloud_filter_takes_only_typed_trusted_stated_settings() {
     assert_eq!(ids_in(&cloud), ["pref:ok", "watch:ok"]);
 }
 
+/// L3 of the security review: a `REPLACE` over a record inside the store's
+/// hold fires the index's delete trigger, so the old words leave the
+/// index. Fails without `recursive_triggers` in `SecureHold`.
+#[test]
+fn a_replace_inside_the_hold_leaves_no_old_words_in_the_index() {
+    let storage = installed_storage();
+    let kept = remember(
+        &storage,
+        &record("note:r", Kind::Note, "alphaword old words"),
+    );
+    {
+        let _hold = super::secure::SecureHold::on(&storage.conn).unwrap();
+        storage
+            .conn
+            .execute(
+                "INSERT OR REPLACE INTO memory_records (id, subject_key, subject_id, version, kind,
+                     scope_kind, tier, priority, authority, untrusted, source_kind, confidence,
+                     as_of_ms, text, created_ms)
+                 VALUES (?1, 'note:r', ?2, 1, 'note', 'global', 'long', 1, 'user', 0, 'settings',
+                         1, 0, 'betaword new words', 0)",
+                [&kept.id, &kept.subject_id],
+            )
+            .unwrap();
+    }
+    storage
+        .conn
+        .execute_batch("CREATE VIRTUAL TABLE temp.v3 USING fts5vocab(main, memory_fts, row);")
+        .unwrap();
+    assert_eq!(
+        count(
+            &storage,
+            "SELECT COUNT(*) FROM temp.v3 WHERE term = 'alphaword'"
+        ),
+        0,
+        "the replaced words are still indexed"
+    );
+    assert_eq!(
+        count(
+            &storage,
+            "SELECT COUNT(*) FROM temp.v3 WHERE term = 'betaword'"
+        ),
+        1
+    );
+}
+
+/// L4 of the security review: a sidecar on an event that names one of the
+/// subject's versions (and not the subject) goes with the forget. Fails
+/// without the by-version clause in `erase_subject`.
+#[test]
+fn a_sidecar_naming_a_version_goes_with_the_forget() {
+    let storage = installed_storage();
+    let kept = remember(&storage, &record("note:v", Kind::Note, "a note"));
+    let mut event = NewEvent::new(NOW, Stream::Feedback, "wrong", Actor::User);
+    event.subject = Some(("memory", kept.id.clone()));
+    let seq = storage
+        .ai_log()
+        .append(
+            &event,
+            Some((
+                &NewSidecar {
+                    body: "quoted words",
+                    untrusted: false,
+                    expires_ms: NOW + DAY,
+                },
+                &Secrets,
+            )),
+        )
+        .unwrap();
+    assert!(storage.ai_log().sidecar(seq).unwrap().is_some());
+    let gone = storage
+        .memory()
+        .forget("note:v", &Actor::User, NOW)
+        .unwrap();
+    assert_eq!(gone.sidecars, 1);
+    assert!(storage.ai_log().sidecar(seq).unwrap().is_none());
+}
+
 fn spot(bytes: &[u8], needle: &str) -> bool {
     bytes
         .windows(needle.len())
