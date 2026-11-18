@@ -18,6 +18,13 @@
  * counts amber, red and accent fills, none of which this is).
  */
 
+/** The header's current page (D-118's mock): its words semibold in ink
+ * beside the other tabs' regular muted ones, and no box. Weight is its
+ * cue that isn't a colour (WCAG 1.4.1), with aria-current; a box here
+ * read as a button among words. Only the top bar's page tabs wear it:
+ * every other chosen thing keeps SELECTED. */
+export const NAV_CURRENT = "font-semibold text-ink";
+
 /** A chosen option with its own words: a segment, tab, chip or pill. */
 export const SELECTED = "bg-selected font-semibold text-selected-ink inset-ring-[1.5px] inset-ring-selected-ring";
 

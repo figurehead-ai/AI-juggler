@@ -64,6 +64,8 @@ export function MachineStatusLine({ minimal, onOpen, short = false }: { minimal:
       </div>
     );
   }
+  // The top bar's line is snug (its words fit at 1280 with the list open).
+  const gap = short ? "gap-1.5" : "gap-2";
   const line = (
     <>
       {/* whose room it is: the computer's, not an Account's (AJ-E3514: "Plenty
@@ -73,16 +75,18 @@ export function MachineStatusLine({ minimal, onOpen, short = false }: { minimal:
       {/* The readability bar: meta 13 px, in ink at 80 % (7:1 or better). */}
       {/* In the top bar (short) a bar too narrow for its words keeps the
           dot alone, its words in the title and spoken name: cut, it read
-          "P…" at 1280 with the rail open (the 0.4.1 gate). */}
-      <span className={"min-w-0 shrink truncate text-meta" + (short ? " @max-[1120px]/header:hidden" : "")}>{shown}</span>
+          "P…" at 1280 with the rail open (the 0.4.1 gate). D-118's mock
+          shows them at 1280 with the list open: from 970 px of bar, the
+          clean-up and runway counts and the Floor kept snug for them. */}
+      <span className={"min-w-0 shrink truncate text-meta" + (short ? " @max-[969px]/header:hidden" : "")}>{shown}</span>
     </>
   );
   return onOpen ? (
-    <button type="button" onClick={onOpen} title={why ?? (shown !== words || short ? words : undefined)} aria-label={spoken} className="flex min-h-6 min-w-0 shrink items-center gap-2 rounded-md text-left text-muted outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60" data-testid="machine-status" data-level={breath}>
+    <button type="button" onClick={onOpen} title={why ?? (shown !== words || short ? words : undefined)} aria-label={spoken} className={"flex min-h-6 min-w-0 shrink items-center rounded-md text-left text-muted outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60 " + gap} data-testid="machine-status" data-level={breath}>
       {line}
     </button>
   ) : (
-    <span className="flex min-w-0 shrink items-center gap-2 text-muted" title={why} data-testid="machine-status" data-level={breath}>
+    <span className={"flex min-w-0 shrink items-center text-muted " + gap} title={why} data-testid="machine-status" data-level={breath}>
       {line}
     </span>
   );

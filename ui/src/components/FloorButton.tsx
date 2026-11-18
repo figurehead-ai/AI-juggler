@@ -5,6 +5,12 @@
  * window back. The small arrow opens its menu: Open the Floor, the Floor
  * list, Floor settings…. Where the Floor can't run yet, the toast says so,
  * and why. Nothing of the Floor runs until it's first opened.
+ *
+ * D-118's mock (0.5): chrome, so quiet — a ghost icon and its arrow, no
+ * border or fill at rest, so the room status and the clean-up count read
+ * first. The two halves sit flush and share one hover fill, and the
+ * avatar keeps its clear gap: one control, never the avatar's arrow (the
+ * 0.4.1 finding the border once answered).
  */
 import { useEffect, useState, type JSX } from "react";
 
@@ -23,10 +29,9 @@ function unavailable(words: string): void {
 }
 
 const open = () => void floorOpen().catch((cause: unknown) => unavailable(errorText(cause)));
-// 0.4.1 (the maintainer's finding): one visible split button: one shared
-// border with the arrow inside it, a hairline between the two halves, so
-// the arrow never reads as the avatar's beside it.
-const PART = "flex h-full items-center justify-center text-muted outline-none transition-colors hover:bg-surface-2 hover:text-ink focus-visible:z-10 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent/60";
+// One ghost control: the halves flush, lit together on hover (the group),
+// each with its own focus ring.
+const PART = "flex h-full items-center justify-center text-muted outline-none transition-colors group-hover/floor:text-ink-2 hover:!text-ink focus-visible:z-10 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent/60";
 
 export function FloorButton(): JSX.Element {
   // ⌘⇧M and the tray open it from the backend; their failures arrive here.
@@ -35,9 +40,9 @@ export function FloorButton(): JSX.Element {
   const keys = useKeys("floor");
   const close = () => setAt(null);
   return (
-    <span className="flex h-9 items-stretch overflow-hidden rounded-lg border border-hairline bg-surface/40" data-testid="floor-split">
-      <button type="button" aria-label="The Floor" aria-keyshortcuts={keys.aria} title={`The Floor (${keys.words})`} onClick={open} className={`${PART} w-9`} data-testid="floor-button">
-        <IconFloor width={18} height={18} aria-hidden="true" />
+    <span className="group/floor flex h-9 items-stretch overflow-hidden rounded-lg transition-colors hover:bg-surface" data-testid="floor-split">
+      <button type="button" aria-label="The Floor" aria-keyshortcuts={keys.aria} title={`The Floor (${keys.words})`} onClick={open} className={`${PART} w-8 pl-1`} data-testid="floor-button">
+        <IconFloor width={17} height={17} aria-hidden="true" />
       </button>
       <button
         type="button"
@@ -46,10 +51,10 @@ export function FloorButton(): JSX.Element {
         aria-expanded={at !== null}
         onClick={(event) => setAt(at ? null : menuPoint(event))}
         title="The Floor's menu: open it, its list, its settings"
-        className={`${PART} w-6 border-l border-hairline`}
+        className={`${PART} w-4 pr-0.5`}
         data-testid="floor-menu-button"
       >
-        <IconChevronDown width={12} height={12} aria-hidden="true" />
+        <IconChevronDown width={10} height={10} aria-hidden="true" />
       </button>
       {at && (
         <RowMenu heading="" ariaLabel="The Floor" at={at} minWidth={220} testId="floor-menu" onClose={close}>

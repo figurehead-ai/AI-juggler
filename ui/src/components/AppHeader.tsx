@@ -71,7 +71,7 @@ export function AppHeader({
             by the bar's own width, not the window's, so the list open at
             1280 px with Fleet's tab too (a paired Mac) still fits one row
             (the 0.3 re-render found it wrapping). */}
-        <span className={"mr-1 hidden min-w-0 text-muted " + (pairedCount > 0 ? "@min-[1060px]/header:flex" : "@min-[960px]/header:flex")} data-testid="header-this-mac">
+        <span className={"hidden min-w-0 text-muted " + (pairedCount > 0 ? "@min-[1060px]/header:flex" : "@min-[960px]/header:flex")} data-testid="header-this-mac">
           <MachineStatusLine minimal={false} short onOpen={onOpenThisMac} />
         </span>
         {/* D-87: accounts out of room or low, a calm count (the bell holds the notices). */}
@@ -85,7 +85,7 @@ export function AppHeader({
           onClick={onNewSession}
           disabled={downSince !== null}
           title={downSince !== null ? "Waits until AI Juggler's service answers again" : undefined}
-          className="ml-1 inline-flex h-7 shrink-0 items-center gap-1.5 rounded-lg px-2 text-meta font-medium text-accent-hi outline-none transition-colors hover:bg-surface-2 focus-visible:ring-2 focus-visible:ring-accent/60 disabled:cursor-default disabled:opacity-50"
+          className="inline-flex h-7 shrink-0 items-center gap-1.5 rounded-lg px-2 text-meta font-medium text-accent-hi outline-none transition-colors hover:bg-surface-2 focus-visible:ring-2 focus-visible:ring-accent/60 disabled:cursor-default disabled:opacity-50"
           data-testid="header-new-session"
         >
           <IconTerminal width={14} height={14} aria-hidden="true" />

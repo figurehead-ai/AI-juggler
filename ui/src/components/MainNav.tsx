@@ -11,7 +11,7 @@ import { PAGE_UNDER } from "../lib/nav";
 import { ariaKeysOf, keysOf, SHORTCUTS, type ShortcutId } from "../lib/shortcuts";
 import { onBindingsChanged } from "../lib/shortcut-bindings";
 import { IconBroom } from "./icons-actions";
-import { SELECTED } from "./controls/selected";
+import { NAV_CURRENT } from "./controls/selected";
 
 /** A tab's key from the one registry (0.3 polish: each tab's tooltip
  * names it, so the keys are learnt where the tabs are): "⌘⇧P", or the
@@ -22,10 +22,13 @@ export function navKeys(id: string): string | null {
 }
 
 // Snug below 1280 px, so the row fits at 1024 with the list open.
-const NAV_BUTTON = "rounded-md px-1.5 py-1.5 text-meta transition-colors outline-none focus-visible:ring-2 focus-visible:ring-accent/60 xl:px-2.5 ";
-// The lit tab is the page's title: D-117 (selection), the one selected look
-// (a 3:1 edge on the raised fill, semibold ink), as every chosen thing.
-const lit = (current: boolean) => (current ? SELECTED : "font-medium text-muted hover:bg-surface/60 hover:text-ink");
+// Each tab is as wide as its words in semibold (a hidden copy after them),
+// so lighting another page moves none of them.
+const NAV_BUTTON =
+  "inline-flex flex-col items-center rounded-md px-1.5 py-1.5 text-meta transition-colors outline-none focus-visible:ring-2 focus-visible:ring-accent/60 after:invisible after:h-0 after:overflow-hidden after:font-semibold after:content-[attr(data-label)] ";
+// The lit tab is the page's title, as D-118's mock draws it: semibold ink,
+// no box (NAV_CURRENT); the others regular and muted, ink on hover.
+const lit = (current: boolean) => (current ? NAV_CURRENT : "font-normal text-muted hover:text-ink");
 
 /** Whether `id`'s tab is the page shown. */
 export function navLit(id: string, global: string | null, page: string): boolean {
@@ -67,6 +70,7 @@ export function MainNav<Id extends string>({
             onClick={() => onPick(item.id)}
             className={NAV_BUTTON + lit(current)}
             data-testid={`nav-${item.id}`}
+            data-label={item.label}
           >
             {item.label}
           </button>
@@ -86,7 +90,7 @@ export function CleanupPill({ count, shown, onOpen }: { count: number; shown: bo
       onClick={onOpen}
       title={words}
       // D-117: a note (L1), so a ghost button in muted words, no tint.
-      className="btn-ghost flex shrink-0 items-center whitespace-nowrap rounded-full px-2.5 py-1 text-meta font-medium text-muted outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
+      className="btn-ghost flex shrink-0 items-center whitespace-nowrap rounded-full px-2 py-1 text-meta font-medium text-muted outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
       data-testid="nav-cleanup-pill"
     >
       {/* 0.3.2: a narrow bar (1024 px, the list open, Fleet's tab too)

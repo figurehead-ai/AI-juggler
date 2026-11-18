@@ -53,3 +53,24 @@ it("is calm chrome (D-117 c2, D-118's mock): ‹ › only with somewhere to go, 
   expect(again.getByTestId("header-back")).toBeTruthy();
   expect(again.getByTestId("header-forward").hasAttribute("disabled")).toBe(true);
 });
+
+it("lights the current page as D-118's mock does: semibold words, no box, the others regular", () => {
+  const view = render(
+    <AppHeader title="Home" global={null} page="none" pairedCount={0} cleanupCount={0} sessions={[]} onPick={() => {}} onOpenThisMac={() => {}} onNewSession={() => {}} />,
+  );
+  const home = view.getByTestId("nav-home");
+  expect(home.getAttribute("aria-current")).toBe("page");
+  expect(home.className).toContain("font-semibold");
+  expect(home.className).not.toMatch(/\bbg-selected\b|inset-ring/);
+  const projects = view.getByTestId("nav-projects");
+  expect(projects.className).toContain("font-normal");
+  // Each tab keeps its semibold width, so lighting another moves none.
+  expect(home.dataset.label).toBe("Home");
+  expect(home.className).toContain("after:content-[attr(data-label)]");
+});
+
+it("keeps This Mac's room words in sight at 1280 with the list open (970 px of bar)", () => {
+  const view = header(0);
+  const words = view.getByTestId("machine-status").querySelector("span.truncate")!;
+  expect(words.className).toContain("@max-[969px]/header:hidden");
+});

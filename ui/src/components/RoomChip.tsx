@@ -115,7 +115,7 @@ export function RoomCount(): JSX.Element | null {
       title={`${words}: show ${counts[out ? "out" : "low"] === 1 ? "it" : "them"} in Accounts`}
       data-testid="header-room-count"
       data-kind={out ? "out" : "low"}
-      className={`btn-ghost inline-flex h-7 shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-2 text-meta font-medium outline-none focus-visible:ring-2 focus-visible:ring-accent/60 ${out ? "text-danger" : "text-muted"}`}
+      className={`btn-ghost inline-flex h-7 shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-1.5 text-meta font-medium outline-none focus-visible:ring-2 focus-visible:ring-accent/60 ${out ? "text-danger" : "text-muted"}`}
     >
       <Icon aria-hidden="true" width={13} height={13} />
       {/* Its number alone until the bar has room for its words (the
