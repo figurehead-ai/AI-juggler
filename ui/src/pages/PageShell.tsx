@@ -9,7 +9,7 @@ import { useScrollMemory } from "../lib/scroll-memory";
 import { useHandoverPage } from "../lib/handover-focus";
 import { matches } from "../lib/shortcuts";
 import { statsEvent } from "../lib/ipc/usage-stats";
-import { PAGE_LABELS, PAGE_TAB_OF, rememberTab, rememberedTab, rememberedTabId, type PageKind, type PageTab, type PageTabId } from "./registry";
+import { PAGE_LABELS, PAGE_TAB_OF, pageTabName, rememberTab, rememberedTab, rememberedTabId, type PageKind, type PageTab, type PageTabId } from "./registry";
 import { SELECTED } from "../components/controls/selected";
 
 const SHOW_TAB = "aij:page-tab";
@@ -188,6 +188,7 @@ export function PageShell({
               role="tab"
               id={`page-tab-${entry.id}`}
               data-testid={`page-tab-${entry.id}`}
+              aria-label={pageTabName(kind, entry.label, entry.count)}
               aria-selected={tab === entry.id}
               aria-controls={`page-panel-${entry.id}`}
               tabIndex={tab === entry.id ? 0 : -1}

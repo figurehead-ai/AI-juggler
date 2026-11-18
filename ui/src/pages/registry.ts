@@ -8,6 +8,7 @@
  */
 import { MACHINE_WORD, THIS_MACHINE_IN_TEXT } from "../lib/machine-words";
 import { keep, readKept } from "../lib/local-store";
+import { PRIMARY_NAV } from "../lib/nav";
 
 export type PageKind = "session" | "conversation" | "project" | "app" | "subscription" | "tool" | "machine" | "remote-session" | "pool";
 
@@ -173,6 +174,24 @@ function tabsOf(kind: PageKind, facts: TabFacts): PageTab[] {
     case "pool":
       return [TAB.members, TAB.tasks, TAB.messages, TAB.access];
   }
+}
+
+/** The header's destinations' names (Fleet's too, there with a paired Mac). */
+const HEADER_NAMES: ReadonlySet<string> = new Set([...PRIMARY_NAV.map((item) => item.label), "Fleet"]);
+
+/**
+ * AJ-E1612 (dry run 3): a page's tab named as a header destination is
+ * ("Usage" on a session's page, beside the header's Usage) does something
+ * else, so its accessible name also says whose it is: "Usage (this
+ * session)", "Pools 2 (this project)". It starts with the words shown
+ * (WCAG 2.5.3). `undefined`: no header destination has its name, so the
+ * words shown are its name.
+ */
+export function pageTabName(kind: PageKind, label: string, count?: number): string | undefined {
+  if (!HEADER_NAMES.has(label)) return undefined;
+  const shown = count !== undefined && count > 0 ? `${label} ${count}` : label;
+  const whose = kind === "machine" ? THIS_MACHINE_IN_TEXT : `this ${PAGE_LABELS[kind].toLowerCase()}`;
+  return `${shown} (${whose})`;
 }
 
 const MEMORY = (kind: PageKind) => `aij.page.tab.${kind}`;
