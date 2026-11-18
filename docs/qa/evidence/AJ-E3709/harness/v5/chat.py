@@ -284,8 +284,13 @@ def fmt_when(v):
         tz = " UTC" if d.utcoffset() == datetime.timedelta(0) else ""
         return d.strftime("%Y-%m-%d %H:%M") + tz
     except ValueError: return str(v)
-def fmt_value(field, v):
+# round 4 (v5 round 3: "Die Sitzung … hat den Status failed"): a status is shown in the question's language, as the app's own state words
+STATUS_WORDS = {"de": {"failed": "fehlgeschlagen", "finished": "abgeschlossen", "done": "abgeschlossen", "completed": "abgeschlossen", "succeeded": "erfolgreich",
+                       "waiting": "wartet", "blocked": "blockiert", "running": "läuft", "stopped": "gestoppt", "cancelled": "abgebrochen", "canceled": "abgebrochen"}}
+def q_lang(question): return gate.language(question or "") or "en"
+def fmt_value(field, v, lang=None):
     k = FIELD_KIND.get(field, "string")
+    if k == "status" and isinstance(v, str) and lang in STATUS_WORDS: return STATUS_WORDS[lang].get(v.strip().lower(), v)
     if isinstance(v, (list, tuple)): return ", ".join(str(x) for x in v)
     if k == "duration": return fmt_duration(v)
     if k == "when": return fmt_when(v)
@@ -294,11 +299,11 @@ def fmt_value(field, v):
     if field == "tests_failed": return f"{int(v)} failed"
     if k == "count": return str(int(v)) if isinstance(v, (int, float)) or str(v).isdigit() else str(v)
     return str(v)
-def display(vals): return ", ".join(fmt_value(f, v) for f, v in vals.items())
+def display(vals, lang=None): return ", ".join(fmt_value(f, v, lang) for f, v in vals.items())
 FIELD_WORDS = {"duration_s": "duration", "tests_passed": "tests", "tests_failed": "tests", "files_changed": "files changed", "started_at": "started",
                "ended_at": "ended", "status": "status", "branch": "branch", "cost_usd": "cost", "author": "author", "path": "path"}
-def found_lines(found):
-    return [f"[{r['id']}] {r['kind']} \"{record_label(r)}\" | " + "; ".join(f"{FIELD_WORDS.get(f, f)}: {fmt_value(f, v)}" for f, v in vals.items())
+def found_lines(found, lang=None):
+    return [f"[{r['id']}] {r['kind']} \"{record_label(r)}\" | " + "; ".join(f"{FIELD_WORDS.get(f, f)}: {fmt_value(f, v, lang)}" for f, v in vals.items())
             for r, vals in found]
 def _nums(s): return checks.num_forms(s or "")
 def value_errors(answer, found, item):
@@ -373,7 +378,7 @@ PHRASE_EX = [
  {"question": "Which branch is the heron api session on?", "found": [({"id": "s-9", "kind": "session", "fields": {"name": "heron api"}, "text": ""}, {"branch": "feat/heron-paging"})],
   "out": {"answer": "The heron api session is on feat/heron-paging.", "cites": ["s-9"]}},
 ]
-def phrase_prompt(question, found): return "QUESTION (from the developer): " + question + "\n\nFOUND (looked up by AI Juggler; exact values):\n" + "\n".join(found_lines(found)) + \
+def phrase_prompt(question, found): return "QUESTION (from the developer): " + question + "\n\nFOUND (looked up by AI Juggler; exact values):\n" + "\n".join(found_lines(found, q_lang(question))) + \
     "\n\nWrite the answer from the FOUND values, copied exactly, and cite every FOUND id."
 def phrase_system():
     ex = [f"Example {i}\n{phrase_prompt(e['question'], e['found'])}\nOUTPUT: {j4.to_grammar_json(e['out'])}" for i, e in enumerate(PHRASE_EX, 1)]
@@ -410,7 +415,7 @@ def ambiguous(item, found, why):
     name = m.group(0) if m else " ".join(keys)
     if lang == "de": head = f"{NUM_WORD['de'].get(n, n)} {plural} " + ("heißen" if len(labels) == 1 else "passen zu") + f" „{name}“:"
     else: head = f"{NUM_WORD['en'].get(n, n)} {plural} " + ("are called" if len(labels) == 1 else "match") + f" “{name}”:"
-    return {"ok": True, "kind": "ambiguous", "shown": head + "\n" + "\n".join(found_lines(found)), "refs": [r["id"] for r, _v in found],
+    return {"ok": True, "kind": "ambiguous", "shown": head + "\n" + "\n".join(found_lines(found, item.get("lang"))), "refs": [r["id"] for r, _v in found],
             "model_text": [], "errors": [], "notes": [why + " (no call)"], "found": [r["id"] for r, _v in found]}
 COUNT_WORDS = {"en": {"files_changed": "files changed"}, "de": {"files_changed": "Dateien geändert"}}
 SAME_NAME = {"en": ("{n} {plural} are called “{label}”: ", "started", "ended"), "de": ("{n} {plural} heißen „{label}“: ", "gestartet", "beendet")}
@@ -428,7 +433,7 @@ def same_name(item, found):
     plural = KIND_PLURAL[lang].get(kind) or (kind + "s" if lang == "en" else "Einträge")
     head = SAME_NAME[lang][0].format(n=NUM_WORD[lang].get(n, n), plural=plural, label=record_label(found[0][0]))
     def val(vals):
-        return ", ".join(f"{fmt_value(f, v)} {COUNT_WORDS[lang][f]}" if f in COUNT_WORDS[lang] else fmt_value(f, v) for f, v in vals.items())
+        return ", ".join(f"{fmt_value(f, v)} {COUNT_WORDS[lang][f]}" if f in COUNT_WORDS[lang] else fmt_value(f, v, lang) for f, v in vals.items())
     parts = [val(vals) + (f" ({_when_of(r, lang)})" if _when_of(r, lang) else "") + f" [{r['id']}]" for r, vals in found]
     return {"ok": True, "kind": "answer", "shown": head + "; ".join(parts) + ".", "refs": [r["id"] for r, _v in found], "model_text": [], "errors": [],
             "notes": ["equally named records: each value, by code (no call)"], "found": [r["id"] for r, _v in found],
@@ -453,7 +458,7 @@ PICK_EX = [
   "out": {"pick": "unclear", "answer": "none"}},
 ]
 def pick_prompt(question, found): return "QUESTION (from the developer): " + question + "\n\nCANDIDATES (found by AI Juggler; exact values):\n" + \
-    "\n".join(found_lines(found)) + "\n\nPick the candidate the QUESTION is about, or unclear, and answer with its value."
+    "\n".join(found_lines(found, q_lang(question))) + "\n\nPick the candidate the QUESTION is about, or unclear, and answer with its value."
 def pick_system():
     ex = [f"Example {i}\n{pick_prompt(e['question'], e['found'])}\nOUTPUT: {j4.to_grammar_json(e['out'])}" for i, e in enumerate(PICK_EX, 1)]
     return PICK_INSTR + "\n\n" + "\n\n".join(ex)
@@ -515,7 +520,7 @@ class Chat(Job):
         if path == "listed": return {"decided": dict(ambiguous(item, found, why), notes=[why + "; no word of the question tells them apart: each, by code (no call)"])}
         if path == "lookup" and why.startswith("same name"): return {"decided": same_name(item, found)}
         if path == "pick":
-            ids = [r["id"] for r, _v in found]; schema = PICK_SCHEMA(ids); sys_t = pick_system(); src = item["question"] + "\n" + "\n".join(found_lines(found))
+            ids = [r["id"] for r, _v in found]; schema = PICK_SCHEMA(ids); sys_t = pick_system(); src = item["question"] + "\n" + "\n".join(found_lines(found, q_lang(item["question"])))
             schema = j4.with_script_guide(schema, src)
             def build(note):
                 p = pick_prompt(item["question"], found) + note
@@ -524,7 +529,7 @@ class Chat(Job):
                         "refs": ids, "question": item["question"], "path": "pick"}
             return {"build": build, "schema": schema}
         if path == "lookup":
-            ids = [r["id"] for r, _v in found]; schema = PHRASE_SCHEMA(ids); sys_t = phrase_system(); src = item["question"] + "\n" + "\n".join(found_lines(found))
+            ids = [r["id"] for r, _v in found]; schema = PHRASE_SCHEMA(ids); sys_t = phrase_system(); src = item["question"] + "\n" + "\n".join(found_lines(found, q_lang(item["question"])))
             schema = j4.with_script_guide(schema, src)
             def build(note):
                 p = phrase_prompt(item["question"], found) + note
@@ -560,7 +565,7 @@ class Chat(Job):
         errs = []
         if finish == "length": errs.append("cut at the token limit")
         if sorted(set(fields.get("cites") or [])) != sorted(ids): errs.append(f"cites: must be exactly {ids}")
-        src = item["question"] + "\n" + "\n".join(found_lines(found))
+        src = item["question"] + "\n" + "\n".join(found_lines(found, q_lang(item["question"])))
         bad = j4.fields_foreign(fields, src)
         if bad: errs.append("a letter outside the question's and records' scripts: " + "".join(bad))
         ok2, inv = gate.step2_v3(src, ans, None)
@@ -610,7 +615,7 @@ class Chat(Job):
         if path == "count_only": return count_only(item, found)
         if path == "lookup" and why.startswith("same name"): return same_name(item, found)
         if path == "lookup" and found:
-            lines = [f"{record_label(r)} [{r['id']}]: {display(vals)}" for r, vals in found]
+            lines = [f"{record_label(r)} [{r['id']}]: {display(vals, item.get('lang'))}" for r, vals in found]
             return {"ok": True, "kind": "found_values", "shown": "\n".join(lines), "refs": [r["id"] for r, _v in found], "model_text": [], "errors": [],
                     "notes": ["every attempt failed its checks: the looked-up values, by code"], "found": [r["id"] for r, _v in found]}
         return {**dont_know(item, "every attempt failed its checks: the found rows", fs), "kind": "found_rows"}

@@ -478,5 +478,30 @@
     ]
    }
   }
- ]
+ ],
+ "chat_status_de": {
+  "question": "Welchen Status hat die Sitzung gannet-shop?",
+  "records": [
+   {
+    "id": "s1",
+    "kind": "session",
+    "fields": {
+     "status": "failed"
+    },
+    "text": "Sitzung gannet-shop"
+   }
+  ],
+  "good": {
+   "answer": "Die Sitzung gannet-shop ist fehlgeschlagen.",
+   "cites": [
+    "s1"
+   ]
+  },
+  "wrong": {
+   "answer": "Die Sitzung gannet-shop ist abgeschlossen.",
+   "cites": [
+    "s1"
+   ]
+  }
+ }
 }

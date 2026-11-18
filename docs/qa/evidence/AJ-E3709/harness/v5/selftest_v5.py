@@ -787,6 +787,16 @@ def selftest():
         return out
     for label, ok, d in r4_chat(): check(f"R4 chat: {label}", ok, d)
 
+    # ================================================================================================ R4-7. Chat: a status in the question's language
+    SD = R4["chat_status_de"]; itd = chat_item(SD["question"], SD["records"]); eng = Script([SD["good"]])
+    rd = run_item(CHAT, itd, "main", eng)
+    check("R4 status: a German question sees the status in German in FOUND", "status: fehlgeschlagen" in eng.reqs[0]["prompt"], eng.reqs[0]["prompt"])
+    check("R4 status: ...and a German answer with it passes", rd["used"] == 0 and "fehlgeschlagen" in rd["final"]["shown"], rd["attempts"])
+    rw = run_item(CHAT, itd, "main", Script([SD["wrong"]] * 3))
+    check("R4 status: ...a different status is still refused", rw["used"] == "fallback" and "fehlgeschlagen" in rw["final"]["shown"], (rw["attempts"][0]["errors"], rw["final"]["shown"]))
+    eng2 = Script([{"answer": "The gannet-shop session failed.", "cites": ["s1"]}]); run_item(CHAT, chat_item("What is the status of the gannet-shop session?", SD["records"]), "main", eng2)
+    check("R4 status: an English question keeps the app's English word", "status: failed" in eng2.reqs[0]["prompt"], eng2.reqs[0]["prompt"])
+
     # ================================================================================================ the extension point, the frozen gate, the prompts
     class Toy(core.Job):
         name, letter, title, item_kind = "toy_digest", "e", "toy", "toydigest"

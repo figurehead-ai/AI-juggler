@@ -36,7 +36,7 @@ def load(specs, jobs_wanted=("chat",)):
     return corp
 def chat_view_extras(item, outcome):
     path, fs, found, _why = REGISTRY["chat"].route(item)
-    src = item["question"] + "\n" + "\n".join(chat.found_lines(found)) + "\n" + "\n".join(
+    src = item["question"] + "\n" + "\n".join(chat.found_lines(found) + chat.found_lines(found, chat.q_lang(item["question"]))) + "\n" + "\n".join(
         r["text"] + " " + " ".join(f"{k}: {chat.fmt_value(k, v)}" for k, v in r["fields"].items()) for r in item["records"])
     if path == "pick" and outcome.get("kind") == "answer": found = [(r, v) for r, v in found if r["id"] in (outcome.get("refs") or [])]   # round 3
     return {"source": src, "found_pairs": found if (path in ("lookup", "pick") and outcome.get("kind") == "answer") else None}
