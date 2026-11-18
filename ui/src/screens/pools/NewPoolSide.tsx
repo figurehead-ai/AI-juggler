@@ -56,7 +56,7 @@ export function sideFor({
     // No lead: nothing to tell one; its rows instead.
     const prompt = firstPrompt(shape, where) ? <LeadPrompt shape={shape} where={where} testId="new-pool-first-prompt" /> : undefined;
     return {
-      preview: <NewPoolPreview name={name} subtitle="Your team, as its diagram will open" diagram={diagram} rows={rows} current={null} foot={prompt === undefined} extra={prompt} />,
+      preview: <NewPoolPreview name={name} subtitle="Your team, as its diagram will open" diagram={diagram} rows={rows} current={null} foot={prompt === undefined} extra={prompt} pick={pick} />,
       summary,
     };
   }

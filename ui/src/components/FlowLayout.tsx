@@ -85,10 +85,12 @@ export interface FlowStep {
 
 /** One step's dot: ✓ when done, its number otherwise, the current one
  * filled in the accent. */
-function Dot({ state, n }: { state: FlowStepState; n: number }): JSX.Element {
+function Dot({ state, n, id }: { state: FlowStepState; n: number; id: string }): JSX.Element {
   const look = state === "current" ? "bg-accent-fill text-white shadow-[0_0_0_4px_var(--color-accent-soft)]" : state === "done" ? "bg-accent-soft text-accent-hi" : "bg-surface text-faint inset-ring-[1.5px] inset-ring-hairline";
   return (
-    <span aria-hidden="true" className={`relative z-[1] flex size-6 shrink-0 items-center justify-center rounded-full text-label font-semibold ${look}`}>
+    // Hidden on its own, but its number is part of the step's name (WCAG
+    // 2.5.3: a step showing "4" is named "4 Who leads …").
+    <span aria-hidden="true" id={id} className={`relative z-[1] flex size-6 shrink-0 items-center justify-center rounded-full text-label font-semibold ${look}`}>
       {state === "done" ? <IconCheck width={12} height={12} strokeWidth={2.5} /> : n}
     </span>
   );
@@ -139,13 +141,13 @@ export function FlowSteps({
                     aria-current={step.state === "current" ? "step" : undefined}
                     // WCAG 2.5.3: its name holds what it shows, the step and
                     // its value ("Who's in, Claude and Codex"), not the step alone.
-                    aria-labelledby={`${id}-name ${id}-more`}
+                    aria-labelledby={`${id}-num ${id}-name ${id}-more`}
                     className={"flex w-full items-start gap-3 rounded-[10px] px-2.5 py-2 text-left outline-none focus-visible:ring-2 focus-visible:ring-accent/60 disabled:cursor-default " + (step.state === "current" ? "bg-surface-2" : "hover:bg-surface-2 disabled:hover:bg-transparent")}
                     data-testid="flow-step"
                     data-step={step.id}
                     data-state={step.state}
                   >
-                    <Dot state={step.state} n={numberOf.get(step.id) ?? at + 1} />
+                    <Dot state={step.state} n={numberOf.get(step.id) ?? at + 1} id={`${id}-num`} />
                     <span className="flex min-w-0 flex-col">
                       <span id={`${id}-name`} className={"text-meta leading-6 " + (step.state === "current" ? "font-semibold text-ink" : step.state === "todo" ? "font-medium text-muted" : "font-medium text-ink-2")}>
                         {step.label}

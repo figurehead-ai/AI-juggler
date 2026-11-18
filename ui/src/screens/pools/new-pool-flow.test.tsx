@@ -38,7 +38,7 @@ const nextTo = (step: string) => {
 };
 
 /** A step button by its step name (its name goes on with its value). */
-const STEP = (name: string) => new RegExp(`^${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(\\s|$)`);
+const STEP = (name: string) => new RegExp(`^(\\d+ )?${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(\\s|,|$)`);
 
 describe("the steps beside the form (D-126)", () => {
   // Each step's value under its name: what it's set to once walked, what

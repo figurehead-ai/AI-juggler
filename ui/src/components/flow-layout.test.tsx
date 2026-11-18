@@ -28,7 +28,7 @@ const GROUPS = [
 ];
 
 /** A step button by its step name (its name goes on with its value). */
-const STEP = (name: string) => new RegExp(`^${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(\\s|$)`);
+const STEP = (name: string) => new RegExp(`^(\\d+ )?${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(\\s|,|$)`);
 
 describe("FlowSteps", () => {
   it("is a nav of steps in groups, each named, its value said with it, the current one marked", () => {
@@ -47,6 +47,8 @@ describe("FlowSteps", () => {
     const pick = vi.fn();
     render(<FlowSteps steps={STEPS} groups={GROUPS} onPick={pick} />);
     expect(screen.getByRole("button", { name: STEP("Who leads") }).textContent).toContain("4");
+    // The number it shows is in its name (WCAG 2.5.3, axe label-content-name-mismatch at 1024).
+    expect(screen.getByRole("button", { name: /^4 Who leads\b/ })).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: STEP("Where") }));
     expect(pick).toHaveBeenCalledWith("where");
     expect(screen.getByRole("button", { name: STEP("Review") }).matches(":disabled")).toBe(true);
