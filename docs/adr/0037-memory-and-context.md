@@ -96,6 +96,11 @@ INSERT INTO memory_fts(memory_fts, rank) VALUES ('secure-delete', 1);
 
 Plus the conversation tables (§1.6) and the log (§7), in the same migration.
 
+**As built (AJ-E3819 step 1, `juggler-core/src/storage/memory/schema.rs`),** three changes to the sketch above, each for a reason found while building:
+- **An explicit `seq INTEGER PRIMARY KEY`, with `id TEXT NOT NULL UNIQUE`,** and `memory_fts` keyed by `seq`: `VACUUM` (the backup's snapshot and scrub) may renumber an implicit rowid, which would point the external-content index at other rows.
+- **`subject_id`, a random id per subject** shared by its versions: the log, its sidecars (§7.1's `subject_key` column is `memory_subject` and holds this id) and the forget tombstones (`memory_forgotten`, §1.5) name a subject by it, never by its key. A note's key is a hash of its words, so a key kept in the 90-day append-only spine would outlive the forget as a fingerprint.
+- **`supersedes … ON DELETE SET NULL`:** removing an old version (the 20-version bound, the cloud scrub, §1.8) cuts the newer version's link to it, the one change the content trigger allows on that column.
+
 **`untrusted` is set by type, not by care.** Payload types hold agent-written text only as `Untrusted<String>` (a session's name inside a watch, an excerpt inside a digest); serialising a payload that contains one sets the column, and the write gate refuses a record whose `authority` is `agent` with `untrusted = 0`. Untrusted rows are never indexed in `memory_fts` and never retrieved into a prompt (§4); the one place their text reaches a model is the digest's own guarded `agent_words` section (ADR-0036 §1.2), which reads the journals, not this store.
 
 #### 1.3 The write gate
@@ -156,7 +161,7 @@ CREATE TABLE chat_turns (id TEXT PRIMARY KEY,
 
 #### 1.7 One migration in 0.5, and 0.6 only adds
 
-- **The tables take V54**: the next free version after release/0.5 (V52) and release/0.4.6 (V53, which reaches release/0.5 when 0.4.6 merges). One migration holds every 0.5 table of this ADR: `memory_records`, `memory_entities`, `memory_fts` with its triggers, `chat_conversations`, `chat_turns`, `ai_log`, `ai_log_text`, `ai_log_prune` and their triggers. The number is checked again across every local and remote branch when AJ-E3819's first step is built, as D-numbers are; if a newer migration has landed by then, this one takes the next free number.
+- **The tables take V54**: the next free version after release/0.5 (V52) and release/0.4.6 (V53, which reaches release/0.5 when 0.4.6 merges). **The runner needs contiguous versions** (a version is its index in `MIGRATIONS` + 1), so V54 is built and tested on release/0.5 but listed only by the 0.4.6 → 0.5 merge, right after V53; the test `v54_waits_for_v53` fails the moment V53 arrives, as the reminder, and `scripts/migration_clash.py` (in `just verify-static`) fails if another branch claims a version this one does. One migration holds every 0.5 table of this ADR: `memory_records`, `memory_entities`, `memory_fts` with its triggers, `chat_conversations`, `chat_turns`, `ai_log`, `ai_log_text`, `ai_log_prune` and their triggers. The number is checked again across every local and remote branch when AJ-E3819's first step is built, as D-numbers are; if a newer migration has landed by then, this one takes the next free number.
 - **0.6 adds and never rewrites:** new tables (`memory_links`, §8.1), new indexes and triggers, new kinds and log streams (the `kind`, `authority` and `stream` columns are text, checked in Rust, so no table rebuild is needed), and dropping the 0.5 trigger `memory_reserved_kinds`, which refuses the reserved kinds and the `bot` authority until then. No 0.5 column changes meaning.
 - **A forward-only test** opens a V53 fixture database, migrates it, and checks the new tables are empty and every existing table is byte-identical.
 
@@ -172,7 +177,7 @@ The coordinating session's call on this ADR's open question (2026-11-18), record
 
 - **A note is Chat's words.** The user stated it, but in free words typed into Chat, which can hold anything; so it travels as chat history does: local backups only. Watches and preferences are typed settings from a closed set of slots (§1.1).
 - **A stated setting goes with its history, minus what isn't a setting:** an earlier, model-noted version of a preference the user then restated stays out of the cloud copy, and the link to it is cut (`supersedes` set to NULL, the one change the content triggers allow, §1.4).
-- **The cloud copy's FTS index is rebuilt** from what remains, and the log's watermarks move past what was removed (as Clear AI activity does, §7.3), so the copy's own triggers hold.
+- **The cloud copy's FTS index is kept in step by its own triggers** as rows are removed (a rebuild would index superseded rows too), and the log's watermarks move past what was removed (as Clear AI activity does, §7.3), so the copy's own triggers hold.
 - **Forget reaches the next backup** (§1.5): the backup page says, beside the memory line, "Forgotten memories are left out of every backup made after you forget them. Backups you made before still hold them; restoring one on this Mac doesn't bring them back."
 - **Restoring a cloud backup:** what it carries replaces the stated settings; whether this Mac's own Chat history is kept beside them, rather than replaced by the backup's (which has none), is decided with the backup page (AJ-E3819 step 4), and until then a restore replaces everything, as it does today.
 
@@ -254,7 +259,7 @@ Callers (the `always_on` and `recalled` section providers, the `memory` look-up)
 1. **Always-on pass:** current long-tier `preference` rows in the query's scopes (the user's aliases and focus), with no similarity needed, capped by the `always_on` section's share. Reason `AlwaysOn`.
 2. **Matched pass:** `memory_fts MATCH` on the question's words, each word quoted (the transcript index's rule, so user words are never FTS syntax), joined to current, trusted rows of the job's kinds, scopes and authority; plus rows whose `memory_entities` name an entity of the question (reason `SameEntity`, relevance floor 0.5).
 3. **Score** = relevance × priority weight × 0.5^(age ÷ half-life):
-   - relevance: *b* ÷ (1 + *b*), where *b* = −`bm25(memory_fts)` (FTS5's BM25 is negative, better is lower), so 0 < relevance < 1;
+   - relevance: *b* ÷ (1 + *b*), where *b* = −`bm25(memory_fts)` (FTS5's BM25 is negative, better is lower), so 0 < relevance < 1; **at least 0.25 for a word match** (as built: FTS5 gives a word found in half the rows or more an IDF of almost 0, so in a small store, the usual case, a real match would otherwise score nothing);
    - priority weight: low 0.5, normal 1.0, high 1.5, pinned 2.0;
    - age in days since the later of `last_used_ms` and `as_of_ms`; half-life 14 days for `asked`, 90 for `note` and `preference`, 30 for an ended watch.
 4. **One per fact key;** below 0.05 dropped; the top `limit` returned.
