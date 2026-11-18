@@ -1,0 +1,1010 @@
+{
+ "family": "granite-4.1-3b",
+ "job": "watch",
+ "note": "script flags: candidates for Opus to confirm by eye, never verdicts",
+ "candidates": [
+  {
+   "id": "W001",
+   "class": "omission",
+   "detector": "no_watch",
+   "detail": "shown form",
+   "stage": "shown",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W002",
+   "class": "omission",
+   "detector": "no_watch",
+   "detail": "shown form",
+   "stage": "shown",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W003",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "conditions [('asks_you', 0)] != [('asks_you', None)]; lifetime today != once",
+   "stage": "shown",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W004",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime today != until_removed",
+   "stage": "shown",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W005",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime today != once",
+   "stage": "shown",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W006",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model: notify me if the docs session fails or asks something",
+   "stage": "shown",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W007",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model: when the Cursor app stops",
+   "stage": "shown",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W008",
+   "class": "omission",
+   "detector": "no_watch",
+   "detail": "shown form",
+   "stage": "shown",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W009",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime today != until_removed",
+   "stage": "shown",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W010",
+   "class": "omission",
+   "detector": "no_watch",
+   "detail": "shown form",
+   "stage": "shown",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W011",
+   "class": "omission",
+   "detector": "no_watch",
+   "detail": "shown form",
+   "stage": "shown",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W012",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "conditions [('asks_you', 0)] != [('asks_you', None)]; lifetime today != until_time:23:59",
+   "stage": "shown",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W013",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime today != once",
+   "stage": "shown",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W014",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime until_time:17:00 != until_time:23:59",
+   "stage": "shown",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W015",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model: notify me",
+   "stage": "shown",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W016",
+   "class": "omission",
+   "detector": "no_watch",
+   "detail": "shown form",
+   "stage": "shown",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W017",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model: when the invoice thing needs my input",
+   "stage": "shown",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W018",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime today != once",
+   "stage": "shown",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W019",
+   "class": "omission",
+   "detector": "no_watch",
+   "detail": "shown form",
+   "stage": "shown",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W020",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "conditions [('runway_below', 20)] != [('fails', None), ('runway_below', 20)]; lifetime today != once",
+   "stage": "shown",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W021",
+   "class": "omission",
+   "detector": "no_watch",
+   "detail": "shown form",
+   "stage": "shown",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W022",
+   "class": "omission",
+   "detector": "no_watch",
+   "detail": "shown form",
+   "stage": "shown",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W023",
+   "class": "omission",
+   "detector": "no_watch",
+   "detail": "shown form",
+   "stage": "shown",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W024",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model: ping me",
+   "stage": "shown",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W025",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime today != once",
+   "stage": "shown",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W026",
+   "class": "omission",
+   "detector": "no_watch",
+   "detail": "shown form",
+   "stage": "shown",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W027",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "conditions [('asks_you', 120), ('finishes', None)] != [('asks_you', None), ('finishes', None)]; lifetime today != until_removed",
+   "stage": "shown",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W028",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime today != once",
+   "stage": "shown",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W029",
+   "class": "omission",
+   "detector": "no_watch",
+   "detail": "shown form",
+   "stage": "shown",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W031",
+   "class": "omission",
+   "detector": "no_watch",
+   "detail": "shown form",
+   "stage": "shown",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W032",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime today != until_removed",
+   "stage": "shown",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W033",
+   "class": "omission",
+   "detector": "no_watch",
+   "detail": "shown form",
+   "stage": "shown",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W034",
+   "class": "omission",
+   "detector": "no_watch",
+   "detail": "shown form",
+   "stage": "shown",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W035",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime today != until_time:23:59",
+   "stage": "shown",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W036",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "target [('session', 's-hero')] != ('app', 'app-cursor'); conditions [('finishes', None)] != [('ends', None)]",
+   "stage": "shown",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W037",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime today != once",
+   "stage": "shown",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W038",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime today != until_removed",
+   "stage": "shown",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W039",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "conditions [('asks_you', 120), ('ends', None)] != [('asks_you', None)]; lifetime today != until_time:23:59",
+   "stage": "shown",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W040",
+   "class": "omission",
+   "detector": "no_watch",
+   "detail": "shown form",
+   "stage": "shown",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W041",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model: nachfragt",
+   "stage": "shown",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W042",
+   "class": "omission",
+   "detector": "no_watch",
+   "detail": "shown form",
+   "stage": "shown",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W001",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: p1 “billing-svc” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W001",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s1 “Invoice rounding fix” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W001",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: p1 “billing-svc” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W002",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: p1 “billing-svc” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W002",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s1 “Invoice rounding fix” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W002",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s1 “Invoice rounding fix” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W004",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s1 “Invoice rounding fix” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W004",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s2 “Checkout redesign” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W004",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s3 “Rewrite quickstart” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W004",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s4 “Training loop” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W004",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s5 “DB migration” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W004",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: app1 “Claude Code CLI · Work” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W004",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: app2 “Claude app · Personal” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W004",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: app3 “Cursor” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W004",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: app4 “Claude Code CLI · Lab” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W004",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: app5 “Codex CLI · Work” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W008",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: p4 “ml-pipeline” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W008",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: p4 “ml-pipeline” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W008",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: p4 “ml-pipeline” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W010",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s4 “Training loop” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W010",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: p4 “ml-pipeline” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W010",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s4 “Training loop” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W011",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s2 “Checkout redesign” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W011",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s2 “Checkout redesign” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W011",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s2 “Checkout redesign” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W016",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: p3 “docs-site” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W016",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: p3 “docs-site” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W016",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: p3 “docs-site” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W019",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: p5 “legacy-crm” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W019",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: p5 “legacy-crm” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W019",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: p5 “legacy-crm” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W021",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s2 “Checkout redesign” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W021",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s2 “Checkout redesign” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W021",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s2 “Checkout redesign” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W022",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: p3 “docs-site” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W022",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: p3 “docs-site” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W022",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: p3 “docs-site” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W023",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s4 “Training loop” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W023",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s4 “Training loop” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W023",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s4 “Training loop” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W029",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s2 “Checkout redesign” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W029",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s2 “Checkout redesign” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W029",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s2 “Checkout redesign” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W031",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s2 “Login-Flow” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W032",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s1 “Mahnlauf” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W032",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s2 “Login-Flow” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W032",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s3 “Testabdeckung” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W032",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s4 “Rate Limits” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W032",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s5 “Hero-Bild” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W033",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: acct1 “Arbeit” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W033",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: acct1 “Arbeit” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W033",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: acct1 “Arbeit” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W034",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s4 “Rate Limits” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W034",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s4 “Rate Limits” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W034",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s4 “Rate Limits” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W040",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: acct2 “Privat” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W040",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: acct2 “Privat” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W040",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: acct2 “Privat” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W042",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s3 “Testabdeckung” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W042",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s1 “Mahnlauf” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W042",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s2 “Login-Flow” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W042",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s3 “Testabdeckung” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W042",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s4 “Rate Limits” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W042",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s5 “Hero-Bild” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W042",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s1 “Mahnlauf” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W053",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: p1 “billing-svc” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W053",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: p1 “billing-svc” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W053",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: p1 “billing-svc” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W054",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: p5 “legacy-crm” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W054",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: p5 “legacy-crm” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W055",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: acct1 “Work Pro” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W055",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: app1 “Claude Code CLI · Work” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W055",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: acct1 “Work Pro” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W060",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: acct2 “Personal” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W060",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: p2 “webshop” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch5"
+  }
+ ]
+}

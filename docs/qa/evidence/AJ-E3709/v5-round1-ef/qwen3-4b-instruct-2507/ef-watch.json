@@ -1,0 +1,3714 @@
+{
+ "meta": {
+  "harness": "v5",
+  "prompt_version": 5,
+  "engine": "local model (llama.cpp, Metal) via local_probe",
+  "hello": "{\"arch\":\"qwen3\",\"available\":\"available\",\"chat_template\":\"the GGUF's own (tokenizer.chat_template), Jinja\",\"engine\":\"local model (llama.cpp, Metal) via local_probe\",\"extensions\":[\"fields\",\"sampling\"],\"gpu_offload\":true,\"guided\":true,\"hello\":true,\"line_grammar\":\"root ::= first rest{0,159}\\nfirst ::= [^ \\\\t\\\\n\\\\r\\\\x0B\\\\x0C\\\\u0085   -     　\\\"“”„«»「」]\\nrest ::= [^\\\\t\\\\n\\\\r\\\\x0B\\\\x0C\\\\u0085   -     　\\\"“”„«»「」]\\n\",\"line_max_chars\":160,\"llama_cpp\":\"llama-cpp-2 0.1.146 / llama-cpp-sys-2 0.1.146 (llama-cpp-rs 4afdaf0782ef, vendored llama.cpp), Metal\",\"model_file\":\"Qwen3-4B-Instruct-2507-Q4_K_M.gguf\",\"model_sha256\":null,\"n_ctx\":4096,\"os\":\"27.0.1\",\"protocol\":3,\"quant\":\"Q4_K_M\",\"sampler\":\"greedy\",\"sha256_source\":\"Qwen3-4B-Instruct-2507-Q4_K_M.gguf not listed in ~/Dev/AIJuggler-models/MANIFEST.md\",\"system_info\":\"MTL : EMBED_LIBRARY = 1 | CPU : NEON = 1 | ARM_FMA = 1 | FP16_VA = 1 | DOTPROD = 1 | LLAMAFILE = 1 | ACCELERATE = 1 | REPACK = 1 | \",\"temperature\":0,\"thinking\":\"off: enable_thinking=false (flag and template kwarg)\"}",
+  "family": "qwen3-4b-instruct-2507",
+  "model_label": "qwen3-4b-instruct-2507",
+  "sampling_name": "card",
+  "sampling": {
+   "temperature": 0.7,
+   "top_p": 0.8,
+   "top_k": 20,
+   "min_p": 0.0,
+   "presence_penalty": 0.0
+  },
+  "sampling_source": "the base model card (Qwen/Qwen3-4B-Instruct-2507): Temperature 0.7, TopP 0.8, TopK 20, MinP 0; presence_penalty 0-2 'to reduce endless repetitions' (0 here: grammar-bounded fields). UNVERIFIED against a GGUF: none is downloaded (MANIFEST.md: no official GGUF repository). A non-thinking model: no think block. Re-read the card and the GGUF metadata on download.",
+  "datamark": "on",
+  "retries": 2,
+  "jobs": [
+   "watch"
+  ],
+  "prompt_sha256": {
+   "watch": "b84f3b6ce41d0548952b377a2be38dba45f0757a69d2332e3bd2c176c23050cf"
+  },
+  "context_tokens": 4096,
+  "code_sha256": {
+   "core.py": "e2571d2b3f29d1262f247ebff6a5a499a1dc8bc42fa769e31983987d138efcf2",
+   "turns.py": "864a70fd425995c8bba8afbcc3bf5129242f4feeadc9a8febff57849d2adb131",
+   "chat.py": "5cb717203c817881405524beb7c797489fd57482eedb3af4db7b375ab304a307",
+   "severity.py": "f3dbd7047abc7d1aaa32a110b52a6337677d4ac8f4d968601726536dbe4437e1",
+   "digest.py": "7a4fc2512ff9081a364dfe7045b3b8c2c007f322fb69d4c6d9477b1f74668c7e",
+   "watch.py": "b7bc6aca93e393afea887d8ec7b23830b7473348378c77e9e4238664c183bb55"
+  },
+  "gate_py_sha256": "22152d013af518c34237464f53fd92dbdc83b8b1fa21b1cff8588f5d08735a68",
+  "frozen_gate_commit": "7acec4f50",
+  "jobs_v4_sha256": "17ac6523b2382ec497e392a55a78c23aa6cc56c57430dd43463f2bb67bf5ca94",
+  "repeats": 1,
+  "limit": null,
+  "corpora": [
+   {
+    "label": "watch5",
+    "file": "watch-v5.json",
+    "sha256": "c856f82889320a1e3855499c2e024d54c89042f99cee9966984904783b3e8990",
+    "items_in_file": 60,
+    "items_run": 60
+   }
+  ],
+  "calls": 110,
+  "wall_s": 143.9,
+  "machine": {
+   "macos": "27.0.1",
+   "macos_build": "26A434",
+   "arch": "arm64",
+   "model": "Mac17,15",
+   "chip": "Apple M5 Ultra",
+   "ram_gb": 96.0,
+   "cpus": 30
+  },
+  "load_avg_start": [
+   10.6,
+   8.9,
+   9.8
+  ],
+  "load_avg_end": [
+   7.7,
+   8.5,
+   9.5
+  ],
+  "helper_cpu_s": 68.72,
+  "cpu_deltas": [
+   {
+    "name": "local_probe",
+    "cpu_s": 68.39
+   }
+  ],
+  "watched_rss_mb": {
+   "before": 3163.2,
+   "peak": 3329.7,
+   "after": 3330.7
+  },
+  "started": "2026-11-18 12:06:01"
+ },
+ "results": [
+  {
+   "corpus": "watch5",
+   "job": "watch",
+   "setting": "main",
+   "id": "W001",
+   "rep": 0,
+   "model_called": true,
+   "used": "fallback",
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"intent\": \"create\", \"targets\": [\"s1\"], \"matching\": \"each\", \"conditions\": [{\"type\": \"finishes\", \"param\": \"none\"}], \"lifetime\": \"unsaid\", \"until\": \"none\", \"unsupported_asked\": \"none\", \"nearest\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1319,
+     "gen_ms": 1318.605542,
+     "out_tokens": 63,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2887,
+     "cut": false,
+     "retry_note": false,
+     "errors": [
+      "target: s1 “Invoice rounding fix” is not named in the request"
+     ],
+     "ok": false,
+     "soft": []
+    },
+    {
+     "attempt": 1,
+     "text": "{\"intent\": \"create\", \"targets\": [\"s1\"], \"matching\": \"each\", \"conditions\": [{\"type\": \"finishes\", \"param\": \"none\"}], \"lifetime\": \"unsaid\", \"until\": \"none\", \"unsupported_asked\": \"none\", \"nearest\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1314,
+     "gen_ms": 1314.1435829999998,
+     "out_tokens": 63,
+     "error": "",
+     "refused": false,
+     "est_tokens": 3008,
+     "cut": false,
+     "retry_note": true,
+     "errors": [
+      "target: s1 “Invoice rounding fix” is not named in the request"
+     ],
+     "ok": false,
+     "soft": []
+    },
+    {
+     "attempt": 2,
+     "text": "{\"intent\": \"create\", \"targets\": [\"s1\"], \"matching\": \"each\", \"conditions\": [{\"type\": \"finishes\", \"param\": \"none\"}], \"lifetime\": \"unsaid\", \"until\": \"none\", \"unsupported_asked\": \"none\", \"nearest\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1285,
+     "gen_ms": 1285.002708,
+     "out_tokens": 63,
+     "error": "",
+     "refused": false,
+     "est_tokens": 3008,
+     "cut": false,
+     "retry_note": true,
+     "errors": [
+      "target: s1 “Invoice rounding fix” is not named in the request"
+     ],
+     "ok": false,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "form",
+    "shown": "I couldn't set that up from your words. New watch… opens the form.",
+    "model_text": [],
+    "notes": [
+     "every attempt failed its checks: the Watches form"
+    ]
+   }
+  },
+  {
+   "corpus": "watch5",
+   "job": "watch",
+   "setting": "main",
+   "id": "W002",
+   "rep": 0,
+   "model_called": true,
+   "used": "fallback",
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"intent\": \"create\", \"targets\": [\"s1\"], \"matching\": \"each\", \"conditions\": [{\"type\": \"finishes\", \"param\": \"none\"}, {\"type\": \"stuck\", \"param\": \"10\"}], \"lifetime\": \"unsaid\", \"until\": \"none\", \"unsupported_asked\": \"none\", \"nearest\": \"stuck\"}",
+     "finish": "stop",
+     "latency_ms": 1490,
+     "gen_ms": 1489.548917,
+     "out_tokens": 78,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2897,
+     "cut": false,
+     "retry_note": false,
+     "errors": [
+      "target: s1 “Invoice rounding fix” is not named in the request"
+     ],
+     "ok": false,
+     "soft": []
+    },
+    {
+     "attempt": 1,
+     "text": "{\"intent\": \"create\", \"targets\": [\"s1\"], \"matching\": \"each\", \"conditions\": [{\"type\": \"finishes\", \"param\": \"none\"}, {\"type\": \"stuck\", \"param\": \"10\"}], \"lifetime\": \"unsaid\", \"until\": \"none\", \"unsupported_asked\": \"none\", \"nearest\": \"stuck\"}",
+     "finish": "stop",
+     "latency_ms": 1509,
+     "gen_ms": 1508.939917,
+     "out_tokens": 78,
+     "error": "",
+     "refused": false,
+     "est_tokens": 3028,
+     "cut": false,
+     "retry_note": true,
+     "errors": [
+      "target: s1 “Invoice rounding fix” is not named in the request"
+     ],
+     "ok": false,
+     "soft": []
+    },
+    {
+     "attempt": 2,
+     "text": "{\"intent\": \"create\", \"targets\": [\"s1\"], \"matching\": \"each\", \"conditions\": [{\"type\": \"finishes\", \"param\": \"none\"}, {\"type\": \"stuck\", \"param\": \"10\"}], \"lifetime\": \"unsaid\", \"until\": \"none\", \"unsupported_asked\": \"none\", \"nearest\": \"stuck\"}",
+     "finish": "stop",
+     "latency_ms": 1455,
+     "gen_ms": 1454.500917,
+     "out_tokens": 78,
+     "error": "",
+     "refused": false,
+     "est_tokens": 3028,
+     "cut": false,
+     "retry_note": true,
+     "errors": [
+      "target: s1 “Invoice rounding fix” is not named in the request"
+     ],
+     "ok": false,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "form",
+    "shown": "I couldn't set that up from your words. New watch… opens the form.",
+    "model_text": [],
+    "notes": [
+     "every attempt failed its checks: the Watches form"
+    ]
+   }
+  },
+  {
+   "corpus": "watch5",
+   "job": "watch",
+   "setting": "main",
+   "id": "W003",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"intent\": \"create\", \"targets\": [\"s2\"], \"matching\": \"each\", \"conditions\": [{\"type\": \"asks_you\", \"param\": \"none\"}], \"lifetime\": \"unsaid\", \"until\": \"none\", \"unsupported_asked\": \"none\", \"nearest\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1206,
+     "gen_ms": 1205.391584,
+     "out_tokens": 63,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2891,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "watch",
+    "shown": "Tell you when “Checkout redesign” asks you. Until midnight today.",
+    "model_text": [],
+    "notes": [
+     "a draft: written only when the user clicks Watch"
+    ],
+    "watch": {
+     "targets": [
+      {
+       "kind": "session",
+       "id": "s-shop",
+       "ref": "s2",
+       "name": "Checkout redesign"
+      }
+     ],
+     "matching": "each",
+     "conditions": [
+      {
+       "type": "asks_you",
+       "param": null
+      }
+     ],
+     "lifetime": "today",
+     "until": null,
+     "lifetime_said": false,
+     "even_in_quiet_hours": false
+    }
+   }
+  },
+  {
+   "corpus": "watch5",
+   "job": "watch",
+   "setting": "main",
+   "id": "W004",
+   "rep": 0,
+   "model_called": true,
+   "used": 1,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"intent\": \"create\", \"targets\": [\"s1\", \"s2\", \"s3\", \"s4\", \"s5\", \"app1\", \"app2\", \"app3\", \"app4\", \"app5\"], \"matching\": \"each\", \"conditions\": [{\"type\": \"fails\", \"param\": \"none\"}], \"lifetime\": \"unsaid\", \"until\": \"none\", \"unsupported_asked\": \"none\", \"nearest\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1828,
+     "gen_ms": 1827.595209,
+     "out_tokens": 98,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2886,
+     "cut": false,
+     "retry_note": false,
+     "errors": [
+      "target: s1 “Invoice rounding fix” is not named in the request",
+      "target: s2 “Checkout redesign” is not named in the request",
+      "target: s3 “Rewrite quickstart” is not named in the request",
+      "target: s4 “Training loop” is not named in the request",
+      "target: s5 “DB migration” is not named in the request",
+      "target: app1 “Claude Code CLI · Work” is not named in the request",
+      "target: app2 “Claude app · Personal” is not named in the request",
+      "target: app3 “Cursor” is not named in the request",
+      "target: app4 “Claude Code CLI · Lab” is not named in the request",
+      "target: app5 “Codex CLI · Work” is not named in the request"
+     ],
+     "ok": false,
+     "soft": []
+    },
+    {
+     "attempt": 1,
+     "text": "{\"intent\": \"create\", \"targets\": [\"any\"], \"matching\": \"each\", \"conditions\": [{\"type\": \"fails\", \"param\": \"none\"}], \"lifetime\": \"unsaid\", \"until\": \"none\", \"unsupported_asked\": \"none\", \"nearest\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1240,
+     "gen_ms": 1239.7167920000002,
+     "out_tokens": 61,
+     "error": "",
+     "refused": false,
+     "est_tokens": 3126,
+     "cut": false,
+     "retry_note": true,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "watch",
+    "shown": "Tell you when “any session” fails. Until midnight today.",
+    "model_text": [],
+    "notes": [
+     "a draft: written only when the user clicks Watch"
+    ],
+    "watch": {
+     "targets": [
+      {
+       "kind": "any",
+       "id": "any",
+       "ref": "any",
+       "name": "any session"
+      }
+     ],
+     "matching": "each",
+     "conditions": [
+      {
+       "type": "fails",
+       "param": null
+      }
+     ],
+     "lifetime": "today",
+     "until": null,
+     "lifetime_said": false,
+     "even_in_quiet_hours": false
+    }
+   }
+  },
+  {
+   "corpus": "watch5",
+   "job": "watch",
+   "setting": "main",
+   "id": "W005",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"intent\": \"create\", \"targets\": [\"acct3\"], \"matching\": \"each\", \"conditions\": [{\"type\": \"runway_below\", \"param\": \"15\"}], \"lifetime\": \"unsaid\", \"until\": \"none\", \"unsupported_asked\": \"none\", \"nearest\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1267,
+     "gen_ms": 1267.2885840000001,
+     "out_tokens": 65,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2890,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "watch",
+    "shown": "Tell you when “Lab” runs below 15 %. Until midnight today.",
+    "model_text": [],
+    "notes": [
+     "a draft: written only when the user clicks Watch"
+    ],
+    "watch": {
+     "targets": [
+      {
+       "kind": "account",
+       "id": "acct-lab",
+       "ref": "acct3",
+       "name": "Lab"
+      }
+     ],
+     "matching": "each",
+     "conditions": [
+      {
+       "type": "runway_below",
+       "param": 15
+      }
+     ],
+     "lifetime": "today",
+     "until": null,
+     "lifetime_said": false,
+     "even_in_quiet_hours": false
+    }
+   }
+  },
+  {
+   "corpus": "watch5",
+   "job": "watch",
+   "setting": "main",
+   "id": "W006",
+   "rep": 0,
+   "model_called": true,
+   "used": "fallback",
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"intent\": \"create\", \"targets\": [\"s3\"], \"matching\": \"each\", \"conditions\": [{\"type\": \"fails\", \"param\": \"none\"}, {\"type\": \"asks_you\", \"param\": \"none\"}], \"lifetime\": \"unsaid\", \"until\": \"none\", \"unsupported_asked\": \"none\", \"nearest\": \"fails\"}",
+     "finish": "stop",
+     "latency_ms": 1443,
+     "gen_ms": 1442.44675,
+     "out_tokens": 75,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2892,
+     "cut": false,
+     "retry_note": false,
+     "errors": [
+      "target: s3 “Rewrite quickstart” is not named in the request"
+     ],
+     "ok": false,
+     "soft": []
+    },
+    {
+     "attempt": 1,
+     "text": "{\"intent\": \"create\", \"targets\": [\"s3\"], \"matching\": \"each\", \"conditions\": [{\"type\": \"fails\", \"param\": \"none\"}, {\"type\": \"asks_you\", \"param\": \"none\"}], \"lifetime\": \"unsaid\", \"until\": \"none\", \"unsupported_asked\": \"none\", \"nearest\": \"fails\"}",
+     "finish": "stop",
+     "latency_ms": 1468,
+     "gen_ms": 1467.887916,
+     "out_tokens": 75,
+     "error": "",
+     "refused": false,
+     "est_tokens": 3022,
+     "cut": false,
+     "retry_note": true,
+     "errors": [
+      "target: s3 “Rewrite quickstart” is not named in the request"
+     ],
+     "ok": false,
+     "soft": []
+    },
+    {
+     "attempt": 2,
+     "text": "{\"intent\": \"create\", \"targets\": [\"s3\"], \"matching\": \"each\", \"conditions\": [{\"type\": \"fails\", \"param\": \"none\"}, {\"type\": \"asks_you\", \"param\": \"none\"}], \"lifetime\": \"unsaid\", \"until\": \"none\", \"unsupported_asked\": \"none\", \"nearest\": \"fails\"}",
+     "finish": "stop",
+     "latency_ms": 1455,
+     "gen_ms": 1455.0605,
+     "out_tokens": 75,
+     "error": "",
+     "refused": false,
+     "est_tokens": 3022,
+     "cut": false,
+     "retry_note": true,
+     "errors": [
+      "target: s3 “Rewrite quickstart” is not named in the request"
+     ],
+     "ok": false,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "form",
+    "shown": "I couldn't set that up from your words. New watch… opens the form.",
+    "model_text": [],
+    "notes": [
+     "every attempt failed its checks: the Watches form"
+    ]
+   }
+  },
+  {
+   "corpus": "watch5",
+   "job": "watch",
+   "setting": "main",
+   "id": "W007",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"intent\": \"create\", \"targets\": [\"app3\"], \"matching\": \"each\", \"conditions\": [{\"type\": \"ends\", \"param\": \"none\"}], \"lifetime\": \"unsaid\", \"until\": \"none\", \"unsupported_asked\": \"none\", \"nearest\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1185,
+     "gen_ms": 1184.74975,
+     "out_tokens": 62,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2886,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "watch",
+    "shown": "Tell you when “Cursor” ends. Until midnight today.",
+    "model_text": [],
+    "notes": [
+     "a draft: written only when the user clicks Watch"
+    ],
+    "watch": {
+     "targets": [
+      {
+       "kind": "app",
+       "id": "app-cursor",
+       "ref": "app3",
+       "name": "Cursor"
+      }
+     ],
+     "matching": "each",
+     "conditions": [
+      {
+       "type": "ends",
+       "param": null
+      }
+     ],
+     "lifetime": "today",
+     "until": null,
+     "lifetime_said": false,
+     "even_in_quiet_hours": false
+    }
+   }
+  },
+  {
+   "corpus": "watch5",
+   "job": "watch",
+   "setting": "main",
+   "id": "W008",
+   "rep": 0,
+   "model_called": true,
+   "used": "fallback",
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"intent\": \"create\", \"targets\": [\"s4\"], \"matching\": \"each\", \"conditions\": [{\"type\": \"finishes\", \"param\": \"none\"}, {\"type\": \"fails\", \"param\": \"none\"}, {\"type\": \"stuck\", \"param\": \"20\"}], \"lifetime\": \"unsaid\", \"until\": \"none\", \"unsupported_asked\": \"none\", \"nearest\": \"stuck\"}",
+     "finish": "stop",
+     "latency_ms": 1591,
+     "gen_ms": 1590.555084,
+     "out_tokens": 90,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2900,
+     "cut": false,
+     "retry_note": false,
+     "errors": [
+      "target: s4 “Training loop” is not named in the request"
+     ],
+     "ok": false,
+     "soft": []
+    },
+    {
+     "attempt": 1,
+     "text": "{\"intent\": \"create\", \"targets\": [\"s4\"], \"matching\": \"each\", \"conditions\": [{\"type\": \"finishes\", \"param\": \"none\"}, {\"type\": \"fails\", \"param\": \"none\"}, {\"type\": \"stuck\", \"param\": \"20\"}], \"lifetime\": \"unsaid\", \"until\": \"none\", \"unsupported_asked\": \"none\", \"nearest\": \"stuck\"}",
+     "finish": "stop",
+     "latency_ms": 1626,
+     "gen_ms": 1625.4315419999998,
+     "out_tokens": 90,
+     "error": "",
+     "refused": false,
+     "est_tokens": 3039,
+     "cut": false,
+     "retry_note": true,
+     "errors": [
+      "target: s4 “Training loop” is not named in the request"
+     ],
+     "ok": false,
+     "soft": []
+    },
+    {
+     "attempt": 2,
+     "text": "{\"intent\": \"create\", \"targets\": [\"s4\"], \"matching\": \"each\", \"conditions\": [{\"type\": \"finishes\", \"param\": \"none\"}, {\"type\": \"fails\", \"param\": \"none\"}, {\"type\": \"stuck\", \"param\": \"20\"}], \"lifetime\": \"unsaid\", \"until\": \"none\", \"unsupported_asked\": \"none\", \"nearest\": \"stuck\"}",
+     "finish": "stop",
+     "latency_ms": 1675,
+     "gen_ms": 1674.863959,
+     "out_tokens": 90,
+     "error": "",
+     "refused": false,
+     "est_tokens": 3039,
+     "cut": false,
+     "retry_note": true,
+     "errors": [
+      "target: s4 “Training loop” is not named in the request"
+     ],
+     "ok": false,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "form",
+    "shown": "I couldn't set that up from your words. New watch… opens the form.",
+    "model_text": [],
+    "notes": [
+     "every attempt failed its checks: the Watches form"
+    ]
+   }
+  },
+  {
+   "corpus": "watch5",
+   "job": "watch",
+   "setting": "main",
+   "id": "W009",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"intent\": \"create\", \"targets\": [\"acct1\"], \"matching\": \"each\", \"conditions\": [{\"type\": \"runway_below\", \"param\": \"10\"}], \"lifetime\": \"unsaid\", \"until\": \"none\", \"unsupported_asked\": \"none\", \"nearest\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1259,
+     "gen_ms": 1259.19625,
+     "out_tokens": 65,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2896,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "watch",
+    "shown": "Tell you when “Work Pro” runs below 10 %. Until midnight today.",
+    "model_text": [],
+    "notes": [
+     "a draft: written only when the user clicks Watch"
+    ],
+    "watch": {
+     "targets": [
+      {
+       "kind": "account",
+       "id": "acct-work",
+       "ref": "acct1",
+       "name": "Work Pro"
+      }
+     ],
+     "matching": "each",
+     "conditions": [
+      {
+       "type": "runway_below",
+       "param": 10
+      }
+     ],
+     "lifetime": "today",
+     "until": null,
+     "lifetime_said": false,
+     "even_in_quiet_hours": false
+    }
+   }
+  },
+  {
+   "corpus": "watch5",
+   "job": "watch",
+   "setting": "main",
+   "id": "W010",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"intent\": \"create\", \"targets\": [\"s5\"], \"matching\": \"each\", \"conditions\": [{\"type\": \"finishes\", \"param\": \"none\"}], \"lifetime\": \"unsaid\", \"until\": \"none\", \"unsupported_asked\": \"none\", \"nearest\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1221,
+     "gen_ms": 1220.938125,
+     "out_tokens": 63,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2886,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "watch",
+    "shown": "Tell you when “DB migration” finishes. Once.",
+    "model_text": [],
+    "notes": [
+     "a draft: written only when the user clicks Watch"
+    ],
+    "watch": {
+     "targets": [
+      {
+       "kind": "session",
+       "id": "s-mig",
+       "ref": "s5",
+       "name": "DB migration"
+      }
+     ],
+     "matching": "each",
+     "conditions": [
+      {
+       "type": "finishes",
+       "param": null
+      }
+     ],
+     "lifetime": "once",
+     "until": null,
+     "lifetime_said": false,
+     "even_in_quiet_hours": false
+    }
+   }
+  },
+  {
+   "corpus": "watch5",
+   "job": "watch",
+   "setting": "main",
+   "id": "W011",
+   "rep": 0,
+   "model_called": true,
+   "used": 1,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"intent\": \"create\", \"targets\": [\"s2\"], \"matching\": \"each\", \"conditions\": [{\"type\": \"starts\", \"param\": \"none\"}], \"lifetime\": \"unsaid\", \"until\": \"none\", \"unsupported_asked\": \"none\", \"nearest\": \"starts\"}",
+     "finish": "stop",
+     "latency_ms": 1199,
+     "gen_ms": 1198.817458,
+     "out_tokens": 62,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2894,
+     "cut": false,
+     "retry_note": false,
+     "errors": [
+      "target: s2 “Checkout redesign” is not named in the request"
+     ],
+     "ok": false,
+     "soft": []
+    },
+    {
+     "attempt": 1,
+     "text": "{\"intent\": \"create\", \"targets\": [\"app2\"], \"matching\": \"each\", \"conditions\": [{\"type\": \"starts\", \"param\": \"none\"}], \"lifetime\": \"unsaid\", \"until\": \"none\", \"unsupported_asked\": \"none\", \"nearest\": \"starts\"}",
+     "finish": "stop",
+     "latency_ms": 1202,
+     "gen_ms": 1202.3270420000001,
+     "out_tokens": 62,
+     "error": "",
+     "refused": false,
+     "est_tokens": 3014,
+     "cut": false,
+     "retry_note": true,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "watch",
+    "shown": "Tell you when “Claude app · Personal” starts a new session. Until midnight today.",
+    "model_text": [],
+    "notes": [
+     "a draft: written only when the user clicks Watch"
+    ],
+    "watch": {
+     "targets": [
+      {
+       "kind": "app",
+       "id": "app-claude-personal",
+       "ref": "app2",
+       "name": "Claude app · Personal"
+      }
+     ],
+     "matching": "each",
+     "conditions": [
+      {
+       "type": "starts",
+       "param": null
+      }
+     ],
+     "lifetime": "today",
+     "until": null,
+     "lifetime_said": false,
+     "even_in_quiet_hours": false
+    }
+   }
+  },
+  {
+   "corpus": "watch5",
+   "job": "watch",
+   "setting": "main",
+   "id": "W012",
+   "rep": 0,
+   "model_called": true,
+   "used": 1,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"intent\": \"create\", \"targets\": [\"s1\", \"s2\", \"s3\", \"s4\", \"s5\", \"app1\", \"app2\", \"app3\", \"app4\", \"app5\"], \"matching\": \"each\", \"conditions\": [{\"type\": \"asks_you\", \"param\": \"none\"}], \"lifetime\": \"today\", \"until\": \"none\", \"unsupported_asked\": \"none\", \"nearest\": \"asks_you\"}",
+     "finish": "stop",
+     "latency_ms": 1836,
+     "gen_ms": 1836.013042,
+     "out_tokens": 99,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2893,
+     "cut": false,
+     "retry_note": false,
+     "errors": [
+      "target: s1 “Invoice rounding fix” is not named in the request",
+      "target: s2 “Checkout redesign” is not named in the request",
+      "target: s3 “Rewrite quickstart” is not named in the request",
+      "target: s4 “Training loop” is not named in the request",
+      "target: s5 “DB migration” is not named in the request",
+      "target: app1 “Claude Code CLI · Work” is not named in the request",
+      "target: app2 “Claude app · Personal” is not named in the request",
+      "target: app3 “Cursor” is not named in the request",
+      "target: app4 “Claude Code CLI · Lab” is not named in the request",
+      "target: app5 “Codex CLI · Work” is not named in the request"
+     ],
+     "ok": false,
+     "soft": []
+    },
+    {
+     "attempt": 1,
+     "text": "{\"intent\": \"create\", \"targets\": [\"any\"], \"matching\": \"each\", \"conditions\": [{\"type\": \"asks_you\", \"param\": \"none\"}], \"lifetime\": \"today\", \"until\": \"none\", \"unsupported_asked\": \"none\", \"nearest\": \"asks_you\"}",
+     "finish": "stop",
+     "latency_ms": 1236,
+     "gen_ms": 1235.8425,
+     "out_tokens": 62,
+     "error": "",
+     "refused": false,
+     "est_tokens": 3135,
+     "cut": false,
+     "retry_note": true,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "watch",
+    "shown": "Tell you when “any session” asks you. Until midnight today.",
+    "model_text": [],
+    "notes": [
+     "a draft: written only when the user clicks Watch"
+    ],
+    "watch": {
+     "targets": [
+      {
+       "kind": "any",
+       "id": "any",
+       "ref": "any",
+       "name": "any session"
+      }
+     ],
+     "matching": "each",
+     "conditions": [
+      {
+       "type": "asks_you",
+       "param": null
+      }
+     ],
+     "lifetime": "today",
+     "until": null,
+     "lifetime_said": true,
+     "even_in_quiet_hours": false
+    }
+   }
+  },
+  {
+   "corpus": "watch5",
+   "job": "watch",
+   "setting": "main",
+   "id": "W013",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"intent\": \"create\", \"targets\": [\"s4\"], \"matching\": \"each\", \"conditions\": [{\"type\": \"stuck\", \"param\": \"30\"}], \"lifetime\": \"unsaid\", \"until\": \"none\", \"unsupported_asked\": \"none\", \"nearest\": \"stuck\"}",
+     "finish": "stop",
+     "latency_ms": 1225,
+     "gen_ms": 1225.009,
+     "out_tokens": 65,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2893,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "watch",
+    "shown": "Tell you when “Training loop” looks stuck for 30 minutes. Until midnight today.",
+    "model_text": [],
+    "notes": [
+     "a draft: written only when the user clicks Watch"
+    ],
+    "watch": {
+     "targets": [
+      {
+       "kind": "session",
+       "id": "s-ml",
+       "ref": "s4",
+       "name": "Training loop"
+      }
+     ],
+     "matching": "each",
+     "conditions": [
+      {
+       "type": "stuck",
+       "param": 30
+      }
+     ],
+     "lifetime": "today",
+     "until": null,
+     "lifetime_said": false,
+     "even_in_quiet_hours": false
+    }
+   }
+  },
+  {
+   "corpus": "watch5",
+   "job": "watch",
+   "setting": "main",
+   "id": "W014",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"intent\": \"create\", \"targets\": [\"p2\"], \"matching\": \"each\", \"conditions\": [{\"type\": \"fails\", \"param\": \"none\"}, {\"type\": \"finishes\", \"param\": \"none\"}], \"lifetime\": \"until_time\", \"until\": \"17:00\", \"unsupported_asked\": \"none\", \"nearest\": \"finishes\"}",
+     "finish": "stop",
+     "latency_ms": 1427,
+     "gen_ms": 1427.2856250000002,
+     "out_tokens": 80,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2894,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "watch",
+    "shown": "Tell you when “webshop” fails, or finishes. Until 17:00.",
+    "model_text": [],
+    "notes": [
+     "a draft: written only when the user clicks Watch"
+    ],
+    "watch": {
+     "targets": [
+      {
+       "kind": "project",
+       "id": "proj-webshop",
+       "ref": "p2",
+       "name": "webshop"
+      }
+     ],
+     "matching": "each",
+     "conditions": [
+      {
+       "type": "fails",
+       "param": null
+      },
+      {
+       "type": "finishes",
+       "param": null
+      }
+     ],
+     "lifetime": "until_time",
+     "until": "17:00",
+     "lifetime_said": true,
+     "even_in_quiet_hours": false
+    }
+   }
+  },
+  {
+   "corpus": "watch5",
+   "job": "watch",
+   "setting": "main",
+   "id": "W015",
+   "rep": 0,
+   "model_called": true,
+   "used": "fallback",
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"intent\": \"create\", \"targets\": [\"s5\"], \"matching\": \"each\", \"conditions\": [{\"type\": \"ends\", \"param\": \"none\"}], \"lifetime\": \"unsaid\", \"until\": \"none\", \"unsupported_asked\": \"none\", \"nearest\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1169,
+     "gen_ms": 1169.244291,
+     "out_tokens": 62,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2886,
+     "cut": false,
+     "retry_note": false,
+     "errors": [
+      "target: s5 “DB migration” is not named in the request"
+     ],
+     "ok": false,
+     "soft": []
+    },
+    {
+     "attempt": 1,
+     "text": "{\"intent\": \"create\", \"targets\": [\"s5\"], \"matching\": \"each\", \"conditions\": [{\"type\": \"ends\", \"param\": \"none\"}], \"lifetime\": \"unsaid\", \"until\": \"none\", \"unsupported_asked\": \"none\", \"nearest\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1200,
+     "gen_ms": 1199.508167,
+     "out_tokens": 62,
+     "error": "",
+     "refused": false,
+     "est_tokens": 3003,
+     "cut": false,
+     "retry_note": true,
+     "errors": [
+      "target: s5 “DB migration” is not named in the request"
+     ],
+     "ok": false,
+     "soft": []
+    },
+    {
+     "attempt": 2,
+     "text": "{\"intent\": \"create\", \"targets\": [\"s5\"], \"matching\": \"each\", \"conditions\": [{\"type\": \"ends\", \"param\": \"none\"}], \"lifetime\": \"unsaid\", \"until\": \"none\", \"unsupported_asked\": \"none\", \"nearest\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1187,
+     "gen_ms": 1186.3410000000001,
+     "out_tokens": 62,
+     "error": "",
+     "refused": false,
+     "est_tokens": 3003,
+     "cut": false,
+     "retry_note": true,
+     "errors": [
+      "target: s5 “DB migration” is not named in the request"
+     ],
+     "ok": false,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "form",
+    "shown": "I couldn't set that up from your words. New watch… opens the form.",
+    "model_text": [],
+    "notes": [
+     "every attempt failed its checks: the Watches form"
+    ]
+   }
+  },
+  {
+   "corpus": "watch5",
+   "job": "watch",
+   "setting": "main",
+   "id": "W016",
+   "rep": 0,
+   "model_called": true,
+   "used": "fallback",
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"intent\": \"create\", \"targets\": [\"s3\"], \"matching\": \"each\", \"conditions\": [{\"type\": \"stuck\", \"param\": \"5\"}, {\"type\": \"finishes\", \"param\": \"none\"}], \"lifetime\": \"unsaid\", \"until\": \"none\", \"unsupported_asked\": \"none\", \"nearest\": \"stuck\"}",
+     "finish": "stop",
+     "latency_ms": 1425,
+     "gen_ms": 1424.566458,
+     "out_tokens": 77,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2896,
+     "cut": false,
+     "retry_note": false,
+     "errors": [
+      "target: s3 “Rewrite quickstart” is not named in the request"
+     ],
+     "ok": false,
+     "soft": []
+    },
+    {
+     "attempt": 1,
+     "text": "{\"intent\": \"create\", \"targets\": [\"s3\"], \"matching\": \"each\", \"conditions\": [{\"type\": \"stuck\", \"param\": \"5\"}, {\"type\": \"finishes\", \"param\": \"none\"}], \"lifetime\": \"unsaid\", \"until\": \"none\", \"unsupported_asked\": \"none\", \"nearest\": \"stuck\"}",
+     "finish": "stop",
+     "latency_ms": 1387,
+     "gen_ms": 1386.361792,
+     "out_tokens": 77,
+     "error": "",
+     "refused": false,
+     "est_tokens": 3025,
+     "cut": false,
+     "retry_note": true,
+     "errors": [
+      "target: s3 “Rewrite quickstart” is not named in the request"
+     ],
+     "ok": false,
+     "soft": []
+    },
+    {
+     "attempt": 2,
+     "text": "{\"intent\": \"create\", \"targets\": [\"s3\"], \"matching\": \"each\", \"conditions\": [{\"type\": \"stuck\", \"param\": \"5\"}, {\"type\": \"finishes\", \"param\": \"none\"}], \"lifetime\": \"unsaid\", \"until\": \"none\", \"unsupported_asked\": \"none\", \"nearest\": \"stuck\"}",
+     "finish": "stop",
+     "latency_ms": 1384,
+     "gen_ms": 1384.228333,
+     "out_tokens": 77,
+     "error": "",
+     "refused": false,
+     "est_tokens": 3025,
+     "cut": false,
+     "retry_note": true,
+     "errors": [
+      "target: s3 “Rewrite quickstart” is not named in the request"
+     ],
+     "ok": false,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "form",
+    "shown": "I couldn't set that up from your words. New watch… opens the form.",
+    "model_text": [],
+    "notes": [
+     "every attempt failed its checks: the Watches form"
+    ]
+   }
+  },
+  {
+   "corpus": "watch5",
+   "job": "watch",
+   "setting": "main",
+   "id": "W017",
+   "rep": 0,
+   "model_called": true,
+   "used": "fallback",
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"intent\": \"create\", \"targets\": [\"s1\"], \"matching\": \"each\", \"conditions\": [{\"type\": \"asks_you\", \"param\": \"none\"}], \"lifetime\": \"unsaid\", \"until\": \"none\", \"unsupported_asked\": \"none\", \"nearest\": \"asks_you\"}",
+     "finish": "stop",
+     "latency_ms": 1186,
+     "gen_ms": 1186.102541,
+     "out_tokens": 64,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2891,
+     "cut": false,
+     "retry_note": false,
+     "errors": [
+      "target: s1 “Invoice rounding fix” is not named in the request"
+     ],
+     "ok": false,
+     "soft": []
+    },
+    {
+     "attempt": 1,
+     "text": "{\"intent\": \"create\", \"targets\": [\"s1\"], \"matching\": \"each\", \"conditions\": [{\"type\": \"asks_you\", \"param\": \"none\"}], \"lifetime\": \"unsaid\", \"until\": \"none\", \"unsupported_asked\": \"none\", \"nearest\": \"asks_you\"}",
+     "finish": "stop",
+     "latency_ms": 1226,
+     "gen_ms": 1226.068375,
+     "out_tokens": 64,
+     "error": "",
+     "refused": false,
+     "est_tokens": 3013,
+     "cut": false,
+     "retry_note": true,
+     "errors": [
+      "target: s1 “Invoice rounding fix” is not named in the request"
+     ],
+     "ok": false,
+     "soft": []
+    },
+    {
+     "attempt": 2,
+     "text": "{\"intent\": \"create\", \"targets\": [\"s1\"], \"matching\": \"each\", \"conditions\": [{\"type\": \"asks_you\", \"param\": \"none\"}], \"lifetime\": \"unsaid\", \"until\": \"none\", \"unsupported_asked\": \"none\", \"nearest\": \"asks_you\"}",
+     "finish": "stop",
+     "latency_ms": 1229,
+     "gen_ms": 1229.114083,
+     "out_tokens": 64,
+     "error": "",
+     "refused": false,
+     "est_tokens": 3013,
+     "cut": false,
+     "retry_note": true,
+     "errors": [
+      "target: s1 “Invoice rounding fix” is not named in the request"
+     ],
+     "ok": false,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "form",
+    "shown": "I couldn't set that up from your words. New watch… opens the form.",
+    "model_text": [],
+    "notes": [
+     "every attempt failed its checks: the Watches form"
+    ]
+   }
+  },
+  {
+   "corpus": "watch5",
+   "job": "watch",
+   "setting": "main",
+   "id": "W018",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"intent\": \"create\", \"targets\": [\"acct2\"], \"matching\": \"each\", \"conditions\": [{\"type\": \"runway_below\", \"param\": \"25\"}], \"lifetime\": \"unsaid\", \"until\": \"none\", \"unsupported_asked\": \"none\", \"nearest\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1206,
+     "gen_ms": 1205.8193749999998,
+     "out_tokens": 65,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2896,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "watch",
+    "shown": "Tell you when “Personal” runs below 25 %. Until midnight today.",
+    "model_text": [],
+    "notes": [
+     "a draft: written only when the user clicks Watch"
+    ],
+    "watch": {
+     "targets": [
+      {
+       "kind": "account",
+       "id": "acct-personal",
+       "ref": "acct2",
+       "name": "Personal"
+      }
+     ],
+     "matching": "each",
+     "conditions": [
+      {
+       "type": "runway_below",
+       "param": 25
+      }
+     ],
+     "lifetime": "today",
+     "until": null,
+     "lifetime_said": false,
+     "even_in_quiet_hours": false
+    }
+   }
+  },
+  {
+   "corpus": "watch5",
+   "job": "watch",
+   "setting": "main",
+   "id": "W019",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"intent\": \"create\", \"targets\": [\"s5\"], \"matching\": \"each\", \"conditions\": [{\"type\": \"fails\", \"param\": \"none\"}], \"lifetime\": \"unsaid\", \"until\": \"none\", \"unsupported_asked\": \"none\", \"nearest\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1160,
+     "gen_ms": 1160.1584579999999,
+     "out_tokens": 62,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2889,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "watch",
+    "shown": "Tell you when “DB migration” fails. Until midnight today.",
+    "model_text": [],
+    "notes": [
+     "a draft: written only when the user clicks Watch"
+    ],
+    "watch": {
+     "targets": [
+      {
+       "kind": "session",
+       "id": "s-mig",
+       "ref": "s5",
+       "name": "DB migration"
+      }
+     ],
+     "matching": "each",
+     "conditions": [
+      {
+       "type": "fails",
+       "param": null
+      }
+     ],
+     "lifetime": "today",
+     "until": null,
+     "lifetime_said": false,
+     "even_in_quiet_hours": false
+    }
+   }
+  },
+  {
+   "corpus": "watch5",
+   "job": "watch",
+   "setting": "main",
+   "id": "W020",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"intent\": \"create\", \"targets\": [\"acct3\"], \"matching\": \"each\", \"conditions\": [{\"type\": \"runway_below\", \"param\": \"20\"}, {\"type\": \"fails\", \"param\": \"none\"}], \"lifetime\": \"unsaid\", \"until\": \"none\", \"unsupported_asked\": \"none\", \"nearest\": \"fails\"}",
+     "finish": "stop",
+     "latency_ms": 1351,
+     "gen_ms": 1350.771583,
+     "out_tokens": 77,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2894,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “fails (Lab)”. I can watch your agents for: finish, end, ask you, fail, look stuck…",
+    "model_text": [],
+    "notes": [
+     "unsupported (observes)"
+    ],
+    "nearest": null,
+    "via": "observes",
+    "asked": "fails (Lab)"
+   }
+  },
+  {
+   "corpus": "watch5",
+   "job": "watch",
+   "setting": "main",
+   "id": "W021",
+   "rep": 0,
+   "model_called": true,
+   "used": "fallback",
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"intent\": \"create\", \"targets\": [\"s2\"], \"matching\": \"each\", \"conditions\": [{\"type\": \"finishes\", \"param\": \"none\"}], \"lifetime\": \"unsaid\", \"until\": \"none\", \"unsupported_asked\": \"none\", \"nearest\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1165,
+     "gen_ms": 1164.757042,
+     "out_tokens": 63,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2889,
+     "cut": false,
+     "retry_note": false,
+     "errors": [
+      "target: s2 “Checkout redesign” is not named in the request"
+     ],
+     "ok": false,
+     "soft": []
+    },
+    {
+     "attempt": 1,
+     "text": "{\"intent\": \"create\", \"targets\": [\"s2\"], \"matching\": \"each\", \"conditions\": [{\"type\": \"finishes\", \"param\": \"none\"}], \"lifetime\": \"unsaid\", \"until\": \"none\", \"unsupported_asked\": \"none\", \"nearest\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1190,
+     "gen_ms": 1189.799,
+     "out_tokens": 63,
+     "error": "",
+     "refused": false,
+     "est_tokens": 3009,
+     "cut": false,
+     "retry_note": true,
+     "errors": [
+      "target: s2 “Checkout redesign” is not named in the request"
+     ],
+     "ok": false,
+     "soft": []
+    },
+    {
+     "attempt": 2,
+     "text": "{\"intent\": \"create\", \"targets\": [\"s2\"], \"matching\": \"each\", \"conditions\": [{\"type\": \"finishes\", \"param\": \"none\"}], \"lifetime\": \"unsaid\", \"until\": \"none\", \"unsupported_asked\": \"none\", \"nearest\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1213,
+     "gen_ms": 1213.291208,
+     "out_tokens": 63,
+     "error": "",
+     "refused": false,
+     "est_tokens": 3009,
+     "cut": false,
+     "retry_note": true,
+     "errors": [
+      "target: s2 “Checkout redesign” is not named in the request"
+     ],
+     "ok": false,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "form",
+    "shown": "I couldn't set that up from your words. New watch… opens the form.",
+    "model_text": [],
+    "notes": [
+     "every attempt failed its checks: the Watches form"
+    ]
+   }
+  },
+  {
+   "corpus": "watch5",
+   "job": "watch",
+   "setting": "main",
+   "id": "W022",
+   "rep": 0,
+   "model_called": true,
+   "used": "fallback",
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"intent\": \"create\", \"targets\": [\"p3\"], \"matching\": \"each\", \"conditions\": [{\"type\": \"finishes\", \"param\": \"none\"}], \"lifetime\": \"unsaid\", \"until\": \"none\", \"unsupported_asked\": \"none\", \"nearest\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1163,
+     "gen_ms": 1163.152709,
+     "out_tokens": 63,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2892,
+     "cut": false,
+     "retry_note": false,
+     "errors": [
+      "target: p3 “docs-site” is not named in the request"
+     ],
+     "ok": false,
+     "soft": []
+    },
+    {
+     "attempt": 1,
+     "text": "{\"intent\": \"create\", \"targets\": [\"p3\"], \"matching\": \"each\", \"conditions\": [{\"type\": \"finishes\", \"param\": \"none\"}], \"lifetime\": \"unsaid\", \"until\": \"none\", \"unsupported_asked\": \"none\", \"nearest\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1196,
+     "gen_ms": 1195.4048340000002,
+     "out_tokens": 63,
+     "error": "",
+     "refused": false,
+     "est_tokens": 3010,
+     "cut": false,
+     "retry_note": true,
+     "errors": [
+      "target: p3 “docs-site” is not named in the request"
+     ],
+     "ok": false,
+     "soft": []
+    },
+    {
+     "attempt": 2,
+     "text": "{\"intent\": \"create\", \"targets\": [\"p3\"], \"matching\": \"each\", \"conditions\": [{\"type\": \"finishes\", \"param\": \"none\"}], \"lifetime\": \"unsaid\", \"until\": \"none\", \"unsupported_asked\": \"none\", \"nearest\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1188,
+     "gen_ms": 1187.909041,
+     "out_tokens": 63,
+     "error": "",
+     "refused": false,
+     "est_tokens": 3010,
+     "cut": false,
+     "retry_note": true,
+     "errors": [
+      "target: p3 “docs-site” is not named in the request"
+     ],
+     "ok": false,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "form",
+    "shown": "I couldn't set that up from your words. New watch… opens the form.",
+    "model_text": [],
+    "notes": [
+     "every attempt failed its checks: the Watches form"
+    ]
+   }
+  },
+  {
+   "corpus": "watch5",
+   "job": "watch",
+   "setting": "main",
+   "id": "W023",
+   "rep": 0,
+   "model_called": true,
+   "used": "fallback",
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"intent\": \"create\", \"targets\": [\"s4\"], \"matching\": \"each\", \"conditions\": [{\"type\": \"starts\", \"param\": \"none\"}], \"lifetime\": \"unsaid\", \"until\": \"none\", \"unsupported_asked\": \"none\", \"nearest\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1154,
+     "gen_ms": 1153.6799580000002,
+     "out_tokens": 62,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2887,
+     "cut": false,
+     "retry_note": false,
+     "errors": [
+      "target: s4 “Training loop” is not named in the request"
+     ],
+     "ok": false,
+     "soft": []
+    },
+    {
+     "attempt": 1,
+     "text": "{\"intent\": \"create\", \"targets\": [\"s4\"], \"matching\": \"each\", \"conditions\": [{\"type\": \"starts\", \"param\": \"none\"}], \"lifetime\": \"unsaid\", \"until\": \"none\", \"unsupported_asked\": \"none\", \"nearest\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1178,
+     "gen_ms": 1177.848416,
+     "out_tokens": 62,
+     "error": "",
+     "refused": false,
+     "est_tokens": 3005,
+     "cut": false,
+     "retry_note": true,
+     "errors": [
+      "target: s4 “Training loop” is not named in the request"
+     ],
+     "ok": false,
+     "soft": []
+    },
+    {
+     "attempt": 2,
+     "text": "{\"intent\": \"create\", \"targets\": [\"s4\"], \"matching\": \"each\", \"conditions\": [{\"type\": \"starts\", \"param\": \"none\"}], \"lifetime\": \"unsaid\", \"until\": \"none\", \"unsupported_asked\": \"none\", \"nearest\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1194,
+     "gen_ms": 1193.6949160000001,
+     "out_tokens": 62,
+     "error": "",
+     "refused": false,
+     "est_tokens": 3005,
+     "cut": false,
+     "retry_note": true,
+     "errors": [
+      "target: s4 “Training loop” is not named in the request"
+     ],
+     "ok": false,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "form",
+    "shown": "I couldn't set that up from your words. New watch… opens the form.",
+    "model_text": [],
+    "notes": [
+     "every attempt failed its checks: the Watches form"
+    ]
+   }
+  },
+  {
+   "corpus": "watch5",
+   "job": "watch",
+   "setting": "main",
+   "id": "W024",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"intent\": \"create\", \"targets\": [\"s3\"], \"matching\": \"each\", \"conditions\": [{\"type\": \"asks_you\", \"param\": \"none\"}], \"lifetime\": \"unsaid\", \"until\": \"none\", \"unsupported_asked\": \"none\", \"nearest\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1207,
+     "gen_ms": 1206.682834,
+     "out_tokens": 63,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2887,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "watch",
+    "shown": "Tell you when “Rewrite quickstart” asks you. Until midnight today.",
+    "model_text": [],
+    "notes": [
+     "a draft: written only when the user clicks Watch"
+    ],
+    "watch": {
+     "targets": [
+      {
+       "kind": "session",
+       "id": "s-docs",
+       "ref": "s3",
+       "name": "Rewrite quickstart"
+      }
+     ],
+     "matching": "each",
+     "conditions": [
+      {
+       "type": "asks_you",
+       "param": null
+      }
+     ],
+     "lifetime": "today",
+     "until": null,
+     "lifetime_said": false,
+     "even_in_quiet_hours": false
+    }
+   }
+  },
+  {
+   "corpus": "watch5",
+   "job": "watch",
+   "setting": "main",
+   "id": "W025",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"intent\": \"create\", \"targets\": [\"acct1\"], \"matching\": \"each\", \"conditions\": [{\"type\": \"runway_below\", \"param\": \"5\"}], \"lifetime\": \"unsaid\", \"until\": \"none\", \"unsupported_asked\": \"none\", \"nearest\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1229,
+     "gen_ms": 1229.0230410000001,
+     "out_tokens": 64,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2890,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "watch",
+    "shown": "Tell you when “Work Pro” runs below 5 %. Until midnight today.",
+    "model_text": [],
+    "notes": [
+     "a draft: written only when the user clicks Watch"
+    ],
+    "watch": {
+     "targets": [
+      {
+       "kind": "account",
+       "id": "acct-work",
+       "ref": "acct1",
+       "name": "Work Pro"
+      }
+     ],
+     "matching": "each",
+     "conditions": [
+      {
+       "type": "runway_below",
+       "param": 5
+      }
+     ],
+     "lifetime": "today",
+     "until": null,
+     "lifetime_said": false,
+     "even_in_quiet_hours": false
+    }
+   }
+  },
+  {
+   "corpus": "watch5",
+   "job": "watch",
+   "setting": "main",
+   "id": "W026",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"intent\": \"create\", \"targets\": [\"acct1\"], \"matching\": \"each\", \"conditions\": [{\"type\": \"ends\", \"param\": \"none\"}], \"lifetime\": \"unsaid\", \"until\": \"none\", \"unsupported_asked\": \"none\", \"nearest\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1192,
+     "gen_ms": 1191.7580830000002,
+     "out_tokens": 62,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2890,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “ends (Work Pro)”. I can watch your agents for: finish, end, ask you, fail, look stuck…",
+    "model_text": [],
+    "notes": [
+     "unsupported (observes)"
+    ],
+    "nearest": null,
+    "via": "observes",
+    "asked": "ends (Work Pro)"
+   }
+  },
+  {
+   "corpus": "watch5",
+   "job": "watch",
+   "setting": "main",
+   "id": "W027",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"intent\": \"create\", \"targets\": [\"s5\"], \"matching\": \"each\", \"conditions\": [{\"type\": \"asks_you\", \"param\": \"none\"}, {\"type\": \"finishes\", \"param\": \"none\"}], \"lifetime\": \"unsaid\", \"until\": \"none\", \"unsupported_asked\": \"none\", \"nearest\": \"finishes\"}",
+     "finish": "stop",
+     "latency_ms": 1365,
+     "gen_ms": 1365.066667,
+     "out_tokens": 77,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2899,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "watch",
+    "shown": "Tell you when “DB migration” asks you, or finishes. Until midnight today.",
+    "model_text": [],
+    "notes": [
+     "a draft: written only when the user clicks Watch"
+    ],
+    "watch": {
+     "targets": [
+      {
+       "kind": "session",
+       "id": "s-mig",
+       "ref": "s5",
+       "name": "DB migration"
+      }
+     ],
+     "matching": "each",
+     "conditions": [
+      {
+       "type": "asks_you",
+       "param": null
+      },
+      {
+       "type": "finishes",
+       "param": null
+      }
+     ],
+     "lifetime": "today",
+     "until": null,
+     "lifetime_said": false,
+     "even_in_quiet_hours": false
+    }
+   }
+  },
+  {
+   "corpus": "watch5",
+   "job": "watch",
+   "setting": "main",
+   "id": "W028",
+   "rep": 0,
+   "model_called": true,
+   "used": "fallback",
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"intent\": \"create\", \"targets\": [\"s4\"], \"matching\": \"each\", \"conditions\": [{\"type\": \"runway_below\", \"param\": \"10\"}], \"lifetime\": \"unsaid\", \"until\": \"none\", \"unsupported_asked\": \"none\", \"nearest\": \"runway_below\"}",
+     "finish": "stop",
+     "latency_ms": 1248,
+     "gen_ms": 1248.313333,
+     "out_tokens": 67,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2889,
+     "cut": false,
+     "retry_note": false,
+     "errors": [
+      "target: s4 “Training loop” is not named in the request"
+     ],
+     "ok": false,
+     "soft": []
+    },
+    {
+     "attempt": 1,
+     "text": "{\"intent\": \"create\", \"targets\": [\"app4\"], \"matching\": \"each\", \"conditions\": [{\"type\": \"runway_below\", \"param\": \"10\"}], \"lifetime\": \"unsaid\", \"until\": \"none\", \"unsupported_asked\": \"none\", \"nearest\": \"runway_below\"}",
+     "finish": "stop",
+     "latency_ms": 1262,
+     "gen_ms": 1261.376459,
+     "out_tokens": 67,
+     "error": "",
+     "refused": false,
+     "est_tokens": 3011,
+     "cut": false,
+     "retry_note": true,
+     "errors": [
+      "target: app4 “Claude Code CLI · Lab” is not named in the request"
+     ],
+     "ok": false,
+     "soft": []
+    },
+    {
+     "attempt": 2,
+     "text": "{\"intent\": \"create\", \"targets\": [\"s4\"], \"matching\": \"each\", \"conditions\": [{\"type\": \"runway_below\", \"param\": \"10\"}], \"lifetime\": \"unsaid\", \"until\": \"none\", \"unsupported_asked\": \"none\", \"nearest\": \"runway_below\"}",
+     "finish": "stop",
+     "latency_ms": 1270,
+     "gen_ms": 1269.4903749999999,
+     "out_tokens": 67,
+     "error": "",
+     "refused": false,
+     "est_tokens": 3014,
+     "cut": false,
+     "retry_note": true,
+     "errors": [
+      "target: s4 “Training loop” is not named in the request"
+     ],
+     "ok": false,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "form",
+    "shown": "I couldn't set that up from your words. New watch… opens the form.",
+    "model_text": [],
+    "notes": [
+     "every attempt failed its checks: the Watches form"
+    ]
+   }
+  },
+  {
+   "corpus": "watch5",
+   "job": "watch",
+   "setting": "main",
+   "id": "W029",
+   "rep": 0,
+   "model_called": true,
+   "used": "fallback",
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"intent\": \"create\", \"targets\": [\"s2\"], \"matching\": \"each\", \"conditions\": [{\"type\": \"stuck\", \"param\": \"60\"}], \"lifetime\": \"unsaid\", \"until\": \"none\", \"unsupported_asked\": \"none\", \"nearest\": \"stuck\"}",
+     "finish": "stop",
+     "latency_ms": 1204,
+     "gen_ms": 1203.381417,
+     "out_tokens": 65,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2893,
+     "cut": false,
+     "retry_note": false,
+     "errors": [
+      "target: s2 “Checkout redesign” is not named in the request"
+     ],
+     "ok": false,
+     "soft": []
+    },
+    {
+     "attempt": 1,
+     "text": "{\"intent\": \"create\", \"targets\": [\"s2\"], \"matching\": \"each\", \"conditions\": [{\"type\": \"stuck\", \"param\": \"60\"}], \"lifetime\": \"unsaid\", \"until\": \"none\", \"unsupported_asked\": \"none\", \"nearest\": \"stuck\"}",
+     "finish": "stop",
+     "latency_ms": 1225,
+     "gen_ms": 1224.469041,
+     "out_tokens": 65,
+     "error": "",
+     "refused": false,
+     "est_tokens": 3012,
+     "cut": false,
+     "retry_note": true,
+     "errors": [
+      "target: s2 “Checkout redesign” is not named in the request"
+     ],
+     "ok": false,
+     "soft": []
+    },
+    {
+     "attempt": 2,
+     "text": "{\"intent\": \"create\", \"targets\": [\"s2\"], \"matching\": \"each\", \"conditions\": [{\"type\": \"stuck\", \"param\": \"60\"}], \"lifetime\": \"unsaid\", \"until\": \"none\", \"unsupported_asked\": \"none\", \"nearest\": \"stuck\"}",
+     "finish": "stop",
+     "latency_ms": 1246,
+     "gen_ms": 1246.2525,
+     "out_tokens": 65,
+     "error": "",
+     "refused": false,
+     "est_tokens": 3012,
+     "cut": false,
+     "retry_note": true,
+     "errors": [
+      "target: s2 “Checkout redesign” is not named in the request"
+     ],
+     "ok": false,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "form",
+    "shown": "I couldn't set that up from your words. New watch… opens the form.",
+    "model_text": [],
+    "notes": [
+     "every attempt failed its checks: the Watches form"
+    ]
+   }
+  },
+  {
+   "corpus": "watch5",
+   "job": "watch",
+   "setting": "main",
+   "id": "W030",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"intent\": \"create\", \"targets\": [\"s1\"], \"matching\": \"each\", \"conditions\": [{\"type\": \"finishes\", \"param\": \"none\"}], \"lifetime\": \"unsaid\", \"until\": \"none\", \"unsupported_asked\": \"none\", \"nearest\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1181,
+     "gen_ms": 1180.7574590000002,
+     "out_tokens": 63,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2869,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "watch",
+    "shown": "Ich sage dir Bescheid, wenn “Mahnlauf” fertig ist. Einmal.",
+    "model_text": [],
+    "notes": [
+     "a draft: written only when the user clicks Watch"
+    ],
+    "watch": {
+     "targets": [
+      {
+       "kind": "session",
+       "id": "s-rech",
+       "ref": "s1",
+       "name": "Mahnlauf"
+      }
+     ],
+     "matching": "each",
+     "conditions": [
+      {
+       "type": "finishes",
+       "param": null
+      }
+     ],
+     "lifetime": "once",
+     "until": null,
+     "lifetime_said": false,
+     "even_in_quiet_hours": false
+    }
+   }
+  },
+  {
+   "corpus": "watch5",
+   "job": "watch",
+   "setting": "main",
+   "id": "W031",
+   "rep": 0,
+   "model_called": true,
+   "used": "fallback",
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"intent\": \"create\", \"targets\": [\"s2\"], \"matching\": \"each\", \"conditions\": [{\"type\": \"asks_you\", \"param\": \"none\"}, {\"type\": \"stuck\", \"param\": \"15\"}], \"lifetime\": \"unsaid\", \"until\": \"none\", \"unsupported_asked\": \"none\", \"nearest\": \"stuck\"}",
+     "finish": "stop",
+     "latency_ms": 1388,
+     "gen_ms": 1388.259333,
+     "out_tokens": 78,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2874,
+     "cut": false,
+     "retry_note": false,
+     "errors": [
+      "target: s2 “Login-Flow” is not named in the request"
+     ],
+     "ok": false,
+     "soft": []
+    },
+    {
+     "attempt": 1,
+     "text": "{\"intent\": \"create\", \"targets\": [\"s2\"], \"matching\": \"each\", \"conditions\": [{\"type\": \"asks_you\", \"param\": \"none\"}, {\"type\": \"stuck\", \"param\": \"15\"}], \"lifetime\": \"unsaid\", \"until\": \"none\", \"unsupported_asked\": \"none\", \"nearest\": \"stuck\"}",
+     "finish": "stop",
+     "latency_ms": 1453,
+     "gen_ms": 1452.469958,
+     "out_tokens": 78,
+     "error": "",
+     "refused": false,
+     "est_tokens": 3002,
+     "cut": false,
+     "retry_note": true,
+     "errors": [
+      "target: s2 “Login-Flow” is not named in the request"
+     ],
+     "ok": false,
+     "soft": []
+    },
+    {
+     "attempt": 2,
+     "text": "{\"intent\": \"create\", \"targets\": [\"s2\"], \"matching\": \"each\", \"conditions\": [{\"type\": \"asks_you\", \"param\": \"none\"}, {\"type\": \"stuck\", \"param\": \"15\"}], \"lifetime\": \"unsaid\", \"until\": \"none\", \"unsupported_asked\": \"none\", \"nearest\": \"stuck\"}",
+     "finish": "stop",
+     "latency_ms": 1461,
+     "gen_ms": 1460.866083,
+     "out_tokens": 78,
+     "error": "",
+     "refused": false,
+     "est_tokens": 3002,
+     "cut": false,
+     "retry_note": true,
+     "errors": [
+      "target: s2 “Login-Flow” is not named in the request"
+     ],
+     "ok": false,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "form",
+    "shown": "Das konnte ich nicht einrichten. „Neue Beobachtung…“ öffnet das Formular.",
+    "model_text": [],
+    "notes": [
+     "every attempt failed its checks: the Watches form"
+    ]
+   }
+  },
+  {
+   "corpus": "watch5",
+   "job": "watch",
+   "setting": "main",
+   "id": "W032",
+   "rep": 0,
+   "model_called": true,
+   "used": 1,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"intent\": \"create\", \"targets\": [\"s1\", \"s2\", \"s3\", \"s4\", \"s5\", \"app1\", \"app2\", \"app3\", \"app4\", \"app5\"], \"matching\": \"each\", \"conditions\": [{\"type\": \"fails\", \"param\": \"none\"}], \"lifetime\": \"unsaid\", \"until\": \"none\", \"unsupported_asked\": \"none\", \"nearest\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1868,
+     "gen_ms": 1867.3264170000002,
+     "out_tokens": 98,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2871,
+     "cut": false,
+     "retry_note": false,
+     "errors": [
+      "target: s1 “Mahnlauf” is not named in the request",
+      "target: s2 “Login-Flow” is not named in the request",
+      "target: s3 “Testabdeckung” is not named in the request",
+      "target: s4 “Rate Limits” is not named in the request",
+      "target: s5 “Hero-Bild” is not named in the request",
+      "target: app1 “Claude app · Arbeit” is not named in the request",
+      "target: app2 “Codex CLI · Arbeit” is not named in the request",
+      "target: app3 “Claude Code CLI · Arbeit” is not named in the request",
+      "target: app4 “Claude Code CLI · Privat” is not named in the request",
+      "target: app5 “Cursor” is not named in the request"
+     ],
+     "ok": false,
+     "soft": []
+    },
+    {
+     "attempt": 1,
+     "text": "{\"intent\": \"create\", \"targets\": [\"any\"], \"matching\": \"each\", \"conditions\": [{\"type\": \"fails\", \"param\": \"none\"}], \"lifetime\": \"unsaid\", \"until\": \"none\", \"unsupported_asked\": \"none\", \"nearest\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1291,
+     "gen_ms": 1290.7065420000001,
+     "out_tokens": 61,
+     "error": "",
+     "refused": false,
+     "est_tokens": 3112,
+     "cut": false,
+     "retry_note": true,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "watch",
+    "shown": "Ich sage dir Bescheid, wenn “any session” fehlschlägt. Bis heute Mitternacht.",
+    "model_text": [],
+    "notes": [
+     "a draft: written only when the user clicks Watch"
+    ],
+    "watch": {
+     "targets": [
+      {
+       "kind": "any",
+       "id": "any",
+       "ref": "any",
+       "name": "any session"
+      }
+     ],
+     "matching": "each",
+     "conditions": [
+      {
+       "type": "fails",
+       "param": null
+      }
+     ],
+     "lifetime": "today",
+     "until": null,
+     "lifetime_said": false,
+     "even_in_quiet_hours": false
+    }
+   }
+  },
+  {
+   "corpus": "watch5",
+   "job": "watch",
+   "setting": "main",
+   "id": "W033",
+   "rep": 0,
+   "model_called": true,
+   "used": "fallback",
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"intent\": \"create\", \"targets\": [\"acct1\"], \"matching\": \"each\", \"conditions\": [{\"type\": \"runway_below\", \"param\": \"10\"}], \"lifetime\": \"unsaid\", \"until\": \"none\", \"unsupported_asked\": \"none\", \"nearest\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1268,
+     "gen_ms": 1267.7139579999998,
+     "out_tokens": 65,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2872,
+     "cut": false,
+     "retry_note": false,
+     "errors": [
+      "target: acct1 “Arbeit” is not named in the request"
+     ],
+     "ok": false,
+     "soft": []
+    },
+    {
+     "attempt": 1,
+     "text": "{\"intent\": \"create\", \"targets\": [\"acct1\"], \"matching\": \"each\", \"conditions\": [{\"type\": \"runway_below\", \"param\": \"10\"}], \"lifetime\": \"unsaid\", \"until\": \"none\", \"unsupported_asked\": \"none\", \"nearest\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1291,
+     "gen_ms": 1291.3235410000002,
+     "out_tokens": 65,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2991,
+     "cut": false,
+     "retry_note": true,
+     "errors": [
+      "target: acct1 “Arbeit” is not named in the request"
+     ],
+     "ok": false,
+     "soft": []
+    },
+    {
+     "attempt": 2,
+     "text": "{\"intent\": \"create\", \"targets\": [\"acct1\"], \"matching\": \"each\", \"conditions\": [{\"type\": \"runway_below\", \"param\": \"10\"}], \"lifetime\": \"unsaid\", \"until\": \"none\", \"unsupported_asked\": \"none\", \"nearest\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1296,
+     "gen_ms": 1295.6868749999999,
+     "out_tokens": 65,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2991,
+     "cut": false,
+     "retry_note": true,
+     "errors": [
+      "target: acct1 “Arbeit” is not named in the request"
+     ],
+     "ok": false,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "form",
+    "shown": "Das konnte ich nicht einrichten. „Neue Beobachtung…“ öffnet das Formular.",
+    "model_text": [],
+    "notes": [
+     "every attempt failed its checks: the Watches form"
+    ]
+   }
+  },
+  {
+   "corpus": "watch5",
+   "job": "watch",
+   "setting": "main",
+   "id": "W034",
+   "rep": 0,
+   "model_called": true,
+   "used": "fallback",
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"intent\": \"create\", \"targets\": [\"s4\"], \"matching\": \"each\", \"conditions\": [{\"type\": \"finishes\", \"param\": \"none\"}, {\"type\": \"fails\", \"param\": \"none\"}], \"lifetime\": \"unsaid\", \"until\": \"none\", \"unsupported_asked\": \"none\", \"nearest\": \"finishes\"}",
+     "finish": "stop",
+     "latency_ms": 1360,
+     "gen_ms": 1360.054417,
+     "out_tokens": 76,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2876,
+     "cut": false,
+     "retry_note": false,
+     "errors": [
+      "target: s4 “Rate Limits” is not named in the request"
+     ],
+     "ok": false,
+     "soft": []
+    },
+    {
+     "attempt": 1,
+     "text": "{\"intent\": \"create\", \"targets\": [\"s4\"], \"matching\": \"each\", \"conditions\": [{\"type\": \"finishes\", \"param\": \"none\"}, {\"type\": \"fails\", \"param\": \"none\"}], \"lifetime\": \"unsaid\", \"until\": \"none\", \"unsupported_asked\": \"none\", \"nearest\": \"finishes\"}",
+     "finish": "stop",
+     "latency_ms": 1382,
+     "gen_ms": 1381.864875,
+     "out_tokens": 76,
+     "error": "",
+     "refused": false,
+     "est_tokens": 3005,
+     "cut": false,
+     "retry_note": true,
+     "errors": [
+      "target: s4 “Rate Limits” is not named in the request"
+     ],
+     "ok": false,
+     "soft": []
+    },
+    {
+     "attempt": 2,
+     "text": "{\"intent\": \"create\", \"targets\": [\"s4\"], \"matching\": \"each\", \"conditions\": [{\"type\": \"finishes\", \"param\": \"none\"}, {\"type\": \"fails\", \"param\": \"none\"}], \"lifetime\": \"unsaid\", \"until\": \"none\", \"unsupported_asked\": \"none\", \"nearest\": \"finishes\"}",
+     "finish": "stop",
+     "latency_ms": 1412,
+     "gen_ms": 1412.0567079999998,
+     "out_tokens": 76,
+     "error": "",
+     "refused": false,
+     "est_tokens": 3005,
+     "cut": false,
+     "retry_note": true,
+     "errors": [
+      "target: s4 “Rate Limits” is not named in the request"
+     ],
+     "ok": false,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "form",
+    "shown": "Das konnte ich nicht einrichten. „Neue Beobachtung…“ öffnet das Formular.",
+    "model_text": [],
+    "notes": [
+     "every attempt failed its checks: the Watches form"
+    ]
+   }
+  },
+  {
+   "corpus": "watch5",
+   "job": "watch",
+   "setting": "main",
+   "id": "W035",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"intent\": \"create\", \"targets\": [\"s5\"], \"matching\": \"each\", \"conditions\": [{\"type\": \"finishes\", \"param\": \"none\"}], \"lifetime\": \"today\", \"until\": \"none\", \"unsupported_asked\": \"none\", \"nearest\": \"finishes\"}",
+     "finish": "stop",
+     "latency_ms": 1201,
+     "gen_ms": 1200.77875,
+     "out_tokens": 63,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2870,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "watch",
+    "shown": "Ich sage dir Bescheid, wenn “Hero-Bild” fertig ist. Bis heute Mitternacht.",
+    "model_text": [],
+    "notes": [
+     "a draft: written only when the user clicks Watch"
+    ],
+    "watch": {
+     "targets": [
+      {
+       "kind": "session",
+       "id": "s-hero",
+       "ref": "s5",
+       "name": "Hero-Bild"
+      }
+     ],
+     "matching": "each",
+     "conditions": [
+      {
+       "type": "finishes",
+       "param": null
+      }
+     ],
+     "lifetime": "today",
+     "until": null,
+     "lifetime_said": true,
+     "even_in_quiet_hours": false
+    }
+   }
+  },
+  {
+   "corpus": "watch5",
+   "job": "watch",
+   "setting": "main",
+   "id": "W036",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"intent\": \"create\", \"targets\": [\"s5\"], \"matching\": \"each\", \"conditions\": [{\"type\": \"finishes\", \"param\": \"none\"}], \"lifetime\": \"unsaid\", \"until\": \"none\", \"unsupported_asked\": \"none\", \"nearest\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1195,
+     "gen_ms": 1195.3179579999999,
+     "out_tokens": 63,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2867,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "watch",
+    "shown": "Ich sage dir Bescheid, wenn “Hero-Bild” fertig ist. Einmal.",
+    "model_text": [],
+    "notes": [
+     "a draft: written only when the user clicks Watch"
+    ],
+    "watch": {
+     "targets": [
+      {
+       "kind": "session",
+       "id": "s-hero",
+       "ref": "s5",
+       "name": "Hero-Bild"
+      }
+     ],
+     "matching": "each",
+     "conditions": [
+      {
+       "type": "finishes",
+       "param": null
+      }
+     ],
+     "lifetime": "once",
+     "until": null,
+     "lifetime_said": false,
+     "even_in_quiet_hours": false
+    }
+   }
+  },
+  {
+   "corpus": "watch5",
+   "job": "watch",
+   "setting": "main",
+   "id": "W037",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"intent\": \"create\", \"targets\": [\"s3\"], \"matching\": \"each\", \"conditions\": [{\"type\": \"stuck\", \"param\": \"20\"}], \"lifetime\": \"unsaid\", \"until\": \"none\", \"unsupported_asked\": \"none\", \"nearest\": \"stuck\"}",
+     "finish": "stop",
+     "latency_ms": 1232,
+     "gen_ms": 1231.677916,
+     "out_tokens": 65,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2875,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "watch",
+    "shown": "Ich sage dir Bescheid, wenn “Testabdeckung” seit 20 Minuten festzuhängen scheint. Bis heute Mitternacht.",
+    "model_text": [],
+    "notes": [
+     "a draft: written only when the user clicks Watch"
+    ],
+    "watch": {
+     "targets": [
+      {
+       "kind": "session",
+       "id": "s-test",
+       "ref": "s3",
+       "name": "Testabdeckung"
+      }
+     ],
+     "matching": "each",
+     "conditions": [
+      {
+       "type": "stuck",
+       "param": 20
+      }
+     ],
+     "lifetime": "today",
+     "until": null,
+     "lifetime_said": false,
+     "even_in_quiet_hours": false
+    }
+   }
+  },
+  {
+   "corpus": "watch5",
+   "job": "watch",
+   "setting": "main",
+   "id": "W038",
+   "rep": 0,
+   "model_called": true,
+   "used": "fallback",
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"intent\": \"create\", \"targets\": [\"s2\", \"s3\"], \"matching\": \"each\", \"conditions\": [{\"type\": \"starts\", \"param\": \"none\"}], \"lifetime\": \"unsaid\", \"until\": \"none\", \"unsupported_asked\": \"none\", \"nearest\": \"starts\"}",
+     "finish": "stop",
+     "latency_ms": 1253,
+     "gen_ms": 1253.241,
+     "out_tokens": 66,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2875,
+     "cut": false,
+     "retry_note": false,
+     "errors": [
+      "target: s2 “Login-Flow” is not named in the request",
+      "target: s3 “Testabdeckung” is not named in the request"
+     ],
+     "ok": false,
+     "soft": []
+    },
+    {
+     "attempt": 1,
+     "text": "{\"intent\": \"create\", \"targets\": [\"s2\"], \"matching\": \"each\", \"conditions\": [{\"type\": \"starts\", \"param\": \"none\"}], \"lifetime\": \"unsaid\", \"until\": \"none\", \"unsupported_asked\": \"none\", \"nearest\": \"starts\"}",
+     "finish": "stop",
+     "latency_ms": 1231,
+     "gen_ms": 1231.0112499999998,
+     "out_tokens": 62,
+     "error": "",
+     "refused": false,
+     "est_tokens": 3010,
+     "cut": false,
+     "retry_note": true,
+     "errors": [
+      "target: s2 “Login-Flow” is not named in the request"
+     ],
+     "ok": false,
+     "soft": []
+    },
+    {
+     "attempt": 2,
+     "text": "{\"intent\": \"create\", \"targets\": [\"s2\", \"s3\"], \"matching\": \"each\", \"conditions\": [{\"type\": \"starts\", \"param\": \"none\"}], \"lifetime\": \"unsaid\", \"until\": \"none\", \"unsupported_asked\": \"none\", \"nearest\": \"starts\"}",
+     "finish": "stop",
+     "latency_ms": 1327,
+     "gen_ms": 1327.211417,
+     "out_tokens": 66,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2992,
+     "cut": false,
+     "retry_note": true,
+     "errors": [
+      "target: s2 “Login-Flow” is not named in the request",
+      "target: s3 “Testabdeckung” is not named in the request"
+     ],
+     "ok": false,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "form",
+    "shown": "Das konnte ich nicht einrichten. „Neue Beobachtung…“ öffnet das Formular.",
+    "model_text": [],
+    "notes": [
+     "every attempt failed its checks: the Watches form"
+    ]
+   }
+  },
+  {
+   "corpus": "watch5",
+   "job": "watch",
+   "setting": "main",
+   "id": "W039",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"intent\": \"create\", \"targets\": [\"s4\"], \"matching\": \"each\", \"conditions\": [{\"type\": \"asks_you\", \"param\": \"none\"}], \"lifetime\": \"until_ends\", \"until\": \"none\", \"unsupported_asked\": \"none\", \"nearest\": \"asks_you\"}",
+     "finish": "stop",
+     "latency_ms": 1228,
+     "gen_ms": 1228.15775,
+     "out_tokens": 64,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2876,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "watch",
+    "shown": "Ich sage dir Bescheid, wenn “Rate Limits” dich etwas fragt. Bis sie endet.",
+    "model_text": [],
+    "notes": [
+     "a draft: written only when the user clicks Watch"
+    ],
+    "watch": {
+     "targets": [
+      {
+       "kind": "session",
+       "id": "s-api",
+       "ref": "s4",
+       "name": "Rate Limits"
+      }
+     ],
+     "matching": "each",
+     "conditions": [
+      {
+       "type": "asks_you",
+       "param": null
+      }
+     ],
+     "lifetime": "until_ends",
+     "until": null,
+     "lifetime_said": true,
+     "even_in_quiet_hours": false
+    }
+   }
+  },
+  {
+   "corpus": "watch5",
+   "job": "watch",
+   "setting": "main",
+   "id": "W040",
+   "rep": 0,
+   "model_called": true,
+   "used": "fallback",
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"intent\": \"create\", \"targets\": [\"acct2\"], \"matching\": \"each\", \"conditions\": [{\"type\": \"runway_below\", \"param\": \"30\"}], \"lifetime\": \"unsaid\", \"until\": \"none\", \"unsupported_asked\": \"none\", \"nearest\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1206,
+     "gen_ms": 1206.266375,
+     "out_tokens": 65,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2875,
+     "cut": false,
+     "retry_note": false,
+     "errors": [
+      "target: acct2 “Privat” is not named in the request"
+     ],
+     "ok": false,
+     "soft": []
+    },
+    {
+     "attempt": 1,
+     "text": "{\"intent\": \"create\", \"targets\": [\"acct2\"], \"matching\": \"each\", \"conditions\": [{\"type\": \"runway_below\", \"param\": \"30\"}], \"lifetime\": \"unsaid\", \"until\": \"none\", \"unsupported_asked\": \"none\", \"nearest\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1225,
+     "gen_ms": 1225.2156249999998,
+     "out_tokens": 65,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2993,
+     "cut": false,
+     "retry_note": true,
+     "errors": [
+      "target: acct2 “Privat” is not named in the request"
+     ],
+     "ok": false,
+     "soft": []
+    },
+    {
+     "attempt": 2,
+     "text": "{\"intent\": \"create\", \"targets\": [\"acct2\"], \"matching\": \"each\", \"conditions\": [{\"type\": \"runway_below\", \"param\": \"30\"}], \"lifetime\": \"unsaid\", \"until\": \"none\", \"unsupported_asked\": \"none\", \"nearest\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1235,
+     "gen_ms": 1235.01875,
+     "out_tokens": 65,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2993,
+     "cut": false,
+     "retry_note": true,
+     "errors": [
+      "target: acct2 “Privat” is not named in the request"
+     ],
+     "ok": false,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "form",
+    "shown": "Das konnte ich nicht einrichten. „Neue Beobachtung…“ öffnet das Formular.",
+    "model_text": [],
+    "notes": [
+     "every attempt failed its checks: the Watches form"
+    ]
+   }
+  },
+  {
+   "corpus": "watch5",
+   "job": "watch",
+   "setting": "main",
+   "id": "W041",
+   "rep": 0,
+   "model_called": true,
+   "used": "fallback",
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"intent\": \"create\", \"targets\": [\"s1\"], \"matching\": \"each\", \"conditions\": [{\"type\": \"finishes\", \"param\": \"none\"}, {\"type\": \"asks_you\", \"param\": \"none\"}], \"lifetime\": \"unsaid\", \"until\": \"none\", \"unsupported_asked\": \"none\", \"nearest\": \"finishes\"}",
+     "finish": "stop",
+     "latency_ms": 1366,
+     "gen_ms": 1366.228542,
+     "out_tokens": 77,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2878,
+     "cut": false,
+     "retry_note": false,
+     "errors": [
+      "target: s1 “Mahnlauf” is not named in the request"
+     ],
+     "ok": false,
+     "soft": []
+    },
+    {
+     "attempt": 1,
+     "text": "{\"intent\": \"create\", \"targets\": [\"s1\"], \"matching\": \"each\", \"conditions\": [{\"type\": \"finishes\", \"param\": \"none\"}, {\"type\": \"asks_you\", \"param\": \"none\"}], \"lifetime\": \"unsaid\", \"until\": \"none\", \"unsupported_asked\": \"none\", \"nearest\": \"finishes\"}",
+     "finish": "stop",
+     "latency_ms": 1392,
+     "gen_ms": 1391.863458,
+     "out_tokens": 77,
+     "error": "",
+     "refused": false,
+     "est_tokens": 3008,
+     "cut": false,
+     "retry_note": true,
+     "errors": [
+      "target: s1 “Mahnlauf” is not named in the request"
+     ],
+     "ok": false,
+     "soft": []
+    },
+    {
+     "attempt": 2,
+     "text": "{\"intent\": \"create\", \"targets\": [\"s1\"], \"matching\": \"each\", \"conditions\": [{\"type\": \"finishes\", \"param\": \"none\"}, {\"type\": \"asks_you\", \"param\": \"none\"}], \"lifetime\": \"unsaid\", \"until\": \"none\", \"unsupported_asked\": \"none\", \"nearest\": \"finishes\"}",
+     "finish": "stop",
+     "latency_ms": 1401,
+     "gen_ms": 1400.463,
+     "out_tokens": 77,
+     "error": "",
+     "refused": false,
+     "est_tokens": 3008,
+     "cut": false,
+     "retry_note": true,
+     "errors": [
+      "target: s1 “Mahnlauf” is not named in the request"
+     ],
+     "ok": false,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "form",
+    "shown": "Das konnte ich nicht einrichten. „Neue Beobachtung…“ öffnet das Formular.",
+    "model_text": [],
+    "notes": [
+     "every attempt failed its checks: the Watches form"
+    ]
+   }
+  },
+  {
+   "corpus": "watch5",
+   "job": "watch",
+   "setting": "main",
+   "id": "W042",
+   "rep": 0,
+   "model_called": true,
+   "used": "fallback",
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"intent\": \"create\", \"targets\": [\"s3\"], \"matching\": \"each\", \"conditions\": [{\"type\": \"finishes\", \"param\": \"none\"}], \"lifetime\": \"unsaid\", \"until\": \"none\", \"unsupported_asked\": \"none\", \"nearest\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1166,
+     "gen_ms": 1166.140083,
+     "out_tokens": 63,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2871,
+     "cut": false,
+     "retry_note": false,
+     "errors": [
+      "target: s3 “Testabdeckung” is not named in the request"
+     ],
+     "ok": false,
+     "soft": []
+    },
+    {
+     "attempt": 1,
+     "text": "{\"intent\": \"create\", \"targets\": [\"s1\"], \"matching\": \"each\", \"conditions\": [{\"type\": \"finishes\", \"param\": \"none\"}], \"lifetime\": \"unsaid\", \"until\": \"none\", \"unsupported_asked\": \"none\", \"nearest\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1216,
+     "gen_ms": 1216.106875,
+     "out_tokens": 63,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2990,
+     "cut": false,
+     "retry_note": true,
+     "errors": [
+      "target: s1 “Mahnlauf” is not named in the request"
+     ],
+     "ok": false,
+     "soft": []
+    },
+    {
+     "attempt": 2,
+     "text": "{\"intent\": \"create\", \"targets\": [\"s3\"], \"matching\": \"each\", \"conditions\": [{\"type\": \"finishes\", \"param\": \"none\"}], \"lifetime\": \"unsaid\", \"until\": \"none\", \"unsupported_asked\": \"none\", \"nearest\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1221,
+     "gen_ms": 1220.771,
+     "out_tokens": 63,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2989,
+     "cut": false,
+     "retry_note": true,
+     "errors": [
+      "target: s3 “Testabdeckung” is not named in the request"
+     ],
+     "ok": false,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "form",
+    "shown": "Das konnte ich nicht einrichten. „Neue Beobachtung…“ öffnet das Formular.",
+    "model_text": [],
+    "notes": [
+     "every attempt failed its checks: the Watches form"
+    ]
+   }
+  },
+  {
+   "corpus": "watch5",
+   "job": "watch",
+   "setting": "main",
+   "id": "W043",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"intent\": \"create\", \"targets\": [\"any\"], \"matching\": \"each\", \"conditions\": [], \"lifetime\": \"unsaid\", \"until\": \"none\", \"unsupported_asked\": \"der Code gut ist\", \"nearest\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1035,
+     "gen_ms": 1034.963084,
+     "out_tokens": 52,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2864,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "unsupported",
+    "shown": "Darauf kann ich nicht achten: „der Code gut ist“. Ich kann deine Agenten beobachten auf: fertig ist, endet, dich etwas fragt und … Minuten wartet, fehlschlägt, seit … Minuten festzuhängen scheint …",
+    "model_text": [
+     "der Code gut ist"
+    ],
+    "notes": [
+     "unsupported (model)"
+    ],
+    "nearest": null,
+    "via": "model",
+    "asked": "der Code gut ist"
+   }
+  },
+  {
+   "corpus": "watch5",
+   "job": "watch",
+   "setting": "main",
+   "id": "W044",
+   "rep": 0,
+   "model_called": true,
+   "used": "fallback",
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"intent\": \"create\", \"targets\": [\"s1\", \"s2\", \"s3\", \"s4\", \"s5\"], \"matching\": \"each\", \"conditions\": [{\"type\": \"asks_you\", \"param\": \"none\"}], \"lifetime\": \"unsaid\", \"until\": \"none\", \"unsupported_asked\": \"none\", \"nearest\": \"asks_you\"}",
+     "finish": "stop",
+     "latency_ms": 1455,
+     "gen_ms": 1454.4805410000001,
+     "out_tokens": 80,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2869,
+     "cut": false,
+     "retry_note": false,
+     "errors": [
+      "target: s1 “Mahnlauf” is not named in the request",
+      "target: s2 “Login-Flow” is not named in the request",
+      "target: s3 “Testabdeckung” is not named in the request",
+      "target: s4 “Rate Limits” is not named in the request",
+      "target: s5 “Hero-Bild” is not named in the request"
+     ],
+     "ok": false,
+     "soft": []
+    },
+    {
+     "attempt": 1,
+     "text": "{\"intent\": \"create\", \"targets\": [], \"matching\": \"each\", \"conditions\": [], \"lifetime\": \"unsaid\", \"until\": \"none\", \"unsupported_asked\": \"when my Chef replies\", \"nearest\": \"asks_you\"}",
+     "finish": "stop",
+     "latency_ms": 1078,
+     "gen_ms": 1077.798208,
+     "out_tokens": 51,
+     "error": "",
+     "refused": false,
+     "est_tokens": 3055,
+     "cut": false,
+     "retry_note": true,
+     "errors": [
+      "invented: unsupported_asked is not the request's words (2b: content word(s) not in the text: replies, when)"
+     ],
+     "ok": false,
+     "soft": []
+    },
+    {
+     "attempt": 2,
+     "text": "{\"intent\": \"create\", \"targets\": [\"s1\", \"s2\", \"s3\", \"s4\", \"s5\"], \"matching\": \"each\", \"conditions\": [{\"type\": \"asks_you\", \"param\": \"none\"}], \"lifetime\": \"unsaid\", \"until\": \"none\", \"unsupported_asked\": \"none\", \"nearest\": \"asks_you\"}",
+     "finish": "stop",
+     "latency_ms": 1500,
+     "gen_ms": 1499.9610420000001,
+     "out_tokens": 80,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2996,
+     "cut": false,
+     "retry_note": true,
+     "errors": [
+      "target: s1 “Mahnlauf” is not named in the request",
+      "target: s2 “Login-Flow” is not named in the request",
+      "target: s3 “Testabdeckung” is not named in the request",
+      "target: s4 “Rate Limits” is not named in the request",
+      "target: s5 “Hero-Bild” is not named in the request"
+     ],
+     "ok": false,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "form",
+    "shown": "Das konnte ich nicht einrichten. „Neue Beobachtung…“ öffnet das Formular.",
+    "model_text": [],
+    "notes": [
+     "every attempt failed its checks: the Watches form"
+    ]
+   }
+  },
+  {
+   "corpus": "watch5",
+   "job": "watch",
+   "setting": "main",
+   "id": "W045",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"intent\": \"create\", \"targets\": [], \"matching\": \"each\", \"conditions\": [], \"lifetime\": \"unsaid\", \"until\": \"none\", \"unsupported_asked\": \"der Aktienkurs steigt\", \"nearest\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1063,
+     "gen_ms": 1063.016916,
+     "out_tokens": 53,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2866,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "unsupported",
+    "shown": "Darauf kann ich nicht achten: „der Aktienkurs steigt“. Ich kann deine Agenten beobachten auf: fertig ist, endet, dich etwas fragt und … Minuten wartet, fehlschlägt, seit … Minuten festzuhängen scheint …",
+    "model_text": [
+     "der Aktienkurs steigt"
+    ],
+    "notes": [
+     "unsupported (model)"
+    ],
+    "nearest": null,
+    "via": "model",
+    "asked": "der Aktienkurs steigt"
+   }
+  },
+  {
+   "corpus": "watch5",
+   "job": "watch",
+   "setting": "main",
+   "id": "W046",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"intent\": \"create\", \"targets\": [\"s1\", \"s2\", \"s3\", \"s4\", \"s5\", \"app1\", \"app2\", \"app3\", \"app4\", \"app5\"], \"matching\": \"each\", \"conditions\": [], \"lifetime\": \"unsaid\", \"until\": \"none\", \"unsupported_asked\": \"the agent writes good code\", \"nearest\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1700,
+     "gen_ms": 1699.950458,
+     "out_tokens": 90,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2888,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “the agent writes good code”. I can tell you when “Invoice rounding fix” or “Checkout redesign” or “Rewrite quickstart” or “Training loop” or “DB migration” or “Claude Code CLI · Work” or “Claude app · Personal” or “Cursor” or “Claude Code CLI · Lab” or “Codex CLI · Work” finishes.",
+    "model_text": [
+     "the agent writes good code"
+    ],
+    "notes": [
+     "unsupported (model)"
+    ],
+    "nearest": "finishes",
+    "via": "model",
+    "asked": "the agent writes good code"
+   }
+  },
+  {
+   "corpus": "watch5",
+   "job": "watch",
+   "setting": "main",
+   "id": "W047",
+   "rep": 0,
+   "model_called": true,
+   "used": 1,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"intent\": \"create\", \"targets\": [\"s1\", \"s2\", \"s3\", \"s4\", \"s5\"], \"matching\": \"each\", \"conditions\": [{\"type\": \"asks_you\", \"param\": \"none\"}], \"lifetime\": \"unsaid\", \"until\": \"none\", \"unsupported_asked\": \"none\", \"nearest\": \"asks_you\"}",
+     "finish": "stop",
+     "latency_ms": 1483,
+     "gen_ms": 1482.6095420000001,
+     "out_tokens": 80,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2886,
+     "cut": false,
+     "retry_note": false,
+     "errors": [
+      "target: s1 “Invoice rounding fix” is not named in the request",
+      "target: s2 “Checkout redesign” is not named in the request",
+      "target: s3 “Rewrite quickstart” is not named in the request",
+      "target: s4 “Training loop” is not named in the request",
+      "target: s5 “DB migration” is not named in the request"
+     ],
+     "ok": false,
+     "soft": []
+    },
+    {
+     "attempt": 1,
+     "text": "{\"intent\": \"create\", \"targets\": [], \"matching\": \"each\", \"conditions\": [], \"lifetime\": \"unsaid\", \"until\": \"none\", \"unsupported_asked\": \"my boss replies\", \"nearest\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1031,
+     "gen_ms": 1030.6868339999999,
+     "out_tokens": 49,
+     "error": "",
+     "refused": false,
+     "est_tokens": 3081,
+     "cut": false,
+     "retry_note": true,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “my boss replies”. I can watch your agents for: finish, end, ask you, fail, look stuck…",
+    "model_text": [
+     "my boss replies"
+    ],
+    "notes": [
+     "unsupported (model)"
+    ],
+    "nearest": null,
+    "via": "model",
+    "asked": "my boss replies"
+   }
+  },
+  {
+   "corpus": "watch5",
+   "job": "watch",
+   "setting": "main",
+   "id": "W048",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"intent\": \"create\", \"targets\": [\"s1\", \"s2\", \"s3\", \"s4\", \"s5\"], \"matching\": \"each\", \"conditions\": [], \"lifetime\": \"unsaid\", \"until\": \"none\", \"unsupported_asked\": \"the tests are flaky\", \"nearest\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1342,
+     "gen_ms": 1341.758791,
+     "out_tokens": 70,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2886,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “the tests are flaky”. I can tell you when “Invoice rounding fix” or “Checkout redesign” or “Rewrite quickstart” or “Training loop” or “DB migration” finishes.",
+    "model_text": [
+     "the tests are flaky"
+    ],
+    "notes": [
+     "unsupported (model)"
+    ],
+    "nearest": "finishes",
+    "via": "model",
+    "asked": "the tests are flaky"
+   }
+  },
+  {
+   "corpus": "watch5",
+   "job": "watch",
+   "setting": "main",
+   "id": "W049",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"intent\": \"create\", \"targets\": [\"any\"], \"matching\": \"each\", \"conditions\": [], \"lifetime\": \"unsaid\", \"until\": \"none\", \"unsupported_asked\": \"the pull request gets approved on GitHub\", \"nearest\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1100,
+     "gen_ms": 1099.928833,
+     "out_tokens": 55,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2892,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “the pull request gets approved on GitHub”. I can tell you when “any session” finishes.",
+    "model_text": [
+     "the pull request gets approved on GitHub"
+    ],
+    "notes": [
+     "unsupported (model)"
+    ],
+    "nearest": "finishes",
+    "via": "model",
+    "asked": "the pull request gets approved on GitHub"
+   }
+  },
+  {
+   "corpus": "watch5",
+   "job": "watch",
+   "setting": "main",
+   "id": "W050",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"intent\": \"create\", \"targets\": [], \"matching\": \"each\", \"conditions\": [], \"lifetime\": \"unsaid\", \"until\": \"none\", \"unsupported_asked\": \"the stock market drops\", \"nearest\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1000,
+     "gen_ms": 999.417875,
+     "out_tokens": 50,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2887,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “the stock market drops”. I can watch your agents for: finish, end, ask you, fail, look stuck…",
+    "model_text": [
+     "the stock market drops"
+    ],
+    "notes": [
+     "unsupported (model)"
+    ],
+    "nearest": null,
+    "via": "model",
+    "asked": "the stock market drops"
+   }
+  },
+  {
+   "corpus": "watch5",
+   "job": "watch",
+   "setting": "main",
+   "id": "W051",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"intent\": \"create\", \"targets\": [\"s1\", \"s2\", \"s3\", \"s4\", \"s5\", \"app1\", \"app2\", \"app3\", \"app4\", \"app5\"], \"matching\": \"each\", \"conditions\": [{\"type\": \"asks_you\", \"param\": \"none\"}], \"lifetime\": \"unsaid\", \"until\": \"none\", \"unsupported_asked\": \"the model feels confident\", \"nearest\": \"asks_you\"}",
+     "finish": "stop",
+     "latency_ms": 1898,
+     "gen_ms": 1897.722709,
+     "out_tokens": 103,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2887,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “the model feels confident”. I can tell you when “Invoice rounding fix” or “Checkout redesign” or “Rewrite quickstart” or “Training loop” or “DB migration” or “Claude Code CLI · Work” or “Claude app · Personal” or “Cursor” or “Claude Code CLI · Lab” or “Codex CLI · Work” asks you.",
+    "model_text": [
+     "the model feels confident"
+    ],
+    "notes": [
+     "unsupported (model)"
+    ],
+    "nearest": "asks_you",
+    "via": "model",
+    "asked": "the model feels confident"
+   }
+  },
+  {
+   "corpus": "watch5",
+   "job": "watch",
+   "setting": "main",
+   "id": "W052",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"intent\": \"create\", \"targets\": [\"s1\", \"s2\", \"s3\", \"s4\", \"s5\"], \"matching\": \"each\", \"conditions\": [], \"lifetime\": \"unsaid\", \"until\": \"none\", \"unsupported_asked\": \"if the agent is hallucinating\", \"nearest\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1431,
+     "gen_ms": 1431.145,
+     "out_tokens": 71,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2887,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “if the agent is hallucinating”. I can watch your agents for: finish, end, ask you, fail, look stuck…",
+    "model_text": [
+     "if the agent is hallucinating"
+    ],
+    "notes": [
+     "unsupported (model)"
+    ],
+    "nearest": null,
+    "via": "model",
+    "asked": "if the agent is hallucinating"
+   }
+  },
+  {
+   "corpus": "watch5",
+   "job": "watch",
+   "setting": "main",
+   "id": "W053",
+   "rep": 0,
+   "model_called": true,
+   "used": "fallback",
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"intent\": \"create\", \"targets\": [\"s1\"], \"matching\": \"each\", \"conditions\": [{\"type\": \"finishes\", \"param\": \"none\"}], \"lifetime\": \"unsaid\", \"until\": \"none\", \"unsupported_asked\": \"none\", \"nearest\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1187,
+     "gen_ms": 1187.101083,
+     "out_tokens": 63,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2888,
+     "cut": false,
+     "retry_note": false,
+     "errors": [
+      "target: s1 “Invoice rounding fix” is not named in the request"
+     ],
+     "ok": false,
+     "soft": []
+    },
+    {
+     "attempt": 1,
+     "text": "{\"intent\": \"create\", \"targets\": [\"s1\"], \"matching\": \"each\", \"conditions\": [{\"type\": \"finishes\", \"param\": \"none\"}], \"lifetime\": \"unsaid\", \"until\": \"none\", \"unsupported_asked\": \"none\", \"nearest\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1212,
+     "gen_ms": 1211.649333,
+     "out_tokens": 63,
+     "error": "",
+     "refused": false,
+     "est_tokens": 3009,
+     "cut": false,
+     "retry_note": true,
+     "errors": [
+      "target: s1 “Invoice rounding fix” is not named in the request"
+     ],
+     "ok": false,
+     "soft": []
+    },
+    {
+     "attempt": 2,
+     "text": "{\"intent\": \"create\", \"targets\": [\"s1\"], \"matching\": \"each\", \"conditions\": [{\"type\": \"finishes\", \"param\": \"none\"}], \"lifetime\": \"unsaid\", \"until\": \"none\", \"unsupported_asked\": \"none\", \"nearest\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1215,
+     "gen_ms": 1214.834625,
+     "out_tokens": 63,
+     "error": "",
+     "refused": false,
+     "est_tokens": 3009,
+     "cut": false,
+     "retry_note": true,
+     "errors": [
+      "target: s1 “Invoice rounding fix” is not named in the request"
+     ],
+     "ok": false,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "form",
+    "shown": "I couldn't set that up from your words. New watch… opens the form.",
+    "model_text": [],
+    "notes": [
+     "every attempt failed its checks: the Watches form"
+    ]
+   }
+  },
+  {
+   "corpus": "watch5",
+   "job": "watch",
+   "setting": "main",
+   "id": "W054",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"intent\": \"create\", \"targets\": [\"s1\", \"s2\", \"s3\", \"s4\", \"s5\"], \"matching\": \"each\", \"conditions\": [], \"lifetime\": \"unsaid\", \"until\": \"none\", \"unsupported_asked\": \"the deploy goes live in production\", \"nearest\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1372,
+     "gen_ms": 1371.726125,
+     "out_tokens": 71,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2890,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “the deploy goes live in production”. I can tell you when “Invoice rounding fix” or “Checkout redesign” or “Rewrite quickstart” or “Training loop” or “DB migration” finishes.",
+    "model_text": [
+     "the deploy goes live in production"
+    ],
+    "notes": [
+     "unsupported (model)"
+    ],
+    "nearest": "finishes",
+    "via": "model",
+    "asked": "the deploy goes live in production"
+   }
+  },
+  {
+   "corpus": "watch5",
+   "job": "watch",
+   "setting": "main",
+   "id": "W055",
+   "rep": 0,
+   "model_called": true,
+   "used": 1,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"intent\": \"create\", \"targets\": [\"s1\", \"s2\", \"s3\", \"s4\", \"s5\", \"app1\", \"app2\", \"app3\", \"app4\", \"app5\"], \"matching\": \"each\", \"conditions\": [{\"type\": \"task_changes\", \"param\": \"done\"}], \"lifetime\": \"unsaid\", \"until\": \"none\", \"unsupported_asked\": \"none\", \"nearest\": \"task_changes\"}",
+     "finish": "stop",
+     "latency_ms": 1837,
+     "gen_ms": 1837.039416,
+     "out_tokens": 100,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2886,
+     "cut": false,
+     "retry_note": false,
+     "errors": [
+      "target: s1 “Invoice rounding fix” is not named in the request",
+      "target: s2 “Checkout redesign” is not named in the request",
+      "target: s3 “Rewrite quickstart” is not named in the request",
+      "target: s4 “Training loop” is not named in the request",
+      "target: s5 “DB migration” is not named in the request",
+      "target: app1 “Claude Code CLI · Work” is not named in the request",
+      "target: app2 “Claude app · Personal” is not named in the request",
+      "target: app3 “Cursor” is not named in the request",
+      "target: app4 “Claude Code CLI · Lab” is not named in the request",
+      "target: app5 “Codex CLI · Work” is not named in the request"
+     ],
+     "ok": false,
+     "soft": []
+    },
+    {
+     "attempt": 1,
+     "text": "{\"intent\": \"create\", \"targets\": [], \"matching\": \"each\", \"conditions\": [], \"lifetime\": \"unsaid\", \"until\": \"none\", \"unsupported_asked\": \"when the agent is 90% done\", \"nearest\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1164,
+     "gen_ms": 1163.333459,
+     "out_tokens": 55,
+     "error": "",
+     "refused": false,
+     "est_tokens": 3131,
+     "cut": false,
+     "retry_note": true,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “when the agent is 90% done”. I can watch your agents for: finish, end, ask you, fail, look stuck…",
+    "model_text": [
+     "when the agent is 90% done"
+    ],
+    "notes": [
+     "unsupported (model)"
+    ],
+    "nearest": null,
+    "via": "model",
+    "asked": "when the agent is 90% done"
+   }
+  },
+  {
+   "corpus": "watch5",
+   "job": "watch",
+   "setting": "main",
+   "id": "W056",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"intent\": \"create\", \"targets\": [\"any\"], \"matching\": \"each\", \"conditions\": [], \"lifetime\": \"unsaid\", \"until\": \"none\", \"unsupported_asked\": \"pushes to the repo\", \"nearest\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1065,
+     "gen_ms": 1064.71275,
+     "out_tokens": 53,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2889,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “pushes to the repo”. I can watch your agents for: finish, end, ask you, fail, look stuck…",
+    "model_text": [
+     "pushes to the repo"
+    ],
+    "notes": [
+     "unsupported (model)"
+    ],
+    "nearest": null,
+    "via": "model",
+    "asked": "pushes to the repo"
+   }
+  },
+  {
+   "corpus": "watch5",
+   "job": "watch",
+   "setting": "main",
+   "id": "W057",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"intent\": \"create\", \"targets\": [\"s1\", \"s2\", \"s3\", \"s4\", \"s5\"], \"matching\": \"each\", \"conditions\": [], \"lifetime\": \"unsaid\", \"until\": \"none\", \"unsupported_asked\": \"a session has cost more than 20 dollars\", \"nearest\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1443,
+     "gen_ms": 1442.950667,
+     "out_tokens": 75,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2891,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “a session has cost more than 20 dollars”. I can watch your agents for: finish, end, ask you, fail, look stuck…",
+    "model_text": [
+     "a session has cost more than 20 dollars"
+    ],
+    "notes": [
+     "unsupported (model)"
+    ],
+    "nearest": null,
+    "via": "model",
+    "asked": "a session has cost more than 20 dollars"
+   }
+  },
+  {
+   "corpus": "watch5",
+   "job": "watch",
+   "setting": "main",
+   "id": "W058",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"intent\": \"list\", \"targets\": [], \"matching\": \"each\", \"conditions\": [], \"lifetime\": \"unsaid\", \"until\": \"none\", \"unsupported_asked\": \"email me a weekly summary every Monday\", \"nearest\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1058,
+     "gen_ms": 1057.83775,
+     "out_tokens": 53,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2887,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “email me a weekly summary every Monday”. I can watch your agents for: finish, end, ask you, fail, look stuck…",
+    "model_text": [
+     "email me a weekly summary every Monday"
+    ],
+    "notes": [
+     "unsupported (model)"
+    ],
+    "nearest": null,
+    "via": "model",
+    "asked": "email me a weekly summary every Monday"
+   }
+  },
+  {
+   "corpus": "watch5",
+   "job": "watch",
+   "setting": "main",
+   "id": "W059",
+   "rep": 0,
+   "model_called": true,
+   "used": "fallback",
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"intent\": \"create\", \"targets\": [\"s1\", \"s2\", \"s3\", \"s4\", \"s5\"], \"matching\": \"each\", \"conditions\": [{\"type\": \"stuck\", \"param\": \"none\"}], \"lifetime\": \"unsaid\", \"until\": \"none\", \"unsupported_asked\": \"none\", \"nearest\": \"stuck\"}",
+     "finish": "stop",
+     "latency_ms": 1543,
+     "gen_ms": 1543.17075,
+     "out_tokens": 80,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2889,
+     "cut": false,
+     "retry_note": false,
+     "errors": [
+      "target: s1 “Invoice rounding fix” is not named in the request",
+      "target: s2 “Checkout redesign” is not named in the request",
+      "target: s3 “Rewrite quickstart” is not named in the request",
+      "target: s4 “Training loop” is not named in the request",
+      "target: s5 “DB migration” is not named in the request"
+     ],
+     "ok": false,
+     "soft": []
+    },
+    {
+     "attempt": 1,
+     "text": "{\"intent\": \"create\", \"targets\": [\"s4\"], \"matching\": \"each\", \"conditions\": [{\"type\": \"stuck\", \"param\": \"none\"}], \"lifetime\": \"unsaid\", \"until\": \"none\", \"unsupported_asked\": \"none\", \"nearest\": \"stuck\"}",
+     "finish": "stop",
+     "latency_ms": 1234,
+     "gen_ms": 1234.143584,
+     "out_tokens": 64,
+     "error": "",
+     "refused": false,
+     "est_tokens": 3082,
+     "cut": false,
+     "retry_note": true,
+     "errors": [
+      "target: s4 “Training loop” is not named in the request"
+     ],
+     "ok": false,
+     "soft": []
+    },
+    {
+     "attempt": 2,
+     "text": "{\"intent\": \"create\", \"targets\": [\"s4\"], \"matching\": \"each\", \"conditions\": [{\"type\": \"stuck\", \"param\": \"none\"}], \"lifetime\": \"unsaid\", \"until\": \"none\", \"unsupported_asked\": \"none\", \"nearest\": \"stuck\"}",
+     "finish": "stop",
+     "latency_ms": 1221,
+     "gen_ms": 1220.6365409999999,
+     "out_tokens": 64,
+     "error": "",
+     "refused": false,
+     "est_tokens": 3007,
+     "cut": false,
+     "retry_note": true,
+     "errors": [
+      "target: s4 “Training loop” is not named in the request"
+     ],
+     "ok": false,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "form",
+    "shown": "I couldn't set that up from your words. New watch… opens the form.",
+    "model_text": [],
+    "notes": [
+     "every attempt failed its checks: the Watches form"
+    ]
+   }
+  },
+  {
+   "corpus": "watch5",
+   "job": "watch",
+   "setting": "main",
+   "id": "W060",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "attempt": 0,
+     "text": "{\"intent\": \"create\", \"targets\": [\"s2\"], \"matching\": \"each\", \"conditions\": [], \"lifetime\": \"unsaid\", \"until\": \"none\", \"unsupported_asked\": \"the company website goes down\", \"nearest\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1084,
+     "gen_ms": 1084.3389160000002,
+     "out_tokens": 54,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2889,
+     "cut": false,
+     "retry_note": false,
+     "errors": [],
+     "ok": true,
+     "soft": []
+    }
+   ],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “the company website goes down”. I can watch your agents for: finish, end, ask you, fail, look stuck…",
+    "model_text": [
+     "the company website goes down"
+    ],
+    "notes": [
+     "unsupported (model)"
+    ],
+    "nearest": null,
+    "via": "model",
+    "asked": "the company website goes down"
+   }
+  }
+ ]
+}

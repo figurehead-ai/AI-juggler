@@ -1,0 +1,370 @@
+{
+ "family": "apple",
+ "job": "watch",
+ "note": "script flags: candidates for Opus to confirm by eye, never verdicts",
+ "candidates": [
+  {
+   "id": "W001",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model: the billing one finishes",
+   "stage": "shown",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W002",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model: the billing agent finishes or gets stuck for 10 minutes",
+   "stage": "shown",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W003",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model: the checkout redesign asks me a question",
+   "stage": "shown",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W004",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model: anything fails",
+   "stage": "shown",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W005",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model: my lab account has under 15%",
+   "stage": "shown",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W006",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model: the docs session fails or asks something",
+   "stage": "shown",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W007",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model: the Cursor app stops",
+   "stage": "shown",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W008",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model: ML project",
+   "stage": "shown",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W009",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model: runs below 10 percent",
+   "stage": "shown",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W010",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model: the migration is done",
+   "stage": "shown",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W011",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model: the personal Claude app starts a new session",
+   "stage": "shown",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W012",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model: anything asks me a question",
+   "stage": "shown",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W013",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model: the training loop",
+   "stage": "shown",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W014",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model: webshop project fails or finishes",
+   "stage": "shown",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W015",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model: Codex on work",
+   "stage": "shown",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W016",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model: the docs one gets stuck",
+   "stage": "shown",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W017",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model: when the invoice thing needs my input",
+   "stage": "shown",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W018",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model: less than a quarter of my personal allowance left",
+   "stage": "shown",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W019",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model: the CRM migration crashes",
+   "stage": "shown",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W020",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model: my lab account drops below 20%",
+   "stage": "shown",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W021",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model: the shop checkout finishes",
+   "stage": "shown",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W022",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model: the docs project finishes",
+   "stage": "shown",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W023",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model: ML run",
+   "stage": "shown",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W024",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model: Cursor asks me anything",
+   "stage": "shown",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W025",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model: work account runway drops below 5%",
+   "stage": "shown",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W026",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model: anything on the work account ends",
+   "stage": "shown",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W027",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model: the CRM migration asks for a decision",
+   "stage": "shown",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W028",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model: the lab one hits under 10 percent",
+   "stage": "shown",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W029",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model: the checkout agent has been stuck",
+   "stage": "shown",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W030",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model: der Mahnlauf fertig ist",
+   "stage": "shown",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W031",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model: nachfragt",
+   "stage": "shown",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W032",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model: fehlschlägt",
+   "stage": "shown",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W033",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model: Arbeitskonto unter 10 Prozent fällt",
+   "stage": "shown",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W034",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model: Rate-Limits-Sitzung",
+   "stage": "shown",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W035",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model: Hero-Bild fertig",
+   "stage": "shown",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W036",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model: beendet wird",
+   "stage": "shown",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W037",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model: wenn die Testabdeckung festhängt, länger als 20 Minuten",
+   "stage": "shown",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W038",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model: sitzung",
+   "stage": "shown",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W039",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model: Rückfrage im Projekt kunden-api",
+   "stage": "shown",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W040",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model: Privatkonto weniger",
+   "stage": "shown",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W041",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model: die Rechnungen-Sitzung fertig ist und wenn sie nachfragt",
+   "stage": "shown",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W042",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model: Sitzung mit den Tests",
+   "stage": "shown",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W045",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "invented",
+   "detail": "invented: unsupported_asked is not the request's words (2b: content word(s) not in the text: the)",
+   "stage": "caught",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W045",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "invented",
+   "detail": "invented: unsupported_asked is not the request's words (2b: content word(s) not in the text: the)",
+   "stage": "caught",
+   "corpus": "watch5"
+  },
+  {
+   "id": "W045",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "invented",
+   "detail": "invented: unsupported_asked is not the request's words (2b: content word(s) not in the text: the)",
+   "stage": "caught",
+   "corpus": "watch5"
+  }
+ ]
+}
