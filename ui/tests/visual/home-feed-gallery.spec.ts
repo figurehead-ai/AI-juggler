@@ -335,7 +335,7 @@ test.describe("the mock-up's data", () => {
         feed: mock.feed,
         summary: mock.summary,
         now: MOCK_T0,
-        globals: { __AIJ_QUOTA_DISPLAY__: mock.quota, __AIJ_PLACES__: mock.places, __AIJ_MESSAGES__: mock.messages },
+        globals: { __AIJ_QUOTA_DISPLAY__: mock.quota, __AIJ_PLACES__: mock.places, __AIJ_MESSAGES__: mock.messages, __AIJ_NOTICES__: mock.notices },
       });
       await expect(page.getByTestId("home")).toHaveAttribute("data-layout", "columns");
       await expect(page.getByTestId("feed-card").first()).toBeVisible();

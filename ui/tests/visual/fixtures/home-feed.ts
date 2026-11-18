@@ -101,7 +101,11 @@ export function manyFeed(now: number, count: number): FeedItemInfo[] {
  * Not reproducible yet (no type or feature): a finished item's agent
  * excerpt and git line (AJ-E3708), PR items (AJ-E3706), a pool need's
  * quote line and the "allow edits to 3 files" ask (E3703), This Mac
- * pressure lines in the digest.
+ * pressure lines in the digest, and the mock's "1 to review" (no session
+ * here has finished and waits on a look: the feed's Mark reviewed is
+ * E3703's). "N finished today" is the notification model's count, seeded
+ * as `notices` from the feed's finished items of today (11, the mock's
+ * own number is 6).
  */
 export const MOCK_T0 = Date.UTC(2024, 9, 13, 10, 13, 0);
 
@@ -196,5 +200,16 @@ export function mockHome(now: number) {
     item("l:7", 0, "reset", "switches", { at_ms: Date.UTC(2024, 9, 13, 3, 13), subject: "Personal", author: { ...CODEX, kind: "account", name: "Personal" }, facts: { window: "5-hour", meter: 100 } }),
     ...[[0, 20, "Bump the lint rules"], [0, 50, "Update the changelog"], [1, 10, "Prune the old fixtures"], [1, 40, "Rename the export module"], [3, 30, "Tidy the CI cache"], [4, 40, "Move the docs to the new site"]].map(([h, m, subject], n) => night(`l:n${n}`, h as number, m as number, subject as string)),
   ].sort((a, b) => b.at_ms - a.at_ms);
-  return { fixture, quota, places, messages, feed, summary: away(now, 13, 2.5) };
+  // What the notification model holds of today (the backend's digest,
+  // "N finished today" beside Home's title): one read finished notice per
+  // finished item of today in the feed, as the backend writes them.
+  const today = Date.UTC(2024, 9, 13);
+  const target = { session_id: null, conversation_id: null, account_id: null, project_id: null, page: null, task_id: null, pool_id: null };
+  const facts = { window: null, resets_at_ms: null, sessions: null, version: null, channel: null, attempt: null, tries: null, account: null };
+  const notices = {
+    earlier: feed
+      .filter((one) => one.kind === "finished" && one.at_ms >= today)
+      .map((one, n) => ({ id: 500 + n, kind: "finished", needs: false, title: `${one.subject} finished`, detail: "", project_id: null, project: null, target, facts, action: null, meter: null, created_ms: one.at_ms, unread: false, snoozed_until_ms: null, muted: false, dismissed: false })),
+  };
+  return { fixture, quota, places, messages, feed, notices, summary: away(now, 13, 2.5) };
 }
