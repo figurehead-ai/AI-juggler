@@ -43,7 +43,7 @@ ATTR_LEXICON = [   # (fields, kind, pattern, cue words: the words of the cue, dr
   "tests test passed pass passing green bestanden grün durchgelaufen which welche welcher welches welchen"),
  (("changed_files",), "names", r"\b(?:which|what)\s+files\s+(?:[\w.-]+\s+){0,4}?(?:changed|change|touched|modified)\b|\bwelche\s+dateien\s+(?:[\w.-]+\s+){0,4}?(?:geändert|angefasst|bearbeitet)\b",
   "files file changed change touched modified dateien datei geändert angefasst bearbeitet which welche wurden were did has have hat haben"),
- (("tests_failed",), "count", r"how many (?:of the )?tests? (?:have |had |did |are )?(?:failed|fail|failing)|wie viele tests? (?:[\w.-]+ ){0,6}?(?:fehlgeschlagen|gescheitert|rot)\b|failing tests|fehlgeschlagene tests",
+ (("tests_failed",), "count", r"how many (?:of the )?tests? (?:have |had |did |are )?(?:failed|fail|failing)|wie viele tests? (?:[\w.-]+ ){0,6}?(?:fehlgeschlagen|gescheitert|rot)\b",
   "tests failed fail failing fehlgeschlagen fehlgeschlagene gescheitert rot"),
  (("tests_passed",), "count", r"how many (?:of the )?tests? (?:have |had |did |are )?(?:passed|pass|passing|green)|wie viele tests? (?:[\w.-]+ ){0,6}?(?:bestanden|durchgelaufen|grün)\b",
   "tests passed pass passing green bestanden durchgelaufen grün"),
@@ -65,6 +65,9 @@ ATTR_LEXICON = [   # (fields, kind, pattern, cue words: the words of the cue, dr
  (("branch",), "string", r"(?:which|what|on what|on which) branch|(?:auf )?welche[mrns]? (?:branch|zweig)", "branch zweig"),
  (("author",), "string", r"\bwho\b|\bwer\b|\bauthor\b|\bautor(?:in)?\b", "author autor autorin wrote written made authored geschrieben gemacht committed eingecheckt pushed gepusht"),
  (("path",), "string", r"\bwhere\b|(?:which|what) (?:file|path)\b|\bwo\b|welche[rs]? (?:datei|pfad)", "file path datei pfad located live lives liegt"),
+ # round 4: the bare noun phrase "failing tests" asks a count only when no question word above asks something else ("where were the
+ # failing tests" asks a path: v5 round 3's answer would have been the count)
+ (("tests_failed",), "count", r"\bfailing tests\b|\bfehlgeschlagene(?:n)? tests\b", "tests failed fail failing fehlgeschlagen fehlgeschlagene fehlgeschlagenen"),
  (("status",), "status", r"did .{0,80}?\b(?:finish|succeed|complete|fail|pass)\b|is .{0,80}?\b(?:done|finished|still running|running|stuck|waiting|complete)\b|"
                          r"what(?:'s| is) the (?:status|state)|how did .{0,80}?\b(?:end|go)\b|\bstatus\b|ist .{0,80}?\b(?:fertig|durch|abgeschlossen|fehlgeschlagen)\b|"
                          r"läuft .{0,60}?\bnoch\b|wie ist .{0,80}?\b(?:ausgegangen|gelaufen)\b|\bzustand\b",
@@ -119,12 +122,14 @@ gedauert gebraucht braucht lange viele viel noch jetzt heute gestern letzte letz
 denn schon so nun und oder aber nicht kein keine
 hold holds held contain contains contained belong belongs sit sits live lives land landed
 liegt liegen lag lagen steht stehen stand gehört gehören enthält enthalten geändert geänderte geänderten geänderter geändertes gemacht
-änderung änderungen""".split())   # round 3: the question's frame verbs
+änderung änderungen
+create created creates creating use used uses using lief liefen läuft laufen gelaufen erstellt erstellte angelegt angelegte""".split())   # round 3
+# and round 4: the question's frame verbs ("where was the config file created", "which branch did it use", "wie lange lief")
 SYN = [{"session", "sessions", "sitzung", "sitzungen"}, {"test", "tests", "testsuite", "testsuites", "suite", "suites", "testlauf", "testläufe"},
        {"build", "builds", "kompilierung"}, {"lint", "linter", "linting"}, {"deploy", "deployment", "deployments", "rollout", "bereitstellung"},
        {"branch", "branches", "zweig"}, {"file", "files", "datei", "dateien"}, {"agent", "agents"}, {"commit", "commits"},
        {"migration", "migrations", "migrationen"},
-       {"config", "configs", "configuration", "konfiguration", "konfigurationen", "konfig", "settings", "einstellungen"},   # round 3: EN/DE nouns
+       {"config", "configs", "configuration", "konfiguration", "konfigurationen", "konfig", "settings", "einstellungen", "conf", "cfg"},   # round 3: EN/DE nouns
        {"docs", "doc", "documentation", "dokumentation", "doku"}, {"task", "tasks", "aufgabe", "aufgaben"}, {"run", "runs", "lauf", "läufe"}]
 KIND_WORDS = set().union(*SYN[:10]) | {"task", "tasks", "aufgabe", "aufgaben"}   # words that name a kind of record: matched on its kind or name only
 SYN_OF = {w: g for g in SYN for w in g}
@@ -137,6 +142,7 @@ def wmatch(a, b):
 def _has_all(keys, pool): return all(any(wmatch(k, p) for p in pool) for k in keys)
 LEAD = re.compile(r"^\s*([^:.;!?\n]{1,60}?):\s")
 LABEL_WORDS = 8               # a record's text this short is its label (round 2's sets: "export session", "checkout-fix", "Limits angepasst")
+GENERIC_KINDS = {"fact", "record", "note", "event", "item", "entry"}   # kinds that say nothing of what the record is: its own words do
 VALUE_KEYS = ("path", "branch")   # string values that name the work (a branch "fix/timeout-guard", a path "config/limits.toml")
 def text_label(r):
     """the record's own text as its label: the whole text when it is short, else its first clause, capped (round 3: the found list
@@ -158,6 +164,9 @@ def record_tokens(r):
     work: a short text (its label), the start of a long one, and its path and branch values (round 3)"""
     f = r["fields"]; m = LEAD.match(r["text"] or "")
     ident = set(toks(r["kind"])) | set(toks(r["id"])) | {w for k in IDENT_KEYS if isinstance(f.get(k), str) for w in toks(f[k])} | (set(toks(m[1])) if m else set())
+    if not m and str(r["kind"]).lower() in GENERIC_KINDS:      # round 4: a generic record ("fact") is named by its text's first clause
+        head = re.split(r"[,;:.!?]|\s+—\s+", r["text"] or "")[0]
+        if 0 < len(toks(head)) <= LABEL_WORDS: ident |= set(toks(head))
     link = {w for k in LINK_KEYS if f.get(k) not in (None, "") for w in toks(k) + toks(f[k])}
     tw = toks(r["text"]); label = set(tw if len(tw) <= LABEL_WORDS else tw[:6]) | {w for k in VALUE_KEYS if isinstance(f.get(k), str) for w in toks(f[k])}
     return ident, link, label
@@ -211,9 +220,33 @@ def count_only(item, found):
     return {"ok": True, "kind": "answer" if zero else "count_only", "shown": "\n".join(lines), "refs": [r["id"] for r, _v in found], "model_text": [],
             "errors": [], "notes": ["a which-question; the records hold only a count (no call)"], "found": [r["id"] for r, _v in found],
             "values": [{"id": r["id"], **vals} for r, vals in found]}
+# round 4: a kind word that only says where the subject lives ("the settings file in the drift-gate session", "der Autor in der Sitzung
+# kea", "of turn 7") names the container, not the record asked about: a fact record about drift-gate is no session, and v5 round 3 said
+# "I don't know" on such questions. When no record matches with it, the subject is matched again without the container's kind word;
+# its name words still have to match ("the status of the vole session" still finds the session record first).
+CONTAINER = [re.compile(p, re.I) for p in (
+ r"\b(?:in|of|from|during|within)\s+(?:the\s+|a\s+|this\s+|that\s+)?(?:[\w.]+(?:-[\w.]+)*\s+){1,3}?(sessions?|turns?|runs?)\b",
+ r"\b(?:in|of|from|during|within)\s+(?:the\s+)?(session|turn|run)\s+[\w.-]+",
+ r"\b(?:in|von|aus|bei|während)\s+(?:der|dem|die|des)?\s*(sitzung|session|turn|lauf)\s+[\w.-]+",
+ r"\b(?:in|von|aus|bei|während)\s+(?:der|dem|die|des)\s+(?:[\w.]+(?:-[\w.]+)*\s+){1,3}?(sitzung|session|turn|lauf)\b")]
+def container_words(question):
+    """the kind words of the question's container phrases ("in the X session" -> {'session'})"""
+    return {m.group(1).lower() for rx in CONTAINER for m in rx.finditer(question or "")}
+HYPH = re.compile(r"[^\W_][\w.]*(?:-[\w.]*[^\W_])+")
+def hyph_names(s): return {m.group(0).lower().strip(".") for m in HYPH.finditer(unicodedata.normalize("NFKC", str(s or "")))}
+def record_hyph(r):
+    return hyph_names(r.get("text")) | {n for k in IDENT_KEYS + VALUE_KEYS if isinstance(r["fields"].get(k), str) for n in hyph_names(r["fields"][k])}
+def whole_name(question, recs):
+    """round 4: a hyphenated name is one name ("crane-etl" is not "crane-etl-backfill", "marten-ci" not a "marten-ui" on branch ci/x):
+    -> the records that hold one of the question's hyphenated names whole, when that narrows them, else all of them"""
+    qn = hyph_names(question)
+    if not qn: return recs
+    exact = [r for r in recs if qn & record_hyph(r)]
+    return exact if 0 < len(exact) < len(recs) else recs
 def lookup(item, fields):
     """-> (found [(record, {field: value})], why). Found is empty when no record at the best subject match holds the field."""
     cue = classify(item["question"])[2] | {w for f in fields for _fs, _k, _r, cw in ATTR_LEXICON if f in _fs for w in cw}
+    cont = container_words(item["question"])
     alts = subject_alternatives(item["question"], cue); recs = item["records"]
     if not alts:
         hold = [r for r in recs if has_field(r, fields)]
@@ -222,10 +255,13 @@ def lookup(item, fields):
     found = []
     for keys in alts:
         m = match(recs, keys, quoted_words(item["question"]))
+        if not m and set(keys) & cont and [k for k in keys if k not in cont]:     # no record of the container's kind: read it as a place
+            m = match(recs, [k for k in keys if k not in cont], quoted_words(item["question"]))
         if not m: return [], f"no record is about {' '.join(keys)!r}"
         best = max(s for s, _r in m); top = [r for s, r in m if s == best]
         hold = [r for r in top if has_field(r, fields)]
         if not hold: return [], f"the records about {' '.join(keys)!r} hold no {'/'.join(fields)} (a nearby record may: not the answer)"
+        hold = whole_name(item["question"], hold)
         if len(hold) > 3: return [], f"{len(hold)} records match {' '.join(keys)!r}: too many to answer"
         if len(hold) > 1 and not (set(toks(item["question"])) & PLURAL_CUES):
             same = len({record_label(r).lower() for r in hold}) == 1
@@ -421,6 +457,22 @@ def pick_prompt(question, found): return "QUESTION (from the developer): " + que
 def pick_system():
     ex = [f"Example {i}\n{pick_prompt(e['question'], e['found'])}\nOUTPUT: {j4.to_grammar_json(e['out'])}" for i, e in enumerate(PICK_EX, 1)]
     return PICK_INSTR + "\n\n" + "\n\n".join(ex)
+# round 4: v5 round 3's models picked the first candidate whenever the question's words fit two records equally ("the harbor-lab
+# session" of a Work and a Lab profile: "ran for 15 minutes [s1]" on four models), a guess the pick prompt forbids. The model may pick
+# only when a word of the question names one candidate and not every other (its own words: "latest" against "older", "rule" against
+# "notes on linting"); otherwise code lists them all.
+PICK_WORDS_KEEP = {"last", "latest", "recent", "first", "newest", "oldest", "older", "earlier", "later", "current", "letzte", "letzten",
+                   "letzter", "letztes", "erste", "ersten", "neueste", "neuesten", "ältere", "älteren", "aktuelle", "aktuellen"}
+def tells_apart(question, recs):
+    words = [w for w in toks(question) if (w not in STOP or w in PICK_WORDS_KEEP) and len(w) > 1]
+    bags = []
+    for r in recs:
+        ident, link, label = record_tokens(r); bags.append(ident | link | label | set(toks(r.get("text"))))
+    for i, b in enumerate(bags):
+        others = [x for j, x in enumerate(bags) if j != i]
+        for w in words:
+            if any(wmatch(w, p) for p in b) and not all(any(wmatch(w, p) for p in o) for o in others): return True
+    return False
 def dont_know(item, why, fields=None):
     lead = j4.FIXED["dont_know"] if not item["records"] else j4.FIXED["not_sure"]
     hide = asked_kinds(fields) if fields else tuple(FIELD_KIND.values())        # the asked kind's values hidden; unknown ask: no values
@@ -435,6 +487,10 @@ class Chat(Job):
     name, letter, title, item_kind = "chat", "d", "Chat answer", "chat"
     omission_over_all_items = True
     def route(self, item):
+        r = self._route(item)
+        if r[0] == "pick" and not tells_apart(item["question"], [x for x, _v in r[2]]): return ("listed", r[1], r[2], r[3])
+        return r
+    def _route(self, item):
         fs, kind, _cue = classify(item["question"])
         if fs and kind == "names":
             nf = NAMES_FIELDS.get(fs[0], fs)
@@ -456,6 +512,7 @@ class Chat(Job):
         if path == "scope": return {"decided": {"ok": True, "kind": "scope", "shown": j4.FIXED["scope"], "refs": [], "model_text": [], "errors": [], "notes": [why], "found": []}}
         if path == "lookup" and not found: return {"decided": dont_know(item, why, fs)}
         if path == "count_only": return {"decided": count_only(item, found)}
+        if path == "listed": return {"decided": dict(ambiguous(item, found, why), notes=[why + "; no word of the question tells them apart: each, by code (no call)"])}
         if path == "lookup" and why.startswith("same name"): return {"decided": same_name(item, found)}
         if path == "pick":
             ids = [r["id"] for r, _v in found]; schema = PICK_SCHEMA(ids); sys_t = pick_system(); src = item["question"] + "\n" + "\n".join(found_lines(found))
@@ -549,7 +606,7 @@ class Chat(Job):
                 "model_text": [p["text"] for p in o.get("parts") or []] if kind == "answer" else [], "errors": [], "notes": o["notes"], "found": []}
     def fallback(self, item, setting):
         path, fs, found, why = self.route(item)
-        if path == "pick": return ambiguous(item, found, why)
+        if path in ("pick", "listed"): return ambiguous(item, found, why)
         if path == "count_only": return count_only(item, found)
         if path == "lookup" and why.startswith("same name"): return same_name(item, found)
         if path == "lookup" and found:

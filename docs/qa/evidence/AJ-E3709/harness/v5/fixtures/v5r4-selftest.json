@@ -242,5 +242,241 @@
    "caveat_kind": "not_run",
    "caveat": "tests were not run"
   }
- }
+ },
+ "chat": [
+  {
+   "label": "a frame verb (created) is no subject word",
+   "question": "Where was the new log file created in puffin-relay?",
+   "records": [
+    {
+     "id": "f1",
+     "kind": "fact",
+     "fields": {
+      "path": "logs/puffin/relay.log"
+     },
+     "text": "New file logs/puffin/relay.log in puffin-relay"
+    }
+   ],
+   "expect": {
+    "path": "lookup",
+    "found": [
+     "f1"
+    ]
+   }
+  },
+  {
+   "label": "German frame verb (lief)",
+   "question": "Wie lange lief die Sitzung puffin-admin?",
+   "records": [
+    {
+     "id": "s1",
+     "kind": "session",
+     "fields": {
+      "duration_s": 2700
+     },
+     "text": "Sitzung puffin-admin dauerte 45 Minuten"
+    }
+   ],
+   "expect": {
+    "path": "lookup",
+    "found": [
+     "s1"
+    ]
+   }
+  },
+  {
+   "label": "a container kind word with no record of that kind",
+   "question": "Where is the changed theme file in the gannet-web session?",
+   "records": [
+    {
+     "id": "f1",
+     "kind": "fact",
+     "fields": {
+      "path": "theme/gannet.css"
+     },
+     "text": "Changed file theme/gannet.css in gannet-web"
+    },
+    {
+     "id": "f2",
+     "kind": "fact",
+     "fields": {
+      "path": "docs/gannet-faq.md"
+     },
+     "text": "Untouched file docs/gannet-faq.md in gannet-web"
+    }
+   ],
+   "expect": {
+    "path": "lookup",
+    "found": [
+     "f1"
+    ]
+   }
+  },
+  {
+   "label": "...a record of the container's kind is still found first",
+   "question": "What is the status of the gannet-web session?",
+   "records": [
+    {
+     "id": "s1",
+     "kind": "session",
+     "fields": {
+      "status": "finished"
+     },
+     "text": "gannet-web session"
+    },
+    {
+     "id": "t1",
+     "kind": "test_run",
+     "fields": {
+      "status": "failed"
+     },
+     "text": "gannet-web smoke tests"
+    }
+   ],
+   "expect": {
+    "path": "lookup",
+    "found": [
+     "s1"
+    ]
+   }
+  },
+  {
+   "label": "a generic record is named by its text's first clause",
+   "question": "Who made the last commit in the gannet-api session?",
+   "records": [
+    {
+     "id": "f1",
+     "kind": "fact",
+     "fields": {
+      "author": "c@example.com"
+     },
+     "text": "Commit 7f7f7f in gannet-api, author c@example.com"
+    },
+    {
+     "id": "s1",
+     "kind": "session",
+     "fields": {
+      "status": "finished"
+     },
+     "text": "gannet-api session finished"
+    }
+   ],
+   "expect": {
+    "path": "lookup",
+    "found": [
+     "f1"
+    ]
+   }
+  },
+  {
+   "label": "a hyphenated name is one name",
+   "question": "What did the skua-sync session cost?",
+   "records": [
+    {
+     "id": "s1",
+     "kind": "session",
+     "fields": {
+      "cost_usd": 2.4
+     },
+     "text": "skua-sync session cost 2.40 USD"
+    },
+    {
+     "id": "s2",
+     "kind": "session",
+     "fields": {
+      "cost_usd": 9.1
+     },
+     "text": "skua-sync-archive session cost 9.10 USD"
+    }
+   ],
+   "expect": {
+    "path": "lookup",
+    "found": [
+     "s1"
+    ]
+   }
+  },
+  {
+   "label": "two records no question word tells apart: code lists both, no call",
+   "question": "How long did the tern-board session run?",
+   "records": [
+    {
+     "id": "s1",
+     "kind": "session",
+     "fields": {
+      "duration_s": 720
+     },
+     "text": "tern-board session (Work profile), 12 minutes"
+    },
+    {
+     "id": "s2",
+     "kind": "session",
+     "fields": {
+      "duration_s": 2400
+     },
+     "text": "tern-board session (Home profile), 40 minutes"
+    }
+   ],
+   "expect": {
+    "path": "listed",
+    "found": [
+     "s1",
+     "s2"
+    ],
+    "shown_has": [
+     "12 min",
+     "40 min"
+    ]
+   }
+  },
+  {
+   "label": "...a question word that names one lets the model pick",
+   "question": "Who wrote the latest commit in the gannet-web session?",
+   "records": [
+    {
+     "id": "f1",
+     "kind": "fact",
+     "fields": {
+      "author": "a@example.com"
+     },
+     "text": "Latest commit in gannet-web: author a@example.com"
+    },
+    {
+     "id": "f2",
+     "kind": "fact",
+     "fields": {
+      "author": "b@example.com"
+     },
+     "text": "Older commit in gannet-web: author b@example.com"
+    }
+   ],
+   "expect": {
+    "path": "pick",
+    "found": [
+     "f1",
+     "f2"
+    ]
+   }
+  },
+  {
+   "label": "'where were the failing tests' never takes the failed count",
+   "question": "Where were the failing tests in the gannet-web session?",
+   "records": [
+    {
+     "id": "t1",
+     "kind": "turn",
+     "fields": {
+      "tests_passed": 12,
+      "tests_failed": 3
+     },
+     "text": "Turn 4 of gannet-web: 3 tests failed"
+    }
+   ],
+   "expect": {
+    "not_fields": [
+     "tests_failed"
+    ]
+   }
+  }
+ ]
 }

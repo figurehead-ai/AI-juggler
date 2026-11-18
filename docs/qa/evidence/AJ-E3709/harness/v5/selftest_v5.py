@@ -388,9 +388,10 @@ def selftest():
           and CHAT.evaluate(itk, "main", {"answer": "The kea sync session started at 16:15 UTC.", "cites": ["s-kea"]})["ok"])
 
     # ================================================================================================ R2-3. Chat: two records match the subject
-    h1 = {"id": "s-h1", "kind": "session", "fields": {"name": "heron api", "files_changed": 11}, "text": ""}
-    h2 = {"id": "s-h2", "kind": "session", "fields": {"name": "heron api older run", "files_changed": 4}, "text": ""}
-    ith = chat_item("How many files did the heron api session change?", [h1, h2])
+    # round 4: the model picks only when a word of the question tells the candidates apart ("latest" here; R4-6 lists them otherwise)
+    h1 = {"id": "s-h1", "kind": "session", "fields": {"name": "heron api", "files_changed": 11}, "text": "the latest heron api run"}
+    h2 = {"id": "s-h2", "kind": "session", "fields": {"name": "heron api older run", "files_changed": 4}, "text": "an older heron api run"}
+    ith = chat_item("How many files did the latest heron api session change?", [h1, h2])
     eng = Script([{"pick": "s-h1", "answer": "The heron api session changed 11 files."}]); rec = run_item(CHAT, ith, "main", eng)
     check("R3 pick: two differently named records at the subject -> the model picks one; code cites it", rec["used"] == 0 and rec["final"]["kind"] == "answer"
           and rec["final"]["refs"] == ["s-h1"] and rec["final"]["shown"].endswith("[s-h1]") and "CANDIDATES" in eng.reqs[0]["prompt"], rec)
@@ -402,8 +403,8 @@ def selftest():
           and any("value" in e for e in rec["attempts"][0]["errors"]), rec["attempts"][0]["errors"])
     rec = run_item(CHAT, ith, "main", Script([{"pick": "s-h2", "answer": "The heron api older run changed 4 files."}]))
     check("R3 pick: the picked record's own value passes", rec["used"] == 0 and rec["final"]["refs"] == ["s-h2"], rec["attempts"])
-    lp = [{"id": "c-7", "kind": "commit", "fields": {"path": "kiln/rules.toml"}, "text": "kiln rules tightened"}, {"id": "c-8", "kind": "commit", "fields": {"path": "kiln/rules.md"}, "text": "kiln rules explained"}]
-    itl = chat_item("Where are the kiln rules?", lp)
+    lp = [{"id": "c-7", "kind": "commit", "fields": {"path": "kiln/rules.toml"}, "text": "latest kiln rules, tightened"}, {"id": "c-8", "kind": "commit", "fields": {"path": "kiln/rules.md"}, "text": "kiln rules explained"}]
+    itl = chat_item("Where are the latest kiln rules?", lp)
     rec = run_item(CHAT, itl, "main", Script([{"pick": "c-7", "answer": "The kiln rules are in kiln/rules.toml, explained in kiln/rules.md."}] * 3))
     check("R3 pick: an answer naming the other candidate's value too is refused", rec["used"] == "fallback" and any(("invented" in e and "rules.md" in e) or "value" in e for e in rec["attempts"][0]["errors"]), rec["attempts"][0]["errors"])
     h2b = dict(h2, fields={"name": "heron api", "files_changed": 4})
@@ -772,6 +773,19 @@ def selftest():
     check("R4 parts: an undo with its result after the composer's comma is not 'a kept change called undone'", not any("calls" in e and "undone" in e for e in rp["attempts"][0]["errors"]), rp["attempts"][0]["errors"])
     rq = run_item(FEED, tp, "main", Script([FP["false"]]))
     check("R4 parts: ...a kept change the line calls reverted is still refused", any("calls" in e and "undone" in e for e in rq["attempts"][0]["errors"]), rq["attempts"][0]["errors"])
+
+    # ================================================================================================ R4-6. Chat: the subject (frame verbs, a container, whole names), picks only with a telling word
+    def r4_chat():
+        out = []
+        for case in R4["chat"]:
+            itc = chat_item(case["question"], case["records"]); p_, fs_, fd, w_ = CHAT.route(itc); e = case["expect"]
+            ok = ("path" not in e or p_ == e["path"]) and ("found" not in e or [r["id"] for r, _v in fd] == e["found"]) and not (set(e.get("not_fields", ())) & set(fs_ or ()))
+            if ok and "shown_has" in e:
+                try: fo = run_item(CHAT, itc, "main", NoCall())["final"]; ok = all(x in fo["shown"] for x in e["shown_has"])
+                except AssertionError: ok = False
+            out.append((case["label"], ok, (p_, [r["id"] for r, _v in fd], w_, fs_)))
+        return out
+    for label, ok, d in r4_chat(): check(f"R4 chat: {label}", ok, d)
 
     # ================================================================================================ the extension point, the frozen gate, the prompts
     class Toy(core.Job):
