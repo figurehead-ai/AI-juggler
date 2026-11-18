@@ -43,6 +43,13 @@ describe("FlowSteps", () => {
     expect(screen.getByRole("button", { name: STEP("Who leads") }).getAttribute("aria-current")).toBeNull();
   });
 
+  it("its text breaks between its number, the step and its value, as its name does (axe's label-content check read \"4Who leadsNo lead yet\")", () => {
+    render(<FlowSteps steps={STEPS} groups={GROUPS} onPick={() => {}} />);
+    const lead = screen.getByRole("button", { name: STEP("Who leads") });
+    expect(lead.textContent).toBe("4 Who leads No lead yet");
+    expect(screen.getByRole("button", { name: "4 Who leads No lead yet" })).toBe(lead);
+  });
+
   it("numbers the steps across groups and goes back to a done one; one not reachable yet can't be picked", () => {
     const pick = vi.fn();
     render(<FlowSteps steps={STEPS} groups={GROUPS} onPick={pick} />);

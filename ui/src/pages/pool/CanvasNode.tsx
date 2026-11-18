@@ -89,14 +89,16 @@ function FullNode({ member, at, asks, held, selected, tabStop, dragging, onSelec
               press on the node did nothing): it covers the card, so a
               click, a press or Enter anywhere on it opens it. */}
           <NodeButton member={member} title={title} selected={selected} tabStop={tabStop} description={description} onSelect={onSelect} onKey={onKey} className={"text-body leading-snug " + (nameWraps(title.title, NODE_W - 96, 14) ? "line-clamp-2" : "truncate")} />
-          <span className="relative z-10 flex min-w-0 items-center gap-1.5 truncate text-label text-muted">
+          <span className="relative z-10 flex min-h-6 min-w-0 items-center gap-1.5 truncate text-label text-muted">
             <RoleWords role={member.role} />
             <ShellOnly tool={member.session.provider} account={member.session.account_id} project={member.session.project_id} inRow />
             <NodeRoom profileId={member.session.account_id} />
             <span aria-hidden="true">·</span>
-            {/* Its App's page, one click (design review #14). */}
+            {/* Its App's page, one click (design review #14), a whole 24 px
+                target (WCAG 2.5.8: axe measured 70 × 16.8 over the node's
+                own button, which leaves it no spacing). */}
             {host.openAccountById && member.session.account_id ? (
-              <button type="button" onClick={() => member.session.account_id && host.openAccountById?.(member.session.account_id)} className="min-w-0 truncate rounded text-left outline-none hover:text-ink hover:underline focus-visible:ring-1 focus-visible:ring-accent/60" data-testid="node-app">
+              <button type="button" onClick={() => member.session.account_id && host.openAccountById?.(member.session.account_id)} className="min-h-6 min-w-6 truncate rounded text-left outline-none hover:text-ink hover:underline focus-visible:ring-1 focus-visible:ring-accent/60" data-testid="node-app">
                 {app}
               </button>
             ) : (

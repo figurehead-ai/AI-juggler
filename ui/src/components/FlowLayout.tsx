@@ -147,11 +147,15 @@ export function FlowSteps({
                     data-step={step.id}
                     data-state={step.state}
                   >
-                    <Dot state={step.state} n={numberOf.get(step.id) ?? at + 1} id={`${id}-num`} />
+                    <Dot state={step.state} n={numberOf.get(step.id) ?? at + 1} id={`${id}-num`} />{" "}
                     <span className="flex min-w-0 flex-col">
                       <span id={`${id}-name`} className={"text-meta leading-6 " + (step.state === "current" ? "font-semibold text-ink" : step.state === "todo" ? "font-medium text-muted" : "font-medium text-ink-2")}>
                         {step.label}
                       </span>
+                      {/* Word breaks in its text between its number, the
+                          step and its value, as in its name: axe's 2.5.3
+                          check joins what's drawn with no spaces ("4Who
+                          leadsNo lead yet"); a flex box never draws them. */}{" "}
                       <span id={`${id}-more`} className={"-mt-0.5 text-label " + (step.state === "done" ? "text-muted" : "text-faint")}>
                         {step.value}
                         {/* Part of its name: "Where web, done" (a leading space would be dropped). */}
