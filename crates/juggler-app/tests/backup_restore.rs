@@ -1031,6 +1031,6 @@ fn a_restore_brings_back_nothing_forgotten_and_no_kept_copy_holds_it() {
             .count()
     };
     assert!(copies(&mac) >= 1);
-    backup::prune_restore_copies(&mac, now + 2 * 86_400_000);
+    backup::prune_aged_copies(&mac, now + 2 * 86_400_000);
     assert_eq!(copies(&mac), 0);
 }
