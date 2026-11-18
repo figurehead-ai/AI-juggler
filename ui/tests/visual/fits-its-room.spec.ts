@@ -113,17 +113,28 @@ for (const size of [
 
 // The 0.4.6 rc2 walk (A8): an ended row's long state word ("Ended with AI
 // Juggler") never gave way, so its project and time ran under it ("3 min
-// agEnded…"). At the rail's narrowest, every row's time ends before its
-// state word starts.
+// agEnded…"). With the list at its narrowest and Also's "ended today"
+// shown, every row's time ends before its state word starts.
 test("A8: a rail row's time never runs under its state word — 1024", async ({ page }) => {
-  const ended = MOCK_SESSIONS.map((row) => ({ ...row, status: "stopped", ending: { how: "with_app", detail: null } }));
-  await seed(page, { accounts: A9_FOLDERS, projects: [], sessions: ended, conversations: [], subscriptions: A9_SUBSCRIPTIONS }, { width: 1024, height: 700 });
-  const rows = page.getByTestId("rail").locator("[data-testid='state-word']");
-  await expect(rows.first()).toBeVisible();
+  const ended = MOCK_SESSIONS.map((row) => ({ ...row, status: "stopped", started_at_ms: T0 - 3_600_000, last_activity_ms: T0 - 180_000, ending: { how: "with_app", detail: null } }));
+  // Each with its project beside its time, as the walk saw them.
+  const projects = [
+    { id: "proj-ai-juggler", root: "/Users/you/Dev/ai-juggler", name: "ai-juggler", last_activity_ms: T0, active_instance: null, accounts_used: [], instance_count: 0, history_sessions: 0, history_last_used_ms: null, repo: null, missing: false },
+    { id: "proj-payments", root: "/Users/you/Dev/payments-api", name: "payments-api", last_activity_ms: T0, active_instance: null, accounts_used: [], instance_count: 0, history_sessions: 0, history_last_used_ms: null, repo: null, missing: false },
+  ];
+  // The list at its narrowest (the splitter's floor, 208 px).
+  await page.addInitScript(() => localStorage.setItem("aij.rail.width", "208"));
+  await seed(page, { accounts: ACCOUNTS, projects, sessions: ended, conversations: [] }, { width: 1024, height: 700 });
+  // At 1024 the rail starts as its strip: the list, at its narrowest.
+  const list = page.getByRole("button", { name: "Show the list", exact: true });
+  if (await list.isVisible()) await list.click();
+  await page.getByTestId("rail").getByTestId("rail-also-ended").first().click();
+  const words = page.getByTestId("rail").getByTestId("state-word");
+  await expect(words.first()).toBeVisible();
+  await expect(words.first()).toHaveText("Ended with AI Juggler");
   const under = await page.getByTestId("rail").evaluate((rail) =>
     [...rail.querySelectorAll<HTMLElement>("[data-testid='state-word']")].flatMap((word) => {
-      const line = word.parentElement;
-      const when = line?.querySelector<HTMLElement>("[data-testid='row-when']");
+      const when = word.parentElement?.querySelector<HTMLElement>("[data-testid='row-when']");
       if (!when) return [];
       const end = when.getBoundingClientRect().right;
       const start = word.getBoundingClientRect().left;
@@ -131,4 +142,6 @@ test("A8: a rail row's time never runs under its state word — 1024", async ({ 
     }),
   );
   expect(under).toEqual([]);
+  // And each row says its project and time (not measured empty).
+  await expect(page.getByTestId("rail").getByTestId("row-when").first()).toContainText("ago");
 });

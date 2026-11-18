@@ -59,11 +59,17 @@ export function RowProject({ item, rest, whole = false }: { item: RailItem; rest
   // the cap equalled the time's own width and the app's WebKit, rounding,
   // cut it. The time no longer shrinks at all (the rail's widths hold it:
   // a11y's "no row overflows its width").
-  const fit = whole ? "min-w-[2.5ch] shrink" : "-mx-0.5 px-0.5 max-w-[65%] shrink-0";
+  //
+  // 0.4.6 rc3 (A8 at the list's 208 px floor, "3 min ago" 8 px under
+  // "Ended with AI Juggler"): `whole` gives its project and time to the
+  // caller's line as its own items, no box of their own, so the line
+  // holds the time whole beside its state word; the project gives way
+  // first (its shrink outweighs the state word's), then the state word.
+  const fit = whole ? "min-w-[2.5ch] shrink-100" : "-mx-0.5 px-0.5 max-w-[65%] shrink-0";
   const id = item.projectId;
   const linked = item.project !== null && id !== null && !!host.openProjectById;
-  return (
-    <span className="flex min-w-0 items-start text-label leading-[14px] text-muted">
+  const parts = (
+    <>
       {linked ? (
         <button
           type="button"
@@ -87,12 +93,14 @@ export function RowProject({ item, rest, whole = false }: { item: RailItem; rest
       {rest && (
         // With no project beside it, the time has the line to itself (it
         // read "1 …" under a cap measured against a project).
-        <span aria-hidden="true" data-testid="row-when" className={(whole && item.project ? "shrink-0" : "min-w-0 truncate") + " whitespace-pre"}>
+        <span aria-hidden="true" data-testid="row-when" className={(whole && item.project ? "shrink-0" : "min-w-0 truncate") + " whitespace-pre leading-[14px]"}>
           {item.project ? ` · ${rest}` : rest}
         </span>
       )}
-    </span>
+    </>
   );
+  if (whole) return parts;
+  return <span className="flex min-w-0 items-start text-label leading-[14px] text-muted">{parts}</span>;
 }
 
 /** The App a row is in, in words: "Claude Code · Work Max · in Terminal". */

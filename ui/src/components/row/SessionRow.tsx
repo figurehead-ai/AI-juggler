@@ -209,17 +209,18 @@ export function SessionRow(props: SessionRowProps): JSX.Element {
           {pinned && <PinMark />}
           {exception}
         </span>
-        <span className="flex min-w-0 items-center gap-2 text-label text-muted">
-          <span className="flex min-w-0 flex-1 items-center">
-            <RowProject item={projectShown ? item : { ...item, project: null }} rest={when} whole />
-            {also && <span aria-hidden="true" className="shrink-0 whitespace-pre" data-testid="row-also"> · {also}</span>}
-            {helpers && <RowSubagents item={item} words={helpers} onSelect={props.onSelect} />}
-          </span>
+        <span className="flex min-w-0 items-center text-label leading-[14px] text-muted">
+          <RowProject item={projectShown ? item : { ...item, project: null }} rest={when} whole />
+          {also && <span aria-hidden="true" className="shrink-0 whitespace-pre" data-testid="row-also"> · {also}</span>}
+          {helpers && <RowSubagents item={item} words={helpers} onSelect={props.onSelect} />}
           {/* The 0.4.6 rc2 walk (A8): "Ended with AI Juggler" never gave
               way, so the project and time ran under it ("3 min agEnded…").
               It takes at most half the line and is cut last, whole on
-              hover and in the row's name; the time stays whole (0.4.5). */}
-          <span aria-hidden="true" title={state.word} className={"min-w-0 max-w-[50%] shrink truncate text-label leading-[14px] " + (needs ? "font-semibold " : "font-medium ") + state.text} data-testid="state-word">
+              hover and in the row's name; the time stays whole (0.4.5).
+              rc3: the project, time and state word are the line's own
+              items (the time had sat in a box sized 0, which the word's
+              half took first: 8 px under it at the list's 208 px floor). */}
+          <span aria-hidden="true" title={state.word} className={"ml-auto min-w-0 max-w-[50%] shrink truncate pl-2 text-label leading-[14px] " + (needs ? "font-semibold " : "font-medium ") + state.text} data-testid="state-word">
             {state.word}
           </span>
         </span>
