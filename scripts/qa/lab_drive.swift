@@ -40,6 +40,24 @@
 // nothing more is sent and Dev is left where it is (not lowered, not raised
 // again). The full guard still runs before every single event.
 //
+// OPPORTUNISTIC (--opportunistic, or AIJ_DRIVE_OPPORTUNISTIC=1; off by
+// default, and without it all of the above is unchanged). Only the person's
+// own keyboard and mouse matter (HID idle time); other agents' apps in
+// front are the guard's to wait out.
+//   - Pause, don't stop: input at the Mac (HID idle below 20 s) before any
+//     event pauses the step: nothing more is sent, Dev is left where it is,
+//     and it prints PAUSED <UTC time> step=<command> idle=<s>s. It waits
+//     until 20 s pass without input with the screen unlocked, no screen
+//     saver, this login on screen; prints RESUMED <UTC time> step=<command>
+//     idle=<s>s; then restarts the atomic action it was about to send (one
+//     press, one key's down+up, one character: a key is never half sent),
+//     the full guard first, and may bring Dev forward once more under the
+//     terms above (at most once per resume). A key whose step had put Dev's
+//     focus somewhere gets it put back first (REFOCUSED …; can't: exit 6).
+//   - No overall time limit while waiting (AIJ_DRIVE_WAIT is ignored), so it
+//     can wait overnight; a HEARTBEAT <UTC time> step=<command> … line at
+//     most every 10 minutes while it waits or is paused.
+//
 // Build once (system swiftc only), then run:
 //   swiftc -O -o "$S/lab_drive" scripts/qa/lab_drive.swift      # $S: a scratch folder
 //   AIJ_DEV_PID=<pid> AIJ_DRIVE_OUT=docs/qa/evidence/AJ-E1612 "$S/lab_drive" <command> …
@@ -95,7 +113,8 @@
 //
 // Exit: 0 done, 2 usage, 3 the guard stopped it (nothing sent), 4 not
 // found / ambiguous (nothing sent), 5 timed out waiting, 6 new input at the
-// Mac after Dev was brought forward (nothing more sent).
+// Mac after Dev was brought forward (nothing more sent; opportunistic: Dev's
+// focus couldn't be put back after a pause).
 import AppKit
 import ApplicationServices
 import CoreGraphics
@@ -178,14 +197,23 @@ enum Gate: Equatable {
     case wait(String)
     case activate
     case stopNewInput
+    /// Opportunistic: the person is using the Mac; nothing is sent.
+    case pause
 }
 
+/// While waiting, a heartbeat line at most this often (opportunistic).
+let heartbeatEvery: Double = 600
+
 /// What to do now. `activatedAt`: when this step brought Dev forward (nil:
-/// not yet); `now` and it on one clock, in seconds.
-func decide(_ p: Probe, may: Bool, activatedAt: Double?, now: Double) -> Gate {
+/// not yet, or not since the last resume); `now` and it on one clock, in
+/// seconds. `opportunistic`: input pauses instead of stopping.
+func decide(_ p: Probe, may: Bool, activatedAt: Double?, now: Double, opportunistic: Bool = false) -> Gate {
+    // Opportunistic: any input in the last 20 s pauses, before any event,
+    // whatever the guard says.
+    if opportunistic && p.idle < minIdle { return .pause }
     // After an activation, the person's input since then ends the run,
     // whatever the guard says (checked before every single event).
-    if let at = activatedAt, now - p.idle > at + 0.25 { return .stopNewInput }
+    if !opportunistic, let at = activatedAt, now - p.idle > at + 0.25 { return .stopNewInput }
     if p.verdict == .clear { return .send }
     let why = describe(p.verdict)
     guard may else { return .wait(why) }
@@ -205,8 +233,21 @@ func decide(_ p: Probe, may: Bool, activatedAt: Double?, now: Double) -> Gate {
     return .activate
 }
 
+/// Why a pause still holds (nil: it may resume): 20 s without input, the
+/// screen unlocked, no screen saver, this login on screen.
+func pauseHolds(_ p: Probe) -> String? {
+    if p.idle < minIdle { return "the Mac is in use (last input \(Int(p.idle)) s ago)" }
+    if !p.onConsole { return "this login isn't the one on screen" }
+    if p.locked { return "the screen is locked" }
+    if p.saver { return "the screen saver runs" }
+    return nil
+}
+
 enum GateEnd: Equatable {
     case send
+    /// Opportunistic: paused and resumed; the caller restarts its atomic
+    /// action from the start (the guard first), nothing of it was sent.
+    case restart
     case guardStopped(String)
     case inputStopped
 }
@@ -241,18 +282,48 @@ func utc(_ seconds: Double) -> String {
     return f.string(from: Date(timeIntervalSince1970: seconds))
 }
 
+/// Opportunistic: the person is using the Mac. Sends nothing and moves
+/// nothing; waits until `pauseHolds` lets go, a heartbeat at most every 10
+/// minutes.
+func pause(step: String, first p: Probe, mac: Mac) {
+    let at = mac.now()
+    mac.log("PAUSED \(utc(at)) step=\(step) idle=\(String(format: "%.1f", p.idle))s "
+        + "(someone is using the Mac: nothing more is sent, Dev stays where it is; it resumes after \(Int(minIdle)) s without input)")
+    var beat = at
+    while true {
+        mac.sleep(1)
+        let q = mac.probe()
+        let now = mac.now()
+        guard let why = pauseHolds(q) else {
+            mac.log("RESUMED \(utc(now)) step=\(step) idle=\(String(format: "%.1f", q.idle))s (the guard is checked again before anything is sent)")
+            return
+        }
+        if now - beat >= heartbeatEvery {
+            mac.log("HEARTBEAT \(utc(now)) step=\(step) paused \(Int((now - at) / 60)) min: \(why)")
+            beat = now
+        }
+    }
+}
+
 /// Waits until an event may be sent: the guard clear (bringing Dev forward
 /// at most once, under `decide`'s rules), else stops. `activatedAt` lives
-/// for the whole step.
-func gate(step: String, may: Bool, activatedAt: inout Double?, mac: Mac, limit: Double) -> GateEnd {
+/// for the whole step. Opportunistic: input pauses (`.restart` after it
+/// resumes, with a fresh activation allowed), and there is no time limit.
+func gate(step: String, may: Bool, opportunistic: Bool = false, activatedAt: inout Double?, mac: Mac, limit: Double) -> GateEnd {
     let start = mac.now()
     var asked = ""
+    var beat = start
     while true {
         let p = mac.probe()
         let now = mac.now()
-        switch decide(p, may: may, activatedAt: activatedAt, now: now) {
+        switch decide(p, may: may, activatedAt: activatedAt, now: now, opportunistic: opportunistic) {
         case .send:
             return .send
+        case .pause:
+            pause(step: step, first: p, mac: mac)
+            // At most one activation per resume.
+            activatedAt = nil
+            return .restart
         case .stopNewInput:
             mac.log("STOPPED: someone used the Mac after AI Juggler Dev was brought forward (last input \(Int(p.idle)) s ago). "
                 + "Nothing more is sent; Dev stays where it is.")
@@ -270,10 +341,18 @@ func gate(step: String, may: Bool, activatedAt: inout Double?, mac: Mac, limit: 
                 let ask = may
                     ? "Nothing is sent. Dev is brought forward once, after \(Int(minIdle)) s without input; or bring it forward yourself."
                     : "Nothing is sent. Please bring AI Juggler Dev forward (click its window, or its Dock icon); the driver never does it itself."
-                mac.log("WAITING: \(why). \(ask) Waiting up to \(Int(limit)) s.")
+                mac.log("WAITING: \(why). \(ask) "
+                    + (opportunistic ? "Waiting with no time limit (opportunistic), a heartbeat every \(Int(heartbeatEvery / 60)) min." : "Waiting up to \(Int(limit)) s."))
                 asked = why
             }
-            if now - start > limit { return .guardStopped(why) }
+            if opportunistic {
+                if now - beat >= heartbeatEvery {
+                    mac.log("HEARTBEAT \(utc(now)) step=\(step) waiting \(Int((now - start) / 60)) min: \(why)")
+                    beat = now
+                }
+            } else if now - start > limit {
+                return .guardStopped(why)
+            }
             mac.sleep(0.5)
         }
     }
@@ -287,7 +366,10 @@ let rawArgs = Array(CommandLine.arguments.dropFirst())
 /// sheet's setup, the agent's shell keeping no options between commands):
 /// this step may bring Dev forward, under the rules above. Default off.
 let mayActivate = rawArgs.contains("--may-activate") || env["AIJ_DRIVE_MAY_ACTIVATE"] == "1"
-let args = rawArgs.filter { $0 != "--may-activate" }
+/// --opportunistic, or AIJ_DRIVE_OPPORTUNISTIC=1: input pauses the step
+/// instead of stopping it, and waiting has no time limit (see the head).
+let opportunistic = rawArgs.contains("--opportunistic") || env["AIJ_DRIVE_OPPORTUNISTIC"] == "1"
+let args = rawArgs.filter { $0 != "--may-activate" && $0 != "--opportunistic" }
 let outDir = URL(fileURLWithPath: env["AIJ_DRIVE_OUT"] ?? FileManager.default.currentDirectoryPath)
 let waitLimit = Double(env["AIJ_DRIVE_WAIT"] ?? "") ?? 120
 
@@ -385,15 +467,29 @@ var step = "?"
 /// When this step brought Dev forward (once at most).
 var activatedAt: Double?
 
+/// Sleeps, letting the run loop take AppKit's notices meanwhile, so
+/// NSWorkspace's frontmost app and running apps stay current over a long
+/// wait (a tool that never runs its run loop can read them stale).
+func nap(_ seconds: Double) {
+    let until = Date(timeIntervalSinceNow: seconds)
+    _ = RunLoop.current.run(mode: .default, before: until)
+    let left = until.timeIntervalSinceNow
+    if left > 0 { usleep(useconds_t(left * 1_000_000)) }
+}
+
+/// What the guard says to the action about to be sent.
+enum Go { case send, restart }
+
 /// The guard, right before a press or a key (`point`: where it lands; nil:
 /// the middle of Dev's window, only waiting for one on screen). Waits
 /// (asking once) while it fails; stops with nothing sent if it still fails
 /// after AIJ_DRIVE_WAIT. With --may-activate it may bring Dev forward once
-/// (see the head).
-func guarded(_ pid: pid_t, at point: CGPoint?) {
+/// (see the head). With --opportunistic, `.restart` after a pause: the
+/// caller starts its atomic action again (nothing of it was sent).
+func guarded(_ pid: pid_t, at point: CGPoint?) -> Go {
     let mac = Mac(
         now: { Date().timeIntervalSince1970 },
-        sleep: { usleep(useconds_t($0 * 1_000_000)) },
+        sleep: nap,
         probe: {
             let front = NSWorkspace.shared.frontmostApplication
             // No window on screen while accessibility reads the page:
@@ -408,8 +504,9 @@ func guarded(_ pid: pid_t, at point: CGPoint?) {
         },
         activate: { bringForward(pid) },
         log: say)
-    switch gate(step: step, may: mayActivate, activatedAt: &activatedAt, mac: mac, limit: waitLimit) {
-    case .send: return
+    switch gate(step: step, may: mayActivate, opportunistic: opportunistic, activatedAt: &activatedAt, mac: mac, limit: waitLimit) {
+    case .send: return .send
+    case .restart: return .restart
     case .guardStopped(let why): stop(3, "stopped by the guard: \(why). Nothing was sent.")
     case .inputStopped: stop(6, "stopped: new input at the Mac after Dev was brought forward. Nothing more was sent.")
     }
@@ -571,10 +668,12 @@ func center(_ e: AXUIElement) -> CGPoint? {
 /// hidden, another Space) the guard says so and waits; with --may-activate
 /// it brings it back once (see the head); still off screen, it stops.
 func windowOnScreen(_ pid: pid_t) -> (id: CGWindowID, bounds: CGRect, title: String) {
-    if let win = devWindow(pid) { return win }
-    guarded(pid, at: nil)
-    guard let win = devWindow(pid) else { stop(3, "\(describe(.offScreen)); nothing sent") }
-    return win
+    while true {
+        if let win = devWindow(pid) { return win }
+        if guarded(pid, at: nil) == .restart { continue }
+        guard let win = devWindow(pid) else { stop(3, "\(describe(.offScreen)); nothing sent") }
+        return win
+    }
 }
 
 /// A point inside Dev's front window for the element (scrolled into view first).
@@ -602,8 +701,35 @@ func keyPoint(_ pid: pid_t) -> CGPoint {
     return CGPoint(x: win.bounds.midX, y: win.bounds.midY)
 }
 
+/// Dev's focused element (where its keys land), if any.
+func focusedElement(_ pid: pid_t) -> AXUIElement? {
+    guard let f = attr(AXUIElementCreateApplication(pid), kAXFocusedUIElementAttribute),
+          CFGetTypeID(f) == AXUIElementGetTypeID() else { return nil }
+    return (f as! AXUIElement)
+}
+
+/// After a pause: Dev's focus back where this step had it before the
+/// pause (the person may have clicked in Dev meanwhile), by accessibility,
+/// no click; can't: stops, nothing more sent.
+func restoreFocus(_ pid: pid_t, _ before: AXUIElement?) {
+    guard let before else { return }
+    if let now = focusedElement(pid), CFEqual(now, before) { return }
+    guard AXUIElementSetAttributeValue(before, kAXFocusedAttribute as CFString, kCFBooleanTrue) == .success else {
+        stop(6, "Dev's focus moved during the pause and couldn't be put back, so the step's keys would land elsewhere. Nothing more was sent.")
+    }
+    usleep(200_000)
+    say("REFOCUSED \(utc(Date().timeIntervalSince1970)) step=\(step) (Dev's focus moved during the pause; put back where this step had it)")
+}
+
+/// One key, down and up, as one atomic action: the guard before it, never
+/// between its down and its up. After a pause it starts again (focus put
+/// back first, then the full guard).
 func post(_ pid: pid_t, code: CGKeyCode, flags: CGEventFlags = [], unicode: String? = nil) {
-    guarded(pid, at: keyPoint(pid))
+    while true {
+        let before = focusedElement(pid)
+        guard guarded(pid, at: keyPoint(pid)) == .restart else { break }
+        restoreFocus(pid, before)
+    }
     // A private source: these keys never count as the person's input (the
     // idle time --may-activate reads stays theirs).
     let source = CGEventSource(stateID: .privateState)
@@ -716,46 +842,56 @@ func parse(_ raw: [String]) -> Opts {
 @discardableResult
 func press(_ pid: pid_t, _ title: String, within: [String], row: String? = nil, soft: Bool = false) -> Bool {
     say("» press \"\(title)\"" + (row.map { " --row \"\($0)\"" } ?? "") + within.map { " --in \"\($0)\"" }.joined())
-    let nodes = tree(pid)
-    let candidates = controls(nodes, titled: title, roles: pressRoles)
-    let (chosen, why) = row.map { pickInRow(nodes, candidates, title: title, row: $0) } ?? pick(nodes, candidates, within: within)
-    guard let i = chosen else { stop(4, "no single control titled exactly \"\(title)\": \(why). Nothing pressed. (`buttons` lists them.)") }
-    let e = nodes[i].element
-    if soft, (attr(e, kAXEnabledAttribute) as? Bool) == false {
-        say("  \"\(title)\" is there but disabled: not pressed")
-        return false
+    // One atomic action: after a pause, found again from the start (the
+    // page may have changed meanwhile).
+    while true {
+        let nodes = tree(pid)
+        let candidates = controls(nodes, titled: title, roles: pressRoles)
+        let (chosen, why) = row.map { pickInRow(nodes, candidates, title: title, row: $0) } ?? pick(nodes, candidates, within: within)
+        guard let i = chosen else { stop(4, "no single control titled exactly \"\(title)\": \(why). Nothing pressed. (`buttons` lists them.)") }
+        let e = nodes[i].element
+        if soft, (attr(e, kAXEnabledAttribute) as? Bool) == false {
+            say("  \"\(title)\" is there but disabled: not pressed")
+            return false
+        }
+        let point = pointFor(pid, e)
+        if guarded(pid, at: point) == .restart { continue }
+        let result = AXUIElementPerformAction(e, kAXPressAction as CFString)
+        guard result == .success else { stop(4, "\"\(title)\" didn't take the press (\(result.rawValue))") }
+        usleep(300_000)
+        return true
     }
-    let point = pointFor(pid, e)
-    guarded(pid, at: point)
-    let result = AXUIElementPerformAction(e, kAXPressAction as CFString)
-    guard result == .success else { stop(4, "\"\(title)\" didn't take the press (\(result.rawValue))") }
-    usleep(300_000)
-    return true
 }
 
 func focusField(_ pid: pid_t, _ title: String, within: [String]) {
     say("» focus \"\(title)\"" + within.map { " --in \"\($0)\"" }.joined())
-    let nodes = tree(pid)
-    let (chosen, why) = pick(nodes, controls(nodes, titled: title, roles: fieldRoles), within: within)
-    guard let i = chosen else { stop(4, "no single field titled exactly \"\(title)\": \(why)") }
-    guarded(pid, at: pointFor(pid, nodes[i].element))
-    AXUIElementSetAttributeValue(nodes[i].element, kAXFocusedAttribute as CFString, kCFBooleanTrue)
-    usleep(200_000)
+    while true {
+        let nodes = tree(pid)
+        let (chosen, why) = pick(nodes, controls(nodes, titled: title, roles: fieldRoles), within: within)
+        guard let i = chosen else { stop(4, "no single field titled exactly \"\(title)\": \(why)") }
+        if guarded(pid, at: pointFor(pid, nodes[i].element)) == .restart { continue }
+        AXUIElementSetAttributeValue(nodes[i].element, kAXFocusedAttribute as CFString, kCFBooleanTrue)
+        usleep(200_000)
+        return
+    }
 }
 
 /// AI Juggler's terminal input: xterm's text area, the one whose
 /// description names the terminal, else the only text area in the region.
 func focusTerminal(_ pid: pid_t, within: [String]) {
     say("» focus-terminal" + within.map { " --in \"\($0)\"" }.joined())
-    let nodes = tree(pid)
-    let areas = nodes.indices.filter { nodes[$0].role == "AXTextArea" && (nodes[$0].label.lowercased().contains("terminal")) }
-    let fallback = nodes.indices.filter { nodes[$0].role == "AXTextArea" }
-    var (chosen, why) = pick(nodes, areas, within: within)
-    if chosen == nil, areas.isEmpty { (chosen, why) = pick(nodes, fallback, within: within) }
-    guard let i = chosen else { stop(4, "no single terminal input: \(why)") }
-    guarded(pid, at: pointFor(pid, nodes[i].element))
-    AXUIElementSetAttributeValue(nodes[i].element, kAXFocusedAttribute as CFString, kCFBooleanTrue)
-    usleep(200_000)
+    while true {
+        let nodes = tree(pid)
+        let areas = nodes.indices.filter { nodes[$0].role == "AXTextArea" && (nodes[$0].label.lowercased().contains("terminal")) }
+        let fallback = nodes.indices.filter { nodes[$0].role == "AXTextArea" }
+        var (chosen, why) = pick(nodes, areas, within: within)
+        if chosen == nil, areas.isEmpty { (chosen, why) = pick(nodes, fallback, within: within) }
+        guard let i = chosen else { stop(4, "no single terminal input: \(why)") }
+        if guarded(pid, at: pointFor(pid, nodes[i].element)) == .restart { continue }
+        AXUIElementSetAttributeValue(nodes[i].element, kAXFocusedAttribute as CFString, kCFBooleanTrue)
+        usleep(200_000)
+        return
+    }
 }
 
 func waitFor(_ pid: pid_t, _ needle: String, timeout: Double, ocr: Bool, gone: Bool) {
@@ -944,12 +1080,21 @@ func activationSelftest() -> [String] {
         var saver = false
         var refuse = false
         var activations = 0
+        var busyFrom = 0.0
         var busyUntil = 0.0
+        /// Changes at a time (the person locks the screen, another app comes forward…), in order.
+        var later: [(Double, (World) -> Void)] = []
         var lines: [String] = []
+        /// Each line's time.
+        var stamps: [Double] = []
     }
     func mac(_ w: World) -> Mac {
         Mac(now: { w.t },
-            sleep: { w.t += $0; if w.t < w.busyUntil { w.inputAt = w.t } },
+            sleep: {
+                w.t += $0
+                if w.t >= w.busyFrom && w.t < w.busyUntil { w.inputAt = w.t }
+                while let next = w.later.first, next.0 <= w.t { w.later.removeFirst(); next.1(w) }
+            },
             probe: {
                 let verdict: Verdict = w.hidden || w.minimised || w.elsewhere ? .offScreen
                     : !w.front ? .notFrontmost("Aside") : w.covered ? .covered("Notification Center, layer 23") : .clear
@@ -963,8 +1108,27 @@ func activationSelftest() -> [String] {
                 if !w.refuse { w.front = true; w.elsewhere = false }
                 return done + [Raised(what: .activated, ok: !w.refuse)]
             },
-            log: { w.lines.append($0) })
+            log: { w.lines.append($0); w.stamps.append(w.t) })
     }
+    /// A step of `n` events as the driver runs one, opportunistic: each
+    /// waits at the gate (a pause restarts it), then is sent ("SENT i"),
+    /// taking 1 s. Ends early only if the gate stops it.
+    func runStep(_ w: World, _ n: Int, step: String = "send") -> GateEnd? {
+        var at: Double?
+        var i = 0
+        while i < n {
+            switch gate(step: step, may: true, opportunistic: true, activatedAt: &at, mac: mac(w), limit: 60) {
+            case .send: w.lines.append("SENT \(i)"); w.stamps.append(w.t); i += 1; mac(w).sleep(1)
+            case .restart: continue
+            case let end: return end
+            }
+        }
+        return nil
+    }
+    func first(_ w: World, _ prefix: String) -> Int? { w.lines.firstIndex { $0.hasPrefix(prefix) } }
+    func count(_ w: World, _ prefix: String) -> Int { w.lines.filter { $0.hasPrefix(prefix) }.count }
+    func beats(_ w: World) -> [Double] { w.lines.indices.filter { w.lines[$0].hasPrefix("HEARTBEAT ") }.map { w.stamps[$0] } }
+    func spacedOk(_ times: [Double]) -> Bool { zip(times, times.dropFirst()).allSatisfy { $1 - $0 >= heartbeatEvery && $1 - $0 <= heartbeatEvery + 1.5 } }
     // Off by default: never brought forward, however idle; the guard stops.
     do {
         let w = World(); w.inputAt = 0
@@ -1064,6 +1228,135 @@ func activationSelftest() -> [String] {
         if w.activations != 1 || refused.count != 2 { failures.append("off screen: refused (\(w.activations), \(refused))") }
         if end != .guardStopped("\(offScreenWords); Dev was brought forward once this step and never is again") { failures.append("off screen: refused, then \(end)") }
     }
+    // OPPORTUNISTIC. Input mid-step (the person at the Mac from 1001.5 to
+    // 1010): PAUSED, nothing sent while paused, Dev not moved; after 20 s
+    // without input, RESUMED, and the same step goes on to its end.
+    do {
+        let w = World(); w.inputAt = 0; w.front = true; w.busyFrom = 1001.5; w.busyUntil = 1010
+        let end = runStep(w, 5)
+        if end != nil || count(w, "SENT ") != 5 { failures.append("opportunistic: the step didn't go on after the pause (\(String(describing: end)), \(w.lines))") }
+        if count(w, "PAUSED ") != 1 || count(w, "RESUMED ") != 1 { failures.append("opportunistic: PAUSED/RESUMED lines \(w.lines)") }
+        if let p = first(w, "PAUSED "), let r = first(w, "RESUMED "), p < r {
+            if !(w.lines[p].contains("step=send") && w.lines[p].contains("idle=0.0s") && w.lines[p].contains("T")) { failures.append("opportunistic: the PAUSED line \(w.lines[p])") }
+            if !(w.lines[r].contains("step=send") && w.lines[r].contains("T")) { failures.append("opportunistic: the RESUMED line \(w.lines[r])") }
+            if w.stamps[r] - w.inputAt < minIdle { failures.append("opportunistic: resumed after only \(w.stamps[r] - w.inputAt) s idle") }
+            let sentInUse = w.lines.indices.filter { w.lines[$0].hasPrefix("SENT ") && w.stamps[$0] >= 1002 && w.stamps[$0] < w.stamps[r] }
+            if !sentInUse.isEmpty { failures.append("opportunistic: sent while paused \(sentInUse.map { w.lines[$0] })") }
+        } else {
+            failures.append("opportunistic: no PAUSED then RESUMED \(w.lines)")
+        }
+        if w.activations != 0 || !w.front || count(w, "STOPPED") != 0 { failures.append("opportunistic: Dev was moved, or the step stopped, during a pause") }
+    }
+    // The person left another app in front: after RESUMED the guard is
+    // checked again (it waits), then Dev is brought forward once, then sent.
+    do {
+        let w = World(); w.inputAt = 0; w.front = true; w.busyFrom = 1001.5; w.busyUntil = 1010
+        w.later = [(1005, { $0.front = false })]
+        let end = runStep(w, 3)
+        if end != nil || w.activations != 1 { failures.append("opportunistic: resumed behind another app (\(String(describing: end)), \(w.activations))") }
+        if let r = first(w, "RESUMED "), let a = first(w, "ACTIVATED "), let s = first(w, "SENT 2"), r < a, a < s {
+            if a != r + 1 { failures.append("opportunistic: not brought forward straight after RESUMED (\(w.lines[r + 1]))") }
+            if w.stamps[a] - w.inputAt < minIdle { failures.append("opportunistic: brought forward after only \(w.stamps[a] - w.inputAt) s idle") }
+        } else {
+            failures.append("opportunistic: not RESUMED, ACTIVATED, SENT in that order \(w.lines)")
+        }
+    }
+    // The person left a window over Dev's: after RESUMED the full guard is
+    // checked again and nothing is sent until it is gone (not Dev's to fix:
+    // no activation).
+    do {
+        let w = World(); w.inputAt = 0; w.front = true; w.busyFrom = 1001.5; w.busyUntil = 1010
+        w.later = [(1005, { $0.covered = true }), (1100, { $0.covered = false })]
+        let end = runStep(w, 3)
+        if end != nil || w.activations != 0 { failures.append("opportunistic: resumed under a window (\(String(describing: end)), \(w.activations))") }
+        if let r = first(w, "RESUMED "), let s = first(w, "SENT 2"), r < s {
+            if !w.lines[r + 1].hasPrefix("WAITING: another window is on top at the point") { failures.append("opportunistic: the guard wasn't checked again after RESUMED (\(w.lines[r + 1]))") }
+            if w.stamps[s] < 1100 { failures.append("opportunistic: sent under a window after RESUMED") }
+        } else {
+            failures.append("opportunistic: not RESUMED then SENT \(w.lines)")
+        }
+    }
+    // Two pauses: one activation per resume at most; a refused one isn't
+    // tried again, and the guard then waits with no time limit (3 h here,
+    // AIJ_DRIVE_WAIT 60 s), a heartbeat every 10 min, until the person
+    // brings Dev forward; the step then ends.
+    do {
+        let w = World(); w.inputAt = 0; w.front = true; w.busyFrom = 1001.5; w.busyUntil = 1010
+        let back = 1000.0 + 3 * 3600
+        w.later = [(1005, { $0.front = false }),
+                   (1040, { $0.busyFrom = 1040; $0.busyUntil = 1045; $0.front = false; $0.refuse = true }),
+                   (back, { $0.front = true })]
+        let end = runStep(w, 60)
+        if end != nil || count(w, "SENT ") != 60 { failures.append("opportunistic: stopped while waiting (\(String(describing: end)))") }
+        if count(w, "PAUSED ") != 2 || count(w, "RESUMED ") != 2 || w.activations != 2 { failures.append("opportunistic: two resumes, \(w.activations) activations") }
+        if count(w, "ACTIVATED ") != 2 || w.lines.filter({ $0.contains("(the system refused; waiting as before)") }).count != 1 { failures.append("opportunistic: a refused activation tried again") }
+        let waited = beats(w)
+        if waited.count < 15 || !spacedOk(waited) || !w.lines.contains(where: { $0.hasPrefix("HEARTBEAT ") && $0.contains("step=send waiting") }) {
+            failures.append("opportunistic: heartbeats while waiting \(waited.count), spaced \(spacedOk(waited))")
+        }
+        if let s = first(w, "SENT 59"), w.stamps[s] < back { failures.append("opportunistic: sent before Dev was in front") }
+    }
+    // Paused, then the screen locks (or the screen saver starts) with
+    // another app in front: no RESUMED and no activation until it is
+    // unlocked 2 h later, however idle; heartbeats every 10 min meanwhile.
+    for saver in [false, true] {
+        let w = World(); w.inputAt = 0; w.front = true; w.busyFrom = 1001.5; w.busyUntil = 1010
+        let unlock = 1000.0 + 7200
+        w.later = [(1005, { $0.front = false; if saver { $0.saver = true } else { $0.locked = true } }),
+                   (unlock, { $0.locked = false; $0.saver = false })]
+        let end = runStep(w, 3)
+        let what = saver ? "the screen saver runs" : "the screen is locked"
+        if end != nil || w.activations != 1 { failures.append("opportunistic, \(what): \(String(describing: end)), \(w.activations) activations") }
+        if let r = first(w, "RESUMED "), w.stamps[r] < unlock { failures.append("opportunistic: resumed while \(what)") }
+        if let a = first(w, "ACTIVATED "), w.stamps[a] < unlock { failures.append("opportunistic: brought forward while \(what)") }
+        let paused = beats(w)
+        if let p = first(w, "PAUSED ") {
+            if paused.count < 10 || !spacedOk(paused) || (paused.first.map { $0 - w.stamps[p] < heartbeatEvery } ?? true) {
+                failures.append("opportunistic: heartbeats while paused (\(paused.count), spaced \(spacedOk(paused)))")
+            }
+        }
+        if !w.lines.contains(where: { $0.hasPrefix("HEARTBEAT ") && $0.contains("step=send paused") && $0.hasSuffix(what) }) { failures.append("opportunistic: a heartbeat saying \(what)") }
+    }
+    // No input at all, but locked with another app in front: never brought
+    // forward while locked, however long; once unlocked, once.
+    do {
+        let w = World(); w.inputAt = 0; w.locked = true
+        let unlock = 1000.0 + 7200
+        w.later = [(unlock, { $0.locked = false })]
+        let end = runStep(w, 1)
+        if end != nil || w.activations != 1 || count(w, "PAUSED ") != 0 { failures.append("opportunistic, locked without input: \(String(describing: end)), \(w.activations)") }
+        if let a = first(w, "ACTIVATED "), w.stamps[a] < unlock { failures.append("opportunistic: brought forward while locked") }
+    }
+    // A window over Dev's for 3 h (not Dev's to fix): opportunistic waits
+    // it out; without the flag, the same stops after AIJ_DRIVE_WAIT (unchanged).
+    do {
+        let w = World(); w.inputAt = 0; w.front = true; w.covered = true
+        w.later = [(1000 + 3 * 3600, { $0.covered = false })]
+        var at: Double?
+        if gate(step: "press", may: true, opportunistic: true, activatedAt: &at, mac: mac(w), limit: 60) != .send || w.activations != 0 { failures.append("opportunistic: a covering window stopped it") }
+        if !spacedOk(beats(w)) || beats(w).count < 17 { failures.append("opportunistic: heartbeats over 3 h (\(beats(w).count))") }
+        let v = World(); v.inputAt = 0; v.front = true; v.covered = true
+        var vat: Double?
+        if case .guardStopped = gate(step: "press", may: true, activatedAt: &vat, mac: mac(v), limit: 60) {} else { failures.append("without --opportunistic the limit went") }
+        if count(v, "HEARTBEAT ") != 0 || count(v, "PAUSED ") != 0 { failures.append("without --opportunistic: heartbeat or pause lines") }
+    }
+    // The pure rule, opportunistic.
+    let clearNow = Probe(verdict: .clear, idle: 19.9, locked: false, saver: false, onConsole: true)
+    if decide(clearNow, may: true, activatedAt: nil, now: 0, opportunistic: true) != .pause { failures.append("decide: opportunistic at 19.9 s idle") }
+    if decide(clearNow, may: true, activatedAt: nil, now: 0) != .send { failures.append("decide: without the flag, input doesn't pause") }
+    var clearIdle = clearNow; clearIdle.idle = 20
+    if decide(clearIdle, may: true, activatedAt: nil, now: 0, opportunistic: true) != .send { failures.append("decide: opportunistic at 20 s idle") }
+    // Input 30 s after an activation, gone 20 s: opportunistic sends; without the flag, stops.
+    var later = clearIdle; later.idle = 25
+    if decide(later, may: true, activatedAt: 0, now: 55, opportunistic: true) != .send { failures.append("decide: opportunistic after old input") }
+    if decide(later, may: true, activatedAt: 0, now: 55) != .stopNewInput { failures.append("decide: without the flag, input after an activation stops") }
+    if pauseHolds(clearIdle) != nil { failures.append("pauseHolds: 20 s idle, unlocked") }
+    for (field, want) in [("locked", "the screen is locked"), ("saver", "the screen saver runs"), ("console", "this login isn't the one on screen")] {
+        var q = clearIdle
+        if field == "locked" { q.locked = true } else if field == "saver" { q.saver = true } else { q.onConsole = false }
+        if pauseHolds(q) != want { failures.append("pauseHolds: \(field)") }
+    }
+    if pauseHolds(clearNow) == nil { failures.append("pauseHolds: 19.9 s idle") }
     // The pure rule at its edges.
     let quiet = Probe(verdict: .notFrontmost("Aside"), idle: 19.9, locked: false, saver: false, onConsole: true)
     if decide(quiet, may: true, activatedAt: nil, now: 0) == .activate { failures.append("decide: 19.9 s idle") }
