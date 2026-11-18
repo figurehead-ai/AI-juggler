@@ -414,6 +414,14 @@ Every check starts with an allowlist that may only shrink.
 **Files to touch**: `crates/juggler-remote-config/`, `crates/juggler-app/src/remote_config.rs`, Settings UI, `ui/src/lib/`.
 **Research basis**: ADR-0035 §1, §4, §5; D-129.
 **Handover note**: params and endpoints (ADR-0035 order step 3) and the account layer (step 4) are not 0.5.
+**Progress (2026-11-18, backend and data layer built):**
+- The crate's list sections (`juggler-remote-config/src/list.rs`): records whose fields are as closed as a control (plain text, a compiled option, a flag, a time, an `https` link to compiled hosts only), targeted on this Mac, tolerant by record, strict for the publisher.
+- `features/flags`: each feature declares a `Flag` (`remote: OffOnly | OnOff | Rollout`) in its own module; `flags::DECLARED` is the one list; `flags::is_on` reads memory. The first flag is `notices_on` (OffOnly), the notices' own kill switch.
+- `features/notices`: the `notices` section (level, title, body, link to figurehead.ai only, link label, dismissable, expiry); the level is capped to what the targeting justifies (L3 only for a version this Mac runs, L2 only for this setup, else L1); dismissals kept in the app settings (`remote_notices_dismissed`, the newest 200).
+- Commands (named by the IPC audit's `<feature>_<verb>` rule): `remote_config_values(section)`, `remote_config_about`, `notices_list`, `notices_dismiss(id)`; the event `remote-config://changed`.
+- UI data layer: `useRemote(section)` (`ui/src/lib/remote.ts`) and `useNotices()` (`ui/src/lib/remote-notices.ts`), cached, lazy, refreshed on the event, no timer; the calls in `ui/src/lib/ipc/remote.ts`.
+
+**Left until the 0.4.6 → 0.5 merge brings D-126's Alert (`ui/src/components/Alert.tsx`; never copied into 0.5):** the notice screens (the Alert for needs-you and broken, a quiet Home banner for info, words from the words file), the Settings › Privacy "Check for configuration updates" row with its privacy line, the Settings › Advanced "About this configuration" view over `remoteAbout()`, their component tests (notice shown, dismissed, none), the a11y gate, both themes' captures, and the evidence manifest R1 to R4.
 
 ### AJ-E2024 Numbers the window can't hold: a 64-bit value reaches the UI only below 2^53 | Status: DONE-EVIDENCED (2026-11-18: 2ffdedf4c and 94289f074; the lint runs in `just verify-static` and CI; found by AJ-E1612's dry run 2, fixed first in 045c97acb) | Priority P1 | Effort S | Depends: —
 **Goal**: A 64-bit integer that the window reads as a float can never silently lose its low bits again.
