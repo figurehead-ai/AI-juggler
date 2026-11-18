@@ -3436,3 +3436,31 @@ The design that follows from it:
   3. **The switch sheet doesn't show "Beta · Not proven yet" or the warning alert on a route the product offers.**
      - A route that isn't validated isn't offered by default (D-127).
      - It appears only for a user who turned it on in Settings › Beta, and is labelled there in plain words.
+
+### D-128 Tool versions: never block on updates; check the data's shape, not the version number; a version watcher; a signed remote support list — SETTLED (2026-11-18)
+
+**Ruling.** The maintainer, 2026-11-18: "if claude upgrades the version… small patches, should we still block…? our tools will be unusable all of the time, since claude constantly upgrades. I just want us to have sensible way to do this", and asked for "some kind of script or system or github CI… that periodically checks versions of all of our tools… and if it finds change it alerts… so we can double check nothing broke", and whether version support can be updated "from a separate remote file so we don't have to recompile and deploy whole app".
+
+1. **Never block on a version number alone.**
+   - **Features that only read** (sessions, usage, Copy, handover) are never version-gated.
+   - **Features that write a tool's own files** (a move in place) check the *shape* of the data at run time: the record fields, file layout and schema markers they rely on. They proceed whenever the shape matches, on any version.
+   - **A mismatch** hides that one option (D-127) and records which tool and version, so we fix it. Copy and everything else keep working.
+   - **Validation records** (the fidelity register) hold across patch and minor updates. A major update marks the route due for an automatic re-check, and the user never sees "not proven" for it.
+2. **A version watcher,** in two parts:
+   - **A scheduled GitHub Actions job (daily)** reads the public latest versions of every tool we support: the npm registry for the CLIs, the GitHub releases, and the desktop apps' public update feeds. When one changes, it opens one issue per tool and version, labelled `tool-update`.
+   - **On the lab Mac,** a scheduled check runs the adapters' compatibility suite (parsers on fresh fixtures, the shape checks, the AJ-E808 switch routes) against the installed versions. It posts the result to that issue.
+
+   Agents pick up `tool-update` issues as queue items. A failure is a patch-release bug.
+3. **A signed remote support list:**
+   - The app fetches a small JSON compatibility list (per tool, per feature: allowed version ranges, shape-check versions, kill switches), signed with an ed25519 key pinned in the app.
+   - It's fetched at most daily, with no identifying data, and cached.
+   - On a missing or invalid file, or no network, the app falls back to the compiled-in list.
+   - The list can only switch features the code already has on or off and widen or narrow their ranges. It can never add behaviour.
+   - The signing key stays off the repo, in the release environment.
+   - It's published with the release tooling, and a change to it goes through the same review as a release note.
+
+**Releases:**
+- **0.4.6 (before Stable):** item 1 for the switch and move, already under way in rc3 under D-127; and the watcher's GitHub job, which is repo tooling and doesn't ship in the app.
+- **0.5:** the signed remote support list, and the lab-Mac compatibility run.
+
+- Sources: the maintainer's message, 2026-11-18.
