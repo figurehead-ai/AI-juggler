@@ -503,5 +503,82 @@
     "s1"
    ]
   }
+ },
+ "scorer": {
+  "forbidden": [
+   {
+    "gold": [
+     "15 min"
+    ],
+    "text": "The gannet-cli session ran for 115 min",
+    "hit": false
+   },
+   {
+    "gold": [
+     "15 min"
+    ],
+    "text": "The gannet-cli session ran for 15 min",
+    "hit": true
+   },
+   {
+    "gold": [
+     "deployed"
+    ],
+    "text": "nothing was deployed to the gannet stage",
+    "hit": false
+   },
+   {
+    "gold": [
+     "deployed"
+    ],
+    "text": "deployed the gannet stage",
+    "hit": true
+   },
+   {
+    "gold": [
+     "fertig"
+    ],
+    "text": "der Gannet-Export ist noch nicht fertig",
+    "hit": false
+   }
+  ],
+  "listing": {
+   "question": "How long did the tern-board session run?",
+   "records": [
+    {
+     "id": "s1",
+     "kind": "session",
+     "fields": {
+      "duration_s": 720
+     },
+     "text": "tern-board session (Work profile), 12 minutes"
+    },
+    {
+     "id": "s2",
+     "kind": "session",
+     "fields": {
+      "duration_s": 2400
+     },
+     "text": "tern-board session (Home profile), 40 minutes"
+    }
+   ],
+   "gold": {
+    "attribute": "duration",
+    "answer_must": [
+     "12 minutes",
+     "40 minutes"
+    ],
+    "cite": [
+     "s1",
+     "s2"
+    ],
+    "unanswerable": false
+   }
+  },
+  "status": {
+   "must": "abgeschlossen",
+   "shown": "Die Sitzung gannet-shop ist finished [s1]",
+   "other": "Die Sitzung gannet-shop wartet [s1]"
+  }
  }
 }

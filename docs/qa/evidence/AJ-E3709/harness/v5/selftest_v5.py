@@ -797,6 +797,18 @@ def selftest():
     eng2 = Script([{"answer": "The gannet-shop session failed.", "cites": ["s1"]}]); run_item(CHAT, chat_item("What is the status of the gannet-shop session?", SD["records"]), "main", eng2)
     check("R4 status: an English question keeps the app's English word", "status: failed" in eng2.reqs[0]["prompt"], eng2.reqs[0]["prompt"])
 
+    # ================================================================================================ R4-8. the scorer: phrases not substrings, negated hits, code's listings, a status in either language
+    SC = R4["scorer"]
+    for c in SC["forbidden"]:
+        check(f"R4 scorer: forbidden {c['gold']} in {c['text']!r}: {'a hit' if c['hit'] else 'no hit'}", bool(severity._forbidden({"forbidden": c["gold"]}, [c["text"]])) == c["hit"])
+    L = SC["listing"]; itl4 = chat_item(L["question"], L["records"], L["gold"]); lo = run_item(CHAT, itl4, "main", NoCall())["final"]
+    vl = {"job": "chat", "item": itl4, "outcome": lo, "source": ""}
+    check("R4 scorer: code's listing that holds every must-have answers the question (no omission)", lo["kind"] == "ambiguous" and not [f for f in severity.findings(vl) if f["class"] == "omission"], (lo, severity.findings(vl)))
+    vl2 = {"job": "chat", "item": dict(itl4, gold=dict(L["gold"], answer_must=["12 minutes", "75 minutes"])), "outcome": lo, "source": ""}
+    check("R4 scorer: ...one that lacks a must-have is still an omission", any(f["detector"] == "no_answer_on_answerable" for f in severity.findings(vl2)), severity.findings(vl2))
+    check("R4 scorer: a status must-have is met by the same state in the other language", severity._must_hit(SC["status"]["must"], SC["status"]["shown"], "status")
+          and not severity._must_hit(SC["status"]["must"], SC["status"]["other"], "status"))
+
     # ================================================================================================ the extension point, the frozen gate, the prompts
     class Toy(core.Job):
         name, letter, title, item_kind = "toy_digest", "e", "toy", "toydigest"
