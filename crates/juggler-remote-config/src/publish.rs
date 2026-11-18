@@ -17,6 +17,10 @@
 //! [`inspect`] reads a live file's serial and expiry, its signature
 //! checked but not its expiry, for the next serial and the expiry alert.
 //!
+//! [`resign`] is the unattended weekly re-sign: the live file's own
+//! content, with only a new serial and dates, held to that by
+//! [`check_resign`] (canonical content byte-identical).
+//!
 //! The private key is handed in from the release environment's secret and
 //! never written anywhere; [`signing_key`] reads its 32-byte seed.
 
@@ -350,6 +354,86 @@ pub fn inspect(file: &[u8], ring: &KeyRing, channel: Channel) -> Result<Verified
         .map_err(|e| PublishError::Read(format!("envelope: {e}")))?;
     let app = when.min_app.unwrap_or_else(|| Version::new(0, 0, 0));
     verify(file, ring, channel, &app, when.issued_at)
+}
+
+/// The content a re-sign must keep: the channel, the app range and the
+/// sections, as canonical bytes.
+fn content(verified: &Verified) -> Result<Vec<u8>, PublishError> {
+    let envelope = &verified.envelope;
+    let value = json!({
+        "channel": envelope.channel,
+        "min_app": envelope.min_app.as_ref().map(ToString::to_string),
+        "max_app": envelope.max_app.as_ref().map(ToString::to_string),
+        "sections": envelope.sections,
+    });
+    to_canonical_bytes(&value).map_err(|e| PublishError::Read(format!("envelope: {e}")))
+}
+
+/// Whether `candidate` only re-signs `live`: both verify with `ring` for
+/// `channel` (the live one's expiry aside), the candidate's serial is
+/// higher and its expiry later, and its channel, app range and sections
+/// are byte-identical in canonical form. What the unattended weekly
+/// re-sign is held to: any content change goes through the reviewed
+/// `Publish config`.
+///
+/// # Errors
+///
+/// [`PublishError::Rejected`] for a file that doesn't verify, and
+/// [`PublishError::Invalid`] for one that changes anything but the serial
+/// and the dates.
+pub fn check_resign(
+    live: &[u8],
+    candidate: &[u8],
+    ring: &KeyRing,
+    channel: Channel,
+) -> Result<Verified, PublishError> {
+    let before = inspect(live, ring, channel)?;
+    let after = inspect(candidate, ring, channel)?;
+    let mut problems = Vec::new();
+    if content(&after)? != content(&before)? {
+        problems.push("the content differs from the live file's".to_owned());
+    }
+    if after.envelope.serial <= before.envelope.serial {
+        problems.push("the serial doesn't rise".to_owned());
+    }
+    if after.envelope.expires_at <= before.envelope.expires_at {
+        problems.push("the expiry doesn't move later".to_owned());
+    }
+    if problems.is_empty() {
+        Ok(after)
+    } else {
+        Err(PublishError::Invalid(problems))
+    }
+}
+
+/// Re-signs the live file's own content (and its revocation lists)
+/// unchanged, with the next serial, issued `now` and valid for `days`:
+/// the weekly re-sign. It reads no source, so it can't publish new
+/// content, and [`check_resign`] holds the result to that.
+///
+/// # Errors
+///
+/// As [`inspect`], [`Stamp::new`], [`sign`] and [`check_resign`].
+pub fn resign(
+    live: &[u8],
+    key: &SigningKey,
+    ring: &KeyRing,
+    channel: Channel,
+    now: u64,
+    days: u64,
+) -> Result<Vec<u8>, PublishError> {
+    let before = inspect(live, ring, channel)?;
+    let envelope = before.envelope.clone();
+    let source = Source {
+        channel,
+        min_app: envelope.min_app,
+        max_app: envelope.max_app,
+        sections: envelope.sections,
+    };
+    let stamp = Stamp::new(next_serial(Some(&before), channel), now, days)?;
+    let file = sign(&source, &stamp, key, ring, &revocations_of(live)?)?;
+    check_resign(live, &file, ring, channel)?;
+    Ok(file)
 }
 
 #[cfg(test)]

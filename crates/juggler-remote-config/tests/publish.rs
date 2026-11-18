@@ -198,3 +198,99 @@ fn the_source_is_held_to_the_exported_schema() {
         "x": {"number": {"default": 9, "min": 0, "max": 5}}}}]});
     assert!(read_schema(&serde_json::to_vec(&broken).unwrap()).is_err());
 }
+
+/// The weekly re-sign, unattended: only the serial and the dates change.
+#[test]
+fn a_resign_bumps_only_the_serial_and_expiry() {
+    let lab = Lab::new();
+    let live = publish::sign(&kill(), &stamp(4), &lab.current, &lab.ring, &[]).unwrap();
+    let resigned = publish::resign(
+        &live,
+        &lab.current,
+        &lab.ring,
+        Channel::Stable,
+        NOW + 7 * DAY,
+        14,
+    )
+    .unwrap();
+    let before = publish::inspect(&live, &lab.ring, Channel::Stable).unwrap();
+    let after = publish::check_resign(&live, &resigned, &lab.ring, Channel::Stable).unwrap();
+    assert_eq!(after.envelope.serial, 5);
+    assert_eq!(after.envelope.expires_at, NOW + 21 * DAY);
+    assert_eq!(after.envelope.sections, before.envelope.sections);
+    assert!(publish::verify(&resigned, &lab.ring, Channel::Stable, &app(), NOW + 8 * DAY).is_ok());
+    // Even an expired live file is re-signed as it was.
+    assert!(
+        publish::resign(
+            &live,
+            &lab.current,
+            &lab.ring,
+            Channel::Stable,
+            NOW + 20 * DAY,
+            14
+        )
+        .is_ok()
+    );
+}
+
+#[test]
+fn a_resign_refuses_changed_content() {
+    let lab = Lab::new();
+    let live = publish::sign(&kill(), &stamp(4), &lab.current, &lab.ring, &[]).unwrap();
+    let bumped = |source: &Source| {
+        publish::sign(
+            source,
+            &Stamp::new(5, NOW + 7 * DAY, 14).unwrap(),
+            &lab.current,
+            &lab.ring,
+            &[],
+        )
+        .unwrap()
+    };
+    // A changed section: a value turned around, a control added.
+    for changed in [
+        json!({"compat": {"schema": 1, "values": {"tool_move_on": true}}}),
+        json!({"compat": {"schema": 1, "values": {"tool_move_on": false,
+            "tool_move_versions": {"min": "1.0.0"}}}}),
+    ] {
+        let candidate = bumped(&source(changed.clone()));
+        assert!(
+            matches!(
+                publish::check_resign(&live, &candidate, &lab.ring, Channel::Stable),
+                Err(PublishError::Invalid(_))
+            ),
+            "{changed}"
+        );
+    }
+    // One changed byte in a value ("1.0.0" → "1.0.1").
+    let narrow = |max: &str| {
+        source(json!({"compat": {"schema": 1, "values":
+            {"tool_move_versions": {"min": "1.0.0", "max": max}}}}))
+    };
+    let live = bumped(&narrow("2.0.0"));
+    let one_byte = publish::sign(
+        &narrow("2.0.1"),
+        &Stamp::new(6, NOW + 8 * DAY, 14).unwrap(),
+        &lab.current,
+        &lab.ring,
+        &[],
+    )
+    .unwrap();
+    assert!(matches!(
+        publish::check_resign(&live, &one_byte, &lab.ring, Channel::Stable),
+        Err(PublishError::Invalid(_))
+    ));
+    // The same content with a serial that doesn't rise is refused too.
+    assert!(publish::check_resign(&live, &live, &lab.ring, Channel::Stable).is_err());
+    // And a candidate signed by a key this build doesn't pin.
+    let other = Lab::new();
+    let forged = publish::sign(
+        &narrow("2.0.0"),
+        &stamp(9),
+        &other.current,
+        &other.ring,
+        &[],
+    )
+    .unwrap();
+    assert!(publish::check_resign(&live, &forged, &lab.ring, Channel::Stable).is_err());
+}

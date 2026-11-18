@@ -6,6 +6,8 @@
 //! remote-config-publish next-serial --channel C [--live F]
 //! remote-config-publish sign        --schema S --source F --channel C --serial N
 //!                                   --now T [--days D] [--live F] --out O
+//! remote-config-publish resign      --live F --channel C --now T [--days D] --out O
+//! remote-config-publish check-resign --live F --file F --channel C
 //! remote-config-publish verify      --file F --channel C [--now T] [--serial N]
 //! remote-config-publish inspect     --file F --channel C
 //! remote-config-publish keygen      [--id ID]
@@ -16,6 +18,11 @@
 //!   pinned in this build ([`juggler_remote_config::keys::COMPILED_KEYS`])
 //!   as `current` or `next`. `--live` carries the live file's revocation
 //!   parts over unchanged.
+//! - `resign` is the unattended weekly re-sign: the live file's own
+//!   content and revocation lists, signed again with only the serial and
+//!   the dates new. It reads no source. `check-resign` (also run by
+//!   `resign`) refuses a file whose canonical content differs from the
+//!   live one's by a byte.
 //! - `verify`, `inspect` and `next-serial` check with this build's pinned
 //!   keys and compiled baseline, exactly as the app does.
 //! - `inspect` prints `serial=`, `issued_at=` and `expires_at=` lines (for
@@ -115,6 +122,8 @@ fn run(args: &[String]) -> Result<String, String> {
         "validate" => validate(rest),
         "next-serial" => next_serial(rest),
         "sign" => sign(rest),
+        "resign" => resign(rest),
+        "check-resign" => check_resign(rest),
         "verify" => verify(rest),
         "inspect" => inspect(rest),
         "keygen" => keygen(rest),
@@ -176,6 +185,40 @@ fn sign(rest: &[String]) -> Result<String, String> {
     let out = flags.need("out")?;
     std::fs::write(out, &file).map_err(|e| format!("{out}: {e}"))?;
     Ok(format!("signed serial {} to {out}\n", stamp.serial))
+}
+
+fn resign(rest: &[String]) -> Result<String, String> {
+    let flags = Flags::parse(rest, &["live", "channel", "now", "days", "out"])?;
+    let secret = std::env::var(KEY_VAR).map_err(|_| format!("{KEY_VAR} is not set"))?;
+    let key = publish::signing_key(&secret).map_err(error)?;
+    drop(secret);
+    let file = publish::resign(
+        &flags.read("live")?,
+        &key,
+        &ring()?,
+        flags.channel()?,
+        flags.number("now")?.ok_or("--now is required")?,
+        flags.number("days")?.unwrap_or(DEFAULT_VALIDITY_DAYS),
+    )
+    .map_err(error)?;
+    let out = flags.need("out")?;
+    std::fs::write(out, &file).map_err(|e| format!("{out}: {e}"))?;
+    Ok(format!("re-signed the live content to {out}\n"))
+}
+
+fn check_resign(rest: &[String]) -> Result<String, String> {
+    let flags = Flags::parse(rest, &["live", "file", "channel"])?;
+    let verified = publish::check_resign(
+        &flags.read("live")?,
+        &flags.read("file")?,
+        &ring()?,
+        flags.channel()?,
+    )
+    .map_err(error)?;
+    Ok(format!(
+        "a re-sign of the live content: serial {}\n",
+        verified.envelope.serial
+    ))
 }
 
 fn verify(rest: &[String]) -> Result<String, String> {
