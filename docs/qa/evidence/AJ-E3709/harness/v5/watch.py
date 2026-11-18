@@ -101,11 +101,22 @@ def norm_watch(raw):
                  "app": None, "project": None, "account": None, "observes": None, "raw": {}})
     w = {"id": raw.get("id"), "kind": "watch", "raw": raw, "request": raw["request"], "entries": ents, "by_ref": {e["ref"]: e for e in ents},
          "gold": raw.get("gold") or {}, "origin": raw.get("origin") or "", "removed": [r for e in ents for r in e["removed"]]}
-    w["lang"] = gate.language(raw["request"]) or ("de" if re.search(r"\b(?:wenn|sobald|bescheid|sag|gib|mir|und|oder|bis)\b", raw["request"], re.I) else "en")
+    lang = watch_lang(raw["request"]); w["lang"] = lang or "en"; w["lang_known"] = lang is not None
     for e in ents:
         if e["kind"] == "app": e["observes_set"] = _observes(e["observes"])
     w["apps"] = [e for e in ents if e["kind"] == "app"]
     return w
+DE_HINT = re.compile(r"\b(?:wenn|sobald|bescheid|sag|gib|mir|mich|dich|ich|und|oder|bis|nicht|der|das|ist|erinner\w*|melde\w*|informier\w*|benachrichtig\w*)\b", re.I)
+EN_HINT = re.compile(r"\b(?:when|whenever|if|the|tell|let|know|notify|ping|alert|warn|watch|anything|something|my|remind)\b", re.I)
+def watch_lang(request):
+    """'en' | 'de' | None. ADR-0033: a language without word lists gets the plain fallback. Round 3: watch drafting had no such rule (an
+    unknown language was drafted as English), so the unsupported net, English and German only, never read French, Spanish, Italian
+    or Dutch requests, and two drafts claimed a watch on a payment and on a range. gate.language first; short requests by their words"""
+    l = gate.language(request)
+    if l in ("en", "de"): return l
+    if DE_HINT.search(request or ""): return "de"
+    if EN_HINT.search(request or ""): return "en"
+    return None
 def _observes(obs):
     if not obs: return set(DEFAULT_OBSERVES)
     return {c for c in (cond_name(x) for x in obs) if c}
@@ -226,7 +237,12 @@ CUES = [   # (regex over the request with names blanked, nearest condition or No
   r"|\b(?:starte|stoppe|beende)\s+(?:sie|es|ihn)\b", "keep", "an action"),
  (r"\bother mac\b|\banderen mac\b", "keep", "another Mac"),        # round 2: the same condition, on this Mac, is the nearest
 ]
-WATCH_CUE = re.compile(r"\b(?:let me know|tell me|notify|ping me|alert me|warn me|watch|sag(?:e)? mir|gib mir bescheid|bescheid|benachrichtig\w*|melde dich|informier\w*)\b", re.I)
+WATCH_CUE = re.compile(r"\b(?:let me know|tell me|notify|ping me|alert me|warn me|watch|sag(?:e)? mir|gib mir bescheid|bescheid|benachrichtig\w*|melde dich|informier\w*"
+                       r"|keep an eye|hear about|heads[- ]up|wake me|let me hear|weck\w* mich|melde\w*|warn\w*|alert\w*|ping\w*|notif\w*|remind\w*|erinner\w*)\b", re.I)
+# round 3: "delete all old sessions" was drafted as a watch on processes left and restarts: a request that neither asks to be told nor
+# says when or if is not a watch, whatever the draft says
+WHEN_WORDS = re.compile(r"\b(?:when|whenever|if|once|as soon as|every time|each time|until|wenn|sobald|falls|ob|jedes\s*mal|bis)\b", re.I)
+def asks_to_be_told(request): return bool(WATCH_CUE.search(request or "") or WHEN_WORDS.search(request or ""))
 def cue_hits(w):
     r = _mask_names(w); out = []
     for rx, near, words in CUES:
@@ -503,6 +519,8 @@ class WatchDraft(Job):
         s = ROLE + "\n\nRules:\n" + "\n".join("- " + r for r in RULES) + "\n\n" + FIELDS + "\n\n" + "\n\n".join(exs)
         self._sys[mark] = s; return s
     def plan(self, w, setting, mark=True):
+        if not w.get("lang_known", True):      # ADR-0033: no word lists for the request's language: the form, no model call
+            return {"decided": dict(self.fallback(w, setting), notes=["a language without word lists (ADR-0033): the Watches form"])}
         sys_t = self.system(mark); schema = watch_schema(w)
         def build(note):
             keep = None; p = prompt_text(w) + note
@@ -532,6 +550,7 @@ class WatchDraft(Job):
             if e: perrs.append(e); continue
             if {"type": t, "param": v} not in conds: conds.append({"type": t, "param": v})
         cues = cue_hits(w)
+        if intent == "create" and not errs and not asks_to_be_told(w["request"]): return self._done(w, "not_a_watch", "", [])
         if asked and intent == "create" and conds and tg and not cues and covered(w, asked, tg, conds):
             asked = ""; near = None          # round 1: a flag that only restates what the drafted conditions cover is no unsupported answer
         asked_ok = True

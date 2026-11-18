@@ -681,6 +681,22 @@ def selftest_r3(check, WJ):
     w = wi("tell me when glaze export fails, but stay quiet during quiet hours", ses, [{"id": "codex", "name": "Codex"}])
     o = WJ.evaluate(w, "main", wd(["s1"], [("fails", "none")], asked="stay quiet during quiet hours", nearest="fails"))
     check("quiet: kept quiet is no unsupported condition either, and stays off", o["kind"] == "watch" and not o["watch"]["even_in_quiet_hours"], o.get("shown"))
+    # ---- languages (ADR-0033): no word lists for the request's language: the form, with no model call; English and German by their words
+    ses = [{"id": "s-fa", "app": "Codex", "project": "fattura", "title": "Fatture mensili"}]
+    for req in ("Avisa-me quando as faturas mensais terminarem", "Fammi sapere quando le fatture mensili sono pronte", "Hälsa när fakturorna är klara"):
+        nc = NoCall()
+        try: rec = run_item(WJ, wi(req, ses, [{"id": "codex", "name": "Codex"}]), "main", nc)
+        except AssertionError: rec = {"used": None, "final": {"kind": "the model was called"}}
+        check(f"language: {req[:28]!r}… gets the form by code, no model call", nc.n == 0 and rec["used"] == "code" and rec["final"]["kind"] == "form", rec["final"].get("kind"))
+    for req, lang in (("ping me if fatture fails", "en"), ("Sag Bescheid, wenn fatture hängt", "de"), ("Erinnere mich morgen an fatture", "de")):
+        check(f"language: {req!r} is read as {lang}", W.watch_lang(req) == lang, W.watch_lang(req))
+    # ---- not a watch: a request that neither asks to be told nor says when or if, whatever the draft says; a reminder is unsupported
+    w = wi("Archive the stale fatture sessions", ses, [{"id": "codex", "name": "Codex"}])
+    o = WJ.evaluate(w, "main", wd(["any"], [("ends", "none")]))
+    check("not a watch: an order to act, drafted as a watch, is not shown as one", o["kind"] == "not_a_watch", o.get("kind"))
+    w = wi("remind me at 6 pm about the monthly invoices", ses, [{"id": "codex", "name": "Codex"}])
+    o = WJ.evaluate(w, "main", wd(["s1"], [("finishes", "none")]))
+    check("a reminder: still the unsupported answer", o["kind"] == "unsupported", o.get("kind"))
 
 def texts():
     for ex in D.EXAMPLES: yield ex["label"], " ".join(t["source"] for a in ex["agents"] for t in a["turns"]) + " " + json.dumps(ex["out"], ensure_ascii=False)
