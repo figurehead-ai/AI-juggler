@@ -1,0 +1,21 @@
+{
+ "packet": "v4-apple-heldout-jobs-chat.json",
+ "reviewer": "Opus, blind (blind-review-key/, v4-heldout results/reports and harness prompts not opened)",
+ "date": "2026-11-18",
+ "scale": "PASS answers the question with correct citations (or says it doesn't know); WEAK faithful but clumsy/vague/doesn't answer; FAIL misleading or a claim the records don't support",
+ "limitation": "The packet's records carry only ids and kinds ('[s-4a17] session'), not their text, so no claim could be checked against the records. Verdicts judge form, citation use, relevance and consistency with the question; a FAIL for an unsupported claim was not possible. Some claims match the same synthetic world in the jobs-review packet (C006 pricing.py and tests/test_checkout_rounding.py match R008). The packet builder should include the record text.",
+ "entries": [
+  {"pair": "heldout-jobs-chat-001", "item": "C001", "first": "WEAK", "second": "PASS", "prefer": "second",
+   "why": "first is the bare list of record ids and does not answer; second names the session, the file and the value, cites it and rules out the other session"},
+  {"pair": "heldout-jobs-chat-002", "item": "C002", "first": "WEAK", "second": "PASS", "prefer": "second",
+   "why": "first does not answer; second names the session that skipped tests and contrasts the other, each cited ('hat alle bestanden' lacks 'Tests', minor)"},
+  {"pair": "heldout-jobs-chat-003", "item": "C005", "first": "WEAK", "second": "WEAK", "prefer": "second",
+   "why": "first does not answer; second's 'waiting for a question about deleting expired entries' gets the direction backwards (the session is waiting for the user's answer), and s-a003 is not mentioned either way"},
+  {"pair": "heldout-jobs-chat-004", "item": "C006", "first": "PASS", "second": "WEAK", "prefer": "first",
+   "why": "first answers both parts (file, 2 failing tests in tests/test_checkout_rounding.py) with citations; second does not answer"},
+  {"pair": "heldout-jobs-chat-005", "item": "C008", "first": "WEAK", "second": "WEAK", "prefer": "first",
+   "why": "first gives the start and end times (no duration stated) and adds an unrelated scheduler fact [f-60]; second does not answer"}
+ ],
+ "counts": {"PASS": 3, "WEAK": 7, "FAIL": 0, "prefer_first": 2, "prefer_second": 3, "prefer_same": 0},
+ "fails": []
+}

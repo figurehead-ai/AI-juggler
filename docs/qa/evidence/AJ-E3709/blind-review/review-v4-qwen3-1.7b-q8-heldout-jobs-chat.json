@@ -1,0 +1,19 @@
+{
+ "packet": "v4-qwen3-1.7b-q8-heldout-jobs-chat.json",
+ "reviewer": "Opus, blind (blind-review-key/, v4-heldout results/reports and harness prompts not opened)",
+ "date": "2026-11-18",
+ "scale": "PASS answers the question with correct citations (or says it doesn't know); WEAK faithful but clumsy/vague/doesn't answer; FAIL misleading or a claim the records don't support",
+ "limitation": "The packet's records carry only ids and kinds ('[s-4a17] session'), not their text, so no claim could be checked against the records. Verdicts judge form, citation use, relevance and consistency with the question; a FAIL for an unsupported claim was not possible. Some claims match the same synthetic world in the jobs-review packet (C006 matches R008; C009's revert of harbor-sdk 4.2 matches R004). The packet builder should include the record text.",
+ "entries": [
+  {"pair": "heldout-jobs-chat-001", "item": "C001", "first": "WEAK", "second": "PASS", "prefer": "second",
+   "why": "first is the bare list of record ids and does not answer; second names the session and the new delay, cited"},
+  {"pair": "heldout-jobs-chat-002", "item": "C005", "first": "PASS", "second": "WEAK", "prefer": "first",
+   "why": "first names the waiting session and separates the running one, both cited (does not say what it waits for, s-a003 unmentioned); second does not answer"},
+  {"pair": "heldout-jobs-chat-003", "item": "C006", "first": "PASS", "second": "WEAK", "prefer": "first",
+   "why": "first answers both parts with citations ('2 failing tests ... broke' is a little clumsy); second does not answer"},
+  {"pair": "heldout-jobs-chat-004", "item": "C009", "first": "WEAK", "second": "WEAK", "prefer": "second",
+   "why": "first does not answer; second says what happened (bump reverted, outcome failure) but not why, and cites only the session, not the turn or fact that likely hold the reason"}
+ ],
+ "counts": {"PASS": 3, "WEAK": 5, "FAIL": 0, "prefer_first": 2, "prefer_second": 2, "prefer_same": 0},
+ "fails": []
+}
