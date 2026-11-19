@@ -3700,3 +3700,13 @@ The two open questions in ADR-0035 (hosting; the default on) go to the maintaine
      - its "on their own: Work together" line leads with what's true of *this project*, for example "Agents here may message each other (Work together)".
 
      Tying a project to its client's accounts, flagging off-account sessions and audit export is a feature for the maintainer to decide.
+
+### D-134 Linking a project to its client's accounts: later, tucked away, never on prime UI space — SETTLED (2026-11-19)
+The persona walk R4 asked to bind a project to a client's accounts, flag a session there running on another account, and export a per-project audit. The maintainer: "it is unlikely that many people will use that feature. It's ok to have it somewhere, but I would be careful using our prime real estate in our UI… take into account we only have so much UI space, what are the most likely use cases." They left the call to the coordinating session. The decision:
+1. **Scheduled for 0.6 or later, as a niche, opt-in feature.** It's not in 0.5.
+2. **It costs no space for people who don't use it:**
+   - the binding lives in the project's settings ("Accounts for this project", off by default);
+   - the export is an item in the project's "…" menu;
+   - the warning exists only for a project that has a binding, and then shows as an ordinary need. There are no new badges, columns or Home sections.
+3. **0.4.6 keeps only the small fixes already ruled:** one quiet "Kept apart" line on the existing Agents card, and the clearer "on their own" wording.
+- Sources: the maintainer's message, 2026-11-19.
