@@ -41,6 +41,13 @@ describe("an Open that answers after the limit", () => {
     expect(GO_TO_LATE).toBe("go-to://late");
   });
 
+  it("calls a start that opened the session itself a success (the rc3d walk: it wore a warning)", () => {
+    showGoTo({ outcome: STARTING, reached: "pending", ticket: "go-13" });
+    heardLate({ outcome: "Started Claude app · aij-test and opened the session", reached: "started", ticket: "go-13" });
+    expect(toastEntries()[0]!.options.message).toBe("Started Claude app · aij-test and opened the session");
+    expect(toastEntries()[0]!.options.tone).toBe("success");
+  });
+
   it("says when it opened another one, so the user picks it in its sidebar", () => {
     showGoTo({ outcome: STARTING, reached: "pending", ticket: "go-8" });
     heardLate({ outcome: "Started Claude app · aij-test; it opened another session: pick Echo lab in its sidebar", reached: "app", ticket: "go-8" });
