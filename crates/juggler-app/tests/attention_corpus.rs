@@ -78,7 +78,7 @@ fn classify_run(
             {
                 let code = match kind {
                     ExitKind::Code(code) => code,
-                    ExitKind::Signaled(_) => -1,
+                    ExitKind::Signaled(_) | ExitKind::Unknown => -1,
                 };
                 let tail = supervisor.output_tail(session, 4096).unwrap_or_default();
                 let now = juggler_core::model::Timestamp::now().millis();

@@ -1,6 +1,6 @@
 //! Picking sessions up again after a restart (AJ-E510): the startup
-//! recovery pass and the handles it rebuilds for verified live roots. A
-//! child of `supervisor.rs`.
+//! recovery pass, the handles it rebuilds for verified live roots, and the
+//! watch that records such a root's end. A child of `supervisor.rs`.
 
 #![allow(
     clippy::wildcard_imports,
@@ -8,6 +8,9 @@
 )]
 
 use super::*;
+
+/// How often an adopted root's watch looks: no wait reports its end.
+const ADOPTED_WATCH: Duration = Duration::from_secs(1);
 
 /// The row's identity facts as the E503 record (the verify input).
 fn row_identity(row: &juggler_core::storage::LedgerRow) -> crate::tree::ProcessIdentity {
@@ -143,34 +146,72 @@ impl Supervisor {
         self.ledger_write(|ledger| ledger.mark_exited(pid, &root.boot_id, "stopped", false));
     }
 
-    /// Settles an adopted handle whose root ended since (no wait thread
-    /// watches a process that isn't our fork): it is finished and no
-    /// longer adopted. Returns whether it ended.
+    /// Settles an adopted handle whose root ended since: its end is
+    /// recorded ([`end_adopted`], by whoever sees it first: a reader here
+    /// or its watch) and it is no longer adopted. Returns whether it ended.
     pub(super) fn settle_adopted(&self, session: &SessionId, handle: &ChildHandle) -> bool {
         if handle.finished.load(Ordering::Acquire) {
+            if let Ok(mut adopted) = self.adopted.lock() {
+                adopted.remove(session);
+            }
             return true;
         }
         let adopted = self
             .adopted
             .lock()
             .is_ok_and(|adopted| adopted.contains_key(session));
-        if !adopted {
+        if !adopted
+            || !end_adopted(
+                session,
+                handle,
+                self.journal.as_ref(),
+                self.ledger.as_ref(),
+                &self.events_tx,
+            )
+        {
             return false;
         }
-        let identity = handle.identity.lock().ok().and_then(|id| id.clone());
-        if !crate::stop_guard::adopted_root_gone(handle.pid, identity.as_ref()) {
-            return false;
-        }
-        handle.finished.store(true, Ordering::Release);
-        let now = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .map(|d| i64::try_from(d.as_millis()).unwrap_or(i64::MAX))
-            .unwrap_or_default();
-        handle.exit_at_ms.store(now, Ordering::Release);
         if let Ok(mut adopted) = self.adopted.lock() {
             adopted.remove(session);
         }
         true
+    }
+
+    /// The wait thread of an adopted root, which isn't this process's
+    /// child: it looks every [`ADOPTED_WATCH`] and records the end once it
+    /// comes ([`end_adopted`]). The rc3a walk (X1 5a): with only readers
+    /// to notice, a session killed while AI Juggler ran read Working until
+    /// the next restart, and a Stop waited out its whole grace. It ends
+    /// with the root, or with the supervisor (when nothing else holds the
+    /// handle).
+    fn watch_adopted(&self, session: &SessionId, handle: &Arc<ChildHandle>) {
+        let session = session.clone();
+        let handle = Arc::clone(handle);
+        let journal = self.journal.clone();
+        let ledger = self.ledger.clone();
+        let events = self.events_tx.clone();
+        let watch = move || {
+            while Arc::strong_count(&handle) > 1
+                && !end_adopted(
+                    &session,
+                    &handle,
+                    journal.as_ref(),
+                    ledger.as_ref(),
+                    &events,
+                )
+            {
+                // poll: one identity check a second, until the root ends
+                // or the supervisor is gone.
+                std::thread::sleep(ADOPTED_WATCH);
+            }
+        };
+        if let Err(error) = std::thread::Builder::new()
+            .name("adopted-watch".into())
+            .spawn(watch)
+        {
+            // Readers still settle it (`settle_adopted`), only later.
+            tracing::warn!("no watch for an adopted session: {error}");
+        }
     }
 
     /// Registers an ADOPTED handle (AJ-E510, F-3): no ring readers, no
@@ -203,8 +244,9 @@ impl Supervisor {
             children.insert(session.clone(), Arc::clone(&handle));
         }
         if let Ok(mut adopted) = self.adopted.lock() {
-            adopted.insert(session.clone(), handle);
+            adopted.insert(session.clone(), Arc::clone(&handle));
         }
+        self.watch_adopted(session, &handle);
         // The stop path reads the spawn context for nothing, but the
         // reconciler's helper upserts DO — re-seed it from the root
         // row's attribution so helpers keep their provider/account.
@@ -250,4 +292,49 @@ impl Supervisor {
             .map(|(id, _)| id)
             .collect()
     }
+}
+
+/// Records an adopted root's end once it has ended, as a wait thread
+/// records its own child's ([`emit_exit`]: the ledger, the journal,
+/// `finished`, then the session's `Exited`), with [`ExitKind::Unknown`]:
+/// no exit status reaches a process that isn't its parent. Whoever sees
+/// the end first records it (the exit time is the claim). Returns whether
+/// the root has ended.
+fn end_adopted(
+    session: &SessionId,
+    handle: &ChildHandle,
+    journal: Option<&Journal>,
+    ledger: Option<&crate::tree::SharedLedger>,
+    events: &std::sync::mpsc::Sender<LifecycleEvent>,
+) -> bool {
+    if handle.finished.load(Ordering::Acquire) {
+        return true;
+    }
+    let identity = handle.identity.lock().ok().and_then(|id| id.clone());
+    if !crate::stop_guard::adopted_root_gone(handle.pid, identity.as_ref()) {
+        return false;
+    }
+    let claimed = handle
+        .exit_at_ms
+        .compare_exchange(
+            0,
+            Timestamp::now().millis(),
+            Ordering::AcqRel,
+            Ordering::Acquire,
+        )
+        .is_ok();
+    if claimed {
+        emit_exit(
+            session,
+            handle.pid,
+            ExitKind::Unknown,
+            &handle.finished,
+            &handle.exit_at_ms,
+            journal,
+            ledger,
+            events,
+            None,
+        );
+    }
+    true
 }

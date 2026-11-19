@@ -1351,8 +1351,10 @@ fn emit_exit(
     // lives on the shared supervisor, mirrored here best-effort).
     if let Some(ledger) = ledger {
         let exit_kind = kind.ledger_words();
+        // An adopted root's end is read, not reaped: its parent reaps it.
+        let reaped = kind != ExitKind::Unknown;
         if ledger
-            .mark_exited(pid, &ledger.boot_id(), &exit_kind, true)
+            .mark_exited(pid, &ledger.boot_id(), &exit_kind, reaped)
             .is_err()
         {
             tracing::warn!(pid, "process ledger degraded at exit patch");

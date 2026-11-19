@@ -87,7 +87,8 @@ pub fn apply_lifecycle_event_as(
             } else {
                 match kind {
                     kind if kind.is_success() => SessionStatus::Finished,
-                    juggler_supervisor::ExitKind::Signaled(_) => SessionStatus::Stopped,
+                    juggler_supervisor::ExitKind::Signaled(_)
+                    | juggler_supervisor::ExitKind::Unknown => SessionStatus::Stopped,
                     juggler_supervisor::ExitKind::Code(_) => SessionStatus::Failed,
                 }
             };
@@ -98,7 +99,11 @@ pub fn apply_lifecycle_event_as(
             let outcome = match (record.status, kind) {
                 (SessionStatus::Finished, _) => "finished",
                 (SessionStatus::Stopped, _) if stopped_by_user => "stopped",
-                (_, juggler_supervisor::ExitKind::Signaled(_)) => "crashed",
+                (
+                    _,
+                    juggler_supervisor::ExitKind::Signaled(_)
+                    | juggler_supervisor::ExitKind::Unknown,
+                ) => "crashed",
                 _ => "failed",
             };
             crate::usage_stats::instance_ended(storage, &record, outcome);
@@ -121,8 +126,10 @@ pub fn apply_lifecycle_event_as(
 /// process's exit and the user's Stop — the only signals it has for a
 /// terminal or driven session (Claude Code, Codex and every tool run in
 /// its terminal alike): code 0 finished, another code an error, the
-/// user's Stop "stopped by you", a signal nobody asked for a crash. A
-/// limit's exit waits on the user (`QuotaBlocked`): no ending yet.
+/// user's Stop "stopped by you", a signal nobody asked for a crash, and
+/// so is an end nobody asked for that can't be read (a session picked up
+/// after a restart: [`UNKNOWN_EXIT_WORDS`]). A limit's exit waits on the
+/// user (`QuotaBlocked`): no ending yet.
 #[must_use]
 pub fn ending_of_exit(
     status: SessionStatus,
@@ -147,8 +154,16 @@ pub fn ending_of_exit(
             Ending::Crashed,
             signal.map(|signal| format!("signal {signal}")),
         ),
+        juggler_supervisor::ExitKind::Unknown => {
+            (Ending::Crashed, Some(UNKNOWN_EXIT_WORDS.to_owned()))
+        }
     })
 }
+
+/// Beside the ending of a session picked up again after a restart whose
+/// process then ended without a Stop: AI Juggler isn't that process's
+/// parent, so its exit status can't be read.
+pub const UNKNOWN_EXIT_WORDS: &str = "picked up after a restart: how it ended isn't known";
 
 /// Records one heuristic transition (status + structured reason) and
 /// returns the updated record. No action ever follows (SPEC §7).
