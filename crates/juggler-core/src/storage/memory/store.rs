@@ -310,7 +310,7 @@ fn linked_keys(key: &str) -> Vec<String> {
     keys
 }
 
-fn new_id(conn: &Connection, now_ms: i64) -> rusqlite::Result<String> {
+pub(super) fn new_id(conn: &Connection, now_ms: i64) -> rusqlite::Result<String> {
     conn.query_row(
         "SELECT printf('%012x', ?1) || lower(hex(randomblob(10)))",
         [now_ms.max(0)],

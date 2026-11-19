@@ -18,7 +18,7 @@
 //! - **Retrieval behind one trait** ([`Retriever`]; v1 [`KeywordRetriever`]).
 //! - **Backups** follow D-133's ruling ([`backup`]): the stated watches and
 //!   preferences travel as settings, Chat's words only in local backups.
-//! - Nothing here crosses to the UI yet (no command, no `ts-rs` type).
+//! - **Bot's conversation** ([`chat`]): the turns, shown as one stream.
 //!
 //! The tables are V54 ([`V54`]), listed in the runner right after 0.4.6's
 //! V53 ([`schema`]'s note).
@@ -85,6 +85,7 @@
 //!     `a_restore_drops_the_forgotten_and_keeps_no_copy_holding_it`.
 
 pub mod backup;
+pub mod chat;
 mod erase;
 pub mod log;
 mod retrieval;
@@ -96,6 +97,7 @@ mod types;
 #[cfg(test)]
 mod tests;
 
+pub use chat::{ChatCount, ChatHistory, ChatPage, Cleared, NewTurn, Topic, Turn};
 pub use erase::NEUTRAL_TITLE;
 pub use log::{Actor, AiLog, Event, NewEvent, NewSidecar, Sidecar, Stream};
 pub use retrieval::{KeywordRetriever, RecallQuery, RecallReason, Recalled, Retriever, fts_query};
@@ -118,6 +120,13 @@ impl super::Storage {
     #[must_use]
     pub fn memory(&self) -> MemoryStore<'_> {
         MemoryStore::new(&self.conn)
+    }
+
+    /// Bot's one conversation (D-136, ADR-0037 §1.6), on the same terms
+    /// as [`Self::memory`].
+    #[must_use]
+    pub fn chat(&self) -> ChatHistory<'_> {
+        ChatHistory::new(&self.conn)
     }
 
     /// The AI log (ADR-0037 §7), on the same terms as [`Self::memory`].
