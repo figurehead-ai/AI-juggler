@@ -86,7 +86,7 @@ fn modified_ms(path: &Path) -> Option<i64> {
 }
 
 /// The last `entrypoint` a transcript names, from its last
-/// [`TAIL_MAX`] bytes (the word only).
+/// 64 KB (the word only).
 #[must_use]
 pub fn last_entrypoint(transcript: &Path) -> Option<String> {
     let mut file = std::fs::File::open(transcript).ok()?;
