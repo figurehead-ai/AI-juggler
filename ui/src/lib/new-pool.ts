@@ -89,6 +89,23 @@ export function draftOf(template: PoolTemplate, project: string | null): Draft {
   };
 }
 
+/** `base`, or `base 2`, `base 3`… when a pool already has the name. */
+export function freeName(base: string, taken: readonly string[]): string {
+  const names = new Set(taken.map((name) => name.trim().toLowerCase()));
+  for (let n = 1; ; n += 1) {
+    const name = n === 1 ? base : `${base} ${n}`;
+    if (!names.has(name.toLowerCase())) return name;
+  }
+}
+
+/** The draft New pool opens on from `template`: its name one no pool
+ * has yet (Start from scratch's none). A project's "Keep it apart…" makes
+ * this same draft (R4), so its pool is the one the wizard would make. */
+export function startDraft(template: PoolTemplate, project: string | null, taken: readonly string[]): Draft {
+  const draft = draftOf(template, project);
+  return { ...draft, name: draft.name === "" ? "" : freeName(draft.name, taken) };
+}
+
 /** The role a template gives the next member of `kind` added: its roles
  * go to the sessions that can act, in order; a Watched session (it can't
  * act until continued) joins as a Member. */

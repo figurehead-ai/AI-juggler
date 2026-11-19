@@ -32,7 +32,7 @@ import { useApps } from "../../lib/apps";
 import { useConversations } from "../../lib/conversations";
 import { useAgentBridge } from "../../lib/ipc/agent-bridge";
 import { MEMBER_KINDS, type MemberKind } from "../../lib/ipc/pool-model";
-import { broadCandidates, draftOf, makePool, sessionCandidates, thisMacOf, type Candidate, type Draft } from "../../lib/new-pool";
+import { broadCandidates, draftOf, freeName, makePool, sessionCandidates, startDraft, thisMacOf, type Candidate, type Draft } from "../../lib/new-pool";
 import { NewPoolFrame, fitExisting, foldsTemplates, sayNotAdded, type ExistingPool } from "./NewPoolFrame";
 import { usePairedMacs } from "../../lib/ipc/fleet-launch";
 import { templateById, type PoolTemplate } from "../../lib/pool-templates";
@@ -61,15 +61,6 @@ export const stepsFor = (ask: boolean): readonly SetupStep[] => (ask ? [...STEPS
 /** From this step on, Make pool is enabled (a name and its projects make
  * a working pool). */
 const MAKE_FROM = STEPS.indexOf("who");
-
-/** `base`, or `base 2`, `base 3`… when a pool already has the name. */
-export function freeName(base: string, taken: string[]): string {
-  const names = new Set(taken.map((name) => name.trim().toLowerCase()));
-  for (let n = 1; ; n += 1) {
-    const name = n === 1 ? base : `${base} ${n}`;
-    if (!names.has(name.toLowerCase())) return name;
-  }
-}
 
 /** The name a draft has once `template` is chosen: one the user typed
  * stays; the last template's own (or none) gives way to this one's, and
@@ -154,10 +145,10 @@ export function NewPool({
   };
   const firstPool = useMemo(() => pools !== null && !hasUserPools(pools), [pools]);
   const [draft, setDraft] = useState<Draft>(() => {
-    // AJ-E3011: Start from scratch is where a newcomer starts.
-    const first = templateById(startWith ?? "blank");
-    const made = fitExisting(draftOf(first, start), existing);
-    return { ...made, name: into?.name ?? (first.id === "blank" ? "" : freeName(first.name, taken)) };
+    // AJ-E3011: Start from scratch is where a newcomer starts. A
+    // project's "Keep it apart…" makes this same start (R4).
+    const made = startDraft(templateById(startWith ?? "blank"), start, taken);
+    return { ...fitExisting(made, existing), name: into?.name ?? made.name };
   });
   const [busy, setBusy] = useState(false);
   const dialogRef = useRef<HTMLDialogElement | null>(null);

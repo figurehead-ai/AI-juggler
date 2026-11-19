@@ -16,6 +16,7 @@ import { Section } from "../../components/charts/ChartCard";
 import { useActionHost } from "../../components/ItemMenu";
 import { Button } from "../../components/primitives";
 import { IconLayers } from "../../components/usage/controls";
+import { apartPool } from "../../lib/keep-apart";
 import { usePools } from "../../lib/pools";
 import { agentsHereLine } from "../../lib/pool-words";
 import { rememberTab, type PageTabId } from "../registry";
@@ -25,12 +26,6 @@ import type { ProjectInfo } from "../../types/generated/ProjectInfo";
 /** The project's own pool, once the pools are read. */
 export function projectPool(pools: readonly PoolInfo[] | undefined, projectId: string): PoolInfo | null {
   return pools?.find((pool) => pool.kind === "default" && pool.project_id === projectId) ?? null;
-}
-
-/** The sealed pool that keeps the project apart, if one does (its
- * sessions are in no other pool; D-62 decision 14). */
-export function apartPool(pools: readonly PoolInfo[] | undefined, projectId: string): PoolInfo | null {
-  return pools?.find((pool) => pool.sealed && pool.project_id === projectId) ?? null;
 }
 
 const LINKS: { tab: PageTabId; label: string; words: string }[] = [

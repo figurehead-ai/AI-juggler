@@ -199,3 +199,27 @@ export function ToolsArt(): JSX.Element {
     </Art>
   );
 }
+
+/** Keeping a project apart (R4): its sessions working together inside
+ * one closed pool, the way to another pool stopped at its edge. The
+ * caller names the two over it. */
+export function ApartArt(): JSX.Element {
+  return (
+    <Art width={420} height={110} fill testId="keep-apart-art">
+      <rect x={24} y={14} width={252} height={84} rx={16} fill="color-mix(in srgb, var(--color-accent) 8%, var(--color-surface))" stroke={ACCENT} strokeWidth={1.5} />
+      <path d="M118 56H182" {...LINE} />
+      <Box x={44} y={39} w={74} h={34} on />
+      <Bars x={56} y={50} w={50} />
+      <Box x={182} y={39} w={74} h={34} />
+      <Bars x={194} y={50} w={50} />
+      <Envelope x={139} y={48} on />
+      <path d="M276 56H338" {...LINE} strokeDasharray="3 4" />
+      <circle cx={307} cy={56} r={10} fill="var(--color-surface)" stroke="var(--color-faint)" strokeOpacity={0.7} strokeWidth={1.4} />
+      <path d="M300 49 314 63" stroke="var(--color-ink-2)" strokeWidth={1.8} strokeLinecap="round" />
+      <g opacity={0.55}>
+        <Box x={338} y={39} w={64} h={34} />
+        <Bars x={348} y={50} w={44} />
+      </g>
+    </Art>
+  );
+}

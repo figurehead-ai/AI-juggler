@@ -98,7 +98,7 @@ who's in make a working pool.
    other**, each a card with a drawing. It's how they work together
    through AI Juggler; what each may change in your files stays with its
    own app's settings. Under **Optional**, **Keep this pool's work
-   apart** seals it.
+   apart** seals it (see [Keep a project apart](#keep-a-project-apart)).
 
 **Finish**
 
@@ -152,6 +152,40 @@ Pool** (greyed until then): Open now shows your sessions under their
 pools, and a pool's **Open** goes to its page. The list keeps the grouping
 you chose; making a pool doesn't change it. Home stays the whole desktop:
 a pool's own view is its page.
+
+## Keep a project apart
+
+For a client's project, say. **Keep it apart…**, on the project's menu or
+its page's **Agents** card, opens one sheet that says what keeping it apart
+does:
+
+- **In this pool only**: every session in the project, now and later, is
+  in a pool of its own and in no other pool of yours.
+- **Nothing in or out**: no messages, notes or tasks pass between it and
+  your other pools through AI Juggler, and it can't be linked to another
+  pool.
+- **Still a team inside**: its agents can still message each other and
+  share notes and tasks (they may **Work together**).
+
+It doesn't tie the project to one account: sessions there can still start
+on any of your apps. It starts or stops nothing, and what each agent may
+change in your files stays with its own app's settings. Claude Code
+sessions AI Juggler starts there also leave Claude's own messages between
+sessions, from their next start, and a switch into or out of the pool asks
+first.
+
+**Keep apart** makes the pool at once, as New pool's **Sealed client
+project** would with nothing changed: that name (with a number when a pool
+already has it), every session in the project as a Member, and **sealed**
+on its header. A message says so, with **Open it**. **Customise…** opens
+New pool on the same start instead, to change any of it first. Once a
+project is kept apart, **Keep it apart…** opens its pool, and its Agents
+card says **Kept apart: yes**, with **Open it ›**.
+
+To undo it, open the pool: **More settings › Kept apart › Unseal…** says
+which sessions go back into the pools they were in, then does it. Any pool
+you make can be kept apart the same way: in New pool, **Keep this pool's
+work apart** under **On their own**.
 
 ## A pool's page
 
