@@ -127,7 +127,7 @@ fn also_called(pool: &Pool, projects: &HashMap<String, String>) -> Vec<String> {
 
 #[cfg(test)]
 mod tests {
-    #![allow(clippy::unwrap_used)]
+    #![allow(clippy::unwrap_used, reason = "a test fails loudly on a missing pool")]
     use std::path::Path;
 
     use super::{Named, PoolNames};
