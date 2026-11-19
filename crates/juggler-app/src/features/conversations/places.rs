@@ -500,7 +500,7 @@ mod tests {
         let profile = "/Users/you/Library/Application Support/ClaudeProfiles/b-work";
         let code_tab = format!("{profile}/claude-code/2.1/abc/claude.app/Contents/MacOS/claude");
         let ours = "/Users/you/Applications/AI Juggler Dev.app/Contents/MacOS/juggler-app";
-        let other = "/Users/you/Library/Application Support/ClaudeProfiles/b-other";
+        let other = "/Users/you/Library/Application Support/ClaudeProfiles/b-main";
         let table: Table = [
             proc(1, 0, "/sbin/launchd", &[]),
             proc(
@@ -565,7 +565,7 @@ mod tests {
             (started.app_id.as_deref(), started.pid),
             (Some("claude-app"), 80)
         );
-        assert_eq!(started.instance.as_deref(), Some("b-other"));
+        assert_eq!(started.instance.as_deref(), Some("b-main"));
         // The Code tab's own session is still that profile's.
         let tab = host_of(13, &table, &registry, home).unwrap();
         assert_eq!((tab.pid, tab.instance.as_deref()), (10, Some("b-work")));
