@@ -2,6 +2,8 @@
 //! place where what differs between macOS, Linux and Windows lives, so
 //! "where does the Windows version go?" has one answer.
 //!
+//! - [`ai`]: whether this computer could have the system's own on-device
+//!   AI model, and its chip (ADR-0034 §10).
 //! - [`user`]: who this process runs as.
 //! - [`apps`]: starting an installed app (one of its instances).
 //! - [`file_trust`]: whose a file is, and whether a program is safe to run.
@@ -33,6 +35,7 @@
     allow(clippy::pedantic, clippy::unwrap_used, clippy::expect_used)
 )]
 
+pub mod ai;
 pub mod apps;
 pub mod clock;
 pub mod file_trust;
