@@ -8,12 +8,6 @@
  * "You're all caught up."; in the quiet hours, what is muted and until
  * when. A labelled dialog: focus moves in, Tab stays inside, Esc closes
  * and focus goes back to the bell. Nothing here acts by itself.
- *
- * F-rc3g-6 (0.4.6 rc3g): the page under it is inert, all but the bell,
- * so a click or a press on the bell closes it, as the control that opened
- * a popover does. So it isn't `aria-modal`: that would take the bell out
- * of the accessibility tree with the page (and the app's modal rule,
- * `useModalsInert`, would make it inert again).
  */
 import { useEffect, useId, useLayoutEffect, useRef, useState, type JSX, type RefObject } from "react";
 import { useInertOutside } from "../lib/inert";
@@ -52,9 +46,8 @@ export function NotificationCentre({ summary, sessions, anchor, onClose }: { sum
   const titleId = useId();
   const ref = useRef<HTMLDivElement | null>(null);
   usePlaceUnder(ref, anchor);
-  // AJ-E3011 round 4: the page under it is inert while it's open; the
-  // bell isn't (F-rc3g-6): pressed again, it closes it.
-  useInertOutside(ref, true, anchor);
+  // AJ-E3011 round 4: the page under it is inert while it's open.
+  useInertOutside(ref);
   const all = useNoticeActions(sessions);
   // A notice's primary opens what it's about (a page, the limit's
   // choices, a sign-in): the centre steps aside for it (walk K3: it stayed
@@ -103,6 +96,7 @@ export function NotificationCentre({ summary, sessions, anchor, onClose }: { sum
     <div
       ref={ref}
       role="dialog"
+      aria-modal="true"
       aria-labelledby={titleId}
       tabIndex={-1}
       data-testid="notification-centre"
