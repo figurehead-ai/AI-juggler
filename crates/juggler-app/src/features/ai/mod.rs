@@ -6,6 +6,7 @@
 //! choice, [`engines`] the only place that names an engine, and
 //! [`service`] the one query the window reads ([`commands::ai_jobs`]).
 
+pub mod bot;
 pub mod commands;
 pub mod dto;
 pub mod engine;

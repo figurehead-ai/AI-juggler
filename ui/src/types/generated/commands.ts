@@ -19,6 +19,12 @@ import type { AppliedInfo } from "./AppliedInfo";
 import type { ApprovalInfo } from "./ApprovalInfo";
 import type { AskInfo } from "./AskInfo";
 import type { BackupExportInfo } from "./BackupExportInfo";
+import type { BotAskInput } from "./BotAskInput";
+import type { BotCountInfo } from "./BotCountInfo";
+import type { BotFoundInfo } from "./BotFoundInfo";
+import type { BotPageInfo } from "./BotPageInfo";
+import type { BotTopicInfo } from "./BotTopicInfo";
+import type { BotTurnInfo } from "./BotTurnInfo";
 import type { BudgetInfo } from "./BudgetInfo";
 import type { BudgetInput } from "./BudgetInput";
 import type { BugComposedInfo } from "./BugComposedInfo";
@@ -392,6 +398,20 @@ export interface Commands {
   backup_restore: { args: { path: string; token: string }; result: RestoreResultInfo };
   /** Write backup::backup_verify */
   backup_verify: { args: { path: string }; result: RestorePlanInfo };
+  /** Write features::ai::bot::commands::bot_ask */
+  bot_ask: { args: { input: BotAskInput }; result: BotTurnInfo };
+  /** Write features::ai::bot::commands::bot_clear */
+  bot_clear: { args: Record<string, never>; result: number };
+  /** Read features::ai::bot::commands::bot_count */
+  bot_count: { args: Record<string, never>; result: BotCountInfo };
+  /** Read features::ai::bot::commands::bot_find */
+  bot_find: { args: { words: string }; result: BotFoundInfo[] };
+  /** Write features::ai::bot::commands::bot_new_topic */
+  bot_new_topic: { args: Record<string, never>; result: BotTopicInfo };
+  /** Read features::ai::bot::commands::bot_page */
+  bot_page: { args: { beforeMs?: number | null; beforeId?: string | null; limit?: number | null }; result: BotPageInfo };
+  /** Write features::ai::bot::commands::bot_wrong */
+  bot_wrong: { args: { turn: string }; result: void };
   /** Read features::budgets::commands::budgets_list */
   budgets_list: { args: { monthStartMs: number }; result: BudgetInfo[] };
   /** Write features::budgets::commands::budgets_remove */

@@ -441,6 +441,20 @@ impl<'c> ChatHistory<'c> {
         })
     }
 
+    /// Replaces a turn's scope and notes (`entities`): "This is wrong"
+    /// is noted there. Its question and answer never change here.
+    ///
+    /// # Errors
+    ///
+    /// Storage failures.
+    pub fn annotate(&self, id: &str, entities: &str) -> Result<(), MemoryError> {
+        self.conn.execute(
+            "UPDATE chat_turns SET entities = ?2 WHERE id = ?1",
+            params![id, entities],
+        )?;
+        Ok(())
+    }
+
     /// One turn by id.
     ///
     /// # Errors

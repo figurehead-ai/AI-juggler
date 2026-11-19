@@ -351,3 +351,63 @@ pub fn recheck(state: &AppState) -> Option<Vec<AiJobInfo>> {
 #[cfg(test)]
 #[path = "service_tests.rs"]
 mod tests;
+
+/// One generation for `job` on the card the router picks now, with the
+/// model's display name (ADR-0034 §3: one engine, never a chain). The
+/// job's flag, its Beta switch and the user's pick hold as they do for
+/// the query: a job that isn't `Run` doesn't run.
+///
+/// # Errors
+///
+/// [`EngineError::NotHere`] when the job doesn't run now; the engine's
+/// own error otherwise.
+pub fn respond_for(
+    state: &AppState,
+    job: Job,
+    request: &super::engine::Request,
+    stop: &super::engine::Stop,
+) -> Result<(super::engine::Draft, String), super::engine::EngineError> {
+    use super::engine::{EngineError, Reason};
+    let not_here = EngineError::NotHere(Reason::Unknown);
+    let switches = beta_switches(state).map_err(|_| not_here)?;
+    let picks = picks(state).map_err(|_| not_here)?;
+    let snapshot = crate::features::remote_config::current();
+    let service = service();
+    let mac = service.mac_facts(&state.data_dir, Probe::Never);
+    let listing = models::listing(&snapshot.lists);
+    let offered = models::offered(&listing);
+    let installed = models::installed_entries(&models::store::shared_installed(), &listing);
+    let usable = usable(&offered, &installed);
+    let cards = service.engines.cards(&usable);
+    let automatic = mac
+        .as_ref()
+        .and_then(|mac| match recommendation(mac, &usable, &installed) {
+            Recommendation::Model { id, .. } => Some(id),
+            Recommendation::Nothing(_) => None,
+        });
+    let inputs = Inputs {
+        cards: &cards,
+        models: &usable,
+        automatic: automatic.as_deref(),
+        picks: &picks,
+    };
+    let spec = jobs::JOBS
+        .iter()
+        .copied()
+        .find(|spec| spec.job == job)
+        .ok_or(not_here)?;
+    let on = Switches {
+        on: flags::on_in(&snapshot.effective, spec.flag),
+        beta: switches.get(&job).copied().unwrap_or(false),
+    };
+    let router::Route::Run { card, .. } = router::route(spec, on, &inputs) else {
+        return Err(not_here);
+    };
+    let card = cards.get(card).ok_or(not_here)?;
+    let draft = service.engines.respond(card, request, stop)?;
+    let name = usable
+        .iter()
+        .find(|m| m.id == card.model)
+        .map_or_else(|| card.model.clone(), |m| m.name.clone());
+    Ok((draft, name))
+}
