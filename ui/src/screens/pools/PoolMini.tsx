@@ -32,7 +32,7 @@ export interface MiniMember {
 export type MiniName = (ref: string) => string;
 
 /** What a member of each kind is called when nothing names it. */
-const KIND_WORDS: Record<string, string> = { app: "An App", account: "An Account", tool: "A tool", mac: "A Mac" };
+const KIND_WORDS: Record<string, string> = { app: "An App", account: "An Account", tool: "A tool", mac: "A computer" };
 
 /** What a member is called when nothing names it: its tool's name, else
  * a word for its kind, never its id (F-rc3f-6: "sess-731993261005 ·
