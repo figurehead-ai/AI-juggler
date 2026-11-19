@@ -40,6 +40,7 @@ def git_value(u, H):
     if isinstance(u, int) and not isinstance(u, bool): return H["files"].format(n=u)
     return str(u)
 def heads(t): return HEAD.get(t["ctx"].get("lang") or "en", HEAD["en"])
+def quoted(t, s): return f"„{s}“" if t["ctx"].get("lang") == "de" else f"“{s}”"
 
 # ---------- the questions and failures, always shown, verbatim, by code ----------
 def qf_items(t, text_failures=True):
@@ -61,7 +62,7 @@ def qf_items(t, text_failures=True):
     return items
 def qf_lines(t, text_failures=True):
     H = heads(t)
-    return [(f"{H['agent_says']}: “{s}”" if k == "agent_failure" else f"{H[k]}: {s}" if s else H["asking" if k == "question" else "failed_status"])
+    return [(f"{H['agent_says']}: {quoted(t, s)}" if k == "agent_failure" else f"{H[k]}: {s}" if s else H["asking" if k == "question" else "failed_status"])
             for k, s in qf_items(t, text_failures)]
 
 def failure_on_success(text, t):
@@ -127,7 +128,7 @@ def attribute(sentence, t, hits):
     """A's way to show a contradicted agent claim: the agent's words, attributed, and the facts beside them (git's lead already shows
     an undone change)"""
     H = heads(t); facts = [f for k, _w, f in hits if f and not (k == "undone" and git_lead(t))]
-    return [f"{H['agent_says']}: “{sentence.strip()}”"] + list(dict.fromkeys(facts))
+    return [f"{H['agent_says']}: {quoted(t, sentence.strip())}"] + list(dict.fromkeys(facts))
 def feed_excerpt(t):
     """the feed's excerpt: with git's lead, the excerpt alone (the lead already says what git undid); else excerpt_v5 (Req. 6e). Round 4:
     a line of it that carries a claim the facts or git contradict is the agent's words, with the fact beside it (claims_vs_facts)"""
