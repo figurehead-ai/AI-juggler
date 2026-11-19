@@ -8,6 +8,10 @@
 //!   approval, or `AskUserQuestion`'s questions), anything else refused.
 //! - Out: `user` turns, `control_request`s (`initialize`, `interrupt`,
 //!   `set_model`) and `control_response`s carrying the user's own answer.
+//!   Claude Code echoes no turn it is sent (only with
+//!   `--replay-user-messages`, which isn't asked for), so each turn's text is
+//!   reported here as it is sent: the conversation shows what it was given
+//!   (F-rc3g-9).
 
 use std::collections::HashMap;
 
@@ -286,11 +290,16 @@ impl Codec {
         if let Some(session) = &self.session {
             line["session_id"] = json!(session);
         }
+        let given = ItemSummary {
+            kind: ItemKind::UserMessage,
+            text: bounded(&input.text),
+        };
         let events = vec![
             RuntimeEvent::TurnStarted {
                 turn: None,
                 origin: Some(input.origin),
             },
+            RuntimeEvent::Item { item: given },
             state(LiveStatusWord::Busy),
         ];
         Ok((line, events))

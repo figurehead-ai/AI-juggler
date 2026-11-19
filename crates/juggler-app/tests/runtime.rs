@@ -195,6 +195,11 @@ fn a_driven_session_is_exact_and_answered_only_by_the_user() {
             .iter()
             .any(|item| item.text == "you chose once")
     });
+    // F-rc3g-9: what the person sent is theirs in the view, once.
+    assert_eq!(
+        view_lines(&state, &session, "user_message"),
+        ["ask: rm -rf build"]
+    );
 
     // A question, with a reply.
     runtime::send_impl(&state, &session, "question: which colour?").unwrap();
@@ -1138,6 +1143,76 @@ fn claude_without_a_terminal_keeps_its_limits_as_its_accounts_reading() {
         five_hour.source_words.as_deref(),
         Some("Claude Code's run in AI Juggler")
     );
+    stop(&state, &session);
+}
+
+/// The view's lines of `kind`, in order.
+fn view_lines(state: &Arc<AppState>, session: &str, kind: &str) -> Vec<String> {
+    runtime::get_impl(state, session)
+        .unwrap()
+        .unwrap()
+        .items
+        .into_iter()
+        .filter(|item| item.kind == kind)
+        .map(|item| item.text)
+        .collect()
+}
+
+/// F-rc3g-9 (the rc3g walk: a Claude Code session's view showed only what
+/// the agent did; the prompt that started a turn was nowhere): what the
+/// person sent is in the view as theirs, once each, in order, before the
+/// reply to it.
+#[test]
+fn claude_without_a_terminal_shows_what_the_person_sent() {
+    let work = tempfile::tempdir().unwrap();
+    let state = claude_state(work.path());
+    let profile = trusted_claude_profile(&state, work.path());
+    let session = launch_driven(&state, &profile).session_id;
+    runtime::send_impl(&state, &session, "hello").unwrap();
+    replied(&state, &session);
+    runtime::send_impl(&state, &session, "and once more").unwrap();
+    wait_for("the second turn's end", || {
+        let snap = state.runtime.driver(&session).unwrap().snapshot();
+        !snap.turn_running
+            && snap
+                .items
+                .iter()
+                .filter(|item| item.kind == "user_message")
+                .count()
+                == 2
+    });
+    assert_eq!(
+        view_lines(&state, &session, "user_message"),
+        ["hello", "and once more"]
+    );
+    let kinds: Vec<String> = runtime::get_impl(&state, &session)
+        .unwrap()
+        .unwrap()
+        .items
+        .into_iter()
+        .map(|item| item.kind)
+        .collect();
+    assert_eq!(kinds[0], "user_message", "{kinds:?}");
+    assert!(
+        kinds[1..].contains(&"agent_message".to_owned()),
+        "{kinds:?}"
+    );
+    stop(&state, &session);
+}
+
+/// F-rc3g-9 for a tool that echoes what it's sent (Codex's `userMessage`
+/// item, before and after): the person's message once, never twice.
+#[test]
+fn codexs_own_echo_shows_the_persons_message_once() {
+    let work = tempfile::tempdir().unwrap();
+    let state = app_state(work.path(), None);
+    let profile = new_profile(&state, CODEX_ID, work.path());
+    let session = juggler_app::features::launch::launch_profile(&state, &profile, None)
+        .unwrap()
+        .session_id;
+    runtime::send_impl(&state, &session, "hello").unwrap();
+    replied(&state, &session);
+    assert_eq!(view_lines(&state, &session, "user_message"), ["hello"]);
     stop(&state, &session);
 }
 

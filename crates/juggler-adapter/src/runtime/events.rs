@@ -269,7 +269,10 @@ pub struct ModelChoice {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ItemKind {
-    /// The user's message.
+    /// A message the turn was given (the user's, or one AI Juggler
+    /// delivered), as the tool received it. Each is reported once: from the
+    /// tool's own echo when it gives one (Codex's `userMessage` item), else
+    /// by the adapter as it sends it.
     UserMessage,
     /// The agent's message.
     AgentMessage,

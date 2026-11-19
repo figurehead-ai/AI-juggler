@@ -605,6 +605,16 @@ fn delivery_waits_for_the_users_click_at_work_together() {
     wait_for("its turn to end", || {
         delivery::between_turns(&lab.state, &builder)
     });
+    // F-rc3g-9: the delivered text, as the tool got it, is never shown as
+    // the person's own: its line names who sent it.
+    let view = juggler_app::features::runtime::commands::get_impl(&lab.state, builder.as_str())
+        .unwrap()
+        .unwrap();
+    assert!(
+        view.items.iter().all(|item| item.kind != "user_message"),
+        "{:?}",
+        view.items
+    );
     let second = field(&lab.say(&a, &builder, "And the tests", None), "/message");
     let third = field(&lab.say(&a, &builder, "And the docs", None), "/message");
     assert_eq!(
