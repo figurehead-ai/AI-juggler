@@ -304,8 +304,12 @@ mod tests {
             std::fs::write(&path, &exported).unwrap();
         }
         let committed = std::fs::read_to_string(&path).unwrap_or_default();
+        // Compared as JSON, not as text: a workspace build turns on
+        // serde_json's `preserve_order` (juggler-stats' tests), which
+        // keeps the export's keys in their written order, not sorted.
         assert_eq!(
-            committed, exported,
+            serde_json::from_str::<serde_json::Value>(&committed).ok(),
+            Some(registry.export()),
             "config/remote/schema.json is stale: rerun with AIJ_WRITE_REMOTE_SCHEMA=1"
         );
         // Every channel's source fits it.
