@@ -229,6 +229,29 @@ pub const fn over_hops(hop: u32) -> bool {
     hop > MAX_THREAD_HOPS
 }
 
+/// The agent messages in a row a thread takes before the person is asked
+/// (F-rc3g-10): its pool's hop limit when the pool puts its agents'
+/// messages into sessions by itself (`Some`: past it the chain pauses and
+/// asks, D-29), and never more than [`MAX_THREAD_HOPS`] (past which a
+/// thread takes none). Counted as the pause counts: a message at hop `h`
+/// with `h <= cap` goes without the person, so "`cap` of `cap`" is the
+/// last one before they're asked.
+#[must_use]
+pub fn hop_cap(pool_hop_limit: Option<u32>) -> u32 {
+    pool_hop_limit.map_or(MAX_THREAD_HOPS, |limit| limit.min(MAX_THREAD_HOPS))
+}
+
+/// A message's hop as an agent reads it: "hop 2 of 5", or "hop 3, over
+/// this pool's limit of 2" for one past `cap` (the person let it in).
+#[must_use]
+pub fn hop_words(hop: u32, cap: u32) -> String {
+    if hop <= cap {
+        format!("hop {hop} of {cap}")
+    } else {
+        format!("hop {hop}, over this pool's limit of {cap}")
+    }
+}
+
 /// One message as the loop check sees it: who, to whom, when, and
 /// whether a person wrote it.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -327,9 +350,10 @@ pub struct Delivered<'a> {
 
 /// The text of a turn that delivers `messages` into a session (D-29:
 /// labelled with its sender and that it can't approve anything or change
-/// settings). Facts, then each message as data, then how to answer.
+/// settings). Facts, then each message as data, then how to answer. `cap`
+/// is the pool's [`hop_cap`]: each message's hop is read against it.
 #[must_use]
-pub fn delivered_turn(pool: &str, messages: &[Delivered<'_>]) -> String {
+pub fn delivered_turn(pool: &str, cap: u32, messages: &[Delivered<'_>]) -> String {
     use std::fmt::Write as _;
     let mut out = String::new();
     let count = messages.len();
@@ -346,14 +370,13 @@ pub fn delivered_turn(pool: &str, messages: &[Delivered<'_>]) -> String {
     for message in messages {
         let _ = write!(
             out,
-            "\n---\n[{}]\n{} · {}\n\n{}\n(Thread {}, hop {} of {}. To answer, use the juggler tool send_message with this thread.)\n",
+            "\n---\n[{}]\n{} · {}\n\n{}\n(Thread {}, {}. To answer, use the juggler tool send_message with this thread.)\n",
             provenance(message.from, pool),
             message.kind.words(),
             message.subject,
             message.body,
             message.thread,
-            message.hop,
-            MAX_THREAD_HOPS
+            hop_words(message.hop, cap)
         );
     }
     out
@@ -496,9 +519,24 @@ mod tests {
     }
 
     #[test]
+    fn a_threads_cap_is_its_pools_hop_limit_within_the_threads_own() {
+        assert_eq!(
+            hop_cap(None),
+            MAX_THREAD_HOPS,
+            "a pool that doesn't deliver"
+        );
+        assert_eq!(hop_cap(Some(2)), 2);
+        assert_eq!(hop_cap(Some(5)), 5);
+        assert_eq!(hop_cap(Some(20)), MAX_THREAD_HOPS);
+        assert_eq!(hop_words(2, 2), "hop 2 of 2");
+        assert_eq!(hop_words(3, 2), "hop 3, over this pool's limit of 2");
+    }
+
+    #[test]
     fn every_delivery_says_who_and_that_it_cant_approve() {
         let text = delivered_turn(
             "Checkout",
+            hop_cap(Some(2)),
             &[Delivered {
                 from: Sender::Agent {
                     name: "Planner",
@@ -514,7 +552,7 @@ mod tests {
         assert!(text.contains("«Planner» (Claude Code) in the pool «Checkout»"));
         assert!(text.contains("can't approve anything or change settings"));
         assert!(text.contains("Handoff · Start on the API"));
-        assert!(text.contains("hop 2 of 6"));
+        assert!(text.contains("hop 2 of 2"), "{text}");
         assert!(provenance(Sender::User, "Checkout").contains("From the user"));
     }
 

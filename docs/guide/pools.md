@@ -413,6 +413,11 @@ Home's **Needs you** shows, beside your sessions' questions:
 
 - A thread takes at most 6 agent messages in a row without you; then it
   pauses until you resume it.
+- An open thread counts them against the number after which you're asked:
+  the pool's **Stop and ask you after** when the pool puts messages into
+  sessions by itself, never more than 6. "2 of 2 agent messages in a row
+  without you" is the last before you're asked; the agents read the same
+  count ("hop 2 of 2").
 - Each session sends at most 10 messages a minute and 100 a day, in all
   its pools together (a session in two pools gets one limit, not two),
   and the same message twice within 10 minutes goes once.

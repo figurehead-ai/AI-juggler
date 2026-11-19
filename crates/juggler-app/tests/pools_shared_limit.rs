@@ -18,6 +18,7 @@ use juggler_agentbridge::wire::{Args, Call, Refusal, SendArgs};
 use juggler_app::features::agent_bridge::calls::MAX_CALLS;
 use juggler_app::features::messages::{delivery, needs, views};
 use juggler_app::features::pools;
+use juggler_core::messaging::MAX_THREAD_HOPS;
 use juggler_core::storage::{MemberRef, PoolRole};
 use lab::{Lab, field, wait_for};
 
@@ -326,6 +327,23 @@ fn two_pools_chains_through_one_session_each_pause_at_their_own_hop_limit() {
     builder_says(&lab.pool, &planner, "Team two", &team);
     builder_says(&second, &client, "Second two", &other);
 
+    // F-rc3g-10: each thread counts against its own pool's limit, in the
+    // agent's answer and the thread view, the way the pause counts: Team's
+    // second message is "2 of 2", the last before it asks.
+    let cap = |thread: &str| {
+        views::thread(&lab.state, thread, None)
+            .unwrap()
+            .thread
+            .hop_cap
+    };
+    assert_eq!(field(&team_1, "/hop_cap"), "2");
+    assert_eq!(field(&second_1, "/hop_cap"), "3");
+    assert_eq!((cap(&team), cap(&other)), (2, 3));
+    assert_eq!(
+        views::thread(&lab.state, &team, None).unwrap().thread.hop,
+        2
+    );
+
     // Team's third hop is past its limit (2): Team's thread pauses alone.
     let team_3 = lab.say(&a, &builder, "Team three", Some(&team));
     assert_eq!(
@@ -358,6 +376,21 @@ fn two_pools_chains_through_one_session_each_pause_at_their_own_hop_limit() {
         .unwrap()
         .into_iter()
         .filter(|need| need.kind == "deliver")
+        .collect();
+    // Needs you counts the same way: the one it asks about is past 2.
+    let team_ask = asks
+        .iter()
+        .find(|need| need.thread_id.as_deref() == Some(team.as_str()))
+        .unwrap();
+    assert!(
+        team_ask
+            .detail
+            .ends_with("3 agent messages in a row without you, over this pool's limit of 2"),
+        "{}",
+        team_ask.detail
+    );
+    let asks: Vec<_> = asks
+        .into_iter()
         .map(|need| (need.pool_id, need.thread_id.unwrap()))
         .collect();
     assert_eq!(asks.len(), 2, "one ask a paused thread: {asks:?}");
@@ -366,6 +399,11 @@ fn two_pools_chains_through_one_session_each_pause_at_their_own_hop_limit() {
 
     // Stop all in Second: Second's new chain waits; Team's still wakes it.
     pools::access::set_delivery_impl(&lab.state, &second, 3, true).unwrap();
+    assert_eq!(
+        cap(&other),
+        MAX_THREAD_HOPS,
+        "with its delivery stopped nothing asks at 3: only the thread's own cap"
+    );
     let held = lab.say(&c, &builder, "Second, stopped", None);
     assert_eq!(
         field(&held, "/to/0/gets_it"),

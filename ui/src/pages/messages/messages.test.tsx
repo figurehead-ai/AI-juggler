@@ -21,6 +21,7 @@ import SharedDocsSource from "./SharedDocs.tsx?raw";
 import PoolLinksSource from "./PoolLinks.tsx?raw";
 import MessageNeedsSource from "../../components/MessageNeeds.tsx?raw";
 import { MessagesView, threadToShow } from "./MessagesView";
+import { hopWords } from "./words";
 import { SharedDocs } from "./SharedDocs";
 import { MessageNeeds } from "../../components/MessageNeeds";
 import { desktopRecipients } from "../../lib/connector";
@@ -176,6 +177,18 @@ describe("a pool's messages", () => {
     fireEvent.change(within(form).getByTestId("compose-body"), { target: { value: "Check the copy." } });
     fireEvent.keyDown(within(form).getByTestId("compose-body"), { key: "Enter", metaKey: true });
     await waitFor(() => expect(calls()).toContain("send:conversation:claude-work/c1:true"));
+  });
+
+  // F-rc3g-10: the count reads against the pool's own limit (the thread's
+  // hop_cap), the way its pause counts: "2 of 2" is the last before you're
+  // asked, and the one past it says it's over.
+  it("counts a thread's agent messages against its pool's limit", async () => {
+    seams().__AIJ_MESSAGES__!.threads![0] = thread({ hop: 2, hop_cap: 2 });
+    const { findByTestId } = render(<MessagesView poolId="pool-team" members={members} now={NOW} />);
+    expect((await findByTestId("thread-hops")).textContent).toBe("2 of 2 agent messages in a row without you");
+    expect(hopWords(3, 2)).toBe("3 agent messages in a row without you, over this pool's limit of 2");
+    expect(hopWords(1, 1), "at a limit of 1, the first is the last").toBe("1 of 1 agent messages in a row without you");
+    expect(hopWords(1, 5)).toBeNull();
   });
 
   // F-rc3g-13: on p11-b's Messages tab the list held only its own thread,

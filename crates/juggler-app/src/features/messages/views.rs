@@ -14,7 +14,6 @@
 use std::collections::HashSet;
 use std::sync::Arc;
 
-use juggler_core::messaging::MAX_THREAD_HOPS;
 use juggler_core::model::SessionId;
 use juggler_core::storage::{Message, RecipientState, SENDER_USER, Storage, Thread, ThreadState};
 
@@ -76,7 +75,7 @@ fn thread_info(storage: &Storage, thread: Thread, pool_name: &str) -> ThreadInfo
     ThreadInfo {
         pool_name: pool_name.to_owned(),
         people,
-        hop_cap: MAX_THREAD_HOPS,
+        hop_cap: super::delivery::hop_cap(storage, &thread.pool_id),
         state: thread.state.as_str().to_owned(),
         last_from: last.map(|m| m.sender_name.clone()).unwrap_or_default(),
         // D-25: a task an agent names by its id reads as its title.

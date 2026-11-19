@@ -697,7 +697,8 @@ fn at_full_it_goes_in_between_turns_never_at_a_permission_prompt_or_over_typing(
         "{text}"
     );
     assert!(text.contains("The schema changed"));
-    assert!(text.contains("hop 1 of 6"));
+    // F-rc3g-10: read against the pool's own hop limit (5 to start).
+    assert!(text.contains("hop 1 of 5"), "{text}");
 }
 
 #[test]
