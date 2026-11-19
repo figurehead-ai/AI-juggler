@@ -84,8 +84,17 @@ impl Service {
         probe: Probe,
     ) -> (Vec<AiJobInfo>, bool) {
         let mac = self.mac_facts(data_dir, probe);
-        let offered = models::offered(&models::listing(&snapshot.lists));
-        let jobs = answer_for(&self.engines, &offered, mac.as_ref(), snapshot, beta);
+        let listing = models::listing(&snapshot.lists);
+        let offered = models::offered(&listing);
+        let installed = models::installed_entries(&models::store::shared_installed(), &listing);
+        let jobs = answer_for(
+            &self.engines,
+            &offered,
+            &installed,
+            mac.as_ref(),
+            snapshot,
+            beta,
+        );
         let changed = self.last.lock().is_ok_and(|mut last| {
             let changed = last.as_ref() != Some(&jobs);
             *last = Some(jobs.clone());
@@ -108,20 +117,34 @@ impl Service {
     }
 }
 
-/// The answer over `offered` models (pure but for the engines' last
-/// probe): the router per job, the recommendation as Automatic.
+/// The answer over `offered` models and the `installed` ones (pure but
+/// for the engines' last probe): the router per job over both (an
+/// installed model keeps working from its copy, listed or not, ADR-0035
+/// §11.4), the recommendation among the offered ones as Automatic.
 #[must_use]
 pub fn answer_for(
     engines: &Registry,
     offered: &[ModelEntry],
+    installed: &[ModelEntry],
     mac: Option<&MacFacts>,
     snapshot: &Snapshot,
     beta: &dyn Fn(Job) -> bool,
 ) -> Vec<AiJobInfo> {
+    let installed_ids: Vec<&str> = installed.iter().map(|m| m.id.as_str()).collect();
+    let mut usable = offered.to_vec();
+    for model in installed {
+        if !usable.iter().any(|known| known.id == model.id) {
+            usable.push(model.clone());
+        }
+    }
+    let offered = usable.as_slice();
     let cards = engines.cards(offered);
-    let automatic = mac.and_then(|mac| match recommend(mac, offered, &[]) {
-        Recommendation::Model { id, .. } => Some(id),
-        Recommendation::Nothing(_) => None,
+    let automatic = mac.and_then(|mac| {
+        let listed: Vec<ModelEntry> = offered.iter().filter(|m| !m.withdrawn).cloned().collect();
+        match recommend(mac, &listed, &installed_ids) {
+            Recommendation::Model { id, .. } => Some(id),
+            Recommendation::Nothing(_) => None,
+        }
     });
     let picks = BTreeMap::new();
     let inputs = Inputs {

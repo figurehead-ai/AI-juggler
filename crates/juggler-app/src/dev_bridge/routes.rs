@@ -206,6 +206,9 @@ read_routes! {
     "remote_config_values" => async_result features::remote_config::commands::remote_config_values(; section: crate::features::remote_config::dto::RemoteSection);
     "remote_config_about" => async_result features::remote_config::commands::remote_config_about();
     "notices_list" => async_result features::notices::commands::notices_list(state);
+    // AJ-E3803: the models on this Mac and the download, from the store's
+    // index; nothing is fetched.
+    "ai_models_installed" => async_result features::ai::models::commands::ai_models_installed(state);
     "ranking_rows" => async_result features::ranking::commands::ranking_rows(state; project: Option<String>);
     "switch_back_suggestions" => async_result features::switch::commands::switch_back_suggestions(state);
     // The switch screen (AJ-E1543): its targets, its check and its

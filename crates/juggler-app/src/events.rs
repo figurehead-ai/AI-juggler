@@ -82,11 +82,17 @@ pub enum AppEvent {
     /// The AI jobs' answer changed (ADR-0034 §3.4, AJ-E3802): ask `ai_jobs`
     /// again.
     AiJobsChanged,
+    /// The AI models on this Mac or the download changed (AJ-E3803,
+    /// AJ-E3813): ask `ai_models_installed` again.
+    AiModelsChanged,
+    /// A model download's progress (carries
+    /// [`crate::features::ai::models::dto::DownloadInfo`]).
+    AiModelsProgress,
 }
 
 impl AppEvent {
     /// Every event, in declaration order.
-    pub const ALL: [Self; 32] = [
+    pub const ALL: [Self; 34] = [
         Self::AppReady,
         Self::SessionsUpdated,
         Self::SessionsResources,
@@ -119,6 +125,8 @@ impl AppEvent {
         Self::FloorOpenRequest,
         Self::RemoteConfigChanged,
         Self::AiJobsChanged,
+        Self::AiModelsChanged,
+        Self::AiModelsProgress,
     ];
 
     /// The wire name the UI listens to.
@@ -157,6 +165,8 @@ impl AppEvent {
             Self::FloorOpenRequest => "floor://open-request",
             Self::RemoteConfigChanged => "remote-config://changed",
             Self::AiJobsChanged => "ai://jobs-changed",
+            Self::AiModelsChanged => "ai-models://changed",
+            Self::AiModelsProgress => "ai-models://progress",
         }
     }
 }

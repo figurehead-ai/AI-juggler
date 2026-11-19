@@ -73,6 +73,10 @@ pub const FORWARDED_EVENTS: &[&str] = &[
     AppEvent::FloorChanged.name(),
     // AJ-E3802: the AI surfaces read which jobs are available again.
     AppEvent::AiJobsChanged.name(),
+    // AJ-E3803, AJ-E3813: the Models screen reads the models again, and
+    // shows a download's progress.
+    AppEvent::AiModelsChanged.name(),
+    AppEvent::AiModelsProgress.name(),
     // ADR-0035 §9: the views reading remote values read them again.
     AppEvent::RemoteConfigChanged.name(),
 ];

@@ -141,6 +141,16 @@ pub fn spawn(app: tauri::AppHandle, state: Arc<AppState>) {
                 if crate::features::ai::service::recheck(&state).is_some() {
                     app.emit_event(AppEvent::AiJobsChanged, ());
                 }
+                // ADR-0035 §11.4: installed models' copies follow their
+                // entry while it names the same file.
+                if let Some(store) = crate::features::ai::models::store::shared_if_made() {
+                    let listing = crate::features::ai::models::listing(
+                        &crate::features::remote_config::current().lists,
+                    );
+                    if store.refresh(&listing) {
+                        app.emit_event(AppEvent::AiModelsChanged, ());
+                    }
+                }
             }
         },
     );

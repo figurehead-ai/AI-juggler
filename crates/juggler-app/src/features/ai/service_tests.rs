@@ -249,6 +249,7 @@ fn the_recommendation_is_the_automatic_default() {
         let jobs = answer_for(
             &engines,
             &builtin(),
+            &[],
             mac,
             &Snapshot::default(),
             &beta_for(&[Job::Chat]),

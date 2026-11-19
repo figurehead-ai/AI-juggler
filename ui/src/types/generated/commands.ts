@@ -16,6 +16,7 @@ import type { AnswerInput } from "./AnswerInput";
 import type { AppInfo } from "./AppInfo";
 import type { AppUserInfo } from "./AppUserInfo";
 import type { AppliedInfo } from "./AppliedInfo";
+import type { ApprovalInfo } from "./ApprovalInfo";
 import type { AskInfo } from "./AskInfo";
 import type { BackupExportInfo } from "./BackupExportInfo";
 import type { BudgetInfo } from "./BudgetInfo";
@@ -102,6 +103,7 @@ import type { MachineUsageInfo } from "./MachineUsageInfo";
 import type { MarkChoice } from "./MarkChoice";
 import type { MessageInfo } from "./MessageInfo";
 import type { MessageNeedInfo } from "./MessageNeedInfo";
+import type { ModelsInfo } from "./ModelsInfo";
 import type { MoveDoneInfo } from "./MoveDoneInfo";
 import type { MoveOfferInfo } from "./MoveOfferInfo";
 import type { MoveRecordInfo } from "./MoveRecordInfo";
@@ -191,6 +193,7 @@ import type { SetupCheckInfo } from "./SetupCheckInfo";
 import type { SourceHealthInfo } from "./SourceHealthInfo";
 import type { SourceInspectInfo } from "./SourceInspectInfo";
 import type { StagedSwitchInfo } from "./StagedSwitchInfo";
+import type { StartInfo } from "./StartInfo";
 import type { StartedSessionInfo } from "./StartedSessionInfo";
 import type { StatsInfo } from "./StatsInfo";
 import type { StoredAppInfo } from "./StoredAppInfo";
@@ -289,6 +292,18 @@ export interface Commands {
   ai_beta_set: { args: { job: AiJob; on: boolean }; result: AiJobInfo[] };
   /** Read features::ai::commands::ai_jobs */
   ai_jobs: { args: Record<string, never>; result: AiJobInfo[] };
+  /** Write features::ai::models::commands::ai_model_approve_extra */
+  ai_model_approve_extra: { args: { modelId: string }; result: ApprovalInfo };
+  /** Write features::ai::models::commands::ai_model_decline_extra */
+  ai_model_decline_extra: { args: { modelId: string }; result: ModelsInfo };
+  /** Write features::ai::models::commands::ai_model_download_cancel */
+  ai_model_download_cancel: { args: { modelId: string }; result: ModelsInfo };
+  /** Write features::ai::models::commands::ai_model_download_start */
+  ai_model_download_start: { args: { modelId: string; approval?: string | null }; result: StartInfo };
+  /** Write features::ai::models::commands::ai_model_remove */
+  ai_model_remove: { args: { modelId: string }; result: ModelsInfo };
+  /** Read features::ai::models::commands::ai_models_installed */
+  ai_models_installed: { args: Record<string, never>; result: ModelsInfo };
   /** Write features::alerts::commands::alerts_tick */
   alerts_tick: { args: { localHour?: number | null }; result: AlertEventInfo[] };
   /** Write features::app::diagnostics::app_bug_report_compose */

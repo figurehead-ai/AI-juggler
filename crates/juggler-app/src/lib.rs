@@ -1,10 +1,9 @@
 //! Tauri application shell (ADR-0001).
 //!
-//! Hosts the Tauri 2 commands and typed events that connect the webview UI
-//! (React + `TypeScript`) to the Rust core, plus updater wiring (M5) and the
-//! desktop entry point. The UI is a view: it holds no business logic; all
-//! state originates in Rust and arrives as pre-aggregated, typed events
-//! (`docs/plan/QUALITY.md` §4).
+//! Hosts the Tauri 2 commands and typed events that connect the webview UI (React +
+//! `TypeScript`) to the Rust core, plus updater wiring (M5) and the desktop entry point. The
+//! UI is a view: it holds no business logic; all state originates in Rust and arrives as
+//! pre-aggregated, typed events (`docs/plan/QUALITY.md` §4).
 //!
 //! Must not know: any tool's files, names or formats (it asks the adapters)
 //! or an operating system's specifics (it asks juggler-platform).
@@ -32,8 +31,7 @@ pub mod ids;
 pub mod startup;
 #[cfg(test)]
 mod test_support;
-// The read-only test bridge (docs/qa/DEV-BRIDGE.md): debug builds with
-// the `dev-bridge` feature only.
+// The read-only test bridge (docs/qa/DEV-BRIDGE.md): debug builds with the `dev-bridge` feature only.
 #[cfg(all(debug_assertions, feature = "dev-bridge"))]
 pub mod dev_bridge;
 pub mod edition;
@@ -107,25 +105,21 @@ pub const EVENT_SESSIONS_RESOURCES: &str = AppEvent::SessionsResources.name();
 /// This Mac (AJ-E1403) on the 5 s resource cadence.
 pub const EVENT_THIS_MAC: &str = AppEvent::ThisMac.name();
 
-/// Name of the 30 s quota tick (I-05 deltas, AJ-E401): one coalesced
-/// payload per tick; per-Instance `quota` stays `null` until a feed
-/// exists (AJ-E606+).
+/// Name of the 30 s quota tick (I-05 deltas, AJ-E401): one coalesced payload per tick;
+/// per-Instance `quota` stays `null` until a feed exists (AJ-E606+).
 pub const EVENT_SESSIONS_QUOTA: &str = AppEvent::SessionsQuota.name();
 
-/// Name of the event emitted when the global "Go to instance…"
-/// hotkey fires (AJ-E414 Req.4): the payload is empty — the UI lists
-/// live instances itself.
+/// Name of the event emitted when the global "Go to instance…" hotkey fires (AJ-E414
+/// Req.4): the payload is empty — the UI lists live instances itself.
 pub const EVENT_GO_TO: &str = AppEvent::GoTo.name();
 
 /// The app-settings key holding the "Go to instance…" hotkey binding.
 pub const GO_TO_HOTKEY_KEY: &str = "go_to_hotkey";
 
-/// Name of the live-preview frame event (AJ-E415): payload
-/// `PreviewFrameInfo`.
+/// Name of the live-preview frame event (AJ-E415): payload `PreviewFrameInfo`.
 pub const EVENT_PREVIEW_FRAME: &str = AppEvent::PreviewFrame.name();
 
-/// Name of the live-preview phase event (AJ-E415): payload
-/// `PreviewStateInfo`.
+/// Name of the live-preview phase event (AJ-E415): payload `PreviewStateInfo`.
 pub const EVENT_PREVIEW_STATE: &str = AppEvent::PreviewState.name();
 
 /// How a command treats the app, the Mac and the user's accounts.
@@ -460,6 +454,12 @@ macro_rules! app_commands {
             Write features::notices::commands::notices_dismiss,
             Read  features::ai::commands::ai_jobs,
             Write features::ai::commands::ai_beta_set,
+            Read  features::ai::models::commands::ai_models_installed,
+            Write features::ai::models::commands::ai_model_download_start,
+            Write features::ai::models::commands::ai_model_download_cancel,
+            Write features::ai::models::commands::ai_model_remove,
+            Write features::ai::models::commands::ai_model_approve_extra,
+            Write features::ai::models::commands::ai_model_decline_extra,
             Write features::switch::commands::switch_execute,
             Write features::switch::commands::switch_undo,
             Read  features::switch::commands::switch_back_plan,

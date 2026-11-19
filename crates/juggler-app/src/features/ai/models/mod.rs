@@ -24,15 +24,26 @@
 //! section says; a withdrawn or no-longer-listed one gets a plain note
 //! ([`installed_state`], §11.4).
 
+pub mod commands;
+pub mod download;
+pub mod dto;
 pub mod recommend;
 pub mod source;
+pub mod store;
+pub mod transfer;
 
+#[cfg(test)]
+mod download_tests;
 #[cfg(test)]
 mod ledger;
 #[cfg(test)]
 mod recommend_tests;
 #[cfg(test)]
+mod store_tests;
+#[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod transfer_tests;
 
 use std::collections::BTreeMap;
 use std::sync::LazyLock;
@@ -328,18 +339,93 @@ impl ModelEntry {
             .any(|(job, verdict)| job.counts_for_listing() && verdict.verdict.passed())
     }
 
-    /// The free disk a download needs: the larger of its size plus
-    /// [`DISK_MARGIN_BYTES`] and the entry's own `min_free_gb`. Zero for
-    /// Apple's model.
+    /// The free disk that must stay free on top of the bytes still to
+    /// fetch: the larger of [`DISK_MARGIN_BYTES`] and the entry's own
+    /// `min_free_gb`, which can only tighten it (ADR-0035 §11.1).
+    #[must_use]
+    pub fn disk_margin(&self) -> u64 {
+        let asked = self.min_free_gb.unwrap_or(0).saturating_mul(1_000_000_000);
+        DISK_MARGIN_BYTES.max(asked)
+    }
+
+    /// The free disk a download needs before it starts: its size plus
+    /// [`Self::disk_margin`] (D-121 §2.5: the margin is on top of the
+    /// size, never a share of the disk). Zero for Apple's model.
     #[must_use]
     pub fn free_disk_needed(&self) -> u64 {
         let Some(download) = &self.download else {
             return 0;
         };
-        let rule = download.size_bytes.saturating_add(DISK_MARGIN_BYTES);
-        let asked = self.min_free_gb.unwrap_or(0).saturating_mul(1_000_000_000);
-        rule.max(asked)
+        download.size_bytes.saturating_add(self.disk_margin())
     }
+
+    /// The entry as a record of the section, in the file's own shape (no
+    /// targeting): the installed copy is kept as this, and read back by
+    /// the same reader as the file ([`read_raw`]), so a copy edited on
+    /// disk passes the same record check or is dropped.
+    #[must_use]
+    pub fn to_record(&self) -> Value {
+        let mut record = serde_json::Map::new();
+        let mut put = |key: &str, value: Value| {
+            record.insert(key.to_owned(), value);
+        };
+        put("id", Value::from(self.id.clone()));
+        put("name", Value::from(self.name.clone()));
+        put("engine", Value::from(name_in(&Engine::ALL, self.engine)));
+        if let Some(download) = &self.download {
+            put("url", Value::from(download.url.clone()));
+            if let Some(mirror) = &download.mirror_url {
+                put("mirror_url", Value::from(mirror.clone()));
+            }
+            put("sha256", Value::from(download.sha256.clone()));
+            put("size_bytes", Value::from(download.size_bytes));
+            put("licence_name", Value::from(download.licence_name.clone()));
+            put("licence_url", Value::from(download.licence_url.clone()));
+        }
+        put("min_chip", Value::from(name_in(&Chip::ALL, self.min_chip)));
+        put("min_memory_gb", Value::from(self.min_memory_gb));
+        if let Some(gb) = self.min_free_gb {
+            put("min_free_gb", Value::from(gb));
+        }
+        if let Some(speed) = self.speed {
+            put("speed", Value::from(name_in(&Speed::ALL, speed)));
+        }
+        let sampling = self.sampling;
+        for (key, value) in [
+            ("temperature_milli", sampling.temperature_milli),
+            ("top_p_milli", sampling.top_p_milli),
+            ("top_k", sampling.top_k),
+            ("min_p_milli", sampling.min_p_milli),
+            ("presence_milli", sampling.presence_milli),
+            ("context_tokens", sampling.context_tokens),
+        ] {
+            if let Some(value) = value {
+                put(key, Value::from(value));
+            }
+        }
+        if let Some(datamark) = sampling.datamark {
+            put("datamark", Value::from(datamark));
+        }
+        for (job, field) in Job::ALL {
+            let verdict = self.verdicts.get(&job).cloned().unwrap_or_default();
+            put(field, Value::from(name_in(&Verdict::ALL, verdict.verdict)));
+            if let Some(note) = verdict.note {
+                put(&format!("{field}_note"), Value::from(note));
+            }
+        }
+        if self.withdrawn {
+            put("withdrawn", Value::from(true));
+        }
+        Value::Object(record)
+    }
+}
+
+/// `value`'s name in the file, from one of the compiled `ALL` tables
+/// (every value is in its table).
+fn name_in<T: PartialEq + Copy>(all: &[(T, &'static str)], value: T) -> &'static str {
+    all.iter()
+        .find(|(known, _)| *known == value)
+        .map_or("", |(_, name)| name)
 }
 
 /// The `models` section, to register with the app's remote-config
@@ -553,6 +639,16 @@ pub fn read_raw(raw: &Value, facts: &Facts) -> Option<Vec<ModelEntry>> {
 /// targeting, so any facts read it the same.
 #[must_use]
 pub fn builtin() -> Vec<ModelEntry> {
+    serde_json::from_str::<Value>(BUILTIN)
+        .ok()
+        .and_then(|raw| read_untargeted(&raw))
+        .unwrap_or_default()
+}
+
+/// The records of a raw section value that carries no targeting (the
+/// built-in list, an installed copy): any facts read it the same.
+#[must_use]
+pub fn read_untargeted(raw: &Value) -> Option<Vec<ModelEntry>> {
     let facts = Facts {
         app_version: juggler_remote_config::Version::new(0, 0, 0),
         channel: Channel::Stable,
@@ -561,10 +657,7 @@ pub fn builtin() -> Vec<ModelEntry> {
         tools: BTreeMap::new(),
         install: InstallId::from_bytes([0; 16]),
     };
-    serde_json::from_str::<Value>(BUILTIN)
-        .ok()
-        .and_then(|raw| read_raw(&raw, &facts))
-        .unwrap_or_default()
+    read_raw(raw, &facts)
 }
 
 /// The models the app may offer now (Recommended and Other tested
@@ -587,6 +680,21 @@ pub fn offered(listing: &Listing) -> Vec<ModelEntry> {
             out
         }
     }
+}
+
+/// The installed models' entries as the router uses them (§11.4): each
+/// copy refreshed from the listing when its entry is listed with the
+/// same file, else the copy as it is.
+#[must_use]
+pub fn installed_entries(installed: &[store::Installed], listing: &Listing) -> Vec<ModelEntry> {
+    installed
+        .iter()
+        .map(|m| match installed_state(&m.entry, listing) {
+            InstalledState::Listed(entry)
+            | InstalledState::Unknown(entry)
+            | InstalledState::Withdrawn(entry) => entry,
+        })
+        .collect()
 }
 
 /// An installed model's standing against the section (§11.4).

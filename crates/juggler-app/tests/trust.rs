@@ -605,6 +605,38 @@ fn build_settings_naming(variable: &str) -> Vec<String> {
     found
 }
 
+/// AJ-E3813 (ADR-0035 §11.2, §11.8): a model download reaches only the
+/// compiled model hosts and their file hosts, from one place: the
+/// streamed GET is called by the transfer alone, which checks every URL
+/// and every redirect hop with the one parser first.
+#[test]
+fn a_model_download_reaches_only_the_compiled_model_hosts() {
+    use juggler_app::features::ai::models::source;
+    assert_eq!(
+        source::DOWNLOAD_HOSTS,
+        &["huggingface.co", "models.figurehead.ai"]
+    );
+    assert!(
+        source::HF_REDIRECT_HOSTS
+            .iter()
+            .all(|host| host.ends_with(".hf.co")),
+        "{:?}",
+        source::HF_REDIRECT_HOSTS
+    );
+    assert_eq!(source::MAX_REDIRECTS, 3);
+    let callers: Vec<String> = workspace_crates()
+        .into_iter()
+        .flat_map(|name| shipped(&name))
+        .filter(|(_, text)| code_only(text).contains(".get_stream("))
+        .map(|(path, _)| path.to_string_lossy().replace('\\', "/"))
+        .collect();
+    assert_eq!(callers.len(), 1, "{callers:?}");
+    assert!(
+        callers[0].ends_with("crates/juggler-app/src/features/ai/models/transfer.rs"),
+        "{callers:?}"
+    );
+}
+
 /// D-108 (AJ-E1107 R5): only the release build is given crash reports'
 /// Sentry address (the macOS build workflow, as a named secret for its
 /// compile step, passed in by the nightly release), and nothing prints it.

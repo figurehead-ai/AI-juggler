@@ -6,8 +6,8 @@
 //! Until then it runs nothing: it gives a card for each installed model
 //! it would run, saying [`Reason::NotBuilt`], so the router's choice over
 //! a local model is testable and every job it alone could serve stays
-//! hidden. With no model installed (the store, AJ-E3803, isn't built
-//! either) it gives none.
+//! hidden. The installed models are the store's (AJ-E3803); with none
+//! installed it gives none, and a removed model's card goes with it.
 
 use crate::features::ai::engine::{
     AiEngine, Card, Draft, EngineError, Readiness, Reason, Request, Stop, Tier,
@@ -17,24 +17,33 @@ use crate::features::ai::models::{Engine as ModelEngine, ModelEntry};
 /// The local engine (a stub).
 #[derive(Debug, Default)]
 pub struct Local {
-    /// The ids of the models installed on this Mac (none until the store
-    /// exists).
-    installed: Vec<String>,
+    /// The ids of the models installed on this Mac: fixed (tests), or
+    /// `None` to read the app's model store each time.
+    installed: Option<Vec<String>>,
 }
 
 impl Local {
-    /// The stub, with the models installed on this Mac.
+    /// The stub, with these models installed (tests).
     #[must_use]
     pub const fn new(installed: Vec<String>) -> Self {
-        Self { installed }
+        Self {
+            installed: Some(installed),
+        }
+    }
+
+    fn installed(&self) -> Vec<String> {
+        self.installed
+            .clone()
+            .unwrap_or_else(crate::features::ai::models::store::shared_installed_ids)
     }
 }
 
 impl AiEngine for Local {
     fn cards(&self, engine: usize, models: &[ModelEntry]) -> Vec<Card> {
+        let installed = self.installed();
         models
             .iter()
-            .filter(|m| m.engine == ModelEngine::GgufLocal && self.installed.contains(&m.id))
+            .filter(|m| m.engine == ModelEngine::GgufLocal && installed.contains(&m.id))
             .map(|m| Card {
                 engine,
                 model: m.id.clone(),

@@ -21,6 +21,8 @@ AgentRuleInfo.id                                   # SQLite rowid, counts up fro
 AlertEventInfo.at_ms                               # ms epoch, < 2^53 until year 287396
 AlertQuotaInfo.resets_at_ms                        # ms epoch, < 2^53 until year 287396
 AnnouncedInfo.date_ms                              # ms epoch, < 2^53 until year 287396
+ApprovalInfo.size_bytes                            # bytes, < 2^53 is 8 PiB
+ApprovalInfo.total_after_bytes                     # bytes, < 2^53 is 8 PiB
 AskInfo.asked_at_ms                                # ms epoch, < 2^53 until year 287396
 AttentionInfo.since_ms                             # ms epoch, < 2^53 until year 287396
 BackupExportInfo.bytes                             # bytes, < 2^53 is 8 PiB
@@ -70,6 +72,8 @@ DivergenceRecordInfo.at_ms                         # ms epoch, < 2^53 until year
 DivergenceRecordInfo.last_activity_ms              # ms epoch, < 2^53 until year 287396
 DocInfo.at_ms                                      # ms epoch, < 2^53 until year 287396
 DocInfo.size_bytes                                 # bytes, < 2^53 is 8 PiB
+DownloadInfo.done_bytes                            # bytes, < 2^53 is 8 PiB
+DownloadInfo.size_bytes                            # bytes, < 2^53 is 8 PiB
 EarlierPageInfo.earlier                            # a transcript offset (lines/bytes), < 2^53
 FacetInfo.count                                    # a count of things on this Mac, far below 2^53
 FeedFactsInfo.duration_ms                          # ms duration, < 2^53 ms is 285,000 years
@@ -107,6 +111,8 @@ HistoryEventInfo.at_ms                             # ms epoch, < 2^53 until year
 HogFactInfo.rss_bytes                              # bytes, < 2^53 is 8 PiB
 ImportResult.bytes_copied                          # bytes, < 2^53 is 8 PiB
 ImportResult.files_copied                          # a count of things on this Mac, far below 2^53
+InstalledModelInfo.installed_at_ms                 # ms epoch, < 2^53 until year 287396
+InstalledModelInfo.size_bytes                      # bytes, < 2^53 is 8 PiB
 InstanceInfo.git_ahead                             # a count of things on this Mac, far below 2^53
 InstanceInfo.git_behind                            # a count of things on this Mac, far below 2^53
 InstanceInfo.git_dirty_count                       # a count of things on this Mac, far below 2^53
@@ -139,6 +145,7 @@ MachineUsageInfo.as_of_ms                          # ms epoch, < 2^53 until year
 MachineUsageInfo.used_units                        # tokens, < 2^53 is 9e15 tokens
 MessageInfo.at_ms                                  # ms epoch, < 2^53 until year 287396
 MessageNeedInfo.at_ms                              # ms epoch, < 2^53 until year 287396
+ModelsInfo.total_bytes                             # bytes, < 2^53 is 8 PiB
 MoveOfferInfo.bytes                                # bytes, < 2^53 is 8 PiB
 MoveOfferInfo.kept_outputs                         # a count of things on this Mac, far below 2^53
 MoveRecordInfo.at_ms                               # ms epoch, < 2^53 until year 287396
@@ -254,6 +261,10 @@ SourceInspectInfo.ceiling_bytes                    # bytes, < 2^53 is 8 PiB
 SourceInspectInfo.file_count                       # a count of things on this Mac, far below 2^53
 SourceInspectInfo.total_bytes                      # bytes, < 2^53 is 8 PiB
 StagedSwitchInfo.prepared_at_ms                    # ms epoch, < 2^53 until year 287396
+StartInfo.free_bytes                               # bytes, < 2^53 is 8 PiB
+StartInfo.needed_bytes                             # bytes, < 2^53 is 8 PiB
+StartInfo.size_bytes                               # bytes, < 2^53 is 8 PiB
+StartInfo.total_after_bytes                        # bytes, < 2^53 is 8 PiB
 StartedSessionInfo.last_activity_ms                # ms epoch, < 2^53 until year 287396
 StatsInfo.accounts                                 # a count of things on this Mac, far below 2^53
 StatsInfo.active_sessions                          # a count of things on this Mac, far below 2^53
@@ -346,6 +357,8 @@ UsageWindowShareInfo.session_io                    # tokens, < 2^53 is 9e15 toke
 UsageWindowShareInfo.since_ms                      # ms epoch, < 2^53 until year 287396
 VolumeInfo.available_bytes                         # bytes, < 2^53 is 8 PiB
 VolumeInfo.total_bytes                             # bytes, < 2^53 is 8 PiB
+Wait::DiskShort.free                               # bytes, < 2^53 is 8 PiB
+Wait::DiskShort.needed                             # bytes, < 2^53 is 8 PiB
 WindowDisplay.burned_io_tokens                     # tokens, < 2^53 is 9e15 tokens
 WindowDisplay.burned_tokens                        # tokens, < 2^53 is 9e15 tokens
 WindowDisplay.measured_at_ms                       # ms epoch, < 2^53 until year 287396
