@@ -566,4 +566,43 @@ fn the_fake_refuses_what_claude_code_refuses() {
         spec.args.contains(&"--verbose".to_owned()),
         "the headless launch, fixed"
     );
+    // F-rc3f-3: a conversation is written at its first turn; `--resume`
+    // opens only a written one, headless or in its terminal, and
+    // `--session-id` names only a new one.
+    let fake = |args: &[&str]| {
+        Command::new(env!("CARGO_BIN_EXE_fake-claude"))
+            .args(args)
+            .env("CLAUDE_CONFIG_DIR", &terminal.account.state_dir)
+            .stdin(Stdio::null())
+            .output()
+            .unwrap()
+    };
+    for args in [
+        &["-p", "--verbose", "--resume", SESSION][..],
+        &["--resume", SESSION],
+    ] {
+        let out = fake(args);
+        assert_eq!(out.status.code(), Some(1), "{args:?}");
+        assert!(String::from_utf8_lossy(&out.stderr).contains("No conversation found"));
+    }
+    assert_eq!(
+        fake(&["-p", "--verbose", "--session-id", SESSION])
+            .status
+            .code(),
+        Some(0),
+        "a new one"
+    );
+    let folder = terminal.account.state_dir.join("projects").join("-project");
+    std::fs::create_dir_all(&folder).unwrap();
+    std::fs::write(folder.join(format!("{SESSION}.jsonl")), "{}\n").unwrap();
+    assert_eq!(
+        fake(&["-p", "--verbose", "--resume", SESSION])
+            .status
+            .code(),
+        Some(0),
+        "a written one"
+    );
+    let out = fake(&["-p", "--verbose", "--session-id", SESSION]);
+    assert_eq!(out.status.code(), Some(1));
+    assert!(String::from_utf8_lossy(&out.stderr).contains("already in use"));
 }

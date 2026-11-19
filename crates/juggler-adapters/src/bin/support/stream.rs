@@ -186,12 +186,28 @@ impl Fake {
     }
 }
 
-/// Runs the protocol until stdin closes.
-pub fn run(id: &str, model: Option<String>) {
-    let config = std::env::var_os("CLAUDE_CONFIG_DIR").map_or_else(
+/// Claude Code's folder: `CLAUDE_CONFIG_DIR`, else `~/.claude`.
+pub fn config_dir() -> PathBuf {
+    std::env::var_os("CLAUDE_CONFIG_DIR").map_or_else(
         || juggler_adapter::home().unwrap_or_default().join(".claude"),
         PathBuf::from,
-    );
+    )
+}
+
+/// Whether conversation `id` has been written (its first turn writes it):
+/// `projects/<any folder>/<id>.jsonl` under `config`.
+pub fn written(config: &std::path::Path, id: &str) -> bool {
+    let file = format!("{id}.jsonl");
+    std::fs::read_dir(config.join("projects"))
+        .into_iter()
+        .flatten()
+        .flatten()
+        .any(|folder| folder.path().join(&file).is_file())
+}
+
+/// Runs the protocol until stdin closes.
+pub fn run(id: &str, model: Option<String>) {
+    let config = config_dir();
     let cwd = std::env::current_dir()
         .map(|d| d.to_string_lossy().into_owned())
         .unwrap_or_default();

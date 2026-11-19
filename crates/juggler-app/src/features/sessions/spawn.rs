@@ -85,6 +85,9 @@ pub(crate) enum Runs<'a> {
         profile: &'a Profile,
         /// The tool's conversation to continue, when resuming.
         resume: Option<String>,
+        /// The id a new conversation takes, where the tool lets the caller
+        /// name it (`None`: a new one).
+        fresh_id: Option<String>,
         /// The user's choice for this session, when they made one.
         requested: Option<Runtime>,
         /// The terminal launch.
@@ -175,6 +178,7 @@ pub(crate) fn start_session(
         Runs::Planned {
             profile,
             resume,
+            fresh_id,
             requested,
             terminal,
         } => crate::features::runtime::launch::start(
@@ -184,6 +188,7 @@ pub(crate) fn start_session(
             &crate::features::runtime::launch::Plan {
                 profile,
                 resume,
+                fresh_id,
                 requested,
             },
             terminal,

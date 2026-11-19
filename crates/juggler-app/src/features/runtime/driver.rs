@@ -59,6 +59,9 @@ pub struct Snapshot {
     pub ended: bool,
     /// A turn runs.
     pub turn_running: bool,
+    /// The tool has written the conversation: it was resumed, or a turn
+    /// began (AJ-E2310: what a restart can resume).
+    pub written: bool,
     /// The open asks, oldest first.
     pub asks: Vec<AskInfo>,
     /// The recent conversation.
@@ -234,6 +237,7 @@ impl Snapshot {
             }
             RuntimeEvent::TurnStarted { origin, .. } => {
                 self.turn_running = true;
+                self.written = true;
                 self.streaming.clear();
                 // D-29: a delivered turn says what started it.
                 if let Some(TurnOrigin::Delivered { sender }) = origin {
@@ -316,6 +320,7 @@ impl Driver {
         let (tx, rx) = std::sync::mpsc::channel();
         let snapshot = Arc::new(Mutex::new(Snapshot {
             native_id: tool.native_id(),
+            written: meta.resumed,
             ..Snapshot::default()
         }));
         let socket = meta.socket.clone();
@@ -504,6 +509,8 @@ pub struct Meta {
     pub socket: Option<PathBuf>,
     /// The tool can add to a running turn.
     pub can_steer: bool,
+    /// It resumed a conversation (so the tool has written it).
+    pub resumed: bool,
 }
 
 fn words(error: &AdapterError) -> String {
@@ -717,7 +724,12 @@ fn run(
     // AJ-E2310: the mark that brings the session back after a restart.
     let mark = |state: &Arc<AppState>| {
         let now = snapshot.lock().ok().and_then(|snap| {
-            super::pickup::mark_of(snap.native_id.as_deref(), snap.turn_running, snap.ended)
+            super::pickup::mark_of(
+                snap.native_id.as_deref(),
+                snap.turn_running,
+                snap.written,
+                snap.ended,
+            )
         });
         super::pickup::follow(state, session, now);
     };

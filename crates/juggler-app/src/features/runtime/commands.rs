@@ -236,6 +236,7 @@ fn continue_as(
         crate::features::sessions::spawn::Runs::Planned {
             profile,
             resume: Some(native_id.to_owned()),
+            fresh_id: None,
             requested: Some(runtime),
             terminal,
         },

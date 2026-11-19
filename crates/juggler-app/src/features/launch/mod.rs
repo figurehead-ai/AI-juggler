@@ -258,6 +258,7 @@ pub fn launch_profile_primed(
         crate::features::sessions::spawn::Runs::Planned {
             profile: &profile,
             resume: None,
+            fresh_id: None,
             requested: runtime,
             terminal: spec,
         },

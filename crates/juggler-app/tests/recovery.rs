@@ -477,7 +477,7 @@ fn a_driven_survivor_is_not_picked_up_and_a_gone_adopted_one_stops() {
     pickup::note(
         &state1.storage.lock().unwrap(),
         &driven,
-        pickup::mark_of(Some("thread-1"), false, false),
+        pickup::mark_of(Some("thread-1"), false, true, false),
     );
     drop(state1);
 

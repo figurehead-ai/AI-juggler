@@ -32,6 +32,10 @@ pub struct Plan<'a> {
     pub profile: &'a Profile,
     /// The tool's conversation to continue, when resuming.
     pub resume: Option<String>,
+    /// The id a new conversation takes, for a tool that lets the caller
+    /// name one: a restart keeps the id of one its tool never wrote
+    /// (F-rc3f-3). `None`: a new id.
+    pub fresh_id: Option<String>,
     /// The user's choice for this session, when they made one.
     pub requested: Option<Runtime>,
 }
@@ -138,7 +142,7 @@ fn try_driven(
     let launch = DrivenLaunch {
         socket: socket.clone(),
         resume: plan.resume.clone(),
-        fresh_id: fresh_uuid(),
+        fresh_id: plan.fresh_id.clone().unwrap_or_else(fresh_uuid),
     };
     let mut spec = driven
         .driven_spec(row.account, plan.profile, cwd, &launch)
@@ -186,6 +190,7 @@ fn try_driven(
             beta: driven.maturity() == juggler_adapter::runtime::Maturity::Beta,
             socket,
             can_steer: driven.steers(),
+            resumed: plan.resume.is_some(),
         },
     );
     state.runtime.insert(held);

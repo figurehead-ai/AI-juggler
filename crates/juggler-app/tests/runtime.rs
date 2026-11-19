@@ -724,8 +724,13 @@ fn alive(pid: &str) -> bool {
 /// waits for the tool's server to end with it. Returns the session and
 /// its thread.
 fn kill_core_at(work: &Path, stage: &str) -> (String, String) {
+    kill_core(work, "app_core_in_a_child", stage)
+}
+
+/// [`kill_core_at`] for the child test `child`.
+fn kill_core(work: &Path, child: &str, stage: &str) -> (String, String) {
     let mut core = std::process::Command::new(std::env::current_exe().unwrap())
-        .args(["--exact", "app_core_in_a_child", "--ignored", "--nocapture"])
+        .args(["--exact", child, "--ignored", "--nocapture"])
         .env(CORE_DATA, work)
         .env(CORE_STAGE, stage)
         .stdout(std::process::Stdio::null())
@@ -943,6 +948,151 @@ fn a_cut_off_session_can_be_ended_and_a_stopped_one_never_comes_back() {
     assert!(state.runtime.driver(&stopped).is_none());
     assert_ne!(status_of(&state, &stopped), "starting");
     assert!(state.runtime.info(&stopped).is_none());
+}
+
+/// An app core with Claude Code (`fake-claude`), as the child and its
+/// reopen both build it.
+fn claude_state(dir: &Path) -> Arc<AppState> {
+    use juggler_adapters::ClaudeCodeAdapter;
+    let mut registry = AdapterRegistry::new();
+    registry.register(Arc::new(ClaudeCodeAdapter::with_bin(fake_claude_bin())));
+    Arc::new(AppState::init_with_registry(dir.join("app-data"), registry).unwrap())
+}
+
+/// The app core, in a child: a Claude Code session started without a
+/// terminal (the Beta on, its folder trusted) that is given no turn, as a
+/// pool member waits for its first message; its ids written down, then it
+/// waits to be killed.
+#[test]
+#[ignore = "run by the pickup tests below, in a child process"]
+fn claude_core_in_a_child() {
+    use juggler_adapters::CLAUDE_CODE_ID;
+    let work = PathBuf::from(std::env::var(CORE_DATA).unwrap());
+    let state = claude_state(&work);
+    let project = work.canonicalize().unwrap().join("lab");
+    std::fs::create_dir_all(&project).unwrap();
+    let profile = new_profile(&state, CLAUDE_CODE_ID, &project);
+    runtime::beta_impl(&state, true).unwrap();
+    let state_dir = {
+        let storage = state.storage.lock().unwrap();
+        let recipe = storage
+            .profiles()
+            .get(&juggler_core::model::ProfileId::new(profile.as_str()))
+            .unwrap();
+        storage.accounts().get(&recipe.account).unwrap().state_dir
+    };
+    // Trusted, as Claude Code records it (beside set_up's first run).
+    let file = state_dir.join(".claude.json");
+    let mut config: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(&file).unwrap()).unwrap();
+    config["projects"] =
+        serde_json::json!({ project.to_string_lossy(): {"hasTrustDialogAccepted": true} });
+    std::fs::write(&file, config.to_string()).unwrap();
+    let launched = juggler_app::features::launch::launch_profile_as(
+        &state,
+        &profile,
+        None,
+        Some(Runtime::Driven),
+    )
+    .unwrap();
+    let session = launched.session_id;
+    let conversation = state
+        .runtime
+        .driver(&session)
+        .expect("driven, as picked")
+        .snapshot()
+        .native_id
+        .unwrap();
+    let marks = || juggler_app::features::runtime::pickup::marks(&state.storage.lock().unwrap());
+    wait_for("its mark", || {
+        marks()
+            .get(&session)
+            .is_some_and(|mark| mark.native_id == conversation && !mark.in_turn)
+    });
+    let partial = work.join("core-ready.tmp");
+    std::fs::write(
+        &partial,
+        format!("{session} {conversation} {}", launched.pid),
+    )
+    .unwrap();
+    std::fs::rename(&partial, work.join("core-ready")).unwrap();
+    std::thread::sleep(Duration::from_secs(60));
+}
+
+/// F-rc3f-3 (the 0.4.6 rc3f walk): four Claude Code sessions run without
+/// a terminal in one pool, all idle, and AI Juggler quit and reopened. The
+/// two that had taken a turn came back driven. The two that hadn't (one
+/// with a message waiting in its inbox) were resumed by a conversation id
+/// Claude Code had never written ("No conversation found"): handed over
+/// to a terminal (`…-t`) that failed the same way, exit 1, in Needs you.
+/// One with no turn yet comes back the way it ran: driven, under its own
+/// id and conversation id, and its first turn writes that conversation.
+#[test]
+fn a_driven_session_that_never_took_a_turn_comes_back_driven_after_a_restart() {
+    use juggler_app::features::runtime::pickup;
+    let work = tempfile::tempdir().unwrap();
+    let (session, conversation) = kill_core(work.path(), "claude_core_in_a_child", "fresh");
+
+    let state = claude_state(work.path());
+    assert_eq!(
+        status_of(&state, &session),
+        "starting",
+        "kept for the pickup"
+    );
+    pickup::after_restart(&state);
+    wait_for("the session to come back or end", || {
+        state.runtime.driver(&session).is_some()
+            || ["stopped", "handed_over", "failed"].contains(&status_of(&state, &session).as_str())
+    });
+    let driver = state
+        .runtime
+        .driver(&session)
+        .unwrap_or_else(|| panic!("it came back driven, not {}", status_of(&state, &session)));
+    assert_eq!(
+        driver.snapshot().native_id.as_deref(),
+        Some(conversation.as_str()),
+        "under its own conversation id"
+    );
+    let record = |id: &str| {
+        state
+            .storage
+            .lock()
+            .unwrap()
+            .sessions()
+            .get(&SessionId::new(id))
+    };
+    assert!(
+        record(&format!("{session}-t")).is_err(),
+        "no terminal took its place"
+    );
+    wait_for("its row to name its conversation again", || {
+        record(&session)
+            .unwrap()
+            .conversation
+            .map(|id| id.to_string())
+            == Some(conversation.clone())
+    });
+
+    // Its first turn (a pool message, or the user's) writes the
+    // conversation, under the id it always had; from then on a restart
+    // resumes it.
+    runtime::send_impl(&state, &session, "hello").unwrap();
+    replied(&state, &session);
+    wait_for("its conversation's file", || {
+        record(&session).unwrap().transcript_ref.is_some()
+    });
+    wait_for("its mark to say the conversation is written", || {
+        pickup::marks(&state.storage.lock().unwrap())
+            .get(&session)
+            .is_some_and(|mark| mark.written && !mark.in_turn)
+    });
+    let file = record(&session).unwrap().transcript_ref.unwrap().path;
+    assert_eq!(
+        file.file_stem().and_then(|stem| stem.to_str()),
+        Some(conversation.as_str())
+    );
+    stop(&state, &session);
+    assert!(pickup::marks(&state.storage.lock().unwrap()).is_empty());
 }
 
 // ---------------------------------------------------------------------
