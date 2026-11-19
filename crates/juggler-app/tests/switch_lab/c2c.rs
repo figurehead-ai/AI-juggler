@@ -457,3 +457,151 @@ pub fn journey() {
         .count();
     assert!(failed == 0, "{failed} lab step(s) failed; see the report");
 }
+
+/// D-127's "the target answers", run the other way (the maintainer,
+/// 2026-11-19): the Lab App was out of its week's room, and which way a
+/// switch goes doesn't matter to whether its target answers, so the side
+/// that answers is aij-test. `AIJ_LAB_SUITE=c2c-answer`
+/// (`just switch-lab-c2c-answer`): conversation `AIJ_LAB_SOURCE`, already
+/// on `AIJ_LAB_CLAUDE_FROM` (which spends nothing), is copied by the switch
+/// to `AIJ_LAB_CLAUDE_TO`, which has never held it. The copy is checked on
+/// disk, then TO answers the codename only the conversation holds, in a
+/// fork that isn't kept: one turn, on TO. The folder the conversation ran
+/// in (`AIJ_LAB_PROJECT`) is made as an empty repository when it's gone,
+/// and removed again at the end; TO's copy stays for the run's clean-up,
+/// which names it by the id in the report.
+pub fn answer_journey() {
+    let var = |name: &str| std::env::var_os(name).map(PathBuf::from);
+    let (Some(data), Some(project), Some(from), Some(to), Some(out), Ok(source)) = (
+        var("AIJ_LAB_DATA"),
+        var("AIJ_LAB_PROJECT"),
+        var("AIJ_LAB_CLAUDE_FROM"),
+        var("AIJ_LAB_CLAUDE_TO"),
+        var("AIJ_LAB_OUT"),
+        std::env::var("AIJ_LAB_SOURCE"),
+    ) else {
+        eprintln!("AIJ_LAB_* not set: nothing to do");
+        return;
+    };
+    if std::env::var("AIJ_LAB_SUITE").as_deref() != Ok("c2c-answer") {
+        eprintln!("AIJ_LAB_SUITE is not c2c-answer: nothing to do");
+        return;
+    }
+    assert!(
+        std::env::var_os("CLAUDE_CONFIG_DIR").is_none() && std::env::var_os("CODEX_HOME").is_none(),
+        "run the lab with CLAUDE_CONFIG_DIR and CODEX_HOME unset (env -u …)"
+    );
+    assert_clean_env();
+    assert!(
+        !data.exists() || std::fs::read_dir(&data).unwrap().next().is_none(),
+        "AIJ_LAB_DATA must be a fresh, empty folder"
+    );
+    assert!(
+        transcript_in(&from, &source).is_some(),
+        "AIJ_LAB_SOURCE is a conversation of AIJ_LAB_CLAUDE_FROM"
+    );
+    assert!(
+        transcript_in(&to, &source).is_none(),
+        "the target must never have held the conversation: pick another"
+    );
+    let made_project = !project.exists();
+    if made_project {
+        new_project(&project);
+    }
+    let project = project.canonicalize().unwrap();
+    let on_from = holds(&from, &source);
+    let ran_here = on_from["cwds"]
+        .as_array()
+        .is_some_and(|cwds| cwds.iter().any(|cwd| cwd.as_str() == project.to_str()));
+
+    let home = dirs::home_dir().unwrap();
+    let roots: Vec<PathBuf> = vec![from.clone(), to.clone(), home.join(".claude.json")];
+    let before = snapshot(&roots);
+    let state = Arc::new(AppState::init(data).unwrap());
+    let mut lab = Lab {
+        project: project.clone(),
+        claude_a: from.clone(),
+        claude_b: to.clone(),
+        codex: PathBuf::new(),
+        codex_b: None,
+        steps: Vec::new(),
+        probe: None,
+        records: Vec::new(),
+    };
+    let account_from = import(&state, CLAUDE_CODE_ID, &from, "Lab from");
+    let account_to = import(&state, CLAUDE_CODE_ID, &to, "Lab to");
+    let (profile_from, profile_to) = (
+        profile_of(&state, &account_from),
+        profile_of(&state, &account_to),
+    );
+    lab.steps.push(json!({"step": "1 the source, on FROM only", "ok": on_from["transcript"].is_string() && ran_here, "session": source, "holds": on_from}));
+
+    // 2. Copy FROM → TO, by the switch: no turn anywhere.
+    let session = adopt(&state, &profile_from, &source, &project);
+    let copied = juggler_app::features::switch::execute::switch_execute_impl(
+        &state,
+        &session,
+        &profile_to,
+        "stop-now",
+        None,
+        &[],
+    );
+    let mut resume: Option<String> = None;
+    let step2 = match &copied {
+        Ok(done) => {
+            let argv = take_launch(&state, &done.session_id, done.pid);
+            mark_stopped(&state, &done.session_id);
+            let id = transcript_of(&state, &done.session_id)
+                .and_then(|r| r.native_id)
+                .unwrap_or_else(|| source.clone());
+            let on_to = holds(&to, &id);
+            let checks = json!({
+                "transcript_resume": on_to["transcript"].as_str().is_some_and(|p| Path::new(p).starts_with(&to)) && on_to["ids_other_than_this"] == 0 && on_to["lines"].as_u64() >= on_from["lines"].as_u64() && argv.iter().any(|a| a == "--resume") && argv.contains(&id),
+                "cwd": session_cwd(&state, &done.session_id) == project,
+                "from_kept_its_copy": transcript_in(&from, &source).is_some(),
+            });
+            let all = checks.as_object().unwrap().values().all(|v| v == true);
+            resume = Some(id.clone());
+            json!({"step": "2 Copy FROM→TO (no turn)", "ok": all, "checks": checks, "resume_id": id, "holds": on_to, "launch": argv})
+        }
+        Err(error) => {
+            json!({"step": "2 Copy FROM→TO (no turn)", "ok": false, "error": format!("{error:?}")})
+        }
+    };
+    lab.steps.push(step2);
+
+    // 3. TO answers from the copy: the one turn of the run, on TO.
+    if let Some(id) = &resume {
+        let asked = claude_ask(
+            &lab,
+            &to,
+            &project,
+            id,
+            "Without changing any file: what is this project's codename? Reply with just the codename.",
+        );
+        let answer = asked["result"].as_str().unwrap_or_default().to_owned();
+        lab.steps.push(json!({"step": "3 TO answers from the copy", "ok": mentions(&answer, CODENAME), "answer": answer, "is_error": asked["is_error"]}));
+    }
+    if made_project {
+        let _ = std::fs::remove_dir_all(&project);
+    }
+
+    let after = snapshot(&roots);
+    let report = json!({
+        "suite": "c2c-answer",
+        "direction": "FROM → TO (AIJ_LAB_CLAUDE_FROM → AIJ_LAB_CLAUDE_TO)",
+        "tools": {"claude": run(Command::new("claude").arg("--version"), Duration::from_secs(20)).1.trim()},
+        "source_session": source,
+        "steps": lab.steps,
+        "snapshot": snapshot_diff(&before, &after),
+    });
+    std::fs::write(&out, serde_json::to_string_pretty(&report).unwrap()).unwrap();
+    eprintln!("lab report: {}", out.display());
+    let failed = report["steps"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|s| s["ok"] != true)
+        .count();
+    assert!(failed == 0, "{failed} lab step(s) failed; see the report");
+}
