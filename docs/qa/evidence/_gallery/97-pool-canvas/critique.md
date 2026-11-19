@@ -1,4 +1,4 @@
-<!-- captures: df8c673a4254 -->
+<!-- captures: 6fd8404d3d4a -->
 # 97-pool-canvas: the Pools screen and a pool's canvas
 
 Design critique (D-57, AJ-E2814) against the reference screens: the row menus (77-menus), the rail's order menu, Usage and Processes. The baseline note says what changed on purpose; this says whether it is good.
@@ -124,3 +124,31 @@ Checked by eye, dark and light:
 - new-pool-template (both widths): the closed "What a pool is" no longer keeps an empty 8 px gap under it (the app's Disclosure is a button with aria-expanded now, so an accessibility press opens it), so How to start sits 8 px higher. Pass.
 - inspect-edge (both themes): the line's conversation is drawn, on the panel's gutter (the selection-line fix). Pass.
 - The other captures re-rendered with under 60 px of noise and were left as committed.
+
+## 0.4.6 rc3: D-126 and the calm running view (2026-11-18)
+
+Checked side by side with the mock-ups (`d126-rich-ui` running and canvas, calm round 2) in both themes. The coordinator approved rounds 2 and 3.
+
+- **canvas-*, canvas-full-*, inspect-member-*: the running pool is calm** (0f61081b4, dfb1eab7a).
+  - Logos are muted at rest, and full colour on a node that needs you or is selected.
+  - A node's need is one amber word on the node ("Asks you +1"). The corner number badges are gone.
+  - Lines say nothing at rest.
+  - A pair that wrote both ways is one line with an arrowhead at each end.
+  - The default fit is about 64 % (was 53 %), so every title reads whole.
+  - A pool never laid out opens tidy.
+  - Pass.
+- **inspect-edge-*: a chosen line.** It is lit and dashed while a message waits on it ("2 messages · 1 waiting"). Its inspector offers "The other way: B → A · n", one click. Pass.
+- **canvas-edge-badge-open-*: a paused line opened on its node.** The capture keeps its old name; it shows a paused line opened on the node it was going to. Pass.
+- **canvas-setup-* (new): the setting-up canvas, the planned team.**
+  - "Your team is drawn. No one has joined yet." shows only where it clears the cards and the zoom bar (49f802c69, 1a6de6b10). At 1280 × 800 it is hidden; at 1440 × 900 it shows (the gallery's check).
+  - "Setting up · 6 of 7" is in the header. Pass.
+- **new-pool-* (the setup's steps):**
+  - Who's in has no Apps/Sessions/More switch. It follows the mock: Your apps as logo cards, then Sessions open now, then "More ways to add" as a fold.
+  - App cards lead with the App's short name ("Work Max"), with "Claude Code CLI · Terminal" under it (5340bf42f).
+  - A step's text breaks where its name does (63a1f9cb3).
+  - Pass.
+- **Kept deviations from the mock:**
+  - The fixture's six-member pool draws compact cards (the mock shows three full ones).
+  - "4 need you" sits beside the pool's title.
+  - The rail and the page header are pre-calm (app-wide calm is 0.5).
+- **Known, not fixed:** at 1024 × 700 and 100 %, the bottom-left full card's More button sits under the zoom bar. The 100 % view is centred; panning reaches it.

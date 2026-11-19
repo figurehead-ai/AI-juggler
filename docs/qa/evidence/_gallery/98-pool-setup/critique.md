@@ -1,4 +1,4 @@
-<!-- captures: a6ba1dbc66dd -->
+<!-- captures: 2c4fde4a784d -->
 # 98-pool-setup: the pool setup a newcomer understands (AJ-E3011)
 
 Design critique (D-57, AJ-E2814) against the reference screens: Settings' choice lines, the switch dialog's "What does this mean?", and the calm UI round 2 mocks (levels, section labels, surface tone). Every step of New pool, empty (the first pool: the intro full, nothing chosen, the defaults filled in) and filled (a name, two Apps, an App's next session leading, a Reviewer, a pair blocked, waking, the seal), dark and light, 1280×800. Fixture names only.
@@ -115,3 +115,21 @@ Checked by eye, dark and light:
 - setup-lead: the footer's "Next: Who builds, who checks". setup-review: the row "Who builds, who checks" (two lines in its label column, like "Who may message whom"). Pass.
 - setup-template-filled and empty-pool-setup: the closed "What a pool is" no longer keeps an empty 8 px gap (the app's Disclosure is a button now), so How to start and the templates sit 8 px higher. Pass.
 - Who's in asking for the connector on a desktop App's own row is in 99-desktop-connector/new-pool (these captures' Apps are CLI ones).
+
+## 0.4.6 rc3: the setup redesigned to the mock-ups (D-126, 2026-11-18)
+
+Checked side by side with `d126-rich-ui` who and review in both themes. The coordinator approved round 2.
+
+- **setup-who-* (Who's in):** the order the mock has.
+  - The "Every new session in <where>" card, then "Your apps" as logo cards.
+  - Each card leads with the App's own short name ("Work Max", "Personal"), the preview's name, with "Claude Code CLI · Terminal" under it.
+  - Then "Sessions open now in <where> N" with each row's check, and "More ways to add: a Mac, an account or a tool" as a closed fold.
+  - The Apps/Sessions/More switch is gone (5340bf42f). Pass.
+- **setup-review-*:** opens at its top: its heading, then the state card, then one short sentence a row (49f802c69; the gallery checks each step's title is in view as it opens). The rules in full are one click away. Pass.
+- **All steps:** a step's visible text breaks where its accessible name does (number, step, value; 63a1f9cb3). The step list draws as before. Pass.
+- **setup-lead-filled, setup-own-filled, setup-talk-filled:** captured after the walk clicks a control low on the step, so they show it scrolled to that control. Their titles were in view when each step opened. Pass.
+- **Kept deviations from the mock:**
+  - The storefront fixture has two Claude Code CLI Apps, so there is no connector notice on Who's in.
+  - Logos are generic in the gate's container, because installed apps' icons are read at run time (D-38).
+  - Review adds "What each member can do here" (parity with the canvas).
+  - The step count follows the fixture: Team tools is asked only where it isn't answered (8 or 9 steps).

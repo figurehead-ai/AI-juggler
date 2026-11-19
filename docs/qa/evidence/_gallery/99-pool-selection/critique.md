@@ -1,4 +1,4 @@
-<!-- captures: c6800245933e -->
+<!-- captures: 46dffc9f5a30 -->
 # 99-pool-selection: the canvas's selection and the inspector's title (AJ-E3012)
 
 Design critique (D-57, AJ-E2814) against 97-pool-canvas (the canvas before) and the calm UI round 2 rules. The canvas with each kind selected — nothing (the pool), a session, an App, an Account, a Tool, everyone in scope, a line, the pool's own setup opened from the checklist, and the lead's place waiting for an App's next session — dark and light, 1280×800. Fixture names only.
@@ -106,3 +106,10 @@ Section titles re-rendered (6db085536): a colour token named like a type size (`
 ## The inspector's scroll edge (2026-11-16)
 
 - opened-lead and selection-pool-setup (both themes): the inspector's body is scrolled to its section, so the app's scroll edge (a hairline with a soft shadow) runs under the inspector's title and pill. At rest, unscrolled, there is no edge. Nothing else moved. Pass.
+
+## 0.4.6 rc3 (2026-11-18)
+
+- **Every capture:** the canvas behind the selection is the calm one (muted logos, one need mark on a node, nothing on a line at rest, one line a pair) (0f61081b4, dfb1eab7a). Pass.
+- **selection-pool-setup-*:** the header says "Setup done" once every step is done; it never says "Setting up · 7 of 7" (b8947954c). The inspector is scrolled to "Who may message whom", as before, so a line passes under the inspector's title. Pass.
+- **selection-lead-next-*:** the selected App node's App link is a whole 24 px target (63a1f9cb3). Pass.
+- **selection-everyone-*, selection-line-*:** the members' column scrolls with the canvas, so a card's edge shows at its top and bottom. This is the column's scroll, as before. Low; kept.
