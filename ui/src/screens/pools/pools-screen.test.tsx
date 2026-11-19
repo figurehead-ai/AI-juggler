@@ -14,6 +14,7 @@ import { resetPreviewPools, scopeOf } from "../../lib/ipc/pools";
 import { forgetPaged } from "../../lib/paged";
 import { refreshPools, resetPools, setPools } from "../../lib/pools";
 import { cardOrder, PoolsScreen } from "./PoolsScreen";
+import { visitOrder } from "./visit-order";
 
 const first: InstanceInfo = MOCK_SESSIONS[0]!;
 const second: InstanceInfo = MOCK_SESSIONS[1]!;
@@ -79,6 +80,59 @@ describe("the Pools screen (AJ-E2807)", () => {
     const pools = [pool("mine", "user", 2), pool("quiet", "default", 3), pool("asking", "default", 1), pool("busy", "user", 1)];
     const order = cardOrder(pools, new Map(), new Map([["asking", 1]]), new Map([["busy", 900], ["mine", 100], ["quiet", 500]]));
     expect(order.map((row) => row.id)).toEqual(["asking", "busy", "quiet", "mine"]);
+  });
+
+  // F-rc3g-14: the cards swapped places as their sessions worked, so a
+  // click aimed at A opened B. The order holds from your first move; a
+  // pool made meanwhile goes at the end.
+  it("keeps its cards in place while you're on it, a new pool at the end", async () => {
+    seed({
+      pools: [
+        { id: "pool-a", name: "A", rules: [] },
+        { id: "pool-b", name: "B", rules: [] },
+      ],
+      members: [
+        { session_id: first.id, pool_id: "pool-a", role: "member" },
+        { session_id: second.id, pool_id: "pool-b", role: "member" },
+      ],
+    });
+    await act(async () => {
+      await refreshPools();
+    });
+    const at = (a: number, b: number) => [
+      { ...first, status: "running" as const, last_activity_ms: a },
+      { ...second, status: "running" as const, last_activity_ms: b },
+    ];
+    const screen = (sessions: InstanceInfo[]) => <PoolsScreen sessions={sessions} projects={MOCK_PROJECTS} accounts={[]} />;
+    const view = render(screen(at(1_000, 2_000)));
+    const mine = () =>
+      view
+        .queryAllByTestId("pool-card-tile")
+        .map((tile) => tile.dataset.pool ?? "")
+        .filter((id) => ["pool-a", "pool-b", "pool-c"].includes(id));
+    await waitFor(() => expect(mine()).toEqual(["pool-b", "pool-a"]));
+    // The person moves toward a card; A's session then works.
+    fireEvent.pointerMove(window);
+    view.rerender(screen(at(3_000, 2_000)));
+    expect(mine()).toEqual(["pool-b", "pool-a"]);
+    resetPreviewPools();
+    seed({
+      pools: [
+        { id: "pool-c", name: "C", rules: [] },
+        { id: "pool-a", name: "A", rules: [] },
+        { id: "pool-b", name: "B", rules: [] },
+      ],
+      members: [
+        { session_id: first.id, pool_id: "pool-a", role: "member" },
+        { session_id: second.id, pool_id: "pool-b", role: "member" },
+      ],
+    });
+    await act(async () => {
+      await refreshPools();
+    });
+    await waitFor(() => expect(mine()).toEqual(["pool-b", "pool-a", "pool-c"]));
+    expect(visitOrder(["b", "a", "gone"], ["c", "a", "b"])).toEqual(["b", "a", "c"]);
+    expect(visitOrder(null, ["c", "a"]), "before the order holds").toEqual(["c", "a"]);
   });
 
   it("gives a card its menu: open, rename, and delete saying what happens to its members (R4)", async () => {

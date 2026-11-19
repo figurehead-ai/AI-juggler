@@ -10,6 +10,11 @@ pool.
 Putting a session in a pool, giving it a role or deleting the pool never
 starts, stops or types into it.
 
+The **Pools** screen shows each pool as a card: the ones waiting on you
+first, then the most recently active, then the rest. The cards stay where
+they are while you're on the screen, so a click lands on the pool you
+aimed at; a pool made meanwhile goes at the end.
+
 ## Each project's own pool
 
 Every project has its own pool, named after it: **shop · all sessions**,

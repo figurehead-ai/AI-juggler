@@ -29,6 +29,7 @@ import { sessionState } from "../../lib/rail-items";
 import { NewPool } from "./NewPool";
 import { miniTeam, PoolMini } from "./PoolMini";
 import { DeletePool, PoolCard, RenamePool } from "./PoolCard";
+import { useVisitOrder } from "./visit-order";
 
 /** X2: how many of the first cards' pools are read ahead, and when. */
 const WARM_FIRST = 4;
@@ -142,7 +143,8 @@ export function PoolsScreen({ sessions, projects, accounts }: { sessions: Instan
   const asksOf = (poolId: string) => poolNeedCount(poolId, messageNeeds, taskNeeds, byPool.get(poolId) ?? []);
   const asks = new Map((pools?.pools ?? []).map((pool) => [pool.id, asksOf(pool.id)]));
   const recent = new Map([...byPool].map(([id, list]) => [id, Math.max(0, ...list.map((row) => row.last_activity_ms ?? row.started_at_ms))]));
-  const ordered = cardOrder(pools?.pools ?? [], open, asks, recent);
+  // F-rc3g-14: in that order when the screen opens, then held for the visit.
+  const ordered = useVisitOrder(cardOrder(pools?.pools ?? [], open, asks, recent), pools !== null);
   const [renaming, setRenaming] = useState<PoolInfo | null>(null);
   const [deleting, setDeleting] = useState<PoolInfo | null>(null);
   const cardHost = { renamePool: setRenaming, deletePool: setDeleting };
