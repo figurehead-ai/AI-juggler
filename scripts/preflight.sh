@@ -87,6 +87,16 @@ SUMMARY="$LOGS/summary.txt"
 JOBS="${AIJ_PREFLIGHT_JOBS:-4}"
 NICE=(nice -n "${AIJ_PREFLIGHT_NICE:-10}")
 
+# Free disk first (2026-11-19: it fell to 13 GB during a merge and engine
+# builds): under 40 GB a warning with the trim to run; under 20 GB no build.
+FREE_GB="$(python3 "$ROOT/scripts/trim_target.py" --free 2>/dev/null || echo 999)"
+if [ "$FREE_GB" -lt 20 ]; then
+  echo "preflight: only ${FREE_GB} GB free; refusing to build under 20 GB. Run: just trim-target \"\$CARGO_TARGET_DIR\" --apply" >&2
+  exit 2
+elif [ "$FREE_GB" -lt 40 ]; then
+  echo "preflight: warning, only ${FREE_GB} GB free (under 40 GB). Consider: just trim-target \"\$CARGO_TARGET_DIR\" --apply" >&2
+fi
+
 # One preflight at a time on this repository: two at once fail each
 # other's timing tests (6a0b1d5, 2026-11-01).
 LOCK="$STAMPS/lock"

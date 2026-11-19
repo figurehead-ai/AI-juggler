@@ -253,10 +253,17 @@ structure:
     python3 scripts/machine_state_lint.py --selftest
     python3 scripts/machine_state_lint.py
 
+# Trim a shared build target safely (dry run unless --apply): older copies of
+# each artifact past 3 h and old incremental folders; refuses while a build
+# uses it. Run after every merge, RC build and big agent build (2026-11-19).
+trim-target dir *flags:
+    python3 scripts/trim_target.py {{dir}} {{flags}}
+
 # The docs that quote task counts and ranges agree with the epic files.
 task-counts:
     python3 scripts/check_task_counts.py --selftest
     python3 scripts/check_task_counts.py
+    python3 scripts/trim_target.py --selftest
 
 # UI gate (AJ-E806): typecheck + build. Visual (AJ-E803) and a11y (AJ-E804)
 # gates attach to UI-changing PRs; perf (AJ-E805) at milestones.
