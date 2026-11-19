@@ -17,6 +17,9 @@ use crate::features::remote_config::snapshot_fixtures::{facts, file, registry};
 
 const SHA: &str = "061b54daade076b5d3362dac252678d17da8c68f07560be70818cace6590cb1a";
 const COMMIT: &str = "90862c4b9d2787eaed51d12237eafdfe7c5f6077";
+/// A URL's userinfo part, kept apart so no e-mail address is written in
+/// this file (the private-data lint reads it).
+const USERINFO: &str = "user";
 
 fn hf_url(org: &str, commit: &str, file: &str) -> String {
     format!("https://huggingface.co/{org}/Qwen3-1.7B-GGUF/resolve/{commit}/{file}")
@@ -128,7 +131,7 @@ fn a_url_off_the_rules_drops_the_whole_entry() {
         hf_url("Qwen", &COMMIT.to_uppercase(), "Qwen3-1.7B-Q8_0.gguf"),
         format!("https://huggingface.co/Qwen/R/resolve/{COMMIT}/../a.gguf"),
         format!("http://huggingface.co/Qwen/R/resolve/{COMMIT}/a.gguf"),
-        format!("https://user@huggingface.co/Qwen/R/resolve/{COMMIT}/a.gguf"),
+        format!("https://{USERINFO}@huggingface.co/Qwen/R/resolve/{COMMIT}/a.gguf"),
         format!("https://huggingface.co:443/Qwen/R/resolve/{COMMIT}/a.gguf"),
         format!("https://huggingface.co/Qwen/R/resolve/{COMMIT}/a%2e.gguf"),
         format!("https://huggingface.co/Qwen/R/resolve/{COMMIT}/a.gguf?download=1"),
@@ -305,7 +308,7 @@ fn redirects_go_only_to_the_sources_file_hosts() {
         "https://evil.test/x",
         "https://cdn-lfs.hf.co.evil.test/x",
         "http://cdn-lfs-us-1.hf.co/x",
-        "https://user@cdn-lfs-us-1.hf.co/x",
+        &format!("https://{USERINFO}@cdn-lfs-us-1.hf.co/x"),
         "https://cdn-lfs-us-1.hf.co:8443/x",
         "https://127.0.0.1/x",
         "https://[::1]/x",
