@@ -431,6 +431,7 @@ pub fn parked_resume_impl(
         },
         Some(reference),
         "resume",
+        Some(crate::features::sessions::spawn::GoesOn::From(&session.id)),
     )?;
     let mut parked = load(state);
     parked.remove(session_id);

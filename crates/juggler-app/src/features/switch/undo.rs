@@ -190,6 +190,11 @@ fn undo_resume_source(state: &Arc<AppState>, context: &UndoContext) -> AppResult
         native_id.to_owned(),
         "relaunch",
     );
+    // Back from the switch's session: the name it went on under.
+    let again = crate::features::switch::resume::Relaunch {
+        goes_on: context.target_session.as_ref().unwrap_or(&source.id),
+        ..again
+    };
     let (new_session, pid) = crate::features::switch::resume::relaunch(state, &again)?;
 
     record_compensating_edge(state, context, &new_session)?;

@@ -247,7 +247,7 @@ fn continue_as(
             transcript_ref: from.transcript_ref.clone().filter(|_| written),
             origin: "resume",
             // The name the person gave it goes on with it (F-rc3g-3).
-            continues: Some(&from.id),
+            continues: Some(crate::features::sessions::spawn::GoesOn::From(&from.id)),
         },
         crate::features::sessions::spawn::Runs::Planned {
             profile,

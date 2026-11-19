@@ -1346,6 +1346,14 @@ pub fn continue_impl(
         spec,
     ) = continue_launch(state, account_id, id)?;
     let session = SessionId::new(format!("sess-{}", crate::ids::unique_suffix()));
+    // F-rc3g-3: AI Juggler ran it before (a run since ended): its name and
+    // pin go on with it.
+    let before = lock_storage_arc(state)?
+        .sessions()
+        .conversation_links()?
+        .into_iter()
+        .rfind(|link| link.account == account.id.as_str() && link.conversation == id)
+        .map(|link| SessionId::new(link.session));
     // The one path: the row first (ADR-0010 §1), then the bridge (AJ-E1704,
     // D-30: continued in AI Juggler, it gets the agent tools) and the
     // account's key in the launch, under the supervisor.
@@ -1360,7 +1368,9 @@ pub fn continue_impl(
             conversation: Some(ConversationId::new(id)),
             transcript_ref: None,
             origin: "resume",
-            continues: None,
+            continues: before
+                .as_ref()
+                .map(crate::features::sessions::spawn::GoesOn::From),
         },
         crate::features::sessions::spawn::Runs::Terminal(spec),
     )?;
