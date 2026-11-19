@@ -187,6 +187,33 @@ and to plan Move (`claude_move.rs:294`).
   `login_state`, never by reading the Keychain.
 - Recommended: b to gate, then a to decide.
 
+**Answer (AJ-E3210, 2026-11-19): b gates, a decides, and only where the
+question arises.** By the same standard as Q1 (read nothing new; correct
+over clever):
+1. Only a folder a desktop App shares is in question. Every other folder
+   reads its state file as today, so no CLI-only setup changes.
+2. Gate (b): the folder's CLI sign-in, by `login_state`'s existence check
+   (`.credentials.json` or the folder's namespaced Keychain item, never
+   opened). With none, the CLI App is "Not signed in": the app-only
+   profiles' CLI Apps stop wearing the app's Account.
+3. A read that names a sign-in no desktop App on the folder is on was
+   written by a CLI: the app's `claude` only ever writes the app's own.
+   It moves the CLI App.
+4. A read that names the desktop App's own sign-in moves the CLI App only
+   when the newest `claude` run in the folder was a CLI's (the adapter's
+   `sign_in_writer`: a live pid file's `entrypoint`, else the newest
+   transcript's last `entrypoint`; both already read for sessions).
+   Otherwise the CLI App keeps its Account; one that never had one reads
+   "Account unknown", saying the Claude app ran there last.
+5. Why not a alone: without the gate an app-only folder never has a CLI
+   writer, so its CLI App would keep an old Account forever (acceptance
+   test 3). Why not b alone: two sign-ins in one folder both have the
+   gate's credential.
+- The lab check stays: if the app's `claude` creates the folder's Keychain
+  item, an app-only folder passes the gate, and rule 4 keeps its CLI App
+  where it was (never wrong-moved, but not "Not signed in"). The live
+  walk records which.
+
 ### Q3 — Where the Account is stored
 
 - **i.** `apps.subscription_id` for every App: the CLI App's comes from
@@ -202,6 +229,15 @@ and to plan Move (`claude_move.rs:294`).
     the folder.
 - Recommended: i.
 
+**Answer: i.** `apps.subscription_id` for every App (V55). A CLI App's is
+the folder's CLI sign-in (Q2); a desktop App's comes from its newest Code
+record's folder names (Q1-A), and is empty ("Account not known yet")
+before its first one. `accounts.subscription_id` stays the folder's CLI
+sign-in, written in the same step, so older readers (notices by folder,
+the pools' facts) stay right; it goes when the last of them reads the
+App. Why: one rule for every surface; ii brings the bug class back in
+every folder reader.
+
 ### Q4 — Readings by sign-in, not by folder
 
 - **i.** Tag each stored sample with the Account it was read under (a
@@ -216,11 +252,33 @@ and to plan Move (`claude_move.rs:294`).
 - Recommended: i. Either way, `accountDisplay` and the presence check's
   `out_accounts` read the same rule.
 
+**Answer: i.** `quota_samples.signed_in_as` (V55), the Account a reading
+was taken under. The records pass reads each app meter for every Account
+an App on the folder is on (an instance's record folder names hashed
+into the stored Account's id: nothing new read), and tags each sample
+with it; the `/usage` cache is tagged with the state file's sign-in at
+read time. A folder's display uses its own Account's readings (and the
+untagged ones from before V55, until a tagged one is newer); the
+readings of another Account taken on the folder are shown as that
+Account's own display (`QuotaDisplayInfo.signed_in_as`). `accountDisplay`
+and the presence check read that one rule. Why not ii: it moves history,
+caps and anchors for no gain the tag doesn't give. Known limit: a
+session's token events stay by folder (they feed estimates only, never a
+measured Out).
+
 ### Q5 — When an Account does change
 
 - One `account_audit` row (actor "sign-in read", "folder X: Account A →
   B") and one notice ("Claude Code CLI · aij-test is signed in to B
   now"), once per change, never once per read.
+
+**Answer: as written.** A change is a stored App's Account changing
+(`apps.subscription_id`, compared in the update): one `account_audit`
+row (action `sign_in_moved`, actor `sign-in read`, under the new
+Account's id, the App and both Accounts in its detail) and one earlier
+notice, kind `account-changed` ("Claude Code CLI · aij-test is signed in
+to Team now"). A read that changes nothing writes neither. The first
+Account an App is ever read on is recorded, not told (nothing moved).
 
 ### Q6 — Every surface reads room by the App
 
@@ -231,6 +289,17 @@ and to plan Move (`claude_move.rs:294`).
   CLI App's Account, a Code tab session the desktop App's.
 - New session's suggestions.
 - Notices and the presence check.
+
+**Answer: as written, by the App's stored Account.** The backend lists
+each Account's Apps by `apps.subscription_id` (`with_apps`), and an
+Account only desktop Apps are on is listed too. The UI's one rule is
+`accountOfApp` (the App's `account_id`; a CLI App's folder, as before; a
+desktop App with none: "Account not known yet", no mark). The rail,
+Home, Accounts and App page marks, the Runway, the session pages and
+Resume/switch room read it; a terminal run is its CLI App's, a session
+launched in a desktop App that App's. Notices by folder stay right
+because the folder is its CLI App's. The presence check's out rule goes
+by App.
 
 ## What the user should see
 
