@@ -24,10 +24,13 @@
 //! section says; a withdrawn or no-longer-listed one gets a plain note
 //! ([`installed_state`], §11.4).
 
+pub mod recommend;
 pub mod source;
 
 #[cfg(test)]
 mod ledger;
+#[cfg(test)]
+mod recommend_tests;
 #[cfg(test)]
 mod tests;
 
