@@ -1,7 +1,7 @@
 # ADR-0035: One signed remote configuration, in layers, read through typed modules
 
 **Status:** Proposed (2026-11-18, coordinating session, Opus). Building starts once the maintainer has seen the summary.
-**Amendment:** §11, the `models` section (AJ-E3810, D-131): Accepted 2026-11-18 by the coordinating session's review, except open question 3 (where our own model files are hosted), which stays open for the maintainer.
+**Amendment:** §11, the `models` section (AJ-E3810, D-131): Accepted 2026-11-18 by the coordinating session's review. Open question 3 (where our own model files are hosted) was answered on 2026-11-19 (D-131): skipped for now, so our own host is designed but not built.
 **Date:** 2026-11-18
 **Deciders:** Opus (design); the maintainer (D-128, D-129)
 **Serves:** D-128 (version support without a rebuild), D-129 (a general remote configuration: flags, controls, messages, and account-level capabilities); [ADR-0014](./0014-optional-figurehead-account.md) (the optional account); [ADR-0015](./0015-usage-statistics.md) (opt-in stats, closed vocabulary); [ADR-0019](./0019-extension-architecture.md) (features as modules); [ADR-0023](./0023-local-cache.md) (the registered cache); D-52 (OS seams); D-127 (never show what can't be used)
@@ -209,7 +209,7 @@ Unlinked users get layers 1, 2 and 4 only, and lose no core feature (D-18).
 
 ## Amendment: the `models` section (AJ-E3810, D-131)
 
-**Status:** Accepted (2026-11-18, the coordinating session's review of Opus's draft), except open question 3, our own host, which stays open for the maintainer. Written before any schema or code, as AJ-E3810 asks.
+**Status:** Accepted (2026-11-18, the coordinating session's review of Opus's draft), with our own host (open question 3) designed but not built: the maintainer skipped it on 2026-11-19 (D-131). Written before any schema or code, as AJ-E3810 asks.
 **Serves:** D-131 (the Models area and its signed list), D-130 (the acceptance bar and opt-in Beta), D-121 §2 (disk rules, as amended), D-127 (never show what can't be used), D-125 (pinned revision and SHA-256 per file); AJ-E3811, AJ-E3812, AJ-E3813 and AJ-E3803 read this section.
 **Supersedes:** [ADR-0033](./0033-feed-summary-engines.md) §5's compiled `ModelPin` slot ("no manifest and no signing key"). The pin moves into this signed section, so a tested model can be added or withdrawn without a release. Everything else in ADR-0033 §5 (the click, resume, the transfer conditions, the cache entry) stays, read through this section.
 
@@ -263,7 +263,7 @@ The hosts, the path shapes, the official organisations and the redirect hosts ar
 | Source | The pinned URL | Redirects |
 |---|---|---|
 | **Hugging Face, official organisations only** | `https://huggingface.co/<org>/<repo>/resolve/<40-hex commit>/<file>.gguf`, with `<org>` exactly one of `Qwen`, `ibm-granite`, `nvidia`, `google`. A branch or tag name in place of the commit is refused. | Followed only to Hugging Face's published file hosts: `cdn-lfs-us-1.hf.co`, `cdn-lfs-eu-1.hf.co`, `us.aws.cdn.hf.co`, `us.gcp.cdn.hf.co`, `transfer.xethub.hf.co`, `transfer.xethub-eu.hf.co`, `cas-server.xethub.hf.co`, `cas-server.xethub-eu.hf.co`. The list is taken from Hugging Face's firewall page when the downloader is built and re-checked at each release; a recorded HEAD response at that step settles the exact redirect target. |
-| **Our own files** (needs the maintainer's setup: open question 3) | `https://models.figurehead.ai/v1/<sha256>/<file>.gguf`, where `<sha256>` must equal the entry's own hash. | None. Any redirect is a failure. |
+| **Our own files** (not built; for a later model without an official GGUF: open question 3, skipped 2026-11-19) | `https://models.figurehead.ai/v1/<sha256>/<file>.gguf`, where `<sha256>` must equal the entry's own hash. | None. Any redirect is a failure. |
 
 - **Why only official organisations:** with a stolen configuration key, the attacker still can't point the app at a file they uploaded to their own account. They'd need write access to an official repository or to our bucket as well.
 - **Our own files are for:**
@@ -482,11 +482,11 @@ The Qwen3 entry uses the pinned manifest (`docs/qa/evidence/AJ-E3709/models-mani
 
 1. **This amendment,** accepted.
 2. **The two field kinds** in `list.rs`, then the typed section, its record check, the built-in list and `config/remote/schema.json` (AJ-E3810).
-3. **The ledger and its publisher check,** filled from the manifest and round 3 for the five official files; Qwen3-4B after its conversion and verification run.
+3. **The ledger and its publisher check,** filled from the manifest and round 3 for the five official files. Qwen3-4B isn't offered in 0.5 (D-131, 2026-11-19).
 4. **The recommendation, the screen and the download** (AJ-E3811 to AJ-E3813) on the stubbed section. No model is downloaded while building.
 
 ## Open questions for the maintainer
 
 1. **Where the public files are hosted:** our website's CDN, or GitHub release assets? Both are static; the website gives nicer URLs and caching control.
 2. **The default for "Check for configuration updates":** on by default (proposed, because kill switches and compat must reach people), with the Privacy page explaining it.
-3. **Where our own model files are hosted (§11.2), a setup step only you can do.** Proposed: a new Cloudflare R2 bucket, `figurehead-models`, with the custom domain `models.figurehead.ai`. It would be public read and have Logpush off, like the config bucket. Its write token would sit only in a new `models-publish` environment, with a required reviewer and `main` only. A separate bucket keeps the config publisher's token from writing model files, and the other way round. R2 has no egress fee, which matters for 2 to 3 GB files. It would hold our Qwen3-4B-Instruct-2507 conversion and any mirrors, each under its hash, with its licence beside it. Until it exists, entries use Hugging Face only, and Qwen3-4B isn't listed.
+3. **Where our own model files are hosted (§11.2). Answered 2026-11-19 (D-131): skipped for now.** Qwen3-4B isn't offered in 0.5, so no bucket, no conversion and no download. The design below stays for a later model without an official GGUF. The proposal was: Proposed: a new Cloudflare R2 bucket, `figurehead-models`, with the custom domain `models.figurehead.ai`. It would be public read and have Logpush off, like the config bucket. Its write token would sit only in a new `models-publish` environment, with a required reviewer and `main` only. A separate bucket keeps the config publisher's token from writing model files, and the other way round. R2 has no egress fee, which matters for 2 to 3 GB files. It would hold our Qwen3-4B-Instruct-2507 conversion and any mirrors, each under its hash, with its licence beside it. Until it exists, entries use Hugging Face only, and Qwen3-4B isn't listed.

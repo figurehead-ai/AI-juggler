@@ -267,7 +267,7 @@
       "engine": "gguf_local",
       "basis": "round3_after_fix_floor",
       "file": null,
-      "status": "Awaiting our own conversion of the official weights (Qwen/Qwen3-4B-Instruct-2507) and a verification run of round 3's frozen sets on that file. Round 3 measured a third-party conversion, which never ships (D-131). No entry may list this id until the file is recorded here.",
+      "status": "Not offered in 0.5: the maintainer skipped it on 2026-11-19 (D-131), so our own conversion of the official weights (Qwen/Qwen3-4B-Instruct-2507) and its host aren't built. Round 3 measured a third-party conversion, which never ships. No entry may list this id until our own file and its verification run are recorded here.",
       "jobs": {
         "feed": {
           "verdict": "not_yet",
