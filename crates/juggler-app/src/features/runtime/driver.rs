@@ -74,6 +74,10 @@ pub struct Snapshot {
     pub limits: Option<LimitsSnapshot>,
     /// The last error.
     pub error: Option<String>,
+    /// Who sent the delivered message that started the running turn, while
+    /// the tool hasn't reported its text yet (F-rc3g-9: that text is never
+    /// the person's own).
+    delivered_unseen: Option<String>,
 }
 
 /// A driven session, as the app holds it.
@@ -240,13 +244,24 @@ impl Snapshot {
                 self.written = true;
                 self.streaming.clear();
                 // D-29: a delivered turn says what started it.
+                self.delivered_unseen = None;
                 if let Some(TurnOrigin::Delivered { sender }) = origin {
                     self.push("delivered", format!("Started by a message from {sender}"));
+                    self.delivered_unseen = Some(sender.clone());
+                }
+                false
+            }
+            // F-rc3g-9: what the turn was given. A delivered message is
+            // said by its own line above; the rest is the person's.
+            RuntimeEvent::Item { item } if item.kind == ItemKind::UserMessage => {
+                if self.delivered_unseen.take().is_none() {
+                    self.push(kind_word(item.kind), item.text.clone());
                 }
                 false
             }
             RuntimeEvent::TurnEnded { .. } => {
                 self.turn_running = false;
+                self.delivered_unseen = None;
                 let text = std::mem::take(&mut self.streaming);
                 if self.items.back().is_none_or(|last| last.text != text) {
                     self.push("agent_message", text);
@@ -944,5 +959,73 @@ mod labels {
         let held = state.processes.labels_of("s-codex");
         assert_eq!(held.len(), 40);
         assert_eq!(held.last().unwrap(), "Bash: run 59");
+    }
+}
+
+/// F-rc3g-9 (the rc3g walk: a Claude Code session's view showed what the
+/// agent did, never what the person sent): what each turn was given is in
+/// the view, the person's as theirs; a delivered message only as the line
+/// that names its sender.
+#[cfg(test)]
+mod given {
+    use super::Snapshot;
+    use juggler_adapter::runtime::{ItemKind, ItemSummary, RuntimeEvent, TurnEnd, TurnOrigin};
+    use juggler_core::model::SessionId;
+
+    fn given(text: &str) -> RuntimeEvent {
+        RuntimeEvent::Item {
+            item: ItemSummary {
+                kind: ItemKind::UserMessage,
+                text: text.to_owned(),
+            },
+        }
+    }
+
+    fn turn(origin: TurnOrigin) -> RuntimeEvent {
+        RuntimeEvent::TurnStarted {
+            turn: None,
+            origin: Some(origin),
+        }
+    }
+
+    const END: RuntimeEvent = RuntimeEvent::TurnEnded {
+        outcome: TurnEnd::Completed,
+        usage: None,
+    };
+
+    #[test]
+    fn the_persons_messages_are_theirs_and_a_delivered_one_names_its_sender() {
+        let mut snapshot = Snapshot::default();
+        let session = SessionId::new("s");
+        for event in [
+            turn(TurnOrigin::User),
+            given("hello"),
+            END,
+            turn(TurnOrigin::Delivered {
+                sender: "Planner".into(),
+            }),
+            given("[pool message framing] Start on the API"),
+            // Added to that turn by the person: theirs.
+            given("and the tests"),
+            END,
+            turn(TurnOrigin::User),
+            given("thanks"),
+        ] {
+            snapshot.apply(&session, &event);
+        }
+        let lines: Vec<(&str, &str)> = snapshot
+            .items
+            .iter()
+            .map(|item| (item.kind.as_str(), item.text.as_str()))
+            .collect();
+        assert_eq!(
+            lines,
+            [
+                ("user_message", "hello"),
+                ("delivered", "Started by a message from Planner"),
+                ("user_message", "and the tests"),
+                ("user_message", "thanks"),
+            ]
+        );
     }
 }
