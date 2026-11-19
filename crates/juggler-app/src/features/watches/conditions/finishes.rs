@@ -29,6 +29,9 @@ impl ConditionRule for Rule {
     fn needs(&self) -> Observes {
         Observes::TURN_ENDS.union(Observes::STATES)
     }
+    fn told_as(&self) -> Option<&'static str> {
+        Some("finished")
+    }
     fn words(&self) -> &'static CondWords {
         &words::FINISHES
     }

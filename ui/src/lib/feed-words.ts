@@ -190,6 +190,12 @@ export function sentence(item: FeedItemInfo): Part[] {
       return message(item);
     case "worked":
       return [plain("worked on "), strong(item.subject)];
+    case "watch":
+      // AJ-E3817: a watch the user set was met ("api finished · your
+      // watch"); the words are the app's, from the typed watch.
+      return facts.told && item.subject
+        ? [strong(item.subject), plain(` ${facts.told} · your watch`)]
+        : [plain(facts.line ?? "A watch you set was met."), plain(" · your watch")];
     default:
       // AI Juggler's own notices (This Mac, keep alive, an update, an app
       // found): the line it wrote from the same facts.

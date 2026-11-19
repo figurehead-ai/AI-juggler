@@ -107,6 +107,14 @@ pub trait ConditionRule: Send + Sync {
     fn words(&self) -> &'static CondWords;
     /// What `obs` does to it, for one member of a target.
     fn on(&self, param: Option<&Param>, memo: &mut Memo, obs: &Observation) -> Verdict;
+    /// AJ-E3817: the need or state its event is also told as, by its
+    /// notice kind (`asks`, `failed`, `stuck`, `limit`, `finished`,
+    /// `leftovers`, `restarted`, `reset`), so a watch on something a need
+    /// already tells is one notification with it, and takes its level.
+    /// `None`: only the watch tells it.
+    fn told_as(&self) -> Option<&'static str> {
+        None
+    }
     /// What the watch's start does, for a session target known at once
     /// (idle for N minutes counts from the start).
     fn on_start(&self, _param: Option<&Param>, _now_ms: i64) -> Verdict {

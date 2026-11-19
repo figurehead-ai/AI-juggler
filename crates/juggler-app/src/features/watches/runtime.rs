@@ -1,9 +1,15 @@
 //! The watches at run time: the engine fed by the observation bus, one
 //! thread that sleeps until the next deadline (or forever, with none
-//! armed), the store's watches loaded on first use, and what fired kept
-//! as typed alerts for the notification path (AJ-E3817 delivers them
-//! through the existing centre, with quiet hours; until then they wait in
-//! [`Watches::drain_alerts`] and the log).
+//! armed), the store's watches loaded on first use, and what fired handed
+//! to the notification path (AJ-E3817: a `watch` notice, told once, its
+//! alert through the batch, quiet hours and the rest).
+//!
+//! **While AI Juggler was closed** (ADR-0036 §2.3): the time the engine
+//! last heard is kept ([`CURSOR_KEY`]); on start the journals past it are
+//! replayed once, in order, and what fires is told "while AI Juggler was
+//! closed", as one consolidated notification. Today's journal of what a
+//! session did is its endings (`instance_lifecycle`); other apps' states
+//! "as seen on start" wait for AJ-E3705.
 //!
 //! Lock order: the runtime's own lock and the store's are never held
 //! together. A publisher only queues ([`hear`]), so a caller holding the
@@ -21,32 +27,24 @@ use juggler_core::storage::memory::KindWriter;
 
 use super::catalogue;
 use super::conditions::Registry;
-use super::engine::{EndReason, Engine, Expiry, Fire, Outcome};
+use super::engine::{EndReason, Engine, Expiry, Outcome};
 use super::model::{Watch, WatchTarget};
 use super::store::{Stored, WatchStore};
 use crate::features::observe::{Observation, Pending, Subject};
 use crate::state::AppState;
 
-/// The most alerts kept for the notification path (the oldest go first).
-const ALERTS_KEPT: usize = 200;
+/// The app setting holding when the engine last heard (epoch ms).
+pub const CURSOR_KEY: &str = "watches.cursor_ms";
+/// The most journal rows a start replays.
+const REPLAY_MAX: usize = 500;
 /// The most observations queued before the oldest are dropped (a stalled
 /// thread must not grow without bound).
 const QUEUE_KEPT: usize = 2_000;
-
-/// A fired watch, typed, for the notification path (AJ-E3817): it carries
-/// the user's "Even during quiet hours" so quiet hours can hold or let it
-/// through there.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct WatchAlert {
-    /// What fired.
-    pub fire: Fire,
-}
 
 #[derive(Default)]
 struct Inner {
     engine: Option<Engine>,
     queue: VecDeque<Pending>,
-    alerts: VecDeque<WatchAlert>,
     closed: bool,
 }
 
@@ -86,15 +84,6 @@ impl Watches {
         self.writer
             .get_or_init(|| state.memory_writers.take_watches())
             .as_ref()
-    }
-
-    /// The alerts waiting for the notification path, oldest first.
-    pub fn drain_alerts(&self) -> Vec<WatchAlert> {
-        self.shared
-            .inner
-            .lock()
-            .map(|mut inner| inner.alerts.drain(..).collect())
-            .unwrap_or_default()
     }
 
     /// The watches the engine hears for now (loaded on first use).
@@ -417,6 +406,7 @@ fn run(shared: &Shared, state: &Weak<AppState>) {
     // deadlines and "until" times are armed from the start.
     if let Some(state) = state.upgrade() {
         with_engine(&state, crate::commands::now_millis(), |_| ());
+        replay(&state);
     }
     loop {
         let batch: Vec<Pending> = {
@@ -486,6 +476,113 @@ fn step(state: &Arc<AppState>, batch: Vec<Pending>) {
     })
     .unwrap_or_default();
     record(state, &outcome);
+    heard_until(state, now);
+}
+
+/// The engine heard everything up to `now_ms`: a start replays only what
+/// came after.
+fn heard_until(state: &AppState, now_ms: i64) {
+    if let Ok(storage) = state.storage.lock() {
+        let _ = storage.app_settings().set(CURSOR_KEY, &now_ms.to_string());
+    }
+}
+
+/// The journals' rows past the cursor, as observations in time order:
+/// each session's ending (`ended: …`), what its status said then.
+pub fn journal_since(
+    storage: &Storage,
+    cursor_ms: i64,
+) -> Vec<(String, i64, Vec<crate::features::observe::Observed>)> {
+    use crate::features::observe::from_status;
+    const ENDINGS: [(&str, &str); 4] = [
+        ("ended: finished", "finished"),
+        ("ended: error", "failed"),
+        ("ended: crashed", "failed"),
+        ("ended: stopped by you", "stopped"),
+    ];
+    let prefixes: Vec<String> = ENDINGS.iter().map(|(p, _)| (*p).to_owned()).collect();
+    let scope = juggler_core::storage::feed::FeedScope::default();
+    let mut rows = Vec::new();
+    let mut before = None;
+    loop {
+        let Ok(page) = storage.feed().lifecycle(before, &scope, &prefixes, 100) else {
+            break;
+        };
+        let full = page.len() == 100;
+        let mut past = false;
+        for row in page {
+            before = Some(row.key);
+            if row.key.at_ms <= cursor_ms {
+                past = true;
+                break;
+            }
+            let status = ENDINGS
+                .iter()
+                .find(|(prefix, _)| row.event.starts_with(prefix))
+                .map(|(_, status)| *status);
+            if let Some(status) = status {
+                rows.push((row.session.id.clone(), row.key.at_ms, from_status(status)));
+            }
+        }
+        if past || !full || rows.len() >= REPLAY_MAX {
+            break;
+        }
+    }
+    rows.truncate(REPLAY_MAX);
+    rows.reverse();
+    rows
+}
+
+/// On start, once: the journals past the cursor replayed to the watches,
+/// in order; what fires is told "while AI Juggler was closed". The first
+/// start has no cursor: nothing to replay.
+fn replay(state: &Arc<AppState>) {
+    let now = crate::commands::now_millis();
+    let observations: Vec<Observation> = {
+        let Ok(storage) = state.storage.lock() else {
+            return;
+        };
+        let cursor = storage
+            .app_settings()
+            .get(CURSOR_KEY)
+            .ok()
+            .flatten()
+            .and_then(|raw| raw.parse::<i64>().ok());
+        let _ = storage.app_settings().set(CURSOR_KEY, &now.to_string());
+        let Some(cursor) = cursor else {
+            return;
+        };
+        if state.watches.hearing() == 0 {
+            return;
+        }
+        let facts = Facts::new(&storage, state);
+        journal_since(&storage, cursor)
+            .into_iter()
+            .flat_map(|(session, at_ms, events)| {
+                let subject = facts.session_subject(&session);
+                events.into_iter().map(move |event| Observation {
+                    at_ms,
+                    subject: subject.clone(),
+                    event,
+                    replayed: true,
+                })
+            })
+            .collect()
+    };
+    if observations.is_empty() {
+        return;
+    }
+    let outcome = with_engine(state, now, |engine| {
+        let mut out = Outcome::default();
+        for obs in &observations {
+            let step = engine.observe(obs);
+            out.fires.extend(step.fires);
+            out.ended.extend(step.ended);
+        }
+        out
+    })
+    .unwrap_or_default();
+    record(state, &outcome);
 }
 
 fn resolve(facts: &Facts<'_>, pending: Pending) -> Vec<Observation> {
@@ -519,8 +616,8 @@ fn resolve(facts: &Facts<'_>, pending: Pending) -> Vec<Observation> {
     }
 }
 
-/// Logs what fired and ended, and keeps each fire as an alert for the
-/// notification path.
+/// Logs what fired and ended, and hands what fired to the notification
+/// path (AJ-E3817).
 pub fn record(state: &Arc<AppState>, outcome: &Outcome) {
     if outcome.is_empty() {
         return;
@@ -535,12 +632,5 @@ pub fn record(state: &Arc<AppState>, outcome: &Outcome) {
             let _ = store.log_end(expiry);
         }
     }
-    if let Ok(mut inner) = state.watches.shared.inner.lock() {
-        for fire in &outcome.fires {
-            if inner.alerts.len() >= ALERTS_KEPT {
-                inner.alerts.pop_front();
-            }
-            inner.alerts.push_back(WatchAlert { fire: fire.clone() });
-        }
-    }
+    crate::features::notifications::watch_alerts::fired(state, &outcome.fires);
 }

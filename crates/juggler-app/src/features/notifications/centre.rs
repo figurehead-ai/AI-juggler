@@ -232,6 +232,11 @@ pub struct NoticeFacts {
     #[serde(default)]
     #[ts(optional = nullable)]
     pub credits: Option<String>,
+    /// AJ-E3817: a watch's alert: what happened, in the app's words
+    /// ("finished"), said after the name.
+    #[serde(default)]
+    #[ts(optional = nullable)]
+    pub told: Option<String>,
 }
 
 #[derive(Default, serde::Serialize, serde::Deserialize)]

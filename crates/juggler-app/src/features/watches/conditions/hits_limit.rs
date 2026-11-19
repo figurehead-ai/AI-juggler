@@ -28,6 +28,9 @@ impl ConditionRule for Rule {
     fn needs(&self) -> Observes {
         Observes::LIMIT_HITS
     }
+    fn told_as(&self) -> Option<&'static str> {
+        Some("limit")
+    }
     fn words(&self) -> &'static CondWords {
         &words::HITS_LIMIT
     }

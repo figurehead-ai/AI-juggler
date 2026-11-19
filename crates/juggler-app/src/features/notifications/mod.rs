@@ -25,6 +25,7 @@ pub mod prefs;
 pub mod sources;
 pub mod tray;
 pub mod views;
+pub mod watch_alerts;
 
 use crate::events::{AppEvent, EmitEvent as _};
 use std::collections::HashMap;
@@ -524,7 +525,7 @@ pub(crate) fn show_due_at(state: &Arc<AppState>, now: i64) -> Option<i64> {
                     || centre::session_snoozed(&storage, id, now)
                     || !centre::may_interrupt(&storage, "", project_of(&storage, id).as_deref())
             }
-            Target::ThisMac => false,
+            Target::ThisMac | Target::Centre => false,
             Target::Account(id) => left_out.contains(id),
         };
         let gate = Gate {
@@ -744,6 +745,7 @@ fn words(state: &Arc<AppState>, due: &Due) -> (String, String) {
     }
     match &due.target {
         Target::Account(_) => ("An account needs a look".to_owned(), String::new()),
+        Target::Centre => ("Something needs a look".to_owned(), String::new()),
         Target::ThisMac => state
             .notifier
             .mac_words
@@ -860,7 +862,7 @@ pub fn clicked<R: tauri::Runtime>(app: &tauri::AppHandle<R>, state: &Arc<AppStat
         // AJ-E2501: an account's notice opens the notification centre,
         // where its banner and its actions are; so does a consolidated
         // notification with a need among them (ADR-0036 §1.7).
-        Some(batch::Opens::Target(Target::Account(_)) | batch::Opens::Centre) => {
+        Some(batch::Opens::Target(Target::Account(_) | Target::Centre) | batch::Opens::Centre) => {
             Some(page("notifications"))
         }
         // AJ-E3712: several calm items open Home's feed, at the newest

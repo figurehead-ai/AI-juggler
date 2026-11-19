@@ -35,6 +35,9 @@ impl ConditionRule for Rule {
             required: false,
         })
     }
+    fn told_as(&self) -> Option<&'static str> {
+        Some("stuck")
+    }
     fn words(&self) -> &'static CondWords {
         &words::STUCK
     }

@@ -23,6 +23,9 @@ impl ConditionRule for Rule {
     fn needs(&self) -> Observes {
         Observes::RESTARTS
     }
+    fn told_as(&self) -> Option<&'static str> {
+        Some("restarted")
+    }
     fn words(&self) -> &'static CondWords {
         &words::RESTARTED
     }

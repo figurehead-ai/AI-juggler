@@ -42,7 +42,7 @@ const EMPTY_TARGET = { session_id: null, conversation_id: null, account_id: null
 const NO_FACTS: FeedItemInfo["facts"] = {
   project: null, project_id: null, cwd: null, duration_ms: null, detail: null, attempt: null, tries: null, window: null, resets_at_ms: null, meter: null,
   sessions: null, credits: null, version: null, from_label: null, from_provider: null, to_label: null, to_provider: null, mechanism: null, fidelity: null,
-  pool: null, pool_id: null, thread: null, thread_count: null, quote: null, change: null, need: null, line: null,
+  pool: null, pool_id: null, thread: null, thread_count: null, quote: null, change: null, need: null, line: null, told: null,
 };
 
 /** An item with the defaults the backend fills. */

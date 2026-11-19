@@ -43,4 +43,9 @@ account: string | null,
  * credits left"), or empty when the tool didn't say (it probably
  * does). `None`: not a credits notice.
  */
-credits?: string | null, };
+credits?: string | null, 
+/**
+ * AJ-E3817: a watch's alert: what happened, in the app's words
+ * ("finished"), said after the name.
+ */
+told?: string | null, };

@@ -22,8 +22,11 @@
 //!   the commands the user's click calls ([`commands`]); the engine never
 //!   writes a watch. Behind V54, which waits for 0.4.6's V53.
 //! - **At run time** ([`runtime`]): the engine on its own thread, fed by
-//!   the bus, its fires kept as typed alerts for AJ-E3817's notification
-//!   path (quiet hours, consolidation and delivery are AJ-E3817's).
+//!   the bus; its fires told through the notification path
+//!   (AJ-E3817, [`crate::features::notifications::watch_alerts`]): a
+//!   `watch` notice told once, its alert batched, consolidated with needs,
+//!   held through quiet hours unless the watch's own switch is on; and
+//!   what was missed while AI Juggler was closed replayed on start.
 //!
 //! What today's event stream feeds (published from the notification
 //! path): a session's statuses (finishes, asks you, fails, looks stuck,
@@ -31,9 +34,10 @@
 //! restart, an account's reset. Waiting for a source: exact turn ends of
 //! driven sessions and other apps' conversation states (AJ-E3705), the
 //! account's share left for "runs below" (AJ-E3704), new sessions'
-//! starts, pool messages and task moves (the bus at their journals,
-//! AJ-E3712), commits (AJ-E3706; not offered until then), removals, and
-//! the replay of the journals past each watch's cursor on start.
+//! starts, pool messages and task moves (the bus at their journals),
+//! commits (AJ-E3706; not offered until then), and removals. The replay
+//! on start reads the session endings' journal; other apps' states "as
+//! seen on start" wait for AJ-E3705.
 
 pub mod catalogue;
 pub mod commands;

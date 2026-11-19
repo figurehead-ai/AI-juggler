@@ -114,4 +114,8 @@ need: string | null,
 /**
  * The notice's own line, for a kind the window has no words for yet.
  */
-line: string | null, };
+line: string | null, 
+/**
+ * AJ-E3817: a watch's alert: what happened ("finished").
+ */
+told: string | null, };

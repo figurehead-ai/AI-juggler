@@ -1,7 +1,8 @@
 //! The watches on today's event stream, end to end: a session's status
 //! published on the notification path reaches the engine on its thread,
-//! fires, is logged, and waits as a typed alert for AJ-E3817; the reads
-//! over IPC say it in plain words.
+//! fires, is logged, and is told once as a `watch` notice whose alert goes
+//! through the notification path (AJ-E3817); the reads over IPC say it in
+//! plain words.
 
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -12,7 +13,6 @@ use juggler_core::storage::memory::Writers;
 use super::*;
 use crate::features::ai::memory::RedactionSecrets;
 use crate::features::watches::commands;
-use crate::features::watches::runtime::WatchAlert;
 use crate::features::watches::store::{Origin, WatchStore};
 use crate::state::AppState;
 
@@ -56,14 +56,28 @@ fn lab(dir: &std::path::Path) -> Arc<AppState> {
     state
 }
 
-fn wait_for_alerts(state: &AppState, n: usize) -> Vec<WatchAlert> {
+/// The `watch` notices told so far: (key, title, detail).
+fn watch_notices(state: &AppState) -> Vec<(String, String, String)> {
+    let storage = state.storage.lock().unwrap();
+    let mut stmt = storage
+        .raw_conn()
+        .prepare("SELECT key, title, detail FROM notices WHERE kind = 'watch' ORDER BY id")
+        .unwrap();
+    stmt.query_map([], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)))
+        .unwrap()
+        .collect::<Result<_, _>>()
+        .unwrap()
+}
+
+fn wait_for_notices(state: &AppState, n: usize) -> Vec<(String, String, String)> {
     let started = Instant::now();
-    let mut alerts = Vec::new();
-    while alerts.len() < n && started.elapsed() < Duration::from_secs(10) {
-        alerts.extend(state.watches.drain_alerts());
+    loop {
+        let told = watch_notices(state);
+        if told.len() >= n || started.elapsed() > Duration::from_secs(10) {
+            return told;
+        }
         std::thread::sleep(Duration::from_millis(10));
     }
-    alerts
 }
 
 #[test]
@@ -95,17 +109,12 @@ fn a_session_status_fires_a_watch_on_its_thread() {
             .unwrap();
     }
     crate::features::notifications::session_status(&state, "s1", "failed");
-    let alerts = wait_for_alerts(&state, 1);
-    assert_eq!(alerts.len(), 1, "the fire reached the alert path");
-    let fire = &alerts[0].fire;
-    assert_eq!(
-        (fire.condition.as_str(), fire.session.as_deref()),
-        ("fails", Some("s1"))
-    );
-    assert!(
-        fire.even_in_quiet_hours,
-        "the quiet switch is carried to the alert path"
-    );
+    let told = wait_for_notices(&state, 1);
+    assert_eq!(told.len(), 1, "the fire was told once: {told:?}");
+    let (key, title, detail) = &told[0];
+    assert!(key.starts_with("watch:w-11:s1:fails:"), "{key}");
+    assert!(title.ends_with("” failed"), "{title}");
+    assert_eq!(detail, "Your watch");
     let listed =
         commands::watches_list_impl(&state, &crate::paging::PageRequest::first(50), Lang::En)
             .unwrap()
@@ -196,4 +205,170 @@ fn without_the_memory_store_the_list_says_unavailable() {
         commands::watches_list_impl(&state, &crate::paging::PageRequest::first(50), Lang::En)
             .unwrap_err();
     assert!(error.to_string().contains("unavailable"), "{error}");
+}
+
+/// Creates `watch` in the store, as the Watches view's click does.
+fn create(state: &AppState, writers: &Writers, w: &Watch) {
+    let storage = state.storage.lock().unwrap();
+    let registry = Registry::shipped();
+    WatchStore::new(&storage, &registry)
+        .create(
+            &writers.watches,
+            &RedactionSecrets,
+            w,
+            &Origin::WatchesView,
+            w.created_ms,
+        )
+        .unwrap();
+}
+
+fn sink(state: &AppState) -> Arc<std::sync::Mutex<Vec<crate::features::notifications::Outgoing>>> {
+    let list = Arc::new(std::sync::Mutex::new(Vec::new()));
+    let into = Arc::clone(&list);
+    state.notifier.set_sink(Box::new(move |out| {
+        into.lock().unwrap().push(out.clone());
+    }));
+    list
+}
+
+fn wait_for_sent(
+    list: &std::sync::Mutex<Vec<crate::features::notifications::Outgoing>>,
+    n: usize,
+) -> Vec<crate::features::notifications::Outgoing> {
+    let started = Instant::now();
+    loop {
+        let sent = list.lock().unwrap().clone();
+        if sent.len() >= n || started.elapsed() > Duration::from_secs(10) {
+            return sent;
+        }
+        std::thread::sleep(Duration::from_millis(10));
+    }
+}
+
+/// AJ-E3817: quiet hours hold a watch's alert unless its own "Even during
+/// quiet hours" is on; when they end, what they held comes as one.
+#[test]
+fn quiet_hours_hold_an_alert_unless_its_watch_breaks_through() {
+    let dir = tempfile::tempdir().unwrap();
+    let state = lab(dir.path());
+    state
+        .storage
+        .lock()
+        .unwrap()
+        .sessions()
+        .insert(&crate::test_support::instance(
+            "s2",
+            "p1",
+            SessionStatus::Running,
+            dir.path().join("web"),
+        ))
+        .unwrap();
+    let writers = Writers::for_tests();
+    let now = crate::commands::now_millis();
+    let mut loud = watch(
+        "w-21",
+        vec![session("s1")],
+        vec![cond("fails")],
+        Lifetime::Once,
+    );
+    loud.created_ms = now;
+    loud.even_in_quiet_hours = true;
+    let mut held = watch(
+        "w-22",
+        vec![session("s2")],
+        vec![cond("fails")],
+        Lifetime::Once,
+    );
+    held.created_ms = now;
+    create(&state, &writers, &loud);
+    create(&state, &writers, &held);
+    let list = sink(&state);
+    state.notifier.local_hour_seen(Some(23), now);
+    crate::features::notifications::session_status(&state, "s1", "failed");
+    crate::features::notifications::session_status(&state, "s2", "failed");
+    assert_eq!(
+        wait_for_notices(&state, 2).len(),
+        2,
+        "both told in the centre"
+    );
+    let sent = wait_for_sent(&list, 1);
+    std::thread::sleep(Duration::from_millis(100));
+    let sent_now = list.lock().unwrap().clone();
+    assert_eq!(
+        sent_now.len(),
+        1,
+        "only the watch set to break through: {sent:?}"
+    );
+    assert_eq!(sent_now[0].body, "Failed · your watch");
+    // Morning: the held alert comes, once.
+    state.notifier.local_hour_seen(Some(8), now);
+    crate::features::notifications::show_due_at(&state, crate::commands::now_millis());
+    let sent = list.lock().unwrap().clone();
+    assert_eq!(sent.len(), 2, "{sent:?}");
+    assert!(sent[1].title.contains("web"), "{sent:?}");
+    crate::features::notifications::show_due_at(&state, crate::commands::now_millis() + 120_000);
+    assert_eq!(list.lock().unwrap().len(), 2, "told once");
+}
+
+/// AJ-E3817, ADR-0036 §2.3: what happened while AI Juggler was closed is
+/// replayed from the journals past the cursor, once, and told so.
+#[test]
+fn a_fire_missed_while_closed_is_replayed_on_start_and_told_once() {
+    let dir = tempfile::tempdir().unwrap();
+    let state = lab(dir.path());
+    let writers = Writers::for_tests();
+    let now = crate::commands::now_millis();
+    let mut w = watch(
+        "w-31",
+        vec![session("s1")],
+        vec![cond("finishes")],
+        Lifetime::Once,
+    );
+    w.created_ms = now - 3_600_000;
+    create(&state, &writers, &w);
+    {
+        let storage = state.storage.lock().unwrap();
+        // AI Juggler last heard an hour ago; then s1 finished.
+        storage
+            .app_settings()
+            .set(
+                super::super::runtime::CURSOR_KEY,
+                &(now - 3_600_000).to_string(),
+            )
+            .unwrap();
+        storage
+            .sessions()
+            .record_lifecycle(
+                &juggler_core::model::SessionId::new("s1"),
+                "ended: finished",
+            )
+            .unwrap();
+    }
+    let list = sink(&state);
+    state.notifier.local_hour_seen(Some(12), now);
+    super::super::runtime::start(&state);
+    let told = wait_for_notices(&state, 1);
+    assert_eq!(told.len(), 1, "{told:?}");
+    assert_eq!(told[0].2, "Your watch · while AI Juggler was closed");
+    let sent = wait_for_sent(&list, 1);
+    assert_eq!(sent.len(), 1, "{sent:?}");
+    assert!(
+        sent[0].body.ends_with("while AI Juggler was closed"),
+        "{sent:?}"
+    );
+    // The cursor moved on: a second start replays nothing.
+    let cursor: i64 = state
+        .storage
+        .lock()
+        .unwrap()
+        .app_settings()
+        .get(super::super::runtime::CURSOR_KEY)
+        .unwrap()
+        .unwrap()
+        .parse()
+        .unwrap();
+    assert!(cursor >= now);
+    assert!(
+        super::super::runtime::journal_since(&state.storage.lock().unwrap(), cursor).is_empty()
+    );
 }

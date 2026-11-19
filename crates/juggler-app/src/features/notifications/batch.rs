@@ -38,7 +38,7 @@ const PHRASES_SHOWN: usize = 2;
 
 /// One thing that may become (part of) a notification.
 #[derive(Clone, Debug, PartialEq, Eq)]
-#[allow(clippy::struct_excessive_bools)] // each mark is its own fact
+#[expect(clippy::struct_excessive_bools, reason = "each mark is its own fact")]
 pub struct Item {
     /// Told once per key.
     pub key: String,

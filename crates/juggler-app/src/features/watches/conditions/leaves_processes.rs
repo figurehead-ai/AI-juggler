@@ -28,6 +28,9 @@ impl ConditionRule for Rule {
     fn needs(&self) -> Observes {
         Observes::PROCESSES
     }
+    fn told_as(&self) -> Option<&'static str> {
+        Some("leftovers")
+    }
     fn words(&self) -> &'static CondWords {
         &words::LEAVES_PROCESSES
     }

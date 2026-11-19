@@ -88,6 +88,8 @@ pub struct FeedFactsInfo {
     pub need: Option<String>,
     /// The notice's own line, for a kind the window has no words for yet.
     pub line: Option<String>,
+    /// AJ-E3817: a watch's alert: what happened ("finished").
+    pub told: Option<String>,
 }
 
 /// One item of the feed, newest first.

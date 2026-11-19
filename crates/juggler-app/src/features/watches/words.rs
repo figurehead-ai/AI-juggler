@@ -40,6 +40,11 @@ pub struct CondWords {
     pub label_en: &'static str,
     /// The catalogue's label, German.
     pub label_de: &'static str,
+    /// AJ-E3817: what happened, said after the name in an alert ("api
+    /// finished"), English.
+    pub told_en: &'static str,
+    /// The same, German.
+    pub told_de: &'static str,
 }
 
 const fn p(one: &'static str, many: &'static str) -> Phrase {
@@ -54,6 +59,8 @@ pub const FINISHES: CondWords = CondWords {
     de_param: None,
     label_en: "Finishes",
     label_de: "Ist fertig",
+    told_en: "finished",
+    told_de: "ist fertig",
 };
 
 /// `ends`.
@@ -64,6 +71,8 @@ pub const ENDS: CondWords = CondWords {
     de_param: None,
     label_en: "Ends",
     label_de: "Endet",
+    told_en: "ended",
+    told_de: "ist beendet",
 };
 
 /// `asks_you`.
@@ -80,6 +89,8 @@ pub const ASKS_YOU: CondWords = CondWords {
     )),
     label_en: "Asks you",
     label_de: "Fragt dich",
+    told_en: "asks you",
+    told_de: "fragt dich etwas",
 };
 
 /// `fails`.
@@ -90,6 +101,8 @@ pub const FAILS: CondWords = CondWords {
     de_param: None,
     label_en: "Fails",
     label_de: "Schlägt fehl",
+    told_en: "failed",
+    told_de: "ist fehlgeschlagen",
 };
 
 /// `stuck`.
@@ -106,6 +119,8 @@ pub const STUCK: CondWords = CondWords {
     )),
     label_en: "Looks stuck",
     label_de: "Scheint festzuhängen",
+    told_en: "looks stuck",
+    told_de: "scheint festzuhängen",
 };
 
 /// `idle_for` (its parameter is required).
@@ -116,6 +131,8 @@ pub const IDLE_FOR: CondWords = CondWords {
     de_param: Some(p("{n} Minuten untätig ist", "{n} Minuten untätig sind")),
     label_en: "Is idle",
     label_de: "Ist untätig",
+    told_en: "has been idle",
+    told_de: "ist untätig",
 };
 
 /// `hits_limit`.
@@ -126,6 +143,8 @@ pub const HITS_LIMIT: CondWords = CondWords {
     de_param: None,
     label_en: "Hits a usage limit",
     label_de: "Erreicht ein Nutzungslimit",
+    told_en: "hit a usage limit",
+    told_de: "hat ein Nutzungslimit erreicht",
 };
 
 /// `runway_below` (its parameter is required).
@@ -139,6 +158,8 @@ pub const RUNWAY_BELOW: CondWords = CondWords {
     )),
     label_en: "Runs low",
     label_de: "Wird knapp",
+    told_en: "is running low on room",
+    told_de: "wird knapp",
 };
 
 /// `runway_resets`.
@@ -149,6 +170,8 @@ pub const RUNWAY_RESETS: CondWords = CondWords {
     de_param: None,
     label_en: "Has room again",
     label_de: "Hat wieder Spielraum",
+    told_en: "has room again",
+    told_de: "hat wieder Spielraum",
 };
 
 /// `leaves_processes`.
@@ -159,6 +182,8 @@ pub const LEAVES_PROCESSES: CondWords = CondWords {
     de_param: None,
     label_en: "Leaves processes running",
     label_de: "Lässt Prozesse laufen",
+    told_en: "left processes running",
+    told_de: "hat Prozesse laufen lassen",
 };
 
 /// `restarted`.
@@ -172,6 +197,8 @@ pub const RESTARTED: CondWords = CondWords {
     de_param: None,
     label_en: "Restarts after a crash",
     label_de: "Startet nach einem Absturz neu",
+    told_en: "was restarted after a crash",
+    told_de: "wurde nach einem Absturz neu gestartet",
 };
 
 /// `pool_message`.
@@ -185,6 +212,8 @@ pub const POOL_MESSAGE: CondWords = CondWords {
     )),
     label_en: "Gets a message",
     label_de: "Bekommt eine Nachricht",
+    told_en: "got a message",
+    told_de: "hat eine Nachricht bekommen",
 };
 
 /// `task_changes` (its parameter is required).
@@ -201,6 +230,8 @@ pub const TASK_CHANGES: CondWords = CondWords {
     )),
     label_en: "A task moves",
     label_de: "Eine Aufgabe wird verschoben",
+    told_en: "had a task moved",
+    told_de: "hat eine Aufgabe verschoben",
 };
 
 /// `commits`.
@@ -211,6 +242,8 @@ pub const COMMITS: CondWords = CondWords {
     de_param: None,
     label_en: "Gets a commit",
     label_de: "Bekommt einen Commit",
+    told_en: "got a commit",
+    told_de: "hat einen Commit bekommen",
 };
 
 /// `starts`.
@@ -221,6 +254,8 @@ pub const STARTS: CondWords = CondWords {
     de_param: None,
     label_en: "Starts a session",
     label_de: "Startet eine Sitzung",
+    told_en: "started a new session",
+    told_de: "hat eine neue Sitzung gestartet",
 };
 
 /// A task state, in words.

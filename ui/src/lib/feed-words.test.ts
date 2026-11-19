@@ -48,6 +48,8 @@ const CASES: [FeedItemInfo, string][] = [
   [item({ kind: "message", subject: "Export flow" }, { change: "question" }), "asked a question in Export flow"],
   [item({ kind: "message", subject: "Export flow" }, { change: "status" }), "posted where it is in Export flow"],
   [item({ kind: "worked", subject: "Plan the trip notes app" }), "worked on Plan the trip notes app"],
+  // AJ-E3817: a watch the user set, in the app's words from the typed watch.
+  [item({ kind: "watch", subject: "api" }, { told: "finished" }), "api finished · your watch"],
 ];
 
 describe("D-118 R10 — the feed's sentences", () => {

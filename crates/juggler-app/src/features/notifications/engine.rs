@@ -67,6 +67,9 @@ pub enum Target {
     ThisMac,
     /// AJ-E2501: an account, by id.
     Account(String),
+    /// AJ-E3817: the notification centre (a watch on a pool, a project or
+    /// every session: its notice there opens the thing).
+    Centre,
 }
 
 /// One notification due now.

@@ -50,6 +50,7 @@ pub const EARLIER_KINDS: &[(&str, &str)] = &[
     ("update", "update"),
     ("found", "found"),
     ("import", "import"),
+    ("watch", "watch"),
 ];
 
 /// The needs whose resolution is a quiet history line ("…no longer asks
@@ -291,7 +292,9 @@ fn notice_who(kind: &str, session: Option<&FeedSession>, data: &Data) -> (FeedAu
         return (author, data.facts.account.clone().unwrap_or_default());
     }
     let author = match session {
-        Some(session) if matches!(kind, "finished" | "answered") => session_author(session),
+        Some(session) if matches!(kind, "finished" | "answered" | "watch") => {
+            session_author(session)
+        }
         _ => juggler(),
     };
     (author, session.map(session_name).unwrap_or_default())
@@ -377,6 +380,7 @@ pub fn of_notice(row: &FeedNotice) -> Option<FeedItemInfo> {
     facts.version.clone_from(&data.facts.version);
     facts.meter = notice.meter;
     facts.line = Some(notice.title.clone());
+    facts.told.clone_from(&data.facts.told);
     facts.need = notice.needs.then(|| notice.kind.clone());
     out.facts = facts;
     out.target = data.target.clone();

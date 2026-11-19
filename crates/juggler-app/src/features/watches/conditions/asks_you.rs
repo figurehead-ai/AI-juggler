@@ -36,6 +36,9 @@ impl ConditionRule for Rule {
             required: false,
         })
     }
+    fn told_as(&self) -> Option<&'static str> {
+        Some("asks")
+    }
     fn words(&self) -> &'static CondWords {
         &words::ASKS_YOU
     }

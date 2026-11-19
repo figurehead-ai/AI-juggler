@@ -23,6 +23,9 @@ impl ConditionRule for Rule {
     fn needs(&self) -> Observes {
         Observes::RUNWAY
     }
+    fn told_as(&self) -> Option<&'static str> {
+        Some("reset")
+    }
     fn words(&self) -> &'static CondWords {
         &words::RUNWAY_RESETS
     }
