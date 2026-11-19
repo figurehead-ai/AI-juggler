@@ -11,7 +11,7 @@ import { useEffect, useRef, useState } from "react";
 
 /** How long the order may still follow what's read (needs, sessions)
  * after the cards first show, when you haven't moved yet. */
-export const SETTLE_MS = 1000;
+const SETTLE_MS = 1000;
 
 /** What you do that holds the order: any move on the screen. */
 const MOVES = ["pointerdown", "pointermove", "keydown", "wheel", "focusin"] as const;
