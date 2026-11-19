@@ -396,6 +396,7 @@
 | AJ-E3207 | New session: the usual choice made and said, one button, the rest a step away | E32-account-and-app.md | P0 | M | AJ-E3202 |
 | AJ-E3208 | Accounts and Apps, side by side: an Apps section on the Accounts screen | E32-account-and-app.md | P0 | M | AJ-E3202, AJ-E3204 |
 | AJ-E3209 | Restart a running app or profile, after a confirm | E32-account-and-app.md | P0 | S | AJ-E3208 |
+| AJ-E3210 | Each App on its own sign-in's Account when a Claude app profile and its CLI share a folder (F-rc3c-3) | E32-account-and-app.md | P1 | L | AJ-E3202 |
 | AJ-E3301 | The validation kit: scenario files, the reference model, the pairwise generator, timing and the walk sheet | E33-validated-by-use.md | P0 | L | — |
 | AJ-E3302 | Account and App validated | E33-validated-by-use.md | P0 | M | AJ-E3301, AJ-E3207 |
 | AJ-E3303 | Links validated | E33-validated-by-use.md | P0 | M | AJ-E3301, AJ-E3105 |
@@ -480,5 +481,5 @@
 | AJ-E3817 | Watch alerts through the existing notification path: quiet hours, consolidation, dismissal | E38-chat.md | P0 | M | AJ-E3814, AJ-E3712, AJ-E3819 |
 | AJ-E3818 | The harness for the digest (job e) and watch parsing (job f), on D-130's criteria | E38-chat.md | P0 | L | AJ-E3709, AJ-E3712, AJ-E3815 |
 | AJ-E3819 | Chat memory, short and long term, with context budgets (ADR-0037) | E38-chat.md | P0 | XL | AJ-E3804, AJ-E3805, AJ-E3808, AJ-E3815 |
-Total: 478 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
+Total: 479 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
 Status of every task at generation: TODO. The epic files are canonical; this catalog is an index, never edited to claim progress.
