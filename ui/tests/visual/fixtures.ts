@@ -98,7 +98,13 @@ const mk = (n: number, status: InstanceInfo["status"], label: string): InstanceI
   };
 };
 
+/** The clock `allStatuses` was written against (its times are T0 less a
+ * few minutes or hours): a spec that pins another clock sees them moved
+ * to it (`src/preview/fixtures.ts`). */
+export const FIXTURE_NOW = T0;
+
 export const allStatuses: FixtureSet = {
+  now_ms: T0,
   accounts: baseAccounts,
   profiles: baseProfiles,
   sessions: [
