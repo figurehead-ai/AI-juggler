@@ -22,7 +22,7 @@ fn helper(dir: &Path, available: &str) -> std::path::PathBuf {
     use std::os::unix::fs::PermissionsExt as _;
     let path = dir.join("helper");
     let script = format!(
-        "#!/bin/sh\necho '{{\"hello\":true,\"protocol\":1,\"available\":\"{available}\",\"context_size\":8192}}'\ncat > /dev/null\n"
+        "#!/bin/sh\necho '{{\"hello\":true,\"protocol\":2,\"available\":\"{available}\",\"context_size\":8192}}'\ncat > /dev/null\n"
     );
     std::fs::write(&path, script).unwrap();
     std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755)).unwrap();

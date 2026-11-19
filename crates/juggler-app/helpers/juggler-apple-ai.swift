@@ -3,24 +3,29 @@
 // without it, the engine says "helper missing" and every AI job keeps its plain path.
 //
 // Rules this file keeps (a source test in features/ai/engines/apple checks them):
-// - imports Foundation and FoundationModels only; no network, no files, no other process;
+// - imports Foundation, FoundationModels and Network only; no network traffic, no files, no other process.
+//   Network is for NWPathMonitor alone: reading whether the link is expensive or constrained opens no
+//   connection, so the App Sandbox with no network entitlement is enough (checked by hand, AJ-E3813);
 // - SystemLanguageModel.default only (the on-device model), never the cloud model;
 // - guided output through DynamicGenerationSchema (the Command Line Tools ship no @Generable macro plugin);
 // - temperature 0, greedy; one retry with the permissive guardrails on a refusal (ADR-0033 §4.1);
 // - utility quality of service; exits when stdin closes, and after 60 s with nothing to do.
 //
-// Protocol 1: one JSON object per line each way.
-//   out first: {"hello":true,"protocol":1,"available":<state>,"context_size":<int>}
+// Protocol 2: one JSON object per line each way.
+//   out first: {"hello":true,"protocol":2,"available":<state>,"context_size":<int>}
 //     state: available | device_not_eligible | apple_intelligence_not_enabled | model_not_ready | not_this_os | unknown
 //   in:  {"id":<int>,"op":"respond","instructions":<text>,"prompt":<text>,"max_tokens":<int>,"schema":<shape>?}
 //   out: {"id":<int>,"text":<text>,"finish":"stop"|"length","error":null|"refused"|"too_long"|"unavailable"|"failed"}
+//   in:  {"id":<int>,"op":"network"}   (any macOS: the network path, for the model download's pause, AJ-E3813)
+//   out: {"id":<int>,"satisfied":<bool>,"expensive":<bool>,"constrained":<bool>,"error":null|"unknown"}
 //   in:  {"op":"quit"}
 // shape: {"type":"object","name","description"?,"properties":[{"name","description"?,"schema":<shape>}]}, or "string",
 //   "bool", {"type":"integer","min","max"}, {"type":"enum","name","values"}, {"type":"array","items","min"?,"max"?}.
 import Foundation
 import FoundationModels
+import Network
 
-let protocolVersion = 1
+let protocolVersion = 2
 let idleSeconds = 60.0
 
 func emit(_ object: [String: Any]) {
@@ -142,10 +147,45 @@ func answer(_ request: [String: Any]) async -> [String: Any] {
     return reply
 }
 
-@available(macOS 26.0, *)
+/// The network path as the system sees it now: one reading, then the monitor stops.
+final class PathBox: @unchecked Sendable {
+    private let lock = NSLock()
+    private var path: NWPath?
+    func set(_ next: NWPath) { lock.lock(); if path == nil { path = next }; lock.unlock() }
+    func get() -> NWPath? { lock.lock(); defer { lock.unlock() }; return path }
+}
+
+func network(_ request: [String: Any]) -> [String: Any] {
+    var reply: [String: Any] = ["id": request["id"] ?? NSNull(), "satisfied": false, "expensive": false,
+                                "constrained": false, "error": "unknown"]
+    let monitor = NWPathMonitor()
+    let box = PathBox()
+    let seen = DispatchSemaphore(value: 0)
+    monitor.pathUpdateHandler = { path in
+        box.set(path)
+        seen.signal()
+    }
+    monitor.start(queue: DispatchQueue(label: "path"))
+    let answered = seen.wait(timeout: .now() + 2) == .success
+    monitor.cancel()
+    if answered, let path = box.get() {
+        reply["satisfied"] = path.status == .satisfied
+        reply["expensive"] = path.isExpensive
+        reply["constrained"] = path.isConstrained
+        reply["error"] = NSNull()
+    }
+    return reply
+}
+
 func serve() async {
-    let model = SystemLanguageModel.default
-    emit(["hello": true, "protocol": protocolVersion, "available": state(model.availability), "context_size": model.contextSize])
+    var available = "not_this_os"
+    var contextSize = 0
+    if #available(macOS 26.0, *) {
+        let model = SystemLanguageModel.default
+        available = state(model.availability)
+        contextSize = model.contextSize
+    }
+    emit(["hello": true, "protocol": protocolVersion, "available": available, "context_size": contextSize])
     let idle = IdleExit()
     idle.arm()
     while let line = readLine() {
@@ -154,9 +194,17 @@ func serve() async {
         switch request["op"] as? String {
         case "quit":
             return
+        case "network":
+            idle.hold()
+            emit(network(request))
+            idle.arm()
         case "respond":
             idle.hold()
-            emit(await answer(request))
+            if #available(macOS 26.0, *) {
+                emit(await answer(request))
+            } else {
+                emit(["id": request["id"] ?? NSNull(), "text": "", "finish": "stop", "error": "unavailable"])
+            }
             idle.arm()
         default:
             emit(["id": request["id"] ?? NSNull(), "text": "", "finish": "stop", "error": "failed"])
@@ -168,10 +216,6 @@ func serve() async {
 struct Helper {
     static func main() async {
         pthread_set_qos_class_self_np(QOS_CLASS_UTILITY, 0)
-        if #available(macOS 26.0, *) {
-            await serve()
-        } else {
-            emit(["hello": true, "protocol": protocolVersion, "available": "not_this_os", "context_size": 0])
-        }
+        await serve()
     }
 }

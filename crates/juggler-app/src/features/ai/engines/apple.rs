@@ -14,6 +14,10 @@
 //!
 //! It serves the `models` section's `apple_builtin` entry and nothing
 //! else: no download, `Basic` tier, look-ups through guided steps.
+//!
+//! The helper also reads the network path (`NWPathMonitor`, a Swift-only
+//! API, ADR-0033 §10) for the model download's pause: [`network_path`],
+//! on any macOS, from a helper of its own that goes when it answered.
 
 use std::path::PathBuf;
 use std::sync::Mutex;
@@ -36,8 +40,47 @@ pub const PROGRAM: &str = "juggler-apple-ai";
 /// as anything else.
 pub const IDENTIFIER: &str = "ai.figurehead.juggler.apple-ai";
 
-/// The protocol version this build speaks.
-pub const PROTOCOL: u64 = 1;
+/// The protocol version this build speaks (2: the `network` request).
+pub const PROTOCOL: u64 = 2;
+
+/// How long a network-path reading may take, the helper's start included.
+const NETWORK_WAIT: Duration = Duration::from_secs(5);
+
+/// The network path as the system's monitor sees it now.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct NetworkPath {
+    /// A path is up.
+    pub satisfied: bool,
+    /// It costs money or data: a hotspot, cellular.
+    pub expensive: bool,
+    /// Low Data Mode is on for it.
+    pub constrained: bool,
+}
+
+/// The network path, read by a short-lived helper at `program` (the
+/// app's own when `None`); `None` when there is no helper, it isn't on
+/// this protocol, or it couldn't tell.
+#[must_use]
+pub fn network_path(program: Option<PathBuf>) -> Option<NetworkPath> {
+    let engine = Apple::with_program(program);
+    let program = engine.program()?;
+    let mut helper = Helper::start(&program, HELLO_WAIT).ok()?;
+    if helper.hello["protocol"].as_u64() != Some(PROTOCOL) {
+        return None;
+    }
+    let stop = Stop::at(Instant::now() + NETWORK_WAIT);
+    let answer = helper
+        .ask(&serde_json::json!({ "id": 1, "op": "network" }), &stop)
+        .ok()?;
+    if answer["id"].as_u64() != Some(1) || !answer["error"].is_null() {
+        return None;
+    }
+    Some(NetworkPath {
+        satisfied: answer["satisfied"].as_bool()?,
+        expensive: answer["expensive"].as_bool()?,
+        constrained: answer["constrained"].as_bool()?,
+    })
+}
 
 /// How long a starting helper may take to say hello.
 const HELLO_WAIT: Duration = Duration::from_secs(5);

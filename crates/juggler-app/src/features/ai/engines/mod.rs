@@ -116,6 +116,18 @@ impl Registry {
     }
 }
 
+/// The network path for the model download's pause (D-52): the Apple
+/// helper's reading on macOS; `None` on other systems, or when it can't
+/// tell.
+#[must_use]
+pub fn network_path() -> Option<apple::NetworkPath> {
+    if cfg!(target_os = "macos") {
+        apple::network_path(None)
+    } else {
+        None
+    }
+}
+
 impl Default for Registry {
     fn default() -> Self {
         Self::new()

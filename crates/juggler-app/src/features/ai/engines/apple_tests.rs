@@ -123,7 +123,7 @@ fn fake(dir: &Path, name: &str, hello: &str, reply: &str, pause: u32) -> PathBuf
 }
 
 fn hello(available: &str) -> String {
-    format!(r#"{{"hello":true,"protocol":1,"available":"{available}","context_size":8192}}"#)
+    format!(r#"{{"hello":true,"protocol":2,"available":"{available}","context_size":8192}}"#)
 }
 
 const OK: &str = r#"{"id":ID,"text":"fine","finish":"stop","error":null}"#;
@@ -298,16 +298,17 @@ fn a_missing_helper_says_so() {
     );
 }
 
-/// ADR-0033 §4.1: the helper may import only Foundation and
-/// FoundationModels, uses the on-device model only, and has no network,
-/// file or process call.
+/// ADR-0033 §4.1: the helper may import only Foundation,
+/// FoundationModels and Network (for `NWPathMonitor` alone: AJ-E3813's
+/// pause on a metered link), uses the on-device model only, and opens no
+/// connection, file or process.
 #[test]
 fn the_apple_helper_never_names_private_cloud_compute() {
     let imports: Vec<&str> = SOURCE
         .lines()
         .filter_map(|line| line.trim().strip_prefix("import "))
         .collect();
-    assert_eq!(imports, ["Foundation", "FoundationModels"]);
+    assert_eq!(imports, ["Foundation", "FoundationModels", "Network"]);
     let code: String = SOURCE
         .lines()
         .filter(|line| !line.trim_start().starts_with("//"))
@@ -318,6 +319,10 @@ fn the_apple_helper_never_names_private_cloud_compute() {
         "URLSession",
         "NWConnection",
         "NWListener",
+        "NWBrowser",
+        "NWEndpoint",
+        "NWParameters",
+        "NWProtocol",
         "FileManager",
         "FileHandle(forWriting",
         "Process(",
@@ -327,6 +332,36 @@ fn the_apple_helper_never_names_private_cloud_compute() {
     }
     assert!(code.contains("SystemLanguageModel.default"));
     assert!(code.contains("temperature: 0"));
+}
+
+#[cfg(unix)]
+#[test]
+fn the_network_path_comes_from_the_helper_and_unknown_is_none() {
+    use super::{NetworkPath, network_path};
+    let dir = tempfile::tempdir().unwrap();
+    let metered = r#"{"id":ID,"satisfied":true,"expensive":true,"constrained":false,"error":null}"#;
+    let path = fake(dir.path(), "net", &hello("not_this_os"), metered, 0);
+    assert_eq!(
+        network_path(Some(path)),
+        Some(NetworkPath {
+            satisfied: true,
+            expensive: true,
+            constrained: false,
+        })
+    );
+    let cannot =
+        r#"{"id":ID,"satisfied":false,"expensive":false,"constrained":false,"error":"unknown"}"#;
+    let path = fake(dir.path(), "cannot", &hello("available"), cannot, 0);
+    assert_eq!(network_path(Some(path)), None);
+    let old = r#"{"hello":true,"protocol":1,"available":"available","context_size":8192}"#;
+    let path = fake(dir.path(), "old", old, metered, 0);
+    assert_eq!(network_path(Some(path)), None, "an older helper can't tell");
+    assert_eq!(
+        network_path(Some(PathBuf::from("/nonexistent/juggler-apple-ai"))),
+        None
+    );
+    // The helper reads the path only; the source opens no connection.
+    assert!(SOURCE.contains("NWPathMonitor()"));
 }
 
 /// The real helper on this Mac (run by hand after
