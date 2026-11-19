@@ -12,7 +12,7 @@ use crate::state::AppState;
 /// Where the repository's files and its private report live.
 const REPOSITORY: &str = "https://github.com/figurehead-ai/AI-juggler";
 /// The user guide's pages the app links to (docs/guide).
-const GUIDE_PAGES: &[&str] = &["switching", "accounts", "first-run", "pools"];
+const GUIDE_PAGES: &[&str] = &["switching", "accounts", "first-run", "pools", "ai-models"];
 
 /// The claims the page shows, as the app was built with them.
 const CLAIMS: &str = include_str!("../../../../../ui/src/lib/trust-claims.json");
