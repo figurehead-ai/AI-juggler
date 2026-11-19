@@ -1374,6 +1374,73 @@ fn the_badge_and_the_menu_bar_item_follow_every_change() {
     );
 }
 
+/// The views, with the first telling held in the window until let go.
+struct HeldFirst {
+    told: Mutex<Vec<u32>>,
+    entered: Mutex<Option<std::sync::mpsc::Sender<()>>>,
+    release: Mutex<Option<std::sync::mpsc::Receiver<()>>>,
+}
+
+impl views::Surface for HeldFirst {
+    fn tell_window(&self, summary: centre::NoticeSummaryInfo) {
+        let held = self.entered.lock().unwrap().take();
+        if let Some(entered) = held {
+            let release = self.release.lock().unwrap().take().unwrap();
+            entered.send(()).unwrap();
+            release.recv().unwrap();
+        }
+        self.told.lock().unwrap().push(summary.count);
+    }
+
+    fn draw(&self, _count: u32, _menu: tray::TrayMenu) {}
+}
+
+/// NY1 (the 0.4.6 rc3a walk): two changes told at once from two threads
+/// (an archive's own, the 5 s tick's or the alert pass's) reach the views
+/// in the order they were worked out. The older one landing last stayed
+/// until the next change: the bell at 1 over "You're all caught up".
+#[test]
+fn two_changes_told_at_once_reach_the_views_in_the_order_they_were_worked_out() {
+    use std::sync::mpsc;
+    use std::time::Duration;
+    let dir = tempfile::tempdir().unwrap();
+    let state = app_state(dir.path());
+    let now = Timestamp::now().millis();
+    centre::sync_needs(&state.storage.lock().unwrap(), &[asks("s-x")], now).unwrap();
+    let (entered, in_window) = mpsc::channel();
+    let (let_go, release) = mpsc::channel();
+    let held = Arc::new(HeldFirst {
+        told: Mutex::new(Vec::new()),
+        entered: Mutex::new(Some(entered)),
+        release: Mutex::new(Some(release)),
+    });
+    let tell = |done: Option<mpsc::Sender<()>>| {
+        let (state, held) = (Arc::clone(&state), Arc::clone(&held));
+        std::thread::spawn(move || {
+            views::refresh_on(held.as_ref(), &state);
+            if let Some(done) = done {
+                let _ = done.send(());
+            }
+        })
+    };
+    // The tick's telling: it worked out one need, and is telling it.
+    let first = tell(None);
+    in_window.recv_timeout(Duration::from_secs(10)).unwrap();
+    // Meanwhile the archive: its need resolved, and told.
+    centre::sync_needs(&state.storage.lock().unwrap(), &[], now + 1).unwrap();
+    let (done, finished) = mpsc::channel();
+    let second = tell(Some(done));
+    // Told one at a time, the archive's waits for the tick's (it used to
+    // land first, the tick's older one after it).
+    let _ = finished.recv_timeout(Duration::from_millis(500));
+    let_go.send(()).unwrap();
+    first.join().unwrap();
+    second.join().unwrap();
+    let told = held.told.lock().unwrap().clone();
+    assert_eq!(told, [1, 0], "the newest last, where the model is");
+    assert_eq!(views::summary_now(&state).count, 0);
+}
+
 /// AJ-E2502 R4: the badge goes through the platform seam onto the main
 /// window's icon (on macOS the Dock's); with no window there is nothing to
 /// carry it.
