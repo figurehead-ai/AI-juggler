@@ -28,7 +28,7 @@ offered: boolean,
  */
 size_bytes: number | null, 
 /**
- * Its licence's name and text.
+ * Its licence's name.
  */
 licence_name: string | null, 
 /**

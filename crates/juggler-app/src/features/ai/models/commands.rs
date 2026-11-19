@@ -136,7 +136,14 @@ pub async fn ai_models_catalog(state: tauri::State<'_, Arc<AppState>>) -> AppRes
         let offered = super::offered(&listing);
         let installed =
             super::installed_entries(&store::shared(&state.data_dir).installed(), &listing);
-        let mac = crate::features::ai::service::mac_now(state);
+        // Free disk read now, not at the engines' last look: Check again
+        // after freeing space shows it at once.
+        let mac = crate::features::ai::service::mac_now(state).map(|mut mac| {
+            if let Ok(free) = juggler_platform::room::free_space(&state.data_dir) {
+                mac.free_disk_bytes = free;
+            }
+            mac
+        });
         let usable = crate::features::ai::service::usable(&offered, &installed);
         let recommendation = mac
             .as_ref()
@@ -151,6 +158,47 @@ pub async fn ai_models_catalog(state: tauri::State<'_, Arc<AppState>>) -> AppRes
         ))
     })
     .await
+}
+
+/// A System Settings page the Models screen links to.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Deserialize, ts_rs::TS)]
+#[serde(rename_all = "snake_case")]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
+pub enum SystemPage {
+    /// General › Storage: to free disk for a download.
+    Storage,
+    /// Apple Intelligence & Siri: to turn Apple's model on.
+    AppleIntelligence,
+}
+
+impl SystemPage {
+    /// Its fixed address (never a caller's URL).
+    #[must_use]
+    pub const fn url(self) -> &'static str {
+        match self {
+            Self::Storage => "x-apple.systempreferences:com.apple.settings.Storage",
+            Self::AppleIntelligence => {
+                "x-apple.systempreferences:com.apple.Siri-Settings.extension"
+            }
+        }
+    }
+}
+
+/// Opens a System Settings page the Models screen names: Storage (not
+/// enough free disk) or Apple Intelligence (its tip).
+///
+/// # Errors
+///
+/// The page can't be opened.
+#[tauri::command]
+pub async fn ai_open_system_page(app: tauri::AppHandle, page: SystemPage) -> AppResult<()> {
+    use tauri_plugin_opener::OpenerExt as _;
+    app.opener()
+        .open_url(page.url(), None::<&str>)
+        .map_err(|e| AppError::Io {
+            context: "open System Settings",
+            message: e.to_string(),
+        })
 }
 
 /// The user's Download click on `model_id`: starts it, or says why not

@@ -221,6 +221,7 @@ import type { SwitchPoolLineInfo } from "./SwitchPoolLineInfo";
 import type { SwitchSpaceInfo } from "./SwitchSpaceInfo";
 import type { SwitchTargetInfo } from "./SwitchTargetInfo";
 import type { SystemNotificationsInfo } from "./SystemNotificationsInfo";
+import type { SystemPage } from "./SystemPage";
 import type { TaskBoardRow } from "./TaskBoardRow";
 import type { TaskCounts } from "./TaskCounts";
 import type { TaskDetail } from "./TaskDetail";
@@ -323,6 +324,8 @@ export interface Commands {
   ai_models_catalog: { args: Record<string, never>; result: ModelsCatalog };
   /** Read features::ai::models::commands::ai_models_installed */
   ai_models_installed: { args: Record<string, never>; result: ModelsInfo };
+  /** Write features::ai::models::commands::ai_open_system_page */
+  ai_open_system_page: { args: { page: SystemPage }; result: void };
   /** Write features::alerts::commands::alerts_tick */
   alerts_tick: { args: { localHour?: number | null }; result: AlertEventInfo[] };
   /** Write features::app::diagnostics::app_bug_report_compose */
