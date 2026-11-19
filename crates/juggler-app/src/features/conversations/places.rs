@@ -19,22 +19,59 @@ use super::procs::{Table, ancestors};
 /// The terminals and editors a session can run in (data, not branches).
 const BUILTIN: &str = include_str!("hosts.json");
 
-/// Every host app known: the tools' own, then the terminals and editors.
+/// Every host app known: the tools' own, then the terminals and editors;
+/// and AI Juggler's own process, where every chain it is on ends.
 #[derive(Clone, Debug, Default)]
 pub struct HostRegistry {
     apps: Vec<HostApp>,
+    /// F-rc3g-2: AI Juggler's own process, by its pid and start time
+    /// ([`own_process`]). `None`: no chain ends early.
+    own: Option<(u32, Option<i64>)>,
+}
+
+/// This process (AI Juggler's own): its pid and its start time, read once.
+#[must_use]
+pub fn own_process() -> (u32, Option<i64>) {
+    static OWN: std::sync::OnceLock<(u32, Option<i64>)> = std::sync::OnceLock::new();
+    *OWN.get_or_init(|| {
+        let pid = std::process::id();
+        let start = super::procs::some(&[pid])
+            .remove(&pid)
+            .and_then(|process| process.start);
+        (pid, start)
+    })
 }
 
 impl HostRegistry {
     /// The tools' apps (`tool_apps`, from the adapters) and the built-in
-    /// terminals and editors.
+    /// terminals and editors; this process is AI Juggler's own.
     #[must_use]
     pub fn new(tool_apps: Vec<HostApp>) -> Self {
         let mut apps = tool_apps;
         // The list ships inside the app; a broken one is a build bug the
         // test below catches, never a crash here.
         apps.extend(serde_json::from_str::<Vec<HostApp>>(BUILTIN).unwrap_or_default());
-        Self { apps }
+        Self {
+            apps,
+            own: Some(own_process()),
+        }
+    }
+
+    /// The same, with AI Juggler's own process `pid`, started at `start`
+    /// (the tests' seam: a scripted table's AI Juggler); `None`, none.
+    #[must_use]
+    pub fn with_own(mut self, own: Option<(u32, i64)>) -> Self {
+        self.own = own.map(|(pid, start)| (pid, Some(start)));
+        self
+    }
+
+    /// Whether `process` is AI Juggler's own: its pid, started then (a
+    /// start not read: the pid alone, which no other process holds while
+    /// this one runs).
+    fn is_own(&self, process: &super::procs::Proc) -> bool {
+        self.own.is_some_and(|(pid, start)| {
+            process.pid == pid && juggler_adapter::live::same_start(start, process.start)
+        })
     }
 
     /// The registry over every adapter in `registry`.
@@ -125,9 +162,23 @@ pub fn arg_value(args: &[String], flag: &str) -> Option<String> {
 /// Claude Code's Codex plugin) runs in the app that runs that tool, never
 /// in a place named after the tool. With no known app, the outermost
 /// bundle is the app the user sees (a terminal, not a tool inside it).
+///
+/// F-rc3g-2: the chain ends at AI Juggler's own process (by its pid and
+/// start time, the registry's). A session AI Juggler runs (one it drives,
+/// its terminal's shell) runs in AI Juggler: what is above AI Juggler is
+/// only where AI Juggler itself was started from. The 0.4.6 rc3g walk
+/// started it from a shell in a Claude app profile's Code tab; the Claude
+/// app, a known app, won over AI Juggler's own unknown bundle, and a
+/// session it drove read "Window: Claude app · (that profile)" (Go to it
+/// would have brought that window forward, and the profile's App recorded
+/// the conversation as its own) until the shell ended and launchd took AI
+/// Juggler over.
 #[must_use]
 pub fn host_of(pid: u32, table: &Table, hosts: &HostRegistry, home: &Path) -> Option<Host> {
-    let chain = ancestors(table, pid);
+    let mut chain = ancestors(table, pid);
+    if let Some(at) = chain.iter().position(|process| hosts.is_own(process)) {
+        chain.truncate(at + 1);
+    }
     let bundled: Vec<(usize, PathBuf, String)> = chain
         .iter()
         .enumerate()
@@ -436,6 +487,101 @@ mod tests {
             "the outermost bundle, when none is known"
         );
         assert_eq!(unknown.pid, 20);
+    }
+
+    /// F-rc3g-2: AI Juggler started from a shell in a Claude app profile's
+    /// Code tab (the rc3g walk's restart). What it runs is in AI Juggler,
+    /// never in that profile's window: a session it drives, its terminal's
+    /// shell, and a session of a Claude app profile it started itself (in
+    /// that profile, below AI Juggler). A build in no bundle names no app.
+    #[test]
+    fn what_ai_juggler_runs_is_in_ai_juggler_whatever_started_it() {
+        let home = Path::new("/Users/you");
+        let profile = "/Users/you/Library/Application Support/ClaudeProfiles/b-work";
+        let code_tab = format!("{profile}/claude-code/2.1/abc/claude.app/Contents/MacOS/claude");
+        let ours = "/Users/you/Applications/AI Juggler Dev.app/Contents/MacOS/juggler-app";
+        let other = "/Users/you/Library/Application Support/ClaudeProfiles/b-other";
+        let table: Table = [
+            proc(1, 0, "/sbin/launchd", &[]),
+            proc(
+                10,
+                1,
+                CLAUDE_APP,
+                &[CLAUDE_APP, &format!("--user-data-dir={profile}")],
+            ),
+            proc(
+                11,
+                10,
+                "/Applications/Claude.app/Contents/Helpers/disclaimer",
+                &[],
+            ),
+            proc(12, 11, &code_tab, &["claude"]),
+            proc(13, 12, "/bin/zsh", &["/bin/zsh", "-c", "lab_env.sh"]),
+            // AI Juggler, the shell's child until the shell ends.
+            proc(70, 13, ours, &[ours]),
+            // A session it drives, and one in its terminal.
+            proc(
+                71,
+                70,
+                "/Users/you/.local/bin/claude",
+                &["claude", "-p", "--resume", "c-1"],
+            ),
+            proc(72, 70, "/bin/zsh", &["-zsh"]),
+            proc(73, 72, "/Users/you/.local/bin/claude", &["claude"]),
+            // A Claude app profile it started itself, and a session there.
+            proc(
+                80,
+                70,
+                CLAUDE_APP,
+                &[CLAUDE_APP, &format!("--user-data-dir={other}")],
+            ),
+            proc(
+                81,
+                80,
+                "/Applications/Claude.app/Contents/Helpers/disclaimer",
+                &[],
+            ),
+            proc(
+                82,
+                81,
+                &format!("{other}/claude-code/2.1/abc/claude.app/Contents/MacOS/claude"),
+                &["claude"],
+            ),
+        ]
+        .into_iter()
+        .collect();
+        let registry = hosts().with_own(Some((70, 700)));
+        for session in [71, 73] {
+            let host = host_of(session, &table, &registry, home).unwrap();
+            assert_eq!(
+                (host.app_id.as_deref(), host.name.as_str(), host.pid),
+                (None, "AI Juggler Dev", 70),
+                "{session}: in AI Juggler, not in the Claude app above it"
+            );
+            assert_eq!((host.instance, host.instance_dir), (None, None));
+        }
+        let started = host_of(82, &table, &registry, home).unwrap();
+        assert_eq!(
+            (started.app_id.as_deref(), started.pid),
+            (Some("claude-app"), 80)
+        );
+        assert_eq!(started.instance.as_deref(), Some("b-other"));
+        // The Code tab's own session is still that profile's.
+        let tab = host_of(13, &table, &registry, home).unwrap();
+        assert_eq!((tab.pid, tab.instance.as_deref()), (10, Some("b-work")));
+        // A build in no bundle (a dev run): no app, never the one above.
+        let mut bare = table.clone();
+        bare.insert(
+            70,
+            proc(70, 13, "/Users/you/target/debug/juggler-app", &[]).1,
+        );
+        assert_eq!(host_of(71, &bare, &registry, home), None);
+        // Without the cut (no own process, or another process on its pid),
+        // the old answer: the Claude app profile that started AI Juggler.
+        for registry in [hosts().with_own(None), hosts().with_own(Some((70, 9_000)))] {
+            let before = host_of(71, &table, &registry, home).unwrap();
+            assert_eq!(before.instance.as_deref(), Some("b-work"));
+        }
     }
 
     #[test]
