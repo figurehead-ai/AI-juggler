@@ -3610,3 +3610,12 @@ The two open questions in ADR-0035 (hosting; the default on) go to the maintaine
   - **The Models area lists all six tested models:** Apple's on-device model, Qwen3-1.7B, Nemotron 3 Nano 4B, Granite 4.1 3B, Qwen3-4B-Instruct-2507 and Gemma 4 E2B. Each shows its per-job verdicts from round 3, and the recommendation per Mac comes from those results. The shipped Qwen3-4B entry points at a GGUF we convert ourselves from the official weights, never the third-party test file.
   - **After the final table,** every downloaded test model and the probe build are deleted from this Mac. The pinned manifest (source, revision, SHA-256) stays in the repo as the source for the remote-config `models` section.
 - **Qwen3-4B (2026-11-19, the maintainer's answer "Skip it for now"):** the Models area offers the five models with official downloads: Apple's on-device model, Qwen3-1.7B, Granite 4.1 3B, Nemotron 3 Nano 4B and Gemma 4 E2B. Qwen3-4B isn't offered, so there's no self-hosted model storage and no conversion download. It can be added later if users ask, through ADR-0035 §11's design.
+- **Local model engine (2026-11-19, the maintainer: "Yes, add it"):** `llama-cpp-2` (MIT, wraps llama.cpp with Metal) becomes an app dependency, run only in an out-of-process helper (ADR-0033 §4.2), so the downloaded models can serve the Beta jobs on Macs without Apple Intelligence.
+- **The coordinating session's calls, 2026-11-19:**
+  1. **Forward-merge release/0.4.6 into release/0.5 now,** at a commit the 0.4.6 session names as quiet, and again after each later 0.4.6 batch. That brings in the D-126 kit and V53. The merge is done on a still 0.5 tree with full local gates and no push.
+  2. **Model downloads use macOS low-priority disk I/O** (`setiopolicy_np`) through one audited `unsafe` carve-out in juggler-platform: a SAFETY comment, a test, and no other unsafe in the crate.
+  3. **Priya persona (R4) findings for 0.4.6 rc3b:**
+     - the project page's Agents card shows "Kept apart: no · Keep it apart…" in plain words;
+     - its "on their own: Work together" line leads with what's true of *this project*, for example "Agents here may message each other (Work together)".
+
+     Tying a project to its client's accounts, flagging off-account sessions and audit export is a feature for the maintainer to decide.
