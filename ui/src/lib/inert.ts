@@ -49,17 +49,29 @@ export function besides(open: Element): Element[] {
   return out;
 }
 
-/** Makes everything but `ref`'s element inert while `on`.
+/** Everything on the page but `kept` and what holds them: the elements
+ * beside each, and beside each of their ancestors, that hold none. */
+function besidesAll(kept: readonly Element[]): Element[] {
+  const out = new Set<Element>();
+  for (const one of kept) for (const other of besides(one)) out.add(other);
+  return [...out].filter((other) => !kept.some((one) => other.contains(one)));
+}
+
+/** Makes everything but `ref`'s element inert while `on`; `keep`, the
+ * control that opened it, stays live too, so pressing it again closes
+ * it (F-rc3g-6, the 0.4.6 rc3g walk: with the bell's panel open, a
+ * press on the bell found "nothing to press there").
  *
  * Its opener (what had focus as it opened) gets focus back when it closes
  * if focus was left nowhere: a close that hands focus back in the same
  * turn (Escape: `setOpen(false); button.focus()`) does so while the
  * opener is still inert, and an inert element takes no focus, so focus
  * fell to the page (0.4.6 RC, the legend's "?" and six more). */
-export function useInertOutside(ref: RefObject<HTMLElement | null>, on = true): void {
+export function useInertOutside(ref: RefObject<HTMLElement | null>, on = true, keep?: RefObject<HTMLElement | null>): void {
   useLayoutEffect(() => {
     const open = ref.current;
-    const others = on && open ? besides(open).filter((one) => !one.contains(open)) : [];
+    const kept = keep?.current;
+    const others = on && open ? besidesAll(kept ? [open, kept] : [open]) : [];
     const focused = document.activeElement;
     const opener = others.length > 0 && focused instanceof HTMLElement && focused !== document.body && !open?.contains(focused) ? focused : null;
     for (const one of others) hold(one);
@@ -68,7 +80,7 @@ export function useInertOutside(ref: RefObject<HTMLElement | null>, on = true): 
       const now = document.activeElement;
       if (opener?.isConnected && (now === null || now === document.body || (open?.contains(now) ?? false))) opener.focus({ preventScroll: true });
     };
-  }, [ref, on]);
+  }, [ref, on, keep]);
 }
 
 /** The topmost modal dialog shown now: the last `[aria-modal="true"]` in

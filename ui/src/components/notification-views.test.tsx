@@ -74,7 +74,9 @@ describe("AJ-E2503 R1 — the centre is a dialog: focus in, Tab inside, focus ba
     bell.focus();
     fireEvent.click(bell);
     const dialog = await screen.findByRole("dialog", { name: "Notifications" });
-    expect(dialog.getAttribute("aria-modal")).toBe("true");
+    // F-rc3g-6: not aria-modal, so the bell stays pressable (the page
+    // under it is inert: bell-above-panels.test.tsx).
+    expect(dialog.hasAttribute("aria-modal")).toBe(false);
     await waitFor(() => expect(document.activeElement).toBe(dialog));
     await screen.findByTestId("notice-primary");
     const controls = Array.from(dialog.querySelectorAll<HTMLElement>("button:not(:disabled)"));
