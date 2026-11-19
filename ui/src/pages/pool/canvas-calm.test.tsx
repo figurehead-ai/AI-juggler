@@ -163,6 +163,14 @@ describe("a team that hasn't written yet keeps its shape (the rc3a walk: the car
     view.rerender(<CanvasEdges edges={edges} points={points} names={names} selected={null} pulses={new Map()} reducedMotion scale={1} lead={null} onSelect={() => {}} />);
     expect(view.queryAllByTestId("canvas-tie")).toEqual([]);
   });
+
+  it("no tie that would run behind another card to the row under it", () => {
+    // The lead, a full row of three under it (as the tidy layout packs
+    // them), and one more under that row: no curve reaches it clear.
+    const points = new Map<string, Point>([["lead", { x: 0, y: 0 }], ["b1", { x: -240, y: 260 }], ["b2", { x: 0, y: 260 }], ["b3", { x: 240, y: 260 }], ["c", { x: 0, y: 520 }]]);
+    const view = render(<CanvasEdges edges={[]} points={points} names={new Map()} selected={null} pulses={new Map()} reducedMotion scale={1} lead="lead" onSelect={() => {}} />);
+    expect(view.getAllByTestId("canvas-tie").map((tie) => tie.getAttribute("data-tie"))).toEqual(["lead>b1", "lead>b2", "lead>b3"]);
+  });
 });
 
 /** The gallery's Checkout team: the lead and five members, the lines

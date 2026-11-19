@@ -202,7 +202,7 @@ const DETOURS = [90, 140, 190, 250, 320];
 
 /** Whether a curve runs through any of these boxes (by their corners),
  * with a little air around each. */
-function crosses(start: Point, control: Point, end: Point, boxes: readonly Point[]): boolean {
+export function crosses(start: Point, control: Point, end: Point, boxes: readonly Point[]): boolean {
   for (let step = 1; step < 24; step++) {
     const at = curvePoint(start, control, end, step / 24);
     if (boxes.some((box) => at.x > box.x - 10 && at.x < box.x + NODE_W + 10 && at.y > box.y - 10 && at.y < box.y + NODE_H + 10)) return true;

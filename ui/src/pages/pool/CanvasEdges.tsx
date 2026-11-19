@@ -22,6 +22,8 @@
  * its lead to each member with no line of its own (the rc3a walk: the
  * setup canvas drew the lead's lines, and they went the moment sessions
  * joined, leaving the cards afloat; the mock's running view has them).
+ * Only a tie that reaches its member clear of every other card: one run
+ * behind a row of cards to the row under it read as clutter, not shape.
  */
 import { memo, useMemo, useState, type JSX } from "react";
 
@@ -29,7 +31,7 @@ import { errorText } from "../../lib/bridge";
 import { messagesAnswer, messagesDeliver } from "../../lib/ipc/messages";
 import type { CanvasEdgeInfo, PendingInfo } from "../../lib/ipc/pool-canvas";
 import type { TalkRule } from "../../lib/ipc/pool-model";
-import { curvePoint, edgeCurve, labelOnNode, nodeForm, nodeMiddle, type LabelRoom, type Point } from "./layout";
+import { crosses, curvePoint, edgeCurve, labelOnNode, nodeForm, nodeMiddle, type LabelRoom, type Point } from "./layout";
 import { edgeKey } from "./useCanvas";
 
 export type EdgeWords = { count: string; aria: string };
@@ -288,9 +290,10 @@ export const CanvasEdges = memo(function CanvasEdges({
     const linked = new Set(edges.flatMap((edge) => [edgeKey(edge.from_session_id, edge.to_session_id), edgeKey(edge.to_session_id, edge.from_session_id)]));
     return [...points]
       .filter(([id]) => id !== lead && !linked.has(edgeKey(lead, id)))
-      .map(([id, to]) => {
+      .flatMap(([id, to]) => {
         const around = [...points].filter(([other]) => other !== lead && other !== id).map(([, at]) => at);
-        return { key: edgeKey(lead, id), d: edgeCurve(from, to, false, around, [], room).d };
+        const curve = edgeCurve(from, to, false, around, [], room);
+        return crosses(curve.start, curve.control, curve.end, around) ? [] : [{ key: edgeKey(lead, id), d: curve.d }];
       });
   }, [edges, points, lead, room]);
   return (
