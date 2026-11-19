@@ -160,6 +160,9 @@ describe("a team that hasn't written yet keeps its shape (the rc3a walk: the car
     expect(ties.map((tie) => tie.getAttribute("data-tie"))).toEqual(["lead>c"]);
     expect(ties[0]!.getAttribute("marker-end")).toBeNull();
     expect(ties[0]!.getAttribute("class")).toContain("stroke-hairline");
+    // Under the lead: the setup canvas's curve, from the lead's foot to the
+    // member's head (the mock's tree).
+    expect(ties[0]!.getAttribute("d")).toBe(`M${200 + NODE_W / 2} ${NODE_H} C${200 + NODE_W / 2} ${NODE_H + 60} ${400 + NODE_W / 2} ${300 - 60} ${400 + NODE_W / 2} 300`);
     view.rerender(<CanvasEdges edges={edges} points={points} names={names} selected={null} pulses={new Map()} reducedMotion scale={1} lead={null} onSelect={() => {}} />);
     expect(view.queryAllByTestId("canvas-tie")).toEqual([]);
   });

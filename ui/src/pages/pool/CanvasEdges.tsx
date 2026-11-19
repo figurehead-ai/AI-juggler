@@ -31,7 +31,8 @@ import { errorText } from "../../lib/bridge";
 import { messagesAnswer, messagesDeliver } from "../../lib/ipc/messages";
 import type { CanvasEdgeInfo, PendingInfo } from "../../lib/ipc/pool-canvas";
 import type { TalkRule } from "../../lib/ipc/pool-model";
-import { crosses, curvePoint, edgeCurve, labelOnNode, nodeForm, nodeMiddle, type LabelRoom, type Point } from "./layout";
+import { curvePoint, edgeCurve, labelOnNode, nodeForm, nodeMiddle, type LabelRoom, type Point } from "./layout";
+import { teamTies } from "./team-ties";
 import { edgeKey } from "./useCanvas";
 
 export type EdgeWords = { count: string; aria: string };
@@ -284,18 +285,7 @@ export const CanvasEdges = memo(function CanvasEdges({
     return out;
   }, [edges, points, room]);
   // The lead's ties: to each member with no line either way.
-  const ties = useMemo(() => {
-    const from = lead ? points.get(lead) : undefined;
-    if (!lead || !from) return [];
-    const linked = new Set(edges.flatMap((edge) => [edgeKey(edge.from_session_id, edge.to_session_id), edgeKey(edge.to_session_id, edge.from_session_id)]));
-    return [...points]
-      .filter(([id]) => id !== lead && !linked.has(edgeKey(lead, id)))
-      .flatMap(([id, to]) => {
-        const around = [...points].filter(([other]) => other !== lead && other !== id).map(([, at]) => at);
-        const curve = edgeCurve(from, to, false, around, [], room);
-        return crosses(curve.start, curve.control, curve.end, around) ? [] : [{ key: edgeKey(lead, id), d: curve.d }];
-      });
-  }, [edges, points, lead, room]);
+  const ties = useMemo(() => teamTies(edges, points, lead, room), [edges, points, lead, room]);
   return (
     <>
       <svg className="pointer-events-none absolute left-0 top-0 overflow-visible" width="1" height="1" aria-hidden="true" data-testid="canvas-edges">
