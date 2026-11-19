@@ -21,7 +21,9 @@ export interface AppPick {
   /** The App (its folder id) the person picked; `null`: New session suggests. */
   chosen: string | null;
   acted: boolean;
-  /** The person picks App `id`: theirs, here and in the next folder. */
+  /** The person picks App `id`: theirs, here and in the next folder. The
+   * App shown picked again counts (F-rc3g-5): what the card said a folder
+   * change did to it goes. */
   pick: (id: string) => void;
   /** The folder changes; `shown`: the App the card showed before (`null`
    * when it stays the same folder). */

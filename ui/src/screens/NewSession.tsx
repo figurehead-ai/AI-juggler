@@ -176,9 +176,11 @@ export function NewSessionModal({
   const sessionNames = useMemo(() => new Map(sessions.map((row) => [row.id, sessionTitle(row)])), [sessions]);
   const sessionName = (id: string) => sessionNames.get(id) ?? null;
   const appName = app ? data.appNameOf(app.recipe) : null;
+  // The person's pick; the App shown picked again (F-rc3g-5) keeps the
+  // launch settings chosen for it.
   const pickApp = (id: string) => {
     choice.pick(id);
-    setChosenSettings(null);
+    if (id !== app?.recipe.account_id) setChosenSettings(null);
   };
   // Change folder, a dropped folder, a saved handover's: one rule for the App.
   const changeFolder = (root: string) => {

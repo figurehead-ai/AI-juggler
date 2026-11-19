@@ -150,6 +150,9 @@ export function AppPicker({
         if (value === NO_DEFAULT) return onAlways?.(null);
         onPick(value);
       }}
+      // F-rc3g-5: the App shown, picked here, is the person's own: a note
+      // on what a folder change did to it goes (as any pick's does).
+      repick
       label="Change app"
       ariaLabel="Change app"
       heading="Which app"

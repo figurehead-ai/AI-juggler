@@ -111,6 +111,26 @@ describe("a suggested App moves with the folder, visibly", () => {
     await waitFor(() => expect(launchSpy).toHaveBeenCalledWith("p-1", "/Users/dev/web", undefined));
   });
 
+  it("the App it moved to, picked in Change app, is the person's: the note goes (F-rc3g-5)", async () => {
+    // The 0.4.6 rc3g walk: after a folder change moved the suggestion,
+    // Change app › the same App kept "App changed to … (was …) Undo",
+    // a note on a choice the person had since made their own.
+    const { launchSpy } = mountSheet();
+    await changeFolder("web");
+    await waitFor(() => expect(screen.getByTestId("launch-app-changed")).toBeTruthy());
+    await changeApp("claude-side");
+    await waitFor(() => expect(screen.queryByTestId("launch-app-changed")).toBeNull());
+    // Theirs now: no why, no Suggested mark, and Start goes where it says.
+    expect(sentence()).toBe("Start in web on Claude Code CLI · Side");
+    expect(within(appLine()).queryByTestId("suggested-mark")).toBeNull();
+    // Theirs in the next folder too: kept, never moved.
+    await changeFolder("docs");
+    await waitFor(() => expect(sentence()).toBe("Start in docs on Claude Code CLI · Side"));
+    expect(screen.queryByTestId("launch-app-changed")).toBeNull();
+    fireEvent.keyDown(window, { key: "Enter", metaKey: true });
+    await waitFor(() => expect(launchSpy).toHaveBeenCalledWith("p-3", "/Users/dev/docs", undefined));
+  });
+
   it("a folder that keeps the same suggestion says nothing changed", async () => {
     mountSheet();
     await changeFolder("docs");
