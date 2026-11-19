@@ -458,6 +458,8 @@ macro_rules! app_commands {
             Read  features::remote_config::commands::remote_config_about,
             Read  features::notices::commands::notices_list,
             Write features::notices::commands::notices_dismiss,
+            Read  features::ai::commands::ai_jobs,
+            Write features::ai::commands::ai_beta_set,
             Write features::switch::commands::switch_execute,
             Write features::switch::commands::switch_undo,
             Read  features::switch::commands::switch_back_plan,
@@ -1197,9 +1199,8 @@ fn hand_over_to_the_running_instance(context: tauri::Context<tauri::Wry>) -> ! {
     );
 }
 
-/// How long a second launch waits for an AI Juggler that holds the data
-/// to answer: one still starting (a quick double-click) opens its socket
-/// within moments.
+/// How long a second launch waits for an AI Juggler that holds the data to answer: one still
+/// starting (a quick double-click) opens its socket within moments.
 const STARTING_WAIT: std::time::Duration = std::time::Duration::from_secs(10);
 
 /// How a second launch's wait for the open AI Juggler ended.
@@ -1345,12 +1346,11 @@ fn bootstrap_data_dir() -> std::path::PathBuf {
     data_dir
 }
 
-/// AJ-E1529: every account's conversations and which are live, read from
-/// the tools' own files every 15 s (only changed files are read again);
-/// the UI hears of it only when something changed. The first pass waits
-/// for the window's first paint (at most 5 s) and runs at the lowest
-/// priority: a first start reads every transcript (about 40 s on a long
-/// history) while the window stays responsive.
+/// AJ-E1529: every account's conversations and which are live, read from the tools' own files every
+/// 15 s (only changed files are read again); the UI hears of it only when something changed. The
+/// first pass waits for the window's first paint (at most 5 s) and runs at the lowest priority: a
+/// first start reads every transcript (about 40 s on a long history) while the window stays
+/// responsive.
 fn spawn_conversation_tick(app: tauri::AppHandle, state: Arc<state::AppState>) {
     state.conversations.read_in_background();
     ticks::every_after_paint(

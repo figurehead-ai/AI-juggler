@@ -79,11 +79,14 @@ pub enum AppEvent {
     /// The remote configuration in effect changed, or a notice was
     /// dismissed (ADR-0035, AJ-E2023).
     RemoteConfigChanged,
+    /// The AI jobs' answer changed (ADR-0034 §3.4, AJ-E3802): ask `ai_jobs`
+    /// again.
+    AiJobsChanged,
 }
 
 impl AppEvent {
     /// Every event, in declaration order.
-    pub const ALL: [Self; 31] = [
+    pub const ALL: [Self; 32] = [
         Self::AppReady,
         Self::SessionsUpdated,
         Self::SessionsResources,
@@ -115,6 +118,7 @@ impl AppEvent {
         Self::FloorUnavailable,
         Self::FloorOpenRequest,
         Self::RemoteConfigChanged,
+        Self::AiJobsChanged,
     ];
 
     /// The wire name the UI listens to.
@@ -152,6 +156,7 @@ impl AppEvent {
             Self::FloorUnavailable => "floor://unavailable",
             Self::FloorOpenRequest => "floor://open-request",
             Self::RemoteConfigChanged => "remote-config://changed",
+            Self::AiJobsChanged => "ai://jobs-changed",
         }
     }
 }

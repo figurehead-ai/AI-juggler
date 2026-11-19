@@ -31,6 +31,8 @@ unbounded accounts_list  # bounded: one row per account, tool, launch setting or
 unbounded agent_bridge_answer  # bounded: the projects and profiles the user switched the agent tools off for
 unbounded agent_bridge_get  # bounded: the projects and profiles the user switched the agent tools off for
 unbounded agent_bridge_set  # bounded: the projects and profiles the user switched the agent tools off for
+unbounded ai_beta_set  # bounded: one row per routed AI job, a compiled list (five today)
+unbounded ai_jobs  # bounded: one row per routed AI job, a compiled list (five today)
 unbounded app_bug_report_compose  # bounded: the bug form's seven fields at most
 unbounded app_bug_report_preview  # bounded: a report's five parts at most
 unbounded alerts_tick  # bounded: a fixed set (settings, checks, choices or tools)

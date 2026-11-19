@@ -9,6 +9,8 @@ import type { AccountQualityInfo } from "./AccountQualityInfo";
 import type { AccountRemovedInfo } from "./AccountRemovedInfo";
 import type { AccountStorageInfo } from "./AccountStorageInfo";
 import type { AgentBridgeInfo } from "./AgentBridgeInfo";
+import type { AiJob } from "./AiJob";
+import type { AiJobInfo } from "./AiJobInfo";
 import type { AlertEventInfo } from "./AlertEventInfo";
 import type { AnswerInput } from "./AnswerInput";
 import type { AppInfo } from "./AppInfo";
@@ -283,6 +285,10 @@ export interface Commands {
   agent_bridge_get: { args: Record<string, never>; result: AgentBridgeInfo };
   /** Write features::agent_bridge::commands::agent_bridge_set */
   agent_bridge_set: { args: { scope: string; id: string; on: boolean }; result: AgentBridgeInfo };
+  /** Write features::ai::commands::ai_beta_set */
+  ai_beta_set: { args: { job: AiJob; on: boolean }; result: AiJobInfo[] };
+  /** Read features::ai::commands::ai_jobs */
+  ai_jobs: { args: Record<string, never>; result: AiJobInfo[] };
   /** Write features::alerts::commands::alerts_tick */
   alerts_tick: { args: { localHour?: number | null }; result: AlertEventInfo[] };
   /** Write features::app::diagnostics::app_bug_report_compose */

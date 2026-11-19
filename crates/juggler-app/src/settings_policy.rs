@@ -30,6 +30,13 @@ pub fn app_setting_set_impl(state: &Arc<AppState>, key: &str, value: &str) -> Ap
             "that setting is changed from Settings › Desktop apps".to_owned(),
         ));
     }
+    // AJ-E3802: an AI job's Beta switch goes through `ai_beta_set`, which
+    // tells the window the new answer at once.
+    if key.starts_with(crate::features::ai::jobs::BETA_PREFIX) {
+        return Err(AppError::Refused(
+            "that setting is changed from Settings › AI".to_owned(),
+        ));
+    }
     crate::commands::lock_storage_arc(state)?
         .app_settings()
         .set(key, value)

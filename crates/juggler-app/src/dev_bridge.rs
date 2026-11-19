@@ -71,6 +71,8 @@ pub const FORWARDED_EVENTS: &[&str] = &[
     AppEvent::MessagesChanged.name(),
     // AJ-E3505: the Floor list reads the new snapshot.
     AppEvent::FloorChanged.name(),
+    // AJ-E3802: the AI surfaces read which jobs are available again.
+    AppEvent::AiJobsChanged.name(),
 ];
 
 /// Events the UI listens to that the bridge never forwards, each with its

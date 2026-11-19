@@ -55,6 +55,36 @@
     },
     {
       "controls": {
+        "ai_chat_on": {
+          "switch": {
+            "default": true,
+            "remote": "off_only"
+          }
+        },
+        "ai_digest_on": {
+          "switch": {
+            "default": false,
+            "remote": "off_only"
+          }
+        },
+        "ai_feed_on": {
+          "switch": {
+            "default": false,
+            "remote": "off_only"
+          }
+        },
+        "ai_review_on": {
+          "switch": {
+            "default": true,
+            "remote": "off_only"
+          }
+        },
+        "ai_watches_on": {
+          "switch": {
+            "default": false,
+            "remote": "off_only"
+          }
+        },
         "notices_on": {
           "switch": {
             "default": true,

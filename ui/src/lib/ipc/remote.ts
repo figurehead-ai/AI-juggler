@@ -46,7 +46,14 @@ declare global {
 const preview = (): RemotePreview => (window.__AIJ_REMOTE__ ??= {});
 
 /** The built-in flags (the backend's `flags::DECLARED` defaults). */
-const BUILT_IN_FLAGS: Record<string, boolean> = { notices_on: true };
+const BUILT_IN_FLAGS: Record<string, boolean> = {
+  notices_on: true,
+  ai_feed_on: false,
+  ai_review_on: true,
+  ai_chat_on: true,
+  ai_digest_on: false,
+  ai_watches_on: false,
+};
 
 /** `section`'s values in effect (narrow them with `isSection`). */
 export async function remoteValues(section: RemoteSection): Promise<RemoteValuesInfo> {

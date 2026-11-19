@@ -371,6 +371,10 @@ read_routes! {
 #[cfg(test)]
 pub const NOT_SERVED: &[(&str, &str)] = &[
     (
+        "features::ai::commands::ai_jobs",
+        "asking it may start the system model's helper and tells the app's own windows (AJ-E3802); the real window walks it",
+    ),
+    (
         "main_window::app_close_note_due",
         "the note a close of the native window owes (D-112); a browser page has no such window",
     ),

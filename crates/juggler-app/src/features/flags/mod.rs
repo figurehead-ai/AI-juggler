@@ -44,7 +44,14 @@ pub struct Flag {
 }
 
 /// Every flag the app has, each declared in its own feature's module.
-pub const DECLARED: &[&Flag] = &[&crate::features::notices::FLAG];
+pub const DECLARED: &[&Flag] = &[
+    &crate::features::notices::FLAG,
+    &crate::features::ai::jobs::FEED_ON,
+    &crate::features::ai::jobs::REVIEW_ON,
+    &crate::features::ai::jobs::CHAT_ON,
+    &crate::features::ai::jobs::DIGEST_ON,
+    &crate::features::ai::jobs::WATCHES_ON,
+];
 
 /// The `flags` section for `flags`, to register with the app's
 /// remote-config registry.

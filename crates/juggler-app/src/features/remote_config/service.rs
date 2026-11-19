@@ -136,6 +136,11 @@ pub fn spawn(app: tauri::AppHandle, state: Arc<AppState>) {
         move || {
             if pass(&state, &fetcher, &registry, run) {
                 app.emit_event(AppEvent::RemoteConfigChanged, ());
+                // AJ-E3802: a flag or the `models` section may change what
+                // the AI jobs' query answers.
+                if crate::features::ai::service::recheck(&state).is_some() {
+                    app.emit_event(AppEvent::AiJobsChanged, ());
+                }
             }
         },
     );
