@@ -40,10 +40,16 @@ mod line_model_tests {
 
     #[test]
     fn a_line_the_tool_wrote_itself_names_no_model() {
-        let real = serde_json::json!({"type": "assistant", "message": {"model": "claude-opus-5-5"}});
-        let synthetic = serde_json::json!({"type": "assistant", "message": {"model": "<synthetic>"}});
+        let real =
+            serde_json::json!({"type": "assistant", "message": {"model": "claude-opus-5-5"}});
+        let synthetic =
+            serde_json::json!({"type": "assistant", "message": {"model": "<synthetic>"}});
         assert_eq!(line_model(&real).as_deref(), Some("claude-opus-5-5"));
-        assert_eq!(line_model(&synthetic), None, "a limit hit's own line is not a model");
+        assert_eq!(
+            line_model(&synthetic),
+            None,
+            "a limit hit's own line is not a model"
+        );
     }
 }
 
