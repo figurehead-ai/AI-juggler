@@ -81,7 +81,8 @@ pub struct WindowDisplay {
     /// without a Measured reading of a window that hasn't reset.
     pub runway: Option<RunwayDisplay>,
     /// Where the reading behind this window came from (`statusline`,
-    /// `rollout`, `desktop_app`, `usage_cache`, `api_retry`), when known.
+    /// `rollout`, `desktop_app`, `usage_cache`, `api_retry`, `driven`),
+    /// when known.
     pub source: Option<String>,
     /// That source in words, from the tool's spec ("the Claude app").
     pub source_words: Option<String>,
