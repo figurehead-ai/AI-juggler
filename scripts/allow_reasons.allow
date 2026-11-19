@@ -402,7 +402,7 @@
 6 crates/juggler-supervisor/src/machine.rs
 2 crates/juggler-supervisor/src/piped.rs
 1 crates/juggler-supervisor/src/stop_guard.rs
-11 crates/juggler-supervisor/src/supervisor.rs
+10 crates/juggler-supervisor/src/supervisor.rs
 6 crates/juggler-supervisor/src/tree.rs
 1 crates/juggler-supervisor/tests/awake_pmset.rs
 1 crates/juggler-supervisor/tests/collateral.rs

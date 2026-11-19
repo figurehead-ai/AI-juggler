@@ -19,11 +19,12 @@
 # it (it used to stop at the first one), which newly flagged two files,
 # capped at their size that day as extraction targets: supervisor.rs (its
 # spawn, stop and adoption paths) and the Floor's models.rs (one model per
-# file).
+# file). 2026-11-18: supervisor.rs's adoption path moved to adoption.rs
+# (the 0.4.6 rc3a walk's adopted-root watch); its cap came down to its size.
 crates/juggler-app/src/link.rs 2202
 crates/juggler-app/src/usage_stats.rs 2088
 crates/juggler-floor/src/models.rs 1978
-crates/juggler-supervisor/src/supervisor.rs 1782
+crates/juggler-supervisor/src/supervisor.rs 1510
 ui/src/components/KillSheet.tsx 589
 ui/src/components/RemoteTabs.tsx 467
 ui/src/components/RightInspector.tsx 1146
