@@ -18,10 +18,13 @@
 
 ;; The process itself: system calls, its bootstrap port, reading the
 ;; kernel's settings, and inspecting only itself. Listing the user's
-;; processes is denied (the re-review's N2); reading a named process's
-;; path or arguments isn't filtered by any sandbox operation on macOS 27
-;; (tested), so it stays possible for a known process id.
+;; processes is denied (the re-review's N2): the list call, and the
+;; kernel's process table (kern.proc.*, which a pid sweep and kern.proc.all
+;; read). Reading a named process's path or arguments by its id isn't
+;; filtered by any other sandbox operation on macOS 27 (tested); with no
+;; way out of the sandbox, that residue can't leave the Mac.
 (allow syscall* syscall-unix mach-bootstrap sysctl-read system-info)
+(deny sysctl-read (sysctl-name-prefix "kern.proc."))
 (allow process-info* (target self))
 (deny process-info-listpids)
 

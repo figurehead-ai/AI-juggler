@@ -353,10 +353,17 @@ fn the_sandbox_denies_by_default_and_allows_one_service() {
     assert_eq!(forms[0], "(version 1)");
     assert_eq!(forms[1], "(deny default)");
     assert!(
-        forms[2..]
+        forms[2..].iter().all(|f| f.starts_with("(allow ")
+            || f == "(deny process-info-listpids)"
+            || f == "(deny sysctl-read (sysctl-name-prefix \"kern.proc.\"))"),
+        "only allows after the default deny, and the two process-list denials"
+    );
+    // The re-review's N2: the process list and the kernel's process table.
+    assert!(forms.iter().any(|f| f == "(deny process-info-listpids)"));
+    assert!(
+        forms
             .iter()
-            .all(|f| f.starts_with("(allow ") || f == "(deny process-info-listpids)"),
-        "only allows after the default deny"
+            .any(|f| f == "(deny sysctl-read (sysctl-name-prefix \"kern.proc.\"))")
     );
     let lookups: Vec<&String> = forms.iter().filter(|f| f.contains("mach-lookup")).collect();
     assert_eq!(
