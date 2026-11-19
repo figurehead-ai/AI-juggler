@@ -27,6 +27,8 @@ export const GLOBAL_NAV = [
   { id: "privacy", label: "Privacy" },
   // AJ-E3512 (D-78): the Floor's facts as an accessible list.
   { id: "floor", label: "The Floor list" },
+  // D-136: the Bot page (Expand in Bot's panel, ⋯ › Open the Bot page).
+  { id: "bot", label: "Bot" },
 ] as const;
 
 export type GlobalId = (typeof GLOBAL_NAV)[number]["id"];

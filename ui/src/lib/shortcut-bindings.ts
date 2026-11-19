@@ -34,6 +34,7 @@ export const DEFAULT_BINDINGS: Partial<Record<ShortcutId, Binding>> = {
   "new-project": b("KeyN", { shift: true }),
   notifications: b("KeyN", { alt: true }),
   "toggle-rail": b("KeyB"),
+  bot: b("KeyJ"),
   inspector: b("KeyI", { shift: true }),
   theme: b("KeyL", { shift: true }),
   undo: b("KeyZ"),

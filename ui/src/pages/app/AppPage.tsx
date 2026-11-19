@@ -18,6 +18,7 @@ import { AppIcon } from "../../components/AppIcon";
 import { AppKindBadge } from "../../components/AppKindBadge";
 import { ProfileBadge } from "../../components/ProfileBadge";
 import { Button } from "../../components/primitives";
+import { AskBot } from "../../components/bot/BotButton";
 import { showToast } from "../../components/Toast";
 import { useActionHost } from "../../components/ItemMenu";
 import { PageShell } from "../PageShell";
@@ -175,6 +176,8 @@ function AppBody({
             actions={
               <>
                 <AppAction app={app} restart={restart} />
+                {/* D-136: Bot, scoped to every session in this App (by id). */}
+                <AskBot scope={{ kind: "app", id: app.id, name: app.name, sessions: items.flatMap((item) => (item.session ? [item.session.id] : [])).slice(0, 200) }} />
                 {app.kind === "cli" && app.folder && <FolderMenu account={app.folder} sessions={sessions} onChanged={onChanged} />}
               </>
             }

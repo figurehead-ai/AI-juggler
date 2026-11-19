@@ -21,6 +21,7 @@ import { AccountAvatar } from "./Avatar";
 import { CliAppMark } from "./PlaceMarks";
 import { IconJuggler } from "./icons";
 import { useItemMenu } from "./ItemMenu";
+import { openBot } from "../lib/bot-store";
 import { authorWords, exactWhen, factsLine, feedWhen, placeWords, rollupSentence, said, sentence, type Part } from "../lib/feed-words";
 import { restartOf, stateOf, type FeedCard, type FeedThing } from "../lib/feed-rollup";
 import { goToWhere, type RailItem } from "../lib/rail-items";
@@ -163,6 +164,12 @@ function Actions({ item, actions }: { item: FeedItemInfo; actions: CardActions }
     <div className="absolute bottom-1.5 right-2 flex items-center gap-1 rounded-md bg-surface-2 p-0.5 opacity-0 shadow-card transition-opacity group-hover/card:opacity-100 group-focus-within/card:opacity-100 motion-reduce:transition-none" data-testid="feed-actions">
       <button type="button" className={GHOST} data-home-row onClick={() => void actions.open(item)}>Open<span className="sr-only"> {item.subject}</span></button>
       {session && <button type="button" className={GHOST} data-home-action onClick={() => actions.review(session)}>Mark reviewed<span className="sr-only"> {item.subject}</span></button>}
+      {/* D-136: Bot, scoped to this item's session (by id). */}
+      {item.target.session_id && (
+        <button type="button" className={GHOST} onClick={() => openBot({ kind: "session", id: item.target.session_id!, name: item.subject || "this session", sessions: [] })} data-testid="feed-ask-bot">
+          Ask Bot about this<span className="sr-only"> {item.subject}</span>
+        </button>
+      )}
       {row && <GoTo row={row} />}
     </div>
   );

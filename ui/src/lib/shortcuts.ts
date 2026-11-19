@@ -107,6 +107,8 @@ export const SHORTCUTS = [
   // `key` reads on a Mac).
   { id: "notifications", owner: "app", area: "Anywhere", keys: ["⌥⌘N"], label: "Notifications", match: cmdAltCode("KeyN", "n") },
   { id: "toggle-rail", owner: "app", area: "Anywhere", keys: ["⌘B"], label: "Show or hide the list", match: cmd("b") },
+  // D-136: Bot, the docked panel (Esc closes it, focus back to its icon).
+  { id: "bot", owner: "app", area: "Anywhere", keys: ["⌘J"], label: "Open or close Bot", match: cmd("j") },
   { id: "inspector", owner: "app", area: "Anywhere", keys: ["⌘⇧I"], label: "Fold or unfold the inspector", match: cmd("i", { shift: true }) },
   {
     id: "density",

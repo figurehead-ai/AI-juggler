@@ -10,7 +10,7 @@ import { CLEAN_UP_VIEW, landedOn } from "../lib/landing";
 import { accountsFilterOf } from "../lib/accounts-filter";
 import { ScreenBoundary, ScrollingScreen } from "../components/ScreenBoundary";
 import { ProfilesScreen } from "../screens/Profiles";
-import { FleetScreen, History, NavScreen, ProcessesScreen, SettingsScreen, ThisMacPage, UsageScreen } from "../lazyParts";
+import { BotPage, FleetScreen, History, NavScreen, ProcessesScreen, SettingsScreen, ThisMacPage, UsageScreen } from "../lazyParts";
 import type { Shell } from "./use-shell";
 
 /** A global screen: what the main column shows while it is open. */
@@ -82,6 +82,12 @@ export const SCREENS: Partial<Record<GlobalId, ScreenEntry>> = {
   thismac: (shell) => (
     <ScreenBoundary key="thismac" screen="this-mac-page" label="This Mac">
       <ThisMacPage sessions={shell.railSessions} projects={shell.projects} accounts={shell.accounts} now={shell.now} onOpenSession={shell.selectSession} onOpenProject={shell.selectProject} onOpenCleanup={() => shell.openOn("cleanup", CLEAN_UP_VIEW)} />
+    </ScreenBoundary>
+  ),
+  // D-136: the Bot page, the same conversation as the panel.
+  bot: (shell) => (
+    <ScreenBoundary key="bot" screen="bot-page" label="Bot">
+      <BotPage onBack={() => (shell.canBack ? shell.back() : shell.openHome())} />
     </ScreenBoundary>
   ),
   // Settings › Privacy, a frame from now (lib/nav's redirect).

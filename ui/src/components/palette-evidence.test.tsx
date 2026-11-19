@@ -351,6 +351,7 @@ describe("R11 — a shortcut, never the only path", () => {
       "go:thismac": "This Mac",
       "go:privacy": "Privacy",
       "go:floor": "The Floor list",
+      "go:bot": "Bot",
       notifications: "Notifications",
       shortcuts: "Keyboard shortcuts",
       "toggle-rail": "Show icons only",

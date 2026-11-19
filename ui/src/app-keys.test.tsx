@@ -105,6 +105,7 @@ describe("AJ-E1504 the typing rule", () => {
       "new-session": { key: "n" },
       "new-project": { key: "N", shiftKey: true },
       "toggle-rail": { key: "b" },
+      bot: { key: "j" },
       inspector: { key: "I", shiftKey: true },
       density: { key: "d" },
       theme: { key: "L", shiftKey: true },

@@ -32,3 +32,4 @@ export const SwitchBackFlow = lazyNamed(() => import("./components/SwitchBackFlo
 export const PoolPage = lazyNamed(() => import("./pages/PoolPage"), "PoolPage");
 // 0.3: Projects, Pools and Tasks (the header's new doors).
 export const NavScreen = lazyNamed(() => import("./screens/NavScreens"), "NavScreen");
+export const BotPage = lazyNamed(() => import("./components/bot/BotPage"), "BotPage");

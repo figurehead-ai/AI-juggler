@@ -12,6 +12,7 @@ import { PageHeader, type Crumb } from "./PageHeader";
 import type { PageKind } from "./registry";
 import { ProjectFacts } from "./ProjectPage";
 import { Button, Chip, type ChipTone } from "../components/primitives";
+import { AskBot } from "../components/bot/BotButton";
 import { STATE_WORDS, isActiveStatus, lowLeftWords, stateChip } from "../components/indicator";
 import { conversationWorking, openWords, sessionWorking, type ProjectOpen } from "../lib/project-summary";
 import { ProjectMark } from "../components/ProjectMark";
@@ -246,6 +247,9 @@ export function InspectorHeader({
       {model && instance && instance.kind === "desktop" && model.live && host.focusSession && (
         <GoToButton onGo={() => void host.focusSession!(instance)} why={null} />
       )}
+      {/* D-136: Bot, scoped to this session or project, by id. */}
+      {kind === "instance" && instance && <AskBot scope={{ kind: "session", id: instance.id, name, sessions: [] }} />}
+      {kind === "project" && data.project && <AskBot scope={{ kind: "project", id: data.project.id, name: data.project.name, sessions: [] }} />}
       {/* D-25: the one-step-away move, beside its Stop; only with a conversation to carry over (the menu's rule). */}
       {kind === "instance" && instance && instance.kind !== "desktop" && instance.conversation_id !== null && (
         <WhyButton size="sm" variant="secondary" why={switchNotYet} data-testid="header-switch" onClick={() => focusHandover(instance.id)}>

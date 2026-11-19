@@ -21,12 +21,13 @@ it("yields This Mac's line by the bar's width, sooner with Fleet's tab", () => {
   const alone = header(0);
   expect(alone.container.querySelector("header")!.className).toContain("@container/header");
   const line = alone.getByTestId("header-this-mac").className;
-  expect(line).toContain("@min-[960px]/header:flex");
+  // D-136: Bot's icon joined the bar, so the line gives way 100 px sooner.
+  expect(line).toContain("@min-[1060px]/header:flex");
   expect(line).not.toContain("xl:flex");
   cleanup();
   const paired = header(1);
   expect(paired.getByRole("button", { name: "Fleet" })).toBeTruthy();
-  expect(paired.getByTestId("header-this-mac").className).toContain("@min-[1060px]/header:flex");
+  expect(paired.getByTestId("header-this-mac").className).toContain("@min-[1160px]/header:flex");
 });
 
 it("lights Fleet on a paired Mac's session, as its breadcrumb starts", () => {

@@ -18,6 +18,7 @@ import { FloorButton } from "./FloorButton";
 import { CleanupPill, MainNav } from "./MainNav";
 import { MachineStatusLine } from "./MachineStatusLine";
 import { NotificationBell } from "./NotificationBell";
+import { BotButton } from "./bot/BotButton";
 import { UserMenu } from "./UserMenu";
 import { PRIMARY_NAV, type GlobalId } from "../lib/nav";
 import { useBackendHealth } from "../lib/backend-health";
@@ -80,7 +81,7 @@ export function AppHeader({
             by the bar's own width, not the window's, so the list open at
             1280 px with Fleet's tab too (a paired Mac) still fits one row
             (the 0.3 re-render found it wrapping). */}
-        <span ref={thisMac} className={"hidden shrink-0 text-muted " + (pairedCount > 0 ? "@min-[1060px]/header:flex" : "@min-[960px]/header:flex")} data-testid="header-this-mac">
+        <span ref={thisMac} className={"hidden shrink-0 text-muted " + (pairedCount > 0 ? "@min-[1160px]/header:flex" : "@min-[1060px]/header:flex")} data-testid="header-this-mac">
           <MachineStatusLine minimal={false} short onOpen={onOpenThisMac} />
         </span>
         {/* D-87: accounts out of room or low, a calm count (the bell holds the notices). */}
@@ -93,14 +94,19 @@ export function AppHeader({
           type="button"
           onClick={onNewSession}
           disabled={downSince !== null}
-          title={downSince !== null ? "Waits until AI Juggler's service answers again" : undefined}
+          title={downSince !== null ? "Waits until AI Juggler's service answers again" : "New session"}
           className="inline-flex h-7 shrink-0 items-center gap-1.5 rounded-lg px-2 text-meta font-medium text-accent-hi outline-none transition-colors hover:bg-surface-2 focus-visible:ring-2 focus-visible:ring-accent/60 disabled:cursor-default disabled:opacity-50"
           data-testid="header-new-session"
         >
           <IconTerminal width={14} height={14} aria-hidden="true" />
-          New session
+          {/* D-136: at narrow widths the words give way to the icon (its
+              name stays for screen readers and in the tooltip), so the bar
+              keeps one row with Bot added. */}
+          <span className="sr-only @min-[900px]/header:not-sr-only">New session</span>
         </button>
         <span className="ml-1.5 flex shrink-0 items-center gap-2">
+          {/* D-136: Bot, beside the bell (⌘J). */}
+          <BotButton />
           <NotificationBell sessions={sessions} />
           <FloorButton />
           {/* A clear gap: the avatar is its own thing, never the Floor's. */}
