@@ -89,6 +89,10 @@ export interface QuotaDisplayData {
   /** The first read of the tools' history is still running: what isn't
    * measured may only not be read yet (the 0.2 walk, F6). */
   history_reading?: boolean;
+  /** F-rc3c-1: this start's first read of the tools' records hasn't
+   * finished: an old reading may be about to be replaced, and says so
+   * ("as of 2 days ago, refreshing…"). Absent from an older backend. */
+  refreshing?: boolean;
   account: string;
   five_hour: WindowDisplay | null;
   five_hour_omitted_reason: string | null;

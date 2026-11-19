@@ -10,7 +10,9 @@
  * both windows, the later reset, 0.4.4):
  * measured or computed windows only, an estimate says "about"; an
  * account whose credits carry its work on past a used-up window is not
- * out (`lib/credits`).
+ * out (`lib/credits`). F-rc3c-1: a mark from an old reading says how old
+ * ("Out · resets Fri 12:00 PM · as of 2 days ago"), and one whose
+ * window has reset since isn't a mark at all (`windowNow`).
  */
 import { runwayOf } from "../components/AccountRunway";
 import { accountDisplay, accountOfProfile, type SubscriptionInfo } from "./subscriptions";
@@ -31,6 +33,9 @@ export interface RoomMark {
   /** Worked out from an estimate: its words say "about". */
   about: boolean;
   resetsAtMs: number | null;
+  /** How old its reading is, when it's old ("as of 2 days ago"): in its
+   * label and title. */
+  age?: string | null;
 }
 
 /** Whether the reading the runway uses is an estimate: the badge of the
@@ -45,29 +50,32 @@ function estimated(window: WindowDisplay | undefined, sessions: readonly Instanc
 /** The mark for one reading of an account's room; `null` when it has
  * room, isn't measured, or its credits carry it on. */
 export function roomMarkOf(display: QuotaDisplayData | undefined, sessions: readonly InstanceInfo[] = [], now: number = Date.now()): RoomMark | null {
-  const run = runwayOf(display, [...sessions]);
+  const run = runwayOf(display, [...sessions], now);
   if (run.left === null || run.credits) return null;
-  return roomMarkFrom(run.left, run.resetsAtMs ?? null, estimated(run.window, sessions), now);
+  return roomMarkFrom(run.left, run.resetsAtMs ?? null, estimated(run.window, sessions), now, run.age ?? null);
 }
 
 /** The mark for `left` % left (resetting at `resetsAtMs`), `about` when
- * that's an estimate; `null` with room. */
-export function roomMarkFrom(left: number, resetsAtMs: number | null, about = false, now: number = Date.now()): RoomMark | null {
+ * that's an estimate, `age` how old its reading is when it's old
+ * (`runwayOf`'s); `null` with room. */
+export function roomMarkFrom(left: number, resetsAtMs: number | null, about = false, now: number = Date.now(), age: string | null = null): RoomMark | null {
   const kind = left <= 0 ? "out" : left <= LOW_LEFT ? "low" : null;
   if (kind === null) return null;
   const when = resetsAtMs !== null && resetsAtMs > now ? `${about ? "about " : ""}${whenWords(resetsAtMs, now)}` : null;
+  const aged = (words: string) => (age ? `${words} · ${age}` : words);
   if (kind === "out") {
     return {
       kind,
-      label: when ? `Out · resets ${when}` : "Out",
+      label: aged(when ? `Out · resets ${when}` : "Out"),
       short: "Out",
-      title: when ? `Out of room until ${when}` : "Out of room; when it resets isn't known yet",
+      title: aged(when ? `Out of room until ${when}` : "Out of room; when it resets isn't known yet"),
       about,
       resetsAtMs,
+      age,
     };
   }
   const words = `${about ? "about " : ""}${left}% left`;
-  return { kind, label: `Low · ${words}`, short: "Low", title: when ? `Low on room: ${words}, resets ${when}` : `Low on room: ${words}`, about, resetsAtMs };
+  return { kind, label: aged(`Low · ${words}`), short: "Low", title: aged(when ? `Low on room: ${words}, resets ${when}` : `Low on room: ${words}`), about, resetsAtMs, age };
 }
 
 /** The mark for folder `profileId`: its Account's room (two folders of

@@ -13,7 +13,7 @@ import type { JSX } from "react";
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import type { QuotaDisplayData, WindowDisplay } from "../lib/ipc/quota";
 import { READING_LIMITS } from "../lib/history-reading";
-import { asOfWords, limitWindows, measured, usedTokensWords, windowView } from "../lib/quotaWindow";
+import { asOfWords, limitWindows, measured, oldReadingWords, usedTokensWords, windowNow, windowView } from "../lib/quotaWindow";
 import { resetsLead, resetsWords } from "../lib/time-words";
 import { LOW_LEFT, rankByRoom } from "../lib/room";
 import { usingCredits, usingCreditsWords, type CreditsCover } from "../lib/credits";
@@ -27,22 +27,22 @@ export type RunwayLine = {
 
 /** One window, in words (the one rule: `lib/quotaWindow`). A missing
  * percentage is never "% left" or a filled bar (the 0.0.12 report). */
-export function windowLine(label: string, window: WindowDisplay | null | undefined, omitted?: string | null): RunwayLine {
-  const view = windowView(window, omitted);
+export function windowLine(label: string, window: WindowDisplay | null | undefined, omitted?: string | null, now: number = Date.now(), refreshing = false): RunwayLine {
+  const view = windowView(window, omitted, now, refreshing);
   return { label, left: view.left, words: view.words, tone: view.tone };
 }
 
 /** Every limit (the 5 hours, the week, each model's own week), plus the
  * session fallback when none is measured. */
-export function runwayLines(display: QuotaDisplayData | undefined, sessions: InstanceInfo[] = []): RunwayLine[] {
+export function runwayLines(display: QuotaDisplayData | undefined, sessions: InstanceInfo[] = [], now: number = Date.now()): RunwayLine[] {
   // 0.3.2: a used-up window its credits carry on past isn't a stop: amber,
   // not red (the credits line says why).
   const credits = usingCredits(display) !== null;
   const lines = limitWindows(display)
-    .map((entry) => windowLine(entry.label, entry.window, entry.omitted))
+    .map((entry) => windowLine(entry.label, entry.window, entry.omitted, now, display?.refreshing === true))
     .map((line) => (credits && line.tone === "out" ? { ...line, tone: "low" as const } : line));
   if (lines.some((line) => line.left !== null)) return lines;
-  const reading = sessionFallback(display, sessions);
+  const reading = sessionFallback([windowNow(display?.five_hour, now), windowNow(display?.weekly, now)], sessions, now);
   if (!reading) return lines;
   const left = Math.max(0, Math.round(100 - reading.used_percentage));
   return [
@@ -57,15 +57,16 @@ export function runwayLines(display: QuotaDisplayData | undefined, sessions: Ins
 
 /** The newest session's own quota reading, when the account has none: a
  * real reading (the newest one wins), never a guess. None once a window
- * has reset since the vendor's last reading, or when the session's own
+ * (`windows`: the account's two, as they stand now, `windowNow`) has
+ * reset since the vendor's last reading, or when the session's own
  * reading has passed its reset: an old window's "% left" must not come
  * back as the new one's (review of #120). */
 function sessionFallback(
-  display: QuotaDisplayData | undefined,
+  windows: ReadonlyArray<WindowDisplay | null | undefined>,
   sessions: InstanceInfo[],
-  now: number = Date.now(),
+  now: number,
 ): NonNullable<InstanceInfo["quota"]> | undefined {
-  if (display?.five_hour?.state === "reset" || display?.weekly?.state === "reset") return undefined;
+  if (windows.some((window) => window?.state === "reset")) return undefined;
   const reading = sessions
     .filter((s) => s.quota != null)
     .sort((a, b) => (b.last_activity_ms ?? b.started_at_ms) - (a.last_activity_ms ?? a.started_at_ms))[0]?.quota;
@@ -75,55 +76,77 @@ function sessionFallback(
 
 /** One of an account's two windows, as the runway names it. */
 type Slot = { key: "five_hour" | "weekly"; label: string; phrase: string; window: WindowDisplay | null | undefined };
-/** The runway's line, and the window its figure and reset come from. */
-export type Runway = { left: number | null; words: string; resets: string | null; resetsAtMs?: number | null; credits?: CreditsCover | null; window?: WindowDisplay };
+/** The runway's line, and the window its figure and reset come from.
+ * `age` is how old its reading is, when it's old ("as of 2 days ago",
+ * F-rc3c-1): already in `words`; a line that shows `resets` in their
+ * place says it after them (`runwayDetail`). */
+export type Runway = { left: number | null; words: string; resets: string | null; resetsAtMs?: number | null; credits?: CreditsCover | null; window?: WindowDisplay; age?: string | null };
 
 /** The runway from the measured windows (`known`, at least one): the
  * tighter one's figure. 0.4.4: out on more than one window, it has room
  * again only when the last of them resets. The backend's one answer
  * (`room_back`) says which and when (a lab's tiles said 7:06 PM, its
- * notice Sun 5:06 PM); a reading without it (an older one) goes by the
- * tighter window. */
-function measuredRun(display: QuotaDisplayData | undefined, known: Array<Slot & { window: WindowDisplay & { percentage: number } }>): Runway {
+ * notice Sun 5:06 PM); a reading without it (an older one), or one whose
+ * window has reset since (`windowNow`), goes by the tighter window.
+ * F-rc3c-1: an old reading says how old (`oldReadingWords`), the older of
+ * the two the line draws on. */
+function measuredRun(display: QuotaDisplayData | undefined, known: Array<Slot & { window: WindowDisplay & { percentage: number } }>, now: number): Runway {
   const tightest = known.reduce((a, b) => (a.window.percentage >= b.window.percentage ? a : b));
   const left = Math.max(0, Math.round(100 - tightest.window.percentage));
   const back = left === 0 ? display?.room_back : undefined;
-  const holding = (back && known.find((entry) => entry.key === back.window)) || tightest;
-  const resetsAtMs = back ? back.at_ms : (holding.window.resets_at_ms ?? null);
-  const words = resetsAtMs != null ? resetsWords(resetsAtMs) : null;
+  const backed = back ? known.find((entry) => entry.key === back.window) : undefined;
+  const holding = backed ?? tightest;
+  const resetsAtMs = back && backed ? back.at_ms : (holding.window.resets_at_ms ?? null);
+  const words = resetsAtMs != null ? resetsWords(resetsAtMs, now) : null;
   const credits = usingCredits(display);
+  const read = [tightest, holding].map((entry) => entry.window.measured_at_ms).filter((ms): ms is number => ms != null);
+  const age = credits || read.length === 0 ? null : oldReadingWords(Math.min(...read), display?.refreshing === true, now);
   return {
     left,
-    words: credits ? usingCreditsWords(credits, display?.credits?.as_of_ms) : `${left}% left ${holding.phrase}${modelWeekNote(display, left)}`,
+    words: credits ? usingCreditsWords(credits, display?.credits?.as_of_ms) : `${left}% left ${holding.phrase}${age ? ` · ${age}` : ""}${modelWeekNote(display, left, now)}`,
     resets: words ? `${holding.label} ${words}` : null,
     resetsAtMs,
     credits,
     window: holding.window,
+    age,
   };
+}
+
+/** The line under a runway's figure: when it resets, with how old its
+ * reading is when it's old ("Week resets Fri 12:00 PM · as of 2 days
+ * ago"); without a reset, its words (which say the age themselves). */
+export function runwayDetail(run: Pick<Runway, "words" | "resets" | "age">): string {
+  if (!run.resets) return run.words;
+  return run.age ? `${run.resets} · ${run.age}` : run.resets;
 }
 
 /** Home's one line for an account: % left of the tighter measured window,
  * else the newest session's own reading, else why there is none. A window
  * used up while its credits carry the work on says so ("Using credits ·
  * 14,150 left", 0.3.2), never only "0% left". Out of room, its reset is
- * when it has room again (`measuredRun`). */
-export function runwayOf(display: QuotaDisplayData | undefined, sessions: InstanceInfo[] = []): Runway {
+ * when it has room again (`measuredRun`). Each window as it stands at
+ * `now` (`windowNow`): one whose reset has passed is history, never Out. */
+export function runwayOf(display: QuotaDisplayData | undefined, sessions: InstanceInfo[] = [], now: number = Date.now()): Runway {
   // A tool that doesn't report its limits, or has no source: its reason,
   // never a window's numbers.
   if (display?.unavailable_reason) return { left: null, words: display.unavailable_reason, resets: null };
   const windows: Slot[] = [
-    { key: "five_hour", label: "5-hour window", phrase: "in the 5-hour window", window: display?.five_hour },
-    { key: "weekly", label: "Week", phrase: "this week", window: display?.weekly },
+    { key: "five_hour", label: "5-hour window", phrase: "in the 5-hour window", window: windowNow(display?.five_hour, now) },
+    { key: "weekly", label: "Week", phrase: "this week", window: windowNow(display?.weekly, now) },
   ];
   const known = windows.filter((entry): entry is Slot & { window: WindowDisplay & { percentage: number } } => measured(entry.window));
-  if (known.length > 0) return measuredRun(display, known);
-  const reading = sessionFallback(display, sessions);
+  if (known.length > 0) return measuredRun(display, known, now);
+  const reading = sessionFallback(
+    windows.map((entry) => entry.window),
+    sessions,
+    now,
+  );
   if (reading) {
     const left = Math.max(0, Math.round(100 - reading.used_percentage));
     return {
       left,
       words: `${left}% left, from its latest session`,
-      resets: reading.resets_at_ms != null ? resetsLead(reading.resets_at_ms) : null,
+      resets: reading.resets_at_ms != null ? resetsLead(reading.resets_at_ms, now) : null,
       resetsAtMs: reading.resets_at_ms ?? null,
     };
   }
@@ -133,7 +156,7 @@ export function runwayOf(display: QuotaDisplayData | undefined, sessions: Instan
   const reset = windows.find((entry) => entry.window?.state === "reset");
   if (reset) {
     // The last reading, as history ("Last reading 13 h ago: 40% used; …").
-    return { left: null, words: windowView(reset.window).words, resets: null };
+    return { left: null, words: windowView(reset.window, null, now).words, resets: null };
   }
   // The 0.2 walk (F6): while the first read runs, not measured may only
   // be not read yet.
@@ -147,8 +170,9 @@ export function runwayOf(display: QuotaDisplayData | undefined, sessions: Instan
  * model new work will use isn't known). Only when it's tighter than the
  * account's own figure and low does the line say so ("· Fable: 10% left
  * this week"), so a pick for new work is never blind to it. */
-function modelWeekNote(display: QuotaDisplayData | undefined, accountLeft: number): string {
+function modelWeekNote(display: QuotaDisplayData | undefined, accountLeft: number, now: number): string {
   const low = (display?.model_weeks ?? [])
+    .map((entry) => ({ ...entry, window: windowNow(entry.window, now) }))
     .filter((entry): entry is typeof entry & { window: WindowDisplay & { percentage: number } } => measured(entry.window))
     .map((entry) => ({ model: entry.model, left: Math.max(0, Math.round(100 - entry.window.percentage)) }))
     .filter((entry) => entry.left <= LOW_LEFT && entry.left < accountLeft)

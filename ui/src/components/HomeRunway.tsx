@@ -19,7 +19,7 @@ import { signedIn } from "../lib/bridge";
 import type { AccountInfo } from "../types/generated/AccountInfo";
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import type { QuotaDisplayData } from "../lib/ipc/quota";
-import { newWorkAdvice, runwayOf } from "./AccountRunway";
+import { newWorkAdvice, runwayDetail, runwayOf } from "./AccountRunway";
 import { cliAppName } from "../lib/app-name";
 import { namedAccountApps } from "../lib/account-items";
 import { useApps, type AppModel } from "../lib/apps";
@@ -62,6 +62,8 @@ export interface RunwayLine {
   resets: string | null;
   /** A used-up window its credits carry on past (0.3.2). */
   credits?: CreditsCover | null;
+  /** How old its reading is, when it's old (F-rc3c-1). */
+  age?: string | null;
 }
 
 /** An Account's one runway: its newest measured window over every folder
@@ -157,7 +159,8 @@ export function HomeRunway({ accounts, quota, quotaKnown = true, sessions }: { a
                   {row.resets && <span className="text-muted">{row.resets}</span>}
                 </span>
               ) : row.left !== null ? (
-                <span className="text-label text-muted">{row.resets ?? row.words}</span>
+                // F-rc3c-1: an old reading says how old after its reset.
+                <span className="text-label text-muted" data-testid="home-runway-detail">{runwayDetail(row)}</span>
               ) : (
                 <span className="flex flex-wrap items-baseline gap-x-2 text-label text-muted">
                 {row.words}
