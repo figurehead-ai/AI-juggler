@@ -364,7 +364,8 @@ function RoomFigure({ room }: { room: TargetRoom | null }): JSX.Element {
   if (room?.kind === "credits") return <span className="shrink-0 text-ink">Using credits</span>;
   if (room?.kind === "blocked") return <span className="shrink-0 text-muted" data-testid="continue-signed-out">{NOT_SIGNED_IN}</span>;
   if (room === null || room.left === null) return <span className="shrink-0 text-muted">not measured</span>;
-  // 0.4.1: out or low, the one mark every screen shows (never suggested).
-  if (room.kind === "out" || room.kind === "low") return <RoomChip mark={roomMarkFrom(room.left, room.resetsAtMs)} compact testId="switch-target-room" />;
+  // 0.4.1: out or low, the one mark every screen shows (never suggested);
+  // F-rc3c-1: its title and screen-reader words say an old reading's age.
+  if (room.kind === "out" || room.kind === "low") return <RoomChip mark={roomMarkFrom(room.left, room.resetsAtMs, false, undefined, room.age ?? null)} compact testId="switch-target-room" />;
   return <span className="shrink-0 tabular-nums text-muted">{`${room.left}% left`}</span>;
 }

@@ -8,17 +8,22 @@
  * until a fresh reading lands; a reading whose window has reset since is
  * history, never Out.
  */
-import { cleanup, render, screen, within } from "@testing-library/react";
+import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { runwayDetail, runwayLines, runwayOf } from "../components/AccountRunway";
 import { HomeRunway } from "../components/HomeRunway";
+import { ContinueOn } from "../pages/session/ContinueOn";
+import { fromInstance } from "../pages/session/model";
+import * as targets from "./ipc/switch-targets";
+import * as setup from "./ipc/switchSetup";
 import { roomCounts, roomMarkOf } from "./room-mark";
 import { READING_OLD_MS, oldReadingWords, windowView } from "./quotaWindow";
 import { resetsWords, whenWords } from "./time-words";
 import { quotaDisplay, windowDisplay } from "./wire";
-import { subscription } from "../test/fixtures";
+import { instance, subscription } from "../test/fixtures";
 import type { QuotaDisplayData, WindowDisplay } from "./ipc/quota";
 import type { AccountInfo } from "../types/generated/AccountInfo";
+import type { SwitchTargetData } from "./ipc/switch-targets";
 import type { SubscriptionInfo } from "./subscriptions";
 
 const NOW = new Date(2026, 10, 19, 10, 0).getTime();
@@ -32,6 +37,7 @@ beforeEach(() => {
 });
 afterEach(() => {
   cleanup();
+  vi.restoreAllMocks();
   vi.useRealTimers();
 });
 
@@ -105,6 +111,42 @@ describe("an old reading says how old", () => {
     const row = (await screen.findAllByTestId("home-runway-account"))[0]!;
     expect(row.textContent).toContain("34% left");
     expect(within(row).getByTestId("home-runway-detail").textContent).toBe(`Week ${resetsWords(RESET, NOW)} · as of 2 days ago, refreshing…`);
+  });
+});
+
+describe("Continue on another account", () => {
+  it("the compact mark beside a target's name says the age in its title and to a screen reader, as the row does", async () => {
+    const target: SwitchTargetData = {
+      recipe_id: "r-lab",
+      provider: "claude-code",
+      account_id: "lab",
+      account_label: "Lab",
+      badge: "Same conversation, another app · Beta",
+      validated: false,
+      cross_provider: false,
+      drops: [],
+      score: null,
+      filtered_reason: null,
+      top_factors: [],
+      factors: [],
+      confidence: "Measured",
+      tte_min: null,
+      suggested: false,
+    };
+    vi.spyOn(setup, "switchSetupCheck").mockResolvedValue({ from: "Work", to: "Lab", already_there: 0, offers: [] });
+    vi.spyOn(targets, "switchTargets").mockResolvedValue([target]);
+    const model = fromInstance(instance({ id: "s-1", account_id: "src", account_label: "Source", conversation_id: "c", cwd: "/w" }));
+    render(<ContinueOn model={model} accounts={[]} displays={[lab(week(100, 2 * DAY), { refreshing: true })]} onPick={vi.fn()} />);
+    await waitFor(() => expect(screen.getAllByTestId("continue-account")).toHaveLength(1));
+    const account = screen.getByTestId("continue-account");
+    const title = `Out of room until ${whenWords(RESET, NOW)} · as of 2 days ago, refreshing…`;
+    // The compact chip ("Out", beside the name) and the row's own chip.
+    const chips = within(account).getAllByTestId("switch-target-room");
+    expect(chips.map((chip) => chip.textContent)).toContain(`Out${title}`);
+    for (const chip of chips) {
+      expect(chip.getAttribute("title")).toBe(title);
+      expect(chip.querySelector(".sr-only")?.textContent).toBe(title);
+    }
   });
 });
 
