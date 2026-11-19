@@ -63,6 +63,7 @@ pub const APP_KINDS: &[(&str, &str)] = &[
     ("found", "Apps found on this computer"),
     ("secrets-in-files", "Keys kept in a private file"),
     ("debug", "Debug mode"),
+    ("watch", "Watches you set"),
 ];
 
 /// The kinds that come up as a banner while they need the user (at most
@@ -138,9 +139,11 @@ pub fn attention_level(kind: &str, facts: LevelFacts) -> u8 {
             }
         }
         // Notes: done work to review, leftovers, an update, a renewal, kept
-        // alive or paused, not measured yet, uncommitted files.
+        // alive or paused, not measured yet, uncommitted files, a watch's
+        // alert (AJ-E3817: a watch on a need inherits the need's level,
+        // and the need is the loud copy).
         "review" | "leftovers" | "update" | "renewal" | "app-started" | "keep-alive-paused"
-        | "unmeasured" | "uncommitted" => 1,
+        | "unmeasured" | "uncommitted" | "watch" => 1,
         _ => 2,
     }
 }

@@ -36,6 +36,8 @@ export interface OpenRoutes {
   remote: (machineId: string, sessionId: string | null) => void;
   session: (id: string) => void;
   centre: () => void;
+  /** AJ-E3712: Home's feed (several calm items told as one notification). */
+  home: () => void;
   page: (id: "thismac" | "usage") => void;
   app: (id: string) => void;
   /** An Account's own page (its usage and room). */
@@ -59,6 +61,8 @@ export function routeOpen(open: OpenRequest, to: OpenRoutes): void {
   switch (open.page) {
     case "notifications":
       return to.centre();
+    case "home":
+      return to.home();
     case "app":
       return to.app(id);
     case "conversation":

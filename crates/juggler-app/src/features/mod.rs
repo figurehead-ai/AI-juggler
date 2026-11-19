@@ -18,6 +18,7 @@ pub mod conversations;
 pub mod cost;
 pub mod dashboard;
 pub mod desktop;
+pub mod digest;
 pub mod environment;
 pub mod expert;
 pub mod feed;

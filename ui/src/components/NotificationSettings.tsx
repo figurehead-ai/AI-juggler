@@ -43,6 +43,10 @@ const KINDS: { id: keyof SystemNotificationsInfo; label: string; hint: string; w
   { id: "crash", label: "A session crashes and is restarted", hint: "It crashed and AI Juggler started it again, if you let it.", when: "a session crashes and is restarted" },
   { id: "reset", label: "An account has room again", hint: "Its window reset after it was almost out.", when: "an account has room again" },
   { id: "this_mac", label: `${THIS_MACHINE} is getting tight`, hint: `Memory, disk or heat near its limit, as ${THIS_MACHINE} shows it.`, when: `${THIS_MACHINE} gets tight` },
+  // AJ-E3817: on by default; the user asked for each watch when they set it.
+  { id: "watch", label: "Watches you set", hint: "A watch you set was met. Quiet hours hold it, unless that watch is set to tell you even then.", when: "a watch you set is met" },
+  // AJ-E3712: off by default, like every other kind.
+  { id: "digest", label: "The digest", hint: "What your agents did, in a few lines, every 15 to 30 minutes while they work. Finished sessions are told in it, not one each.", when: "a digest is ready" },
 ];
 
 /** A card's heading: the section-title style (design review 31). */
@@ -90,7 +94,8 @@ function SystemNotifications({ onStatus }: { onStatus: (status: string | null, e
         />
       ))}
       <span className="text-label leading-relaxed text-muted">
-        Each shows once, never while AI Juggler is in front, and clicking it opens that session. The system may ask
+        Each shows once, never while AI Juggler is in front, and clicking it opens that session. Several within a
+        minute come as one notification that names them. The system may ask
         once whether AI Juggler can notify you; if none appear, allow it in System Settings › Notifications.
       </span>
     </fieldset>

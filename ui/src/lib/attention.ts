@@ -94,7 +94,7 @@ const WAITS = new Set(["asks", "stuck", "cut_off", "signin", "cap", "message", "
 /** The kinds that are a note (L1): done work to review, leftovers, and
  * the proposal's other notes (an update, a renewal within 7 days, kept
  * alive or paused, not measured yet, uncommitted files). */
-const NOTES = new Set(["review", "leftovers", "update", "renewal", "app-started", "keep-alive-paused", "unmeasured", "uncommitted"]);
+const NOTES = new Set(["review", "leftovers", "update", "renewal", "app-started", "keep-alive-paused", "unmeasured", "uncommitted", "watch"]);
 /** The kinds that are broken (L3) whatever their facts: a session that
  * stopped with an error or crashed, a switch that failed or rolled back,
  * readings that degraded. */

@@ -19,6 +19,7 @@ use std::sync::{Arc, Mutex};
 
 use juggler_adapter::AdapterRegistry;
 use juggler_adapters::{CLAUDE_CODE_ID, ClaudeCodeAdapter};
+use juggler_app::features::notifications::batch::Opens;
 use juggler_app::features::notifications::centre::{self, NeedInput, NoticeTarget};
 use juggler_app::features::notifications::engine::{Kind, Target};
 use juggler_app::features::notifications::prefs::{self, SystemNotificationsInfo};
@@ -39,6 +40,9 @@ fn app_state(dir: &Path) -> Arc<AppState> {
 fn shown(state: &Arc<AppState>) -> Arc<Mutex<Vec<Outgoing>>> {
     let list = Arc::new(Mutex::new(Vec::new()));
     let sink = Arc::clone(&list);
+    // The rules before the batch (ADR-0036 §1.7 has its own tests): each
+    // item as it falls due.
+    state.notifier.set_batch_ms(0);
     state
         .notifier
         .set_sink(Box::new(move |outgoing: &Outgoing| {
@@ -172,7 +176,7 @@ fn a_crash_restarted_says_so_in_plain_words_and_may_interrupt() {
     );
     assert_eq!(
         state.notifier.target_of(told[0].id),
-        Some(Target::Session(again))
+        Some(Opens::Target(Target::Session(again)))
     );
 }
 
@@ -1073,7 +1077,7 @@ fn room_again_is_told_when_on_and_never_muted_or_snoozed() {
     }
     assert_eq!(
         state.notifier.target_of(list.lock().unwrap()[0].id),
-        Some(Target::Account("acct-a".to_owned()))
+        Some(Opens::Target(Target::Account("acct-a".to_owned())))
     );
 
     centre::mute(&state.storage.lock().unwrap(), "kind", "reset", "", now).unwrap();

@@ -43,7 +43,7 @@ describe("AJ-E1510 — Settings › Notifications", () => {
     await act(async () => {
       fireEvent.click(within(group).getByLabelText("A session finishes"));
     });
-    expect(w().__AIJ_NOTIFY__).toEqual({ waiting: false, stuck: false, limit: false, finished: true, this_mac: false, left_behind: false, quota: false, crash: false, reset: false });
+    expect(w().__AIJ_NOTIFY__).toEqual({ waiting: false, stuck: false, limit: false, finished: true, this_mac: false, left_behind: false, quota: false, crash: false, reset: false, watch: true, digest: false });
     await waitFor(() =>
       expect(getByTestId("settings-notifications").textContent).toContain("You'll get a notification when a session finishes."),
     );
@@ -70,7 +70,24 @@ describe("AJ-E1510 — Settings › Notifications", () => {
       expect(w().__AIJ_NOTIFY__).toMatchObject({ [id]: true });
       await waitFor(() => expect(getByTestId("settings-notifications").textContent).toContain(`You'll get a notification when ${when}.`));
     }
-    expect(w().__AIJ_NOTIFY__).toEqual({ waiting: false, stuck: false, limit: false, finished: false, this_mac: false, left_behind: false, quota: true, crash: true, reset: true });
+    expect(w().__AIJ_NOTIFY__).toEqual({ waiting: false, stuck: false, limit: false, finished: false, this_mac: false, left_behind: false, quota: true, crash: true, reset: true, watch: true, digest: false });
+  });
+
+  it("AJ-E3817, AJ-E3712: Watches you set is on by default, the digest off, each saved on its own", async () => {
+    const { findByTestId, getByTestId } = render(<SettingsScreen focusSection="notifications" />);
+    const group = await findByTestId("system-notifications");
+    expect(within(group).getByLabelText("Watches you set")).toHaveProperty("checked", true);
+    expect(within(group).getByLabelText("The digest")).toHaveProperty("checked", false);
+    await act(async () => {
+      fireEvent.click(within(group).getByLabelText("Watches you set"));
+    });
+    expect(w().__AIJ_NOTIFY__).toMatchObject({ watch: false, digest: false });
+    await waitFor(() => expect(getByTestId("settings-notifications").textContent).toContain("No notification when a watch you set is met."));
+    await act(async () => {
+      fireEvent.click(within(group).getByLabelText("The digest"));
+    });
+    expect(w().__AIJ_NOTIFY__).toMatchObject({ watch: false, digest: true });
+    expect(group.textContent).toContain("Several within a minute come as one notification");
   });
 
   it("says the quiet hours and the Accounts left out apply to notifications too", async () => {
