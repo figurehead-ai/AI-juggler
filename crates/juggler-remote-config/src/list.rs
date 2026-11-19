@@ -13,6 +13,10 @@
 //! - [`FieldKind::Time`]: Unix seconds.
 //! - [`FieldKind::Link`]: an `https://` link to one of the compiled hosts:
 //!   no other scheme, host, port or user part.
+//! - [`FieldKind::Count`]: a whole number within compiled bounds (a size,
+//!   an amount of memory).
+//! - [`FieldKind::Sha256`]: a SHA-256, exactly 64 lower-case hex
+//!   characters.
 //!
 //! Nothing carries code, a path or a command, and what a record *does* is
 //! the module's own compiled behaviour.
@@ -95,6 +99,15 @@ pub enum FieldKind {
         /// The only hosts it may point at, lower case.
         hosts: Vec<String>,
     },
+    /// A whole number from `min` to `max`, both included.
+    Count {
+        /// The least.
+        min: u64,
+        /// The most (at most the canonical form's largest integer).
+        max: u64,
+    },
+    /// A SHA-256: exactly 64 lower-case hex characters.
+    Sha256,
 }
 
 /// One field of a record: its kind, and whether a record may leave it out.
@@ -149,6 +162,10 @@ pub enum FieldValue {
     Time(u64),
     /// An `https://` link to an allowed host.
     Link(String),
+    /// A whole number within its bounds.
+    Count(u64),
+    /// A SHA-256, 64 lower-case hex characters.
+    Sha256(String),
 }
 
 /// One record, read and targeted.
@@ -204,6 +221,24 @@ impl Item {
     pub fn link(&self, name: &str) -> Option<&str> {
         match self.fields.get(name)? {
             FieldValue::Link(url) => Some(url),
+            _ => None,
+        }
+    }
+
+    /// A whole-number field.
+    #[must_use]
+    pub fn count(&self, name: &str) -> Option<u64> {
+        match self.fields.get(name)? {
+            FieldValue::Count(count) => Some(*count),
+            _ => None,
+        }
+    }
+
+    /// A SHA-256 field, 64 lower-case hex characters.
+    #[must_use]
+    pub fn sha256(&self, name: &str) -> Option<&str> {
+        match self.fields.get(name)? {
+            FieldValue::Sha256(hash) => Some(hash),
             _ => None,
         }
     }
@@ -298,6 +333,11 @@ impl ListSpec {
                 {
                     return bad("a link names lower-case hosts");
                 }
+                FieldKind::Count { min, max }
+                    if min > max || *max > crate::canonical::MAX_SAFE_INTEGER.unsigned_abs() =>
+                {
+                    return bad("a count runs from min to max, within the canonical integers");
+                }
                 _ => {}
             }
         }
@@ -352,6 +392,21 @@ impl ListSpec {
                     Err("a link goes only to an allowed https host".to_owned())
                 }
             }
+            FieldKind::Count { min, max } => match value.as_u64() {
+                Some(count) if (*min..=*max).contains(&count) => Ok(FieldValue::Count(count)),
+                _ => Err(format!("a count is a whole number from {min} to {max}")),
+            },
+            FieldKind::Sha256 => match value.as_str() {
+                Some(hash)
+                    if hash.len() == 64
+                        && hash
+                            .bytes()
+                            .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b)) =>
+                {
+                    Ok(FieldValue::Sha256(hash.to_owned()))
+                }
+                _ => Err("a SHA-256 is 64 lower-case hex characters".to_owned()),
+            },
         }
     }
 
@@ -527,6 +582,12 @@ impl crate::Registry {
     /// ([`crate::list`]), and what was left out and why. Section-level
     /// problems (an unknown section, a newer schema) are reported by
     /// [`crate::Registry::resolve`], not again here.
+    ///
+    /// A section is in the result only when this app read it: its schema
+    /// is one it knows and `items` is a list or left out (an empty list).
+    /// A missing section, a newer or missing schema, or `items` that isn't
+    /// a list is left out, so a reader can tell "this file lists nothing"
+    /// from "this app couldn't read the list".
     #[must_use]
     pub fn resolve_lists(
         &self,
@@ -545,12 +606,19 @@ impl crate::Registry {
             let (Some(reading), _) = spec.reading(raw) else {
                 continue;
             };
+            if reading != Reading::Full {
+                continue;
+            }
             let Some(items) = raw.get("items") else {
+                lists.insert(name.clone(), Vec::new());
                 continue;
             };
+            let unreadable = !items.is_array();
             let (read, problems) = list.resolve(name, items, facts, reading);
             issues.extend(problems);
-            lists.insert(name.clone(), read);
+            if !unreadable {
+                lists.insert(name.clone(), read);
+            }
         }
         (lists, issues)
     }

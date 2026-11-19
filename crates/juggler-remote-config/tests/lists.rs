@@ -36,6 +36,14 @@ fn spec() -> ListSpec {
         )
         .field("quiet", Field::optional(FieldKind::Flag))
         .field("until", Field::optional(FieldKind::Time))
+        .field(
+            "size",
+            Field::optional(FieldKind::Count {
+                min: 1,
+                max: 8_589_934_592,
+            }),
+        )
+        .field("hash", Field::optional(FieldKind::Sha256))
 }
 
 fn registry() -> Registry {
@@ -92,6 +100,41 @@ fn records_are_read_with_their_typed_fields() {
         !item.fields.contains_key("future_field"),
         "unknown fields are ignored"
     );
+}
+
+#[test]
+fn counts_and_hashes_are_closed() {
+    let hash = "061b54daade076b5d3362dac252678d17da8c68f07560be70818cace6590cb1a";
+    let (read, issues) = items(json!([{
+        "id": "a", "kind": "low", "title": "t", "size": 1_834_426_016u64, "hash": hash
+    }]));
+    assert!(issues.is_empty(), "{issues:?}");
+    assert_eq!(read[0].count("size"), Some(1_834_426_016));
+    assert_eq!(read[0].sha256("hash"), Some(hash));
+    for (size, why) in [
+        (json!(0), "under min"),
+        (json!(8_589_934_593u64), "over max"),
+        (json!(-1), "negative"),
+        (json!(1.5), "not whole"),
+        (json!("12"), "a string"),
+    ] {
+        let (read, issues) =
+            items(json!([{ "id": "a", "kind": "low", "title": "t", "size": size }]));
+        assert_eq!(read[0].count("size"), None, "{why}");
+        assert_eq!(issues.len(), 1, "{why}");
+    }
+    for bad in [
+        hash.to_uppercase(),
+        hash[..63].to_owned(),
+        format!("{hash}0"),
+        format!("{}g", &hash[..63]),
+        String::new(),
+    ] {
+        let (read, issues) =
+            items(json!([{ "id": "a", "kind": "low", "title": "t", "hash": bad }]));
+        assert_eq!(read[0].sha256("hash"), None, "{bad}");
+        assert_eq!(issues.len(), 1, "{bad}");
+    }
 }
 
 #[test]
@@ -201,8 +244,19 @@ fn a_newer_or_broken_list_gives_nothing() {
     ] {
         let sections = BTreeMap::from([("messages".to_owned(), raw.clone())]);
         let (lists, _) = registry.resolve_lists(&sections, &facts());
-        assert!(lists.get("messages").is_none_or(Vec::is_empty), "{raw}");
+        assert!(!lists.contains_key("messages"), "{raw}: unread, not empty");
     }
+    // A section this app reads with no records is there, and empty.
+    for raw in [json!({ "schema": 1 }), json!({ "schema": 1, "items": [] })] {
+        let sections = BTreeMap::from([("messages".to_owned(), raw.clone())]);
+        let (lists, _) = registry.resolve_lists(&sections, &facts());
+        assert_eq!(lists.get("messages").map(Vec::len), Some(0), "{raw}");
+    }
+    let (lists, _) = registry.resolve_lists(&BTreeMap::new(), &facts());
+    assert!(
+        !lists.contains_key("messages"),
+        "a missing section isn't empty"
+    );
     // A list section's controls still resolve as before; its items don't
     // disturb them.
     let sections = BTreeMap::from([(
@@ -240,6 +294,14 @@ fn the_registry_refuses_bad_list_declarations() {
             "l",
             Field::required(FieldKind::Link {
                 hosts: vec!["localhost".to_owned()],
+            }),
+        ),
+        ListSpec::new(1).field("n", Field::required(FieldKind::Count { min: 2, max: 1 })),
+        ListSpec::new(1).field(
+            "n",
+            Field::required(FieldKind::Count {
+                min: 0,
+                max: u64::MAX,
             }),
         ),
     ];
