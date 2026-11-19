@@ -2833,7 +2833,11 @@ fn the_codex_app_and_codex_cli_share_the_labs_codex_folder() {
     assert_eq!(recipes.len(), 1);
     // The store, as the real-Mac check reads it: the Codex app's 2, the
     // rest 1 (the script's run is listed by no Codex surface).
-    let read = presence_reads(&state, &[&codex], "[len(ids) for ids in ps.codex_listed(a[0])]");
+    let read = presence_reads(
+        &state,
+        &[&codex],
+        "[len(ids) for ids in ps.codex_listed(a[0])]",
+    );
     assert_eq!(read, serde_json::json!([2, 1]));
 }
 
