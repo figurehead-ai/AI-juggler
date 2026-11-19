@@ -193,11 +193,28 @@ describe("the Pools screen (AJ-E2807)", () => {
       </ActionHostProvider>,
     );
     const tiles = await view.findAllByTestId("pool-card-tile");
-    const project = tiles.find((tile) => within(tile).getByTestId("pool-card-scope").textContent === "(project pool)")!;
+    const project = tiles.find((tile) => within(tile).getByTestId("pool-card-scope").textContent === "Project pool")!;
     fireEvent.contextMenu(project.parentElement!, { clientX: 30, clientY: 30, button: 2 });
     const rename = within(view.getByRole("menu")).getByRole("menuitem", { name: /Rename…/ });
     expect(rename.hasAttribute("disabled") || rename.getAttribute("aria-disabled") === "true").toBe(true);
     expect(view.getByRole("menu").textContent).toContain("A project's own pool goes with its project");
+  });
+
+  it("F-rc3g-7: a project's own pool's card says its one name, the one its page, a session's Pools tab and the agents' tools use", async () => {
+    await act(async () => {
+      await refreshPools();
+    });
+    const view = render(
+      <ActionHostProvider host={{ openPool: () => undefined }}>
+        <PoolsScreen sessions={MOCK_SESSIONS} projects={MOCK_PROJECTS} accounts={[]} />
+      </ActionHostProvider>,
+    );
+    const tiles = await view.findAllByTestId("pool-card-tile");
+    const own = tiles.filter((tile) => within(tile).getByTestId("pool-card-scope").textContent === "Project pool");
+    expect(own.length).toBeGreaterThan(0);
+    for (const tile of own) expect(within(tile).getByTestId("pool-card-name").textContent).toMatch(/^.+ · all sessions$/);
+    // Never the project's name alone, which no agent's tool took (the P4 walk: "web").
+    expect(own.map((tile) => within(tile).getByTestId("pool-card-name").textContent)).not.toContain(MOCK_PROJECTS[0]!.name);
   });
 
   it("with no project yet, says pools come with it (R5)", async () => {

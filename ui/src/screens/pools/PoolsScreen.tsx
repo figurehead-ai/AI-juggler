@@ -216,14 +216,16 @@ export function PoolsScreen({ sessions, projects, accounts }: { sessions: Instan
               const members = byPool.get(pool.id) ?? [];
               const preview = previews.get(pool.id);
               const team = miniTeam(teams.get(pool.id) ?? null, members.slice(0, 24), (id) => roleOf(pools, id, pool.id), { apps: apps ?? [], sessions }, (ref) => memberName(ref, sessions));
-              const project = pool.project_id ? projects.find((row) => row.id === pool.project_id) : undefined;
               return (
                 <PoolCard key={pool.id} pool={pool} local={cardHost} asks={asks.get(pool.id) ?? 0} onOpen={() => host.openPool?.(pool.id)}>
                   <PoolMini lead={team.lead} members={team.members} known={teams.has(pool.id)} />
                   <span className="flex min-w-0 items-baseline gap-2 pr-6">
-                    <span className="truncate text-body font-semibold text-ink" data-testid="pool-card-name">{pool.kind === "default" ? (project?.name ?? "No project") : pool.name}</span>
+                    {/* F-rc3g-7: a pool by its one name, as its page, a session's
+                        Pools tab and the agents' tools say it ("web · all
+                        sessions (in lab)"), never "web" alone. */}
+                    <span className="truncate text-body font-semibold text-ink" data-testid="pool-card-name">{pool.name}</span>
                     <span className="min-w-0 truncate text-label text-muted" data-testid="pool-card-scope">
-                      {pool.kind === "default" ? (pool.project_id ? "(project pool)" : "sessions with no project") : scopeLabel(pool, projects)}
+                      {pool.kind === "default" ? (pool.project_id ? "Project pool" : "") : scopeLabel(pool, projects)}
                     </span>
                   </span>
                   <span className={"text-meta " + ((asks.get(pool.id) ?? 0) > 0 ? "text-warning" : "text-muted")} data-testid="pool-card-words">
