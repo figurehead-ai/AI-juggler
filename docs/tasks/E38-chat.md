@@ -353,7 +353,7 @@
 **Research basis**: D-132 point 2; D-126; view-and-edit-in-place.
 **Handover note**: This is the only creation path when no engine exists, so build it to stand alone.
 
-### AJ-E3817 Watch alerts through the existing notification path: quiet hours, consolidation, dismissal (D-132) | Status: TODO | Priority P0 | Effort M | Depends: AJ-E3814, AJ-E3712, AJ-E3819 (step 1: the store and log)
+### AJ-E3817 Watch alerts through the existing notification path: quiet hours, consolidation, dismissal (D-132) | Status: IN-PROGRESS (2026-11-19: built 529549af9: fires as `watch` notices told once, batched and consolidated with needs, held through quiet hours unless the watch's own switch, never while in front, "Watches you set" on by default, the replay of session endings on start. Open: other apps' states on start (AJ-E3705), the Sonnet lab walk and `docs/qa/evidence/AJ-E3817/manifest.md`) | Priority P0 | Effort M | Depends: AJ-E3814, AJ-E3712, AJ-E3819 (step 1: the store and log)
 **Goal**: A watch alerts the user the way every other need does, once, calmly and consolidated.
 **User story**: As a user with three watches firing together, I get one grouped alert, and none at night.
 **Requirements**:
