@@ -94,6 +94,11 @@ const SINK_SITES: &[(&str, &str)] = &[
     // E19 (AJ-E1906): the `gh` look-up it started itself, stopped past its
     // time limit; never anything else.
     ("features/tasks/issues::ask_gh", CHILD),
+    // AJ-E3802 (ADR-0033 §4.2): the AI helper process the engine started
+    // itself (`Child::kill`), ended when it fails to answer its hello in
+    // time and when the engine drops it; never anything else.
+    ("features/ai/engines/helper::start", CHILD),
+    ("features/ai/engines/helper::drop", CHILD),
     // ADR-0032 (a test): the stand-in Claude.app the launch-and-quit bound
     // test started itself, stopped when it has seen it; never anything else.
     (
