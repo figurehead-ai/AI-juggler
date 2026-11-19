@@ -1,7 +1,8 @@
 /**
  * Settings (AJ-E1203; AJ-E2110, Apple's System Settings pattern): a
  * sidebar of panes — General, Desktop apps, Accounts, Sessions,
- * Switching, Agent access (AJ-E1702), Notifications, Privacy, Your Macs
+ * Switching, AI › Jobs and Models (AJ-E3812), Agent access (AJ-E1702),
+ * Notifications, Privacy, Your Macs
  * (once one is paired), Keyboard and Advanced — each with grouped
  * sections; a search atop the sidebar finds any of them (AJ-E2905). ⌘, opens the pane viewed last;
  * a link from elsewhere opens its pane at its section (`panes.ts` maps
@@ -16,7 +17,7 @@ import { fleetPeers } from "../lib/ipc/fleet";
 import { lazyNamed } from "../lib/lazy";
 import { useResource } from "../lib/use-resource";
 import { PaneIcon } from "./settings/pane-icons";
-import { lastPane, rememberPane, shownPanes, targetOf, type PaneId } from "./settings/panes";
+import { GROUPS, lastPane, rememberPane, shownPanes, targetOf, type PaneId, type PaneSpec } from "./settings/panes";
 import { searchSettings } from "./settings/settings-index";
 import { SettingsSearch } from "./settings/SettingsSearch";
 import { PaneTile } from "./settings/parts";
@@ -37,7 +38,64 @@ const PANE_BODIES: Record<PaneId, (props: PaneProps) => JSX.Element> = {
   macs: lazyNamed(() => import("./settings/MacsPane"), "MacsPane"),
   keyboard: lazyNamed(() => import("./settings/KeyboardPane"), "KeyboardPane"),
   advanced: lazyNamed(() => import("./settings/AdvancedPane"), "AdvancedPane"),
+  "ai-jobs": lazyNamed(() => import("./settings/ai/JobsPane"), "JobsPane"),
+  "ai-models": lazyNamed(() => import("./settings/ai/ModelsPane"), "ModelsPane"),
 };
+
+/** A sidebar row's look: the one selected look for the pane shown, a
+ * lighter plain fill on hover, dimmed when a search doesn't match it. */
+function rowLook(current: boolean, dimmed: boolean): string {
+  return (
+    "flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 text-left text-body transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent " +
+    // AJ-E3306 (rc26): the selected item carries an edge and a
+    // fill; a hover is a lighter plain fill with no edge, so a
+    // resting pointer never reads as a second selection. D-117
+    // (selection): the one selected look, neutral — a 3:1 edge
+    // and semibold ink — the accent is for actions and focus.
+    (current ? SELECTED : "text-ink hover:bg-surface-2/60") +
+    (dimmed ? " opacity-45" : "")
+  );
+}
+
+/** The sidebar's rows: each pane, and a group's row (AI) before its
+ * panes, which sit under it indented (the mock's Settings › AI › Models). */
+function NavRows({ panes, pane, dim, onPick }: { panes: PaneSpec[]; pane: PaneId; dim: (id: PaneId) => boolean; onPick: (id: PaneId) => void }): JSX.Element {
+  return (
+    <ul className="flex flex-col gap-0.5" data-testid="settings-nav">
+      {panes.map((entry, index) => {
+        const group = entry.group ? GROUPS[entry.group] : null;
+        const opensGroup = group && panes[index - 1]?.group !== entry.group;
+        const inGroup = group && panes.some((other) => other.group === entry.group && other.id === pane);
+        return (
+          <li key={entry.id}>
+            {group && opensGroup && (
+              <button type="button" onClick={() => onPick(group.opens)} className={rowLook(false, false) + (inGroup ? " font-semibold" : "")} data-group={group.id}>
+                <PaneTile tone={group.tone}>
+                  <PaneIcon pane={group.opens} />
+                </PaneTile>
+                {group.label}
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => onPick(entry.id)}
+              aria-current={pane === entry.id ? "page" : undefined}
+              className={rowLook(pane === entry.id, dim(entry.id)) + (group ? " mt-0.5 py-1 pl-[42px] text-meta" : "")}
+              data-pane={entry.id}
+            >
+              {!group && (
+                <PaneTile tone={entry.tone}>
+                  <PaneIcon pane={entry.id} />
+                </PaneTile>
+              )}
+              {entry.label}
+            </button>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
 
 /** How many Macs are paired (the Your Macs pane shows once one is). */
 function usePairedMacs(): number | null {
@@ -96,38 +154,15 @@ export function SettingsScreen({
             setJumps((count) => count + 1);
           }}
         />
-        <ul className="flex flex-col gap-0.5" data-testid="settings-nav">
-          {panes.map((entry) => (
-            <li key={entry.id}>
-              <button
-                type="button"
-                onClick={() => {
-                  setPane(entry.id);
-                  setAnchor(undefined);
-                }}
-                aria-current={pane === entry.id ? "page" : undefined}
-                className={
-                  "flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 text-left text-body transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent " +
-                  // AJ-E3306 (rc26): the selected item carries an edge and a
-                  // fill; a hover is a lighter plain fill with no edge, so a
-                  // resting pointer never reads as a second selection. D-117
-                  // (selection): the one selected look, neutral — a 3:1 edge
-                  // and semibold ink — the accent is for actions and focus.
-                  (pane === entry.id
-                    ? SELECTED
-                    : "text-ink hover:bg-surface-2/60") +
-                  (searching && !matched.has(entry.id) ? " opacity-45" : "")
-                }
-                data-pane={entry.id}
-              >
-                <PaneTile tone={entry.tone}>
-                  <PaneIcon pane={entry.id} />
-                </PaneTile>
-                {entry.label}
-              </button>
-            </li>
-          ))}
-        </ul>
+        <NavRows
+          panes={panes}
+          pane={pane}
+          dim={(id) => searching && !matched.has(id)}
+          onPick={(id) => {
+            setPane(id);
+            setAnchor(undefined);
+          }}
+        />
       </nav>
       <div className="min-w-0 max-w-[760px] flex-1 pb-10"><Body key={`${pane}:${jumps}`} anchor={anchor} /></div>
     </div>

@@ -56,11 +56,15 @@ export function Pane({
   id,
   title,
   anchor,
+  head,
   children,
 }: {
   id: string;
   title: string;
   anchor?: string;
+  /** A head of its own in place of the title alone (a crumb, a lead
+   * line, facts beside it); it holds the pane's h2. */
+  head?: ReactNode;
   children: ReactNode;
 }): JSX.Element {
   const pane = useRef<HTMLDivElement>(null);
@@ -118,7 +122,7 @@ export function Pane({
   }, [anchor]);
   return (
     <div ref={pane} className="flex flex-col gap-7" data-testid={`settings-pane-${id}`} data-pane={id}>
-      <h2 className="text-title text-ink">{title}</h2>
+      {head ?? <h2 className="text-title text-ink">{title}</h2>}
       {children}
     </div>
   );

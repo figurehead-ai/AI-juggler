@@ -39,6 +39,9 @@ CacheInfo.used_bytes                               # bytes, < 2^53 is 8 PiB
 CacheRowInfo.bytes                                 # bytes, < 2^53 is 8 PiB
 CacheRowInfo.entries                               # a count of things on this Mac, far below 2^53
 CanvasEdgeInfo.last_at_ms                          # ms epoch, < 2^53 until year 287396
+CatalogModel.free_disk_needed_bytes                # bytes, < 2^53 is 8 PiB
+CatalogModel.min_memory_gb                         # GB, the list caps it at 256
+CatalogModel.size_bytes                            # bytes, < 2^53 is 8 PiB
 CleanupEventInfo.at_ms                             # ms epoch, < 2^53 until year 287396
 CleanupEventInfo.id                                # SQLite rowid, counts up from 1 per insert
 CleanupPolicyInfo.suspended_until_ms               # ms epoch, < 2^53 until year 287396
@@ -133,6 +136,9 @@ Lifetime::Until.at_ms                              # ms epoch, < 2^53 until year
 LifetimeChoice::Until.at_ms                        # ms epoch, < 2^53 until year 287396
 LimitWindowInfo.resets_at_ms                       # ms epoch, < 2^53 until year 287396
 LongContext.over_prompt_tokens                     # tokens, < 2^53 is 9e15 tokens
+MacInfo.free_disk_bytes                            # bytes, < 2^53 is 8 PiB
+MacInfo.memory_bytes                               # bytes, < 2^53 is 8 PiB
+MacInfo.memory_gb                                  # GB of this Mac's memory, far below 2^53
 MachineAdviceInfo.projected_bytes                  # bytes, < 2^53 is 8 PiB
 MachineAdviceInfo.relief_bytes                     # bytes, < 2^53 is 8 PiB
 MachineHealthInfo.memory_available                 # bytes, < 2^53 is 8 PiB
@@ -207,6 +213,7 @@ QualitySignalsInfo.context_window                  # tokens, < 2^53 is 9e15 toke
 QualitySignalsInfo.end_context                     # tokens, < 2^53 is 9e15 tokens
 QualitySignalsInfo.tokens_bars                     # tokens, < 2^53 is 9e15 tokens
 QuotaSnapshotInfo.resets_at_ms                     # ms epoch, < 2^53 until year 287396
+RecommendationInfo.needed_bytes                    # bytes, < 2^53 is 8 PiB
 RecoverySummaryInfo.adopted                        # a count of things on this Mac, far below 2^53
 RecoverySummaryInfo.left_behind                    # a count of things on this Mac, far below 2^53
 RecoverySummaryInfo.unverifiable                   # a count of things on this Mac, far below 2^53

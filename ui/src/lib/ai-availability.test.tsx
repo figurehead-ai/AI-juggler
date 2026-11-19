@@ -12,6 +12,7 @@ const job = (over: Partial<AiJobInfo> & Pick<AiJobInfo, "job" | "state">): AiJob
   model_id: null,
   model_name: null,
   why: null,
+  pick: null,
   ...over,
 });
 
