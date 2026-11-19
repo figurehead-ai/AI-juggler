@@ -219,8 +219,13 @@ export function SessionRow(props: SessionRowProps): JSX.Element {
               hover and in the row's name; the time stays whole (0.4.5).
               rc3: the project, time and state word are the line's own
               items (the time had sat in a box sized 0, which the word's
-              half took first: 8 px under it at the list's 208 px floor). */}
-          <span aria-hidden="true" title={state.word} className={"ml-auto min-w-0 max-w-[50%] shrink truncate pl-2 text-label leading-[14px] " + (needs ? "font-semibold " : "font-medium ") + state.text} data-testid="state-word">
+              half took first: 8 px under it at the list's 208 px floor).
+              The word's near-zero shrink: flex shares a squeeze by each
+              item's factor, so a factor of 1 beside the project's 100
+              still cut "Limit reach…" while the project had room; at
+              0.001 the project gives way to its 2.5ch first, then the word
+              takes the rest (the rc3 baseline review). */}
+          <span aria-hidden="true" title={state.word} className={"ml-auto min-w-0 max-w-[50%] shrink-[0.001] truncate pl-2 text-label leading-[14px] " + (needs ? "font-semibold " : "font-medium ") + state.text} data-testid="state-word">
             {state.word}
           </span>
         </span>

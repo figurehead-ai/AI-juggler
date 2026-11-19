@@ -142,6 +142,50 @@ test("A8: a rail row's time never runs under its state word — 1024", async ({ 
     }),
   );
   expect(under).toEqual([]);
+  expect(await cutEarly(page), "a state word cut while its project had room").toEqual([]);
   // And each row says its project and time (not measured empty).
   await expect(page.getByTestId("rail").getByTestId("row-when").first()).toContainText("ago");
+});
+
+/** Rows whose state word is cut while their project still had room: the
+ * project gives way first, down to its 2.5ch, and the word is cut only
+ * then, or at its own cap of half the line (the rc3 baseline review:
+ * "Limit reach…" beside "storef…"). */
+function cutEarly(page: Page): Promise<string[]> {
+  return page.getByTestId("rail").evaluate((rail) =>
+    [...rail.querySelectorAll<HTMLElement>("[data-testid='state-word']")].flatMap((word) => {
+      // Cut by any fraction (the ellipsis shows at a 0.5 px shortfall,
+      // which scrollWidth's whole pixels round away): the text's own
+      // width against the box's.
+      const text = document.createRange();
+      text.selectNodeContents(word);
+      const style = getComputedStyle(word);
+      const room = word.getBoundingClientRect().width - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
+      if (text.getBoundingClientRect().width <= room + 0.05) return [];
+      const line = word.parentElement!;
+      if (word.getBoundingClientRect().width >= line.getBoundingClientRect().width / 2 - 1) return [];
+      const project = line.querySelector<HTMLElement>("[data-testid='row-project'], span.truncate");
+      if (!project) return [];
+      const ch = parseFloat(getComputedStyle(project).fontSize) * 0.6;
+      return project.getBoundingClientRect().width > ch * 2.5 + 4 ? [`${project.textContent} (${Math.round(project.getBoundingClientRect().width)} px) | ${word.textContent}`] : [];
+    }),
+  );
+}
+
+// The same rows at the list's own width: a short squeeze. A word under
+// half the line stays whole while the project can give way.
+test("A8: a rail row's project gives way before its state word — 1280", async ({ page }) => {
+  const ended = MOCK_SESSIONS.map((row) => ({ ...row, status: "stopped", started_at_ms: T0 - 3_600_000, last_activity_ms: T0 - 180_000, ending: { how: "stopped", detail: null } }));
+  const projects = [
+    { id: "proj-ai-juggler", root: "/Users/you/Dev/ai-juggler", name: "ai-juggler-desktop", last_activity_ms: T0, active_instance: null, accounts_used: [], instance_count: 0, history_sessions: 0, history_last_used_ms: null, repo: null, missing: false },
+    { id: "proj-payments", root: "/Users/you/Dev/payments-api", name: "payments-api-service", last_activity_ms: T0, active_instance: null, accounts_used: [], instance_count: 0, history_sessions: 0, history_last_used_ms: null, repo: null, missing: false },
+  ];
+  await seed(page, { accounts: ACCOUNTS, projects, sessions: ended, conversations: [] }, { width: 1280, height: 800 });
+  await page.getByTestId("rail").getByTestId("rail-also-ended").first().click();
+  const words = page.getByTestId("rail").getByTestId("state-word");
+  await expect(words.first()).toHaveText("Stopped by you");
+  expect(await cutEarly(page), "a state word cut while its project had room").toEqual([]);
+  // The squeeze is real here: a project gave way.
+  const cutProjects = await page.getByTestId("rail").evaluate((rail) => [...rail.querySelectorAll<HTMLElement>("[data-testid='row-project']")].filter((el) => el.scrollWidth > el.clientWidth).length);
+  expect(cutProjects, "a project gave way").toBeGreaterThan(0);
 });
