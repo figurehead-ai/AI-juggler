@@ -109,10 +109,17 @@ pub struct LimitWindow {
     pub id: String,
     /// Its length in minutes, when the tool says.
     pub window_mins: Option<u32>,
-    /// How much of it is used, 0–100.
+    /// How much of it is used, 0–100, as the tool said: a window whose use
+    /// the tool didn't give is left out, never read as 0.
     pub used_pct: f64,
     /// When it resets, epoch ms, when the tool says.
     pub resets_at_ms: Option<i64>,
+    /// The one model it limits, in the tool's own word (`opus`), when it
+    /// limits one model only (a weekly limit on one model); `None` when it
+    /// limits all the account's use. Only an all-models window is kept as
+    /// the account's reading.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub model: Option<String>,
 }
 
 /// What the tool reported about its account's limits.

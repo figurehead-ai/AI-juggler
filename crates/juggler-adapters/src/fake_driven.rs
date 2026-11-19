@@ -278,6 +278,7 @@ impl FakeDrivenSession {
                             .and_then(|mins| u32::try_from(mins).ok()),
                         used_pct: message.get("used").and_then(Value::as_f64).unwrap_or(0.0),
                         resets_at_ms: message.get("resets_at").and_then(Value::as_i64),
+                        model: None,
                     }],
                     plan: None,
                     reached: false,
