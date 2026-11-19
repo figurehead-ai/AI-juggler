@@ -283,6 +283,15 @@
    "corpus": "turns"
   },
   {
+   "id": "R3T30",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "risk reason: contradiction: says 'erledigt'; the facts say 'Tests: 45 bestanden, 2 fehlgeschlagen (laut AI Juggler)': leave the claim out",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
    "id": "R3T31",
    "attempt": 0,
    "class": "critical",
@@ -459,6 +468,24 @@
    "class": "critical",
    "detector": "anchoring",
    "detail": "'the 404 test file changed': 2b: content word(s) not in the text: the",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T49",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'fixed all three lint errors': contradiction: says 'lint fixed'; the facts say 'Failed: renderer/draw.ts:88:5 error no-unused-vars': leave the claim out",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T49",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'fixed all three lint errors': contradiction: says 'lint fixed'; the facts say 'Failed: renderer/draw.ts:88:5 error no-unused-vars': leave the claim out",
    "stage": "caught",
    "corpus": "turns"
   }

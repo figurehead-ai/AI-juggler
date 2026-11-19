@@ -453,12 +453,12 @@
      "items": 50,
      "decided_by_code": 0,
      "model_called": 50,
-     "passed_first_attempt": 25,
+     "passed_first_attempt": 23,
      "passed_after_a_retry": 10,
-     "fell_back": 9,
-     "passed_first_pct": 50.0,
-     "passed_with_retries_pct": 70.0,
-     "fallback_pct": 18.0,
+     "fell_back": 11,
+     "passed_first_pct": 46.0,
+     "passed_with_retries_pct": 66.0,
+     "fallback_pct": 22.0,
      "attempts_per_item": {
       "1": 28,
       "2": 11,
@@ -474,27 +474,27 @@
       "p95": 5810
      },
      "kinds_shown": {
-      "baseline": 15,
-      "written": 35
+      "baseline": 17,
+      "written": 33
      }
     },
     "severity": {
      "items": 50,
-     "model_shown_items": 32,
+     "model_shown_items": 30,
      "critical_reaching_the_user": 0,
      "critical_reaching_pct": 0.0,
      "critical_reaching_pct_of_all_items": 0.0,
      "critical_by_detector": {},
      "systematic": [],
-     "critical_caught_drafts": 51,
-     "critical_caught_items": 19,
+     "critical_caught_drafts": 54,
+     "critical_caught_items": 21,
      "critical_caught_by_detector": {
-      "contradiction": 31,
+      "contradiction": 34,
       "anchoring": 19,
       "invented": 1
      },
      "omission_items": 0,
-     "omission_denominator": 32,
+     "omission_denominator": 30,
      "omission_pct": 0.0,
      "omission_by_detector": {},
      "questions_or_failures_hidden": 0,
@@ -634,6 +634,18 @@
    ]
   },
   {
+   "id": "R3T30",
+   "job": "review",
+   "run": [
+    0,
+    "written"
+   ],
+   "replay": [
+    "fallback",
+    "baseline"
+   ]
+  },
+  {
    "id": "R3T40",
    "job": "review",
    "run": [
@@ -654,6 +666,18 @@
    ],
    "replay": [
     "code",
+    "baseline"
+   ]
+  },
+  {
+   "id": "R3T49",
+   "job": "review",
+   "run": [
+    0,
+    "written"
+   ],
+   "replay": [
+    "fallback",
     "baseline"
    ]
   },

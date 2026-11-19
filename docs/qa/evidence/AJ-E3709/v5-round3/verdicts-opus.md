@@ -128,3 +128,43 @@ Every REAL verdict above was re-read against the source, facts and git, and the 
 - R3T27 (Gemma, review): "In generale funziona" glossed beside 5 failed tests. The test-claims-in-free-text class, in Italian, which the checks don't read (fixed by d57828883: no model text for a language the gate can't read).
 
 Against D-130 (≤1 % reaching the user, none systematic, sets of 50): round 3 fails the feed on five models (R3T48, systematic) and the review on Apple, Granite, Qwen3-4B and Gemma. Attention and Chat have no REAL critical. The fixes were shaped by this set, so the verdict after them needs round 4 on fresh blind sets.
+
+## Added after the round-3 blind review's false-word claims were adjudicated (Opus, blind to sides; 4a95a002b)
+
+The adjudicator confirmed critical claims on both the AI side and the code side, the code side being A:
+
+| Job | AI side | Code side (A) |
+|---|---|---|
+| review | 36 | 19 |
+| feed | 5 | 11 |
+| chat | 8 | none |
+
+The first by-eye pass above missed four classes. Each one is fixed below.
+
+| Class | Items and sides | Why the first pass missed it | Fix |
+|---|---|---|---|
+| A's review printed "Failed:" over a sentence that reports no failure. The failure picker read a failure word anywhere | R3T13 "… a new regression test that documents the bug", R3T28 "the contact form shows an inline error", R3T29 "whether failed jobs …", R3T43 "… fehlt noch". 38 lines, on both sides | It is code text: I judged only the candidates (model text) and the model text of the planted and uncommitted items, and took the template's lines as facts | e13a38ee0: "Failed:" only from the facts, or from a sentence stating a failure of this turn, shown as "The agent says: …"; work still open goes under Left |
+| Agent claims the facts contradict, in the model's glosses | R3T49 "fixed all three lint errors … lint job is clean" (6 models); R3T02 "now rounds half-up for every locale" (Apple, Granite, Qwen3-4B); R3T30 "Drei Dinge sind erledigt" (Nemotron); R3T27 "rimangono solo piccoli dettagli" (Nemotron, Qwen3-4B) | No detector read a lint claim or a done claim. I read R3T27's understatement as an omission, and didn't read every failed turn's notes | 1782dda5b: one claims-vs-facts table (vcs, tests, check, done, undone) refuses such a draft; d57828883 already gives the Italian turn no model text |
+| The same claims in A's excerpt, the code fallback | R3T48 "committed and pushed"; R3T06, 08, 10, 12, reverted work stated as done beside git's lead; R3T49, R3T02, R3T03 | Round 2's precedent: A's excerpt is the agent's own words, so NOT REAL. Shown unattributed against the facts, though, it reads as AI Juggler's statement | 1782dda5b: A shows such a sentence as "The agent says: “…”" with the fact beside it |
+| Chat answered one of two sessions the question fits equally | R3C23, 24, 25, 26 (chat-chat-011..016: Apple 1, Qwen3-1.7B 3, Nemotron 1, Granite 2, Qwen3-4B 1) | I counted it an omission: each value was right for the record it cited | Already covered by 81bf3ef24: code lists both records with no model call, unless a word of the question tells them apart (the four items now route to "listed") |
+
+R3T48's AI-side lines were in the first pass. The R3C01 and R3T24 false alarms stand.
+
+**Corrected REAL tally, AI side** (the first pass plus the adjudicated classes):
+
+| Model | Feed | Review | Chat |
+|---|---|---|---|
+| Apple | R3T48 | R3T48, R3T49, R3T02 | R3C23 |
+| Qwen3-1.7B | none | R3T49 | R3C23, R3C25, R3C26 |
+| Nemotron | R3T48 | R3T49, R3T30, R3T27 | R3C24 |
+| Granite | R3T48 | R3T48, R3T49, R3T02 | R3C23, R3C26 |
+| Qwen3-4B | R3T48 | R3T48, R3T49, R3T02, R3T27, R3T15 | R3C24 |
+| Gemma | R3T48 | R3T27, R3T49 | none |
+
+Two further review items:
+- **Qwen3-4B R3T15:** the Dutch "old payment screen replaced" was stated as Titel.vue's change. It now gets no model call.
+- **Every model's review:** the 19 "Failed:" template lines on the AI side came from code.
+
+Under the re-score (rescored/), none of these reaches the user any more.
+
+**A's baseline on round 3's sets** (rescored/A-baseline.md): critical items went from feed 9 and review 4 to 0 and 0, with attention and Chat at 0.

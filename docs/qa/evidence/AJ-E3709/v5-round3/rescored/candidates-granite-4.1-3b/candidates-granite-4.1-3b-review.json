@@ -4,6 +4,24 @@
  "note": "script flags: candidates for Opus to confirm by eye, never verdicts",
  "candidates": [
   {
+   "id": "R3T02",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'currency formatter now rounds half-up fo': contradiction: says 'now rounds half-up for every'; the facts say 'Tests: 31 passed, 2 failed (per AI Juggler)': leave the claim out",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T02",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'currency formatter now rounds half-up fo': contradiction: says 'now rounds half-up for every'; the facts say 'Tests: 31 passed, 2 failed (per AI Juggler)': leave the claim out",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
    "id": "R3T06",
    "attempt": 0,
    "class": "critical",
@@ -531,6 +549,24 @@
    "class": "critical",
    "detector": "contradiction",
    "detail": "'committed and pushed to origin for the v': contradiction: says the work was committed; git shows uncommitted changes: leave it out, AI Juggler shows git's state",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T49",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'fixed lint error no-unused-vars': contradiction: says 'lint fixed'; the facts say 'Failed: renderer/draw.ts:88:5 error no-unused-vars': leave the claim out",
+   "stage": "caught",
+   "corpus": "turns"
+  },
+  {
+   "id": "R3T49",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "'fixed lint error': contradiction: says 'lint fixed'; the facts say 'Failed: renderer/draw.ts:88:5 error no-unused-vars': leave the claim out",
    "stage": "caught",
    "corpus": "turns"
   }

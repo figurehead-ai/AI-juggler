@@ -51,8 +51,8 @@ Shown model items 9; critical reaching the user 0 ({}); critical caught on 9 ite
 
 ## turns / review
 
-Items 50; decided by code 0; model called 50: first attempt 33, after a retry 1, fallback 10.
-Shown model items 31; critical reaching the user 0 ({}); critical caught on 11 items ({'contradiction': 17, 'anchoring': 22}); omissions 0 ({}).
+Items 50; decided by code 0; model called 50: first attempt 31, after a retry 1, fallback 12.
+Shown model items 29; critical reaching the user 0 ({}); critical caught on 13 items ({'contradiction': 21, 'anchoring': 22}); omissions 0 ({}).
 
 | Bar | Bar value | Measured | Holds |
 |---|---|---|---|
@@ -63,5 +63,5 @@ Shown model items 31; critical reaching the user 0 ({}); critical caught on 11 i
 | model text on a turn that needs you (feed) | == 0 | 0 | yes |
 | value: AI preferred, % of decided pairs | >= 60.0 | None | n/a |
 
-Replay mismatches: 28 (listed in the JSON).
+Replay mismatches: 30 (listed in the JSON).
 
