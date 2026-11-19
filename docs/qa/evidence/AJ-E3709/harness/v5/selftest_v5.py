@@ -828,6 +828,37 @@ def selftest():
                git={"changed": [{"path": "bunting/round.py", "added": 5, "removed": 2}], "reverted": [], "reflog": []}, failures=["FAILED test_round_half"])
     check("R4 failure: a failure in the facts is still shown under 'Failed:'", "Failed: FAILED test_round_half" in turns.compose_review_v5(tff, None))
 
+    # ================================================================================================ R4-10. claims vs facts: one table, both paths (the model is refused, A attributes)
+    CV = R4["claims_vs_facts"]
+    for kind, ph in CV["claims"]:
+        f_ = claims_v5.check_claim(ph) if kind == "check" else claims_v5.done_claim(ph)
+        check(f"R4 claims: a {kind} claim: {ph!r}", f_, ph)
+    for ph in CV["not_claims"]: check(f"R4 claims: no claim (negated, conditional, asked, a plain act): {ph!r}", not claims_v5.check_claim(ph) and not claims_v5.done_claim(ph), ph)
+    def cvt(case): c = CV[case]; return turn(c["source"], facts=c["facts"], git=c["git"], failures=c.get("failures", ()))
+    tl = cvt("lint"); hl = turns.claims_vs_facts(CV["lint"]["source"], tl)
+    check("R4 claims: a lint-clean claim against a lint failure in the facts", any(k == "check" for k, _w, _f in hl), hl)
+    fe = turns.feed_excerpt(tl)
+    check("R4 claims: A's excerpt shows it as the agent's words with the failure beside it", fe.startswith("The agent says: “I cleared every dipper lint warning") and "Failed: lint exited with status 1" in fe, fe)
+    sh = run_item(FEED, tl, "main", NoCall())["final"]["shown"]
+    check("R4 claims: ...and the feed shows that failure line once", sh.count("Failed: lint exited with status 1") == 1, sh)
+    rr4 = run_item(REVIEW, tl, "main", Script([CV["lint"]["review_draft"]]))
+    check("R4 claims: the review refuses a note that says the lint step is green", rr4["used"] == "fallback" and any("contradiction" in e and "lint" in e for e in rr4["attempts"][0]["errors"]), rr4["attempts"][0]["errors"])
+    tlc = cvt("calm_lint")
+    check("R4 claims: the same claim with no lint failure in the facts is no contradiction", not turns.claims_vs_facts(CV["calm_lint"]["source"], tlc))
+    td = cvt("done"); fd = run_item(FEED, td, "main", NoCall())["final"]["shown"]
+    check("R4 claims: a done claim on a failed turn: A shows the agent's words and the tests' facts", "The agent says: “The dipper date picker now accepts ISO weeks for every calendar.”" in fd
+          and "Tests: 20 passed, 1 failed (per AI Juggler)" in fd, fd)
+    tdd = cvt("done_de"); fdd = turns.feed_excerpt(tdd)
+    check("R4 claims: German: 'ist jetzt fertig und funktioniert' on a failed turn is the agent's words", fdd.startswith("Der Agent sagt: „") or fdd.startswith("Der Agent sagt: “"), fdd)
+    vd = {"job": "review", "t": td, "outcome": {"kind": "written", "shown": "x", "model_text": ["the date picker now accepts ISO weeks for every calendar"], "risk": "high"}, "setting": "main"}
+    check("R4 claims: shown, the detector flags a done claim on a failed turn critical", any(f["detector"].startswith("claim_vs_facts") for f in severity.findings(vd)), severity.findings(vd))
+    tun = turn("Swapped the dipper logger for a faster one, then reverted it.", git={"changed": [{"path": "dipper/log.md", "added": 1, "removed": 0}],
+               "reverted": [{"path": "dipper/fastlog.py", "note": "reverted"}], "reflog": []})
+    fu = turns.feed_excerpt(turn("Swapped the dipper logger for fastlog.py.", git={"changed": [{"path": "dipper/log.md", "added": 1, "removed": 0}],
+               "reverted": [{"path": "dipper/fastlog.py", "note": "reverted"}], "reflog": []}))
+    check("R4 claims: an undone change stated as done in A's excerpt is the agent's words (git's lead beside it)", fu.startswith("The agent says:"), fu)
+    check("R4 claims: ...a sentence that itself says it was reverted stays as it is", not turns.feed_excerpt(tun).startswith("The agent says:"), turns.feed_excerpt(tun))
+
     # ================================================================================================ the extension point, the frozen gate, the prompts
     class Toy(core.Job):
         name, letter, title, item_kind = "toy_digest", "e", "toy", "toydigest"

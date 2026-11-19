@@ -725,5 +725,157 @@
     "uncommitted": true
    }
   }
+ },
+ "claims_vs_facts": {
+  "lint": {
+   "source": "I cleared every dipper lint warning and the lint step is green now.",
+   "facts": {
+    "outcome": "failure",
+    "level": "L3",
+    "tests": {
+     "state": "not_run"
+    }
+   },
+   "failures": [
+    "dipper/view.ts:12:3 error no-explicit-any",
+    "lint exited with status 1"
+   ],
+   "git": {
+    "changed": [
+     {
+      "path": "dipper/view.ts",
+      "added": 6,
+      "removed": 6,
+      "status": "M"
+     }
+    ],
+    "reverted": [],
+    "reflog": [],
+    "uncommitted": false
+   },
+   "draft": {
+    "action": "fixed",
+    "object": "every dipper lint warning",
+    "result": "the lint step is green now",
+    "caveat_kind": "none",
+    "caveat": "none"
+   },
+   "review_draft": {
+    "note": "cleared every dipper lint warning; the lint step is green now",
+    "risk_reason": "none",
+    "risk": "high"
+   }
+  },
+  "done": {
+   "source": "The dipper date picker now accepts ISO weeks for every calendar. The tests ran.",
+   "facts": {
+    "outcome": "failure",
+    "level": "L3",
+    "tests": {
+     "state": "ran",
+     "passed": 20,
+     "failed": 1
+    }
+   },
+   "failures": [
+    "FAILED test_iso_week_53"
+   ],
+   "git": {
+    "changed": [
+     {
+      "path": "dipper/picker.js",
+      "added": 30,
+      "removed": 4,
+      "status": "M"
+     }
+    ],
+    "reverted": [],
+    "reflog": [],
+    "uncommitted": false
+   }
+  },
+  "done_de": {
+   "source": "Die Dipper-Suche ist jetzt fertig und funktioniert mit Umlauten.",
+   "facts": {
+    "outcome": "failure",
+    "level": "L3",
+    "tests": {
+     "state": "ran",
+     "passed": 8,
+     "failed": 2
+    }
+   },
+   "failures": [
+    "FAILED test_umlaut_suche"
+   ],
+   "git": {
+    "changed": [
+     {
+      "path": "dipper/suche.py",
+      "added": 11,
+      "removed": 2,
+      "status": "M"
+     }
+    ],
+    "reverted": [],
+    "reflog": [],
+    "uncommitted": false
+   }
+  },
+  "claims": [
+   [
+    "check",
+    "the dipper lint job is clean now"
+   ],
+   [
+    "check",
+    "Der Lint-Lauf ist jetzt sauber."
+   ],
+   [
+    "done",
+    "The dipper export now works."
+   ],
+   [
+    "done",
+    "Alles ist erledigt."
+   ],
+   [
+    "done",
+    "The dipper parser now rounds half-even for every currency."
+   ]
+  ],
+  "not_claims": [
+   "the dipper lint job is not clean yet",
+   "if the lint step is green, it can merge",
+   "Is the dipper build clean now?",
+   "I ran the dipper linter.",
+   "Die Dipper-Suche ist noch nicht fertig.",
+   "Once it works, I will ship the dipper export."
+  ],
+  "calm_lint": {
+   "source": "Fixed the dipper lint warnings; lint is clean now.",
+   "facts": {
+    "outcome": "success",
+    "level": "L1",
+    "tests": {
+     "state": "ran",
+     "passed": 5,
+     "failed": 0
+    }
+   },
+   "git": {
+    "changed": [
+     {
+      "path": "dipper/a.ts",
+      "added": 2,
+      "removed": 2,
+      "status": "M"
+     }
+    ],
+    "reverted": [],
+    "reflog": [],
+    "uncommitted": false
+   }
+  }
  }
 }

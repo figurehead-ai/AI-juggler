@@ -385,3 +385,45 @@ def agent_failure(sentence):
         if any(w in _NEG_BEFORE or w.endswith("n't") for w in before): continue
         return m.group(0)
     return None
+
+# ---------------------------------------------------------------------------------------------------------------- claims a check state contradicts (round 4)
+# The round-3 blind review: "I fixed all three lint errors ... and the lint job is clean now" shown as fact while the facts' failures
+# hold a lint error and "lint exited with status 1"; "now rounds half-up for every locale" and "Drei Dinge sind erledigt" on failed turns.
+# A check claim names a check (its family) and says it is clean, green, passing or fixed; a done claim says the work is done, works or
+# is ready, or now does something for every case. English and German (the languages the gate reads); negated, conditional or asked: none.
+CHECK_FAMILIES = {
+ "lint": r"\b(?:lint\w*|eslint|clippy|ruff|flake8|pylint|rubocop|stylelint|no-unused-vars)\b",
+ "types": r"\b(?:tsc|mypy|pyright|type[\s-]?check\w*|typecheck\w*|type\s+errors?|typfehler\w*)\b",
+ "build": r"\b(?:build|builds|compil\w*|kompil\w*)\b",
+ "ci": r"\b(?:ci|pipeline|workflow)\b",
+ "format": r"\b(?:formatter|formatting|prettier|rustfmt|gofmt|black)\b"}
+CHECK_FAMILIES = {k: re.compile(v, re.I) for k, v in CHECK_FAMILIES.items()}
+_CLEAN = re.compile(r"\b(?:clean|green|pass(?:es|ed|ing)?|fixed|resolved|ok|okay|succeeds?|succeeded|sauber|grün|behoben|bestanden|erfolgreich|durchgelaufen|läuft\s+durch)\b", re.I)
+_DONE = re.compile(
+    r"\b(?:works|now\s+works|is\s+working|(?:is|are)\s+(?:now\s+)?(?:done|fixed|complete|finished|ready)|ready\s+to\s+(?:merge|ship|release|deploy)"
+    r"|(?:all|everything)\s+(?:is\s+|are\s+)?(?:done|fixed|working)|things\s+are\s+done|now\s+\w+s\s+(?:[\w-]+\s+){0,5}?for\s+(?:every|all|each)"
+    r"|erledigt|funktioniert|(?:ist|sind)\s+(?:jetzt\s+)?fertig|bereit\s+zum\s+(?:merge|mergen|release))\b", re.I)
+def _clause_ok(text, start):
+    """the words before a hit (same clause) hold no negation and the clause no condition or question"""
+    cl = re.split(r"[.;:!?]|,\s*(?:but|aber)\b", text[:start])[-1]
+    ws = _words(cl)
+    return not (any(w in _NEG_BEFORE or w.endswith("n't") for w in ws[-3:]) or any(w in _COND for w in ws))
+def check_claim(text):
+    """-> (family, words) when the text says a check (lint, types, build, ci, format) is clean, passing or fixed, else None"""
+    if "?" in (text or ""): return None
+    for cl in re.split(r"[.;!?]\s*", text or ""):
+        for fam, rx in CHECK_FAMILIES.items():
+            if not rx.search(cl): continue
+            for m in _CLEAN.finditer(cl):
+                if _clause_ok(cl, m.start()): return fam, m.group(0)
+    return None
+def check_failures(failures, fam):
+    """the facts' failure lines that name a check of this family"""
+    rx = CHECK_FAMILIES.get(fam)
+    return [f for f in failures or [] if rx and rx.search(f)]
+def done_claim(text):
+    """-> the words of a claim that the work is done, works or is ready (EN, DE), else None"""
+    if "?" in (text or ""): return None
+    for m in _DONE.finditer(text or ""):
+        if _clause_ok(text, m.start()): return m.group(0)
+    return None

@@ -92,16 +92,54 @@ def git_lead(t):
     us = ", ".join(undone[:3]) + (f" (+{len(undone) - 3})" if len(undone) > 3 else "")
     return W[0].format(kept=ks, undone=us)
 GIT_UNCOMMITTED_LINE = {"en": "git: the changes are not committed", "de": "git: die Änderungen sind nicht committet"}
+# ======================================================================================================================
+# Round 4: claims vs facts, one table for every job and both paths. An agent claim of committed or pushed, of tests or a check
+# (lint, types, build, CI, format) passing or clean, of done or works, or of a change git undid, is held against git and AI Juggler's
+# facts. The model path refuses a draft that carries a contradicted claim (retry, then fallback); A (the excerpt, the code-only
+# review) never shows one as fact: the sentence is shown as the agent's ("The agent says: “…”") with the fact beside it. Kept rather
+# than dropped: A's excerpt is often that one sentence, and the agent believing something false is itself what the user must see.
+# English and German only (the languages the gate reads; the others get no model text and A's plain words).
+# ======================================================================================================================
+def claims_vs_facts(text, t):
+    """-> [(kind, the claim's words, the fact line that contradicts it)] for the claims in `text` the facts or git contradict"""
+    if t["ctx"].get("lang") not in ("en", "de") or not (text or "").strip(): return []
+    H = heads(t); lang = t["ctx"].get("lang"); F = t["F"] or {}; kept = kept_changes(t["git"]); out = []
+    failed = turn_failed(t)
+    tests_line = H["tests_ran"].format(p=F.get("passed"), f=F.get("failed")) if F.get("tests_state") == "ran" else None
+    first_fail = f"{H['failure']}: {t['failures'][0]}" if t["failures"] else H["failed_status"]
+    vc = claims_v5.vcs_contradiction(text, t, kept)
+    if vc: out.append(("vcs", claims_v5.vcs_claim(text), GIT_UNCOMMITTED_LINE.get(lang, GIT_UNCOMMITTED_LINE["en"])))
+    sc = claims_v5.success_claim(text); to = claims_v5.test_outcome(text)
+    if failed and (sc or (to and to[1] == "pass")):
+        out.append(("tests", sc or to[0], tests_line if tests_line and F.get("failed") else first_fail))
+    ck = claims_v5.check_claim(text)
+    if ck:
+        hit = claims_v5.check_failures(t["failures"], ck[0])
+        if hit: out.append(("check", f"{ck[0]} {ck[1]}", f"{H['failure']}: {hit[0]}"))
+    dc = claims_v5.done_claim(text)
+    if dc and failed and not any(k in ("tests", "check") for k, _w, _f in out): out.append(("done", dc, tests_line if tests_line and F.get("failed") else first_fail))
+    u = undone_clause(text, t)
+    if u:
+        m = re.search(r"git: (\S+) was (?:reverted|undone)", u)
+        out.append(("undone", u[:80], GIT_UNDONE_LINE.get(lang, GIT_UNDONE_LINE["en"]).format(path=m.group(1)) if m else (git_lead(t) or "")))
+    return out
+def attribute(sentence, t, hits):
+    """A's way to show a contradicted agent claim: the agent's words, attributed, and the facts beside them (git's lead already shows
+    an undone change)"""
+    H = heads(t); facts = [f for k, _w, f in hits if f and not (k == "undone" and git_lead(t))]
+    return [f"{H['agent_says']}: “{sentence.strip()}”"] + list(dict.fromkeys(facts))
 def feed_excerpt(t):
     """the feed's excerpt: with git's lead, the excerpt alone (the lead already says what git undid); else excerpt_v5 (Req. 6e). Round 4:
-    an excerpt that says the work was committed or pushed while git shows it uncommitted gets git's line beside it, as a revert does"""
+    a line of it that carries a claim the facts or git contradict is the agent's words, with the fact beside it (claims_vs_facts)"""
     exc = gate_v4.excerpt_v4(t["ctx"]["cleaned"], t["facts"])[0] if git_lead(t) else excerpt_v5(t)
-    if claims_v5.vcs_contradiction(exc, t, kept_changes(t["git"])):
-        exc += "\n" + GIT_UNCOMMITTED_LINE.get(t["ctx"].get("lang") or "en", GIT_UNCOMMITTED_LINE["en"])
-    return exc
+    out = []
+    for l in exc.split("\n"):
+        hits = [] if l.startswith("git:") else claims_vs_facts(l, t)
+        out += attribute(l, t, hits) if hits else [l]
+    return "\n".join(dict.fromkeys(out))
 def feed_shown(t, body):
     lead = git_lead(t)
-    return "\n".join(([lead] if lead else []) + list(body))
+    return "\n".join(dict.fromkeys(([lead] if lead else []) + [x for b in body for x in str(b).split("\n")]))
 # Round 4 (v5 round 3: Gemma's "In generale funziona" stood beside five failed tests on an Italian turn): the checks read English and
 # German only. A text in a language they have no word lists for can't be checked, so no job shows a model's words on it: the feed
 # showed A's excerpt already; the review now shows the code-only review and attention the facts' level, with no model call.
@@ -207,6 +245,8 @@ class FeedLine(Job):
         if failure_on_success(line, t): errs.append("contradiction: states a failure, while the facts and the message report none")
         vc = claims_v5.vcs_contradiction(line, t, kept_changes(t["git"]))
         if vc: errs.append(f"contradiction: {vc}: leave it out, AI Juggler shows git's state")
+        for kind, words, fact in claims_vs_facts(line, t):
+            if kind in ("check", "done"): errs.append(f"contradiction: the line says {words!r}; the facts say {fact!r}: leave the claim out")
         sc = claims_v5.success_claim(line)
         if sc and turn_failed(t): errs.append(f"contradiction: a success claim ({sc!r}) on a turn AI Juggler's facts show failed")
         if t["ctx"].get("lang") == "de" and claims_v5.english_in_german(fields.get("action"), t["ctx"]["cleaned"]):
@@ -310,9 +350,10 @@ def compose_review_v5(t, fields):
     nc, lf = [], []
     for s in gate.sentences_v3(t["ctx"]["cleaned"]):
         if j4._contains(shown_qf, s): continue
-        k = gate_v4.caveat_kinds(s)
-        if "unverified" in k and len(nc) < 3: nc.append(gate._cap(s.strip(), 200))
-        elif ("incomplete" in k or STILL_OPEN.search(s)) and len(lf) < 3: lf.append(gate._cap(s.strip(), 200))
+        k = gate_v4.caveat_kinds(s); hits = claims_vs_facts(s, t)
+        shown_s = gate._cap(s.strip(), 200) if not hits else " ".join(attribute(gate._cap(s.strip(), 200), t, hits))   # round 4: never as fact
+        if "unverified" in k and len(nc) < 3: nc.append(shown_s)
+        elif ("incomplete" in k or STILL_OPEN.search(s)) and len(lf) < 3: lf.append(shown_s)
     F = t["F"]
     if F and F["tests_state"] == "not_run": nc.insert(0, H["tests_not_run"])
     if nc: lines.append(f"{H['not_checked']}: " + "; ".join(nc))
@@ -350,6 +391,8 @@ def review_checks_v5(t, fields):
         if failure_on_success(s, t): out.append(f"{label}: contradiction: states a failure the facts and the message don't report")
         vc = claims_v5.vcs_contradiction(s, t, kept)
         if vc: out.append(f"{label}: contradiction: {vc}: leave it out, AI Juggler shows git's state")
+        for kind, words, fact in claims_vs_facts(s, t):
+            if kind in ("check", "done"): out.append(f"{label}: contradiction: says {words!r}; the facts say {fact!r}: leave the claim out")
         if failed and gate.UNIVERSAL.search(s) and not gate.verdict_words_v3(s)["fail"]: out.append(f"{label}: contradiction: a success claim on a failed turn")
         return out
     for n in fields.get("notes") or []:
