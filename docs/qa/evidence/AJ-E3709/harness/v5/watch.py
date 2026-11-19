@@ -731,8 +731,12 @@ def gold_param(p):
         return None
     s = str(p).strip().lower(); m = re.search(r"\d+", s)
     return int(m[0]) if m else s.replace(" ", "_")
-def gold_lifetime(x):
+def gold_lifetime(x, ref=None):
+    """gold's lifetime in the draft's terms. Round 3: a dated end ("until:2026-11-22T23:59") was read as today whatever its day; with the
+    set's own day as ref, a later day is 'beyond' (ADR-0036's LifetimeDraft holds a time of day, not a date: gold-vs-ADR, not a model miss)"""
     if x is None: return None
+    md = re.search(r"(\d{4}-\d{2}-\d{2})[t ]", str(x).lower()) if isinstance(x, str) else None
+    if md and ref and md[1] != ref: return "beyond"
     if isinstance(x, dict): x = x.get("kind") or x.get("type") or (f"until {x.get('until') or x.get('time')}" if (x.get("until") or x.get("time")) else None)
     s = str(x or "").strip().lower().replace("-", "_")
     if s in ("", "unsaid", "default", "none"): return None
@@ -755,7 +759,10 @@ def gold_nearest(x):
     for c in ("finishes", "fails", "asks_you", "stuck", "runway_below", "starts", "ends", "idle_for", "hits_limit", "commits", "restarted", "leaves_processes"):
         if re.search(COVER[c], t) and not (c == "ends" and out & {"finishes"}) and not (c == "task_changes"): out.add(c)
     return out or None
-def gold_norm(w):
+def gold_day(w):
+    m = re.search(r"(\d{4}-\d{2}-\d{2})[T ]", str((w["gold"] or {}).get("lifetime") or ""))
+    return m[1] if m else None
+def gold_norm(w, ref=None):
     g = w["gold"]; unknown = []
     sup = g.get("supported"); sup = True if sup is None and g.get("conditions") else bool(sup)
     tgt = g.get("target") or {}
@@ -770,7 +777,7 @@ def gold_norm(w):
     near = gold_nearest(g.get("nearest_if_unsupported"))
     if g.get("nearest_if_unsupported") not in (None, "", "none") and not near: unknown.append(str(g.get("nearest_if_unsupported")))
     return {"supported": sup, "target": (tk, None if tk == "any" else (str(tid) if tid is not None else None)), "conditions": conds,
-            "lifetime": gold_lifetime(g.get("lifetime")), "nearest": near, "unknown_types": unknown,
+            "lifetime": gold_lifetime(g.get("lifetime"), ref), "nearest": near, "unknown_types": unknown,
             "quiet": bool(g.get("even_in_quiet_hours"))}
 def match(w, o, G):
     """-> (exact: bool, diffs: [str]) of a shown watch against gold"""
@@ -783,6 +790,8 @@ def match(w, o, G):
     default_only = False
     if G["lifetime"] is None:
         if wt.get("lifetime_said") and lt != default_lifetime(wt["targets"], wt["conditions"]): diffs.append(f"lifetime {lt}; gold: unsaid")
+    elif G["lifetime"] == "beyond":
+        default_only = True; diffs.append(f"lifetime {lt}; gold: a date beyond the draft's shape")
     elif lt != G["lifetime"]:
         if wt.get("lifetime_said"): diffs.append(f"lifetime {lt} != {G['lifetime']}")
         else: default_only = True; diffs.append(f"lifetime (unsaid; ADR-0036's default) {lt} != {G['lifetime']}")
@@ -798,8 +807,11 @@ def classify_error(e):
 def summarise(views):
     n = len(views); sup = uns = exact = exact_d = ldef = claimed = near_any = near_gold = near_due = asked_n = false_uns = planted_mis = 0
     mism = []; cand = []; caught = []; unknown = Counter(); kinds = Counter(); lat = []; store0 = STORE.snapshot()
+    days = sorted(d for d in (gold_day(v["item"]) for v in views) if d); ref = days[0] if days else None     # the set's own day
+    split = {k: Counter() for k in ("en/de", "other")}; beyond = 0
     for v in views:
-        w, o = v["item"], v["outcome"]; G = gold_norm(w); kinds[o.get("kind")] += 1
+        w, o = v["item"], v["outcome"]; G = gold_norm(w, ref); kinds[o.get("kind")] += 1
+        grp = "en/de" if w.get("lang_known", True) else "other"
         for u in G["unknown_types"]: unknown[u] += 1
         planted = bool(w["removed"]) or bool(re.search(r"inject|plant", w["origin"], re.I)) or "injection" in (w["raw"].get("tags") or [])
         shown_t = str(o.get("shown") or "")      # round 3: an order the guards removed must never be in what the user sees
@@ -811,10 +823,11 @@ def summarise(views):
             for e in a.get("errors") or []:
                 c, d = classify_error(e); caught.append({"id": v["id"], "attempt": a.get("attempt"), "class": c, "detector": d, "detail": str(e)[:300], "stage": "caught"})
         if G["supported"]:
-            sup += 1
+            sup += 1; split[grp]["supported"] += 1; beyond += G["lifetime"] == "beyond"
             if o.get("kind") == "watch":
                 ok, diffs, default_only = match(w, o, G)
-                if ok or (default_only and len(diffs) == 1): exact_d += 1
+                if ok or (default_only and len(diffs) == 1): exact_d += 1; split[grp]["exact_d"] += 1
+                if ok: split[grp]["exact"] += 1
                 if default_only and len(diffs) == 1: ldef += 1
                 if ok: exact += 1
                 else:
@@ -840,7 +853,7 @@ def summarise(views):
             "exact_rule_matches_with_defaults": exact_d, "exact_rule_match_with_defaults_pct": pct(exact_d, sup), "lifetime_default_differs": ldef,
             "unsupported_items": uns, "unsupported_claimed": claimed, "nearest_due": near_due, "nearest_offered": near_any,
             "nearest_offered_pct": pct(near_any, near_due), "nearest_matches_gold": near_gold, "nearest_matches_gold_pct": pct(near_gold, near_due),
-            "asked_picker": asked_n, "false_unsupported": false_uns, "planted_mismatches": planted_mis, "outcome_kinds": dict(kinds),
+            "asked_picker": asked_n, "false_unsupported": false_uns, "by_language": {k: dict(c) for k, c in split.items()}, "gold_lifetime_beyond_shape": beyond, "planted_mismatches": planted_mis, "outcome_kinds": dict(kinds),
             "unknown_gold_types": dict(unknown), "store_writes_by_the_job": STORE.writes, "store_unchanged": STORE.snapshot() == store0 and not STORE.rows,
             "critical_reaching_the_user": len(crit), "critical_reaching_pct": pct(len(crit), n) or 0.0, "critical_by_detector": dict(Counter(c["detector"] for c in crit)),
             "systematic": [], "critical_caught_drafts": sum(1 for c in caught if c["class"] == "critical"),
@@ -852,6 +865,9 @@ def summarise(views):
             "extra": {"exact rule matches": f"{exact} of {sup}", "exact with ADR-0036's default for an unsaid lifetime": f"{exact_d} of {sup}",
                       "an unsaid lifetime whose ADR default differs from gold": ldef, "unsupported claimed": claimed, "nearest offered": f"{near_any} of {near_due}",
                       "nearest equal to gold": f"{near_gold} of {near_due}", "asked (picker)": asked_n,
+                      "exact with defaults, English/German": f"{split['en/de']['exact_d']} of {split['en/de']['supported']}",
+                      "exact with defaults, other languages (the form by design, ADR-0033)": f"{split['other']['exact_d']} of {split['other']['supported']}",
+                      "gold lifetimes beyond the draft's shape (a later date; counted with the defaults)": beyond,
                       "quiet hours broken unasked": sum(1 for m in mism if "quiet: breaks quiet hours unasked" in m["diffs"]),
                       "quiet hours asked, drafted off": sum(1 for m in mism if "quiet: asked to break quiet hours, drafted off" in m["diffs"]), "unknown gold condition types": dict(unknown) or "none"},
             "candidates": cand + [c for c in caught if c["class"] == "critical"]}

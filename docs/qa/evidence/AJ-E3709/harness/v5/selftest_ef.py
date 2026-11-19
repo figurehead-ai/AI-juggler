@@ -745,6 +745,24 @@ def selftest_r3(check, WJ):
     check("covered: 'irgendeine' is a target word, not an unwatchable condition", o["kind"] == "watch", o.get("shown"))
     o = ev("tell me when glaze runs fails, but only if the cost goes over 3 euros", ["s1"], [("fails", "none")], asked="the cost goes over 3 euros", nearest="fails")
     check("covered mutation: money is still unsupported", o["kind"] == "unsupported", o.get("kind"))
+    # ---- scoring: a gold end on a later day than the set's own is beyond the draft's shape (counted with the defaults, on its own row);
+    # the set's own day is today; English/German and other languages are counted apart
+    ses = [{"id": "s-pk", "app": "Codex", "project": "pike", "title": "Pike sync"}]
+    def gv(req, life, iid):
+        w = wi(req, ses, [{"id": "codex", "name": "Codex"}], gold={"supported": True, "target": {"kind": "session", "id": "s-pk"},
+               "conditions": [{"type": "fails"}], "lifetime": life}, iid=iid)
+        return {"id": iid, "item": w, "outcome": WJ.evaluate(w, "main", wd(["s1"], [("fails", "none")], "today")), "attempts": [], "model_called": True, "used": 0}
+    views = [gv("tell me when pike sync fails tonight", "until:2031-03-04T23:59:00Z", "T-1"), gv("tell me when pike sync fails through Sunday", "until:2031-03-09T23:59:00Z", "T-2"),
+             gv("tell me when pike sync fails", "until:2031-03-04T18:00:00Z", "T-3")]
+    sm = W.summarise(views)
+    check("scoring: the set's day is today, a later day is beyond the shape (with the defaults), a time today is strict",
+          sm["exact_rule_matches"] == 1 and sm["exact_rule_matches_with_defaults"] == 2 and sm["gold_lifetime_beyond_shape"] == 1, (sm["exact_rule_matches"], sm["exact_rule_matches_with_defaults"], sm["mismatches"]))
+    nc = NoCall()
+    rec = run_item(WJ, wi("Avisa-me quando pike sync falhar", ses, [{"id": "codex", "name": "Codex"}], gold={"supported": True, "target": {"kind": "session", "id": "s-pk"},
+                   "conditions": [{"type": "fails"}], "lifetime": "once"}, iid="T-4"), "main", nc)
+    sm = W.summarise(views + [{"id": "T-4", "item": wi("Avisa-me quando pike sync falhar", ses, gold={"supported": True}), "outcome": rec["final"], "attempts": [], "model_called": False, "used": "code"}])
+    check("scoring: English/German and other languages counted apart", sm["by_language"]["en/de"].get("supported") == 3 and sm["by_language"]["other"].get("supported") == 1
+          and not sm["by_language"]["other"].get("exact_d"), sm["by_language"])
 
 def texts():
     for ex in D.EXAMPLES: yield ex["label"], " ".join(t["source"] for a in ex["agents"] for t in a["turns"]) + " " + json.dumps(ex["out"], ensure_ascii=False)
