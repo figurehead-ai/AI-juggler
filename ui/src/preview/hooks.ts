@@ -21,3 +21,4 @@ export * as switchDestinations from "./switch-destinations";
 export * as switching from "./switching";
 export * as thisMac from "./this-mac";
 export * as tools from "./tools";
+export * as watches from "./watches";

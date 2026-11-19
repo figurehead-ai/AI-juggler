@@ -8,7 +8,10 @@
  * style; the rarely changed quiet hours and digest fold behind one line
  * that says their values.
  */
-import { useEffect, useState, type JSX } from "react";
+import { Fragment, useEffect, useState, type JSX } from "react";
+import { openWatches } from "../lib/watches-open";
+import { watchesSummary } from "../lib/ipc/watch-view";
+import { DOORS } from "./watches/watches-words";
 import { Card } from "./primitives";
 import { SettingSwitch } from "./SettingSwitch";
 import { NoAccounts, Status, accountName } from "./SettingsSections";
@@ -84,14 +87,11 @@ function SystemNotifications({ onStatus }: { onStatus: (status: string | null, e
     <fieldset className="flex flex-col gap-2 text-xs" data-testid="system-notifications">
       <legend className={`mb-2 ${HEADING}`}>Notify me outside AI Juggler</legend>
       {KINDS.map((kind) => (
-        <SettingSwitch
-          key={kind.id}
-          id={`notify-${kind.id}`}
-          label={kind.label}
-          hint={kind.hint}
-          checked={kinds[kind.id]}
-          onChange={(on) => save(kind.id, on)}
-        />
+        <Fragment key={kind.id}>
+          <SettingSwitch id={`notify-${kind.id}`} label={kind.label} hint={kind.hint} checked={kinds[kind.id]} onChange={(on) => save(kind.id, on)} />
+          {/* AJ-E3816: the watches themselves live on their own page. */}
+          {kind.id === "watch" && <ManageWatches />}
+        </Fragment>
       ))}
       <span className="text-label leading-relaxed text-muted">
         Each shows once, never while AI Juggler is in front, and clicking it opens that session. Several within a
@@ -99,6 +99,27 @@ function SystemNotifications({ onStatus }: { onStatus: (status: string | null, e
         once whether AI Juggler can notify you; if none appear, allow it in System Settings › Notifications.
       </span>
     </fieldset>
+  );
+}
+
+/** The link under "Watches you set": the Watches page, with its count. */
+function ManageWatches(): JSX.Element {
+  const [n, setN] = useState<number | null>(null);
+  useEffect(() => {
+    let live = true;
+    void watchesSummary().then(
+      (summary) => live && setN(summary.watching + summary.paused),
+      () => live && setN(null),
+    );
+    return () => {
+      live = false;
+    };
+  }, []);
+  return (
+    <button type="button" onClick={() => openWatches()} className="-mt-1 ml-0.5 inline-flex w-fit items-center gap-1 rounded text-meta font-medium text-accent-hi outline-none hover:underline focus-visible:ring-2 focus-visible:ring-accent/60" data-testid="settings-manage-watches">
+      {n ? DOORS.manage(n) : DOORS.manage(0).replace(/ · 0$/, "")}
+      <span aria-hidden="true">›</span>
+    </button>
   );
 }
 

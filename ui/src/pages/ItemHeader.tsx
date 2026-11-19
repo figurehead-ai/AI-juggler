@@ -13,6 +13,7 @@ import type { PageKind } from "./registry";
 import { ProjectFacts } from "./ProjectPage";
 import { Button, Chip, type ChipTone } from "../components/primitives";
 import { AskBot } from "../components/bot/BotButton";
+import { WatchDoor } from "../components/watches/WatchDoor";
 import { STATE_WORDS, isActiveStatus, lowLeftWords, stateChip } from "../components/indicator";
 import { conversationWorking, openWords, sessionWorking, type ProjectOpen } from "../lib/project-summary";
 import { ProjectMark } from "../components/ProjectMark";
@@ -249,6 +250,8 @@ export function InspectorHeader({
       )}
       {/* D-136: Bot, scoped to this session or project, by id. */}
       {kind === "instance" && instance && <AskBot scope={{ kind: "session", id: instance.id, name, sessions: [] }} />}
+      {/* AJ-E3816: watched, or Watch… in the same spot (by its id). */}
+      {kind === "instance" && instance && <WatchDoor target={{ kind: "session", id: instance.id }} name={name} />}
       {kind === "project" && data.project && <AskBot scope={{ kind: "project", id: data.project.id, name: data.project.name, sessions: [] }} />}
       {/* D-25: the one-step-away move, beside its Stop; only with a conversation to carry over (the menu's rule). */}
       {kind === "instance" && instance && instance.kind !== "desktop" && instance.conversation_id !== null && (

@@ -5,6 +5,7 @@
  * a project. Screens below add their own (the rail, Accounts, History).
  */
 import { useMemo, type JSX, type ReactNode } from "react";
+import { openWatches } from "../lib/watches-open";
 import { ActionHostProvider } from "./ItemMenu";
 import { showToast } from "./Toast";
 import { showGoTo } from "../lib/go-to";
@@ -194,6 +195,7 @@ export function AppActions({
       revealSessionProject: (row) => row.project_id && selectProject(row.project_id),
       // AJ-E1702/E1703: pools.
       moveSessionToPool: (row) => openPoolSheet({ mode: "move", sessionId: row.id }),
+      watchSession: (row) => openWatches({ kind: "new", target: { kind: "session", id: row.id } }),
       openPool: selectPool,
       stopSession,
       newSessionIn,

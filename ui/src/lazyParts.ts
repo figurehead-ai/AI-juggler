@@ -33,3 +33,5 @@ export const PoolPage = lazyNamed(() => import("./pages/PoolPage"), "PoolPage");
 // 0.3: Projects, Pools and Tasks (the header's new doors).
 export const NavScreen = lazyNamed(() => import("./screens/NavScreens"), "NavScreen");
 export const BotPage = lazyNamed(() => import("./components/bot/BotPage"), "BotPage");
+// AJ-E3816: the Watches page, its own chunk.
+export const WatchesScreen = lazyNamed(() => import("./screens/WatchesScreen"), "WatchesScreen");

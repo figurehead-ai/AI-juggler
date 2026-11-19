@@ -1,7 +1,7 @@
 /**
  * D-136 — Bot's preview data: each state of the approved mock-up
  * (`~/Dev/AIJuggler-design-refs/chat-panel/`, `?s=<state>`) as the
- * window's seams (`__AIJ_BOT__`, `__AIJ_AI_JOBS__`, `__AIJ_WATCHES__`).
+ * window's seams (`__AIJ_BOT__`, `__AIJ_AI_JOBS__`, `__AIJ_WATCH_VIEW__`).
  * Generic names only (the sessions "api" and "web", the Apps "Agent app
  * one", "Agent app two" and "Agent CLI", the project "shop"); the Apps'
  * providers are unknown ids, so they draw as letter tiles, never a
@@ -10,6 +10,7 @@
 import type { AiJobInfo } from "../lib/ipc/ai";
 import type { BotSeam } from "../lib/ipc/bot";
 import type { WatchesSeam } from "../lib/ipc/watches";
+import { made } from "./watches";
 import type { BotMemoryInfo } from "../types/generated/BotMemoryInfo";
 import type { BotRowInfo } from "../types/generated/BotRowInfo";
 import type { BotTurnInfo } from "../types/generated/BotTurnInfo";
@@ -92,11 +93,12 @@ export interface BotPreviewState {
 
 const memories = { items: MEMORIES, forget_and_backups: FORGET_AND_BACKUPS, watches: 5, questions: 38 };
 const COUNT = { questions: 312, since_ms: at(9, 0, 17), memories: 4, watches: 5 };
+const BOT_NAMES = { "s-web": "web", "s-api": "api" };
 const WATCHES: WatchesSeam = {
-  names: { "s-web": "web", "s-api": "api" },
+  names: BOT_NAMES,
   watches: [
-    { id: "w1", words: "Tell you when “web” finishes. Once." },
-    { id: "w2", words: "Tell you when “api” finishes, or looks stuck for 15 minutes." },
+    made({ targets: [{ kind: "session", id: "s-web" }], matching: "each", conditions: [{ code: "finishes" }], lifetime: { kind: "once" }, evenInQuietHours: false }, "w-b1", {}, BOT_NAMES),
+    made({ targets: [{ kind: "session", id: "s-api" }], matching: "each", conditions: [{ code: "finishes" }, { code: "stuck", param: { kind: "minutes", value: 15 } }], lifetime: { kind: "until_ends" }, evenInQuietHours: false }, "w-b2", {}, BOT_NAMES),
   ],
 };
 

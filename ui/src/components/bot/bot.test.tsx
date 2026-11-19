@@ -25,7 +25,7 @@ const { BotDock } = await import("./BotDock");
 function seed(name: keyof typeof STATES): void {
   const state = STATES[name]!;
   window.__AIJ_BOT__ = structuredClone(state.bot);
-  window.__AIJ_WATCHES__ = state.watches ? structuredClone(state.watches) : {};
+  window.__AIJ_WATCH_VIEW__ = state.watches ? structuredClone(state.watches) : {};
   job = state.jobs.find((info) => info.job === "chat") ?? null;
 }
 
@@ -42,7 +42,7 @@ afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
   delete window.__AIJ_BOT__;
-  delete window.__AIJ_WATCHES__;
+  delete window.__AIJ_WATCH_VIEW__;
 });
 
 describe("the lead follows each row's own state", () => {
@@ -192,13 +192,13 @@ describe("acting needs a confirm card", () => {
     fireEvent.mouseEnter(screen.getAllByTestId("bot-row")[1]!);
     fireEvent.click(screen.getAllByTestId("bot-row-watch")[1]!);
     await waitFor(() => expect(screen.getByTestId("bot-watch-echo").textContent).toContain("Tell you when “web” finishes. Once."));
-    expect(window.__AIJ_WATCHES__?.calls ?? []).toHaveLength(0);
+    expect(window.__AIJ_WATCH_VIEW__?.calls ?? []).toHaveLength(0);
     fireEvent.click(screen.getByTestId("bot-watch-asks_you"));
-    await waitFor(() => expect((screen.getByTestId("bot-watch-echo"))?.textContent ?? '').toContain("finishes or asks you"));
-    expect(window.__AIJ_WATCHES__?.calls ?? []).toHaveLength(0);
+    await waitFor(() => expect((screen.getByTestId("bot-watch-echo"))?.textContent ?? '').toContain("finishes, or asks you"));
+    expect(window.__AIJ_WATCH_VIEW__?.calls ?? []).toHaveLength(0);
     fireEvent.click(screen.getByTestId("bot-watch-confirm"));
     await screen.findByTestId("bot-watch-done");
-    const calls = window.__AIJ_WATCHES__?.calls ?? [];
+    const calls = window.__AIJ_WATCH_VIEW__?.calls ?? [];
     expect(calls).toHaveLength(1);
     const draft: unknown = calls[0]![1];
     expect(Reflect.get(Object(draft), "targets")).toEqual([{ kind: "session", id: "s-web" }]);
@@ -214,7 +214,7 @@ describe("acting needs a confirm card", () => {
     await screen.findByTestId("bot-watch-card");
     fireEvent.click(screen.getByTestId("bot-watch-cancel"));
     expect(screen.queryByTestId("bot-watch-card")).toBeNull();
-    expect(window.__AIJ_WATCHES__?.calls ?? []).toHaveLength(0);
+    expect(window.__AIJ_WATCH_VIEW__?.calls ?? []).toHaveLength(0);
   });
 });
 

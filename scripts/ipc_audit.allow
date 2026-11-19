@@ -21,13 +21,6 @@ uncalled scan_cancel
 uncalled sessions_list_alias
 uncalled usage_source_health
 uncalled validation_dogfood_record
-uncalled watches_catalogue  # 2026-11-18: the Watches view (AJ-E3816) and Chat's confirmed drafts (AJ-E3815) call it
-uncalled watches_create  # 2026-11-18: the Watches view (AJ-E3816) and Chat's confirmed drafts (AJ-E3815) call it
-uncalled watches_list  # 2026-11-18: the Watches view (AJ-E3816) and Chat's confirmed drafts (AJ-E3815) call it
-uncalled watches_pause  # 2026-11-18: the Watches view (AJ-E3816) and Chat's confirmed drafts (AJ-E3815) call it
-uncalled watches_preview  # 2026-11-18: the Watches view (AJ-E3816) and Chat's confirmed drafts (AJ-E3815) call it
-uncalled watches_remove  # 2026-11-18: the Watches view (AJ-E3816) and Chat's confirmed drafts (AJ-E3815) call it
-uncalled watches_update  # 2026-11-18: the Watches view (AJ-E3816) and Chat's confirmed drafts (AJ-E3815) call it
 unbounded bot_ask  # bounded: one turn, at most 8 rows (ADR-0034 §6.2) and the memories it used
 unbounded bot_find  # bounded: at most 500 turn ids (FIND_MAX), the find bar's matches
 unbounded bot_memories  # bounded: at most 200 stated memories a kind (LISTED), the user's own words
@@ -268,6 +261,7 @@ unbounded watches_create  # bounded: one watch (at most 10 targets and 4 conditi
 unbounded watches_pause  # bounded: one watch (at most 10 targets and 4 conditions, ADR-0036 §2.3)
 unbounded watches_preview  # bounded: one watch (at most 10 targets and 4 conditions, ADR-0036 §2.3)
 unbounded watches_remove  # bounded: one watch (at most 10 targets and 4 conditions, ADR-0036 §2.3)
+unbounded watches_restore  # bounded: one watch (at most 10 targets and 4 conditions, ADR-0036 §2.3)
 unbounded watches_update  # bounded: one watch (at most 10 targets and 4 conditions, ADR-0036 §2.3)
 # name (AJ-E2017, 2026-11-06): commands moved out of commands.rs into the
 # feature they belong to, under the wire name the UI already calls; each

@@ -13,6 +13,7 @@ import { IconShield } from "../icons";
 import { IconCheckCircle, IconEye, IconFail, IconHourglass, IconMessage, IconMoon } from "./bot-icons";
 import { RowMarkFor } from "./BotRowMark";
 import { STATE_WORDS, WORDS, rowPlace } from "../../lib/bot-words";
+import { openWatches } from "../../lib/watches-open";
 import { watchesCatalogue, watchesCreate, watchesPreview, type CatalogueEntry, type WatchDraftInfo } from "../../lib/ipc/watches";
 import { notificationPrefsGet } from "../../lib/ipc/settings";
 import { errorText } from "../../lib/bridge";
@@ -39,6 +40,9 @@ const LIFETIMES: { choice: LifetimeChoice; label: string }[] = [
 function hour(h: number): string {
   return `${String(h).padStart(2, "0")}:00`;
 }
+
+/** The way to the full form. */
+const WATCH_MORE = "More choices…";
 
 export function BotWatchCard({ row, turnId, onClose }: { row: BotRowInfo; turnId: string; onClose: () => void }): JSX.Element {
   const card = useRef<HTMLElement | null>(null);
@@ -139,6 +143,10 @@ export function BotWatchCard({ row, turnId, onClose }: { row: BotRowInfo; turnId
               {label}
             </button>
           ))}
+          {/* AJ-E3816: every choice, in the Watches form, filled in (the confirm stays the user's click there). */}
+          <button type="button" className="inline-flex h-7 items-center rounded-full px-2.5 text-meta font-medium text-accent-hi outline-none hover:underline focus-visible:ring-2 focus-visible:ring-accent/60" onClick={() => openWatches({ kind: "new", draft: { ...draft, chatTurn: turnId } })} data-testid="bot-watch-more">
+            {WATCH_MORE}
+          </button>
         </div>
       )}
       <p className="rounded-[10px] bg-surface px-3 py-2.5 text-[15px] leading-normal text-ink-2 inset-ring-1 inset-ring-hairline/75 [[data-theme=dark]_&]:bg-surface-2" aria-live="polite" data-testid="bot-watch-echo">

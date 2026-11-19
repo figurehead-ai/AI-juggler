@@ -29,6 +29,9 @@ export const GLOBAL_NAV = [
   { id: "floor", label: "The Floor list" },
   // D-136: the Bot page (Expand in Bot's panel, ⋯ › Open the Bot page).
   { id: "bot", label: "Bot" },
+  // AJ-E3816: every watch, from its doors (Watch… on a session, a page's
+  // chip, a watch alert, Bot, the notification centre).
+  { id: "watches", label: "Watches" },
 ] as const;
 
 export type GlobalId = (typeof GLOBAL_NAV)[number]["id"];

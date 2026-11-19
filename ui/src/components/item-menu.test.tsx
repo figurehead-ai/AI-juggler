@@ -92,7 +92,7 @@ function fullHost(): Required<ActionHost> {
     "snoozeSession", "muteSession", "unsnoozeSession", "openProject", "newSessionIn", "openProjectIn", "copyProjectPath", "renameProject", "pinProject",
     "relocateProject", "forgetProject", "setProjectAccount", "openAccount", "startSessionOn", "signIn", "editLaunchSettings", "renameAccount",
     "toggleDefaultAccount", "removeAccount", "openSubscription", "renameSubscription", "openTool", "copyUpdateCommand", "toolAccounts", "openHistory", "replay", "continueHistory", "archive",
-    "unarchive", "deleteHistory", "openSessionById", "moveSessionToPool", "openPool", "renamePool", "deletePool",
+    "unarchive", "deleteHistory", "openSessionById", "moveSessionToPool", "watchSession", "openPool", "renamePool", "deletePool",
   ]) {
     host[name] = vi.fn();
   }
@@ -206,7 +206,7 @@ describe("AJ-E1537 the registry: each type's menu", () => {
   it("a live session: getting there, working on it, stopping", () => {
     expect(labels("session", session())).toEqual([
       "Go to it", "Open its page", "Show its project",
-      "Continue in another app…", "Rename…", "Move to pool…", "Snooze for an hour",
+      "Continue in another app…", "Rename…", "Watch…", "Move to pool…", "Snooze for an hour",
       "For 15 minutes", "Until the limit resets (No known reset time for this quota window)", "Mute this session",
       "Copy the resume command", "Pin to top",
       // AJ-E2910 R4: Archive stays in the menu while it runs, greyed with why.

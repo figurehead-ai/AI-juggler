@@ -420,3 +420,6 @@ command subagents_conversation(from)               # a transcript offset (lines/
 command usage_history_first->                      # ms epoch, < 2^53 until year 287396
 command usage_history_limits(end_ms)               # ms epoch, < 2^53 until year 287396
 command usage_history_limits(start_ms)             # ms epoch, < 2^53 until year 287396
+WatchInfo.changed_ms                               # ms epoch, < 2^53 until year 287396
+WatchInfo.ended_ms                                 # ms epoch, < 2^53 until year 287396
+WatchInfo.last_told_ms                             # ms epoch, < 2^53 until year 287396

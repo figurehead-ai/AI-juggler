@@ -56,6 +56,7 @@ const SCREEN_ICON: Record<GlobalId | "home", PaletteCommandIcon> = {
   privacy: "privacy",
   floor: "screen",
   bot: "search",
+  watches: "bell",
 };
 
 const SCREEN_KEY: Partial<Record<GlobalId | "home", ShortcutId>> = { home: "go-home", projects: "go-projects", pools: "go-pools", tasks: "go-tasks", accounts: "go-accounts", usage: "go-usage", history: "go-history", fleet: "go-fleet", settings: "settings", cleanup: "processes" };

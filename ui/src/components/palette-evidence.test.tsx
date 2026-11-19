@@ -352,6 +352,8 @@ describe("R11 — a shortcut, never the only path", () => {
       "go:privacy": "Privacy",
       "go:floor": "The Floor list",
       "go:bot": "Bot",
+      // AJ-E3816 (no top-bar door, as approved): the bell's centre links to it.
+      "go:watches": "Notifications",
       notifications: "Notifications",
       shortcuts: "Keyboard shortcuts",
       "toggle-rail": "Show icons only",

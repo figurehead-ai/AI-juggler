@@ -20,6 +20,9 @@ import { acted } from "../lib/notices-store";
 import { useNoticeActions } from "../lib/notice-actions";
 import { digestLine, mutedLine } from "../lib/notice-words";
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
+import { openWatches } from "../lib/watches-open";
+import { watchesSummary } from "../lib/ipc/watch-view";
+import { DOORS } from "./watches/watches-words";
 
 /** Earlier notices read at a time. */
 const EARLIER_PAGE = 20;
@@ -46,6 +49,22 @@ export function NotificationCentre({ summary, sessions, onClose }: { summary: No
   const needs = usePagedList<NoticeInfo>("notices:needs", (request) => notificationsPage("needs", request), { keyOf: (row) => String(row.id), pageSize: 200, shared: true });
   const earlier = usePagedList<NoticeInfo>("notices:earlier", (request) => notificationsPage("earlier", request), { keyOf: (row) => String(row.id), pageSize: EARLIER_PAGE });
   const [showSnoozed, setShowSnoozed] = useState(false);
+  // AJ-E3816: the head's link to the Watches page, with how many watch.
+  const [watching, setWatching] = useState<number | null>(null);
+  useEffect(() => {
+    let live = true;
+    void watchesSummary().then(
+      (counts) => live && setWatching(counts.watching + counts.paused),
+      () => live && setWatching(null),
+    );
+    return () => {
+      live = false;
+    };
+  }, []);
+  const editWatch = (id: string) => {
+    onClose();
+    openWatches({ kind: "edit", id });
+  };
   const [now] = useState(() => Date.now());
   // Focus in on open; back to what opened it on close.
   useEffect(() => {
@@ -95,6 +114,18 @@ export function NotificationCentre({ summary, sessions, onClose }: { summary: No
           Notifications
         </h2>
         <span className="flex-1" />
+        <button
+          type="button"
+          onClick={() => {
+            onClose();
+            openWatches();
+          }}
+          className="inline-flex items-center gap-0.5 rounded px-1 text-meta font-medium text-accent-hi hover:underline"
+          data-testid="notices-watches"
+        >
+          {DOORS.centreLink(watching ?? 0).replace(/ 0$/, "")}
+          <span aria-hidden="true">›</span>
+        </button>
         <button type="button" disabled={!unread} onClick={() => void acted(() => notificationsRead(null))} className="rounded px-1 text-meta font-medium text-accent-hi hover:underline disabled:text-muted disabled:no-underline" data-testid="notices-read-all">
           Mark all read
         </button>
@@ -128,7 +159,7 @@ export function NotificationCentre({ summary, sessions, onClose }: { summary: No
               ) : (
                 <ul data-testid="notices-needs">
                   {[...awake, ...(showSnoozed ? snoozed : [])].map((notice) => (
-                    <NoticeRow key={notice.id} notice={notice} actions={actions} now={now} />
+                    <NoticeRow key={notice.id} notice={notice} actions={actions} now={now} onEditWatch={editWatch} />
                   ))}
                 </ul>
               )}
@@ -140,7 +171,7 @@ export function NotificationCentre({ summary, sessions, onClose }: { summary: No
                 </h3>
                 <ul data-testid="notices-earlier">
                   {earlier.items.map((notice) => (
-                    <NoticeRow key={notice.id} notice={notice} actions={actions} now={now} />
+                    <NoticeRow key={notice.id} notice={notice} actions={actions} now={now} onEditWatch={editWatch} />
                   ))}
                 </ul>
                 {earlier.hasMore && (

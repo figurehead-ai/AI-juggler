@@ -32,6 +32,7 @@ import {
   IconTag,
   IconTrash,
 } from "./icons-actions";
+import { IconEye } from "./watches/watch-icons";
 
 /** Every name the registry may use, and its drawing. */
 export const ACTION_ICONS: Record<ActionIconName, (props: SVGProps<SVGSVGElement>) => JSX.Element> = {
@@ -64,6 +65,8 @@ export const ACTION_ICONS: Record<ActionIconName, (props: SVGProps<SVGSVGElement
   delete: IconTrash,
   info: IconInfo,
   pool: IconPool,
+  // AJ-E3816: Watch… (the Watches view's eye).
+  watch: IconEye,
 };
 
 export function ActionIcon({ name, size = 14, className = "" }: { name: ActionIconName; size?: number; className?: string }): JSX.Element {

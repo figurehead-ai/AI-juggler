@@ -37,7 +37,7 @@ async function open(page: Page, state: BotPreviewState, theme: "dark" | "light",
   );
   if (state.watches) {
     await page.addInitScript((watches) => {
-      (window as unknown as Record<string, unknown>).__AIJ_WATCHES__ = watches;
+      (window as unknown as Record<string, unknown>).__AIJ_WATCH_VIEW__ = watches;
     }, state.watches);
   }
   await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });

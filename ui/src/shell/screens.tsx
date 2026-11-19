@@ -10,7 +10,7 @@ import { CLEAN_UP_VIEW, landedOn } from "../lib/landing";
 import { accountsFilterOf } from "../lib/accounts-filter";
 import { ScreenBoundary, ScrollingScreen } from "../components/ScreenBoundary";
 import { ProfilesScreen } from "../screens/Profiles";
-import { BotPage, FleetScreen, History, NavScreen, ProcessesScreen, SettingsScreen, ThisMacPage, UsageScreen } from "../lazyParts";
+import { BotPage, FleetScreen, History, NavScreen, ProcessesScreen, SettingsScreen, ThisMacPage, UsageScreen, WatchesScreen } from "../lazyParts";
 import type { Shell } from "./use-shell";
 
 /** A global screen: what the main column shows while it is open. */
@@ -88,6 +88,22 @@ export const SCREENS: Partial<Record<GlobalId, ScreenEntry>> = {
   bot: (shell) => (
     <ScreenBoundary key="bot" screen="bot-page" label="Bot">
       <BotPage onBack={() => (shell.canBack ? shell.back() : shell.openHome())} />
+    </ScreenBoundary>
+  ),
+  // AJ-E3816: the Watches page (its list, and New and Edit in place).
+  watches: (shell) => (
+    <ScreenBoundary key="watches" screen="watches" label="Watches">
+      <WatchesScreen
+        sessions={shell.sessions}
+        apps={shell.profiles}
+        projects={shell.projects}
+        accounts={shell.accounts}
+        now={shell.now}
+        onOpenSession={shell.selectSession}
+        onOpenProject={shell.selectProject}
+        onOpenPage={shell.openPage}
+        onOpenHome={shell.openHome}
+      />
     </ScreenBoundary>
   ),
   // Settings › Privacy, a frame from now (lib/nav's redirect).
