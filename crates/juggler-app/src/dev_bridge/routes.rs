@@ -203,6 +203,9 @@ read_routes! {
     "sessions_history" => async_result features::sessions::commands::sessions_history(state; session_id: String, page: crate::paging::PageRequest);
     "transcript_search" => async_result history::transcript_search(state; query: String);
     "projects_list" => async_result features::projects::commands::projects_list(state);
+    "remote_config_values" => async_result features::remote_config::commands::remote_config_values(; section: crate::features::remote_config::dto::RemoteSection);
+    "remote_config_about" => async_result features::remote_config::commands::remote_config_about();
+    "notices_list" => async_result features::notices::commands::notices_list(state);
     "ranking_rows" => async_result features::ranking::commands::ranking_rows(state; project: Option<String>);
     "switch_back_suggestions" => async_result features::switch::commands::switch_back_suggestions(state);
     // The switch screen (AJ-E1543): its targets, its check and its
