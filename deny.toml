@@ -53,6 +53,13 @@ bypass = [
     { crate = "windows_x86_64_msvc", allow-globs = ["lib/windows.0.52.0.lib", "lib/windows.0.53.0.lib", "lib/windows.lib"] },
     { crate = "webview2-com-sys", allow-globs = ["arm64/WebView2Loader.dll", "arm64/WebView2Loader.dll.lib", "arm64/WebView2LoaderStatic.lib", "x64/WebView2Loader.dll", "x64/WebView2Loader.dll.lib", "x64/WebView2LoaderStatic.lib", "x86/WebView2Loader.dll", "x86/WebView2Loader.dll.lib", "x86/WebView2LoaderStatic.lib"] },
     { crate = "libloading", allow-globs = ["tests/nagisa32.dll", "tests/nagisa64.dll"] },
+    # D-131: the local-model helper's own workspace (crates/juggler-local-ai,
+    # checked with --manifest-path; it reads this file). Repository tools in
+    # the published crates, never run by their builds: encoding_rs's CI and
+    # data generator; llama.cpp's model converter and CUDA source generator
+    # (CUDA is off).
+    { crate = "encoding_rs", allow-globs = ["ci/miri.sh", "generate-encoding-data.py"] },
+    { crate = "llama-cpp-sys-2", allow-globs = ["llama.cpp/convert_hf_to_gguf.py", "llama.cpp/ggml/src/ggml-cuda/template-instances/generate_cu_files.py"] },
     { crate = "wit-bindgen", allow-globs = ["src/rt/libwit_bindgen_cabi.a"] },
     # JavaScript the crate embeds in the web view or ships as its JS API (Tauri's own and its plugins'), not run by a build.
     { crate = "tauri", allow-globs = ["scripts/bundle.global.js", "scripts/core.js", "scripts/freeze_prototype.js", "scripts/init.js", "scripts/ipc-protocol.js", "scripts/ipc.js", "scripts/isolation.js", "scripts/pattern.js", "scripts/process-ipc-message-fn.js", "src/event/init.js", "src/path/init.js", "src/webview/scripts/print.js", "src/webview/scripts/toggle-devtools.js", "src/webview/scripts/zoom-hotkey.js", "src/window/scripts/drag.js"] },

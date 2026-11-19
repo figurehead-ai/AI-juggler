@@ -62,6 +62,7 @@ verify-static:
     just supply-chain
     just stats-events
     cargo deny check
+    cargo deny --manifest-path crates/juggler-local-ai/Cargo.toml check
 
 # nextest: .config/nextest.toml (a process per test, the timing-sensitive
 # ones apart, no retries); nextest doesn't run doctests, cargo test does.
@@ -547,6 +548,7 @@ visual-sweep base="origin/main" head="HEAD":
 supply-chain:
     cargo machete
     cargo vet --locked
+    cargo vet --locked --manifest-path crates/juggler-local-ai/Cargo.toml
     python3 scripts/vet_exemptions.py --selftest
     python3 scripts/vet_exemptions.py
     python3 scripts/js_sbom.py --selftest

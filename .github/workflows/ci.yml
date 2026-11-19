@@ -348,7 +348,11 @@ jobs:
           python3 scripts/gen_stats_events.py --check
           ./scripts/stats_feature_check.sh
       - name: Dependency policy (cargo-deny)
-        run: cargo deny check
+        # D-131 (the 2026-11-19 review's M2): the local-model helper's own
+        # workspace under the same policy (the root deny.toml).
+        run: |
+          cargo deny check
+          cargo deny --manifest-path crates/juggler-local-ai/Cargo.toml check
       - name: cargo-vet and cargo-machete (pinned, digest-checked)
         run: |
           ./scripts/install_release_tool.sh cargo-vet "$HOME/.local/bin" >/dev/null
@@ -360,6 +364,7 @@ jobs:
           BASE: ${{ github.event.pull_request.base.sha || 'origin/main' }}
         run: |
           cargo vet --locked
+          cargo vet --locked --manifest-path crates/juggler-local-ai/Cargo.toml
           python3 scripts/vet_exemptions.py --selftest
           python3 scripts/vet_exemptions.py
           python3 scripts/js_sbom.py --selftest
@@ -1061,7 +1066,10 @@ jobs:
           cargo fetch --locked
           cargo fmt --check
           cargo clippy --offline --locked --release --all-targets -- -D warnings
+          # Its whole path, sandboxed too, on a synthetic model the tests
+          # write (no model is fetched), and the sandbox probe.
           cargo test --offline --locked --release
+          # Its cargo-deny and cargo-vet run in static-rust, beside the app's.
       # AJ-E512: the collateral suite is a REQUIRED gate on macOS too
       # (Linux runs it via `verify`'s workspace tests) — zero-signal
       # assertions on real processes with trap logs, never UI state.
