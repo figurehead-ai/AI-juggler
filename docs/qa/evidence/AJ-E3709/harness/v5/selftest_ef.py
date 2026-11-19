@@ -842,6 +842,13 @@ def selftest_r3(check, WJ):
                         ("I threw an error page in front of the heron login when the token is missing.", False)):
         a = item([ag("ses-he", "heron-lab", src, outcome="done")])["agents"][0]
         check(f"undo: {src[:40]!r}… {'is' if undone else 'is not'} undone work", bool(D.undo_word(a)) == undone, D.undo_word(a))
+    # ---- a range is not a condition (round 3: drafted as two 'below' watches)
+    acc = [{"id": "acc-lo", "name": "Loft"}]
+    for req in ("warn me when Loft usage is between 30 and 50 percent", "Sag Bescheid, wenn Loft zwischen 20 und 40 Prozent liegt"):
+        o = WJ.evaluate(wi(req, accounts=acc), "main", wd(["acct1"], [("runway_below", "30" if "30" in req else "20")]))
+        check(f"range: {req[:30]!r}… is answered unsupported, nearest below", o["kind"] == "unsupported" and o["nearest"] == "runway_below", (o.get("kind"), o.get("shown")))
+    o = WJ.evaluate(wi("warn me when Loft drops below 30 percent", accounts=acc), "main", wd(["acct1"], [("runway_below", "30")]))
+    check("range mutation: 'below 30 percent' is a watch", o["kind"] == "watch", o.get("shown"))
 
 def texts():
     for ex in D.EXAMPLES: yield ex["label"], " ".join(t["source"] for a in ex["agents"] for t in a["turns"]) + " " + json.dumps(ex["out"], ensure_ascii=False)

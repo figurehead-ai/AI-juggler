@@ -239,6 +239,9 @@ CUES = [   # (regex over the request with names blanked, nearest condition or No
  (r"\bmentions?\b|\bmentioned\b|(?<!\bi )(?<!\byou )\bsays?\b(?! (?:so|stop|when)\b)|\bwrites?\b|\berwähnt\b|\bsagt\b|\bschreibt\b", "finishes", "what an agent says"),
  (r"\bpush(?:es|ed)?\b|\bpusht\b|\bgepusht\b", "finishes", "a push"),
  (r"\$\s?\d[\d,.]*|\bdollars?\b|\bcosts?\b|\bspend\w*|€|\beuros?\b|\bkosten\b|\bausgaben\b", "runway_below", "money"),
+ # round 3: a range ("between 40 and 60 percent") is not "below": Qwen3-4B drafted it as two runway_below watches (an Italian item)
+ (r"\bbetween\s+\d+\s*%?\s*(?:and|to)\s+\d+|\bzwischen\s+\d+\s*%?\s*und\s+\d+|\bfrom\s+\d+\s*%?\s*to\s+\d+\s*(?:%|percent)|\bvon\s+\d+\s*%?\s*bis\s+\d+\s*(?:%|prozent)",
+  "runway_below", "a range"),
  (r"(?<!until )(?<!bis )\b(?:at|um)\s+\d{1,2}(?:[:.]\d{2})?\s*(?:am|pm|uhr)\b|(?<!until )(?<!bis )\b(?:at|um)\s+\d{1,2}[:.]\d{2}\b", None, "a clock time"),
  (r"\bremind\w*|\berinner\w*", None, "a reminder"),
  (r"\bthen\s+(?:restart|stop|start|run|kill|close|merge|deploy|send|open|delete|switch|archive)\w*|\band\s+(?:then\s+)?(?:restart|stop|kill|close|merge|deploy|archive)\w*"
