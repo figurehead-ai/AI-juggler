@@ -489,3 +489,90 @@ fn a_claude_app_profile_on_an_accepted_folder_keeps_its_name() {
     );
     assert_eq!(row.display_name, "Work");
 }
+
+/// F-rc3c-3 (the 0.4.6 rc3c walk, parts 1–3): a Claude app profile and
+/// its CLI share one folder, which holds two sign-ins: the CLI's (a
+/// terminal `claude` there reads the Team seat's) and the app's own (the
+/// personal plan, as its records say). Started on the folder
+/// (`CLAUDE_CONFIG_DIR`), the app's Code tab runs the folder's `claude` on
+/// the app's sign-in, and that `claude` writes it into the folder's
+/// `.claude.json`. That write is the app's, not the CLI signing in as
+/// another: the folder's CLI App stays on the Team seat's Account, and the
+/// move isn't made silently on every read. Today the read moves the folder
+/// (both Apps with it) to the personal plan's Account, with no record, and
+/// back on the next terminal run.
+#[test]
+#[ignore = "F-rc3c-3 parts 1-3: open until a folder's two sign-ins are told apart (a design decision)"]
+fn a_profiles_own_sign_in_written_into_its_folder_doesnt_move_its_cli_app() {
+    let dir = tempfile::tempdir().unwrap();
+    let state = app_state(dir.path());
+    let shared = folder(&state, "aij-test", Some(("subject-a", "org-team")));
+    let plan = folder(&state, "Personal", Some(("subject-a", "org-personal")));
+    // The profile on the shared folder; its own records are under its own
+    // sign-in (`claude-code-sessions/<account>/<org>`).
+    let instance = dir.path().join("ClaudeProfiles/aij-test");
+    let records = instance.join("claude-code-sessions/subject-a/org-personal");
+    std::fs::create_dir_all(&records).unwrap();
+    std::fs::write(
+        records.join("local_1.json"),
+        r#"{"sessionId":"local_1","cliSessionId":"00000000-0000-4000-8000-000000000001","cwd":"/w/p"}"#,
+    )
+    .unwrap();
+    let desktop = juggler_core::storage::App {
+        id: juggler_core::storage::desktop_app_id("claude-app", instance.to_str()),
+        kind: "desktop".into(),
+        tool: "claude-code".into(),
+        host_app_id: Some("claude-app".into()),
+        instance_dir: instance.to_str().map(str::to_owned),
+        folder_id: Some(shared.clone()),
+        label: None,
+        hidden: false,
+        keep_alive: false,
+        paused_json: None,
+        launch_json: None,
+        sessions_json: None,
+        first_seen: 1,
+        added: true,
+        last_seen: 1,
+    };
+    state
+        .storage
+        .lock()
+        .unwrap()
+        .apps()
+        .put_desktop(&desktop)
+        .unwrap();
+    list_impl(&state).unwrap();
+    let team = links(&state)[&shared].clone().expect("on the Team seat");
+    assert_ne!(Some(&team), links(&state)[&plan].as_ref());
+
+    // A conversation picked in the profile's Code tab: the app's `claude`
+    // (entrypoint `claude-desktop`) registers in the folder and writes the
+    // app's own sign-in into the folder's state file.
+    let folder_dir = state_file(&state, &shared).parent().unwrap().to_path_buf();
+    std::fs::create_dir_all(folder_dir.join("sessions")).unwrap();
+    std::fs::write(
+        folder_dir.join("sessions/4242.json"),
+        r#"{"pid":4242,"sessionId":"00000000-0000-4000-8000-000000000001","cwd":"/w/p","status":"busy","hostSessionId":"local_1","entrypoint":"claude-desktop","kind":"interactive"}"#,
+    )
+    .unwrap();
+    std::fs::write(
+        state_file(&state, &shared),
+        r#"{"oauthAccount":{"accountUuid":"subject-a","organizationUuid":"org-personal","emailAddress":"you@example.invalid"}}"#,
+    )
+    .unwrap();
+    let listed = juggler_app::features::subscriptions::list_with_apps_impl(&state).unwrap();
+    assert_eq!(
+        links(&state)[&shared].as_ref(),
+        Some(&team),
+        "the folder's CLI sign-in is still the Team seat's"
+    );
+    let cli = format!("cli:{shared}");
+    let (row, _) = row_of(&listed, &shared);
+    assert_eq!(row.account_id.as_ref(), Some(&team));
+    assert!(
+        row.apps.as_ref().is_some_and(|apps| apps.contains(&cli)),
+        "its CLI App is listed under the Team seat: {:?}",
+        row.apps
+    );
+}
