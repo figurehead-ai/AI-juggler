@@ -10,9 +10,7 @@ use crate::features::ai::memory::RedactionSecrets;
 use crate::features::watches::store::{Origin, StoreError, WatchStore};
 
 fn installed() -> Storage {
-    let storage = Storage::open_in_memory().unwrap();
-    storage.raw_conn().execute_batch(memory::V54).unwrap();
-    storage
+    Storage::open_in_memory().unwrap()
 }
 
 fn verbs(storage: &Storage, id: &str) -> Vec<String> {
@@ -240,6 +238,11 @@ fn at_most_fifty_watches_are_active() {
 #[test]
 fn without_the_memory_store_every_command_says_so() {
     let storage = Storage::open_in_memory().unwrap();
+    // A database without V54's store (one restored from before it).
+    storage
+        .raw_conn()
+        .execute_batch("DROP TABLE memory_records;")
+        .unwrap();
     let registry = Registry::shipped();
     let writers = Writers::for_tests();
     let store = WatchStore::new(&storage, &registry);

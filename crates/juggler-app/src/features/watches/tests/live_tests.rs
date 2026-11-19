@@ -7,7 +7,7 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use juggler_core::model::SessionStatus;
-use juggler_core::storage::memory::{self, Writers};
+use juggler_core::storage::memory::Writers;
 
 use super::*;
 use crate::features::ai::memory::RedactionSecrets;
@@ -26,7 +26,6 @@ fn lab(dir: &std::path::Path) -> Arc<AppState> {
     let state = Arc::new(AppState::init_with_registry(dir.to_path_buf(), registry).unwrap());
     {
         let storage = state.storage.lock().unwrap();
-        storage.raw_conn().execute_batch(memory::V54).unwrap();
         storage
             .accounts()
             .insert(&crate::test_support::account(
@@ -185,6 +184,14 @@ fn the_reads_offer_what_the_lab_can_report_and_say_a_draft() {
 fn without_the_memory_store_the_list_says_unavailable() {
     let dir = tempfile::tempdir().unwrap();
     let state = crate::test_support::bare_state(dir.path().to_path_buf());
+    // A database without V54's store (one restored from before it).
+    state
+        .storage
+        .lock()
+        .unwrap()
+        .raw_conn()
+        .execute_batch("DROP TABLE memory_records;")
+        .unwrap();
     let error =
         commands::watches_list_impl(&state, &crate::paging::PageRequest::first(50), Lang::En)
             .unwrap_err();

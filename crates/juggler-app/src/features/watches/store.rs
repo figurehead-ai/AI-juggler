@@ -6,9 +6,9 @@
 //! ending) goes to the log only: the engine never writes a watch, and
 //! the store reads a watch's ending back from its log.
 //!
-//! The store's tables are V54, which waits for 0.4.6's V53 (ADR-0037
-//! §1.7): until then [`available`] is false on a real database and every
-//! command says so; the tests apply V54 to an in-memory store.
+//! The store's tables are V54 (ADR-0037 §1.7), listed right after
+//! 0.4.6's V53; on a database without them (one restored from before)
+//! [`available`] is false and every command says so.
 
 use juggler_core::storage::Storage;
 use juggler_core::storage::memory::{

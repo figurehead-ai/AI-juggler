@@ -29,9 +29,7 @@ impl SecretScan for Secrets {
 }
 
 fn installed_storage() -> Storage {
-    let storage = Storage::open_in_memory().unwrap();
-    storage.conn.execute_batch(V54).unwrap();
-    storage
+    Storage::open_in_memory().unwrap()
 }
 
 fn all() -> KindWriter {
@@ -94,33 +92,41 @@ fn count(storage: &Storage, sql: &str) -> i64 {
     storage.conn.query_row(sql, [], |row| row.get(0)).unwrap()
 }
 
-/// The runner's versions are contiguous (index + 1), so V54 is listed only
-/// after release/0.4.6's V53 arrives. This fails the moment it does: list
-/// `memory::V54` right after V53 in `MIGRATIONS`, then make this test check
-/// that a new database has the store (`installed`).
+/// V54 is listed right after release/0.4.6's V53 (the runner's versions
+/// are the list's index + 1), so a new database has the store.
 #[test]
-fn v54_waits_for_v53() {
-    assert!(
-        crate::storage::MIGRATIONS.len() < 53,
-        "V53 has landed: register memory::V54 in MIGRATIONS now (ADR-0037 §1.7), and un-ignore \
-         backup_restore.rs's a_restore_brings_back_nothing_forgotten_and_no_kept_copy_holds_it"
-    );
+fn v54_is_listed_right_after_v53() {
+    let migrations = Storage::migrations();
+    assert_eq!(migrations.len(), 54);
+    assert_eq!(migrations[53], V54);
     let storage = Storage::open_in_memory().unwrap();
-    assert!(!installed(&storage.conn).unwrap());
-    // Every backup hook is a no-op without the tables.
+    assert!(installed(&storage.conn).unwrap());
+}
+
+/// Without the tables (a database before V54), every backup hook is a
+/// no-op.
+#[test]
+fn the_hooks_are_no_ops_before_v54() {
+    let conn = rusqlite::Connection::open_in_memory().unwrap();
+    for sql in &Storage::migrations()[..53] {
+        conn.execute_batch(sql).unwrap();
+    }
+    assert!(!installed(&conn).unwrap());
     assert_eq!(
-        scrub_snapshot(&storage.conn, Destination::Cloud).unwrap(),
+        scrub_snapshot(&conn, Destination::Cloud).unwrap(),
         backup::Scrubbed::default()
     );
-    assert_eq!(after_restore(&storage.conn, "main").unwrap(), 0);
+    assert_eq!(after_restore(&conn, "main").unwrap(), 0);
 }
 
 #[test]
-fn v54_applies_to_a_v52_database_and_changes_nothing_else() {
-    let storage = Storage::open_in_memory().unwrap();
-    let schema = |storage: &Storage| -> Vec<(String, String)> {
-        let mut stmt = storage
-            .conn
+fn v54_applies_to_a_v53_database_and_changes_nothing_else() {
+    let conn = rusqlite::Connection::open_in_memory().unwrap();
+    for sql in &Storage::migrations()[..53] {
+        conn.execute_batch(sql).unwrap();
+    }
+    let schema = |conn: &rusqlite::Connection| -> Vec<(String, String)> {
+        let mut stmt = conn
             .prepare("SELECT name, sql FROM sqlite_master WHERE sql IS NOT NULL ORDER BY name")
             .unwrap();
         stmt.query_map([], |row| Ok((row.get(0)?, row.get(1)?)))
@@ -128,12 +134,15 @@ fn v54_applies_to_a_v52_database_and_changes_nothing_else() {
             .collect::<Result<_, _>>()
             .unwrap()
     };
-    let before = schema(&storage);
-    storage.conn.execute_batch(V54).unwrap();
-    let after = schema(&storage);
+    let before = schema(&conn);
+    conn.execute_batch(V54).unwrap();
+    let after = schema(&conn);
     assert!(before.iter().all(|row| after.contains(row)));
-    assert!(installed(&storage.conn).unwrap());
-    assert_eq!(count(&storage, "SELECT COUNT(*) FROM memory_records"), 0);
+    assert!(installed(&conn).unwrap());
+    let records: i64 = conn
+        .query_row("SELECT COUNT(*) FROM memory_records", [], |row| row.get(0))
+        .unwrap();
+    assert_eq!(records, 0);
 }
 
 #[test]

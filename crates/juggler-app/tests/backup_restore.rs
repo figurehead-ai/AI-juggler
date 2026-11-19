@@ -935,11 +935,8 @@ fn the_rails_order_survives_a_restore_and_a_machine_only_setting_does_not() {
 /// Juggler keeps (the copy before the restore, the staged backup) holds
 /// it; the copy before the restore is gone after a day.
 #[test]
-#[ignore = "end to end once V54 is registered (the 0.4.6 -> 0.5 merge): until then a backup \
-            holding the store's tables is refused by the schema check; backup.rs's own tests \
-            cover the steps"]
 fn a_restore_brings_back_nothing_forgotten_and_no_kept_copy_holds_it() {
-    use juggler_core::storage::memory::{self, Actor};
+    use juggler_core::storage::memory::Actor;
     const CANARY: &str = "qzxwvrestorecanary";
     let work = tempfile::tempdir().unwrap();
     let mac = work.path().join("mac");
@@ -949,7 +946,6 @@ fn a_restore_brings_back_nothing_forgotten_and_no_kept_copy_holds_it() {
     // in this process may have taken them).
     {
         let storage = a.storage.lock().unwrap();
-        storage.raw_conn().execute_batch(memory::V54).unwrap();
         for (id, key, text) in [
             ("r1", "note:kept", "the api project matters most".to_owned()),
             ("r2", "note:gone", format!("remember {CANARY} please")),

@@ -11,7 +11,7 @@ release/0.4.6, the memory store's V54 on release/0.5).
 
 This compares the versions this tree claims (every `const V<N>: &str`
 in the storage folder, registered in `MIGRATIONS` or not yet: the memory
-store's `memory::V54` waits for the 0.4.6 merge) with each other branch below:
+store's `memory::V54`, listed since the 0.4.6 merge) with each other branch below:
 a version both sides added since their merge base, with different
 definitions, is a clash. Refs that aren't here (a CI checkout, an old
 clone) are skipped, and so is a ref without a merge base (a shallow

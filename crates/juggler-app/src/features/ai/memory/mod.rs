@@ -161,10 +161,6 @@ mod tests {
             let storage = state.storage.lock().unwrap();
             storage
                 .raw_conn()
-                .execute_batch(juggler_core::storage::memory::V54)
-                .unwrap();
-            storage
-                .raw_conn()
                 .execute(
                     "INSERT INTO memory_records (id, subject_key, subject_id, version, kind,
                          scope_kind, tier, priority, authority, untrusted, source_kind,

@@ -318,21 +318,26 @@ fn a_migration_waits_for_another_connection_that_changes_the_database() {
     let dir = tempfile::tempdir().unwrap();
     let db = dir.path().join("juggler.sqlite");
     drop(Storage::open(&db).unwrap());
-    // One version behind: the last migration (v52, the name a folder was
-    // accepted under at import) is undone by dropping its table and
-    // rolling the version back, and runs again on open.
+    // One version behind: the last migration (v54, the memory store and
+    // the AI log, ADR-0037) is undone by dropping its tables and rolling
+    // the version back, and runs again on open.
     let version: i64 = Connection::open(&db)
         .unwrap()
         .query_row("PRAGMA user_version", [], |row| row.get(0))
         .unwrap();
     assert_eq!(
-        version, 52,
-        "a new migration landed: undo it here instead (this test's undo is v52's)"
+        version, 54,
+        "a new migration landed: undo it here instead (this test's undo is v54's)"
     );
     {
         let conn = Connection::open(&db).unwrap();
-        conn.execute_batch("DROP TABLE account_import_names;")
-            .unwrap();
+        conn.execute_batch(
+            "DROP TABLE memory_fts; DROP TABLE memory_entities; DROP TABLE memory_forgotten;
+             DROP TABLE chat_turn_memory; DROP TABLE chat_turns; DROP TABLE chat_conversations;
+             DROP TABLE ai_log_text; DROP TABLE ai_log_prune; DROP TABLE ai_log;
+             DROP TABLE memory_records;",
+        )
+        .unwrap();
         conn.pragma_update(None, "user_version", version - 1)
             .unwrap();
     }

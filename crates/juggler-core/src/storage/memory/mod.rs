@@ -20,8 +20,8 @@
 //!   preferences travel as settings, Chat's words only in local backups.
 //! - Nothing here crosses to the UI yet (no command, no `ts-rs` type).
 //!
-//! The tables are V54 ([`V54`]); until the 0.4.6 → 0.5 merge lists it in
-//! the runner, only the tests apply it ([`schema`]'s note).
+//! The tables are V54 ([`V54`]), listed in the runner right after 0.4.6's
+//! V53 ([`schema`]'s note).
 //!
 //! # Security self-review: the forget and secure-delete path
 //!

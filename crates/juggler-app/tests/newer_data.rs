@@ -221,10 +221,6 @@ fn the_launch_offers_the_copy_kept_before_the_upgrade() {
             )))
             .unwrap();
         // The newer data holds a memory (ADR-0037).
-        storage
-            .raw_conn()
-            .execute_batch(juggler_core::storage::memory::V54)
-            .unwrap();
         remember_canary(&storage);
         storage
             .raw_conn()
@@ -334,10 +330,6 @@ fn the_newer_build_prepares_going_back_to_the_version_before() {
         .unwrap();
     {
         let storage = state.storage.lock().unwrap();
-        storage
-            .raw_conn()
-            .execute_batch(juggler_core::storage::memory::V54)
-            .unwrap();
         remember_canary(&storage);
     }
     let options = newer_data::going_back_options_impl(&state).unwrap();

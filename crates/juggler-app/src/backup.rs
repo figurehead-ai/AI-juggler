@@ -1023,7 +1023,7 @@ mod tests {
     #![allow(clippy::unwrap_used, reason = "a test: a failed step fails the test")]
 
     use super::*;
-    use juggler_core::storage::memory::{self, Actor};
+    use juggler_core::storage::memory::Actor;
 
     const CANARY: &str = "qzxwvrestorecanary";
 
@@ -1062,7 +1062,6 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let live_path = dir.path().join("juggler.sqlite");
         let live = Storage::open(&live_path).unwrap();
-        live.raw_conn().execute_batch(memory::V54).unwrap();
         canary_note(&live);
         // A backup made before the forget, staged for a restore.
         let staged = dir.path().join("staged.sqlite");
@@ -1113,7 +1112,6 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let data = dir.path();
         let live = Storage::open(&data.join("juggler.sqlite")).unwrap();
-        live.raw_conn().execute_batch(memory::V54).unwrap();
         canary_note(&live);
         let now = 100 * 86_400_000;
         // A crashed restore's copy, unscrubbed; a crashed backup's and a
@@ -1168,7 +1166,6 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let data = dir.path();
         let live = Storage::open(&data.join("juggler.sqlite")).unwrap();
-        live.raw_conn().execute_batch(memory::V54).unwrap();
         canary_note(&live);
         let now = 100 * 86_400_000;
         let copies = [
@@ -1208,13 +1205,11 @@ mod tests {
         );
         {
             let storage = state.storage.lock().unwrap();
-            storage.raw_conn().execute_batch(memory::V54).unwrap();
             canary_note(&storage);
         }
         let archive = out.path().join("before.ajbackup");
         backup_export_impl(&state, &archive, &mut |_, _| {}).unwrap();
-        // Verify stages it, then refuses V54's tables until V54 is
-        // registered; the confirmation is set as verify sets it.
+        // Verify stages it; the confirmation is set as verify sets it.
         let _ = backup_verify_impl(&state, &archive);
         assert!(data.join(STAGING_DIR).join("db/juggler.sqlite").exists());
         state

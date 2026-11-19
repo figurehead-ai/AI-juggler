@@ -107,7 +107,6 @@ fn assert_separator_gone(storage: &Storage, path: &std::path::Path, word: &str, 
 fn store_on_disk(dir: &std::path::Path, name: &str) -> (Storage, std::path::PathBuf) {
     let path = dir.join(name);
     let storage = Storage::open(&path).unwrap();
-    storage.conn.execute_batch(V54).unwrap();
     (storage, path)
 }
 
@@ -184,7 +183,6 @@ fn forget_clears_the_index_page_separators() {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("juggler.sqlite");
     let storage = Storage::open(&path).unwrap();
-    storage.conn.execute_batch(V54).unwrap();
     bulk_notes(&storage, WORD, 4000);
     storage
         .conn
@@ -239,7 +237,6 @@ fn the_cloud_copy_holds_no_local_only_or_forgotten_word() {
     let dir = tempfile::tempdir().unwrap();
     let live_path = dir.path().join("live.sqlite");
     let live = Storage::open(&live_path).unwrap();
-    live.conn.execute_batch(V54).unwrap();
     bulk(&live, LOCAL, 3000, 50);
     let gone = remember(
         &live,
@@ -531,7 +528,6 @@ fn forget_leaves_no_trace_in_the_file() {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("juggler.sqlite");
     let storage = Storage::open(&path).unwrap();
-    storage.conn.execute_batch(V54).unwrap();
     // Neighbours on the same pages, so the forgotten cells sit among live
     // ones; enough long words for an index of many pages.
     bulk_notes(&storage, "keep note neighbourword", 3000);
