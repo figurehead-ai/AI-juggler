@@ -50,6 +50,7 @@ export function BotConversation({ now, empty, wide = false }: { now: number; emp
   const last = bot.turns.at(-1);
   const lastId = last?.id;
   const [since, setSince] = useState<number | null>(null);
+  const [edge, setEdge] = useState({ up: false, more: false });
   useEffect(() => {
     if (bot.more && since === null) void botCount().then((c) => setSince(c.since_ms)).catch(() => undefined);
   }, [bot.more, since]);
@@ -60,6 +61,7 @@ export function BotConversation({ now, empty, wide = false }: { now: number; emp
     const anchor = bot.anchor ? el.querySelector<HTMLElement>(`[data-turn="${bot.anchor}"]`) : null;
     if (anchor && !lastId) anchor.scrollIntoView?.({ block: "start" });
     else el.scrollTop = el.scrollHeight;
+    setEdge({ up: el.scrollTop > 0, more: el.scrollTop + el.clientHeight < el.scrollHeight - 1 });
   }, [lastId, bot.anchor]);
   // Find: the current match brought into view.
   const current = bot.find?.matches[bot.find.at] ?? null;
@@ -71,6 +73,9 @@ export function BotConversation({ now, empty, wide = false }: { now: number; emp
   const keepAnchor = () => {
     const el = scroller.current;
     if (!el) return;
+    const up = el.scrollTop > 0;
+    const more = el.scrollTop + el.clientHeight < el.scrollHeight - 1;
+    if (up !== edge.up || more !== edge.more) setEdge({ up, more });
     const top = el.getBoundingClientRect().top;
     const first = [...el.querySelectorAll<HTMLElement>("[data-turn]")].find((t) => t.getBoundingClientRect().bottom > top);
     setAnchor(first?.dataset.turn ?? null);
@@ -97,7 +102,7 @@ export function BotConversation({ now, empty, wide = false }: { now: number; emp
   // A New topic with nothing asked yet: its divider at the end, with its note.
   for (const topic of topics.filter((t) => t.started_ms > (last?.at_ms ?? Number.NEGATIVE_INFINITY))) items.push(<TopicDivider key={topic.id} topic={topic} withNote />);
   return (
-    <div ref={scroller} onScroll={keepAnchor} className={"relative flex min-h-0 flex-1 flex-col overflow-y-auto " + (wide ? "gap-5 px-7 pt-5 pb-2.5" : "gap-[18px] px-4 pt-[18px] pb-2.5")} data-testid="bot-conversation">
+    <div ref={scroller} onScroll={keepAnchor} data-scrolled={edge.up ? "" : undefined} data-more={edge.more ? "" : undefined} className={"scroll-edge relative flex min-h-0 flex-1 flex-col overflow-y-auto before:shrink-0 " + (wide ? "gap-5 px-7 pt-5 pb-2.5 before:-mb-[21px]!" : "gap-[18px] px-4 pt-[18px] pb-2.5 before:-mb-[19px]!")} data-testid="bot-conversation">
       {bot.more && (
         // The pill floats over the oldest turn shown, the turns fading under it (the mock's top fade).
         <div className={"pointer-events-none sticky top-0 z-[4] -mb-12 flex shrink-0 justify-center bg-linear-to-b from-surface from-40% to-transparent pt-0 pb-8 " + (wide ? "-mx-7 -mt-5" : "-mx-4 -mt-[18px]")}>

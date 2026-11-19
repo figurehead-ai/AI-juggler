@@ -61,7 +61,7 @@ export const WORDS = {
   watchSession: "Watch a session…",
   offerTitle: "Get short written answers",
   offerLead: (size: string) => `A small AI file (${size}) lets Bot answer in a sentence or two, with links to its records. It stays on this Mac, and nothing you ask leaves it.`,
-  offerGet: (size: string) => `Get it · ${size}`,
+  offerGet: (size: string) => `Download · ${size}`,
   notNow: "Not now",
   offerFoot: "Downloads once.",
   offerChoose: "Choose another in Settings › AI › Models",

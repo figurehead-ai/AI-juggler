@@ -12,7 +12,7 @@ import { expect, test, type Page } from "@playwright/test";
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { BOT_NOW, STATES, type BotPreviewState } from "../../src/preview/bot";
-import { allStatuses } from "./fixtures";
+import { allStatuses, goTo } from "./fixtures";
 
 const OUT = process.env.AIJ_BOT_OUT ? resolve(process.env.AIJ_BOT_OUT) : null;
 
@@ -107,6 +107,10 @@ const BEFORE: Record<string, (page: Page) => Promise<void>> = {
     await page.getByTestId("bot-more").click();
     await page.getByTestId("bot-menu-clear").click();
     await expect(page.getByTestId("bot-clear")).toBeVisible();
+  },
+  settings: async (page) => {
+    await goTo(page, "Settings");
+    await expect(page.getByTestId("bot-panel")).toBeVisible();
   },
   menu: async (page) => {
     await page.getByTestId("bot-more").click();

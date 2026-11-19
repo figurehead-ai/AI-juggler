@@ -103,6 +103,12 @@ export function BotDock(): JSX.Element | null {
   }, [bot.mode, bot.find]);
   if (bot.mode !== "panel") return null;
   return (
+    <>
+    {/* Under 1100 px the page can't keep its width beside the panel, so
+        Bot slides over it as a sheet (the approved narrow frame), the page
+        dimmed under it: nothing is cut half-visible, and a click on the
+        page (or Esc) closes Bot. */}
+    {narrow && <button type="button" tabIndex={-1} aria-label="Close Bot" className="absolute inset-0 z-[15] cursor-default bg-[rgba(14,18,25,.30)] [[data-theme=dark]_&]:bg-[rgba(4,6,10,.62)]" onClick={closeBot} data-testid="bot-scrim" />}
     <aside
       ref={panel}
       aria-label={WORDS.title}
@@ -119,5 +125,6 @@ export function BotDock(): JSX.Element | null {
       <BotForgetHost />
       {clearing && <BotClearSheet onClose={() => setClearing(false)} onMemories={() => { expandBot(); window.setTimeout(() => window.dispatchEvent(new Event("aij:bot-memories")), 0); }} />}
     </aside>
+    </>
   );
 }

@@ -203,6 +203,7 @@ export const STATES: Record<string, BotPreviewState> = {
     open: "panel",
     width: 1280,
   },
+  settings: { name: "settings", bot: { turns: newest(BLOCKED_NOW), count: COUNT }, jobs: BETA_OFF, open: "panel", width: 1280 },
   clear: { name: "clear", bot: { turns: newest(BLOCKED_NOW), count: COUNT }, jobs: BETA_OFF, open: "panel", width: 1280 },
   menu: { name: "menu", bot: { turns: newest(BLOCKED_NOW), count: COUNT }, jobs: BETA_OFF, open: "panel", width: 1280 },
   full: { name: "full", bot: { turns: newest(BLOCKED, SHOP_YESTERDAY), count: COUNT, memories }, jobs: BETA_OFF, watches: WATCHES, open: "page", width: 1280 },
