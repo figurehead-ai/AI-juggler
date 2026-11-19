@@ -236,6 +236,21 @@ jobs:
           cargo auditable build --release --offline -p juggler-agentbridge --bin juggler-agent --target "$arch"
           cp "target/$arch/release/juggler-agent" "crates/juggler-app/binaries/juggler-agent-$arch"
 
+      - name: The Apple model's helper, signed ad hoc (arm64)
+        # AJ-E3802 (ADR-0033 §4.1): `juggler-apple-ai` ships beside the app
+        # too, built with the system's Swift compiler (the one the icon
+        # step runs) and signed ad hoc with its sandbox; the sign job signs
+        # it again with the Developer ID. arm64 only (the system model needs
+        # Apple silicon): the x86_64 half's build wants a file of its name
+        # as well, so both halves take the same arm64 build, and `build`
+        # bundles it as the universal one. The script checks it: valid
+        # signature, its identifier, hardened runtime, exactly its
+        # entitlements, no Private Cloud Compute symbol.
+        run: |
+          set -euo pipefail
+          scripts/build_apple_ai_helper.sh release "target/$ARCH/release"
+          cp "target/$ARCH/release/juggler-apple-ai" "crates/juggler-app/binaries/juggler-apple-ai-$ARCH"
+
       - name: Compile the app, unsigned (this architecture)
         env:
           # Public: baked into the app as the key its updater verifies.
@@ -285,7 +300,7 @@ jobs:
           cargo tauri build --target "$ARCH" --no-bundle --config "$out/config-$ARCH.json" \
             --runner "$PWD/scripts/cargo_auditable_runner.sh" -- --offline
           # A tar keeps the modes (an artifact wouldn't).
-          tar -C "target/$ARCH/release" -cf "$out/$ARCH.tar" juggler-app juggler-agent
+          tar -C "target/$ARCH/release" -cf "$out/$ARCH.tar" juggler-app juggler-agent juggler-apple-ai
           tar -tvf "$out/$ARCH.tar"
 
       - name: SBOMs (AJ-E2007 R5; once, from the main edition's arm64 compile)
@@ -398,7 +413,12 @@ jobs:
             "$RUNNER_TEMP/aarch64-apple-darwin/juggler-app" "$RUNNER_TEMP/x86_64-apple-darwin/juggler-app"
           lipo -create -output crates/juggler-app/binaries/juggler-agent-universal-apple-darwin \
             "$RUNNER_TEMP/aarch64-apple-darwin/juggler-agent" "$RUNNER_TEMP/x86_64-apple-darwin/juggler-agent"
-          lipo -info "$universal/juggler-app" crates/juggler-app/binaries/juggler-agent-universal-apple-darwin
+          # AJ-E3802: the Apple model's helper is arm64 only; the arm64
+          # compile's copy is the bundle's.
+          cp "$RUNNER_TEMP/aarch64-apple-darwin/juggler-apple-ai" \
+            crates/juggler-app/binaries/juggler-apple-ai-universal-apple-darwin
+          lipo -info "$universal/juggler-app" crates/juggler-app/binaries/juggler-agent-universal-apple-darwin \
+            crates/juggler-app/binaries/juggler-apple-ai-universal-apple-darwin
           # The compile's configuration: both architectures had the same.
           config="$RUNNER_TEMP/compiled/config-aarch64-apple-darwin.json"
           cmp "$config" "$RUNNER_TEMP/compiled/config-x86_64-apple-darwin.json"
@@ -409,6 +429,9 @@ jobs:
           # The bridge is inside, beside the app's executable.
           # Every helper in tauri.bundle.json is inside the .app.
           python3 scripts/bundle_check.py "$bundle"/*.app
+          # The Apple model's helper inside it, still as it was signed.
+          app=("$bundle"/*.app)
+          scripts/build_apple_ai_helper.sh check "${app[0]}/Contents/MacOS/juggler-apple-ai" "${app[0]}"
           lipo -info "$bundle"/*.app/Contents/MacOS/*
           (cd "$bundle" && tar -cf "$out/app.tar" ./*.app)
           tar -tf "$out/app.tar" | sed -n 1,3p
@@ -455,6 +478,8 @@ jobs:
           persist-credentials: false
           sparse-checkout: |
             scripts/sign_macos.sh
+            scripts/build_apple_ai_helper.sh
+            crates/juggler-app/helpers/juggler-apple-ai.entitlements
             scripts/release_seams_check.sh
             scripts/apple_retry.py
             scripts/updater_sig_check.py
@@ -523,6 +548,8 @@ jobs:
           persist-credentials: false
           sparse-checkout: |
             scripts/sign_macos.sh
+            scripts/build_apple_ai_helper.sh
+            crates/juggler-app/helpers/juggler-apple-ai.entitlements
             scripts/release_seams_check.sh
             scripts/apple_retry.py
             scripts/updater_sig_check.py

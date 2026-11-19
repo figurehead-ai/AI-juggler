@@ -61,6 +61,14 @@ checksum:
 
 Before anything is published, the sign job checks:
 - the app's signature, hardened runtime and lack of entitlements;
+- each helper in `Contents/MacOS`, signed on its own before the app:
+  `juggler-agent` with no entitlements, and the Apple model's helper
+  `juggler-apple-ai` (AJ-E3802) with exactly its App Sandbox entitlement,
+  its identifier, arm64, no Private Cloud Compute symbol and the app's own
+  team (`scripts/build_apple_ai_helper.sh check`). The app checks the same
+  signature and team again before it runs it
+  (`juggler_platform::code_trust`); a helper that fails is treated as
+  missing, and the AI jobs it serves are hidden;
 - Gatekeeper, for the app and the disk image;
 - both stapled tickets;
 - the updater signature, against the public key baked into the app, and
@@ -354,6 +362,7 @@ What differs from an app built on this Mac with `just app`, for a walk:
 | Version | Not stamped: it reports the workspace version, as `just app`'s did | `COMMIT` beside the app names the commit |
 | Commit | The pull request's head commit itself (not GitHub's merge of it), committed state only | The artifact's `COMMIT` is checked against the one asked for |
 | juggler-agent | Built by the same script, arm64, in `Contents/MacOS`; `bundle_check.py` runs in CI and again after the fetch | The owner-only folder and its ancestors are checked for the helper's trust rule |
+| juggler-apple-ai | Built by the same script with the runner's Swift compiler, signed ad hoc with its sandbox, in `Contents/MacOS`; `build_apple_ai_helper.sh check` runs on the bundled copy. The app has no team, so it runs the helper on a valid signature with the helper's identifier | The same owner-only rule; a re-signed or changed helper is refused (Apple's model then shows as unavailable) |
 | Architecture | arm64 only, like a local build; releases are universal | x86_64 is built by `build-macos`'s cross-check and by every nightly |
 | Toolchain | The release build's pinned tauri-cli, pnpm and Node (`.github/actions/macos-app-toolchain`), the runner's Xcode SDK | Closer to the release than a local build |
 | First open | Checked on the runner in a real window, through System Events (the runner's Accessibility and Automation grants); a probe fails the job with that reason if a runner lacks them | The headless `first_open_measure` runs first either way |
@@ -380,7 +389,7 @@ only a test, v0.1.7 only release notes), and that release had to be renamed.
 | `crates/**`, except the next row | The app: Rust code, build scripts, the Tauri configuration, capabilities, icons, `Info.plist`, entitlements |
 | `ui/**`, except the next row | What `pnpm build` bundles, with its packages and lockfile |
 | `Cargo.toml`, `Cargo.lock`, `rust-toolchain.toml` | The version, the exact dependencies, the compiler |
-| `.github/workflows/build-macos.yml`, `nightly.yml`, and the scripts they run (`release_version.py`, `release_ships.py`, `sign_macos.sh`, `install_tauri_cli.sh`, `edition_icon.swift`, `apple_retry.py`, `updater_sig_check.py`, `release_seams_check.sh`, `nightly_notes.py`, `downgrade_note.py`, `release_notes_check.sh`) | How it's built, signed and published, and the notes its feed carries |
+| `.github/workflows/build-macos.yml`, `nightly.yml`, and the scripts they run (`release_version.py`, `release_ships.py`, `sign_macos.sh`, `build_apple_ai_helper.sh`, `install_tauri_cli.sh`, `edition_icon.swift`, `apple_retry.py`, `updater_sig_check.py`, `release_seams_check.sh`, `nightly_notes.py`, `downgrade_note.py`, `release_notes_check.sh`) | How it's built, signed and published, and the notes its feed carries |
 
 | Doesn't ship | Why |
 |---|---|

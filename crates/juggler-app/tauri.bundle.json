@@ -1,5 +1,5 @@
 {
   "bundle": {
-    "externalBin": ["binaries/juggler-agent"]
+    "externalBin": ["binaries/juggler-agent", "binaries/juggler-apple-ai"]
   }
 }

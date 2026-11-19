@@ -70,6 +70,7 @@ RULES: tuple[tuple[str, bool, str], ...] = (
     ("scripts/install_tauri_cli.sh", True, "the pinned Tauri CLI that builds and signs the updater archive"),
     ("scripts/edition_icon.swift", True, "draws AI Juggler Nightly's icon"),
     ("scripts/sign_macos.sh", True, "signs, notarizes and staples the app; makes the updater archive"),
+    ("scripts/build_apple_ai_helper.sh", True, "builds, signs and checks the Apple model's helper the app ships (AJ-E3802)"),
     ("scripts/release_seams_check.sh", True, "checks the signed app before it is published"),
     ("scripts/apple_retry.py", True, "retries Apple's transient failures while signing"),
     ("scripts/updater_sig_check.py", True, "checks the updater signature before it is published"),

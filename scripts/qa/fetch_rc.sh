@@ -80,6 +80,9 @@ if xattr -r -l "$dest" 2>/dev/null | grep -q com.apple.quarantine; then
 fi
 chmod 700 "$dest"
 python3 scripts/bundle_check.py "$app"
+# The Apple model's helper, as CI signed it (AJ-E3802): the app refuses a
+# changed one, so a broken download shows here, not as a missing engine.
+scripts/build_apple_ai_helper.sh check "$app/Contents/MacOS/juggler-apple-ai" "$app"
 
 # The helper's trust rule (juggler-platform file_trust): every folder above
 # it root's or ours, and writable by no one else (a group only when it is

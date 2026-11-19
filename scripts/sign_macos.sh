@@ -94,9 +94,19 @@ chmod -R u+rwX,go+rX,go-w "$app"
 
 # Nothing is signed with --deep: every piece of code is named here and
 # signed on its own. The bundle holds the main executable and the helpers
-# listed in `helpers` (AJ-E1704: the agent bridge, `juggler-agent`), each
-# in Contents/MacOS; anything else that could carry code stops here.
-helpers=(juggler-agent)
+# listed in `helpers` (AJ-E1704: the agent bridge, `juggler-agent`;
+# AJ-E3802: the Apple model's, `juggler-apple-ai`), each in
+# Contents/MacOS; anything else that could carry code stops here.
+helpers=(juggler-agent juggler-apple-ai)
+# A helper's entitlements: none, or its own file. The Apple helper runs in
+# the App Sandbox with no network (ADR-0033 §4.1); the app checks its
+# signature and team before it runs it (juggler_platform::code_trust).
+helper_entitlements() {
+  case "$1" in
+    juggler-apple-ai) echo "$here/../crates/juggler-app/helpers/juggler-apple-ai.entitlements" ;;
+    *) echo "" ;;
+  esac
+}
 main="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$app/Contents/Info.plist")"
 extra="$(find "$app/Contents" -mindepth 1 -maxdepth 1 ! -name MacOS ! -name Resources ! -name Info.plist)"
 unexpected=""
@@ -180,16 +190,23 @@ staple() {
 }
 
 # --- the app ---------------------------------------------------------------
-# Inside out: each helper first (hardened runtime, no entitlements), then
-# the app, whose signature seals them.
+# Inside out: each helper first (hardened runtime, its own entitlements
+# or none), then the app, whose signature seals them.
 for helper in "${helpers[@]}"; do
-  sign "$app/Contents/MacOS/$helper"
+  own="$(helper_entitlements "$helper")"
+  with=()
+  if [ -n "$own" ]; then with=(--entitlements "$own"); fi
+  sign ${with[@]+"${with[@]}"} "$app/Contents/MacOS/$helper"
 done
 sign "$app"
 codesign --verify --strict --verbose=2 "$app"
 for helper in "${helpers[@]}"; do
   codesign --verify --strict --verbose=2 "$app/Contents/MacOS/$helper"
-  if [ -n "$(codesign -d --entitlements - --xml "$app/Contents/MacOS/$helper" 2>/dev/null || true)" ]; then
+  if [ -n "$(helper_entitlements "$helper")" ]; then
+    # Its entitlements exactly, its identifier, arm64, no Private Cloud
+    # Compute symbol, and the app's own team.
+    "$here/build_apple_ai_helper.sh" check "$app/Contents/MacOS/$helper" "$app"
+  elif [ -n "$(codesign -d --entitlements - --xml "$app/Contents/MacOS/$helper" 2>/dev/null || true)" ]; then
     echo "::error::the helper $helper carries entitlements"
     exit 1
   fi

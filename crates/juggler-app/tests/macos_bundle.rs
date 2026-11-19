@@ -89,8 +89,13 @@ fn the_agent_bridge_ships_signed_inside_the_bundle() {
     assert!(workflow.contains(&format!("binaries/{program}-universal-apple-darwin")));
     // One list of helpers (8b3f587fa): `tauri.bundle.json`, which `just app`
     // and the workflow both read.
-    let bundle = read("tauri.bundle.json");
-    assert!(bundle.contains(&format!(r#""externalBin": ["binaries/{program}"]"#)));
+    let bundle: serde_json::Value = serde_json::from_str(&read("tauri.bundle.json")).unwrap();
+    assert!(
+        bundle["bundle"]["externalBin"]
+            .as_array()
+            .unwrap()
+            .contains(&serde_json::json!(format!("binaries/{program}")))
+    );
     assert!(workflow.contains(
         r#"json.load(open("crates/juggler-app/tauri.bundle.json"))["bundle"]["externalBin"]"#
     ));
@@ -104,8 +109,10 @@ fn the_agent_bridge_ships_signed_inside_the_bundle() {
             && check.contains("tauri.bundle.json")
     );
     let sign = read("../../scripts/sign_macos.sh");
-    assert!(sign.contains(&format!("helpers=({program})")));
-    let helpers_signed = sign.find(r#"sign "$app/Contents/MacOS/$helper""#).unwrap();
+    assert!(sign.contains(&format!("helpers=({program} ")));
+    let helpers_signed = sign
+        .find(r#"sign ${with[@]+"${with[@]}"} "$app/Contents/MacOS/$helper""#)
+        .unwrap();
     let app_signed = sign.find("\nsign \"$app\"\n").unwrap();
     assert!(
         helpers_signed < app_signed,
@@ -118,4 +125,74 @@ fn the_agent_bridge_ships_signed_inside_the_bundle() {
         ignored.contains("/crates/juggler-app/binaries/"),
         "never committed"
     );
+}
+
+/// AJ-E3802 (ADR-0033 §4.1): the Apple model's helper ships inside the
+/// signed, notarized bundle beside the agent bridge. Every build makes it
+/// with the one script (arm64, its identifier from its embedded
+/// Info.plist, hardened runtime, the App Sandbox and nothing else), the
+/// bundle list names it, the sign script signs it with exactly its
+/// entitlements before the app and checks it against the app's team, and
+/// both the release candidate and the release check the bundled copy.
+#[test]
+fn the_apple_helper_ships_signed_and_sandboxed_inside_the_bundle() {
+    use juggler_app::features::ai::engines::apple::{IDENTIFIER, PROGRAM};
+    let plist = read("helpers/juggler-apple-ai.Info.plist");
+    assert!(
+        value_after(&plist, "CFBundleIdentifier").ends_with(&format!("<string>{IDENTIFIER}")),
+        "signed as the identifier the app requires"
+    );
+    let entitlements = read("helpers/juggler-apple-ai.entitlements");
+    let keys: Vec<&str> = entitlements
+        .lines()
+        .filter_map(|line| line.trim().strip_prefix("<key>"))
+        .collect();
+    assert_eq!(
+        keys,
+        ["com.apple.security.app-sandbox</key>"],
+        "the sandbox, no network, nothing else"
+    );
+
+    let build = read("../../scripts/build_apple_ai_helper.sh");
+    assert!(build.contains("-target arm64-apple-macos14.0"));
+    assert!(build.contains("__info_plist"));
+    assert!(build.contains(&format!("identifier={IDENTIFIER}")));
+    assert!(build.contains("--options runtime --entitlements \"$entitlements\""));
+    assert!(build.contains("PrivateCloudCompute"));
+
+    let bundle: serde_json::Value = serde_json::from_str(&read("tauri.bundle.json")).unwrap();
+    assert!(
+        bundle["bundle"]["externalBin"]
+            .as_array()
+            .unwrap()
+            .contains(&serde_json::json!(format!("binaries/{PROGRAM}")))
+    );
+
+    let sign = read("../../scripts/sign_macos.sh");
+    assert!(sign.contains(&format!("helpers=(juggler-agent {PROGRAM})")));
+    assert!(sign.contains("crates/juggler-app/helpers/juggler-apple-ai.entitlements"));
+    assert!(
+        sign.contains("build_apple_ai_helper.sh\" check \"$app/Contents/MacOS/$helper\" \"$app\"")
+    );
+
+    let workflow = read("../../.github/workflows/build-macos.yml");
+    assert!(workflow.contains("scripts/build_apple_ai_helper.sh release \"target/$ARCH/release\""));
+    assert!(workflow.contains(&format!("binaries/{PROGRAM}-$ARCH")));
+    assert!(workflow.contains(&format!("binaries/{PROGRAM}-universal-apple-darwin")));
+    assert!(workflow.contains("juggler-app juggler-agent juggler-apple-ai"));
+    assert!(workflow.contains("scripts/build_apple_ai_helper.sh check"));
+    // The sign job's sparse checkout has what the check reads.
+    assert_eq!(
+        workflow
+            .matches("            crates/juggler-app/helpers/juggler-apple-ai.entitlements")
+            .count(),
+        2
+    );
+
+    let dev = read("../../scripts/build_dev_app.sh");
+    assert!(dev.contains("scripts/build_apple_ai_helper.sh \"$profile\""));
+    assert!(dev.contains(&format!("binaries/{PROGRAM}-$triple")));
+    assert!(dev.contains(
+        "scripts/build_apple_ai_helper.sh check \"$app/Contents/MacOS/juggler-apple-ai\" \"$app\""
+    ));
 }
