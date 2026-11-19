@@ -9,12 +9,6 @@
 # each listed one says why its list stays small, or "TO PAGE" with what reads it.
 # uncalled entries carry the date they were listed: 2026-10-21.
 uncalled account_audit
-uncalled ai_model_approve_extra  # 2026-11-18: the Models screen (AJ-E3812) calls it; it waits for the rich kit
-uncalled ai_model_decline_extra  # 2026-11-18: the Models screen (AJ-E3812) calls it; it waits for the rich kit
-uncalled ai_model_download_cancel  # 2026-11-18: the Models screen (AJ-E3812) calls it; it waits for the rich kit
-uncalled ai_model_download_start  # 2026-11-18: the Models screen (AJ-E3812) calls it; it waits for the rich kit
-uncalled ai_model_remove  # 2026-11-18: the Models screen (AJ-E3812) calls it; it waits for the rich kit
-uncalled ai_models_installed  # 2026-11-18: the Models screen (AJ-E3812) calls it; it waits for the rich kit
 uncalled harnesses_list_alias
 uncalled isolation_check
 uncalled parked_list
@@ -45,10 +39,12 @@ unbounded agent_bridge_answer  # bounded: the projects and profiles the user swi
 unbounded agent_bridge_get  # bounded: the projects and profiles the user switched the agent tools off for
 unbounded agent_bridge_set  # bounded: the projects and profiles the user switched the agent tools off for
 unbounded ai_beta_set  # bounded: one row per routed AI job, a compiled list (five today)
+unbounded ai_job_pick_set  # bounded: one row per routed AI job, a compiled list (five today)
 unbounded ai_jobs  # bounded: one row per routed AI job, a compiled list (five today)
 unbounded ai_model_decline_extra  # bounded: one row per installed model, at most the 16 a list can hold
 unbounded ai_model_download_cancel  # bounded: one row per installed model, at most the 16 a list can hold
 unbounded ai_model_remove  # bounded: one row per installed model, at most the 16 a list can hold
+unbounded ai_models_catalog  # bounded: the list's models (at most 16) plus the installed ones, verdicts per compiled job
 unbounded ai_models_installed  # bounded: one row per installed model, at most the 16 a list can hold
 unbounded app_bug_report_compose  # bounded: the bug form's seven fields at most
 unbounded app_bug_report_preview  # bounded: a report's five parts at most

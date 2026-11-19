@@ -9,7 +9,10 @@
 #   - no status glyph (✕ ⚠ ○ ● ◐ ✓) in any accessible name on Home and the
 #     rail, read from Chromium's own tree (D-117);
 #   - what the 0.4.6 RC walks found cut or scrolling sideways, measured
-#     (fits-its-room);
+#     (fits-its-room), and the top bar's room words never cut mid-word
+#     (header-room-words);
+#   - axe on every state of Settings › AI › Models (models-gallery; its
+#     captures only when AIJ_MODELS_OUT names a folder);
 #   - the measured contrast table.
 # Extra arguments go to Playwright (the release workflow passes
 # `--shard=i/n`; each shard sets A11Y_SKIP_SUMMARY=1 and one final job
@@ -34,10 +37,12 @@ AJ_AXE_GALLERY=1 AJ_A11Y_EVIDENCE=1 pnpm exec playwright test \
   tests/visual/caret-mark.spec.ts \
   tests/visual/cursor.spec.ts \
   tests/visual/fits-its-room.spec.ts \
+  tests/visual/header-room-words.spec.ts \
   tests/visual/fleet-pairing.spec.ts \
   tests/visual/flows-cde.spec.ts \
   tests/visual/idle.spec.ts \
   tests/visual/menus-a11y.spec.ts \
+  tests/visual/models-gallery.spec.ts \
   tests/visual/new-project.spec.ts \
   tests/visual/new-session-narrow.spec.ts \
   tests/visual/pool-layout.spec.ts \

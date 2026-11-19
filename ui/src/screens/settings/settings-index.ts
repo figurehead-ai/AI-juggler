@@ -7,6 +7,7 @@
  * is gone, so the index can't drift.
  */
 import type { PaneId } from "./panes";
+import { THIS_MACHINE_IN_TEXT } from "../../lib/machine-words";
 import { SHORTCUT_AREAS, SHORTCUTS } from "../../lib/shortcuts";
 
 /** A Keyboard area's section id: the first is the pane's own anchor. */
@@ -39,7 +40,7 @@ export const SETTINGS_INDEX: readonly IndexEntry[] = [
   { pane: "sessions", anchor: "sessions", title: "Sessions AI Juggler starts", words: "launch settings terminal driven model permissions start restart crashed keep awake" },
   { pane: "switching", anchor: "packs", title: "Handovers and keys", words: "switch continue in another app handover keys secrets passwords hide strip notes" },
   { pane: "switching", anchor: "beta", title: "Beta", words: "beta switches still being tested untested show more switches experimental" },
-  { pane: "ai-models", anchor: "ai-recommended", title: "Recommended for this Mac", words: "ai model recommended apple intelligence on-device download use it turn reviews chat answers beta" },
+  { pane: "ai-models", anchor: "ai-recommended", title: `Recommended for ${THIS_MACHINE_IN_TEXT}`, words: "ai model recommended apple intelligence on-device download use it turn reviews chat answers beta" },
   { pane: "ai-models", anchor: "ai-others", title: "Other tested models", words: "ai models tested download size memory speed licence verdict how we test" },
   { pane: "ai-models", anchor: "ai-installed", title: "Installed", words: "ai models installed disk space remove delete free up storage" },
   { pane: "ai-jobs", anchor: "ai-jobs", title: "Each job uses", words: "ai jobs beta turn reviews chat answers attention hints feed digest watches model pick automatic" },

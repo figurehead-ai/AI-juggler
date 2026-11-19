@@ -10,6 +10,7 @@ import type { ModelJob } from "../../../types/generated/ModelJob";
 import type { ModelSpeed } from "../../../types/generated/ModelSpeed";
 import type { ModelVerdict } from "../../../types/generated/ModelVerdict";
 import type { StartRefusal } from "../../../types/generated/StartRefusal";
+import { MACHINE_WORD, SYSTEM_NAME, THIS_MACHINE, THIS_MACHINE_IN_TEXT } from "../../../lib/machine-words";
 
 const GB = 1_000_000_000;
 
@@ -59,31 +60,31 @@ export function listWords(names: readonly string[]): string {
 export const PAGE = {
   crumb: "AI",
   title: "Models",
-  lead: "The AI that writes AI Juggler's Beta reviews and Chat answers. It runs on this Mac; nothing you write is sent anywhere.",
+  lead: `The AI that writes AI Juggler's Beta reviews and Chat answers. It runs on ${THIS_MACHINE_IN_TEXT}; nothing you write is sent anywhere.`,
   howWeTest: "How we test models",
-  thisMac: "This Mac",
+  thisMac: THIS_MACHINE,
   free: (bytes: number) => `${gb(bytes)} free`,
   offline: "Offline",
-  loading: "Reading this Mac…",
+  loading: `Reading ${THIS_MACHINE_IN_TEXT}…`,
 };
 
 export const RECOMMENDED = {
-  title: "Recommended for this Mac",
-  help: "One pick, from this Mac's chip, memory and free disk",
-  builtIn: "Built into macOS",
-  reasonBuiltIn: "Apple Intelligence is on, so it's already part of this Mac: no download, no disk.",
-  reasonInstalled: "It's on this Mac already and fits it: nothing more to download.",
-  reasonSmallest: (memory: string) => `The smallest model that passed our tests, and it fits this Mac's ${memory} of memory.`,
-  reasonMost: (memory: string) => `It passed the most of our tests, and it fits this Mac's ${memory} of memory.`,
-  fitTitle: "Why it fits this Mac",
+  title: `Recommended for ${THIS_MACHINE_IN_TEXT}`,
+  help: `One pick, from ${THIS_MACHINE_IN_TEXT}'s chip, memory and free disk`,
+  builtIn: `Built into ${SYSTEM_NAME}`,
+  reasonBuiltIn: `Apple Intelligence is on, so it's already part of ${THIS_MACHINE_IN_TEXT}: no download, no disk.`,
+  reasonInstalled: `It's on ${THIS_MACHINE_IN_TEXT} already and fits it: nothing more to download.`,
+  reasonSmallest: (memory: string) => `The smallest model that passed our tests, and it fits ${THIS_MACHINE_IN_TEXT}'s ${memory} of memory.`,
+  reasonMost: (memory: string) => `It passed the most of our tests, and it fits ${THIS_MACHINE_IN_TEXT}'s ${memory} of memory.`,
+  fitTitle: `Why it fits ${THIS_MACHINE_IN_TEXT}`,
   needsTitle: "What it needs",
   notYet: (count: number) => `${count} not yet`,
   adopt: "Use it",
   adoptLine: (jobs: string) => `Turns on ${jobs} as Beta, on this model. Off again any time below.`,
-  downloadLine: (jobs: string) => `Stays on this Mac. Then ${jobs} start as Beta; off again any time below.`,
+  downloadLine: (jobs: string) => `Stays on ${THIS_MACHINE_IN_TEXT}. Then ${jobs} start as Beta; off again any time below.`,
   inUse: "In use",
   inUseLine: "Automatic sends every job it passes here.",
-  tipAppleLead: "This Mac can also run",
+  tipAppleLead: `${THIS_MACHINE} can also run`,
   tipAppleTitle: "Apple's on-device model",
   tipAppleRest: ", with no download. Turn on Apple Intelligence in System Settings and it becomes the pick.",
   openSystemSettings: "Open System Settings",
@@ -91,9 +92,9 @@ export const RECOMMENDED = {
 
 export const NOTHING = {
   title: "Nothing to recommend",
-  notAppleSilicon: "The tested models need a Mac with Apple silicon. Every job keeps its plain version.",
-  notEnoughMemory: (memory: string) => `The tested models need more memory than this Mac's ${memory}. Every job keeps its plain version.`,
-  nothingListed: "No tested model fits this Mac yet. Every job keeps its plain version.",
+  notAppleSilicon: `The tested models need a ${MACHINE_WORD} with Apple silicon. Every job keeps its plain version.`,
+  notEnoughMemory: (memory: string) => `The tested models need more memory than ${THIS_MACHINE_IN_TEXT}'s ${memory}. Every job keeps its plain version.`,
+  nothingListed: `No tested model fits ${THIS_MACHINE_IN_TEXT} yet. Every job keeps its plain version.`,
   offline: "Nothing to recommend while the list of tested models can't be read. Every job keeps its plain version.",
 };
 
@@ -103,7 +104,7 @@ export const FIT = {
   memory: "Memory",
   needsMemory: (mac: string, needed: number) => `${mac} · needs ${needed} GB`,
   download: "Download",
-  noDownload: "None: already on this Mac",
+  noDownload: `None: already on ${THIS_MACHINE_IN_TEXT}`,
   chip: "Chip",
   needsChip: (mac: string, needed: number) => `${mac} · needs M${needed} or later`,
   freeDisk: "Free disk",
@@ -115,16 +116,16 @@ export const FIT = {
 export const FACTS = {
   download: "Download",
   none: "None",
-  builtIn: "built into macOS",
+  builtIn: `built into ${SYSTEM_NAME}`,
   oneTime: "one time",
   memory: "Memory",
   shared: "Shared",
-  withMacos: "with macOS",
+  withMacos: `with ${SYSTEM_NAME}`,
   memoryFloor: (min: number) => `${min} GB`,
   /** The list's figure is the smallest Mac we list it for, not a measurement. */
-  memoryFloorNote: "Mac or more",
+  memoryFloorNote: `${MACHINE_WORD} or more`,
   speed: "Speed",
-  speedNote: "our test Mac",
+  speedNote: `our test ${MACHINE_WORD}`,
 };
 
 export const DOWNLOAD = {
@@ -142,7 +143,7 @@ export const DOWNLOAD = {
 export const WAITS: Record<DownloadWait["kind"], (wait: DownloadWait) => string> = {
   low_power: () => "Paused: Low Power Mode is on. It goes on by itself once it's off.",
   metered: () => "Paused: this network is metered. It goes on by itself on another network.",
-  disk_short: (wait) => (wait.kind === "disk_short" ? `Paused: this Mac has ${gb(wait.free)} free and it needs ${gb(wait.needed)}. Free ${gb(wait.needed - wait.free)} and it goes on.` : ""),
+  disk_short: (wait) => (wait.kind === "disk_short" ? `Paused: ${THIS_MACHINE_IN_TEXT} has ${gb(wait.free)} free and it needs ${gb(wait.needed)}. Free ${gb(wait.needed - wait.free)} and it goes on.` : ""),
   disk_unknown: () => "Paused: the free disk can't be read. It goes on once it can.",
 };
 
@@ -160,7 +161,7 @@ export const FAILED_AFTER = "Nothing was kept. Download again when you're ready.
 export const DISK = {
   title: "Not enough free disk yet.",
   body: (size: number, needed: number, free: number) =>
-    `A download needs its ${gb(size)} plus 10 GB kept free for your work: ${gb(needed)}. This Mac has ${gb(free)} free, so free up ${gb(needed - free)} and it's ready.`,
+    `A download needs its ${gb(size)} plus 10 GB kept free for your work: ${gb(needed)}. ${THIS_MACHINE} has ${gb(free)} free, so free up ${gb(needed - free)} and it's ready.`,
   openStorage: "Open Storage settings",
   checkAgain: "Check again",
   cardNeeds: (needed: number) => `Needs ${gb(needed)} free first`,
@@ -170,8 +171,8 @@ export const DISK = {
  * approval (each of those has its own card). */
 export const REFUSALS: Partial<Record<StartRefusal, string>> = {
   not_offered: "This model isn't offered any more.",
-  nothing_to_fetch: "Apple's model is part of macOS: nothing to download.",
-  already_installed: "It's on this Mac already.",
+  nothing_to_fetch: `Apple's model is part of ${SYSTEM_NAME}: nothing to download.`,
+  already_installed: `It's on ${THIS_MACHINE_IN_TEXT} already.`,
   busy: "Another download is running. Cancel it or let it finish first.",
   disk_unknown: "The free disk can't be read, so nothing was downloaded.",
 };
@@ -179,9 +180,9 @@ export const REFUSALS: Partial<Record<StartRefusal, string>> = {
 export const OTHERS = {
   title: "Other tested models",
   help: "Each passed our tests for at least one job. Downloading one doesn't change Automatic.",
-  helpFits: "Each passed our tests and fits this Mac. Smallest first.",
+  helpFits: `Each passed our tests and fits ${THIS_MACHINE_IN_TEXT}. Smallest first.`,
   helpDisk: "They need more free disk too.",
-  stays: "Stays on this Mac",
+  stays: `Stays on ${THIS_MACHINE_IN_TEXT}`,
   notYet: (jobs: string) => `Not yet: ${jobs}`,
   licence: (name: string) => `${name}, its licence`,
   smallest: "Smallest",
@@ -203,7 +204,7 @@ export const INSTALLED = {
   helpOffline: "works offline",
   helpWithBuiltIn: "plus the built-in one",
   use: "AI models use",
-  onThisMac: "on this Mac",
+  onThisMac: `on ${THIS_MACHINE_IN_TEXT}`,
   legendNone: "A model you download shows here with its size and Remove. Clear cache never removes it.",
   legendOne: "One downloaded model covers every job it passes. Clear cache never removes it.",
   legendOffline: (name: string) => `${name} keeps working offline. Clear cache never removes it.`,
@@ -211,7 +212,7 @@ export const INSTALLED = {
   noModelsTitle: "No models yet",
   noModelsLine: "Every job keeps its plain version until you download one.",
   noDisk: "No disk",
-  builtIn: "Built into macOS",
+  builtIn: `Built into ${SYSTEM_NAME}`,
   readyToUse: "ready to use",
   usedBy: (jobs: string) => `used by ${jobs}`,
   usedByNothing: "used by nothing now",
@@ -235,8 +236,8 @@ export const APPROVAL = {
   diskTitle: "Disk used by AI models",
   now: "Now",
   after: "After",
-  addsBytes: (size: number, freeAfter: number) => `Adds ${gb(size)}. This Mac keeps ${gb(freeAfter)} free afterwards.`,
-  staysTitle: "Stays on this Mac.",
+  addsBytes: (size: number, freeAfter: number) => `Adds ${gb(size)}. ${THIS_MACHINE} keeps ${gb(freeAfter)} free afterwards.`,
+  staysTitle: `Stays on ${THIS_MACHINE_IN_TEXT}.`,
   stays: "It runs here, and nothing you write is sent anywhere. Remove it any time in Installed.",
   whatChanges: "What changes if I add it?",
   changes: "Automatic keeps the recommended model. Pick this one for a job in Each job uses below, or leave it unused.",

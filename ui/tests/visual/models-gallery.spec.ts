@@ -8,7 +8,8 @@
  * frame tall enough to hold the whole page; then axe on each (0 critical
  * or serious). Mocked data only: nothing is downloaded.
  *
- * Captures go to `AIJ_MODELS_OUT` (default: the evidence gallery).
+ * Captures go to `AIJ_MODELS_OUT` when it names a folder; without it
+ * (the a11y gate in CI) the states are walked and scanned, nothing written.
  */
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
@@ -17,10 +18,12 @@ import { resolve } from "node:path";
 import { STATES, type ModelsState } from "../../src/preview/ai-models";
 import { allStatuses, goTo } from "./fixtures";
 
-const OUT = process.env.AIJ_MODELS_OUT ?? resolve(process.cwd(), "../docs/qa/evidence/_gallery/76-ai-models");
+const OUT = process.env.AIJ_MODELS_OUT ? resolve(process.env.AIJ_MODELS_OUT) : null;
 const T0 = Date.UTC(2026, 10, 19, 12);
 
-test.beforeAll(() => mkdirSync(OUT, { recursive: true }));
+test.beforeAll(() => {
+  if (OUT) mkdirSync(OUT, { recursive: true });
+});
 
 async function open(page: Page, state: ModelsState, theme: "dark" | "light", width: number): Promise<void> {
   await page.addInitScript(
@@ -75,9 +78,6 @@ const BEFORE: Record<string, (page: Page) => Promise<void>> = {
     await page.locator("[data-model='granite-4-1-3b-q4km']").getByTestId("model-download").click();
     await expect(page.getByTestId("models-approval")).toBeVisible();
   },
-  models: async (page) => {
-    await page.locator("[data-model='gemma-4-e2b-q4-0']").getByTestId("model-not-yet").locator("button").first().click();
-  },
   installed: async (page) => {
     await page.getByTestId("models-remove").nth(1).click();
   },
@@ -104,7 +104,7 @@ for (const theme of ["dark", "light"] as const) {
         if (!FIXED.has(name)) await wholePage(page, width, name === "installed" ? 260 : 0);
         if (name === "approval") await toTop(page);
         await AFTER[name]?.(page);
-        await page.screenshot({ path: `${OUT}/${name}-${theme}-${width}.png` });
+        if (OUT) await page.screenshot({ path: `${OUT}/${name}-${theme}-${width}.png` });
         if (width === 1280) await axeClean(page, `${name} ${theme}`);
       });
     }

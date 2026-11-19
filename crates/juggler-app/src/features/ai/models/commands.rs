@@ -15,6 +15,7 @@ use super::store::{self, Refusal, Store};
 use super::{Engine, Listing, ModelEntry};
 use crate::error::{AppError, AppResult};
 use crate::events::{AppEvent, EmitEvent as _};
+use crate::os_access::SystemPage;
 use crate::state::AppState;
 
 /// The longest model id the section allows.
@@ -166,7 +167,9 @@ pub async fn ai_models_catalog(state: tauri::State<'_, Arc<AppState>>) -> AppRes
             .map(|mac| crate::features::ai::service::recommendation(mac, &usable, &installed));
         Ok(catalog(
             mac.as_ref(),
-            juggler_platform::room::total_memory(),
+            // The memory as the system names it ("18 GB"), from the OS
+            // seam the recommendation reads too.
+            juggler_platform::ai::machine().memory_bytes,
             &listing,
             &offered,
             &installed,
@@ -176,45 +179,16 @@ pub async fn ai_models_catalog(state: tauri::State<'_, Arc<AppState>>) -> AppRes
     .await
 }
 
-/// A System Settings page the Models screen links to.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Deserialize, ts_rs::TS)]
-#[serde(rename_all = "snake_case")]
-#[ts(export, export_to = "../../../ui/src/types/generated/")]
-pub enum SystemPage {
-    /// General › Storage: to free disk for a download.
-    Storage,
-    /// Apple Intelligence & Siri: to turn Apple's model on.
-    AppleIntelligence,
-}
-
-impl SystemPage {
-    /// Its fixed address (never a caller's URL).
-    #[must_use]
-    pub const fn url(self) -> &'static str {
-        match self {
-            Self::Storage => "x-apple.systempreferences:com.apple.settings.Storage",
-            Self::AppleIntelligence => {
-                "x-apple.systempreferences:com.apple.Siri-Settings.extension"
-            }
-        }
-    }
-}
-
 /// Opens a System Settings page the Models screen names: Storage (not
-/// enough free disk) or Apple Intelligence (its tip).
+/// enough free disk) or Apple Intelligence (its tip), through the system
+/// settings seam ([`crate::os_access::open_system_page`]).
 ///
 /// # Errors
 ///
 /// The page can't be opened.
 #[tauri::command]
 pub async fn ai_open_system_page(app: tauri::AppHandle, page: SystemPage) -> AppResult<()> {
-    use tauri_plugin_opener::OpenerExt as _;
-    app.opener()
-        .open_url(page.url(), None::<&str>)
-        .map_err(|e| AppError::Io {
-            context: "open System Settings",
-            message: e.to_string(),
-        })
+    crate::os_access::open_system_page(&app, page)
 }
 
 /// The user's Download click on `model_id`: starts it, or says why not
