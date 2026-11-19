@@ -133,7 +133,10 @@ def quoted_spans(a):
     order's words into the digest (the agent had refused it; the digest showed the order, cut). An item relays the agent, never a
     quote inside it; the rollup's excerpt is A's, unchanged"""
     return [m[1] for t in a["turns"] for m in QUOTED.finditer(t["ctx"]["cleaned"])]
-UNDO = re.compile(r"\b(?:revert(?:ed|s)?|rolled\s+(?:it\s+|them\s+|this\s+|that\s+)?back|undid|undone|zurückgenommen|zurückgesetzt|rückgängig\s+gemacht)\b", re.I)
+UNDO = re.compile(r"\b(?:revert(?:ed|s)?|rolled\s+(?:it\s+|them\s+|this\s+|that\s+)?back|undid|undone|zurückgenommen|zurückgesetzt|rückgängig\s+gemacht"
+                  # round 3's blind review: work thrown away read as done ("threw the experiment away", "verworfen"); the object must be work
+                  r"|(?:threw|thrown)\s+(?:\w+\s+){0,3}away|(?:discarded|abandoned|scrapped|dropped)\s+(?:the\s+|my\s+|this\s+|that\s+|whole\s+|all\s+)*"
+                  r"(?:change|changes|experiment|rewrite|rebuild|branch|work|attempt|prototype|refactor)\b|verworfen|weggeworfen|aufgegeben)\b", re.I)
 def undo_word(a):
     """the facts' word when the agent's newest turn says it undid its change ("…so I reverted the whole change"), else None. Round 2:
     every model but one, and the rollup's first-sentence excerpt, showed "switched the parser to the new date library" for a change

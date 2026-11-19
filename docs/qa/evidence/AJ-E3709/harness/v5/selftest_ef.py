@@ -833,6 +833,13 @@ def selftest_r3(check, WJ):
         check(f"scoring: a false caveat word shown is a critical candidate ({line.rsplit(' · ', 1)[1]})", sm["critical_by_detector"].get("caveat_against_facts", 0) >= 1, sm["critical_by_detector"])
     sm = DG.summarise([shown("a4", "wader-api · ended · the wader-api migration is ready · blocked")])
     check("scoring mutation: a grounded 'blocked' is no candidate", "caveat_against_facts" not in sm["critical_by_detector"], sm["critical_by_detector"])
+    for src, undone in (("I tried a trie for the heron lookup but threw the whole experiment away; nothing changed in the branch.", True),
+                        ("Den neuen Cache für heron habe ich verworfen, der Stand ist wie vorher.", True),
+                        ("I scrapped the rewrite of the heron loader after it slowed down the import.", True),
+                        ("The heron importer now discarded rows with empty IDs and logs them.", False),
+                        ("I threw an error page in front of the heron login when the token is missing.", False)):
+        a = item([ag("ses-he", "heron-lab", src, outcome="done")])["agents"][0]
+        check(f"undo: {src[:40]!r}… {'is' if undone else 'is not'} undone work", bool(D.undo_word(a)) == undone, D.undo_word(a))
 
 def texts():
     for ex in D.EXAMPLES: yield ex["label"], " ".join(t["source"] for a in ex["agents"] for t in a["turns"]) + " " + json.dumps(ex["out"], ensure_ascii=False)
