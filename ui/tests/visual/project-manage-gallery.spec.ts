@@ -3,6 +3,7 @@
  * tidied — the rail with a labelled, pinned session and a pinned
  * project; a session's and a project's row menus; the rename and forget
  * sheets; the project view's own actions (with an editor chosen);
+ * Keep it apart…'s one sheet and the pool it makes (R4);
  * Relocate… on a missing folder; Settings' editor choice. Both themes,
  * axe 0 critical/serious on each.
  */
@@ -132,6 +133,31 @@ for (const theme of ["dark", "light"] as const) {
     await page.mouse.move(0, 0);
     await page.screenshot({ path: resolve(OUT, `project-actions-1280x800-${theme}.png`) });
     await axeClean(page, "project actions");
+  });
+
+  // R4 (main's ruling): "Keep it apart…" is one sheet in plain words, from
+  // the Agents card where the persona looked; Keep apart makes the pool,
+  // a toast names it, and the card then says the project is kept apart.
+  test(`Keep it apart…: one sheet, then the pool made — ${theme}`, async ({ page }) => {
+    await seed(page, theme);
+    await projectLens(page);
+    await page.getByTestId("rail").getByRole("button", { name: /^ai-juggler/ }).first().click();
+    await page.getByRole("tablist", { name: "Project tabs" }).getByRole("tab", { name: "Overview" }).click();
+    await expect(page.getByTestId("project-agents-apart")).toHaveAttribute("data-apart", "no");
+    await page.getByTestId("project-agents-keep-apart").click();
+    const sheet = page.getByRole("dialog", { name: "Keep ai-juggler apart" });
+    await expect(sheet.getByTestId("keep-apart-makes")).toContainText("«Sealed client project»");
+    await expect(sheet.getByRole("button", { name: "Keep apart" })).toBeFocused();
+    await page.mouse.move(0, 0);
+    await page.screenshot({ path: resolve(OUT, `keep-apart-1280x800-${theme}.png`) });
+    await axeClean(page, "keep apart sheet");
+    await sheet.getByRole("button", { name: "Keep apart" }).click();
+    await expect(sheet).toHaveCount(0);
+    await expect(page.getByTestId("keep-apart-toast")).toContainText("ai-juggler is kept apart");
+    await expect(page.getByTestId("project-agents-apart")).toHaveAttribute("data-apart", "yes");
+    await page.mouse.move(0, 0);
+    await page.screenshot({ path: resolve(OUT, `keep-apart-made-1280x800-${theme}.png`) });
+    await axeClean(page, "kept apart");
   });
 
   test(`a moved folder: Relocate… on the banner — ${theme}`, async ({ page }) => {
