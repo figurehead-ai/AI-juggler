@@ -153,6 +153,9 @@ pub struct AiJobInfo {
     pub model_name: Option<String>,
     /// Why that model, or why the job waits or is hidden.
     pub why: Option<AiJobWhy>,
+    /// The user's own model for the job (AJ-E3812), when they picked one
+    /// rather than Automatic; it wins whenever it can run.
+    pub pick: Option<String>,
 }
 
 impl AiJobInfo {
@@ -186,6 +189,7 @@ impl AiJobInfo {
             model_name: model_id.as_deref().and_then(name),
             model_id,
             why,
+            pick: None,
         }
     }
 }

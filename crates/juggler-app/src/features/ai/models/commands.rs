@@ -1,13 +1,14 @@
 //! The Models screen's commands (AJ-E3803, AJ-E3813; the screen is
-//! AJ-E3812). One read, [`ai_models_installed`]; the rest are the user's
-//! clicks: Download, Cancel, Remove, and the approval card's Add and
-//! Not now. Each change tells every window (`ai-models://changed`); a
+//! AJ-E3812). Two reads, [`ai_models_installed`] and the screen's list
+//! [`ai_models_catalog`]; the rest are the user's clicks: Download,
+//! Cancel, Remove, and the approval card's Add and Not now. Each change tells every window (`ai-models://changed`); a
 //! running download reports `ai-models://progress` with a
 //! [`DownloadInfo`]; an install or a removal re-answers the AI jobs'
 //! query (`ai://jobs-changed`), since a removed model's jobs hide.
 
 use std::sync::{Arc, Weak};
 
+use super::catalog::{ModelsCatalog, catalog};
 use super::download::{self, Downloads, Event, Notify, Outcome};
 use super::dto::{ApprovalInfo, DownloadInfo, InstalledModelInfo, ModelsInfo, StartInfo};
 use super::store::{self, Refusal, Store};
@@ -120,6 +121,38 @@ pub async fn ai_models_installed(state: tauri::State<'_, Arc<AppState>>) -> AppR
     crate::ipc::blocking(state.inner(), "the AI models", |state| Ok(info_now(state))).await
 }
 
+/// What Settings › AI › Models shows besides the installed rows: this
+/// Mac's facts, the recommendation (the one Automatic uses), and the
+/// models this Mac can use with their verdicts (AJ-E3812, D-127). It may
+/// ask the engines again first when their last look is stale.
+///
+/// # Errors
+///
+/// None today; the result keeps the command's shape.
+#[tauri::command]
+pub async fn ai_models_catalog(state: tauri::State<'_, Arc<AppState>>) -> AppResult<ModelsCatalog> {
+    crate::ipc::blocking(state.inner(), "the AI models", |state| {
+        let listing = listing();
+        let offered = super::offered(&listing);
+        let installed =
+            super::installed_entries(&store::shared(&state.data_dir).installed(), &listing);
+        let mac = crate::features::ai::service::mac_now(state);
+        let usable = crate::features::ai::service::usable(&offered, &installed);
+        let recommendation = mac
+            .as_ref()
+            .map(|mac| crate::features::ai::service::recommendation(mac, &usable, &installed));
+        Ok(catalog(
+            mac.as_ref(),
+            juggler_platform::room::total_memory(),
+            &listing,
+            &offered,
+            &installed,
+            recommendation.as_ref(),
+        ))
+    })
+    .await
+}
+
 /// The user's Download click on `model_id`: starts it, or says why not
 /// (a further model answers `needs_approval` with its size and the new
 /// total, for the approval card). `approval` is the card's token.
@@ -199,6 +232,9 @@ pub async fn ai_model_remove(
                 id: model_id,
             });
         }
+        // A job picked for it goes back to Automatic, as the confirmation
+        // says (AJ-E3812).
+        crate::features::ai::service::clear_picks_of(state, &model_id)?;
         changed(&app, state, true);
         Ok(info_now(state))
     })

@@ -3,6 +3,7 @@
 //! mid-session, a remote kill, a narrowed verdict, the recommendation as
 //! Automatic, and laziness.
 
+use std::collections::BTreeMap;
 use std::path::Path;
 
 use serde_json::json;
@@ -47,7 +48,13 @@ fn on_a_mac_with_apple_intelligence_review_and_chat_wait_for_their_beta() {
         Local::default(),
     ));
     let compiled = Snapshot::default();
-    let (jobs, changed) = service.answer(&compiled, &beta_for(&[]), dir.path(), Probe::IfStale);
+    let (jobs, changed) = service.answer(
+        &compiled,
+        &beta_for(&[]),
+        &BTreeMap::new(),
+        dir.path(),
+        Probe::IfStale,
+    );
     assert!(changed, "the first answer is news");
     assert_eq!(jobs.len(), 5, "every routed job, attention aside");
     for job in [AiJob::Feed, AiJob::Digest, AiJob::Watches] {
@@ -60,8 +67,13 @@ fn on_a_mac_with_apple_intelligence_review_and_chat_wait_for_their_beta() {
     assert_eq!(state_of(&jobs, AiJob::Review).0, AiJobState::BetaOff);
     assert_eq!(state_of(&jobs, AiJob::Chat).0, AiJobState::BetaOff);
 
-    let (jobs, changed) =
-        service.answer(&compiled, &beta_for(&[Job::Chat]), dir.path(), Probe::Never);
+    let (jobs, changed) = service.answer(
+        &compiled,
+        &beta_for(&[Job::Chat]),
+        &BTreeMap::new(),
+        dir.path(),
+        Probe::Never,
+    );
     assert!(changed);
     let chat = jobs.iter().find(|info| info.job == AiJob::Chat).unwrap();
     assert_eq!(
@@ -83,6 +95,7 @@ fn on_a_mac_with_apple_intelligence_review_and_chat_wait_for_their_beta() {
     let (_, changed) = service.answer(
         &compiled,
         &beta_for(&[Job::Chat]),
+        &BTreeMap::new(),
         dir.path(),
         Probe::IfStale,
     );
@@ -102,10 +115,11 @@ fn apple_intelligence_turned_off_mid_session_hides_the_jobs_with_the_reason() {
     ));
     let compiled = Snapshot::default();
     let beta = beta_for(&[Job::Review, Job::Chat]);
-    let (jobs, _) = service.answer(&compiled, &beta, dir.path(), Probe::Now);
+    let (jobs, _) = service.answer(&compiled, &beta, &BTreeMap::new(), dir.path(), Probe::Now);
     assert_eq!(state_of(&jobs, AiJob::Chat).0, AiJobState::Ready);
     helper(dir.path(), "apple_intelligence_not_enabled");
-    let (jobs, changed) = service.answer(&compiled, &beta, dir.path(), Probe::Now);
+    let (jobs, changed) =
+        service.answer(&compiled, &beta, &BTreeMap::new(), dir.path(), Probe::Now);
     assert!(changed);
     for job in [AiJob::Review, AiJob::Chat] {
         assert_eq!(
@@ -114,7 +128,8 @@ fn apple_intelligence_turned_off_mid_session_hides_the_jobs_with_the_reason() {
         );
     }
     helper(dir.path(), "available");
-    let (jobs, changed) = service.answer(&compiled, &beta, dir.path(), Probe::Now);
+    let (jobs, changed) =
+        service.answer(&compiled, &beta, &BTreeMap::new(), dir.path(), Probe::Now);
     assert!(changed, "turned back on, the jobs return");
     assert_eq!(state_of(&jobs, AiJob::Chat).0, AiJobState::Ready);
 }
@@ -135,7 +150,7 @@ fn a_remote_kill_and_a_narrowed_verdict_each_hide_a_job() {
         )),
         &facts(1),
     );
-    let (jobs, _) = service.answer(&killed, &beta, dir.path(), Probe::Now);
+    let (jobs, _) = service.answer(&killed, &beta, &BTreeMap::new(), dir.path(), Probe::Now);
     assert_eq!(
         state_of(&jobs, AiJob::Chat).0,
         AiJobState::Off,
@@ -160,7 +175,13 @@ fn a_remote_kill_and_a_narrowed_verdict_each_hide_a_job() {
         )),
         &facts(1),
     );
-    let (jobs, _) = service.answer(&narrowed, &beta_for(&[]), dir.path(), Probe::Never);
+    let (jobs, _) = service.answer(
+        &narrowed,
+        &beta_for(&[]),
+        &BTreeMap::new(),
+        dir.path(),
+        Probe::Never,
+    );
     assert_eq!(
         state_of(&jobs, AiJob::Review).0,
         AiJobState::NoEngine,
@@ -181,7 +202,13 @@ fn a_remote_kill_and_a_narrowed_verdict_each_hide_a_job() {
         )),
         &facts(1),
     );
-    let (jobs, _) = service.answer(&withdrawn, &beta, dir.path(), Probe::Never);
+    let (jobs, _) = service.answer(
+        &withdrawn,
+        &beta,
+        &BTreeMap::new(),
+        dir.path(),
+        Probe::Never,
+    );
     assert_eq!(
         state_of(&jobs, AiJob::Chat).0,
         AiJobState::NoEngine,
@@ -209,6 +236,7 @@ fn nothing_is_started_before_a_query_asks() {
     let (jobs, _) = service.answer(
         &Snapshot::default(),
         &beta_for(&[Job::Chat]),
+        &BTreeMap::new(),
         dir.path(),
         Probe::Never,
     );
@@ -221,6 +249,7 @@ fn nothing_is_started_before_a_query_asks() {
     let _ = service.answer(
         &Snapshot::default(),
         &beta_for(&[Job::Chat]),
+        &BTreeMap::new(),
         dir.path(),
         Probe::IfStale,
     );
@@ -253,6 +282,7 @@ fn the_recommendation_is_the_automatic_default() {
             mac,
             &Snapshot::default(),
             &beta_for(&[Job::Chat]),
+            &BTreeMap::new(),
         );
         state_of(&jobs, AiJob::Chat)
     };
@@ -265,6 +295,45 @@ fn the_recommendation_is_the_automatic_default() {
         (AiJobState::Ready, true, Some(AiJobWhy::Only))
     );
     assert_eq!(chat(None), (AiJobState::Ready, true, Some(AiJobWhy::Only)));
+}
+
+/// AJ-E3812's per-job override: the user's pick wins and the answer says
+/// so, and carries the pick; only a model whose verdict passed the job may
+/// be picked (D-127).
+#[cfg(unix)]
+#[test]
+fn a_pick_wins_and_only_a_model_that_passed_may_be_picked() {
+    let dir = tempfile::tempdir().unwrap();
+    let engines = Registry::with(
+        Apple::with_program(Some(helper(dir.path(), "available"))),
+        Local::default(),
+    );
+    engines.probe();
+    let off = MacFacts {
+        chip: HostChip::Apple(Chip::M4),
+        memory_gb: 16,
+        free_disk_bytes: 200_000_000_000,
+        apple_ai: AppleAi::Off,
+    };
+    let picks = BTreeMap::from([(Job::Chat, "apple-on-device".to_owned())]);
+    let jobs = answer_for(
+        &engines,
+        &builtin(),
+        &[],
+        Some(&off),
+        &Snapshot::default(),
+        &beta_for(&[Job::Chat]),
+        &picks,
+    );
+    let chat = jobs.iter().find(|info| info.job == AiJob::Chat).unwrap();
+    assert_eq!(chat.why, Some(AiJobWhy::Picked));
+    assert_eq!(chat.pick.as_deref(), Some("apple-on-device"));
+    let review = jobs.iter().find(|info| info.job == AiJob::Review).unwrap();
+    assert_eq!(review.pick, None, "Automatic");
+    // Apple's model passed review and Chat, not the feed line.
+    assert!(super::may_pick(&builtin(), Job::Chat, "apple-on-device"));
+    assert!(!super::may_pick(&builtin(), Job::Feed, "apple-on-device"));
+    assert!(!super::may_pick(&builtin(), Job::Chat, "no-such-model"));
 }
 
 /// The query on this Mac with the real helper (run by hand after
@@ -290,7 +359,13 @@ fn the_query_on_this_mac() {
         ("beta on", &[Job::Review, Job::Chat][..]),
     ] {
         let beta = move |job: Job| on.contains(&job);
-        let (jobs, _) = service.answer(&Snapshot::default(), &beta, dir.path(), Probe::Now);
+        let (jobs, _) = service.answer(
+            &Snapshot::default(),
+            &beta,
+            &BTreeMap::new(),
+            dir.path(),
+            Probe::Now,
+        );
         for info in jobs {
             println!("{label}: {}", serde_json::to_string(&info).unwrap());
         }

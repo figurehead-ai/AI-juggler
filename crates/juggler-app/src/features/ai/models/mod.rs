@@ -24,6 +24,7 @@
 //! section says; a withdrawn or no-longer-listed one gets a plain note
 //! ([`installed_state`], §11.4).
 
+pub mod catalog;
 pub mod commands;
 pub mod download;
 pub mod dto;

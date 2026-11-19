@@ -149,6 +149,18 @@ pub fn beta_key(job: Job) -> String {
 /// settings command refuses it).
 pub const BETA_PREFIX: &str = "ai_beta_";
 
+/// The app setting that holds the user's own model for `job` (AJ-E3812's
+/// per-job override): a model id, or empty for Automatic. Written only
+/// through `ai_job_pick_set`, which checks the model may serve the job.
+#[must_use]
+pub fn pick_key(job: Job) -> String {
+    format!("{PICK_PREFIX}{}", job.name())
+}
+
+/// Every per-job pick's key starts with this (reserved: the general
+/// settings command refuses it).
+pub const PICK_PREFIX: &str = "ai_pick_";
+
 /// The routed job named `name` (its field name in the `models` section).
 #[must_use]
 pub fn by_name(name: &str) -> Option<&'static JobSpec> {

@@ -34,4 +34,9 @@ model_name: string | null,
 /**
  * Why that model, or why the job waits or is hidden.
  */
-why: AiJobWhy | null, };
+why: AiJobWhy | null, 
+/**
+ * The user's own model for the job (AJ-E3812), when they picked one
+ * rather than Automatic; it wins whenever it can run.
+ */
+pick: string | null, };

@@ -74,12 +74,14 @@ impl Service {
     }
 
     /// Every routed job's answer, and whether it differs from the last
-    /// one given. `beta` reads a job's Beta switch; `data_dir` is where AI
-    /// files would live (the recommendation's free disk).
+    /// one given. `beta` reads a job's Beta switch, `picks` the user's own
+    /// model per job; `data_dir` is where AI files would live (the
+    /// recommendation's free disk).
     pub fn answer(
         &self,
         snapshot: &Snapshot,
         beta: &dyn Fn(Job) -> bool,
+        picks: &BTreeMap<Job, String>,
         data_dir: &Path,
         probe: Probe,
     ) -> (Vec<AiJobInfo>, bool) {
@@ -94,6 +96,7 @@ impl Service {
             mac.as_ref(),
             snapshot,
             beta,
+            picks,
         );
         let changed = self.last.lock().is_ok_and(|mut last| {
             let changed = last.as_ref() != Some(&jobs);
@@ -117,10 +120,39 @@ impl Service {
     }
 }
 
+/// The models a job may run on: the `offered` ones, then each
+/// `installed` copy the list no longer has (it keeps working from its
+/// copy, ADR-0035 §11.4).
+#[must_use]
+pub fn usable(offered: &[ModelEntry], installed: &[ModelEntry]) -> Vec<ModelEntry> {
+    let mut usable = offered.to_vec();
+    for model in installed {
+        if !usable.iter().any(|known| known.id == model.id) {
+            usable.push(model.clone());
+        }
+    }
+    usable
+}
+
+/// The recommendation for `mac` among the `usable` models that aren't
+/// withdrawn (AJ-E3811): Automatic's model, and the Models screen's
+/// Recommended. One function, so the two never disagree.
+#[must_use]
+pub fn recommendation(
+    mac: &MacFacts,
+    usable: &[ModelEntry],
+    installed: &[ModelEntry],
+) -> Recommendation {
+    let installed_ids: Vec<&str> = installed.iter().map(|m| m.id.as_str()).collect();
+    let listed: Vec<ModelEntry> = usable.iter().filter(|m| !m.withdrawn).cloned().collect();
+    recommend(mac, &listed, &installed_ids)
+}
+
 /// The answer over `offered` models and the `installed` ones (pure but
 /// for the engines' last probe): the router per job over both (an
 /// installed model keeps working from its copy, listed or not, ADR-0035
-/// §11.4), the recommendation among the offered ones as Automatic.
+/// §11.4), the recommendation among the offered ones as Automatic, and
+/// the user's own `picks` first.
 #[must_use]
 pub fn answer_for(
     engines: &Registry,
@@ -129,29 +161,20 @@ pub fn answer_for(
     mac: Option<&MacFacts>,
     snapshot: &Snapshot,
     beta: &dyn Fn(Job) -> bool,
+    picks: &BTreeMap<Job, String>,
 ) -> Vec<AiJobInfo> {
-    let installed_ids: Vec<&str> = installed.iter().map(|m| m.id.as_str()).collect();
-    let mut usable = offered.to_vec();
-    for model in installed {
-        if !usable.iter().any(|known| known.id == model.id) {
-            usable.push(model.clone());
-        }
-    }
+    let usable = usable(offered, installed);
     let offered = usable.as_slice();
     let cards = engines.cards(offered);
-    let automatic = mac.and_then(|mac| {
-        let listed: Vec<ModelEntry> = offered.iter().filter(|m| !m.withdrawn).cloned().collect();
-        match recommend(mac, &listed, &installed_ids) {
-            Recommendation::Model { id, .. } => Some(id),
-            Recommendation::Nothing(_) => None,
-        }
+    let automatic = mac.and_then(|mac| match recommendation(mac, offered, installed) {
+        Recommendation::Model { id, .. } => Some(id),
+        Recommendation::Nothing(_) => None,
     });
-    let picks = BTreeMap::new();
     let inputs = Inputs {
         cards: &cards,
         models: offered,
         automatic: automatic.as_deref(),
-        picks: &picks,
+        picks,
     };
     let switches = |spec: &JobSpec| Switches {
         on: flags::on_in(&snapshot.effective, spec.flag),
@@ -161,13 +184,17 @@ pub fn answer_for(
         .into_iter()
         .filter_map(|(spec, route)| {
             let job = AiJob::of(spec.job)?;
-            Some(AiJobInfo::new(
+            let info = AiJobInfo::new(
                 job,
                 route,
                 beta(spec.job),
                 |card| cards.get(card).map(|card| card.model.clone()),
                 |id| offered.iter().find(|m| m.id == id).map(|m| m.name.clone()),
-            ))
+            );
+            Some(AiJobInfo {
+                pick: picks.get(&spec.job).cloned(),
+                ..info
+            })
         })
         .collect()
 }
@@ -192,11 +219,34 @@ fn beta_switches(state: &AppState) -> AppResult<BTreeMap<Job, bool>> {
         .collect()
 }
 
+/// The user's own model per job, as stored (empty is Automatic).
+fn picks(state: &AppState) -> AppResult<BTreeMap<Job, String>> {
+    let storage = state.storage.lock().map_err(|_| AppError::StatePoisoned)?;
+    let settings = storage.app_settings();
+    let mut picks = BTreeMap::new();
+    for spec in jobs::JOBS {
+        if let Some(id) = settings.get(&jobs::pick_key(spec.job))?
+            && !id.is_empty()
+        {
+            picks.insert(spec.job, id);
+        }
+    }
+    Ok(picks)
+}
+
 fn answer_now(state: &AppState, probe: Probe) -> AppResult<(Vec<AiJobInfo>, bool)> {
     let switches = beta_switches(state)?;
+    let picks = picks(state)?;
     let beta = |job: Job| switches.get(&job).copied().unwrap_or(false);
     let snapshot = crate::features::remote_config::current();
-    Ok(service().answer(&snapshot, &beta, &state.data_dir, probe))
+    Ok(service().answer(&snapshot, &beta, &picks, &state.data_dir, probe))
+}
+
+/// This Mac's facts as the recommendation reads them, probing the
+/// engines first when the last probe is stale (the Models screen).
+#[must_use]
+pub fn mac_now(state: &AppState) -> Option<MacFacts> {
+    service().mac_facts(&state.data_dir, Probe::IfStale)
 }
 
 /// The query: every routed job's answer, probing the engines when the
@@ -222,6 +272,69 @@ pub fn set_beta(state: &AppState, job: AiJob, on: bool) -> AppResult<(Vec<AiJobI
             .set(&jobs::beta_key(job.job()), if on { "1" } else { "0" })?;
     }
     answer_now(state, Probe::Never)
+}
+
+/// Whether `model_id` may be picked for `job`: a model the app offers or
+/// one on this Mac, whose verdict for the job passed (D-127: the picker
+/// offers nothing else, and the command takes nothing else).
+#[must_use]
+pub fn may_pick(usable: &[ModelEntry], job: Job, model_id: &str) -> bool {
+    usable
+        .iter()
+        .any(|model| model.id == model_id && model.verdict(job).passed())
+}
+
+/// Sets the user's own model for `job` (`None`: back to Automatic), then
+/// answers again (AJ-E3812's per-job override).
+///
+/// # Errors
+///
+/// A model that may not serve the job, or settings that can't be written.
+pub fn set_pick(
+    state: &AppState,
+    job: AiJob,
+    model_id: Option<&str>,
+) -> AppResult<(Vec<AiJobInfo>, bool)> {
+    if let Some(id) = model_id {
+        let snapshot = crate::features::remote_config::current();
+        let listing = models::listing(&snapshot.lists);
+        let installed = models::installed_entries(&models::store::shared_installed(), &listing);
+        if !may_pick(
+            &usable(&models::offered(&listing), &installed),
+            job.job(),
+            id,
+        ) {
+            return Err(AppError::Validation {
+                subject: "model",
+                message: "that model can't do this job".to_owned(),
+            });
+        }
+    }
+    {
+        let storage = state.storage.lock().map_err(|_| AppError::StatePoisoned)?;
+        storage
+            .app_settings()
+            .set(&jobs::pick_key(job.job()), model_id.unwrap_or(""))?;
+    }
+    answer_now(state, Probe::Never)
+}
+
+/// After `model_id` was removed: every job picked for it goes back to
+/// Automatic, as the Remove confirmation says.
+///
+/// # Errors
+///
+/// Settings that can't be read or written.
+pub fn clear_picks_of(state: &AppState, model_id: &str) -> AppResult<()> {
+    let storage = state.storage.lock().map_err(|_| AppError::StatePoisoned)?;
+    let settings = storage.app_settings();
+    for spec in jobs::JOBS {
+        let key = jobs::pick_key(spec.job);
+        if settings.get(&key)?.as_deref() == Some(model_id) {
+            settings.set(&key, "")?;
+        }
+    }
+    Ok(())
 }
 
 /// After the configuration changed: the new answer when it differs from

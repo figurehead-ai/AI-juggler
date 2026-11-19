@@ -111,6 +111,7 @@ import type { MachineUsageInfo } from "./MachineUsageInfo";
 import type { MarkChoice } from "./MarkChoice";
 import type { MessageInfo } from "./MessageInfo";
 import type { MessageNeedInfo } from "./MessageNeedInfo";
+import type { ModelsCatalog } from "./ModelsCatalog";
 import type { ModelsInfo } from "./ModelsInfo";
 import type { MoveDoneInfo } from "./MoveDoneInfo";
 import type { MoveOfferInfo } from "./MoveOfferInfo";
@@ -304,6 +305,8 @@ export interface Commands {
   agent_bridge_set: { args: { scope: string; id: string; on: boolean }; result: AgentBridgeInfo };
   /** Write features::ai::commands::ai_beta_set */
   ai_beta_set: { args: { job: AiJob; on: boolean }; result: AiJobInfo[] };
+  /** Write features::ai::commands::ai_job_pick_set */
+  ai_job_pick_set: { args: { job: AiJob; modelId?: string | null }; result: AiJobInfo[] };
   /** Read features::ai::commands::ai_jobs */
   ai_jobs: { args: Record<string, never>; result: AiJobInfo[] };
   /** Write features::ai::models::commands::ai_model_approve_extra */
@@ -316,6 +319,8 @@ export interface Commands {
   ai_model_download_start: { args: { modelId: string; approval?: string | null }; result: StartInfo };
   /** Write features::ai::models::commands::ai_model_remove */
   ai_model_remove: { args: { modelId: string }; result: ModelsInfo };
+  /** Read features::ai::models::commands::ai_models_catalog */
+  ai_models_catalog: { args: Record<string, never>; result: ModelsCatalog };
   /** Read features::ai::models::commands::ai_models_installed */
   ai_models_installed: { args: Record<string, never>; result: ModelsInfo };
   /** Write features::alerts::commands::alerts_tick */
