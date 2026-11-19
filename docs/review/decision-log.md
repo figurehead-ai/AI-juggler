@@ -3731,3 +3731,18 @@ The maintainer asked whether Chat should be its own page, whether there should b
 - Supersedes AJ-E3804..E3809's "Chat" naming, and the separate-panel-only layout of the 2026-11-19 mock-up.
 - Sources: the maintainer's messages, 2026-11-19.
 - **The mock-up approved (2026-11-19, the maintainer: "remove the placeholder and build it"):** `~/Dev/AIJuggler-design-refs/chat-panel/` (19 states, kept outside the repo for its vendor logos) is the design Bot is built to, with one change: the full page's dashed "Later · Longer tasks" card is removed. It drew a feature that doesn't exist (D-127) and returns in 0.6 with the feature. Two ADR lines change with it: ADR-0034 §6.8 (the question box stays in the no-model panel) and ADR-0037 §9 ("What Bot remembers" is a tab of the Bot page, not a Settings pane).
+
+### D-137 Every release works in batches: find everything, triage once, fix together, one build — STANDING RULE — SETTLED (2026-11-19)
+
+**Ruling.** The maintainer, 2026-11-19, after 0.4.6 went from rc3a to rc3h a few findings at a time: "I wish you would find these issues in batches and fix them in batches instead of one by one", and: "batch work should be standing rule for all other releases."
+
+**For every release from now on (0.4.x, 0.5 and all later):**
+1. **Find in a batch.** Each test round walks or captures every flow and screen in scope first, in parallel where labs allow, and collects every finding into one list. Nothing is fixed mid-walk unless the walk itself is blocked.
+2. **Triage once.** Blockers (data loss, a wrong account or action, a crash, a security or privacy issue, a broken core flow) go into this release. Everything else gets an E-id for the next.
+3. **Fix together.** The whole batch is fixed in parallel by area, then one build (one RC or one recapture), then one re-walk of what changed plus a short smoke walk of the core flows.
+4. **An exit line.** Each release names its last RC in advance. After it, only blockers change the build; everything else waits for the next release.
+5. **The same rule for design checks.** One complete critique list per screen against its mock-up, one fix batch, one recapture.
+
+Every session and agent brief carries this rule.
+
+- Sources: the maintainer's messages, 2026-11-19.
