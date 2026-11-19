@@ -153,7 +153,7 @@ function installed(...rows: Array<[CatalogModel, number, "listed" | "withdrawn" 
   return { installed: list, total_bytes: list.reduce((sum, row) => sum + row.size_bytes, 0), download: null, declined: [] };
 }
 
-/** The AI jobs' answer: review and Chat with their Beta switch, the rest off. */
+/** The AI jobs' answer: review and Bot with their Beta switch, the rest off. */
 export function jobs(over: Partial<Record<"review" | "chat", Partial<AiJobInfo>>> = {}): AiJobInfo[] {
   const base = (job: AiJobInfo["job"], state: AiJobInfo["state"]): AiJobInfo => ({ job, state, beta: false, beta_on: false, model_id: null, model_name: null, why: null, pick: null });
   return [

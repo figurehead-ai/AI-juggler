@@ -27,11 +27,12 @@ pub enum ModelJob {
     Review,
     /// Attention hints.
     Attention,
-    /// Chat answers.
-    Chat,
+    /// Bot's answers (D-136; `chat` on the wire, as in the file).
+    #[serde(rename = "chat")]
+    Bot,
     /// The digest.
     Digest,
-    /// Watches drafted from Chat.
+    /// Watches drafted from Bot.
     Watches,
 }
 
@@ -41,7 +42,7 @@ impl ModelJob {
             Job::Feed => Self::Feed,
             Job::Review => Self::Review,
             Job::Attention => Self::Attention,
-            Job::Chat => Self::Chat,
+            Job::Bot => Self::Bot,
             Job::Digest => Self::Digest,
             Job::Watches => Self::Watches,
         }

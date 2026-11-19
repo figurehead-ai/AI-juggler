@@ -14,11 +14,12 @@ pub enum AiJob {
     Feed,
     /// The turn review.
     Review,
-    /// Chat's answer.
-    Chat,
+    /// Bot's answer (D-136; `chat` on the wire, as in the settings and the file).
+    #[serde(rename = "chat")]
+    Bot,
     /// The digest.
     Digest,
-    /// Watches drafted from Chat.
+    /// Watches drafted from Bot.
     Watches,
 }
 
@@ -29,7 +30,7 @@ impl AiJob {
         match self {
             Self::Feed => Job::Feed,
             Self::Review => Job::Review,
-            Self::Chat => Job::Chat,
+            Self::Bot => Job::Bot,
             Self::Digest => Job::Digest,
             Self::Watches => Job::Watches,
         }
@@ -42,7 +43,7 @@ impl AiJob {
         match job {
             Job::Feed => Some(Self::Feed),
             Job::Review => Some(Self::Review),
-            Job::Chat => Some(Self::Chat),
+            Job::Bot => Some(Self::Bot),
             Job::Digest => Some(Self::Digest),
             Job::Watches => Some(Self::Watches),
             Job::Attention => None,

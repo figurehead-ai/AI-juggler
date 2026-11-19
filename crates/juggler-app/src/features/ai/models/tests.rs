@@ -195,9 +195,9 @@ fn unknown_fields_are_ignored_and_unknown_verdicts_read_as_not_tested() {
     );
     let entries = read(json!([entry]));
     assert_eq!(ids(&entries), ["qwen3-1-7b-q8"]);
-    assert_eq!(entries[0].verdict(Job::Chat), Verdict::NotTested);
+    assert_eq!(entries[0].verdict(Job::Bot), Verdict::NotTested);
     let long_note = with(qwen(), "chat_note", json!("a".repeat(121)));
-    assert_eq!(read(json!([long_note]))[0].verdicts[&Job::Chat].note, None);
+    assert_eq!(read(json!([long_note]))[0].verdicts[&Job::Bot].note, None);
 }
 
 #[test]
@@ -214,7 +214,7 @@ fn the_built_in_list_is_apple_only_through_the_same_reader() {
     assert_eq!(ids(&built_in), ["apple-on-device"]);
     assert_eq!(built_in[0].engine, Engine::AppleBuiltin);
     assert_eq!(built_in[0].verdict(Job::Review), Verdict::Beta);
-    assert_eq!(built_in[0].verdict(Job::Chat), Verdict::Beta);
+    assert_eq!(built_in[0].verdict(Job::Bot), Verdict::Beta);
     assert_eq!(built_in[0].verdict(Job::Attention), Verdict::Ships);
     for job in [Job::Feed, Job::Digest, Job::Watches] {
         assert_eq!(built_in[0].verdict(job), Verdict::NotYet, "{job:?}");
@@ -283,7 +283,7 @@ fn withdrawn_models_stay_usable_with_a_note() {
     let narrowed = Listing::Read(read(json!([with(qwen(), "chat", json!("not_yet"))])));
     let state = installed_state(&copy, &narrowed);
     assert!(
-        matches!(&state, InstalledState::Listed(now) if now.verdict(Job::Chat) == Verdict::NotYet),
+        matches!(&state, InstalledState::Listed(now) if now.verdict(Job::Bot) == Verdict::NotYet),
         "{state:?}"
     );
 }

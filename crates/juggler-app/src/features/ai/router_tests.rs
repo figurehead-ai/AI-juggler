@@ -315,7 +315,7 @@ fn removing_the_system_model_mid_session_hides_only_what_it_alone_served() {
     ];
     let chat = |cards: &[Card]| {
         route(
-            &jobs::CHAT,
+            &jobs::BOT,
             on,
             &Inputs {
                 cards,
@@ -356,10 +356,10 @@ fn the_order_picked_then_recommended_then_no_download_then_tier_then_running() {
         beta: false,
     };
     let none = BTreeMap::new();
-    let picked = BTreeMap::from([(Job::Chat, LOCAL.to_owned())]);
+    let picked = BTreeMap::from([(Job::Bot, LOCAL.to_owned())]);
     let run = |automatic: Option<&str>, picks: &BTreeMap<Job, String>, cards: &[Card]| {
         route(
-            &jobs::CHAT,
+            &jobs::BOT,
             on,
             &Inputs {
                 cards,
@@ -431,7 +431,7 @@ fn the_order_picked_then_recommended_then_no_download_then_tier_then_running() {
         }
     );
     // A pick the job can't use (a model gone) leaves the Automatic order.
-    let gone = BTreeMap::from([(Job::Chat, "removed".to_owned())]);
+    let gone = BTreeMap::from([(Job::Bot, "removed".to_owned())]);
     assert_eq!(
         run(None, &gone, &cards),
         Route::Run {
@@ -469,7 +469,7 @@ fn needs_decide_which_cards_can_serve_a_job() {
         "1,024 tokens, no tools: fits"
     );
     assert_eq!(
-        route(&jobs::CHAT, on, &inputs),
+        route(&jobs::BOT, on, &inputs),
         Route::NoEngine(None),
         "Chat needs 4,096 and look-ups"
     );
@@ -619,7 +619,7 @@ fn the_local_engine_serves_its_installed_model_and_automatic_picks_it() {
     assert_eq!(review.state, AiJobState::Ready);
     assert_eq!(review.model_id.as_deref(), Some(LOCAL));
     assert_eq!(review.why, Some(AiJobWhy::Recommended));
-    let chat = jobs.iter().find(|info| info.job == AiJob::Chat).unwrap();
+    let chat = jobs.iter().find(|info| info.job == AiJob::Bot).unwrap();
     assert_eq!(chat.state, AiJobState::BetaOff, "Chat's Beta is off");
     engines.release();
 }

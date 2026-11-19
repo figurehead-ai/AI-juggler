@@ -487,7 +487,7 @@ pub fn launch_message(
             (
                 title,
                 format!(
-                    "{opening}\n\nYou can go back to {what}. {comes_back} What the newer version saved is kept beside it in the data folder. That copy leaves out Chat's memory and conversation history, which this version doesn't use; nothing else changes.\n\nOr quit, and install the newer version again to keep working with its data."
+                    "{opening}\n\nYou can go back to {what}. {comes_back} What the newer version saved is kept beside it in the data folder. That copy leaves out Bot's memory and conversation history, which this version doesn't use; nothing else changes.\n\nOr quit, and install the newer version again to keep working with its data."
                 ),
                 Some(match offer.kind {
                     Source::Copy => format!("Use the data from {when}"),

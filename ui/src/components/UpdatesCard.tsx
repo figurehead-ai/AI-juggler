@@ -121,7 +121,7 @@ function GoingBack({ appName }: { appName: string }): JSX.Element | null {
               <p className="text-ink-2">
                 Your data goes back to how it was on {when(option.kept_at_ms)}, when {appName} was updated. What changed
                 since — accounts brought in, sessions, settings — isn't in it. The data as it is now is kept beside it in
-                the data folder. That copy leaves out Chat's memory and conversation history, which the older version
+                the data folder. That copy leaves out Bot's memory and conversation history, which the older version
                 doesn't use; nothing else changes.
               </p>
               <p className="text-ink-2">

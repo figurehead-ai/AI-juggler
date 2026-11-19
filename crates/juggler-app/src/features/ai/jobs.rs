@@ -11,9 +11,9 @@
 //! |---|---|---|
 //! | Feed line | off | "not yet": A's excerpt is the plain path and the default |
 //! | Turn review | on | opt-in Beta |
-//! | Chat | on | opt-in Beta |
+//! | Bot | on | opt-in Beta |
 //! | Digest | off | "not yet": the code roundup stays |
-//! | Watches from Chat | off | "not yet": the Watches form (code) ships |
+//! | Watches from Bot | off | "not yet": the Watches form (code) ships |
 //!
 //! Attention isn't routed: it is decided by code from the facts (D-117),
 //! with no model in the loop, so it needs no engine. Its verdict in the
@@ -55,8 +55,8 @@ pub const REVIEW_ON: Flag = Flag {
     remote: RemoteMode::OffOnly,
 };
 
-/// Chat's flag (opt-in Beta, D-131).
-pub const CHAT_ON: Flag = Flag {
+/// Bot's flag (opt-in Beta, D-131; named `ai_chat_on` on the wire, D-136 kept it).
+pub const BOT_ON: Flag = Flag {
     name: "ai_chat_on",
     default: true,
     remote: RemoteMode::OffOnly,
@@ -69,7 +69,7 @@ pub const DIGEST_ON: Flag = Flag {
     remote: RemoteMode::OffOnly,
 };
 
-/// Watches drafted from Chat: off, the Watches form ships (D-131).
+/// Watches drafted from Bot: off, the Watches form ships (D-131).
 pub const WATCHES_ON: Flag = Flag {
     name: "ai_watches_on",
     default: false,
@@ -98,15 +98,15 @@ pub const REVIEW: JobSpec = JobSpec {
     flag: &REVIEW_ON,
 };
 
-/// Chat's answer: look-ups, then a cited answer (ADR-0034 §6).
-pub const CHAT: JobSpec = JobSpec {
-    job: Job::Chat,
+/// Bot's answer: look-ups, then a cited answer (ADR-0034 §6).
+pub const BOT: JobSpec = JobSpec {
+    job: Job::Bot,
     needs: Needs {
         context_tokens: 4_096,
         tools: true,
         tier: Tier::Unknown,
     },
-    flag: &CHAT_ON,
+    flag: &BOT_ON,
 };
 
 /// The digest: a rollup of what happened while away.
@@ -120,7 +120,7 @@ pub const DIGEST: JobSpec = JobSpec {
     flag: &DIGEST_ON,
 };
 
-/// A watch drafted from a Chat request (a typed rule, ADR-0036).
+/// A watch drafted from a Bot request (a typed rule, ADR-0036).
 pub const WATCHES: JobSpec = JobSpec {
     job: Job::Watches,
     needs: Needs {
@@ -132,10 +132,10 @@ pub const WATCHES: JobSpec = JobSpec {
 };
 
 /// Every job the router serves, in the order the query lists them.
-pub const JOBS: [&JobSpec; 5] = [&FEED, &REVIEW, &CHAT, &DIGEST, &WATCHES];
+pub const JOBS: [&JobSpec; 5] = [&FEED, &REVIEW, &BOT, &DIGEST, &WATCHES];
 
 /// Every job's flag, for the app's flag list ([`crate::features::flags`]).
-pub const FLAGS: [&Flag; 5] = [&FEED_ON, &REVIEW_ON, &CHAT_ON, &DIGEST_ON, &WATCHES_ON];
+pub const FLAGS: [&Flag; 5] = [&FEED_ON, &REVIEW_ON, &BOT_ON, &DIGEST_ON, &WATCHES_ON];
 
 /// The app setting that holds `job`'s Beta switch (`1` on; anything else,
 /// or none, off). Written only through `ai_beta_set`, so the answer is

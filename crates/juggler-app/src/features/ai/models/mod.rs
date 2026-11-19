@@ -111,11 +111,11 @@ pub enum Job {
     Review,
     /// Attention hints (decided by code from the facts).
     Attention,
-    /// Chat answers.
-    Chat,
+    /// Bot's answers (D-136; its field in the file stays `chat`).
+    Bot,
     /// The digest.
     Digest,
-    /// Watches drafted from Chat.
+    /// Watches drafted from Bot.
     Watches,
 }
 
@@ -125,7 +125,7 @@ impl Job {
         (Self::Feed, "feed"),
         (Self::Review, "review"),
         (Self::Attention, "attention"),
-        (Self::Chat, "chat"),
+        (Self::Bot, "chat"),
         (Self::Digest, "digest"),
         (Self::Watches, "watches"),
     ];

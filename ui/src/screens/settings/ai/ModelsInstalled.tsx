@@ -17,7 +17,7 @@ import { CARD, ModelTile, ModelsSection } from "./ModelParts";
 import { dayOf } from "./models-view";
 import { INSTALLED, JOB_NAMES, PAGE, gb, listWords } from "./models-words";
 
-/** The jobs that run on `id` now, in words ("Turn reviews, Chat answers"). */
+/** The jobs that run on `id` now, in words ("Turn reviews, Bot answers"). */
 function usedBy(id: string, jobs: readonly AiJobInfo[] | null): string[] {
   return (jobs ?? []).filter((info) => info.model_id === id && (info.state === "ready" || info.state === "waiting")).map((info) => JOB_NAMES[info.job]);
 }

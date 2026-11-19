@@ -354,7 +354,7 @@ describe("AJ-E1010 going back to an earlier version", () => {
     fireEvent.click(prepare);
     const confirm = container.querySelector("[data-testid='going-back-confirm']")!;
     expect(confirm.textContent).toContain("What changed since");
-    expect(confirm.textContent).toContain("leaves out Chat's memory and conversation history");
+    expect(confirm.textContent).toContain("leaves out Bot's memory and conversation history");
     expect(confirm.textContent).toContain("nothing else changes");
     expect(confirm.textContent).toContain("Install 0.0.7 from the releases page");
     expect(document.activeElement?.textContent).toBe("Go back to 0.0.7?");

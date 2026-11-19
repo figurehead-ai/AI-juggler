@@ -43,7 +43,7 @@ describe("AJ-E3812 Settings › AI › Models", () => {
     expect(rec.textContent).toContain("Apple's on-device model");
     expect(rec.textContent).toContain("no download, no disk");
     expect(within(rec).getByTestId("models-recommended-action").textContent).toBe("Use it");
-    expect(rec.textContent).toContain("Turns on Turn reviews and Chat answers as Beta, on this model.");
+    expect(rec.textContent).toContain("Turns on Turn reviews and Bot answers as Beta, on this model.");
     expect(screen.getAllByTestId("model-card").map((card) => card.dataset.model)).toEqual(["qwen3-1-7b-q8", "granite-4-1-3b-q4km", "nemotron-3-nano-4b-q4km", "gemma-4-e2b-q4-0"]);
     expect(screen.getByTestId("models-total").textContent).toBe("0 GB");
     expect(document.getElementById("settings-ai-installed")?.textContent).toContain("Nothing downloaded yet");
@@ -167,7 +167,7 @@ describe("AJ-E3812 Settings › AI › Models", () => {
     expect(screen.getByTestId("models-withdrawn").textContent).toBe("We no longer list this model. It keeps working until you remove it.");
     fireEvent.click(screen.getAllByTestId("models-remove")[1]!);
     const confirm = screen.getByTestId("models-remove-confirm");
-    expect(confirm.textContent).toContain("Remove Nemotron 3 Nano 4B? Frees 2.8 GB. Chat answers goes back to Automatic (Apple's on-device model). You can't download it again: we no longer list it.");
+    expect(confirm.textContent).toContain("Remove Nemotron 3 Nano 4B? Frees 2.8 GB. Bot answers goes back to Automatic (Apple's on-device model). You can't download it again: we no longer list it.");
     fireEvent.click(within(confirm).getByTestId("models-remove-confirmed"));
     await waitFor(() => expect(window.__AIJ_AI_MODELS__?.installed.map((m) => m.id)).toEqual(["qwen3-1-7b-q8"]));
   });

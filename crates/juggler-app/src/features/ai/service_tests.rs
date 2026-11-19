@@ -65,17 +65,17 @@ fn on_a_mac_with_apple_intelligence_review_and_chat_wait_for_their_beta() {
         );
     }
     assert_eq!(state_of(&jobs, AiJob::Review).0, AiJobState::BetaOff);
-    assert_eq!(state_of(&jobs, AiJob::Chat).0, AiJobState::BetaOff);
+    assert_eq!(state_of(&jobs, AiJob::Bot).0, AiJobState::BetaOff);
 
     let (jobs, changed) = service.answer(
         &compiled,
-        &beta_for(&[Job::Chat]),
+        &beta_for(&[Job::Bot]),
         &BTreeMap::new(),
         dir.path(),
         Probe::Never,
     );
     assert!(changed);
-    let chat = jobs.iter().find(|info| info.job == AiJob::Chat).unwrap();
+    let chat = jobs.iter().find(|info| info.job == AiJob::Bot).unwrap();
     assert_eq!(
         (chat.state, chat.beta, chat.beta_on),
         (AiJobState::Ready, true, true)
@@ -94,7 +94,7 @@ fn on_a_mac_with_apple_intelligence_review_and_chat_wait_for_their_beta() {
 
     let (_, changed) = service.answer(
         &compiled,
-        &beta_for(&[Job::Chat]),
+        &beta_for(&[Job::Bot]),
         &BTreeMap::new(),
         dir.path(),
         Probe::IfStale,
@@ -114,14 +114,14 @@ fn apple_intelligence_turned_off_mid_session_hides_the_jobs_with_the_reason() {
         Local::default(),
     ));
     let compiled = Snapshot::default();
-    let beta = beta_for(&[Job::Review, Job::Chat]);
+    let beta = beta_for(&[Job::Review, Job::Bot]);
     let (jobs, _) = service.answer(&compiled, &beta, &BTreeMap::new(), dir.path(), Probe::Now);
-    assert_eq!(state_of(&jobs, AiJob::Chat).0, AiJobState::Ready);
+    assert_eq!(state_of(&jobs, AiJob::Bot).0, AiJobState::Ready);
     helper(dir.path(), "apple_intelligence_not_enabled");
     let (jobs, changed) =
         service.answer(&compiled, &beta, &BTreeMap::new(), dir.path(), Probe::Now);
     assert!(changed);
-    for job in [AiJob::Review, AiJob::Chat] {
+    for job in [AiJob::Review, AiJob::Bot] {
         assert_eq!(
             state_of(&jobs, job),
             (AiJobState::NoEngine, false, Some(AiJobWhy::TurnedOff))
@@ -131,7 +131,7 @@ fn apple_intelligence_turned_off_mid_session_hides_the_jobs_with_the_reason() {
     let (jobs, changed) =
         service.answer(&compiled, &beta, &BTreeMap::new(), dir.path(), Probe::Now);
     assert!(changed, "turned back on, the jobs return");
-    assert_eq!(state_of(&jobs, AiJob::Chat).0, AiJobState::Ready);
+    assert_eq!(state_of(&jobs, AiJob::Bot).0, AiJobState::Ready);
 }
 
 #[cfg(unix)]
@@ -142,7 +142,7 @@ fn a_remote_kill_and_a_narrowed_verdict_each_hide_a_job() {
         Apple::with_program(Some(helper(dir.path(), "available"))),
         Local::default(),
     ));
-    let beta = beta_for(&[Job::Review, Job::Chat]);
+    let beta = beta_for(&[Job::Review, Job::Bot]);
     let killed = Snapshot::build(
         &registry(),
         Some(&file(
@@ -152,7 +152,7 @@ fn a_remote_kill_and_a_narrowed_verdict_each_hide_a_job() {
     );
     let (jobs, _) = service.answer(&killed, &beta, &BTreeMap::new(), dir.path(), Probe::Now);
     assert_eq!(
-        state_of(&jobs, AiJob::Chat).0,
+        state_of(&jobs, AiJob::Bot).0,
         AiJobState::Off,
         "the kill switch"
     );
@@ -188,11 +188,11 @@ fn a_remote_kill_and_a_narrowed_verdict_each_hide_a_job() {
         "not_yet: the plain path"
     );
     assert_eq!(
-        state_of(&jobs, AiJob::Chat).0,
+        state_of(&jobs, AiJob::Bot).0,
         AiJobState::Ready,
         "ships needs no Beta switch"
     );
-    assert!(!state_of(&jobs, AiJob::Chat).1, "and isn't labelled Beta");
+    assert!(!state_of(&jobs, AiJob::Bot).1, "and isn't labelled Beta");
 
     apple["withdrawn"] = json!(true);
     let withdrawn = Snapshot::build(
@@ -210,7 +210,7 @@ fn a_remote_kill_and_a_narrowed_verdict_each_hide_a_job() {
         Probe::Never,
     );
     assert_eq!(
-        state_of(&jobs, AiJob::Chat).0,
+        state_of(&jobs, AiJob::Bot).0,
         AiJobState::NoEngine,
         "a withdrawn model is offered for nothing"
     );
@@ -235,20 +235,20 @@ fn nothing_is_started_before_a_query_asks() {
     ));
     let (jobs, _) = service.answer(
         &Snapshot::default(),
-        &beta_for(&[Job::Chat]),
+        &beta_for(&[Job::Bot]),
         &BTreeMap::new(),
         dir.path(),
         Probe::Never,
     );
     assert!(!marker.exists(), "a re-answer never starts the helper");
     assert_eq!(
-        state_of(&jobs, AiJob::Chat),
+        state_of(&jobs, AiJob::Bot),
         (AiJobState::NoEngine, false, Some(AiJobWhy::Unknown)),
         "not asked yet: unknown fails closed"
     );
     let _ = service.answer(
         &Snapshot::default(),
-        &beta_for(&[Job::Chat]),
+        &beta_for(&[Job::Bot]),
         &BTreeMap::new(),
         dir.path(),
         Probe::IfStale,
@@ -281,10 +281,10 @@ fn the_recommendation_is_the_automatic_default() {
             &[],
             mac,
             &Snapshot::default(),
-            &beta_for(&[Job::Chat]),
+            &beta_for(&[Job::Bot]),
             &BTreeMap::new(),
         );
-        state_of(&jobs, AiJob::Chat)
+        state_of(&jobs, AiJob::Bot)
     };
     assert_eq!(
         chat(Some(&mac(AppleAi::On))),
@@ -315,25 +315,25 @@ fn a_pick_wins_and_only_a_model_that_passed_may_be_picked() {
         free_disk_bytes: 200_000_000_000,
         apple_ai: AppleAi::Off,
     };
-    let picks = BTreeMap::from([(Job::Chat, "apple-on-device".to_owned())]);
+    let picks = BTreeMap::from([(Job::Bot, "apple-on-device".to_owned())]);
     let jobs = answer_for(
         &engines,
         &builtin(),
         &[],
         Some(&off),
         &Snapshot::default(),
-        &beta_for(&[Job::Chat]),
+        &beta_for(&[Job::Bot]),
         &picks,
     );
-    let chat = jobs.iter().find(|info| info.job == AiJob::Chat).unwrap();
+    let chat = jobs.iter().find(|info| info.job == AiJob::Bot).unwrap();
     assert_eq!(chat.why, Some(AiJobWhy::Picked));
     assert_eq!(chat.pick.as_deref(), Some("apple-on-device"));
     let review = jobs.iter().find(|info| info.job == AiJob::Review).unwrap();
     assert_eq!(review.pick, None, "Automatic");
     // Apple's model passed review and Chat, not the feed line.
-    assert!(super::may_pick(&builtin(), Job::Chat, "apple-on-device"));
+    assert!(super::may_pick(&builtin(), Job::Bot, "apple-on-device"));
     assert!(!super::may_pick(&builtin(), Job::Feed, "apple-on-device"));
-    assert!(!super::may_pick(&builtin(), Job::Chat, "no-such-model"));
+    assert!(!super::may_pick(&builtin(), Job::Bot, "no-such-model"));
 }
 
 /// The query on this Mac with the real helper (run by hand after
@@ -356,7 +356,7 @@ fn the_query_on_this_mac() {
     ));
     for (label, on) in [
         ("beta off", &[][..]),
-        ("beta on", &[Job::Review, Job::Chat][..]),
+        ("beta on", &[Job::Review, Job::Bot][..]),
     ] {
         let beta = move |job: Job| on.contains(&job);
         let (jobs, _) = service.answer(

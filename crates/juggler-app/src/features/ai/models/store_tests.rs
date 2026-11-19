@@ -242,7 +242,7 @@ fn a_copy_follows_its_entry_while_the_file_is_the_same() {
     install(&store, &a, &one);
     // Same file, a widened verdict: the copy follows.
     let mut wider = a.clone();
-    if let Some(chat) = wider.verdicts.get_mut(&Job::Chat) {
+    if let Some(chat) = wider.verdicts.get_mut(&Job::Bot) {
         chat.verdict = Verdict::Ships;
     }
     assert!(store.refresh(&Listing::Read(vec![wider.clone()])));

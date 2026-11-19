@@ -48,7 +48,7 @@ pub const DECLARED: &[&Flag] = &[
     &crate::features::notices::FLAG,
     &crate::features::ai::jobs::FEED_ON,
     &crate::features::ai::jobs::REVIEW_ON,
-    &crate::features::ai::jobs::CHAT_ON,
+    &crate::features::ai::jobs::BOT_ON,
     &crate::features::ai::jobs::DIGEST_ON,
     &crate::features::ai::jobs::WATCHES_ON,
 ];

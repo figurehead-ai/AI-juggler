@@ -2,7 +2,7 @@
  * ADR-0034 §3.4 (AJ-E3802) — which AI jobs this Mac can do now: the one
  * answer every AI surface shows or hides itself by. No surface checks an
  * engine, a model or a setting itself: `useAiJob("chat")` says whether
- * Chat's question box is there, and why not.
+ * Bot's question box is there, and why not.
  *
  * Lazy: nothing is asked until a view wants it (the backend then looks at
  * the engines for the first time; no model is loaded). Cached: one answer
