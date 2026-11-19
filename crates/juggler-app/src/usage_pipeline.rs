@@ -429,11 +429,17 @@ fn records_first(
 ) {
     let mut batch = SampleBatch::default();
     let mut marks = Vec::new();
-    // Claude's profiles, whose records `quota::records` reads, as the
+    // The profiles of a tool whose app keeps a limits meter (its ToolSpec's
+    // `app_meter`: Claude's), whose records `quota::records` reads, as the
     // pass's own read of them does (`ingest_claude`).
     let claude = accounts
         .iter()
-        .filter(|account| account.harness.as_str() == "claude-code")
+        .filter(|account| {
+            state
+                .registry
+                .get(&account.harness)
+                .is_some_and(|adapter| adapter.spec().app_meter)
+        })
         .filter(|account| !account.state_dir.as_os_str().is_empty());
     for account in claude {
         let id = account.id.as_str();
