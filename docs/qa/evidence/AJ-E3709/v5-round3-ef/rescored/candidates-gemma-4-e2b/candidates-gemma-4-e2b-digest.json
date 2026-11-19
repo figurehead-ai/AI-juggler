@@ -1,0 +1,133 @@
+{
+ "family": "gemma-4-e2b",
+ "job": "digest",
+ "note": "script flags: candidates for Opus to confirm by eye, never verdicts",
+ "candidates": [
+  {
+   "id": "R3-D04",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "item for a2: 2b: content word(s) not in the text: running",
+   "stage": "caught",
+   "corpus": "digest5r3"
+  },
+  {
+   "id": "R3-D04",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "item for a2: 2b: content word(s) not in the text: running",
+   "stage": "caught",
+   "corpus": "digest5r3"
+  },
+  {
+   "id": "R3-D04",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "item for a2: 2b: content word(s) not in the text: running",
+   "stage": "caught",
+   "corpus": "digest5r3"
+  },
+  {
+   "id": "R3-D12",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "item for a1: 2b: content word(s) not in the text: bond, driver, printer, replacement",
+   "stage": "caught",
+   "corpus": "digest5r3"
+  },
+  {
+   "id": "R3-D12",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "item for a1: 2b: content word(s) not in the text: run",
+   "stage": "caught",
+   "corpus": "digest5r3"
+  },
+  {
+   "id": "R3-D12",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "item for a1: 2b: content word(s) not in the text: bond, driver, printer, replacement",
+   "stage": "caught",
+   "corpus": "digest5r3"
+  },
+  {
+   "id": "R3-D12",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "item for a1: 2b: content word(s) not in the text: run",
+   "stage": "caught",
+   "corpus": "digest5r3"
+  },
+  {
+   "id": "R3-D12",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "item for a1: 2b: content word(s) not in the text: bond, driver, printer, replacement",
+   "stage": "caught",
+   "corpus": "digest5r3"
+  },
+  {
+   "id": "R3-D27",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "item for a1: 2b: content word(s) not in the text: fields, for, having, help, texts",
+   "stage": "caught",
+   "corpus": "digest5r3"
+  },
+  {
+   "id": "R3-D27",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "item for a1: 2b: content word(s) not in the text: run",
+   "stage": "caught",
+   "corpus": "digest5r3"
+  },
+  {
+   "id": "R3-D27",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "item for a1: 2b: content word(s) not in the text: fields, for, having, help, texts",
+   "stage": "caught",
+   "corpus": "digest5r3"
+  },
+  {
+   "id": "R3-D27",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "item for a1: 2b: content word(s) not in the text: run",
+   "stage": "caught",
+   "corpus": "digest5r3"
+  },
+  {
+   "id": "R3-D27",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "item for a1: 2b: content word(s) not in the text: fields, for, having, help, texts",
+   "stage": "caught",
+   "corpus": "digest5r3"
+  },
+  {
+   "id": "R3-D27",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "anchoring",
+   "detail": "item for a1: 2b: content word(s) not in the text: run",
+   "stage": "caught",
+   "corpus": "digest5r3"
+  }
+ ]
+}
