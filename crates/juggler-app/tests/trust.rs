@@ -274,7 +274,34 @@ fn network_allowed() -> BTreeMap<&'static str, BTreeSet<&'static str>> {
 /// `cargo metadata` resolves them for this machine's platform (on a Mac,
 /// what ships; offline, so only what the build already has is read).
 /// Workspace crates are checked as themselves, so a path stops at one.
+///
+/// D-131: a crate kept out of the app's workspace on purpose (its own
+/// `[workspace]`, listed in the root manifest's `exclude`: the local-model
+/// helper, whose llama.cpp build stays out of every `--workspace` gate)
+/// is resolved through its own manifest and lock, and held to the same
+/// list: the helper is listed nowhere, so it may reach nothing.
 fn network_reached() -> BTreeMap<String, BTreeMap<String, String>> {
+    let mut reached = network_reached_in(None);
+    for name in workspace_crates() {
+        let manifest = repo().join("crates").join(&name).join("Cargo.toml");
+        let own_workspace = std::fs::read_to_string(&manifest)
+            .unwrap()
+            .lines()
+            .any(|line| line.trim() == "[workspace]");
+        if own_workspace && !reached.contains_key(&name) {
+            assert!(
+                read("Cargo.toml").contains(&format!("\"crates/{name}\"")),
+                "{name} has its own workspace but the root manifest doesn't exclude it"
+            );
+            reached.extend(network_reached_in(Some(&manifest)));
+        }
+    }
+    reached
+}
+
+/// [`network_reached`] for one workspace: the app's (`None`), or the one
+/// whose manifest is `manifest`.
+fn network_reached_in(manifest: Option<&Path>) -> BTreeMap<String, BTreeMap<String, String>> {
     let cargo = std::env::var("CARGO").unwrap_or_else(|_| "cargo".to_owned());
     let version = std::process::Command::new(&cargo)
         .arg("-vV")
@@ -284,7 +311,8 @@ fn network_reached() -> BTreeMap<String, BTreeMap<String, String>> {
         .lines()
         .find_map(|line| line.strip_prefix("host: ").map(str::to_owned))
         .expect("cargo -vV names its host");
-    let output = std::process::Command::new(cargo)
+    let mut metadata = std::process::Command::new(cargo);
+    metadata
         .args([
             "metadata",
             "--format-version",
@@ -293,9 +321,11 @@ fn network_reached() -> BTreeMap<String, BTreeMap<String, String>> {
             "--filter-platform",
             &host,
         ])
-        .current_dir(repo())
-        .output()
-        .unwrap();
+        .current_dir(repo());
+    if let Some(manifest) = manifest {
+        metadata.arg("--manifest-path").arg(manifest);
+    }
+    let output = metadata.output().unwrap();
     assert!(
         output.status.success(),
         "{}",
