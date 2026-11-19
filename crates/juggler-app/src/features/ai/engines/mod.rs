@@ -6,12 +6,13 @@
 //! | Engine | State in this build |
 //! |---|---|
 //! | [`apple::Apple`], Apple's on-device model | real, behind the Swift helper |
-//! | [`local::Local`], downloaded GGUF files | a stub: its runtime crate waits for the maintainer's yes |
+//! | [`local::Local`], downloaded GGUF files | real, behind the llama.cpp helper (D-131) |
 //! | [`server::Server`], the user's own server | a stub, last to build |
 //!
 //! Windows and Linux compile all three: the OS seam
 //! ([`juggler_platform::ai`]) says there is no system model there, so the
-//! Apple helper is never started, and the stubs serve nothing (D-52).
+//! Apple helper is never started; the local engine has no helper there
+//! yet, and the server stub serves nothing (D-52).
 
 pub mod apple;
 pub mod helper;

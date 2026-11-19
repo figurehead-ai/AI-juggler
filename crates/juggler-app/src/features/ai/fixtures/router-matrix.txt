@@ -39,26 +39,26 @@ system | watches | ships | off | on -> run system-model (Only)
 system | watches | ships | off | off -> off
 system | watches | ships | on | on -> run system-model (Only)
 system | watches | ships | on | off -> off
-local-stub | feed | ships | off | on -> no_engine (NotBuilt)
-local-stub | feed | ships | off | off -> off
-local-stub | feed | ships | on | on -> no_engine (NotBuilt)
-local-stub | feed | ships | on | off -> off
-local-stub | review | ships | off | on -> no_engine (NotBuilt)
-local-stub | review | ships | off | off -> off
-local-stub | review | ships | on | on -> no_engine (NotBuilt)
-local-stub | review | ships | on | off -> off
-local-stub | chat | ships | off | on -> no_engine (NotBuilt)
-local-stub | chat | ships | off | off -> off
-local-stub | chat | ships | on | on -> no_engine (NotBuilt)
-local-stub | chat | ships | on | off -> off
-local-stub | digest | ships | off | on -> no_engine (NotBuilt)
-local-stub | digest | ships | off | off -> off
-local-stub | digest | ships | on | on -> no_engine (NotBuilt)
-local-stub | digest | ships | on | off -> off
-local-stub | watches | ships | off | on -> no_engine (NotBuilt)
-local-stub | watches | ships | off | off -> off
-local-stub | watches | ships | on | on -> no_engine (NotBuilt)
-local-stub | watches | ships | on | off -> off
+local-no-helper | feed | ships | off | on -> no_engine (HelperMissing)
+local-no-helper | feed | ships | off | off -> off
+local-no-helper | feed | ships | on | on -> no_engine (HelperMissing)
+local-no-helper | feed | ships | on | off -> off
+local-no-helper | review | ships | off | on -> no_engine (HelperMissing)
+local-no-helper | review | ships | off | off -> off
+local-no-helper | review | ships | on | on -> no_engine (HelperMissing)
+local-no-helper | review | ships | on | off -> off
+local-no-helper | chat | ships | off | on -> no_engine (HelperMissing)
+local-no-helper | chat | ships | off | off -> off
+local-no-helper | chat | ships | on | on -> no_engine (HelperMissing)
+local-no-helper | chat | ships | on | off -> off
+local-no-helper | digest | ships | off | on -> no_engine (HelperMissing)
+local-no-helper | digest | ships | off | off -> off
+local-no-helper | digest | ships | on | on -> no_engine (HelperMissing)
+local-no-helper | digest | ships | on | off -> off
+local-no-helper | watches | ships | off | on -> no_engine (HelperMissing)
+local-no-helper | watches | ships | off | off -> off
+local-no-helper | watches | ships | on | on -> no_engine (HelperMissing)
+local-no-helper | watches | ships | on | off -> off
 local | feed | ships | off | on -> run local-model (Only)
 local | feed | ships | off | off -> off
 local | feed | ships | on | on -> run local-model (Only)
@@ -119,26 +119,26 @@ system-removed | watches | ships | off | on -> run local-model (Only)
 system-removed | watches | ships | off | off -> off
 system-removed | watches | ships | on | on -> run local-model (Only)
 system-removed | watches | ships | on | off -> off
-system-removed-stub | feed | ships | off | on -> no_engine (TurnedOff)
-system-removed-stub | feed | ships | off | off -> off
-system-removed-stub | feed | ships | on | on -> no_engine (TurnedOff)
-system-removed-stub | feed | ships | on | off -> off
-system-removed-stub | review | ships | off | on -> no_engine (TurnedOff)
-system-removed-stub | review | ships | off | off -> off
-system-removed-stub | review | ships | on | on -> no_engine (TurnedOff)
-system-removed-stub | review | ships | on | off -> off
-system-removed-stub | chat | ships | off | on -> no_engine (TurnedOff)
-system-removed-stub | chat | ships | off | off -> off
-system-removed-stub | chat | ships | on | on -> no_engine (TurnedOff)
-system-removed-stub | chat | ships | on | off -> off
-system-removed-stub | digest | ships | off | on -> no_engine (TurnedOff)
-system-removed-stub | digest | ships | off | off -> off
-system-removed-stub | digest | ships | on | on -> no_engine (TurnedOff)
-system-removed-stub | digest | ships | on | off -> off
-system-removed-stub | watches | ships | off | on -> no_engine (TurnedOff)
-system-removed-stub | watches | ships | off | off -> off
-system-removed-stub | watches | ships | on | on -> no_engine (TurnedOff)
-system-removed-stub | watches | ships | on | off -> off
+system-removed-no-helper | feed | ships | off | on -> no_engine (TurnedOff)
+system-removed-no-helper | feed | ships | off | off -> off
+system-removed-no-helper | feed | ships | on | on -> no_engine (TurnedOff)
+system-removed-no-helper | feed | ships | on | off -> off
+system-removed-no-helper | review | ships | off | on -> no_engine (TurnedOff)
+system-removed-no-helper | review | ships | off | off -> off
+system-removed-no-helper | review | ships | on | on -> no_engine (TurnedOff)
+system-removed-no-helper | review | ships | on | off -> off
+system-removed-no-helper | chat | ships | off | on -> no_engine (TurnedOff)
+system-removed-no-helper | chat | ships | off | off -> off
+system-removed-no-helper | chat | ships | on | on -> no_engine (TurnedOff)
+system-removed-no-helper | chat | ships | on | off -> off
+system-removed-no-helper | digest | ships | off | on -> no_engine (TurnedOff)
+system-removed-no-helper | digest | ships | off | off -> off
+system-removed-no-helper | digest | ships | on | on -> no_engine (TurnedOff)
+system-removed-no-helper | digest | ships | on | off -> off
+system-removed-no-helper | watches | ships | off | on -> no_engine (TurnedOff)
+system-removed-no-helper | watches | ships | off | off -> off
+system-removed-no-helper | watches | ships | on | on -> no_engine (TurnedOff)
+system-removed-no-helper | watches | ships | on | off -> off
 system-preparing | feed | ships | off | on -> waiting system-model (GettingReady)
 system-preparing | feed | ships | off | off -> off
 system-preparing | feed | ships | on | on -> waiting system-model (GettingReady)
@@ -199,26 +199,26 @@ system | watches | beta | off | on -> beta_off
 system | watches | beta | off | off -> off
 system | watches | beta | on | on -> run system-model (Only, beta)
 system | watches | beta | on | off -> off
-local-stub | feed | beta | off | on -> no_engine (NotBuilt)
-local-stub | feed | beta | off | off -> off
-local-stub | feed | beta | on | on -> no_engine (NotBuilt)
-local-stub | feed | beta | on | off -> off
-local-stub | review | beta | off | on -> no_engine (NotBuilt)
-local-stub | review | beta | off | off -> off
-local-stub | review | beta | on | on -> no_engine (NotBuilt)
-local-stub | review | beta | on | off -> off
-local-stub | chat | beta | off | on -> no_engine (NotBuilt)
-local-stub | chat | beta | off | off -> off
-local-stub | chat | beta | on | on -> no_engine (NotBuilt)
-local-stub | chat | beta | on | off -> off
-local-stub | digest | beta | off | on -> no_engine (NotBuilt)
-local-stub | digest | beta | off | off -> off
-local-stub | digest | beta | on | on -> no_engine (NotBuilt)
-local-stub | digest | beta | on | off -> off
-local-stub | watches | beta | off | on -> no_engine (NotBuilt)
-local-stub | watches | beta | off | off -> off
-local-stub | watches | beta | on | on -> no_engine (NotBuilt)
-local-stub | watches | beta | on | off -> off
+local-no-helper | feed | beta | off | on -> no_engine (HelperMissing)
+local-no-helper | feed | beta | off | off -> off
+local-no-helper | feed | beta | on | on -> no_engine (HelperMissing)
+local-no-helper | feed | beta | on | off -> off
+local-no-helper | review | beta | off | on -> no_engine (HelperMissing)
+local-no-helper | review | beta | off | off -> off
+local-no-helper | review | beta | on | on -> no_engine (HelperMissing)
+local-no-helper | review | beta | on | off -> off
+local-no-helper | chat | beta | off | on -> no_engine (HelperMissing)
+local-no-helper | chat | beta | off | off -> off
+local-no-helper | chat | beta | on | on -> no_engine (HelperMissing)
+local-no-helper | chat | beta | on | off -> off
+local-no-helper | digest | beta | off | on -> no_engine (HelperMissing)
+local-no-helper | digest | beta | off | off -> off
+local-no-helper | digest | beta | on | on -> no_engine (HelperMissing)
+local-no-helper | digest | beta | on | off -> off
+local-no-helper | watches | beta | off | on -> no_engine (HelperMissing)
+local-no-helper | watches | beta | off | off -> off
+local-no-helper | watches | beta | on | on -> no_engine (HelperMissing)
+local-no-helper | watches | beta | on | off -> off
 local | feed | beta | off | on -> beta_off
 local | feed | beta | off | off -> off
 local | feed | beta | on | on -> run local-model (Only, beta)
@@ -279,26 +279,26 @@ system-removed | watches | beta | off | on -> beta_off
 system-removed | watches | beta | off | off -> off
 system-removed | watches | beta | on | on -> run local-model (Only, beta)
 system-removed | watches | beta | on | off -> off
-system-removed-stub | feed | beta | off | on -> no_engine (TurnedOff)
-system-removed-stub | feed | beta | off | off -> off
-system-removed-stub | feed | beta | on | on -> no_engine (TurnedOff)
-system-removed-stub | feed | beta | on | off -> off
-system-removed-stub | review | beta | off | on -> no_engine (TurnedOff)
-system-removed-stub | review | beta | off | off -> off
-system-removed-stub | review | beta | on | on -> no_engine (TurnedOff)
-system-removed-stub | review | beta | on | off -> off
-system-removed-stub | chat | beta | off | on -> no_engine (TurnedOff)
-system-removed-stub | chat | beta | off | off -> off
-system-removed-stub | chat | beta | on | on -> no_engine (TurnedOff)
-system-removed-stub | chat | beta | on | off -> off
-system-removed-stub | digest | beta | off | on -> no_engine (TurnedOff)
-system-removed-stub | digest | beta | off | off -> off
-system-removed-stub | digest | beta | on | on -> no_engine (TurnedOff)
-system-removed-stub | digest | beta | on | off -> off
-system-removed-stub | watches | beta | off | on -> no_engine (TurnedOff)
-system-removed-stub | watches | beta | off | off -> off
-system-removed-stub | watches | beta | on | on -> no_engine (TurnedOff)
-system-removed-stub | watches | beta | on | off -> off
+system-removed-no-helper | feed | beta | off | on -> no_engine (TurnedOff)
+system-removed-no-helper | feed | beta | off | off -> off
+system-removed-no-helper | feed | beta | on | on -> no_engine (TurnedOff)
+system-removed-no-helper | feed | beta | on | off -> off
+system-removed-no-helper | review | beta | off | on -> no_engine (TurnedOff)
+system-removed-no-helper | review | beta | off | off -> off
+system-removed-no-helper | review | beta | on | on -> no_engine (TurnedOff)
+system-removed-no-helper | review | beta | on | off -> off
+system-removed-no-helper | chat | beta | off | on -> no_engine (TurnedOff)
+system-removed-no-helper | chat | beta | off | off -> off
+system-removed-no-helper | chat | beta | on | on -> no_engine (TurnedOff)
+system-removed-no-helper | chat | beta | on | off -> off
+system-removed-no-helper | digest | beta | off | on -> no_engine (TurnedOff)
+system-removed-no-helper | digest | beta | off | off -> off
+system-removed-no-helper | digest | beta | on | on -> no_engine (TurnedOff)
+system-removed-no-helper | digest | beta | on | off -> off
+system-removed-no-helper | watches | beta | off | on -> no_engine (TurnedOff)
+system-removed-no-helper | watches | beta | off | off -> off
+system-removed-no-helper | watches | beta | on | on -> no_engine (TurnedOff)
+system-removed-no-helper | watches | beta | on | off -> off
 system-preparing | feed | beta | off | on -> beta_off
 system-preparing | feed | beta | off | off -> off
 system-preparing | feed | beta | on | on -> waiting system-model (GettingReady)
@@ -359,26 +359,26 @@ system | watches | not_yet | off | on -> no_engine
 system | watches | not_yet | off | off -> off
 system | watches | not_yet | on | on -> no_engine
 system | watches | not_yet | on | off -> off
-local-stub | feed | not_yet | off | on -> no_engine
-local-stub | feed | not_yet | off | off -> off
-local-stub | feed | not_yet | on | on -> no_engine
-local-stub | feed | not_yet | on | off -> off
-local-stub | review | not_yet | off | on -> no_engine
-local-stub | review | not_yet | off | off -> off
-local-stub | review | not_yet | on | on -> no_engine
-local-stub | review | not_yet | on | off -> off
-local-stub | chat | not_yet | off | on -> no_engine
-local-stub | chat | not_yet | off | off -> off
-local-stub | chat | not_yet | on | on -> no_engine
-local-stub | chat | not_yet | on | off -> off
-local-stub | digest | not_yet | off | on -> no_engine
-local-stub | digest | not_yet | off | off -> off
-local-stub | digest | not_yet | on | on -> no_engine
-local-stub | digest | not_yet | on | off -> off
-local-stub | watches | not_yet | off | on -> no_engine
-local-stub | watches | not_yet | off | off -> off
-local-stub | watches | not_yet | on | on -> no_engine
-local-stub | watches | not_yet | on | off -> off
+local-no-helper | feed | not_yet | off | on -> no_engine
+local-no-helper | feed | not_yet | off | off -> off
+local-no-helper | feed | not_yet | on | on -> no_engine
+local-no-helper | feed | not_yet | on | off -> off
+local-no-helper | review | not_yet | off | on -> no_engine
+local-no-helper | review | not_yet | off | off -> off
+local-no-helper | review | not_yet | on | on -> no_engine
+local-no-helper | review | not_yet | on | off -> off
+local-no-helper | chat | not_yet | off | on -> no_engine
+local-no-helper | chat | not_yet | off | off -> off
+local-no-helper | chat | not_yet | on | on -> no_engine
+local-no-helper | chat | not_yet | on | off -> off
+local-no-helper | digest | not_yet | off | on -> no_engine
+local-no-helper | digest | not_yet | off | off -> off
+local-no-helper | digest | not_yet | on | on -> no_engine
+local-no-helper | digest | not_yet | on | off -> off
+local-no-helper | watches | not_yet | off | on -> no_engine
+local-no-helper | watches | not_yet | off | off -> off
+local-no-helper | watches | not_yet | on | on -> no_engine
+local-no-helper | watches | not_yet | on | off -> off
 local | feed | not_yet | off | on -> no_engine
 local | feed | not_yet | off | off -> off
 local | feed | not_yet | on | on -> no_engine
@@ -439,26 +439,26 @@ system-removed | watches | not_yet | off | on -> no_engine
 system-removed | watches | not_yet | off | off -> off
 system-removed | watches | not_yet | on | on -> no_engine
 system-removed | watches | not_yet | on | off -> off
-system-removed-stub | feed | not_yet | off | on -> no_engine
-system-removed-stub | feed | not_yet | off | off -> off
-system-removed-stub | feed | not_yet | on | on -> no_engine
-system-removed-stub | feed | not_yet | on | off -> off
-system-removed-stub | review | not_yet | off | on -> no_engine
-system-removed-stub | review | not_yet | off | off -> off
-system-removed-stub | review | not_yet | on | on -> no_engine
-system-removed-stub | review | not_yet | on | off -> off
-system-removed-stub | chat | not_yet | off | on -> no_engine
-system-removed-stub | chat | not_yet | off | off -> off
-system-removed-stub | chat | not_yet | on | on -> no_engine
-system-removed-stub | chat | not_yet | on | off -> off
-system-removed-stub | digest | not_yet | off | on -> no_engine
-system-removed-stub | digest | not_yet | off | off -> off
-system-removed-stub | digest | not_yet | on | on -> no_engine
-system-removed-stub | digest | not_yet | on | off -> off
-system-removed-stub | watches | not_yet | off | on -> no_engine
-system-removed-stub | watches | not_yet | off | off -> off
-system-removed-stub | watches | not_yet | on | on -> no_engine
-system-removed-stub | watches | not_yet | on | off -> off
+system-removed-no-helper | feed | not_yet | off | on -> no_engine
+system-removed-no-helper | feed | not_yet | off | off -> off
+system-removed-no-helper | feed | not_yet | on | on -> no_engine
+system-removed-no-helper | feed | not_yet | on | off -> off
+system-removed-no-helper | review | not_yet | off | on -> no_engine
+system-removed-no-helper | review | not_yet | off | off -> off
+system-removed-no-helper | review | not_yet | on | on -> no_engine
+system-removed-no-helper | review | not_yet | on | off -> off
+system-removed-no-helper | chat | not_yet | off | on -> no_engine
+system-removed-no-helper | chat | not_yet | off | off -> off
+system-removed-no-helper | chat | not_yet | on | on -> no_engine
+system-removed-no-helper | chat | not_yet | on | off -> off
+system-removed-no-helper | digest | not_yet | off | on -> no_engine
+system-removed-no-helper | digest | not_yet | off | off -> off
+system-removed-no-helper | digest | not_yet | on | on -> no_engine
+system-removed-no-helper | digest | not_yet | on | off -> off
+system-removed-no-helper | watches | not_yet | off | on -> no_engine
+system-removed-no-helper | watches | not_yet | off | off -> off
+system-removed-no-helper | watches | not_yet | on | on -> no_engine
+system-removed-no-helper | watches | not_yet | on | off -> off
 system-preparing | feed | not_yet | off | on -> no_engine
 system-preparing | feed | not_yet | off | off -> off
 system-preparing | feed | not_yet | on | on -> no_engine
@@ -519,26 +519,26 @@ system | watches | not_tested | off | on -> no_engine
 system | watches | not_tested | off | off -> off
 system | watches | not_tested | on | on -> no_engine
 system | watches | not_tested | on | off -> off
-local-stub | feed | not_tested | off | on -> no_engine
-local-stub | feed | not_tested | off | off -> off
-local-stub | feed | not_tested | on | on -> no_engine
-local-stub | feed | not_tested | on | off -> off
-local-stub | review | not_tested | off | on -> no_engine
-local-stub | review | not_tested | off | off -> off
-local-stub | review | not_tested | on | on -> no_engine
-local-stub | review | not_tested | on | off -> off
-local-stub | chat | not_tested | off | on -> no_engine
-local-stub | chat | not_tested | off | off -> off
-local-stub | chat | not_tested | on | on -> no_engine
-local-stub | chat | not_tested | on | off -> off
-local-stub | digest | not_tested | off | on -> no_engine
-local-stub | digest | not_tested | off | off -> off
-local-stub | digest | not_tested | on | on -> no_engine
-local-stub | digest | not_tested | on | off -> off
-local-stub | watches | not_tested | off | on -> no_engine
-local-stub | watches | not_tested | off | off -> off
-local-stub | watches | not_tested | on | on -> no_engine
-local-stub | watches | not_tested | on | off -> off
+local-no-helper | feed | not_tested | off | on -> no_engine
+local-no-helper | feed | not_tested | off | off -> off
+local-no-helper | feed | not_tested | on | on -> no_engine
+local-no-helper | feed | not_tested | on | off -> off
+local-no-helper | review | not_tested | off | on -> no_engine
+local-no-helper | review | not_tested | off | off -> off
+local-no-helper | review | not_tested | on | on -> no_engine
+local-no-helper | review | not_tested | on | off -> off
+local-no-helper | chat | not_tested | off | on -> no_engine
+local-no-helper | chat | not_tested | off | off -> off
+local-no-helper | chat | not_tested | on | on -> no_engine
+local-no-helper | chat | not_tested | on | off -> off
+local-no-helper | digest | not_tested | off | on -> no_engine
+local-no-helper | digest | not_tested | off | off -> off
+local-no-helper | digest | not_tested | on | on -> no_engine
+local-no-helper | digest | not_tested | on | off -> off
+local-no-helper | watches | not_tested | off | on -> no_engine
+local-no-helper | watches | not_tested | off | off -> off
+local-no-helper | watches | not_tested | on | on -> no_engine
+local-no-helper | watches | not_tested | on | off -> off
 local | feed | not_tested | off | on -> no_engine
 local | feed | not_tested | off | off -> off
 local | feed | not_tested | on | on -> no_engine
@@ -599,26 +599,26 @@ system-removed | watches | not_tested | off | on -> no_engine
 system-removed | watches | not_tested | off | off -> off
 system-removed | watches | not_tested | on | on -> no_engine
 system-removed | watches | not_tested | on | off -> off
-system-removed-stub | feed | not_tested | off | on -> no_engine
-system-removed-stub | feed | not_tested | off | off -> off
-system-removed-stub | feed | not_tested | on | on -> no_engine
-system-removed-stub | feed | not_tested | on | off -> off
-system-removed-stub | review | not_tested | off | on -> no_engine
-system-removed-stub | review | not_tested | off | off -> off
-system-removed-stub | review | not_tested | on | on -> no_engine
-system-removed-stub | review | not_tested | on | off -> off
-system-removed-stub | chat | not_tested | off | on -> no_engine
-system-removed-stub | chat | not_tested | off | off -> off
-system-removed-stub | chat | not_tested | on | on -> no_engine
-system-removed-stub | chat | not_tested | on | off -> off
-system-removed-stub | digest | not_tested | off | on -> no_engine
-system-removed-stub | digest | not_tested | off | off -> off
-system-removed-stub | digest | not_tested | on | on -> no_engine
-system-removed-stub | digest | not_tested | on | off -> off
-system-removed-stub | watches | not_tested | off | on -> no_engine
-system-removed-stub | watches | not_tested | off | off -> off
-system-removed-stub | watches | not_tested | on | on -> no_engine
-system-removed-stub | watches | not_tested | on | off -> off
+system-removed-no-helper | feed | not_tested | off | on -> no_engine
+system-removed-no-helper | feed | not_tested | off | off -> off
+system-removed-no-helper | feed | not_tested | on | on -> no_engine
+system-removed-no-helper | feed | not_tested | on | off -> off
+system-removed-no-helper | review | not_tested | off | on -> no_engine
+system-removed-no-helper | review | not_tested | off | off -> off
+system-removed-no-helper | review | not_tested | on | on -> no_engine
+system-removed-no-helper | review | not_tested | on | off -> off
+system-removed-no-helper | chat | not_tested | off | on -> no_engine
+system-removed-no-helper | chat | not_tested | off | off -> off
+system-removed-no-helper | chat | not_tested | on | on -> no_engine
+system-removed-no-helper | chat | not_tested | on | off -> off
+system-removed-no-helper | digest | not_tested | off | on -> no_engine
+system-removed-no-helper | digest | not_tested | off | off -> off
+system-removed-no-helper | digest | not_tested | on | on -> no_engine
+system-removed-no-helper | digest | not_tested | on | off -> off
+system-removed-no-helper | watches | not_tested | off | on -> no_engine
+system-removed-no-helper | watches | not_tested | off | off -> off
+system-removed-no-helper | watches | not_tested | on | on -> no_engine
+system-removed-no-helper | watches | not_tested | on | off -> off
 system-preparing | feed | not_tested | off | on -> no_engine
 system-preparing | feed | not_tested | off | off -> off
 system-preparing | feed | not_tested | on | on -> no_engine

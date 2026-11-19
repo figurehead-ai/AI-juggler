@@ -60,6 +60,9 @@ juggler-floor-render = { version = "0.4.0", path = "../juggler-floor-render" }
 juggler-window-events = { version = "0.4.0", path = "../juggler-window-events" }
 juggler-handover = { version = "0.4.0", path = "../juggler-handover" }
 juggler-link = { version = "0.4.0", path = "../juggler-link" }
+# ADR-0033 §4.2 (D-131): the local-model helper's protocol and bounds,
+# shared with the helper itself (crates/juggler-local-ai, its own workspace).
+juggler-local-ai-protocol = { version = "0.4.0", path = "../juggler-local-ai-protocol" }
 # The OS seams: owner-only folders and files, local sockets, who we are.
 juggler-platform = { version = "0.4.0", path = "../juggler-platform" }
 # D-110 (AJ-E805): the process table listed cheaply; arguments read once.

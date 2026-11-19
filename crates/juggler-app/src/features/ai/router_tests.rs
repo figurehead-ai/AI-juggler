@@ -1,5 +1,6 @@
-//! AJ-E3802's matrix: engines (none, the system model, the local stub, a
-//! built local engine, both, the system model removed mid-session) ×
+//! AJ-E3802's matrix: engines (none, the system model, the local engine
+//! with its helper missing, a ready local engine, both, the system model
+//! removed mid-session) ×
 //! every routed job × verdicts × Beta switches × the job's flag. The whole
 //! table is `fixtures/router-matrix.txt` (regenerate with
 //! `AIJ_WRITE_MATRIX=1`); the properties every row must hold are checked
@@ -14,8 +15,9 @@ use std::collections::BTreeMap;
 use std::fmt::Write as _;
 
 use super::engine::{AiEngine as _, Card, Readiness, Reason, Tier};
-use super::engines::local::Local;
+use super::engines::local::{Host, Local, Setup};
 use super::jobs::{self, JobSpec};
+use super::models::store::Installed;
 use super::models::{Chip, Engine, Job, JobVerdict, ModelEntry, Sampling, Verdict};
 use super::router::{Choice, Inputs, Route, Switches, route};
 
@@ -77,14 +79,37 @@ fn local_card(ready: Readiness) -> Card {
     }
 }
 
+/// The local engine with `LOCAL` installed and its helper not in the
+/// app: its card says why (nothing is started).
+fn local_without_helper(models: &[ModelEntry]) -> Vec<Card> {
+    let nowhere = std::path::PathBuf::from("/nonexistent/aij-local-ai");
+    let installed = Installed {
+        entry: entry(LOCAL, Engine::GgufLocal, Verdict::Ships),
+        sha256: "0".repeat(64),
+        size_bytes: 1,
+        installed_at_ms: 0,
+    };
+    let engine = Local::with(Setup {
+        program: Some(nowhere.clone()),
+        models: Some((nowhere, vec![installed])),
+        host: Some(Host {
+            macos: true,
+            apple_silicon: true,
+            memory_gb: 32,
+        }),
+    });
+    engine.probe();
+    engine.cards(1, models)
+}
+
 /// The engine sets of the matrix, by name.
 fn engine_sets(models: &[ModelEntry]) -> Vec<(&'static str, Vec<Card>)> {
-    let stub = Local::new(vec![LOCAL.to_owned()]).cards(1, models);
+    let no_helper = local_without_helper(models);
     let removed = Readiness::NotHere(Reason::TurnedOff);
     vec![
         ("none", vec![]),
         ("system", vec![system_card(Readiness::Ready)]),
-        ("local-stub", stub.clone()),
+        ("local-no-helper", no_helper.clone()),
         ("local", vec![local_card(Readiness::Ready)]),
         (
             "both",
@@ -95,8 +120,8 @@ fn engine_sets(models: &[ModelEntry]) -> Vec<(&'static str, Vec<Card>)> {
             vec![system_card(removed), local_card(Readiness::Ready)],
         ),
         (
-            "system-removed-stub",
-            [vec![system_card(removed)], stub].concat(),
+            "system-removed-no-helper",
+            [vec![system_card(removed)], no_helper].concat(),
         ),
         (
             "system-preparing",
@@ -513,4 +538,82 @@ fn the_jobs_flags_are_declared_and_off_only() {
         jobs::by_name("attention").is_none(),
         "attention is code, not routed"
     );
+}
+
+/// D-131: the local engine itself (a fake helper in place of
+/// `juggler-local-ai`) gives a ready card for an installed model, and the
+/// one query routes to it: Automatic picks the downloaded model the
+/// recommendation names (AJ-E3811) on a Mac without Apple's model, and a
+/// job whose Beta is off says so.
+#[cfg(unix)]
+#[test]
+fn the_local_engine_serves_its_installed_model_and_automatic_picks_it() {
+    use std::os::unix::fs::PermissionsExt as _;
+
+    use super::dto::{AiJob, AiJobState, AiJobWhy};
+    use super::engines::Registry;
+    use super::engines::apple::Apple;
+    use super::models::recommend::{AppleAi, HostChip, MacFacts};
+    use super::service::answer_for;
+    use crate::features::remote_config::Snapshot;
+
+    let dir = tempfile::tempdir().unwrap();
+    let program = dir.path().join("juggler-local-ai");
+    std::fs::write(
+        &program,
+        "#!/bin/sh\necho '{\"kind\":\"hello\",\"protocol\":1,\"gpu\":true}'\ncat > /dev/null\n",
+    )
+    .unwrap();
+    std::fs::set_permissions(&program, std::fs::Permissions::from_mode(0o755)).unwrap();
+    let local_entry = entry(LOCAL, Engine::GgufLocal, Verdict::Beta);
+    let installed = Installed {
+        entry: local_entry.clone(),
+        sha256: "a".repeat(64),
+        size_bytes: 1,
+        installed_at_ms: 0,
+    };
+    let local = Local::with(Setup {
+        program: Some(program),
+        models: Some((dir.path().to_path_buf(), vec![installed])),
+        host: Some(Host {
+            macos: true,
+            apple_silicon: true,
+            memory_gb: 32,
+        }),
+    });
+    let apple = Apple::with_program(Some(dir.path().join("no-apple-helper")));
+    let engines = Registry::with(apple, local);
+    engines.probe();
+    let offered = [
+        entry(SYSTEM, Engine::AppleBuiltin, Verdict::Beta),
+        local_entry.clone(),
+    ];
+    let cards = engines.cards(&offered);
+    let card = cards.iter().find(|c| c.model == LOCAL).unwrap();
+    assert_eq!(card.ready, Readiness::Ready);
+    assert!(card.uses_download && !card.running);
+
+    let mac = MacFacts {
+        chip: HostChip::Apple(Chip::M2),
+        memory_gb: 32,
+        free_disk_bytes: u64::MAX / 2,
+        apple_ai: AppleAi::Unavailable,
+    };
+    let beta = |job: Job| job == Job::Review;
+    let jobs = answer_for(
+        &engines,
+        &offered,
+        std::slice::from_ref(&local_entry),
+        Some(&mac),
+        &Snapshot::default(),
+        &beta,
+        &BTreeMap::new(),
+    );
+    let review = jobs.iter().find(|info| info.job == AiJob::Review).unwrap();
+    assert_eq!(review.state, AiJobState::Ready);
+    assert_eq!(review.model_id.as_deref(), Some(LOCAL));
+    assert_eq!(review.why, Some(AiJobWhy::Recommended));
+    let chat = jobs.iter().find(|info| info.job == AiJob::Chat).unwrap();
+    assert_eq!(chat.state, AiJobState::BetaOff, "Chat's Beta is off");
+    engines.release();
 }

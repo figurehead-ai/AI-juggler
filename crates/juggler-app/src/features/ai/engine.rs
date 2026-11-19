@@ -173,6 +173,16 @@ impl Stop {
         }
     }
 
+    /// The same stop with another deadline: a step with its own time
+    /// limit (loading a model), still stopped with the job.
+    #[must_use]
+    pub fn until(&self, deadline: Instant) -> Self {
+        Self {
+            flag: Arc::clone(&self.flag),
+            deadline,
+        }
+    }
+
     /// Asks the job to stop.
     pub fn stop(&self) {
         self.flag.store(true, Ordering::Relaxed);

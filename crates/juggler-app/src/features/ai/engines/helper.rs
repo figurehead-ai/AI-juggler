@@ -8,17 +8,18 @@
 
 use std::io::{BufRead, BufReader, Read as _, Write as _};
 use std::path::Path;
-use std::process::{Child, ChildStdin, Stdio};
+use std::process::{Child, ChildStdin, Command, Stdio};
 use std::sync::mpsc::{Receiver, RecvTimeoutError, channel};
 use std::time::{Duration, Instant};
 
 use crate::features::ai::engine::{EngineError, Stop};
 
-/// The largest request line (ADR-0033 §4: 32 KiB).
-pub const MAX_REQUEST_BYTES: usize = 32 * 1024;
+/// The largest request line (ADR-0033 §4: 32 KiB), the same bound for
+/// every helper; the local helper's protocol is its source.
+pub const MAX_REQUEST_BYTES: usize = juggler_local_ai_protocol::MAX_REQUEST_BYTES;
 
 /// The largest answer line a helper may write.
-pub const MAX_LINE_BYTES: u64 = 64 * 1024;
+pub const MAX_LINE_BYTES: u64 = juggler_local_ai_protocol::MAX_ANSWER_BYTES as u64;
 
 /// How often a wait looks at the job's stop.
 const STOP_POLL: Duration = Duration::from_millis(50);
@@ -41,7 +42,18 @@ impl Helper {
     /// It can't start, says nothing in time, or its hello isn't JSON:
     /// [`EngineError::Crashed`] (or [`EngineError::TimedOut`]).
     pub fn start(program: &Path, wait: Duration) -> Result<Self, EngineError> {
-        let mut child = juggler_platform::process::helper(program)
+        Self::launch(juggler_platform::process::helper(program), wait)
+    }
+
+    /// Starts `command` (one of AI Juggler's own helpers, made with
+    /// [`juggler_platform::process::helper`]: no shell, only the allowed
+    /// environment) and reads its `hello` within `wait`.
+    ///
+    /// # Errors
+    ///
+    /// As [`Helper::start`].
+    pub fn launch(mut command: Command, wait: Duration) -> Result<Self, EngineError> {
+        let mut child = command
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::null())
@@ -99,17 +111,49 @@ impl Helper {
         stop: &Stop,
     ) -> Result<serde_json::Value, EngineError> {
         let mut line = serde_json::to_vec(request).map_err(|_| EngineError::Crashed)?;
-        if line.len() > MAX_REQUEST_BYTES {
+        line.push(b'\n');
+        let answer = self.exchange(&line, stop)?;
+        serde_json::from_str(&answer).map_err(|_| EngineError::Crashed)
+    }
+
+    /// Sends one request `line` (already encoded, its newline included)
+    /// and waits for the answer line, given back as it came for the
+    /// caller's own strict reading.
+    ///
+    /// # Errors
+    ///
+    /// As [`Helper::ask`].
+    pub fn exchange(&mut self, line: &[u8], stop: &Stop) -> Result<String, EngineError> {
+        self.send(line)?;
+        self.next_line(stop)
+    }
+
+    /// Sends one request `line` (its newline included) without waiting.
+    ///
+    /// # Errors
+    ///
+    /// [`EngineError::TooLong`] over [`MAX_REQUEST_BYTES`] or without its
+    /// newline; [`EngineError::Crashed`] when the helper can't take it.
+    pub fn send(&mut self, line: &[u8]) -> Result<(), EngineError> {
+        if line.len() > MAX_REQUEST_BYTES + 1 || line.last() != Some(&b'\n') {
             return Err(EngineError::TooLong);
         }
-        line.push(b'\n');
         let stdin = self.stdin.as_mut().ok_or(EngineError::Crashed)?;
         stdin
-            .write_all(&line)
+            .write_all(line)
             .and_then(|()| stdin.flush())
-            .map_err(|_| EngineError::Crashed)?;
-        let answer = self.next_line(stop)?;
-        serde_json::from_str(&answer).map_err(|_| EngineError::Crashed)
+            .map_err(|_| EngineError::Crashed)
+    }
+
+    /// The next answer line within `wait`, ignoring any job's stop (the
+    /// answer to a cancel, ADR-0033 §1's cancellation).
+    ///
+    /// # Errors
+    ///
+    /// [`EngineError::TimedOut`] when none came; [`EngineError::Crashed`]
+    /// when the helper died.
+    pub fn answer_within(&self, wait: Duration) -> Result<String, EngineError> {
+        self.next_line(&Stop::at(Instant::now() + wait))
     }
 
     fn next_line(&self, stop: &Stop) -> Result<String, EngineError> {

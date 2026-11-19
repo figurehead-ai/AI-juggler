@@ -2966,6 +2966,7 @@ dependencies = [
  "juggler-floor-render",
  "juggler-handover",
  "juggler-link",
+ "juggler-local-ai-protocol",
  "juggler-login-item",
  "juggler-platform",
  "juggler-proc-list",

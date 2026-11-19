@@ -1,0 +1,630 @@
+//! ADR-0033 §4.2, ADR-0035 §11 (AJ-E3802, D-131): the local engine for
+//! downloaded GGUF files, through AI Juggler's helper `juggler-local-ai`
+//! (llama.cpp by llama-cpp-2 0.1.146, `crates/juggler-local-ai`, its own
+//! workspace). **Nothing runs a model in AI Juggler's process:** the
+//! helper does, sandboxed with no network, and its memory goes when it
+//! exits.
+//!
+//! **What it serves.** One card per installed `gguf_local` model (the
+//! store's, AJ-E3803). A card is ready when this is a Mac with Apple
+//! silicon, the Mac has the model's `min_memory_gb`, the helper is in the
+//! app (found and signature-checked by the one resolver,
+//! [`juggler_platform::code_trust::own_helper`]) and said hello on this
+//! protocol, and the engine isn't unhealthy (three failures within an
+//! hour). The router's Automatic choice then picks among the cards by the
+//! section's verdicts and the recommendation (AJ-E3811), as for any engine.
+//!
+//! **One job's path** ([`AiEngine::respond`]):
+//! 1. the installed model's file, `<sha256>.gguf` in the models' folder,
+//!    hashed in full before its first load and stamped ([`verify`]);
+//! 2. the memory check against `min_memory_gb`, then the helper, started
+//!    lazily with the folder as its only argument, at utility quality of
+//!    service (`taskpolicy -c utility`), with the allowed environment only
+//!    and llama.cpp's crash backtrace (which would start a debugger) off;
+//! 3. `load` by the file's name only, when another model (or none) is
+//!    loaded, within [`LOAD_WAIT`];
+//! 4. `generate` with the job's frame, its shape as a JSON schema
+//!    ([`shape`]), the model's tested sampling within the protocol's
+//!    compiled bounds, and the job's deadline as the timeout. A stop or
+//!    the deadline sends `cancel` and waits [`CANCEL_GRACE`] for the
+//!    helper to say so; one that doesn't is stopped (its own child).
+//!
+//! **Its life.** The helper exits by itself after
+//! [`juggler_local_ai_protocol::IDLE_EXIT_SECS`] idle and when stdin
+//! closes; a probe that finds it idle longer drops it ([`Local::probe`]),
+//! and [`AiEngine::release`] drops it at once. A crash, a broken answer
+//! or a timeout that didn't stop drops it; the next job starts it again.
+//!
+//! Windows and Linux compile it and serve nothing yet (D-52: the same
+//! contract with CPU or Vulkan, later).
+
+pub mod shape;
+pub mod verify;
+
+use std::path::{Path, PathBuf};
+use std::process::Command;
+use std::sync::Mutex;
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::time::{Duration, Instant};
+
+use juggler_local_ai_protocol::{
+    self as protocol, Answer, Fault, Finish as WireFinish, Guide, MODELS_DIR_ARG, Sampling, bounds,
+    model_file_name,
+};
+
+use super::helper::Helper;
+use crate::features::ai::engine::{
+    AiEngine, Card, Draft, EngineError, Finish, Readiness, Reason, Request, Stop, Tier,
+};
+use crate::features::ai::models::store::Installed;
+use crate::features::ai::models::{Engine as ModelEngine, ModelEntry};
+
+/// How long a starting helper may take to say hello.
+const HELLO_WAIT: Duration = Duration::from_secs(10);
+
+/// How long loading a model may take (a few seconds a gigabyte from a
+/// cold disk, then the GPU's copy).
+pub const LOAD_WAIT: Duration = Duration::from_secs(90);
+
+/// How long a stopped generation's helper has to say it stopped before it
+/// is stopped itself.
+pub const CANCEL_GRACE: Duration = Duration::from_secs(2);
+
+/// The context a model runs with when its entry names none (ADR-0033
+/// §4.2: 4 K).
+const DEFAULT_CONTEXT: u32 = 4_096;
+
+/// ADR-0033 §3's health rule.
+const HEALTH_FAILURES: usize = 3;
+const HEALTH_WINDOW: Duration = Duration::from_secs(3_600);
+
+/// The helper's quality of service: the system's own tool clamps it to
+/// utility.
+const TASKPOLICY: &str = "/usr/sbin/taskpolicy";
+
+/// This computer, as far as the engine goes.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Host {
+    /// It is macOS (the only system with a helper yet).
+    pub macos: bool,
+    /// Its chip is Apple silicon (the helper is arm64 only).
+    pub apple_silicon: bool,
+    /// Its memory in GB (10⁹ bytes, as the recommendation counts).
+    pub memory_gb: u64,
+}
+
+impl Host {
+    /// This computer, read once.
+    #[must_use]
+    pub fn this_one() -> Self {
+        static HOST: std::sync::OnceLock<Host> = std::sync::OnceLock::new();
+        *HOST.get_or_init(|| {
+            let machine = juggler_platform::ai::machine();
+            Self {
+                macos: cfg!(target_os = "macos"),
+                apple_silicon: matches!(machine.chip, juggler_platform::ai::Chip::AppleSilicon(_)),
+                memory_gb: machine
+                    .memory_bytes
+                    .map_or(0, |bytes| bytes / 1_000_000_000),
+            }
+        })
+    }
+}
+
+/// Where the engine finds its helper and its models: the app's own, or a
+/// test's.
+#[derive(Debug, Default)]
+pub struct Setup {
+    /// The helper; `None` is the app's own, through the resolver.
+    pub program: Option<PathBuf>,
+    /// The models' folder and what is installed in it; `None` is the
+    /// app's store.
+    pub models: Option<(PathBuf, Vec<Installed>)>,
+    /// This computer; `None` reads it.
+    pub host: Option<Host>,
+}
+
+/// What the last probe saw of the helper.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Seen {
+    /// Not asked yet (no model installed, or no query).
+    NotAsked,
+    /// Not in the app, or not safe to run (owner, signature).
+    Missing,
+    /// It said hello on this protocol.
+    Ready,
+    /// It didn't say hello properly.
+    Failed,
+}
+
+/// The helper while it runs.
+#[derive(Debug)]
+struct Running {
+    helper: Helper,
+    /// The loaded model's hash.
+    loaded: Option<String>,
+    /// When it last answered.
+    used: Instant,
+}
+
+/// The local engine.
+#[derive(Debug)]
+pub struct Local {
+    setup: Setup,
+    seen: Mutex<Seen>,
+    running: Mutex<Option<Running>>,
+    verified: verify::Verified,
+    failures: Mutex<Vec<Instant>>,
+    next_id: AtomicU64,
+}
+
+impl Default for Local {
+    fn default() -> Self {
+        Self::with(Setup::default())
+    }
+}
+
+/// The readiness of a model with `min_memory_gb` on `host`, the helper
+/// `seen`, and the engine `unhealthy` (pure).
+#[must_use]
+pub const fn readiness(host: Host, min_memory_gb: u64, seen: Seen, unhealthy: bool) -> Readiness {
+    if !host.macos {
+        return Readiness::NotHere(Reason::NotThisSystem);
+    }
+    if !host.apple_silicon || host.memory_gb < min_memory_gb {
+        return Readiness::NotHere(Reason::NotThisComputer);
+    }
+    match seen {
+        Seen::Missing => Readiness::NotHere(Reason::HelperMissing),
+        Seen::NotAsked | Seen::Failed => Readiness::NotHere(Reason::Unknown),
+        Seen::Ready if unhealthy => Readiness::NotHere(Reason::Unhealthy),
+        Seen::Ready => Readiness::Ready,
+    }
+}
+
+/// The context a model runs with: its entry's, within the protocol's
+/// bounds, or the default.
+fn context_of(entry: &ModelEntry) -> u32 {
+    entry
+        .sampling
+        .context_tokens
+        .filter(|n| bounds::CONTEXT_TOKENS.holds(*n))
+        .and_then(|n| u32::try_from(n).ok())
+        .unwrap_or(DEFAULT_CONTEXT)
+}
+
+/// The model's tested sampling (ADR-0035 §11.1), each field kept only
+/// within the protocol's compiled bounds (the section reads them with the
+/// same bounds, so none is dropped in practice).
+#[must_use]
+pub fn sampling_of(entry: &ModelEntry) -> Sampling {
+    let keep = |value: Option<u64>, range: bounds::Range| {
+        value
+            .filter(|n| range.holds(*n))
+            .and_then(|n| u32::try_from(n).ok())
+    };
+    let s = &entry.sampling;
+    Sampling {
+        temperature_milli: keep(s.temperature_milli, bounds::TEMPERATURE_MILLI),
+        top_p_milli: keep(s.top_p_milli, bounds::TOP_P_MILLI),
+        top_k: keep(s.top_k, bounds::TOP_K),
+        min_p_milli: keep(s.min_p_milli, bounds::MIN_P_MILLI),
+        presence_milli: keep(s.presence_milli, bounds::PRESENCE_MILLI),
+    }
+}
+
+impl Local {
+    /// The engine over `setup`, nothing started.
+    #[must_use]
+    pub fn with(setup: Setup) -> Self {
+        Self {
+            setup,
+            seen: Mutex::new(Seen::NotAsked),
+            running: Mutex::new(None),
+            verified: verify::Verified::default(),
+            failures: Mutex::new(Vec::new()),
+            next_id: AtomicU64::new(0),
+        }
+    }
+
+    /// What the last probe saw.
+    #[must_use]
+    pub fn seen(&self) -> Seen {
+        self.seen.lock().map_or(Seen::Failed, |seen| *seen)
+    }
+
+    fn set_seen(&self, seen: Seen) {
+        if let Ok(mut slot) = self.seen.lock() {
+            *slot = seen;
+        }
+    }
+
+    fn host(&self) -> Host {
+        self.setup.host.unwrap_or_else(Host::this_one)
+    }
+
+    /// The models' folder and the installed models.
+    fn models(&self) -> Option<(PathBuf, Vec<Installed>)> {
+        if let Some((dir, installed)) = &self.setup.models {
+            return Some((dir.clone(), installed.clone()));
+        }
+        let store = crate::features::ai::models::store::shared_if_made()?;
+        Some((store.dir().to_path_buf(), store.installed()))
+    }
+
+    fn installed(&self) -> Vec<Installed> {
+        self.models()
+            .map(|(_, installed)| installed)
+            .unwrap_or_default()
+            .into_iter()
+            .filter(|m| m.entry.engine == ModelEngine::GgufLocal)
+            .collect()
+    }
+
+    /// The helper to run: a test's, or the app's own through the one
+    /// resolver (in the app's bundle, ours and writable by no one else,
+    /// signed as [`protocol::IDENTIFIER`] by the app's own team).
+    fn program(&self) -> Option<PathBuf> {
+        if let Some(program) = &self.setup.program {
+            return program.is_file().then(|| program.clone());
+        }
+        juggler_platform::code_trust::own_helper(protocol::PROGRAM, protocol::IDENTIFIER)
+    }
+
+    /// The helper's command: the folder its only argument, utility quality
+    /// of service, the allowed environment, and llama.cpp's crash
+    /// backtrace off (it would start a debugger).
+    fn command(program: &Path, dir: &Path) -> Command {
+        let taskpolicy = Path::new(TASKPOLICY);
+        let mut command = if cfg!(target_os = "macos") && taskpolicy.is_file() {
+            let mut command = juggler_platform::process::helper(taskpolicy);
+            command.args(["-c", "utility"]).arg(program);
+            command
+        } else {
+            juggler_platform::process::helper(program)
+        };
+        command
+            .arg(MODELS_DIR_ARG)
+            .arg(dir)
+            .env("GGML_NO_BACKTRACE", "1");
+        command
+    }
+
+    /// Starts the helper and checks its hello.
+    fn start(&self, program: &Path, dir: &Path) -> Result<Helper, EngineError> {
+        let helper = Helper::launch(Self::command(program, dir), HELLO_WAIT)?;
+        let hello = serde_json::to_vec(&helper.hello).map_err(|_| EngineError::Crashed)?;
+        if let Ok(Answer::Hello {
+            protocol: protocol::PROTOCOL,
+            ..
+        }) = protocol::parse_answer(&hello)
+        {
+            self.set_seen(Seen::Ready);
+            Ok(helper)
+        } else {
+            self.set_seen(Seen::Failed);
+            Err(EngineError::Crashed)
+        }
+    }
+
+    fn unhealthy(&self) -> bool {
+        self.failures.lock().is_ok_and(|failures| {
+            failures
+                .iter()
+                .filter(|at| at.elapsed() < HEALTH_WINDOW)
+                .count()
+                >= HEALTH_FAILURES
+        })
+    }
+
+    fn failed(&self) {
+        if let Ok(mut failures) = self.failures.lock() {
+            failures.retain(|at| at.elapsed() < HEALTH_WINDOW);
+            failures.push(Instant::now());
+        }
+    }
+
+    fn next_id(&self) -> u64 {
+        self.next_id.fetch_add(1, Ordering::Relaxed) + 1
+    }
+
+    /// The model `model` is loaded in the running helper (for the card).
+    /// Never waits: a job holding the helper means it is running.
+    fn loaded(&self, sha256: &str) -> bool {
+        match self.running.try_lock() {
+            Ok(mut running) => running
+                .as_mut()
+                .is_some_and(|r| r.helper.alive() && r.loaded.as_deref() == Some(sha256)),
+            Err(std::sync::TryLockError::WouldBlock) => true,
+            Err(std::sync::TryLockError::Poisoned(_)) => false,
+        }
+    }
+
+    /// Loads `file` in `running`'s helper, within [`LOAD_WAIT`] or the job's
+    /// stop.
+    fn load(
+        &self,
+        running: &mut Running,
+        sha256: &str,
+        size_bytes: u64,
+        context_tokens: u32,
+        stop: &Stop,
+    ) -> Result<(), EngineError> {
+        let file = model_file_name(sha256).ok_or(EngineError::NotHere(Reason::Unknown))?;
+        let id = self.next_id();
+        let line = protocol::Request::Load {
+            id,
+            file,
+            size_bytes,
+            context_tokens,
+        }
+        .encode()
+        .map_err(|_| EngineError::Unsupported)?;
+        running.loaded = None;
+        let answer = running
+            .helper
+            .exchange(&line, &stop.until(Instant::now() + LOAD_WAIT))?;
+        match protocol::parse_answer(answer.as_bytes()) {
+            Ok(Answer::Loaded { id: got, .. }) if got == id => {
+                running.loaded = Some(sha256.to_owned());
+                Ok(())
+            }
+            Ok(Answer::Error {
+                id: Some(got),
+                error,
+            }) if got == id => Err(match error {
+                Fault::NoFile | Fault::WrongFile | Fault::LoadFailed | Fault::NoTemplate => {
+                    EngineError::NotHere(Reason::Unknown)
+                }
+                _ => EngineError::Crashed,
+            }),
+            _ => Err(EngineError::Crashed),
+        }
+    }
+
+    /// One generation in `running`'s helper; a stop or the deadline sends
+    /// `cancel` and waits [`CANCEL_GRACE`]. `Ok(Err(..))` keeps the
+    /// helper; `Err(..)` means it must go.
+    fn generate(
+        &self,
+        running: &mut Running,
+        entry: &ModelEntry,
+        request: &Request,
+        stop: &Stop,
+    ) -> Result<Result<Draft, EngineError>, EngineError> {
+        let guide = match &request.shape {
+            None => None,
+            Some(shape) => Some(Guide::JsonSchema(
+                shape::json_schema(shape).ok_or(EngineError::Unsupported)?,
+            )),
+        };
+        let left = stop.deadline().saturating_duration_since(Instant::now());
+        let timeout_ms = u64::try_from(left.as_millis())
+            .unwrap_or(u64::MAX)
+            .clamp(bounds::TIMEOUT_MS.min, bounds::TIMEOUT_MS.max);
+        let max_tokens =
+            u64::from(request.max_tokens).clamp(bounds::MAX_TOKENS.min, bounds::MAX_TOKENS.max);
+        let id = self.next_id();
+        let line = protocol::Request::Generate {
+            id,
+            instructions: request.instructions.clone(),
+            prompt: request.prompt.clone(),
+            guide,
+            sampling: sampling_of(entry),
+            max_tokens: u32::try_from(max_tokens).unwrap_or(1),
+            timeout_ms,
+        }
+        .encode();
+        let line = match line {
+            Ok(line) => line,
+            Err(Fault::TooLarge) => return Ok(Err(EngineError::TooLong)),
+            Err(_) => return Ok(Err(EngineError::Unsupported)),
+        };
+        let answer = match running.helper.exchange(&line, stop) {
+            Ok(answer) => answer,
+            Err(stopped @ (EngineError::Stopped | EngineError::TimedOut)) => {
+                return Self::cancel(running, id, stopped);
+            }
+            Err(error) => return Err(error),
+        };
+        match protocol::parse_answer(answer.as_bytes()) {
+            Ok(Answer::Text {
+                id: got,
+                text,
+                finish,
+                ..
+            }) if got == id => Ok(Ok(Draft {
+                text,
+                finish: match finish {
+                    WireFinish::Stop => Finish::Stop,
+                    WireFinish::Length => Finish::Length,
+                },
+            })),
+            Ok(Answer::Error {
+                id: Some(got),
+                error,
+            }) if got == id => match error {
+                Fault::TooLong => Ok(Err(EngineError::TooLong)),
+                Fault::Guide => Ok(Err(EngineError::Unsupported)),
+                Fault::Stopped => Ok(Err(EngineError::Stopped)),
+                Fault::TimedOut => Ok(Err(EngineError::TimedOut)),
+                _ => Err(EngineError::Crashed),
+            },
+            _ => Err(EngineError::Crashed),
+        }
+    }
+
+    /// After a stop: `cancel`, then the generation's own answer within
+    /// [`CANCEL_GRACE`]. The helper stays only when it answered for `id`.
+    fn cancel(
+        running: &mut Running,
+        id: u64,
+        why: EngineError,
+    ) -> Result<Result<Draft, EngineError>, EngineError> {
+        let line = protocol::Request::Cancel { id }.encode().map_err(|_| why)?;
+        running.helper.send(&line).map_err(|_| why)?;
+        let answer = running
+            .helper
+            .answer_within(CANCEL_GRACE)
+            .map_err(|_| why)?;
+        match protocol::parse_answer(answer.as_bytes()) {
+            Ok(Answer::Error { id: Some(got), .. } | Answer::Text { id: got, .. }) if got == id => {
+                Ok(Err(why))
+            }
+            _ => Err(why),
+        }
+    }
+}
+
+impl AiEngine for Local {
+    fn cards(&self, engine: usize, models: &[ModelEntry]) -> Vec<Card> {
+        let installed = self.installed();
+        let host = self.host();
+        let seen = self.seen();
+        let unhealthy = self.unhealthy();
+        models
+            .iter()
+            .filter(|m| m.engine == ModelEngine::GgufLocal)
+            .filter_map(|m| {
+                let mine = installed.iter().find(|i| i.entry.id == m.id)?;
+                Some(Card {
+                    engine,
+                    model: m.id.clone(),
+                    context_tokens: context_of(&mine.entry),
+                    tools: true,
+                    tier: Tier::Basic,
+                    uses_download: true,
+                    running: self.loaded(&mine.sha256),
+                    ready: readiness(
+                        host,
+                        m.min_memory_gb.max(mine.entry.min_memory_gb),
+                        seen,
+                        unhealthy,
+                    ),
+                })
+            })
+            .collect()
+    }
+
+    /// Asks again only when a model is installed: whether the helper is
+    /// in the app and says hello (it exits at once after; nothing is
+    /// loaded). A helper idle past its own exit time is let go.
+    fn probe(&self) {
+        // A job holding the helper isn't idle: never wait for it.
+        if let Ok(mut running) = self.running.try_lock() {
+            let idle = Duration::from_secs(protocol::IDLE_EXIT_SECS);
+            if running
+                .as_mut()
+                .is_some_and(|r| !r.helper.alive() || r.used.elapsed() > idle)
+            {
+                *running = None;
+            }
+        }
+        let host = self.host();
+        if !host.macos || !host.apple_silicon || self.installed().is_empty() {
+            return;
+        }
+        let Some(program) = self.program() else {
+            self.set_seen(Seen::Missing);
+            return;
+        };
+        if self.seen() == Seen::Ready {
+            return;
+        }
+        let Some((dir, _)) = self.models() else {
+            return;
+        };
+        match self.start(&program, &dir) {
+            Ok(helper) => {
+                if let Ok(mut failures) = self.failures.lock() {
+                    failures.clear();
+                }
+                drop(helper);
+            }
+            Err(_) => self.set_seen(Seen::Failed),
+        }
+    }
+
+    fn respond(&self, model: &str, request: &Request, stop: &Stop) -> Result<Draft, EngineError> {
+        let (dir, installed) = self.models().ok_or(EngineError::Unsupported)?;
+        let mine = installed
+            .into_iter()
+            .find(|m| m.entry.id == model && m.entry.engine == ModelEngine::GgufLocal)
+            .ok_or(EngineError::Unsupported)?;
+        if let Readiness::NotHere(why) | Readiness::Preparing(why) = readiness(
+            self.host(),
+            mine.entry.min_memory_gb,
+            Seen::Ready,
+            self.unhealthy(),
+        ) {
+            return Err(EngineError::NotHere(why));
+        }
+        let program = self
+            .program()
+            .ok_or(EngineError::NotHere(Reason::HelperMissing))?;
+        let file = model_file_name(&mine.sha256)
+            .map(|name| dir.join(name))
+            .ok_or(EngineError::NotHere(Reason::Unknown))?;
+        self.verified
+            .check(&file, &mine.sha256, mine.size_bytes, stop)?;
+        let mut slot = self.running.lock().map_err(|_| EngineError::Crashed)?;
+        if !slot.as_mut().is_some_and(|r| r.helper.alive()) {
+            *slot = None;
+            let helper = self.start(&program, &dir).inspect_err(|_| self.failed())?;
+            *slot = Some(Running {
+                helper,
+                loaded: None,
+                used: Instant::now(),
+            });
+        }
+        let Some(running) = slot.as_mut() else {
+            return Err(EngineError::Crashed);
+        };
+        if running.loaded.as_deref() != Some(mine.sha256.as_str()) {
+            match self.load(
+                running,
+                &mine.sha256,
+                mine.size_bytes,
+                context_of(&mine.entry),
+                stop,
+            ) {
+                Ok(()) => {}
+                Err(EngineError::NotHere(why)) => {
+                    running.used = Instant::now();
+                    self.failed();
+                    return Err(EngineError::NotHere(why));
+                }
+                Err(error) => {
+                    // A load that didn't answer can't be cancelled: stop it.
+                    *slot = None;
+                    if error == EngineError::Crashed {
+                        self.failed();
+                    }
+                    return Err(error);
+                }
+            }
+        }
+        let result = self.generate(running, &mine.entry, request, stop);
+        running.used = Instant::now();
+        match result {
+            Ok(answer) => answer,
+            Err(error) => {
+                *slot = None;
+                if error == EngineError::Crashed {
+                    self.failed();
+                }
+                Err(error)
+            }
+        }
+    }
+
+    fn release(&self) {
+        if let Ok(mut running) = self.running.lock() {
+            *running = None;
+        }
+    }
+}
+
+#[cfg(test)]
+#[path = "tests.rs"]
+mod tests;
