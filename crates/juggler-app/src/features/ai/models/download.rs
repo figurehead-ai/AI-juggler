@@ -6,7 +6,7 @@
 //! first ([`super::store::Store::check_start`]: not installed, nothing
 //! else running, the free-disk margin, the approval for a further model),
 //! then runs the transfer ([`super::transfer`]) on its own thread at the
-//! lowest priority, and installs the verified file with its copy. Nothing
+//! lowest priority, its disk I/O throttled (D-131), and installs the verified file with its copy. Nothing
 //! here is made, and no client exists, before that first click.
 //!
 //! What it reports ([`Event`]): progress while it runs or waits, and how
@@ -249,8 +249,10 @@ struct Job {
 
 impl Job {
     fn run(self) {
-        // Never compete with the user's agents for the CPU.
+        // Never compete with the user's agents for the CPU, nor with
+        // their own work for the disk (D-131: low-priority disk I/O).
         let _ = juggler_platform::thread::lowest_priority();
+        let _ = juggler_platform::thread::background_io();
         let id = self.entry.id.clone();
         let run = Run {
             plan: &self.plan,

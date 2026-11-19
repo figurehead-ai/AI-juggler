@@ -7,13 +7,30 @@ rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
 
-# The workspace lint baseline applies (`unsafe_code = "forbid"`): every
-# seam here is built on safe bindings. Where a platform needs `unsafe`
-# (a Windows named pipe's client identity, an owner-only ACL), that
-# platform says "not available on this system yet" until a vetted
-# wrapper crate or an audited carve-out is decided.
-[lints]
-workspace = true
+# The workspace lint baseline, restated with ONE change: `unsafe_code` is
+# "deny" here rather than "forbid", because D-131 (2026-11-19) approved one
+# audited carve-out in this crate: `thread::background_io`, the single
+# `setiopolicy_np` call (macOS low-priority disk I/O for model downloads),
+# with its `#[allow(unsafe_code, reason)]`, its SAFETY note and its test.
+# Nothing else here is unsafe: every other seam is built on safe bindings.
+# Where a platform needs more `unsafe` (a Windows named pipe's client
+# identity, an owner-only ACL), that platform says "not available on this
+# system yet" until a vetted wrapper crate or another recorded decision.
+# Keep the rest in step with the root Cargo.toml's [workspace.lints].
+[lints.rust]
+unsafe_code = "deny"
+missing_docs = "deny"
+
+[lints.clippy]
+pedantic = { level = "warn", priority = -1 }
+unwrap_used = "warn"
+expect_used = "warn"
+panic = "warn"
+todo = "warn"
+unimplemented = "warn"
+print_stdout = "deny"
+print_stderr = "deny"
+dbg_macro = "deny"
 
 [dependencies]
 # AsyncRead / AsyncWrite for the local connection's stream; the Unix
