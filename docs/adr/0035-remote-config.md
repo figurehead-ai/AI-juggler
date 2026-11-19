@@ -1,7 +1,7 @@
 # ADR-0035: One signed remote configuration, in layers, read through typed modules
 
 **Status:** Proposed (2026-11-18, coordinating session, Opus). Building starts once the maintainer has seen the summary.
-**Amendment:** §11, the `models` section (AJ-E3810, D-131): Proposed 2026-11-18. No schema or code for it until it is accepted.
+**Amendment:** §11, the `models` section (AJ-E3810, D-131): Accepted 2026-11-18 by the coordinating session's review, except open question 3 (where our own model files are hosted), which stays open for the maintainer.
 **Date:** 2026-11-18
 **Deciders:** Opus (design); the maintainer (D-128, D-129)
 **Serves:** D-128 (version support without a rebuild), D-129 (a general remote configuration: flags, controls, messages, and account-level capabilities); [ADR-0014](./0014-optional-figurehead-account.md) (the optional account); [ADR-0015](./0015-usage-statistics.md) (opt-in stats, closed vocabulary); [ADR-0019](./0019-extension-architecture.md) (features as modules); [ADR-0023](./0023-local-cache.md) (the registered cache); D-52 (OS seams); D-127 (never show what can't be used)
@@ -209,7 +209,7 @@ Unlinked users get layers 1, 2 and 4 only, and lose no core feature (D-18).
 
 ## Amendment: the `models` section (AJ-E3810, D-131)
 
-**Status:** Proposed (2026-11-18, Opus). Written before any schema or code, as AJ-E3810 asks.
+**Status:** Accepted (2026-11-18, the coordinating session's review of Opus's draft), except open question 3, our own host, which stays open for the maintainer. Written before any schema or code, as AJ-E3810 asks.
 **Serves:** D-131 (the Models area and its signed list), D-130 (the acceptance bar and opt-in Beta), D-121 §2 (disk rules, as amended), D-127 (never show what can't be used), D-125 (pinned revision and SHA-256 per file); AJ-E3811, AJ-E3812, AJ-E3813 and AJ-E3803 read this section.
 **Supersedes:** [ADR-0033](./0033-feed-summary-engines.md) §5's compiled `ModelPin` slot ("no manifest and no signing key"). The pin moves into this signed section, so a tested model can be added or withdrawn without a release. Everything else in ADR-0033 §5 (the click, resume, the transfer conditions, the cache entry) stays, read through this section.
 
@@ -318,6 +318,12 @@ A model is listed only after it passes D-130's bar for at least one job, on the 
    - at least one job other than attention is `beta` or `ships`;
    - each cited evidence path exists.
 4. **The maintainer's approval** in `config-publish` releases it, as for every other section.
+
+**The first ledger lines: round 3's six models.** Testing ended under D-131, so their basis is D-131's acceptance of round 3's final table (`docs/qa/evidence/AJ-E3709/v5-final.md`, commit c8b4ec881), not a fresh blind run. Each of those lines says so plainly:
+- the critical bar is met on the **after-fix floor**: round 3's own outputs re-scored under the shared rules (an agent's claim is checked against the facts and git; "Failed:" comes only from the facts; state words follow the facts), with no model run again;
+- the blind preference, the omissions and the latency are round 3's as run.
+
+The publisher's check accepts that basis for those six ids only: `apple-on-device`, `qwen3-1-7b-q8`, `nemotron-3-nano-4b-q4km`, `granite-4-1-3b-q4km`, `qwen3-4b-2507-q4km`, `gemma-4-e2b-q4-0`. Any model added later needs a full harness run on its own file.
 
 **The ledger is append-only per id.** An id never changes its file: a new quantisation, revision or conversion is a new id. The app enforces the same thing for what it has installed (11.7).
 
@@ -447,6 +453,7 @@ The Qwen3 entry uses the pinned manifest (`docs/qa/evidence/AJ-E3709/models-mani
   - **On a Mac with Apple Intelligence on:** Apple's model is recommended ("Needs no download"). Qwen3 1.7B is listed under Other tested models.
   - **On a 16 GB Mac without it:** Qwen3 1.7B is recommended (1.83 GB), offered only with at least 1.83 GB plus 10 GB free.
   - **On an 8 GB Mac without it:** nothing is recommended. The Qwen3 card isn't shown (D-127), and every job keeps its plain path.
+- **The verdicts are round 3's recommendation table, as is:** review and Chat `beta`; attention `ships` (it is code from the facts, so it doesn't count toward listing, 11.5); feed, digest and watches `not_yet`. Apple's entry is the same.
 - **The first entry is also the built-in list's** (11.6).
 
 #### 11.10 Tests
