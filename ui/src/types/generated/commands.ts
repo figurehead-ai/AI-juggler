@@ -64,6 +64,7 @@ import type { EditorChoicesInfo } from "./EditorChoicesInfo";
 import type { EntityKind } from "./EntityKind";
 import type { EntityRef } from "./EntityRef";
 import type { ExpertSetupInfo } from "./ExpertSetupInfo";
+import type { FacetFilters } from "./FacetFilters";
 import type { FeedFiltersInfo } from "./FeedFiltersInfo";
 import type { FeedItemInfo } from "./FeedItemInfo";
 import type { FigureheadStatusInfo } from "./FigureheadStatusInfo";
