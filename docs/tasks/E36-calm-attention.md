@@ -109,6 +109,7 @@
 2. The calm pass on the rail and the header: section labels in `--color-section`; Open now and every section head without icon or cyan; no row left edge in the App colour; a 6 px App dot on rows; Working a static calm dot; the ↗, pin and drag handle on hover, focus or the selected row; row titles medium ink-2 (selected and Needs you rows semibold ink); the rail-foot New session neutral; the clean-up control a ghost button; the avatar neutral; one hairline between the rail and the main area. Every collapsible kept: Needs you, Open now, Inactive apps, Recent, App and profile group headers, session rows that unfold subagents, the folded rail's groups; each chevron muted at rest, visible on hover and focus, and operable with the keyboard (Enter, Space, ← and →).
 3. The attention-budget test SHALL cover the rail and the header on its three fixtures.
 4. Contrast and axe, both themes, every rail density (Comfortable, Compact, Minimal).
+5. (Added 2026-11-19, the coordinating session's check of the Models screen captures.) The rail's L3 rows ("✕ Stopped with an error" and the like) SHALL follow the same budget on every page, Settings included: one quiet mark per need, never a whole line of loud text; the rail-and-header budget test SHALL include an L3-heavy fixture.
 5. A Sonnet persona glance and walk by hand (the vibe-coder with 8 sessions on 3 Apps, a newcomer with 1 App, a heavy day with 14 open, 7 needs and a crash), verified by Opus.
 6. The design-quality critique.
 7. Before and after captures on the review page, each with what changed.
