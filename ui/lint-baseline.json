@@ -1783,7 +1783,6 @@
   "typescript(no-unsafe-type-assertion)": 3
  },
  "src/pages/messages/MessagesView.tsx": {
-  "eslint(no-unused-expressions)": 1,
   "jsx-a11y(prefer-tag-over-role)": 2,
   "typescript(consistent-return)": 1
  },

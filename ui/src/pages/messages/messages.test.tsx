@@ -20,7 +20,7 @@ import ComposeSource from "./Compose.tsx?raw";
 import SharedDocsSource from "./SharedDocs.tsx?raw";
 import PoolLinksSource from "./PoolLinks.tsx?raw";
 import MessageNeedsSource from "../../components/MessageNeeds.tsx?raw";
-import { MessagesView } from "./MessagesView";
+import { MessagesView, threadToShow } from "./MessagesView";
 import { SharedDocs } from "./SharedDocs";
 import { MessageNeeds } from "../../components/MessageNeeds";
 import { desktopRecipients } from "../../lib/connector";
@@ -176,6 +176,20 @@ describe("a pool's messages", () => {
     fireEvent.change(within(form).getByTestId("compose-body"), { target: { value: "Check the copy." } });
     fireEvent.keyDown(within(form).getByTestId("compose-body"), { key: "Enter", metaKey: true });
     await waitFor(() => expect(calls()).toContain("send:conversation:claude-work/c1:true"));
+  });
+
+  // F-rc3g-13: on p11-b's Messages tab the list held only its own thread,
+  // while the right pane still showed the thread p11-a's page had open.
+  it("another session's page never keeps the thread the page before had open", async () => {
+    const view = render(<MessagesView poolId="pool-team" sessionId="sess-live-1" members={members} now={NOW} />);
+    fireEvent.click((await view.findAllByTestId("thread-row"))[1]!);
+    expect(await view.findByText("Can you look?", { selector: "p" })).toBeTruthy();
+    view.rerender(<MessagesView poolId="pool-team" sessionId="sess-done-1" members={members.slice(1)} composeTo="sess-done-1" now={NOW} />);
+    await waitFor(() => expect(view.getAllByTestId("thread-row").map((row) => row.textContent)).toEqual([expect.stringContaining("Start on the API")]));
+    expect(view.queryByText("Can you look?", { selector: "p" })).toBeNull();
+    expect(view.getByTestId("thread-view").textContent).toContain("Start on the API");
+    expect(threadToShow("thr-2", [thread({})], null), "a list that doesn't hold it").toBe("thr-1");
+    expect(threadToShow("thr-9", [thread({})], "thr-9"), "asked for by name").toBe("thr-9");
   });
 
   it("a session's page shows its own threads only", async () => {
