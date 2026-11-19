@@ -67,7 +67,8 @@ fn not_fit() -> EngineError {
 impl Verified {
     /// Whether `path` is the file named by `sha256`, of `size_bytes`:
     /// from its stamp when it is unchanged since it was hashed, otherwise
-    /// by hashing it now (stopped with `stop`).
+    /// by hashing it now (stopped with `stop`). Gives its identity on disk,
+    /// which the helper matches before it loads the file (review L1).
     ///
     /// # Errors
     ///
@@ -79,14 +80,14 @@ impl Verified {
         sha256: &str,
         size_bytes: u64,
         stop: &Stop,
-    ) -> Result<(), EngineError> {
+    ) -> Result<juggler_platform::transfer::FileId, EngineError> {
         let looked = std::fs::symlink_metadata(path).map_err(|_| not_fit())?;
         if !looked.file_type().is_file() || looked.len() != size_bytes {
             return Err(not_fit());
         }
         let stamp = Stamp::of(path, &looked).ok_or_else(not_fit)?;
         if self.stamp(sha256) == Some(stamp) {
-            return Ok(());
+            return Ok(stamp.id);
         }
         self.forget(sha256);
         let mut file = std::fs::File::open(path).map_err(|_| not_fit())?;
@@ -131,7 +132,7 @@ impl Verified {
         if let Ok(mut stamps) = self.stamps.lock() {
             stamps.insert(sha256.to_owned(), stamp);
         }
-        Ok(())
+        Ok(stamp.id)
     }
 
     fn stamp(&self, sha256: &str) -> Option<Stamp> {
@@ -212,7 +213,10 @@ mod tests {
             std::os::unix::fs::symlink(&path, &link).unwrap();
             assert_eq!(verified.check(&link, &sum, 3, &soon()), unfit);
         }
-        assert_eq!(verified.check(&path, &sum, 3, &soon()), Ok(()));
+        assert_eq!(
+            verified.check(&path, &sum, 3, &soon()),
+            Ok(juggler_platform::transfer::file_id(&path).unwrap())
+        );
     }
 
     #[test]

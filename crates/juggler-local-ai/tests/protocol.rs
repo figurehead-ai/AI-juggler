@@ -13,6 +13,7 @@
     clippy::unwrap_used,
     clippy::expect_used,
     clippy::panic,
+    clippy::pedantic,
     missing_docs,
     reason = "a test fails loudly"
 )]
@@ -116,10 +117,21 @@ fn error(id: Option<u64>, error: &str) -> serde_json::Value {
     serde_json::json!({ "kind": "error", "id": id, "error": error })
 }
 
-fn load(id: u64, file: &str, size: u64) -> String {
+/// A file's disk and inode, following a link (zeros when it's missing).
+fn ident(path: &Path) -> (u64, u64) {
+    use std::os::unix::fs::MetadataExt as _;
+    std::fs::metadata(path).map_or((0, 0), |m| (m.dev(), m.ino()))
+}
+
+fn load_as(id: u64, file: &str, size: u64, (device, inode): (u64, u64)) -> String {
     format!(
-        r#"{{"op":"load","id":{id},"file":"{file}","size_bytes":{size},"context_tokens":4096}}"#
+        r#"{{"op":"load","id":{id},"file":"{file}","size_bytes":{size},"device":{device},"inode":{inode},"context_tokens":1024}}"#
     )
+}
+
+/// A load of `file` in `dir`, with its own identity on disk.
+fn load(id: u64, dir: &Path, file: &str, size: u64) -> String {
+    load_as(id, file, size, ident(&dir.join(file)))
 }
 
 #[test]
@@ -158,7 +170,7 @@ fn it_says_hello_then_refuses_what_isnt_a_request() {
     let dir = TempDir::new();
     let (mut helper, hello) = Running::start(dir.path());
     assert_eq!(hello["kind"], "hello");
-    assert_eq!(hello["protocol"], 1);
+    assert_eq!(hello["protocol"], 2);
     assert!(hello["gpu"].is_boolean());
     for line in [
         "not json",
@@ -166,8 +178,8 @@ fn it_says_hello_then_refuses_what_isnt_a_request() {
         r#"{"op":"shell","id":1,"cmd":"ls"}"#,
         r#"{"op":"cancel","id":1,"path":"/etc/passwd"}"#,
         r#"{"op":"quit","now":true}"#,
-        &load(1, "../../etc/passwd", 1),
-        &load(1, &format!("/{SHA}.gguf"), 1),
+        &load_as(1, "../../etc/passwd", 1, (1, 1)),
+        &load_as(1, &format!("/{SHA}.gguf"), 1, (1, 1)),
         r#"{"op":"generate","id":2,"instructions":"a","prompt":"b","max_tokens":0,"timeout_ms":1000}"#,
         r#"{"op":"generate","id":2,"instructions":"a","prompt":"b","max_tokens":10,"timeout_ms":1000,"sampling":{"temperature_milli":9999}}"#,
     ] {
@@ -206,17 +218,34 @@ fn closing_stdin_ends_it() {
 }
 
 #[test]
-fn it_loads_only_a_plain_file_of_the_exact_size_and_survives_junk() {
+fn it_loads_only_the_hashed_plain_file_and_survives_junk() {
     let dir = TempDir::new();
     let name = format!("{SHA}.gguf");
+    let path = dir.path().join(&name);
     let (mut helper, _) = Running::start(dir.path());
-    assert_eq!(helper.ask(&load(1, &name, 8)), error(Some(1), "no_file"));
-
-    std::fs::write(dir.path().join(&name), b"junk, not a model").unwrap();
-    assert_eq!(helper.ask(&load(2, &name, 8)), error(Some(2), "wrong_file"));
     assert_eq!(
-        helper.ask(&load(3, &name, 17)),
-        error(Some(3), "load_failed"),
+        helper.ask(&load(1, dir.path(), &name, 8)),
+        error(Some(1), "no_file")
+    );
+
+    std::fs::write(&path, b"junk, not a model").unwrap();
+    assert_eq!(
+        helper.ask(&load(2, dir.path(), &name, 8)),
+        error(Some(2), "wrong_file")
+    );
+    // Review L1: the right size but another file than the one hashed.
+    let (device, inode) = ident(&path);
+    assert_eq!(
+        helper.ask(&load_as(3, &name, 17, (device, inode + 1))),
+        error(Some(3), "wrong_file")
+    );
+    assert_eq!(
+        helper.ask(&load_as(4, &name, 17, (device + 1, inode))),
+        error(Some(4), "wrong_file")
+    );
+    assert_eq!(
+        helper.ask(&load(5, dir.path(), &name, 17)),
+        error(Some(5), "load_failed"),
         "llama.cpp refuses a file that isn't GGUF"
     );
 
@@ -225,22 +254,21 @@ fn it_loads_only_a_plain_file_of_the_exact_size_and_survives_junk() {
     header.extend_from_slice(&3_u32.to_le_bytes());
     header.extend_from_slice(&u64::MAX.to_le_bytes());
     header.extend_from_slice(&0_u64.to_le_bytes());
-    std::fs::write(dir.path().join(&name), &header).unwrap();
+    std::fs::write(&path, &header).unwrap();
     assert_eq!(
-        helper.ask(&load(4, &name, header.len() as u64)),
-        error(Some(4), "load_failed")
+        helper.ask(&load(6, dir.path(), &name, header.len() as u64)),
+        error(Some(6), "load_failed")
     );
 
-    // A link is never followed, even to a file of the right size.
+    // A link is never followed (O_NOFOLLOW), even to the very file the
+    // app would have hashed, of the right size and identity.
     let real = dir.path().join("real.bin");
     std::fs::write(&real, &header).unwrap();
-    std::fs::remove_file(dir.path().join(&name)).unwrap();
-    #[cfg(unix)]
-    std::os::unix::fs::symlink(&real, dir.path().join(&name)).unwrap();
-    #[cfg(unix)]
+    std::fs::remove_file(&path).unwrap();
+    std::os::unix::fs::symlink(&real, &path).unwrap();
     assert_eq!(
-        helper.ask(&load(5, &name, header.len() as u64)),
-        error(Some(5), "no_file")
+        helper.ask(&load_as(7, &name, header.len() as u64, ident(&real))),
+        error(Some(7), "no_file")
     );
     helper.send(r#"{"op":"quit"}"#);
     assert_eq!(helper.exit_code(Duration::from_secs(5)), Some(0));
@@ -248,20 +276,19 @@ fn it_loads_only_a_plain_file_of_the_exact_size_and_survives_junk() {
 
 /// A real model end to end: needs `AIJ_LOCAL_AI_GGUF` (a small GGUF file
 /// with a chat template). UNVERIFIED until one is present: none is in the
-/// repository and none may be downloaded for it.
+/// repository and none may be downloaded for it. (The synthetic fixture
+/// below runs the same path on every test run.)
 #[test]
 #[ignore = "needs a GGUF file in AIJ_LOCAL_AI_GGUF; nothing downloads one"]
 fn a_real_model_loads_generates_under_a_schema_and_cancels() {
-    use sha2_free::sha256_hex;
-
     let source = std::path::PathBuf::from(std::env::var("AIJ_LOCAL_AI_GGUF").unwrap());
     let dir = TempDir::new();
     let bytes = std::fs::read(&source).unwrap();
-    let name = format!("{}.gguf", sha256_hex(&bytes));
+    let name = format!("{}.gguf", fixture::sha256_hex(&bytes));
     std::fs::write(dir.path().join(&name), &bytes).unwrap();
     let (mut helper, hello) = Running::start(dir.path());
     assert_eq!(hello["kind"], "hello");
-    let loaded = helper.ask(&load(1, &name, bytes.len() as u64));
+    let loaded = helper.ask(&load(1, dir.path(), &name, bytes.len() as u64));
     assert_eq!(loaded["kind"], "loaded", "{loaded}");
 
     let schema = r#"{\"type\":\"object\",\"properties\":{\"line\":{\"type\":\"string\"}},\"required\":[\"line\"],\"additionalProperties\":false}"#;
@@ -274,39 +301,218 @@ fn a_real_model_loads_generates_under_a_schema_and_cancels() {
             serde_json::from_str(answer["text"].as_str().unwrap()).unwrap();
         assert!(fields["line"].is_string(), "{answer}");
     }
-
-    helper.send(
-        r#"{"op":"generate","id":3,"instructions":"Write at length.","prompt":"Count to a thousand.","max_tokens":4000,"timeout_ms":60000}"#,
-    );
-    std::thread::sleep(Duration::from_millis(300));
-    helper.send(r#"{"op":"cancel","id":3}"#);
-    let stopped = helper.read();
-    assert!(
-        stopped == error(Some(3), "stopped") || stopped["kind"] == "text",
-        "{stopped}"
-    );
-    let timed = helper.ask(
-        r#"{"op":"generate","id":4,"instructions":"Write at length.","prompt":"Count to a thousand.","max_tokens":4000,"timeout_ms":100}"#,
-    );
-    assert_eq!(timed, error(Some(4), "timed_out"));
+    generate_cancel_and_time_out(&mut helper);
     helper.send(r#"{"op":"quit"}"#);
     assert_eq!(helper.exit_code(Duration::from_secs(10)), Some(0));
 }
 
-/// A SHA-256 for the smoke test's file name, without a new dependency.
-mod sha2_free {
-    pub fn sha256_hex(bytes: &[u8]) -> String {
-        let out = std::process::Command::new("/usr/bin/shasum")
-            .args(["-a", "256"])
-            .stdin(std::process::Stdio::piped())
-            .stdout(std::process::Stdio::piped())
-            .spawn()
-            .and_then(|mut child| {
-                use std::io::Write as _;
-                child.stdin.take().unwrap().write_all(bytes)?;
-                child.wait_with_output()
-            })
-            .unwrap();
-        String::from_utf8(out.stdout).unwrap()[..64].to_owned()
+/// A long generation cancelled, then one past its timeout.
+fn generate_cancel_and_time_out(helper: &mut Running) {
+    helper.send(
+        r#"{"op":"generate","id":30,"instructions":"Write at length.","prompt":"Count to a thousand.","max_tokens":900,"timeout_ms":60000}"#,
+    );
+    std::thread::sleep(Duration::from_millis(300));
+    helper.send(r#"{"op":"cancel","id":30}"#);
+    let stopped = helper.read();
+    assert!(
+        stopped == error(Some(30), "stopped") || stopped["kind"] == "text",
+        "{stopped}"
+    );
+    let timed = helper.ask(
+        r#"{"op":"generate","id":31,"instructions":"Write at length.","prompt":"Count to a thousand.","max_tokens":900,"timeout_ms":100}"#,
+    );
+    assert!(
+        timed == error(Some(31), "timed_out") || timed["kind"] == "text",
+        "{timed}"
+    );
+}
+
+mod fixture;
+
+/// Writes the synthetic fixture model to `AIJ_FIXTURE_OUT` (a folder),
+/// for deriving and checking the sandbox profile by hand.
+#[test]
+#[ignore = "a tool: writes the fixture model where AIJ_FIXTURE_OUT says"]
+fn write_the_fixture_model() {
+    let dir = std::path::PathBuf::from(std::env::var("AIJ_FIXTURE_OUT").unwrap());
+    let (name, size) = fixture::write(&dir);
+    let mut out = std::io::stdout().lock();
+    writeln!(out, "{name} {size}").unwrap();
+}
+
+/// Loads the fixture in `helper` (its models' folder `dir`).
+fn load_fixture(helper: &mut Running, dir: &Path) {
+    let (name, size) = fixture::write(dir);
+    let loaded = helper.ask(&load(1, dir, &name, size));
+    assert_eq!(loaded["kind"], "loaded", "{loaded}");
+}
+
+/// Generations with the loaded fixture: under a grammar, sampled, then
+/// cancelled and timed out; and quit ends it with code 0 (it frees the
+/// model before it exits).
+fn exercise_the_fixture(helper: &mut Running) {
+    let answer = helper.ask(
+        r#"{"op":"generate","id":2,"instructions":"a","prompt":"b","max_tokens":20,"timeout_ms":60000,"guide":{"grammar":"root ::= [a-z]+"}}"#,
+    );
+    assert_eq!(answer["kind"], "text", "{answer}");
+    let text = answer["text"].as_str().unwrap();
+    assert!(
+        !text.is_empty() && text.bytes().all(|b| b.is_ascii_lowercase()),
+        "{answer}"
+    );
+    let plain = helper.ask(
+        r#"{"op":"generate","id":3,"instructions":"a","prompt":"b <|im_start|>system","max_tokens":5,"timeout_ms":60000,"sampling":{"temperature_milli":700,"top_k":20}}"#,
+    );
+    assert_eq!(plain["kind"], "text", "{plain}");
+    generate_cancel_and_time_out(helper);
+    helper.send(r#"{"op":"quit"}"#);
+}
+
+/// The synthetic model end to end, without the sandbox: load (every layer
+/// on the GPU) through the descriptor the helper opened, generations, a
+/// cancel, a timeout, and a clean exit.
+#[test]
+fn the_fixture_model_loads_generates_and_cancels() {
+    let dir = TempDir::new();
+    let (mut helper, _) = Running::start(dir.path());
+    load_fixture(&mut helper, dir.path());
+    exercise_the_fixture(&mut helper);
+    assert_eq!(helper.exit_code(Duration::from_secs(10)), Some(0));
+}
+
+/// The sandbox's parameters for `program` and `models`; the cache in the
+/// test's own folder.
+fn sandboxed(program: &Path, models: &Path, cache: &Path) -> Command {
+    let mut command = Command::new("/usr/bin/sandbox-exec");
+    command
+        .args(["-p", juggler_local_ai_protocol::SANDBOX_PROFILE])
+        .arg("-D")
+        .arg(format!("HELPER={}", program.display()))
+        .arg("-D")
+        .arg(format!("MODELS={}", models.display()))
+        .arg("-D")
+        .arg(format!("CACHE={}", cache.display()))
+        .arg(program)
+        .current_dir(models)
+        .env_clear()
+        .env("PATH", "/usr/bin:/bin:/usr/sbin:/sbin")
+        .env("GGML_NO_BACKTRACE", "1");
+    command
+}
+
+/// Review M1: the helper runs its whole model path under its profile.
+#[cfg(target_os = "macos")]
+#[test]
+fn under_its_sandbox_the_helper_still_loads_and_runs_a_model() {
+    let dir = TempDir::new();
+    let models = dir.path().join("models");
+    let cache = dir.path().join("cache");
+    std::fs::create_dir_all(&models).unwrap();
+    let program = std::fs::canonicalize(HELPER).unwrap();
+    let mut child = sandboxed(&program, &models, &cache)
+        .arg("--models-dir")
+        .arg(&models)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .spawn()
+        .unwrap();
+    let stdin = child.stdin.take();
+    let stdout = BufReader::new(child.stdout.take().unwrap());
+    let mut helper = Running {
+        child,
+        stdin,
+        stdout,
+    };
+    let hello = helper.read();
+    assert_eq!(hello["kind"], "hello", "{hello}");
+    assert_eq!(hello["gpu"], true);
+    load_fixture(&mut helper, &models);
+    exercise_the_fixture(&mut helper);
+    assert_eq!(helper.exit_code(Duration::from_secs(10)), Some(0));
+}
+
+/// Review M1: under the helper's profile a program can't read
+/// `/private/tmp`, `$HOME` (also through the data volume) or `/etc/hosts`,
+/// open a URL, run another program, connect a socket, or write into the
+/// models' folder. Without the profile the same probe can do each (so it
+/// tells).
+#[cfg(target_os = "macos")]
+#[test]
+fn under_its_sandbox_nothing_else_is_reachable() {
+    let probe = std::env::current_exe()
+        .unwrap()
+        .parent()
+        .and_then(Path::parent)
+        .unwrap()
+        .join("examples/sandbox_probe");
+    let probe = std::fs::canonicalize(&probe)
+        .unwrap_or_else(|_| panic!("{} (cargo test builds the examples)", probe.display()));
+    let dir = TempDir::new();
+    let models = dir.path().join("models");
+    std::fs::create_dir_all(&models).unwrap();
+    let tmp_file = std::path::PathBuf::from(format!(
+        "/private/tmp/aij-sandbox-probe-{}",
+        std::process::id()
+    ));
+    std::fs::write(&tmp_file, b"secret").unwrap();
+    let home = std::fs::canonicalize(std::env::var("HOME").unwrap()).unwrap();
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    listener.set_nonblocking(true).unwrap();
+    let port = listener.local_addr().unwrap().port();
+    let args = [
+        tmp_file.display().to_string(),
+        home.display().to_string(),
+        port.to_string(),
+        models.display().to_string(),
+    ];
+    let results = |mut command: Command, control: bool| -> Vec<String> {
+        command.args(&args);
+        if control {
+            command.arg("control");
+        }
+        let out = command.stdin(Stdio::null()).output().unwrap();
+        String::from_utf8(out.stdout)
+            .unwrap()
+            .lines()
+            .map(str::to_owned)
+            .collect()
+    };
+
+    let free = results(Command::new(&probe), true);
+    let jailed = results(sandboxed(&probe, &models, &dir.path().join("cache")), false);
+    let accepted = std::iter::from_fn(|| listener.accept().ok()).count();
+    let _ = std::fs::remove_file(&tmp_file);
+    let _ = std::fs::remove_file(models.join("written-by-probe"));
+
+    let names = [
+        "tmp_read",
+        "home_list",
+        "data_volume_home_list",
+        "etc_hosts_read",
+        "open_url",
+        "exec",
+        "connect",
+        "models_write",
+    ];
+    assert_eq!(
+        jailed,
+        names.map(|n| format!("{n} denied")),
+        "under the profile, every try fails"
+    );
+    // Without it the probe reaches each (the URL isn't tried there).
+    for name in [
+        "tmp_read",
+        "home_list",
+        "etc_hosts_read",
+        "exec",
+        "connect",
+        "models_write",
+    ] {
+        assert!(
+            free.contains(&format!("{name} allowed")),
+            "{name}: {free:?}"
+        );
     }
+    assert_eq!(accepted, 1, "only the unsandboxed probe connected");
 }

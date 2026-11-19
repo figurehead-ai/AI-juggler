@@ -261,10 +261,11 @@ jobs:
         # llama-cpp-2, pinned) ships beside the app too, built from its own
         # workspace, offline from the crates fetched above, for arm64 (Apple
         # silicon only; both halves take the same build, as for the Apple
-        # helper) and signed ad hoc with its sandbox; the sign job signs it
-        # again with the Developer ID. The script checks it: valid
-        # signature, its identifier, hardened runtime, exactly its
-        # entitlements, no network call imported.
+        # helper) and signed ad hoc (hardened runtime, no entitlements: its
+        # sandbox is the profile the app applies at start); the sign job
+        # signs it again with the Developer ID. The script checks it: valid
+        # signature, its identifier, hardened runtime, no entitlements, no
+        # network call imported.
         run: |
           set -euo pipefail
           scripts/build_local_ai_helper.sh release "target/$ARCH/release"
@@ -505,7 +506,6 @@ jobs:
             scripts/build_apple_ai_helper.sh
             crates/juggler-app/helpers/juggler-apple-ai.entitlements
             scripts/build_local_ai_helper.sh
-            crates/juggler-local-ai/juggler-local-ai.entitlements
             scripts/release_seams_check.sh
             scripts/apple_retry.py
             scripts/updater_sig_check.py
@@ -577,7 +577,6 @@ jobs:
             scripts/build_apple_ai_helper.sh
             crates/juggler-app/helpers/juggler-apple-ai.entitlements
             scripts/build_local_ai_helper.sh
-            crates/juggler-local-ai/juggler-local-ai.entitlements
             scripts/release_seams_check.sh
             scripts/apple_retry.py
             scripts/updater_sig_check.py

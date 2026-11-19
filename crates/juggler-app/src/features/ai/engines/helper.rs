@@ -124,8 +124,23 @@ impl Helper {
     ///
     /// As [`Helper::ask`].
     pub fn exchange(&mut self, line: &[u8], stop: &Stop) -> Result<String, EngineError> {
+        self.exchange_while(line, stop, &|| true)
+    }
+
+    /// As [`Helper::exchange`], and stopped as by the job's stop when
+    /// `keep` says no (memory pressure turning critical, say).
+    ///
+    /// # Errors
+    ///
+    /// As [`Helper::ask`]; [`EngineError::Stopped`] when `keep` said no.
+    pub fn exchange_while(
+        &mut self,
+        line: &[u8],
+        stop: &Stop,
+        keep: &dyn Fn() -> bool,
+    ) -> Result<String, EngineError> {
         self.send(line)?;
-        self.next_line(stop)
+        self.next_line_while(stop, keep)
     }
 
     /// Sends one request `line` (its newline included) without waiting.
@@ -157,8 +172,12 @@ impl Helper {
     }
 
     fn next_line(&self, stop: &Stop) -> Result<String, EngineError> {
+        self.next_line_while(stop, &|| true)
+    }
+
+    fn next_line_while(&self, stop: &Stop, keep: &dyn Fn() -> bool) -> Result<String, EngineError> {
         loop {
-            if stop.stopped() {
+            if stop.stopped() || !keep() {
                 return Err(EngineError::Stopped);
             }
             let left = stop.deadline().saturating_duration_since(Instant::now());

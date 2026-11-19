@@ -13,6 +13,12 @@ pub const OPEN: &str = "/usr/bin/open";
 /// macOS's per-process memory report (the Floor's measurement harness
 /// reads AI Juggler's own footprint with it).
 pub const FOOTPRINT: &str = "/usr/bin/footprint";
+/// macOS's sandbox tool: runs a program under a sandbox profile (the
+/// local-model helper's, D-131, ADR-0033 §4.2).
+pub const SANDBOX_EXEC: &str = "/usr/bin/sandbox-exec";
+/// macOS's task policy tool: runs a program at a quality of service and
+/// under a memory limit (the local-model helper's).
+pub const TASKPOLICY: &str = "/usr/sbin/taskpolicy";
 /// The freedesktop "open with the default app".
 pub const XDG_OPEN: &str = "/usr/bin/xdg-open";
 /// Where git may be, in order: Homebrew's (Apple silicon, then Intel),

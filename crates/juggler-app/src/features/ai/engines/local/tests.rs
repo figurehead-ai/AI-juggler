@@ -131,13 +131,24 @@ done
     path
 }
 
-const HELLO: &str = r#"{"kind":"hello","protocol":1,"gpu":true}"#;
+const HELLO: &str = r#"{"kind":"hello","protocol":2,"gpu":true}"#;
+
+/// Memory pressure as these tests set it: calm, or critical while
+/// [`CRITICAL`] is on (one test at a time sets it: nextest runs each test
+/// in its own process).
+static CRITICAL: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+fn critical_now() -> bool {
+    CRITICAL.load(std::sync::atomic::Ordering::SeqCst)
+}
 
 fn engine(dir: &Path, mode: &str, min_memory_gb: u64) -> Local {
     Local::with(Setup {
         program: Some(fake(dir, mode, HELLO)),
         models: Some(models(dir, min_memory_gb, BYTES)),
         host: Some(MAC),
+        pressure: Some(critical_now),
+        unsandboxed: true,
     })
 }
 
@@ -255,6 +266,8 @@ fn with_no_model_installed_there_is_no_card_and_nothing_is_started() {
         program: Some(dir.path().join("never-run")),
         models: Some((dir.path().to_path_buf(), Vec::new())),
         host: Some(MAC),
+        pressure: Some(critical_now),
+        unsandboxed: true,
     });
     engine.probe();
     assert_eq!(engine.seen(), Seen::NotAsked);
@@ -272,6 +285,8 @@ fn a_missing_helper_hides_the_card_with_its_reason() {
         program: Some(dir.path().join("not-built")),
         models: Some(models(dir.path(), 16, BYTES)),
         host: Some(MAC),
+        pressure: Some(critical_now),
+        unsandboxed: true,
     });
     engine.probe();
     assert_eq!(engine.seen(), Seen::Missing);
@@ -316,10 +331,17 @@ fn a_job_loads_the_model_once_then_generates_with_its_frame_shape_and_sampling()
 
     let sent = lines(dir.path());
     let sum = sha(BYTES);
+    // Review L1: the helper is told which file on disk was hashed.
+    let id_on_disk = juggler_platform::transfer::file_id(
+        &dir.path().join("ai-models").join(format!("{sum}.gguf")),
+    )
+    .unwrap();
     assert_eq!(
         sent[0],
         json!({"op": "load", "id": 1, "file": format!("{sum}.gguf"),
-               "size_bytes": BYTES.len(), "context_tokens": 8192}),
+               "size_bytes": BYTES.len(),
+               "device": id_on_disk.device, "inode": id_on_disk.inode,
+               "context_tokens": 8192}),
         "the file by its name only, never a path"
     );
     let generate = &sent[1];
@@ -340,7 +362,13 @@ fn a_job_loads_the_model_once_then_generates_with_its_frame_shape_and_sampling()
     let args = std::fs::read_to_string(dir.path().join("args.log")).unwrap();
     assert_eq!(
         args.trim(),
-        format!("--models-dir {}", dir.path().join("ai-models").display())
+        format!(
+            "--models-dir {}",
+            std::fs::canonicalize(dir.path().join("ai-models"))
+                .unwrap()
+                .display()
+        ),
+        "the folder resolved, as the sandbox's parameter is"
     );
     let env = std::fs::read_to_string(dir.path().join("env.log")).unwrap();
     assert!(env.lines().any(|l| l == "GGML_NO_BACKTRACE=1"), "{env}");
@@ -385,8 +413,9 @@ fn broken_answers_are_crashes_and_three_make_it_unhealthy() {
 fn a_helper_on_another_protocol_is_never_used() {
     let dir = tempfile::tempdir().unwrap();
     for hello in [
-        r#"{"kind":"hello","protocol":2,"gpu":true}"#,
-        r#"{"kind":"hello","protocol":1,"gpu":true,"shell":"sh"}"#,
+        r#"{"kind":"hello","protocol":1,"gpu":true}"#,
+        r#"{"kind":"hello","protocol":3,"gpu":true}"#,
+        r#"{"kind":"hello","protocol":2,"gpu":true,"shell":"sh"}"#,
         r#"{"hello":true,"protocol":2,"available":"available"}"#,
         "not json",
     ] {
@@ -394,6 +423,8 @@ fn a_helper_on_another_protocol_is_never_used() {
             program: Some(fake(dir.path(), "ok", hello)),
             models: Some(models(dir.path(), 16, BYTES)),
             host: Some(MAC),
+            pressure: Some(critical_now),
+            unsandboxed: true,
         });
         engine.probe();
         assert_eq!(engine.seen(), Seen::Failed, "{hello}");
@@ -489,6 +520,8 @@ fn a_file_that_fails_its_hash_is_never_loaded() {
         // The same size, other bytes: the name's hash doesn't match.
         models: Some(models(dir.path(), 16, b"GGUF not a real modeL")),
         host: Some(MAC),
+        pressure: Some(critical_now),
+        unsandboxed: true,
     });
     engine.probe();
     assert_eq!(
@@ -568,4 +601,127 @@ fn the_sections_sampling_bounds_are_the_protocols() {
             assert_eq!(reached, kept.then(|| json!(value)), "{field}={value}");
         }
     }
+}
+
+/// Review M1 and L3: the helper runs as `taskpolicy -c utility -m <cap>
+/// sandbox-exec -p <profile> -D HELPER=… -D MODELS=… -D CACHE=… <helper>
+/// --models-dir <dir>`, in the models' folder, with the allowed
+/// environment and GGML_NO_BACKTRACE=1.
+#[cfg(target_os = "macos")]
+#[test]
+fn the_helper_starts_capped_sandboxed_and_in_its_folder() {
+    let program = Path::new("/Applications/AI Juggler.app/Contents/MacOS/juggler-local-ai");
+    let dir = Path::new("/Users/someone/Library/Application Support/AI Juggler/ai-models");
+    let command = Local::command(program, dir, 5_000, true).unwrap();
+    assert_eq!(command.get_program(), "/usr/sbin/taskpolicy");
+    let args: Vec<String> = command
+        .get_args()
+        .map(|a| a.to_string_lossy().into_owned())
+        .collect();
+    let cache = super::metal_cache();
+    assert_eq!(
+        args,
+        [
+            "-c",
+            "utility",
+            "-m",
+            "5000",
+            "/usr/bin/sandbox-exec",
+            "-p",
+            juggler_local_ai_protocol::SANDBOX_PROFILE,
+            "-D",
+            &format!("HELPER={}", program.display()),
+            "-D",
+            &format!("MODELS={}", dir.display()),
+            "-D",
+            &format!("CACHE={}", cache.display()),
+            &program.display().to_string(),
+            "--models-dir",
+            &dir.display().to_string(),
+        ]
+    );
+    assert_eq!(command.get_current_dir(), Some(dir));
+    let env: Vec<(String, Option<String>)> = command
+        .get_envs()
+        .map(|(k, v)| {
+            (
+                k.to_string_lossy().into_owned(),
+                v.map(|v| v.to_string_lossy().into_owned()),
+            )
+        })
+        .collect();
+    assert!(env.contains(&("GGML_NO_BACKTRACE".to_owned(), Some("1".to_owned()))));
+    assert!(env.contains(&(
+        "PATH".to_owned(),
+        Some("/usr/bin:/bin:/usr/sbin:/sbin".to_owned())
+    )));
+    assert!(
+        cache.ends_with("ai.figurehead.juggler.local-ai") || cache.starts_with("/nonexistent"),
+        "{}",
+        cache.display()
+    );
+    // Without the sandbox (a fake helper's tests) the helper follows
+    // taskpolicy's arguments directly.
+    let bare = Local::command(program, dir, 1_024, false).unwrap();
+    let args: Vec<String> = bare
+        .get_args()
+        .map(|a| a.to_string_lossy().into_owned())
+        .collect();
+    assert_eq!(args[4], program.display().to_string());
+}
+
+#[test]
+fn the_memory_cap_follows_the_model_within_the_mac() {
+    let gib = 1_u64 << 30;
+    // 2 GiB file: twice it and 2 GiB more.
+    assert_eq!(super::cap_mib(2 * gib, MAC), 6_144);
+    // Never under the bare cap, never over three quarters of memory.
+    assert_eq!(super::cap_mib(1, MAC), 2_050);
+    assert_eq!(
+        super::cap_mib(
+            0,
+            Host {
+                memory_gb: 1,
+                ..MAC
+            }
+        ),
+        super::BARE_CAP_MIB
+    );
+    let small = Host {
+        memory_gb: 8,
+        ..MAC
+    };
+    assert_eq!(
+        super::cap_mib(8 * gib, small),
+        8_000_000_000 / (1 << 20) * 3 / 4
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn critical_memory_pressure_never_starts_a_model_and_stops_one_running() {
+    let dir = tempfile::tempdir().unwrap();
+    let engine = engine(dir.path(), "hang", 16);
+    engine.probe();
+    CRITICAL.store(true, std::sync::atomic::Ordering::SeqCst);
+    assert_eq!(
+        engine.respond(MODEL, &request(), &soon()),
+        Err(EngineError::NotHere(Reason::Unknown))
+    );
+    assert_eq!(ops(dir.path()), Vec::<String>::new(), "nothing loaded");
+    CRITICAL.store(false, std::sync::atomic::Ordering::SeqCst);
+    let later = std::thread::spawn(|| {
+        std::thread::sleep(Duration::from_millis(400));
+        CRITICAL.store(true, std::sync::atomic::Ordering::SeqCst);
+    });
+    let started = Instant::now();
+    assert_eq!(
+        engine.respond(MODEL, &request(), &soon()),
+        Err(EngineError::Stopped)
+    );
+    later.join().unwrap();
+    assert!(started.elapsed() < Duration::from_secs(4));
+    assert_eq!(ops(dir.path()), ["load", "generate"]);
+    assert!(!card(&engine).running, "its memory is let go");
+    CRITICAL.store(false, std::sync::atomic::Ordering::SeqCst);
 }

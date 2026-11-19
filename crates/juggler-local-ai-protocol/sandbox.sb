@@ -1,0 +1,66 @@
+;; juggler-local-ai's sandbox (ADR-0033 §4.2 "As built", the 2026-11-19
+;; security review's M1). Applied by /usr/bin/sandbox-exec at every start,
+;; before the helper runs a single instruction. Parameters:
+;;   HELPER  the helper's own resolved path (the only program it may run:
+;;           itself, the exec sandbox-exec makes);
+;;   MODELS  the models' folder (read-only, and the helper's working
+;;           folder: its start reads the working folder);
+;;   CACHE   Metal's shader cache for the helper's identifier, in the
+;;           user's cache folder (without it every start compiles every
+;;           GPU kernel again, seconds each time).
+;; Everything else is denied: no network, no other file (no $HOME, no
+;; /private/tmp, no /etc, no /System/Volumes/Data), no fork or exec, no
+;; LaunchServices or any other service but Metal's compiler. Each allow
+;; below was shown by test to be needed (the helper's tests load and run a
+;; model under this profile, and a probe under it must fail each denial).
+(version 1)
+(deny default)
+
+;; The process itself: system calls, its bootstrap port, reading the
+;; kernel's settings, and inspecting only itself.
+(allow syscall* syscall-unix mach-bootstrap sysctl-read system-info)
+(allow process-info* (target self))
+
+;; Its own program, and nothing else to run.
+(allow process-exec (literal (param "HELPER")))
+(allow file-read* file-map-executable (literal (param "HELPER")))
+
+;; The models' folder: read only. The model itself is read through the
+;; descriptor the helper opened (/dev/fd/<n>), so the file it checked is
+;; the file llama.cpp parses; only already-open descriptors are there.
+(allow file-read* (subpath (param "MODELS")))
+(allow file-read-data file-read-metadata (subpath "/dev/fd"))
+(allow file-read-metadata
+       (path-ancestors (param "MODELS"))
+       (path-ancestors (param "HELPER"))
+       (path-ancestors (param "CACHE")))
+
+;; The system's own libraries and frameworks (dyld, its shared cache in the
+;; OS cryptex, Metal and the GPU driver), read and mapped.
+(allow file-read*
+       (subpath "/System/Library")
+       (subpath "/System/Cryptexes")
+       (subpath "/System/Volumes/Preboot/Cryptexes")
+       (subpath "/usr/lib")
+       (literal "/"))
+(allow file-map-executable
+       (subpath "/System/Library/Frameworks")
+       (subpath "/System/Library/PrivateFrameworks")
+       (subpath "/System/Library/Extensions")
+       (subpath "/usr/lib"))
+
+;; Metal's shader cache for this helper.
+(allow file-read* file-write* (subpath (param "CACHE")))
+
+;; The GPU: its driver's user client and IOSurface.
+(allow iokit-get-properties)
+(allow iokit-open-service
+       (iokit-registry-entry-class "IOSurfaceRoot")
+       (iokit-registry-entry-class "AGXAccelerator"))
+(allow iokit-open-user-client
+       (iokit-user-client-class "AGXDeviceUserClient" "IOSurfaceRootUserClient"))
+
+;; Metal's shader compiler, the one service it may reach.
+(allow mach-lookup
+       (global-name "com.apple.MTLCompilerService")
+       (xpc-service-name "com.apple.MTLCompilerService"))

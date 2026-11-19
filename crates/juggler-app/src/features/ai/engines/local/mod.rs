@@ -17,17 +17,24 @@
 //! **One job's path** ([`AiEngine::respond`]):
 //! 1. the installed model's file, `<sha256>.gguf` in the models' folder,
 //!    hashed in full before its first load and stamped ([`verify`]);
-//! 2. the memory check against `min_memory_gb`, then the helper, started
-//!    lazily with the folder as its only argument, at utility quality of
-//!    service (`taskpolicy -c utility`), with the allowed environment only
-//!    and llama.cpp's crash backtrace (which would start a debugger) off;
-//! 3. `load` by the file's name only, when another model (or none) is
-//!    loaded, within [`LOAD_WAIT`];
+//! 2. the memory check against `min_memory_gb`, never under critical
+//!    memory pressure; then the helper, started lazily
+//!    ([`Local::command`]): under its own deny-by-default sandbox profile
+//!    (`sandbox-exec`), a memory cap ([`cap_mib`]) and utility quality of
+//!    service (`taskpolicy`), in the models' folder with the folder as its
+//!    only argument, the allowed environment only, and llama.cpp's crash
+//!    backtrace off;
+//! 3. `load` by the file's name only, with the device and inode that
+//!    were hashed (the helper opens it without following a link and loads
+//!    only that file), when another model (or none) is loaded, within
+//!    [`LOAD_WAIT`];
 //! 4. `generate` with the job's frame, its shape as a JSON schema
 //!    ([`shape`]), the model's tested sampling within the protocol's
 //!    compiled bounds, and the job's deadline as the timeout. A stop or
 //!    the deadline sends `cancel` and waits [`CANCEL_GRACE`] for the
 //!    helper to say so; one that doesn't is stopped (its own child).
+//!    Critical memory pressure stops it the same way and lets the helper
+//!    go.
 //!
 //! **Its life.** The helper exits by itself after
 //! [`juggler_local_ai_protocol::IDLE_EXIT_SECS`] idle and when stdin
@@ -78,9 +85,17 @@ const DEFAULT_CONTEXT: u32 = 4_096;
 const HEALTH_FAILURES: usize = 3;
 const HEALTH_WINDOW: Duration = Duration::from_secs(3_600);
 
-/// The helper's quality of service: the system's own tool clamps it to
-/// utility.
-const TASKPOLICY: &str = "/usr/sbin/taskpolicy";
+/// The helper's quality of service and memory cap: the system's own tool
+/// clamps it to utility and gives it a memory limit (review L3).
+const TASKPOLICY: &str = juggler_adapter::system_tools::TASKPOLICY;
+
+/// The system's sandbox tool: it applies the helper's profile
+/// (`juggler_local_ai_protocol::SANDBOX_PROFILE`) and then runs it. Without
+/// it the helper never runs (fails closed).
+const SANDBOX_EXEC: &str = juggler_adapter::system_tools::SANDBOX_EXEC;
+
+/// The cap a helper with no model yet starts with (a probe's hello).
+pub const BARE_CAP_MIB: u64 = 1_024;
 
 /// This computer, as far as the engine goes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -122,6 +137,46 @@ pub struct Setup {
     pub models: Option<(PathBuf, Vec<Installed>)>,
     /// This computer; `None` reads it.
     pub host: Option<Host>,
+    /// Whether memory pressure is critical now; `None` reads the kernel's
+    /// level.
+    pub pressure: Option<fn() -> bool>,
+    /// Run the helper without its sandbox (tests with a fake helper
+    /// script only: the sandbox lets the helper run nothing but itself).
+    pub unsandboxed: bool,
+}
+
+/// The kernel's memory pressure is critical now.
+fn critical_pressure() -> bool {
+    use juggler_supervisor::machine::{HostReadings, OsReadings as _, PressureLevel};
+    HostReadings.pressure() == Some(PressureLevel::Critical)
+}
+
+/// The memory cap for a helper running a model of `size_bytes` (review
+/// L3): twice the file and 2 GiB for its context and the GPU's buffers,
+/// never more than three quarters of this computer's memory, never less
+/// than [`BARE_CAP_MIB`]. Past it the system ends the helper (the job
+/// then falls back, as for any crash).
+#[must_use]
+pub fn cap_mib(size_bytes: u64, host: Host) -> u64 {
+    let want = size_bytes
+        .div_ceil(1 << 20)
+        .saturating_mul(2)
+        .saturating_add(2_048);
+    let most = host.memory_gb.saturating_mul(1_000_000_000) / (1 << 20) * 3 / 4;
+    want.min(most).max(BARE_CAP_MIB)
+}
+
+/// Metal's shader cache for the helper: the user's cache folder (the
+/// sibling `C` of the per-user temporary folder `T` under
+/// `/private/var/folders`) and the helper's identifier; a path that holds
+/// nothing when it can't tell (the helper then compiles its kernels at
+/// every start).
+#[must_use]
+pub fn metal_cache() -> PathBuf {
+    let tmp = std::fs::canonicalize(std::env::temp_dir()).ok();
+    tmp.filter(|t| t.file_name().is_some_and(|n| n == "T") && t.starts_with("/private/var/folders"))
+        .and_then(|t| t.parent().map(|p| p.join("C").join(protocol::IDENTIFIER)))
+        .unwrap_or_else(|| PathBuf::from("/nonexistent/ai-juggler-local-ai-cache"))
 }
 
 /// What the last probe saw of the helper.
@@ -145,6 +200,8 @@ struct Running {
     loaded: Option<String>,
     /// When it last answered.
     used: Instant,
+    /// The memory cap it was started with, in MiB.
+    cap_mib: u64,
 }
 
 /// The local engine.
@@ -243,6 +300,13 @@ impl Local {
         self.setup.host.unwrap_or_else(Host::this_one)
     }
 
+    /// Memory pressure is critical now.
+    fn critical(&self) -> bool {
+        self.setup
+            .pressure
+            .map_or_else(critical_pressure, |read| read())
+    }
+
     /// The models' folder and the installed models.
     fn models(&self) -> Option<(PathBuf, Vec<Installed>)> {
         if let Some((dir, installed)) = &self.setup.models {
@@ -271,28 +335,57 @@ impl Local {
         juggler_platform::code_trust::own_helper(protocol::PROGRAM, protocol::IDENTIFIER)
     }
 
-    /// The helper's command: the folder its only argument, utility quality
-    /// of service, the allowed environment, and llama.cpp's crash
-    /// backtrace off (it would start a debugger).
-    fn command(program: &Path, dir: &Path) -> Command {
+    /// The helper's command (review M1, L3): `taskpolicy -c utility -m
+    /// <cap>` runs `sandbox-exec` with the helper's profile, which runs the
+    /// helper with the folder as its only argument and its working folder;
+    /// the allowed environment only, with llama.cpp's crash backtrace off.
+    /// `None` without the system's sandbox tool (fails closed).
+    #[must_use]
+    pub fn command(program: &Path, dir: &Path, cap_mib: u64, sandboxed: bool) -> Option<Command> {
         let taskpolicy = Path::new(TASKPOLICY);
-        let mut command = if cfg!(target_os = "macos") && taskpolicy.is_file() {
-            let mut command = juggler_platform::process::helper(taskpolicy);
-            command.args(["-c", "utility"]).arg(program);
-            command
-        } else {
-            juggler_platform::process::helper(program)
-        };
+        let sandbox = Path::new(SANDBOX_EXEC);
+        if !cfg!(target_os = "macos") || !taskpolicy.is_file() {
+            return None;
+        }
+        let mut command = juggler_platform::process::helper(taskpolicy);
         command
+            .args(["-c", "utility", "-m"])
+            .arg(cap_mib.to_string());
+        if sandboxed {
+            if !sandbox.is_file() {
+                return None;
+            }
+            let param = |name: &str, path: &Path| {
+                let mut arg = std::ffi::OsString::from(format!("{name}="));
+                arg.push(path);
+                arg
+            };
+            command
+                .arg(sandbox)
+                .args(["-p", protocol::SANDBOX_PROFILE, "-D"])
+                .arg(param("HELPER", program))
+                .arg("-D")
+                .arg(param("MODELS", dir))
+                .arg("-D")
+                .arg(param("CACHE", &metal_cache()));
+        }
+        command
+            .arg(program)
             .arg(MODELS_DIR_ARG)
             .arg(dir)
+            .current_dir(dir)
             .env("GGML_NO_BACKTRACE", "1");
-        command
+        Some(command)
     }
 
     /// Starts the helper and checks its hello.
-    fn start(&self, program: &Path, dir: &Path) -> Result<Helper, EngineError> {
-        let helper = Helper::launch(Self::command(program, dir), HELLO_WAIT)?;
+    fn start(&self, program: &Path, dir: &Path, cap_mib: u64) -> Result<Helper, EngineError> {
+        let program = std::fs::canonicalize(program)
+            .map_err(|_| EngineError::NotHere(Reason::HelperMissing))?;
+        let dir = std::fs::canonicalize(dir).map_err(|_| EngineError::NotHere(Reason::Unknown))?;
+        let command = Self::command(&program, &dir, cap_mib, !self.setup.unsandboxed)
+            .ok_or(EngineError::NotHere(Reason::HelperMissing))?;
+        let helper = Helper::launch(command, HELLO_WAIT)?;
         let hello = serde_json::to_vec(&helper.hello).map_err(|_| EngineError::Crashed)?;
         if let Ok(Answer::Hello {
             protocol: protocol::PROTOCOL,
@@ -347,6 +440,7 @@ impl Local {
         running: &mut Running,
         sha256: &str,
         size_bytes: u64,
+        id_on_disk: juggler_platform::transfer::FileId,
         context_tokens: u32,
         stop: &Stop,
     ) -> Result<(), EngineError> {
@@ -356,6 +450,8 @@ impl Local {
             id,
             file,
             size_bytes,
+            device: id_on_disk.device,
+            inode: id_on_disk.inode,
             context_tokens,
         }
         .encode()
@@ -420,7 +516,17 @@ impl Local {
             Err(Fault::TooLarge) => return Ok(Err(EngineError::TooLong)),
             Err(_) => return Ok(Err(EngineError::Unsupported)),
         };
-        let answer = match running.helper.exchange(&line, stop) {
+        // Review L3: critical memory pressure stops the generation (read
+        // at most every quarter second while it runs).
+        let checked = std::cell::Cell::new(Instant::now());
+        let keep = || {
+            if checked.get().elapsed() < Duration::from_millis(250) {
+                return true;
+            }
+            checked.set(Instant::now());
+            !self.critical()
+        };
+        let answer = match running.helper.exchange_while(&line, stop, &keep) {
             Ok(answer) => answer,
             Err(stopped @ (EngineError::Stopped | EngineError::TimedOut)) => {
                 return Self::cancel(running, id, stopped);
@@ -534,7 +640,7 @@ impl AiEngine for Local {
         let Some((dir, _)) = self.models() else {
             return;
         };
-        match self.start(&program, &dir) {
+        match self.start(&program, &dir, BARE_CAP_MIB) {
             Ok(helper) => {
                 if let Ok(mut failures) = self.failures.lock() {
                     failures.clear();
@@ -565,16 +671,30 @@ impl AiEngine for Local {
         let file = model_file_name(&mine.sha256)
             .map(|name| dir.join(name))
             .ok_or(EngineError::NotHere(Reason::Unknown))?;
-        self.verified
+        let id_on_disk = self
+            .verified
             .check(&file, &mine.sha256, mine.size_bytes, stop)?;
         let mut slot = self.running.lock().map_err(|_| EngineError::Crashed)?;
-        if !slot.as_mut().is_some_and(|r| r.helper.alive()) {
+        // Review L3: never start or load under critical memory pressure,
+        // and let go of what is held.
+        if self.critical() {
             *slot = None;
-            let helper = self.start(&program, &dir).inspect_err(|_| self.failed())?;
+            return Err(EngineError::NotHere(Reason::Unknown));
+        }
+        let cap = cap_mib(mine.size_bytes, self.host());
+        if !slot
+            .as_mut()
+            .is_some_and(|r| r.helper.alive() && r.cap_mib >= cap)
+        {
+            *slot = None;
+            let helper = self
+                .start(&program, &dir, cap)
+                .inspect_err(|_| self.failed())?;
             *slot = Some(Running {
                 helper,
                 loaded: None,
                 used: Instant::now(),
+                cap_mib: cap,
             });
         }
         let Some(running) = slot.as_mut() else {
@@ -585,6 +705,7 @@ impl AiEngine for Local {
                 running,
                 &mine.sha256,
                 mine.size_bytes,
+                id_on_disk,
                 context_of(&mine.entry),
                 stop,
             ) {
@@ -606,6 +727,10 @@ impl AiEngine for Local {
         }
         let result = self.generate(running, &mine.entry, request, stop);
         running.used = Instant::now();
+        if self.critical() {
+            // Stopped by critical pressure: free the model's memory now.
+            *slot = None;
+        }
         match result {
             Ok(answer) => answer,
             Err(error) => {
@@ -626,5 +751,4 @@ impl AiEngine for Local {
 }
 
 #[cfg(test)]
-#[path = "tests.rs"]
 mod tests;

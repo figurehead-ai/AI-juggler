@@ -25,6 +25,8 @@ fn load() -> Request {
         id: 1,
         file: model_file_name(SHA).unwrap(),
         size_bytes: 1_834_426_016,
+        device: 16_777_234,
+        inode: 4_242,
         context_tokens: 4_096,
     }
 }
@@ -150,6 +152,8 @@ fn a_file_is_named_only_by_its_hash() {
             id: 1,
             file: name,
             size_bytes: 1,
+            device: 1,
+            inode: 1,
             context_tokens: 4_096,
         };
         assert_eq!(request.check(), Err(Fault::BadRequest));
@@ -211,6 +215,8 @@ fn numbers_outside_their_bounds_are_refused() {
             id: 1,
             file: model_file_name(SHA).unwrap(),
             size_bytes: size,
+            device: 1,
+            inode: 1,
             context_tokens: context,
         };
         assert_eq!(request.check(), Err(Fault::BadRequest), "{size} {context}");
@@ -281,4 +287,105 @@ fn the_most_text_fits_an_answer_even_fully_escaped() {
         tokens: u32::MAX,
     };
     assert!(answer.encode().is_ok());
+}
+
+/// I2: parsing a line checks its bounds, not only its shape: a request
+/// that reads as JSON but breaks a bound is refused by `parse_request`
+/// itself.
+#[test]
+fn parse_request_checks_the_bounds() {
+    for line in [
+        r#"{"op":"generate","id":1,"instructions":"a","prompt":"b","max_tokens":0,"timeout_ms":1000}"#,
+        r#"{"op":"generate","id":1,"instructions":"a","prompt":"b","max_tokens":10,"timeout_ms":1000,"sampling":{"top_k":201}}"#,
+        r#"{"op":"generate","id":1,"instructions":"a\u0000","prompt":"b","max_tokens":10,"timeout_ms":1000}"#,
+        r#"{"op":"load","id":1,"file":"../x.gguf","size_bytes":1,"device":1,"inode":1,"context_tokens":4096}"#,
+        r#"{"op":"load","id":1,"file":"0000000000000000000000000000000000000000000000000000000000000000.gguf","size_bytes":0,"device":1,"inode":1,"context_tokens":4096}"#,
+    ] {
+        let request: Request = serde_json::from_str(line).unwrap();
+        assert_eq!(request.check(), Err(Fault::BadRequest), "{line}");
+        assert_eq!(
+            parse_request(line.as_bytes()),
+            Err(Fault::BadRequest),
+            "{line}"
+        );
+    }
+}
+
+/// The profile's top-level forms, comments removed, whitespace collapsed.
+fn forms(profile: &str) -> Vec<String> {
+    let code: String = profile
+        .lines()
+        .map(|line| line.split(';').next().unwrap_or(""))
+        .collect::<Vec<_>>()
+        .join(" ");
+    let mut out = Vec::new();
+    let (mut depth, mut start) = (0_i32, 0);
+    for (i, c) in code.char_indices() {
+        match c {
+            '(' => {
+                if depth == 0 {
+                    start = i;
+                }
+                depth += 1;
+            }
+            ')' => {
+                depth -= 1;
+                if depth == 0 {
+                    out.push(
+                        code[start..=i]
+                            .split_whitespace()
+                            .collect::<Vec<_>>()
+                            .join(" "),
+                    );
+                }
+            }
+            _ => {}
+        }
+    }
+    assert_eq!(depth, 0, "balanced");
+    out
+}
+
+#[test]
+fn the_sandbox_denies_by_default_and_allows_one_service() {
+    let forms = forms(SANDBOX_PROFILE);
+    assert_eq!(forms[0], "(version 1)");
+    assert_eq!(forms[1], "(deny default)");
+    assert!(
+        forms[2..].iter().all(|f| f.starts_with("(allow ")),
+        "only allows after the default deny"
+    );
+    let lookups: Vec<&String> = forms.iter().filter(|f| f.contains("mach-lookup")).collect();
+    assert_eq!(
+        lookups,
+        [&"(allow mach-lookup (global-name \"com.apple.MTLCompilerService\") (xpc-service-name \"com.apple.MTLCompilerService\"))".to_owned()]
+    );
+    let execs: Vec<&String> = forms
+        .iter()
+        .filter(|f| f.contains("process-exec"))
+        .collect();
+    assert_eq!(
+        execs,
+        [&"(allow process-exec (literal (param \"HELPER\")))".to_owned()]
+    );
+    let writes: Vec<&String> = forms.iter().filter(|f| f.contains("write")).collect();
+    assert_eq!(
+        writes,
+        [&"(allow file-read* file-write* (subpath (param \"CACHE\")))".to_owned()]
+    );
+    for never in [
+        "network",
+        "process-fork",
+        "lsopen",
+        "launchservices",
+        "/private",
+        "/Users",
+        "/etc",
+        "/tmp",
+        "(subpath \"/System\")",
+        "/System/Volumes/Data",
+        "(allow default",
+    ] {
+        assert!(!forms.iter().any(|f| f.contains(never)), "{never}");
+    }
 }

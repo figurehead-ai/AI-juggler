@@ -31,7 +31,10 @@ llama-cpp-sys-2 = { version = "=0.1.146", default-features = false }
 encoding_rs = "0.8.35"
 # The chat messages handed to the template (already the protocol's).
 serde_json = "1.0.154"
-juggler-local-ai-protocol = { path = "../juggler-local-ai-protocol" }
+juggler-local-ai-protocol = { version = "0.4.0", path = "../juggler-local-ai-protocol" }
+# O_NOFOLLOW for opening the model file (a constant; no `unsafe` here).
+# Already in this lock (llama-cpp-sys-2's build).
+libc = "0.2.191"
 
 [target.'cfg(all(target_os = "macos", target_arch = "aarch64"))'.dependencies]
 llama-cpp-2 = { version = "=0.1.146", default-features = false, features = ["metal"] }

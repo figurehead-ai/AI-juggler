@@ -21,13 +21,19 @@
 //! running generation stops it between two tokens. It exits when stdin
 //! closes, on `quit`, after `IDLE_EXIT_SECS` with nothing to do, and on a
 //! line over its bound (the stream can't be trusted after it).
+//!
+//! **It ends cleanly.** The reader never exits the process: on quit, a
+//! closed stdin or an oversized line it stops the running generation and
+//! goes, the worker unwinds (freeing the model and its GPU buffers), and
+//! `main` exits with the reader's code. Exiting with the model still
+//! loaded would run the GPU backend's teardown under it (an abort).
 
 mod llm;
 
 use std::io::{BufRead, BufReader, Read as _, Write as _};
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
-use std::sync::mpsc::{Receiver, RecvTimeoutError, Sender, channel};
+use std::sync::atomic::{AtomicBool, AtomicI32, AtomicU64, Ordering};
+use std::sync::mpsc::{Receiver, Sender, channel};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -47,6 +53,8 @@ pub struct Shared {
     cancel: AtomicBool,
     /// The answers' channel, one line at a time.
     out: Mutex<()>,
+    /// The exit code the reader chose when it stopped.
+    exit: AtomicI32,
 }
 
 impl Shared {
@@ -73,6 +81,13 @@ impl Shared {
     /// Whether the running generation was asked to stop.
     pub fn cancelled(&self) -> bool {
         self.cancel.load(Ordering::SeqCst)
+    }
+
+    /// The reader stops: the running generation stops with it, and the
+    /// process exits with `code` once the worker has let go.
+    fn stop_with(&self, code: i32) {
+        self.exit.store(code, Ordering::SeqCst);
+        self.cancel.store(true, Ordering::SeqCst);
     }
 
     /// The worker answered: the next request may come.
@@ -119,6 +134,8 @@ fn main() {
         std::process::exit(1);
     }
     llm::serve(&backend, &dir, &Wait::new(queue), &shared);
+    drop(backend);
+    std::process::exit(shared.exit.load(Ordering::SeqCst));
 }
 
 /// The worker's queue, with the idle exit.
@@ -132,16 +149,13 @@ impl Wait {
         Self { queue }
     }
 
-    /// The next load or generation; exits after `IDLE_EXIT_SECS` with
-    /// none, or when the reader is gone.
+    /// The next load or generation; `None` after `IDLE_EXIT_SECS` with
+    /// none, or when the reader is gone (the worker then unwinds).
     #[must_use]
-    pub fn next(&self) -> Request {
-        match self.queue.recv_timeout(Duration::from_secs(IDLE_EXIT_SECS)) {
-            Ok(request) => request,
-            Err(RecvTimeoutError::Timeout | RecvTimeoutError::Disconnected) => {
-                std::process::exit(0)
-            }
-        }
+    pub fn next(&self) -> Option<Request> {
+        self.queue
+            .recv_timeout(Duration::from_secs(IDLE_EXIT_SECS))
+            .ok()
     }
 }
 
@@ -150,13 +164,13 @@ fn read_requests(shared: &Shared, work: &Sender<Request>) {
     let mut input = BufReader::new(std::io::stdin().lock());
     loop {
         let line = match bounded_line(&mut input) {
-            Line::End => std::process::exit(0),
+            Line::End => return shared.stop_with(0),
             Line::TooLong => {
                 shared.send(&Answer::Error {
                     id: None,
                     error: Fault::TooLarge,
                 });
-                std::process::exit(2);
+                return shared.stop_with(2);
             }
             Line::Bytes(bytes) => bytes,
         };
@@ -168,7 +182,7 @@ fn read_requests(shared: &Shared, work: &Sender<Request>) {
             }
         };
         match request {
-            Request::Quit {} => std::process::exit(0),
+            Request::Quit {} => return shared.stop_with(0),
             Request::Cancel { id } => {
                 // Only the running generation; anything else is a no-op
                 // (it has answered, or never ran). A cancel has no answer
@@ -184,7 +198,7 @@ fn read_requests(shared: &Shared, work: &Sender<Request>) {
                         error: Fault::Busy,
                     });
                 } else if work.send(request).is_err() {
-                    std::process::exit(0);
+                    return shared.stop_with(0);
                 }
             }
         }

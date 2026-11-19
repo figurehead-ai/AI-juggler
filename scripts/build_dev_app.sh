@@ -23,7 +23,8 @@
 # system's Swift compiler and signed ad hoc with its sandbox; the .app's
 # copy is checked (signature, identifier, entitlements, the app's team).
 # And the local model's helper, `juggler-local-ai` (D-131), built offline
-# from its own workspace (llama.cpp) and signed ad hoc with its sandbox.
+# from its own workspace (llama.cpp) and signed ad hoc (no entitlements:
+# the app applies its sandbox profile at every start).
 set -euo pipefail
 cd "$(dirname "$0")/.."
 

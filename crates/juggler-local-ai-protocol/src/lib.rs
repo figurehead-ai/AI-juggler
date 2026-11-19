@@ -36,7 +36,7 @@
 use serde::{Deserialize, Serialize};
 
 /// The protocol version both sides speak; the hello carries it.
-pub const PROTOCOL: u32 = 1;
+pub const PROTOCOL: u32 = 2;
 
 /// The helper's file name, in the app's bundle beside AI Juggler.
 pub const PROGRAM: &str = "juggler-local-ai";
@@ -47,6 +47,14 @@ pub const IDENTIFIER: &str = "ai.figurehead.juggler.local-ai";
 
 /// The one argument the helper takes, followed by the models' folder.
 pub const MODELS_DIR_ARG: &str = "--models-dir";
+
+/// The helper's sandbox (SBPL), applied by `/usr/bin/sandbox-exec` at
+/// every start, with three parameters: `HELPER` (the helper's own path),
+/// `MODELS` (the models' folder) and `CACHE` (Metal's shader cache for the
+/// helper's identifier). Everything is denied but what the helper was
+/// shown by test to need (ADR-0033 §4.2 "As built"). One source for the
+/// app, which applies it, and the helper's tests, which probe it.
+pub const SANDBOX_PROFILE: &str = include_str!("../sandbox.sb");
 
 /// The largest request line, its newline excluded (ADR-0033 §4: 32 KiB).
 pub const MAX_REQUEST_BYTES: usize = 32 * 1024;
@@ -192,6 +200,12 @@ pub enum Request {
         file: String,
         /// Its exact size; any other size is refused.
         size_bytes: u64,
+        /// The disk (device) the app hashed it on: the helper opens the
+        /// file without following a link and loads it only when the file
+        /// it opened is this one.
+        device: u64,
+        /// Its inode on that disk.
+        inode: u64,
         /// The context to load it with, in tokens.
         context_tokens: u32,
     },
