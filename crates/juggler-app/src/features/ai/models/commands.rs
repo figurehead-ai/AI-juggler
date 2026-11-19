@@ -41,6 +41,22 @@ fn offered(listing: &Listing, id: &str) -> Option<ModelEntry> {
         .find(|entry| entry.id == id && entry.engine == Engine::GgufLocal)
 }
 
+/// The licence text of the listed or installed model `id`: the address
+/// the signed list carries (on its allowed licence hosts), for the Models
+/// screen's licence link.
+#[must_use]
+pub fn licence_url(state: &AppState, id: &str) -> Option<String> {
+    let listing = listing();
+    let installed = super::installed_entries(&store::shared(&state.data_dir).installed(), &listing);
+    super::offered(&listing)
+        .iter()
+        .chain(installed.iter())
+        .find(|model| model.id == id)?
+        .download
+        .as_ref()
+        .map(|download| download.licence_url.clone())
+}
+
 /// The models on this Mac, the download, and the declines (pure but for
 /// the store's index).
 #[must_use]
