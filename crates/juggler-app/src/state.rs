@@ -84,6 +84,10 @@ pub struct AppState {
     /// 0.3: open sessions at their limit — each transcript's tail as last
     /// read, and driven sessions' marks. Held in memory only.
     pub limits: crate::features::sessions::limits::LimitWatch,
+    /// F-rc3g-1: the last limits reading each folder's driven sessions
+    /// stored, so the same one is stored again at most once a minute.
+    /// Held in memory only.
+    pub driven_readings: crate::features::quota::driven::DrivenReadings,
     /// Stuck/waiting/quota heuristics (AJ-E405); thresholds user-tunable
     /// via `heuristics.json`.
     pub heuristics: HeuristicEngine,
@@ -459,6 +463,7 @@ impl AppState {
             floor: crate::features::floor::Floor::default(),
             tasks: crate::features::tasks::Tasks::default(),
             limits: crate::features::sessions::limits::LimitWatch::default(),
+            driven_readings: crate::features::quota::driven::DrivenReadings::default(),
             heuristics,
             provider_stuck_secs: load_provider_thresholds(&data_dir),
             updates: crate::updates::UpdateManager::default(),

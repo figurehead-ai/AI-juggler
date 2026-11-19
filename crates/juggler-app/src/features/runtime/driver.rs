@@ -712,6 +712,51 @@ const fn at_a_boundary(event: &RuntimeEvent) -> bool {
     )
 }
 
+/// What waits for the session's record (it is written just after the
+/// start): the conversation to link, and the tool's last limits update to
+/// keep as its account's reading (F-rc3g-1).
+#[derive(Default)]
+struct Unstored {
+    link: Option<(String, Option<String>)>,
+    limits: Option<LimitsSnapshot>,
+}
+
+impl Unstored {
+    /// Takes what `event` brings to store (before the snapshot takes it).
+    fn take(&mut self, event: &RuntimeEvent, snapshot: &Mutex<Snapshot>) {
+        match event {
+            RuntimeEvent::Started {
+                native_id, path, ..
+            } => self.link = Some((native_id.clone(), path.clone())),
+            RuntimeEvent::Transcript { path } => {
+                if let Some(native_id) = snapshot.lock().ok().and_then(|s| s.native_id.clone()) {
+                    self.link = Some((native_id, Some(path.clone())));
+                }
+            }
+            RuntimeEvent::LimitsUpdated { limits } => self.limits = Some(limits.clone()),
+            _ => {}
+        }
+    }
+
+    /// Stores what can be stored now; the rest waits.
+    fn store(&mut self, state: &std::sync::Weak<AppState>, session: &SessionId) {
+        if self.link.is_none() && self.limits.is_none() {
+            return;
+        }
+        let Some(state) = state.upgrade() else { return };
+        if let Some((native_id, path)) = &self.link
+            && link(&state, session, native_id, path.as_deref())
+        {
+            self.link = None;
+        }
+        if let Some(limits) = &self.limits
+            && crate::features::quota::driven::note(&state, session, limits).is_some()
+        {
+            self.limits = None;
+        }
+    }
+}
+
 fn run(
     state: &std::sync::Weak<AppState>,
     session: &SessionId,
@@ -719,8 +764,7 @@ fn run(
     commands: &Receiver<Command>,
     snapshot: &Arc<Mutex<Snapshot>>,
 ) {
-    // The conversation to link, once the session's record exists.
-    let mut unlinked: Option<(String, Option<String>)> = None;
+    let mut unstored = Unstored::default();
     // AJ-E2310: the mark that brings the session back after a restart.
     let mark = |state: &Arc<AppState>| {
         let now = snapshot.lock().ok().and_then(|snap| {
@@ -742,12 +786,7 @@ fn run(
         mark(&state);
     }
     loop {
-        if let Some((native_id, path)) = &unlinked
-            && let Some(state) = state.upgrade()
-            && link(&state, session, native_id, path.as_deref())
-        {
-            unlinked = None;
-        }
+        unstored.store(state, session);
         // The user's commands first, so an answer never waits on events.
         loop {
             match commands.try_recv() {
@@ -777,17 +816,7 @@ fn run(
         let Some(state) = state.upgrade() else { return };
         match driven.next_event(POLL) {
             Ok(Some(event)) => {
-                if let RuntimeEvent::Started {
-                    native_id, path, ..
-                } = &event
-                {
-                    unlinked = Some((native_id.clone(), path.clone()));
-                }
-                if let RuntimeEvent::Transcript { path } = &event
-                    && let Some(native_id) = snapshot.lock().ok().and_then(|s| s.native_id.clone())
-                {
-                    unlinked = Some((native_id, Some(path.clone())));
-                }
+                unstored.take(&event, snapshot);
                 note_command(&state, session, &event);
                 let (stored, ended) = snapshot.lock().map_or((false, false), |mut snap| {
                     (snap.apply(session, &event), snap.ended)

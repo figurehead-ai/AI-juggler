@@ -317,6 +317,105 @@ fn codex_runs_through_its_own_app_server_by_default() {
     stop(&state, &session);
 }
 
+/// The account (folder) `session` runs on, and how its limits show now.
+fn quota_of(
+    state: &Arc<AppState>,
+    session: &str,
+) -> juggler_app::features::quota::QuotaDisplayInfo {
+    let storage = state.storage.lock().unwrap();
+    let record = storage.sessions().get(&SessionId::new(session)).unwrap();
+    let recipe = storage.profiles().get(&record.profile).unwrap();
+    let account = storage.accounts().get(&recipe.account).unwrap();
+    let now = juggler_core::model::Timestamp::now().millis();
+    juggler_app::features::quota::quota_display_inner(&storage, &account, now)
+}
+
+/// The account's stored 5-hour readings, each with its source.
+fn five_hour_rows(
+    state: &Arc<AppState>,
+    session: &str,
+) -> Vec<(
+    juggler_core::quota::QuotaSample,
+    Option<juggler_core::quota::UsageSource>,
+)> {
+    let account = quota_of(state, session).account;
+    state
+        .storage
+        .lock()
+        .unwrap()
+        .usage()
+        .sourced_samples_since(&account, juggler_core::quota::WindowKind::FiveHour, 0)
+        .unwrap()
+}
+
+fn replies(state: &Arc<AppState>, session: &str) -> usize {
+    runtime::get_impl(state, session)
+        .unwrap()
+        .unwrap()
+        .items
+        .iter()
+        .filter(|item| item.text == "done")
+        .count()
+}
+
+/// F-rc3g-1 (the 0.4.6 rc3f walk: a driven session's panel said "5 hours:
+/// 36% used" while its account's runway on the same page said "100% left,
+/// from the Claude app, 1 h ago", and the account ran out two hours on):
+/// a driven session's limits update is its account's reading, named as
+/// its own, and the same update again writes nothing.
+#[test]
+fn a_driven_sessions_limits_are_its_accounts_reading() {
+    let work = tempfile::tempdir().unwrap();
+    let state = app_state(work.path(), None);
+    let profile = new_profile(&state, CODEX_ID, work.path());
+    let session = juggler_app::features::launch::launch_profile(&state, &profile, None)
+        .unwrap()
+        .session_id;
+    assert!(state.runtime.is_driven(&SessionId::new(session.as_str())));
+    let five_hour_pct = || {
+        quota_of(&state, &session)
+            .five_hour
+            .and_then(|window| window.percentage)
+    };
+
+    // fake-codex reads its limits at the start: 12% of the 5 hours, 40% of
+    // the week, both with their resets.
+    wait_for("the start's reading", || five_hour_pct() == Some(12.0));
+    let shown = quota_of(&state, &session);
+    let five_hour = shown.five_hour.unwrap();
+    assert_eq!(five_hour.source.as_deref(), Some("driven"));
+    assert_eq!(
+        five_hour.source_words.as_deref(),
+        Some("Codex's run in AI Juggler")
+    );
+    assert!(five_hour.resets_at_ms.is_some());
+    let weekly = shown.weekly.unwrap();
+    assert_eq!(weekly.percentage, Some(40.0));
+    assert_eq!(weekly.source.as_deref(), Some("driven"));
+
+    // A turn's update (13%) is the reading now.
+    runtime::send_impl(&state, &session, "hello").unwrap();
+    wait_for("the turn's reading", || five_hour_pct() == Some(13.0));
+    let kept = five_hour_rows(&state, &session);
+    assert!(
+        kept.iter()
+            .all(|(_, source)| *source == Some(juggler_core::quota::UsageSource::Driven))
+    );
+
+    // Two more turns, each ending with the same update: nothing is written
+    // (events are taken in order, so the third turn's reply comes after
+    // the second's update was).
+    for (turn, said) in [(2, "again"), (3, "once more")] {
+        replied(&state, &session);
+        runtime::send_impl(&state, &session, said).unwrap();
+        wait_for("the reply", || replies(&state, &session) == turn);
+    }
+    assert_eq!(five_hour_rows(&state, &session), kept);
+    assert_eq!(five_hour_pct(), Some(13.0));
+
+    stop(&state, &session);
+}
+
 #[test]
 fn open_in_terminal_hands_the_thread_over_and_back() {
     use juggler_app::features::runtime::commands::{Toward, handover_impl};
@@ -327,9 +426,10 @@ fn open_in_terminal_hands_the_thread_over_and_back() {
         .unwrap()
         .session_id;
     runtime::send_impl(&state, &session, "hello").unwrap();
-    wait_for("the turn's end", || {
-        row(&state, &session).runtime.unwrap().state.as_deref() == Some("idle")
-    });
+    // The turn's own reply, then its end: the state read "idle" before the
+    // turn began too, and a handover taken then found no conversation
+    // written yet.
+    replied(&state, &session);
     let thread = state
         .runtime
         .driver(&session)
@@ -1010,6 +1110,35 @@ fn launch_driven(
 ) -> juggler_app::features::launch::dto::LaunchResult {
     juggler_app::features::launch::launch_profile_as(state, profile, None, Some(Runtime::Driven))
         .unwrap()
+}
+
+/// F-rc3g-1, as it was found: Claude Code without a terminal. Its
+/// rate_limit_event (27% of the 5 hours) is its account's reading, named
+/// as Claude Code's run in AI Juggler.
+#[test]
+fn claude_without_a_terminal_keeps_its_limits_as_its_accounts_reading() {
+    let work = tempfile::tempdir().unwrap();
+    let state = claude_state(work.path());
+    let profile = trusted_claude_profile(&state, work.path());
+    let session = launch_driven(&state, &profile).session_id;
+    runtime::send_impl(&state, &session, "hello").unwrap();
+    wait_for("the reading", || {
+        !five_hour_rows(&state, &session).is_empty()
+    });
+    let rows = five_hour_rows(&state, &session);
+    assert_eq!(rows.len(), 1);
+    assert!((rows[0].0.used_pct - 27.0).abs() < 1e-9);
+    assert_eq!(rows[0].0.resets_at, Some(1_761_397_200_000));
+    assert_eq!(rows[0].1, Some(juggler_core::quota::UsageSource::Driven));
+    // The fake's reset is long past, so the account shows it as history,
+    // still named by where it came from.
+    let five_hour = quota_of(&state, &session).five_hour.unwrap();
+    assert_eq!(five_hour.last_used_pct, Some(27.0));
+    assert_eq!(
+        five_hour.source_words.as_deref(),
+        Some("Claude Code's run in AI Juggler")
+    );
+    stop(&state, &session);
 }
 
 /// The app core, in a child: a Claude Code session started without a
