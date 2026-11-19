@@ -140,7 +140,7 @@ pub async fn ai_model_download_start(
             return Ok(StartInfo::refused(&Refusal::NotOffered));
         };
         let notify = notifier(app.clone(), Arc::downgrade(state));
-        let started = download::shared(&state.data_dir).start(&entry, approval.as_deref(), notify);
+        let started = download::shared(state).start(&entry, approval.as_deref(), notify);
         app.emit_event(AppEvent::AiModelsChanged, ());
         Ok(match started {
             Ok(()) => StartInfo::started(),

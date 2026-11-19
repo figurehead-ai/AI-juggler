@@ -305,6 +305,7 @@ pub(super) mod stub {
     pub struct FakeMac {
         pub low_power: AtomicBool,
         pub metered: AtomicBool,
+        pub busy: AtomicBool,
         pub free: AtomicU64,
         pub total: u64,
     }
@@ -314,6 +315,7 @@ pub(super) mod stub {
             Self {
                 low_power: AtomicBool::new(false),
                 metered: AtomicBool::new(false),
+                busy: AtomicBool::new(false),
                 free: AtomicU64::new(free),
                 total: 1_000_000_000_000,
             }
@@ -331,6 +333,10 @@ pub(super) mod stub {
 
         fn metered(&self) -> bool {
             self.metered.load(Ordering::Relaxed)
+        }
+
+        fn busy(&self) -> bool {
+            self.busy.load(Ordering::Relaxed)
         }
 
         fn disk(&self, _dir: &Path) -> Option<DiskSpace> {
@@ -552,7 +558,11 @@ fn a_redirect_off_the_list_ends_it_unfollowed() {
         ("https://evil.example/x.gguf", "another host"),
         ("http://cdn-lfs-us-1.hf.co/x.gguf", "not https"),
         ("/api/resolve-cache/x.gguf", "relative"),
-        ("https://user@cdn-lfs-us-1.hf.co/x.gguf", "userinfo"),
+        // Userinfo, its `@` kept apart so no address is written here.
+        (
+            concat!("https://user", "@", "cdn-lfs-us-1.hf.co/x.gguf"),
+            "userinfo",
+        ),
         ("https://cdn-lfs-us-1.hf.co:8443/x.gguf", "a port"),
     ] {
         let url = pinned(&format!("off-{}", why.replace(' ', "-")));
@@ -651,6 +661,7 @@ fn cancel_stops_it_and_leaves_no_partial_file() {
     let mut bench = Bench::new();
     // Slow enough to cancel half-way: 400 KB at 100 KB/s.
     bench.tuning.rate = Some(100_000);
+    bench.mac.busy.store(true, Ordering::Relaxed);
     let file = bytes(400_000, 5);
     let model = entry("qwen-test", &file);
     bench
@@ -805,6 +816,7 @@ fn the_disk_margin_holds_at_the_boundary_and_the_low_disk_line_stops_it() {
 fn a_disk_that_fills_up_while_it_runs_deletes_the_part() {
     let mut bench = Bench::new();
     bench.tuning.rate = Some(200_000);
+    bench.mac.busy.store(true, Ordering::Relaxed);
     let file = bytes(200_000, 12);
     let model = entry("qwen-test", &file);
     bench
@@ -827,4 +839,25 @@ fn apple_s_model_and_a_bad_hash_make_no_plan() {
     assert!(matches!(Plan::of(&model), Err(Failure::UrlRefused(_))));
     model.download = None;
     assert!(matches!(Plan::of(&model), Err(Failure::UrlRefused(_))));
+}
+
+#[test]
+fn the_rate_cap_holds_only_while_the_mac_is_busy() {
+    let file = bytes(200_000, 13);
+    let model = entry("qwen-test", &file);
+    let timed = |busy: bool| {
+        let mut bench = Bench::new();
+        bench.tuning.rate = Some(100_000);
+        bench.mac.busy.store(busy, Ordering::Relaxed);
+        bench
+            .server
+            .route(&pinned("qwen-test"), Reply::File(File::plain(&file)));
+        let started = Instant::now();
+        assert!(bench.run(&model).is_ok());
+        started.elapsed()
+    };
+    // Idle: full speed (the lowest thread priority is the only brake).
+    assert!(timed(false) < Duration::from_millis(1_200));
+    // Agents working or the Mac busy: 200 KB at 100 KB/s.
+    assert!(timed(true) >= Duration::from_millis(1_500));
 }

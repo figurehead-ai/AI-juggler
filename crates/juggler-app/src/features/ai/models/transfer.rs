@@ -138,16 +138,47 @@ pub trait Machine: Send + Sync {
     /// Free and total space of the disk `dir` is on; `None` when it
     /// can't be read (the transfer then waits: unknown fails closed).
     fn disk(&self, dir: &Path) -> Option<DiskSpace>;
+    /// The user's agents are working, or the Mac is busy: the transfer
+    /// keeps to [`Tuning::rate`] then, and goes at full speed otherwise.
+    fn busy(&self) -> bool;
 }
+
+/// How long a network-path reading stands (each one starts the helper).
+const PATH_FRESH: Duration = Duration::from_secs(30);
+
+/// Whether the user's agents are working or the Mac is busy (the app's
+/// own readings, cached by their ticks).
+pub type Busy = Box<dyn Fn() -> bool + Send + Sync>;
 
 /// This Mac, read through the seams that exist: Low Power Mode from the
 /// machine readings (`juggler-supervisor`), free disk from
-/// [`juggler_platform::room`]. The metered flag is the Apple helper's
-/// `NWPathMonitor` reading (ADR-0033 §10), which the helper doesn't
-/// carry yet: until it does, a link is never taken for metered. Other
-/// systems read no Low Power Mode, and no disk off Unix (D-52 stubs).
-#[derive(Debug, Default, Clone, Copy)]
-pub struct HostMachine;
+/// [`juggler_platform::room`], the network path from the system's
+/// `NWPathMonitor` through the Apple helper (ADR-0033 §10; at most every
+/// 30 s), busy from the app. Other systems read no Low Power
+/// Mode or network path, and no disk off Unix (D-52 stubs: an unknown
+/// link never pauses a download the user asked for).
+#[derive(Default)]
+pub struct HostMachine {
+    path: Mutex<Option<(Instant, bool)>>,
+    busy: Option<Busy>,
+}
+
+impl std::fmt::Debug for HostMachine {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("HostMachine").finish_non_exhaustive()
+    }
+}
+
+impl HostMachine {
+    /// This Mac, `busy` saying when the user's work comes first.
+    #[must_use]
+    pub fn new(busy: Busy) -> Self {
+        Self {
+            path: Mutex::new(None),
+            busy: Some(busy),
+        }
+    }
+}
 
 impl Machine for HostMachine {
     fn low_power(&self) -> bool {
@@ -158,7 +189,22 @@ impl Machine for HostMachine {
     }
 
     fn metered(&self) -> bool {
-        false
+        let Ok(mut cached) = self.path.lock() else {
+            return false;
+        };
+        if let Some((at, metered)) = *cached
+            && at.elapsed() < PATH_FRESH
+        {
+            return metered;
+        }
+        let metered = crate::features::ai::engines::network_path()
+            .is_some_and(|path| path.expensive || path.constrained);
+        *cached = Some((Instant::now(), metered));
+        metered
+    }
+
+    fn busy(&self) -> bool {
+        self.busy.as_ref().is_some_and(|busy| busy())
     }
 
     fn disk(&self, dir: &Path) -> Option<DiskSpace> {
@@ -270,8 +316,9 @@ pub enum Failure {
 pub struct Tuning {
     /// The bytes read at a time.
     pub chunk: usize,
-    /// The most bytes a second (ADR-0033 §5: 4 MB/s, so it never competes
-    /// with an agent's work); `None`: no cap.
+    /// The most bytes a second while [`Machine::busy`] (ADR-0033 §5:
+    /// 4 MB/s, so it never competes with an agent's work); full speed
+    /// otherwise, on the lowest thread priority. `None`: never capped.
     pub rate: Option<u64>,
     /// How often a paused transfer reads this Mac again.
     pub pause_poll: Duration,
@@ -753,7 +800,9 @@ fn stream(
 ) -> Result<Streamed, Failure> {
     let size = run.plan.size_bytes;
     let mut buffer = vec![0u8; run.tuning.chunk.max(1)];
-    let started = Instant::now();
+    // The cap counts from when it last turned on.
+    let mut capped = run.machine.busy();
+    let mut started = Instant::now();
     let mut this_stream: u64 = 0;
     let mut checked = Instant::now();
     let mut reported = Instant::now();
@@ -786,6 +835,12 @@ fn stream(
         }
         if checked.elapsed() >= run.tuning.check_every {
             checked = Instant::now();
+            let busy = run.machine.busy();
+            if busy && !capped {
+                started = Instant::now();
+                this_stream = 0;
+            }
+            capped = busy;
             match hold(
                 run.machine,
                 run.dir,
@@ -805,7 +860,7 @@ fn stream(
                 phase: Phase::Running,
             });
         }
-        if let Some(rate) = run.tuning.rate.filter(|rate| *rate > 0) {
+        if let Some(rate) = run.tuning.rate.filter(|rate| capped && *rate > 0) {
             #[allow(
                 clippy::cast_precision_loss,
                 reason = "a rate cap: a few bytes off on a multi-GB count is nothing"

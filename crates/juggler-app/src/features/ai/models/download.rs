@@ -307,14 +307,36 @@ impl Job {
 /// client with them): nothing exists before it.
 static DOWNLOADS: OnceLock<Downloads> = OnceLock::new();
 
+/// CPU use, percent of all cores, from which the Mac counts as busy.
+const BUSY_CPU_PERCENT: f64 = 50.0;
+
+/// Whether the user's agents are working on this Mac (the keep-awake
+/// tick's count) or the Mac is busy (the machine sampler's CPU): both
+/// cached readings, nothing measured here.
+fn busy_now(state: &crate::state::AppState) -> bool {
+    let working = crate::features::app::awake::current(&state.awake).working > 0;
+    working
+        || state.machine.lock().is_ok_and(|machine| {
+            machine
+                .sampler
+                .snapshot()
+                .latest
+                .and_then(|sample| sample.cpu_pct)
+                .is_some_and(|cpu| cpu >= BUSY_CPU_PERCENT)
+        })
+}
+
 /// The app's downloads over the production client, made now if needed.
 #[must_use]
-pub fn shared(data_dir: &std::path::Path) -> &'static Downloads {
+pub fn shared(state: &Arc<crate::state::AppState>) -> &'static Downloads {
     DOWNLOADS.get_or_init(|| {
+        let weak = Arc::downgrade(state);
+        let busy: transfer::Busy =
+            Box::new(move || weak.upgrade().is_some_and(|state| busy_now(&state)));
         Downloads::new(
-            super::store::shared(data_dir),
+            super::store::shared(&state.data_dir),
             Arc::new(transfer::HttpsFetch::new()),
-            Arc::new(transfer::HostMachine),
+            Arc::new(transfer::HostMachine::new(busy)),
             Tuning::default(),
         )
     })

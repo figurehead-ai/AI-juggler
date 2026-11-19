@@ -200,6 +200,7 @@ fn cancel_leaves_no_partial_file_and_frees_the_slot_at_once() {
     let bench = Bench::new();
     let mut tuning = quick();
     tuning.rate = Some(50_000);
+    bench.mac.busy.store(true, Ordering::Relaxed);
     let slow = Downloads::new(
         Arc::clone(bench.downloads.store()),
         Arc::clone(&bench.fetch) as Arc<dyn Fetch>,
@@ -263,6 +264,7 @@ fn one_download_at_a_time() {
     let bench = Bench::new();
     let mut tuning = quick();
     tuning.rate = Some(50_000);
+    bench.mac.busy.store(true, Ordering::Relaxed);
     let slow = Downloads::new(
         Arc::clone(bench.downloads.store()),
         Arc::clone(&bench.fetch) as Arc<dyn Fetch>,
