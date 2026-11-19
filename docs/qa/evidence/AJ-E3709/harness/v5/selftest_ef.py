@@ -794,6 +794,45 @@ def selftest_r3(check, WJ):
     check("scoring: a said 'today' (ADR-0036's default) for a request with no lifetime words is the default, not a strict miss", sm["exact_rule_matches_with_defaults"] == 1 and sm["exact_rule_matches"] == 0, sm["mismatches"])
     sm = sv("tell me once when hare-db fails", "once", "today")
     check("scoring mutation: the same draft where the request says 'once' is a miss", sm["exact_rule_matches_with_defaults"] == 0, sm["mismatches"])
+    # ---- the digest's caveat words follow the facts (round 3's blind review: "partly done" on reverted or idle work, "blocked" with
+    # nothing behind it, "52 tests pass · tests not run"); new made-up agents
+    DG = REGISTRY["digest"]
+    idle = {"session_id": "ses-qu", "app": "Codex", "project": "quill-board", "turns": [], "events": [{"kind": "started", "at": "2026-11-18T08:00", "detail": "opened, nothing yet"}]}
+    dd = item([ag("ses-pl", "plover-ui", "Moved plover-ui to the new grid layout. 14 tests pass.", tests={"passed": 14, "failed": 0}, outcome="done"),
+               ag("ses-te", "tern-etl", "Tried batching the tern-etl loads in the nightly import job for the warehouse tables, then reverted the whole change after it doubled some rows; the branch is as before. 9 tests pass.",
+                  tests={"passed": 9, "failed": 0}, outcome="done"),
+               idle,
+               ag("ses-wa", "wader-api", "The wader-api migration is ready but I am waiting on the database password from ops before I can run it.", outcome="done")])
+    def ci(ref, doing, cites, detail="none", caveat="none"): return DG.evaluate(dd, "main", draft(I(ref, doing, cites, detail, caveat=caveat)))
+    o = ci("a1", "moved plover-ui to the new grid layout", ["t1"], "14 tests pass", "not_run")
+    check("caveat: 'tests not run' where the facts say tests ran is rejected (critical, against the facts)", not o["ok"] and any("not_run while the facts" in e for e in o["errors"])
+          and D.classify_error(next(e for e in o["errors"] if "not_run" in e))[0] == "critical", o.get("errors"))
+    o = ci("a1", "moved plover-ui to the new grid layout", ["t1"], "14 tests pass")
+    check("caveat mutation: no caveat, it passes", o["ok"], o.get("errors"))
+    dr = item([ag("ses-ro", "rook-cli", "Bumped the rook-cli flags parser. 12 tests pass.")])
+    o = DG.evaluate(dr, "main", draft(I("a1", "bumped the rook-cli flags parser", ["t1"], "12 tests pass", caveat="not_run")))
+    check("caveat: a line never holds a pass count and 'tests not run' (facts silent on tests)", not o["ok"] and any("pass count" in e for e in o["errors"]), o.get("errors"))
+    o = ci("a2", "batching the tern-etl loads", ["t2"], "none", "partial")
+    check("caveat: 'partly done' on work the agent reverted is rejected", not o["ok"] and any("undid" in e for e in o["errors"]), o.get("errors"))
+    o = ci("a2", "tried batching the tern-etl loads in the nightly import job", ["t2"], "reverted the whole change after it doubled some rows; the branch")
+    check("caveat: a reverted agent's line says 'reverted' even when the detail is cut for length", o["ok"] and any(x["agent"] == "a2" and x["source"] == "ai" and "reverted" in x["line"] for x in o["items"]), o.get("errors") or [x["line"] for x in o.get("items") or [] if x["agent"] == "a2"])
+    o = ci("a3", "opened, nothing yet", ["e1"], "none", "partial")
+    check("caveat: 'partly done' on an agent with no turn is rejected", not o["ok"] and any("no turn" in e for e in o["errors"]), o.get("errors"))
+    o = ci("a3", "opened, nothing yet", ["e1"], "none", "blocked")
+    check("caveat: 'blocked' with nothing blocking it is rejected", not o["ok"] and any("nothing blocking" in e for e in o["errors"]), o.get("errors"))
+    o = ci("a4", "the wader-api migration is ready", ["t3"], "waiting on the database password from ops", "blocked")
+    check("caveat mutation: 'blocked' where the agent waits on something passes", o["ok"], o.get("errors"))
+    o = ci("a3", "opened, nothing yet", ["e1"])
+    check("caveat mutation: the idle agent with no caveat passes", o["ok"], o.get("errors"))
+    def shown(ref, line):
+        return {"job": "digest", "id": "cv", "item": dd, "outcome": DG._outcome(dd, [{"agent": ref, "line": line, "notable": False, "source": "ai",
+                "words": [line.split(" · ")[2]], "cites": []}], "ai"), "attempts": [], "model_called": True, "used": 0}
+    for ref, line in (("a1", "plover-ui · ended · moved plover-ui to the new grid layout · 14 tests pass · tests not run"),
+                      ("a2", "tern-etl · ended · batching the tern-etl loads · partly done"), ("a3", "quill-board · working · opened, nothing yet · blocked")):
+        sm = DG.summarise([shown(ref, line)])
+        check(f"scoring: a false caveat word shown is a critical candidate ({line.rsplit(' · ', 1)[1]})", sm["critical_by_detector"].get("caveat_against_facts", 0) >= 1, sm["critical_by_detector"])
+    sm = DG.summarise([shown("a4", "wader-api · ended · the wader-api migration is ready · blocked")])
+    check("scoring mutation: a grounded 'blocked' is no candidate", "caveat_against_facts" not in sm["critical_by_detector"], sm["critical_by_detector"])
 
 def texts():
     for ex in D.EXAMPLES: yield ex["label"], " ".join(t["source"] for a in ex["agents"] for t in a["turns"]) + " " + json.dumps(ex["out"], ensure_ascii=False)
