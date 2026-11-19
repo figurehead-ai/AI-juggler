@@ -108,7 +108,7 @@ describe("each App wears its own Account's mark (acceptance test 6)", () => {
     // Before its first Code record a desktop App is on no Account: no
     // mark, never its folder's.
     const unknown = [account(TEAM, ["default", "shared"], ["cli:default", SHARED_CLI]), ACCOUNTS[1]!];
-    expect(roomMarkOfApp("app:claude-app:/u/ClaudeProfiles/new", "shared", unknown, READINGS, [], NOW)).toBeNull();
+    expect(roomMarkOfApp("app:claude-app:/u/ClaudeProfiles/b-east", "shared", unknown, READINGS, [], NOW)).toBeNull();
   });
 
   it("drawn: the rail's marks and the top bar's count", async () => {
@@ -143,7 +143,7 @@ describe("Resume reads the room of the session's App (acceptance test 7)", () =>
     const desktop = roomOfApp(PROFILE_APP, "shared", ACCOUNTS, READINGS);
     expect(desktop.left).toBe(0);
     expect(desktop.account).toBe("Personal Max");
-    const unknown = roomOfApp("app:claude-app:/u/ClaudeProfiles/new", "shared", ACCOUNTS, READINGS);
+    const unknown = roomOfApp("app:claude-app:/u/ClaudeProfiles/b-east", "shared", ACCOUNTS, READINGS);
     expect(unknown.words).toBe(ACCOUNT_NOT_KNOWN_YET);
   });
 
