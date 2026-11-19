@@ -164,6 +164,9 @@ for (const theme of ["dark", "light"] as const) {
     await page.getByTestId("change-folder-search").fill("pay");
     await page.keyboard.press("Enter");
     await expect(sentence(page)).toHaveText("Start in payments-api on Codex CLI · ~/.codex — the only account used here");
+    // F-rc3f-1: the folder moved the App to another Account; the card says
+    // so, from which, and offers Undo.
+    await expect(page.getByTestId("launch-app-changed")).toHaveText("App changed to Codex CLI · ~/.codex (was Claude Code CLI · Work Max): the only account used here. Undo");
     await expect(page.getByTestId("launch-always")).toHaveText(/^Always start payments-api on /);
     await shoot(page, "own-account", theme);
   });

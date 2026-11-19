@@ -11,23 +11,31 @@
  * what's true now and changes the decision: out of room or low (with the
  * App that has room, offered, never taken), not signed in, a tight
  * verdict, this Mac short of memory.
+ *
+ * F-rc3f-1 (the 0.4.6 rc3f walk: picking another folder moved the App to
+ * another client's Account, unseen): one line shows the App and its
+ * Account, the App's mark and name first, "Suggested" when New session
+ * chose it. A folder change that moves a suggestion says so on the card
+ * ("App changed to … (was …): the only account used here. Undo"); one
+ * that carries the person's pick into a folder whose own App is another
+ * names that one and offers it. Both, and the App and Account themselves
+ * once the person acts, are said in a polite live region.
  */
 import type { JSX, ReactNode } from "react";
-import { Button } from "../../components/primitives";
 import { IconProjects } from "../../components/icons";
 import { IconStar } from "../../components/icons-actions";
 import { AccountAvatar } from "../../components/Avatar";
+import { CliAppMark } from "../../components/PlaceMarks";
+import { SuggestedMark } from "../../components/SwitchTargetRows";
 import { runwayOf } from "../../components/AccountRunway";
-import { MachineAdviceLine } from "../../components/MachineAdvice";
 import type { ProjectInfo } from "../../types/generated/ProjectInfo";
 import { homeRelative } from "../../lib/project-words";
 import { agoWords } from "../../lib/time-words";
-import { lowRoomWords, outOfRoomWords } from "../../lib/room";
-import { creditsConsequence } from "../../lib/credits";
-import { roomMarkOf } from "../../lib/room-mark";
-import { appWhyWords, folderWhyWords, passedOverWords, skippedWords, workedAt, type AppChoice, type appsByRoom, type FolderChoice } from "../../lib/new-session-choice";
+import { folderWhyWords, isSuggestion, workedAt, type AppChoice, type appsByRoom, type FolderChoice } from "../../lib/new-session-choice";
 import type { NewSessionData } from "./useNewSessionData";
 import { AppPicker, FolderPicker } from "./ChoicePickers";
+import { LINK, Notes, reasonOf, Told } from "./ChoiceNotes";
+import type { AppPick } from "./useAppPick";
 
 /** The folder's name as said: its project's, else its last part. */
 export function folderName(folder: FolderChoice): string {
@@ -37,6 +45,9 @@ export function folderName(folder: FolderChoice): string {
 export function StatedChoice({
   folder,
   app,
+  suggestion = null,
+  told,
+  acted = false,
   data,
   ranked,
   projects,
@@ -52,6 +63,16 @@ export function StatedChoice({
 }: {
   folder: FolderChoice | null;
   app: AppChoice | null;
+  /** What New session would suggest for this folder when the person
+   * picked another (`null`: `app` is the suggestion): first in Change app. */
+  suggestion?: AppChoice | null;
+  /** What a folder change did to the App (`useAppPick`): the App a
+   * suggestion moved from, and the folder's own App, named and offered
+   * when the person's pick was carried here. */
+  told?: AppPick["told"];
+  /** The person did something that may move the App: from then on the
+   * live region says the App and its Account. */
+  acted?: boolean;
   data: NewSessionData;
   ranked: ReturnType<typeof appsByRoom>;
   projects: readonly ProjectInfo[];
@@ -70,6 +91,8 @@ export function StatedChoice({
 }): JSX.Element {
   const appName = app ? data.appNameOf(app.recipe) : null;
   const why = app ? whyOf(app, data, now, after) : null;
+  const suggested = suggestion ?? app;
+  const { change, ask } = told?.(app, suggested) ?? { change: null, ask: null };
   return (
     <section aria-labelledby="new-session-sentence" data-testid="launch-preselected" className="rounded-xl border border-accent/30 bg-accent-soft px-4 py-3.5">
       <p id="new-session-sentence" data-testid="new-session-sentence" className="text-body leading-snug text-ink">
@@ -100,30 +123,22 @@ export function StatedChoice({
             <span className="text-ink-2">None yet: it starts in a temporary folder</span>
           )}
         </Line>
-        {/* The Account's own dot on its line, not a terminal's mark (the
-            0.4 design review, 71); no Account yet, or an App not signed in
-            (no Account in use: the rc14 walk read its colour as a healthy
-            state), is a neutral ring. */}
-        <Line
-          icon={
-            app?.kind === "blocked" ? (
-              <AccountAvatar account={{ folder: null }} label="Not signed in" size={13} tone="neutral" />
-            ) : (
-              <AccountAvatar account={{ folder: app?.recipe.account_id ?? null }} label={(app && data.accountNameOf(app.recipe.account_id)) ?? "No account yet"} size={13} tone={app && data.accountNameOf(app.recipe.account_id) ? "colour" : "neutral"} />
-            )
-          }
-          change={ranked.length > 0 ? <AppPicker data={data} ranked={ranked} choice={app} project={folder?.project ?? null} onPick={onApp} onAlways={onAlways} now={now} /> : null}
-        >
-          {app ? <AccountWords app={app} data={data} /> : <NoApp loading={data.recipes === null} onAddApp={onAddApp} />}
-        </Line>
+        {/* The App and what a folder change did to it, together. */}
+        <div>
+          <AppLine
+            app={app}
+            data={data}
+            change={ranked.length > 0 ? <AppPicker data={data} ranked={ranked} choice={app} suggested={suggested} project={folder?.project ?? null} onPick={onApp} onAlways={onAlways} now={now} /> : null}
+            onAddApp={onAddApp}
+          />
+          <Told app={app} change={change} ask={ask} acted={acted} place={folder ? folderName(folder) : null} data={data} now={now} after={after} onApp={onApp} />
+        </div>
         <BindingOffer app={app} folder={folder} data={data} ranked={ranked} onAlways={onAlways} />
       </div>
       {app && appName && <Notes app={app} appName={appName} data={data} now={now} onApp={onApp} onSignIn={onSignIn} sessionName={sessionName} />}
     </section>
   );
 }
-
-const LINK = "rounded font-medium text-accent-hi underline-offset-2 outline-none hover:underline focus-visible:ring-1 focus-visible:ring-accent/60";
 
 /** D-103.7: a repo with no binding offers it in one click, "Always start
  * client-a on Client A": on its own Account (the only one that ever ran
@@ -183,25 +198,12 @@ function whyOf(app: AppChoice, data: NewSessionData, now: number, after: string 
   return said && several > 1 && app.why !== "project-default" ? `${said}; ${several} accounts worked here` : said;
 }
 
-/** D-96 E: room picked over the App it would have opened on, as its
- * Account stands now ("Work is almost out (5% left)"); `null` once that
- * one has room again (the why is then the most room's). */
-function reasonOf(app: AppChoice, data: NewSessionData, now: number, after: string | null | undefined): string | null {
-  // The rc27 walk: the App history pointed to can't start; this one can.
-  if (app.passedOver) return passedOverWords(data.appNameOf(app.passedOver));
-  const skipped = app.skipped;
-  if (!skipped) return appWhyWords(app.why, after);
-  const id = skipped.account_id;
-  // An estimate says "about", as its Low/Out mark does.
-  const about = roomMarkOf(data.displayOf(id), data.sessionsOf(id), now)?.about ?? false;
-  const skip = skippedWords(data.accountNameOf(id) ?? data.appNameOf(skipped), data.roomOf(id), now, about);
-  return skip ?? appWhyWords(app.why, after);
-}
-
 function Line({ icon, term, change, children }: { icon: ReactNode; term?: string; change: ReactNode; children: ReactNode }): JSX.Element {
   return (
     <div className="flex min-h-7 items-center gap-2 text-xs">
-      <span aria-hidden="true" className="shrink-0 text-muted">
+      {/* One icon column, as wide as the App's mark, so every line's
+          words start together. */}
+      <span aria-hidden="true" className="flex w-4 shrink-0 justify-center text-muted">
         {icon}
       </span>
       {/* AJ-E3306 (rc26, 800×600): the line wraps, a long path inside
@@ -209,6 +211,41 @@ function Line({ icon, term, change, children }: { icon: ReactNode; term?: string
       <span className="min-w-0 flex-1 [overflow-wrap:anywhere]">
         {term && <span className="sr-only">{term}: </span>}
         {children}
+      </span>
+      {change && <span className="shrink-0">{change}</span>}
+    </div>
+  );
+}
+
+/** F-rc3f-1: the one place that shows the App and its Account. The App's
+ * mark (its icon and its colour's dot, as the rail draws it) and its name
+ * lead, with "Suggested" when New session chose it rather than the
+ * person; its Account and room under it, in words (D-69: beside an App
+ * an Account wears no colour); Change app on the App's line. */
+function AppLine({ app, data, change, onAddApp }: { app: AppChoice | null; data: NewSessionData; change: ReactNode; onAddApp?: () => void }): JSX.Element {
+  if (!app)
+    return (
+      <Line icon={<AccountAvatar account={{ folder: null }} label="No account yet" size={13} tone="neutral" />} term="App" change={change}>
+        <NoApp loading={data.recipes === null} onAddApp={onAddApp} />
+      </Line>
+    );
+  const { recipe } = app;
+  return (
+    <div className="flex items-start gap-2 text-xs" data-testid="launch-app-line">
+      <span aria-hidden="true" className="flex h-7 w-4 shrink-0 items-center justify-center">
+        <CliAppMark tool={recipe.provider} folderId={recipe.account_id} folder={recipe.account_label} size={16} ring="var(--color-surface)" />
+      </span>
+      <span className="min-w-0 flex-1 [overflow-wrap:anywhere]">
+        <span className="flex min-h-7 flex-wrap items-center gap-x-2 gap-y-0.5">
+          <span className="font-semibold text-ink" data-testid="launch-app">
+            <span className="sr-only">App: </span>
+            {data.appNameOf(recipe)}
+          </span>
+          {isSuggestion(app.why) && <SuggestedMark />}
+        </span>
+        <span className="-mt-1 block pb-1">
+          <AccountWords app={app} data={data} />
+        </span>
       </span>
       {change && <span className="shrink-0">{change}</span>}
     </div>
@@ -268,97 +305,5 @@ function NoApp({ loading, onAddApp }: { loading: boolean; onAddApp?: () => void 
         </button>
       )}
     </span>
-  );
-}
-
-function Notes({
-  app,
-  appName,
-  data,
-  now,
-  onApp,
-  onSignIn,
-  sessionName,
-}: {
-  app: AppChoice;
-  appName: string;
-  data: NewSessionData;
-  now: number;
-  onApp: (folderId: string) => void;
-  onSignIn: (folderId: string, appName: string) => void;
-  sessionName: (id: string) => string | null;
-}): JSX.Element | null {
-  const id = app.recipe.account_id;
-  const room = data.roomOf(id);
-  const verdict = app.kind === "room" || app.kind === "unknown" ? data.verdictOf(id) : undefined;
-  const advice = data.adviceOf(app.recipe.id);
-  const offer = app.roomier ? (
-    <OfferButton other={data.appNameOf(app.roomier)} left={data.roomOf(app.roomier.account_id).left} onUse={() => onApp(app.roomier!.account_id)} />
-  ) : null;
-  const lines: JSX.Element[] = [];
-  if (app.kind === "out")
-    lines.push(
-      <Note key="out" testId="launch-out-of-room" tone="warning">
-        {data.accountNameOf(id) ?? "Its account"} is {lowerFirst(outOfRoomWords(room.resetsAtMs, now))}: a session there would stop at its limit at once. {offer}
-      </Note>,
-    );
-  if (app.kind === "low" && room.left !== null)
-    lines.push(
-      <Note key="low" testId="launch-low" tone="warning">
-        {lowRoomWords(appName, room.left)} {offer}
-      </Note>,
-    );
-  if (app.kind === "blocked")
-    lines.push(
-      <Note key="signin" testId="launch-signed-out" tone="warning">
-        {appName} isn&apos;t signed in.{" "}
-        <Button size="sm" variant="secondary" className="ml-1" onClick={() => onSignIn(id, appName)} data-testid="sign-in-first">
-          Sign in first
-        </Button>{" "}
-        {offer}
-      </Note>,
-    );
-  if (app.kind === "credits")
-    lines.push(
-      <Note key="credits" testId="launch-credits">
-        {creditsConsequence(room.resetsAtMs, now)}
-      </Note>,
-    );
-  if (verdict === "tight") lines.push(<Note key="tight" testId="launch-verdict">Tight — this session may use most of the room left</Note>);
-  if (verdict === "no") lines.push(<Note key="no" testId="launch-verdict">Probably not enough room left — you can still start</Note>);
-  if (advice && advice.verdict !== "ok")
-    lines.push(
-      <div key="mac" className="mt-2">
-        <MachineAdviceLine advice={advice} nameOf={sessionName} />
-      </div>,
-    );
-  return lines.length > 0 ? <div className="mt-2 border-t border-accent/20 pt-1">{lines}</div> : null;
-}
-
-function Note({ children, testId, tone = "plain" }: { children: ReactNode; testId: string; tone?: "plain" | "warning" }): JSX.Element {
-  return (
-    <p className={"mt-1.5 text-xs " + (tone === "warning" ? "text-ink" : "text-ink-2")} data-testid={testId}>
-      {tone === "warning" && (
-        <span aria-hidden="true" className="mr-1.5 text-warning">
-          ▲
-        </span>
-      )}
-      {children}
-    </p>
-  );
-}
-
-function lowerFirst(words: string): string {
-  return words.charAt(0).toLowerCase() + words.slice(1);
-}
-
-/** "Use Claude Code · Personal (80% left)": the App with room, offered;
- * "(its room isn't measured)" when that's all that's known. */
-function OfferButton({ other, left, onUse }: { other: string; left: number | null; onUse: () => void }): JSX.Element {
-  return (
-    <button type="button" onClick={onUse} className={LINK} data-testid="launch-use-roomier">
-      Use {other}
-      {left !== null ? ` (${left}% left)` : " (its room isn't measured)"}
-    </button>
   );
 }

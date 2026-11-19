@@ -2,13 +2,16 @@
  * AJ-E3207 — Change folder and Change app, one step from the stated
  * choice: the shared Picker (the pickers rule), its button the link's
  * words. The folder picker opens on Recent and Pinned, then All
- * projects; the App picker on Suggested and the Apps used in this
- * project, then All, the ones that can't start now last. Past 8 a search
+ * projects; the App picker on Suggested (the folder's suggestion, even
+ * when the person picked another) and the Apps used in this project, then
+ * All, the ones that can't start now last; a list too short for headings
+ * keeps that order and its suggestion says "Suggested". Past 8 a search
  * field has focus. Out of room stays listed and choosable, its hint says
  * until when.
  */
 import type { JSX } from "react";
 import { Picker, type PickerOption } from "../../components/controls";
+import { GROUPS_FROM } from "../../components/controls/Picker";
 import { IconProjects, IconTerminal } from "../../components/icons";
 import { IconStar } from "../../components/icons-actions";
 import { runwayOf } from "../../components/AccountRunway";
@@ -18,7 +21,7 @@ import { homeRelative } from "../../lib/project-words";
 import { agoWords } from "../../lib/time-words";
 import { outOfRoomWords } from "../../lib/room";
 import { roomMarkOf } from "../../lib/room-mark";
-import { appGroups, folderGroups, offeredProjects, workedAt, type AppChoice, type appsByRoom } from "../../lib/new-session-choice";
+import { appGroups, folderGroups, isSuggestion, offeredProjects, workedAt, type AppChoice, type appsByRoom } from "../../lib/new-session-choice";
 import type { NewSessionData } from "./useNewSessionData";
 
 /** The picker's "Choose another folder…" line (a project's value is its
@@ -74,6 +77,7 @@ export function AppPicker({
   data,
   ranked,
   choice,
+  suggested = choice,
   project,
   onPick,
   onAlways,
@@ -82,13 +86,25 @@ export function AppPicker({
   data: NewSessionData;
   ranked: ReturnType<typeof appsByRoom>;
   choice: AppChoice | null;
+  /** What New session suggests for this folder (`choice` unless the
+   * person picked another). */
+  suggested?: AppChoice | null;
   project: ProjectInfo | null;
   onPick: (folderId: string) => void;
   /** Sets (an App's folder id) or clears (`null`) the project's default. */
   onAlways?: (folderId: string | null) => void;
   now: number;
 }): JSX.Element {
-  const options: PickerOption[] = ranked.map(({ recipe, kind }) => {
+  // The pickers rule at any length (F-rc3f-1): the folder's suggestion and
+  // the Apps related to it first, then the rest by room; the shared Picker
+  // heads them only from six Apps, so a short list is ordered so, and the
+  // suggestion says it is one.
+  const groups = appGroups(suggested, ranked, project);
+  const first = groups.flatMap((group) => group.values);
+  const ordered = [...first.flatMap((id) => ranked.filter((row) => row.recipe.account_id === id)), ...ranked.filter((row) => !first.includes(row.recipe.account_id))];
+  // Under its heading from six on; above that, its hint says so.
+  const tip = suggested && isSuggestion(suggested.why) && ranked.length < GROUPS_FROM ? suggested.recipe.account_id : null;
+  const options: PickerOption[] = ordered.map(({ recipe, kind }) => {
     const account = data.accountNameOf(recipe.account_id);
     // 0.4.1: out or low in the one mark's words ("Out · resets 9:06 PM"),
     // as its chip says it everywhere else.
@@ -108,7 +124,7 @@ export function AppPicker({
       label: data.appNameOf(recipe),
       // Not signed in: no account is in use, so none is named (the rc12
       // walk: "f…@example.com · Not signed in").
-      hint: (kind === "blocked" ? [room] : [account, room]).filter(Boolean).join(" · ") || undefined,
+      hint: (kind === "blocked" ? [room] : [recipe.account_id === tip ? "Suggested" : null, account, room]).filter(Boolean).join(" · ") || undefined,
       empty: kind === "blocked",
       icon: IconTerminal,
     };
@@ -128,7 +144,7 @@ export function AppPicker({
     <Picker
       value={choice?.recipe.account_id ?? null}
       options={options}
-      groups={appGroups(choice, ranked, project)}
+      groups={groups}
       onChange={(value) => {
         if (value === ALWAYS) return choice && onAlways?.(choice.recipe.account_id);
         if (value === NO_DEFAULT) return onAlways?.(null);
