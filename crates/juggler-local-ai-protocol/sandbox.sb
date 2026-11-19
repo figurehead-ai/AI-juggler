@@ -1,15 +1,15 @@
 ;; juggler-local-ai's sandbox (ADR-0033 §4.2 "As built", the 2026-11-19
 ;; security review's M1). Applied by /usr/bin/sandbox-exec at every start,
 ;; before the helper runs a single instruction. Parameters:
-;;   HELPER  the helper's own resolved path (the only program it may run:
-;;           itself, the exec sandbox-exec makes);
+;;   HELPER  the helper's own resolved path (with /usr/sbin/taskpolicy,
+;;           which starts it, the only programs it may run);
 ;;   MODELS  the models' folder (read-only, and the helper's working
 ;;           folder: its start reads the working folder);
 ;;   CACHE   Metal's shader cache for the helper's identifier, in the
 ;;           user's cache folder (without it every start compiles every
 ;;           GPU kernel again, seconds each time).
 ;; Everything else is denied: no network, no other file (no $HOME, no
-;; /private/tmp, no /etc, no /System/Volumes/Data), no fork or exec, no
+;; /private/tmp, no /etc, no /System/Volumes/Data), no fork or other exec, no
 ;; LaunchServices or any other service but Metal's compiler. Each allow
 ;; below was shown by test to be needed (the helper's tests load and run a
 ;; model under this profile, and a probe under it must fail each denial).
@@ -17,13 +17,24 @@
 (deny default)
 
 ;; The process itself: system calls, its bootstrap port, reading the
-;; kernel's settings, and inspecting only itself.
+;; kernel's settings, and inspecting only itself. Listing the user's
+;; processes is denied (the re-review's N2); reading a named process's
+;; path or arguments isn't filtered by any sandbox operation on macOS 27
+;; (tested), so it stays possible for a known process id.
 (allow syscall* syscall-unix mach-bootstrap sysctl-read system-info)
 (allow process-info* (target self))
+(deny process-info-listpids)
 
-;; Its own program, and nothing else to run.
-(allow process-exec (literal (param "HELPER")))
-(allow file-read* file-map-executable (literal (param "HELPER")))
+;; Its own program, and the system's task-policy tool that starts it
+;; with its memory cap and quality of service (after this profile, so the
+;; cap holds: a limit set before an exec is dropped by it). Nothing else to
+;; run.
+(allow process-exec
+       (literal (param "HELPER"))
+       (literal "/usr/sbin/taskpolicy"))
+(allow file-read* file-map-executable
+       (literal (param "HELPER"))
+       (literal "/usr/sbin/taskpolicy"))
 
 ;; The models' folder: read only. The model itself is read through the
 ;; descriptor the helper opened (/dev/fd/<n>), so the file it checked is

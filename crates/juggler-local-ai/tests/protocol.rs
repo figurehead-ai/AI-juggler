@@ -63,6 +63,8 @@ impl Running {
             .arg("--models-dir")
             .arg(dir)
             .env("GGML_NO_BACKTRACE", "1")
+            // Unsandboxed here: it serves only because the test says so.
+            .env(juggler_local_ai_protocol::UNSANDBOXED_FOR_TESTS, "1")
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::null())
@@ -170,7 +172,8 @@ fn it_says_hello_then_refuses_what_isnt_a_request() {
     let dir = TempDir::new();
     let (mut helper, hello) = Running::start(dir.path());
     assert_eq!(hello["kind"], "hello");
-    assert_eq!(hello["protocol"], 2);
+    assert_eq!(hello["protocol"], 3);
+    assert_eq!(hello["sandboxed"], false, "run without its profile here");
     assert!(hello["gpu"].is_boolean());
     for line in [
         "not json",
@@ -380,9 +383,11 @@ fn the_fixture_model_loads_generates_and_cancels() {
     assert_eq!(helper.exit_code(Duration::from_secs(10)), Some(0));
 }
 
-/// The sandbox's parameters for `program` and `models`; the cache in the
-/// test's own folder.
-fn sandboxed(program: &Path, models: &Path, cache: &Path) -> Command {
+/// `program` as the app starts the helper (engines/local `Local::command`):
+/// `sandbox-exec` with the profile, then `taskpolicy` with the memory cap
+/// (`cap_mib`) and utility QoS, then the program; the cache in the test's
+/// own folder.
+fn capped(program: &Path, models: &Path, cache: &Path, cap_mib: u64) -> Command {
     let mut command = Command::new("/usr/bin/sandbox-exec");
     command
         .args(["-p", juggler_local_ai_protocol::SANDBOX_PROFILE])
@@ -392,12 +397,19 @@ fn sandboxed(program: &Path, models: &Path, cache: &Path) -> Command {
         .arg(format!("MODELS={}", models.display()))
         .arg("-D")
         .arg(format!("CACHE={}", cache.display()))
+        .args(["/usr/sbin/taskpolicy", "-c", "utility", "-m"])
+        .arg(cap_mib.to_string())
         .arg(program)
         .current_dir(models)
         .env_clear()
         .env("PATH", "/usr/bin:/bin:/usr/sbin:/sbin")
         .env("GGML_NO_BACKTRACE", "1");
     command
+}
+
+/// As the app starts the helper, with a cap no test reaches.
+fn sandboxed(program: &Path, models: &Path, cache: &Path) -> Command {
+    capped(program, models, cache, 4_096)
 }
 
 /// Review M1: the helper runs its whole model path under its profile.
@@ -427,6 +439,7 @@ fn under_its_sandbox_the_helper_still_loads_and_runs_a_model() {
     let hello = helper.read();
     assert_eq!(hello["kind"], "hello", "{hello}");
     assert_eq!(hello["gpu"], true);
+    assert_eq!(hello["sandboxed"], true, "its own check finds the profile");
     load_fixture(&mut helper, &models);
     exercise_the_fixture(&mut helper);
     assert_eq!(helper.exit_code(Duration::from_secs(10)), Some(0));
@@ -440,14 +453,7 @@ fn under_its_sandbox_the_helper_still_loads_and_runs_a_model() {
 #[cfg(target_os = "macos")]
 #[test]
 fn under_its_sandbox_nothing_else_is_reachable() {
-    let probe = std::env::current_exe()
-        .unwrap()
-        .parent()
-        .and_then(Path::parent)
-        .unwrap()
-        .join("examples/sandbox_probe");
-    let probe = std::fs::canonicalize(&probe)
-        .unwrap_or_else(|_| panic!("{} (cargo test builds the examples)", probe.display()));
+    let probe = probe_path();
     let dir = TempDir::new();
     let models = dir.path().join("models");
     std::fs::create_dir_all(&models).unwrap();
@@ -515,4 +521,116 @@ fn under_its_sandbox_nothing_else_is_reachable() {
         );
     }
     assert_eq!(accepted, 1, "only the unsandboxed probe connected");
+}
+
+/// The re-review's N3: without its profile (and without the tests' own
+/// switch) the helper finds itself unsandboxed, says so and serves
+/// nothing: it never fails open.
+#[test]
+fn outside_its_sandbox_the_helper_refuses_to_serve() {
+    let dir = TempDir::new();
+    let out = Command::new(HELPER)
+        .arg("--models-dir")
+        .arg(dir.path())
+        .env_clear()
+        .env("PATH", "/usr/bin:/bin:/usr/sbin:/sbin")
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .spawn()
+        .unwrap()
+        .wait_with_output()
+        .unwrap();
+    let lines: Vec<serde_json::Value> = String::from_utf8(out.stdout)
+        .unwrap()
+        .lines()
+        .map(|l| serde_json::from_str(l).unwrap())
+        .collect();
+    assert_eq!(lines.len(), 1, "the hello, then nothing: {lines:?}");
+    assert_eq!(lines[0]["sandboxed"], false);
+    assert_eq!(out.status.code(), Some(4));
+}
+
+/// The probe example's path (cargo test builds the examples).
+fn probe_path() -> std::path::PathBuf {
+    let probe = std::env::current_exe()
+        .unwrap()
+        .parent()
+        .and_then(Path::parent)
+        .unwrap()
+        .join("examples/sandbox_probe");
+    std::fs::canonicalize(&probe)
+        .unwrap_or_else(|_| panic!("{} (cargo test builds the examples)", probe.display()))
+}
+
+/// The re-review's N1: the memory cap holds through the chain the app
+/// builds (taskpolicy after sandbox-exec, so no exec drops it): touching
+/// 300 MiB under a 64 MiB cap is killed; under 1 GiB it runs.
+#[cfg(target_os = "macos")]
+#[test]
+fn the_memory_cap_holds_under_the_sandbox() {
+    let probe = probe_path();
+    let dir = TempDir::new();
+    let models = dir.path().join("models");
+    std::fs::create_dir_all(&models).unwrap();
+    let run = |cap: u64| {
+        capped(&probe, &models, &dir.path().join("cache"), cap)
+            .args(["alloc", "300"])
+            .stdin(Stdio::null())
+            .output()
+            .unwrap()
+    };
+    let killed = run(64);
+    use std::os::unix::process::ExitStatusExt as _;
+    assert_eq!(killed.status.signal(), Some(9), "{killed:?}");
+    let fits = run(1_024);
+    assert!(fits.status.success(), "{fits:?}");
+    assert_eq!(String::from_utf8_lossy(&fits.stdout).trim(), "touched 300");
+}
+
+/// The re-review's N2: under the profile the user's processes can't be
+/// listed. (A known process's path and arguments aren't filtered by any
+/// sandbox operation on this macOS: the probe records that too, and the
+/// ADR says it.) A tiny C probe, compiled here with the system's compiler
+/// (nothing downloaded), makes the calls Rust's standard library doesn't.
+#[cfg(target_os = "macos")]
+#[test]
+fn under_its_sandbox_processes_can_t_be_listed() {
+    let dir = TempDir::new();
+    let source = dir.path().join("procs.c");
+    std::fs::write(
+        &source,
+        r#"#include <libproc.h>
+#include <stdio.h>
+int main(void) {
+  int n = proc_listallpids(NULL, 0);
+  printf("listpids %s\n", n > 0 ? "allowed" : "denied");
+  return 0;
+}
+"#,
+    )
+    .unwrap();
+    let probe = dir.path().join("procs");
+    let built = Command::new("/usr/bin/cc")
+        .arg(&source)
+        .arg("-o")
+        .arg(&probe)
+        .status()
+        .unwrap();
+    assert!(built.success(), "the system's C compiler builds the probe");
+    let models = dir.path().join("models");
+    std::fs::create_dir_all(&models).unwrap();
+    let free = Command::new(&probe).output().unwrap();
+    assert_eq!(
+        String::from_utf8_lossy(&free.stdout).trim(),
+        "listpids allowed"
+    );
+    let jailed = sandboxed(&probe, &models, &dir.path().join("cache"))
+        .stdin(Stdio::null())
+        .output()
+        .unwrap();
+    assert_eq!(
+        String::from_utf8_lossy(&jailed.stdout).trim(),
+        "listpids denied"
+    );
 }

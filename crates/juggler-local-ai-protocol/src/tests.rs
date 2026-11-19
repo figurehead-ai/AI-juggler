@@ -51,6 +51,7 @@ fn every_answer_round_trips_through_its_line() {
         Answer::Hello {
             protocol: PROTOCOL,
             gpu: true,
+            sandboxed: true,
         },
         Answer::Loaded {
             id: 1,
@@ -263,7 +264,7 @@ fn answers_are_strict_too() {
         &b"{\"kind\":\"text\",\"id\":1,\"text\":\"x\",\"finish\":\"stop\"}"[..],
         b"{\"kind\":\"text\",\"id\":1,\"text\":\"x\",\"finish\":\"maybe\",\"tokens\":1}",
         b"{\"kind\":\"error\",\"id\":1,\"error\":\"rm -rf\"}",
-        b"{\"kind\":\"hello\",\"protocol\":1,\"gpu\":true,\"extra\":1}",
+        b"{\"kind\":\"hello\",\"protocol\":3,\"gpu\":true,\"sandboxed\":true,\"extra\":1}",
         b"{\"kind\":\"shell\"}",
     ] {
         assert_eq!(parse_answer(line), Err(Fault::BadRequest));
@@ -352,7 +353,9 @@ fn the_sandbox_denies_by_default_and_allows_one_service() {
     assert_eq!(forms[0], "(version 1)");
     assert_eq!(forms[1], "(deny default)");
     assert!(
-        forms[2..].iter().all(|f| f.starts_with("(allow ")),
+        forms[2..]
+            .iter()
+            .all(|f| f.starts_with("(allow ") || f == "(deny process-info-listpids)"),
         "only allows after the default deny"
     );
     let lookups: Vec<&String> = forms.iter().filter(|f| f.contains("mach-lookup")).collect();
@@ -366,7 +369,10 @@ fn the_sandbox_denies_by_default_and_allows_one_service() {
         .collect();
     assert_eq!(
         execs,
-        [&"(allow process-exec (literal (param \"HELPER\")))".to_owned()]
+        [
+            &"(allow process-exec (literal (param \"HELPER\")) (literal \"/usr/sbin/taskpolicy\"))"
+                .to_owned()
+        ]
     );
     let writes: Vec<&String> = forms.iter().filter(|f| f.contains("write")).collect();
     assert_eq!(
@@ -385,6 +391,7 @@ fn the_sandbox_denies_by_default_and_allows_one_service() {
         "(subpath \"/System\")",
         "/System/Volumes/Data",
         "(allow default",
+        "(allow process-info-listpids",
     ] {
         assert!(!forms.iter().any(|f| f.contains(never)), "{never}");
     }

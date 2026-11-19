@@ -99,6 +99,7 @@ fn local_without_helper(models: &[ModelEntry]) -> Vec<Card> {
         }),
         pressure: Some(|| false),
         unsandboxed: true,
+        sandbox_tool: None,
     });
     engine.probe();
     engine.cards(1, models)
@@ -563,7 +564,7 @@ fn the_local_engine_serves_its_installed_model_and_automatic_picks_it() {
     let program = dir.path().join("juggler-local-ai");
     std::fs::write(
         &program,
-        "#!/bin/sh\necho '{\"kind\":\"hello\",\"protocol\":2,\"gpu\":true}'\ncat > /dev/null\n",
+        "#!/bin/sh\necho '{\"kind\":\"hello\",\"protocol\":3,\"gpu\":true,\"sandboxed\":false}'\ncat > /dev/null\n",
     )
     .unwrap();
     std::fs::set_permissions(&program, std::fs::Permissions::from_mode(0o755)).unwrap();
@@ -584,6 +585,7 @@ fn the_local_engine_serves_its_installed_model_and_automatic_picks_it() {
         }),
         pressure: Some(|| false),
         unsandboxed: true,
+        sandbox_tool: None,
     });
     let apple = Apple::with_program(Some(dir.path().join("no-apple-helper")));
     let engines = Registry::with(apple, local);

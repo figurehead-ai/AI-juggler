@@ -36,7 +36,7 @@
 use serde::{Deserialize, Serialize};
 
 /// The protocol version both sides speak; the hello carries it.
-pub const PROTOCOL: u32 = 2;
+pub const PROTOCOL: u32 = 3;
 
 /// The helper's file name, in the app's bundle beside AI Juggler.
 pub const PROGRAM: &str = "juggler-local-ai";
@@ -69,6 +69,12 @@ pub const MAX_GUIDE_BYTES: usize = 8 * 1024;
 /// [`Finish::Length`] when it is reached. Escaped as JSON at worst six
 /// bytes a byte, it still fits [`MAX_ANSWER_BYTES`].
 pub const MAX_TEXT_BYTES: usize = 10 * 1024;
+
+/// Set (to `1`) only by the helper's own tests that run it without its
+/// sandbox: then it serves although its start-up check finds itself
+/// unsandboxed. The app never sets it (it starts the helper with a cleared
+/// environment), and runs no helper whose hello says it isn't sandboxed.
+pub const UNSANDBOXED_FOR_TESTS: &str = "AIJ_LOCAL_AI_UNSANDBOXED_FOR_TESTS";
 
 /// The helper exits by itself after this long with nothing to do
 /// (ADR-0033 §4.2: 120 s), releasing the model's memory.
@@ -355,6 +361,11 @@ pub enum Answer {
         protocol: u32,
         /// llama.cpp offloads to the GPU (Metal).
         gpu: bool,
+        /// The helper's own start-up check found itself sandboxed: what the
+        /// profile denies (`/etc/hosts`, the models' folder's parent) it
+        /// couldn't read. The app runs no helper that says otherwise (the
+        /// 2026-11-19 re-review's N3: never fail open).
+        sandboxed: bool,
     },
     /// The model is loaded.
     Loaded {

@@ -143,6 +143,9 @@ pub struct Setup {
     /// Run the helper without its sandbox (tests with a fake helper
     /// script only: the sandbox lets the helper run nothing but itself).
     pub unsandboxed: bool,
+    /// The sandbox tool; `None` is the system's (a test names a stand-in
+    /// that refuses the profile, or ignores it).
+    pub sandbox_tool: Option<PathBuf>,
 }
 
 /// The kernel's memory pressure is critical now.
@@ -190,6 +193,27 @@ pub enum Seen {
     Ready,
     /// It didn't say hello properly.
     Failed,
+    /// The system's sandbox tool isn't there: the helper is never run
+    /// without its sandbox (the re-review's N3, said loudly: logged, and
+    /// its jobs hidden as with a missing helper).
+    SandboxToolMissing,
+    /// The sandbox tool refused the helper's profile (an operation this
+    /// macOS doesn't know).
+    SandboxRejected,
+    /// The helper started but its own check found it unsandboxed: never
+    /// used (fails closed, never open).
+    NotSandboxed,
+}
+
+impl Seen {
+    /// The sandbox failed, in one of the three ways that are never quiet.
+    #[must_use]
+    pub const fn sandbox_fault(self) -> bool {
+        matches!(
+            self,
+            Self::SandboxToolMissing | Self::SandboxRejected | Self::NotSandboxed
+        )
+    }
 }
 
 /// The helper while it runs.
@@ -232,7 +256,11 @@ pub const fn readiness(host: Host, min_memory_gb: u64, seen: Seen, unhealthy: bo
         return Readiness::NotHere(Reason::NotThisComputer);
     }
     match seen {
-        Seen::Missing => Readiness::NotHere(Reason::HelperMissing),
+        // A sandbox that can't be applied hides the jobs as a missing helper
+        // does; the exact reason is the engine's (`Local::seen`) and the log's.
+        Seen::Missing | Seen::SandboxToolMissing | Seen::SandboxRejected | Seen::NotSandboxed => {
+            Readiness::NotHere(Reason::HelperMissing)
+        }
         Seen::NotAsked | Seen::Failed => Readiness::NotHere(Reason::Unknown),
         Seen::Ready if unhealthy => Readiness::NotHere(Reason::Unhealthy),
         Seen::Ready => Readiness::Ready,
@@ -268,6 +296,43 @@ pub fn sampling_of(entry: &ModelEntry) -> Sampling {
         min_p_milli: keep(s.min_p_milli, bounds::MIN_P_MILLI),
         presence_milli: keep(s.presence_milli, bounds::PRESENCE_MILLI),
     }
+}
+
+/// `sandbox-exec`'s arguments for the helper's profile and its three
+/// parameters.
+fn sandbox_args(program: &Path, dir: &Path) -> Vec<std::ffi::OsString> {
+    let param = |name: &str, path: &Path| {
+        let mut arg = std::ffi::OsString::from(format!("{name}="));
+        arg.push(path);
+        arg
+    };
+    vec![
+        "-p".into(),
+        protocol::SANDBOX_PROFILE.into(),
+        "-D".into(),
+        param("HELPER", program),
+        "-D".into(),
+        param("MODELS", dir),
+        "-D".into(),
+        param("CACHE", &metal_cache()),
+    ]
+}
+
+/// The exit status `sandbox-exec` gives a profile it can't read.
+const PROFILE_REFUSED: i32 = 65;
+
+/// Whether `tool` refuses the helper's profile: after a start that gave no
+/// hello, the profile alone is tried on `/usr/bin/true` (which the profile
+/// itself doesn't let run, so nothing runs either way).
+fn profile_rejected(tool: &Path, program: &Path, dir: &Path) -> bool {
+    juggler_platform::process::helper(tool)
+        .args(sandbox_args(program, dir))
+        .arg(juggler_adapter::system_tools::TRUE)
+        .stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .status()
+        .is_ok_and(|status| status.code() == Some(PROFILE_REFUSED))
 }
 
 impl Local {
@@ -335,41 +400,36 @@ impl Local {
         juggler_platform::code_trust::own_helper(protocol::PROGRAM, protocol::IDENTIFIER)
     }
 
-    /// The helper's command (review M1, L3): `taskpolicy -c utility -m
-    /// <cap>` runs `sandbox-exec` with the helper's profile, which runs the
-    /// helper with the folder as its only argument and its working folder;
-    /// the allowed environment only, with llama.cpp's crash backtrace off.
-    /// `None` without the system's sandbox tool (fails closed).
+    /// The helper's command (review M1, L3; re-review N1): `sandbox_tool`
+    /// (`sandbox-exec`) applies the helper's profile and runs `taskpolicy
+    /// -c utility -m <cap>`, which runs the helper with the folder as its
+    /// only argument, in its folder, with the allowed environment only and
+    /// llama.cpp's crash backtrace off. The cap is set last, after the
+    /// sandbox's exec, so no exec drops it. Without `sandbox_tool` (a fake
+    /// helper's tests) it starts at `taskpolicy`. `None` off macOS or
+    /// without `taskpolicy`.
     #[must_use]
-    pub fn command(program: &Path, dir: &Path, cap_mib: u64, sandboxed: bool) -> Option<Command> {
+    pub fn command(
+        program: &Path,
+        dir: &Path,
+        cap_mib: u64,
+        sandbox_tool: Option<&Path>,
+    ) -> Option<Command> {
         let taskpolicy = Path::new(TASKPOLICY);
-        let sandbox = Path::new(SANDBOX_EXEC);
         if !cfg!(target_os = "macos") || !taskpolicy.is_file() {
             return None;
         }
-        let mut command = juggler_platform::process::helper(taskpolicy);
+        let mut command = match sandbox_tool {
+            Some(tool) => {
+                let mut command = juggler_platform::process::helper(tool);
+                command.args(sandbox_args(program, dir)).arg(taskpolicy);
+                command
+            }
+            None => juggler_platform::process::helper(taskpolicy),
+        };
         command
             .args(["-c", "utility", "-m"])
-            .arg(cap_mib.to_string());
-        if sandboxed {
-            if !sandbox.is_file() {
-                return None;
-            }
-            let param = |name: &str, path: &Path| {
-                let mut arg = std::ffi::OsString::from(format!("{name}="));
-                arg.push(path);
-                arg
-            };
-            command
-                .arg(sandbox)
-                .args(["-p", protocol::SANDBOX_PROFILE, "-D"])
-                .arg(param("HELPER", program))
-                .arg("-D")
-                .arg(param("MODELS", dir))
-                .arg("-D")
-                .arg(param("CACHE", &metal_cache()));
-        }
-        command
+            .arg(cap_mib.to_string())
             .arg(program)
             .arg(MODELS_DIR_ARG)
             .arg(dir)
@@ -378,26 +438,79 @@ impl Local {
         Some(command)
     }
 
-    /// Starts the helper and checks its hello.
+    /// The sandbox tool to use: a test's stand-in, or the system's.
+    fn sandbox_tool(&self) -> Option<PathBuf> {
+        if self.setup.unsandboxed {
+            return None;
+        }
+        Some(
+            self.setup
+                .sandbox_tool
+                .clone()
+                .unwrap_or_else(|| PathBuf::from(SANDBOX_EXEC)),
+        )
+    }
+
+    /// Records a sandbox fault, and logs it the first time it is seen.
+    fn sandbox_fault(&self, seen: Seen) {
+        if self.seen() != seen {
+            let why = match seen {
+                Seen::SandboxToolMissing => "the system's sandbox tool is missing",
+                Seen::SandboxRejected => "the system's sandbox tool refused the helper's profile",
+                _ => "the helper reported it isn't sandboxed",
+            };
+            tracing::error!(
+                target: "ai",
+                "local models are off: {why}; the helper is never run without its sandbox"
+            );
+        }
+        self.set_seen(seen);
+    }
+
+    /// Starts the helper and checks its hello: this protocol, and (when it
+    /// was started sandboxed) its own check that the sandbox holds. A
+    /// missing sandbox tool, a refused profile or an unsandboxed helper is
+    /// a sandbox fault (logged, the jobs hidden), never a quiet failure.
     fn start(&self, program: &Path, dir: &Path, cap_mib: u64) -> Result<Helper, EngineError> {
-        let program = std::fs::canonicalize(program)
-            .map_err(|_| EngineError::NotHere(Reason::HelperMissing))?;
+        let missing = EngineError::NotHere(Reason::HelperMissing);
+        let program = std::fs::canonicalize(program).map_err(|_| missing)?;
         let dir = std::fs::canonicalize(dir).map_err(|_| EngineError::NotHere(Reason::Unknown))?;
-        let command = Self::command(&program, &dir, cap_mib, !self.setup.unsandboxed)
-            .ok_or(EngineError::NotHere(Reason::HelperMissing))?;
-        let helper = Helper::launch(command, HELLO_WAIT)?;
+        let tool = self.sandbox_tool();
+        if tool.as_ref().is_some_and(|tool| !tool.is_file()) {
+            self.sandbox_fault(Seen::SandboxToolMissing);
+            return Err(missing);
+        }
+        let command = Self::command(&program, &dir, cap_mib, tool.as_deref()).ok_or(missing)?;
+        let helper = match Helper::launch(command, HELLO_WAIT) {
+            Ok(helper) => helper,
+            Err(error) => {
+                if tool
+                    .as_deref()
+                    .is_some_and(|tool| profile_rejected(tool, &program, &dir))
+                {
+                    self.sandbox_fault(Seen::SandboxRejected);
+                    return Err(missing);
+                }
+                self.set_seen(Seen::Failed);
+                return Err(error);
+            }
+        };
         let hello = serde_json::to_vec(&helper.hello).map_err(|_| EngineError::Crashed)?;
-        if let Ok(Answer::Hello {
+        let Ok(Answer::Hello {
             protocol: protocol::PROTOCOL,
+            sandboxed,
             ..
         }) = protocol::parse_answer(&hello)
-        {
-            self.set_seen(Seen::Ready);
-            Ok(helper)
-        } else {
+        else {
             self.set_seen(Seen::Failed);
-            Err(EngineError::Crashed)
+            return Err(EngineError::Crashed);
+        };
+        if tool.is_some() && !sandboxed {
+            self.sandbox_fault(Seen::NotSandboxed);
+            return Err(missing);
         }
+        self.set_seen(Seen::Ready);
+        Ok(helper)
     }
 
     fn unhealthy(&self) -> bool {
@@ -640,14 +753,12 @@ impl AiEngine for Local {
         let Some((dir, _)) = self.models() else {
             return;
         };
-        match self.start(&program, &dir, BARE_CAP_MIB) {
-            Ok(helper) => {
-                if let Ok(mut failures) = self.failures.lock() {
-                    failures.clear();
-                }
-                drop(helper);
+        // `start` records what it found (Ready, Failed or a sandbox fault).
+        if let Ok(helper) = self.start(&program, &dir, BARE_CAP_MIB) {
+            if let Ok(mut failures) = self.failures.lock() {
+                failures.clear();
             }
-            Err(_) => self.set_seen(Seen::Failed),
+            drop(helper);
         }
     }
 

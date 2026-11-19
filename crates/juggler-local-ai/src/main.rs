@@ -11,9 +11,20 @@
 //!   `--models-dir` at start, a plain file (no link) of the exact size
 //!   asked for. The name can't hold a separator (the protocol's check).
 //!   The app verified the file's SHA-256 before asking.
-//! - Nothing else: no network code is called (and the App Sandbox it is
-//!   signed with grants no network and reads only the models' folders),
-//!   no shell, no other process, no file written.
+//! - Nothing else: no network code is called, no shell, no other process,
+//!   no file written (but Metal's shader cache). The app starts it under
+//!   its own deny-by-default sandbox profile
+//!   (`juggler_local_ai_protocol::SANDBOX_PROFILE`, through
+//!   `sandbox-exec`), which denies the network, every file outside the
+//!   models' folder and the system's libraries, and every other program.
+//!
+//! **It checks it is sandboxed** before it says hello (the re-review's N3:
+//! a sandbox that silently stopped applying must not fail open): it tries
+//! to read `/etc/hosts` and to list the models' folder's parent, both of
+//! which the profile denies. If either works, its hello says
+//! `sandboxed: false` and it exits without serving (the app logs it and
+//! hides the jobs). Only the helper's own tests, which run it without the
+//! profile, set `UNSANDBOXED_FOR_TESTS` to have it serve anyway.
 //!
 //! **How it runs.** A reader thread takes request lines (bounded before
 //! they are parsed) and hands a load or a generation to the worker, one
@@ -39,7 +50,7 @@ use std::time::Duration;
 
 use juggler_local_ai_protocol::{
     Answer, Fault, IDLE_EXIT_SECS, MAX_REQUEST_BYTES, MODELS_DIR_ARG, PROTOCOL, Request,
-    parse_request,
+    UNSANDBOXED_FOR_TESTS, parse_request,
 };
 
 /// What the reader and the worker share.
@@ -97,6 +108,13 @@ impl Shared {
     }
 }
 
+/// Whether the sandbox holds: what its profile denies can't be read.
+fn sandboxed(dir: &std::path::Path) -> bool {
+    let hosts = std::fs::read("/etc/hosts").is_ok();
+    let parent = dir.parent().is_some_and(|p| std::fs::read_dir(p).is_ok());
+    !hosts && !parent
+}
+
 /// The models' folder from the arguments: exactly `--models-dir <dir>`,
 /// an absolute path to a directory that is no link.
 fn models_dir() -> Option<PathBuf> {
@@ -119,11 +137,18 @@ fn main() {
     let Some(backend) = llm::backend() else {
         std::process::exit(1);
     };
+    let sandboxed = sandboxed(&dir);
     let shared = Arc::new(Shared::default());
     shared.send(&Answer::Hello {
         protocol: PROTOCOL,
         gpu: backend.supports_gpu_offload(),
+        sandboxed,
     });
+    if !sandboxed && std::env::var_os(UNSANDBOXED_FOR_TESTS).is_none_or(|v| v != "1") {
+        // Never serve outside the sandbox (fails closed).
+        drop(backend);
+        std::process::exit(4);
+    }
     let (work, queue) = channel();
     let reader = Arc::clone(&shared);
     if std::thread::Builder::new()

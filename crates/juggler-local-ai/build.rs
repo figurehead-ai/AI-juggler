@@ -1,7 +1,8 @@
 //! Embeds the helper's Info.plist in its `__TEXT,__info_plist` section on
 //! macOS: its bundle identifier is what it is signed as (and what the app
-//! requires, `juggler_local_ai_protocol::IDENTIFIER`), and the App Sandbox
-//! needs it to give the helper its container.
+//! requires, `juggler_local_ai_protocol::IDENTIFIER`), and Metal names the
+//! helper's shader cache after it. (Its sandbox is the profile the app
+//! applies at start, not the App Sandbox: it has no entitlements.)
 
 #![allow(
     clippy::print_stdout,

@@ -131,7 +131,7 @@ done
     path
 }
 
-const HELLO: &str = r#"{"kind":"hello","protocol":2,"gpu":true}"#;
+const HELLO: &str = r#"{"kind":"hello","protocol":3,"gpu":true,"sandboxed":false}"#;
 
 /// Memory pressure as these tests set it: calm, or critical while
 /// [`CRITICAL`] is on (one test at a time sets it: nextest runs each test
@@ -149,6 +149,7 @@ fn engine(dir: &Path, mode: &str, min_memory_gb: u64) -> Local {
         host: Some(MAC),
         pressure: Some(critical_now),
         unsandboxed: true,
+        sandbox_tool: None,
     })
 }
 
@@ -268,6 +269,7 @@ fn with_no_model_installed_there_is_no_card_and_nothing_is_started() {
         host: Some(MAC),
         pressure: Some(critical_now),
         unsandboxed: true,
+        sandbox_tool: None,
     });
     engine.probe();
     assert_eq!(engine.seen(), Seen::NotAsked);
@@ -287,6 +289,7 @@ fn a_missing_helper_hides_the_card_with_its_reason() {
         host: Some(MAC),
         pressure: Some(critical_now),
         unsandboxed: true,
+        sandbox_tool: None,
     });
     engine.probe();
     assert_eq!(engine.seen(), Seen::Missing);
@@ -413,9 +416,10 @@ fn broken_answers_are_crashes_and_three_make_it_unhealthy() {
 fn a_helper_on_another_protocol_is_never_used() {
     let dir = tempfile::tempdir().unwrap();
     for hello in [
-        r#"{"kind":"hello","protocol":1,"gpu":true}"#,
+        r#"{"kind":"hello","protocol":2,"gpu":true,"sandboxed":true}"#,
+        r#"{"kind":"hello","protocol":4,"gpu":true,"sandboxed":true}"#,
         r#"{"kind":"hello","protocol":3,"gpu":true}"#,
-        r#"{"kind":"hello","protocol":2,"gpu":true,"shell":"sh"}"#,
+        r#"{"kind":"hello","protocol":3,"gpu":true,"sandboxed":true,"shell":"sh"}"#,
         r#"{"hello":true,"protocol":2,"available":"available"}"#,
         "not json",
     ] {
@@ -425,6 +429,7 @@ fn a_helper_on_another_protocol_is_never_used() {
             host: Some(MAC),
             pressure: Some(critical_now),
             unsandboxed: true,
+            sandbox_tool: None,
         });
         engine.probe();
         assert_eq!(engine.seen(), Seen::Failed, "{hello}");
@@ -522,6 +527,7 @@ fn a_file_that_fails_its_hash_is_never_loaded() {
         host: Some(MAC),
         pressure: Some(critical_now),
         unsandboxed: true,
+        sandbox_tool: None,
     });
     engine.probe();
     assert_eq!(
@@ -603,17 +609,20 @@ fn the_sections_sampling_bounds_are_the_protocols() {
     }
 }
 
-/// Review M1 and L3: the helper runs as `taskpolicy -c utility -m <cap>
-/// sandbox-exec -p <profile> -D HELPER=… -D MODELS=… -D CACHE=… <helper>
-/// --models-dir <dir>`, in the models' folder, with the allowed
-/// environment and GGML_NO_BACKTRACE=1.
+/// Review M1, L3 and the re-review's N1: the helper runs as
+/// `sandbox-exec -p <profile> -D HELPER=… -D MODELS=… -D CACHE=…
+/// taskpolicy -c utility -m <cap> <helper> --models-dir <dir>` (the cap
+/// set after the sandbox's exec, so it holds; the helper's own tests kill
+/// an allocation over it through this very chain), in the models' folder,
+/// with the allowed environment and GGML_NO_BACKTRACE=1.
 #[cfg(target_os = "macos")]
 #[test]
-fn the_helper_starts_capped_sandboxed_and_in_its_folder() {
+fn the_helper_starts_sandboxed_then_capped_and_in_its_folder() {
     let program = Path::new("/Applications/AI Juggler.app/Contents/MacOS/juggler-local-ai");
     let dir = Path::new("/Users/someone/Library/Application Support/AI Juggler/ai-models");
-    let command = Local::command(program, dir, 5_000, true).unwrap();
-    assert_eq!(command.get_program(), "/usr/sbin/taskpolicy");
+    let tool = Path::new("/usr/bin/sandbox-exec");
+    let command = Local::command(program, dir, 5_000, Some(tool)).unwrap();
+    assert_eq!(command.get_program(), "/usr/bin/sandbox-exec");
     let args: Vec<String> = command
         .get_args()
         .map(|a| a.to_string_lossy().into_owned())
@@ -622,11 +631,6 @@ fn the_helper_starts_capped_sandboxed_and_in_its_folder() {
     assert_eq!(
         args,
         [
-            "-c",
-            "utility",
-            "-m",
-            "5000",
-            "/usr/bin/sandbox-exec",
             "-p",
             juggler_local_ai_protocol::SANDBOX_PROFILE,
             "-D",
@@ -635,6 +639,11 @@ fn the_helper_starts_capped_sandboxed_and_in_its_folder() {
             &format!("MODELS={}", dir.display()),
             "-D",
             &format!("CACHE={}", cache.display()),
+            "/usr/sbin/taskpolicy",
+            "-c",
+            "utility",
+            "-m",
+            "5000",
             &program.display().to_string(),
             "--models-dir",
             &dir.display().to_string(),
@@ -656,18 +665,82 @@ fn the_helper_starts_capped_sandboxed_and_in_its_folder() {
         Some("/usr/bin:/bin:/usr/sbin:/sbin".to_owned())
     )));
     assert!(
+        !env.iter()
+            .any(|(k, _)| k == juggler_local_ai_protocol::UNSANDBOXED_FOR_TESTS),
+        "the app never lets the helper serve unsandboxed"
+    );
+    assert!(
         cache.ends_with("ai.figurehead.juggler.local-ai") || cache.starts_with("/nonexistent"),
         "{}",
         cache.display()
     );
-    // Without the sandbox (a fake helper's tests) the helper follows
-    // taskpolicy's arguments directly.
-    let bare = Local::command(program, dir, 1_024, false).unwrap();
-    let args: Vec<String> = bare
-        .get_args()
-        .map(|a| a.to_string_lossy().into_owned())
-        .collect();
-    assert_eq!(args[4], program.display().to_string());
+    // Without the sandbox (a fake helper's tests) it starts at taskpolicy.
+    let bare = Local::command(program, dir, 1_024, None).unwrap();
+    assert_eq!(bare.get_program(), "/usr/sbin/taskpolicy");
+}
+
+/// A stand-in for the sandbox tool: `refuses` exits as `sandbox-exec`
+/// does on a profile it can't read; `ignores` runs the rest without
+/// applying anything (what N3 guards against).
+#[cfg(unix)]
+fn fake_sandbox_tool(dir: &Path, mode: &str) -> PathBuf {
+    use std::os::unix::fs::PermissionsExt as _;
+    let path = dir.join(format!("sandbox-{mode}"));
+    let script = match mode {
+        "refuses" => "#!/bin/sh\nexit 65\n".to_owned(),
+        _ => "#!/bin/sh\nwhile [ \"$1\" = -p ] || [ \"$1\" = -D ]; do shift 2; done\nexec \"$@\"\n"
+            .to_owned(),
+    };
+    std::fs::write(&path, script).unwrap();
+    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755)).unwrap();
+    path
+}
+
+/// The re-review's N3, through the engine: a missing sandbox tool, a
+/// refused profile, and a helper that reports it isn't sandboxed each
+/// hide the jobs (as a missing helper), are recorded as the engine's own
+/// reason, and never run a job: none fails open or quietly.
+#[cfg(target_os = "macos")]
+#[test]
+fn a_sandbox_that_can_t_be_applied_hides_the_jobs_and_says_why() {
+    let cases = [
+        ("missing", Seen::SandboxToolMissing),
+        ("refuses", Seen::SandboxRejected),
+        ("ignores", Seen::NotSandboxed),
+    ];
+    for (mode, want) in cases {
+        let dir = tempfile::tempdir().unwrap();
+        let tool = match mode {
+            "missing" => dir.path().join("no-sandbox-tool"),
+            _ => fake_sandbox_tool(dir.path(), mode),
+        };
+        let engine = Local::with(Setup {
+            program: Some(fake(dir.path(), "ok", HELLO)),
+            models: Some(models(dir.path(), 16, BYTES)),
+            host: Some(MAC),
+            pressure: Some(critical_now),
+            unsandboxed: false,
+            sandbox_tool: Some(tool),
+        });
+        engine.probe();
+        assert_eq!(engine.seen(), want, "{mode}");
+        assert!(want.sandbox_fault());
+        assert_eq!(
+            card(&engine).ready,
+            Readiness::NotHere(Reason::HelperMissing),
+            "{mode}: the jobs are hidden"
+        );
+        assert_eq!(
+            engine.respond(MODEL, &request(), &soon()),
+            Err(EngineError::NotHere(Reason::HelperMissing)),
+            "{mode}"
+        );
+        assert_eq!(
+            ops(dir.path()),
+            Vec::<String>::new(),
+            "{mode}: nothing loaded"
+        );
+    }
 }
 
 #[test]

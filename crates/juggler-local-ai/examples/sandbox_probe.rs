@@ -2,7 +2,8 @@
 //! with the helper's tests and run by them under the helper's own profile
 //! (`juggler_local_ai_protocol::SANDBOX_PROFILE`). Never shipped.
 //!
-//! `sandbox_probe <tmp-file> <home> <port> <models-dir> [control]`
+//! `sandbox_probe <tmp-file> <home> <port> <models-dir> [control]`, or
+//! `sandbox_probe alloc <MiB>` (touches that much memory: the cap's test)
 //!
 //! It tries each thing a compromised helper might, and writes one line
 //! per try, `<name> allowed` or `<name> denied`: reading a file in
@@ -20,8 +21,24 @@ use std::path::PathBuf;
 use std::process::{Command, Stdio};
 use std::time::Duration;
 
+/// `alloc <MiB>`: touches that much memory (the memory cap's test).
+fn alloc(mib: usize) {
+    let mut block = vec![0_u8; mib << 20];
+    for page in (0..block.len()).step_by(4_096) {
+        block[page] = 1;
+    }
+    let touched = std::hint::black_box(&block).len() >> 20;
+    let _ = writeln!(std::io::stdout().lock(), "touched {touched}");
+}
+
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
+    if let [mode, mib] = args.as_slice()
+        && mode == "alloc"
+    {
+        alloc(mib.parse().unwrap_or(0));
+        return;
+    }
     let control = args.len() == 5 && args[4] == "control";
     let [tmp_file, home, port, models] = args.get(..4).unwrap_or_default() else {
         std::process::exit(2);

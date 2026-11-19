@@ -309,11 +309,29 @@ impl<'m> Session<'m> {
         if rendered.matches(SYSTEM).count() != 1 || rendered.matches(USER).count() != 1 {
             return Err(Fault::NoTemplate);
         }
-        let holds_special = |text: &str| self.specials.iter().any(|s| text.contains(s.as_str()));
-        if !holds_special(instructions) && !holds_special(prompt) {
-            let whole = rendered
-                .replacen(SYSTEM, instructions, 1)
-                .replacen(USER, prompt, 1);
+        let (first_at, first_text, second_text) = if at_system < at_user {
+            (at_system, instructions, prompt)
+        } else {
+            (at_user, prompt, instructions)
+        };
+        let whole = rendered
+            .replacen(SYSTEM, instructions, 1)
+            .replacen(USER, prompt, 1);
+        // The untrusted text's place in the whole: the second sentinel sits
+        // after the first one's text has replaced it.
+        let second_at = rendered[first_at..]
+            .find(if at_system < at_user { USER } else { SYSTEM })
+            .map_or(0, |at| first_at + at)
+            - (if at_system < at_user { SYSTEM } else { USER }).len()
+            + first_text.len();
+        let untrusted = [
+            first_at..first_at + first_text.len(),
+            second_at..second_at + second_text.len(),
+        ];
+        // One piece when no control-token text in the whole touches the
+        // untrusted text: neither inside it nor across its edge with the
+        // template (the re-review's N4).
+        if !marker_touches(&whole, &untrusted, &self.specials) {
             return self
                 .model
                 .str_to_token(&whole, AddBos::Always)
@@ -527,16 +545,45 @@ fn sampler_chain(sampling: Sampling, n_vocab: i32) -> Option<LlamaSampler> {
     ]))
 }
 
-/// The texts of `model`'s control and user-defined tokens (two
+/// Whether any of `markers` in `whole` overlaps one of the `untrusted`
+/// ranges (inside it, or across its edge with the template).
+fn marker_touches(whole: &str, untrusted: &[std::ops::Range<usize>], markers: &[String]) -> bool {
+    markers.iter().any(|marker| {
+        whole.match_indices(marker.as_str()).any(|(at, m)| {
+            untrusted
+                .iter()
+                .any(|range| at < range.end && at + m.len() > range.start)
+        })
+    })
+}
+
+/// A special token's text, however long (N4: the first try's buffer
+/// holds 64 bytes; a longer one is asked for again at its own size).
+fn piece_bytes(model: &LlamaModel, token: LlamaToken) -> Option<Vec<u8>> {
+    match model.token_to_piece_bytes(token, 64, true, None) {
+        Ok(bytes) => Some(bytes),
+        Err(TokenToStringError::InsufficientBufferSpace(need)) => {
+            let size = usize::try_from(need.unsigned_abs()).ok()?;
+            model.token_to_piece_bytes(token, size, true, None).ok()
+        }
+        Err(_) => None,
+    }
+}
+
+/// The texts of `model`'s control, user-defined and unknown tokens (two
 /// characters or more), longest first.
 fn specials(model: &LlamaModel) -> Vec<String> {
     let mut out: Vec<String> = (0..model.n_vocab())
         .map(LlamaToken)
         .filter(|token| {
+            // Every kind the tokenizer matches by its text: control,
+            // user-defined and unknown (`<unk>`) tokens (N4).
             let attrs = model.token_attr(*token);
-            attrs.contains(LlamaTokenAttr::Control) || attrs.contains(LlamaTokenAttr::UserDefined)
+            attrs.contains(LlamaTokenAttr::Control)
+                || attrs.contains(LlamaTokenAttr::UserDefined)
+                || attrs.contains(LlamaTokenAttr::Unknown)
         })
-        .filter_map(|token| model.token_to_piece_bytes(token, 64, true, None).ok())
+        .filter_map(|token| piece_bytes(model, token))
         .filter_map(|bytes| String::from_utf8(bytes).ok())
         .filter(|text| text.chars().count() >= 2)
         .collect();
@@ -667,6 +714,35 @@ mod tests {
         (model, dir)
     }
 
+    /// N4: a marker formed across the edge between the template and the
+    /// untrusted text counts, as one inside it does; one wholly in the
+    /// template doesn't.
+    #[test]
+    fn a_marker_across_the_edge_of_untrusted_text_is_caught() {
+        let markers = vec!["<|im_end|>".to_owned()];
+        let whole = "<|im_start|>user\nhi <|im_end|>\n";
+        // "…<|im_" from the text, "end|>" from the template.
+        let text_end = whole.find("end|>").unwrap();
+        assert!(marker_touches(
+            whole,
+            std::slice::from_ref(&(17..text_end)),
+            &markers
+        ));
+        // The text stops before the template's own marker.
+        let marker_at = whole.find("<|im_end|>").unwrap();
+        assert!(!marker_touches(
+            whole,
+            std::slice::from_ref(&(17..marker_at)),
+            &markers
+        ));
+        assert!(marker_touches(
+            whole,
+            std::slice::from_ref(&(17..marker_at + 1)),
+            &markers
+        ));
+        assert!(!marker_touches(whole, &[], &markers));
+    }
+
     /// Review L2: a role marker pasted into untrusted text stays text. The
     /// template's own markers are the only control tokens in the prompt.
     #[test]
@@ -707,6 +783,10 @@ mod tests {
                 .replace(' ', "");
             assert!(text.contains("<|im_start|>system"), "{text:?}");
         }
+        // N4: the unknown token's text (`<unk>`, id 0) stays text too.
+        let unk = session.tokens("Be brief.", "a <unk> b").unwrap();
+        assert!(session.specials.iter().any(|s| s == "<unk>"));
+        assert!(!unk.contains(&LlamaToken(0)), "{unk:?}");
         // The sentinels can't be smuggled in.
         assert_eq!(
             session.tokens("\u{E000}aij-prompt\u{E001}", "b"),
