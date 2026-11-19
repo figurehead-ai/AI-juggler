@@ -16,7 +16,8 @@ a version both sides added since their merge base, with different
 definitions, is a clash. Refs that aren't here (a CI checkout, an old
 clone) are skipped, and so is a ref without a merge base (a shallow
 clone). It also checks this tree's `MIGRATIONS` is V1..Vk
-in order, as the runner needs.
+in order, as the runner needs, and that V54 is listed only with the
+forget path's L1 pieces in place (V54_GATE).
 
 Usage: scripts/migration_clash.py              (fails naming each clash)
        scripts/migration_clash.py --selftest
@@ -99,11 +100,37 @@ def _at(ref: str) -> dict[int, str]:
     return _merged(texts)
 
 
+# V54 (the memory store) may be listed in MIGRATIONS only with the forget
+# path's WAL fold retried and the WAL cut on restart (the security review's
+# L1, a registration gate): each (file, text that must be in it).
+V54_GATE = (
+    ("crates/juggler-core/src/storage/memory/secure.rs", "let _ = retry_pending_fold(self.conn);"),
+    ("crates/juggler-core/src/storage/memory/secure.rs", "JOURNAL_SIZE_LIMIT: i64 = 0;"),
+    (
+        "crates/juggler-core/src/storage/memory/tests/forget.rs",
+        "#[test]\nfn a_blocked_wal_fold_is_retried_by_the_next_write()",
+    ),
+)
+
+
+def v54_gate(names: list[str], read) -> list[str]:
+    """When V54 is registered, every L1 piece must be in place."""
+    if "V54" not in names:
+        return []
+    return [
+        f"V54 is registered but {path} lacks {needle.splitlines()[-1]!r} "
+        "(the forget path's WAL-fold retry and journal limit gate V54, ADR-0037 L1)"
+        for path, needle in V54_GATE
+        if needle not in read(path)
+    ]
+
+
 def check() -> list[str]:
     text = (ROOT / PATH).read_text()
     problems = []
     if bad := contiguity(registered(text)):
         problems.append(bad)
+    problems += v54_gate(registered(text), lambda path: (ROOT / path).read_text())
     head = _merged([f.read_text() for f in sorted((ROOT / DIR).rglob("*.rs"))])
     for ref in REFS:
         if _git("rev-parse", "--verify", "--quiet", f"{ref}^{{commit}}") is None:
@@ -160,6 +187,14 @@ const MIGRATIONS: &[&str] = &[
     assert clashes({1: "a2", 52: "x"}, base, base) == []
     # An empty base: every shared version that differs counts.
     assert clashes({1: "a"}, {1: "b"}, {}) == [1]
+    # The V54 gate: silent until V54 is listed, then every L1 piece.
+    whole = {path: needle for path, needle in V54_GATE}
+    full = {path: "\n".join(n for p, n in V54_GATE if p == path) for path in whole}
+    assert v54_gate(["V1", "V53"], lambda path: "") == []
+    assert v54_gate(["V53", "V54"], lambda path: full[path]) == []
+    missing = v54_gate(["V53", "V54"], lambda path: full[path].replace("retry_pending_fold", "x"))
+    assert len(missing) == 1 and "secure.rs" in missing[0], missing
+    assert len(v54_gate(["V54"], lambda path: "")) == len(V54_GATE)
     print("migration_clash selftest: ok")
 
 
