@@ -80,12 +80,19 @@ const REREAD_VERSION: u32 = 8;
 /// minutes after the first start every screen said "0 tokens" while it
 /// ran). While it runs, the screens say so, with how many conversations
 /// it has read, instead of a zero; after it, they show what it found.
+///
+/// Also whether this start's first walk of the tools' files has been
+/// stored (F-rc3c-1): until then, a reading kept from an earlier run may
+/// be about to be replaced, and the screens say "refreshing…" beside an
+/// old one.
 #[derive(Debug, Default)]
 pub struct Reading {
     /// The first read is under way.
     active: std::sync::atomic::AtomicBool,
     /// Conversation files read so far in it.
     files: std::sync::atomic::AtomicU64,
+    /// A pass that walked every file has stored since this start.
+    caught_up: std::sync::atomic::AtomicBool,
 }
 
 impl Reading {
@@ -114,6 +121,20 @@ impl Reading {
         self.active
             .load(Ordering::Relaxed)
             .then(|| self.files.load(Ordering::Relaxed))
+    }
+
+    /// A pass that walked every file stored what it read.
+    fn caught_up(&self) {
+        self.caught_up
+            .store(true, std::sync::atomic::Ordering::Release);
+    }
+
+    /// True from the start until a pass that walked every file has stored
+    /// what it read (F-rc3c-1): a reading from before may still be
+    /// replaced by a newer one in the tools' files.
+    #[must_use]
+    pub fn refreshing(&self) -> bool {
+        !self.caught_up.load(std::sync::atomic::Ordering::Acquire)
     }
 }
 
@@ -300,6 +321,13 @@ fn ingest_pass_due(state: &Arc<AppState>, tick: u32, due: gate::Due, named: Opti
     // Claude's own limit records, on their slower cadence.
     let instances =
         crate::features::quota::records::due_instances(state, &mut ingest.app_instances, tick);
+    // F-rc3c-1: at start, before the long first walk of every transcript,
+    // so the apps' own readings land in seconds, not when the walk ends.
+    if state.usage_reading.refreshing()
+        && let Some(instances) = instances.as_deref()
+    {
+        records_first(state, &accounts, instances, &mut ingest);
+    }
     // 0.4.4: a limit hit in a moved conversation is the folder's it was
     // written in (the move journal), not the one it sits in now.
     let spent = crate::features::handover::moved_lines::SpentOn::new(state, &accounts);
@@ -375,10 +403,66 @@ fn ingest_pass_due(state: &Arc<AppState>, tick: u32, due: gate::Due, named: Opti
             .retain(|account, path| !taken.iter().any(|(a, p)| a == account && p == path));
         return;
     }
+    if named.is_none() {
+        state.usage_reading.caught_up();
+    }
     // D-39 (off until ruled): ask the tool itself for profiles whose own
     // records are old.
     if instances.is_some() {
         crate::features::quota::probe::tick(state, &accounts);
+    }
+}
+
+/// F-rc3c-1 (the 0.4.6 rc3c walk: two days away, the Claude apps'
+/// readings came in minutes after the start): the Claude profiles' own
+/// limit records (the app's meter, Claude Code's last `/usage`), read and
+/// stored on their own before a pass walks the transcripts. At start that
+/// walk is the long first read, and what it carries is stored when it
+/// ends. A record's mark moves on only once its readings are stored, so
+/// the pass's own read takes up whatever didn't go in (storing a reading
+/// again changes nothing).
+fn records_first(
+    state: &Arc<AppState>,
+    accounts: &[juggler_core::model::Account],
+    instances: &[PathBuf],
+    ingest: &mut IngestState,
+) {
+    let mut batch = SampleBatch::default();
+    let mut marks = Vec::new();
+    // Claude's profiles, whose records `quota::records` reads, as the
+    // pass's own read of them does (`ingest_claude`).
+    let claude = accounts
+        .iter()
+        .filter(|account| account.harness.as_str() == "claude-code")
+        .filter(|account| !account.state_dir.as_os_str().is_empty());
+    for account in claude {
+        let id = account.id.as_str();
+        let mut records = ingest
+            .offsets
+            .get(id)
+            .map(|offsets| offsets.records.clone())
+            .unwrap_or_default();
+        crate::features::quota::records::read_claude_records(
+            id,
+            &account.state_dir,
+            instances,
+            &mut records,
+            &mut batch,
+        );
+        marks.push((id.to_owned(), records));
+    }
+    if batch.windows.is_empty() && batch.model_weeks.is_empty() {
+        return;
+    }
+    let stored = state.storage.lock().is_ok_and(|storage| {
+        let usage = storage.usage();
+        usage.insert_sourced_samples(&batch.windows).is_ok()
+            && usage.insert_model_week_samples(&batch.model_weeks).is_ok()
+    });
+    if stored {
+        for (id, records) in marks {
+            ingest.offsets.entry(id).or_default().records = records;
+        }
     }
 }
 
@@ -1229,6 +1313,22 @@ mod reading_tests {
         assert_eq!(reading.so_far(), Some(0), "a pass again counts again");
         reading.end();
         assert_eq!(reading.so_far(), None);
+    }
+
+    /// F-rc3c-1: from the start until a pass that walked every file is
+    /// stored, a reading kept from before may still be replaced.
+    #[test]
+    fn it_refreshes_from_the_start_until_a_walk_is_stored() {
+        let reading = Reading::default();
+        assert!(reading.refreshing());
+        reading.begin();
+        reading.end();
+        assert!(
+            reading.refreshing(),
+            "the first read's end is not a walk stored"
+        );
+        reading.caught_up();
+        assert!(!reading.refreshing());
     }
 }
 

@@ -62,6 +62,13 @@ model_weeks: Array<ModelWeekDisplay>,
  */
 history_reading: boolean, 
 /**
+ * F-rc3c-1 (the 0.4.6 rc3c walk): this start's first read of the
+ * tools' files hasn't finished, so a reading kept from an earlier
+ * run may be about to be replaced: an old one says so ("as of 2
+ * days ago, refreshing…"). Set by the commands that show it.
+ */
+refreshing: boolean, 
+/**
  * 0.4.4: out of room, when it has room again: the latest reset among
  * its used-up windows ([`juggler_core::quota::room_back`]), the one
  * time every surface gives. `None` when no window is used up.
