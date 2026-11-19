@@ -818,6 +818,8 @@ def selftest_r3(check, WJ):
     check("caveat: a reverted agent's line says 'reverted' even when the detail is cut for length", o["ok"] and any(x["agent"] == "a2" and x["source"] == "ai" and "reverted" in x["line"] for x in o["items"]), o.get("errors") or [x["line"] for x in o.get("items") or [] if x["agent"] == "a2"])
     o = ci("a3", "opened, nothing yet", ["e1"], "none", "partial")
     check("caveat: 'partly done' on an agent with no turn is rejected", not o["ok"] and any("no turn" in e for e in o["errors"]), o.get("errors"))
+    o = ci("a3", "opened, nothing yet", ["e1"], "none", "not_done")
+    check("caveat mutation: 'not done' on an agent with no turn is true and passes", o["ok"], o.get("errors"))
     o = ci("a3", "opened, nothing yet", ["e1"], "none", "blocked")
     check("caveat: 'blocked' with nothing blocking it is rejected", not o["ok"] and any("nothing blocking" in e for e in o["errors"]), o.get("errors"))
     o = ci("a4", "the wader-api migration is ready", ["t3"], "waiting on the database password from ops", "blocked")

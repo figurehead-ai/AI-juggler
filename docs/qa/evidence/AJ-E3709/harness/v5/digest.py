@@ -163,7 +163,7 @@ def caveat_errors(a, cav, turns, line=""):
         if any((t["F"] or {}).get("tests_state") == "ran" for t in kt): out.append("caveat not_run while the facts say tests ran")
         if PASS_COUNT.search(line): out.append("a line holds a pass count and 'tests not run'")
     if cav in ("partial", "not_done"):
-        if not kt: out.append(f"caveat {cav} on an agent with no turn (nothing was done)")
+        if not kt and cav == "partial": out.append(f"caveat {cav} on an agent with no turn (nothing was done)")    # "not done" is true there
         elif undo_word(a): out.append(f"caveat {cav} on work the agent undid (code shows '{undo_word(a)}')")
     if cav == "blocked":
         if not (a["level"] == "L2" or _ev(a, "task_blocked") or any(BLOCKER.search(t["ctx"]["cleaned"]) for t in kt)):
