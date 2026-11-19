@@ -35,6 +35,7 @@ AJ_AXE_GALLERY=1 AJ_A11Y_EVIDENCE=1 pnpm exec playwright test \
   tests/visual/attention-budget.spec.ts \
   tests/visual/a11y.spec.ts \
   tests/visual/accounts-out-filter.spec.ts \
+  tests/visual/bot-gallery.spec.ts \
   tests/visual/caret-mark.spec.ts \
   tests/visual/cursor.spec.ts \
   tests/visual/fits-its-room.spec.ts \
