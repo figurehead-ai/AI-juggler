@@ -17,6 +17,11 @@
  * two curves side by side were the canvas's last busy thing). It leads
  * with the way that needs you, else the busier one: a click chooses that
  * way, and its inspector offers the other.
+ *
+ * A team that hasn't written yet still shows its shape: a quiet tie from
+ * its lead to each member with no line of its own (the rc3a walk: the
+ * setup canvas drew the lead's lines, and they went the moment sessions
+ * joined, leaving the cards afloat; the mock's running view has them).
  */
 import { memo, useMemo, useState, type JSX } from "react";
 
@@ -219,6 +224,7 @@ export const CanvasEdges = memo(function CanvasEdges({
   scale,
   hops,
   lineRules,
+  lead = null,
   onSelect,
 }: {
   edges: CanvasEdgeInfo[];
@@ -233,6 +239,8 @@ export const CanvasEdges = memo(function CanvasEdges({
   /** The pool's replies in a row before a chain pauses. */
   hops?: number;
   lineRules?: LineRules;
+  /** The team's lead: a quiet tie to each member it has no line with. */
+  lead?: string | null;
   onSelect: (key: string) => void;
 }): JSX.Element {
   const [hover, setHover] = useState<string | null>(null);
@@ -273,6 +281,18 @@ export const CanvasEdges = memo(function CanvasEdges({
     }
     return out;
   }, [edges, points, room]);
+  // The lead's ties: to each member with no line either way.
+  const ties = useMemo(() => {
+    const from = lead ? points.get(lead) : undefined;
+    if (!lead || !from) return [];
+    const linked = new Set(edges.flatMap((edge) => [edgeKey(edge.from_session_id, edge.to_session_id), edgeKey(edge.to_session_id, edge.from_session_id)]));
+    return [...points]
+      .filter(([id]) => id !== lead && !linked.has(edgeKey(lead, id)))
+      .map(([id, to]) => {
+        const around = [...points].filter(([other]) => other !== lead && other !== id).map(([, at]) => at);
+        return { key: edgeKey(lead, id), d: edgeCurve(from, to, false, around, [], room).d };
+      });
+  }, [edges, points, lead, room]);
   return (
     <>
       <svg className="pointer-events-none absolute left-0 top-0 overflow-visible" width="1" height="1" aria-hidden="true" data-testid="canvas-edges">
@@ -283,6 +303,9 @@ export const CanvasEdges = memo(function CanvasEdges({
             </marker>
           ))}
         </defs>
+        {ties.map(({ key, d }) => (
+          <path key={`tie-${key}`} d={d} fill="none" strokeWidth={1.5} className="stroke-hairline" data-testid="canvas-tie" data-tie={key} />
+        ))}
         {drawn.map((line) => {
           const { key, backKey, d, width, waits } = line;
           // Hovered or chosen, a line says what it is (its colour, dashed

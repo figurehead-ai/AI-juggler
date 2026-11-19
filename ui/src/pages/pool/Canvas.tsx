@@ -312,7 +312,7 @@ export function Canvas({
           pulses={pulses}
           reducedMotion={reducedMotion}
           scale={shown.scale}
-          hops={pool.access.hop_limit} lineRules={lineRules}
+          hops={pool.access.hop_limit} lineRules={lineRules} lead={members.find((member) => member.role === "lead")?.id ?? null}
           onSelect={(key) => onSelect({ kind: "edge", key })}
         />
         {members.map((member) => {

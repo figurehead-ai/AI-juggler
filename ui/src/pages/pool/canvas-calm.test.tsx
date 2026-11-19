@@ -150,6 +150,21 @@ describe("a pair is one line (round 2: the mock draws one line a pair)", () => {
   });
 });
 
+describe("a team that hasn't written yet keeps its shape (the rc3a walk: the cards floated)", () => {
+  it("a quiet tie from the lead to each member it has no line with; none without a lead", () => {
+    const points = new Map<string, Point>([["lead", { x: 200, y: 0 }], ["b", { x: 0, y: 300 }], ["c", { x: 400, y: 300 }]]);
+    const names = new Map([["lead", "Planner"], ["b", "B"], ["c", "C"]]);
+    const edges: CanvasEdgeInfo[] = [{ from_session_id: "b", to_session_id: "lead", messages: 2, tasks: 0, last_at_ms: 0, thread_id: "t", pending: [] }];
+    const view = render(<CanvasEdges edges={edges} points={points} names={names} selected={null} pulses={new Map()} reducedMotion scale={1} lead="lead" onSelect={() => {}} />);
+    const ties = view.getAllByTestId("canvas-tie");
+    expect(ties.map((tie) => tie.getAttribute("data-tie"))).toEqual(["lead>c"]);
+    expect(ties[0]!.getAttribute("marker-end")).toBeNull();
+    expect(ties[0]!.getAttribute("class")).toContain("stroke-hairline");
+    view.rerender(<CanvasEdges edges={edges} points={points} names={names} selected={null} pulses={new Map()} reducedMotion scale={1} lead={null} onSelect={() => {}} />);
+    expect(view.queryAllByTestId("canvas-tie")).toEqual([]);
+  });
+});
+
 /** The gallery's Checkout team: the lead and five members, the lines
  * between them (the fixture's messages and its one task). */
 const TEAM: LayoutNode[] = [
