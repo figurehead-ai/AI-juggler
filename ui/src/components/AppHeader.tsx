@@ -9,7 +9,8 @@
  * New session says why it waits.
  */
 import { RoomCount } from "./RoomChip";
-import type { JSX } from "react";
+import { useRef, type JSX } from "react";
+import { useGiveWay } from "./use-give-way";
 import { IconTerminal } from "./icons";
 import { IconChevronRight } from "./icons-controls";
 import { keysOf } from "../lib/shortcuts";
@@ -50,6 +51,12 @@ export function AppHeader({
   back?: { canBack: boolean; canForward: boolean; onBack: () => void; onForward: () => void };
 }): JSX.Element {
   const { downSince } = useBackendHealth();
+  // This Mac's room words show whole or not at all: when the cluster's
+  // other parts (the clean-up count, the bell's count, a longer status)
+  // leave too little room, they give way and the dot stays, its words in
+  // its title (9aa04ae56's rule; Settings at 1280 cut "Plenty of r…").
+  const thisMac = useRef<HTMLSpanElement>(null);
+  useGiveWay(thisMac);
   return (
     <header
       data-tauri-drag-region
@@ -73,7 +80,7 @@ export function AppHeader({
             by the bar's own width, not the window's, so the list open at
             1280 px with Fleet's tab too (a paired Mac) still fits one row
             (the 0.3 re-render found it wrapping). */}
-        <span className={"hidden min-w-0 text-muted " + (pairedCount > 0 ? "@min-[1060px]/header:flex" : "@min-[960px]/header:flex")} data-testid="header-this-mac">
+        <span ref={thisMac} className={"hidden shrink-0 text-muted " + (pairedCount > 0 ? "@min-[1060px]/header:flex" : "@min-[960px]/header:flex")} data-testid="header-this-mac">
           <MachineStatusLine minimal={false} short onOpen={onOpenThisMac} />
         </span>
         {/* D-87: accounts out of room or low, a calm count (the bell holds the notices). */}

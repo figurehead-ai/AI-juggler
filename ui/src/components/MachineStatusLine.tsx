@@ -78,11 +78,19 @@ export function MachineStatusLine({ minimal, onOpen, short = false }: { minimal:
           "P…" at 1280 with the rail open (the 0.4.1 gate). D-118's mock
           shows them at 1280 with the list open: from 970 px of bar, the
           clean-up and runway counts and the Floor kept snug for them. */}
-      <span className={"min-w-0 shrink truncate text-meta" + (short ? " @max-[969px]/header:hidden" : "")}>{shown}</span>
+      {/* Never cut mid-word in the top bar: whole, or given way (the
+          header's useGiveWay) to the dot alone. */}
+      {short ? (
+        <span data-give-at="1" className="shrink-0 whitespace-nowrap text-meta data-gone:hidden @max-[969px]/header:hidden" data-testid="machine-status-words">
+          {shown}
+        </span>
+      ) : (
+        <span className="min-w-0 shrink truncate text-meta">{shown}</span>
+      )}
     </>
   );
   return onOpen ? (
-    <button type="button" onClick={onOpen} title={why ?? (shown !== words || short ? words : undefined)} aria-label={spoken} className={"flex min-h-6 min-w-0 shrink items-center rounded-md text-left text-muted outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60 " + gap} data-testid="machine-status" data-level={breath}>
+    <button type="button" onClick={onOpen} title={why ?? (shown !== words || short ? words : undefined)} aria-label={spoken} className={"flex min-h-6 items-center rounded-md text-left text-muted outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60 " + (short ? "shrink-0 " : "min-w-0 shrink ") + gap} data-testid="machine-status" data-level={breath}>
       {line}
     </button>
   ) : (

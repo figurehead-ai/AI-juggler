@@ -70,8 +70,13 @@ it("lights the current page as D-118's mock does: semibold words, no box, the ot
   expect(home.className).toContain("after:content-[attr(data-label)]");
 });
 
-it("keeps This Mac's room words in sight at 1280 with the list open (970 px of bar)", () => {
+it("keeps This Mac's room words in sight at 1280 with the list open (970 px of bar), whole or not at all", () => {
   const view = header(0);
-  const words = view.getByTestId("machine-status").querySelector("span.truncate")!;
+  const words = view.getByTestId("machine-status-words");
   expect(words.className).toContain("@max-[969px]/header:hidden");
+  // Never cut mid-word ("Plenty of r…"): they give way whole to the dot.
+  expect(words.className).not.toContain("truncate");
+  expect(words.className).toContain("whitespace-nowrap");
+  expect(words.dataset.giveAt).toBe("1");
+  expect(words.className).toContain("data-gone:hidden");
 });
