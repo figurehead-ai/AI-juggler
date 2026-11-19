@@ -312,7 +312,7 @@ export function PlaceBoard({ sessions, projects, accounts, snooze, now, selected
             shortcut={line.digit ?? undefined}
             onRecent={recentOfGroup(lens, group, places)}
             onNew={lens === "place" && group.key.startsWith("cli|") ? () => window.dispatchEvent(new CustomEvent("aij:new-session", { detail: { accountId: group.items[0]?.accountId ?? null } })) : undefined}
-            {...headerActions(known, group)} roomOf={lens === "pool" ? null : (group.accountId ?? group.items[0]?.accountId)} foldable={line.foldable} /* 0.4.3: by App, its App's own folder */
+            {...headerActions(known, group)} roomOf={lens === "pool" ? null : (group.accountId ?? group.items[0]?.accountId)} roomApp={lens === "place" ? (known?.id ?? null) : null} foldable={line.foldable} /* 0.4.3: by App, its App's own folder */
             recent={line.recent && { ...line.recent, onToggle: () => toggle(`${group.key}#recent`) }}
           >
             {/* Grouped by Account: its icon, not a colour (colour is the Apps' in the rows below). */}

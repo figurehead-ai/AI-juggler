@@ -90,6 +90,11 @@ export interface QuotaDisplayData {
    * measured may only not be read yet (the 0.2 walk, F6). */
   history_reading?: boolean;
   account: string;
+  /** AJ-E3210 (D-135): the Account its readings were read under: the
+   * folder's own (its CLI's), or another Account's App on the folder (a
+   * Claude app profile on its own sign-in); absent or null: the folder's,
+   * read before readings were tagged. */
+  signed_in_as?: string | null;
   five_hour: WindowDisplay | null;
   five_hour_omitted_reason: string | null;
   weekly: WindowDisplay | null;

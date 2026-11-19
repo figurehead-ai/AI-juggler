@@ -26,7 +26,8 @@ import { showGoTo } from "../../lib/go-to";
 import { appByConversation } from "../../lib/rail-apps";
 import { itemsOf } from "../../lib/rail-items";
 import { useSeen } from "../../lib/seen";
-import { accountNameOf, type SubscriptionInfo } from "../../lib/subscriptions";
+import { accountName, accountNameOf, accountOfApp, listsApps, type SubscriptionInfo } from "../../lib/subscriptions";
+import { accountNotKnownYetLine } from "../../lib/account-words";
 import { agoWords } from "../../lib/time-words";
 import { placeWords } from "../../lib/places";
 import { homeRelative } from "../../lib/project-words";
@@ -103,12 +104,19 @@ export function AppsSection({
  * used 2 h ago in ~/lab/aj-processes · on Work"). */
 function appLine(row: AccountApp, account: string | null, now: number): string {
   const { app } = row;
-  const on = account ? `on ${account}` : app.kind === "cli" && app.folder && !signedIn(app.folder.login_state) ? "not signed in" : "account not known yet";
+  const on = account ? `on ${account}` : app.kind === "cli" && app.folder && !signedIn(app.folder.login_state) ? "not signed in" : accountNotKnownYetLine;
   return [stateWords(row, now), on].join(" · ");
 }
 
-/** The Account an App runs on, by name; `null` when none is known. */
+/** The Account an App runs on, by name; `null` when none is known.
+ * AJ-E3210: by the App's own Account (a desktop App's records', a CLI
+ * App's folder's); before the list says which, by its folder. */
 function accountOf(app: AppModel, subscriptions: SubscriptionInfo[]): string | null {
+  if (listsApps(subscriptions)) {
+    const own = accountOfApp(subscriptions, app.id);
+    if (own) return accountName(own);
+    if (app.kind === "desktop") return null;
+  }
   const folder = app.folder?.id ?? app.place?.account_id ?? null;
   if (!folder) return null;
   const name = accountNameOf(subscriptions, folder, "");
@@ -141,7 +149,7 @@ function AppRow({ row, account, now }: { row: AccountApp; account: string | null
       </button>
       {/* 0.4.3: its Account out or low, the one mark it wears on the rail
           and Home (spec 11 rule 6), from its own folder. */}
-      <ProfileRoomChip profileId={app.folder?.id} testId="accounts-app-room" />
+      <ProfileRoomChip profileId={app.folder?.id} appId={app.id} testId="accounts-app-room" />
       <AppPrimary app={app} />
       <button
         type="button"

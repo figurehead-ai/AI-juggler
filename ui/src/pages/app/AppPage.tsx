@@ -168,7 +168,7 @@ function AppBody({
               <>
                 {/* D-100: Desktop or CLI, by icon and word. */}
                 <AppKindBadge kind={app.kind} variant="chip" />
-                <ProfileRoomChip profileId={app.folder?.id} size="md" testId="app-room-chip" />
+                <ProfileRoomChip profileId={app.folder?.id} appId={app.id} size="md" testId="app-room-chip" />
               </>
             }
             facts={<AppFacts app={app} now={now} sharedWith={sharedWith.map((other) => other.name)} unchecked={signInUnchecked(subs, app.folder?.id)} />}

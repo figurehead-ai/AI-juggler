@@ -45,6 +45,7 @@ export function PlaceHeader({
   onRecent,
   onRestart,
   roomOf,
+  roomApp = null,
   onWarm,
   foldable = true,
   recent = null,
@@ -75,6 +76,9 @@ export function PlaceHeader({
   /** 0.4.1: the folder whose Account's room it marks when out or low
    * ("Out · 9:06 PM", `RoomChip`). */
   roomOf?: string | null;
+  /** AJ-E3210: the desktop App the header is (its mark is its own
+   * Account's, not its folder's CLI's). */
+  roomApp?: string | null;
   place: RailPlace | null;
   label: string;
   count: number;
@@ -106,7 +110,7 @@ export function PlaceHeader({
   // ADR-0032: an App that runs with nothing open in it says so, folded or
   // not (its last ones may show under it, 0.4.3).
   const empty = count === 0 && folded === null;
-  const mark = useRoomMark(roomOf);
+  const mark = useRoomMark(roomOf, [], roomApp);
   const room = mark ? <RoomChip mark={mark} iconOnly testId="place-room" /> : null;
   const [menu, setMenu] = useState<MenuAt | null>(null);
   const extra = useRef<HTMLSpanElement | null>(null);

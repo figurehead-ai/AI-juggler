@@ -9,15 +9,17 @@
 import type { JSX } from "react";
 import { lowRoomWords, outOfRoomConsequence, outOfRoomWords, roomKind } from "../../lib/room";
 import { creditsConsequence, usingCreditsWords } from "../../lib/credits";
-import { NOT_SIGNED_IN, roomOfProfile, type TargetRoom } from "../../lib/room-targets";
+import { NOT_SIGNED_IN, roomOfApp, type TargetRoom } from "../../lib/room-targets";
 import { canStart } from "../../lib/new-session-choice";
 import { GUIDE } from "../../lib/switch-words";
 import { useSubscriptions } from "../../lib/subscriptions";
 import { useProfiles, useRunways } from "../../pages/session/data";
 import { Explain } from "./Explain";
 
-/** The target account's room, once the preflight names it. */
-export function useTargetRoom(accountId: string | undefined, desktop = false): TargetRoom | null {
+/** The target account's room, once the preflight names it. AJ-E3210:
+ * `appId`, the desktop App a session runs in: its own Account's room (a
+ * terminal run is its folder's CLI App's). */
+export function useTargetRoom(accountId: string | undefined, desktop = false, appId: string | null = null): TargetRoom | null {
   const accounts = useSubscriptions();
   const displays = useRunways();
   const folders = useProfiles();
@@ -26,7 +28,7 @@ export function useTargetRoom(accountId: string | undefined, desktop = false): T
   // calls not signed in): New session's rule, and no account's details.
   // Continuing in Desktop, the signed-in app profile's room is the one.
   if (!desktop && !canStart(folders, accountId)) return { left: null, kind: "blocked", words: NOT_SIGNED_IN, resets: null, resetsAtMs: null, credits: null, account: null };
-  const room = roomOfProfile(accountId, accounts, displays);
+  const room = roomOfApp(desktop ? appId : null, accountId, accounts, displays);
   return { ...room, kind: roomKind(room.left, true, room.credits !== null) };
 }
 

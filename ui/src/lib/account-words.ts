@@ -27,3 +27,10 @@ export function launchSettingsName(name: string): string {
 export function launchTitle(recipe: { account_label: string; name: string }): string {
   return `${recipe.account_label} · ${launchSettingsName(recipe.name)}`;
 }
+
+/** AJ-E3210 (D-63 as amended): a desktop App before its first Code
+ * session, whose own sign-in AI Juggler can't name yet (never a guess). */
+export const ACCOUNT_NOT_KNOWN_YET = "Account not known yet";
+
+/** Its line's form ("… · account not known yet"). */
+export const accountNotKnownYetLine = "account not known yet";

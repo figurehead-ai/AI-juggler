@@ -41,13 +41,16 @@ export interface AccountGroup {
 }
 
 /** Accounts with their profiles: by subscription, any profile no account
- * lists standing for itself. */
-export function accountGroups(accounts: AccountInfo[], subscriptions: SubscriptionInfo[] | null): AccountGroup[] {
+ * lists standing for itself. AJ-E3210 (D-135): an Account only a Claude
+ * app profile is on (its own sign-in, no folder's CLI on it) is a row too,
+ * with that App, unless `cliOnly` (where new work starts in a terminal). */
+export function accountGroups(accounts: AccountInfo[], subscriptions: SubscriptionInfo[] | null, cliOnly = false): AccountGroup[] {
   const out: AccountGroup[] = [];
   const placed = new Set<string>();
   for (const subscription of subscriptions ?? []) {
     const profiles = accounts.filter((account) => subscription.profiles.some((profile) => profile.id === account.id));
-    if (profiles.length === 0) continue;
+    const appsOnly = !cliOnly && subscription.profiles.length === 0 && (subscription.apps?.length ?? 0) > 0;
+    if (profiles.length === 0 && !appsOnly) continue;
     for (const profile of profiles) placed.add(profile.id);
     out.push({ key: subscription.key, name: accountName(subscription), detail: accountLine(subscription), profiles, subscription });
   }
@@ -69,14 +72,14 @@ export interface RunwayLine {
  * signed in to it, and the sessions on any of them. */
 export function groupRunway(group: AccountGroup, quota: QuotaDisplayData[], sessions: InstanceInfo[]): RunwayLine {
   const ids = new Set(group.profiles.map((profile) => profile.id));
-  const display = group.subscription ? accountDisplay(group.subscription, quota) : quota.find((q) => q.account === group.profiles[0]!.id);
+  const display = group.subscription ? accountDisplay(group.subscription, quota) : quota.find((q) => q.account === group.profiles[0]?.id);
   return runwayOf(display, sessions.filter((s) => s.account_id !== null && ids.has(s.account_id)));
 }
 
 /** Where to start new work, by Account (D-62): the Runway card's rows,
  * named as it names them, never by a folder's App. */
 export function accountAdvice(accounts: AccountInfo[], subscriptions: SubscriptionInfo[] | null, quota: QuotaDisplayData[], sessions: InstanceInfo[]) {
-  const rows = accountGroups(accounts.filter((account) => signedIn(account.login_state)), subscriptions).map((group) => ({ name: group.name, group, run: groupRunway(group, quota, sessions) }));
+  const rows = accountGroups(accounts.filter((account) => signedIn(account.login_state)), subscriptions, true).map((group) => ({ name: group.name, group, run: groupRunway(group, quota, sessions) }));
   return { count: rows.length, ...newWorkAdvice(rows) };
 }
 

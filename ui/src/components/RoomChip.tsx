@@ -11,7 +11,8 @@ import { IconGaugeEmpty, IconGaugeLow } from "./icons";
 import type { RoomMark } from "../lib/room-mark";
 import { READINGS_EVERY_MS, useQuotaDisplays } from "../lib/kept-reads";
 import { useSubscriptions } from "../lib/subscriptions";
-import { roomCountWords, roomCounts, roomMarkOfProfile } from "../lib/room-mark";
+import { accountMark, roomCountWords, roomCounts, roomMarkOfApp } from "../lib/room-mark";
+import type { SubscriptionInfo } from "../lib/subscriptions";
 import { clocksWhole } from "../lib/time-words";
 import { openAccounts } from "../lib/accounts-filter";
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
@@ -82,15 +83,26 @@ export function RoomChip({ mark, size = "sm", compact = false, iconOnly = false,
  * the Accounts are read as often as the readings (a mark stays drawn in
  * the rail; read once, a folder that moved Accounts was still counted in
  * the one it left, its new reading marking that one Out). */
-export function useRoomMark(profileId: string | null | undefined, sessions: readonly InstanceInfo[] = []): RoomMark | null {
+export function useRoomMark(profileId: string | null | undefined, sessions: readonly InstanceInfo[] = [], appId: string | null = null): RoomMark | null {
   const { displays } = useQuotaDisplays();
-  const accounts = useSubscriptions(0, !!profileId, READINGS_EVERY_MS);
-  return roomMarkOfProfile(profileId, accounts, displays, sessions);
+  const accounts = useSubscriptions(0, !!profileId || !!appId, READINGS_EVERY_MS);
+  // AJ-E3210: an App's mark is its own Account's (a Claude app profile
+  // and its CLI on one folder can be on two).
+  return roomMarkOfApp(appId, profileId, accounts, displays, sessions);
 }
 
-/** The chip for folder `profileId`, read where it's drawn. */
-export function ProfileRoomChip({ profileId, size, compact, testId }: { profileId: string | null | undefined; size?: "sm" | "md"; compact?: boolean; testId?: string }): JSX.Element | null {
-  return <RoomChip mark={useRoomMark(profileId)} size={size} compact={compact} testId={testId} />;
+/** The chip for folder `profileId`, read where it's drawn; `appId`: the
+ * App it marks (AJ-E3210: by that App's own Account). */
+export function ProfileRoomChip({ profileId, appId = null, size, compact, testId }: { profileId: string | null | undefined; appId?: string | null; size?: "sm" | "md"; compact?: boolean; testId?: string }): JSX.Element | null {
+  return <RoomChip mark={useRoomMark(profileId, [], appId)} size={size} compact={compact} testId={testId} />;
+}
+
+/** An Account's own mark (its page's header): by its readings, wherever
+ * they were read (AJ-E3210: an Account only a Claude app profile is on
+ * has no folder of its own). */
+export function useAccountRoomMark(account: SubscriptionInfo): RoomMark | null {
+  const { displays } = useQuotaDisplays();
+  return accountMark(account, displays);
 }
 
 /** D-87, 0.4.1: the top bar's calm count of Accounts out of room or low
