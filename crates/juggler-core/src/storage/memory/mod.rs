@@ -50,10 +50,12 @@
 //!    question emptied, the shown answer cleared), their sidecars erased,
 //!    and a conversation title taken from one renamed from the first turn
 //!    left, else [`NEUTRAL_TITLE`].
-//! 5. **The WAL.** After the commit, `wal_checkpoint(TRUNCATE)`. **Residual
-//!    (L1):** another connection's open read can keep it from finishing
-//!    ([`Forgotten::wal_folded`] is `false`); the frames stay until the
-//!    next full checkpoint. Maintenance (step 3) retries it.
+//! 5. **The WAL (L1).** After the commit, `wal_checkpoint(TRUNCATE)`. When
+//!    another connection's open read blocks it ([`Forgotten::wal_folded`]
+//!    is `false`), the file is marked and the next write of the store or
+//!    the log folds it again, as does [`retry_pending_fold`] (maintenance,
+//!    step 3); `journal_size_limit = 0` cuts the WAL each time it restarts,
+//!    so no frame from before the forget lingers past the new write point.
 //! 6. **The log.** The spine holds codes only ([`log::text_free`]) and names
 //!    a subject by its random `subject_id`, never its key. Sidecars go with
 //!    the subject: by that id, by an event naming one of its versions (L4),
@@ -98,6 +100,7 @@ pub use erase::NEUTRAL_TITLE;
 pub use log::{Actor, AiLog, Event, NewEvent, NewSidecar, Sidecar, Stream};
 pub use retrieval::{KeywordRetriever, RecallQuery, RecallReason, Recalled, Retriever, fts_query};
 pub use schema::{V54, installed};
+pub use secure::retry_pending_fold;
 pub use store::{
     Forgotten, KEPT_VERSIONS, MODEL_CONFIDENCE_GATE, MemoryStore, NewRecord, PAYLOAD_MAX_BYTES,
     Record, Remembered, TEXT_MAX_CHARS,

@@ -992,3 +992,50 @@ fn a_pre_migration_copy_holds_no_memory() {
     drop(Storage::open(&plain).unwrap());
     scrub_copy(&plain).unwrap();
 }
+
+/// L1 of the security review: a forget whose WAL fold another
+/// connection's open read blocks is folded again by the next write once
+/// the read ends, so the forgotten words leave the file and its WAL; and
+/// every connection the store writes through cuts its WAL on restart
+/// (`journal_size_limit = 0`). Fails without the retry, or the limit.
+#[test]
+fn a_blocked_wal_fold_is_retried_by_the_next_write() {
+    const CANARY: &str = "qzxwvblockedfold";
+    let dir = tempfile::tempdir().unwrap();
+    let (storage, path) = store_on_disk(dir.path(), "juggler.sqlite");
+    remember(
+        &storage,
+        &record("note:blocked", Kind::Note, &format!("remember {CANARY}")),
+    );
+    assert_eq!(
+        count(&storage, "PRAGMA journal_size_limit"),
+        0,
+        "the WAL is cut on restart"
+    );
+    // Another connection holds a read open across the forget.
+    let reader = crate::storage::open_hardened(&path).unwrap();
+    reader
+        .execute_batch("BEGIN; SELECT COUNT(*) FROM memory_records;")
+        .unwrap();
+    let gone = storage
+        .memory()
+        .forget("note:blocked", &Actor::User, NOW)
+        .unwrap();
+    assert!(!gone.wal_folded, "the read should have blocked the fold");
+    assert!(
+        spot(&file_bytes(&path), CANARY),
+        "the words wait in the file or WAL"
+    );
+    reader.execute_batch("COMMIT;").unwrap();
+    drop(reader);
+    // The next write folds it.
+    storage.memory().touch(&[], NOW + 1).unwrap();
+    assert!(
+        !spot(&file_bytes(&path), CANARY),
+        "the forgotten words are still in the file or WAL"
+    );
+    assert!(
+        retry_pending_fold(&storage.conn).unwrap(),
+        "still marked pending"
+    );
+}
