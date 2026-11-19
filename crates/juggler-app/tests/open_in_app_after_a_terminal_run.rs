@@ -62,6 +62,8 @@ const STARTED: i64 = 1_792_829_554;
 const APP_PID: u32 = 990_110;
 const HELPER_PID: u32 = 990_111;
 const CLAUDE_PID: u32 = 990_112;
+/// [`RUN`]'s own `claude`, while it runs.
+const RUN_PID: u32 = 990_113;
 
 /// The process table, changed between ticks.
 struct Scripted(Mutex<Table>);
@@ -143,6 +145,9 @@ struct Lab {
     resumed: &'static str,
     /// The Claude app profile's App id.
     app: String,
+    /// The account's Claude Code folder, and the conversations' folder.
+    folder: PathBuf,
+    cwd: PathBuf,
 }
 
 impl Lab {
@@ -301,7 +306,36 @@ impl Lab {
             exe,
             resumed,
             app,
+            folder,
+            cwd,
         }
+    }
+
+    /// AI Juggler's terminal run of [`ECHO`] runs ([`RUN`], before its
+    /// Stop): its `claude`, its pid file.
+    fn run_here(&self) {
+        {
+            let storage = self.state.storage.lock().unwrap();
+            let mut run = storage.sessions().get(&SessionId::new(RUN)).unwrap();
+            run.status = SessionStatus::Running;
+            storage.sessions().update(&run).unwrap();
+        }
+        write(
+            &self.folder.join(format!("sessions/{RUN_PID}.json")),
+            &format!(
+                r#"{{"pid":{RUN_PID},"sessionId":"{ECHO}","cwd":"{}","status":"idle","procStart":"Sat Oct 24 08:12:34 2026","startedAt":1792829554000,"entrypoint":"cli","kind":"interactive","version":"2.1.325"}}"#,
+                self.cwd.display()
+            ),
+        );
+        let resume = format!("--resume={ECHO}");
+        put(
+            &mut self.os.0.lock().unwrap(),
+            RUN_PID,
+            1,
+            "/usr/local/bin/claude",
+            &["claude", &resume],
+            STARTED,
+        );
     }
 
     /// The Claude app's `claude` for the conversation runs now, under the
@@ -493,4 +527,55 @@ fn a_name_the_person_gave_its_session_names_the_conversation_standing_on_its_own
     );
     // Another conversation in the folder keeps its own title.
     assert_ne!(lab.row(OTHER).title.as_deref(), Some("echo work"));
+}
+
+/// F-rc3g-4, the transient (main's call: Open now means running): for up
+/// to 15 s after Stop, the stopped session's conversation stood as its
+/// own "Idle" row under its App, as the live view's last look still had
+/// its process. AI Juggler saw that process end: from then on it holds
+/// nothing open, with no look at the process table in between, and the
+/// ended run stands for its conversation again.
+#[test]
+fn an_ai_juggler_run_that_ends_holds_its_conversation_open_no_more() {
+    let Some(home) = in_a_lab("an_ai_juggler_run_that_ends_holds_its_conversation_open_no_more")
+    else {
+        return;
+    };
+    let lab = Lab::new(&home, ECHO);
+    lab.run_here();
+    lab.tick();
+    let row = lab.row(ECHO);
+    assert!(row.live, "its run runs it: {row:?}");
+    assert_eq!(row.session_id.as_deref(), Some(RUN));
+
+    // Stop: its process ends, and AI Juggler's supervisor says so.
+    lab.os.0.lock().unwrap().remove(&RUN_PID);
+    juggler_app::features::sessions::lifecycle::forward(
+        &lab.state,
+        juggler_supervisor::LifecycleEvent::Exited {
+            session: SessionId::new(RUN),
+            pid: RUN_PID,
+            kind: juggler_supervisor::ExitKind::Code(0),
+        },
+    );
+    let row = lab.row(ECHO);
+    assert!(!row.live, "nothing runs it now: {row:?}");
+    assert_eq!(
+        row.session_id.as_deref(),
+        Some(RUN),
+        "the ended run stands for it, not an open row of its own"
+    );
+    // Nor does the window's set hold it open (closed and long quiet, it
+    // isn't in it at all).
+    let working = commands::working_impl(&lab.state, Timestamp::now().millis()).unwrap();
+    assert!(
+        working
+            .iter()
+            .filter(|c| c.id == ECHO)
+            .all(|c| !c.live && c.session_id.as_deref() == Some(RUN)),
+        "{working:?}"
+    );
+    // The live view's next look agrees.
+    lab.tick();
+    assert!(!lab.row(ECHO).live);
 }

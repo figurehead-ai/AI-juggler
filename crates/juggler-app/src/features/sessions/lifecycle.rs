@@ -34,6 +34,8 @@ pub fn spawn_forwarder(state: Arc<AppState>) {
 
 /// One lifecycle event, stored with everything that follows from it.
 pub fn forward(state: &Arc<AppState>, event: LifecycleEvent) {
+    // F-rc3g-4: an ended process holds nothing open, before its ending is stored.
+    crate::features::conversations::after_exit(state, &event);
     // 0.4.1 (the rc27 P1 walk): a switch's stop is the switch's, not the
     // user's ("Stopped by you" on the original). Taken once, at its exit.
     let by_switch =
