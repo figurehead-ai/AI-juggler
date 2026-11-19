@@ -36,15 +36,16 @@ export function stageWords(target: string, app?: string | null): string[] {
 }
 
 /** The badge, the same everywhere in the dialog: what the move does, and
- * how sure that is. */
+ * "Beta" on a switch the user turned on in Settings › Switching (D-127:
+ * a tested switch is just what it does; never "proven"). */
 export function badgeWords(fidelityWords: string, validated: boolean | undefined): string {
-  return `${fidelityWords} · ${validated ? "Proven" : "Beta · Not proven yet"}`;
+  return validated ? fidelityWords : `${fidelityWords} · Beta`;
 }
 
-/** The badge's words as `FidelityBadge` takes them (it adds "Not proven
- * yet" itself): "Same conversation, new account · Beta". */
+/** The badge's words as `FidelityBadge` takes them: "Same conversation,
+ * another app", or "… · Beta". */
 export function moveBadge(preflight: { fidelity_words: string; validated?: boolean }): string {
-  return preflight.validated ? badgeWords(preflight.fidelity_words, true) : `${preflight.fidelity_words} · Beta`;
+  return badgeWords(preflight.fidelity_words, preflight.validated);
 }
 
 /** The user guide's switching page, for "Learn more" (opened by the app,

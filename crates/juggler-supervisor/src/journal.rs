@@ -238,6 +238,7 @@ impl Journal {
         let (code, signal) = match kind {
             ExitKind::Code(code) => (Some(code), None),
             ExitKind::Signaled(signal) => (None, signal),
+            ExitKind::Unknown => (None, None),
         };
         self.append(&Entry::Exited {
             session: session.to_string(),

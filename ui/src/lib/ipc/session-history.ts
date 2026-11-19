@@ -9,6 +9,7 @@ import type { RetentionPreviewInfo } from "../../types/generated/RetentionPrevie
 import type { TranscriptHitInfo } from "../../types/generated/TranscriptHitInfo";
 import { previewHooks } from "../preview-hooks";
 import { markArchived, markUnarchived } from "../archived-here";
+import { needsMoved } from "../notices-store";
 
 
 interface HistorySeams {
@@ -33,7 +34,8 @@ const setMockLifecycle = (sessionId: string, event: string) => {
 };
 
 /** Archives an ended Instance: out of the active views, nothing deleted;
- * its needs leave Needs you at once (NY1, rc32: `archived-here.ts`). */
+ * its needs leave Needs you at once (NY1, rc32: `archived-here.ts`), and
+ * the bell's count with them (rc3a: `needsMoved`, read again here). */
 export async function instanceArchive(sessionId: string): Promise<number> {
   markArchived(sessionId);
   if (!hasBackend) {
@@ -41,15 +43,19 @@ export async function instanceArchive(sessionId: string): Promise<number> {
     setMockLifecycle(sessionId, "archived");
     return Date.now();
   }
+  let at: number;
   try {
-    return await call("instance_archive", { sessionId });
+    at = await call("instance_archive", { sessionId });
   } catch (error) {
     markUnarchived(sessionId);
     throw error;
   }
+  void needsMoved();
+  return at;
 }
 
-/** Unarchives an Instance — back exactly as it was. */
+/** Unarchives an Instance — back exactly as it was, its needs in Needs
+ * you and the bell's count again at once (rc3a: `needsMoved`). */
 export async function instanceUnarchive(sessionId: string): Promise<number> {
   if (!hasBackend) {
     historyCall(`unarchive:${sessionId}`);
@@ -59,6 +65,7 @@ export async function instanceUnarchive(sessionId: string): Promise<number> {
   }
   const at = await call("instance_unarchive", { sessionId });
   markUnarchived(sessionId);
+  void needsMoved();
   return at;
 }
 

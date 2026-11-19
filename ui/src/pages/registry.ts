@@ -56,6 +56,9 @@ export type PageTab = {
   source: string;
   /** 0.3: how many it holds, beside its name ("Sessions 3"), when known. */
   count?: number;
+  /** What it is, in words, on hover (AJ-E3011 round 2, #16: a bare name
+   * like "Subagents" wasn't understood). */
+  hint?: string;
 };
 
 const TAB: Record<PageTabId, PageTab> = {
@@ -71,8 +74,8 @@ const TAB: Record<PageTabId, PageTab> = {
   members: { id: "members", label: "Members", source: "AI Juggler's pools and the sessions' own transcripts" },
   messages: { id: "messages", label: "Messages", source: "AI Juggler's own messages, on this computer" },
   tasks: { id: "tasks", label: "Tasks", source: "the pool's tasks, kept by AI Juggler on this computer" },
-  subagents: { id: "subagents", label: "Subagents", source: "the tool's own records of its subagents, read-only" },
-  access: { id: "access", label: "Agent access", source: "your choices for this pool" },
+  subagents: { id: "subagents", label: "Subagents", source: "the tool's own records of its subagents, read-only", hint: "Helpers this session's tool started for parts of its work, from the tool's own records" },
+  access: { id: "access", label: "Agent access", source: "your choices for this pool", hint: "What this pool's sessions may do without asking you first" },
   // AJ-E3104: the pools its sessions are in (a project's own and yours).
   pools: { id: "pools", label: "Pools", source: "AI Juggler's pools, kept on this computer" },
   projects: { id: "projects", label: "Projects", source: "the tools' own session files" },

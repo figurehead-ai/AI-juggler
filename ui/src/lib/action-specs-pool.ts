@@ -10,7 +10,7 @@ import type { PoolInfo } from "../types/generated/PoolInfo";
 const PROJECTS_OWN = (pool: PoolInfo) => (pool.kind === "user" ? null : "A project's own pool goes with its project");
 
 export const POOL: ActionSpec<"pool">[] = [
-  { id: "open", label: "Open its canvas", icon: "page", group: "go", rank: 10, applies: (_, h) => has(h.openPool), run: (pool, h) => h.openPool!(pool.id) },
+  { id: "open", label: "Open its diagram", icon: "page", group: "go", rank: 10, applies: (_, h) => has(h.openPool), run: (pool, h) => h.openPool!(pool.id) },
   { id: "rename", label: "Rename…", icon: "rename", group: "work", rank: 10, applies: (_, h) => has(h.renamePool), blocked: PROJECTS_OWN, run: (pool, h) => h.renamePool!(pool) },
   { id: "delete", label: "Delete…", icon: "delete", group: "stop", rank: 10, applies: (_, h) => has(h.deletePool), blocked: PROJECTS_OWN, run: (pool, h) => h.deletePool!(pool) },
 ];

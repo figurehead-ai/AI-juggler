@@ -34,7 +34,7 @@ pub mod state;
 use std::io::Write as _;
 use std::path::{Path, PathBuf};
 
-use juggler_adapter::moving::{Appended, MoveCheck, MovePlan, MoveRequest, MoveStep};
+use juggler_adapter::moving::{Appended, MoveCheck, MovePlan, MoveRequest, MoveStep, Refusal};
 use juggler_platform::transfer;
 
 use state::State;
@@ -282,20 +282,21 @@ pub struct Transaction {
 /// Checks a plan against the engine's rules before anything starts: every
 /// step inside the plan's roots, the move's own folder on the same disk
 /// as everything it puts aside or backs up, clones there, and room.
-/// Returns the refusals, in words (empty: it may start).
+/// Returns the refusals with the plan's own, each saying whether the user
+/// can clear it (empty: it may start).
 #[must_use]
-pub fn preflight(plan: &MovePlan, moves_dir: &Path) -> Vec<String> {
+pub fn preflight(plan: &MovePlan, moves_dir: &Path) -> Vec<Refusal> {
     let mut out = plan.refusals.clone();
     if plan.steps.is_empty() && out.is_empty() {
-        out.push("there is nothing to move".into());
+        out.push(Refusal::setup("there is nothing to move"));
     }
     for step in &plan.steps {
         for path in step.paths() {
             if !juggler_adapter::moving::contained(path, &plan.roots) {
-                out.push(format!(
+                out.push(Refusal::setup(format!(
                     "a step would touch {}, outside both accounts' folders",
                     path.display()
-                ));
+                )));
             }
         }
     }
@@ -303,18 +304,17 @@ pub fn preflight(plan: &MovePlan, moves_dir: &Path) -> Vec<String> {
     for step in &plan.steps {
         for path in step.paths() {
             if transfer::device_of(path).ok() != device {
-                out.push(
-                    "AI Juggler's data folder is on another disk than the accounts' folders, so it can't keep clone backups of them"
-                        .into(),
-                );
+                out.push(Refusal::setup(
+                    "AI Juggler's data folder is on another disk than the accounts' folders, so it can't keep clone backups of them",
+                ));
                 break;
             }
         }
     }
     if !transfer::clones_supported(moves_dir).unwrap_or(false) {
-        out.push(
-            "the disk can't make clone backups (it needs a file system that makes clones)".into(),
-        );
+        out.push(Refusal::setup(
+            "the disk can't make clone backups (it needs a file system that makes clones)",
+        ));
     }
     let existing = moves_dir
         .ancestors()
@@ -330,11 +330,23 @@ pub fn preflight(plan: &MovePlan, moves_dir: &Path) -> Vec<String> {
         })
         .sum();
     if room < writes + ROOM_MARGIN {
-        out.push("the disk is nearly full; free some room first".into());
+        out.push(Refusal::user_can_clear(
+            "the disk is nearly full; Move becomes available once there's more room",
+        ));
     }
-    out.sort();
+    out.sort_by(|a, b| a.words.cmp(&b.words));
     out.dedup();
     out
+}
+
+/// Refusals as one line of words (an error's).
+#[must_use]
+pub fn words(refusals: &[Refusal]) -> String {
+    refusals
+        .iter()
+        .map(|refusal| refusal.words.as_str())
+        .collect::<Vec<_>>()
+        .join("; ")
 }
 
 impl Transaction {
@@ -355,7 +367,7 @@ impl Transaction {
     ) -> Result<Self, MoveError> {
         let refusals = preflight(&plan, moves_dir);
         if !refusals.is_empty() {
-            return Err(MoveError::Refused(refusals.join("; ")));
+            return Err(MoveError::Refused(words(&refusals)));
         }
         if id.is_empty() || !id.chars().all(|c| c.is_ascii_alphanumeric() || c == '-') {
             return Err(MoveError::Refused(

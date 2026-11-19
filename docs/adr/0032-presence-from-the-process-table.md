@@ -216,6 +216,20 @@ its snapshot. Nothing else decides what runs or who owns a session.
      unfolds to its last 3, then "Show all". No "Last N inactive" rows
      (this replaces amendment 8's "behind D-64's Last 3 inactive").
 
+10. **What runs is open where it runs (0.4.6, the rc2 walk).** A
+    conversation continued in AI Juggler's terminal, stopped there, then
+    opened in its Claude app profile showed only as the ended terminal
+    run under the CLI App while the profile said "nothing open": every
+    list let the newest AI Juggler session on a conversation stand for it,
+    ended or not. An AI Juggler session stands for its conversation unless
+    it has ended and the conversation is open now (another process runs
+    it): then the conversation is its own row, in the App its process runs
+    in (`conversations::commands::stands_for`). The ended rule is
+    unchanged: once that process ends, the session is it again. The
+    real-Mac check counts each Claude app profile's own interactive
+    sessions from `ps` and their pid files, and fails when Open now shows
+    fewer open under it (`presence_check.py`'s `open_in_apps`).
+
 ### Evidence (the maintainer's Mac, read-only, 2026-11-11)
 
 - `ps`: Claude.app main processes for six instance folders (the default

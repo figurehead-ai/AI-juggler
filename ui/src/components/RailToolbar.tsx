@@ -62,7 +62,7 @@ export function GroupSwitch(): JSX.Element {
   const withPools = hasPoolsToGroup(usePools());
   const segments = withPools ? GROUP_SEGMENTS : GROUP_SEGMENTS.filter((segment) => segment.value !== "pool");
   const grouped = view.group === "pool" && !withPools ? "place" : view.group;
-  return <Segmented label="Group sessions by" value={grouped} segments={segments} onChange={setGroupBy} testId="rail-group" />;
+  return <Segmented label="Group sessions by" size="sm" value={grouped} segments={segments} onChange={setGroupBy} testId="rail-group" />;
 }
 
 export function RailToolbar({

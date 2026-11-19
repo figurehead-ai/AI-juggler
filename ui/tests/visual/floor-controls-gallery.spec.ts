@@ -7,7 +7,7 @@
  */
 import { writeFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { gate, test, expect } from "./axe-gallery";
+import { gate, settle, test, expect } from "./axe-gallery";
 import { goTo, settingsPane } from "./fixtures";
 import { at, family, open, shot, SIZES, THEMES } from "./gallery-04";
 
@@ -34,7 +34,7 @@ for (const theme of THEMES) {
       await settingsPane(page, "The Floor");
       await expect(page.getByTestId("floor-per-floor-value")).toHaveText("8");
       await shot(page, PANE, `pane-${where}`);
-      await page.getByTestId("floor-hidden").locator("summary").click();
+      await page.getByTestId("floor-hidden-toggle").click();
       await page.getByTestId("floor-hidden").scrollIntoViewIfNeeded();
       await shot(page, PANE, `hidden-${where}`);
       await page.getByTestId("floor-recreate-open").click();
@@ -56,9 +56,12 @@ for (const theme of THEMES) {
       await expect(page.getByTestId("floor-list-floor")).toHaveCount(2);
       await shot(page, LIST, `list-${where}`);
       // AJ-E3517: resting on a row shows what it asks, at the list's foot.
+      // Settled first, so nothing moves the row from under the pointer.
+      await settle(page);
       await page.getByTestId("floor-list-row").filter({ hasText: "Checkout copy" }).hover();
       await expect(page.getByTestId("floor-list-row-said")).toHaveText(/Asks: /);
-      await shot(page, LIST, `said-${where}`);
+      await shot(page, LIST, `said-${where}`, { hovering: true });
+      await expect(page.getByTestId("floor-list-row-said")).toHaveText(/Asks: /);
       await page.mouse.move(0, 0);
       // Keyboard: Tab goes from Open the Floor to the list's search.
       await page.getByRole("button", { name: "Open the Floor ⌘⇧M" }).focus();

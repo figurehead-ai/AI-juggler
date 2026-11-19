@@ -5,7 +5,7 @@
  * until closed. The store and its rules are in Toast.tsx.
  */
 import { keysOf } from "../lib/shortcuts";
-import { useEffect, useRef, useState, useSyncExternalStore, type CSSProperties, type JSX, type RefObject } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type CSSProperties, type JSX, type RefObject } from "react";
 import { dismissToast, pauseToast, resumeToast, toastStore, undoToast, type ToastEntry, type ToastOptions } from "./Toast";
 
 // Read through the store at call time (Toast.tsx re-exports this file).
@@ -18,6 +18,7 @@ const remove = (id: string) => toastStore.remove(id);
 export function ToastHost(): JSX.Element {
   const rows = useSyncExternalStore(subscribe, snapshotEntries, snapshotEntries);
   const said = useSyncExternalStore(subscribe, snapshotAnnouncement, snapshotAnnouncement);
+  const bottom = useAboveFooters(rows.length > 0);
   return (
     <>
       {/* Always in the page, so a new message is read out (Req.5). */}
@@ -25,7 +26,7 @@ export function ToastHost(): JSX.Element {
         {said}
       </div>
       {rows.length > 0 && (
-        <div className="pointer-events-none fixed bottom-4 right-4 z-50 flex w-[min(400px,calc(100vw-2rem))] flex-col items-stretch gap-2" data-testid="toast-stack">
+        <div style={{ bottom }} className="pointer-events-none fixed right-4 z-50 flex w-[min(400px,calc(100vw-2rem))] flex-col items-stretch gap-2" data-testid="toast-stack">
           {rows.slice(-3).map((entry) => (
             <Toast key={entry.id} entry={entry} />
           ))}
@@ -33,6 +34,27 @@ export function ToastHost(): JSX.Element {
       )}
     </>
   );
+}
+
+/** Round 6 (Casey's walk: a note covered New pool's Next and Make pool):
+ * the stack sits above a footer at the window's foot that holds a page's
+ * main buttons (`data-toast-avoid`), never over it. */
+function useAboveFooters(shown: boolean): number {
+  const [bottom, setBottom] = useState(16);
+  useLayoutEffect(() => {
+    if (!shown) return () => undefined;
+    const place = () => {
+      const tops = [...document.querySelectorAll<HTMLElement>("[data-toast-avoid]")]
+        .map((one) => one.getBoundingClientRect())
+        .filter((box) => box.height > 0 && box.bottom >= window.innerHeight - 24)
+        .map((box) => box.top);
+      setBottom(tops.length > 0 ? Math.max(16, window.innerHeight - Math.min(...tops) + 8) : 16);
+    };
+    place();
+    window.addEventListener("resize", place);
+    return () => window.removeEventListener("resize", place);
+  }, [shown]);
+  return bottom;
 }
 
 function secondsUntil(at: number | null): number {

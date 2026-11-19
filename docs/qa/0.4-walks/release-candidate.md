@@ -2,6 +2,13 @@
 
 The release candidate is walked whole, in one run, on the built app, before 0.4 ships (`docs/qa/0.4-validation-plan.md` §7–§8). This page is the run's plan first. Each row's result is filled in as it runs, and the summary for the maintainer ends it.
 
+## 0.4.6 (the Stable candidate): this run's shape
+
+- **The budget** (the coordinating session's call, 2026-11-16, because the maintainer's quota ran out several times that day): the whole scenario table in §3 once; the personas in §4 at **one run per flow**, and **three runs** for AJ-E3307 R7 ("see it work") and for any flow that scores under 4. A run that shows instability gets its re-runs added. About 6M tokens in all, against about 9–10M for three runs of every flow.
+- **The build:** a Dev-identity release build of release/0.4.6 (`scripts/build_dev_app.sh`), never a production identity beside the installed app.
+- **The sign-ins** (D-122: one sitting, one page, before 0.4.6 ships, the Dev identity handed between the 0.5 and 0.4.6 sessions): the lab Codex for AJ-E3013 C1/C2; for E3002-R3, OpenCode through 0.5's T16 lab A used in place (0.4.6 gives OpenCode its tools per launch) and Grok Build in a home 0.4.6 makes, with its own sign-in (0.4.6 never edits a Grok home it didn't make, so a home used in place has no agent tools).
+- Rows already proven on 0.4.6 since the last RC are walked again here all the same (E3306 R1: every scenario, one run).
+
 ## 1. The build
 
 - **What:** `release/0.4.1` at the commit the preflight passed, built with `just app`. That is a release-mode build of AI Juggler Dev (`ai.figurehead.juggler.dev`): unsigned, it never updates, and its data folder is its own, so the installed AI Juggler and its data are never touched. Since 4a9d1eb63 the recipe makes the Dev icon's `.icns`, so the bundle builds on a Mac without the release workflow.
@@ -33,6 +40,7 @@ Opus is for coding and judgement only. Every subagent is started with its model 
 | Re-baseline | the one visual re-baseline (notes: the side-session notes' `rebaseline-0.4.1-notes.md`), every capture opened by eye, the critique stamped after staging | |
 | AJ-E3305 | the 24 families re-scored on that gallery (`docs/qa/0.4-walks/design.md`); lows fixed or sent to the maintainer | |
 | The installed app | quit while a row needs the single-instance socket (`tests/second_launch.rs` hands over to it otherwise) | |
+| Desktop-member host checks (AJ-E3013) | `just desktop-host-checks`, with the Claude app running and a Code-tab session open: read-only, it starts, locks and changes nothing. Every running Claude app's main process names its profile the one strict way and holds that profile's lock; the running app, its `disclaimer` and its Claude Code meet the pinned requirements; the app's fuses stay off. A FAIL after a Claude app update means attestation now refuses ("profile lock held by another process, maybe after a Claude app update"): no connector row passes, tell the maintainer before the release | |
 
 ## 3. Every scenario again (AJ-E3306 req. 1)
 

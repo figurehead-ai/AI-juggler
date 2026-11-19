@@ -12,7 +12,8 @@ import { Timeline } from "../../components/charts/Timeline";
 import { short } from "../../components/charts/scale";
 import { seriesColor } from "../../components/charts/colors";
 import { GRID, SPAN } from "../../components/usage/Dashboard";
-import { IconChart, IconPlay, IconRoute, IconUser, Segmented } from "../../components/usage/controls";
+import { IconChart, IconPlay, IconRoute, IconUser } from "../../components/usage/controls";
+import { Disclosure, Segmented } from "../../components/controls";
 import { IconTasks } from "../../components/icons-places";
 import { openTasks, taskWords, type ProjectOpen } from "../../lib/project-summary";
 import { useProjectTasks } from "./useProjectTasks";
@@ -111,10 +112,10 @@ export function ProjectOverviewView({
             <Segmented
               label="Split by"
               size="sm"
-              options={[
-                { id: "profile", label: "App" },
-                { id: "tool", label: "Tool" },
-                { id: "model", label: "Model" },
+              segments={[
+                { value: "profile", label: "App" },
+                { value: "tool", label: "Tool" },
+                { value: "model", label: "Model" },
               ]}
               value={split}
               onChange={setSplit}
@@ -178,12 +179,11 @@ function Travelled({ project, data, cut, onOpenSession }: { project: ProjectInfo
         </p>
       )}
       {moved && (
-        <details open className="rounded-lg border border-hairline px-3 py-2">
-          <summary className="cursor-pointer text-meta font-medium text-ink">Every move, with resume and export</summary>
+        <Disclosure open tone="heading" className="rounded-lg border border-hairline px-3 py-2" summary="Every move, with resume and export">
           <div className="pt-3">
             <SwitchGraph projectId={project.id} onOpenSession={onOpenSession} />
           </div>
-        </details>
+        </Disclosure>
       )}
     </Section>
   );

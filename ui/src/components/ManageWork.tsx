@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { shortName } from "../lib/session-titles";
 import { createPortal } from "react-dom";
 import { ReplayDialog } from "./ReplayDialog";
@@ -57,7 +57,10 @@ export function openWords(editor: string | null): string {
   return `Open in ${editor ?? "Finder"}`;
 }
 
-/** One rename sheet for sessions and projects. */
+/** One rename sheet for sessions, projects, Apps and Accounts. It opens
+ * with the name selected, so typing replaces it (the 0.4.6 RC walk A8:
+ * "Work" + "Acme" saved "WorkAcme"); once, on open, never again on focus
+ * (a window brought back keeps what the user selected). */
 export function RenameSheet({
   title,
   initial,
@@ -78,6 +81,9 @@ export function RenameSheet({
   const [name, setName] = useState(initial);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const field = useRef<HTMLInputElement | null>(null);
+  // After the Modal's own effect has focused it (a child's effect runs first).
+  useEffect(() => field.current?.select(), []);
   return (
     <Modal title={title} onClose={onClose}>
       <form
@@ -96,7 +102,7 @@ export function RenameSheet({
         }}
       >
         <Field label="Name" hint={hint}>
-          <Input autoFocus value={name} placeholder={placeholder} onChange={(event) => setName(event.target.value)} data-testid={`${testId}-name`} maxLength={80} />
+          <Input ref={field} autoFocus value={name} placeholder={placeholder} onChange={(event) => setName(event.target.value)} data-testid={`${testId}-name`} maxLength={80} />
         </Field>
         {error && (
           <p className="text-xs text-danger" role="alert">

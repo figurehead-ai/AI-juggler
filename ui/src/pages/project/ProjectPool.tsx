@@ -11,7 +11,7 @@ import { PoolCardRows } from "../../components/PoolCards";
 import { IconPool } from "../../components/icons-actions";
 import { Button } from "../../components/primitives";
 import { useActionHost } from "../../components/ItemMenu";
-import { defaultPoolIdOf, levelLabel, usePoolMembers, usePools } from "../../lib/pools";
+import { defaultPoolIdOf, levelLabel, requestNewPool, usePoolMembers, usePools } from "../../lib/pools";
 import { useTaskNeeds } from "../../lib/ipc/tasks";
 import { sessionState } from "../../lib/rail-items";
 import type { InstanceInfo } from "../../types/generated/InstanceInfo";
@@ -33,18 +33,35 @@ export function ProjectPool({ project, sessions, now }: { project: ProjectInfo; 
   const waiting = useTaskNeeds().filter((need) => need.pool_id === poolId);
   const counted = useRelationCounts("pool", poolId);
   const summary = poolStates(
-    list.items.map((row) => sessionState(sessions.find((s) => s.id === row.session.id) ?? row.session).word),
+    list.items.map((row) => {
+      const { state, word } = sessionState(sessions.find((s) => s.id === row.session.id) ?? row.session);
+      return { word, ended: state === "ended" };
+    }),
     counted?.sessions.ended ?? null,
   );
   const open = (id: string) => host.openPool?.(id);
   return (
     <div className="flex w-full max-w-content flex-col gap-grid" data-testid="project-pool">
+      {/* Round 6 (Casey's run): "New pool for web…" sat under the own
+          pool's rows, which load late and pushed it down under the
+          pointer: a click landed on a session. It's at the tab's top now,
+          where nothing that loads later moves it. */}
+      <div className="flex justify-end">
+        <Button size="sm" variant="secondary" onClick={() => newPoolFor(project.id)} data-testid="project-pool-new">
+          New pool for {project.name}…
+        </Button>
+      </div>
+      {/* AJ-E3011 §10: a project's own pool says what it is, apart from the
+          pools you made. */}
       <Section
-        title={pool?.name ?? `${project.name} · all sessions`}
+        title={`${project.name}'s own pool`}
         icon={<IconPool width={15} height={15} />}
-        sub={[pool ? `${pool.members} ${pool.members === 1 ? "session" : "sessions"}` : null, summary || null, pool ? `agents: ${levelLabel(pool.access.level)}` : null].filter(Boolean).join(" · ")}
+        sub={[`every session in ${project.name}, as one team`, pool ? `${pool.members} ${pool.members === 1 ? "session" : "sessions"}` : null, summary || null, pool ? `on their own: ${levelLabel(pool.access.level)}` : null].filter(Boolean).join(" · ")}
         actions={
-          <Button size="sm" variant="secondary" onClick={() => open(poolId)} data-testid="project-pool-open">
+          // Round 3 (#7): a click before the pools are read went nowhere;
+          // until then the button waits, saying so, with a spinner.
+          <Button size="sm" variant="secondary" disabled={!pool} aria-busy={!pool || undefined} title={pool ? undefined : "Reading the pool…"} onClick={() => open(poolId)} data-testid="project-pool-open">
+            {!pool && <span aria-hidden="true" className="inline-block size-3 rounded-full border-2 border-muted border-t-transparent motion-safe:animate-spin" data-testid="project-pool-open-wait" />}
             Open the pool ›
           </Button>
         }
@@ -65,6 +82,8 @@ export function ProjectPool({ project, sessions, now }: { project: ProjectInfo; 
           <p className="text-meta text-ink-2">Answer these in Needs you on Home, or on the pool's page.</p>
         </Section>
       )}
+      {/* AJ-E3011 §1: the project's door to the same guided setup as New
+          pool, its project filled in. */}
       <Section title="Its other pools" sub="pools of yours that hold its sessions, or were made for it" testId="project-pool-yours">
         <RelatedPools
           pools={others}
@@ -72,7 +91,7 @@ export function ProjectPool({ project, sessions, now }: { project: ProjectInfo; 
           inSection
           teach={{
             title: "No pool of yours holds this project's sessions yet",
-            body: "Its sessions are watched together in its own pool, above. Put some of them in a pool of their own from a session's ⋯ menu (Move to pool…) to give them roles.",
+            body: "Its sessions are a team in its own pool, above. New pool sets up one of your own, step by step: who's in, who leads, who checks.",
           }}
         />
       </Section>
@@ -80,15 +99,24 @@ export function ProjectPool({ project, sessions, now }: { project: ProjectInfo; 
   );
 }
 
+/** The guided setup (Pools › New pool), on `project`. */
+function newPoolFor(project: string): void {
+  requestNewPool({ template: "blank", project });
+  window.dispatchEvent(new CustomEvent("aij:open-screen", { detail: { id: "pools" } }));
+}
+
 /** Each state word, counted: "2 working · 1 asks you · 498 ended". The
  * live ones from the members' first page (open ones come first); the
  * ended ones from the pool's count once it's known, not that page's
- * (walk K2: a 500-session pool said "50 ended"). */
-export function poolStates(words: readonly string[], ended: number | null): string {
+ * (walk K2: a 500-session pool said "50 ended"). An ended row is skipped
+ * by its state, whatever its word says of how it ended (the 0.4.6 RC:
+ * "500 sessions · 50 finished · 500 ended", its first page's "Finished"
+ * counted beside the pool's ended ones). */
+export function poolStates(rows: readonly { word: string; ended: boolean }[], ended: number | null): string {
   const states = new Map<string, number>();
-  for (const word of words) {
-    if (ended !== null && word === "Ended") continue;
-    states.set(word, (states.get(word) ?? 0) + 1);
+  for (const row of rows) {
+    if (ended !== null && row.ended) continue;
+    states.set(row.word, (states.get(row.word) ?? 0) + 1);
   }
   if (ended !== null && ended > 0) states.set("Ended", ended);
   return [...states].map(([word, n]) => `${n} ${word.toLowerCase()}`).join(" · ");

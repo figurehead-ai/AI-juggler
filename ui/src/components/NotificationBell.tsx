@@ -22,10 +22,11 @@ export function NotificationBell({ sessions }: { sessions: InstanceInfo[] }): JS
   const keys = useKeys("notifications");
   const summary = useNoticeSummary();
   const open = useCentreOpen();
-  const count = summary?.count ?? 0;
+  // NY1 (0.4.6 rc3a): the rows Needs you lists, counted (one source): the
+  // summary's own count said 1 over "You're all caught up" for 50 s.
   // D-117: the count holds L2 and L3; its badge is neutral (by luminance,
   // not hue) and red only when one of them is broken (L3).
-  const { rows } = useBackendNeeds();
+  const { rows, count } = useBackendNeeds();
   const level = highest(rows.map(noticeLevel).filter(counted));
   const broken = brokenOf(rows, noticeLevel, (row) => row.kind);
   return (

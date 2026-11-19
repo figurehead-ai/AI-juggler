@@ -53,7 +53,8 @@ RULES: tuple[tuple[str, bool, str], ...] = (
     ("ui/src/test/**", False, "helpers only the tests import (the self-test checks)"),
     ("ui/playwright*.config.ts", False, "Playwright's configuration"),
     ("ui/vitest.config.ts", False, "Vitest's configuration"),
-    ("**/*.md", False, "documentation: the app includes none (the self-test checks)"),
+    ("plugins/claude-code/ai-juggler/skills/*/SKILL.md", True, "the plugin's skill: the plugin's zip carries it, and the app writes it into a Claude app profile with its connector (AJ-E3013)"),
+    ("**/*.md", False, "documentation: the app includes none but the plugin's skill above (the self-test checks)"),
     ("config/remote/**", False, "the remote configuration's sources and schema: publish-config.yml signs and uploads them; the app build includes none (ADR-0035)"),
     # The app.
     ("crates/**", True, "the app: Rust code, build scripts, the Tauri configuration, capabilities, icons, Info.plist, entitlements"),
@@ -78,6 +79,7 @@ RULES: tuple[tuple[str, bool, str], ...] = (
     ("scripts/downgrade_note.py", True, "adds the downgrade note to those notes"),
     ("scripts/release_notes_check.sh", True, "checks those notes before the build"),
     ("scripts/release_scope.py", True, "refuses a nightly whose version's scope isn't proven or deferred"),
+    ("scripts/gate_watch.py", True, "release_scope prints its gate watch: the routes whose tool moved past what was checked (D-127/D-128)"),
     ("scripts/install_release_tool.sh", True, "installs the pinned tools the release build runs (cargo-auditable, cargo-cyclonedx)"),
     ("scripts/cargo_auditable_runner.sh", True, "builds the app with its dependency list embedded"),
     ("scripts/js_sbom.py", True, "writes the interface's bill of materials the release carries"),

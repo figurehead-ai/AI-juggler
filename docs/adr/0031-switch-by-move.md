@@ -60,9 +60,18 @@ family or nothing. D-93 made it the default for Claude → Claude, with Copy kep
      account-bound fields the copy drops and the last run's stale error fields
      removed, every other field kept; the source's put aside last.
    - Gates: app to app or terminal folder to terminal folder only (the app ↔
-     terminal move isn't proven: Copy carries it); the proven app major (4) and
-     Claude Code major (2); one disk; APFS for the clone backups; no links or
-     hard-linked histories.
+     terminal move isn't proven: Copy carries it); one disk; APFS for the
+     clone backups; no links or hard-linked histories. *Amended 2026-11-18
+     (D-127, D-128):* no version list. The records' **shape** is checked at
+     run time on any version (`claude_move::shape`: the layout beside the
+     records, the typed fields the plan reads, every record-to-record link
+     under a key it rebinds); a mismatch is a refusal the user can't clear,
+     so Move isn't shown, and is kept with the app's version for the
+     release flow's gate watch. Each refusal says whether the user can clear
+     it (busy work, a profile to sign in to, a message waiting to be sent,
+     a full disk) and only those show Move waiting, with the how. The 5.x
+     records (start chain, archived-sessions hint, `waiting-input/`) and
+     their live proof: `docs/qa/evidence/AJ-E212/claude-app-5x-2026-11-18.md`.
 
 4. **The transaction engine** (`juggler-handover::moving`), generic:
    - `preflight`: every step inside the plan's roots; the move's own folder (in

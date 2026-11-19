@@ -11,6 +11,7 @@
  * expectations the backend's tests use.
  */
 import type { RailItem } from "../../lib/rail-items";
+import type { FacetFilters } from "../../types/generated/FacetFilters";
 
 export type Band = "needs" | "working" | "open" | "recent" | "earlier";
 
@@ -78,7 +79,9 @@ export function stateQuery(state: StateFilter, now: number): { which: string | n
 }
 
 /** The filters a list can offer, by what its rows belong to. */
-export type FacetKind = "project" | "app" | "account" | "machine";
+export type FacetKind = "project" | "app" | "account" | "machine" | "tool";
+
+export const FACET_KINDS: readonly FacetKind[] = ["project", "app", "account", "machine", "tool"];
 
 export interface Filters {
   state: StateFilter;
@@ -88,13 +91,21 @@ export interface Filters {
   app: string | null;
   account: string | null;
   machine: string | null;
+  tool: string | null;
 }
 
-export const NO_FILTERS: Filters = { state: "all", project: null, app: null, account: null, machine: null };
+export const NO_FILTERS: Filters = { state: "all", project: null, app: null, account: null, machine: null, tool: null };
 
 /** How many filters are set (the state counts unless it's All). */
 export function filtersOn(filters: Filters): number {
-  return (filters.state === "all" ? 0 : 1) + [filters.project, filters.app, filters.account, filters.machine].filter((value) => value !== null).length;
+  return (filters.state === "all" ? 0 : 1) + FACET_KINDS.filter((kind) => filters[kind] !== null).length;
+}
+
+/** The chosen values as the backend's `sessions_facets` takes them: each
+ * narrows the other kinds' values, never its own (the 0.4.6 RC walk K2,
+ * F-K2-5). */
+export function facetFilters(filters: Filters): FacetFilters {
+  return { project_id: filters.project, app_id: filters.app, subscription_id: filters.account, machine_id: filters.machine, tool_id: filters.tool };
 }
 
 /** What a row belongs to, for the design preview's filters. */
@@ -103,6 +114,18 @@ export interface Belongs {
   app: string;
   account: string | null;
   machine: string;
+  tool: string;
+}
+
+/** Does a row's `of` pass the chosen values (not the state)? */
+export function passesChosen(of: Belongs, filters: Omit<Filters, "state">): boolean {
+  return (
+    (filters.project === null || filters.project === of.project) &&
+    (filters.app === null || filters.app === of.app) &&
+    (filters.account === null || filters.account === (of.account ?? "")) &&
+    (filters.machine === null || filters.machine === of.machine) &&
+    (filters.tool === null || filters.tool === of.tool)
+  );
 }
 
 /** Does a row pass the filters (the preview's; the backend narrows a live
@@ -114,13 +137,7 @@ export function passes(item: Pick<RailItem, "state" | "live" | "lastMs">, of: Be
     (filters.state === "open" && !ended) ||
     (filters.state === "ended" && ended) ||
     (filters.state === "recent" && ended && now - item.lastMs <= RECENT_MS);
-  return (
-    state &&
-    (filters.project === null || filters.project === of.project) &&
-    (filters.app === null || filters.app === of.app) &&
-    (filters.account === null || filters.account === (of.account ?? "")) &&
-    (filters.machine === null || filters.machine === of.machine)
-  );
+  return state && passesChosen(of, filters);
 }
 
 /** One value a filter offers. */
@@ -139,5 +156,15 @@ export function facetsOf(rows: readonly Belongs[]): Record<FacetKind, Facet[]> {
     }
     return [...counts].map(([id, count]) => ({ id, count })).sort((a, b) => b.count - a.count || a.id.localeCompare(b.id));
   };
-  return { project: tally((of) => of.project), app: tally((of) => of.app), account: tally((of) => of.account ?? ""), machine: tally((of) => of.machine) };
+  return { project: tally((of) => of.project), app: tally((of) => of.app), account: tally((of) => of.account ?? ""), machine: tally((of) => of.machine), tool: tally((of) => of.tool) };
+}
+
+/** Each kind's values over the rows the other kinds' choices leave (its
+ * own left out), as the backend counts them: `rowsFor` gives the rows a
+ * set of choices shows. */
+export function narrowedFacets(rowsFor: (filters: Filters) => readonly Belongs[], filters: Filters): Record<FacetKind, Facet[]> {
+  const every = facetsOf(rowsFor(filters));
+  const out = { ...every };
+  for (const kind of FACET_KINDS) if (filters[kind] !== null) out[kind] = facetsOf(rowsFor({ ...filters, [kind]: null }))[kind];
+  return out;
 }

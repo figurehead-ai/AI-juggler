@@ -252,8 +252,8 @@ fn process_session(state: &Arc<AppState>, account: &str, id: &str) -> Option<Str
     Some(
         links
             .into_iter()
-            .filter(|(a, c, _)| a == account && c == id)
-            .map(|(_, _, session)| session)
+            .filter(|link| link.account == account && link.conversation == id)
+            .map(|link| link.session)
             .next_back()
             .unwrap_or_else(|| id.to_owned()),
     )

@@ -17,7 +17,7 @@ import { Button } from "../../components/primitives";
 import { useActionHost } from "../../components/ItemMenu";
 import { accountColor } from "../../lib/marks";
 import { UsageDashboard } from "../../components/usage/Dashboard";
-import { Segmented } from "../../components/usage/controls";
+import { Segmented } from "../../components/controls";
 import { useRange } from "../../components/usage/useUsage";
 import { PageShell, showTab } from "../PageShell";
 import { PageHeader } from "../PageHeader";
@@ -36,15 +36,15 @@ import type { AccountInfo } from "../../types/generated/AccountInfo";
 import type { InstanceInfo } from "../../types/generated/InstanceInfo";
 import type { ProjectInfo } from "../../types/generated/ProjectInfo";
 import { RelatedPools, usePagePools } from "../../components/RelatedPools";
-import { useRelationCounts } from "../../lib/relation-counts";
-import { accountApps, accountAppsNow, accountItems } from "../../lib/account-items";
+import { useRelatedCounts, useRelationCounts } from "../../lib/relation-counts";
+import { accountApps, accountAppsNow, accountItems, withCounts } from "../../lib/account-items";
 import { openHere, useWorkedProjects, type appProjects } from "../../lib/app-items";
 import { appByRailKey, useApps, type AppModel } from "../../lib/apps";
 import { appByConversation, appByFolder, appKeyOf } from "../../lib/rail-apps";
 import { itemsOf, type RailItem } from "../../lib/rail-items";
 import { renewalLabel, renewalRowVisible } from "../../lib/renewal";
 import { RenewalChip } from "../../components/RenewalChip";
-import { RANGES } from "../../lib/usage/range";
+import { RANGE_SEGMENTS } from "../../lib/usage/range";
 import { useSeen } from "../../lib/seen";
 import { useShownConversations } from "../../lib/shown-apps";
 import { accountDisplay, accountLine, accountName, staleSubscriptions, useSubscriptions, type SubscriptionInfo } from "../../lib/subscriptions";
@@ -101,7 +101,13 @@ function AccountBody({ sub, onChanged, sessions, projects, accounts, now, onOpen
   // "Instant and paged": its count from the Accounts' list at once; its
   // rows once the Apps are read (a placeholder till then, never empty).
   const known = useMemo(() => accountAppsNow(apps, sub, folderIds), [apps, sub, folderIds]);
-  const onIt = useMemo(() => (apps && known ? accountApps(apps, sub, folderIds, allItems, byConversation) : null), [apps, known, sub, folderIds, allItems, byConversation]);
+  // Walk K1 (0.4.6 RC): each App's sessions on this Account as its
+  // Sessions tab counts them (the backend's cache), not the loaded window.
+  const appCounts = useRelatedCounts("subscription", sub.account_id, "app");
+  const onIt = useMemo(
+    () => (apps && known ? withCounts(accountApps(apps, sub, folderIds, allItems, byConversation), appCounts) : null),
+    [apps, known, sub, folderIds, allItems, byConversation, appCounts],
+  );
   const appCount = known?.ids.length;
   const worked = useWorkedProjects("subscription", sub.account_id, items, projects);
   // Each session's App, by the rail's rule (a session that ended in the
@@ -327,7 +333,7 @@ function AccountUsageTab({ name, folders, accounts }: { name: string; folders: s
     <section aria-label="Usage" className="flex flex-col gap-3" data-testid="account-usage">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h3 className="text-section text-ink">Usage on {name}</h3>
-        <Segmented label="Range" options={RANGES.map(({ id, label }) => ({ id, label }))} value={range} onChange={setRange} />
+        <Segmented label="Range" segments={RANGE_SEGMENTS} value={range} onChange={setRange} />
       </div>
       <UsageDashboard kind="profile" scope={{ profiles: folders }} range={range} accounts={accounts.filter((account) => folders.includes(account.id))} testId="account-usage-dashboard" />
     </section>

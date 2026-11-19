@@ -12,9 +12,9 @@ afterEach(cleanup);
 describe("Notifications, design review 29–31 and 74", () => {
   it("a card each, section-title headings, quiet hours and the digest folded with their values", async () => {
     render(<NotificationSettingsCard accounts={[]} />);
-    const more = (await screen.findByTestId("notifications-more")) as HTMLDetailsElement;
-    expect(more.open).toBe(false);
-    expect(more.querySelector("summary")!.textContent).toBe("More: quiet hours 22:00–07:00");
+    const more = (await screen.findByTestId("notifications-more"));
+    expect(more.hasAttribute("data-open")).toBe(false);
+    expect(more.querySelector("button[aria-expanded]")!.textContent).toBe("More: quiet hours 22:00–07:00");
     expect(more.contains(screen.getByTestId("quiet-hours"))).toBe(true);
     expect(more.contains(screen.getByTestId("digest-accounts"))).toBe(true);
     const root = screen.getByTestId("settings-notifications");

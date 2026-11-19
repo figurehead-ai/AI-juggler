@@ -29,8 +29,19 @@ fn main() -> ExitCode {
         Ok(Command::McpPlugin) => {
             // E19: in a session AI Juggler started, its launch already
             // added the tools; the plugin's copy then stays empty.
+            // AJ-E3013: elsewhere, the connector's keyless calls, which
+            // the app attests (or refuses) on every call.
             let given = std::env::var(juggler_agentbridge::wire::TOKEN_ENV)
                 .is_ok_and(|token| !token.is_empty());
+            let mut app = App::for_connector();
+            // D-119: in a desktop app's session (no key), a pool message the
+            // pool's waking rule allows wakes it through its own inbox.
+            if !given {
+                juggler_agentbridge::waker::start(
+                    juggler_agentbridge::client::connector_socket(),
+                    juggler_agentbridge::waker::Inbox::from_env(),
+                );
+            }
             let stdin = std::io::stdin();
             let stdout = std::io::stdout();
             match serve_as(stdin.lock(), stdout.lock(), &mut app, Some(given)) {
@@ -38,6 +49,18 @@ fn main() -> ExitCode {
                 Err(_) => ExitCode::FAILURE,
             }
         }
+        Ok(Command::ConnectorHook(event)) => {
+            // Silent and 0 when AI Juggler isn't running, the caller isn't
+            // attested, or this is a session AI Juggler started.
+            if let Some(note) =
+                juggler_agentbridge::hook::run_connector(&event, std::io::stdin().lock())
+            {
+                let _ = writeln!(std::io::stdout(), "{note}");
+            }
+            ExitCode::SUCCESS
+        }
+        Ok(Command::McpProbe(out)) => probe_mcp(&out),
+        Ok(Command::ProbeShell) => probe_shell(),
         Ok(Command::Help) => {
             println!("{USAGE}");
             ExitCode::SUCCESS
@@ -80,6 +103,57 @@ fn main() -> ExitCode {
             ExitCode::from(64)
         }
     }
+}
+
+/// AJ-E3013 (lab proof C2): the probe's MCP server (debug builds only).
+#[cfg(all(debug_assertions, unix))]
+fn probe_mcp(out: &str) -> ExitCode {
+    let home = std::env::var_os("HOME").map(std::path::PathBuf::from);
+    let stdin = std::io::stdin();
+    let stdout = std::io::stdout();
+    match juggler_agentbridge::probe::serve(
+        std::path::Path::new(out),
+        home.as_deref(),
+        stdin.lock(),
+        stdout.lock(),
+    ) {
+        Ok(()) => ExitCode::SUCCESS,
+        Err(why) => {
+            let _ = writeln!(std::io::stderr(), "juggler-agent: {why}");
+            ExitCode::from(64)
+        }
+    }
+}
+
+/// AJ-E3013 (lab proof C3): `CODEX_THREAD_ID` and the parent chain.
+#[cfg(all(debug_assertions, unix))]
+fn probe_shell() -> ExitCode {
+    for line in juggler_agentbridge::probe::shell_lines() {
+        println!("{line}");
+    }
+    ExitCode::SUCCESS
+}
+
+/// A release build has no probe.
+#[cfg(not(all(debug_assertions, unix)))]
+fn probe_mcp(_out: &str) -> ExitCode {
+    not_in_this_build()
+}
+
+/// A release build has no probe.
+#[cfg(not(all(debug_assertions, unix)))]
+fn probe_shell() -> ExitCode {
+    not_in_this_build()
+}
+
+/// What a release build says to the probe's flags.
+#[cfg(not(all(debug_assertions, unix)))]
+fn not_in_this_build() -> ExitCode {
+    let _ = writeln!(
+        std::io::stderr(),
+        "juggler-agent: the probe is not in this build (debug builds only)"
+    );
+    ExitCode::from(64)
 }
 
 /// Prints a call's result (stdout) or why not (stderr), and its code.

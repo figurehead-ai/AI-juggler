@@ -5,7 +5,7 @@
  * the rest is fetched in idle time ([`prefetchLazy`]), so opening a
  * screen doesn't wait.
  */
-import { lazy, Suspense, useState, type ComponentProps, type ComponentType, type JSX } from "react";
+import { lazy, Suspense, useEffect, useState, type ComponentProps, type ComponentType, type JSX } from "react";
 
 const loaders: { load: () => Promise<unknown>; first: boolean }[] = [];
 
@@ -15,18 +15,38 @@ const loaders: { load: () => Promise<unknown>; first: boolean }[] = [];
  * (a terminal pane was caught empty on some runs and drawn on others). */
 let loading = 0;
 
+function add(by: number): void {
+  loading += by;
+  if (typeof document !== "undefined") document.documentElement.toggleAttribute("data-loading-parts", loading > 0);
+}
+
 function counted<M>(loader: () => Promise<M>): () => Promise<M> {
-  const mark = () => {
-    if (typeof document !== "undefined") document.documentElement.toggleAttribute("data-loading-parts", loading > 0);
-  };
   return () => {
-    loading += 1;
-    mark();
-    return loader().finally(() => {
-      loading -= 1;
-      mark();
-    });
+    add(1);
+    return loader().finally(() => add(-1));
   };
+}
+
+/** Suspense's empty placeholder, counted while it's on screen: React
+ * holds a lazy part's reveal up to 300 ms after its code is here, so the
+ * code's own count had ended while the part was still blank (the gate's
+ * selection-line: the pool line's conversation empty in some renders).
+ * Its count ends in the same flush as the revealed part's first effects,
+ * so a part that then reads its data (`loadingPart`) leaves no gap. */
+function Pending(): null {
+  useEffect(() => {
+    add(1);
+    return () => add(-1);
+  }, []);
+  return null;
+}
+
+/** A part's first data, counted like its code: while it loads, the part
+ * on screen is its placeholder (the pool line's conversation was caught
+ * as its skeleton in some renders and drawn in others), so the gate waits
+ * for it too. Only a part's first read: a re-read keeps what it shows. */
+export function loadingPart<T>(work: Promise<T>): Promise<T> {
+  return counted(() => work)();
 }
 
 /** `module[name]`, loaded on first use. It waits on its own (nothing
@@ -56,7 +76,7 @@ export function lazyNamed<M, K extends keyof M>(loader: () => Promise<M>, name: 
       return <Ready {...props} />;
     }
     return (
-      <Suspense fallback={null}>
+      <Suspense fallback={<Pending />}>
         <Lazy {...props} />
       </Suspense>
     );

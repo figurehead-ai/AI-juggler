@@ -68,6 +68,18 @@ renders the 0.2 kinds inside Home's Needs you (only each component alone).
 None added; cited: `_gallery/94-places/home-{empty,typical,busy,cards}-{dark,light}.png`
 (typical and cards opened and looked at, 2026-11-07).
 
+## Correction (2026-11-16)
+
+The Gate row says the `places-gallery.spec.ts` Home tests "run in CI / the
+gallery gate". They didn't: `places-gallery` wasn't in the gate's
+GALLERY_SPECS until 0.4.6 (468e81513), and the gate runs only each family's
+`@gate` state (the rail with 1 open session), so the four Home tests cited
+here still aren't run by CI; scripts/visual_specs_check.py (432999cd2) now
+keeps that visible. Re-run by hand on 468e81513 (2026-11-16, `pnpm exec
+playwright test tests/visual/places-gallery.spec.ts -g "Home,"`): 8 passed
+(the four tests, both themes). The family's gate state is compared in CI
+from a2cd59931.
+
 ## Redaction checklist (tick before commit)
 
 - [x] No credentials, tokens, or keys in any file here

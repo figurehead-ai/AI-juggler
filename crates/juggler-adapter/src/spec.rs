@@ -138,6 +138,15 @@ pub struct ToolSpec {
     /// AJ-E1611: where its new versions are published, for the
     /// once-a-day check; `None` when there's no public list to ask.
     pub release_feed: Option<ReleaseFeed>,
+    /// D-128: other public lists of this tool's new versions (its desktop
+    /// app's update feed, its GitHub releases), read only by the daily
+    /// version watcher (`scripts/tool_versions.py`); the app never asks them.
+    pub more_release_feeds: Vec<ReleaseFeed>,
+    /// D-128: how the release flow's gate watch (`scripts/gate_watch.py`)
+    /// reads the installed version on the reference Mac, read only: the
+    /// tool's command, and its desktop app's bundle where it has one. The
+    /// app itself reads versions through the adapter.
+    pub version_probes: Vec<VersionProbe>,
     /// AJ-E1611: the command the user runs to update it themselves. AI
     /// Juggler shows it and never runs it.
     pub update_command: Option<String>,
@@ -149,6 +158,24 @@ pub struct ToolSpec {
     pub observes: crate::ToolObserves,
 }
 
+/// D-128: where the installed version of a tool can be read, read only.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum VersionProbe {
+    /// A command that prints its version with `--version` (found on PATH
+    /// or in the installer's usual places).
+    Command {
+        /// The command's name (`claude`).
+        program: String,
+    },
+    /// A desktop app, by its name (`Claude`): where it is installed is
+    /// each OS's own place, which its reader knows (on macOS, the bundle
+    /// in the Applications folder and its `CFBundleShortVersionString`).
+    DesktopApp {
+        /// The app's name, as installed (`Claude`).
+        name: String,
+    },
+}
+
 /// AJ-E1611: a public list of a tool's released versions.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ReleaseFeed {
@@ -156,6 +183,16 @@ pub enum ReleaseFeed {
     Npm {
         /// The package's name (`@scope/name` or `name`).
         package: String,
+    },
+    /// D-128: a GitHub repository's latest release (`owner/name`).
+    GithubRelease {
+        /// The repository, as `owner/name`.
+        repo: String,
+    },
+    /// D-128: a desktop app's Sparkle appcast (an XML list of versions).
+    Appcast {
+        /// The appcast's address.
+        url: String,
     },
 }
 
@@ -213,6 +250,8 @@ impl ToolSpec {
             flags: ToolFlags::default(),
             terms: None,
             release_feed: None,
+            more_release_feeds: Vec::new(),
+            version_probes: Vec::new(),
             update_command: None,
             floor: FloorFamilies::default(),
             observes: crate::ToolObserves::NONE,

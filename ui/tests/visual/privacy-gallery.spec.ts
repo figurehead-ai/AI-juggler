@@ -52,7 +52,7 @@ for (const theme of ["dark", "light"] as const) {
 
     // A line opened: the tests that check it, each linked.
     const line = page.getByTestId("privacy-claim").filter({ hasText: "no requests to" });
-    await line.locator("summary").click();
+    await line.getByRole("button", { expanded: false }).click();
     await expect(line.getByTestId("privacy-tests")).toContainText("only_the_listed_crates_can_reach_the_network");
     await line.scrollIntoViewIfNeeded();
     await expect(line.getByTestId("privacy-tests")).toBeInViewport();

@@ -2,7 +2,7 @@
  * The Pools screen (redesign §5): every pool as a card — its canvas in
  * small, its name (a project's own pool says so), how many are in it,
  * what waits on you and how many tasks are moving. A card opens the
- * pool's canvas; New pool opens an empty one, its name ready to type.
+ * pool's canvas; New pool opens the guided setup (AJ-E3011).
  *
  * Instant and paged: the pools are the app's one copy (shown at once when
  * known, a skeleton before); a page of cards at a time, and only the cards
@@ -14,20 +14,20 @@ import { Page, PageGrid } from "../../components/Page";
 import { Button } from "../../components/primitives";
 import { IconPlus } from "../../components/icons-actions";
 import { useActionHost } from "../../components/ItemMenu";
-import { showToast } from "../../components/Toast";
-import { errorText } from "../../lib/bridge";
 import type { AccountInfo } from "../../types/generated/AccountInfo";
 import type { InstanceInfo } from "../../types/generated/InstanceInfo";
 import type { ProjectInfo } from "../../types/generated/ProjectInfo";
 import { useMessageNeeds } from "../../lib/ipc/messages";
 import { onTasksChanged, useTaskNeeds } from "../../lib/ipc/tasks";
 import { poolCanvasPreviews, type PoolPreviewInfo } from "../../lib/ipc/pool-canvas";
-import { poolCreate, type PoolInfo } from "../../lib/ipc/pools";
-import { needWords, onNewPoolRequest, poolIdsOf, poolNeedCount, roleOf, scopeLabel, setPools, takeNewPoolRequest, usePools, warmPool, type NewPoolRequest } from "../../lib/pools";
+import { poolRules, type PoolRulesInfo } from "../../lib/ipc/pool-model";
+import { useApps, type AppModel } from "../../lib/apps";
+import { shortName } from "../../lib/session-titles";
+import type { PoolInfo } from "../../lib/ipc/pools";
+import { doneNewPoolRequest, needWords, onNewPoolRequest, poolIdsOf, poolNeedCount, roleOf, scopeLabel, takeNewPoolRequest, usePools, warmPool, type NewPoolRequest } from "../../lib/pools";
 import { sessionState } from "../../lib/rail-items";
-import { editNameOf } from "../../pages/pool/PoolHeader";
 import { NewPool } from "./NewPool";
-import { PoolMini, type MiniNode } from "./PoolMini";
+import { miniTeam, PoolMini } from "./PoolMini";
 import { DeletePool, PoolCard, RenamePool } from "./PoolCard";
 
 /** X2: how many of the first cards' pools are read ahead, and when. */
@@ -92,13 +92,24 @@ function SkeletonCards(): JSX.Element {
   );
 }
 
+/** A pool member's name on its card's thumbnail: a session's title, an
+ * App's name. */
+function memberNameOf(apps: readonly AppModel[] | null): (ref: string, sessions: readonly InstanceInfo[]) => string {
+  return (ref, sessions) => {
+    if (ref.startsWith("session:")) {
+      const session = sessions.find((one) => `session:${one.id}` === ref);
+      return session ? shortName(session) : "";
+    }
+    return apps?.find((app) => `app:${app.id}` === ref)?.name ?? "";
+  };
+}
+
 export function PoolsScreen({ sessions, projects, accounts }: { sessions: InstanceInfo[]; projects: ProjectInfo[]; accounts: AccountInfo[] }): JSX.Element {
   const pools = usePools();
   const host = useActionHost();
   const messageNeeds = useMessageNeeds();
   const taskNeeds = useTaskNeeds();
   const [shown, setShown] = useState(CARDS_PAGE);
-  const [busy, setBusy] = useState(false);
   const [wizard, setWizard] = useState<NewPoolRequest | false>(false);
   // A project's "Keep it apart…" (and any other door) opens it here.
   useEffect(() => {
@@ -110,6 +121,10 @@ export function PoolsScreen({ sessions, projects, accounts }: { sessions: Instan
     return onNewPoolRequest(take);
   }, []);
   const [previews, setPreviews] = useState<Map<string, PoolPreviewInfo>>(new Map());
+  // D-126 §4d: each shown card's team (its members, their open sessions).
+  const [teams, setTeams] = useState<Map<string, PoolRulesInfo>>(new Map());
+  const apps = useApps(accounts);
+  const memberName = memberNameOf(apps);
 
   // Each open session (what the rail holds), by its pool.
   const byPool = useMemo(() => {
@@ -134,11 +149,14 @@ export function PoolsScreen({ sessions, projects, accounts }: { sessions: Instan
   useEffect(() => {
     if (!visibleKey) return;
     let alive = true;
-    const read = () =>
-      void poolCanvasPreviews(visibleKey.split("|")).then(
+    const ids = visibleKey.split("|");
+    const read = () => {
+      void poolCanvasPreviews(ids).then(
         (rows) => alive && setPreviews(new Map(rows.map((row) => [row.pool_id, row]))),
         () => undefined,
       );
+      void Promise.all(ids.map((id) => poolRules(id).catch(() => null))).then((rows) => alive && setTeams(new Map(rows.flatMap((row) => (row ? [[row.pool_id, row] as const] : [])))));
+    };
     read();
     const off = onTasksChanged(read);
     return () => {
@@ -158,30 +176,12 @@ export function PoolsScreen({ sessions, projects, accounts }: { sessions: Instan
     return () => window.clearTimeout(timer);
   }, [visibleKey]);
 
-  const create = async () => {
-    setBusy(true);
-    try {
-      const name = newPoolName((pools?.pools ?? []).map((pool) => pool.name));
-      const info = await poolCreate(name, null);
-      setPools(info);
-      const made = info.pools.find((pool) => pool.name === name);
-      if (made) {
-        editNameOf(made.id);
-        host.openPool?.(made.id);
-      }
-    } catch (cause) {
-      showToast({ message: "Couldn't make a pool", detail: errorText(cause), tone: "error" });
-    } finally {
-      setBusy(false);
-    }
-  };
-
   return (
     <Page
       title="Pools"
-      subtitle="Sessions that work together. Open one to watch it, answer it and change it on its canvas."
+      subtitle="Teams of your AI sessions. Open one to watch it, answer it and change it on its diagram."
       actions={
-        <Button variant="primary" onClick={() => setWizard({ template: "writer-reviewer", project: null })} disabled={busy} data-testid="pools-new">
+        <Button variant="primary" onClick={() => setWizard({ template: "blank", project: null })} data-testid="pools-new">
           <IconPlus width={15} height={15} aria-hidden="true" className="mr-1.5" />
           New pool
         </Button>
@@ -195,10 +195,10 @@ export function PoolsScreen({ sessions, projects, accounts }: { sessions: Instan
           accounts={accounts}
           project={wizard.project}
           startWith={wizard.template}
-          onClose={() => setWizard(false)}
-          onByHand={() => {
+          fromProject={wizard.project !== null && wizard.template === "blank"}
+          onClose={() => {
+            doneNewPoolRequest();
             setWizard(false);
-            void create();
           }}
         />
       )}
@@ -210,16 +210,11 @@ export function PoolsScreen({ sessions, projects, accounts }: { sessions: Instan
             {visible.map((pool) => {
               const members = byPool.get(pool.id) ?? [];
               const preview = previews.get(pool.id);
-              const placed = new Map((preview?.positions ?? []).map((row) => [row.session_id, { x: row.x, y: row.y }]));
-              const nodes: MiniNode[] = members.slice(0, 24).map((session) => {
-                const state = sessionState(session);
-                const role = roleOf(pools, session.id, pool.id);
-                return { id: session.id, role, alert: state.needs, working: state.state === "working" };
-              });
+              const team = miniTeam(teams.get(pool.id) ?? null, members.slice(0, 24), (id) => roleOf(pools, id, pool.id), { apps: apps ?? [], sessions: members }, (ref) => memberName(ref, members));
               const project = pool.project_id ? projects.find((row) => row.id === pool.project_id) : undefined;
               return (
                 <PoolCard key={pool.id} pool={pool} local={cardHost} asks={asks.get(pool.id) ?? 0} onOpen={() => host.openPool?.(pool.id)}>
-                  <PoolMini nodes={nodes} placed={placed} />
+                  <PoolMini lead={team.lead} members={team.members} known={teams.has(pool.id)} />
                   <span className="flex min-w-0 items-baseline gap-2 pr-6">
                     <span className="truncate text-body font-semibold text-ink" data-testid="pool-card-name">{pool.kind === "default" ? (project?.name ?? "No project") : pool.name}</span>
                     <span className="min-w-0 truncate text-label text-muted" data-testid="pool-card-scope">

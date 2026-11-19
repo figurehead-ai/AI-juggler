@@ -2277,7 +2277,7 @@ const SWITCH_WIZARD_FIXTURE = {
   diff_snapshotted: true,
   source_live: true,
   experimental_copy:
-    "Beta, not proven yet: the whole session moves, with its subagents and file history. The source stays resumable.",
+    "Beta: the whole session moves, with its subagents and file history. The source stays resumable.",
   door: "wizard" as const,
   wizard_steps: ["Target", "What's carried", "Confirm"],
   wizard_reasons: ["This move hasn't been proven on a real setup yet.", "Doesn't carry: Subagents' work."],
@@ -2439,7 +2439,7 @@ const SWITCH_ONECLICK_FIXTURE = {
   diff_snapshotted: false,
   source_live: true,
   experimental_copy:
-    "Beta, not proven yet: the whole session moves, with its subagents and file history. The source stays resumable.",
+    "Beta: the whole session moves, with its subagents and file history. The source stays resumable.",
   door: "one-click" as const,
   wizard_steps: [],
   wizard_reasons: [],
@@ -2964,7 +2964,7 @@ const BADGE_SET_TARGETS = [
     provider: "claude-code",
     account_id: "a-1",
     account_label: "Work Max",
-    badge: "Continues exactly · Proven",
+    badge: "Continues exactly",
     validated: true,
     cross_provider: false,
     drops: [],
@@ -3190,8 +3190,8 @@ for (const theme of THEMES) {
       await openRailSession(page, "sess-4");
       const solid = page.locator("[data-testid='fidelity-badge'][data-validated='true']");
       const hatched = page.locator("[data-testid='fidelity-badge'][data-validated='false']");
-      await expect(solid).toContainText("Continues exactly · Proven");
-      await expect(hatched.first()).toContainText("Not proven yet");
+      await expect(solid).toContainText("Continues exactly");
+      await expect(hatched.first()).toContainText("· Beta");
       await page.screenshot({
         path: resolve(GALLERY, `32-graph/badges-${vp.name}-${theme}.png`),
       });
@@ -3203,7 +3203,7 @@ for (const theme of THEMES) {
  * AJ-E210 gallery 33 — which switches are proven (Accounts, disclosure
  * only): the researched table (every switch in beta), a failed hand
  * check's one-level-less note, a proven switch graduating its badge,
- * and one badge that's not proven yet in situ on the
+ * and one beta badge in situ on the
  * wizard — across 1280×800 + 800×600 × light+dark. The table is the
  * same one the switch badges derive from (one source, no drift).
  */
@@ -3224,7 +3224,7 @@ const MATRIX_FAILED: import("../../src/lib/ipc/validation").ValidationCellData[]
 const MATRIX_MIXED: import("../../src/lib/ipc/validation").ValidationCellData[] = [
   {
     from: "claude-code", to: "claude-code", mechanism: "transplant",
-    researched_ceiling: "F1", advertised: "F1", badge: "Full story, fresh start · Proven",
+    researched_ceiling: "F1", advertised: "F1", badge: "Full story, fresh start",
     validated: true, mechanism_green: true, ci_green: true,
     dogfood: {
       at: "2026-10-17", project_shape: "tiny", verdict: "pass",
@@ -3266,7 +3266,7 @@ for (const theme of THEMES) {
       await page.goto("/");
       await goTo(page, "Accounts");
       // D-25: the matrix sits behind its disclosure on Accounts.
-      await page.getByTestId("accounts-beta-matrix").locator("summary").click();
+      await page.getByTestId("accounts-beta-matrix-toggle").click();
       await expect(page.getByTestId("beta-matrix")).toBeVisible();
       // AJ-E808: the matrix in view, not the Accounts above it (the
       // disclosure sits at the screen's foot).
@@ -3279,10 +3279,10 @@ for (const theme of THEMES) {
       // E16 brings tools more (OpenCode, AJ-E1602; ZCode, AJ-E1605), so
       // the fixture's matrix has ten switches.
       await expect(page.getByTestId("beta-matrix-summary")).toContainText(
-        "None of the 10 switches is proven yet",
+        "None of the 10 switches is tested in every part yet",
       );
       await expect(page.getByTestId("beta-matrix-row").first()).toContainText(
-        "Beta — not proven yet",
+        "Beta: still being tested",
       );
       // Ten rows are taller than the screen: the matrix's top (its summary
       // line) in view, not its middle, so no sentence is cut.
@@ -3306,9 +3306,9 @@ for (const theme of THEMES) {
     test(`beta — validated pair graduates — ${vp.name} — ${theme}`, async ({ page }) => {
       await openProfiles(page, MATRIX_MIXED);
       await expect(page.getByTestId("beta-matrix-summary")).toContainText(
-        "1 of 2 switches proven",
+        "1 of 2 switches tested", // D-127: "proven" is never said on screen
       );
-      await expect(page.getByTestId("beta-matrix-row").first()).toContainText("Proven ✓");
+      await expect(page.getByTestId("beta-matrix-row").first()).toContainText("Tested ✓");
       await page.screenshot({
         path: resolve(GALLERY, `33-beta/matrix-validated-${vp.name}-${theme}.png`),
       });
@@ -3339,7 +3339,7 @@ for (const theme of THEMES) {
         .click();
       await expect(page.getByTestId("switch-wizard")).toBeVisible();
       // AJ-E808: the register's words for an unvalidated pair, verbatim.
-      await expect(page.getByTestId("switch-wizard")).toContainText("· Beta · Not proven yet");
+      await expect(page.getByTestId("switch-wizard")).toContainText("· Beta");
       await page.screenshot({
         path: resolve(GALLERY, `33-beta/badge-in-situ-${vp.name}-${theme}.png`),
       });
@@ -4700,7 +4700,7 @@ const crossTarget = (over: Record<string, unknown> = {}) => ({
   readiness: "t2_ready",
   blockers: [],
   fidelity: "F3",
-  badge: "Same conversation, another app · Not proven yet",
+  badge: "Same conversation, another app · Beta",
   validated: false,
   carried: ["The whole conversation", "Project rules", "Your uncommitted changes"],
   regenerated: [],
@@ -4723,7 +4723,7 @@ const CROSS_TARGETS = [
     blockers: ["Claude Code 2.1.0 here, 2.0.9 on Studio Mac — moving the same conversation needs the same version."],
     version_there: "2.0.9",
     fidelity: "F1",
-    badge: "Full story, fresh start · Not proven yet",
+    badge: "Full story, fresh start · Beta",
   }),
   crossTarget({
     machine_id: "machine-mini",
@@ -6022,7 +6022,7 @@ for (const theme of THEMES) {
     await openSettings(page, theme, { width: 1280, height: 800 }, {
       __AIJ_SESSION_PREFS__: { stuck_after_minutes: 10, terminal_font_size: 12.5, terminal_scrollback_lines: 5000 },
     }, "Sessions");
-    await page.getByTestId("settings-terminal").locator("summary").click();
+    await page.getByTestId("settings-terminal-toggle").click();
     await expect(page.getByLabel("Scrollback")).toBeVisible();
     await expect(page.getByTestId("pref-stuck_after_minutes-reset")).toHaveText("Reset to 5");
     await page.mouse.move(0, 0);

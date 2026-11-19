@@ -283,8 +283,7 @@ describe("AJ-E1533 keyboard, footers, the terminal", () => {
 
   it("the switch list is one step away: closed, Continue in another app… opens it in a dialog (0.3.2); open when the limit hit", async () => {
     const { getByTestId, queryByTestId } = shell({ kind: "instance", id: "sess-1" });
-    const section = getByTestId("handover-section") as HTMLDetailsElement;
-    expect(section.open).toBe(false);
+    expect(getByTestId("handover-section-toggle").getAttribute("aria-expanded")).toBe("false");
     await act(async () => {
       fireEvent.click(getByTestId("header-switch"));
     });
@@ -293,7 +292,7 @@ describe("AJ-E1533 keyboard, footers, the terminal", () => {
     expect(queryByTestId("continue-dialog")).toBeNull();
     cleanup();
     const blocked = shell({ kind: "instance", id: "sess-1" }, { instance: { ...instance, status: "quota_blocked" } });
-    expect((blocked.getByTestId("handover-section") as HTMLDetailsElement).open).toBe(true);
+    expect(blocked.getByTestId("handover-section-toggle").getAttribute("aria-expanded")).toBe("true");
   });
 
   it("empty selection renders nothing here — the work area is Home (D-25)", () => {

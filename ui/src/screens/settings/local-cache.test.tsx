@@ -47,8 +47,8 @@ describe("Local cache", () => {
 
   it("lists each cache, folded, with its size and what it speeds up", async () => {
     await section();
-    const contents = screen.getByTestId("cache-contents-toggle") as HTMLDetailsElement;
-    expect(contents.open).toBe(false);
+    const contents = screen.getByTestId("cache-contents-toggle");
+    expect(contents.hasAttribute("data-open")).toBe(false);
     fireEvent.click(within(contents).getByText("What's in it"));
     const rows = screen.getAllByTestId("cache-row");
     expect(rows.map((row) => row.querySelector("span")?.textContent)).toEqual(["Subagent lists", "App icons", "Search index"]);

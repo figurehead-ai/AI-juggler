@@ -8,6 +8,8 @@
 #     under "Recent", then "All N sessions ›" (D-103.1/.2);
 #   - no status glyph (✕ ⚠ ○ ● ◐ ✓) in any accessible name on Home and the
 #     rail, read from Chromium's own tree (D-117);
+#   - what the 0.4.6 RC walks found cut or scrolling sideways, measured
+#     (fits-its-room);
 #   - the measured contrast table.
 # Extra arguments go to Playwright (the release workflow passes
 # `--shard=i/n`; each shard sets A11Y_SKIP_SUMMARY=1 and one final job
@@ -31,11 +33,14 @@ AJ_AXE_GALLERY=1 AJ_A11Y_EVIDENCE=1 pnpm exec playwright test \
   tests/visual/accounts-out-filter.spec.ts \
   tests/visual/caret-mark.spec.ts \
   tests/visual/cursor.spec.ts \
+  tests/visual/fits-its-room.spec.ts \
   tests/visual/fleet-pairing.spec.ts \
   tests/visual/flows-cde.spec.ts \
   tests/visual/idle.spec.ts \
+  tests/visual/menus-a11y.spec.ts \
   tests/visual/new-project.spec.ts \
   tests/visual/new-session-narrow.spec.ts \
+  tests/visual/pool-layout.spec.ts \
   tests/visual/replica-journey.spec.ts \
   tests/visual/session-app-chip-narrow.spec.ts \
   tests/visual/settings-nav-selection.spec.ts \

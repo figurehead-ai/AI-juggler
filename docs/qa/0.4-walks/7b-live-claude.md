@@ -11,6 +11,8 @@ The run sheet for the walks that need a live Claude Code session. They run in AI
 ## The fixed facts
 
 - **The Lab App:** AI Juggler Dev's own Claude Code folder `~/Library/Application Support/AI Juggler Dev/accounts/claude-code/claude-code-361780292000` (Max, signed in by the maintainer 2026-11-06). No sign-in. Its credentials and the Keychain are never read.
+- **A tool started by hand goes through `scripts/qa/lab_env.sh`** (`env -i` with an allow-list): a `claude -p` typed inside a Code-tab session otherwise inherits `CLAUDE_CODE_ENTRYPOINT=claude-desktop` and the session's other markers, and its transcripts read as the desktop app's (the 0.4.6 presence report: 5 in the Lab App's folder). `lab_env.sh --selftest` (in verify-static) proves the markers never get through.
+- **So is every test build or RC, on a lab HOME or the real one: `scripts/qa/lab_env.sh <the .app's binary>`, the only route.** Never `open` / `open -n`: LaunchServices passes the calling shell's environment to the app (0.4.6 rc2: `ps -E` showed `CLAUDE_CODE_ENTRYPOINT`, `CLAUDECODE` and `ANTHROPIC_BASE_URL` in the RC, and its terminals would have carried them). Check `ps -E` on the app and its watcher before it does anything.
 - **Codex** (P1, P2's second tool): the real Codex sign-in where it is (condition 7), harmless commands only.
 - **Projects:** folders under `~/lab/` only: `~/lab/web` (P1), `~/lab/team` (P2), `~/lab/client` (P7). Each is made empty with `git init` at the start and removed at the end.
 - **Choosing a folder:** wherever a step opens a folder picker, press ⌘⇧G and type the exact path (`/Users/<you>/lab/web`, `/lab/team`, `/lab/client`), Return, then Open. Never browse, and never select anything in Documents or any real folder. If that can't be done cleanly, Cancel the dialog and report. (The first run's driver left the picker open on Documents.)
@@ -54,3 +56,11 @@ For each step, record: before and after captures (pid window only), what was exp
 - the topmost on-screen window at the point, on the active Space (CGWindowList, on-screen only), belongs to Dev's pid.
 
 If either fails, the click is refused, the reason is printed, and the driver stops and reports. Tested dry on 2026-11-07: inside Dev's window, OK; a point outside it (another app's window), refused; a pid that isn't in front, refused. Presses go by exact title only, never a prefix.
+
+## Driving the Claude app (aij-test)
+
+A step that acts inside the sanctioned aij-test Claude app (AJ-E3013's §7.2 and §7.3) uses only `scripts/qa/app_drive`. That's a new session from its menu, a click, a harmless prompt typed, Return. It needs `AIJ_APP_PID`, `AIJ_APP_PROFILE=aij-test` and `AIJ_APP_OUT` (a scratchpad folder). `app_drive list` finds the pid, and `app_drive shot` is step 4 of "Before" in one command.
+
+Its guard is read before every verb. The pid must be the Claude app itself (an exact `Claude.app` bundle with the app's bundle id, so never AI Juggler, a terminal or the CLI). Its `--user-data-dir` must end with the profile folder `AIJ_APP_PROFILE` names, so a real profile and the default one are refused. Its main window must be on screen.
+
+Clicks are accessibility presses on that pid's own elements, and keys are posted to that pid. Neither ever goes to the front app, so the global-click incident above can't happen through it. It refuses the window's close, minimise and zoom buttons, quit, close and sign-out keys and menu items, and text it can't type exactly. Verbs, refusals and status: [`docs/qa/claude-app-drive.md`](../claude-app-drive.md).

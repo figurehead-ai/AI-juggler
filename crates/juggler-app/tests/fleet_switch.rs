@@ -129,6 +129,16 @@ fn setup_both(desktop_version: &str, same_path: bool, grant: Permission, back: P
     let desktop = app_state(&work.path().join("desktop"), desktop_version);
     fleet::fleet_set_label_impl(&desktop, "Studio Mac").unwrap();
     fleet::fleet_set_label_impl(&laptop, "Laptop").unwrap();
+    // D-127: no switch to another Mac is validated yet; these tests are
+    // about one the user turned on (Settings › Switching › Beta).
+    for state in [&laptop, &desktop] {
+        juggler_app::settings_policy::app_setting_set_impl(
+            state,
+            juggler_app::features::validation::BETA_SWITCHES_KEY,
+            "1",
+        )
+        .unwrap();
+    }
 
     // The laptop's work in `storefront`.
     let project_dir = work.path().join("storefront");
@@ -293,6 +303,26 @@ fn sha(path: &Path) -> String {
     juggler_adapter::handover::sha256_hex(&std::fs::read(path).unwrap())
 }
 
+/// D-127: with beta switches off (the default), another Mac isn't offered
+/// as a destination at all: no switch to another Mac is validated yet.
+#[test]
+fn another_mac_is_not_offered_until_beta_switches_are_on() {
+    let pair = setup("2.1.0", true, Permission::Control);
+    let row = target(&pair, "t2_ready");
+    assert_eq!(row.machine_label, "Studio Mac");
+    juggler_app::settings_policy::app_setting_set_impl(
+        &pair.laptop,
+        juggler_app::features::validation::BETA_SWITCHES_KEY,
+        "",
+    )
+    .unwrap();
+    assert!(
+        crossmachine::fleet_switch_targets_impl(&pair.laptop, &pair.source)
+            .unwrap()
+            .is_empty()
+    );
+}
+
 #[test]
 fn t2_at_the_same_path_switches_to_the_other_mac_with_shared_lineage() {
     let pair = setup("2.1.0", true, Permission::Control);
@@ -300,7 +330,7 @@ fn t2_at_the_same_path_switches_to_the_other_mac_with_shared_lineage() {
     assert_eq!(row.machine_label, "Studio Mac");
     assert_eq!(row.account_label, "Desktop Max");
     assert_eq!(row.mechanism, "transplant");
-    assert!(row.badge.ends_with("· Not proven yet"), "{}", row.badge);
+    assert!(row.badge.ends_with("· Beta"), "{}", row.badge);
     assert!(!row.validated);
     assert_eq!(
         row.same_path_project.as_deref(),

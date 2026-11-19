@@ -1,8 +1,9 @@
 /**
  * AJ-E706 — paired machines as switch destinations, in the same handover
  * section as local Accounts. Every row names its machine, carries its
- * fidelity badge in words ("Same conversation, another app · Not proven yet" — D-04: no machine pair is
- * validated until a live two-machine dogfood passes) and its readiness
+ * fidelity badge in words ("Same conversation, another app · Beta" — D-04: no machine pair is
+ * validated until a live two-machine dogfood passes, so D-127 lists them only with beta switches on
+ * in Settings › Switching) and its readiness
  * in words (T2 ready / needs a project mapping / T2 blocked — T3 offered /
  * T3 only / unavailable with the reason). Listing these moved nothing:
  * they come from what each machine published, never a transcript.

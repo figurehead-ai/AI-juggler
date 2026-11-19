@@ -8,13 +8,12 @@ use juggler_core::model::Timestamp;
 use crate::commands::lock_storage_arc;
 use crate::error::AppResult;
 use crate::features::handover::source::handover_source;
-use crate::features::providers::{installed_versions_for, warm_provider_versions};
 use crate::features::quota::quota_display_inner;
 use crate::features::ranking::dto::RankedRowInfo;
 use crate::features::ranking::{SwitchRankContext, quota_tte, rank_candidates_for};
 use crate::features::switch::dto::{HeldBack, SwitchTargetInfo};
 use crate::features::switch::preflight::carry_lists_of;
-use crate::features::validation::{dogfood_cells_of, dogfood_key};
+use crate::features::validation::{beta_switches_on, dogfood_cells_of, dogfood_key};
 use crate::state::AppState;
 
 /// The §Q6 switch context for one source: its TTE (return-bonus
@@ -169,12 +168,12 @@ pub fn switch_targets_impl(
         .iter()
         .map(|row| (row.account.clone(), row))
         .collect();
-    // AJ-E808: any discovery the register needs runs before storage is
-    // held (it spawns the Providers' version probes).
-    warm_provider_versions(state);
     let desktops = desktop_accounts(state, &ranked);
     let storage = lock_storage_arc(state)?;
     let dogfood = dogfood_cells_of(&storage);
+    // D-127: a switch not decided live in every part isn't offered unless
+    // the user turned on beta switches.
+    let beta = beta_switches_on(&storage);
     let mut out = Vec::new();
     // In the ranking's order (the 0.2 walk, F1: they came in the order the
     // accounts were added).
@@ -230,12 +229,12 @@ pub fn switch_targets_impl(
                 Some(record) => juggler_handover::validation::with_dogfood(row, record.clone()),
                 None => row,
             });
-            let versions = installed_versions_for(
-                state,
-                context.source_provider.as_str(),
-                account.harness.as_str(),
-            );
-            let installed = |provider: &str| versions.get(provider).cloned();
+            let validated = matrix_row
+                .as_ref()
+                .is_some_and(juggler_handover::validation::PairCell::validated);
+            if !validated && !beta {
+                continue;
+            }
             out.push(SwitchTargetInfo {
                 recipe_id: recipe.id.to_string(),
                 provider: account.harness.to_string(),
@@ -243,11 +242,9 @@ pub fn switch_targets_impl(
                 account_label: account.label.clone(),
                 badge: matrix_row.as_ref().map_or_else(
                     || "Handover notes · Beta".to_owned(),
-                    |row| row.badge_for(&installed, true),
+                    juggler_handover::validation::PairCell::badge,
                 ),
-                validated: matrix_row
-                    .as_ref()
-                    .is_some_and(|row| row.validated_for(&installed, true)),
+                validated,
                 cross_provider: cross,
                 drops: carry.dropped.clone(),
                 score: row.score,

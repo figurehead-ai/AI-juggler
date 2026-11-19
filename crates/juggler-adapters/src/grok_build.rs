@@ -641,6 +641,11 @@ pub fn grok_build_spec() -> juggler_adapter::ToolSpec {
         // Grok Build updates itself (`grok update`); no public package
         // list is read for it.
         release_feed: None,
+        // D-128: read only, by the release flow's gate watch.
+        version_probes: vec![juggler_adapter::VersionProbe::Command {
+            program: "grok".to_owned(),
+        }],
+        more_release_feeds: Vec::new(),
         update_command: Some("grok update".to_owned()),
         // The plain office, on purpose: campus and lab are kept for the
         // tools SPEC §9.7 names them for.

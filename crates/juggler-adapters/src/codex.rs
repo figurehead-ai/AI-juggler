@@ -921,6 +921,14 @@ impl ToolRuntime for CodexAdapter {
     fn driven(&self) -> Option<&dyn juggler_adapter::DrivenRuntime> {
         Some(self)
     }
+    /// AJ-E3013: a Codex app thread can't be attested yet (it says why).
+    fn desktop_peer(&self) -> Option<&dyn juggler_adapter::peer::DesktopPeer> {
+        Some(&crate::codex_peer::CodexAppPeer)
+    }
+    /// AJ-E3013: `[mcp_servers.juggler]` in the App's `config.toml` (Route K).
+    fn desktop_connector(&self) -> Option<&dyn juggler_adapter::connector::DesktopConnector> {
+        Some(&crate::codex_connector::CodexAppConnector)
+    }
 }
 
 /// ADR-0019: Codex, described as data (every screen and command reads
@@ -978,6 +986,15 @@ pub fn codex_spec() -> juggler_adapter::ToolSpec {
         release_feed: Some(juggler_adapter::ReleaseFeed::Npm {
             package: "@openai/codex".to_owned(),
         }),
+        // D-128: the Codex app inside ChatGPT.app updates through this
+        // Sparkle appcast (read from the installed app's own bundle).
+        // D-128: read only, by the release flow's gate watch.
+        version_probes: vec![juggler_adapter::VersionProbe::Command {
+            program: "codex".to_owned(),
+        }],
+        more_release_feeds: vec![juggler_adapter::ReleaseFeed::Appcast {
+            url: "https://persistent.oaistatic.com/codex-app-prod/appcast.xml".to_owned(),
+        }],
         update_command: Some("npm install -g @openai/codex@latest".to_owned()),
         // ADR-0036 §2.2: inside `ToolObserves::backed_by` its capabilities.
         observes: juggler_adapter::ToolObserves {

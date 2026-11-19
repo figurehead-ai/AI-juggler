@@ -13,11 +13,13 @@
 //!   an update loses only what changed since. No copy, no migration.
 
 mod open_steps;
+mod pre_migration;
 pub use open_steps::{OpenStep, OpenWatch};
 use open_steps::{Unwatched, tidy_room};
 mod account_audit;
 mod accounts;
 mod agent_access;
+pub mod attested;
 mod profiles;
 mod sessions;
 
@@ -70,7 +72,7 @@ pub use footprints::{
 };
 pub use identity::{IdentityAssertion, IdentityRepo};
 pub use messages::{
-    Doc, HeldAsk, InboxRow, Message, MessageEvent, MessagesRepo, NewMessage, Recipient,
+    Doc, HeldAsk, InboxRow, Message, MessageEvent, MessagesRepo, Missed, NewMessage, Recipient,
     RecipientState, SENDER_USER, Thread, ThreadState,
 };
 pub use notices::{
@@ -92,7 +94,7 @@ pub use profiles::ProfilesRepo;
 pub use projects::ProjectsRepo;
 pub use projects::{WorktreeHome, project_root, project_root_with, worktree_repo_root};
 pub use relations::{InstanceColumn, RelationsRepo, SessionFacet, StampReader, StoredStamps};
-pub use sessions::{SessionBrief, SessionMarks, SessionsRepo};
+pub use sessions::{ConversationLink, SessionBrief, SessionMarks, SessionsRepo};
 pub use settings::AppSettingsRepo;
 pub use sightings::{
     MarkKind, ProcessMark, SIGHTING_COLUMNS, SIGHTING_DAYS, SIGHTING_KEEP_MS, Sighting,
@@ -114,6 +116,8 @@ pub use usage_history::{
     GroupCost, HOUR_MS, HourRow, ModelRow, Replace, Rollup, SETTLED_MS, SwitchRow, TurnRow,
     UsageHistoryRepo, add as add_tokens, thin,
 };
+
+pub use pre_migration::{KEPT_PRE_MIGRATION_COPIES, pre_migration_copies};
 
 use crate::error::CoreError;
 
@@ -822,134 +826,14 @@ CREATE INDEX idx_usage_holds_msg ON usage_holds(msg);
 
 /// AJ-E3202 req. 3: names accepted at import; also made on every open (rc27's v52 lacked it).
 const V52: &str = accounts::IMPORT_NAMES;
+/// 0.4.6 (AJ-E3011): a pool may wait for an App's next session to lead.
+const V53: &str = pools::LEAD_NEXT_MIGRATION;
 
 const MIGRATIONS: &[&str] = &[
     V1, V2, V3, V4, V5, V6, V7, V8, V9, V10, V11, V12, V13, V14, V15, V16, V17, V18, V19, V20, V21,
     V22, V23, V24, V25, V26, V27, V28, V29, V30, V31, V32, V33, V34, V35, V36, V37, V38, V39, V40,
-    V41, V42, V43, V44, V45, V46, V47, V48, V49, V50, V51, V52,
+    V41, V42, V43, V44, V45, V46, V47, V48, V49, V50, V51, V52, V53,
 ];
-
-/// How many pre-migration copies (`<file>.before-v<N>`) are kept beside a
-/// database: the newest by schema.
-pub const KEPT_PRE_MIGRATION_COPIES: usize = 2;
-
-/// The pre-migration copies kept beside the database at `db`, newest
-/// schema first: `(schema, path)`.
-#[must_use]
-pub fn pre_migration_copies(db: &Path) -> Vec<(i64, std::path::PathBuf)> {
-    let (Some(dir), Some(name)) = (db.parent(), db.file_name()) else {
-        return Vec::new();
-    };
-    let prefix = format!("{}.before-v", name.to_string_lossy());
-    let mut copies: Vec<(i64, std::path::PathBuf)> = std::fs::read_dir(dir)
-        .into_iter()
-        .flatten()
-        .filter_map(Result::ok)
-        .filter_map(|entry| {
-            let file = entry.file_name().to_string_lossy().into_owned();
-            let schema = file.strip_prefix(&prefix)?.parse::<i64>().ok()?;
-            Some((schema, entry.path()))
-        })
-        .collect();
-    copies.sort_by_key(|copy| std::cmp::Reverse(copy.0));
-    copies
-}
-
-/// Keeps a consistent copy (SQLite's online backup API, so what is still
-/// only in the WAL is in it too) of the database about to be migrated, as
-/// `<file>.before-v<current>`: written to a temporary name, flushed to disk
-/// with its folder, owner-only, then renamed — a half-written copy never
-/// carries the name. Then prunes to the newest
-/// [`KEPT_PRE_MIGRATION_COPIES`]. On failure the temporary file is removed
-/// and nothing is migrated.
-fn keep_pre_migration_copy(conn: &Connection, db: &Path, current: i64) -> Result<(), CoreError> {
-    let name = db
-        .file_name()
-        .map(|n| n.to_string_lossy().into_owned())
-        .unwrap_or_default();
-    let target = db.with_file_name(format!("{name}.before-v{current}"));
-    let partial = db.with_file_name(format!("{name}.before-v{current}.partial"));
-    let _ = std::fs::remove_file(&partial);
-    let written = (|| -> Result<(), CopyFailure> {
-        // The file itself once the WAL is in it (a clone on APFS: near
-        // instant even cold); else SQLite's online backup, page by page.
-        if !open_steps::whole_file_copy(conn, db, &partial)? {
-            let mut copy = open_hardened(&partial)?;
-            let backup = rusqlite::backup::Backup::new(conn, &mut copy)?;
-            backup.run_to_completion(256, std::time::Duration::ZERO, None)?;
-        }
-        memory::backup::scrub_copy(&partial)?; // ADR-0037 §1.5: no memory in a copy
-        owner_only(&partial);
-        // A writable handle: Windows flushes (FlushFileBuffers) only
-        // through one, and a read-only flush fails there.
-        std::fs::OpenOptions::new()
-            .write(true)
-            .open(&partial)?
-            .sync_all()?;
-        std::fs::rename(&partial, &target)?;
-        // The rename survives a power cut once the folder is flushed. Only
-        // Unix opens a folder as a file; Windows has no such flush.
-        #[cfg(unix)]
-        if let Some(dir) = db.parent()
-            && let Ok(folder) = std::fs::File::open(dir)
-        {
-            let _ = folder.sync_all();
-        }
-        Ok(())
-    })();
-    if let Err(failure) = written {
-        let _ = std::fs::remove_file(&partial);
-        let hint = if failure.disk_full {
-            "the disk is full — free some space, then open AI Juggler again"
-        } else {
-            "nothing was changed"
-        };
-        return Err(CoreError::Io(format!(
-            "couldn't keep a copy of the data before upgrading it ({}); {hint}{}",
-            failure.message,
-            if failure.disk_full {
-                "; nothing was changed"
-            } else {
-                ""
-            }
-        )));
-    }
-    for (_, stale) in pre_migration_copies(db)
-        .into_iter()
-        .skip(KEPT_PRE_MIGRATION_COPIES)
-    {
-        let _ = std::fs::remove_file(stale);
-    }
-    Ok(())
-}
-
-/// Why a pre-migration copy couldn't be written.
-struct CopyFailure {
-    message: String,
-    disk_full: bool,
-}
-
-impl From<rusqlite::Error> for CopyFailure {
-    fn from(error: rusqlite::Error) -> Self {
-        let disk_full = matches!(
-            &error,
-            rusqlite::Error::SqliteFailure(failure, _) if failure.code == rusqlite::ErrorCode::DiskFull
-        );
-        Self {
-            message: error.to_string(),
-            disk_full,
-        }
-    }
-}
-
-impl From<std::io::Error> for CopyFailure {
-    fn from(error: std::io::Error) -> Self {
-        Self {
-            disk_full: error.kind() == std::io::ErrorKind::StorageFull,
-            message: error.to_string(),
-        }
-    }
-}
 
 /// Owner-only (`0600`) on Unix: AI Juggler's data and its copies are no one
 /// else's to read. Best effort; elsewhere a no-op.
@@ -1010,6 +894,9 @@ pub struct Storage {
     /// AJ-E3004 R1: the resolved pool memberships and the `memberships`
     /// stamp they were built at ([`Storage::memberships`]).
     memberships: std::sync::Mutex<Option<(i64, std::sync::Arc<crate::pools::Memberships>)>>,
+    /// AJ-E3013: the desktop sessions the agent bridge attested, in memory
+    /// ([`attested::AttestedSessions`]).
+    attested: attested::AttestedSessions,
 }
 
 impl Storage {
@@ -1090,12 +977,13 @@ impl Storage {
             && upgrading
         {
             watch.step(OpenStep::SafetyCopy);
-            keep_pre_migration_copy(&conn, path, current)?;
+            pre_migration::keep_pre_migration_copy(&conn, path, current)?;
         }
         let mut storage = Self {
             conn,
             migrated: false,
             memberships: std::sync::Mutex::new(None),
+            attested: attested::AttestedSessions::default(),
         };
         if upgrading {
             watch.step(OpenStep::Updating);
@@ -1169,7 +1057,14 @@ impl Storage {
     /// Repository for [`crate::model::SessionRecord`] rows.
     #[must_use]
     pub fn sessions(&self) -> SessionsRepo<'_> {
-        SessionsRepo::new(&self.conn)
+        SessionsRepo::new(&self.conn).with_attested(&self.attested)
+    }
+
+    /// AJ-E3013: the desktop sessions the agent bridge attested
+    /// ([`attested::AttestedSessions`]); written only by its attestation.
+    #[must_use]
+    pub fn attested(&self) -> &attested::AttestedSessions {
+        &self.attested
     }
 
     /// Repository for [`crate::model::ProjectRecord`] rows.

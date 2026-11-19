@@ -600,7 +600,7 @@ fn calls_answer_in_under_50_ms() {
     // once: ~18 ms on an idle Mac, more on a busy one, never again. The
     // budget is a call's, so that one-time load is made before timing.
     juggler_agentbridge::client::call(&target, Call::Whoami, wire::Args::default()).unwrap();
-    let mut slowest = Duration::ZERO;
+    let mut took: Vec<Duration> = Vec::new();
     for call in [
         Call::Whoami,
         Call::PoolRoster,
@@ -610,7 +610,7 @@ fn calls_answer_in_under_50_ms() {
     ] {
         let started = Instant::now();
         juggler_agentbridge::client::call(&target, call, wire::Args::default()).unwrap();
-        slowest = slowest.max(started.elapsed());
+        took.push(started.elapsed());
     }
     // E18 (AJ-E1801): a send and a read, over the socket, under 50 ms too.
     for n in 0..3 {
@@ -629,7 +629,7 @@ fn calls_answer_in_under_50_ms() {
         for (call, args) in [(Call::SendMessage, send), (Call::ReadInbox, read)] {
             let started = Instant::now();
             juggler_agentbridge::client::call(&target, call, args).unwrap();
-            slowest = slowest.max(started.elapsed());
+            took.push(started.elapsed());
         }
     }
     // E19 (AJ-E1902): the task tools, over the socket, under 50 ms too.
@@ -643,7 +643,7 @@ fn calls_answer_in_under_50_ms() {
         };
         let started = Instant::now();
         let made = juggler_agentbridge::client::call(&target, Call::TaskCreate, create).unwrap();
-        slowest = slowest.max(started.elapsed());
+        took.push(started.elapsed());
         let id = made["task"]["id"].as_str().unwrap().to_owned();
         let list = wire::Args {
             tasks: Some(wire::TasksListArgs::default()),
@@ -656,11 +656,22 @@ fn calls_answer_in_under_50_ms() {
         for (call, args) in [(Call::TasksList, list), (Call::TaskClaim, claim)] {
             let started = Instant::now();
             juggler_agentbridge::client::call(&target, call, args).unwrap();
-            slowest = slowest.max(started.elapsed());
+            took.push(started.elapsed());
         }
     }
-    println!("slowest call over the socket: {slowest:?}");
-    assert!(slowest < Duration::from_millis(50), "{slowest:?}");
+    // The budget is a typical call's: the median under 50 ms. The slowest
+    // gets a generous bound only (10x), so a busy Mac's stall in one call
+    // is never a failure (AJ-E815: a max-of-many wall-clock bar failed
+    // under load with nothing wrong).
+    took.sort();
+    let median = took[took.len() / 2];
+    let slowest = *took.last().unwrap();
+    println!(
+        "{} calls over the socket: median {median:?}, slowest {slowest:?}",
+        took.len()
+    );
+    assert!(median < Duration::from_millis(50), "median {median:?}");
+    assert!(slowest < Duration::from_millis(500), "slowest {slowest:?}");
 }
 
 #[test]
@@ -940,4 +951,107 @@ fn what_agents_reach_has_no_path_to_a_session_a_setting_or_a_secret() {
             assert!(!code.contains(word), "{file} names {word}");
         }
     }
+}
+
+/// H1: the socket's folder is made 0700 and the socket 0600; a stale
+/// socket of this user's is replaced, but a link at its place, or a folder
+/// open to others, is refused and left alone (never followed).
+#[cfg(unix)]
+#[test]
+fn a_stale_socket_is_replaced_only_when_it_is_ours_and_never_through_a_link() {
+    // A stale socket of ours, left by a crash.
+    let stale = world(&[]);
+    let agent = stale.root.join("app-data/agent");
+    std::fs::create_dir_all(&agent).unwrap();
+    std::fs::set_permissions(&agent, std::fs::Permissions::from_mode(0o700)).unwrap();
+    let socket = agent.join("bridge.sock");
+    drop(std::os::unix::net::UnixListener::bind(&socket).unwrap());
+    std::fs::set_permissions(&socket, std::fs::Permissions::from_mode(0o644)).unwrap();
+    let served = juggler_app::features::agent_bridge::server::ensure_serving(&stale.state).unwrap();
+    assert_eq!(served, socket);
+    assert_eq!(mode(&socket), 0o600, "replaced, made the user's alone");
+    assert_eq!(mode(&agent), 0o700);
+    // A link where the socket goes: refused, neither it nor its target
+    // removed.
+    let linked = world(&[]);
+    let agent = linked.root.join("app-data/agent");
+    std::fs::create_dir_all(&agent).unwrap();
+    std::fs::set_permissions(&agent, std::fs::Permissions::from_mode(0o700)).unwrap();
+    let elsewhere = linked.root.join("elsewhere.sock");
+    let _other = std::os::unix::net::UnixListener::bind(&elsewhere).unwrap();
+    std::os::unix::fs::symlink(&elsewhere, agent.join("bridge.sock")).unwrap();
+    assert!(juggler_app::features::agent_bridge::server::ensure_serving(&linked.state).is_err());
+    assert!(
+        std::fs::symlink_metadata(agent.join("bridge.sock"))
+            .unwrap()
+            .file_type()
+            .is_symlink()
+    );
+    assert!(elsewhere.exists(), "its target untouched");
+    // A folder others can write: refused, never chmod'ed into shape.
+    let open = world(&[]);
+    let agent = open.root.join("app-data/agent");
+    std::fs::create_dir_all(&agent).unwrap();
+    std::fs::set_permissions(&agent, std::fs::Permissions::from_mode(0o777)).unwrap();
+    assert!(juggler_app::features::agent_bridge::server::ensure_serving(&open.state).is_err());
+    assert_eq!(mode(&agent), 0o777);
+}
+
+/// M2: a hostile loop of new processes (`nc -U`, a new pid each) sending
+/// keyless wake waits can't make the attestation's work unbounded: past
+/// the keyless cap the answer is Busy (or Limit) at once, and a launched
+/// session's keyed call is still answered meanwhile.
+#[cfg(target_os = "macos")]
+#[test]
+fn a_hostile_nc_loop_is_capped_and_keyed_calls_still_answer() {
+    use std::io::Write as _;
+    if !Path::new("/usr/bin/nc").exists() {
+        return;
+    }
+    let world = world(&[]);
+    settings::answer_impl(&world.state, true).unwrap();
+    let session = session(&world, "s-1", SessionStatus::Running);
+    let (_, spec) = prepare(&world, &session);
+    let socket = PathBuf::from(spec.env.get(wire::SOCKET_ENV).unwrap());
+    let line = format!(
+        "{}\n",
+        serde_json::to_string(&wire::Wait {
+            v: wire::VERSION,
+            token: String::new(),
+            wait_secs: 1,
+        })
+        .unwrap()
+    );
+    let mut limited = 0;
+    let mut unattested = 0;
+    for _ in 0..300 {
+        let mut nc = std::process::Command::new("/usr/bin/nc")
+            .args(["-U", &socket.to_string_lossy()])
+            .stdin(std::process::Stdio::piped())
+            .stdout(std::process::Stdio::piped())
+            .stderr(std::process::Stdio::null())
+            .spawn()
+            .unwrap();
+        nc.stdin.take().unwrap().write_all(line.as_bytes()).unwrap();
+        let out = nc.wait_with_output().unwrap();
+        let text = String::from_utf8_lossy(&out.stdout);
+        if text.contains("\"limit\"") || text.contains("\"busy\"") {
+            limited += 1;
+        } else if text.contains("\"unattested\"") {
+            unattested += 1;
+        }
+    }
+    assert!(
+        unattested <= juggler_app::features::agent_bridge::calls::KEYLESS_MAX,
+        "{unattested} attestations"
+    );
+    assert!(limited >= 300 - juggler_app::features::agent_bridge::calls::KEYLESS_MAX);
+    // A member's keyed call goes through at once.
+    let target = juggler_agentbridge::client::Target {
+        socket,
+        token: token(&spec),
+    };
+    let me =
+        juggler_agentbridge::client::call(&target, Call::Whoami, wire::Args::default()).unwrap();
+    assert_eq!(me["session_id"], "s-1");
 }

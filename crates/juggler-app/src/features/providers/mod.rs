@@ -66,41 +66,6 @@ pub fn providers_discover_impl(state: &Arc<AppState>) -> AppResult<Vec<ProviderI
     Ok(rows)
 }
 
-/// AJ-E808: the installed versions the fidelity register needs to
-/// confirm a PASS for `from → to`. Discovery runs (once per launch)
-/// only when the register holds a decided cell for that pair — while
-/// every cell is UNVALIDATED there is nothing to confirm.
-pub(crate) fn installed_versions_for(
-    state: &Arc<AppState>,
-    from: &str,
-    to: &str,
-) -> std::collections::HashMap<String, String> {
-    let decided = juggler_handover::register::embedded()
-        .pair(from, to)
-        .is_some_and(|pair| {
-            pair.cells
-                .iter()
-                .any(|cell| cell.verdict != juggler_handover::register::Verdict::Unvalidated)
-        });
-    if !decided {
-        return std::collections::HashMap::new();
-    }
-    let cached = state
-        .provider_versions
-        .lock()
-        .map(|v| v.clone())
-        .unwrap_or_default();
-    if !cached.is_empty() {
-        return cached;
-    }
-    let _ = providers_discover_impl(state);
-    state
-        .provider_versions
-        .lock()
-        .map(|v| v.clone())
-        .unwrap_or_default()
-}
-
 /// Runs discovery once per launch if any register cell is decided and
 /// nothing is cached yet, so later lookups are cache hits.
 pub(crate) fn warm_provider_versions(state: &Arc<AppState>) {

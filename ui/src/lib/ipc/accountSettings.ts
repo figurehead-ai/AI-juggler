@@ -7,7 +7,7 @@
  */
 import { hasLiveBackend } from "../bridge";
 import { call } from "./transport";
-import type { AppliedInfo, SetupCheckInfo } from "./switchSetup";
+import { withConnector, type AppliedInfo, type SetupCheckInfo } from "./switchSetup";
 import { previewHooks } from "../preview-hooks";
 
 const seam = () =>
@@ -17,10 +17,11 @@ const seam = () =>
 /** What a new account (`target`, or one about to be made: `null`) could
  * start with from `source`. Reads only. */
 export async function accountSettingsCheck(target: string | null, source: string): Promise<SetupCheckInfo> {
+  // AJ-E3013: AI Juggler's connector is its own, never copied as a skill.
   if (!hasLiveBackend()) {
-    return seam()?.[source] ?? { from: source, to: "the new account", offers: [], already_there: 0 };
+    return withConnector(seam()?.[source] ?? { from: source, to: "the new account", offers: [], already_there: 0 });
   }
-  return call("account_settings_check", { target, source });
+  return withConnector(await call("account_settings_check", { target, source }));
 }
 
 /** Copies the picked settings from `source` into the new account `target`. */

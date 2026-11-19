@@ -197,7 +197,7 @@ pub fn needs(state: &Arc<AppState>) -> AppResult<Vec<MessageNeedInfo>> {
                 )
             } else if watched {
                 format!(
-                    "«{}» · it runs in another app and can't read messages until it's continued in AI Juggler",
+                    "«{}» · it runs in another app with no AI Juggler connector, so it can't read messages until it's continued in AI Juggler",
                     crate::features::tasks::words::name_tasks(&storage, &message.subject)
                 )
             } else if talk {
@@ -457,6 +457,15 @@ fn settle(
     answer: &str,
     message: &Message,
 ) -> AppResult<Vec<String>> {
+    // AJ-E3013: a connected desktop member reads its messages now, as a
+    // continued one does.
+    let connected: std::collections::HashSet<String> =
+        crate::features::connector::reach::of_pool(state, &message.pool_id)
+            .unwrap_or_default()
+            .into_iter()
+            .filter(|one| one.connected)
+            .map(|one| one.member)
+            .collect();
     let storage = lock_storage_arc(state)?;
     let repo = storage.messages();
     let recipients = repo.recipients(&message.id)?;
@@ -471,6 +480,7 @@ fn settle(
                     r.state == RecipientState::Held
                         && r.recipient_ref.starts_with("conversation:")
                         && !continued.contains(&r.recipient_ref)
+                        && !connected.contains(&r.recipient_ref)
                 })
                 .map(|r| (r.recipient_ref.clone(), r.recipient_name.clone()))
                 .collect()
@@ -573,8 +583,8 @@ fn hold_watched(
 /// waits on a Watched member. Best effort: a sender no longer
 /// running reads it in the thread.
 fn tell_sender(state: &Arc<AppState>, message: &Message, body: &str) {
-    let Ok(Some(session)) = lock_storage_arc(state)
-        .map(|storage| super::live_session_of(&storage, &message.sender_ref))
+    let Ok(Some(session)) =
+        lock_storage_arc(state).map(|storage| super::session_now(&storage, &message.sender_ref))
     else {
         return;
     };
@@ -602,7 +612,7 @@ fn tell_sender(state: &Arc<AppState>, message: &Message, body: &str) {
 /// queued as the user's click.
 fn go_on(state: &Arc<AppState>, deliver: bool, message: &Message) -> AppResult<()> {
     if !deliver {
-        let sender = super::live_session_of(&*lock_storage_arc(state)?, &message.sender_ref);
+        let sender = super::sender_session(&*lock_storage_arc(state)?, &message.sender_ref);
         if let Some(session) = sender {
             let from = Author::Agent {
                 session,

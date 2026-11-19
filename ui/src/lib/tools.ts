@@ -65,6 +65,10 @@ export function genericTool(id: string): ToolSpecInfo {
     sign_in_short: `${id}'s`,
     same_as: "as wherever you use it now",
     desktop_app: null,
+    // D-38/D-126: the tool's desktop app in the host registry, whose icon
+    // stands for it (a CLI's logo is its vendor's app icon, badged); none
+    // for a tool no spec describes, so it takes the letter mark.
+    host_app: null,
     kinds: ["cli"],
     rules_files: [],
     scan_hint: "Your default setup and anything else that looks like one. Nothing is changed.",

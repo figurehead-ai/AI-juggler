@@ -212,6 +212,13 @@ pub fn some(pids: &[u32]) -> Table {
         .collect()
 }
 
+/// `pid`'s parent, as it is now (AJ-E3013: a hook's report counts as its
+/// session's process above it).
+#[must_use]
+pub fn parent_of(pid: u32) -> Option<u32> {
+    some(&[pid]).remove(&pid)?.ppid
+}
+
 /// `pid`'s ancestors in `table`, nearest first (at most 64: a cycle in a
 /// stale table must not loop).
 #[must_use]

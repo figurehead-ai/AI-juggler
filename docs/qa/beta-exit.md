@@ -21,7 +21,9 @@ exactly that.
 The fidelity register (`crates/juggler-handover/data/fidelity-register.json`,
 rendered in `docs/qa/evidence/AJ-E808/register.md`) promotes a cell to PASS
 only from a live run on the real binaries in a throwaway lab folder, with
-the versions recorded; a tool update returns the cell to UNVALIDATED.
+the versions recorded. A decided cell holds across patch and minor updates
+of the tools; a new major marks it due for a re-run, which the gate watch
+lists (D-128). A route is offered only when every area is decided (D-127).
 
 | Pair | Verified live | On fixtures only, or not yet |
 |---|---|---|

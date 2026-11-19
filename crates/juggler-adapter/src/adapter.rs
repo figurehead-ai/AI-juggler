@@ -1202,6 +1202,21 @@ pub trait ToolRuntime: ToolIdentity {
         let _ = text;
         None
     }
+    /// AJ-E3013 (D-116, ADR-0020's D-116 addendum): who a keyless caller
+    /// is, when it is one of this tool's desktop App's sessions. `None`
+    /// (the default): this tool's desktop sessions can't be attested, and
+    /// such calls are refused.
+    #[must_use]
+    fn desktop_peer(&self) -> Option<&dyn crate::peer::DesktopPeer> {
+        None
+    }
+    /// AJ-E3013 (D-116): AI Juggler's connector in this tool's desktop
+    /// App's own config folder, as data. `None` (the default): no
+    /// connector for this tool's desktop App.
+    #[must_use]
+    fn desktop_connector(&self) -> Option<&dyn crate::connector::DesktopConnector> {
+        None
+    }
 }
 
 /// Single-quotes `value` for a POSIX shell (`'` becomes `'\''`), so a

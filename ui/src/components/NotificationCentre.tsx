@@ -10,6 +10,7 @@
  * and focus goes back to the bell. Nothing here acts by itself.
  */
 import { useEffect, useId, useRef, useState, type JSX } from "react";
+import { useInertOutside } from "../lib/inert";
 import { keepTabInside } from "./form";
 import { NoticeRow } from "./NoticeRow";
 import { RowPlaceholders } from "./Placeholder";
@@ -26,6 +27,8 @@ const EARLIER_PAGE = 20;
 export function NotificationCentre({ summary, sessions, onClose }: { summary: NoticeSummaryInfo | null; sessions: InstanceInfo[]; onClose: () => void }): JSX.Element {
   const titleId = useId();
   const ref = useRef<HTMLDivElement | null>(null);
+  // AJ-E3011 round 4: the page under it is inert while it's open.
+  useInertOutside(ref);
   const all = useNoticeActions(sessions);
   // A notice's primary opens what it's about (a page, the limit's
   // choices, a sign-in): the centre steps aside for it (walk K3: it stayed
@@ -38,7 +41,9 @@ export function NotificationCentre({ summary, sessions, onClose }: { summary: No
       onClose();
     },
   };
-  const needs = usePagedList<NoticeInfo>("notices:needs", (request) => notificationsPage("needs", request), { keyOf: (row) => String(row.id), pageSize: 200 });
+  // NY1 (0.4.6 rc3a): the one needs list the bell counts and the rail
+  // shows (`shared`): its read is theirs too.
+  const needs = usePagedList<NoticeInfo>("notices:needs", (request) => notificationsPage("needs", request), { keyOf: (row) => String(row.id), pageSize: 200, shared: true });
   const earlier = usePagedList<NoticeInfo>("notices:earlier", (request) => notificationsPage("earlier", request), { keyOf: (row) => String(row.id), pageSize: EARLIER_PAGE });
   const [showSnoozed, setShowSnoozed] = useState(false);
   const [now] = useState(() => Date.now());

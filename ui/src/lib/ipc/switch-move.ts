@@ -24,7 +24,8 @@ declare global {
 }
 
 /** Whether and how this conversation can be moved to the target (reads
- * only); null where moving doesn't apply. */
+ * only); null where moving doesn't apply. What stands in its way says
+ * whether the user can clear it (D-127; the switch screen decides). */
 export async function switchMoveOffer(sessionId: string, targetProfileId: string): Promise<MoveOfferInfo | null> {
   if (!hasLiveBackend()) return window.__AIJ_MOVE_OFFER__ ?? null;
   const offer = await call("switch_move_offer", { sessionId, targetProfileId });

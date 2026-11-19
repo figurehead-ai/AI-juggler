@@ -112,7 +112,14 @@ pub fn refresh<R: tauri::Runtime>(app: &tauri::AppHandle<R>, state: &Arc<AppStat
 }
 
 /// [`refresh`] on `surface`.
+///
+/// NY1 (0.4.6 rc3a): one change at a time, worked out and told in one
+/// hold. Two changes told at once from two threads (an archive's own, the
+/// 5 s tick's or the alert pass's) each worked out where the model stood
+/// and then told it; the older one could land last, and the window, the
+/// badge and the menu-bar item kept it until the next change.
 pub fn refresh_on(surface: &dyn Surface, state: &Arc<AppState>) {
+    let _one = state.notifier.telling();
     let summary = summary_now(state);
     let now = crate::commands::now_millis();
     let needs = state

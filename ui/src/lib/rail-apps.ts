@@ -17,7 +17,7 @@ import type { AppModel } from "./apps";
 import type { PlaceOfferInfo } from "../types/generated/PlaceOfferInfo";
 import { appName, cliAppKey, cliAppWord, desktopAppKey, desktopAppWord, desktopProfile } from "./app-name";
 import { tools } from "./tools";
-import { cliPlace, openNow, OWN_APP, type RailItem } from "./rail-items";
+import { cliPlace, openNow, OWN_APP, type RailItem, type RailPlace } from "./rail-items";
 import type { RailGroup } from "./rail-places";
 
 /** D-100: what Inactive apps needs of a CLI App of the Apps list. */
@@ -59,6 +59,12 @@ export interface IdleApp {
  * sessions' places say it. */
 export function knownAppWord(place: Pick<KnownPlaceInfo, "app" | "app_id">): string {
   return desktopAppWord(place.app, tools().find((tool) => tool.host_app === place.app_id)?.id ?? null);
+}
+
+/** A remembered desktop App's mark (its icon and its profile's dot), as
+ * the rail marks it. */
+export function knownPlaceMark(place: KnownPlaceInfo): RailPlace {
+  return { key: knownKey(place), app: knownAppWord(place), appId: place.app_id, kind: "desktop", profile: desktopProfile(place.instance, place.profile), appPid: place.app_pid, host: null };
 }
 
 /** A remembered desktop app's App key, as its open sessions are keyed. */

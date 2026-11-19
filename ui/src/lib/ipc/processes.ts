@@ -44,7 +44,8 @@ export type {
 
 /** The event the backend sends when the graph changed. */
 export const PROCESSES_CHANGED = "processes://changed";
-/** AJ-E805: the counts alone, told only when one moves. */
+/** AJ-E805: the counts alone. AJ-E812: told only when the top bar's
+ * count (`to_clean`) moves. */
 export const PROCESS_COUNTS = "processes://counts";
 
 /** A query with every filter off (the page's default). */
@@ -162,9 +163,12 @@ export function onProcessesChanged(on: (counts: ProcessCountsInfo) => void): () 
   );
 }
 
-/** Calls `on` with the counts when one moves (the top bar's count): the
- * graph changes on nearly every 2 s tick while sessions work, and a
- * window that listens to it is sent each (AJ-E805). */
+/** Calls `on` with the counts when the top bar's count moves: the graph
+ * changes on nearly every 2 s tick while sessions work, and a window that
+ * listens to it is sent each (AJ-E805). AJ-E812: the event fires only
+ * when `to_clean` moves, so its other counts may be stale: a reader of
+ * any other count listens to the graph's event (`PROCESSES_CHANGED`,
+ * `onProcessesChanged`) instead. */
 export function onProcessCounts(on: (counts: ProcessCountsInfo) => void): () => void {
   return previewCounts(on) ?? listenWhileShown<ProcessCountsInfo>(PROCESS_COUNTS, on, countsAgain(on));
 }

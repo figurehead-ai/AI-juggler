@@ -40,7 +40,10 @@ tool_id?: string | null,
  */
 since_ms?: number | null, 
 /**
- * `all` (the default), `open`, `ended` (not archived) or `archived`.
+ * `all` (the default), `open`, `ended` (not archived), `archived`, or
+ * `to_review`: AI Juggler's own sessions that finished or were
+ * stopped and aren't marked reviewed or archived (Home's "Pick up
+ * where you left off", with `since_ms` its window).
  */
 which: string | null, 
 /**

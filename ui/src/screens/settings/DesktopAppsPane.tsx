@@ -34,6 +34,7 @@ import { appName, desktopProfile } from "../../lib/app-name";
 import { knownAppWord } from "../../lib/rail-apps";
 import { Pane, PaneSection, RowNote, SettingRow, Switch, SwitchRow } from "./parts";
 import { GoToKeyControl, GoToKeyError, useGoToKey } from "./KeyCapture";
+import { PathText } from "../../components/PathText";
 
 /** AJ-E2102: Go to it may select a session's tab in Terminal or iTerm;
  * off until turned on here. */
@@ -290,7 +291,7 @@ function FindProfilesRow(): JSX.Element | null {
       title="Find profiles that aren't running"
       description={
         <>
-          Reads the names of the folders beside a profile that ran{where ? <> (<span className="break-all font-mono">{where}</span>)</> : null}, and nothing inside them. Off forgets the profiles found that way.
+          Reads the names of the folders beside a profile that ran{where ? <> (<PathText path={where} />)</> : null}, and nothing inside them. Off forgets the profiles found that way.
         </>
       }
       checked={info.answer === "on"}

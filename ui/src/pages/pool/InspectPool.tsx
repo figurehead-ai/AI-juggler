@@ -3,31 +3,26 @@
  * the rules you made (each taken back with a click), how messages go into
  * sessions and when a chain pauses, who tells you, your other Macs, and
  * the pools its agents may write to. Every change applies on the agents'
- * next request.
+ * next request. AJ-E3011 round 3 (#2): after the summary, each of these is
+ * a fold, closed at first, with one plain line on what it controls ("the
+ * wall" the walk met), in plain words (no bare "Deliver" or "Pause after").
+ * Round 4 (#6): the rarer ones (kept apart, your other Macs, other pools
+ * its agents may write to) under one closed "More settings".
  */
-import { useEffect, useState, type JSX, type ReactNode } from "react";
+import { useEffect, useRef, useState, type JSX, type ReactNode } from "react";
 
 import { errorText } from "../../lib/bridge";
+import { useReveal } from "../../lib/reveal";
 import type { ProjectInfo } from "../../types/generated/ProjectInfo";
-import { AGENT_ACTIONS, agentRuleRevoke, poolDelete, poolSetAccess, poolSetDelivery, poolSetSpansMacs, type PoolInfo, type PoolsInfo } from "../../lib/ipc/pools";
+import { poolDelete, poolSetSpansMacs, type PoolInfo, type PoolsInfo } from "../../lib/ipc/pools";
 import { notificationsMute, notificationsMutes, notificationsUnmute, onNoticesChanged } from "../../lib/ipc/notices";
 import { PoolUsage } from "./PoolUsage";
 import { SealSetting } from "./SealSetting";
-import { ACTION_WORDS, LEVELS, setPools } from "../../lib/pools";
-import { agoWords } from "../../lib/time-words";
+import { setPools } from "../../lib/pools";
+import { PoolAccessFolds } from "./PoolAccessFolds";
 import { PoolLinks } from "../messages/PoolLinks";
-import { ChoiceOption, Picker } from "../../components/controls";
-
-const HOPS = Array.from({ length: 20 }, (_, index) => ({ value: String(index + 1), label: String(index + 1) }));
-
-export function Section({ title, children, testId }: { title: string; children: ReactNode; testId?: string }): JSX.Element {
-  return (
-    <section className="flex flex-col gap-2.5 border-t border-hairline/70 px-4 py-3.5 first:border-t-0" data-testid={testId}>
-      <h4 className="text-meta font-semibold text-ink">{title}</h4>
-      {children}
-    </section>
-  );
-}
+import { ChoiceOption } from "../../components/controls";
+import { FoldSection, Section } from "./Section";
 
 /** Whether you muted this project's (or, D-62, this pool's)
  * notifications. */
@@ -49,21 +44,6 @@ function useMuted(scope: "project" | "pool", value: string | null): boolean | nu
     };
   }, [scope, value]);
   return muted;
-}
-
-/** How a message gets into a session here, in words (D-29). */
-export function deliveryWords(pool: PoolInfo): string {
-  if (pool.access.delivery_stopped) return "Stopped: nothing goes into a session";
-  const own = pool.access.level === "full" || pool.rules.some((rule) => rule.action === "deliver_to_session");
-  return own ? "By themselves, between turns" : "When you click Deliver";
-}
-
-/** The same, short, for the canvas's Activity (design review #76: "Delivery
- * · When you click Deliver, 5 in a row" said how in the settings' words). */
-export function deliveryShort(pool: PoolInfo): string {
-  if (pool.access.delivery_stopped) return "Stopped";
-  const own = pool.access.level === "full" || pool.rules.some((rule) => rule.action === "deliver_to_session");
-  return own ? "Go in by themselves" : "Wait for you";
 }
 
 export function InspectPool({
@@ -98,107 +78,16 @@ export function InspectPool({
       setBusy(false);
     }
   };
-  const allowed = new Set(pool.access.actions);
   return (
     <div className="flex flex-col" data-testid="inspect-pool">
-      <Section title="What agents may do" testId="inspect-pool-level">
-        <Picker choice
-          ariaLabel="What agents may do"
-          heading="Agents in this pool may"
-          value={pool.access.level}
-          options={LEVELS.map((level) => ({ value: level.id, label: level.label, hint: level.words }))}
-          disabled={busy}
-          onChange={(level) => void run(() => poolSetAccess(pool.id, level, level === "custom" ? pool.access.actions : []))}
-          className="w-full"
-          testId="pool-level"
-        />
-        <p className="text-label text-muted">{LEVELS.find((level) => level.id === pool.access.level)?.words}</p>
-        <p className="text-label text-faint" data-testid="pool-applies-next">Changes apply from each agent's next call; nothing it is doing now is stopped.</p>
-        {pool.access.level === "custom" && (
-          <div className="-mx-2 flex flex-col" data-testid="pool-custom">
-            {AGENT_ACTIONS.filter((action) => action !== "deliver_to_session").map((action) => (
-              <ChoiceOption
-                key={action}
-                type="checkbox"
-                label={ACTION_WORDS[action] ?? action}
-                checked={allowed.has(action)}
-                disabled={busy}
-                onChange={(event) => {
-                  const on = event.target.checked;
-                  void run(() => poolSetAccess(pool.id, "custom", on ? [...allowed, action] : [...allowed].filter((word) => word !== action)));
-                }}
-              />
-            ))}
-          </div>
-        )}
-      </Section>
+      {/* What agents may do here, as Settings › Agent access shows it (one component, round 3). */}
+      <PoolAccessFolds pool={pool} now={now} busy={busy} run={(work) => void run(work)} />
 
-      <Section title="Always allowed here" testId="pool-rules">
-        {pool.rules.length === 0 ? (
-          <p className="text-label text-muted">None yet. When you allow the same thing twice, the ask offers to remember it here.</p>
-        ) : (
-          <ul className="flex flex-col gap-1">
-            {pool.rules.map((rule) => (
-              <li key={rule.id} className="flex items-center gap-2 rounded-lg border border-hairline/70 px-2.5 py-1.5" data-testid="pool-rule">
-                <span className="flex min-w-0 flex-1 flex-col">
-                  <span className="truncate text-meta text-ink">{ACTION_WORDS[rule.action] ?? rule.action}</span>
-                  <span className="text-label text-faint">You, {agoWords(rule.created_at, now)}</span>
-                </span>
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() => void run(() => agentRuleRevoke(rule.id))}
-                  className="shrink-0 rounded-md px-1.5 py-0.5 text-label text-muted outline-none hover:bg-surface-2 hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60"
-                  data-testid="pool-rule-revoke"
-                >
-                  Take back<span className="sr-only">: {ACTION_WORDS[rule.action] ?? rule.action}</span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
-      </Section>
-
-      <Section title="Messages into sessions" testId="pool-delivery">
-        <div className="flex items-baseline justify-between gap-3">
-          <span className="text-body text-muted">Delivered</span>
-          <span className="text-right text-body text-ink" data-testid="pool-delivery-words">
-            {deliveryWords(pool)}
-          </span>
-        </div>
-        <div className="flex items-center justify-between gap-3">
-          <span className="flex flex-col">
-            <span className="text-body text-ink">Pause and ask after</span>
-            <span className="text-label text-muted">agent messages in a row without you</span>
-          </span>
-          <Picker choice
-            ariaLabel="Agent messages in a row before a chain pauses"
-            heading="Pause and ask after"
-            size="sm"
-            value={String(pool.access.hop_limit)}
-            options={HOPS}
-            disabled={busy}
-            onChange={(hops) => void run(() => poolSetDelivery(pool.id, Number(hops), pool.access.delivery_stopped))}
-            testId="pool-hop-limit"
-          />
-        </div>
-        <ChoiceOption
-          type="checkbox"
-          className="-mx-2"
-          label="Stop all of them"
-          hint="Messages still reach the inboxes; none goes into a session."
-          checked={pool.access.delivery_stopped}
-          disabled={busy}
-          onChange={(event) => void run(() => poolSetDelivery(pool.id, pool.access.hop_limit, event.target.checked))}
-          data-testid="pool-stop-all"
-        />
-      </Section>
-
-      <Section title="Used this week">
+      <FoldSection title="Used this week" line="What its sessions used this week, from their tools' own counts.">
         <PoolUsage members={members} project={pool.scope_all || pool.scope.length !== 1 ? null : (pool.scope[0] ?? null)} />
-      </Section>
+      </FoldSection>
 
-      <Section title="Notifications" testId="pool-notify">
+      <FoldSection title="Notifications" line="Whether what waits for you here also interrupts you." testId="pool-notify">
         {!own || project ? (
           <ChoiceOption
             type="checkbox"
@@ -218,35 +107,36 @@ export function InspectPool({
         ) : (
           <p className="text-label text-muted">Asks and paused chains wait in Needs you and notify you as your notification settings say.</p>
         )}
-      </Section>
+      </FoldSection>
 
-      <Section title="Your other Macs">
-        <ChoiceOption
-          type="checkbox"
-          className="-mx-2"
-          label="Include my paired Macs"
-          hint="Message and task content will travel to your other Macs, directly and encrypted."
-          checked={pool.spans_macs}
-          disabled={busy}
-          onChange={(event) => void run(() => poolSetSpansMacs(pool.id, event.target.checked))}
-          data-testid="pool-spans-macs"
-        />
-      </Section>
-
-      {pool.kind === "user" && (
-        <Section title="Kept apart" testId="pool-seal-section">
-          <SealSetting pool={pool} members={members} />
-        </Section>
-      )}
-
-      <Section title="Pools its agents may write to">
-        <PoolLinks poolId={pool.id} />
-      </Section>
+      {/* Round 4 (#6): the rarer settings, under one fold closed at first. */}
+      <FoldSection title="More settings" line="Keep this pool apart, let its work reach your other Macs, or let its agents write to other pools." testId="pool-more">
+        {pool.kind === "user" && (
+          <MoreGroup title="Kept apart" testId="pool-seal-section">
+            <SealSetting pool={pool} members={members} />
+          </MoreGroup>
+        )}
+        <MoreGroup title="Your other Macs">
+          <ChoiceOption
+            type="checkbox"
+            className="-mx-2"
+            label="Include my paired Macs"
+            hint="Message and task content will travel to your other Macs, directly and encrypted."
+            checked={pool.spans_macs}
+            disabled={busy}
+            onChange={(event) => void run(() => poolSetSpansMacs(pool.id, event.target.checked))}
+            data-testid="pool-spans-macs"
+          />
+        </MoreGroup>
+        <MoreGroup title="Pools its agents may write to">
+          <PoolLinks poolId={pool.id} />
+        </MoreGroup>
+      </FoldSection>
 
       {pool.kind === "user" && (
         <Section title="This pool">
           {confirmDelete ? (
-            <div className="flex flex-col gap-2 rounded-lg border border-danger/40 bg-danger-soft p-2.5" role="group" aria-label="Delete this pool?">
+            <DeleteConfirm>
               <span className="text-meta text-ink">Delete «{pool.name}»? Its sessions go back to their projects' own pools; its messages and tasks stay in its history.</span>
               <span className="flex gap-2">
                 <button type="button" onClick={() => void run(async () => {
@@ -257,11 +147,11 @@ export function InspectPool({
                 })} className="rounded-lg bg-danger px-2.5 py-1 text-meta font-medium text-white outline-none focus-visible:ring-2 focus-visible:ring-danger/60" data-testid="pool-delete-confirm">
                   Delete pool
                 </button>
-                <button type="button" onClick={() => setConfirmDelete(false)} className="rounded-lg px-2.5 py-1 text-meta text-muted outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60">
+                <button type="button" data-autofocus onClick={() => setConfirmDelete(false)} className="rounded-lg px-2.5 py-1 text-meta text-muted outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60" data-testid="pool-delete-keep">
                   Keep it
                 </button>
               </span>
-            </div>
+            </DeleteConfirm>
           ) : (
             <button type="button" onClick={() => setConfirmDelete(true)} className="self-start rounded-lg px-1 text-meta text-danger outline-none hover:underline focus-visible:ring-1 focus-visible:ring-danger/60" data-testid="pool-delete">
               Delete pool…
@@ -275,6 +165,28 @@ export function InspectPool({
           {error}
         </p>
       )}
+    </div>
+  );
+}
+
+/** One of More settings' groups: its title over its control. */
+function MoreGroup({ title, children, testId }: { title: string; children: ReactNode; testId?: string }): JSX.Element {
+  return (
+    <div className="flex flex-col gap-1.5" data-testid={testId}>
+      <h5 className="text-meta font-semibold text-ink">{title}</h5>
+      {children}
+    </div>
+  );
+}
+
+/** Delete's confirmation, in view in the panel with Keep it focused (the
+ * aij-test proof: clipped at the panel's foot at 1761×1348). */
+function DeleteConfirm({ children }: { children: ReactNode }): JSX.Element {
+  const ref = useRef<HTMLDivElement | null>(null);
+  useReveal(ref);
+  return (
+    <div ref={ref} className="flex flex-col gap-2 rounded-lg border border-danger/40 bg-danger-soft p-2.5" role="group" aria-label="Delete this pool?" data-testid="pool-delete-group">
+      {children}
     </div>
   );
 }

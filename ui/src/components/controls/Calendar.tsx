@@ -5,6 +5,7 @@
  * ends, Enter or Space picks, Escape closes it and gives focus back.
  */
 import { useEffect, useId, useRef, useState, type JSX, type KeyboardEvent } from "react";
+import { useInertOutside } from "../../lib/inert";
 import { createPortal } from "react-dom";
 import { useAnchoredPlace } from "../RowMenu";
 import { IconChevronLeft, IconChevronRight } from "../icons-controls";
@@ -66,6 +67,8 @@ export function Calendar({
   const [today] = useState(() => isoOf(new Date()));
   const [focus, setFocus] = useState(() => value ?? (min && today < min ? min : max && today > max ? max : today));
   const style = useAnchoredPlace(ref, at);
+  // AJ-E3011 round 4: the page under it is inert while it's open.
+  useInertOutside(ref);
   const titleId = `${useId().replace(/:/g, "")}-month`;
   const closeRef = useRef(onClose);
   useEffect(() => {

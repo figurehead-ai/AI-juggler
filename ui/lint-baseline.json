@@ -26,7 +26,7 @@
   "typescript(consistent-return)": 1
  },
  "src/components/AgentTools.tsx": {
-  "jsx-a11y(prefer-tag-over-role)": 2
+  "jsx-a11y(prefer-tag-over-role)": 1
  },
  "src/components/AppIcon.tsx": {
   "react(exhaustive-effect-dependencies)": 1,
@@ -166,8 +166,7 @@
  },
  "src/components/HandoverSection.tsx": {
   "eslint(no-shadow)": 2,
-  "react(exhaustive-effect-dependencies)": 2,
-  "typescript(no-unnecessary-type-assertion)": 1
+  "react(exhaustive-effect-dependencies)": 2
  },
  "src/components/HandoverView.tsx": {
   "jsx-a11y(no-noninteractive-tabindex)": 1,
@@ -308,7 +307,6 @@
   "jsx-a11y(prefer-tag-over-role)": 1
  },
  "src/components/PoolAccess.tsx": {
-  "jsx-a11y(label-has-associated-control)": 2,
   "react(purity)": 1
  },
  "src/components/PoolSheet.tsx": {
@@ -355,11 +353,6 @@
   "jsx-a11y(no-static-element-interactions)": 1
  },
  "src/components/RailNoticeRow.tsx": {
-  "typescript(consistent-return)": 1
- },
- "src/components/RailSplitter.tsx": {
-  "jsx-a11y(prefer-tag-over-role)": 1,
-  "react(refs)": 1,
   "typescript(consistent-return)": 1
  },
  "src/components/RailToolbar.tsx": {
@@ -419,7 +412,7 @@
   "react(exhaustive-effect-dependencies)": 1,
   "react(refs)": 1,
   "react-hooks(exhaustive-deps)": 1,
-  "typescript(no-unsafe-type-assertion)": 4
+  "typescript(no-unsafe-type-assertion)": 3
  },
  "src/components/RuntimeSettings.tsx": {
   "typescript(no-unsafe-type-assertion)": 1
@@ -581,7 +574,7 @@
   "typescript(no-unsafe-type-assertion)": 1
  },
  "src/components/agent-tools.test.tsx": {
-  "typescript(no-unsafe-type-assertion)": 3
+  "typescript(no-unsafe-type-assertion)": 2
  },
  "src/components/app-icon.test.tsx": {
   "typescript(no-misused-spread)": 1,
@@ -748,7 +741,7 @@
  "src/components/inspector-shell.test.tsx": {
   "eslint(no-constant-binary-expression)": 1,
   "eslint(no-constant-condition)": 1,
-  "typescript(no-unsafe-type-assertion)": 4
+  "typescript(no-unsafe-type-assertion)": 2
  },
  "src/components/item-menu.test.tsx": {
   "eslint(max-lines)": 1,
@@ -765,8 +758,8 @@
   "typescript(no-unsafe-type-assertion)": 1
  },
  "src/components/launch-sheet.test.tsx": {
-  "typescript(no-unnecessary-type-assertion)": 6,
-  "typescript(no-unsafe-type-assertion)": 5
+  "typescript(no-unnecessary-type-assertion)": 5,
+  "typescript(no-unsafe-type-assertion)": 4
  },
  "src/components/limit-dialog.test.tsx": {
   "eslint(no-shadow)": 1,
@@ -786,9 +779,6 @@
   "typescript(no-unsafe-type-assertion)": 5
  },
  "src/components/new-session-drop.test.tsx": {
-  "typescript(no-unsafe-type-assertion)": 1
- },
- "src/components/notification-cards.test.tsx": {
   "typescript(no-unsafe-type-assertion)": 1
  },
  "src/components/notifications.test.tsx": {
@@ -855,7 +845,7 @@
   "typescript(no-unsafe-type-assertion)": 2
  },
  "src/components/pools.test.tsx": {
-  "typescript(no-unnecessary-type-assertion)": 2,
+  "typescript(no-unnecessary-type-assertion)": 1,
   "typescript(no-unsafe-type-assertion)": 3
  },
  "src/components/primitives.tsx": {
@@ -958,7 +948,7 @@
  },
  "src/components/report-bug.test.tsx": {
   "typescript(no-floating-promises)": 1,
-  "typescript(no-unsafe-type-assertion)": 3
+  "typescript(no-unsafe-type-assertion)": 2
  },
  "src/components/row/RowParts.tsx": {
   "typescript(no-unnecessary-type-assertion)": 2
@@ -979,7 +969,7 @@
  },
  "src/components/session-prefs.test.tsx": {
   "typescript(no-unnecessary-type-assertion)": 2,
-  "typescript(no-unsafe-type-assertion)": 7
+  "typescript(no-unsafe-type-assertion)": 6
  },
  "src/components/settings-revert.test.tsx": {
   "typescript(no-unsafe-type-assertion)": 2
@@ -1027,7 +1017,7 @@
   "typescript(no-unsafe-type-assertion)": 8
  },
  "src/components/switch-setup.test.tsx": {
-  "typescript(no-unsafe-type-assertion)": 21
+  "typescript(no-unsafe-type-assertion)": 19
  },
  "src/components/switch-where.test.tsx": {
   "typescript(no-unnecessary-type-assertion)": 2,
@@ -1118,9 +1108,6 @@
   "eslint(complexity)": 1,
   "jsx-a11y(prefer-tag-over-role)": 1
  },
- "src/components/usage/controls.tsx": {
-  "jsx-a11y(prefer-tag-over-role)": 1
- },
  "src/components/usage/useUsage.ts": {
   "react(memo-dependencies)": 1,
   "react-hooks(exhaustive-deps)": 2,
@@ -1128,7 +1115,7 @@
   "typescript(no-unsafe-type-assertion)": 1
  },
  "src/components/welcome.test.tsx": {
-  "typescript(no-unsafe-type-assertion)": 4
+  "typescript(no-unsafe-type-assertion)": 3
  },
  "src/components/when-to-tell.test.tsx": {
   "typescript(no-unsafe-type-assertion)": 1
@@ -1499,8 +1486,7 @@
  },
  "src/lib/new-pool.ts": {
   "typescript(consistent-return)": 1,
-  "typescript(no-unnecessary-type-assertion)": 1,
-  "typescript(no-unsafe-type-assertion)": 1
+  "typescript(no-unnecessary-type-assertion)": 1
  },
  "src/lib/new-session-choice.test.ts": {
   "typescript(no-unnecessary-type-assertion)": 1,
@@ -1720,8 +1706,8 @@
  },
  "src/open-limit.test.tsx": {
   "eslint(no-shadow)": 1,
-  "typescript(no-unnecessary-type-assertion)": 2,
-  "typescript(no-unsafe-type-assertion)": 4
+  "typescript(no-unnecessary-type-assertion)": 1,
+  "typescript(no-unsafe-type-assertion)": 3
  },
  "src/pages/AccountPage.tsx": {
   "typescript(no-floating-promises)": 1
@@ -1737,7 +1723,6 @@
  "src/pages/PoolPage.tsx": {
   "jsx-a11y(prefer-tag-over-role)": 1,
   "react(no-unstable-nested-components)": 2,
-  "react(purity)": 1,
   "react(use-memo)": 1,
   "typescript(consistent-return)": 1,
   "typescript(no-meaningless-void-operator)": 2
@@ -1812,26 +1797,20 @@
   "jsx-a11y(no-noninteractive-element-interactions)": 1,
   "jsx-a11y(prefer-tag-over-role)": 1,
   "react-hooks(exhaustive-deps)": 3,
-  "typescript(consistent-return)": 4,
+  "typescript(consistent-return)": 3,
   "typescript(no-unsafe-type-assertion)": 5
  },
  "src/pages/pool/CanvasEdges.tsx": {
-  "jsx-a11y(no-static-element-interactions)": 1,
   "jsx-a11y(prefer-tag-over-role)": 1,
-  "typescript(consistent-return)": 1,
-  "typescript(no-unsafe-type-assertion)": 2
+  "typescript(no-unsafe-type-assertion)": 1
  },
  "src/pages/pool/CanvasNode.tsx": {
-  "eslint(complexity)": 1,
-  "jsx-a11y(no-noninteractive-element-interactions)": 1,
-  "jsx-a11y(prefer-tag-over-role)": 1,
-  "jsx-a11y(role-supports-aria-props)": 1
+  "eslint(complexity)": 1
  },
  "src/pages/pool/CompactNode.tsx": {
   "eslint(complexity)": 1,
-  "jsx-a11y(no-noninteractive-element-interactions)": 2,
-  "jsx-a11y(prefer-tag-over-role)": 2,
-  "jsx-a11y(role-supports-aria-props)": 1,
+  "jsx-a11y(no-noninteractive-element-interactions)": 1,
+  "jsx-a11y(prefer-tag-over-role)": 1,
   "react(set-state-in-effect)": 1,
   "typescript(consistent-return)": 1,
   "typescript(no-unsafe-type-assertion)": 1
@@ -1853,10 +1832,7 @@
  },
  "src/pages/pool/InspectRule.tsx": {
   "typescript(no-unnecessary-type-assertion)": 1,
-  "typescript(no-unsafe-type-assertion)": 2
- },
- "src/pages/pool/Inspector.tsx": {
-  "jsx-a11y(prefer-tag-over-role)": 1
+  "typescript(no-unsafe-type-assertion)": 1
  },
  "src/pages/pool/NodeParts.tsx": {
   "jsx-a11y(prefer-tag-over-role)": 1
@@ -1885,7 +1861,7 @@
   "jsx-a11y(prefer-tag-over-role)": 1
  },
  "src/pages/pool/actions.ts": {
-  "typescript(no-unsafe-type-assertion)": 2
+  "typescript(no-unsafe-type-assertion)": 1
  },
  "src/pages/pool/canvas-view.ts": {
   "react(exhaustive-effect-dependencies)": 1,
@@ -2346,8 +2322,6 @@
   "typescript(no-misused-promises)": 1
  },
  "src/screens/pools/NewPool.tsx": {
-  "jsx-a11y(no-noninteractive-element-interactions)": 1,
-  "jsx-a11y(prefer-tag-over-role)": 1,
   "react(exhaustive-effect-dependencies)": 1,
   "react(memo-dependencies)": 1,
   "react(purity)": 1,
@@ -2355,17 +2329,8 @@
   "typescript(no-meaningless-void-operator)": 1,
   "typescript(no-unsafe-type-assertion)": 1
  },
- "src/screens/pools/NewPoolRoles.tsx": {
-  "jsx-a11y(label-has-associated-control)": 1
- },
- "src/screens/pools/NewPoolTemplate.tsx": {
-  "jsx-a11y(prefer-tag-over-role)": 1
- },
  "src/screens/pools/NewPoolWho.tsx": {
   "jsx-a11y(prefer-tag-over-role)": 1
- },
- "src/screens/pools/PoolMini.tsx": {
-  "typescript(no-unsafe-type-assertion)": 1
  },
  "src/screens/pools/PoolsScreen.tsx": {
   "jsx-a11y(prefer-tag-over-role)": 1,
@@ -2489,7 +2454,7 @@
  },
  "src/screens/settings/local-cache.test.tsx": {
   "typescript(no-unnecessary-type-assertion)": 1,
-  "typescript(no-unsafe-type-assertion)": 5
+  "typescript(no-unsafe-type-assertion)": 4
  },
  "src/screens/settings/parts.tsx": {
   "jsx-a11y(prefer-tag-over-role)": 2,
@@ -2499,7 +2464,7 @@
   "eslint(no-unused-vars)": 1
  },
  "src/screens/settings/settings-search.test.tsx": {
-  "typescript(no-unsafe-type-assertion)": 3
+  "typescript(no-unsafe-type-assertion)": 2
  },
  "src/screens/system-notifications.test.tsx": {
   "typescript(no-unnecessary-type-assertion)": 1,

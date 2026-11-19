@@ -88,6 +88,7 @@ fn a_profile_seen_running_but_never_added_is_only_offered() {
         None,
         Arc::new(super::fakes::FakeDesktop::default()),
         Arc::new(super::fakes::Recorder::default()),
+        None,
     )
     .unwrap_err();
     assert!(refused.to_string().contains("add it first"), "{refused}");

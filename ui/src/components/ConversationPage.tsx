@@ -15,7 +15,7 @@
  */
 import { ProcessesView } from "../screens/processes/ProcessesView";
 import { useCallback, useEffect, useMemo, useRef, useState, type JSX } from "react";
-import { Button, Card } from "./primitives";
+import { Card } from "./primitives";
 import { useActionHost, useItemMenu } from "./ItemMenu";
 import { PageShell, WhenShown } from "../pages/PageShell";
 import { PageHeader, type Crumb } from "../pages/PageHeader";
@@ -23,7 +23,7 @@ import { pageTabs } from "../pages/registry";
 import { conversationTitle, useConversations } from "../lib/conversations";
 import { useSubscriptions, accountOfProfile } from "../lib/subscriptions";
 import { lazyNamed } from "../lib/lazy";
-import { conversationsGoTo, type ConversationInfo } from "../lib/ipc/conversations";
+import type { ConversationInfo } from "../lib/ipc/conversations";
 import { SessionNotices } from "./SessionNotices";
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import { REMINDER_CONVERSATION } from "../lib/notice-actions";
@@ -34,11 +34,9 @@ import { fromConversation, type SessionModel } from "../pages/session/model";
 import { useHasSubagents } from "../pages/session/useSubagents";
 import { ConversationSubagents } from "./SessionNotes";
 import { useLastPlace } from "../lib/places";
-import { placesOpen } from "../lib/ipc/places";
-import { showToast } from "./Toast";
-import { showGoTo } from "../lib/go-to";
 import { continueWhy, resumeRefusalWords } from "../lib/resume-refusal";
 import { OpenOriginal } from "./OpenOriginal";
+import { OpenInPlace } from "./OpenInPlace";
 import { WhyButton } from "./WhyTip";
 
 const SessionOverview = lazyNamed(() => import("../pages/session/SessionOverview"), "SessionOverview");
@@ -148,17 +146,6 @@ function ConversationView({
   // 0.3.3: an ended session reopens in the app it was last open in (that
   // app started when it isn't running; Codex at the thread itself).
   const lastPlace = useLastPlace(conversation.tool, conversation.id, !conversation.live, conversation.started_in ? { account: conversation.account_id, app: conversation.started_in } : null);
-  const openIn = useCallback(() => {
-    if (!lastPlace) return;
-    showToast({ id: "go-to", message: `Opening ${lastPlace.label}…` });
-    const c = latest.current;
-    // 0.4.1: the session itself, in that profile; when macOS would ask
-    // first, only "Open the session itself" lets it.
-    placesOpen(lastPlace.id, c.id).then(
-      (outcome) => showGoTo(outcome, () => conversationsGoTo(c.account_id, c.id, null, true)),
-      () => showToast({ id: "go-to", message: `Couldn't open ${lastPlace.label}` }),
-    );
-  }, [lastPlace]);
   const carryIn = useCallback(() => void host.continueConversation?.(latest.current), [host]);
   // rc21: a copy its tool won't open by its id says why on Continue and
   // Copy resume command, with the original one click away.
@@ -214,13 +201,7 @@ function ConversationView({
                       Continue in AI Juggler
                     </WhyButton>
                     <OpenOriginal refusal={conversation.resume_refusal} onOpen={host.openConversationById} size="md" />
-                    {lastPlace && (
-                      // The app's name only: the profile is the chip under the
-                      // title, and a long label cut the title short.
-                      <Button size="md" variant="secondary" onClick={openIn} disabled={lastPlace.cannot_start !== null} title={lastPlace.cannot_start ?? `Open in ${lastPlace.label}`} aria-label={`Open in ${lastPlace.label}`} data-testid="conversation-open-in">
-                        Open in {lastPlace.app}
-                      </Button>
-                    )}
+                    <OpenInPlace place={lastPlace} accountId={conversation.account_id} conversationId={conversation.id} testId="conversation-open-in" />
                     <WhyButton size="md" variant="secondary" why={refused} onClick={() => void host.copyConversationResume?.(latest.current)} data-testid="conversation-copy-resume">
                       Copy resume command
                     </WhyButton>

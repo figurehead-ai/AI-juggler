@@ -14,7 +14,7 @@
  *
  * Decorative (`alt=""`): the app's name is always beside it in words.
  */
-import { memo, useEffect, useRef, useState, type JSX } from "react";
+import { memo, useEffect, useRef, useState, type JSX, type ReactNode } from "react";
 import { appIconRead, type AppIconAsk, type AppIconPixels } from "../lib/ipc/appIcons";
 import { IconJuggler } from "./icons";
 import { OWN_PLACE } from "../lib/rail-items";
@@ -139,7 +139,20 @@ export interface AppIconProps {
  * its read change, never because the row, tile or page around it did
  * (Home's tiles and the rail's rows drew every icon on each list read,
  * about 60 a minute with ten sessions at work). */
-export const AppIconTile = memo(function AppIconTile({ appId, appPid = null, name, size, alt = "", className = "" }: Omit<AppIconProps, "size"> & { size: number }): JSX.Element {
+export const AppIconTile = memo(function AppIconTile({
+  appId,
+  appPid = null,
+  name,
+  size,
+  alt = "",
+  className = "",
+  fallback,
+}: Omit<AppIconProps, "size"> & {
+  size: number;
+  /** D-126 (ToolLogo): drawn in place of the letters when there is no
+   * icon to be had (a tool's allowed mark, its filled letter mark). */
+  fallback?: ReactNode;
+}): JSX.Element {
   const box = useRef<HTMLSpanElement | null>(null);
   const px = pixelsFor(size);
   const cached = keyOf({ appId, appPid }, px);
@@ -162,6 +175,13 @@ export const AppIconTile = memo(function AppIconTile({ appId, appPid = null, nam
     // waits still (0.4.5, AJ-E805: off screen, it pulsed for ever).
     const pulse = visible ? " motion-safe:animate-pulse" : "";
     return <span ref={box} aria-hidden="true" className={`inline-flex shrink-0 bg-skeleton${pulse} ${className}`} style={{ ...frame, borderRadius: radius }} data-testid="app-icon" data-app={appId ?? undefined} data-state="loading" />;
+  }
+  if (fallback) {
+    return (
+      <span ref={box} role={decorative ? undefined : "img"} aria-label={decorative ? undefined : alt} aria-hidden={decorative ? "true" : undefined} title={name} className={`inline-flex shrink-0 ${className}`} style={frame} data-testid="app-icon" data-app={appId ?? undefined} data-state="fallback">
+        {fallback}
+      </span>
+    );
   }
   const own = appId === OWN_APP_ID;
   const glyph = Math.round(size * 0.7);

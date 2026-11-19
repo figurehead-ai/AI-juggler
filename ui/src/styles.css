@@ -339,6 +339,35 @@ body {
  * utility on the element still wins (a ghost button's own text colour).
  */
 @layer components {
+  /*
+   * 0.4.6 (D-126) — the type scale's three steps, one class each, so a
+   * heading never picks its own size, weight and colour:
+   *   .type-title     22 px semibold ink — a page's (or a step's) name
+   *   .type-section   15 px semibold ink — a section's heading
+   *   .section-label  12 px capitals     — a label over a group (below)
+   * and the two text styles under them: body is `text-body text-ink`
+   * (14 px), help is `.type-help` (13 px, muted, two lines at most).
+   * Classes, not theme keys: a `--text-*` beside a `--color-*` of the
+   * same name breaks the size (theme-namespaces.test.ts).
+   */
+  .type-title {
+    color: var(--color-ink);
+    font-size: var(--text-title);
+    line-height: var(--text-title--line-height);
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+  .type-section {
+    color: var(--color-ink);
+    font-size: var(--text-section);
+    line-height: var(--text-section--line-height);
+    font-weight: 600;
+  }
+  .type-help {
+    color: var(--color-muted);
+    font-size: var(--text-meta);
+    line-height: var(--text-meta--line-height);
+  }
   /* A section's label: Needs you, Open now, Inactive apps, Your apps. */
   .section-label {
     color: var(--color-section-label);

@@ -14,6 +14,19 @@
 # the test bridge's switches (AIJ_DEV_BRIDGE*) and the lab's own (AIJ_LAB_*, AIJ_QA_* seeding, AJ_LAB_OUT, DISABLE_AUTOUPDATER, which it
 # sets to 1), and on a dry run the stand-ins' AI_JUGGLER_* overrides (below). Values are passed through, never printed.
 set -euo pipefail
+# 0.4.6 (the presence report): proof A's headless `claude -p`, typed by hand
+# inside a Code-tab session, inherited CLAUDE_CODE_ENTRYPOINT=claude-desktop
+# and wrote 5 "desktop" transcripts into the Lab App's folder. Every tool a
+# lab run starts goes through this script; `--selftest` proves the session
+# markers never reach it.
+if [ "${1:-}" = "--selftest" ]; then
+  out="$(CLAUDE_CODE_ENTRYPOINT=claude-desktop CLAUDECODE=1 CLAUDE_CODE_SSE_PORT=1 ANTHROPIC_BASE_URL=x CLAUDE_CONFIG_DIR=/nowhere "$0" /usr/bin/env)"
+  if echo "$out" | grep -qE '^(CLAUDE_CODE_|CLAUDECODE|ANTHROPIC_|CLAUDE_CONFIG_DIR)'; then
+    echo "lab_env selftest: a session marker got through" >&2; exit 1
+  fi
+  echo "$out" | grep -q '^DISABLE_AUTOUPDATER=1$' || { echo "lab_env selftest: DISABLE_AUTOUPDATER not set" >&2; exit 1; }
+  echo "lab_env selftest: ok"; exit 0
+fi
 keep=(HOME PATH USER LOGNAME SHELL TMPDIR LANG LC_ALL TERM RUSTFLAGS RUSTC_WRAPPER AJ_LAB_OUT)
 args=()
 for name in "${keep[@]}"; do

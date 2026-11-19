@@ -27,8 +27,11 @@ const buttonVariants: Record<ButtonVariant, string> = {
     "bg-surface-2 text-ink border border-hairline hover:bg-surface-3 \
      hover:border-muted/30 active:translate-y-px",
   ghost: "text-muted hover:text-ink hover:bg-surface-2",
+  // At /15 its red stood 4.48:1 on surface-2 and 4.2:1 on surface-3 in
+  // dark (axe, the connector card's Remove anyway, 0.4.6); /10 keeps AA on
+  // every surface it sits on.
   danger:
-    "bg-danger/15 text-danger border border-danger/30 hover:bg-danger/25",
+    "bg-danger/10 text-danger border border-danger/30 hover:bg-danger/20",
   // D-117 (selection): a choice that is picked (an ask's answer, a toggle
   // among options): the one selected look, semibold (below), never the
   // primary's fill — selection is not an action, and never loud.
@@ -39,6 +42,19 @@ const buttonSizes: Record<ButtonSize, string> = {
   sm: "h-7 px-2.5 text-xs gap-1.5 rounded-lg",
   md: "h-9 px-3.5 text-sm gap-2 rounded-xl",
 };
+
+/**
+ * D-126 — one filled primary per view. A `primary` Button marks itself
+ * (`data-primary`); `primariesIn(view)` finds them, so a view's test
+ * holds it to one. Every other action is `secondary` (or `ghost`, or
+ * `accent` for an app-wide one); FlowLayout's foot takes one primary.
+ */
+export const PRIMARY_MARK = "data-primary";
+
+/** The filled primaries in `view` (a view shows one). */
+export function primariesIn(view: ParentNode): HTMLElement[] {
+  return [...view.querySelectorAll<HTMLElement>(`[${PRIMARY_MARK}]`)];
+}
 
 /** Ref-forwarding (AJ-E301: the wizard focuses its primary button on
  * every step change — focus management needs the ref). */
@@ -59,6 +75,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonHTMLAttributes<HTMLBut
     <button
       ref={ref}
       type={type ?? "button"}
+      {...(variant === "primary" ? { [PRIMARY_MARK]: "" } : {})}
       className={`inline-flex items-center justify-center ${variant === "chosen" ? "font-semibold" : "font-medium"}
         transition-all duration-150 disabled:opacity-40 disabled:pointer-events-none
         cursor-pointer disabled:cursor-default select-none ${buttonVariants[variant]} ${buttonSizes[size]} ${className}`}

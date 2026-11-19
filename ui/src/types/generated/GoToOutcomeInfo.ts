@@ -21,4 +21,10 @@ reached: string,
  * (`places_restart`); with `started`, the one being started, which
  * the window follows until it runs; absent otherwise.
  */
-place_id?: string, };
+place_id?: string, 
+/**
+ * 0.4.6 (the rc3c walk): a `pending` answer's ticket. What happened
+ * follows as `go-to://late` with the same ticket, so "Starting … the
+ * session opens once it's up" becomes what it did.
+ */
+ticket?: string, };

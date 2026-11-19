@@ -144,9 +144,7 @@ fn rows_of(
                     &conversation.tool,
                     &summary.id,
                 ),
-                session_id: sessions
-                    .get(&(conversation.account_id.clone(), summary.id.clone()))
-                    .cloned(),
+                session_id: None,
                 project_id: root.and_then(|root| projects.get(&root).cloned()),
                 account_label: labels
                     .get(&conversation.account_id)
@@ -187,6 +185,8 @@ fn rows_of(
                 &conversation.tool,
                 &summary.id,
             );
+            let run = sessions.get(&(conversation.account_id.clone(), summary.id.clone()));
+            info.session_id = stands_for(run, live.as_ref());
             let app = owner(state, &mut hosts, &desktop, &conversation, live.as_ref());
             // 0.4.3: closed, and its desktop App's own records don't list it;
             // (D-102) or a script's run, open or closed.
@@ -199,7 +199,7 @@ fn rows_of(
                 ))
                 || marks.script_only(
                     summary,
-                    info.session_id.is_some(),
+                    run.is_some(),
                     &conversation.account_id,
                     &conversation.tool,
                 );
@@ -220,8 +220,26 @@ struct ListInputs {
     labels: HashMap<String, String>,
     folders: HashMap<std::path::PathBuf, String>,
     projects: HashMap<std::path::PathBuf, String>,
-    sessions: HashMap<(String, String), String>,
+    sessions: HashMap<(String, String), juggler_core::storage::ConversationLink>,
     homes: Vec<juggler_core::storage::WorktreeHome>,
+}
+
+/// The AI Juggler session a conversation's row is (`run`: the newest on
+/// it), as every list, count and the rail read it: they show that session
+/// instead of the conversation. Not while an ended session's conversation
+/// is open now (`live`): no process of that session runs it, so another
+/// app does (the 0.4.6 rc2 walk: continued in AI Juggler's terminal and
+/// stopped there, then opened in its Claude app profile, it showed only
+/// as the ended terminal run under the CLI App, and the profile said
+/// "nothing open"). Then the row is the conversation's own, in the App its
+/// process runs in (ADR-0032); once that process ends, the session is it
+/// again (0.4.6's rule for an ended conversation).
+fn stands_for(
+    run: Option<&juggler_core::storage::ConversationLink>,
+    live: Option<&super::scan::LiveEntry>,
+) -> Option<String> {
+    run.filter(|run| !(run.ended && live.is_some()))
+        .map(|run| run.session.clone())
 }
 
 impl ListInputs {
@@ -247,11 +265,11 @@ impl ListInputs {
             crate::features::projects::by_root(&storage, |project| project.id.to_string())?;
         // The newest session on each account's conversation (a later one
         // replaces an earlier in the map).
-        let sessions: HashMap<(String, String), String> = storage
+        let sessions: HashMap<(String, String), juggler_core::storage::ConversationLink> = storage
             .sessions()
             .conversation_links()?
             .into_iter()
-            .map(|(account, conversation, session)| ((account, conversation), session))
+            .map(|link| ((link.account.clone(), link.conversation.clone()), link))
             .collect();
         Ok(Self {
             labels,
@@ -705,6 +723,7 @@ pub async fn conversations_continue(
 #[tauri::command]
 pub async fn conversations_go_to(
     state: tauri::State<'_, Arc<AppState>>,
+    app: tauri::AppHandle,
     account_id: String,
     conversation_id: String,
     pid: Option<u32>,
@@ -718,6 +737,7 @@ pub async fn conversations_go_to(
             pid,
             ask.unwrap_or(false),
             Arc::new(super::goto::MacDesktop),
+            Some(super::goto::tell_window(app)),
         )
     })
     .await
@@ -733,10 +753,16 @@ pub async fn conversations_go_to(
 #[tauri::command]
 pub async fn conversations_bring_forward(
     state: tauri::State<'_, Arc<AppState>>,
+    app: tauri::AppHandle,
     app_pid: u32,
 ) -> AppResult<GoToOutcomeInfo> {
     crate::ipc::blocking(state.inner(), "bringing the app forward", move |state| {
-        super::goto::bring_forward_impl(state, app_pid, Arc::new(super::goto::MacDesktop))
+        super::goto::bring_forward_impl(
+            state,
+            app_pid,
+            Arc::new(super::goto::MacDesktop),
+            Some(super::goto::tell_window(app)),
+        )
     })
     .await
 }

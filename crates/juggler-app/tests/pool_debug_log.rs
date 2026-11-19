@@ -176,7 +176,8 @@ fn every_membership_change_writes_its_line_in_debug_mode_and_none_when_off() {
     );
     has(1, &[&format!("pool={team}"), "role=reviewer"]);
     has(2, &[&format!("pool={team}"), "role=lead"]);
-    has(3, &[&format!("pool={team}"), "member=App"]);
+    // The 0.4.6 RC walk X2: a rule joined with its role logged "role=-".
+    has(3, &[&format!("pool={team}"), "member=App", "role=observer"]);
     has(
         5,
         &[&format!("pool={NO_PROJECT_POOL_ID}"), "member=Session"],

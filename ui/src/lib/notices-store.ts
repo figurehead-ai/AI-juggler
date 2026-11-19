@@ -26,14 +26,32 @@ function subscribe(listener: () => void): () => void {
   return () => listeners.delete(listener);
 }
 
-/** A new summary: the views follow, the lists are read again if it moved. */
-export function applySummary(next: NoticeSummaryInfo): void {
+/** A new summary: the views follow, the lists are read again if it moved
+ * (`lists: false`: the caller reads them itself). */
+export function applySummary(next: NoticeSummaryInfo, lists = true): void {
   // an equal summary changes nothing (0.4.1, idle CPU)
   if (same(summary, next)) return;
   const moved = summary?.version !== next.version;
   summary = next;
   emit();
-  if (moved) refreshPaged("notices:");
+  if (moved && lists) refreshPaged("notices:");
+}
+
+/**
+ * NY1 (0.4.6 rc3a): a write of this window's changed Needs you (an
+ * archive, an unarchive): the summary and every list under `notices:` are
+ * read again now, as a notice's own write applies its answer (`acted`).
+ * The backend's change event alone left the bell and the rail where they
+ * were for 50 s and more when it wasn't heard: a window not shown holds no
+ * listener (AJ-E805), and two of its emissions can land out of order.
+ * The bell came back only with Mark all read, the rail only after a
+ * restart, while Home, opened, read the list again and disagreed.
+ */
+export async function needsMoved(): Promise<void> {
+  // The summary's version moving reads the lists too: read once, below.
+  const next = await notificationsSummary().catch(() => null);
+  if (next) applySummary(next, false);
+  refreshPaged("notices:");
 }
 
 /** Starts listening (once): the first read, then every change. */

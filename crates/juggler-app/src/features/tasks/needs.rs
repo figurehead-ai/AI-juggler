@@ -142,7 +142,7 @@ fn actor_of(state: &Arc<AppState>, need: &TaskNeed) -> Actor {
         return actor;
     };
     // Its session now (its Work item's newest), else the one it asked from.
-    let session = crate::features::messages::live_session_of(&storage, &need.actor_ref)
+    let session = crate::features::messages::session_now(&storage, &need.actor_ref)
         .or_else(|| need.actor_ref.strip_prefix("session:").map(SessionId::new));
     if let Some(session) = &session {
         actor.refs = crate::features::messages::refs_of(&storage, session);

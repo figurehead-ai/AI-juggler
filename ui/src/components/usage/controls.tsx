@@ -1,75 +1,10 @@
 /**
- * 0.1.5 — the usage pages' controls and icons: a segmented choice (the
- * range, what a chart splits by, tokens or cost) and the icons the
- * section titles carry (the approved canvas: icons in headers).
+ * 0.1.5 — the usage pages' icons, the ones their section titles carry
+ * (the approved canvas: icons in headers). Their segmented choices (the
+ * range, what a chart splits by, tokens or cost) are the shared
+ * `controls/Segmented` (D-126: one look).
  */
-import { useRef, type JSX, type SVGProps } from "react";
-import { SELECTED } from "../controls/selected";
-
-export function Segmented<T extends string>({
-  label,
-  options,
-  value,
-  onChange,
-  size = "md",
-  testId,
-}: {
-  label: string;
-  options: { id: T; label: string }[];
-  value: T;
-  onChange: (next: T) => void;
-  size?: "sm" | "md";
-  testId?: string;
-}): JSX.Element {
-  const ref = useRef<HTMLDivElement | null>(null);
-  const pick = (index: number) => {
-    const next = options[(index + options.length) % options.length]!;
-    onChange(next.id);
-    ref.current?.querySelectorAll<HTMLButtonElement>("[role='radio']")[(index + options.length) % options.length]?.focus();
-  };
-  return (
-    <div
-      ref={ref}
-      role="radiogroup"
-      aria-label={label}
-      className="flex shrink-0 gap-0.5 rounded-lg border border-hairline bg-surface-2 p-0.5"
-      data-testid={testId}
-    >
-      {options.map((option, index) => {
-        const on = option.id === value;
-        return (
-          <button
-            key={option.id}
-            type="button"
-            role="radio"
-            aria-checked={on}
-            tabIndex={on ? 0 : -1}
-            onClick={() => onChange(option.id)}
-            onKeyDown={(event) => {
-              if (event.key === "ArrowRight" || event.key === "ArrowDown") {
-                event.preventDefault();
-                pick(index + 1);
-              } else if (event.key === "ArrowLeft" || event.key === "ArrowUp") {
-                event.preventDefault();
-                pick(index - 1);
-              }
-            }}
-            className={
-              "rounded-md outline-none transition-colors focus-visible:ring-2 focus-visible:ring-accent/60 " +
-              (size === "sm" ? "px-2.5 py-1 text-label " : "px-3 py-1.5 text-meta ") +
-              // The chosen one as controls/Segmented's (D-117, selection): a
-              // 3:1 edge plus the raised fill and a semibold word; a grey on
-              // grey can't be told without reading (the 0.4 design review, 32).
-              (on ? SELECTED : "font-medium text-muted hover:bg-surface-3 hover:text-ink")
-            }
-          >
-            {option.label}
-          </button>
-        );
-      })}
-    </div>
-  );
-}
+import type { SVGProps } from "react";
 
 function icon(d: string) {
   return function Icon(props: SVGProps<SVGSVGElement>) {

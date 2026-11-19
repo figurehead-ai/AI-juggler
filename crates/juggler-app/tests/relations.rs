@@ -13,9 +13,11 @@
 //!   working, then what's open, then by last activity; each filter its
 //!   list offers narrows it to as many rows as the filter says, each one
 //!   of the list's, and its heading agrees;
-//! - the budgets: 10 000 sessions rebuilt cold in ≤ 1 s, any count read
-//!   from the cache in ≤ 5 ms (each read prints a `[perf]` line). This
-//!   binary runs alone (`.config/nextest.toml`, "Wall-clock budgets").
+//! - 10 000 sessions counted from the cache without building again, by
+//!   the work done (AJ-E815); the timings (cold ≤ 1 s, cached ≤ 5 ms) are
+//!   a benchmark run by name that prints `[perf]` lines, never a gate.
+//!   This binary runs alone (`.config/nextest.toml`, "Wall-clock budgets":
+//!   the cold build's generous 10 s bound).
 #![allow(
     clippy::disallowed_methods,
     clippy::print_stdout,
@@ -38,7 +40,7 @@ use juggler_adapters::{CLAUDE_CODE_ID, ClaudeCodeAdapter};
 use juggler_app::features::cache;
 use juggler_app::features::conversations;
 use juggler_app::features::relations::{self, EntityKind, EntityRef, RelationCountsInfo};
-use juggler_app::features::sessions::facets::sessions_facets_impl;
+use juggler_app::features::sessions::facets::{FacetFilters, FacetInfo, sessions_facets_impl};
 use juggler_app::features::sessions::rows::{
     Rank, SessionRowInfo, SessionsQuery, sessions_counts_impl, sessions_counts_scanned,
     sessions_page_impl,
@@ -493,19 +495,74 @@ fn a_cache_cleared_mid_walk_comes_back_the_same() {
     assert!(state.relations.kept().is_none(), "nothing kept while off");
 }
 
-/// The budgets: 10 000 sessions (9 000 of AI Juggler's, 1 000 outside)
-/// rebuilt cold within 1 s; any count from the cache within 5 ms.
+/// 10 000 sessions (9 000 of AI Juggler's, 1 000 outside): the counts are
+/// built once, then served from the cache. Proven by the work done, not
+/// the clock (AJ-E815): the parts built (`builds()`; a part's build is the
+/// only reader of the session rows) stay put across 540 counts and one
+/// ask for every page, and a change builds only the stale part again. The
+/// cold build keeps a generous bound (10 s, against well under 1 s
+/// unloaded); the timings are `relation_counts_timings`, a benchmark.
 #[test]
-fn ten_thousand_sessions_count_cold_within_a_second_and_cached_within_5_ms() {
+fn ten_thousand_sessions_count_from_the_cache_without_building_again() {
+    let fx = fixture(9_000, 1_000);
+    let state = &fx.state;
+    let pages = pages(&fx);
+    let before = state.relations.builds();
+    let started = Instant::now();
+    let all = relations::counts(state, &pages[0]).unwrap();
+    let cold = started.elapsed();
+    assert_eq!(all.sessions.all, 10_000);
+    assert_eq!(
+        state.relations.builds(),
+        before + 2,
+        "both parts built, once"
+    );
+    assert!(cold < Duration::from_secs(10), "cold rebuild took {cold:?}");
+    let built = state.relations.builds();
+    for _ in 0..20 {
+        for page in &pages {
+            let counts = relations::counts(state, page).unwrap();
+            // Codex's page: a tool with none here.
+            assert!(counts.sessions.all > 0 || page.id == "codex", "{page:?}");
+        }
+    }
+    assert_eq!(
+        state.relations.builds(),
+        built,
+        "{} counts built nothing again",
+        20 * pages.len()
+    );
+    let many = relations::counts_many(state, &pages).unwrap();
+    assert_eq!(many.len(), pages.len());
+    assert_eq!(
+        state.relations.builds(),
+        built,
+        "one ask built nothing again"
+    );
+    // A change: only the stale part is built again.
+    relations::changed(state, relations::Change::ConversationsLive);
+    relations::counts(state, &pages[0]).unwrap();
+    assert_eq!(state.relations.builds(), built + 1);
+}
+
+/// The timings the cache was built to (AJ-E3102: 10 000 sessions rebuilt
+/// cold within 1 s; any count from the cache within 5 ms), printed as
+/// `[perf]` lines beside those budgets. A benchmark, never a gate
+/// (AJ-E815: a 5 ms wall-clock bar failed under load with nothing wrong;
+/// the gate is the test above, by the work done). Run it by name:
+/// `cargo nextest run -p juggler-app --test relations --run-ignored only
+/// relation_counts_timings`.
+#[test]
+#[ignore = "a benchmark: timings printed beside their budgets, never a gate (AJ-E815)"]
+fn relation_counts_timings() {
     let fx = fixture(9_000, 1_000);
     let state = &fx.state;
     let pages = pages(&fx);
     let started = Instant::now();
     let all = relations::counts(state, &pages[0]).unwrap();
     let cold = started.elapsed();
-    eprintln!("[perf] cold rebuild of 10 000 sessions: {cold:?}");
+    eprintln!("[perf] cold rebuild of 10 000 sessions: {cold:?} (budget 1 s)");
     assert_eq!(all.sessions.all, 10_000);
-    assert!(cold < Duration::from_secs(1), "cold rebuild took {cold:?}");
     // Before: a project's heading counted every row on each ask.
     let started = Instant::now();
     sessions_counts_scanned(state, &query_of(&pages[1])).unwrap();
@@ -524,20 +581,18 @@ fn ten_thousand_sessions_count_cold_within_a_second_and_cached_within_5_ms() {
         }
     }
     eprintln!(
-        "[perf] slowest of {} cached counts: {slowest:?}",
+        "[perf] slowest of {} cached counts: {slowest:?} (budget 5 ms)",
         20 * pages.len()
-    );
-    assert!(
-        slowest < Duration::from_millis(5),
-        "a cached count took {slowest:?}"
     );
     // One ask for every page at once, from the cache too.
     let started = Instant::now();
     let many = relations::counts_many(state, &pages).unwrap();
     let took = started.elapsed();
-    eprintln!("[perf] {} pages' counts in one ask: {took:?}", pages.len());
+    eprintln!(
+        "[perf] {} pages' counts in one ask: {took:?} (budget 5 ms)",
+        pages.len()
+    );
     assert_eq!(many.len(), pages.len());
-    assert!(took < Duration::from_millis(5), "one ask took {took:?}");
     // AJ-E3103: a project's list's first page, and its filters' values.
     let project = query_of(&pages[1]);
     let started = Instant::now();
@@ -555,7 +610,7 @@ fn ten_thousand_sessions_count_cold_within_a_second_and_cached_within_5_ms() {
         started.elapsed()
     );
     let started = Instant::now();
-    sessions_facets_impl(state, &project).unwrap();
+    sessions_facets_impl(state, &project, &FacetFilters::default()).unwrap();
     eprintln!(
         "[perf] a project's filters' values, of 10 000: {:?}",
         started.elapsed()
@@ -634,11 +689,8 @@ fn every_list_opens_on_what_needs_you_and_every_filter_narrows_it() {
         let keys: std::collections::HashSet<&str> =
             rows.iter().map(|row| row.key.as_str()).collect();
         assert_eq!(keys.len(), rows.len(), "{page:?}: no row twice");
-        let facets = sessions_facets_impl(state, &query).unwrap();
-        let narrowings: [(
-            &str,
-            &Vec<juggler_app::features::sessions::facets::FacetInfo>,
-        ); 4] = [
+        let facets = sessions_facets_impl(state, &query, &FacetFilters::default()).unwrap();
+        let narrowings: [(&str, &Vec<FacetInfo>); 4] = [
             ("project", &facets.projects),
             ("app", &facets.apps),
             ("account", &facets.subscriptions),
@@ -717,7 +769,8 @@ fn every_list_opens_on_what_needs_you_and_every_filter_narrows_it() {
     }
     assert!(checked > 40, "{checked} filters checked");
     // "No project" is one of the whole list's: the one in nine with none.
-    let all = sessions_facets_impl(state, &SessionsQuery::default()).unwrap();
+    let all =
+        sessions_facets_impl(state, &SessionsQuery::default(), &FacetFilters::default()).unwrap();
     let none = all
         .projects
         .iter()
@@ -765,6 +818,122 @@ fn every_list_opens_on_what_needs_you_and_every_filter_narrows_it() {
     assert_eq!(
         sessions_counts_impl(state, &recent).unwrap().ended,
         shown.len() as u64
+    );
+}
+
+/// The 0.4.6 RC walk K2 (F-K2-5): with App = Codex CLI chosen, History's
+/// Tool menu still offered Claude Code, which would show nothing. Each
+/// kind's values are counted with the other kinds' choices (its own left
+/// out): every value shows as many rows as it says, over the list the
+/// other choices leave, so no menu offers what would show nothing.
+#[test]
+fn each_filters_values_are_counted_with_the_others_chosen() {
+    let fx = fixture(240, 24);
+    let state = &fx.state;
+    let scope = SessionsQuery {
+        which: Some("ended".into()),
+        ..SessionsQuery::default()
+    };
+    let none = sessions_facets_impl(state, &scope, &FacetFilters::default()).unwrap();
+    // The folder whose sessions are on no Account, and a project.
+    let app = none
+        .apps
+        .iter()
+        .find(|facet| facet.id == juggler_core::storage::cli_app_id("acc-3"))
+        .expect("the unsigned folder's App")
+        .id
+        .clone();
+    // acc-3 runs one session in four (n % 4 == 3), project 3 one in twelve (n % 12 == 3).
+    let project = fx.projects[3].clone();
+    let chosen = FacetFilters {
+        app_id: Some(app.clone()),
+        project_id: Some(project.clone()),
+        ..FacetFilters::default()
+    };
+    let narrowed = sessions_facets_impl(state, &scope, &chosen).unwrap();
+    let with = |over: fn(&mut SessionsQuery, String), id: &str, also: &FacetFilters| {
+        let mut query = SessionsQuery {
+            project_id: also.project_id.clone(),
+            app_id: also.app_id.clone(),
+            ..scope.clone()
+        };
+        over(&mut query, id.to_owned());
+        rows_of(state, &query, 200).len() as u64
+    };
+    let both = with(|_, _| {}, "", &chosen);
+    assert!(both > 0, "the app has sessions in the project");
+    // The other kinds: over the rows both choices leave.
+    /// A kind, its values, and how a value narrows a query.
+    type Kind<'a> = (&'a str, &'a Vec<FacetInfo>, fn(&mut SessionsQuery, String));
+    let kinds: [Kind<'_>; 3] = [
+        ("account", &narrowed.subscriptions, |q, id| {
+            q.subscription_id = Some(id)
+        }),
+        ("machine", &narrowed.machines, |q, id| {
+            q.machine_id = Some(id)
+        }),
+        ("tool", &narrowed.tools, |q, id| q.tool_id = Some(id)),
+    ];
+    for (kind, values, over) in kinds {
+        assert_eq!(
+            values.iter().map(|f| f.count).sum::<u64>(),
+            both,
+            "{kind}: every row has one"
+        );
+        for facet in values {
+            assert_eq!(
+                with(over, &facet.id, &chosen),
+                facet.count,
+                "{kind} {}",
+                facet.id
+            );
+        }
+    }
+    assert_eq!(
+        narrowed
+            .subscriptions
+            .iter()
+            .map(|f| f.id.as_str())
+            .collect::<Vec<_>>(),
+        [""],
+        "an unsigned folder's sessions are on no Account: no other Account offered"
+    );
+    // The App's own values: with the project chosen, not the App.
+    let in_project = FacetFilters {
+        project_id: Some(project.clone()),
+        ..FacetFilters::default()
+    };
+    for facet in &narrowed.apps {
+        assert_eq!(
+            with(|q, id| q.app_id = Some(id), &facet.id, &in_project),
+            facet.count,
+            "app {}",
+            facet.id
+        );
+    }
+    assert!(narrowed.apps.len() > 1, "the other Apps stay offered");
+    // The project's own: with the App chosen, not the project.
+    let in_app = FacetFilters {
+        app_id: Some(app.clone()),
+        ..FacetFilters::default()
+    };
+    for facet in &narrowed.projects {
+        assert_eq!(
+            with(|q, id| q.project_id = Some(id), &facet.id, &in_app),
+            facet.count,
+            "project {}",
+            facet.id
+        );
+    }
+    assert_eq!(
+        narrowed.projects.iter().map(|f| f.count).sum::<u64>(),
+        with(|_, _| {}, "", &in_app),
+        "the App's rows, by project"
+    );
+    // Nothing chosen: as before, every kind over the whole list.
+    assert_eq!(
+        none.tools.iter().map(|f| f.count).sum::<u64>(),
+        listed(state, &scope, Some("ended"))
     );
 }
 

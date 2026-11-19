@@ -11,7 +11,7 @@ import { IconComputer } from "../../components/icons-actions";
 import { useActionHost } from "../../components/ItemMenu";
 import { RelatedList } from "../../components/RelatedList";
 import { RelatedPools, usePagePools } from "../../components/RelatedPools";
-import { macApps } from "../../lib/account-items";
+import { macApps, withCounts } from "../../lib/account-items";
 import { appProjects, openHere } from "../../lib/app-items";
 import { appByRailKey, useApps, type AppModel } from "../../lib/apps";
 import { fleetSelf } from "../../lib/ipc/fleet";
@@ -24,7 +24,7 @@ import { THIS_MACHINE, THIS_MACHINE_IN_TEXT } from "../../lib/machine-words";
 import { appByConversation, appByFolder, appKeyOf } from "../../lib/rail-apps";
 import { itemsOf, type RailItem } from "../../lib/rail-items";
 import { placeOf } from "../../lib/project-words";
-import { useRelationCounts } from "../../lib/relation-counts";
+import { useRelatedCounts, useRelationCounts } from "../../lib/relation-counts";
 import { useSeen } from "../../lib/seen";
 import { useShownConversations } from "../../lib/shown-apps";
 import { THIS_MAC_SUBTITLE, ThisMacOverview } from "../../screens/ThisMacScreen";
@@ -78,10 +78,14 @@ export function ThisMacPage({ sessions, projects, accounts, now, onOpenSession, 
   const knownPlaces = useMemo(() => (apps ?? []).flatMap((app) => (app.place ? [app.place] : [])), [apps]);
   const byConversation = useMemo(() => appByConversation(knownPlaces), [knownPlaces]);
   const byFolder = useMemo(() => appByFolder(knownPlaces), [knownPlaces]);
-  const rows = useMemo(() => macApps(apps ?? [], items, byConversation), [apps, items, byConversation]);
+  const counted = useMemo(() => macApps(apps ?? [], items, byConversation), [apps, items, byConversation]);
   const worked = useMemo(() => appProjects(items), [items]);
   const own = useMemo(() => items.flatMap((item) => (item.session ? [item.session] : [])), [items]);
   const id = self?.id ?? null;
+  // Walk K1 (0.4.6 RC): each App's sessions here as the backend's cache
+  // counts them, not the loaded window.
+  const appCounts = useRelatedCounts(id ? "machine" : null, id, "app");
+  const rows = useMemo(() => withCounts(counted, appCounts), [counted, appCounts]);
   const pools = usePagePools(id ? "machine" : null, id ?? "", own);
   // Sessions and projects count what their lists page through (the
   // backend's relation counts); the design preview counts what it shows.

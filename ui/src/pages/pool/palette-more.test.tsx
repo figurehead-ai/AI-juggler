@@ -6,7 +6,7 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import * as poolModel from "../../lib/ipc/pool-model";
-import type { Candidate } from "../../lib/new-pool";
+import { DESKTOP_NOTE, type Candidate } from "../../lib/new-pool";
 import { PaletteMore, type MoreKind } from "./PaletteMore";
 
 afterEach(() => {
@@ -34,12 +34,13 @@ describe("the add palette's other candidates (AJ-E3008 R3)", () => {
   });
 
   // The rc26 P1 walk: a desktop App's Add read as if its sessions would act.
-  it("a desktop App keeps its Add and says its sessions join watched", () => {
-    const desktop: Candidate = { ...app("d1"), label: "Claude app · Work Max", detail: "none open now", note: "Runs in the Claude app: its sessions join watched (they can't reply) until continued in AI Juggler." };
-    render(<PaletteMore poolId="pool-1" lists={{ ...lists(), app: [desktop] }} onFix={() => undefined} onAdded={() => undefined} />);
-    const row = screen.getByTestId("canvas-palette-more-item");
-    expect(within(row).getByTestId("canvas-palette-more-add")).toBeTruthy();
-    expect(within(row).getByTestId("canvas-palette-more-note").textContent).toBe(desktop.note);
+  // Round 7 #9 (aij-test run 3): said once for the list, never on each row.
+  it("desktop Apps keep their Add; how their sessions take part is said once for the list (AJ-E3013)", () => {
+    const desktop = (id: string, label: string): Candidate => ({ ...app(id), label, detail: "none open now", note: DESKTOP_NOTE });
+    render(<PaletteMore poolId="pool-1" lists={{ ...lists(), app: [desktop("d1", "Claude app · Work Max"), desktop("d2", "Claude app · Side")] }} onFix={() => undefined} onAdded={() => undefined} />);
+    expect(screen.getAllByTestId("canvas-palette-more-item").map((row) => within(row).getByTestId("canvas-palette-more-add"))).toHaveLength(2);
+    expect(screen.getAllByTestId("canvas-palette-more-note").map((note) => note.textContent)).toEqual([DESKTOP_NOTE]);
+    for (const row of screen.getAllByTestId("canvas-palette-more-item")) expect(row.textContent).not.toContain("a small helper");
   });
 
   it("adds one with its button, as a member, and says what it brings", async () => {

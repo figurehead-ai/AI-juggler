@@ -40,6 +40,7 @@
 pub mod ai;
 pub mod apps;
 pub mod clock;
+pub mod code_sign;
 pub mod code_trust;
 pub mod file_trust;
 pub mod keychain;
@@ -47,6 +48,7 @@ pub mod local_ipc;
 pub mod private_fs;
 pub mod process;
 pub mod room;
+pub mod safe_fs;
 pub mod system;
 pub mod thread;
 pub mod transfer;

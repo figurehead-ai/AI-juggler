@@ -9,7 +9,6 @@ use crate::commands::{find_profile_with_account_arc, lock_storage_arc};
 use crate::error::{AppError, AppResult};
 use crate::features::handover::source::handover_source;
 use crate::features::handover::stays_behind;
-use crate::features::providers::installed_versions_for;
 use crate::features::quota::quota_display_inner;
 use crate::features::redaction::dto::{RedactionItemInfo, RedactionPolicyInfo};
 use crate::features::redaction::{redaction_global_of, redaction_items_of, redaction_override_of};
@@ -128,7 +127,8 @@ pub(crate) fn preflight_with(
     Ok(PreflightInfo {
         mechanism: report.mechanism.as_wire().to_owned(),
         fidelity: report.pair.label.as_str().to_owned(),
-        // What the move does; "not proven yet" is said beside it (P23).
+        // What the move does; a beta switch says "Beta" beside it (P23,
+        // D-127).
         fidelity_words: report.pair.described.user_label().to_owned(),
         score: report.pair.score,
         warnings,
@@ -220,11 +220,11 @@ fn source_stays(
     }
 }
 
-/// AJ-E808: whether `from → to` is validated right now — the recorded
-/// live cell, the fidelity register, and the installed versions (strict).
+/// AJ-E808: whether `from → to` is validated — the fidelity register and
+/// the live cell recorded on this Mac (D-128: no version number gates it).
+/// D-127: the switch lists (`targets`, another Mac's) never offer one that
+/// isn't, unless the user turned on beta switches.
 fn pair_validated_now(state: &Arc<AppState>, from: &str, to: &str) -> AppResult<bool> {
-    let versions = installed_versions_for(state, from, to);
-    let installed = |provider: &str| versions.get(provider).cloned();
     let cell = {
         let storage = lock_storage_arc(state)?;
         dogfood_cells_of(&storage)
@@ -236,7 +236,7 @@ fn pair_validated_now(state: &Arc<AppState>, from: &str, to: &str) -> AppResult<
             Some(record) => juggler_handover::validation::with_dogfood(row, record),
             None => row,
         })
-        .is_some_and(|row| row.validated_for(&installed, true)))
+        .is_some_and(|row| row.validated()))
 }
 
 /// Target quota gate from the E606/E610 engine (hard filter =
@@ -307,7 +307,7 @@ fn move_copy(
         if validated {
             words
         } else {
-            format!("Beta, not proven yet: {words}")
+            format!("Beta: {words}")
         }
     };
     match mechanism {
@@ -436,10 +436,13 @@ fn wizard_reasons_of(
         _ => {}
     }
     // QA P23: no F-number. A lower label always has its own, plainer
-    // reason here (it replays, or leaves something behind);
-    // "not proven" is said as itself.
+    // reason here (it replays, or leaves something behind). D-127: only a
+    // switch the user turned on in Settings › Switching › Beta gets here
+    // unvalidated, and it says so in plain words.
     if !validated {
-        reasons.push("This switch hasn't been proven on a real setup yet.".to_owned());
+        reasons.push(
+            "This switch is in beta: AI Juggler is still testing it with these tools.".to_owned(),
+        );
     }
     if !carry.dropped.is_empty() {
         reasons.push(format!("Doesn't carry: {}.", carry.dropped.join(", ")));

@@ -6,8 +6,8 @@
  */
 import { useCallback, useEffect, useState } from "react";
 
-import { POOL_RULES_CHANGED, poolRules, poolWatched, type PoolRulesInfo, type WatchedMemberInfo } from "./ipc/pool-model";
-import { usePools } from "./pools";
+import { poolRules, poolWatched, type PoolRulesInfo, type WatchedMemberInfo } from "./ipc/pool-model";
+import { usePoolEvents } from "./pool-live";
 
 export interface PoolRules {
   rules: PoolRulesInfo | null;
@@ -17,7 +17,6 @@ export interface PoolRules {
 }
 
 export function usePoolRules(poolId: string): PoolRules {
-  const pools = usePools();
   const [rules, setRules] = useState<PoolRulesInfo | null>(null);
   const [watched, setWatched] = useState<WatchedMemberInfo[]>([]);
   const [nonce, setNonce] = useState(0);
@@ -34,15 +33,11 @@ export function usePoolRules(poolId: string): PoolRules {
     return () => {
       alive = false;
     };
-  }, [poolId, pools, nonce]);
+  }, [poolId, nonce]);
   const reload = useCallback(() => setNonce((value) => value + 1), []);
-  // A talk rule set from the canvas's inspector: read again.
-  useEffect(() => {
-    const changed = (event: Event) => {
-      if (event instanceof CustomEvent && event.detail === poolId) reload();
-    };
-    window.addEventListener(POOL_RULES_CHANGED, changed);
-    return () => window.removeEventListener(POOL_RULES_CHANGED, changed);
-  }, [poolId, reload]);
+  // Round 7 #6: its counts follow the app live (a member changed, a rule
+  // set here, a session started, ended or attested), as its desktop
+  // members and sessions do: one place, lib/pool-live.
+  usePoolEvents(poolId, reload);
   return { rules, watched, reload };
 }

@@ -50,14 +50,19 @@ pub struct Found {
     pub checked_ms: i64,
 }
 
-/// The address that lists `feed`'s newest version.
+/// The address that lists `feed`'s newest version, for a feed the app
+/// itself asks (npm's registry); `None` for the version watcher's own feeds
+/// (D-128: GitHub releases, an app's appcast), which the app never asks: it
+/// reaches only its own addresses and npm's (tests/trust.rs).
 #[must_use]
-pub fn feed_url(feed: &ReleaseFeed) -> String {
+pub fn feed_url(feed: &ReleaseFeed) -> Option<String> {
     match feed {
         // A scoped name's `/` is written `%2F` (npm's registry API).
-        ReleaseFeed::Npm { package } => {
-            format!("{NPM_REGISTRY}/{}/latest", package.replace('/', "%2F"))
-        }
+        ReleaseFeed::Npm { package } => Some(format!(
+            "{NPM_REGISTRY}/{}/latest",
+            package.replace('/', "%2F")
+        )),
+        ReleaseFeed::GithubRelease { .. } | ReleaseFeed::Appcast { .. } => None,
     }
 }
 
@@ -188,6 +193,9 @@ pub fn check_due(state: &Arc<AppState>, transport: &dyn Transport, now_ms: i64) 
     let mut found = load(state);
     let mut sent = 0;
     for (tool, feed) in tools_in_use(state) {
+        let Some(url) = feed_url(&feed) else {
+            continue;
+        };
         let due = found
             .get(&tool)
             .is_none_or(|last| now_ms.saturating_sub(last.checked_ms) >= EVERY_MS);
@@ -196,7 +204,7 @@ pub fn check_due(state: &Arc<AppState>, transport: &dyn Transport, now_ms: i64) 
         }
         let request = HttpRequest {
             method: "GET",
-            url: feed_url(&feed),
+            url,
             bearer: None,
             content_type: "application/json",
             headers: Vec::new(),
@@ -321,8 +329,16 @@ mod tests {
         assert_eq!(
             feed_url(&ReleaseFeed::Npm {
                 package: "@openai/codex".into()
+            })
+            .as_deref(),
+            Some("https://registry.npmjs.org/@openai%2Fcodex/latest")
+        );
+        // The watcher's own feeds are never the app's to ask (D-128).
+        assert_eq!(
+            feed_url(&ReleaseFeed::Appcast {
+                url: "https://example.invalid/appcast.xml".into()
             }),
-            "https://registry.npmjs.org/@openai%2Fcodex/latest"
+            None
         );
     }
 

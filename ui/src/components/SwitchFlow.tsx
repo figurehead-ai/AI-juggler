@@ -219,6 +219,7 @@ export function SwitchFlow({
       picked={picked}
       onToggle={togglePicked}
       onCheckAgain={setupCheck.recheck}
+      targetFolder={targetProfileId}
       pools={<SwitchPoolLines sessionId={sessionId} targetProfileId={targetProfileId} destination={destination} />}
       space={space}
       onSpaceAgain={recheckSpace}

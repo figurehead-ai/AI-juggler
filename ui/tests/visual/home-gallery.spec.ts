@@ -119,7 +119,7 @@ for (const theme of ["dark", "light"] as const) {
 
   test(`home — welcome, How it works open — ${theme}`, async ({ page }) => {
     await seed(page, honestEmpty, theme, { width: 1280, height: 800 });
-    await page.getByTestId("welcome-how").locator("summary").click();
+    await page.getByTestId("welcome-how-toggle").click();
     await expect(page.getByTestId("welcome-how").locator("ol > li")).toHaveCount(3);
     await page.getByTestId("welcome-how").locator("ol > li").last().scrollIntoViewIfNeeded();
     await page.screenshot({ path: resolve(OUT, `welcome-how-1280x800-${theme}.png`) });

@@ -50,13 +50,30 @@ const previewTurnOns: TurnOnInfo[] = [];
 /** The preview's default: the target already has everything. */
 const MOCK: SetupCheckInfo = { from: "Work Max", to: "Personal", already_there: 3, offers: [] };
 
+/** AJ-E3013 (D-116): AI Juggler's own connector (its folder in the
+ * profile's skills, its MCP server), as the offers name it. */
+export const CONNECTOR_OFFER = "connector";
+
+export function isConnectorOffer(offer: OfferInfo): boolean {
+  return offer.name.toLowerCase() === "ai-juggler" && ["skill", "plugin", "mcp-server"].includes(offer.kind);
+}
+
+/** The offers with AI Juggler's connector as its own (verdict
+ * `connector`): never ticked, never copied as one of the user's skills
+ * (a copy would leave its hidden manifest behind); its row offers the
+ * connector's own Add instead. */
+export function withConnector(check: SetupCheckInfo): SetupCheckInfo {
+  if (!check.offers.some(isConnectorOffer)) return check;
+  return { ...check, offers: check.offers.map((offer) => (isConnectorOffer(offer) ? { ...offer, verdict: CONNECTOR_OFFER, suggested: false, can_copy: false } : offer)) };
+}
+
 /** What the target lacks before this switch (reads only). */
 export async function switchSetupCheck(
   sessionId: string,
   targetProfileId: string,
 ): Promise<SetupCheckInfo> {
-  if (!hasLiveBackend()) return seam() ?? MOCK;
-  return call("switch_setup_check", { sessionId, targetProfileId });
+  if (!hasLiveBackend()) return withConnector(seam() ?? MOCK);
+  return withConnector(await call("switch_setup_check", { sessionId, targetProfileId }));
 }
 
 /** Sets up the picked offers on the target. */

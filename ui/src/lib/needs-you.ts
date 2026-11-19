@@ -8,7 +8,6 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useSyncExternalStore } from "react";
 import { archivedHere, subscribeArchived, withoutArchived } from "./archived-here";
-import type { ThisMacInfo } from "./machine";
 import type { HomeNeed, HomeNeedKind } from "./home-needs";
 import { placeWords, type Need, type RailItem } from "./rail-items";
 import { readSnooze, forgetSnooze, type SnoozeState } from "./railview";
@@ -37,7 +36,8 @@ export interface BackendNeeds {
   /** What counts now, oldest first (snoozed ones left out). */
   rows: NoticeInfo[];
   /** The one count (the bell's, the badge's, the menu-bar item's): what
-   * waits on you or broke (L2, L3; D-117), never a note. */
+   * waits on you or broke (L2, L3; D-117), never a note; the rows', so
+   * the bell never says one its list doesn't show (NY1). */
   count: number;
   /** The subjects of `rows` ("cap:…", "message:…", "task:…", "s:…"). */
   subjects: ReadonlySet<string>;
@@ -53,7 +53,9 @@ export interface BackendNeeds {
 
 /** The backend's Needs you, kept current by its events. */
 export function useBackendNeeds(): BackendNeeds {
-  const list = usePagedList<NoticeInfo>("notices:needs", (request) => notificationsPage("needs", request), { pageSize: MAX_PAGE, keyOf: (row) => String(row.id), seed: standInNeedsPage });
+  // NY1 (0.4.6 rc3a): one list for the rail, Home and the bell (`shared`):
+  // Home, opened, read a need back that the rail and the bell never showed.
+  const list = usePagedList<NoticeInfo>("notices:needs", (request) => notificationsPage("needs", request), { pageSize: MAX_PAGE, keyOf: (row) => String(row.id), seed: standInNeedsPage, shared: true });
   const summary = useNoticeSummary();
   // NY1 (rc32): a session archived here leaves at once, not when the
   // list is read again
@@ -63,11 +65,19 @@ export function useBackendNeeds(): BackendNeeds {
   // that counts none says so before the list answers.
   const known = standInNeedsKnown() && (!list.loading || summary?.count === 0);
   return useMemo(() => {
-    const rows = withoutArchived(list.items.filter((row) => !row.snoozed), archived);
+    const awake = list.items.filter((row) => !row.snoozed);
+    const rows = withoutArchived(awake, archived);
     const needOf = new Map<string, Need>();
     for (const row of rows) if (SESSION_KINDS.has(row.kind)) needOf.set(row.subject, row.kind as Need);
-    return { rows, count: summary?.count ?? rows.filter((row) => counted(noticeLevel(row))).length, subjects: new Set(rows.map((row) => row.subject)), needOf, loading: list.loading, known };
-  }, [list.items, list.loading, summary?.count, archived, known]);
+    // D-117: only what waits on you or broke (L2, L3) counts, never a note.
+    // NY1 (rc3a): the count is the rows' (the bell said 1 over its own
+    // "You're all caught up"); the summary's only before the list answers,
+    // and for what lies past its one page, less what's archived here.
+    const countedRows = rows.filter((row) => counted(noticeLevel(row))).length;
+    const countedAwake = awake.filter((row) => counted(noticeLevel(row))).length;
+    const count = list.loading ? (summary?.count ?? 0) : list.hasMore ? Math.max(countedRows, (summary?.count ?? 0) - (countedAwake - countedRows)) : countedRows;
+    return { rows, count, subjects: new Set(rows.map((row) => row.subject)), needOf, loading: list.loading, known };
+  }, [list.items, list.loading, list.hasMore, summary?.count, archived, known]);
 }
 
 /** The busiest live session on an account (a hand-over starts there). */
@@ -80,7 +90,7 @@ export function liveOn(sessions: InstanceInfo[], accountId: string | null | unde
  * agents' messages and tasks have their own rows (their own controls).
  * ADR-0032 (0.4.4): a session is named by the App that owns it, as the
  * rail's Needs you names it (`ownersOf`, given the remembered `known`). */
-export function homeNeedsOf(rows: NoticeInfo[], items: RailItem[], accounts: AccountInfo[], sessions: InstanceInfo[], thisMac: ThisMacInfo | null, now: number, known: readonly KnownPlaceInfo[] = []): HomeNeed[] {
+export function homeNeedsOf(rows: NoticeInfo[], items: RailItem[], accounts: AccountInfo[], sessions: InstanceInfo[], macLevel: string | null, now: number, known: readonly KnownPlaceInfo[] = []): HomeNeed[] {
   const { theirs } = ownersOf(known);
   const byKey = new Map(items.map((item) => [item.key, theirs(item)]));
   const out: HomeNeed[] = [];
@@ -107,7 +117,7 @@ export function homeNeedsOf(rows: NoticeInfo[], items: RailItem[], accounts: Acc
       kind,
       title: row.title,
       detail: row.kind === "quota" ? quotaDetail(row, now) : row.detail,
-      severe: kind === "mac" && thisMac?.machine.summary.level === "pressure",
+      severe: kind === "mac" && macLevel === "pressure",
       account,
       sessionId: row.kind === "quota" ? liveOn(sessions, row.target.account_id)?.id : (row.target.session_id ?? undefined),
       conversation: row.kind === "quota" ? openElsewhere(items, row.target.account_id) : undefined,

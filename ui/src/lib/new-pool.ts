@@ -17,8 +17,8 @@ import { agentToolsWhy, shellOnlyWhy, switchedOffWhy } from "./agent-tools";
 import type { AgentBridgeInfo } from "../types/generated/AgentBridgeInfo";
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import type { ConversationInfo } from "./ipc/conversations";
-import { memberRef, poolJoin, poolSetScope, poolSetSealed, poolSetTalk, type MemberKind, type TalkRule } from "./ipc/pool-model";
-import { poolCreate, poolSetAccess, poolSetSpansMacs, type PoolInfo, type PoolRole, type PoolsInfo } from "./ipc/pools";
+import { memberRef, type MemberKind, type TalkRule } from "./ipc/pool-model";
+import type { PoolInfo, PoolRole, PoolsInfo } from "./ipc/pools";
 import { pairKey, ruleOf, templateById, TALK_ROLES, type PairKey, type PoolTemplate } from "./pool-templates";
 import { sessionState } from "./rail-items";
 import { namedByFacts, tellApart } from "./session-titles";
@@ -61,20 +61,31 @@ export interface Draft {
   level: "read" | "work_together" | "full";
   sealed: boolean;
   spansMacs: boolean;
+  /** AJ-E3011: the App (its member ref, `app:…`) whose next session here
+   * leads; `null` for none (D-92: one session leads). */
+  leadNext: string | null;
 }
 
-/** A new draft from a template, in `project` when one is in view. */
+/** The "everyone in scope" member: every session in the pool's projects,
+ * now and later. Its name on screen is `everyoneLabel` (by the scope). */
+export const EVERYONE: DraftMember = { ref: "all", kind: "everyone", label: "Everyone in this pool's projects", role: "member", level: null, reach: "later" };
+
+/** A new draft from a template, in `project` when one is in view. Start
+ * from scratch (AJ-E3011) makes a working pool from a name and its
+ * projects: everyone in them joins as a Member. */
 export function draftOf(template: PoolTemplate, project: string | null): Draft {
+  const scratch = template.id === "blank";
   return {
     template: template.id,
-    name: template.id === "blank" ? "" : template.name,
+    name: scratch ? "" : template.name,
     every: template.scope === "every",
     projects: template.scope === "every" || project === null ? [] : [project],
-    members: [],
+    members: scratch || template.kinds[0] === "everyone" ? [{ ...EVERYONE, role: template.broadRole ?? "member" }] : [],
     talk: { ...template.talk },
     level: template.level,
     sealed: template.sealed ?? false,
     spansMacs: template.spansMacs ?? false,
+    leadNext: null,
   };
 }
 
@@ -99,18 +110,6 @@ export function rolesToChoose(draft: { template: string; members: readonly { rol
   return templateById(draft.template).roles.filter((role, at, all) => role !== "member" && all.indexOf(role) === at && !held.has(role));
 }
 
-/** D-92: when the template wants a Lead and no member picked can take it
- * (Apps, Accounts, Tools, Macs and everyone can't; a Watched session
- * can't act yet), how one is chosen, in plain words; `null` when a
- * member here can lead, or none is wanted (the rc26 P1 walk: Writer and
- * reviewer of two Apps said "Pick them in the list below", where no row
- * offered Lead). */
-export function leadLater(draft: { template: string; members: readonly Pick<DraftMember, "kind" | "role" | "reach">[] }): string | null {
-  if (draft.members.length === 0 || !rolesToChoose(draft).includes("lead")) return null;
-  if (draft.members.some((member) => member.kind === "session" && member.reach !== "watched")) return null;
-  return "No Lead yet: Lead is one session, and these join as a group. Once one of their sessions runs, click it on the pool's canvas and make it Lead; or go back and pick a session now.";
-}
-
 export interface Candidate {
   ref: string;
   kind: MemberKind;
@@ -132,19 +131,11 @@ export interface Candidate {
   lastMs: number;
 }
 
-/** A desktop App member: it may join (decision 15 offers it, never
- * greyed), and says what its sessions can do here (the rc26 P1 walk: the
- * Claude app read "none open now · new ones join" beside Add, as if they
- * would act). */
-function desktopAppNote(app: string): string {
-  return `Runs in the ${app}: its sessions join watched (they can't reply) until continued in AI Juggler.`;
-}
-
-/** A session another app runs: it joins watched, and says it can't reply
- * here before it's added (P1 step 8). */
-function watchedNote(where: string): string {
-  return `Runs in ${where}: it can't reply here until it's continued in AI Juggler.`;
-}
+/** A desktop App, or a session another app runs: how it takes part, said
+ * before it's added (the rc26 P1 walk; P1 step 8; AJ-E3013). Round 7 #9
+ * (aij-test run 3): said once for the list, not on every row (each row
+ * says only where it stands: Watched, or can talk). */
+export const DESKTOP_NOTE = "Sessions in a desktop app talk in the pool once AI Juggler's connector (a small helper, added with your OK) is in their app; until then they're Watched: shown and counted, without the pool's tools.";
 
 const DAY = 24 * 60 * 60 * 1000;
 
@@ -215,11 +206,13 @@ export function sessionCandidates(input: {
         group: (conversation.live ? "open" : now - lastMs < 7 * DAY ? "recent" : "all") as Candidate["group"],
         reach: "watched" as const,
         // P1 step 8 (the rc29 walk): its reason before it's added.
-        note: watchedNote(where),
+        note: DESKTOP_NOTE,
         lastMs,
       };
       if (!inScope(draft, project)) return { ...base, blocked: `Works in ${projectName(project)}, not in this pool's projects.`, fix: { label: `Add ${projectName(project)}`, action: "scope" as const, arg: project ?? "" } };
-      return { ...base, blocked: null, fix: { label: "Continue in AI Juggler", action: "continue" as const, arg: `${conversation.account_id}/${conversation.id}` } };
+      // AJ-E3013: its way in is its app's connector (Who's in shows the
+      // consent card once it's in); Continue as CLI stays in its menu.
+      return { ...base, blocked: null };
     });
   return [...own, ...theirs].sort((a, b) => b.lastMs - a.lastMs);
 }
@@ -323,7 +316,7 @@ export function broadCandidates(input: {
     case "app":
       return input.apps.map((app) => {
         const one = row(memberRef("app", app.id), "app", app.name, open((session) => app.folder !== null && session.account_id === app.folder.id));
-        return app.kind === "desktop" ? { ...one, note: desktopAppNote(app.app) } : one;
+        return app.kind === "desktop" ? { ...one, note: DESKTOP_NOTE } : one;
       });
     case "account":
       // The stored Account, never the list's key (the pools L2 on the
@@ -367,21 +360,7 @@ export function talkChanges(talk: Draft["talk"]): { from: string; to: string; ru
 /** Makes the pool the draft describes, or (`into`) sets an existing one
  * up as it says; its id. Every step is the user's own call; nothing
  * starts a session. */
-export async function makePool(draft: Draft, into?: string): Promise<string> {
-  let made: PoolInfo | undefined;
-  if (into) made = { id: into } as PoolInfo;
-  else {
-    const before = await poolCreate(draft.name.trim(), draft.every || draft.projects.length !== 1 ? null : draft.projects[0] ?? null);
-    made = before.pools.find((pool) => pool.name === draft.name.trim() && pool.kind === "user");
-  }
-  if (!made) throw new Error("The pool wasn't made");
-  await poolSetScope(made.id, draft.every, draft.every ? [] : draft.projects);
-  if (draft.level !== "work_together") await poolSetAccess(made.id, draft.level);
-  for (const member of draft.members) await poolJoin(made.id, member.ref, member.role, member.level);
-  for (const change of talkChanges(draft.talk)) await poolSetTalk(made.id, change.from, change.to, change.rule);
-  if (draft.sealed) await poolSetSealed(made.id, true);
-  if (draft.spansMacs) await poolSetSpansMacs(made.id, true);
-  return made.id;
-}
+export { makePool, type NotAdded } from "./new-pool-make";
 
 export { pairKey };
+export { leadCandidates, leadOf, withLead, type LeadChoice } from "./new-pool-lead";

@@ -371,11 +371,10 @@ fn plain_id(id: &str) -> bool {
 /// (a larger one is not read: these are a few KB).
 #[must_use]
 pub fn read_small(path: &Path, max: u64) -> Option<String> {
-    let meta = std::fs::symlink_metadata(path).ok()?;
-    if !meta.is_file() || meta.len() > max {
-        return None;
-    }
-    std::fs::read_to_string(path).ok()
+    // AJ-E3013 (L5): never through a link at the file, and its kind and
+    // size checked on the opened file (no check-then-read race).
+    let bytes = juggler_platform::safe_fs::read_file(path, max).ok()??;
+    String::from_utf8(bytes).ok()
 }
 
 /// A process start time as `ps -o lstart` prints it in UTC (`Sat Oct 24

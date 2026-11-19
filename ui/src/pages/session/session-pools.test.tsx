@@ -36,7 +36,7 @@ describe("D-62 a session's pools", () => {
     await waitFor(() => expect(screen.getByTestId("session-pools-list")).toBeTruthy());
     expect(screen.getAllByTestId("related-pool")).toHaveLength(2);
     expect(screen.getAllByTestId("session-pools-how")[0]!.textContent).toMatch(/Through its App/);
-    expect(screen.getByText("its own level: Read")).toBeTruthy();
+    expect(screen.getByText("on its own: Look only")).toBeTruthy();
     expect(screen.getByTestId("session-pools-skipped").textContent).toContain("Add the project to its scope");
     expect(screen.getByTestId("session-pools-account-unknown")).toBeTruthy();
   });

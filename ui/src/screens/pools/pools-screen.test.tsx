@@ -2,6 +2,7 @@
  * AJ-E2807: the Pools screen's order, a card's menu (Open its canvas,
  * Rename…, Delete… saying what happens to its members) and its empty text.
  */
+import { asInput } from "../../test/fixtures";
 import { act, cleanup, fireEvent, render, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
 
@@ -105,14 +106,19 @@ describe("the Pools screen (AJ-E2807)", () => {
     expect(view.getByTestId("pools-cards").style.gridTemplateColumns).toContain("auto-fill");
     fireEvent.contextMenu(box, { clientX: 30, clientY: 30, button: 2 });
     const menu = view.getByRole("menu");
-    expect(within(menu).getAllByRole("menuitem").map((item) => item.textContent)).toEqual(["Open its canvas", "Rename…", "Delete…"]);
+    expect(within(menu).getAllByRole("menuitem").map((item) => item.textContent)).toEqual(["Open its diagram", "Rename…", "Delete…"]);
     for (const item of within(menu).getAllByRole("menuitem")) expect(item.querySelector("svg"), item.textContent ?? "").toBeTruthy();
-    fireEvent.click(within(menu).getByRole("menuitem", { name: "Open its canvas" }));
+    fireEvent.click(within(menu).getByRole("menuitem", { name: "Open its diagram" }));
     expect(opened).toEqual(["pool-team"]);
     // Rename… from its ⋯ button
     fireEvent.click(within(box).getByTestId("pool-card-menu"));
     fireEvent.click(within(view.getByRole("menu")).getByRole("menuitem", { name: "Rename…" }));
-    fireEvent.change(view.getByTestId("pool-rename-input"), { target: { value: "Checkout team" } });
+    // The one rename sheet: its name selected on open, so typing replaces
+    // it (the 0.4.6 RC walk A8: "Work" + "Acme" saved "WorkAcme").
+    const field = asInput(view.getByTestId("pool-rename-name"));
+    expect(document.activeElement).toBe(field);
+    expect([field.selectionStart, field.selectionEnd]).toEqual([0, "Team".length]);
+    fireEvent.change(field, { target: { value: "Checkout team" } });
     fireEvent.click(view.getByTestId("pool-rename-save"));
     await waitFor(() => expect(names().some((words) => words.includes("Checkout team"))).toBe(true));
     // Delete… asks first, saying where its sessions go

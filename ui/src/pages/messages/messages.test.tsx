@@ -24,6 +24,7 @@ import { MessagesView } from "./MessagesView";
 import { SharedDocs } from "./SharedDocs";
 import { MessageNeedCard, MessageNeeds } from "../../components/MessageNeeds";
 import { ActionHostProvider } from "../../components/ItemMenu";
+import { desktopRecipients } from "../../lib/connector";
 import { resetPreviewMessages, takeReplyFocus, type MessageInfo, type MessageNeedInfo, type MessagesSeed, type ThreadInfo } from "../../lib/ipc/messages";
 
 type Seams = { __AIJ_MESSAGES__?: MessagesSeed; __AIJ_MESSAGES_CALLS__?: string[] };
@@ -151,6 +152,31 @@ describe("a pool's messages", () => {
     fireEvent.change(within(form).getByTestId("compose-body"), { target: { value: "Pause; review first." } });
     fireEvent.keyDown(within(form).getByTestId("compose-body"), { key: "Enter", metaKey: true });
     await waitFor(() => expect(calls()).toContain("send:pool:true"));
+  });
+
+  // AJ-E3013 (f1b9bd354): a desktop session through AI Juggler's
+  // connector is a recipient of its own, by its member ref, named with
+  // its place; one whose call is fresh is under Open now.
+  it("a desktop session is a recipient beside the sessions AI Juggler runs", async () => {
+    const desktop = desktopRecipients([
+      { member: "conversation:claude-work/c1", session_id: "desktop:claude-work/c1", name: "Fix sign-in copy", place: "Claude app · Work", tool: "Claude Code", account: "Work", role: "member", app_id: "app-claude-work", via: "app", wake: "next_turn" },
+      { member: "conversation:claude-work/c2", session_id: null, name: "A session in another app", place: null, tool: null, account: null, role: "member", app_id: null, via: "app", wake: "next_turn" },
+    ]);
+    expect(desktop).toEqual([
+      { session_id: "conversation:claude-work/c1", name: "Fix sign-in copy · Claude app · Work", live: true },
+      { session_id: "conversation:claude-work/c2", name: "A session in another app", live: false },
+    ]);
+    const { findByTestId, getAllByTestId, getByTestId } = render(<MessagesView poolId="pool-team" members={[...members, ...desktop]} now={NOW} />);
+    fireEvent.click(await findByTestId("messages-new"));
+    const form = getAllByTestId("message-compose").find((f) => f.getAttribute("aria-label") === "New message")!;
+    fireEvent.click(within(form).getByTestId("compose-to"));
+    fireEvent.click(getByTestId("compose-to-conversation:claude-work/c1"));
+    expect(within(form).getByTestId("compose-to").getAttribute("data-value")).toBe("conversation:claude-work/c1");
+    // D-119 (5): Deliver wakes it whatever the pool's level, and says so.
+    expect(within(form).getByLabelText("Deliver to their sessions").closest("label")!.getAttribute("title")).toContain("a desktop app's session with AI Juggler's connector is woken to read it, whatever the pool's level");
+    fireEvent.change(within(form).getByTestId("compose-body"), { target: { value: "Check the copy." } });
+    fireEvent.keyDown(within(form).getByTestId("compose-body"), { key: "Enter", metaKey: true });
+    await waitFor(() => expect(calls()).toContain("send:conversation:claude-work/c1:true"));
   });
 
   it("a session's page shows its own threads only", async () => {

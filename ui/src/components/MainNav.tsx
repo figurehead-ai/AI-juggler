@@ -23,9 +23,11 @@ export function navKeys(id: string): string | null {
 
 // Snug below 1280 px, so the row fits at 1024 with the list open.
 // Each tab is as wide as its words in semibold (a hidden copy after them),
-// so lighting another page moves none of them.
+// so lighting another page moves none of them. The lit one is never faded
+// in: a fade WebKit pauses in a window not shown (the 0.4.6 RC walk K2)
+// left the old one lit over the new page.
 const NAV_BUTTON =
-  "inline-flex flex-col items-center rounded-md px-1.5 py-1.5 text-meta transition-colors outline-none focus-visible:ring-2 focus-visible:ring-accent/60 after:invisible after:h-0 after:overflow-hidden after:font-semibold after:content-[attr(data-label)] ";
+  "inline-flex flex-col items-center rounded-md px-1.5 py-1.5 text-meta outline-none focus-visible:ring-2 focus-visible:ring-accent/60 after:invisible after:h-0 after:overflow-hidden after:font-semibold after:content-[attr(data-label)] ";
 // The lit tab is the page's title, as D-118's mock draws it: semibold ink,
 // no box (NAV_CURRENT); the others regular and muted, ink on hover.
 const lit = (current: boolean) => (current ? NAV_CURRENT : "font-normal text-muted hover:text-ink");

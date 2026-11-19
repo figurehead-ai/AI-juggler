@@ -18,11 +18,11 @@ export const DEFAULT_PREFLIGHT: PreflightInfoData = {
   source_title: "Fix the checkout flow", source_account: "Work",
   source_keeps_running: false,
   experimental_copy:
-    "Beta, not proven yet: the whole session is carried over, with its subagents and file history. The source stays resumable.",
+    "Beta: the whole session is carried over, with its subagents and file history. The source stays resumable.",
   door: "wizard",
   wizard_steps: ["Target", "What's carried", "Confirm"],
   // D-03 amendment: another account is no reason; an unproven pair is.
-  wizard_reasons: ["This switch hasn't been proven on a real setup yet."],
+  wizard_reasons: ["This switch is in beta: AI Juggler is still testing it with these tools."],
   usual_account: false,
   // A same-tool switch, as the fidelity table has it (AJ-E1540/E1541):
   // the whole session moves, and the task list is rebuilt from it.

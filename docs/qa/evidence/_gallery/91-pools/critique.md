@@ -1,4 +1,4 @@
-<!-- captures: fd1b6114969a -->
+<!-- captures: 759ab8baf0ca -->
 # 91-pools: the rail's Pool grouping, Move to pool, Agent access
 
 Design critique (D-57, AJ-E2814) against the reference screens: the row menus (77-menus), the rail's order menu, Usage and Processes. The baseline note says what changed on purpose; this says whether it is good.
@@ -49,3 +49,13 @@ rail-by-pool fits the four-segment switch (App, Project, Account, Pool) in the r
 The whole family was retaken on release/0.4.1 for the 14-line re-score (AJ-E3305, `docs/qa/0.4-walks/design.md`) and opened on contact sheets, both themes, 1280 and 1024. Shared with every screen since the last shoot: the header's New session is tinted (one filled button per view), the Floor button is a split control with its own menu, This Mac's line is its dot below 1120 px, and the rail's App headers put the profile first.
 
 Settings › Agent access is captured at 1024 too (it was 1280 only); the rail's Pool lens and Move to pool stay at 1280, since below 1100 px the rail folds to its icons.
+
+## 0.4.6 (AJ-E3011 round 3): Settings › Agent access shows the pool's own controls
+
+settings-agent-access (both widths and themes): a pool's row opens the same controls and words as its inspector — the on-their-own choice with its scope line, the wake example in view and Custom; then the folds "Allowed without asking" and "Messages into sessions", each with one plain line, closed at first. Settings' own copies ("Messages put into sessions", "Pause and ask after … replies in a row", "Stop all of them") are gone. Checked dark and light at 1024 and 1280: the radios' selected fill and the folds' chevrons read in both.
+
+## Section titles fixed (2026-11-16)
+
+Section titles re-rendered (6db085536): a colour token named like a type size (`--color-section` beside `--text-section`) had Tailwind build `.text-section` as a colour only, so every section title in the captures from 56f98a514 on was about 13 px regular grey. Re-captured and checked by eye against the earlier captures:
+
+- settings-agent-access (both widths and themes): the pool headings ("Checkout redesign", "Docs") are 15 px semibold ink again; the rows under them sit a pixel off. Nothing else changed. Pass.

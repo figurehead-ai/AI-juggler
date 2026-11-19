@@ -21,7 +21,7 @@ import type { SwitchTargetData } from "../lib/ipc/switch-targets";
 import { lowRoomWords, ROOM_ORDER_WORDS, outOfRoomConsequence, outOfRoomWords } from "../lib/room";
 import { DESKTOP_ONLY, roomless, type TargetRoom } from "../lib/room-targets";
 import { creditsConsequence, usingCreditsWords } from "../lib/credits";
-import { cliAppName } from "../lib/app-name";
+import { useTargetApp } from "../lib/apps";
 
 /** "Suggested": the one with the most room (the one order by room). */
 export function SuggestedMark({ className = "" }: { className?: string }): JSX.Element {
@@ -83,8 +83,10 @@ function roomWords(name: string, room: TargetRoom, testId: string): JSX.Element 
 }
 
 /** The badge chip: solid when validated, hatched while beta. The text
- * label (the badge string itself + the validated line) carries the
- * state — the hatching is decoration only, legible in greyscale. */
+ * carries the state (a beta switch's badge ends "· Beta", from the
+ * backend; D-127: a switch is listed in beta only when the user turned
+ * beta switches on, and never says "proven") — the hatching is
+ * decoration only, legible in greyscale. */
 export function FidelityBadge({ badge, validated }: { badge: string; validated: boolean }) {
   return (
     <span
@@ -98,15 +100,14 @@ export function FidelityBadge({ badge, validated }: { badge: string; validated: 
         validated
           ? undefined
           : {
-              // Hatched fill marks "beta, not yet validated" — the
-              // words say it too; this is never the only signal.
+              // Hatched fill marks a beta switch — the words say it
+              // too; this is never the only signal.
               backgroundImage:
                 "repeating-linear-gradient(45deg, transparent 0 3px, rgba(217,119,6,0.18) 3px 5px)",
             }
       }
     >
       {badge}
-      {!validated && " · Not proven yet"}
     </span>
   );
 }
@@ -121,6 +122,9 @@ export function SwitchTargetRows({
 }): JSX.Element {
   const [whyOpen, setWhyOpen] = useState(false);
   const listRef = useRef<HTMLUListElement>(null);
+  // The App each target is reached through (the 0.4.6 RC walk K3: a Claude
+  // app profile's folder read "Claude Code CLI · Work Max").
+  const appOf = useTargetApp();
   // AJ-E1103: a suggestion shown, then taken or passed over.
   const suggested = targets.find((target) => target.suggested && !target.filtered_reason);
   const suggestedProvider = suggested?.provider ?? "other";
@@ -190,7 +194,7 @@ export function SwitchTargetRows({
               >
                 <span className="flex flex-wrap items-center gap-2">
                   <span className={`font-medium ${filtered ? "text-muted" : ""}`}>
-                    {target.provider ? cliAppName(target.provider, target.account_label) : target.account_label}
+                    {appOf({ folder: target.account_id, tool: target.provider, label: target.account_label }).name}
                   </span>
                   <FidelityBadge badge={target.badge} validated={target.validated} />
                   {target.suggested && !filtered && <SuggestedMark />}

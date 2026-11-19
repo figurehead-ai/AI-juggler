@@ -151,6 +151,22 @@ export function machineStatus(
   return { level, words: summary.words, cause, calm: level === "plenty", ...look };
 }
 
+/** This Mac's summary level alone ("plenty", "tight", "pressure"; `null`
+ * before the first reading), from `given` (a test, the preview) or the
+ * app's one subscription. AJ-E813: Home reads only this, yet it drew
+ * itself again on every 5 s reading; its reader draws again only when the
+ * level changes. */
+export function useMachineLevel(given?: ThisMacInfo | null): string | null {
+  const store = useContext(ThisMacStoreContext);
+  const level = () => levelOf(store.get());
+  const fromStore = useSyncExternalStore(store.subscribe, level, level);
+  return given === undefined ? fromStore : levelOf(given);
+}
+
+function levelOf(info: ThisMacInfo | null | undefined): string | null {
+  return info?.machine.summary.level ?? null;
+}
+
 /** A session's heavy note ("CPU 95%", "3.2 GB"), only while it's heavy.
  * Its row draws again only when its own note changes. */
 export function useHeavyNote(sessionId: string): string | null {

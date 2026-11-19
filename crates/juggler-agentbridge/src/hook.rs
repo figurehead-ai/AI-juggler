@@ -32,8 +32,10 @@ use crate::wire::{
 };
 
 /// The events whose hook may print a note (Claude Code adds a hook's
-/// `additionalContext` to the model's context on these).
-pub const NOTE_EVENTS: [&str; 2] = ["UserPromptSubmit", "PostToolUse"];
+/// `additionalContext` to the model's context on these). AJ-E3013:
+/// `SessionStart` too, so a desktop member learns of its unread messages
+/// when it starts or resumes.
+pub const NOTE_EVENTS: [&str; 3] = ["SessionStart", "UserPromptSubmit", "PostToolUse"];
 
 /// The longest note printed.
 pub const NOTE_MAX: usize = 300;
@@ -129,6 +131,47 @@ pub fn run(event: &str, stdin: impl Read) -> Option<String> {
     note_output(event, &answer)
 }
 
+/// AJ-E3013: AI Juggler's connector's hook in a desktop app's session
+/// (`hook <event> --connector`). In a session AI Juggler started (its key
+/// or report key in the environment) it does nothing: the launch's own
+/// hooks report. Elsewhere it sends the report with no key to the socket
+/// the connector named; the app attests the caller from the system and,
+/// on [`NOTE_EVENTS`], answers with the unread note (facts only). Always
+/// silent when AI Juggler isn't running or the caller isn't attested.
+pub fn run_connector(event: &str, stdin: impl Read) -> Option<String> {
+    let keyed = [REPORT_TOKEN_ENV, crate::wire::TOKEN_ENV]
+        .iter()
+        .any(|name| std::env::var(name).is_ok_and(|value| !value.is_empty()));
+    if keyed || !NOTE_EVENTS.contains(&event) {
+        return None;
+    }
+    let socket = crate::client::connector_socket()?;
+    connector_note(event, stdin, &socket)
+}
+
+/// [`run_connector`]'s exchange with the socket at `socket`.
+fn connector_note(event: &str, stdin: impl Read, socket: &std::path::Path) -> Option<String> {
+    let mut input = String::new();
+    stdin
+        .take(u64::try_from(INPUT_MAX).unwrap_or(u64::MAX))
+        .read_to_string(&mut input)
+        .ok()?;
+    let hook = report_of(event, &input)?;
+    let report = Report {
+        v: VERSION,
+        token: String::new(),
+        hook: HookReport {
+            // Only what names the event: nothing a tool asked or ran.
+            event: hook.event,
+            tool_session: hook.tool_session,
+            ..HookReport::default()
+        },
+    };
+    let line = serde_json::to_string(&report).ok()?;
+    let answer = send_line(socket, &line, WAIT).ok()?;
+    note_output(event, &answer)
+}
+
 /// What a hook prints for the app's answer: the note as the tool's
 /// `additionalContext`, on [`NOTE_EVENTS`] only, one bounded line.
 #[must_use]
@@ -155,6 +198,56 @@ pub fn note_output(event: &str, answer: &str) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::report_of;
+
+    #[test]
+    fn the_connector_hook_is_silent_without_ai_juggler() {
+        let root = tempfile::tempdir().unwrap();
+        let missing = root.path().join("bridge.sock");
+        let input =
+            r#"{"session_id":"s","hook_event_name":"UserPromptSubmit","prompt":"secret plan"}"#;
+        assert_eq!(
+            super::connector_note("UserPromptSubmit", input.as_bytes(), &missing),
+            None
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn the_connector_hook_sends_no_key_and_no_words_and_prints_the_note() {
+        use std::io::{BufRead, Write};
+        use std::os::unix::fs::PermissionsExt;
+        let root = tempfile::tempdir().unwrap();
+        let dir = root.path().join("agent");
+        std::fs::create_dir(&dir).unwrap();
+        std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o700)).unwrap();
+        let socket = dir.join("bridge.sock");
+        let listener = std::os::unix::net::UnixListener::bind(&socket).unwrap();
+        let app = std::thread::spawn(move || {
+            let (stream, _) = listener.accept().unwrap();
+            let mut line = String::new();
+            std::io::BufReader::new(&stream)
+                .read_line(&mut line)
+                .unwrap();
+            let mut stream = stream;
+            stream
+                .write_all(
+                    b"{\"result\":{\"note\":\"AI Juggler: 1 unread message from Planner.\"}}\n",
+                )
+                .unwrap();
+            line
+        });
+        let input = r#"{"session_id":"s","hook_event_name":"UserPromptSubmit","prompt":"secret plan","tool_input":{"command":"rm -rf x"}}"#;
+        let printed = super::connector_note("UserPromptSubmit", input.as_bytes(), &socket).unwrap();
+        let sent: crate::wire::Report = serde_json::from_str(app.join().unwrap().trim()).unwrap();
+        assert_eq!(sent.token, "", "the connector carries no key");
+        assert_eq!(sent.hook.tool_session.as_deref(), Some("s"));
+        assert_eq!((sent.hook.summary, sent.hook.tool), (None, None));
+        let value: serde_json::Value = serde_json::from_str(&printed).unwrap();
+        assert_eq!(
+            value["hookSpecificOutput"]["additionalContext"],
+            "AI Juggler: 1 unread message from Planner."
+        );
+    }
 
     #[test]
     fn only_the_reported_fields_are_kept() {

@@ -20,7 +20,7 @@ import { errorText } from "../lib/bridge";
 import { goingBackOptions, goingBackOpenReleases, goingBackPrepare, onUpdateStatus, updateCheck, updateInstall, updateRestart, updateSetChannel, updateSetCheckOnLaunch, updateStatus, type UpdateChannel } from "../lib/ipc/updates";
 import type { GoingBackInfo } from "../types/generated/GoingBackInfo";
 import type { UpdateStatusInfo } from "../types/generated/UpdateStatusInfo";
-import { Checkbox, Radio } from "./controls";
+import { Checkbox, Disclosure, Radio } from "./controls";
 
 /** D-20: the channels AI Juggler chooses between; each says what it
  * means for you. Nightly builds are their own app, AI Juggler Nightly
@@ -104,8 +104,9 @@ function GoingBack({ appName }: { appName: string }): JSX.Element | null {
     }
   };
   return (
-    <details className="text-label" data-testid="going-back">
-      <summary className="w-fit cursor-pointer text-ink underline">Go back to an earlier version</summary>
+    // The 0.4.6 rc2 walk (P9): the app's Disclosure, a button an
+    // accessibility press opens; a native <summary> wasn't one.
+    <Disclosure className="text-label" summary="Go back to an earlier version" testId="going-back">
       <div className="mt-2 flex flex-col gap-2">
         {options.map((option) =>
           chosen?.schema === option.schema ? (
@@ -185,7 +186,7 @@ function GoingBack({ appName }: { appName: string }): JSX.Element | null {
           ),
         )}
       </div>
-    </details>
+    </Disclosure>
   );
 }
 
@@ -344,10 +345,9 @@ export function UpdatesCard({ focus = false }: { focus?: boolean } = {}): JSX.El
                 </p>
                 <p>{status.error}</p>
                 {status.error_detail && (
-                  <details className="text-muted" data-testid="update-failed-details">
-                    <summary className="w-fit cursor-pointer text-ink underline">Details</summary>
+                  <Disclosure className="text-muted" summary="Details" testId="update-failed-details">
                     <p className="mt-1 break-all font-mono text-label">{status.error_detail}</p>
-                  </details>
+                  </Disclosure>
                 )}
               </div>
             )}

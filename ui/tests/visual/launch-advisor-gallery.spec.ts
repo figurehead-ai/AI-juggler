@@ -67,7 +67,7 @@ for (const theme of ["dark", "light"] as const) {
       await open(page, state.machine, "advice" in state, theme);
       // AJ-E3207: an OK Mac is said under More options; Tight and Not now
       // speak beside the choice, where they change the decision.
-      if (state.verdict === "ok") await page.getByTestId("new-session-more").locator("summary").click();
+      if (state.verdict === "ok") await page.getByTestId("new-session-more-toggle").click();
       const line = page.getByTestId("machine-advice");
       await expect(line).toHaveAttribute("data-verdict", state.verdict);
       await expect(line).toContainText(state.expect);

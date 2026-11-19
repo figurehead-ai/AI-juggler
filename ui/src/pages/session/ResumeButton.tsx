@@ -12,6 +12,8 @@ import { useEffect, useState, type JSX } from "react";
 
 import { Button } from "../../components/primitives";
 import { OpenOriginal } from "../../components/OpenOriginal";
+import { OpenInPlace } from "../../components/OpenInPlace";
+import { useLastPlace } from "../../lib/places";
 import { WhyButton } from "../../components/WhyTip";
 import { resumeRefusalWords } from "../../lib/resume-refusal";
 import { Hinted } from "../Hinted";
@@ -92,6 +94,10 @@ export function ResumeButton({
   const room = useTargetRoom(session.account_id ?? undefined);
   const out = room?.kind === "out" ? `${room.account ?? account?.label ?? "This account"} is ${outOfRoomWords(room.resetsAtMs).replace(/^Out/, "out")}` : null;
   const blocked = resumeBlocked({ session, account, out, openIn });
+  // 0.4.6 (the rc3c walk): AI Juggler's run of a conversation an app had
+  // open, ended: back in that app, as its own page offers (the run stands
+  // for the conversation, so that page isn't reached from here).
+  const lastPlace = useLastPlace(session.provider, session.conversation_id ?? "", session.conversation_id !== null && openIn === null);
   // It takes Stop's place: a press meant for Stop never resumes it.
   const settling = useJustStopped(session.id);
   // The RC walk (runtime lab step 4): "Open in terminal" had no way back.
@@ -136,6 +142,7 @@ export function ResumeButton({
         </WhyButton>
       </Hinted>
       <OpenOriginal refusal={session.resume_refusal} onOpen={onOpenOriginal} />
+      <OpenInPlace place={lastPlace} accountId={session.account_id} conversationId={session.conversation_id} size="sm" testId="header-open-in" />
       {back && session.conversation_id && blocked === null && (
         <Button size="sm" variant="secondary" disabled={busy} title={`The same conversation, here without a terminal: ${back.label}${back.beta ? " (Beta)" : ""}.`} onClick={() => void runHere()} data-testid="header-run-here">
           Run in AI Juggler

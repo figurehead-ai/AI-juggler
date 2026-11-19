@@ -9,6 +9,9 @@ pub enum ExitKind {
     Code(i32),
     /// Terminated by a signal; carries the signal number when known.
     Signaled(Option<i32>),
+    /// Ended out of sight: a root picked up again after a restart
+    /// (AJ-E510) isn't this process's child, so no exit status reaches it.
+    Unknown,
 }
 
 impl ExitKind {
@@ -25,6 +28,9 @@ impl ExitKind {
         match self {
             ExitKind::Code(code) => format!("code:{code}"),
             ExitKind::Signaled(signal) => format!("signal:{}", signal_words(signal)),
+            // As the recovery pass says of a root that ended while AI
+            // Juggler was down.
+            ExitKind::Unknown => "unknown".to_owned(),
         }
     }
 
@@ -41,6 +47,9 @@ impl ExitKind {
                 step = "exited",
                 signal = signal_words(signal),
             ),
+            ExitKind::Unknown => {
+                tracing::info!(target: "aij::flow", flow = "launch", step = "exited", how = "unknown");
+            }
         }
     }
 }

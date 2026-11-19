@@ -25,6 +25,7 @@ verify-static:
     just terminology
     python3 scripts/rust_tests.py --selftest
     python3 scripts/bundle_check.py --selftest
+    bash scripts/qa/lab_env.sh --selftest
     just tool-literals
     just platform
     just webview
@@ -46,6 +47,7 @@ verify-static:
     just polling-audit
     just release-selftest
     python3 scripts/capabilities.py check
+    python3 scripts/tool_versions.py --selftest
     LC_ALL=en_US.UTF-8 ./scripts/qa/runtime_lab_snapshot.sh selftest
     just qa-kit
     python3 scripts/ci_parity.py --selftest
@@ -128,6 +130,7 @@ release-selftest:
     python3 scripts/updater_sig_check.py --selftest
     python3 scripts/plugin_package.py --selftest
     python3 scripts/release_scope.py --selftest
+    python3 scripts/gate_watch.py --selftest
     python3 scripts/release_scope.py report 0.4 >/dev/null
     python3 scripts/signoff_record.py --selftest
 
@@ -157,6 +160,18 @@ load-gate:
 # product never waits on it, each user's fallback bounds a change's delay).
 fs-events-live:
     cargo test -p juggler-adapters --lib folder_wake -- --ignored --nocapture
+
+# AJ-E3013: the desktop-member host checks against this Mac's running
+# Claude app, read-only (they read processes, code signatures, the app's
+# fuse wire, and ask who holds one profile lock; they start, lock and
+# change nothing). Each release candidate runs them (docs/qa/0.4-walks/
+# release-candidate.md §2), so a Claude app update that breaks one is
+# caught before the release. Needs the Claude app running, with a
+# Code-tab session.
+desktop-host-checks:
+    cargo test -p juggler-platform --lib -- --ignored --exact code_sign::tests::the_installed_claude_app_and_its_claude_code_pass safe_fs::tests::the_running_claude_app_holds_its_instances_storage_lock
+    cargo test -p juggler-app --lib -- --ignored --exact features::agent_bridge::attest::tests::the_running_claude_apps_profiles_pass_the_instance_checks
+    cargo test -p juggler-adapters --lib -- --exact claude_peer::tests::the_installed_claude_apps_fuses_stay_off
 
 # AJ-E805: every sub-second timer or sleep in shipped code says why.
 polling-audit:
@@ -285,6 +300,16 @@ switch-lab-notes project claude_a claude_b codex out:
       AIJ_LAB_CLAUDE_A="{{claude_a}}" AIJ_LAB_CLAUDE_B="{{claude_b}}" \
       AIJ_LAB_CODEX="{{codex}}" AIJ_LAB_OUT="{{out}}" \
       cargo test -p juggler-app --test switch_lab_live -- --ignored --nocapture switch_lab_notes_live --exact
+
+# D-127 in the live lab: Claude → Claude, Copy and Move, every area checked
+# with no model call on B (only A spends, with file checkpoints on).
+switch-lab-c2c project claude_a claude_b out probe="aij-lab-probe":
+    cargo test -p juggler-app --test switch_lab_live --no-run
+    ./scripts/qa/lab_env.sh AIJ_LAB_SUITE=c2c AIJ_LAB_FILE_HISTORY=1 \
+      AIJ_LAB_DATA="$(mktemp -d)/data" AIJ_LAB_PROJECT="{{project}}" \
+      AIJ_LAB_CLAUDE_A="{{claude_a}}" AIJ_LAB_CLAUDE_B="{{claude_b}}" \
+      AIJ_LAB_OUT="{{out}}" AIJ_LAB_PROBE="{{probe}}" \
+      cargo test -p juggler-app --test switch_lab_live -- --ignored --nocapture switch_lab_c2c_live --exact
 
 # AJ-E1539 labs 12+ (0.1.8): switches from a session another app runs and the
 # old path, on one Claude profile and the Codex home (see switch_lab_live.rs).

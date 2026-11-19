@@ -48,11 +48,15 @@ export interface PoolTemplate {
   waits?: string;
 }
 
-/** What a role may do in the talk grid: an Observer only reads. */
-const observerReadsOnly: Partial<Record<PairKey, TalkRule>> = {
+/** What a role may do in the talk grid: an Observer only reads (the
+ * backend asks you for every message an Observer sends, whatever its
+ * pair says: `agent_access::decide`'s observer flag; AJ-E3011 blocks its
+ * sends by default, Start from scratch too). */
+export const observerReadsOnly: Partial<Record<PairKey, TalkRule>> = {
   "observer>lead": "blocked",
   "observer>member": "blocked",
   "observer>reviewer": "blocked",
+  "observer>observer": "blocked",
 };
 
 export const POOL_TEMPLATES: readonly PoolTemplate[] = [
@@ -61,9 +65,9 @@ export const POOL_TEMPLATES: readonly PoolTemplate[] = [
     name: "Writer and reviewer",
     description: "One session writes, another checks with fresh eyes.",
     chips: [
-      { label: "Lead", tone: "accent" },
-      { label: "Reviewer", tone: "live" },
-      { label: "talk: allowed", tone: "success" },
+      { label: "a Lead", tone: "accent" },
+      { label: "a Reviewer", tone: "live" },
+      { label: "everyone may message", tone: "success" },
     ],
     scope: "one",
     kinds: ["session"],
@@ -74,11 +78,11 @@ export const POOL_TEMPLATES: readonly PoolTemplate[] = [
   {
     id: "feature-team",
     name: "Feature team",
-    description: "A lead and 3 workers on one project, each in its own worktree.",
+    description: "A lead and 3 workers on one project, each working in its own copy of the code (a worktree).",
     chips: [
-      { label: "Lead", tone: "accent" },
+      { label: "a Lead", tone: "accent" },
       { label: "3 Members", tone: "plain" },
-      { label: "member↔member: ask first", tone: "warning" },
+      { label: "members ask before messaging each other", tone: "warning" },
     ],
     scope: "one",
     kinds: ["session"],
@@ -91,8 +95,8 @@ export const POOL_TEMPLATES: readonly PoolTemplate[] = [
     name: "Across repositories",
     description: "Agents in two or more projects keep each other up to date.",
     chips: [
-      { label: "2+ projects", tone: "plain" },
-      { label: "talk: allowed", tone: "success" },
+      { label: "2 or more projects", tone: "plain" },
+      { label: "everyone may message", tone: "success" },
     ],
     scope: "several",
     kinds: ["app", "session"],
@@ -106,8 +110,8 @@ export const POOL_TEMPLATES: readonly PoolTemplate[] = [
     description: "One reviewer on all your work, in every project.",
     chips: [
       { label: "every project", tone: "plain" },
-      { label: "Reviewer", tone: "live" },
-      { label: "member↔member: blocked", tone: "danger" },
+      { label: "a Reviewer", tone: "live" },
+      { label: "members don't message each other", tone: "danger" },
     ],
     scope: "every",
     kinds: ["session", "everyone"],
@@ -121,8 +125,8 @@ export const POOL_TEMPLATES: readonly PoolTemplate[] = [
     name: "Rules by account",
     description: "Every session on one account follows the same rules.",
     chips: [
-      { label: "account member", tone: "plain" },
-      { label: "level: Read", tone: "warning" },
+      { label: "a whole account", tone: "plain" },
+      { label: "look only", tone: "warning" },
     ],
     scope: "every",
     kinds: ["account"],
@@ -136,8 +140,8 @@ export const POOL_TEMPLATES: readonly PoolTemplate[] = [
     name: `Build ${MACHINE_WORD}`,
     description: `A paired ${MACHINE_WORD} runs builds and tests for this project.`,
     chips: [
-      { label: `${MACHINE_WORD} member`, tone: "plain" },
-      { label: `spans ${MACHINES_WORD}`, tone: "live" },
+      { label: `a paired ${MACHINE_WORD}`, tone: "plain" },
+      { label: `across ${MACHINES_WORD}`, tone: "live" },
     ],
     scope: "one",
     kinds: ["mac", "session"],
@@ -153,7 +157,7 @@ export const POOL_TEMPLATES: readonly PoolTemplate[] = [
     name: "Sealed client project",
     description: "Nothing goes in or out. Its sessions are in no other pool.",
     chips: [
-      { label: "sealed", tone: "danger" },
+      { label: "kept apart", tone: "danger" },
       { label: "one project", tone: "plain" },
     ],
     scope: "one",
@@ -169,9 +173,9 @@ export const POOL_TEMPLATES: readonly PoolTemplate[] = [
     name: "Scouts",
     description: "3–5 agents chase different ideas and challenge each other.",
     chips: [
-      { label: "Lead", tone: "accent" },
-      { label: "shared docs", tone: "plain" },
-      { label: "talk: allowed", tone: "success" },
+      { label: "a Lead", tone: "accent" },
+      { label: "shared notes", tone: "plain" },
+      { label: "everyone may message", tone: "success" },
     ],
     scope: "one",
     kinds: ["session"],
@@ -180,15 +184,18 @@ export const POOL_TEMPLATES: readonly PoolTemplate[] = [
     talk: observerReadsOnly,
   },
   {
+    // AJ-E3011: "Start from scratch" replaces Blank and the small "Set up
+    // by hand on the canvas" link; a name and its projects make a working
+    // pool (everyone in them joins as a Member), every step said in words.
     id: "blank",
-    name: "Blank",
-    description: "Start empty and set everything yourself.",
+    name: "Start from scratch",
+    description: "A name and its projects make a working pool. Each step says what it sets, and everything after is filled in for you.",
     chips: [],
     scope: "one",
-    kinds: ["session"],
+    kinds: ["app", "session"],
     roles: [],
     level: "work_together",
-    talk: {},
+    talk: observerReadsOnly,
   },
 ];
 
@@ -201,7 +208,17 @@ export function ruleOf(talk: Partial<Record<PairKey, TalkRule>>, from: PoolRole,
   return talk[pairKey(from, to)] ?? "allowed";
 }
 
-/** The next rule when a grid cell is clicked: allowed → ask → blocked. */
-export function nextRule(rule: TalkRule): TalkRule {
+/** What a pair's rule does, as the backend enforces it: an Observer's
+ * messages never go without you (D-28's observer flag makes each an ask),
+ * so its "Allowed" is in effect Ask first. */
+export function effectiveRule(from: PoolRole, rule: TalkRule): TalkRule {
+  return from === "observer" && rule === "allowed" ? "ask" : rule;
+}
+
+/** The next rule when a grid cell is clicked: allowed → ask → blocked;
+ * an Observer's pair only between ask first and blocked (it can't be
+ * allowed, see `effectiveRule`). */
+export function nextRule(rule: TalkRule, from?: PoolRole): TalkRule {
+  if (from === "observer") return effectiveRule(from, rule) === "ask" ? "blocked" : "ask";
   return rule === "allowed" ? "ask" : rule === "ask" ? "blocked" : "allowed";
 }

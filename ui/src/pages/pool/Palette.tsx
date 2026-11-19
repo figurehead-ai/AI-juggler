@@ -2,11 +2,18 @@
  * The canvas's palette: the open sessions this pool could take, to drag
  * onto the canvas (or add with the keyboard: Add puts it in the next free
  * place). While a member is dragged, it turns into the place to drop it
- * to take it out of the pool. Folds to a single line.
+ * to take it out of the pool.
+ *
+ * D-126 §3: closed, it's one button, "Add a member", at the canvas's top
+ * left (it was an always-open list beside the diagram); open, the same
+ * button heads the list and folds it again.
  */
 import { useState, type JSX, type PointerEvent, type ReactNode } from "react";
+import { usePendingAdds } from "../../lib/pool-pending";
+import { keep, keepInPlace, type Kept } from "../../lib/in-place";
 
 import { AppIcon } from "../../components/AppIcon";
+import { Button } from "../../components/primitives";
 import { AppKindBadge } from "../../components/AppKindBadge";
 import { appOfSession } from "../../lib/app-of";
 import { IconGrip } from "../../components/icons-places";
@@ -22,6 +29,7 @@ const SEARCH_FROM = 8;
 const SHOWN = 30;
 
 export function Palette({
+  poolId,
   sessions,
   projects,
   removing,
@@ -30,7 +38,13 @@ export function Palette({
   onStartDrag,
   onAdd,
   more,
+  quiet = false,
 }: {
+  /** The pool runs (D-126): no Add a member until it's asked for (Edit
+   * setup's Who's in opens it); dragging a member out still shows here. */
+  quiet?: boolean;
+  /** Its pool: a row being added shows so at once (round 4 #5). */
+  poolId: string;
   sessions: InstanceInfo[];
   /** D-62: every other candidate, by kind, with its reason. */
   more?: ReactNode;
@@ -43,16 +57,21 @@ export function Palette({
   onOpen: (open: boolean) => void;
   onStartDrag: (session: InstanceInfo, event: PointerEvent<HTMLElement>) => void;
   onAdd: (session: InstanceInfo) => void;
-}): JSX.Element {
+}): JSX.Element | null {
   const [words, setWords] = useState("");
+  const adding = new Set(usePendingAdds(poolId).map((one) => one.ref));
+  // Round 5: an added row stays where it was, marked added (no jump).
+  const [kept, setKept] = useState<ReadonlyMap<string, Kept<InstanceInfo>>>(new Map());
   const query = words.trim().toLowerCase();
   const projectOf = (session: InstanceInfo) => projects.find((project) => project.id === session.project_id)?.name ?? null;
   // D-96 D: alike names told apart, as the nodes are (the rc27 pool pass).
   const names = namesApart(sessions);
   const named = (session: InstanceInfo) => names.get(session.id) ?? nameOf(session);
-  const shown = sessions
-    .filter((session) => !query || `${named(session)} ${projectOf(session) ?? ""} ${session.account_label}`.toLowerCase().includes(query))
-    .slice(0, SHOWN);
+  const shown = keepInPlace(
+    sessions.filter((session) => !query || `${named(session)} ${projectOf(session) ?? ""} ${session.account_label}`.toLowerCase().includes(query)).slice(0, SHOWN),
+    kept,
+    (session) => session.id,
+  );
 
   if (removing) {
     return (
@@ -69,24 +88,41 @@ export function Palette({
       </div>
     );
   }
+  const toggle = () => {
+    setKept(new Map());
+    onOpen(!open);
+  };
+  if (!open && quiet) return null;
+  if (!open)
+    return (
+      <section data-canvas-palette aria-label="Add a member" className="pointer-events-auto w-fit" data-testid="canvas-palette">
+        <Button size="sm" variant="secondary" aria-expanded={false} onClick={toggle} className="shadow-card" data-testid="canvas-add-member">
+          <IconPlus width={14} height={14} aria-hidden="true" />
+          Add a member
+        </Button>
+      </section>
+    );
   return (
-    <section data-canvas-palette aria-label="Add a session" className="pointer-events-auto flex max-h-full w-60 flex-col rounded-xl border border-hairline bg-surface/95 shadow-card backdrop-blur" data-testid="canvas-palette">
+    <section data-canvas-palette aria-label="Add a member" className="pointer-events-auto flex max-h-full w-60 flex-col rounded-xl border border-hairline bg-surface/95 shadow-card backdrop-blur" data-testid="canvas-palette">
       <button
         type="button"
-        aria-expanded={open}
-        onClick={() => onOpen(!open)}
-        className="flex items-center gap-2 rounded-xl px-3 py-2 text-left text-meta font-semibold text-ink-2 outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60"
+        aria-expanded
+        onClick={toggle}
+        className="flex items-center gap-2 rounded-xl px-3 py-2 text-left text-meta font-semibold text-ink outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60"
+        data-testid="canvas-add-member"
       >
-        <span className="flex-1">Add a session</span>
-        <span className="font-mono normal-case tracking-normal">{sessions.length}</span>
+        <IconPlus width={14} height={14} aria-hidden="true" />
+        <span className="flex-1">Add a member</span>
+        <span className="font-mono text-muted" aria-label={`${sessions.length} open ${sessions.length === 1 ? "session" : "sessions"} can join`}>
+          {sessions.length}
+        </span>
         <svg aria-hidden="true" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
-          <path d={open ? "M6 15l6-6 6 6" : "M6 9l6 6 6-6"} />
+          <path d="M6 15l6-6 6 6" />
         </svg>
       </button>
       {/* One scroll area under the header (the P6 walk at 1024 × 700: the
           list and More squeezed over each other and ran under the zoom bar). */}
-      {open && (
-        <div className="flex min-h-0 flex-col overflow-y-auto overscroll-contain" data-canvas-scroll data-testid="canvas-palette-body">
+      <div className="flex min-h-0 flex-col overflow-y-auto overscroll-contain" data-canvas-scroll data-testid="canvas-palette-body">
           <div className="flex flex-col gap-1.5 px-2 pb-2">
           {sessions.length === 0 ? (
             <p className="px-1 pb-1 text-label text-muted" data-testid="canvas-palette-empty">
@@ -94,7 +130,7 @@ export function Palette({
             </p>
           ) : (
             <>
-              <p className="px-1 text-label text-muted">Drag one onto the canvas, or Add.</p>
+              <p className="px-1 text-label text-muted">Drag one onto the diagram, or Add.</p>
               {sessions.length > SEARCH_FROM && (
                 <input autoCorrect="off" autoCapitalize="off" spellCheck={false}
                   type="search"
@@ -106,11 +142,11 @@ export function Palette({
                 />
               )}
               <ul className="flex flex-col gap-1" data-testid="canvas-palette-list">
-                {shown.map((session) => (
+                {shown.map(({ row: session, added }, at) => (
                   <li
                     key={session.id}
                     onPointerDown={(event) => {
-                      if ((event.target as HTMLElement).closest("button")) return;
+                      if (added || (event.target as HTMLElement).closest("button")) return;
                       onStartDrag(session, event);
                     }}
                     className="group flex touch-none cursor-grab items-center gap-2 rounded-lg border border-dashed border-hairline bg-surface px-2 py-1.5 hover:border-accent/60 hover:bg-surface-2"
@@ -125,15 +161,28 @@ export function Palette({
                       <span className="truncate text-meta text-ink">{named(session)}</span>
                       <span className="truncate text-label text-faint">{[projectOf(session), session.account_label].filter(Boolean).join(" · ")}</span>
                     </span>
-                    <button
-                      type="button"
-                      onClick={() => onAdd(session)}
-                      aria-label={`Add ${named(session)} to this pool`}
-                      className="flex size-6 shrink-0 items-center justify-center rounded-md text-muted outline-none hover:bg-accent-soft hover:text-accent-hi focus-visible:ring-1 focus-visible:ring-accent/60"
-                      data-testid="canvas-palette-add"
-                    >
-                      <IconPlus width={14} height={14} />
-                    </button>
+                    {added ? (
+                      <output className="flex h-6 shrink-0 items-center text-label text-muted" data-testid="canvas-palette-added">
+                        Added
+                      </output>
+                    ) : adding.has(`session:${session.id}`) ? (
+                      <output className="flex h-6 shrink-0 items-center text-label text-muted" data-testid="canvas-palette-adding">
+                        Adding…
+                      </output>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setKept((was) => keep(was, session.id, session, at));
+                          onAdd(session);
+                        }}
+                        aria-label={`Add ${named(session)} to this pool`}
+                        className="flex size-6 shrink-0 items-center justify-center rounded-md text-muted outline-none hover:bg-accent-soft hover:text-accent-hi focus-visible:ring-1 focus-visible:ring-accent/60"
+                        data-testid="canvas-palette-add"
+                      >
+                        <IconPlus width={14} height={14} />
+                      </button>
+                    )}
                   </li>
                 ))}
               </ul>
@@ -141,8 +190,7 @@ export function Palette({
           )}
           </div>
           {more}
-        </div>
-      )}
+      </div>
     </section>
   );
 }

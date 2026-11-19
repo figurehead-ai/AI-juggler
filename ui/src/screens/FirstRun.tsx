@@ -61,7 +61,7 @@ import type { DiscoveredInfo } from "../types/generated/DiscoveredInfo";
 import type { OsAccessInfo } from "../types/generated/OsAccessInfo";
 import type { SourceInspectInfo } from "../types/generated/SourceInspectInfo";
 import { byteSize } from "../lib/compact";
-import { Radio } from "../components/controls";
+import { Disclosure, Radio } from "../components/controls";
 import { lazyNamed } from "../lib/lazy";
 import { SELECTED_CARD } from "../components/controls/selected";
 
@@ -953,10 +953,7 @@ function FolderStep({
               </span>
             )}
             {inspect.folders.length > 0 && (
-              <details className="text-xs text-muted">
-                <summary className="cursor-pointer outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60">
-                  What's in it
-                </summary>
+              <Disclosure className="text-xs text-muted" summary="What's in it">
                 <ul className="mt-2 flex flex-col gap-0.5" data-testid="source-breakdown">
                   {inspect.folders.slice(0, 5).map((entry) => (
                     <li key={entry.name} className="flex max-w-md items-center justify-between gap-4">
@@ -965,7 +962,7 @@ function FolderStep({
                     </li>
                   ))}
                 </ul>
-              </details>
+              </Disclosure>
             )}
           </>
         )}

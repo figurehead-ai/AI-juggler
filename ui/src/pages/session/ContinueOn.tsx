@@ -19,7 +19,7 @@ import { RoomChip } from "../../components/RoomChip";
 import { roomMarkFrom } from "../../lib/room-mark";
 import { useEffect, useMemo, useRef, useState, type JSX } from "react";
 import { useHandoverFocus } from "../../lib/handover-focus";
-import { CliAppMark, ProfileBadge } from "../../components/PlaceMarks";
+import { CliAppMark, PlaceMark, ProfileBadge } from "../../components/PlaceMarks";
 import { Button, Card } from "../../components/primitives";
 import { WhyButton } from "../../components/WhyTip";
 import { FidelityBadge, RoomLine, StartThereLink, SuggestedMark } from "../../components/SwitchTargetRows";
@@ -30,12 +30,14 @@ import { switchSetupCheck, type SetupCheckInfo } from "../../lib/ipc/switchSetup
 import { NOT_SIGNED_IN, rankTargets, roomless, signInWords, type RoomTarget, type TargetRoom } from "../../lib/room-targets";
 import { accountName, accountOfProfile, type SubscriptionInfo } from "../../lib/subscriptions";
 import { appWords, sessionAppName, type SessionModel } from "./model";
-import { cliAppId, cliAppName } from "../../lib/app-name";
+import { cliAppId } from "../../lib/app-name";
+import { targetApp, useTargetApp, type FolderTarget, type TargetApp } from "../../lib/apps";
+import type { RailPlace } from "../../lib/rail-items";
 import { CardTitle } from "./CardTitle";
 import { toolSpec } from "../../lib/tools";
 import { SaveHandover } from "../../components/HandoverView";
 import { ContinueDialog } from "../../components/ContinueDialog";
-import { AccountRoomLine, ContinueSummary } from "../../components/ContinueSummary";
+import { AccountRoomLine, ContinueFold } from "../../components/ContinueSummary";
 
 /** A target App (D-62: a tool on one of its folders), as the page shows
  * it. */
@@ -62,6 +64,8 @@ export type Target = {
   crossTool: boolean;
   /** Its tool (its App's icon), when known. */
   tool?: string | null;
+  /** A desktop App's mark, when it's one (`lib/apps`' `targetApp`). */
+  mark?: RailPlace | null;
   /** Its account's room, as Home's Runway reads it (`lib/room-targets`). */
   room: TargetRoom | null;
   /** The one with the most room (the one order by room, `lib/room`). */
@@ -112,25 +116,31 @@ export function byAccount(targets: Target[], accounts: SubscriptionInfo[], sourc
 /** The backend's rows as the page's targets: never its own profile, which
  * is where it is already. Ranked rows (`rankTargets`) keep their order,
  * room and suggestion. */
-export function targetsOf(rows: Array<SwitchTargetData | RoomTarget>, ownProfile: string): Target[] {
+export function targetsOf(rows: Array<SwitchTargetData | RoomTarget>, ownProfile: string, appOf: (target: FolderTarget) => TargetApp = (target) => targetApp(target, { stored: [], places: [], listed: false })): Target[] {
   return rows
     .filter((row) => row.account_id !== ownProfile)
-    .map((row) => ({
-      room: "room" in row ? row.room : null,
-      suggested: "room" in row ? row.suggested : false,
-      profileId: row.account_id,
-      label: row.account_label,
-      name: row.provider ? cliAppName(row.provider, row.account_label) : row.account_label,
-      recipeId: row.recipe_id,
-      blocked: row.filtered_reason,
-      setupNeeded: row.held_back === "set_up",
-      firstRun: row.first_run === true,
-      signedOut: row.signed_out === true,
-      desktop: row.desktop === true,
-      badge: row.badge ? { words: row.badge, validated: row.validated } : null,
-      crossTool: row.cross_provider,
-      tool: row.provider ?? null,
-    }));
+    .map((row) => {
+      // The App it's reached through (the 0.4.6 RC walk K3): a Claude app
+      // profile's folder is that profile's, its mark the app's own.
+      const app = appOf({ folder: row.account_id, tool: row.provider, label: row.account_label });
+      return {
+        room: "room" in row ? row.room : null,
+        suggested: "room" in row ? row.suggested : false,
+        profileId: row.account_id,
+        label: row.account_label,
+        name: app.name,
+        mark: app.mark,
+        recipeId: row.recipe_id,
+        blocked: row.filtered_reason,
+        setupNeeded: row.held_back === "set_up",
+        firstRun: row.first_run === true,
+        signedOut: row.signed_out === true,
+        desktop: row.desktop === true,
+        badge: row.badge ? { words: row.badge, validated: row.validated } : null,
+        crossTool: row.cross_provider,
+        tool: row.provider ?? null,
+      };
+    });
 }
 
 export function ContinueOn({
@@ -192,9 +202,11 @@ export function ContinueOn({
   }, [source, turn, dialog, searching]);
   // The one order by room, with Home's "Best for new work" as Suggested
   // (the 0.2 walk, F1).
+  // Each named by the App it's reached through (the 0.4.6 RC walk K3).
+  const appOf = useTargetApp();
   const targets = useMemo(
-    () => targetsOf(rankTargets(rows ?? [], accounts, displays, model.profileId), model.profileId),
-    [rows, accounts, displays, model.profileId],
+    () => targetsOf(rankTargets(rows ?? [], accounts, displays, model.profileId), model.profileId, appOf),
+    [rows, accounts, displays, model.profileId, appOf],
   );
   const { others, sameAccount } = byAccount(targets, accounts, model.profileId);
   // The one-line checks, for the first few profiles offered.
@@ -263,7 +275,13 @@ export function ContinueOn({
                       data-cross-tool={target.crossTool ? "true" : undefined}
                       data-suggested={target.suggested ? "true" : undefined}
                     >
-                      {target.tool ? <CliAppMark tool={target.tool} folderId={target.profileId} folder={target.label} size={16} ring="var(--color-surface-2)" /> : <ProfileBadge app={cliAppId(target.profileId)} name={target.label} />}
+                      {target.mark ? (
+                        <PlaceMark place={target.mark} size={16} ring="var(--color-surface-2)" />
+                      ) : target.tool ? (
+                        <CliAppMark tool={target.tool} folderId={target.profileId} folder={target.label} size={16} ring="var(--color-surface-2)" />
+                      ) : (
+                        <ProfileBadge app={cliAppId(target.profileId)} name={target.label} />
+                      )}
                       <span className="truncate">{target.name ?? target.label}</span>
                       {target.suggested && <SuggestedMark className="ml-auto" />}
                     </Button>
@@ -318,10 +336,9 @@ export function ContinueOn({
   return (
     <Card className="flex flex-col gap-3 p-5" data-testid="continue-on">
       {quiet ? (
-        <details open={chosen} onToggle={(event) => setChosen(event.currentTarget.open)} className="group" data-testid="continue-fold">
-          <ContinueSummary />
+        <ContinueFold open={chosen} onToggle={setChosen} testId="continue-fold">
           {chosen && <div className="mt-3 flex flex-col gap-3">{shown}</div>}
-        </details>
+        </ContinueFold>
       ) : (
         <>
           <CardTitle>Continue in another app</CardTitle>

@@ -33,7 +33,7 @@ export function ProjectAgentsCard({ projectId }: { projectId: string }): JSX.Ele
     host.openPool!(pool.id);
   };
   return (
-    <Section title="Agents" icon={<IconLayers />} sub={`its own pool · agents may: ${levelLabel(pool.access.level)}`} testId="project-agents">
+    <Section title="Agents" icon={<IconLayers />} sub={`its own pool · on their own: ${levelLabel(pool.access.level)}`} testId="project-agents">
       <ul className="flex flex-col gap-1.5">
         {LINKS.map((link) => (
           <li key={link.tab}>

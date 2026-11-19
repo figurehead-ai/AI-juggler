@@ -39,10 +39,13 @@ const OTHER_WAYS: &[&str] = &[
 /// keychain guard, which compares raw `HOME` with the user record (an
 /// unset HOME keeps the keychain off); the bridge's lab check, which
 /// refuses a lab that is the user record's home; the user's display name
-/// (the record's full name, never its home); and the data folder,
+/// (the record's full name, never its home); the agent bridge's debug-only
+/// lab probe (AJ-E3013 C2: the lab's own `HOME`, in a binary that keeps
+/// to serde and links no platform crate); and the data folder,
 /// `dirs::data_dir` (on macOS `$HOME/Library/Application Support`).
 const ALLOWED: &[(&str, &str)] = &[
     ("juggler-platform/src/user.rs", "*"),
+    ("juggler-agentbridge/src/main.rs", "var_os(\"HOME\")"),
     ("juggler-platform/src/keychain.rs", "var_os(\"HOME\")"),
     ("juggler-platform/src/keychain.rs", "record_home("),
     ("juggler-app/src/dev_bridge/lab.rs", "record_home("),

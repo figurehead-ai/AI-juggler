@@ -33,13 +33,21 @@
 //! Mach's own timebase (`mach_timebase_info`: 125/3 nanoseconds a tick on
 //! Apple silicon, 1/1 on Intel), read once.
 //!
-//! THE AUDIT: five `unsafe` blocks, each with its SAFETY note: the
+//! [`pid_version`] (AJ-E3013, L4) reads one process's pid version
+//! (`proc_pidinfo(PROC_PIDUNIQIDENTIFIERINFO)`'s `p_idversion`): the
+//! number the kernel bumps each time a pid is reused, which a local
+//! socket's audit token (`LOCAL_PEERTOKEN`) carries, so the bridge can tell
+//! the process that connected from one that took its pid since.
+//!
+//! THE AUDIT: seven `unsafe` blocks, each with its SAFETY note: the
 //! `sysctl` asking how many bytes the records take (a null buffer: nothing
 //! written), and the `sysctl` writing them into a byte buffer whose size
 //! the kernel is told; zeroing one `proc_taskinfo`, and `proc_pidinfo`
-//! writing into it at its size; `mach_timebase_info` writing its two
-//! integers into a live record, once per run. Reading the fields is safe
-//! code.
+//! writing into it at its size; zeroing one `proc_uniqidentifierinfo`, and
+//! `proc_pidinfo` writing into it at its size (AJ-E3013 L4, under D-110's
+//! rules: the coordinating session's ruling, 2026-11-15);
+//! `mach_timebase_info` writing its two integers into a live record, once
+//! per run. Reading the fields is safe code.
 //!
 //! Nothing here reads a process's arguments, environment, files or the
 //! contents of its memory.
@@ -54,7 +62,10 @@
 #![deny(missing_docs, unsafe_op_in_unsafe_fn)]
 #![cfg_attr(
     target_os = "macos",
-    allow(unsafe_code, reason = "D-110: the five audited blocks")
+    allow(
+        unsafe_code,
+        reason = "D-110: the seven audited blocks (AJ-E3013 L4 added two)"
+    )
 )]
 
 /// One process, as the kernel lists it.
@@ -107,6 +118,23 @@ pub fn task(pid: u32) -> Option<Task> {
     #[cfg(target_os = "macos")]
     {
         macos::task(pid)
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        let _ = pid;
+        None
+    }
+}
+
+/// AJ-E3013 (L4): `pid`'s pid version (`p_idversion`): changes when the pid
+/// is reused, and equals a local socket peer's audit-token pid version
+/// while that peer is the process at `pid`. `None` when it's gone, isn't
+/// this user's to read, and on other systems.
+#[must_use]
+pub fn pid_version(pid: u32) -> Option<u32> {
+    #[cfg(target_os = "macos")]
+    {
+        macos::pid_version(pid)
     }
     #[cfg(not(target_os = "macos"))]
     {
@@ -266,6 +294,49 @@ mod macos {
         })
     }
 
+    /// `proc_uniqidentifierinfo` (`sys/proc_info.h`), which libc doesn't
+    /// declare: the executable's UUID, the process's and its parent's
+    /// unique ids, the pid version, and reserved words.
+    #[repr(C)]
+    struct UniqIdentifierInfo {
+        p_uuid: [u8; 16],
+        p_uniqueid: u64,
+        p_puniqueid: u64,
+        p_idversion: i32,
+        p_reserve2: u32,
+        p_reserve3: u64,
+        p_reserve4: u64,
+    }
+
+    /// `PROC_PIDUNIQIDENTIFIERINFO` (`sys/proc_info.h`).
+    const PROC_PIDUNIQIDENTIFIERINFO: libc::c_int = 17;
+
+    pub(super) fn pid_version(pid: u32) -> Option<u32> {
+        let pid = libc::c_int::try_from(pid).ok()?;
+        // SAFETY: an all-zero `UniqIdentifierInfo` is a valid value (plain
+        // integers and bytes).
+        let mut info: UniqIdentifierInfo = unsafe { std::mem::zeroed() };
+        let size = libc::c_int::try_from(std::mem::size_of::<UniqIdentifierInfo>()).ok()?;
+        // SAFETY: `info` is a live `UniqIdentifierInfo` laid out as the
+        // kernel's `proc_uniqidentifierinfo`, and the kernel is told its
+        // size, so it writes at most that much; it returns how many bytes it
+        // wrote (anything else: nothing usable). Nothing is kept past the
+        // call.
+        let wrote = unsafe {
+            libc::proc_pidinfo(
+                pid,
+                PROC_PIDUNIQIDENTIFIERINFO,
+                0,
+                (&raw mut info).cast(),
+                size,
+            )
+        };
+        if wrote != size {
+            return None;
+        }
+        u32::try_from(info.p_idversion).ok()
+    }
+
     /// Mach time's nanoseconds a tick, as `(numer, denom)`
     /// (`mach_timebase_info`), read once; `None` when the kernel doesn't
     /// say (then no CPU time is read).
@@ -306,6 +377,14 @@ mod macos {
 #[cfg(test)]
 mod tests {
     #![allow(clippy::unwrap_used, clippy::expect_used, reason = "test code")]
+
+    /// AJ-E3013 (L4): a live process has a pid version; a gone pid none.
+    #[test]
+    #[cfg(target_os = "macos")]
+    fn a_live_process_has_a_pid_version() {
+        assert!(super::pid_version(std::process::id()).is_some());
+        assert_eq!(super::pid_version(u32::MAX), None);
+    }
 
     /// This process is listed with its parent, its start time and its
     /// name, as `ps` says them.

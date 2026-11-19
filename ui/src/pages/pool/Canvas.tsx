@@ -25,14 +25,17 @@ import type { PoolInfo } from "../../lib/ipc/pools";
 import { CanvasEdges, type LineRules } from "./CanvasEdges";
 import { CanvasToolbar } from "./CanvasToolbar";
 import { CanvasNode } from "./CanvasNode";
+import type { Paused } from "./NodeParts";
 import { NodeMenu } from "./NodeMenu";
 import { Palette } from "./Palette";
 import { cannotRemove, nameOf, removeFromPool } from "./actions";
 import { fitView, neighbour, NODE_H, NODE_W, toCanvas, zoomAt, type Point, type View } from "./layout";
 import type { CanvasData, MemberNode } from "./useCanvas";
 import { useCanvasView } from "./canvas-view";
+import { useReducedMotion } from "../../lib/reduced-motion";
 
-export type Selection = { kind: "none" } | { kind: "pool" } | { kind: "node"; id: string } | { kind: "edge"; key: string } | { kind: "rule"; ref: string };
+/** `pool`'s `focus`: the setup step it opens on (AJ-E3011). */
+export type Selection = { kind: "none" } | { kind: "pool"; focus?: string } | { kind: "node"; id: string } | { kind: "edge"; key: string } | { kind: "rule"; ref: string };
 
 type Drag =
   | { kind: "node"; id: string; start: Point; origin: Point; moved: boolean }
@@ -44,18 +47,6 @@ type Drag =
 const NUDGE = 8;
 /** The zoom bar's height and its gap at the canvas's foot. */
 const TOOLBAR_H = 52;
-
-function useReducedMotion(): boolean {
-  const query = typeof window !== "undefined" && window.matchMedia ? window.matchMedia("(prefers-reduced-motion: reduce)") : null;
-  const [reduced, setReduced] = useState(query?.matches ?? false);
-  useEffect(() => {
-    if (!query) return;
-    const change = () => setReduced(query.matches);
-    query.addEventListener?.("change", change);
-    return () => query.removeEventListener?.("change", change);
-  }, [query]);
-  return reduced;
-}
 
 const inside = (box: DOMRect | undefined, at: Point) => !!box && at.x >= box.left && at.x <= box.right && at.y >= box.top && at.y <= box.bottom;
 
@@ -70,21 +61,24 @@ export function Canvas({
   empty,
   overlay,
   overlayRoom = 0, lineRules,
-  paletteMore,
+  paletteMore, paletteQuiet = false,
+  paletteRequest = 0,
 }: {
   pool: PoolInfo;
   data: CanvasData;
   /** What the empty canvas shows (it teaches the first steps). */
   empty?: (paletteOpen: boolean, openPalette: () => void) => ReactNode;
   /** Drawn over the canvas (the rules' group nodes), told where each
-   * member's node is on screen now. */
-  overlay?: (placeOf: (id: string) => { x: number; y: number; w: number; h: number } | null) => ReactNode;
+   * member's node is on screen now, and the view (the planned team). */
+  overlay?: (placeOf: (id: string) => { x: number; y: number; w: number; h: number } | null, view: View) => ReactNode;
   /** The room the overlay's column takes at the right: the fit keeps
    * members' nodes out from under it (the L3 canvas walk: an App's card
    * lay over the lead and took its clicks). */
   overlayRoom?: number; lineRules?: LineRules;
   /** The palette's other candidates (D-62). */
-  paletteMore?: ReactNode;
+  paletteMore?: ReactNode; /** D-126: running, no Add a member (Edit setup brings it back). */ paletteQuiet?: boolean;
+  /** AJ-E3011: bumped to open the palette (the checklist's Who's in). */
+  paletteRequest?: number;
   candidates: InstanceInfo[];
   projects: ProjectInfo[];
   selection: Selection;
@@ -101,11 +95,12 @@ export function Canvas({
   const [overPalette, setOverPalette] = useState(false);
   const [menu, setMenu] = useState<{ id: string; at: Point } | null>(null);
   const [tabStop, setTabStop] = useState<string | null>(null);
-  // The palette starts open where there's room for it beside the nodes,
-  // or when the pool is empty (it's how one starts).
+  // D-126 §3: the palette starts closed, as its "Add a member" button
+  // (the checklist's own Add a member opens it too).
   const [paletteOpen, setPaletteOpen] = useState<boolean | null>(null);
   const justDragged = useRef(false);
   const reducedMotion = useReducedMotion();
+  useEffect(() => void (paletteRequest > 0 && openAndFocus(setPaletteOpen, palette)()), [paletteRequest]);
 
   useLayoutEffect(() => {
     const element = viewport.current;
@@ -117,15 +112,15 @@ export function Canvas({
     return () => observer?.disconnect();
   }, []);
   useEffect(() => {
-    if (paletteOpen === null && size.w > 0 && canvas && !data.list.loading) setPaletteOpen(size.w >= 900 || members.length === 0);
-  }, [paletteOpen, size.w, canvas, members.length, data.list.loading]);
-  // The palette sits over the top left: fit what's beside it (or below
-  // its folded line).
+    if (paletteOpen === null && size.w > 0 && canvas && !data.list.loading) setPaletteOpen(false);
+  }, [paletteOpen, size.w, canvas, data.list.loading]);
+  // The palette sits over the top left: fit what's beside it (or below its folded line).
   const { view, latest, setView, fit, forget, hold } = useCanvasView(
     pool.id,
-    () => fitView(points.values(), size.w, size.h, 48, paletteOpen ? 260 : 0, paletteOpen ? 0 : 44, TOOLBAR_H, overlayRoom),
+    // Running (quiet), the folded palette isn't drawn: no room kept for it (the rc3 critique's 53 % fit).
+    () => fitView(points.values(), size.w, size.h, 48, paletteOpen ? 260 : 0, paletteOpen || paletteQuiet ? 0 : 44, TOOLBAR_H, overlayRoom),
     size.w > 0 && members.length > 0 && !!canvas && paletteOpen !== null,
-    [size.w, size.h, members.length, paletteOpen, overlayRoom, [...points].map(([id, at]) => `${id}:${at.x},${at.y}`).join(" ")],
+    [size.w, size.h, members.length, paletteOpen, paletteQuiet, overlayRoom, [...points].map(([id, at]) => `${id}:${at.x},${at.y}`).join(" ")],
   );
   const placeHeld = (rows: Parameters<typeof place>[0]) => (hold(), place(rows));
   const shown = view ?? { x: size.w / 2 - NODE_W / 2, y: 48, scale: 1 };
@@ -155,7 +150,7 @@ export function Canvas({
     return next;
   }, [points, drag, dragAt]);
 
-  const remove = useCallback((member: MemberNode) => void removeFromPool(pool, member, points.get(member.id), place), [pool, points, place]);
+  const remove = useCallback((member: MemberNode) => removeFromPool(pool, member), [pool]);
 
   // One drag at a time, followed on the window (it may leave the canvas).
   useEffect(() => {
@@ -276,14 +271,14 @@ export function Canvas({
     for (const ask of canvas?.asks ?? []) if (ask.session_id) out.set(ask.session_id, [...(out.get(ask.session_id) ?? []), ask]);
     return out;
   }, [canvas]);
-  const heldFor = useMemo(() => {
-    const out = new Map<string, number>();
+  // A line paused at the hop limit waits on the node it was going to (one mark, there).
+  const pausedFor = useMemo(() => {
+    const out = new Map<string, Paused[]>();
     for (const edge of canvas?.edges ?? []) {
-      const held = edge.pending.filter((p) => p.kind === "hop_limit").length;
-      if (held > 0) out.set(edge.to_session_id, (out.get(edge.to_session_id) ?? 0) + held);
+      if (edge.pending.some((p) => p.kind === "hop_limit")) out.set(edge.to_session_id, [...(out.get(edge.to_session_id) ?? []), { edge, from: names.get(edge.from_session_id) ?? "A member" }]);
     }
     return out;
-  }, [canvas]);
+  }, [canvas, names]);
   const firstStop = tabStop && byId.has(tabStop) ? tabStop : selection.kind === "node" && byId.has(selection.id) ? selection.id : (members[0]?.id ?? null);
   const dragged = drag?.kind === "node" && drag.moved ? byId.get(drag.id) : undefined;
   const menuMember = menu ? byId.get(menu.id) : undefined;
@@ -292,7 +287,7 @@ export function Canvas({
     <div
       ref={viewport}
       role="region"
-      aria-label={`${pool.name}: canvas`}
+      aria-label={`${pool.name}: diagram`}
       aria-describedby="canvas-help"
       onKeyDown={onCanvasKey}
       onPointerDown={(event) => {
@@ -317,7 +312,7 @@ export function Canvas({
           pulses={pulses}
           reducedMotion={reducedMotion}
           scale={shown.scale}
-          hops={pool.access.hop_limit} lineRules={lineRules}
+          hops={pool.access.hop_limit} lineRules={lineRules} lead={members.find((member) => member.role === "lead")?.id ?? null}
           onSelect={(key) => onSelect({ kind: "edge", key })}
         />
         {members.map((member) => {
@@ -328,7 +323,8 @@ export function Canvas({
               member={member}
               at={at}
               asks={asksFor.get(member.id) ?? []}
-              held={heldFor.get(member.id) ?? 0}
+              paused={pausedFor.get(member.id) ?? []}
+              hops={pool.access.hop_limit}
               selected={selection.kind === "node" && selection.id === member.id}
               tabStop={firstStop === member.id}
               dragging={drag?.kind === "node" && drag.id === member.id && drag.moved}
@@ -345,13 +341,13 @@ export function Canvas({
       {overlay?.((id) => {
         const at = drawn.get(id);
         return at ? { x: shown.x + at.x * shown.scale, y: shown.y + at.y * shown.scale, w: NODE_W * shown.scale, h: NODE_H * shown.scale } : null;
-      })}
+      }, shown)}
       {members.length === 0 && canvas && empty && empty(paletteOpen ?? false, openAndFocus(setPaletteOpen, palette))}
       {members.length === 0 && canvas && !empty && (
         <div className={"pointer-events-none absolute inset-0 flex items-center justify-center p-8" + (paletteOpen ? " pl-[17rem]" : "")} data-testid="canvas-empty">
           <div className="flex max-w-sm flex-col items-center gap-2 rounded-2xl border-2 border-dashed border-hairline bg-surface/80 px-6 py-8 text-center">
             <span className="text-section text-ink">No one in this pool yet</span>
-            <span className="text-body text-muted">Drag a session from the left onto the canvas, or press Add beside it.</span>
+            <span className="text-body text-muted">Drag a session from the left onto the diagram, or press Add beside it.</span>
           </div>
         </div>
       )}
@@ -359,6 +355,7 @@ export function Canvas({
       <div className="pointer-events-none absolute bottom-16 left-3 top-3 flex flex-col">
         <div ref={palette} className="flex min-h-0 flex-col">
         <Palette
+          poolId={pool.id}
           sessions={candidates}
           projects={projects}
           removing={dragged ? { over: overPalette, why: cannotRemove(pool) } : null}
@@ -369,7 +366,7 @@ export function Canvas({
             setDrag({ kind: "session", session, start: { x: event.clientX, y: event.clientY }, moved: false });
           }}
           onAdd={(session) => onAdd(session, null)}
-          more={paletteMore}
+          more={paletteMore} quiet={paletteQuiet}
         />
         </div>
       </div>

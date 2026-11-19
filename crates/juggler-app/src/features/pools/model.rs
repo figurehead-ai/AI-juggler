@@ -218,7 +218,12 @@ pub fn join_impl(
     storage
         .pools()
         .join(&pool.id, &member, &replaces, role, level.as_ref())?;
-    membership_changed(state, "joined", &pool.id, &member);
+    if role == PoolRole::Lead {
+        // AJ-E3011: a Lead picked by hand ends the wait for a next one.
+        super::lead_next::picked(&storage, &pool.id)?;
+    }
+    // With the role it joined as (the 0.4.6 RC walk X2 read "role=-").
+    membership_step(state, "joined", &pool.id, &member, Some(role));
     pools_info(&storage)
 }
 
@@ -234,7 +239,7 @@ fn join_checked(
     let storage = lock_storage_arc(state)?;
     let member = member_from(&storage, member)?;
     storage.pools().join(&pool.id, &member, &[], role, level)?;
-    membership_changed(state, "joined", &pool.id, &member);
+    membership_step(state, "joined", &pool.id, &member, Some(role));
     pools_info(&storage)
 }
 
@@ -263,6 +268,7 @@ pub fn leave_impl(state: &Arc<AppState>, pool_id: &str, member: &str) -> AppResu
         .map(|row| row.member)
         .collect();
     storage.pools().leave(&pool.id, &rows)?;
+    super::lead_next::left(&storage, &pool.id, &member)?;
     membership_changed(state, "left", &pool.id, &member);
     pools_info(&storage)
 }
@@ -461,12 +467,8 @@ pub fn edge_talk_impl(
     use juggler_core::pools::talk::PoolTalk;
     let storage = lock_storage_arc(state)?;
     live_pool(&storage, pool_id)?;
-    let gone = || AppError::Refused("That session isn't in this pool any more".to_owned());
-    let (from_session, to_session) = (SessionId::new(from), SessionId::new(to));
-    let from_role = members::role_in(&storage, &from_session, pool_id)?.ok_or_else(gone)?;
-    let to_role = members::role_in(&storage, &to_session, pool_id)?.ok_or_else(gone)?;
-    let (from_ref, _) = super::member_of(&storage, &from_session)?;
-    let (to_ref, _) = super::member_of(&storage, &to_session)?;
+    let (from_ref, from_role) = line_end(&storage, pool_id, from)?;
+    let (to_ref, to_role) = line_end(&storage, pool_id, to)?;
     let rows = storage.pools().talk()?;
     let talk = PoolTalk::new(
         rows.iter()
@@ -484,6 +486,49 @@ pub fn edge_talk_impl(
     })
 }
 
+/// One end of a line: its member ref and its role in the pool. A session
+/// by its id stands for its Work item, as its member rows do; a desktop
+/// session (round 7 #7) by its own `conversation:` ref: its row's role
+/// when it's named on its own, else the role of the member that brings
+/// it in while one of its calls is attested.
+fn line_end(storage: &Storage, pool_id: &str, end: &str) -> AppResult<(MemberRef, PoolRole)> {
+    let gone = || AppError::Refused("That session isn't in this pool any more".to_owned());
+    if let Some(member @ MemberRef::Conversation { .. }) = MemberRef::parse(end) {
+        if let Some(row) = storage
+            .pools()
+            .members()?
+            .into_iter()
+            .find(|row| row.pool_id == pool_id && row.member == member)
+        {
+            return Ok((member, row.role));
+        }
+        let memberships = members::memberships(storage)?;
+        let role = storage
+            .attested()
+            .fresh()
+            .iter()
+            .filter(|facts| {
+                facts.conversation.as_ref().is_some_and(|(folder, id)| {
+                    MemberRef::Conversation {
+                        folder: folder.clone(),
+                        id: id.clone(),
+                    } == member
+                })
+            })
+            .find_map(|facts| {
+                memberships
+                    .resolve(facts)
+                    .in_pool(pool_id)
+                    .map(|place| place.role)
+            })
+            .ok_or_else(gone)?;
+        return Ok((member, role));
+    }
+    let session = SessionId::new(end);
+    let role = members::role_in(storage, &session, pool_id)?.ok_or_else(gone)?;
+    Ok((super::member_of(storage, &session)?.0, role))
+}
+
 /// The most sessions a rule names for its lines (the canvas draws 60).
 const CANVAS_IDS: usize = 60;
 
@@ -499,12 +544,21 @@ pub fn rules_of(storage: &Storage, pool_id: &str) -> AppResult<PoolRulesInfo> {
     let memberships = members::memberships(storage)?;
     let mut brought: std::collections::HashMap<String, u32> = std::collections::HashMap::new();
     let mut ids: std::collections::HashMap<String, Vec<String>> = std::collections::HashMap::new();
-    let open: std::collections::HashSet<SessionId> = storage
+    let mut open: std::collections::HashSet<SessionId> = storage
         .sessions()
         .live()?
         .into_iter()
         .map(|record| record.id)
         .collect();
+    // AJ-E3013: a desktop session is open while one of its calls is
+    // attested (its App's node counts it).
+    open.extend(
+        storage
+            .attested()
+            .fresh()
+            .into_iter()
+            .map(|facts| facts.session),
+    );
     let archived = members::archived(storage)?;
     for facts in storage.sessions().pool_facts()? {
         if !open.contains(&facts.session) || archived.contains(facts.session.as_str()) {
@@ -563,6 +617,7 @@ pub fn rules_of(storage: &Storage, pool_id: &str) -> AppResult<PoolRulesInfo> {
         pool_id: pool_id.to_owned(),
         members: rows,
         talk,
+        lead_next: storage.pools().lead_next(pool_id)?,
     })
 }
 

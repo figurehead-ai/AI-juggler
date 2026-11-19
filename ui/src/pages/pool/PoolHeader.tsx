@@ -4,15 +4,21 @@
  * the canvas or the list, Tasks and Messages over the canvas, and what
  * agents may do, changed right here.
  */
-import { useEffect, useRef, useState, type JSX, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type JSX, type ReactNode } from "react";
 
 import { IconPool } from "../../components/icons-actions";
 import { IconMessage, IconTasks } from "../../components/icons-canvas";
 import { errorText } from "../../lib/bridge";
 import { poolRename, poolSetAccess, type PoolInfo } from "../../lib/ipc/pools";
-import { LEVELS, setPools } from "../../lib/pools";
-import { Picker, Segmented } from "../../components/controls";
+import { setPools } from "../../lib/pools";
+import { asOwnLevel } from "../../lib/pool-words";
+import { OwnLevelChoice } from "./setup/OwnLevelChoice";
+import { HeaderCustom } from "./HeaderCustom";
+import { Segmented } from "../../components/controls";
 import { Chip } from "../../components/primitives";
+import { StatePill } from "../../components/Pill";
+import { IconProjects } from "../../components/icons";
+import { SETUP } from "./setup-words";
 import { CrumbButton } from "../PageHeader";
 import { SELECTED } from "../../components/controls/selected";
 
@@ -111,10 +117,11 @@ function ScopeChip({ words, onOpen }: { words: string; onOpen: () => void }): JS
       type="button"
       onClick={onOpen}
       title="Change where it works"
-      className="flex h-6 shrink-0 items-center gap-1 rounded-md border border-hairline px-1.5 text-label text-ink-2 outline-none hover:bg-surface-2 hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60"
+      className="flex h-[22px] shrink-0 items-center gap-1 rounded-md bg-surface-3 px-2 text-label font-medium text-ink-2 outline-none hover:text-ink focus-visible:ring-2 focus-visible:ring-accent/60"
       data-testid="pool-header-scope"
     >
-      <span className="text-muted">Scope</span>
+      <IconProjects aria-hidden="true" width={12} height={12} />
+      <span className="sr-only">Scope</span>
       <span className="max-w-48 truncate">{words}</span>
     </button>
   );
@@ -128,7 +135,10 @@ export function PoolHeader({
   panel,
   onMode,
   onPanel,
+  setup = null,
 }: {
+  /** D-126 §3: while it's being set up, how far ("Setting up · 5 of 7"). */
+  setup?: { done: number; total: number; joined: boolean } | null;
   pool: PoolInfo;
   facts: ReactNode;
   /** A pool you made: where it works, in words, and its scope sheet. */
@@ -139,9 +149,12 @@ export function PoolHeader({
   onPanel: (panel: Panel) => void;
 }): JSX.Element {
   const [error, setError] = useState<string | null>(null);
+  const [custom, setCustom] = useState(false);
+  const closeCustom = useCallback(() => setCustom(false), []);
   return (
     <header className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-hairline px-4 py-2.5" data-testid="pool-header">
-      <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-accent-soft text-accent-hi" aria-hidden="true">
+      {/* The accent while it's being set up; calm once it runs (D-126). */}
+      <span className={"flex size-8 shrink-0 items-center justify-center rounded-lg " + (setup ? "bg-accent-soft text-accent-hi" : "bg-surface-3 text-ink-2")} aria-hidden="true">
         <IconPool width={18} height={18} />
       </span>
       {/* The name never gives way to the controls: they wrap to a row of
@@ -164,6 +177,11 @@ export function PoolHeader({
           <Name pool={pool} />
           {pool.kind === "default" && <span className="shrink-0 rounded-md border border-hairline px-1.5 text-label text-muted">Project pool</span>}
           {scope && <ScopeChip words={scope.words} onOpen={scope.onOpen} />}
+          {setup && (
+            <StatePill variant="progress" testId="pool-header-setup">
+              {SETUP.pill(setup.done, setup.total, setup.joined)}
+            </StatePill>
+          )}
           {pool.sealed && (
             <span title="Kept apart: its sessions are in no other pool" data-testid="pool-header-sealed" className="shrink-0">
               <Chip tone="danger">sealed</Chip>
@@ -179,7 +197,7 @@ export function PoolHeader({
           label="Show the pool as"
           value={mode}
           segments={[
-            { value: "canvas", label: "Canvas", title: "Its members as nodes, who talks to whom as edges" },
+            { value: "canvas", label: "Diagram", title: "Who is in the pool, and who messages whom, as a diagram" },
             { value: "list", label: "List", title: "The same as rows, for the keyboard and screen readers" },
           ]}
           onChange={onMode}
@@ -193,16 +211,29 @@ export function PoolHeader({
           Messages
         </Toggle>
         <span className="mx-1 h-5 w-px bg-hairline" aria-hidden="true" />
-        <Picker choice
-          ariaLabel="Agents"
-          heading="Agents in this pool may"
-          size="sm"
-          prefix={<span className="text-muted">Agents:</span>}
-          value={pool.access.level}
-          options={LEVELS.map((level) => ({ value: level.id, label: level.label, hint: level.words }))}
-          onChange={(level) => void poolSetAccess(pool.id, level, level === "custom" ? pool.access.actions : []).then(setPools, (cause) => setError(errorText(cause)))}
-          testId="pool-header-level"
-        />
+        {/* Round 3 (#3): the pool's one control for this, saying whom it
+            covers; Custom opens its list in place (Sam's round-4 walk). */}
+        <span className="relative">
+          <OwnLevelChoice
+            look="menu"
+            label="What sessions in this pool may do on their own"
+            value={pool.access.level === "custom" ? "custom" : asOwnLevel(pool.access.level)}
+            onChange={(level) => void poolSetAccess(pool.id, level, []).then(setPools, (cause) => setError(errorText(cause)))}
+            onCustom={() => {
+              if (pool.access.level === "custom") setCustom(true);
+              else
+                void poolSetAccess(pool.id, "custom", pool.access.actions).then(
+                  (next) => {
+                    setPools(next);
+                    setCustom(true);
+                  },
+                  (cause) => setError(errorText(cause)),
+                );
+            }}
+            testId="pool-header-level"
+          />
+          {custom && <HeaderCustom pool={pool} onClose={closeCustom} />}
+        </span>
       </div>
       {error && (
         <p className="w-full text-label text-danger" role="alert">

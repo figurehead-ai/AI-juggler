@@ -20,7 +20,7 @@ import { RemoteSwitchTargets } from "./RemoteSwitchTargets";
 import { CrossMachineSwitchFlow } from "./CrossMachineSwitchFlow";
 import { CrossMachineSwitchBack } from "./CrossMachineSwitchBack";
 import { SaveHandover } from "./HandoverView";
-import { AccountRoomLine, ContinueSummary } from "./ContinueSummary";
+import { AccountRoomLine, ContinueFold } from "./ContinueSummary";
 import { statusLive } from "../lib/session-process";
 import { ContinueDialog } from "./ContinueDialog";
 import { cliAppName } from "../lib/app-name";
@@ -59,6 +59,10 @@ export function handoverTeaser(targets: Array<SwitchTargetData & { room?: Target
   return `${count}. Suggested: ${best.account_label}${why ? `, ${why}` : ""}.`;
 }
 
+/** The switch list shows open when asked for (or out of room), or with a
+ * switch-back plan or a suggestion to see, unless its user folded it. */
+const listOpen = (folded: boolean, asked: boolean, offered: boolean): boolean => !folded && (asked || offered);
+
 export function HandoverSection({
   session,
   switchBackSuggestions = [],
@@ -71,11 +75,17 @@ export function HandoverSection({
   onHandover: (sessionId: string, targetProfileId: string, targetLabel: string) => void;
 }): JSX.Element {
   const [switchOpen, setSwitchOpen] = useState(() => session.status === "quota_blocked");
+  // Folded by its user: a switch-back plan or a suggestion opens the list,
+  // and a press still folds it away.
+  const [folded, setFolded] = useState(false);
   // 0.3: a session open on its page that hits its limit now (it stays
   // open, its status changes under the page) opens its switch list too.
   const statusBefore = useRef(session.status);
   useEffect(() => {
-    if (session.status === "quota_blocked" && statusBefore.current !== "quota_blocked") setSwitchOpen(true);
+    if (session.status === "quota_blocked" && statusBefore.current !== "quota_blocked") {
+      setSwitchOpen(true);
+      setFolded(false);
+    }
     statusBefore.current = session.status;
   }, [session.status]);
   // ⌘⇧H, the row menu, Switch account…, a banner's or Home's "Continue
@@ -120,7 +130,7 @@ export function HandoverSection({
     };
   }, [instanceId, session.status, crossTick]);
   const suggestions = switchBackSuggestions.filter((suggestion) => suggestion.session_id === session.id);
-  const open = switchOpen || Boolean(backPlan) || suggestions.length > 0;
+  const open = listOpen(folded, switchOpen, Boolean(backPlan) || suggestions.length > 0);
   // D-103.3: an ended one looks for room only once it's opened.
   const quiet = !statusLive(session.status) && !open && !dialog;
   useEffect(() => {
@@ -198,13 +208,14 @@ export function HandoverSection({
   );
   return (
     <Card className="flex flex-col gap-3 p-5" data-testid="handover-card">
-      <details
+      <ContinueFold
         open={open}
-        onToggle={(event) => setSwitchOpen((event.currentTarget as HTMLDetailsElement).open)}
-        className="group"
-        data-testid="handover-section"
+        onToggle={(next) => {
+          setSwitchOpen(next);
+          setFolded(!next);
+        }}
+        testId="handover-section"
       >
-        <ContinueSummary />
         {dialog ? (
           <p className="mt-3 text-meta text-ink-2" data-testid="handover-in-dialog">
             Choosing in the dialog…
@@ -212,7 +223,7 @@ export function HandoverSection({
         ) : (
           list
         )}
-      </details>
+      </ContinueFold>
       {quiet ? (
         <AccountRoomLine accountId={session.account_id} />
       ) : (

@@ -36,7 +36,7 @@ export const MOST_NODES = 200;
 export const MOST_PREVIEWS = 60;
 
 /** What the preview adds to a pool's canvas. */
-export type CanvasSeed = Partial<Pick<PoolCanvasInfo, "edges" | "asks" | "stream" | "positions">> & { moving?: number };
+export type CanvasSeed = Partial<Pick<PoolCanvasInfo, "edges" | "asks" | "stream" | "positions" | "anchors">> & { moving?: number };
 interface Seams {
   __AIJ_POOL_CANVAS__?: Record<string, CanvasSeed>;
   __AIJ_POOL_CANVAS_CALLS__?: string[];
@@ -129,7 +129,15 @@ async function preview(poolId: string, shown: string[]): Promise<PoolCanvasInfo>
     asks: asks.sort((a, b) => a.at_ms - b.at_ms),
     stream: (seed.stream ?? []).map((line) => ({ ...line })),
     since_ms: since,
+    anchors: Object.fromEntries([...ids].map((id) => [id, previewAnchorOf(poolId, id)])),
   };
+}
+
+/** A shown node's anchor, as the backend says it (6dca611c6): the
+ * seed's (a Work item's session: `work:<id>`), else a desktop node's own
+ * `conversation:` ref, else `session:<id>`. */
+export function previewAnchorOf(poolId: string, id: string): string {
+  return seams().__AIJ_POOL_CANVAS__?.[poolId]?.anchors?.[id] ?? (id.startsWith("conversation:") ? id : `session:${id}`);
 }
 
 /** A pool's canvas, for the members it shows. */

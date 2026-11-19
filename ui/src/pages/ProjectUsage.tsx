@@ -10,12 +10,12 @@
  */
 import { useEffect, useMemo, useState, type JSX } from "react";
 import { UsageDashboard } from "../components/usage/Dashboard";
-import { Segmented } from "../components/usage/controls";
+import { Segmented } from "../components/controls";
 import { useRange } from "../components/usage/useUsage";
 import { accountsList } from "../lib/ipc/accounts";
 import type { AccountInfo } from "../types/generated/AccountInfo";
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
-import { RANGES } from "../lib/usage/range";
+import { RANGE_SEGMENTS } from "../lib/usage/range";
 import { useCached } from "../lib/usage/cached";
 import { usageHistory, type UsageHistoryInfo } from "../lib/ipc/usageHistory";
 import { outside, useConversations } from "../lib/conversations";
@@ -81,7 +81,7 @@ export function ProjectUsage({ projectId, sessions = [] }: { projectId: string; 
     <div className="flex w-full max-w-content flex-col gap-grid" data-testid="project-usage">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-meta text-ink-2">Measured from each session's own files on this computer, each message counted once.</p>
-        <Segmented label="Range" options={RANGES.map(({ id, label }) => ({ id, label }))} value={range} onChange={setRange} testId="project-usage-range" />
+        <Segmented label="Range" segments={RANGE_SEGMENTS} value={range} onChange={setRange} testId="project-usage-range" />
       </div>
       <UsageDashboard kind="project" scope={{ project: projectId }} range={range} accounts={accounts} testId="project-usage-dashboard" />
     </div>

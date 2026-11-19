@@ -9,6 +9,7 @@ import { FOUND_UNCHECKED, providerDisplayName, toolFound, versionUnchecked } fro
 import { servicesList, type ServiceInfo } from "../lib/ipc/services";
 import { lazyNamed } from "../lib/lazy";
 import { LetterMark } from "../components/ToolMark";
+import { Disclosure } from "../components/controls";
 
 const ServiceAccountSheet = lazyNamed(() => import("./accounts/ServiceAccountSheet"), "ServiceAccountSheet");
 
@@ -183,10 +184,7 @@ export function AddProviderSheet({
             })}
           </ul>
           {onServiceAdded && services.length > 0 && (
-            <details className="mt-5" data-testid="add-more">
-              <summary className="cursor-pointer text-xs text-muted outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60">
-                More
-              </summary>
+            <Disclosure className="mt-5" summary="More" testId="add-more">
               <div className="mt-3 flex flex-col gap-2" data-testid="add-through-service">
                 <p className="text-label uppercase tracking-wider text-muted">Through another service</p>
                 <p className="text-xs leading-relaxed text-ink-2">
@@ -207,7 +205,7 @@ export function AddProviderSheet({
                   ))}
                 </ul>
               </div>
-            </details>
+            </Disclosure>
           )}
         </div>
 

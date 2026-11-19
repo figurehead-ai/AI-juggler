@@ -378,6 +378,9 @@
 | AJ-E3008 | Set up by hand: the canvas that teaches, member group nodes, the add palette with reasons, an edge's rule | E30-pools-redesign.md | P0 | L | AJ-E3005 |
 | AJ-E3009 | Pools fit everything else: the switch check, notices, mutes, the Tasks filter, usage per pool | E30-pools-redesign.md | P1 | M | AJ-E3005 |
 | AJ-E3010 | A line's own talk rule set before its first message, from the member | E30-pools-redesign.md | P2 | S | AJ-E3008 |
+| AJ-E3011 | Pool setup a newcomer understands: a flow in order, every choice said in plain words for whom it applies | E30-pools-redesign.md | P0 | L | AJ-E3007, AJ-E3008 |
+| AJ-E3012 | The canvas's selection: one clear treatment, and the inspector always titled by what is selected | E30-pools-redesign.md | P1 | M | AJ-E3008 |
+| AJ-E3013 | Desktop app sessions as full pool members through AI Juggler's connector, added with consent or guided (D-116) | E30-pools-redesign.md | P0 | L | AJ-E3006, AJ-E1902 |
 | AJ-E3101 | What relates to what: the map, each page's tabs, and one list for all of them | E31-everything-links.md | P0 | M | — |
 | AJ-E3102 | Relations made cheap: instance and conversation indexes, and a relation-count cache | E31-everything-links.md | P0 | M | AJ-E3202 |
 | AJ-E3103 | One related-items list and one row, everywhere | E31-everything-links.md | P0 | L | AJ-E3102 |
@@ -477,5 +480,5 @@
 | AJ-E3817 | Watch alerts through the existing notification path: quiet hours, consolidation, dismissal | E38-chat.md | P0 | M | AJ-E3814, AJ-E3712, AJ-E3819 |
 | AJ-E3818 | The harness for the digest (job e) and watch parsing (job f), on D-130's criteria | E38-chat.md | P0 | L | AJ-E3709, AJ-E3712, AJ-E3815 |
 | AJ-E3819 | Chat memory, short and long term, with context budgets (ADR-0037) | E38-chat.md | P0 | XL | AJ-E3804, AJ-E3805, AJ-E3808, AJ-E3815 |
-Total: 475 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
+Total: 478 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
 Status of every task at generation: TODO. The epic files are canonical; this catalog is an index, never edited to claim progress.

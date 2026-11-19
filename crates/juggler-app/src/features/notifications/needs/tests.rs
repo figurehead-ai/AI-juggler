@@ -95,3 +95,60 @@ fn a_session_its_tool_calls_idle_asks_nothing() {
         Some("limit")
     );
 }
+
+/// The 0.4.6 RC walk P8: two tools' folders both labelled "default", both
+/// not signed in, read "default needs its sign-in" twice on Home, the rail
+/// and the bell. Each is named by its whole App then; one alone stays short.
+#[test]
+fn sign_ins_sharing_a_label_are_named_by_their_app() {
+    let folder = |id: &str, provider: &str, label: &str| AccountInfo {
+        id: id.to_owned(),
+        provider: provider.to_owned(),
+        label: label.to_owned(),
+        plan: None,
+        login_state: "logged_out".to_owned(),
+        cleanup_opt_in: false,
+        renewal_date: None,
+        preview_opt_in: false,
+        import_source_path: None,
+        import_origin: None,
+        imported_at: None,
+        in_place: false,
+        is_default: None,
+        service: None,
+        subscription_id: None,
+        app_colour_slot: None,
+        account_colour_slot: None,
+        agent_tools_why: None,
+    };
+    let mut sources = NeedSources::default();
+    sources
+        .tool_names
+        .insert("opencode".to_owned(), "OpenCode".to_owned());
+    sources
+        .tool_names
+        .insert("kimi-code".to_owned(), "Kimi Code".to_owned());
+    sources
+        .tool_names
+        .insert("claude-code".to_owned(), "Claude Code".to_owned());
+    sources.accounts = vec![
+        folder("oc", "opencode", "default"),
+        folder("kimi", "kimi-code", "default"),
+        folder("w", "claude-code", "Work Max"),
+    ];
+    let (needs, _) = work_out(&sources, &HashSet::new());
+    let titles: Vec<&str> = needs
+        .iter()
+        .filter(|need| need.kind == "signin")
+        .map(|need| need.title.as_str())
+        .collect();
+    assert_eq!(
+        titles,
+        [
+            "OpenCode CLI · default needs its sign-in",
+            "Kimi Code CLI · default needs its sign-in",
+            "Work Max needs its sign-in"
+        ],
+        "{titles:?}"
+    );
+}

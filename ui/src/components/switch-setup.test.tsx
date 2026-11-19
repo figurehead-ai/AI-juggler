@@ -114,9 +114,9 @@ describe("what the target lacks", () => {
   it("puts what wasn't used here under one closed line", async () => {
     const view = mount();
     await waitFor(() => expect(view.getByTestId("switch-setup")).toBeTruthy());
-    const unused = view.getByTestId("switch-setup-unused") as HTMLDetailsElement;
-    expect(unused.open).toBe(false);
-    expect(unused.querySelector("summary")?.textContent).toBe(
+    const unused = view.getByTestId("switch-setup-unused");
+    expect(unused.hasAttribute("data-open")).toBe(false);
+    expect(unused.querySelector("button[aria-expanded]")?.textContent).toBe(
       "Also on Work Max, not on Personal (2, not used in this conversation)",
     );
     expect(unused.textContent).toContain("deep-research");
@@ -149,7 +149,7 @@ describe("what the target lacks", () => {
       "Personal has everything this conversation used.",
     );
     expect(view.getAllByTestId("switch-setup-row")).toHaveLength(5);
-    expect((view.getByTestId("switch-setup-unused") as HTMLDetailsElement).open).toBe(false);
+    expect(view.getByTestId("switch-setup-unused").hasAttribute("data-open")).toBe(false);
   });
 
   it("says one thing in the singular", async () => {
@@ -248,8 +248,9 @@ describe("each row's words", () => {
       const view = render(<SwitchSetupList check={check([{ ...base, ...offer }])} picked={new Set()} onToggle={() => {}} />);
       expect(view.getByTestId("switch-setup-consequence").textContent).toBe(words);
       const meaning = view.getByTestId("setup-meaning");
-      expect(meaning.querySelector("summary")?.textContent).toBe("What does this mean?");
+      expect(meaning.querySelector("button[aria-expanded]")?.textContent).toBe("What does this mean?");
       expect(meaning.textContent).toContain("For example:");
+      fireEvent.click(view.getByRole("button", { name: "What does this mean?" }));
       fireEvent.click(view.getByRole("button", { name: /switching guide/ }));
       expect((window as never as Seams).__AIJ_OPENED__).toContain(SWITCHING_GUIDE_URL);
       const all = view.container.textContent ?? "";

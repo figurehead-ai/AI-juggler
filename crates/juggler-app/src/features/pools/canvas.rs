@@ -39,7 +39,10 @@ const STREAM_LINES: u32 = 30;
 const MOST_PAIRS: u32 = 400;
 const MOST_PENDING: u32 = 100;
 
-/// Each member ref the canvas's sessions answer to, by session.
+/// Each member ref the canvas's sessions answer to, by session. A
+/// desktop session's node is its own `conversation:` member ref (round 7
+/// #7): that ref stands for itself, so a line's two ends resolve to its
+/// node as to any session's.
 struct Refs {
     by_ref: HashMap<String, String>,
     works: HashMap<SessionId, WorkItemId>,
@@ -50,6 +53,10 @@ impl Refs {
         let works = storage.switch_graph().works_by_session()?;
         let mut by_ref = HashMap::new();
         for id in sessions {
+            if is_conversation(id) {
+                by_ref.insert(id.clone(), id.clone());
+                continue;
+            }
             let session = SessionId::new(id.as_str());
             by_ref.insert(format!("session:{id}"), id.clone());
             by_ref.insert(
@@ -74,9 +81,17 @@ impl Refs {
 
     /// What a session stands for (its positions' key).
     fn anchor_of(&self, session: &str) -> String {
+        if is_conversation(session) {
+            return session.to_owned();
+        }
         let id = SessionId::new(session);
         MemberRef::of_session(&id, self.works.get(&id)).to_wire()
     }
+}
+
+/// A desktop session's node: its `conversation:<folder>/<id>` ref.
+fn is_conversation(id: &str) -> bool {
+    matches!(MemberRef::parse(id), Some(MemberRef::Conversation { .. }))
 }
 
 /// The edge from `from` to `to`, made when it's the first.
@@ -289,6 +304,10 @@ pub fn canvas_impl(
         asks: node_asks,
         stream,
         since_ms: since,
+        anchors: session_ids
+            .iter()
+            .map(|id| (id.clone(), refs.anchor_of(id)))
+            .collect(),
     })
 }
 

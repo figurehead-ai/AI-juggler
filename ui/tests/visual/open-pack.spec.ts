@@ -40,7 +40,7 @@ for (const theme of ["dark", "light"] as const) {
     await open(page, theme);
     await page.getByRole("button", { name: "New session", exact: true }).first().click();
     const sheet = page.getByTestId("new-session-sheet");
-    await sheet.getByTestId("new-session-more").locator("summary").click();
+    await sheet.getByTestId("new-session-more-toggle").click();
     await sheet.getByRole("button", { name: "Start from a saved handover…" }).click();
     const summary = sheet.getByTestId("pack-summary");
     await expect(summary).toContainText("Claude Code · Work Max");

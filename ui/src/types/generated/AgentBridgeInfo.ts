@@ -13,9 +13,21 @@ asked: boolean,
  */
 on: boolean, 
 /**
- * This build has the bridge program beside it.
+ * This build has the bridge program beside it, safe to run.
  */
 available: boolean, 
+/**
+ * AJ-E3013: why not, when it isn't: `missing` (nothing to run beside
+ * AI Juggler) | `unsafe_location` (it's there, in a folder another
+ * user owns or can write, so it's never run). Optional on the wire,
+ * so the window's own literals stay as they are.
+ */
+unavailable?: string | null, 
+/**
+ * With `unsafe_location`: the folder that failed the check, the home
+ * folder written `~`.
+ */
+unsafe_folder?: string | null, 
 /**
  * Projects the user switched off.
  */

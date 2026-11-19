@@ -90,7 +90,7 @@ describe("the pool's inspector", () => {
 });
 
 describe("edges and a node's menu (AJ-E2808 R2, R3)", () => {
-  it("an edge waiting on you is dashed, a plain one solid, and each has words for a screen reader", () => {
+  it("an edge waiting on you is quiet at rest and dashed when chosen, a plain one solid, and each has words for a screen reader", () => {
     const at = Date.now();
     const waiting = [{ message_id: "m-1", thread_id: "thr", subject: "Totals", recipient: "session:b", kind: "waiting" as const, ask_id: null, at_ms: at }];
     const edges = [
@@ -98,10 +98,18 @@ describe("edges and a node's menu (AJ-E2808 R2, R3)", () => {
       { from_session_id: "b", to_session_id: "c", messages: 1, tasks: 0, last_at_ms: at, thread_id: "thr2", pending: [] },
     ];
     const points = new Map([["a", { x: 0, y: 0 }], ["b", { x: 400, y: 0 }], ["c", { x: 400, y: 300 }]]);
-    const view = render(<CanvasEdges edges={edges} points={points} names={new Map([["a", "Planner"], ["b", "Fix the cart totals"], ["c", "Tests"]])} selected={null} pulses={new Map()} reducedMotion scale={1} onSelect={() => {}} />);
+    const names = new Map([["a", "Planner"], ["b", "Fix the cart totals"], ["c", "Tests"]]);
+    const view = render(<CanvasEdges edges={edges} points={points} names={names} selected={null} pulses={new Map()} reducedMotion scale={1} onSelect={() => {}} />);
     const line = (key: string) => [...view.container.querySelectorAll(`g[data-edge="${key}"] path`)].find((path) => path.getAttribute("marker-end"));
+    // The rc3 critique: at rest no line says it waits (no amber, no dash,
+    // no chip); its node does.
+    expect(line("a>b")?.getAttribute("stroke-dasharray")).toBeNull();
+    expect(line("a>b")?.getAttribute("class")).not.toContain("warning");
+    expect(view.queryAllByTestId("edge-label")).toEqual([]);
+    view.rerender(<CanvasEdges edges={edges} points={points} names={names} selected="a>b" pulses={new Map()} reducedMotion scale={1} onSelect={() => {}} />);
     expect(line("a>b")?.getAttribute("stroke-dasharray")).toBe("6 5");
     expect(line("b>c")?.getAttribute("stroke-dasharray")).toBeNull();
+    expect(view.queryByTestId("edge-pending")).toBeNull();
     expect(edgeWords(edges[0]!, "Planner", "Fix the cart totals").aria).toBe("2 messages · 1 task, Planner to Fix the cart totals");
   });
 
@@ -109,7 +117,7 @@ describe("edges and a node's menu (AJ-E2808 R2, R3)", () => {
     const own = ownLineRules([
       { from: "role:member", to: "role:member", rule: "ask" },
       { from: "session:b", to: "session:c", rule: "blocked" },
-    ]);
+    ], { b: "session:b", c: "session:c" });
     expect([...own]).toEqual([["b>c", "blocked"]]);
     const at = Date.now();
     const edges = [{ from_session_id: "b", to_session_id: "c", messages: 1, tasks: 0, last_at_ms: at, thread_id: "thr2", pending: [] }];

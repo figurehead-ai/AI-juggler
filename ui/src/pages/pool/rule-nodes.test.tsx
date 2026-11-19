@@ -1,14 +1,10 @@
 /**
  * D-62 (AJ-E3008): a broad member's group node draws a line to every
- * session it brings in; a Watched member is drawn dashed with its fix.
+ * session it brings in.
  */
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import * as conversations from "../../lib/conversations";
-import { CONTINUE_WATCHED, CONTINUE_WATCHED_SHORT } from "../../lib/pools";
-import type { ConversationInfo } from "../../lib/ipc/conversations";
 import { RuleNodes } from "./RuleNodes";
-import { OPEN_ELSEWHERE } from "../../lib/resume-refusal";
 
 afterEach(() => {
   cleanup();
@@ -27,45 +23,8 @@ describe("D-62 the canvas's member rules", () => {
     expect(screen.getByTestId("canvas-rule-lines").querySelectorAll("path")).toHaveLength(1);
   });
 
-  it("a Watched member says it can't reply", () => {
-    const watched = { member: "conversation:f/c", folder: "f", conversation_id: "c", title: "Fix sign-in copy", tool: "Claude app", account_label: null, project_id: null, role: "member", continued_session: null };
-    render(<RuleNodes rules={[]} watched={[watched]} labelOf={() => ""} selection={{ kind: "none" }} onSelect={() => undefined} />);
-    expect(screen.getByTestId("canvas-watched-node").textContent).toContain("can't reply");
-  });
-
-  it("AJ-E3006 R2: its Continue in AI Juggler says a new process starts, with the pool's tools, in this pool", () => {
-    const watched = { member: "conversation:f/c", folder: "f", conversation_id: "c", title: "Fix sign-in copy", tool: "Claude app", account_label: null, project_id: null, role: "member", continued_session: null };
-    const copy: ConversationInfo = { id: "c", tool: "claude-code", account_id: "f", account_label: "F", project_id: null, cwd: "/w", title: "Fix sign-in copy", git_branch: null, started_ms: 0, last_activity_ms: 0, tokens: null, live: false, session_id: null, places: [], pid: null, state: null, probably: false, viewed_ms: null, background: false, inactive: false, subtask_count: null };
-    vi.spyOn(conversations, "useConversations").mockReturnValue({ all: [copy], refresh: () => {}, loaded: true, build: null, buildAgain: () => {} });
-    render(<RuleNodes rules={[]} watched={[watched]} labelOf={() => ""} selection={{ kind: "none" }} onSelect={() => undefined} />);
-    const button = screen.getByTestId("canvas-watched-continue");
-    expect(button.getAttribute("title")).toBe(CONTINUE_WATCHED);
-    expect(CONTINUE_WATCHED).toMatch(/new process/);
-    expect(CONTINUE_WATCHED).toMatch(/pool's tools/);
-    expect(CONTINUE_WATCHED).toMatch(/stays in this pool/);
-  });
-
-  it("rc31: open in the Claude app, its Continue in AI Juggler says why at the button, not only in the log", () => {
-    const watched = { member: "conversation:f/c", folder: "f", conversation_id: "c", title: "Fix sign-in copy", tool: "Claude app", account_label: null, project_id: null, role: "member", continued_session: null };
-    const open: ConversationInfo = { id: "c", tool: "claude-code", account_id: "f", account_label: "F", project_id: null, cwd: "/w", title: "Fix sign-in copy", git_branch: null, started_ms: 0, last_activity_ms: 0, tokens: null, live: true, session_id: null, places: [], pid: null, state: null, probably: false, viewed_ms: null, background: false, inactive: false, subtask_count: null };
-    vi.spyOn(conversations, "useConversations").mockReturnValue({ all: [open], refresh: () => {}, loaded: true, build: null, buildAgain: () => {} });
-    render(<RuleNodes rules={[]} watched={[watched]} labelOf={() => ""} selection={{ kind: "none" }} onSelect={() => undefined} />);
-    const button = screen.getByTestId("canvas-watched-continue");
-    expect(button.getAttribute("aria-disabled")).toBe("true");
-    expect(button.getAttribute("aria-description")).toBe(OPEN_ELSEWHERE);
-    expect(OPEN_ELSEWHERE).toMatch(/open in another session now: close it there first/);
-  });
-
-  it("rc19: the canvas node says a new process starts on screen, not only in its tooltip", () => {
-    const watched = { member: "conversation:f/c", folder: "f", conversation_id: "c", title: "echo lab", tool: "claude-code", account_label: null, project_id: null, role: "member", continued_session: null };
-    const copy: ConversationInfo = { id: "c", tool: "claude-code", account_id: "f", account_label: "F", project_id: null, cwd: "/w", title: "echo lab", git_branch: null, started_ms: 0, last_activity_ms: 0, tokens: null, live: false, session_id: null, places: [], pid: null, state: null, probably: false, viewed_ms: null, background: false, inactive: false, subtask_count: null };
-    vi.spyOn(conversations, "useConversations").mockReturnValue({ all: [copy], refresh: () => {}, loaded: true, build: null, buildAgain: () => {} });
-    render(<RuleNodes rules={[]} watched={[watched]} labelOf={() => ""} selection={{ kind: "none" }} onSelect={() => undefined} />);
-    const line = screen.getByTestId("canvas-watched-continue-what");
-    expect(line.textContent).toBe(CONTINUE_WATCHED_SHORT);
-    expect(line.textContent).toMatch(/new process/);
-    expect(screen.getByTestId("canvas-watched-node").textContent).toContain("Starts a new process here");
-  });
+  // AJ-E3013: a session another app runs is drawn by DesktopMemberCard;
+  // its states are in desktop-members.test.tsx.
 });
 
 // The P8 walk (rc32, step 4): a Kimi Code App member said nothing of

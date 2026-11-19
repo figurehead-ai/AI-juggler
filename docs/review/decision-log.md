@@ -634,6 +634,14 @@
   greet the user with AI Juggler's prompts).
 - Consequences: sessions started outside AI Juggler are pool members but
   can't call the tools until continued in AI Juggler.
+- **Amended by D-116** (2026-11-15, for desktop apps only): with the
+  user's explicit Add, AI Juggler writes its own entry into a desktop
+  App's config (its own folder, or its own `config.toml` table), shows
+  the diff first, and Remove restores it exactly; CLI launches keep this
+  decision's per-launch config. A desktop session joined that way calls
+  the tools without being continued in AI Juggler. The tools stay
+  pre-allowed only where AI Juggler launches; a desktop session's app
+  asks once per tool.
 
 ### D-31 Agents never start sessions; nothing picks an account by usage — SETTLED (2026-10-24)
 
@@ -3234,6 +3242,14 @@ The design that follows from it:
 - **Amends:** D-61 point 15 ("Watched… joining from anywhere comes
   later": desktop sessions join in 0.4.6) and D-73's timing (the
   plugin's parts that pools need ship in 0.4.6, from the 0.5 work).
+- **Amends D-30's "never by editing the user's config"** (the
+  coordinating session, 2026-11-15), for desktop apps only: with the
+  user's explicit Add, AI Juggler writes only its own entry (its own
+  folder, `<CLAUDE_CONFIG_DIR>/skills/ai-juggler/`, or its own
+  `[mcp_servers.juggler]` table in Codex's `config.toml`), shows a diff
+  first, and Remove restores it exactly (by the hashes it recorded); CLI
+  launches keep D-30's per-launch config. D-30's ask-once and its
+  per-project and per-account switch stay as they are.
 - Sources: the coordinating session's relay of the maintainer's answer
   and words, 2026-11-14.
 
@@ -3274,6 +3290,63 @@ The design that follows from it:
 - **Tasks:** E37 (AJ-E3701…AJ-E3707).
 - **Amends:** AJ-E2105's Home layout (its needs and apps move into the feed's pinned zone and the right column); AJ-E1004 R2's morning summary card (its data and its last-seen key move into the away digest); the proposal's "placement is the maintainer's call" (it is 0.5).
 - Sources: the coordinating session's relays of the maintainer, 2026-11-14.
+
+### D-119 A desktop Code-tab pool member is woken through Claude Code's own inbox, under the pool's waking rule — SETTLED (2026-11-15)
+
+- **Ruling** (engineering, by the coordinating session under D-66's
+  standing rule and D-28's levels; no new maintainer ruling needed,
+  2026-11-15). The 0.4.6 route research (`docs/research/desktop-pool-members.md`
+  §5.2) found a documented, sanctioned way to start a turn in an idle
+  Claude Code session: the session's own inbox socket
+  (`CLAUDE_CODE_MESSAGING_SOCKET`), to which the session's own child
+  processes may post ("When the receiving session is idle, Claude Code
+  starts a new turn with the message", the cross-session messaging docs).
+  D-66's standing rule says every sanctioned reply route is supported
+  through the adapter; D-28's waking rule already governs when a member
+  may be woken.
+- **Decision:**
+  1. A desktop Code-tab member is woken through its own inbox, posted to
+     by AI Juggler's connector (a child of that session), **only when the
+     pool is at Full, or a rule the user made allows it** — the same gate
+     and the same wake budget as a CLI member. At Work together or Read it
+     reads its messages on its next turn.
+  2. The notice is facts only ("1 new pool message from Planner"): it
+     can't approve or change anything (Claude Code treats it as a peer
+     message), and it follows Claude Code's own rate limit and ours.
+  3. The canvas says, per member, "wakes on new messages" or "reads
+     messages on its next turn", from its level and rules.
+  4. Codex app threads can't be woken (one shared app-server, no
+     per-thread inbox); the canvas says so.
+  5. A person's own Deliver wakes a desktop member at any pool level,
+     exactly as Deliver already does for a CLI member: that is the user
+     acting (ADR-0003's "sessions act only when you act"). The gate in 1
+     is for agents' messages (coordinating session, 2026-11-16).
+  6. A pool-wide message is copied into the inboxes of **open** members
+     only; an ended member gets no copy. When one is resumed, its first
+     inbox read includes the pool messages sent while it was gone, from
+     the pool's own log: at most 50, newest first, with "N earlier" said
+     when there were more. A direct message to a named ended member still
+     lands in its inbox, as before. Why: a pool scoped to a project holds
+     its old ended sessions (about 35 in the aij-test proof's lab), and a
+     copy each was noise nobody reads; a resumed session still catches up
+     (coordinating session's design call, 2026-11-16).
+- **Why the gate stays:** waking starts a turn, and a turn uses the
+  user's subscription.
+- **Amends:** D-116's "waking stays the honest limit (D-66)" for the
+  Claude app's Code tab.
+- **Also settled with it** (the coordinating session accepted the
+  research's design calls, 2026-11-15): Add writes AI Juggler's plugin as
+  one folder, `<CLAUDE_CONFIG_DIR>/skills/ai-juggler/`; chats and Cowork
+  aren't pool members in 0.4.6 (AI Juggler doesn't track them as
+  sessions); a desktop call is attested by the peer's process chain and
+  Claude Code's session registry, checking the process start time against
+  pid reuse, and refused unless fully attested, never trusted on a
+  fallback (an ADR-0020 addendum, security-reviewed before merge); sealed
+  pools take no desktop members (sealing would change a setting for every
+  session of that profile); a Codex app thread stays Watched in 0.4.6
+  unless a lab probe proves which thread calls.
+- Sources: the coordinating session's message, 2026-11-15; the research
+  doc's §§1.1, 5.2, 8.
 
 ### D-120 Feed summaries: A (agents' own excerpts) and B (on-device AI lines) in 0.5; C last, with providers' permission; D and E later — SETTLED (2026-11-16)
 
@@ -3322,6 +3395,14 @@ The design that follows from it:
 - **Tasks:** E38 (AJ-E3801…AJ-E3809); AJ-E3711's handover now points at the router and B's shipping rule.
 - **Amends:** D-120 (point 2's tier list becomes engines behind the router; B's calm lines ship only on the rule in point 4; the "conversation" open idea becomes Chat v1).
 - Sources: the coordinating session's relay of the maintainer, 2026-11-16.
+
+### D-122 The Codex app's thread identity (AJ-E3013 C2) stays in 0.4.6: the lab Codex sign-in comes first, in the planned sitting, before 0.4.6 ships — SETTLED (2026-11-16)
+
+- **Ruling** (the maintainer, through the coordinating session, 2026-11-16): asked whether C2 is proven before 0.4.6 goes Stable or deferred with a D-number, the maintainer chose **"I'll do the sitting first"**.
+- **Decision:** AJ-E3013 R1's Codex-app part (C1/C2: which thread of the shared Codex app-server calls) stays in 0.4.6's scope. The maintainer's one lab Codex sign-in happens in the planned sign-in sitting before 0.4.6 ships; the C2 probe (`juggler-agent --mcp --probe` / `--probe-shell`) is kept ready for that slot, and its outcome is recorded either way: a Codex app thread as a member, or Watched with the researched reason.
+- **Why:** 0.4.6 is the first Stable candidate (D-114); the Stable gate (D-85, D-99) takes the whole 0.4, and the maintainer would rather do the sign-in than defer the route's proof.
+- **Also settled, the same answer round:** "jive-code-graph" and "Jive CLI" in PRINCIPLES.md, ADR-0032, the decision log and fixtures are fine in public ("They're fine public"); nothing changes.
+- Sources: the coordinating session's message, 2026-11-16, quoting the maintainer.
 
 ### D-123 The orchestrator bot (option E) goes into 0.6; the tested open models' licences are accepted; the maintainer installs Hermes — SETTLED (2026-11-16)
 

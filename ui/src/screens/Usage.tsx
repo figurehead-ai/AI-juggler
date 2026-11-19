@@ -19,9 +19,9 @@ import { lazyNamed } from "../lib/lazy";
 import { GRID, SPAN, UsageDashboard } from "../components/usage/Dashboard";
 import { CostByAccount, CostCutTiles, priceListWords, useCostCuts } from "../components/usage/CostCuts";
 import { RunwayCards } from "../components/usage/RunwayCards";
-import { Segmented } from "../components/usage/controls";
+import { Segmented } from "../components/controls";
 import { useRange } from "../components/usage/useUsage";
-import { RANGES } from "../lib/usage/range";
+import { RANGE_SEGMENTS } from "../lib/usage/range";
 import type { AccountInfo } from "../types/generated/AccountInfo";
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import type { ProjectInfo } from "../types/generated/ProjectInfo";
@@ -71,7 +71,7 @@ export function UsageScreen({
             <Button size="sm" variant="secondary" onClick={() => setPrices(true)} data-testid="usage-prices-open">
               Prices and details
             </Button>
-            <Segmented label="Range" options={RANGES.map(({ id, label }) => ({ id, label }))} value={range} onChange={setRange} testId="usage-range" />
+            <Segmented label="Range" segments={RANGE_SEGMENTS} value={range} onChange={setRange} testId="usage-range" />
           </div>
         )}
       </header>

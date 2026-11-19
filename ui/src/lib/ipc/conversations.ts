@@ -7,6 +7,7 @@
 import { channel, call, withoutStream } from "./transport";
 import { hasLiveBackend, refused } from "../bridge";
 import { listenWhileShown } from "../shown-window";
+import { needsMoved } from "../notices-store";
 import type { LaunchResult } from "../../types/generated/LaunchResult";
 import type { ListBuildInfo } from "../../types/generated/ListBuildInfo";
 import type { ConversationInfo } from "../../types/generated/ConversationInfo";
@@ -166,7 +167,9 @@ export async function conversationsResumeCommand(accountId: string, conversation
 
 /** 0.4.1: archives (or unarchives) a session another app holds, in AI
  * Juggler only: its app still lists it (its records are never written).
- * The preview's fixture row changes in place. */
+ * Its need leaves Needs you (or comes back), with the bell's count, at
+ * once (NY1 rc3a: `needsMoved`). The preview's fixture row changes in
+ * place. */
 export async function conversationsArchive(accountId: string, conversationId: string, archived: boolean): Promise<void> {
   if (!hasLiveBackend()) {
     const row = previewConversations().find((c) => c.account_id === accountId && c.id === conversationId);
@@ -174,7 +177,8 @@ export async function conversationsArchive(accountId: string, conversationId: st
     if (row) row.archived_here = archived;
     return;
   }
-  return call("conversations_archive", { accountId, conversationId, archived });
+  await call("conversations_archive", { accountId, conversationId, archived });
+  void needsMoved();
 }
 
 /** "Continue in AI Juggler": a resume launch on its account. */

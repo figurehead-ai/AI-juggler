@@ -13,7 +13,7 @@ import { ordered, passes, type Belongs, type Filters } from "./order";
 
 /** What each row belongs to, as the backend groups it: its project, its
  * App (the desktop App it's open in, else its folder's CLI App), its
- * folder's Account, its Mac. */
+ * folder's Account, its Mac, its tool. */
 export function useBelongs(wanted: boolean): (row: Row) => Belongs {
   const places = useKnownPlaces();
   const accounts = useSubscriptions(0, wanted);
@@ -25,6 +25,7 @@ export function useBelongs(wanted: boolean): (row: Row) => Belongs {
         app: appIdOfRailKey(row.rail.place.key, row.accountId, places) ?? row.rail.place.key,
         account: row.accountId ? (accountOfProfile(accounts ?? [], row.accountId)?.account_id ?? null) : null,
         machine: session?.machine_id ?? "this-mac",
+        tool: row.tool,
       };
     },
     [places, accounts],

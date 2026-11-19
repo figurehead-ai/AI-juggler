@@ -246,6 +246,334 @@ authority it doesn't have.* Mitigation: the four rules above. Tests:
 `the_caps_hold`), `wire.rs` (`a_request_round_trips_and_refuses_strangers`)
 and the guardrail suite's "no action without the user's command".
 
+## D-116 addendum: attested desktop identity (AJ-E3013, 2026-11-15)
+
+D-116 makes a desktop app's session a full pool member through AI
+Juggler's connector (the bridge as an MCP server, and for the Claude
+app's Code tab the plugin's hooks), and D-119 lets such a member be woken
+through Claude Code's own inbox. AI Juggler doesn't start those sessions,
+so they never get a key (§4). This addendum adds the one other way a call
+gets an identity: **attestation**, checked by the app against the
+operating system and the tool's own records on every call. Research:
+`docs/research/desktop-pool-members.md` §1.1.
+
+**The connector.** Written by AI Juggler with the user's consent, into
+that App's own config folder only (D-116): the bridge runs as
+`<agent> --mcp --plugin`, and the hooks as `<agent> hook <event>`, with
+the edition's socket path in `JUGGLER_AGENT_SOCKET` (a path, not a
+secret). Nothing it writes holds a key, a token or a credential.
+
+**The call.** With no key in its environment and a socket named, the
+bridge sends its usual request with an **empty key**. The request's one
+shape is unchanged: no field names a session, a process, a folder or a
+pool other than one of its own (D-62). Nothing the caller says is part of
+the attestation.
+
+**The check** (the app, `features/agent_bridge/attest.rs`; the tool's
+part in its adapter, `juggler_adapter::peer::DesktopPeer`):
+
+1. **The peer.** At accept, the socket's peer user must be this user
+   (`getpeereid`, as before), and the socket's **audit token**
+   (`LOCAL_PEERTOKEN`, read through nix's safe `getsockopt` right at
+   accept) names the socket's last user at `getsockopt` time: its pid and
+   that pid's version. The live process at that pid must have the same
+   version (`juggler_proc_list::pid_version`, the kernel's `p_idversion`,
+   which changes whenever a pid is reused, and on exec), so a pid reused
+   after the accept is caught. Before the read there is only the moment
+   between the connection and the accept (microseconds); a caller can't
+   steer it to name a process that never used its socket, and whichever
+   process the token names is the one checked, whole. The time of the
+   accept is kept.
+2. **The chain.** One listing of the processes (`juggler-proc-list`, the
+   kernel's own `kinfo_proc` records): the peer must be listed, not a
+   zombie, readable as this user's (`proc_pidinfo`), and started no later
+   than the accept. Then its parent and its parent's parent, each listed,
+   none a zombie, and each started no later than its child (a reparented
+   or reused parent fails).
+3. **The tool's registry** (Claude, `claude_peer.rs`). For the parent,
+   then the grandparent (a hook runs under `sh`): in the App's own
+   `CLAUDE_CONFIG_DIR`, `sessions/<pid>.json`: a regular file of this
+   user's (never a link), small, its `pid` equal to its name. Of it only
+   `pid`, `sessionId`, `hostSessionId`, `entrypoint`, `status` and
+   `procStart` are read; the `*.key` files beside it are never opened.
+   It must say `entrypoint: "claude-desktop"`, carry a `procStart` within
+   one second of that process's real start time (**pid reuse**: a stale
+   file for a reused pid fails), and a `hostSessionId` of the form
+   `local_<id>`.
+4. **The App's record.** That `hostSessionId` must name the App's own
+   record, `<instance>/claude-code-sessions/<account>/<org>/<hostSessionId>.json`
+   (a regular file, never a link), whose `cliSessionId` equals the
+   registry's `sessionId`, and which the app hasn't archived. Its
+   conversation is the member: `(the App's config folder row, that id)`.
+4b. **The running code (M1, round 2).** The registry's word isn't
+   enough, and neither is a file: the **code running** as the process it
+   names, and as the App above it, is checked.
+   - *A filter first:* the tool's executable (`proc_pidpath`, through
+     `sysinfo`) has no link on its path and sits in the App's own folder
+     (`<instance>/claude-code/<version>/…/Contents/MacOS/claude`). This
+     only narrows; it proves nothing.
+   - *The tool's running code:* the kernel's code-signing host is asked
+     for the guest with the tool's pid (`SecCodeCopyGuestWithAttributes`)
+     and its dynamic validity is checked against an explicit requirement
+     (`SecCodeCheckValidity`), through `security-framework`'s safe API (no
+     `unsafe`): `identifier "com.anthropic.claude-code" and anchor apple
+     generic and certificate leaf[subject.OU] = "Q6L2SF6YDW"`.
+   - *The host, by its running code only:* the tool's parent must meet
+     the Claude app's own requirement, `identifier
+     "com.anthropic.claudefordesktop"` (the bundle identifier read once
+     from the installed app's `Info.plist` and pinned, with a test) and
+     the same anchor and team; or the parent must be the app's own
+     `disclaimer` helper, through which the app starts Claude Code
+     (pinned: `identifier "disclaimer"`, the same anchor and team, so no
+     other Anthropic-signed program, Claude Code itself or
+     `app-cu-helper`, stands between them) and the grandparent meet the
+     app's requirement. No path, bundle or folder name is read for this:
+     a program at `~/x/Claude.app/Contents/MacOS/Claude` is no host.
+   - *The same processes throughout:* each pid's version (`p_idversion`,
+     which the kernel changes when the pid is reused and when the process
+     execs) is read before its check and again after it, and must be the
+     same; once all checks are done, the kernel's listing is read again
+     and every process checked must still have the start time and the
+     parent it had, and the pid version its check saw (an exec after the
+     checks is caught too). Verdicts are kept per (pid, pid version, requirement),
+     never per path (`juggler_platform::code_sign`).
+   - *The instance (the third review's Low 1):* that verified main
+     process's own `--user-data-dir`, read the strict way (only
+     `--user-data-dir=<folder>`, once, before any `--`; any other form, a
+     second one or one after `--` is refused, so what AI Juggler reads
+     can't differ from what the app reads), else the app's default
+     folder, is this App's instance folder, as real paths; and that very
+     process holds the instance's own lock (the adapter names it: for the
+     Claude app, Chromium's `Local Storage/leveldb/LOCK`, an `fcntl` lock
+     asked about with `F_GETLK`, which takes none, the file reached
+     through the no-link walk). The Claude app takes no `SingletonLock`
+     (none of five running instances had one, 2026-11-15), so its storage
+     lock is the proof that a process runs that instance.
+
+     **What this rests on, and how it fails.** Chromium keeping its
+     storage service, and so that lock, in the browser (main) process. An
+     Electron update that moves it to a utility process makes the holder
+     another process, or no one: every attestation then fails closed with
+     "profile lock held by another process, maybe after a Claude app
+     update", said to the caller and logged under H2 (scrubbed, once a
+     minute a reason; test
+     `a_profile_lock_held_elsewhere_is_refused_visibly_and_logged_once_a_minute`).
+     **Each release candidate re-checks it on a real Mac:** `just
+     desktop-host-checks` (read-only: it reads processes, signatures and
+     the fuse wire, and asks who holds the lock; it starts, locks and
+     changes nothing), a row in `docs/qa/0.4-walks/release-candidate.md`
+     §2, so an app update that breaks the check is caught before the
+     release, not by users.
+
+   **What this guarantees, exactly:** the caller (the socket's last user
+   at `getsockopt` time, still that process) descends, at most two steps
+   down, from a process whose running code is Anthropic's Claude Code,
+   whose parent, directly or through the app's `disclaimer` helper, is the
+   Claude app's own running main process for this App's instance; each of
+   those was the same process before and after its check. It does **not**
+   guarantee that the caller is AI Juggler's connector rather than
+   something else that session runs (a hook, an MCP server the user added,
+   a command the model runs: they speak as the session, row below), nor
+   which of the App's conversations it is beyond what the user-writable
+   registry entry and App record say (the threat model below).
+
+   **What the helper hop leaves (the third review, Low 2).** `disclaimer`
+   is a generic launcher: the app starts programs through it, Claude Code
+   among them. So "the app → `disclaimer` → genuine Claude Code" proves
+   the Claude app started that Claude Code; it does not prove the Claude
+   Code is a Code-tab session. That part rests on the registry entry
+   (`entrypoint: "claude-desktop"`, its `hostSessionId`) and the App's
+   record, files this user, and so any process of this user, can write.
+   Inside the same-user boundary this leaves one case: a process that is
+   already a descendant (at most two steps down) of a Claude Code the
+   Claude app started, for any of its features, together with forged
+   registry and record files, is attested as a Code-tab conversation of
+   that App instance. It can't make a script outside such a tree pass,
+   can't pass for another App or profile, and gains nothing a process of
+   this user doesn't already have (it can read a launched session's key,
+   §4; it can drive the app as the user does).
+
+   **What it rests on:** macOS enforcing code signing for running code;
+   both programs signed with the hardened runtime (`flags=0x10000`), with
+   no `get-task-allow` and no `allow-dyld-environment-variables`, so
+   another process of the same user can't attach to them or inject a
+   library through the environment (the CLI's `disable-library-validation`
+   lets only its own code choose what it loads); and the Claude app's
+   Electron fuses: `RunAsNode`, `EnableNodeOptionsEnvironmentVariable` and
+   `EnableNodeCliInspectArguments` **off**, with embedded asar integrity
+   validation and only-load-app-from-asar **on** (the fuse wire read from
+   the installed app 2026-11-15: `010011011`). If a Claude app update turns
+   any of the first three on, a same-user process could start the genuine
+   app binary as a Node interpreter running its own script, or under a
+   debugger, and it would pass the host check: then the Claude connector
+   must stop being offered (`DesktopPeer::not_offered`) until the check
+   is rethought. The adapter's test
+   `the_installed_claude_apps_fuses_stay_off` reads the installed app's
+   fuse wire on every Mac that has it; re-check it with each Claude app
+   update a release covers, and the identifiers and team if Anthropic
+   ever changes them (the check then refuses, closed).
+5. **One App.** Every desktop App the user added (D-84) whose tool's
+   adapter can attest is asked; exactly one must attest. None, or two,
+   is a refusal.
+6. **Its place.** The app builds the session's facts (App, Account, Tool,
+   conversation; project from the conversation index) under a minted id,
+   `desktop:<folder>/<conversation>` (L3), which no real session can have
+   (`SessionsRepo::insert` refuses the prefix), and keeps them in memory
+   (`Storage::attested`), refreshed by each attested call, and dropped at
+   once when a later call, or the live view's tick (2 s), finds that
+   session's registry entry stale, its process ended (the pid gone or its
+   start time another), or its conversation archived by the app (or its
+   record gone, or naming another conversation). While that check finds
+   its process running and its records naming it, the facts stay fresh:
+   the session is open, a running holder and a recipient exactly while it
+   runs (run 3, 2026-11-16: an App still said "1 open now" for ten
+   minutes after its app quit). The ten minutes after the last call only
+   bound facts nothing can confirm (no process table). Only this path
+   writes it. Then the call
+   goes on exactly as a keyed one: the rate limit (per conversation),
+   Settings › Agent access, the pool's level, the talk rules, and
+   `allowed(pool, action)`, which decides and audits.
+
+**Refused, never trusted.** Anything short of all of the above (no peer
+pid, a process missing, a registry entry missing, of another shape, a
+link, without `procStart`, with a start time that doesn't match, an App
+record missing or naming another conversation, no App or two) is
+`Refusal::Unattested`, with the reason. There is no fallback to the
+caller's word, the environment, a cached verdict or a guess. A Codex app
+thread is refused (one shared `codex app-server`, no per-thread
+process: `codex_peer` answers "can't tell which thread is calling" until
+a lab probe proves a way).
+
+**Each call is attested again.** Nothing is cached between calls but the
+facts' lifetime: a session resumed or `/clear`ed while its MCP server
+lives on is checked against the registry as it is at that call (the
+resume row below), and a server that outlives its session (its parent gone: the
+chain ends at `launchd`) is refused.
+
+**The threat model, plainly (the review, 2026-11-15).**
+
+- **What attestation stops:** honest but wrong callers: another tool's
+  process, a stale record or a reused pid, a session of another profile
+  or App, a process that outlived its session.
+- **What it doesn't stop:** a malicious process running as the same
+  user, in one narrow way after M1. Claude Code's registry folder
+  (`<config>/sessions/`) and the app's session records are writable by
+  any process of this user. A script can no longer get attested by
+  writing an entry for its own parent: that parent's running code must
+  be Anthropic's Claude Code, under the Claude app's own running main
+  process for this instance (4b). What remains is a same-user process
+  rewriting a live Code-tab session's registry entry or App record to
+  name another conversation of the same App instance: that session (or
+  something it runs) would then act as that other conversation of the
+  same profile.
+- **Why that's no new exposure:** ADR-0020's key has the same limit: any
+  process of the same user can read a launched session's environment
+  (`KERN_PROCARGS2`), key included.
+- **What the boundary is:** the OS user. The socket is `0600` in a `0700`
+  folder of the user's, and every connection's peer user is checked
+  (`getpeereid`) before anything is read. Within that boundary,
+  attestation gives accountability: each call is tied to the one session
+  the system and the tool's own records name, and audited as it.
+
+**Settled with the review's questions (the coordinating session,
+2026-11-15).**
+
+- **The peer is named by its audit token (L4, corrected after the
+  review).** An earlier draft took tokio's `LOCAL_PEEREPID` and argued
+  it was safe because it differs from `LOCAL_PEERPID` only for a
+  delegated socket. That was the wrong question: either value is just a
+  pid, and a pid can be reused once that process exits. The token
+  (`LOCAL_PEERTOKEN`) names the socket's last user at `getsockopt` time,
+  read right at accept, and carries the pid's version as well, and the app compares it with the
+  live process's version (one audited `proc_pidinfo` block in
+  `juggler-proc-list`, under D-110's rules): a process that took the pid
+  since has another version and is refused. Reading the token needs no
+  `unsafe` (nix's `getsockopt`). The chain, the start times along it, the
+  registry entry's `procStart`, the running code's signatures (M1) and
+  the App's own record still have to agree after that.
+- **No tool allow rule in the user's `settings.json` in 0.4.6.** Add
+  writes only AI Juggler's own folder (`skills/ai-juggler/`), so Remove
+  stays exact. Claude Code asks once per tool in the Code tab; the window
+  says so and suggests "Always allow". What a member may do is still the
+  pool's level.
+- **The Codex app's connector isn't offered.** Its writer (`[mcp_servers.juggler]`
+  in the App's `config.toml`) and its tests stay, but `connector_status`
+  and `connector_preview` say `unavailable` ("Codex can't yet tell which
+  thread is calling", from its adapter's `DesktopPeer::not_offered`) and
+  `connector_add` refuses, until lab probe C2 proves which thread calls.
+- **Probe C2 runs headless, at the CLI's own app-server (option 2,
+  2026-11-16).** `scripts/qa/c2_probe.py` starts one `codex app-server`
+  (the `codex` CLI, on a lab home) with two threads and records what the
+  MCP server it spawns can see (`docs/qa/evidence/AJ-E3013/c2-runbook.md`).
+  The ChatGPT desktop UI's own wiring to its app-server is **inferred**
+  (the app spawns the same `codex app-server`, from its bundled CLI), **not
+  observed**: no ChatGPT app is launched. A result carries to the app only
+  as far as that inference and the version gap (the CLI 0.163.0, the app's
+  bundled 0.169.0-alpha.11.1) allow.
+
+### STRIDE, added
+
+| Threat | Mitigation | Test |
+|---|---|---|
+| **S** another user's process | peer uid = ours, before anything is read | `local_ipc` (as before) |
+| **S** a same-user process outside the session's tree claims a session | no field claims anything; the chain comes from the kernel; its parent/grandparent must be a Code-tab process with a matching registry entry and App record | `a_process_outside_the_session_is_refused` |
+| **S** pid reuse: the session ended and its pid now runs something else | `procStart` must match that pid's real start time (±1 s); each process in the chain started no later than its child; the peer started no later than the accept | `a_reused_pid_is_refused` |
+| **S** a process that outlives its session (an orphaned MCP server) | its parent is `launchd`: no registry entry; refused | `an_orphan_is_refused` |
+| **S** resume and `/clear` (the MCP server outlives a conversation) | the registry and App record are read at every call; the call acts as the conversation they name now, or is refused when they disagree | `the_registry_is_read_at_every_call` |
+| **S** a descendant of the session (a hook, a shell command the model runs) | accepted, as that session: it is inside the session's own trust (the model can call the tools itself); at most two steps up | `a_hook_under_sh_is_attested` |
+| **S** a same-user process that **forges** a registry entry for its own parent (M1) | the parent's **running** code must meet Claude Code's pinned requirement (identifier, Apple's anchor, Anthropic's team), under the Claude app's own running main process (its pinned bundle identifier and team) for this instance, directly or through its pinned `disclaimer` helper (another Anthropic-signed program isn't a hop); pid versions equal before and after each check, start times and parents unchanged after them; an archived conversation isn't attested; the files are read through the no-link walk, owner and mode checked on the open file. What remains is rewriting a live session's entry or record to name another conversation of the same App (as §4: a same-user process can already read a launched session's key) | `this_processs_own_chain_…` (a forged entry for the test's runner refused), `a_tool_whose_running_code_isnt_genuine_is_refused`, `the_running_code_is_checked_against_the_requirement`, `an_archived_session_isnt_attested` |
+| **S** a fake host: a program at `~/x/Claude.app/Contents/MacOS/Claude`, even signed with the app's identifier (M1 round 2, probe a) | the host is known by its running code's signature only (identifier **and** Anthropic's team under Apple's anchor), never a path or a folder name | `a_program_named_like_the_host_isnt_the_host`, `the_host_is_known_by_its_running_code_never_its_name` |
+| **S/T** a genuine program renamed over the path of a running ad-hoc one (M1 round 2, probe b) | the running code is checked (`SecCodeCopyGuestWithAttributes` by pid, `SecCodeCheckValidity` against the pinned requirement), never the file at `proc_pidpath`; verdicts kept per (pid, pid version) | `a_genuine_program_renamed_over_a_running_one_changes_nothing` |
+| **S** a host started with its profile folder given twice or in another form, so AI Juggler and the app read different instances (the third review's Low 1) | only `--user-data-dir=<folder>`, once, before `--`, is read; anything else is refused; and the verified main process must hold that instance's own lock (`F_GETLK` on the adapter's lock file, no lock taken) | `the_profile_folder_is_read_only_in_its_one_strict_form`, `the_profile_must_be_held_by_the_app_that_runs_the_session`, `a_write_locks_holder_is_named_and_asking_locks_nothing`; live, read-only: `the_running_claude_apps_profiles_pass_the_instance_checks` |
+| **S** a process that exits or execs while it's checked | its pid version read before and after each check; start time and parent read again after all of them | `a_process_that_changed_while_it_was_checked_is_refused` |
+| **E** the genuine Claude app made to run someone else's code (Node mode, `NODE_OPTIONS`, `--inspect`) | rests on its Electron fuses being off and the hardened runtime (4b); the fuse wire is checked on every Mac with the app | `the_installed_claude_apps_fuses_stay_off` |
+| **T** the connector's files changed to point elsewhere | Add records each file's sha256; status says "changed by someone"; Remove is all or nothing (the lab's A11, 2026-11-15): a file changed since Add refuses it, naming the file, with nothing taken out; "Remove anyway (also deletes <file>)" is the person's confirmed choice (`connector_remove_anyway`) | `remove_refuses_naming_a_changed_file_and_remove_anyway_takes_it_all_out`, `remove_refuses_on_a_changed_file_and_remove_anyway_takes_it_all` |
+| **I** secrets | the registry's `*.key` files are never opened; no value of the session's environment is read by the app (D-37); the connector holds no secret | `the_key_files_are_never_read` |
+| **D** call storms | the same limits: 30 calls in 10 s per conversation; before any attestation, 30 keyless lines in 10 s per process (a hook's report counts as its session's process above it, a new hook process each time) and 240 for every keyless line together | `a_looping_keyless_caller_is_limited_before_it_is_attested`, `a_hostile_nc_loop_is_capped_and_keyed_calls_still_answer` |
+| **D** a flood of new processes starves members (the review's global-cap finding) | a process attested in the last 60 s (or held in an attested wait) isn't counted against the common cap, and its lines are charged to its session's one allowance (its attested tool's pid and version: the fifth finding), not one per process; a full table of attested processes drops its oldest, never all; past the cap the answer is `Busy`, its own reason, and the caller's own allowance isn't spent; the connector's waker tries a `Busy` again after its 5 s least pause, never backing off. **Accepted:** while a same-user flood runs, a member not attested in the last 60 s (a session just started, a connector restarted, one idle longer) is told `Busy` until the flood ends: a denial of service by a process of the same user, inside the OS-user boundary (§ threat model), never a way in | `members_still_wake_promptly_during_and_right_after_a_flood`, `a_flood_fills_the_common_cap_but_never_a_members_lines_or_a_newcomers_allowance`, `busy_is_tried_again_after_the_least_pause_and_other_refusals_back_off`, `an_attested_sessions_processes_share_one_allowance`, `a_full_table_of_attested_processes_drops_the_oldest_only` |
+| **E** elevation through the attested path | the same `allowed()`, levels and talk rules; a desktop member can do nothing a keyed member can't | `attested_calls_go_through_the_same_decision` |
+
+### Waking (D-119)
+
+An idle desktop Code-tab member is woken only when the pool's waking
+rule allows it (the pool at Full, or a rule the user made), with the same
+gate and wake budget as a terminal member. The connector, a child of that
+session, posts one facts-only line ("AI Juggler: 1 new pool message from
+Planner; read it with read_inbox") to the session's own inbox socket
+(`CLAUDE_CODE_MESSAGING_SOCKET`, with the documented auth line on macOS).
+The app never opens that socket and never reads the token: the bridge
+does, from its own environment, on the app's say-so. Claude Code treats
+it as a peer message (it can't approve or change anything) and applies
+its own rate limit on top of ours.
+
+- **How the connector hears of a wake.** Its MCP server holds one wait
+  open (`wire::Wait`, keyless, at most 110 s, in a slot of its own: 32 at
+  most, never one of the calls' 16). The app attests it, then looks every
+  5 s for an unread agent's message in an open thread of a pool neither
+  paused nor stopped that `allowed(sender, pool, deliver_to_session, hop)`
+  lets it deliver (the pool at Full, or a rule; the hop limit), at most one
+  wake a minute per session, and answers with the facts-only note
+  (`messaging::unread_note`). A person's message waits for the turn,
+  unless they Deliver it (their compose with Deliver, or Deliver on the
+  waiting copy): their click is the permission, and it wakes the member
+  (the A9 lab walk, 2026-11-15). What counts as new is what came since the
+  session's Claude Code started, not since the first answered wait, and the
+  connector asks again every 5 s while it isn't attested yet in its first
+  two minutes (the start race), backing off to at most a minute after that.
+- **Which variables the server has (checked statically, 2026-11-15; lab
+  A9 proves it live).** The bundled Claude Code 2.1.325 sets
+  `process.env.CLAUDE_CODE_MESSAGING_SOCKET` when it binds the inbox, so
+  children it starts after that inherit it; it keeps the token in a
+  separate child environment (`….set("CLAUDE_CODE_MESSAGING_TOKEN", …)`),
+  documented for hooks and Bash. So the server may have the socket and
+  not the token. The connector posts with the auth line when it has the
+  token and without it otherwise (the docs: on macOS an own child is
+  verified while the posting process runs, which a long-lived MCP server
+  is). With no socket in its environment it wakes nothing and the member
+  reads on its next turn (its hooks' note). No token is ever passed
+  through a file or to AI Juggler: the hook route the research named
+  would need that, and isn't built.
+
 ## Unverified until the spike (AJ-E1701, the maintainer's)
 
 - That a server from `--mcp-config` loads in Claude Code without an

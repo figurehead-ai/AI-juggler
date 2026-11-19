@@ -21,6 +21,10 @@ const GALLERY_SPECS = [
   // 0.3's (E28): the shared controls, the header and its screens, the
   // pool canvas, what the other tool was told, and the Subagents tab.
   "controls-gallery", "handover-told-gallery", "nav-gallery", "pool-canvas-gallery", "subagents-gallery",
+  // 0.4.6's (AJ-E3011, AJ-E3012): the pool setup, every step, and the
+  // canvas with each kind selected; (AJ-E3013) desktop apps in a pool
+  // through AI Juggler's connector.
+  "pool-setup-gallery", "connector-gallery",
   // Families that tagged a gate state but were never listed, so CI never
   // compared them: 0.1.3's places and session pages (E21), 0.3.0's local
   // cache, and 0.4's new screens (account quality, cost cuts, first-run

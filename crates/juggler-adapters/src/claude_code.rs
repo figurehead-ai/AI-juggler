@@ -892,6 +892,15 @@ impl ToolRuntime for ClaudeCodeAdapter {
             text,
         ))
     }
+    /// AJ-E3013: a Claude app profile's Code-tab sessions, attested from
+    /// Claude Code's own registry and the app's own record.
+    fn desktop_peer(&self) -> Option<&dyn juggler_adapter::peer::DesktopPeer> {
+        Some(&crate::claude_peer::ClaudeAppPeer)
+    }
+    /// AJ-E3013: the plugin folder `skills/ai-juggler/` (Route A).
+    fn desktop_connector(&self) -> Option<&dyn juggler_adapter::connector::DesktopConnector> {
+        Some(&crate::claude_connector::ClaudeAppConnector)
+    }
 }
 
 /// The AJ-E308 sign-in taxonomy — moved to the adapter contract for
@@ -1363,6 +1372,9 @@ pub fn claude_code_spec() -> juggler_adapter::ToolSpec {
         release_feed: Some(juggler_adapter::ReleaseFeed::Npm {
             package: "@anthropic-ai/claude-code".to_owned(),
         }),
+        // D-128: read only, by the release flow's gate watch.
+        version_probes: vec![juggler_adapter::VersionProbe::Command { program: "claude".to_owned() }, juggler_adapter::VersionProbe::DesktopApp { name: "Claude".to_owned() }],
+        more_release_feeds: Vec::new(),
         update_command: Some("claude update".to_owned()),
         // The Floor: a warm workshop for the CLI, a pale studio for the
         // Claude app (SPEC §9.7).

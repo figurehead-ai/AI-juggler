@@ -32,8 +32,10 @@ use juggler_adapter::compat::{CompatFeature, Gate, Span};
 use juggler_adapter::error::AdapterError;
 use juggler_adapter::moving::{
     Appended, HoldWhy, InPlaceMove, MemberSide, MoveCheck, MoveMember, MovePlan, MoveRequest,
-    MoveStep, NotesChoice, Retained,
+    MoveStep, NotesChoice, Refusal, Retained,
 };
+
+mod shape;
 
 /// D-128, ADR-0035 §2: a move between Claude app profiles, in the remote
 /// `compat` section: offered for the app's 4.x and later (where its
@@ -84,11 +86,6 @@ const LOCAL: &str = "local_";
 const RECORD_MAX: u64 = 4 * 1024 * 1024;
 /// How deep a family is followed.
 const MAX_DEPTH: usize = 32;
-/// The Claude app versions (major) whose records and launch were proven
-/// for a move (2026-11-08, the maintainer's case and the aij-test walk).
-const PROVEN_APP_MAJORS: &[&str] = &["4"];
-/// The Claude Code versions (major) whose folders were proven.
-const PROVEN_CODE_MAJORS: &[&str] = &["2"];
 /// Fields that belong to the account a record was made under (as the
 /// copy's family carry drops them).
 const ACCOUNT_BOUND: [&str; 6] = [
@@ -112,7 +109,9 @@ const STALE_RUNTIME: [&str; 5] = [
 /// Snapshots the app regenerates when a record's parent changed.
 const ROUTING_SNAPSHOTS: [&str; 2] = ["promptAppendSnapshot", "toolSurfaceSnapshot"];
 /// The structured keys that name another record (never message text).
-const REFERENCE_KEYS: [&str; 7] = [
+/// `firstSessionId`: the Claude app 5.x's `startChain`, the chain's first
+/// record (seen 2026-11-18; always an ancestor by `spawnedFrom`).
+const REFERENCE_KEYS: [&str; 8] = [
     "sessionId",
     "targetSessionId",
     "sourceSessionId",
@@ -120,7 +119,12 @@ const REFERENCE_KEYS: [&str; 7] = [
     "rootSessionId",
     "forkedFromSessionId",
     "spawnedFromSessionId",
+    "firstSessionId",
 ];
+/// The fields that tie a record to the one it was started from; the moved
+/// conversation's own go when its parent stays behind (5.x adds the
+/// start chain beside `spawnedFrom`).
+const PARENT_LINKS: [&str; 3] = ["spawnedFrom", "forkedFromSessionId", "startChain"];
 /// The session folder's entry that stays where it is (outputs named by
 /// their full path in old messages).
 const OUTPUTS: &str = "tool-results";
@@ -328,22 +332,15 @@ fn target_records_folder(request: &MoveRequest, host: &Path) -> Result<PathBuf, 
         return if folder.is_dir() {
             Ok(folder)
         } else {
-            Err("the target profile has no session folder for its account yet: open it once, then switch".to_owned())
+            Err("the target profile hasn't been opened on its account yet; Move becomes available once you open it there".to_owned())
         };
     }
     let found = crate::claude_limits::instance_sign_ins(host);
     match found.as_slice() {
         [one] => Ok(root.join(&one.account).join(&one.org)),
-        [] => Err("the target profile isn't signed in to an account yet".to_owned()),
-        _ => Err("the target profile has sessions of more than one account and none is signed in, so AI Juggler can't tell where they go".to_owned()),
+        [] => Err("the target profile isn't signed in yet; Move becomes available once you sign in there".to_owned()),
+        _ => Err("the target profile has sessions of more than one account and isn't signed in to one; Move becomes available once you sign in there".to_owned()),
     }
-}
-
-/// Whether `version`'s major is one of `proven`.
-fn proven(version: Option<&str>, proven: &[&str]) -> bool {
-    version
-        .and_then(|v| v.trim().split('.').next())
-        .is_some_and(|major| proven.contains(&major))
 }
 
 /// The plan as it is built.
@@ -354,11 +351,32 @@ struct Builder<'a> {
 }
 
 impl Builder<'_> {
+    /// A refusal the user can't clear (D-127: Move isn't shown).
     fn refuse(&mut self, why: impl Into<String>) {
-        let why = why.into();
-        if !self.plan.refusals.contains(&why) {
-            self.plan.refusals.push(why);
+        self.push(Refusal::setup(why));
+    }
+
+    /// A refusal the user can clear, its words saying how (D-127: Move is
+    /// shown waiting).
+    fn wait(&mut self, how: impl Into<String>) {
+        self.push(Refusal::user_can_clear(how));
+    }
+
+    fn push(&mut self, refusal: Refusal) {
+        if !self.plan.refusals.contains(&refusal) {
+            self.plan.refusals.push(refusal);
         }
+    }
+
+    /// D-128: what a move relies on isn't shaped as it knows it; named for
+    /// the gate watch, and Move isn't shown.
+    fn mismatch(&mut self, what: String) {
+        if !self.plan.shape.contains(&what) {
+            self.plan.shape.push(what);
+        }
+        self.refuse(
+            "this version of the Claude app keeps its sessions in a way AI Juggler doesn't know yet",
+        );
     }
 
     fn note(&mut self, what: impl Into<String>) {
@@ -501,8 +519,9 @@ fn moved_record(
                 .iter()
                 .any(|p| family.contains(p) || rebind.contains_key(p))
         {
-            object.remove("spawnedFrom");
-            object.remove("forkedFromSessionId");
+            for key in PARENT_LINKS {
+                object.remove(key);
+            }
         }
     }
     if rebound(&mut value, rebind)
@@ -581,37 +600,22 @@ impl InPlaceMove for ClaudeMove {
         if source.tool_dir == target.tool_dir {
             b.refuse("both accounts use the same Claude Code folder, so there is nothing to move");
         }
-        // Gates: one kind of side to the same kind, proven versions, one
-        // disk that clones.
+        // Gates: one kind of side to the same kind, the shape of what it
+        // rewrites (D-128: any version whose shape fits), one disk that
+        // clones.
         match (&source.host_dir, &target.host_dir) {
             (Some(a), Some(z)) if a == z => {
                 b.refuse("both accounts use the same Claude app profile");
             }
-            (Some(_), Some(_)) => {
-                for side in [source, target] {
-                    if !proven(side.version.as_deref(), PROVEN_APP_MAJORS) {
-                        b.refuse(format!(
-                            "a move between Claude app profiles is proven for version {}.x; this one is {}. Copy still works",
-                            PROVEN_APP_MAJORS.join(", "),
-                            side.version.as_deref().unwrap_or("of a version AI Juggler couldn't read")
-                        ));
-                    }
-                }
-            }
-            (None, None) => {
-                for side in [source, target] {
-                    if !proven(side.version.as_deref(), PROVEN_CODE_MAJORS) {
-                        b.refuse(format!(
-                            "a move between Claude Code folders is proven for version {}.x; this one is {}. Copy still works",
-                            PROVEN_CODE_MAJORS.join(", "),
-                            side.version.as_deref().unwrap_or("of a version AI Juggler couldn't read")
-                        ));
-                    }
-                }
-            }
+            (Some(_), Some(_)) | (None, None) => {}
             _ => b.refuse(
-                "a move between the Claude app and a terminal isn't proven yet: Copy carries it",
+                "a move between the Claude app and a terminal isn't built: Copy carries it",
             ),
+        }
+        for host in [&source.host_dir, &target.host_dir].into_iter().flatten() {
+            for what in shape::app_mismatches(host) {
+                b.mismatch(what);
+            }
         }
         match juggler_adapter::transfer::same_device(&source.tool_dir, &target.tool_dir) {
             Ok(true) => {}
@@ -723,6 +727,17 @@ impl InPlaceMove for ClaudeMove {
             .filter(|id| !target_aliases.contains(id))
             .filter(|id| !moved_conversations.contains(&target_records[id].conversation))
             .collect();
+        // 5.x: a member with messages waiting to be sent in the app; they
+        // are the app's to send first (the user's to clear).
+        for id in &family {
+            let record = &source_records[id];
+            if shape::waiting_for(&record.path, id) > 0 {
+                b.wait(format!(
+                    "“{}” has a message waiting to be sent in the Claude app; Move becomes available once it's sent",
+                    record.title().unwrap_or_else(|| record.conversation.clone())
+                ));
+            }
+        }
         // A record AI Juggler can't read that names the family could be a
         // member or an alias it would miss: the family wouldn't move whole.
         let family_ids: BTreeSet<String> = family
@@ -945,8 +960,8 @@ impl InPlaceMove for ClaudeMove {
         if let Some(host) = target.host_dir.as_deref() {
             let folder = match target_records_folder(request, host) {
                 Ok(folder) => Some(folder),
-                Err(why) => {
-                    b.refuse(why);
+                Err(how) => {
+                    b.wait(how);
                     None
                 }
             };
@@ -960,7 +975,7 @@ impl InPlaceMove for ClaudeMove {
                     target_records[alias].title().unwrap_or_else(|| target_records[alias].conversation.clone())
                 ));
             }
-            if let Some(folder) = folder {
+            if let Some(folder) = &folder {
                 for id in order.iter().flatten() {
                     let record = &source_records[id];
                     let root = record.conversation == request.conversation;
@@ -1013,11 +1028,29 @@ impl InPlaceMove for ClaudeMove {
                 .collect();
             retire.sort_by(|a, b| a.id.cmp(&b.id));
             retire.dedup_by(|a, b| a.id == b.id);
+            let mut hints: BTreeSet<PathBuf> = folder
+                .iter()
+                .map(|folder| folder.join(shape::ARCHIVE_HINT))
+                .collect();
             for record in retire {
+                if let Some(parent) = record.path.parent() {
+                    hints.insert(parent.join(shape::ARCHIVE_HINT));
+                }
                 b.plan.steps.push(MoveStep::Hold {
                     path: record.path.clone(),
                     why: HoldWhy::RetiredRecord,
                 });
+            }
+            // 5.x: the archived-sessions hint of each records folder the
+            // move changes is put aside; the app loads without it and
+            // makes it again from the records.
+            for hint in hints {
+                if std::fs::symlink_metadata(&hint).is_ok_and(|meta| meta.is_file()) {
+                    b.plan.steps.push(MoveStep::Hold {
+                        path: hint,
+                        why: HoldWhy::AppHint,
+                    });
+                }
             }
         }
         Ok(b.plan)
@@ -1303,12 +1336,5 @@ mod tests {
             Some("claude://resume?session=9e09-ab")
         );
         assert!(ClaudeMove.resume_link("x&y=z").is_none());
-    }
-
-    #[test]
-    fn versions_are_gated_by_major() {
-        assert!(proven(Some("4.16336.0"), PROVEN_APP_MAJORS));
-        assert!(!proven(Some("5.0.1"), PROVEN_APP_MAJORS));
-        assert!(!proven(None, PROVEN_APP_MAJORS));
     }
 }

@@ -382,6 +382,7 @@ pub async fn places_offer_answer(
 #[tauri::command]
 pub async fn places_open(
     state: tauri::State<'_, Arc<AppState>>,
+    app: tauri::AppHandle,
     id: String,
     conversation_id: Option<String>,
     action: Option<String>,
@@ -395,6 +396,7 @@ pub async fn places_open(
                 conversation_id.as_deref(),
                 Arc::new(crate::features::conversations::goto::MacDesktop),
                 Arc::new(super::start::System),
+                Some(crate::features::conversations::goto::tell_window(app)),
             );
         };
         // AJ-E2003 R6: a folder the user picked, or one AI Juggler already
@@ -451,11 +453,13 @@ pub async fn places_restart(
                 outcome: words,
                 reached: "started".to_owned(),
                 place_id: Some(id.clone()),
+                ticket: None,
             },
             Err(why) => GoToOutcomeInfo {
                 outcome: why,
                 reached: "none".to_owned(),
                 place_id: None,
+                ticket: None,
             },
         })
     })

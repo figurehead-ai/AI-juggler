@@ -20,10 +20,10 @@ import { ListBuilding } from "../components/ListBuilding";
 import { useKeys } from "../lib/use-keys";
 import { useHomeKeys } from "../lib/use-home-keys";
 import { useResource } from "../lib/use-resource";
-import { instancesMarkReviewed } from "../lib/ipc/review";
+import { useReviewList } from "../lib/home-review";
 import { useCallback, useEffect, useMemo, useRef, useState, type JSX, type UIEvent } from "react";
 import { runwayOf } from "../components/AccountRunway";
-import { useThisMacInfo, type ThisMacInfo } from "../lib/machine";
+import { useMachineLevel, type ThisMacInfo } from "../lib/machine";
 import { LegendPopover } from "../components/LegendPopover";
 import { sessionLabel } from "../lib/stop";
 import { RowPlaceholders } from "../components/Placeholder";
@@ -65,19 +65,7 @@ import { placeOf } from "../lib/project-words";
 
 const NEEDS = ["waiting_user", "stuck", "quota_blocked", "failed"] as const;
 type Need = (typeof NEEDS)[number];
-const ENDED = ["finished", "stopped", "handed_over"];
-/** Ended sessions older than this are left to History (AJ-E1007). */
-const TO_REVIEW_WINDOW_MS = 7 * 24 * 3_600_000;
-
-/** Ended this week (not handed over) and not yet marked reviewed or archived. */
-export function toReview(session: InstanceInfo, now: number): boolean {
-  if (!ENDED.includes(session.status)) return false;
-  // A handed-over session goes on elsewhere; its successor is the one to
-  // pick up (as Triage had it).
-  if (session.status === "handed_over") return false;
-  if (session.lifecycle === "reviewed" || session.lifecycle === "archived") return false;
-  return now - (session.last_activity_ms ?? session.started_at_ms) <= TO_REVIEW_WINDOW_MS;
-}
+export { toReview } from "../lib/home-review";
 
 /** A session's need, from the status or the attention flag. */
 export function needOf(session: InstanceInfo): Need | null {
@@ -151,7 +139,7 @@ export function HomeScreen({
   /** ⌘K's search (the shell's). */
   onSearch?: () => void;
 }): JSX.Element {
-  const thisMac = useThisMacInfo(given);
+  const macLevel = useMachineLevel(given); // AJ-E813: the level alone
   const actionKeys = useKeys("home-action");
   // 0.0.11 walk (Q3): a tool without a limits feed says so in its row.
   // The runways kept from the last read (any screen's) show at once; read
@@ -255,14 +243,14 @@ export function HomeScreen({
   const parked = sessions
     .filter((s) => s.parked)
     .sort((a, b) => (a.parked_resets_at_ms ?? Number.MAX_SAFE_INTEGER) - (b.parked_resets_at_ms ?? Number.MAX_SAFE_INTEGER));
-  const review = sessions
-    .filter((s) => toReview(s, now))
-    .sort((a, b) => (b.last_activity_ms ?? b.started_at_ms) - (a.last_activity_ms ?? a.started_at_ms));
+  // F-K2-7a (0.4.6): every one to review (the backend's count), not only
+  // those the app holds; Mark all marks every one, its Undo that batch.
+  const toPick = useReviewList(sessions, now, false);
+  const review = toPick.rows;
   const reviewAll = async () => {
-    const ids = review.map((session) => session.id);
     try {
-      await instancesMarkReviewed(ids);
-      showToast({ id: "reviewed:all", message: `Marked ${ids.length} reviewed.`, undo: { onUndo: async () => { await instancesMarkReviewed(ids, true); onChanged?.(); }, done: "They're back on the list." } });
+      const done = await toPick.markAll();
+      showToast({ id: "reviewed:all", message: `Marked ${done.count} reviewed.`, undo: { onUndo: async () => { await done.undo(); onChanged?.(); }, done: "They're back on the list." } });
       onChanged?.();
     } catch (cause) {
       showToast({ tone: "error", message: `Couldn't mark them reviewed: ${errorText(cause)}` });
@@ -324,7 +312,7 @@ export function HomeScreen({
     return <Welcome onFindAccounts={onAddAccounts} onFreshAccount={onFreshAccount ?? onAddAccounts} />;
   }
 
-  const allNeeds = homeNeedsOf(needsNow.rows, items, accounts, sessions, thisMac, now, known ?? []);
+  const allNeeds = homeNeedsOf(needsNow.rows, items, accounts, sessions, macLevel, now, known ?? []);
   // The heading counts the rows it sits over (the 0.2 walk, F4: "2
   // sessions need you" over four rows): the backend's needs Home lists,
   // and the caps, agents' messages and tasks with their own rows.
@@ -353,7 +341,7 @@ export function HomeScreen({
       scroller={scroller}
       nameOf={nameOf}
       facets={{ projects, accounts, subscriptions, pools }}
-      toReview={review.length}
+      toReview={toPick.total ?? review.length}
       onReviewAll={() => void reviewAll()}
       onNewSession={onNewSession}
       onOpenApp={() => document.querySelector<HTMLElement>("[data-testid='home-apps'] li button")?.focus()}

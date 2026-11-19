@@ -31,10 +31,27 @@ pub struct SessionBrief {
     pub last_ms: i64,
 }
 
+/// One session's conversation: [`SessionsRepo::conversation_links`].
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ConversationLink {
+    /// The account (tool folder) its launch settings run on.
+    pub account: String,
+    /// The tool's id for the conversation.
+    pub conversation: String,
+    /// The session.
+    pub session: String,
+    /// It has ended (finished, stopped, failed, handed over, or exited at a
+    /// limit): no process of it runs the conversation now.
+    pub ended: bool,
+}
+
 /// Typed read/write access to the `sessions` table.
 #[derive(Debug)]
 pub struct SessionsRepo<'a> {
     conn: &'a Connection,
+    /// AJ-E3013: the attested desktop sessions, when this repo was opened
+    /// through [`super::Storage::sessions`].
+    attested: Option<&'a super::attested::AttestedSessions>,
 }
 
 /// The lifecycle events that set a session's reviewed and archived state
@@ -45,11 +62,26 @@ pub const STATE_EVENTS: [&str; 4] = ["reviewed", "unreviewed", "archived", "unar
 /// to, at_ms)`.
 pub type LastTransitions = std::collections::HashMap<String, (Option<String>, String, i64)>;
 
+impl<'a> SessionsRepo<'a> {
+    /// AJ-E3013: the same repo, also reading the attested desktop
+    /// sessions' facts ([`Self::pool_facts_of`]).
+    #[must_use]
+    pub fn with_attested(self, attested: &'a super::attested::AttestedSessions) -> Self {
+        Self {
+            attested: Some(attested),
+            ..self
+        }
+    }
+}
+
 impl SessionsRepo<'_> {
     /// Wraps an open connection.
     #[must_use]
     pub fn new(conn: &Connection) -> SessionsRepo<'_> {
-        SessionsRepo { conn }
+        SessionsRepo {
+            conn,
+            attested: None,
+        }
     }
 
     /// Inserts a new session record.
@@ -59,6 +91,14 @@ impl SessionsRepo<'_> {
     /// Returns [`CoreError::Storage`] on I/O or constraint violations
     /// (unknown profile, duplicate id).
     pub fn insert(&self, session: &InstanceRecord) -> Result<(), CoreError> {
+        // AJ-E3013: an attested desktop session's minted id is never a
+        // session AI Juggler records (ADR-0020's D-116 addendum).
+        if super::attested::is_desktop_id(session.id.as_str()) {
+            return Err(CoreError::Validation {
+                subject: "session id",
+                message: "an attested desktop session's id isn't a session record's".to_owned(),
+            });
+        }
         self.conn.execute(
             "INSERT INTO instances
                  (id, conversation_id, launch_recipe_id, machine, kind, project, cwd, status,
@@ -527,11 +567,19 @@ impl SessionsRepo<'_> {
     /// Account is the one its folder's sign-in was last read as; `None`
     /// when that isn't known ("Account unknown").
     ///
+    /// AJ-E3013: and every attested desktop session while its facts are
+    /// fresh (kept in memory: no query, no attestation), so the pools'
+    /// tallies count a connected desktop member as any other session.
+    ///
     /// # Errors
     ///
     /// Returns [`CoreError::Storage`] on SQLite failures.
     pub fn pool_facts(&self) -> Result<Vec<crate::pools::SessionFacts>, CoreError> {
-        self.pool_facts_where("", [])
+        let mut all = self.pool_facts_where("", [])?;
+        if let Some(attested) = self.attested {
+            all.extend(attested.fresh());
+        }
+        Ok(all)
     }
 
     /// [`Self::pool_facts`] for one session; `None` when it isn't there.
@@ -543,6 +591,11 @@ impl SessionsRepo<'_> {
         &self,
         session: &SessionId,
     ) -> Result<Option<crate::pools::SessionFacts>, CoreError> {
+        // AJ-E3013: an attested desktop session (no row: AI Juggler didn't
+        // start it) has the facts its attestation kept, while they're fresh.
+        if super::attested::is_desktop_id(session.as_str()) {
+            return Ok(self.attested.and_then(|attested| attested.get(session)));
+        }
         Ok(self
             .pool_facts_where("WHERE i.id = ?1", [session.as_str()])?
             .into_iter()
@@ -610,22 +663,30 @@ impl SessionsRepo<'_> {
         rows.map(|row| row.map_err(CoreError::Storage)).collect()
     }
 
-    /// Each session's conversation, `(account, conversation, session)`,
-    /// oldest session first: one cheap read for the conversations list
-    /// (never the sessions' whole rows). The account tells one copy of a
-    /// conversation from another: a switch to another account of the same
-    /// tool continues the conversation under the same id there.
+    /// Each session's conversation ([`ConversationLink`]), oldest session
+    /// first: one cheap read for the conversations list (never the
+    /// sessions' whole rows). The account tells one copy of a conversation
+    /// from another: a switch to another account of the same tool
+    /// continues the conversation under the same id there.
     ///
     /// # Errors
     ///
     /// Returns [`CoreError::Storage`] on SQLite failures.
-    pub fn conversation_links(&self) -> Result<Vec<(String, String, String)>, CoreError> {
-        let mut stmt = self.conn.prepare(
-            "SELECT r.account_id, i.conversation_id, i.id FROM instances i \
+    pub fn conversation_links(&self) -> Result<Vec<ConversationLink>, CoreError> {
+        let mut stmt = self.conn.prepare(&format!(
+            "SELECT r.account_id, i.conversation_id, i.id, \
+                    i.status IN {ENDED} OR i.status = 'quota_blocked' FROM instances i \
              JOIN launch_recipes r ON r.id = i.launch_recipe_id \
-             WHERE i.conversation_id IS NOT NULL ORDER BY i.started_at, i.id",
-        )?;
-        let rows = stmt.query_map([], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)))?;
+             WHERE i.conversation_id IS NOT NULL ORDER BY i.started_at, i.id"
+        ))?;
+        let rows = stmt.query_map([], |row| {
+            Ok(ConversationLink {
+                account: row.get(0)?,
+                conversation: row.get(1)?,
+                session: row.get(2)?,
+                ended: row.get(3)?,
+            })
+        })?;
         rows.map(|row| row.map_err(CoreError::Storage)).collect()
     }
 

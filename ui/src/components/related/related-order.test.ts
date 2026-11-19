@@ -4,7 +4,7 @@
  * keeps a list still while it's read ("N new").
  */
 import { describe, expect, it } from "vitest";
-import { BANDS, RECENT_MS, bandOf, facetsOf, filtersOn, ordered, passes, stateQuery, NO_FILTERS, type Belongs } from "./order";
+import { BANDS, RECENT_MS, bandOf, facetFilters, facetsOf, filtersOn, narrowedFacets, ordered, passes, passesChosen, stateQuery, NO_FILTERS, type Belongs } from "./order";
 import { holdAgain, holdAll, waitingWords } from "./hold";
 import { allPairs } from "../../test/pairwise";
 import type { RailItem, RailState } from "../../lib/rail-items";
@@ -40,7 +40,7 @@ describe("AJ-E3103 the order", () => {
     expect(stateQuery("open", NOW)).toEqual({ which: "open", since_ms: null });
     expect(stateQuery("recent", NOW)).toEqual({ which: "ended", since_ms: NOW - RECENT_MS });
     expect(stateQuery("ended", NOW)).toEqual({ which: "ended", since_ms: null });
-    const of: Belongs = { project: "p1", app: "cli:a", account: "acct:a", machine: "this-mac" };
+    const of: Belongs = { project: "p1", app: "cli:a", account: "acct:a", machine: "this-mac", tool: "claude-code" };
     const recent = item("r", "ended", NOW - 86_400_000);
     const old = item("o", "ended", NOW - 30 * 86_400_000);
     const open = item("w", "working", NOW);
@@ -55,13 +55,40 @@ describe("AJ-E3103 the order", () => {
   });
 
   it("a filter's values come with their counts, the most rows first", () => {
-    const of = (project: string, app: string, account: string | null): Belongs => ({ project, app, account, machine: "this-mac" });
+    const of = (project: string, app: string, account: string | null): Belongs => ({ project, app, account, machine: "this-mac", tool: "claude-code" });
     const facets = facetsOf([of("p1", "cli:a", "acct:a"), of("", "cli:b", null), of("p1", "cli:b", "acct:a")]);
     expect(facets.project).toEqual([{ id: "p1", count: 2 }, { id: "", count: 1 }]);
     expect(facets.app).toEqual([{ id: "cli:b", count: 2 }, { id: "cli:a", count: 1 }]);
     // "No account" ("") for the row on a folder no sign-in was read for (walk K2).
     expect(facets.account).toEqual([{ id: "acct:a", count: 2 }, { id: "", count: 1 }]);
     expect(facets.machine).toEqual([{ id: "this-mac", count: 3 }]);
+    expect(facets.tool).toEqual([{ id: "claude-code", count: 3 }]);
+  });
+
+  // The 0.4.6 RC walk K2 (F-K2-5): with App = Codex CLI chosen, History's
+  // Tool menu still offered Claude Code, which would show nothing.
+  it("each kind's values are counted with the other kinds' choices, never its own", () => {
+    const rows: Belongs[] = [
+      { project: "api", app: "cli:codex", account: null, machine: "this-mac", tool: "codex" },
+      { project: "api", app: "cli:codex", account: null, machine: "this-mac", tool: "codex" },
+      { project: "web", app: "cli:codex", account: null, machine: "this-mac", tool: "codex" },
+      { project: "api", app: "cli:work", account: "acct:a", machine: "this-mac", tool: "claude-code" },
+      { project: "web", app: "cli:work", account: "acct:a", machine: "this-mac", tool: "claude-code" },
+    ];
+    const rowsFor = (chosen: typeof NO_FILTERS) => rows.filter((of) => passesChosen(of, chosen));
+    const codex = narrowedFacets(rowsFor, { ...NO_FILTERS, app: "cli:codex" });
+    expect(codex.tool).toEqual([{ id: "codex", count: 3 }]);
+    expect(codex.project).toEqual([{ id: "api", count: 2 }, { id: "web", count: 1 }]);
+    expect(codex.account).toEqual([{ id: "", count: 3 }]);
+    // Its own kind: every App, over what the others leave (here, all).
+    expect(codex.app).toEqual([{ id: "cli:codex", count: 3 }, { id: "cli:work", count: 2 }]);
+    // Two chosen: each counted with the other's choice.
+    const both = narrowedFacets(rowsFor, { ...NO_FILTERS, app: "cli:codex", project: "web" });
+    expect(both.app).toEqual([{ id: "cli:codex", count: 1 }, { id: "cli:work", count: 1 }]);
+    expect(both.project).toEqual([{ id: "api", count: 2 }, { id: "web", count: 1 }]);
+    expect(both.tool).toEqual([{ id: "codex", count: 1 }]);
+    // The backend is asked the same: each choice by its own field.
+    expect(facetFilters({ ...NO_FILTERS, app: "cli:codex", project: "", tool: "codex" })).toEqual({ project_id: "", app_id: "cli:codex", subscription_id: null, machine_id: null, tool_id: "codex" });
   });
 });
 

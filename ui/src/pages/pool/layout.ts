@@ -117,7 +117,9 @@ export const clampScale = (scale: number) => Math.min(MAX_SCALE, Math.max(MIN_SC
 /** `left`, `top` and `bottom`: what the canvas's own chrome covers (the
  * palette, its folded line, the zoom bar: design review #10). */
 export function fitView(points: Iterable<Point>, width: number, height: number, pad = 48, left = 0, top = 0, bottom = 0, right = 0): View {
-  const box = bounds(points);
+  // Read twice (the box, the lead): an iterator only once.
+  const all = [...points];
+  const box = bounds(all);
   // `right`: the room a column over the right edge takes (the rules' group
   // nodes), so no member's node is drawn under it. Too narrow for both
   // sides, the open palette (it folds) gives way, never the column.
@@ -125,10 +127,18 @@ export function fitView(points: Iterable<Point>, width: number, height: number, 
   const room = both >= width / 2 ? both : Math.max(width - right, width / 2);
   const middle = width - right - room / 2;
   if (!box || width <= 0 || height <= 0) return { x: middle - NODE_W / 2, y: pad, scale: 1 };
-  // A node grows below its box with what waits on it: room for that too.
-  const tall = box.h + NODE_H;
   const high = height - top - bottom;
-  const readable = clampScale(Math.max(FIT_MIN_SCALE, Math.min(1, (room - pad * 2) / box.w, (high - pad * 2) / tall)));
+  const fitFor = (tall: number) => clampScale(Math.max(FIT_MIN_SCALE, Math.min(1, (room - pad * 2) / box.w, (high - pad * 2) / tall)));
+  // A full card grows below its box with an ask: room for that too. Under
+  // 100 % a node answers in a panel beside it and grows only for its
+  // title's second line (the rc3 critique: the full card's room shrank a
+  // six-member fit to 53 %, its titles cut), so a compact fit keeps a
+  // quarter node, and stays compact.
+  const full = fitFor(box.h + NODE_H);
+  const compact = Math.min(fitFor(box.h + NODE_H / 4), FULL_SCALE - 0.01);
+  const fitsFull = full >= FULL_SCALE - 0.005;
+  const tall = fitsFull || compact <= full ? box.h + NODE_H : box.h + NODE_H / 4;
+  const readable = fitsFull ? full : Math.max(full, compact);
   // With a column over the right edge, members never go under it (rc5
   // walk: adding a Tool rule hid two nodes): below the readable floor, to
   // the least scale, a node is its name and its state's dot.
@@ -137,9 +147,22 @@ export function fitView(points: Iterable<Point>, width: number, height: number, 
   const y = tall * scale > high - pad * 2 ? top + pad - box.y * scale : top + high / 2 - (box.y + tall / 2) * scale;
   // Too wide, the first column in view beside the palette, the rest a pan
   // away (rc4 walk: a 50-member pool, centred, had its first node under
-  // the palette and its last column under the right-hand column).
-  const x = box.w * scale > room - pad * 2 ? width - right - room + pad - box.x * scale : middle - (box.x + box.w / 2) * scale;
+  // the palette and its last column under the right-hand column) — but
+  // never the top node (the lead) under that column (AJ-E3011 round 3: at
+  // 1024 px a taller group card lay over the lead and took its clicks).
+  const wide = box.w * scale > room - pad * 2;
+  const first = width - right - room + pad - box.x * scale;
+  const lead = wide ? topmost(all) : null;
+  const leadClear = lead ? width - right - pad - (lead.x + NODE_W) * scale : first;
+  const x = wide ? Math.min(first, leadClear) : middle - (box.x + box.w / 2) * scale;
   return { x, y, scale };
+}
+
+/** The top node (the lead's place), leftmost on a tie. */
+function topmost(points: Iterable<Point>): Point | null {
+  let top: Point | null = null;
+  for (const at of points) if (!top || at.y < top.y || (at.y === top.y && at.x < top.x)) top = at;
+  return top;
 }
 
 /** Zooms by `factor` around a point of the window, keeping it still. */
@@ -179,7 +202,7 @@ const DETOURS = [90, 140, 190, 250, 320];
 
 /** Whether a curve runs through any of these boxes (by their corners),
  * with a little air around each. */
-function crosses(start: Point, control: Point, end: Point, boxes: readonly Point[]): boolean {
+export function crosses(start: Point, control: Point, end: Point, boxes: readonly Point[]): boolean {
   for (let step = 1; step < 24; step++) {
     const at = curvePoint(start, control, end, step / 24);
     if (boxes.some((box) => at.x > box.x - 10 && at.x < box.x + NODE_W + 10 && at.y > box.y - 10 && at.y < box.y + NODE_H + 10)) return true;
@@ -229,6 +252,8 @@ export function edgeCurve(
   around: readonly Point[] = [],
   busy: readonly (readonly [Point, Point])[] = [],
   room: LabelRoom = { w: 60, h: 60, below: 30 },
+  /** Room at the start for an arrowhead too (a pair drawn as one line). */
+  startGap = 0,
 ): { d: string; mid: Point; end: Point; start: Point; control: Point } {
   const a = nodeMiddle(from);
   const b = nodeMiddle(to);
@@ -238,7 +263,7 @@ export function edgeCurve(
   // To the right of the travel: each direction of a pair bends its own way.
   const arc = (bend: number) => {
     const control = { x: (a.x + b.x) / 2 - (dy / length) * bend, y: (a.y + b.y) / 2 + (dx / length) * bend };
-    return { control, start: boxEdge(from, control), end: boxEdge(to, control, 10) };
+    return { control, start: startGap > 0 ? boxEdge(from, control, startGap) : boxEdge(from, control), end: boxEdge(to, control, 10) };
   };
   const bend = bothWays ? 36 : Math.min(28, length * 0.08);
   let path = arc(bend);

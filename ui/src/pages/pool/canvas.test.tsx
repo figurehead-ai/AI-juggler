@@ -12,6 +12,7 @@
  *   limit, stop-all, a rule taken back, delete says what it does first),
  *   deep links into Messages, Tasks and Agent access.
  */
+import { flushHeld } from "../../components/Toast";
 import { act, cleanup, fireEvent, render, renderHook, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -25,7 +26,7 @@ import { rememberTab, rememberedTabId } from "../registry";
 import { PoolPage, poolCountWords } from "../PoolPage";
 import { first, openPage, resetCanvasTests, second, seams, seedTeam, third } from "./canvas.test-kit";
 import { cardOrder, cardWords, newPoolName, PoolsScreen } from "../../screens/pools/PoolsScreen";
-import { deliveryShort, deliveryWords } from "./InspectPool";
+import { deliveryWords } from "./PoolAccessFolds";
 import { CanvasEdges, pendingWords } from "./CanvasEdges";
 import { CompactNode } from "./CompactNode";
 import { CanvasNode } from "./CanvasNode";
@@ -112,6 +113,11 @@ describe("the canvas's geometry", () => {
     const panned = fitView(many.values(), 1280, 800, 48, 260, 0, 0, 240);
     expect(panned.scale).toBeCloseTo(0.3);
     expect(panned.x).toBeGreaterThanOrEqual(260);
+    // AJ-E3011 round 3: the lead, centred above a grid too wide to fit,
+    // stays clear of the column (at 1024 px a group card took its clicks).
+    const led = new Map([["lead", { x: 9 * (NODE_W + 40), y: -(NODE_H + 60) }], ...many]);
+    const leadView = fitView(led.values(), 600, 700, 48, 0, 0, 0, 240);
+    expect(leadView.x + (9 * (NODE_W + 40) + NODE_W) * leadView.scale).toBeLessThanOrEqual(600 - 240);
   });
 
   it("moves to the nearest node the arrow points at", () => {
@@ -156,10 +162,11 @@ describe("an edge never runs behind a node (the 0.3 review: Fix → Review behin
     expect(edgeCurve(a, b, false, [{ x: 300, y: 600 }]).d).toBe(edgeCurve(a, b, false).d);
   });
 
-  it("at fit, a badge sits on its own line, not where another edge's line runs", () => {
+  it("at fit, a chosen line's label sits on its own line, not where another edge's line runs", () => {
     // The review's row: A, M and B side by side, C under M. A → B goes
-    // round M on the side M → C leaves free, so its badge, on its own
-    // line, is off M → C's.
+    // round M on the side M → C leaves free, so its label (chosen: the
+    // rc3 critique keeps a line quiet at rest), on its own line, is off
+    // M → C's.
     const row = { a: { x: 0, y: 0 }, m: { x: 268, y: 0 }, b: { x: 536, y: 0 }, c: { x: 268, y: 212 } };
     const points = new Map(Object.entries(row));
     const at = Date.now();
@@ -168,7 +175,7 @@ describe("an edge never runs behind a node (the 0.3 review: Fix → Review behin
       { from_session_id: "a", to_session_id: "b", messages: 1, tasks: 0, last_at_ms: at, thread_id: "thr", pending: waiting },
       { from_session_id: "m", to_session_id: "c", messages: 1, tasks: 0, last_at_ms: at, thread_id: "thr2", pending: [] },
     ];
-    const view = render(<CanvasEdges edges={edges} points={points} names={new Map()} selected={null} pulses={new Map()} reducedMotion scale={0.6} onSelect={() => {}} />);
+    const view = render(<CanvasEdges edges={edges} points={points} names={new Map()} selected="a>b" pulses={new Map()} reducedMotion scale={0.6} onSelect={() => {}} />);
     const label = view.getAllByTestId("edge-label").find((one) => one.dataset.edge === "a>b")!;
     const [x, y] = label.style.transform.match(/translate\(([-\d.]+)px, ([-\d.]+)px\)/)!.slice(1).map(Number) as [number, number];
     const own = edgeCurve(row.a, row.b, false, [row.m, row.c], [[nodeMiddle(row.m), nodeMiddle(row.c)]]);
@@ -307,14 +314,21 @@ describe("a pool's page: its canvas", () => {
     await waitFor(() => expect(seams().__AIJ_MESSAGES_CALLS__).toContain("answer:ask-1:once"));
   });
 
-  it("takes a member out with Delete, and Undo puts it back", async () => {
+  it("takes a member out with Delete through the held action: Undo in time keeps it, letting it run takes it out (round 4)", async () => {
     seedTeam();
     const view = await openPage();
     const name = view.container.querySelector(`[data-node-name="${second.id}"]`) as HTMLElement;
+    const moved = `move:${second.id}:${defaultPoolIdOf(second.project_id)}`;
     fireEvent.keyDown(name, { key: "Delete" });
-    await waitFor(() => expect(seams().__AIJ_POOL_CALLS__).toContain(`move:${second.id}:${defaultPoolIdOf(second.project_id)}`));
+    // Held: nothing is sent yet; Undo keeps it.
     fireEvent.click(await view.findByTestId("canvas-removed"));
-    await waitFor(() => expect(seams().__AIJ_POOL_CALLS__).toContain(`move:${second.id}:pool-team`));
+    await flushHeld();
+    expect(seams().__AIJ_POOL_CALLS__ ?? []).not.toContain(moved);
+    // Again, and let it run: it's taken out.
+    fireEvent.keyDown(name, { key: "Delete" });
+    await view.findByTestId("canvas-removed");
+    await act(async () => flushHeld());
+    await waitFor(() => expect(seams().__AIJ_POOL_CALLS__).toContain(moved));
   });
 
   it("renames your pool in its header; a project's own pool keeps its name", async () => {
@@ -332,11 +346,12 @@ describe("a pool's page: its canvas", () => {
     expect(project.queryByTestId("pool-delete")).toBeNull();
   });
 
-  it("changes what agents may do in the inspector, and says what deleting does first", async () => {
+  it("changes what its sessions may do on their own in the inspector, and says what deleting does first", async () => {
     seedTeam();
     const view = await openPage();
     fireEvent.click(view.getByTestId("inspect-open-settings"));
-    pick(view.getByTestId("pool-level"), "Full");
+    // AJ-E3011: the labelled choice, in plain words (the setup's own control).
+    fireEvent.click(view.getByTestId("pool-own-choice-full"));
     await waitFor(() => expect(seams().__AIJ_POOL_CALLS__).toContain("access:pool-team:full:"));
     pick(view.getByTestId("pool-hop-limit"), "3");
     await waitFor(() => expect(seams().__AIJ_POOL_CALLS__).toContain("delivery:pool-team:3:false"));
@@ -391,22 +406,24 @@ describe("a pool's page: its canvas", () => {
 
   it("says how a message gets into a session", () => {
     const pool = { id: "p", name: "p", kind: "user", project_id: null, access: { level: "work_together", actions: [], hop_limit: 5, delivery_stopped: false }, rules: [], spans_macs: false, scopes: 1, members: 0, ...scopeOf("user", null) };
-    expect(deliveryWords(pool)).toBe("When you click Deliver");
-    expect(deliveryWords({ ...pool, access: { ...pool.access, level: "full" } })).toBe("By themselves, between turns");
-    expect(deliveryWords({ ...pool, access: { ...pool.access, delivery_stopped: true } })).toBe("Stopped: nothing goes into a session");
-    // The Activity panel's short form (design review #76).
-    expect(deliveryShort(pool)).toBe("Wait for you");
-    expect(deliveryShort({ ...pool, access: { ...pool.access, level: "full" } })).toBe("Go in by themselves");
-    expect(deliveryShort({ ...pool, access: { ...pool.access, delivery_stopped: true } })).toBe("Stopped");
+    // AJ-E3011 round 3 (#2): in plain words, not "When you click Deliver".
+    expect(deliveryWords(pool)).toBe("Each one waits for your OK in Needs you, then goes into the session.");
+    expect(deliveryWords({ ...pool, access: { ...pool.access, level: "full" } })).toBe("They go into the session by themselves, between its turns.");
+    expect(deliveryWords({ ...pool, access: { ...pool.access, delivery_stopped: true } })).toBe("Stopped: messages stay in the inboxes, and none goes into a session.");
   });
 
   it("fits members above the zoom bar, not under it (design review #10)", () => {
     const points = [{ x: 0, y: 0 }, { x: 0, y: 600 }];
     const view = fitView(points, 800, 700, 48, 0, 0, 52);
-    // The lowest card's foot (its point plus a card and what waits on it)
-    // ends above the bar.
-    const foot = view.y + (600 + NODE_H * 2) * view.scale;
-    expect(foot).toBeLessThanOrEqual(700 - 52);
+    // Under 100 %: the lowest card's foot (its point, a card and its
+    // title's second line; its asks open in a panel beside it) ends above
+    // the bar.
+    expect(nodeForm(view.scale).full).toBe(false);
+    expect(view.y + (600 + NODE_H * 1.25) * view.scale).toBeLessThanOrEqual(700 - 52);
+    // At 100 %: a card and what waits on it (an ask's answers on it).
+    const whole = fitView([{ x: 0, y: 0 }, { x: 0, y: 200 }], 800, 700, 48, 0, 0, 52);
+    expect(whole.scale).toBe(1);
+    expect(whole.y + (200 + NODE_H * 2) * whole.scale).toBeLessThanOrEqual(700 - 52);
   });
 
   it("a paused chain says the pool's own number", () => {
@@ -433,7 +450,7 @@ describe("semantic zoom (the 0.3 review: 9–10 px words at fit)", () => {
     for (let i = 0; i < times; i += 1) fireEvent.click(view.getByRole("button", { name: "Zoom out" }));
   };
 
-  it("below 100 % keeps the node's name, keys and description, and its badge opens the ask to answer in place", async () => {
+  it("below 100 % keeps the node's name, keys and description, and its one mark opens the ask to answer in place", async () => {
     seedTeam();
     const view = await openPage();
     const asker = () => view.container.querySelector(`[data-node="${second.id}"]`) as HTMLElement;
@@ -445,9 +462,14 @@ describe("semantic zoom (the 0.3 review: 9–10 px words at fit)", () => {
     expect(within(asker()).queryByTestId("node-ask")).toBeNull();
     const name = asker().querySelector(`[data-node-name="${second.id}"]`) as HTMLElement;
     expect(name.getAttribute("aria-keyshortcuts")).toBe("Enter Delete ArrowUp ArrowDown ArrowLeft ArrowRight");
-    expect(name.getAttribute("aria-description")).toContain("waiting on you");
-    const badge = within(asker()).getByTestId("node-badge");
+    // Its description, by reference (P5: a button carries no aria-description).
+    expect(document.getElementById(name.getAttribute("aria-describedby")!)!.textContent).toContain("waiting on you");
+    // The rc3 critique: one mark, its word in place of its state, no badge.
+    expect(within(asker()).queryByTestId("node-badge")).toBeNull();
+    const badge = within(asker()).getByTestId("node-need");
     expect(badge.tagName).toBe("BUTTON");
+    expect(badge.textContent).toBe("Asks you");
+    expect(badge.getAttribute("aria-label")).toMatch(/^Asks you: 1 waiting on you about /);
     fireEvent.click(badge);
     const panel = within(asker()).getByTestId("node-popover");
     expect(panel.getAttribute("role")).toBe("dialog");
@@ -456,20 +478,20 @@ describe("semantic zoom (the 0.3 review: 9–10 px words at fit)", () => {
     await waitFor(() => expect(seams().__AIJ_MESSAGES_CALLS__).toContain("answer:ask-1:once"));
   });
 
-  it("Esc closes the badge's panel and gives the keyboard back to the badge", async () => {
+  it("Esc closes the mark's panel and gives the keyboard back to the mark", async () => {
     seedTeam();
     const view = await openPage();
     const asker = () => view.container.querySelector(`[data-node="${second.id}"]`) as HTMLElement;
     await waitFor(() => expect(within(asker()).getByTestId("node-ask")).toBeTruthy());
     zoomOut(view, 2);
-    fireEvent.click(within(asker()).getByTestId("node-badge"));
+    fireEvent.click(within(asker()).getByTestId("node-need"));
     const panel = within(asker()).getByTestId("node-popover");
     fireEvent.keyDown(panel, { key: "Escape" });
     expect(within(asker()).queryByTestId("node-popover")).toBeNull();
-    expect(document.activeElement).toBe(within(asker()).getByTestId("node-badge"));
+    expect(document.activeElement).toBe(within(asker()).getByTestId("node-need"));
   });
 
-  it("below 100 % what waits on an edge is a badge that opens its answer", async () => {
+  it("a message waiting on a line says nothing at rest; chosen, the line says so quietly and its inspector has Deliver (the rc3 critique)", async () => {
     seedTeam();
     seams().__AIJ_POOL_CANVAS__ = {
       "pool-team": {
@@ -487,15 +509,42 @@ describe("semantic zoom (the 0.3 review: 9–10 px words at fit)", () => {
       },
     };
     const view = await openPage();
-    await waitFor(() => expect(view.getByTestId("edge-pending")).toBeTruthy());
-    zoomOut(view, 2);
-    expect(view.queryByTestId("edge-pending")).toBeNull();
-    const badge = view.getByTestId("edge-badge");
-    expect(badge.textContent).toBe("1 waiting");
-    expect(badge.getAttribute("aria-label")).toMatch(/^1 waiting: 1 message waiting, /);
-    fireEvent.click(badge);
-    expect(badge.getAttribute("aria-expanded")).toBe("true");
-    expect(within(view.getByTestId("edge-badge-panel")).getByTestId("edge-deliver").textContent).toBe("Deliver");
+    const key = `${first.id}>${second.id}`;
+    await waitFor(() => expect(view.container.querySelector(`g[data-edge="${key}"]`)).toBeTruthy());
+    for (const scale of ["full", "compact"]) {
+      if (scale === "compact") zoomOut(view, 2);
+      // At rest: no chip, no badge, no label; the line in its quiet tone.
+      expect(view.queryAllByTestId("edge-label")).toEqual([]);
+      expect(view.queryByTestId("edge-pending")).toBeNull();
+      expect(view.queryByTestId("edge-badge")).toBeNull();
+      const line = [...view.container.querySelectorAll(`g[data-edge="${key}"] path`)].find((path) => path.getAttribute("marker-end"))!;
+      expect(line.getAttribute("class")).toContain("stroke-muted");
+      expect(line.getAttribute("stroke-dasharray")).toBeNull();
+    }
+    // Chosen: its words, quiet, and its Deliver in the inspector.
+    fireEvent.click(view.container.querySelector(`g[data-edge="${key}"] path`)!);
+    const label = view.getAllByTestId("edge-label").find((one) => one.dataset.edge === key)!;
+    expect(label.textContent).toBe("2 messages · 1 waiting");
+    expect(label.querySelector("button")!.className).not.toMatch(/warning/);
+    expect(within(view.getByTestId("pool-inspector")).getByTestId("edge-deliver").textContent).toBe("Deliver");
+  });
+
+  it("a pair is one line: chosen, its inspector offers the other way, one click (round 2)", async () => {
+    seedTeam();
+    const way = (from: string, to: string, messages: number) => ({ from_session_id: from, to_session_id: to, messages, tasks: 0, last_at_ms: Date.now() - 1000, thread_id: "thr-1", pending: [] });
+    seams().__AIJ_POOL_CANVAS__ = { "pool-team": { edges: [way(first.id, second.id, 3), way(second.id, first.id, 1)] } };
+    const view = await openPage();
+    const key = `${first.id}>${second.id}`;
+    await waitFor(() => expect(view.container.querySelector(`g[data-edge="${key}"]`)).toBeTruthy());
+    expect(view.container.querySelectorAll("g[data-edge]")).toHaveLength(1);
+    fireEvent.click(view.container.querySelector(`g[data-edge="${key}"] path`)!);
+    const inspector = within(view.getByTestId("pool-inspector"));
+    const other = inspector.getByTestId("inspect-edge-other");
+    expect(other.textContent).toMatch(/^The other way: .+ → .+ · 1 message$/);
+    fireEvent.click(other);
+    const label = view.getAllByTestId("edge-label").find((one) => one.dataset.edge === `${second.id}>${first.id}`);
+    expect(label?.textContent).toBe("1 message");
+    expect(within(view.getByTestId("pool-inspector")).getByTestId("inspect-edge-other").textContent).toMatch(/· 3 messages$/);
   });
 
   it("AJ-E3008 R4: a line paused at the hop limit offers Let it continue and Don't deliver", async () => {
@@ -516,9 +565,21 @@ describe("semantic zoom (the 0.3 review: 9–10 px words at fit)", () => {
       },
     };
     const view = await openPage();
-    const held = await waitFor(() => view.getByTestId("edge-pending"));
+    // The rc3 critique: on the node it was going to, its one mark; its
+    // line says nothing at rest.
+    const node = () => view.container.querySelector<HTMLElement>(`[data-node="${second.id}"]`)!;
+    const held = await waitFor(() => within(node()).getByTestId("node-paused"));
+    expect(held.textContent).toContain(": Paused after 5 in a row");
     expect(within(held).getByTestId("edge-deliver").textContent).toBe("Let it continue");
     expect(within(held).getByTestId("edge-dont-deliver").textContent).toBe("Don't deliver");
+    expect(view.queryAllByTestId("edge-label")).toEqual([]);
+    expect(within(node()).queryByTestId("node-badge")).toBeNull();
+    // Below 100 %: its mark says so, and opens the same answers.
+    zoomOut(view, 2);
+    const mark = within(node()).getByTestId("node-need");
+    expect(mark.textContent).toBe("Asks you +1");
+    fireEvent.click(mark);
+    expect(within(within(node()).getByTestId("node-popover")).getByTestId("node-paused").textContent).toContain("Paused after 5 in a row");
   });
 
   // The rc19 walk: a node showed Lead and Observer but not Member; its
@@ -541,7 +602,7 @@ describe("semantic zoom (the 0.3 review: 9–10 px words at fit)", () => {
     const member = (role: string): MemberNode => ({ id: first.id, session: first, card: { ...card, role }, role, name: "A" });
     const roleOf = (role: string, scale: number) => {
       const view = render(
-        <CanvasNode member={member(role)} at={{ x: 0, y: 0 }} asks={[]} held={0} selected={false} tabStop dragging={false} scale={scale} onSelect={() => {}} onMenu={() => {}} onPointerDown={() => {}} onKey={() => {}} />,
+        <CanvasNode member={member(role)} at={{ x: 0, y: 0 }} asks={[]} paused={[]} selected={false} tabStop dragging={false} scale={scale} onSelect={() => {}} onMenu={() => {}} onPointerDown={() => {}} onKey={() => {}} />,
       );
       const node = view.getByTestId("canvas-node");
       const words = [node.dataset.form, view.queryByTestId("node-role")?.textContent ?? null, view.queryByTestId("node-lead") ? "Lead" : null];
@@ -568,7 +629,7 @@ describe("semantic zoom (the 0.3 review: 9–10 px words at fit)", () => {
     };
     const node = (scale: number) => {
       const view = render(
-        <CompactNode member={member} at={{ x: 0, y: 0 }} asks={[]} held={0} selected={false} tabStop dragging={false} scale={scale} onSelect={() => {}} onMenu={() => {}} onPointerDown={() => {}} onKey={() => {}} />,
+        <CompactNode member={member} at={{ x: 0, y: 0 }} asks={[]} paused={[]} selected={false} tabStop dragging={false} scale={scale} onSelect={() => {}} onMenu={() => {}} onPointerDown={() => {}} onKey={() => {}} />,
       );
       const name = view.container.querySelector(`[data-node-name="${first.id}"]`) as HTMLElement;
       // A wrapped name's clamp is on its inner span (WebKit doesn't clamp a
@@ -584,15 +645,64 @@ describe("semantic zoom (the 0.3 review: 9–10 px words at fit)", () => {
     // A wider box (69 %, about 160 px): 13 px, two lines.
     expect(node(0.69)).toEqual(expect.arrayContaining(["text-meta", "line-clamp-2"]));
     expect(node(0.69)).not.toContain("text-label");
-    // rc7 walk: the 30 % floor (a box about 70 × 34 px) read "we…": the
-    // name now wraps on two lines at 12 px there too.
+    // rc7 walk: the 30 % floor (a box about 70 × 34 px) read "we…". A name
+    // whose words fit wraps on two lines there; AJ-E3012: one word wider
+    // than the room ("payment") never breaks mid-word: the name is one
+    // line with an ellipsis, whole in the inspector's title.
+    member.name = "Spike: payment sandbox";
+    expect(node(0.3)).toEqual(expect.arrayContaining(["text-label", "truncate"]));
+    expect(node(0.3)).not.toContain("line-clamp-2");
+    member.name = "Fix the cart";
     expect(node(0.3)).toEqual(expect.arrayContaining(["text-label", "line-clamp-2"]));
   });
 
-  it("an ask's edge takes no label's room: the other way's badge stays on its own line", () => {
-    // A pair: A → B carries a waiting message (a badge), B → A an agent's
-    // ask (answered on B's node, so its edge has no label). The ask's edge
+  it("a Lead's state line ends in an ellipsis, not mid-letter: the state is its own truncating box", () => {
+    // 0.4.6 after-walk: "Lead · Worki" at 45 %, cut with no "…".
+    const card: ContextCard = {
+      session_id: first.id,
+      name: "Planner",
+      place: "shop · Work Max",
+      tool: "Claude Code",
+      account: "Work Max",
+      state: "running",
+      role: "lead",
+      task: { value: "None", unavailable: null },
+      said: { value: null, unavailable: "Unavailable" },
+      last_activity_ms: null,
+      files: [],
+      files_unavailable: null,
+    };
+    const lead: MemberNode = { id: first.id, session: first, card, role: "lead", name: "Planner" };
+    const view = render(
+      <CompactNode member={lead} at={{ x: 0, y: 0 }} asks={[]} paused={[]} selected={false} tabStop dragging={false} scale={0.45} onSelect={() => {}} onMenu={() => {}} onPointerDown={() => {}} onKey={() => {}} />,
+    );
+    const state = view.getByTestId("node-state");
+    expect(within(state).getByTestId("node-lead").textContent).toContain("Lead");
+    const word = state.lastElementChild;
+    expect(word?.getAttribute("data-testid")).toBeNull();
+    expect(word?.className.split(" ")).toEqual(expect.arrayContaining(["min-w-0", "truncate"]));
+    view.unmount();
+  });
+
+  it("a narrow node's ⋯ never takes its name's room on hover; a wide one's shows on hover (AJ-E3011 round 3)", () => {
+    const card: ContextCard = { session_id: first.id, name: "Planner", place: "shop · Work Max", tool: "Claude Code", account: "Work Max", state: "running", role: "member", task: { value: "None", unavailable: null }, said: { value: null, unavailable: "Unavailable" }, last_activity_ms: null, files: [], files_unavailable: null };
+    const member: MemberNode = { id: first.id, session: first, card, role: "member", name: "Planner" };
+    const more = (scale: number) => {
+      const view = render(<CompactNode member={member} at={{ x: 0, y: 0 }} asks={[]} paused={[]} selected={false} tabStop dragging={false} scale={scale} onSelect={() => {}} onMenu={() => {}} onPointerDown={() => {}} onKey={() => {}} />);
+      const classes = view.getByTestId("node-more").className.split(" ");
+      view.unmount();
+      return classes;
+    };
+    expect(more(0.3)).not.toContain("group-hover/node:w-5");
+    expect(more(0.69)).toContain("group-hover/node:w-5");
+  });
+
+  it("an ask's edge takes no label's room: the other way's label stays on its own line, and none shows at rest", () => {
+    // A pair: A → B carries a waiting message, B → A an agent's ask
+    // (answered on B's node, so its edge has no label). The ask's edge
     // once reserved a label's room and pushed A → B's badge off its line.
+    // The rc3 critique: at rest neither says anything; chosen, A → B its
+    // words, quiet.
     const points = new Map([
       ["a", { x: 0, y: 0 }],
       ["b", { x: 0, y: 400 }],
@@ -603,12 +713,17 @@ describe("semantic zoom (the 0.3 review: 9–10 px words at fit)", () => {
       { from_session_id: "a", to_session_id: "b", messages: 1, tasks: 0, last_at_ms: at, thread_id: "thr", pending: pending("waiting") },
       { from_session_id: "b", to_session_id: "a", messages: 1, tasks: 0, last_at_ms: at, thread_id: "thr", pending: pending("asked") },
     ];
-    const view = render(<CanvasEdges edges={edges} points={points} names={new Map([["a", "A"], ["b", "B"]])} selected={null} pulses={new Map()} reducedMotion scale={0.6} onSelect={() => {}} />);
+    const names = new Map([["a", "A"], ["b", "B"]]);
+    const view = render(<CanvasEdges edges={edges} points={points} names={names} selected={null} pulses={new Map()} reducedMotion scale={0.6} onSelect={() => {}} />);
+    expect(view.queryAllByTestId("edge-label")).toEqual([]);
+    view.rerender(<CanvasEdges edges={edges} points={points} names={names} selected="a>b" pulses={new Map()} reducedMotion scale={0.6} onSelect={() => {}} />);
     const labels = view.getAllByTestId("edge-label");
     expect(labels.map((label) => label.dataset.edge)).toEqual(["a>b"]);
-    const mid = edgeCurve(points.get("a")!, points.get("b")!, true).mid;
+    // The pair is one line (round 2): its label at that line's middle.
+    const mid = edgeCurve(points.get("a")!, points.get("b")!, false, [], [], undefined, 10).mid;
     expect(labels[0]!.style.transform.startsWith(`translate(${mid.x}px, ${mid.y}px)`)).toBe(true);
-    expect(within(labels[0]!).getByTestId("edge-badge").textContent).toBe("1 waiting");
+    expect(labels[0]!.textContent).toBe("1 message · 1 waiting");
+    expect(view.queryByTestId("edge-badge")).toBeNull();
   });
 
   it("back at 100 % the cards are whole again", async () => {

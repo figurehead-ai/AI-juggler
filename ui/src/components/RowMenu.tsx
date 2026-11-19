@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState, type JSX, type MouseEvent, type ReactNode, type RefObject, type SVGProps } from "react";
 import { createPortal } from "react-dom";
+import { useInertOutside } from "../lib/inert";
 
 /**
  * The row menu (D-25: one pattern everywhere): the ⋯ button or a
@@ -44,12 +45,17 @@ export function RowMenu({
   children: ReactNode;
 }) {
   const ref = useRef<HTMLDivElement | null>(null);
+  // Where focus was when it opened, read before the page goes inert (an
+  // inert ancestor takes focus away).
+  const [opener] = useState(() => (document.activeElement instanceof HTMLElement ? document.activeElement : null));
+  // AJ-E3011 round 4: while it's open, everything else is inert — a press
+  // meant for one of its lines never reaches what's under it.
+  useInertOutside(ref);
   // The parent re-renders on every refresh: the latest close, without
   // re-running the focus setup below.
   const closeRef = useRef(onClose);
   closeRef.current = onClose;
   useEffect(() => {
-    const opener = document.activeElement as HTMLElement | null;
     // The menu itself: the panel, or the list under its field.
     const root = (): Element | null => (field ? (ref.current?.querySelector(':scope > [role="menu"]') ?? null) : ref.current);
     // The arrows move within one level: the menu, or the open submenu.

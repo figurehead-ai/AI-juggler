@@ -39,15 +39,20 @@ objc2-app-kit = { version = "0.3.2", default-features = false, features = ["std"
 # in the tree through juggler-app).
 objc2 = { workspace = true }
 # AJ-E3802: a helper's code signature is checked before it runs
-# (`code_trust`): Security's code-signing calls through the crate's safe
-# API (no `unsafe` here); both already in the tree through juggler-account.
+# (`code_trust`); AJ-E3013 (M1): a running process's code checked against
+# an explicit code-signing requirement (`code_sign`:
+# SecCodeCopyGuestWithAttributes, SecCodeCheckValidity). Both through
+# Security's safe API (no `unsafe` here); already in the tree through
+# juggler-account, so no new crate.
 security-framework = "3"
 core-foundation = "0.10"
 
 [target."cfg(unix)".dependencies]
 # The effective user id (safe bindings; no `unsafe` here); 0.3.8: asking an
-# app that lost its window to quit (`apps::quit`, SIGTERM).
-nix = { workspace = true, features = ["user", "fs", "signal"] }
+# app that lost its window to quit (`apps::quit`, SIGTERM); AJ-E3013: a
+# local peer's audit token (`LOCAL_PEERTOKEN`) and files opened without
+# following links (`openat`).
+nix = { workspace = true, features = ["user", "fs", "signal", "socket"] }
 
 [dev-dependencies]
 tempfile = { workspace = true }

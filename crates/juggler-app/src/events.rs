@@ -88,11 +88,14 @@ pub enum AppEvent {
     /// A model download's progress (carries
     /// [`crate::features::ai::models::dto::DownloadInfo`]).
     AiModelsProgress,
+    /// What a Go to it or an Open did, after it said it was still on it
+    /// (0.4.6, the rc3c walk; carries its `GoToOutcomeInfo` and ticket).
+    GoToLate,
 }
 
 impl AppEvent {
     /// Every event, in declaration order.
-    pub const ALL: [Self; 34] = [
+    pub const ALL: [Self; 35] = [
         Self::AppReady,
         Self::SessionsUpdated,
         Self::SessionsResources,
@@ -127,6 +130,7 @@ impl AppEvent {
         Self::AiJobsChanged,
         Self::AiModelsChanged,
         Self::AiModelsProgress,
+        Self::GoToLate,
     ];
 
     /// The wire name the UI listens to.
@@ -167,6 +171,7 @@ impl AppEvent {
             Self::AiJobsChanged => "ai://jobs-changed",
             Self::AiModelsChanged => "ai-models://changed",
             Self::AiModelsProgress => "ai-models://progress",
+            Self::GoToLate => "go-to://late",
         }
     }
 }

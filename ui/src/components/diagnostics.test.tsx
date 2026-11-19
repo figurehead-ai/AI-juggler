@@ -33,7 +33,7 @@ describe("AJ-E1517 — Report a problem", () => {
       fireEvent.click(getByTestId("diagnostics-show"));
     });
     const preview = await findByTestId("diagnostics-preview");
-    expect(getAllByTestId("diagnostics-file").map((row) => row.querySelector("summary span")?.textContent)).toEqual([
+    expect(getAllByTestId("diagnostics-file").map((row) => within(row).getByRole("button").querySelector(".font-mono")?.textContent)).toEqual([
       "about.json",
       "app-settings.json",
       "logs/supervision.jsonl",

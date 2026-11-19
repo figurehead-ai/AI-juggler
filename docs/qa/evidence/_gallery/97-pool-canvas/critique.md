@@ -1,4 +1,4 @@
-<!-- captures: d4d730674edd -->
+<!-- captures: 6fd8404d3d4a -->
 # 97-pool-canvas: the Pools screen and a pool's canvas
 
 Design critique (D-57, AJ-E2814) against the reference screens: the row menus (77-menus), the rail's order menu, Usage and Processes. The baseline note says what changed on purpose; this says whether it is good.
@@ -76,3 +76,79 @@ A pool you made shows its scope as a chip ("Scope every project") and sealed whe
 ## 0.4.1 rc33 (2026-11-11): sessions, said as sessions
 
 The rc33 P5 walk read "0 members" on a pool whose Account member was there: the card counted sessions under the word for member rows. pools-screen (both widths, both themes) now says "6 sessions · 4 need you · 2 tasks moving", "1 session · quiet" on docs-site and storefront, the word the pool's header uses ("5 open in AI Juggler · 6 in all"). canvas, canvas-badge-open, canvas-edge-badge-open and canvas-full: the inspector's This pool row reads "Sessions 6 · lead Planner" (was "Members"). Only these 20 were retaken, in the pinned container; nothing else on them moved. The overlaps listed under Weak are unchanged.
+
+## 0.4.6 (AJ-E3011, AJ-E3012): the setup in order, one selection, the inspector titled by it
+
+new-pool-* (both widths, both themes) now walks eight steps instead of four: How to start (Start from scratch is the first, full card; the small "Set up by hand" link is gone), Where, Who's in, Who leads, Everyone else, Who may message whom, On their own, Review — each with a heading and a why-line, the order ticked down the side, and the foot saying what the rest is filled in with from Who's in on. new-pool-roles-* belongs to the old four-step wizard and new-pool-1280x800-* to the removed "by hand" path; both stay as the earlier evidence their manifests cite. canvas and inspect-*: the nodes stand off the board by surface, no hairline and no amber glow (a need is its word, dot and badge, L2); the inspector leads with the selection's own title, its kind and App, and a status pill, its title edge in the accent; the selected node has the one ring (2 px accent, 2 px offset) on 0.5's raised `--color-selected`; the header's picker says "On their own: Work together". inspect-pool opens the pool's own setup above its settings (who leads, how everyone else joins with the role cards, who may message whom as a line per role, what they may do on their own) and the custom actions only when Custom is chosen.
+
+- Weak, new: the node's ⋯ on a selected card still overlaps a long name at 100 %; with four broad members the canvas fits smaller and compact names break mid-word (the compact form's `break-words`).
+- Fixed (the coordinator's check): compact names break only between words, and a word wider than its room makes the name one line with an ellipsis ("Fix the c…", "Checko…"); the Lead's state line ends in an ellipsis too ("Lead · Worki" was cut mid-letter at 45 %). inspect-member-* drops the pool's "Setup 2 of 6" line: it shows only on the pool. new-pool-talk-* and new-pool-review-*: the feature-team template's Observer row reads Blocked, calm, and the review says "an Observer only reads".
+
+## 0.4.6 round 2 (AJ-E3011)
+
+canvas, inspect-* and new-pool-* (both widths and themes): the header's switch reads **Diagram | List** (the walks read "Canvas" as a drawing area); broad cards say "No session open yet · new ones in any project join"; new-pool-* carry the round 2 words (the chips, Who's in in words, the labelled pickers, On their own's radios, Review's Team tools line; see 98-pool-setup).
+
+## 0.4.6 round 4 (AJ-E3011)
+
+- canvas, canvas-badge-open, canvas-edge-badge-open, canvas-full (1280×800), list: the pool is ready, so the inspector shows "This pool is ready" and "What happens next: Planner leads; their messages show here." in place of the setup checklist; inspect-pool's compact setup line reads Ready. Checked dark and light. Pass.
+- new-pool-lead (both sizes): an App's next session "takes charge as soon as one of its sessions starts in storefront". new-pool-review: Team tools as one line, then "What happens next: Open a session in storefront: it joins; their messages show here." Pass.
+- Delete on a node (and the inspector's Take out of the pool) is held like Stop: a toast with Undo; letting it run takes it out (the keyboard test checks Undo keeps it and nothing is sent).
+- The 1024×700 captures re-rendered with under 50 px of noise and were left as committed.
+
+## 0.4.6 round 5 (AJ-E3011, under D-55)
+
+- Every capture with the inspector: 380 px at first (was 340), resizable 360-420 from its left edge; the canvas gives up the 40 px.
+- An empty pool's page opens in its guided setup (98-pool-setup/empty-pool-setup); these captures' pools have members, so they stay on the diagram.
+- Adding from the palette keeps the added row in place, marked Added, so the next Add doesn't move (a browser test measures it).
+
+## 0.4.6 round 6 (AJ-E3011)
+
+Checked by eye, dark and light:
+
+- canvas, canvas-badge-open, canvas-edge-badge-open, canvas-full (1280×800), list: the ready box ends with the first prompt to give and a Copy link: "Then tell Planner: “Plan the work in every project, hand out tasks.” Copy" (round 6 #10). Pass.
+- new-pool-everyone (both sizes): the member's name takes its row's width, its Role and On its own pickers on the line under it (round 6 #8); the hint reads "Its role, and On its own: what this member may do without asking, if different from the pool." (#9). Pass.
+- The 1024×700 canvas captures, inspect-member, inspect-pool and messages-panel re-rendered with under 50 px of noise and were left as committed.
+- Weak: "in every project" makes the prompt read long for an every-project pool ("Plan the work in every project").
+
+## Section titles fixed (2026-11-16)
+
+Section titles re-rendered (6db085536): a colour token named like a type size (`--color-section` beside `--text-section`) had Tailwind build `.text-section` as a colour only, so every section title in the captures from 56f98a514 on was about 13 px regular grey. Re-captured and checked by eye against the earlier captures:
+
+- Every capture (both widths and themes; pools-screen at 1024 unchanged): the inspector's title ("Checkout team", the selected member's or line's name), List's "Members" and "Who talks to whom", Messages' title, New pool's step titles ("How to start", "Where", "Who's in", "Who leads", "Everyone else", "Who may message whom", "What they may do on their own", "Review") and the rail's wordmark are 15 px semibold ink again, as Hierarchy above says; what's under them sits 1-4 px higher. Wording, controls and states are unchanged. Pass.
+
+## Round 7 (AJ-E3011)
+
+Checked by eye, dark and light:
+
+- new-pool-* (both widths): the side list's step 5 reads "Who builds, who checks" (was "Everyone else", Sam missed that the checker is picked there); new-pool-everyone has it as its title with "Each member's role, and how new sessions join."; new-pool-lead's footer reads "Next: Who builds, who checks"; new-pool-review's row says it too, on two lines in its label column like "Who may message whom". Pass.
+- new-pool-template (both widths): the closed "What a pool is" no longer keeps an empty 8 px gap under it (the app's Disclosure is a button with aria-expanded now, so an accessibility press opens it), so How to start sits 8 px higher. Pass.
+- inspect-edge (both themes): the line's conversation is drawn, on the panel's gutter (the selection-line fix). Pass.
+- The other captures re-rendered with under 60 px of noise and were left as committed.
+
+## 0.4.6 rc3: D-126 and the calm running view (2026-11-18)
+
+Checked side by side with the mock-ups (`d126-rich-ui` running and canvas, calm round 2) in both themes. The coordinator approved rounds 2 and 3.
+
+- **canvas-*, canvas-full-*, inspect-member-*: the running pool is calm** (0f61081b4, dfb1eab7a).
+  - Logos are muted at rest, and full colour on a node that needs you or is selected.
+  - A node's need is one amber word on the node ("Asks you +1"). The corner number badges are gone.
+  - Lines say nothing at rest.
+  - A pair that wrote both ways is one line with an arrowhead at each end.
+  - The default fit is about 64 % (was 53 %), so every title reads whole.
+  - A pool never laid out opens tidy.
+  - Pass.
+- **inspect-edge-*: a chosen line.** It is lit and dashed while a message waits on it ("2 messages · 1 waiting"). Its inspector offers "The other way: B → A · n", one click. Pass.
+- **canvas-edge-badge-open-*: a paused line opened on its node.** The capture keeps its old name; it shows a paused line opened on the node it was going to. Pass.
+- **canvas-setup-* (new): the setting-up canvas, the planned team.**
+  - "Your team is drawn. No one has joined yet." shows only where it clears the cards and the zoom bar (49f802c69, 1a6de6b10). At 1280 × 800 it is hidden; at 1440 × 900 it shows (the gallery's check).
+  - "Setting up · 6 of 7" is in the header. Pass.
+- **new-pool-* (the setup's steps):**
+  - Who's in has no Apps/Sessions/More switch. It follows the mock: Your apps as logo cards, then Sessions open now, then "More ways to add" as a fold.
+  - App cards lead with the App's short name ("Work Max"), with "Claude Code CLI · Terminal" under it (5340bf42f).
+  - A step's text breaks where its name does (63a1f9cb3).
+  - Pass.
+- **Kept deviations from the mock:**
+  - The fixture's six-member pool draws compact cards (the mock shows three full ones).
+  - "4 need you" sits beside the pool's title.
+  - The rail and the page header are pre-calm (app-wide calm is 0.5).
+- **Known, not fixed:** at 1024 × 700 and 100 %, the bottom-left full card's More button sits under the zoom bar. The 100 % view is centred; panning reaches it.

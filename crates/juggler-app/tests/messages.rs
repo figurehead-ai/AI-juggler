@@ -559,7 +559,10 @@ fn a_watched_member_shows_counts_cant_reply_and_its_messages_wait_d62() {
         .iter()
         .find(|member| member["watched"] == watched)
         .expect("the Watched member in the roster");
-    assert_eq!(shown["state"], "watched: can't reply");
+    // AJ-E3013: and why (its app has no AI Juggler connector).
+    let state = shown["state"].as_str().unwrap();
+    assert!(state.starts_with("watched: can't reply"), "{state}");
+    assert!(state.contains("no AI Juggler connector"), "{state}");
 
     // A message to it waits, with the reason, and asks the person.
     let sent = lab.send(

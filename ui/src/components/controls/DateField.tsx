@@ -13,15 +13,21 @@
  * under the field; Escape puts the saved value back. Unset, it is empty
  * with its placeholder ("Not set"), never today.
  * Alt+↓ opens the calendar (`Calendar`).
+ *
+ * D-126 (the kit): one field look with TimeField — filled, a hairline
+ * edge, the calendar glyph first and the calendar's chevron last, the
+ * accent's edge and halo while typing; `lg` is the making screens' 36 px.
  */
 import { useEffect, useId, useMemo, useRef, useState, type JSX, type KeyboardEvent } from "react";
-import { IconCalendar } from "../icons-controls";
+import { IconCalendar, IconChevronDown } from "../icons-controls";
+import { FIELD_SHELL, fieldEdge } from "./field-look";
 import { dateFormat, datePattern, formatDate, readDate, shapeTyped } from "../../lib/date-text";
 import { Calendar } from "./Calendar";
 
 const SIZES = {
-  sm: "h-7 text-xs",
-  md: "h-8 text-meta",
+  sm: "h-7 gap-1.5 pl-2 text-xs",
+  md: "h-8 gap-2 pl-2.5 text-meta",
+  lg: "h-9 gap-2 pl-3 text-body",
 } as const;
 
 export function DateField({
@@ -117,8 +123,9 @@ export function DateField({
   return (
     <span className={`inline-flex flex-col gap-1 ${className}`}>
       <span
-        className={`inline-flex items-center rounded-lg border bg-surface pl-2 text-ink focus-within:ring-1 focus-within:ring-accent/60 ${error ? "border-danger/60" : "border-hairline"} ${SIZES[size]}`}
+        className={`${FIELD_SHELL} ${fieldEdge(error !== null)} ${SIZES[size]}`}
       >
+        <IconCalendar width={14} height={14} aria-hidden="true" className="shrink-0 text-faint" />
         <input
           ref={input}
           id={id}
@@ -163,10 +170,10 @@ export function DateField({
           aria-label="Choose from a calendar"
           title="Choose from a calendar"
           onClick={() => (at ? setAt(null) : openCalendar())}
-          className="flex h-full shrink-0 items-center rounded-r-lg px-1.5 text-muted outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60"
+          className="flex h-full shrink-0 items-center rounded-r-[10px] px-2 text-faint outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60"
           data-testid={testId ? `${testId}-calendar` : undefined}
         >
-          <IconCalendar width={14} height={14} aria-hidden="true" />
+          <IconChevronDown width={14} height={14} aria-hidden="true" />
         </button>
       </span>
       <span id={hintId} className="sr-only">

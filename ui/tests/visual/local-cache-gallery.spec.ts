@@ -87,7 +87,7 @@ for (const theme of ["dark", "light"] as const) {
       await axe(page, `local cache on ${at} ${theme}`);
 
       // What's in it, unfolded.
-      await page.getByTestId("cache-contents-toggle").locator("summary").click();
+      await page.getByTestId("cache-contents-toggle-toggle").click();
       await expect(page.getByTestId("cache-row")).toHaveCount(3);
       // Search is off here: its row says so, with a way to its switch.
       await expect(page.getByTestId("cache-row-size").last()).toHaveText("Off");
@@ -110,7 +110,7 @@ for (const theme of ["dark", "light"] as const) {
         caches: [SEARCH],
       });
       await expect(page.getByTestId("cache-switch-row")).toContainText("Empty for now. It fills as you use AI Juggler, up to 1.3 GB.");
-      await page.getByTestId("cache-contents-toggle").locator("summary").click();
+      await page.getByTestId("cache-contents-toggle-toggle").click();
       await expect(page.getByTestId("cache-row-size")).toHaveText("Empty");
       await page.getByTestId("cache-row").last().scrollIntoViewIfNeeded();
       await painted(page);

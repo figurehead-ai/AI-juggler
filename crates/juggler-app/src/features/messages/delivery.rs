@@ -31,7 +31,7 @@ use juggler_adapter::runtime::{LiveStatusWord, TurnInput, TurnOrigin};
 use juggler_core::agent_access::{AgentAction, Decision};
 use juggler_core::messaging::{self, Delivered, MessageKind, PER_TURN, Sender};
 use juggler_core::model::{SessionId, Timestamp};
-use juggler_core::storage::{HeldAsk, Message, RecipientState, SENDER_USER, ThreadState};
+use juggler_core::storage::{HeldAsk, Message, RecipientState, SENDER_USER, Storage, ThreadState};
 
 use super::{new_id, refs_of};
 use crate::state::AppState;
@@ -67,12 +67,28 @@ fn queue_as(state: &Arc<AppState>, message_id: &str, session: &SessionId, by: &s
     kick(state, session);
 }
 
-/// Whether the pool's level or a rule would deliver (so an ask is the
-/// hop limit's).
-fn pool_delivers(state: &Arc<AppState>, pool_id: &str) -> bool {
-    let Ok(storage) = state.storage.lock() else {
-        return false;
-    };
+/// AJ-E3013 (the A9 lab walk): the person's Deliver for a recipient with
+/// no session AI Juggler runs (a connected desktop member): its copy is
+/// queued by their click, which wakes it (D-119) when its app can be.
+pub(crate) fn queue_ref(state: &Arc<AppState>, message_id: &str, recipient: &str) {
+    if let Ok(storage) = state.storage.lock() {
+        let _ = storage.messages().set_state(
+            &[message_id.to_owned()],
+            &[recipient.to_owned()],
+            &[RecipientState::Unread, RecipientState::Read],
+            RecipientState::Queued,
+            Some(BY_USER),
+            SENDER_USER,
+            "queued",
+        );
+    }
+}
+
+/// Whether the pool's level or a rule delivers an agent's message into a
+/// member's session (`deliver_to_session`: the pool at Full, or a rule the
+/// user made), before the hop limit: so an ask is the hop limit's, and
+/// (D-119) a desktop member is woken rather than reading at its next turn.
+pub(crate) fn pool_delivers(storage: &Storage, pool_id: &str) -> bool {
     storage.agent_access().access(pool_id).is_ok_and(|access| {
         access.level.is_some_and(|level| {
             level
@@ -80,6 +96,25 @@ fn pool_delivers(state: &Arc<AppState>, pool_id: &str) -> bool {
                 .contains(&AgentAction::DeliverToSession)
         }) || access.rules.contains(&AgentAction::DeliverToSession)
     })
+}
+
+/// Whether the pool's own permission may put `message` into a session now:
+/// its pool neither paused nor its delivery stopped, its thread open. (A
+/// user's own Deliver doesn't ask this.) One rule for the delivery worker
+/// and for waking a desktop member (D-119).
+pub(crate) fn may_deliver_now(storage: &Storage, message: &Message) -> bool {
+    let repo = storage.messages();
+    let paused = repo.pool_pause(&message.pool_id).ok().flatten().is_some();
+    let thread_open = repo
+        .thread(&message.thread_id)
+        .ok()
+        .flatten()
+        .is_some_and(|thread| thread.state == ThreadState::Open);
+    let stopped = storage
+        .agent_access()
+        .access(&message.pool_id)
+        .is_ok_and(|access| access.delivery_stopped);
+    !paused && thread_open && !stopped
 }
 
 /// How a message reaches a session when its chain is paused at the pool's
@@ -108,7 +143,12 @@ pub(crate) fn decide(
             queue_as(state, &message.id, session, BY_POOL);
             "at its next turn"
         }
-        Decision::Ask { .. } if pool_delivers(state, &message.pool_id) => {
+        Decision::Ask { .. }
+            if state
+                .storage
+                .lock()
+                .is_ok_and(|storage| pool_delivers(&storage, &message.pool_id)) =>
+        {
             if let Ok(storage) = state.storage.lock() {
                 let repo = storage.messages();
                 let to = repo
@@ -256,23 +296,7 @@ fn due(state: &Arc<AppState>, session: &SessionId) -> Option<Due> {
         .into_iter()
         .rev() // oldest first
         .filter(|row| {
-            row.recipient.via.as_deref() == Some(BY_USER) || {
-                let paused = repo
-                    .pool_pause(&row.message.pool_id)
-                    .ok()
-                    .flatten()
-                    .is_some();
-                let thread_open = repo
-                    .thread(&row.message.thread_id)
-                    .ok()
-                    .flatten()
-                    .is_some_and(|thread| thread.state == ThreadState::Open);
-                let stopped = storage
-                    .agent_access()
-                    .access(&row.message.pool_id)
-                    .is_ok_and(|access| access.delivery_stopped);
-                !paused && thread_open && !stopped
-            }
+            row.recipient.via.as_deref() == Some(BY_USER) || may_deliver_now(&storage, &row.message)
         })
         .collect();
     let first = rows.first()?;

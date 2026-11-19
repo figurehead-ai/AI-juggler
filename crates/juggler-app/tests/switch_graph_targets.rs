@@ -48,7 +48,16 @@ fn app_state(dir: &Path) -> Arc<AppState> {
     registry.register(claude.clone());
     registry.register_handover(claude);
     registry.register(Arc::new(FakeHarnessAdapter::new(dir.join("fake-harness"))));
-    Arc::new(AppState::init_with_registry(dir.join("app-data"), registry).unwrap())
+    let state = Arc::new(AppState::init_with_registry(dir.join("app-data"), registry).unwrap());
+    // D-127: these rows are about ranking and readiness, not about which
+    // switches are tested yet: beta switches are on, so every route lists.
+    juggler_app::settings_policy::app_setting_set_impl(
+        &state,
+        juggler_app::features::validation::BETA_SWITCHES_KEY,
+        "1",
+    )
+    .unwrap();
+    state
 }
 
 fn config_dir_of(state: &Arc<AppState>, account_id: &str) -> PathBuf {
@@ -230,8 +239,12 @@ fn switch_targets_rank_badge_and_explain_never_lossless() {
         row_c.filtered_reason.as_deref(),
         Some("Signed out: sign in to it first")
     );
+    // E210 flips cells green only from a live run: Claude → Claude passed
+    // every area live (file history last, the c2c suite of 2026-11-18,
+    // D-127); a pair to another tool hasn't.
+    assert!(row_b.validated, "claude → claude passed every area live");
+    assert!(!row_c.validated, "a cross-Provider row isn't validated");
     for target in &targets {
-        assert!(!target.validated, "E210 owns flipping cells green");
         assert!(
             !target.badge.to_lowercase().contains("lossless"),
             "badge never lossless: {}",

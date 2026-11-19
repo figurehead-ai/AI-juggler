@@ -132,3 +132,16 @@ opt-level = 3
 # AJ-E1102: record() must stay under 1 µs in debug builds too.
 [profile.dev.package.juggler-stats]
 opt-level = 3
+
+# 0.4.6 (AJ-E3011's persona walks): the lab bridge's backend built like a
+# release but with debug assertions on, so a walk measures the app's own
+# speed rather than an unoptimised debug build's. The test bridge is
+# compiled only with debug_assertions and its feature (lib.rs), so it still
+# never reaches a shipping build: `--release` with the feature refuses to
+# compile, and no release workflow may name this profile
+# (scripts/dev_bridge_check.sh). Opt in with AIJ_LAB_PROFILE=walk
+# (scripts/qa/lab_scenario.sh).
+[profile.walk]
+inherits = "release"
+debug-assertions = true
+overflow-checks = true

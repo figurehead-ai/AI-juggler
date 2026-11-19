@@ -9,8 +9,9 @@
  * also in 0, 1 or 2 other pools), its role pair Member → Member set as
  * the wizard's grid would; opened from its card on Pools (the canvas
  * chosen where a narrow window opens it as rows). The row's member kind
- * joins from the palette (a session is already there; an App, Account,
- * Tool, Mac or everyone joins later; a session in another app as
+ * joins from the palette, behind Add a member (a session is already
+ * there; an App, Account, Tool, Mac or everyone joins later, drawn as the
+ * planned team while no session has joined; a session in another app as
  * watched). The line between the first two: its rule shown, the pair's
  * ("This line follows it") or set for that line only. Sealing: it says
  * first who leaves which pool, and seals on Seal it; unsealed rows read
@@ -133,6 +134,9 @@ for (const r of ROWS) {
     await page.waitForTimeout(300); // the cards settle (their counts read)
     await act(tile);
     await expect(page.getByTestId("pool-page")).toBeVisible();
+    // Round 5: an empty pool opens in its guided setup; this walk is the
+    // diagram's, so Show the diagram.
+    if (r.members === 0) await act(page.getByTestId("new-pool-show-diagram"));
     // A narrow window opens it as rows: the canvas, chosen.
     if ((await page.getByTestId("pool-canvas").count()) === 0) await act(page.getByTestId("pool-mode-canvas"));
     await expect(page.getByTestId("pool-canvas")).toBeVisible();
@@ -140,8 +144,10 @@ for (const r of ROWS) {
 
     // The row's member kind joins from the palette.
     if (r.member !== "session") {
+      // D-126: a running pool shows its setup again by Edit setup.
+      if (await page.getByTestId("pool-edit-setup").isVisible()) await page.getByTestId("pool-edit-setup").click();
       const palette = page.getByTestId("canvas-palette");
-      const fold = palette.getByRole("button", { name: /Add a session/ });
+      const fold = palette.getByRole("button", { name: /Add a member/ });
       if ((await fold.getAttribute("aria-expanded")) === "false") await act(fold);
       const kind = page.getByTestId("canvas-palette-kind");
       await act(kind);
@@ -150,6 +156,9 @@ for (const r of ROWS) {
       await act(add);
       await expect(page.getByTestId("canvas-added-toast")).toBeVisible();
       if (r.member === "watched") await expect(page.getByTestId("canvas-watched-node")).toHaveCount(1);
+      // D-126 §3: before any session joins, the diagram draws the planned
+      // team (a card each); once one has, the members' column.
+      else if (r.members === 0) await expect(page.locator(`[data-testid="planned-card"][data-rule-ref]`).first()).toBeVisible();
       else await expect(page.getByTestId("canvas-rule-node").first()).toBeVisible();
       // Folded again, as you would to reach a node under it.
       if ((await fold.getAttribute("aria-expanded")) === "true") await act(fold);
@@ -158,7 +167,11 @@ for (const r of ROWS) {
     // Sealing says first who leaves which pool.
     // (First, while the inspector shows the pool: its settings.)
     const seal = page.getByTestId("pool-seal");
+    // D-126: a running pool shows its setup again by Edit setup.
+    if (await page.getByTestId("pool-edit-setup").isVisible()) await page.getByTestId("pool-edit-setup").click();
     await act(page.getByTestId("inspect-open-settings"));
+    // Round 4 (#6): sealing is under More settings, closed at first.
+    await act(page.getByTestId("pool-more-fold-toggle"));
     await expect(seal).toBeVisible();
     await act(seal.getByTestId("pool-seal-open"));
     const confirm = page.getByTestId("pool-seal-confirm");

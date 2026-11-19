@@ -5,6 +5,7 @@
  */
 import { useEffect, useState, type JSX } from "react";
 import { Button, Card } from "./primitives";
+import { Disclosure } from "./controls";
 import type { FleetSelfInfo } from "../types/generated/FleetSelfInfo";
 
 export function ThisMacCard({
@@ -79,14 +80,10 @@ export function ThisMacCard({
         </div>
       </div>
 
-      <details className="group flex flex-col gap-1.5" open={linkOn}>
-        <summary className="flex cursor-pointer list-none items-center gap-1.5 text-meta font-medium text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent/60 [&::-webkit-details-marker]:hidden" id="fleet-fingerprint-label">
-          <svg aria-hidden="true" width="10" height="10" viewBox="0 0 10 10" className="shrink-0 text-muted transition-transform group-open:rotate-90 motion-reduce:transition-none">
-            <path d="M3.5 2 L7 5 L3.5 8" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-          Fingerprint, to check when you pair
-        </summary>
-        <div className="mt-1.5 flex flex-wrap items-center gap-2">
+      {/* Open while Link is on, folded while it's off: it opens and folds
+          again as Link turns on and off (keyed), as <details open> did. */}
+      <Disclosure key={linkOn ? "on" : "off"} open={linkOn} tone="heading" summary="Fingerprint, to check when you pair">
+        <div className="mt-3 flex flex-wrap items-center gap-2">
           <code
             className="rounded-lg border border-hairline bg-canvas px-3 py-1.5 font-mono text-meta tracking-wide text-ink"
             aria-label="Machine fingerprint"
@@ -108,10 +105,10 @@ export function ThisMacCard({
             {copied ? "Copied" : "Copy"}
           </Button>
         </div>
-        <p className="mt-1.5 text-meta text-ink-2">
+        <p className="mt-3 text-meta text-ink-2">
           When you pair, both Macs show their fingerprints: check they match before you confirm.
         </p>
-      </details>
+      </Disclosure>
 
       <div className="flex flex-wrap items-center gap-3 border-t border-hairline pt-3">
         <span className="text-meta tabular-nums text-muted">

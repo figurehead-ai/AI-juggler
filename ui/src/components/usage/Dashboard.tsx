@@ -21,7 +21,8 @@ import { NewTokensNote } from "./NewTokensNote";
 import type { GroupBy } from "../charts/colors";
 import { accountGroups, foldItems, foldSeries } from "./accounts";
 import { ActiveHours, SessionsPerBucket } from "./Activity";
-import { IconChart, IconClock, IconDonut, IconMoney, IconPlay, IconTokens, Segmented } from "./controls";
+import { IconChart, IconClock, IconDonut, IconMoney, IconPlay, IconTokens } from "./controls";
+import { Segmented } from "../controls";
 import { TopProjects, TopSessions } from "./TopLists";
 import { chartSeries, shareItems, useUsageHistory, type Scope } from "./useUsage";
 
@@ -202,13 +203,13 @@ export function UsageDashboard({
           testId="usage-over-time"
           actions={
             <>
-              <Segmented label="Split by" size="sm" options={splits} value={split} onChange={setSplit} testId="usage-split" />
+              <Segmented label="Split by" size="sm" segments={splits.map(({ id, label }) => ({ value: id, label }))} value={split} onChange={setSplit} testId="usage-split" />
               <Segmented
                 label="Measure"
                 size="sm"
-                options={[
-                  { id: "tokens", label: "Tokens" },
-                  { id: "usd", label: "Cost" },
+                segments={[
+                  { value: "tokens", label: "Tokens" },
+                  { value: "usd", label: "Cost" },
                 ]}
                 value={metric}
                 onChange={setMetric}

@@ -1,0 +1,51 @@
+name: tool-versions
+
+# D-128: the daily tool-version watcher. Each supported tool's public version
+# list (named in its adapter's spec: the npm registry, a GitHub release, a
+# desktop app's update feed) is asked for the newest version. When one
+# changed since the last look, ONE issue per tool and version is opened,
+# labelled `tool-update`, so the shape checks and the fidelity register get
+# re-checked. Only version metadata is fetched, never a tool. The last seen
+# versions live in the Actions cache; nothing here changes the repository.
+
+on:
+  schedule:
+    - cron: "43 5 * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: tool-versions
+  cancel-in-progress: false
+
+jobs:
+  watch:
+    name: watch tool versions
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - name: Self-test on recorded feeds
+        run: python3 scripts/tool_versions.py --selftest
+      - name: Restore the last seen versions
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: tool-versions-state.json
+          key: tool-versions-${{ github.run_id }}
+          restore-keys: tool-versions-
+      - name: Compare and open issues
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: python3 scripts/tool_versions.py --state tool-versions-state.json
+      - name: Save the last seen versions
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: tool-versions-state.json
+          key: tool-versions-${{ github.run_id }}

@@ -17,4 +17,9 @@ members: Array<PoolRuleInfo>,
 /**
  * Its talk settings (anything unset is allowed).
  */
-talk: Array<PoolTalkInfo>, };
+talk: Array<PoolTalkInfo>, 
+/**
+ * AJ-E3011: the App (its id) whose next session leads, while the
+ * pool waits for one (D-92: one session leads); `null` otherwise.
+ */
+lead_next: string | null, };

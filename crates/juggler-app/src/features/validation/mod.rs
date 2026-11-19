@@ -10,7 +10,6 @@ use juggler_core::storage::Storage;
 
 use crate::commands::lock_storage_arc;
 use crate::error::{AppError, AppResult};
-use crate::features::providers::installed_versions_for;
 use crate::features::validation::dto::{DogfoodCellInfo, ValidationCellInfo};
 use crate::state::AppState;
 
@@ -23,6 +22,22 @@ use crate::state::AppState;
 /// KV key for the recorded live dogfood cells (JSON map
 /// "from→to" → [`juggler_handover::validation::DogfoodCell`]).
 const DOGFOOD_CELLS_KEY: &str = "dogfood_cells";
+
+/// D-127: the app setting that shows switches still in beta (Settings ›
+/// Switching › Beta, `"1"` on). Off by default: a switch whose every part
+/// wasn't decided in the lab isn't offered, anywhere a switch is listed.
+pub const BETA_SWITCHES_KEY: &str = "switching.beta";
+
+/// Whether the user turned on switches still in beta.
+#[must_use]
+pub fn beta_switches_on(storage: &Storage) -> bool {
+    storage
+        .app_settings()
+        .get(BETA_SWITCHES_KEY)
+        .ok()
+        .flatten()
+        .is_some_and(|raw| raw == "1")
+}
 
 /// The map key for one pair's recorded cell.
 pub(crate) fn dogfood_key(from: &str, to: &str) -> String {
@@ -61,8 +76,6 @@ pub fn validation_matrix_impl(state: &Arc<AppState>) -> AppResult<Vec<Validation
                 Some(cell) => juggler_handover::validation::with_dogfood(row.clone(), cell.clone()),
                 None => row.clone(),
             };
-            let versions = installed_versions_for(state, &row.from, &row.to);
-            let installed = |provider: &str| versions.get(provider).cloned();
             ValidationCellInfo {
                 from: row.from.clone(),
                 to: row.to.clone(),
@@ -78,8 +91,8 @@ pub fn validation_matrix_impl(state: &Arc<AppState>) -> AppResult<Vec<Validation
                 .to_owned(),
                 researched_ceiling: row.researched_ceiling.as_str().to_owned(),
                 advertised: merged.advertised_ceiling().as_str().to_owned(),
-                badge: merged.badge_for(&installed, true),
-                validated: merged.validated_for(&installed, true),
+                badge: merged.badge(),
+                validated: merged.validated(),
                 mechanism_green: row.mechanism_green,
                 ci_green: row.ci_green,
                 dogfood: merged.dogfood.as_ref().map(|cell| DogfoodCellInfo {

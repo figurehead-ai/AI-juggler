@@ -1,7 +1,18 @@
 /**
- * How long ago, in the rail's short words: "now", "4 min", "2 h", "3 d".
+ * A moment that is known: never a missing time read as 0, which every
+ * "how long ago" below would say as the days since 1970 (the 0.4.6 rc2
+ * walk: an App's project read "20773 d ago").
+ */
+export function knownMs(ms: number | null | undefined): ms is number {
+  return typeof ms === "number" && Number.isFinite(ms) && ms > 0;
+}
+
+/**
+ * How long ago, in the rail's short words: "now", "4 min", "2 h", "3 d";
+ * nothing for a time that isn't known (`knownMs`).
  */
 export function ago(ms: number, now: number): string {
+  if (!knownMs(ms)) return "";
   const m = Math.max(0, Math.round((now - ms) / 60_000));
   if (m < 1) return "now";
   if (m < 60) return `${m} min`;
@@ -9,8 +20,10 @@ export function ago(ms: number, now: number): string {
   return h < 24 ? `${h} h` : `${Math.floor(h / 24)} d`;
 }
 
-/** How long, as Home says it: "just now", "4 min", "2 h", "3 d". */
+/** How long, as Home says it: "just now", "4 min", "2 h", "3 d";
+ * nothing for a time that isn't known. */
 export function minutes(sinceMs: number, now: number): string {
+  if (!knownMs(sinceMs)) return "";
   const m = Math.max(0, Math.round((now - sinceMs) / 60_000));
   if (m < 1) return "just now";
   if (m < 60) return `${m} min`;
@@ -18,8 +31,10 @@ export function minutes(sinceMs: number, now: number): string {
   return h < 24 ? `${h} h` : `${Math.floor(h / 24)} d`;
 }
 
-/** How long ago, short: "40s", "12m", "30h", then days past 48 h ("7d"). */
+/** How long ago, short: "40s", "12m", "30h", then days past 48 h ("7d");
+ * nothing for a time that isn't known. */
 export function since(ms: number, now: number): string {
+  if (!knownMs(ms)) return "";
   const secs = Math.max(1, Math.floor((now - ms) / 1000));
   if (secs < 60) return `${secs}s`;
   if (secs < 3600) return `${Math.floor(secs / 60)}m`;
@@ -42,9 +57,11 @@ export function sessionWhen(
   return ended ? agoWords(since, now) : ago(since, now);
 }
 
-/** How long ago, in words: "just now", else "3 h ago" (never "now ago"). */
+/** How long ago, in words: "just now", else "3 h ago" (never "now ago");
+ * nothing for a time that isn't known (never "20773 d ago"). */
 export function agoWords(ms: number, now: number): string {
   const short = ago(ms, now);
+  if (short === "") return "";
   return short === "now" ? "just now" : `${short} ago`;
 }
 

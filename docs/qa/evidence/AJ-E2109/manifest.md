@@ -48,6 +48,17 @@ off the row and said "Not measured yet" once.
 None added; cited: `_gallery/93-accounts-profiles/accounts-{one,two,six}-profiles-1280x800-{dark,light}.png`
 (captured 2026-11-01, a7d543b10; predate D-62's names and design review #63).
 
+## Correction (2026-11-16)
+
+The Gate row says Playwright `session-pages-gallery.spec.ts` "Accounts with
+…" "runs in CI / the gallery gate". It didn't: the family wasn't in the
+gate's GALLERY_SPECS until 0.4.6 (468e81513), and the gate runs only
+"Accounts with one profile" (dark) of the three, so two profiles and six
+profiles still aren't run by CI; scripts/visual_specs_check.py (432999cd2)
+now keeps that visible. Re-run by hand on 468e81513 (2026-11-16, the whole
+spec): 38 passed, the six "Accounts with …" tests among them. The gate state
+is compared in CI from a2cd59931.
+
 ## Redaction checklist (tick before commit)
 
 - [x] No credentials, tokens, or keys in any file here

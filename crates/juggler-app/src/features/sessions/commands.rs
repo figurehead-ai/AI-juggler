@@ -129,8 +129,9 @@ pub async fn sessions_history(
 }
 
 /// E31 (AJ-E3103): what a list of sessions' filters offer: the projects,
-/// Apps, Accounts and Macs its rows are on, each with how many rows it
-/// shows. Read when a list's filters are first shown, never before.
+/// Apps, Accounts, Macs and tools its rows are on, each with how many rows
+/// it shows with the other filters as chosen (`filters`). Read when a
+/// list's filters are first shown, never before.
 ///
 /// # Errors
 ///
@@ -139,9 +140,10 @@ pub async fn sessions_history(
 pub async fn sessions_facets(
     state: tauri::State<'_, Arc<AppState>>,
     query: super::rows::SessionsQuery,
+    filters: Option<super::facets::FacetFilters>,
 ) -> AppResult<super::facets::SessionsFacetsInfo> {
     crate::ipc::blocking(state.inner(), "the sessions' filters", move |state| {
-        super::facets::sessions_facets_impl(state, &query)
+        super::facets::sessions_facets_impl(state, &query, &filters.unwrap_or_default())
     })
     .await
 }

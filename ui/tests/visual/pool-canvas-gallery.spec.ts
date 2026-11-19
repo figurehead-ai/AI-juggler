@@ -38,7 +38,7 @@ const SIZES = [
   [1024, 700],
 ] as const;
 
-async function open(page: Page, theme: "dark" | "light", width: number, height: number) {
+async function open(page: Page, theme: "dark" | "light", width: number, height: number, extra: Record<string, unknown> = {}) {
   await page.clock.setFixedTime(GATE_NOW);
   await page.addInitScript(
     ({ theme, seed }) => {
@@ -48,7 +48,7 @@ async function open(page: Page, theme: "dark" | "light", width: number, height: 
       localStorage.setItem("aij.smoother.dismissed", JSON.stringify(["all"]));
       sessionStorage.setItem("aij.ready.skipped", "1");
     },
-    { theme, seed: canvasSeed(GATE_NOW) },
+    { theme, seed: { ...canvasSeed(GATE_NOW), ...extra } },
   );
   await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
   await page.setViewportSize({ width, height });
@@ -87,9 +87,11 @@ async function fullCards(page: Page) {
   await expect(page.locator("[data-form='compact']")).toHaveCount(0);
 }
 
-/** The palette, unfolded (it starts folded on a narrow canvas). */
+/** The palette, unfolded (D-126: it starts as its Add a member button). */
 async function palette(page: Page) {
-  const fold = page.getByTestId("canvas-palette").getByRole("button", { name: /Add a session/ });
+  // D-126: a running pool shows its setup again by Edit setup.
+  if (await page.getByTestId("pool-edit-setup").isVisible()) await page.getByTestId("pool-edit-setup").click();
+  const fold = page.getByTestId("canvas-palette").getByRole("button", { name: /Add a member/ });
   if ((await fold.getAttribute("aria-expanded")) !== "true") await fold.click();
   await expect(page.getByTestId("canvas-palette-item").first()).toBeVisible();
 }
@@ -117,25 +119,58 @@ for (const theme of ["dark", "light"] as const) {
       // At fit, under 100 %: every node compact, its words at screen size.
       await expect(page.locator("[data-form='full']")).toHaveCount(0);
       await expect(page.locator('[data-node="s-plan"]').getByTestId("node-lead")).toBeVisible();
-      await expect(page.locator('[data-node="s-copy"]').getByTestId("node-badge")).toBeVisible();
-      await expect(page.getByTestId("edge-badge").first()).toBeVisible();
-      await expect(page.getByTestId("canvas-palette").getByRole("button", { name: /Add a session/ })).toBeVisible();
+      // The rc3 critique (calm): what waits on you is one mark on its node,
+      // its word in place of its state; a line says nothing at rest.
+      await expect(page.locator('[data-node="s-copy"]').getByTestId("node-need")).toHaveText("Asks you");
+      await expect(page.locator('[data-node="s-review"]').getByTestId("node-need")).toHaveText("Asks you +1");
+      await expect(page.getByTestId("node-badge")).toHaveCount(0);
+      await expect(page.getByTestId("edge-label")).toHaveCount(0);
+      // Logos muted at rest, lit where a node needs you.
+      await expect(page.locator('[data-node="s-cart"]').getByTestId("node-logo")).not.toHaveClass(/is-lit/);
+      await expect(page.locator('[data-node="s-copy"]').getByTestId("node-logo")).toHaveClass(/is-lit/);
+      // D-126 §3, as mocked: its setup done and its sessions in it, the
+      // calm running view; no palette (Edit setup brings it back).
+      await expect(page.getByTestId("pool-running")).toBeVisible();
+      await expect(page.getByTestId("canvas-palette")).toHaveCount(0);
+      await expect(page.getByTestId("pool-edit-setup")).toBeVisible();
       await expect(page.getByTestId("inspect-stream")).toContainText("Planner gave «Checkout copy» to Checkout copy pass");
-      // Nothing on a node drawn under 12 px.
+      // Nothing on a node drawn under 12 px. Only what's drawn: a node's
+      // words for screen readers (its hidden description, D-126) have no
+      // height, and measured they'd read 0/0.
       const smallest = await page.locator("[data-node] *").evaluateAll((all) =>
-        Math.min(...all.filter((el) => el.childNodes.length > 0 && [...el.childNodes].some((n) => n.nodeType === 3 && n.textContent!.trim())).map((el) => parseFloat(getComputedStyle(el).fontSize) * (el.getBoundingClientRect().height / ((el as HTMLElement).offsetHeight || el.getBoundingClientRect().height)))),
+        Math.min(...all.filter((el) => el.getBoundingClientRect().height > 0 && el.childNodes.length > 0 && [...el.childNodes].some((n) => n.nodeType === 3 && n.textContent!.trim())).map((el) => parseFloat(getComputedStyle(el).fontSize) * (el.getBoundingClientRect().height / ((el as HTMLElement).offsetHeight || el.getBoundingClientRect().height)))),
       );
       // (Measured through the transforms: a hair under 12 is rounding.)
       expect(smallest, "node text 12 px or more on screen").toBeGreaterThanOrEqual(11.5);
+      // D-126 (the coordinator's critique at a 53 % fit: "Checkout …"): a
+      // compact node's title wraps over two lines before it's cut, in the
+      // real layout. No title is cut on one line, and these show two.
+      const titles = await page.locator("[data-form='compact'] [data-node-name-text]").evaluateAll((all) =>
+        all.map((el) => {
+          const line = parseFloat(getComputedStyle(el).lineHeight);
+          const height = el.getBoundingClientRect().height;
+          return { text: el.textContent ?? "", lines: Math.round(height / line), cutOnOne: height < line * 1.5 && el.scrollWidth > el.clientWidth + 1, cutOnTwo: el.scrollHeight > el.clientHeight + 1 };
+        }),
+      );
+      expect(titles.filter((one) => one.cutOnOne).map((one) => one.text), "no title cut on one line").toEqual([]);
+      // The long ones wrap rather than cut: one line where it fits whole
+      // (the rc3 fit, about 64 %), never more than two.
+      for (const long of ["Fix the cart totals", "Checkout copy pass", "Review the checkout steps", "Spike: payment sandbox", "Tax rules research"]) {
+        const lines = titles.find((one) => one.text === long)?.lines ?? 0;
+        expect(lines >= 1 && lines <= 2, `${long}: on one or two lines (${lines})`).toBe(true);
+      }
+      // The rc3 critique ("Spike: payment…", "Review the checkout…" at
+      // 53 %): at the default view of a 1280 window, the titles read whole.
+      if (width === 1280) expect(titles.filter((one) => one.cutOnTwo).map((one) => one.text), "no title cut on two lines").toEqual([]);
       await page.mouse.move(0, 0);
       await page.screenshot({ path: resolve(OUT, `canvas-${size}-${theme}.png`) });
       await axe(page, `canvas ${size} ${theme}`);
     });
 
-    test(`a node's waiting badge opened, its ask answered in place — ${size} ${theme}`, async ({ page }) => {
+    test(`a node's need opened, its ask answered in place — ${size} ${theme}`, async ({ page }) => {
       await open(page, theme, width, height);
       await canvas(page);
-      await page.locator('[data-node="s-copy"]').getByTestId("node-badge").click();
+      await page.locator('[data-node="s-copy"]').getByTestId("node-need").click();
       const panel = page.locator('[data-node="s-copy"]').getByTestId("node-popover");
       await expect(panel.getByTestId("node-ask")).toContainText("wants to message Planner");
       await expect(panel.getByTestId("node-ask-once")).toBeFocused();
@@ -144,16 +179,21 @@ for (const theme of ["dark", "light"] as const) {
       await axe(page, `node badge open ${size} ${theme}`);
     });
 
-    test(`an edge's waiting badge opened — ${size} ${theme}`, async ({ page }) => {
+    // The rc3 critique: a line paused at the hop limit waits on the node
+    // it was going to, answered from its one mark (the capture keeps its
+    // name, so the gallery's set stays whole).
+    test(`a paused line answered on its node — ${size} ${theme}`, async ({ page }) => {
       await open(page, theme, width, height);
       await canvas(page);
-      const paused = page.getByTestId("edge-badge").filter({ hasText: "Paused" });
-      await paused.click();
-      await expect(page.getByTestId("edge-badge-panel").getByTestId("edge-deliver")).toHaveText("Let it continue");
-      await expect(page.getByTestId("edge-badge-panel").getByTestId("edge-dont-deliver")).toBeVisible();
+      const review = page.locator('[data-node="s-review"]');
+      await review.getByTestId("node-need").click();
+      const paused = review.getByTestId("node-popover").getByTestId("node-paused");
+      await expect(paused).toContainText("Fix the cart totals: Paused after");
+      await expect(paused.getByTestId("edge-deliver")).toHaveText("Let it continue");
+      await expect(paused.getByTestId("edge-dont-deliver")).toBeVisible();
       await page.mouse.move(0, 0);
       await page.screenshot({ path: resolve(OUT, `canvas-edge-badge-open-${size}-${theme}.png`) });
-      await axe(page, `edge badge open ${size} ${theme}`);
+      await axe(page, `paused line open ${size} ${theme}`);
     });
 
     test(`the canvas at 100 %: full cards — ${size} ${theme}`, async ({ page }) => {
@@ -161,7 +201,9 @@ for (const theme of ["dark", "light"] as const) {
       await canvas(page);
       await fullCards(page);
       await expect(page.locator('[data-node="s-copy"]').getByTestId("node-ask")).toContainText("wants to message Planner");
-      await expect(page.getByTestId("edge-pending").first()).toBeVisible();
+      // The paused line on the card it was going to; no line says it at rest.
+      await expect(page.locator('[data-node="s-review"]').getByTestId("node-paused")).toBeVisible();
+      await expect(page.getByTestId("edge-label")).toHaveCount(0);
       await page.mouse.move(0, 0);
       await page.screenshot({ path: resolve(OUT, `canvas-full-${size}-${theme}.png`) });
       await axe(page, `canvas full ${size} ${theme}`);
@@ -177,6 +219,71 @@ for (const theme of ["dark", "light"] as const) {
       await page.mouse.move(0, 0);
       await page.screenshot({ path: resolve(OUT, `inspect-member-${size}-${theme}.png`) });
       await axe(page, `inspect member ${size} ${theme}`);
+    });
+  }
+
+  // D-126 §3: the other view, as mocked — a pool being set up, before any
+  // session joins: the planned team drawn, the checklist with its ring
+  // and the team tools as its open item, "Setting up" in the header, Add
+  // a member. Beside the running Checkout team (canvas-1280x800).
+  for (const [width, height] of SIZES) {
+    const size = `${width}x${height}`;
+    test(`the setting-up canvas: the planned team and the checklist — ${size} ${theme}`, async ({ page }) => {
+      const seed = canvasSeed(GATE_NOW);
+      const rule = (member: string, kind: string, role: string) => ({ member, kind, role, level: null, joined_at: 1, sessions: 0, session_ids: [] });
+      await open(page, theme, width, height, {
+        __AIJ_POOLS__: { ...seed.__AIJ_POOLS__, pools: [...seed.__AIJ_POOLS__.pools, { id: "pool-web", name: "Web team", rules: [] }] },
+        __AIJ_POOL_RULES__: { "pool-web": { members: [rule("app:cli:claude-work", "app", "member"), rule("app:cli:claude-personal", "app", "reviewer"), rule("all", "everyone", "member")], talk: [], lead_next: "cli:claude-work" } },
+        __AIJ_AGENT_BRIDGE__: { asked: false, on: false },
+      });
+      await poolsScreen(page);
+      await page.getByTestId("pool-card-tile").filter({ hasText: "Web team" }).click();
+      // Under 1100 px a pool opens as rows until you choose the canvas.
+      if (width < 1100) await page.getByTestId("pool-mode-canvas").click();
+      await expect(page.getByTestId("planned-team").getByTestId("planned-card")).toHaveCount(3);
+      // Each by its one short identity, as the mock's cards (the critique:
+      // "Claude Code CLI · Wo…").
+      await expect(page.locator("[data-planned-name]")).toHaveText(["Work Max", "Personal", "Everyone in every project"]);
+      await expect(page.getByTestId("pool-header-setup")).toContainText("Setting up ·");
+      await expect(page.getByTestId("pool-checklist-open")).toContainText("Let them message each other");
+      await expect(page.getByTestId("canvas-palette").getByRole("button", { name: "Add a member" })).toBeVisible();
+      // The open item's primary is whole in the panel's view, never under
+      // its foot (the critique at 1280 × 800).
+      const primary = page.getByTestId("pool-checklist-open").getByRole("button", { name: "Turn on team tools" });
+      await expect(primary).toBeInViewport({ ratio: 1 });
+      const [it, panel] = await Promise.all([primary.boundingBox(), page.getByTestId("inspector-body").boundingBox()]);
+      expect(it!.y >= panel!.y && it!.y + it!.height <= panel!.y + panel!.height, "Turn on team tools whole in the panel's view").toBe(true);
+      // The caption is under the team and over the toolbar, or not shown
+      // (the rc3 critique at 1280 × 800: it sat on the row, then under the
+      // toolbar); at the mock's 1440 × 900 it shows.
+      // Read once the canvas has measured itself again (a resize lands a
+      // frame later than the new window size).
+      const captionClear = () =>
+        expect
+          .poll(
+            async () => {
+              const next = page.getByTestId("planned-team-next");
+              if (!(await next.getAttribute("data-fits"))) return (await next.isVisible()) ? "shown though it doesn't fit" : "ok";
+              const [box, bar] = await Promise.all([next.boundingBox(), page.locator("[data-canvas-toolbar]").boundingBox()]);
+              const lowest = Math.max(...(await page.getByTestId("planned-card").evaluateAll((all) => all.map((one) => one.getBoundingClientRect().bottom))));
+              if (box!.y < lowest + 16) return `into the cards (${box!.y} < ${lowest} + 16)`;
+              if (box!.y + box!.height > bar!.y) return `under the toolbar (${box!.y + box!.height} > ${bar!.y})`;
+              return "ok";
+            },
+            { message: "the caption under the team and over the toolbar, or hidden" },
+          )
+          .toBe("ok");
+      await captionClear();
+      if (width === 1280) {
+        await page.setViewportSize({ width: 1440, height: 900 });
+        await expect(page.getByTestId("planned-team-next")).toHaveAttribute("data-fits", "true");
+        await captionClear();
+        await page.setViewportSize({ width, height });
+        await captionClear();
+      }
+      await page.mouse.move(0, 0);
+      await page.screenshot({ path: resolve(OUT, `canvas-setup-${size}-${theme}.png`) });
+      await axe(page, `setting-up canvas ${size} ${theme}`);
     });
   }
 
@@ -197,6 +304,8 @@ for (const theme of ["dark", "light"] as const) {
   test(`the pool's settings — 1280x800 ${theme}`, async ({ page }) => {
     await open(page, theme, 1280, 800);
     await canvas(page);
+    // D-126: a running pool shows its setup again by Edit setup.
+    if (await page.getByTestId("pool-edit-setup").isVisible()) await page.getByTestId("pool-edit-setup").click();
     await page.getByTestId("inspect-open-settings").click();
     await expect(page.getByTestId("inspect-pool")).toBeVisible();
     await expect(page.getByTestId("pool-rule")).toContainText("Take a task");
@@ -252,36 +361,33 @@ for (const theme of ["dark", "light"] as const) {
   });
 
   for (const [width, height] of [[1280, 800], [1024, 720]] as const) {
-    test(`the new pool wizard, each step — ${width}x${height} ${theme}`, async ({ page }) => {
+    test(`the new pool setup, each step — ${width}x${height} ${theme}`, async ({ page }) => {
+      // Nine steps, a full axe scan on each: near 30 s in the gate's
+      // emulated container (it timed out at 1024 on rc3's render).
+      test.slow();
       await open(page, theme, width, height);
       await poolsScreen(page);
       await page.getByTestId("pools-new").click();
       await expect(page.getByTestId("new-pool")).toBeVisible();
-      for (const step of ["template", "who", "roles", "review"]) {
+      // AJ-E3011: the steps in order, each with a heading and a line on why;
+      // D-30's question is its own step while unanswered (round 4).
+      for (const step of ["template", "where", "who", "lead", "everyone", "talk", "own", "tools", "review"]) {
+        if (step === "tools" && (await page.getByTestId("new-pool-step-tools").count()) === 0) continue;
+        await expect(page.getByTestId(`new-pool-step-${step}`)).toBeVisible();
         await page.mouse.move(0, 0);
         await page.screenshot({ path: resolve(OUT, `new-pool-${step}-${width}x${height}-${theme}.png`) });
         await axe(page, `new pool ${step} ${width} ${theme}`);
-        if (step === "who") await page.getByTestId("new-pool-candidate").first().getByRole("checkbox").click();
+        // D-126: an App is a logo card (its checkbox in its label); the rc3
+        // critique: Your apps first, the sessions open now their own section.
+        if (step === "who") await page.getByTestId("new-pool-apps").getByTestId("new-pool-candidate").first().locator("label").first().click();
         if (step !== "review") await page.getByTestId("new-pool-next").click();
       }
-      await expect(page.getByTestId("new-pool-review")).toBeVisible();
+      // Review: a short sentence a row (its full rules one click away).
+      await expect(page.getByTestId("new-pool-review-rows")).toBeVisible();
       await page.keyboard.press("Escape");
       await expect(page.getByTestId("new-pool")).toHaveCount(0);
     });
   }
-
-  test(`a new pool by hand — 1280x800 ${theme}`, async ({ page }) => {
-    await open(page, theme, 1280, 800);
-    await poolsScreen(page);
-    await page.getByTestId("pools-new").click();
-    await page.getByTestId("new-pool-by-hand").click();
-    await expect(page.getByTestId("canvas-empty")).toBeVisible();
-    await expect(page.getByTestId("pool-name-input")).toBeFocused();
-    await expect(page.getByTestId("pool-name-input")).toHaveValue("New pool");
-    await page.mouse.move(0, 0);
-    await page.screenshot({ path: resolve(OUT, `new-pool-1280x800-${theme}.png`) });
-    await axe(page, `new pool ${theme}`);
-  });
 }
 
 test("drag: a session from the palette in, a node to a new place", async ({ page }) => {
@@ -298,7 +404,8 @@ test("drag: a session from the palette in, a node to a new place", async ({ page
   await expect(page.getByTestId("canvas-drag-ghost")).toBeVisible();
   await page.mouse.up();
   await expect(page.getByTestId("canvas-node")).toHaveCount(7);
-  expect(await calls(page, "__AIJ_POOL_CALLS__")).toContain("move:s-tests:pool-checkout");
+  // Adding a session keeps its other pools: a join, not a move (d5737c715, D-62 decision 10).
+  expect(await calls(page, "__AIJ_POOL_CALLS__")).toContain("join:pool-checkout:session:s-tests:member:");
   // The first arrangement keeps every node where it is.
   const placed = (await calls(page, "__AIJ_POOL_CANVAS_CALLS__")).join("\n");
   expect(placed).toContain("s-tests@");
@@ -347,14 +454,18 @@ test("keyboard: arrows between nodes, Enter, Option+arrows, Delete with Undo, an
   await page.keyboard.press("Alt+ArrowRight");
   expect((await calls(page, "__AIJ_POOL_CANVAS_CALLS__")).join("\n")).toMatch(/s-cart@/);
 
+  // Held, like Stop (round 4): the toast's Undo keeps it in the pool,
+  // and nothing is sent.
   await page.locator('[data-node-name="s-spike"]').focus();
   await page.keyboard.press("Delete");
-  await expect(page.getByTestId("canvas-node")).toHaveCount(5);
+  await expect(page.getByTestId("canvas-removed-toast")).toBeVisible();
   await page.getByTestId("canvas-removed").click();
+  await expect(page.getByTestId("canvas-removed-toast")).toHaveCount(0);
   await expect(page.getByTestId("canvas-node")).toHaveCount(6);
+  expect((await calls(page, "__AIJ_POOL_CALLS__")).join("\n")).not.toMatch(/move:s-spike/);
 
-  // At fit the node is compact: its badge opens the ask, answered there.
-  await page.locator('[data-node="s-copy"]').getByTestId("node-badge").focus();
+  // At fit the node is compact: its one mark opens the ask, answered there.
+  await page.locator('[data-node="s-copy"]').getByTestId("node-need").focus();
   await page.keyboard.press("Enter");
   await page.keyboard.press("Enter");
   await expect(page.locator('[data-node="s-copy"]').getByTestId("node-ask")).toHaveCount(0);

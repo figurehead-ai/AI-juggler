@@ -7,9 +7,10 @@ description: Work the tasks of this session's AI Juggler pool - find ready work,
 
 This session may belong to an AI Juggler pool: a group of sessions that
 share a task list. The tools come from AI Juggler (the `juggler` or
-`ai-juggler` MCP server, or `juggler-agent` from a shell). They work only
-in sessions AI Juggler started with its agent tools, while AI Juggler runs;
-otherwise each tool says why.
+`ai-juggler` MCP server, or `juggler-agent` from a shell). They work while
+AI Juggler runs, in sessions it started with its agent tools and in Claude
+app sessions where its connector was added; otherwise each tool says why.
+A note that you have unread pool messages means: call `read_inbox`.
 
 ## When you start, and when you finish a task
 

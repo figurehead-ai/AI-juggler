@@ -44,6 +44,11 @@ Usage:
                      # also writes every named task's state and the output
                      # (promote.yml's sign-off record reads it, D-109)
     release_scope.py --selftest
+D-127/D-128: under the scope it prints the gate watch (scripts/gate_watch.py):
+the fidelity register's routes whose tool moved to a new major on this Mac,
+and the shape checks AI Juggler found failing, each to be re-checked in the
+lab before the release. It reports and never changes the exit code.
+
 CI reports it on a release pull request, the nightly before it builds a
 new minor (x.y.0), and promote.yml before beta; preflight prints its first
 line on release/* branches. Only promote.yml's Stable run fails on it.
@@ -244,8 +249,10 @@ def selftest() -> int:
     import contextlib
     import io
 
-    global scope
+    global scope, gate_lines
     real = scope
+    real_gate = gate_lines
+    gate_lines = lambda: ["gate watch (D-127/D-128): made up", "  DUE        a→b: b is 2.0, the runs used 1.0 (1 area)"]
 
     def fake(minor, upto=None):
         known = {"AJ-E9": ("made up", "TODO", "9")}
@@ -274,6 +281,8 @@ def selftest() -> int:
                 got = run(argv)
             assert got == want, (argv, got, out.getvalue())
             assert "OPEN      AJ-E9" in out.getvalue(), (argv, out.getvalue())
+            # D-127/D-128: the gate watch rides under the scope, never in the exit.
+            assert "DUE        a→b" in out.getvalue(), (argv, out.getvalue())
         # D-109: --json carries each task's state and the exit for the record.
         target = EVIDENCE / "scope.json"
         with contextlib.redirect_stdout(io.StringIO()):
@@ -285,9 +294,21 @@ def selftest() -> int:
         assert got["output"][0].startswith("release scope 9.9.1"), got
     finally:
         scope = real
+        gate_lines = real_gate
         EVIDENCE = saved
     print("release-scope selftest: OK")
     return 0
+
+
+def gate_lines() -> list[str]:
+    """The gate watch's report (D-127/D-128), or why it couldn't run."""
+    try:
+        sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+        import gate_watch
+
+        return gate_watch.watch().lines()
+    except Exception as error:  # noqa: BLE001 (a report must never break the scope check)
+        return [f"gate watch: couldn't run ({type(error).__name__}: {error})"]
 
 
 def main() -> int:
@@ -354,6 +375,7 @@ def run(args: list[str]) -> int:
             lines.append(f"release_scope: {minor} is not complete. Finish the open tasks, or "
                          "list them under '**Deferred (D-NN):**' with the maintainer's decision.")
             code = 1
+    lines += gate_lines()
     print("\n".join(lines))
     if json_path:
         write_json(json_path, version, minor, channel, code, lines, known, wanted, open_, deferred, missing, weak)

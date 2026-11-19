@@ -6,7 +6,9 @@
  * fresh reads only add to it. Room is the Account's: two Apps on one
  * plan share it (`accountDisplay`). D-103.7: which Accounts ever ran in
  * the project, from the backend's count by Account (every session there),
- * what the app holds until it answers.
+ * what the app holds until it answers. Its Apps are the CLI Apps the
+ * user has (`cliRecipes`: a Claude app profile's folder isn't one,
+ * the 0.4.6 RC walk A8).
  */
 import { useEffect, useMemo, useState } from "react";
 import { launchRecipesList } from "../../lib/ipc/launch";
@@ -17,7 +19,7 @@ import type { LaunchRecipeInfo } from "../../types/generated/LaunchRecipeInfo";
 import type { QuotaDisplayData } from "../../lib/ipc/quota";
 import { useQuotaDisplays } from "../../lib/kept-reads";
 import { accountDisplay, accountName, accountOfProfile, useSubscriptions } from "../../lib/subscriptions";
-import { useApps } from "../../lib/apps";
+import { useApps, useCliRecipes } from "../../lib/apps";
 import { cliAppId, cliAppName } from "../../lib/app-name";
 import { launchRoom } from "../../lib/launch-pick";
 import { machineAdvice } from "../../lib/ipc/this-mac";
@@ -29,8 +31,9 @@ import { useRelatedCounts, useRelationCounts } from "../../lib/relation-counts";
 import type { ProjectInfo } from "../../types/generated/ProjectInfo";
 
 export interface NewSessionData {
-  /** `null` until known (never while the app holds some). */
-  recipes: LaunchRecipeInfo[] | null;
+  /** The CLI Apps' launch settings (`cliRecipes`); `null` until
+   * known (never while the app holds some). */
+  recipes: readonly LaunchRecipeInfo[] | null;
   /** Whether the runways have answered. */
   roomKnown: boolean;
   roomOf: (folderId: string) => Room;
@@ -83,6 +86,7 @@ export function useNewSessionData({
   const { displays, known } = useQuotaDisplays();
   const subscriptions = useSubscriptions();
   const apps = useApps(folders);
+  const offered = useCliRecipes(recipes);
 
   const [ranked, setRanked] = useState<RankedRowData[]>([]);
   useEffect(() => {
@@ -128,7 +132,7 @@ export function useNewSessionData({
     const keyOfStored = (id: string) => subscriptions?.find((row) => row.account_id === id)?.key ?? id;
     const counted = byAccount && total !== undefined ? { byAccount: new Map([...byAccount].map(([id, n]) => [keyOfStored(id), n])), total } : null;
     return {
-      recipes,
+      recipes: offered,
       roomKnown: known,
       roomOf: (folderId: string): Room => {
         const room = launchRoom(displayOf(folderId), sessionsOf(folderId));
@@ -144,8 +148,9 @@ export function useNewSessionData({
       appNameOf: (recipe: LaunchRecipeInfo) => apps?.find((app) => app.id === cliAppId(recipe.account_id))?.name ?? cliAppName(recipe.provider, recipe.account_label),
       verdictOf: (folderId: string) => ranked.find((row) => row.account === folderId)?.admission ?? undefined,
       adviceOf: (recipeId: string) => advice.get(recipeId),
+      // Every folder's, a profile's too: its history names the Account.
       ranHere: accountsRanHere({ project, sessions, recipes: recipes ?? [], accountOf: accountKeyOf, counted }),
       ranHereKnown: !live || !project || counted !== null,
     };
-  }, [recipes, known, displays, subscriptions, apps, sessions, ranked, advice, project, live, byAccount, total]);
+  }, [recipes, offered, known, displays, subscriptions, apps, sessions, ranked, advice, project, live, byAccount, total]);
 }

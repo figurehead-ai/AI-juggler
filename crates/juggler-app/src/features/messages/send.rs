@@ -33,6 +33,7 @@ use juggler_core::pools::talk::HoldReason;
 
 use super::{Member, new_id, roster, sha256_hex};
 use crate::commands::lock_storage_arc;
+use crate::features::connector::reach::DesktopConversation;
 use crate::state::AppState;
 
 /// Who sends.
@@ -119,13 +120,24 @@ type Addressee = (String, String, Option<String>);
 type Ruled = (Vec<Addressee>, Vec<Option<HoldReason>>, Vec<&'static str>);
 
 /// The recipients `to` names, from the sender's pool and the pools the
-/// user linked with it, and the sender's own role in its pool.
+/// user linked with it, and the sender's own role in its pool. `desktop`
+/// is the pool's desktop conversations (AJ-E3013): a connected one is a
+/// member like any other (the whole pool reaches it too), a Watched one
+/// only by its own ref.
+///
+/// D-119 item 6: the whole pool is its members open now (a session that
+/// runs, a desktop conversation attested or on its tool's process); an
+/// ended member gets no copy, and catches up from the pool's log when
+/// it's resumed ([`super::catch_up`]). A member named on its own gets its
+/// copy, open or not. With no one else open, the message is kept in the
+/// pool's log only.
 fn recipients(
     state: &Arc<AppState>,
     storage_links: &[String],
     pool_id: &str,
     from: &Author,
     to: &str,
+    desktop: &[DesktopConversation],
 ) -> Result<(Vec<To>, Option<String>), Response> {
     let mine = roster(state, pool_id)
         .map_err(|_| refuse(Refusal::Bad, "AI Juggler couldn't read the pool."))?;
@@ -133,7 +145,20 @@ fn recipients(
     let my_role = mine
         .iter()
         .find(|member| member.anchor == me)
-        .map(|member| member.role.clone());
+        .map(|member| member.role.clone())
+        .or_else(|| {
+            desktop
+                .iter()
+                .find(|one| one.member == me)
+                .map(|one| one.role.clone())
+        });
+    let as_to = |one: &DesktopConversation| -> To {
+        (
+            (one.member.clone(), one.name.clone(), one.session.clone()),
+            one.role.clone(),
+            None,
+        )
+    };
     let named = |member: &Member, linked: Option<&String>| -> To {
         (
             (
@@ -155,15 +180,23 @@ fn recipients(
             None,
         )]),
         "pool" => {
-            let all: Vec<_> = mine
-                .iter()
-                .filter(|member| member.anchor != me)
-                .map(|member| named(member, None))
-                .collect();
-            if all.is_empty() {
-                Err(refuse(Refusal::Deny, "There's no one else in this pool."))
+            let others = mine.iter().any(|member| member.anchor != me)
+                || desktop.iter().any(|one| one.connected && one.member != me);
+            if others {
+                let live = state.conversations.live_keys();
+                Ok(mine
+                    .iter()
+                    .filter(|member| member.open && member.anchor != me)
+                    .map(|member| named(member, None))
+                    .chain(
+                        desktop
+                            .iter()
+                            .filter(|one| one.connected && one.is_open(&live) && one.member != me)
+                            .map(as_to),
+                    )
+                    .collect())
             } else {
-                Ok(all)
+                Err(refuse(Refusal::Deny, "There's no one else in this pool."))
             }
         }
         who => {
@@ -173,18 +206,18 @@ fn recipients(
                 }
                 return Ok((vec![named(member, None)], my_role));
             }
-            // D-62 decision 15: a Watched member, by the ref pool_roster
-            // gives it; its copy waits until it's continued in AI Juggler.
-            if who.starts_with("conversation:")
-                && let Some(one) = crate::features::pools::watched::watched_impl(state, pool_id)
-                    .unwrap_or_default()
-                    .into_iter()
-                    .find(|one| one.member == who && one.continued_session.is_none())
+            // AJ-E3013: a desktop conversation, by the ref pool_roster
+            // gives it (or its attested session's id). Connected, it reads
+            // it through AI Juggler's connector; Watched (D-62 decision
+            // 15), its copy waits until it's continued in AI Juggler.
+            if let Some(one) = desktop
+                .iter()
+                .find(|one| one.member == who || one.session.as_deref() == Some(who))
             {
-                let name = one
-                    .title
-                    .unwrap_or_else(|| "A session in another app".to_owned());
-                return Ok((vec![((one.member, name, None), one.role, None)], my_role));
+                if one.member == me {
+                    return Err(refuse(Refusal::Bad, "That's this session itself."));
+                }
+                return Ok((vec![as_to(one)], my_role));
             }
             for linked in storage_links {
                 if let Ok(theirs) = roster(state, linked)
@@ -238,6 +271,7 @@ fn ruled(
     pool_id: &str,
     sender: (&str, Option<&str>),
     found: &[To],
+    desktop: &[DesktopConversation],
 ) -> Result<Ruled, Response> {
     use juggler_core::storage::PoolRole;
     let pools = storage.pools();
@@ -250,7 +284,12 @@ fn ruled(
             role: role(word),
             linked: linked.is_some(),
             sealed: linked.as_deref().is_some_and(sealed_of),
-            watched: anchor.starts_with("conversation:"),
+            // AJ-E3013: only a desktop conversation with no connector is
+            // Watched; a connected one is reached through its tools.
+            watched: anchor.starts_with("conversation:")
+                && !desktop
+                    .iter()
+                    .any(|one| one.connected && one.member == *anchor),
         })
         .collect();
     let decided = super::talk::rule(
@@ -486,14 +525,20 @@ pub fn send(state: &Arc<AppState>, out: &Outgoing) -> Result<Sent, Response> {
             ),
         ));
     }
-    let (found, my_role) = recipients(state, &links, &out.pool_id, &out.from, &out.to)?;
-    let (to, talk_held, left_out) = if agent {
+    let desktop =
+        crate::features::connector::reach::of_pool(state, &out.pool_id).unwrap_or_default();
+    let (found, my_role) = recipients(state, &links, &out.pool_id, &out.from, &out.to, &desktop)?;
+    let (to, talk_held, left_out) = if found.is_empty() {
+        // D-119 item 6: everyone else ended; the pool's log keeps it.
+        (Vec::new(), Vec::new(), vec![NO_ONE_OPEN])
+    } else if agent {
         let storage = lock_storage_arc(state).map_err(|_| busy())?;
         ruled(
             &storage,
             &out.pool_id,
             (out.from.sender_ref(), my_role.as_deref()),
             &found,
+            &desktop,
         )?
     } else {
         let n = found.len();
@@ -656,7 +701,7 @@ pub fn send(state: &Arc<AppState>, out: &Outgoing) -> Result<Sent, Response> {
             .map(|(_, name, _)| (name.clone(), "when the user allows it"))
             .collect()
     } else {
-        let mut routes = route(state, &message, &out.from, out.deliver);
+        let mut routes = route_with(state, &message, &out.from, out.deliver, &desktop);
         for ((_, name, _), hold) in to.iter().zip(&talk_held) {
             let Some(why) = hold else { continue };
             routes.retain(|(routed, _)| routed != name);
@@ -714,13 +759,38 @@ fn loop_check(storage: &Storage, pool_id: &str) {
 /// its terminal by a tool that takes a typed prompt, D-29) gets it at its
 /// next turn boundary when the user said so (their compose with Deliver)
 /// or the pool allows it (Full, or a rule, within the hop limit); at the
-/// hop limit the thread pauses and the user is asked. Otherwise it waits
-/// in the inbox (the agent reads it when it chooses).
+/// hop limit the thread pauses and the user is asked. A connected desktop
+/// member (AJ-E3013) reads it through AI Juggler's connector: woken for an
+/// agent's message when the pool's waking rule allows (D-119), else at
+/// its next turn. Otherwise it waits in the inbox (the agent reads it when
+/// it chooses).
 pub(crate) fn route(
     state: &Arc<AppState>,
     message: &Message,
     from: &Author,
     deliver: bool,
+) -> Vec<(String, &'static str)> {
+    let desktop =
+        crate::features::connector::reach::of_pool(state, &message.pool_id).unwrap_or_default();
+    route_with(state, message, from, deliver, &desktop)
+}
+
+/// Where one recipient's copy goes.
+enum Target {
+    /// Into its inbox, or (a session AI Juggler runs) its next turn.
+    Inbox(&'static str, Option<SessionId>),
+    /// A connected desktop member: its ref, whether the pool wakes it, and
+    /// whether its App can be woken at all.
+    Desktop(String, bool, bool),
+}
+
+/// [`route`] with the pool's desktop conversations already read.
+fn route_with(
+    state: &Arc<AppState>,
+    message: &Message,
+    from: &Author,
+    deliver: bool,
+    desktop: &[DesktopConversation],
 ) -> Vec<(String, &'static str)> {
     let Ok(storage) = lock_storage_arc(state) else {
         return Vec::new();
@@ -731,17 +801,49 @@ pub(crate) fn route(
         .unwrap_or_default();
     let mut targets = Vec::new();
     for recipient in &recipients {
+        let name = recipient.recipient_name.clone();
         if recipient.recipient_ref == SENDER_USER {
-            targets.push((recipient.recipient_name.clone(), "in your messages", None));
+            targets.push((name, Target::Inbox("in your messages", None)));
+            continue;
+        }
+        if let Some(one) = desktop
+            .iter()
+            .find(|one| one.connected && one.member == recipient.recipient_ref)
+        {
+            targets.push((
+                name,
+                Target::Desktop(one.member.clone(), one.wakes, one.can_wake),
+            ));
             continue;
         }
         let session = super::live_session_of(&storage, &recipient.recipient_ref)
             .filter(|session| super::reachable(state, &storage, session));
-        targets.push((recipient.recipient_name.clone(), "in its inbox", session));
+        targets.push((name, Target::Inbox("in its inbox", session)));
     }
     drop(storage);
     let mut routes = Vec::new();
-    for (name, inbox, session) in targets {
+    for (name, target) in targets {
+        let (inbox, session) = match target {
+            // AJ-E3013 (the A9 lab walk): the person's compose with
+            // Deliver queues its copy (their click), which wakes it.
+            Target::Desktop(member, _, can_wake) if matches!(from, Author::User) && deliver => {
+                super::delivery::queue_ref(state, &message.id, &member);
+                routes.push((
+                    name,
+                    if can_wake {
+                        DESKTOP_WOKEN
+                    } else {
+                        DESKTOP_NEXT_TURN
+                    },
+                ));
+                continue;
+            }
+            Target::Desktop(_, wakes, _) => {
+                routes.push((name, desktop_how(state, message, from, wakes)));
+                continue;
+            }
+            Target::Inbox(inbox, session) => (inbox, session),
+        };
         let Some(session) = session else {
             routes.push((name, inbox));
             continue;
@@ -760,3 +862,47 @@ pub(crate) fn route(
     }
     routes
 }
+
+/// What a connected desktop member's copy becomes, in words (D-119): an
+/// agent's message wakes it when its App can be woken and
+/// `allowed(deliver_to_session)` says so within the hop limit (the same
+/// gate the connector's wait asks); else, and for a person's message, it
+/// reads it at its next turn.
+fn desktop_how(
+    state: &Arc<AppState>,
+    message: &Message,
+    from: &Author,
+    wakes: bool,
+) -> &'static str {
+    let woken = wakes
+        && match from {
+            Author::Agent {
+                session: sender, ..
+            } => {
+                crate::features::pools::access::allowed(
+                    state,
+                    sender.as_str(),
+                    &message.pool_id,
+                    AgentAction::DeliverToSession,
+                    Some(message.hop.saturating_sub(1)),
+                ) == Decision::Allow
+            }
+            Author::User => false,
+        };
+    if woken {
+        DESKTOP_WOKEN
+    } else {
+        DESKTOP_NEXT_TURN
+    }
+}
+
+/// A pool-wide message when no one else is open (D-119 item 6), in the
+/// words its sender is told.
+pub(crate) const NO_ONE_OPEN: &str = "no one else in the pool is open now: it's kept in the pool's log, and a member resumed later reads it then";
+
+/// How a message reaches a connected desktop member that it wakes.
+pub(crate) const DESKTOP_WOKEN: &str =
+    "now: AI Juggler wakes it for this through its app's connector";
+/// How a message reaches a connected desktop member at its next turn.
+pub(crate) const DESKTOP_NEXT_TURN: &str =
+    "at its next turn (it reads its messages through AI Juggler's connector)";

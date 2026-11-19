@@ -79,13 +79,19 @@ for (const theme of ["dark", "light"] as const) {
   test(`the one-time question on a pool's page — ${theme}`, gate("92-agent-tools"), async ({ page }) => {
     await open(page, theme, null);
     await poolPage(page);
-    const question = page.getByTestId("agent-tools-question");
-    await expect(question).toContainText("Let agents in your projects see each other and work together?");
-    await expect(question.getByRole("button", { name: "Yes, let them" })).toBeVisible();
+    // D-30's one question, asked once, while unanswered: D-126 §3 made it
+    // the setup checklist's last item, open, in the panel (no banner over
+    // the page, X2 §4c): what it gives, that it costs nothing extra, Learn
+    // more, Turn on team tools (the view's one primary) and Not now.
+    await expect(page.getByTestId("agent-tools-question")).toHaveCount(0);
+    await expect(page.getByTestId("pool-team-tools")).toHaveCount(0);
+    const question = page.getByTestId("pool-inspector").getByTestId("pool-checklist-open");
+    await expect(question).toContainText("Let them message each other");
+    await expect(question).toContainText("Nothing extra to pay; nothing changes in your apps.");
+    await expect(question.getByRole("button", { name: "Learn more" })).toBeVisible();
+    await expect(question.getByRole("button", { name: "Turn on team tools" })).toBeVisible();
     await expect(question.getByRole("button", { name: "Not now" })).toBeVisible();
-    // The rc26 P3/P9 walks: it says it's asked once for every pool, and
-    // keeps this pool's own level.
-    await expect(question.getByTestId("agent-tools-question-pool")).toContainText("Asked once, for every pool.");
+    await expect(page.getByTestId("pool-header-setup")).toContainText("Setting up ·");
     await page.mouse.move(0, 0);
     await page.screenshot({ path: resolve(OUT, `agent-tools-question-1280x800-${theme}.png`) });
     await axe(page, `the question ${theme}`);
@@ -97,11 +103,11 @@ for (const theme of ["dark", "light"] as const) {
     const card = page.getByTestId("settings-agent-tools");
     await card.scrollIntoViewIfNeeded();
     await expect(card.getByTestId("pref-agent-tools").getByRole("checkbox")).toBeChecked();
-    await card.getByTestId("agent-tools-where").locator("> summary").click();
+    await card.getByTestId("agent-tools-where-toggle").click();
     const first = card.getByRole("group", { name: "Projects" }).getByRole("checkbox").first();
     await expect(first).toBeChecked();
     await first.uncheck();
-    await expect(card.getByTestId("agent-tools-where").locator("> summary")).toContainText("1 off");
+    await expect(card.getByTestId("agent-tools-where-toggle")).toContainText("1 off");
     await page.mouse.move(0, 0);
     await page.screenshot({ path: resolve(OUT, `settings-agent-tools-1280x800-${theme}.png`) });
     await axe(page, `settings agent tools ${theme}`);
@@ -116,7 +122,7 @@ test("keyboard: the question answers, the fold opens", async ({ page }) => {
   await page.keyboard.press("Enter");
   const all = page.getByTestId("pref-agent-tools").getByRole("checkbox");
   await expect(all).toBeChecked();
-  const fold = page.getByTestId("agent-tools-where").locator("> summary");
+  const fold = page.getByTestId("agent-tools-where-toggle");
   await fold.focus();
   await page.keyboard.press("Enter");
   await expect(page.getByTestId("settings-agent-tools").getByRole("group", { name: "Apps" })).toBeVisible();

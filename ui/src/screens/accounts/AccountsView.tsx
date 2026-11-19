@@ -4,7 +4,7 @@
  * convenience, kept in this browser only).
  */
 import { useState, type JSX } from "react";
-import { Segmented } from "../../components/usage/controls";
+import { Segmented } from "../../components/controls";
 
 export type AccountsView = "accounts" | "apps";
 
@@ -34,9 +34,9 @@ export function AccountsViewSwitch({ view, onChange, accounts, apps }: { view: A
   return (
     <Segmented
       label="Show"
-      options={[
-        { id: "accounts", label: `Accounts ${accounts}` },
-        { id: "apps", label: apps === null ? "Apps" : `Apps ${apps}` },
+      segments={[
+        { value: "accounts", label: `Accounts ${accounts}` },
+        { value: "apps", label: apps === null ? "Apps" : `Apps ${apps}` },
       ]}
       value={view}
       onChange={onChange}

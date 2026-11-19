@@ -192,6 +192,7 @@ export function PageShell({
               aria-selected={tab === entry.id}
               aria-controls={`page-panel-${entry.id}`}
               tabIndex={tab === entry.id ? 0 : -1}
+              title={entry.hint}
               onClick={() => pick(entry.id)}
               onKeyDown={(event) => {
                 if (event.key !== "ArrowRight" && event.key !== "ArrowLeft") return;
@@ -202,10 +203,15 @@ export function PageShell({
                 pick(tabs[next]!.id);
                 tabsRef.current?.querySelectorAll<HTMLButtonElement>("[role='tab']")[next]?.focus();
               }}
+              // The chosen tab lights at once, never faded in: a fade
+              // WebKit pauses in a window not shown left the old tab lit
+              // over the new panel (the 0.4.6 RC walks A8 and K2).
               className={
-                "rounded-lg px-2.5 py-1 text-meta outline-none transition-colors focus-visible:ring-1 focus-visible:ring-accent/60 " +
-                // D-117 (selection): the one selected look (a 3:1 edge, the
-                // raised fill, semibold ink); the accent is for actions and focus.
+                // 0.4.6 RC walks: lit at once, never faded in (WebKit pauses
+                // a fade in a window not shown). D-117 (selection): the one
+                // selected look (a 3:1 edge, the raised fill, semibold ink);
+                // the accent is for actions and focus.
+                "rounded-lg px-2.5 py-1 text-meta outline-none focus-visible:ring-1 focus-visible:ring-accent/60 " +
                 (tab === entry.id ? SELECTED : "font-medium text-muted hover:bg-surface hover:text-ink")
               }
             >
