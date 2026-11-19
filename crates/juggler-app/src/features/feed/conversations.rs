@@ -85,6 +85,7 @@ pub fn item_of(row: &ConversationInfo) -> Option<(FeedKey, FeedItemInfo)> {
             project_id: row.project_id.clone(),
             ..NoticeTarget::default()
         },
+        digest: None,
     };
     Some((key, item))
 }

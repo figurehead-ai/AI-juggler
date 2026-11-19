@@ -12,6 +12,8 @@ import { appName, cliAppName, desktopAppWord } from "./app-name";
 import { toolSpec } from "./tools";
 import { clock } from "./time-words";
 import type { FeedItemInfo } from "./ipc/feed";
+import type { DigestInfo } from "../types/generated/DigestInfo";
+import type { DigestLineInfo } from "../types/generated/DigestLineInfo";
 
 /** A sentence in parts: `strong` is the value (the object's name, a
  * number), drawn semibold; the object's name is its link. */
@@ -144,14 +146,32 @@ function account(item: FeedItemInfo): Part[] {
   }
 }
 
+/** AJ-E3817: a watch the user set was met ("api finished · your watch");
+ * the words are the app's, from the typed watch. */
+function watched(item: FeedItemInfo): Part[] {
+  const { told, line } = item.facts;
+  if (told && item.subject) return [strong(item.subject), plain(` ${told} · your watch`)];
+  return [plain(line ?? "A watch you set was met."), plain(" · your watch")];
+}
+
 function message(item: FeedItemInfo): Part[] {
   const verb: Record<string, string> = { handoff: "handed work over in ", question: "asked a question in ", status: "posted where it is in ", review_request: "asked for a review in " };
   return [plain(verb[item.facts.change ?? ""] ?? "wrote in "), strong(item.subject)];
 }
 
+/** The kinds whose sentence is a verb, then the thing's name. */
+const VERB_FIRST: Partial<Record<string, string>> = {
+  stopped: "stopped ",
+  archived: "archived ",
+  task_done: "finished the task ",
+  worked: "worked on ",
+};
+
 /** One item's sentence (R10). */
 export function sentence(item: FeedItemInfo): Part[] {
   const { facts } = item;
+  const verb = VERB_FIRST[item.kind];
+  if (verb) return [plain(verb), strong(item.subject)];
   switch (item.kind) {
     case "finished":
       return [plain("finished "), strong(item.subject), plain(facts.duration_ms ? ` in ${durationWords(facts.duration_ms)}` : "")];
@@ -163,12 +183,8 @@ export function sentence(item: FeedItemInfo): Part[] {
       return ended(item, "ended when AI Juggler quit");
     case "restarted":
       return [plain("restarted "), strong(item.subject), plain(` after it crashed${facts.attempt && facts.tries ? ` (try ${facts.attempt} of ${facts.tries})` : ""}`)];
-    case "stopped":
-      return [plain("stopped "), strong(item.subject)];
     case "reviewed":
       return [plain("marked "), strong(item.subject), plain(" reviewed")];
-    case "archived":
-      return [plain("archived "), strong(item.subject)];
     case "answered":
       return answered(item);
     case "switch":
@@ -180,22 +196,14 @@ export function sentence(item: FeedItemInfo): Part[] {
     case "reset":
     case "renewal":
       return account(item);
-    case "task_done":
-      return [plain("finished the task "), strong(item.subject)];
     case "task_review":
       return [strong(item.subject), plain(" is waiting for review")];
     case "task_blocked":
       return [strong(item.subject), plain(" is blocked")];
     case "message":
       return message(item);
-    case "worked":
-      return [plain("worked on "), strong(item.subject)];
     case "watch":
-      // AJ-E3817: a watch the user set was met ("api finished · your
-      // watch"); the words are the app's, from the typed watch.
-      return facts.told && item.subject
-        ? [strong(item.subject), plain(` ${facts.told} · your watch`)]
-        : [plain(facts.line ?? "A watch you set was met."), plain(" · your watch")];
+      return watched(item);
     default:
       // AI Juggler's own notices (This Mac, keep alive, an update, an app
       // found): the line it wrote from the same facts.
@@ -284,3 +292,71 @@ const DIGEST_KINDS = 4;
 
 /** The empty feed (R12). */
 export const EMPTY_FEED = "Quiet so far. When your apps start, finish or ask you something, it shows here.";
+
+/** AJ-E3712 (ADR-0036 §1.3): the agent digest's header, how many agents
+ * changed in its window ("5 agents"). */
+export function digestHeader(digest: Pick<DigestInfo, "lines">): string {
+  const count = digest.lines.length;
+  return `${count} ${count === 1 ? "agent" : "agents"}`;
+}
+
+/** A digest line's state, from the newest fact (the backend's rollup). */
+const DIGEST_STATE: Record<string, string> = {
+  failed: "failed",
+  asks: "asks you",
+  limit: "hit its usage limit",
+  stuck: "looks stuck",
+  finished: "finished",
+  stopped: "stopped",
+  idle: "idle",
+  working: "working",
+};
+const DIGEST_CAVEAT: Record<string, string> = { not_run: "tests not run", not_done: "not done", partial: "partly done", blocked: "blocked", unsure: "unsure" };
+const DIGEST_TASK: Record<string, string> = { done: "a task done", blocked: "a task blocked", in_review: "a task in review" };
+
+/** A digest line's words after the agent's name (ADR-0036 §1.4): its
+ * state, its own question or failure, its facts, its last words. Only the
+ * facts the line holds are said: none is guessed. */
+export function digestLineWords(line: DigestLineInfo): { state: string; said: string | null; facts: string | null; last: string | null } {
+  const state = line.state === "stuck" && line.stuck_min ? `stuck for ${line.stuck_min} min` : (DIGEST_STATE[line.state] ?? line.state);
+  const own = line.quote && line.quote_kind !== "last" ? `: “${line.quote}”` : null;
+  const facts = [...digestEvents(line), ...digestWork(line)];
+  const last = line.quote && line.quote_kind === "last" ? ` · last: “${line.quote}”` : null;
+  return { state: ` · ${state}`, said: own, facts: facts.length > 0 ? ` · ${facts.join(" · ")}` : null, last };
+}
+
+const plural = (count: number, one: string, many: string) => `${count} ${count === 1 ? one : many}`;
+
+/** What happened to the agent: processes left, room, a restart, a task. */
+function digestEvents(line: DigestLineInfo): string[] {
+  const facts: string[] = [];
+  if (line.left_processes) facts.push(`left ${plural(line.left_processes, "process", "processes")} running`);
+  if (line.runway_left !== null) facts.push(`${line.runway_left}% room left`);
+  if (line.restarted) facts.push("restarted after a crash");
+  if (line.task) facts.push(DIGEST_TASK[line.task] ?? "a task moved");
+  return facts;
+}
+
+/** What the agent's work says: turns, files, tests, reverted, a caveat. */
+function digestWork(line: DigestLineInfo): string[] {
+  const facts: string[] = [];
+  if (line.turns) facts.push(plural(line.turns, "turn", "turns"));
+  if (line.files) facts.push(`${plural(line.files, "file", "files")} changed`);
+  if (line.tests === "passed") facts.push(line.passed ? `tests passed (${line.passed})` : "tests passed");
+  if (line.tests === "failed") facts.push(line.failed ? `tests failed (${line.failed})` : "tests failed");
+  if (line.tests === "not_run") facts.push("tests not run");
+  if (line.reverted) facts.push("reverted");
+  // A caveat only where the facts allow it (the backend's rule); never
+  // "tests not run" twice.
+  if (line.caveat && !(line.caveat === "not_run" && line.tests !== null)) facts.push(DIGEST_CAVEAT[line.caveat] ?? "");
+  return facts;
+}
+
+/** The digest's fold: "and 3 more agents · 2 quiet"; none when nothing is
+ * folded or quiet. */
+export function digestMoreWords(more: number, quiet: number): string | null {
+  const parts: string[] = [];
+  if (more > 0) parts.push(`and ${more} more ${more === 1 ? "agent" : "agents"}`);
+  if (quiet > 0) parts.push(`${quiet} quiet`);
+  return parts.length > 0 ? parts.join(" · ") : null;
+}

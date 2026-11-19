@@ -48,7 +48,7 @@ const NO_FACTS: FeedItemInfo["facts"] = {
 /** An item with the defaults the backend fills. */
 export function feedItem(over: Omit<Partial<FeedItemInfo>, "facts" | "target"> & Pick<FeedItemInfo, "id" | "at_ms" | "kind" | "category"> & { facts?: Partial<FeedItemInfo["facts"]>; target?: Partial<FeedItemInfo["target"]> }): FeedItemInfo {
   return {
-    level: 0, mine: false, coalesce: null, rollup: null, rollup_window_ms: 0, scope: null, subject: "",
+    level: 0, mine: false, coalesce: null, rollup: null, rollup_window_ms: 0, scope: null, subject: "", digest: null,
     author: { kind: "juggler", name: null, provider: null, folder: null, folder_label: null, desktop: false },
     ...over,
     facts: { ...NO_FACTS, ...over.facts },

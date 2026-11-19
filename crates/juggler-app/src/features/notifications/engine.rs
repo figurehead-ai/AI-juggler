@@ -70,6 +70,8 @@ pub enum Target {
     /// AJ-E3817: the notification centre (a watch on a pool, a project or
     /// every session: its notice there opens the thing).
     Centre,
+    /// AJ-E3712: Home's feed, at the newest digest.
+    Feed,
 }
 
 /// One notification due now.

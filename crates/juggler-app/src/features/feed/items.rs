@@ -174,6 +174,7 @@ fn item(
         subject,
         facts: FeedFactsInfo::default(),
         target: NoticeTarget::default(),
+        digest: None,
     }
 }
 

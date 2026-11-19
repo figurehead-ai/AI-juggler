@@ -16,6 +16,7 @@
  * its thing; ↗ goes to its App where it runs.
  */
 import { useState, type JSX } from "react";
+import { HomeFeedDigest } from "./HomeFeedDigest";
 import { AccountAvatar } from "./Avatar";
 import { CliAppMark } from "./PlaceMarks";
 import { IconJuggler } from "./icons";
@@ -176,6 +177,11 @@ function whenOf(card: FeedCard, now: number): string {
 
 export function HomeFeedCard({ card, pos, now, unread, fresh, actions }: { card: FeedCard; pos: number; now: number; unread: boolean; fresh: boolean; actions: CardActions }): JSX.Element {
   const item = card.head;
+  // AJ-E3712: the agent digest, its own item type: a line per agent.
+  if (item.kind === "agent_digest" && item.digest) {
+    const digest = item.digest;
+    return <HomeFeedDigest item={item} digest={digest} when={feedWhen(item.at_ms, now)} onOpen={(sessionId) => void actions.open({ ...item, target: { ...item.target, session_id: sessionId } })} />;
+  }
   const id = `feed-${item.id.replace(/[^a-zA-Z0-9_-]/g, "_")}`;
   const parts = card.rolled ? rollupSentence(item.kind, card.things.length, item) : sentence(item);
   return (

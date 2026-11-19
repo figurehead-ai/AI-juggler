@@ -222,8 +222,16 @@ impl FeedSource for Messages {
     }
 }
 
-/// The journals F1 reads, in rank order.
-pub const SOURCES: &[&dyn FeedSource] = &[&Notices, &Lifecycle, &Switches, &Tasks, &Messages];
+/// The journals F1 reads, in rank order, and the agent digests
+/// (AJ-E3712).
+pub const SOURCES: &[&dyn FeedSource] = &[
+    &Notices,
+    &Lifecycle,
+    &Switches,
+    &Tasks,
+    &Messages,
+    &crate::features::digest::source::SOURCE,
+];
 
 /// An item's cursor: its key's numbers (time, rank and row id, each
 /// negated so the list's ascending order is newest first) and its id.

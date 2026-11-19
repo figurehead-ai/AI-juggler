@@ -461,6 +461,9 @@ fn step(state: &Arc<AppState>, batch: Vec<Pending>) {
         }
         Err(_) => return,
     };
+    // ADR-0036 §2.3: the bus's other subscriber, the digest's scheduler,
+    // hears the same resolved observations.
+    crate::features::digest::runtime::heard(state, &observations);
     let now = crate::commands::now_millis();
     let outcome = with_engine(state, now, |engine| {
         let mut out = Outcome::default();

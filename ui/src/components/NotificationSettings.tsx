@@ -13,7 +13,7 @@ import { Card } from "./primitives";
 import { SettingSwitch } from "./SettingSwitch";
 import { NoAccounts, Status, accountName } from "./SettingsSections";
 import { errorText } from "../lib/bridge";
-import { notificationPrefsGet, notificationPrefsSet } from "../lib/ipc/settings";
+import { appSettingGet, appSettingSet, notificationPrefsGet, notificationPrefsSet } from "../lib/ipc/settings";
 import type { AccountInfo } from "../types/generated/AccountInfo";
 import type { NotificationPrefsInfo } from "../types/generated/NotificationPrefsInfo";
 import { notificationsGet, notificationsSendTest, notificationsSet, type SystemNotificationsInfo } from "../lib/ipc/notifications";
@@ -98,6 +98,39 @@ function SystemNotifications({ onStatus }: { onStatus: (status: string | null, e
         minute come as one notification that names them. The system may ask
         once whether AI Juggler can notify you; if none appear, allow it in System Settings › Notifications.
       </span>
+    </fieldset>
+  );
+}
+
+/** AJ-E3712 R7: the agent digest's own switch (on unless turned off):
+ * off, Home gets no digest item and the digest no notification. */
+export const DIGEST_ON_KEY = "digest.on";
+
+function AgentDigest({ onStatus }: { onStatus: (status: string | null, error: string | null) => void }): JSX.Element | null {
+  const [on, setOn] = useState<boolean | null>(null);
+  useEffect(() => {
+    void appSettingGet(DIGEST_ON_KEY).then((stored) => setOn(stored !== "false"), () => setOn(true));
+  }, []);
+  if (on === null) return null;
+  return (
+    <fieldset className="flex flex-col gap-1.5 text-xs" data-testid="agent-digest">
+      <legend className={`mb-2 ${HEADING}`}>Agent digest</legend>
+      <SettingSwitch
+        id="agent-digest-on"
+        label="Write a digest of what your agents did"
+        hint="On Home, every 15 to 30 minutes while agents work: a line per agent, what needs you first. Made on this computer from what AI Juggler records; nothing leaves it."
+        checked={on}
+        onChange={(next) => {
+          setOn(next);
+          appSettingSet(DIGEST_ON_KEY, next ? "" : "false").then(
+            () => onStatus(next ? "The digest is on." : "No digest: Home shows each item on its own.", null),
+            (cause: unknown) => {
+              setOn(!next);
+              onStatus(null, errorText(cause));
+            },
+          );
+        }}
+      />
     </fieldset>
   );
 }
@@ -296,6 +329,7 @@ export function NotificationSettingsCard({ accounts }: { accounts: AccountInfo[]
                   })
                 )}
               </fieldset>
+              <AgentDigest onStatus={onStatus} />
             </div>
           </Disclosure>
         </Card>

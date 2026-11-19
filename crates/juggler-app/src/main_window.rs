@@ -474,10 +474,12 @@ pub fn on_window_event<R: tauri::Runtime>(window: &tauri::Window<R>, event: &tau
         }
         tauri::WindowEvent::Resized(_) => HIDE_AFTER_EXIT.resized(window),
         // AJ-E1510: no system notification while AI Juggler is in front.
-        tauri::WindowEvent::Focused(focused) => window
-            .state::<Arc<AppState>>()
-            .notifier
-            .set_in_front(*focused),
+        tauri::WindowEvent::Focused(focused) => {
+            let state = window.state::<Arc<AppState>>();
+            state.notifier.set_in_front(*focused);
+            // AJ-E3712: back from away, the digest covers the whole window.
+            crate::features::digest::runtime::presence_changed(&state);
+        }
         _ => {}
     }
 }

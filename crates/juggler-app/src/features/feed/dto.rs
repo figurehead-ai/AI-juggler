@@ -139,6 +139,8 @@ pub struct FeedItemInfo {
     pub facts: FeedFactsInfo,
     /// What a click opens.
     pub target: NoticeTarget,
+    /// AJ-E3712: an agent digest's lines (`agent_digest` only).
+    pub digest: Option<crate::features::digest::rollup::DigestInfo>,
 }
 
 /// What the feed is narrowed to (the window's filters).

@@ -71,6 +71,12 @@ impl MemoryWriters {
             .ok()
             .and_then(|mut slots| slots.watches.take())
     }
+
+    /// AJ-E3712: the digest's own writer, once (`features/digest` takes it
+    /// on its first digest).
+    pub fn take_digest(&self) -> Option<KindWriter> {
+        self.0.lock().ok().and_then(|mut slots| slots.digest.take())
+    }
 }
 
 /// The app's one way to forget a subject (step 4's surfaces call it): the

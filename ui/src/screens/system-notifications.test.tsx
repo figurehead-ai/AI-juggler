@@ -90,6 +90,18 @@ describe("AJ-E1510 — Settings › Notifications", () => {
     expect(group.textContent).toContain("Several within a minute come as one notification");
   });
 
+  it("AJ-E3712 R7: the agent digest has its own switch, on until turned off", async () => {
+    const { findByTestId, getByTestId } = render(<SettingsScreen focusSection="notifications" />);
+    const group = await findByTestId("agent-digest");
+    const toggle = within(group).getByLabelText("Write a digest of what your agents did");
+    expect(toggle).toHaveProperty("checked", true);
+    await act(async () => {
+      fireEvent.click(toggle);
+    });
+    expect(w().__AIJ_APP_SETTINGS__).toMatchObject({ "digest.on": "false" });
+    await waitFor(() => expect(getByTestId("settings-notifications").textContent).toContain("No digest"));
+  });
+
   it("says the quiet hours and the Accounts left out apply to notifications too", async () => {
     const { findByTestId } = render(<SettingsScreen focusSection="notifications" />);
     expect((await findByTestId("quiet-hours")).textContent).toContain("The digest and notifications wait until the quiet hours end");

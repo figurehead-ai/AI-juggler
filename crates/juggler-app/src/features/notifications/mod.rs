@@ -29,7 +29,7 @@ pub mod watch_alerts;
 
 use crate::events::{AppEvent, EmitEvent as _};
 use std::collections::HashMap;
-use std::sync::atomic::{AtomicBool, AtomicI32, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicI32, AtomicI64, Ordering};
 use std::sync::{Arc, Mutex, OnceLock};
 
 use engine::{Due, Engine, Gate, Kind, Target};
@@ -75,6 +75,10 @@ type Sink = Box<dyn Fn(&Outgoing) + Send + Sync>;
 /// item, the window).
 type OnChange = Box<dyn Fn() + Send + Sync>;
 
+/// AJ-E3712: away after AI Juggler's window has been out of the front
+/// this long (D-118's two hours).
+pub const AWAY_MS: i64 = 2 * 3_600_000;
+
 /// No offset known yet (the UI tells it within its first tick).
 const UNKNOWN_OFFSET: i32 = i32::MIN;
 /// Clicks remembered (the oldest go first).
@@ -95,6 +99,8 @@ pub struct Notifier {
     next_id: AtomicI32,
     /// AI Juggler's main window has focus.
     in_front: AtomicBool,
+    /// When it last left the front (0: in front, or never left).
+    left_front_ms: AtomicI64,
     /// Local time minus UTC, in whole hours (the webview knows the
     /// local hour; the backend keeps no time zone).
     utc_offset_hours: AtomicI32,
@@ -138,6 +144,7 @@ impl Default for Notifier {
             flush_at: Mutex::new(None),
             next_id: AtomicI32::new(1),
             in_front: AtomicBool::new(false),
+            left_front_ms: AtomicI64::new(0),
             utc_offset_hours: AtomicI32::new(UNKNOWN_OFFSET),
             mac_words: Mutex::new(None),
             left: Mutex::new(HashMap::new()),
@@ -298,7 +305,24 @@ impl Notifier {
 
     /// AI Juggler's main window gained or lost focus.
     pub fn set_in_front(&self, in_front: bool) {
-        self.in_front.store(in_front, Ordering::Relaxed);
+        let was = self.in_front.swap(in_front, Ordering::Relaxed);
+        if was && !in_front {
+            self.left_front_ms
+                .store(crate::commands::now_millis(), Ordering::Relaxed);
+        }
+        if in_front {
+            self.left_front_ms.store(0, Ordering::Relaxed);
+        }
+    }
+
+    /// AJ-E3712 (ADR-0036 §1.6): the user is away: AI Juggler's window
+    /// left the front [`AWAY_MS`] ago or more and hasn't come back. Its
+    /// window's focus is the presence the app knows; a window never in
+    /// front since start isn't counted away.
+    #[must_use]
+    pub fn away(&self, now_ms: i64) -> bool {
+        let left = self.left_front_ms.load(Ordering::Relaxed);
+        !self.in_front.load(Ordering::Relaxed) && left > 0 && now_ms - left >= AWAY_MS
     }
 
     /// The UI's local hour, as it ticks: the offset from UTC follows.
@@ -525,7 +549,7 @@ pub(crate) fn show_due_at(state: &Arc<AppState>, now: i64) -> Option<i64> {
                     || centre::session_snoozed(&storage, id, now)
                     || !centre::may_interrupt(&storage, "", project_of(&storage, id).as_deref())
             }
-            Target::ThisMac | Target::Centre => false,
+            Target::ThisMac | Target::Centre | Target::Feed => false,
             Target::Account(id) => left_out.contains(id),
         };
         let gate = Gate {
@@ -552,8 +576,9 @@ pub(crate) fn show_due_at(state: &Arc<AppState>, now: i64) -> Option<i64> {
             .collect();
         // ADR-0036 §1.7: with the digest's notification on, the finishes
         // are told in it rather than one each.
-        let carried =
-            kinds.digest && kinds.finished && crate::features::digest::carries_finishes(state);
+        let carried = kinds.digest
+            && kinds.finished
+            && crate::features::digest::carries_finishes(state, &storage);
         (due, incoming, quiet, carried)
     };
     let mut items: Vec<batch::Item> = due
@@ -746,6 +771,7 @@ fn words(state: &Arc<AppState>, due: &Due) -> (String, String) {
     match &due.target {
         Target::Account(_) => ("An account needs a look".to_owned(), String::new()),
         Target::Centre => ("Something needs a look".to_owned(), String::new()),
+        Target::Feed => ("Digest".to_owned(), String::new()),
         Target::ThisMac => state
             .notifier
             .mac_words
@@ -867,7 +893,7 @@ pub fn clicked<R: tauri::Runtime>(app: &tauri::AppHandle<R>, state: &Arc<AppStat
         }
         // AJ-E3712: several calm items open Home's feed, at the newest
         // digest.
-        Some(batch::Opens::Feed) => Some(page("home")),
+        Some(batch::Opens::Feed | batch::Opens::Target(Target::Feed)) => Some(page("home")),
         None => None,
     };
     let handle = app.clone();

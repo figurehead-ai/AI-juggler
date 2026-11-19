@@ -59,7 +59,13 @@ export function startNotices(): void {
   if (started) return;
   started = true;
   void notificationsSummary().then(applySummary, () => null);
-  onNoticesChanged(applySummary);
+  // AJ-E3712: the model told of a change (a notice written, a digest
+  // made): Home's feed reads its first page again; a reader scrolled down
+  // keeps their place, the new items behind the pill.
+  onNoticesChanged((next) => {
+    applySummary(next);
+    refreshPaged("home-feed:");
+  });
 }
 
 /** Test seam: forget the summary and the listening. */

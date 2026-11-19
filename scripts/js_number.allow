@@ -68,6 +68,9 @@ DebugModeInfo.bytes                                # bytes, < 2^53 is 8 PiB
 DebugModeInfo.lines                                # a count of things on this Mac, far below 2^53
 DebugModeInfo.until_ms                             # ms epoch, < 2^53 until year 287396
 DiagnosticsSavedInfo.bytes                         # bytes, < 2^53 is 8 PiB
+DigestInfo.end_ms                                  # ms epoch, < 2^53 until year 287396
+DigestInfo.start_ms                                # ms epoch, < 2^53 until year 287396
+DigestLineInfo.at_ms                               # ms epoch, < 2^53 until year 287396
 DiscoveredInfo.bytes                               # bytes, < 2^53 is 8 PiB
 DiscoveredInfo.last_used_secs                      # seconds, < 2^53 s
 DivergenceInfo.last_activity_ms                    # ms epoch, < 2^53 until year 287396

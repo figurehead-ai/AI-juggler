@@ -46,6 +46,9 @@ pub mod rank {
     pub const TASKS: i64 = 4;
     /// `agent_messages`.
     pub const MESSAGES: i64 = 5;
+    /// The agent digests on the memory store (ADR-0036 §1.9), after the
+    /// conversation index (6, the app's own).
+    pub const DIGESTS: i64 = 7;
 }
 
 /// A row's place in the feed: newest first, then the higher source rank,
@@ -190,6 +193,15 @@ pub struct FeedTaskEvent {
     pub actor_name: String,
     /// The change as logged (`In progress → Done`).
     pub detail: Option<String>,
+}
+
+/// One agent digest (ADR-0036 §1.9): its place and its stored payload.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct FeedDigest {
+    /// Its place in the feed (the window's end; the record's `seq`).
+    pub key: FeedKey,
+    /// The record's payload, as stored (JSON).
+    pub payload: String,
 }
 
 /// One agent message of a highlight kind.
@@ -410,6 +422,40 @@ impl FeedRepo<'_> {
                     },
                     session: session_of(row)?,
                     notice,
+                })
+            })
+    }
+
+    /// The agent digests not yet expired at `now_ms`, newest first, after
+    /// `before` (ADR-0036 §1.9: current records of the `digest` kind).
+    ///
+    /// # Errors
+    ///
+    /// [`CoreError::Storage`] on SQLite failures.
+    pub fn digests(
+        &self,
+        before: Option<FeedKey>,
+        now_ms: i64,
+        limit: usize,
+    ) -> Result<Vec<FeedDigest>, CoreError> {
+        let mut query = Query::new(
+            "SELECT seq AS d_seq, as_of_ms AS d_at, payload AS d_payload FROM memory_records \
+             WHERE kind = 'digest' AND superseded_by IS NULL",
+        );
+        query.and(
+            "(expires_ms IS NULL OR expires_ms > ?)",
+            vec![Box::new(now_ms)],
+        );
+        query
+            .page("as_of_ms", "seq", before, rank::DIGESTS, limit)
+            .rows(self.conn, |row| {
+                Ok(FeedDigest {
+                    key: FeedKey {
+                        at_ms: row.get("d_at")?,
+                        source: rank::DIGESTS,
+                        rowid: row.get("d_seq")?,
+                    },
+                    payload: row.get("d_payload")?,
                 })
             })
     }

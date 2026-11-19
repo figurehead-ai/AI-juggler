@@ -183,6 +183,9 @@ pub struct AppState {
     /// AJ-E3814: the watches at run time (the engine on the observation
     /// bus, and what fired for the notification path).
     pub watches: crate::features::watches::Watches,
+    /// AJ-E3712: the agent digest at run time (its scheduler on the
+    /// observation bus, its thread started on the first observation).
+    pub digests: crate::features::digest::Digests,
 }
 
 impl Drop for AppState {
@@ -475,6 +478,7 @@ impl AppState {
             notifier: crate::features::notifications::Notifier::default(),
             memory_writers: crate::features::ai::memory::MemoryWriters::taken_at_start(),
             watches: crate::features::watches::Watches::default(),
+            digests: crate::features::digest::Digests::default(),
             service_keys: crate::features::service_accounts::ServiceKeys::default(),
             folder_accounts: crate::features::subscriptions::LastRead::default(),
             preview: Mutex::new(None),
