@@ -41,7 +41,9 @@ export function NotificationCentre({ summary, sessions, onClose }: { summary: No
       onClose();
     },
   };
-  const needs = usePagedList<NoticeInfo>("notices:needs", (request) => notificationsPage("needs", request), { keyOf: (row) => String(row.id), pageSize: 200 });
+  // NY1 (0.4.6 rc3a): the one needs list the bell counts and the rail
+  // shows (`shared`): its read is theirs too.
+  const needs = usePagedList<NoticeInfo>("notices:needs", (request) => notificationsPage("needs", request), { keyOf: (row) => String(row.id), pageSize: 200, shared: true });
   const earlier = usePagedList<NoticeInfo>("notices:earlier", (request) => notificationsPage("earlier", request), { keyOf: (row) => String(row.id), pageSize: EARLIER_PAGE });
   const [showSnoozed, setShowSnoozed] = useState(false);
   const [now] = useState(() => Date.now());

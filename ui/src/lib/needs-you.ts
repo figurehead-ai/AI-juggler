@@ -34,7 +34,8 @@ const NEED_ORDER = ["asks", "limit", "failed", "stuck", "review"];
 export interface BackendNeeds {
   /** What counts now, oldest first (snoozed ones left out). */
   rows: NoticeInfo[];
-  /** The one count (the bell's, the badge's, the menu-bar item's). */
+  /** The one count (the bell's, the badge's, the menu-bar item's): the
+   * rows', so the bell never says one its list doesn't show. */
   count: number;
   /** The subjects of `rows` ("cap:…", "message:…", "task:…", "s:…"). */
   subjects: ReadonlySet<string>;
@@ -50,7 +51,9 @@ export interface BackendNeeds {
 
 /** The backend's Needs you, kept current by its events. */
 export function useBackendNeeds(): BackendNeeds {
-  const list = usePagedList<NoticeInfo>("notices:needs", (request) => notificationsPage("needs", request), { pageSize: MAX_PAGE, keyOf: (row) => String(row.id), seed: standInNeedsPage });
+  // NY1 (0.4.6 rc3a): one list for the rail, Home and the bell (`shared`):
+  // Home, opened, read a need back that the rail and the bell never showed.
+  const list = usePagedList<NoticeInfo>("notices:needs", (request) => notificationsPage("needs", request), { pageSize: MAX_PAGE, keyOf: (row) => String(row.id), seed: standInNeedsPage, shared: true });
   const summary = useNoticeSummary();
   // NY1 (rc32): a session archived here leaves at once, not when the
   // list is read again
@@ -60,11 +63,16 @@ export function useBackendNeeds(): BackendNeeds {
   // that counts none says so before the list answers.
   const known = standInNeedsKnown() && (!list.loading || summary?.count === 0);
   return useMemo(() => {
-    const rows = withoutArchived(list.items.filter((row) => !row.snoozed), archived);
+    const awake = list.items.filter((row) => !row.snoozed);
+    const rows = withoutArchived(awake, archived);
     const needOf = new Map<string, Need>();
     for (const row of rows) if (SESSION_KINDS.has(row.kind)) needOf.set(row.subject, row.kind as Need);
-    return { rows, count: summary?.count ?? rows.length, subjects: new Set(rows.map((row) => row.subject)), needOf, loading: list.loading, known };
-  }, [list.items, list.loading, summary?.count, archived, known]);
+    // NY1 (rc3a): the count is the rows' (the bell said 1 over its own
+    // "You're all caught up"); the summary's only before the list answers,
+    // and for what lies past its one page, less what's archived here.
+    const count = list.loading ? (summary?.count ?? 0) : list.hasMore ? Math.max(rows.length, (summary?.count ?? 0) - (awake.length - rows.length)) : rows.length;
+    return { rows, count, subjects: new Set(rows.map((row) => row.subject)), needOf, loading: list.loading, known };
+  }, [list.items, list.loading, list.hasMore, summary?.count, archived, known]);
 }
 
 /** The busiest live session on an account (a hand-over starts there). */

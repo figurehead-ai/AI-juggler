@@ -10,6 +10,7 @@ import { IconBell } from "./icons-actions";
 import { lazyNamed } from "../lib/lazy";
 import { setCentreOpen, toggleCentre, useCentreOpen, useNoticeSummary } from "../lib/notices-store";
 import { bellLabel } from "../lib/notice-words";
+import { useBackendNeeds } from "../lib/needs-you";
 import { useKeys } from "../lib/use-keys";
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
 
@@ -19,7 +20,9 @@ export function NotificationBell({ sessions }: { sessions: InstanceInfo[] }): JS
   const keys = useKeys("notifications");
   const summary = useNoticeSummary();
   const open = useCentreOpen();
-  const count = summary?.count ?? 0;
+  // NY1 (0.4.6 rc3a): the rows Needs you lists, counted (one source): the
+  // summary's own count said 1 over "You're all caught up" for 50 s.
+  const count = useBackendNeeds().count;
   return (
     <div className="relative" data-notification-bell>
       <button
