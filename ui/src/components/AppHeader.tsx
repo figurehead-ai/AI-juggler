@@ -75,7 +75,7 @@ export function AppHeader({
       {/* From 960 px the rest always fits one row beside the tabs, so the
           cluster takes the room left and This Mac's line shortens (…)
           instead of the bar wrapping (0.3.2, a longer status word). */}
-      <div className="ml-auto flex min-w-0 flex-wrap items-center justify-end gap-1 xl:gap-1.5 @min-[960px]/header:grow @min-[960px]/header:basis-0 @min-[960px]/header:flex-nowrap" data-tauri-drag-region={false}>
+      <div className="ml-auto flex min-w-0 flex-wrap items-center justify-end gap-1 pl-3 xl:gap-1.5 @min-[960px]/header:grow @min-[960px]/header:basis-0 @min-[960px]/header:flex-nowrap" data-tauri-drag-region={false}>
         {/* AJ-E2105: This Mac's line, in the top bar (it gives way first):
             by the bar's own width, not the window's, so the list open at
             1280 px with Fleet's tab too (a paired Mac) still fits one row
