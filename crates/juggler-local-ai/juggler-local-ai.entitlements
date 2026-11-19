@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- ADR-0033 §4.2: the local-model helper runs in the App Sandbox with no
+     network entitlement. Its only file access beyond its own container is
+     read-only, to the models' folder of each AI Juggler edition (the
+     data folder's ai-models, features/ai/models/store.rs FOLDER), where it
+     opens the one <sha256>.gguf file the app asks for. Metal needs no
+     entitlement. Signed with it locally (scripts/build_local_ai_helper.sh,
+     ad hoc) and in the release (scripts/sign_macos.sh, Developer ID). -->
+<plist version="1.0">
+<dict>
+    <key>com.apple.security.app-sandbox</key>
+    <true/>
+    <key>com.apple.security.temporary-exception.files.home-relative-path.read-only</key>
+    <array>
+        <string>/Library/Application Support/AI Juggler/ai-models/</string>
+        <string>/Library/Application Support/AI Juggler Nightly/ai-models/</string>
+        <string>/Library/Application Support/AI Juggler Dev/ai-models/</string>
+    </array>
+</dict>
+</plist>

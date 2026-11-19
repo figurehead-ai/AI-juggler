@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- Embedded in the helper's __TEXT,__info_plist (build.rs). The identifier
+     is what it is signed as (scripts/build_local_ai_helper.sh,
+     scripts/sign_macos.sh) and what the app requires
+     (juggler_local_ai_protocol::IDENTIFIER); the App Sandbox needs it to
+     give the helper its container. -->
+<plist version="1.0">
+<dict>
+    <key>CFBundleIdentifier</key>
+    <string>ai.figurehead.juggler.local-ai</string>
+    <key>CFBundleName</key>
+    <string>juggler-local-ai</string>
+</dict>
+</plist>
