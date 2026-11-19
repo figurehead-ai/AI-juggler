@@ -60,3 +60,17 @@ For the maintainer (R5, not bugs; nothing changes without a ruling):
 2. **Home and Projects don't flag a repo run on another client's account** (run 1 step 1, run 3 step 1: "nothing flagged it"). This belongs with D-134's binding.
 
 Test-tool note (not a product finding): the wizard's Cancel, at the window's bottom left, gives "nothing to press there" to the accessibility press (run 2, and again by hand at three points). Next, in the same footer, presses fine, and Cancel works on a click (new-pool.test). It's on the a11y follow-up list.
+
+## R4 once more on rc3g (f9167f4fe), after main's R5 ruling: one fresh run, 2026-11-19
+
+Build: 0.4.6 rc3g at f9167f4fe. "Keep it apart…" now opens one sheet in plain words, with Keep apart, Customise… and Cancel; Keep apart makes the sealed pool «<project> · kept apart» with the wizard's defaults (c35c088d7, 930905a33). Lab: PR2, fresh. The tester was a fresh Sonnet Priya with the screen only, behind the idle gate (the Mac is shared). A first attempt stopped after 3 steps because the Mac never went idle; it isn't counted.
+
+| Run | Steps | Result | Ease /7 | Value /7 | Where it went |
+|---|---|---|---|---|---|
+| 1 | 5 | partly | 5 | 5 | Accounts, Projects, client-b ("Who did the work": Client A 2, Agency 1, Client A (old) 1, "the audit answer, and it beats my spreadsheet"), "Keep it apart…": the sheet, read in one step (clarity 5, confusion 0). She chose Cancel: it says plainly that it doesn't tie client-b to one account, and that is what she wanted. |
+
+Per-step scores (worked / value / clarity / feeling): 3/3/3/3, 3/3/3/3, 5/5/4/4, 3/3/5/3, and Cancel.
+
+**What changed.** The wizard's clarity 2 (every rc3f run) is gone: the sheet scored clarity 5 and confusion 0, and ease rose from 4–5 to 5. Her "partly" has the same one reason as before, a repo tied to its client's account, which D-134 defers. **Recorded as partly solved: account binding deferred (D-134).**
+
+Firewall: her tool calls were the screen command, her own pictures and her log only. Opus checked her claims against her pictures (the client-b page's "Who did the work" and "Kept apart: no · Keep it apart…").
