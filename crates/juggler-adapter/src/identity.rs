@@ -40,6 +40,29 @@ pub enum IdentityProbe {
     },
 }
 
+/// AJ-E3210 (D-63 as amended): a desktop app's own sign-in, by the names
+/// of its records' folders only (nothing in them is opened): the same ids
+/// a CLI's [`IdentityProbe::SignedIn`] gives, so both name one Account.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SignInNames {
+    /// The account's id (compared, never shown).
+    pub subject: String,
+    /// Its organisation's id, when the tool records one.
+    pub org: Option<String>,
+}
+
+/// AJ-E3210 (Q2): which of a tool's runs wrote the sign-in its folder's
+/// state names last, where a desktop app and the CLI share the folder.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SignInWriter {
+    /// The CLI (a terminal, a script): the folder's own sign-in.
+    Cli,
+    /// The desktop app (its own sign-in, written into the folder).
+    DesktopApp,
+    /// Can't be told (nothing ran, or the runs don't say).
+    Unknown,
+}
+
 /// What a Provider with no account metadata says where its account would
 /// be ([`IdentityProbe::Unverifiable`], and its key sign-ins').
 pub const NO_ACCOUNT_METADATA: &str = "this Provider exposes no account metadata";

@@ -40,6 +40,7 @@ pub mod claude_hooks;
 pub mod claude_inventory;
 pub mod claude_limits;
 pub mod claude_live;
+pub mod claude_sign_ins;
 pub mod claude_memory;
 pub mod claude_move;
 pub mod claude_peer;

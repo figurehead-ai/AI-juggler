@@ -173,6 +173,23 @@ pub trait ToolSignIn: ToolIdentity {
             self.login_state(&account.state_dir) == LoginState::ApiKey,
         )
     }
+    /// AJ-E3210 (D-63 as amended, Q1-A): the sign-in the tool's desktop
+    /// app runs its sessions under in its instance `instance_dir`: the
+    /// newest of its records' folders, by their names (nothing in them is
+    /// opened). `None`: no record yet ("Account not known yet"), or the
+    /// tool has no desktop app.
+    fn desktop_sign_in(&self, instance_dir: &Path) -> Option<crate::identity::SignInNames> {
+        let _ = instance_dir;
+        None
+    }
+    /// AJ-E3210 (Q2): which of the tool's runs wrote the sign-in in
+    /// `state_dir`'s state last, for a folder its desktop app shares with
+    /// its CLI (from what is already read for sessions). Default: can't
+    /// be told.
+    fn sign_in_writer(&self, state_dir: &Path) -> crate::identity::SignInWriter {
+        let _ = state_dir;
+        crate::identity::SignInWriter::Unknown
+    }
     /// AJ-E308/AJ-E1301: the Account's sign-in state, probed from its
     /// state dir without reading credential contents (ADR-0003). The
     /// default — `LoggedOut` — is what Providers without a probe have

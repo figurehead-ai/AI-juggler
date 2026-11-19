@@ -419,6 +419,15 @@ impl ToolSignIn for ClaudeCodeAdapter {
     fn probe_identity(&self, account: &Account) -> juggler_adapter::IdentityProbe {
         probe_claude_identity(&account.state_dir)
     }
+    /// AJ-E3210 (D-63 as amended): the Claude app's own sign-in in an
+    /// instance, by its records' folder names only.
+    fn desktop_sign_in(&self, instance_dir: &Path) -> Option<juggler_adapter::SignInNames> {
+        crate::claude_sign_ins::desktop_sign_in(instance_dir)
+    }
+    /// AJ-E3210 (Q2): the kind of the newest run in the folder.
+    fn sign_in_writer(&self, state_dir: &Path) -> juggler_adapter::SignInWriter {
+        crate::claude_sign_ins::writer(state_dir)
+    }
     fn login_state(&self, state_dir: &Path) -> LoginState {
         ClaudeCodeAdapter::login_state(self, state_dir)
     }

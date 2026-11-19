@@ -70,7 +70,7 @@ pub use environment::{
     DiscoveredInstall, ImportOutcome, InstallOrigin, LoginProbe, LoginState, LoginUrl,
 };
 pub use error::AdapterError;
-pub use identity::IdentityProbe;
+pub use identity::{IdentityProbe, SignInNames, SignInWriter};
 /// AJ-E1605: where an installed app is, for a tool whose engine ships
 /// inside its app.
 pub use juggler_platform::apps;
