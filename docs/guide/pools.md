@@ -175,12 +175,13 @@ sessions, from their next start, and a switch into or out of the pool asks
 first.
 
 **Keep apart** makes the pool at once, as New pool's **Sealed client
-project** would with nothing changed: that name (with a number when a pool
-already has it), every session in the project as a Member, and **sealed**
-on its header. A message says so, with **Open it**. **Customise…** opens
-New pool on the same start instead, to change any of it first. Once a
-project is kept apart, **Keep it apart…** opens its pool, and its Agents
-card says **Kept apart: yes**, with **Open it ›**.
+project** would with nothing changed, named after the project: **web ·
+kept apart** (with a number when a pool already has that name), every
+session in the project as a Member, and **sealed** on its header. A
+message says so, with **Open it**. **Customise…** opens New pool on the
+same start and name instead, to change any of it first. Once a project is
+kept apart, **Keep it apart…** opens its pool, and its Agents card says
+**Kept apart: yes** (in «web · kept apart»), with **Open it ›**.
 
 To undo it, open the pool: **More settings › Kept apart › Unseal…** says
 which sessions go back into the pools they were in, then does it. Any pool

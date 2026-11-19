@@ -146,7 +146,7 @@ for (const theme of ["dark", "light"] as const) {
     await expect(page.getByTestId("project-agents-apart")).toHaveAttribute("data-apart", "no");
     await page.getByTestId("project-agents-keep-apart").click();
     const sheet = page.getByRole("dialog", { name: "Keep ai-juggler apart" });
-    await expect(sheet.getByTestId("keep-apart-makes")).toContainText("«Sealed client project»");
+    await expect(sheet.getByTestId("keep-apart-makes")).toContainText("«ai-juggler · kept apart»");
     await expect(sheet.getByRole("button", { name: "Keep apart" })).toBeFocused();
     await page.mouse.move(0, 0);
     await page.screenshot({ path: resolve(OUT, `keep-apart-1280x800-${theme}.png`) });
@@ -155,6 +155,7 @@ for (const theme of ["dark", "light"] as const) {
     await expect(sheet).toHaveCount(0);
     await expect(page.getByTestId("keep-apart-toast")).toContainText("ai-juggler is kept apart");
     await expect(page.getByTestId("project-agents-apart")).toHaveAttribute("data-apart", "yes");
+    await expect(page.getByTestId("project-agents-apart")).toContainText("in «ai-juggler · kept apart»");
     await page.mouse.move(0, 0);
     await page.screenshot({ path: resolve(OUT, `keep-apart-made-1280x800-${theme}.png`) });
     await axeClean(page, "kept apart");

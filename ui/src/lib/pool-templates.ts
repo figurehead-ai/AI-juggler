@@ -46,6 +46,10 @@ export interface PoolTemplate {
   spansMacs?: boolean;
   /** What it needs that isn't there yet, in words (shown on its card). */
   waits?: string;
+  /** Its name when it starts from a project ("web · kept apart"), else
+   * `name` (main's ruling on R4: a pool kept apart is named after its
+   * project, as a project's own is "web · all sessions"). */
+  nameFor?: (project: string) => string;
 }
 
 /** What a role may do in the talk grid: an Observer only reads (the
@@ -167,6 +171,7 @@ export const POOL_TEMPLATES: readonly PoolTemplate[] = [
     level: "work_together",
     talk: observerReadsOnly,
     sealed: true,
+    nameFor: (project) => `${project} · kept apart`,
   },
   {
     id: "scouts",

@@ -17,6 +17,9 @@ import { poolsList, resetPreviewPools } from "../../lib/ipc/pools";
 import { resetPreviewPoolModel } from "../../lib/ipc/pool-model";
 import { refreshPools, resetPools, takeNewPoolRequest, doneNewPoolRequest } from "../../lib/pools";
 import { sealLine } from "../../lib/pool-sentences";
+import { startName } from "../../lib/new-pool";
+import { templateById } from "../../lib/pool-templates";
+import { KEEP_APART_START } from "../../lib/keep-apart";
 import { MOCK_PROJECTS, MOCK_SESSIONS } from "../../preview/fixtures";
 import { clearSeams, seamCalls, setSeam } from "../../test/fixtures";
 import type { ProjectInfo } from "../../types/generated/ProjectInfo";
@@ -26,6 +29,8 @@ import { PoolsScreen } from "./PoolsScreen";
 const calls = () => seamCalls("__AIJ_POOL_CALLS__");
 
 const project: ProjectInfo = MOCK_PROJECTS[0]!;
+/** Main's ruling on R4: a pool kept apart is named after its project. */
+const KEPT = `${project.name} · kept apart`;
 /** Long enough for the sheet's code to load on its first open. */
 const LOADS = { timeout: 5_000 };
 
@@ -95,7 +100,7 @@ describe("Keep it apart… (R4)", () => {
     expect(screen.getByTestId("keep-apart-not").textContent).toContain(`It doesn't tie ${project.name} to one account`);
     // What it makes, before it does: the wizard's name for it, and how its sessions join.
     expect(screen.getByTestId("keep-apart-makes").textContent).toBe(
-      `It makes the pool «Sealed client project». New sessions in ${project.name} join as Member and may Work together. Change any of it first with Customise…, or later on its diagram.`,
+      `It makes the pool «${KEPT}». New sessions in ${project.name} join as Member and may Work together. Change any of it first with Customise…, or later on its diagram.`,
     );
     // "What does this mean?": the word its header will show first, then the guide's section.
     fireEvent.click(within(sheet).getByRole("button", { name: "What does this mean?" }));
@@ -144,9 +149,9 @@ describe("Keep it apart… (R4)", () => {
     const made = (await poolsList()).pools.filter((pool) => pool.kind === "user");
     expect(made).toHaveLength(1);
     const pool = made[0]!;
-    expect(pool).toMatchObject({ name: "Sealed client project", project_id: project.id, sealed: true });
+    expect(pool).toMatchObject({ name: KEPT, project_id: project.id, sealed: true });
     expect(calls()).toEqual([
-      "create:Sealed client project",
+      `create:${KEPT}`,
       `scope:${pool.id}:${project.id}`,
       `join:${pool.id}:all:member:`,
       `talk:${pool.id}:role:observer:role:lead:blocked`,
@@ -158,7 +163,7 @@ describe("Keep it apart… (R4)", () => {
     // The same calls as the wizard's Make pool, one for one.
     expect(sameIds(calls())).toEqual(byWizard);
     expect(toast.textContent).toContain(`${project.name} is kept apart`);
-    expect(toast.textContent).toContain("«Sealed client project»");
+    expect(toast.textContent).toContain(`«${KEPT}»`);
     fireEvent.click(within(toast).getByRole("button", { name: "Open it" }));
     expect(selectPool).toHaveBeenCalledWith(pool.id);
   });
@@ -183,7 +188,30 @@ describe("Keep it apart… (R4)", () => {
       .getAllByTestId("new-pool-template")
       .find((card) => card.dataset.template === "sealed-client")!;
     expect(within(sealed).getByRole("radio")).toHaveProperty("checked", true);
+    fireEvent.click(within(wizard).getByTestId("new-pool-next"));
+    expect(within(wizard).getByTestId("new-pool-name")).toHaveProperty("value", KEPT);
     expect(calls()).toEqual([]);
+  });
+
+  it("is named after its project, numbered when taken and clipped to fit; Pools › New pool's sealed start with no project keeps its own name", () => {
+    const sealed = templateById(KEEP_APART_START);
+    expect(startName(sealed, "web", [])).toBe("web · kept apart");
+    expect(startName(sealed, "web", ["Web · kept apart"])).toBe("web · kept apart 2");
+    expect(startName(sealed, null, [])).toBe("Sealed client project");
+    const long = startName(sealed, "a-very-long-client-project-name-for-acme-and-co", []);
+    expect(Array.from(long).length).toBeLessThanOrEqual(45);
+    expect(long).toMatch(/^a-very-long-client-project-name…? · kept apart$/);
+    // A template not named after a project keeps its own name.
+    expect(startName(templateById("feature-team"), "web", [])).toBe("Feature team");
+    expect(startName(templateById("blank"), "web", [])).toBe("");
+  });
+
+  it("New pool from the Pools screen: choosing its sealed start, with no project picked, keeps «Sealed client project»", () => {
+    render(<NewPool sessions={MOCK_SESSIONS} projects={MOCK_PROJECTS} accounts={[]} project={null} onClose={() => undefined} />);
+    const sealed = screen.getAllByTestId("new-pool-template").find((card) => card.dataset.template === "sealed-client")!;
+    fireEvent.click(within(sealed).getByRole("radio"));
+    fireEvent.click(screen.getByTestId("new-pool-next"));
+    expect(screen.getByTestId("new-pool-name")).toHaveProperty("value", "Sealed client project");
   });
 
   it("a project already kept apart opens its pool instead", async () => {

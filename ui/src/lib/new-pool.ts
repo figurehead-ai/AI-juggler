@@ -98,12 +98,29 @@ export function freeName(base: string, taken: readonly string[]): string {
   }
 }
 
-/** The draft New pool opens on from `template`: its name one no pool
- * has yet (Start from scratch's none). A project's "Keep it apart…" makes
- * this same draft (R4), so its pool is the one the wizard would make. */
-export function startDraft(template: PoolTemplate, project: string | null, taken: readonly string[]): Draft {
-  const draft = draftOf(template, project);
-  return { ...draft, name: draft.name === "" ? "" : freeName(draft.name, taken) };
+/** The longest pool name the backend takes (`pools::NAME_MAX`). */
+const NAME_MAX = 48;
+
+/** The name `template` gives a new pool, one no pool has yet: its own,
+ * or (`projectName`, the project it starts from) the one it gives after
+ * that project, the project clipped so the name and its number fit;
+ * Start from scratch's is none. */
+export function startName(template: PoolTemplate, projectName: string | null, taken: readonly string[]): string {
+  if (template.id === "blank") return "";
+  if (!template.nameFor || projectName === null) return freeName(template.name, taken);
+  // Room for the project beside the template's own words and a " 99".
+  const room = NAME_MAX - template.nameFor("").length - 3;
+  const chars = Array.from(projectName);
+  const project = chars.length > room ? `${chars.slice(0, room - 1).join("").trimEnd()}…` : projectName;
+  return freeName(template.nameFor(project), taken);
+}
+
+/** The draft New pool opens on from `template` in `project` (named
+ * `projectName` when it starts from one). A project's "Keep it apart…"
+ * makes this same draft (R4), so its pool is the one the wizard would
+ * make. */
+export function startDraft(template: PoolTemplate, project: string | null, taken: readonly string[], projectName: string | null = null): Draft {
+  return { ...draftOf(template, project), name: startName(template, projectName, taken) };
 }
 
 /** The role a template gives the next member of `kind` added: its roles

@@ -75,8 +75,8 @@ export function KeepApartSheet({
   const pools = usePools();
   const bridge = useAgentBridge();
   const taken = useMemo(() => (pools?.pools ?? []).map((pool) => pool.name), [pools]);
-  // The wizard's own start on this project, nothing changed.
-  const draft = useMemo(() => startDraft(templateById(KEEP_APART_START), project.id, taken), [project.id, taken]);
+  // The wizard's own start on this project, named after it, nothing changed.
+  const draft = useMemo(() => startDraft(templateById(KEEP_APART_START), project.id, taken, project.name), [project.id, project.name, taken]);
   const words = keepApartWords(project.name);
   const everyone = draft.members.find((member) => member.ref === "all");
   const [busy, setBusy] = useState(false);
