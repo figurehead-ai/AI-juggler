@@ -92,7 +92,9 @@ describe("the gallery's Checkout team, its views (D-126 §3)", () => {
     fireEvent.click(await view.findByRole("button", { name: "Edit setup" }));
     const ready = await view.findByTestId("pool-ready");
     expect(within(ready).getAllByTestId("pool-checklist-step")).toHaveLength(7);
-    expect(view.getByTestId("pool-header-setup").textContent).toBe("Setting up · 7 of 7");
+    // Every step done: it says so, never "Setting up · 7 of 7" (the rc3
+    // baseline review).
+    expect(view.getByTestId("pool-header-setup").textContent).toBe("Setup done");
     expect(within(view.getByTestId("canvas-palette")).getByRole("button", { name: "Add a member" })).toBeTruthy();
     fireEvent.click(view.getByRole("button", { name: "Hide setup" }));
     expect(await view.findByTestId("pool-running")).toBeTruthy();

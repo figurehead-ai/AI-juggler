@@ -14,6 +14,7 @@ import { setupRows } from "../../lib/pool-setup";
 import { PoolChecklist } from "./setup/PoolChecklist";
 import { SetupRing } from "./SetupRing";
 import { setupPhase, useSetupHidden } from "./setup-progress";
+import { SETUP } from "./setup-words";
 import { openPage, resetCanvasTests, seams, seedTeam } from "./canvas.test-kit";
 
 const facts = { own: false, every: false, whoIn: true, led: false, leadNext: true };
@@ -26,6 +27,14 @@ beforeEach(() => localStorage.clear());
 afterEach(() => {
   cleanup();
   bridge(undefined);
+});
+
+describe("the header's pill", () => {
+  it("says how far while steps are open, and once all are done that it is, never \"Setting up · 7 of 7\" (the rc3 baseline review)", () => {
+    expect(SETUP.pill(6, 7, false)).toBe("Setting up · 6 of 7");
+    expect(SETUP.pill(7, 7, false)).toBe("Setup done · no session yet");
+    expect(SETUP.pill(7, 7, true)).toBe("Setup done");
+  });
 });
 
 describe("SetupRing", () => {

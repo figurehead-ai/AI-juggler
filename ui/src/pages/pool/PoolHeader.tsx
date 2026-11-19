@@ -137,7 +137,7 @@ export function PoolHeader({
   setup = null,
 }: {
   /** D-126 §3: while it's being set up, how far ("Setting up · 5 of 7"). */
-  setup?: { done: number; total: number } | null;
+  setup?: { done: number; total: number; joined: boolean } | null;
   pool: PoolInfo;
   facts: ReactNode;
   /** A pool you made: where it works, in words, and its scope sheet. */
@@ -178,7 +178,7 @@ export function PoolHeader({
           {scope && <ScopeChip words={scope.words} onOpen={scope.onOpen} />}
           {setup && (
             <StatePill variant="progress" testId="pool-header-setup">
-              {SETUP.pill(setup.done, setup.total)}
+              {SETUP.pill(setup.done, setup.total, setup.joined)}
             </StatePill>
           )}
           {pool.sealed && (

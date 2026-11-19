@@ -249,7 +249,7 @@ function PoolCanvasPage({ poolId, sessions, projects, accounts, now, rules }: Pa
           }}
         />
       )}
-      <PoolHeader pool={pool} facts={facts} scope={scopeWords === null ? undefined : { words: scopeWords, onOpen: () => setScopeOpen(true) }} mode={mode} panel={panel} onMode={setMode} onPanel={setPanel} setup={phase === "setup" ? progress : null} />
+      <PoolHeader pool={pool} facts={facts} scope={scopeWords === null ? undefined : { words: scopeWords, onOpen: () => setScopeOpen(true) }} mode={mode} panel={panel} onMode={setMode} onPanel={setPanel} setup={phase === "setup" ? { ...progress, joined: pool.members > 0 } : null} />
       {/* D-126: no banner over the page (it held about 15 rows of the List
           view, X2 §4c): the team tools question is the setup checklist's
           last item. Only an ask that waits on you and has no node says so. */}
