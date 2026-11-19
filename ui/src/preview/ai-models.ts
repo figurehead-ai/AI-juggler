@@ -69,7 +69,7 @@ export const QWEN: CatalogModel = model({
   name: "Qwen3 1.7B",
   size: 1834426016,
   licence: { name: "Apache-2.0", url: "https://huggingface.co/Qwen/Qwen3-1.7B-GGUF/blob/90862c4b9d2787eaed51d12237eafdfe7c5f6077/LICENSE" },
-  memory: 16,
+  memory: 8,
   speed: "quick",
   verdicts: [
     v("feed", "not_yet", "The plain line reads better for now."),
@@ -86,7 +86,7 @@ export const NEMOTRON: CatalogModel = model({
   name: "Nemotron 3 Nano 4B",
   size: 2837072864,
   licence: { name: "NVIDIA Nemotron Open Model License", url: "https://huggingface.co/nvidia/NVIDIA-Nemotron-3-Nano-4B-GGUF/blob/ba223d14e45525f7fae81db77ea8cabeb2fc6c25/README.md" },
-  memory: 16,
+  memory: 8,
   speed: "moderate",
   verdicts: [
     v("feed", "not_yet", "The plain line reads better for now."),
@@ -103,7 +103,7 @@ export const GRANITE: CatalogModel = model({
   name: "Granite 4.1 3B",
   size: 2099501664,
   licence: { name: "Apache-2.0", url: "https://huggingface.co/ibm-granite/granite-4.1-3b-GGUF/blob/ab4701481089b58a082ef63cc1cee738887293ff/README.md" },
-  memory: 16,
+  memory: 8,
   speed: "quick",
   verdicts: [
     v("feed", "not_yet", "The plain line reads better for now."),

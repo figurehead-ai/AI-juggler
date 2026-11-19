@@ -11,6 +11,7 @@
 //! - each passing job's evidence exists and Opus confirmed it;
 //! - its basis is a full harness run, or round 3's after-fix floor for
 //!   the six ids that basis names (D-131);
+//! - its memory minimum isn't under the one its measured peak sets;
 //! - its words are plain (no link, no internal terms).
 
 use std::collections::BTreeMap;
@@ -172,6 +173,15 @@ fn check_entry(entry: &ModelEntry, line: &Value, ledger: &Value, root: &Path) ->
             problems.push(format!("{name}_note isn't plain"));
         }
     }
+    // Memory: never under the minimum the measured peak sets (the
+    // ledger's `memory`, AJ-E3812).
+    if let Some(least) = line["memory"]["min_memory_gb"].as_u64()
+        && entry.min_memory_gb < least
+    {
+        problems.push(format!(
+            "min_memory_gb under the measured minimum ({least} GB)"
+        ));
+    }
     if !entry.passes_any_job() {
         problems.push("passes no job but attention".to_owned());
     }
@@ -225,6 +235,51 @@ fn the_ledger_states_round_3s_basis_honestly() {
         .find(|line| line["id"] == "qwen3-4b-2507-q4km")
         .unwrap();
     assert!(qwen4b["file"].is_null());
+}
+
+/// AJ-E3812: each downloadable model's memory minimum follows its measured
+/// peak by the ledger's rule (twice the peak, up to the smallest common
+/// Mac size, one size more within 10 % of it), and its evidence exists.
+#[test]
+fn the_memory_minimums_follow_the_measured_peaks() {
+    let ledger = ledger();
+    let sizes: Vec<u64> = ledger["memory_rule"]["sizes_gb"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(Value::as_u64)
+        .collect();
+    let rule = |peak_mb: f64| -> u64 {
+        let need_gb = peak_mb * 2.0 / 1000.0;
+        let at = sizes
+            .iter()
+            .position(|size| need_gb <= *size as f64)
+            .unwrap();
+        let near = need_gb > sizes[at] as f64 * 0.9;
+        sizes[if near { at + 1 } else { at }]
+    };
+    for line in ledger["models"].as_array().unwrap() {
+        let memory = &line["memory"];
+        let evidence = memory["evidence"].as_str().unwrap();
+        assert!(root().join(evidence).is_file(), "{evidence}");
+        if line["engine"] == "apple_builtin" {
+            // macOS's own requirement, not the helper's peak.
+            assert_eq!(memory["min_memory_gb"], 8);
+            continue;
+        }
+        let peak = memory["peak_rss_mb"].as_f64().unwrap();
+        assert_eq!(
+            memory["min_memory_gb"].as_u64(),
+            Some(rule(peak)),
+            "{}",
+            line["id"]
+        );
+    }
+    // A minimum under the measured one is refused.
+    let low = changed("gemma-4-e2b-q4-0", |item| {
+        item.insert("min_memory_gb".to_owned(), json!(8));
+    });
+    refused(&low, &ledger, "measured minimum");
 }
 
 /// The nightly section with one entry changed by `change`.

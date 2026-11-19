@@ -61,7 +61,7 @@ describe("AJ-E3812 Settings › AI › Models", () => {
     expect(within(attention).queryByRole("switch")).toBeNull();
   });
 
-  it("fix 2: each card's memory is the list's own minimum, never a flat figure", async () => {
+  it("fix 2: each card's memory is the list's own minimum (8 GB, Gemma 16 GB), never a flat figure", async () => {
     const state = STATES.models!;
     const bigger = { ...GEMMA, min_memory_gb: 24 };
     await show({ ...state, catalog: catalog(state.catalog.mac!, state.catalog.recommendation!, state.catalog.models.map((m) => (m.id === GEMMA.id ? bigger : m))) });
@@ -69,7 +69,7 @@ describe("AJ-E3812 Settings › AI › Models", () => {
     expect(within(gemma).getByTestId("model-facts").textContent).toContain("24 GB");
     expect(within(gemma).getByTestId("model-facts").textContent).toContain("Mac or more");
     const qwen = screen.getAllByTestId("model-card")[0]!;
-    expect(within(qwen).getByTestId("model-facts").textContent).toContain("16 GB");
+    expect(within(qwen).getByTestId("model-facts").textContent).toContain("8 GB");
   });
 
   it("fix 3: the honesty line sits by the verdicts and opens How we test models", async () => {

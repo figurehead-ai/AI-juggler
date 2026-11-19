@@ -71,6 +71,13 @@
           "date": "2026-11-18",
           "commit": "c8b4ec881"
         }
+      },
+      "memory": {
+        "peak_rss_mb": 124.6,
+        "context_tokens": 4096,
+        "min_memory_gb": 8,
+        "evidence": "docs/qa/evidence/AJ-E3709/v5-round3/report-apple.json",
+        "note": "macOS's own requirement for Apple Intelligence; the peak is AI Juggler's helper, the model runs inside macOS"
       }
     },
     {
@@ -134,6 +141,12 @@
           "date": "2026-11-18",
           "commit": "c8b4ec881"
         }
+      },
+      "memory": {
+        "peak_rss_mb": 2564.0,
+        "context_tokens": 4096,
+        "min_memory_gb": 8,
+        "evidence": "docs/qa/evidence/AJ-E3709/v5-round3/report-qwen3-1.7b-q8.json"
       }
     },
     {
@@ -197,6 +210,12 @@
           "date": "2026-11-18",
           "commit": "c8b4ec881"
         }
+      },
+      "memory": {
+        "peak_rss_mb": 3213.6,
+        "context_tokens": 4096,
+        "min_memory_gb": 8,
+        "evidence": "docs/qa/evidence/AJ-E3709/v5-round3/report-nemotron-3-nano-4b.json"
       }
     },
     {
@@ -260,6 +279,12 @@
           "date": "2026-11-18",
           "commit": "c8b4ec881"
         }
+      },
+      "memory": {
+        "peak_rss_mb": 2580.9,
+        "context_tokens": 4096,
+        "min_memory_gb": 8,
+        "evidence": "docs/qa/evidence/AJ-E3709/v5-round3/report-granite-4.1-3b.json"
       }
     },
     {
@@ -317,6 +342,12 @@
           "date": "2026-11-18",
           "commit": "c8b4ec881"
         }
+      },
+      "memory": {
+        "peak_rss_mb": 3286.0,
+        "context_tokens": 4096,
+        "min_memory_gb": 8,
+        "evidence": "docs/qa/evidence/AJ-E3709/v5-round3/report-qwen3-4b-instruct-2507.json"
       }
     },
     {
@@ -380,7 +411,30 @@
           "date": "2026-11-18",
           "commit": "c8b4ec881"
         }
+      },
+      "memory": {
+        "peak_rss_mb": 3736.8,
+        "context_tokens": 4096,
+        "min_memory_gb": 16,
+        "evidence": "docs/qa/evidence/AJ-E3709/v5-round3/report-gemma-4-e2b.json",
+        "note": "twice the peak is 7.5 GB, within 10 % of the 8 GB size, so one size up"
       }
     }
-  ]
+  ],
+  "memory_rule": {
+    "statement": "Twice the harness's measured peak memory (the model's process at the tested context), for the app, macOS and agents, rounded up to the smallest common Mac memory size (8, 16, 18, 24, 32 GB); a result within 10 % of a size goes up one size.",
+    "sizes_gb": [
+      8,
+      16,
+      18,
+      24,
+      32,
+      36,
+      48,
+      64,
+      96,
+      128
+    ],
+    "decision": "the coordinating session's data fix of 2026-11-19 (AJ-E3812)"
+  }
 }

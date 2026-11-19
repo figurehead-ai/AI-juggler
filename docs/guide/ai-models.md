@@ -27,8 +27,13 @@ disk it uses, and which model each job uses.
   free, so the rest of your work keeps its room. If free disk drops below
   that while it downloads, it stops and keeps nothing.
 - Each model shows the **smallest Mac we list it for**, by its memory (for
-  example "16 GB Mac or more"). That is a safe floor we chose, not a
-  measurement of the memory the model uses while it runs.
+  example "8 GB Mac or more"). We set it from the most memory the model
+  used in our tests, measured at the context size we tested with: twice
+  that peak, to leave room for AI Juggler, macOS and your agents, rounded
+  up to the next common Mac size (8, 16, 18, 24, 32 GB …). When the result
+  comes within 10 % of a size, we go one size up, to be safe. Longer
+  contexts than ours may need more. Apple's model needs what macOS itself
+  requires for Apple Intelligence.
 - **Clear cache never removes a model.** Remove it in **Installed**: the
   size it frees is shown before you confirm.
 
