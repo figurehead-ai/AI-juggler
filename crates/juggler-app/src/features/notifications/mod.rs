@@ -304,6 +304,13 @@ fn utc_hour(now_ms: i64) -> i64 {
 
 /// A session's status now (`SessionStatus::as_str`); shows what is due.
 pub fn session_status(state: &Arc<AppState>, session_id: &str, status: &str) {
+    // AJ-E3814: the observation bus hears every status a session enters.
+    crate::features::observe::publish_for_session(
+        state,
+        session_id,
+        crate::features::observe::from_status(status),
+        crate::commands::now_millis(),
+    );
     // AJ-E2501: a finish is told once in the centre, whatever the
     // system notifications allow.
     if status == "finished" {
@@ -333,6 +340,12 @@ pub fn this_mac_room(state: &Arc<AppState>, room: &crate::machine_health::RoomSu
 /// AJ-E2405: a session ended and left `count` processes running (told
 /// once; a click opens the session's page).
 pub fn left_behind(state: &Arc<AppState>, session_id: &str, count: u32) {
+    crate::features::observe::publish_for_session(
+        state,
+        session_id,
+        vec![crate::features::observe::Observed::ProcessesLeft { count }],
+        crate::commands::now_millis(),
+    );
     if let Ok(mut left) = state.notifier.left.lock() {
         left.insert(session_id.to_owned(), count);
     }
@@ -370,6 +383,9 @@ pub fn changed(state: &Arc<AppState>) {
 /// told again the next time; one that needs the user while it holds (an
 /// account almost out of room) once while it holds.
 pub fn model_event(state: &Arc<AppState>, target: Target, kind: Kind, info: &centre::NoticeInfo) {
+    // AJ-E3814: what happened reaches the watches whatever the user's
+    // notification settings (a watch is its own ask).
+    publish_model_event(state, &target, kind);
     // R7: a need whose subject is snoozed (an account's room need snoozed
     // until woken, opening again) waits in the centre; it doesn't
     // interrupt.
@@ -403,6 +419,23 @@ pub fn model_event(state: &Arc<AppState>, target: Target, kind: Kind, info: &cen
         {
             engine.observe(target, None, now);
         }
+    }
+}
+
+/// AJ-E3814: a crash's restart and an account's reset, for the
+/// observation bus. An account's share left waits for AJ-E3704's runway
+/// crossings.
+fn publish_model_event(state: &Arc<AppState>, target: &Target, kind: Kind) {
+    use crate::features::observe::{self, Observed};
+    let now = crate::commands::now_millis();
+    match (kind, target) {
+        (Kind::Crashed, Target::Session(session)) => {
+            observe::publish_for_session(state, session, vec![Observed::Restarted], now);
+        }
+        (Kind::Reset, Target::Account(account)) => {
+            observe::publish_for_account(state, account, Observed::RunwayReset, now);
+        }
+        _ => {}
     }
 }
 

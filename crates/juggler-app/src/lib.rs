@@ -248,6 +248,13 @@ macro_rules! app_commands {
             Write remote::fleet_remote_clean,
             Read  overnight::overnight_summary,
             Read  features::feed::commands::feed_page,
+            Read  features::watches::commands::watches_list,
+            Read  features::watches::commands::watches_catalogue,
+            Read  features::watches::commands::watches_preview,
+            Write features::watches::commands::watches_create,
+            Write features::watches::commands::watches_update,
+            Write features::watches::commands::watches_pause,
+            Write features::watches::commands::watches_remove,
             Write overnight::overnight_summary_seen,
             Write parked::instance_park,
             Write lifecycle::instance_mark_reviewed,
@@ -1074,6 +1081,8 @@ pub fn run() {
                 app.handle(),
                 &tauri::Manager::state::<Arc<state::AppState>>(app),
             );
+            // AJ-E3814: the watches hear the observation bus from here on.
+            features::watches::runtime::start(&tauri::Manager::state::<Arc<state::AppState>>(app));
             // QA on real data: only with AIJ_DEV_BRIDGE=1, in a debug
             // build with the feature (docs/qa/DEV-BRIDGE.md). Before the
             // read model's first pass: a lab's scope (ADR-0027 conditions
@@ -1346,34 +1355,6 @@ fn bootstrap_data_dir() -> std::path::PathBuf {
     data_dir
 }
 
-/// AJ-E1529: every account's conversations and which are live, read from the tools' own files every
-/// 15 s (only changed files are read again); the UI hears of it only when something changed. The
-/// first pass waits for the window's first paint (at most 5 s) and runs at the lowest priority: a
-/// first start reads every transcript (about 40 s on a long history) while the window stays
-/// responsive.
-fn spawn_conversation_tick(app: tauri::AppHandle, state: Arc<state::AppState>) {
-    state.conversations.read_in_background();
-    ticks::every_after_paint(
-        "conversations",
-        std::time::Duration::from_secs(5),
-        std::time::Duration::from_secs(15),
-        move || {
-            // QA batch 8: a long first pass tells the UI as it goes.
-            let tell = || {
-                app.emit_event(
-                    AppEvent::ConversationsChanged,
-                    features::conversations::CHANGED_INDEX,
-                );
-            };
-            features::conversations::list_build::tick_and_tell(
-                &state,
-                features::conversations::PROGRESS_EVERY,
-                &tell,
-            );
-        },
-    );
-}
-
 /// Read-model ticks (AJ-E401 Req.4): `session://updated` stays event-driven
 /// (<300 ms via the lifecycle forwarder); these two add the 5 s resource
 /// and 30 s quota refreshes as separate, coalesced emissions. Each tick
@@ -1471,7 +1452,7 @@ fn spawn_read_model_ticks(
         features::tasks::launch::sweep_briefs(&quota_state, commands::now_millis());
     });
     let live_app = conversations_app.clone();
-    spawn_conversation_tick(conversations_app, index_state.clone());
+    features::conversations::spawn_tick(conversations_app, index_state.clone());
     // AJ-E2101: what is open now, from the tools' own session files and
     // the process table (never an environment): small files every 2 s,
     // known pids every 5 s, the whole table at most once a minute. The UI

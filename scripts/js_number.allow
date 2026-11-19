@@ -129,6 +129,8 @@ LastBackupInfo.at_ms                               # ms epoch, < 2^53 until year
 LastBackupInfo.size_bytes                          # bytes, < 2^53 is 8 PiB
 LastMessagesInfo.earlier                           # a transcript offset (lines/bytes), < 2^53
 LedgerPriceRow.effective_from_ms                   # ms epoch, < 2^53 until year 287396
+Lifetime::Until.at_ms                              # ms epoch, < 2^53 until year 287396
+LifetimeChoice::Until.at_ms                        # ms epoch, < 2^53 until year 287396
 LimitWindowInfo.resets_at_ms                       # ms epoch, < 2^53 until year 287396
 LongContext.over_prompt_tokens                     # tokens, < 2^53 is 9e15 tokens
 MachineAdviceInfo.projected_bytes                  # bytes, < 2^53 is 8 PiB
@@ -359,6 +361,9 @@ VolumeInfo.available_bytes                         # bytes, < 2^53 is 8 PiB
 VolumeInfo.total_bytes                             # bytes, < 2^53 is 8 PiB
 Wait::DiskShort.free                               # bytes, < 2^53 is 8 PiB
 Wait::DiskShort.needed                             # bytes, < 2^53 is 8 PiB
+Watch.created_ms                                   # ms epoch, < 2^53 until year 287396
+WatchInfo.told                                     # a count of a watch's alerts (log rows on this Mac), far below 2^53
+WatchInfo.version                                  # a watch's version count (one per edit, pause or resume), far below 2^53
 WindowDisplay.burned_io_tokens                     # tokens, < 2^53 is 9e15 tokens
 WindowDisplay.burned_tokens                        # tokens, < 2^53 is 9e15 tokens
 WindowDisplay.measured_at_ms                       # ms epoch, < 2^53 until year 287396

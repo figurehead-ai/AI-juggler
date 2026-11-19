@@ -180,6 +180,9 @@ pub struct AppState {
     pub folder_accounts: crate::features::subscriptions::LastRead,
     /// ADR-0037 §1.1: the memory store's writers, taken at start.
     pub memory_writers: crate::features::ai::memory::MemoryWriters,
+    /// AJ-E3814: the watches at run time (the engine on the observation
+    /// bus, and what fired for the notification path).
+    pub watches: crate::features::watches::Watches,
 }
 
 impl Drop for AppState {
@@ -471,6 +474,7 @@ impl AppState {
             watchdog: std::sync::Mutex::default(),
             notifier: crate::features::notifications::Notifier::default(),
             memory_writers: crate::features::ai::memory::MemoryWriters::taken_at_start(),
+            watches: crate::features::watches::Watches::default(),
             service_keys: crate::features::service_accounts::ServiceKeys::default(),
             folder_accounts: crate::features::subscriptions::LastRead::default(),
             preview: Mutex::new(None),

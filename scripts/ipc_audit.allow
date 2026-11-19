@@ -27,6 +27,13 @@ uncalled scan_cancel
 uncalled sessions_list_alias
 uncalled usage_source_health
 uncalled validation_dogfood_record
+uncalled watches_catalogue  # 2026-11-18: the Watches view (AJ-E3816) and Chat's confirmed drafts (AJ-E3815) call it
+uncalled watches_create  # 2026-11-18: the Watches view (AJ-E3816) and Chat's confirmed drafts (AJ-E3815) call it
+uncalled watches_list  # 2026-11-18: the Watches view (AJ-E3816) and Chat's confirmed drafts (AJ-E3815) call it
+uncalled watches_pause  # 2026-11-18: the Watches view (AJ-E3816) and Chat's confirmed drafts (AJ-E3815) call it
+uncalled watches_preview  # 2026-11-18: the Watches view (AJ-E3816) and Chat's confirmed drafts (AJ-E3815) call it
+uncalled watches_remove  # 2026-11-18: the Watches view (AJ-E3816) and Chat's confirmed drafts (AJ-E3815) call it
+uncalled watches_update  # 2026-11-18: the Watches view (AJ-E3816) and Chat's confirmed drafts (AJ-E3815) call it
 unbounded account_import  # bounded: one import's notes and top-level folders
 unbounded account_audit  # TO PAGE: an account's audit log
 unbounded account_set_default  # bounded: one row per account, tool, launch setting or paired Mac
@@ -249,6 +256,12 @@ unbounded usage_stats_set_sync  # bounded: this week's metrics (a fixed schema)
 unbounded validation_matrix  # bounded: a fixed set (settings, checks, choices or tools)
 unbounded subagents_conversation  # bounded: one conversation's subagents (a few dozen at most; the Subagents tab pages the project's)
 unbounded switch_execute  # bounded: one switch's moved items and notes
+unbounded watches_catalogue  # bounded: the closed set of conditions (15, ADR-0036 §2.2)
+unbounded watches_create  # bounded: one watch (at most 10 targets and 4 conditions, ADR-0036 §2.3)
+unbounded watches_pause  # bounded: one watch (at most 10 targets and 4 conditions, ADR-0036 §2.3)
+unbounded watches_preview  # bounded: one watch (at most 10 targets and 4 conditions, ADR-0036 §2.3)
+unbounded watches_remove  # bounded: one watch (at most 10 targets and 4 conditions, ADR-0036 §2.3)
+unbounded watches_update  # bounded: one watch (at most 10 targets and 4 conditions, ADR-0036 §2.3)
 # name (AJ-E2017, 2026-11-06): commands moved out of commands.rs into the
 # feature they belong to, under the wire name the UI already calls; each
 # folder is the feature, the name is older than the rule. Renaming one

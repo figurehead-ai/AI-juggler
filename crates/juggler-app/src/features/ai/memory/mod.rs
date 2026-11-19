@@ -8,7 +8,9 @@ use std::collections::BTreeSet;
 
 use std::sync::Arc;
 
-use juggler_core::storage::memory::{Actor, Forgotten, MemoryError, SecretScan, Writers};
+use juggler_core::storage::memory::{
+    Actor, Forgotten, KindWriter, MemoryError, SecretScan, Writers,
+};
 
 use crate::error::{AppError, AppResult};
 use crate::state::AppState;
@@ -17,21 +19,57 @@ use juggler_handover::redaction;
 /// The memory store's writers, taken once when the app's state is built
 /// (the composition root), so no code later in the process can mint one
 /// (the security review's M2): `Writers::issue` answers `None` from then
-/// on. Each owning module takes its own writer from here as it starts.
+/// on. Each owning module takes its own writer from here, once, as it
+/// starts; no module can take another's.
 #[derive(Debug)]
-pub struct MemoryWriters(std::sync::Mutex<Option<Writers>>);
+pub struct MemoryWriters(std::sync::Mutex<Slots>);
+
+/// Each owner's writer, until it takes it. The owners not built yet
+/// (Chat's memory flow and history, the digest) add their `take_…` as
+/// they land, and with it the reads this `expect` stands in for.
+#[derive(Debug, Default)]
+#[expect(
+    dead_code,
+    reason = "held for their owners, which take them as they are built (AJ-E3819, AJ-E3712)"
+)]
+struct Slots {
+    memory: Option<KindWriter>,
+    watches: Option<KindWriter>,
+    chat: Option<KindWriter>,
+    digest: Option<KindWriter>,
+}
 
 impl MemoryWriters {
-    /// Takes the process's writers (`None` inside when another state took
-    /// them first: a second state in a test process).
+    /// Takes the process's writers (each slot empty when another state
+    /// took them first: a second state in a test process).
     #[must_use]
     pub fn taken_at_start() -> Self {
-        Self(std::sync::Mutex::new(Writers::issue()))
+        let slots = Writers::issue().map_or_else(Slots::default, |writers| {
+            let Writers {
+                memory,
+                watches,
+                chat,
+                digest,
+            } = writers;
+            Slots {
+                memory: Some(memory),
+                watches: Some(watches),
+                chat: Some(chat),
+                digest: Some(digest),
+            }
+        });
+        Self(std::sync::Mutex::new(slots))
     }
 
-    /// Hands the writers over, once.
-    pub fn take(&self) -> Option<Writers> {
-        self.0.lock().ok().and_then(|mut writers| writers.take())
+    /// AJ-E3814: the watches' own writer, once (`features/watches` takes
+    /// it on first use). The other owners' writers stay for them; each
+    /// adds its own `take_…` as it is built (Chat's, the digest's, the
+    /// memory flow's).
+    pub fn take_watches(&self) -> Option<KindWriter> {
+        self.0
+            .lock()
+            .ok()
+            .and_then(|mut slots| slots.watches.take())
     }
 }
 

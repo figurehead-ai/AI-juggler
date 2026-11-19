@@ -1385,6 +1385,31 @@ pub fn continue_impl(
     })
 }
 
+/// AJ-E1529 (moved from `lib.rs`, its size budget): every account's conversations and which are live, read from the tools' own files every
+/// 15 s (only changed files are read again); the UI hears of it only when something changed. The
+/// first pass waits for the window's first paint (at most 5 s) and runs at the lowest priority: a
+/// first start reads every transcript (about 40 s on a long history) while the window stays
+/// responsive.
+pub fn spawn_tick(app: tauri::AppHandle, state: Arc<AppState>) {
+    state.conversations.read_in_background();
+    crate::ticks::every_after_paint(
+        "conversations",
+        std::time::Duration::from_secs(5),
+        std::time::Duration::from_secs(15),
+        move || {
+            // QA batch 8: a long first pass tells the UI as it goes.
+            let tell = || {
+                crate::events::EmitEvent::emit_event(
+                    &app,
+                    AppEvent::ConversationsChanged,
+                    CHANGED_INDEX,
+                );
+            };
+            list_build::tick_and_tell(&state, PROGRESS_EVERY, &tell);
+        },
+    );
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

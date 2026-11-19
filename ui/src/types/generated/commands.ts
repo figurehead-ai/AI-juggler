@@ -28,6 +28,7 @@ import type { CacheInfo } from "./CacheInfo";
 import type { CaptureOffInfo } from "./CaptureOffInfo";
 import type { CapturePreviewInfo } from "./CapturePreviewInfo";
 import type { CaptureStatusInfo } from "./CaptureStatusInfo";
+import type { CatalogueEntry } from "./CatalogueEntry";
 import type { CleanupAlertsInfo } from "./CleanupAlertsInfo";
 import type { CleanupEventInfo } from "./CleanupEventInfo";
 import type { CleanupPolicyInfo } from "./CleanupPolicyInfo";
@@ -88,6 +89,7 @@ import type { IsolationRowInfo } from "./IsolationRowInfo";
 import type { KillExecuteInfo } from "./KillExecuteInfo";
 import type { KillVerifyInfo } from "./KillVerifyInfo";
 import type { KnownPlaceInfo } from "./KnownPlaceInfo";
+import type { Lang } from "./Lang";
 import type { LastBackupInfo } from "./LastBackupInfo";
 import type { LastMessagesInfo } from "./LastMessagesInfo";
 import type { LaunchMachineInfo } from "./LaunchMachineInfo";
@@ -240,6 +242,11 @@ import type { UsageStatsSetResult } from "./UsageStatsSetResult";
 import type { UsageWastedInfo } from "./UsageWastedInfo";
 import type { ValidationCellInfo } from "./ValidationCellInfo";
 import type { VaultStatusInfo } from "./VaultStatusInfo";
+import type { WatchDraftInfo } from "./WatchDraftInfo";
+import type { WatchId } from "./WatchId";
+import type { WatchInfo } from "./WatchInfo";
+import type { WatchPreviewInfo } from "./WatchPreviewInfo";
+import type { WatchTarget } from "./WatchTarget";
 import type { WatchedMemberInfo } from "./WatchedMemberInfo";
 import type { WorkGraphInfo } from "./WorkGraphInfo";
 import type { WorktreeRemovalInfo } from "./WorktreeRemovalInfo";
@@ -1242,6 +1249,20 @@ export interface Commands {
   vault_setup: { args: Record<string, never>; result: RecoveryCodeInfo };
   /** Write vault::vault_status */
   vault_status: { args: Record<string, never>; result: VaultStatusInfo };
+  /** Read features::watches::commands::watches_catalogue */
+  watches_catalogue: { args: { target: WatchTarget; lang?: Lang | null }; result: CatalogueEntry[] };
+  /** Write features::watches::commands::watches_create */
+  watches_create: { args: { draft: WatchDraftInfo; lang?: Lang | null }; result: WatchInfo };
+  /** Read features::watches::commands::watches_list */
+  watches_list: { args: { request: PageRequest; lang?: Lang | null }; result: Page<WatchInfo> };
+  /** Write features::watches::commands::watches_pause */
+  watches_pause: { args: { id: WatchId; paused: boolean; lang?: Lang | null }; result: WatchInfo };
+  /** Read features::watches::commands::watches_preview */
+  watches_preview: { args: { draft: WatchDraftInfo; lang?: Lang | null }; result: WatchPreviewInfo };
+  /** Write features::watches::commands::watches_remove */
+  watches_remove: { args: { id: WatchId; lang?: Lang | null }; result: WatchInfo };
+  /** Write features::watches::commands::watches_update */
+  watches_update: { args: { id: WatchId; draft: WatchDraftInfo; lang?: Lang | null }; result: WatchInfo };
   /** Write worktree::worktree_create */
   worktree_create: { args: { cwd: string; path: string; branch: string }; result: string };
   /** Write worktree::worktree_removal_preview */

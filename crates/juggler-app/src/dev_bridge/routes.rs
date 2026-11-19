@@ -260,6 +260,11 @@ read_routes! {
     "tool_updates_status" => async_result features::tool_updates::commands::tool_updates_status(state; tool: String);
     // D-118: Home's activity feed, one keyset page.
     "feed_page" => async_result features::feed::commands::feed_page(state; request: crate::paging::PageRequest, filters: features::feed::dto::FeedFiltersInfo);
+    // AJ-E3814: the watches, read only (create, edit, pause and remove are
+    // the user's clicks in the app).
+    "watches_list" => async_result features::watches::commands::watches_list(state; request: crate::paging::PageRequest, lang: Option<features::watches::words::Lang>);
+    "watches_catalogue" => async_result features::watches::commands::watches_catalogue(state; target: features::watches::model::WatchTarget, lang: Option<features::watches::words::Lang>);
+    "watches_preview" => async_result features::watches::commands::watches_preview(state; draft: features::watches::commands::WatchDraftInfo, lang: Option<features::watches::words::Lang>);
     "conversations_list" => async_result features::conversations::commands::conversations_list(state);
     "conversations_building" => async_result features::conversations::commands::conversations_building(state);
     // 0.3.3: the apps and profiles remembered (reads only; Open and Keep
