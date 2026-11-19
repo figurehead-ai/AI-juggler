@@ -97,7 +97,7 @@ fn count(storage: &Storage, sql: &str) -> i64 {
 #[test]
 fn v54_is_listed_right_after_v53() {
     let migrations = Storage::migrations();
-    assert_eq!(migrations.len(), 54);
+    assert!(migrations.len() >= 54, "V54 is listed");
     assert_eq!(migrations[53], V54);
     let storage = Storage::open_in_memory().unwrap();
     assert!(installed(&storage.conn).unwrap());

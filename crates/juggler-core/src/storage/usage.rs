@@ -32,6 +32,44 @@ use owners::{Owners, Rows, SessionKey};
 /// stored before sources were kept).
 pub type SourcedSamples = Vec<(QuotaSample, Option<UsageSource>)>;
 
+/// AJ-E3210 (v55): which of a folder's readings a display takes, by the
+/// Account each was read under (`quota_samples.signed_in_as`).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SignedInAs<'a> {
+    /// Every reading (what reads the folder as a whole).
+    Any,
+    /// The folder's own: those read under its Account (`None`: it has
+    /// none), and those read before readings were tagged.
+    Own(Option<&'a str>),
+    /// Only those read under this Account (another Account's App on the
+    /// folder).
+    Only(&'a str),
+}
+
+impl SignedInAs<'_> {
+    /// The filter, on `g` with the mode at `?4` and the Account at `?5`:
+    /// `g` is `quota_sample_sign_ins`, joined on the reading's key.
+    const CLAUSE: &'static str = "(?4 = 0 OR (?4 = 1 AND (g.signed_in_as IS NULL OR g.signed_in_as IS ?5)) OR (?4 = 2 AND g.signed_in_as IS ?5))";
+
+    fn params(self) -> (i64, Option<String>) {
+        match self {
+            Self::Any => (0, None),
+            Self::Own(own) => (1, own.map(str::to_owned)),
+            Self::Only(tag) => (2, Some(tag.to_owned())),
+        }
+    }
+}
+
+/// AJ-E3210: readings that carry the Account they were read under
+/// ([`UsageRepo::insert_signed_samples`]).
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct SignedSamples {
+    /// `(folder, window, sample, source, Account)`.
+    pub windows: Vec<(String, WindowKind, QuotaSample, UsageSource, Option<String>)>,
+    /// `(folder, model, sample, source, Account)`.
+    pub model_weeks: Vec<(String, String, QuotaSample, UsageSource, Option<String>)>,
+}
+
 /// Append-only usage store over an open connection (single writer,
 /// like every storage repo).
 pub struct UsageRepo<'a> {
@@ -412,7 +450,7 @@ impl UsageRepo<'_> {
         window: &str,
         sample: &QuotaSample,
     ) -> Result<(), CoreError> {
-        self.put_sample(account, window, sample, None)
+        self.put_sample(account, window, sample, None, None)
     }
 
     /// One reading stored (V50): the same as the newest stored one for
@@ -420,12 +458,16 @@ impl UsageRepo<'_> {
     /// only moves that run's `last_seen`; anything else is a row of its
     /// own (`INSERT OR REPLACE` on the key: reading an instant again
     /// changes nothing).
+    ///
+    /// AJ-E3210 (v55): `signed_in_as`, the Account it was read under; a run
+    /// goes on only within one Account's readings.
     fn put_sample(
         &self,
         account: &str,
         window: &str,
         sample: &QuotaSample,
         source: Option<UsageSource>,
+        signed_in_as: Option<&str>,
     ) -> Result<(), CoreError> {
         let newest = self
             .conn
@@ -435,9 +477,11 @@ impl UsageRepo<'_> {
                  FROM quota_samples q
                  LEFT JOIN quota_sample_sources s
                    ON s.account = q.account AND s.window = q.window AND s.ts = q.ts
-                 WHERE q.account = ?1 AND q.window = ?2
+                 LEFT JOIN quota_sample_sign_ins g
+                   ON g.account = q.account AND g.window = q.window AND g.ts = q.ts
+                 WHERE q.account = ?1 AND q.window = ?2 AND g.signed_in_as IS ?3
                  ORDER BY q.ts DESC LIMIT 1",
-                params![account, window],
+                params![account, window, signed_in_as],
                 |row| {
                     Ok((
                         row.get::<_, i64>(0)?,
@@ -482,6 +526,18 @@ impl UsageRepo<'_> {
                 confidence_name(sample.confidence),
             ],
         )?;
+        if let Some(signed_in_as) = signed_in_as {
+            self.conn.execute(
+                "INSERT OR REPLACE INTO quota_sample_sign_ins (account, window, ts, signed_in_as)
+                 VALUES (?1, ?2, ?3, ?4)",
+                params![account, window, sample.ts, signed_in_as],
+            )?;
+        } else {
+            self.conn.execute(
+                "DELETE FROM quota_sample_sign_ins WHERE account = ?1 AND window = ?2 AND ts = ?3",
+                params![account, window, sample.ts],
+            )?;
+        }
         if let Some(source) = source {
             self.conn.execute(
                 "INSERT OR REPLACE INTO quota_sample_sources (account, window, ts, source)
@@ -543,7 +599,69 @@ impl UsageRepo<'_> {
         sample: &QuotaSample,
         source: UsageSource,
     ) -> Result<(), CoreError> {
-        self.put_sample(account, window, sample, Some(source))
+        self.put_sample(account, window, sample, Some(source), None)
+    }
+
+    /// AJ-E3210 (v55): [`Self::insert_sourced_samples`] and
+    /// [`Self::insert_model_week_samples`] for readings that carry the
+    /// Account they were read under, in ONE transaction: `windows` are
+    /// `(folder, window, sample, source, Account)`, `model_weeks` `(folder,
+    /// model, sample, source, Account)`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::Storage`] on SQLite failures; the transaction
+    /// rolls back atomically.
+    pub fn insert_signed_samples(&self, batch: &SignedSamples) -> Result<(), CoreError> {
+        if batch.windows.is_empty() && batch.model_weeks.is_empty() {
+            return Ok(());
+        }
+        let tx = write_transaction(self.conn)?;
+        let repo = UsageRepo { conn: &tx };
+        for (account, kind, sample, source, signed_in_as) in &batch.windows {
+            repo.put_sample(
+                account,
+                kind.as_str(),
+                sample,
+                Some(*source),
+                signed_in_as.as_deref(),
+            )?;
+        }
+        for (account, model, sample, source, signed_in_as) in &batch.model_weeks {
+            let window = crate::quota::model_week_window(model);
+            repo.put_sample(
+                account,
+                &window,
+                sample,
+                Some(*source),
+                signed_in_as.as_deref(),
+            )?;
+        }
+        tx.commit()?;
+        Ok(())
+    }
+
+    /// AJ-E3210 (v55): the Accounts other than `own` that readings on folder
+    /// `account` since `since_ms` were read under (an App on the folder
+    /// signed in to another), sorted.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::Storage`] on SQLite failures.
+    pub fn other_sign_ins(
+        &self,
+        account: &str,
+        own: Option<&str>,
+        since_ms: i64,
+    ) -> Result<Vec<String>, CoreError> {
+        let mut stmt = self.conn.prepare(
+            "SELECT DISTINCT signed_in_as FROM quota_sample_sign_ins
+             WHERE account = ?1 AND ts >= ?2 AND signed_in_as IS NOT ?3
+             ORDER BY signed_in_as",
+        )?;
+        let rows = stmt.query_map(params![account, since_ms, own], |row| row.get(0))?;
+        rows.collect::<Result<Vec<_>, _>>()
+            .map_err(CoreError::Storage)
     }
 
     /// Every model's own weekly limit readings for one account, by model
@@ -556,17 +674,35 @@ impl UsageRepo<'_> {
         &self,
         account: &str,
     ) -> Result<Vec<(String, SourcedSamples)>, CoreError> {
+        self.model_week_samples_as(account, SignedInAs::Any)
+    }
+
+    /// [`Self::model_week_samples_for_account`], only the readings `who`
+    /// takes (AJ-E3210).
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::Storage`] on SQLite failures.
+    pub fn model_week_samples_as(
+        &self,
+        account: &str,
+        who: SignedInAs<'_>,
+    ) -> Result<Vec<(String, SourcedSamples)>, CoreError> {
         let prefix = crate::quota::MODEL_WEEK_PREFIX;
-        let mut stmt = self.conn.prepare(
+        let mut stmt = self.conn.prepare(&format!(
             "SELECT q.window, q.ts, q.used_pct, q.resets_at, q.confidence, s.source, q.last_seen
              FROM quota_samples q
              LEFT JOIN quota_sample_sources s
                ON s.account = q.account AND s.window = q.window AND s.ts = q.ts
-             WHERE q.account = ?1 AND substr(q.window, 1, ?2) = ?3
+             LEFT JOIN quota_sample_sign_ins g
+               ON g.account = q.account AND g.window = q.window AND g.ts = q.ts
+             WHERE q.account = ?1 AND substr(q.window, 1, ?2) = ?3 AND {}
              ORDER BY q.window, q.ts",
-        )?;
+            SignedInAs::CLAUSE
+        ))?;
         let prefix_len = i64::try_from(prefix.len()).unwrap_or(i64::MAX);
-        let rows = stmt.query_map(params![account, prefix_len, prefix], |row| {
+        let (mode, tag) = who.params();
+        let rows = stmt.query_map(params![account, prefix_len, prefix, mode, tag], |row| {
             Ok((
                 row.get::<_, String>(0)?,
                 QuotaSample {
@@ -612,32 +748,58 @@ impl UsageRepo<'_> {
         kind: WindowKind,
         since_ms: i64,
     ) -> Result<Vec<(QuotaSample, Option<UsageSource>)>, CoreError> {
-        let mut stmt = self.conn.prepare(
+        self.sourced_samples_since_as(account, kind, since_ms, SignedInAs::Any)
+    }
+
+    /// [`Self::sourced_samples_since`], only the readings `who` takes
+    /// (AJ-E3210): a folder's own display reads its own Account's, another
+    /// Account's display on it only that Account's.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::Storage`] on SQLite failures.
+    pub fn sourced_samples_since_as(
+        &self,
+        account: &str,
+        kind: WindowKind,
+        since_ms: i64,
+        who: SignedInAs<'_>,
+    ) -> Result<Vec<(QuotaSample, Option<UsageSource>)>, CoreError> {
+        let clause = SignedInAs::CLAUSE;
+        let mut stmt = self.conn.prepare(&format!(
             "SELECT q.ts, q.used_pct, q.resets_at, q.confidence, s.source, q.last_seen
              FROM quota_samples q
              LEFT JOIN quota_sample_sources s
                ON s.account = q.account AND s.window = q.window AND s.ts = q.ts
-             WHERE q.account = ?1 AND q.window = ?2
+             LEFT JOIN quota_sample_sign_ins g
+               ON g.account = q.account AND g.window = q.window AND g.ts = q.ts
+             WHERE q.account = ?1 AND q.window = ?2 AND {clause}
                AND q.ts >= COALESCE(
-                 (SELECT MAX(ts) FROM quota_samples
-                   WHERE account = ?1 AND window = ?2 AND ts < ?3), ?3)
+                 (SELECT MAX(q.ts) FROM quota_samples q
+                   LEFT JOIN quota_sample_sign_ins g
+                     ON g.account = q.account AND g.window = q.window AND g.ts = q.ts
+                   WHERE q.account = ?1 AND q.window = ?2 AND q.ts < ?3 AND {clause}), ?3)
              ORDER BY q.ts",
+        ))?;
+        let (mode, tag) = who.params();
+        let rows = stmt.query_map(
+            params![account, kind.as_str(), since_ms, mode, tag],
+            |row| {
+                Ok((
+                    QuotaSample {
+                        ts: row.get(0)?,
+                        used_pct: row.get(1)?,
+                        resets_at: row.get(2)?,
+                        confidence: parse_confidence(&row.get::<_, String>(3)?),
+                        held_until: None,
+                    },
+                    row.get::<_, Option<String>>(4)?
+                        .as_deref()
+                        .and_then(UsageSource::parse),
+                    row.get::<_, Option<i64>>(5)?,
+                ))
+            },
         )?;
-        let rows = stmt.query_map(params![account, kind.as_str(), since_ms], |row| {
-            Ok((
-                QuotaSample {
-                    ts: row.get(0)?,
-                    used_pct: row.get(1)?,
-                    resets_at: row.get(2)?,
-                    confidence: parse_confidence(&row.get::<_, String>(3)?),
-                    held_until: None,
-                },
-                row.get::<_, Option<String>>(4)?
-                    .as_deref()
-                    .and_then(UsageSource::parse),
-                row.get::<_, Option<i64>>(5)?,
-            ))
-        })?;
         let mut out = Vec::new();
         for row in rows {
             let (sample, source, last_seen) = row?;

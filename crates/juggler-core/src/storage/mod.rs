@@ -110,7 +110,8 @@ pub use transcript_index::{
     IndexState, IndexedLine, SearchIndexFile, TranscriptIndexRepo, fts_expression, line_text,
 };
 pub use usage::{
-    CostDay, HitMove, RepriceCursor, Stored, UsageRepo, anchor_settings_key, cap_settings_key,
+    CostDay, HitMove, RepriceCursor, SignedInAs, SignedSamples, Stored, UsageRepo,
+    anchor_settings_key, cap_settings_key,
 };
 pub use usage_history::{
     GroupCost, HOUR_MS, HourRow, ModelRow, Replace, Rollup, SETTLED_MS, SwitchRow, TurnRow,
@@ -828,10 +829,14 @@ CREATE INDEX idx_usage_holds_msg ON usage_holds(msg);
 const V52: &str = accounts::IMPORT_NAMES;
 /// 0.4.6 (AJ-E3011): a pool may wait for an App's next session to lead.
 const V53: &str = pools::LEAD_NEXT_MIGRATION;
+/// 0.5 (AJ-E3210, D-135): each App's own Account, and the Account each
+/// reading was read under ([`entities::APP_ACCOUNTS_MIGRATION`]).
+const V55: &str = entities::APP_ACCOUNTS_MIGRATION;
 
 /// The runner's list: a version is its index + 1. 0.5's `memory::V54` (the
 /// memory store and the AI log, ADR-0037 §1.7) follows 0.4.6's V53, its L1
-/// pieces in place (`scripts/migration_clash.py`'s `V54_GATE`).
+/// pieces in place (`scripts/migration_clash.py`'s `V54_GATE`); V55 is
+/// AJ-E3210's per-App Account.
 const MIGRATIONS: &[&str] = &[
     V1,
     V2,
@@ -887,6 +892,7 @@ const MIGRATIONS: &[&str] = &[
     V52,
     V53,
     memory::V54,
+    V55,
 ];
 
 /// Owner-only (`0600`) on Unix: AI Juggler's data and its copies are no one
