@@ -37,6 +37,11 @@ pub struct CatalogueEntry {
     pub code: String,
     /// Its label ("Finishes").
     pub label: String,
+    /// What happened, as an alert says it after the name ("finished").
+    pub told: String,
+    /// Its alert is a need's (asks, fails, looks stuck, a limit): shown
+    /// in Needs you too, as one alert.
+    pub need: bool,
     /// Its parameter, when it takes one.
     pub param: Option<CatalogueParam>,
 }
@@ -84,6 +89,12 @@ pub fn catalogue(
                 Lang::De => rule.words().label_de,
             }
             .to_owned(),
+            told: match lang {
+                Lang::En => rule.words().told_en,
+                Lang::De => rule.words().told_de,
+            }
+            .to_owned(),
+            need: crate::features::notifications::watch_alerts::is_need(rule.told_as()),
             param: param_info(rule),
         })
         .collect()

@@ -43,12 +43,17 @@ fn echo_of(told_as: &str) -> Option<Kind> {
     })
 }
 
+/// A condition told as a need (it asks, it failed, it looks stuck, a
+/// limit): its alert is that need's, shown in Needs you too.
+#[must_use]
+pub fn is_need(told_as: Option<&str>) -> bool {
+    matches!(told_as, Some("asks" | "stuck" | "limit" | "failed"))
+}
+
 /// A watch's alert level: a need's own (D-117), else a note.
 fn level_of(told_as: Option<&str>) -> u8 {
     match told_as {
-        Some(need @ ("asks" | "stuck" | "limit" | "failed")) => {
-            centre::attention_level(need, LevelFacts::default())
-        }
+        Some(need) if is_need(Some(need)) => centre::attention_level(need, LevelFacts::default()),
         _ => 1,
     }
 }

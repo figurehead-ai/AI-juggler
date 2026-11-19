@@ -53,23 +53,17 @@ fn kind_index(kind: TargetKind) -> usize {
     }
 }
 
-fn target_words(target: &WatchTarget, names: &dyn Names, frame: &Frame) -> String {
-    match (target, names.target(target)) {
-        (WatchTarget::Any, _) | (_, None) => frame.unnamed[kind_index(target.kind())].to_owned(),
-        (_, Some(name)) => quoted(&name),
-    }
-}
-
-/// A condition in words, its parameter filled in.
-fn condition_words(
+/// A condition in words, its parameter filled in, as spans (an agent's
+/// name is a name span).
+fn condition_spans(
     registry: &Registry,
     condition: &Condition,
     many: bool,
     lang: Lang,
     names: &dyn Names,
-) -> String {
+) -> Vec<EchoSpan> {
     let Some(rule) = registry.get(&condition.code) else {
-        return condition.code.replace('_', " ");
+        return vec![EchoSpan::plain(condition.code.replace('_', " "))];
     };
     let cw = rule.words();
     let (plain, with) = match lang {
@@ -81,16 +75,23 @@ fn condition_words(
         (Some(param), Some(phrase)) => {
             let text = pick(phrase);
             match param {
-                Param::Minutes(n) => text.replace("{n}", &n.to_string()),
-                Param::Percent(n) => text.replace("{n}", &n.to_string()),
-                Param::TaskState(state) => text.replace("{s}", words::task_state(*state, lang)),
-                Param::Agent(id) => text.replace(
-                    "{a}",
-                    &quoted(&names.agent(id).unwrap_or_else(|| id.clone())),
-                ),
+                Param::Minutes(n) => vec![EchoSpan::plain(text.replace("{n}", &n.to_string()))],
+                Param::Percent(n) => vec![EchoSpan::plain(text.replace("{n}", &n.to_string()))],
+                Param::TaskState(state) => vec![EchoSpan::plain(
+                    text.replace("{s}", words::task_state(*state, lang)),
+                )],
+                Param::Agent(id) => {
+                    let name = quoted(&names.agent(id).unwrap_or_else(|| id.clone()));
+                    let (before, after) = text.split_once("{a}").unwrap_or((text, ""));
+                    vec![
+                        EchoSpan::plain(before),
+                        EchoSpan::name(name),
+                        EchoSpan::plain(after),
+                    ]
+                }
             }
         }
-        _ => pick(plain).to_owned(),
+        _ => vec![EchoSpan::plain(pick(plain))],
     }
 }
 
@@ -159,6 +160,124 @@ fn lifetime_words(watch: &Watch, frame: &Frame, clock_now: LocalClock) -> String
     }
 }
 
+/// One piece of the echo's first sentence: a name (a target's or an
+/// agent's, quoted as data) or the words around it.
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, ts_rs::TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
+pub struct EchoSpan {
+    /// The text, exactly as it stands in the sentence.
+    pub text: String,
+    /// It is a name (the view sets it in bold).
+    pub name: bool,
+}
+
+impl EchoSpan {
+    fn plain(text: impl Into<String>) -> Self {
+        Self {
+            text: text.into(),
+            name: false,
+        }
+    }
+    fn name(text: impl Into<String>) -> Self {
+        Self {
+            text: text.into(),
+            name: true,
+        }
+    }
+}
+
+/// The echo in its parts, so a view never splits or parses the words:
+/// the first sentence (what it tells and when) as spans, the lifetime's
+/// sentence, and the quiet-hours sentence when that switch is on.
+/// [`EchoParts::joined`] is the echo, word for word.
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, ts_rs::TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
+pub struct EchoParts {
+    /// "Tell you when “api” finishes." as spans.
+    pub head: Vec<EchoSpan>,
+    /// "Once.", "Until it ends.", "Until midnight today." …
+    pub lifetime: String,
+    /// "Even during quiet hours.", when that switch is on.
+    pub quiet: Option<String>,
+}
+
+impl EchoParts {
+    /// The first sentence as one string.
+    #[must_use]
+    pub fn head_text(&self) -> String {
+        self.head.iter().map(|span| span.text.as_str()).collect()
+    }
+
+    /// The whole echo: the sentences joined by a space.
+    #[must_use]
+    pub fn joined(&self) -> String {
+        let mut out = format!("{} {}", self.head_text(), self.lifetime);
+        if let Some(quiet) = &self.quiet {
+            out.push(' ');
+            out.push_str(quiet);
+        }
+        out
+    }
+}
+
+/// Spans with neighbouring plain text merged and empty ones dropped.
+fn merged(spans: Vec<EchoSpan>) -> Vec<EchoSpan> {
+    let mut out: Vec<EchoSpan> = Vec::with_capacity(spans.len());
+    for span in spans {
+        if span.text.is_empty() {
+            continue;
+        }
+        match out.last_mut() {
+            Some(last) if !last.name && !span.name => last.text.push_str(&span.text),
+            _ => out.push(span),
+        }
+    }
+    out
+}
+
+/// The watch in parts (see [`EchoParts`]).
+#[must_use]
+pub fn echo_parts(
+    registry: &Registry,
+    watch: &Watch,
+    names: &dyn Names,
+    lang: Lang,
+    clock_now: LocalClock,
+) -> EchoParts {
+    let frame = words::frame(lang);
+    let all = watch.matching == Matching::All && watch.targets.len() > 1;
+    let join = if all { frame.and } else { frame.or };
+    let mut head = vec![EchoSpan::plain(frame.head)];
+    if all {
+        head.push(EchoSpan::plain(frame.all_of));
+    }
+    let count = watch.targets.len();
+    for (i, target) in watch.targets.iter().enumerate() {
+        if i > 0 {
+            head.push(EchoSpan::plain(if i + 1 == count { join } else { ", " }));
+        }
+        head.push(match (target, names.target(target)) {
+            (WatchTarget::Any, _) | (_, None) => {
+                EchoSpan::plain(frame.unnamed[kind_index(target.kind())])
+            }
+            (_, Some(name)) => EchoSpan::name(quoted(&name)),
+        });
+    }
+    head.push(EchoSpan::plain(" "));
+    for (i, condition) in watch.conditions.iter().enumerate() {
+        if i > 0 {
+            head.push(EchoSpan::plain(frame.cond_or));
+        }
+        head.extend(condition_spans(registry, condition, all, lang, names));
+    }
+    head.push(EchoSpan::plain("."));
+    EchoParts {
+        head: merged(head),
+        lifetime: lifetime_words(watch, frame, clock_now),
+        quiet: watch.even_in_quiet_hours.then(|| frame.quiet.to_owned()),
+    }
+}
+
 /// The watch in plain words: "Tell you when “api” or “web” finishes, or
 /// looks stuck for 10 minutes. Until midnight today. Even during quiet
 /// hours."
@@ -170,34 +289,5 @@ pub fn echo(
     lang: Lang,
     clock_now: LocalClock,
 ) -> String {
-    let frame = words::frame(lang);
-    let all = watch.matching == Matching::All && watch.targets.len() > 1;
-    let target_list: Vec<String> = watch
-        .targets
-        .iter()
-        .map(|t| target_words(t, names, frame))
-        .collect();
-    let join = if all { frame.and } else { frame.or };
-    let targets = match target_list.split_last() {
-        Some((last, rest)) if !rest.is_empty() => format!("{}{join}{last}", rest.join(", ")),
-        Some((last, _)) => last.clone(),
-        None => String::new(),
-    };
-    let conditions: Vec<String> = watch
-        .conditions
-        .iter()
-        .map(|c| condition_words(registry, c, all, lang, names))
-        .collect();
-    let mut out = format!(
-        "{}{}{targets} {}. {}",
-        frame.head,
-        if all { frame.all_of } else { "" },
-        conditions.join(frame.cond_or),
-        lifetime_words(watch, frame, clock_now)
-    );
-    if watch.even_in_quiet_hours {
-        out.push(' ');
-        out.push_str(frame.quiet);
-    }
-    out
+    echo_parts(registry, watch, names, lang, clock_now).joined()
 }

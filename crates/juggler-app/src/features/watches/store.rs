@@ -312,6 +312,29 @@ impl<'a> WatchStore<'a> {
         Ok(self.log().count_of_subject(SUBJECT, &id.0, "fired")?)
     }
 
+    /// The last time a watch told the user, and the condition it told
+    /// (its code), from its log; `None` when it never has.
+    ///
+    /// # Errors
+    ///
+    /// Storage failures.
+    pub fn last_fired(&self, id: &WatchId) -> Result<Option<(i64, String)>, StoreError> {
+        Ok(self
+            .log()
+            .of_subject(SUBJECT, &id.0, 50)?
+            .into_iter()
+            .find(|event| event.verb == "fired")
+            .map(|event| {
+                let code = event
+                    .payload
+                    .get("condition")
+                    .and_then(serde_json::Value::as_str)
+                    .unwrap_or_default()
+                    .to_owned();
+                (event.at_ms, code)
+            }))
+    }
+
     /// The watches that are neither removed nor ended: what the engine
     /// hears for.
     ///
@@ -481,6 +504,37 @@ impl<'a> WatchStore<'a> {
             removed: true,
         };
         self.write(writer, secrets, &payload, origin, "removed", now_ms)
+    }
+
+    /// Brings back a watch the user just removed (the view's Undo): a
+    /// new version, not removed, as it was. One that had ended stays
+    /// ended; an active one counts toward [`MAX_ACTIVE`] again.
+    ///
+    /// # Errors
+    ///
+    /// The store isn't there; [`StoreError::NotFound`] when it isn't a
+    /// removed watch; [`WatchError::TooMany`]; the gate or storage.
+    pub fn restore(
+        &self,
+        writer: &KindWriter,
+        secrets: &dyn SecretScan,
+        id: &WatchId,
+        origin: &Origin,
+        now_ms: i64,
+    ) -> Result<Stored, StoreError> {
+        self.ready()?;
+        let watch = match self.get(id)? {
+            Some(stored) if stored.removed => stored.watch,
+            _ => return Err(StoreError::NotFound),
+        };
+        if self.ended(id)?.is_none() && self.active()?.len() >= MAX_ACTIVE {
+            return Err(StoreError::Invalid(WatchError::TooMany));
+        }
+        let payload = Payload {
+            watch,
+            removed: false,
+        };
+        self.write(writer, secrets, &payload, origin, "restored", now_ms)
     }
 
     fn current_live(&self, id: &WatchId) -> Result<Stored, StoreError> {

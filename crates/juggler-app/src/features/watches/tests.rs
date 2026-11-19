@@ -988,6 +988,119 @@ fn the_echo_says_the_watch_in_english() {
     );
 }
 
+/// AJ-E3816: the echo in parts, for the view: the names as name spans
+/// (a target's and an agent's), the lifetime and quiet sentences apart,
+/// and the parts joined are the echo word for word.
+#[test]
+fn the_echo_parts_join_to_the_echo_and_mark_the_names() {
+    use super::echo::echo_parts;
+    struct Agents;
+    impl Names for Agents {
+        fn target(&self, target: &WatchTarget) -> Option<String> {
+            Book.target(target).or_else(|| Some("Release pool".into()))
+        }
+        fn agent(&self, _id: &str) -> Option<String> {
+            Some("reviewer".into())
+        }
+    }
+    let r = Registry::shipped();
+    let mut w = watch(
+        "w-e9",
+        vec![session("api"), session("web")],
+        vec![cond("finishes"), cond_p("stuck", Param::Minutes(10))],
+        Lifetime::UntilEnds,
+    );
+    w.matching = Matching::All;
+    w.even_in_quiet_hours = true;
+    let parts = echo_parts(&r, &w, &Agents, Lang::En, clock());
+    assert_eq!(parts.joined(), echo(&r, &w, &Agents, Lang::En, clock()));
+    let names: Vec<&str> = parts
+        .head
+        .iter()
+        .filter(|s| s.name)
+        .map(|s| s.text.as_str())
+        .collect();
+    assert_eq!(names, ["“api”", "“web”"]);
+    assert_eq!(parts.lifetime, "Until they end.");
+    assert_eq!(parts.quiet.as_deref(), Some("Even during quiet hours."));
+    let pool = watch(
+        "w-ea",
+        vec![WatchTarget::Pool("pool-1".into())],
+        vec![cond_p("pool_message", Param::Agent("a-1".into()))],
+        Lifetime::Always,
+    );
+    let parts = echo_parts(&r, &pool, &Agents, Lang::De, clock());
+    assert_eq!(parts.joined(), echo(&r, &pool, &Agents, Lang::De, clock()));
+    let names: Vec<&str> = parts
+        .head
+        .iter()
+        .filter(|s| s.name)
+        .map(|s| s.text.as_str())
+        .collect();
+    assert_eq!(names, ["“Release pool”", "“reviewer”"]);
+    assert_eq!(parts.quiet, None);
+    assert!(
+        parts.head.windows(2).all(|p| p[0].name || p[1].name),
+        "plain spans are merged"
+    );
+}
+
+/// AJ-E3816: the shared cases (ui/src/lib/fixtures/watch-echo.json): the
+/// echo says each word for word, and its parts join to it. The view's
+/// stand-in for previews is tested against the same file.
+#[test]
+fn the_echo_says_the_shared_cases_word_for_word() {
+    use super::echo::echo_parts;
+    use std::collections::HashMap;
+    #[derive(serde::Deserialize)]
+    #[serde(rename_all = "camelCase")]
+    struct Case {
+        watch: Watch,
+        words: String,
+    }
+    #[derive(serde::Deserialize)]
+    #[serde(rename_all = "camelCase")]
+    struct Shared {
+        now_ms: i64,
+        offset_hours: i64,
+        names: HashMap<String, String>,
+        agents: HashMap<String, String>,
+        cases: Vec<Case>,
+    }
+    struct Shelf<'a>(&'a Shared);
+    impl Names for Shelf<'_> {
+        fn target(&self, target: &WatchTarget) -> Option<String> {
+            let key = format!(
+                "{}:{}",
+                super::model::target_code(target.kind()),
+                target.id()?
+            );
+            self.0.names.get(&key).cloned()
+        }
+        fn agent(&self, id: &str) -> Option<String> {
+            self.0.agents.get(id).cloned()
+        }
+    }
+    let shared: Shared = serde_json::from_str(include_str!(
+        "../../../../../ui/src/lib/fixtures/watch-echo.json"
+    ))
+    .unwrap();
+    let now = LocalClock {
+        now_ms: shared.now_ms,
+        offset_hours: shared.offset_hours,
+    };
+    let r = Registry::shipped();
+    assert!(shared.cases.len() >= 10);
+    for case in &shared.cases {
+        assert_eq!(
+            echo(&r, &case.watch, &Shelf(&shared), Lang::En, now),
+            case.words
+        );
+        let parts = echo_parts(&r, &case.watch, &Shelf(&shared), Lang::En, now);
+        assert_eq!(parts.joined(), case.words);
+    }
+}
+
 #[test]
 fn the_echo_says_the_watch_in_german() {
     let r = Registry::shipped();

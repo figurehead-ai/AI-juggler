@@ -14,6 +14,15 @@ code: string,
  */
 label: string, 
 /**
+ * What happened, as an alert says it after the name ("finished").
+ */
+told: string, 
+/**
+ * Its alert is a need's (asks, fails, looks stuck, a limit): shown
+ * in Needs you too, as one alert.
+ */
+need: boolean, 
+/**
  * Its parameter, when it takes one.
  */
 param: CatalogueParam | null, };

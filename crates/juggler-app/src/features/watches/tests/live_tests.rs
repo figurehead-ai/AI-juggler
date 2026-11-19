@@ -158,6 +158,11 @@ fn the_reads_offer_what_the_lab_can_report_and_say_a_draft() {
     let preview = commands::watches_preview_impl(&state, &draft, Lang::En).unwrap();
     assert_eq!(preview.problem, None);
     assert_eq!(
+        preview.echo.joined(),
+        preview.words,
+        "the parts are the words"
+    );
+    assert_eq!(
         preview.watch.lifetime,
         Lifetime::Once,
         "finishing on a session: once"
@@ -371,4 +376,123 @@ fn a_fire_missed_while_closed_is_replayed_on_start_and_told_once() {
     assert!(
         super::super::runtime::journal_since(&state.storage.lock().unwrap(), cursor).is_empty()
     );
+}
+
+/// AJ-E3816: what the Watches view reads. Its echo in parts is the echo
+/// word for word; the list splits into live and ended; the counts; a
+/// removal's Undo brings the watch back; pause and resume by id.
+#[test]
+fn the_view_reads_parts_counts_and_brings_back_a_removed_watch() {
+    let dir = tempfile::tempdir().unwrap();
+    let state = lab(dir.path());
+    let draft = |conditions: Vec<Condition>, lifetime, quiet| commands::WatchDraftInfo {
+        targets: vec![WatchTarget::Session("s1".into())],
+        matching: Matching::Each,
+        conditions,
+        lifetime,
+        even_in_quiet_hours: quiet,
+        chat_turn: None,
+    };
+    let first = commands::watches_create_impl(
+        &state,
+        &draft(
+            vec![cond("finishes"), cond_p("stuck", Param::Minutes(15))],
+            LifetimeChoice::Always,
+            true,
+        ),
+        Lang::En,
+    )
+    .unwrap();
+    assert_eq!(first.echo.joined(), first.words, "the parts are the echo");
+    let names: Vec<&str> = first
+        .echo
+        .head
+        .iter()
+        .filter(|span| span.name)
+        .map(|span| span.text.as_str())
+        .collect();
+    assert_eq!(names.len(), 1, "{:?}", first.echo);
+    assert!(names[0].starts_with('“') && names[0].ends_with('”'));
+    assert_eq!(first.echo.lifetime, "Until you remove it.");
+    assert_eq!(
+        first.echo.quiet.as_deref(),
+        Some("Even during quiet hours.")
+    );
+    assert!(
+        first
+            .echo
+            .head_text()
+            .ends_with(" finishes, or looks stuck for 15 minutes.")
+    );
+    assert_eq!((first.last_told_ms, first.ended_ms), (None, None));
+
+    let second = commands::watches_create_impl(
+        &state,
+        &draft(vec![cond("fails")], LifetimeChoice::Today, false),
+        Lang::En,
+    )
+    .unwrap();
+    let paused = commands::watches_pause_impl(&state, &second.watch.id, true, Lang::En).unwrap();
+    assert_eq!(paused.state, commands::WatchStateInfo::Paused);
+    let summary = commands::watches_summary_impl(&state).unwrap();
+    assert_eq!(
+        (
+            summary.watching,
+            summary.paused,
+            summary.never_told,
+            summary.even_in_quiet_hours,
+            summary.limit
+        ),
+        (1, 1, 2, 1, 50)
+    );
+    let resumed = commands::watches_pause_impl(&state, &second.watch.id, false, Lang::En).unwrap();
+    assert_eq!(resumed.state, commands::WatchStateInfo::Active);
+
+    // Removed, then brought back by Undo: the same id, watching again.
+    commands::watches_remove_impl(&state, &first.watch.id, Lang::En).unwrap();
+    let live = |which| {
+        commands::watches_list_of(
+            &state,
+            &crate::paging::PageRequest::first(10),
+            which,
+            Lang::En,
+        )
+        .unwrap()
+        .items
+        .into_iter()
+        .map(|w| w.watch.id)
+        .collect::<Vec<_>>()
+    };
+    assert_eq!(
+        live(commands::WatchListWhich::Live),
+        vec![second.watch.id.clone()]
+    );
+    let back = commands::watches_restore_impl(&state, &first.watch.id, Lang::En).unwrap();
+    assert_eq!(back.watch.id, first.watch.id);
+    assert_eq!(back.state, commands::WatchStateInfo::Active);
+    assert_eq!(live(commands::WatchListWhich::Live).len(), 2);
+    assert!(live(commands::WatchListWhich::Ended).is_empty());
+    assert!(
+        commands::watches_restore_impl(&state, &first.watch.id, Lang::En).is_err(),
+        "only a removed watch comes back"
+    );
+
+    // It fires: the list says when, and what it told.
+    crate::features::notifications::session_status(&state, "s1", "failed");
+    wait_for_notices(&state, 1);
+    let all = commands::watches_list_of(
+        &state,
+        &crate::paging::PageRequest::first(10),
+        commands::WatchListWhich::All,
+        Lang::En,
+    )
+    .unwrap()
+    .items;
+    let told = all.iter().find(|w| w.watch.id == second.watch.id).unwrap();
+    assert_eq!(told.told, 1);
+    assert_eq!(told.last_told_code.as_deref(), Some("fails"));
+    assert_eq!(told.last_told_words.as_deref(), Some("failed"));
+    assert!(told.last_told_ms.is_some());
+    let summary = commands::watches_summary_impl(&state).unwrap();
+    assert_eq!(summary.told_today, 1, "{summary:?}");
 }

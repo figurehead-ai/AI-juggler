@@ -261,7 +261,9 @@ import type { VaultStatusInfo } from "./VaultStatusInfo";
 import type { WatchDraftInfo } from "./WatchDraftInfo";
 import type { WatchId } from "./WatchId";
 import type { WatchInfo } from "./WatchInfo";
+import type { WatchListWhich } from "./WatchListWhich";
 import type { WatchPreviewInfo } from "./WatchPreviewInfo";
+import type { WatchSummaryInfo } from "./WatchSummaryInfo";
 import type { WatchTarget } from "./WatchTarget";
 import type { WatchedMemberInfo } from "./WatchedMemberInfo";
 import type { WorkGraphInfo } from "./WorkGraphInfo";
@@ -1314,13 +1316,17 @@ export interface Commands {
   /** Write features::watches::commands::watches_create */
   watches_create: { args: { draft: WatchDraftInfo; lang?: Lang | null }; result: WatchInfo };
   /** Read features::watches::commands::watches_list */
-  watches_list: { args: { request: PageRequest; lang?: Lang | null }; result: Page<WatchInfo> };
+  watches_list: { args: { request: PageRequest; which?: WatchListWhich | null; lang?: Lang | null }; result: Page<WatchInfo> };
   /** Write features::watches::commands::watches_pause */
   watches_pause: { args: { id: WatchId; paused: boolean; lang?: Lang | null }; result: WatchInfo };
   /** Read features::watches::commands::watches_preview */
   watches_preview: { args: { draft: WatchDraftInfo; lang?: Lang | null }; result: WatchPreviewInfo };
   /** Write features::watches::commands::watches_remove */
   watches_remove: { args: { id: WatchId; lang?: Lang | null }; result: WatchInfo };
+  /** Write features::watches::commands::watches_restore */
+  watches_restore: { args: { id: WatchId; lang?: Lang | null }; result: WatchInfo };
+  /** Read features::watches::commands::watches_summary */
+  watches_summary: { args: Record<string, never>; result: WatchSummaryInfo };
   /** Write features::watches::commands::watches_update */
   watches_update: { args: { id: WatchId; draft: WatchDraftInfo; lang?: Lang | null }; result: WatchInfo };
   /** Write worktree::worktree_create */
