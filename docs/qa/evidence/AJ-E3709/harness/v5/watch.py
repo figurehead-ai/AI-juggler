@@ -152,11 +152,21 @@ def _mask_names(w):
         if e["kind"] == "any" or len(e["raw_name"].strip()) < 2: continue
         r = re.sub(r"(?<!\w)" + re.escape(e["raw_name"].strip()) + r"(?!\w)", " _ ", r, flags=re.I)
     return r
+def _spaced(s): return re.sub(r"\s+", " ", re.sub(r"[-_./]+", " ", s)).strip()
+def label_said(w, label):
+    """the request says this owner's name: whole, spaced ("barn cam" for "barn-cam"), or every 4+ letter word of a name of two or more
+    ("Claude in the garage" for "Claude app · Garage"). Round 3: an owner said so was not found, and the session it owns was rejected"""
+    r = " " + _norm(w["request"]) + " "; n = _norm(label)
+    if not n: return False
+    if " " + n + " " in r or " " + _spaced(n) + " " in r: return True
+    toks = [t for t in _spaced(n).split() if len(t) >= 4]
+    return len(toks) >= 2 and all(" " + t + " " in r for t in toks)
 def named(w, e):
     """the request says this entry's name (whole words), or every 4+ letter word of it"""
     if e["kind"] == "any": return bool(ANY_WORDS.search(w["request"]))
     r = " " + _norm(w["request"]) + " "; nm = _norm(e["raw_name"]); cn = _norm(e["name"])
     if nm and " " + nm + " " in r or (cn and " " + cn + " " in r): return True
+    if nm and _spaced(nm) != nm and " " + _spaced(nm) + " " in r: return True        # round 3: "fence map" names "fence-map"
     toks = [t for t in nm.split() if len(t) >= 4]
     return bool(toks) and all(" " + t + " " in r for t in toks)
 ANY_WORDS = re.compile(r"\b(?:any|every|all|anything|anyone|alle[snr]?|jede[snr]?|irgend\w*|alguna?|alguno|cualquier\w*|quoi que ce soit|n'importe|toute?s?|iets|elke?)\b", re.I)
@@ -181,7 +191,7 @@ def pointed_at(w, e):
             owner = next((x for x in w["entries"] if x["kind"] == key and _norm(e[key]) in _keys(x)), None)
             label = owner["raw_name"] if owner else e[key]
             sib = [s for s in w["entries"] if s["kind"] == "session" and s.get(key) and _norm(s[key]) == _norm(e[key])]
-            if len(sib) == 1 and " " + _norm(label) + " " in " " + _norm(w["request"]) + " ": return True
+            if len(sib) == 1 and label_said(w, label): return True
     return False
 def same_name(w, e): return [x for x in w["entries"] if x["kind"] == e["kind"] and _norm(x["raw_name"]) == _norm(e["raw_name"])]
 def resolve(w, e):
@@ -198,7 +208,7 @@ def resolve(w, e):
         for key in ("project", "app"):
             if x.get(key):
                 owner = next((o for o in w["entries"] if o["kind"] == key and _norm(x[key]) in _keys(o)), None)
-                if " " + _norm(owner["raw_name"] if owner else x[key]) + " " in r: return True
+                if label_said(w, owner["raw_name"] if owner else x[key]): return True
         return False
     hit = [x for x in dup if ctx_named(x)] or [x for x in dup if x.get("current")]
     return (hit[0], False) if len(hit) == 1 else (None, True)
@@ -209,7 +219,7 @@ def owner_named(w, e):
     for key in ("project", "app"):
         if not e.get(key): continue
         o = next((x for x in w["entries"] if x["kind"] == key and _norm(e[key]) in _keys(x)), None)
-        if o is not None and " " + _norm(o["raw_name"]) + " " in r: return o
+        if o is not None and label_said(w, o["raw_name"]): return o
     return None
 def owner_app(w, e):
     if e["kind"] != "session" or not e.get("app"): return None
@@ -471,7 +481,8 @@ FILLER_MORE = (r"if|once|as|soon|please|also|but|not|during|warn|alert|notify|wa
                r"tonight|now|later|so|you|can|could|would|i|us|our|work|job|run|thing|stuff|break|breaks|must|or|either|"
                r"ist|sind|wird|werden|hat|haben|bitte|auch|aber|nicht|während|falls|sag|sage|gib|melde|melden|warne|benachrichtige|"
                r"informiere|dich|bescheid|jede|jeden|jedes|immer|bis|ich|du|im|am|an|vom|zum|zur|den|dem|des|dass|ob|nachts|abends|abend|ruhezeit|stopp|"
-               r"even|anyway|regardless|override|too|trotzdem|selbst|sogar|auch")
+               r"even|anyway|regardless|override|too|trotzdem|selbst|sogar|auch|"
+               r"only|just|nur|es|er|eye|hear|about|want|mal|irgend\w*|jemand|thing|one")     # round 3: "keep an eye on", "I want to hear about", "only", "irgendeine", "melde es"
 def covered(w, asked, tg, conds):
     """the model's 'unsupported' words name nothing beyond the targets and the drafted conditions (round 1: Apple flagged nearly every
     request this way, so every watch became an unsupported answer). Round 2: still 6 to 25 false unsupported answers per model: the
@@ -479,7 +490,8 @@ def covered(w, asked, tg, conds):
     generic noun for the target ("the webhook work") or a paraphrase ("drops below", "jede Rückfrage") counted as unwatchable"""
     names = {t for e in tg for t in _toks(e["raw_name"]) + _toks(str(e.get("project") or "")) + _toks(str(e.get("app") or ""))}
     rx = "|".join(COVER[c["type"]] + ("|" + COVER_MORE[c["type"]] if c["type"] in COVER_MORE else "") for c in conds)
-    a = re.sub(QUIET_ANYHOUR + "|" + QUIET_INDIFF + "|" + QUIET_WAKE + "|" + QUIET_NIGHT + "|" + QUIET_TERM + "|" + LIFE_ALWAYS.pattern + "|" + LIFE_TODAY.pattern, " ",
+    a = re.sub(QUIET_ANYHOUR + "|" + QUIET_INDIFF + "|" + QUIET_WAKE + "|" + QUIET_NIGHT + "|" + QUIET_TERM + "|" + LIFE_ALWAYS.pattern + "|" + LIFE_TODAY.pattern
+               + "|" + LIFE_SPAN.pattern, " ",
                unicodedata.normalize("NFKC", str(asked or "")).lower(), flags=re.I)
     a = _norm(re.sub(r"\b(?:keep|stay|be)\s+(?:it\s+)?(?:quiet|silent)\b|\b(?:and\s+)?yes\b|\bja\b", " ", a))
     for t in re.findall(r"[^\W_]+", a):
@@ -487,7 +499,14 @@ def covered(w, asked, tg, conds):
         return False
     return True
 LIFE_ALWAYS = re.compile(r"\b(?:whenever|every time|each time|any time|from now on|until i (?:say )?stop|until i remove it|keep watching|"
-                         r"immer wenn|jedes ?mal|ab jetzt|von nun an|bis ich (?:stopp?|halt)\w* sage|siempre que|chaque fois|elke keer|telkens)\b", re.I)
+                         r"immer wenn|jedes ?mal|ab jetzt|von nun an|bis ich (?:stopp?|halt)\w* sage|siempre que|chaque fois|elke keer|telkens|"
+                         r"until i say otherwise|until further notice|bis auf (?:weiteres|widerruf))\b", re.I)
+# round 3: a span the draft's shape can't hold ("through the weekend", "between now and Friday", "bis Mittwoch nächster Woche") is a
+# lifetime, read by code (the default applies, and the echo says it), never an unwatchable condition
+LIFE_SPAN = re.compile(r"\b(?:(?:between\s+now\s+and|until|till|through(?:out)?|over|during|by|bis|über|durchs?|während)\s+"
+                       r"(?:the\s+|next\s+|this\s+|nächste[nrs]?\s+|kommende[nrs]?\s+|das\s+|den\s+|die\s+)?)?"
+                       r"(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday|weekend|week|montag|dienstag|mittwoch|donnerstag|freitag|"
+                       r"samstag|sonntag|wochenende|woche)(?:\s+(?:next\s+week|nächster\s+woche))?\b", re.I)
 LIFE_TODAY = re.compile(r"\b(?:tonight|today|this evening|heute(?: abend| nacht)?|esta noche|ce soir|aujourd'hui|vanavond|vandaag)\b", re.I)
 def said_lifetime(request):
     """a lifetime the request says in words the model left 'unsaid' (round 2: "whenever", "every time", "until I say stop", "tonight"
@@ -542,13 +561,14 @@ class WatchDraft(Job):
             e = w["by_ref"].get(r)
             if e is None: errs.append(f"refs: target {r} was not issued"); continue
             if e not in tg: tg.append(e)
-        conds = []; perrs = []
+        conds = []; perrs = []; conds_bad = []
         for c in fields.get("conditions") or []:
             t = c.get("type")
             if t not in COND: errs.append(f"refs: condition {t!r} is not in the catalogue"); continue
             v, e = parse_param(t, c.get("param"), w["request"])
-            if e: perrs.append(e); continue
+            if e: perrs.append(e); conds_bad.append(t); continue
             if {"type": t, "param": v} not in conds: conds.append({"type": t, "param": v})
+        conds, perrs, cdrop = self._named_conditions(w, conds, perrs, conds_bad)
         cues = cue_hits(w)
         if intent == "create" and not errs and not asks_to_be_told(w["request"]): return self._done(w, "not_a_watch", "", [])
         if asked and intent == "create" and conds and tg and not cues and covered(w, asked, tg, conds):
@@ -578,6 +598,11 @@ class WatchDraft(Job):
             if intent == "create": return {"ok": False, "kind": "rejected", "errors": ["shape: a new watch needs a target and a condition"], "model_text": []}
             return self._done(w, "not_a_watch", "", [])
         tg = self._settle_targets(w, tg, conds)
+        pointed = self._pointed(w, tg)
+        anyw_ok = [e for e in pointed if e["kind"] != "any"] and [e for e in pointed if e["kind"] == "any"]
+        if anyw_ok: pointed = [e for e in pointed if e["kind"] != "any"]     # 'any' beside a named target widens it: the named one stays
+        tdrop = [e["ref"] for e in tg if e not in pointed] if pointed else []
+        if tdrop: tg = pointed
         # every target named or pointed at by the request; a shared name settled by the context, else the picker asks
         for e in tg:
             if e["kind"] != "any" and not pointed_at(w, e):
@@ -606,8 +631,10 @@ class WatchDraft(Job):
         watch = {"targets": [typed_target(e) for e in tg], "matching": fields.get("matching") if fields.get("matching") in ("each", "all") else "each",
                  "conditions": conds, "lifetime": default_lifetime(tg, conds) if lt == "unsaid" else lt, "until": until, "lifetime_said": lt != "unsaid",
                  "even_in_quiet_hours": quiet_breakthrough(w["request"])}
-        return {"ok": True, "kind": "watch", "watch": watch, "shown": echo(w, watch), "buttons": ["Watch", "Change", "Cancel"], "model_text": [],
-                "errors": [], "notes": ["a draft: written only when the user clicks Watch"]}
+        notes = ["a draft: written only when the user clicks Watch"] + ([f"dropped targets the request doesn't name: {', '.join(tdrop)}"] if tdrop else []) \
+            + ([f"dropped conditions the request doesn't name: {', '.join(cdrop)}"] if cdrop else [])
+        return {"ok": True, "kind": "watch", "watch": watch, "shown": echo(w, watch), "buttons": ["Watch", "Change", "Cancel"], "model_text": [], "notes": notes,
+                "errors": []}
     def _pointed(self, w, tg):
         """the draft's targets the request names or points at (an unsupported answer's nearest option never carries an unnamed one)"""
         return [e for e in tg if (e["kind"] == "any" and named(w, e)) or (e["kind"] != "any" and pointed_at(w, e))]
@@ -624,10 +651,22 @@ class WatchDraft(Job):
         out = []
         for e in tg:
             o = owner_named(w, e)
-            if o is not None and (not SESSION_WORD.search(w["request"]) or any(not offered(w, e, c["type"]) and offered(w, o, c["type"]) for c in conds)):
+            if o is not None and (not SESSION_WORD.search(_mask_names(w)) or any(not offered(w, e, c["type"]) and offered(w, o, c["type"]) for c in conds)):
                 e = o
             if e not in out: out.append(e)
         return out
+    def _named_conditions(self, w, conds, perrs, bad):
+        """round 3: a condition the request's words don't name, beside one they do, is the draft's noise and is dropped (a range copied
+        from the catalogue as idle_for's minutes; 'asks you' added to a runway watch), the way an unnamed target beside a named one is;
+        the request's last named condition always stays. Read over the request with names, quiet hours and lifetimes blanked"""
+        r = unicodedata.normalize("NFKC", _mask_names(w)).lower()
+        r = _norm(re.sub(QUIET_ANYHOUR + "|" + QUIET_INDIFF + "|" + QUIET_WAKE + "|" + QUIET_NIGHT + "|" + QUIET_TERM + "|" + LIFE_SPAN.pattern, " ", r))
+        def said(c): return bool(re.search(r"\b(?:" + COVER[c] + ("|" + COVER_MORE[c] if c in COVER_MORE else "") + r")", r))
+        if not any(said(c["type"]) for c in conds): return conds, perrs, []
+        keep = [c for c in conds if said(c["type"])]; drop = [c["type"] for c in conds if not said(c["type"])]
+        badp = [(e, t) for e, t in zip(perrs, bad)]
+        drop += [t for _e, t in badp if not said(t)]
+        return keep, [e for e, t in badp if said(t)], drop
     def _offered_all(self, w, tg, c): return c in COND and ((not tg and c in offered_any(w)) or (tg and all(offered(w, e, c) for e in tg)))
     def _cue_nearest(self, w, tg, conds, cues, prefs=(), *more):
         """the nearest option the targets can report: the cue's own (an action or another Mac keeps the watch's conditions, else

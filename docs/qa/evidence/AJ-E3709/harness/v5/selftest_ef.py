@@ -505,7 +505,8 @@ def selftest():
     o = wev("EF2-W11", ["s1"], [("asks_you", "20")])
     check("r2 params mutation: a number the request says is kept", o["kind"] == "watch" and o["watch"]["conditions"] == [{"type": "asks_you", "param": 20}], o)
     o = wev("EF2-W19", ["s1"], [("fails", "none"), ("idle_for", "5")])
-    check("r2 params: a required parameter the request doesn't say is an error (a condition the model added)", not o["ok"] and any("not a number the request says" in e for e in o["errors"]), o)
+    check("r2 params (round 3): a condition the model added with a number the request doesn't say is dropped beside the one it names",
+          o["kind"] == "watch" and o["watch"]["conditions"] == [{"type": "fails", "param": None}] and any("idle_for" in n for n in o["notes"]), o)
     o = wev("EF2-W12", ["s1"], [("fails", "none")])
     check("r2 lifetime: 'whenever' left unsaid by the model is always, read in code", o["kind"] == "watch" and o["watch"]["lifetime"] == "always" and o["watch"]["lifetime_said"], o)
     o = wev("EF2-W19", ["s1"], [("fails", "none")])
@@ -515,9 +516,11 @@ def selftest():
     o = wev("EF2-W14", ["s1", "s2", "s3", "s4", "app1"], [("fails", "none")])
     check("r2 targets: 'Alert me' names no 'Alert rules' (whole names decide 'nothing named')", o["kind"] == "watch" and [t["kind"] for t in o["watch"]["targets"]] == ["any"], o)
     o = wev("EF2-W15", ["s1", "s2", "s3", "s4"], [("fails", "none")])
-    check("r2 targets mutation: with a target named, a listed set is not 'any' (unnamed ones are rejected)", not o["ok"] and any("not named" in e for e in o["errors"]), o)
+    check("r2 targets mutation: with a target named, a listed set is never 'any' (round 3: unnamed ones dropped, or rejected)",
+          not o["ok"] or [t["kind"] for t in o["watch"]["targets"]] != ["any"], o)
     o = wev("EF2-W19", ["s1", "any"], [("fails", "none")])
-    check("r2 targets: an unnamed 'any' beside a named target is rejected (it widened the watch)", not o["ok"] and any("target: any" in e for e in o["errors"]), o)
+    check("r2 targets (round 3): an unnamed 'any' beside a named target is dropped, never widening the watch", o["kind"] == "watch"
+          and [t["ref"] for t in o["watch"]["targets"]] == ["s1"] and any("any" in n for n in o["notes"]), o)
     o = wev("EF2-W16", ["s4"], [("asks_you", "none")])
     check("r2 targets: a session reached only through its App ('when Codex asks') is the App", o["kind"] == "watch" and [(t["kind"], t["id"]) for t in o["watch"]["targets"]] == [("app", "codex")], o)
     o = wev("EF2-W17", ["s4"], [("asks_you", "none")])
@@ -697,6 +700,51 @@ def selftest_r3(check, WJ):
     w = wi("remind me at 6 pm about the monthly invoices", ses, [{"id": "codex", "name": "Codex"}])
     o = WJ.evaluate(w, "main", wd(["s1"], [("finishes", "none")]))
     check("a reminder: still the unsupported answer", o["kind"] == "unsupported", o.get("kind"))
+    # ---- matching (round 3's code class): an owner said with spaces for its hyphens, or by its words; a session word inside a name; targets
+    # and conditions the request doesn't name, beside ones it does, are dropped; lifetimes the draft can't hold are no unsupported words
+    ses = [{"id": "s-gr", "app": "Claude app · Attic", "project": "kiln-log", "title": "Glaze runs"},
+           {"id": "s-sc", "app": "Codex", "project": "session-cache", "title": "Evictions"},
+           {"id": "s-mo", "app": "Codex", "project": "mold-shop", "title": "Mould sizes"}]
+    apps = [{"id": "app-at", "name": "Claude app · Attic"}, {"id": "codex", "name": "Codex"}]
+    prj = [{"id": "p-kl", "name": "kiln-log"}, {"id": "p-sc", "name": "session-cache"}, {"id": "p-mo", "name": "mold-shop"}]
+    def ev(req, tg, cs, **kw): return WJ.evaluate(wi(req, ses, apps, prj), "main", wd(tg, cs, **kw))
+    def tgs(o): return [(t["kind"], t["id"]) for t in o["watch"]["targets"]] if o.get("kind") == "watch" else o.get("errors") or o.get("kind")
+    o = ev("tell me when the kiln log session fails", ["s1"], [("fails", "none")])
+    check("matching: 'kiln log' says 'kiln-log': its only session, named as a session, stays", tgs(o) == [("session", "s-gr")], tgs(o))
+    o = ev("tell me when the kiln log work fails", ["s1"], [("fails", "none")])
+    check("matching: ...and without a session word it is the project", tgs(o) == [("project", "p-kl")], tgs(o))
+    o = ev("notify me when Claude in the attic asks something", ["s1"], [("asks_you", "none")])
+    check("matching: 'Claude in the attic' says 'Claude app · Attic' by its words: the App", tgs(o) == [("app", "app-at")], tgs(o))
+    o = ev("tell me when the mold shop project fails", ["p3"], [("fails", "none")])
+    check("matching: 'mold shop' names the project 'mold-shop'", tgs(o) == [("project", "p-mo")], tgs(o))
+    o = WJ.evaluate(wi("tell me when the mold shop project fails", ses, apps, prj + [{"id": "p-mo2", "name": "mold-shop-archive"}]), "main", wd(["p4"], [("fails", "none")]))
+    check("matching mutation: 'mold shop' names 'mold-shop' whole, so 'mold-shop-archive' is not the one meant", not o["ok"] and any("resolves to p3" in e for e in o["errors"]), o.get("errors") or o.get("shown"))
+    o = ev("I want to hear about any failure in session-cache", ["s2"], [("fails", "none")])
+    check("matching: 'session' inside a name is no session word: the project", tgs(o) == [("project", "p-sc")], tgs(o))
+    o = ev("tell me when glaze runs fails", ["s1", "app2", "p3", "any"], [("fails", "none")])
+    check("targets: the unnamed ones beside a named one are dropped, and noted", tgs(o) == [("session", "s-gr")] and any("dropped targets" in n for n in o["notes"]), o)
+    o = ev("tell me when glaze runs fails", ["s3", "app2"], [("fails", "none")])
+    check("targets mutation: nothing named in the draft is still rejected", not o["ok"] and any("not named" in e for e in o["errors"]), o.get("errors"))
+    o = ev("ping me when glaze runs asks something", ["s1"], [("asks_you", "none"), ("idle_for", "5-480")])
+    check("conditions: a condition the request doesn't name, beside one it does, is dropped (a copied range)", o["kind"] == "watch"
+          and o["watch"]["conditions"] == [{"type": "asks_you", "param": None}], o.get("errors") or o.get("shown"))
+    o = ev("ping me when glaze runs fails", ["s1"], [("fails", "none"), ("finishes", "none")])
+    check("conditions: ...and an unasked one with no parameter too", o["kind"] == "watch" and [c["type"] for c in o["watch"]["conditions"]] == ["fails"], o.get("shown"))
+    o = ev("ping me when glaze runs wraps up", ["s1"], [("finishes", "none")])
+    check("conditions mutation: the only condition stays, though its words are not in the lists", o["kind"] == "watch" and [c["type"] for c in o["watch"]["conditions"]] == ["finishes"], o)
+    o = ev("ping me when glaze runs fails or gets stuck", ["s1"], [("fails", "none"), ("stuck", "none")])
+    check("conditions mutation: two named conditions both stay", o["kind"] == "watch" and len(o["watch"]["conditions"]) == 2, o.get("shown"))
+    o = ev("keep an eye on glaze runs through the weekend and tell me if it fails", ["s1"], [("fails", "none")], asked="through the weekend", nearest="fails")
+    check("lifetime: a span the draft can't hold is no unsupported condition; the default applies and the echo says it", o["kind"] == "watch"
+          and o["shown"].endswith("Until midnight today."), o.get("shown"))
+    o = ev("Bis Freitag nächster Woche: melde jeden Fehler bei glaze runs", ["s1"], [("fails", "none")], asked="Bis Freitag nächster Woche", nearest="fails")
+    check("lifetime: German, the same", o["kind"] == "watch", o.get("shown"))
+    o = ev("tell me when glaze runs fails, until further notice", ["s1"], [("fails", "none")])
+    check("lifetime: 'until further notice' is always, read in code", o["kind"] == "watch" and o["watch"]["lifetime"] == "always", o.get("shown"))
+    o = ev("Wenn irgendeine Sitzung hängt, sag Bescheid", ["any"], [("stuck", "none")], asked="Wenn irgendeine Sitzung hängt, sag Bescheid", nearest="stuck")
+    check("covered: 'irgendeine' is a target word, not an unwatchable condition", o["kind"] == "watch", o.get("shown"))
+    o = ev("tell me when glaze runs fails, but only if the cost goes over 3 euros", ["s1"], [("fails", "none")], asked="the cost goes over 3 euros", nearest="fails")
+    check("covered mutation: money is still unsupported", o["kind"] == "unsupported", o.get("kind"))
 
 def texts():
     for ex in D.EXAMPLES: yield ex["label"], " ".join(t["source"] for a in ex["agents"] for t in a["turns"]) + " " + json.dumps(ex["out"], ensure_ascii=False)
