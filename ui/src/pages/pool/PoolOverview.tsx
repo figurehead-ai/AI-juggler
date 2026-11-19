@@ -17,7 +17,7 @@ import type { JSX } from "react";
 
 import { Alert } from "../../components/Alert";
 import { IconChevronRight } from "../../components/icons-controls";
-import type { PoolCanvasInfo } from "../../lib/ipc/pool-canvas";
+import { STREAM_LINES, type PoolCanvasInfo } from "../../lib/ipc/pool-canvas";
 import type { PoolRuleInfo } from "../../lib/ipc/pool-model";
 import type { PoolInfo } from "../../lib/ipc/pools";
 import { useTaskCounts } from "../../lib/ipc/tasks";
@@ -110,14 +110,20 @@ function useTaskWords(poolId: string): string | null {
   return [`${open} open`, counts.in_review > 0 ? `${counts.in_review} in review` : null, counts.blocked > 0 ? `${counts.blocked} blocked` : null].filter(Boolean).join(" · ");
 }
 
-/** "14 · last 2 min ago": the messages between its members this week
- * (the canvas's lines count the last week). */
-function messageWords(canvas: PoolCanvasInfo | null, now: number): string | null {
+/** "14 · last 2 min ago": the pool's messages this week, every kind its
+ * Messages tab lists (agents' to each other and to you, and yours), read
+ * from its Live stream, one line a message. F-rc3f-4 (0.4.6 rc3f): it
+ * summed the canvas's lines, which count only agents' messages between
+ * members drawn on it, and said "None yet" beside three in Live after a
+ * restart. The stream holds the newest lines only: full and all of them
+ * this week, there may be more ("20+"). */
+export function messageWords(canvas: PoolCanvasInfo | null, now: number): string | null {
   if (!canvas) return null;
-  const sent = canvas.edges.filter((edge) => edge.messages > 0);
-  const total = sent.reduce((sum, edge) => sum + edge.messages, 0);
-  if (total === 0) return "None yet";
-  return `${total} · last ${agoWords(Math.max(...sent.map((edge) => edge.last_at_ms)), now)}`;
+  const week = canvas.stream.filter((line) => line.at_ms >= canvas.since_ms);
+  const sent = week.filter((line) => line.source === "message");
+  if (sent.length === 0) return "None yet";
+  const more = canvas.stream.length >= STREAM_LINES && week.length === canvas.stream.length;
+  return `${sent.length}${more ? "+" : ""} · last ${agoWords(Math.max(...sent.map((line) => line.at_ms)), now)}`;
 }
 
 /** Running: the pool in a few calm facts, then Live. */

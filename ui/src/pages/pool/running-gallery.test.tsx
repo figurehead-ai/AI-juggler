@@ -9,7 +9,7 @@
  * - hidden by the user: running, kept for the pool;
  * - Edit setup: the checklist again, every step with its Change.
  */
-import { act, cleanup, fireEvent, render, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // The gallery's seams, set before the preview's fixtures are read (as
@@ -30,6 +30,8 @@ import { ActionHostProvider } from "../../components/ItemMenu";
 import { primariesIn } from "../../components/primitives";
 import { PoolPage } from "../PoolPage";
 import { resetCanvasTests } from "./canvas.test-kit";
+import { messageWords } from "./PoolOverview";
+import { STREAM_LINES, type PoolCanvasInfo, type StreamLineInfo } from "../../lib/ipc/pool-canvas";
 
 const page = () => (
   <ConversationsProvider want={null}>
@@ -100,5 +102,47 @@ describe("the gallery's Checkout team, its views (D-126 §3)", () => {
     expect(await view.findByTestId("pool-running")).toBeTruthy();
     // A done pool with a session in it runs anyway: nothing is kept hidden.
     expect(view.queryByTestId("pool-setup-hidden")).toBeNull();
+  });
+});
+
+// F-rc3f-4 (0.4.6 rc3f, P2, after a restart): "Messages this week: None
+// yet" over a Live list of three messages minutes old. The fact summed
+// the canvas's lines, which count only agents' messages between members
+// drawn on it; yours, those to you, and those to a session no longer
+// drawn were left out. It counts the pool's messages, every kind the
+// Messages tab lists.
+describe("Messages this week counts the pool's messages (F-rc3f-4)", () => {
+  const MIN = 60_000;
+  const said = (ago: number, words: string, source = "message"): StreamLineInfo => ({ at_ms: T0 - ago * MIN, words, source, session_id: null, other_session_id: null });
+
+  it("beside a Live list of messages, it counts them, yours and those to members not drawn too", async () => {
+    const seed = canvasSeed(T0);
+    Object.assign(window, {
+      ...seed,
+      __AIJ_AGENT_BRIDGE__: { asked: true, on: true },
+      // No line between drawn members: the canvas counts none.
+      __AIJ_MESSAGES__: { threads: [], messages: {}, needs: [] },
+      __AIJ_POOL_CANVAS__: { "pool-checkout": { stream: [said(4, "w1 wrote to w2: «lab one»"), said(5, "w1 wrote to w2: «lab two»"), said(6, "You wrote to w1: «lab one»"), said(8, "lead gave «write lab» to w3", "task")] } },
+    });
+    resetPreviewAgentBridge();
+    await act(async () => {
+      await refreshPools();
+    });
+    const view = render(page());
+    const running = await view.findByTestId("pool-running");
+    const fact = running.querySelector("[data-fact='messages'] dd")!;
+    await waitFor(() => expect(fact.textContent).toBe("3 · last 4 min ago"));
+  });
+
+  it("counts this week's only, and says when there may be more than the stream holds", () => {
+    const canvas = (stream: StreamLineInfo[]): PoolCanvasInfo => ({ pool_id: "p", positions: [], edges: [], asks: [], stream, since_ms: T0 - 7 * 24 * 60 * MIN, anchors: {} });
+    expect(messageWords(null, T0)).toBeNull();
+    expect(messageWords(canvas([]), T0)).toBe("None yet");
+    expect(messageWords(canvas([said(10, "a task", "task")]), T0)).toBe("None yet");
+    // One from last week reaches past the window: what's inside is all of it.
+    expect(messageWords(canvas([said(2, "new"), said(8 * 24 * 60, "old")]), T0)).toBe("1 · last 2 min ago");
+    // A full stream, all of it this week: at least that many.
+    const full = Array.from({ length: STREAM_LINES }, (_, at) => said(at + 1, `m${at}`, at % 3 === 2 ? "task" : "message"));
+    expect(messageWords(canvas(full), T0)).toBe("20+ · last 1 min ago");
   });
 });
