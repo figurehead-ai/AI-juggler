@@ -246,7 +246,6 @@ export function HomeScreen({
   // F-K2-7a (0.4.6): every one to review (the backend's count), not only
   // those the app holds; Mark all marks every one, its Undo that batch.
   const toPick = useReviewList(sessions, now, false);
-  const review = toPick.rows;
   const reviewAll = async () => {
     try {
       const done = await toPick.markAll();
@@ -341,7 +340,7 @@ export function HomeScreen({
       scroller={scroller}
       nameOf={nameOf}
       facets={{ projects, accounts, subscriptions, pools }}
-      toReview={toPick.total ?? review.length}
+      toReview={toPick.total}
       onReviewAll={() => void reviewAll()}
       onNewSession={onNewSession}
       onOpenApp={() => document.querySelector<HTMLElement>("[data-testid='home-apps'] li button")?.focus()}

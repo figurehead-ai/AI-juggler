@@ -123,7 +123,8 @@ export function HomeFeed({ stacked, now, actions, nameOf, facets, toReview, onRe
   now: number;
   actions: CardActions;
   facets: Facets;
-  toReview: number;
+  /** Sessions to review (the backend's count); `null` until counted. */
+  toReview: number | null;
   onReviewAll: () => void;
   onNewSession: () => void;
   onOpenApp: () => void;

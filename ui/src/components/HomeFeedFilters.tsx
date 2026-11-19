@@ -76,8 +76,10 @@ export function HomeFeedFilters({ filters, onChange, facets, toReview, onReviewA
   filters: FeedFiltersInfo;
   onChange: (next: FeedFiltersInfo) => void;
   facets: Facets;
-  /** Finished sessions not reviewed yet (Mark all reviewed). */
-  toReview: number;
+  /** Finished sessions not reviewed yet (Mark all reviewed): the
+   * backend's count, `null` until it is read, so no number is said
+   * before it is counted (F-K2-7a, 0.4.6). */
+  toReview: number | null;
   onReviewAll: () => void;
   onReadAll: () => void;
 }): JSX.Element {
@@ -122,7 +124,7 @@ export function HomeFeedFilters({ filters, onChange, facets, toReview, onReviewA
             <MenuItem onClick={onReadAll} testId="feed-read-all">Mark all read</MenuItem>
             {chip === "finished" && (
               <MenuItem disabled={toReview === 0} onClick={onReviewAll} testId="feed-review-all">
-                {toReview > 0 ? `Mark all ${toReview} reviewed` : "Nothing to review"}
+                {toReview === null ? "Mark all reviewed" : toReview > 0 ? `Mark all ${toReview} reviewed` : "Nothing to review"}
               </MenuItem>
             )}
           </RowMenu>
