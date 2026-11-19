@@ -410,6 +410,16 @@
           ]
         },
         {
+          "id": "model-downloads",
+          "text": "An AI model is downloaded only after you click Download, from its maker's page or ours, and that site learns only your network address, the file and the time.",
+          "tests": [
+            "crates/juggler-app/src/features/ai/models/download_tests.rs::no_request_reaches_the_network_before_the_click",
+            "crates/juggler-app/src/features/ai/models/transfer_tests.rs::a_file_arrives_verified_through_a_listed_redirect_and_is_named_by_its_hash",
+            "crates/juggler-app/src/features/ai/models/transfer_tests.rs::a_host_off_the_list_is_never_asked",
+            "crates/juggler-app/tests/trust.rs::a_model_download_reaches_only_the_compiled_model_hosts"
+          ]
+        },
+        {
           "id": "stats",
           "text": "Usage statistics are off until you choose. When on, they go to stats.figurehead.ai as counts only: never your words, files, paths or names.",
           "tests": [
