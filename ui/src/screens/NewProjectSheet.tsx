@@ -101,7 +101,8 @@ export function NewProjectSheet({
   }, [accounts]);
   const quotaByAccount = useMemo(() => {
     const map = new Map<string, QuotaDisplayData>();
-    for (const entry of quotas) map.set(entry.account, entry);
+    // AJ-E3210: a folder's own display first; another Account's on it never stands in.
+    for (const entry of quotas) if (!map.has(entry.account)) map.set(entry.account, entry);
     return map;
   }, [quotas]);
 

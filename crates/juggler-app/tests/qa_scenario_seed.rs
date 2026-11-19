@@ -2956,12 +2956,13 @@ fn week_used_keeps_an_account_out_past_the_five_hour_reset() {
         "out for days"
     );
     // Out five hours from now, as the check reads it: the week's reading.
+    // AJ-E3210: by App, its folder's CLI App.
     let read = presence_reads(
         &state,
         &[],
         "sorted(ps.out_accounts(db, int(time.time() * 1000) + 5 * 3600 * 1000))",
     );
-    assert_eq!(read, serde_json::json!([id]));
+    assert_eq!(read, serde_json::json!([format!("cli:{id}")]));
 }
 
 /// The PL1 lab as its scenario file seeds it: the six shapes 0.4.3's rail
@@ -3027,7 +3028,8 @@ fn pl1s_lab_holds_the_six_shapes() {
           'personal_scripts': ps.script_runs(a[1]), \
           'terminal': ps.cli_records(a[6], set(), {}).listed, \
           'codex': [len(ids) for ids in ps.codex_listed(a[7])], \
-          'out': sorted(label for (label,) in db.execute('select label from accounts where id in (%s)' % ','.join('?' * len(o)), list(o))) \
+          'out': sorted({label for (label,) in db.execute('select a.label from apps p join accounts a on a.id = p.folder_id where p.id in (%s) \
+              union select label from accounts where id in (%s)' % (','.join('?' * len(o)), ','.join('?' * len(o))), list(o) * 2)}) \
               if (o := ps.out_accounts(db, int(time.time() * 1000) + 5 * 3600 * 1000)) else []}",
     );
     assert_eq!(

@@ -445,6 +445,24 @@ impl<'a> SubscriptionsRepo<'a> {
         colour_slot(self.conn, "subscriptions", id)
     }
 
+    /// AJ-E3210: the Account folder `folder_id` was last read as (its CLI
+    /// sign-in); `None` when it's in none (or isn't stored).
+    ///
+    /// # Errors
+    ///
+    /// The database fails.
+    pub fn of_folder(&self, folder_id: &str) -> Result<Option<String>, CoreError> {
+        Ok(self
+            .conn
+            .query_row(
+                "SELECT subscription_id FROM accounts WHERE id = ?1",
+                params![folder_id],
+                |row| row.get::<_, Option<String>>(0),
+            )
+            .optional()?
+            .flatten())
+    }
+
     /// The Account each folder was last read as, by folder.
     ///
     /// # Errors

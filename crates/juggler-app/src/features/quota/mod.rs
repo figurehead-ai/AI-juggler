@@ -228,6 +228,12 @@ pub struct ForecastDisplay {
 pub struct QuotaDisplayInfo {
     /// Account id.
     pub account: String,
+    /// AJ-E3210 (D-135): the Account these readings were read under: the
+    /// folder's own (its CLI's sign-in), or, for a second display of the
+    /// same folder, another Account an App on it is signed in to (a Claude
+    /// app profile on its own sign-in). `None`: the folder isn't signed in.
+    #[ts(optional = nullable)]
+    pub signed_in_as: Option<String>,
     /// The 5 h window, when the plan has one.
     pub five_hour: Option<WindowDisplay>,
     /// Why the 5 h ring is omitted (e.g. Codex Pro has none).
@@ -468,14 +474,73 @@ pub fn shown(
     display
 }
 
+/// AJ-E3210 (D-135): [`shown`] for a folder, and after it a display for
+/// each other Account readings were read under on it (the last two
+/// weeks): a Claude app profile on its own sign-in reads its room there.
+/// The folder's own comes first (a reader by folder takes it).
+#[must_use]
+pub fn shown_all(
+    state: &crate::state::AppState,
+    storage: &juggler_core::storage::Storage,
+    account: &juggler_core::model::Account,
+    now_ms: i64,
+) -> Vec<QuotaDisplayInfo> {
+    let mut out = vec![shown(state, storage, account, now_ms)];
+    let own = out[0].signed_in_as.clone();
+    let since = now_ms - 2 * juggler_core::quota::WEEK_MS;
+    for other in storage
+        .usage()
+        .other_sign_ins(account.id.as_str(), own.as_deref(), since)
+        .unwrap_or_default()
+    {
+        let mut display = quota_display_as(
+            storage,
+            account,
+            now_ms,
+            juggler_core::storage::SignedInAs::Only(&other),
+        );
+        display.signed_in_as = Some(other.clone());
+        display.history_reading = out[0].history_reading;
+        out.push(display);
+    }
+    out
+}
+
 /// Evaluates one account's two-clock display from the engine (E606
 /// evaluate + E608 forecast + E411 renewal + E607 staleness).
 #[must_use]
-#[allow(clippy::too_many_lines)]
 pub fn quota_display_inner(
     storage: &juggler_core::storage::Storage,
     account: &juggler_core::model::Account,
     now_ms: i64,
+) -> QuotaDisplayInfo {
+    // AJ-E3210 (D-135): a folder's display is its own Account's (its CLI
+    // sign-in's): another Account's readings taken on it (a Claude app
+    // profile's own) never count here.
+    let own = storage
+        .subscriptions()
+        .of_folder(account.id.as_str())
+        .unwrap_or_default();
+    let mut display = quota_display_as(
+        storage,
+        account,
+        now_ms,
+        juggler_core::storage::SignedInAs::Own(own.as_deref()),
+    );
+    display.signed_in_as = own;
+    display
+}
+
+/// [`quota_display_inner`] from the readings `who` takes: the folder's own,
+/// or only another Account's (then without the folder's sessions' burn,
+/// which is its own Account's).
+#[must_use]
+#[allow(clippy::too_many_lines)]
+pub fn quota_display_as(
+    storage: &juggler_core::storage::Storage,
+    account: &juggler_core::model::Account,
+    now_ms: i64,
+    who: juggler_core::storage::SignedInAs<'_>,
 ) -> QuotaDisplayInfo {
     use juggler_core::quota::{self, AccountEvaluation, QuotaCap, SubscriptionClock, WindowKind};
     use juggler_core::quota_forecast::{self, ForecastState, RateUnits};
@@ -483,9 +548,13 @@ pub fn quota_display_inner(
     let account_id = account.id.as_str();
     let settings = storage.app_settings();
     let usage = storage.usage();
-    let events = usage
-        .events_for_account(account_id, now_ms - quota::WEEK_MS)
-        .unwrap_or_default();
+    let events = if matches!(who, juggler_core::storage::SignedInAs::Only(_)) {
+        Vec::new()
+    } else {
+        usage
+            .events_for_account(account_id, now_ms - quota::WEEK_MS)
+            .unwrap_or_default()
+    };
     let anchor = settings
         .get(&juggler_core::storage::anchor_settings_key(account_id))
         .ok()
@@ -496,13 +565,19 @@ pub fn quota_display_inner(
     // current window or the newest reading), never the whole history.
     let since = now_ms - 2 * quota::WEEK_MS;
     let sourced_five_hour = usage
-        .sourced_samples_since(account_id, juggler_core::quota::WindowKind::FiveHour, since)
+        .sourced_samples_since_as(
+            account_id,
+            juggler_core::quota::WindowKind::FiveHour,
+            since,
+            who,
+        )
         .unwrap_or_default();
     let sourced_weekly = usage
-        .sourced_samples_since(
+        .sourced_samples_since_as(
             account_id,
             juggler_core::quota::WindowKind::Weekly { anchor_ms: anchor },
             since,
+            who,
         )
         .unwrap_or_default();
     let samples_five_hour: Vec<_> = sourced_five_hour
@@ -513,7 +588,7 @@ pub fn quota_display_inner(
     // The weeks on one model only that are current (read in the last week,
     // and still in the newest reading of their source).
     let model_week_rows: Vec<(String, Vec<_>)> = usage
-        .model_week_samples_for_account(account_id)
+        .model_week_samples_as(account_id, who)
         .unwrap_or_default()
         .into_iter()
         .filter(|(_, rows)| {
@@ -866,6 +941,7 @@ pub fn quota_display_inner(
         });
     QuotaDisplayInfo {
         account: account_id.to_owned(),
+        signed_in_as: None,
         room_back,
         five_hour,
         five_hour_omitted_reason: five_hour_reason,

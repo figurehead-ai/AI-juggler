@@ -457,12 +457,22 @@ fn a_claude_app_profile_on_an_accepted_folder_keeps_its_name() {
     let dir = tempfile::tempdir().unwrap();
     let state = app_state(dir.path());
     let work = imported(&state, dir.path(), "work", "Work", true);
+    // AJ-E3210: the folder's CLI is signed in (its credential's stand-in),
+    // and the profile's own records name the same sign-in.
+    std::fs::write(dir.path().join(".claude-work/.credentials.json"), "{}").unwrap();
+    let instance = dir.path().join("ClaudeProfiles/work");
+    std::fs::create_dir_all(instance.join("claude-code-sessions/subject-a/org-a")).unwrap();
+    std::fs::write(
+        instance.join("claude-code-sessions/subject-a/org-a/local_1.json"),
+        "{}",
+    )
+    .unwrap();
     let desktop = juggler_core::storage::App {
-        id: juggler_core::storage::desktop_app_id("claude-app", Some("/p/work")),
+        id: juggler_core::storage::desktop_app_id("claude-app", instance.to_str()),
         kind: "desktop".into(),
         tool: "claude-code".into(),
         host_app_id: Some("claude-app".into()),
-        instance_dir: Some("/p/work".into()),
+        instance_dir: instance.to_str().map(str::to_owned),
         folder_id: Some(work.clone()),
         label: None,
         hidden: false,
@@ -498,16 +508,33 @@ fn a_claude_app_profile_on_an_accepted_folder_keeps_its_name() {
 /// the app's sign-in, and that `claude` writes it into the folder's
 /// `.claude.json`. That write is the app's, not the CLI signing in as
 /// another: the folder's CLI App stays on the Team seat's Account, and the
-/// move isn't made silently on every read. Today the read moves the folder
-/// (both Apps with it) to the personal plan's Account, with no record, and
-/// back on the next terminal run.
+/// move isn't made silently on every read. Before AJ-E3210 (D-135) the
+/// read moved the folder (both Apps with it) to the personal plan's
+/// Account, with no record, and back on the next terminal run.
 #[test]
-#[ignore = "F-rc3c-3 parts 1-3: open until a folder's two sign-ins are told apart (a design decision)"]
 fn a_profiles_own_sign_in_written_into_its_folder_doesnt_move_its_cli_app() {
     let dir = tempfile::tempdir().unwrap();
     let state = app_state(dir.path());
     let shared = folder(&state, "aij-test", Some(("subject-a", "org-team")));
     let plan = folder(&state, "Personal", Some(("subject-a", "org-personal")));
+    // The folder's own CLI sign-in (its credential's stand-in: AI Juggler
+    // only checks that it's there), and its CLI App, the user's (a
+    // terminal session ran there; here: named).
+    let folder_dir = state_file(&state, &shared).parent().unwrap().to_path_buf();
+    std::fs::write(folder_dir.join(".credentials.json"), "{}").unwrap();
+    state
+        .storage
+        .lock()
+        .unwrap()
+        .apps()
+        .upsert_cli("claude-code", &shared, 1)
+        .unwrap();
+    juggler_app::features::apps::rename_impl(
+        &state,
+        &format!("cli:{shared}"),
+        Some("aij-test CLI"),
+    )
+    .unwrap();
     // The profile on the shared folder; its own records are under its own
     // sign-in (`claude-code-sessions/<account>/<org>`).
     let instance = dir.path().join("ClaudeProfiles/aij-test");
@@ -549,7 +576,6 @@ fn a_profiles_own_sign_in_written_into_its_folder_doesnt_move_its_cli_app() {
     // A conversation picked in the profile's Code tab: the app's `claude`
     // (entrypoint `claude-desktop`) registers in the folder and writes the
     // app's own sign-in into the folder's state file.
-    let folder_dir = state_file(&state, &shared).parent().unwrap().to_path_buf();
     std::fs::create_dir_all(folder_dir.join("sessions")).unwrap();
     std::fs::write(
         folder_dir.join("sessions/4242.json"),

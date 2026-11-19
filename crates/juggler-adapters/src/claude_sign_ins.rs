@@ -67,10 +67,12 @@ fn newest_record_ms(dir: &Path) -> i64 {
         entries
             .flatten()
             .filter(|entry| {
-                entry
-                    .file_name()
-                    .to_str()
-                    .is_some_and(|name| name.starts_with("local_") && name.ends_with(".json"))
+                let path = entry.path();
+                path.extension().is_some_and(|ext| ext == "json")
+                    && path
+                        .file_name()
+                        .and_then(|name| name.to_str())
+                        .is_some_and(|name| name.starts_with("local_"))
             })
             .filter_map(|entry| modified_ms(&entry.path()))
             .max()
@@ -142,9 +144,34 @@ fn newest_transcript(state_dir: &Path) -> Option<(i64, PathBuf)> {
 
 /// Which kind of run wrote the sign-in in `state_dir`'s state last: the
 /// newest run there whose `entrypoint` says (a live one's pid file, else
-/// the newest transcript).
+/// the newest transcript). Kept while the folder's state file is
+/// unchanged (every run writes it): the Accounts are read every half
+/// minute while shown, and the transcripts' walk is only needed again
+/// after a run.
 #[must_use]
 pub fn writer(state_dir: &Path) -> SignInWriter {
+    use std::collections::HashMap;
+    use std::sync::{Mutex, OnceLock};
+    static KEPT: OnceLock<Mutex<HashMap<PathBuf, (i64, SignInWriter)>>> = OnceLock::new();
+    let Some(stamp) = modified_ms(&crate::claude_code::claude_state_file(state_dir)) else {
+        return writer_now(state_dir);
+    };
+    let kept = KEPT.get_or_init(|| Mutex::new(HashMap::new()));
+    if let Ok(kept) = kept.lock()
+        && let Some((at, kind)) = kept.get(state_dir)
+        && *at == stamp
+    {
+        return *kind;
+    }
+    let kind = writer_now(state_dir);
+    if let Ok(mut kept) = kept.lock() {
+        kept.insert(state_dir.to_path_buf(), (stamp, kind));
+    }
+    kind
+}
+
+/// [`writer`], read now.
+fn writer_now(state_dir: &Path) -> SignInWriter {
     let mut runs: Vec<(i64, SignInWriter)> = crate::claude_live::pid_files(state_dir)
         .iter()
         .filter_map(|path| {

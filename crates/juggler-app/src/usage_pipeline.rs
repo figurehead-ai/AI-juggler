@@ -301,6 +301,10 @@ fn ingest_pass_due(state: &Arc<AppState>, tick: u32, due: gate::Due, named: Opti
     // 0.4.4: a limit hit in a moved conversation is the folder's it was
     // written in (the move journal), not the one it sits in now.
     let spent = crate::features::handover::moved_lines::SpentOn::new(state, &accounts);
+    // AJ-E3210: each folder's Apps' Accounts, read once if a reading needs
+    // them (a shared folder's readings carry the Account they were read
+    // under).
+    let sign_ins = crate::features::quota::records::SignInsByFolder::new(state);
 
     for account in &accounts {
         let account_id = account.id.as_str().to_owned();
@@ -328,7 +332,7 @@ fn ingest_pass_due(state: &Arc<AppState>, tick: u32, due: gate::Due, named: Opti
                     &mut ingest,
                     &mut store_batch,
                     &mut sample_batch,
-                    (instances.as_deref(), &spent, named),
+                    (instances.as_deref(), &spent, &sign_ins, named),
                 );
             }
             "codex" if rereading || due.codex => {
@@ -425,6 +429,7 @@ fn store_pass(
         || usage
             .insert_model_week_samples(&sample_batch.model_weeks)
             .is_err()
+        || usage.insert_signed_samples(&sample_batch.signed).is_err()
     {
         return false;
     }
@@ -677,9 +682,10 @@ fn ingest_claude(
     ingest: &mut IngestState,
     store: &mut Vec<juggler_core::quota::UsageEvent>,
     samples: &mut SampleBatch,
-    (instances, spent, named): (
+    (instances, spent, sign_ins, named): (
         Option<&[PathBuf]>,
         &crate::features::handover::moved_lines::SpentOn<'_>,
+        &crate::features::quota::records::SignInsByFolder<'_>,
         Option<&Named>,
     ),
 ) {
@@ -732,9 +738,12 @@ fn ingest_claude(
         let outcome = tail_one(source, account, "transcript", path, ingest, store);
         for (kind, sample) in outcome.samples {
             if let Some(on) = spent.folder(account, path, sample.ts) {
-                samples
-                    .windows
-                    .push((on, kind, sample, UsageSource::ApiRetry));
+                crate::features::quota::records::push_hit(
+                    samples,
+                    (on, kind, sample),
+                    path,
+                    sign_ins,
+                );
             }
         }
     }
@@ -750,7 +759,7 @@ fn ingest_claude(
         let now_ms = juggler_core::model::Timestamp::now().millis();
         if walked {
             crate::features::quota::records::look_back_for_hits(
-                (account, spent),
+                (account, spent, sign_ins),
                 &files,
                 now_ms,
                 records,
@@ -758,7 +767,12 @@ fn ingest_claude(
             );
         }
         crate::features::quota::records::read_claude_records(
-            account, dir, instances, records, samples,
+            account,
+            dir,
+            instances,
+            sign_ins.of(account),
+            records,
+            samples,
         );
     }
 }

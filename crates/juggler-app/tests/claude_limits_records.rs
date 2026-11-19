@@ -122,6 +122,9 @@ fn meter(instance: &Path, samples: &[(i64, f64, Option<f64>)]) {
 }
 
 fn display(setup: &Setup) -> juggler_app::features::quota::QuotaDisplayInfo {
+    // AJ-E3210: a folder's readings are its Account's, as its sign-in was
+    // last read (the window reads the Accounts as it opens).
+    juggler_app::features::subscriptions::list_impl(&setup.state).unwrap();
     let storage = setup.state.storage.lock().unwrap();
     let account = storage
         .accounts()
