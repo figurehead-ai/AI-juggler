@@ -102,6 +102,12 @@ export function poolIdsOf(pools: PoolsInfo | null, session: InstanceInfo): strin
   return rows.length > 0 ? rows.map((row) => row.pool_id) : [defaultPoolIdOf(session.project_id)];
 }
 
+/** A pool's sessions open now, as its page's header counts them (its
+ * canvas and its Now say the same, F-rc3g-8). */
+export function openInPool(pools: PoolsInfo | null, sessions: readonly InstanceInfo[], poolId: string): InstanceInfo[] {
+  return sessions.filter((session) => sessionState(session).state !== "ended" && poolIdsOf(pools, session).includes(poolId));
+}
+
 /** The pool a session is in: the place the pools name, else its
  * project's default pool. */
 export function poolIdOf(pools: PoolsInfo | null, session: InstanceInfo): string {

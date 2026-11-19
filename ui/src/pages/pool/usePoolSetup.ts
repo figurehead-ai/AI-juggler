@@ -102,6 +102,13 @@ export function usePoolSetup(input: {
   };
 }
 
+/** D-126 §3: the diagram draws the planned team before any session joins:
+ * none in the pool (F-rc3g-8: not just none drawn, "No one has joined
+ * yet" beside "3 open · 88 in all"), none drawn, a broad member to draw. */
+export function drawsPlanned(pool: Pick<PoolInfo, "members">, drawn: number, broad: number): boolean {
+  return pool.members === 0 && drawn === 0 && broad > 0;
+}
+
 /** The member rules the diagram draws as cards: a project's own pool
  * draws no "Everyone in web" card (round 5): its header says every
  * session in web is part of it, and Everyone else sets their role. */

@@ -20,6 +20,7 @@ import { IconChevronRight } from "../../components/icons-controls";
 import { STREAM_LINES, type PoolCanvasInfo } from "../../lib/ipc/pool-canvas";
 import type { PoolRuleInfo } from "../../lib/ipc/pool-model";
 import type { PoolInfo } from "../../lib/ipc/pools";
+import type { InstanceInfo } from "../../types/generated/InstanceInfo";
 import { useTaskCounts } from "../../lib/ipc/tasks";
 import { nextLine } from "../../lib/pool-sentences";
 import { stepValues } from "../../lib/pool-values";
@@ -48,6 +49,9 @@ type OverviewProps = {
   pool: PoolInfo;
   canvas: PoolCanvasInfo | null;
   members: readonly MemberNode[];
+  /** Its sessions open now, as its header counts them (F-rc3g-8: past 50
+   * the canvas draws a member's as one card, never "Nothing open now"). */
+  open: readonly InstanceInfo[];
   rules: PoolRules;
   ruleLabel: (rule: PoolRuleInfo) => string;
   where: string;
@@ -93,9 +97,9 @@ export function SetupView(props: OverviewProps): JSX.Element {
   );
 }
 
-/** "1 working · 1 asks you · 1 idle", from its open members. */
-function nowWords(members: readonly MemberNode[]): string {
-  const states = members.map((member) => sessionState(member.session));
+/** "1 working · 1 asks you · 1 idle", from its open sessions. */
+function nowWords(open: readonly InstanceInfo[]): string {
+  const states = open.map((session) => sessionState(session));
   const count = (n: number, words: string) => (n > 0 ? `${n} ${words}` : null);
   const parts = [count(states.filter((one) => one.state === "working" && !one.needs).length, "working"), count(states.filter((one) => one.needs).length, "asks you"), count(states.filter((one) => one.state === "idle" && !one.needs).length, "idle")].filter(Boolean);
   return parts.join(" · ") || "Nothing open now";
@@ -128,11 +132,11 @@ export function messageWords(canvas: PoolCanvasInfo | null, now: number): string
 
 /** Running: the pool in a few calm facts, then Live. */
 export function RunningSummary(props: OverviewProps & { leadNext: string | null }): JSX.Element {
-  const { pool, members, canvas, now, leadNext } = props;
+  const { pool, members, open, canvas, now, leadNext } = props;
   const tasks = useTaskWords(pool.id);
   const lead = members.find((member) => member.role === "lead");
   const facts: [string, string | null, string][] = [
-    ["Now", nowWords(members.filter((member) => sessionState(member.session).state !== "ended")), "now"],
+    ["Now", nowWords(open), "now"],
     ["Tasks", tasks, "tasks"],
     ["Lead", lead ? lead.name : leadNext ? nextSessionWords(leadNext) : "No lead for now", "lead"],
     ["On their own", ownMay(pool.access.level, pickedCount(pool)), "own"],

@@ -276,6 +276,7 @@ describe("D-126: the wizard's steps and the diagram's checklist say each value t
         pool={pool}
         canvas={null}
         members={[]}
+        open={[]}
         rules={{ rules: made, watched: [], reload: () => undefined }}
         ruleLabel={(one) => NAMES[one.member]!}
         where={WHERE}

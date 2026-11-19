@@ -29,8 +29,8 @@ import { EmptyPoolSetup, SetupSkeleton } from "./pool/EmptyPoolSetup";
 import type { PoolRules } from "../lib/pool-rules";
 import { FOCUS_THREAD, useMessageNeeds } from "../lib/ipc/messages";
 import { FOCUS_TASK, focusTask, useTaskNeeds, type TaskInfo } from "../lib/ipc/tasks";
-import { needWords, poolById, poolIdOf, poolIdsOf, poolNeedCount, scopeChipWords, scopeLabel, setPools, usePools } from "../lib/pools";
-import { drawnRules, everyoneOf, usePoolSetup } from "./pool/usePoolSetup";
+import { needWords, openInPool, poolById, poolIdOf, poolIdsOf, poolNeedCount, scopeChipWords, scopeLabel, setPools, usePools } from "../lib/pools";
+import { drawnRules, drawsPlanned, everyoneOf, usePoolSetup } from "./pool/usePoolSetup";
 import { desktopRecipients } from "../lib/connector";
 import { useDesktopOnCanvas } from "./pool/useDesktopOnCanvas";
 import { PoolSetupSections } from "./pool/PoolSetupSections";
@@ -56,7 +56,7 @@ import { PoolPanel } from "./pool/PoolPanel";
 import { useSetupPhase, useSetupProgress } from "./pool/setup-progress";
 
 export { poolCountWords } from "./pool/pool-count";
-import { poolCountWords } from "./pool/pool-count";
+import { poolCountWords, rulesOnlyWords } from "./pool/pool-count";
 
 /** Where a link in asked the page to open (read once, on arrival). */
 function arrival(): { panel: Panel; settings: boolean } {
@@ -196,8 +196,9 @@ function PoolCanvasPage({ poolId, sessions, projects, accounts, now, rules }: Pa
     },
     [setPanel],
   );
-  // What needs you, counted as its Pools card counts it.
-  const openHere = sessions.filter((session) => sessionState(session).state !== "ended" && poolIdsOf(pools, session).includes(pool.id));
+  // What needs you, counted as its Pools card counts it; its open
+  // sessions, as its canvas and Now count them (F-rc3g-8).
+  const openHere = openInPool(pools, sessions, pool.id);
   const needs = poolNeedCount(pool.id, messageNeeds, taskNeeds, openHere);
   const elsewhere = project ? liveOutside(all).filter((c) => c.project_id === project.id).length : 0;
   const scopeWords = scopeChipWords(pool, projects);
@@ -227,7 +228,7 @@ function PoolCanvasPage({ poolId, sessions, projects, accounts, now, rules }: Pa
   const { where } = setup;
   // D-126 §3: before any session joins, the canvas draws the planned team.
   const broad = drawnRules(pool, memberRules).filter((rule) => rule.kind !== "session" && !rule.member.startsWith("conversation:"));
-  const planned = data.members.length === 0 && desktop.refs.length === 0 && broad.length > 0;
+  const planned = drawsPlanned(pool, data.members.length + desktop.refs.length, broad.length);
   // D-126 §3: setting up (its checklist, the planned team) until a session
   // has joined and the setup is done, or Hide setup; then the calm view.
   const progress = useSetupProgress({ pool, rows: setup.rows, places: setup.tools, rules, ruleLabel });
@@ -315,7 +316,7 @@ function PoolCanvasPage({ poolId, sessions, projects, accounts, now, rules }: Pa
                 planned ? null : peopled ? (
                   <p className={"pointer-events-none absolute inset-x-0 bottom-16 text-center text-meta text-ink-2" + (paletteOpen ? " pl-[16.5rem]" : "")} data-testid="canvas-rules-only">
                     {/* Walk K1: sessions in it, none open (no member to click). */}
-                    {hasRules ? "Its sessions show here as they start. Click a member for its role and what it may do." : "None of its sessions is open: they show here as they start, and every one is in the List view."}{" "}
+                    {rulesOnlyWords(hasRules, openHere.length)}{" "}
                     <button type="button" onClick={() => setTemplate(true)} className="pointer-events-auto font-medium text-accent-hi underline-offset-2 hover:underline" data-testid="canvas-rules-template">
                       Use a template
                     </button>
@@ -349,6 +350,7 @@ function PoolCanvasPage({ poolId, sessions, projects, accounts, now, rules }: Pa
           project={project}
           canvas={data.canvas}
           members={data.members}
+          open={openHere}
           names={names}
           selection={selection}
           now={now}
