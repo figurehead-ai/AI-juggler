@@ -40,8 +40,11 @@ lab runs. This reads the same accessibility lines and checks, read-only:
    surface lists (`state_5.sqlite`: source `cli` or `vscode`, not
    archived) is in one App by its originator: the Codex app's count plus
    Codex CLI's is the store's listed total, and Codex CLI's is the
-   threads no desktop originator started. The store is opened read-only
-   (or a copy is read); nothing in it is written.
+   threads no desktop originator started. 0.4.6 (the rc3 presence run):
+   as a Claude Code CLI App's, AI Juggler's own runs on the folder are
+   rows of their own (two on one thread two, one that never made a thread
+   one), and a thread one of them is on isn't counted again. The store is
+   opened read-only (or a copy is read); nothing in it is written.
 
 Nothing here clicks, types or writes outside the report.
 """
@@ -260,15 +263,15 @@ def codex_store(home: Path) -> Path | None:
     return found[-1] if found else None
 
 
-def codex_threads(store: Path) -> list[tuple[str | None, str]]:
-    """Each listed thread's originator (`None` when the table has none) and
-    rollout path, read-only: the store opened `mode=ro`, else (a closed WAL
-    store has no shared memory to read through) a copy of it."""
+def codex_threads(store: Path) -> list[tuple[str, str | None, str]]:
+    """Each listed thread's id, originator (`None` when the table has none)
+    and rollout path, read-only: the store opened `mode=ro`, else (a closed
+    WAL store has no shared memory to read through) a copy of it."""
     has = "select name from pragma_table_info('threads') where name = 'originator'"
-    query = "select {originator}, rollout_path from threads where source in ({sources}) and archived = 0"
+    query = "select id, {originator}, rollout_path from threads where source in ({sources}) and archived = 0"
     sources = ", ".join(f"'{source}'" for source in CODEX_LISTED_SOURCES)
 
-    def read(db: sqlite3.Connection) -> list[tuple[str | None, str]]:
+    def read(db: sqlite3.Connection) -> list[tuple[str, str | None, str]]:
         originator = "originator" if db.execute(has).fetchone() else "null"
         return list(db.execute(query.format(originator=originator, sources=sources)))
 
@@ -292,23 +295,24 @@ def codex_threads(store: Path) -> list[tuple[str | None, str]]:
             db.close()
 
 
-def codex_listed(home: Path) -> tuple[int, int]:
+def codex_listed(home: Path) -> tuple[frozenset[str], frozenset[str]]:
     """0.4.3 (D-102): the threads a Codex surface lists (source `cli` or
-    `vscode`, not archived; a subagent's has another source), as (the Codex
-    app's: an originator naming desktop, the rest: Codex CLI's), from the
-    `threads` table's originator, else each rollout's first line."""
+    `vscode`, not archived; a subagent's has another source), by id, as
+    (the Codex app's: an originator naming desktop, the rest: Codex CLI's),
+    from the `threads` table's originator, else each rollout's first line."""
     store = codex_store(home)
     if store is None:
-        return 0, 0
-    desktop = other = 0
-    for originator, rollout in codex_threads(store):
+        return frozenset(), frozenset()
+    desktop: set[str] = set()
+    other: set[str] = set()
+    for thread, originator, rollout in codex_threads(store):
         if originator is None:
             originator = rollout_originator(Path(rollout))
         if "desktop" in (originator or "").lower():
-            desktop += 1
+            desktop.add(thread)
         else:
-            other += 1
-    return desktop, other
+            other.add(thread)
+    return frozenset(desktop), frozenset(other)
 
 
 def own_sessions(db: sqlite3.Connection) -> dict[str, dict[str, str | None]]:
@@ -470,24 +474,45 @@ def drawn_count(app: RailApp) -> int | None:
     return app.rows
 
 
-def codex_problems(rail: list[RailApp], apps: list[KnownApp], codex: dict[str, tuple[int, int]]) -> tuple[list[str], list[str]]:
+Listed = tuple[frozenset[str], frozenset[str]]
+
+
+def codex_problems(
+    rail: list[RailApp],
+    apps: list[KnownApp],
+    codex: dict[str, Listed],
+    own: dict[str, dict[str, str | None]] | None = None,
+) -> tuple[list[str], list[str]]:
     """D-102: each Codex home's listed threads (`codex`: folder → (the
-    Codex app's, the rest)) against the rail: the Codex app's count plus
+    Codex app's ids, the rest)) against the rail: the Codex app's count plus
     Codex CLI's Inactive "N sessions" is the total, Codex CLI's the rest
-    (alone when the Codex app's count isn't drawn)."""
+    (alone when the Codex app's count isn't drawn). 0.4.6: AI Juggler's own
+    runs on the folder (`own`: session id → its thread) are Codex CLI's
+    rows, each one, and a thread one is on is theirs, not counted again
+    (`cli_records`'s rule, `features::relations::build`)."""
     lines: list[str] = []
     problems: list[str] = []
-    for folder, (desktop, other) in sorted(codex.items()):
+    for folder, (desktop_ids, other_ids) in sorted(codex.items()):
+        runs = (own or {}).get(folder, {})
+        ran = {thread for thread in runs.values() if thread}
+        desktop = len(desktop_ids - ran)
+        other = len(runs) + len(other_ids - ran)
+        total = desktop + other
         named = {(app.kind, app.name) for app in apps if app.tool == "codex" and app.folder == folder}
         app = next((one for one in rail if ("desktop", one.name) in named), None)
         cli = next((one for one in rail if ("cli", one.name) in named and one.section == "idle"), None)
         app_count = drawn_count(app) if app else None
         cli_count = (cli.sessions or 0) if cli else None
-        lines.append(f"  codex store: {desktop} by the Codex app + {other} others = {desktop + other} listed; rail: app={app_count} cli={cli_count}")
+        listed = len(desktop_ids) + len(other_ids)
+        lines.append(
+            f"  codex store: {len(desktop_ids)} by the Codex app + {len(other_ids)} others = {listed} listed;"
+            f" AI Juggler's runs: {len(runs)}, on {len(ran & (desktop_ids | other_ids))} of them;"
+            f" so app={desktop} cli={other}; rail: app={app_count} cli={cli_count}"
+        )
         if cli_count is not None and cli_count != other:
-            problems.append(f"Codex CLI says {cli_count} sessions, the Codex store lists {other} not the Codex app's: {cli.name}")  # type: ignore[union-attr]
-        if app_count is not None and cli_count is not None and app_count + cli_count != desktop + other:
-            problems.append(f"the Codex app's {app_count} and Codex CLI's {cli_count} aren't the store's {desktop + other} listed threads")
+            problems.append(f"Codex CLI says {cli_count} sessions, its runs and the store's threads not the Codex app's are {other}: {cli.name}")  # type: ignore[union-attr]
+        if app_count is not None and cli_count is not None and app_count + cli_count != total:
+            problems.append(f"the Codex app's {app_count} and Codex CLI's {cli_count} aren't the {total} of the store's threads and AI Juggler's runs")
     return lines, problems
 
 
@@ -497,7 +522,7 @@ def check(
     out: set[str],
     leftovers: int,
     own: dict[str, dict[str, str | None]] | None = None,
-    codex: dict[str, tuple[int, int]] | None = None,
+    codex: dict[str, Listed] | None = None,
 ) -> tuple[list[str], list[str]]:
     """The lines to print and the problems: unfold, records, Out marks,
     labs, and (D-102) each Codex home's listed threads (`codex`, from
@@ -554,7 +579,7 @@ def check(
                 problems.append(f"All N sessions says {shown.show_all}, its records hold {mine.listed}: {shown.name}")
     if leftovers:
         problems.append(f"{leftovers} new transcript(s) of a lab run in a real profile's folder")
-    more_lines, more = codex_problems(rail, apps, codex or {})
+    more_lines, more = codex_problems(rail, apps, codex or {}, own)
     return lines + more_lines, problems + more
 
 
@@ -718,8 +743,9 @@ def selftest_d102() -> None:
             # As Codex leaves it closed: no shared memory to read through.
             for suffix in ("-wal", "-shm"):
                 Path(f"{home}/state_5.sqlite{suffix}").unlink(missing_ok=True)
-            assert codex_listed(home) == (2, 2), (with_column, codex_listed(home))
-        assert codex_listed(Path(tmp)) == (0, 0), "no store"
+            listed = codex_listed(home)
+            assert listed == (frozenset({"t0", "t1"}), frozenset({"t2", "t3"})), (with_column, listed)
+        assert codex_listed(Path(tmp)) == (frozenset(), frozenset()), "no store"
         folder = Path(tmp) / "claude"
         (folder / "projects/-w").mkdir(parents=True)
         for sid, entry in (("term", "cli"), ("run", "sdk-cli"), ("py", "sdk-py"), ("ours", "sdk-cli")):
@@ -736,13 +762,27 @@ def selftest_d102() -> None:
             ("AXButton", f"Codex CLI · Codex home, CLI app, 2 d ago · {cli_sessions} sessions", ""),
         ])
 
-    store = {"f-codex": (15, 33)}
+    store = {"f-codex": (frozenset(f"d{n}" for n in range(15)), frozenset(f"o{n}" for n in range(33)))}
     assert not check(rail(33, False), codex_apps, set(), 0, None, store)[1]
     _, problems = check(rail(92, False), codex_apps, set(), 0, None, store)
-    assert len(problems) == 2 and "says 92 sessions" in problems[0] and "aren't the store's 48" in problems[1], problems
+    assert len(problems) == 2 and "says 92 sessions" in problems[0] and "aren't the 48 of" in problems[1], problems
     _, problems = check(rail(92, True), codex_apps, set(), 0, None, store)
     assert len(problems) == 1 and "says 92 sessions" in problems[0], "the app's count not drawn: Codex CLI's alone"
     assert not check(rail(33, True), codex_apps, set(), 0, None, store)[1]
+    # 0.4.6 (the rc3 presence run): AI Juggler's runs are Codex CLI's rows,
+    # each one: two on one thread two, one that made no thread one, one on
+    # a thread the store doesn't list one; the thread they're on isn't
+    # counted again.
+    runs = {"f-codex": {"s-1": "o0", "s-2": "o0", "s-3": None, "s-4": "gone"}}
+    assert not check(rail(36, False), codex_apps, set(), 0, runs, store)[1], "4 runs + 32 threads"
+    _, problems = check(rail(33, True), codex_apps, set(), 0, runs, store)
+    assert len(problems) == 1 and "says 33 sessions" in problems[0] and "are 36" in problems[0], problems
+    # A run on a thread the Codex app started is Codex CLI's row: the app
+    # lists one fewer.
+    runs = {"f-codex": {"s-5": "d0"}}
+    assert not check(rail(34, True), codex_apps, set(), 0, runs, store)[1]
+    _, problems = check(rail(34, False), codex_apps, set(), 0, runs, store)
+    assert len(problems) == 1 and "the Codex app's 15 and Codex CLI's 34 aren't the 48" in problems[0], problems
 
 
 if __name__ == "__main__":

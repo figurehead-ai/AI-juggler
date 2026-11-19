@@ -2833,7 +2833,7 @@ fn the_codex_app_and_codex_cli_share_the_labs_codex_folder() {
     assert_eq!(recipes.len(), 1);
     // The store, as the real-Mac check reads it: the Codex app's 2, the
     // rest 1 (the script's run is listed by no Codex surface).
-    let read = presence_reads(&state, &[&codex], "ps.codex_listed(a[0])");
+    let read = presence_reads(&state, &[&codex], "[len(ids) for ids in ps.codex_listed(a[0])]");
     assert_eq!(read, serde_json::json!([2, 1]));
 }
 
@@ -2945,7 +2945,7 @@ fn pl1s_lab_holds_the_six_shapes() {
         "{'records': [ps.desktop_records(a[i], a[i + 1])[0].listed for i in (0, 2, 4)], \
           'personal_scripts': ps.script_runs(a[1]), \
           'terminal': ps.cli_records(a[6], set(), {}).listed, \
-          'codex': ps.codex_listed(a[7]), \
+          'codex': [len(ids) for ids in ps.codex_listed(a[7])], \
           'out': sorted(label for (label,) in db.execute('select label from accounts where id in (%s)' % ','.join('?' * len(o)), list(o))) \
               if (o := ps.out_accounts(db, int(time.time() * 1000) + 5 * 3600 * 1000)) else []}",
     );
