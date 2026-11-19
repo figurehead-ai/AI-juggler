@@ -37,7 +37,9 @@ pub use model::{
 pub use secrets::{
     KeychainStore, MemoryStore, SecretStore, in_files, keychain_reachable, use_files,
 };
-pub use transport::{HttpRequest, HttpResponse, RecordingTransport, Transport, UreqTransport};
+pub use transport::{
+    HttpRequest, HttpResponse, RecordingTransport, StreamResponse, Transport, UreqTransport,
+};
 pub use vault::{VaultError, VaultKey, VaultKeychain};
 
 /// The production service. Release builds always use it.
