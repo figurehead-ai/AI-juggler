@@ -11,7 +11,8 @@ import { PoolCardRows } from "../../components/PoolCards";
 import { IconPool } from "../../components/icons-actions";
 import { Button } from "../../components/primitives";
 import { useActionHost } from "../../components/ItemMenu";
-import { defaultPoolIdOf, levelLabel, requestNewPool, usePoolMembers, usePools } from "../../lib/pools";
+import { defaultPoolIdOf, requestNewPool, usePoolMembers, usePools } from "../../lib/pools";
+import { agentsHereLine } from "../../lib/pool-words";
 import { useTaskNeeds } from "../../lib/ipc/tasks";
 import { sessionState } from "../../lib/rail-items";
 import type { InstanceInfo } from "../../types/generated/InstanceInfo";
@@ -56,7 +57,7 @@ export function ProjectPool({ project, sessions, now }: { project: ProjectInfo; 
       <Section
         title={`${project.name}'s own pool`}
         icon={<IconPool width={15} height={15} />}
-        sub={[`every session in ${project.name}, as one team`, pool ? `${pool.members} ${pool.members === 1 ? "session" : "sessions"}` : null, summary || null, pool ? `on their own: ${levelLabel(pool.access.level)}` : null].filter(Boolean).join(" · ")}
+        sub={[`every session in ${project.name}, as one team`, pool ? `${pool.members} ${pool.members === 1 ? "session" : "sessions"}` : null, summary || null, pool ? agentsHereLine(pool) : null].filter(Boolean).join(" · ")}
         actions={
           // Round 3 (#7): a click before the pools are read went nowhere;
           // until then the button waits, saying so, with a spinner.

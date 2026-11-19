@@ -279,7 +279,7 @@ export function ProjectOverview(props: ProjectPanelProps) {
           <>
             {accountsCard}
             {/* The 0.2 walk (F10): its Tasks and Messages, one click away. */}
-            <ProjectAgentsCard projectId={project.id} />
+            <ProjectAgentsCard project={project} />
           </>
         }
         checkouts={checkoutsCard}
