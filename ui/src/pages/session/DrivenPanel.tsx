@@ -24,6 +24,7 @@ import { runtimeEnd, runtimeHandover, runtimeInterrupt, runtimeResume, runtimeSe
 import { useFolderTrust } from "../../components/FolderTrustAsk";
 import { messagesTyping } from "../../lib/ipc/messages";
 import { resetsWords } from "../../lib/time-words";
+import { noteStop, turnNotes } from "../../lib/turn-words";
 
 const ITEM_WORDS: Record<string, string> = {
   user_message: "You",
@@ -64,6 +65,9 @@ export function DrivenPanel({ session, onOpenSession }: { session: InstanceInfo;
       },
     );
   };
+  // F-rc3f-5: notes and the turn's error in words, never a tool's code;
+  // the line under the box only while nothing came after it.
+  const notes = turnNotes(session.id, runtime, view?.items ?? []);
   const cutOff = runtime?.cut_off ?? null;
   const state = cutOff ? "cut_off" : runtime?.state ?? null;
   // Ended, or cut off: nothing to send to until Resume.
@@ -83,7 +87,20 @@ export function DrivenPanel({ session, onOpenSession }: { session: InstanceInfo;
         </div>
         <div className="flex items-center gap-1.5">
           {state === "working" && (
-            <Button size="sm" variant="secondary" disabled={busy !== null} onClick={() => act("interrupt", () => runtimeInterrupt(session.id))}>
+            <Button
+              size="sm"
+              variant="secondary"
+              disabled={busy !== null}
+              onClick={() =>
+                act("interrupt", () => {
+                  const undo = noteStop(session.id, "interrupt");
+                  return runtimeInterrupt(session.id).catch((cause: unknown) => {
+                    undo();
+                    throw cause;
+                  });
+                })
+              }
+            >
               Interrupt
             </Button>
           )}
@@ -129,7 +146,7 @@ export function DrivenPanel({ session, onOpenSession }: { session: InstanceInfo;
       {(runtime?.asks ?? []).map((ask) => (
         <AskCard key={ask.id} ask={ask} />
       ))}
-      <DrivenItems items={view?.items ?? []} streaming={view?.streaming ?? null} />
+      <DrivenItems items={notes.items} streaming={view?.streaming ?? null} />
       {(view?.items ?? []).length === 0 && !view?.streaming && session.conversation_id && host.openConversationById && (
         // The RC walk: a conversation continued here (Run in AI Juggler,
         // Resume) showed a blank page; its earlier turns are the tool's.
@@ -168,7 +185,11 @@ export function DrivenPanel({ session, onOpenSession }: { session: InstanceInfo;
           </Button>
         </form>
       )}
-      {runtime?.error && <p className="text-label text-warning">{runtime.error}</p>}
+      {notes.standing && (
+        <p className={"text-label " + (notes.standing.yours ? "text-muted" : "text-warning")} data-testid="runtime-error">
+          {notes.standing.text}
+        </p>
+      )}
       {trust.element}
       {error && (
         <p role="alert" className="text-label text-danger">

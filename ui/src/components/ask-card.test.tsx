@@ -20,6 +20,7 @@ import { ActionHostProvider } from "./ItemMenu";
 import { instance } from "../test/fixtures";
 import type { AskInfo, RuntimeViewInfo } from "../lib/ipc/runtime";
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
+import { forgetStops } from "../lib/turn-words";
 
 type Seams = { __AIJ_RUNTIME__?: Record<string, RuntimeViewInfo>; __AIJ_RUNTIME_CALLS__?: string[] };
 const seams = () => window as unknown as Seams;
@@ -90,6 +91,7 @@ const view = (asks: AskInfo[]): RuntimeViewInfo => ({
 beforeEach(() => {
   seams().__AIJ_RUNTIME__ = {};
   delete seams().__AIJ_RUNTIME_CALLS__;
+  forgetStops();
 });
 afterEach(() => cleanup());
 
@@ -224,5 +226,85 @@ describe("a driven session's page", () => {
     expect(opened).toBe("sess-1");
     await act(async () => fireEvent.click(getByTestId("runtime-end")));
     expect(calls()).toEqual(["resume:sess-1", "end:sess-1"]);
+  });
+});
+
+// F-rc3f-5 (0.4.6 rc3f): after "Deny and stop" on a session run without a
+// terminal, the conversation said "NOTE error_during_execution" and the
+// line under the message box kept saying "error_during_execution" after
+// the next turn had gone well. A turn the user stopped says so in plain
+// words, a tool's other bare codes too, and the line goes once a new
+// turn runs or answers.
+describe("a turn that didn't finish, in words", () => {
+  const STOPPED = "error_during_execution";
+  const claudeAsk = approval({
+    options: [
+      { id: "allow", label: "Allow once", effect: "allow_once", rule: null },
+      { id: "deny", label: "Deny", effect: "deny", rule: null },
+      { id: "deny_stop", label: "Deny and stop", effect: "deny_and_stop", rule: null },
+    ],
+  });
+  const after = (over: Partial<RuntimeViewInfo["runtime"]>, items: RuntimeViewInfo["items"]): RuntimeViewInfo => {
+    const base = view([]);
+    return { ...base, runtime: { ...base.runtime, limits: [], ...over }, items };
+  };
+  const panel = (id = "sess-1") => {
+    const session = instance({ id, conversation_id: null, runtime: seams().__AIJ_RUNTIME__![id]!.runtime });
+    return render(<DrivenPanel session={session} />);
+  };
+
+  it("after Deny and stop: \"Stopped: you chose Deny and stop\", never the tool's code; the line goes once the next turn answers", async () => {
+    seams().__AIJ_RUNTIME__ = { "sess-1": view([claudeAsk]) };
+    const asking = panel();
+    await act(async () => fireEvent.click(await asking.findByTestId("ask-option-deny_stop")));
+    expect(calls()).toEqual(["answer:sess-1:0:deny_stop"]);
+    asking.unmount();
+    // The tool ends the turn: its error, and a note in the conversation.
+    const stoppedAt = Date.now() + 50;
+    const note = { kind: "note", text: STOPPED, at_ms: stoppedAt };
+    seams().__AIJ_RUNTIME__ = { "sess-1": after({ state: "idle", error: STOPPED }, [{ kind: "user_message", text: "Run the tests", at_ms: 1 }, note]) };
+    const stopped = panel();
+    await waitFor(() => expect(stopped.getByTestId("driven-items").textContent).toContain("Stopped: you chose Deny and stop"));
+    expect(stopped.getByTestId("runtime-error").textContent).toBe("Stopped: you chose Deny and stop");
+    expect(stopped.getByTestId("driven-panel").textContent).not.toContain(STOPPED);
+    stopped.unmount();
+    // The next turn runs: the line goes (the tool's last error stays set).
+    seams().__AIJ_RUNTIME__ = { "sess-1": after({ state: "working", error: STOPPED }, [note]) };
+    const running = panel();
+    await waitFor(() => expect(running.getByTestId("driven-items").textContent).toContain("Stopped: you chose Deny and stop"));
+    expect(running.queryByTestId("runtime-error")).toBeNull();
+    running.unmount();
+    // ...and it answered: still gone, the conversation keeps the note in words.
+    seams().__AIJ_RUNTIME__ = { "sess-1": after({ state: "idle", error: STOPPED }, [note, { kind: "agent_message", text: "All tests pass.", at_ms: stoppedAt + 5_000 }]) };
+    const answered = panel();
+    await waitFor(() => expect(answered.getByTestId("driven-items").textContent).toContain("All tests pass."));
+    expect(answered.queryByTestId("runtime-error")).toBeNull();
+    expect(answered.getByTestId("driven-panel").textContent).not.toContain(STOPPED);
+  });
+
+  it("an Interrupt says so; a stop it didn't see, and the tool's other codes, in words too", async () => {
+    seams().__AIJ_RUNTIME__ = { "sess-1": after({ state: "working" }, []) };
+    const working = panel();
+    await act(async () => fireEvent.click(await working.findByRole("button", { name: "Interrupt" })));
+    working.unmount();
+    seams().__AIJ_RUNTIME__ = { "sess-1": after({ state: "idle", error: STOPPED }, [{ kind: "note", text: STOPPED, at_ms: Date.now() + 50 }]) };
+    const interrupted = panel();
+    await waitFor(() => expect(interrupted.getByTestId("runtime-error").textContent).toBe("Stopped: you interrupted it"));
+    interrupted.unmount();
+    const words: [string, string][] = [
+      [STOPPED, "Stopped before it finished"],
+      ["error_max_turns", "Stopped: it reached the most turns it may take"],
+      ["error_max_budget_usd", "Stopped: it reached its spending limit"],
+      ["error_some_new_code", "Stopped with an error"],
+      // A tool's own sentence stays as it is.
+      ["Credit balance is too low", "Credit balance is too low"],
+    ];
+    for (const [code, said] of words) {
+      seams().__AIJ_RUNTIME__ = { "sess-2": { ...after({ state: "idle", error: code }, [{ kind: "note", text: code, at_ms: 5 }]), session_id: "sess-2" } };
+      const other = panel("sess-2");
+      await waitFor(() => expect(other.getByTestId("runtime-error").textContent).toBe(said));
+      expect(other.getByTestId("driven-items").textContent).toContain(said);
+      other.unmount();
+    }
   });
 });
