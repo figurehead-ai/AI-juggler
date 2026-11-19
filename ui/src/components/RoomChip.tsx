@@ -9,7 +9,7 @@
 import type { JSX } from "react";
 import { IconGaugeEmpty, IconGaugeLow } from "./icons";
 import type { RoomMark } from "../lib/room-mark";
-import { useQuotaDisplays } from "../lib/kept-reads";
+import { READINGS_EVERY_MS, useQuotaDisplays } from "../lib/kept-reads";
 import { useSubscriptions } from "../lib/subscriptions";
 import { roomCountWords, roomCounts, roomMarkOfProfile } from "../lib/room-mark";
 import { clocksWhole } from "../lib/time-words";
@@ -75,10 +75,13 @@ export function RoomChip({ mark, size = "sm", compact = false, iconOnly = false,
 }
 
 /** The mark for folder `profileId`, from the shared reads every screen
- * uses (the readings kept for half a minute, the Accounts). */
+ * uses (the readings kept for half a minute, the Accounts). F-rc3c-3:
+ * the Accounts are read as often as the readings (a mark stays drawn in
+ * the rail; read once, a folder that moved Accounts was still counted in
+ * the one it left, its new reading marking that one Out). */
 export function useRoomMark(profileId: string | null | undefined, sessions: readonly InstanceInfo[] = []): RoomMark | null {
   const { displays } = useQuotaDisplays();
-  const accounts = useSubscriptions(0, !!profileId);
+  const accounts = useSubscriptions(0, !!profileId, READINGS_EVERY_MS);
   return roomMarkOfProfile(profileId, accounts, displays, sessions);
 }
 
@@ -93,7 +96,7 @@ export function ProfileRoomChip({ profileId, size, compact, testId }: { profileI
  * out. Nothing when every account has room. */
 export function RoomCount(): JSX.Element | null {
   const { displays } = useQuotaDisplays();
-  const accounts = useSubscriptions();
+  const accounts = useSubscriptions(0, true, READINGS_EVERY_MS);
   const counts = roomCounts(accounts, displays);
   const words = roomCountWords(counts);
   if (!words) return null;

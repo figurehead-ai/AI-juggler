@@ -20,16 +20,29 @@ const FRESH_MS = 30_000;
  * first frame (0.3.4) while it's read again behind it. */
 let cache: { at: number; rows: Promise<SubscriptionInfo[]>; value?: SubscriptionInfo[] } | null = null;
 
+/** Whether two answers say the same (their text; `false` when it can't
+ * be told). */
+function sameAnswer(a: SubscriptionInfo[], b: SubscriptionInfo[]): boolean {
+  try {
+    return JSON.stringify(a) === JSON.stringify(b);
+  } catch {
+    return false;
+  }
+}
+
 /** Every account, with its profiles (from the cache when fresh). A read
- * that fails keeps the last answer. */
+ * that fails keeps the last answer; one that says what the last said
+ * answers with it (the same rows: a view that reads again on a timer
+ * isn't drawn again for nothing). */
 export function loadSubscriptions(force = false): Promise<SubscriptionInfo[]> {
   if (!force && cache && Date.now() - cache.at < FRESH_MS) return cache.rows;
   const kept = cache?.value;
   const entry: NonNullable<typeof cache> = { at: Date.now(), rows: Promise.resolve([]), value: kept };
   entry.rows = subscriptionsList().then(
     (rows) => {
-      entry.value = rows;
-      return rows;
+      const answer = kept && sameAnswer(rows, kept) ? kept : rows;
+      entry.value = answer;
+      return answer;
     },
     () => kept ?? [],
   );
@@ -52,8 +65,12 @@ whenForgotten(() => (cache = null));
 
 /** The accounts, `null` until known (the last answer at once, when there
  * is one); `version` re-reads them; `wanted` false reads nothing (a view
- * that doesn't show them). */
-export function useSubscriptions(version = 0, wanted = true): SubscriptionInfo[] | null {
+ * that doesn't show them). `everyMs` (F-rc3c-3): a view that shows them
+ * with readings read again on a timer (an Out mark, the top bar's count)
+ * reads them as often while the window is shown, from the half-minute
+ * cache (one read for every such view), so a folder that moved to another
+ * Account isn't counted in the one it left while the view stays drawn. */
+export function useSubscriptions(version = 0, wanted = true, everyMs = 0): SubscriptionInfo[] | null {
   const [rows, setRows] = useState<SubscriptionInfo[] | null>(() => (wanted ? cachedSubscriptions() : null));
   useEffect(() => {
     if (!wanted) return;
@@ -63,6 +80,15 @@ export function useSubscriptions(version = 0, wanted = true): SubscriptionInfo[]
       alive = false;
     };
   }, [version, wanted]);
+  useEffect(() => {
+    if (!wanted || everyMs <= 0) return undefined;
+    let alive = true;
+    const stop = everyWhileShown(() => void loadSubscriptions(false).then((next) => alive && setRows(next)), everyMs);
+    return () => {
+      alive = false;
+      stop();
+    };
+  }, [wanted, everyMs]);
   useRecheckSignIns(wanted ? rows : null, setRows);
   return rows;
 }

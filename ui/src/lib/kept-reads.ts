@@ -20,10 +20,13 @@ export const quotaDisplays = sharedRead<QuotaDisplayData[]>(() => quotaDisplayAl
 
 const NO_DISPLAYS: QuotaDisplayData[] = [];
 
+/** How often a shown runway is read again: every half minute. */
+export const READINGS_EVERY_MS = 30_000;
+
 /** Every account's runway: `[]` until the first answer (`known` says
  * whether one came). `version` reads again when it changes (Home: the
  * number of accounts). */
-export function useQuotaDisplays({ pollMs = 30_000, maxAgeMs = 0, version }: { pollMs?: number; maxAgeMs?: number; version?: unknown } = {}): {
+export function useQuotaDisplays({ pollMs = READINGS_EVERY_MS, maxAgeMs = 0, version }: { pollMs?: number; maxAgeMs?: number; version?: unknown } = {}): {
   displays: QuotaDisplayData[];
   known: boolean;
 } {
