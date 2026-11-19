@@ -22,6 +22,8 @@
 # the Apple model's helper, `juggler-apple-ai` (AJ-E3802), built with the
 # system's Swift compiler and signed ad hoc with its sandbox; the .app's
 # copy is checked (signature, identifier, entitlements, the app's team).
+# And the local model's helper, `juggler-local-ai` (D-131), built offline
+# from its own workspace (llama.cpp) and signed ad hoc with its sandbox.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -44,17 +46,21 @@ else
   flags=()
 fi
 scripts/build_apple_ai_helper.sh "$profile" "$target/$profile"
+scripts/build_local_ai_helper.sh "$profile" "$target/$profile"
 mkdir -p crates/juggler-app/binaries
 cp "$target/$profile/juggler-agent" "crates/juggler-app/binaries/juggler-agent-$triple"
 # A fresh file, not one rewritten in place: macOS caches a signed
 # program's signature by file, and a rewritten one can be killed on launch.
 rm -f "crates/juggler-app/binaries/juggler-apple-ai-$triple"
 cp "$target/$profile/juggler-apple-ai" "crates/juggler-app/binaries/juggler-apple-ai-$triple"
+rm -f "crates/juggler-app/binaries/juggler-local-ai-$triple"
+cp "$target/$profile/juggler-local-ai" "crates/juggler-app/binaries/juggler-local-ai-$triple"
 cargo tauri build ${flags[@]+"${flags[@]}"} --bundles app --config crates/juggler-app/tauri.dev.conf.json \
     --config crates/juggler-app/tauri.bundle.json
 app="$target/$profile/bundle/macos/AI Juggler Dev.app"
 python3 scripts/bundle_check.py "$app"
 scripts/build_apple_ai_helper.sh check "$app/Contents/MacOS/juggler-apple-ai" "$app"
+scripts/build_local_ai_helper.sh check "$app/Contents/MacOS/juggler-local-ai" "$app"
 if [ "${1:-}" = lab ]; then
   # The lab keeps its copy at one stable path outside the build folder
   # (lab_scenario.sh opens it there; a build folder gets trimmed), signed
@@ -64,11 +70,13 @@ if [ "${1:-}" = lab ]; then
   rm -rf "$lab_app" && mkdir -p "$(dirname "$lab_app")"
   ditto "$app" "$lab_app"
   codesign --force --deep --sign - "$lab_app" >/dev/null 2>&1
-  # --deep signed the Apple helper again without its runtime and sandbox:
-  # sign it as it was built, then seal the app over it once more.
+  # --deep signed the helpers again without their runtime and sandbox:
+  # sign them as they were built, then seal the app over them once more.
   scripts/build_apple_ai_helper.sh sign "$lab_app/Contents/MacOS/juggler-apple-ai" >/dev/null
+  scripts/build_local_ai_helper.sh sign "$lab_app/Contents/MacOS/juggler-local-ai" >/dev/null
   codesign --force --sign - "$lab_app" >/dev/null 2>&1
   codesign --verify --strict --deep "$lab_app"
   scripts/build_apple_ai_helper.sh check "$lab_app/Contents/MacOS/juggler-apple-ai" "$lab_app"
+  scripts/build_local_ai_helper.sh check "$lab_app/Contents/MacOS/juggler-local-ai" "$lab_app"
   echo "build-dev-app: the lab's copy is $lab_app"
 fi

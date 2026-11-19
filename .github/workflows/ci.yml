@@ -1048,6 +1048,20 @@ jobs:
       # a real picture; a runner without a GPU says so and stops).
       - name: The Floor on Metal
         run: cargo test -p juggler-floor-render
+      # D-131 (ADR-0033 §4.2): the local-model helper is its own workspace
+      # (llama.cpp's C++ never builds in the app's), so its own lints and
+      # tests run here: the real binary against its protocol with no model.
+      # The smoke test with a model stays #[ignore]d: none is fetched.
+      - name: The local-model helper (its own workspace)
+        working-directory: crates/juggler-local-ai
+        env:
+          CMAKE_DISABLE_FIND_PACKAGE_OpenSSL: "TRUE"
+        run: |
+          set -euo pipefail
+          cargo fetch --locked
+          cargo fmt --check
+          cargo clippy --offline --locked --release --all-targets -- -D warnings
+          cargo test --offline --locked --release
       # AJ-E512: the collateral suite is a REQUIRED gate on macOS too
       # (Linux runs it via `verify`'s workspace tests) — zero-signal
       # assertions on real processes with trap logs, never UI state.
@@ -1148,6 +1162,10 @@ jobs:
         env:
           HEAD_REF: ${{ github.head_ref || github.ref_name }}
         run: ./scripts/ci/rc_version.sh
+      # D-131: the local-model helper's own workspace builds offline
+      # (scripts/build_local_ai_helper.sh), from crates fetched here.
+      - name: The local-model helper's crates, exactly as locked
+        run: cargo fetch --locked --manifest-path crates/juggler-local-ai/Cargo.toml
       - name: Build AI Juggler Dev (as `just app`; checks the bundle)
         run: ./scripts/build_dev_app.sh
       - name: The app, for walks

@@ -169,7 +169,7 @@ fn the_apple_helper_ships_signed_and_sandboxed_inside_the_bundle() {
     );
 
     let sign = read("../../scripts/sign_macos.sh");
-    assert!(sign.contains(&format!("helpers=(juggler-agent {PROGRAM})")));
+    assert!(sign.contains(&format!("helpers=(juggler-agent {PROGRAM} ")));
     assert!(sign.contains("crates/juggler-app/helpers/juggler-apple-ai.entitlements"));
     assert!(
         sign.contains("build_apple_ai_helper.sh\" check \"$app/Contents/MacOS/$helper\" \"$app\"")
@@ -195,4 +195,99 @@ fn the_apple_helper_ships_signed_and_sandboxed_inside_the_bundle() {
     assert!(dev.contains(
         "scripts/build_apple_ai_helper.sh check \"$app/Contents/MacOS/juggler-apple-ai\" \"$app\""
     ));
+}
+
+/// D-131 (ADR-0033 §4.2): the local model's helper ships the same way:
+/// one script builds it offline from its own workspace (arm64, its
+/// identifier from its embedded Info.plist, hardened runtime, the App
+/// Sandbox with read-only access to the models' folders and nothing
+/// else), the bundle list names it, the sign script signs it with exactly
+/// its entitlements and checks it (no network call imported), and the
+/// release candidate and the release check the bundled copy.
+#[test]
+fn the_local_model_helper_ships_signed_and_sandboxed_inside_the_bundle() {
+    use juggler_local_ai_protocol::{IDENTIFIER, PROGRAM};
+    let plist = read("../juggler-local-ai/Info.plist");
+    assert!(
+        value_after(&plist, "CFBundleIdentifier").ends_with(&format!("<string>{IDENTIFIER}")),
+        "signed as the identifier the app requires"
+    );
+    let entitlements = read("../juggler-local-ai/juggler-local-ai.entitlements");
+    let keys: Vec<&str> = entitlements
+        .lines()
+        .filter_map(|line| line.trim().strip_prefix("<key>"))
+        .collect();
+    assert_eq!(
+        keys,
+        [
+            "com.apple.security.app-sandbox</key>",
+            "com.apple.security.temporary-exception.files.home-relative-path.read-only</key>"
+        ],
+        "the sandbox and a read-only models' folder, no network, nothing else"
+    );
+    let folders: Vec<&str> = entitlements
+        .lines()
+        .filter_map(|line| line.trim().strip_prefix("<string>"))
+        .collect();
+    assert_eq!(folders.len(), 3, "one models' folder per edition");
+    for edition in [
+        juggler_app::edition::Edition::Main,
+        juggler_app::edition::Edition::Nightly,
+        juggler_app::edition::Edition::Dev,
+    ] {
+        let folder = format!(
+            "/Library/Application Support/{}/{}/</string>",
+            edition.data_dir_name(),
+            juggler_app::features::ai::models::store::FOLDER
+        );
+        assert!(folders.contains(&folder.as_str()), "{folder}");
+    }
+
+    let manifest = read("../juggler-local-ai/Cargo.toml");
+    assert!(manifest.contains("llama-cpp-2 = { version = \"=0.1.146\""));
+    assert!(manifest.contains("unsafe_code = \"forbid\""));
+    let build = read("../../scripts/build_local_ai_helper.sh");
+    assert!(build.contains("cargo build --offline --release --target aarch64-apple-darwin"));
+    assert!(build.contains(&format!("identifier={IDENTIFIER}")));
+    assert!(build.contains("--options runtime --entitlements \"$entitlements\""));
+    assert!(build.contains("imports a network call"));
+
+    let bundle: serde_json::Value = serde_json::from_str(&read("tauri.bundle.json")).unwrap();
+    assert!(
+        bundle["bundle"]["externalBin"]
+            .as_array()
+            .unwrap()
+            .contains(&serde_json::json!(format!("binaries/{PROGRAM}")))
+    );
+
+    let sign = read("../../scripts/sign_macos.sh");
+    assert!(sign.contains("helpers=(juggler-agent juggler-apple-ai juggler-local-ai)"));
+    assert!(sign.contains("crates/juggler-local-ai/juggler-local-ai.entitlements"));
+    assert!(sign.contains(
+        "juggler-local-ai) \"$here/build_local_ai_helper.sh\" check \"$app/Contents/MacOS/$helper\" \"$app\""
+    ));
+
+    let workflow = read("../../.github/workflows/build-macos.yml");
+    assert!(workflow.contains("scripts/build_local_ai_helper.sh release \"target/$ARCH/release\""));
+    assert!(workflow.contains("--manifest-path crates/juggler-local-ai/Cargo.toml"));
+    assert!(workflow.contains(&format!("binaries/{PROGRAM}-$ARCH")));
+    assert!(workflow.contains(&format!("binaries/{PROGRAM}-universal-apple-darwin")));
+    assert!(workflow.contains("juggler-app juggler-agent juggler-apple-ai juggler-local-ai"));
+    assert!(workflow.contains("scripts/build_local_ai_helper.sh check"));
+    assert_eq!(
+        workflow
+            .matches("            crates/juggler-local-ai/juggler-local-ai.entitlements")
+            .count(),
+        2,
+        "the sign jobs' sparse checkout has what the check reads"
+    );
+
+    let dev = read("../../scripts/build_dev_app.sh");
+    assert!(dev.contains("scripts/build_local_ai_helper.sh \"$profile\""));
+    assert!(dev.contains(&format!("binaries/{PROGRAM}-$triple")));
+    assert!(dev.contains(
+        "scripts/build_local_ai_helper.sh check \"$app/Contents/MacOS/juggler-local-ai\" \"$app\""
+    ));
+    let rc = read("../../scripts/qa/fetch_rc.sh");
+    assert!(rc.contains("scripts/build_local_ai_helper.sh check"));
 }
