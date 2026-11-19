@@ -12,7 +12,8 @@
 #     (fits-its-room), and the top bar's room words never cut mid-word
 #     (header-room-words);
 #   - axe on every state of Settings › AI › Models (models-gallery; its
-#     captures only when AIJ_MODELS_OUT names a folder);
+#     captures only when AIJ_MODELS_OUT names a folder), and of the
+#     Watches view (watches-gallery; AIJ_WATCHES_OUT);
 #   - the measured contrast table.
 # Extra arguments go to Playwright (the release workflow passes
 # `--shard=i/n`; each shard sets A11Y_SKIP_SUMMARY=1 and one final job
@@ -50,6 +51,7 @@ AJ_AXE_GALLERY=1 AJ_A11Y_EVIDENCE=1 pnpm exec playwright test \
   tests/visual/session-app-chip-narrow.spec.ts \
   tests/visual/settings-nav-selection.spec.ts \
   tests/visual/toast-narrow.spec.ts \
+  tests/visual/watches-gallery.spec.ts \
   "$@"
 tests=$?
 summary=0
