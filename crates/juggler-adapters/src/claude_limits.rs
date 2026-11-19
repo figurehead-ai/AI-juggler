@@ -504,7 +504,7 @@ struct TurnMessage {
 
 /// The model Claude Code names on a line it wrote itself (an error, an
 /// interruption), not the model's own reply.
-const SYNTHETIC_MODEL: &str = "<synthetic>";
+pub const SYNTHETIC_MODEL: &str = "<synthetic>";
 
 /// A session's limit from its transcript's tail (`tail`: whole lines): the
 /// newest assistant line of the session itself (never a sub-agent's) that
