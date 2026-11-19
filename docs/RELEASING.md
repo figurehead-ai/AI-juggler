@@ -375,6 +375,13 @@ What differs from an app built on this Mac with `just app`, for a walk:
 
 ## Each release
 
+**Work in batches (D-137, a standing rule).** Every release, walk and design check:
+- find everything in scope first, into one list;
+- triage it once (blockers vs the next release);
+- fix together, then one build or recapture, then one re-walk;
+- name the exit RC in advance.
+Never round after round of single fixes. See the decision log for the full rule.
+
 **Nightly** needs nothing from you: every day (03:00 UTC) that something
 that ships has changed on `main` since the newest `vX.Y.Z` tag,
 `nightly.yml` builds the next version. Its notes are generated from the
