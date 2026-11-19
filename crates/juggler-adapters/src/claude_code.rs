@@ -1366,6 +1366,14 @@ pub fn claude_code_spec() -> juggler_adapter::ToolSpec {
         update_command: Some("claude update".to_owned()),
         // The Floor: a warm workshop for the CLI, a pale studio for the
         // Claude app (SPEC §9.7).
+        // ADR-0036 §2.2: inside `ToolObserves::backed_by` its capabilities.
+        observes: juggler_adapter::ToolObserves {
+            cli: juggler_adapter::Observes::TERMINAL
+            .union(juggler_adapter::Observes::TURN_ENDS)
+            .union(juggler_adapter::Observes::LIMIT_HITS)
+            .union(juggler_adapter::Observes::RUNWAY),
+            desktop: juggler_adapter::Observes::RESTARTS.union(juggler_adapter::Observes::RUNWAY),
+        },
         floor: juggler_adapter::FloorFamilies {
             desktop: Some("studio".to_owned()),
             ..juggler_adapter::FloorFamilies::all("workshop")

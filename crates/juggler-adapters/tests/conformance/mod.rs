@@ -2007,6 +2007,29 @@ pub fn names_a_floor_family(subject: &dyn Subject) {
     }
 }
 
+/// ADR-0036 §2.2 (D-127, D-128): the tool declares what AI Juggler can
+/// observe of its sessions, never more than its capabilities back, and
+/// never what AI Juggler observes itself (pools, tasks, commits).
+pub fn declares_what_it_observes_honestly(subject: &dyn Subject) {
+    let sandbox = Sandbox::new();
+    let adapter = subject.adapter(&sandbox);
+    let spec = adapter.spec();
+    let backed = juggler_adapter::ToolObserves::backed_by(adapter.capabilities(), &spec.kinds);
+    assert!(
+        spec.observes.within(&backed),
+        "{}: declares {:?}, more than its capabilities back ({:?})",
+        spec.id,
+        spec.observes,
+        backed
+    );
+    let own = juggler_adapter::Observes::AI_JUGGLER_OWN | juggler_adapter::Observes::COMMITS;
+    assert!(
+        !spec.observes.cli.intersects(own) && !spec.observes.desktop.intersects(own),
+        "{}: declares what AI Juggler observes itself",
+        spec.id
+    );
+}
+
 // 14. Switching, honestly (ADR-0028)
 
 /// Every switching capability is answered: supported and how, or not and
@@ -2106,6 +2129,11 @@ macro_rules! conformance {
             #[test]
             fn names_a_floor_family() {
                 conformance::names_a_floor_family(&$subject);
+            }
+
+            #[test]
+            fn declares_what_it_observes_honestly() {
+                conformance::declares_what_it_observes_honestly(&$subject);
             }
 
             #[test]

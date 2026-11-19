@@ -979,6 +979,14 @@ pub fn codex_spec() -> juggler_adapter::ToolSpec {
             package: "@openai/codex".to_owned(),
         }),
         update_command: Some("npm install -g @openai/codex@latest".to_owned()),
+        // ADR-0036 §2.2: inside `ToolObserves::backed_by` its capabilities.
+        observes: juggler_adapter::ToolObserves {
+            cli: juggler_adapter::Observes::TERMINAL
+                .union(juggler_adapter::Observes::TURN_ENDS)
+                .union(juggler_adapter::Observes::LIMIT_HITS)
+                .union(juggler_adapter::Observes::RUNWAY),
+            desktop: juggler_adapter::Observes::empty(),
+        },
         floor: juggler_adapter::FloorFamilies::all("industrial"),
     }
 }

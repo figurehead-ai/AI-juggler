@@ -143,6 +143,10 @@ pub struct ToolSpec {
     pub update_command: Option<String>,
     /// The Floor's style family for its Apps (AJ-E3504).
     pub floor: FloorFamilies,
+    /// ADR-0036 §2.2: what AI Juggler observes of its sessions, per kind
+    /// of App, so a watch it can't report is never offered (D-127). Inside
+    /// [`crate::ToolObserves::backed_by`] its capabilities.
+    pub observes: crate::ToolObserves,
 }
 
 /// AJ-E1611: a public list of a tool's released versions.
@@ -211,6 +215,7 @@ impl ToolSpec {
             release_feed: None,
             update_command: None,
             floor: FloorFamilies::default(),
+            observes: crate::ToolObserves::NONE,
         }
     }
 

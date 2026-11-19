@@ -703,6 +703,13 @@ pub fn hermes_spec() -> juggler_adapter::ToolSpec {
         // Hermes updates itself (`hermes update`); no package feed.
         release_feed: None,
         update_command: Some("hermes update".to_owned()),
+        // ADR-0036 §2.2: inside `ToolObserves::backed_by` its capabilities.
+        observes: juggler_adapter::ToolObserves {
+            cli: juggler_adapter::Observes::TERMINAL
+            .union(juggler_adapter::Observes::LIMIT_HITS)
+            .union(juggler_adapter::Observes::RUNWAY),
+            desktop: juggler_adapter::Observes::empty(),
+        },
         floor: juggler_adapter::FloorFamilies::all("neutral"),
     }
 }

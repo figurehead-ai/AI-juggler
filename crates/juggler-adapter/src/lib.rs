@@ -36,6 +36,7 @@ pub mod launch;
 pub mod live;
 pub mod memory;
 pub mod moving;
+pub mod observes;
 pub mod plan_usage;
 pub mod readiness;
 pub mod registry;
@@ -79,6 +80,7 @@ pub use juggler_platform::private_fs;
 pub use juggler_platform::user::home;
 pub use juggler_platform::{keychain, process, transfer};
 pub use launch::{DesktopLaunch, EnvMap, LaunchMode, LaunchSpec};
+pub use observes::{Observes, ToolObserves};
 pub use registry::AdapterRegistry;
 pub use runtime::{
     DrivenLaunch, DrivenRuntime, DrivenSession, DrivenSpec, Maturity, Release, ReleaseOutcome,
