@@ -25,10 +25,10 @@ The helper's only third-party code that runs is llama.cpp, through two crates pi
 - **Until then, what limits a flaw:** the helper's sandbox. It is denied by default:
   - no network;
   - no file outside the models' folder and the system's libraries;
-  - no other program;
+  - no other program but the task-policy tool that starts it;
   - no service but Metal's compiler.
 
-  The helper also has a memory cap and runs at utility QoS (ADR-0033 §4.2, "As built").
+  The helper also has a memory cap, set after the sandbox's exec so that it holds (tested), and runs at utility QoS (ADR-0033 §4.2, "As built").
 
 ## How the rest is vetted
 
