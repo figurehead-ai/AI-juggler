@@ -10,11 +10,11 @@
           "area": "transcript-resume",
           "verdict": "PASS",
           "run": "live",
-          "source_version": "2.1.310",
-          "target_version": "2.1.310",
-          "date": "2026-10-28",
-          "fixture": "switch-lab lab 19, steps 2 and 7",
-          "evidence": "docs/qa/evidence/AJ-E1539/lab-2026-10-28.md"
+          "source_version": "2.1.322",
+          "target_version": "2.1.322",
+          "date": "2026-11-19",
+          "fixture": "switch-lab c2c-answer: an existing conversation copied Lab App → aij-test, aij-test answers its codename (the other way round from c2c run 4; one turn, on the target)",
+          "evidence": "docs/qa/evidence/AJ-E1539/c2c-2026-11-18.md"
         },
         {
           "area": "rules-carry",

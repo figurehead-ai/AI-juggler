@@ -319,6 +319,17 @@ switch-lab-c2c project claude_a claude_b out probe="aij-lab-probe":
       AIJ_LAB_OUT="{{out}}" AIJ_LAB_PROBE="{{probe}}" \
       cargo test -p juggler-app --test switch_lab_live -- --ignored --nocapture switch_lab_c2c_live --exact
 
+# D-127's "the target answers", the other way round (the maintainer,
+# 2026-11-19): conversation `source`, already on claude_from (no turn there),
+# copied by the switch to claude_to, which answers from it (one turn on TO).
+switch-lab-c2c-answer project claude_from claude_to source out:
+    cargo test -p juggler-app --test switch_lab_live --no-run
+    ./scripts/qa/lab_env.sh AIJ_LAB_SUITE=c2c-answer \
+      AIJ_LAB_DATA="$(mktemp -d)/data" AIJ_LAB_PROJECT="{{project}}" \
+      AIJ_LAB_CLAUDE_FROM="{{claude_from}}" AIJ_LAB_CLAUDE_TO="{{claude_to}}" \
+      AIJ_LAB_SOURCE="{{source}}" AIJ_LAB_OUT="{{out}}" \
+      cargo test -p juggler-app --test switch_lab_live -- --ignored --nocapture switch_lab_c2c_answer_live --exact
+
 # AJ-E1539 labs 12+ (0.1.8): switches from a session another app runs and the
 # old path, on one Claude profile and the Codex home (see switch_lab_live.rs).
 switch-lab-outside root claude codex out probe="aij-lab-probe" journeys="j1,j2,j3":

@@ -1116,6 +1116,15 @@ fn switch_lab_c2c_live() {
     c2c::journey();
 }
 
+/// D-127's "the target answers", the other way round: an existing
+/// conversation copied to an Account with room, which answers from it
+/// (`switch_lab/c2c.rs`, `answer_journey`).
+#[test]
+#[ignore = "the live switching lab's Claude → Claude answer check; needs AIJ_LAB_* and real, agreed accounts"]
+fn switch_lab_c2c_answer_live() {
+    c2c::answer_journey();
+}
+
 /// The three accounts the main journey brought in.
 struct Accounts {
     a: String,

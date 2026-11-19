@@ -37,7 +37,7 @@ hidden unless the user turned on beta switches in Settings › Switching.
 
 | Pair | Area | Verdict | Versions (source → target) | Date | Fixture | Evidence | Drop note |
 |---|---|---|---|---|---|---|---|
-| claude-code→claude-code | transcript-resume | PASS | 2.1.310 → 2.1.310 | 2026-10-28 | switch-lab lab 19, steps 2 and 7 | [docs/qa/evidence/AJ-E1539/lab-2026-10-28.md](../../../../docs/qa/evidence/AJ-E1539/lab-2026-10-28.md) |  |
+| claude-code→claude-code | transcript-resume | PASS | 2.1.322 → 2.1.322 | 2026-11-19 | switch-lab c2c-answer: an existing conversation copied Lab App → aij-test, aij-test answers its codename (the other way round from c2c run 4; one turn, on the target) | [docs/qa/evidence/AJ-E1539/c2c-2026-11-18.md](../../../../docs/qa/evidence/AJ-E1539/c2c-2026-11-18.md) |  |
 | claude-code→claude-code | rules-carry | PASS | 2.1.310 → 2.1.310 | 2026-10-28 | switch-lab lab 19, step 2 | [docs/qa/evidence/AJ-E1539/lab-2026-10-28.md](../../../../docs/qa/evidence/AJ-E1539/lab-2026-10-28.md) |  |
 | claude-code→claude-code | todos | PASS | 2.1.322 → 2.1.322 | 2026-11-18 | switch-lab c2c run 4, step 2 | [docs/qa/evidence/AJ-E1539/c2c-2026-11-18.md](../../../../docs/qa/evidence/AJ-E1539/c2c-2026-11-18.md) |  |
 | claude-code→claude-code | subagents | PASS | 2.1.322 → 2.1.322 | 2026-11-18 | switch-lab c2c run 4, step 2 | [docs/qa/evidence/AJ-E1539/c2c-2026-11-18.md](../../../../docs/qa/evidence/AJ-E1539/c2c-2026-11-18.md) |  |

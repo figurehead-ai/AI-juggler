@@ -35,3 +35,28 @@ Test-tool notes (not product findings):
 1. **"Keep it apart" where she looks.** Show it on the project page's Agents card, as a line that reads "Kept apart: no · Keep it apart…" (sealed: "Kept apart: yes, its agents can't reach other pools"), not only in the "…" menu. Say it in her words: "Client A's agents can't see or message other clients' work."
 2. **The Agents card's words.** "on their own: Work together" reads as the opposite of keeping a client apart. Proposal: lead with what's true of the project ("Its agents: they work together inside client-a") and keep the level's name second.
 3. **The feature she asked for (a decision, not a fix):** a project tied to its client's accounts, a session started there on another account flagged, and a per-repo, per-day "which account touched it" export for audits. Today the data is there (Who did the work, the account's Projects tab), but there is no rule and no flag.
+
+## R4 again on rc3f (e32d3de55), after main's rulings 1 and 2: three fresh runs, 2026-11-19
+
+Build: 0.4.6 rc3f at e32d3de55. The project page's Agents card now reads "Kept apart: no · its sessions can be in your other pools too", with "Keep it apart…" beside it. Its line reads "Agents here may message each other (Work together)". Lab: PR2, one fresh lab per run. Each run had a fresh Sonnet tester and the same brief as before. The firewall check was clean on all three runs: only the screen tool, the tester's own pictures and its log. No leak words appeared in the logs.
+
+| Run | Steps | Result | Ease /7 | Value /7 | Where it went |
+|---|---|---|---|---|---|
+| 1 | 8 | partly | 4 | 4 | Home, Projects, client-b. "Kept apart: no" was on the Agents card, and "Keep it apart…" opened "Sealed client project", preselected. Next, Next, Make pool now: a sealed pool on client-b. Then Accounts, looking for a repo-to-account rule. |
+| 2 | 5 | partly | 5 | 4 | Home, Projects, client-b ("Who did the work" showed the mixing), "Keep it apart…", the wizard's project step. She stopped there: sealing doesn't say which account a repo may use. |
+| 3 | 7 | partly | 4 | 4 | Home, Projects, client-a ("Kept apart: no" under "Who did the work"), "Keep it apart…", Next, Next, Make pool now: a pool with the "sealed" badge. |
+
+Per-step scores (worked / value / clarity / feeling):
+- Run 1: 4/4/3/2, 5/4/4/3, 5/5/5/2, 4/4/3/3, 4/4/4/3, 4/3/3/3, 4/3/3/3, 1/1/3/2.
+- Run 2: 3/3/3/2, 3/3/4/3, 4/5/4/2, 3/3/2/3, 3/3/3/3.
+- Run 3: 3/3/3/2, 4/3/4/3, 4/4/4/3, 3/3/2/3, 4/3/4/3, 4/3/3/3, 3/3/3/3.
+
+**What changed.** On rc3a, no run found "Keep it apart" (ease 2–3). On rc3f, all three found it on the project page, within 3–4 steps, and two of them sealed the project. The 0.4.6 fix does what it was for.
+
+**Recorded as partly solved: account binding deferred (D-134).** Every run's "partly" has one reason: she wants a repo tied to its client's account, with a session on another account flagged. That's the feature main's D-134 defers to 0.6 or later (opt-in, in project settings). Sealing keeps a client's sessions out of other pools, and the testers saw that. It doesn't stop a repo running on another account.
+
+For the maintainer (R5, not bugs; nothing changes without a ruling):
+1. **The wizard behind "Keep it apart…"** (clarity 2 on the step in all three runs; confusion 2): a 9-step pool setup where she expected one confirmation. Proposal: from the project page, "Keep it apart…" opens a one-screen confirmation that says what sealing blocks and what it doesn't, with "Set it up in detail…" for the full wizard.
+2. **Home and Projects don't flag a repo run on another client's account** (run 1 step 1, run 3 step 1: "nothing flagged it"). This belongs with D-134's binding.
+
+Test-tool note (not a product finding): the wizard's Cancel, at the window's bottom left, gives "nothing to press there" to the accessibility press (run 2, and again by hand at three points). Next, in the same footer, presses fine, and Cancel works on a click (new-pool.test). It's on the a11y follow-up list.

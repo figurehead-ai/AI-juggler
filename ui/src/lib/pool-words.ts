@@ -103,6 +103,21 @@ export function ownMay(level: string | null | undefined, picked?: number): strin
   return picked === 1 ? "do the 1 thing you picked" : `do the ${picked} things you picked`;
 }
 
+/** What's true of a project's agents, the level's name second: "Agents
+ * here may message each other (Work together)". R4 (Priya, keeping a
+ * client apart; main's ruling): "on their own: Work together" read as the
+ * opposite of keeping a client apart. */
+export function agentsHereLine(pool: { access: { level: string; actions: readonly string[] } }): string {
+  const level = pool.access.level;
+  if (level === "custom") return `Agents here may ${ownMay(level, pickedCount(pool))} (Custom)`;
+  const what: Record<OwnLevel, string> = {
+    read: "Agents here only look at each other's work",
+    work_together: "Agents here may message each other",
+    full: "Agents here may message and wake each other",
+  };
+  return `${what[asOwnLevel(level)]} (${ownLabel(level)})`;
+}
+
 /** A Custom pool's actions picked by hand, counted as its Custom list
  * shows them (messages into sessions are their own setting); `undefined`
  * at another level. */
