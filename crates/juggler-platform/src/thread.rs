@@ -87,8 +87,66 @@ mod tests {
         assert_eq!(twice, cfg!(target_os = "macos"));
     }
 
+    /// The `unsafe` keywords and the `unsafe_code` lint names in `src`,
+    /// counted on Rust's own tokens (`proc-macro2`'s lexer): string
+    /// literals, comments and doc comments are never code, and a macro's
+    /// body is (the 2026-11-19 review's I1: a cut at `//` was fooled by a
+    /// string holding `//`).
+    fn unsafe_tokens(src: &str) -> (usize, usize) {
+        fn walk(stream: proc_macro2::TokenStream, keyword: &mut usize, lint: &mut usize) {
+            for tree in stream {
+                match tree {
+                    proc_macro2::TokenTree::Ident(ident) => {
+                        let word = ident.to_string();
+                        if word == ["un", "safe"].concat() {
+                            *keyword += 1;
+                        } else if word == ["un", "safe_code"].concat() {
+                            *lint += 1;
+                        }
+                    }
+                    proc_macro2::TokenTree::Group(group) => walk(group.stream(), keyword, lint),
+                    _ => {}
+                }
+            }
+        }
+        let stream: proc_macro2::TokenStream = src.parse().expect("Rust source lexes");
+        let (mut keyword, mut lint) = (0, 0);
+        walk(stream, &mut keyword, &mut lint);
+        (keyword, lint)
+    }
+
+    /// I1's mutations: each hides an `unsafe` the old line scan missed or
+    /// would miss; the token count sees every one, and none of the decoys.
+    #[test]
+    fn the_unsafe_count_reads_tokens_not_text() {
+        let word = ["un", "safe"].concat();
+        let cases = [
+            (
+                format!("fn f() {{ let _u = \"a//b\"; {word} {{ }} }}"),
+                (1, 0),
+            ),
+            (format!("fn f() {{ {word} {{ }} }}"), (1, 0)),
+            (format!("{word} impl Send for X {{}}"), (1, 0)),
+            (format!("m!({word} {{ x() }});"), (1, 0)),
+            // (The attribute is assembled, so this file's own lint scan,
+            // allow_reasons, doesn't read it as one.)
+            (format!("#[{}({word}_code)] fn f() {{}}", "allow"), (0, 1)),
+            (format!("/* {word} {{ }} */ fn f() {{}}"), (0, 0)),
+            (format!("/// {word} {{ }}\nfn f() {{}}"), (0, 0)),
+            (format!("fn f() {{ let _ = \"{word} {{ }}\"; }}"), (0, 0)),
+            (
+                format!("fn f() {{ let _ = r#\"{word}\"#; }} // {word}"),
+                (0, 0),
+            ),
+        ];
+        for (src, want) in cases {
+            assert_eq!(unsafe_tokens(&src), want, "{src}");
+        }
+    }
+
     /// D-131: this crate's only `unsafe` is `background_io_macos`: one
-    /// `unsafe extern` block and one `unsafe` block, in this file.
+    /// `unsafe extern` block and one `unsafe` block, under its one
+    /// `allow(unsafe_code)`, in this file.
     #[test]
     fn the_only_unsafe_is_background_io() {
         fn rust_files(dir: &std::path::Path, out: &mut Vec<std::path::PathBuf>) {
@@ -104,34 +162,22 @@ mod tests {
         let src = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src");
         let mut files = Vec::new();
         rust_files(&src, &mut files);
-        let word = ["un", "safe"].concat();
-        let mut found = Vec::new();
-        for file in files {
-            let text = std::fs::read_to_string(&file).unwrap();
-            for line in text.lines() {
-                let code = line.split("//").next().unwrap_or("");
-                let hits = code
-                    .match_indices(&word)
-                    .filter(|(i, _)| {
-                        let after = &code[i + word.len()..];
-                        let before = &code[..*i];
-                        !before.ends_with(|c: char| c.is_alphanumeric() || c == '_')
-                            && !after.starts_with(|c: char| c.is_alphanumeric() || c == '_')
-                            && !before.ends_with('"')
-                    })
-                    .count();
-                for _ in 0..hits {
-                    found.push((
-                        file.file_name().unwrap().to_string_lossy().into_owned(),
-                        code.trim().to_owned(),
-                    ));
-                }
-            }
-        }
-        let expected = [
-            ("thread.rs".to_owned(), format!("{word} extern \"C\" {{")),
-            ("thread.rs".to_owned(), format!("{word} {{")),
-        ];
-        assert_eq!(found, expected, "a new `{word}` needs a recorded decision");
+        let found: Vec<(String, (usize, usize))> = files
+            .iter()
+            .map(|file| {
+                let text = std::fs::read_to_string(file).unwrap();
+                (
+                    file.file_name().unwrap().to_string_lossy().into_owned(),
+                    unsafe_tokens(&text),
+                )
+            })
+            .filter(|(_, counts)| *counts != (0, 0))
+            .collect();
+        assert_eq!(
+            found,
+            [("thread.rs".to_owned(), (2, 1))],
+            "a new `{}` needs a recorded decision",
+            ["un", "safe"].concat()
+        );
     }
 }

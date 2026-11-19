@@ -73,4 +73,7 @@ nix = { workspace = true, features = ["user", "fs", "signal", "socket"] }
 
 [dev-dependencies]
 tempfile = { workspace = true }
+# D-131 (the review's I1): the single-`unsafe` test counts Rust tokens, not
+# text. Already in the tree (serde_derive, tauri's macros).
+proc-macro2 = "1.0.107"
 tokio = { version = "1.53.3", default-features = false, features = ["net", "rt", "macros", "io-util", "time"] }
