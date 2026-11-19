@@ -456,3 +456,41 @@ fn another_conversation_in_a_profile_the_open_just_started_is_open_in_it() {
     lab.tick();
     open_in_the_app(&lab, OTHER);
 }
+
+/// F-rc3g-4 (the 0.4.6 rc3g walk): after Stop, g-turn's rail row read
+/// "Reply with the single word l…", its first prompt, for a moment: its
+/// conversation stood as its own row (an ended session's conversation
+/// that is open now; the live pass hadn't yet seen its process go), under
+/// its transcript's title. The name the person gave a session of AI
+/// Juggler's on a conversation names that conversation in every row, its
+/// own row too, over the transcript's and its app's titles.
+#[test]
+fn a_name_the_person_gave_its_session_names_the_conversation_standing_on_its_own() {
+    let Some(home) =
+        in_a_lab("a_name_the_person_gave_its_session_names_the_conversation_standing_on_its_own")
+    else {
+        return;
+    };
+    let lab = Lab::new(&home, ECHO);
+    juggler_app::manage::session_rename_impl(&lab.state, RUN, Some("echo work")).unwrap();
+    lab.tick();
+    ended_as_the_terminal_run(&lab);
+    assert_eq!(lab.row(ECHO).title.as_deref(), Some("echo work"));
+
+    // Open now, the conversation is its own row: named as the person
+    // named it, never "Echo lab" (its app's title, its first prompt).
+    lab.open_in_app();
+    lab.tick();
+    open_in_the_app(&lab, ECHO);
+    assert_eq!(lab.row(ECHO).title.as_deref(), Some("echo work"));
+    let working = commands::working_impl(&lab.state, Timestamp::now().millis()).unwrap();
+    assert_eq!(
+        working
+            .iter()
+            .find(|c| c.id == ECHO)
+            .and_then(|c| c.title.as_deref()),
+        Some("echo work")
+    );
+    // Another conversation in the folder keeps its own title.
+    assert_ne!(lab.row(OTHER).title.as_deref(), Some("echo work"));
+}

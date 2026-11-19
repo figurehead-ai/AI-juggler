@@ -300,3 +300,68 @@ fn the_pools_stamp_moves_when_a_session_changes_pool() {
     storage.pools().delete(&pool.id).unwrap();
     assert!(stamps().pools > placed.pools);
 }
+
+/// F-rc3g-3: a session that goes on with another's work under a new id
+/// takes the name the person gave that one, never over a name of its own.
+#[test]
+fn a_name_carries_to_the_session_that_goes_on_unless_it_has_its_own() {
+    let dir = tempfile::tempdir().unwrap();
+    let storage = Storage::open(&dir.path().join("juggler.sqlite")).unwrap();
+    seeded(&storage);
+    let sessions = storage.sessions();
+    let id = |n: &str| SessionId::new(n);
+    let name = |n: &str| {
+        sessions
+            .marks()
+            .unwrap()
+            .get(n)
+            .and_then(|(label, _)| label.clone())
+    };
+    sessions.set_label(&id("s-0"), Some("g-quiet")).unwrap();
+    sessions.carry_label(&id("s-0"), &id("s-1")).unwrap();
+    assert_eq!(name("s-1").as_deref(), Some("g-quiet"));
+    sessions.set_label(&id("s-2"), Some("its own")).unwrap();
+    sessions.carry_label(&id("s-0"), &id("s-2")).unwrap();
+    assert_eq!(name("s-2").as_deref(), Some("its own"));
+    // From one with no name, or one that isn't there: nothing.
+    sessions.carry_label(&id("s-3"), &id("s-1")).unwrap();
+    sessions.carry_label(&id("gone"), &id("s-1")).unwrap();
+    assert_eq!(name("s-1").as_deref(), Some("g-quiet"));
+    sessions.carry_label(&id("s-0"), &id("s-3")).unwrap();
+    assert_eq!(name("s-3").as_deref(), Some("g-quiet"));
+}
+
+/// F-rc3g-4: a conversation's names come oldest session first, so a map
+/// made from them (the conversations list, the cost table) keeps the
+/// newest name the person gave it, whatever order the rows were written.
+#[test]
+fn a_conversations_names_come_oldest_session_first() {
+    let dir = tempfile::tempdir().unwrap();
+    let storage = Storage::open(&dir.path().join("juggler.sqlite")).unwrap();
+    seeded(&storage);
+    let on = |id: &str, started: i64| InstanceRecord {
+        conversation: Some(juggler_core::model::ConversationId::new("c-1")),
+        started_at: Timestamp::from_millis(started),
+        ..session(id, "rec-w", Some("p-1"), "mac-a")
+    };
+    // The newer written first (a row restored, a clock's order).
+    storage.sessions().insert(&on("s-new", 5_000)).unwrap();
+    storage.sessions().insert(&on("s-old", 3_000)).unwrap();
+    storage
+        .sessions()
+        .set_label(&SessionId::new("s-new"), Some("newer"))
+        .unwrap();
+    storage
+        .sessions()
+        .set_label(&SessionId::new("s-old"), Some("older"))
+        .unwrap();
+    let names: Vec<String> = storage
+        .sessions()
+        .conversation_labels()
+        .unwrap()
+        .into_iter()
+        .filter(|(account, conversation, _)| account == "work" && conversation == "c-1")
+        .map(|(_, _, label)| label)
+        .collect();
+    assert_eq!(names, ["older", "newer"]);
+}

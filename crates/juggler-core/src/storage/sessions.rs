@@ -665,7 +665,8 @@ impl SessionsRepo<'_> {
     /// names a session as the rail does). By account too: a switch to
     /// another account of the same tool keeps the conversation's id there
     /// (see [`Self::conversation_links`]). Only labelled sessions: a few
-    /// rows.
+    /// rows, oldest session first (a map made from them keeps the newest
+    /// name a conversation was given, F-rc3g-4).
     ///
     /// # Errors
     ///
@@ -674,7 +675,8 @@ impl SessionsRepo<'_> {
         let mut stmt = self.conn.prepare(
             "SELECT r.account_id, i.conversation_id, i.label FROM instances i \
              JOIN launch_recipes r ON r.id = i.launch_recipe_id \
-             WHERE i.conversation_id IS NOT NULL AND i.label IS NOT NULL",
+             WHERE i.conversation_id IS NOT NULL AND i.label IS NOT NULL \
+             ORDER BY i.started_at, i.id",
         )?;
         let rows = stmt.query_map([], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)))?;
         rows.map(|row| row.map_err(CoreError::Storage)).collect()
