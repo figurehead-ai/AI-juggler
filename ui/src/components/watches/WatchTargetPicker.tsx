@@ -40,7 +40,7 @@ function Token({ option, onRemove }: { option: TargetOption; onRemove: () => voi
 
 function Option({ option, on, onFlip }: { option: TargetOption; on: boolean; onFlip: () => void }): JSX.Element {
   return (
-    <button type="button" aria-pressed={on} tabIndex={-1} onClick={onFlip} className={"flex w-full cursor-pointer items-center text-left gap-2.5 rounded-[9px] px-2.5 py-[7px] outline-none focus-visible:ring-2 focus-visible:ring-accent/60 " + (on ? "bg-accent-soft" : "hover:bg-surface-2")} data-testid="watch-pick-option" data-pick data-key={option.key}>
+    <button type="button" aria-pressed={on} tabIndex={-1} onClick={onFlip} className={"flex w-full cursor-pointer items-center text-left gap-2.5 rounded-[9px] px-2.5 py-[5px] outline-none focus-visible:ring-2 focus-visible:ring-accent/60 " + (on ? "bg-accent-soft" : "hover:bg-surface-2")} data-testid="watch-pick-option" data-pick data-key={option.key}>
       <span aria-hidden="true" className={"flex size-[18px] shrink-0 items-center justify-center rounded-[5px] " + (on ? "bg-accent-fill text-white" : "inset-ring-[1.5px] inset-ring-hairline")}>
         {on && (
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
@@ -139,7 +139,7 @@ export function WatchTargetPicker({ picked, book, onChange, invalid = false, lab
             <span className="sr-only">{PICKER.search}</span>
             <input autoCorrect="off" autoCapitalize="off" spellCheck={false} ref={search} value={query} onChange={(event) => setQuery(event.target.value)} placeholder={PICKER.search} className="min-w-0 flex-1 bg-transparent text-body text-ink outline-none placeholder:text-faint" data-testid="watch-picker-search" />
           </label>
-          <div ref={list} id={listId} className="flex max-h-[min(420px,calc(100vh-330px))] min-h-40 flex-col gap-px overflow-y-auto">
+          <div ref={list} id={listId} className="flex max-h-[min(500px,calc(100vh-290px))] min-h-40 flex-col gap-px overflow-y-auto">
             {lists.matches !== null ? (
               <>
                 <Heading>{PICKER.results}</Heading>
