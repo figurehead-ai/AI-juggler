@@ -1,6 +1,6 @@
 {
   "spec": "ui/tests/visual/menus-a11y.spec.ts",
-  "menus": 79,
+  "menus": 76,
   "covered": [
     {
       "screen": "Rail, header and Home",
@@ -187,24 +187,6 @@
       "opener": "App actions for Claude Code CLI · Personal",
       "kind": "menu",
       "options": 9
-    },
-    {
-      "screen": "History",
-      "opener": "Project: All",
-      "kind": "menu",
-      "options": 3
-    },
-    {
-      "screen": "History",
-      "opener": "App: All",
-      "kind": "menu",
-      "options": 3
-    },
-    {
-      "screen": "History",
-      "opener": "Tool: All",
-      "kind": "menu",
-      "options": 3
     },
     {
       "screen": "History",
