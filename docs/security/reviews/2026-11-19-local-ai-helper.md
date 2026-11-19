@@ -76,3 +76,72 @@ In place (the shared target, offline): `juggler-platform` `thread` and `code_tru
 ## Clean-up
 
 Deleted: the scratch helper copies, the probes and their sources, the protocol and scan mutation copies with their targets, the harness's temporary folders (`$HOME/.aij-sbx-review-20261119` and the ones in `$TMPDIR`, `/Users/Shared` and `/private/var/tmp`), and the probe container's data. **Left, as macOS refuses to delete it:** `~/Library/Containers/ai.figurehead.juggler.local-ai.review-probe/`. It holds only its 32 KB `.com.apple.containermanagerd.metadata.plist`, which `containermanagerd` protects, so the maintainer can remove it in Finder. The shared `r05` target got only the in-place test builds listed above.
+
+## Addendum: re-review of the fixes (2026-11-19, same reviewer, same rules)
+
+- **Checked:** e424d3075 (I1), 7f1bb393c (M1, L1, L2, L3, I2, I3), b3167df27 and 33c4d68bf (M2), 0de22ddcd (ADR-0033 §4.2).
+- **How:** by commit. I used `git archive 7f1bb393c` and `b3167df27` in the scratchpad, built with their own target (the helper builds with its synthetic-model tests; 8 pass and 2 are ignored), and ran my own C probes. I did not touch the working tree or `r05`.
+- **What I could not run:** the app-side tests (`engines::local`), because a scratch `juggler-app` build would not fit the 33 GB that was free. The L3 pressure wiring is therefore verified by reading, plus the argv test.
+
+### Verdicts
+
+| Finding | Verdict | Evidence |
+|---|---|---|
+| **M1** sandbox too wide | **CLOSED** | Q1 below. The committed `sandbox.sb` denies by default, and every escape I tried fails under it while working without it. `MUT-SB1` (allowing `/private/tmp`) and `MUT-SB2` (allowing `network-outbound`) each make `under_its_sandbox_nothing_else_is_reachable` **fail**. `MUT-SB3` (allowing any exec) passes, because exec still needs `file-read` of the target; that is defence in depth, not a gap. |
+| **M2** supply chain | **CLOSED** | Run offline on the archive: `cargo vet --locked --manifest-path crates/juggler-local-ai/Cargo.toml` gives "Vetting Succeeded (8 fully audited, 50 exempted)". `cargo deny --offline … check` gives advisories, bans, licenses and sources all ok. The build is `--offline --locked`, and CI and `just` run both. Q3 below covers the exemptions. |
+| **L1** swap between hash and load | **CLOSED** (one test gap) | `O_NOFOLLOW`, then `fstat` device/inode/size matched against the app's hashed stamp, then llama.cpp reads `/dev/fd/<n>`. Removing `O_NOFOLLOW` (ML1a) and removing the identity check (ML1b) each **fail** `it_loads_only_the_hashed_plain_file_and_survives_junk`. Loading by name again instead of `/dev/fd` (ML1c) **passes**: no test pins the descriptor load. An in-place rewrite by a same-user process stays out of scope, as the ADR says. |
+| **L2** special tokens in prompt text | **CLOSED** | Turning `plain_tokens` off for untrusted parts (ML2) **fails** `a_pasted_role_marker_stays_plain_text`. The sentinels are refused in input. Three residual details are under N4. |
+| **L3** resources | **PARTIAL** | The critical-pressure rule is wired: no start or load, a running job is stopped every 250 ms, and the helper is dropped (read in code; `critical_memory_pressure_never_starts_a_model_and_stops_one_running`, not run). It acts at Critical, not at Warning as the plan said. **The memory cap is not enforced** (N1). |
+| **I1** unsafe scan | **CLOSED** | Tokens are counted with `proc-macro2` (a dev-dependency). Each of these **fails** the test: `"a//b"; unsafe {}`, a second `allow(unsafe_code)`, and `unsafe` inside `macro_rules!`. `unsafe` in a comment or string passes, as it should. |
+| **I2** `parse_request` without `check` | **CLOSED** | Dropping `check()` (MUT-P7 again) now **fails** `parse_request_checks_the_bounds`. |
+| **I3** stale comments | **PARTIAL** | The script and ADR are corrected. `src/main.rs` (lines 14–15: "the App Sandbox it is signed with"), `build.rs` and `Info.plist` still describe the App Sandbox. |
+| **I4** cut last line, lost cancel | **OPEN** (info) | It was not addressed. It remains harmless as described. |
+
+### The coordinator's questions
+
+1. **Is the profile deny-default? Yes.** I ran a probe of my own under the committed profile through `/usr/bin/sandbox-exec -p … -D HELPER/MODELS/CACHE`, against the same binary without the profile.
+
+   | Probe | Under the profile | Without it |
+   |---|---|---|
+   | reads of `/private/tmp`, `$HOME`, `$HOME` via `/System/Volumes/Data`, `/etc/hosts`, `/private/etc/passwd`, `/Library/Preferences` | **all denied** | allowed |
+   | file in MODELS | read allowed, **create denied** | both allowed |
+   | create in CACHE | allowed (by design) | allowed |
+   | create in `/private/tmp` | denied | allowed |
+   | TCP connect to a harness listener; UDP `sendto`; `bind`/`listen`; connect to `/var/run/mDNSResponder` | **all denied**; the listener saw 0 connections | allowed; 1 connection |
+   | `posix_spawn` of `/usr/bin/true` and `/usr/bin/open`; `fork` | **all denied** | allowed |
+   | `LSOpenCFURLRef` | `-10661` (refused) | `-10814` (LaunchServices reached) |
+   | `bootstrap_look_up` of launchservicesd, lsd.mapdb, pasteboard, windowserver, SecurityServer, cfprefsd (daemon and agent), distributed notifications, tccd, securityd.xpc, nsurlsessiond, dnssd | **all denied** | allowed |
+   | `kill(other, 0)`; `task_for_pid` | denied; denied | allowed; denied |
+   | `proc_listallpids`, `proc_pidinfo`/`proc_pidpath` of another process of the user's, `KERN_PROCARGS2` | **allowed** (N2) | allowed |
+
+2. **Is relying on deprecated `sandbox-exec` acceptable?** Yes for a Developer ID app. It is still shipped, Apple's own tools and many third-party tools use it, and nothing replaces it short of the App Sandbox, which can't be narrowed. How each failure would show:
+   - **The tool is removed.** `Local::command` returns `None` and the card says *HelperMissing*. This fails closed, but quietly: nothing says that the sandbox tool, not the helper, is what is missing.
+   - **The profile is rejected** (an operation renamed or removed). This is tested: `sandbox-exec` exits 65 before the exec, the app gets no hello, and the engine is Failed/Unknown. This fails closed.
+   - **Too little is allowed on a new OS** (for example a new Metal service). The helper fails to load and its jobs fall back. This fails closed.
+   - **`sandbox-exec` still exists but stops applying the profile.** This would **fail open**: the helper never checks that it is sandboxed (N3). CI's `under_its_sandbox_nothing_else_is_reachable` would catch it on the runner's macOS only, not on a user's newer OS.
+
+3. **Are the 50 exemptions real?** Mostly yes; I checked each claim mechanically against the app workspace.
+   - **"Exempted at this version in the app's own workspace" (41 entries):** all true. Each is in the root `supply-chain/config.toml` at that exact version.
+   - **Build-time only (`cc`, `cmake`, `find_cuda_helper`):** true.
+   - **"Not in the app" (`encoding_rs`, `itoa`, `log`, `valuable`, `syn` 3.0.10):** all true: none is in the root lock. Two wordings are off, though:
+     - `encoding_rs` is a *direct* dependency of the helper, not "transitive through llama-cpp-2";
+     - `syn` 3 (pulled by `serde_derive` and `thiserror-impl` at build time) is not "small".
+   - **`getrandom` 0.4.3 ("vetted there"):** true. Mozilla's imported audit covers it, so the exemption is redundant (`cargo vet prune`).
+   - **What should worry you:** only the expected part. `llama-cpp-2` and `llama-cpp-sys-2` are exempted, not audited, so they are contained by the sandbox under D-131 rather than vetted. VENDORED.md records their `.crate` digests (they match the cache) and the vendored tree's digest. llama.cpp CVEs aren't in RustSec, so `cargo deny` won't flag them. The watch is the manual bump rule.
+   - **Untidy, not a risk:** `supply-chain/audits.toml` is a copy of the app's sentry audits, which are irrelevant to the helper.
+4. **Swap (L1):** yes. The check is real, and two mutations show it is tested (ML1a, ML1b). The `/dev/fd` load itself isn't pinned by a test (ML1c).
+5. **Special tokens (L2):** yes, for control and user-defined tokens (ML2 fails). See N4 for the edges.
+6. **Memory pressure (L3):** the pressure rule is wired (as read above). **The cap is not**: see N1.
+
+### New findings
+
+| # | Severity | Finding |
+|---|---|---|
+| **N1** | **Medium** | **The memory cap has no effect.** `taskpolicy -m` sets a jetsam limit on the process it spawns, but the next `exec` (`sandbox-exec` → helper) drops it. Tested with an allocator in the exact chain the app builds (`taskpolicy -c utility -m 64 sandbox-exec -p <committed profile> … alloc N`): 300 MiB and **2,000 MiB were touched without a kill**. Direct `taskpolicy -m 64 alloc 300` is killed (137), and a plain `sh -c exec` in between drops the limit too. Reversing the order works: `sandbox-exec … taskpolicy -c utility -m 64 alloc 300` is killed (137). That order needs the profile to allow exec and read of `/usr/sbin/taskpolicy` only. `the_helper_starts_capped_sandboxed_and_in_its_folder` checks only the argv, so it can't see this; add a test that allocates past the cap through the real chain. ADR-0033 §4.2 and VENDORED.md state the cap as a control, so correct them until it works. |
+| **N2** | Low | Under the profile the helper can list processes and read other processes' paths and arguments (`proc_listallpids`, `proc_pidinfo`, `proc_pidpath`, `KERN_PROCARGS2`; macOS strips their environments, as tested). Arguments can carry secrets. The only way out is the helper's answers to the app. `(deny process-info-listpids)` closes the listing (tested). The other three were not closed by the `process-info*`/`sysctl-name-prefix` filters I tried. |
+| **N3** | Low | **Fail-open if `sandbox-exec` ever runs without applying the profile.** The fix is a self-test at the helper's start, in safe Rust: open something the profile denies (`/etc/hosts`, or the parent of the models' folder), and exit before the hello if it opens. Separately, the "HelperMissing" reason could name the missing sandbox tool. |
+| **N4** | Info | L2's edges: the special-token list leaves out `UNKNOWN`-attribute tokens, which llama.cpp's tokenizer also matches (`<unk>` stays parsable). A control token whose text is over 64 bytes is skipped (`token_to_piece_bytes(…, 64, …)`). Text without a marker takes the whole-string path, where a marker could in theory form across the template/content boundary (no ChatML case does). |
+
+### Clean-up
+
+Deleted: the archives (`rr`, `sc`), their targets, the probes (`p2`), the scan copies (`scan2`), the scratch TOML copies, and `$HOME/.aij-sbx-rereview-20261119`. Kept: nothing new. The leftover from the first pass, `~/Library/Containers/ai.figurehead.juggler.local-ai.review-probe/` (a 32 KB metadata plist, protected by `containermanagerd`), is still there for the maintainer to remove in Finder.
