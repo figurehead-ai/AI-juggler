@@ -16,6 +16,8 @@
 //!    there: what `/rewind` reads), the probe server set up on B (`claude
 //!    mcp get`, which starts no turn), and the launch: `claude --resume
 //!    <id>` in the project. A keeps all of it (a copy).
+//!    With `AIJ_LAB_ASK_B=1` (B has quota), B answers the codename from
+//!    the copy in a fork that isn't kept: the target answers.
 //! 2. Switch back to A: A's conversation is resumed with what happened
 //!    away, and A (the target of this hop, with quota) answers the
 //!    codename only the conversation holds; its file history is whole.
@@ -251,6 +253,7 @@ pub fn journey() {
         &[],
     );
     let mut away: Option<String> = None;
+    let mut copied_id: Option<String> = None;
     let step2 = match &copied {
         Ok(done) => {
             let argv = take_launch(&state, &done.session_id, done.pid);
@@ -274,6 +277,7 @@ pub fn journey() {
             let resumes = argv.iter().any(|a| a == "--resume") && argv.contains(&resume_id);
             let a_after = tree(&claude_a.join("file-history").join(&native));
             away = Some(done.session_id.clone());
+            copied_id = Some(resume_id.clone());
             let checks = json!({
                 "transcript_resume": on_b["transcript"].as_str().is_some_and(|p| Path::new(p).starts_with(&claude_b)) && on_b["ids_other_than_this"] == 0 && on_b["lines"].as_u64() >= on_a["lines"].as_u64() && resumes,
                 "cwd": folder == project && on_b["cwds"].as_array().is_some_and(|c| c.iter().all(|d| d.as_str() == Some(project.to_str().unwrap()))),
@@ -295,6 +299,26 @@ pub fn journey() {
         }
     };
     lab.steps.push(step2);
+
+    // 2b. With `AIJ_LAB_ASK_B=1` (B has quota): B answers from the copy, in
+    // a fork that isn't kept, the codename only the conversation holds —
+    // the one check that needs a turn on the target.
+    if std::env::var_os("AIJ_LAB_ASK_B").is_some()
+        && let Some(id) = &copied_id
+    {
+        let asked = claude_ask(
+            &lab,
+            &claude_b,
+            &project,
+            id,
+            "Without changing any file: what is this project's codename? Reply with just the codename.",
+        );
+        let answer = asked["result"].as_str().unwrap_or_default().to_owned();
+        lab.steps.push(
+            json!({"step": "2b B answers from the copy", "ok": mentions(&answer, CODENAME),
+                              "answer": answer, "is_error": asked["is_error"]}),
+        );
+    }
 
     // 3. Back to A: A is this hop's target, and it answers.
     let mut back_session: Option<String> = None;
