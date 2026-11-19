@@ -10,7 +10,8 @@
     clippy::unwrap_used,
     clippy::expect_used,
     clippy::panic,
-    clippy::pedantic
+    clippy::pedantic,
+    reason = "a test (QUALITY.md §2): its fixtures unwrap and panic on a broken setup"
 )]
 
 use std::path::{Path, PathBuf};
