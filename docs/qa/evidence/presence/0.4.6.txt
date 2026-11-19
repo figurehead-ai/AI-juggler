@@ -3,19 +3,24 @@ running desktop apps (ps): 6 (desktop)
 your running Apps: 6
 Open now shows: 6 desktop App(s), counted 6
 Inactive apps shows: 6 named on screen
-(lab runs: 49 in the Dev build's Lab App folder, ours by ADR-0027 7b; every other folder checked)
-  open: App 13: fold=True rows=2 pinned=0 last=None all=None count=None out=False  records=20/16 shown
-  open: App 15: fold=True rows=1 pinned=0 last=None all=None count=None out=False  records=1/1 shown
-  open: App 17: fold=True rows=1 pinned=0 last=None all=None count=None out=True  records=1/1 shown
-  open: App 16: fold=True rows=1 pinned=0 last=None all=None count=None out=True  records=1/1 shown
-  open: App 14: fold=True rows=3 pinned=0 last=None all=None count=None out=False  records=28/8 shown
-  open: App 18: fold=True rows=4 pinned=0 last=None all=None count=None out=False  records=7/7 shown
+(lab runs: 55 in the Dev build's Lab App folder, ours by ADR-0027 7b; every other folder checked)
+  open: App 13: fold=True rows=1 pinned=0 last=None all=None count=None out=False  records=21/17 shown
+  open: App 15: fold=True rows=1 pinned=0 last=None all=None count=None out=True  records=1/1 shown
+  open: App 17: fold=True rows=4 pinned=0 last=None all=None count=None out=False  records=29/9 shown
+  open: App 16: fold=True rows=1 pinned=0 last=None all=None count=None out=False  records=1/1 shown
+  open: App 14: fold=False rows=0 pinned=0 last=None all=None count=None out=True  records=0/0 shown
+  open: App 18: fold=True rows=6 pinned=0 last=None all=None count=None out=True  records=9/9 shown
+  idle: App 12: fold=folded rows=0 pinned=0 last=None all=None count=7 out=False  records=7/7 shown
   idle: App 21: fold=folded rows=0 pinned=0 last=None all=None count=15 out=False
-  idle: App 9: fold=folded rows=0 pinned=0 last=None all=None count=84 out=False  records=84/84 shown
-  idle: App 19: fold=folded rows=0 pinned=0 last=None all=None count=22 out=False  records=22/22 shown
-  idle: App 22: fold=folded rows=0 pinned=0 last=None all=None count=11 out=False
-  idle: App 23: fold=folded rows=0 pinned=0 last=None all=None count=11 out=False
-  idle: App 12: fold=folded rows=0 pinned=0 last=None all=None count=5 out=False  records=5/5 shown
-  codex store: 15 by the App 21 + 33 others = 48 listed; rail: app=15 cli=None
+  idle: App 19: fold=folded rows=0 pinned=0 last=None all=None count=21 out=False  records=21/21 shown
+  idle: App 9: fold=folded rows=0 pinned=0 last=None all=None count=84 out=True  records=84/84 shown
+  idle: App 20: fold=False rows=0 pinned=0 last=None all=None count=41 out=False
+  idle: App 22: fold=False rows=0 pinned=0 last=None all=None count=11 out=False
+  codex store: 15 by the App 21 + 33 others = 48 listed; AI Juggler's runs: 15, on 7 of them; so app=15 cli=41; rail: app=15 cli=41
+  live: App 13: 1 open in its app (ps), the rail says 1 open
+  live: App 17: 4 open in its app (ps), the rail says 4 open
+  live: App 16: 1 open in its app (ps), the rail says 1 open
+  live: App 18: 6 open in its app (ps), the rail says 6 open
   limit hits given back (D-103.10): 0 on the wrong Account before, 0 after; 0 moved, 0 cleared (their Account is gone), 0 left where they happened
-PASS Open now is exactly your running Apps; none is in two sections; each unfolds to its own records; every Out Account marked; no lab run in a real profile; Codex counts are the store's listed threads; no past limit hit left on the wrong Account
+(0.4.6 rc3c: AI Juggler Dev, a release build at eb6206c8c (built at f845582c9, which adds a test only), stamped 0.4.6, started through scripts/qa/lab_env.sh on the real HOME and read by pid, 2026-11-18 22:50 ET. ps -E is clean on the app and its watcher. Run with Needs you folded: the rail draws only the rows near its view, and one more need had pushed an App's rows out of range. The Codex line counts AI Juggler's own runs as Codex CLI's rows, the rule the app and the Claude Code CLI check share (0791f7bee).)
+PASS Open now is exactly your running Apps; none is in two sections; what each runs is open under it; each unfolds to its own records; every Out Account marked; no lab run in a real profile; Codex counts are the store's listed threads; no past limit hit left on the wrong Account
