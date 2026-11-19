@@ -143,7 +143,7 @@ Forgetting a record forgets its **subject**: every version of that subject key. 
 - **Backup files the user exported before the forget** are theirs: AI Juggler can't reach a file once it's saved, and such files don't rotate. The backup page and the forget sheet say so plainly (`features::ai::memory::FORGET_AND_BACKUPS`: "A backup file you exported before still holds them until you delete that file"). Scrubbing them was rejected: they may be anywhere (another disk, a cloud folder), and rewriting a user's archive behind their back could break the one copy they trusted.
 - **Out of reach by design:** the file system's own copies of freed blocks (APFS snapshots, Time Machine). A WAL fold blocked by another connection's open read leaves the frames until the next full checkpoint (`Forgotten::wal_folded`; maintenance retries it, step 3).
 
-**Clear actions** (Settings › AI › Memory, §9) are forgets over sets of subjects: "Forget everything about web" (by `memory_entities`), "Forget this conversation", "Forget all memory".
+**Clear actions** (What Bot remembers, §9) are forgets over sets of subjects: "Forget everything about web" (by `memory_entities`), "Forget this conversation", "Forget all memory".
 
 #### 1.6 Conversations: the short tier's storage (amends ADR-0034 §6.7's location)
 
@@ -506,7 +506,7 @@ D-123 places the bot in 0.6 as an extension of Chat. It uses this store, this lo
 ### 9. Privacy
 
 - **Everything on this Mac.** The store, conversations and log are in AI Juggler's local database: never in the Fleet outbox or on a paired Mac, in a cloud backup only as the stated watches and preferences (§1.8), never in usage statistics, crash reports or the app's logs (tracing gets ids and codes; a test greps captured logs for fixture memory text). The AI helpers keep ADR-0033 §4's no-network sandbox and never read the database (ADR-0034 §6.3).
-- **Settings › AI › Memory** (D-126's rich mode, reached also from Chat's panel and from each "What I used" line):
+- **What Bot remembers, a tab of the Bot page** (amended 2026-11-19, D-136: it was Settings › AI › Memory; Settings › AI keeps a link; D-126's rich mode, reached also from the panel's ⋯ menu and from each "Looked at" line):
   - every current memory, grouped by kind (Your notes, Names you use, What matters to you, Watches, What you asked), each with its text, who it came from in plain words ("you said", "noted by AI (Beta)", "AI Juggler recorded"), its scope, its age, "used N times", and **Edit** (a new version), **Pin**, **Forget**; paged, never loaded all at once;
   - **Remember what I ask** (on by default): off stops new `asked` and `answer` records and forgets the existing ones, after a sheet that says so;
   - **Let Chat note things on its own (Beta)**, off by default, shown only when the `MemoryNote` job passed and its flag is on (D-127);

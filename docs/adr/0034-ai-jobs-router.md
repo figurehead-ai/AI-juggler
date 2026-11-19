@@ -355,6 +355,7 @@ When `ai_jobs` says Chat is `no_engine`, the icon still shows and opens this pan
 
 - **Shortcuts that need no AI:** "What needs me", "What finished today", "Runway by account", "What's running", each a link to the screen that already answers it (the rail's Needs you, Home's Finished filter, Home's Runway column, Open now). No second implementation of those screens.
 - **The offer,** only when the model store has an offer for this Mac: the default slot passed Chat's gate run, the Mac qualifies (Apple silicon, the pin's RAM, never 8 GB), and the free-disk rule (§5.2 rule 5) would allow it. The card says what it adds, the size, and that it stays on the Mac, with **Get it (2.5 GB)** and **Not now**, a decline remembered. It is the same offer and the same file as the feed's (ADR-0033 §5), never a second one.
+- **The question box stays** (amended 2026-11-19, D-136's approved mock-up): the look-ups run in code and need no model, so a question asked here gets the found records, as on any Mac. Only the written answer needs a model.
 - **`Waiting` is not this panel:** a Chat that is waiting (§4.3) shows the question box disabled with the reason.
 - After a verified download the panel becomes Chat without a restart (`AiJobsChanged`), and after Remove it turns back.
 

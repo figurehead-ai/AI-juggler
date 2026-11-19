@@ -3730,3 +3730,4 @@ The maintainer asked whether Chat should be its own page, whether there should b
 5. **Bot only tells; acting needs a confirm card.** True from 0.5 (Watch this…); 0.6 adds more confirm cards (start, stop, hand over) in the same conversation.
 - Supersedes AJ-E3804..E3809's "Chat" naming, and the separate-panel-only layout of the 2026-11-19 mock-up.
 - Sources: the maintainer's messages, 2026-11-19.
+- **The mock-up approved (2026-11-19, the maintainer: "remove the placeholder and build it"):** `~/Dev/AIJuggler-design-refs/chat-panel/` (19 states, kept outside the repo for its vendor logos) is the design Bot is built to, with one change: the full page's dashed "Later · Longer tasks" card is removed. It drew a feature that doesn't exist (D-127) and returns in 0.6 with the feature. Two ADR lines change with it: ADR-0034 §6.8 (the question box stays in the no-model panel) and ADR-0037 §9 ("What Bot remembers" is a tab of the Bot page, not a Settings pane).
