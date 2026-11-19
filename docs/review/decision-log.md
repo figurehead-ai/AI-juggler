@@ -3720,3 +3720,13 @@ F-rc3c-3: a Claude app profile and its CLI share one Claude Code folder that hol
 4. **Readings carry the Account they were read under** (`quota_samples.signed_in_as`, V55); an Account's room uses only its own.
 5. **A change is recorded once and told once:** one `account_audit` row and one notice ("Claude Code CLI · aij-test is signed in to Team now"); a read that changes nothing writes neither.
 - Sources: the maintainer's ruling on F-rc3c-3 ("0.5: a per-App Account needs a design that reconciles D-63"), the coordinating session's Q1 ruling (2026-11-19), the write-up's answers.
+
+### D-136 One Bot: a single continuous conversation, context-aware, panel and full page, the same Bot that grows in 0.6 — SETTLED (2026-11-19)
+The maintainer asked whether Chat should be its own page, whether there should be several chats or chats per app or session, how it flows with the 0.6 bot, and whether it knows which screen you're on: "if we confuse the user it is all going to be worthless." The maintainer approved the model below, and named it Bot: "Why don't we call Chat bot, and next version in 0.6 is just going to be a lot more functional bot."
+1. **It's called Bot,** from 0.5 on. 0.6's bot is the same Bot with more abilities: no rename, nothing to migrate. Its empty state says plainly what it can do today (answer questions about your work, set watches after you confirm) and that it doesn't talk to your agents.
+2. **One conversation, for good.** No separate chats or threads: AI Juggler already has many sessions (your agents'), and parallel threads would blur the two. A long history stays readable through day dividers, a "New topic" divider, search and clear. D-133's one memory goes with the one conversation.
+3. **Context-aware, visibly.** A question asked from a session, app or project page is scoped to it, shown as a chip on the question ("About: api ×"); one click widens it to everything. Never a silent guess: each answer says what it looked at. "Ask Bot about this" on session, app, project and feed items opens Bot with that scope filled in. That is how you ask about one App or session, not separate chats.
+4. **A docked panel and a full page, one conversation.** The panel (the top-right icon, ⌘J) is the default, for asking while looking at something. Expand opens a full Bot page: long reading, history search, "What Bot remembers", and later the bot's longer tasks. Switching never loses anything.
+5. **Bot only tells; acting needs a confirm card.** True from 0.5 (Watch this…); 0.6 adds more confirm cards (start, stop, hand over) in the same conversation.
+- Supersedes AJ-E3804..E3809's "Chat" naming, and the separate-panel-only layout of the 2026-11-19 mock-up.
+- Sources: the maintainer's messages, 2026-11-19.
