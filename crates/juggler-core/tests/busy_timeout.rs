@@ -318,21 +318,20 @@ fn a_migration_waits_for_another_connection_that_changes_the_database() {
     let dir = tempfile::tempdir().unwrap();
     let db = dir.path().join("juggler.sqlite");
     drop(Storage::open(&db).unwrap());
-    // One version behind: the last migration (v52, the name a folder was
-    // accepted under at import) is undone by dropping its table and
-    // rolling the version back, and runs again on open.
+    // One version behind: the last migration (v53, who leads a pool next,
+    // AJ-E3011) is undone by dropping its table and rolling the version
+    // back, and runs again on open.
     let version: i64 = Connection::open(&db)
         .unwrap()
         .query_row("PRAGMA user_version", [], |row| row.get(0))
         .unwrap();
     assert_eq!(
-        version, 52,
-        "a new migration landed: undo it here instead (this test's undo is v52's)"
+        version, 53,
+        "a new migration landed: undo it here instead (this test's undo is v53's)"
     );
     {
         let conn = Connection::open(&db).unwrap();
-        conn.execute_batch("DROP TABLE account_import_names;")
-            .unwrap();
+        conn.execute_batch("DROP TABLE pool_lead_next;").unwrap();
         conn.pragma_update(None, "user_version", version - 1)
             .unwrap();
     }
