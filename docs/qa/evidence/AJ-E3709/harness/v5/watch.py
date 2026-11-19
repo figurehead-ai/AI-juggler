@@ -489,13 +489,14 @@ def covered(w, asked, tg, conds):
     words code reads itself (quiet hours, a lifetime: "tonight", "whenever", "until I say stop"), a watch verb ("warn", "wake me"), a
     generic noun for the target ("the webhook work") or a paraphrase ("drops below", "jede Rückfrage") counted as unwatchable"""
     names = {t for e in tg for t in _toks(e["raw_name"]) + _toks(str(e.get("project") or "")) + _toks(str(e.get("app") or ""))}
+    parts = {t for e in tg for x in (e["raw_name"], str(e.get("project") or ""), str(e.get("app") or "")) for t in re.findall(r"[^\W_]+", _norm(x))}   # "ui" of "windmill-ui"
     rx = "|".join(COVER[c["type"]] + ("|" + COVER_MORE[c["type"]] if c["type"] in COVER_MORE else "") for c in conds)
     a = re.sub(QUIET_ANYHOUR + "|" + QUIET_INDIFF + "|" + QUIET_WAKE + "|" + QUIET_NIGHT + "|" + QUIET_TERM + "|" + LIFE_ALWAYS.pattern + "|" + LIFE_TODAY.pattern
                + "|" + LIFE_SPAN.pattern, " ",
                unicodedata.normalize("NFKC", str(asked or "")).lower(), flags=re.I)
     a = _norm(re.sub(r"\b(?:keep|stay|be)\s+(?:it\s+)?(?:quiet|silent)\b|\b(?:and\s+)?yes\b|\bja\b", " ", a))
     for t in re.findall(r"[^\W_]+", a):
-        if t.isdigit() or t in GENERIC or re.fullmatch(FILLER, t) or re.fullmatch(FILLER_MORE, t) or _tok_hit(t, names) or (rx and re.search(rx, t)): continue
+        if t.isdigit() or t in GENERIC or re.fullmatch(FILLER, t) or re.fullmatch(FILLER_MORE, t) or _tok_hit(t, names) or t in parts or (rx and re.search(rx, t)): continue
         return False
     return True
 LIFE_ALWAYS = re.compile(r"\b(?:whenever|every time|each time|any time|from now on|until i (?:say )?stop|until i remove it|keep watching|"
@@ -614,7 +615,8 @@ class WatchDraft(Job):
             if amb: return self._done(w, "ask", "Which one do you mean? " + " · ".join(_q(x["name"]) + (f" ({x['project']})" if x.get("project") else "") for x in same_name(w, e)), [], picker=[x["ref"] for x in same_name(w, e)])
             if res is not e: errs.append(f"target: {_q(e['name'])} resolves to {res['ref']} from the request's other words, not {e['ref']}")
         lt = fields.get("lifetime") if fields.get("lifetime") in LIFETIMES else "unsaid"; until = None
-        if lt == "unsaid" and said_lifetime(w["request"]): lt = said_lifetime(w["request"])      # the request's own words, read by code
+        sl = said_lifetime(w["request"])      # the request's own words, read by code; round 3: over the model's own reading too ("until I
+        if sl and (lt == "unsaid" or (lt != sl and lt != "until_time")): lt = sl      # say otherwise" drafted once, "jedes Mal" once)
         if lt == "until_time" and re.fullmatch(r"(?:24[:.]00|23[:.]59|00[:.]00)", str(fields.get("until") or "").strip()): lt = "today"   # midnight is "today"
         if lt == "until_time":
             m = re.fullmatch(r"([01]?\d|2[0-3])[:.]([0-5]\d)", str(fields.get("until") or "").strip())
@@ -645,7 +647,7 @@ class WatchDraft(Job):
            project or App, unless the request speaks of a session; or when the condition can't be watched on the session but can on it
            ("a new session starts in ops-dash")"""
         anyw = w["by_ref"]["any"]
-        if named(w, anyw) and len(tg) >= 2 and all(e["kind"] in ("session", "app") for e in tg) \
+        if named(w, anyw) and len(tg) >= 2 and all(e["kind"] in ("session", "app", "project") for e in tg) \
                 and not any(named(w, x) for x in w["entries"] if x["kind"] != "any"):     # whole names: "Alert me" names no "Alert rules"
             return [anyw]
         out = []
@@ -654,6 +656,13 @@ class WatchDraft(Job):
             if o is not None and (not SESSION_WORD.search(_mask_names(w)) or any(not offered(w, e, c["type"]) and offered(w, o, c["type"]) for c in conds)):
                 e = o
             if e not in out: out.append(e)
+        # round 3: a session drafted beside its own project or App (both said: "the fence map session") is one target: the session when
+        # the request speaks of a session, else the owner
+        sess = SESSION_WORD.search(_mask_names(w))
+        pairs = [(e, o) for e in out if e["kind"] == "session" for o in out if o["kind"] in ("project", "app") and _norm(e.get(o["kind"]) or "") in _keys(o)]
+        for e, o in pairs:
+            drop = o if sess else e
+            if drop in out and len(out) > 1: out.remove(drop)
         return out
     def _named_conditions(self, w, conds, perrs, bad):
         """round 3: a condition the request's words don't name, beside one they do, is the draft's noise and is dropped (a range copied
@@ -779,6 +788,7 @@ def gold_norm(w, ref=None):
     return {"supported": sup, "target": (tk, None if tk == "any" else (str(tid) if tid is not None else None)), "conditions": conds,
             "lifetime": gold_lifetime(g.get("lifetime"), ref), "nearest": near, "unknown_types": unknown,
             "quiet": bool(g.get("even_in_quiet_hours"))}
+ONCE_WORDS = re.compile(r"\b(?:once|one time|just this (?:once|time)|einmal|nur einmal|ein einziges mal)\b|\b\d{1,2}(?:[:.]\d\d)?\s*(?:am|pm|uhr)\b|\b\d{1,2}:\d\d\b", re.I)
 def match(w, o, G):
     """-> (exact: bool, diffs: [str]) of a shown watch against gold"""
     wt = o["watch"]; diffs = []
@@ -788,6 +798,9 @@ def match(w, o, G):
     if cs != G["conditions"]: diffs.append(f"conditions {sorted(cs, key=str)} != {sorted(G['conditions'], key=str)}")
     lt = f"until_time:{wt['until']}" if wt["lifetime"] == "until_time" else wt["lifetime"]
     default_only = False
+    if wt.get("lifetime_said") and lt == default_lifetime(wt["targets"], wt["conditions"]) and lt != G["lifetime"] and G["lifetime"] not in (None, "beyond") \
+            and not said_lifetime(w["request"]) and not LIFE_SPAN.search(w["request"]) and not ONCE_WORDS.search(w["request"]):
+        wt = dict(wt, lifetime_said=False)     # round 3: a draft that says ADR-0036's default for a request that says no lifetime is the default
     if G["lifetime"] is None:
         if wt.get("lifetime_said") and lt != default_lifetime(wt["targets"], wt["conditions"]): diffs.append(f"lifetime {lt}; gold: unsaid")
     elif G["lifetime"] == "beyond":

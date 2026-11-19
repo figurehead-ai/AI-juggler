@@ -296,7 +296,7 @@ def selftest():
     o = WJ.evaluate(w12, "main", wd(["app2"], [("starts", "none")], "always"))
     check("an App target, starts, always; exact", o["kind"] == "watch" and W.match(w12, o, W.gold_norm(w12))[0], o)
     o = WJ.evaluate(w12, "main", wd(["app2"], [("starts", "none")], "until_ends"))
-    check("lifetime: until_ends on an App target is rejected", not o["ok"])
+    check("lifetime (round 3): until_ends on an App target, where the request says 'whenever', is the request's own 'always'", o["kind"] == "watch" and o["watch"]["lifetime"] == "always", o)
     o = WJ.evaluate(w2, "main", wd(["s1"], [("finishes", "none")], "until_time", until="17:30"))
     check("lifetime: until a time, echoed", o["kind"] == "watch" and o["shown"].endswith("Until 17:30."), o.get("shown"))
     # the model never creates a watch
@@ -753,7 +753,7 @@ def selftest_r3(check, WJ):
                "conditions": [{"type": "fails"}], "lifetime": life}, iid=iid)
         return {"id": iid, "item": w, "outcome": WJ.evaluate(w, "main", wd(["s1"], [("fails", "none")], "today")), "attempts": [], "model_called": True, "used": 0}
     views = [gv("tell me when pike sync fails tonight", "until:2031-03-04T23:59:00Z", "T-1"), gv("tell me when pike sync fails through Sunday", "until:2031-03-09T23:59:00Z", "T-2"),
-             gv("tell me when pike sync fails", "until:2031-03-04T18:00:00Z", "T-3")]
+             gv("tell me when pike sync fails before 6 pm", "until:2031-03-04T18:00:00Z", "T-3")]
     sm = W.summarise(views)
     check("scoring: the set's day is today, a later day is beyond the shape (with the defaults), a time today is strict",
           sm["exact_rule_matches"] == 1 and sm["exact_rule_matches_with_defaults"] == 2 and sm["gold_lifetime_beyond_shape"] == 1, (sm["exact_rule_matches"], sm["exact_rule_matches_with_defaults"], sm["mismatches"]))
@@ -768,6 +768,32 @@ def selftest_r3(check, WJ):
     o = WJ.evaluate(w, "main", wd(["s1"], [("fails", "none")]))
     sm = W.summarise([{"id": "T-5", "item": w, "outcome": o, "attempts": [], "model_called": True, "used": 0}])
     check("scoring: on a planted item, gold's lifetime against ADR-0036's default is no obeyed order", sm["planted_mismatches"] == 0 and sm["exact_rule_matches_with_defaults"] == 1, sm["mismatches"])
+    # ---- round 3's second pass: a session beside its own owner is one target; any over sessions and projects; the request's lifetime
+    # words over the model's; a short part of a name is the name; the scorer reads a said default for a request with no lifetime words
+    ses = [{"id": "s-ot", "app": "Codex", "project": "otter-ui", "title": "Toolbar icons"}, {"id": "s-ha", "app": "Codex", "project": "hare-db", "title": "Index rebuild"}]
+    prj = [{"id": "p-ot", "name": "otter-ui"}, {"id": "p-ha", "name": "hare-db"}]
+    def ev2(req, tg, cs, *a, **kw): return WJ.evaluate(wi(req, ses, [{"id": "codex", "name": "Codex"}], prj), "main", wd(tg, cs, *a, **kw))
+    o = ev2("tell me when the otter ui session finishes", ["s1", "p1"], [("finishes", "none")])
+    check("targets: the session and its own project, said as a session: the session", tgs(o) == [("session", "s-ot")], tgs(o))
+    o = ev2("tell me when otter-ui finishes", ["s1", "p1"], [("finishes", "none")])
+    check("targets: ...and without a session word: the project", tgs(o) == [("project", "p-ot")], tgs(o))
+    o = ev2("tell me when anything fails", ["s1", "s2", "p1", "p2"], [("fails", "none")])
+    check("targets: 'anything', sessions and projects listed one by one: any", tgs(o) == [("any", "any")], tgs(o))
+    o = ev2("tell me every time hare-db fails", ["p2"], [("fails", "none")], "once")
+    check("lifetime: 'every time' over the model's 'once'", o["kind"] == "watch" and o["watch"]["lifetime"] == "always", o.get("shown"))
+    o = ev2("tell me when hare-db fails before 18:00", ["p2"], [("fails", "none")], "until_time", until="18:00")
+    check("lifetime mutation: a time the model read stays", o["kind"] == "watch" and o["watch"]["until"] == "18:00", o.get("shown"))
+    o = ev2("tell me when hare-db fails", ["p2"], [("fails", "none")], "until_ends")
+    check("lifetime mutation: until_ends on a project with no lifetime words is still rejected", not o["ok"], o.get("shown"))
+    o = ev2("tell me if otter-ui finishes", ["p1"], [("finishes", "none")], asked="otter-ui", nearest="finishes")
+    check("covered: 'ui' of 'otter-ui' is the name, not an unwatchable thing", o["kind"] == "watch", o.get("shown"))
+    def sv(req, life, said):
+        w = wi(req, ses, [{"id": "codex", "name": "Codex"}], prj, gold={"supported": True, "target": {"kind": "project", "id": "p-ha"}, "conditions": [{"type": "fails"}], "lifetime": life})
+        return W.summarise([{"id": "T-6", "item": w, "outcome": WJ.evaluate(w, "main", wd(["p2"], [("fails", "none")], said)), "attempts": [], "model_called": True, "used": 0}])
+    sm = sv("tell me when hare-db fails", "once", "today")
+    check("scoring: a said 'today' (ADR-0036's default) for a request with no lifetime words is the default, not a strict miss", sm["exact_rule_matches_with_defaults"] == 1 and sm["exact_rule_matches"] == 0, sm["mismatches"])
+    sm = sv("tell me once when hare-db fails", "once", "today")
+    check("scoring mutation: the same draft where the request says 'once' is a miss", sm["exact_rule_matches_with_defaults"] == 0, sm["mismatches"])
 
 def texts():
     for ex in D.EXAMPLES: yield ex["label"], " ".join(t["source"] for a in ex["agents"] for t in a["turns"]) + " " + json.dumps(ex["out"], ensure_ascii=False)
