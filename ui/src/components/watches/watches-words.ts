@@ -4,6 +4,7 @@
  * menu, the form, the preview, the empty and ended states, the limit.
  * Plain words, one file, so the plain-words lint and a translator read it.
  */
+import { THIS_MACHINE_IN_TEXT } from "../../lib/machine-words";
 
 export const PAGE = {
   title: "Watches",
@@ -23,7 +24,7 @@ export const PAGE = {
   loading: "Loading watches",
   failed: "Couldn't read the watches.",
   retry: "Try again",
-  unavailable: "Watches aren't ready on this Mac yet. They start once AI Juggler has updated its records.",
+  unavailable: `Watches aren't ready on ${THIS_MACHINE_IN_TEXT} yet. They start once AI Juggler has updated its records.`,
 } as const;
 
 /** The quiet-hours line under the head (only when the user has quiet hours). */
@@ -60,7 +61,7 @@ export const KIND = {
   project: "Project",
   pool: "Pool",
   account: "Account",
-  any: "Every session on this Mac",
+  any: `Every session on ${THIS_MACHINE_IN_TEXT}`,
   sessions: (n: number) => `${n} sessions`,
   targets: (n: number) => `${n} targets`,
   everySessionInIt: "every session in it",
@@ -255,13 +256,13 @@ export const PICKER = {
   pools: "Pools",
   accounts: "Accounts",
   any: "Any session",
-  anyLine: "Every session on this Mac",
+  anyLine: `Every session on ${THIS_MACHINE_IN_TEXT}`,
   picked: (n: number, max: number) => `${n} picked · up to ${max}`,
   keys: "↑↓ to move · Space to pick",
   remove: (name: string) => `Remove ${name}`,
   none: "Nothing matches.",
   full: (max: number) => `Up to ${max}.`,
-  anyAlone: "Any session watches everything on this Mac, so it can't sit beside other targets.",
+  anyAlone: `Any session watches everything on ${THIS_MACHINE_IN_TEXT}, so it can't sit beside other targets.`,
   everySession: "every session in it",
 } as const;
 

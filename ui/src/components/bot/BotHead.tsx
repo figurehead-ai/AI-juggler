@@ -117,7 +117,7 @@ export function BotFindBar(): JSX.Element | null {
     <search className="flex shrink-0 items-center gap-1.5 border-b border-divider py-2 pr-2.5 pl-3" data-testid="bot-find">
       <label className="flex h-8 grow items-center gap-2 rounded-[10px] bg-fill px-2.5 inset-ring-[1.5px] inset-ring-accent ring-4 ring-accent-soft">
         <IconSearch width={14} height={14} aria-hidden="true" className="text-faint" />
-        <input
+        <input autoCorrect="off" autoCapitalize="off" spellCheck={false}
           ref={box}
           value={words}
           onChange={(event) => setWords(event.target.value)}

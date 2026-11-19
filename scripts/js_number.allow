@@ -423,3 +423,12 @@ command usage_history_limits(start_ms)             # ms epoch, < 2^53 until year
 WatchInfo.changed_ms                               # ms epoch, < 2^53 until year 287396
 WatchInfo.ended_ms                                 # ms epoch, < 2^53 until year 287396
 WatchInfo.last_told_ms                             # ms epoch, < 2^53 until year 287396
+BotCountInfo.since_ms                              # ms epoch, < 2^53 until year 287396
+BotFoundInfo.at_ms                                 # ms epoch, < 2^53 until year 287396
+BotMemoryInfo.at_ms                                # ms epoch, < 2^53 until year 287396
+BotRowInfo.at_ms                                   # ms epoch, < 2^53 until year 287396
+BotRowInfo.resets_at_ms                            # ms epoch, < 2^53 until year 287396
+BotRowInfo.started_ms                              # ms epoch, < 2^53 until year 287396
+BotTopicInfo.started_ms                            # ms epoch, < 2^53 until year 287396
+BotTurnInfo.at_ms                                  # ms epoch, < 2^53 until year 287396
+command bot_page(before_ms)                        # ms epoch, < 2^53 until year 287396

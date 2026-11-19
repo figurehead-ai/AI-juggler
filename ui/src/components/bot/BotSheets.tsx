@@ -14,6 +14,7 @@ import { FORGET_EVENT, forgetMemory } from "../../lib/bot-memory";
 import { botCount, botMemories, type BotCountInfo } from "../../lib/ipc/bot";
 import { errorText } from "../../lib/bridge";
 import type { BotMemoryInfo } from "../../types/generated/BotMemoryInfo";
+import { THIS_MACHINE_IN_TEXT } from "../../lib/machine-words";
 
 function Sheet({ id, title, body, children, button, onConfirm, onClose }: { id: string; title: string; body: string; children: ReactNode; button: string; onConfirm: () => Promise<void>; onClose: () => void }): JSX.Element {
   const ref = useRef<HTMLDivElement | null>(null);
@@ -114,7 +115,7 @@ function forgetTitle(memory: BotMemoryInfo): string {
 
 function forgetBody(memory: BotMemoryInfo): string {
   const versions = memory.versions > 0 ? ` with its ${memory.versions} earlier ${memory.versions === 1 ? "version" : "versions"}` : "";
-  return `Bot stops using it now. It’s deleted from this Mac${versions}, and the message where you said it is cleared. You can’t undo this.`;
+  return `Bot stops using it now. It’s deleted from ${THIS_MACHINE_IN_TEXT}${versions}, and the message where you said it is cleared. You can’t undo this.`;
 }
 
 function isMemory(value: unknown): value is BotMemoryInfo {

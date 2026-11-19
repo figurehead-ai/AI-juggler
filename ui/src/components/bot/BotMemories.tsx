@@ -14,6 +14,7 @@ import { memoryWords } from "./BotMemoryParts";
 import { askForget, editMemory, useMemories } from "../../lib/bot-memory";
 import { agoWords } from "../../lib/time-words";
 import type { BotMemoryInfo } from "../../types/generated/BotMemoryInfo";
+import { THIS_MACHINE_IN_TEXT } from "../../lib/machine-words";
 
 const KIND_WORDS: Record<string, string> = { session: "Session", project: "Project", pool: "Pool", app: "App" };
 
@@ -87,11 +88,11 @@ export function BotMemories(): JSX.Element {
   return (
     <div className="min-h-0 flex-1 overflow-y-auto pb-6" data-testid="bot-memories">
       <p className="mb-3 max-w-[90ch] text-meta text-muted">
-        Only what you told Bot. Facts about your sessions and usage are never stored here: Bot reads them fresh each time. All of it stays on this Mac.
+        Only what you told Bot. Facts about your sessions and usage are never stored here: Bot reads them fresh each time. All of it stays on {THIS_MACHINE_IN_TEXT}.
       </p>
       <div className="mb-[18px] flex items-center gap-3 rounded-xl bg-surface-2 px-3.5 py-2.5 text-meta text-ink-2">
         <IconLock width={15} height={15} aria-hidden="true" className="text-faint" />
-        <span>On this Mac only · never synced, never sent</span>
+        <span>On {THIS_MACHINE_IN_TEXT} only · never synced, never sent</span>
       </div>
       {error && <p className="text-meta text-danger" role="alert">{error}</p>}
       {info && items.length === 0 && (
@@ -113,7 +114,7 @@ export function BotMemories(): JSX.Element {
         {info && (
           <div className="flex flex-wrap items-stretch gap-4">
             <Tile icon={IconEye} title={`Watches · ${info.watches}`} help="Kept while they run. They stay when you clear the conversation." />
-            <Tile icon={IconQuestion} title={`What you asked · ${info.questions}`} help="Your questions, on this Mac. Clear them from the conversation’s ⋯ menu." />
+            <Tile icon={IconQuestion} title={`What you asked · ${info.questions}`} help={`Your questions, on ${THIS_MACHINE_IN_TEXT}. Clear them from the conversation’s ⋯ menu.`} />
           </div>
         )}
       </div>

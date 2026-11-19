@@ -105,7 +105,7 @@ export function WatchesToolbar({ state, counts, onChange }: { state: ToolbarStat
       <label className="flex h-9 min-w-[200px] flex-1 basis-56 items-center gap-2 rounded-[10px] bg-fill px-2.5 inset-ring-1 inset-ring-hairline/75">
         <IconFind width={15} height={15} aria-hidden="true" className="text-faint" />
         <span className="sr-only">{MANY.search}</span>
-        <input value={state.query} onChange={(event) => onChange({ query: event.target.value })} placeholder={MANY.search} className="min-w-0 flex-1 bg-transparent text-meta text-ink outline-none placeholder:text-faint" data-testid="watches-search" />
+        <input autoCorrect="off" autoCapitalize="off" spellCheck={false} value={state.query} onChange={(event) => onChange({ query: event.target.value })} placeholder={MANY.search} className="min-w-0 flex-1 bg-transparent text-meta text-ink outline-none placeholder:text-faint" data-testid="watches-search" />
       </label>
       <Segmented<ListFilter>
         label={MANY.filter}

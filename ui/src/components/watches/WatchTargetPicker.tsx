@@ -137,7 +137,7 @@ export function WatchTargetPicker({ picked, book, onChange, invalid = false, lab
           <label className="mx-0.5 mb-1.5 flex h-9 items-center gap-2 rounded-[10px] bg-fill px-2.5 inset-ring-1 inset-ring-hairline/75">
             <IconFind width={15} height={15} aria-hidden="true" className="text-faint" />
             <span className="sr-only">{PICKER.search}</span>
-            <input ref={search} value={query} onChange={(event) => setQuery(event.target.value)} placeholder={PICKER.search} className="min-w-0 flex-1 bg-transparent text-body text-ink outline-none placeholder:text-faint" data-testid="watch-picker-search" />
+            <input autoCorrect="off" autoCapitalize="off" spellCheck={false} ref={search} value={query} onChange={(event) => setQuery(event.target.value)} placeholder={PICKER.search} className="min-w-0 flex-1 bg-transparent text-body text-ink outline-none placeholder:text-faint" data-testid="watch-picker-search" />
           </label>
           <div ref={list} id={listId} className="flex max-h-[min(420px,calc(100vh-330px))] min-h-40 flex-col gap-px overflow-y-auto">
             {lists.matches !== null ? (
