@@ -28,6 +28,7 @@ export function OwnTerminalOverview({
   switchBackSuggestions,
   onSwitchBack,
   onHandover,
+  reportedModel = null,
 }: {
   session: InstanceInfo;
   project: ProjectInfo | null;
@@ -39,6 +40,9 @@ export function OwnTerminalOverview({
   switchBackSuggestions?: SwitchBackSuggestionData[];
   onSwitchBack?: (sessionId: string) => void;
   onHandover: (sessionId: string, targetProfileId: string, targetLabel: string) => void;
+  /** A driven session's model as its tool reports it (its driver card's),
+   * until its transcript says. */
+  reportedModel?: string | null;
 }): JSX.Element {
   const { all } = useConversations();
   const accounts = useSubscriptions();
@@ -46,7 +50,7 @@ export function OwnTerminalOverview({
   const profiles = useProfiles();
   const seen = all.find((c) => c.session_id === session.id) ?? all.find((c) => c.account_id === session.account_id && c.id === session.conversation_id);
   // The same object while nothing it shows has changed.
-  const json = JSON.stringify(fromInstance(session, seen));
+  const json = JSON.stringify(fromInstance(session, seen, reportedModel));
   const model = useMemo(() => JSON.parse(json) as ReturnType<typeof fromInstance>, [json]);
   const account = accounts ? accountOfProfile(accounts, model.profileId) : undefined;
   const display = account ? accountDisplay(account, displays) : displays.find((d) => d.account === model.profileId);

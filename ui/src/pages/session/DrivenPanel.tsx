@@ -45,8 +45,19 @@ const STATE_WORDS: Record<string, string> = {
   ended: "Ended",
 };
 
-export function DrivenPanel({ session, onOpenSession }: { session: InstanceInfo; onOpenSession?: (id: string) => void }): JSX.Element {
-  const view = useRuntimeView(session.id);
+export function DrivenPanel({
+  session,
+  onOpenSession,
+  view: given,
+}: {
+  session: InstanceInfo;
+  onOpenSession?: (id: string) => void;
+  /** Its runtime as its page reads it (one read for the page and this
+   * card: they say the same model); read here when not given. */
+  view?: RuntimeViewInfo | null;
+}): JSX.Element {
+  const own = useRuntimeView(given === undefined ? session.id : null);
+  const view = given === undefined ? own : given;
   const host = useActionHost();
   const runtime = view?.runtime ?? session.runtime ?? null;
   const [text, setText] = useState("");
