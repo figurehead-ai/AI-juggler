@@ -2,7 +2,8 @@
 //! retrieval and the backup rule live in
 //! `juggler_core::storage::memory`; the app hands them what the core must
 //! not know: the D-14 secret detector (`juggler-handover`'s redaction
-//! engine). Step 1 has no command and no UI.
+//! engine). Bot's remember flow writes through [`MemoryWriters::with_memory`]
+//! (`features/ai/bot/memory.rs`); the forget sheet shows [`FORGET_AND_BACKUPS`].
 
 use std::collections::BTreeSet;
 
@@ -70,6 +71,16 @@ impl MemoryWriters {
             .lock()
             .ok()
             .and_then(|mut slots| slots.watches.take())
+    }
+
+    /// Bot's remember flow (AJ-E3819): the memory writer, lent for one
+    /// write and kept here, its owner's module (`None` when another state
+    /// in this process took the writers first).
+    pub fn with_memory<T>(&self, write: impl FnOnce(&KindWriter) -> T) -> Option<T> {
+        self.0
+            .lock()
+            .ok()
+            .and_then(|slots| slots.memory.as_ref().map(write))
     }
 
     /// AJ-E3712: the digest's own writer, once (`features/digest` takes it

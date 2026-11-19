@@ -10,6 +10,7 @@ pub mod dto;
 pub mod guard;
 pub mod history;
 pub mod lookup;
+pub mod memory;
 pub mod question;
 pub mod world;
 pub mod written;

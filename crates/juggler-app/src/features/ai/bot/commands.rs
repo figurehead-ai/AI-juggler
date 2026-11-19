@@ -59,14 +59,19 @@ pub fn bot_ask_impl(state: &Arc<AppState>, input: &BotAskInput) -> AppResult<Bot
         });
     }
     let question = RedactionSecrets.mask(&question);
-    let reading = read(&question);
     let world = gather(state)?;
+    let (read_as, used) = super::memory::with_aliases(state, &world, &question);
+    let reading = read(&read_as);
     let scope = input.scope.clone();
     let mut meta = Meta {
         scope: scope.clone(),
         lang: reading.lang,
+        used,
         ..Meta::default()
     };
+    if let Some(words) = reading.remember.as_deref() {
+        return remember_turn(state, &world, &question, words, meta);
+    }
     let (outcome, rows, written) = if reading.help {
         (BotOutcome::Help, Vec::new(), None)
     } else if reading.out_of_scope {
@@ -75,7 +80,10 @@ pub fn bot_ask_impl(state: &Arc<AppState>, input: &BotAskInput) -> AppResult<Bot
         let found = look_up(&reading, &world, scope.as_ref());
         meta.unknown = found.unknown;
         meta.shortcut = found.shortcut;
-        meta.looked = Some(found.looked);
+        meta.looked = Some(super::dto::BotLooked {
+            memories: u32::try_from(meta.used.len()).unwrap_or(0),
+            ..found.looked
+        });
         meta.total = found.total;
         if found.unknown.is_some() {
             (BotOutcome::DontKnow, found.rows, None)
@@ -124,6 +132,52 @@ pub fn bot_ask_impl(state: &Arc<AppState>, input: &BotAskInput) -> AppResult<Bot
     info.rows = rows;
     info.written = written;
     info.live = true;
+    Ok(info)
+}
+
+/// "Remember …": the turn kept, then the memory written from it (so a
+/// forget clears the message it came from), then its echo noted.
+fn remember_turn(
+    state: &Arc<AppState>,
+    world: &World,
+    question: &str,
+    words: &str,
+    mut meta: Meta,
+) -> AppResult<BotTurnInfo> {
+    let secret = RedactionSecrets.finds_secret(words);
+    let outcome = if secret {
+        BotOutcome::Refused
+    } else {
+        BotOutcome::Remembered
+    };
+    let kept = {
+        let storage = state.storage.lock().map_err(|_| AppError::StatePoisoned)?;
+        storage
+            .chat()
+            .append(&NewTurn {
+                at_ms: world.now_ms,
+                question,
+                outcome: outcome.code(),
+                shown: None,
+                cites: "[]",
+                entities: &serde_json::to_string(&meta).unwrap_or_else(|_| "{}".to_owned()),
+                has_agent_words: false,
+            })
+            .map_err(memory_error)?
+    };
+    if !secret {
+        meta.memory = super::memory::remember(state, world, words, &kept.id)?;
+        let storage = state.storage.lock().map_err(|_| AppError::StatePoisoned)?;
+        storage
+            .chat()
+            .annotate(
+                &kept.id,
+                &serde_json::to_string(&meta).unwrap_or_else(|_| "{}".to_owned()),
+            )
+            .map_err(memory_error)?;
+    }
+    let mut info = turn_info(&kept, None);
+    info.memory = meta.memory;
     Ok(info)
 }
 
@@ -363,6 +417,31 @@ pub async fn bot_clear(state: tauri::State<'_, Arc<AppState>>) -> AppResult<u32>
 pub async fn bot_wrong(state: tauri::State<'_, Arc<AppState>>, turn: String) -> AppResult<()> {
     crate::ipc::blocking(state.inner(), "Bot", move |state| {
         bot_wrong_impl(state, &turn)
+    })
+    .await
+}
+
+/// What Bot remembers (see [`super::memory::list`]).
+///
+/// # Errors
+///
+/// As [`super::memory::list`].
+#[tauri::command]
+pub async fn bot_memories(
+    state: tauri::State<'_, Arc<AppState>>,
+) -> AppResult<super::memory::BotMemoriesInfo> {
+    crate::ipc::blocking(state.inner(), "Bot", super::memory::list).await
+}
+
+/// Forgets one memory (see [`super::memory::forget`]).
+///
+/// # Errors
+///
+/// As [`super::memory::forget`].
+#[tauri::command]
+pub async fn bot_forget(state: tauri::State<'_, Arc<AppState>>, key: String) -> AppResult<()> {
+    crate::ipc::blocking(state.inner(), "Bot", move |state| {
+        super::memory::forget(state, &key)
     })
     .await
 }

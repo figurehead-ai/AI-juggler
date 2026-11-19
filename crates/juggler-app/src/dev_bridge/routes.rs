@@ -396,6 +396,10 @@ pub const NOT_SERVED: &[(&str, &str)] = &[
         "searches Bot's conversation, the user's own words (ADR-0037 §9); the real window walks it",
     ),
     (
+        "features::ai::bot::commands::bot_memories",
+        "What Bot remembers is the user's own words (ADR-0037 §9: never off this Mac's own process); the real window walks it",
+    ),
+    (
         "features::ai::bot::commands::bot_count",
         "counts Bot's conversation and memory for the clear sheet (ADR-0037 §9); the real window walks it",
     ),

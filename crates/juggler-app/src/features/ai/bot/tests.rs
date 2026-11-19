@@ -307,3 +307,85 @@ fn a_secret_in_a_question_is_kept_masked() {
     let page = bot_page_impl(&state, None, 5).unwrap();
     assert!(!page.turns[0].question.contains(key));
 }
+
+/// AJ-E3819 (UI part): "Remember: call web the api agent" keeps a name for
+/// the record by id; a later question that says it is read as the record's
+/// own name, with the memory in its receipt; Forget removes it, and the
+/// list says so; the forget words are FORGET_AND_BACKUPS word for word.
+#[test]
+fn a_stated_name_is_kept_used_and_forgotten() {
+    let (_dir, state) = state();
+    let world = world();
+    {
+        let storage = state.storage.lock().unwrap();
+        let writer = juggler_core::storage::memory::Writers::for_tests().memory;
+        let kept = super::memory::remember_in(
+            &storage,
+            &writer,
+            &world,
+            "call web the api agent",
+            "turn-1",
+        )
+        .unwrap()
+        .unwrap();
+        assert_eq!(
+            (
+                kept.slot.as_str(),
+                kept.text.as_str(),
+                kept.about.as_deref()
+            ),
+            ("alias", "the api agent", Some("web"))
+        );
+        assert_eq!(kept.key, "alias:session:s-web");
+        let note = super::memory::remember_in(
+            &storage,
+            &writer,
+            &world,
+            "I review pull requests after lunch",
+            "turn-2",
+        )
+        .unwrap()
+        .unwrap();
+        assert_eq!(note.slot, "note");
+        let secret = super::memory::remember_in(
+            &storage,
+            &writer,
+            &world,
+            "my key is sk-ant-api03-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+            "turn-3",
+        )
+        .unwrap();
+        assert!(secret.is_none(), "a key is refused, never kept masked");
+    }
+    let (read_as, used) = super::memory::with_aliases(&state, &world, "Is the api agent done?");
+    assert_eq!(read_as, "Is web done?");
+    assert_eq!(used.len(), 1);
+    let found = look_up(&read(&read_as), &world, None);
+    assert_eq!(titles(&found.rows), ["web"]);
+    let listed = super::memory::list(&state).unwrap();
+    assert_eq!(listed.items.len(), 2);
+    assert_eq!(
+        listed.forget_and_backups,
+        crate::features::ai::memory::FORGET_AND_BACKUPS
+    );
+    super::memory::forget(&state, "alias:session:s-web").unwrap();
+    let listed = super::memory::list(&state).unwrap();
+    assert_eq!(
+        listed
+            .items
+            .iter()
+            .map(|m| m.slot.as_str())
+            .collect::<Vec<_>>(),
+        ["note"]
+    );
+    let (read_as, used) = super::memory::with_aliases(&state, &world, "Is the api agent done?");
+    assert_eq!(
+        read_as, "Is the api agent done?",
+        "a forgotten name is never used again"
+    );
+    assert!(used.is_empty());
+    assert!(
+        super::memory::forget(&state, "watch:w1").is_err(),
+        "only stated memories are forgotten here"
+    );
+}

@@ -233,13 +233,30 @@ pub fn gather(state: &Arc<AppState>) -> AppResult<World> {
             }
         })
         .collect();
-    let accounts = storage
+    let accounts = accounts(state, &storage, now_ms);
+    Ok(World {
+        now_ms,
+        offset_hours: clock.utc_offset_hours.unwrap_or(0),
+        sessions,
+        tasks,
+        accounts,
+        removed,
+    })
+}
+
+/// Every Account, with the room the usage pipeline shows.
+fn accounts(
+    state: &AppState,
+    storage: &juggler_core::storage::Storage,
+    now_ms: i64,
+) -> Vec<BotRowInfo> {
+    storage
         .accounts()
         .list()
         .unwrap_or_default()
         .into_iter()
         .map(|account| {
-            let display = crate::features::quota::shown_all(state, &storage, &account, now_ms)
+            let display = crate::features::quota::shown_all(state, storage, &account, now_ms)
                 .into_iter()
                 .next();
             let (window, shown) = display.as_ref().map_or((None, None), |d| {
@@ -277,15 +294,7 @@ pub fn gather(state: &Arc<AppState>) -> AppResult<World> {
                 )
             }
         })
-        .collect();
-    Ok(World {
-        now_ms,
-        offset_hours: clock.utc_offset_hours.unwrap_or(0),
-        sessions,
-        tasks,
-        accounts,
-        removed,
-    })
+        .collect()
 }
 
 /// Rows for tests.

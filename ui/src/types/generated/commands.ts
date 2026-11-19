@@ -22,6 +22,7 @@ import type { BackupExportInfo } from "./BackupExportInfo";
 import type { BotAskInput } from "./BotAskInput";
 import type { BotCountInfo } from "./BotCountInfo";
 import type { BotFoundInfo } from "./BotFoundInfo";
+import type { BotMemoriesInfo } from "./BotMemoriesInfo";
 import type { BotPageInfo } from "./BotPageInfo";
 import type { BotTopicInfo } from "./BotTopicInfo";
 import type { BotTurnInfo } from "./BotTurnInfo";
@@ -406,6 +407,10 @@ export interface Commands {
   bot_count: { args: Record<string, never>; result: BotCountInfo };
   /** Read features::ai::bot::commands::bot_find */
   bot_find: { args: { words: string }; result: BotFoundInfo[] };
+  /** Write features::ai::bot::commands::bot_forget */
+  bot_forget: { args: { key: string }; result: void };
+  /** Read features::ai::bot::commands::bot_memories */
+  bot_memories: { args: Record<string, never>; result: BotMemoriesInfo };
   /** Write features::ai::bot::commands::bot_new_topic */
   bot_new_topic: { args: Record<string, never>; result: BotTopicInfo };
   /** Read features::ai::bot::commands::bot_page */

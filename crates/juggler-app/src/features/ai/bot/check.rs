@@ -292,105 +292,114 @@ pub fn check(
     let question_lower = question.to_lowercase();
     let question_numbers = numbers_in(question);
     for part in parts {
-        for &cite in &part.cites {
-            if cite == 0 || cite as usize > rows.len() {
-                return Err(Refused::UnknownCite(cite));
-            }
+        check_part(part, rows, &question_lower, &question_numbers)?;
+    }
+    Ok(())
+}
+
+/// One sentence against the rows it cites.
+fn check_part(
+    part: &BotWrittenPart,
+    rows: &[BotRowInfo],
+    question_lower: &str,
+    question_numbers: &[u64],
+) -> Result<(), Refused> {
+    for &cite in &part.cites {
+        if cite == 0 || cite as usize > rows.len() {
+            return Err(Refused::UnknownCite(cite));
         }
-        let cited: Vec<&BotRowInfo> = part
-            .cites
+    }
+    let cited: Vec<&BotRowInfo> = part
+        .cites
+        .iter()
+        .filter_map(|&c| rows.get(c as usize - 1))
+        .collect();
+    if cited.is_empty() && states_anything(&part.text) {
+        return Err(Refused::Uncited);
+    }
+    let evidence = cited
+        .iter()
+        .map(|r| evidence_text(r))
+        .collect::<Vec<_>>()
+        .join(" \u{1f} ")
+        .to_lowercase();
+    let evidence_words = words(&evidence);
+    let sentence_words = words(&part.text);
+    // Bot never acts in 0.5: "I stopped", "I'll send".
+    if sentence_words
+        .windows(2)
+        .any(|w| ACT_SUBJECTS.contains(&w[0].as_str()) && ACT_VERBS.contains(&w[1].as_str()))
+        || sentence_words
+            .windows(3)
+            .any(|w| ACT_SUBJECTS.contains(&w[0].as_str()) && ACT_VERBS.contains(&w[2].as_str()))
+    {
+        return Err(Refused::Acting);
+    }
+    let mut states: Vec<&[BotState]> = Vec::new();
+    for word in &sentence_words {
+        if UNHELD.contains(&word.as_str()) && !evidence_words.contains(word) {
+            return Err(Refused::State(word.clone()));
+        }
+        if let Some(claim) = state_word(word) {
+            states.push(claim);
+        }
+    }
+    // Numbers: digits and number words, each held by a cited row, the
+    // question, or the count of the cited rows.
+    let counts: Vec<u64> = {
+        let mut c = vec![cited.len() as u64, rows.len() as u64];
+        for kind in [
+            super::dto::BotRowKind::Session,
+            super::dto::BotRowKind::Task,
+            super::dto::BotRowKind::Account,
+        ] {
+            c.push(cited.iter().filter(|r| r.kind == kind).count() as u64);
+        }
+        c
+    };
+    let held_numbers = numbers_in(&evidence);
+    for n in numbers_in(&part.text)
+        .into_iter()
+        .chain(sentence_words.iter().filter_map(|w| number_word(w)))
+    {
+        if !(held_numbers.contains(&n) || question_numbers.contains(&n) || counts.contains(&n)) {
+            return Err(Refused::Number(n.to_string()));
+        }
+    }
+    // Names: quoted spans, capitalised and code-shaped words.
+    for name in quoted(&part.text) {
+        let name = name.to_lowercase();
+        if !(evidence.contains(&name) || question_lower.contains(&name)) {
+            return Err(Refused::Name(name));
+        }
+    }
+    let originals: Vec<&str> = part
+        .text
+        .split(|c: char| {
+            c.is_whitespace() || matches!(c, ',' | ';' | ':' | '(' | ')' | '“' | '”' | '"' | '„')
+        })
+        .map(|w| w.trim_end_matches(['.', '!', '?']))
+        .filter(|w| !w.is_empty())
+        .collect();
+    for (i, original) in originals.iter().enumerate() {
+        if !name_like(original, i == 0) {
+            continue;
+        }
+        let lower = original.to_lowercase();
+        if GRAMMAR.contains(&lower.as_str()) {
+            continue;
+        }
+        if !(evidence.contains(&lower) || question_lower.contains(&lower)) {
+            return Err(Refused::Name(lower));
+        }
+    }
+    // States: each state word agrees with one of the cited rows'.
+    for claim in states {
+        if !cited
             .iter()
-            .filter_map(|&c| rows.get(c as usize - 1))
-            .collect();
-        if cited.is_empty() && states_anything(&part.text) {
-            return Err(Refused::Uncited);
-        }
-        let evidence = cited
-            .iter()
-            .map(|r| evidence_text(r))
-            .collect::<Vec<_>>()
-            .join(" \u{1f} ")
-            .to_lowercase();
-        let evidence_words = words(&evidence);
-        let sentence_words = words(&part.text);
-        // Bot never acts in 0.5: "I stopped", "I'll send".
-        if sentence_words
-            .windows(2)
-            .any(|w| ACT_SUBJECTS.contains(&w[0].as_str()) && ACT_VERBS.contains(&w[1].as_str()))
-            || sentence_words.windows(3).any(|w| {
-                ACT_SUBJECTS.contains(&w[0].as_str()) && ACT_VERBS.contains(&w[2].as_str())
-            })
+            .any(|r| r.state.is_some_and(|s| claim.contains(&s)))
         {
-            return Err(Refused::Acting);
-        }
-        let mut states: Vec<&[BotState]> = Vec::new();
-        for word in &sentence_words {
-            if UNHELD.contains(&word.as_str()) && !evidence_words.contains(word) {
-                return Err(Refused::State(word.clone()));
-            }
-            if let Some(claim) = state_word(word) {
-                states.push(claim);
-            }
-        }
-        // Numbers: digits and number words, each held by a cited row, the
-        // question, or the count of the cited rows.
-        let counts: Vec<u64> = {
-            let mut c = vec![cited.len() as u64, rows.len() as u64];
-            for kind in [
-                super::dto::BotRowKind::Session,
-                super::dto::BotRowKind::Task,
-                super::dto::BotRowKind::Account,
-            ] {
-                c.push(cited.iter().filter(|r| r.kind == kind).count() as u64);
-            }
-            c
-        };
-        let held_numbers = numbers_in(&evidence);
-        for n in numbers_in(&part.text)
-            .into_iter()
-            .chain(sentence_words.iter().filter_map(|w| number_word(w)))
-        {
-            if !(held_numbers.contains(&n) || question_numbers.contains(&n) || counts.contains(&n))
-            {
-                return Err(Refused::Number(n.to_string()));
-            }
-        }
-        // Names: quoted spans, capitalised and code-shaped words.
-        for name in quoted(&part.text) {
-            let name = name.to_lowercase();
-            if !(evidence.contains(&name) || question_lower.contains(&name)) {
-                return Err(Refused::Name(name));
-            }
-        }
-        let originals: Vec<&str> = part
-            .text
-            .split(|c: char| {
-                c.is_whitespace()
-                    || matches!(c, ',' | ';' | ':' | '(' | ')' | '“' | '”' | '"' | '„')
-            })
-            .map(|w| w.trim_end_matches(['.', '!', '?']))
-            .filter(|w| !w.is_empty())
-            .collect();
-        for (i, original) in originals.iter().enumerate() {
-            if !name_like(original, i == 0) {
-                continue;
-            }
-            let lower = original.to_lowercase();
-            if GRAMMAR.contains(&lower.as_str()) {
-                continue;
-            }
-            if !(evidence.contains(&lower) || question_lower.contains(&lower)) {
-                return Err(Refused::Name(lower));
-            }
-        }
-        // States: each state word agrees with one of the cited rows'.
-        for claim in states {
-            if !cited
-                .iter()
-                .any(|r| r.state.is_some_and(|s| claim.contains(&s)))
-            {
-                return Err(Refused::State(format!("{claim:?}")));
-            }
+            return Err(Refused::State(format!("{claim:?}")));
         }
     }
     Ok(())

@@ -157,13 +157,16 @@ fn looked(reach: &str, scope: Option<BotScope>) -> BotLooked {
     }
 }
 
-/// The question over the records.
-#[must_use]
-pub fn look_up(reading: &Reading, world: &World, scope: Option<&BotScope>) -> Found {
+/// The rows a question may be about: the kinds it names (sessions and
+/// tasks when it names none), within the chip.
+fn candidates<'w>(
+    reading: &Reading,
+    world: &'w World,
+    scope: Option<&BotScope>,
+) -> Vec<&'w BotRowInfo> {
     let kinds = reading.kinds;
-    let accounts_only = kinds.accounts && !kinds.sessions && !kinds.tasks;
     let mut pool: Vec<&BotRowInfo> = Vec::new();
-    if accounts_only {
+    if kinds.accounts && !kinds.sessions && !kinds.tasks {
         pool.extend(&world.accounts);
     } else {
         if kinds.sessions || !kinds.any() {
@@ -179,6 +182,14 @@ pub fn look_up(reading: &Reading, world: &World, scope: Option<&BotScope>) -> Fo
     if let Some(scope) = scope {
         pool.retain(|row| in_scope(row, scope));
     }
+    pool
+}
+
+/// The question over the records.
+#[must_use]
+pub fn look_up(reading: &Reading, world: &World, scope: Option<&BotScope>) -> Found {
+    let accounts_only = reading.kinds.accounts && !reading.kinds.sessions && !reading.kinds.tasks;
+    let pool = candidates(reading, world, scope);
     // An Account named by name answers "how much of Work did I use".
     let subject = &reading.subject;
     let mut matched: Vec<&BotRowInfo> = if subject.is_empty() {
@@ -235,6 +246,33 @@ pub fn look_up(reading: &Reading, world: &World, scope: Option<&BotScope>) -> Fo
             looked: looked("searched", reach_scope),
         };
     }
+    let answer = narrow(reading, world, scope, matched, accounts_only);
+    let total = u32::try_from(answer.len()).unwrap_or(u32::MAX);
+    let rows = answer.into_iter().take(SHOWN).cloned().collect();
+    let reach = if subject_scope.is_some() {
+        "subject"
+    } else {
+        reach
+    };
+    Found {
+        rows,
+        total,
+        unknown: None,
+        shortcut: None,
+        looked: looked(reach, subject_scope.or(reach_scope)),
+    }
+}
+
+/// The matched rows narrowed by the question's states and time, in the
+/// order they are shown.
+fn narrow<'w>(
+    reading: &Reading,
+    world: &World,
+    scope: Option<&BotScope>,
+    matched: Vec<&'w BotRowInfo>,
+    accounts_only: bool,
+) -> Vec<&'w BotRowInfo> {
+    let subject = &reading.subject;
     let by_subject = !subject.is_empty();
     let mut answer: Vec<&BotRowInfo> = matched.clone();
     if !reading.states.is_empty() {
@@ -280,20 +318,7 @@ pub fn look_up(reading: &Reading, world: &World, scope: Option<&BotScope>) -> Fo
     } else {
         answer.sort_by_key(|row| (rank(row.state), std::cmp::Reverse(row.at_ms.unwrap_or(0))));
     }
-    let total = u32::try_from(answer.len()).unwrap_or(u32::MAX);
-    let rows = answer.into_iter().take(SHOWN).cloned().collect();
-    let reach = if subject_scope.is_some() {
-        "subject"
-    } else {
-        reach
-    };
-    Found {
-        rows,
-        total,
-        unknown: None,
-        shortcut: None,
-        looked: looked(reach, subject_scope.or(reach_scope)),
-    }
+    answer
 }
 
 /// The record the question's words name, as a scope for "Looked at":
