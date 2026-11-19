@@ -159,3 +159,48 @@ fn handoffs_count_what_the_receiver_still_holds_and_moving_counts_in_progress() 
     assert_eq!(stream[0].at, 120, "newest first");
     assert_eq!(stream[0].source, "task");
 }
+
+/// F-rc3g-12: a reply's line quotes the reply, never the subject its thread
+/// started with ("p11-both wrote to p11-a: «lab ping from a»" for a reply
+/// that said "pong"). A message that starts a thread, or names a subject
+/// of its own, is quoted by its subject.
+#[test]
+fn each_messages_line_quotes_its_own_words() {
+    let dir = tempfile::tempdir().unwrap();
+    let db = dir.path().join("juggler.sqlite");
+    database_at(&db, 38);
+    let storage = Storage::open(&db).unwrap();
+    let conn = storage.raw_conn();
+    conn.execute(
+        "INSERT INTO agent_threads (id, pool_id, subject, started_by, created_at, updated_at)
+         VALUES ('thr-1', 'pool-team', 'Ping from A', 'session:a', 1, 1)",
+        [],
+    )
+    .unwrap();
+    let message = |id: &str, from: &str, subject: &str, body: &str, at: i64| {
+        conn.execute(
+            "INSERT INTO agent_messages (id, thread_id, pool_id, sender_ref, sender_kind, sender_name,
+                                         kind, subject, body, body_sha256, hop, created_at)
+             VALUES (?1, 'thr-1', 'pool-team', ?2, 'agent', ?2, 'note', ?3, ?4, '', 1, ?5)",
+            rusqlite::params![id, from, subject, body, at],
+        )
+        .unwrap();
+    };
+    message("msg-1", "A", "Ping from A", "Please reply to A.", 10);
+    message(
+        "msg-2",
+        "Both",
+        "Ping from A",
+        "\npong from Both.\nGot your ping.",
+        20,
+    );
+    message("msg-3", "A", "Thanks", "Got it.", 30);
+    let quotes: Vec<String> = storage
+        .pool_canvas()
+        .stream("pool-team", 10)
+        .unwrap()
+        .into_iter()
+        .map(|entry| entry.title)
+        .collect();
+    assert_eq!(quotes, ["Thanks", "pong from Both.", "Ping from A"]);
+}
