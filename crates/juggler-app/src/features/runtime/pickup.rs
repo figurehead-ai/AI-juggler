@@ -288,7 +288,8 @@ fn come_back(
     let native_id = mark.native_id.as_str();
     let started = (|| {
         let (record, profile, account) = super::commands::owner(state, session.as_str())?;
-        let (terminal, resume, fresh_id) = if mark.written {
+        // `kept`: its terminal, if it runs there, keeps the conversation id.
+        let (terminal, resume, fresh_id, kept) = if mark.written {
             let terminal = crate::features::launch::resume_gate::resume_spec(
                 state,
                 &account,
@@ -296,13 +297,10 @@ fn come_back(
                 &record.cwd,
                 native_id,
             )?;
-            (terminal, Some(native_id.to_owned()), None)
+            (terminal, Some(native_id.to_owned()), None, true)
         } else {
-            (
-                fresh_start(state, session, &account, &profile, &record.cwd)?,
-                None,
-                Some(native_id.to_owned()),
-            )
+            let fresh = fresh_start(state, session, &account, &profile, &record.cwd, native_id)?;
+            (fresh.spec, None, Some(native_id.to_owned()), fresh.kept)
         };
         // The one path: its own row is starting again before its process
         // does (intent before spawn), then the runtime.
@@ -314,9 +312,7 @@ fn come_back(
                 profile: &profile.id,
                 project: record.project.clone(),
                 cwd: record.cwd.clone(),
-                conversation: resume
-                    .as_deref()
-                    .map(juggler_core::model::ConversationId::new),
+                conversation: kept.then(|| juggler_core::model::ConversationId::new(native_id)),
                 transcript_ref: record.transcript_ref.clone().filter(|_| mark.written),
                 origin: "resume",
             },
@@ -331,9 +327,11 @@ fn come_back(
         if started.session != *session {
             super::commands::record_continuation(state, &record, &started.session)?;
         }
-        Ok::<_, AppError>(started)
+        let new_conversation = (!kept)
+            .then(|| crate::features::launch::resume_gate::new_conversation_words(state, &account));
+        Ok::<_, AppError>((started, new_conversation))
     })();
-    let started = match started {
+    let (started, new_conversation) = match started {
         Ok(started) => started,
         Err(error) => {
             let why = format!("couldn't come back: {}", error.wire().user_message);
@@ -351,9 +349,10 @@ fn come_back(
             (true, Runtime::Driven) => format!("{how}: its conversation resumed"),
             (true, Runtime::Terminal) => format!("{how}: its conversation resumed in its terminal"),
             (false, Runtime::Driven) => format!("{how}: it started again, as it had no turn yet"),
-            (false, Runtime::Terminal) => {
-                format!("{how}: it started again in its terminal, as it had no turn yet")
-            }
+            (false, Runtime::Terminal) => match &new_conversation {
+                None => format!("{how}: it started again in its terminal, as it had no turn yet"),
+                Some(words) => format!("{how}: it started again in its terminal, in {words}"),
+            },
         };
         let _ = storage
             .sessions()
@@ -363,28 +362,20 @@ fn come_back(
     Ok(started.session)
 }
 
-/// The terminal launch for `session` starting again fresh (its tool never
-/// wrote its conversation): a new session's. Its row forgets the id until
-/// the tool names it at its start (the same id, for a tool that takes
-/// the caller's).
+/// The terminal launch for `session` starting `native_id` again fresh (its
+/// tool never wrote it): under the same id where the tool takes the
+/// caller's. Its row forgets the id until the tool names it at its start
+/// (the same id, for a tool that takes the caller's).
 fn fresh_start(
     state: &Arc<AppState>,
     session: &SessionId,
     account: &juggler_core::model::Account,
     profile: &juggler_core::model::Profile,
     cwd: &std::path::Path,
-) -> AppResult<juggler_adapter::LaunchSpec> {
-    let adapter = state
-        .registry
-        .get(&account.harness)
-        .ok_or_else(|| AppError::UnknownHarness(account.harness.to_string()))?;
-    let terminal = crate::features::launch::resume_gate::launch_spec(
-        adapter.as_ref(),
-        account,
-        profile,
-        cwd,
-        &juggler_adapter::LaunchMode::Interactive,
-    )?;
+    native_id: &str,
+) -> AppResult<crate::features::launch::resume_gate::FreshStart> {
+    let terminal =
+        crate::features::launch::resume_gate::fresh_spec(state, account, profile, cwd, native_id)?;
     let storage = state.storage.lock().map_err(|_| AppError::StatePoisoned)?;
     let mut record = storage.sessions().get(session)?;
     record.conversation = None;

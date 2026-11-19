@@ -953,10 +953,63 @@ fn a_cut_off_session_can_be_ended_and_a_stopped_one_never_comes_back() {
 /// An app core with Claude Code (`fake-claude`), as the child and its
 /// reopen both build it.
 fn claude_state(dir: &Path) -> Arc<AppState> {
+    claude_state_with(dir, fake_claude_bin())
+}
+
+/// [`claude_state`] with `bin` as Claude Code.
+fn claude_state_with(dir: &Path, bin: PathBuf) -> Arc<AppState> {
     use juggler_adapters::ClaudeCodeAdapter;
     let mut registry = AdapterRegistry::new();
-    registry.register(Arc::new(ClaudeCodeAdapter::with_bin(fake_claude_bin())));
+    registry.register(Arc::new(ClaudeCodeAdapter::with_bin(bin)));
     Arc::new(AppState::init_with_registry(dir.join("app-data"), registry).unwrap())
+}
+
+/// `fake-claude` behind a script: `body` runs with `$FAKE` the fake and
+/// the launch's own arguments in `"$@"`.
+fn claude_with(dir: &Path, body: &str) -> PathBuf {
+    let path = dir.join("claude-wrapper");
+    std::fs::write(
+        &path,
+        format!("#!/bin/sh\nFAKE={:?}\n{body}\n", fake_claude_bin()),
+    )
+    .unwrap();
+    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755)).unwrap();
+    path
+}
+
+/// A Claude Code profile on `work/lab` that may run without a terminal:
+/// the Beta on and the folder trusted, as Claude Code records it (beside
+/// set_up's first run).
+fn trusted_claude_profile(state: &Arc<AppState>, work: &Path) -> String {
+    use juggler_adapters::CLAUDE_CODE_ID;
+    let project = work.canonicalize().unwrap().join("lab");
+    std::fs::create_dir_all(&project).unwrap();
+    let profile = new_profile(state, CLAUDE_CODE_ID, &project);
+    runtime::beta_impl(state, true).unwrap();
+    let state_dir = {
+        let storage = state.storage.lock().unwrap();
+        let recipe = storage
+            .profiles()
+            .get(&juggler_core::model::ProfileId::new(profile.as_str()))
+            .unwrap();
+        storage.accounts().get(&recipe.account).unwrap().state_dir
+    };
+    let file = state_dir.join(".claude.json");
+    let mut config: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(&file).unwrap()).unwrap();
+    config["projects"] =
+        serde_json::json!({ project.to_string_lossy(): {"hasTrustDialogAccepted": true} });
+    std::fs::write(&file, config.to_string()).unwrap();
+    profile
+}
+
+/// A Claude Code session started without a terminal on `profile`.
+fn launch_driven(
+    state: &Arc<AppState>,
+    profile: &str,
+) -> juggler_app::features::launch::dto::LaunchResult {
+    juggler_app::features::launch::launch_profile_as(state, profile, None, Some(Runtime::Driven))
+        .unwrap()
 }
 
 /// The app core, in a child: a Claude Code session started without a
@@ -966,35 +1019,10 @@ fn claude_state(dir: &Path) -> Arc<AppState> {
 #[test]
 #[ignore = "run by the pickup tests below, in a child process"]
 fn claude_core_in_a_child() {
-    use juggler_adapters::CLAUDE_CODE_ID;
     let work = PathBuf::from(std::env::var(CORE_DATA).unwrap());
     let state = claude_state(&work);
-    let project = work.canonicalize().unwrap().join("lab");
-    std::fs::create_dir_all(&project).unwrap();
-    let profile = new_profile(&state, CLAUDE_CODE_ID, &project);
-    runtime::beta_impl(&state, true).unwrap();
-    let state_dir = {
-        let storage = state.storage.lock().unwrap();
-        let recipe = storage
-            .profiles()
-            .get(&juggler_core::model::ProfileId::new(profile.as_str()))
-            .unwrap();
-        storage.accounts().get(&recipe.account).unwrap().state_dir
-    };
-    // Trusted, as Claude Code records it (beside set_up's first run).
-    let file = state_dir.join(".claude.json");
-    let mut config: serde_json::Value =
-        serde_json::from_str(&std::fs::read_to_string(&file).unwrap()).unwrap();
-    config["projects"] =
-        serde_json::json!({ project.to_string_lossy(): {"hasTrustDialogAccepted": true} });
-    std::fs::write(&file, config.to_string()).unwrap();
-    let launched = juggler_app::features::launch::launch_profile_as(
-        &state,
-        &profile,
-        None,
-        Some(Runtime::Driven),
-    )
-    .unwrap();
+    let profile = trusted_claude_profile(&state, &work);
+    let launched = launch_driven(&state, &profile);
     let session = launched.session_id;
     let conversation = state
         .runtime
@@ -1093,6 +1121,208 @@ fn a_driven_session_that_never_took_a_turn_comes_back_driven_after_a_restart() {
     );
     stop(&state, &session);
     assert!(pickup::marks(&state.storage.lock().unwrap()).is_empty());
+}
+
+/// The launches a `claude_with` log holds that ran in a terminal (no
+/// `-p`, not the version check).
+fn terminal_launches(log: &Path) -> Vec<String> {
+    std::fs::read_to_string(log)
+        .unwrap_or_default()
+        .lines()
+        .filter(|line| {
+            !line
+                .split_whitespace()
+                .any(|arg| arg == "-p" || arg == "--version")
+        })
+        .map(str::to_owned)
+        .collect()
+}
+
+/// The session's history, oldest first.
+fn history(state: &Arc<AppState>, session: &str) -> Vec<String> {
+    state
+        .storage
+        .lock()
+        .unwrap()
+        .sessions()
+        .lifecycle_events(&SessionId::new(session))
+        .unwrap()
+        .into_iter()
+        .map(|(event, _)| event)
+        .collect()
+}
+
+/// F-rc3f-3, Open in terminal: a Claude Code session run without a
+/// terminal that hadn't taken a turn yet was handed to `claude --resume
+/// <id>`, which Claude Code refuses for a conversation it never wrote
+/// (exit 1, in Needs you). Its terminal starts it fresh under the same id,
+/// once the driven process has ended (one writer).
+#[test]
+fn open_in_terminal_before_the_first_turn_starts_it_under_the_same_id() {
+    use juggler_app::features::runtime::commands::{Toward, handover_impl};
+    let work = tempfile::tempdir().unwrap();
+    let log = work.path().join("claude-args.log");
+    // Its terminal, stood in for by the fake run headless on it: it runs
+    // until its terminal closes, and refuses what Claude Code refuses.
+    let bin = claude_with(
+        work.path(),
+        &format!(
+            "echo \"$*\" >> {log:?}\n\
+             case \" $* \" in *\" -p \"*|*\" --version \"*) exec \"$FAKE\" \"$@\";; esac\n\
+             exec \"$FAKE\" -p --verbose \"$@\""
+        ),
+    );
+    let state = claude_state_with(work.path(), bin);
+    let profile = trusted_claude_profile(&state, work.path());
+    let session = launch_driven(&state, &profile).session_id;
+    let conversation = state
+        .runtime
+        .driver(&session)
+        .expect("driven, as picked")
+        .snapshot()
+        .native_id
+        .unwrap();
+
+    let terminal = handover_impl(None, &state, &session, Toward::Terminal).unwrap();
+    assert_eq!(status_of(&state, &session), "handed_over");
+    assert!(
+        state
+            .supervisor
+            .is_finished(&SessionId::new(session.as_str())),
+        "one writer: its driven process ended first"
+    );
+    wait_for("its terminal's launch", || {
+        !terminal_launches(&log).is_empty()
+    });
+    let opened = terminal_launches(&log).remove(0);
+    assert!(
+        opened.contains(&format!("--session-id {conversation}")) && !opened.contains("--resume"),
+        "{opened}"
+    );
+    std::thread::sleep(Duration::from_millis(500));
+    assert!(
+        !state
+            .supervisor
+            .is_finished(&SessionId::new(terminal.session_id.as_str())),
+        "its terminal runs: {}",
+        status_of(&state, &terminal.session_id)
+    );
+    let record = state
+        .storage
+        .lock()
+        .unwrap()
+        .sessions()
+        .get(&SessionId::new(terminal.session_id.as_str()))
+        .unwrap();
+    assert_eq!(
+        record.conversation.map(|id| id.to_string()),
+        Some(conversation),
+        "the same conversation id"
+    );
+    stop(&state, &terminal.session_id);
+}
+
+/// F-rc3f-3: a tool that names its own conversations (Codex) can't take
+/// the id of one it never wrote. Open in terminal before the first turn
+/// starts a new conversation, never `resume` of nothing, and its history
+/// says so.
+#[test]
+fn open_in_terminal_before_the_first_turn_of_a_tool_that_names_its_own_says_so() {
+    use juggler_app::features::runtime::commands::{Toward, handover_impl};
+    let work = tempfile::tempdir().unwrap();
+    let log = work.path().join("codex-args.log");
+    let state = app_state(
+        work.path(),
+        Some(codex_with(
+            work.path(),
+            &format!("FAKE_CODEX_ARGS_LOG={}", log.display()),
+        )),
+    );
+    let profile = new_profile(&state, CODEX_ID, work.path());
+    let session = juggler_app::features::launch::launch_profile(&state, &profile, None)
+        .unwrap()
+        .session_id;
+    wait_for("its thread", || {
+        state
+            .runtime
+            .driver(&session)
+            .and_then(|driver| driver.snapshot().native_id)
+            .is_some()
+    });
+
+    let terminal = handover_impl(None, &state, &session, Toward::Terminal).unwrap();
+    assert_eq!(status_of(&state, &session), "handed_over");
+    let said = history(&state, &terminal.session_id);
+    assert!(
+        said.iter()
+            .any(|event| event.contains("a new conversation: Codex names its own")),
+        "{said:?}"
+    );
+    let record = state
+        .storage
+        .lock()
+        .unwrap()
+        .sessions()
+        .get(&SessionId::new(terminal.session_id.as_str()))
+        .unwrap();
+    assert_eq!(record.conversation, None, "Codex names it");
+    wait_for("the terminal to end", || {
+        state
+            .supervisor
+            .is_finished(&SessionId::new(terminal.session_id.as_str()))
+    });
+    assert!(
+        launches_with(&log, " resume ").is_empty(),
+        "{:?}",
+        std::fs::read_to_string(&log)
+    );
+}
+
+/// F-rc3f-3: a start without a terminal that failed after its process ran
+/// read "ended: stopped by you", though nobody stopped it. Its ending
+/// says what happened; its conversation went to its terminal.
+#[test]
+fn a_failed_start_without_a_terminal_never_reads_stopped_by_you() {
+    use juggler_core::model::Ending;
+    let work = tempfile::tempdir().unwrap();
+    // A Claude Code that never answers headless: its output closes, and it
+    // waits (30 s at most) until it is stopped.
+    let bin = claude_with(
+        work.path(),
+        "case \" $* \" in *\" -p \"*) exec 1>&-; exec sleep 30;; esac\nexec \"$FAKE\" \"$@\"",
+    );
+    let state = claude_state_with(work.path(), bin);
+    juggler_app::features::sessions::lifecycle::spawn_forwarder(Arc::clone(&state));
+    let profile = trusted_claude_profile(&state, work.path());
+    let launched = launch_driven(&state, &profile);
+    let spent = launched
+        .session_id
+        .strip_suffix("-t")
+        .expect("its id spent, its terminal under a new one")
+        .to_owned();
+    let ending = || {
+        state
+            .storage
+            .lock()
+            .unwrap()
+            .sessions()
+            .endings()
+            .unwrap()
+            .remove(&spent)
+    };
+    wait_for("its ending", || ending().is_some());
+    assert_eq!(
+        ending(),
+        Some((
+            Ending::Error,
+            Some("it couldn't start without a terminal, so AI Juggler stopped it".to_owned())
+        ))
+    );
+    let said = history(&state, &spent);
+    assert!(
+        !said.iter().any(|event| event.contains("stopped by you")),
+        "{said:?}"
+    );
 }
 
 // ---------------------------------------------------------------------

@@ -415,6 +415,26 @@ pub trait ToolLaunch: ToolIdentity {
         let _ = conversation_id;
         None
     }
+    /// A new conversation in its terminal, in `cwd`, under the caller's
+    /// id `conversation_id`, for a tool that lets the caller name one
+    /// (Claude Code's `--session-id`): a driven session whose tool never
+    /// wrote its conversation (no turn yet) goes on in its terminal under
+    /// the id it had (F-rc3f-3). `Ok(None)` when the tool names its own
+    /// (the default): the caller starts a new one, and says so.
+    ///
+    /// # Errors
+    ///
+    /// As [`Self::launch_spec`]; an id that reads as an option.
+    fn named_launch_spec(
+        &self,
+        account: &Account,
+        profile: &Profile,
+        cwd: &Path,
+        conversation_id: &str,
+    ) -> Result<Option<LaunchSpec>, AdapterError> {
+        let _ = (account, profile, cwd, conversation_id);
+        Ok(None)
+    }
 }
 
 /// AJ-E2016: What AI Juggler may configure for a launch: an endpoint, the agent bridge, folder trust, and interactive-only accounts.

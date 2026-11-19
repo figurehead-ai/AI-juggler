@@ -135,6 +135,10 @@ pub struct AppState {
     /// them "stopped by the switch", not "stopped by you"
     /// ([`Self::take_switch_stop`]).
     pub switch_stops: Mutex<std::collections::HashSet<SessionId>>,
+    /// Sessions AI Juggler is stopping because their start without a
+    /// terminal failed (F-rc3f-3): their exit ends them with that, not
+    /// "stopped by you" ([`Self::take_failed_start`]).
+    pub failed_starts: Mutex<std::collections::HashSet<SessionId>>,
     /// The first read of the tools' history, while it runs (the 0.2 walk,
     /// F6): what the screens say instead of a zero.
     pub usage_reading: std::sync::Arc<crate::usage_pipeline::Reading>,
@@ -274,6 +278,23 @@ impl AppState {
     /// Whether a switch stopped `session`, taken once (at its exit).
     pub fn take_switch_stop(&self, session: &SessionId) -> bool {
         self.switch_stops
+            .lock()
+            .is_ok_and(|mut stops| stops.remove(session))
+    }
+
+    /// Marks `session` as stopped because its start without a terminal
+    /// failed: its exit, when it comes, ends it with that
+    /// (`sessions::lifecycle::forward`).
+    pub fn mark_failed_start(&self, session: &SessionId) {
+        if let Ok(mut stops) = self.failed_starts.lock() {
+            stops.insert(session.clone());
+        }
+    }
+
+    /// Whether `session` was stopped as its start failed, taken once (at
+    /// its exit).
+    pub fn take_failed_start(&self, session: &SessionId) -> bool {
+        self.failed_starts
             .lock()
             .is_ok_and(|mut stops| stops.remove(session))
     }
@@ -454,6 +475,7 @@ impl AppState {
             tool_programs: crate::features::tools::ToolPrograms::default(),
             switching: Mutex::default(),
             switch_stops: Mutex::default(),
+            failed_starts: Mutex::default(),
             usage_reading: std::sync::Arc::default(),
             conversations: crate::features::conversations::ConversationIndex::default(),
             transcripts: crate::transcript_readers::Readers::default(),

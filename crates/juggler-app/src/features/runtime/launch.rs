@@ -175,6 +175,9 @@ fn try_driven(
     let session_box = match connected {
         Ok(session_box) => session_box,
         Err(why) => {
+            // Its ending says its start failed, never "stopped by you"
+            // (F-rc3f-3).
+            state.mark_failed_start(session);
             let _ = state.supervisor.stop(session, Duration::from_secs(2));
             clear_stale(&socket);
             return Err(NotDriven::After(why));
