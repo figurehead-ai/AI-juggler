@@ -65,7 +65,14 @@ EXEMPT_SUFFIXES = (".test.ts", ".test.tsx", ".test-kit.ts", ".spec.ts", ".spec.t
 
 # AJ-E3802: engine, runtime and model names, allowed only where engines and
 # models are described. Case-insensitive; matched in code, not comments.
-ENGINE_HOMES = ("crates/juggler-app/src/features/ai/engines/", "crates/juggler-app/src/features/ai/models/")
+# D-131: the local engine's helper (llama.cpp, its own workspace) and its
+# protocol are the local engine's runtime, so they are its homes too.
+ENGINE_HOMES = (
+    "crates/juggler-app/src/features/ai/engines/",
+    "crates/juggler-app/src/features/ai/models/",
+    "crates/juggler-local-ai/",
+    "crates/juggler-local-ai-protocol/",
+)
 ENGINE_NAMES = re.compile(
     r"apple_builtin|gguf_local|AppleBuiltin|GgufLocal|apple-on-device|juggler-apple-ai|juggler-local-ai"
     r"|FoundationModels|SystemLanguageModel|llama|ollama|lm ?studio|qwen|gemma|granite|nemotron"

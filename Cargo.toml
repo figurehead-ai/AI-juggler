@@ -11,6 +11,7 @@ members = [
     "crates/juggler-floor-render",
     "crates/juggler-handover",
     "crates/juggler-link",
+    "crates/juggler-local-ai-protocol",
     "crates/juggler-platform",
     "crates/juggler-remote-config",
     # D-17, D-26, D-27 and D-110 carve-outs, and ADR-0026's: the ONLY
@@ -24,6 +25,11 @@ members = [
     "crates/juggler-supervisor",
     "crates/juggler-window-events",
 ]
+# ADR-0033 §4.2 (D-131): the local-model helper builds llama.cpp's C++, so it
+# is its own workspace with its own lock file: `just verify` and every
+# `--workspace` command never compile it. It has its own CI job and is
+# built by the release workflow (scripts/build_local_ai_helper.sh).
+exclude = ["crates/juggler-local-ai"]
 
 [workspace.package]
 version = "0.4.0"

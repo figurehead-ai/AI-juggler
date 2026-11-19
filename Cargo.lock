@@ -3104,6 +3104,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "juggler-local-ai-protocol"
+version = "0.4.0"
+dependencies = [
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "juggler-login-item"
 version = "0.4.0"
 dependencies = [

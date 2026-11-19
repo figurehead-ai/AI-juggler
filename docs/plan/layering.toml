@@ -38,6 +38,10 @@ juggler-adapters = ["juggler-adapter", "juggler-core"]
 juggler-supervisor = ["juggler-adapter", "juggler-core", "juggler-proc-list", "juggler-vm-stats"]
 juggler-handover = ["juggler-adapter", "juggler-core", "juggler-platform"]
 juggler-link = []
+# D-131, ADR-0033 §4.2: the local-model helper's protocol (pure data and
+# bounds), shared by the app's local engine and the helper itself
+# (crates/juggler-local-ai, its own workspace); depends on nothing of ours.
+juggler-local-ai-protocol = []
 juggler-app = [
   "juggler-account",
   "juggler-agentbridge",
@@ -48,6 +52,7 @@ juggler-app = [
   "juggler-floor-render",
   "juggler-handover",
   "juggler-link",
+  "juggler-local-ai-protocol",
   "juggler-login-item",
   "juggler-platform",
   "juggler-proc-list",
