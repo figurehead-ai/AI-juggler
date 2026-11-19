@@ -185,6 +185,56 @@ pub(crate) fn roster(state: &Arc<AppState>, pool_id: &str) -> AppResult<Vec<Memb
         .collect())
 }
 
+/// F-rc3g-11 (the P11 walk): which of a pool's `names` (as `pool_roster`
+/// names its members) `who` names: its name there, case and spacing aside,
+/// else the name namesakes share before they're told apart ("p4-api1" for
+/// "p4-api1 · started 12:51 PM"). An agent wrote "p11-a" and was told no
+/// one with that session_id was in the pool. More than one is for the
+/// caller to refuse, naming each.
+pub(crate) fn called<'n>(
+    names: impl IntoIterator<Item = &'n str> + Clone,
+    who: &str,
+) -> Vec<usize> {
+    use crate::features::pools::{cards::untold, said::plain};
+    let wanted = plain(who);
+    let matching = |name_of: fn(&str) -> &str| -> Vec<usize> {
+        names
+            .clone()
+            .into_iter()
+            .enumerate()
+            .filter(|(_, name)| plain(name_of(name)) == wanted)
+            .map(|(at, _)| at)
+            .collect()
+    };
+    let exact = matching(|name| name);
+    if exact.is_empty() {
+        matching(untold)
+    } else {
+        exact
+    }
+}
+
+/// F-rc3g-11: the refusal of a name more than one member answers to,
+/// listing `each` ([`member_words`]).
+pub(crate) fn namesake_words(who: &str, each: &[String]) -> String {
+    format!(
+        "«{who}» could be {} members of this pool: {}. Name the one this is for by its session_id.",
+        each.len(),
+        each.join(", ")
+    )
+}
+
+/// One member as [`namesake_words`] lists it: its name, the session_id
+/// that names it alone, and whether it's open.
+pub(crate) fn member_words(member: &Member) -> String {
+    format!(
+        "«{}» (session_id {}, {})",
+        member.name,
+        member.session_id,
+        if member.open { "open now" } else { "not open" }
+    )
+}
+
 /// Every ref a session's messages may be addressed to: its member ref
 /// (its Work item's, so a switch keeps its inbox) and each session of
 /// that Work item (a message sent before the switch).

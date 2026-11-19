@@ -226,17 +226,55 @@ fn recipients(
                     return Ok((vec![named(member, Some(linked))], my_role));
                 }
             }
-            Err(refuse(Refusal::Deny, not_here(state, pool_id, who)))
+            // F-rc3g-11: a member of this pool by its name, as pool_roster
+            // names it; only one that more than one answers to is refused.
+            let names = mine
+                .iter()
+                .map(|member| member.name.as_str())
+                .chain(desktop.iter().map(|one| one.name.as_str()));
+            match super::called(names, who).as_slice() {
+                [] => Err(refuse(Refusal::Deny, not_here(state, pool_id, who))),
+                [at] => {
+                    let (anchor, to) = match mine.get(*at) {
+                        Some(member) => (&member.anchor, named(member, None)),
+                        None => {
+                            let one = &desktop[*at - mine.len()];
+                            (&one.member, as_to(one))
+                        }
+                    };
+                    if anchor == me {
+                        return Err(refuse(Refusal::Bad, "That's this session itself."));
+                    }
+                    Ok(vec![to])
+                }
+                many => Err(refuse(Refusal::Bad, namesakes(who, many, &mine, desktop))),
+            }
         }
     }?;
     Ok((found, my_role))
+}
+
+/// F-rc3g-11: the members a name could be, each by its name and the
+/// session_id that names it alone.
+fn namesakes(who: &str, at: &[usize], mine: &[Member], desktop: &[DesktopConversation]) -> String {
+    let each: Vec<String> = at
+        .iter()
+        .map(|&at| match mine.get(at) {
+            Some(member) => super::member_words(member),
+            None => {
+                let one = &desktop[at - mine.len()];
+                format!("«{}» (session_id {})", one.name, one.member)
+            }
+        })
+        .collect();
+    super::namesake_words(who, &each)
 }
 
 /// Why `who` can't be written to from `pool_id`, in true words: a link
 /// lets a member of another pool in, but a sealed pool takes no links
 /// (D-62 decision 14; the rc27 P7 walk's refusal offered one).
 fn not_here(state: &Arc<AppState>, pool_id: &str, who: &str) -> String {
-    const NOT_IN: &str = "No one with that session_id is in this pool (see pool_roster).";
+    const NOT_IN: &str = "No one with that session_id or name is in this pool (see pool_roster).";
     let Ok(storage) = lock_storage_arc(state) else {
         return NOT_IN.to_owned();
     };
