@@ -24,13 +24,13 @@ HEAD = {"en": {"changed": "Changed (git)", "changed_nogit": "Changed", "reverted
                "no_files": "no files changed", "nothing": "nothing stated", "nothing_else": "nothing else stated", "risk_unknown": "not stated",
                "tests_not_run": "tests not run (per AI Juggler)", "asking": "Needs you (per AI Juggler)",
                "failed_status": "Failed (per AI Juggler)", "history": "history", "yes": "yes", "files": "{n} files",
-               "tests_ran": "Tests: {p} passed, {f} failed (per AI Juggler)"},
+               "tests_ran": "Tests: {p} passed, {f} failed (per AI Juggler)", "agent_says": "The agent says"},
         "de": {"changed": "Geändert (git)", "changed_nogit": "Geändert", "reverted": "Zurückgenommen (git)", "uncommitted": "Nicht committet (git)",
                "question": "Frage", "failure": "Fehlgeschlagen", "not_checked": "Nicht geprüft", "left": "Offen", "risk": "Risiko",
                "no_files": "keine Dateien geändert", "nothing": "nichts genannt", "nothing_else": "sonst nichts genannt", "risk_unknown": "nicht genannt",
                "tests_not_run": "Tests nicht ausgeführt (laut AI Juggler)", "asking": "Braucht dich (laut AI Juggler)",
                "failed_status": "Fehlgeschlagen (laut AI Juggler)", "history": "Verlauf", "yes": "ja", "files": "{n} Dateien",
-               "tests_ran": "Tests: {p} bestanden, {f} fehlgeschlagen (laut AI Juggler)"}}
+               "tests_ran": "Tests: {p} bestanden, {f} fehlgeschlagen (laut AI Juggler)", "agent_says": "Der Agent sagt"}}
 # Round 2 (cosmetic): AI Juggler's own lines use the app's state words (D-117's "Needs you", ADR-0033's "Failed"; German as the
 # attention note's "Braucht dich") with the source said plainly, never "Tests (AI Juggler):", which read as AI Juggler's own tests;
 # a git value is never shown as a raw True/False.
@@ -51,11 +51,18 @@ def qf_items(t, text_failures=True):
     for kind, s in j4.must_carry(t["ctx"]["cleaned"], t["facts"]):
         if any(k == kind for k, _x in items): continue
         if kind == "failure" and s is not None and not text_failures: continue
+        if kind == "failure" and s is not None and not turn_failed(t):
+            # round 4: A's review printed "Failed:" over sentences that report no failure ("a new regression test that documents the
+            # bug", "the form shows an inline error"). With no failure in the facts, the agent's sentence is shown only when it states
+            # one of this turn (claims_v5.agent_failure), and as the agent's words, never under AI Juggler's "Failed:"
+            if claims_v5.agent_failure(s): items.append(("agent_failure", s))
+            continue
         items.append((kind, s))
     return items
 def qf_lines(t, text_failures=True):
     H = heads(t)
-    return [(f"{H[k]}: {s}" if s else H["asking" if k == "question" else "failed_status"]) for k, s in qf_items(t, text_failures)]
+    return [(f"{H['agent_says']}: “{s}”" if k == "agent_failure" else f"{H[k]}: {s}" if s else H["asking" if k == "question" else "failed_status"])
+            for k, s in qf_items(t, text_failures)]
 
 def failure_on_success(text, t):
     """the Nemotron v4 FAIL class ("Fails the new check" leading a success line): the text states a failure, while the facts and the
@@ -275,6 +282,9 @@ def review_risk_code(t):
     if t["questions"] or (F and F["tests_state"] == "not_run") or kinds: return "medium"
     if F and F["tests_state"] == "ran": return "low"
     return "unknown"
+# round 4: work the agent says is still open ("die Prüfung fehlt noch", "ich mache morgen weiter"), once read as a failure, belongs under Left
+STILL_OPEN = re.compile(r"\b(?:fehlt|fehlen)\s+noch\b|\bnoch\s+(?:offen|nicht\s+fertig|ausstehend)\b|\bmache\s+(?:\w+\s+){0,2}?weiter\b"
+                        r"|\bstill\s+(?:missing|to\s+do|open|pending)\b|\bnot\s+(?:done|finished)\s+yet\b|\bcontinue\s+(?:\w+\s+){0,2}?tomorrow\b", re.I)
 def compose_review_v5(t, fields):
     """-> lines. Code: everything but the descriptions and the risk (fields None: the code-only review, its risk from the facts)."""
     H = heads(t); lang = t["ctx"].get("lang") or "en"; g = t["git"]; lines = []
@@ -302,7 +312,7 @@ def compose_review_v5(t, fields):
         if j4._contains(shown_qf, s): continue
         k = gate_v4.caveat_kinds(s)
         if "unverified" in k and len(nc) < 3: nc.append(gate._cap(s.strip(), 200))
-        elif "incomplete" in k and len(lf) < 3: lf.append(gate._cap(s.strip(), 200))
+        elif ("incomplete" in k or STILL_OPEN.search(s)) and len(lf) < 3: lf.append(gate._cap(s.strip(), 200))
     F = t["F"]
     if F and F["tests_state"] == "not_run": nc.insert(0, H["tests_not_run"])
     if nc: lines.append(f"{H['not_checked']}: " + "; ".join(nc))

@@ -811,6 +811,23 @@ def selftest():
     check("R4 scorer: a status must-have is met by the same state in the other language", severity._must_hit(SC["status"]["must"], SC["status"]["shown"], "status")
           and not severity._must_hit(SC["status"]["must"], SC["status"]["other"], "status"))
 
+    # ================================================================================================ R4-9. A never invents a failure: "Failed:" only from the facts or a failure of this turn
+    AF = R4["agent_failure"]
+    for lang, ph in AF["states"]: check(f"R4 failure: states a failure ({lang}): {ph!r}", claims_v5.agent_failure(ph), ph)
+    for lang, ph in AF["not_states"]: check(f"R4 failure: no failure ({lang}): {ph!r}", not claims_v5.agent_failure(ph), claims_v5.agent_failure(ph))
+    def rv4(case): c = AF[case]; return turns.compose_review_v5(turn(c["source"], facts=c["facts"], git=c["git"]), None)
+    lc = rv4("review_calm")
+    check("R4 failure: a calm turn's regression test and inline-error feature give no Failed line and no agent line", not any(l.startswith(("Failed", "The agent says")) for l in lc), lc)
+    la = rv4("review_agent")
+    check("R4 failure: with no failure in the facts, the agent's own failure sentence is its words, never 'Failed:'",
+          not any(l.startswith("Failed") for l in la) and any(l.startswith("The agent says: “The bunting nightly job crashed") for l in la), la)
+    lo = rv4("review_open_de")
+    check("R4 failure: German 'fehlt noch' is no failure: it goes under Offen", not any(l.startswith(("Fehlgeschlagen", "Der Agent sagt")) for l in lo)
+          and any(l.startswith("Offen:") and "fehlt noch" in l for l in lo), lo)
+    tff = turn("Rewrote the bunting rounding. Two bunting tests still fail.", facts={"outcome": "failure", "level": "L3", "tests": {"state": "ran", "passed": 9, "failed": 2}},
+               git={"changed": [{"path": "bunting/round.py", "added": 5, "removed": 2}], "reverted": [], "reflog": []}, failures=["FAILED test_round_half"])
+    check("R4 failure: a failure in the facts is still shown under 'Failed:'", "Failed: FAILED test_round_half" in turns.compose_review_v5(tff, None))
+
     # ================================================================================================ the extension point, the frozen gate, the prompts
     class Toy(core.Job):
         name, letter, title, item_kind = "toy_digest", "e", "toy", "toydigest"

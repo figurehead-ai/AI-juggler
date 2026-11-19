@@ -354,3 +354,34 @@ def vcs_contradiction(text, t, kept):
         paths = {str(x).strip() for x in u}
         if not (_VCS_WHOLE.search(text or "") or (kept and all(k["path"] in paths for k in kept))): return None
     return f"says the work was {c.lower()}; git shows uncommitted changes"
+
+# ---------------------------------------------------------------------------------------------------------------- an agent's failure sentence (round 4)
+# v5 round 3's blind review (Opus-adjudicated): the review printed "Failed: The branch is clean again apart from a new regression test that
+# documents the bug" on a 62/0 turn with no failures, and "Failed:" over a feature ("the contact form shows an inline error"), a question
+# ("whether failed jobs older than a week should be purged") and a progress note ("… fehlt noch"). eval-4's structural detector reads a
+# failure word anywhere. An agent's sentence reports a failure only when something it ran or built fails or errors now: a failure verb
+# (fails, failed, crashed, errors, exited with status N, could not, schlägt fehl, abgestürzt …), not negated, not a question or a
+# condition, not about a bug a test documents, an error a feature shows, or a failure that was fixed.
+_FAIL_NOW = re.compile(
+    r"\b(?:fail(?:s|ed|ing)?|crash(?:es|ed)?|errors?\s+out|errored|broke|breaks|is\s+broken|are\s+broken|timed\s+out|times\s+out|hangs|hung|panick?(?:s|ed)"
+    r"|exit(?:s|ed)?\s+(?:with\s+)?(?:status|code)\s+[1-9]\d*|returned\s+(?:status|code)\s+[1-9]\d*|(?:could|can)\s*n[o']t\s+(?:start|build|compile|run|connect|load|open|find|reach|push|install)"
+    r"|won['’]t\s+(?:start|build|compile|run|load)|does\s*n[o']t\s+(?:build|compile|start|run|work)|errors?\s+(?:on|at|in)\s+\S+\.\w+"
+    r"|schl(?:ägt|agen|ug|ugen)\s+(?:[\w-]+\s+){0,5}?fehl|fehlgeschlagen|scheitert|scheitern|gescheitert|abgestürzt|stürzt\s+(?:[\w-]+\s+){0,4}?ab|bricht\s+(?:[\w-]+\s+){0,4}?ab"
+    r"|abgebrochen|kompiliert\s+nicht|baut\s+nicht|startet\s+nicht|läuft\s+nicht|konnte\s+(?:[\w-]+\s+){0,3}?nicht)\b", re.I)
+_FAIL_NOT = re.compile(
+    r"\b(?:documents?|reproduces?|covers?|captures?|pins?|guards?\s+against|dokumentiert|reproduziert|deckt)\b.{0,40}?\b(?:bug|issue|crash|failure|regression|fehler|absturz)\b"
+    r"|\bregression\s+tests?\b|\bregressionstests?\b"
+    r"|\b(?:shows?|displays?|renders?|returns?|raises?|throws?|gives?|zeigt|zeigen|liefert|wirft|meldet)\s+(?:\w+\s+){0,3}?(?:error|fehler)(?:\s*(?:message|page|text|state|meldung|seite|text))?\b"
+    r"|\b(?:error|fehler)(?:\s+|-)?(?:message|page|state|banner|toast|meldung|seite|zustand)s?\b"
+    r"|\b(?:fixed|resolved|no\s+longer|repaired|behoben|repariert|gelöst|nicht\s+mehr)\b"
+    r"|\b(?:whether|if|ob|falls|wenn|in\s+case|unless|once|sobald)\b"
+    r"|\bfailed\s+(?:jobs?|uploads?|logins?|requests?|payments?|attempts?|messages?|runs?\s+(?:are|get|will))\b", re.I)
+def agent_failure(sentence):
+    """-> the words by which the agent's sentence reports that something it ran or built fails or errors now, else None"""
+    s = sentence or ""
+    if "?" in s or _FAIL_NOT.search(s): return None
+    for m in _FAIL_NOW.finditer(s):
+        before = _words(s[:m.start()])[-3:]
+        if any(w in _NEG_BEFORE or w.endswith("n't") for w in before): continue
+        return m.group(0)
+    return None

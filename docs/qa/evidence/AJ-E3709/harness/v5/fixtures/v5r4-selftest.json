@@ -580,5 +580,150 @@
    "shown": "Die Sitzung gannet-shop ist finished [s1]",
    "other": "Die Sitzung gannet-shop wartet [s1]"
   }
+ },
+ "agent_failure": {
+  "states": [
+   [
+    "en",
+    "The bunting importer still fails on rows with a BOM."
+   ],
+   [
+    "en",
+    "cargo build exits with status 101 on the ARM runner."
+   ],
+   [
+    "en",
+    "I could not start the bunting dev server because port 4100 is taken."
+   ],
+   [
+    "en",
+    "The bunting nightly job crashed after the third batch."
+   ],
+   [
+    "de",
+    "Der Bunting-Build schlägt auf dem ARM-Runner fehl."
+   ],
+   [
+    "de",
+    "Der Import ist nach dem dritten Block abgestürzt."
+   ],
+   [
+    "de",
+    "Zwei Bunting-Tests sind fehlgeschlagen."
+   ]
+  ],
+  "not_states": [
+   [
+    "en",
+    "Added a regression test that pins the old bunting overflow bug."
+   ],
+   [
+    "en",
+    "The bunting signup form now shows an inline error for short passwords."
+   ],
+   [
+    "en",
+    "Fixed the crash when the bunting cache is empty."
+   ],
+   [
+    "en",
+    "I need to know whether failed bunting uploads should be retried."
+   ],
+   [
+    "en",
+    "The new error page links back to the bunting home screen."
+   ],
+   [
+    "en",
+    "The bunting tests did not fail this time."
+   ],
+   [
+    "de",
+    "Der neue Test dokumentiert den alten Bunting-Fehler beim Runden."
+   ],
+   [
+    "de",
+    "Das Formular zeigt jetzt eine Fehlermeldung bei leerer E-Mail."
+   ],
+   [
+    "de",
+    "Der Absturz beim Bunting-Export ist behoben."
+   ],
+   [
+    "de",
+    "Die Prüfung der Bunting-Rechte fehlt noch, ich mache morgen weiter."
+   ]
+  ],
+  "review_calm": {
+   "source": "Tidied the bunting parser. Added a regression test that pins the old bunting overflow bug. The signup form now shows an inline error for short passwords. 18 tests pass.",
+   "facts": {
+    "outcome": "success",
+    "level": "L1",
+    "tests": {
+     "state": "ran",
+     "passed": 18,
+     "failed": 0
+    }
+   },
+   "git": {
+    "changed": [
+     {
+      "path": "bunting/parse.py",
+      "added": 9,
+      "removed": 4,
+      "status": "M"
+     }
+    ],
+    "reverted": [],
+    "reflog": [],
+    "uncommitted": false
+   }
+  },
+  "review_agent": {
+   "source": "Moved the bunting exporter to the new queue. The bunting nightly job crashed after the third batch, so I left it for now.",
+   "facts": {
+    "outcome": "success",
+    "level": "L1",
+    "tests": {
+     "state": "not_run"
+    }
+   },
+   "git": {
+    "changed": [
+     {
+      "path": "bunting/export.py",
+      "added": 12,
+      "removed": 3,
+      "status": "M"
+     }
+    ],
+    "reverted": [],
+    "reflog": [],
+    "uncommitted": false
+   }
+  },
+  "review_open_de": {
+   "source": "Angefangen mit den Bunting-Rechten: die Tabelle steht, die Prüfung der Endpunkte fehlt noch. Ich mache morgen weiter.",
+   "facts": {
+    "outcome": "none",
+    "level": "L1",
+    "tests": {
+     "state": "not_run"
+    }
+   },
+   "git": {
+    "changed": [
+     {
+      "path": "bunting/rechte.py",
+      "added": 30,
+      "removed": 0,
+      "status": "A"
+     }
+    ],
+    "reverted": [],
+    "reflog": [],
+    "uncommitted": true
+   }
+  }
  }
 }
