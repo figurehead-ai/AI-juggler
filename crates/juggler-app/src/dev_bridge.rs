@@ -120,6 +120,12 @@ pub const NOT_FORWARDED_EVENTS: &[(&str, &str)] = &[
         AppEvent::GoTo.name(),
         "the native menu asking the window to act",
     ),
+    // 0.4.6 (the rc3c walk): a Go to it's or an Open's late answer, to
+    // the window that asked; the bridge runs neither (they act on apps).
+    (
+        AppEvent::GoToLate.name(),
+        "a Go to it's or an Open's late answer, to the window that asked",
+    ),
     (
         AppEvent::AppOpen.name(),
         "the menu-bar item asking the window to act",

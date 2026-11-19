@@ -241,6 +241,8 @@ ReplayInfo.bytes                                   # bytes, < 2^53 is 8 PiB
 ResetQueueInfo.resume_at_ms                        # ms epoch, < 2^53 until year 287396
 RestoreResultInfo.counts                           # a count of things on this Mac, far below 2^53
 RetentionRowInfo.last_active_ms                    # ms epoch, < 2^53 until year 287396
+ReviewedAllInfo.at_ms                              # ms epoch, < 2^53 until year 287396
+ReviewedAllInfo.count                              # a count of sessions on this Mac, far below 2^53
 RollupInfo.rss_bytes                               # bytes, < 2^53 is 8 PiB
 RoomBackDisplay.at_ms                              # ms epoch, < 2^53 until year 287396
 Row.at                                             # ms epoch, < 2^53 until year 287396
@@ -401,6 +403,8 @@ command processes_mark(start_time)                 # epoch seconds, < 2^53
 command processes_observed_stop(start_time)        # epoch seconds, < 2^53
 command processes_observed_verify(start_time)      # epoch seconds, < 2^53
 command reset_queue_queue(resume_at_ms)            # ms epoch, < 2^53 until year 287396
+command sessions_unmark_reviewed(at_ms)            # ms epoch (a batch's stamp), < 2^53 until year 287396
+command sessions_unmark_reviewed->                 # a count of sessions on this Mac, far below 2^53
 command subagents_conversation(before)             # a transcript offset (lines/bytes), < 2^53
 command subagents_conversation(from)               # a transcript offset (lines/bytes), < 2^53
 command usage_history_first->                      # ms epoch, < 2^53 until year 287396
