@@ -702,6 +702,11 @@ pub fn hermes_spec() -> juggler_adapter::ToolSpec {
         }),
         // Hermes updates itself (`hermes update`); no package feed.
         release_feed: None,
+        // D-128: read only, by the release flow's gate watch.
+        version_probes: vec![juggler_adapter::VersionProbe::Command {
+            program: "hermes".to_owned(),
+        }],
+        more_release_feeds: Vec::new(),
         update_command: Some("hermes update".to_owned()),
         // ADR-0036 §2.2: inside `ToolObserves::backed_by` its capabilities.
         observes: juggler_adapter::ToolObserves {

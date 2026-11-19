@@ -250,6 +250,7 @@ fn each_desktop_app_seen_running_is_offered_never_added_and_once_added_opens_and
             None,
             Arc::new(FakeDesktop::default()),
             starter.clone(),
+            None,
         )
         .unwrap();
         assert_ne!(said.reached, "none", "{id}: {}", said.outcome);

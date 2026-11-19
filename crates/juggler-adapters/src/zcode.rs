@@ -854,6 +854,12 @@ pub fn zcode_spec() -> juggler_adapter::ToolSpec {
         // The engine updates with the app (its own updater): no public
         // package list, and no command to run.
         release_feed: None,
+        // D-128: read only, by the release flow's gate watch (the app
+        // bundle holds the engine; its version is the app's).
+        version_probes: vec![juggler_adapter::VersionProbe::DesktopApp {
+            name: "ZCode".to_owned(),
+        }],
+        more_release_feeds: Vec::new(),
         update_command: None,
         // ADR-0036 §2.2: inside `ToolObserves::backed_by` its capabilities.
         observes: juggler_adapter::ToolObserves {

@@ -1006,6 +1006,11 @@ pub fn muse_spec() -> juggler_adapter::ToolSpec {
         // Muse updates itself through its launcher (no public package
         // list); its launcher updates at once with MUSE_SYNC_UPDATE=1.
         release_feed: None,
+        // D-128: read only, by the release flow's gate watch.
+        version_probes: vec![juggler_adapter::VersionProbe::Command {
+            program: "muse".to_owned(),
+        }],
+        more_release_feeds: Vec::new(),
         update_command: Some("MUSE_SYNC_UPDATE=1 muse --version".to_owned()),
         // ADR-0036 §2.2: inside `ToolObserves::backed_by` its capabilities.
         observes: juggler_adapter::ToolObserves {
