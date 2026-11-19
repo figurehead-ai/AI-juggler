@@ -271,6 +271,7 @@ impl render::Window for Side {
                     None,
                     false,
                     std::sync::Arc::new(crate::features::conversations::goto::MacDesktop),
+                    None,
                 );
                 if let Err(e) = outcome {
                     tracing::info!("floor: go to it: {e}");

@@ -697,6 +697,7 @@ pub async fn conversations_continue(
 #[tauri::command]
 pub async fn conversations_go_to(
     state: tauri::State<'_, Arc<AppState>>,
+    app: tauri::AppHandle,
     account_id: String,
     conversation_id: String,
     pid: Option<u32>,
@@ -710,6 +711,7 @@ pub async fn conversations_go_to(
             pid,
             ask.unwrap_or(false),
             Arc::new(super::goto::MacDesktop),
+            Some(super::goto::tell_window(app)),
         )
     })
     .await
@@ -725,10 +727,16 @@ pub async fn conversations_go_to(
 #[tauri::command]
 pub async fn conversations_bring_forward(
     state: tauri::State<'_, Arc<AppState>>,
+    app: tauri::AppHandle,
     app_pid: u32,
 ) -> AppResult<GoToOutcomeInfo> {
     crate::ipc::blocking(state.inner(), "bringing the app forward", move |state| {
-        super::goto::bring_forward_impl(state, app_pid, Arc::new(super::goto::MacDesktop))
+        super::goto::bring_forward_impl(
+            state,
+            app_pid,
+            Arc::new(super::goto::MacDesktop),
+            Some(super::goto::tell_window(app)),
+        )
     })
     .await
 }

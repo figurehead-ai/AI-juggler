@@ -137,6 +137,7 @@ fn open_starts_a_closed_profile_and_keep_alive_brings_it_back() {
             None,
             Arc::new(goto::MacDesktop),
             Arc::new(places::start::System),
+            None,
         )
         .unwrap();
         let answered = clicked.elapsed();
@@ -161,6 +162,7 @@ fn open_starts_a_closed_profile_and_keep_alive_brings_it_back() {
             None,
             Arc::new(goto::MacDesktop),
             Arc::new(places::start::System),
+            None,
         )
         .unwrap();
         println!(
@@ -351,6 +353,7 @@ fn a_profile_that_lost_its_window_is_restarted_never_doubled() {
             None,
             Arc::new(goto::MacDesktop),
             Arc::new(places::start::System),
+            None,
         )
         .unwrap();
         wait_for(Duration::from_secs(30), || {
@@ -363,7 +366,7 @@ fn a_profile_that_lost_its_window_is_restarted_never_doubled() {
 
         // 1. Open on it, lost: asks to restart that place; nothing started.
         let clicked = Instant::now();
-        let said = places::open(&state, &id, None, system.clone(), system.clone()).unwrap();
+        let said = places::open(&state, &id, None, system.clone(), system.clone(), None).unwrap();
         println!(
             "Open (lost): {:?} in {:?}: {}",
             said.reached,

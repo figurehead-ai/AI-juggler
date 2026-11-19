@@ -214,4 +214,10 @@ pub struct GoToOutcomeInfo {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub place_id: Option<String>,
+    /// 0.4.6 (the rc3c walk): a `pending` answer's ticket. What happened
+    /// follows as `go-to://late` with the same ticket, so "Starting … the
+    /// session opens once it's up" becomes what it did.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub ticket: Option<String>,
 }

@@ -8,6 +8,7 @@
  */
 import { showToast } from "../components/Toast";
 import { errorText } from "./bridge";
+import { listen } from "./ipc/transport";
 import { placesList, placesRestart } from "./ipc/places";
 import { refreshKnownPlaces } from "./places";
 import { appName, desktopProfile } from "./app-name";
@@ -18,11 +19,44 @@ import { goToToast } from "./go-to-words";
 /** What a restart says before its answer. */
 const RESTARTING = "Restarting it…";
 
+/** 0.4.6 (the rc3c walk): what a Go to it or an Open did, when it came
+ * after the 1.5 s it answers in (a profile's start). "Starting Claude app
+ * · aij-test… the session opens once it's up" stayed for good, even
+ * after the app had quit: what happened was never said. */
+export const GO_TO_LATE = "go-to://late";
+
+/** How long a pending answer waits for what happened: a start, then the
+ * session's link sent again for up to 30 s (open_session). */
+export const LATE_FOR = 45;
+
+/** The pending answer the "go-to" toast shows, by its ticket; any newer
+ * Go to it, Open or Restart takes its place. */
+let waiting: { ticket: string; again?: () => Promise<GoToOutcomeInfo> } | null = null;
+let hearing: Promise<unknown> | null = null;
+
+function waitFor(ticket: string, words: string, again?: () => Promise<GoToOutcomeInfo>): void {
+  waiting = { ticket, again };
+  showToast({ id: "go-to", message: words, testId: "go-to-pending", seconds: LATE_FOR });
+  hearing ??= listen<GoToOutcomeInfo>(GO_TO_LATE, (event) => heardLate(event.payload)).catch(() => (hearing = null));
+}
+
+/** What happened, for the pending answer with its ticket; another one's
+ * (a Go to it since) is old news. */
+export function heardLate(answer: GoToOutcomeInfo): void {
+  if (waiting === null || answer.ticket !== waiting.ticket) return;
+  showGoTo(answer, waiting.again);
+}
+
 /** Says what Open or Go to it did; offers Restart for an app that lost its
  * window. 0.4.1: when opening the session itself needs macOS to ask once
  * (`reached: "consent"`), offers "Open the session itself": only that
  * click (`again`) may let macOS ask. */
 export function showGoTo(outcome: GoToOutcomeInfo, again?: () => Promise<GoToOutcomeInfo>): void {
+  waiting = null;
+  if (outcome.reached === "pending" && outcome.ticket) {
+    waitFor(outcome.ticket, outcome.outcome, again);
+    return;
+  }
   if (outcome.reached === "consent" && again) {
     showToast({
       id: "go-to",
@@ -65,6 +99,7 @@ export function showGoTo(outcome: GoToOutcomeInfo, again?: () => Promise<GoToOut
 /** Restarts the remembered app or profile `placeId` and says how it went.
  * `confirmed`: a running one the user chose to restart (D-71). */
 export function restartPlace(placeId: string, confirmed = false): void {
+  waiting = null;
   showToast({ id: "go-to", message: RESTARTING });
   // Its process before: the follow waits for a new one (the go sitting:
   // Restart ended on "Restarting…" with no "is running", as Start has).

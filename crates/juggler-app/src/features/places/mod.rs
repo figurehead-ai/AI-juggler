@@ -1275,6 +1275,7 @@ pub fn open(
     conversation: Option<&str>,
     desktop: Arc<dyn Desktop>,
     starter: Arc<dyn start::Starter>,
+    late: Option<goto::Late>,
 ) -> AppResult<GoToOutcomeInfo> {
     let place = with_book(state, |book| {
         book.places
@@ -1312,25 +1313,27 @@ pub fn open(
     });
     if let Some((own, record)) = own {
         let (state, id, still) = (Arc::clone(state), id.to_owned(), label.clone());
-        return Ok(goto::within(goto::LIMIT, move || {
-            open_session::open_in(
-                &label,
-                &id,
-                &place,
-                open_session::SessionLink::of(&record, &own),
-                &state,
-                &handoff::Real,
-                desktop.as_ref(),
-                false,
-                handoff::Waits::default(),
-            )
-        })
-        .unwrap_or_else(|| {
+        return Ok(goto::answer_within(
+            goto::LIMIT,
             outcome(
                 format!("Starting {still}… the session opens once it's up"),
                 "pending",
-            )
-        }));
+            ),
+            late,
+            move || {
+                open_session::open_in(
+                    &label,
+                    &id,
+                    &place,
+                    open_session::SessionLink::of(&record, &own),
+                    &state,
+                    &handoff::Real,
+                    desktop.as_ref(),
+                    false,
+                    handoff::Waits::default(),
+                )
+            },
+        ));
     }
     if let Some(link) = link {
         let opened = desktop.open_link(&link);
@@ -1351,7 +1354,8 @@ pub fn open(
     let state = Arc::clone(state);
     let id = id.to_owned();
     let still = label.clone();
-    Ok(goto::within(goto::LIMIT, move || {
+    let pending = outcome(format!("Still opening {still}…"), "pending");
+    Ok(goto::answer_within(goto::LIMIT, pending, late, move || {
         if let Some((pid, start)) = running_now(&state, &id) {
             let mut said = goto::bring_forward(
                 &host_of(&place, app_word(&state, &place), profile, pid, start),
@@ -1381,8 +1385,7 @@ pub fn open(
             },
             Err(why) => outcome(why, "none"),
         }
-    })
-    .unwrap_or_else(|| outcome(format!("Still opening {still}…"), "pending")))
+    }))
 }
 
 /// Starts `place` (its tool's folder found here), and on success has
@@ -1410,6 +1413,7 @@ fn outcome(text: String, reached: &str) -> GoToOutcomeInfo {
         outcome: text,
         reached: reached.to_owned(),
         place_id: None,
+        ticket: None,
     }
 }
 
