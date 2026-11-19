@@ -107,4 +107,34 @@ describe("a Pools card's team in small", () => {
     await waitFor(() => expect(within(card).getByTestId("pool-mini")).toBeTruthy());
     Reflect.deleteProperty(window, "__AIJ_POOLS__");
   });
+
+  // F-rc3f-6 (0.4.6 rc3f, P2): once the Lead's session had ended, the
+  // card drew it as "sess-731993261005 · Lead" while the pool's canvas
+  // named it "lead", its title: the card looked its name up among the
+  // pool's open sessions only.
+  it("names a member whose session has ended as the canvas does (its title), never by its id", async () => {
+    const ended: InstanceInfo = { ...MOCK_SESSIONS[0]!, id: "sess-731993261005", label: "lead", status: "finished" };
+    Object.assign(window, {
+      __AIJ_POOLS__: { pools: [{ id: "pool-team", name: "Team", rules: [] }] },
+      __AIJ_POOL_RULES__: { "pool-team": { members: [rule("session:sess-731993261005", "lead", 0)], talk: [], lead_next: null } },
+    });
+    await act(async () => {
+      await refreshPools();
+    });
+    render(
+      <ActionHostProvider host={{}}>
+        <PoolsScreen sessions={[...MOCK_SESSIONS, ended]} projects={MOCK_PROJECTS} accounts={[]} />
+      </ActionHostProvider>,
+    );
+    const card = (await screen.findAllByTestId("pool-card-tile")).find((tile) => tile.dataset.pool === "pool-team")!;
+    await waitFor(() => expect(within(card).getByTestId("pool-mini").dataset.lead).toBe("session:sess-731993261005"));
+    const lead = within(card).getByTestId("pool-mini-card");
+    expect(lead.textContent).toBe("leadLead");
+    expect(card.textContent).not.toContain("sess-");
+    // Not among the sessions it knows at all: a session, still no id.
+    const team = miniTeam({ pool_id: "p", members: [rule("session:sess-731993261005", "lead", 0)], talk: [], lead_next: null }, [], () => "member", NO_SOURCES);
+    expect(team.lead?.name).toBe("A session");
+    Reflect.deleteProperty(window, "__AIJ_POOLS__");
+    Reflect.deleteProperty(window, "__AIJ_POOL_RULES__");
+  });
 });

@@ -93,7 +93,10 @@ function SkeletonCards(): JSX.Element {
 }
 
 /** A pool member's name on its card's thumbnail: a session's title, an
- * App's name. */
+ * App's name. A session is looked up among every session the app knows,
+ * ended ones too, as the pool's canvas names it (F-rc3f-6: once the
+ * Lead's session ended, the card, which looked among the pool's open
+ * sessions only, drew it as "sess-731993261005 · Lead"). */
 function memberNameOf(apps: readonly AppModel[] | null): (ref: string, sessions: readonly InstanceInfo[]) => string {
   return (ref, sessions) => {
     if (ref.startsWith("session:")) {
@@ -210,7 +213,7 @@ export function PoolsScreen({ sessions, projects, accounts }: { sessions: Instan
             {visible.map((pool) => {
               const members = byPool.get(pool.id) ?? [];
               const preview = previews.get(pool.id);
-              const team = miniTeam(teams.get(pool.id) ?? null, members.slice(0, 24), (id) => roleOf(pools, id, pool.id), { apps: apps ?? [], sessions: members }, (ref) => memberName(ref, members));
+              const team = miniTeam(teams.get(pool.id) ?? null, members.slice(0, 24), (id) => roleOf(pools, id, pool.id), { apps: apps ?? [], sessions }, (ref) => memberName(ref, sessions));
               const project = pool.project_id ? projects.find((row) => row.id === pool.project_id) : undefined;
               return (
                 <PoolCard key={pool.id} pool={pool} local={cardHost} asks={asks.get(pool.id) ?? 0} onOpen={() => host.openPool?.(pool.id)}>
