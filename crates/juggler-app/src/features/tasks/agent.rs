@@ -269,8 +269,8 @@ fn assign(
 }
 
 /// F-rc3g-11: whom `to` gives the task to: "nobody", a member's
-/// session_id, or a member named as `pool_roster` names it (its own
-/// session_id then); a name more than one member answers to is refused,
+/// `session_id`, or a member named as `pool_roster` names it (its own
+/// `session_id` then); a name more than one member answers to is refused,
 /// naming each. Anything else is left to the member check
 /// ([`member_name`]), which refuses it in words.
 fn assignee(state: &Arc<AppState>, caller: &Caller, to: &str) -> Result<String, Response> {
@@ -284,7 +284,8 @@ fn assignee(state: &Arc<AppState>, caller: &Caller, to: &str) -> Result<String, 
     if roster.iter().any(|member| member.session_id == to) {
         return Ok(to.to_owned());
     }
-    match messages::called(roster.iter().map(|member| member.name.as_str()), to).as_slice() {
+    let names: Vec<&str> = roster.iter().map(|member| member.name.as_str()).collect();
+    match messages::called(&names, to).as_slice() {
         [at] => Ok(roster[*at].session_id.clone()),
         [] => Ok(to.to_owned()),
         many => {

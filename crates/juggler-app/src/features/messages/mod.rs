@@ -189,18 +189,14 @@ pub(crate) fn roster(state: &Arc<AppState>, pool_id: &str) -> AppResult<Vec<Memb
 /// names its members) `who` names: its name there, case and spacing aside,
 /// else the name namesakes share before they're told apart ("p4-api1" for
 /// "p4-api1 · started 12:51 PM"). An agent wrote "p11-a" and was told no
-/// one with that session_id was in the pool. More than one is for the
+/// one with that `session_id` was in the pool. More than one is for the
 /// caller to refuse, naming each.
-pub(crate) fn called<'n>(
-    names: impl IntoIterator<Item = &'n str> + Clone,
-    who: &str,
-) -> Vec<usize> {
+pub(crate) fn called(names: &[&str], who: &str) -> Vec<usize> {
     use crate::features::pools::{cards::untold, said::plain};
     let wanted = plain(who);
     let matching = |name_of: fn(&str) -> &str| -> Vec<usize> {
         names
-            .clone()
-            .into_iter()
+            .iter()
             .enumerate()
             .filter(|(_, name)| plain(name_of(name)) == wanted)
             .map(|(at, _)| at)
@@ -224,7 +220,7 @@ pub(crate) fn namesake_words(who: &str, each: &[String]) -> String {
     )
 }
 
-/// One member as [`namesake_words`] lists it: its name, the session_id
+/// One member as [`namesake_words`] lists it: its name, the `session_id`
 /// that names it alone, and whether it's open.
 pub(crate) fn member_words(member: &Member) -> String {
     format!(
