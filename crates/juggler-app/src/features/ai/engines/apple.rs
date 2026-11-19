@@ -31,6 +31,11 @@ use crate::features::ai::models::{Engine as ModelEngine, ModelEntry};
 /// The helper's file name, beside AI Juggler's own executable.
 pub const PROGRAM: &str = "juggler-apple-ai";
 
+/// The identifier the helper is signed as (its embedded Info.plist,
+/// `helpers/juggler-apple-ai.Info.plist`); the app runs no helper signed
+/// as anything else.
+pub const IDENTIFIER: &str = "ai.figurehead.juggler.apple-ai";
+
 /// The protocol version this build speaks.
 pub const PROTOCOL: u64 = 1;
 
@@ -83,7 +88,8 @@ pub enum Seen {
     NotAsked,
     /// The OS seam said no; the helper wasn't started.
     Os(SystemModel),
-    /// The helper isn't beside the app (or isn't safe to run).
+    /// The helper isn't in the app (or isn't safe to run: its owner or
+    /// its code signature).
     Missing,
     /// The helper said this.
     Model {
@@ -202,15 +208,16 @@ impl Apple {
         }
     }
 
-    /// The helper to run: a test's, or the one beside the app when it is
-    /// safe to run (ours or root's, writable by no one else).
+    /// The helper to run: a test's, or the app's own through the one
+    /// resolver ([`juggler_platform::code_trust::own_helper`]): in the
+    /// app's bundle (or beside it in a development build), ours or
+    /// root's and writable by no one else, and signed as [`IDENTIFIER`]
+    /// by the app's own team. Anything else is missing (fails closed).
     fn program(&self) -> Option<PathBuf> {
         if let Some(program) = &self.program {
             return program.is_file().then(|| program.clone());
         }
-        let path = std::env::current_exe().ok()?.parent()?.join(PROGRAM);
-        let me = juggler_platform::user::current().ok()?;
-        juggler_platform::file_trust::trusted_executable(&path, me)
+        juggler_platform::code_trust::own_helper(PROGRAM, IDENTIFIER)
     }
 
     /// Starts the helper and reads what its hello says.
