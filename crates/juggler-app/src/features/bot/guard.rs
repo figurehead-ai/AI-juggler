@@ -886,7 +886,7 @@ mod tests {
     use super::*;
 
     const FIXTURE: &str = include_str!(
-        "../../../../../../docs/qa/evidence/AJ-E3709/harness/v5/fixtures/guard-phrases.json"
+        "../../../../../docs/qa/evidence/AJ-E3709/harness/v5/fixtures/guard-phrases.json"
     );
 
     /// AJ-E3806 Req 6: every `must_catch: true` sentence removed, every

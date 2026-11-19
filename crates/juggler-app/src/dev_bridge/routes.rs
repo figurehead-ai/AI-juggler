@@ -389,19 +389,19 @@ read_routes! {
 #[cfg(test)]
 pub const NOT_SERVED: &[(&str, &str)] = &[
     (
-        "features::ai::bot::commands::bot_page",
+        "features::bot::commands::bot_page",
         "Bot's conversation is the user's own words and stays in the app's window (ADR-0037 §9: never off this Mac's own process); the real window walks it",
     ),
     (
-        "features::ai::bot::commands::bot_find",
+        "features::bot::commands::bot_find",
         "searches Bot's conversation, the user's own words (ADR-0037 §9); the real window walks it",
     ),
     (
-        "features::ai::bot::commands::bot_memories",
+        "features::bot::commands::bot_memories",
         "What Bot remembers is the user's own words (ADR-0037 §9: never off this Mac's own process); the real window walks it",
     ),
     (
-        "features::ai::bot::commands::bot_count",
+        "features::bot::commands::bot_count",
         "counts Bot's conversation and memory for the clear sheet (ADR-0037 §9); the real window walks it",
     ),
     (
