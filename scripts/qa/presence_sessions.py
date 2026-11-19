@@ -327,21 +327,42 @@ def own_sessions(db: sqlite3.Connection) -> dict[str, dict[str, str | None]]:
     return out
 
 
+def _has_table(db: sqlite3.Connection, name: str) -> bool:
+    return db.execute("select 1 from sqlite_master where type = 'table' and name = ?", (name,)).fetchone() is not None
+
+
 def out_accounts(db: sqlite3.Connection, now_ms: int) -> set[str]:
-    """The folders whose Account is out: its latest measured five-hour or
-    weekly reading at 100%, not past its reset (the newest reading is the
-    truth: a lower one after a 100% means the window ended early); one
-    folder out puts every folder of its subscription out."""
-    out_folders: set[str] = set()
-    for folder, window, used, resets in db.execute(
-        "select account, window, used_pct, resets_at from quota_samples q where window in ('five_hour', 'weekly') "
-        "and ts = (select max(ts) from quota_samples where account = q.account and window = q.window)"
-    ):
-        if used >= 100 and (resets is None or resets > now_ms):
-            out_folders.add(folder)
+    """AJ-E3210 (D-135): the Apps whose own Account is out, by App id (a
+    folder no Account lists, by its folder id). An Account is out when its
+    newest measured five-hour or weekly reading, wherever it was read, is at
+    100% and not past its reset (the newest is the truth: a lower one after
+    a 100% means the window ended early). A reading is the Account it was
+    read under (V55's tag), else its folder's. An App is on its own
+    Account: a desktop App its records' (`app_accounts`), a CLI App its
+    folder's; so a Claude app profile out never marks its CLI on another
+    Account, nor the other way."""
     subs = dict(db.execute("select id, subscription_id from accounts"))
-    out_subs = {subs.get(folder) for folder in out_folders if subs.get(folder)}
-    return out_folders | {folder for folder, sub in subs.items() if sub in out_subs}
+    tagged = _has_table(db, "quota_sample_sign_ins")
+    rows = db.execute(
+        "select q.account, q.window, q.ts, q.used_pct, q.resets_at, "
+        + ("g.signed_in_as " if tagged else "null ")
+        + "from quota_samples q "
+        + ("left join quota_sample_sign_ins g on g.account = q.account and g.window = q.window and g.ts = q.ts " if tagged else "")
+        + "where q.window in ('five_hour', 'weekly')"
+    )
+    newest: dict[tuple[str, str], tuple[int, float, int | None]] = {}
+    for folder, window, ts, used, resets, under in rows:
+        whose = under or subs.get(folder) or f"folder:{folder}"
+        if (whose, window) not in newest or ts > newest[(whose, window)][0]:
+            newest[(whose, window)] = (ts, used, resets)
+    out = {whose for (whose, _), (_, used, resets) in newest.items() if used >= 100 and (resets is None or resets > now_ms)}
+    own = dict(db.execute("select app_id, subscription_id from app_accounts")) if _has_table(db, "app_accounts") else {}
+    apps: set[str] = set()
+    for app_id, kind, folder in db.execute("select id, kind, folder_id from apps"):
+        whose = own.get(app_id) if kind == "desktop" else (subs.get(folder) or (f"folder:{folder}" if folder else None))
+        if whose in out:
+            apps.add(app_id)
+    return apps | {folder for folder in subs if f"folder:{folder}" in out}
 
 
 TERMINAL_ENTRYPOINTS = ("cli", "sdk-cli")
@@ -417,6 +438,8 @@ class KnownApp:
     state_dir: Path | None
     # Its app's default instance (the Claude app with no `--user-data-dir`).
     default: bool = False
+    # AJ-E3210: its App id (its Out mark is its own Account's).
+    app_id: str | None = None
 
 
 def sole_holders(apps: list[KnownApp]) -> dict[str, str]:
@@ -454,7 +477,7 @@ def known_apps(db: sqlite3.Connection, desktop_names: dict[str, str], claude_def
             word = "Codex CLI" if tool == "codex" else "Claude Code CLI"
             name = f"{word} · {label}" if label else word
         default = bool(instance) and claude_default is not None and Path(instance) == claude_default
-        out.append(KnownApp(name=name, kind=kind, tool=tool, folder=folder, instance=Path(instance) if instance else None, state_dir=state, default=default))
+        out.append(KnownApp(name=name, kind=kind, tool=tool, folder=folder, instance=Path(instance) if instance else None, state_dir=state, default=default, app_id=app_id))
     return out
 
 
@@ -558,10 +581,12 @@ def check(
             problems.append(f"its fold unfolds to nothing: {shown.name}")
         if shown.section == "open" and not shown.foldable and (shown.rows or shown.recent):
             problems.append(f"rows under a header with no fold: {shown.name}")
-        if known and known.folder:
-            if known.folder in out and not shown.out:
+        # AJ-E3210: by the App's own Account (its id), else its folder's.
+        key = (known.app_id if known and known.app_id else None) or (known.folder if known else None)
+        if known and key:
+            if key in out and not shown.out:
                 problems.append(f"its Account is out, no Out mark: {shown.name}")
-            if known.folder not in out and shown.out:
+            if key not in out and shown.out:
                 problems.append(f"an Out mark, its Account has room: {shown.name}")
         if mine is None:
             continue
@@ -614,7 +639,60 @@ def selftest() -> None:
     assert any("no Out mark" in p for p in problems) and any("lab run" in p for p in problems), problems
     selftest_d102()
     selftest_046()
+    selftest_split()
     print("presence_sessions: selftest passed")
+
+
+def selftest_split() -> None:
+    """AJ-E3210 (F-rc3c-3): aij-test's folder holds the Team seat's CLI
+    sign-in; its Claude app profile is on the personal plan, which is out.
+    The profile is Out, its CLI App isn't, and the default app (Team) isn't;
+    a check that read by folder would mark all three, or none."""
+    db = sqlite3.connect(":memory:")
+    db.executescript(
+        "create table accounts (id text, subscription_id text, label text, state_dir text, removed_at integer);"
+        "create table apps (id text, kind text, tool text, instance_dir text, folder_id text);"
+        "create table app_accounts (app_id text, subscription_id text);"
+        "create table quota_samples (account text, window text, ts integer, used_pct real, resets_at integer);"
+        "create table quota_sample_sign_ins (account text, window text, ts integer, signed_in_as text);"
+        "insert into accounts values ('shared', 'team', 'aij-test', '/s', null), ('default', 'team', 'Default', '/d', null);"
+        "insert into apps values ('cli:shared', 'cli', 'claude-code', null, 'shared'), ('app:claude-app:/p/aij-test', 'desktop', 'claude-code', '/p/aij-test', 'shared'),"
+        " ('app:claude-app:', 'desktop', 'claude-code', null, 'default');"
+        "insert into app_accounts values ('cli:shared', 'team'), ('app:claude-app:/p/aij-test', 'personal'), ('app:claude-app:', 'team');"
+        "insert into quota_samples values ('shared', 'weekly', 10, 7, 9000), ('shared', 'weekly', 20, 100, 9000), ('default', 'weekly', 12, 7, 9000);"
+        "insert into quota_sample_sign_ins values ('shared', 'weekly', 10, 'team'), ('shared', 'weekly', 20, 'personal');"
+    )
+    out = out_accounts(db, 5_000)
+    assert out == {"app:claude-app:/p/aij-test"}, out
+    apps = [
+        KnownApp("Claude app · aij-test", "desktop", "claude-code", "shared", None, None, app_id="app:claude-app:/p/aij-test"),
+        KnownApp("Claude Code CLI · aij-test", "cli", "claude-code", "shared", None, None, app_id="cli:shared"),
+        KnownApp("Claude app", "desktop", "claude-code", "default", None, None, app_id="app:claude-app:"),
+    ]
+
+    def rail(profile_out: bool, cli_out: bool) -> list[RailApp]:
+        return [
+            RailApp(name="Claude app · aij-test", section="idle", foldable=False, folded=False, out=profile_out),
+            RailApp(name="Claude Code CLI · aij-test", section="idle", foldable=False, folded=False, out=cli_out),
+            RailApp(name="Claude app", section="idle", foldable=False, folded=False, out=False),
+        ]
+
+    assert check(rail(True, False), apps, out, 0)[1] == []
+    _, problems = check(rail(True, True), apps, out, 0)
+    assert problems == ["an Out mark, its Account has room: Claude Code CLI · aij-test"], problems
+    _, problems = check(rail(False, False), apps, out, 0)
+    assert problems == ["its Account is out, no Out mark: Claude app · aij-test"], problems
+    # Before V55 (no tags, no per-App table): by folder, as 0.4.6 read it.
+    old = sqlite3.connect(":memory:")
+    old.executescript(
+        "create table accounts (id text, subscription_id text);"
+        "create table apps (id text, kind text, tool text, instance_dir text, folder_id text);"
+        "create table quota_samples (account text, window text, ts integer, used_pct real, resets_at integer);"
+        "insert into accounts values ('shared', 'team');"
+        "insert into apps values ('cli:shared', 'cli', 'claude-code', null, 'shared');"
+        "insert into quota_samples values ('shared', 'weekly', 20, 100, 9000);"
+    )
+    assert out_accounts(old, 5_000) == {"cli:shared"}
 
 
 def _transcript(folder: Path, sid: str, entry: str, cwd: str = "/w") -> None:
