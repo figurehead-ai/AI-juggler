@@ -382,7 +382,7 @@ pub fn watches_list_of(
             }
         }
         if items.len() >= limit {
-            next = after.clone();
+            next.clone_from(&after);
             break;
         }
         match more {
