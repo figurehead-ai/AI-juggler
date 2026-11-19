@@ -64,6 +64,11 @@ pub(crate) struct NewSession<'a> {
     pub transcript_ref: Option<TranscriptRef>,
     /// How it came to be, for usage statistics (`new`, `resume`, …).
     pub origin: &'static str,
+    /// The session whose line of work it goes on with under a new id (a
+    /// hand-over, a start that fell back to its terminal): the name the
+    /// person gave that one is this one's, written with its row, so no
+    /// list shows it unnamed (F-rc3g-3). `None` for anything else.
+    pub continues: Option<&'a SessionId>,
 }
 
 impl NewSession<'_> {
@@ -410,7 +415,9 @@ pub fn launched_spec(
 
 /// Step 1: `row` as a `Starting` session of `kind`. A session resumed
 /// under its own id (its turn cut off when AI Juggler stopped, AJ-E2307)
-/// has its row already: it is starting again.
+/// has its row already: it is starting again (its name stays). A new row
+/// that goes on with another session's work takes the name the person
+/// gave that one (`continues`).
 ///
 /// # Errors
 ///
@@ -450,6 +457,9 @@ pub(crate) fn write_starting(
         window: None,
         transcript_ref: row.transcript_ref.clone(),
     })?;
+    if let Some(from) = row.continues {
+        storage.sessions().carry_label(from, row.id)?;
+    }
     Ok(())
 }
 
@@ -543,6 +553,7 @@ mod tests {
             conversation: None,
             transcript_ref: None,
             origin: "new",
+            continues: None,
         }
     }
 

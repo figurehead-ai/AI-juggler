@@ -309,6 +309,7 @@ pub(crate) fn launch_here(
                 .map(ConversationId::new),
             transcript_ref: transcript,
             origin: "switch",
+            continues: None,
         },
         crate::features::sessions::spawn::Runs::Terminal(spec),
     )?;

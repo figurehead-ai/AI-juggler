@@ -207,7 +207,8 @@ pub(super) fn owner(
 
 /// Continues `native_id` as a new session of `from`'s, in `runtime`: the
 /// old one is marked handed over, the new one recorded (never two writers:
-/// the old one's process has ended first). A conversation its tool never
+/// the old one's process has ended first) under the name the person gave
+/// the old one, if any (F-rc3g-3). A conversation its tool never
 /// wrote (`written` false: a driven session with no turn yet) has nothing
 /// to resume: it starts again, fresh, under the same id where the tool
 /// takes the caller's, else as a new conversation that its history names
@@ -245,6 +246,8 @@ fn continue_as(
             conversation: kept.then(|| juggler_core::model::ConversationId::new(native_id)),
             transcript_ref: from.transcript_ref.clone().filter(|_| written),
             origin: "resume",
+            // The name the person gave it goes on with it (F-rc3g-3).
+            continues: Some(&from.id),
         },
         crate::features::sessions::spawn::Runs::Planned {
             profile,

@@ -149,6 +149,23 @@ impl SessionsRepo<'_> {
         super::accounts::require_changed(changed, "session", id.as_str())
     }
 
+    /// F-rc3g-3: `to` goes on with `from`'s line of work (a hand-over, a
+    /// start that fell back to its terminal): the name the person gave
+    /// `from` is `to`'s too, unless `to` has one of its own. Nothing when
+    /// `from` has none, or either isn't a session.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::Storage`] on SQLite failures.
+    pub fn carry_label(&self, from: &SessionId, to: &SessionId) -> Result<(), CoreError> {
+        self.conn.execute(
+            "UPDATE instances SET label = (SELECT label FROM instances WHERE id = ?1)
+             WHERE id = ?2 AND label IS NULL",
+            params![from.as_str(), to.as_str()],
+        )?;
+        Ok(())
+    }
+
     /// AJ-E1502: pins a session to the top of its group (now), or unpins it.
     ///
     /// # Errors

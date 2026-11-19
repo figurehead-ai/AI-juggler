@@ -280,7 +280,8 @@ pub(crate) fn start(
 
 /// A driven start failed after its process ran (and was stopped): its id
 /// is spent. Its history says why, and the terminal's row, `next`, is
-/// written before the terminal starts (intent before spawn).
+/// written before the terminal starts (intent before spawn), under the
+/// name the person gave the spent one, if any (F-rc3g-3).
 fn spent(
     state: &Arc<AppState>,
     row: &NewSession<'_>,
@@ -295,6 +296,7 @@ fn spent(
     }
     let next_row = NewSession {
         id: next,
+        continues: Some(row.id),
         ..row.clone()
     };
     crate::features::sessions::spawn::write_starting(

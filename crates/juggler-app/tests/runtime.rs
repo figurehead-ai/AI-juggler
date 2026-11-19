@@ -1683,3 +1683,158 @@ fn the_quit_sheet_names_each_session_and_quit_anyway_keeps_its_word() {
     assert!(!marks().contains_key(&session), "{:?}", marks());
     stop(&state, &session);
 }
+
+// ---------------------------------------------------------------------
+// F-rc3g-3: the name the person gave a session goes on with its work.
+
+/// The name the person gave `session`, as storage keeps it.
+fn given_name(state: &Arc<AppState>, session: &str) -> Option<String> {
+    state
+        .storage
+        .lock()
+        .unwrap()
+        .sessions()
+        .marks()
+        .unwrap()
+        .get(session)
+        .and_then(|(label, _)| label.clone())
+}
+
+/// F-rc3g-3 (the 0.4.6 rc3g walk): a session run without a terminal,
+/// renamed "g-quiet" before its first turn, then Open in terminal: its
+/// terminal went on under a new session row, and the sidebar, the page
+/// and the pool pickers named it "team · started 12:32 PM". The name
+/// goes on with each hand-over: into its terminal, back with Run in AI
+/// Juggler, and into the terminal a failed driven start falls back to
+/// (`…-t`: its conversation was never written, so the resume fails).
+#[test]
+fn a_name_given_before_the_first_turn_goes_on_with_each_hand_over() {
+    use juggler_app::features::runtime::commands::{Toward, handover_impl};
+    let work = tempfile::tempdir().unwrap();
+    // Its terminal, stood in for by the fake run headless on it (as in
+    // `open_in_terminal_before_the_first_turn_starts_it_under_the_same_id`).
+    let bin = claude_with(
+        work.path(),
+        "case \" $* \" in *\" -p \"*|*\" --version \"*) exec \"$FAKE\" \"$@\";; esac\n\
+         exec \"$FAKE\" -p --verbose \"$@\"",
+    );
+    let state = claude_state_with(work.path(), bin);
+    let profile = trusted_claude_profile(&state, work.path());
+    let session = launch_driven(&state, &profile).session_id;
+    juggler_app::manage::session_rename_impl(&state, &session, Some("g-quiet")).unwrap();
+
+    // Open in terminal: a new row, named as the person named the work.
+    let terminal = handover_impl(None, &state, &session, Toward::Terminal).unwrap();
+    assert_ne!(terminal.session_id, session);
+    assert_eq!(status_of(&state, &session), "handed_over");
+    assert_eq!(
+        row(&state, &terminal.session_id).label.as_deref(),
+        Some("g-quiet"),
+        "its terminal's row, as the sidebar and the pickers read it"
+    );
+    assert_eq!(given_name(&state, &session).as_deref(), Some("g-quiet"));
+
+    // Run in AI Juggler, once the terminal has ended: the conversation
+    // was never written, so the driven resume fails after its process
+    // ran and its terminal takes over under `…-t`; both rows named.
+    stop(&state, &terminal.session_id);
+    let back = handover_impl(None, &state, &terminal.session_id, Toward::Driven).unwrap();
+    let spent = back
+        .session_id
+        .strip_suffix("-t")
+        .unwrap_or_else(|| panic!("its terminal took over: {}", back.session_id));
+    assert_eq!(given_name(&state, spent).as_deref(), Some("g-quiet"));
+    assert_eq!(
+        given_name(&state, &back.session_id).as_deref(),
+        Some("g-quiet")
+    );
+    wait_for("its terminal to end", || {
+        state
+            .supervisor
+            .is_finished(&SessionId::new(back.session_id.as_str()))
+    });
+}
+
+/// F-rc3g-3: the restart pickup brings a session back under its own id
+/// (its name stays); one whose driven start fails after its process ran
+/// goes on in its terminal under a new id (`…-t`), and that row is named
+/// as the person named the session too.
+#[test]
+fn a_name_goes_on_into_the_terminal_a_restart_pickup_falls_back_to() {
+    use juggler_app::features::runtime::pickup;
+    use juggler_core::model::{
+        ConversationId, InstanceKind, InstanceRecord, ProfileId, SessionStatus, Timestamp,
+        UsageSnapshot,
+    };
+    let work = tempfile::tempdir().unwrap();
+    // A Claude Code that never answers headless (its output closes), and
+    // whose terminal ends at once.
+    let bin = claude_with(
+        work.path(),
+        "case \" $* \" in *\" -p \"*) exec 1>&-; exec sleep 30;; esac\nexec \"$FAKE\" \"$@\"",
+    );
+    let state = claude_state_with(work.path(), bin);
+    let profile = trusted_claude_profile(&state, work.path());
+    let cwd = work.path().canonicalize().unwrap().join("lab");
+    // A session run without a terminal, named, between turns when AI
+    // Juggler stopped: its row and its mark, as the start finds them.
+    let session = SessionId::new("sess-named-pickup");
+    let conversation = "0a1b2c3d-0000-4000-8000-0000000000aa";
+    // Read before the store is held (it locks the store itself).
+    let machine = juggler_app::commands::local_machine_id(&state);
+    {
+        let storage = state.storage.lock().unwrap();
+        storage
+            .sessions()
+            .insert(&InstanceRecord {
+                id: session.clone(),
+                conversation: Some(ConversationId::new(conversation)),
+                profile: ProfileId::new(profile.as_str()),
+                machine,
+                kind: InstanceKind::Terminal,
+                project: None,
+                cwd,
+                status: SessionStatus::Starting,
+                started_at: Timestamp::now(),
+                last_activity: None,
+                usage: UsageSnapshot::default(),
+                attention: None,
+                running: None,
+                window: None,
+                transcript_ref: None,
+            })
+            .unwrap();
+        pickup::note(
+            &storage,
+            &session,
+            Some(pickup::Mark {
+                native_id: conversation.to_owned(),
+                in_turn: false,
+                written: true,
+            }),
+        );
+    }
+    juggler_app::manage::session_rename_impl(&state, session.as_str(), Some("g-turn")).unwrap();
+
+    pickup::after_restart(&state);
+    let terminal = format!("{session}-t");
+    wait_for("its terminal's row", || {
+        state
+            .storage
+            .lock()
+            .unwrap()
+            .sessions()
+            .get(&SessionId::new(terminal.as_str()))
+            .is_ok()
+    });
+    assert_eq!(given_name(&state, &terminal).as_deref(), Some("g-turn"));
+    assert_eq!(
+        given_name(&state, session.as_str()).as_deref(),
+        Some("g-turn")
+    );
+    wait_for("its terminal to end", || {
+        state
+            .supervisor
+            .is_finished(&SessionId::new(terminal.as_str()))
+    });
+}

@@ -315,6 +315,9 @@ fn come_back(
                 conversation: kept.then(|| juggler_core::model::ConversationId::new(native_id)),
                 transcript_ref: record.transcript_ref.clone().filter(|_| mark.written),
                 origin: "resume",
+                // Its own row: its name stays (a terminal that takes over
+                // under a new id carries it: `runtime::launch::spent`).
+                continues: None,
             },
             crate::features::sessions::spawn::Runs::Planned {
                 profile: &profile,

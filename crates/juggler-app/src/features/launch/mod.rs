@@ -254,6 +254,7 @@ pub fn launch_profile_primed(
             conversation: None,
             transcript_ref: None,
             origin: "new",
+            continues: None,
         },
         crate::features::sessions::spawn::Runs::Planned {
             profile: &profile,

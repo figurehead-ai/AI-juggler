@@ -1360,6 +1360,7 @@ pub fn continue_impl(
             conversation: Some(ConversationId::new(id)),
             transcript_ref: None,
             origin: "resume",
+            continues: None,
         },
         crate::features::sessions::spawn::Runs::Terminal(spec),
     )?;

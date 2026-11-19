@@ -200,6 +200,7 @@ pub(crate) fn relaunch(state: &Arc<AppState>, r: &Relaunch<'_>) -> AppResult<(Se
             )),
             transcript_ref: r.from.transcript_ref.clone(),
             origin: r.origin,
+            continues: None,
         },
         crate::features::sessions::spawn::Runs::Terminal(spec),
     )?;
