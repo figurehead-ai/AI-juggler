@@ -1,0 +1,386 @@
+{
+  "format": 1,
+  "about": "The publisher's record of every model the models section may list (ADR-0035 §11.5). Repo only, never shipped. Append-only per id: an id never changes its file.",
+  "bases": {
+    "round3_after_fix_floor": {
+      "decision": "D-131",
+      "source": "docs/qa/evidence/AJ-E3709/v5-final.md",
+      "commit": "c8b4ec881",
+      "ids": [
+        "apple-on-device",
+        "qwen3-1-7b-q8",
+        "nemotron-3-nano-4b-q4km",
+        "granite-4-1-3b-q4km",
+        "qwen3-4b-2507-q4km",
+        "gemma-4-e2b-q4-0"
+      ],
+      "statement": "Testing ended under D-131, so these verdicts rest on D-131's acceptance of round 3's final table, not on a fresh blind run. The critical bar is met on the after-fix floor: round 3's own outputs re-scored under the shared rules (an agent's claim is checked against the facts and git; 'Failed:' comes only from the facts; state words follow the facts), with no model run again. Blind preference, omissions and latency are round 3's as run. Only these ids may use this basis; any model added later needs a full harness run on its own file."
+    }
+  },
+  "models": [
+    {
+      "id": "apple-on-device",
+      "engine": "apple_builtin",
+      "basis": "round3_after_fix_floor",
+      "jobs": {
+        "feed": {
+          "verdict": "not_yet",
+          "note": "The plain line reads better for now.",
+          "evidence": "docs/qa/evidence/AJ-E3709/v5-final.md",
+          "confirmed_by": "opus",
+          "date": "2026-11-18",
+          "commit": "c8b4ec881"
+        },
+        "review": {
+          "verdict": "beta",
+          "note": "Preferred over the plain review in 81 % of blind checks.",
+          "evidence": "docs/qa/evidence/AJ-E3709/v5-final.md",
+          "confirmed_by": "opus",
+          "date": "2026-11-18",
+          "commit": "c8b4ec881"
+        },
+        "attention": {
+          "verdict": "ships",
+          "note": "Built from the facts; no misses in testing.",
+          "evidence": "docs/qa/evidence/AJ-E3709/v5-final.md",
+          "confirmed_by": "opus",
+          "date": "2026-11-18",
+          "commit": "c8b4ec881"
+        },
+        "chat": {
+          "verdict": "beta",
+          "note": "Preferred over the plain answer in 75 % of blind checks.",
+          "evidence": "docs/qa/evidence/AJ-E3709/v5-final.md",
+          "confirmed_by": "opus",
+          "date": "2026-11-18",
+          "commit": "c8b4ec881"
+        },
+        "digest": {
+          "verdict": "not_yet",
+          "note": "The plain roundup reads better for now.",
+          "evidence": "docs/qa/evidence/AJ-E3709/v5-final.md",
+          "confirmed_by": "opus",
+          "date": "2026-11-18",
+          "commit": "c8b4ec881"
+        },
+        "watches": {
+          "verdict": "not_yet",
+          "note": "Drafts matched the request 70 % of the time; we want 95 %.",
+          "evidence": "docs/qa/evidence/AJ-E3709/v5-final.md",
+          "confirmed_by": "opus",
+          "date": "2026-11-18",
+          "commit": "c8b4ec881"
+        }
+      }
+    },
+    {
+      "id": "qwen3-1-7b-q8",
+      "engine": "gguf_local",
+      "basis": "round3_after_fix_floor",
+      "file": {
+        "url": "https://huggingface.co/Qwen/Qwen3-1.7B-GGUF/resolve/90862c4b9d2787eaed51d12237eafdfe7c5f6077/Qwen3-1.7B-Q8_0.gguf",
+        "sha256": "061b54daade076b5d3362dac252678d17da8c68f07560be70818cace6590cb1a",
+        "size_bytes": 1834426016,
+        "mirror_url": null
+      },
+      "account_needed": false,
+      "manifest": "docs/qa/evidence/AJ-E3709/models-manifest.md",
+      "jobs": {
+        "feed": {
+          "verdict": "not_yet",
+          "note": "The plain line reads better for now.",
+          "evidence": "docs/qa/evidence/AJ-E3709/v5-final.md",
+          "confirmed_by": "opus",
+          "date": "2026-11-18",
+          "commit": "c8b4ec881"
+        },
+        "review": {
+          "verdict": "beta",
+          "note": "Preferred over the plain review in 89 % of blind checks.",
+          "evidence": "docs/qa/evidence/AJ-E3709/v5-final.md",
+          "confirmed_by": "opus",
+          "date": "2026-11-18",
+          "commit": "c8b4ec881"
+        },
+        "attention": {
+          "verdict": "ships",
+          "note": "Built from the facts; no misses in testing.",
+          "evidence": "docs/qa/evidence/AJ-E3709/v5-final.md",
+          "confirmed_by": "opus",
+          "date": "2026-11-18",
+          "commit": "c8b4ec881"
+        },
+        "chat": {
+          "verdict": "beta",
+          "note": "Answers in about half a second; preferred in 76 % of blind checks.",
+          "evidence": "docs/qa/evidence/AJ-E3709/v5-final.md",
+          "confirmed_by": "opus",
+          "date": "2026-11-18",
+          "commit": "c8b4ec881"
+        },
+        "digest": {
+          "verdict": "not_yet",
+          "note": "The plain roundup reads better for now.",
+          "evidence": "docs/qa/evidence/AJ-E3709/v5-final.md",
+          "confirmed_by": "opus",
+          "date": "2026-11-18",
+          "commit": "c8b4ec881"
+        },
+        "watches": {
+          "verdict": "not_yet",
+          "note": "Drafts matched the request 81 % of the time; we want 95 %.",
+          "evidence": "docs/qa/evidence/AJ-E3709/v5-final.md",
+          "confirmed_by": "opus",
+          "date": "2026-11-18",
+          "commit": "c8b4ec881"
+        }
+      }
+    },
+    {
+      "id": "nemotron-3-nano-4b-q4km",
+      "engine": "gguf_local",
+      "basis": "round3_after_fix_floor",
+      "file": {
+        "url": "https://huggingface.co/nvidia/NVIDIA-Nemotron-3-Nano-4B-GGUF/resolve/ba223d14e45525f7fae81db77ea8cabeb2fc6c25/NVIDIA-Nemotron3-Nano-4B-Q4_K_M.gguf",
+        "sha256": "be5d9a656a51922f24f1f09a759cebb694e1f5d9728bf0ef9f8c972c5a0b5ef2",
+        "size_bytes": 2837072864,
+        "mirror_url": null
+      },
+      "account_needed": false,
+      "manifest": "docs/qa/evidence/AJ-E3709/models-manifest.md",
+      "jobs": {
+        "feed": {
+          "verdict": "not_yet",
+          "note": "The plain line reads better for now.",
+          "evidence": "docs/qa/evidence/AJ-E3709/v5-final.md",
+          "confirmed_by": "opus",
+          "date": "2026-11-18",
+          "commit": "c8b4ec881"
+        },
+        "review": {
+          "verdict": "beta",
+          "note": "Preferred over the plain review in 71 % of blind checks.",
+          "evidence": "docs/qa/evidence/AJ-E3709/v5-final.md",
+          "confirmed_by": "opus",
+          "date": "2026-11-18",
+          "commit": "c8b4ec881"
+        },
+        "attention": {
+          "verdict": "ships",
+          "note": "Built from the facts; no misses in testing.",
+          "evidence": "docs/qa/evidence/AJ-E3709/v5-final.md",
+          "confirmed_by": "opus",
+          "date": "2026-11-18",
+          "commit": "c8b4ec881"
+        },
+        "chat": {
+          "verdict": "beta",
+          "note": "Preferred over the plain answer in 80 % of blind checks.",
+          "evidence": "docs/qa/evidence/AJ-E3709/v5-final.md",
+          "confirmed_by": "opus",
+          "date": "2026-11-18",
+          "commit": "c8b4ec881"
+        },
+        "digest": {
+          "verdict": "not_yet",
+          "note": "The plain roundup reads better for now.",
+          "evidence": "docs/qa/evidence/AJ-E3709/v5-final.md",
+          "confirmed_by": "opus",
+          "date": "2026-11-18",
+          "commit": "c8b4ec881"
+        },
+        "watches": {
+          "verdict": "not_yet",
+          "note": "Drafts matched the request 85 % of the time; we want 95 %.",
+          "evidence": "docs/qa/evidence/AJ-E3709/v5-final.md",
+          "confirmed_by": "opus",
+          "date": "2026-11-18",
+          "commit": "c8b4ec881"
+        }
+      }
+    },
+    {
+      "id": "granite-4-1-3b-q4km",
+      "engine": "gguf_local",
+      "basis": "round3_after_fix_floor",
+      "file": {
+        "url": "https://huggingface.co/ibm-granite/granite-4.1-3b-GGUF/resolve/ab4701481089b58a082ef63cc1cee738887293ff/granite-4.1-3b-Q4_K_M.gguf",
+        "sha256": "662b0626cd58f443baea23559b469df6576a81d349649c59413b36a9fb32eb29",
+        "size_bytes": 2099501664,
+        "mirror_url": null
+      },
+      "account_needed": false,
+      "manifest": "docs/qa/evidence/AJ-E3709/models-manifest.md",
+      "jobs": {
+        "feed": {
+          "verdict": "not_yet",
+          "note": "The plain line reads better for now.",
+          "evidence": "docs/qa/evidence/AJ-E3709/v5-final.md",
+          "confirmed_by": "opus",
+          "date": "2026-11-18",
+          "commit": "c8b4ec881"
+        },
+        "review": {
+          "verdict": "beta",
+          "note": "Preferred over the plain review in 77 % of blind checks.",
+          "evidence": "docs/qa/evidence/AJ-E3709/v5-final.md",
+          "confirmed_by": "opus",
+          "date": "2026-11-18",
+          "commit": "c8b4ec881"
+        },
+        "attention": {
+          "verdict": "ships",
+          "note": "Built from the facts; no misses in testing.",
+          "evidence": "docs/qa/evidence/AJ-E3709/v5-final.md",
+          "confirmed_by": "opus",
+          "date": "2026-11-18",
+          "commit": "c8b4ec881"
+        },
+        "chat": {
+          "verdict": "beta",
+          "note": "Preferred over the plain answer in 79 % of blind checks.",
+          "evidence": "docs/qa/evidence/AJ-E3709/v5-final.md",
+          "confirmed_by": "opus",
+          "date": "2026-11-18",
+          "commit": "c8b4ec881"
+        },
+        "digest": {
+          "verdict": "not_yet",
+          "note": "The plain roundup reads better for now.",
+          "evidence": "docs/qa/evidence/AJ-E3709/v5-final.md",
+          "confirmed_by": "opus",
+          "date": "2026-11-18",
+          "commit": "c8b4ec881"
+        },
+        "watches": {
+          "verdict": "not_yet",
+          "note": "Drafts matched the request 85 % of the time; we want 95 %.",
+          "evidence": "docs/qa/evidence/AJ-E3709/v5-final.md",
+          "confirmed_by": "opus",
+          "date": "2026-11-18",
+          "commit": "c8b4ec881"
+        }
+      }
+    },
+    {
+      "id": "qwen3-4b-2507-q4km",
+      "engine": "gguf_local",
+      "basis": "round3_after_fix_floor",
+      "file": null,
+      "status": "Awaiting our own conversion of the official weights (Qwen/Qwen3-4B-Instruct-2507) and a verification run of round 3's frozen sets on that file. Round 3 measured a third-party conversion, which never ships (D-131). No entry may list this id until the file is recorded here.",
+      "jobs": {
+        "feed": {
+          "verdict": "not_yet",
+          "note": "The plain line reads better for now.",
+          "evidence": "docs/qa/evidence/AJ-E3709/v5-final.md",
+          "confirmed_by": "opus",
+          "date": "2026-11-18",
+          "commit": "c8b4ec881"
+        },
+        "review": {
+          "verdict": "beta",
+          "note": "Preferred over the plain review in 79 % of blind checks.",
+          "evidence": "docs/qa/evidence/AJ-E3709/v5-final.md",
+          "confirmed_by": "opus",
+          "date": "2026-11-18",
+          "commit": "c8b4ec881"
+        },
+        "attention": {
+          "verdict": "ships",
+          "note": "Built from the facts; no misses in testing.",
+          "evidence": "docs/qa/evidence/AJ-E3709/v5-final.md",
+          "confirmed_by": "opus",
+          "date": "2026-11-18",
+          "commit": "c8b4ec881"
+        },
+        "chat": {
+          "verdict": "beta",
+          "note": "Preferred over the plain answer in 83 % of blind checks.",
+          "evidence": "docs/qa/evidence/AJ-E3709/v5-final.md",
+          "confirmed_by": "opus",
+          "date": "2026-11-18",
+          "commit": "c8b4ec881"
+        },
+        "digest": {
+          "verdict": "not_yet",
+          "note": "The plain roundup reads better for now.",
+          "evidence": "docs/qa/evidence/AJ-E3709/v5-final.md",
+          "confirmed_by": "opus",
+          "date": "2026-11-18",
+          "commit": "c8b4ec881"
+        },
+        "watches": {
+          "verdict": "not_yet",
+          "note": "Drafts matched the request 89 % of the time; we want 95 %.",
+          "evidence": "docs/qa/evidence/AJ-E3709/v5-final.md",
+          "confirmed_by": "opus",
+          "date": "2026-11-18",
+          "commit": "c8b4ec881"
+        }
+      }
+    },
+    {
+      "id": "gemma-4-e2b-q4-0",
+      "engine": "gguf_local",
+      "basis": "round3_after_fix_floor",
+      "file": {
+        "url": "https://huggingface.co/google/gemma-4-E2B-it-qat-q4_0-gguf/resolve/675cff42a74c774d6cb76f76d8eacb49b48c9b93/gemma-4-E2B_q4_0-it.gguf",
+        "sha256": "fa401b55b07ee70a54c6dae3903c783a6e65064312529ea57175cb5f8dec6634",
+        "size_bytes": 3349516256,
+        "mirror_url": null
+      },
+      "account_needed": false,
+      "manifest": "docs/qa/evidence/AJ-E3709/models-manifest.md",
+      "jobs": {
+        "feed": {
+          "verdict": "not_yet",
+          "note": "The plain line reads better for now.",
+          "evidence": "docs/qa/evidence/AJ-E3709/v5-final.md",
+          "confirmed_by": "opus",
+          "date": "2026-11-18",
+          "commit": "c8b4ec881"
+        },
+        "review": {
+          "verdict": "beta",
+          "note": "Preferred over the plain review in 74 % of blind checks.",
+          "evidence": "docs/qa/evidence/AJ-E3709/v5-final.md",
+          "confirmed_by": "opus",
+          "date": "2026-11-18",
+          "commit": "c8b4ec881"
+        },
+        "attention": {
+          "verdict": "ships",
+          "note": "Built from the facts; no misses in testing.",
+          "evidence": "docs/qa/evidence/AJ-E3709/v5-final.md",
+          "confirmed_by": "opus",
+          "date": "2026-11-18",
+          "commit": "c8b4ec881"
+        },
+        "chat": {
+          "verdict": "beta",
+          "note": "Preferred over the plain answer in 89 % of blind checks.",
+          "evidence": "docs/qa/evidence/AJ-E3709/v5-final.md",
+          "confirmed_by": "opus",
+          "date": "2026-11-18",
+          "commit": "c8b4ec881"
+        },
+        "digest": {
+          "verdict": "not_yet",
+          "note": "The plain roundup reads better for now.",
+          "evidence": "docs/qa/evidence/AJ-E3709/v5-final.md",
+          "confirmed_by": "opus",
+          "date": "2026-11-18",
+          "commit": "c8b4ec881"
+        },
+        "watches": {
+          "verdict": "not_yet",
+          "note": "Drafts matched the request 70 % of the time; we want 95 %.",
+          "evidence": "docs/qa/evidence/AJ-E3709/v5-final.md",
+          "confirmed_by": "opus",
+          "date": "2026-11-18",
+          "commit": "c8b4ec881"
+        }
+      }
+    }
+  ]
+}

@@ -2,3 +2,4 @@
 //! store is its own module; this one only groups them.
 
 pub mod memory;
+pub mod models;

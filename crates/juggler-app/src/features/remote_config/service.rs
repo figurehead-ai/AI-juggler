@@ -3,7 +3,8 @@
 //!
 //! - **The sections** are registered in one place ([`registry`]), each
 //!   declared by the module that owns it: the adapters' `compat` (D-128),
-//!   the features' `flags` and the `notices` (AJ-E2023).
+//!   the features' `flags` and the `notices` (AJ-E2023), and the AI
+//!   `models` (AJ-E3810).
 //! - **The trust state** lives in the app's durable data folder
 //!   (Application Support), `remote-config/trust-state.json`, through
 //!   [`FileStore`]: never in a cache, so clearing the cache never touches
@@ -30,7 +31,7 @@ use juggler_remote_config::{
 use super::RemoteConfigTransport;
 use super::snapshot::{self, Snapshot};
 use crate::events::{AppEvent, EmitEvent as _};
-use crate::features::{flags, notices};
+use crate::features::{ai, flags, notices};
 use crate::state::AppState;
 
 /// The trust state's file under the data folder.
@@ -63,6 +64,9 @@ pub fn registry(adapters: &juggler_adapter::AdapterRegistry) -> Result<Registry,
         .map_err(|e| e.to_string())?;
     registry
         .register(notices::section())
+        .map_err(|e| e.to_string())?;
+    registry
+        .register(ai::models::section())
         .map_err(|e| e.to_string())?;
     Ok(registry)
 }
