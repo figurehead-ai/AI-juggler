@@ -415,6 +415,11 @@ lab-scenario cmd id:
 replica:
     python3 -I scripts/replica.py build --home {{replica_home}}
 
+# AJ-E3210: the split folder (a Claude app profile and its CLI on two
+# sign-ins, the app wrote last), added to the replica.
+replica-split:
+    python3 -I scripts/replica.py split --home {{replica_home}}
+
 # Live sessions on the replica while a walk runs (Ctrl-C stops them all).
 replica-live minutes="60" *args="":
     cargo build -q -p juggler-adapters --bins
