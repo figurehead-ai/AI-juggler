@@ -334,9 +334,13 @@ impl Writers {
         (!ISSUED.swap(true, std::sync::atomic::Ordering::SeqCst)).then(Self::make)
     }
 
-    /// A fresh set for a test (each test its own store).
-    #[cfg(test)]
-    pub(crate) fn for_tests() -> Self {
+    /// A fresh set for a test (each test its own store). Outside this
+    /// crate only with the `test-writers` feature, which only another
+    /// crate's dev-dependencies turn on (a test can't take the process's
+    /// one issue: the app's state takes it at start).
+    #[cfg(any(test, feature = "test-writers"))]
+    #[must_use]
+    pub fn for_tests() -> Self {
         Self::make()
     }
 

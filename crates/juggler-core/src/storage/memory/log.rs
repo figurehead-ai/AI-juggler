@@ -342,6 +342,49 @@ impl<'c> AiLog<'c> {
         Ok(rows)
     }
 
+    /// Up to `limit` events about one subject (`subject_kind`, `subject_id`),
+    /// newest first (the Watches view's history of one watch, AJ-E3814).
+    ///
+    /// # Errors
+    ///
+    /// Storage failures.
+    pub fn of_subject(
+        &self,
+        subject_kind: &str,
+        subject_id: &str,
+        limit: u32,
+    ) -> Result<Vec<Event>, MemoryError> {
+        let mut stmt = self.conn.prepare_cached(
+            "SELECT seq, at_ms, stream, verb, actor, subject_kind, subject_id, memory_subject,
+                    version, correlation, cause_seq, schema, payload
+             FROM ai_log WHERE subject_kind = ?1 AND subject_id = ?2
+             ORDER BY seq DESC LIMIT ?3",
+        )?;
+        let rows = stmt
+            .query_map(params![subject_kind, subject_id, limit], event_row)?
+            .collect::<rusqlite::Result<Vec<_>>>()?;
+        Ok(rows)
+    }
+
+    /// How many events about one subject have `verb` ("told 2 times").
+    ///
+    /// # Errors
+    ///
+    /// Storage failures.
+    pub fn count_of_subject(
+        &self,
+        subject_kind: &str,
+        subject_id: &str,
+        verb: &str,
+    ) -> Result<u64, MemoryError> {
+        let count: i64 = self.conn.query_row(
+            "SELECT count(*) FROM ai_log WHERE subject_kind = ?1 AND subject_id = ?2 AND verb = ?3",
+            params![subject_kind, subject_id, verb],
+            |row| row.get(0),
+        )?;
+        Ok(u64::try_from(count).unwrap_or(0))
+    }
+
     /// An event's words, while they are kept.
     ///
     /// # Errors

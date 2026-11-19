@@ -350,6 +350,67 @@ impl<'c> MemoryStore<'c> {
         record: &NewRecord,
         now_ms: i64,
     ) -> Result<Remembered, MemoryError> {
+        self.write(writer, secrets, record, None, now_ms)
+    }
+
+    /// [`Self::remember`], and `also` appended to the log in the same
+    /// transaction, naming the version written (its `memory_subject` and
+    /// `version` filled in), so a feature's own event commits with its
+    /// record (ADR-0037 §7.1: a watch's `created` with its record,
+    /// AJ-E3814). When the content was already current, nothing is
+    /// written and `also` isn't appended.
+    ///
+    /// # Errors
+    ///
+    /// As [`Self::remember`]; [`Refusal::NotTextFree`] when `also` holds
+    /// free text (nothing is written then).
+    pub fn remember_logged(
+        &self,
+        writer: &KindWriter,
+        secrets: &dyn SecretScan,
+        record: &NewRecord,
+        also: &NewEvent,
+        now_ms: i64,
+    ) -> Result<Remembered, MemoryError> {
+        self.write(writer, secrets, record, Some(also), now_ms)
+    }
+
+    /// The current versions of one kind, newest change first (ties by id),
+    /// at most `limit`, after `after` (the last row's `created_ms` and id):
+    /// a keyset page (the Watches view's list).
+    ///
+    /// # Errors
+    ///
+    /// Storage failures.
+    pub fn current_of_kind(
+        &self,
+        kind: Kind,
+        after: Option<(i64, &str)>,
+        limit: u32,
+    ) -> Result<Vec<Record>, MemoryError> {
+        let mut stmt = self.conn.prepare_cached(&format!(
+            "SELECT {RECORD_COLUMNS} FROM memory_records
+             WHERE kind = ?1 AND superseded_by IS NULL
+               AND (?2 IS NULL OR created_ms < ?2 OR (created_ms = ?2 AND id > ?3))
+             ORDER BY created_ms DESC, id ASC LIMIT ?4"
+        ))?;
+        let (at, id) = after.map_or((None, ""), |(at, id)| (Some(at), id));
+        let rows = stmt
+            .query_map(params![kind.as_str(), at, id, limit], record_row)?
+            .collect::<rusqlite::Result<Vec<_>>>()?;
+        Ok(rows)
+    }
+
+    /// The gate, then the write, with `also` appended in the same
+    /// transaction when given.
+    fn write(
+        &self,
+        writer: &KindWriter,
+        secrets: &dyn SecretScan,
+        record: &NewRecord,
+        also: Option<&NewEvent>,
+        now_ms: i64,
+    ) -> Result<Remembered, MemoryError> {
         let untrusted = record.text.is_untrusted() || holds_untrusted(&record.payload);
         if let Err(refusal) = gate(writer, secrets, record, untrusted) {
             let tx = write_transaction(self.conn)?;
@@ -381,6 +442,12 @@ impl<'c> MemoryStore<'c> {
             }
         }
         let written = write_version(&tx, record, current.as_ref(), untrusted, now_ms)?;
+        if let Some(also) = also {
+            let mut event = also.clone();
+            event.memory_subject = Some(written.subject_id.clone());
+            event.version = Some(written.version);
+            append_in(&tx, &event, None)?;
+        }
         tx.commit()?;
         Ok(written)
     }

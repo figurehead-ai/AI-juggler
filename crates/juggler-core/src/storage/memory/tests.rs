@@ -661,3 +661,5 @@ fn retrieval_ranks_by_words_priority_and_recency() {
 
 /// The forget path and the backups, raw bytes and all (ADR-0037 §1.5, §1.8).
 mod forget;
+/// A feature's own event committed with its record; reads by kind and subject (AJ-E3814).
+mod logged;
