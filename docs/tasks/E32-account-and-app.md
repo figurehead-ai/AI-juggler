@@ -184,7 +184,7 @@
 **Research basis**: 0.3.8's lost-window restart.
 **Handover note**: —
 
-### AJ-E3210 Each App on its own sign-in's Account, even when a Claude app profile and its CLI share a folder (F-rc3c-3) | Status: TODO (0.5; the coordinating session's ruling 2026-11-19; the maintainer's Q1 ruling on D-63 comes first) | Priority P1 | Effort L | Depends: AJ-E3202 (stored Accounts and Apps), a D-63 amendment (Q1)
+### AJ-E3210 Each App on its own sign-in's Account, even when a Claude app profile and its CLI share a folder (F-rc3c-3) | Status: IN-PROGRESS (built 2026-11-19 on release/0.5: Q1-A as ruled, Q2–Q6 answered under D-135, V55; acceptance tests 1–9 pass; the live aij-test walk, test 10, is left) | Priority P1 | Effort L | Depends: AJ-E3202 (stored Accounts and Apps), a D-63 amendment (Q1)
 **Goal**: Each App is on the Account it actually uses, even when a
 Claude app profile and its CLI share a folder with different sign-ins.
 **User story**: As someone whose test profile's Claude app is on my

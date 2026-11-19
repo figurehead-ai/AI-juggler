@@ -199,12 +199,14 @@ over clever):
 3. A read that names a sign-in no desktop App on the folder is on was
    written by a CLI: the app's `claude` only ever writes the app's own.
    It moves the CLI App.
-4. A read that names the desktop App's own sign-in moves the CLI App only
-   when the newest `claude` run in the folder was a CLI's (the adapter's
+4. A read that names the desktop App's own sign-in is held when the
+   newest `claude` run in the folder was the Claude app's (the adapter's
    `sign_in_writer`: a live pid file's `entrypoint`, else the newest
-   transcript's last `entrypoint`; both already read for sessions).
-   Otherwise the CLI App keeps its Account; one that never had one reads
-   "Account unknown", saying the Claude app ran there last.
+   transcript's last `entrypoint`; both already read for sessions): the
+   CLI App keeps its Account, and one that never had one reads "Account
+   unknown", saying the Claude app ran there last. With no run to say, it
+   is the CLI's (a `/login` writes no transcript; the app's Code tab
+   always does).
 5. Why not a alone: without the gate an app-only folder never has a CLI
    writer, so its CLI App would keep an old Account forever (acceptance
    test 3). Why not b alone: two sign-ins in one folder both have the
@@ -353,6 +355,98 @@ by App.
     the rail marks, Resume and the presence check; then do a terminal
     run in the folder and read them again. Nothing flips, and each App
     stays on its own Account.
+
+## As built (2026-11-19, release/0.5)
+
+- **Schema V55** (`entities::APP_ACCOUNTS_MIGRATION`): `app_accounts` (each
+  App's Account) and `quota_sample_sign_ins` (each reading's), side tables
+  so the step is safe to run again (as V52 on). CLI Apps start on their
+  folder's Account; desktop Apps on none.
+- **Adapters:** `ToolSignIn::desktop_sign_in` (the Claude app's newest
+  record folder, by name and record times only) and `sign_in_writer` (the
+  kind of the newest run in the folder: a live pid file's `entrypoint`,
+  else the newest transcript's last one); `claude_sign_ins.rs`.
+- **Accounts read** (`subscriptions::app_accounts`): `hold_app_writes`
+  (Q2), `store_app_accounts` (Q3, Q5: one audit row per change, actor
+  `sign-in read`), `tell` (one `account-changed` notice per move between
+  Accounts). `with_apps` lists by App; an Account only desktop Apps are on
+  is listed after the signed-in ones.
+- **Readings:** the records pass reads each meter for every Account an App
+  on the folder is on and tags each reading; limit hits in a Claude app
+  run's transcript are its desktop App's (left out when two desktop Apps on
+  two Accounts share the folder). `quota_display_inner` reads the folder's
+  own Account's; `quota_display_all` adds another Account's display of a
+  folder after every folder's own (`signed_in_as`).
+- **UI:** `accountOfApp`, `displayIsAccounts`, `roomMarkOfApp`,
+  `roomOfApp`; the rail's App headers, Accounts and App page chips, Home's
+  Runway, the Account page and Resume/switch room read by App.
+- **Presence check:** `out_accounts` returns the Apps out, each by its own
+  Account; its self-test has the split folder.
+- **Known limits:** a session's token events (estimates and the forecast,
+  never a measured Out) and the status line's readings stay by folder; a
+  CLI `/login` with no run after it moves the CLI App only at the next
+  terminal run there; the gate doesn't see a CLI signed in through the
+  pre-2.1.56 shared Keychain item on a folder a Claude app profile shares.
+
+## Acceptance tests: status (2026-11-19)
+
+1. PASS, un-ignored. Its fixture gains the folder's CLI credential stand-in
+   (`.credentials.json`: the CLI is signed in to the Team seat) and the
+   CLI App as the user's (named; a terminal session lists it too).
+2. PASS: `split_sign_in_folder.rs`
+   `each_app_is_listed_under_its_own_sign_ins_account`,
+   `the_apps_list_carries_each_apps_own_account`.
+3. PASS: `an_app_only_folder_follows_the_app_and_its_cli_isnt_signed_in`.
+4. PASS: the existing `stored_accounts.rs` tests, and
+   `a_cli_that_signs_in_again_still_moves_its_app`.
+5. PASS: `records.rs`
+   `a_shared_folders_readings_carry_the_account_they_were_read_under`, and
+   `app_accounts_v55.rs` `each_display_reads_only_its_own_accounts_readings`.
+6. PASS: `ui/src/components/split-sign-in-room.test.tsx` (marks, the top
+   bar's count); `room-mark-fresh-accounts.test.tsx` green.
+7. PASS: the same file (`roomOfApp`, `useTargetRoom`).
+8. PASS: `a_change_is_recorded_once_and_told_once`.
+9. PASS (self-test): `presence_sessions.selftest_split`; the real-setup PASS
+   is the live walk's.
+10. Not run: live, below.
+
+## What the live walk must check (a later Sonnet walk; aij-test lab, the maintainer only signs in)
+
+Before: the Dev build of release/0.5 on the real data folder (V55 runs
+once). Record by `ps` that every process is the lab's.
+1. **After the upgrade, before any run:** Accounts and the Runway. The
+   aij-test folder may still be on the personal plan (its last read before
+   V55); note it. Its desktop App is on its records' Account.
+2. **The lab check (Q2's gate):** AI Juggler's own `login_state` for the
+   aij-test folder (Settings or the Accounts read), never the Keychain
+   itself: does the folder have a CLI credential? Record yes/no, and
+   whether the app's `claude` made one.
+3. **Terminal run** in the aij-test folder (AI Juggler's Resume or New
+   session): the CLI App moves to the Team seat once, one notice
+   ("Claude Code CLI · aij-test is signed in to … now") and one audit row.
+4. **The app's Code tab:** start the aij-test Claude app from AI Juggler,
+   open a Code conversation, wait two minutes. Nothing flips: the CLI App
+   stays on the Team seat (no Out mark, Resume on its terminal sessions
+   enabled); "Claude app · aij-test" is on the personal plan and marked
+   Out while that plan is out; the default Claude app has no Out mark; the
+   top bar counts one Account out. No new notice or audit row.
+5. **A second terminal run:** nothing flips the other way.
+6. **Readings:** the Team seat's room stays its own (never the personal
+   plan's 100%); the personal plan's Account shows its room.
+7. **The presence check** (`scripts/qa/presence_check.py --record`) on
+   the real setup: PASS.
+8. Both themes: the Runway, the rail and the change notice (screenshots,
+   opened by eye before pushing).
+
+## Q1-A and 0.4.6 (2026-11-19)
+
+**Still no cheap, safe 0.4.6 mitigation.** Q1-A answers only the desktop
+App's own sign-in (reason 2's guess), from names already read. Reason 1
+stands: the readings follow the state file, so keeping the folder on the
+Team seat still carries the personal plan's 100% into it (a wrong Out by
+another road) unless readings are tagged, which needs V55, the records
+pipeline and every by-folder reader. Q2's gate needs the lab check, and
+0.4.6 is frozen to blockers in its Stable soak. It ships whole in 0.5.
 
 ## Size
 
