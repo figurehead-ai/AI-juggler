@@ -7,7 +7,7 @@ import { cleanup, fireEvent, render, screen, within } from "@testing-library/rea
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { DateField } from "./DateField";
-import { dateFormat } from "../../lib/date-text";
+import { dateFormat, datePattern } from "../../lib/date-text";
 import { asButton, asInput } from "../../test/fixtures";
 
 afterEach(cleanup);
@@ -112,5 +112,20 @@ describe("A8 the shared date field", () => {
     await user.keyboard("{Escape}");
     expect(screen.queryByTestId("day-month")).toBeNull();
     expect(document.activeElement).toBe(screen.getByTestId("day-calendar"));
+  });
+
+  it("is never cut: its input fits the longer of its pattern and placeholder, and a caller's width is only a floor", () => {
+    render(<DateField value={null} onCommit={vi.fn()} placeholder="Choose a day" ariaLabel="The first day to carry" className="w-36" testId="carry" />);
+    const input = asInput(screen.getByTestId("carry"));
+    expect(input.placeholder).toBe("Choose a day");
+    // jsdom draws nothing, so the two things the layout rests on: the
+    // input's own width in characters, and the field's max-content floor.
+    expect(input.size).toBeGreaterThan("Choose a day".length);
+    const outer = screen.getByTestId("carry-field");
+    expect(outer.className.split(/\s+/)).toEqual(expect.arrayContaining(["min-w-max", "w-36"]));
+    cleanup();
+    // A short placeholder keeps the pattern's width (a renewal's "Not set").
+    render(<DateField value={null} onCommit={vi.fn()} ariaLabel="Renewal date" testId="renewal" />);
+    expect(asInput(screen.getByTestId("renewal")).size).toBe(datePattern(dateFormat()).length + 1);
   });
 });
