@@ -45,7 +45,7 @@ impl MemoryWriters {
     /// took them first: a second state in a test process).
     #[must_use]
     pub fn taken_at_start() -> Self {
-        let slots = Writers::issue().map_or_else(Slots::default, |writers| {
+        let slots = issued().map_or_else(Slots::default, |writers| {
             let Writers {
                 memory,
                 watches,
@@ -88,6 +88,19 @@ impl MemoryWriters {
     pub fn take_digest(&self) -> Option<KindWriter> {
         self.0.lock().ok().and_then(|mut slots| slots.digest.take())
     }
+}
+
+/// The process's one issue of the writers. A unit test's every state gets
+/// a fresh set (the process's issue went to the first state built), so a
+/// test can run Bot's remember flow end to end; a build never does.
+#[cfg(test)]
+fn issued() -> Option<Writers> {
+    Writers::issue().or_else(|| Some(Writers::for_tests()))
+}
+
+#[cfg(not(test))]
+fn issued() -> Option<Writers> {
+    Writers::issue()
 }
 
 /// The app's one way to forget a subject (step 4's surfaces call it): the

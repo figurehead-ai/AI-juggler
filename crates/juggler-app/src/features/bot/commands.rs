@@ -58,6 +58,11 @@ pub fn bot_ask_impl(state: &Arc<AppState>, input: &BotAskInput) -> AppResult<Bot
             message: "empty".to_owned(),
         });
     }
+    // A key in "Remember …" is refused on the user's own words, before
+    // they are masked (the Bot review's L1: the mask hid it from the check).
+    let secret = read(&question)
+        .remember
+        .is_some_and(|words| RedactionSecrets.finds_secret(&words));
     let question = RedactionSecrets.mask(&question);
     let world = gather(state)?;
     let (read_as, used) = super::memory::with_aliases(state, &world, &question);
@@ -66,11 +71,11 @@ pub fn bot_ask_impl(state: &Arc<AppState>, input: &BotAskInput) -> AppResult<Bot
     let mut meta = Meta {
         scope: scope.clone(),
         lang: reading.lang,
-        used,
+        used: used.iter().map(|(info, _)| info.key.clone()).collect(),
         ..Meta::default()
     };
     if let Some(words) = reading.remember.as_deref() {
-        return remember_turn(state, &world, &question, words, meta);
+        return remember_turn(state, &world, &question, words, secret, meta);
     }
     let (outcome, rows, written) = if reading.help {
         (BotOutcome::Help, Vec::new(), None)
@@ -125,9 +130,18 @@ pub fn bot_ask_impl(state: &Arc<AppState>, input: &BotAskInput) -> AppResult<Bot
         event.subject = Some(("chat_turn", kept.id.clone()));
         event.payload = serde_json::json!({ "outcome": outcome.code(), "rows": rows.len() });
         let _ = storage.ai_log().append(&event, None);
+        // Each memory the question used is linked to the turn, so its
+        // forget reaches this turn too (ADR-0037 §1.5 step 3).
+        for (_, subject) in &used {
+            storage
+                .memory()
+                .link_turn(&kept.id, subject)
+                .map_err(memory_error)?;
+        }
         kept
     };
-    let mut info = turn_info(&kept, None);
+    let mut info = turn_info(&kept, None, &|_| None);
+    info.used = used.into_iter().map(|(info, _)| info).collect();
     // The turn just asked shows its rows as found, agent words included.
     info.rows = rows;
     info.written = written;
@@ -142,9 +156,10 @@ fn remember_turn(
     world: &World,
     question: &str,
     words: &str,
+    secret: bool,
     mut meta: Meta,
 ) -> AppResult<BotTurnInfo> {
-    let secret = RedactionSecrets.finds_secret(words);
+    let secret = secret || RedactionSecrets.finds_secret(words);
     let outcome = if secret {
         BotOutcome::Refused
     } else {
@@ -165,8 +180,10 @@ fn remember_turn(
             })
             .map_err(memory_error)?
     };
+    let mut kept_memory = None;
     if !secret {
-        meta.memory = super::memory::remember(state, world, words, &kept.id)?;
+        kept_memory = super::memory::remember(state, world, words, &kept.id)?;
+        meta.memory = kept_memory.as_ref().map(|m| m.key.clone());
         let storage = state.storage.lock().map_err(|_| AppError::StatePoisoned)?;
         storage
             .chat()
@@ -176,8 +193,8 @@ fn remember_turn(
             )
             .map_err(memory_error)?;
     }
-    let mut info = turn_info(&kept, None);
-    info.memory = meta.memory;
+    let mut info = turn_info(&kept, None, &|_| None);
+    info.memory = kept_memory;
     Ok(info)
 }
 
@@ -200,11 +217,13 @@ pub fn bot_page_impl(
     } else {
         Some(gather(state)?)
     };
+    let storage = state.storage.lock().map_err(|_| AppError::StatePoisoned)?;
+    let memory = |key: &str| super::memory::current(&storage, key);
     Ok(BotPageInfo {
         turns: page
             .turns
             .iter()
-            .map(|turn| turn_info(turn, world.as_ref()))
+            .map(|turn| turn_info(turn, world.as_ref(), &memory))
             .collect(),
         topics: page
             .topics

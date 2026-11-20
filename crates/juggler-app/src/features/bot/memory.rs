@@ -301,7 +301,7 @@ pub fn with_aliases(
     state: &AppState,
     world: &World,
     question: &str,
-) -> (String, Vec<BotMemoryInfo>) {
+) -> (String, Vec<(BotMemoryInfo, String)>) {
     let Ok(storage) = state.storage.lock() else {
         return (question.to_owned(), Vec::new());
     };
@@ -353,10 +353,21 @@ pub fn with_aliases(
             start = at - 4;
         }
         text = format!("{}{}{}", &text[..start], name, &text[at + alias.len()..]);
-        used.push(info_of(record, 0));
+        used.push((info_of(record, 0), record.subject_id.clone()));
         let _ = store.touch(&[record.id.as_str()], world.now_ms);
     }
     (text, used)
+}
+
+/// A memory as it stands now, by its subject key (`None`: forgotten).
+#[must_use]
+pub fn current(storage: &juggler_core::storage::Storage, key: &str) -> Option<BotMemoryInfo> {
+    storage
+        .memory()
+        .current(key)
+        .ok()
+        .flatten()
+        .map(|record| info_of(&record, 0))
 }
 
 /// Every memory the user stated, for "What Bot remembers".

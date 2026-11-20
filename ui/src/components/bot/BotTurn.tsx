@@ -164,6 +164,11 @@ function Answer({ turn, now, latest, find, onWatch }: { turn: BotTurnInfo; now: 
   if (turn.outcome === "help" || turn.outcome === "out_of_scope") {
     return <p className="text-body leading-normal text-ink-2" data-testid="bot-lead">{turn.outcome === "help" ? HELP : OUT_OF_SCOPE}</p>;
   }
+  // A forgotten memory leaves nothing to show (the Bot review's H1): no
+  // echo, no receipt, only that it was forgotten.
+  if (turn.redacted && (turn.outcome === "remembered" || turn.outcome === "refused")) {
+    return <p className="text-meta text-muted italic" data-testid="bot-forgotten">Forgotten.</p>;
+  }
   if (turn.outcome === "remembered" || turn.outcome === "refused") return <BotMemoryEcho turn={turn} />;
   if (turn.outcome === "dont_know") return <Unknown turn={turn} now={now} find={find} onWatch={onWatch} />;
   const before = dayWords(turn.at_ms, now) !== "Today";

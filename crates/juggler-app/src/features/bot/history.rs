@@ -35,11 +35,12 @@ pub struct Meta {
     /// Each sentence's cites.
     #[serde(default)]
     pub written_cites: Vec<Vec<u32>>,
-    /// A memory kept.
-    pub memory: Option<BotMemoryInfo>,
-    /// Memories used.
+    /// The memory kept, by its subject key only: its words live in the
+    /// memory store, so a forget leaves none here (the Bot review's H1).
+    pub memory: Option<String>,
+    /// The memories used, by subject key only.
     #[serde(default)]
-    pub used: Vec<BotMemoryInfo>,
+    pub used: Vec<String>,
     /// "This is wrong" was said about it.
     #[serde(default)]
     pub flagged: bool,
@@ -76,9 +77,14 @@ pub fn shown_text(written: Option<&BotWritten>) -> Option<String> {
 }
 
 /// A kept turn as the window shows it, its rows looked up again in
-/// `world` (`None`: show them as kept, the turn just asked).
+/// `world` (`None`: show them as kept, the turn just asked), its memories
+/// read now through `memory` (a forgotten one reads as none).
 #[must_use]
-pub fn turn_info(turn: &Turn, world: Option<&World>) -> BotTurnInfo {
+pub fn turn_info(
+    turn: &Turn,
+    world: Option<&World>,
+    memory: &dyn Fn(&str) -> Option<BotMemoryInfo>,
+) -> BotTurnInfo {
     let meta: Meta = serde_json::from_str(&turn.entities).unwrap_or_default();
     let kept: Vec<BotRowInfo> = serde_json::from_str(&turn.cites).unwrap_or_default();
     let rows = kept
@@ -127,8 +133,16 @@ pub fn turn_info(turn: &Turn, world: Option<&World>) -> BotTurnInfo {
             memories: 0,
         }),
         written,
-        memory: meta.memory,
-        used: meta.used,
+        memory: if turn.redacted {
+            None
+        } else {
+            meta.memory.as_deref().and_then(memory)
+        },
+        used: if turn.redacted {
+            Vec::new()
+        } else {
+            meta.used.iter().filter_map(|key| memory(key)).collect()
+        },
         live: world.is_some(),
         redacted: turn.redacted,
         flagged: meta.flagged,
