@@ -199,12 +199,18 @@ mod tests {
                 .stderr(std::process::Stdio::piped())
                 .spawn()
                 .unwrap();
-            child
+            // The hook input, as Claude Code sends it. The hook may exit
+            // before reading it (it does at once when the program is
+            // gone), so a closed pipe is the case under test; any other
+            // write error isn't.
+            let sent = child
                 .stdin
                 .take()
                 .unwrap()
-                .write_all(br#"{"session_id":"s"}"#)
-                .unwrap();
+                .write_all(br#"{"session_id":"s"}"#);
+            if let Err(error) = sent {
+                assert_eq!(error.kind(), std::io::ErrorKind::BrokenPipe, "{event}");
+            }
             let out = child.wait_with_output().unwrap();
             assert_eq!(out.status.code(), Some(0), "{event}");
             assert!(out.stdout.is_empty() && out.stderr.is_empty(), "{event}");
