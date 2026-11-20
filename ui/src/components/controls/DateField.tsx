@@ -86,7 +86,7 @@ export function DateField({
         className={`${FIELD_SHELL} ${fieldEdge(error !== null)} ${SIZES[size]}`}
       >
         <IconCalendar width={14} height={14} aria-hidden="true" className="shrink-0 text-faint" />
-        <input ref={input} {...field} size={pattern.length + 1} onKeyDown={onKey} />
+        <input ref={input} {...field} autoCorrect="off" autoCapitalize="off" spellCheck={false} size={pattern.length + 1} onKeyDown={onKey} />
         <button
           ref={button}
           type="button"

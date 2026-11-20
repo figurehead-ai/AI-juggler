@@ -94,7 +94,7 @@ export function TimeField({
   return (
     <span className={`inline-flex flex-col gap-1 ${className}`}>
       <span className={`${FIELD_SHELL} ${fieldEdge(error !== null)} ${SIZES[size]}`}>
-        <input {...input} size={6} onKeyDown={onKey} />
+        <input {...input} autoCorrect="off" autoCapitalize="off" spellCheck={false} size={6} onKeyDown={onKey} />
       </span>
       <span id={hintId} className="sr-only">
         Type it as {PATTERN}, or step it with the arrow keys.
