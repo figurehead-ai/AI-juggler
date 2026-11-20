@@ -65,7 +65,9 @@ export default defineConfig({
   // its own page, so none depends on another's order.
   fullyParallel: true,
   // 0.3.2: no WebGL, so the terminal keeps its DOM renderer (its fallback).
-  use: { baseURL: `http://localhost:${PORT}`, launchOptions: { args: ["--disable-3d-apis"] } },
+  // No partial raster: a tile redrawn in part kept a few edge pixels 1 off
+  // from one load to the next (0.5 gate triage; as playwright.config.ts).
+  use: { baseURL: `http://localhost:${PORT}`, launchOptions: { args: ["--disable-3d-apis", "--disable-partial-raster"] } },
   webServer: {
     command: `pnpm build && pnpm exec vite preview --port ${PORT} --strictPort`,
     url: `http://localhost:${PORT}`,
