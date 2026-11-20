@@ -231,7 +231,7 @@ Not a bug: "the bell can't close its own panel" came from the walk tool's way of
 
 **Two possible blockers from rc3h's walk, being checked now.** If either needs a fix, it goes into one more build of rc3h, and only those are walked again.
 - A Claude Code run's page stayed "Idle · This session has no turn yet" for minutes after Send, until you clicked elsewhere. "Show them" then opened a read-only view stuck on its loading bars. The suspect is 6666e4431, which reads the run's view once.
-- "Don't deliver" on a paused chain of replies changed nothing you could see.
+- "Don't deliver" on a paused chain of replies changed nothing you could see. Since then, on the same walk step (rc3h H7c): ba4fd61b6 makes Resume on a paused chain close its ask without delivering, so Home and the thread agree. Whether that settles "Don't deliver" isn't recorded yet.
 
 **Cells left open, each with its reason:**
 - X1 step 2 and P1 step 6: they need an account that runs out of room during the walk.
