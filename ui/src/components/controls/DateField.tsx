@@ -17,6 +17,12 @@
  * D-126 (the kit): one field look with TimeField — filled, a hairline
  * edge, the calendar glyph first and the calendar's chevron last, the
  * accent's edge and halo while typing; `lg` is the making screens' 36 px.
+ *
+ * Never cut: the input is as wide as its pattern or its placeholder,
+ * whichever is longer, and the field never narrower than its glyph, that
+ * input and its chevron, whatever width a caller gives it (a caller's
+ * `w-36` cut "Choose a day" to "Choose a da" once the kit added both
+ * glyphs: the 0.5 baseline refresh).
  */
 import { useMemo, useRef, useState, type JSX, type KeyboardEvent } from "react";
 import { IconCalendar, IconChevronDown } from "../icons-controls";
@@ -81,12 +87,12 @@ export function DateField({
   };
   const typed = readDate(text, format);
   return (
-    <span className={`inline-flex flex-col gap-1 ${className}`}>
+    <span className={`inline-flex min-w-max flex-col gap-1 ${className}`} data-testid={testId ? `${testId}-field` : undefined}>
       <span
         className={`${FIELD_SHELL} ${fieldEdge(error !== null)} ${SIZES[size]}`}
       >
         <IconCalendar width={14} height={14} aria-hidden="true" className="shrink-0 text-faint" />
-        <input ref={input} {...field} autoCorrect="off" autoCapitalize="off" spellCheck={false} size={pattern.length + 1} onKeyDown={onKey} />
+        <input ref={input} {...field} autoCorrect="off" autoCapitalize="off" spellCheck={false} size={Math.max(pattern.length, placeholder.length) + 1} onKeyDown={onKey} />
         <button
           ref={button}
           type="button"
