@@ -124,6 +124,15 @@ D-24 blockers ship as 0.4.x.
 | Pool setup a newcomer understands: a flow in order, every choice in plain words for whom it applies, the calm levels; the canvas's selection and its inspector's title | AJ-E3011, AJ-E3012 |
 | Desktop app sessions as full pool members, through AI Juggler's connector, added with consent or guided (D-116) | AJ-E3013 |
 
+### 0.4.7 — the soak's fixes, shipped as they're ready
+
+The bugs 0.4.6's exit RC (rc3h) deferred and the soak's findings, shipped as a 0.4.x patch (patch releases for bugs) through Nightly while 0.4.6 soaks (D-138: nothing is frozen for a soak), built on release/0.4.7 from main and forward-merged into 0.5. Worked in batches (D-137); the soak's list is `docs/qa/0.4-walks/soak-0.4.6/`. The source list is [docs/research/0.4.6-deferred-to-0.5.md](../research/0.4.6-deferred-to-0.5.md).
+
+| Area | Tasks |
+|---|---|
+| Pools and messages: a stable grid order, the project pool reached by its name, the hop limit in "N of 2" words and kept for every member, setup's side panel saying who joins now and later, shortened names, delete and the right panel's scroll; the held message's two presses is a question for the maintainer first (item 7) | AJ-E3014 |
+| Sessions: one row during a hand-over, New session's order steady, the Stop toast naming the session, the switch dialog whole at 1280×800, the wizard rail pressable, the recovery limits, Codex's added messages checked live, usage readings exact (a whole 1 % is 1 %, first) | AJ-E2311 |
+
 ## 0.5 — More tools and teams
 
 **Intent.** Bring the tools people use next, let work move between

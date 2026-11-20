@@ -242,7 +242,7 @@
 **Research basis**: `session-runtime.md` §2, §7.
 **Handover note**: —
 
-### AJ-E2311 0.4.6's deferred session findings: hand-over rows, New session's order, the Stop toast, the switch dialog at 1280×800, the wizard rail, recovery limits, Codex's added messages, usage readings | Status: TODO | Priority P1 | Effort L | Depends: AJ-E2310
+### AJ-E2311 0.4.6's deferred session findings: hand-over rows, New session's order, the Stop toast, the switch dialog at 1280×800, the wizard rail, recovery limits, Codex's added messages, usage readings | Status: TODO (0.4.7: bugs in shipped 0.4 ship as 0.4.x; built on release/0.4.7 after 0.4.6 reaches Stable, then forward-merged) | Priority P1 | Effort L | Depends: AJ-E2310
 **Deferred from 0.4.6's exit RC (rc3h), 2026-11-19 (D-114: the 0.4 line takes blockers only after beta).** The source list, with the walk rows that stay open and their reasons: [docs/research/0.4.6-deferred-to-0.5.md](../research/0.4.6-deferred-to-0.5.md). Work it as one batch (D-137): find, triage, fix together, one build.
 **Requirements**:
 1. **(rc3h item 8)** **During a terminal hand-over the sidebar shows two rows for the session.** Home's last-12-hours list shows both "h-b Finished" and "h-b Stopped by you".
