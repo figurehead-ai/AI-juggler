@@ -388,7 +388,10 @@ fn fresh_start(
 ) -> AppResult<(crate::features::sessions::spawn::Terminal, bool)> {
     let (launch, kept) =
         crate::features::launch::resume_gate::fresh_spec(state, account, profile, cwd, native_id)
-            .map_or_else(|error| (Err(error), false), |fresh| (Ok(fresh.spec), fresh.kept));
+            .map_or_else(
+                |error| (Err(error), false),
+                |fresh| (Ok(fresh.spec), fresh.kept),
+            );
     let terminal = crate::features::sessions::spawn::planned_terminal(
         crate::features::launch::resume_gate::adapter_of(state, account)?.as_ref(),
         cwd,

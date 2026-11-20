@@ -403,7 +403,9 @@ fn start_from(
             ),
             read_dirs: file.parent().map(Path::to_path_buf).into_iter().collect(),
         };
-        crate::crossmachine::launch_here(state, profile, account, project, &mode, None, "pack", None)
+        crate::crossmachine::launch_here(
+            state, profile, account, project, &mode, None, "pack", None,
+        )
     }
 }
 
