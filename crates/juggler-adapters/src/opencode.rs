@@ -847,10 +847,7 @@ pub fn opencode_spec() -> juggler_adapter::ToolSpec {
         more_release_feeds: Vec::new(),
         update_command: Some("opencode upgrade".to_owned()),
         // ADR-0036 §2.2: inside `ToolObserves::backed_by` its capabilities.
-        observes: juggler_adapter::ToolObserves {
-            cli: juggler_adapter::Observes::TERMINAL,
-            desktop: juggler_adapter::Observes::empty(),
-        },
+        observes: juggler_adapter::ToolObserves::cli(juggler_adapter::Observes::TERMINAL),
         floor: juggler_adapter::FloorFamilies::all("maker-garage"),
     }
 }

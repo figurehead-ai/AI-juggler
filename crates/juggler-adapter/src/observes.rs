@@ -60,6 +60,16 @@ impl Observes {
         .union(Self::LIFECYCLE)
         .union(Self::PROCESSES)
         .union(Self::RESTARTS);
+
+    /// A command-line session whose own stream also says each turn's end
+    /// and a usage limit reached.
+    pub const TERMINAL_TURNS: Self = Self::TERMINAL
+        .union(Self::TURN_ENDS)
+        .union(Self::LIMIT_HITS);
+
+    /// A command-line session whose tool reports a usage limit reached and
+    /// the account's room, though not each turn's end.
+    pub const TERMINAL_LIMITS: Self = Self::TERMINAL.union(Self::LIMIT_HITS).union(Self::RUNWAY);
 }
 
 /// A tool's declared observations, per kind of App.
@@ -77,6 +87,25 @@ impl ToolObserves {
         cli: Observes::empty(),
         desktop: Observes::empty(),
     };
+
+    /// Its command-line sessions observe `cli`; its desktop app nothing.
+    #[must_use]
+    pub const fn cli(cli: Observes) -> Self {
+        Self {
+            cli,
+            desktop: Observes::empty(),
+        }
+    }
+
+    /// Its desktop app's sessions observe `desktop`; its command line
+    /// nothing.
+    #[must_use]
+    pub const fn desktop(desktop: Observes) -> Self {
+        Self {
+            cli: Observes::empty(),
+            desktop,
+        }
+    }
 
     /// The set for an App of `kind`.
     #[must_use]

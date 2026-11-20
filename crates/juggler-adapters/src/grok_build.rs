@@ -650,10 +650,7 @@ pub fn grok_build_spec() -> juggler_adapter::ToolSpec {
         // The plain office, on purpose: campus and lab are kept for the
         // tools SPEC §9.7 names them for.
         // ADR-0036 §2.2: inside `ToolObserves::backed_by` its capabilities.
-        observes: juggler_adapter::ToolObserves {
-            cli: juggler_adapter::Observes::TERMINAL,
-            desktop: juggler_adapter::Observes::empty(),
-        },
+        observes: juggler_adapter::ToolObserves::cli(juggler_adapter::Observes::TERMINAL),
         floor: juggler_adapter::FloorFamilies::all("neutral"),
     }
 }

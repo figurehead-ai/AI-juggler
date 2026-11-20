@@ -48,10 +48,7 @@ impl ToolIdentity for FakeDesktopAdapter {
             display_name: "Fake harness (test)".to_owned(),
             short_name: "Fake".to_owned(),
             // ADR-0036 §2.2: inside `ToolObserves::backed_by` its capabilities.
-            observes: juggler_adapter::ToolObserves {
-                cli: juggler_adapter::Observes::empty(),
-                desktop: juggler_adapter::Observes::RESTARTS,
-            },
+            observes: juggler_adapter::ToolObserves::desktop(juggler_adapter::Observes::RESTARTS),
             floor: juggler_adapter::FloorFamilies::all("neutral"),
             ..juggler_adapter::ToolSpec::generic(FAKE_DESKTOP_ID)
         }

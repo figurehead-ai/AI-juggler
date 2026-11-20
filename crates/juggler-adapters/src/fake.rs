@@ -54,12 +54,7 @@ impl ToolIdentity for FakeHarnessAdapter {
             display_name: "Fake harness (test)".to_owned(),
             short_name: "Fake".to_owned(),
             // ADR-0036 §2.2: inside `ToolObserves::backed_by` its capabilities.
-            observes: juggler_adapter::ToolObserves {
-                cli: juggler_adapter::Observes::TERMINAL
-                    .union(juggler_adapter::Observes::TURN_ENDS)
-                    .union(juggler_adapter::Observes::LIMIT_HITS),
-                desktop: juggler_adapter::Observes::empty(),
-            },
+            observes: juggler_adapter::ToolObserves::cli(juggler_adapter::Observes::TERMINAL_TURNS),
             floor: juggler_adapter::FloorFamilies::all("neutral"),
             ..juggler_adapter::ToolSpec::generic(FAKE_HARNESS_ID)
         }

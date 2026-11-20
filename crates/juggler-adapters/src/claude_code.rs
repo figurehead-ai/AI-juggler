@@ -1408,10 +1408,7 @@ pub fn claude_code_spec() -> juggler_adapter::ToolSpec {
         // Claude app (SPEC §9.7).
         // ADR-0036 §2.2: inside `ToolObserves::backed_by` its capabilities.
         observes: juggler_adapter::ToolObserves {
-            cli: juggler_adapter::Observes::TERMINAL
-            .union(juggler_adapter::Observes::TURN_ENDS)
-            .union(juggler_adapter::Observes::LIMIT_HITS)
-            .union(juggler_adapter::Observes::RUNWAY),
+            cli: juggler_adapter::Observes::TERMINAL_TURNS.union(juggler_adapter::Observes::RUNWAY),
             desktop: juggler_adapter::Observes::RESTARTS.union(juggler_adapter::Observes::RUNWAY),
         },
         floor: juggler_adapter::FloorFamilies {
