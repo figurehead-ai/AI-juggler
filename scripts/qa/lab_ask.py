@@ -17,6 +17,11 @@ A launched session carries the hook environment only when the app trusts
 its `juggler-agent`: beside the app's own binary, in folders only you can
 write (`/tmp` isn't one), and with the pool page's "Let agents … work
 together?" answered (the lab route `agent_bridge_answer`).
+
+A lab's stand-in (`lab_standin.sh`, 0.4.7) asks by itself through the same
+hooks, when a line is typed at its prompt; this script can't read its
+environment (macOS hides a system shell's), so it is for a real tool's
+session in a lab.
 """
 from __future__ import annotations
 
