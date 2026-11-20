@@ -53,7 +53,7 @@ it("a row's figure stays muted when it asks (L2), when it broke (L3) and when it
     render(
       <SessionRow item={sessionItem(instance({ id: "s-out", quota: { used_percentage: 100, resets_at_ms: null, confidence: "exact" }, ...over }), () => "shop", false)} density="cozy" now={Date.now()} onSelect={vi.fn()} />,
     );
-  for (const over of [{ status: "waiting_user", needs_attention: "waiting_user" }, { status: "stuck", needs_attention: "stuck" }, { status: "running", needs_attention: "failed" }, { status: "quota_blocked", needs_attention: "quota_blocked" }] as const) {
+  for (const over of [{ status: "waiting_user", needs_attention: "waiting_user" }, { status: "stuck", needs_attention: "stuck" }, { status: "running", needs_attention: "failed" }] as const) {
     out(over);
     const figure = screen.getByText("0% left");
     expect(figure.className).toContain("text-muted");
@@ -61,6 +61,12 @@ it("a row's figure stays muted when it asks (L2), when it broke (L3) and when it
     expect(figure.getAttribute("data-level")).toBe("0");
     cleanup();
   }
+  // AJ-E3603: its limit stopped it: "Limit reached" says it, once (no
+  // "0% left" beside it, which cut its title).
+  out({ status: "quota_blocked", needs_attention: "quota_blocked" });
+  expect(screen.queryByText("0% left")).toBeNull();
+  expect(screen.getByTestId("state-word").textContent).toBe("Limit reached");
+  cleanup();
   // Parked until its reset: calm too, its word "Parked".
   out({ status: "quota_blocked", needs_attention: "quota_blocked", parked: "measured", parked_resets_at_ms: Date.now() - 60_000 });
   expect(screen.getByText("0% left").className).toContain("text-muted");

@@ -10,8 +10,10 @@
  *   each one is listed with its next step.
  * - **Open now**: every open session, AI Juggler's and the ones other apps
  *   run, by place in Open now's order (D-47), each as its app's icon with
- *   the profile's dot (D-38), its state's dot, and its level's corner (D-117:
- *   amber `!` at L2, red `✕` at L3). Its name says the state first, then the
+ *   the profile's dot (D-38) and one more mark: its state's dot, or when it
+ *   needs you its level's small mark at the corner (D-117 with AJ-E3603:
+ *   an amber dot at L2, a red ✕ at L3, never a filled badge). Its name
+ *   says the state first, then the
  *   title and where it runs. A session that waits on you or broke (L2/L3)
  *   is there open or not: one that stopped with an error has ended, and the
  *   count's red ✕ named it while no icon did (CI run 43768776781's
@@ -162,7 +164,8 @@ export function FoldedRail({
 }
 
 /** One open session as its icon: the app's with the profile's dot, its
- * state's dot, `!` when it needs you; the words in its name and tooltip. */
+ * state's dot or, when it needs you, its level's mark; the words in its
+ * name and tooltip. */
 function FoldedRow({ item, selected, onSelect }: { item: RailItem; selected: boolean; onSelect: (id: string) => void }): JSX.Element {
   const primary = usePrimary(item, onSelect);
   const describedId = useId();
@@ -174,7 +177,7 @@ function FoldedRow({ item, selected, onSelect }: { item: RailItem; selected: boo
   // AI Juggler's own sessions: the tool and account they run on, as the
   // place's app and profile name the others.
   const where = item.session ? [item.project, providerDisplayName(item.tool), item.accountLabel].filter(Boolean).join(" · ") : whereWords(item);
-  const tone = needs ? levelTone(level) : STATE_TONE[item.state];
+  const tone = STATE_TONE[item.state];
   // AI Juggler's own sessions keep their fuller summary (I-01..I-11).
   const more = item.session ? ariaSummary(item.session) : where;
   return (
@@ -203,18 +206,26 @@ function FoldedRow({ item, selected, onSelect }: { item: RailItem; selected: boo
       <span aria-hidden="true" className={"flex " + appTone(needs || selected)}>
         {item.session ? <OwnMark tool={item.tool} app={item.place.key} profile={item.accountLabel} /> : <PlaceMark place={item.place} profile={item.accountLabel} size={22} />}
       </span>
-      <span aria-hidden="true" data-state-dot={item.state} className={"absolute bottom-0.5 left-0.5 size-2 rounded-full ring-2 ring-canvas " + tone.dot} />
-      {/* Its level's corner (! amber at L2, ✕ red at L3): decoration;
-          its name leads with the word. */}
-      {needs && (
-        <span aria-hidden="true" data-testid="rail-folded-needs" data-level={level} className={"absolute right-0 top-0 flex size-3.5 items-center justify-center rounded-full text-label font-bold " + (level === 3 ? "bg-count-alarm text-count-alarm-ink" : "bg-warning text-black")}>
-          {level === 3 ? "✕" : "!"}
+      {/* AJ-E3603 R5: one quiet mark per need. A need's is its level's
+          small mark at the corner (an amber dot, a ring for a guess, a red
+          ✕) on a calm backing, never a filled badge, and it is the icon's
+          only mark; a calm session keeps its state's dot (a static calm
+          dot while working, faint when idle). Decoration: its name leads
+          with the word. */}
+      {needs ? (
+        <span aria-hidden="true" data-testid="rail-folded-needs" data-level={level} className="absolute right-0 top-0 flex size-3 items-center justify-center rounded-full bg-canvas">
+          <span className="level-mark" data-level={level} data-probably={level === 2 && item.probably ? "true" : undefined} />
         </span>
+      ) : (
+        <span aria-hidden="true" data-state-dot={item.state} className={"absolute bottom-0.5 left-0.5 size-1.5 rounded-full ring-2 ring-canvas " + tone.dot} />
       )}
       {/* Hover and focus: the words, never a bare icon. */}
       <span aria-hidden="true" className="pointer-events-none absolute left-full top-0 z-30 ml-2 hidden w-56 rounded-lg border border-hairline bg-surface p-2.5 text-left shadow-card group-hover:block group-focus-visible:block">
         <span className="block truncate text-meta font-medium text-ink">{item.title}</span>
-        <span className={"block text-label font-semibold " + tone.text}>{word}</span>
+        <span className={"flex items-center gap-1.5 text-label " + (needs ? "font-medium text-ink-2" : "text-muted")}>
+          {needs && <span className="level-mark" data-level={level} data-probably={level === 2 && item.probably ? "true" : undefined} />}
+          {word}
+        </span>
         <span className="mt-0.5 block text-label leading-relaxed text-muted">{more}</span>
       </span>
     </button>

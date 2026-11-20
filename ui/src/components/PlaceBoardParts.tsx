@@ -173,10 +173,12 @@ export function RailNoMatch({ words, text, children }: { words: string; text: st
     <div className="flex flex-col items-start gap-1.5 px-3 py-4" data-testid="rail-no-match">
       <p className="text-label font-medium text-ink">{words ? <>No open or recent session matches “{words}”</> : "No sessions match the filters"}</p>
       {text !== "" && (
+        // D-117 (R23): a link in the rail is ink-2, underlined on hover;
+        // the accent is for focus.
         <button
           type="button"
           onClick={() => searchHistory(text)}
-          className="-mx-1 rounded-md px-1 text-left text-label text-accent-hi outline-none hover:underline focus-visible:ring-1 focus-visible:ring-accent/60"
+          className="-mx-1 rounded-md px-1 text-left text-label text-ink-2 outline-none hover:text-ink hover:underline focus-visible:ring-1 focus-visible:ring-accent/60"
           data-testid="rail-no-match-history"
         >
           Search all history for “{text}” ›

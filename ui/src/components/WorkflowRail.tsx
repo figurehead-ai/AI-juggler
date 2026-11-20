@@ -675,6 +675,7 @@ function BoardRow({
       {where !== null && menu.goTo({ where, shown: needs, className: "absolute right-1 top-1/2 -translate-y-1/2" })}
       {/* I-03: a model that drifted from its launch settings is worth a
           glance (cost and behaviour differ) — beside the row, focusable,
+          a calm note (AJ-E3603: L1, never an amber pill),
           clear of the tool's mark and the avatar. Compact rows
           have no room beside the time; the session view says it there. */}
       {density === "comfortable" && modelDrift(row) && (
@@ -683,7 +684,7 @@ function BoardRow({
           aria-label={modelDrift(row)!}
           tabIndex={0}
           data-testid="model-drift"
-          className="absolute right-12 top-1.5 z-10 rounded-full border border-warning/25 bg-warning-soft px-1 text-label font-medium text-warning outline-none focus-visible:ring-1 focus-visible:ring-accent/60"
+          className="absolute right-12 top-1.5 z-10 rounded-full border border-hairline px-1 text-label font-medium text-muted outline-none focus-visible:ring-1 focus-visible:ring-accent/60"
         >
           ⇄
         </span>
@@ -739,7 +740,8 @@ export function RailRow({
   const item = sessionItem(session, () => null, false);
   const look = rowState(item);
   const lit = look.level >= 2 || selected;
-  const low = lowLeftWords(session);
+  // AJ-E3603: its state already says "Limit reached"; "0% left" beside it said it twice.
+  const low = item.need === "limit" ? null : lowLeftWords(session);
   const when = sessionWhen(session, now);
   // D-25: the row stays calm — these markers appear only when they are
   // the exception worth a glance (a sign-in to check, uncommitted work,
@@ -794,9 +796,11 @@ export function RailRow({
             >
               {state}
             </span>
-            {low && <span className="shrink-0 whitespace-nowrap text-warning">· {low}</span>}
+            {/* AJ-E3603: low room and a heavy load are facts here, muted
+                (their loud copy is the Needs you row, as in the App lens). */}
+            {low && <span className="shrink-0 whitespace-nowrap">· {low}</span>}
             {heavy && (
-              <span title={`Working your Mac hard: ${heavyNote}`} data-testid="rail-heavy" className="shrink-0 whitespace-nowrap text-warning">
+              <span title={`Working your Mac hard: ${heavyNote}`} data-testid="rail-heavy" className="shrink-0 whitespace-nowrap">
                 · {heavy}
               </span>
             )}
@@ -812,9 +816,9 @@ export function RailRow({
           {heavyNote ? `, working your Mac hard: ${heavyNote}` : ""}
         </span>
       </span>
-      {density === "compact" && low && <span className="shrink-0 text-label tabular-nums text-warning">{low}</span>}
+      {density === "compact" && low && <span className="shrink-0 text-label tabular-nums text-muted">{low}</span>}
       {density === "compact" && !low && heavy && (
-        <span data-testid="rail-heavy" className="shrink-0 font-mono text-label text-warning">
+        <span data-testid="rail-heavy" className="shrink-0 font-mono text-label text-muted">
           {heavy}
         </span>
       )}

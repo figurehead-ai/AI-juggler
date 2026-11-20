@@ -117,9 +117,9 @@ describe("no status glyph in any accessible name (D-117)", () => {
     expect(head).toBe(within(needs).getByRole("button", { name: `Needs you ${levelCountWords(shown, ["stopped with an error"])}` }));
     // (A browser names the heading from it too: tests/visual/a11y-glyph-names.spec.ts.)
     expect(levelCountWords(shown, ["stopped with an error"])).toMatch(/^\d+, 1 stopped with an error, \d+ wait on you$/);
-    // The L3 row: its word in its name, its ✕ drawn but hidden.
+    // The L3 row: its word in its name, its ✕ mark drawn but hidden.
     const broke = view.container.querySelector<HTMLElement>("[data-level='3'][data-need='failed']")!;
-    expect(broke.textContent).toContain("✕");
+    expect(broke.querySelector(".level-mark[data-level='3']")!.closest("[aria-hidden='true']")).toBeTruthy();
     expect(view.getByRole("button", { name: /^Stopped with an error, / })).toBeTruthy();
     // Its App's header says what broke in words (its red dot is decoration).
     expect(view.getAllByRole("button", { name: /need you, 1 stopped with an error/ }).length).toBeGreaterThan(0);

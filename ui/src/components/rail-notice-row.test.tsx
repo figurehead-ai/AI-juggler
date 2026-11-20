@@ -33,13 +33,17 @@ it("walk A5: the rail names a hand-over as it will act, the switch with somethin
 });
 
 // D-118's mock: an agent's question in the rail reads "builder-1 asks
-// you" (amber, its one mark) over "Release pool · «Export flow»", with no
+// you" (its amber mark, the words in ink) over "Release pool · «Export flow»", with no
 // "Open" under it: the row itself opens it. Its pool is said once.
 it("a pool member's question: the title is the mark, no bare Open, its pool once", async () => {
   const { RailNoticeRow } = await import("./RailNoticeRow");
   const asked = notice({ id: 10, kind: "message", needs: true, unread: true, title: "builder-1 asks you", detail: "Release pool · «Export flow»", action: "pool" });
   const view = render(<RailNoticeRow notice={asked} now={Date.now()} onOpen={() => undefined} canHandOver={false} />);
-  expect(view.getByTestId("rail-notice-title").className).toContain("text-warning");
+  // AJ-E3603 R5: the title in ink, the level's colour on its mark alone.
+  const title = view.getByTestId("rail-notice-title");
+  expect(title.className).toContain("text-ink");
+  expect(title.className).not.toMatch(/text-(warning|danger)/);
+  expect(title.querySelector(".level-mark[data-level='2']")).toBeTruthy();
   expect(view.queryByTestId("rail-notice-action")).toBeNull();
   expect(view.getByTestId("rail-notice-line").textContent).toBe("Release pool · «Export flow»");
   expect(view.getByRole("button").textContent).not.toMatch(/Open$/);
@@ -48,14 +52,15 @@ it("a pool member's question: the title is the mark, no bare Open, its pool once
 
 // D-118's mock (round 3): with what it's about known (its thread, its
 // pool), the row is subject first, as a session's need row: "Export
-// flow", then "builder-1 asks you" in amber, then "Release pool".
-it("a pool member's question, subject first: its thread, then who asks (amber), then its pool", async () => {
+// flow", then "builder-1 asks you" after its amber mark, then "Release pool".
+it("a pool member's question, subject first: its thread, then who asks (its amber mark), then its pool", async () => {
   const { RailNoticeRow } = await import("./RailNoticeRow");
   const asked = notice({ id: 11, kind: "message", needs: true, unread: true, title: "builder-1 asks you", detail: "Release pool · «Export flow»", action: "pool" });
   const view = render(<RailNoticeRow notice={asked} now={Date.now()} onOpen={() => undefined} canHandOver={false} about={{ subject: "Export flow", context: "Release pool" }} />);
   expect(view.getByTestId("rail-notice-title").textContent).toBe("Export flow");
   expect(view.getByTestId("rail-notice-action").textContent).toBe("builder-1 asks you");
-  expect(view.getByTestId("rail-notice-action").className).toContain("text-warning");
+  expect(view.getByTestId("rail-notice-action").className).toContain("text-ink-2");
+  expect(view.getByTestId("rail-notice-action").querySelector(".level-mark[data-level='2']")).toBeTruthy();
   expect(view.getByTestId("rail-notice-line").textContent).toBe("Release pool");
   // Its name says who asks first (the need), then about what and where.
   expect(view.getByRole("button").textContent).toContain("builder-1 asks you, Export flow, Release pool");

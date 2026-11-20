@@ -293,12 +293,13 @@ export function GitBadge({ session }: { session: InstanceInfo }): ReactNode {
  * `stale - Nm` caption chip (Req.5). Contrast-safe by construction: the
  * value keeps its full text colour (never dimmed below 4.5:1) and the
  * caption carries the meaning — the manual-contrast fallback the task
- * prescribes when dimming would break contrast.
+ * prescribes when dimming would break contrast. A calm note (D-117 L1,
+ * AJ-E3603): muted words in a hairline, never an amber pill.
  */
 export function StaleChip({ caption }: { caption: string | null }) {
   if (caption === null) return null;
   return (
-    <span className="inline-flex shrink-0 items-center rounded border border-warning/40 bg-warning-soft px-1 text-label font-medium whitespace-nowrap text-warning" title={`Value is ${caption} — older than 2× its refresh interval`}>
+    <span className="inline-flex shrink-0 items-center rounded border border-hairline px-1 text-label font-medium whitespace-nowrap text-muted" title={`Value is ${caption} — older than 2× its refresh interval`}>
       {caption}
     </span>
   );

@@ -5,7 +5,7 @@
  * mark and words are the notification centre's; a click is the notice's
  * own primary (it opens what it is about; nothing runs by itself).
  */
-import { levelTone, noticeLevel } from "../lib/attention";
+import { noticeLevel } from "../lib/attention";
 import { useLayoutEffect, useRef, useState, type JSX, type RefObject } from "react";
 import { NoticeMark } from "./NoticeRow";
 import { needLine, primaryWords } from "../lib/notice-words";
@@ -40,10 +40,11 @@ function useWraps(): [RefObject<HTMLSpanElement | null>, boolean] {
 
 /** An agent's message, subject first (D-118's mock, round 3), as a
  * session's need row reads: "Export flow", then "builder-1 asks you" in
- * its level's colour, then "Release pool". */
+ * ink-2 after its level's mark, then "Release pool". */
 function AboutRow({ notice, about, onOpen }: { notice: NoticeInfo; about: { subject: string; context: string }; onOpen: (notice: NoticeInfo) => void }): JSX.Element {
   const level = noticeLevel(notice);
-  const tone = level >= 2 ? "font-semibold " + levelTone(level).text : "text-muted";
+  // AJ-E3603 R5: the level's colour on its mark alone, the words calm.
+  const tone = level >= 2 ? "font-medium text-ink-2" : "text-muted";
   return (
     <button
       type="button"
@@ -61,7 +62,10 @@ function AboutRow({ notice, about, onOpen }: { notice: NoticeInfo; about: { subj
       <span aria-hidden="true" className="mt-[6px] size-1.5 shrink-0 rounded-full bg-surface-3 ring-1 ring-hairline" />
       <span aria-hidden="true" className="flex min-w-0 flex-1 flex-col">
         <span className="truncate text-meta font-semibold leading-[18px] text-ink" data-testid="rail-notice-title">{about.subject}</span>
-        <span className={"truncate text-label leading-4 " + tone} data-testid="rail-notice-action">{notice.title}</span>
+        <span className={"flex min-w-0 items-center gap-1.5 text-label leading-4 " + tone} data-testid="rail-notice-action" data-level={level}>
+          {level >= 2 && <span className="level-mark" data-level={level} />}
+          <span className="truncate">{notice.title}</span>
+        </span>
         <span className="truncate text-label leading-4 text-muted" data-testid="rail-notice-line">{about.context}</span>
       </span>
     </button>
@@ -91,12 +95,13 @@ function TitledRow({ notice, now, onOpen, canHandOver }: { notice: NoticeInfo; n
   // its word, its state said apart from it.
   const titleMarks = plainOpen && !SESSION_TITLED.has(notice.kind);
   const showAction = Boolean(action) && !titleMarks && !(long && plainOpen && line);
-  // D-117: its one quiet mark in its level's colour (amber L2, red L3; no
-  // tinted row in the rail, D-118's one quiet mark per need): the action
-  // word, else the title; a note's (L1: low room nothing live is on,
-  // leftovers) muted.
+  // D-117 with AJ-E3603 R5: its one quiet mark, the level's small mark
+  // (an amber dot at L2, a red ✕ at L3; no tinted row, no loud line),
+  // before the action word, else before the title; the words stay in
+  // calm ink. A note's (L1: low room nothing live is on, leftovers) has
+  // no mark and muted words.
   const level = noticeLevel(notice);
-  const tone = level >= 2 ? levelTone(level).text : "text-ink";
+  const mark = level >= 2 ? <span aria-hidden="true" className="level-mark mr-1.5 align-middle" data-level={level} /> : null;
   return (
     <button
       type="button"
@@ -113,13 +118,21 @@ function TitledRow({ notice, now, onOpen, canHandOver }: { notice: NoticeInfo; n
         <NoticeMark kind={notice.kind} small />
       </span>
       <span aria-hidden="true" className="flex min-w-0 flex-1 flex-col">
-        <span ref={titleRef} className={"line-clamp-2 text-meta font-semibold leading-[18px] " + (titleMarks ? tone : "text-ink")} data-testid="rail-notice-title">{notice.title}</span>
+        <span ref={titleRef} className="line-clamp-2 text-meta font-semibold leading-[18px] text-ink" data-testid="rail-notice-title" data-level={titleMarks ? level : undefined}>
+          {titleMarks && mark}
+          {notice.title}
+        </span>
         {showLine && (
           <span className="truncate text-label leading-4 text-muted" data-testid="rail-notice-line">
             {line}
           </span>
         )}
-        {showAction && <span className={"truncate text-label leading-4 " + (level >= 2 ? "font-semibold " + tone : "text-muted")} data-testid="rail-notice-action">{action}</span>}
+        {showAction && (
+          <span className={"truncate text-label leading-4 " + (level >= 2 ? "font-medium text-ink-2" : "text-muted")} data-testid="rail-notice-action" data-level={level}>
+            {mark}
+            {action}
+          </span>
+        )}
       </span>
     </button>
   );

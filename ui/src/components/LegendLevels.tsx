@@ -6,9 +6,11 @@ import type { JSX } from "react";
 
 /** D-117: the four attention levels, loudest first. Only the top two
  * are counted (Needs you, the bell, Home's title). */
+// AJ-E3603: drawn as the rail draws them, the level's colour on the mark
+// alone (a red ✕, an amber dot), the words in ink.
 const LEGEND_LEVELS: { level: number; words: string; tone: string; mark: string; meaning: string }[] = [
-  { level: 3, words: "Broken", tone: "text-danger", mark: "level-mark", meaning: "stopped; only you can get it going again (red, counted)" },
-  { level: 2, words: "Needs you", tone: "text-warning", mark: "level-mark", meaning: "waits on your decision (amber, counted)" },
+  { level: 3, words: "Broken", tone: "text-ink", mark: "level-mark", meaning: "stopped; only you can get it going again (a red ✕, counted)" },
+  { level: 2, words: "Needs you", tone: "text-ink", mark: "level-mark", meaning: "waits on your decision (an amber dot, counted)" },
   { level: 1, words: "To review", tone: "text-muted", mark: "size-1.5 shrink-0 rounded-full bg-success", meaning: "good to know, nothing to do now (listed, not counted)" },
   { level: 0, words: "Calm", tone: "text-muted", mark: "size-1.5 shrink-0 rounded-full bg-faint", meaning: "running as it should" },
 ];

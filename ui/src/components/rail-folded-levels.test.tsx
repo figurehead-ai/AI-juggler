@@ -80,15 +80,17 @@ function icons(rail: HTMLElement, sessions: InstanceInfo[]) {
     if (corner) expect(corner.getAttribute("aria-hidden")).toBe("true");
     return {
       lit: row!.querySelector(".app-tone")!.classList.contains("is-lit"),
-      corner: corner?.textContent ?? null,
+      // AJ-E3603: its corner is the level's small mark, never a filled
+      // badge: a red ✕ (L3, drawn by `.level-mark`) or an amber dot (L2).
+      corner: corner === null ? null : corner.querySelector(".level-mark")?.getAttribute("data-level") === "3" ? "✕" : "•",
       level: corner?.getAttribute("data-level") ?? null,
       name: row!.querySelector(".sr-only")!.textContent ?? "",
     };
   });
 }
 
-/** The App's corner: its highest level's (✕ over !). */
-const appCorner = (marks: { corner: string | null }[]) => (marks.some((mark) => mark.corner === "✕") ? "✕" : marks.some((mark) => mark.corner === "!") ? "!" : null);
+/** The App's corner: its highest level's (✕ over •). */
+const appCorner = (marks: { corner: string | null }[]) => (marks.some((mark) => mark.corner === "✕") ? "✕" : marks.some((mark) => mark.corner === "•") ? "•" : null);
 
 describe("the folded icon rail lights L2 and L3 alike (D-117)", () => {
   it("a broken session has ended, yet keeps its icon there; a calm ended one doesn't", () => {
@@ -103,16 +105,16 @@ describe("the folded icon rail lights L2 and L3 alike (D-117)", () => {
   it("each App: lit at L2 or L3 with its level's corner, the higher when both; calm stays muted; names lead with the word", async () => {
     const { rail } = await folded();
     const l2 = icons(rail, APPS.l2);
-    expect(l2).toEqual([{ lit: true, corner: "!", level: "2", name: expect.stringMatching(/^Asks you, /) }]);
+    expect(l2).toEqual([{ lit: true, corner: "•", level: "2", name: expect.stringMatching(/^Asks you, /) }]);
     const l3 = icons(rail, APPS.l3);
     expect(l3).toEqual([{ lit: true, corner: "✕", level: "3", name: expect.stringMatching(/^Stopped with an error, /) }]);
     const both = icons(rail, APPS.both);
     expect(both).toEqual([
-      { lit: true, corner: "!", level: "2", name: expect.stringMatching(/^Probably stuck, /) },
+      { lit: true, corner: "•", level: "2", name: expect.stringMatching(/^Probably stuck, /) },
       { lit: true, corner: "✕", level: "3", name: expect.stringMatching(/^Stopped with an error, /) },
     ]);
     expect(appCorner(both)).toBe("✕");
-    expect(appCorner(l2)).toBe("!");
+    expect(appCorner(l2)).toBe("•");
     expect(appCorner(l3)).toBe("✕");
     const calm = icons(rail, APPS.calm);
     expect(calm).toEqual([{ lit: false, corner: null, level: null, name: expect.stringMatching(/^Working, /) }]);

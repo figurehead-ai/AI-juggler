@@ -2,8 +2,8 @@
  * AJ-E2104 — the new rail's rows and place headers.
  *
  * - A **Needs you** row (D-117): the App's dot, the title in bold, why
- *   it needs you in its level's colour, then "project · app · profile";
- *   its ↗ on hover, focus or when selected.
+ *   it needs you in ink-2 after its level's mark, then "project · app ·
+ *   profile"; its ↗ on hover, focus or when selected.
  * - An **Open now** row, under its place: indented, a state mark, the
  *   title and the state word on one line (a need's in ink beside its
  *   amber mark, D-117); "project · viewed N min ago" in its tooltip and
@@ -28,7 +28,7 @@
  */
 import type { JSX } from "react";
 import { ProfileBadge } from "./ProfileBadge";
-import { appTone, itemLevel, levelTone } from "../lib/attention";
+import { appTone, itemLevel } from "../lib/attention";
 import { RowShell } from "./row/RowShell";
 import { RowProject } from "./row/RowParts";
 
@@ -60,9 +60,10 @@ interface RowProps {
 }
 
 /** A Needs you row (D-117): the App's 6 px dot (in full colour while it
- * needs you, muted for a note), the title in semibold ink, why in its
- * level's colour — amber at L2 (a hollow ring before a guess), red with
- * its ✕ at L3 — or a review's ✓ and muted words (L1), then where. One
+ * needs you, muted for a note), the title in semibold ink, why in ink-2
+ * after its level's mark — an amber dot at L2 (a hollow ring before a
+ * guess), a red ✕ at L3 — or a review's ✓ and muted words (L1), then
+ * where (AJ-E3603 R5: the colour on the mark alone). One
  * quiet mark per need (D-118's mock, the 0.5 review's "loud blocks"): no
  * row is tinted in the rail, so five needs never stack five coloured
  * blocks; the ✕ and the word tell L3 from L2 by shape, never by a fill.
@@ -78,15 +79,16 @@ export function NeedRow({ compact = false, ...props }: RowProps): JSX.Element {
       <ProfileBadge app={item.place.key} name={item.place.profile ?? item.accountLabel} size={6} className={appTone(lit)} />
     </span>
   );
+  // AJ-E3603 R5: one quiet mark per need, on every page: the level's
+  // colour is on its small mark alone (an amber dot, a ring for a guess,
+  // a red ✕), the words beside it in calm ink, so five needs never make
+  // five loud lines.
   const why = (
-    <span aria-hidden="true" className={"flex min-w-0 items-center gap-1 truncate text-label leading-4 " + (level >= 2 ? "font-semibold " + levelTone(level).text : "text-muted")} data-testid="need-word" data-level={level}>
-      {/* The glyphs are decoration (the row's name says its word). */}
-      {level === 2 && item.probably && <span aria-hidden="true" className="level-mark" data-level={2} data-probably="true" />}
+    <span aria-hidden="true" className={"flex min-w-0 items-center gap-1.5 truncate text-label leading-4 " + (level >= 2 ? "font-medium text-ink-2" : "text-muted")} data-testid="need-word" data-level={level}>
+      {/* The marks are decoration (the row's name says its word). */}
+      {level >= 2 && <span aria-hidden="true" className="level-mark" data-level={level} data-probably={level === 2 && item.probably ? "true" : undefined} />}
       {level < 2 && item.need === "review" && <span aria-hidden="true" className="shrink-0 text-success">✓</span>}
-      <span className="truncate">
-        {level === 3 && <span aria-hidden="true">✕ </span>}
-        {word}
-      </span>
+      <span className="truncate">{word}</span>
     </span>
   );
   const data = { "data-level": String(level), "data-need": item.need ?? undefined, "data-state": item.state };

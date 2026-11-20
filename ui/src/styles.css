@@ -446,8 +446,11 @@ body {
   .level-glyph[data-level="3"]::before {
     content: "✕";
   }
-  /* A level's mark: a 6 px dot (L2 filled, a hollow ring when inferred),
-     in the level's colour. */
+  /* A level's mark, in the level's colour: a 6 px dot at L2 (a hollow
+     ring when inferred), a small ✕ at L3 (AJ-E3603: the shape tells L3
+     from L2, never the hue alone, now that the words beside a mark are
+     calm ink). The ✕ is 8 px drawn in the dot's 6 px place (its margin),
+     so a row keeps its layout whichever mark it shows. */
   .level-mark {
     display: inline-block;
     width: 6px;
@@ -456,7 +459,13 @@ body {
     border-radius: 9999px;
   }
   .level-mark[data-level="3"] {
+    width: 8px;
+    height: 8px;
+    margin: -1px;
+    border-radius: 0;
     background: var(--level-3);
+    -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8'%3E%3Cpath d='M1 1l6 6M7 1L1 7' stroke='black' stroke-width='1.8' stroke-linecap='round'/%3E%3C/svg%3E") center / contain no-repeat;
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8'%3E%3Cpath d='M1 1l6 6M7 1L1 7' stroke='black' stroke-width='1.8' stroke-linecap='round'/%3E%3C/svg%3E") center / contain no-repeat;
   }
   .level-mark[data-level="2"] {
     background: var(--level-2);

@@ -115,13 +115,16 @@ export function SessionRow(props: SessionRowProps): JSX.Element {
   const { item, density, now, within = {}, subagents } = props;
   const title = props.title ?? item.title;
   const state = rowState(item);
-  const low = item.session ? lowLeftWords(item.session) : null;
+  // AJ-E3603: a row its limit stopped says "Limit reached"; "0% left"
+  // beside it said it twice and cut its title to "Tidy the …".
+  const low = item.session && item.need !== "limit" ? lowLeftWords(item.session) : null;
   // D-118 (one quiet mark per need, the 0.5 review of the rail): a row's
   // low room is a fact, muted at every level. The need's one loud copy is
   // its Needs you row; here the row's dot and its word in ink say it (D-47
   // as amended by D-117), so a row its limit stopped no longer reads
   // "0% left" in amber beside its Needs you row. The Account's own runway
-  // line keeps the Account's level (red when out with live work).
+  // line keeps the Account's level (red when out with live work). So is
+  // a heavy load (AJ-E3603): its loud copy is the Needs you "heavy" row.
   const lowLevel: AttentionLevel = 0;
   const lowTone = "text-muted";
   const heavyNote = useHeavyNote(item.session?.id ?? "");
@@ -148,7 +151,7 @@ export function SessionRow(props: SessionRowProps): JSX.Element {
   const exception = low ? (
     <span className={"ml-auto shrink-0 text-label " + lowTone} data-level={lowLevel}>{low}</span>
   ) : heavy ? (
-    <span className="ml-auto shrink-0 text-label text-warning" data-testid="rail-heavy">
+    <span className="ml-auto shrink-0 text-label text-muted" data-testid="rail-heavy">
       {heavy}
     </span>
   ) : null;
@@ -201,17 +204,22 @@ export function SessionRow(props: SessionRowProps): JSX.Element {
       </RowShell>
     );
   }
+  // Where and when it was, for its tooltip (its name says them too).
+  const hover = [title, line, also].filter(Boolean).join(" — ");
   if (density === "compact") {
     // One line: the state's dot, the title, then an exception (low
     // runway, heavy load) or when, and the state word (AJ-E403: the
-    // state's words never go).
+    // state's words never go). AJ-E3603: the time shows only where the
+    // row has room for it beside a readable title (a rail at its usual
+    // width cut titles to "Refa…" to fit "waiting 3 h"); it stays in the
+    // row's tooltip and name.
     return (
       <RowShell {...shell} indent shape="rounded-lg" className="h-[30px] gap-2 pl-2.5">
         {dot}
-        <span aria-hidden="true" className="flex min-w-0 flex-1 items-center gap-1.5">
-          <span className={"truncate text-meta " + railTitle} title={title} data-testid="row-title">{title}</span>
+        <span aria-hidden="true" className="@container flex min-w-0 flex-1 items-center gap-1.5">
+          <span className={"min-w-0 truncate text-meta " + railTitle} title={hover} data-testid="row-title">{title}</span>
           {pinned && <PinMark />}
-          <span className="ml-auto shrink-0 text-label text-muted">{low ? <span className={lowTone} data-level={lowLevel}>{low}</span> : heavy ? <span className="text-warning" data-testid="rail-heavy">{heavy}</span> : when}</span>
+          <span className="ml-auto shrink-0 text-label text-muted">{low ? <span className={lowTone} data-level={lowLevel}>{low}</span> : heavy ? <span className="text-muted" data-testid="rail-heavy">{heavy}</span> : when ? <span className="hidden @min-[16rem]:inline" data-testid="row-when">{when}</span> : null}</span>
           <span className={"shrink-0 text-label font-medium " + railWord} data-testid="state-word">
             {state.word}
           </span>
@@ -222,7 +230,6 @@ export function SessionRow(props: SessionRowProps): JSX.Element {
   // D-118's mock (round 3): one line, the title then its state at the
   // right, so more of the list fits; where and when it was (project ·
   // time, and where else it is open) are in its tooltip and its name.
-  const hover = [title, line, also].filter(Boolean).join(" — ");
   return (
     <RowShell {...shell} indent shape="rounded-lg" className="h-[32px] gap-2 pl-2.5">
       {dot}
