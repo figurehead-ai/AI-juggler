@@ -21,13 +21,14 @@ import { useMessageNeeds } from "../../lib/ipc/messages";
 import { onTasksChanged, useTaskNeeds } from "../../lib/ipc/tasks";
 import { poolCanvasPreviews, type PoolPreviewInfo } from "../../lib/ipc/pool-canvas";
 import { poolRules, type PoolRulesInfo } from "../../lib/ipc/pool-model";
-import { useApps, type AppModel } from "../../lib/apps";
+import { useApps } from "../../lib/apps";
 import { shortName } from "../../lib/session-titles";
 import type { PoolInfo } from "../../lib/ipc/pools";
 import { doneNewPoolRequest, needWords, onNewPoolRequest, poolIdsOf, poolNeedCount, roleOf, scopeLabel, takeNewPoolRequest, usePools, warmPool, type NewPoolRequest } from "../../lib/pools";
 import { sessionState } from "../../lib/rail-items";
 import { NewPool } from "./NewPool";
 import { miniTeam, PoolMini } from "./PoolMini";
+import { useMemberLabel } from "../../pages/pool/pool-page-reads";
 import { DeletePool, PoolCard, RenamePool } from "./PoolCard";
 import { useVisitOrder } from "./visit-order";
 
@@ -93,18 +94,20 @@ function SkeletonCards(): JSX.Element {
   );
 }
 
-/** A pool member's name on its card's thumbnail: a session's title, an
- * App's name. A session is looked up among every session the app knows,
- * ended ones too, as the pool's canvas names it (F-rc3f-6: once the
- * Lead's session ended, the card, which looked among the pool's open
- * sessions only, drew it as "sess-731993261005 · Lead"). */
-function memberNameOf(apps: readonly AppModel[] | null): (ref: string, sessions: readonly InstanceInfo[]) => string {
+/** A pool member's name on its card's thumbnail: a session's title, or
+ * a broad member's name as the canvas says it (`label`; SK-9: an Account
+ * member read "An Account" where the canvas said "Personal"). A session
+ * is looked up among every session the app knows, ended ones too, as the
+ * pool's canvas names it (F-rc3f-6: once the Lead's session ended, the
+ * card, which looked among the pool's open sessions only, drew it as
+ * "sess-731993261005 · Lead"). Everyone is the thumbnail's own word. */
+function memberNameOf(label: (member: string) => string): (ref: string, sessions: readonly InstanceInfo[]) => string {
   return (ref, sessions) => {
     if (ref.startsWith("session:")) {
       const session = sessions.find((one) => `session:${one.id}` === ref);
       return session ? shortName(session) : "";
     }
-    return apps?.find((app) => `app:${app.id}` === ref)?.name ?? "";
+    return ref === "all" ? "" : label(ref);
   };
 }
 
@@ -128,7 +131,7 @@ export function PoolsScreen({ sessions, projects, accounts }: { sessions: Instan
   // D-126 §4d: each shown card's team (its members, their open sessions).
   const [teams, setTeams] = useState<Map<string, PoolRulesInfo>>(new Map());
   const apps = useApps(accounts);
-  const memberName = memberNameOf(apps);
+  const memberName = memberNameOf(useMemberLabel(accounts, sessions));
 
   // Each open session (what the rail holds), by its pool.
   const byPool = useMemo(() => {
