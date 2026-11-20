@@ -176,6 +176,22 @@ describe("the pool page while it's set up (D-126 §3)", () => {
     expect(await view.findByTestId("pool-checklist")).toBeTruthy();
   });
 
+  it("SK-7: \"Use a template\" stays one click away while it's set up, members in or not; gone once it runs", async () => {
+    bridge({ asked: false, on: false });
+    seedTeam();
+    const view = await openPage();
+    await waitFor(() => expect(view.getByTestId("pool-header-setup").textContent).toBe("Setting up · 6 of 7"));
+    // Two sessions are in it: the door used to go once a member joined.
+    fireEvent.click(view.getByTestId("canvas-use-template"));
+    expect(await view.findByTestId("new-pool")).toBeTruthy();
+    cleanup();
+    bridge({ asked: true, on: true });
+    seedTeam();
+    const running = await openPage();
+    await running.findByTestId("pool-running");
+    expect(running.queryByTestId("canvas-use-template")).toBeNull();
+  });
+
   it("a session in it and every step done (the team tools on): the calm view, on its own", async () => {
     bridge({ asked: true, on: true });
     seedTeam();

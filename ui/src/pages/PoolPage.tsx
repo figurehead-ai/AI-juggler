@@ -17,7 +17,7 @@ import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import type { ProjectInfo } from "../types/generated/ProjectInfo";
 import { usePoolRules } from "../lib/pool-rules";
 import { poolSetScope } from "../lib/ipc/pool-model";
-import { CanvasTeach, hasWhoIsIn } from "./pool/CanvasTeach";
+import { CanvasTeach, RulesOnlyHint, hasWhoIsIn } from "./pool/CanvasTeach";
 import { PaletteMore } from "./pool/PaletteMore";
 import { RuleNodes } from "./pool/RuleNodes";
 import { startNextLead } from "../lib/start-lead";
@@ -137,6 +137,7 @@ function PoolCanvasPage({ poolId, sessions, projects, accounts, now, rules }: Pa
     }
   };
   const [template, setTemplate] = useState(false);
+  const openTemplate = useCallback(() => setTemplate(true), []);
   const [paletteRequest, setPaletteRequest] = useState(0);
   const first = useMemo(arrival, []);
   const [panel, setPanelState] = useState<Panel>(first.panel);
@@ -278,6 +279,9 @@ function PoolCanvasPage({ poolId, sessions, projects, accounts, now, rules }: Pa
               onAdd={add}
               paletteRequest={paletteRequest}
               paletteQuiet={phase === "running"}
+              // SK-7: one click away while it's set up, once members are in
+              // too (before, the empty canvas's own lesson offers it).
+              paletteTemplate={phase === "setup" && peopled ? openTemplate : undefined}
               paletteMore={
                 <PaletteMore
                   poolId={pool.id}
@@ -320,13 +324,7 @@ function PoolCanvasPage({ poolId, sessions, projects, accounts, now, rules }: Pa
               )}
               empty={(paletteOpen, openPalette) =>
                 planned ? null : peopled ? (
-                  <p className={"pointer-events-none absolute inset-x-0 bottom-16 text-center text-meta text-ink-2" + (paletteOpen ? " pl-[16.5rem]" : "")} data-testid="canvas-rules-only">
-                    {/* Walk K1: sessions in it, none open (no member to click). */}
-                    {rulesOnlyWords(hasRules, openHere.length)}{" "}
-                    <button type="button" onClick={() => setTemplate(true)} className="pointer-events-auto font-medium text-accent-hi underline-offset-2 hover:underline" data-testid="canvas-rules-template">
-                      Use a template
-                    </button>
-                  </p>
+                  <RulesOnlyHint words={rulesOnlyWords(hasRules, openHere.length)} inset={paletteOpen} onTemplate={phase === "running" ? openTemplate : undefined} />
                 ) : (
                 <CanvasTeach
                   scope={scopeLabel(pool, projects)}

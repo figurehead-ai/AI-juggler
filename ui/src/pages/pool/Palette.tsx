@@ -39,7 +39,11 @@ export function Palette({
   onAdd,
   more,
   quiet = false,
+  onTemplate,
 }: {
+  /** SK-7: while the pool is set up, "Use a template" beside Add a member,
+   * however many have joined (it went once a member did). */
+  onTemplate?: () => void;
   /** The pool runs (D-126): no Add a member until it's asked for (Edit
    * setup's Who's in opens it); dragging a member out still shows here. */
   quiet?: boolean;
@@ -95,11 +99,16 @@ export function Palette({
   if (!open && quiet) return null;
   if (!open)
     return (
-      <section data-canvas-palette aria-label="Add a member" className="pointer-events-auto w-fit" data-testid="canvas-palette">
+      <section data-canvas-palette aria-label="Add a member" className="pointer-events-auto flex w-fit items-center gap-1.5" data-testid="canvas-palette">
         <Button size="sm" variant="secondary" aria-expanded={false} onClick={toggle} className="shadow-card" data-testid="canvas-add-member">
           <IconPlus width={14} height={14} aria-hidden="true" />
           Add a member
         </Button>
+        {onTemplate && (
+          <Button size="sm" variant="ghost" onClick={onTemplate} className="bg-surface/90" data-testid="canvas-use-template">
+            Use a template
+          </Button>
+        )}
       </section>
     );
   return (
