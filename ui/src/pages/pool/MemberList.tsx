@@ -12,6 +12,8 @@ import type { InstanceInfo } from "../../types/generated/InstanceInfo";
 import type { PoolCanvasInfo } from "../../lib/ipc/pool-canvas";
 import type { PoolInfo } from "../../lib/ipc/pools";
 import { MemberLevel } from "./MemberLevel";
+import { MemberRole } from "./MemberRole";
+import { PairRule } from "./PairRule";
 import { agoWords } from "../../lib/time-words";
 import { PendingChip, edgeWords } from "./CanvasEdges";
 import type { Selection } from "./Canvas";
@@ -30,13 +32,21 @@ export function MemberList({ pool, data, canvas, sessions, names, now, onSelect 
           <div className="rounded-card border border-hairline bg-surface">
             {/* Each row's own choice here, behind its disclosure (the rc2
                 walk P5: reachable from the row, as from its node). */}
-            <PoolCardRows list={data.list} sessions={sessions} now={now} renderOwn={(row, name) => <MemberLevel pool={pool} sessionId={row.session.id} memberRole={row.card.role} name={name} look="row" />} />
+            <PoolCardRows
+              list={data.list}
+              sessions={sessions}
+              now={now}
+              renderOwn={(row, name) => <MemberLevel pool={pool} sessionId={row.session.id} memberRole={row.card.role} name={name} look="row" />}
+              // SK-13: its role, in its row, as on its canvas card.
+              renderRole={(row, name) => <MemberRole pool={pool} member={{ id: row.session.id, role: row.card.role, name }} members={data.members} prefix="" testId="pool-list-role" />}
+            />
           </div>
         </section>
         <section aria-labelledby="pool-list-edges" className="flex flex-col gap-2">
           <h3 id="pool-list-edges" className="text-section text-ink">
             Who talks to whom <span className="text-meta font-normal text-muted">this week</span>
           </h3>
+          <PairRule members={data.members} names={names} onSelect={onSelect} />
           {edges.length === 0 ? (
             <p className="text-meta text-ink-2">No messages or task hand-offs between the members yet.</p>
           ) : (

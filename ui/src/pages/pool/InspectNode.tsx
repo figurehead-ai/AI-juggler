@@ -22,7 +22,7 @@ import { TaskRow } from "../tasks/TaskRow";
 import { answerAsk, sessionAlert } from "./NodeParts";
 import { edgeWords } from "./CanvasEdges";
 import { Section } from "./Section";
-import { makeLead } from "./actions";
+import { MemberRole } from "./MemberRole";
 import { MemberLevel } from "./MemberLevel";
 import type { MemberNode } from "./useCanvas";
 import { edgeKey } from "./useCanvas";
@@ -111,12 +111,9 @@ export function InspectNode({
           <Button size="sm" onClick={() => host.openSessionById?.(member.id)} disabled={!host.openSessionById} data-testid="inspect-node-open">
             Open session
           </Button>
-          {member.role !== "lead" && (
-            <Button size="sm" variant="secondary" onClick={() => void makeLead(pool, member, members)} data-testid="inspect-node-lead">
-              Make lead
-            </Button>
-          )}
         </div>
+        {/* SK-13: its role, Lead too, as its card's ⋯ sets it. */}
+        <MemberRole pool={pool} member={member} members={members} testId="inspect-node-role" />
       </div>
 
       {(toolAsks.length > 0 || asks.length > 0 || alert) && (
