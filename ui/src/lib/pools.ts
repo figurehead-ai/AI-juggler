@@ -363,7 +363,7 @@ export function scopeChipWords(pool: PoolInfo, projects: readonly ProjectInfo[])
  * "web", not "web · all sessions" (design review #60). A name told apart
  * from another project's of the same name keeps what tells it apart:
  * "web (in lab)", from "web · all sessions (in lab)" (AJ-E3014 item 5). */
-export function shortPoolName(pool: PoolInfo): string {
+export function shortPoolName(pool: Pick<PoolInfo, "kind" | "name">): string {
   if (pool.kind !== "default") return pool.name;
   const at = pool.name.lastIndexOf(ALL_SESSIONS);
   if (at <= 0) return pool.name;

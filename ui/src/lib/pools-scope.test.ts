@@ -23,7 +23,7 @@ describe("a pool's scope in words", () => {
   });
 
   it("a project's own pool, under a heading that says so, by its project: told-apart names too (AJ-E3014 item 5)", () => {
-    const named = (kind: string, name: string) => ({ kind, name }) as never;
+    const named = (kind: string, name: string) => ({ kind, name });
     expect(shortPoolName(named("default", "web · all sessions"))).toBe("web");
     expect(shortPoolName(named("default", "web · all sessions (in lab)"))).toBe("web (in lab)");
     expect(shortPoolName(named("default", "egret · all sessions (in shop/.wt)"))).toBe("egret (in shop/.wt)");
