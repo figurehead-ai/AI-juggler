@@ -1,6 +1,6 @@
 # Architecture
 
-Revisited for: 0.4 (2026-11-06). Read at each milestone gate and brought
+Revisited for: 0.5 (2026-11-20). Read at each milestone gate and brought
 up to date (`scripts/architecture_fresh.py` fails once the workspace
 version moves past the line above).
 
@@ -11,11 +11,14 @@ rules that hold everywhere. The why of each choice is in the
 ## Bird's-eye view
 
 AI Juggler is a desktop app that runs and watches AI coding tools
-(Claude Code, Codex, OpenCode, Grok Build, Kimi Code, and their desktop
-apps) across several accounts, and moves a conversation from one account
-or tool to another. It never sits between the user and a tool: it starts
-the real, unmodified tool in the right folder, reads what the tool writes
-to disk, and shows it.
+(Claude Code, Codex, OpenCode, Grok Build, Kimi Code, ZCode, Muse, Hermes,
+and their desktop apps) across several accounts, and moves a conversation
+from one account or tool to another. It never sits between the user and a
+tool: it starts the real, unmodified tool in the right folder, reads what
+the tool writes to disk, and shows it. From 0.5 it also answers questions
+about that work (Bot), watches for what the user asked to hear about, and
+sums up what happened, each by code first, with an on-device model only
+where the user opts in.
 
 ```
  ┌──────────── ui/ (React, in a Tauri web view) ────────────┐
@@ -32,7 +35,9 @@ to disk, and shows it.
 ```
 
 A tool is known to AI Juggler only through its adapter. Everything else
-asks the adapter contract, never a tool's files or names directly.
+asks the adapter contract, never a tool's files or names directly. An AI
+model is known only through its engine: a job states what it needs, and
+the router picks an engine that can serve it (ADR-0034).
 
 ## Codemap
 
@@ -53,7 +58,8 @@ asks the adapter contract, never a tool's files or names directly.
   its side traits (subagents, automation, driven runtime), discovery,
   launch specs, the system tools by absolute path, the user's `PATH`.
 - `crates/juggler-adapters` — one module family per tool (Claude Code and
-  the Claude app, Codex, OpenCode, Grok, Kimi, ZCode, the fake harness),
+  the Claude app, Codex, OpenCode, Grok, Kimi, ZCode, Muse, Hermes, the
+  fake harness),
   the building blocks in `common/` that name no tool (a config home's
   layout, scan, inspection, copy and adoption; the managed-folder marker;
   the version probe; bounded JSONL lines; read-only SQLite), plus neutral
@@ -76,6 +82,13 @@ asks the adapter contract, never a tool's files or names directly.
   rollback and expiry state, the typed section registry, the layer merge,
   local targeting and rollout buckets, and the fetch through an injected
   transport. Knows no feature, tool or screen.
+- `crates/juggler-local-ai` — the local-model helper (llama.cpp, pinned),
+  in its own workspace so no `--workspace` gate builds its C++; it runs
+  only under the deny-by-default sandbox profile and memory cap that
+  `crates/juggler-local-ai-protocol` carries with the wire protocol
+  (ADR-0033 §4.2). `crates/juggler-app/helpers/juggler-apple-ai.swift` is
+  the Apple model's helper (ADR-0033 §4.1), built by the system compiler
+  against both macOS SDKs.
 - Audited shims, each a handful of `unsafe` calls behind a safe API:
   `juggler-login-item`, `juggler-proc-list`, `juggler-scap-init`,
   `juggler-vm-stats`, `juggler-window-events`.
@@ -86,6 +99,11 @@ asks the adapter contract, never a tool's files or names directly.
   folder, `scripts/ipc_audit.py`), `commands.rs` (only the helpers every
   feature shares: the storage lock, now, this Mac's id, finding an account
   or profile), `events.rs` (`AppEvent`, every event the UI hears), `state.rs`,
+  `features/ai` (the jobs, the router and its one query, the engines,
+  the `models` list, downloads and the recommendation, the memory store),
+  `features/bot` (look-ups over AI Juggler's records, the guard and check
+  before any written answer, history), `features/watches` (typed rules
+  evaluated by code over the event stream), `features/digest`,
   `webview_guard.rs` and `picked.rs` (what the web view may do and hand
   over), `capabilities/` and `permissions/` (each window's grant).
 - `ui/src` — `shell` (App's state in hooks, and the registries of what
@@ -130,6 +148,16 @@ asks the adapter contract, never a tool's files or names directly.
 - **No action addressed by "the open page".** Every action carries its
   target's id end to end.
 - **No release without its whole roadmap scope** (`scripts/release_scope.py`).
+- **No model name outside its engine,** and no job that asks for a model
+  by name (`scripts/tool_literal_lint.py`); a job states its needs.
+- **No model bytes before the user's click,** and none from a host or
+  file the signed `models` list doesn't name and its hash doesn't match.
+- **No AI helper with the network, the user's files or another program:**
+  each runs under its own sandbox profile; the profile is never widened
+  for a test.
+- **No model text shown unchecked.** Agent-written words reach a model
+  only through the guard, and an answer is shown only when every claim
+  matches the records it cites; otherwise the plain, code-built view.
 
 ## Boundaries
 
@@ -152,6 +180,12 @@ asks the adapter contract, never a tool's files or names directly.
 - **This Mac ↔ Figurehead:** `juggler-account` only, and only when the
   user links an account.
 - **Rust ↔ OS:** `juggler-platform` and the audited shims.
+- **App ↔ AI models:** `features/ai`'s router only; an engine talks to
+  its helper over one JSON line each way, the helper started sandboxed
+  with a cleared environment.
+- **This Mac ↔ remote configuration:** `juggler-remote-config` only, one
+  signed file per channel from one host, verified before it's read; it can
+  turn things off and narrow them, never add behaviour.
 
 ## Cross-cutting concerns
 
