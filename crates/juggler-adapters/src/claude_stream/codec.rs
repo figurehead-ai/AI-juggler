@@ -67,15 +67,14 @@ fn state(status: LiveStatusWord) -> RuntimeEvent {
 }
 
 /// A window's length from its name, and the one model it limits when it
-/// is a week on one model only (`seven_day_opus`).
+/// is a week on one model only (`seven_day_opus`), by the name people
+/// know it by ("Opus", as Claude's own usage page writes it).
 fn window_of(name: &str) -> (Option<u32>, Option<String>) {
     match name {
         "five_hour" => (Some(300), None),
         "seven_day" => (Some(10_080), None),
-        "seven_day_opus" | "seven_day_sonnet" => (
-            Some(10_080),
-            name.strip_prefix("seven_day_").map(str::to_owned),
-        ),
+        "seven_day_opus" => (Some(10_080), Some("Opus".to_owned())),
+        "seven_day_sonnet" => (Some(10_080), Some("Sonnet".to_owned())),
         _ => (None, None),
     }
 }
@@ -94,10 +93,15 @@ fn epoch_ms(value: &Value) -> Option<i64> {
     })
 }
 
-/// A utilization as a percentage (a fraction is scaled; never over 100).
+/// A utilization as a percentage, 0–100. Claude Code sends it as the
+/// fraction of the window used, always: lab 2 read 0.01 where `/usage`
+/// said 1%, and its own schema says "the fraction of the window used
+/// (usually 0-1 …; values above 1 occur when usage legitimately runs
+/// past a window's cap)". So 1 is all of it, and anything above 1 is past
+/// it: all used, never a small whole percent (AJ-E2311 item 8).
 fn percent(value: &Value) -> Option<f64> {
-    let used = value.as_f64()?;
-    Some(if used <= 1.0 { used * 100.0 } else { used }.clamp(0.0, 100.0))
+    let used = value.as_f64().filter(|used| used.is_finite())?;
+    Some((used * 100.0).clamp(0.0, 100.0))
 }
 
 /// One window of a `rate_limit_event`: its use as the tool gave it, or
@@ -716,8 +720,41 @@ mod limits {
             [
                 ("five_hour", Some(300), None),
                 ("seven_day", Some(10_080), None),
-                ("seven_day_opus", Some(10_080), Some("opus")),
+                ("seven_day_opus", Some(10_080), Some("Opus")),
             ]
         );
+    }
+
+    /// AJ-E2311 item 8: `utilization` is always a fraction of the window.
+    /// A whole 1 is all of it, as 1.0 is; past the cap (above 1) is all
+    /// of it too, never read as a small whole percent.
+    #[test]
+    fn a_use_is_always_a_fraction_of_its_window() {
+        let used = |utilization: serde_json::Value| {
+            let info = json!({"status": "allowed",
+                "unifiedWindows": {"five_hour": {"utilization": utilization}}});
+            limits_of(&info).windows.first().map(|w| w.used_pct)
+        };
+        let cases = [
+            (json!(0), 0.0),
+            (json!(0.0), 0.0),
+            (json!(0.01), 1.0),
+            (json!(0.5), 50.0),
+            (json!(0.99), 99.0),
+            (json!(1), 100.0),
+            (json!(1.0), 100.0),
+            (json!(1.2), 100.0),
+            (json!(99), 100.0),
+            (json!(100), 100.0),
+            (json!(-0.1), 0.0),
+        ];
+        for (utilization, want) in cases {
+            let got = used(utilization.clone()).expect("a reading");
+            assert!(
+                (got - want).abs() < 1e-9,
+                "{utilization} read as {got}%, not {want}%"
+            );
+        }
+        assert_eq!(used(json!("0.5")), None, "not a number: no reading");
     }
 }

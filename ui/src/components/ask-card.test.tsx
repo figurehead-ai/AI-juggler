@@ -80,7 +80,10 @@ const view = (asks: AskInfo[]): RuntimeViewInfo => ({
     can_steer: false,
     fell_back: null,
     error: null,
-    limits: [{ id: "seven_day", window_mins: 10080, used_pct: 41, resets_at_ms: 1_761_897_600_000 }],
+    limits: [
+      { id: "seven_day", window_mins: 10080, used_pct: 41, resets_at_ms: 1_761_897_600_000, model: null },
+      { id: "seven_day_opus", window_mins: 10080, used_pct: 64, resets_at_ms: null, model: "Opus" },
+    ],
     cut_off: null,
   },
   items: [{ kind: "user_message", text: "Run the tests", at_ms: 1 }],
@@ -167,6 +170,8 @@ describe("a driven session's page", () => {
     const { findByTestId, getByTestId } = render(<DrivenPanel session={session} onOpenSession={(id) => (opened = id)} />);
     await waitFor(async () => expect((await findByTestId("runtime-line")).textContent).toContain("Codex's app-server"));
     expect(getByTestId("runtime-limits").textContent).toContain("Weekly: 41% used");
+    // AJ-E2311 item 8: a week on one model is named by its model.
+    expect(getByTestId("runtime-limits").textContent).toContain("Weekly (Opus): 64% used");
     expect(getByTestId("runtime-limits").textContent).toContain("no 5-hour limit reported");
     expect(getByTestId("driven-items").textContent).toContain("Run the tests");
     await act(async () => fireEvent.click(getByTestId("open-in-terminal")));

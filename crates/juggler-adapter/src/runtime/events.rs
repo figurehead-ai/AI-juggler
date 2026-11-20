@@ -114,10 +114,10 @@ pub struct LimitWindow {
     pub used_pct: f64,
     /// When it resets, epoch ms, when the tool says.
     pub resets_at_ms: Option<i64>,
-    /// The one model it limits, in the tool's own word (`opus`), when it
-    /// limits one model only (a weekly limit on one model); `None` when it
-    /// limits all the account's use. Only an all-models window is kept as
-    /// the account's reading.
+    /// The one model it limits, by the name people know it by (`Opus`),
+    /// when it limits one model only (a weekly limit on one model); `None`
+    /// when it limits all the account's use. Only an all-models window is
+    /// kept as the account's reading.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub model: Option<String>,
 }

@@ -44,6 +44,9 @@ pub struct LimitWindowInfo {
     /// When it resets, epoch ms, when the tool says.
     #[ts(type = "number | null")]
     pub resets_at_ms: Option<i64>,
+    /// The one model it limits (`Opus`) when it is a week on one model
+    /// only; `null` when it limits all the account's use.
+    pub model: Option<String>,
 }
 
 /// One option an approval offers, in the tool's words.

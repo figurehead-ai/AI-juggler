@@ -395,6 +395,7 @@ impl Driver {
                             window_mins: w.window_mins,
                             used_pct: w.used_pct,
                             resets_at_ms: w.resets_at_ms,
+                            model: w.model,
                         })
                         .collect()
                 })
