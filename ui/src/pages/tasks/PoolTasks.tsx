@@ -13,6 +13,7 @@
  */
 import { Fragment, useEffect, useState, type JSX } from "react";
 import { Button } from "../../components/primitives";
+import { ListSkeleton } from "../../components/ListSkeleton";
 import { errorText } from "../../lib/bridge";
 import type { InstanceInfo } from "../../types/generated/InstanceInfo";
 import type { ProjectInfo } from "../../types/generated/ProjectInfo";
@@ -49,17 +50,6 @@ function countOf(counts: TaskCounts | null, filter: string): number | null {
  * so once a burst). Their keys all start with `tasks`. */
 function useTasksRefresh(): void {
   useEffect(() => onTasksChanged(() => refreshPaged("tasks")), []);
-}
-
-/** A list's skeleton while its first page is read. */
-function Skeleton({ label, rows }: { label: string; rows: number }): JSX.Element {
-  return (
-    <div className="flex flex-col gap-2" role="status" aria-label={label}>
-      {Array.from({ length: rows }, (_, n) => (
-        <span key={n} className="h-16 rounded-lg bg-skeleton motion-safe:animate-pulse" />
-      ))}
-    </div>
-  );
 }
 
 export function PoolTasks({ poolId, sessions, projects, now }: { poolId: string; sessions: InstanceInfo[]; projects: ProjectInfo[]; now: number }): JSX.Element {
@@ -136,12 +126,12 @@ export function PoolTasks({ poolId, sessions, projects, now }: { poolId: string;
         <aside className="flex min-w-0 flex-col gap-2" aria-label="Tasks">
           {view === "plan" ? (
             plan.loading ? (
-              <Skeleton label="Loading the plan" rows={3} />
+              <ListSkeleton label="Loading the plan" rows={3} />
             ) : (
               <TaskTree plan={plan.items} poolId={poolId} open={open} now={now} onOpen={setOpen} />
             )
           ) : !read ? (
-            <Skeleton label="Loading the tasks" rows={4} />
+            <ListSkeleton label="Loading the tasks" rows={4} />
           ) : rows.length === 0 ? (
             <p className="rounded-lg border border-dashed border-hairline px-3 py-4 text-meta text-ink-2" data-testid="tasks-empty">
               {query ? "No task has those words." : total ? `No ${FILTER_WORDS[filter]!.toLowerCase()} tasks.` : "No tasks yet. The pool's agents add them and take ready work with their own tools: ask one to plan the work. You follow them here, and approve or send back what's in review."}
