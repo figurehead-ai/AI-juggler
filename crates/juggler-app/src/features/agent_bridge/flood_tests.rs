@@ -265,7 +265,10 @@ fn members_still_wake_promptly_during_and_right_after_a_flood() {
 /// The fifth finding: the lines of one attested session's processes (its
 /// connector, its hooks, anything it runs) share one allowance, keyed by
 /// its tool's pid and version, not one each; a process never attested has
-/// its own.
+/// its own. The tool's version is the kernel's pid version, which only
+/// macOS gives (`juggler_proc_list::pid_version`; elsewhere no keyless
+/// caller is attested, so none shares an allowance).
+#[cfg(target_os = "macos")]
 #[test]
 fn an_attested_sessions_processes_share_one_allowance() {
     use super::calls::{Counted, MAX_CALLS};

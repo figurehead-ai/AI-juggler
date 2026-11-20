@@ -1154,9 +1154,12 @@ mod tests {
         let plain = vec!["/Applications/Claude.app/Contents/MacOS/Claude".to_owned()];
         assert!(runs(&plain, &default), "its default one");
         assert!(!runs(&plain, &ours));
-        let link = root.path().join("link");
-        std::os::unix::fs::symlink(&ours, &link).unwrap();
-        assert!(runs(&given(&link), &ours), "as real paths");
+        #[cfg(unix)]
+        {
+            let link = root.path().join("link");
+            std::os::unix::fs::symlink(&ours, &link).unwrap();
+            assert!(runs(&given(&link), &ours), "as real paths");
+        }
         assert!(!runs(&given(&root.path().join("none")), &ours));
     }
 

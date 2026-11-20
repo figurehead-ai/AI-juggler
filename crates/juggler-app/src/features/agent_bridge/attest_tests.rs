@@ -151,6 +151,7 @@ pub(super) fn wait_of(secs: u32) -> juggler_agentbridge::wire::Wait {
 }
 
 /// A state that knows Claude Code, its agent tools turned on.
+#[cfg(target_os = "macos")]
 fn claude_state(dir: &Path) -> Arc<AppState> {
     let state = crate::test_support::state_with(
         dir.join("data"),
@@ -162,7 +163,11 @@ fn claude_state(dir: &Path) -> Arc<AppState> {
 
 /// This test's parent process, standing in for the Code tab's Claude
 /// Code: its registry entry in `config` (`fields`: its status and such),
-/// and its pid and start (seconds).
+/// and its pid and start (seconds). A real attestation of this test's
+/// process chain reads the kernel's process listing and pid versions
+/// (`juggler_proc_list`), which only macOS gives: elsewhere there's no
+/// listing and an attestation is refused, never attempted another way.
+#[cfg(target_os = "macos")]
 fn stand_in(config: &Path, fields: &str) -> (u32, i64) {
     let me = std::process::id();
     let table = juggler_proc_list::list().unwrap();
@@ -181,6 +186,7 @@ fn stand_in(config: &Path, fields: &str) -> (u32, i64) {
 }
 
 /// Claude Code's registry entry for process `pid`, in `config`.
+#[cfg(target_os = "macos")]
 fn registry_entry(config: &Path, pid: u32, body: &str) {
     std::fs::create_dir_all(config.join("sessions")).unwrap();
     std::fs::write(config.join(format!("sessions/{pid}.json")), body).unwrap();
@@ -397,7 +403,9 @@ fn this_processs_own_chain_is_attested_end_to_end_and_its_call_is_answered() {
 /// it landed in the "No project" pool, not the pool of its App and folder,
 /// unnamed. Now its project comes from the app's own record of its folder
 /// on the first call, "none" is never kept, and it's named by the record's
-/// title and its App by its profile folder's name.
+/// title and its App by its profile folder's name. (A real attestation:
+/// macOS, as `stand_in`.)
+#[cfg(target_os = "macos")]
 #[test]
 fn the_first_call_finds_the_sessions_project_and_name_before_any_index() {
     let dir = tempfile::tempdir().unwrap();
