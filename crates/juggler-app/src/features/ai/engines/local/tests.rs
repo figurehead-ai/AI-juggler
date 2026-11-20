@@ -11,9 +11,7 @@ use serde_json::{Value, json};
 use sha2::{Digest as _, Sha256};
 
 use super::{Host, Local, Seen, Setup, readiness, sampling_of};
-use crate::features::ai::engine::{
-    AiEngine, EngineError, Finish, Readiness, Reason, Request, Stop,
-};
+use crate::features::ai::engine::{AiEngine, EngineError, Readiness, Reason, Request, Stop};
 use crate::features::ai::models::store::Installed;
 use crate::features::ai::models::{
     Chip, Engine, Job, JobVerdict, ModelEntry, Sampling, Verdict, read_untargeted,
@@ -92,6 +90,11 @@ fn models(dir: &Path, min_memory_gb: u64, bytes: &[u8]) -> (PathBuf, Vec<Install
 ///   bound; `crash`: exits; `wrong_id`: another id's answer;
 /// - `cancel`: waits for the next line (the cancel), then says `stopped`;
 /// - `hang`: never answers.
+///
+/// The engine starts a helper only on macOS (through `taskpolicy` and
+/// `sandbox-exec`: [`Local::command`] is `None` elsewhere), so the tests
+/// that start one run there only; those refused before a start run on
+/// every Unix.
 #[cfg(unix)]
 fn fake(dir: &Path, mode: &str, hello: &str) -> PathBuf {
     let path = dir.join(format!("helper-{mode}"));
@@ -128,6 +131,7 @@ done
     crate::test_support::script(&path, &script)
 }
 
+#[cfg(unix)]
 const HELLO: &str = r#"{"kind":"hello","protocol":3,"gpu":true,"sandboxed":false}"#;
 
 /// Memory pressure as these tests set it: calm, or critical while
@@ -152,6 +156,7 @@ fn setup(program: PathBuf, models: (PathBuf, Vec<Installed>)) -> Setup {
     }
 }
 
+#[cfg(unix)]
 fn engine(dir: &Path, mode: &str, min_memory_gb: u64) -> Local {
     Local::with(setup(
         fake(dir, mode, HELLO),
@@ -176,6 +181,7 @@ fn soon() -> Stop {
     Stop::at(Instant::now() + Duration::from_secs(10))
 }
 
+#[cfg(unix)]
 fn lines(dir: &Path) -> Vec<Value> {
     std::fs::read_to_string(dir.join("requests.log"))
         .unwrap_or_default()
@@ -186,6 +192,7 @@ fn lines(dir: &Path) -> Vec<Value> {
 
 /// The job is refused for `why`, and the helper was asked to load
 /// nothing.
+#[cfg(unix)]
 fn refused_unloaded(engine: &Local, dir: &Path, why: Reason) {
     assert_eq!(
         engine.respond(MODEL, &request(), &soon()),
@@ -194,6 +201,7 @@ fn refused_unloaded(engine: &Local, dir: &Path, why: Reason) {
     assert_eq!(ops(dir), Vec::<String>::new(), "nothing was loaded");
 }
 
+#[cfg(unix)]
 fn ops(dir: &Path) -> Vec<String> {
     lines(dir)
         .iter()
@@ -311,7 +319,7 @@ fn a_missing_helper_hides_the_card_with_its_reason() {
     );
 }
 
-#[cfg(unix)]
+#[cfg(target_os = "macos")]
 #[test]
 fn a_job_loads_the_model_once_then_generates_with_its_frame_shape_and_sampling() {
     let dir = tempfile::tempdir().unwrap();
@@ -334,7 +342,7 @@ fn a_job_loads_the_model_once_then_generates_with_its_frame_shape_and_sampling()
     let draft = engine.respond(MODEL, &request(), &soon()).unwrap();
     assert_eq!(
         (draft.text.as_str(), draft.finish),
-        ("fine", Finish::Length)
+        ("fine", crate::features::ai::engine::Finish::Length)
     );
     assert!(card(&engine).running, "it stays loaded for the next job");
     engine.respond(MODEL, &request(), &soon()).unwrap();
@@ -392,7 +400,7 @@ fn a_job_loads_the_model_once_then_generates_with_its_frame_shape_and_sampling()
     assert!(!card(&engine).running);
 }
 
-#[cfg(unix)]
+#[cfg(target_os = "macos")]
 #[test]
 fn broken_answers_are_crashes_and_three_make_it_unhealthy() {
     for mode in ["garbage", "big", "crash", "wrong_id"] {
@@ -419,7 +427,7 @@ fn broken_answers_are_crashes_and_three_make_it_unhealthy() {
     }
 }
 
-#[cfg(unix)]
+#[cfg(target_os = "macos")]
 #[test]
 fn a_helper_on_another_protocol_is_never_used() {
     let dir = tempfile::tempdir().unwrap();
@@ -441,7 +449,7 @@ fn a_helper_on_another_protocol_is_never_used() {
     }
 }
 
-#[cfg(unix)]
+#[cfg(target_os = "macos")]
 #[test]
 fn an_oversized_request_is_refused_before_it_is_sent() {
     let dir = tempfile::tempdir().unwrap();
@@ -463,7 +471,7 @@ fn an_oversized_request_is_refused_before_it_is_sent() {
     );
 }
 
-#[cfg(unix)]
+#[cfg(target_os = "macos")]
 #[test]
 fn a_stop_cancels_the_generation_and_keeps_the_helper_that_says_so() {
     let dir = tempfile::tempdir().unwrap();
@@ -491,7 +499,7 @@ fn a_stop_cancels_the_generation_and_keeps_the_helper_that_says_so() {
     assert!(card(&engine).running, "a helper that stopped stays loaded");
 }
 
-#[cfg(unix)]
+#[cfg(target_os = "macos")]
 #[test]
 fn a_helper_past_its_deadline_that_doesnt_stop_is_stopped() {
     let dir = tempfile::tempdir().unwrap();
@@ -519,7 +527,7 @@ fn a_helper_past_its_deadline_that_doesnt_stop_is_stopped() {
     );
 }
 
-#[cfg(unix)]
+#[cfg(target_os = "macos")]
 #[test]
 fn a_file_that_fails_its_hash_is_never_loaded() {
     let dir = tempfile::tempdir().unwrap();
@@ -674,7 +682,7 @@ fn the_helper_starts_sandboxed_then_capped_and_in_its_folder() {
 /// A stand-in for the sandbox tool: `refuses` exits as `sandbox-exec`
 /// does on a profile it can't read; `ignores` runs the rest without
 /// applying anything (what N3 guards against).
-#[cfg(unix)]
+#[cfg(target_os = "macos")]
 fn fake_sandbox_tool(dir: &Path, mode: &str) -> PathBuf {
     let path = dir.join(format!("sandbox-{mode}"));
     let script = match mode {
@@ -756,7 +764,7 @@ fn the_memory_cap_follows_the_model_within_the_mac() {
     );
 }
 
-#[cfg(unix)]
+#[cfg(target_os = "macos")]
 #[test]
 fn critical_memory_pressure_never_starts_a_model_and_stops_one_running() {
     let dir = tempfile::tempdir().unwrap();
