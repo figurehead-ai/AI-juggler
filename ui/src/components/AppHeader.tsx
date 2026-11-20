@@ -76,7 +76,9 @@ export function AppHeader({
       {/* From 960 px the rest always fits one row beside the tabs, so the
           cluster takes the room left and This Mac's line shortens (…)
           instead of the bar wrapping (0.3.2, a longer status word). */}
-      <div className="ml-auto flex min-w-0 flex-wrap items-center justify-end gap-1 pl-3 xl:gap-1.5 @min-[960px]/header:grow @min-[960px]/header:basis-0 @min-[960px]/header:flex-nowrap" data-tauri-drag-region={false}>
+      {/* AJ-E3603: under 820 px of bar its spacing closes up with the tabs'
+          (MainNav), so 1024 with the list open keeps one row. */}
+      <div className="ml-auto flex min-w-0 flex-wrap items-center justify-end gap-1 pl-3 xl:gap-1.5 @min-[960px]/header:grow @min-[960px]/header:basis-0 @min-[960px]/header:flex-nowrap @max-[820px]/header:pl-1" data-tauri-drag-region={false}>
         {/* AJ-E2105: This Mac's line, in the top bar (it gives way first):
             by the bar's own width, not the window's, so the list open at
             1280 px with Fleet's tab too (a paired Mac) still fits one row
@@ -104,13 +106,13 @@ export function AppHeader({
               keeps one row with Bot added. */}
           <span className="sr-only @min-[900px]/header:not-sr-only">New session</span>
         </button>
-        <span className="ml-1.5 flex shrink-0 items-center gap-2">
+        <span className="ml-1.5 flex shrink-0 items-center gap-2 @max-[820px]/header:ml-1 @max-[820px]/header:gap-1">
           {/* D-136: Bot, beside the bell (⌘J). */}
           <BotButton />
           <NotificationBell sessions={sessions} />
           <FloorButton />
           {/* A clear gap: the avatar is its own thing, never the Floor's. */}
-          <span className="ml-2 flex">
+          <span className="ml-2 flex @max-[820px]/header:ml-1">
             <UserMenu />
           </span>
         </span>

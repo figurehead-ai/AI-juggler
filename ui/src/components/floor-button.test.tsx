@@ -32,6 +32,6 @@ describe("the Floor's split button", () => {
 
   it("sits apart from the avatar", async () => {
     const headerSource = (await import("./AppHeader.tsx?raw")).default;
-    expect(headerSource).toMatch(/<FloorButton \/>\s*\{\/\*[^*]*\*\/\}\s*<span className="ml-2 flex">\s*<UserMenu \/>/);
+    expect(headerSource).toMatch(/<FloorButton \/>\s*\{\/\*[^*]*\*\/\}\s*<span className="ml-2 flex[^"]*">\s*<UserMenu \/>/);
   });
 });

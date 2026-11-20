@@ -26,8 +26,12 @@ export function navKeys(id: string): string | null {
 // so lighting another page moves none of them. The lit one is never faded
 // in: a fade WebKit pauses in a window not shown (the 0.4.6 RC walk K2)
 // left the old one lit over the new page.
+// AJ-E3603: in a bar under 820 px (1024 with the list open, a cleanup
+// count and the bell's) the tabs close up a little, so the bar keeps one
+// row; with Bot and the Floor added it wrapped the whole cluster under
+// the tabs.
 const NAV_BUTTON =
-  "inline-flex flex-col items-center rounded-md px-1.5 py-1.5 text-meta outline-none focus-visible:ring-2 focus-visible:ring-accent/60 after:invisible after:h-0 after:overflow-hidden after:font-semibold after:content-[attr(data-label)] ";
+  "inline-flex flex-col items-center rounded-md px-1.5 py-1.5 text-meta outline-none focus-visible:ring-2 focus-visible:ring-accent/60 after:invisible after:h-0 after:overflow-hidden after:font-semibold after:content-[attr(data-label)] @max-[820px]/header:px-1 ";
 // The lit tab is the page's title, as D-118's mock draws it: semibold ink,
 // no box (NAV_CURRENT); the others regular and muted, ink on hover.
 const lit = (current: boolean) => (current ? NAV_CURRENT : "font-normal text-muted hover:text-ink");
@@ -58,7 +62,7 @@ export function MainNav<Id extends string>({
   useEffect(() => onBindingsChanged(() => bump((n) => n + 1)), []);
   const items = pairedCount > 0 ? [...primary, { id: "fleet" as Id, label: "Fleet" }] : primary;
   return (
-    <nav aria-label="Main" className="flex min-w-0 flex-wrap items-center gap-0.5 xl:gap-1" data-testid="main-nav">
+    <nav aria-label="Main" className="flex min-w-0 flex-wrap items-center gap-0.5 xl:gap-1 @max-[820px]/header:gap-0" data-testid="main-nav">
       {items.map((item) => {
         const current = navLit(item.id, global, page);
         const keys = navKeys(item.id);

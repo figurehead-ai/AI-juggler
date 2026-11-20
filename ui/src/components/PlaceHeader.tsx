@@ -180,7 +180,12 @@ export function PlaceHeader({
               (0.4.4), a folded App's summary, then its Out or low mark
               (0.4.1; the count steps aside for it) or its count, at the
               end. */}
-          <span ref={extra} className={"flex h-[18px] min-w-0 flex-1 basis-0 items-center gap-x-[3px] overflow-hidden" + (folded === null && !empty ? " justify-end" : "")} data-testid="place-name-line">
+          {/* AJ-E3603 (R15): its needs' mark always has its room: the names
+              give way for it (cut at their end, whole on hover), as the
+              mock draws "Work Max Claude Code ○ 1 3"; at the rail's 264 px
+              "Personal Claude Code CLI" left it none, so a group that
+              needed you never said so. */}
+          <span ref={extra} style={needs > 0 ? { minWidth: `calc(19px + ${String(needs).length}ch)` } : undefined} className={"flex h-[18px] min-w-0 flex-1 basis-0 items-center gap-x-[3px] overflow-hidden text-label tabular-nums" + (folded === null && !empty ? " justify-end" : "")} data-testid="place-name-line">
             {folded !== null && needs === 0 && <span className="shrink-0 whitespace-nowrap text-label leading-[18px] text-muted">{folded.slice(folded.indexOf("·") + 1).trim()}</span>}
             {empty && <span className="shrink-0 whitespace-nowrap text-label leading-[18px] text-muted" data-testid="place-nothing-open" data-fit="first">nothing open</span>}
             {needs > 0 && (
