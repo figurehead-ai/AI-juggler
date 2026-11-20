@@ -52,8 +52,10 @@ function rowLook(current: boolean, dimmed: boolean): string {
     // resting pointer never reads as a second selection. D-117
     // (selection): the one selected look, neutral — a 3:1 edge
     // and semibold ink — the accent is for actions and focus.
-    (current ? SELECTED : "text-ink hover:bg-surface-2/60") +
-    (dimmed ? " opacity-45" : "")
+    // A row a search doesn't match steps back to the muted words (AA on
+    // every surface) and a faded tile; never a faded word (opacity-45 put
+    // its name at 3.97:1). The pane shown keeps its selected look.
+    (current ? SELECTED : dimmed ? "text-muted hover:bg-surface-2/60 [&>span:first-child]:opacity-45" : "text-ink hover:bg-surface-2/60")
   );
 }
 
@@ -82,6 +84,7 @@ function NavRows({ panes, pane, dim, onPick }: { panes: PaneSpec[]; pane: PaneId
               aria-current={pane === entry.id ? "page" : undefined}
               className={rowLook(pane === entry.id, dim(entry.id)) + (group ? " mt-0.5 py-1 pl-[42px] text-meta" : "")}
               data-pane={entry.id}
+              data-dimmed={pane !== entry.id && dim(entry.id) ? "true" : undefined}
             >
               {!group && (
                 <PaneTile tone={entry.tone}>
