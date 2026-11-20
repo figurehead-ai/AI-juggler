@@ -85,7 +85,7 @@ export function CarryChoice({ state }: { state: CarryChoiceState }): JSX.Element
             }}
             placeholder="Choose a day"
             ariaLabel="The first day to carry"
-            className="w-36"
+            className="w-40"
             testId="carry-before-day"
           />
         </span>
