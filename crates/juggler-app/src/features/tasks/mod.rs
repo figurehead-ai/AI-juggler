@@ -54,6 +54,11 @@ use juggler_core::tasks::Role;
 use crate::error::{AppError, AppResult};
 use crate::state::AppState;
 
+/// A refusal in words, for the agents' operations and the person's own.
+fn refused(words: impl Into<String>) -> AppError {
+    AppError::Refused(words.into())
+}
+
 /// Event: tasks changed (payload: the pools' ids).
 pub const EVENT_CHANGED: &str = AppEvent::TasksChanged.name();
 

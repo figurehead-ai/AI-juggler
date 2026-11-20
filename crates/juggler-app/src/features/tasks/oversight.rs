@@ -24,13 +24,10 @@ use juggler_core::tasks::{self, NOTE_MAX, UserAction};
 
 use super::Actor;
 use super::dto::TaskDetail;
+use super::refused;
 use crate::commands::lock_storage_arc;
-use crate::error::{AppError, AppResult};
+use crate::error::AppResult;
 use crate::state::AppState;
-
-fn refused(words: impl Into<String>) -> AppError {
-    AppError::Refused(words.into())
-}
 
 /// Does `action` to a task as the user, against its holder's sessions as
 /// they are now; the task as it is after.
@@ -70,7 +67,7 @@ fn act(
 ///
 /// # Errors
 ///
-/// [`AppError::Refused`] for a task that isn't in review (or isn't there).
+/// [`AppError::Refused`](crate::error::AppError::Refused) for a task that isn't in review (or isn't there).
 pub fn approve(state: &Arc<AppState>, task_id: &str) -> AppResult<TaskDetail> {
     let task = act(state, task_id, UserAction::Approve, None)?;
     super::views::detail(state, &task.id, None)
@@ -81,7 +78,7 @@ pub fn approve(state: &Arc<AppState>, task_id: &str) -> AppResult<TaskDetail> {
 ///
 /// # Errors
 ///
-/// [`AppError::Refused`] for an empty or too long note, or a task that
+/// [`AppError::Refused`](crate::error::AppError::Refused) for an empty or too long note, or a task that
 /// isn't in review.
 pub fn send_back(state: &Arc<AppState>, task_id: &str, note: &str) -> AppResult<TaskDetail> {
     let note = tasks::clean_text(note, NOTE_MAX)
@@ -99,7 +96,7 @@ pub fn send_back(state: &Arc<AppState>, task_id: &str, note: &str) -> AppResult<
 ///
 /// # Errors
 ///
-/// [`AppError::Refused`] while a session of its holder runs, or when no
+/// [`AppError::Refused`](crate::error::AppError::Refused) while a session of its holder runs, or when no
 /// one holds it.
 pub fn free(state: &Arc<AppState>, task_id: &str) -> AppResult<TaskDetail> {
     let task = act(state, task_id, UserAction::Free, None)?;
@@ -110,7 +107,7 @@ pub fn free(state: &Arc<AppState>, task_id: &str) -> AppResult<TaskDetail> {
 ///
 /// # Errors
 ///
-/// [`AppError::Refused`] for a task that's done or cancelled already.
+/// [`AppError::Refused`](crate::error::AppError::Refused) for a task that's done or cancelled already.
 pub fn cancel(state: &Arc<AppState>, task_id: &str) -> AppResult<TaskDetail> {
     let task = act(state, task_id, UserAction::Cancel, None)?;
     super::views::detail(state, &task.id, None)
@@ -166,13 +163,7 @@ pub(crate) fn tell_holder_as_reviewer(
             "its holder isn't in the pool now: it reads it in the task's history".to_owned(),
         );
     };
-    let me = crate::features::messages::roster(state, &task.pool_id)
-        .ok()
-        .and_then(|members| {
-            members
-                .into_iter()
-                .find(|m| m.session_id == session.as_str())
-        });
+    let me = crate::features::messages::roster_member(state, &task.pool_id, session.as_str());
     let (name, tool) = me.map_or_else(
         || (reviewer.name.clone(), "its tool".to_owned()),
         |member| (member.name, member.tool),

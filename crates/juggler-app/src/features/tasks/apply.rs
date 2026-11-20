@@ -14,13 +14,10 @@ use juggler_core::tasks::{
 };
 
 use super::Actor;
+use super::refused;
 use crate::commands::lock_storage_arc;
-use crate::error::{AppError, AppResult};
+use crate::error::AppResult;
 use crate::state::AppState;
-
-fn refused(words: impl Into<String>) -> AppError {
-    AppError::Refused(words.into())
-}
 
 fn text(what: &str, value: &str, max: usize) -> AppResult<String> {
     tasks::clean_text(value, max)
@@ -96,7 +93,7 @@ fn blockers(list: &[String]) -> AppResult<Vec<String>> {
 ///
 /// # Errors
 ///
-/// [`AppError::Refused`] in words: a rule (an epic or a story is the
+/// [`AppError::Refused`](crate::error::AppError::Refused) in words: a rule (an epic or a story is the
 /// lead's), a field that isn't taken, a parent or blocker not in the pool.
 pub fn create(
     state: &Arc<AppState>,
@@ -236,7 +233,7 @@ fn changes_of(args: &TaskUpdateArgs) -> AppResult<Vec<Change>> {
 ///
 /// # Errors
 ///
-/// [`AppError::Refused`] with the rule, in words.
+/// [`AppError::Refused`](crate::error::AppError::Refused) with the rule, in words.
 pub fn may_update(actor: &Actor, task: &Task, args: &TaskUpdateArgs) -> AppResult<()> {
     let holds = task
         .assignee_ref
@@ -264,7 +261,7 @@ pub fn may_update(actor: &Actor, task: &Task, args: &TaskUpdateArgs) -> AppResul
 ///
 /// # Errors
 ///
-/// [`AppError::Refused`] in words: a rule, a field that isn't taken.
+/// [`AppError::Refused`](crate::error::AppError::Refused) in words: a rule, a field that isn't taken.
 pub fn update(
     state: &Arc<AppState>,
     actor: &Actor,
@@ -367,7 +364,7 @@ pub enum Assignee {
 ///
 /// # Errors
 ///
-/// [`AppError::Refused`] in words: not the lead's call, a session that
+/// [`AppError::Refused`](crate::error::AppError::Refused) in words: not the lead's call, a session that
 /// isn't in the pool.
 pub fn assign(
     state: &Arc<AppState>,
@@ -428,7 +425,7 @@ pub fn assign(
 ///
 /// # Errors
 ///
-/// [`AppError::Refused`] for a task that's closed or not in the pool.
+/// [`AppError::Refused`](crate::error::AppError::Refused) for a task that's closed or not in the pool.
 pub fn ask_for_session(
     state: &Arc<AppState>,
     actor: &Actor,

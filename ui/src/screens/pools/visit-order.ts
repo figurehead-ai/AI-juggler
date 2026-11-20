@@ -23,7 +23,7 @@ whenForgotten(() => (lastOpened = null));
 
 /** `live` with the pools the last visit didn't show after the ones it did,
  * each part in its own order. */
-export function afterShown(shown: ReadonlySet<string> | null, live: readonly string[]): string[] {
+function afterShown(shown: ReadonlySet<string> | null, live: readonly string[]): string[] {
   if (!shown) return [...live];
   return [...live.filter((id) => shown.has(id)), ...live.filter((id) => !shown.has(id))];
 }

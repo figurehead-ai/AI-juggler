@@ -978,6 +978,13 @@ mod refusal_words {
         );
     }
 
+    /// A pools test's own database, in its own folder.
+    fn pool_store() -> (tempfile::TempDir, Storage) {
+        let dir = tempfile::tempdir().unwrap();
+        let storage = Storage::open(&dir.path().join("j.sqlite")).unwrap();
+        (dir, storage)
+    }
+
     /// AJ-E3014 item 2 (rc3h): a session the person put in «web team» on
     /// the project web left web's own pool (D-62's skip held), so "web" is
     /// refused; the words name the pool that holds it and how to reach
@@ -986,8 +993,7 @@ mod refusal_words {
     fn a_session_moved_out_of_its_projects_pool_is_told_where_it_is() {
         use juggler_core::pools::Placement;
         use juggler_core::storage::PoolRole;
-        let dir = tempfile::tempdir().unwrap();
-        let storage = Storage::open(&dir.path().join("j.sqlite")).unwrap();
+        let (_dir, storage) = pool_store();
         let web = storage.pools().create_scoped("web", &Scope::Every).unwrap();
         let team = storage
             .pools()
@@ -1034,8 +1040,7 @@ mod refusal_words {
     fn a_pool_is_named_by_its_id_or_its_name_and_a_wrong_name_says_why() {
         use juggler_core::pools::Placement;
         use juggler_core::storage::PoolRole;
-        let dir = tempfile::tempdir().unwrap();
-        let storage = Storage::open(&dir.path().join("j.sqlite")).unwrap();
+        let (_dir, storage) = pool_store();
         let writer = storage
             .pools()
             .create_scoped("Writer and reviewer 2", &Scope::Every)

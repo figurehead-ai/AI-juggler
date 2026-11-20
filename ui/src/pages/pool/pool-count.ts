@@ -29,7 +29,7 @@ export function poolCountWords(members: number, open: number, openElsewhere: num
  * their sessions show as they start; with sessions open but none drawn,
  * the diagram grouped them past {@link GROUP_PAST} (F-rc3g-8: never "No
  * one has joined yet" beside the header's "3 open"). */
-export function rulesOnlyWords(hasRules: boolean, open: number): string {
+function rulesOnlyWords(hasRules: boolean, open: number): string {
   if (open > 0) return `${open} open now, each on its member's card: past ${GROUP_PAST} the diagram groups them. Every one is in the List view.`;
   return hasRules ? "Its sessions show here as they start. Click a member for its role and what it may do." : "None of its sessions is open: they show here as they start, and every one is in the List view.";
 }
@@ -62,7 +62,7 @@ export function heldCountWords(held: readonly HeldMember[]): string | null {
 
 /** Under a canvas that draws none of its sessions because a sealed pool
  * holds them (never a lone "No lead for now" as all it shows). */
-export function heldCanvasWords(held: readonly HeldMember[]): string {
+function heldCanvasWords(held: readonly HeldMember[]): string {
   const by = heldByWords(held) ?? "a sealed pool";
   const who = held.length === 1 ? `${held[0]!.name} is` : `${held.length} of its sessions are`;
   return `${who} in ${by} for now: a sealed pool keeps its sessions to itself. The List view shows ${held.length === 1 ? "it" : "them"}.`;

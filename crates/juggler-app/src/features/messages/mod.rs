@@ -188,6 +188,18 @@ pub(crate) fn roster(state: &Arc<AppState>, pool_id: &str) -> AppResult<Vec<Memb
         .collect())
 }
 
+/// One session's card in a pool's roster, when it's a member.
+pub(crate) fn roster_member(
+    state: &Arc<AppState>,
+    pool_id: &str,
+    session_id: &str,
+) -> Option<Member> {
+    roster(state, pool_id)
+        .ok()?
+        .into_iter()
+        .find(|m| m.session_id == session_id)
+}
+
 /// F-rc3g-11 (the P11 walk): which of a pool's `names` (as `pool_roster`
 /// names its members) `who` names: its name there, case and spacing aside,
 /// else the name namesakes share before they're told apart ("p4-api1" for

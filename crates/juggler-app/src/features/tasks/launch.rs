@@ -264,13 +264,7 @@ pub fn start(
             },
         );
     }
-    let name = crate::features::messages::roster(state, &task.pool_id)
-        .ok()
-        .and_then(|members| {
-            members
-                .into_iter()
-                .find(|m| m.session_id == session.as_str())
-        })
+    let name = crate::features::messages::roster_member(state, &task.pool_id, session.as_str())
         .map_or_else(|| "The new session".to_owned(), |m| m.name);
     let member = format!("session:{}", session.as_str());
     // SK-18: the row names its sessions as the rail does now.
