@@ -7,7 +7,9 @@ exercises = ["New session"]
 needs = ["replica"]
 
 [setup]
-projects = ["web"]
+# Devon's batch (persona D5, "start a batch on api and web") needs both
+# repos (0.4.6's soak: N5 had only web).
+projects = ["web", "api"]
 # History: one usual: Claude Code · Work in web (seeded by the sessions below).
 # Room: the usual is out (cc-work's room_used = 100).
 
