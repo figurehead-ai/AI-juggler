@@ -132,6 +132,7 @@ The bugs 0.4.6's exit RC (rc3h) deferred and the soak's findings, shipped as a 0
 |---|---|
 | Pools and messages: a stable grid order, the project pool reached by its name, the hop limit in "N of 2" words and kept for every member, setup's side panel saying who joins now and later, shortened names, delete and the right panel's scroll; the held message's two presses is a question for the maintainer first (item 7) | AJ-E3014 |
 | Sessions: one row during a hand-over, New session's order steady, the Stop toast naming the session, the switch dialog whole at 1280×800, the wizard rail pressable, the recovery limits, Codex's added messages checked live, usage readings exact (a whole 1 % is 1 %, first) | AJ-E2311 |
+| Claude's turn-end codes read by its adapter, never named in the UI; a session in an external terminal placed by its own process before its conversation is indexed (0.4.6's deferred architecture items, moved from 0.5 by D-138's batch) | AJ-E2025 |
 
 ## 0.5 — More tools and teams
 
