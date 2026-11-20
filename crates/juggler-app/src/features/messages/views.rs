@@ -339,34 +339,7 @@ pub fn deliver(state: &Arc<AppState>, message_id: &str, recipient: &str) -> AppR
             .into_iter()
             .find(|r| r.recipient_ref == recipient && r.recipient_ref != SENDER_USER)
             .ok_or_else(|| AppError::Refused("It wasn't sent to them".to_owned()))?;
-        let session = super::live_session_of(&storage, &row.recipient_ref);
-        if let Some(session) = &session
-            && !super::reachable(state, &storage, session)
-        {
-            return Err(AppError::Refused(
-                "That session runs in a terminal AI Juggler can't type into: it reads its messages on its next turn".to_owned(),
-            ));
-        }
-        repo.reset_hop(&message.thread_id)?;
-        repo.set_state(
-            &[message_id.to_owned()],
-            std::slice::from_ref(&row.recipient_ref),
-            &[RecipientState::Unread, RecipientState::Read],
-            RecipientState::Queued,
-            Some(super::delivery::BY_USER),
-            SENDER_USER,
-            "queued",
-        )?;
-        // Delivering a message a paused chain asked about is that ask's
-        // Deliver once: its card goes and the chain is open again.
-        for ask in repo.open_asks(0, 200)? {
-            if ask.object_ref == message_id
-                && ask.action == juggler_core::agent_access::AgentAction::DeliverToSession.as_str()
-            {
-                repo.close_ask(&ask.id, "once")?;
-                repo.set_thread_state(&message.thread_id, ThreadState::Open, None, SENDER_USER)?;
-            }
-        }
+        let session = queue_for_person(state, &storage, &message, &row.recipient_ref)?;
         (message, session)
     };
     if let Some(session) = session {
@@ -374,6 +347,55 @@ pub fn deliver(state: &Arc<AppState>, message_id: &str, recipient: &str) -> AppR
     }
     state.messages.notify(&message.pool_id);
     thread(state, &message.thread_id, None)
+}
+
+/// The person's click puts `message` into `recipient`'s session: queued
+/// for its next turn boundary (a member not running: its next session's;
+/// a desktop member: woken through its connector). A person's click: the
+/// thread's hops go back to 0, and a paused chain's ask about it is
+/// answered (its card goes, the chain is open again). The session to
+/// kick, when one runs. The caller kicks it once the store is unlocked.
+///
+/// # Errors
+///
+/// [`AppError::Refused`] for a session in a terminal AI Juggler can't
+/// type into; storage failures.
+pub(crate) fn queue_for_person(
+    state: &Arc<AppState>,
+    storage: &Storage,
+    message: &Message,
+    recipient: &str,
+) -> AppResult<Option<SessionId>> {
+    let repo = storage.messages();
+    let session = super::live_session_of(storage, recipient);
+    if let Some(session) = &session
+        && !super::reachable(state, storage, session)
+    {
+        return Err(AppError::Refused(
+            "That session runs in a terminal AI Juggler can't type into: it reads its messages on its next turn".to_owned(),
+        ));
+    }
+    repo.reset_hop(&message.thread_id)?;
+    repo.set_state(
+        std::slice::from_ref(&message.id),
+        &[recipient.to_owned()],
+        &[RecipientState::Unread, RecipientState::Read],
+        RecipientState::Queued,
+        Some(super::delivery::BY_USER),
+        SENDER_USER,
+        "queued",
+    )?;
+    // Delivering a message a paused chain asked about is that ask's
+    // Deliver once: its card goes and the chain is open again.
+    for ask in repo.open_asks(0, 200)? {
+        if ask.object_ref == message.id
+            && ask.action == juggler_core::agent_access::AgentAction::DeliverToSession.as_str()
+        {
+            repo.close_ask(&ask.id, "once")?;
+            repo.set_thread_state(&message.thread_id, ThreadState::Open, None, SENDER_USER)?;
+        }
+    }
+    Ok(session)
 }
 
 /// The user's Deliver for every message waiting for a session run in AI

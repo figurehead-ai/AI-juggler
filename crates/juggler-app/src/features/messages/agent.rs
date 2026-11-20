@@ -178,7 +178,7 @@ fn send_message(
         return Err(refuse(
             Refusal::Ask,
             format!(
-                "Sending messages isn't within what the pool «{}» lets agents do, so this one ({}) is held for the user's OK in AI Juggler. It goes out if they allow it.",
+                "Sending messages isn't within what the pool «{}» lets agents do, so this one ({}) is held for the user's OK in AI Juggler. If they allow it, it goes out: into its recipient's session at once, or to its inbox for its next turn, as they choose.",
                 caller.pool_name, sent.message.id
             ),
         ));

@@ -6,7 +6,8 @@
  * name, its state the dot. What waits on you about it is its one mark,
  * its amber word in place of its state ("Asks you", "Limit reached",
  * "Paused"; "+1" when more wait), which you press to answer in place (an
- * agent's ask: Allow once, Always allow here, Deny; a paused line: Let it
+ * agent's ask: a held message's Allow and deliver, Allow, deliver later,
+ * Always allow here, Deny (D-139), a task's Allow once; a paused line: Let it
  * continue, Don't deliver), the full card's answers in a small panel
  * beside it (the rc3 critique: calm, no badge on its corner).
  *

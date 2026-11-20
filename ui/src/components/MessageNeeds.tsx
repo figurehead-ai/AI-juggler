@@ -3,9 +3,10 @@
  * Needs you:
  * - an agent's message above its pool's level, and a chain that reached
  *   the hop limit, as the same approval cards as a tool's asks (E23: the
- *   batch, keys 1–9, Enter for the first); the choices are the pool's
- *   (Allow once, Always allow in this pool from the second time, Deny),
- *   and a rule never lifts the hop limit;
+ *   batch, keys 1–9, Enter for the first); a held message's choices are
+ *   `heldChoices` (D-139: Allow and deliver, one press; Allow, deliver
+ *   later; Always allow in this pool from the second time; Deny), and a
+ *   rule never lifts the hop limit (Deliver, Don't deliver);
  * - an agent's question to you (Reply), messages waiting for a session run
  *   in AI Juggler (Deliver, one click for all of them), and a paused pool
  *   or thread (Resume), one row each.
@@ -24,6 +25,7 @@ import {
   type MessageNeedInfo,
 } from "../lib/ipc/messages";
 import type { AskInfo } from "../lib/ipc/runtime";
+import { heldChoices, type HeldAnswer } from "../pages/messages/words";
 
 /** A held ask as the approval card shows it. */
 function asAsk(need: MessageNeedInfo): AskInfo {
@@ -33,11 +35,7 @@ function asAsk(need: MessageNeedInfo): AskInfo {
         { id: "once", label: "Deliver", effect: "allow_once", rule: null },
         { id: "deny", label: "Don't deliver", effect: "deny", rule: null },
       ]
-    : [
-        { id: "once", label: "Allow once", effect: "allow_once", rule: null },
-        ...(need.offer_always ? [{ id: "always", label: "Always allow in this pool", effect: "allow_rule", rule: null }] : []),
-        { id: "deny", label: "Deny", effect: "deny", rule: null },
-      ];
+    : heldChoices(need).map(({ id, label }) => ({ id, label, effect: EFFECT[id], rule: null }));
   return {
     id: need.ask_id ?? need.key,
     session_id: "",
@@ -50,6 +48,9 @@ function asAsk(need: MessageNeedInfo): AskInfo {
     asked_at_ms: need.at_ms,
   };
 }
+
+/** How the approval card styles each held answer. */
+const EFFECT: Record<HeldAnswer, string> = { deliver: "allow_once", once: "allow_once", always: "allow_rule", deny: "deny" };
 
 const PRIMARY: Record<string, string> = {
   question: "Reply",
@@ -91,7 +92,7 @@ export function MessageNeeds({ needs }: { needs: MessageNeedInfo[] }): JSX.Eleme
           ask={asAsk(need)}
           kindLabel={need.kind === "deliver" ? "A chain of replies paused for you" : "An agent asks to send"}
           title={need.pool_name}
-          answer={(option) => messagesAnswer(need.ask_id ?? "", option as "once" | "always" | "deny")}
+          answer={(option) => messagesAnswer(need.ask_id ?? "", option as HeldAnswer)}
         />
       ))}
       {rest.length > 0 && (

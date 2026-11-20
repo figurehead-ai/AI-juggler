@@ -352,7 +352,8 @@ messages** or **reads messages on its next turn**; a Codex app thread
 Anything above that becomes a question for you in Needs you (the list of
 things waiting for your OK, on Home), never a block: **Allow once**,
 **Always allow in this pool** (offered the second time you allow the same
-thing) or **Deny**. Every "always allow" is listed under the pool's
+thing) or **Deny**; a held message's yes can also deliver it (see
+[What waits on you](#what-waits-on-you)). Every "always allow" is listed under the pool's
 **Allowed without asking** and in **Settings › Agent access › Rules you
 made**, and **Take back** ends it from the next request.
 
@@ -402,9 +403,15 @@ it has any.
 
 Home's **Needs you** shows, beside your sessions' questions:
 
-- an agent's message above what its pool lets agents do, held until you
-  answer: **Allow once**, **Always allow in this pool** (from the second
-  time) or **Deny**. Keys 1–9 pick an answer, Enter the first;
+- an agent's message held for your OK (above what its pool lets agents
+  do, or between members that ask you first), until you answer: **Allow
+  and deliver** puts it into its recipient's session at once, in one
+  press; **Allow, deliver later** leaves it in its inbox for its next
+  turn; **Always allow in this pool** (from the second time); or
+  **Deny**. Where it can't go into a session now (a terminal AI Juggler
+  can't type into), **Allow once** stands for the first two. The same
+  answers are on the message in its thread and on the pool's diagram.
+  Keys 1–9 pick an answer, Enter the first;
 - a chain that reached the hop limit: **Deliver** sends that message and
   starts the count again; **Don't deliver** ends the chain there: the
   message isn't sent and the thread stops (its **Resume** opens it again

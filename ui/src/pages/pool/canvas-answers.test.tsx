@@ -1,7 +1,8 @@
 /**
  * AJ-E2808 R1, R5, R8 (vitest): the pool canvas's answers and moves.
  *
- * - An agent's ask on its node: Always allow here and Deny answer it.
+ * - An agent's ask on its node: Always allow here and Deny answer it; a
+ *   held message it can put into a session: Allow and deliver (D-139).
  * - Tidy up lays the pool out again, and Undo puts every node back.
  * - The pool's inspector says when a change of what agents may do applies.
  * - An edge's line says whether something waits on it (dashed) and its
@@ -14,6 +15,7 @@ import { act, cleanup, fireEvent, render, waitFor, within } from "@testing-libra
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { poolCanvasPlace } from "../../lib/ipc/pool-canvas";
+import type { MessagesSeed } from "../../lib/ipc/messages";
 import { asElement } from "../../test/fixtures";
 import { defaultPoolIdOf } from "../../lib/pools";
 import { CanvasEdges, edgeWords, ownLineRules } from "./CanvasEdges";
@@ -35,6 +37,21 @@ describe("an agent's ask on its node", () => {
     const asker = asElement(view.container.querySelector(`[data-node="${second.id}"]`));
     fireEvent.click(await within(asker).findByTestId(testId));
     await waitFor(() => expect(seams().__AIJ_MESSAGES_CALLS__).toContain(`answer:ask-1:${answer}`));
+  });
+
+  // D-139: a held message it can put into a session: one press approves
+  // and delivers it; the second choice leaves it for its next turn.
+  it("a held message's first answer is Allow and deliver", async () => {
+    seedTeam();
+    const seed = seams().__AIJ_MESSAGES__ as MessagesSeed;
+    seed.needs = (seed.needs ?? []).map((need) => ({ ...need, delivers_now: true }));
+    const view = await openPage();
+    const asker = asElement(view.container.querySelector(`[data-node="${second.id}"]`));
+    const deliver = await within(asker).findByTestId("node-ask-deliver");
+    expect(deliver.textContent).toBe("Allow and deliver");
+    expect(within(asker).getByTestId("node-ask-once").textContent).toBe("Allow, deliver later");
+    fireEvent.click(deliver);
+    await waitFor(() => expect(seams().__AIJ_MESSAGES_CALLS__).toContain("answer:ask-1:deliver"));
   });
 
   it("offers Always allow here only when the ask allows it", async () => {

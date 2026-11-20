@@ -458,6 +458,11 @@ fn a_pools_talk_rules_hold_or_refuse_an_agents_message_d62() {
         "a talk rule is the pool's, never an always"
     );
     assert!(ask.detail.contains("asks you first"), "{}", ask.detail);
+    assert_eq!(
+        ask.delivers_now,
+        Some(false),
+        "a terminal AI Juggler can't type into: no Allow and deliver (D-127)"
+    );
     assert!(needs::answer(&lab.state, ask.ask_id.as_deref().unwrap(), "always").is_err());
     needs::answer(&lab.state, ask.ask_id.as_deref().unwrap(), "once").unwrap();
     assert_eq!(
@@ -490,6 +495,48 @@ fn a_pools_talk_rules_hold_or_refuse_an_agents_message_d62() {
         field(&sent, "/to/0/gets_it"),
         "when the user delivers it (this pool asks first)"
     );
+}
+
+/// D-139: one press approves and delivers a held message. In a pool at
+/// Work together whose members ask first, "Allow and deliver" puts it into
+/// a driven recipient's session at once; "Allow, deliver later" leaves it
+/// in its inbox for its next turn. Before, the approval was "Allow once",
+/// then a second press, Deliver.
+#[test]
+fn allow_and_deliver_puts_a_held_message_into_its_session_in_one_press() {
+    let lab = Lab::new();
+    let (_a, a) = lab.agent("s-a", "Alpha");
+    let (builder, _b) = lab.driven("Builder");
+    pools::model::set_talk_impl(
+        &lab.state,
+        &lab.pool,
+        "role:member",
+        "role:member",
+        Some("ask"),
+    )
+    .unwrap();
+    let held = |message: &str| {
+        needs::needs(&lab.state)
+            .unwrap()
+            .into_iter()
+            .find(|n| n.kind == "ask" && n.message_id.as_deref() == Some(message))
+            .expect("the held message in Needs you")
+    };
+    let first = field(&lab.say(&a, &builder, "Start on the API", None), "/message");
+    let card = held(&first);
+    assert_eq!(card.delivers_now, Some(true), "a session it can go into");
+    needs::answer(&lab.state, card.ask_id.as_deref().unwrap(), "deliver").unwrap();
+    wait_for("its delivery, at one press", || {
+        state_for(&lab, &first) == ["delivered"]
+    });
+    wait_for("its turn to end", || {
+        delivery::between_turns(&lab.state, &builder)
+    });
+
+    let second = field(&lab.say(&a, &builder, "And the docs", None), "/message");
+    needs::answer(&lab.state, held(&second).ask_id.as_deref().unwrap(), "once").unwrap();
+    std::thread::sleep(Duration::from_millis(300));
+    assert_eq!(state_for(&lab, &second), ["unread"], "left in its inbox");
 }
 
 #[test]
