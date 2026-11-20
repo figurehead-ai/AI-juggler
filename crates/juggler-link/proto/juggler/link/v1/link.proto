@@ -326,6 +326,11 @@ message SwitchBack {
   string divergence_choice = 7;
   string from_provider_id = 8;
   string from_account_label = 9;
+  // AJ-E2311 item 6: the name the person gave the work on the console
+  // ("" for none: the original's own stays), and whether they pinned it
+  // there. An older console sends neither.
+  string from_session_label = 10;
+  bool from_session_pinned = 11;
 }
 
 message HandoverPart {

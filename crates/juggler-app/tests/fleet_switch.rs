@@ -1355,3 +1355,31 @@ fn a_named_pinned_session_keeps_its_name_and_pin_on_the_other_mac_and_back() {
     assert_eq!(name.as_deref(), Some("checkout flow"), "back on the laptop");
     assert!(pinned.is_some(), "back on the laptop: still pinned");
 }
+
+/// AJ-E2311 item 6 (rc3h item 13): a session renamed on the other Mac came
+/// back under the original's name. It comes back under the one the person
+/// gave it there.
+#[test]
+fn work_renamed_on_the_other_mac_comes_back_under_that_name() {
+    let pair = setup_both("2.1.0", true, Permission::Control, Permission::Control);
+    juggler_app::manage::session_rename_impl(&pair.laptop, &pair.source, Some("checkout flow"))
+        .unwrap();
+    let away = switched_and_worked(&pair);
+    juggler_app::manage::session_rename_impl(&pair.desktop, &away, Some("checkout and refunds"))
+        .unwrap();
+    let _ = back_plan(&pair, &away);
+    let outcome = switch_back(&pair, &away, "");
+    assert!(outcome.accepted, "{outcome:?}");
+    let back = outcome.instance_id.unwrap();
+    let name = pair
+        .laptop
+        .storage
+        .lock()
+        .unwrap()
+        .sessions()
+        .marks()
+        .unwrap()
+        .remove(back.as_str())
+        .and_then(|(name, _)| name);
+    assert_eq!(name.as_deref(), Some("checkout and refunds"));
+}
