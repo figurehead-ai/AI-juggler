@@ -54,6 +54,7 @@ export function leftWords(left: number, toolsLeft: boolean): string {
  * cards' kinds, the lead's line and everyone's are pool-words'). */
 export const PLANNED = {
   title: "Your team is drawn. No one has joined yet.",
+  titleNoneOpen: "Your team is drawn. None of its sessions is open.",
   line: (where: string) => `Sessions show up here as they start in ${where}. Click a card to see what it may do.`,
   leadBody: "No session yet. Start one and it takes the lead.",
   appBody: (where: string) => `Its sessions in ${where} join as they start.`,

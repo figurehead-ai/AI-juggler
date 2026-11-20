@@ -103,10 +103,14 @@ export function usePoolSetup(input: {
 }
 
 /** D-126 §3: the diagram draws the planned team before any session joins:
- * none in the pool (F-rc3g-8: not just none drawn, "No one has joined
- * yet" beside "3 open · 88 in all"), none drawn, a broad member to draw. */
-export function drawsPlanned(pool: Pick<PoolInfo, "members">, drawn: number, broad: number): boolean {
-  return pool.members === 0 && drawn === 0 && broad > 0;
+ * none drawn, a broad member to draw, and none in the pool or none of its
+ * sessions open (F-rc3g-8: never beside "3 open · 88 in all", whose open
+ * ones the diagram groups). SK-3: a new pool whose everyone member took in
+ * its project's ended sessions drew its members as a column at the
+ * canvas's right edge, the rest of it empty; with nothing open it draws
+ * them as its team, centred. */
+export function drawsPlanned(pool: Pick<PoolInfo, "members">, drawn: number, broad: number, open = 0): boolean {
+  return (pool.members === 0 || open === 0) && drawn === 0 && broad > 0;
 }
 
 /** The member rules the diagram draws as cards: a project's own pool

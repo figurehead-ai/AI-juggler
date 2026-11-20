@@ -229,7 +229,7 @@ function PoolCanvasPage({ poolId, sessions, projects, accounts, now, rules }: Pa
   const { where } = setup;
   // D-126 §3: before any session joins, the canvas draws the planned team.
   const broad = drawnRules(pool, memberRules).filter((rule) => rule.kind !== "session" && !rule.member.startsWith("conversation:"));
-  const planned = drawsPlanned(pool, data.members.length + desktop.refs.length, broad.length);
+  const planned = drawsPlanned(pool, data.members.length + desktop.refs.length, broad.length, openHere.length);
   // D-126 §3: setting up (its checklist, the planned team) until a session
   // has joined and the setup is done, or Hide setup; then the calm view.
   const progress = useSetupProgress({ pool, rows: setup.rows, places: setup.tools, rules, ruleLabel });
@@ -301,7 +301,7 @@ function PoolCanvasPage({ poolId, sessions, projects, accounts, now, rules }: Pa
               lineRules={lineRules}
               overlay={(placeOf, view) =>
                 planned ? (
-                  <PlannedTeam poolId={pool.id} rules={broad} labelOf={ruleLabel} logos={logos} leadNext={setup.leadNext?.ref ?? null} noLead={setup.leadCard} where={where} view={view} selection={selection} onSelect={(next) => select(next, true)} onStartLead={(member) => startNextLead(member, setup.leadDir)} talk={rules.rules?.talk} />
+                  <PlannedTeam poolId={pool.id} joined={pool.members} rules={broad} labelOf={ruleLabel} logos={logos} leadNext={setup.leadNext?.ref ?? null} noLead={setup.leadCard} where={where} view={view} selection={selection} onSelect={(next) => select(next, true)} onStartLead={(member) => startNextLead(member, setup.leadDir)} talk={rules.rules?.talk} />
                 ) : (
                 <RuleNodes
                   rules={drawnRules(pool, memberRules)}
